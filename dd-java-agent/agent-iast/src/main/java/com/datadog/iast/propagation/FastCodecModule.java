@@ -31,8 +31,8 @@ public class FastCodecModule extends BaseCodecModule {
 
   @Override
   protected Range[] getBytesRanges(
-      @Nonnull final String value,
-      @Nullable final String charset,
+      @Nonnull final CharSequence value,
+      @Nullable final CharSequence charset,
       @Nonnull final byte[] result,
       @Nonnull final Range[] ranges) {
     final Range range = highestPriorityRange(ranges);

@@ -41,7 +41,9 @@ public class StringModuleImpl implements StringModule {
 
   @Override
   public void onStringConcat(
-      @Nonnull final String left, @Nullable final String right, @Nonnull final String result) {
+      @Nonnull final CharSequence left,
+      @Nullable final CharSequence right,
+      @Nonnull final CharSequence result) {
     if (!canBeTainted(result)) {
       return;
     }
@@ -71,9 +73,8 @@ public class StringModuleImpl implements StringModule {
   }
 
   @Override
-  public void onStringBuilderInit(
-      @Nonnull final CharSequence builder, @Nullable final CharSequence param) {
-    if (!canBeTainted(param)) {
+  public void onStringAppend(@Nonnull final CharSequence self, @Nullable final CharSequence param) {
+    if (!canBeTainted(self) || !canBeTainted(param)) {
       return;
     }
     final IastRequestContext ctx = IastRequestContext.get();
@@ -85,31 +86,13 @@ public class StringModuleImpl implements StringModule {
     if (paramTainted == null) {
       return;
     }
-    taintedObjects.taint(builder, paramTainted.getRanges());
-  }
-
-  @Override
-  public void onStringBuilderAppend(
-      @Nonnull final CharSequence builder, @Nullable final CharSequence param) {
-    if (!canBeTainted(builder) || !canBeTainted(param)) {
-      return;
-    }
-    final IastRequestContext ctx = IastRequestContext.get();
-    if (ctx == null) {
-      return;
-    }
-    final TaintedObjects taintedObjects = ctx.getTaintedObjects();
-    final TaintedObject paramTainted = taintedObjects.get(param);
-    if (paramTainted == null) {
-      return;
-    }
-    final TaintedObject builderTainted = taintedObjects.get(builder);
-    final int shift = builder.length() - param.length();
+    final TaintedObject builderTainted = taintedObjects.get(self);
+    final int shift = self.length() - param.length();
     if (builderTainted == null) {
       final Range[] paramRanges = paramTainted.getRanges();
       final Range[] ranges = new Range[paramRanges.length];
       Ranges.copyShift(paramRanges, ranges, 0, shift);
-      taintedObjects.taint(builder, ranges);
+      taintedObjects.taint(self, ranges);
     } else {
       final Range[] builderRanges = builderTainted.getRanges();
       final Range[] paramRanges = paramTainted.getRanges();
@@ -119,9 +102,9 @@ public class StringModuleImpl implements StringModule {
   }
 
   @Override
-  public void onStringBuilderToString(
-      @Nonnull final CharSequence builder, @Nonnull final String result) {
-    if (!canBeTainted(builder) || !canBeTainted(result)) {
+  public void onStringToString(
+      @Nonnull final CharSequence self, @Nonnull final CharSequence result) {
+    if (self == result || !canBeTainted(self) || !canBeTainted(result)) {
       return;
     }
     final IastRequestContext ctx = IastRequestContext.get();
@@ -129,7 +112,7 @@ public class StringModuleImpl implements StringModule {
       return;
     }
     final TaintedObjects taintedObjects = ctx.getTaintedObjects();
-    final TaintedObject to = taintedObjects.get(builder);
+    final TaintedObject to = taintedObjects.get(self);
     if (to == null) {
       return;
     }
@@ -187,7 +170,7 @@ public class StringModuleImpl implements StringModule {
   @Override
   @SuppressFBWarnings("ES_COMPARING_PARAMETER_STRING_WITH_EQ")
   public void onStringSubSequence(
-      @Nonnull String self, int beginIndex, int endIndex, @Nullable CharSequence result) {
+      @Nonnull CharSequence self, int beginIndex, int endIndex, @Nullable CharSequence result) {
     if (self == result || !canBeTainted(result)) {
       return;
     }
@@ -212,7 +195,9 @@ public class StringModuleImpl implements StringModule {
 
   @Override
   public void onStringJoin(
-      @Nullable String result, @Nonnull CharSequence delimiter, @Nonnull CharSequence... elements) {
+      @Nullable CharSequence result,
+      @Nonnull CharSequence delimiter,
+      @Nonnull CharSequence... elements) {
     if (!canBeTainted(result)) {
       return;
     }
@@ -251,7 +236,7 @@ public class StringModuleImpl implements StringModule {
 
   @Override
   @SuppressFBWarnings("ES_COMPARING_PARAMETER_STRING_WITH_EQ")
-  public void onStringRepeat(String self, int count, String result) {
+  public void onStringRepeat(@Nonnull CharSequence self, int count, @Nonnull CharSequence result) {
     if (!canBeTainted(self) || !canBeTainted(result) || self == result) {
       return;
     }
@@ -276,17 +261,17 @@ public class StringModuleImpl implements StringModule {
   }
 
   @Override
-  public void onStringToUpperCase(@Nonnull String self, @Nullable String result) {
+  public void onStringToUpperCase(@Nonnull CharSequence self, @Nullable CharSequence result) {
     onStringCaseChanged(self, result);
   }
 
   @Override
-  public void onStringToLowerCase(@Nonnull String self, @Nullable String result) {
+  public void onStringToLowerCase(@Nonnull CharSequence self, @Nullable CharSequence result) {
     onStringCaseChanged(self, result);
   }
 
   @SuppressFBWarnings
-  public void onStringCaseChanged(@Nonnull String self, @Nullable String result) {
+  private void onStringCaseChanged(@Nonnull CharSequence self, @Nullable CharSequence result) {
     if (!canBeTainted(result)) {
       return;
     }
@@ -319,7 +304,7 @@ public class StringModuleImpl implements StringModule {
   }
 
   private void stringCaseChangedWithReducedSize(
-      final Range[] rangesSelf, final TaintedObjects taintedObjects, @Nonnull String result) {
+      final Range[] rangesSelf, final TaintedObjects taintedObjects, @Nonnull CharSequence result) {
     int skippedRanges = 0;
     Range adjustedRange = null;
     for (int i = rangesSelf.length - 1; i >= 0; i--) {
@@ -380,8 +365,7 @@ public class StringModuleImpl implements StringModule {
   }
 
   @Override
-  @SuppressFBWarnings
-  public void onStringTrim(@Nonnull final String self, @Nullable final String result) {
+  public void onStringTrim(@Nonnull final CharSequence self, @Nullable final CharSequence result) {
     if (!canBeTainted(result)) {
       return;
     }
@@ -418,8 +402,8 @@ public class StringModuleImpl implements StringModule {
   }
 
   @Override
-  public void onStringConstructor(@Nonnull String self, @Nonnull String result) {
-    if (!canBeTainted(self)) {
+  public void onStringConstructor(@Nonnull CharSequence self, @Nonnull CharSequence result) {
+    if (!canBeTainted(result)) {
       return;
     }
     final IastRequestContext ctx = IastRequestContext.get();
@@ -436,16 +420,18 @@ public class StringModuleImpl implements StringModule {
 
   @Override
   public void onStringFormat(
-      @Nonnull final String format, @Nonnull final Object[] params, @Nonnull final String result) {
+      @Nonnull final CharSequence format,
+      @Nonnull final Object[] params,
+      @Nonnull final CharSequence result) {
     onStringFormat(null, format, params, result);
   }
 
   @Override
   public void onStringFormat(
       @Nullable final Locale locale,
-      @Nonnull final String format,
+      @Nonnull final CharSequence format,
       @Nonnull final Object[] parameters,
-      @Nonnull final String result) {
+      @Nonnull final CharSequence result) {
     if (!canBeTainted(result)) {
       return;
     }
@@ -496,6 +482,43 @@ public class StringModuleImpl implements StringModule {
     }
     addFormatTaintedRanges(
         END, offset, formatRanges, finalRanges); // add remaining ranges from the format
+    if (!finalRanges.isEmpty()) {
+      to.taint(result, finalRanges.toArray(new Range[0]));
+    }
+  }
+
+  @Override
+  public void onStringFormat(
+      @Nonnull final String[] literals,
+      @Nonnull final Object[] params,
+      @Nonnull final CharSequence result) {
+    if (!canBeTainted(result)) {
+      return;
+    }
+    final IastRequestContext ctx = IastRequestContext.get();
+    if (ctx == null) {
+      return;
+    }
+    final TaintedObjects to = ctx.getTaintedObjects();
+    final Ranges.RangesProvider<Object> paramRangesProvider = rangesProviderFor(to, params);
+    if (paramRangesProvider.rangeCount() == 0) {
+      return;
+    }
+    // since we might join ranges the final number is unknown beforehand
+    final List<Range> finalRanges = new LinkedList<>();
+    int offset = 0, paramIndex = 0;
+    final int maxLiteral = literals.length - 1; // skip any params after the last literal
+    for (int i = 0; i < maxLiteral; i++) {
+      final String literal = literals[i];
+      offset += literal.length();
+      if (paramIndex < params.length) {
+        final Object parameter = params[paramIndex++];
+        final Range[] parameterRanges = paramRangesProvider.ranges(parameter);
+        final String formatted = String.valueOf(parameter);
+        addParameterTaintedRanges(null, parameter, formatted, offset, parameterRanges, finalRanges);
+        offset += formatted.length();
+      }
+    }
     if (!finalRanges.isEmpty()) {
       to.taint(result, finalRanges.toArray(new Range[0]));
     }

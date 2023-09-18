@@ -5,17 +5,23 @@ import java.lang.reflect.Method
 class CallSiteAssert {
 
   protected Collection<Class<?>> interfaces
-  protected Collection<Class<?>> helpers
+  protected Collection<String> helpers
   protected Collection<AdviceAssert> advices
   protected Method enabled
   protected Collection<String> enabledArgs
 
   void interfaces(Class<?>... values) {
-    assert values.toList() == interfaces
+    final list = values.toList()
+    assert interfaces == list
   }
 
   void helpers(Class<?>... values) {
-    assert values.toList() == helpers
+    helpers(values*.name as String[])
+  }
+
+  void helpers(String... values) {
+    final list = values.toList()
+    assert helpers == list
   }
 
   void advices(int index, @DelegatesTo(AdviceAssert) Closure closure) {
@@ -26,6 +32,7 @@ class CallSiteAssert {
 
   void enabled(Method method, String... args) {
     assert method == enabled
-    assert args.toList() == enabledArgs
+    final list = args.toList()
+    assert list == enabledArgs
   }
 }

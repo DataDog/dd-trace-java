@@ -19,6 +19,7 @@ dependencies {
 
   testFixturesApi project(':dd-java-agent:testing')
   testFixturesApi project(':utils:test-utils')
+  testFixturesImplementation(group: 'de.thetaphi', name: 'forbiddenapis', version: '3.4')
   testImplementation deps.bytebuddy
   testImplementation('org.skyscreamer:jsonassert:1.5.1')
   testImplementation('org.codehaus.groovy:groovy-yaml:3.0.17')

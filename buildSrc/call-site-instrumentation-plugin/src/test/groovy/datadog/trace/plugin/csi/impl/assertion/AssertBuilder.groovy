@@ -57,15 +57,13 @@ class AssertBuilder<C extends CallSiteAssert> {
     return [enabled, enabledArgs]
   }
 
-  protected List<Class<?>> getHelpers(final ClassOrInterfaceDeclaration type) {
+  protected List<String> getHelpers(final ClassOrInterfaceDeclaration type) {
     final acceptMethod = type.getMethodsByName('accept').first()
-    final methodCalls = getMethodCalls(acceptMethod)
-    return methodCalls.findAll {
+    final methodCalls = getMethodCalls(acceptMethod).findAll {
       it.nameAsString == 'addHelpers'
-    }.collectMany {
-      it.arguments
-    }.collect {
-      typeResolver().resolveType(classNameToType(it.asStringLiteralExpr().asString()))
+    }
+    return methodCalls.collectMany { it.arguments }.collect {
+      it.asStringLiteralExpr().asString()
     }
   }
 
@@ -76,12 +74,12 @@ class AssertBuilder<C extends CallSiteAssert> {
     }.collect {
       def (owner, method, descriptor) =  it.arguments.subList(0, 3)*.asStringLiteralExpr()*.asString()
       final handlerLambda = it.arguments[3].asLambdaExpr()
-      final advice = handlerLambda.body.asBlockStmt().statements*.toString()
+      final advice = handlerLambda.body.asBlockStmt().statements
       return new AdviceAssert([
         owner     : owner,
         method    : method,
         descriptor: descriptor,
-        statements: advice
+        statements: new StatementsAssert(statements: advice)
       ])
     }
   }

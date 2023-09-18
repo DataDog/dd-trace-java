@@ -16,6 +16,7 @@ public final class IastConfig {
   public static final String IAST_REDACTION_ENABLED = "iast.redaction.enabled";
   public static final String IAST_REDACTION_NAME_PATTERN = "iast.redaction.name.pattern";
   public static final String IAST_REDACTION_VALUE_PATTERN = "iast.redaction.value.pattern";
+  public static final String IAST_GROOVY_INDY_ENABLED = "iast.groovy.indy.enabled";
 
   private IastConfig() {}
 }

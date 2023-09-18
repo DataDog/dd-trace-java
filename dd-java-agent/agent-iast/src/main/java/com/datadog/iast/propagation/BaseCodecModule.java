@@ -35,7 +35,9 @@ public abstract class BaseCodecModule implements CodecModule {
 
   @Override
   public void onStringGetBytes(
-      @Nonnull final String value, @Nullable final String charset, @Nonnull final byte[] result) {
+      @Nonnull final CharSequence value,
+      @Nullable final CharSequence charset,
+      @Nonnull final byte[] result) {
     if (result == null || result.length == 0) {
       return;
     }
@@ -98,8 +100,8 @@ public abstract class BaseCodecModule implements CodecModule {
       @Nonnull final Range[] ranges);
 
   protected abstract Range[] getBytesRanges(
-      final @Nonnull String value,
-      final @Nullable String charset,
+      final @Nonnull CharSequence value,
+      final @Nullable CharSequence charset,
       @Nonnull final byte[] result,
       @Nonnull final Range[] ranges);
 

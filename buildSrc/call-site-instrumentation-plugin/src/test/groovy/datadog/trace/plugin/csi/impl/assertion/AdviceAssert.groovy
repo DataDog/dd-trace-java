@@ -4,7 +4,7 @@ class AdviceAssert {
   protected String owner
   protected String method
   protected String descriptor
-  protected Collection<String> statements
+  protected StatementsAssert statements
 
   void pointcut(String owner, String method, String descriptor) {
     assert owner == this.owner
@@ -12,7 +12,12 @@ class AdviceAssert {
     assert descriptor == this.descriptor
   }
 
-  void statements(String... values) {
-    assert values.toList() == statements
+  void statements(String ...statements) {
+    this.statements.asString(statements)
+  }
+
+  void statements(@DelegatesTo(StatementsAssert) Closure closure) {
+    closure.delegate = statements
+    closure(statements)
   }
 }

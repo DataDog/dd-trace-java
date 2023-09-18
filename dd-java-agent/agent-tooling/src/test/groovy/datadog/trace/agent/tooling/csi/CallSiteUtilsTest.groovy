@@ -240,6 +240,32 @@ class CallSiteUtilsTest extends DDSpecification {
     ] | items.subList(2, items.size())
   }
 
+  void 'test dup for #items as array'() {
+    setup:
+    final stack = buildStack(items)
+    final visitor = mockMethodVisitor(stack)
+
+    when:
+    CallSiteUtils.dup(visitor, items.collect { it.type } as Type[], AS_ARRAY)
+
+    then: 'the stack has only one element that is an array of the previous stack items'
+    final result = fromStack(stack)
+    result.size() == 1
+    final list = (result.first().value as List<StackObject>)*.value
+    list == expected
+
+    where:
+    items                                                                         | expected
+    [forInt(1)]                                                                   | items.collect { it.value }
+    [forInt(1), forInt(2)]                                                        | items.collect { it.value }
+    [forLong(1L)]                                                                 | items.collect { it.value }
+    [forLong(1L), forLong(2L)]                                                    | items.collect { it.value }
+    [forInt(1), forLong(2L)]                                                      | items.collect { it.value }
+    [forInt(1), forInt(2), forLong(3L)]                                           | items.collect { it.value }
+    [forInt(1), forInt(2), forInt(3), forLong(4L)]                                | items.collect { it.value }
+    [forObject('PI = '), forDouble(3.14D), forChar((char) '?'), forBoolean(true)] | items.collect { it.value }
+  }
+
   private MethodVisitor mockMethodVisitor(final List<StackObject> stack) {
     return Mock(MethodVisitor) {
       visitInsn(Opcodes.DUP) >> { handleDUP(stack) }

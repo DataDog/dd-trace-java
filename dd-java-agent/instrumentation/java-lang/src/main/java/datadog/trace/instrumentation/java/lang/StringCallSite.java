@@ -22,8 +22,8 @@ public class StringCallSite {
   @CallSite.After("java.lang.String java.lang.String.concat(java.lang.String)")
   @Nonnull
   public static String afterConcat(
-      @CallSite.This @Nonnull final String self,
-      @CallSite.Argument @Nullable final String param,
+      @CallSite.This @Nonnull final CharSequence self,
+      @CallSite.Argument @Nullable final CharSequence param,
       @CallSite.Return @Nonnull final String result) {
     final StringModule module = InstrumentationBridge.STRING;
     if (module != null) {
@@ -38,7 +38,7 @@ public class StringCallSite {
 
   @CallSite.After("java.lang.String java.lang.String.substring(int)")
   public static String afterSubstring(
-      @CallSite.This final String self,
+      @CallSite.This final CharSequence self,
       @CallSite.Argument final int beginIndex,
       @CallSite.Return final String result) {
     final StringModule module = InstrumentationBridge.STRING;
@@ -54,7 +54,7 @@ public class StringCallSite {
 
   @CallSite.After("java.lang.String java.lang.String.substring(int, int)")
   public static String afterSubstring(
-      @CallSite.This final String self,
+      @CallSite.This final CharSequence self,
       @CallSite.Argument final int beginIndex,
       @CallSite.Argument final int endIndex,
       @CallSite.Return final String result) {
@@ -70,8 +70,9 @@ public class StringCallSite {
   }
 
   @CallSite.After("java.lang.CharSequence java.lang.String.subSequence(int, int)")
+  @CallSite.After("java.lang.CharSequence java.lang.CharSequence.subSequence(int, int)")
   public static CharSequence afterSubSequence(
-      @CallSite.This final String self,
+      @CallSite.This final CharSequence self,
       @CallSite.Argument final int beginIndex,
       @CallSite.Argument final int endIndex,
       @CallSite.Return final CharSequence result) {
@@ -131,7 +132,7 @@ public class StringCallSite {
 
   @CallSite.After("java.lang.String java.lang.String.toUpperCase()")
   public static String afterToUpperCase(
-      @CallSite.This final String self, @CallSite.Return final String result) {
+      @CallSite.This final CharSequence self, @CallSite.Return final String result) {
     final StringModule module = InstrumentationBridge.STRING;
     if (module != null) {
       try {
@@ -145,7 +146,7 @@ public class StringCallSite {
 
   @CallSite.After("java.lang.String java.lang.String.toUpperCase(java.util.Locale)")
   public static String afterToUpperCase(
-      @CallSite.This final String self,
+      @CallSite.This final CharSequence self,
       @CallSite.Argument final Locale locale,
       @CallSite.Return final String result) {
     final StringModule module = InstrumentationBridge.STRING;
@@ -161,7 +162,7 @@ public class StringCallSite {
 
   @CallSite.After("java.lang.String java.lang.String.toLowerCase()")
   public static String afterToLowerCase(
-      @CallSite.This final String self, @CallSite.Return final String result) {
+      @CallSite.This final CharSequence self, @CallSite.Return final String result) {
     final StringModule module = InstrumentationBridge.STRING;
     if (module != null) {
       try {
@@ -175,7 +176,7 @@ public class StringCallSite {
 
   @CallSite.After("java.lang.String java.lang.String.toLowerCase(java.util.Locale)")
   public static String afterToLowerCase(
-      @CallSite.This final String self,
+      @CallSite.This final CharSequence self,
       @CallSite.Argument final Locale locale,
       @CallSite.Return final String result) {
     final StringModule module = InstrumentationBridge.STRING;
@@ -191,7 +192,7 @@ public class StringCallSite {
 
   @CallSite.After("java.lang.String java.lang.String.trim()")
   public static String afterTrim(
-      @CallSite.This final String self, @CallSite.Return final String result) {
+      @CallSite.This final CharSequence self, @CallSite.Return final String result) {
     final StringModule module = InstrumentationBridge.STRING;
     if (module != null) {
       try {
@@ -210,7 +211,7 @@ public class StringCallSite {
     final StringModule module = InstrumentationBridge.STRING;
     try {
       if (module != null) {
-        module.onStringConstructor((String) params[0], result);
+        module.onStringConstructor((CharSequence) params[0], result);
       }
     } catch (final Throwable e) {
       module.onUnexpectedException("afterStringConstructor threw", e);
@@ -243,7 +244,8 @@ public class StringCallSite {
 
   @CallSite.After("byte[] java.lang.String.getBytes()")
   public static byte[] afterGetBytes(
-      @CallSite.This @Nonnull final String self, @CallSite.Return @Nonnull final byte[] result) {
+      @CallSite.This @Nonnull final CharSequence self,
+      @CallSite.Return @Nonnull final byte[] result) {
     final CodecModule module = InstrumentationBridge.CODEC;
     try {
       if (module != null) {
@@ -257,8 +259,8 @@ public class StringCallSite {
 
   @CallSite.After("byte[] java.lang.String.getBytes(java.lang.String)")
   public static byte[] afterGetBytes(
-      @CallSite.This @Nonnull final String self,
-      @CallSite.Argument @Nullable final String encoding,
+      @CallSite.This @Nonnull final CharSequence self,
+      @CallSite.Argument @Nullable final CharSequence encoding,
       @CallSite.Return @Nonnull final byte[] result) {
     final CodecModule module = InstrumentationBridge.CODEC;
     try {
@@ -273,7 +275,7 @@ public class StringCallSite {
 
   @CallSite.After("byte[] java.lang.String.getBytes(java.nio.charset.Charset)")
   public static byte[] afterGetBytes(
-      @CallSite.This @Nonnull final String self,
+      @CallSite.This @Nonnull final CharSequence self,
       @CallSite.Argument @Nullable final Charset encoding,
       @CallSite.Return @Nonnull final byte[] result) {
     final CodecModule module = InstrumentationBridge.CODEC;
@@ -289,7 +291,7 @@ public class StringCallSite {
 
   @CallSite.After("java.lang.String java.lang.String.format(java.lang.String, java.lang.Object[])")
   public static String afterFormat(
-      @CallSite.Argument(0) @Nullable final String pattern,
+      @CallSite.Argument(0) @Nullable final CharSequence pattern,
       @CallSite.Argument(1) @Nonnull final Object[] args,
       @CallSite.Return @Nonnull final String result) {
     final StringModule module = InstrumentationBridge.STRING;
@@ -307,7 +309,7 @@ public class StringCallSite {
       "java.lang.String java.lang.String.format(java.util.Locale, java.lang.String, java.lang.Object[])")
   public static String afterFormat(
       @CallSite.Argument(0) @Nullable final Locale locale,
-      @CallSite.Argument(1) @Nullable final String pattern,
+      @CallSite.Argument(1) @Nullable final CharSequence pattern,
       @CallSite.Argument(2) @Nonnull final Object[] args,
       @CallSite.Return @Nonnull final String result) {
     final StringModule module = InstrumentationBridge.STRING;
@@ -317,6 +319,22 @@ public class StringCallSite {
       }
     } catch (final Throwable e) {
       module.onUnexpectedException("afterFormat threw", e);
+    }
+    return result;
+  }
+
+  @CallSite.After("java.lang.String java.lang.String.toString()")
+  @Nonnull
+  public static String afterToString(
+      @CallSite.This @Nonnull final CharSequence self,
+      @CallSite.Return @Nonnull final String result) {
+    final StringModule module = InstrumentationBridge.STRING;
+    if (module != null) {
+      try {
+        module.onStringToString(self, result);
+      } catch (final Throwable e) {
+        module.onUnexpectedException("afterToString threw", e);
+      }
     }
     return result;
   }

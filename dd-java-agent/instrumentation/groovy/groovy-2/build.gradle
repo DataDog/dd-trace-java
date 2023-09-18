@@ -1,0 +1,21 @@
+muzzle {
+  pass {
+    group = 'org.codehaus.groovy'
+    module = 'groovy'
+    versions = '[2,3.0)'
+  }
+}
+
+apply from: "$rootDir/gradle/java_no_deps.gradle"
+apply plugin: 'call-site-instrumentation'
+
+dependencies {
+  compileOnly group: 'org.codehaus.groovy', name: 'groovy', version: '2.0.1', classifier: 'indy'
+  compileOnly project(':dd-java-agent:instrumentation:groovy')
+}
+
+project.afterEvaluate {
+  tasks.withType(JavaCompile).each {
+    it.dependsOn(project(':dd-java-agent:instrumentation:groovy').tasks.named('instrumentJava'))
+  }
+}

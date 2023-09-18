@@ -448,6 +448,65 @@ final class AdviceGeneratorTest extends BaseCsiPluginTest {
     }
   }
 
+  @CallSite(spi = CallSites)
+  class AroundWithAllArgs {
+    @CallSite.Around("java.lang.String java.lang.String.subSequence(int, int)")
+    static String around(@CallSite.This String self, @CallSite.AllArguments Object[] args) {
+      return self.subSequence(args[0] as int, args[1] as int)
+    }
+  }
+
+  void 'test around with all args'() {
+    setup:
+    final spec = buildClassSpecification(AroundWithAllArgs)
+    final generator = buildAdviceGenerator(buildDir)
+
+    when:
+    final result = generator.generate(spec)
+
+    then:
+    assertNoErrors result
+    assertCallSites(result.file) {
+      advices(0) {
+        pointcut('java/lang/String', 'subSequence', '(II)Ljava/lang/String;')
+        statements(
+          'handler.dupParameters(descriptor, StackDupMode.AS_ARRAY);',
+          'handler.method(Opcodes.INVOKESTATIC, "datadog/trace/plugin/csi/impl/AdviceGeneratorTest$AroundWithAllArgs", "around", "(Ljava/lang/String;[Ljava/lang/Object;)Ljava/lang/String;", false);',
+        )
+      }
+    }
+  }
+
+  @CallSite(spi = CallSites)
+  class AroundWithAllArgsAndThis {
+    @CallSite.Around("java.lang.String java.lang.String.subSequence(int, int)")
+    static String around(@CallSite.AllArguments(includeThis = true) Object[] args) {
+      final self = args[0] as String
+      return self.subSequence(args[1] as int, args[2] as int)
+    }
+  }
+
+  void 'test around with all args'() {
+    setup:
+    final spec = buildClassSpecification(AroundWithAllArgsAndThis)
+    final generator = buildAdviceGenerator(buildDir)
+
+    when:
+    final result = generator.generate(spec)
+
+    then:
+    assertNoErrors result
+    assertCallSites(result.file) {
+      advices(0) {
+        pointcut('java/lang/String', 'subSequence', '(II)Ljava/lang/String;')
+        statements(
+          'handler.dupInvoke(owner, descriptor, StackDupMode.AS_ARRAY);',
+          'handler.method(Opcodes.INVOKESTATIC, "datadog/trace/plugin/csi/impl/AdviceGeneratorTest$AroundWithAllArgsAndThis", "around", "([Ljava/lang/Object;)Ljava/lang/String;", false);',
+        )
+      }
+    }
+  }
+
   private static AdviceGenerator buildAdviceGenerator(final File targetFolder) {
     return new AdviceGeneratorImpl(targetFolder, pointcutParser())
   }

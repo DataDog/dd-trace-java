@@ -65,6 +65,8 @@ public interface CallSiteAdvice {
      */
     PREPEND_ARRAY_CTOR,
     /** Copies the parameters in an array and appends it */
-    APPEND_ARRAY
+    APPEND_ARRAY,
+    /** Moves the parameters into an array */
+    AS_ARRAY
   }
 }

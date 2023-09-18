@@ -25,7 +25,7 @@ public class StringBuilderCallSite {
     final StringModule module = InstrumentationBridge.STRING;
     if (module != null) {
       try {
-        module.onStringBuilderInit(result, (CharSequence) params[0]);
+        module.onStringConstructor(result, (CharSequence) params[0]);
       } catch (final Throwable e) {
         module.onUnexpectedException("afterInit threw", e);
       }
@@ -45,7 +45,7 @@ public class StringBuilderCallSite {
     final StringModule module = InstrumentationBridge.STRING;
     if (module != null) {
       try {
-        module.onStringBuilderAppend(self, param);
+        module.onStringAppend(self, param);
       } catch (final Throwable e) {
         module.onUnexpectedException("afterAppend threw", e);
       }
@@ -72,7 +72,7 @@ public class StringBuilderCallSite {
       final StringModule module = InstrumentationBridge.STRING;
       if (module != null) {
         try {
-          module.onStringBuilderAppend((CharSequence) self, paramStr);
+          module.onStringAppend((CharSequence) self, paramStr);
         } catch (final Throwable e) {
           module.onUnexpectedException("aroundAppend threw", e);
         }
@@ -94,7 +94,7 @@ public class StringBuilderCallSite {
     final StringModule module = InstrumentationBridge.STRING;
     if (module != null) {
       try {
-        module.onStringBuilderToString(self, result);
+        module.onStringToString(self, result);
       } catch (final Throwable e) {
         module.onUnexpectedException("afterToString threw", e);
       }

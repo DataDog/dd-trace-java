@@ -193,9 +193,10 @@ public class AdviceGeneratorImpl implements AdviceGenerator {
       writeOriginalMethodCall(spec, adviceBody);
       writeAdviceMethodCall(spec, adviceBody);
     } else {
+      writeStackOperations(spec, adviceBody);
       writeAdviceMethodCall(spec, adviceBody);
     }
-    body.addStatement(
+    final MethodCallExpr addAdvice =
         new MethodCallExpr()
             .setScope(new NameExpr("container"))
             .setName("addAdvice")
@@ -204,7 +205,10 @@ public class AdviceGeneratorImpl implements AdviceGenerator {
                     new StringLiteralExpr(pointCut.getOwner().getInternalName()),
                     new StringLiteralExpr(pointCut.getMethodName()),
                     new StringLiteralExpr(pointCut.getMethodType().getDescriptor()),
-                    advice)));
+                    advice));
+    // this comment is useful for debugging and for extensions
+    addAdvice.setLineComment(spec.getAdvice().toString());
+    body.addStatement(addAdvice);
   }
 
   private static void addHelpersInvocation(final Type[] helpers, final BlockStmt body) {
@@ -247,6 +251,10 @@ public class AdviceGeneratorImpl implements AdviceGenerator {
   private static void writeStackOperations(final AdviceSpecification advice, final BlockStmt body) {
     final boolean instanceMethod = !advice.isStaticPointcut();
     final AllArgsSpecification allArgsSpec = advice.findAllArguments();
+    if (advice instanceof AroundSpecification && allArgsSpec == null) {
+      // around spec without all args should consume arguments by default
+      return;
+    }
     if (allArgsSpec == null && advice.isPositionalArguments()) {
       final List<Expression> parameterIndicesValues =
           advice
@@ -280,7 +288,14 @@ public class AdviceGeneratorImpl implements AdviceGenerator {
       body.addStatement(dupMethod);
     } else {
       final MethodCallExpr dupMethod = new MethodCallExpr().setScope(new NameExpr("handler"));
-      if (advice.includeThis()) {
+      final boolean dupInvoke;
+      if (advice instanceof AroundSpecification) {
+        // all args should be != null here
+        dupInvoke = allArgsSpec.isIncludeThis();
+      } else {
+        dupInvoke = advice.includeThis();
+      }
+      if (dupInvoke) {
         dupMethod.setName("dupInvoke");
         dupMethod.addArgument(new NameExpr("owner"));
         dupMethod.addArgument(new NameExpr("descriptor"));
@@ -292,6 +307,8 @@ public class AdviceGeneratorImpl implements AdviceGenerator {
       if (allArgsSpec != null) {
         if (advice instanceof AfterSpecification) {
           mode = advice.isConstructor() ? "PREPEND_ARRAY_CTOR" : "PREPEND_ARRAY";
+        } else if (advice instanceof AroundSpecification) {
+          mode = "AS_ARRAY";
         } else {
           mode = "APPEND_ARRAY";
         }

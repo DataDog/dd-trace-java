@@ -46,7 +46,7 @@ class StringModuleTest extends IastModuleImplTestBase {
     final result = builder?.append(param)
 
     when:
-    module.onStringBuilderAppend(result, param)
+    module.onStringAppend(result, param)
 
     then:
     0 * _
@@ -62,7 +62,7 @@ class StringModuleTest extends IastModuleImplTestBase {
     final result = builder?.append(param)
 
     when:
-    module.onStringBuilderAppend(result, param)
+    module.onStringAppend(result, param)
 
     then:
     mockCalls * tracer.activeSpan() >> null
@@ -89,7 +89,7 @@ class StringModuleTest extends IastModuleImplTestBase {
 
     when:
     builder = builder?.append(param)
-    module.onStringBuilderAppend(builder, param)
+    module.onStringAppend(builder, param)
 
     then:
     mockCalls * tracer.activeSpan() >> span
@@ -117,44 +117,46 @@ class StringModuleTest extends IastModuleImplTestBase {
     sb('1==>234<==5==>678<==9') | 'a==>bcd<==e==>fgh<==i' | 1         | '1==>234<==5==>678<==9a==>bcd<==e==>fgh<==i'
   }
 
-  void 'onStringBuilderInit null or empty (#builder, #param)'() {
+  void 'onStringConstructor empty (#param)'() {
     given:
-    final result = builder?.append(param)
+    final self = builder.call(param) as CharSequence
 
     when:
-    module.onStringBuilderInit(result, param)
+    module.onStringConstructor(self, (CharSequence) param)
 
     then:
     0 * _
 
     where:
-    builder | param
-    sb('')  | null
-    sb('')  | ''
+    param | builder
+    ''    | { new String((String) it) }
+    ''    | { new StringBuilder((String) it) }
   }
 
-  void 'onStringBuilderInit without span (#builder, #param)'() {
+  void 'onStringConstructor without span (#param)'() {
     given:
-    final result = builder?.append(param)
+    final self = builder.call(param) as CharSequence
 
     when:
-    module.onStringBuilderInit(result, param)
+    module.onStringConstructor(self, param)
 
     then:
     mockCalls * tracer.activeSpan() >> null
     0 * _
 
     where:
-    builder | param | mockCalls
-    sb()    | null  | 0
-    sb()    | '4'   | 1
+    param | builder                            | mockCalls
+    ''    | { new String((String) it) }        | 0
+    ''    | { new StringBuilder((String) it) } | 0
+    '4'   | { new String((String) it) }        | 1
+    '4'   | { new StringBuilder((String) it) } | 1
   }
 
-  void 'onStringBuilderInit (#builder, #param)'() {
+  void 'onStringConstructor (#param)'() {
     given:
     final taintedObjects = ctx.getTaintedObjects()
-    builder = addFromTaintFormat(taintedObjects, builder)
-    objectHolder.add(builder)
+    final self = addFromTaintFormat(taintedObjects, builder.call(param))
+    objectHolder.add(self)
     param = addFromTaintFormat(taintedObjects, param)
     objectHolder.add(param)
 
@@ -164,15 +166,14 @@ class StringModuleTest extends IastModuleImplTestBase {
     final shouldBeTainted = fromTaintFormat(expected) != null
 
     when:
-    builder = builder?.append(param)
-    module.onStringBuilderInit(builder, param)
+    module.onStringConstructor(self, param)
 
     then:
     mockCalls * tracer.activeSpan() >> span
     mockCalls * span.getRequestContext() >> reqCtx
     mockCalls * reqCtx.getData(RequestContextSlot.IAST) >> ctx
     0 * _
-    def to = ctx.getTaintedObjects().get(builder)
+    def to = ctx.getTaintedObjects().get(self)
     if (shouldBeTainted) {
       assert to != null
       assert to.get() as String == result
@@ -182,27 +183,35 @@ class StringModuleTest extends IastModuleImplTestBase {
     }
 
     where:
-    builder | param                   | mockCalls | expected
-    sb()    | null                    | 0         | 'null'
-    sb()    | '123'                   | 1         | '123'
-    sb()    | '==>123<=='             | 1         | '==>123<=='
-    sb()    | 'a==>bcd<==e==>fgh<==i' | 1         | 'a==>bcd<==e==>fgh<==i'
+    param                   | builder                            | mockCalls | expected
+    ''                      | { new String((String) it) }        | 0         | ''
+    ''                      | { new StringBuilder((String) it) } | 0         | ''
+    '123'                   | { new String((String) it) }        | 1         | '123'
+    '123'                   | { new StringBuilder((String) it) } | 1         | '123'
+    '==>123<=='             | { new String((String) it) }        | 1         | '==>123<=='
+    '==>123<=='             | { new StringBuilder((String) it) } | 1         | '==>123<=='
+    'a==>bcd<==e==>fgh<==i' | { new String((String) it) }        | 1         | 'a==>bcd<==e==>fgh<==i'
+    'a==>bcd<==e==>fgh<==i' | { new StringBuilder((String) it) } | 1         | 'a==>bcd<==e==>fgh<==i'
   }
 
-  void 'onStringBuilderToString without span'() {
+  void 'onStringToString without span'() {
     given:
-    def builder = sb('1')
-    final result = builder.toString()
+    final result = target.toString()
 
     when:
-    module.onStringBuilderToString(builder, result)
+    module.onStringToString(target, result)
 
     then:
-    1 * tracer.activeSpan() >> null
+    expected * tracer.activeSpan() >> null
     0 * _
+
+    where:
+    target      | expected
+    sb('hello') | 1
+    'hello'     | 0   // string toString returns the same instance
   }
 
-  void 'onStringBuilderToString (#builder)'() {
+  void 'onStringToString (#builder)'() {
     given:
     final taintedObjects = ctx.getTaintedObjects()
     builder = addFromTaintFormat(taintedObjects, builder)
@@ -215,7 +224,7 @@ class StringModuleTest extends IastModuleImplTestBase {
 
     when:
     final toString = builder?.toString()
-    module.onStringBuilderToString(builder, toString)
+    module.onStringToString(builder, toString)
 
     then:
     1 * tracer.activeSpan() >> span
@@ -906,6 +915,34 @@ class StringModuleTest extends IastModuleImplTestBase {
     'Hello ==>%s<=='                | ['World!']                          | 'Hello ==>World!<==' // tainted placeholder [non tainted parameter]
     'He==>llo %s!<=='               | ['World']                           | 'He==>llo <====>World<====>!<==' // tainted placeholder (2) [non tainted parameter]
     'He==>llo %s!<=='               | ['W==>or<==ld']                     | 'He==>llo <==W==>or<==ld==>!<==' // tainted placeholder (3) [mixing with tainted parameter]
+  }
+
+  void 'onStringFormat literals: #literals args: #argsTainted'() {
+    given:
+    final to = ctx.getTaintedObjects()
+    final args = argsTainted.collect {
+      final value = taint(to, it)
+      objectHolder.add(value)
+      return value
+    }
+    final expected = getStringFromTaintFormat(expectedTainted)
+
+    when:
+    module.onStringFormat(literals as String[], args as Object[], expected)
+
+    then:
+    final tainted = to.get(expected)
+    final formattedResult = taintFormat(expected, tainted?.ranges)
+    assert formattedResult == expectedTainted: tainted?.ranges
+
+    where:
+    literals          | argsTainted                        | expectedTainted
+    ['Hello World!']  | []                                 | 'Hello World!'
+    ['', ' ', '']     | ['Hello', 'World!']                | 'Hello World!'
+    ['', ' ', '']     | ['He==>ll<==o', 'World==>!<==']    | 'He==>ll<==o World==>!<=='
+    ['Hello World!']  | []                                 | 'Hello World!'
+    ['Today is ', ''] | [date('yyyy.MM.dd', '2012.11.23')] | "Today is ==>${String.valueOf(date('yyyy.MM.dd', '2012.11.23'))}<=="
+    ['', '']          | ['He==>ll<==o', 'World==>!<==']    | 'He==>ll<==o' // extra args
   }
 
   void 'onSplit'() {

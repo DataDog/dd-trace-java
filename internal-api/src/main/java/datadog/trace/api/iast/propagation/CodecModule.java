@@ -10,7 +10,8 @@ public interface CodecModule extends IastModule {
 
   void onStringFromBytes(@Nonnull byte[] value, @Nullable String charset, @Nonnull String result);
 
-  void onStringGetBytes(@Nonnull String value, @Nullable String charset, @Nonnull byte[] result);
+  void onStringGetBytes(
+      @Nonnull CharSequence value, @Nullable CharSequence charset, @Nonnull byte[] result);
 
   void onBase64Encode(@Nullable byte[] value, @Nullable byte[] result);
 
