@@ -292,7 +292,7 @@ class MavenTest extends CiVisibilityTest {
    * before proceeding with running the build
    */
   void givenMavenDependenciesAreLoaded() {
-    String[] args = ["dependency:go-offline"]
+    String[] args = ["org.apache.maven.plugins:maven-dependency-plugin:go-offline"]
     String workingDirectory = projectFolder.toString()
     for (int attempt = 0; attempt < DEPENDENCIES_DOWNLOAD_RETRIES; attempt++) {
       def exitCode = new MavenCli().doMain(args, workingDirectory, null, null)
