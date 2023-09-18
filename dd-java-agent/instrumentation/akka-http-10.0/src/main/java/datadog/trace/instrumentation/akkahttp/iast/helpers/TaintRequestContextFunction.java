@@ -3,7 +3,6 @@ package datadog.trace.instrumentation.akkahttp.iast.helpers;
 import akka.http.scaladsl.server.RequestContext;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.SourceTypes;
-import datadog.trace.api.iast.Taintable;
 import datadog.trace.api.iast.propagation.PropagationModule;
 import scala.Tuple1;
 import scala.compat.java8.JFunction1;
@@ -17,7 +16,7 @@ public class TaintRequestContextFunction
     RequestContext reqCtx = v1._1();
 
     PropagationModule mod = InstrumentationBridge.PROPAGATION;
-    if (mod == null || !(reqCtx instanceof Taintable)) {
+    if (mod == null) {
       return v1;
     }
     mod.taintObject(SourceTypes.REQUEST_BODY, reqCtx);
