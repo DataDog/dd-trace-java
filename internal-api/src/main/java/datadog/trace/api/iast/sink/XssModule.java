@@ -13,4 +13,6 @@ public interface XssModule extends IastModule {
   void onXss(@Nonnull char[] array);
 
   void onXss(@Nonnull String format, @Nullable Object[] args);
+
+  void onXss(@Nonnull CharSequence s, @Nonnull String file, int line);
 }

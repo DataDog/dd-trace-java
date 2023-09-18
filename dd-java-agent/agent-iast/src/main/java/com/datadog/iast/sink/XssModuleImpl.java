@@ -92,4 +92,35 @@ public class XssModuleImpl extends SinkModuleBase implements XssModule {
     checkInjection(
         span, VulnerabilityType.XSS, rangesProviderFor(to, format), rangesProviderFor(to, args));
   }
+
+  @Override
+  public void onXss(@Nonnull CharSequence s, @Nonnull String file, int line) {
+    if (!canBeTainted(s) || !canBeTainted(file)) {
+      return;
+    }
+    final AgentSpan span = AgentTracer.activeSpan();
+    final IastRequestContext ctx = IastRequestContext.get(span);
+    if (ctx == null) {
+      return;
+    }
+    TaintedObject taintedObject = ctx.getTaintedObjects().get(s);
+    if (taintedObject == null) {
+      return;
+    }
+    Range[] notMarkedRanges =
+        Ranges.getNotMarkedRanges(taintedObject.getRanges(), VulnerabilityType.XSS.mark());
+    if (notMarkedRanges == null || notMarkedRanges.length == 0) {
+      return;
+    }
+    if (!overheadController.consumeQuota(Operations.REPORT_VULNERABILITY, span)) {
+      return;
+    }
+    final Evidence evidence = new Evidence(s.toString(), notMarkedRanges);
+    reporter.report(
+        span,
+        new Vulnerability(
+            VulnerabilityType.XSS,
+            Location.forSpanAndFileAndLine(span.getSpanId(), file, line),
+            evidence));
+  }
 }
