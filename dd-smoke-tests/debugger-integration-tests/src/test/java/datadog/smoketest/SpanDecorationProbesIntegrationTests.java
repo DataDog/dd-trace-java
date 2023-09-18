@@ -60,7 +60,7 @@ public class SpanDecorationProbesIntegrationTests extends ServerAppDebuggerInteg
           }
           return false;
         });
-    processRequests(RequestType.SPAN);
+    processRequests();
   }
 
   @Test
@@ -104,7 +104,7 @@ public class SpanDecorationProbesIntegrationTests extends ServerAppDebuggerInteg
           }
           return false;
         });
-    processRequests(RequestType.SPAN);
+    processRequests();
   }
 
   @Test
@@ -142,7 +142,7 @@ public class SpanDecorationProbesIntegrationTests extends ServerAppDebuggerInteg
           }
           return snapshotTest.get() && spanTest.get();
         });
-    processRequests(RequestType.SNAPSHOT, RequestType.SPAN);
+    processRequests();
   }
 
   @Test
@@ -182,7 +182,7 @@ public class SpanDecorationProbesIntegrationTests extends ServerAppDebuggerInteg
           }
           return snapshotTest.get() && spanTest.get();
         });
-    processRequests(RequestType.SNAPSHOT, RequestType.SPAN);
+    processRequests();
   }
 
   @Test
@@ -228,7 +228,7 @@ public class SpanDecorationProbesIntegrationTests extends ServerAppDebuggerInteg
           }
           return snapshotTest.get() && spanTest.get();
         });
-    processRequests(RequestType.SNAPSHOT, RequestType.SPAN);
+    processRequests();
   }
 
   private SpanDecorationProbe.Decoration createDecoration(String tagName, String valueDsl) {

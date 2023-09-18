@@ -303,7 +303,7 @@ public abstract class BaseIntegrationTest {
     probeStatusListeners.add(listener);
   }
 
-  protected void processRequests(RequestType... requestTypes) throws InterruptedException {
+  protected void processRequests() throws InterruptedException {
     RecordedRequest request;
     do {
       request = datadogAgentServer.takeRequest(REQUEST_WAIT_TIMEOUT, TimeUnit.SECONDS);
@@ -311,8 +311,10 @@ public abstract class BaseIntegrationTest {
         throw new RuntimeException("timeout!");
       }
       System.out.println("processRequests path=" + request.getPath());
-      for (RequestType requestType : requestTypes) {
-        if (requestType.process(this, request)) return;
+      for (RequestType requestType : RequestType.values()) {
+        if (requestType.process(this, request)) {
+          return;
+        }
       }
     } while (request != null);
   }
