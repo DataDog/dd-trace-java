@@ -73,12 +73,13 @@ configurations.webappRuntimeClasspath {
 tasks.register('installOpenLibertyDeps', Copy) {
   def extractDir = "${buildDir}/openliberty-jars"
   ext.extractedJars = fileTree(extractDir) {
-    include "wlp/lib/com.ibm.ws.webcontainer.jakarta_1.1.79.jar"
-    include "wlp/lib/com.ibm.ws.transport.http_1.0.79.jar"
+    include "wlp/lib/com.ibm.ws.webcontainer.jakarta*.jar"
+    include "wlp/lib/com.ibm.ws.transport.http*.jar"
     //include "wlp/lib/*.jar"
     builtBy "installOpenLibertyDeps"
   }
   ext.wsServerJar = fileTree("$extractDir") {
+    include "wlp/lib/com.ibm.ws.kernel.boot*.jar"
     include "wlp/bin/tools/ws-server.jar"
     builtBy "installOpenLibertyDeps"
   }
