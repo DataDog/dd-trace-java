@@ -6,6 +6,8 @@ import io.opentelemetry.api.trace.SpanKind
 import io.opentelemetry.context.Context
 import spock.lang.Subject
 
+import java.security.InvalidParameterException
+
 import static io.opentelemetry.api.trace.StatusCode.ERROR
 import static io.opentelemetry.api.trace.StatusCode.OK
 import static io.opentelemetry.api.trace.StatusCode.UNSET
@@ -307,6 +309,48 @@ class OpenTelemetry14Test extends AgentTestRunner {
           errored false
           tags {
             defaultTags()
+          }
+        }
+      }
+    }
+  }
+
+  def "test span record exception"() {
+    setup:
+    def builder = tracer.spanBuilder("some-name")
+    def result = builder.startSpan()
+    def message = "input can't be null"
+    def exception = new InvalidParameterException(message)
+
+    expect:
+    result.delegate.getTag(DDTags.ERROR_MSG) == null
+    result.delegate.getTag(DDTags.ERROR_TYPE) == null
+    result.delegate.getTag(DDTags.ERROR_STACK) == null
+    !result.delegate.isError()
+
+    when:
+    result.recordException(exception)
+
+    then:
+    result.delegate.getTag(DDTags.ERROR_MSG) == message
+    result.delegate.getTag(DDTags.ERROR_TYPE) == InvalidParameterException.name
+    result.delegate.getTag(DDTags.ERROR_STACK) != null
+    !result.delegate.isError()
+
+    when:
+    result.end()
+
+    then:
+    assertTraces(1) {
+      trace(1) {
+        span {
+          parent()
+          operationName "some-name"
+          resourceName "some-name"
+          errored false
+          tags {
+            defaultTags()
+            errorTags(exception)
           }
         }
       }
