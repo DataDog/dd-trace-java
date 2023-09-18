@@ -1,6 +1,6 @@
 plugins {
   id 'java-test-fixtures'
-  id 'com.github.johnrengelman.shadow' version '7.1.2'
+  id 'com.github.johnrengelman.shadow'
 }
 muzzle {
   pass {
@@ -36,14 +36,13 @@ dependencies {
   compileOnly group: 'jakarta.servlet', name: 'jakarta.servlet-api', version: '5.0.0'
   compileOnly files({ tasks.installOpenLibertyDeps.extractedJars })
   implementation project(':dd-java-agent:instrumentation:servlet:request-5')
-  testImplementation files({ tasks.installOpenLibertyDeps.wsServerJar })
-  testRuntimeOnly files({ tasks.shadowJar.archiveFile })
-  //testRuntimeOnly files({ tasks.installOpenLibertyDeps.extractedJars })
 
+  testImplementation files({ tasks.installOpenLibertyDeps.wsServerJar })
   testImplementation testFixtures(project(':dd-java-agent:appsec'))
   testRuntimeOnly project(':dd-java-agent:instrumentation:osgi-4.3')
   testRuntimeOnly files({ tasks.filterLogbackClassic.filteredLogbackDir })
   testRuntimeOnly project(':dd-java-agent:instrumentation:servlet:request-5')
+  testRuntimeOnly files({ tasks.shadowJar.archiveFile })
 
   webappCompileOnly group: 'jakarta.servlet', name: 'jakarta.servlet-api', version: '5.0.0'
   // compileOnly to avoid bringing all the test dependencies to the test app
@@ -61,6 +60,7 @@ dependencies {
   webappRuntimeOnly deps.groovy
 }
 compileWebappJava.dependsOn ':dd-java-agent:instrumentation:servlet:request-5:testFixturesJar'
+
 configurations.testRuntimeOnly {
   exclude group: 'ch.qos.logback', module: 'logback-classic'
   exclude group: 'org.codehaus.groovy', module: 'groovy-servlet'
@@ -68,12 +68,14 @@ configurations.testRuntimeOnly {
 configurations.webappRuntimeClasspath {
   exclude group: 'ch.qos.logback', module: 'logback-classic'
 }
+
 //unzips the dependencies from the 'zipped' configuration so 'compileOnly' can reference it
 tasks.register('installOpenLibertyDeps', Copy) {
   def extractDir = "${buildDir}/openliberty-jars"
   ext.extractedJars = fileTree(extractDir) {
     include "wlp/lib/com.ibm.ws.webcontainer.jakarta_1.1.79.jar"
     include "wlp/lib/com.ibm.ws.transport.http_1.0.79.jar"
+    //include "wlp/lib/*.jar"
     builtBy "installOpenLibertyDeps"
   }
   ext.wsServerJar = fileTree("$extractDir") {
