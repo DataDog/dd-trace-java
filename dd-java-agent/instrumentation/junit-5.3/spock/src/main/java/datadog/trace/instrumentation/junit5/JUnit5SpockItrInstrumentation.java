@@ -1,9 +1,8 @@
 package datadog.trace.instrumentation.junit5;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
-import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.nameStartsWith;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassNamed;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.extendsClass;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-import static net.bytebuddy.matcher.ElementMatchers.not;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
@@ -17,17 +16,22 @@ import java.util.Set;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
-import org.junit.platform.engine.TestDescriptor;
 import org.junit.platform.engine.TestTag;
 import org.junit.platform.engine.support.hierarchical.Node;
 import org.junit.platform.engine.support.hierarchical.SameThreadHierarchicalTestExecutorService;
+import org.spockframework.runtime.SpockNode;
 
 @AutoService(Instrumenter.class)
-public class JUnit5ItrInstrumentation extends Instrumenter.CiVisibility
+public class JUnit5SpockItrInstrumentation extends Instrumenter.CiVisibility
     implements Instrumenter.ForTypeHierarchy {
 
-  public JUnit5ItrInstrumentation() {
-    super("ci-visibility", "junit-5");
+  public JUnit5SpockItrInstrumentation() {
+    super("ci-visibility", "junit-5", "junit-5-spock");
+  }
+
+  @Override
+  public ElementMatcher<ClassLoader> classLoaderMatcher() {
+    return hasClassNamed("org.spockframework.runtime.SpockEngine");
   }
 
   @Override
@@ -37,23 +41,20 @@ public class JUnit5ItrInstrumentation extends Instrumenter.CiVisibility
 
   @Override
   public String hierarchyMarkerType() {
-    return "org.junit.platform.engine.support.hierarchical.Node";
+    return "org.spockframework.runtime.SpockNode";
   }
 
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return implementsInterface(named(hierarchyMarkerType()))
-        .and(implementsInterface(named("org.junit.platform.engine.TestDescriptor")))
-        // Cucumber has a dedicated instrumentation
-        .and(not(nameStartsWith("io.cucumber")))
-        // Spock has a dedicated instrumentation
-        .and(not(nameStartsWith("org.spockframework")));
+    return extendsClass(named(hierarchyMarkerType()));
   }
 
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".JUnitPlatformUtils", packageName + ".TestEventsHandlerHolder",
+      packageName + ".JUnitPlatformUtils",
+      packageName + ".SpockUtils",
+      packageName + ".TestEventsHandlerHolder",
     };
   }
 
@@ -61,7 +62,7 @@ public class JUnit5ItrInstrumentation extends Instrumenter.CiVisibility
   public void adviceTransformations(AdviceTransformation transformation) {
     transformation.applyAdvice(
         named("shouldBeSkipped").and(takesArguments(1)),
-        JUnit5ItrInstrumentation.class.getName() + "$JUnit5ItrAdvice");
+        JUnit5SpockItrInstrumentation.class.getName() + "$JUnit5ItrAdvice");
   }
 
   /**
@@ -76,7 +77,7 @@ public class JUnit5ItrInstrumentation extends Instrumenter.CiVisibility
         justification = "skipResult is the return value of the instrumented method")
     @Advice.OnMethodExit
     public static void shouldBeSkipped(
-        @Advice.This TestDescriptor testDescriptor,
+        @Advice.This SpockNode<?> spockNode,
         @Advice.Return(readOnly = false) Node.SkipResult skipResult) {
       if (skipResult.isSkipped()) {
         return;
@@ -88,14 +89,14 @@ public class JUnit5ItrInstrumentation extends Instrumenter.CiVisibility
         return;
       }
 
-      Collection<TestTag> tags = testDescriptor.getTags();
+      Collection<TestTag> tags = SpockUtils.getTags(spockNode);
       for (TestTag tag : tags) {
         if (InstrumentationBridge.ITR_UNSKIPPABLE_TAG.equals(tag.getName())) {
           return;
         }
       }
 
-      SkippableTest test = JUnitPlatformUtils.toSkippableTest(testDescriptor);
+      SkippableTest test = SpockUtils.toSkippableTest(spockNode);
       if (test != null && TestEventsHandlerHolder.TEST_EVENTS_HANDLER.skip(test)) {
         skipResult = Node.SkipResult.skip(InstrumentationBridge.ITR_SKIP_REASON);
       }
