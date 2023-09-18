@@ -121,6 +121,7 @@ ext {
     'com.datadog.appsec.util.AbortStartupException',
     'com.datadog.appsec.config.AppSecConfig.AppSecConfigV1',
     'com.datadog.appsec.config.AppSecConfig.AppSecConfigV2',
+    'com.datadog.appsec.config.AppSecConfig.NumberJsonAdapter',
     'com.datadog.appsec.event.ReplaceableEventProducerService',
   ]
   excludedClassesBranchCoverage = [

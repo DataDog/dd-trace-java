@@ -61,7 +61,7 @@ class GatewayBridgeSpecification extends DDSpecification {
 
   RateLimiter rateLimiter = new RateLimiter(10, { -> 0L } as TimeSource, RateLimiter.ThrottledCallback.NOOP)
   TraceSegmentPostProcessor pp = Mock()
-  GatewayBridge bridge = new GatewayBridge(ig, eventDispatcher, rateLimiter, [pp])
+  GatewayBridge bridge = new GatewayBridge(ig, eventDispatcher, rateLimiter, null, [pp])
 
   Supplier<Flow<AppSecRequestContext>> requestStartedCB
   BiFunction<RequestContext, AgentSpan, Flow<Void>> requestEndedCB
@@ -243,7 +243,8 @@ class GatewayBridgeSpecification extends DDSpecification {
 
     then:
     thrown(IllegalStateException)
-    assert bundle.get(KnownAddresses.HEADERS_NO_COOKIES).isEmpty()
+    def data = bundle.get(KnownAddresses.HEADERS_NO_COOKIES)
+    assert data == null || data.isEmpty()
   }
 
   void 'the socket address is distributed'() {

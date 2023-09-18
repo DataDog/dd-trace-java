@@ -172,7 +172,7 @@ public class GatewayBridge {
 
             // If extracted any Api Schemas - commit them
             if (!ctx.commitApiSchemas(traceSeg)) {
-                log.debug("Unable to commit, api security schemas and will be skipped");
+              log.debug("Unable to commit, api security schemas and will be skipped");
             }
           }
 
@@ -550,7 +550,7 @@ public class GatewayBridge {
     ctx.setRespDataPublished(true);
 
     boolean extractSchema = false;
-    if (Config.get().isApiSecurityEnabled()) {
+    if (Config.get().isApiSecurityEnabled() && requestSampler != null) {
       extractSchema = requestSampler.sampleRequest();
     }
 

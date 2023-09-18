@@ -150,7 +150,7 @@ public interface KnownAddresses {
         return GRPC_SERVER_REQUEST_METADATA;
       case "usr.id":
         return USER_ID;
-      case "waf.context.processor":
+      case "waf.context.settings":
         return WAF_CONTEXT_SETTINGS;
       default:
         return null;
