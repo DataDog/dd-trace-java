@@ -216,7 +216,7 @@ class SparkStructuredStreamingTest extends AgentTestRunner {
     sparkSession.stop()
 
     assertTraces(1) {
-      trace(5) {
+      trace(5, true) {
         span {
           operationName "spark.batch"
           resourceName "failing-query"
@@ -227,21 +227,21 @@ class SparkStructuredStreamingTest extends AgentTestRunner {
           parent()
         }
         span {
+          operationName "spark.job"
+          spanType "spark"
+          errored true
+          childOf(span(2))
+        }
+        span {
           operationName "spark.sql"
           spanType "spark"
           childOf(span(0))
         }
         span {
-          operationName "spark.job"
-          spanType "spark"
-          errored true
-          childOf(span(1))
-        }
-        span {
           operationName "spark.stage"
           spanType "spark"
           errored true
-          childOf(span(2))
+          childOf(span(1))
         }
         span {
           operationName "spark.task"
