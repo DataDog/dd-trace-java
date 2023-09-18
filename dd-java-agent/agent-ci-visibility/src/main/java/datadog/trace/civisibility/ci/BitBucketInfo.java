@@ -3,7 +3,7 @@ package datadog.trace.civisibility.ci;
 import static datadog.trace.api.git.GitUtils.filterSensitiveInfo;
 import static datadog.trace.api.git.GitUtils.normalizeBranch;
 import static datadog.trace.api.git.GitUtils.normalizeTag;
-import static datadog.trace.civisibility.utils.PathUtils.expandTilde;
+import static datadog.trace.civisibility.utils.FileUtils.expandTilde;
 
 import datadog.trace.api.git.CommitInfo;
 import datadog.trace.api.git.GitInfo;
@@ -19,6 +19,7 @@ class BitBucketInfo implements CIProviderInfo {
   public static final String BITBUCKET_BUILD_NUMBER = "BITBUCKET_BUILD_NUMBER";
   public static final String BITBUCKET_WORKSPACE_PATH = "BITBUCKET_CLONE_DIR";
   public static final String BITBUCKET_GIT_REPOSITORY_URL = "BITBUCKET_GIT_SSH_ORIGIN";
+  public static final String BITBUCKET_HTTPS_REPOSITORY_URL = "BITBUCKET_GIT_HTTP_ORIGIN";
   public static final String BITBUCKET_GIT_COMMIT = "BITBUCKET_COMMIT";
   public static final String BITBUCKET_GIT_BRANCH = "BITBUCKET_BRANCH";
   public static final String BITBUCKET_GIT_TAG = "BITBUCKET_TAG";
@@ -26,10 +27,22 @@ class BitBucketInfo implements CIProviderInfo {
   @Override
   public GitInfo buildCIGitInfo() {
     return new GitInfo(
-        filterSensitiveInfo(System.getenv(BITBUCKET_GIT_REPOSITORY_URL)),
+        getRepositoryURL(),
         normalizeBranch(System.getenv(BITBUCKET_GIT_BRANCH)),
         normalizeTag(System.getenv(BITBUCKET_GIT_TAG)),
         new CommitInfo(System.getenv(BITBUCKET_GIT_COMMIT)));
+  }
+
+  private static String getRepositoryURL() {
+    String gitRepoUrl = System.getenv(BITBUCKET_GIT_REPOSITORY_URL);
+    if (Strings.isNotBlank(gitRepoUrl)) {
+      return filterSensitiveInfo(gitRepoUrl);
+    }
+    String httpsRepoUrl = System.getenv(BITBUCKET_HTTPS_REPOSITORY_URL);
+    if (Strings.isNotBlank(httpsRepoUrl)) {
+      return filterSensitiveInfo(httpsRepoUrl);
+    }
+    return null;
   }
 
   @Override

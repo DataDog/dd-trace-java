@@ -110,6 +110,37 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
     }
   }
 
+  void 'weak cipher vulnerability is present when calling key generator'() {
+    setup:
+    String url = "http://localhost:${httpPort}/weak_key_generator"
+    def request = new Request.Builder().url(url).get().build()
+
+    when:
+    client.newCall(request).execute()
+
+    then:
+    hasVulnerability { vul ->
+      vul.type == 'WEAK_CIPHER' &&
+        vul.evidence.value == 'DES'
+    }
+  }
+
+  void 'weak cipher vulnerability is present when calling key generator with provider'() {
+    setup:
+    String url = "http://localhost:${httpPort}/weak_key_generator_with_provider"
+    def request = new Request.Builder().url(url).get().build()
+
+    when:
+    client.newCall(request).execute()
+
+    then:
+    hasVulnerability { vul ->
+      vul.type == 'WEAK_CIPHER' &&
+        vul.evidence.value == 'DES'
+    }
+  }
+
+
   void 'insecure cookie vulnerability is present'() {
     setup:
     String url = "http://localhost:${httpPort}/insecure_cookie"
@@ -139,6 +170,19 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
     response.isSuccessful()
     hasVulnerability { vul ->
       vul.type == 'HSTS_HEADER_MISSING'
+    }
+  }
+
+  void 'X content type options missing header vulnerability is present'() {
+    setup:
+    String url = "http://localhost:${httpPort}/xcontenttypeoptionsmissing"
+    def request = new Request.Builder().url(url).get().build()
+    when:
+    def response = client.newCall(request).execute()
+    then:
+    response.isSuccessful()
+    hasVulnerability { vul ->
+      vul.type == 'XCONTENTTYPE_HEADER_MISSING'
     }
   }
 
@@ -303,16 +347,36 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
     hasVulnerability { vul -> vul.type == 'TRUST_BOUNDARY_VIOLATION' }
   }
 
-  void 'xss is present when write String'() {
+  void 'xss is present'() {
     setup:
-    final url = "http://localhost:${httpPort}/xss/write?string=test"
+    final url = "http://localhost:${httpPort}/xss/${method}?string=${param}"
     final request = new Request.Builder().url(url).get().build()
 
     when:
     client.newCall(request).execute()
 
     then:
-    hasVulnerability { vul -> vul.type == 'XSS' && vul.location.method == 'xssWrite' }
+    hasVulnerability { vul -> vul.type == 'XSS' && vul.location.method == method }
+
+    where:
+    method     | param
+    'write'    | 'test'
+    'write2'   | 'test'
+    'write3'   | 'test'
+    'write4'   | 'test'
+    'print'    | 'test'
+    'print2'   | 'test'
+    'println'  | 'test'
+    'println2' | 'test'
+    'printf'   | 'Formatted%20like%3A%20%251%24s%20and%20%252%24s.'
+    'printf2'  | 'test'
+    'printf3'  | 'Formatted%20like%3A%20%251%24s%20and%20%252%24s.'
+    'printf4'  | 'test'
+    'format'   | 'Formatted%20like%3A%20%251%24s%20and%20%252%24s.'
+    'format2'  | 'test'
+    'format3'  | 'Formatted%20like%3A%20%251%24s%20and%20%252%24s.'
+    'format4'  | 'test'
+    'responseBody' | 'test'
   }
 
   void 'trust boundary violation with cookie propagation'() {

@@ -66,6 +66,16 @@ public class RepoIndex {
     }
   }
 
+  @Nullable
+  public String getSourcePath(String pathRelativeToSourceRoot) {
+    int sourceRootIdx = trie.apply(pathRelativeToSourceRoot);
+    if (sourceRootIdx >= 0) {
+      return sourceRoots.get(sourceRootIdx) + File.separator + pathRelativeToSourceRoot;
+    } else {
+      return null;
+    }
+  }
+
   private SourceType detectSourceType(Class<?> c) {
     Class<?>[] interfaces = c.getInterfaces();
     for (Class<?> anInterface : interfaces) {
@@ -80,6 +90,9 @@ public class RepoIndex {
       Class<? extends Annotation> annotationType = annotation.annotationType();
       if ("kotlin.Metadata".equals(annotationType.getName())) {
         return SourceType.KOTLIN;
+      }
+      if ("scala.reflect.ScalaSignature".equals(annotationType.getName())) {
+        return SourceType.SCALA;
       }
     }
 

@@ -22,7 +22,7 @@ import java.util.Map;
 @CallSite(spi = IastCallSites.class)
 public class JakartaServletRequestCallSite {
 
-  @Source(SourceTypes.REQUEST_PARAMETER_VALUE_STRING)
+  @Source(SourceTypes.REQUEST_PARAMETER_VALUE)
   @CallSite.After("java.lang.String jakarta.servlet.ServletRequest.getParameter(java.lang.String)")
   @CallSite.After(
       "java.lang.String jakarta.servlet.ServletRequestWrapper.getParameter(java.lang.String)")
@@ -41,7 +41,7 @@ public class JakartaServletRequestCallSite {
     return value;
   }
 
-  @Source(SourceTypes.REQUEST_PARAMETER_NAME_STRING)
+  @Source(SourceTypes.REQUEST_PARAMETER_NAME)
   @CallSite.After("java.util.Enumeration jakarta.servlet.ServletRequest.getParameterNames()")
   @CallSite.After("java.util.Enumeration jakarta.servlet.ServletRequestWrapper.getParameterNames()")
   public static Enumeration<String> afterGetParameterNames(
@@ -71,7 +71,7 @@ public class JakartaServletRequestCallSite {
     }
   }
 
-  @Source(SourceTypes.REQUEST_PARAMETER_VALUE_STRING)
+  @Source(SourceTypes.REQUEST_PARAMETER_VALUE)
   @CallSite.After(
       "java.lang.String[] jakarta.servlet.ServletRequest.getParameterValues(java.lang.String)")
   @CallSite.After(
@@ -93,7 +93,7 @@ public class JakartaServletRequestCallSite {
     return parameterValues;
   }
 
-  @Source(SourceTypes.REQUEST_PARAMETER_VALUE_STRING)
+  @Source(SourceTypes.REQUEST_PARAMETER_VALUE)
   @CallSite.After("java.util.Map jakarta.servlet.ServletRequest.getParameterMap()")
   @CallSite.After("java.util.Map jakarta.servlet.ServletRequestWrapper.getParameterMap()")
   public static java.util.Map<java.lang.String, java.lang.String[]> afterGetParameterMap(
@@ -125,7 +125,7 @@ public class JakartaServletRequestCallSite {
     }
   }
 
-  @Source(SourceTypes.REQUEST_BODY_STRING)
+  @Source(SourceTypes.REQUEST_BODY)
   @CallSite.After(
       "jakarta.servlet.ServletInputStream jakarta.servlet.ServletRequest.getInputStream()")
   @CallSite.After(

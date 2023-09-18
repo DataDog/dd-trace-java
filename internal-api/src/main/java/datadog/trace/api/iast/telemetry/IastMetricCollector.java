@@ -5,10 +5,10 @@ import static datadog.trace.api.iast.telemetry.IastMetric.Scope.REQUEST;
 import datadog.trace.api.Config;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
+import datadog.trace.api.iast.telemetry.IastMetric.Tag;
 import datadog.trace.api.telemetry.MetricCollector;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
-import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.LinkedList;
@@ -38,18 +38,20 @@ public class IastMetricCollector implements MetricCollector<IastMetricCollector.
     return INSTANCE;
   }
 
-  private static IastMetricCollector get(@Nullable final RequestContext requestContext) {
+  private static IastMetricCollector get(@Nullable Object ctx) {
     if (VERBOSITY == Verbosity.OFF) {
       return INSTANCE;
     }
-    final RequestContext ctx = requestContext == null ? activeRequestContext() : requestContext;
-    if (ctx != null) {
-      final Object iastCtx = ctx.getData(RequestContextSlot.IAST);
-      if (iastCtx instanceof HasMetricCollector) {
-        final IastMetricCollector collector = ((HasMetricCollector) iastCtx).getMetricCollector();
-        if (collector != null) {
-          return collector;
-        }
+    if (ctx == null) {
+      ctx = activeRequestContext();
+    }
+    if (ctx instanceof RequestContext) {
+      ctx = ((RequestContext) ctx).getData(RequestContextSlot.IAST);
+    }
+    if (ctx instanceof HasMetricCollector) {
+      final IastMetricCollector collector = ((HasMetricCollector) ctx).getMetricCollector();
+      if (collector != null) {
+        return collector;
       }
     }
     // if no active request then forward to the global collector
@@ -70,26 +72,26 @@ public class IastMetricCollector implements MetricCollector<IastMetricCollector.
     this.counters = counters;
   }
 
-  /** Prefer using {@link #add(IastMetric, int, RequestContext)} if possible */
+  /** Prefer using {@link #add(IastMetric, int, Object)} if possible */
   public static void add(@Nonnull final IastMetric metric, final int value) {
     add(metric, value, null);
   }
 
-  /** Prefer using {@link #add(IastMetric, String, int, RequestContext)} if possible */
-  public static void add(@Nonnull final IastMetric metric, final String tagValue, final int value) {
+  public static void add(
+      @Nonnull final IastMetric metric, final int value, @Nullable final Object ctx) {
+    add(metric, (byte) -1, value, null);
+  }
+
+  /** Prefer using {@link #add(IastMetric, byte, int, Object)} if possible */
+  public static void add(@Nonnull final IastMetric metric, final byte tagValue, final int value) {
     add(metric, tagValue, value, null);
   }
 
   public static void add(
-      @Nonnull final IastMetric metric, final int value, @Nullable final RequestContext ctx) {
-    add(metric, null, value, ctx);
-  }
-
-  public static void add(
       @Nonnull final IastMetric metric,
-      @Nullable final String tagValue,
+      final byte tagValue,
       final int value,
-      @Nullable final RequestContext ctx) {
+      @Nullable final Object ctx) {
     try {
       final IastMetricCollector instance = metric.getScope() == REQUEST ? get(ctx) : INSTANCE;
       instance.addMetric(metric, tagValue, value);
@@ -98,14 +100,20 @@ public class IastMetricCollector implements MetricCollector<IastMetricCollector.
     }
   }
 
-  public void addMetric(final IastMetric metric, final String tagValue, final int value) {
-    final int index = metric.getIndex(tagValue);
-    if (index < 0) {
+  public void addMetric(final IastMetric metric, final byte tagValue, final int value) {
+    final Tag tag = metric.getTag();
+    if (tag != null && tag.isWrapped(tagValue)) {
       // e.g.: VulnerabilityTypes.RESPONSE_HEADER
-      for (final String tag : metric.getTag().parse(tagValue)) {
-        counters.getAndAdd(metric.getIndex(tag), value);
+      for (final byte unwrapped : metric.getTag().unwrap(tagValue)) {
+        increment(metric.getIndex(unwrapped), value);
       }
     } else {
+      increment(metric.getIndex(tagValue), value);
+    }
+  }
+
+  private void increment(final int index, final int value) {
+    if (index >= 0) {
       counters.getAndAdd(index, value);
     }
   }
@@ -113,7 +121,7 @@ public class IastMetricCollector implements MetricCollector<IastMetricCollector.
   public void merge(final Collection<IastMetricData> metrics) {
     for (final IastMetricData data : metrics) {
       final IastMetric metric = data.metric;
-      final String tagValue = data.tagValue;
+      final byte tagValue = data.tagValue;
       final long value = data.value.longValue();
       counters.getAndAdd(metric.getIndex(tagValue), value);
     }
@@ -123,16 +131,16 @@ public class IastMetricCollector implements MetricCollector<IastMetricCollector.
   public void prepareMetrics() {
     for (final IastMetric metric : IastMetric.values()) {
       if (metric.getTag() == null) {
-        prepareMetric(metric, null);
+        prepareMetric(metric, (byte) -1);
       } else {
-        for (final String tagValue : metric.getTag().getValues()) {
+        for (final byte tagValue : metric.getTag().getValues()) {
           prepareMetric(metric, tagValue);
         }
       }
     }
   }
 
-  private void prepareMetric(final IastMetric metric, final String tagValue) {
+  private void prepareMetric(final IastMetric metric, final byte tagValue) {
     final int index = metric.getIndex(tagValue);
     final long value = counters.getAndSet(index, 0);
     if (value > 0) {
@@ -155,9 +163,9 @@ public class IastMetricCollector implements MetricCollector<IastMetricCollector.
   public static class IastMetricData extends MetricCollector.Metric {
 
     private final IastMetric metric;
-    private final String tagValue;
+    private final byte tagValue;
 
-    public IastMetricData(final IastMetric metric, final String tagValue, final long value) {
+    public IastMetricData(final IastMetric metric, final byte tagValue, final long value) {
       super(
           NAMESPACE,
           metric.isCommon(),
@@ -173,26 +181,24 @@ public class IastMetricCollector implements MetricCollector<IastMetricCollector.
       return metric;
     }
 
-    public String getTagValue() {
+    public byte getTagValue() {
       return tagValue;
     }
 
     public String getSpanTag() {
-      return metric.getTag() == null
-          ? metric.getName()
-          : String.format("%s.%s", metric.getName(), processSpanTagValue(tagValue));
+      if (metric.getTag() == null) {
+        return metric.getName();
+      }
+      final String tag = metric.getTag().toString(tagValue);
+      final String spanTag = tag.toLowerCase(Locale.ROOT).replace('.', '_');
+      return String.format("%s.%s", metric.getName(), spanTag);
     }
 
-    @SuppressForbidden
-    private static String processSpanTagValue(final String tagValue) {
-      return tagValue.toLowerCase(Locale.ROOT).replaceAll("\\.", "_");
-    }
-
-    public static String computeTag(final IastMetric metric, final String tagValue) {
+    public static String computeTag(final IastMetric metric, final byte tagValue) {
       if (metric.getTag() == null) {
         return null;
       }
-      return String.format("%s:%s", metric.getTag().getName(), tagValue);
+      return String.format("%s:%s", metric.getTag().getName(), metric.getTag().toString(tagValue));
     }
   }
 
@@ -208,7 +214,7 @@ public class IastMetricCollector implements MetricCollector<IastMetricCollector.
     }
 
     @Override
-    public void addMetric(final IastMetric metric, final String tagValue, final int value) {}
+    public void addMetric(final IastMetric metric, final byte tagValue, final int value) {}
 
     @Override
     public void merge(final Collection<IastMetricData> metrics) {}

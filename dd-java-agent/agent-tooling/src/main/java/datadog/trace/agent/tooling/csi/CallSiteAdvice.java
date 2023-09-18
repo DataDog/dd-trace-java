@@ -9,6 +9,9 @@ public interface CallSiteAdvice {
     /** Executes an instruction without parameters */
     void instruction(int opcode);
 
+    /** Executes an instruction with an int parameter */
+    void instruction(final int opcode, final int parameter);
+
     /** Executes an instruction with a type parameter */
     void instruction(int opcode, String type);
 

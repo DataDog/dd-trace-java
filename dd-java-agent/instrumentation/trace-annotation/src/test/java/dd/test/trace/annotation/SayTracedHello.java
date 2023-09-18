@@ -5,6 +5,8 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 import datadog.trace.api.DDTags;
 import datadog.trace.api.Trace;
 import java.util.concurrent.Callable;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
 
 public class SayTracedHello {
 
@@ -60,6 +62,20 @@ public class SayTracedHello {
   @Trace(operationName = "ERROR", resourceName = "WORLD")
   public static String sayERRORWithResource() {
     throw new RuntimeException();
+  }
+
+  @Trace
+  public static CompletableFuture<String> sayHelloFuture(CountDownLatch latch) {
+    activeSpan().setTag(DDTags.SERVICE_NAME, "test");
+    return CompletableFuture.supplyAsync(
+        () -> {
+          try {
+            latch.await();
+          } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+          }
+          return "hello!";
+        });
   }
 
   public static String fromCallable() throws Exception {

@@ -83,5 +83,17 @@
       {"name": "consumerIndex", "allowUnsafeAccess": true},
       {"name": "blocked", "allowUnsafeAccess": true}
     ]
+  },
+  {
+    "name" : "org.jctools.queues.SpscArrayQueueProducerIndexFields",
+    "fields": [
+      {"name": "producerIndex", "allowUnsafeAccess": true}
+    ]
+  },
+  {
+    "name" : "org.jctools.queues.SpscArrayQueueConsumerIndexField",
+    "fields": [
+      {"name": "consumerIndex", "allowUnsafeAccess": true}
+    ]
   }
 ]

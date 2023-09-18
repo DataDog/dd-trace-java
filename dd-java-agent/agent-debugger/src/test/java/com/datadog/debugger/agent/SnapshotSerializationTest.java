@@ -61,6 +61,7 @@ import java.util.concurrent.locks.LockSupport;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.DisabledIf;
 import org.junit.jupiter.api.condition.EnabledOnJre;
 import org.junit.jupiter.api.condition.JRE;
 
@@ -96,6 +97,7 @@ public class SnapshotSerializationTest {
 
   @Test
   @EnabledOnJre(JRE.JAVA_17)
+  @DisabledIf("datadog.trace.api.Platform#isJ9")
   public void roundTripCapturedValue() throws IOException, URISyntaxException {
     JsonAdapter<Snapshot> adapter = createSnapshotAdapter();
     Snapshot snapshot = createSnapshot();

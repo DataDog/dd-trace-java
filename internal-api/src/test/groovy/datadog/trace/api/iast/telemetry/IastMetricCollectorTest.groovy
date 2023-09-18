@@ -2,6 +2,7 @@ package datadog.trace.api.iast.telemetry
 
 import datadog.trace.api.gateway.RequestContext
 import datadog.trace.api.gateway.RequestContextSlot
+import datadog.trace.api.iast.SourceTypes
 import datadog.trace.api.iast.VulnerabilityTypes
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
@@ -61,7 +62,7 @@ class IastMetricCollectorTest extends DDSpecification {
     result.empty
   }
 
-  void 'test collectors'() {
+  void 'test collector in heavy concurrency'() {
     given:
     final times = 1000
     final value = 5
@@ -76,9 +77,13 @@ class IastMetricCollectorTest extends DDSpecification {
     final futures = (1..times).collect { i ->
       executor.submit {
         final metric = metrics[random.nextInt(metrics.length)]
-        final tag = metric.tag == null ? null : metric.tag.values[random.nextInt(metric.tag.values.length)]
         latch.await()
-        IastMetricCollector.add(metric, tag, value)
+        if (metric.tag == null) {
+          IastMetricCollector.add(metric, value)
+        } else {
+          final tag = metric.tag.values[random.nextInt(metric.tag.values.length)]
+          IastMetricCollector.add(metric, tag, value)
+        }
       }
     }
     latch.countDown()
@@ -96,13 +101,11 @@ class IastMetricCollectorTest extends DDSpecification {
   void 'test no op collector does nothing'() {
     setup:
     final collector = new NoOpInstance()
-    final metric = IastMetric.EXECUTED_PROPAGATION
-    final tag = null
-
-    when:
+    final metric = IastMetric.EXECUTED_SINK
+    final tag = VulnerabilityTypes.SQL_INJECTION
 
     when: 'adding a metric'
-    collector.addMetric(metric, tag, 23)
+    collector.addMetric(metric, tag, 1)
     collector.prepareMetrics()
     final collectorMetrics = collector.drain()
 
@@ -110,7 +113,7 @@ class IastMetricCollectorTest extends DDSpecification {
     collectorMetrics.empty
 
     when: 'merging metrics'
-    collector.merge([new IastMetricCollector.IastMetricData(metric, tag, 23)])
+    collector.merge([new IastMetricCollector.IastMetricData(metric, tag, 100)])
     collector.prepareMetrics()
     final mergedMetrics = collector.drain()
 
@@ -153,41 +156,74 @@ class IastMetricCollectorTest extends DDSpecification {
     0 * _
   }
 
-  void 'test metric tags/span tags'() {
-    given:
-    final metric = IastMetric.INSTRUMENTED_SINK
-    final tag = VulnerabilityTypes.SQL_INJECTION
-
+  void 'test metric tags/span tags: #metric'() {
     when:
-    final withTag = new IastMetricCollector.IastMetricData(metric, tag, 1)
+    final data = new IastMetricCollector.IastMetricData(metric, tag, 1)
 
     then:
-    withTag.tags == ["${metric.tag.name}:${tag}"]
-    withTag.spanTag == "${metric.name}.${tag.toLowerCase().replaceAll('\\.', '_')}"
+    if (metric.tag) {
+      final tagString = metric.tag.toString(tag)
+      data.tags.size() == 1
+      data.tags.first() == "${metric.tag.name}:${tagString}"
+      data.spanTag == "${metric.name}.${tagString.toLowerCase().replaceAll('\\.', '_')}"
+    } else {
+      data.tags.empty
+      data.spanTag == metric.name
+    }
+
+    where:
+    metric                         | tag
+    IastMetric.INSTRUMENTED_SINK   | VulnerabilityTypes.SQL_INJECTION
+    IastMetric.INSTRUMENTED_SOURCE | SourceTypes.REQUEST_HEADER_NAME
+    IastMetric.EXECUTED_TAINTED    | (byte) -1
   }
 
-  void 'test metrics with multiple tags'() {
+  void 'test metric: #metric'() {
     given:
     final collector = new IastMetricCollector()
-    final metric = IastMetric.INSTRUMENTED_SINK
-    final tag = VulnerabilityTypes.RESPONSE_HEADER
-    final value = 1
+    final value = 125
 
     when:
-    collector.addMetric(metric, tag, value)
+    collector.addMetric(metric, metric.tag == null ? (byte) -1 : tag, value)
     collector.prepareMetrics()
     final result = collector.drain()
 
-    then: 'multiple data points are added'
-
-    result.size() == 2
-    final grouped = result.groupBy { it.tags.first() }
-    VulnerabilityTypes.RESPONSE_HEADER_TYPES.each {
-      final tagValue = "${metric.tag.name}:${it}"
-      final data = grouped[tagValue].first()
-      assert data.metric == metric
-      assert data.value.toLong() == value
-      assert data.tags == [tagValue]
+    then:
+    if (metric.tag) {
+      final assertedTags = metric.tag.isWrapped(tag) ? metric.tag.unwrap(tag) : [tag]
+      result.size() == assertedTags
+      final grouped = result.groupBy { it.tags.first() }
+      assertedTags.each {
+        final tagValue = "${metric.tag.name}:${metric.tag.toString(it as byte)}"
+        final data = grouped[tagValue].first()
+        assert data.metric == metric
+        assert data.value.toLong() == value
+        assert data.tags.size() == 1
+        assert data.tags.first() == tagValue
+      }
+    } else {
+      result.size() == 1
+      final data = result.first()
+      data.metric == metric
+      data.value.toLong() == value
+      data.tags.empty
     }
+
+    where:
+    metric                         | tag
+    IastMetric.INSTRUMENTED_SINK   | VulnerabilityTypes.SQL_INJECTION
+    IastMetric.EXECUTED_SINK       | VulnerabilityTypes.SQL_INJECTION
+
+    IastMetric.INSTRUMENTED_SINK   | VulnerabilityTypes.RESPONSE_HEADER // wrapped response headers
+    IastMetric.EXECUTED_SINK       | VulnerabilityTypes.RESPONSE_HEADER
+
+    IastMetric.INSTRUMENTED_SINK   | VulnerabilityTypes.SPRING_RESPONSE // wrapped spring response
+    IastMetric.EXECUTED_SINK       | VulnerabilityTypes.SPRING_RESPONSE
+
+    IastMetric.INSTRUMENTED_SOURCE | SourceTypes.REQUEST_HEADER_NAME
+    IastMetric.EXECUTED_SOURCE     | SourceTypes.REQUEST_HEADER_NAME
+
+    IastMetric.EXECUTED_TAINTED    | null
+    IastMetric.TAINTED_FLAT_MODE   | null
   }
 }

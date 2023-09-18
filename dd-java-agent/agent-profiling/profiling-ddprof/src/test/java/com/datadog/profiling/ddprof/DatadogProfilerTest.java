@@ -10,8 +10,7 @@ import com.datadog.profiling.controller.RecordingData;
 import com.datadog.profiling.controller.UnsupportedEnvironmentException;
 import com.datadog.profiling.utils.ProfilingMode;
 import datadog.trace.api.config.ProfilingConfig;
-import datadog.trace.api.experimental.ProfilingContextSetter;
-import datadog.trace.api.experimental.ProfilingScope;
+import datadog.trace.api.profiling.ProfilingScope;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -116,8 +115,8 @@ class DatadogProfilerTest {
     assertTrue(profiler.setContextValue("foo", "xyz"));
     assertFalse(profiler.setContextValue("xyz", "foo"));
 
-    ProfilingContextSetter fooSetter = new DatadogProfilerContextSetter("foo", profiler);
-    ProfilingContextSetter barSetter = new DatadogProfilerContextSetter("bar", profiler);
+    DatadogProfilerContextSetter fooSetter = new DatadogProfilerContextSetter("foo", profiler);
+    DatadogProfilerContextSetter barSetter = new DatadogProfilerContextSetter("bar", profiler);
     int[] snapshot0 = profiler.snapshot();
     try (ProfilingScope outer = new DatadogProfilingScope(profiler)) {
       fooSetter.set("foo0");

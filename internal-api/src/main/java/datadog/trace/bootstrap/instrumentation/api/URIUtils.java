@@ -269,4 +269,33 @@ public class URIUtils {
       return lazy;
     }
   }
+
+  /**
+   * Concatenate two URI parts to form the complete one. Mostly used for apache http client
+   * instrumentations
+   *
+   * @param schemeHostPort the first part (usually <code>http://host:port</code>)
+   * @param theRest the rest of the uri (e.g. <code>/path?query#fragment</code>
+   * @return the full URI or <code>null</code> if fails to parse
+   */
+  public static URI safeConcat(final String schemeHostPort, final String theRest) {
+    if (schemeHostPort == null && theRest == null) {
+      return null;
+    }
+    final String part1 = schemeHostPort != null ? schemeHostPort : "";
+    final String part2 = theRest != null ? theRest : "";
+    if (part2.startsWith(part1)) {
+      return safeParse(part2);
+    }
+    final boolean addSlash = !(part2.startsWith("/") || part1.endsWith("/"));
+    final StringBuilder sb =
+        new StringBuilder(part1.length() + part2.length() + (addSlash ? 1 : 0));
+    sb.append(part1);
+    if (addSlash) {
+      // it happens for http async client 4 with relative URI
+      sb.append("/");
+    }
+    sb.append(part2);
+    return safeParse(sb.toString());
+  }
 }

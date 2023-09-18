@@ -8,7 +8,7 @@ import org.junit.jupiter.api.Tag;
 
 /**
  * Use this annotation for suites or test cases that are flaky. When running in CI, these will be
- * seggregated to a separate job.
+ * segregated to a separate job.
  */
 @Retention(RetentionPolicy.RUNTIME)
 @Target({ElementType.TYPE, ElementType.METHOD})

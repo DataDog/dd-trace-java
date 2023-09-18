@@ -24,6 +24,9 @@ public class ServerNamingV0 implements NamingSchema.ForServer {
       case "akka-http-server":
         prefix = "akka-http";
         break;
+      case "pekko-http-server":
+        prefix = "pekko-http";
+        break;
       case "netty":
       case "finatra":
       case "axway-http":

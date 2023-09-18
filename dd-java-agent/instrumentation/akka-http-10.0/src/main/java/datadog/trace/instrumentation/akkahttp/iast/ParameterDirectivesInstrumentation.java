@@ -100,7 +100,7 @@ public class ParameterDirectivesInstrumentation extends Instrumenter.Iast
 
   static class TaintMultiMapDirectiveAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
-    @Source(SourceTypes.REQUEST_PARAMETER_VALUE_STRING)
+    @Source(SourceTypes.REQUEST_PARAMETER_VALUE)
     static void after(@Advice.Return(readOnly = false) Directive directive) {
       directive = directive.tmap(TaintMultiMapFunction.INSTANCE, Tupler$.MODULE$.forTuple(null));
     }
@@ -108,7 +108,7 @@ public class ParameterDirectivesInstrumentation extends Instrumenter.Iast
 
   static class TaintMapDirectiveAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
-    @Source(SourceTypes.REQUEST_PARAMETER_VALUE_STRING)
+    @Source(SourceTypes.REQUEST_PARAMETER_VALUE)
     static void after(@Advice.Return(readOnly = false) Directive directive) {
       directive = directive.tmap(TaintMapFunction.INSTANCE, Tupler$.MODULE$.forTuple(null));
     }
@@ -116,7 +116,7 @@ public class ParameterDirectivesInstrumentation extends Instrumenter.Iast
 
   static class TaintSeqDirectiveAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
-    @Source(SourceTypes.REQUEST_PARAMETER_VALUE_STRING)
+    @Source(SourceTypes.REQUEST_PARAMETER_VALUE)
     static void after(@Advice.Return(readOnly = false) Directive directive) {
       directive = directive.tmap(TaintSeqFunction.INSTANCE, Tupler$.MODULE$.forTuple(null));
     }
@@ -124,7 +124,7 @@ public class ParameterDirectivesInstrumentation extends Instrumenter.Iast
 
   static class TaintSingleParameterDirectiveOldScalaAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
-    @Source(SourceTypes.REQUEST_PARAMETER_VALUE_STRING)
+    @Source(SourceTypes.REQUEST_PARAMETER_VALUE)
     static void after(
         @Advice.Return(readOnly = false) Object retval,
         @Advice.Argument(1) ParameterDirectives.ParamMagnet pmag) {
@@ -144,7 +144,7 @@ public class ParameterDirectivesInstrumentation extends Instrumenter.Iast
 
   static class TaintSingleParameterDirectiveNewScalaAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
-    @Source(SourceTypes.REQUEST_PARAMETER_VALUE_STRING)
+    @Source(SourceTypes.REQUEST_PARAMETER_VALUE)
     static void after(
         @Advice.Return(readOnly = false) Object retval,
         @Advice.Argument(0) ParameterDirectives.ParamMagnet pmag) {

@@ -1,5 +1,6 @@
 package datadog.trace.core.tagprocessor;
 
+import datadog.trace.core.DDSpanContext;
 import java.util.Map;
 import java.util.Objects;
 import javax.annotation.Nonnull;
@@ -13,9 +14,15 @@ public class PostProcessorChain implements TagsPostProcessor {
 
   @Override
   public Map<String, Object> processTags(Map<String, Object> unsafeTags) {
+    return processTagsWithContext(unsafeTags, null);
+  }
+
+  @Override
+  public Map<String, Object> processTagsWithContext(
+      Map<String, Object> unsafeTags, DDSpanContext spanContext) {
     Map<String, Object> currentTags = unsafeTags;
     for (final TagsPostProcessor tagsPostProcessor : chain) {
-      currentTags = tagsPostProcessor.processTags(currentTags);
+      currentTags = tagsPostProcessor.processTagsWithContext(currentTags, spanContext);
     }
     return currentTags;
   }

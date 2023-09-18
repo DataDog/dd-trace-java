@@ -6,10 +6,12 @@ import datadog.trace.api.civisibility.config.ModuleExecutionSettings;
 import datadog.trace.api.civisibility.events.BuildEventsHandler;
 import datadog.trace.api.config.CiVisibilityConfig;
 import datadog.trace.util.Strings;
+import java.io.File;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import org.gradle.BuildAdapter;
@@ -139,9 +141,13 @@ public class GradleBuildListener extends BuildAdapter {
       Project project = task.getProject();
       Gradle gradle = project.getGradle();
       String taskPath = task.getPath();
-      String startCommand = GradleUtils.recreateStartCommand(gradle.getStartParameter());
+
+      List<String> sourceSetNames = Config.get().getCiVisibilityJacocoGradleSourceSets();
+      Collection<File> outputClassesDirs =
+          GradleUtils.getOutputClassesDirs(project, sourceSetNames);
+
       BuildEventsHandler.ModuleInfo moduleInfo =
-          buildEventsHandler.onTestModuleStart(gradle, taskPath, startCommand, null);
+          buildEventsHandler.onTestModuleStart(gradle, taskPath, outputClassesDirs, null);
 
       JavaForkOptions taskForkOptions = (JavaForkOptions) task;
       taskForkOptions.jvmArgs(

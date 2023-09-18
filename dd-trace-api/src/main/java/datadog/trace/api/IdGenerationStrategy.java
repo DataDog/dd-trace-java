@@ -1,5 +1,7 @@
 package datadog.trace.api;
 
+import static java.lang.Long.MAX_VALUE;
+
 import java.security.SecureRandom;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicLong;
@@ -58,7 +60,7 @@ public abstract class IdGenerationStrategy {
 
     @Override
     protected long getNonZeroPositiveLong() {
-      return ThreadLocalRandom.current().nextLong(1, Long.MAX_VALUE);
+      return ThreadLocalRandom.current().nextLong(0, MAX_VALUE) + 1;
     }
   }
 
@@ -105,9 +107,9 @@ public abstract class IdGenerationStrategy {
 
     @Override
     protected long getNonZeroPositiveLong() {
-      long value = secureRandom.nextLong() & Long.MAX_VALUE;
+      long value = secureRandom.nextLong() & MAX_VALUE;
       while (value == 0) {
-        value = secureRandom.nextLong() & Long.MAX_VALUE;
+        value = secureRandom.nextLong() & MAX_VALUE;
       }
       return value;
     }

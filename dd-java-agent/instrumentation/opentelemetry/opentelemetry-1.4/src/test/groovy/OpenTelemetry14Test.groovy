@@ -6,6 +6,8 @@ import io.opentelemetry.api.trace.SpanKind
 import io.opentelemetry.context.Context
 import spock.lang.Subject
 
+import java.security.InvalidParameterException
+
 import static io.opentelemetry.api.trace.StatusCode.ERROR
 import static io.opentelemetry.api.trace.StatusCode.OK
 import static io.opentelemetry.api.trace.StatusCode.UNSET
@@ -313,6 +315,48 @@ class OpenTelemetry14Test extends AgentTestRunner {
     }
   }
 
+  def "test span record exception"() {
+    setup:
+    def builder = tracer.spanBuilder("some-name")
+    def result = builder.startSpan()
+    def message = "input can't be null"
+    def exception = new InvalidParameterException(message)
+
+    expect:
+    result.delegate.getTag(DDTags.ERROR_MSG) == null
+    result.delegate.getTag(DDTags.ERROR_TYPE) == null
+    result.delegate.getTag(DDTags.ERROR_STACK) == null
+    !result.delegate.isError()
+
+    when:
+    result.recordException(exception)
+
+    then:
+    result.delegate.getTag(DDTags.ERROR_MSG) == message
+    result.delegate.getTag(DDTags.ERROR_TYPE) == InvalidParameterException.name
+    result.delegate.getTag(DDTags.ERROR_STACK) != null
+    !result.delegate.isError()
+
+    when:
+    result.end()
+
+    then:
+    assertTraces(1) {
+      trace(1) {
+        span {
+          parent()
+          operationName "some-name"
+          resourceName "some-name"
+          errored false
+          tags {
+            defaultTags()
+            errorTags(exception)
+          }
+        }
+      }
+    }
+  }
+
   def "test span name update"() {
     setup:
     def builder = tracer.spanBuilder("some-name")
@@ -337,6 +381,35 @@ class OpenTelemetry14Test extends AgentTestRunner {
           parent()
           operationName "other-name"
           resourceName "some-name"
+        }
+      }
+    }
+  }
+
+  def "test span update after end"() {
+    setup:
+    def builder = tracer.spanBuilder("some-name")
+    def result = builder.startSpan()
+
+    when:
+    result.setAttribute("string", "value")
+    result.setStatus(ERROR)
+    result.end()
+    result.updateName("other-name")
+    result.setAttribute("string", "other-value")
+    result.setStatus(OK)
+
+    then:
+    assertTraces(1) {
+      trace(1) {
+        span {
+          parent()
+          operationName "some-name"
+          errored true
+          tags {
+            defaultTags()
+            "string" "value"
+          }
         }
       }
     }

@@ -52,7 +52,7 @@ public class CookieImplInstrumentation extends Instrumenter.Iast
 
   public static class GetNameAdvice {
     @Advice.OnMethodExit
-    @Source(SourceTypes.REQUEST_COOKIE_NAME_STRING)
+    @Source(SourceTypes.REQUEST_COOKIE_NAME)
     public static void afterGetName(
         @Advice.This final Cookie self, @Advice.Return final String result) {
       final PropagationModule module = InstrumentationBridge.PROPAGATION;
@@ -69,7 +69,7 @@ public class CookieImplInstrumentation extends Instrumenter.Iast
   public static class GetValueAdvice {
 
     @Advice.OnMethodExit
-    @Source(SourceTypes.REQUEST_COOKIE_VALUE_STRING)
+    @Source(SourceTypes.REQUEST_COOKIE_VALUE)
     public static void afterGetValue(
         @Advice.This final Cookie self, @Advice.Return final String result) {
       final PropagationModule module = InstrumentationBridge.PROPAGATION;

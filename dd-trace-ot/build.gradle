@@ -29,6 +29,12 @@ dependencies {
   annotationProcessor deps.autoserviceProcessor
   compileOnly deps.autoserviceAnnotation
 
+  modules {
+    module("com.squareup.okio:okio") {
+      replacedBy("com.datadoghq.okio:okio") // embed our patched fork
+    }
+  }
+
   api project(':dd-trace-api')
   implementation (project(':dd-trace-core')) {
     // why all communication pulls in remote config is beyond me...
@@ -114,10 +120,17 @@ shadowJar {
     exclude('datadog.trace.api.interceptor.*')
     exclude('datadog.trace.api.internal.*')
     exclude('datadog.trace.api.internal.util.*')
+    exclude('datadog.trace.api.profiling.*')
     exclude('datadog.trace.api.sampling.*')
     exclude('datadog.trace.context.*')
   }
-  exclude('META-INF/maven/')
+
+  duplicatesStrategy = DuplicatesStrategy.FAIL
+
+  // Remove some cruft from the final jar.
+  // These patterns should NOT include **/META-INF/maven/**/pom.properties, which is
+  // used to report our own dependencies.
+  exclude '**/META-INF/maven/**/pom.xml'
   exclude('META-INF/proguard/')
   exclude('/META-INF/*.kotlin_module')
 }

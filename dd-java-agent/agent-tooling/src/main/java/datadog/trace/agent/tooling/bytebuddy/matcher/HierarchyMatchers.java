@@ -5,7 +5,7 @@ import static net.bytebuddy.matcher.ElementMatchers.not;
 
 import datadog.trace.agent.tooling.bytebuddy.SharedTypePools;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
-import net.bytebuddy.description.DeclaredByType;
+import net.bytebuddy.description.ByteCodeElement;
 import net.bytebuddy.description.NamedElement;
 import net.bytebuddy.description.annotation.AnnotationSource;
 import net.bytebuddy.description.field.FieldDescription;
@@ -82,15 +82,17 @@ public final class HierarchyMatchers {
     return SUPPLIER.declaresContextField(keyClassName, contextClassName);
   }
 
+  /** Use this to match annotated fields, methods, or method parameters. */
   @SuppressForbidden
-  public static <T extends AnnotationSource & DeclaredByType.WithMandatoryDeclaration>
+  public static <T extends AnnotationSource & ByteCodeElement.TypeDependant<?, ?>>
       ElementMatcher.Junction<T> isAnnotatedWith(NameMatchers.Named<? super NamedElement> matcher) {
     SharedTypePools.annotationOfInterest(matcher.name);
     return ElementMatchers.isAnnotatedWith(matcher);
   }
 
+  /** Use this to match annotated fields, methods, or method parameters. */
   @SuppressForbidden
-  public static <T extends AnnotationSource & DeclaredByType.WithMandatoryDeclaration>
+  public static <T extends AnnotationSource & ByteCodeElement.TypeDependant<?, ?>>
       ElementMatcher.Junction<T> isAnnotatedWith(NameMatchers.OneOf<? super NamedElement> matcher) {
     SharedTypePools.annotationsOfInterest(matcher.names);
     return ElementMatchers.isAnnotatedWith(matcher);

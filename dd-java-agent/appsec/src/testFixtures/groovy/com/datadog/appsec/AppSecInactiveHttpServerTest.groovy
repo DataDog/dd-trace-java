@@ -7,7 +7,7 @@ import datadog.trace.agent.test.base.WithHttpServer
 import datadog.trace.api.Config
 import datadog.trace.api.gateway.RequestContextSlot
 import datadog.trace.api.gateway.SubscriptionService
-import datadog.trace.bootstrap.instrumentation.api.AgentTracer.TracerAPI
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import datadog.trace.core.DDSpan
 import okhttp3.FormBody
 import okhttp3.HttpUrl
@@ -31,7 +31,7 @@ abstract class AppSecInactiveHttpServerTest extends WithHttpServer {
   }
 
   void setupSpec() {
-    SubscriptionService ss = TracerAPI.get().getSubscriptionService(RequestContextSlot.APPSEC)
+    SubscriptionService ss = AgentTracer.get().getSubscriptionService(RequestContextSlot.APPSEC)
     def sco = new SharedCommunicationObjects()
     def config = Config.get()
     sco.createRemaining(config)

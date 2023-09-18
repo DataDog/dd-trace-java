@@ -19,8 +19,9 @@ public class IastRequestContext implements HasMetricCollector {
   private final TaintedObjects taintedObjects;
   private final OverheadContext overheadContext;
   private final IastMetricCollector collector;
-  private volatile boolean hstsHeaderIsSet;
-  private volatile boolean xForwardedProtoIsHtttps;
+  private volatile String strictTransportSecurity;
+  private volatile String xContentTypeOptions;
+  private volatile String xForwardedProto;
   private volatile String contentType;
 
   public IastRequestContext() {
@@ -35,9 +36,6 @@ public class IastRequestContext implements HasMetricCollector {
       final TaintedObjects taintedObjects, final IastMetricCollector collector) {
     this.vulnerabilityBatch = new VulnerabilityBatch();
     this.spanDataIsSet = new AtomicBoolean(false);
-    this.hstsHeaderIsSet = false;
-    this.xForwardedProtoIsHtttps = false;
-    this.contentType = null;
     this.overheadContext = new OverheadContext();
     this.taintedObjects = taintedObjects;
     this.collector = collector;
@@ -47,28 +45,36 @@ public class IastRequestContext implements HasMetricCollector {
     return vulnerabilityBatch;
   }
 
-  public void setHstsHeaderIsSet() {
-    hstsHeaderIsSet = true;
+  public String getStrictTransportSecurity() {
+    return strictTransportSecurity;
   }
 
-  public boolean getHstsHeaderIsSet() {
-    return hstsHeaderIsSet;
+  public void setStrictTransportSecurity(final String strictTransportSecurity) {
+    this.strictTransportSecurity = strictTransportSecurity;
   }
 
-  public void setXForwardedProtoIsHtttps() {
-    xForwardedProtoIsHtttps = true;
+  public String getxContentTypeOptions() {
+    return xContentTypeOptions;
   }
 
-  public boolean getXForwardedProtoIsHtttps() {
-    return xForwardedProtoIsHtttps;
+  public void setxContentTypeOptions(final String xContentTypeOptions) {
+    this.xContentTypeOptions = xContentTypeOptions;
   }
 
-  public void setContentType(String contentType) {
-    this.contentType = contentType;
+  public String getxForwardedProto() {
+    return xForwardedProto;
+  }
+
+  public void setxForwardedProto(final String xForwardedProto) {
+    this.xForwardedProto = xForwardedProto;
   }
 
   public String getContentType() {
     return contentType;
+  }
+
+  public void setContentType(final String contentType) {
+    this.contentType = contentType;
   }
 
   public boolean getAndSetSpanDataIsSet() {

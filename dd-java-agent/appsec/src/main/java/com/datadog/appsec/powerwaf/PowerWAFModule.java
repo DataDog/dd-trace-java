@@ -9,7 +9,6 @@ import com.datadog.appsec.config.AppSecConfig;
 import com.datadog.appsec.config.AppSecModuleConfigurer;
 import com.datadog.appsec.config.CurrentAppSecConfig;
 import com.datadog.appsec.event.ChangeableFlow;
-import com.datadog.appsec.event.EventType;
 import com.datadog.appsec.event.data.Address;
 import com.datadog.appsec.event.data.DataBundle;
 import com.datadog.appsec.event.data.KnownAddresses;
@@ -20,7 +19,6 @@ import com.datadog.appsec.report.raw.events.Rule;
 import com.datadog.appsec.report.raw.events.RuleMatch;
 import com.datadog.appsec.report.raw.events.Tags;
 import com.datadog.appsec.util.StandardizedLogging;
-import com.google.auto.service.AutoService;
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Moshi;
 import com.squareup.moshi.Types;
@@ -37,6 +35,7 @@ import io.sqreen.powerwaf.PowerwafMetrics;
 import io.sqreen.powerwaf.RuleSetInfo;
 import io.sqreen.powerwaf.exception.AbstractPowerwafException;
 import io.sqreen.powerwaf.exception.InvalidRuleSetException;
+import io.sqreen.powerwaf.exception.TimeoutPowerwafException;
 import java.io.IOException;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationHandler;
@@ -48,7 +47,6 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
@@ -64,7 +62,6 @@ import javax.annotation.Nonnull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-@AutoService(AppSecModule.class)
 public class PowerWAFModule implements AppSecModule {
   private static final Logger log = LoggerFactory.getLogger(PowerWAFModule.class);
 
@@ -75,7 +72,6 @@ public class PowerWAFModule implements AppSecModule {
   private static final Class<?> PROXY_CLASS =
       Proxy.getProxyClass(PowerWAFModule.class.getClassLoader(), Set.class);
   private static final Constructor<?> PROXY_CLASS_CONSTRUCTOR;
-  private static final Set<EventType> EVENTS_OF_INTEREST;
 
   private static final JsonAdapter<List<PowerWAFResultData>> RES_JSON_ADAPTER;
 
@@ -116,10 +112,6 @@ public class PowerWAFModule implements AppSecModule {
     } catch (NoSuchMethodException e) {
       throw new UndeclaredThrowableException(e);
     }
-
-    EVENTS_OF_INTEREST = new HashSet<>();
-    EVENTS_OF_INTEREST.add(EventType.REQUEST_START);
-    EVENTS_OF_INTEREST.add(EventType.REQUEST_END);
 
     Moshi moshi = new Moshi.Builder().build();
     RES_JSON_ADAPTER =
@@ -245,7 +237,7 @@ public class PowerWAFModule implements AppSecModule {
       initReport = newPwafCtx.getRuleSetInfo();
       Collection<Address<?>> addresses = getUsedAddresses(newPwafCtx);
 
-      // Update current rules' version if need
+      // Update current rules' version if you need
       if (initReport != null && initReport.rulesetVersion != null) {
         currentRulesVersion = initReport.rulesetVersion;
       }
@@ -256,12 +248,18 @@ public class PowerWAFModule implements AppSecModule {
         WafMetricCollector.get().wafUpdates(currentRulesVersion);
       }
 
-      log.info(
-          "Created {} WAF context with rules ({} OK, {} BAD), version {}",
-          prevContextAndAddresses == null ? "new" : "updated",
-          initReport.getNumRulesOK(),
-          initReport.getNumRulesError(),
-          initReport.rulesetVersion);
+      if (initReport != null) {
+        log.info(
+            "Created {} WAF context with rules ({} OK, {} BAD), version {}",
+            prevContextAndAddresses == null ? "new" : "updated",
+            initReport.getNumRulesOK(),
+            initReport.getNumRulesError(),
+            initReport.rulesetVersion);
+      } else {
+        log.warn(
+            "Created {} WAF context without rules",
+            prevContextAndAddresses == null ? "new" : "updated");
+      }
 
       Map<String, ActionInfo> actionInfoMap =
           calculateEffectiveActions(prevContextAndAddresses, ruleConfig);
@@ -357,24 +355,6 @@ public class PowerWAFModule implements AppSecModule {
   }
 
   @Override
-  public Collection<EventSubscription> getEventSubscriptions() {
-    return singletonList(new PowerWAFEventsCallback());
-  }
-
-  private static class PowerWAFEventsCallback extends EventSubscription {
-    public PowerWAFEventsCallback() {
-      super(EventType.REQUEST_END, Priority.DEFAULT);
-    }
-
-    @Override
-    public void onEvent(AppSecRequestContext reqCtx, EventType eventType) {
-      if (eventType == EventType.REQUEST_END) {
-        reqCtx.closeAdditive();
-      }
-    }
-  }
-
-  @Override
   public Collection<DataSubscription> getDataSubscriptions() {
     if (this.ctxAndAddresses.get() == null) {
       return Collections.emptyList();
@@ -410,23 +390,26 @@ public class PowerWAFModule implements AppSecModule {
         log.debug("Skipped; the WAF is not configured");
         return;
       }
+
+      StandardizedLogging.executingWAF(log);
+      long start = 0L;
+      if (log.isDebugEnabled()) {
+        start = System.currentTimeMillis();
+      }
+
       try {
-        StandardizedLogging.executingWAF(log);
-        long start = 0L;
-        if (log.isDebugEnabled()) {
-          start = System.currentTimeMillis();
-        }
-
         resultWithData = doRunPowerwaf(reqCtx, newData, ctxAndAddr, isTransient);
-
+      } catch (TimeoutPowerwafException tpe) {
+        log.debug("Timeout calling the WAF", tpe);
+        return;
+      } catch (AbstractPowerwafException e) {
+        log.error("Error calling WAF", e);
+        return;
+      } finally {
         if (log.isDebugEnabled()) {
           long elapsed = System.currentTimeMillis() - start;
           StandardizedLogging.finishedExecutionWAF(log, elapsed);
         }
-
-      } catch (AbstractPowerwafException e) {
-        log.error("Error calling WAF", e);
-        return;
       }
 
       StandardizedLogging.inAppWafReturn(log, resultWithData);
@@ -436,29 +419,27 @@ public class PowerWAFModule implements AppSecModule {
           log.warn("WAF signalled result {}: {}", resultWithData.result, resultWithData.data);
         }
 
-        if (resultWithData.actions.length > 0) {
-          for (String action : resultWithData.actions) {
-            ActionInfo actionInfo = ctxAndAddr.actionInfoMap.get(action);
-            if (actionInfo == null) {
-              log.warn(
-                  "WAF indicated action {}, but such action id is unknown (not one from {})",
-                  action,
-                  ctxAndAddr.actionInfoMap.keySet());
-            } else if ("block_request".equals(actionInfo.type)) {
-              Flow.Action.RequestBlockingAction rba = createBlockRequestAction(actionInfo);
-              flow.setAction(rba);
-              break;
-            } else if ("redirect_request".equals(actionInfo.type)) {
-              Flow.Action.RequestBlockingAction rba = createRedirectRequestAction(actionInfo);
-              flow.setAction(rba);
-              break;
-            } else {
-              log.info("Ignoring action with type {}", actionInfo.type);
-            }
+        for (String action : resultWithData.actions) {
+          ActionInfo actionInfo = ctxAndAddr.actionInfoMap.get(action);
+          if (actionInfo == null) {
+            log.warn(
+                "WAF indicated action {}, but such action id is unknown (not one from {})",
+                action,
+                ctxAndAddr.actionInfoMap.keySet());
+          } else if ("block_request".equals(actionInfo.type)) {
+            Flow.Action.RequestBlockingAction rba = createBlockRequestAction(actionInfo);
+            flow.setAction(rba);
+            break;
+          } else if ("redirect_request".equals(actionInfo.type)) {
+            Flow.Action.RequestBlockingAction rba = createRedirectRequestAction(actionInfo);
+            flow.setAction(rba);
+            break;
+          } else {
+            log.info("Ignoring action with type {}", actionInfo.type);
           }
         }
         Collection<AppSecEvent100> events = buildEvents(resultWithData);
-        reqCtx.reportEvents(events, null);
+        reqCtx.reportEvents(events);
 
         if (flow.isBlocking()) {
           WafMetricCollector.get().wafRequestBlocked();

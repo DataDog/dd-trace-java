@@ -8,6 +8,7 @@ import static io.opentelemetry.api.trace.StatusCode.UNSET;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AttachableWrapper;
+import datadog.trace.bootstrap.instrumentation.api.ErrorPriorities;
 import io.opentelemetry.api.common.AttributeKey;
 import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.trace.Span;
@@ -39,7 +40,9 @@ public class OtelSpan implements Span {
 
   @Override
   public <T> Span setAttribute(AttributeKey<T> key, T value) {
-    this.delegate.setTag(key.getKey(), value);
+    if (this.recording) {
+      this.delegate.setTag(key.getKey(), value);
+    }
     return this;
   }
 
@@ -57,26 +60,33 @@ public class OtelSpan implements Span {
 
   @Override
   public Span setStatus(StatusCode statusCode, String description) {
-    if (this.statusCode == UNSET) {
-      this.statusCode = statusCode;
-      this.delegate.setError(statusCode == ERROR);
-      this.delegate.setErrorMessage(statusCode == ERROR ? description : null);
-    } else if (this.statusCode == ERROR && statusCode == OK) {
-      this.delegate.setError(false);
-      this.delegate.setErrorMessage(null);
+    if (this.recording) {
+      if (this.statusCode == UNSET) {
+        this.statusCode = statusCode;
+        this.delegate.setError(statusCode == ERROR);
+        this.delegate.setErrorMessage(statusCode == ERROR ? description : null);
+      } else if (this.statusCode == ERROR && statusCode == OK) {
+        this.delegate.setError(false);
+        this.delegate.setErrorMessage(null);
+      }
     }
     return this;
   }
 
   @Override
   public Span recordException(Throwable exception, Attributes additionalAttributes) {
-    // Not supported
+    if (this.recording) {
+      // Store exception as span tags as span events are not supported yet
+      this.delegate.addThrowable(exception, ErrorPriorities.UNSET);
+    }
     return this;
   }
 
   @Override
   public Span updateName(String name) {
-    this.delegate.setOperationName(name);
+    if (this.recording) {
+      this.delegate.setOperationName(name);
+    }
     return this;
   }
 

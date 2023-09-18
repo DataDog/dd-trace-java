@@ -1,6 +1,7 @@
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.DDSpanId
 import datadog.trace.api.DDTraceId
+import datadog.trace.api.Platform
 import datadog.trace.instrumentation.spark.DatabricksParentContext
 import datadog.trace.instrumentation.spark.DatadogSparkListener
 import datadog.trace.test.util.Flaky
@@ -9,9 +10,17 @@ import org.apache.hadoop.yarn.conf.YarnConfiguration
 import org.apache.spark.deploy.SparkSubmit
 import org.apache.spark.deploy.yarn.ApplicationMaster
 import org.apache.spark.deploy.yarn.ApplicationMasterArguments
+import org.apache.spark.sql.Dataset
+import org.apache.spark.sql.Row
+import org.apache.spark.sql.RowFactory
 import org.apache.spark.sql.SparkSession
+import org.apache.spark.sql.types.StructType
 import scala.reflect.ClassTag$
+import spock.lang.IgnoreIf
 
+@IgnoreIf(reason="https://issues.apache.org/jira/browse/HADOOP-18174", value = {
+  Platform.isJ9()
+})
 class SparkTest extends AgentTestRunner {
 
   @Override
@@ -214,16 +223,15 @@ class SparkTest extends AgentTestRunner {
       .config("spark.default.parallelism", "2") // Small parallelism to speed up tests
       .config("spark.sql.shuffle.partitions", "2")
       .config("spark.databricks.sparkContextId", "some_id")
+      .config("spark.databricks.clusterUsageTags.clusterName", "job-1234-run-5678-Job_cluster")
       .getOrCreate()
 
     sparkSession.sparkContext().setLocalProperty("spark.databricks.job.id", "1234")
     sparkSession.sparkContext().setLocalProperty("spark.databricks.job.runId", "9012")
-    sparkSession.sparkContext().setLocalProperty("spark.databricks.clusterUsageTags.clusterName", "job-1234-run-5678-Job_cluster")
     TestSparkComputation.generateTestSparkComputation(sparkSession)
 
     sparkSession.sparkContext().setLocalProperty("spark.databricks.job.id", null)
     sparkSession.sparkContext().setLocalProperty("spark.databricks.job.runId", null)
-    sparkSession.sparkContext().setLocalProperty("spark.databricks.clusterUsageTags.clusterName", null)
     TestSparkComputation.generateTestSparkComputation(sparkSession)
 
     expect:
@@ -300,5 +308,164 @@ class SparkTest extends AgentTestRunner {
 
     contextWithoutTaskRunId.getTraceId() == DDTraceId.ZERO
     contextWithoutTaskRunId.getSpanId() == DDSpanId.ZERO
+  }
+
+  private Dataset<Row> generateSampleDataframe(SparkSession spark) {
+    def structType = new StructType()
+    structType = structType.add("col", "String", false)
+
+    def rows = new ArrayList<Row>()
+    rows.add(RowFactory.create("value"))
+    spark.createDataFrame(rows, structType)
+  }
+
+  def "generate spark sql spans"() {
+    setup:
+    def sparkSession = SparkSession.builder()
+      .config("spark.master", "local[2]")
+      .config("spark.sql.shuffle.partitions", "2")
+      .getOrCreate()
+
+    def df = generateSampleDataframe(sparkSession)
+    df.coalesce(1).count()
+    sparkSession.stop()
+
+    expect:
+    assertTraces(1) {
+      trace(4) {
+        span {
+          operationName "spark.application"
+          spanType "spark"
+          parent()
+        }
+        span {
+          operationName "spark.sql"
+          spanType "spark"
+          childOf(span(0))
+        }
+        span {
+          operationName "spark.job"
+          spanType "spark"
+          childOf(span(1))
+        }
+        span {
+          operationName "spark.stage"
+          spanType "spark"
+          childOf(span(2))
+        }
+      }
+    }
+  }
+
+  def "generate spark sql spans on databricks"() {
+    setup:
+    def sparkSession = SparkSession.builder()
+      .config("spark.master", "local[2]")
+      .config("spark.sql.shuffle.partitions", "2")
+      .config("spark.databricks.sparkContextId", "some_id")
+      .config("spark.databricks.clusterUsageTags.clusterName", "job-1234-run-5678-Job_cluster")
+      .getOrCreate()
+
+    sparkSession.sparkContext().setLocalProperty("spark.databricks.job.id", "1234")
+    sparkSession.sparkContext().setLocalProperty("spark.databricks.job.runId", "9012")
+
+    def df = generateSampleDataframe(sparkSession)
+    df.coalesce(1).count()
+    sparkSession.stop()
+
+    expect:
+    assertTraces(1) {
+      trace(3) {
+        span {
+          operationName "spark.sql"
+          spanType "spark"
+          traceId 8944764253919609482G
+          parentSpanId 15104224823446433673G
+        }
+        span {
+          operationName "spark.job"
+          spanType "spark"
+          childOf(span(0))
+        }
+        span {
+          operationName "spark.stage"
+          spanType "spark"
+          childOf(span(1))
+        }
+      }
+    }
+  }
+
+  def "add custom tags to spark spans"() {
+    def sparkSession = SparkSession.builder()
+      .config("spark.master", "local[2]")
+      .config("spark.sql.shuffle.partitions", "2")
+      .getOrCreate()
+
+    def df = generateSampleDataframe(sparkSession)
+
+    sparkSession.sparkContext().setLocalProperty("spark.datadog.tags.tag_1", "value_1")
+    sparkSession.sparkContext().setLocalProperty("spark.datadog.tags.tag_2", "value_2")
+    df.coalesce(1).count()
+
+    sparkSession.sparkContext().setLocalProperty("spark.datadog.tags.tag_1", "value_11")
+    sparkSession.sparkContext().setLocalProperty("spark.datadog.tags.tag_2", null)
+    df.coalesce(1).count()
+    sparkSession.stop()
+
+    expect:
+    assertTraces(1) {
+      trace(7) {
+        span {
+          operationName "spark.application"
+          spanType "spark"
+          assert span.tags["tag_1"] == null
+          assert span.tags["tag_2"] == null
+          parent()
+        }
+        span {
+          operationName "spark.sql"
+          spanType "spark"
+          assert span.tags["tag_1"] == "value_11"
+          assert span.tags["tag_2"] == null
+          childOf(span(0))
+        }
+        span {
+          operationName "spark.job"
+          spanType "spark"
+          assert span.tags["tag_1"] == "value_11"
+          assert span.tags["tag_2"] == null
+          childOf(span(1))
+        }
+        span {
+          operationName "spark.stage"
+          spanType "spark"
+          assert span.tags["tag_1"] == "value_11"
+          assert span.tags["tag_2"] == null
+          childOf(span(2))
+        }
+        span {
+          operationName "spark.sql"
+          spanType "spark"
+          assert span.tags["tag_1"] == "value_1"
+          assert span.tags["tag_2"] == "value_2"
+          childOf(span(0))
+        }
+        span {
+          operationName "spark.job"
+          spanType "spark"
+          assert span.tags["tag_1"] == "value_1"
+          assert span.tags["tag_2"] == "value_2"
+          childOf(span(4))
+        }
+        span {
+          operationName "spark.stage"
+          spanType "spark"
+          assert span.tags["tag_1"] == "value_1"
+          assert span.tags["tag_2"] == "value_2"
+          childOf(span(5))
+        }
+      }
+    }
   }
 }

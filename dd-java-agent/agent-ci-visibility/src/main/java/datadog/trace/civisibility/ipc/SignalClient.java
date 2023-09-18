@@ -112,4 +112,21 @@ public class SignalClient implements AutoCloseable {
   static String getErrorMessage(ErrorResponse response) {
     return "Server returned an error: " + response.getMessage();
   }
+
+  public static final class Factory {
+    private final InetSocketAddress signalServerAddress;
+
+    public Factory(InetSocketAddress signalServerAddress) {
+      this.signalServerAddress = signalServerAddress;
+    }
+
+    public SignalClient create() {
+      try {
+        return new SignalClient(signalServerAddress);
+      } catch (IOException e) {
+        throw new RuntimeException(
+            "Could not instantiate signal client. Address: " + signalServerAddress, e);
+      }
+    }
+  }
 }

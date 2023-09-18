@@ -6,7 +6,6 @@ import groovy.json.JsonSlurper
 import org.apache.http.HttpHost
 import org.apache.http.client.config.RequestConfig
 import org.apache.http.util.EntityUtils
-import org.elasticsearch.client.Request
 import org.elasticsearch.client.Response
 import org.elasticsearch.client.RestClient
 import org.elasticsearch.client.RestClientBuilder
@@ -71,9 +70,9 @@ class Elasticsearch6RestClientTest extends AgentTestRunner {
 
   def "test elasticsearch status"() {
     setup:
+    injectSysConfig("httpasyncclient4.legacy.tracing.enabled",  "true")
 
-    Request request = new Request("GET", "_cluster/health")
-    Response response = client.performRequest(request)
+    Response response = client.performRequest("GET", "_cluster/health")
 
     Map result = new JsonSlurper().parseText(EntityUtils.toString(response.entity))
 
@@ -111,7 +110,7 @@ class Elasticsearch6RestClientTest extends AgentTestRunner {
             "$Tags.HTTP_URL" "_cluster/health"
             "$Tags.HTTP_METHOD" "GET"
             "$Tags.HTTP_STATUS" 200
-            defaultTags()
+            defaultTagsNoPeerService()
           }
         }
       }

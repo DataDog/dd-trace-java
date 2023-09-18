@@ -170,7 +170,7 @@ class SpockTest extends CiVisibilityTest {
 
   @Override
   String expectedTestFrameworkVersion() {
-    return "2.1.0-groovy-3.0"
+    return "2.2.0-groovy-3.0"
   }
 
   @Override

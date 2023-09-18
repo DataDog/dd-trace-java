@@ -8,7 +8,7 @@ public class TestSucceed {
 
   @Test
   public void test_succeed() {
-    assertTrue(true);
+    assertTrue(Calculator.add(2, 2) == 4);
   }
 
   @Test

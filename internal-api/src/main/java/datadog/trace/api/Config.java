@@ -46,6 +46,8 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_UPLOAD_TIMEOUT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_VERIFY_BYTECODE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DOGSTATSD_START_DELAY;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_ELASTICSEARCH_BODY_AND_PARAMS_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_ELASTICSEARCH_BODY_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_ELASTICSEARCH_PARAMS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_GRPC_CLIENT_ERROR_STATUSES;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_GRPC_SERVER_ERROR_STATUSES;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_HEALTH_METRICS_ENABLED;
@@ -121,6 +123,7 @@ import static datadog.trace.api.config.AppSecConfig.APPSEC_RULES_FILE;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_TRACE_RATE_LIMIT;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_WAF_METRICS;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_WAF_TIMEOUT;
+import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_ADDITIONAL_CHILD_PROCESS_JVM_ARGS;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_AGENTLESS_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_AGENTLESS_URL;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_AGENT_JAR_URI;
@@ -129,6 +132,8 @@ import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_BACKEND_A
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_BUILD_INSTRUMENTATION_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_CIPROVIDER_INTEGRATION_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_CODE_COVERAGE_ENABLED;
+import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_CODE_COVERAGE_PERCENTAGE_CALCULATION_ENABLED;
+import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_CODE_COVERAGE_REPORT_DUMP_DIR;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_COMPILER_PLUGIN_AUTO_CONFIGURATION_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_COMPILER_PLUGIN_VERSION;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_COVERAGE_SEGMENTS_ENABLED;
@@ -139,6 +144,7 @@ import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_GIT_UNSHA
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_GIT_UPLOAD_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_GIT_UPLOAD_TIMEOUT_MILLIS;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_ITR_ENABLED;
+import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_JACOCO_GRADLE_SOURCE_SETS;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_JACOCO_PLUGIN_EXCLUDES;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_JACOCO_PLUGIN_INCLUDES;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_JACOCO_PLUGIN_VERSION;
@@ -275,6 +281,8 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_INSTANCE_TYPE_SUFFIX;
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_DBM_PROPAGATION_MODE_MODE;
 import static datadog.trace.api.config.TraceInstrumentationConfig.ELASTICSEARCH_BODY_AND_PARAMS_ENABLED;
+import static datadog.trace.api.config.TraceInstrumentationConfig.ELASTICSEARCH_BODY_ENABLED;
+import static datadog.trace.api.config.TraceInstrumentationConfig.ELASTICSEARCH_PARAMS_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.GRPC_CLIENT_ERROR_STATUSES;
 import static datadog.trace.api.config.TraceInstrumentationConfig.GRPC_IGNORED_INBOUND_METHODS;
 import static datadog.trace.api.config.TraceInstrumentationConfig.GRPC_IGNORED_OUTBOUND_METHODS;
@@ -291,6 +299,7 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.HYSTRIX_MEASUR
 import static datadog.trace.api.config.TraceInstrumentationConfig.HYSTRIX_TAGS_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.IGNITE_CACHE_INCLUDE_KEYS;
 import static datadog.trace.api.config.TraceInstrumentationConfig.INTEGRATION_SYNAPSE_LEGACY_OPERATION_NAME;
+import static datadog.trace.api.config.TraceInstrumentationConfig.JAX_RS_EXCEPTION_AS_ERROR_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.JMS_PROPAGATION_DISABLED_QUEUES;
 import static datadog.trace.api.config.TraceInstrumentationConfig.JMS_PROPAGATION_DISABLED_TOPICS;
 import static datadog.trace.api.config.TraceInstrumentationConfig.JMS_UNACKNOWLEDGED_MAX_AGE;
@@ -353,6 +362,7 @@ import static datadog.trace.api.config.TracerConfig.TRACE_GIT_METADATA_ENABLED;
 import static datadog.trace.api.config.TracerConfig.TRACE_HTTP_CLIENT_PATH_RESOURCE_NAME_MAPPING;
 import static datadog.trace.api.config.TracerConfig.TRACE_HTTP_RESOURCE_REMOVE_TRAILING_SLASH;
 import static datadog.trace.api.config.TracerConfig.TRACE_HTTP_SERVER_PATH_RESOURCE_NAME_MAPPING;
+import static datadog.trace.api.config.TracerConfig.TRACE_PEER_SERVICE_COMPONENT_OVERRIDES;
 import static datadog.trace.api.config.TracerConfig.TRACE_PEER_SERVICE_DEFAULTS_ENABLED;
 import static datadog.trace.api.config.TracerConfig.TRACE_PEER_SERVICE_MAPPING;
 import static datadog.trace.api.config.TracerConfig.TRACE_PROPAGATION_STYLE;
@@ -424,14 +434,22 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Config reads values with the following priority: 1) system properties, 2) environment variables,
- * 3) optional configuration file, 4) platform dependant properties. It also includes default values
- * to ensure a valid config.
+ * Config reads values with the following priority:
  *
- * <p>
+ * <p>1) system properties
+ *
+ * <p>2) environment variables,
+ *
+ * <p>3) optional configuration file
+ *
+ * <p>4) platform dependant properties. It also includes default values to ensure a valid config.
  *
  * <p>System properties are {@link Config#PREFIX}'ed. Environment variables are the same as the
  * system property, but uppercased and '.' is replaced with '_'.
+ *
+ * @see ConfigProvider for details on how configs are processed
+ * @see InstrumenterConfig for pre-instrumentation configurations
+ * @see DynamicConfig for configuration that can be dynamically updated via remote-config
  */
 @Deprecated
 public class Config {
@@ -493,6 +511,7 @@ public class Config {
   private final boolean traceResolverEnabled;
   private final int spanAttributeSchemaVersion;
   private final boolean peerServiceDefaultsEnabled;
+  private final Map<String, String> peerServiceComponentOverrides;
   private final boolean removeIntegrationServiceNamesEnabled;
   private final Map<String, String> peerServiceMapping;
   private final Map<String, String> serviceMapping;
@@ -636,13 +655,17 @@ public class Config {
   private final Long ciVisibilityModuleId;
   private final String ciVisibilityAgentJarUri;
   private final boolean ciVisibilityAutoConfigurationEnabled;
+  private final String ciVisibilityAdditionalChildProcessJvmArgs;
   private final boolean ciVisibilityCompilerPluginAutoConfigurationEnabled;
   private final boolean ciVisibilityCodeCoverageEnabled;
+  private final boolean ciVisibilityCodeCoveragePercentageCalculationEnabled;
+  private final String ciVisibilityCodeCoverageReportDumpDir;
   private final String ciVisibilityCompilerPluginVersion;
   private final String ciVisibilityJacocoPluginVersion;
   private final List<String> ciVisibilityJacocoPluginIncludes;
   private final List<String> ciVisibilityJacocoPluginExcludes;
   private final String[] ciVisibilityJacocoPluginExcludedClassnames;
+  private final List<String> ciVisibilityJacocoGradleSourceSets;
   private final Integer ciVisibilityDebugPort;
   private final boolean ciVisibilityGitUploadEnabled;
   private final boolean ciVisibilityGitUnshallowEnabled;
@@ -767,8 +790,11 @@ public class Config {
 
   private final boolean longRunningTraceEnabled;
   private final long longRunningTraceFlushInterval;
+  private final boolean elasticsearchBodyEnabled;
+  private final boolean elasticsearchParamsEnabled;
   private final boolean elasticsearchBodyAndParamsEnabled;
   private final boolean sparkTaskHistogramEnabled;
+  private final boolean jaxRsExceptionAsErrorsEnabled;
 
   private final float traceFlushIntervalSeconds;
 
@@ -847,6 +873,11 @@ public class Config {
     } else {
       secureRandom = configProvider.getBoolean(SECURE_RANDOM, DEFAULT_SECURE_RANDOM);
     }
+    elasticsearchBodyEnabled =
+        configProvider.getBoolean(ELASTICSEARCH_BODY_ENABLED, DEFAULT_ELASTICSEARCH_BODY_ENABLED);
+    elasticsearchParamsEnabled =
+        configProvider.getBoolean(
+            ELASTICSEARCH_PARAMS_ENABLED, DEFAULT_ELASTICSEARCH_PARAMS_ENABLED);
     elasticsearchBodyAndParamsEnabled =
         configProvider.getBoolean(
             ELASTICSEARCH_BODY_AND_PARAMS_ENABLED, DEFAULT_ELASTICSEARCH_BODY_AND_PARAMS_ENABLED);
@@ -994,6 +1025,8 @@ public class Config {
     // in v1+ defaults are always calculated regardless this feature flag
     peerServiceDefaultsEnabled =
         configProvider.getBoolean(TRACE_PEER_SERVICE_DEFAULTS_ENABLED, false);
+    peerServiceComponentOverrides =
+        configProvider.getMergedMap(TRACE_PEER_SERVICE_COMPONENT_OVERRIDES);
     // feature flag to remove fake services in v0
     removeIntegrationServiceNamesEnabled =
         configProvider.getBoolean(TRACE_REMOVE_INTEGRATION_SERVICE_NAMES_ENABLED, false);
@@ -1474,12 +1507,18 @@ public class Config {
         configProvider.getBoolean(
             CIVISIBILITY_AUTO_CONFIGURATION_ENABLED,
             DEFAULT_CIVISIBILITY_AUTO_CONFIGURATION_ENABLED);
+    ciVisibilityAdditionalChildProcessJvmArgs =
+        configProvider.getString(CIVISIBILITY_ADDITIONAL_CHILD_PROCESS_JVM_ARGS);
     ciVisibilityCompilerPluginAutoConfigurationEnabled =
         configProvider.getBoolean(
             CIVISIBILITY_COMPILER_PLUGIN_AUTO_CONFIGURATION_ENABLED,
             DEFAULT_CIVISIBILITY_COMPILER_PLUGIN_AUTO_CONFIGURATION_ENABLED);
     ciVisibilityCodeCoverageEnabled =
         configProvider.getBoolean(CIVISIBILITY_CODE_COVERAGE_ENABLED, true);
+    ciVisibilityCodeCoveragePercentageCalculationEnabled =
+        configProvider.getBoolean(CIVISIBILITY_CODE_COVERAGE_PERCENTAGE_CALCULATION_ENABLED, true);
+    ciVisibilityCodeCoverageReportDumpDir =
+        configProvider.getString(CIVISIBILITY_CODE_COVERAGE_REPORT_DUMP_DIR);
     ciVisibilityCompilerPluginVersion =
         configProvider.getString(
             CIVISIBILITY_COMPILER_PLUGIN_VERSION, DEFAULT_CIVISIBILITY_COMPILER_PLUGIN_VERSION);
@@ -1495,6 +1534,9 @@ public class Config {
                     DEFAULT_CIVISIBILITY_JACOCO_PLUGIN_EXCLUDES)));
     ciVisibilityJacocoPluginExcludedClassnames =
         computeCiVisibilityJacocoPluginExcludedClassnames(ciVisibilityJacocoPluginExcludes);
+    ciVisibilityJacocoGradleSourceSets =
+        configProvider.getList(
+            CIVISIBILITY_JACOCO_GRADLE_SOURCE_SETS, Collections.singletonList("main"));
     ciVisibilityDebugPort = configProvider.getInteger(CIVISIBILITY_DEBUG_PORT);
     ciVisibilityGitUploadEnabled =
         configProvider.getBoolean(
@@ -1703,6 +1745,11 @@ public class Config {
         configProvider.getBoolean(
             SPARK_TASK_HISTOGRAM_ENABLED, ConfigDefaults.DEFAULT_SPARK_TASK_HISTOGRAM_ENABLED);
 
+    this.jaxRsExceptionAsErrorsEnabled =
+        configProvider.getBoolean(
+            JAX_RS_EXCEPTION_AS_ERROR_ENABLED,
+            ConfigDefaults.DEFAULT_JAX_RS_EXCEPTION_AS_ERROR_ENABLED);
+
     this.traceFlushIntervalSeconds =
         configProvider.getFloat(
             TracerConfig.TRACE_FLUSH_INTERVAL, ConfigDefaults.DEFAULT_TRACE_FLUSH_INTERVAL);
@@ -1867,6 +1914,10 @@ public class Config {
 
   public boolean isPeerServiceDefaultsEnabled() {
     return peerServiceDefaultsEnabled;
+  }
+
+  public Map<String, String> getPeerServiceComponentOverrides() {
+    return peerServiceComponentOverrides;
   }
 
   public boolean isRemoveIntegrationServiceNamesEnabled() {
@@ -2231,7 +2282,9 @@ public class Config {
 
   public static boolean isDatadogProfilerEnablementOverridden() {
     // old non-LTS versions without important backports
-    return Platform.isJavaVersion(18)
+    // also, we have no windows binaries
+    return Platform.isWindows()
+        || Platform.isJavaVersion(18)
         || Platform.isJavaVersion(16)
         || Platform.isJavaVersion(15)
         || Platform.isJavaVersion(14)
@@ -2438,12 +2491,24 @@ public class Config {
     return ciVisibilityAutoConfigurationEnabled;
   }
 
+  public String getCiVisibilityAdditionalChildProcessJvmArgs() {
+    return ciVisibilityAdditionalChildProcessJvmArgs;
+  }
+
   public boolean isCiVisibilityCompilerPluginAutoConfigurationEnabled() {
     return ciVisibilityCompilerPluginAutoConfigurationEnabled;
   }
 
   public boolean isCiVisibilityCodeCoverageEnabled() {
     return ciVisibilityCodeCoverageEnabled;
+  }
+
+  public boolean isCiVisibilityCodeCoveragePercentageCalculationEnabled() {
+    return ciVisibilityCodeCoveragePercentageCalculationEnabled;
+  }
+
+  public String getCiVisibilityCodeCoverageReportDumpDir() {
+    return ciVisibilityCodeCoverageReportDumpDir;
   }
 
   public String getCiVisibilityCompilerPluginVersion() {
@@ -2464,6 +2529,10 @@ public class Config {
 
   public String[] getCiVisibilityJacocoPluginExcludedClassnames() {
     return ciVisibilityJacocoPluginExcludedClassnames;
+  }
+
+  public List<String> getCiVisibilityJacocoGradleSourceSets() {
+    return ciVisibilityJacocoGradleSourceSets;
   }
 
   public Integer getCiVisibilityDebugPort() {
@@ -2784,12 +2853,24 @@ public class Config {
     return grpcClientErrorStatuses;
   }
 
+  public boolean isElasticsearchBodyEnabled() {
+    return elasticsearchBodyEnabled;
+  }
+
+  public boolean isElasticsearchParamsEnabled() {
+    return elasticsearchParamsEnabled;
+  }
+
   public boolean isElasticsearchBodyAndParamsEnabled() {
     return elasticsearchBodyAndParamsEnabled;
   }
 
   public boolean isSparkTaskHistogramEnabled() {
     return sparkTaskHistogramEnabled;
+  }
+
+  public boolean isJaxRsExceptionAsErrorEnabled() {
+    return jaxRsExceptionAsErrorsEnabled;
   }
 
   /** @return A map of tags to be applied only to the local application root span. */
@@ -3434,7 +3515,11 @@ public class Config {
   // This has to be placed after all other static fields to give them a chance to initialize
   @SuppressFBWarnings("SI_INSTANCE_BEFORE_FINALS_ASSIGNED")
   private static final Config INSTANCE =
-      new Config(ConfigProvider.getInstance(), InstrumenterConfig.get());
+      new Config(
+          Platform.isNativeImageBuilder()
+              ? ConfigProvider.withoutCollector()
+              : ConfigProvider.getInstance(),
+          InstrumenterConfig.get());
 
   public static Config get() {
     return INSTANCE;
@@ -3796,6 +3881,10 @@ public class Config {
         + longRunningTraceEnabled
         + ", longRunningTraceFlushInterval="
         + longRunningTraceFlushInterval
+        + ", elasticsearchBodyEnabled="
+        + elasticsearchBodyEnabled
+        + ", elasticsearchParamsEnabled="
+        + elasticsearchParamsEnabled
         + ", elasticsearchBodyAndParamsEnabled="
         + elasticsearchBodyAndParamsEnabled
         + ", traceFlushInterval="
@@ -3806,6 +3895,16 @@ public class Config {
         + logsInjectionEnabled
         + ", sparkTaskHistogramEnabled="
         + sparkTaskHistogramEnabled
+        + ", jaxRsExceptionAsErrorsEnabled="
+        + jaxRsExceptionAsErrorsEnabled
+        + ", peerServiceDefaultsEnabled="
+        + peerServiceDefaultsEnabled
+        + ", peerServiceComponentOverrides="
+        + peerServiceComponentOverrides
+        + ", removeIntegrationServiceNamesEnabled="
+        + removeIntegrationServiceNamesEnabled
+        + ", spanAttributeSchemaVersion="
+        + spanAttributeSchemaVersion
         + '}';
   }
 }

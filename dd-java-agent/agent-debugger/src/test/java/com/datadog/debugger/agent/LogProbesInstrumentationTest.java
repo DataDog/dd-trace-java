@@ -486,8 +486,10 @@ public class LogProbesInstrumentationTest {
     Config config = mock(Config.class);
     when(config.isDebuggerEnabled()).thenReturn(true);
     when(config.isDebuggerClassFileDumpEnabled()).thenReturn(true);
-    when(config.isDebuggerVerifyByteCode()).thenReturn(true);
-    currentTransformer = new DebuggerTransformer(config, configuration, null);
+    when(config.getFinalDebuggerSnapshotUrl())
+        .thenReturn("http://localhost:8126/debugger/v1/input");
+    when(config.getDebuggerUploadBatchSize()).thenReturn(100);
+    currentTransformer = new DebuggerTransformer(config, configuration);
     instr.addTransformer(currentTransformer);
     DebuggerTransformerTest.TestSnapshotListener listener =
         new DebuggerTransformerTest.TestSnapshotListener();

@@ -59,7 +59,7 @@ public class HttpRequestInstrumentation extends Instrumenter.Iast
   @SuppressFBWarnings("BC_IMPOSSIBLE_INSTANCEOF")
   static class RequestHeadersAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
-    @Source(SourceTypes.REQUEST_HEADER_VALUE_STRING)
+    @Source(SourceTypes.REQUEST_HEADER_VALUE)
     static void onExit(
         @Advice.This HttpRequest thiz, @Advice.Return(readOnly = false) Seq<HttpHeader> headers) {
       PropagationModule propagation = InstrumentationBridge.PROPAGATION;

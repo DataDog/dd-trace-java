@@ -21,6 +21,7 @@ public final class TypePoolFacade implements TypePool, SharedTypePools.Supplier 
 
   @Override
   public TypePool typePool(ClassLoader classLoader) {
+    switchContext(classLoader);
     return INSTANCE;
   }
 

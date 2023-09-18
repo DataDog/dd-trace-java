@@ -19,7 +19,7 @@ class RequestHeaderHandlerTest extends DDSpecification {
 
     then:
     1 * ctx.getData(RequestContextSlot.IAST) >> iastCtx
-    1 * iastCtx.setXForwardedProtoIsHtttps()
+    1 * iastCtx.setxForwardedProto('https')
     0 * _
   }
 
@@ -36,7 +36,7 @@ class RequestHeaderHandlerTest extends DDSpecification {
 
     then:
     1 * ctx.getData(RequestContextSlot.IAST) >> iastCtx
-    0 * iastCtx.setXForwardedProtoIsHtttps()
+    0 * iastCtx.getxForwardedProto()
     0 * _
   }
 }

@@ -91,7 +91,7 @@ public final class ConfigDefaults {
   static final boolean DEFAULT_IAST_DEBUG_ENABLED = false;
   public static final int DEFAULT_IAST_MAX_CONCURRENT_REQUESTS = 4;
   public static final int DEFAULT_IAST_VULNERABILITIES_PER_REQUEST = 2;
-  public static final int DEFAULT_IAST_REQUEST_SAMPLING = 30;
+  public static final int DEFAULT_IAST_REQUEST_SAMPLING = 33;
   static final Set<String> DEFAULT_IAST_WEAK_HASH_ALGORITHMS =
       new HashSet<>(Arrays.asList("SHA1", "SHA-1", "MD2", "MD5", "RIPEMD128", "MD4"));
   static final String DEFAULT_IAST_WEAK_CIPHER_ALGORITHMS =
@@ -113,7 +113,7 @@ public final class ConfigDefaults {
   static final boolean DEFAULT_CIVISIBILITY_BUILD_INSTRUMENTATION_ENABLED = true;
   static final boolean DEFAULT_CIVISIBILITY_AUTO_CONFIGURATION_ENABLED = true;
   static final boolean DEFAULT_CIVISIBILITY_COMPILER_PLUGIN_AUTO_CONFIGURATION_ENABLED = true;
-  static final String DEFAULT_CIVISIBILITY_COMPILER_PLUGIN_VERSION = "0.1.6";
+  static final String DEFAULT_CIVISIBILITY_COMPILER_PLUGIN_VERSION = "0.1.7";
   static final String DEFAULT_CIVISIBILITY_JACOCO_PLUGIN_EXCLUDES =
       "datadog.trace.*:org.apache.commons.*:org.mockito.*";
   static final boolean DEFAULT_CIVISIBILITY_GIT_UPLOAD_ENABLED = true;
@@ -143,12 +143,13 @@ public final class ConfigDefaults {
   static final boolean DEFAULT_DEBUGGER_METRICS_ENABLED = true;
   static final int DEFAULT_DEBUGGER_UPLOAD_BATCH_SIZE = 100;
   static final int DEFAULT_DEBUGGER_MAX_PAYLOAD_SIZE = 1024; // KiB
-  static final boolean DEFAULT_DEBUGGER_VERIFY_BYTECODE = false;
+  static final boolean DEFAULT_DEBUGGER_VERIFY_BYTECODE = true;
   static final boolean DEFAULT_DEBUGGER_INSTRUMENT_THE_WORLD = false;
   static final int DEFAULT_DEBUGGER_CAPTURE_TIMEOUT = 100; // milliseconds
 
   static final boolean DEFAULT_TRACE_REPORT_HOSTNAME = false;
   static final String DEFAULT_TRACE_ANNOTATIONS = null;
+  static final boolean DEFAULT_TRACE_ANNOTATION_ASYNC = false;
   static final boolean DEFAULT_TRACE_EXECUTORS_ALL = false;
   static final String DEFAULT_TRACE_METHODS = null;
   static final String DEFAULT_MEASURE_METHODS = "";
@@ -182,9 +183,13 @@ public final class ConfigDefaults {
 
   static final float DEFAULT_TRACE_FLUSH_INTERVAL = 1;
 
-  static final boolean DEFAULT_ELASTICSEARCH_BODY_AND_PARAMS_ENABLED = true;
+  static final boolean DEFAULT_ELASTICSEARCH_BODY_ENABLED = false;
+  static final boolean DEFAULT_ELASTICSEARCH_PARAMS_ENABLED = true;
+  static final boolean DEFAULT_ELASTICSEARCH_BODY_AND_PARAMS_ENABLED = false;
 
   static final boolean DEFAULT_SPARK_TASK_HISTOGRAM_ENABLED = true;
+
+  static final boolean DEFAULT_JAX_RS_EXCEPTION_AS_ERROR_ENABLED = true;
 
   private ConfigDefaults() {}
 }

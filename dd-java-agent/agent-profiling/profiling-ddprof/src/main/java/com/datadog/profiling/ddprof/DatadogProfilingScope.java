@@ -1,6 +1,7 @@
 package com.datadog.profiling.ddprof;
 
-import datadog.trace.api.experimental.ProfilingScope;
+import datadog.trace.api.profiling.ProfilingContextAttribute;
+import datadog.trace.api.profiling.ProfilingScope;
 
 public class DatadogProfilingScope implements ProfilingScope {
   private final DatadogProfiler profiler;
@@ -17,8 +18,22 @@ public class DatadogProfilingScope implements ProfilingScope {
   }
 
   @Override
+  public void setContextValue(ProfilingContextAttribute attribute, String value) {
+    if (attribute instanceof DatadogProfilerContextSetter) {
+      ((DatadogProfilerContextSetter) attribute).set(value);
+    }
+  }
+
+  @Override
   public void clearContextValue(String attribute) {
     profiler.clearContextValue(attribute);
+  }
+
+  @Override
+  public void clearContextValue(ProfilingContextAttribute attribute) {
+    if (attribute instanceof DatadogProfilerContextSetter) {
+      ((DatadogProfilerContextSetter) attribute).clear();
+    }
   }
 
   @Override

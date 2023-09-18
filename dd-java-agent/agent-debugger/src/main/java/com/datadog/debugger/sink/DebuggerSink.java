@@ -221,7 +221,6 @@ public class DebuggerSink implements Sink {
     probeStatusSink.removeDiagnostics(probeId);
   }
 
-  @Override
   public void addDiagnostics(ProbeId probeId, List<DiagnosticMessage> messages) {
     for (DiagnosticMessage msg : messages) {
       switch (msg.getKind()) {

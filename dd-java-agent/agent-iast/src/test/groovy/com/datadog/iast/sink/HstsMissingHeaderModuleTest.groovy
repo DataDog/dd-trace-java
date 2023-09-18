@@ -48,7 +48,7 @@ public class HstsMissingHeaderModuleTest extends IastModuleImplTestBase {
     Vulnerability savedVul1
     final OverheadController overheadController = Mock(OverheadController)
     final iastCtx = Mock(IastRequestContext)
-    iastCtx.getXForwardedProtoIsHtttps() >> true
+    iastCtx.getxForwardedProto() >> 'https'
     iastCtx.getContentType() >> "text/html"
     final StackWalker stackWalker = Mock(StackWalker)
     final dependencies = new HasDependencies.Dependencies(
@@ -80,10 +80,10 @@ public class HstsMissingHeaderModuleTest extends IastModuleImplTestBase {
     1 * overheadController.releaseRequest()
     1 * spanInfo.getTags() >> tags
     1 * tags.get('http.url') >> "https://localhost/a"
-    2 * tags.get('http.status_code') >> 200i
-    1 * iastCtx.getHstsHeaderIsSet()
+    1 * tags.get('http.status_code') >> 200i
+    1 * iastCtx.getStrictTransportSecurity()
     1 * tracer.activeSpan() >> span
-    2 * iastCtx.getContentType() >> "text/html"
+    1 * iastCtx.getContentType() >> "text/html"
     1 * reporter.report(_, _ as Vulnerability) >> {
       savedVul1 = it[1]
     }
@@ -99,7 +99,7 @@ public class HstsMissingHeaderModuleTest extends IastModuleImplTestBase {
     Vulnerability savedVul1
     final OverheadController overheadController = Mock(OverheadController)
     final iastCtx = Mock(IastRequestContext)
-    iastCtx.getXForwardedProtoIsHtttps() >> true
+    iastCtx.getxForwardedProto() >> 'https'
     iastCtx.getContentType() >> "text/html"
     final StackWalker stackWalker = Mock(StackWalker)
     final dependencies = new HasDependencies.Dependencies(
@@ -131,8 +131,8 @@ public class HstsMissingHeaderModuleTest extends IastModuleImplTestBase {
     1 * overheadController.releaseRequest()
     1 * spanInfo.getTags() >> tags
     1 * tags.get('http.url') >> url
-    2 * tags.get('http.status_code') >> status
-    1 * iastCtx.getHstsHeaderIsSet()
+    1 * tags.get('http.status_code') >> status
+    1 * iastCtx.getStrictTransportSecurity()
     0 * _
 
     where:

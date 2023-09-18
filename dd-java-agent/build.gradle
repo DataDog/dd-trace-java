@@ -30,7 +30,12 @@ targetCompatibility = JavaVersion.VERSION_1_7
 ext.generalShadowJarConfig = {
   mergeServiceFiles()
 
-  exclude '**/META-INF/maven/'
+  duplicatesStrategy = DuplicatesStrategy.FAIL
+
+  // Remove some cruft from the final jar.
+  // These patterns should NOT include **/META-INF/maven/**/pom.properties, which is
+  // used to report our own dependencies.
+  exclude '**/META-INF/maven/**/pom.xml'
   exclude '**/META-INF/proguard/'
   exclude '**/META-INF/*.kotlin_module'
   exclude '**/module-info.class'
@@ -169,6 +174,12 @@ tasks.withType(GenerateMavenPom).configureEach { task ->
 }
 
 dependencies {
+  modules {
+    module("com.squareup.okio:okio") {
+      replacedBy("com.datadoghq.okio:okio") // embed our patched fork
+    }
+  }
+
   testImplementation(project(':dd-java-agent:agent-bootstrap')) {
     exclude group: 'com.datadoghq', module: 'agent-logging'
   }
@@ -200,6 +211,7 @@ dependencies {
     // do not bring along slf4j and dependent subprojects
     // (which are loaded on the bootstrap cl)
   }
+  sharedShadowInclude deps.cafe_crypto
   sharedShadowInclude project(':remote-config'), {
     transitive = false
   }

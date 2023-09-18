@@ -251,6 +251,11 @@ class UndertowServletAsyncTest extends HttpServerTest<Undertow> {
   }
 
   @Override
+  protected boolean enabledFinishTimingChecks() {
+    true
+  }
+
+  @Override
   String expectedOperationName() {
     operation()
   }

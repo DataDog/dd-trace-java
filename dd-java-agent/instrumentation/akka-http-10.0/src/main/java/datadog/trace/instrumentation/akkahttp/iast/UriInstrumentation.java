@@ -78,7 +78,7 @@ public class UriInstrumentation extends Instrumenter.Iast implements Instrumente
     // bind uri to a variable of type Object so that this advice can also
     // be used from FromDataInstrumentaton
     @Advice.OnMethodExit(suppress = Throwable.class)
-    @Source(SourceTypes.REQUEST_PARAMETER_VALUE_STRING)
+    @Source(SourceTypes.REQUEST_PARAMETER_VALUE)
     static void after(@Advice.This /*Uri*/ Object uri, @Advice.Return Uri.Query ret) {
       WebModule web = InstrumentationBridge.WEB;
       PropagationModule prop = InstrumentationBridge.PROPAGATION;

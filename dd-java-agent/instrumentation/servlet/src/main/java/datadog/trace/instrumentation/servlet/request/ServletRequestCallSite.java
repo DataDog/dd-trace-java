@@ -22,7 +22,7 @@ import javax.servlet.ServletRequest;
 @CallSite(spi = IastCallSites.class)
 public class ServletRequestCallSite {
 
-  @Source(SourceTypes.REQUEST_PARAMETER_VALUE_STRING)
+  @Source(SourceTypes.REQUEST_PARAMETER_VALUE)
   @CallSite.After("java.lang.String javax.servlet.ServletRequest.getParameter(java.lang.String)")
   @CallSite.After(
       "java.lang.String javax.servlet.ServletRequestWrapper.getParameter(java.lang.String)")
@@ -41,7 +41,7 @@ public class ServletRequestCallSite {
     return value;
   }
 
-  @Source(SourceTypes.REQUEST_PARAMETER_NAME_STRING)
+  @Source(SourceTypes.REQUEST_PARAMETER_NAME)
   @CallSite.After("java.util.Enumeration javax.servlet.ServletRequest.getParameterNames()")
   @CallSite.After("java.util.Enumeration javax.servlet.ServletRequestWrapper.getParameterNames()")
   public static Enumeration<String> afterGetParameterNames(
@@ -71,7 +71,7 @@ public class ServletRequestCallSite {
     }
   }
 
-  @Source(SourceTypes.REQUEST_PARAMETER_VALUE_STRING)
+  @Source(SourceTypes.REQUEST_PARAMETER_VALUE)
   @CallSite.After(
       "java.lang.String[] javax.servlet.ServletRequest.getParameterValues(java.lang.String)")
   @CallSite.After(
@@ -93,7 +93,7 @@ public class ServletRequestCallSite {
     return parameterValues;
   }
 
-  @Source(SourceTypes.REQUEST_BODY_STRING)
+  @Source(SourceTypes.REQUEST_BODY)
   @CallSite.After("javax.servlet.ServletInputStream javax.servlet.ServletRequest.getInputStream()")
   @CallSite.After(
       "javax.servlet.ServletInputStream javax.servlet.ServletRequestWrapper.getInputStream()")
@@ -111,7 +111,7 @@ public class ServletRequestCallSite {
     return inputStream;
   }
 
-  @Source(SourceTypes.REQUEST_BODY_STRING)
+  @Source(SourceTypes.REQUEST_BODY)
   @CallSite.After("java.io.BufferedReader javax.servlet.ServletRequest.getReader()")
   @CallSite.After("java.io.BufferedReader javax.servlet.ServletRequestWrapper.getReader()")
   public static BufferedReader afterGetReader(

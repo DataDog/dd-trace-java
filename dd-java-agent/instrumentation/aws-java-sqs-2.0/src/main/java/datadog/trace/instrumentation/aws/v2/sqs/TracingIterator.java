@@ -91,7 +91,7 @@ public class TracingIterator<L extends Iterator<Message>> implements Iterator<Me
         sortedTags.put(DIRECTION_TAG, DIRECTION_IN);
         sortedTags.put(TOPIC_TAG, urlFileName(queueUrl));
         sortedTags.put(TYPE_TAG, "sqs");
-        AgentTracer.get().setDataStreamCheckpoint(span, sortedTags, 0);
+        AgentTracer.get().getDataStreamsMonitoring().setCheckpoint(span, sortedTags, 0);
 
         CONSUMER_DECORATE.afterStart(span);
         CONSUMER_DECORATE.onConsume(span, queueUrl, requestId);

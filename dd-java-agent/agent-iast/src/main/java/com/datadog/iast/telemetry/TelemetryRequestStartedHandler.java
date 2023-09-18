@@ -23,6 +23,10 @@ public class TelemetryRequestStartedHandler extends RequestStartedHandler {
     final TaintedObjects taintedObjects =
         TaintedObjectsWithTelemetry.build(verbosity, TaintedObjects.acquire());
     final IastMetricCollector collector = new IastMetricCollector();
-    return new IastRequestContext(taintedObjects, collector);
+    final IastRequestContext ctx = new IastRequestContext(taintedObjects, collector);
+    if (taintedObjects instanceof TaintedObjectsWithTelemetry) {
+      ((TaintedObjectsWithTelemetry) taintedObjects).initContext(ctx);
+    }
+    return ctx;
   }
 }

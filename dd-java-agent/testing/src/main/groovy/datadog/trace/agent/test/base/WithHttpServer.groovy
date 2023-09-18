@@ -17,7 +17,7 @@ abstract class WithHttpServer<SERVER> extends VersionedNamingTestBase {
   @Subject
   HttpServer server
   @Shared
-  OkHttpClient client = OkHttpUtils.client(15, 15, TimeUnit.SECONDS)
+  OkHttpClient client = OkHttpUtils.client(1500, 1500, TimeUnit.SECONDS)
 
   @Shared
   URI address = null

@@ -17,8 +17,10 @@ addTestSuiteForDir('latestDepTest', 'test')
 dependencies {
   compileOnly group: 'com.google.guava', name: 'guava', version: '10.0'
 
+  testImplementation project(':dd-java-agent:instrumentation:opentelemetry:opentelemetry-annotations-1.20')
   testImplementation group: 'com.google.guava', name: 'guava', version: '16.0'
   // ^ first version with com.google.common.reflect.ClassPath.getAllClasses()
+  testImplementation group: 'io.opentelemetry.instrumentation', name: 'opentelemetry-instrumentation-annotations', version: '1.28.0'
 
   latestDepTestImplementation group: 'com.google.guava', name: 'guava', version: '+'
 }

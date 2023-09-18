@@ -63,7 +63,8 @@ public class ApacheHttpAsyncClientInstrumentation extends Instrumenter.Tracing
       packageName + ".HttpHeadersInjectAdapter",
       packageName + ".DelegatingRequestProducer",
       packageName + ".TraceContinuedFutureCallback",
-      packageName + ".ApacheHttpAsyncClientDecorator"
+      packageName + ".ApacheHttpAsyncClientDecorator",
+      packageName + ".HostAndRequestAsHttpUriRequest"
     };
   }
 

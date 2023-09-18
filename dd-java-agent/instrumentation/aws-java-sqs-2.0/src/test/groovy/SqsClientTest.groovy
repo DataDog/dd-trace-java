@@ -386,13 +386,6 @@ class SqsClientV1ForkedTest extends SqsClientTest {
 }
 
 class SqsClientV0DataStreamsTest extends SqsClientTest {
-
-  @Override
-  protected void configurePreAgent() {
-    super.configurePreAgent()
-    injectSysConfig("dd.data.streams.enabled", "true")
-  }
-
   @Override
   String expectedOperation(String awsService, String awsOperation) {
     "aws.http"

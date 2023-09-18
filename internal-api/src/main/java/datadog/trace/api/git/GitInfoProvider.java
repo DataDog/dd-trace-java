@@ -8,9 +8,11 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.function.Function;
-import java.util.stream.Collectors;
+import java.util.function.Predicate;
 import javax.annotation.Nullable;
 
 public class GitInfoProvider {
@@ -46,59 +48,107 @@ public class GitInfoProvider {
   }
 
   private GitInfo buildGitInfo(String repositoryPath) {
-    List<GitInfo> infos =
-        builders.stream()
-            .map(builder -> builder.build(repositoryPath))
-            .collect(Collectors.toList());
-
-    String commitSha = firstNonBlank(infos, gi -> gi.getCommit().getSha());
+    Evaluator evaluator = new Evaluator(repositoryPath, builders);
     return new GitInfo(
-        firstNonBlank(infos, gi -> GitUtils.filterSensitiveInfo(gi.getRepositoryURL())),
-        firstNonBlank(infos, GitInfo::getBranch),
-        firstNonBlank(infos, GitInfo::getTag),
+        evaluator.get(
+            gi -> GitUtils.filterSensitiveInfo(gi.getRepositoryURL()),
+            GitInfoProvider::validateGitRemoteUrl),
+        evaluator.get(GitInfo::getBranch, Strings::isNotBlank),
+        evaluator.get(GitInfo::getTag, Strings::isNotBlank),
         new CommitInfo(
-            commitSha,
+            evaluator.get(gi1 -> gi1.getCommit().getSha(), Strings::isNotBlank),
             new PersonInfo(
-                firstNonBlankWithMatchingCommit(
-                    infos, commitSha, gi -> gi.getCommit().getAuthor().getName()),
-                firstNonBlankWithMatchingCommit(
-                    infos, commitSha, gi -> gi.getCommit().getAuthor().getEmail()),
-                firstNonBlankWithMatchingCommit(
-                    infos, commitSha, gi -> gi.getCommit().getAuthor().getIso8601Date())),
+                evaluator.getIfCommitShaMatches(
+                    gi -> gi.getCommit().getAuthor().getName(), Strings::isNotBlank),
+                evaluator.getIfCommitShaMatches(
+                    gi -> gi.getCommit().getAuthor().getEmail(), Strings::isNotBlank),
+                evaluator.getIfCommitShaMatches(
+                    gi -> gi.getCommit().getAuthor().getIso8601Date(), Strings::isNotBlank)),
             new PersonInfo(
-                firstNonBlankWithMatchingCommit(
-                    infos, commitSha, gi -> gi.getCommit().getCommitter().getName()),
-                firstNonBlankWithMatchingCommit(
-                    infos, commitSha, gi -> gi.getCommit().getCommitter().getEmail()),
-                firstNonBlankWithMatchingCommit(
-                    infos, commitSha, gi -> gi.getCommit().getCommitter().getIso8601Date())),
-            firstNonBlankWithMatchingCommit(
-                infos, commitSha, gi -> gi.getCommit().getFullMessage())));
+                evaluator.getIfCommitShaMatches(
+                    gi -> gi.getCommit().getCommitter().getName(), Strings::isNotBlank),
+                evaluator.getIfCommitShaMatches(
+                    gi -> gi.getCommit().getCommitter().getEmail(), Strings::isNotBlank),
+                evaluator.getIfCommitShaMatches(
+                    gi -> gi.getCommit().getCommitter().getIso8601Date(), Strings::isNotBlank)),
+            evaluator.getIfCommitShaMatches(
+                gi -> gi.getCommit().getFullMessage(), Strings::isNotBlank)));
   }
 
-  private static String firstNonBlank(
-      Iterable<GitInfo> gitInfos, Function<GitInfo, String> function) {
-    for (GitInfo gitInfo : gitInfos) {
-      String result = function.apply(gitInfo);
-      if (Strings.isNotBlank(result)) {
-        return result;
-      }
-    }
-    return null;
+  private static boolean validateGitRemoteUrl(String s) {
+    // we cannot work with URL that uses "file://" protocol
+    return Strings.isNotBlank(s) && !s.startsWith("file:");
   }
 
-  private static String firstNonBlankWithMatchingCommit(
-      Iterable<GitInfo> gitInfos, String commitSha, Function<GitInfo, String> function) {
-    for (GitInfo gitInfo : gitInfos) {
-      if (commitSha != null && !commitSha.equalsIgnoreCase(gitInfo.getCommit().getSha())) {
-        continue;
-      }
-      String result = function.apply(gitInfo);
-      if (Strings.isNotBlank(result)) {
-        return result;
+  /**
+   * Uses provided GitInfoBuilder instances to get GitInfo data.
+   *
+   * <p>Provided builders are sorted according to priority: those builders that are first in the
+   * list have higher priority.
+   *
+   * <p>GitInfo is evaluated at most once for each builder, and the evaluation is lazy: if all
+   * required info can be retrieved from a higher-priority builder, those with lower priority will
+   * not be evaluated.
+   */
+  private static final class Evaluator {
+    private final String repositoryPath;
+    private final Map<GitInfoBuilder, GitInfo> infos;
+
+    private Evaluator(String repositoryPath, Collection<GitInfoBuilder> builders) {
+      this.repositoryPath = repositoryPath;
+      this.infos = new LinkedHashMap<>();
+      for (GitInfoBuilder builder : builders) {
+        infos.put(builder, null);
       }
     }
-    return null;
+
+    private String get(Function<GitInfo, String> function, Predicate<String> validator) {
+      return get(function, validator, false);
+    }
+
+    /**
+     * If a builder with a higher priority has commit SHA that differs from that of a builder with
+     * lower priority, lower-priority info will be ignored.
+     */
+    private String getIfCommitShaMatches(
+        Function<GitInfo, String> function, Predicate<String> validator) {
+      return get(function, validator, true);
+    }
+
+    private String get(
+        Function<GitInfo, String> function,
+        Predicate<String> validator,
+        boolean checkShaIntegrity) {
+      String commitSha = null;
+      for (Map.Entry<GitInfoBuilder, GitInfo> e : infos.entrySet()) {
+        GitInfo info = e.getValue();
+        if (info == null) {
+          GitInfoBuilder builder = e.getKey();
+          info = builder.build(repositoryPath);
+          e.setValue(info);
+        }
+
+        if (checkShaIntegrity) {
+          CommitInfo currentCommit = info.getCommit();
+          String currentCommitSha = currentCommit != null ? currentCommit.getSha() : null;
+          if (Strings.isNotBlank(currentCommitSha)) {
+            if (commitSha == null) {
+              commitSha = currentCommitSha;
+            } else if (!commitSha.equals(currentCommitSha)) {
+              // We already have a commit SHA from source that has higher priority.
+              // Commit SHA from current source is different, so we have to skip it
+              continue;
+            }
+          }
+        }
+
+        String result = function.apply(info);
+        if (validator.test(result)) {
+          return result;
+        }
+      }
+      return null;
+    }
   }
 
   public synchronized void registerGitInfoBuilder(GitInfoBuilder builder) {
@@ -106,6 +156,10 @@ public class GitInfoProvider {
     updatedBuilders.add(builder);
     updatedBuilders.sort(Comparator.comparingInt(GitInfoBuilder::order));
     builders = updatedBuilders;
+    gitInfoCache.clear();
+  }
+
+  public synchronized void invalidateCache() {
     gitInfoCache.clear();
   }
 }

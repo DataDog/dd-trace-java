@@ -4,6 +4,8 @@ import datadog.trace.api.civisibility.events.BuildEventsHandler;
 import datadog.trace.api.config.CiVisibilityConfig;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.util.Strings;
+import java.io.File;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Map;
 import org.apache.maven.execution.AbstractExecutionListener;
@@ -15,12 +17,8 @@ import org.apache.maven.model.Plugin;
 import org.apache.maven.plugin.MojoExecution;
 import org.apache.maven.project.MavenProject;
 import org.codehaus.plexus.util.xml.Xpp3Dom;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 public class MavenExecutionListener extends AbstractExecutionListener {
-
-  private static final Logger log = LoggerFactory.getLogger(MavenExecutionListener.class);
 
   private static final String FORK_COUNT_CONFIG = "forkCount";
   private static final String SYSTEM_PROPERTY_VARIABLES_CONFIG = "systemPropertyVariables";
@@ -53,9 +51,7 @@ public class MavenExecutionListener extends AbstractExecutionListener {
       MavenSession session = event.getSession();
       MavenExecutionRequest request = session.getRequest();
       MavenProject project = event.getProject();
-      String projectName = project.getName();
-      String lifecyclePhase = mojoExecution.getLifecyclePhase();
-      String moduleName = projectName + " " + lifecyclePhase;
+      String moduleName = getUniqueModuleName(project, mojoExecution);
 
       mojoStarted(event);
       buildEventsHandler.onTestModuleSkip(request, moduleName, null);
@@ -70,10 +66,13 @@ public class MavenExecutionListener extends AbstractExecutionListener {
       MavenSession session = event.getSession();
       MavenExecutionRequest request = session.getRequest();
       MavenProject project = event.getProject();
-      String projectName = project.getName();
-      String lifecyclePhase = mojoExecution.getLifecyclePhase();
-      String moduleName = projectName + " " + lifecyclePhase;
-      String startCommand = MavenUtils.getCommandLine(session);
+      String moduleName = getUniqueModuleName(project, mojoExecution);
+
+      String outputClassesDir = project.getBuild().getOutputDirectory();
+      Collection<File> outputClassesDirs =
+          outputClassesDir != null
+              ? Collections.singleton(new File(outputClassesDir))
+              : Collections.emptyList();
 
       String executionId =
           mojoExecution.getPlugin().getArtifactId()
@@ -85,7 +84,8 @@ public class MavenExecutionListener extends AbstractExecutionListener {
           Collections.singletonMap(Tags.TEST_EXECUTION, executionId);
 
       BuildEventsHandler.ModuleInfo moduleInfo =
-          buildEventsHandler.onTestModuleStart(request, moduleName, startCommand, additionalTags);
+          buildEventsHandler.onTestModuleStart(
+              request, moduleName, outputClassesDirs, additionalTags);
 
       Xpp3Dom configuration = mojoExecution.getConfiguration();
       boolean forkTestVm =
@@ -150,10 +150,7 @@ public class MavenExecutionListener extends AbstractExecutionListener {
       MavenSession session = event.getSession();
       MavenExecutionRequest request = session.getRequest();
       MavenProject project = event.getProject();
-
-      String projectName = project.getName();
-      String lifecyclePhase = mojoExecution.getLifecyclePhase();
-      String moduleName = projectName + " " + lifecyclePhase;
+      String moduleName = getUniqueModuleName(project, mojoExecution);
       buildEventsHandler.onTestModuleFinish(request, moduleName);
 
       System.clearProperty(
@@ -170,11 +167,7 @@ public class MavenExecutionListener extends AbstractExecutionListener {
       MavenSession session = event.getSession();
       MavenExecutionRequest request = session.getRequest();
       MavenProject project = event.getProject();
-
-      String projectName = project.getName();
-      String lifecyclePhase = mojoExecution.getLifecyclePhase();
-      String moduleName = projectName + " " + lifecyclePhase;
-
+      String moduleName = getUniqueModuleName(project, mojoExecution);
       Exception exception = event.getException();
       buildEventsHandler.onTestModuleFail(request, moduleName, exception);
       buildEventsHandler.onTestModuleFinish(request, moduleName);
@@ -184,5 +177,13 @@ public class MavenExecutionListener extends AbstractExecutionListener {
       System.clearProperty(
           Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_MODULE_ID));
     }
+  }
+
+  private static String getUniqueModuleName(MavenProject project, MojoExecution mojoExecution) {
+    return project.getName()
+        + " "
+        + mojoExecution.getArtifactId()
+        + " "
+        + mojoExecution.getExecutionId();
   }
 }
