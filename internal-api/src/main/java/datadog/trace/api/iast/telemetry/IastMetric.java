@@ -111,7 +111,13 @@ public enum IastMetric {
 
           @Override
           public boolean isWrapped(byte tagValue) {
-            return RESPONSE_HEADER == tagValue;
+            switch (tagValue) {
+              case RESPONSE_HEADER:
+              case SPRING_RESPONSE:
+                return true;
+              default:
+                return false;
+            }
           }
 
           public byte[] unwrap(final byte tagValue) {
