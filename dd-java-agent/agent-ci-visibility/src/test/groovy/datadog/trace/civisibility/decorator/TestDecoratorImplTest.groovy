@@ -40,14 +40,6 @@ class TestDecoratorImplTest extends Specification {
     serviceName << ["test-service", "other-service", null]
   }
 
-  def "test beforeFinish"() {
-    when:
-    newDecorator().beforeFinish(span)
-
-    then:
-    0 * _
-  }
-
   static newDecorator() {
     new TestDecoratorImpl("test-component", ["ci-tag-1": "value", "ci-tag-2": "another value"])
   }

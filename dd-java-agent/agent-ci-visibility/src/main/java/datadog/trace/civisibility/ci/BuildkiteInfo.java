@@ -3,7 +3,7 @@ package datadog.trace.civisibility.ci;
 import static datadog.trace.api.git.GitUtils.filterSensitiveInfo;
 import static datadog.trace.api.git.GitUtils.normalizeBranch;
 import static datadog.trace.api.git.GitUtils.normalizeTag;
-import static datadog.trace.civisibility.utils.PathUtils.expandTilde;
+import static datadog.trace.civisibility.utils.FileUtils.expandTilde;
 import static datadog.trace.util.Strings.toJson;
 
 import datadog.trace.api.git.CommitInfo;

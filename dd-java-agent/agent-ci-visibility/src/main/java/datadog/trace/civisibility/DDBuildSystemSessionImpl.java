@@ -24,6 +24,7 @@ import datadog.trace.civisibility.source.MethodLinesResolver;
 import datadog.trace.civisibility.source.SourcePathResolver;
 import datadog.trace.civisibility.source.index.RepoIndex;
 import datadog.trace.civisibility.source.index.RepoIndexBuilder;
+import datadog.trace.civisibility.utils.SpanUtils;
 import java.io.File;
 import java.nio.file.Paths;
 import java.util.Collection;
@@ -203,7 +204,7 @@ public class DDBuildSystemSessionImpl extends DDTestSessionImpl implements DDBui
   private File getCoverageReportFolder() {
     String coverageReportDumpDir = config.getCiVisibilityCodeCoverageReportDumpDir();
     if (coverageReportDumpDir != null) {
-      return Paths.get(coverageReportDumpDir, "session-" + context.getId(), "aggregated").toFile();
+      return Paths.get(coverageReportDumpDir, "session-" + span.getSpanId(), "aggregated").toFile();
     } else {
       return null;
     }
@@ -223,7 +224,8 @@ public class DDBuildSystemSessionImpl extends DDTestSessionImpl implements DDBui
 
     DDBuildSystemModuleImpl module =
         new DDBuildSystemModuleImpl(
-            context,
+            span.context(),
+            span.getSpanId(),
             moduleName,
             repoRoot,
             startCommand,
@@ -236,7 +238,8 @@ public class DDBuildSystemSessionImpl extends DDTestSessionImpl implements DDBui
             codeowners,
             methodLinesResolver,
             coverageProbeStoreFactory,
-            repoIndexBuilder);
+            repoIndexBuilder,
+            SpanUtils.propagateCiVisibilityTagsTo(span));
     testModuleRegistry.addModule(module);
     return module;
   }
