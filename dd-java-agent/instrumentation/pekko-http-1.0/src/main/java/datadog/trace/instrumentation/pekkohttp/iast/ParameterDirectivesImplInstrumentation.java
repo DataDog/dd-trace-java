@@ -73,7 +73,7 @@ public class ParameterDirectivesImplInstrumentation extends Instrumenter.Iast
 
   static class FilterAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
-    @Source(SourceTypes.REQUEST_PARAMETER_VALUE_STRING)
+    @Source(SourceTypes.REQUEST_PARAMETER_VALUE)
     static void after(
         @Advice.Argument(0) String paramName,
         @Advice.Return(readOnly = false) Directive /*<Tuple1<?>>*/ retval) {
@@ -88,7 +88,7 @@ public class ParameterDirectivesImplInstrumentation extends Instrumenter.Iast
 
   static class RepeatedFilterAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
-    @Source(SourceTypes.REQUEST_PARAMETER_VALUE_STRING)
+    @Source(SourceTypes.REQUEST_PARAMETER_VALUE)
     static void after(
         @Advice.Argument(0) String paramName,
         @Advice.Return(readOnly = false) Directive /*<Tuple1<Iterable<?>>>*/ retval) {

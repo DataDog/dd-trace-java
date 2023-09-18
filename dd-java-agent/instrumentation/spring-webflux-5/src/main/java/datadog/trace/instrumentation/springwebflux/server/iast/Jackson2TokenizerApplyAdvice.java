@@ -14,7 +14,7 @@ import reactor.core.publisher.Flux;
 @RequiresRequestContext(RequestContextSlot.IAST)
 class Jackson2TokenizerApplyAdvice {
   @Advice.OnMethodExit(suppress = Throwable.class)
-  @Source(SourceTypes.REQUEST_BODY_STRING)
+  @Source(SourceTypes.REQUEST_BODY)
   public static void after(
       @Advice.Argument(0) DataBuffer dataBuffer,
       @Advice.Return(readOnly = false) Flux<TokenBuffer> flux) {

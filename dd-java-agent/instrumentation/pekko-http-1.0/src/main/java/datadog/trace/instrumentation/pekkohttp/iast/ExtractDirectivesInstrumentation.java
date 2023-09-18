@@ -73,7 +73,7 @@ public class ExtractDirectivesInstrumentation extends Instrumenter.Iast
 
   static class TaintUriDirectiveAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
-    @Source(SourceTypes.REQUEST_QUERY_STRING)
+    @Source(SourceTypes.REQUEST_QUERY)
     static void after(@Advice.Return(readOnly = false) Directive directive) {
       directive = directive.tmap(TaintUriFunction.INSTANCE, Tupler$.MODULE$.forTuple(null));
     }
@@ -81,7 +81,7 @@ public class ExtractDirectivesInstrumentation extends Instrumenter.Iast
 
   static class TaintRequestDirectiveAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
-    @Source(SourceTypes.REQUEST_BODY_STRING)
+    @Source(SourceTypes.REQUEST_BODY)
     static void after(@Advice.Return(readOnly = false) Directive directive) {
       directive = directive.tmap(TaintRequestFunction.INSTANCE, Tupler$.MODULE$.forTuple(null));
     }
@@ -89,7 +89,7 @@ public class ExtractDirectivesInstrumentation extends Instrumenter.Iast
 
   static class TaintRequestContextDirectiveAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
-    @Source(SourceTypes.REQUEST_BODY_STRING)
+    @Source(SourceTypes.REQUEST_BODY)
     static void after(@Advice.Return(readOnly = false) Directive directive) {
       directive =
           directive.tmap(TaintRequestContextFunction.INSTANCE, Tupler$.MODULE$.forTuple(null));

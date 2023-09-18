@@ -42,7 +42,7 @@ public class InboundMessageContextInstrumentation extends Instrumenter.Iast
 
   public static class InstrumenterAdviceGetHeaders {
     @Advice.OnMethodExit(suppress = Throwable.class)
-    @Source(SourceTypes.REQUEST_HEADER_VALUE_STRING)
+    @Source(SourceTypes.REQUEST_HEADER_VALUE)
     public static void onExit(@Advice.Return Map<String, List<String>> headers) {
       final PropagationModule prop = InstrumentationBridge.PROPAGATION;
       final WebModule web = InstrumentationBridge.WEB;
@@ -59,7 +59,7 @@ public class InboundMessageContextInstrumentation extends Instrumenter.Iast
 
   public static class InstrumenterAdviceGetRequestCookies {
     @Advice.OnMethodExit(suppress = Throwable.class)
-    @Source(SourceTypes.REQUEST_COOKIE_VALUE_STRING)
+    @Source(SourceTypes.REQUEST_COOKIE_VALUE)
     public static void onExit(@Advice.Return Map<String, Object> cookies) {
       final PropagationModule module = InstrumentationBridge.PROPAGATION;
       if (module != null) {

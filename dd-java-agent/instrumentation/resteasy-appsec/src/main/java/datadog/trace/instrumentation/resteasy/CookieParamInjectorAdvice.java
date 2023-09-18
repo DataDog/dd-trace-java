@@ -9,7 +9,7 @@ import net.bytebuddy.asm.Advice;
 
 public class CookieParamInjectorAdvice {
   @Advice.OnMethodExit(suppress = Throwable.class)
-  @Source(SourceTypes.REQUEST_COOKIE_VALUE_STRING)
+  @Source(SourceTypes.REQUEST_COOKIE_VALUE)
   public static void onExit(
       @Advice.Return Object result, @Advice.FieldValue("paramName") String paramName) {
     if (result instanceof String || result instanceof Collection) {

@@ -36,7 +36,7 @@ public class JSONObjectUtilsInstrumentation extends Instrumenter.Iast
   public static class InstrumenterAdvice {
 
     @Advice.OnMethodExit(suppress = Throwable.class)
-    @Source(SourceTypes.REQUEST_HEADER_VALUE_STRING)
+    @Source(SourceTypes.REQUEST_HEADER_VALUE)
     public static void onEnter(@Advice.Return Map<String, Object> map) {
       final PropagationModule module = InstrumentationBridge.PROPAGATION;
 

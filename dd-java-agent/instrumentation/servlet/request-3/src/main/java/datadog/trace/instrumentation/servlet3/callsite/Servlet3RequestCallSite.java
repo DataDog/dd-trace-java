@@ -12,7 +12,7 @@ import javax.servlet.ServletRequest;
 @CallSite(spi = IastCallSites.class)
 public class Servlet3RequestCallSite {
 
-  @Source(SourceTypes.REQUEST_PARAMETER_VALUE_STRING)
+  @Source(SourceTypes.REQUEST_PARAMETER_VALUE)
   @CallSite.After("java.util.Map javax.servlet.ServletRequest.getParameterMap()")
   @CallSite.After("java.util.Map javax.servlet.ServletRequestWrapper.getParameterMap()")
   public static java.util.Map<java.lang.String, java.lang.String[]> afterGetParameterMap(
