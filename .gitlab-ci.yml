@@ -3,6 +3,7 @@ include:
   - remote: https://gitlab-templates.ddbuild.io/apm/packaging.yml
   - local: ".gitlab/benchmarks.yml"
   - local: ".gitlab/exploration-tests.yml"
+  - local: ".gitlab/ci-visibility-tests.yml"
 
 stages:
   - build
@@ -10,6 +11,7 @@ stages:
   - deploy
   - benchmarks
   - exploration-tests
+  - ci-visibility-tests
   - generate-signing-key
 
 variables:
@@ -134,7 +136,7 @@ deploy_to_di_backend:automatic:
     - if: '$CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+$/'
       when: on_success
   trigger:
-    project: DataDog/debugger-backend
+    project: DataDog/debugger-demos
     branch: main
   variables:
     UPSTREAM_PACKAGE_JOB: build
@@ -153,7 +155,7 @@ deploy_to_di_backend:manual:
     - when: manual
       allow_failure: true
   trigger:
-    project: DataDog/debugger-backend
+    project: DataDog/debugger-demos
     branch: main
   variables:
     UPSTREAM_PACKAGE_JOB: build

@@ -115,7 +115,7 @@ public final class ConfigDefaults {
   static final boolean DEFAULT_CIVISIBILITY_COMPILER_PLUGIN_AUTO_CONFIGURATION_ENABLED = true;
   static final String DEFAULT_CIVISIBILITY_COMPILER_PLUGIN_VERSION = "0.1.6";
   static final String DEFAULT_CIVISIBILITY_JACOCO_PLUGIN_EXCLUDES =
-      "datadog.trace.*:org.apache.commons.*";
+      "datadog.trace.*:org.apache.commons.*:org.mockito.*";
   static final boolean DEFAULT_CIVISIBILITY_GIT_UPLOAD_ENABLED = true;
   static final boolean DEFAULT_CIVISIBILITY_GIT_UNSHALLOW_ENABLED = true;
   static final long DEFAULT_CIVISIBILITY_GIT_COMMAND_TIMEOUT_MILLIS = 30_000;

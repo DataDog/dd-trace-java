@@ -4,6 +4,7 @@ import datadog.trace.api.iast.propagation.CodecModule;
 import datadog.trace.api.iast.propagation.PropagationModule;
 import datadog.trace.api.iast.propagation.StringModule;
 import datadog.trace.api.iast.sink.CommandInjectionModule;
+import datadog.trace.api.iast.sink.HstsMissingHeaderModule;
 import datadog.trace.api.iast.sink.HttpResponseHeaderModule;
 import datadog.trace.api.iast.sink.InsecureCookieModule;
 import datadog.trace.api.iast.sink.LdapInjectionModule;
@@ -34,13 +35,14 @@ public abstract class InstrumentationBridge {
   public static volatile WeakHashModule WEAK_HASH;
   public static volatile LdapInjectionModule LDAP_INJECTION;
   public static volatile PropagationModule PROPAGATION;
-  public static volatile InsecureCookieModule INSECURE_COOKIE;
-  public static volatile NoHttpOnlyCookieModule NO_HTTPONLY_COOKIE;
-  public static volatile NoSameSiteCookieModule NO_SAMESITE_COOKIE;
+  public static volatile InsecureCookieModule<?> INSECURE_COOKIE;
+  public static volatile NoHttpOnlyCookieModule<?> NO_HTTPONLY_COOKIE;
+  public static volatile NoSameSiteCookieModule<?> NO_SAMESITE_COOKIE;
   public static volatile SsrfModule SSRF;
   public static volatile UnvalidatedRedirectModule UNVALIDATED_REDIRECT;
   public static volatile WeakRandomnessModule WEAK_RANDOMNESS;
   public static volatile HttpResponseHeaderModule RESPONSE_HEADER_MODULE;
+  public static volatile HstsMissingHeaderModule HSTS_MISSING_HEADER_MODULE;
   public static volatile TrustBoundaryViolationModule TRUST_BOUNDARY_VIOLATION;
 
   public static volatile XPathInjectionModule XPATH_INJECTION;
@@ -71,11 +73,11 @@ public abstract class InstrumentationBridge {
     } else if (module instanceof PropagationModule) {
       PROPAGATION = (PropagationModule) module;
     } else if (module instanceof InsecureCookieModule) {
-      INSECURE_COOKIE = (InsecureCookieModule) module;
+      INSECURE_COOKIE = (InsecureCookieModule<?>) module;
     } else if (module instanceof NoHttpOnlyCookieModule) {
-      NO_HTTPONLY_COOKIE = (NoHttpOnlyCookieModule) module;
+      NO_HTTPONLY_COOKIE = (NoHttpOnlyCookieModule<?>) module;
     } else if (module instanceof NoSameSiteCookieModule) {
-      NO_SAMESITE_COOKIE = (NoSameSiteCookieModule) module;
+      NO_SAMESITE_COOKIE = (NoSameSiteCookieModule<?>) module;
     } else if (module instanceof SsrfModule) {
       SSRF = (SsrfModule) module;
     } else if (module instanceof UnvalidatedRedirectModule) {
@@ -84,6 +86,8 @@ public abstract class InstrumentationBridge {
       WEAK_RANDOMNESS = (WeakRandomnessModule) module;
     } else if (module instanceof HttpResponseHeaderModule) {
       RESPONSE_HEADER_MODULE = (HttpResponseHeaderModule) module;
+    } else if (module instanceof HstsMissingHeaderModule) {
+      HSTS_MISSING_HEADER_MODULE = (HstsMissingHeaderModule) module;
     } else if (module instanceof XPathInjectionModule) {
       XPATH_INJECTION = (XPathInjectionModule) module;
     } else if (module instanceof TrustBoundaryViolationModule) {
@@ -151,6 +155,9 @@ public abstract class InstrumentationBridge {
     if (type == HttpResponseHeaderModule.class) {
       return (E) RESPONSE_HEADER_MODULE;
     }
+    if (type == HstsMissingHeaderModule.class) {
+      return (E) HSTS_MISSING_HEADER_MODULE;
+    }
     if (type == TrustBoundaryViolationModule.class) {
       return (E) TRUST_BOUNDARY_VIOLATION;
     }
@@ -179,6 +186,7 @@ public abstract class InstrumentationBridge {
     UNVALIDATED_REDIRECT = null;
     WEAK_RANDOMNESS = null;
     RESPONSE_HEADER_MODULE = null;
+    HSTS_MISSING_HEADER_MODULE = null;
     XPATH_INJECTION = null;
     TRUST_BOUNDARY_VIOLATION = null;
     XSS = null;

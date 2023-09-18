@@ -7,6 +7,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.api.Config;
+import datadog.trace.api.civisibility.InstrumentationBridge;
 import datadog.trace.api.civisibility.config.SkippableTest;
 import java.lang.reflect.Method;
 import java.util.Set;
@@ -62,7 +63,7 @@ public class TestNGItrInstrumentation extends Instrumenter.CiVisibility
         @Advice.Argument(2) final Object[] parameters) {
       SkippableTest skippableTest = TestNGUtils.toSkippableTest(method, instance, parameters);
       if (TestEventsHandlerHolder.TEST_EVENTS_HANDLER.skip(skippableTest)) {
-        throw new SkipException("Skipped by Datadog Intelligent Test Runner");
+        throw new SkipException(InstrumentationBridge.ITR_SKIP_REASON);
       }
     }
 

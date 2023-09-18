@@ -3,6 +3,7 @@ import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.propagation.PropagationModule
 import datadog.trace.api.iast.sink.HttpResponseHeaderModule
 import datadog.trace.api.iast.sink.UnvalidatedRedirectModule
+import datadog.trace.api.iast.util.Cookie as IastCookie
 import foo.bar.DummyResponse
 
 import javax.servlet.http.Cookie
@@ -31,7 +32,7 @@ class HttpServletResponseInstrumentationTest extends AgentTestRunner {
     response.addCookie(cookie)
 
     then:
-    1 * module.onCookie('user-id', false, false, false)
+    1 * module.onCookie({ IastCookie vul -> vul.cookieName == cookie.name && vul.secure == cookie.secure })
     0 * _
   }
 
@@ -63,7 +64,7 @@ class HttpServletResponseInstrumentationTest extends AgentTestRunner {
     response.addCookie(cookie)
 
     then:
-    1 * module.onCookie('user-id', true, false, false)
+    1 * module.onCookie({ IastCookie vul -> vul.cookieName == cookie.name && vul.secure == cookie.secure })
     0 * _
   }
 
@@ -74,7 +75,7 @@ class HttpServletResponseInstrumentationTest extends AgentTestRunner {
     final response = new DummyResponse()
 
     when:
-    response.addCookie(null)
+    response.addCookie((Cookie) null)
 
     then:
     0 * _
@@ -195,6 +196,31 @@ class HttpServletResponseInstrumentationTest extends AgentTestRunner {
     then:
     noExceptionThrown()
     1 * module.taintIfInputIsTainted(_, "http://dummy.url.com")
+    0 * _
+  }
+
+  void 'test instrumentation with unknown types'() {
+    setup:
+    final module = Mock(HttpResponseHeaderModule)
+    InstrumentationBridge.registerIastModule(module)
+    final response = new DummyResponse()
+
+    when:
+    response.addCookie(new DummyResponse.CustomCookie())
+
+    then:
+    0 * _
+
+    when:
+    response.addHeader(new DummyResponse.CustomHeaderName(), "value")
+
+    then:
+    0 * _
+
+    when:
+    response.setHeader(new DummyResponse.CustomHeaderName(), "value")
+
+    then:
     0 * _
   }
 }

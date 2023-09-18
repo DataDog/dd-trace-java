@@ -299,6 +299,7 @@
 2 org.springframework.jndi.*
 2 org.springframework.lang.*
 2 org.springframework.messaging.*
+0 org.springframework.messaging.handler.invocation.InvocableHandlerMethod
 2 org.springframework.objenesis.*
 2 org.springframework.orm.*
 2 org.springframework.remoting.*
@@ -328,6 +329,9 @@
 2 scala.collection.*
 
 # -------- SPECIAL CASES --------
+
+# incomplete wrapper that throws exceptions for all but one method
+1 reactor.rabbitmq.ChannelProxy
 
 3 com.mchange.v2.c3p0.*
 4 org.springframework.http.converter.*

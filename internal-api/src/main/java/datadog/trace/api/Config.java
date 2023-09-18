@@ -131,6 +131,7 @@ import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_CIPROVIDE
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_CODE_COVERAGE_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_COMPILER_PLUGIN_AUTO_CONFIGURATION_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_COMPILER_PLUGIN_VERSION;
+import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_COVERAGE_SEGMENTS_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_DEBUG_PORT;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_GIT_COMMAND_TIMEOUT_MILLIS;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_GIT_REMOTE_NAME;
@@ -141,14 +142,15 @@ import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_ITR_ENABL
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_JACOCO_PLUGIN_EXCLUDES;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_JACOCO_PLUGIN_INCLUDES;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_JACOCO_PLUGIN_VERSION;
+import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_MODULE_EXECUTION_SETTINGS_CACHE_SIZE;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_MODULE_ID;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_REPO_INDEX_SHARING_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_SESSION_ID;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_SIGNAL_SERVER_HOST;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_SIGNAL_SERVER_PORT;
-import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_SKIPPABLE_TESTS;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_SOURCE_DATA_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_SOURCE_DATA_ROOT_CHECK_ENABLED;
+import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_TRACE_SANITATION_ENABLED;
 import static datadog.trace.api.config.CrashTrackingConfig.CRASH_TRACKING_AGENTLESS;
 import static datadog.trace.api.config.CrashTrackingConfig.CRASH_TRACKING_AGENTLESS_DEFAULT;
 import static datadog.trace.api.config.CrashTrackingConfig.CRASH_TRACKING_TAGS;
@@ -279,6 +281,7 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.GRPC_IGNORED_O
 import static datadog.trace.api.config.TraceInstrumentationConfig.GRPC_SERVER_ERROR_STATUSES;
 import static datadog.trace.api.config.TraceInstrumentationConfig.GRPC_SERVER_TRIM_PACKAGE_RESOURCE;
 import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_CLIENT_HOST_SPLIT_BY_DOMAIN;
+import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_CLIENT_TAG_HEADERS;
 import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_CLIENT_TAG_QUERY_STRING;
 import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_SERVER_RAW_QUERY_STRING;
 import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_SERVER_RAW_RESOURCE;
@@ -318,6 +321,7 @@ import static datadog.trace.api.config.TracerConfig.HEADER_TAGS;
 import static datadog.trace.api.config.TracerConfig.HTTP_CLIENT_ERROR_STATUSES;
 import static datadog.trace.api.config.TracerConfig.HTTP_SERVER_ERROR_STATUSES;
 import static datadog.trace.api.config.TracerConfig.ID_GENERATION_STRATEGY;
+import static datadog.trace.api.config.TracerConfig.PARTIAL_FLUSH_ENABLED;
 import static datadog.trace.api.config.TracerConfig.PARTIAL_FLUSH_MIN_SPANS;
 import static datadog.trace.api.config.TracerConfig.PRIORITY_SAMPLING;
 import static datadog.trace.api.config.TracerConfig.PRIORITY_SAMPLING_FORCE;
@@ -372,8 +376,6 @@ import static datadog.trace.util.CollectionUtils.tryMakeImmutableList;
 import static datadog.trace.util.CollectionUtils.tryMakeImmutableSet;
 import static datadog.trace.util.Strings.propertyNameToEnvironmentVariableName;
 
-import datadog.trace.api.civisibility.config.SkippableTest;
-import datadog.trace.api.civisibility.config.SkippableTestsSerializer;
 import datadog.trace.api.config.GeneralConfig;
 import datadog.trace.api.config.TracerConfig;
 import datadog.trace.api.iast.IastDetectionMode;
@@ -406,7 +408,6 @@ import java.util.Arrays;
 import java.util.BitSet;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
@@ -511,6 +512,7 @@ public class Config {
   private final Map<String, String> httpClientPathResourceNameMapping;
   private final boolean httpResourceRemoveTrailingSlash;
   private final boolean httpClientTagQueryString;
+  private final boolean httpClientTagHeaders;
   private final boolean httpClientSplitByDomain;
   private final boolean dbClientSplitByInstance;
   private final boolean dbClientSplitByInstanceTypeSuffix;
@@ -623,6 +625,7 @@ public class Config {
   private final String iastRedactionNamePattern;
   private final String iastRedactionValuePattern;
 
+  private final boolean ciVisibilityTraceSanitationEnabled;
   private final boolean ciVisibilityAgentlessEnabled;
   private final String ciVisibilityAgentlessUrl;
 
@@ -650,9 +653,10 @@ public class Config {
   private final String ciVisibilitySignalServerHost;
   private final int ciVisibilitySignalServerPort;
   private final boolean ciVisibilityItrEnabled;
-  private final Set<SkippableTest> ciVisibilitySkippableTests;
   private final boolean ciVisibilityCiProviderIntegrationEnabled;
   private final boolean ciVisibilityRepoIndexSharingEnabled;
+  private final int ciVisibilityModuleExecutionSettingsCacheSize;
+  private final boolean ciVisibilityCoverageSegmentsEnabled;
 
   private final boolean remoteConfigEnabled;
   private final boolean remoteConfigIntegrityCheckEnabled;
@@ -795,7 +799,8 @@ public class Config {
         tmpApiKey =
             new String(Files.readAllBytes(Paths.get(apiKeyFile)), StandardCharsets.UTF_8).trim();
       } catch (final IOException e) {
-        log.error("Cannot read API key from file {}, skipping", apiKeyFile, e);
+        log.error(
+            "Cannot read API key from file {}, skipping. Exception {}", apiKeyFile, e.getMessage());
       }
     }
     site = configProvider.getString(SITE, DEFAULT_SITE);
@@ -1030,6 +1035,8 @@ public class Config {
         configProvider.getBoolean(
             HTTP_CLIENT_TAG_QUERY_STRING, DEFAULT_HTTP_CLIENT_TAG_QUERY_STRING);
 
+    httpClientTagHeaders = configProvider.getBoolean(HTTP_CLIENT_TAG_HEADERS, true);
+
     httpClientSplitByDomain =
         configProvider.getBoolean(
             HTTP_CLIENT_HOST_SPLIT_BY_DOMAIN, DEFAULT_HTTP_CLIENT_SPLIT_BY_DOMAIN);
@@ -1061,8 +1068,11 @@ public class Config {
     scopeIterationKeepAlive =
         configProvider.getInteger(SCOPE_ITERATION_KEEP_ALIVE, DEFAULT_SCOPE_ITERATION_KEEP_ALIVE);
 
+    boolean partialFlushEnabled = configProvider.getBoolean(PARTIAL_FLUSH_ENABLED, true);
     partialFlushMinSpans =
-        configProvider.getInteger(PARTIAL_FLUSH_MIN_SPANS, DEFAULT_PARTIAL_FLUSH_MIN_SPANS);
+        !partialFlushEnabled
+            ? 0
+            : configProvider.getInteger(PARTIAL_FLUSH_MIN_SPANS, DEFAULT_PARTIAL_FLUSH_MIN_SPANS);
 
     traceStrictWritesEnabled = configProvider.getBoolean(TRACE_STRICT_WRITES_ENABLED, false);
 
@@ -1419,6 +1429,9 @@ public class Config {
         configProvider.getString(
             IAST_REDACTION_VALUE_PATTERN, DEFAULT_IAST_REDACTION_VALUE_PATTERN);
 
+    ciVisibilityTraceSanitationEnabled =
+        configProvider.getBoolean(CIVISIBILITY_TRACE_SANITATION_ENABLED, true);
+
     ciVisibilityAgentlessEnabled =
         configProvider.getBoolean(
             CIVISIBILITY_AGENTLESS_ENABLED, DEFAULT_CIVISIBILITY_AGENTLESS_ENABLED);
@@ -1510,16 +1523,14 @@ public class Config {
         configProvider.getInteger(
             CIVISIBILITY_SIGNAL_SERVER_PORT, DEFAULT_CIVISIBILITY_SIGNAL_SERVER_PORT);
     ciVisibilityItrEnabled = configProvider.getBoolean(CIVISIBILITY_ITR_ENABLED, true);
-    ciVisibilitySkippableTests =
-        !Platform.isNativeImageBuilder()
-            ? new HashSet<>(
-                SkippableTestsSerializer.deserialize(
-                    configProvider.getString(CIVISIBILITY_SKIPPABLE_TESTS)))
-            : Collections.emptySet();
     ciVisibilityCiProviderIntegrationEnabled =
         configProvider.getBoolean(CIVISIBILITY_CIPROVIDER_INTEGRATION_ENABLED, true);
     ciVisibilityRepoIndexSharingEnabled =
         configProvider.getBoolean(CIVISIBILITY_REPO_INDEX_SHARING_ENABLED, true);
+    ciVisibilityModuleExecutionSettingsCacheSize =
+        configProvider.getInteger(CIVISIBILITY_MODULE_EXECUTION_SETTINGS_CACHE_SIZE, 16);
+    ciVisibilityCoverageSegmentsEnabled =
+        configProvider.getBoolean(CIVISIBILITY_COVERAGE_SEGMENTS_ENABLED, false);
 
     remoteConfigEnabled =
         configProvider.getBoolean(REMOTE_CONFIG_ENABLED, DEFAULT_REMOTE_CONFIG_ENABLED);
@@ -1920,6 +1931,10 @@ public class Config {
 
   public boolean isHttpClientTagQueryString() {
     return httpClientTagQueryString;
+  }
+
+  public boolean isHttpClientTagHeaders() {
+    return httpClientTagHeaders;
   }
 
   public boolean isHttpClientSplitByDomain() {
@@ -2370,6 +2385,10 @@ public class Config {
     return instrumenterConfig.isUsmEnabled();
   }
 
+  public boolean isCiVisibilityTraceSanitationEnabled() {
+    return ciVisibilityTraceSanitationEnabled;
+  }
+
   public boolean isCiVisibilityAgentlessEnabled() {
     return ciVisibilityAgentlessEnabled;
   }
@@ -2487,16 +2506,20 @@ public class Config {
     return ciVisibilityItrEnabled;
   }
 
-  public Set<SkippableTest> getCiVisibilitySkippableTests() {
-    return ciVisibilitySkippableTests;
-  }
-
   public boolean isCiVisibilityCiProviderIntegrationEnabled() {
     return ciVisibilityCiProviderIntegrationEnabled;
   }
 
   public boolean isCiVisibilityRepoIndexSharingEnabled() {
     return ciVisibilityRepoIndexSharingEnabled;
+  }
+
+  public int getCiVisibilityModuleExecutionSettingsCacheSize() {
+    return ciVisibilityModuleExecutionSettingsCacheSize;
+  }
+
+  public boolean isCiVisibilityCoverageSegmentsEnabled() {
+    return ciVisibilityCoverageSegmentsEnabled;
   }
 
   public String getAppSecRulesFile() {

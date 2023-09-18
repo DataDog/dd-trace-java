@@ -425,6 +425,59 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
     }
   }
 
+  def "Encoding and decoding (SQS-formatted) with injects and extracts"() {
+    // Timesource needs to be advanced in milliseconds because encoding truncates to millis
+    given:
+    def timeSource = new ControllableTimeSource()
+    def context = new DefaultPathwayContext(timeSource, wellKnownTags)
+    def contextVisitor = new Base64MapContextVisitor()
+
+    when:
+    timeSource.advance(MILLISECONDS.toNanos(50))
+    context.setCheckpoint(new LinkedHashMap<>(["type": "internal"]), pointConsumer)
+
+    def encoded = context.strEncode()
+    def jsonPathway = String.format("{\"%s\": \"%s\"}", PathwayContext.PROPAGATION_KEY_BASE64, encoded)
+    Map<String, String> carrier = [(PathwayContext.DATADOG_KEY): jsonPathway, "someotherkey": "someothervalue"]
+    timeSource.advance(MILLISECONDS.toNanos(1))
+    def decodedContext = DefaultPathwayContext.extract(carrier, contextVisitor, timeSource, wellKnownTags)
+    timeSource.advance(MILLISECONDS.toNanos(25))
+    context.setCheckpoint(new LinkedHashMap<>(["topic": "topic", "type": "sqs"]), pointConsumer)
+
+    then:
+    decodedContext.isStarted()
+    pointConsumer.points.size() == 2
+    with(pointConsumer.points[1]) {
+      edgeTags == ["topic:topic", "type:sqs"]
+      edgeTags.size() == 2
+      parentHash == pointConsumer.points[0].hash
+      hash != 0
+      pathwayLatencyNano == MILLISECONDS.toNanos(26)
+      edgeLatencyNano == MILLISECONDS.toNanos(26)
+    }
+
+    when:
+    def secondEncode = decodedContext.strEncode()
+    def secondJsonPathway = String.format("{\"%s\": \"%s\"}", PathwayContext.PROPAGATION_KEY_BASE64, secondEncode)
+    carrier = [(PathwayContext.DATADOG_KEY): secondJsonPathway]
+    timeSource.advance(MILLISECONDS.toNanos(2))
+    def secondDecode = DefaultPathwayContext.extract(carrier, contextVisitor, timeSource, wellKnownTags)
+    timeSource.advance(MILLISECONDS.toNanos(30))
+    context.setCheckpoint(new LinkedHashMap<>(["topic": "topicB", "type": "sqs"]), pointConsumer)
+
+    then:
+    secondDecode.isStarted()
+    pointConsumer.points.size() == 3
+    with(pointConsumer.points[2]) {
+      edgeTags == ["topic:topicB", "type:sqs"]
+      edgeTags.size() == 2
+      parentHash == pointConsumer.points[1].hash
+      hash != 0
+      pathwayLatencyNano == MILLISECONDS.toNanos(58)
+      edgeLatencyNano == MILLISECONDS.toNanos(32)
+    }
+  }
+
   def "Empty tags not set"() {
     given:
     def timeSource = new ControllableTimeSource()
@@ -508,10 +561,67 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
     extracted.pathwayContext.isStarted()
   }
 
+  def "Check context extractor decorator behavior when trace data is null"() {
+    given:
+    def sink = Mock(Sink)
+    def features = Stub(DDAgentFeaturesDiscovery) {
+      supportsDataStreams() >> true
+    }
+    def timeSource = new ControllableTimeSource()
+    def payloadWriter = Mock(DatastreamsPayloadWriter)
+    def dataStreams = new DefaultDataStreamsMonitoring(sink, features, timeSource, wellKnownTags, payloadWriter, DEFAULT_BUCKET_DURATION_NANOS)
+
+    def context = new DefaultPathwayContext(timeSource, wellKnownTags)
+    timeSource.advance(MILLISECONDS.toNanos(50))
+    context.setCheckpoint(new LinkedHashMap<>(["type": "internal"]), pointConsumer)
+    def encoded = context.strEncode()
+    Map<String, String> carrier = [(PathwayContext.PROPAGATION_KEY_BASE64): encoded, "someotherkey": "someothervalue"]
+    def contextVisitor = new Base64MapContextVisitor()
+    def extractor = new NullExtractor()
+    def decorated = dataStreams.decorate(extractor)
+
+    when:
+    def extracted = decorated.extract(carrier, contextVisitor)
+
+    then:
+    extracted != null
+    extracted.pathwayContext != null
+    extracted.pathwayContext.isStarted()
+  }
+
+  def "Check context extractor decorator behavior when trace data and dsm data are null"() {
+    given:
+    def sink = Mock(Sink)
+    def features = Stub(DDAgentFeaturesDiscovery) {
+      supportsDataStreams() >> true
+    }
+    def timeSource = new ControllableTimeSource()
+    def payloadWriter = Mock(DatastreamsPayloadWriter)
+    def dataStreams = new DefaultDataStreamsMonitoring(sink, features, timeSource, wellKnownTags, payloadWriter, DEFAULT_BUCKET_DURATION_NANOS)
+
+    Map<String, String> carrier = ["someotherkey": "someothervalue"]
+    def contextVisitor = new Base64MapContextVisitor()
+    def extractor = new NullExtractor()
+    def decorated = dataStreams.decorate(extractor)
+
+    when:
+    def extracted = decorated.extract(carrier, contextVisitor)
+
+    then:
+    extracted == null
+  }
+
   class FakeExtractor implements HttpCodec.Extractor {
     @Override
     <C> TagContext extract(C carrier, AgentPropagation.ContextVisitor<C> getter) {
       return new ExtractedContext(DDTraceId.ONE, 1, 0, null, null)
+    }
+  }
+
+  class NullExtractor implements HttpCodec.Extractor {
+    @Override
+    <C> TagContext extract(C carrier, AgentPropagation.ContextVisitor<C> getter) {
+      return null
     }
   }
 

@@ -7,6 +7,7 @@ import com.datadog.iast.model.VulnerabilityType
 import datadog.trace.api.gateway.RequestContext
 import datadog.trace.api.gateway.RequestContextSlot
 import datadog.trace.api.iast.InstrumentationBridge
+import datadog.trace.api.iast.util.Cookie
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import groovy.transform.CompileDynamic
 
@@ -39,9 +40,10 @@ class NoSameSiteCookieModuleTest extends IastModuleImplTestBase {
   void 'report NoHttp cookie with NoSameSiteCookieModule.onCookie'() {
     given:
     Vulnerability savedVul
+    final cookie = Cookie.named('user-id').build()
 
     when:
-    module.onCookie("user-id", true, true, false)
+    module.onCookie(cookie)
 
     then:
     1 * tracer.activeSpan() >> span
@@ -51,14 +53,21 @@ class NoSameSiteCookieModuleTest extends IastModuleImplTestBase {
       type == VulnerabilityType.NO_SAMESITE_COOKIE
       location != null
       with(evidence) {
-        value == "user-id"
+        value == cookie.cookieName
       }
     }
   }
 
   void 'cases where nothing is reported during NoSameSiteCookieModule.onCookie'() {
+    given:
+    final cookie = Cookie.named('user-id')
+      .secure(true)
+      .httpOnly(true)
+      .sameSite('Strict')
+      .build()
+
     when:
-    module.onCookie("user-id", true,true, true)
+    module.onCookie(cookie)
 
     then:
     0 * tracer.activeSpan()
@@ -66,9 +75,12 @@ class NoSameSiteCookieModuleTest extends IastModuleImplTestBase {
     0 * reporter._
   }
 
-  void 'insecure NoHttpOnly is not reported with NoHttpOnlyCookieModule.onCookie'() {
+  void 'Strict SameSite cookie is not reported with NoHttpOnlyCookieModule.onCookie'() {
+    given:
+    final cookie = Cookie.named('user-id').sameSite('Strict').build()
+
     when:
-    module.onCookie("user-id", false, true, true)
+    module.onCookie(cookie)
 
     then:
     0 * tracer.activeSpan() >> span

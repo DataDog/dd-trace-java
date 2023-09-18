@@ -1,6 +1,8 @@
 package datadog.trace.bootstrap.instrumentation.api;
 
+import java.net.MalformedURLException;
 import java.net.URI;
+import java.net.URL;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.function.Supplier;
@@ -154,6 +156,24 @@ public class URIUtils {
    */
   public static LazyUrl lazyInvalidUrl(String raw) {
     return new InvalidUrl(raw);
+  }
+
+  public static String urlFileName(String raw) {
+    try {
+      URL url = new URL(raw);
+      String path = url.getPath();
+      int nameEnd = path.length() - 1;
+      while (nameEnd >= 0 && path.charAt(nameEnd) == '/') {
+        nameEnd--;
+      }
+      if (nameEnd < 0) {
+        return "";
+      }
+      String name = path.substring(path.lastIndexOf('/', nameEnd) + 1, nameEnd + 1);
+      return name;
+    } catch (MalformedURLException e) {
+      return "";
+    }
   }
 
   /**

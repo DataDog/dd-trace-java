@@ -16,11 +16,11 @@ class ModuleExecutionResultTest extends Specification {
 
     where:
     signal << [
-      new ModuleExecutionResult(12345, 67890, false, false, false),
-      new ModuleExecutionResult(12345, 67890, true, false, false),
-      new ModuleExecutionResult(12345, 67890, false, true, false),
-      new ModuleExecutionResult(12345, 67890, false, false, true),
-      new ModuleExecutionResult(12345, 67890, true, true, true)
+      new ModuleExecutionResult(12345, 67890, false, false, 0, null, null),
+      new ModuleExecutionResult(12345, 67890, true, false, 1, "junit", "4.13.2"),
+      new ModuleExecutionResult(12345, 67890, false, true, 2, null, "4.13.2"),
+      new ModuleExecutionResult(12345, 67890, false, false, 3, "junit", null),
+      new ModuleExecutionResult(12345, 67890, true, true, Integer.MAX_VALUE, "junit", "4.13.2")
     ]
   }
 

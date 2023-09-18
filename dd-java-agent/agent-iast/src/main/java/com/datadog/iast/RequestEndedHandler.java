@@ -9,6 +9,8 @@ import com.datadog.iast.taint.TaintedObjects;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.IGSpanInfo;
 import datadog.trace.api.gateway.RequestContext;
+import datadog.trace.api.iast.InstrumentationBridge;
+import datadog.trace.api.iast.sink.HstsMissingHeaderModule;
 import datadog.trace.api.internal.TraceSegment;
 import java.util.function.BiFunction;
 import javax.annotation.Nonnull;
@@ -26,6 +28,10 @@ public class RequestEndedHandler implements BiFunction<RequestContext, IGSpanInf
     final TraceSegment traceSegment = requestContext.getTraceSegment();
     final IastRequestContext iastRequestContext = IastRequestContext.get(requestContext);
     if (iastRequestContext != null) {
+      HstsMissingHeaderModule mod = InstrumentationBridge.HSTS_MISSING_HEADER_MODULE;
+      if (mod != null) {
+        mod.onRequestEnd(iastRequestContext, igSpanInfo);
+      }
       try {
         ANALYZED.setTagTop(traceSegment);
         final TaintedObjects taintedObjects = iastRequestContext.getTaintedObjects();

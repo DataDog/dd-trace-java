@@ -113,6 +113,11 @@ abstract class Jetty76Test extends HttpServerTest<Server> {
     true
   }
 
+  @Override
+  boolean testBlockingOnResponse() {
+    true
+  }
+
   static class TestHandler extends AbstractHandler {
     private static final TestHandler INSTANCE = new TestHandler()
 

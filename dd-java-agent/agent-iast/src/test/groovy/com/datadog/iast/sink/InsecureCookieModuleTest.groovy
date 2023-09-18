@@ -7,6 +7,7 @@ import com.datadog.iast.model.VulnerabilityType
 import datadog.trace.api.gateway.RequestContext
 import datadog.trace.api.gateway.RequestContextSlot
 import datadog.trace.api.iast.InstrumentationBridge
+import datadog.trace.api.iast.util.Cookie
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import groovy.transform.CompileDynamic
 
@@ -39,9 +40,10 @@ class InsecureCookieModuleTest extends IastModuleImplTestBase {
   void 'report insecure cookie with InsecureCookieModule.onCookie'() {
     given:
     Vulnerability savedVul
+    final cookie =  Cookie.named('user-id').build()
 
     when:
-    module.onCookie('user-id', false, false, false)
+    module.onCookie(cookie)
 
     then:
     1 * tracer.activeSpan() >> span
@@ -51,37 +53,21 @@ class InsecureCookieModuleTest extends IastModuleImplTestBase {
       type == VulnerabilityType.INSECURE_COOKIE
       location != null
       with(evidence) {
-        value == "user-id"
-      }
-    }
-  }
-
-
-
-
-  void 'report insecure cookie with InsecureCookieModule.onCookie'() {
-    given:
-    Vulnerability savedVul
-
-    when:
-    module.onCookie("user-id", false, false, false)
-
-    then:
-    1 * tracer.activeSpan() >> span
-    1 * overheadController.consumeQuota(_, _) >> true
-    1 * reporter.report(_, _ as Vulnerability) >> { savedVul = it[1] }
-    with(savedVul) {
-      type == VulnerabilityType.INSECURE_COOKIE
-      location != null
-      with(evidence) {
-        value == "user-id"
+        value == cookie.cookieName
       }
     }
   }
 
   void 'cases where nothing is reported during InsecureCookieModuleTest.onCookie'() {
+    given:
+    final cookie = Cookie.named('user-id')
+      .secure(true)
+      .httpOnly(true)
+      .sameSite('Strict')
+      .build()
+
     when:
-    module.onCookie("user-id", true, true, true)
+    module.onCookie(cookie)
 
     then:
     0 * tracer.activeSpan()
@@ -89,9 +75,12 @@ class InsecureCookieModuleTest extends IastModuleImplTestBase {
     0 * reporter._
   }
 
-  void 'insecure cookie is not reported with InsecureCookieModule.onCookie'() {
+  void 'secure cookie is not reported with InsecureCookieModule.onCookie'() {
+    given:
+    final cookie = Cookie.named('user-id').secure(true).build()
+
     when:
-    module.onCookie("user-id", true, false, false)
+    module.onCookie(cookie)
 
     then:
     0 * tracer.activeSpan() >> span

@@ -170,6 +170,19 @@ There is a pre-commit hook setup to verify formatting before committing. It can 
 git config core.hooksPath .githooks
 ```
 
+## Git submodule setup
+
+Git does not automatically update submodules when switching branches.
+
+Add the following configuration setting or you will need to remember to add `--recurse-submodules` to `git checkout` when switching to old branches.
+
+```bash
+git config --local submodule.recurse true
+```
+
+This will keep the submodule in `dd-java-agent/agent-jmxfetch/integrations-core` up to date.
+
+
 ## Intellij IDEA
 
 Compiler settings:

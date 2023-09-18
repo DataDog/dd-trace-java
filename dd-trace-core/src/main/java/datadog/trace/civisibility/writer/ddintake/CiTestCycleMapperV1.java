@@ -23,6 +23,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import okhttp3.RequestBody;
 
 public class CiTestCycleMapperV1 implements RemoteMapper {
@@ -75,7 +76,8 @@ public class CiTestCycleMapperV1 implements RemoteMapper {
       Long spanId;
       Long parentId;
       int version;
-      if (InternalSpanTypes.TEST.equals(span.getType())) {
+      CharSequence spanType = span.getType();
+      if (equals(InternalSpanTypes.TEST, spanType)) {
         type = InternalSpanTypes.TEST;
         traceId = span.getTraceId().toLong();
         spanId = span.getSpanId();
@@ -85,21 +87,21 @@ public class CiTestCycleMapperV1 implements RemoteMapper {
         // i.e. emitted by framework that does not support testing suites yet
         version = topLevelTagsCount > 0 ? 2 : 1;
 
-      } else if (InternalSpanTypes.TEST_SUITE_END.equals(span.getType())) {
+      } else if (equals(InternalSpanTypes.TEST_SUITE_END, spanType)) {
         type = InternalSpanTypes.TEST_SUITE_END;
         traceId = null;
         spanId = null;
         parentId = null;
         version = 1;
 
-      } else if (InternalSpanTypes.TEST_MODULE_END.equals(span.getType())) {
+      } else if (equals(InternalSpanTypes.TEST_MODULE_END, spanType)) {
         type = InternalSpanTypes.TEST_MODULE_END;
         traceId = null;
         spanId = null;
         parentId = null;
         version = 1;
 
-      } else if (InternalSpanTypes.TEST_SESSION_END.equals(span.getType())) {
+      } else if (equals(InternalSpanTypes.TEST_SESSION_END, spanType)) {
         type = InternalSpanTypes.TEST_SESSION_END;
         traceId = null;
         spanId = null;
@@ -182,6 +184,11 @@ public class CiTestCycleMapperV1 implements RemoteMapper {
       span.processTagsAndBaggage(metaWriter.withWritable(writable));
     }
     eventCount += trace.size();
+  }
+
+  private static boolean equals(CharSequence a, CharSequence b) {
+    return a == null && b == null
+        || a != null && b != null && Objects.equals(a.toString(), b.toString());
   }
 
   private final MetaWriter metaWriter = new MetaWriter();

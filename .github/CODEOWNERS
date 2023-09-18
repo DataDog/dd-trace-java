@@ -14,18 +14,19 @@ dd-smoke-tests/profiling-integration-tests/                                     
 dd-java-agent/appsec/  @DataDog/appsec-java
 
 # @DataDog/ci-app-libraries-java
-internal-api/src/main/java/datadog/trace/api/civisibility/ @DataDog/ci-app-libraries-java
-dd-trace-api/src/main/java/datadog/trace/api/civisibility/ @DataDog/ci-app-libraries-java
-dd-trace-core/src/main/java/datadog/trace/civisibility/    @DataDog/ci-app-libraries-java
-dd-java-agent/agent-ci-visibility/                         @DataDog/ci-app-libraries-java
-dd-java-agent/instrumentation/jacoco/                      @DataDog/ci-app-libraries-java
-dd-java-agent/instrumentation/junit-4.10/                  @DataDog/ci-app-libraries-java
-dd-java-agent/instrumentation/junit-5.3/                   @DataDog/ci-app-libraries-java
-dd-java-agent/instrumentation/testng/                      @DataDog/ci-app-libraries-java
-dd-java-agent/instrumentation/gradle/                      @DataDog/ci-app-libraries-java
-dd-java-agent/instrumentation/maven-3.2.1/                 @DataDog/ci-app-libraries-java
-dd-smoke-tests/gradle/                                     @DataDog/ci-app-libraries-java
-dd-smoke-tests/maven/                                      @DataDog/ci-app-libraries-java
+dd-java-agent/agent-ci-visibility/         @DataDog/ci-app-libraries-java
+dd-java-agent/instrumentation/cucumber/    @DataDog/ci-app-libraries-java
+dd-java-agent/instrumentation/jacoco/      @DataDog/ci-app-libraries-java
+dd-java-agent/instrumentation/junit-4.10/  @DataDog/ci-app-libraries-java
+dd-java-agent/instrumentation/junit-5.3/   @DataDog/ci-app-libraries-java
+dd-java-agent/instrumentation/testng/      @DataDog/ci-app-libraries-java
+dd-java-agent/instrumentation/gradle/      @DataDog/ci-app-libraries-java
+dd-java-agent/instrumentation/maven-3.2.1/ @DataDog/ci-app-libraries-java
+dd-smoke-tests/gradle/                     @DataDog/ci-app-libraries-java
+dd-smoke-tests/maven/                      @DataDog/ci-app-libraries-java
+**/civisibility/                           @DataDog/ci-app-libraries-java
+**/CiVisibility*.java                      @DataDog/ci-app-libraries-java
+**/CiVisibility*.groovy                    @DataDog/ci-app-libraries-java
 
 # @DataDog/debugger-java (Live Debugger)
 dd-java-agent/agent-debugger/ @DataDog/debugger-java

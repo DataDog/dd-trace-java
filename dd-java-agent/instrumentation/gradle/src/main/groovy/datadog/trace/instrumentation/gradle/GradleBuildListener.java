@@ -62,18 +62,6 @@ public class GradleBuildListener extends BuildAdapter {
       configureTestExecutions(gradle, testExecutions);
     }
 
-    Collection<GradleUtils.TestFramework> testFrameworks =
-        GradleUtils.collectTestFrameworks(rootProject);
-    if (testFrameworks.size() == 1) {
-      // if the project uses multiple test frameworks, we do not set the tags
-      GradleUtils.TestFramework testFramework = testFrameworks.iterator().next();
-      buildEventsHandler.onTestFrameworkDetected(gradle, testFramework.name, testFramework.version);
-    } else if (testFrameworks.size() > 1) {
-      log.info(
-          "Multiple test frameworks detected: {}. Test framework data will not be populated",
-          testFrameworks);
-    }
-
     gradle.addListener(new TestTaskExecutionListener(buildEventsHandler));
   }
 
@@ -114,11 +102,8 @@ public class GradleBuildListener extends BuildAdapter {
         buildEventsHandler.getModuleExecutionSettings(gradle, jvmExecutablePath);
 
     for (Task testExecution : testExecutions) {
-      Path modulePath = testExecution.getProject().getProjectDir().toPath();
       GradleProjectConfigurator.INSTANCE.configureTracer(
-          testExecution,
-          moduleExecutionSettings.getSystemProperties(),
-          moduleExecutionSettings.getSkippableTests(modulePath));
+          testExecution, moduleExecutionSettings.getSystemProperties());
     }
   }
 
@@ -157,15 +142,6 @@ public class GradleBuildListener extends BuildAdapter {
       String startCommand = GradleUtils.recreateStartCommand(gradle.getStartParameter());
       BuildEventsHandler.ModuleInfo moduleInfo =
           buildEventsHandler.onTestModuleStart(gradle, taskPath, startCommand, null);
-
-      Collection<GradleUtils.TestFramework> testFrameworks =
-          GradleUtils.collectTestFrameworks(project);
-      if (testFrameworks.size() == 1) {
-        // if the module uses multiple test frameworks, we do not set the tags
-        GradleUtils.TestFramework testFramework = testFrameworks.iterator().next();
-        buildEventsHandler.onModuleTestFrameworkDetected(
-            gradle, taskPath, testFramework.name, testFramework.version);
-      }
 
       JavaForkOptions taskForkOptions = (JavaForkOptions) task;
       taskForkOptions.jvmArgs(

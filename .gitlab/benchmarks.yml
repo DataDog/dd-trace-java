@@ -1,5 +1,5 @@
 variables:
-  BASE_CI_IMAGE: 486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/relenv-microbenchmarking-platform:dd-trace-java
+  BASE_CI_IMAGE: 486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/benchmarking-platform:dd-trace-java-benchmarks
 
 benchmarks:
   stage: benchmarks
@@ -11,9 +11,8 @@ benchmarks:
   script:
     - export ARTIFACTS_DIR="$(pwd)/reports" && mkdir -p "${ARTIFACTS_DIR}"
     - git config --global url."https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.ddbuild.io/DataDog/".insteadOf "https://github.com/DataDog/"
-    - git clone --branch dd-trace-java https://github.com/DataDog/relenv-microbenchmarking-platform /platform && cd /platform
+    - git clone --branch dd-trace-java/tracer-benchmarks https://github.com/DataDog/benchmarking-platform.git /platform && cd /platform
     - ./steps/capture-hardware-software-info.sh
-    - ./steps/fetch-tracers.sh
     - ./steps/run-benchmarks.sh
     - ./steps/analyze-results.sh
     - ./steps/upload-results-to-s3.sh

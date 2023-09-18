@@ -2,31 +2,37 @@ package datadog.trace.civisibility.ipc;
 
 import java.nio.ByteBuffer;
 import java.util.Objects;
+import javax.annotation.Nullable;
 
 public class ModuleExecutionResult implements Signal {
 
-  private static final int SERIALIZED_LENGTH = Long.BYTES + Long.BYTES + 1;
+  private static final int FIXED_LENGTH = Long.BYTES + Long.BYTES + Long.BYTES + 1;
   private static final int COVERAGE_ENABLED_FLAG = 1;
   private static final int ITR_ENABLED_FLAG = 2;
-  private static final int ITR_TESTS_SKIPPED_FLAG = 4;
 
   private final long sessionId;
   private final long moduleId;
   private final boolean coverageEnabled;
   private final boolean itrEnabled;
-  private final boolean itrTestsSkipped;
+  private final long testsSkippedTotal;
+  @Nullable private final String testFramework;
+  @Nullable private final String testFrameworkVersion;
 
   public ModuleExecutionResult(
       long sessionId,
       long moduleId,
       boolean coverageEnabled,
       boolean itrEnabled,
-      boolean itrTestsSkipped) {
+      long testsSkippedTotal,
+      @Nullable String testFramework,
+      @Nullable String testFrameworkVersion) {
     this.sessionId = sessionId;
     this.moduleId = moduleId;
     this.coverageEnabled = coverageEnabled;
     this.itrEnabled = itrEnabled;
-    this.itrTestsSkipped = itrTestsSkipped;
+    this.testsSkippedTotal = testsSkippedTotal;
+    this.testFramework = testFramework;
+    this.testFrameworkVersion = testFrameworkVersion;
   }
 
   public long getSessionId() {
@@ -45,8 +51,18 @@ public class ModuleExecutionResult implements Signal {
     return itrEnabled;
   }
 
-  public boolean isItrTestsSkipped() {
-    return itrTestsSkipped;
+  public long getTestsSkippedTotal() {
+    return testsSkippedTotal;
+  }
+
+  @Nullable
+  public String getTestFramework() {
+    return testFramework;
+  }
+
+  @Nullable
+  public String getTestFrameworkVersion() {
+    return testFrameworkVersion;
   }
 
   @Override
@@ -62,12 +78,21 @@ public class ModuleExecutionResult implements Signal {
         && moduleId == that.moduleId
         && coverageEnabled == that.coverageEnabled
         && itrEnabled == that.itrEnabled
-        && itrTestsSkipped == that.itrTestsSkipped;
+        && testsSkippedTotal == that.testsSkippedTotal
+        && Objects.equals(testFramework, that.testFramework)
+        && Objects.equals(testFrameworkVersion, that.testFrameworkVersion);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(sessionId, moduleId, coverageEnabled, itrEnabled, itrEnabled);
+    return Objects.hash(
+        sessionId,
+        moduleId,
+        coverageEnabled,
+        itrEnabled,
+        testsSkippedTotal,
+        testFramework,
+        testFrameworkVersion);
   }
 
   @Override
@@ -82,7 +107,7 @@ public class ModuleExecutionResult implements Signal {
         + ", itrEnabled="
         + itrEnabled
         + ", itrTestsSkipped="
-        + itrTestsSkipped
+        + testsSkippedTotal
         + '}';
   }
 
@@ -93,9 +118,19 @@ public class ModuleExecutionResult implements Signal {
 
   @Override
   public ByteBuffer serialize() {
-    ByteBuffer buffer = ByteBuffer.allocate(SERIALIZED_LENGTH);
+    byte[] testFrameworkBytes = testFramework != null ? testFramework.getBytes() : null;
+    byte[] testFrameworkVersionBytes =
+        testFrameworkVersion != null ? testFrameworkVersion.getBytes() : null;
+
+    int testFrameworkLength = testFrameworkBytes != null ? testFrameworkBytes.length : 0;
+    int testFrameworkVersionLength =
+        testFrameworkVersionBytes != null ? testFrameworkVersionBytes.length : 0;
+    int variableLength = Integer.BYTES * 2 + testFrameworkLength + testFrameworkVersionLength;
+
+    ByteBuffer buffer = ByteBuffer.allocate(FIXED_LENGTH + variableLength);
     buffer.putLong(sessionId);
     buffer.putLong(moduleId);
+    buffer.putLong(testsSkippedTotal);
 
     byte flags = 0;
     if (coverageEnabled) {
@@ -104,26 +139,66 @@ public class ModuleExecutionResult implements Signal {
     if (itrEnabled) {
       flags |= ITR_ENABLED_FLAG;
     }
-    if (itrTestsSkipped) {
-      flags |= ITR_TESTS_SKIPPED_FLAG;
-    }
     buffer.put(flags);
+
+    buffer.putInt(testFrameworkLength);
+    if (testFrameworkLength != 0) {
+      buffer.put(testFrameworkBytes);
+    }
+
+    buffer.putInt(testFrameworkVersionLength);
+    if (testFrameworkVersionLength != 0) {
+      buffer.put(testFrameworkVersionBytes);
+    }
+
     buffer.flip();
     return buffer;
   }
 
   public static ModuleExecutionResult deserialize(ByteBuffer buffer) {
-    if (buffer.remaining() != SERIALIZED_LENGTH) {
+    if (buffer.remaining() < FIXED_LENGTH) {
       throw new IllegalArgumentException(
-          "Expected " + SERIALIZED_LENGTH + " bytes, got " + buffer.remaining() + ", " + buffer);
+          "Expected at least "
+              + FIXED_LENGTH
+              + " bytes, got "
+              + buffer.remaining()
+              + ", "
+              + buffer);
     }
     long sessionId = buffer.getLong();
     long moduleId = buffer.getLong();
+    long testsSkippedTotal = buffer.getLong();
     int flags = buffer.get();
     boolean coverageEnabled = (flags & COVERAGE_ENABLED_FLAG) != 0;
     boolean itrEnabled = (flags & ITR_ENABLED_FLAG) != 0;
-    boolean itrTestsSkipped = (flags & ITR_TESTS_SKIPPED_FLAG) != 0;
+
+    String testFramework;
+    int testFrameworkLength = buffer.getInt();
+    if (testFrameworkLength != 0) {
+      byte[] testFrameworkBytes = new byte[testFrameworkLength];
+      buffer.get(testFrameworkBytes);
+      testFramework = new String(testFrameworkBytes);
+    } else {
+      testFramework = null;
+    }
+
+    String testFrameworkVersion;
+    int testFrameworkVersionLength = buffer.getInt();
+    if (testFrameworkVersionLength != 0) {
+      byte[] testFrameworkVersionBytes = new byte[testFrameworkVersionLength];
+      buffer.get(testFrameworkVersionBytes);
+      testFrameworkVersion = new String(testFrameworkVersionBytes);
+    } else {
+      testFrameworkVersion = null;
+    }
+
     return new ModuleExecutionResult(
-        sessionId, moduleId, coverageEnabled, itrEnabled, itrTestsSkipped);
+        sessionId,
+        moduleId,
+        coverageEnabled,
+        itrEnabled,
+        testsSkippedTotal,
+        testFramework,
+        testFrameworkVersion);
   }
 }

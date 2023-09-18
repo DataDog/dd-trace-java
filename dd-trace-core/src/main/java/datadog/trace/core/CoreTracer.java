@@ -640,7 +640,10 @@ public class CoreTracer implements AgentTracer.TracerAPI {
         null == tagInterceptor ? new TagInterceptor(new RuleFlags(config)) : tagInterceptor;
 
     if (config.isCiVisibilityEnabled()) {
-      addTraceInterceptor(CiVisibilityTraceInterceptor.INSTANCE);
+      if (config.isCiVisibilityTraceSanitationEnabled()) {
+        addTraceInterceptor(CiVisibilityTraceInterceptor.INSTANCE);
+      }
+
       if (config.isCiVisibilityAgentlessEnabled()) {
         addTraceInterceptor(DDIntakeTraceInterceptor.INSTANCE);
       } else {
@@ -733,7 +736,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
         addTraceInterceptor(interceptor);
       }
     } catch (final ServiceConfigurationError e) {
-      log.warn("Problem loading TraceInterceptor for classLoader: " + classLoader, e);
+      log.warn("Problem loading TraceInterceptor for classLoader: {}", classLoader, e);
     }
   }
 

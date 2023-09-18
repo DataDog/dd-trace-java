@@ -10,6 +10,7 @@ import static datadog.trace.instrumentation.aws.v2.AwsSdkClientDecorator.DECORAT
 import datadog.trace.api.Config;
 import datadog.trace.api.TracePropagationStyle;
 import datadog.trace.bootstrap.ContextStore;
+import datadog.trace.bootstrap.InstanceStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -25,7 +26,8 @@ import software.amazon.awssdk.http.SdkHttpRequest;
 public class TracingExecutionInterceptor implements ExecutionInterceptor {
 
   public static final ExecutionAttribute<AgentSpan> SPAN_ATTRIBUTE =
-      new ExecutionAttribute<>("DatadogSpan");
+      InstanceStore.of(ExecutionAttribute.class)
+          .putIfAbsent("DatadogSpan", () -> new ExecutionAttribute<>("DatadogSpan"));
 
   private static final Logger log = LoggerFactory.getLogger(TracingExecutionInterceptor.class);
 

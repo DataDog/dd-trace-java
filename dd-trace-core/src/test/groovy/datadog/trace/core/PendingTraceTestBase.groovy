@@ -116,7 +116,7 @@ abstract class PendingTraceTestBase extends DDCoreSpecification {
 
   def "partial flush"() {
     when:
-    injectSysConfig(PARTIAL_FLUSH_MIN_SPANS, "1")
+    injectSysConfig(PARTIAL_FLUSH_MIN_SPANS, "2")
     def quickTracer = tracerBuilder().writer(writer).build()
     def rootSpan = quickTracer.buildSpan("root").start()
     def trace = rootSpan.context().trace
@@ -161,7 +161,7 @@ abstract class PendingTraceTestBase extends DDCoreSpecification {
 
   def "partial flush with root span closed last"() {
     when:
-    injectSysConfig(PARTIAL_FLUSH_MIN_SPANS, "1")
+    injectSysConfig(PARTIAL_FLUSH_MIN_SPANS, "2")
     def quickTracer = tracerBuilder().writer(writer).build()
     def rootSpan = quickTracer.buildSpan("root").start()
     def trace = rootSpan.context().trace

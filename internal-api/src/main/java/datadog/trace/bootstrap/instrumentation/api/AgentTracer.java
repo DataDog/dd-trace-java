@@ -29,12 +29,13 @@ import java.util.Map;
 import java.util.function.Consumer;
 
 public class AgentTracer {
+  private static final String DEFAULT_INSTRUMENTATION_NAME = "datadog";
 
   // Implicit parent
   /** Deprecated. Use {@link #startSpan(String, CharSequence)} instead. */
   @Deprecated
   public static AgentSpan startSpan(final CharSequence spanName) {
-    return startSpan("default", spanName);
+    return startSpan(DEFAULT_INSTRUMENTATION_NAME, spanName);
   }
 
   /** @see TracerAPI#startSpan(String, CharSequence) */
@@ -46,7 +47,7 @@ public class AgentTracer {
   /** Deprecated. Use {@link #startSpan(String, CharSequence, long)} instead. */
   @Deprecated
   public static AgentSpan startSpan(final CharSequence spanName, final long startTimeMicros) {
-    return startSpan("default", spanName, startTimeMicros);
+    return startSpan(DEFAULT_INSTRUMENTATION_NAME, spanName, startTimeMicros);
   }
 
   /** @see TracerAPI#startSpan(String, CharSequence, long) */
@@ -59,7 +60,7 @@ public class AgentTracer {
   /** Deprecated. Use {@link #startSpan(String, CharSequence, AgentSpan.Context)} instead. */
   @Deprecated
   public static AgentSpan startSpan(final CharSequence spanName, final AgentSpan.Context parent) {
-    return startSpan("default", spanName, parent);
+    return startSpan(DEFAULT_INSTRUMENTATION_NAME, spanName, parent);
   }
 
   /** @see TracerAPI#startSpan(String, CharSequence, AgentSpan.Context) */
@@ -75,7 +76,7 @@ public class AgentTracer {
   @Deprecated
   public static AgentSpan startSpan(
       final CharSequence spanName, final AgentSpan.Context parent, final long startTimeMicros) {
-    return startSpan("default", spanName, parent, startTimeMicros);
+    return startSpan(DEFAULT_INSTRUMENTATION_NAME, spanName, parent, startTimeMicros);
   }
 
   /** @see TracerAPI#startSpan(String, CharSequence, AgentSpan.Context, long) */
@@ -239,7 +240,7 @@ public class AgentTracer {
     /** Deprecated. Use {@link #buildSpan(String, CharSequence)} instead. */
     @Deprecated
     default SpanBuilder buildSpan(CharSequence spanName) {
-      return buildSpan("default", spanName);
+      return buildSpan(DEFAULT_INSTRUMENTATION_NAME, spanName);
     }
 
     SpanBuilder buildSpan(String instrumentationName, CharSequence spanName);

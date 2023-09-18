@@ -1,5 +1,6 @@
 package datadog.trace.civisibility.config;
 
+import datadog.trace.api.civisibility.config.JvmInfo;
 import datadog.trace.civisibility.utils.ShellCommandExecutor;
 import datadog.trace.util.ProcessUtils;
 import java.io.BufferedReader;

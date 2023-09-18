@@ -7,13 +7,23 @@ import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.PrintWriter;
 import java.io.StringWriter;
+import java.time.OffsetDateTime;
+import java.time.format.DateTimeParseException;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
+import java.util.UUID;
 import org.apache.spark.ExceptionFailure;
 import org.apache.spark.SparkConf;
 import org.apache.spark.TaskFailedReason;
 import org.apache.spark.scheduler.*;
+import org.apache.spark.sql.execution.streaming.MicroBatchExecution;
+import org.apache.spark.sql.execution.streaming.StreamExecution;
+import org.apache.spark.sql.streaming.SourceProgress;
+import org.apache.spark.sql.streaming.StateOperatorProgress;
+import org.apache.spark.sql.streaming.StreamingQueryListener;
+import org.apache.spark.sql.streaming.StreamingQueryProgress;
 import scala.Tuple2;
 
 /**
@@ -37,15 +47,21 @@ public class DatadogSparkListener extends SparkListener {
   private final AgentTracer.TracerAPI tracer;
 
   private AgentSpan applicationSpan;
+  private SparkListenerApplicationStart applicationStart;
+  private final HashMap<String, AgentSpan> streamingBatchSpans = new HashMap<>();
   private final HashMap<Integer, AgentSpan> jobSpans = new HashMap<>();
   private final HashMap<Long, AgentSpan> stageSpans = new HashMap<>();
 
   private final HashMap<Integer, Integer> stageToJob = new HashMap<>();
+  private final HashMap<Long, Properties> stageProperties = new HashMap<>();
 
   private final SparkAggregatedTaskMetrics applicationMetrics = new SparkAggregatedTaskMetrics();
+  private final HashMap<String, SparkAggregatedTaskMetrics> streamingBatchMetrics = new HashMap<>();
   private final HashMap<Integer, SparkAggregatedTaskMetrics> jobMetrics = new HashMap<>();
   private final HashMap<Long, SparkAggregatedTaskMetrics> stageMetrics = new HashMap<>();
 
+  private final HashMap<UUID, StreamingQueryListener.QueryStartedEvent> streamingQueries =
+      new HashMap<>();
   private final HashMap<String, SparkListenerExecutorAdded> liveExecutors = new HashMap<>();
 
   private final boolean isRunningOnDatabricks;
@@ -53,6 +69,7 @@ public class DatadogSparkListener extends SparkListener {
   private boolean lastJobFailed = false;
   private String lastJobFailedMessage;
   private String lastJobFailedStackTrace;
+  private int jobCount = 0;
   private int currentExecutorCount = 0;
   private int maxExecutorCount = 0;
   private long availableExecutorTime = 0;
@@ -71,24 +88,36 @@ public class DatadogSparkListener extends SparkListener {
 
   @Override
   public synchronized void onApplicationStart(SparkListenerApplicationStart applicationStart) {
-    applicationSpan =
-        buildSparkSpan("spark.application")
-            .withStartTimestamp(applicationStart.time() * 1000)
-            .withTag("application_name", applicationStart.appName())
-            .withTag("spark_user", applicationStart.sparkUser())
-            .start();
+    this.applicationStart = applicationStart;
+  }
 
-    applicationSpan.setMeasured(true);
+  private void initApplicationSpanIfNotInitialized() {
+    if (applicationSpan != null) {
+      return;
+    }
 
-    if (applicationStart.appAttemptId().isDefined())
-      applicationSpan.setTag("app_attempt_id", applicationStart.appAttemptId().get());
+    AgentTracer.SpanBuilder builder = buildSparkSpan("spark.application");
+
+    if (applicationStart != null) {
+      builder
+          .withStartTimestamp(applicationStart.time() * 1000)
+          .withTag("application_name", applicationStart.appName())
+          .withTag("spark_user", applicationStart.sparkUser());
+
+      if (applicationStart.appAttemptId().isDefined()) {
+        builder.withTag("app_attempt_id", applicationStart.appAttemptId().get());
+      }
+    }
 
     for (Tuple2<String, String> conf : sparkConf.getAll()) {
       if (SparkConfAllowList.canCaptureApplicationParameter(conf._1)) {
-        applicationSpan.setTag("config." + conf._1.replace(".", "_"), conf._2);
+        builder.withTag("config." + conf._1.replace(".", "_"), conf._2);
       }
     }
-    applicationSpan.setTag("config.spark_version", sparkVersion);
+    builder.withTag("config.spark_version", sparkVersion);
+
+    applicationSpan = builder.start();
+    applicationSpan.setMeasured(true);
   }
 
   @Override
@@ -104,6 +133,13 @@ public class DatadogSparkListener extends SparkListener {
       return;
     }
     applicationEnded = true;
+
+    if (applicationSpan == null && jobCount > 0) {
+      // If the application span is not initialized, but spark jobs have been executed, all those
+      // spark jobs were databricks or streaming. In this case we don't send the application span
+      return;
+    }
+    initApplicationSpanIfNotInitialized();
 
     if (throwable != null) {
       applicationSpan.addThrowable(throwable);
@@ -133,6 +169,7 @@ public class DatadogSparkListener extends SparkListener {
 
   @Override
   public synchronized void onJobStart(SparkListenerJobStart jobStart) {
+    jobCount++;
     if (jobSpans.size() > MAX_COLLECTION_SIZE) {
       return;
     }
@@ -143,7 +180,21 @@ public class DatadogSparkListener extends SparkListener {
             .withTag("job_id", jobStart.jobId())
             .withTag("stage_count", jobStart.stageInfos().size());
 
-    if (isRunningOnDatabricks) {
+    String batchKey = getStreamingBatchKey(jobStart.properties());
+
+    if (batchKey != null) {
+      AgentSpan batchSpan = streamingBatchSpans.get(batchKey);
+
+      if (batchSpan == null) {
+        batchSpan =
+            buildSparkSpan("spark.batch").withStartTimestamp(jobStart.time() * 1000).start();
+
+        streamingBatchSpans.put(batchKey, batchSpan);
+      }
+
+      // In streaming mode, the batch spans are the local root spans
+      jobSpanBuilder.asChildOf(batchSpan.context());
+    } else if (isRunningOnDatabricks) {
       // In databricks, the spark jobs are the local root spans so adding the spark conf parameters
       // to the job spans
       for (Tuple2<String, String> conf : sparkConf.getAll()) {
@@ -173,7 +224,8 @@ public class DatadogSparkListener extends SparkListener {
         }
       }
     } else {
-      // In non-databricks env, the spark application is the local root spans
+      // In non-databricks, non-streaming env, the spark application is the local root span
+      initApplicationSpanIfNotInitialized();
       jobSpanBuilder.asChildOf(applicationSpan.context());
     }
 
@@ -262,6 +314,7 @@ public class DatadogSparkListener extends SparkListener {
     stageMetrics.put(
         stageSpanKey,
         new SparkAggregatedTaskMetrics(computeCurrentAvailableExecutorTime(submissionTimeMs)));
+    stageProperties.put(stageSpanKey, stageSubmitted.properties());
 
     AgentSpan stageSpan =
         buildSparkSpan("spark.stage")
@@ -327,6 +380,15 @@ public class DatadogSparkListener extends SparkListener {
       jobMetrics
           .computeIfAbsent(jobId, k -> new SparkAggregatedTaskMetrics())
           .accumulateStageMetrics(stageMetric);
+
+      Properties prop = stageProperties.remove(stageSpanKey);
+      String batchKey = getStreamingBatchKey(prop);
+
+      if (batchKey != null) {
+        streamingBatchMetrics
+            .computeIfAbsent(batchKey, k -> new SparkAggregatedTaskMetrics())
+            .accumulateStageMetrics(stageMetric);
+      }
     }
 
     span.finish(completionTimeMs * 1000);
@@ -430,6 +492,157 @@ public class DatadogSparkListener extends SparkListener {
     }
   }
 
+  @Override
+  public void onOtherEvent(SparkListenerEvent event) {
+    if (event instanceof StreamingQueryListener.QueryStartedEvent) {
+      onStreamingQueryStartedEvent((StreamingQueryListener.QueryStartedEvent) event);
+    } else if (event instanceof StreamingQueryListener.QueryProgressEvent) {
+      onStreamingQueryProgressEvent((StreamingQueryListener.QueryProgressEvent) event);
+    } else if (event instanceof StreamingQueryListener.QueryTerminatedEvent) {
+      onStreamingQueryTerminatedEvent((StreamingQueryListener.QueryTerminatedEvent) event);
+    }
+  }
+
+  private synchronized void onStreamingQueryStartedEvent(
+      StreamingQueryListener.QueryStartedEvent event) {
+    if (streamingQueries.size() > MAX_COLLECTION_SIZE) {
+      return;
+    }
+
+    streamingQueries.put(event.id(), event);
+  }
+
+  private synchronized void onStreamingQueryTerminatedEvent(
+      StreamingQueryListener.QueryTerminatedEvent event) {
+    StreamingQueryListener.QueryStartedEvent startedEvent = streamingQueries.remove(event.id());
+
+    ArrayList<String> batchesToFinish = new ArrayList<>();
+
+    for (String batchKey : streamingBatchSpans.keySet()) {
+      if (batchKey.startsWith(event.id().toString())) {
+        batchesToFinish.add(batchKey);
+      }
+    }
+
+    for (String batchKey : batchesToFinish) {
+      AgentSpan batchSpan = streamingBatchSpans.remove(batchKey);
+      SparkAggregatedTaskMetrics metrics = streamingBatchMetrics.remove(batchKey);
+
+      if (batchSpan != null) {
+        if (metrics != null) {
+          metrics.setSpanMetrics(batchSpan, "spark");
+        }
+
+        batchSpan.setTag("id", event.id());
+        batchSpan.setTag("run_id", event.runId());
+        batchSpan.setTag("batch_id", getBatchIdFromBatchKey(batchKey));
+        if (startedEvent != null) {
+          batchSpan.setTag("name", startedEvent.name());
+          batchSpan.setTag(DDTags.RESOURCE_NAME, startedEvent.name());
+        }
+
+        if (event.exception().isDefined()) {
+          String exceptionString = event.exception().get();
+
+          batchSpan.setError(true);
+          batchSpan.setErrorMessage(getErrorMessageWithoutStackTrace(exceptionString));
+          batchSpan.setTag(DDTags.ERROR_STACK, exceptionString);
+        }
+
+        batchSpan.finish();
+      }
+    }
+  }
+
+  private synchronized void onStreamingQueryProgressEvent(
+      StreamingQueryListener.QueryProgressEvent event) {
+    StreamingQueryProgress progress = event.progress();
+
+    String batchKey =
+        getStreamingBatchKey(progress.id().toString(), String.valueOf(progress.batchId()));
+
+    AgentSpan batchSpan = streamingBatchSpans.remove(batchKey);
+    SparkAggregatedTaskMetrics metrics = streamingBatchMetrics.remove(batchKey);
+    if (batchSpan != null) {
+      if (metrics != null) {
+        metrics.setSpanMetrics(batchSpan, "spark");
+      }
+
+      batchSpan.setTag("id", progress.id());
+      batchSpan.setTag("run_id", progress.runId());
+      batchSpan.setTag("batch_id", progress.batchId());
+      batchSpan.setTag("name", progress.name());
+      batchSpan.setTag(DDTags.RESOURCE_NAME, progress.name());
+
+      batchSpan.setMetric("spark.num_input_rows", progress.numInputRows());
+      batchSpan.setMetric("spark.input_rows_per_second", progress.inputRowsPerSecond());
+      batchSpan.setMetric("spark.processed_rows_per_second", progress.processedRowsPerSecond());
+
+      Long watermark = convertStringDateToMillis(progress.eventTime().get("watermark"));
+      if (watermark != null) {
+        batchSpan.setMetric("spark.event_time.watermark", watermark);
+      }
+      Long maxEventTime = convertStringDateToMillis(progress.eventTime().get("max"));
+      if (maxEventTime != null) {
+        batchSpan.setMetric("spark.event_time.max", maxEventTime);
+      }
+      Long minEventTime = convertStringDateToMillis(progress.eventTime().get("min"));
+      if (minEventTime != null) {
+        batchSpan.setMetric("spark.event_time.min", minEventTime);
+      }
+
+      Long addBatch = progress.durationMs().get("addBatch");
+      if (addBatch != null) {
+        batchSpan.setMetric("spark.add_batch_duration", addBatch);
+      }
+      Long getBatch = progress.durationMs().get("getBatch");
+      if (getBatch != null) {
+        batchSpan.setMetric("spark.get_batch_duration", getBatch);
+      }
+      Long latestOffset = progress.durationMs().get("latestOffset");
+      if (latestOffset != null) {
+        batchSpan.setMetric("spark.latest_offset_duration", latestOffset);
+      }
+      Long queryPlanning = progress.durationMs().get("queryPlanning");
+      if (queryPlanning != null) {
+        batchSpan.setMetric("spark.query_planing_duration", queryPlanning);
+      }
+      Long triggerExecution = progress.durationMs().get("triggerExecution");
+      if (triggerExecution != null) {
+        batchSpan.setMetric("spark.trigger_execution_duration", triggerExecution);
+      }
+      Long walCommit = progress.durationMs().get("walCommit");
+      if (walCommit != null) {
+        batchSpan.setMetric("spark.wal_commit_duration", walCommit);
+      }
+
+      for (int i = 0; i < progress.sources().length; i++) {
+        SourceProgress source = progress.sources()[i];
+        String prefix = "spark.source." + i + ".";
+
+        batchSpan.setTag(prefix + "description", source.description());
+        batchSpan.setTag(prefix + "start_offset", source.startOffset());
+        batchSpan.setTag(prefix + "end_offset", source.endOffset());
+        batchSpan.setTag(prefix + "num_input_rows", source.numInputRows());
+        batchSpan.setTag(prefix + "input_rows_per_second", source.inputRowsPerSecond());
+        batchSpan.setTag(prefix + "processed_rows_per_second", source.processedRowsPerSecond());
+      }
+
+      for (int i = 0; i < progress.stateOperators().length; i++) {
+        StateOperatorProgress state = progress.stateOperators()[i];
+        String prefix = "spark.state." + i + ".";
+
+        batchSpan.setTag(prefix + "num_rows_total", state.numRowsTotal());
+        batchSpan.setTag(prefix + "num_rows_updated", state.numRowsUpdated());
+        batchSpan.setTag(prefix + "memory_used_bytes", state.memoryUsedBytes());
+      }
+
+      batchSpan.setTag("spark.sink.description", progress.sink().description());
+
+      batchSpan.finish();
+    }
+  }
+
   private AgentTracer.SpanBuilder buildSparkSpan(String spanName) {
     return tracer.buildSpan(spanName).withSpanType("spark").withTag("app_id", appId);
   }
@@ -483,5 +696,40 @@ public class DatadogSparkListener extends SparkListener {
     }
 
     return currentAvailableExecutorTime;
+  }
+
+  private static Long convertStringDateToMillis(String isoUtcDateStr) {
+    if (isoUtcDateStr == null) {
+      return null;
+    }
+
+    try {
+      return OffsetDateTime.parse(isoUtcDateStr).toInstant().toEpochMilli();
+    } catch (DateTimeParseException e) {
+      return null;
+    }
+  }
+
+  private static String getStreamingBatchKey(Properties properties) {
+    if (properties == null) {
+      return null;
+    }
+
+    Object queryId = properties.get(StreamExecution.QUERY_ID_KEY());
+    Object batchId = properties.get(MicroBatchExecution.BATCH_ID_KEY());
+
+    if (queryId == null || batchId == null) {
+      return null;
+    }
+
+    return getStreamingBatchKey(queryId.toString(), batchId.toString());
+  }
+
+  private static String getStreamingBatchKey(String queryId, String batchId) {
+    return queryId + "." + batchId;
+  }
+
+  private static String getBatchIdFromBatchKey(String batchKey) {
+    return batchKey.substring(batchKey.lastIndexOf(".") + 1);
   }
 }

@@ -111,6 +111,11 @@ class UndertowServletTest extends HttpServerTest<Undertow> {
   }
 
   @Override
+  boolean testBlockingOnResponse() {
+    true
+  }
+
+  @Override
   boolean testRequestBody() {
     true
   }

@@ -17,6 +17,7 @@ class SparkConfAllowList {
   private static final Set<String> allowedApplicationParams =
       new HashSet<>(
           Arrays.asList(
+              "spark.default.parallelism",
               "spark.dynamicAllocation.enabled",
               "spark.dynamicAllocation.executorIdleTimeout",
               "spark.dynamicAllocation.initialExecutors",
@@ -30,10 +31,12 @@ class SparkConfAllowList {
               "spark.driver.memoryOverhead",
               "spark.driver.memoryOverheadFactor",
               "spark.executor.cores",
+              "spark.executor.instances",
               "spark.executor.memory",
               "spark.executor.pyspark.memory",
               "spark.executor.memoryOverhead",
               "spark.executor.memoryOverheadFactor",
+              "spark.files.maxPartitionBytes",
               "spark.master",
               "spark.memory.fraction",
               "spark.memory.storageFraction",
@@ -41,6 +44,7 @@ class SparkConfAllowList {
               "spark.memory.offHeap.size",
               "spark.submit.deployMode",
               "spark.sql.autoBroadcastJoinThreshold",
+              "spark.sql.files.maxPartitionBytes",
               "spark.sql.shuffle.partitions"));
 
   /**

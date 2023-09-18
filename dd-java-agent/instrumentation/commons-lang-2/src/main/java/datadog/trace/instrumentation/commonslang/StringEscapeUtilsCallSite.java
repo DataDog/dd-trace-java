@@ -14,14 +14,35 @@ public class StringEscapeUtilsCallSite {
 
   @CallSite.After(
       "java.lang.String org.apache.commons.lang.StringEscapeUtils.escapeHtml(java.lang.String)")
-  public static String afterEscapeHtml(
+  @CallSite.After(
+      "java.lang.String org.apache.commons.lang.StringEscapeUtils.escapeJava(java.lang.String)")
+  @CallSite.After(
+      "java.lang.String org.apache.commons.lang.StringEscapeUtils.escapeJavaScript(java.lang.String)")
+  @CallSite.After(
+      "java.lang.String org.apache.commons.lang.StringEscapeUtils.escapeXml(java.lang.String)")
+  public static String afterEscape(
       @CallSite.Argument(0) @Nonnull final String input, @CallSite.Return final String result) {
     final PropagationModule module = InstrumentationBridge.PROPAGATION;
     if (module != null) {
       try {
         module.taintIfInputIsTaintedWithMarks(result, input, VulnerabilityMarks.XSS_MARK);
       } catch (final Throwable e) {
-        module.onUnexpectedException("afterEscapeHtml threw", e);
+        module.onUnexpectedException("afterEscape threw", e);
+      }
+    }
+    return result;
+  }
+
+  @CallSite.After(
+      "java.lang.String org.apache.commons.lang.StringEscapeUtils.escapeSql(java.lang.String)")
+  public static String afterEscapeSQL(
+      @CallSite.Argument(0) @Nonnull final String input, @CallSite.Return final String result) {
+    final PropagationModule module = InstrumentationBridge.PROPAGATION;
+    if (module != null) {
+      try {
+        module.taintIfInputIsTaintedWithMarks(result, input, VulnerabilityMarks.SQL_INJECTION_MARK);
+      } catch (final Throwable e) {
+        module.onUnexpectedException("afterEscapeSQL threw", e);
       }
     }
     return result;

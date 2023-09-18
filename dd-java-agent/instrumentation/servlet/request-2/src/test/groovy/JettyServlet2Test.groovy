@@ -107,6 +107,11 @@ abstract class JettyServlet2Test extends HttpServerTest<Server> {
   }
 
   @Override
+  boolean testBlockingOnResponse() {
+    true
+  }
+
+  @Override
   boolean hasExtraErrorInformation() {
     true
   }

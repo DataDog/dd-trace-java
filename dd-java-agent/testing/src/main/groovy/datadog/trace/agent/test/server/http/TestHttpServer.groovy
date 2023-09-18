@@ -204,7 +204,7 @@ class TestHttpServer implements AutoCloseable {
     clone(handlers)
   }
 
-  static distributedRequestTrace(ListWriterAssert traces, DDSpan parentSpan = null) {
+  static distributedRequestTrace(ListWriterAssert traces, DDSpan parentSpan = null, Map<String, Serializable> extraTags = null) {
     traces.trace(1) {
       span {
         operationName "test-http-server"
@@ -218,6 +218,9 @@ class TestHttpServer implements AutoCloseable {
           "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
           "path" String
           defaultTags(parentSpan != null)
+          if (extraTags) {
+            it.addTags(extraTags)
+          }
         }
       }
     }

@@ -1,17 +1,12 @@
 package datadog.trace.instrumentation.maven3;
 
 import datadog.trace.api.Config;
-import datadog.trace.api.civisibility.config.SkippableTest;
-import datadog.trace.api.civisibility.config.SkippableTestsSerializer;
-import datadog.trace.api.config.CiVisibilityConfig;
 import datadog.trace.bootstrap.DatadogClassLoader;
 import datadog.trace.util.Strings;
 import java.io.File;
-import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
-import javax.annotation.Nullable;
 import org.apache.maven.artifact.versioning.ComparableVersion;
 import org.apache.maven.model.Build;
 import org.apache.maven.model.Dependency;
@@ -50,9 +45,7 @@ class MavenProjectConfigurator {
   private static final String JACOCO_EXCL_CLASS_LOADERS_PROPERTY = "jacoco.exclClassLoaders";
 
   public void configureTracer(
-      MojoExecution mojoExecution,
-      Map<String, String> propagatedSystemProperties,
-      @Nullable Collection<SkippableTest> skippableTests) {
+      MojoExecution mojoExecution, Map<String, String> propagatedSystemProperties) {
     Xpp3Dom configuration = mojoExecution.getConfiguration();
 
     Xpp3Dom forkCount = configuration.getChild("forkCount");
@@ -79,18 +72,6 @@ class MavenProjectConfigurator {
     // propagate to child process all "dd." system properties available in current process
     for (Map.Entry<String, String> e : propagatedSystemProperties.entrySet()) {
       modifiedArgLine.append("-D").append(e.getKey()).append('=').append(e.getValue()).append(" ");
-    }
-
-    if (skippableTests != null && !skippableTests.isEmpty()) {
-      String skippableTestsString = SkippableTestsSerializer.serialize(skippableTests);
-      modifiedArgLine
-          .append("-D")
-          .append(
-              Strings.propertyNameToSystemPropertyName(
-                  CiVisibilityConfig.CIVISIBILITY_SKIPPABLE_TESTS))
-          .append('=')
-          .append(skippableTestsString)
-          .append(" ");
     }
 
     Integer ciVisibilityDebugPort = Config.get().getCiVisibilityDebugPort();

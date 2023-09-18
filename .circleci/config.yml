@@ -23,7 +23,7 @@ instrumentation_modules: &instrumentation_modules "dd-java-agent/instrumentation
 debugger_modules: &debugger_modules "dd-java-agent/agent-debugger|dd-java-agent/agent-bootstrap|dd-java-agent/agent-builder|internal-api|communication|dd-trace-core"
 profiling_modules: &profiling_modules "dd-java-agent/agent-profiling"
 
-default_system_tests_commit: &default_system_tests_commit 7b39609e7bc21c951e78ed1f2ec7a88e8d042c6a
+default_system_tests_commit: &default_system_tests_commit 68da674b83d7a1a1730387a3b27a1d4328392f3c
 
 parameters:
   gradle_flags:
@@ -252,23 +252,10 @@ commands:
           cacheType: lib
 
       - run:
-          # TODO: removes this step once host-in-runner is merged on system tests
-          name: Install good version of docker-compose
-          command: |
-            sudo curl -L "https://github.com/docker/compose/releases/download/1.29.2/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
-            sudo chmod +x /usr/local/bin/docker-compose
-
-      - run:
           name: Install python 3.9
           command: |
             sudo apt-get install python3.9-full python3.9-dev python3.9-venv
             echo 'export PATH="$HOME/.local/bin:$PATH"' >>"$BASH_ENV"
-
-      - run:
-          name: versions
-          command: |
-            docker --version
-            docker-compose --version
 
       - run:
           name: Clone system-tests
@@ -355,7 +342,7 @@ jobs:
 
   spotless:
     <<: *defaults
-    resource_class: large
+    resource_class: medium+
 
     steps:
       - setup_code
@@ -380,7 +367,7 @@ jobs:
       cacheType:
         type: string
 
-    resource_class: large
+    resource_class: medium+
 
     parallelism: << parameters.parallelism >>
 
@@ -470,6 +457,7 @@ jobs:
 
   tests: &tests
     <<: *defaults
+    # since tests use test containers, they will use a Linux VM / Remote Docker executor, so there is no medium+ size
     resource_class: large
 
     docker:
@@ -639,10 +627,6 @@ jobs:
     resource_class: xlarge
 
 
-  huge_tests:
-    <<: *tests
-    resource_class: 2xlarge
-
   # The only way to do fan-in in CircleCI seems to have a proper job, so let's have one that
   # doesn't consume so many resources. The execution time for this including spin up seems to
   # be around 6 seconds.
@@ -679,8 +663,7 @@ jobs:
 
   test_published_artifacts:
     <<: *defaults
-    resource_class: large
-
+    resource_class: medium
     docker:
       - image: << pipeline.parameters.docker_image >>:7
 
@@ -770,7 +753,7 @@ jobs:
     machine:
       # https://support.circleci.com/hc/en-us/articles/360007324514-How-can-I-use-Docker-volume-mounting-on-CircleCI-
       image: ubuntu-2004:current
-    resource_class: large
+    resource_class: medium
     parameters:
       weblog-variant:
         type: string
@@ -842,7 +825,7 @@ jobs:
     machine:
       # https://support.circleci.com/hc/en-us/articles/360007324514-How-can-I-use-Docker-volume-mounting-on-CircleCI-
       image: ubuntu-2004:current
-    resource_class: large
+    resource_class: medium
     steps:
       - setup_system_tests
 
@@ -877,7 +860,7 @@ jobs:
     machine:
       # https://support.circleci.com/hc/en-us/articles/360007324514-How-can-I-use-Docker-volume-mounting-on-CircleCI-
       image: ubuntu-2004:current
-    resource_class: xlarge
+    resource_class: large
     steps:
       - setup_system_tests
 
@@ -912,8 +895,12 @@ jobs:
       - store_test_results:
           path: system-tests/logs_parametric
 
+      - run:
+          name: Collect artifacts
+          command: tar -cvzf logs_java_parametric_dev.tar.gz -C system-tests logs_parametric
+
       - store_artifacts:
-          path: system-tests/logs_parametric
+          path: logs_java_parametric_dev.tar.gz
 
 
 build_test_jobs: &build_test_jobs

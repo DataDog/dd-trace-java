@@ -683,8 +683,15 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
   }
 
   @Flaky(value = "https://github.com/DataDog/dd-trace-java/issues/4690", suites = ["MuleHttpServerForkedTest"])
-  def "test #endpoint with response header #header tag mapping"() {
+  def "test QUERY_ENCODED_BOTH with response header x-ig-response-header tag mapping"() {
     setup:
+    def endpoint = QUERY_ENCODED_BOTH
+    def method = 'GET'
+    def body = null
+    def header = IG_RESPONSE_HEADER
+    def mapping = 'mapped_response_header_tag'
+    def tags = ['mapped_response_header_tag': "$IG_RESPONSE_HEADER_VALUE" ]
+
     injectSysConfig(HTTP_SERVER_TAG_QUERY_STRING, "true")
     injectSysConfig(RESPONSE_HEADER_TAGS, "$header:$mapping")
     def request = request(endpoint, method, body)
@@ -721,10 +728,6 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
         edgeTags.size() == DSM_EDGE_TAGS.size()
       }
     }
-
-    where:
-    endpoint           | method | body | header             | mapping                      | tags
-    QUERY_ENCODED_BOTH | 'GET'  | null | IG_RESPONSE_HEADER | 'mapped_response_header_tag' | [ 'mapped_response_header_tag': "$IG_RESPONSE_HEADER_VALUE" ]
   }
 
   @Flaky(value = "https://github.com/DataDog/dd-trace-java/issues/4690", suites = ["MuleHttpServerForkedTest"])
@@ -952,7 +955,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
   def "test redirect"() {
     setup:
     assumeTrue(testRedirect())
-    def request = request(REDIRECT, method, body).build()
+    def request = request(REDIRECT, 'GET', null).build()
     def response = client.newCall(request).execute()
     if (isDataStreamsEnabled()) {
       TEST_DATA_STREAMS_WRITER.waitForGroups(1)
@@ -971,7 +974,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     assertTraces(1) {
       trace(spanCount(REDIRECT)) {
         sortSpansByStart()
-        serverSpan(it, null, null, method, REDIRECT)
+        serverSpan(it, null, null, 'GET', REDIRECT)
         if (hasHandlerSpan()) {
           handlerSpan(it, REDIRECT)
         }
@@ -990,10 +993,6 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
         edgeTags.size() == DSM_EDGE_TAGS.size()
       }
     }
-
-    where:
-    method = "GET"
-    body = null
   }
 
   def "test error"() {
@@ -1126,7 +1125,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     setup:
     assumeTrue(testTimeout())
     injectSysConfig(SERVLET_ASYNC_TIMEOUT_ERROR, "false")
-    def request = request(TIMEOUT, method, body).build()
+    def request = request(TIMEOUT, 'GET', null).build()
 
     when:
     def response = client.newCall(request).execute()
@@ -1143,7 +1142,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     assertTraces(1) {
       trace(spanCount(TIMEOUT)) {
         sortSpansByStart()
-        serverSpan(it, null, null, method, TIMEOUT)
+        serverSpan(it, null, null, 'GET', TIMEOUT)
         if (hasHandlerSpan()) {
           handlerSpan(it, TIMEOUT)
         }
@@ -1162,16 +1161,12 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
         edgeTags.size() == DSM_EDGE_TAGS.size()
       }
     }
-
-    where:
-    method = "GET"
-    body = null
   }
 
   def "test timeout as error"() {
     setup:
     assumeTrue(testTimeout())
-    def request = request(TIMEOUT_ERROR, method, body).build()
+    def request = request(TIMEOUT_ERROR, 'GET', null).build()
     def response = client.newCall(request).execute()
     if (isDataStreamsEnabled()) {
       TEST_DATA_STREAMS_WRITER.waitForGroups(1)
@@ -1188,7 +1183,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     assertTraces(1) {
       trace(spanCount(TIMEOUT_ERROR)) {
         sortSpansByStart()
-        serverSpan(it, null, null, method, TIMEOUT_ERROR)
+        serverSpan(it, null, null, 'GET', TIMEOUT_ERROR)
         if (hasHandlerSpan()) {
           handlerSpan(it, TIMEOUT_ERROR)
         }
@@ -1207,10 +1202,6 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
         edgeTags.size() == DSM_EDGE_TAGS.size()
       }
     }
-
-    where:
-    method = "GET"
-    body = null
   }
 
   //FIXME: add tests for POST with large/chunked data
@@ -1787,6 +1778,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     }
     response.code() == 413
     response.header('Content-type') =~ /(?i)\Aapplication\/json(?:;\s?charset=utf-8)?\z/
+    response.header(IG_RESPONSE_HEADER) == null // the header should've been cleared
     response.body().charStream().text.contains('"title":"You\'ve been blocked"')
     TEST_WRITER.waitForTraces(1)
 

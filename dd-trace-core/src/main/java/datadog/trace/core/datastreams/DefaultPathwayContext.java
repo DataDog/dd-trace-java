@@ -248,6 +248,22 @@ public class DefaultPathwayContext implements PathwayContext {
 
     @Override
     public boolean accept(String key, String value) {
+      if (PathwayContext.DATADOG_KEY.equalsIgnoreCase(key)) {
+        try {
+          int startIndex = value.indexOf("\"dd-pathway-ctx-base64\": ");
+          int startValueIndex =
+              value.indexOf("\"", startIndex + "\"dd-pathway-ctx-base64\": ".length());
+          int endValueIndex = value.indexOf("\"", startValueIndex + 1);
+          if (startIndex == -1 || startValueIndex == -1 || endValueIndex == -1) {
+            return false;
+          }
+          String ddPathwayCtxBase64Value = value.substring(startValueIndex + 1, endValueIndex);
+          ddPathwayCtxBase64Value = ddPathwayCtxBase64Value.trim();
+          extractedContext = strDecode(timeSource, wellKnownTags, ddPathwayCtxBase64Value);
+        } catch (IOException | IndexOutOfBoundsException e) {
+          return false;
+        }
+      }
       if (PathwayContext.PROPAGATION_KEY_BASE64.equalsIgnoreCase(key)) {
         try {
           extractedContext = strDecode(timeSource, wellKnownTags, value);

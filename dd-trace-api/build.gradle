@@ -20,7 +20,6 @@ excludedClassesCoverage += [
   'datadog.trace.api.civisibility.CIVisibility',
   'datadog.trace.api.civisibility.config.Configurations',
   'datadog.trace.api.civisibility.DDTestModule',
-  'datadog.trace.api.civisibility.config.ModuleExecutionSettings',
   'datadog.trace.api.civisibility.config.SkippableTest',
   'datadog.trace.api.config.ProfilingConfig',
   'datadog.trace.api.interceptor.MutableSpan',

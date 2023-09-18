@@ -127,7 +127,11 @@ class MavenSmokeTest extends Specification {
           it["test.status"] == "pass"
           it["test.code_coverage.enabled"] == "true"
           it["test.itr.tests_skipping.enabled"] == "true"
+          it["test.itr.tests_skipping.type"] == "test"
           it["_dd.ci.itr.tests_skipped"] == "true"
+        }
+        verifyAll(metrics) {
+          it["test.itr.tests_skipping.count"] == 1
         }
       }
     }
@@ -145,6 +149,13 @@ class MavenSmokeTest extends Specification {
           it["span.kind"] == "test_module_end"
           it["test.module"] == "Maven Smoke Tests Project test" // project name + execution goal
           it["test.status"] == "pass"
+          it["test.code_coverage.enabled"] == "true"
+          it["test.itr.tests_skipping.enabled"] == "true"
+          it["test.itr.tests_skipping.type"] == "test"
+          it["_dd.ci.itr.tests_skipped"] == "true"
+        }
+        verifyAll(metrics) {
+          it["test.itr.tests_skipping.count"] == 1
         }
       }
     }
@@ -166,7 +177,6 @@ class MavenSmokeTest extends Specification {
           it["span.kind"] == "test_suite_end"
           it["test.suite"] == "datadog.smoke.TestSucceed"
           it["test.source.file"] == "src/test/java/datadog/smoke/TestSucceed.java"
-          it["ci.provider.name"] == "jenkins"
           it["test.status"] == "pass"
         }
       }
@@ -192,7 +202,6 @@ class MavenSmokeTest extends Specification {
           it["test.suite"] == "datadog.smoke.TestSucceed"
           it["test.name"] == "test_succeed"
           it["test.source.file"] == "src/test/java/datadog/smoke/TestSucceed.java"
-          it["ci.provider.name"] == "jenkins"
           it["test.status"] == "pass"
         }
       }
@@ -218,9 +227,9 @@ class MavenSmokeTest extends Specification {
           it["test.suite"] == "datadog.smoke.TestSucceed"
           it["test.name"] == "test_to_skip_with_itr"
           it["test.source.file"] == "src/test/java/datadog/smoke/TestSucceed.java"
-          it["ci.provider.name"] == "jenkins"
           it["test.status"] == "skip"
           it["test.skip_reason"] == "Skipped by Datadog Intelligent Test Runner"
+          it["test.skipped_by_itr"] == "true"
         }
       }
     }
@@ -280,6 +289,9 @@ class MavenSmokeTest extends Specification {
           return FileVisitResult.CONTINUE
         }
       })
+
+    // creating empty .git directory so that the tracer could detect projectFolder as repo root
+    Files.createDirectory(projectHome.resolve(".git"))
   }
 
   /**
@@ -312,10 +324,6 @@ class MavenSmokeTest extends Specification {
 
     processBuilder.environment().put("DD_API_KEY", "01234567890abcdef123456789ABCDEF")
     processBuilder.environment().put("DD_APPLICATION_KEY", "01234567890abcdef123456789ABCDEF")
-
-    // ensure CI provider is detected as Jenkins regardless of where the test is run
-    processBuilder.environment().put("JENKINS_URL", "dummy")
-    processBuilder.environment().put("WORKSPACE", projectHome.toAbsolutePath().toString())
 
     return runProcess(processBuilder.start())
   }
@@ -371,8 +379,10 @@ class MavenSmokeTest extends Specification {
         "${Strings.propertyNameToSystemPropertyName(GeneralConfig.SERVICE_NAME)}=${TEST_SERVICE_NAME}," +
         "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_ENABLED)}=true," +
         "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_AGENTLESS_ENABLED)}=true," +
-        "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_CODE_COVERAGE_ENABLED)}=true," +
+        "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_CIPROVIDER_INTEGRATION_ENABLED)}=false," +
+        "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_SOURCE_DATA_ROOT_CHECK_ENABLED)}=false," +
         "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_GIT_UPLOAD_ENABLED)}=false," +
+        "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_COVERAGE_SEGMENTS_ENABLED)}=true," +
         "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_COMPILER_PLUGIN_VERSION)}=${JAVAC_PLUGIN_VERSION}," +
         "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_JACOCO_PLUGIN_VERSION)}=${JACOCO_PLUGIN_VERSION}," +
         "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_JACOCO_PLUGIN_INCLUDES)}=datadog.smoke.*," +

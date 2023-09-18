@@ -36,6 +36,7 @@ Thumbs.db
 # Intellij Idea #
 #################
 /.idea
+/.run
 *.iml
 *.ipr
 *.iws
@@ -67,3 +68,7 @@ replay_pid*
 ############
 _circle_ci_cache_*
 upstream.env
+
+# Benchmarks #
+benchmark/reports
+benchmark/tracer

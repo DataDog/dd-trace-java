@@ -127,6 +127,21 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
     }
   }
 
+  void 'hsts header missing vulnerability is present'() {
+    setup:
+    String url = "http://localhost:${httpPort}/hstsmissing"
+    def request = new Request.Builder().url(url).header("X-Forwarded-Proto", "https").get().build()
+
+    when:
+    def response = client.newCall(request).execute()
+
+    then:
+    response.isSuccessful()
+    hasVulnerability { vul ->
+      vul.type == 'HSTS_HEADER_MISSING'
+    }
+  }
+
   void 'no HttpOnly cookie vulnerability is present'() {
     setup:
     String url = "http://localhost:${httpPort}/insecure_cookie"

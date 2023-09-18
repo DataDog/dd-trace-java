@@ -11,6 +11,7 @@ import spock.lang.Unroll
 
 import static datadog.trace.api.ConfigDefaults.DEFAULT_HTTP_CLIENT_ERROR_STATUSES
 import static datadog.trace.api.ConfigDefaults.DEFAULT_HTTP_SERVER_ERROR_STATUSES
+import static datadog.trace.api.ConfigDefaults.DEFAULT_PARTIAL_FLUSH_MIN_SPANS
 import static datadog.trace.api.ConfigDefaults.DEFAULT_SERVICE_NAME
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_LONG_RUNNING_FLUSH_INTERVAL
 import static datadog.trace.api.DDTags.HOST_TAG
@@ -96,6 +97,7 @@ import static datadog.trace.api.config.TracerConfig.HEADER_TAGS
 import static datadog.trace.api.config.TracerConfig.HTTP_CLIENT_ERROR_STATUSES
 import static datadog.trace.api.config.TracerConfig.HTTP_SERVER_ERROR_STATUSES
 import static datadog.trace.api.config.TracerConfig.ID_GENERATION_STRATEGY
+import static datadog.trace.api.config.TracerConfig.PARTIAL_FLUSH_ENABLED
 import static datadog.trace.api.config.TracerConfig.TRACE_LONG_RUNNING_ENABLED
 import static datadog.trace.api.config.TracerConfig.TRACE_LONG_RUNNING_FLUSH_INTERVAL
 import static datadog.trace.api.config.TracerConfig.PARTIAL_FLUSH_MIN_SPANS
@@ -1163,7 +1165,9 @@ class ConfigTest extends DDSpecification {
     where:
     value               | expected // null means default value
     // spotless:off
-    "1"                 | null
+    "1"                 | [1]
+    "3,13,400-403"      | [3,13,400,401,402,403]
+    "2,10,13-15"        | [2,10,13,14,15]
     "a"                 | null
     ""                  | null
     "1000"              | null
@@ -2332,5 +2336,29 @@ class ConfigTest extends DDSpecification {
     "451"         | DEFAULT_TRACE_LONG_RUNNING_FLUSH_INTERVAL
     "20"          | 20
     "450"         | 450
+  }
+
+  def "partial flush and min spans interaction #"() {
+    when:
+    def prop = new Properties()
+    if (configuredPartialEnabled != null) {
+      prop.setProperty(PARTIAL_FLUSH_ENABLED, configuredPartialEnabled.toString())
+    }
+    if (configuredPartialMinSpans != null) {
+      prop.setProperty(PARTIAL_FLUSH_MIN_SPANS, configuredPartialMinSpans.toString())
+    }
+    Config config = Config.get(prop)
+
+    then:
+    config.partialFlushMinSpans == partialMinSpans
+
+    where:
+    configuredPartialEnabled | configuredPartialMinSpans | partialMinSpans
+    null                     | null                      | DEFAULT_PARTIAL_FLUSH_MIN_SPANS
+    true                     | null                      | DEFAULT_PARTIAL_FLUSH_MIN_SPANS
+    false                    | null                      | 0
+    null                     | 47                        | 47
+    true                     | 11                        | 11
+    false                    | 17                        | 0
   }
 }

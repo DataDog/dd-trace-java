@@ -255,6 +255,7 @@ public class ConfigurationPoller
     if (request == null) {
       throw new IOException("Endpoint has not been discovered yet");
     }
+    log.debug("Sending Remote configuration request: {}", request);
     Call call = this.httpClient.newCall(request);
     return call.execute();
   }

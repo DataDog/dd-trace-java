@@ -15,7 +15,7 @@ public class IntegrationPeriodicAction implements TelemetryRunnable.TelemetryPer
     for (Map.Entry<String, Boolean> entry : integrations.entrySet()) {
       String name = entry.getKey();
       Boolean enabled = entry.getValue();
-      service.addIntegration(new Integration().name(name).enabled(enabled));
+      service.addIntegration(new Integration(name, Boolean.TRUE.equals(enabled)));
     }
   }
 }

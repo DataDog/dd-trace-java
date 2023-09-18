@@ -26,12 +26,22 @@ dependencies {
   // but the tests need to use them in order to be compliant with Spock 2.0
   testImplementation(group: 'org.junit.platform', name: 'junit-platform-launcher') {
     version {
-      strictly '1.7.2'
+      strictly '1.8.2'
     }
   }
   testImplementation(group: 'org.junit.platform', name: 'junit-platform-engine') {
     version {
-      strictly '1.7.2'
+      strictly '1.8.2'
+    }
+  }
+  testImplementation(group: 'org.junit.platform', name: 'junit-platform-suite') {
+    version {
+      strictly '1.8.2'
+    }
+  }
+  testImplementation(group: 'org.junit.platform', name: 'junit-platform-suite-engine') {
+    version {
+      strictly '1.8.2'
     }
   }
   testImplementation(group: 'org.junit.jupiter', name: 'junit-jupiter-api') {
@@ -49,4 +59,8 @@ dependencies {
       strictly '5.8.2'
     }
   }
+
+  testImplementation group: 'io.cucumber', name: 'cucumber-java', version: '5.4.0'
+  testImplementation group: 'io.cucumber', name: 'cucumber-junit-platform-engine', version: '5.4.0'
+  testImplementation group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: '2.14.1'
 }

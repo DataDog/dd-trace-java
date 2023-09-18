@@ -19,6 +19,9 @@ public class IastRequestContext implements HasMetricCollector {
   private final TaintedObjects taintedObjects;
   private final OverheadContext overheadContext;
   private final IastMetricCollector collector;
+  private volatile boolean hstsHeaderIsSet;
+  private volatile boolean xForwardedProtoIsHtttps;
+  private volatile String contentType;
 
   public IastRequestContext() {
     this(TaintedObjects.acquire(), null);
@@ -32,6 +35,9 @@ public class IastRequestContext implements HasMetricCollector {
       final TaintedObjects taintedObjects, final IastMetricCollector collector) {
     this.vulnerabilityBatch = new VulnerabilityBatch();
     this.spanDataIsSet = new AtomicBoolean(false);
+    this.hstsHeaderIsSet = false;
+    this.xForwardedProtoIsHtttps = false;
+    this.contentType = null;
     this.overheadContext = new OverheadContext();
     this.taintedObjects = taintedObjects;
     this.collector = collector;
@@ -39,6 +45,30 @@ public class IastRequestContext implements HasMetricCollector {
 
   public VulnerabilityBatch getVulnerabilityBatch() {
     return vulnerabilityBatch;
+  }
+
+  public void setHstsHeaderIsSet() {
+    hstsHeaderIsSet = true;
+  }
+
+  public boolean getHstsHeaderIsSet() {
+    return hstsHeaderIsSet;
+  }
+
+  public void setXForwardedProtoIsHtttps() {
+    xForwardedProtoIsHtttps = true;
+  }
+
+  public boolean getXForwardedProtoIsHtttps() {
+    return xForwardedProtoIsHtttps;
+  }
+
+  public void setContentType(String contentType) {
+    this.contentType = contentType;
+  }
+
+  public String getContentType() {
+    return contentType;
   }
 
   public boolean getAndSetSpanDataIsSet() {

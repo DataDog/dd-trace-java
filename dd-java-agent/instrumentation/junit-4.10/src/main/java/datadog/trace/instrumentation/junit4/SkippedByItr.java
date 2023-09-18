@@ -1,12 +1,13 @@
 package datadog.trace.instrumentation.junit4;
 
+import datadog.trace.api.civisibility.InstrumentationBridge;
 import java.lang.annotation.Annotation;
 import org.junit.Ignore;
 
 public final class SkippedByItr implements Ignore {
   @Override
   public String value() {
-    return "Skipped by Datadog Intelligent Test Runner";
+    return InstrumentationBridge.ITR_SKIP_REASON;
   }
 
   @Override

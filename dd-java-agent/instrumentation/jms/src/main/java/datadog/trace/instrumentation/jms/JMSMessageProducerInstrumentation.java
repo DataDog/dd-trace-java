@@ -103,13 +103,15 @@ public final class JMSMessageProducerInstrumentation extends Instrumenter.Tracin
       final AgentSpan span = startSpan(JMS_PRODUCE);
       PRODUCER_DECORATE.afterStart(span);
       PRODUCER_DECORATE.onProduce(span, resourceName);
-      if (Config.get().isJmsPropagationEnabled()
-          && (null == producerState || !producerState.isPropagationDisabled())) {
-        propagate().inject(span, message, SETTER);
-      }
-      if (TIME_IN_QUEUE_ENABLED) {
-        if (null != producerState) {
-          SETTER.injectTimeInQueue(message, producerState);
+      if (JMSDecorator.canInject(message)) {
+        if (Config.get().isJmsPropagationEnabled()
+            && (null == producerState || !producerState.isPropagationDisabled())) {
+          propagate().inject(span, message, SETTER);
+        }
+        if (TIME_IN_QUEUE_ENABLED) {
+          if (null != producerState) {
+            SETTER.injectTimeInQueue(message, producerState);
+          }
         }
       }
       return activateSpan(span);
@@ -148,16 +150,18 @@ public final class JMSMessageProducerInstrumentation extends Instrumenter.Tracin
       final AgentSpan span = startSpan(JMS_PRODUCE);
       PRODUCER_DECORATE.afterStart(span);
       PRODUCER_DECORATE.onProduce(span, resourceName);
-      if (Config.get().isJmsPropagationEnabled()
-          && !Config.get().isJmsPropagationDisabledForDestination(destinationName)) {
-        propagate().inject(span, message, SETTER);
-      }
-      if (TIME_IN_QUEUE_ENABLED) {
-        MessageProducerState producerState =
-            InstrumentationContext.get(MessageProducer.class, MessageProducerState.class)
-                .get(producer);
-        if (null != producerState) {
-          SETTER.injectTimeInQueue(message, producerState);
+      if (JMSDecorator.canInject(message)) {
+        if (Config.get().isJmsPropagationEnabled()
+            && !Config.get().isJmsPropagationDisabledForDestination(destinationName)) {
+          propagate().inject(span, message, SETTER);
+        }
+        if (TIME_IN_QUEUE_ENABLED) {
+          MessageProducerState producerState =
+              InstrumentationContext.get(MessageProducer.class, MessageProducerState.class)
+                  .get(producer);
+          if (null != producerState) {
+            SETTER.injectTimeInQueue(message, producerState);
+          }
         }
       }
       return activateSpan(span);

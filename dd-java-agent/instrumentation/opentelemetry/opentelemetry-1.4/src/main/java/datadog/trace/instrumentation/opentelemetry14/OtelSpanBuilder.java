@@ -26,7 +26,10 @@ public class OtelSpanBuilder implements SpanBuilder {
 
   @Override
   public SpanBuilder setParent(Context context) {
-    this.delegate.asChildOf(extract(context));
+    AgentSpan.Context extractedContext = extract(context);
+    if (extractedContext != null) {
+      this.delegate.asChildOf(extractedContext);
+    }
     return this;
   }
 

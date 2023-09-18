@@ -23,8 +23,12 @@ import java.lang.reflect.Method;
 import java.util.Collection;
 import javax.annotation.Nullable;
 import org.objectweb.asm.Type;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class DDTestImpl implements DDTest {
+
+  private static final Logger log = LoggerFactory.getLogger(DDTestImpl.class);
 
   private final AgentSpan span;
   private final TestContext suiteContext;
@@ -150,11 +154,16 @@ public class DDTestImpl implements DDTest {
     span.setTag(Tags.TEST_STATUS, CIConstants.TEST_SKIP);
     if (skipReason != null) {
       span.setTag(Tags.TEST_SKIP_REASON, skipReason);
+      if (skipReason.equals(InstrumentationBridge.ITR_SKIP_REASON)) {
+        span.setTag(Tags.TEST_SKIPPED_BY_ITR, true);
+      }
     }
   }
 
   @Override
   public void end(@Nullable Long endTime) {
+    closeOutstandingSpans();
+
     final AgentScope scope = AgentTracer.activeScope();
     if (scope == null) {
       throw new IllegalStateException(
@@ -187,6 +196,36 @@ public class DDTestImpl implements DDTest {
     if (endTime != null) {
       span.finish(endTime);
     } else {
+      span.finish();
+    }
+  }
+
+  /**
+   * Tests often perform operations that involve APM instrumentations: sending an HTTP request,
+   * executing a database query, etc. APM instrumentations create spans that correspond to those
+   * operations. Ideally, the instrumentations close these spans once their corresponding operations
+   * are finished.
+   *
+   * <p>However, this is not always the case, especially with tests: developers sometimes feel like
+   * proper resources disposal, such as closing a connection, is not obligatory in tests code. Not
+   * finalizing an operation properly usually results in its span remaining open. This is something
+   * that we have no control over, since this happens in the clients' codebase.
+   *
+   * <p>This method attempts to finalize such "dangling" spans: it closes whatever is on top of the
+   * spans stack until it encounters a CI Visibility span or the stack is empty.
+   */
+  private void closeOutstandingSpans() {
+    AgentScope scope;
+    while ((scope = AgentTracer.activeScope()) != null) {
+      AgentSpan span = scope.span();
+
+      if (TestDecorator.TEST_TYPE.equals(span.getTag(Tags.TEST_TYPE))) {
+        // encountered a CI Visibility span (test, suite, module, session)
+        break;
+      }
+
+      log.debug("Closing outstanding span: {}", span);
+      scope.close();
       span.finish();
     }
   }

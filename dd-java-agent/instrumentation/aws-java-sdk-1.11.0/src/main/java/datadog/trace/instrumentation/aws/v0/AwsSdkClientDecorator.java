@@ -195,4 +195,18 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
   public void set(Request<?> carrier, String key, String value) {
     carrier.addHeader(key, value);
   }
+
+  @Override
+  protected String getRequestHeader(Request request, String headerName) {
+    Object header = request.getHeaders().get(headerName);
+    if (null != header) {
+      return header.toString();
+    }
+    return null;
+  }
+
+  @Override
+  protected String getResponseHeader(Response response, String headerName) {
+    return response.getHttpResponse().getHeaders().get(headerName);
+  }
 }

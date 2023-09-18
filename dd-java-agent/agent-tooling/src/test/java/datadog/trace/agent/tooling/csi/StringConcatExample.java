@@ -11,7 +11,7 @@ public class StringConcatExample implements BiFunction<String, String, String> {
   public String apply(final String first, final String second) {
     LOGGER.debug("Before apply");
     final String result = first.concat(second);
-    LOGGER.debug("After apply " + result);
+    LOGGER.debug("After apply {}", result);
     return result;
   }
 }

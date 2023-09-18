@@ -72,6 +72,8 @@ excludedClassesCoverage += [
   "datadog.trace.bootstrap.instrumentation.api.ForwardedTagContext",
   "datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities",
   "datadog.trace.bootstrap.instrumentation.api.ErrorPriorities",
+  "datadog.trace.api.civisibility.config.JvmInfo",
+  "datadog.trace.api.civisibility.config.ModuleExecutionSettings",
   "datadog.trace.api.civisibility.coverage.TestReport",
   "datadog.trace.api.civisibility.coverage.TestReportFileEntry",
   "datadog.trace.api.civisibility.coverage.TestReportFileEntry.Segment",
@@ -122,6 +124,9 @@ excludedClassesCoverage += [
   "datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration.NoOp",
   // debug
   'datadog.trace.api.iast.Taintable.DebugLogger',
+  // POJO
+  'datadog.trace.api.iast.util.Cookie',
+  'datadog.trace.api.iast.util.Cookie.Builder',
   // stubs
   'datadog.trace.api.profiling.Timing.NoOp',
   'datadog.trace.api.profiling.Timer.NoOp',

@@ -7,6 +7,7 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOn
 import static net.bytebuddy.matcher.ElementMatchers.not;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
+import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -16,6 +17,7 @@ import datadog.trace.api.iast.VulnerabilityTypes;
 import datadog.trace.api.iast.propagation.PropagationModule;
 import datadog.trace.api.iast.sink.HttpResponseHeaderModule;
 import datadog.trace.api.iast.sink.UnvalidatedRedirectModule;
+import datadog.trace.api.iast.util.Cookie;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
@@ -40,9 +42,14 @@ public final class JakartaHttpServletResponseInstrumentation extends Instrumente
 
   @Override
   public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(named("addCookie"), getClass().getName() + "$AddCookieAdvice");
     transformation.applyAdvice(
-        namedOneOf("setHeader", "addHeader"), getClass().getName() + "$AddHeaderAdvice");
+        named("addCookie")
+            .and(takesArguments(1))
+            .and(takesArgument(0, named("jakarta.servlet.http.Cookie"))),
+        getClass().getName() + "$AddCookieAdvice");
+    transformation.applyAdvice(
+        namedOneOf("setHeader", "addHeader").and(takesArguments(String.class, String.class)),
+        getClass().getName() + "$AddHeaderAdvice");
     transformation.applyAdvice(
         namedOneOf("encodeRedirectURL", "encodeURL")
             .and(takesArgument(0, String.class))
@@ -60,7 +67,11 @@ public final class JakartaHttpServletResponseInstrumentation extends Instrumente
       if (cookie != null) {
         HttpResponseHeaderModule mod = InstrumentationBridge.RESPONSE_HEADER_MODULE;
         if (mod != null) {
-          mod.onCookie(cookie.getName(), cookie.getSecure(), cookie.isHttpOnly(), false);
+          mod.onCookie(
+              Cookie.named(cookie.getName())
+                  .secure(cookie.getSecure())
+                  .httpOnly(cookie.isHttpOnly())
+                  .build());
         }
       }
     }

@@ -63,7 +63,7 @@ public class JUnit4SuiteEventsInstrumentation extends Instrumenter.CiVisibility
       for (final RunListener listener : runListeners) {
         TracingListener tracingListener = JUnit4Utils.toTracingListener(listener);
         if (tracingListener != null) {
-          tracingListener.testSuiteStarted(runner.getTestClass());
+          tracingListener.testSuiteStarted(runner.getTestClass(), runner.getDescription());
         }
       }
     }
@@ -80,7 +80,7 @@ public class JUnit4SuiteEventsInstrumentation extends Instrumenter.CiVisibility
       for (final RunListener listener : runListeners) {
         TracingListener tracingListener = JUnit4Utils.toTracingListener(listener);
         if (tracingListener != null) {
-          tracingListener.testSuiteFinished(runner.getTestClass());
+          tracingListener.testSuiteFinished(runner.getTestClass(), runner.getDescription());
         }
       }
     }
