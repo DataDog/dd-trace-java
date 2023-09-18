@@ -2,6 +2,8 @@ package datadog.trace.api.iast.telemetry;
 
 import static datadog.trace.api.iast.VulnerabilityTypes.RESPONSE_HEADER;
 import static datadog.trace.api.iast.VulnerabilityTypes.RESPONSE_HEADER_TYPES;
+import static datadog.trace.api.iast.VulnerabilityTypes.SPRING_RESPONSE;
+import static datadog.trace.api.iast.VulnerabilityTypes.SPRING_RESPONSE_TYPES;
 
 import datadog.trace.api.iast.SourceTypes;
 import datadog.trace.api.iast.VulnerabilityTypes;
@@ -111,6 +113,9 @@ public enum IastMetric {
           public String[] parse(final String tagValue) {
             if (RESPONSE_HEADER.equals(tagValue)) {
               return RESPONSE_HEADER_TYPES;
+            }
+            if (SPRING_RESPONSE.equals(tagValue)) {
+              return SPRING_RESPONSE_TYPES;
             }
             return EMPTY;
           }

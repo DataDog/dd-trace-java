@@ -288,6 +288,8 @@
 0 org.springframework.core.io.buffer.DataBuffer
 0 org.springframework.core.io.buffer.DefaultDataBuffer
 0 org.springframework.core.io.buffer.NettyDataBuffer
+# Need for IAST so propagation of tainted objects is complete in spring 2.7.5
+0 org.springframework.util.StreamUtils$NonClosingInputStream
 # There are some Mono implementation that get instrumented
 0 org.springframework.http.server.reactive.*
 2 org.springframework.instrument.*
@@ -323,8 +325,8 @@
 0 org.springframework.web.servlet.*
 # Included for IAST
 0 org.springframework.web.util.WebUtils
-# Included for IAST Spring mvc unvalidated redirect vulnerability
-0 org.springframework.web.method.support.InvocableHandlerMethod
+# Included for IAST Spring mvc unvalidated redirect and xss vulnerability
+0 org.springframework.web.method.support.HandlerMethodReturnValueHandlerComposite
 2 org.xml.*
 2 org.yaml.snakeyaml.*
 # saves ~0.5s skipping instrumentation of almost ~470 classes

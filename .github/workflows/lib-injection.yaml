@@ -33,7 +33,7 @@ jobs:
     - name: Set up Docker platforms
       id: buildx-platforms
       run:  |
-        BUILDX_PLATFORMS=`docker buildx imagetools inspect --raw busybox:latest | jq -r 'reduce (.manifests[] | [ .platform.os, .platform.architecture, .platform.variant ] | join("/") | sub("\\/$"; "")) as $item (""; . + "," + $item)' | sed 's/,//'`
+        BUILDX_PLATFORMS=`docker buildx imagetools inspect --raw alpine:3.18.3 | jq -r 'reduce (.manifests[] | [ .platform.os, .platform.architecture, .platform.variant ] | join("/") | sub("\\/$"; "")) as $item (""; . + "," + $item)' | sed 's/,//'`
         echo "$BUILDX_PLATFORMS"
         echo "platforms=$BUILDX_PLATFORMS" >> $GITHUB_OUTPUT
 

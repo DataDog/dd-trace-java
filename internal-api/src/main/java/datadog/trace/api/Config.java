@@ -123,6 +123,7 @@ import static datadog.trace.api.config.AppSecConfig.APPSEC_RULES_FILE;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_TRACE_RATE_LIMIT;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_WAF_METRICS;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_WAF_TIMEOUT;
+import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_ADDITIONAL_CHILD_PROCESS_JVM_ARGS;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_AGENTLESS_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_AGENTLESS_URL;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_AGENT_JAR_URI;
@@ -646,6 +647,7 @@ public class Config {
   private final Long ciVisibilityModuleId;
   private final String ciVisibilityAgentJarUri;
   private final boolean ciVisibilityAutoConfigurationEnabled;
+  private final String ciVisibilityAdditionalChildProcessJvmArgs;
   private final boolean ciVisibilityCompilerPluginAutoConfigurationEnabled;
   private final boolean ciVisibilityCodeCoverageEnabled;
   private final boolean ciVisibilityCodeCoveragePercentageCalculationEnabled;
@@ -1497,6 +1499,8 @@ public class Config {
         configProvider.getBoolean(
             CIVISIBILITY_AUTO_CONFIGURATION_ENABLED,
             DEFAULT_CIVISIBILITY_AUTO_CONFIGURATION_ENABLED);
+    ciVisibilityAdditionalChildProcessJvmArgs =
+        configProvider.getString(CIVISIBILITY_ADDITIONAL_CHILD_PROCESS_JVM_ARGS);
     ciVisibilityCompilerPluginAutoConfigurationEnabled =
         configProvider.getBoolean(
             CIVISIBILITY_COMPILER_PLUGIN_AUTO_CONFIGURATION_ENABLED,
@@ -2477,6 +2481,10 @@ public class Config {
 
   public boolean isCiVisibilityAutoConfigurationEnabled() {
     return ciVisibilityAutoConfigurationEnabled;
+  }
+
+  public String getCiVisibilityAdditionalChildProcessJvmArgs() {
+    return ciVisibilityAdditionalChildProcessJvmArgs;
   }
 
   public boolean isCiVisibilityCompilerPluginAutoConfigurationEnabled() {

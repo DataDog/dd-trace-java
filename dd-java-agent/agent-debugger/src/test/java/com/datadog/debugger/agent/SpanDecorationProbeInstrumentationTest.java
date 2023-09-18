@@ -20,6 +20,8 @@ import com.datadog.debugger.el.ProbeCondition;
 import com.datadog.debugger.el.expressions.BooleanExpression;
 import com.datadog.debugger.probe.LogProbe;
 import com.datadog.debugger.probe.SpanDecorationProbe;
+import com.datadog.debugger.sink.DebuggerSink;
+import com.datadog.debugger.sink.ProbeStatusSink;
 import com.datadog.debugger.sink.Snapshot;
 import datadog.trace.agent.tooling.TracerInstaller;
 import datadog.trace.api.Config;
@@ -411,7 +413,12 @@ public class SpanDecorationProbeInstrumentationTest extends ProbeInstrumentation
     Config config = mock(Config.class);
     when(config.isDebuggerEnabled()).thenReturn(true);
     when(config.isDebuggerClassFileDumpEnabled()).thenReturn(true);
-    currentTransformer = new DebuggerTransformer(config, configuration);
+    when(config.getFinalDebuggerSnapshotUrl())
+        .thenReturn("http://localhost:8126/debugger/v1/input");
+    probeStatusSink = mock(ProbeStatusSink.class);
+    currentTransformer =
+        new DebuggerTransformer(
+            config, configuration, null, new DebuggerSink(config, probeStatusSink));
     instr.addTransformer(currentTransformer);
     mockSink = new MockSink();
     DebuggerAgentHelper.injectSink(mockSink);

@@ -41,7 +41,7 @@ dependencies {
   implementation("org.ow2.asm", "asm", "9.5")
   implementation("org.ow2.asm", "asm-tree", "9.5")
 
-  testImplementation("org.spockframework", "spock-core", "2.0-groovy-3.0")
+  testImplementation("org.spockframework", "spock-core", "2.2-groovy-3.0")
   testImplementation("org.codehaus.groovy", "groovy-all", "3.0.17")
 }
 
