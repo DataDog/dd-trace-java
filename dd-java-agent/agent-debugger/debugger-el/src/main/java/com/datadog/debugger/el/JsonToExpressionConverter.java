@@ -237,8 +237,8 @@ public class JsonToExpressionConverter {
   }
 
   public static ValueExpression<?> asValueExpression(JsonReader reader) throws IOException {
-    ValueExpression<?> value;
-    switch (reader.peek()) {
+    JsonReader.Token currentToken = reader.peek();
+    switch (currentToken) {
       case NUMBER:
         {
           // Moshi always consider numbers as decimal. need to parse it as string and detect if dot
@@ -246,17 +246,14 @@ public class JsonToExpressionConverter {
           // or not to determine ints/longs vs doubles
           String numberStrValue = reader.nextString();
           if (numberStrValue.indexOf('.') > 0) {
-            value = DSL.value(Double.parseDouble(numberStrValue));
-          } else {
-            value = DSL.value(Long.parseLong(numberStrValue));
+            return DSL.value(Double.parseDouble(numberStrValue));
           }
-          break;
+          return DSL.value(Long.parseLong(numberStrValue));
         }
       case STRING:
         {
           String textValue = reader.nextString();
-          value = DSL.value(textValue);
-          break;
+          return DSL.value(textValue);
         }
       case BEGIN_OBJECT:
         {
@@ -345,13 +342,12 @@ public class JsonToExpressionConverter {
       case NULL:
         {
           reader.nextNull();
-          value = DSL.nullValue();
-          break;
+          return DSL.nullValue();
         }
       default:
-        throw new UnsupportedOperationException("Invalid value definition: ");
+        throw new UnsupportedOperationException(
+            "Invalid value definition, not supported token: " + currentToken);
     }
-    return value;
   }
 
   private static StringPredicateExpression createStringPredicateExpression(
