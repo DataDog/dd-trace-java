@@ -228,58 +228,102 @@ class SparkTest extends AgentTestRunner {
 
     sparkSession.sparkContext().setLocalProperty("spark.databricks.job.id", "1234")
     sparkSession.sparkContext().setLocalProperty("spark.databricks.job.runId", "9012")
+    sparkSession.sparkContext().setLocalProperty("spark.jobGroup.id", "0000_job-3456-run-7890-action-0000")
+    sparkSession.sparkContext().setLocalProperty("spark.databricks.workload.id", "01-123-456")
     TestSparkComputation.generateTestSparkComputation(sparkSession)
 
     sparkSession.sparkContext().setLocalProperty("spark.databricks.job.id", null)
     sparkSession.sparkContext().setLocalProperty("spark.databricks.job.runId", null)
     TestSparkComputation.generateTestSparkComputation(sparkSession)
 
+    sparkSession.sparkContext().setLocalProperty("spark.jobGroup.id", null)
+    TestSparkComputation.generateTestSparkComputation(sparkSession)
+
+    sparkSession.sparkContext().setLocalProperty("spark.databricks.workload.id", null)
+    TestSparkComputation.generateTestSparkComputation(sparkSession)
+
     expect:
-    assertTraces(2) {
+    assertTraces(4) {
       trace(3) {
         span {
           operationName "spark.job"
-          resourceName "count at TestSparkComputation.java:17"
           spanType "spark"
-          errored false
           traceId 8944764253919609482G
           parentSpanId 15104224823446433673G
+          assert span.tags["databricks_job_id"] == "1234"
+          assert span.tags["databricks_job_run_id"] == "5678"
+          assert span.tags["databricks_task_run_id"] == "9012"
         }
         span {
           operationName "spark.stage"
-          resourceName "count at TestSparkComputation.java:17"
           spanType "spark"
-          errored false
           childOf(span(0))
         }
         span {
           operationName "spark.stage"
-          resourceName "distinct at TestSparkComputation.java:17"
           spanType "spark"
-          errored false
           childOf(span(0))
         }
       }
       trace(3) {
         span {
           operationName "spark.job"
-          resourceName "count at TestSparkComputation.java:17"
           spanType "spark"
-          errored false
-          parent()
+          traceId 11498299501490458089G
+          parentSpanId 14128229261586201946G
+          assert span.tags["databricks_job_id"] == "3456"
+          assert span.tags["databricks_job_run_id"] == "5678"
+          assert span.tags["databricks_task_run_id"] == "7890"
         }
         span {
           operationName "spark.stage"
-          resourceName "count at TestSparkComputation.java:17"
           spanType "spark"
-          errored false
           childOf(span(0))
         }
         span {
           operationName "spark.stage"
-          resourceName "distinct at TestSparkComputation.java:17"
           spanType "spark"
-          errored false
+          childOf(span(0))
+        }
+      }
+      trace(3) {
+        span {
+          operationName "spark.job"
+          spanType "spark"
+          traceId 11025888820707602535G
+          parentSpanId 8956125882166502063G
+          assert span.tags["databricks_job_id"] == "123"
+          assert span.tags["databricks_job_run_id"] == "5678"
+          assert span.tags["databricks_task_run_id"] == "456"
+        }
+        span {
+          operationName "spark.stage"
+          spanType "spark"
+          childOf(span(0))
+        }
+        span {
+          operationName "spark.stage"
+          spanType "spark"
+          childOf(span(0))
+        }
+      }
+      trace(3) {
+        span {
+          operationName "spark.job"
+          spanType "spark"
+          parent()
+          assert span.tags["databricks_job_id"] == null
+          assert span.tags["databricks_job_run_id"] == "5678"
+          assert span.tags["databricks_task_run_id"] == null
+        }
+        span {
+          operationName "spark.stage"
+          spanType "spark"
+          childOf(span(0))
+        }
+        span {
+          operationName "spark.stage"
+          spanType "spark"
           childOf(span(0))
         }
       }
