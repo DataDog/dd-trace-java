@@ -404,6 +404,8 @@ public class DDSpanContext
   }
 
   public void setResourceName(final CharSequence resourceName, byte priority) {
+    log.debug("keisuke log - current stack trace of setResourceName: {}", (Object) Thread.currentThread().getStackTrace());
+    log.debug("keisuke log - resourceName={}, priority={}", resourceName, priority);
     if (null == resourceName) {
       return;
     }
