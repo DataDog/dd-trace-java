@@ -25,7 +25,7 @@ public class HttpUrlState {
       log.debug("keisuke log - current stack trace: {}", (Object) Thread.currentThread().getStackTrace());
       log.debug("keisuke log - span before DECORATE.afterStart: {}", span);
       DECORATE.afterStart(span);
-      log.debug("keisuke log - span before DECORATE.onRequet: {}", span);
+      log.debug("keisuke log - span before DECORATE.onRequest: {}", span);
       DECORATE.onRequest(span, connection);
       log.debug("keisuke log - span after DECORATE.onResponse: {}", span);
       return span;

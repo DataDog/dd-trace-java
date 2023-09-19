@@ -63,6 +63,7 @@ public abstract class HttpClientDecorator<REQUEST, RESPONSE> extends UriBasedCli
   }
 
   public AgentSpan onRequest(final AgentSpan span, final REQUEST request) {
+    log.debug("keisuke log - current stack trace of onRequest: {}", (Object) Thread.currentThread().getStackTrace());
     if (request != null) {
       String method = method(request);
       span.setTag(Tags.HTTP_METHOD, method);
@@ -72,15 +73,19 @@ public abstract class HttpClientDecorator<REQUEST, RESPONSE> extends UriBasedCli
         final URI url = url(request);
         if (url != null) {
           onURI(span, url);
+          log.debug("keisuke log - span after onURI: {}", span);
           span.setTag(
               Tags.HTTP_URL,
               URIUtils.lazyValidURL(url.getScheme(), url.getHost(), url.getPort(), url.getPath()));
+          log.debug("keisuke log - span after lazyValidURL: {}", span);
           if (Config.get().isHttpClientTagQueryString()) {
             span.setTag(DDTags.HTTP_QUERY, url.getQuery());
             span.setTag(DDTags.HTTP_FRAGMENT, url.getFragment());
+            log.debug("keisuke log - span when isHttpClientTagQueryString: {}", span);
           }
           if (shouldSetResourceName()) {
             HTTP_RESOURCE_DECORATOR.withClientPath(span, method, url.getPath());
+            log.debug("keisuke log - span when shouldSetResourceName: {}", span);
           }
         } else if (shouldSetResourceName()) {
           span.setResourceName(DEFAULT_RESOURCE_NAME);
@@ -95,10 +100,12 @@ public abstract class HttpClientDecorator<REQUEST, RESPONSE> extends UriBasedCli
           String headerValue = getRequestHeader(request, headerTag.getKey());
           if (null != headerValue) {
             span.setTag(headerTag.getValue(), headerValue);
+            log.debug("keisuke log - span when span.setTag(headerTag.getValue(), headerValue): {}", span);
           }
         }
       }
     }
+    log.debug("keisuke log - returned span of onRequest", span);
     return span;
   }
 
