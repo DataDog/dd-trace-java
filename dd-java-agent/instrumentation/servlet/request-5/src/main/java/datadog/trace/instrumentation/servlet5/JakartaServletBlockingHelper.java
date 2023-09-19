@@ -2,7 +2,8 @@ package datadog.trace.instrumentation.servlet5;
 
 import datadog.appsec.api.blocking.BlockingContentType;
 import datadog.trace.api.gateway.Flow;
-import datadog.trace.api.internal.TraceSegment;import datadog.trace.bootstrap.blocking.BlockingActionHelper;
+import datadog.trace.api.internal.TraceSegment;
+import datadog.trace.bootstrap.blocking.BlockingActionHelper;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
@@ -15,13 +16,13 @@ public class JakartaServletBlockingHelper {
   private static final byte[] EMPTY_BYTE_ARRAY = new byte[0];
   private static final Logger log = LoggerFactory.getLogger(ServletBlockingHelper.class);
 
-   public static void commitBlockingResponse(
-        TraceSegment segment,
-        HttpServletRequest httpServletRequest,
-        HttpServletResponse resp,
-        int statusCode_,
-        BlockingContentType bct,
-        Map<String, String> extraHeaders) {
+  public static void commitBlockingResponse(
+      TraceSegment segment,
+      HttpServletRequest httpServletRequest,
+      HttpServletResponse resp,
+      int statusCode_,
+      BlockingContentType bct,
+      Map<String, String> extraHeaders) {
     int statusCode = BlockingActionHelper.getHttpCode(statusCode_);
     if (!start(resp, statusCode)) {
       return;
