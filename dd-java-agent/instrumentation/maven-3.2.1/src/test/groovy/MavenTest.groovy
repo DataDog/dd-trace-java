@@ -34,7 +34,7 @@ class MavenTest extends CiVisibilityTest {
 
   def "test_maven_build_with_no_tests_generates_spans"() {
     given:
-    String[] args = ["verify"]
+    String[] args = ["-B", "verify"]
     String workingDirectory = projectFolder.toString()
 
     when:
@@ -47,7 +47,7 @@ class MavenTest extends CiVisibilityTest {
       trace(1, true) {
         testSessionSpan(it, 0, CIConstants.TEST_SKIP, [:],
         "Maven Integration Tests Project",
-        "mvn verify",
+        "mvn -B verify",
         "maven:${expectedToolchainVersion()}"
         )
       }
@@ -56,7 +56,7 @@ class MavenTest extends CiVisibilityTest {
 
   def "test_maven_build_with_incorrect_command_generates_spans"() {
     given:
-    String[] args = ["unknownPhase"]
+    String[] args = ["-B", "unknownPhase"]
     String workingDirectory = projectFolder.toString()
 
     when:
@@ -69,7 +69,7 @@ class MavenTest extends CiVisibilityTest {
       trace(1, true) {
         testSessionSpan(it, 0, CIConstants.TEST_FAIL, null,
           "Maven Integration Tests Project",
-          "mvn unknownPhase",
+          "mvn -B unknownPhase",
           "maven:${expectedToolchainVersion()}",
           new LifecyclePhaseNotFoundException("", ""),
           false
@@ -80,7 +80,7 @@ class MavenTest extends CiVisibilityTest {
 
   def "test_maven_build_with_tests_generates_spans"() {
     given:
-    String[] args = ["clean", "test"]
+    String[] args = ["-B", "clean", "test"]
     String workingDirectory = projectFolder.toString()
 
     when:
@@ -93,13 +93,13 @@ class MavenTest extends CiVisibilityTest {
       trace(2, true) {
         def testSessionId = testSessionSpan(it, 1, CIConstants.TEST_PASS, [:],
         "Maven Integration Tests Project",
-        "mvn clean test",
+        "mvn -B clean test",
         "maven:${expectedToolchainVersion()}"
         )
         testModuleSpan(it, 0, testSessionId,
           CIConstants.TEST_PASS,
           [
-            (Tags.TEST_COMMAND)  : "mvn clean test",
+            (Tags.TEST_COMMAND)  : "mvn -B clean test",
             (Tags.TEST_EXECUTION): "maven-surefire-plugin:test:default-test",
           ],
           null, "Maven Integration Tests Project maven-surefire-plugin default-test")
@@ -109,7 +109,7 @@ class MavenTest extends CiVisibilityTest {
 
   def "test_maven_build_with_failed_tests_generates_spans"() {
     given:
-    String[] args = ["clean", "test"]
+    String[] args = ["-B", "clean", "test"]
     String workingDirectory = projectFolder.toString()
 
     when:
@@ -122,14 +122,14 @@ class MavenTest extends CiVisibilityTest {
       trace(2, true) {
         def testSessionId = testSessionSpan(it, 1, CIConstants.TEST_FAIL, null,
           "Maven Integration Tests Project",
-          "mvn clean test",
+          "mvn -B clean test",
           "maven:${expectedToolchainVersion()}",
           new LifecycleExecutionException(""),
           false)
         testModuleSpan(it, 0, testSessionId,
           CIConstants.TEST_FAIL,
           [
-            (Tags.TEST_COMMAND)  : "mvn clean test",
+            (Tags.TEST_COMMAND)  : "mvn -B clean test",
             (Tags.TEST_EXECUTION): "maven-surefire-plugin:test:default-test",
           ],
           new LifecycleExecutionException(""),
@@ -141,7 +141,7 @@ class MavenTest extends CiVisibilityTest {
 
   def "test_maven_build_with_tests_in_multiple_modules_generates_spans"() {
     given:
-    String[] args = ["clean", "test"]
+    String[] args = ["-B", "clean", "test"]
     String workingDirectory = projectFolder.toString()
 
     when:
@@ -154,21 +154,21 @@ class MavenTest extends CiVisibilityTest {
       trace(3, true) {
         def testSessionId = testSessionSpan(it, 2, CIConstants.TEST_FAIL, null,
           "Maven Integration Tests Project",
-          "mvn clean test",
+          "mvn -B clean test",
           "maven:${expectedToolchainVersion()}",
           new LifecycleExecutionException(""),
           false)
         testModuleSpan(it, 0, testSessionId,
           CIConstants.TEST_PASS,
           [
-            (Tags.TEST_COMMAND)  : "mvn clean test",
+            (Tags.TEST_COMMAND)  : "mvn -B clean test",
             (Tags.TEST_EXECUTION): "maven-surefire-plugin:test:default-test",
           ],
           null, "module-a maven-surefire-plugin default-test")
         testModuleSpan(it, 1, testSessionId,
           CIConstants.TEST_FAIL,
           [
-            (Tags.TEST_COMMAND)  : "mvn clean test",
+            (Tags.TEST_COMMAND)  : "mvn -B clean test",
             (Tags.TEST_EXECUTION): "maven-surefire-plugin:test:default-test",
           ],
           new LifecycleExecutionException(""),
@@ -180,7 +180,7 @@ class MavenTest extends CiVisibilityTest {
 
   def "test_maven_build_with_tests_in_multiple_modules_run_in_parallel_generates_spans"() {
     given:
-    String[] args = ["-T4", "clean", "test"]
+    String[] args = ["-B", "-T4", "clean", "test"]
     String workingDirectory = projectFolder.toString()
 
     when:
@@ -193,20 +193,20 @@ class MavenTest extends CiVisibilityTest {
       trace(3, true) {
         def testSessionId = testSessionSpan(it, 2, CIConstants.TEST_PASS, [:],
         "Maven Integration Tests Project",
-        "mvn -T4 clean test",
+        "mvn -B -T4 clean test",
         "maven:${expectedToolchainVersion()}"
         )
         testModuleSpan(it, 0, testSessionId,
           CIConstants.TEST_PASS,
           [
-            (Tags.TEST_COMMAND)  : "mvn -T4 clean test",
+            (Tags.TEST_COMMAND)  : "mvn -B -T4 clean test",
             (Tags.TEST_EXECUTION): "maven-surefire-plugin:test:default-test",
           ],
           null, "module-a maven-surefire-plugin default-test")
         testModuleSpan(it, 1, testSessionId,
           CIConstants.TEST_PASS,
           [
-            (Tags.TEST_COMMAND)  : "mvn -T4 clean test",
+            (Tags.TEST_COMMAND)  : "mvn -B -T4 clean test",
             (Tags.TEST_EXECUTION): "maven-surefire-plugin:test:default-test",
           ],
           null, "module-b maven-surefire-plugin default-test")
@@ -216,7 +216,7 @@ class MavenTest extends CiVisibilityTest {
 
   def "test_maven_build_with_unit_and_integration_tests_generates_spans"() {
     given:
-    String[] args = ["verify"]
+    String[] args = ["-B", "verify"]
     String workingDirectory = projectFolder.toString()
 
     when:
@@ -229,20 +229,20 @@ class MavenTest extends CiVisibilityTest {
       trace(3, true) {
         def testSessionId = testSessionSpan(it, 2, CIConstants.TEST_PASS, [:],
         "Maven Integration Tests Project",
-        "mvn verify",
+        "mvn -B verify",
         "maven:${expectedToolchainVersion()}"
         )
         testModuleSpan(it, 1, testSessionId,
           CIConstants.TEST_PASS,
           [
-            (Tags.TEST_COMMAND)  : "mvn verify",
+            (Tags.TEST_COMMAND)  : "mvn -B verify",
             (Tags.TEST_EXECUTION): "maven-surefire-plugin:test:default-test",
           ],
           null, "Maven Integration Tests Project maven-surefire-plugin default-test")
         testModuleSpan(it, 0, testSessionId,
           CIConstants.TEST_PASS,
           [
-            (Tags.TEST_COMMAND)  : "mvn verify",
+            (Tags.TEST_COMMAND)  : "mvn -B verify",
             (Tags.TEST_EXECUTION): "maven-failsafe-plugin:integration-test:default",
           ],
           null, "Maven Integration Tests Project maven-failsafe-plugin default")
@@ -252,7 +252,7 @@ class MavenTest extends CiVisibilityTest {
 
   def "test_maven_build_with_no_fork_generates_spans"() {
     given:
-    String[] args = ["clean", "test"]
+    String[] args = ["-B", "clean", "test"]
     String workingDirectory = projectFolder.toString()
 
     when:
@@ -266,13 +266,13 @@ class MavenTest extends CiVisibilityTest {
       trace(2, true) {
         def testSessionId = testSessionSpan(it, 1, CIConstants.TEST_PASS, [:],
         "Maven Integration Tests Project",
-        "mvn clean test",
+        "mvn -B clean test",
         "maven:${expectedToolchainVersion()}"
         )
         testModuleSpan(it, 0, testSessionId,
           CIConstants.TEST_PASS,
           [
-            (Tags.TEST_COMMAND)  : "mvn clean test",
+            (Tags.TEST_COMMAND)  : "mvn -B clean test",
             (Tags.TEST_EXECUTION): "maven-surefire-plugin:test:default-test",
           ],
           null, "Maven Integration Tests Project maven-surefire-plugin default-test")
