@@ -8,6 +8,8 @@ import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.net.HttpURLConnection;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class HttpUrlState {
   public static final ContextStore.Factory<HttpUrlState> FACTORY = HttpUrlState::new;
