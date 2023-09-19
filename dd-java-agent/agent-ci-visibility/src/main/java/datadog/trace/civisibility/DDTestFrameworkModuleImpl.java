@@ -49,6 +49,7 @@ public class DDTestFrameworkModuleImpl extends DDTestModuleImpl implements DDTes
         sessionSpanContext,
         sessionId,
         moduleName,
+        true,
         startTime,
         config,
         testDecorator,

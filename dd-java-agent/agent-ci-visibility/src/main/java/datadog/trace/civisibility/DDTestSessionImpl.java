@@ -95,6 +95,7 @@ public class DDTestSessionImpl implements DDTestSession {
         span.context(),
         span.getSpanId(),
         moduleName,
+        true,
         startTime,
         config,
         testDecorator,

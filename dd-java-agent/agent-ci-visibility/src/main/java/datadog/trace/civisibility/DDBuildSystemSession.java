@@ -12,7 +12,7 @@ import javax.annotation.Nullable;
 public interface DDBuildSystemSession extends DDTestSession {
 
   DDBuildSystemModule testModuleStart(
-      String moduleName, @Nullable Long startTime, Collection<File> outputClassesDirs);
+      String moduleName, @Nullable Long startTime, boolean isTestModule, Collection<File> outputClassesDirs);
 
   ModuleExecutionSettings getModuleExecutionSettings(JvmInfo jvmInfo);
 

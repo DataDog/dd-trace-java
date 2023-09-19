@@ -136,10 +136,6 @@ public class GradleBuildListener extends BuildAdapter {
 
     @Override
     public void beforeExecute(Task task) {
-      if (!GradleUtils.isTestTask(task)) {
-        return;
-      }
-
       Project project = task.getProject();
       Gradle gradle = project.getGradle();
       String taskPath = task.getPath();
@@ -149,14 +145,16 @@ public class GradleBuildListener extends BuildAdapter {
           GradleUtils.getOutputClassesDirs(project, sourceSetNames);
 
       BuildEventsHandler.ModuleInfo moduleInfo =
-          buildEventsHandler.onTestModuleStart(gradle, taskPath, outputClassesDirs, null);
+          buildEventsHandler.onTestModuleStart(gradle, taskPath, GradleUtils.isTestTask(task), outputClassesDirs, null);
 
-      JavaForkOptions taskForkOptions = (JavaForkOptions) task;
-      taskForkOptions.jvmArgs(
-          arg(CiVisibilityConfig.CIVISIBILITY_SESSION_ID, moduleInfo.sessionId),
-          arg(CiVisibilityConfig.CIVISIBILITY_MODULE_ID, moduleInfo.moduleId),
-          arg(CiVisibilityConfig.CIVISIBILITY_SIGNAL_SERVER_HOST, moduleInfo.signalServerHost),
-          arg(CiVisibilityConfig.CIVISIBILITY_SIGNAL_SERVER_PORT, moduleInfo.signalServerPort));
+      if (task instanceof JavaForkOptions) {
+        JavaForkOptions taskForkOptions = (JavaForkOptions) task;
+        taskForkOptions.jvmArgs(
+            arg(CiVisibilityConfig.CIVISIBILITY_SESSION_ID, moduleInfo.sessionId),
+            arg(CiVisibilityConfig.CIVISIBILITY_MODULE_ID, moduleInfo.moduleId),
+            arg(CiVisibilityConfig.CIVISIBILITY_SIGNAL_SERVER_HOST, moduleInfo.signalServerHost),
+            arg(CiVisibilityConfig.CIVISIBILITY_SIGNAL_SERVER_PORT, moduleInfo.signalServerPort));
+      }
     }
 
     private String arg(String propertyName, Object value) {
@@ -165,10 +163,6 @@ public class GradleBuildListener extends BuildAdapter {
 
     @Override
     public void afterExecute(Task task, TaskState state) {
-      if (!GradleUtils.isTestTask(task)) {
-        return;
-      }
-
       Project project = task.getProject();
       Gradle gradle = project.getGradle();
       String taskPath = task.getPath();

@@ -8,6 +8,7 @@ import datadog.trace.api.civisibility.DDTestModule;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
+import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.civisibility.codeowners.Codeowners;
 import datadog.trace.civisibility.coverage.CoverageProbeStoreFactory;
 import datadog.trace.civisibility.decorator.TestDecorator;
@@ -18,6 +19,8 @@ import java.util.function.Consumer;
 import javax.annotation.Nullable;
 
 public class DDTestModuleImpl implements DDTestModule {
+
+  public static final UTF8BytesString BUILD_MODULE_SPAN = UTF8BytesString.create("build_module");
 
   protected final AgentSpan span;
   protected final long sessionId;
@@ -34,6 +37,7 @@ public class DDTestModuleImpl implements DDTestModule {
       AgentSpan.Context sessionSpanContext,
       long sessionId,
       String moduleName,
+      boolean isTestModule,
       @Nullable Long startTime,
       Config config,
       TestDecorator testDecorator,
@@ -58,14 +62,18 @@ public class DDTestModuleImpl implements DDTestModule {
       span = startSpan(testDecorator.component() + ".test_module", sessionSpanContext);
     }
 
-    span.setSpanType(InternalSpanTypes.TEST_MODULE_END);
-    span.setTag(Tags.SPAN_KIND, Tags.SPAN_KIND_TEST_MODULE);
+    if (isTestModule) {
+      span.setSpanType(InternalSpanTypes.TEST_MODULE_END);
+      span.setTag(Tags.SPAN_KIND, Tags.SPAN_KIND_TEST_MODULE);
+      span.setTag(Tags.TEST_MODULE_ID, span.getSpanId());
+      span.setTag(Tags.TEST_SESSION_ID, sessionId);
+    } else {
+      span.setSpanType(BUILD_MODULE_SPAN);
+      span.setTag(Tags.SPAN_KIND, BUILD_MODULE_SPAN.toString());
+    }
 
     span.setResourceName(moduleName);
     span.setTag(Tags.TEST_MODULE, moduleName);
-
-    span.setTag(Tags.TEST_MODULE_ID, span.getSpanId());
-    span.setTag(Tags.TEST_SESSION_ID, sessionId);
 
     // setting status to skip initially,
     // as we do not know in advance whether the module will have any children

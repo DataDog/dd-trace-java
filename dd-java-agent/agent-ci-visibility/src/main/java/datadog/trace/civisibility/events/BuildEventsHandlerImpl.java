@@ -69,14 +69,15 @@ public class BuildEventsHandlerImpl<T> implements BuildEventsHandler<T> {
 
   @Override
   public ModuleInfo onTestModuleStart(
-      final T sessionKey,
-      final String moduleName,
+      T sessionKey,
+      String moduleName,
+      boolean isTestModule,
       Collection<File> outputClassesDirs,
       @Nullable Map<String, Object> additionalTags) {
 
     DDBuildSystemSession testSession = inProgressTestSessions.get(sessionKey);
     DDBuildSystemModule testModule =
-        testSession.testModuleStart(moduleName, null, outputClassesDirs);
+        testSession.testModuleStart(moduleName, null, isTestModule, outputClassesDirs);
     testModule.setTag(Tags.TEST_STATUS, CIConstants.TEST_PASS);
 
     if (additionalTags != null) {

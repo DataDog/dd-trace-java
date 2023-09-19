@@ -1,10 +1,12 @@
 package datadog.trace.civisibility;
 
 import datadog.trace.api.Config;
+import datadog.trace.api.DDSpanTypes;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.civisibility.events.BuildEventsHandler;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
+import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.civisibility.codeowners.Codeowners;
 import datadog.trace.civisibility.coverage.CoverageProbeStoreFactory;
 import datadog.trace.civisibility.coverage.CoverageUtils;
@@ -46,6 +48,7 @@ public class DDBuildSystemModuleImpl extends DDTestModuleImpl implements DDBuild
       AgentSpan.Context sessionSpanContext,
       long sessionId,
       String moduleName,
+      boolean isTestModule,
       String repoRoot,
       String startCommand,
       @Nullable Long startTime,
@@ -64,6 +67,7 @@ public class DDBuildSystemModuleImpl extends DDTestModuleImpl implements DDBuild
         sessionSpanContext,
         sessionId,
         moduleName,
+        isTestModule,
         startTime,
         config,
         testDecorator,

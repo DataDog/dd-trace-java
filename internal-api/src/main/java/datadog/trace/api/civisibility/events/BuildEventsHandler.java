@@ -23,6 +23,7 @@ public interface BuildEventsHandler<T> {
   ModuleInfo onTestModuleStart(
       T sessionKey,
       String moduleName,
+      boolean isTestModule,
       Collection<File> outputClassesDirs,
       @Nullable Map<String, Object> additionalTags);
 

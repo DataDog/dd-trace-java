@@ -204,12 +204,12 @@ public class DDBuildSystemSessionImpl extends DDTestSessionImpl implements DDBui
 
   @Override
   public DDBuildSystemModuleImpl testModuleStart(String moduleName, @Nullable Long startTime) {
-    return testModuleStart(moduleName, startTime, Collections.emptySet());
+    return testModuleStart(moduleName, startTime, true, Collections.emptySet());
   }
 
   @Override
   public DDBuildSystemModuleImpl testModuleStart(
-      String moduleName, @Nullable Long startTime, Collection<File> outputClassesDirs) {
+      String moduleName, @Nullable Long startTime, boolean isTestModule, Collection<File> outputClassesDirs) {
     synchronized (coverageDataLock) {
       this.outputClassesDirs.addAll(outputClassesDirs);
     }
@@ -219,6 +219,7 @@ public class DDBuildSystemSessionImpl extends DDTestSessionImpl implements DDBui
             span.context(),
             span.getSpanId(),
             moduleName,
+            isTestModule,
             repoRoot,
             startCommand,
             startTime,

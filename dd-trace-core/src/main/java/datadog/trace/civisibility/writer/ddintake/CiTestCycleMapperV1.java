@@ -111,7 +111,7 @@ public class CiTestCycleMapperV1 implements RemoteMapper {
 
       } else {
         type = SPAN_TYPE;
-        traceId = span.getTraceId().toLong();
+        traceId = span.getParentId(); // FIXME nikita: should be session span ID
         spanId = span.getSpanId();
         parentId = span.getParentId();
         version = 1;

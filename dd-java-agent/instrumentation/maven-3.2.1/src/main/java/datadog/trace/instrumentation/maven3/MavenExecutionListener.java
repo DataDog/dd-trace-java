@@ -85,7 +85,7 @@ public class MavenExecutionListener extends AbstractExecutionListener {
 
       BuildEventsHandler.ModuleInfo moduleInfo =
           buildEventsHandler.onTestModuleStart(
-              request, moduleName, outputClassesDirs, additionalTags);
+              request, moduleName, true, outputClassesDirs, additionalTags);
 
       Xpp3Dom configuration = mojoExecution.getConfiguration();
       boolean forkTestVm =
