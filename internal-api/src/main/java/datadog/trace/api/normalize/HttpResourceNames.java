@@ -10,6 +10,8 @@ import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import java.util.function.Function;
 
 public class HttpResourceNames {
+
+  private static final Logger log = LoggerFactory.getLogger(HttpResourceNames.class);
   public static final UTF8BytesString DEFAULT_RESOURCE_NAME = UTF8BytesString.create("/");
 
   private static final Function<Pair<CharSequence, CharSequence>, UTF8BytesString> JOINER =
@@ -82,13 +84,17 @@ public class HttpResourceNames {
   public static Pair<CharSequence, Byte> computeForServer(
       CharSequence method, CharSequence path, boolean encoded) {
     byte priority;
+    log.debug("keisuke log - current stack trace of computeForServer: {}", (Object) Thread.currentThread().getStackTrace());
+    log.debug("keisuke log - the arguments of computeForServer | method: {}, path: {}, encoded: {}", method, path, encoded);
 
     String resourcePath =
         instance().serverAntPatternHttpPathNormalizer.normalize(path.toString(), encoded);
+    log.debug("keisuke log - instance().serverAntPatternHttpPathNormalizer.normalize(path.toString(), encoded) = {}", resourcePath);
     if (resourcePath != null) {
       priority = ResourceNamePriorities.HTTP_SERVER_CONFIG_PATTERN_MATCH;
     } else {
       resourcePath = simpleHttpPathNormalizer.normalize(path.toString(), encoded);
+      log.debug("keisuke log - simpleHttpPathNormalizer.normalize(path.toString(), encoded) = {}", resourcePath);
       priority = ResourceNamePriorities.HTTP_PATH_NORMALIZER;
     }
 
@@ -98,13 +104,17 @@ public class HttpResourceNames {
   public static Pair<CharSequence, Byte> computeForClient(
       CharSequence method, CharSequence path, boolean encoded) {
     byte priority;
+    log.debug("keisuke log - current stack trace of computeForClient: {}", (Object) Thread.currentThread().getStackTrace());
+    log.debug("keisuke log - the arguments of computeForClient | method: {}, path: {}, encoded: {}", method, path, encoded);
 
     String resourcePath =
         instance().clientAntPatternHttpPathNormalizer.normalize(path.toString(), encoded);
+    log.debug("keisuke log - instance().clientAntPatternHttpPathNormalizer.normalize(path.toString(), encoded) = {}", resourcePath);
     if (resourcePath != null) {
       priority = ResourceNamePriorities.HTTP_CLIENT_CONFIG_PATTERN_MATCH;
     } else {
       resourcePath = simpleHttpPathNormalizer.normalize(path.toString(), encoded);
+      log.debug("keisuke log - simpleHttpPathNormalizer.normalize(path.toString(), encoded) = {}", resourcePath);
       priority = ResourceNamePriorities.HTTP_PATH_NORMALIZER;
     }
     return Pair.of(join(method, resourcePath), priority);

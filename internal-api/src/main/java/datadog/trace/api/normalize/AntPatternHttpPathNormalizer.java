@@ -38,6 +38,8 @@ final class AntPatternHttpPathNormalizer extends HttpPathNormalizer {
 
   AntPatternHttpPathNormalizer(Map<String, String> httpResourceNameMatchers) {
     resourceNameMatchers = httpResourceNameMatchers;
+    log.debug("keisuke log - current stack trace of new AntPatternHttpPathNormalizer: {}", (Object) Thread.currentThread().getStackTrace());
+    log.debug("keisuke log - resourceNameMatchers: {}", resourceNameMatchers);
 
     // Clean up invalid patterns
     List<String> invalidPatterns = new ArrayList<>(httpResourceNameMatchers.keySet().size());
@@ -56,7 +58,10 @@ final class AntPatternHttpPathNormalizer extends HttpPathNormalizer {
   public String normalize(String path, boolean encoded) {
     if (encoded) {
       path = URIUtils.decode(path);
+      log.debug("keisuke log - URIUtils.decode(path): {}", path);
     }
-    return cache.computeIfAbsent(path, cacheLoader);
+    String s = cache.computeIfAbsent(path, cacheLoader);
+    log.debug("keisuke log - cache.computeIfAbsent(path, cacheLoader): {}", s);
+    return s;
   }
 }
