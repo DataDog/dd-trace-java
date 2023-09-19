@@ -10,6 +10,7 @@ import datadog.trace.api.gateway.RequestContextSlot
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.SourceTypes
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
+import foo.bar.VisitableClass
 
 class TrustBoundaryViolationModuleTest extends IastModuleImplTestBase {
   private List<Object> objectHolder
@@ -155,7 +156,7 @@ class TrustBoundaryViolationModuleTest extends IastModuleImplTestBase {
     final name = "name"
     final badValue = "badValue"
     ctx.getTaintedObjects().taintInputString(badValue, new Source(SourceTypes.NONE, null, null))
-    final value = new CustomClass(name: badValue)
+    final value = new VisitableClass(name: badValue)
 
     when:
     module.onSessionValue(name, value)
@@ -172,9 +173,5 @@ class TrustBoundaryViolationModuleTest extends IastModuleImplTestBase {
     assert vuln.getType() == VulnerabilityType.TRUST_BOUNDARY_VIOLATION
     assert vuln.getLocation() != null
     assert vuln.getEvidence().getValue() == expectedValue
-  }
-
-  private static class CustomClass {
-    String name
   }
 }

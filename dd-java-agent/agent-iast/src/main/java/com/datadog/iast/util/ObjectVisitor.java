@@ -52,6 +52,14 @@ public class ObjectVisitor {
   public static void visit(
       @Nonnull final Object object,
       @Nonnull final Visitor visitor,
+      final int maxDepth,
+      final int maxObjects) {
+    visit(object, visitor, ObjectVisitor::inspectClass, maxDepth, maxObjects);
+  }
+
+  public static void visit(
+      @Nonnull final Object object,
+      @Nonnull final Visitor visitor,
       @Nonnull final Predicate<Class<?>> classFilter,
       final int maxDepth,
       final int maxObjects) {

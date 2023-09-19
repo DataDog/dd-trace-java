@@ -1,5 +1,6 @@
 package com.datadog.iast.util
 
+import foo.bar.VisitableClass
 import spock.lang.Specification
 
 import static com.datadog.iast.util.ObjectVisitor.State.CONTINUE
@@ -103,7 +104,7 @@ class ObjectVisitorTest extends Specification {
   void 'test cycles'() {
     given:
     final visitor = Mock(ObjectVisitor.Visitor)
-    final target = new CustomClass(name: 'cycle')
+    final target = new VisitableClass(name: 'cycle')
     target.cycle = target
 
     when: 'we visit a class with a self reference'
@@ -113,10 +114,5 @@ class ObjectVisitorTest extends Specification {
     1 * visitor.visit("root", target) >> CONTINUE
     1 * visitor.visit("root.name", 'cycle') >> CONTINUE
     0 * _
-  }
-
-  static class CustomClass {
-    String name
-    CustomClass cycle
   }
 }

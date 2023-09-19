@@ -7,10 +7,23 @@ import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.SourceTypes;
 import datadog.trace.api.iast.propagation.PropagationModule;
 import java.util.function.BiFunction;
+import javax.annotation.Nonnull;
 
 public class GrpcRequestMessageHandler implements BiFunction<RequestContext, Object, Flow<Void>> {
 
-  private static final String PROTOBUF_PACKAGE = "com.google.protobuf";
+  /**
+   * This will cover:
+   *
+   * <ul>
+   *   <li>com.google.protobuf.GeneratedMessage
+   *   <li>com.google.protobuf.GeneratedMessageV3
+   *   <li>com.google.protobuf.GeneratedMessageLite
+   * </ul>
+   */
+  private static final String GENERATED_MESSAGE = "com.google.protobuf.GeneratedMessage";
+
+  /** Maps map to this class that does not implement Map interface */
+  private static final String MAP_FIELD = "com.google.protobuf.MapField";
 
   @Override
   public Flow<Void> apply(final RequestContext ctx, final Object o) {
@@ -23,11 +36,8 @@ public class GrpcRequestMessageHandler implements BiFunction<RequestContext, Obj
     return Flow.ResultFlow.empty();
   }
 
-  private static boolean isProtobufArtifact(final Class<?> kls) {
-    if (kls == null || kls.getSuperclass() == null) {
-      return false;
-    }
-    final String superPackage = kls.getSuperclass().getPackage().getName();
-    return superPackage.startsWith(PROTOBUF_PACKAGE);
+  static boolean isProtobufArtifact(@Nonnull final Class<?> kls) {
+    return kls.getSuperclass().getName().startsWith(GENERATED_MESSAGE)
+        || MAP_FIELD.equals(kls.getName());
   }
 }
