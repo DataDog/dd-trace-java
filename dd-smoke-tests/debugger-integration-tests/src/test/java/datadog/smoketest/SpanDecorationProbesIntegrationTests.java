@@ -18,7 +18,6 @@ import com.datadog.debugger.el.expressions.BooleanExpression;
 import com.datadog.debugger.probe.SpanDecorationProbe;
 import datadog.trace.bootstrap.debugger.EvaluationError;
 import datadog.trace.test.agent.decoder.DecodedSpan;
-import datadog.trace.test.util.Flaky;
 import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.List;
@@ -26,7 +25,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-@Flaky
 public class SpanDecorationProbesIntegrationTests extends ServerAppDebuggerIntegrationTest {
 
   @Override
@@ -53,8 +51,7 @@ public class SpanDecorationProbesIntegrationTests extends ServerAppDebuggerInteg
     registerTraceListener(
         decodedTrace -> {
           for (DecodedSpan span : decodedTrace.getSpans()) {
-            if (span.getName().equals("trace.annotation")) {
-              assertEquals("ServerDebuggerTestApplication.runTracedMethod", span.getResource());
+            if (isTracedFullMethodSpan(span)) {
               assertEquals("foobar", span.getMeta().get("tag1"));
               assertEquals(PROBE_ID.getId(), span.getMeta().get("_dd.di.tag1.probe_id"));
               return true;
@@ -96,7 +93,7 @@ public class SpanDecorationProbesIntegrationTests extends ServerAppDebuggerInteg
     registerTraceListener(
         decodedTrace -> {
           for (DecodedSpan span : decodedTrace.getSpans()) {
-            if (span.getName().equals("trace.annotation")) {
+            if (isTracedFullMethodSpan(span)) {
               assertEquals("foobar", span.getMeta().get("tag1"));
               assertFalse(span.getMeta().containsKey("tag2"));
               assertEquals("Above Pi: 3.42", span.getMeta().get("tag3"));
@@ -134,7 +131,7 @@ public class SpanDecorationProbesIntegrationTests extends ServerAppDebuggerInteg
     registerTraceListener(
         decodedTrace -> {
           for (DecodedSpan span : decodedTrace.getSpans()) {
-            if (span.getName().equals("trace.annotation")) {
+            if (isTracedFullMethodSpan(span)) {
               assertFalse(span.getMeta().containsKey("tag1"));
               assertEquals(
                   "Cannot find symbol: invalidArg",
@@ -177,7 +174,7 @@ public class SpanDecorationProbesIntegrationTests extends ServerAppDebuggerInteg
     registerTraceListener(
         decodedTrace -> {
           for (DecodedSpan span : decodedTrace.getSpans()) {
-            if (span.getName().equals("trace.annotation")) {
+            if (isTracedFullMethodSpan(span)) {
               assertFalse(span.getMeta().containsKey("tag1"));
               spanTest.set(true);
             }
@@ -216,7 +213,7 @@ public class SpanDecorationProbesIntegrationTests extends ServerAppDebuggerInteg
     registerTraceListener(
         decodedTrace -> {
           for (DecodedSpan span : decodedTrace.getSpans()) {
-            if (span.getName().equals("trace.annotation")) {
+            if (isTracedFullMethodSpan(span)) {
               assertFalse(span.getMeta().containsKey("tag1"));
               assertFalse(span.getMeta().containsKey("tag2"));
               assertEquals(
@@ -231,6 +228,11 @@ public class SpanDecorationProbesIntegrationTests extends ServerAppDebuggerInteg
           return snapshotTest.get() && spanTest.get();
         });
     processRequests();
+  }
+
+  private boolean isTracedFullMethodSpan(DecodedSpan span) {
+    return span.getName().equals("trace.annotation")
+        && span.getResource().equals("ServerDebuggerTestApplication.runTracedMethod");
   }
 
   private SpanDecorationProbe.Decoration createDecoration(String tagName, String valueDsl) {
