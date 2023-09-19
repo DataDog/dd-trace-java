@@ -1,8 +1,8 @@
 package datadog.trace.instrumentation.thymeleaf;
 
+import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
-import static net.bytebuddy.matcher.ElementMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
@@ -23,6 +23,7 @@ public class ElementTagStructureHandlerInstrumentation extends Instrumenter.Iast
 
   @Override
   public void adviceTransformations(AdviceTransformation transformation) {
+
     transformation.applyAdvice(
         isMethod().and(named("setBody")).and(takesArgument(0, CharSequence.class)),
         packageName + ".BodyAdvice");
