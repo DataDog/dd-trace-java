@@ -65,7 +65,9 @@ public final class ConfigProvider {
         log.debug("failed to parse {} for {}, defaulting to {}", value, key, defaultValue);
       }
     }
-    ConfigCollector.get().put(key, String.valueOf(defaultValue), ConfigOrigin.DEFAULT);
+    if (collectConfig) {
+      ConfigCollector.get().put(key, String.valueOf(defaultValue), ConfigOrigin.DEFAULT);
+    }
     return defaultValue;
   }
 
@@ -79,7 +81,9 @@ public final class ConfigProvider {
         return value;
       }
     }
-    ConfigCollector.get().put(key, defaultValue, ConfigOrigin.DEFAULT);
+    if (collectConfig && defaultValue != null) {
+      ConfigCollector.get().put(key, defaultValue, ConfigOrigin.DEFAULT);
+    }
     return defaultValue;
   }
 
@@ -97,7 +101,9 @@ public final class ConfigProvider {
         return value;
       }
     }
-    ConfigCollector.get().put(key, defaultValue, ConfigOrigin.DEFAULT);
+    if (collectConfig) {
+      ConfigCollector.get().put(key, defaultValue, ConfigOrigin.DEFAULT);
+    }
     return defaultValue;
   }
 
@@ -119,7 +125,9 @@ public final class ConfigProvider {
         return value;
       }
     }
-    ConfigCollector.get().put(key, defaultValue, ConfigOrigin.DEFAULT);
+    if (collectConfig) {
+      ConfigCollector.get().put(key, defaultValue, ConfigOrigin.DEFAULT);
+    }
     return defaultValue;
   }
 
@@ -196,7 +204,6 @@ public final class ConfigProvider {
       }
     }
     if (collectConfig) {
-      // Report all accessed default settings as it's required by Telemetry V2
       ConfigCollector.get().put(key, defaultValue, ConfigOrigin.DEFAULT);
     }
     return defaultValue;
@@ -218,8 +225,10 @@ public final class ConfigProvider {
   public Set<String> getSet(String key, Set<String> defaultValue) {
     String list = getString(key);
     if (null == list) {
-      String defaultValueStr = String.join(",", defaultValue);
-      ConfigCollector.get().put(key, defaultValueStr, ConfigOrigin.DEFAULT);
+      if (collectConfig) {
+        String defaultValueStr = String.join(",", defaultValue);
+        ConfigCollector.get().put(key, defaultValueStr, ConfigOrigin.DEFAULT);
+      }
       return defaultValue;
     } else {
       return new HashSet(ConfigConverter.parseList(getString(key)));
@@ -300,8 +309,10 @@ public final class ConfigProvider {
     } catch (final NumberFormatException e) {
       log.warn("Invalid configuration for {}", key, e);
     }
-    String defaultValueStr = ConfigConverter.renderIntegerRange(defaultValue);
-    ConfigCollector.get().put(key, defaultValueStr, ConfigOrigin.DEFAULT);
+    if (collectConfig) {
+      String defaultValueStr = ConfigConverter.renderIntegerRange(defaultValue);
+      ConfigCollector.get().put(key, defaultValueStr, ConfigOrigin.DEFAULT);
+    }
     return defaultValue;
   }
 
