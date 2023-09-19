@@ -18,8 +18,7 @@ public class HttpUrlState {
   public AgentSpan start(final HttpURLConnection connection) {
     span = startSpan(DECORATE.operationName());
     try (final AgentScope scope = activateSpan(span)) {
-      StackTraceElement[] stackTraceElements = Thread.currentThread().getStackTrace();
-      log.debug("keisuke log - current stack trace: {}", stackTraceElements);
+      log.debug("keisuke log - current stack trace: {}", (Object) Thread.currentThread().getStackTrace());
       log.debug("keisuke log - span before DECORATE.afterStart: {}", span);
       DECORATE.afterStart(span);
       log.debug("keisuke log - span before DECORATE.onRequet: {}", span);
@@ -44,8 +43,7 @@ public class HttpUrlState {
   public void finishSpan(
       final HttpURLConnection connection, final int responseCode, final Throwable throwable) {
     try (final AgentScope scope = activateSpan(span)) {
-      StackTraceElement[] stackTraceElements = Thread.currentThread().getStackTrace();
-      log.debug("keisuke log - current stack trace: {}", stackTraceElements);
+      log.debug("keisuke log - current stack trace: {}", (Object) Thread.currentThread().getStackTrace());
       if (responseCode > 0) {
         // safe to access response data as 'responseCode' is set
         log.debug("keisuke log - span before DECORATE.onResponse: {}", span);
@@ -71,8 +69,7 @@ public class HttpUrlState {
      * We can't call getResponseCode() due to some unwanted side-effects
      * (e.g. breaks getOutputStream).
      */
-    StackTraceElement[] stackTraceElements = Thread.currentThread().getStackTrace();
-    log.debug("keisuke log - current stack trace: {}", stackTraceElements);
+    log.debug("keisuke log - current stack trace: {}", (Object) Thread.currentThread().getStackTrace());
     if (responseCode > 0) {
       try (final AgentScope scope = activateSpan(span)) {
         // safe to access response data as 'responseCode' is set
