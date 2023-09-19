@@ -20,6 +20,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Deque;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Locale;
@@ -496,6 +497,42 @@ public class StringModuleImpl implements StringModule {
     }
     addFormatTaintedRanges(
         END, offset, formatRanges, finalRanges); // add remaining ranges from the format
+    if (!finalRanges.isEmpty()) {
+      to.taint(result, finalRanges.toArray(new Range[0]));
+    }
+  }
+
+  @Override
+  public void onStringFormat(
+      @Nonnull final Iterable<String> literals,
+      @Nonnull final Object[] parameters,
+      @Nonnull final String result) {
+    if (!canBeTainted(result)) {
+      return;
+    }
+    final IastRequestContext ctx = IastRequestContext.get();
+    if (ctx == null) {
+      return;
+    }
+    final TaintedObjects to = ctx.getTaintedObjects();
+    final Ranges.RangesProvider<Object> paramRangesProvider = rangesProviderFor(to, parameters);
+    if (paramRangesProvider.rangeCount() == 0) {
+      return;
+    }
+    // since we might join ranges the final number is unknown beforehand
+    final List<Range> finalRanges = new LinkedList<>();
+    int offset = 0, paramIndex = 0;
+    for (final Iterator<String> it = literals.iterator(); it.hasNext(); ) {
+      final String literal = it.next();
+      offset += literal.length();
+      if (it.hasNext() && paramIndex < parameters.length) {
+        final Object parameter = parameters[paramIndex++];
+        final Range[] parameterRanges = paramRangesProvider.ranges(parameter);
+        final String formatted = String.valueOf(parameter);
+        addParameterTaintedRanges(null, parameter, formatted, offset, parameterRanges, finalRanges);
+        offset += formatted.length();
+      }
+    }
     if (!finalRanges.isEmpty()) {
       to.taint(result, finalRanges.toArray(new Range[0]));
     }
