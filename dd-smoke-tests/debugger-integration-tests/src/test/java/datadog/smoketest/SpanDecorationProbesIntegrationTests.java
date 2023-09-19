@@ -16,9 +16,9 @@ import com.datadog.debugger.el.DSL;
 import com.datadog.debugger.el.ProbeCondition;
 import com.datadog.debugger.el.expressions.BooleanExpression;
 import com.datadog.debugger.probe.SpanDecorationProbe;
+import datadog.trace.api.Platform;
 import datadog.trace.bootstrap.debugger.EvaluationError;
 import datadog.trace.test.agent.decoder.DecodedSpan;
-import datadog.trace.test.util.Flaky;
 import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.List;
@@ -26,7 +26,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-@Flaky
 public class SpanDecorationProbesIntegrationTests extends ServerAppDebuggerIntegrationTest {
 
   @Override
@@ -40,6 +39,10 @@ public class SpanDecorationProbesIntegrationTests extends ServerAppDebuggerInteg
   @Test
   @DisplayName("testMethodSimpleTagNoCondition")
   void testMethodSimpleTagNoCondition() throws Exception {
+    if (Platform.isJ9()) {
+      // skip for J9/OpenJ9 as we cannot get local variable debug info.
+      return;
+    }
     SpanDecorationProbe spanDecorationProbe =
         SpanDecorationProbe.builder()
             .probeId(PROBE_ID)
@@ -67,6 +70,10 @@ public class SpanDecorationProbesIntegrationTests extends ServerAppDebuggerInteg
   @Test
   @DisplayName("testMethodMultiTagsMultiConditions")
   void testMethodMultiTagsMultiConditions() throws Exception {
+    if (Platform.isJ9()) {
+      // skip for J9/OpenJ9 as we cannot get local variable debug info.
+      return;
+    }
     List<SpanDecorationProbe.Decoration> decorations =
         Arrays.asList(
             createDecoration(

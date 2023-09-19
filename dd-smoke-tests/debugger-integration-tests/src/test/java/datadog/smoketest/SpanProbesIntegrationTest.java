@@ -8,6 +8,7 @@ import com.datadog.debugger.probe.SpanProbe;
 import datadog.trace.test.agent.decoder.DecodedSpan;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -55,12 +56,20 @@ public class SpanProbesIntegrationTest extends SimpleAppDebuggerIntegrationTest 
     SpanProbe spanProbe = SpanProbe.builder().probeId(PROBE_ID).where(MAIN_CLASS_NAME, 68).build();
     setCurrentConfiguration(createSpanConfig(spanProbe));
     targetProcess = createProcessBuilder(logFilePath, METHOD_NAME, EXPECTED_UPLOADS).start();
-    ProbeStatus status = retrieveProbeStatusRequest();
-    assertEquals(ProbeStatus.Status.RECEIVED, status.getDiagnostics().getStatus());
-    status = retrieveProbeStatusRequest();
-    assertEquals(ProbeStatus.Status.ERROR, status.getDiagnostics().getStatus());
-    assertEquals(
-        "Single line span is not supported, you need to provide a range.",
-        status.getDiagnostics().getException().getMessage());
+    AtomicBoolean received = new AtomicBoolean(false);
+    AtomicBoolean error = new AtomicBoolean(false);
+    registerProbeStatusListener(
+        probeStatus -> {
+          if (probeStatus.getDiagnostics().getStatus() == ProbeStatus.Status.RECEIVED) {
+            received.set(true);
+          }
+          if (probeStatus.getDiagnostics().getStatus() == ProbeStatus.Status.ERROR) {
+            assertEquals(
+                "Single line span is not supported, you need to provide a range.",
+                probeStatus.getDiagnostics().getException().getMessage());
+            error.set(true);
+          }
+          return received.get() && error.get();
+        });
   }
 }
