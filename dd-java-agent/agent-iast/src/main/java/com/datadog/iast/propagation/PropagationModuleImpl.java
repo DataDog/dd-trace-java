@@ -18,6 +18,7 @@ import datadog.trace.api.iast.propagation.PropagationModule;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Predicate;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
@@ -168,6 +169,15 @@ public class PropagationModuleImpl implements PropagationModule {
 
   @Override
   public void taintDeeply(@Nullable final Object ctx_, final byte source, @Nonnull final Object o) {
+    taintDeeply(ctx_, source, o, ObjectVisitor::inspectClass);
+  }
+
+  @Override
+  public void taintDeeply(
+      @Nullable final Object ctx_,
+      final byte source,
+      @Nonnull final Object o,
+      @Nonnull final Predicate<Class<?>> classFilter) {
     if (ctx_ == null) {
       return;
     }
@@ -183,7 +193,8 @@ public class PropagationModuleImpl implements PropagationModule {
             }
           }
           return CONTINUE;
-        });
+        },
+        classFilter);
   }
 
   @Override

@@ -7,6 +7,8 @@ import datadog.trace.api.iast.SourceTypes
 import datadog.trace.api.iast.propagation.PropagationModule
 import datadog.trace.test.util.DDSpecification
 
+import java.util.function.Predicate
+
 class GrpcRequestMessageHandlerTest extends DDSpecification {
 
   private PropagationModule propagation
@@ -54,6 +56,6 @@ class GrpcRequestMessageHandlerTest extends DDSpecification {
     handler.apply(ctx, target)
 
     then:
-    1 * propagation.taintDeeply(iastCtx, SourceTypes.GRPC_BODY, target)
+    1 * propagation.taintDeeply(iastCtx, SourceTypes.GRPC_BODY, target, _ as Predicate<Class<?>>)
   }
 }

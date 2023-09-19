@@ -4,6 +4,7 @@ import static com.datadog.iast.util.ObjectVisitor.State.CONTINUE;
 import static com.datadog.iast.util.ObjectVisitor.State.EXIT;
 
 import datadog.trace.api.Platform;
+import datadog.trace.instrumentation.iastinstrumenter.IastExclusionTrie;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -11,6 +12,7 @@ import java.lang.reflect.Modifier;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Predicate;
 import javax.annotation.Nonnull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -37,27 +39,41 @@ public class ObjectVisitor {
   }
 
   public static void visit(@Nonnull final Object object, @Nonnull final Visitor visitor) {
-    visit(object, visitor, MAX_DEPTH, MAX_VISITED_OBJECTS);
+    visit(object, visitor, ObjectVisitor::inspectClass);
   }
 
   public static void visit(
       @Nonnull final Object object,
       @Nonnull final Visitor visitor,
+      @Nonnull final Predicate<Class<?>> classFilter) {
+    visit(object, visitor, classFilter, MAX_DEPTH, MAX_VISITED_OBJECTS);
+  }
+
+  public static void visit(
+      @Nonnull final Object object,
+      @Nonnull final Visitor visitor,
+      @Nonnull final Predicate<Class<?>> classFilter,
       final int maxDepth,
       final int maxObjects) {
-    new ObjectVisitor(maxDepth, maxObjects, visitor).visit(0, "root", object);
+    new ObjectVisitor(classFilter, maxDepth, maxObjects, visitor).visit(0, "root", object);
   }
 
   private int remaining;
   private final int maxDepth;
   private final Set<Object> visited;
   private final Visitor visitor;
+  private final Predicate<Class<?>> classFilter;
 
-  private ObjectVisitor(final int maxDepth, final int maxObjects, final Visitor visitor) {
+  private ObjectVisitor(
+      final Predicate<Class<?>> classFilter,
+      final int maxDepth,
+      final int maxObjects,
+      final Visitor visitor) {
     this.maxDepth = maxDepth;
     this.remaining = maxObjects;
     this.visited = new HashSet<>();
     this.visitor = visitor;
+    this.classFilter = classFilter;
   }
 
   private State visit(final int depth, final String path, final Object value) {
@@ -144,7 +160,7 @@ public class ObjectVisitor {
   private State visitObject(final int depth, final String path, final Object value) {
     final int childDepth = depth + 1;
     State state = visitor.visit(path, value);
-    if (state != State.CONTINUE || !inspectClass(value.getClass())) {
+    if (state != State.CONTINUE || !classFilter.test(value.getClass())) {
       return state;
     }
     Class<?> klass = value.getClass();
@@ -170,14 +186,11 @@ public class ObjectVisitor {
     return ObjectVisitor.State.CONTINUE;
   }
 
-  private static boolean inspectClass(final Class<?> cls) {
+  public static boolean inspectClass(final Class<?> cls) {
     if (cls.isPrimitive()) {
       return false; // skip primitives
     }
-    if (cls.getPackage().getName().startsWith("java")) {
-      return false; // do not visit JDK classes properties
-    }
-    return true;
+    return IastExclusionTrie.apply(cls.getName()) < 1;
   }
 
   private static boolean inspectField(final Field field) {

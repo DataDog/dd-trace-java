@@ -2,6 +2,9 @@ package datadog.smoketest
 
 import datadog.smoketest.grpc.IastGrpc
 import datadog.smoketest.grpc.IastOuterClass
+import datadog.smoketest.grpc.IastOuterClass.Type
+import datadog.smoketest.grpc.IastOuterClass.Url
+
 import io.grpc.Grpc
 import io.grpc.InsecureChannelCredentials
 import io.grpc.ManagedChannel
@@ -47,12 +50,21 @@ class GrpcIastSmokeTest extends AbstractIastServerSmokeTest {
     setup:
     final client = IastGrpc.newBlockingStub(channel)
     final url = 'https://dd.datad0g.com/'
+    final request = IastOuterClass.Request.newBuilder()
+      .setType(Type.URL)
+      .setUrl(Url.newBuilder().setValue(url).build())
+      .build()
 
     when:
-    final resp = client.serverSideRequestForgery(IastOuterClass.UrlRequest.newBuilder().setUrl(url).build())
+    final resp = client.serverSideRequestForgery(request)
 
     then:
     resp != null
+    hasTainted {tainted ->
+      tainted.value == url &&
+        tainted.ranges[0].source.name == 'root.payload_.value_' &&
+        tainted.ranges[0].source.origin == 'grpc.request.body'
+    }
     hasVulnerability { vul -> vul.type == 'SSRF' }
   }
 }

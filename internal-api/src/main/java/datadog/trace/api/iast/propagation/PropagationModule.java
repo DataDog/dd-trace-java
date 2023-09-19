@@ -5,6 +5,7 @@ import datadog.trace.api.iast.Taintable;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Predicate;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
@@ -36,6 +37,9 @@ public interface PropagationModule extends IastModule {
   void taint(@Nullable Object ctx_, byte source, @Nullable String name, @Nullable String value);
 
   void taintDeeply(@Nullable Object ctx_, byte source, @Nonnull Object o);
+
+  void taintDeeply(
+      @Nullable Object ctx_, byte source, @Nonnull Object o, @Nonnull Predicate<Class<?>> filter);
 
   void taintObjectIfInputIsTaintedKeepingRanges(
       @Nullable final Object toTaint, @Nullable Object input);

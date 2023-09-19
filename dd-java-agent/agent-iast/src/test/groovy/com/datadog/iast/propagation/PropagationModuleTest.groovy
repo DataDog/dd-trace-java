@@ -474,6 +474,24 @@ class PropagationModuleTest extends IastModuleImplTestBase {
     [new Range(2, 3, getDefaultSource(), XPATH_INJECTION_MARK), new Range(0, 1, getDefaultSource(), SQL_INJECTION_MARK)] as Range[] | XSS_MARK | getMarks(XPATH_INJECTION_MARK, XSS_MARK)
   }
 
+  void 'test taint deeply'() {
+    given:
+    final target = [Hello: " World!"]
+
+    when:
+    module.taintDeeply(null, SourceTypes.GRPC_BODY, target)
+
+    then:
+    ctx.getTaintedObjects().empty
+
+    when:
+    module.taintDeeply(ctx, SourceTypes.GRPC_BODY, target)
+
+    then:
+    ctx.getTaintedObjects().get(target.keySet().first()) != null
+    ctx.getTaintedObjects().get(target.values().first()) != null
+  }
+
   private <E> E taint(final E toTaint) {
     final source = new Source(SourceTypes.REQUEST_PARAMETER_VALUE, null, null)
     if (toTaint instanceof Taintable) {

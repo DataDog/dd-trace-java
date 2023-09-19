@@ -10,18 +10,22 @@ public class IastService extends IastGrpc.IastImplBase {
 
   @Override
   public void serverSideRequestForgery(
-      final IastOuterClass.UrlRequest request,
+      final IastOuterClass.Request request,
       final StreamObserver<IastOuterClass.Response> responseObserver) {
-    try {
-      final URL target = new URL(request.getUrl());
-      final HttpURLConnection conn = (HttpURLConnection) target.openConnection();
-      conn.disconnect();
-      IastOuterClass.Response response =
-          IastOuterClass.Response.newBuilder().setMessage("SSRF triggered").build();
-      responseObserver.onNext(response);
-      responseObserver.onCompleted();
-    } catch (final Exception e) {
-      responseObserver.onError(e);
+    if (request.getType() != IastOuterClass.Type.URL) {
+      responseObserver.onError(new IllegalArgumentException("Invalid type for request"));
+    } else {
+      try {
+        final URL target = new URL(request.getUrl().getValue());
+        final HttpURLConnection conn = (HttpURLConnection) target.openConnection();
+        conn.disconnect();
+        IastOuterClass.Response response =
+            IastOuterClass.Response.newBuilder().setMessage("SSRF triggered").build();
+        responseObserver.onNext(response);
+        responseObserver.onCompleted();
+      } catch (final Exception e) {
+        responseObserver.onError(e);
+      }
     }
   }
 }

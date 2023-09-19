@@ -3,12 +3,23 @@ syntax = "proto3";
 package datadog.smoketest.grpc;
 
 service Iast {
-  rpc ServerSideRequestForgery (UrlRequest) returns (Response) {
+  rpc ServerSideRequestForgery (Request) returns (Response) {
   }
 }
 
-message UrlRequest {
-  string url = 1;
+enum Type{
+  URL = 0;
+}
+
+message Url {
+  string value = 1;
+}
+
+message Request {
+  Type type = 1;
+  oneof payload {
+    Url url = 2;
+  }
 }
 
 message Response {
