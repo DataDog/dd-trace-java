@@ -7,8 +7,6 @@ import datadog.trace.api.iast.sink.XssModule;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
 import net.bytebuddy.asm.Advice;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.thymeleaf.engine.ElementTagStructureHandler;
 import org.thymeleaf.processor.element.IElementTagStructureHandler;
 
@@ -27,5 +25,4 @@ public class BodyAdvice {
       }
     }
   }
-
 }

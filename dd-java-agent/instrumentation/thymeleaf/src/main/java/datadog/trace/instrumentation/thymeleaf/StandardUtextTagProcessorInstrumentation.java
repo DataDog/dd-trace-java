@@ -18,17 +18,12 @@ public class StandardUtextTagProcessorInstrumentation extends Instrumenter.Iast
 
   @Override
   public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
-        isMethod()
-            .and(named("doProcess")),
-        packageName + ".ProcessAdvice");
+    transformation.applyAdvice(isMethod().and(named("doProcess")), packageName + ".ProcessAdvice");
   }
 
   @Override
   public String[] helperClassNames() {
-    return new String[] {
-        packageName + ".ThymeleafContext"
-    };
+    return new String[] {packageName + ".ThymeleafContext"};
   }
 
   @Override
@@ -42,5 +37,4 @@ public class StandardUtextTagProcessorInstrumentation extends Instrumenter.Iast
   public String instrumentedType() {
     return "org.thymeleaf.standard.processor.StandardUtextTagProcessor";
   }
-
 }

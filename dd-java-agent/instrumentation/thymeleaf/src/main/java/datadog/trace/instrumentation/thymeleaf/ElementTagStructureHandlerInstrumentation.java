@@ -30,9 +30,7 @@ public class ElementTagStructureHandlerInstrumentation extends Instrumenter.Iast
 
   @Override
   public String[] helperClassNames() {
-    return new String[] {
-        packageName + ".ThymeleafContext"
-    };
+    return new String[] {packageName + ".ThymeleafContext"};
   }
 
   @Override
@@ -41,5 +39,4 @@ public class ElementTagStructureHandlerInstrumentation extends Instrumenter.Iast
         "org.thymeleaf.processor.element.IElementTagStructureHandler",
         "datadog.trace.instrumentation.thymeleaf.ThymeleafContext");
   }
-
 }
