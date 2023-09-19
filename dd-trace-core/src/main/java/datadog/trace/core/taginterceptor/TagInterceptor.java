@@ -125,21 +125,21 @@ public class TagInterceptor {
   }
 
   private boolean interceptUrlResourceAsNameRule(DDSpanContext span, String tag, Object value) {
-    log.debug("keisuk log - current stack trace of interceptUrlResourceAsNameRule: {}", (Object) Thread.currentThread().getStackTrace())
-    log.debug("keisuk log - the arguments of interceptUrlResourceAsNameRule, span: {}, tag: {}, value: {}", span, tag, value)
-    log.debug("keisuk log - shouldSetUrlResourceAsName: {}", shouldSetUrlResourceAsName)
+    log.debug("keisuke log - current stack trace of interceptUrlResourceAsNameRule: {}", (Object) Thread.currentThread().getStackTrace());
+    log.debug("keisuke log - the arguments of interceptUrlResourceAsNameRule, span: {}, tag: {}, value: {}", span, tag, value);
+    log.debug("keisuke log - shouldSetUrlResourceAsName: {}", shouldSetUrlResourceAsName);
     if (shouldSetUrlResourceAsName) {
       if (HTTP_METHOD.equals(tag)) {
         final Object url = span.unsafeGetTag(HTTP_URL);
         if (url != null) {
           setResourceFromUrl(span, value.toString(), url);
-          log.debug("keisuk log - value.toString() = {}, url = {}", value.toString(), url)
-          log.debug("keisuk log - span after setResourceFromUrl(span, value.toString(), url): {}", span)
+          log.debug("keisuke log - value.toString() = {}, url = {}", value.toString(), url);
+          log.debug("keisuke log - span after setResourceFromUrl(span, value.toString(), url): {}", span);
         }
       } else if (HTTP_URL.equals(tag)) {
         final Object method = span.unsafeGetTag(HTTP_METHOD);
         setResourceFromUrl(span, method != null ? method.toString() : null, value);
-        log.debug("keisuk log - span after setResourceFromUrl(span, method != null ? method.toString() : null, value): {}", span)
+        log.debug("keisuke log - span after setResourceFromUrl(span, method != null ? method.toString() : null, value): {}", span);
       }
     }
     return false;
@@ -148,14 +148,14 @@ public class TagInterceptor {
   private static void setResourceFromUrl(
       @Nonnull final DDSpanContext span, @Nullable final String method, @Nonnull final Object url) {
     final String path;
-    log.debug("keisuk log - current stack trace of setResourceFromUrl: {}", (Object) Thread.currentThread().getStackTrace())
+    log.debug("keisuke log - current stack trace of setResourceFromUrl: {}", (Object) Thread.currentThread().getStackTrace());
     if (url instanceof URIUtils.LazyUrl) {
       path = ((URIUtils.LazyUrl) url).path();
-      log.debug("keisuk log - ((URIUtils.LazyUrl) url).path() = {}", path)
+      log.debug("keisuke log - ((URIUtils.LazyUrl) url).path() = {}", path);
     } else {
       URI uri = URIUtils.safeParse(url.toString());
       path = uri == null ? null : uri.getPath();
-      log.debug("keisuk log - uri == null ? null : uri.getPath() = {}", path)
+      log.debug("keisuke log - uri == null ? null : uri.getPath() = {}", path);
     }
     if (path != null) {
       final boolean isClient = Tags.SPAN_KIND_CLIENT.equals(span.unsafeGetTag(Tags.SPAN_KIND));
@@ -165,13 +165,13 @@ public class TagInterceptor {
               : HttpResourceNames.computeForServer(method, path, false);
       if (normalized.hasLeft()) {
         span.setResourceName(normalized.getLeft(), normalized.getRight());
-        log.debug("keisuk log - normalized.getLeft() = {}, normalized.getRight() = {}", normalized.getLeft(), normalized.getRight())
-        log.debug("keisuk log - span after span.setResourceName(normalized.getLeft(), normalized.getRight()): {}", span)
+        log.debug("keisuke log - normalized.getLeft() = {}, normalized.getRight() = {}", normalized.getLeft(), normalized.getRight());
+        log.debug("keisuke log - span after span.setResourceName(normalized.getLeft(), normalized.getRight()): {}", span);
       }
     } else {
       span.setResourceName(
           HttpResourceNames.DEFAULT_RESOURCE_NAME, ResourceNamePriorities.HTTP_PATH_NORMALIZER);
-      log.debug("keisuk log - span after span.setResourceName(HttpResourceNames.DEFAULT_RESOURCE_NAME, ResourceNamePriorities.HTTP_PATH_NORMALIZER): {}", span)
+      log.debug("keisuke log - span after span.setResourceName(HttpResourceNames.DEFAULT_RESOURCE_NAME, ResourceNamePriorities.HTTP_PATH_NORMALIZER): {}", span);
     }
   }
 
