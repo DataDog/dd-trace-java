@@ -45,7 +45,10 @@ abstract class Liberty23Test extends HttpServerTest<Server> {
   String expectedOperationName() {
     component()
   }
-
+  @Override
+  protected boolean enabledFinishTimingChecks() {
+    true
+  }
   @Override
   boolean testExceptionBody() {
     false
