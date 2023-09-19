@@ -1,34 +1,30 @@
 plugins {
-  id "com.github.johnrengelman.shadow"
+  id 'java'
+  id 'org.springframework.boot' version '2.7.15'
+  id 'io.spring.dependency-management' version '1.0.15.RELEASE'
   id 'java-test-fixtures'
 }
 
 apply from: "$rootDir/gradle/java.gradle"
 description = 'SpringBoot thymeleaf 3 Smoke Tests.'
 
-// The standard spring-boot plugin doesn't play nice with our project
-// so we'll build a fat jar instead
-jar {
-  manifest {
-    attributes('Main-Class': 'datadog.smoketest.springboot.SpringbootApplication')
-  }
+java {
+  sourceCompatibility = '1.8'
 }
 
-// Use Java 17 to build application
-tasks.withType(JavaCompile) {
-  setJavaVersion(delegate, 17)
+repositories {
+  mavenCentral()
 }
 
 dependencies {
-  implementation group: 'org.springframework.boot', name: 'spring-boot-starter-web', version: '3.0.0'
-  implementation group: 'org.springframework.boot', name: 'spring-boot-starter-thymeleaf', version: '3.0.0'
+  implementation 'org.springframework.boot:spring-boot-starter-web'
+  implementation 'org.springframework.boot:spring-boot-starter-thymeleaf'
 
   testImplementation project(':dd-smoke-tests')
   testImplementation(testFixtures(project(":dd-smoke-tests:iast-util")))
 }
 
 tasks.withType(Test).configureEach {
-  dependsOn "shadowJar"
-
-  jvmArgs "-Ddatadog.smoketest.springboot.shadowJar.path=${tasks.shadowJar.archiveFile.get()}"
+  dependsOn "bootJar"
+  jvmArgs "-Ddatadog.smoketest.springboot.shadowJar.path=${tasks.bootJar.archiveFile.get()}"
 }
