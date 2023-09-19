@@ -45,17 +45,20 @@ public class QueryObfuscator implements TagsPostProcessor {
   }
 
   private String obfuscate(String query) {
+    log.debug("the argument of obfuscate: {}", query);
     if (pattern != null) {
       Matcher matcher = pattern.matcher(query);
       while (matcher.find()) {
         query = Strings.replace(query, matcher.group(), "<redacted>");
       }
     }
+    log.debug("the returned value of obfuscate: {}", query);
     return query;
   }
 
   @Override
   public Map<String, Object> processTags(Map<String, Object> unsafeTags) {
+    log.debug("the argument of processTags: {}", unsafeTags);
     Object query = unsafeTags.get(DDTags.HTTP_QUERY);
     if (query instanceof CharSequence) {
       query = obfuscate(query.toString());
@@ -68,6 +71,7 @@ public class QueryObfuscator implements TagsPostProcessor {
       }
     }
 
+    log.debug("the retuned value of processTags: {}", unsafeTags);
     return unsafeTags;
   }
 }
