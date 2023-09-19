@@ -58,7 +58,7 @@ public class PeerServiceNamingV1 implements NamingSchema.ForPeerService {
     final String override = overridesByComponent.get(componentString);
     // check if value can be overridden
     if (override != null) {
-      set(unsafeTags, override, "config_override");
+      set(unsafeTags, override, "_component_override");
       return;
     }
     // otherwise try to lookup by component specific precursor
