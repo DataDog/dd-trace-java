@@ -72,7 +72,7 @@ public abstract class RemoteWriter implements Writer {
         final int samplingPriority = root.samplingPriority();
         switch (traceProcessingWorker.publish(root, samplingPriority, trace)) {
           case ENQUEUED_FOR_SERIALIZATION:
-            StackTraceElement[] stackTraceElements = Thread.currentThread().getStackTrace();
+            log.debug("keisuke log - current stack trace: {}", (Object) Thread.currentThread().getStackTrace());
             log.debug("keisuke log - current stack trace: {}", stackTraceElements);
             log.debug("Enqueued for serialization: {}", trace);
             healthMetrics.onPublish(trace, samplingPriority);
