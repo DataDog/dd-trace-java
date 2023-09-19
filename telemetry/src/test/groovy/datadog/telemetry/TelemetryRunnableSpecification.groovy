@@ -172,7 +172,7 @@ class TelemetryRunnableSpecification extends Specification {
     0 * _
   }
 
-  void 'reattempt app-started event next cycle'() {
+  void 'do not reattempt app-started event until next cycle'() {
     setup:
     TelemetryRunnable.ThreadSleeper sleeperMock = Mock()
     TickSleeper sleeper = new TickSleeper(delegate: sleeperMock)
@@ -191,12 +191,9 @@ class TelemetryRunnableSpecification extends Specification {
     sleeper.sleeped.await(10, TimeUnit.SECONDS)
 
     then: 'three unsuccessful attempts to send app-started (TelemetryRunnable.MAX_APP_STARTED_RETRIES) with following successful attempt'
-    4 * telemetryService.sendAppStartedEvent() >>> [false, false, false, true]
-    3 * timeSource.getCurrentTimeMillis() >> 60 * 1000
-    _ * telemetryService.addConfiguration(_)
-    1 * metricCollector.prepareMetrics()
-    1 * metricCollector.drain() >> []
-    1 * periodicAction.doIteration(telemetryService)
+    3 * telemetryService.sendAppStartedEvent() >>> [false, false, false]
+    2 * timeSource.getCurrentTimeMillis() >> 60 * 1000
+    1 * sleeperMock.sleep(10000)
   }
 
   void 'scheduler skips metrics intervals'() {

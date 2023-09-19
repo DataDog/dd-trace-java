@@ -68,6 +68,9 @@ public class TelemetryRunnable implements Runnable {
         }
         if (startupEventSent) {
           mainLoopIteration();
+        } else {
+          // force waiting until next heartbeat interval
+          scheduler.shouldRunHeartbeat();
         }
         scheduler.sleepUntilNextIteration();
       } catch (InterruptedException e) {
