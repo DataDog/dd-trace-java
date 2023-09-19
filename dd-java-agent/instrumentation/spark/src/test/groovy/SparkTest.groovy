@@ -223,20 +223,25 @@ class SparkTest extends AgentTestRunner {
       .config("spark.default.parallelism", "2") // Small parallelism to speed up tests
       .config("spark.sql.shuffle.partitions", "2")
       .config("spark.databricks.sparkContextId", "some_id")
-      .config("spark.databricks.clusterUsageTags.clusterName", "job-1234-run-5678-Job_cluster")
+      .config("spark.databricks.clusterUsageTags.clusterName", "job-1234-run-8765-Job_cluster")
       .getOrCreate()
 
     sparkSession.sparkContext().setLocalProperty("spark.databricks.job.id", "1234")
     sparkSession.sparkContext().setLocalProperty("spark.databricks.job.runId", "9012")
     sparkSession.sparkContext().setLocalProperty("spark.jobGroup.id", "0000_job-3456-run-7890-action-0000")
     sparkSession.sparkContext().setLocalProperty("spark.databricks.workload.id", "01-123-456")
+    sparkSession.sparkContext().setLocalProperty("spark.databricks.job.parentRunId", "5678")
+    sparkSession.sparkContext().setLocalProperty("spark.databricks.clusterUsageTags.clusterName", "job-1234-run-901-Job_cluster")
     TestSparkComputation.generateTestSparkComputation(sparkSession)
 
     sparkSession.sparkContext().setLocalProperty("spark.databricks.job.id", null)
     sparkSession.sparkContext().setLocalProperty("spark.databricks.job.runId", null)
+    sparkSession.sparkContext().setLocalProperty("spark.databricks.job.parentRunId", null)
     TestSparkComputation.generateTestSparkComputation(sparkSession)
 
     sparkSession.sparkContext().setLocalProperty("spark.jobGroup.id", null)
+    sparkSession.sparkContext().setLocalProperty("spark.databricks.job.parentRunId", null)
+    sparkSession.sparkContext().setLocalProperty("spark.databricks.clusterUsageTags.clusterName", null)
     TestSparkComputation.generateTestSparkComputation(sparkSession)
 
     sparkSession.sparkContext().setLocalProperty("spark.databricks.workload.id", null)
@@ -269,10 +274,10 @@ class SparkTest extends AgentTestRunner {
         span {
           operationName "spark.job"
           spanType "spark"
-          traceId 11498299501490458089G
+          traceId 5240384461065211484G
           parentSpanId 14128229261586201946G
           assert span.tags["databricks_job_id"] == "3456"
-          assert span.tags["databricks_job_run_id"] == "5678"
+          assert span.tags["databricks_job_run_id"] == "901"
           assert span.tags["databricks_task_run_id"] == "7890"
         }
         span {
@@ -290,10 +295,10 @@ class SparkTest extends AgentTestRunner {
         span {
           operationName "spark.job"
           spanType "spark"
-          traceId 11025888820707602535G
+          traceId 2235374731114184741G
           parentSpanId 8956125882166502063G
           assert span.tags["databricks_job_id"] == "123"
-          assert span.tags["databricks_job_run_id"] == "5678"
+          assert span.tags["databricks_job_run_id"] == "8765"
           assert span.tags["databricks_task_run_id"] == "456"
         }
         span {
@@ -313,7 +318,7 @@ class SparkTest extends AgentTestRunner {
           spanType "spark"
           parent()
           assert span.tags["databricks_job_id"] == null
-          assert span.tags["databricks_job_run_id"] == "5678"
+          assert span.tags["databricks_job_run_id"] == "8765"
           assert span.tags["databricks_task_run_id"] == null
         }
         span {

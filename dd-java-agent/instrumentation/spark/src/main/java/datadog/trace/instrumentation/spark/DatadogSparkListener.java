@@ -801,8 +801,14 @@ public class DatadogSparkListener extends SparkListener {
   @SuppressForbidden // split with one-char String use a fast-path without regex usage
   private static String getDatabricksJobRunId(
       Properties jobProperties, String databricksClusterName) {
-    String clusterName =
-        (String) jobProperties.get("spark.databricks.clusterUsageTags.clusterName");
+    String jobRunId = jobProperties.getProperty("spark.databricks.job.parentRunId");
+    if (jobRunId != null) {
+      return jobRunId;
+    }
+
+    // Fallback, extract the jobRunId from the cluster name for job clusters having the pattern
+    // job-<job_id>-run-<job_run_id>
+    String clusterName = jobProperties.getProperty("spark.databricks.clusterUsageTags.clusterName");
 
     // Using the databricksClusterName as fallback, if not present in jobProperties
     clusterName = (clusterName == null) ? databricksClusterName : clusterName;
