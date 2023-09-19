@@ -50,7 +50,8 @@ class TelemetryRunnableSpecification extends Specification {
     t.start()
     sleeper.sleeped.await(10, TimeUnit.SECONDS)
 
-    then:
+    then: 'two unsuccessful attempts to send app-started with the following successful attempt'
+    3 * telemetryService.sendAppStartedEvent() >>> [false, false, true]
     1 * timeSource.getCurrentTimeMillis() >> 60 * 1000
     _ * telemetryService.addConfiguration(_)
 
@@ -61,8 +62,8 @@ class TelemetryRunnableSpecification extends Specification {
     1 * metricCollector.drain() >> []
     1 * periodicAction.doIteration(telemetryService)
 
-    then:
-    1 * telemetryService.sendIntervalRequests()
+    then: 'two partial and one final telemetry data requests'
+    3 * telemetryService.sendTelemetryEvents() >>> [true, true, false]
     1 * timeSource.getCurrentTimeMillis() >> 60 * 1000 + 1
     1 * sleeperMock.sleep(9999)
     0 * _
@@ -157,7 +158,7 @@ class TelemetryRunnableSpecification extends Specification {
     1 * periodicAction.doIteration(telemetryService)
 
     then:
-    1 * telemetryService.sendIntervalRequests()
+    1 * telemetryService.sendTelemetryEvents()
     1 * timeSource.getCurrentTimeMillis() >> 120 * 1000 + 7
     1 * sleeperMock.sleep(9993)
     0 * _
@@ -167,8 +168,32 @@ class TelemetryRunnableSpecification extends Specification {
     t.join()
 
     then:
-    1 * telemetryService.sendAppClosingRequest()
+    1 * telemetryService.sendAppClosingEvent()
     0 * _
+  }
+
+  void 'do not reattempt app-started event until next cycle'() {
+    setup:
+    TelemetryRunnable.ThreadSleeper sleeperMock = Mock()
+    TickSleeper sleeper = new TickSleeper(delegate: sleeperMock)
+    TimeSource timeSource = Mock()
+    TelemetryService telemetryService = Mock(TelemetryService)
+    MetricCollector<MetricCollector.Metric> metricCollector = Mock(MetricCollector)
+    MetricPeriodicAction metricAction = Stub(MetricPeriodicAction) {
+      collector() >> metricCollector
+    }
+    TelemetryRunnable.TelemetryPeriodicAction periodicAction = Mock(TelemetryRunnable.TelemetryPeriodicAction)
+    TelemetryRunnable runnable = new TelemetryRunnable(telemetryService, [metricAction, periodicAction], sleeper, timeSource)
+    t = new Thread(runnable)
+
+    when: 'initial iteration before the first sleep (metrics and heartbeat)'
+    t.start()
+    sleeper.sleeped.await(10, TimeUnit.SECONDS)
+
+    then: 'three unsuccessful attempts to send app-started (TelemetryRunnable.MAX_APP_STARTED_RETRIES) with following successful attempt'
+    3 * telemetryService.sendAppStartedEvent() >>> [false, false, false]
+    2 * timeSource.getCurrentTimeMillis() >> 60 * 1000
+    1 * sleeperMock.sleep(10000)
   }
 
   void 'scheduler skips metrics intervals'() {

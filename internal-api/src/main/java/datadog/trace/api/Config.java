@@ -790,6 +790,8 @@ public class Config {
 
   private final float traceFlushIntervalSeconds;
 
+  private final boolean telemetryDebugRequestsEnabled;
+
   // Read order: System Properties -> Env Variables, [-> properties file], [-> default value]
   private Config() {
     this(ConfigProvider.createDefault());
@@ -1757,6 +1759,11 @@ public class Config {
           "Attempt to start in Agentless mode without API key. "
               + "Please ensure that either an API key is configured, or the tracer is set up to work with the Agent");
     }
+
+    this.telemetryDebugRequestsEnabled =
+        configProvider.getBoolean(
+            GeneralConfig.TELEMETRY_DEBUG_REQUESTS_ENABLED,
+            ConfigDefaults.DEFAULT_TELEMETRY_DEBUG_REQUESTS_ENABLED);
 
     log.debug("New instance: {}", this);
   }
@@ -3304,6 +3311,10 @@ public class Config {
     return Config.get().isTraceAnalyticsIntegrationEnabled(integrationNames, defaultEnabled);
   }
 
+  public boolean isTelemetryDebugRequestsEnabled() {
+    return telemetryDebugRequestsEnabled;
+  }
+
   private <T> Set<T> getSettingsSetFromEnvironment(
       String name, Function<String, T> mapper, boolean splitOnWS) {
     final String value = configProvider.getString(name, "");
@@ -3897,6 +3908,8 @@ public class Config {
         + removeIntegrationServiceNamesEnabled
         + ", spanAttributeSchemaVersion="
         + spanAttributeSchemaVersion
+        + ", telemetryDebugRequestsEnabled="
+        + telemetryDebugRequestsEnabled
         + '}';
   }
 }
