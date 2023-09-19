@@ -12,6 +12,8 @@ import java.net.HttpURLConnection;
 public class HttpUrlState {
   public static final ContextStore.Factory<HttpUrlState> FACTORY = HttpUrlState::new;
 
+  private static final Logger log = LoggerFactory.getLogger(HttpUrlState.class);
+
   private volatile AgentSpan span = null;
   private volatile boolean finished = false;
 
