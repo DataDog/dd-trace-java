@@ -74,7 +74,7 @@ public class TemplateVariablesUrlHandlerInstrumentation extends Instrumenter.Def
 
     @SuppressWarnings("Duplicates")
     @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
-    @Source(SourceTypes.REQUEST_PATH_PARAMETER_STRING)
+    @Source(SourceTypes.REQUEST_PATH_PARAMETER)
     public static void after(
         @Advice.Argument(0) final HttpServletRequest req,
         @Advice.Thrown(readOnly = false) Throwable t) {

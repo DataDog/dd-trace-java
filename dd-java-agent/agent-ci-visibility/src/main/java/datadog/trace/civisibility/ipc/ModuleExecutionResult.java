@@ -1,7 +1,11 @@
 package datadog.trace.civisibility.ipc;
 
 import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
+import java.util.List;
 import java.util.Objects;
 import javax.annotation.Nullable;
 
@@ -16,8 +20,7 @@ public class ModuleExecutionResult implements Signal {
   private final boolean coverageEnabled;
   private final boolean itrEnabled;
   private final long testsSkippedTotal;
-  @Nullable private final String testFramework;
-  @Nullable private final String testFrameworkVersion;
+  private final Collection<TestFramework> testFrameworks;
   @Nullable private final byte[] coverageData;
 
   public ModuleExecutionResult(
@@ -26,16 +29,14 @@ public class ModuleExecutionResult implements Signal {
       boolean coverageEnabled,
       boolean itrEnabled,
       long testsSkippedTotal,
-      @Nullable String testFramework,
-      @Nullable String testFrameworkVersion,
+      Collection<TestFramework> testFrameworks,
       @Nullable byte[] coverageData) {
     this.sessionId = sessionId;
     this.moduleId = moduleId;
     this.coverageEnabled = coverageEnabled;
     this.itrEnabled = itrEnabled;
     this.testsSkippedTotal = testsSkippedTotal;
-    this.testFramework = testFramework;
-    this.testFrameworkVersion = testFrameworkVersion;
+    this.testFrameworks = testFrameworks;
     this.coverageData = coverageData;
   }
 
@@ -59,14 +60,8 @@ public class ModuleExecutionResult implements Signal {
     return testsSkippedTotal;
   }
 
-  @Nullable
-  public String getTestFramework() {
-    return testFramework;
-  }
-
-  @Nullable
-  public String getTestFrameworkVersion() {
-    return testFrameworkVersion;
+  public Collection<TestFramework> getTestFrameworks() {
+    return testFrameworks;
   }
 
   @Nullable
@@ -88,8 +83,7 @@ public class ModuleExecutionResult implements Signal {
         && coverageEnabled == that.coverageEnabled
         && itrEnabled == that.itrEnabled
         && testsSkippedTotal == that.testsSkippedTotal
-        && Objects.equals(testFramework, that.testFramework)
-        && Objects.equals(testFrameworkVersion, that.testFrameworkVersion)
+        && Objects.equals(testFrameworks, that.testFrameworks)
         && Arrays.equals(coverageData, that.coverageData);
   }
 
@@ -101,8 +95,7 @@ public class ModuleExecutionResult implements Signal {
         coverageEnabled,
         itrEnabled,
         testsSkippedTotal,
-        testFramework,
-        testFrameworkVersion,
+        testFrameworks,
         Arrays.hashCode(coverageData));
   }
 
@@ -129,16 +122,20 @@ public class ModuleExecutionResult implements Signal {
 
   @Override
   public ByteBuffer serialize() {
-    byte[] testFrameworkBytes = testFramework != null ? testFramework.getBytes() : null;
-    byte[] testFrameworkVersionBytes =
-        testFrameworkVersion != null ? testFrameworkVersion.getBytes() : null;
-
-    int testFrameworkLength = testFrameworkBytes != null ? testFrameworkBytes.length : 0;
-    int testFrameworkVersionLength =
-        testFrameworkVersionBytes != null ? testFrameworkVersionBytes.length : 0;
     int coverageDataLength = coverageData != null ? coverageData.length : 0;
-    int variableLength =
-        Integer.BYTES * 3 + testFrameworkLength + testFrameworkVersionLength + coverageDataLength;
+    int variableLength = Integer.BYTES * 2 + coverageDataLength;
+
+    for (TestFramework testFramework : testFrameworks) {
+      String testFrameworkName = testFramework.getName();
+      String testFrameworkVersion = testFramework.getVersion();
+      int testFrameworkNameBytes =
+          testFrameworkName != null ? testFrameworkName.getBytes(StandardCharsets.UTF_8).length : 0;
+      int testFrameworkVersionBytes =
+          testFrameworkVersion != null
+              ? testFrameworkVersion.getBytes(StandardCharsets.UTF_8).length
+              : 0;
+      variableLength += Integer.BYTES * 2 + testFrameworkNameBytes + testFrameworkVersionBytes;
+    }
 
     ByteBuffer buffer = ByteBuffer.allocate(FIXED_LENGTH + variableLength);
     buffer.putLong(sessionId);
@@ -154,14 +151,25 @@ public class ModuleExecutionResult implements Signal {
     }
     buffer.put(flags);
 
-    buffer.putInt(testFrameworkLength);
-    if (testFrameworkLength != 0) {
-      buffer.put(testFrameworkBytes);
-    }
+    buffer.putInt(testFrameworks.size());
+    for (TestFramework testFramework : testFrameworks) {
+      String testFrameworkName = testFramework.getName();
+      if (testFrameworkName != null) {
+        byte[] testFrameworkNameBytes = testFrameworkName.getBytes(StandardCharsets.UTF_8);
+        buffer.putInt(testFrameworkNameBytes.length);
+        buffer.put(testFrameworkNameBytes);
+      } else {
+        buffer.putInt(0);
+      }
 
-    buffer.putInt(testFrameworkVersionLength);
-    if (testFrameworkVersionLength != 0) {
-      buffer.put(testFrameworkVersionBytes);
+      String testFrameworkVersion = testFramework.getVersion();
+      if (testFrameworkVersion != null) {
+        byte[] testFrameworkVersionBytes = testFrameworkVersion.getBytes(StandardCharsets.UTF_8);
+        buffer.putInt(testFrameworkVersionBytes.length);
+        buffer.put(testFrameworkVersionBytes);
+      } else {
+        buffer.putInt(0);
+      }
     }
 
     buffer.putInt(coverageDataLength);
@@ -190,24 +198,30 @@ public class ModuleExecutionResult implements Signal {
     boolean coverageEnabled = (flags & COVERAGE_ENABLED_FLAG) != 0;
     boolean itrEnabled = (flags & ITR_ENABLED_FLAG) != 0;
 
-    String testFramework;
-    int testFrameworkLength = buffer.getInt();
-    if (testFrameworkLength != 0) {
-      byte[] testFrameworkBytes = new byte[testFrameworkLength];
-      buffer.get(testFrameworkBytes);
-      testFramework = new String(testFrameworkBytes);
-    } else {
-      testFramework = null;
-    }
+    int testFrameworksSize = buffer.getInt();
+    List<TestFramework> testFrameworks = new ArrayList<>(testFrameworksSize);
+    for (int i = 0; i < testFrameworksSize; i++) {
+      int testFrameworkNameLength = buffer.getInt();
+      String testFrameworkName;
+      if (testFrameworkNameLength != 0) {
+        byte[] testFrameworkNameBytes = new byte[testFrameworkNameLength];
+        buffer.get(testFrameworkNameBytes);
+        testFrameworkName = new String(testFrameworkNameBytes, StandardCharsets.UTF_8);
+      } else {
+        testFrameworkName = null;
+      }
 
-    String testFrameworkVersion;
-    int testFrameworkVersionLength = buffer.getInt();
-    if (testFrameworkVersionLength != 0) {
-      byte[] testFrameworkVersionBytes = new byte[testFrameworkVersionLength];
-      buffer.get(testFrameworkVersionBytes);
-      testFrameworkVersion = new String(testFrameworkVersionBytes);
-    } else {
-      testFrameworkVersion = null;
+      int testFrameworkVersionLength = buffer.getInt();
+      String testFrameworkVersion;
+      if (testFrameworkVersionLength != 0) {
+        byte[] testFrameworkVersionBytes = new byte[testFrameworkVersionLength];
+        buffer.get(testFrameworkVersionBytes);
+        testFrameworkVersion = new String(testFrameworkVersionBytes, StandardCharsets.UTF_8);
+      } else {
+        testFrameworkVersion = null;
+      }
+
+      testFrameworks.add(new TestFramework(testFrameworkName, testFrameworkVersion));
     }
 
     byte[] coverageData;
@@ -225,8 +239,7 @@ public class ModuleExecutionResult implements Signal {
         coverageEnabled,
         itrEnabled,
         testsSkippedTotal,
-        testFramework,
-        testFrameworkVersion,
+        testFrameworks,
         coverageData);
   }
 }

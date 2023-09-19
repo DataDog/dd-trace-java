@@ -14,6 +14,7 @@ import datadog.trace.common.writer.RemoteMapper;
 import datadog.trace.core.CoreSpan;
 import datadog.trace.core.Metadata;
 import datadog.trace.core.MetadataConsumer;
+import datadog.trace.util.Strings;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.WritableByteChannel;
@@ -284,9 +285,15 @@ public class CiTestCycleMapperV1 implements RemoteMapper {
         writable.writeUTF8(metadata.getHttpStatusCode());
       }
       for (Map.Entry<String, Object> entry : metadata.getTags().entrySet()) {
-        if (!(entry.getValue() instanceof Number)) {
+        Object value = entry.getValue();
+        if (!(value instanceof Number)) {
           writable.writeString(entry.getKey(), null);
-          writable.writeObjectString(entry.getValue(), null);
+          if (!(value instanceof Iterable)) {
+            writable.writeObjectString(value, null);
+          } else {
+            String serializedValue = Strings.toJson((Iterable<String>) value);
+            writable.writeString(serializedValue, null);
+          }
         }
       }
     }

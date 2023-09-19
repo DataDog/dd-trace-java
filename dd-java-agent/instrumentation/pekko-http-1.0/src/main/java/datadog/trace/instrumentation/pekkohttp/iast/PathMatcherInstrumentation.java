@@ -47,7 +47,7 @@ public class PathMatcherInstrumentation extends Instrumenter.Iast
   @RequiresRequestContext(RequestContextSlot.IAST)
   static class PathMatcherAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
-    @Source(SourceTypes.REQUEST_PATH_PARAMETER_STRING)
+    @Source(SourceTypes.REQUEST_PATH_PARAMETER)
     static void onExit(
         @Advice.Argument(1) Object extractions, @ActiveRequestContext RequestContext reqCtx) {
       if (!(extractions instanceof scala.Tuple1)) {

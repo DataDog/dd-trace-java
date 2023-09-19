@@ -5,12 +5,9 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import com.datadog.debugger.agent.DebuggerTracer;
 import com.datadog.debugger.agent.ProbeStatus;
 import com.datadog.debugger.probe.SpanProbe;
-import datadog.trace.test.agent.decoder.DecodedMessage;
 import datadog.trace.test.agent.decoder.DecodedSpan;
-import datadog.trace.test.agent.decoder.Decoder;
 import java.nio.file.Path;
 import java.util.List;
-import okhttp3.mockwebserver.RecordedRequest;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -33,10 +30,7 @@ public class SpanProbesIntegrationTest extends SimpleAppDebuggerIntegrationTest 
         SpanProbe.builder().probeId(PROBE_ID).where(MAIN_CLASS_NAME, METHOD_NAME).build();
     setCurrentConfiguration(createSpanConfig(spanProbe));
     targetProcess = createProcessBuilder(logFilePath, METHOD_NAME, EXPECTED_UPLOADS).start();
-    RecordedRequest spanRequest = retrieveSpanRequest();
-    DecodedMessage decodedMessage = Decoder.decodeV04(spanRequest.getBody().readByteArray());
-    DecodedSpan decodedSpan = decodedMessage.getTraces().get(0).getSpans().get(0);
-    assertEquals(DebuggerTracer.OPERATION_NAME, decodedSpan.getName());
+    DecodedSpan decodedSpan = retrieveSpanRequest(DebuggerTracer.OPERATION_NAME);
     assertEquals("Main.fullMethod", decodedSpan.getResource());
   }
 
@@ -49,10 +43,7 @@ public class SpanProbesIntegrationTest extends SimpleAppDebuggerIntegrationTest 
         SpanProbe.builder().probeId(PROBE_ID).where(MAIN_CLASS_NAME, 68, 77).build();
     setCurrentConfiguration(createSpanConfig(spanProbe));
     targetProcess = createProcessBuilder(logFilePath, METHOD_NAME, EXPECTED_UPLOADS).start();
-    RecordedRequest spanRequest = retrieveSpanRequest();
-    DecodedMessage decodedMessage = Decoder.decodeV04(spanRequest.getBody().readByteArray());
-    DecodedSpan decodedSpan = decodedMessage.getTraces().get(0).getSpans().get(0);
-    assertEquals(DebuggerTracer.OPERATION_NAME, decodedSpan.getName());
+    DecodedSpan decodedSpan = retrieveSpanRequest(DebuggerTracer.OPERATION_NAME);
     assertEquals("Main.fullMethod:L68-77", decodedSpan.getResource());
   }
 

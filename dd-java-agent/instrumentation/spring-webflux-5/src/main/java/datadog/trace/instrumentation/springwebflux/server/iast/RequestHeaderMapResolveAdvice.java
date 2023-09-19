@@ -16,7 +16,7 @@ import org.springframework.util.MultiValueMap;
 @RequiresRequestContext(RequestContextSlot.IAST)
 public class RequestHeaderMapResolveAdvice {
   @Advice.OnMethodExit(suppress = Throwable.class)
-  @Source(SourceTypes.REQUEST_HEADER_VALUE_STRING)
+  @Source(SourceTypes.REQUEST_HEADER_VALUE)
   public static void after(@Advice.Return(typing = Assigner.Typing.DYNAMIC) Map<String, ?> values) {
     WebModule module = InstrumentationBridge.WEB;
     PropagationModule prop = InstrumentationBridge.PROPAGATION;

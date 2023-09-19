@@ -8,6 +8,7 @@ import static io.opentelemetry.api.trace.StatusCode.UNSET;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AttachableWrapper;
+import datadog.trace.bootstrap.instrumentation.api.ErrorPriorities;
 import io.opentelemetry.api.common.AttributeKey;
 import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.trace.Span;
@@ -74,7 +75,10 @@ public class OtelSpan implements Span {
 
   @Override
   public Span recordException(Throwable exception, Attributes additionalAttributes) {
-    // Not supported
+    if (this.recording) {
+      // Store exception as span tags as span events are not supported yet
+      this.delegate.addThrowable(exception, ErrorPriorities.UNSET);
+    }
     return this;
   }
 

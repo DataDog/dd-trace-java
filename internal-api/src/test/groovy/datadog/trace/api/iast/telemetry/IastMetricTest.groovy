@@ -30,15 +30,15 @@ class IastMetricTest extends Specification {
 
   void 'test parsing of tags'() {
     when:
-    final result = metricTag.parse(tag)
+    final result = metricTag.unwrap(tag)
 
     then:
     result == expected
 
     where:
-    metricTag                         | tag                                        | expected
-    IastMetric.Tag.VULNERABILITY_TYPE | VulnerabilityTypes.RESPONSE_HEADER         | VulnerabilityTypes.RESPONSE_HEADER_TYPES
-    IastMetric.Tag.VULNERABILITY_TYPE | VulnerabilityTypes.SQL_INJECTION           | new String[0]
-    IastMetric.Tag.SOURCE_TYPE        | SourceTypes.REQUEST_PARAMETER_VALUE_STRING | new String[0]
+    metricTag                         | tag                                 | expected
+    IastMetric.Tag.VULNERABILITY_TYPE | VulnerabilityTypes.RESPONSE_HEADER  | VulnerabilityTypes.RESPONSE_HEADER_TYPES
+    IastMetric.Tag.VULNERABILITY_TYPE | VulnerabilityTypes.SQL_INJECTION    | new byte[0]
+    IastMetric.Tag.SOURCE_TYPE        | SourceTypes.REQUEST_PARAMETER_VALUE | new byte[0]
   }
 }

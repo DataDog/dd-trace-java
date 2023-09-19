@@ -42,6 +42,7 @@ public class DatadogSparkListener extends SparkListener {
   public static volatile boolean finishTraceOnApplicationEnd = true;
 
   private final int MAX_COLLECTION_SIZE = 1000;
+  private final String RUNTIME_TAGS_PREFIX = "spark.datadog.tags.";
 
   private final SparkConf sparkConf;
   private final String sparkVersion;
@@ -104,7 +105,7 @@ public class DatadogSparkListener extends SparkListener {
       return;
     }
 
-    AgentTracer.SpanBuilder builder = buildSparkSpan("spark.application");
+    AgentTracer.SpanBuilder builder = buildSparkSpan("spark.application", null);
 
     if (applicationStart != null) {
       builder
@@ -177,7 +178,7 @@ public class DatadogSparkListener extends SparkListener {
     }
 
     AgentTracer.SpanBuilder builder =
-        buildSparkSpan("spark.batch").withStartTimestamp(timeMs * 1000);
+        buildSparkSpan("spark.batch", jobProperties).withStartTimestamp(timeMs * 1000);
 
     // Streaming spans will always be the root span, capturing all parameters on those
     captureApplicationParameters(builder);
@@ -235,7 +236,7 @@ public class DatadogSparkListener extends SparkListener {
     }
 
     AgentTracer.SpanBuilder spanBuilder =
-        buildSparkSpan("spark.sql")
+        buildSparkSpan("spark.sql", jobProperties)
             .withStartTimestamp(queryStart.time() * 1000)
             .withTag("query_id", sqlExecutionId)
             .withTag("description", queryStart.description())
@@ -266,7 +267,7 @@ public class DatadogSparkListener extends SparkListener {
     }
 
     AgentTracer.SpanBuilder jobSpanBuilder =
-        buildSparkSpan("spark.job")
+        buildSparkSpan("spark.job", jobStart.properties())
             .withStartTimestamp(jobStart.time() * 1000)
             .withTag("job_id", jobStart.jobId())
             .withTag("stage_count", jobStart.stageInfos().size());
@@ -383,7 +384,7 @@ public class DatadogSparkListener extends SparkListener {
     stageProperties.put(stageSpanKey, stageSubmitted.properties());
 
     AgentSpan stageSpan =
-        buildSparkSpan("spark.stage")
+        buildSparkSpan("spark.stage", stageSubmitted.properties())
             .asChildOf(jobSpan.context())
             .withStartTimestamp(submissionTimeMs * 1000)
             .withTag("stage_id", stageId)
@@ -502,12 +503,14 @@ public class DatadogSparkListener extends SparkListener {
       return;
     }
 
-    sendTaskSpan(stageSpan, taskEnd);
+    Properties props = stageProperties.get(stageSpanKey);
+    sendTaskSpan(stageSpan, taskEnd, props);
   }
 
-  private void sendTaskSpan(AgentSpan stageSpan, SparkListenerTaskEnd taskEnd) {
+  private void sendTaskSpan(
+      AgentSpan stageSpan, SparkListenerTaskEnd taskEnd, Properties properties) {
     AgentSpan taskSpan =
-        buildSparkSpan("spark.task")
+        buildSparkSpan("spark.task", properties)
             .asChildOf(stageSpan.context())
             .withStartTimestamp(taskEnd.taskInfo().launchTime() * 1000)
             .withTag("task_id", taskEnd.taskInfo().taskId())
@@ -738,8 +741,28 @@ public class DatadogSparkListener extends SparkListener {
     }
   }
 
-  private AgentTracer.SpanBuilder buildSparkSpan(String spanName) {
-    return tracer.buildSpan(spanName).withSpanType("spark").withTag("app_id", appId);
+  private AgentTracer.SpanBuilder buildSparkSpan(String spanName, Properties properties) {
+    AgentTracer.SpanBuilder builder =
+        tracer.buildSpan(spanName).withSpanType("spark").withTag("app_id", appId);
+
+    addPropertiesTags(builder, properties);
+
+    return builder;
+  }
+
+  private void addPropertiesTags(AgentTracer.SpanBuilder builder, Properties properties) {
+    if (properties == null) {
+      return;
+    }
+
+    for (String propertyName : properties.stringPropertyNames()) {
+      if (propertyName.startsWith(RUNTIME_TAGS_PREFIX)) {
+        String value = properties.getProperty(propertyName);
+        String key = propertyName.substring(RUNTIME_TAGS_PREFIX.length());
+
+        builder.withTag(key, value);
+      }
+    }
   }
 
   private long stageSpanKey(int stageId, int attemptId) {

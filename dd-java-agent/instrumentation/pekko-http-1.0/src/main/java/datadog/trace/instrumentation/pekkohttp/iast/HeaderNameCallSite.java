@@ -15,7 +15,7 @@ import org.apache.pekko.http.javadsl.model.HttpHeader;
  * because there are many calls to {@link HttpHeader#name()} inside pekko-http code that we don't
  * care about.
  */
-@Source(value = SourceTypes.REQUEST_HEADER_NAME_STRING)
+@Source(value = SourceTypes.REQUEST_HEADER_NAME)
 @CallSite(spi = IastCallSites.class)
 public class HeaderNameCallSite {
 

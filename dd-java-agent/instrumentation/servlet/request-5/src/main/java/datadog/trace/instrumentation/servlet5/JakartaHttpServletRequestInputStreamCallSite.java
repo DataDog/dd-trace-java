@@ -12,7 +12,7 @@ import jakarta.servlet.http.HttpServletRequest;
 @CallSite(spi = IastCallSites.class)
 public class JakartaHttpServletRequestInputStreamCallSite {
 
-  @Source(SourceTypes.REQUEST_BODY_STRING)
+  @Source(SourceTypes.REQUEST_BODY)
   @CallSite.After(
       "jakarta.servlet.ServletInputStream jakarta.servlet.http.HttpServletRequest.getInputStream()")
   @CallSite.After(

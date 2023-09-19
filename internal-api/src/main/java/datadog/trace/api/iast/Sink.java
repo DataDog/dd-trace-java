@@ -9,5 +9,5 @@ import java.lang.annotation.Target;
 @Retention(RetentionPolicy.RUNTIME)
 public @interface Sink {
   /** Vulnerability type */
-  String value();
+  byte value();
 }

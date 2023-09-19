@@ -107,7 +107,7 @@ public class FormFieldDirectivesInstrumentation extends Instrumenter.Iast
 
   static class TaintSingleFormFieldDirectiveOldScalaAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
-    @Source(SourceTypes.REQUEST_PARAMETER_VALUE_STRING)
+    @Source(SourceTypes.REQUEST_PARAMETER_VALUE)
     static void after(
         @Advice.Return(readOnly = false, typing = Assigner.Typing.DYNAMIC) Directive retval,
         @Advice.Argument(1) FormFieldDirectives.FieldMagnet fmag) {
@@ -122,7 +122,7 @@ public class FormFieldDirectivesInstrumentation extends Instrumenter.Iast
 
   static class TaintSingleFormFieldDirectiveNewScalaAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
-    @Source(SourceTypes.REQUEST_PARAMETER_VALUE_STRING)
+    @Source(SourceTypes.REQUEST_PARAMETER_VALUE)
     static void after(
         @Advice.Return(readOnly = false, typing = Assigner.Typing.DYNAMIC) Directive retval,
         @Advice.Argument(0) FormFieldDirectives.FieldMagnet fmag) {
