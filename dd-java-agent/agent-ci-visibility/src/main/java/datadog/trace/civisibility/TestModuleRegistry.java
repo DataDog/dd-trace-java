@@ -24,10 +24,14 @@ public class TestModuleRegistry {
     testModuleById.put(module.getId(), module);
   }
 
+  public void removeModule(DDBuildSystemModule module) {
+    testModuleById.remove(module.getId());
+  }
+
   public SignalResponse onModuleExecutionResultReceived(
       ModuleExecutionResult result, ExecutionDataStore coverageData) {
     long moduleId = result.getModuleId();
-    DDBuildSystemModule module = testModuleById.remove(moduleId);
+    DDBuildSystemModule module = testModuleById.get(moduleId);
     if (module == null) {
       String message =
           String.format(
