@@ -1,15 +1,19 @@
 package datadog.smoketest.springboot
 
 import datadog.smoketest.AbstractIastServerSmokeTest
+import datadog.trace.api.Platform
 import groovy.transform.CompileDynamic
 import okhttp3.Request
+import spock.lang.IgnoreIf
 
 import static datadog.trace.api.config.IastConfig.IAST_DEBUG_ENABLED
 import static datadog.trace.api.config.IastConfig.IAST_DETECTION_MODE
 import static datadog.trace.api.config.IastConfig.IAST_ENABLED
 import static datadog.trace.api.config.IastConfig.IAST_REDACTION_ENABLED
 
-@CompileDynamic
+@IgnoreIf({
+  !Platform.isJavaVersionAtLeast(17)
+})
 class IastSpringBootThymeleafSmokeTest extends AbstractIastServerSmokeTest {
 
   @Override
