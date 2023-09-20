@@ -85,8 +85,10 @@ public class CurrentAppSecConfig {
       mso.put("metadata", ddConfig.getRawConfig().getOrDefault("metadata", Collections.emptyMap()));
       mso.put("rules", ddConfig.getRawConfig().getOrDefault("rules", Collections.emptyList()));
       mso.put(
-          "preprocessors",
-          ddConfig.getRawConfig().getOrDefault("preprocessors", Collections.emptyList()));
+          "processors",
+          ddConfig.getRawConfig().getOrDefault("processors", Collections.emptyList()));
+      mso.put(
+          "scanners", ddConfig.getRawConfig().getOrDefault("scanners", Collections.emptyList()));
     }
     if (dirtyStatus.customRules) {
       mso.put("custom_rules", getMergedCustomRules());

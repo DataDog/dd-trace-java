@@ -559,7 +559,7 @@ public class GatewayBridge {
             KnownAddresses.RESPONSE_STATUS, String.valueOf(ctx.getResponseStatus()),
             KnownAddresses.RESPONSE_HEADERS_NO_COOKIES, ctx.getResponseHeaders(),
             // Extract api schema on response stage
-            KnownAddresses.WAF_CONTEXT_SETTINGS,
+            KnownAddresses.WAF_CONTEXT_PROCESSOR,
                 Collections.singletonMap("extract-schema", extractSchema));
 
     while (true) {

@@ -100,7 +100,7 @@ public interface KnownAddresses {
 
   Address<String> USER_ID = new Address<>("usr.id");
 
-  Address<Map<String, Object>> WAF_CONTEXT_SETTINGS = new Address<>("waf.context.settings");
+  Address<Map<String, Object>> WAF_CONTEXT_PROCESSOR = new Address<>("waf.context.processor");
 
   static Address<?> forName(String name) {
     switch (name) {
@@ -150,8 +150,8 @@ public interface KnownAddresses {
         return GRPC_SERVER_REQUEST_METADATA;
       case "usr.id":
         return USER_ID;
-      case "waf.context.settings":
-        return WAF_CONTEXT_SETTINGS;
+      case "waf.context.processor":
+        return WAF_CONTEXT_PROCESSOR;
       default:
         return null;
     }
