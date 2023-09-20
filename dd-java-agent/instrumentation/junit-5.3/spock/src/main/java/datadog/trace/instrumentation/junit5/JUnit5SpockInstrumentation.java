@@ -6,6 +6,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.matcher.ElementMatcher;
 import org.junit.platform.engine.EngineExecutionListener;
@@ -50,6 +51,9 @@ public class JUnit5SpockInstrumentation extends Instrumenter.CiVisibility
         JUnit5SpockInstrumentation.class.getName() + "$SpockAdvice");
   }
 
+  @SuppressFBWarnings(
+      value = "UC_USELESS_OBJECT",
+      justification = "executionRequest is the argument of the original method")
   public static class SpockAdvice {
 
     @Advice.OnMethodEnter

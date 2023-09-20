@@ -6,6 +6,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import io.cucumber.junit.platform.engine.CucumberTestEngine;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.matcher.ElementMatcher;
@@ -50,6 +51,9 @@ public class JUnit5CucumberInstrumentation extends Instrumenter.CiVisibility
         JUnit5CucumberInstrumentation.class.getName() + "$CucumberAdvice");
   }
 
+  @SuppressFBWarnings(
+      value = "UC_USELESS_OBJECT",
+      justification = "executionRequest is the argument of the original method")
   public static class CucumberAdvice {
 
     @Advice.OnMethodEnter
