@@ -85,7 +85,7 @@ class ConfigCollectorTest extends DDSpecification {
     TracerConfig.HEADER_TAGS                                  | "j:ten"                                        | "e:five,b:six"            | "e:five,j:ten,b:six"
   }
 
-  def "default config settings are collected"() {
+  def "default not-null config settings are collected"() {
     expect:
     def setting = ConfigCollector.get().collect().get(configKey)
     setting.origin == ConfigOrigin.DEFAULT
@@ -96,18 +96,27 @@ class ConfigCollectorTest extends DDSpecification {
     IastConfig.IAST_TELEMETRY_VERBOSITY                        | Verbosity.INFORMATION.toString()
     TracerConfig.TRACE_SPAN_ATTRIBUTE_SCHEMA                   | "v" + SpanNaming.SCHEMA_MIN_VERSION
     AppSecConfig.APPSEC_AUTOMATED_USER_EVENTS_TRACKING         | SAFE.toString()
-    GeneralConfig.APPLICATION_KEY                              | null
-    TraceInstrumentationConfig.RESOLVER_USE_URL_CACHES         | null
-    JmxFetchConfig.JMX_FETCH_CHECK_PERIOD                      | null
-    CiVisibilityConfig.CIVISIBILITY_MODULE_ID                  | null
     GeneralConfig.TELEMETRY_HEARTBEAT_INTERVAL                 | DEFAULT_TELEMETRY_HEARTBEAT_INTERVAL
-    TracerConfig.TRACE_SAMPLE_RATE                             | null
-    TraceInstrumentationConfig.JMS_PROPAGATION_DISABLED_TOPICS | null
+    CiVisibilityConfig.CIVISIBILITY_JACOCO_GRADLE_SOURCE_SETS  | "main"
     IastConfig.IAST_WEAK_HASH_ALGORITHMS                       | DEFAULT_IAST_WEAK_HASH_ALGORITHMS.join(",")
-    TracerConfig.PROXY_NO_PROXY                                | null
-    TracerConfig.TRACE_PEER_SERVICE_MAPPING                    | ""
-    TracerConfig.TRACE_HTTP_SERVER_PATH_RESOURCE_NAME_MAPPING  | ""
-    TracerConfig.HEADER_TAGS                                   | ""
     TracerConfig.HTTP_CLIENT_ERROR_STATUSES                    | ConfigConverter.renderIntegerRange(DEFAULT_HTTP_CLIENT_ERROR_STATUSES)
+  }
+
+  def "default NULL config settings are NOT collected"() {
+    expect:
+    ConfigCollector.get().collect().get(configKey) == null
+
+    where:
+    configKey                                                  | _
+    GeneralConfig.APPLICATION_KEY                              | _
+    TraceInstrumentationConfig.RESOLVER_USE_URL_CACHES         | _
+    JmxFetchConfig.JMX_FETCH_CHECK_PERIOD                      | _
+    CiVisibilityConfig.CIVISIBILITY_MODULE_ID                  | _
+    TracerConfig.TRACE_SAMPLE_RATE                             | _
+    TraceInstrumentationConfig.JMS_PROPAGATION_DISABLED_TOPICS | _
+    TracerConfig.PROXY_NO_PROXY                                | _
+    TracerConfig.TRACE_PEER_SERVICE_MAPPING                    | _
+    TracerConfig.TRACE_HTTP_SERVER_PATH_RESOURCE_NAME_MAPPING  | _
+    TracerConfig.HEADER_TAGS                                   | _
   }
 }

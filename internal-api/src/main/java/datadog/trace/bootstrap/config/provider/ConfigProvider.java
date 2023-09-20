@@ -125,7 +125,7 @@ public final class ConfigProvider {
         return value;
       }
     }
-    if (collectConfig) {
+    if (collectConfig && defaultValue != null) {
       ConfigCollector.get().put(key, defaultValue, ConfigOrigin.DEFAULT);
     }
     return defaultValue;
@@ -203,7 +203,7 @@ public final class ConfigProvider {
         // continue
       }
     }
-    if (collectConfig) {
+    if (collectConfig && defaultValue != null) {
       ConfigCollector.get().put(key, defaultValue, ConfigOrigin.DEFAULT);
     }
     return defaultValue;
@@ -216,6 +216,9 @@ public final class ConfigProvider {
   public List<String> getList(String key, List<String> defaultValue) {
     String list = getString(key);
     if (null == list) {
+      if (collectConfig) {
+        ConfigCollector.get().put(key, String.join(",", defaultValue), ConfigOrigin.DEFAULT);
+      }
       return defaultValue;
     } else {
       return ConfigConverter.parseList(getString(key));
@@ -405,7 +408,7 @@ public final class ConfigProvider {
   }
 
   private void collectMapSetting(String key, Map<String, String> merged, ConfigOrigin origin) {
-    if (!collectConfig) {
+    if (!collectConfig || merged.isEmpty()) {
       return;
     }
     StringBuilder mergedValue = new StringBuilder();
