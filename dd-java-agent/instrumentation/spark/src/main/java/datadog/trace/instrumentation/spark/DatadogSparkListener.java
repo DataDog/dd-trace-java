@@ -201,11 +201,9 @@ public class DatadogSparkListener extends SparkListener {
     captureJobParameters(builder, properties);
 
     if (properties != null) {
-      String databricksJobId = properties.getProperty("spark.databricks.job.id");
+      String databricksJobId = getDatabricksJobId(properties);
       String databricksJobRunId = getDatabricksJobRunId(properties, databricksClusterName);
-
-      // spark.databricks.job.runId is the runId of the task, not of the Job
-      String databricksTaskRunId = properties.getProperty("spark.databricks.job.runId");
+      String databricksTaskRunId = getDatabricksTaskRunId(properties);
 
       // ids to link those spans to databricks job/task traces
       builder.withTag("databricks_job_id", databricksJobId);
@@ -770,10 +768,47 @@ public class DatadogSparkListener extends SparkListener {
   }
 
   @SuppressForbidden // split with one-char String use a fast-path without regex usage
+  private static String getDatabricksJobId(Properties properties) {
+    String jobId = properties.getProperty("spark.databricks.job.id");
+    if (jobId != null) {
+      return jobId;
+    }
+
+    // First fallback, use spark.jobGroup.id with the pattern
+    // <scheduler_id>_job-<job_id>-run-<task_run_id>-action-<action_id>
+    String jobGroupId = properties.getProperty("spark.jobGroup.id");
+    if (jobGroupId != null) {
+      int startIndex = jobGroupId.indexOf("job-");
+      int endIndex = jobGroupId.indexOf("-run", startIndex);
+      if (startIndex != -1 && endIndex != -1) {
+        return jobGroupId.substring(startIndex + 4, endIndex);
+      }
+    }
+
+    // Second fallback, use spark.databricks.workload.id with pattern
+    // <org_id>-<job_id>-<task_run_id>
+    String workloadId = properties.getProperty("spark.databricks.workload.id");
+    if (workloadId != null) {
+      String[] parts = workloadId.split("-");
+      if (parts.length > 1) {
+        return parts[1];
+      }
+    }
+
+    return null;
+  }
+
+  @SuppressForbidden // split with one-char String use a fast-path without regex usage
   private static String getDatabricksJobRunId(
       Properties jobProperties, String databricksClusterName) {
-    String clusterName =
-        (String) jobProperties.get("spark.databricks.clusterUsageTags.clusterName");
+    String jobRunId = jobProperties.getProperty("spark.databricks.job.parentRunId");
+    if (jobRunId != null) {
+      return jobRunId;
+    }
+
+    // Fallback, extract the jobRunId from the cluster name for job clusters having the pattern
+    // job-<job_id>-run-<job_run_id>
+    String clusterName = jobProperties.getProperty("spark.databricks.clusterUsageTags.clusterName");
 
     // Using the databricksClusterName as fallback, if not present in jobProperties
     clusterName = (clusterName == null) ? databricksClusterName : clusterName;
@@ -786,6 +821,38 @@ public class DatadogSparkListener extends SparkListener {
     String[] parts = clusterName.split("-");
     if (parts.length > 3) {
       return parts[3];
+    }
+
+    return null;
+  }
+
+  @SuppressForbidden // split with one-char String use a fast-path without regex usage
+  private static String getDatabricksTaskRunId(Properties properties) {
+    // spark.databricks.job.runId is the runId of the task, not of the Job
+    String taskRunId = properties.getProperty("spark.databricks.job.runId");
+    if (taskRunId != null) {
+      return taskRunId;
+    }
+
+    // First fallback, use spark.jobGroup.id with the pattern
+    // <scheduler_id>_job-<job_id>-run-<task_run_id>-action-<action_id>
+    String jobGroupId = properties.getProperty("spark.jobGroup.id");
+    if (jobGroupId != null) {
+      int startIndex = jobGroupId.indexOf("run-");
+      int endIndex = jobGroupId.indexOf("-action", startIndex);
+      if (startIndex != -1 && endIndex != -1) {
+        return jobGroupId.substring(startIndex + 4, endIndex);
+      }
+    }
+
+    // Second fallback, use spark.databricks.workload.id with pattern
+    // <org_id>-<job_id>-<task_run_id>
+    String workloadId = properties.getProperty("spark.databricks.workload.id");
+    if (workloadId != null) {
+      String[] parts = workloadId.split("-");
+      if (parts.length > 2) {
+        return parts[2];
+      }
     }
 
     return null;

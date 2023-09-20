@@ -26,6 +26,11 @@ public final class Location {
     return new Location(spanId, clazz, -1, method);
   }
 
+  public static Location forSpanAndFileAndLine(
+      final long spanId, final String file, final int line) {
+    return new Location(spanId, file, line, null);
+  }
+
   public long getSpanId() {
     return spanId == null ? 0 : spanId;
   }
