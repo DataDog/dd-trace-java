@@ -73,7 +73,7 @@ class TelemetryRequestStateSpecification extends Specification {
       '{"name":"string","value":"bar","origin":"remote_config"},' +
       '{"name":"int","value":2342,"origin":"default"},' +
       '{"name":"double","value":123.456,"origin":"env_var"},' +
-      '{"name":"map","value":{"key1":"value1","key2":432.32,"key3":324},"origin":"jvm.prop"},' +
+      '{"name":"map","value":{"key1":"value1","key2":432.32,"key3":324},"origin":"jvm_prop"},' +
       '{"name":"null","value":null,"origin":"default"}]'
   }
 

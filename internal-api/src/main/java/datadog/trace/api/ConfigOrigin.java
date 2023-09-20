@@ -5,7 +5,8 @@ public enum ConfigOrigin {
   ENV("env_var"),
   /** values that are set using remote config */
   REMOTE("remote_config"),
-  JVM_PROP("jvm.prop"),
+  /** configurations that are set through JVM properties */
+  JVM_PROP("jvm_prop"),
   /** set when the user has not set any configuration for the key (defaults to a value) */
   DEFAULT("default");
 

@@ -101,7 +101,7 @@ public final class ConfigProvider {
         return value;
       }
     }
-    if (collectConfig) {
+    if (collectConfig && defaultValue != null) {
       ConfigCollector.get().put(key, defaultValue, ConfigOrigin.DEFAULT);
     }
     return defaultValue;
@@ -216,7 +216,7 @@ public final class ConfigProvider {
   public List<String> getList(String key, List<String> defaultValue) {
     String list = getString(key);
     if (null == list) {
-      if (collectConfig) {
+      if (collectConfig && defaultValue != null) {
         ConfigCollector.get().put(key, String.join(",", defaultValue), ConfigOrigin.DEFAULT);
       }
       return defaultValue;
@@ -228,7 +228,7 @@ public final class ConfigProvider {
   public Set<String> getSet(String key, Set<String> defaultValue) {
     String list = getString(key);
     if (null == list) {
-      if (collectConfig) {
+      if (collectConfig && defaultValue != null) {
         String defaultValueStr = String.join(",", defaultValue);
         ConfigCollector.get().put(key, defaultValueStr, ConfigOrigin.DEFAULT);
       }
