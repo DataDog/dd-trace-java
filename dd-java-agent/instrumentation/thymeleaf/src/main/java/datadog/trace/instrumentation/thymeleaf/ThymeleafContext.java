@@ -2,11 +2,11 @@ package datadog.trace.instrumentation.thymeleaf;
 
 public class ThymeleafContext {
 
-  private String templateName;
+  private final String templateName;
 
-  private int line;
+  private final int line;
 
-  public ThymeleafContext(String file, int line) {
+  public ThymeleafContext(final String file, final int line) {
     this.templateName = file;
     this.line = line;
   }

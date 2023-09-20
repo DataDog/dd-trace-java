@@ -56,7 +56,7 @@ public class XssModuleImpl extends SinkModuleBase implements XssModule {
     if (!overheadController.consumeQuota(Operations.REPORT_VULNERABILITY, span)) {
       return;
     }
-    final Evidence evidence = new Evidence(s.toString(), notMarkedRanges);
+    final Evidence evidence = new Evidence(s, notMarkedRanges);
     reporter.report(
         span,
         new Vulnerability(
@@ -94,8 +94,8 @@ public class XssModuleImpl extends SinkModuleBase implements XssModule {
   }
 
   @Override
-  public void onXss(@Nonnull CharSequence s, @Nonnull String file, int line) {
-    if (!canBeTainted(s) || !canBeTainted(file)) {
+  public void onXss(@Nonnull CharSequence s, @Nullable String file, int line) {
+    if (!canBeTainted(s) || file == null || file.isEmpty()) {
       return;
     }
     final AgentSpan span = AgentTracer.activeSpan();

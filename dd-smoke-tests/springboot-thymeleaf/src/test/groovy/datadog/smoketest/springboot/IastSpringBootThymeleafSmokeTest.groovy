@@ -40,10 +40,10 @@ class IastSpringBootThymeleafSmokeTest extends AbstractIastServerSmokeTest {
     client.newCall(request).execute()
 
     then:
-    hasVulnerability { vul -> vul.type == 'XSS' && vul.location.path == method && vul.location.line == line }
+    hasVulnerability { vul -> vul.type == 'XSS' && vul.location.path == templateName && vul.location.line == line }
 
     where:
-    method     | param | line
-    'utext'    | 'test' | 12
+    method    | param |templateName| line
+    'utext'    | 'test' | 'utext' | 12
   }
 }
