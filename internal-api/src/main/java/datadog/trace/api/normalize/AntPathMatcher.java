@@ -194,7 +194,7 @@ final class AntPathMatcher {
       }
     }
 
-    log.debug("keisuke log - 197 false");
+    log.debug("keisuke log - 197 true");
     return true;
   }
 
