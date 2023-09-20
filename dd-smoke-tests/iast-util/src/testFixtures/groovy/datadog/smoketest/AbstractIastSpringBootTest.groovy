@@ -2,6 +2,7 @@ package datadog.smoketest
 
 import okhttp3.FormBody
 import okhttp3.MediaType
+import okhttp3.MultipartBody
 import okhttp3.Request
 import okhttp3.RequestBody
 
@@ -81,6 +82,33 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
 
     checkLogPostExit()
     !logHasErrors
+  }
+
+  void 'Multipart Request parameters'(){
+    given:
+    String url = "http://localhost:${httpPort}/multipart"
+
+    RequestBody requestBody = new MultipartBody.Builder().setType(MultipartBody.FORM)
+      .addFormDataPart("theFile", "theFileName",
+      RequestBody.create(MediaType.parse("text/plain"), "FILE_CONTENT"))
+      .addFormDataPart("param1", "param1Value")
+      .build()
+
+    Request request = new Request.Builder()
+      .url(url)
+      .post(requestBody)
+      .build()
+    when:
+    final retValue = client.newCall(request).execute().body().string()
+
+    then:
+    retValue == "fileName: theFile"
+    hasTainted { tainted ->
+      tainted.value == 'theFile' &&
+        tainted.ranges[0].source.name == 'Content-Disposition' &&
+        tainted.ranges[0].source.origin == 'http.request.multipart.parameter'
+    }
+
   }
 
   void 'iast.enabled tag is present'() {
