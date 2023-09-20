@@ -5,7 +5,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_AGENT_TIMEOUT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_AGENT_WRITER_TYPE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_ANALYTICS_SAMPLE_RATE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_API_SECURITY_ENABLED;
-import static datadog.trace.api.ConfigDefaults.DEFAULT_API_SECURITY_REQUEST_SAMPLING;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_API_SECURITY_REQUEST_SAMPLE_RATE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_REPORTING_INBAND;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_TRACE_RATE_LIMIT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_WAF_METRICS;
@@ -115,7 +115,7 @@ import static datadog.trace.api.DDTags.SERVICE;
 import static datadog.trace.api.DDTags.SERVICE_TAG;
 import static datadog.trace.api.UserEventTrackingMode.SAFE;
 import static datadog.trace.api.config.AppSecConfig.API_SECURITY_ENABLED;
-import static datadog.trace.api.config.AppSecConfig.API_SECURITY_REQUEST_SAMPLING;
+import static datadog.trace.api.config.AppSecConfig.API_SECURITY_REQUEST_SAMPLE_RATE;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_AUTOMATED_USER_EVENTS_TRACKING;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_HTTP_BLOCKED_TEMPLATE_HTML;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_HTTP_BLOCKED_TEMPLATE_JSON;
@@ -639,7 +639,7 @@ public class Config {
   private final String appSecHttpBlockedTemplateJson;
   private final UserEventTrackingMode appSecUserEventsTracking;
   private final boolean apiSecurityEnabled;
-  private final int apiSecurityRequestSampling;
+  private final float apiSecurityRequestSampleRate;
 
   private final IastDetectionMode iastDetectionMode;
   private final int iastMaxConcurrentRequests;
@@ -1444,9 +1444,9 @@ public class Config {
                 APPSEC_AUTOMATED_USER_EVENTS_TRACKING, SAFE.toString()));
     apiSecurityEnabled =
         configProvider.getBoolean(API_SECURITY_ENABLED, DEFAULT_API_SECURITY_ENABLED);
-    apiSecurityRequestSampling =
-        configProvider.getInteger(
-            API_SECURITY_REQUEST_SAMPLING, DEFAULT_API_SECURITY_REQUEST_SAMPLING);
+    apiSecurityRequestSampleRate =
+        configProvider.getFloat(
+            API_SECURITY_REQUEST_SAMPLE_RATE, DEFAULT_API_SECURITY_REQUEST_SAMPLE_RATE);
 
     iastDebugEnabled = configProvider.getBoolean(IAST_DEBUG_ENABLED, DEFAULT_IAST_DEBUG_ENABLED);
 
@@ -2412,8 +2412,8 @@ public class Config {
     return apiSecurityEnabled;
   }
 
-  public int getApiSecurityRequestSampling() {
-    return apiSecurityRequestSampling;
+  public float getApiSecurityRequestSampleRate() {
+    return apiSecurityRequestSampleRate;
   }
 
   public ProductActivation getIastActivation() {
