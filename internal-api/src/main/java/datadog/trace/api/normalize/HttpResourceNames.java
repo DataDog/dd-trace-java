@@ -125,8 +125,13 @@ public class HttpResourceNames {
   public static AgentSpan setForClient(
       AgentSpan span, CharSequence method, CharSequence path, boolean encoded) {
     Pair<CharSequence, Byte> result = computeForClient(method, path, encoded);
+    log.debug("keisuke log - current stack trace of setForClient: {}", (Object) Thread.currentThread().getStackTrace());
+    log.debug("keisuke log - the arguments of setForClient | method: {}, path: {}, encoded: {}", method, path, encoded);
+    log.debug("keisuke log - result.hasLeft() = {}", result.hasLeft());
     if (result.hasLeft()) {
+      log.debug("keisuke log - span before span.setResourceName(result.getLeft(), result.getRight()): {}", span);
       span.setResourceName(result.getLeft(), result.getRight());
+      log.debug("keisuke log - span after span.setResourceName(result.getLeft(), result.getRight()): {}", span);
     }
     return span;
   }

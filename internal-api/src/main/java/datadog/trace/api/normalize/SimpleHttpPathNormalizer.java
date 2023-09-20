@@ -1,13 +1,19 @@
 package datadog.trace.api.normalize;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 // public because this is used in the testing module but groovy accesses it through Class.forName
 // which is banned
 public final class SimpleHttpPathNormalizer extends HttpPathNormalizer {
+  private static final Logger log = LoggerFactory.getLogger(SimpleHttpPathNormalizer.class);
   // package private so things outside groovy for tests can't create an instance
   SimpleHttpPathNormalizer() {}
 
   @Override
   public String normalize(String path, boolean encoded) {
+    log.debug("keisuke log - current stack trace of new SimpleHttpPathNormalizer: {}", (Object) Thread.currentThread().getStackTrace());
+    log.debug("keisuke log - the arguments of normalize | path: {}, encoded: {}", path, encoded);
     if (null == path || path.isEmpty()) {
       return "/";
     }
