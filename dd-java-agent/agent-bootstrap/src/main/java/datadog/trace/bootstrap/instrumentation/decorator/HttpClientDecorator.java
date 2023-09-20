@@ -72,20 +72,24 @@ public abstract class HttpClientDecorator<REQUEST, RESPONSE> extends UriBasedCli
       try {
         final URI url = url(request);
         if (url != null) {
+          log.debug("keisuke log - span before onURI: {}", span);
           onURI(span, url);
           log.debug("keisuke log - span after onURI: {}", span);
+          log.debug("keisuke log - span before lazyValidURL: {}", span);
           span.setTag(
               Tags.HTTP_URL,
               URIUtils.lazyValidURL(url.getScheme(), url.getHost(), url.getPort(), url.getPath()));
           log.debug("keisuke log - span after lazyValidURL: {}", span);
           if (Config.get().isHttpClientTagQueryString()) {
+            log.debug("keisuke log - Config.get().isHttpClientTagQueryString(): {}", Config.get().isHttpClientTagQueryString());
             span.setTag(DDTags.HTTP_QUERY, url.getQuery());
             span.setTag(DDTags.HTTP_FRAGMENT, url.getFragment());
-            log.debug("keisuke log - span when isHttpClientTagQueryString: {}", span);
           }
           if (shouldSetResourceName()) {
+            log.debug("keisuke log - shouldSetResourceName: {}", shouldSetResourceName());
+            log.debug("keisuke log - span before HTTP_RESOURCE_DECORATOR.withClientPath(span, method, url.getPath()): {}", span);
             HTTP_RESOURCE_DECORATOR.withClientPath(span, method, url.getPath());
-            log.debug("keisuke log - span when shouldSetResourceName: {}", span);
+            log.debug("keisuke log - span after HTTP_RESOURCE_DECORATOR.withClientPath(span, method, url.getPath()): {}", span);
           }
         } else if (shouldSetResourceName()) {
           span.setResourceName(DEFAULT_RESOURCE_NAME);
@@ -105,7 +109,7 @@ public abstract class HttpClientDecorator<REQUEST, RESPONSE> extends UriBasedCli
         }
       }
     }
-    log.debug("keisuke log - returned span of onRequest", span);
+    log.debug("keisuke log - returned span of onRequest: {}", span);
     return span;
   }
 
