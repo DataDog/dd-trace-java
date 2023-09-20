@@ -186,26 +186,26 @@ public class TagInterceptor {
 
   private boolean interceptResourceName(DDSpanContext span, Object value) {
     log.debug("keisuke log - current stack trace of interceptResourceName: {}", (Object) Thread.currentThread().getStackTrace());
-    log.debug("keisuke log - BEGIN of interceptResourceName | span = {}", span)
-    log.debug("keisuke log - BEGIN of interceptResourceName | value = {}", valel)
+    log.debug("keisuke log - BEGIN of interceptResourceName | span = {}", span);
+    log.debug("keisuke log - BEGIN of interceptResourceName | value = {}", value);
     log.debug("keisuke log - ruleFlags.isEnabled(RESOURCE_NAME) = {}", ruleFlags.isEnabled(RESOURCE_NAME));
     if (ruleFlags.isEnabled(RESOURCE_NAME)) {
       if (null == value) {
         return false;
       }
       if (value instanceof CharSequence) {
-        log.debug("keisuke log - BEFORE span.setResourceName((CharSequence) value, ResourceNamePriorities.TAG_INTERCEPTOR) | span = {}", span)
+        log.debug("keisuke log - BEFORE span.setResourceName((CharSequence) value, ResourceNamePriorities.TAG_INTERCEPTOR) | span = {}", span);
         span.setResourceName((CharSequence) value, ResourceNamePriorities.TAG_INTERCEPTOR);
-        log.debug("keisuke log - AFTER span.setResourceName((CharSequence) value, ResourceNamePriorities.TAG_INTERCEPTOR) | span = {}", span)
+        log.debug("keisuke log - AFTER span.setResourceName((CharSequence) value, ResourceNamePriorities.TAG_INTERCEPTOR) | span = {}", span);
       } else {
-        log.debug("keisuke log - BEFORE span.setResourceName(String.valueOf(value), ResourceNamePriorities.TAG_INTERCEPTOR) | span = {}", span)
+        log.debug("keisuke log - BEFORE span.setResourceName(String.valueOf(value), ResourceNamePriorities.TAG_INTERCEPTOR) | span = {}", span);
         span.setResourceName(String.valueOf(value), ResourceNamePriorities.TAG_INTERCEPTOR);
-        log.debug("keisuke log - AFTER span.setResourceName(String.valueOf(value), ResourceNamePriorities.TAG_INTERCEPTOR) | span = {}", span)
+        log.debug("keisuke log - AFTER span.setResourceName(String.valueOf(value), ResourceNamePriorities.TAG_INTERCEPTOR) | span = {}", span);
       }
-      log.debug("keisuke log - Return value of interceptResourceName is true")
+      log.debug("keisuke log - Return value of interceptResourceName is true");
       return true;
     }
-    log.debug("keisuke log - Return value of interceptResourceName is false")
+    log.debug("keisuke log - Return value of interceptResourceName is false");
     return false;
   }
 
