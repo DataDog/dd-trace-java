@@ -119,7 +119,14 @@ public final class ConsumerImplInstrumentation extends Instrumenter.Tracing
         @Advice.This Consumer<?> consumer,
         @Advice.Return Message<?> message,
         @Advice.Thrown Throwable throwable) {
-      startAndEnd(create(message), throwable,consumer);
+      ContextStore<Consumer, String> contextStore =
+          InstrumentationContext.get(Consumer.class, String.class);
+      String brokerUrl = contextStore.get(consumer);
+      if (message == null) {
+        return;
+      }
+      System.out.println("into ConsumerInternalReceiveAdvice");
+      startAndEnd(create(message), throwable, brokerUrl);
     }
   }
 
@@ -131,7 +138,14 @@ public final class ConsumerImplInstrumentation extends Instrumenter.Tracing
         @Advice.This Consumer<?> consumer,
         @Advice.Return Message<?> message,
         @Advice.Thrown Throwable throwable) {
-      startAndEnd(create(message), throwable,consumer);
+      ContextStore<Consumer, String> contextStore =
+          InstrumentationContext.get(Consumer.class, String.class);
+      String brokerUrl = contextStore.get(consumer);
+      if (message == null) {
+        return;
+      }
+      System.out.println("into ConsumerSyncReceiveAdvice");
+      startAndEnd(create(message), throwable, brokerUrl);
     }
   }
 
@@ -141,7 +155,11 @@ public final class ConsumerImplInstrumentation extends Instrumenter.Tracing
     public static void onExit(
         @Advice.This Consumer<?> consumer,
         @Advice.Return(readOnly = false) CompletableFuture<Message<?>> future) {
-      future = wrap(future, consumer);
+      ContextStore<Consumer, String> contextStore =
+          InstrumentationContext.get(Consumer.class, String.class);
+      String brokerUrl = contextStore.get(consumer);
+      System.out.println("into ConsumerAsyncReceiveAdvice");
+      future = wrap(future, brokerUrl);
     }
   }
 
@@ -152,8 +170,10 @@ public final class ConsumerImplInstrumentation extends Instrumenter.Tracing
     public static void onExit(
         @Advice.This Consumer<?> consumer,
         @Advice.Return(readOnly = false) CompletableFuture<Messages<?>> future) {
-
-      future = wrapBatch(future, consumer);
+      ContextStore<Consumer, String> contextStore =
+          InstrumentationContext.get(Consumer.class, String.class);
+      String brokerUrl = contextStore.get(consumer);
+      future = wrapBatch(future, brokerUrl);
     }
   }
 }

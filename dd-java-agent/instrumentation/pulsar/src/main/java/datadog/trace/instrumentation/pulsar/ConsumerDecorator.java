@@ -4,18 +4,18 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.*;
 import static datadog.trace.instrumentation.pulsar.MessageTextMapGetter.GETTER;
 import static datadog.trace.instrumentation.pulsar.PulsarRequest.*;
 
-import datadog.trace.bootstrap.ContextStore;
-import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.BaseDecorator;
 import java.util.concurrent.CompletableFuture;
-import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Messages;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class ConsumerDecorator extends BaseDecorator {
+  private static final Logger log = LoggerFactory.getLogger(ConsumerDecorator.class);
 
   public static final CharSequence PULSAR_NAME = UTF8BytesString.create("queue");
   private static final String TOPIC = "topic";
@@ -40,11 +40,10 @@ public class ConsumerDecorator extends BaseDecorator {
     return null;
   }
 
-  public static void startAndEnd(PulsarRequest pr,Throwable throwable, Consumer<?> consumer) {
-    ContextStore<Consumer, String> contextStore =
-        InstrumentationContext.get(Consumer.class, String.class);
-    String brokerUrl = contextStore.get(consumer);
-
+  public static void startAndEnd(PulsarRequest pr,Throwable throwable, String brokerUrl) {
+    if (log.isDebugEnabled()) {
+      log.debug("into startAndEnd");
+    }
     AgentSpan.Context parentContext = propagate().extract(pr, GETTER);
     String topic  = pr.getMessage().getTopicName();
     UTF8BytesString spanName = UTF8BytesString.create(topic + " receive");
@@ -67,15 +66,23 @@ public class ConsumerDecorator extends BaseDecorator {
    // beforeFinish(scope);
     scope.span().finish();
     scope.close();
+    if (log.isDebugEnabled()) {
+      log.debug("out startAndEnd");
+    }
   }
 
-  public static CompletableFuture<Message<?>> wrap(CompletableFuture<Message<?>> future, Consumer<?> consumer) {
-
+  public static CompletableFuture<Message<?>> wrap(CompletableFuture<Message<?>> future, String brokerUrl) {
+    if (log.isDebugEnabled()) {
+      log.debug("into wrap");
+    }
     CompletableFuture<Message<?>> result = new CompletableFuture<>();
     future.whenComplete(
         (message, throwable) -> {
           // consumer 用来获取 url
-           startAndEnd(create(message) , throwable,consumer);
+          if (message == null){
+            return;
+          }
+           startAndEnd(create(message) , throwable,brokerUrl);
           runWithContext(
               () -> {
                 if (throwable != null) {
@@ -86,21 +93,26 @@ public class ConsumerDecorator extends BaseDecorator {
               });
         }
     );
-
+    if (log.isDebugEnabled()) {
+      log.debug("out wrap");
+    }
     return result;
   }
 
-  public static CompletableFuture<Messages<?>> wrapBatch(CompletableFuture<Messages<?>> future, Consumer<?> consumer) {
+  public static CompletableFuture<Messages<?>> wrapBatch(CompletableFuture<Messages<?>> future, String brokerUrl) {
     CompletableFuture<Messages<?>> result = new CompletableFuture<>();
     future.whenComplete(
         (messages, throwable) -> {
+          if (messages == null){
+            return;
+          }
           Message message = null;
           for (Message m: messages) {
             if(m !=null) {
               message = m;
               return;}
           }
-          startAndEnd(create(message), throwable,consumer);
+          startAndEnd(create(message), throwable,brokerUrl);
           runWithContext(
               () -> {
                 if (throwable != null) {
@@ -116,5 +128,8 @@ public class ConsumerDecorator extends BaseDecorator {
 
   private static void runWithContext( Runnable runnable) {
     runnable.run();
+    if (log.isDebugEnabled()) {
+      log.debug("out runWithContext");
+    }
   }
 }
