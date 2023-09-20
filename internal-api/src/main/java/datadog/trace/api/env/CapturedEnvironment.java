@@ -8,7 +8,7 @@ import java.util.Map;
 
 /**
  * The {@code CapturedEnvironment} instance keeps those {@code Config} values which are platform
- * dependant. Notice that this class must be consider internal. You should not depend on it
+ * dependant. Notice that this class must be considered internal. You should not depend on it
  * directly.
  */
 public class CapturedEnvironment {

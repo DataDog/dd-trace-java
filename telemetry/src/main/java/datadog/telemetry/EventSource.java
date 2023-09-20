@@ -1,11 +1,11 @@
 package datadog.telemetry;
 
-import datadog.telemetry.api.ConfigChange;
 import datadog.telemetry.api.DistributionSeries;
 import datadog.telemetry.api.Integration;
 import datadog.telemetry.api.LogMessage;
 import datadog.telemetry.api.Metric;
 import datadog.telemetry.dependency.Dependency;
+import datadog.trace.api.ConfigSetting;
 import java.util.Queue;
 
 /**
@@ -16,7 +16,7 @@ import java.util.Queue;
 interface EventSource {
   boolean hasConfigChangeEvent();
 
-  ConfigChange nextConfigChangeEvent();
+  ConfigSetting nextConfigChangeEvent();
 
   boolean hasIntegrationEvent();
 
@@ -48,7 +48,7 @@ interface EventSource {
   }
 
   final class Queued implements EventSource {
-    private final Queue<ConfigChange> configChangeQueue;
+    private final Queue<ConfigSetting> configChangeQueue;
     private final Queue<Integration> integrationQueue;
     private final Queue<Dependency> dependencyQueue;
     private final Queue<Metric> metricQueue;
@@ -56,7 +56,7 @@ interface EventSource {
     private final Queue<LogMessage> logMessageQueue;
 
     Queued(
-        Queue<ConfigChange> configChangeQueue,
+        Queue<ConfigSetting> configChangeQueue,
         Queue<Integration> integrationQueue,
         Queue<Dependency> dependencyQueue,
         Queue<Metric> metricQueue,
@@ -76,7 +76,7 @@ interface EventSource {
     }
 
     @Override
-    public ConfigChange nextConfigChangeEvent() {
+    public ConfigSetting nextConfigChangeEvent() {
       return configChangeQueue.poll();
     }
 

@@ -1,11 +1,12 @@
 package datadog.telemetry
 
-import datadog.telemetry.api.ConfigChange
 import datadog.telemetry.api.DistributionSeries
 import datadog.telemetry.api.Integration
 import datadog.telemetry.api.LogMessage
 import datadog.telemetry.api.Metric
 import datadog.telemetry.dependency.Dependency
+import datadog.trace.api.ConfigOrigin
+import datadog.trace.api.ConfigSetting
 import datadog.trace.test.util.DDSpecification
 
 class BufferedEventsSpecification extends DDSpecification {
@@ -25,7 +26,7 @@ class BufferedEventsSpecification extends DDSpecification {
 
   def 'return added events'() {
     def events = new BufferedEvents()
-    def configChangeEvent = new ConfigChange("key", "value")
+    def configSetting = new ConfigSetting("key", "value", ConfigOrigin.DEFAULT)
     def dependency = new Dependency("name", "version", "source", "hash")
     def series = new DistributionSeries()
     def integration = new Integration("integration-name", true)
@@ -33,7 +34,7 @@ class BufferedEventsSpecification extends DDSpecification {
     def metric = new Metric()
 
     when:
-    events.addConfigChangeEvent(configChangeEvent)
+    events.addConfigChangeEvent(configSetting)
     events.addDependencyEvent(dependency)
     events.addDistributionSeriesEvent(series)
     events.addIntegrationEvent(integration)
@@ -44,7 +45,7 @@ class BufferedEventsSpecification extends DDSpecification {
     !events.isEmpty()
 
     events.hasConfigChangeEvent()
-    events.nextConfigChangeEvent() == configChangeEvent
+    events.nextConfigChangeEvent() == configSetting
     !events.hasConfigChangeEvent()
 
     !events.isEmpty()
