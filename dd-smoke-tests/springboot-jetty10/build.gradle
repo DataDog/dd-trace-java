@@ -1,0 +1,57 @@
+import com.github.jengelman.gradle.plugins.shadow.transformers.PropertiesFileTransformer
+
+plugins {
+  id "com.github.johnrengelman.shadow"
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+description = 'SpringBoot Jetty 10 Smoke Tests.'
+
+// The standard spring-boot plugin doesn't play nice with our project so we'll build a fat jar instead.
+jar {
+  manifest {
+    attributes('Main-Class': 'datadog.smoketest.springboot.SpringbootJetty10Application')
+  }
+}
+
+shadowJar {
+  configurations = [project.configurations.runtimeClasspath]
+  mergeServiceFiles()
+  append 'META-INF/spring.handlers'
+  append 'META-INF/spring.schemas'
+  append 'META-INF/spring.tooling'
+  transform(PropertiesFileTransformer) {
+    paths = ['META-INF/spring.factories']
+    mergeStrategy = "append"
+  }
+}
+
+configurations.configureEach {
+  exclude module: 'spring-boot-starter-tomcat'
+
+  // Jetty 9 only
+  exclude module: 'websocket-server'
+  exclude module: 'javax-websocket-server-impl'
+
+  // Switch version to Jetty 10
+  if (it.name == 'runtimeClasspath') {
+    resolutionStrategy.eachDependency { DependencyResolveDetails details ->
+      if (details.requested.group == 'org.eclipse.jetty') {
+        details.useVersion '10.0.15'
+      }
+    }
+  }
+}
+
+dependencies {
+  implementation group: 'org.springframework.boot', name: 'spring-boot-starter-web', version: '2.7.15'
+  implementation group: 'org.springframework.boot', name: 'spring-boot-starter-jetty', version: '2.7.15'
+
+  testImplementation project(':dd-smoke-tests')
+}
+
+tasks.withType(Test).configureEach {
+  dependsOn "shadowJar"
+
+  jvmArgs "-Ddatadog.smoketest.springboot.shadowJar.path=${tasks.shadowJar.archiveFile.get()}"
+}

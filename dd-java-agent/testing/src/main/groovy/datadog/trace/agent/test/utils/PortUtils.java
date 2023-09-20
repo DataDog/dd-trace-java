@@ -113,7 +113,7 @@ public class PortUtils {
       } catch (final InterruptedException e) {
         throw new RuntimeException("Interrupted while waiting for " + port + " to be opened");
       }
-
+      
       // Note: we should have used `process.isAlive()` here but it is java8 only
       try {
         process.exitValue();
