@@ -404,7 +404,7 @@ public class DDSpanContext
   }
 
   public void setResourceName(final CharSequence resourceName, byte priority) {
-    log.debug("keisuke log | DDSpanContext.setResourceName | this.resourceName={}, resourceName={} | this.priority={}, priority={} | stacktrace={}", this.resourceName, resourceName, this.priority, priority, (Object) Thread.currentThread().getStackTrace());
+    log.debug("keisuke log | DDSpanContext.setResourceName | this.resourceName={}, resourceName={} | this.resourceNamePriority={}, priority={} | stacktrace={}", this.resourceName, resourceName, this.resourceNamePriority, priority, (Object) Thread.currentThread().getStackTrace());
     if (null == resourceName) {
       return;
     }
