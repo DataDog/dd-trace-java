@@ -56,7 +56,7 @@ public class XssModuleImpl extends SinkModuleBase implements XssModule {
     if (!overheadController.consumeQuota(Operations.REPORT_VULNERABILITY, span)) {
       return;
     }
-    final Evidence evidence = new Evidence(s.toString(), notMarkedRanges);
+    final Evidence evidence = new Evidence(s, notMarkedRanges);
     reporter.report(
         span,
         new Vulnerability(
@@ -91,5 +91,36 @@ public class XssModuleImpl extends SinkModuleBase implements XssModule {
     final TaintedObjects to = ctx.getTaintedObjects();
     checkInjection(
         span, VulnerabilityType.XSS, rangesProviderFor(to, format), rangesProviderFor(to, args));
+  }
+
+  @Override
+  public void onXss(@Nonnull CharSequence s, @Nullable String file, int line) {
+    if (!canBeTainted(s) || file == null || file.isEmpty()) {
+      return;
+    }
+    final AgentSpan span = AgentTracer.activeSpan();
+    final IastRequestContext ctx = IastRequestContext.get(span);
+    if (ctx == null) {
+      return;
+    }
+    TaintedObject taintedObject = ctx.getTaintedObjects().get(s);
+    if (taintedObject == null) {
+      return;
+    }
+    Range[] notMarkedRanges =
+        Ranges.getNotMarkedRanges(taintedObject.getRanges(), VulnerabilityType.XSS.mark());
+    if (notMarkedRanges == null || notMarkedRanges.length == 0) {
+      return;
+    }
+    if (!overheadController.consumeQuota(Operations.REPORT_VULNERABILITY, span)) {
+      return;
+    }
+    final Evidence evidence = new Evidence(s.toString(), notMarkedRanges);
+    reporter.report(
+        span,
+        new Vulnerability(
+            VulnerabilityType.XSS,
+            Location.forSpanAndFileAndLine(span.getSpanId(), file, line),
+            evidence));
   }
 }
