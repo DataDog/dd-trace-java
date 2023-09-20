@@ -24,14 +24,20 @@ final class AntPatternHttpPathNormalizer extends HttpPathNormalizer {
       new Function<String, String>() {
         @Override
         public String apply(String path) {
+          log.debug("keisuke log - current stack trace of cacheLoader.apply: {}", (Object) Thread.currentThread().getStackTrace());
+          log.debug("keisuke log - the arguments of cacheLoader.apply | path: {}", path);
           for (Map.Entry<String, String> resourceNameMatcher : resourceNameMatchers.entrySet()) {
+            log.debug("keisuke log - resourceNameMatcher.getKey()={}, resourceNameMatcher.getValue()={}", resourceNameMatcher.getKey(), resourceNameMatcher.getValue());
             if (matcher.match(resourceNameMatcher.getKey(), path)) {
               if (KEEP_AS_IS.equals(resourceNameMatcher.getValue())) {
+                log.debug("keisuke log - the return value of cacheLoader.apply: {}", path);
                 return path;
               }
+              log.debug("keisuke log - the return value of cacheLoader.apply - 2: {}", resourceNameMatcher.getValue());
               return resourceNameMatcher.getValue();
             }
           }
+          log.debug("keisuke log - the return value of cacheLoader.apply: null");
           return null;
         }
       };

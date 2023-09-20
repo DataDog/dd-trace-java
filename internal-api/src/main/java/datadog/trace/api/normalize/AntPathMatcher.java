@@ -4,6 +4,8 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.StringTokenizer;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * PathMatcher implementation for Ant-style path patterns. Examples are provided below.
@@ -39,6 +41,8 @@ import java.util.StringTokenizer;
  */
 final class AntPathMatcher {
 
+  private static final Logger log = LoggerFactory.getLogger(AntPathMatcher.class);
+
   AntPathMatcher() {}
 
   /**
@@ -62,8 +66,11 @@ final class AntPathMatcher {
    *     didn't
    */
   public boolean match(String pattern, String path) {
+    log.debug("keisuke log - current stack trace of AntPathMatcher.match: {}", (Object) Thread.currentThread().getStackTrace());
+    log.debug("keisuke log - the arguments of AntPathMatcher.match | pattern: {}, path: {}", pattern, path);
     String pathSeparator = "/";
     if (path == null || path.startsWith(pathSeparator) != pattern.startsWith(pathSeparator)) {
+      log.debug("keisuke log - (path == null || path.startsWith(pathSeparator) != pattern.startsWith(pathSeparator)) = false");
       return false;
     }
 
@@ -82,6 +89,7 @@ final class AntPathMatcher {
         break;
       }
       if (!matchStrings(patDir, pathDirs[pathIdxStart])) {
+        log.debug("keisuke log - (!matchStrings(patDir, pathDirs[pathIdxStart])) = false");
         return false;
       }
       pattIdxStart++;
@@ -96,16 +104,20 @@ final class AntPathMatcher {
       if (pattIdxStart == pattIdxEnd
           && pattDirs[pattIdxStart].equals("*")
           && path.endsWith(pathSeparator)) {
+        log.debug("keisuke log - 107 true");
         return true;
       }
       for (int i = pattIdxStart; i <= pattIdxEnd; i++) {
         if (!pattDirs[i].equals("**")) {
+          log.debug("keisuke log - 112 false");
           return false;
         }
       }
+      log.debug("keisuke log - 116 true");
       return true;
     } else if (pattIdxStart > pattIdxEnd) {
       // String not exhausted, but pattern is. Failure.
+      log.debug("keisuke log - 120 false");
       return false;
     }
 
@@ -116,6 +128,7 @@ final class AntPathMatcher {
         break;
       }
       if (!matchStrings(patDir, pathDirs[pathIdxEnd])) {
+        log.debug("keisuke log - 131 false");
         return false;
       }
       pattIdxEnd--;
@@ -125,9 +138,11 @@ final class AntPathMatcher {
       // String is exhausted
       for (int i = pattIdxStart; i <= pattIdxEnd; i++) {
         if (!pattDirs[i].equals("**")) {
+          log.debug("keisuke log - 141 false");
           return false;
         }
       }
+      log.debug("keisuke log - 145 true");
       return true;
     }
 
@@ -164,6 +179,7 @@ final class AntPathMatcher {
       }
 
       if (foundIdx == -1) {
+        log.debug("keisuke log - 182 false");
         return false;
       }
 
@@ -173,10 +189,12 @@ final class AntPathMatcher {
 
     for (int i = pattIdxStart; i <= pattIdxEnd; i++) {
       if (!pattDirs[i].equals("**")) {
+        log.debug("keisuke log - 192 false");
         return false;
       }
     }
 
+    log.debug("keisuke log - 197 false");
     return true;
   }
 

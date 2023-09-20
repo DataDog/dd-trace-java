@@ -45,6 +45,7 @@ public class HttpResourceDecorator {
     span.setTag(Tags.HTTP_ROUTE, routeTag);
     if (Config.get().isHttpServerRouteBasedNaming()) {
       final CharSequence resourceName = HttpResourceNames.join(method, route);
+      log.debug("keisuke log | AgentSpan.wihRoute | resourceName: {}", resourceName);
       span.setResourceName(resourceName, ResourceNamePriorities.HTTP_FRAMEWORK_ROUTE);
     }
     return span;
