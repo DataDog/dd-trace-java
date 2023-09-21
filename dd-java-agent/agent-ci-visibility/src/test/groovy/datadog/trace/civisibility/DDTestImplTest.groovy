@@ -121,7 +121,6 @@ class DDTestImplTest extends DDSpecification {
       null,
       null,
       null,
-      null,
       config,
       testDecorator,
       sourcePathResolver,

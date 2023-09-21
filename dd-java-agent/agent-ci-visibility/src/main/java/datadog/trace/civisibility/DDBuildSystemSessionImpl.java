@@ -104,14 +104,6 @@ public class DDBuildSystemSessionImpl extends DDTestSessionImpl implements DDBui
     if (result.isItrEnabled()) {
       itrEnabled = true;
     }
-    String testFramework = result.getTestFramework();
-    if (testFramework != null) {
-      setTag(Tags.TEST_FRAMEWORK, testFramework);
-    }
-    String testFrameworkVersion = result.getTestFrameworkVersion();
-    if (testFrameworkVersion != null) {
-      setTag(Tags.TEST_FRAMEWORK_VERSION, testFrameworkVersion);
-    }
 
     testsSkipped.add(result.getTestsSkippedTotal());
 
@@ -204,7 +196,9 @@ public class DDBuildSystemSessionImpl extends DDTestSessionImpl implements DDBui
   private File getCoverageReportFolder() {
     String coverageReportDumpDir = config.getCiVisibilityCodeCoverageReportDumpDir();
     if (coverageReportDumpDir != null) {
-      return Paths.get(coverageReportDumpDir, "session-" + span.getSpanId(), "aggregated").toFile();
+      return Paths.get(coverageReportDumpDir, "session-" + span.getSpanId(), "aggregated")
+          .toAbsolutePath()
+          .toFile();
     } else {
       return null;
     }
@@ -239,6 +233,7 @@ public class DDBuildSystemSessionImpl extends DDTestSessionImpl implements DDBui
             methodLinesResolver,
             coverageProbeStoreFactory,
             repoIndexBuilder,
+            testModuleRegistry,
             SpanUtils.propagateCiVisibilityTagsTo(span));
     testModuleRegistry.addModule(module);
     return module;

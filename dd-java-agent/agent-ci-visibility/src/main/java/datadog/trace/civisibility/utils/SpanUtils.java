@@ -3,10 +3,11 @@ package datadog.trace.civisibility.utils;
 import datadog.trace.api.civisibility.CIConstants;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.function.Consumer;
 
 public class SpanUtils {
-
   public static final Consumer<AgentSpan> DO_NOT_PROPAGATE_CI_VISIBILITY_TAGS = span -> {};
 
   public static Consumer<AgentSpan> propagateCiVisibilityTagsTo(AgentSpan parentSpan) {
@@ -14,10 +15,49 @@ public class SpanUtils {
   }
 
   public static void propagateCiVisibilityTags(AgentSpan parentSpan, AgentSpan childSpan) {
-    parentSpan.setTag(Tags.TEST_FRAMEWORK, childSpan.getTag(Tags.TEST_FRAMEWORK));
-    parentSpan.setTag(Tags.TEST_FRAMEWORK_VERSION, childSpan.getTag(Tags.TEST_FRAMEWORK_VERSION));
-
+    mergeTag(parentSpan, childSpan, Tags.TEST_FRAMEWORK);
+    mergeTag(parentSpan, childSpan, Tags.TEST_FRAMEWORK_VERSION);
     propagateStatus(parentSpan, childSpan);
+  }
+
+  public static void mergeTag(AgentSpan parentSpan, AgentSpan childSpan, String tagName) {
+    mergeTag(parentSpan, tagName, childSpan.getTag(tagName));
+  }
+
+  public static void mergeTag(AgentSpan span, String tagName, Object tagValue) {
+    if (tagValue == null) {
+      return;
+    }
+
+    Object existingValue = span.getTag(tagName);
+    if (existingValue == null) {
+      span.setTag(tagName, tagValue);
+      return;
+    }
+
+    if (existingValue.equals(tagValue)) {
+      return;
+    }
+
+    Collection<Object> updatedValue = new ArrayList<>();
+    if (existingValue instanceof Collection) {
+      updatedValue.addAll((Collection<Object>) existingValue);
+    } else {
+      updatedValue.add(existingValue);
+    }
+
+    if (tagValue instanceof Collection) {
+      for (Object value : (Collection<Object>) tagValue) {
+        if (!updatedValue.contains(value)) {
+          updatedValue.add(value);
+        }
+      }
+    } else {
+      if (!updatedValue.contains(tagValue)) {
+        updatedValue.add(tagValue);
+      }
+    }
+    span.setTag(tagName, updatedValue);
   }
 
   private static void propagateStatus(AgentSpan parentSpan, AgentSpan childSpan) {

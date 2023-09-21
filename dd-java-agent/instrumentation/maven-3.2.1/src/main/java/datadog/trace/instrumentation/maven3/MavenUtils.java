@@ -227,6 +227,16 @@ public abstract class MavenUtils {
             && ("test".equals(goal) || "plugin-test".equals(goal) || "bnd-test".equals(goal));
   }
 
+  public static boolean isJacocoInstrumentationExecution(MojoExecution mojoExecution) {
+    Plugin plugin = mojoExecution.getPlugin();
+    String artifactId = plugin.getArtifactId();
+    String groupId = plugin.getGroupId();
+    String goal = mojoExecution.getGoal();
+    return "jacoco-maven-plugin".equals(artifactId)
+        && "org.jacoco".equals(groupId)
+        && "prepare-agent".equals(goal);
+  }
+
   public static String getConfigurationValue(Xpp3Dom configuration, String... path) {
     if (configuration == null) {
       return null;

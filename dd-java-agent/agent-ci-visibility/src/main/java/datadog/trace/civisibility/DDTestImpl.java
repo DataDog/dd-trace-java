@@ -23,7 +23,6 @@ import java.lang.reflect.Method;
 import java.util.Collection;
 import java.util.function.Consumer;
 import javax.annotation.Nullable;
-import org.objectweb.asm.Type;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -45,7 +44,6 @@ public class DDTestImpl implements DDTest {
       String testName,
       @Nullable Long startTime,
       @Nullable Class<?> testClass,
-      @Nullable String testMethodName,
       @Nullable Method testMethod,
       Config config,
       TestDecorator testDecorator,
@@ -92,9 +90,6 @@ public class DDTestImpl implements DDTest {
 
     if (testClass != null && !testClass.getName().equals(testSuiteName)) {
       span.setTag(Tags.TEST_SOURCE_CLASS, testClass.getName());
-    }
-    if (testMethodName != null && testMethod != null) {
-      span.setTag(Tags.TEST_SOURCE_METHOD, testMethodName + Type.getMethodDescriptor(testMethod));
     }
 
     if (config.isCiVisibilitySourceDataEnabled()) {

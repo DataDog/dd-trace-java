@@ -114,12 +114,8 @@ public class PortUtils {
         throw new RuntimeException("Interrupted while waiting for " + port + " to be opened");
       }
 
-      // Note: we should have used `process.isAlive()` here but it is java8 only
-      try {
-        process.exitValue();
+      if (!process.isAlive()) {
         throw new RuntimeException("Process died before port " + port + " was opened");
-      } catch (final IllegalThreadStateException e) {
-        // process is still alive, things are good.
       }
 
       if (isPortOpen(port)) {
