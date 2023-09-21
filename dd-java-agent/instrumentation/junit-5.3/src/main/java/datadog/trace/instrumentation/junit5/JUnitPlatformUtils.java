@@ -14,8 +14,12 @@ import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
 import java.lang.reflect.Method;
 import java.util.ArrayDeque;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.Deque;
 import java.util.List;
+import java.util.ListIterator;
 import java.util.Optional;
 import java.util.Properties;
 import javax.annotation.Nullable;
@@ -25,6 +29,7 @@ import org.junit.platform.commons.util.ReflectionUtils;
 import org.junit.platform.engine.TestDescriptor;
 import org.junit.platform.engine.TestEngine;
 import org.junit.platform.engine.TestSource;
+import org.junit.platform.engine.TestTag;
 import org.junit.platform.engine.UniqueId;
 import org.junit.platform.engine.support.descriptor.ClasspathResourceSource;
 import org.junit.platform.engine.support.descriptor.MethodSource;
@@ -194,12 +199,45 @@ public abstract class JUnitPlatformUtils {
     return InternalSpanTypes.TEST.toString().equals(span.getSpanType());
   }
 
+  public static Collection<TestTag> getTags(TestDescriptor testDescriptor) {
+    String testEngineId = getTestEngineId(testDescriptor);
+    if (Spock.ENGINE_ID.equals(testEngineId)) {
+      return Spock.getTags(testDescriptor);
+    } else {
+      return testDescriptor.getTags();
+    }
+  }
+
+  public static @Nullable String getTestEngineId(final TestDescriptor testDescriptor) {
+    return getTestEngineId(testDescriptor.getUniqueId());
+  }
+
+  public static @Nullable String getTestEngineId(final UniqueId uniqueId) {
+    List<UniqueId.Segment> segments = uniqueId.getSegments();
+    ListIterator<UniqueId.Segment> iterator = segments.listIterator(segments.size());
+    // Iterating from the end of the list,
+    // since we want the last segment with type "engine".
+    // In case junit-platform-suite engine is used,
+    // its segment will be the first,
+    // and the actual engine that runs the test
+    // will be in some later segment
+    while (iterator.hasPrevious()) {
+      UniqueId.Segment segment = iterator.previous();
+      if ("engine".equals(segment.getType())) {
+        return segment.getValue();
+      }
+    }
+    return null;
+  }
+
   public static final class Spock {
     public static final String ENGINE_ID = "spock";
 
     private static final Class<Annotation> SPOCK_FEATURE_METADATA;
-
     private static final MethodHandle SPOCK_FEATURE_NAME;
+    private static final MethodHandle GET_SPOCK_NODE_INFO;
+    private static final MethodHandle GET_TEST_TAGS;
+    private static final MethodHandle GET_TEST_TAG_VALUE;
 
     static {
       /*
@@ -210,6 +248,43 @@ public abstract class JUnitPlatformUtils {
       ClassLoader defaultClassLoader = ClassLoaderUtils.getDefaultClassLoader();
       SPOCK_FEATURE_METADATA = accessSpockFeatureMetadata(defaultClassLoader);
       SPOCK_FEATURE_NAME = accessSpockFeatureName(lookup, SPOCK_FEATURE_METADATA);
+      GET_SPOCK_NODE_INFO = accessGetSpockNodeInfo(lookup, defaultClassLoader);
+      GET_TEST_TAGS = accessGetTestTags(lookup, defaultClassLoader);
+      GET_TEST_TAG_VALUE = accessGetTestTagValue(lookup, defaultClassLoader);
+    }
+
+    private static MethodHandle accessGetSpockNodeInfo(
+        MethodHandles.Lookup lookup, ClassLoader classLoader) {
+      try {
+        Class<?> spockNodeClass = classLoader.loadClass("org.spockframework.runtime.SpockNode");
+        Method method = spockNodeClass.getDeclaredMethod("getNodeInfo");
+        return lookup.unreflect(method);
+      } catch (Throwable throwable) {
+        return null;
+      }
+    }
+
+    private static MethodHandle accessGetTestTags(
+        MethodHandles.Lookup lookup, ClassLoader classLoader) {
+      try {
+        Class<?> testTaggable =
+            classLoader.loadClass("org.spockframework.runtime.model.ITestTaggable");
+        Method method = testTaggable.getDeclaredMethod("getTestTags");
+        return lookup.unreflect(method);
+      } catch (Throwable throwable) {
+        return null;
+      }
+    }
+
+    private static MethodHandle accessGetTestTagValue(
+        MethodHandles.Lookup lookup, ClassLoader classLoader) {
+      try {
+        Class<?> testTaggable = classLoader.loadClass("org.spockframework.runtime.model.TestTag");
+        Method method = testTaggable.getDeclaredMethod("getValue");
+        return lookup.unreflect(method);
+      } catch (Throwable throwable) {
+        return null;
+      }
     }
 
     private static Class<Annotation> accessSpockFeatureMetadata(ClassLoader classLoader) {
@@ -267,6 +342,26 @@ public abstract class JUnitPlatformUtils {
       }
 
       return null;
+    }
+
+    public static Collection<TestTag> getTags(TestDescriptor testDescriptor) {
+      if (GET_SPOCK_NODE_INFO == null) {
+        return Collections.emptyList();
+      }
+      Collection<TestTag> junitPlatformTestTags = new ArrayList<>();
+      try {
+        Object nodeInfo = GET_SPOCK_NODE_INFO.invoke(testDescriptor);
+        Collection<?> testTags = (Collection<?>) GET_TEST_TAGS.invoke(nodeInfo);
+        for (Object testTag : testTags) {
+          String tagValue = (String) GET_TEST_TAG_VALUE.invoke(testTag);
+          TestTag junitPlatformTestTag = TestTag.create(tagValue);
+          junitPlatformTestTags.add(junitPlatformTestTag);
+        }
+
+      } catch (Throwable throwable) {
+        // ignore
+      }
+      return junitPlatformTestTags;
     }
   }
 
