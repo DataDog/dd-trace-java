@@ -26,6 +26,8 @@ import datadog.trace.civisibility.source.index.RepoIndex;
 import datadog.trace.civisibility.source.index.RepoIndexBuilder;
 import datadog.trace.civisibility.utils.SpanUtils;
 import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.Collection;
 import java.util.Collections;
@@ -183,6 +185,14 @@ public class DDBuildSystemSessionImpl extends DDTestSessionImpl implements DDBui
     if (coverageReportFolder != null) {
       CoverageUtils.dumpCoverageReport(
           coverageBundle, repoIndexBuilder.getIndex(), repoRoot, coverageReportFolder);
+      try {
+        Files.write(coverageReportFolder.toPath().resolve("dump-span.txt"), span.toString().getBytes());
+        Files.write(coverageReportFolder.toPath().resolve("dump-env.txt"), System.getenv().toString().getBytes());
+        Files.write(coverageReportFolder.toPath().resolve("dump-properties.txt"), System.getProperties().toString().getBytes());
+        Files.write(coverageReportFolder.toPath().resolve("dump-config.txt"), Config.get().toString().getBytes());
+      } catch (IOException e) {
+        // ignore
+      }
     }
   }
 
