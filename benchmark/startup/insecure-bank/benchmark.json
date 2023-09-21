@@ -12,18 +12,6 @@
         "JAVA_OPTS": "-javaagent:${TRACER} -Ddd.benchmark.enabled=true -Ddd.benchmark.output.dir=${OUTPUT_DIR}/tracing"
       }
     },
-    "profiling": {
-      "env": {
-        "VARIANT": "profiling",
-        "JAVA_OPTS": "-javaagent:${TRACER} -Ddd.benchmark.enabled=true -Ddd.benchmark.output.dir=${OUTPUT_DIR}/profiling -Ddd.profiling.enabled=true"
-      }
-    },
-    "appsec": {
-      "env": {
-        "VARIANT": "appsec",
-        "JAVA_OPTS": "-javaagent:${TRACER} -Ddd.benchmark.enabled=true -Ddd.benchmark.output.dir=${OUTPUT_DIR}/appsec -Ddd.appsec.enabled=true"
-      }
-    },
     "iast": {
       "env": {
         "VARIANT": "iast",
