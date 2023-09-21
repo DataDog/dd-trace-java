@@ -6,7 +6,7 @@ muzzle {
   pass {
     group = "io.openliberty"
     module = 'openliberty-runtime'
-    versions = "[22.0.0.1,)"
+    versions = "[23.0.0.5,23.0.0.6)"
     assertInverse = false
   }
 }
@@ -35,6 +35,8 @@ dependencies {
 
   compileOnly group: 'jakarta.servlet', name: 'jakarta.servlet-api', version: '5.0.0'
   compileOnly files({ tasks.installOpenLibertyDeps.extractedJars })
+  testImplementation files({ tasks.installOpenLibertyDeps.extractedJars })
+
   implementation project(':dd-java-agent:instrumentation:servlet:request-5')
   testImplementation files({ tasks.installOpenLibertyDeps.wsServerJar })
   testImplementation testFixtures(project(':dd-java-agent:appsec'))
@@ -73,7 +75,6 @@ tasks.register('installOpenLibertyDeps', Copy) {
   def extractDir = "${buildDir}/openliberty-jars"
   ext.extractedJars = fileTree(extractDir) {
     include "wlp/lib/com.ibm.ws.webcontainer.jakarta*.jar"
-    include "wlp/lib/com.ibm.ws.transport.http*.jar"
     include "wlp/lib/com.ibm.ws.transport.http*.jar"
     include "wlp/lib/com.ibm.ws.channelfw*.jar"
     include "wlp/lib/com.ibm.ws.wsbytebuffer*.jar"
