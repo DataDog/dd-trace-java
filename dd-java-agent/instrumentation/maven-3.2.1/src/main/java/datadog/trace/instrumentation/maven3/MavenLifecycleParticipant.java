@@ -102,7 +102,7 @@ public class MavenLifecycleParticipant extends AbstractMavenLifecycleParticipant
 
     List<MavenProject> projects = session.getProjects();
     ExecutorService projectConfigurationPool = createProjectConfigurationPool(projects.size());
-    Map<Path, Collection<MojoExecution>> testExecutions =
+    Map<Path, Collection<MavenTestExecution>> testExecutions =
         configureProjects(projectConfigurationPool, session, projects);
     configureTestExecutions(projectConfigurationPool, session, testExecutions);
     projectConfigurationPool.shutdown();
@@ -116,24 +116,23 @@ public class MavenLifecycleParticipant extends AbstractMavenLifecycleParticipant
     return Executors.newFixedThreadPool(projectConfigurationPoolSize, threadFactory);
   }
 
-  private Map<Path, Collection<MojoExecution>> configureProjects(
+  private Map<Path, Collection<MavenTestExecution>> configureProjects(
       ExecutorService projectConfigurationPool, MavenSession session, List<MavenProject> projects) {
-    CompletionService<Map<Path, Collection<MojoExecution>>> testExecutionsCompletionService =
+    CompletionService<Collection<MavenTestExecution>> testExecutionsCompletionService =
         new ExecutorCompletionService<>(projectConfigurationPool);
     for (MavenProject project : projects) {
       testExecutionsCompletionService.submit(() -> configureProject(session, project));
     }
 
-    Map<Path, Collection<MojoExecution>> testExecutions = new HashMap<>();
+    Map<Path, Collection<MavenTestExecution>> testExecutions = new HashMap<>();
     for (int i = 0; i < projects.size(); i++) {
       try {
-        Future<Map<Path, Collection<MojoExecution>>> future =
-            testExecutionsCompletionService.take();
-        for (Map.Entry<Path, Collection<MojoExecution>> e : future.get().entrySet()) {
-          Path path = e.getKey();
-          Collection<MojoExecution> executions = e.getValue();
-          testExecutions.computeIfAbsent(path, k -> new ArrayList<>()).addAll(executions);
+        Future<Collection<MavenTestExecution>> future = testExecutionsCompletionService.take();
+        for (MavenTestExecution testExecution : future.get()) {
+          Path forkedJvmPath = testExecution.getForkedJvmPath();
+          testExecutions.computeIfAbsent(forkedJvmPath, k -> new ArrayList<>()).add(testExecution);
         }
+
       } catch (InterruptedException e) {
         Thread.currentThread().interrupt();
         LOGGER.error("Interrupted while configuring projects", e);
@@ -144,7 +143,7 @@ public class MavenLifecycleParticipant extends AbstractMavenLifecycleParticipant
     return testExecutions;
   }
 
-  private Map<Path, Collection<MojoExecution>> configureProject(
+  private Collection<MavenTestExecution> configureProject(
       MavenSession session, MavenProject project) {
     Properties projectProperties = project.getProperties();
     String projectArgLine = projectProperties.getProperty("argLine");
@@ -160,14 +159,12 @@ public class MavenLifecycleParticipant extends AbstractMavenLifecycleParticipant
       MavenProjectConfigurator.INSTANCE.configureCompilerPlugin(project, compilerPluginVersion);
     }
 
-    MavenProjectConfigurator.INSTANCE.configureJacoco(project);
-
     return getTestExecutionsByJvmPath(session, project);
   }
 
-  private Map<Path, Collection<MojoExecution>> getTestExecutionsByJvmPath(
+  private Collection<MavenTestExecution> getTestExecutionsByJvmPath(
       MavenSession session, MavenProject project) {
-    Map<Path, Collection<MojoExecution>> testExecutions = new HashMap<>();
+    List<MavenTestExecution> testExecutions = new ArrayList<>();
     try {
       PlexusContainer container = session.getContainer();
 
@@ -180,10 +177,8 @@ public class MavenLifecycleParticipant extends AbstractMavenLifecycleParticipant
       MavenExecutionPlan executionPlan =
           planCalculator.calculateExecutionPlan(session, project, tasks);
 
+      boolean jacocoExecutionFound = false;
       for (MojoExecution mojoExecution : executionPlan.getMojoExecutions()) {
-        Plugin plugin = mojoExecution.getPlugin();
-        String pluginKey = plugin.getKey();
-
         if (MavenUtils.isTestExecution(mojoExecution)) {
           MojoDescriptor mojoDescriptor = mojoExecution.getMojoDescriptor();
           PluginDescriptor pluginDescriptor = mojoDescriptor.getPluginDescriptor();
@@ -194,14 +189,19 @@ public class MavenLifecycleParticipant extends AbstractMavenLifecycleParticipant
           String forkedJvm = getEffectiveJvm(mojo);
           Path forkedJvmPath = forkedJvm != null ? Paths.get(forkedJvm) : null;
           if (forkedJvmPath == null) {
+            Plugin plugin = mojoExecution.getPlugin();
+            String pluginKey = plugin.getKey();
             LOGGER.warn(
                 "Could not determine forked JVM path for plugin {} execution {} in project {}",
                 pluginKey,
                 mojoExecution.getExecutionId(),
                 project.getName());
           }
+          testExecutions.add(
+              new MavenTestExecution(project, mojoExecution, forkedJvmPath, jacocoExecutionFound));
 
-          testExecutions.computeIfAbsent(forkedJvmPath, k -> new ArrayList<>()).add(mojoExecution);
+        } else if (MavenUtils.isJacocoInstrumentationExecution(mojoExecution)) {
+          jacocoExecutionFound = true;
         }
       }
       return testExecutions;
@@ -261,12 +261,12 @@ public class MavenLifecycleParticipant extends AbstractMavenLifecycleParticipant
   private void configureTestExecutions(
       ExecutorService projectConfigurationPool,
       MavenSession session,
-      Map<Path, Collection<MojoExecution>> testExecutions) {
+      Map<Path, Collection<MavenTestExecution>> testExecutions) {
     CompletionService<Void> configurationCompletionService =
         new ExecutorCompletionService<>(projectConfigurationPool);
-    for (Map.Entry<Path, Collection<MojoExecution>> e : testExecutions.entrySet()) {
+    for (Map.Entry<Path, Collection<MavenTestExecution>> e : testExecutions.entrySet()) {
       Path jvmExecutablePath = e.getKey();
-      Collection<MojoExecution> executions = e.getValue();
+      Collection<MavenTestExecution> executions = e.getValue();
       configurationCompletionService.submit(
           () -> configureTestExecutions(session, jvmExecutablePath, executions));
     }
@@ -285,14 +285,15 @@ public class MavenLifecycleParticipant extends AbstractMavenLifecycleParticipant
   }
 
   private Void configureTestExecutions(
-      MavenSession session, Path jvmExecutablePath, Collection<MojoExecution> testExecutions) {
+      MavenSession session, Path jvmExecutablePath, Collection<MavenTestExecution> testExecutions) {
     MavenExecutionRequest request = session.getRequest();
     ModuleExecutionSettings moduleExecutionSettings =
         buildEventsHandler.getModuleExecutionSettings(request, jvmExecutablePath);
 
-    for (MojoExecution testExecution : testExecutions) {
+    for (MavenTestExecution testExecution : testExecutions) {
       MavenProjectConfigurator.INSTANCE.configureTracer(
-          testExecution, moduleExecutionSettings.getSystemProperties());
+          testExecution.getExecution(), moduleExecutionSettings.getSystemProperties());
+      MavenProjectConfigurator.INSTANCE.configureJacoco(testExecution, moduleExecutionSettings);
     }
     return null;
   }

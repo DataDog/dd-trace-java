@@ -196,7 +196,9 @@ public class DDBuildSystemSessionImpl extends DDTestSessionImpl implements DDBui
   private File getCoverageReportFolder() {
     String coverageReportDumpDir = config.getCiVisibilityCodeCoverageReportDumpDir();
     if (coverageReportDumpDir != null) {
-      return Paths.get(coverageReportDumpDir, "session-" + span.getSpanId(), "aggregated").toFile();
+      return Paths.get(coverageReportDumpDir, "session-" + span.getSpanId(), "aggregated")
+          .toAbsolutePath()
+          .toFile();
     } else {
       return null;
     }

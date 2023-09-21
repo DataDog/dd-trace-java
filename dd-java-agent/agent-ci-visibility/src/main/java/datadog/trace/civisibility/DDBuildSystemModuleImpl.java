@@ -196,7 +196,9 @@ public class DDBuildSystemModuleImpl extends DDTestModuleImpl implements DDBuild
   private File getCoverageReportFolder() {
     String coverageReportDumpDir = config.getCiVisibilityCodeCoverageReportDumpDir();
     if (coverageReportDumpDir != null) {
-      return Paths.get(coverageReportDumpDir, "session-" + sessionId, moduleName).toFile();
+      return Paths.get(coverageReportDumpDir, "session-" + sessionId, moduleName)
+          .toAbsolutePath()
+          .toFile();
     } else {
       return null;
     }
