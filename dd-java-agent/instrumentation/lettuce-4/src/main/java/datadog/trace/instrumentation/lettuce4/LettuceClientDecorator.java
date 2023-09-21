@@ -4,7 +4,6 @@ import static datadog.trace.instrumentation.lettuce4.InstrumentationPoints.getCo
 
 import com.lambdaworks.redis.RedisURI;
 import com.lambdaworks.redis.protocol.RedisCommand;
-import datadog.trace.api.Config;
 import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
@@ -18,7 +17,7 @@ public class LettuceClientDecorator extends DBTypeProcessingDatabaseClientDecora
   public static final CharSequence OPERATION_NAME =
       UTF8BytesString.create(SpanNaming.instance().namingSchema().cache().operation("redis"));
   private static final String SERVICE_NAME =
-      SpanNaming.instance().namingSchema().cache().service(Config.get().getServiceName(), "redis");
+      SpanNaming.instance().namingSchema().cache().service("redis");
   public static final LettuceClientDecorator DECORATE = new LettuceClientDecorator();
 
   @Override

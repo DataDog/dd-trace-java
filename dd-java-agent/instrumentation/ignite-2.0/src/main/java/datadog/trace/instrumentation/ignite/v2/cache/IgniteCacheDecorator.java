@@ -38,10 +38,7 @@ public class IgniteCacheDecorator extends DBTypeProcessingDatabaseClientDecorato
 
   @Override
   protected String service() {
-    return SpanNaming.instance()
-        .namingSchema()
-        .cache()
-        .service(Config.get().getServiceName(), DB_TYPE);
+    return SpanNaming.instance().namingSchema().cache().service(DB_TYPE);
   }
 
   @Override

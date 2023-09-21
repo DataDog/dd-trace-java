@@ -17,10 +17,7 @@ import datadog.trace.bootstrap.instrumentation.decorator.DBTypeProcessingDatabas
 public class AerospikeClientDecorator extends DBTypeProcessingDatabaseClientDecorator<Node> {
   private static final String DB_TYPE = "aerospike";
   private static final String SERVICE_NAME =
-      SpanNaming.instance()
-          .namingSchema()
-          .database()
-          .service(Config.get().getServiceName(), DB_TYPE);
+      SpanNaming.instance().namingSchema().database().service(DB_TYPE);
   public static final UTF8BytesString JAVA_AEROSPIKE = UTF8BytesString.create("java-aerospike");
   public static final UTF8BytesString OPERATION_NAME =
       UTF8BytesString.create(SpanNaming.instance().namingSchema().database().operation(DB_TYPE));
