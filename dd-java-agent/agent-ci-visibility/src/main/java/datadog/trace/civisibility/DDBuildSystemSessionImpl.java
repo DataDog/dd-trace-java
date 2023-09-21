@@ -27,10 +27,14 @@ import datadog.trace.civisibility.source.index.RepoIndexBuilder;
 import datadog.trace.civisibility.utils.SpanUtils;
 import java.io.File;
 import java.io.IOException;
+import java.io.StringWriter;
+import java.lang.management.ManagementFactory;
+import java.lang.management.RuntimeMXBean;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Date;
 import java.util.HashSet;
 import java.util.concurrent.atomic.LongAdder;
 import javax.annotation.Nullable;
@@ -197,6 +201,17 @@ public class DDBuildSystemSessionImpl extends DDTestSessionImpl implements DDBui
         Files.write(
             coverageReportFolder.toPath().resolve("dump-config.txt"),
             Config.get().toString().getBytes());
+
+        StringWriter sw = new StringWriter();
+        RuntimeMXBean runtimeMXBean = ManagementFactory.getRuntimeMXBean();
+        sw.write("\nname: " + runtimeMXBean.getName());
+        sw.write("\nstart time: " + new Date(runtimeMXBean.getStartTime()));
+        sw.write("\nuptime: " + runtimeMXBean.getUptime());
+        sw.write("\ninput args: " + runtimeMXBean.getInputArguments());
+        StringBuffer buffer = sw.getBuffer();
+        Files.write(
+            coverageReportFolder.toPath().resolve("dump-jmx.txt"), buffer.toString().getBytes());
+
       } catch (IOException e) {
         // ignore
       }
