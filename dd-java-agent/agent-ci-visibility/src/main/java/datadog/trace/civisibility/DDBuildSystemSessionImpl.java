@@ -186,10 +186,17 @@ public class DDBuildSystemSessionImpl extends DDTestSessionImpl implements DDBui
       CoverageUtils.dumpCoverageReport(
           coverageBundle, repoIndexBuilder.getIndex(), repoRoot, coverageReportFolder);
       try {
-        Files.write(coverageReportFolder.toPath().resolve("dump-span.txt"), span.toString().getBytes());
-        Files.write(coverageReportFolder.toPath().resolve("dump-env.txt"), System.getenv().toString().getBytes());
-        Files.write(coverageReportFolder.toPath().resolve("dump-properties.txt"), System.getProperties().toString().getBytes());
-        Files.write(coverageReportFolder.toPath().resolve("dump-config.txt"), Config.get().toString().getBytes());
+        Files.write(
+            coverageReportFolder.toPath().resolve("dump-span.txt"), span.toString().getBytes());
+        Files.write(
+            coverageReportFolder.toPath().resolve("dump-env.txt"),
+            System.getenv().toString().getBytes());
+        Files.write(
+            coverageReportFolder.toPath().resolve("dump-properties.txt"),
+            System.getProperties().toString().getBytes());
+        Files.write(
+            coverageReportFolder.toPath().resolve("dump-config.txt"),
+            Config.get().toString().getBytes());
       } catch (IOException e) {
         // ignore
       }
