@@ -34,7 +34,9 @@ public class XContentTypeModuleImpl extends SinkModuleBase implements XContentTy
         final AgentSpan span = AgentTracer.activeSpan();
         if (overheadController.consumeQuota(Operations.REPORT_VULNERABILITY, span)) {
           reporter.report(
-              span, new Vulnerability(VulnerabilityType.XCONTENTTYPE_HEADER_MISSING, null, null));
+              span,
+              new Vulnerability(
+                  VulnerabilityType.XCONTENTTYPE_HEADER_MISSING, getServiceName(span)));
         }
       }
     } catch (Throwable e) {

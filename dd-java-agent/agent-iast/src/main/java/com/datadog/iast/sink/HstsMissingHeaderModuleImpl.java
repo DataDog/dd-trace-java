@@ -44,7 +44,7 @@ public class HstsMissingHeaderModuleImpl extends SinkModuleBase implements HstsM
         final AgentSpan span = AgentTracer.activeSpan();
         if (overheadController.consumeQuota(Operations.REPORT_VULNERABILITY, span)) {
           reporter.report(
-              span, new Vulnerability(VulnerabilityType.HSTS_HEADER_MISSING, null, null));
+              span, new Vulnerability(VulnerabilityType.HSTS_HEADER_MISSING, getServiceName(span)));
         }
       } catch (Throwable e) {
         LOGGER.debug("Exception while checking for missing HSTS headers vulnerability", e);
