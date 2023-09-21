@@ -32,7 +32,7 @@ public class ObjectVisitor {
       try {
         method = Field.class.getMethod("trySetAccessible");
       } catch (NoSuchMethodException e) {
-        LOGGER.error("Can't get method 'Field.trySetAccessible'", e);
+        LOGGER.warn("Can't get method 'Field.trySetAccessible'", e);
       }
     }
     TRY_SET_ACCESSIBLE = method;
@@ -107,7 +107,7 @@ public class ObjectVisitor {
         state = visitObject(depth, path, value);
       }
     } catch (final Throwable e) {
-      LOGGER.warn("Failed to visit object of type {}", value.getClass(), e);
+      LOGGER.debug("Failed to visit object of type {}", value.getClass(), e);
     }
     return state;
   }
@@ -186,7 +186,7 @@ public class ObjectVisitor {
             }
           }
         } catch (final Throwable e) {
-          LOGGER.warn("Unable to get field {}", field, e);
+          LOGGER.debug("Unable to get field {}", field, e);
         }
       }
       klass = klass.getSuperclass();
@@ -225,7 +225,7 @@ public class ObjectVisitor {
       field.setAccessible(true);
       return true;
     } catch (RuntimeException | IllegalAccessException | InvocationTargetException e) {
-      LOGGER.warn("Unable to make field accessible", e);
+      LOGGER.debug("Unable to make field accessible", e);
       return false;
     }
   }
