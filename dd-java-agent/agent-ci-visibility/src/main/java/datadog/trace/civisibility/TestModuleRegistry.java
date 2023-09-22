@@ -6,7 +6,6 @@ import datadog.trace.civisibility.ipc.ModuleExecutionResult;
 import datadog.trace.civisibility.ipc.SignalResponse;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import org.jacoco.core.data.ExecutionDataStore;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -28,8 +27,7 @@ public class TestModuleRegistry {
     testModuleById.remove(module.getId());
   }
 
-  public SignalResponse onModuleExecutionResultReceived(
-      ModuleExecutionResult result, ExecutionDataStore coverageData) {
+  public SignalResponse onModuleExecutionResultReceived(ModuleExecutionResult result) {
     long moduleId = result.getModuleId();
     DDBuildSystemModule module = testModuleById.get(moduleId);
     if (module == null) {
@@ -41,7 +39,7 @@ public class TestModuleRegistry {
       return new ErrorResponse(message);
     }
 
-    module.onModuleExecutionResultReceived(result, coverageData);
+    module.onModuleExecutionResultReceived(result);
     return AckResponse.INSTANCE;
   }
 }
