@@ -18,6 +18,16 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named
 
 class TaintableVisitorTest extends DDSpecification {
 
+  private boolean wasEnabled
+
+  void setup() {
+    wasEnabled = TaintableVisitor.ENABLED
+  }
+
+  void cleanup() {
+    TaintableVisitor.ENABLED = wasEnabled
+  }
+
   void 'test taintable visitor'() {
     given:
     final className = 'datadog.trace.agent.tooling.bytebuddy.iast.TaintableTest'
