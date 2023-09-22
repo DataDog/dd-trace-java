@@ -488,6 +488,7 @@ public class LogProbesInstrumentationTest {
     when(config.isDebuggerClassFileDumpEnabled()).thenReturn(true);
     when(config.getFinalDebuggerSnapshotUrl())
         .thenReturn("http://localhost:8126/debugger/v1/input");
+    when(config.getFinalDebuggerSymDBUrl()).thenReturn("http://localhost:8126/symdb/v1/input");
     when(config.getDebuggerUploadBatchSize()).thenReturn(100);
     currentTransformer = new DebuggerTransformer(config, configuration);
     instr.addTransformer(currentTransformer);
