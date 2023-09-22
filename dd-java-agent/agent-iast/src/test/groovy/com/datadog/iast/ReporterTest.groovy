@@ -195,9 +195,6 @@ class ReporterTest extends DDSpecification {
       assert newHash == hash
     }
 
-
-
-
     where:
     v | _
     defaultVulnerability() | _
