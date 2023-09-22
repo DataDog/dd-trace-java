@@ -115,7 +115,7 @@ public class DDBuildSystemSessionImpl extends DDTestSessionImpl implements DDBui
       }
     }
 
-    return testModuleRegistry.onModuleExecutionResultReceived(result, moduleCoverageData);
+    return testModuleRegistry.onModuleExecutionResultReceived(result);
   }
 
   private SignalResponse onRepoIndexRequestReceived(RepoIndexRequest request) {
