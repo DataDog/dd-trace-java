@@ -16,7 +16,6 @@ import com.datadog.iast.taint.Ranges.RangesProvider;
 import com.datadog.iast.taint.TaintedObject;
 import com.datadog.iast.taint.TaintedObjects;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.core.DDSpanContext;
 import datadog.trace.instrumentation.iastinstrumenter.IastExclusionTrie;
 import datadog.trace.util.stacktrace.StackWalker;
 import java.util.Collection;
@@ -244,13 +243,7 @@ public abstract class SinkModuleBase implements HasDependencies {
   }
 
   protected String getServiceName(final AgentSpan span) {
-    if (span != null) {
-      AgentSpan.Context context = span.context();
-      if (context instanceof DDSpanContext) {
-        return ((DDSpanContext) context).getServiceName();
-      }
-    }
-    return null;
+    return span != null ? span.getServiceName() : null;
   }
 
   static long spanId(final AgentSpan span) {

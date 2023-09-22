@@ -148,33 +148,61 @@ class ReporterTest extends DDSpecification {
     final tracerAPI = Mock(TracerAPI)
     AgentTracer.forceRegister(tracerAPI)
     final spanId = 12345L
+    final serviceName = 'service-name'
     final span = Mock(AgentSpan)
     final scope = Mock(AgentScope)
     final ctx = new IastRequestContext()
     final reqCtx = Stub(RequestContext)
     reqCtx.getData(RequestContextSlot.IAST) >> ctx
     final reporter = new Reporter()
-    final v = new Vulnerability(
-    VulnerabilityType.WEAK_HASH,
-    Location.forSpanAndStack(0, new StackTraceElement("foo", "foo", "foo", 1)),
-    new Evidence("MD5")
-    )
+    final hash = v.getHash()
 
     when:
     reporter.report(null, v)
-    v.getLocation().getSpanId() == spanId
 
     then:
     noExceptionThrown()
     1 * tracerAPI.startSpan('iast', 'vulnerability', _ as AgentSpan.Context) >> span
     1 * tracerAPI.activateSpan(span, ScopeSource.MANUAL) >> scope
-    1 * span.getSpanId() >> spanId
     1 * span.getRequestContext() >> reqCtx
     1 * span.setSpanType(InternalSpanTypes.VULNERABILITY) >> span
     1 * span.setTag(ANALYZED.key(), ANALYZED.value())
+    if(v.getType() instanceof VulnerabilityType.HeaderVulnerabilityType){
+      1 * span.getServiceName() >> serviceName
+    }else{
+      1 * span.getSpanId() >> spanId
+    }
     1 * span.finish()
     1 * scope.close()
     0 * _
+
+    when:
+    def newSpanId = null
+    def newServiceName = null
+    if(v.getType() instanceof VulnerabilityType.HeaderVulnerabilityType){
+      newServiceName = v.getServiceName()
+    }else{
+      newSpanId =  v.getLocation().getSpanId()
+    }
+    def newHash = v.getHash()
+
+    then:
+    if(v.getType() instanceof VulnerabilityType.HeaderVulnerabilityType){
+      assert newServiceName == serviceName
+      assert newHash != hash
+    }else{
+      assert newSpanId == spanId
+      assert newHash == hash
+    }
+
+
+
+
+    where:
+    v | _
+    defaultVulnerability() | _
+    cookieVulnerability() | _
+    headerVulnerability() | _
   }
 
   void 'no spans are create if duplicates are reported'() {
@@ -422,5 +450,27 @@ class ReporterTest extends DDSpecification {
     span.getRequestContext() >> reqCtx
     span.getSpanId() >> spanId
     return span
+  }
+
+  private Vulnerability defaultVulnerability(){
+    return new Vulnerability(
+    VulnerabilityType.WEAK_HASH,
+    Location.forSpanAndStack(0, new StackTraceElement("foo", "foo", "foo", 1)),
+    new Evidence("MD5")
+    )
+  }
+
+  private Vulnerability cookieVulnerability(){
+    return new Vulnerability(
+    VulnerabilityType.INSECURE_COOKIE,
+    Location.forSpanAndStack(0, new StackTraceElement("foo", "foo", "foo", 1)),
+    new Evidence("cookie-name")
+    )
+  }
+
+  private Vulnerability headerVulnerability(){
+    return new Vulnerability(
+    VulnerabilityType.XCONTENTTYPE_HEADER_MISSING, null
+    )
   }
 }
