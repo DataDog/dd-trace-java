@@ -6,7 +6,7 @@ muzzle {
   pass {
     group = "io.openliberty"
     module = 'openliberty-runtime'
-    versions = "[23.0.0.5,23.0.0.6)"
+    versions = "[22.0.0.1,)"
     assertInverse = false
   }
 }
