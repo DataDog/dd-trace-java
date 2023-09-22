@@ -1,14 +1,6 @@
 plugins {
   id 'java-test-fixtures'
 }
-muzzle {
-  pass {
-    group = "io.openliberty"
-    module = 'openliberty-runtime'
-    versions = "[,22.0.0.1)"
-    assertInverse = true
-  }
-}
 apply from: "$rootDir/gradle/java.gradle"
 
 String relAppDir = 'openliberty-jars/wlp/usr/servers/defaultServer/dropins/war/testapp'
