@@ -3895,6 +3895,10 @@ public class Config {
         + appSecWafTimeout
         + " us, appSecHttpBlockedTemplateJson="
         + appSecHttpBlockedTemplateJson
+        + ", apiSecurityEnabled="
+        + apiSecurityEnabled
+        + ", apiSecurityRequestSampleRate="
+        + apiSecurityRequestSampleRate
         + ", cwsEnabled="
         + cwsEnabled
         + ", cwsTlsRefresh="
