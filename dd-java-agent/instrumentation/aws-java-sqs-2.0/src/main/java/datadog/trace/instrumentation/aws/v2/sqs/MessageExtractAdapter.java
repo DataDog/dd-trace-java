@@ -1,11 +1,8 @@
 package datadog.trace.instrumentation.aws.v2.sqs;
 
-import static datadog.trace.bootstrap.instrumentation.api.PathwayContext.DATADOG_KEY;
-
-import datadog.trace.api.Config;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
+import datadog.trace.bootstrap.instrumentation.messaging.DatadogAttributeParser;
 import java.util.Map;
-import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.services.sqs.model.Message;
@@ -18,38 +15,27 @@ public final class MessageExtractAdapter implements AgentPropagation.ContextVisi
 
   @Override
   public void forEachKey(Message carrier, AgentPropagation.KeyClassifier classifier) {
-
-    for (Map.Entry<String, String> entry : carrier.attributesAsStrings().entrySet()) {
-      String key = entry.getKey();
-      if ("AWSTraceHeader".equalsIgnoreCase(key)) {
-        key = "X-Amzn-Trace-Id";
-      }
-      if (!classifier.accept(key, entry.getValue())) {
-        return;
-      }
+    Map<String, String> systemAttributes = carrier.attributesAsStrings();
+    if (systemAttributes.containsKey("AWSTraceHeader")) {
+      // alias 'AWSTraceHeader' to 'X-Amzn-Trace-Id' because it uses the same format
+      classifier.accept("X-Amzn-Trace-Id", systemAttributes.get("AWSTraceHeader"));
     }
-
-    if (Config.get().isDataStreamsEnabled()) {
-      for (Map.Entry<String, MessageAttributeValue> entry :
-          carrier.messageAttributes().entrySet()) {
-        String key = entry.getKey();
-        if (key.equalsIgnoreCase(DATADOG_KEY)) {
-          Optional<String> value = entry.getValue().getValueForField("StringValue", String.class);
-          if (value.isPresent()) {
-            if (!classifier.accept(key, value.get())) {
-              return;
-            }
-          }
-        }
+    Map<String, MessageAttributeValue> messageAttributes = carrier.messageAttributes();
+    if (messageAttributes.containsKey("_datadog")) {
+      MessageAttributeValue datadog = messageAttributes.get("_datadog");
+      if ("String".equals(datadog.dataType())) {
+        DatadogAttributeParser.forEachProperty(classifier, datadog.stringValue());
+      } else if ("Binary".equals(datadog.dataType()) && null != datadog.binaryValue()) {
+        DatadogAttributeParser.forEachProperty(classifier, datadog.binaryValue().asByteBuffer());
       }
     }
   }
 
   public long extractTimeInQueueStart(final Message carrier) {
     try {
-      Map<String, String> attributes = carrier.attributesAsStrings();
-      if (attributes.containsKey("SentTimestamp")) {
-        return Long.parseLong(attributes.get("SentTimestamp"));
+      Map<String, String> systemAttributes = carrier.attributesAsStrings();
+      if (systemAttributes.containsKey("SentTimestamp")) {
+        return Long.parseLong(systemAttributes.get("SentTimestamp"));
       }
     } catch (Exception e) {
       log.debug("Unable to get SQS sent time", e);
