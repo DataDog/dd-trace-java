@@ -127,6 +127,9 @@ public final class ClassLoaderMatchers {
   /** Sequence of class resource-names, in order of assigned hasClassId. */
   static final List<String> hasClassResourceNames = new ArrayList<>();
 
+  /** Size of {@link #hasClassResourceNames} when the class loader cache entry was built */
+  private static volatile int lastClassResourceNameCount = 0;
+
   /** Cache of classloader-instance -> has-class mask. */
   static final DDCache<ClassLoader, BitSet> hasClassCache = DDCaches.newFixedSizeWeakKeyCache(512);
 
@@ -136,6 +139,13 @@ public final class ClassLoaderMatchers {
   static final BitSet NO_CLASS_NAME_MATCHES = new BitSet();
 
   static BitSet hasClassMask(ClassLoader loader) {
+    final int classResourceNameCount = hasClassResourceNames.size();
+    if (lastClassResourceNameCount != classResourceNameCount) {
+      if (lastClassResourceNameCount > 0) {
+        resetState();
+      }
+      lastClassResourceNameCount = classResourceNameCount;
+    }
     return hasClassCache.computeIfAbsent(loader, ClassLoaderMatchers::buildHasClassMask);
   }
 

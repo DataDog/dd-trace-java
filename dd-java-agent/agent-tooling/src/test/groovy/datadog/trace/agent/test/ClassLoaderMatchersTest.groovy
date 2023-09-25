@@ -44,6 +44,30 @@ class ClassLoaderMatchersTest extends DDSpecification {
     LogContextScopeListener.name == "datadog.trace.agent.tooling.log.LogContextScopeListener"
   }
 
+  void 'matcher cache resets when new matchers are created'() {
+    setup:
+    ClassLoaderMatchers.resetState()
+    final firstClass = getClass()
+    final secondClass = NonDelegatingClassLoader
+    assert firstClass.classLoader == secondClass.classLoader
+    final classLoader = firstClass.classLoader
+
+    when:
+    final firstMatcher = ClassLoaderMatchers.hasClassNamed(firstClass.name)
+
+    then:
+    firstMatcher.matches(classLoader)
+
+    when:
+    final secondMatcher = ClassLoaderMatchers.hasClassNamed(secondClass.name)
+
+    then:
+    secondMatcher.matches(classLoader)
+
+    cleanup:
+    ClassLoaderMatchers.resetState()
+  }
+
   /*
    * A URLClassloader which only delegates java.* classes
    */
