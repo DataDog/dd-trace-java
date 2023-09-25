@@ -1,6 +1,5 @@
 package com.datadog.appsec.report;
 
-import com.datadog.appsec.report.raw.events.AppSecEvent100;
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Moshi;
 import java.util.Collection;
@@ -11,14 +10,14 @@ public class AppSecEventWrapper {
   private static final JsonAdapter<AppSecEventWrapper> ADAPTER =
       new Moshi.Builder().build().adapter(AppSecEventWrapper.class);
 
-  private Collection<AppSecEvent100> triggers;
+  private final Collection<AppSecEvent> triggers;
   private String json;
 
-  public AppSecEventWrapper(Collection<AppSecEvent100> events) {
+  public AppSecEventWrapper(Collection<AppSecEvent> events) {
     this.triggers = events;
   }
 
-  public Collection<AppSecEvent100> getTriggers() {
+  public Collection<AppSecEvent> getTriggers() {
     return triggers;
   }
 
