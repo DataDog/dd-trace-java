@@ -173,7 +173,6 @@ class MuzzlePlugin implements Plugin<Project> {
       Task runAfter = project.tasks.muzzle
       // runLast is the last task to finish, so we can time the execution
       Task runLast = runAfter
-      def toolCL = createClassLoader(muzzleTooling.getFiles(), createClassLoader(muzzleBootstrap.getFiles()))
       for (MuzzleDirective muzzleDirective : project.muzzle.directives) {
         project.getLogger().info("configured $muzzleDirective")
 
@@ -233,7 +232,11 @@ class MuzzlePlugin implements Plugin<Project> {
     Map<String, TestedArtifact> map = new TreeMap<>()
     def versionScheme = new GenericVersionScheme()
     dir.eachFileMatch(~/.*\.csv/) { file ->
-      file.eachLine 2, { line ->
+      file.eachLine  { line, nb ->
+        if (nb == 1) {
+          // skip header
+          return
+        }
         def split = line.split(",")
         def parsed = new TestedArtifact(split[0], split[1], split[2], versionScheme.parseVersion(split[3]),
           versionScheme.parseVersion(split[4]))
