@@ -1,7 +1,9 @@
 import datadog.trace.agent.test.asserts.ListWriterAssert
 import datadog.trace.api.DisableTestTrace
 import datadog.trace.api.civisibility.CIConstants
+import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.civisibility.CiVisibilityTest
+import datadog.trace.instrumentation.junit4.MUnitTracingListener
 import datadog.trace.instrumentation.junit4.TestEventsHandlerHolder
 import org.example.TestFailedAssumptionMUnit
 import org.example.TestSkippedMUnit
@@ -81,18 +83,29 @@ class MUnitTest extends CiVisibilityTest {
     setup:
     runTests(TestFailedAssumptionMUnit)
 
+    def expectedStatus
+    def testTags
+    // earlier versions of MUnit (e.g. 0.7.28) do not trigger "testAssumptionFailure" event, while newer versions do
+    if (expectedTestFrameworkVersion() > "1") {
+      expectedStatus = CIConstants.TEST_SKIP
+      testTags = [(Tags.TEST_SKIP_REASON): "this test always assumes the wrong thing"]
+    } else {
+      expectedStatus = CIConstants.TEST_PASS
+      testTags = [:]
+    }
+
     expect:
     ListWriterAssert.assertTraces(TEST_WRITER, 2, false, SORT_TRACES_BY_DESC_SIZE_THEN_BY_NAMES, {
       long testSessionId
       long testModuleId
       long testSuiteId
       trace(3, true) {
-        testSessionId = testSessionSpan(it, 1, CIConstants.TEST_PASS)
-        testModuleId = testModuleSpan(it, 0, testSessionId, CIConstants.TEST_PASS)
-        testSuiteId = testSuiteSpan(it, 2, testSessionId, testModuleId, "org.example.TestFailedAssumptionMUnit", CIConstants.TEST_PASS)
+        testSessionId = testSessionSpan(it, 1, expectedStatus)
+        testModuleId = testModuleSpan(it, 0, testSessionId, expectedStatus)
+        testSuiteId = testSuiteSpan(it, 2, testSessionId, testModuleId, "org.example.TestFailedAssumptionMUnit", expectedStatus)
       }
       trace(1) {
-        testSpan(it, 0, testSessionId, testModuleId, testSuiteId, "org.example.TestFailedAssumptionMUnit", "Calculator.add", null, CIConstants.TEST_PASS, null, null, false, null, true, false)
+        testSpan(it, 0, testSessionId, testModuleId, testSuiteId, "org.example.TestFailedAssumptionMUnit", "Calculator.add", null, expectedStatus, testTags, null, false, null, true, false)
       }
     })
   }
@@ -105,21 +118,21 @@ class MUnitTest extends CiVisibilityTest {
 
   @Override
   String expectedOperationPrefix() {
-    return "junit"
+    "junit"
   }
 
   @Override
   String expectedTestFramework() {
-    return "munit"
+    MUnitTracingListener.FRAMEWORK_NAME
   }
 
   @Override
   String expectedTestFrameworkVersion() {
-    return "0.7.28"
+    MUnitTracingListener.FRAMEWORK_VERSION
   }
 
   @Override
   String component() {
-    return "junit"
+    "junit"
   }
 }
