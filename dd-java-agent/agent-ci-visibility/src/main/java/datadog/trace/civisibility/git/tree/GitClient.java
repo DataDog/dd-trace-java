@@ -17,6 +17,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.TimeoutException;
+import javax.annotation.Nullable;
 
 /** Client for fetching data and performing operations on a local Git repository. */
 public class GitClient {
@@ -66,16 +67,43 @@ public class GitClient {
   }
 
   /**
-   * "Unshallows" the repo that the client is associated with by fetching missing commit data from
-   * the server.
+   * Returns the full symbolic name of the upstream (remote tracking) branch for the currently
+   * checked-out local branch. If the local branch is not tracking any remote branches, a {@link
+   * datadog.trace.civisibility.utils.ShellCommandExecutor.ShellCommandFailedException} exception
+   * will be thrown.
    *
+   * @return The name of the upstream branch if the current local branch is tracking any.
+   * @throws ShellCommandExecutor.ShellCommandFailedException If the Git command fails with an error
    * @throws IOException If an error was encountered while writing command input or reading output
    * @throws TimeoutException If timeout was reached while waiting for Git command to finish
    * @throws InterruptedException If current thread was interrupted while waiting for Git command to
    *     finish
    */
-  public void unshallow() throws IOException, TimeoutException, InterruptedException {
-    String headSha = getSha(HEAD);
+  public String getUpstreamBranch() throws IOException, TimeoutException, InterruptedException {
+    return commandExecutor
+        .executeCommand(
+            IOUtils::readFully,
+            "git",
+            "rev-parse",
+            "--abbrev-ref",
+            "--symbolic-full-name",
+            "@{upstream}")
+        .trim();
+  }
+
+  /**
+   * "Unshallows" the repo that the client is associated with by fetching missing commit data from
+   * the server.
+   *
+   * @param remoteCommitReference The commit to fetch from the remote repository, so local repo will
+   *     be updated with this commit and its ancestors. If {@code null}, everything will be fetched.
+   * @throws IOException If an error was encountered while writing command input or reading output
+   * @throws TimeoutException If timeout was reached while waiting for Git command to finish
+   * @throws InterruptedException If current thread was interrupted while waiting for Git command to
+   *     finish
+   */
+  public void unshallow(@Nullable String remoteCommitReference)
+      throws IOException, TimeoutException, InterruptedException {
     String remote =
         commandExecutor
             .executeCommand(
@@ -89,16 +117,29 @@ public class GitClient {
             .trim();
 
     // refetch data from the server for the given period of time
-    commandExecutor.executeCommand(
-        ShellCommandExecutor.OutputParser.IGNORE,
-        "git",
-        "fetch",
-        String.format("--shallow-since=='%s'", latestCommitsSince),
-        "--update-shallow",
-        "--filter=blob:none",
-        "--recurse-submodules=no",
-        remote,
-        headSha);
+    if (remoteCommitReference != null) {
+      String headSha = getSha(remoteCommitReference);
+      commandExecutor.executeCommand(
+          ShellCommandExecutor.OutputParser.IGNORE,
+          "git",
+          "fetch",
+          String.format("--shallow-since=='%s'", latestCommitsSince),
+          "--update-shallow",
+          "--filter=blob:none",
+          "--recurse-submodules=no",
+          remote,
+          headSha);
+    } else {
+      commandExecutor.executeCommand(
+          ShellCommandExecutor.OutputParser.IGNORE,
+          "git",
+          "fetch",
+          String.format("--shallow-since=='%s'", latestCommitsSince),
+          "--update-shallow",
+          "--filter=blob:none",
+          "--recurse-submodules=no",
+          remote);
+    }
   }
 
   /**
