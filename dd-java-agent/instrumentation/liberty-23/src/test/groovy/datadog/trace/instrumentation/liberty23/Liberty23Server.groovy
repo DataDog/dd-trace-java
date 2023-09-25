@@ -50,7 +50,7 @@ class Liberty23Server implements HttpServer {
     def featureManager = xml.featureManager[0]
     def jspFeature = featureManager.feature.find { it.value == 'jsp-2.3' }
     if (jspFeature) {
-        jspFeature.value = 'servlet-5.0'
+      jspFeature.value = 'servlet-5.0'
     }
 
     serverXmlFile.text = XmlUtil.serialize(xml)
