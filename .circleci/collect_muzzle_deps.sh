@@ -9,4 +9,4 @@ mkdir -p $REPORTS_DIR >/dev/null 2>&1
 
 echo "saving muzzle dependency reports"
 
-find workspace/**/build/muzzle-deps-results -type f -name '*.csv' -exec sed -e '$s/$/\n/' {} \; | head -n -1 | sort | uniq > $REPORTS_DIR/muzzle.csv
+find workspace/**/build/muzzle-deps-results -type f -name 'dd-java-agent_instrumentation.csv' -exec cp {} $REPORTS_DIR/ \;
