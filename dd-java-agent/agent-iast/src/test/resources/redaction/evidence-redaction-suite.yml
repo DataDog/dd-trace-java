@@ -1686,3 +1686,208 @@ suite:
           }
         ]
       }
+
+  - type: 'VULNERABILITIES'
+    description: 'Length based redaction '
+    input: >
+      [
+        {
+          "type": "XSS",
+          "evidence": {
+            "value": "this could be a super long text, so we need to reduce it before send it to the backend. This redaction strategy applies to XSS vulnerability but can be extended to future ones",
+            "ranges": [
+              { "start" : 123, "length" : 3, "source": { "origin": "http.request.parameter", "name": "type", "value": "XSS" } }
+            ]
+          }
+        }
+      ]
+    expected: >
+      {
+        "sources": [
+          { "origin": "http.request.parameter", "name": "type", "value": "XSS" }
+        ],
+        "vulnerabilities": [
+          {
+            "type": "XSS",
+            "evidence": {
+              "valueParts": [
+                { "redacted": true },
+                { "source": 0, "value": "XSS" },
+                { "redacted": true }
+              ]
+            }
+          }
+        ]
+      } 
+
+  - type: 'VULNERABILITIES'
+    description: 'Length based redaction - with redactable source '
+    input: >
+      [
+        {
+          "type": "XSS",
+          "evidence": {
+            "value": "this could be a super long text, so we need to reduce it before send it to the backend. This redaction strategy applies to XSS vulnerability but can be extended to future ones",
+            "ranges": [
+              { "start" : 123, "length" : 3, "source": { "origin": "http.request.parameter", "name": "password", "value": "XSS" } }
+            ]
+          }
+        }
+      ]
+    expected: >
+      {
+        "sources": [
+          { "origin": "http.request.parameter", "name": "password", "redacted": true, "pattern": "abc" }
+        ],
+        "vulnerabilities": [
+          {
+            "type": "XSS",
+            "evidence": {
+              "valueParts": [
+                { "redacted": true },
+                { "source": 0, "redacted": true, "pattern": "abc"},
+                { "redacted": true }
+              ]
+            }
+          }
+        ]
+      } 
+
+  - type: 'VULNERABILITIES'
+    description: 'Length based redaction - multiple ranges'
+    input: >
+      [
+        {
+          "type": "XSS",
+          "evidence": {
+            "value": "this could be a super long text, so we need to reduce it before send it to the backend. This redaction strategy applies to XSS vulnerability but can be extended to future ones",
+            "ranges": [
+              { "start" : 16, "length" : 10, "source": { "origin": "http.request.parameter", "name": "text", "value": "super long" }},
+              { "start" : 123, "length" : 3, "source": { "origin": "http.request.parameter", "name": "type", "value": "XSS" }}
+            ]
+          }
+        }
+      ]
+    expected: >
+      {
+        "sources": [
+          { "origin": "http.request.parameter", "name": "text", "value": "super long" },
+          { "origin": "http.request.parameter", "name": "type", "value": "XSS"}
+        ],
+        "vulnerabilities": [
+          {
+            "type": "XSS",
+            "evidence": {
+              "valueParts": [
+                { "redacted": true },
+                { "source": 0, "value": "super long" },
+                { "redacted": true },
+                {"source": 1, "value": "XSS"}, 
+                { "redacted": true }
+              ]
+            }
+          }
+        ]
+      } 
+
+  - type: 'VULNERABILITIES'
+    description: 'Length based redaction - first range at the beginning '
+    input: >
+      [
+        {
+          "type": "XSS",
+          "evidence": {
+            "value": "this could be a super long text, so we need to reduce it before send it to the backend. This redaction strategy applies to XSS vulnerability but can be extended to future ones",
+            "ranges": [
+              { "start" : 0, "length" : 4, "source": { "origin": "http.request.parameter", "name": "text", "value": "this" }},
+              { "start" : 123, "length" : 3, "source": { "origin": "http.request.parameter", "name": "type", "value": "XSS" }}
+            ]
+          }
+        }
+      ]
+    expected: >
+      {
+        "sources": [
+          { "origin": "http.request.parameter", "name": "text", "value": "this" },
+          { "origin": "http.request.parameter", "name": "type", "value": "XSS"}
+        ],
+        "vulnerabilities": [
+          {
+            "type": "XSS",
+            "evidence": {
+              "valueParts": [
+                { "source": 0, "value": "this" },
+                { "redacted": true },
+                {"source": 1, "value": "XSS"}, 
+                { "redacted": true }
+              ]
+            }
+          }
+        ]
+      } 
+
+  - type: 'VULNERABILITIES'
+    description: 'Length based redaction - last range at the end '
+    input: >
+      [
+        {
+          "type": "XSS",
+          "evidence": {
+            "value": "this could be a super long text, so we need to reduce it before send it to the backend. This redaction strategy applies to XSS",
+            "ranges": [
+              { "start" : 0, "length" : 4, "source": { "origin": "http.request.parameter", "name": "text", "value": "this" }},
+              { "start" : 123, "length" : 3, "source": { "origin": "http.request.parameter", "name": "type", "value": "XSS" }}
+            ]
+          }
+        }
+      ]
+    expected: >
+      {
+        "sources": [
+          { "origin": "http.request.parameter", "name": "text", "value": "this" },
+          { "origin": "http.request.parameter", "name": "type", "value": "XSS"}
+        ],
+        "vulnerabilities": [
+          {
+            "type": "XSS",
+            "evidence": {
+              "valueParts": [
+                { "source": 0, "value": "this" },
+                { "redacted": true },
+                {"source": 1, "value": "XSS"}
+              ]
+            }
+          }
+        ]
+      } 
+
+  - type: 'VULNERABILITIES'
+    description: 'Length based redaction - whole text '
+    input: >
+      [
+        {
+          "type": "XSS",
+          "evidence": {
+            "value": "this could be a super long text, so we need to reduce it before send it to the backend. This redaction strategy applies to XSS",
+            "ranges": [
+              { "start" : 0, "length" : 126, "source": { "origin": "http.request.parameter", "name": "text", "value": "this could be a super long text, so we need to reduce it before send it to the backend. This redaction strategy applies to XSS" }}
+            ]
+          }
+        }
+      ]
+    expected: >
+      {
+        "sources": [
+          { "origin": "http.request.parameter", "name": "text", "value": "this could be a super long text, so we need to reduce it before send it to the backend. This redaction strategy applies to XSS"}
+        ],
+        "vulnerabilities": [
+          {
+            "type": "XSS",
+            "evidence": {
+              "valueParts": [
+                { "source": 0, "value": "this could be a super long text, so we need to reduce it before send it to the backend. This redaction strategy applies to XSS" }
+              ]
+            }
+          }
+        ]
+      } 
