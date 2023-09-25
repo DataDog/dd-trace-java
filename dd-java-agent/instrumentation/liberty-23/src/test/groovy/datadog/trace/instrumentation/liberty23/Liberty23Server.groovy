@@ -46,11 +46,15 @@ class Liberty23Server implements HttpServer {
     xml.httpEndpoint[0].'@httpPort' = port as String
     xml.httpEndpoint[0].attributes().remove 'httpsPort'
 
-    // Find and replace the jsp-2.3 feature with servlet-5.0 (if it exists)
     def featureManager = xml.featureManager[0]
-    def jspFeature = featureManager.feature.find { it.value == 'jsp-2.3' }
-    if (jspFeature) {
-      jspFeature.value = 'servlet-5.0'
+
+    // Add servlet-5.0
+    featureManager.appendNode('feature', 'servlet-5.0')
+
+    // Remove JSP
+    def jspFeatureIndex = featureManager.feature.indexOf { it.text() == 'jsp-2.3' }
+    if (jspFeatureIndex >= 0) {
+      featureManager.feature[jspFeatureIndex].replaceNode {}
     }
 
     serverXmlFile.text = XmlUtil.serialize(xml)
