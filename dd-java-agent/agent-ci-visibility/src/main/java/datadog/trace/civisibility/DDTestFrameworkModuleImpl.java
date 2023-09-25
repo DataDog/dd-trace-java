@@ -13,9 +13,9 @@ import datadog.trace.civisibility.coverage.CoverageProbeStoreFactory;
 import datadog.trace.civisibility.decorator.TestDecorator;
 import datadog.trace.civisibility.source.MethodLinesResolver;
 import datadog.trace.civisibility.source.SourcePathResolver;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
-import java.util.Map;
 import java.util.concurrent.atomic.LongAdder;
 import java.util.function.Consumer;
 import javax.annotation.Nullable;
@@ -27,12 +27,10 @@ import javax.annotation.Nullable;
  */
 public class DDTestFrameworkModuleImpl extends DDTestModuleImpl implements DDTestFrameworkModule {
 
-  private final ModuleExecutionSettingsFactory moduleExecutionSettingsFactory;
   private final LongAdder testsSkipped = new LongAdder();
-  private final Object skippableTestsInitLock = new Object();
-  private volatile Collection<SkippableTest> skippableTests;
-  private volatile boolean codeCoverageEnabled;
-  private volatile boolean itrEnabled;
+  private final Collection<SkippableTest> skippableTests;
+  private final boolean codeCoverageEnabled;
+  private final boolean itrEnabled;
 
   public DDTestFrameworkModuleImpl(
       AgentSpan.Context sessionSpanContext,
@@ -59,42 +57,32 @@ public class DDTestFrameworkModuleImpl extends DDTestModuleImpl implements DDTes
         methodLinesResolver,
         coverageProbeStoreFactory,
         onSpanFinish);
-    this.moduleExecutionSettingsFactory = moduleExecutionSettingsFactory;
+
+    ModuleExecutionSettings moduleExecutionSettings =
+        moduleExecutionSettingsFactory.create(JvmInfo.CURRENT_JVM, moduleName);
+    codeCoverageEnabled = moduleExecutionSettings.isCodeCoverageEnabled();
+    itrEnabled = moduleExecutionSettings.isItrEnabled();
+    Collection<SkippableTest> moduleSkippableTests =
+        moduleExecutionSettings.getSkippableTests(moduleName);
+    skippableTests =
+        moduleSkippableTests.size() > 100
+            ? new HashSet<>(moduleSkippableTests)
+            : new ArrayList<>(moduleSkippableTests);
+  }
+
+  @Override
+  public boolean isSkippable(SkippableTest test) {
+    return test != null && skippableTests.contains(test);
   }
 
   @Override
   public boolean skip(SkippableTest test) {
-    if (test == null) {
-      return false;
-    }
-
-    if (skippableTests == null) {
-      synchronized (skippableTestsInitLock) {
-        if (skippableTests == null) {
-          skippableTests = fetchSkippableTests();
-        }
-      }
-    }
-
-    if (skippableTests.contains(test)) {
+    if (isSkippable(test)) {
       testsSkipped.increment();
       return true;
     } else {
       return false;
     }
-  }
-
-  private Collection<SkippableTest> fetchSkippableTests() {
-    ModuleExecutionSettings moduleExecutionSettings =
-        moduleExecutionSettingsFactory.create(JvmInfo.CURRENT_JVM, moduleName);
-    codeCoverageEnabled = moduleExecutionSettings.isCodeCoverageEnabled();
-    itrEnabled = moduleExecutionSettings.isItrEnabled();
-    return new HashSet<>(moduleExecutionSettings.getSkippableTests(moduleName));
-  }
-
-  private boolean propertyEnabled(Map<String, String> systemProperties, String propertyName) {
-    String property = systemProperties.get(propertyName);
-    return Boolean.parseBoolean(property);
   }
 
   @Override

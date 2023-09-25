@@ -11,6 +11,7 @@ import io.awspring.cloud.sqs.operations.SqsTemplate
 import listener.Config
 import org.elasticmq.rest.sqs.SQSRestServer
 import org.springframework.context.annotation.AnnotationConfigApplicationContext
+import org.springframework.messaging.support.GenericMessage
 import software.amazon.awssdk.services.sqs.SqsAsyncClient
 
 class SpringListenerSQSTest extends AgentTestRunner {
@@ -48,6 +49,75 @@ class SpringListenerSQSTest extends AgentTestRunner {
       }
       trace(1) {
         springSqsListener(it, sendingSpan)
+      }
+      trace(1) {
+        deleteMessageBatch(it, address)
+      }
+    }
+  }
+
+  def "embedded _datadog context used when no immediate context"() {
+    setup:
+    def context = new AnnotationConfigApplicationContext(Config)
+    def address = context.getBean(SQSRestServer).waitUntilStarted().localAddress()
+    def template = SqsTemplate.newTemplate(context.getBean(SqsAsyncClient))
+    TEST_WRITER.waitForTraces(2)
+    TEST_WRITER.clear()
+
+    when:
+    def message = new GenericMessage("a message", [
+      '_datadog' : "{\"x-datadog-trace-id\": \"4948377316357291421\", \"x-datadog-parent-id\": \"6746998015037429512\", \"x-datadog-sampling-priority\": \"1\"}"
+    ])
+    TraceUtils.runUnderTrace("parent") {
+      template.sendAsync("SpringListenerSQS", message)
+    }
+
+    then:
+    assertTraces(4, SORT_TRACES_BY_START) {
+      trace(3) {
+        sendMessage(it, address, span(2))
+        getQueueUrl(it, address, span(2))
+        basicSpan(it, "parent")
+      }
+      trace(1) {
+        span {
+          serviceName "sqs"
+          operationName "aws.http"
+          resourceName "Sqs.ReceiveMessage"
+          spanType DDSpanTypes.MESSAGE_CONSUMER
+          errored false
+          measured true
+          traceId(4948377316357291421 as BigInteger)
+          parentSpanId(6746998015037429512 as BigInteger)
+          tags {
+            "$Tags.COMPONENT" "java-aws-sdk"
+            "$Tags.SPAN_KIND" Tags.SPAN_KIND_CONSUMER
+            "aws.service" "Sqs"
+            "aws_service" "Sqs"
+            "aws.operation" "ReceiveMessage"
+            "aws.agent" "java-aws-sdk"
+            "aws.queue.url" "http://localhost:${address.port}/000000000000/SpringListenerSQS"
+            "aws.requestId" "00000000-0000-0000-0000-000000000000"
+            defaultTags(true)
+          }
+        }
+      }
+      trace(1) {
+        span {
+          serviceName "my-service"
+          operationName "spring.consume"
+          resourceName "TestListener.observe"
+          spanType DDSpanTypes.MESSAGE_CONSUMER
+          errored false
+          measured true
+          traceId(4948377316357291421 as BigInteger)
+          parentSpanId(6746998015037429512 as BigInteger)
+          tags {
+            "$Tags.COMPONENT" "spring-messaging"
+            "$Tags.SPAN_KIND" Tags.SPAN_KIND_CONSUMER
+            defaultTags(true)
+          }
+        }
       }
       trace(1) {
         deleteMessageBatch(it, address)

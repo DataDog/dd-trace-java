@@ -160,15 +160,6 @@ public class DDTestSuiteImpl implements DDTestSuite {
   @Override
   public DDTestImpl testStart(
       String testName, @Nullable Method testMethod, @Nullable Long startTime) {
-    return testStart(
-        testName, testMethod != null ? testMethod.getName() : null, testMethod, startTime);
-  }
-
-  public DDTestImpl testStart(
-      String testName,
-      @Nullable String methodName,
-      @Nullable Method testMethod,
-      @Nullable Long startTime) {
     return new DDTestImpl(
         sessionId,
         moduleId,
@@ -178,7 +169,6 @@ public class DDTestSuiteImpl implements DDTestSuite {
         testName,
         startTime,
         testClass,
-        methodName,
         testMethod,
         config,
         testDecorator,

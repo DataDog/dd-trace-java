@@ -846,6 +846,11 @@ public class Agent {
   private static void startProfilingAgent(final boolean isStartingFirst) {
     StaticEventLogger.begin("ProfilingAgent");
 
+    if (isAwsLambdaRuntime()) {
+      log.info("Profiling not supported in AWS Lambda runtimes");
+      return;
+    }
+
     final ClassLoader contextLoader = Thread.currentThread().getContextClassLoader();
     try {
       Thread.currentThread().setContextClassLoader(AGENT_CLASSLOADER);
@@ -909,6 +914,11 @@ public class Agent {
     }
 
     StaticEventLogger.end("ProfilingAgent");
+  }
+
+  private static boolean isAwsLambdaRuntime() {
+    String val = System.getenv("AWS_LAMBDA_FUNCTION_NAME");
+    return val != null && !val.isEmpty();
   }
 
   private static ScopeListener createScopeListener(String className) throws Throwable {
