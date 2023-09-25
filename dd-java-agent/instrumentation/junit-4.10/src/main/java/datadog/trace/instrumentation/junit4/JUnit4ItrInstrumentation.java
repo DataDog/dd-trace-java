@@ -25,7 +25,7 @@ public class JUnit4ItrInstrumentation extends Instrumenter.CiVisibility
     implements Instrumenter.ForTypeHierarchy {
 
   public JUnit4ItrInstrumentation() {
-    super("junit", "junit-4", "junit-4-itr");
+    super("ci-visibility", "junit-4");
   }
 
   @Override
@@ -46,12 +46,11 @@ public class JUnit4ItrInstrumentation extends Instrumenter.CiVisibility
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".SkippedByItr",
-      packageName + ".JUnit4Utils$Cucumber",
-      packageName + ".JUnit4Utils$Munit",
-      packageName + ".JUnit4Utils",
       packageName + ".TestEventsHandlerHolder",
+      packageName + ".SkippedByItr",
+      packageName + ".JUnit4Utils",
       packageName + ".TracingListener",
+      packageName + ".JUnit4TracingListener",
     };
   }
 

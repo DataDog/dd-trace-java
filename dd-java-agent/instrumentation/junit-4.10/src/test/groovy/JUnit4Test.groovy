@@ -12,6 +12,7 @@ import org.example.TestAssumptionAndSucceed
 import org.example.TestError
 import org.example.TestFailed
 import org.example.TestFailedAndSucceed
+import org.example.TestFailedSuiteSetUpAssumption
 import org.example.TestFailedSuiteSetup
 import org.example.TestFailedSuiteTearDown
 import org.example.TestInheritance
@@ -20,9 +21,8 @@ import org.example.TestSkipped
 import org.example.TestSkippedClass
 import org.example.TestSucceed
 import org.example.TestSucceedAndSkipped
-import org.example.TestSucceedWithCategories
 import org.example.TestSucceedSuite
-import org.example.TestFailedSuiteSetUpAssumption
+import org.example.TestSucceedWithCategories
 import org.junit.runner.JUnitCore
 
 @DisableTestTrace(reason = "avoid self-tracing")

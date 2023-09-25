@@ -6,9 +6,11 @@ import datadog.trace.api.civisibility.CIConstants
 import datadog.trace.api.civisibility.config.SkippableTest
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.civisibility.CiVisibilityTest
+import datadog.trace.instrumentation.junit4.CucumberTracingListener
 import datadog.trace.instrumentation.junit4.TestEventsHandlerHolder
-import org.example.TestSucceedCucumber
-import org.example.TestSucceedExamplesCucumber
+import org.example.cucumber.TestFailedCucumber
+import org.example.cucumber.TestSucceedCucumber
+import org.example.cucumber.TestSucceedExamplesCucumber
 import org.junit.runner.JUnitCore
 
 @DisableTestTrace(reason = "avoid self-tracing")
@@ -31,7 +33,8 @@ class CucumberTest extends CiVisibilityTest {
         testSuiteId = testFeatureSpan(it, 2, testSessionId, testModuleId, "Basic Arithmetic", CIConstants.TEST_PASS)
       }
       trace(1) {
-        testScenarioSpan(it, 0, testSessionId, testModuleId, testSuiteId, "Basic Arithmetic", "Addition", CIConstants.TEST_PASS)
+        testScenarioSpan(it, 0, testSessionId, testModuleId, testSuiteId, "Basic Arithmetic", "Addition", CIConstants.TEST_PASS,
+          null, null, false, ["foo"])
       }
     })
   }
@@ -51,18 +54,53 @@ class CucumberTest extends CiVisibilityTest {
         testSuiteId = testFeatureSpan(it, 2, testSessionId, testModuleId, "Basic Arithmetic With Examples", CIConstants.TEST_PASS)
       }
       trace(1) {
-        testScenarioSpan(it, 0, testSessionId, testModuleId, testSuiteId, "Basic Arithmetic With Examples", "Many additions", CIConstants.TEST_PASS)
+        testScenarioSpan(it, 0, testSessionId, testModuleId, testSuiteId, "Basic Arithmetic With Examples", "Many additions" + getOutlineTestNameSuffix(1), CIConstants.TEST_PASS,
+          null, null, false, ["foo"])
       }
       trace(1) {
-        testScenarioSpan(it, 0, testSessionId, testModuleId, testSuiteId, "Basic Arithmetic With Examples", "Many additions", CIConstants.TEST_PASS)
+        testScenarioSpan(it, 0, testSessionId, testModuleId, testSuiteId, "Basic Arithmetic With Examples", "Many additions" + getOutlineTestNameSuffix(2), CIConstants.TEST_PASS,
+          null, null, false, ["foo"])
       }
       trace(1) {
-        testScenarioSpan(it, 0, testSessionId, testModuleId, testSuiteId, "Basic Arithmetic With Examples", "Many additions", CIConstants.TEST_PASS)
+        testScenarioSpan(it, 0, testSessionId, testModuleId, testSuiteId, "Basic Arithmetic With Examples", "Many additions" + getOutlineTestNameSuffix(3), CIConstants.TEST_PASS,
+          null, null, false, ["foo"])
       }
       trace(1) {
-        testScenarioSpan(it, 0, testSessionId, testModuleId, testSuiteId, "Basic Arithmetic With Examples", "Many additions", CIConstants.TEST_PASS)
+        testScenarioSpan(it, 0, testSessionId, testModuleId, testSuiteId, "Basic Arithmetic With Examples", "Many additions" + getOutlineTestNameSuffix(4), CIConstants.TEST_PASS,
+          null, null, false, ["foo"])
       }
     })
+  }
+
+  /**
+   * Later Cucumber versions add a suffix to outline test execution names
+   */
+  private String getOutlineTestNameSuffix(int idx) {
+    return expectedTestFrameworkVersion() > "7" ? " #${idx}" : ""
+  }
+
+  def "test failure generates spans"() {
+    setup:
+    runTestClasses(TestFailedCucumber)
+
+    expect:
+    ListWriterAssert.assertTraces(TEST_WRITER, 2, false, SORT_TRACES_BY_DESC_SIZE_THEN_BY_NAMES, {
+      long testSessionId
+      long testModuleId
+      long testSuiteId
+      trace(3, true) {
+        testSessionId = testSessionSpan(it, 1, CIConstants.TEST_FAIL)
+        testModuleId = testModuleSpan(it, 0, testSessionId, CIConstants.TEST_FAIL)
+        testSuiteId = testFeatureSpan(it, 2, testSessionId, testModuleId, "Basic Arithmetic", CIConstants.TEST_FAIL)
+      }
+      trace(1) {
+        testScenarioSpan(it, 0, testSessionId, testModuleId, testSuiteId, "Basic Arithmetic", "Addition", CIConstants.TEST_FAIL,
+          null, exception, false, ["foo"])
+      }
+    })
+
+    where:
+    exception = new AssertionError("expected:<42.0> but was:<9.0>")
   }
 
   def "test ITR test skipping"() {
@@ -85,7 +123,8 @@ class CucumberTest extends CiVisibilityTest {
         testSuiteId = testFeatureSpan(it, 2, testSessionId, testModuleId, "Basic Arithmetic", CIConstants.TEST_SKIP)
       }
       trace(1) {
-        testScenarioSpan(it, 0, testSessionId, testModuleId, testSuiteId, "Basic Arithmetic", "Addition", CIConstants.TEST_SKIP, testTags)
+        testScenarioSpan(it, 0, testSessionId, testModuleId, testSuiteId, "Basic Arithmetic", "Addition", CIConstants.TEST_SKIP,
+          testTags, null, false , ["foo"])
       }
     })
 
@@ -129,21 +168,21 @@ class CucumberTest extends CiVisibilityTest {
 
   @Override
   String expectedOperationPrefix() {
-    return "junit"
+    "junit"
   }
 
   @Override
   String expectedTestFramework() {
-    return "cucumber"
+    CucumberTracingListener.FRAMEWORK_NAME
   }
 
   @Override
   String expectedTestFrameworkVersion() {
-    return "5.4.0"
+    CucumberTracingListener.FRAMEWORK_VERSION
   }
 
   @Override
   String component() {
-    return "junit"
+    "junit"
   }
 }
