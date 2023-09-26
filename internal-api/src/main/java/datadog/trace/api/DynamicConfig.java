@@ -236,7 +236,7 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
 
     maybePut(update, TRACE_SAMPLE_RATE, newSnapshot.traceSampleRate);
 
-    ConfigCollector.get().putAll(update);
+    ConfigCollector.get().putAll(update, ConfigOrigin.REMOTE);
   }
 
   private static void maybePut(Map<String, Object> update, String key, Object value) {

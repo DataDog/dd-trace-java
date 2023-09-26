@@ -2,7 +2,6 @@ package datadog.telemetry;
 
 import com.squareup.moshi.JsonWriter;
 import datadog.communication.ddagent.TracerVersion;
-import datadog.telemetry.api.ConfigChange;
 import datadog.telemetry.api.DistributionSeries;
 import datadog.telemetry.api.Integration;
 import datadog.telemetry.api.LogMessage;
@@ -10,6 +9,7 @@ import datadog.telemetry.api.Metric;
 import datadog.telemetry.api.RequestType;
 import datadog.telemetry.dependency.Dependency;
 import datadog.trace.api.Config;
+import datadog.trace.api.ConfigSetting;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.Platform;
 import java.io.IOException;
@@ -23,7 +23,6 @@ import okio.BufferedSink;
 public class TelemetryRequestBody extends RequestBody {
 
   public static class SerializationException extends RuntimeException {
-
     public SerializationException(String requestPartName, Throwable cause) {
       super("Failed serializing Telemetry " + requestPartName + " part!", cause);
     }
@@ -278,12 +277,13 @@ public class TelemetryRequestBody extends RequestBody {
     bodyWriter.endArray();
   }
 
-  public void writeConfiguration(ConfigChange cc) throws IOException {
+  public void writeConfiguration(ConfigSetting configSetting) throws IOException {
     bodyWriter.beginObject();
-    bodyWriter.name("name").value(cc.name);
-    bodyWriter.name("value").jsonValue(cc.value);
-    // TODO provide a real origin when it's implemented
-    bodyWriter.name("origin").jsonValue("unknown");
+    bodyWriter.name("name").value(configSetting.key);
+    bodyWriter.setSerializeNulls(true);
+    bodyWriter.name("value").jsonValue(configSetting.value);
+    bodyWriter.setSerializeNulls(false);
+    bodyWriter.name("origin").jsonValue(configSetting.origin.value);
     // error - optional
     // seq_id - optional
     bodyWriter.endObject();

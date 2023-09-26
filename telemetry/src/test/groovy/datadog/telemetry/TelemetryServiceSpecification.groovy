@@ -1,19 +1,20 @@
 package datadog.telemetry
 
 import datadog.telemetry.dependency.Dependency
-import datadog.telemetry.api.ConfigChange
-import datadog.telemetry.api.DistributionSeries
 import datadog.telemetry.api.Integration
+import datadog.telemetry.api.DistributionSeries
 import datadog.telemetry.api.LogMessage
 import datadog.telemetry.api.LogMessageLevel
 import datadog.telemetry.api.Metric
 import datadog.telemetry.api.RequestType
+import datadog.trace.api.ConfigOrigin
+import datadog.trace.api.ConfigSetting
 import spock.lang.Specification
 
 class TelemetryServiceSpecification extends Specification {
 
-  def configuration = ["confkey": "confvalue"]
-  def confKeyValue = new ConfigChange("confkey", "confvalue")
+  def confKeyValue = new ConfigSetting("confkey", "confvalue", ConfigOrigin.DEFAULT)
+  def configuration = [confkey: confKeyValue]
   def integration = new Integration("integration", true)
   def dependency = new Dependency("dependency", "1.0.0", "src", "hash")
   def metric = new Metric().namespace("tracers").metric("metric").points([[1, 2]]).tags(["tag1", "tag2"])

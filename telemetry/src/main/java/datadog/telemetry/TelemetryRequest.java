@@ -2,13 +2,13 @@ package datadog.telemetry;
 
 import datadog.common.container.ContainerInfo;
 import datadog.communication.ddagent.TracerVersion;
-import datadog.telemetry.api.ConfigChange;
 import datadog.telemetry.api.DistributionSeries;
 import datadog.telemetry.api.Integration;
 import datadog.telemetry.api.LogMessage;
 import datadog.telemetry.api.Metric;
 import datadog.telemetry.api.RequestType;
 import datadog.telemetry.dependency.Dependency;
+import datadog.trace.api.ConfigSetting;
 import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.api.ProductActivation;
 import java.io.IOException;
@@ -91,7 +91,7 @@ public class TelemetryRequest {
     try {
       requestBody.beginConfiguration();
       while (eventSource.hasConfigChangeEvent() && isWithinSizeLimits()) {
-        ConfigChange event = eventSource.nextConfigChangeEvent();
+        ConfigSetting event = eventSource.nextConfigChangeEvent();
         requestBody.writeConfiguration(event);
         eventSink.addConfigChangeEvent(event);
       }

@@ -1,13 +1,13 @@
 package datadog.telemetry;
 
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
-import datadog.telemetry.api.ConfigChange;
 import datadog.telemetry.api.DistributionSeries;
 import datadog.telemetry.api.Integration;
 import datadog.telemetry.api.LogMessage;
 import datadog.telemetry.api.Metric;
 import datadog.telemetry.api.RequestType;
 import datadog.telemetry.dependency.Dependency;
+import datadog.trace.api.ConfigSetting;
 import java.util.Map;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -23,7 +23,7 @@ public class TelemetryService {
   private static final long DEFAULT_MESSAGE_BYTES_SOFT_LIMIT = Math.round(5 * 1024 * 1024 * 0.75);
 
   private final TelemetryHttpClient telemetryHttpClient;
-  private final BlockingQueue<ConfigChange> configurations = new LinkedBlockingQueue<>();
+  private final BlockingQueue<ConfigSetting> configurations = new LinkedBlockingQueue<>();
   private final BlockingQueue<Integration> integrations = new LinkedBlockingQueue<>();
   private final BlockingQueue<Dependency> dependencies = new LinkedBlockingQueue<>();
   private final BlockingQueue<Metric> metrics =
@@ -77,9 +77,9 @@ public class TelemetryService {
     this.debug = debug;
   }
 
-  public boolean addConfiguration(Map<String, Object> configuration) {
-    for (Map.Entry<String, Object> entry : configuration.entrySet()) {
-      if (!this.configurations.offer(new ConfigChange(entry.getKey(), entry.getValue()))) {
+  public boolean addConfiguration(Map<String, ConfigSetting> configuration) {
+    for (ConfigSetting configSetting : configuration.values()) {
+      if (!this.configurations.offer(configSetting)) {
         return false;
       }
     }
