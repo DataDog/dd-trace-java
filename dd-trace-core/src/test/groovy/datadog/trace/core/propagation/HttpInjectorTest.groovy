@@ -6,6 +6,8 @@ import datadog.trace.api.DDTraceId
 import datadog.trace.core.CoreTracer
 import datadog.trace.test.util.StringUtils
 
+import static datadog.trace.api.TracePropagationStyle.HAYSTACK
+import static datadog.trace.api.TracePropagationStyle.TRACECONTEXT
 import static datadog.trace.api.sampling.PrioritySampling.*
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopPathwayContext
 import datadog.trace.common.writer.ListWriter
@@ -176,6 +178,44 @@ class HttpInjectorTest extends DDCoreSpecification {
     B3MULTI  | SAMPLER_KEEP     | null
     B3MULTI  | SAMPLER_KEEP     | "saipan"
     // spotless:on
+  }
+
+  def "encode baggage in http headers using #style"() {
+    setup:
+    Config config = Mock(Config) {
+      isTracePropagationStyleB3PaddingEnabled() >> tracePropagationB3Padding()
+    }
+    def baggage = [
+      'alpha': 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ',
+      'num': '01234567890',
+      'whitespace': 'ab \tcd',
+      'specials': 'ab.-*_cd',
+      'excluded': 'ab\',:\\cd',
+    ]
+    def mapping = baggage.keySet().collectEntries { [(it):it]} as Map<String, String>
+    def injector = HttpCodec.createInjector(config, [style].toSet(), mapping)
+    def traceId = DDTraceId.ONE
+    def spanId = 2
+    def writer = new ListWriter()
+    def tracer = tracerBuilder().writer(writer).build()
+    final DDSpanContext mockedContext = mockedContext(tracer, traceId, spanId, UNSET, null, baggage)
+    final Map<String, String> carrier = Mock()
+
+    when:
+    injector.inject(mockedContext, carrier, MapSetter.INSTANCE)
+
+    then:
+    1 * carrier.put('alpha', 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ')
+    1 * carrier.put('num', '01234567890')
+    1 * carrier.put('whitespace', 'ab%20%09cd')
+    1 * carrier.put('specials', 'ab.-*_cd')
+    1 * carrier.put('excluded', 'ab%27%2C%3A%5Ccd')
+
+    cleanup:
+    tracer.close()
+
+    where:
+    style << [DATADOG, TRACECONTEXT, HAYSTACK]
   }
 
   static DDSpanContext mockedContext(CoreTracer tracer, DDTraceId traceId, long spanId, int samplingPriority, String origin, Map<String, String> baggage) {

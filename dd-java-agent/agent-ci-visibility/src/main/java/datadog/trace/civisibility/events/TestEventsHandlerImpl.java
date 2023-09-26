@@ -167,12 +167,15 @@ public class TestEventsHandlerImpl implements TestEventsHandler {
       String json = toJson(Collections.singletonMap("category", toJson(categories)), true);
       test.setTag(Tags.TEST_TRAITS, json);
 
-      if (categories.contains(InstrumentationBridge.ITR_UNSKIPPABLE_TAG)) {
-        test.setTag(Tags.TEST_ITR_UNSKIPPABLE, true);
+      for (String category : categories) {
+        if (category.endsWith(InstrumentationBridge.ITR_UNSKIPPABLE_TAG)) {
+          test.setTag(Tags.TEST_ITR_UNSKIPPABLE, true);
 
-        SkippableTest thisTest = new SkippableTest(testSuiteName, testName, testParameters, null);
-        if (testModule.isSkippable(thisTest)) {
-          test.setTag(Tags.TEST_ITR_FORCED_RUN, true);
+          SkippableTest thisTest = new SkippableTest(testSuiteName, testName, testParameters, null);
+          if (testModule.isSkippable(thisTest)) {
+            test.setTag(Tags.TEST_ITR_FORCED_RUN, true);
+          }
+          break;
         }
       }
     }
