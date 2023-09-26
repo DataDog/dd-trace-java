@@ -71,7 +71,7 @@ class DatadogHttpCodec {
       for (final Map.Entry<String, String> entry : context.baggageItems()) {
         String header = invertedBaggageMapping.get(entry.getKey());
         header = header != null ? header : OT_BAGGAGE_PREFIX + entry.getKey();
-        setter.set(carrier, header, HttpCodec.encode(entry.getValue()));
+        setter.set(carrier, header, HttpCodec.encodeBaggage(entry.getValue()));
       }
 
       // inject x-datadog-tags
