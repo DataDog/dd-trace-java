@@ -80,7 +80,6 @@ ext {
     'com.datadog.appsec.config.MergedAsmData.InvalidAsmDataException',
     'com.datadog.appsec.powerwaf.LibSqreenInitialization',
     'com.datadog.appsec.report.*',
-    'com.datadog.appsec.report.AppSecEventWrapper',
     'com.datadog.appsec.config.AppSecConfigServiceImpl.SubscribeFleetServiceRunnable.1',
     'com.datadog.appsec.util.StandardizedLogging',
     'com.datadog.appsec.util.AbortStartupException',
