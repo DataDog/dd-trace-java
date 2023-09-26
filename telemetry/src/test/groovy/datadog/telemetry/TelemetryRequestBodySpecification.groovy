@@ -2,49 +2,47 @@ package datadog.telemetry
 
 import datadog.telemetry.api.ConfigChange
 import datadog.telemetry.api.RequestType
-import okhttp3.HttpUrl
-import okhttp3.Request
+import okhttp3.RequestBody
 import okio.Buffer
 import spock.lang.Specification
 
 /**
  * This test only verifies non-functional specifics that are not covered in TelemetryServiceSpecification
  */
-class TelemetryRequestStateSpecification extends Specification {
-  final HttpUrl url = HttpUrl.get("https://example.com")
+class TelemetryRequestBodySpecification extends Specification {
 
   def 'throw SerializationException in case of JSON nesting problem'() {
     setup:
-    def req = new TelemetryRequestState(RequestType.APP_STARTED)
+    def req = new TelemetryRequestBody(RequestType.APP_STARTED)
 
     when:
     req.beginRequest(false)
     req.beginRequest(false)
 
     then:
-    TelemetryRequestState.SerializationException ex = thrown()
+    TelemetryRequestBody.SerializationException ex = thrown()
     ex.message == "Failed serializing Telemetry begin-request part!"
     ex.cause != null
   }
 
   def 'throw SerializationException in case of more than one top-level JSON value'() {
     setup:
-    def req = new TelemetryRequestState(RequestType.APP_STARTED)
+    def req = new TelemetryRequestBody(RequestType.APP_STARTED)
 
     when:
     req.beginRequest(false)
-    req.endRequest(url)
+    req.endRequest()
     req.beginRequest(false)
 
     then:
-    TelemetryRequestState.SerializationException ex = thrown()
+    TelemetryRequestBody.SerializationException ex = thrown()
     ex.message == "Failed serializing Telemetry begin-request part!"
     ex.cause != null
   }
 
   def 'writeConfig must support values of Boolean, String, Integer, Double, Map<String, Object>'() {
     setup:
-    TelemetryRequestState req = new TelemetryRequestState(RequestType.APP_CLIENT_CONFIGURATION_CHANGE)
+    TelemetryRequestBody req = new TelemetryRequestBody(RequestType.APP_CLIENT_CONFIGURATION_CHANGE)
     Map<String, Object> map = new HashMap<>()
     map.put("key1", "value1")
     map.put("key2", Double.parseDouble("432.32"))
@@ -53,7 +51,7 @@ class TelemetryRequestStateSpecification extends Specification {
     when:
     req.beginRequest(false)
     // exclude request header to simplify assertion
-    drainToString(req.request(url))
+    drainToString(req)
 
     then:
     req.beginConfiguration()
@@ -66,24 +64,24 @@ class TelemetryRequestStateSpecification extends Specification {
     req.endConfiguration()
 
     then:
-    drainToString(req.endRequest(url)) == ',"configuration":[{"name":"string","value":"bar","origin":"unknown"},{"name":"int","value":2342,"origin":"unknown"},{"name":"double","value":123.456,"origin":"unknown"},{"name":"map","value":{"key1":"value1","key2":432.32,"key3":324},"origin":"unknown"}]}'
+    drainToString(req) == ',"configuration":[{"name":"string","value":"bar","origin":"unknown"},{"name":"int","value":2342,"origin":"unknown"},{"name":"double","value":123.456,"origin":"unknown"},{"name":"map","value":{"key1":"value1","key2":432.32,"key3":324},"origin":"unknown"}]'
   }
 
   def 'add debug flag'() {
     setup:
-    TelemetryRequestState req = new TelemetryRequestState(RequestType.APP_STARTED)
+    TelemetryRequestBody req = new TelemetryRequestBody(RequestType.APP_STARTED)
 
     when:
     req.beginRequest(true)
-    def request = req.endRequest(url)
+    req.endRequest()
 
     then:
-    drainToString(request).contains("\"debug\":true")
+    drainToString(req).contains("\"debug\":true")
   }
 
-  String drainToString(Request req) {
+  String drainToString(RequestBody body) {
     Buffer buf = new Buffer()
-    req.body().writeTo(buf)
+    body.writeTo(buf)
     byte[] bytes = new byte[buf.size()]
     buf.read(bytes)
     return new String(bytes)

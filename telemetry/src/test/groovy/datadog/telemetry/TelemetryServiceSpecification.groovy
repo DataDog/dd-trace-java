@@ -22,11 +22,11 @@ class TelemetryServiceSpecification extends Specification {
 
   void 'happy path without data'() {
     setup:
-    TestHttpClient testHttpClient = new TestHttpClient()
+    TestTelemetryHttpClient testHttpClient = new TestTelemetryHttpClient()
     TelemetryService telemetryService = new TelemetryService(testHttpClient, 10000, false)
 
     when: 'first iteration'
-    testHttpClient.expectRequest(HttpClient.Result.SUCCESS)
+    testHttpClient.expectRequest(TelemetryHttpClient.Result.SUCCESS)
     telemetryService.sendAppStartedEvent()
 
     then: 'app-started'
@@ -34,7 +34,7 @@ class TelemetryServiceSpecification extends Specification {
     testHttpClient.assertNoMoreRequests()
 
     when: 'second iteration'
-    testHttpClient.expectRequest(HttpClient.Result.SUCCESS)
+    testHttpClient.expectRequest(TelemetryHttpClient.Result.SUCCESS)
     telemetryService.sendTelemetryEvents()
 
     then: 'app-heartbeat only'
@@ -42,7 +42,7 @@ class TelemetryServiceSpecification extends Specification {
     testHttpClient.assertNoMoreRequests()
 
     when: 'third iteration'
-    testHttpClient.expectRequest(HttpClient.Result.SUCCESS)
+    testHttpClient.expectRequest(TelemetryHttpClient.Result.SUCCESS)
     telemetryService.sendTelemetryEvents()
 
     then: 'app-heartbeat only'
@@ -52,7 +52,7 @@ class TelemetryServiceSpecification extends Specification {
 
   void 'happy path with data'() {
     setup:
-    TestHttpClient testHttpClient = new TestHttpClient()
+    TestTelemetryHttpClient testHttpClient = new TestTelemetryHttpClient()
     TelemetryService telemetryService = new TelemetryService(testHttpClient, 10000, false)
 
     when: 'add data before first iteration'
@@ -64,7 +64,7 @@ class TelemetryServiceSpecification extends Specification {
     telemetryService.addLogMessage(logMessage)
 
     and: 'send messages'
-    testHttpClient.expectRequest(HttpClient.Result.SUCCESS)
+    testHttpClient.expectRequest(TelemetryHttpClient.Result.SUCCESS)
     telemetryService.sendAppStartedEvent()
 
     then:
@@ -73,7 +73,7 @@ class TelemetryServiceSpecification extends Specification {
       .configuration([confKeyValue])
 
     when:
-    testHttpClient.expectRequest(HttpClient.Result.SUCCESS)
+    testHttpClient.expectRequest(TelemetryHttpClient.Result.SUCCESS)
     telemetryService.sendTelemetryEvents()
 
     then:
@@ -90,7 +90,7 @@ class TelemetryServiceSpecification extends Specification {
     testHttpClient.assertNoMoreRequests()
 
     when: 'second iteration heartbeat only'
-    testHttpClient.expectRequest(HttpClient.Result.SUCCESS)
+    testHttpClient.expectRequest(TelemetryHttpClient.Result.SUCCESS)
     telemetryService.sendTelemetryEvents()
 
     then:
@@ -99,7 +99,7 @@ class TelemetryServiceSpecification extends Specification {
 
     when: 'third iteration metrics data'
     telemetryService.addMetric(metric)
-    testHttpClient.expectRequest(HttpClient.Result.SUCCESS)
+    testHttpClient.expectRequest(TelemetryHttpClient.Result.SUCCESS)
     telemetryService.sendTelemetryEvents()
 
     then:
@@ -113,11 +113,11 @@ class TelemetryServiceSpecification extends Specification {
 
   void 'happy path with data after app-started'() {
     setup:
-    TestHttpClient testHttpClient = new TestHttpClient()
+    TestTelemetryHttpClient testHttpClient = new TestTelemetryHttpClient()
     TelemetryService telemetryService = new TelemetryService(testHttpClient, 10000, false)
 
     when: 'send messages'
-    testHttpClient.expectRequest(HttpClient.Result.SUCCESS)
+    testHttpClient.expectRequest(TelemetryHttpClient.Result.SUCCESS)
     telemetryService.sendAppStartedEvent()
 
     then:
@@ -133,7 +133,7 @@ class TelemetryServiceSpecification extends Specification {
     telemetryService.addLogMessage(logMessage)
 
     and: 'send messages'
-    testHttpClient.expectRequest(HttpClient.Result.SUCCESS)
+    testHttpClient.expectRequest(TelemetryHttpClient.Result.SUCCESS)
     telemetryService.sendTelemetryEvents()
 
     then:
@@ -152,12 +152,12 @@ class TelemetryServiceSpecification extends Specification {
 
   void 'do not discard data for app-started event until it has been successfully sent'() {
     setup:
-    TestHttpClient testHttpClient = new TestHttpClient()
+    TestTelemetryHttpClient testHttpClient = new TestTelemetryHttpClient()
     TelemetryService telemetryService = new TelemetryService(testHttpClient, 10000, false)
     telemetryService.addConfiguration(configuration)
 
     when: 'attempt with 404 error'
-    testHttpClient.expectRequest(HttpClient.Result.NOT_FOUND)
+    testHttpClient.expectRequest(TelemetryHttpClient.Result.NOT_FOUND)
     !telemetryService.sendAppStartedEvent()
 
     then: 'app-started is attempted'
@@ -165,7 +165,7 @@ class TelemetryServiceSpecification extends Specification {
     testHttpClient.assertNoMoreRequests()
 
     when: 'attempt with 500 error'
-    testHttpClient.expectRequest(HttpClient.Result.FAILURE)
+    testHttpClient.expectRequest(TelemetryHttpClient.Result.FAILURE)
     !telemetryService.sendAppStartedEvent()
 
     then: 'app-started is attempted'
@@ -173,7 +173,7 @@ class TelemetryServiceSpecification extends Specification {
     testHttpClient.assertNoMoreRequests()
 
     when: 'attempt with unexpected FAILURE (not valid)'
-    testHttpClient.expectRequest(HttpClient.Result.FAILURE)
+    testHttpClient.expectRequest(TelemetryHttpClient.Result.FAILURE)
     !telemetryService.sendAppStartedEvent()
 
     then: 'app-started is attempted'
@@ -181,7 +181,7 @@ class TelemetryServiceSpecification extends Specification {
     testHttpClient.assertNoMoreRequests()
 
     when: 'attempt with success'
-    testHttpClient.expectRequest(HttpClient.Result.SUCCESS)
+    testHttpClient.expectRequest(TelemetryHttpClient.Result.SUCCESS)
     telemetryService.sendAppStartedEvent()
 
     then: 'app-started is attempted'
@@ -191,7 +191,7 @@ class TelemetryServiceSpecification extends Specification {
 
   def 'resend data on successful attempt after a failure'() {
     setup:
-    TestHttpClient testHttpClient = new TestHttpClient()
+    TestTelemetryHttpClient testHttpClient = new TestTelemetryHttpClient()
     TelemetryService telemetryService = new TelemetryService(testHttpClient, 10000, false)
 
     telemetryService.addConfiguration(configuration)
@@ -202,7 +202,7 @@ class TelemetryServiceSpecification extends Specification {
     telemetryService.addLogMessage(logMessage)
 
     when: 'attempt with NOT_FOUND error'
-    testHttpClient.expectRequest(HttpClient.Result.NOT_FOUND)
+    testHttpClient.expectRequest(TelemetryHttpClient.Result.NOT_FOUND)
     !telemetryService.sendAppStartedEvent()
 
     then: 'app-started attempted with config'
@@ -210,14 +210,14 @@ class TelemetryServiceSpecification extends Specification {
     testHttpClient.assertNoMoreRequests()
 
     when: 'successful app-started attempt'
-    testHttpClient.expectRequest(HttpClient.Result.SUCCESS)
+    testHttpClient.expectRequest(TelemetryHttpClient.Result.SUCCESS)
     telemetryService.sendAppStartedEvent()
 
     then: 'attempt app-started  with SUCCESS'
     testHttpClient.assertRequestBody(RequestType.APP_STARTED).assertPayload().products().configuration([confKeyValue])
 
     when: 'successful batch attempt'
-    testHttpClient.expectRequest(HttpClient.Result.SUCCESS)
+    testHttpClient.expectRequest(TelemetryHttpClient.Result.SUCCESS)
     telemetryService.sendTelemetryEvents()
 
     then: 'attempt batch with SUCCESS'
@@ -234,7 +234,7 @@ class TelemetryServiceSpecification extends Specification {
     testHttpClient.assertNoMoreRequests()
 
     when: 'attempt with NOT_FOUND error'
-    testHttpClient.expectRequest(HttpClient.Result.NOT_FOUND)
+    testHttpClient.expectRequest(TelemetryHttpClient.Result.NOT_FOUND)
     telemetryService.sendTelemetryEvents()
 
     then: 'message-batch attempted with heartbeat'
@@ -244,11 +244,11 @@ class TelemetryServiceSpecification extends Specification {
 
   void 'send closing event request'() {
     setup:
-    TestHttpClient testHttpClient = new TestHttpClient()
+    TestTelemetryHttpClient testHttpClient = new TestTelemetryHttpClient()
     TelemetryService telemetryService = new TelemetryService(testHttpClient, 10000, false)
 
     when:
-    testHttpClient.expectRequest(HttpClient.Result.SUCCESS)
+    testHttpClient.expectRequest(TelemetryHttpClient.Result.SUCCESS)
     telemetryService.sendAppClosingEvent()
 
     then:
@@ -258,7 +258,7 @@ class TelemetryServiceSpecification extends Specification {
 
   void 'report when both OTel and OT are enabled'() {
     setup:
-    TestHttpClient testHttpClient = new TestHttpClient()
+    TestTelemetryHttpClient testHttpClient = new TestTelemetryHttpClient()
     TelemetryService telemetryService = Spy(new TelemetryService(testHttpClient, 1000, false))
     def otel = new Integration("opentelemetry-1", otelEnabled)
     def ot = new Integration("opentracing", otEnabled)
@@ -285,11 +285,11 @@ class TelemetryServiceSpecification extends Specification {
 
   void 'split telemetry requests if the size above the limit'() {
     setup:
-    TestHttpClient testHttpClient = new TestHttpClient()
+    TestTelemetryHttpClient testHttpClient = new TestTelemetryHttpClient()
     TelemetryService telemetryService = new TelemetryService(testHttpClient, 5000, false)
 
     when: 'send a heartbeat request without telemetry data to measure body size to set stable request size limit'
-    testHttpClient.expectRequest(HttpClient.Result.SUCCESS)
+    testHttpClient.expectRequest(TelemetryHttpClient.Result.SUCCESS)
     telemetryService.sendTelemetryEvents()
 
     then: 'get body size'
@@ -306,7 +306,7 @@ class TelemetryServiceSpecification extends Specification {
     telemetryService.addDistributionSeries(distribution)
     telemetryService.addLogMessage(logMessage)
 
-    testHttpClient.expectRequest(HttpClient.Result.SUCCESS)
+    testHttpClient.expectRequest(TelemetryHttpClient.Result.SUCCESS)
     telemetryService.sendTelemetryEvents()
 
     then: 'attempt with SUCCESS'
@@ -321,7 +321,7 @@ class TelemetryServiceSpecification extends Specification {
       .assertNoMoreMessages()
 
     when: 'sending second part of data'
-    testHttpClient.expectRequest(HttpClient.Result.SUCCESS)
+    testHttpClient.expectRequest(TelemetryHttpClient.Result.SUCCESS)
     !telemetryService.sendTelemetryEvents()
 
     then:
@@ -332,5 +332,13 @@ class TelemetryServiceSpecification extends Specification {
       .assertNextMessage(RequestType.LOGS).hasPayload().logs([logMessage])
       .assertNoMoreMessages()
     testHttpClient.assertNoMoreRequests()
+  }
+
+  def 'add API_KEY when agent is not available'() {
+    //    TODO
+  }
+
+  def 'test url when agent available vs missing'() {
+    //TODO
   }
 }

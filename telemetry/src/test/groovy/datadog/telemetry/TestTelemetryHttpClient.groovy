@@ -13,12 +13,12 @@ import okhttp3.HttpUrl
 import okhttp3.Request
 import okio.Buffer
 
-class TestHttpClient extends HttpClient {
+class TestTelemetryHttpClient extends TelemetryHttpClient {
   private Queue<Result> mockResults = new LinkedList<>()
   private Queue<RequestAssertions> requests = new LinkedList<>()
 
-  TestHttpClient() {
-    super(null, HttpUrl.get("https://example.com"))
+  TestTelemetryHttpClient() {
+    super(null, null, HttpUrl.get("https://example.com"))
   }
 
   @Override
@@ -26,7 +26,7 @@ class TestHttpClient extends HttpClient {
     if (mockResults.isEmpty()) {
       throw new IllegalStateException("Unexpected request has been sent. State expectations with `expectRequests` prior sending requests.")
     }
-    requests.add(new RequestAssertions(request.httpRequest(getUrl())))
+    requests.add(new RequestAssertions(request.httpRequest(HttpUrl.get("https://example.com"), null)))
     return mockResults.poll()
   }
 
@@ -76,18 +76,18 @@ class TestHttpClient extends HttpClient {
       assert this.request.method() == 'POST'
       assert this.request.headers().names() == [
         'Content-Type',
+        'Content-Length',
         'DD-Client-Library-Language',
         'DD-Client-Library-Version',
         'DD-Telemetry-API-Version',
-        'DD-Telemetry-Request-Type',
-        'Content-Length'
+        'DD-Telemetry-Request-Type'
       ] as Set
       assert this.request.header('Content-Type') == 'application/json; charset=utf-8'
+      assert this.request.header('Content-Length').toInteger() > 0
       assert this.request.header('DD-Client-Library-Language') == 'jvm'
       assert this.request.header('DD-Client-Library-Version') == TracerVersion.TRACER_VERSION
       assert this.request.header('DD-Telemetry-API-Version') == 'v2'
       assert this.request.header('DD-Telemetry-Request-Type') == requestType.toString()
-      assert this.request.header('Content-Length').toInteger() > 0
       return this
     }
 

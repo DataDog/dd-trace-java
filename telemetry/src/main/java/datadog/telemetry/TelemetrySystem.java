@@ -1,5 +1,6 @@
 package datadog.telemetry;
 
+import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
 import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.telemetry.TelemetryRunnable.TelemetryPeriodicAction;
 import datadog.telemetry.dependency.DependencyPeriodicAction;
@@ -58,10 +59,13 @@ public class TelemetrySystem {
   /** Called by reflection (see Agent.startTelemetry) */
   public static void startTelemetry(
       Instrumentation instrumentation, SharedCommunicationObjects sco) {
-    sco.createRemaining(Config.get());
+    Config config = Config.get();
+    sco.createRemaining(config);
     DependencyService dependencyService = createDependencyService(instrumentation);
-    boolean debug = Config.get().isTelemetryDebugRequestsEnabled();
-    TelemetryService telemetryService = new TelemetryService(sco.okHttpClient, sco.agentUrl, debug);
+    boolean debug = config.isTelemetryDebugRequestsEnabled();
+    DDAgentFeaturesDiscovery ddAgentFeaturesDiscovery = sco.featuresDiscovery(config);
+    TelemetryService telemetryService =
+        new TelemetryService(ddAgentFeaturesDiscovery, sco.okHttpClient, sco.agentUrl, debug);
     TELEMETRY_THREAD = createTelemetryRunnable(telemetryService, dependencyService);
     TELEMETRY_THREAD.start();
   }
