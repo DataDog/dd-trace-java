@@ -1,6 +1,7 @@
 package com.datadog.iast.sink;
 
 import com.datadog.iast.IastRequestContext;
+import com.datadog.iast.model.Location;
 import com.datadog.iast.model.Vulnerability;
 import com.datadog.iast.model.VulnerabilityType;
 import com.datadog.iast.overhead.Operations;
@@ -36,7 +37,7 @@ public class XContentTypeModuleImpl extends SinkModuleBase implements XContentTy
           reporter.report(
               span,
               new Vulnerability(
-                  VulnerabilityType.XCONTENTTYPE_HEADER_MISSING, getServiceName(span)));
+                  VulnerabilityType.XCONTENTTYPE_HEADER_MISSING, Location.forSpan(span), null));
         }
       }
     } catch (Throwable e) {

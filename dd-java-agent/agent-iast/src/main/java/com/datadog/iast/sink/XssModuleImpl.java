@@ -61,7 +61,7 @@ public class XssModuleImpl extends SinkModuleBase implements XssModule {
         span,
         new Vulnerability(
             VulnerabilityType.XSS,
-            Location.forSpanAndClassAndMethod(span.getSpanId(), clazz, method),
+            Location.forSpanAndClassAndMethod(span, clazz, method),
             evidence));
   }
 
@@ -119,8 +119,6 @@ public class XssModuleImpl extends SinkModuleBase implements XssModule {
     reporter.report(
         span,
         new Vulnerability(
-            VulnerabilityType.XSS,
-            Location.forSpanAndFileAndLine(span.getSpanId(), file, line),
-            evidence));
+            VulnerabilityType.XSS, Location.forSpanAndFileAndLine(span, file, line), evidence));
   }
 }
