@@ -3,6 +3,7 @@ package com.datadog.debugger.util;
 import datadog.trace.bootstrap.debugger.CapturedContext;
 import datadog.trace.bootstrap.debugger.Limits;
 import datadog.trace.bootstrap.debugger.util.TimeoutChecker;
+import datadog.trace.bootstrap.debugger.util.WellKnownClasses;
 import java.lang.reflect.Array;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
@@ -152,9 +153,13 @@ public class SerializerWithLimits {
     int size = 0;
     try {
       map = (Map<?, ?>) value;
-      size = map.size(); // /!\ alien call /!\
-      Set<? extends Map.Entry<?, ?>> entries = map.entrySet(); // /!\ alien call /!\
-      isComplete = serializeMapEntries(entries, limits); // /!\ contains alien calls /!\
+      if (WellKnownClasses.isSizeSafe(map)) {
+        size = map.size(); // /!\ alien call /!\
+        Set<? extends Map.Entry<?, ?>> entries = map.entrySet(); // /!\ alien call /!\
+        isComplete = serializeMapEntries(entries, limits); // /!\ contains alien calls /!\
+      } else {
+        throw new RuntimeException("Unsupported Map type: " + map.getClass().getTypeName());
+      }
       tokenWriter.mapEpilogue(isComplete, size);
     } catch (Exception ex) {
       tokenWriter.mapEpilogue(isComplete, size);
@@ -169,8 +174,12 @@ public class SerializerWithLimits {
     int size = 0;
     try {
       col = (Collection<?>) value;
-      size = col.size(); // /!\ alien call /!\
-      isComplete = serializeCollection(col, limits); // /!\ contains alien calls /!\
+      if (WellKnownClasses.isSizeSafe(col)) {
+        size = col.size(); // /!\ alien call /!\
+        isComplete = serializeCollection(col, limits); // /!\ contains alien calls /!\
+      } else {
+        throw new RuntimeException("Unsupported Collection type: " + col.getClass().getTypeName());
+      }
       tokenWriter.collectionEpilogue(value, isComplete, size);
     } catch (Exception ex) {
       tokenWriter.collectionEpilogue(value, isComplete, size);

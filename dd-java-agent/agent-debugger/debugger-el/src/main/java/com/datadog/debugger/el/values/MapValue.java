@@ -5,6 +5,7 @@ import com.datadog.debugger.el.Visitor;
 import com.datadog.debugger.el.expressions.ValueExpression;
 import datadog.trace.bootstrap.debugger.el.ValueReferenceResolver;
 import datadog.trace.bootstrap.debugger.el.Values;
+import datadog.trace.bootstrap.debugger.util.WellKnownClasses;
 import java.util.Collections;
 import java.util.Map;
 import java.util.Set;
@@ -53,7 +54,11 @@ public final class MapValue implements CollectionValue<Object>, ValueExpression<
 
   public int count() {
     if (mapHolder instanceof Map) {
-      return ((Map<?, ?>) mapHolder).size();
+      if (WellKnownClasses.isSizeSafe((Map<?, ?>) mapHolder)) {
+        return ((Map<?, ?>) mapHolder).size();
+      } else {
+        throw new RuntimeException("Unsupported Map class: " + mapHolder.getClass().getTypeName());
+      }
     } else if (mapHolder == Value.nullValue()) {
       return 0;
     }
