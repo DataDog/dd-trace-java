@@ -76,6 +76,7 @@ public abstract class BaseIntegrationTest {
   protected static final MockResponse EMPTY_200_RESPONSE = new MockResponse().setResponseCode(200);
 
   private static final ByteString DIAGNOSTICS_STR = ByteString.encodeUtf8("diagnostics");
+  private static final String CONFIG_ID = UUID.randomUUID().toString();
 
   protected MockWebServer datadogAgentServer;
   private MockDispatcher probeMockDispatcher;
@@ -168,7 +169,7 @@ public abstract class BaseIntegrationTest {
     int attempt = 3;
     retrieveSpan:
     do {
-      System.out.println("retrieveSpanRequest...");
+      LOG.info("retrieveSpanRequest...");
       RecordedRequest spanRequest =
           retrieveRequest(request -> request.getPath().equals(TRACE_URL_PATH));
       attempt--;
@@ -176,17 +177,16 @@ public abstract class BaseIntegrationTest {
         continue;
       }
       DecodedMessage decodedMessage = Decoder.decodeV04(spanRequest.getBody().readByteArray());
-      System.out.println(
-          "Traces="
-              + decodedMessage.getTraces().size()
-              + " Spans="
-              + decodedMessage.getTraces().get(0).getSpans().size());
+      LOG.info(
+          "Traces={} Spans={}",
+          decodedMessage.getTraces().size(),
+          decodedMessage.getTraces().get(0).getSpans().size());
       for (int traceIdx = 0; traceIdx < decodedMessage.getTraces().size(); traceIdx++) {
         List<DecodedSpan> spans = decodedMessage.getTraces().get(traceIdx).getSpans();
         for (int spanIdx = 0; spanIdx < spans.size(); spanIdx++) {
           decodedSpan = spans.get(spanIdx);
-          System.out.printf(
-              "Trace[%d].Span[%d] name=%s resource=%s Meta=%s%n",
+          LOG.info(
+              "Trace[{}}].Span[{}}] name={}} resource={}} Meta={}",
               traceIdx,
               spanIdx,
               decodedSpan.getName(),
@@ -303,6 +303,10 @@ public abstract class BaseIntegrationTest {
     probeStatusListeners.add(listener);
   }
 
+  protected void clearProbeStatusListener() {
+    probeStatusListeners.clear();
+  }
+
   protected void processRequests() throws InterruptedException {
     RecordedRequest request;
     do {
@@ -310,12 +314,26 @@ public abstract class BaseIntegrationTest {
       if (request == null) {
         throw new RuntimeException("timeout!");
       }
-      System.out.println("processRequests path=" + request.getPath());
+      LOG.info("processRequests path={}", request.getPath());
       for (RequestType requestType : RequestType.values()) {
         if (requestType.process(this, request)) {
           return;
         }
       }
+    } while (request != null);
+  }
+
+  protected void processRemainingRequests() throws InterruptedException {
+    RecordedRequest request;
+    do {
+      request = datadogAgentServer.takeRequest(1, TimeUnit.MILLISECONDS);
+      if (request == null) {
+        break;
+      }
+      LOG.info(
+          "processRemainingRequests path={} body={}",
+          request.getPath(),
+          request.getBody().readUtf8());
     } while (request != null);
   }
 
@@ -326,32 +344,15 @@ public abstract class BaseIntegrationTest {
     do {
       request = datadogAgentServer.takeRequest(REQUEST_WAIT_TIMEOUT, TimeUnit.SECONDS);
       if (request == null) {
-        System.out.println("retreiveRequest request==null => timeout 10 sec");
+        LOG.info("retreiveRequest request==null => timeout 10 sec");
       } else {
-        System.out.println(
-            "retreiveRequest request!=null path=" + request.getPath() + " testing...");
+        LOG.info("retreiveRequest request!=null path={} testing...", request.getPath());
       }
     } while (request != null && !filterRequest.test(request));
     long dur = System.nanoTime() - ts;
     LOG.info(
         "request retrieved in {} seconds", TimeUnit.SECONDS.convert(dur, TimeUnit.NANOSECONDS));
     return request;
-  }
-
-  protected ProbeStatus retrieveProbeStatusRequest() throws Exception {
-    RecordedRequest request;
-    do {
-      request = datadogAgentServer.takeRequest(REQUEST_WAIT_TIMEOUT, TimeUnit.SECONDS);
-    } while (request != null && !request.getPath().startsWith(SNAPSHOT_URL_PATH));
-    assertNotNull(request);
-    JsonAdapter<List<ProbeStatus>> adapter =
-        MoshiHelper.createMoshiProbeStatus()
-            .adapter(Types.newParameterizedType(List.class, ProbeStatus.class));
-    String bodyStr = request.getBody().readUtf8();
-    LOG.info("got snapshot: {}", bodyStr);
-    List<ProbeStatus> probeStatuses = adapter.fromJson(bodyStr);
-    assertEquals(1, probeStatuses.size());
-    return probeStatuses.get(0);
   }
 
   protected String retrieveStatsdMessage(String str) {
@@ -368,7 +369,7 @@ public abstract class BaseIntegrationTest {
       return TELEMETRY_RESPONSE;
     }
     if (request.getPath().startsWith(SNAPSHOT_URL_PATH)) {
-      return new MockResponse().setResponseCode(200);
+      return EMPTY_200_RESPONSE;
     }
     if (request.getPath().equals("/v0.7/config")) {
       return handleConfigRequests();
@@ -390,8 +391,8 @@ public abstract class BaseIntegrationTest {
       JsonAdapter<Configuration> adapter =
           MoshiConfigTestHelper.createMoshiConfig().adapter(Configuration.class);
       String json = adapter.toJson(configuration);
-      System.out.println("Sending json config: " + json);
-      String remoteConfigJson = RemoteConfigHelper.encode(json, UUID.randomUUID().toString());
+      LOG.info("Sending json config: {}", json);
+      String remoteConfigJson = RemoteConfigHelper.encode(json, CONFIG_ID);
       return new MockResponse().setResponseCode(200).setBody(remoteConfigJson);
     } catch (Exception e) {
       throw new RuntimeException(e);
@@ -511,8 +512,7 @@ public abstract class BaseIntegrationTest {
             .count();
     boolean hasErrors = errorLines > 0;
     if (hasErrors) {
-      System.out.println(
-          "Test application log is containing errors. See full run logs in " + logFilePath);
+      LOG.info("Test application log is containing errors. See full run logs in {}", logFilePath);
     }
     return hasErrors;
   }
@@ -551,7 +551,7 @@ public abstract class BaseIntegrationTest {
           throw new RuntimeException(e);
         }
         lastMessage = new String(packet.getData(), 0, packet.getLength());
-        System.out.println("received statsd: " + lastMessage);
+        LOG.info("received statsd: {}", lastMessage);
         try {
           msgQueue.offer(lastMessage, 30, TimeUnit.SECONDS);
         } catch (InterruptedException e) {
