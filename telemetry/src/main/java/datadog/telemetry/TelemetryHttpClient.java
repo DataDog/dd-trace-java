@@ -124,7 +124,7 @@ public class TelemetryHttpClient {
 
   private void reportErrorOnce(Result result) {
     if (!errorReported) {
-      log.error("Failed with {} sending telemetry request to {}", result, currentTelemetryUrl());
+      log.warn("Failed with {} sending telemetry request to {}", result, currentTelemetryUrl());
       errorReported = true;
     }
   }
