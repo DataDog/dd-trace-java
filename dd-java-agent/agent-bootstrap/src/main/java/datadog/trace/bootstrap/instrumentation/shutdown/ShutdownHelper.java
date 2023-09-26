@@ -1,31 +1,25 @@
 package datadog.trace.bootstrap.instrumentation.shutdown;
 
 import datadog.trace.bootstrap.Agent;
-import java.util.Queue;
-import java.util.concurrent.ConcurrentLinkedQueue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public final class ShutdownHelper {
   private static final Logger log = LoggerFactory.getLogger(ShutdownHelper.class);
 
-  private static final Queue<Runnable> AGENT_SHUTDOWN_HOOKS = new ConcurrentLinkedQueue<>();
-
-  public static void registerAgentShutdownHook(Runnable hook) {
-    AGENT_SHUTDOWN_HOOKS.offer(hook);
-  }
+  public static volatile Runnable TELEMETRY_SHUTDOWN_HOOK;
 
   public static void shutdownAgent() {
-    log.debug("Executing agent shutdown hooks ...");
-    while (!AGENT_SHUTDOWN_HOOKS.isEmpty()) {
-      Runnable hook = AGENT_SHUTDOWN_HOOKS.poll();
+    log.debug("Executing telemetry shutdown hook ...");
+    if (TELEMETRY_SHUTDOWN_HOOK != null) {
       try {
-        hook.run();
+        TELEMETRY_SHUTDOWN_HOOK.run();
+        TELEMETRY_SHUTDOWN_HOOK = null;
       } catch (Exception e) {
-        log.error("Error while runnign agent shutdown hook", e);
+        log.error("Error while running telemetry shutdown hook", e);
       }
     }
-    log.debug("Agent shutdown hooks executed");
+    log.debug("Telemetry shutdown hook executed");
 
     log.debug("Shutting down agent ...");
     Agent.shutdown(true);

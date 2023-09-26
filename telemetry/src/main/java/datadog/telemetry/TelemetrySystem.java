@@ -64,7 +64,7 @@ public class TelemetrySystem {
     TelemetryService telemetryService = new TelemetryService(sco.okHttpClient, sco.agentUrl);
     TELEMETRY_THREAD = createTelemetryRunnable(telemetryService, dependencyService);
     TELEMETRY_THREAD.start();
-    ShutdownHelper.registerAgentShutdownHook(TelemetrySystem::stop);
+    ShutdownHelper.TELEMETRY_SHUTDOWN_HOOK = TelemetrySystem::stop;
   }
 
   public static void stop() {
