@@ -10,6 +10,7 @@ import datadog.telemetry.metric.IastMetricPeriodicAction;
 import datadog.telemetry.metric.WafMetricPeriodicAction;
 import datadog.trace.api.Config;
 import datadog.trace.api.iast.telemetry.Verbosity;
+import datadog.trace.bootstrap.instrumentation.shutdown.ShutdownHelper;
 import datadog.trace.util.AgentThreadFactory;
 import java.lang.instrument.Instrumentation;
 import java.util.ArrayList;
@@ -22,8 +23,8 @@ public class TelemetrySystem {
   private static final long TELEMETRY_STOP_WAIT_MILLIS = 5000L;
   private static final Logger log = LoggerFactory.getLogger(TelemetrySystem.class);
 
-  private static Thread TELEMETRY_THREAD;
-  private static DependencyService DEPENDENCY_SERVICE;
+  private static volatile Thread TELEMETRY_THREAD;
+  private static volatile DependencyService DEPENDENCY_SERVICE;
 
   static DependencyService createDependencyService(Instrumentation instrumentation) {
     if (instrumentation != null && Config.get().isTelemetryDependencyServiceEnabled()) {
@@ -63,10 +64,10 @@ public class TelemetrySystem {
     TelemetryService telemetryService = new TelemetryService(sco.okHttpClient, sco.agentUrl);
     TELEMETRY_THREAD = createTelemetryRunnable(telemetryService, dependencyService);
     TELEMETRY_THREAD.start();
+    ShutdownHelper.registerAgentShutdownHook(TelemetrySystem::stop);
   }
 
   public static void stop() {
-    // TODO This is never called in the prod code. Should be part of Agent.shutdown?
     if (DEPENDENCY_SERVICE != null) {
       DEPENDENCY_SERVICE.stop();
     }
