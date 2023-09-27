@@ -1444,13 +1444,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     }
   }
 
-  @Flaky(value = "https://github.com/DataDog/dd-trace-java/issues/4681", suites = [
-    "GrizzlyAsyncTest",
-    "GrizzlyTest",
-    "Liberty23Test",
-    "Liberty23V0ForkedTest",
-    "Liberty23V1ForkedTest"
-  ])
+  @Flaky(value = "https://github.com/DataDog/dd-trace-java/issues/4681", suites = ["GrizzlyAsyncTest", "GrizzlyTest"])
   def 'test blocking of request with auto and accept=#acceptHeader'(boolean expectedJson, String acceptHeader) {
     setup:
     assumeTrue(testBlocking())
@@ -1503,13 +1497,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     true         | 'text/html;q=0.8, application/json;q=0.9'
   }
 
-  @Flaky(value = "https://github.com/DataDog/dd-trace-java/issues/4681", suites = [
-    "Liberty23Test",
-    "Liberty23V0ForkedTest",
-    "Liberty23V1ForkedTest",
-    "GrizzlyAsyncTest",
-    "GrizzlyTest"
-  ])
+  @Flaky(value = "https://github.com/DataDog/dd-trace-java/issues/4681", suites = ["GrizzlyAsyncTest", "GrizzlyTest"])
   def 'test blocking of request with json response'() {
     setup:
     assumeTrue(testBlocking())
@@ -1549,13 +1537,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
   }
 
 
-  @Flaky(value = "https://github.com/DataDog/dd-trace-java/issues/4681", suites = [
-    "GrizzlyAsyncTest",
-    "GrizzlyTest",
-    "Liberty23V0ForkedTest",
-    "Liberty23V1ForkedTest",
-    "Liberty23Test"
-  ])
+  @Flaky(value = "https://github.com/DataDog/dd-trace-java/issues/4681", suites = ["GrizzlyAsyncTest", "GrizzlyTest"])
   def 'test blocking of request with redirect response'() {
     setup:
     assumeTrue(testBlocking())

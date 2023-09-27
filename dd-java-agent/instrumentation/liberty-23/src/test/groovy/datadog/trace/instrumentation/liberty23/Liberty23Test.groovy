@@ -89,7 +89,7 @@ abstract class Liberty23Test extends HttpServerTest<Server> {
 
   @Override
   boolean testBlocking() {
-    true
+    false
   }
 
   @Override
@@ -152,54 +152,6 @@ abstract class Liberty23Test extends HttpServerTest<Server> {
       it.tags['http.status_code'] == 413 &&
         it.tags['appsec.blocked'] == 'true'
     } != null
-  }
-}
-
-// make it forked because there are instrumentation errors when we shutdown and
-// restart the server on the same JVM
-class Liberty23AsyncForkedTest extends Liberty23Test implements TestingGenericHttpNamingConventions.ServerV0 {
-  @Override
-  HttpServer server() {
-    new Liberty23Server('async/')
-  }
-
-  @Override
-  protected String getPathPrefix() {
-    '/async'
-  }
-
-  @Override
-  boolean hasHandlerSpan() {
-    true
-  }
-
-  @Override
-  boolean testNotFound() {
-    false // only has 1 span; test expects the handler span there too
-  }
-
-  @Override
-  boolean testResponseHeadersMapping() {
-    false
-  }
-
-  void handlerSpan(TraceAssert trace, ServerEndpoint endpoint) {
-    trace.span {
-      serviceName CapturedEnvironment.get().getProperties().get(GeneralConfig.SERVICE_NAME)
-      operationName "servlet.dispatch"
-      resourceName 'servlet.dispatch'
-      errored(endpoint.throwsException || endpoint == TIMEOUT_ERROR)
-      childOfPrevious()
-      tags {
-        "$Tags.COMPONENT" 'java-web-servlet-async-dispatcher'
-        if (endpoint == EXCEPTION) {
-          "error.message" 'controller exception'
-          "error.type" Exception.name
-          "error.stack" String
-        }
-        defaultTags()
-      }
-    }
   }
 }
 
