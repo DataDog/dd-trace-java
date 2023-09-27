@@ -144,7 +144,7 @@ public class MetricProbesIntegrationTest extends SimpleAppDebuggerIntegrationTes
     MetricProbe metricProbe =
         MetricProbe.builder()
             .probeId(PROBE_ID)
-            .where("DebuggerTestApplication.java", 69)
+            .where("DebuggerTestApplication.java", 80)
             .kind(kind)
             .metricName(metricName)
             .valueScript(script)

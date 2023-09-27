@@ -72,7 +72,7 @@ public class ServerDebuggerTestApplication {
   }
 
   protected void waitForInstrumentation(String className) {
-    System.out.println("waitForInstrumentation on " + className);
+    System.out.println("waitForInstrumentation on " + className + " from: " + lastMatchedLine);
     try {
       lastMatchedLine =
           TestApplicationHelper.waitForInstrumentation(LOG_FILENAME, className, lastMatchedLine);

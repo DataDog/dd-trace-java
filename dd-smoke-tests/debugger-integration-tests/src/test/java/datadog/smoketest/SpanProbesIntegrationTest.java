@@ -41,11 +41,11 @@ public class SpanProbesIntegrationTest extends SimpleAppDebuggerIntegrationTest 
     final String METHOD_NAME = "fullMethod";
     final String EXPECTED_UPLOADS = "3"; // 2 + 1 for letting the trace being sent (async)
     SpanProbe spanProbe =
-        SpanProbe.builder().probeId(PROBE_ID).where(MAIN_CLASS_NAME, 68, 77).build();
+        SpanProbe.builder().probeId(PROBE_ID).where(MAIN_CLASS_NAME, 80, 89).build();
     setCurrentConfiguration(createSpanConfig(spanProbe));
     targetProcess = createProcessBuilder(logFilePath, METHOD_NAME, EXPECTED_UPLOADS).start();
     DecodedSpan decodedSpan = retrieveSpanRequest(DebuggerTracer.OPERATION_NAME);
-    assertEquals("Main.fullMethod:L68-77", decodedSpan.getResource());
+    assertEquals("Main.fullMethod:L80-89", decodedSpan.getResource());
   }
 
   @Test
@@ -53,7 +53,7 @@ public class SpanProbesIntegrationTest extends SimpleAppDebuggerIntegrationTest 
   void testSingleLineSpan() throws Exception {
     final String METHOD_NAME = "fullMethod";
     final String EXPECTED_UPLOADS = "2"; // 2 probe statuses: RECEIVED + ERROR
-    SpanProbe spanProbe = SpanProbe.builder().probeId(PROBE_ID).where(MAIN_CLASS_NAME, 68).build();
+    SpanProbe spanProbe = SpanProbe.builder().probeId(PROBE_ID).where(MAIN_CLASS_NAME, 80).build();
     setCurrentConfiguration(createSpanConfig(spanProbe));
     targetProcess = createProcessBuilder(logFilePath, METHOD_NAME, EXPECTED_UPLOADS).start();
     AtomicBoolean received = new AtomicBoolean(false);
