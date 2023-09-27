@@ -1,4 +1,4 @@
-package server
+package datadog.trace.instrumentation.play23.test.server
 
 import play.api.GlobalSettings
 import play.api.mvc.{RequestHeader, Result, Results}

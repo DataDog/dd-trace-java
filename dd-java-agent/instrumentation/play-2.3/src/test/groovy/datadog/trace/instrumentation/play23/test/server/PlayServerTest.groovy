@@ -1,4 +1,4 @@
-package server
+package datadog.trace.instrumentation.play23.test.server
 
 import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.agent.test.base.HttpServer
@@ -34,6 +34,11 @@ class PlayServerTest extends HttpServerTest<TestServer> {
   // We don't have instrumentation for this version of netty yet
   @Override
   boolean hasHandlerSpan() {
+    true
+  }
+
+  @Override
+  boolean testUserBlocking() {
     true
   }
 

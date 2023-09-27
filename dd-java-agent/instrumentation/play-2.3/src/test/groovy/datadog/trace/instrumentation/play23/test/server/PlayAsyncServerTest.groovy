@@ -1,4 +1,4 @@
-package server
+package datadog.trace.instrumentation.play23.test.server
 
 import datadog.trace.agent.test.base.HttpServer
 
