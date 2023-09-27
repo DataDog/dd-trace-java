@@ -3,7 +3,7 @@ package com.datadog.appsec.gateway;
 import com.datadog.appsec.event.data.Address;
 import com.datadog.appsec.event.data.DataBundle;
 import com.datadog.appsec.event.data.KnownAddresses;
-import com.datadog.appsec.report.raw.events.AppSecEvent100;
+import com.datadog.appsec.report.AppSecEvent;
 import com.datadog.appsec.util.StandardizedLogging;
 import datadog.trace.api.http.StoredBodySupplier;
 import io.sqreen.powerwaf.Additive;
@@ -49,7 +49,7 @@ public class AppSecRequestContext implements DataBundle, Closeable {
               "accept-language"));
 
   private final ConcurrentHashMap<Address<?>, Object> persistentData = new ConcurrentHashMap<>();
-  private Collection<AppSecEvent100> collectedEvents; // guarded by this
+  private Collection<AppSecEvent> collectedEvents; // guarded by this
 
   // assume these will always be written and read by the same thread
   private String scheme;
@@ -355,8 +355,8 @@ public class AppSecRequestContext implements DataBundle, Closeable {
     return storedRequestBodySupplier.get();
   }
 
-  public void reportEvents(Collection<AppSecEvent100> events) {
-    for (AppSecEvent100 event : events) {
+  public void reportEvents(Collection<AppSecEvent> events) {
+    for (AppSecEvent event : events) {
       StandardizedLogging.attackDetected(log, event);
     }
     synchronized (this) {
@@ -371,8 +371,8 @@ public class AppSecRequestContext implements DataBundle, Closeable {
     }
   }
 
-  Collection<AppSecEvent100> transferCollectedEvents() {
-    Collection<AppSecEvent100> events;
+  Collection<AppSecEvent> transferCollectedEvents() {
+    Collection<AppSecEvent> events;
     synchronized (this) {
       events = this.collectedEvents;
       this.collectedEvents = Collections.emptyList();
