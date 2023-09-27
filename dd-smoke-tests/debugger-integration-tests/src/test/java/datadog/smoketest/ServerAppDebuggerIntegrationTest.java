@@ -1,8 +1,6 @@
 package datadog.smoketest;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.datadog.debugger.agent.JsonSnapshotSerializer;
 import com.datadog.debugger.agent.ProbeStatus;
@@ -14,9 +12,9 @@ import datadog.trace.bootstrap.debugger.ProbeId;
 import datadog.trace.util.TagsHelper;
 import java.io.EOFException;
 import java.io.IOException;
-import java.util.HashSet;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 import okhttp3.HttpUrl;
 import okhttp3.OkHttpClient;
@@ -105,19 +103,29 @@ public class ServerAppDebuggerIntegrationTest extends BaseIntegrationTest {
     String url =
         String.format(
             appUrl + "/waitForInstrumentation?classname=%s", SERVER_DEBUGGER_TEST_APP_CLASS);
+    LOG.info("waitForInstrumentation with url={}", url);
     sendRequest(url);
-    // statuses could be received out of order
-    HashSet<ProbeStatus.Status> statuses = new HashSet<>();
-    statuses.add(retrieveProbeStatusRequest().getDiagnostics().getStatus());
-    statuses.add(retrieveProbeStatusRequest().getDiagnostics().getStatus());
-    assertTrue(statuses.contains(ProbeStatus.Status.RECEIVED));
-    assertTrue(statuses.contains(ProbeStatus.Status.INSTALLED));
+    AtomicBoolean received = new AtomicBoolean(false);
+    AtomicBoolean installed = new AtomicBoolean(false);
+    registerProbeStatusListener(
+        probeStatus -> {
+          if (probeStatus.getDiagnostics().getStatus() == ProbeStatus.Status.RECEIVED) {
+            received.set(true);
+          }
+          if (probeStatus.getDiagnostics().getStatus() == ProbeStatus.Status.INSTALLED) {
+            installed.set(true);
+          }
+          return received.get() && installed.get();
+        });
+    processRequests();
+    clearProbeStatusListener();
     LOG.info("instrumentation done");
   }
 
   protected void waitForAProbeStatus(ProbeStatus.Status status) throws Exception {
-    ProbeStatus.Status receivedStatus = retrieveProbeStatusRequest().getDiagnostics().getStatus();
-    assertEquals(receivedStatus, status);
+    registerProbeStatusListener(probeStatus -> probeStatus.getDiagnostics().getStatus() == status);
+    processRequests();
+    clearProbeStatusListener();
   }
 
   protected void waitForReTransformation(String appUrl) throws IOException {
