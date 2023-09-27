@@ -92,9 +92,9 @@ class TelemetryHttpClientSpecification extends DDSpecification {
     500        | _
   }
 
-  def 'send telemetry to Intake when Agent does not support telemetry endpoint and API_KEY set'() {
+  def 'send telemetry to Intake when Agent does not support telemetry endpoint and only when API_KEY is set'() {
     setup:
-    injectEnvConfig(Strings.toEnvVar(GeneralConfig.API_KEY), "apk-key-value")
+    injectEnvConfig(Strings.toEnvVar(GeneralConfig.API_KEY), "api-key-value")
     def httpClient = new TelemetryHttpClient(ddAgentFeaturesDiscovery, okHttpClient, HttpUrl.get("https://example.com"))
 
     Request request
@@ -106,7 +106,7 @@ class TelemetryHttpClientSpecification extends DDSpecification {
     1 * ddAgentFeaturesDiscovery.supportsTelemetryProxy() >> false
     1 * okHttpClient.newCall(_) >> { args -> request=args[0]; mockResponse(returnCode) }
     request.url().toString() == "https://instrumentation-telemetry-intake.datadoghq.com/"
-    request.header("DD-API-KEY") == "apk-key-value"
+    request.header("DD-API-KEY") == "api-key-value"
 
     when:
     httpClient.sendRequest(dummyRequest())
@@ -114,19 +114,19 @@ class TelemetryHttpClientSpecification extends DDSpecification {
     then:
     1 * ddAgentFeaturesDiscovery.supportsTelemetryProxy() >> false
     1 * okHttpClient.newCall(_) >> { args -> request=args[0]; mockResponse(returnCode) }
-    request.url().toString() == "https://instrumentation-telemetry-intake.datadoghq.com/"
-    request.header("DD-API-KEY") == "apk-key-value"
+    request.url().toString() == expectedUrl
+    request.header("DD-API-KEY") == expectedApiKey
 
     where:
-    returnCode | _
-    200        | _
-    404        | _
-    500        | _
+    returnCode | expectedUrl                                               | expectedApiKey
+    200        | "https://instrumentation-telemetry-intake.datadoghq.com/" | "api-key-value"
+    404        | "https://example.com/telemetry/proxy/api/v2/apmtelemetry" | null
+    500        | "https://example.com/telemetry/proxy/api/v2/apmtelemetry" | null
   }
 
-  def 'switch to Intake when Agent stops supporting telemetry proxy and when telemetry requests fail'() {
+  def 'switch to Intake when Agent stops supporting telemetry proxy and telemetry requests start failing'() {
     setup:
-    injectEnvConfig(Strings.toEnvVar(GeneralConfig.API_KEY), "apk-key-value")
+    injectEnvConfig(Strings.toEnvVar(GeneralConfig.API_KEY), "api-key-value")
     def httpClient = new TelemetryHttpClient(ddAgentFeaturesDiscovery, okHttpClient, HttpUrl.get("https://example.com"))
 
     Request request
@@ -149,7 +149,7 @@ class TelemetryHttpClientSpecification extends DDSpecification {
     1 * ddAgentFeaturesDiscovery.supportsTelemetryProxy() >> false
     1 * okHttpClient.newCall(_) >> { args -> request=args[0]; mockResponse(returnCode) }
     request.url().toString() == "https://instrumentation-telemetry-intake.datadoghq.com/"
-    request.header("DD-API-KEY") == "apk-key-value"
+    request.header("DD-API-KEY") == "api-key-value"
 
     where:
     returnCode | _
@@ -159,7 +159,7 @@ class TelemetryHttpClientSpecification extends DDSpecification {
 
   def 'do not switch to Intake when Agent stops supporting telemetry proxy but accepts telemetry requests'() {
     setup:
-    injectEnvConfig(Strings.toEnvVar(GeneralConfig.API_KEY), "apk-key-value")
+    injectEnvConfig(Strings.toEnvVar(GeneralConfig.API_KEY), "api-key-value")
     def httpClient = new TelemetryHttpClient(ddAgentFeaturesDiscovery, okHttpClient, HttpUrl.get("https://example.com"))
 
     Request request
@@ -187,7 +187,7 @@ class TelemetryHttpClientSpecification extends DDSpecification {
 
   def 'switch to Intake when Agent fails to receive telemetry request'() {
     setup:
-    injectEnvConfig(Strings.toEnvVar(GeneralConfig.API_KEY), "apk-key-value")
+    injectEnvConfig(Strings.toEnvVar(GeneralConfig.API_KEY), "api-key-value")
     def httpClient = new TelemetryHttpClient(ddAgentFeaturesDiscovery, okHttpClient, HttpUrl.get("https://example.com"))
 
     Request request
@@ -210,7 +210,7 @@ class TelemetryHttpClientSpecification extends DDSpecification {
     1 * ddAgentFeaturesDiscovery.supportsTelemetryProxy() >> true
     1 * okHttpClient.newCall(_) >> { args -> request=args[0]; mockResponse(returnCode) }
     request.url().toString() == "https://instrumentation-telemetry-intake.datadoghq.com/"
-    request.header("DD-API-KEY") == "apk-key-value"
+    request.header("DD-API-KEY") == "api-key-value"
 
     where:
     returnCode | _
@@ -218,9 +218,9 @@ class TelemetryHttpClientSpecification extends DDSpecification {
     500        | _
   }
 
-  def 'switch to Agent once it becomes available'() {
+  def 'switch to Agent once it becomes available and Intake still accepts requests'() {
     setup:
-    injectEnvConfig(Strings.toEnvVar(GeneralConfig.API_KEY), "apk-key-value")
+    injectEnvConfig(Strings.toEnvVar(GeneralConfig.API_KEY), "api-key-value")
     def httpClient = new TelemetryHttpClient(ddAgentFeaturesDiscovery, okHttpClient, HttpUrl.get("https://example.com"))
 
     Request request
@@ -233,6 +233,7 @@ class TelemetryHttpClientSpecification extends DDSpecification {
     1 * ddAgentFeaturesDiscovery.supportsTelemetryProxy() >> false
     1 * okHttpClient.newCall(_) >> { args -> request=args[0]; mockResponse(returnCode) }
     request.url().toString() == "https://instrumentation-telemetry-intake.datadoghq.com/"
+    request.header("DD-API-KEY") == "api-key-value"
 
     when:
     httpClient.sendRequest(dummyRequest())
@@ -242,6 +243,7 @@ class TelemetryHttpClientSpecification extends DDSpecification {
     1 * ddAgentFeaturesDiscovery.supportsTelemetryProxy() >> true
     1 * okHttpClient.newCall(_) >> { args -> request=args[0]; mockResponse(returnCode) }
     request.url().toString() == "https://instrumentation-telemetry-intake.datadoghq.com/"
+    request.header("DD-API-KEY") == "api-key-value"
 
     when:
     httpClient.sendRequest(dummyRequest())
@@ -251,11 +253,56 @@ class TelemetryHttpClientSpecification extends DDSpecification {
     1 * ddAgentFeaturesDiscovery.supportsTelemetryProxy() >> false
     1 * okHttpClient.newCall(_) >> { args -> request=args[0]; mockResponse(returnCode) }
     request.url().toString() == "https://example.com/telemetry/proxy/api/v2/apmtelemetry"
+    request.header("DD-API-KEY") == null
 
     where:
     returnCode | _
     200        | _
-    404        | _
-    500        | _
+    201        | _
+  }
+
+  def 'switch between Agent and Intake (only if an api key is set) when either one fails on a telemetry request'() {
+    setup:
+    injectEnvConfig(Strings.toEnvVar(GeneralConfig.API_KEY), apiKey)
+    def httpClient = new TelemetryHttpClient(ddAgentFeaturesDiscovery, okHttpClient, HttpUrl.get("https://example.com"))
+
+    Request request
+
+    when:
+    httpClient.sendRequest(dummyRequest())
+
+    then:
+    1 * ddAgentFeaturesDiscovery.discoverIfOutdated()
+    1 * ddAgentFeaturesDiscovery.supportsTelemetryProxy() >> false
+    1 * okHttpClient.newCall(_) >> { args -> request=args[0]; mockResponse(returnCode) }
+    request.url().toString() == expectedUrl
+    request.header("DD-API-KEY") == apiKey
+
+    when:
+    httpClient.sendRequest(dummyRequest())
+
+    then:
+    1 * ddAgentFeaturesDiscovery.discoverIfOutdated()
+    1 * ddAgentFeaturesDiscovery.supportsTelemetryProxy() >> false
+    1 * okHttpClient.newCall(_) >> { args -> request=args[0]; mockResponse(returnCode) }
+    request.url().toString() == "https://example.com/telemetry/proxy/api/v2/apmtelemetry"
+    request.header("DD-API-KEY") == null
+
+    when:
+    httpClient.sendRequest(dummyRequest())
+
+    then:
+    1 * ddAgentFeaturesDiscovery.discoverIfOutdated()
+    1 * ddAgentFeaturesDiscovery.supportsTelemetryProxy() >> false
+    1 * okHttpClient.newCall(_) >> { args -> request=args[0]; mockResponse(returnCode) }
+    request.url().toString() == expectedUrl
+    request.header("DD-API-KEY") == apiKey
+
+    where:
+    returnCode | apiKey          | expectedUrl
+    404        | null            | "https://example.com/telemetry/proxy/api/v2/apmtelemetry"
+    500        | null            | "https://example.com/telemetry/proxy/api/v2/apmtelemetry"
+    404        | "api-key-value" | "https://instrumentation-telemetry-intake.datadoghq.com/"
+    500        | "api-key-value" | "https://instrumentation-telemetry-intake.datadoghq.com/"
   }
 }

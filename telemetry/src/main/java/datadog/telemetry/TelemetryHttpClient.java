@@ -97,6 +97,10 @@ public class TelemetryHttpClient {
               "Agent Telemetry endpoint is now available. Telemetry will be sent to Agent as of now.");
           telemetryReceiver = TelemetryReceiver.AGENT;
           errorReported = false;
+        } else if (result != Result.SUCCESS) {
+          log.info("Intake Telemetry endpoint failed. Telemetry will be sent to Agent as of now.");
+          telemetryReceiver = TelemetryReceiver.AGENT;
+          errorReported = false;
         }
         break;
     }
@@ -138,7 +142,7 @@ public class TelemetryHttpClient {
 
   private void reportErrorOnce(Result result) {
     if (!errorReported) {
-      log.warn("Failed with {} sending telemetry request to {}", result, currentTelemetryUrl());
+      log.warn("Got {} sending telemetry request to {}", result, currentTelemetryUrl());
       errorReported = true;
     }
   }
