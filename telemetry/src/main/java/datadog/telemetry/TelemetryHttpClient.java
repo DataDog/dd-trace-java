@@ -11,6 +11,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class TelemetryHttpClient {
+  private static final Logger log = LoggerFactory.getLogger(TelemetryHttpClient.class);
+
   private static final String DD_TELEMETRY_REQUEST_TYPE = "DD-Telemetry-Request-Type";
   private static final String AGENT_TELEMETRY_API_ENDPOINT = "telemetry/proxy/api/v2/apmtelemetry";
 
@@ -20,16 +22,15 @@ public class TelemetryHttpClient {
     NOT_FOUND;
   }
 
-  private static final Logger log = LoggerFactory.getLogger(TelemetryHttpClient.class);
-
-  private final DDAgentFeaturesDiscovery ddAgentFeaturesDiscovery;
-  private final OkHttpClient httpClient;
-  private final HttpUrl agentTelemetryUrl;
-
-  enum TelemetryReceiver {
+  private enum TelemetryReceiver {
     AGENT,
     INTAKE;
   }
+
+  private final DDAgentFeaturesDiscovery ddAgentFeaturesDiscovery;
+  private final OkHttpClient httpClient;
+
+  private final HttpUrl agentTelemetryUrl;
 
   private TelemetryReceiver telemetryReceiver = null;
   private final String apiKey;
@@ -57,39 +58,32 @@ public class TelemetryHttpClient {
 
   public Result sendRequest(TelemetryRequest request) {
     ddAgentFeaturesDiscovery.discoverIfOutdated();
+    boolean agentSupportsTelemetryProxy = ddAgentFeaturesDiscovery.supportsTelemetryProxy();
 
     if (telemetryReceiver == null) {
-      chooseTelemetryReceiver();
+      if (!agentSupportsTelemetryProxy && apiKey != null) {
+        telemetryReceiver = TelemetryReceiver.INTAKE;
+      } else {
+        telemetryReceiver = TelemetryReceiver.AGENT;
+      }
+      log.info("Telemetry will be sent to {} as of now", telemetryReceiver);
     }
 
-    Request httpRequest = request.httpRequest(currentTelemetryUrl(), currentApiKey());
-    Result result = sendRequest(httpRequest);
+    String requestApiKey = telemetryReceiver == TelemetryReceiver.INTAKE ? apiKey : null;
+    Request httpRequest = request.httpRequest(currentTelemetryUrl(), requestApiKey);
+    Result result = sendHttpRequest(httpRequest);
 
-    switchTelemetryReceiverIfNeeded(result);
-
-    return result;
-  }
-
-  private void chooseTelemetryReceiver() {
-    if (apiKey != null && ddAgentFeaturesDiscovery.supportsTelemetryProxy()) {
-      log.info("Will send telemetry to Intake");
-      telemetryReceiver = TelemetryReceiver.INTAKE;
-    } else {
-      telemetryReceiver = TelemetryReceiver.AGENT;
-      log.info("Will send telemetry to Agent");
-    }
-  }
-
-  private void switchTelemetryReceiverIfNeeded(Result result) {
     switch (telemetryReceiver) {
       case AGENT:
         if (result != Result.SUCCESS) {
           reportErrorOnce(result);
           if (apiKey != null) {
+            log.info(
+                "Agent Telemetry endpoint failed. Telemetry will be sent to Intake as of now.");
             telemetryReceiver = TelemetryReceiver.INTAKE;
             errorReported = false;
           } else if (!missingApiKeyReported) {
-            log.error("Cannot use Intake to send telemetry because unset API_KEY");
+            log.error("Cannot use Intake to send telemetry because unset API_KEY.");
             missingApiKeyReported = true;
           }
         }
@@ -97,39 +91,28 @@ public class TelemetryHttpClient {
       case INTAKE:
         if (result != Result.SUCCESS) {
           reportErrorOnce(result);
-        } else if (ddAgentFeaturesDiscovery.supportsTelemetryProxy()) {
-          log.info("Agent Telemetry endpoint is now available. Will send telemetry to Agent now");
+        }
+        if (agentSupportsTelemetryProxy) {
+          log.info(
+              "Agent Telemetry endpoint is now available. Telemetry will be sent to Agent as of now.");
           telemetryReceiver = TelemetryReceiver.AGENT;
           errorReported = false;
         }
         break;
     }
+
+    return result;
   }
 
   private HttpUrl currentTelemetryUrl() {
     if (telemetryReceiver == TelemetryReceiver.AGENT) {
       return agentTelemetryUrl;
     }
-    return HttpUrl.parse(
-        "https://instrumentation-telemetry-intake.datadoghq.com"); // TODO pass as a param or get
-    // from config
+    // TODO pass as a param or get from config
+    return HttpUrl.parse("https://instrumentation-telemetry-intake.datadoghq.com");
   }
 
-  private String currentApiKey() {
-    if (telemetryReceiver == TelemetryReceiver.INTAKE) {
-      return apiKey;
-    }
-    return null;
-  }
-
-  private void reportErrorOnce(Result result) {
-    if (!errorReported) {
-      log.warn("Failed with {} sending telemetry request to {}", result, currentTelemetryUrl());
-      errorReported = true;
-    }
-  }
-
-  protected Result sendRequest(Request httpRequest) {
+  protected Result sendHttpRequest(Request httpRequest) {
     String requestType = httpRequest.header(DD_TELEMETRY_REQUEST_TYPE);
     try (Response response = httpClient.newCall(httpRequest).execute()) {
       if (response.code() == 404) {
@@ -151,5 +134,12 @@ public class TelemetryHttpClient {
 
     log.debug("Telemetry message {} sent successfully", requestType);
     return Result.SUCCESS;
+  }
+
+  private void reportErrorOnce(Result result) {
+    if (!errorReported) {
+      log.warn("Failed with {} sending telemetry request to {}", result, currentTelemetryUrl());
+      errorReported = true;
+    }
   }
 }
