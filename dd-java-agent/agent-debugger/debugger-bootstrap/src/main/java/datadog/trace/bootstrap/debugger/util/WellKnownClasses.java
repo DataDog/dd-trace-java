@@ -1,7 +1,9 @@
-package com.datadog.debugger.util;
+package datadog.trace.bootstrap.debugger.util;
 
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
 
 public class WellKnownClasses {
@@ -56,5 +58,31 @@ public class WellKnownClasses {
    */
   public static boolean isToStringSafe(String concreteType) {
     return toStringSafeClasses.contains(concreteType);
+  }
+
+  /**
+   * @return true if collection is the implementation of size method is side effect free and O(1)
+   *     complexity
+   */
+  public static boolean isSizeSafe(Collection<?> collection) {
+    String className = collection.getClass().getTypeName();
+    if (className.startsWith("java.")) {
+      // All Collection implementations from JDK base module are considered as safe
+      return true;
+    }
+    return false;
+  }
+
+  /**
+   * @return true if map is the implementation of size method is side effect free and O(1)
+   *     complexity
+   */
+  public static boolean isSizeSafe(Map<?, ?> map) {
+    String className = map.getClass().getTypeName();
+    if (className.startsWith("java.")) {
+      // All Map implementations from JDK base module are considered as safe
+      return true;
+    }
+    return false;
   }
 }
