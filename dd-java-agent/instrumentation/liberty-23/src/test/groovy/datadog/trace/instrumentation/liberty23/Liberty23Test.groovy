@@ -1,19 +1,14 @@
 package datadog.trace.instrumentation.liberty23
 
 import com.ibm.wsspi.kernel.embeddable.Server
-import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.agent.test.base.HttpServer
 import datadog.trace.agent.test.base.HttpServerTest
 import datadog.trace.agent.test.naming.TestingGenericHttpNamingConventions
-import datadog.trace.api.config.GeneralConfig
-import datadog.trace.api.env.CapturedEnvironment
-import datadog.trace.bootstrap.instrumentation.api.Tags
+
 import datadog.trace.core.DDSpan
 import spock.lang.IgnoreIf
 
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.TIMEOUT_ERROR
 import static org.junit.Assume.assumeTrue
 
 abstract class Liberty23Test extends HttpServerTest<Server> {
