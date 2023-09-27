@@ -1,4 +1,4 @@
-package datadog.trace.instrumentation.testng75;
+package datadog.trace.instrumentation.testng7;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
@@ -12,23 +12,26 @@ import net.bytebuddy.asm.Advice;
 import org.testng.IMethodInstance;
 import org.testng.ITestClass;
 import org.testng.ITestContext;
-import org.testng.internal.invokers.TestMethodWorker;
+import org.testng.annotations.CustomAttribute;
 import org.testng.xml.XmlSuite;
 import org.testng.xml.XmlTest;
 
 @AutoService(Instrumenter.class)
 public class TestNGClassListenerInstrumentation extends Instrumenter.CiVisibility
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForKnownTypes {
 
   private final String commonPackageName = Strings.getPackageName(TestNGUtils.class.getName());
 
   public TestNGClassListenerInstrumentation() {
-    super("testng-75-class-listener");
+    super("ci-visibility", "testng", "testng-7");
   }
 
   @Override
-  public String instrumentedType() {
-    return "org.testng.internal.invokers.TestMethodWorker";
+  public String[] knownMatchingTypes() {
+    return new String[] {
+      "org.testng.internal.TestMethodWorker", // TestNG 7.0-7.4
+      "org.testng.internal.invokers.TestMethodWorker" // TestNG 7.5+
+    };
   }
 
   @Override
@@ -70,9 +73,9 @@ public class TestNGClassListenerInstrumentation extends Instrumenter.CiVisibilit
       listener.invokeBeforeClass(testClass, parallelized);
     }
 
-    // TestNG 7.5 and above
-    public static void muzzleCheck(final TestMethodWorker testMethodWorker) {
-      testMethodWorker.completed();
+    // TestNG 7.0 and above
+    public static String muzzleCheck(final CustomAttribute customAttribute) {
+      return customAttribute.name();
     }
   }
 
@@ -87,9 +90,9 @@ public class TestNGClassListenerInstrumentation extends Instrumenter.CiVisibilit
       listener.invokeAfterClass(testClass, methodInstance);
     }
 
-    // TestNG 7.5 and above
-    public static void muzzleCheck(final TestMethodWorker testMethodWorker) {
-      testMethodWorker.completed();
+    // TestNG 7.0 and above
+    public static String muzzleCheck(final CustomAttribute customAttribute) {
+      return customAttribute.name();
     }
   }
 }

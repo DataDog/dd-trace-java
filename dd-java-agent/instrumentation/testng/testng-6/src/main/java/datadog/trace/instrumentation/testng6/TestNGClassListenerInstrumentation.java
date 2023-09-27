@@ -1,6 +1,8 @@
-package datadog.trace.instrumentation.testng64;
+package datadog.trace.instrumentation.testng6;
 
+import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
+import static net.bytebuddy.matcher.ElementMatchers.not;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
@@ -9,6 +11,7 @@ import datadog.trace.instrumentation.testng.TestNGClassListener;
 import datadog.trace.instrumentation.testng.TestNGUtils;
 import datadog.trace.util.Strings;
 import net.bytebuddy.asm.Advice;
+import net.bytebuddy.matcher.ElementMatcher;
 import org.testng.IMethodInstance;
 import org.testng.ITestClass;
 import org.testng.ITestContext;
@@ -21,7 +24,14 @@ public class TestNGClassListenerInstrumentation extends Instrumenter.CiVisibilit
   private final String commonPackageName = Strings.getPackageName(TestNGUtils.class.getName());
 
   public TestNGClassListenerInstrumentation() {
-    super("testng-64-class-listener");
+    super("ci-visibility", "testng", "testng-6");
+  }
+
+  @Override
+  public ElementMatcher<ClassLoader> classLoaderMatcher() {
+    // do not apply to TestNG 7.x and above
+    // since those versions are handled by a different instrumentation
+    return not(hasClassNamed("org.testng.annotations.CustomAttribute"));
   }
 
   @Override
@@ -65,8 +75,8 @@ public class TestNGClassListenerInstrumentation extends Instrumenter.CiVisibilit
     }
 
     // TestNG 6.4 and above
-    public static void muzzleCheck(final DataProvider dataProvider) {
-      dataProvider.name();
+    public static String muzzleCheck(final DataProvider dataProvider) {
+      return dataProvider.name();
     }
   }
 
@@ -82,8 +92,8 @@ public class TestNGClassListenerInstrumentation extends Instrumenter.CiVisibilit
     }
 
     // TestNG 6.4 and above
-    public static void muzzleCheck(final DataProvider dataProvider) {
-      dataProvider.name();
+    public static String muzzleCheck(final DataProvider dataProvider) {
+      return dataProvider.name();
     }
   }
 }

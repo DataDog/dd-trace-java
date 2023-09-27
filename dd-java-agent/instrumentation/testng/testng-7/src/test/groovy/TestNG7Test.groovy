@@ -1,16 +1,15 @@
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.instrumentation.testng.TestNGTest
+import datadog.trace.instrumentation.testng.TracingListener
 
-class TestNG75Test extends TestNGTest {
-
-  @Override
-  String expectedTestFrameworkVersion() {
-    return '7.5'
-  }
+class TestNG7Test extends TestNGTest {
 
   @Override
   String assertionErrorMessage() {
-    "expected [true] but found [false]"
+    // error message format differs based on framework version
+    TracingListener.FRAMEWORK_VERSION >= "7.5"
+      ? "expected [true] but found [false]"
+      : "did not expect to find [true] but found [false]"
   }
 
   @Override

@@ -1,11 +1,6 @@
 import datadog.trace.instrumentation.testng.TestNGTest
 
-class TestNG64Test extends TestNGTest {
-
-  @Override
-  String expectedTestFrameworkVersion() {
-    return "6.4.0"
-  }
+class TestNG6Test extends TestNGTest {
 
   @Override
   String assertionErrorMessage() {
