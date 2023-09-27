@@ -5,6 +5,7 @@
 
 package datadog.trace.instrumentation.log4j27;
 
+import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
@@ -15,6 +16,7 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.implementation.bytecode.assign.Assigner;
+import net.bytebuddy.matcher.ElementMatcher;
 import org.apache.logging.log4j.core.ContextDataInjector;
 
 @AutoService(Instrumenter.class)
@@ -22,6 +24,11 @@ public class ContextDataInjectorFactoryInstrumentation extends Instrumenter.Trac
     implements Instrumenter.ForSingleType {
   public ContextDataInjectorFactoryInstrumentation() {
     super("log4j", "log4j-2");
+  }
+
+  @Override
+  public ElementMatcher.Junction<ClassLoader> classLoaderMatcher() {
+    return hasClassNamed("org.apache.logging.log4j.core.ContextDataInjector");
   }
 
   @Override
