@@ -10,7 +10,6 @@ import datadog.telemetry.metric.IastMetricPeriodicAction;
 import datadog.telemetry.metric.WafMetricPeriodicAction;
 import datadog.trace.api.Config;
 import datadog.trace.api.iast.telemetry.Verbosity;
-import datadog.trace.bootstrap.instrumentation.shutdown.ShutdownHelper;
 import datadog.trace.util.AgentThreadFactory;
 import java.lang.instrument.Instrumentation;
 import java.util.ArrayList;
@@ -64,24 +63,26 @@ public class TelemetrySystem {
     TelemetryService telemetryService = new TelemetryService(sco.okHttpClient, sco.agentUrl);
     TELEMETRY_THREAD = createTelemetryRunnable(telemetryService, dependencyService);
     TELEMETRY_THREAD.start();
-    ShutdownHelper.TELEMETRY_SHUTDOWN_HOOK = TelemetrySystem::stop;
   }
 
+  /** Called by reflection (see Agent.stopTelemetry) */
   public static void stop() {
-    if (DEPENDENCY_SERVICE != null) {
-      DEPENDENCY_SERVICE.stop();
+    DependencyService dependencyService = DEPENDENCY_SERVICE;
+    if (dependencyService != null) {
+      dependencyService.stop();
     }
-    if (TELEMETRY_THREAD != null) {
-      TELEMETRY_THREAD.interrupt();
+
+    Thread telemetryThread = TELEMETRY_THREAD;
+    if (telemetryThread != null) {
+      telemetryThread.interrupt();
       try {
-        TELEMETRY_THREAD.join(TELEMETRY_STOP_WAIT_MILLIS);
+        telemetryThread.join(TELEMETRY_STOP_WAIT_MILLIS);
       } catch (InterruptedException e) {
         log.warn("Telemetry thread join was interrupted");
       }
-      if (TELEMETRY_THREAD.isAlive()) {
+      if (telemetryThread.isAlive()) {
         log.warn("Telemetry thread join was not completed");
       }
-      TELEMETRY_THREAD = null;
     }
   }
 }
