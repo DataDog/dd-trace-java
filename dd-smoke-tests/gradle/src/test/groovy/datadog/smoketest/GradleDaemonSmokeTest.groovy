@@ -1004,16 +1004,12 @@ class GradleDaemonSmokeTest extends Specification {
     def ddApiKeyPath = testKitFolder.resolve(".dd.api.key")
     Files.write(ddApiKeyPath, "dummy".getBytes())
 
-    def ddApplicationKeyPath = testKitFolder.resolve(".dd.application.key")
-    Files.write(ddApplicationKeyPath, "dummy".getBytes())
-
     def gradleProperties =
       "org.gradle.jvmargs=" +
       "-javaagent:${agentShadowJar}=" +
       "${Strings.propertyNameToSystemPropertyName(GeneralConfig.ENV)}=${TEST_ENVIRONMENT_NAME}," +
       "${Strings.propertyNameToSystemPropertyName(GeneralConfig.SERVICE_NAME)}=${TEST_SERVICE_NAME}," +
       "${Strings.propertyNameToSystemPropertyName(GeneralConfig.API_KEY_FILE)}=${ddApiKeyPath.toAbsolutePath().toString()}," +
-      "${Strings.propertyNameToSystemPropertyName(GeneralConfig.APPLICATION_KEY_FILE)}=${ddApplicationKeyPath.toAbsolutePath().toString()}," +
       "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_ENABLED)}=true," +
       "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_AGENTLESS_ENABLED)}=true," +
       "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_GIT_UPLOAD_ENABLED)}=false," +
