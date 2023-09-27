@@ -335,6 +335,9 @@ public class Agent {
     if (profilingEnabled) {
       shutdownProfilingAgent(sync);
     }
+    if (telemetryEnabled) {
+      stopTelemetry();
+    }
   }
 
   public static synchronized Class<?> installAgentCLI() throws Exception {
@@ -779,6 +782,21 @@ public class Agent {
     }
 
     StaticEventLogger.end("Telemetry");
+  }
+
+  private static void stopTelemetry() {
+    if (AGENT_CLASSLOADER == null) {
+      return;
+    }
+
+    try {
+      final Class<?> telemetrySystem =
+          AGENT_CLASSLOADER.loadClass("datadog.telemetry.TelemetrySystem");
+      final Method stopTelemetry = telemetrySystem.getMethod("stop");
+      stopTelemetry.invoke(null);
+    } catch (final Throwable ex) {
+      log.error("Error encountered while stopping telemetry", ex);
+    }
   }
 
   private static void initializeCrashUploader() {
