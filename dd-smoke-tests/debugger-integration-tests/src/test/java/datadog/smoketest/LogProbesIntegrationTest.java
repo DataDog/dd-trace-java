@@ -4,11 +4,11 @@ import static com.datadog.debugger.el.DSL.eq;
 import static com.datadog.debugger.el.DSL.ref;
 import static com.datadog.debugger.el.DSL.when;
 import static com.datadog.debugger.util.LogProbeTestHelper.parseTemplate;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.datadog.debugger.agent.JsonSnapshotSerializer;
 import com.datadog.debugger.el.DSL;
@@ -18,6 +18,7 @@ import com.datadog.debugger.sink.Snapshot;
 import com.squareup.moshi.JsonAdapter;
 import datadog.trace.api.Platform;
 import datadog.trace.bootstrap.debugger.CapturedContext;
+import datadog.trace.bootstrap.debugger.MethodLocation;
 import datadog.trace.bootstrap.debugger.ProbeId;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -40,7 +41,6 @@ public class LogProbesIntegrationTest extends SimpleAppDebuggerIntegrationTest {
     RecordedRequest request = retrieveSnapshotRequest();
     assertNotNull(request);
     assertFalse(logHasErrors(logFilePath, it -> false));
-    Thread.sleep(10000);
   }
 
   @Test
@@ -172,6 +172,114 @@ public class LogProbesIntegrationTest extends SimpleAppDebuggerIntegrationTest {
       assertTrue(probeIds.contains(String.valueOf(i)));
     }
     assertFalse(logHasErrors(logFilePath, it -> false));
+  }
+
+  @Test
+  @DisplayName("testSamplingSnapshotDefault")
+  void testSamplingSnapshotDefault() throws Exception {
+    doSamplingSnapshot(null, MethodLocation.EXIT);
+  }
+
+  @Test
+  @DisplayName("testSamplingSnapshotDefaultWithConditionAtEntry")
+  void testSamplingSnapshotDefaultWithConditionAtEntry() throws Exception {
+    doSamplingSnapshot(
+        new ProbeCondition(DSL.when(DSL.eq(DSL.value(1), DSL.value(1))), "1 == 1"),
+        MethodLocation.ENTRY);
+  }
+
+  @Test
+  @DisplayName("testSamplingSnapshotDefaultWithConditionAtExit")
+  void testSamplingSnapshotDefaultWithConditionAtExit() throws Exception {
+    doSamplingSnapshot(
+        new ProbeCondition(DSL.when(DSL.eq(DSL.value(1), DSL.value(1))), "1 == 1"),
+        MethodLocation.EXIT);
+  }
+
+  private void doSamplingSnapshot(ProbeCondition probeCondition, MethodLocation evaluateAt)
+      throws Exception {
+    final int LOOP_COUNT = 1000;
+    final String EXPECTED_UPLOADS = "4";
+    LogProbe probe =
+        LogProbe.builder()
+            .probeId(PROBE_ID)
+            .where(MAIN_CLASS_NAME, "fullMethod")
+            .when(probeCondition)
+            .evaluateAt(evaluateAt)
+            .captureSnapshot(true)
+            .build();
+    setCurrentConfiguration(createConfig(probe));
+    targetProcess =
+        createProcessBuilder(
+                logFilePath, "loopingFullMethod", EXPECTED_UPLOADS, String.valueOf(LOOP_COUNT))
+            .start();
+    int count = countSnapshots();
+    assertTrue(count >= 3 && count <= 5, "snapshots=" + count);
+  }
+
+  @Test
+  @DisplayName("testSamplingLogDefault")
+  void testSamplingLogDefault() throws Exception {
+    batchSize = 100;
+    final int LOOP_COUNT = 1000;
+    final String LOG_TEMPLATE = "log line {argInt} {argStr} {argDouble} {argMap} {argVar}";
+    final String EXPECTED_UPLOADS = String.valueOf(LOOP_COUNT / batchSize + 2);
+    LogProbe probe =
+        LogProbe.builder()
+            .probeId(PROBE_ID)
+            .where(MAIN_CLASS_NAME, "fullMethod")
+            .template(LOG_TEMPLATE, parseTemplate(LOG_TEMPLATE))
+            .evaluateAt(MethodLocation.EXIT)
+            .build();
+    setCurrentConfiguration(createConfig(probe));
+    targetProcess =
+        createProcessBuilder(
+                logFilePath, "loopingFullMethod", EXPECTED_UPLOADS, String.valueOf(LOOP_COUNT))
+            .start();
+    assertEquals(1000, countSnapshots());
+  }
+
+  @Test
+  @DisplayName("testSamplingLogCustom")
+  void testSamplingLogCustom() throws Exception {
+    final int LOOP_COUNT = 1000;
+    final String LOG_TEMPLATE = "log line {argInt} {argStr} {argDouble} {argMap} {argVar}";
+    final String EXPECTED_UPLOADS = "120";
+    LogProbe probe =
+        LogProbe.builder()
+            .probeId(PROBE_ID)
+            .where(MAIN_CLASS_NAME, "fullMethod")
+            .template(LOG_TEMPLATE, parseTemplate(LOG_TEMPLATE))
+            .evaluateAt(MethodLocation.EXIT)
+            .sampling(10)
+            .build();
+    setCurrentConfiguration(createConfig(probe));
+    targetProcess =
+        createProcessBuilder(
+                logFilePath, "loopingFullMethod", EXPECTED_UPLOADS, String.valueOf(LOOP_COUNT))
+            .start();
+    assertTrue(countSnapshots() < 120);
+  }
+
+  private int countSnapshots() throws Exception {
+    int snapshotCount = 0;
+    RecordedRequest request;
+    do {
+      request = retrieveSnapshotRequest();
+      if (request != null) {
+        String bodyStr = request.getBody().readUtf8();
+        JsonAdapter<List<JsonSnapshotSerializer.IntakeRequest>> adapter =
+            createAdapterForSnapshot();
+        List<JsonSnapshotSerializer.IntakeRequest> intakeRequests = adapter.fromJson(bodyStr);
+        long count =
+            intakeRequests.stream()
+                .map(intakeRequest -> intakeRequest.getDebugger().getSnapshot())
+                .count();
+        snapshotCount += count;
+      }
+    } while (request != null);
+    LOG.info("snapshots={}", snapshotCount);
+    return snapshotCount;
   }
 
   private ProbeId getProbeId(int i) {
