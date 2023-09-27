@@ -350,7 +350,6 @@ class MavenSmokeTest extends Specification {
     def processBuilder = createProcessBuilder(["test"])
 
     processBuilder.environment().put("DD_API_KEY", "01234567890abcdef123456789ABCDEF")
-    processBuilder.environment().put("DD_APPLICATION_KEY", "01234567890abcdef123456789ABCDEF")
 
     return runProcess(processBuilder.start())
   }
