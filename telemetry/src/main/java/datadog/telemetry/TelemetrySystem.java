@@ -10,11 +10,13 @@ import datadog.telemetry.metric.CoreMetricsPeriodicAction;
 import datadog.telemetry.metric.IastMetricPeriodicAction;
 import datadog.telemetry.metric.WafMetricPeriodicAction;
 import datadog.trace.api.Config;
+import datadog.trace.api.config.GeneralConfig;
 import datadog.trace.api.iast.telemetry.Verbosity;
 import datadog.trace.util.AgentThreadFactory;
 import java.lang.instrument.Instrumentation;
 import java.util.ArrayList;
 import java.util.List;
+import okhttp3.HttpUrl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -64,8 +66,19 @@ public class TelemetrySystem {
     DependencyService dependencyService = createDependencyService(instrumentation);
     boolean debug = config.isTelemetryDebugRequestsEnabled();
     DDAgentFeaturesDiscovery ddAgentFeaturesDiscovery = sco.featuresDiscovery(config);
+
+    HttpUrl intakeUrl;
+    try {
+      intakeUrl = HttpUrl.get(config.getTelemetryIntakeUrl());
+    } catch (IllegalArgumentException e) {
+      log.error("Invalid URL {}", GeneralConfig.TELEMETRY_INTAKE_URL);
+      intakeUrl = null;
+    }
+    String apiKey = config.getApiKey();
+
     TelemetryService telemetryService =
-        new TelemetryService(ddAgentFeaturesDiscovery, sco.okHttpClient, sco.agentUrl, debug);
+        new TelemetryService(
+            ddAgentFeaturesDiscovery, sco.okHttpClient, sco.agentUrl, debug, intakeUrl, apiKey);
     TELEMETRY_THREAD = createTelemetryRunnable(telemetryService, dependencyService);
     TELEMETRY_THREAD.start();
   }

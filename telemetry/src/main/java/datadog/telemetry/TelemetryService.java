@@ -53,14 +53,19 @@ public class TelemetryService {
    * @param agentUrl - telemetry endpoint URL
    * @param debug - when `true` it adds a debug flag to a telemetry request to handle it on the
    *     backend with verbose logging
+   * @param intakeUrl - Intake URL
+   * @param apiKey - api key needed to send telemetry to Intake
    */
   public TelemetryService(
       DDAgentFeaturesDiscovery ddAgentFeaturesDiscovery,
       final OkHttpClient okHttpClient,
       final HttpUrl agentUrl,
-      final boolean debug) {
+      final boolean debug,
+      HttpUrl intakeUrl,
+      String apiKey) {
     this(
-        new TelemetryHttpClient(ddAgentFeaturesDiscovery, okHttpClient, agentUrl),
+        new TelemetryHttpClient(
+            ddAgentFeaturesDiscovery, okHttpClient, agentUrl, intakeUrl, apiKey),
         DEFAULT_MESSAGE_BYTES_SOFT_LIMIT,
         debug);
   }

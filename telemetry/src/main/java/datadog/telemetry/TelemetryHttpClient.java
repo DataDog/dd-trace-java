@@ -1,7 +1,6 @@
 package datadog.telemetry;
 
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
-import datadog.trace.api.Config;
 import java.io.IOException;
 import okhttp3.HttpUrl;
 import okhttp3.OkHttpClient;
@@ -32,7 +31,8 @@ public class TelemetryHttpClient {
 
   private final HttpUrl agentTelemetryUrl;
 
-  private TelemetryReceiver telemetryReceiver = null;
+  private TelemetryReceiver telemetryReceiver;
+  private final HttpUrl intakeUrl;
   private final String apiKey;
   private boolean errorReported;
   private boolean missingApiKeyReported;
@@ -40,19 +40,14 @@ public class TelemetryHttpClient {
   public TelemetryHttpClient(
       DDAgentFeaturesDiscovery ddAgentFeaturesDiscovery,
       OkHttpClient httpClient,
-      HttpUrl agentUrl) {
-    this(ddAgentFeaturesDiscovery, httpClient, agentUrl, Config.get().getApiKey());
-  }
-
-  TelemetryHttpClient(
-      DDAgentFeaturesDiscovery ddAgentFeaturesDiscovery,
-      OkHttpClient httpClient,
       HttpUrl agentUrl,
+      HttpUrl intakeUrl,
       String apiKey) {
     this.ddAgentFeaturesDiscovery = ddAgentFeaturesDiscovery;
     this.httpClient = httpClient;
     this.agentTelemetryUrl =
         agentUrl.newBuilder().addPathSegments(AGENT_TELEMETRY_API_ENDPOINT).build();
+    this.intakeUrl = intakeUrl;
     this.apiKey = apiKey;
   }
 
@@ -61,25 +56,31 @@ public class TelemetryHttpClient {
     boolean agentSupportsTelemetryProxy = ddAgentFeaturesDiscovery.supportsTelemetryProxy();
 
     if (telemetryReceiver == null) {
-      if (!agentSupportsTelemetryProxy && apiKey != null) {
+      if (!agentSupportsTelemetryProxy && apiKey != null && intakeUrl != null) {
         telemetryReceiver = TelemetryReceiver.INTAKE;
       } else {
         telemetryReceiver = TelemetryReceiver.AGENT;
       }
-      log.info("Telemetry will be sent to {} as of now", telemetryReceiver);
+      log.info("Telemetry will be sent to {}.", telemetryReceiver);
     }
 
-    String requestApiKey = telemetryReceiver == TelemetryReceiver.INTAKE ? apiKey : null;
-    Request httpRequest = request.httpRequest(currentTelemetryUrl(), requestApiKey);
+    HttpUrl requestUrl = agentTelemetryUrl;
+    String requestApiKey = null;
+    if (telemetryReceiver == TelemetryReceiver.INTAKE && apiKey != null && intakeUrl != null) {
+      requestUrl = intakeUrl;
+      requestApiKey = apiKey;
+    }
+
+    Request httpRequest = request.httpRequest(requestUrl, requestApiKey);
     Result result = sendHttpRequest(httpRequest);
 
+    boolean requestFailed = result != Result.SUCCESS;
     switch (telemetryReceiver) {
       case AGENT:
-        if (result != Result.SUCCESS) {
-          reportErrorOnce(result);
-          if (apiKey != null) {
-            log.info(
-                "Agent Telemetry endpoint failed. Telemetry will be sent to Intake as of now.");
+        if (requestFailed) {
+          reportErrorOnce(requestUrl, result);
+          if (apiKey != null && intakeUrl != null) {
+            log.info("Agent Telemetry endpoint failed. Telemetry will be sent to Intake.");
             telemetryReceiver = TelemetryReceiver.INTAKE;
             errorReported = false;
           } else if (!missingApiKeyReported) {
@@ -89,18 +90,17 @@ public class TelemetryHttpClient {
         }
         break;
       case INTAKE:
-        if (result != Result.SUCCESS) {
-          reportErrorOnce(result);
+        if (requestFailed) {
+          reportErrorOnce(requestUrl, result);
         }
-        if (agentSupportsTelemetryProxy) {
-          log.info(
-              "Agent Telemetry endpoint is now available. Telemetry will be sent to Agent as of now.");
+        if (agentSupportsTelemetryProxy || requestFailed) {
           telemetryReceiver = TelemetryReceiver.AGENT;
           errorReported = false;
-        } else if (result != Result.SUCCESS) {
-          log.info("Intake Telemetry endpoint failed. Telemetry will be sent to Agent as of now.");
-          telemetryReceiver = TelemetryReceiver.AGENT;
-          errorReported = false;
+          if (agentSupportsTelemetryProxy) {
+            log.info("Agent Telemetry endpoint is now available. Telemetry will be sent to Agent.");
+          } else {
+            log.info("Intake Telemetry endpoint failed. Telemetry will be sent to Agent.");
+          }
         }
         break;
     }
@@ -108,42 +108,34 @@ public class TelemetryHttpClient {
     return result;
   }
 
-  private HttpUrl currentTelemetryUrl() {
-    if (telemetryReceiver == TelemetryReceiver.AGENT) {
-      return agentTelemetryUrl;
+  private void reportErrorOnce(HttpUrl requestUrl, Result result) {
+    if (!errorReported) {
+      log.warn("Got {} sending telemetry request to {}.", result, requestUrl);
+      errorReported = true;
     }
-    // TODO pass as a param or get from config
-    return HttpUrl.parse("https://instrumentation-telemetry-intake.datadoghq.com");
   }
 
   protected Result sendHttpRequest(Request httpRequest) {
     String requestType = httpRequest.header(DD_TELEMETRY_REQUEST_TYPE);
     try (Response response = httpClient.newCall(httpRequest).execute()) {
       if (response.code() == 404) {
-        log.debug("Telemetry endpoint is disabled, dropping {} message", requestType);
+        log.debug("Telemetry endpoint is disabled, dropping {} message.", requestType);
         return Result.NOT_FOUND;
       }
       if (!response.isSuccessful()) {
         log.debug(
-            "Telemetry message {} failed with: {} {} ",
+            "Telemetry message {} failed with: {} {}.",
             requestType,
             response.code(),
             response.message());
         return Result.FAILURE;
       }
     } catch (IOException e) {
-      log.debug("Telemetry message {} failed with exception: {}", requestType, e.toString());
+      log.debug("Telemetry message {} failed with exception: {}.", requestType, e.toString());
       return Result.FAILURE;
     }
 
-    log.debug("Telemetry message {} sent successfully", requestType);
+    log.debug("Telemetry message {} sent successfully.", requestType);
     return Result.SUCCESS;
-  }
-
-  private void reportErrorOnce(Result result) {
-    if (!errorReported) {
-      log.warn("Got {} sending telemetry request to {}", result, currentTelemetryUrl());
-      errorReported = true;
-    }
   }
 }

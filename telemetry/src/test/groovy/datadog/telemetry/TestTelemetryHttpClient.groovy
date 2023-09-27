@@ -18,7 +18,7 @@ class TestTelemetryHttpClient extends TelemetryHttpClient {
   private Queue<RequestAssertions> requests = new LinkedList<>()
 
   TestTelemetryHttpClient() {
-    super(null, null, HttpUrl.get("https://example.com"))
+    super(null, null, HttpUrl.get("https://example.com"), null, null)
   }
 
   @Override

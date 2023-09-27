@@ -2,9 +2,6 @@ package datadog.telemetry
 
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery
 import datadog.telemetry.api.RequestType
-import datadog.trace.api.config.GeneralConfig
-import datadog.trace.test.util.DDSpecification
-import datadog.trace.util.Strings
 import okhttp3.Call
 import okhttp3.HttpUrl
 import okhttp3.MediaType
@@ -13,8 +10,9 @@ import okhttp3.Protocol
 import okhttp3.Request
 import okhttp3.Response
 import okhttp3.ResponseBody
+import spock.lang.Specification
 
-class TelemetryHttpClientSpecification extends DDSpecification {
+class TelemetryHttpClientSpecification extends Specification {
 
   def dummyRequest() {
     return new TelemetryRequest(Mock(EventSource), Mock(EventSink), 1000, RequestType.APP_STARTED, false)
@@ -34,10 +32,16 @@ class TelemetryHttpClientSpecification extends DDSpecification {
     }
   }
 
+  static HttpUrl agentUrl = HttpUrl.get("https://agent.example.com")
+  static HttpUrl agentTelemetryUrl = agentUrl.resolve("telemetry/proxy/api/v2/apmtelemetry")
+  static HttpUrl intakeUrl = HttpUrl.get("https://intake.example.com")
+  static String apiKey = "api-key"
+  static String apiKeyHeader = "DD-API-KEY"
+
   OkHttpClient okHttpClient = Mock()
   DDAgentFeaturesDiscovery ddAgentFeaturesDiscovery = Mock()
 
-  def httpClient = new TelemetryHttpClient(ddAgentFeaturesDiscovery, okHttpClient, HttpUrl.get("https://example.com"))
+  def httpClient = new TelemetryHttpClient(ddAgentFeaturesDiscovery, okHttpClient, agentUrl, intakeUrl, apiKey)
 
   def 'map an http status code to the correct send result'() {
     when:
@@ -64,7 +68,10 @@ class TelemetryHttpClientSpecification extends DDSpecification {
     1 * okHttpClient.newCall(_) >> { throw new IOException("exception") }
   }
 
-  def 'keep trying to send telemetry to Agent despite of return code when API_KEY'() {
+  def 'keep trying to send telemetry to Agent despite of return code when API_KEY unset'() {
+    setup:
+    def httpClient = new TelemetryHttpClient(ddAgentFeaturesDiscovery, okHttpClient, agentUrl, intakeUrl, null)
+
     Request request
 
     when:
@@ -72,18 +79,18 @@ class TelemetryHttpClientSpecification extends DDSpecification {
 
     then:
     1 * ddAgentFeaturesDiscovery.supportsTelemetryProxy() >>> [true, false]
-    1 * okHttpClient.newCall(_) >> { args -> request=args[0]; mockResponse(returnCode) }
-    request.url().toString() == "https://example.com/telemetry/proxy/api/v2/apmtelemetry"
-    request.header("DD-API-KEY") == null
+    1 * okHttpClient.newCall(_) >> { args -> request = args[0]; mockResponse(returnCode) }
+    request.url() == agentTelemetryUrl
+    request.header(apiKeyHeader) == null
 
     when:
     httpClient.sendRequest(dummyRequest())
 
     then:
     1 * ddAgentFeaturesDiscovery.supportsTelemetryProxy() >> [false, true]
-    1 * okHttpClient.newCall(_) >> { args -> request=args[0]; mockResponse(returnCode) }
-    request.url().toString() == "https://example.com/telemetry/proxy/api/v2/apmtelemetry"
-    request.header("DD-API-KEY") == null
+    1 * okHttpClient.newCall(_) >> { args -> request = args[0]; mockResponse(returnCode) }
+    request.url() == agentTelemetryUrl
+    request.header(apiKeyHeader) == null
 
     where:
     returnCode | _
@@ -92,10 +99,9 @@ class TelemetryHttpClientSpecification extends DDSpecification {
     500        | _
   }
 
-  def 'send telemetry to Intake when Agent does not support telemetry endpoint and only when API_KEY is set'() {
+  def 'send telemetry to Intake when Agent does not support telemetry endpoint and only when API_KEY set'() {
     setup:
-    injectEnvConfig(Strings.toEnvVar(GeneralConfig.API_KEY), "api-key-value")
-    def httpClient = new TelemetryHttpClient(ddAgentFeaturesDiscovery, okHttpClient, HttpUrl.get("https://example.com"))
+    def httpClient = new TelemetryHttpClient(ddAgentFeaturesDiscovery, okHttpClient, agentUrl, intakeUrl, apiKey)
 
     Request request
 
@@ -104,30 +110,29 @@ class TelemetryHttpClientSpecification extends DDSpecification {
 
     then:
     1 * ddAgentFeaturesDiscovery.supportsTelemetryProxy() >> false
-    1 * okHttpClient.newCall(_) >> { args -> request=args[0]; mockResponse(returnCode) }
-    request.url().toString() == "https://instrumentation-telemetry-intake.datadoghq.com/"
-    request.header("DD-API-KEY") == "api-key-value"
+    1 * okHttpClient.newCall(_) >> { args -> request = args[0]; mockResponse(returnCode) }
+    request.url() == intakeUrl
+    request.header(apiKeyHeader) == apiKey
 
     when:
     httpClient.sendRequest(dummyRequest())
 
     then:
     1 * ddAgentFeaturesDiscovery.supportsTelemetryProxy() >> false
-    1 * okHttpClient.newCall(_) >> { args -> request=args[0]; mockResponse(returnCode) }
-    request.url().toString() == expectedUrl
-    request.header("DD-API-KEY") == expectedApiKey
+    1 * okHttpClient.newCall(_) >> { args -> request = args[0]; mockResponse(returnCode) }
+    request.url() == expectedUrl
+    request.header(apiKeyHeader) == expectedApiKey
 
     where:
-    returnCode | expectedUrl                                               | expectedApiKey
-    200        | "https://instrumentation-telemetry-intake.datadoghq.com/" | "api-key-value"
-    404        | "https://example.com/telemetry/proxy/api/v2/apmtelemetry" | null
-    500        | "https://example.com/telemetry/proxy/api/v2/apmtelemetry" | null
+    returnCode | expectedUrl       | expectedApiKey
+    200        | intakeUrl         | apiKey
+    404        | agentTelemetryUrl | null
+    500        | agentTelemetryUrl | null
   }
 
   def 'switch to Intake when Agent stops supporting telemetry proxy and telemetry requests start failing'() {
     setup:
-    injectEnvConfig(Strings.toEnvVar(GeneralConfig.API_KEY), "api-key-value")
-    def httpClient = new TelemetryHttpClient(ddAgentFeaturesDiscovery, okHttpClient, HttpUrl.get("https://example.com"))
+    def httpClient = new TelemetryHttpClient(ddAgentFeaturesDiscovery, okHttpClient, agentUrl, intakeUrl, apiKey)
 
     Request request
 
@@ -137,9 +142,9 @@ class TelemetryHttpClientSpecification extends DDSpecification {
     then:
     1 * ddAgentFeaturesDiscovery.discoverIfOutdated()
     1 * ddAgentFeaturesDiscovery.supportsTelemetryProxy() >> true
-    1 * okHttpClient.newCall(_) >> { args -> request=args[0]; mockResponse(returnCode) }
-    request.url().toString() == "https://example.com/telemetry/proxy/api/v2/apmtelemetry"
-    request.header("DD-API-KEY") == null
+    1 * okHttpClient.newCall(_) >> { args -> request = args[0]; mockResponse(returnCode) }
+    request.url() == agentTelemetryUrl
+    request.header(apiKeyHeader) == null
 
     when:
     httpClient.sendRequest(dummyRequest())
@@ -147,9 +152,9 @@ class TelemetryHttpClientSpecification extends DDSpecification {
     then:
     1 * ddAgentFeaturesDiscovery.discoverIfOutdated()
     1 * ddAgentFeaturesDiscovery.supportsTelemetryProxy() >> false
-    1 * okHttpClient.newCall(_) >> { args -> request=args[0]; mockResponse(returnCode) }
-    request.url().toString() == "https://instrumentation-telemetry-intake.datadoghq.com/"
-    request.header("DD-API-KEY") == "api-key-value"
+    1 * okHttpClient.newCall(_) >> { args -> request = args[0]; mockResponse(returnCode) }
+    request.url() == intakeUrl
+    request.header(apiKeyHeader) == apiKey
 
     where:
     returnCode | _
@@ -159,8 +164,7 @@ class TelemetryHttpClientSpecification extends DDSpecification {
 
   def 'do not switch to Intake when Agent stops supporting telemetry proxy but accepts telemetry requests'() {
     setup:
-    injectEnvConfig(Strings.toEnvVar(GeneralConfig.API_KEY), "api-key-value")
-    def httpClient = new TelemetryHttpClient(ddAgentFeaturesDiscovery, okHttpClient, HttpUrl.get("https://example.com"))
+    def httpClient = new TelemetryHttpClient(ddAgentFeaturesDiscovery, okHttpClient, agentUrl, intakeUrl, apiKey)
 
     Request request
 
@@ -170,9 +174,9 @@ class TelemetryHttpClientSpecification extends DDSpecification {
     then:
     1 * ddAgentFeaturesDiscovery.discoverIfOutdated()
     1 * ddAgentFeaturesDiscovery.supportsTelemetryProxy() >> true
-    1 * okHttpClient.newCall(_) >> { args -> request=args[0]; mockResponse(200) }
-    request.url().toString() == "https://example.com/telemetry/proxy/api/v2/apmtelemetry"
-    request.header("DD-API-KEY") == null
+    1 * okHttpClient.newCall(_) >> { args -> request = args[0]; mockResponse(200) }
+    request.url() == agentTelemetryUrl
+    request.header(apiKeyHeader) == null
 
     when:
     httpClient.sendRequest(dummyRequest())
@@ -180,15 +184,14 @@ class TelemetryHttpClientSpecification extends DDSpecification {
     then:
     1 * ddAgentFeaturesDiscovery.discoverIfOutdated()
     1 * ddAgentFeaturesDiscovery.supportsTelemetryProxy() >> false
-    1 * okHttpClient.newCall(_) >> { args -> request=args[0]; mockResponse(201) }
-    request.url().toString() == "https://example.com/telemetry/proxy/api/v2/apmtelemetry"
-    request.header("DD-API-KEY") == null
+    1 * okHttpClient.newCall(_) >> { args -> request = args[0]; mockResponse(201) }
+    request.url() == agentTelemetryUrl
+    request.header(apiKeyHeader) == null
   }
 
   def 'switch to Intake when Agent fails to receive telemetry request'() {
     setup:
-    injectEnvConfig(Strings.toEnvVar(GeneralConfig.API_KEY), "api-key-value")
-    def httpClient = new TelemetryHttpClient(ddAgentFeaturesDiscovery, okHttpClient, HttpUrl.get("https://example.com"))
+    def httpClient = new TelemetryHttpClient(ddAgentFeaturesDiscovery, okHttpClient, agentUrl, intakeUrl, apiKey)
 
     Request request
 
@@ -198,9 +201,9 @@ class TelemetryHttpClientSpecification extends DDSpecification {
     then:
     1 * ddAgentFeaturesDiscovery.discoverIfOutdated()
     1 * ddAgentFeaturesDiscovery.supportsTelemetryProxy() >> true
-    1 * okHttpClient.newCall(_) >> { args -> request=args[0]; mockResponse(returnCode) }
-    request.url().toString() == "https://example.com/telemetry/proxy/api/v2/apmtelemetry"
-    request.header("DD-API-KEY") == null
+    1 * okHttpClient.newCall(_) >> { args -> request = args[0]; mockResponse(returnCode) }
+    request.url() == agentTelemetryUrl
+    request.header(apiKeyHeader) == null
 
     when:
     httpClient.sendRequest(dummyRequest())
@@ -208,9 +211,9 @@ class TelemetryHttpClientSpecification extends DDSpecification {
     then:
     1 * ddAgentFeaturesDiscovery.discoverIfOutdated()
     1 * ddAgentFeaturesDiscovery.supportsTelemetryProxy() >> true
-    1 * okHttpClient.newCall(_) >> { args -> request=args[0]; mockResponse(returnCode) }
-    request.url().toString() == "https://instrumentation-telemetry-intake.datadoghq.com/"
-    request.header("DD-API-KEY") == "api-key-value"
+    1 * okHttpClient.newCall(_) >> { args -> request = args[0]; mockResponse(returnCode) }
+    request.url() == intakeUrl
+    request.header(apiKeyHeader) == apiKey
 
     where:
     returnCode | _
@@ -220,8 +223,7 @@ class TelemetryHttpClientSpecification extends DDSpecification {
 
   def 'switch to Agent once it becomes available and Intake still accepts requests'() {
     setup:
-    injectEnvConfig(Strings.toEnvVar(GeneralConfig.API_KEY), "api-key-value")
-    def httpClient = new TelemetryHttpClient(ddAgentFeaturesDiscovery, okHttpClient, HttpUrl.get("https://example.com"))
+    def httpClient = new TelemetryHttpClient(ddAgentFeaturesDiscovery, okHttpClient, agentUrl, intakeUrl, apiKey)
 
     Request request
 
@@ -231,9 +233,9 @@ class TelemetryHttpClientSpecification extends DDSpecification {
     then:
     1 * ddAgentFeaturesDiscovery.discoverIfOutdated()
     1 * ddAgentFeaturesDiscovery.supportsTelemetryProxy() >> false
-    1 * okHttpClient.newCall(_) >> { args -> request=args[0]; mockResponse(returnCode) }
-    request.url().toString() == "https://instrumentation-telemetry-intake.datadoghq.com/"
-    request.header("DD-API-KEY") == "api-key-value"
+    1 * okHttpClient.newCall(_) >> { args -> request = args[0]; mockResponse(returnCode) }
+    request.url() == intakeUrl
+    request.header(apiKeyHeader) == apiKey
 
     when:
     httpClient.sendRequest(dummyRequest())
@@ -241,9 +243,9 @@ class TelemetryHttpClientSpecification extends DDSpecification {
     then:
     1 * ddAgentFeaturesDiscovery.discoverIfOutdated()
     1 * ddAgentFeaturesDiscovery.supportsTelemetryProxy() >> true
-    1 * okHttpClient.newCall(_) >> { args -> request=args[0]; mockResponse(returnCode) }
-    request.url().toString() == "https://instrumentation-telemetry-intake.datadoghq.com/"
-    request.header("DD-API-KEY") == "api-key-value"
+    1 * okHttpClient.newCall(_) >> { args -> request = args[0]; mockResponse(returnCode) }
+    request.url() == intakeUrl
+    request.header(apiKeyHeader) == apiKey
 
     when:
     httpClient.sendRequest(dummyRequest())
@@ -251,9 +253,9 @@ class TelemetryHttpClientSpecification extends DDSpecification {
     then:
     1 * ddAgentFeaturesDiscovery.discoverIfOutdated()
     1 * ddAgentFeaturesDiscovery.supportsTelemetryProxy() >> false
-    1 * okHttpClient.newCall(_) >> { args -> request=args[0]; mockResponse(returnCode) }
-    request.url().toString() == "https://example.com/telemetry/proxy/api/v2/apmtelemetry"
-    request.header("DD-API-KEY") == null
+    1 * okHttpClient.newCall(_) >> { args -> request = args[0]; mockResponse(returnCode) }
+    request.url() == agentTelemetryUrl
+    request.header(apiKeyHeader) == null
 
     where:
     returnCode | _
@@ -263,8 +265,7 @@ class TelemetryHttpClientSpecification extends DDSpecification {
 
   def 'switch between Agent and Intake (only if an api key is set) when either one fails on a telemetry request'() {
     setup:
-    injectEnvConfig(Strings.toEnvVar(GeneralConfig.API_KEY), apiKey)
-    def httpClient = new TelemetryHttpClient(ddAgentFeaturesDiscovery, okHttpClient, HttpUrl.get("https://example.com"))
+    def httpClient = new TelemetryHttpClient(ddAgentFeaturesDiscovery, okHttpClient, agentUrl, intakeUrl, apiKey)
 
     Request request
 
@@ -274,9 +275,9 @@ class TelemetryHttpClientSpecification extends DDSpecification {
     then:
     1 * ddAgentFeaturesDiscovery.discoverIfOutdated()
     1 * ddAgentFeaturesDiscovery.supportsTelemetryProxy() >> false
-    1 * okHttpClient.newCall(_) >> { args -> request=args[0]; mockResponse(returnCode) }
-    request.url().toString() == expectedUrl
-    request.header("DD-API-KEY") == apiKey
+    1 * okHttpClient.newCall(_) >> { args -> request = args[0]; mockResponse(returnCode) }
+    request.url() == expectedUrl
+    request.header(apiKeyHeader) == apiKey
 
     when:
     httpClient.sendRequest(dummyRequest())
@@ -284,9 +285,9 @@ class TelemetryHttpClientSpecification extends DDSpecification {
     then:
     1 * ddAgentFeaturesDiscovery.discoverIfOutdated()
     1 * ddAgentFeaturesDiscovery.supportsTelemetryProxy() >> false
-    1 * okHttpClient.newCall(_) >> { args -> request=args[0]; mockResponse(returnCode) }
-    request.url().toString() == "https://example.com/telemetry/proxy/api/v2/apmtelemetry"
-    request.header("DD-API-KEY") == null
+    1 * okHttpClient.newCall(_) >> { args -> request = args[0]; mockResponse(returnCode) }
+    request.url() == agentTelemetryUrl
+    request.header(apiKeyHeader) == null
 
     when:
     httpClient.sendRequest(dummyRequest())
@@ -294,15 +295,15 @@ class TelemetryHttpClientSpecification extends DDSpecification {
     then:
     1 * ddAgentFeaturesDiscovery.discoverIfOutdated()
     1 * ddAgentFeaturesDiscovery.supportsTelemetryProxy() >> false
-    1 * okHttpClient.newCall(_) >> { args -> request=args[0]; mockResponse(returnCode) }
-    request.url().toString() == expectedUrl
-    request.header("DD-API-KEY") == apiKey
+    1 * okHttpClient.newCall(_) >> { args -> request = args[0]; mockResponse(returnCode) }
+    request.url() == expectedUrl
+    request.header(apiKeyHeader) == apiKey
 
     where:
-    returnCode | apiKey          | expectedUrl
-    404        | null            | "https://example.com/telemetry/proxy/api/v2/apmtelemetry"
-    500        | null            | "https://example.com/telemetry/proxy/api/v2/apmtelemetry"
-    404        | "api-key-value" | "https://instrumentation-telemetry-intake.datadoghq.com/"
-    500        | "api-key-value" | "https://instrumentation-telemetry-intake.datadoghq.com/"
+    returnCode | apiKey | expectedUrl
+    404        | null   | agentTelemetryUrl
+    500        | null   | agentTelemetryUrl
+    404        | apiKey | intakeUrl
+    500        | apiKey | intakeUrl
   }
 }
