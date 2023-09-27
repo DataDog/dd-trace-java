@@ -13,8 +13,8 @@ import com.datadog.appsec.event.data.KnownAddresses;
 import com.datadog.appsec.event.data.MapDataBundle;
 import com.datadog.appsec.event.data.ObjectIntrospection;
 import com.datadog.appsec.event.data.SingletonDataBundle;
+import com.datadog.appsec.report.AppSecEvent;
 import com.datadog.appsec.report.AppSecEventWrapper;
-import com.datadog.appsec.report.raw.events.AppSecEvent100;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.function.TriConsumer;
 import datadog.trace.api.function.TriFunction;
@@ -114,7 +114,7 @@ public class GatewayBridge {
             traceSeg.setTagTop("_dd.appsec.enabled", 1);
             traceSeg.setTagTop("_dd.runtime_family", "jvm");
 
-            Collection<AppSecEvent100> collectedEvents = ctx.transferCollectedEvents();
+            Collection<AppSecEvent> collectedEvents = ctx.transferCollectedEvents();
 
             for (TraceSegmentPostProcessor pp : this.traceSegmentPostProcessors) {
               pp.processTraceSegment(traceSeg, ctx, collectedEvents);
@@ -215,8 +215,7 @@ public class GatewayBridge {
               DataBundle bundle =
                   new SingletonDataBundle<>(KnownAddresses.REQUEST_PATH_PARAMS, data);
               try {
-                Flow<Void> flow = producerService.publishDataEvent(subInfo, ctx, bundle, false);
-                return flow;
+                return producerService.publishDataEvent(subInfo, ctx, bundle, false);
               } catch (ExpiredSubscriberInfoException e) {
                 pathParamsSubInfo = null;
               }
