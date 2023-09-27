@@ -74,6 +74,7 @@ class TelemetryHttpClientSpecification extends DDSpecification {
     1 * ddAgentFeaturesDiscovery.supportsTelemetryProxy() >>> [true, false]
     1 * okHttpClient.newCall(_) >> { args -> request=args[0]; mockResponse(returnCode) }
     request.url().toString() == "https://example.com/telemetry/proxy/api/v2/apmtelemetry"
+    request.header("DD-API-KEY") == null
 
     when:
     httpClient.sendRequest(dummyRequest())
@@ -82,6 +83,7 @@ class TelemetryHttpClientSpecification extends DDSpecification {
     1 * ddAgentFeaturesDiscovery.supportsTelemetryProxy() >> [false, true]
     1 * okHttpClient.newCall(_) >> { args -> request=args[0]; mockResponse(returnCode) }
     request.url().toString() == "https://example.com/telemetry/proxy/api/v2/apmtelemetry"
+    request.header("DD-API-KEY") == null
 
     where:
     returnCode | _
@@ -104,6 +106,7 @@ class TelemetryHttpClientSpecification extends DDSpecification {
     1 * ddAgentFeaturesDiscovery.supportsTelemetryProxy() >> false
     1 * okHttpClient.newCall(_) >> { args -> request=args[0]; mockResponse(returnCode) }
     request.url().toString() == "https://instrumentation-telemetry-intake.datadoghq.com/"
+    request.header("DD-API-KEY") == "apk-key-value"
 
     when:
     httpClient.sendRequest(dummyRequest())
@@ -112,6 +115,7 @@ class TelemetryHttpClientSpecification extends DDSpecification {
     1 * ddAgentFeaturesDiscovery.supportsTelemetryProxy() >> false
     1 * okHttpClient.newCall(_) >> { args -> request=args[0]; mockResponse(returnCode) }
     request.url().toString() == "https://instrumentation-telemetry-intake.datadoghq.com/"
+    request.header("DD-API-KEY") == "apk-key-value"
 
     where:
     returnCode | _
@@ -135,6 +139,7 @@ class TelemetryHttpClientSpecification extends DDSpecification {
     1 * ddAgentFeaturesDiscovery.supportsTelemetryProxy() >> true
     1 * okHttpClient.newCall(_) >> { args -> request=args[0]; mockResponse(returnCode) }
     request.url().toString() == "https://example.com/telemetry/proxy/api/v2/apmtelemetry"
+    request.header("DD-API-KEY") == null
 
     when:
     httpClient.sendRequest(dummyRequest())
@@ -144,6 +149,7 @@ class TelemetryHttpClientSpecification extends DDSpecification {
     1 * ddAgentFeaturesDiscovery.supportsTelemetryProxy() >> false
     1 * okHttpClient.newCall(_) >> { args -> request=args[0]; mockResponse(returnCode) }
     request.url().toString() == "https://instrumentation-telemetry-intake.datadoghq.com/"
+    request.header("DD-API-KEY") == "apk-key-value"
 
     where:
     returnCode | _
@@ -166,6 +172,7 @@ class TelemetryHttpClientSpecification extends DDSpecification {
     1 * ddAgentFeaturesDiscovery.supportsTelemetryProxy() >> true
     1 * okHttpClient.newCall(_) >> { args -> request=args[0]; mockResponse(200) }
     request.url().toString() == "https://example.com/telemetry/proxy/api/v2/apmtelemetry"
+    request.header("DD-API-KEY") == null
 
     when:
     httpClient.sendRequest(dummyRequest())
@@ -175,6 +182,7 @@ class TelemetryHttpClientSpecification extends DDSpecification {
     1 * ddAgentFeaturesDiscovery.supportsTelemetryProxy() >> false
     1 * okHttpClient.newCall(_) >> { args -> request=args[0]; mockResponse(201) }
     request.url().toString() == "https://example.com/telemetry/proxy/api/v2/apmtelemetry"
+    request.header("DD-API-KEY") == null
   }
 
   def 'switch to Intake when Agent fails to receive telemetry request'() {
@@ -192,6 +200,7 @@ class TelemetryHttpClientSpecification extends DDSpecification {
     1 * ddAgentFeaturesDiscovery.supportsTelemetryProxy() >> true
     1 * okHttpClient.newCall(_) >> { args -> request=args[0]; mockResponse(returnCode) }
     request.url().toString() == "https://example.com/telemetry/proxy/api/v2/apmtelemetry"
+    request.header("DD-API-KEY") == null
 
     when:
     httpClient.sendRequest(dummyRequest())
@@ -201,6 +210,7 @@ class TelemetryHttpClientSpecification extends DDSpecification {
     1 * ddAgentFeaturesDiscovery.supportsTelemetryProxy() >> true
     1 * okHttpClient.newCall(_) >> { args -> request=args[0]; mockResponse(returnCode) }
     request.url().toString() == "https://instrumentation-telemetry-intake.datadoghq.com/"
+    request.header("DD-API-KEY") == "apk-key-value"
 
     where:
     returnCode | _

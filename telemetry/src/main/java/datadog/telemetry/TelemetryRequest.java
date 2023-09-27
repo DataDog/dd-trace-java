@@ -67,7 +67,6 @@ public class TelemetryRequest {
 
     if (apiKey != null) {
       builder.addHeader("DD-API-KEY", apiKey);
-      //    TODO  OkHttpUtils.addApiKey(config, requestBuilder)
     }
 
     return builder.build();

@@ -334,12 +334,4 @@ class TelemetryServiceSpecification extends Specification {
       .assertNoMoreMessages()
     testHttpClient.assertNoMoreRequests()
   }
-
-  def 'add API_KEY when agent is not available'() {
-    //    TODO
-  }
-
-  def 'test url when agent available vs missing'() {
-    //TODO
-  }
 }
