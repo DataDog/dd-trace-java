@@ -1544,7 +1544,6 @@ public class CapturedSnapshotTest {
     assertEquals(
         "Unsupported Collection class: com.datadog.debugger.CapturedSnapshot24$Holder",
         snapshot.getEvaluationErrors().get(0).getMessage());
-    assertEquals("len(holder)", snapshot.getEvaluationErrors().get(0).getExpr());
   }
 
   @Test
@@ -1554,7 +1553,6 @@ public class CapturedSnapshotTest {
     assertEquals(
         "Unsupported Map class: com.datadog.debugger.CapturedSnapshot26$Holder",
         snapshot.getEvaluationErrors().get(0).getMessage());
-    assertEquals("len(holder)", snapshot.getEvaluationErrors().get(0).getExpr());
   }
 
   private Snapshot doUnknownCount(String CLASS_NAME) throws IOException, URISyntaxException {
@@ -1570,6 +1568,7 @@ public class CapturedSnapshotTest {
     Assertions.assertEquals(1, result);
     Snapshot snapshot = assertOneSnapshot(listener);
     assertEquals(1, snapshot.getEvaluationErrors().size());
+    assertEquals("len(holder)", snapshot.getEvaluationErrors().get(0).getExpr());
     return snapshot;
   }
 
