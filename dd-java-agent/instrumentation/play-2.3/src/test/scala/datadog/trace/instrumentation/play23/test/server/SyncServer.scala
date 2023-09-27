@@ -1,5 +1,6 @@
-package server
+package datadog.trace.instrumentation.play23.test.server
 
+import datadog.appsec.api.blocking.Blocking
 import datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint._
 import datadog.trace.agent.test.base.{HttpServer, HttpServerTest}
 import play.api.mvc.{Action, Handler, Results}
@@ -78,10 +79,18 @@ class SyncServer extends HttpServer {
         )
       }
     case ("GET", "/exception") =>
-      Action { request =>
-        HttpServerTest.controller(EXCEPTION, new BlockClosureAdapter(() => {
+      Action {
+        HttpServerTest.controller(EXCEPTION, BlockClosureAdapter {
           throw new Exception(EXCEPTION.getBody)
-        }))
+        })
+      }
+
+    case ("GET", "/user-block") =>
+      Action {
+        HttpServerTest.controller(USER_BLOCK, BlockClosureAdapter {
+          Blocking.forUser("user-to-block").blockIfMatch()
+          Results.Ok("should never be reached")
+        })
       }
   }
 

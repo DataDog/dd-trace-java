@@ -33,12 +33,7 @@ public class BackendApiFactory {
         throw new FatalAgentMisconfigurationError(
             "Agentless mode is enabled and api key is not set. Please set application key");
       }
-      String applicationKey = config.getApplicationKey();
-      if (applicationKey == null || applicationKey.isEmpty()) {
-        log.warn(
-            "Agentless mode is enabled and application key is not set. Some CI Visibility features will be unavailable");
-      }
-      return new IntakeApi(site, apiKey, applicationKey, timeoutMillis, retryPolicyFactory);
+      return new IntakeApi(site, apiKey, timeoutMillis, retryPolicyFactory);
     }
 
     DDAgentFeaturesDiscovery featuresDiscovery =

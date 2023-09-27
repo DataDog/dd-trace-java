@@ -13,11 +13,10 @@ import com.datadog.appsec.event.data.Address;
 import com.datadog.appsec.event.data.DataBundle;
 import com.datadog.appsec.event.data.KnownAddresses;
 import com.datadog.appsec.gateway.AppSecRequestContext;
-import com.datadog.appsec.report.raw.events.AppSecEvent100;
-import com.datadog.appsec.report.raw.events.Parameter;
-import com.datadog.appsec.report.raw.events.Rule;
-import com.datadog.appsec.report.raw.events.RuleMatch;
-import com.datadog.appsec.report.raw.events.Tags;
+import com.datadog.appsec.report.AppSecEvent;
+import com.datadog.appsec.report.Parameter;
+import com.datadog.appsec.report.Rule;
+import com.datadog.appsec.report.RuleMatch;
 import com.datadog.appsec.util.StandardizedLogging;
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Moshi;
@@ -438,7 +437,7 @@ public class PowerWAFModule implements AppSecModule {
             log.info("Ignoring action with type {}", actionInfo.type);
           }
         }
-        Collection<AppSecEvent100> events = buildEvents(resultWithData);
+        Collection<AppSecEvent> events = buildEvents(resultWithData);
         reqCtx.reportEvents(events);
 
         if (flow.isBlocking()) {
@@ -521,7 +520,7 @@ public class PowerWAFModule implements AppSecModule {
         new DataBundleMapWrapper(ctxAndAddr.addressesOfInterest, bundle), LIMITS, metrics);
   }
 
-  private Collection<AppSecEvent100> buildEvents(Powerwaf.ResultWithData actionWithData) {
+  private Collection<AppSecEvent> buildEvents(Powerwaf.ResultWithData actionWithData) {
     Collection<PowerWAFResultData> listResults;
     try {
       listResults = RES_JSON_ADAPTER.fromJson(actionWithData.data);
@@ -538,7 +537,7 @@ public class PowerWAFModule implements AppSecModule {
     return emptyList();
   }
 
-  private AppSecEvent100 buildEvent(PowerWAFResultData wafResult) {
+  private AppSecEvent buildEvent(PowerWAFResultData wafResult) {
 
     if (wafResult == null || wafResult.rule == null || wafResult.rule_matches == null) {
       log.warn("WAF result is empty: {}", wafResult);
@@ -552,7 +551,7 @@ public class PowerWAFModule implements AppSecModule {
 
       for (PowerWAFResultData.Parameter parameter : rule_match.parameters) {
         parameterList.add(
-            new Parameter.ParameterBuilder()
+            new Parameter.Builder()
                 .withAddress(parameter.address)
                 .withKeyPath(parameter.key_path)
                 .withValue(parameter.value)
@@ -561,7 +560,7 @@ public class PowerWAFModule implements AppSecModule {
       }
 
       RuleMatch ruleMatch =
-          new RuleMatch.RuleMatchBuilder()
+          new RuleMatch.Builder()
               .withOperator(rule_match.operator)
               .withOperatorValue(rule_match.operator_value)
               .withParameters(parameterList)
@@ -570,16 +569,12 @@ public class PowerWAFModule implements AppSecModule {
       ruleMatchList.add(ruleMatch);
     }
 
-    return new AppSecEvent100.AppSecEvent100Builder()
+    return new AppSecEvent.Builder()
         .withRule(
-            new Rule.RuleBuilder()
+            new Rule.Builder()
                 .withId(wafResult.rule.id)
                 .withName(wafResult.rule.name)
-                .withTags(
-                    new Tags.TagsBuilder()
-                        .withType(wafResult.rule.tags.get("type"))
-                        .withCategory(wafResult.rule.tags.get("category"))
-                        .build())
+                .withTags(wafResult.rule.tags)
                 .build())
         .withRuleMatches(ruleMatchList)
         .build();
