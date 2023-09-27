@@ -1,4 +1,4 @@
-package client
+package datadog.trace.instrumentation.play23.test.client
 
 import datadog.trace.agent.test.base.HttpClientTest
 import datadog.trace.agent.test.naming.TestingNettyHttpNamingConventions

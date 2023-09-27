@@ -1,4 +1,4 @@
-package server
+package datadog.trace.instrumentation.play23.test.server
 
 import datadog.trace.agent.test.base.HttpServerTest
 import groovy.lang.Closure
@@ -12,11 +12,14 @@ class ControllerClosureAdapter(response: Result) extends Closure[Result]((): Uni
     )
 }
 
-class BlockClosureAdapter(block: () => Result) extends Closure[Result]((): Unit) {
+class BlockClosureAdapter(block: => Result) extends Closure[Result]((): Unit) {
   override def call(): Result =
-    block().withHeaders(
+    block.withHeaders(
       (HttpServerTest.getIG_RESPONSE_HEADER, HttpServerTest.getIG_RESPONSE_HEADER_VALUE)
     )
+}
+object BlockClosureAdapter {
+  def apply(block: => Result): BlockClosureAdapter = new BlockClosureAdapter(block)
 }
 
 class AsyncControllerClosureAdapter(response: Future[Result])
@@ -30,13 +33,17 @@ class AsyncControllerClosureAdapter(response: Future[Result])
     )
 }
 
-class AsyncBlockClosureAdapter(block: () => Future[Result])
+class AsyncBlockClosureAdapter(block: => Future[Result])
     extends Closure[Future[Result]]((): Unit) {
   import scala.concurrent.ExecutionContext.Implicits.global
   override def call(): Future[Result] =
-    block().map(
+    block.map(
       _.withHeaders(
         (HttpServerTest.getIG_RESPONSE_HEADER, HttpServerTest.getIG_RESPONSE_HEADER_VALUE)
       )
     )
+}
+
+object AsyncBlockClosureAdapter {
+  def apply(block: => Future[Result]): AsyncBlockClosureAdapter = new AsyncBlockClosureAdapter(block)
 }
