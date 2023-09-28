@@ -9,8 +9,10 @@ import static net.bytebuddy.matcher.ElementMatchers.takesNoArguments;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.api.InstrumenterConfig;
+import datadog.trace.instrumentation.opentelemetry14.context.propagation.OtelContextPropagators;
 import datadog.trace.util.Strings;
 import io.opentelemetry.api.trace.TracerProvider;
+import io.opentelemetry.context.propagation.ContextPropagators;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
@@ -69,24 +71,40 @@ public class OpenTelemetryInstrumentation extends Instrumenter.Tracing
       packageName + ".OtelTracer",
       packageName + ".OtelTracerBuilder",
       packageName + ".OtelTracerProvider",
+      packageName + ".context.propagation.AgentTextMapPropagator",
+      packageName + ".context.propagation.OtelContextPropagators",
     };
   }
 
   @Override
   public void adviceTransformations(AdviceTransformation transformation) {
-    // TracerProvider.getTracerProvider()
+    // TracerProvider OpenTelemetry.getTracerProvider()
     transformation.applyAdvice(
         isMethod()
             .and(named("getTracerProvider"))
             .and(takesNoArguments())
             .and(returns(named("io.opentelemetry.api.trace.TracerProvider"))),
         OpenTelemetryInstrumentation.class.getName() + "$TracerProviderAdvice");
+    // ContextPropagators OpenTelemetry.getPropagators();
+    transformation.applyAdvice(
+        isMethod()
+            .and(named("getPropagators"))
+            .and(takesNoArguments())
+            .and(returns(named("io.opentelemetry.context.propagation.ContextPropagators"))),
+        OpenTelemetryInstrumentation.class.getName() + "$ContextPropagatorAdvice");
   }
 
   public static class TracerProviderAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void returnProvider(@Advice.Return(readOnly = false) TracerProvider result) {
       result = OtelTracerProvider.INSTANCE;
+    }
+  }
+
+  public static class ContextPropagatorAdvice {
+    @Advice.OnMethodExit(suppress = Throwable.class)
+    public static void returnProvider(@Advice.Return(readOnly = false) ContextPropagators result) {
+      result = OtelContextPropagators.INSTANCE;
     }
   }
 }
