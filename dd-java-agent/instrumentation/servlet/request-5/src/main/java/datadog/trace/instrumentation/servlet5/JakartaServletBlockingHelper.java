@@ -14,7 +14,7 @@ import org.slf4j.LoggerFactory;
 
 public class JakartaServletBlockingHelper {
   private static final byte[] EMPTY_BYTE_ARRAY = new byte[0];
-  private static final Logger log = LoggerFactory.getLogger(ServletBlockingHelper.class);
+  private static final Logger log = LoggerFactory.getLogger(JakartaServletBlockingHelper.class);
 
   public static void commitBlockingResponse(
       TraceSegment segment,
