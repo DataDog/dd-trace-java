@@ -93,6 +93,8 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
     // DynamoDB
     request.getValueForField("TableName", String.class).ifPresent(name -> setTableName(span, name));
 
+    // EventBridge
+    request.getValueForField("RuleName", String.class).ifPresent(name -> setRuleName(span, name));
     return span;
   }
 
@@ -132,6 +134,12 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
     span.setTag(InstrumentationTags.AWS_TABLE_NAME, name);
     span.setTag(InstrumentationTags.TABLE_NAME, name);
     setPeerService(span, InstrumentationTags.AWS_TABLE_NAME, name);
+  }
+
+  private static void setRuleName(AgentSpan span, String name) {
+    span.setTag(InstrumentationTags.AWS_RULE_NAME, name);
+    span.setTag(InstrumentationTags.RULE_NAME, name);
+    setPeerService(span, InstrumentationTags.AWS_RULE_NAME, name);
   }
 
   public AgentSpan onAttributes(final AgentSpan span, final ExecutionAttributes attributes) {

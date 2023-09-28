@@ -32,6 +32,8 @@ public class InstrumentationTags {
   public static final String STREAM_NAME = "streamname";
   public static final String AWS_TABLE_NAME = "aws.table.name";
   public static final String TABLE_NAME = "tablename";
+  public static final String AWS_RULE_NAME = "aws.rule.name";
+  public static final String RULE_NAME = "rulename";
   public static final String AWS_REQUEST_ID = "aws.requestId";
   public static final String AWS_STORAGE_CLASS = "aws.storage.class";
 

@@ -30,6 +30,7 @@ dependencies {
   testImplementation group: 'software.amazon.awssdk', name: 'sns', version: '2.2.0'
   testImplementation group: 'software.amazon.awssdk', name: 'dynamodb', version: '2.2.0'
   testImplementation group: 'software.amazon.awssdk', name: 'kinesis', version: '2.2.0'
+  testImplementation group: 'software.amazon.awssdk', name: 'eventbridge', version: '2.20.0'
 
   latestDepTestImplementation project(':dd-java-agent:instrumentation:apache-httpclient-4')
   latestDepTestImplementation project(':dd-java-agent:instrumentation:netty-4.1')
@@ -42,4 +43,6 @@ dependencies {
   latestDepTestImplementation group: 'software.amazon.awssdk', name: 'sns', version: fixedSdkVersion
   latestDepTestImplementation group: 'software.amazon.awssdk', name: 'dynamodb', version: fixedSdkVersion
   latestDepTestImplementation group: 'software.amazon.awssdk', name: 'kinesis', version: fixedSdkVersion
+  latestDepTestImplementation group: 'software.amazon.awssdk', name: 'eventbridge', version: fixedSdkVersion
+
 }

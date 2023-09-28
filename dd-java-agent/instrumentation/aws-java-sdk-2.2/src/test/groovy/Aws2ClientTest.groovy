@@ -38,6 +38,8 @@ import software.amazon.awssdk.services.sqs.SqsAsyncClient
 import software.amazon.awssdk.services.sqs.SqsClient
 import software.amazon.awssdk.services.sqs.model.CreateQueueRequest
 import software.amazon.awssdk.services.sqs.model.SendMessageRequest
+import software.amazon.awssdk.services.eventbridge.EventBridgeClient
+import software.amazon.awssdk.services.eventbridge.model.PutEventsRequest
 import spock.lang.AutoCleanup
 import spock.lang.Shared
 
@@ -166,6 +168,11 @@ abstract class Aws2ClientTest extends VersionedNamingTestBase {
               "streamname" "somestream"
               peerServiceFrom("aws.stream.name")
               checkPeerService = true
+            } else if (service == "EventBridge") {
+              "aws.rule.name" "somerule"
+              "rulename" "somerule"
+              peerServiceFrom("aws.rule.name")
+              checkPeerService = true
             }
             defaultTags(false, checkPeerService)
           }
@@ -182,6 +189,7 @@ abstract class Aws2ClientTest extends VersionedNamingTestBase {
     "S3"       | "PutObject"         | "PUT"  | "/somebucket/somekey" | "UNKNOWN"                              | S3Client.builder()       | { c -> c.putObject(PutObjectRequest.builder().bucket("somebucket").key("somekey").storageClass(StorageClass.GLACIER).build(), RequestBody.fromString("body")) } | "body"
     "DynamoDb" | "CreateTable"       | "POST" | "/"                   | "UNKNOWN"                              | DynamoDbClient.builder() | { c -> c.createTable(CreateTableRequest.builder().tableName("sometable").build()) }                                                                             | ""
     "Kinesis"  | "DeleteStream"      | "POST" | "/"                   | "UNKNOWN"                              | KinesisClient.builder()  | { c -> c.deleteStream(DeleteStreamRequest.builder().streamName("somestream").build()) }                                                                         | ""
+    "EventBridge"  | "PutEvents"      | "POST" | "/"                   | "UNKNOWN"                              | EventBridgeClient.builder()  | { c -> c.putItems(PutEventsRequest.builder().ruleName("somerule").build()) }                                                                         | ""
     "Sqs"      | "CreateQueue"       | "POST" | "/"                   | "7a62c49f-347e-4fc4-9331-6e8e7a96aa73" | SqsClient.builder()      | { c -> c.createQueue(CreateQueueRequest.builder().queueName("somequeue").build()) }                                                                             | """
         <CreateQueueResponse>
             <CreateQueueResult><QueueUrl>https://queue.amazonaws.com/123456789012/MyQueue</QueueUrl></CreateQueueResult>
@@ -296,6 +304,11 @@ abstract class Aws2ClientTest extends VersionedNamingTestBase {
               "streamname" "somestream"
               peerServiceFrom("aws.stream.name")
               checkPeerService = true
+            } else if (service == "EventBridge") {
+              "aws.rule.name" "somerule"
+              "rulename" "somerule"
+              peerServiceFrom("aws.rule.name")
+              checkPeerService = true
             }
             defaultTags(false, checkPeerService)
           }
@@ -310,6 +323,7 @@ abstract class Aws2ClientTest extends VersionedNamingTestBase {
     "S3"       | "CreateBucket"      | "PUT"  | "/somebucket"         | "UNKNOWN"                              | S3AsyncClient.builder()       | { c -> c.createBucket(CreateBucketRequest.builder().bucket("somebucket").build()) }                                              | ""
     "S3"       | "GetObject"         | "GET"  | "/somebucket/somekey" | "UNKNOWN"                              | S3AsyncClient.builder()       | { c -> c.getObject(GetObjectRequest.builder().bucket("somebucket").key("somekey").build(), AsyncResponseTransformer.toBytes()) } | "1234567890"
     "DynamoDb" | "CreateTable"       | "POST" | "/"                   | "UNKNOWN"                              | DynamoDbAsyncClient.builder() | { c -> c.createTable(CreateTableRequest.builder().tableName("sometable").build()) }                                              | ""
+    "EventBridge"  | "PutEvents"      | "POST" | "/"                   | "UNKNOWN"                              | EventBridgeClient.builder()  | { c -> c.putItems(PutEventsRequest.builder().ruleName("somerule").build()) }                                                                         | ""
     // Kinesis seems to expect an http2 response which is incompatible with our test server.
     // "Kinesis"  | "DeleteStream"      | "java-aws-sdk" | "POST" | "/"                   | "UNKNOWN"                              | KinesisAsyncClient.builder()  | { c -> c.deleteStream(DeleteStreamRequest.builder().streamName("somestream").build()) }                                          | ""
     "Sqs"      | "CreateQueue"       | "POST" | "/"                   | "7a62c49f-347e-4fc4-9331-6e8e7a96aa73" | SqsAsyncClient.builder()      | { c -> c.createQueue(CreateQueueRequest.builder().queueName("somequeue").build()) }                                              | """
