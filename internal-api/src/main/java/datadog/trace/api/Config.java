@@ -89,6 +89,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_SERVLET_ROOT_CONTEXT_SERV
 import static datadog.trace.api.ConfigDefaults.DEFAULT_SITE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_STARTUP_LOGS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TELEMETRY_DEPENDENCY_COLLECTION_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_TELEMETRY_EXTENDED_HEARTBEAT_INTERVAL;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TELEMETRY_HEARTBEAT_INTERVAL;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TELEMETRY_METRICS_INTERVAL;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_128_BIT_TRACEID_GENERATION_ENABLED;
@@ -207,6 +208,7 @@ import static datadog.trace.api.config.GeneralConfig.SITE;
 import static datadog.trace.api.config.GeneralConfig.STARTUP_LOGS_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.TAGS;
 import static datadog.trace.api.config.GeneralConfig.TELEMETRY_DEPENDENCY_COLLECTION_ENABLED;
+import static datadog.trace.api.config.GeneralConfig.TELEMETRY_EXTENDED_HEARTBEAT_INTERVAL;
 import static datadog.trace.api.config.GeneralConfig.TELEMETRY_HEARTBEAT_INTERVAL;
 import static datadog.trace.api.config.GeneralConfig.TELEMETRY_METRICS_INTERVAL;
 import static datadog.trace.api.config.GeneralConfig.TRACER_METRICS_BUFFERING_ENABLED;
@@ -780,6 +782,7 @@ public class Config {
   private final boolean iastDeduplicationEnabled;
 
   private final float telemetryHeartbeatInterval;
+  private final long telemetryExtendedHeartbeatInterval;
   private final float telemetryMetricsInterval;
   private final boolean isTelemetryDependencyServiceEnabled;
 
@@ -1399,6 +1402,10 @@ public class Config {
       telemetryInterval = DEFAULT_TELEMETRY_HEARTBEAT_INTERVAL;
     }
     telemetryHeartbeatInterval = telemetryInterval;
+
+    telemetryExtendedHeartbeatInterval =
+        configProvider.getLong(
+            TELEMETRY_EXTENDED_HEARTBEAT_INTERVAL, DEFAULT_TELEMETRY_EXTENDED_HEARTBEAT_INTERVAL);
 
     telemetryInterval =
         configProvider.getFloat(TELEMETRY_METRICS_INTERVAL, DEFAULT_TELEMETRY_METRICS_INTERVAL);
@@ -2355,6 +2362,10 @@ public class Config {
 
   public float getTelemetryHeartbeatInterval() {
     return telemetryHeartbeatInterval;
+  }
+
+  public long getTelemetryExtendedHeartbeatInterval() {
+    return telemetryExtendedHeartbeatInterval;
   }
 
   public float getTelemetryMetricsInterval() {

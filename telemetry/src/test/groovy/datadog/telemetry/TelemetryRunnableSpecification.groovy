@@ -1,14 +1,15 @@
 package datadog.telemetry
 
 import datadog.telemetry.metric.MetricPeriodicAction
+import datadog.trace.api.config.GeneralConfig
 import datadog.trace.api.telemetry.MetricCollector
 import datadog.trace.api.time.TimeSource
-import spock.lang.Specification
-
+import datadog.trace.test.util.DDSpecification
+import datadog.trace.util.Strings
 import java.util.concurrent.CyclicBarrier
 import java.util.concurrent.TimeUnit
 
-class TelemetryRunnableSpecification extends Specification {
+class TelemetryRunnableSpecification extends DDSpecification {
 
   static class TickSleeper implements TelemetryRunnable.ThreadSleeper {
     CyclicBarrier sleeped = new CyclicBarrier(2)
@@ -34,6 +35,7 @@ class TelemetryRunnableSpecification extends Specification {
 
   void 'happy path'() {
     setup:
+    injectEnvConfig(Strings.toEnvVar(GeneralConfig.TELEMETRY_EXTENDED_HEARTBEAT_INTERVAL), "65")
     TelemetryRunnable.ThreadSleeper sleeperMock = Mock()
     TickSleeper sleeper = new TickSleeper(delegate: sleeperMock)
     TimeSource timeSource = Mock()
@@ -162,6 +164,21 @@ class TelemetryRunnableSpecification extends Specification {
     1 * timeSource.getCurrentTimeMillis() >> 120 * 1000 + 7
     1 * sleeperMock.sleep(9993)
 
+    when: 'eights iteration (65 seconds, extended-heartbeat)'
+    sleeper.go.await(5, TimeUnit.SECONDS)
+    sleeper.sleeped.await(5, TimeUnit.SECONDS)
+
+    then:
+    1 * timeSource.getCurrentTimeMillis() >> 125 * 1000
+
+    then:
+    1 * telemetryService.sendExtendedHeartbeat()
+
+    then:
+    1 * timeSource.getCurrentTimeMillis() >> 125 * 1000 + 8
+    1 * sleeperMock.sleep(4992)
+    0 * _
+
     when:
     t.interrupt()
     t.join()
@@ -206,7 +223,7 @@ class TelemetryRunnableSpecification extends Specification {
     setup:
     TimeSource timeSource = Mock()
     TickSleeper sleeper = Mock()
-    TelemetryRunnable.Scheduler scheduler = new TelemetryRunnable.Scheduler(timeSource, sleeper, 60 * 1000, 10 * 1000)
+    TelemetryRunnable.Scheduler scheduler = new TelemetryRunnable.Scheduler(timeSource, sleeper, 60 * 1000, 10 * 1000, 0)
 
     when: 'first iteration'
     scheduler.init()
@@ -255,7 +272,7 @@ class TelemetryRunnableSpecification extends Specification {
     setup:
     TimeSource timeSource = Mock()
     TickSleeper sleeper = Mock()
-    TelemetryRunnable.Scheduler scheduler = new TelemetryRunnable.Scheduler(timeSource, sleeper, 60 * 1000, 10 * 1000)
+    TelemetryRunnable.Scheduler scheduler = new TelemetryRunnable.Scheduler(timeSource, sleeper, 60 * 1000, 10 * 1000, 0)
 
     when: 'first iteration'
     scheduler.init()
@@ -298,12 +315,13 @@ class TelemetryRunnableSpecification extends Specification {
     !scheduler.shouldRunHeartbeat()
   }
 
-  void 'scheduler with heartbeat #heartbeatSecs and metrics #metricsSecs'() {
+  void 'scheduler with heartbeat #heartbeatSecs and metrics #metricsSecs and extended-heartbeat #extHeartbeatSecs'() {
     setup:
     TimeSourceAndSleeper timing = new TimeSourceAndSleeper()
-    TelemetryRunnable.Scheduler scheduler = new TelemetryRunnable.Scheduler(timing, timing, heartbeatSecs * 1000, metricsSecs * 1000)
+    TelemetryRunnable.Scheduler scheduler = new TelemetryRunnable.Scheduler(timing, timing, heartbeatSecs * 1000, metricsSecs * 1000, extHeartbeatSecs * 1000)
     def metricsRun = []
     def heartbeatsRun = []
+    def extHeartbeatsRun = []
 
     when:
     scheduler.init()
@@ -312,6 +330,12 @@ class TelemetryRunnableSpecification extends Specification {
     iters.times {
       metricsRun.add(scheduler.shouldRunMetrics())
       heartbeatsRun.add(scheduler.shouldRunHeartbeat())
+      def runExtHeartbeat = scheduler.shouldRunExtendedHeartbeat()
+      extHeartbeatsRun.add(runExtHeartbeat)
+      if (runExtHeartbeat) {
+        // need to manually advance to retry next iteration if extended-heartbeat request failed
+        scheduler.scheduleNextExtendedHeartbeat()
+      }
       scheduler.sleepUntilNextIteration()
     }
 
@@ -320,14 +344,16 @@ class TelemetryRunnableSpecification extends Specification {
     heartbeatsRun.size() == iters
     metricsRun.count { it } == expectedMetrics
     heartbeatsRun.count { it } == expectedHeartbeats
+    extHeartbeatsRun.count { it } == expectedExtHeartbeats
 
     where:
-    heartbeatSecs | metricsSecs | expectedHeartbeats | expectedMetrics | iters
-    1             | 1           | 10                 | 10              | 10
-    60            | 10          | 2                  | 12              | 12
-    10            | 60          | 12                 | 2               | 12
-    5             | 3           | 3                  | 4               | 6
-    3             | 5           | 4                  | 3               | 6
+    iters | metricsSecs | heartbeatSecs | extHeartbeatSecs | expectedMetrics | expectedHeartbeats | expectedExtHeartbeats
+    10    | 0           | 0             | 0                | 10              | 10                 | 10
+    10    | 1           | 1             | 1                | 10              | 10                 | 9
+    12    | 10          | 60            | 60               | 12              | 2                  | 1
+    12    | 60          | 10            | 10               | 2               | 12                 | 11
+    6     | 3           | 5             | 5                | 4               | 3                  | 2
+    6     | 5           | 3             | 3                | 3               | 4                  | 3
   }
 
   class TimeSourceAndSleeper implements TimeSource, TelemetryRunnable.ThreadSleeper {

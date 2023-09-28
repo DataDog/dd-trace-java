@@ -102,10 +102,17 @@ public class TelemetryRequestBody extends RequestBody {
 
       bodyWriter.name("request_type").value(this.requestType.toString());
 
-      if (this.requestType == RequestType.APP_STARTED) {
-        beginSinglePayload();
-      } else if (this.requestType == RequestType.MESSAGE_BATCH) {
-        beginMultiplePayload();
+      switch (this.requestType) {
+        case APP_STARTED:
+        case APP_EXTENDED_HEARTBEAT:
+          bodyWriter.name("payload");
+          bodyWriter.beginObject();
+          break;
+        case MESSAGE_BATCH:
+          bodyWriter.name("payload");
+          bodyWriter.beginArray();
+          break;
+        default:
       }
     } catch (Exception ex) {
       throw new SerializationException("begin-request", ex);
@@ -115,10 +122,15 @@ public class TelemetryRequestBody extends RequestBody {
   /** @return body size in bytes */
   public long endRequest() {
     try {
-      if (requestType == RequestType.APP_STARTED) {
-        endSinglePayload();
-      } else if (requestType == RequestType.MESSAGE_BATCH) {
-        endMultiplePayload();
+      switch (this.requestType) {
+        case APP_STARTED:
+        case APP_EXTENDED_HEARTBEAT:
+          bodyWriter.endObject(); // payload
+          break;
+        case MESSAGE_BATCH:
+          bodyWriter.endArray(); // payloads
+          break;
+        default:
       }
       bodyWriter.endObject(); // request
       return body.size();
@@ -127,87 +139,17 @@ public class TelemetryRequestBody extends RequestBody {
     }
   }
 
-  public void beginMessage(RequestType payloadType) {
-    if (requestType != RequestType.MESSAGE_BATCH) {
-      throw new IllegalStateException(
-          "Serializing begin-message is only allowed within a message-batch request");
-    }
-    try {
-      bodyWriter.beginObject();
-      bodyWriter.name("request_type").value(String.valueOf(payloadType));
-    } catch (Exception ex) {
-      throw new SerializationException("begin-message", ex);
-    }
-  }
-
-  public void endMessage() {
-    if (requestType != RequestType.MESSAGE_BATCH) {
-      throw new IllegalStateException(
-          "Serializing end-message is only allowed within a message-batch request");
-    }
-    try {
-      bodyWriter.endObject(); // message
-    } catch (Exception ex) {
-      throw new SerializationException("end-message", ex);
-    }
-  }
-
-  public void beginSinglePayload() {
-    try {
-      bodyWriter.name("payload");
-      bodyWriter.beginObject();
-    } catch (Exception ex) {
-      throw new SerializationException("begin-single-payload", ex);
-    }
-  }
-
-  public void endSinglePayload() {
-    try {
-      bodyWriter.endObject();
-    } catch (Exception ex) {
-      throw new SerializationException("end-single-payload", ex);
-    }
-  }
-
-  public void beginMultiplePayload() {
-    try {
-      bodyWriter.name("payload");
-      bodyWriter.beginArray();
-    } catch (Exception ex) {
-      throw new SerializationException("begin-multiple-payload", ex);
-    }
-  }
-
-  public void endMultiplePayload() {
-    try {
-      bodyWriter.endArray();
-    } catch (Exception ex) {
-      throw new SerializationException("end-multiple-payload", ex);
-    }
-  }
-
   public void writeHeartbeatEvent() {
-    beginMessage(RequestType.APP_HEARTBEAT);
-    endMessage();
+    beginMessageIfBatch(RequestType.APP_HEARTBEAT);
+    endMessageIfBatch(RequestType.APP_HEARTBEAT);
   }
 
   public void beginMetrics() throws IOException {
-    beginMessage(RequestType.GENERATE_METRICS);
-    beginSinglePayload();
+    beginMessageIfBatch(RequestType.GENERATE_METRICS);
     bodyWriter.name("namespace").value(TELEMETRY_NAMESPACE_TAG_TRACER);
-    bodyWriter.name("series");
-    bodyWriter.beginArray();
+    bodyWriter.name("series").beginArray();
   }
 
-  public void endMetrics() throws IOException {
-    bodyWriter.endArray();
-    endSinglePayload();
-    endMessage();
-  }
-
-  /**
-   * https://github.com/DataDog/instrumentation-telemetry-api-docs/blob/main/GeneratedDocumentation/ApiDocs/v2/SchemaDocumentation/Schemas/metric_data.md#metric_data
-   */
   public void writeMetric(Metric m) throws IOException {
     bodyWriter.beginObject();
     bodyWriter.name("metric").value(m.getMetric());
@@ -220,6 +162,17 @@ public class TelemetryRequestBody extends RequestBody {
     bodyWriter.endObject();
   }
 
+  public void endMetrics() throws IOException {
+    bodyWriter.endArray();
+    endMessageIfBatch(RequestType.GENERATE_METRICS);
+  }
+
+  public void beginDistributions() throws IOException {
+    beginMessageIfBatch(RequestType.DISTRIBUTIONS);
+    bodyWriter.name("namespace").value(TELEMETRY_NAMESPACE_TAG_TRACER);
+    bodyWriter.name("series").beginArray();
+  }
+
   public void writeDistribution(DistributionSeries ds) throws IOException {
     bodyWriter.beginObject();
     bodyWriter.name("metric").value(ds.getMetric());
@@ -230,35 +183,16 @@ public class TelemetryRequestBody extends RequestBody {
     bodyWriter.endObject();
   }
 
-  public void beginDistributions() throws IOException {
-    beginMessage(RequestType.DISTRIBUTIONS);
-    beginSinglePayload();
-    bodyWriter.name("namespace").value(TELEMETRY_NAMESPACE_TAG_TRACER);
-    bodyWriter.name("series");
-    bodyWriter.beginArray();
-  }
-
   public void endDistributions() throws IOException {
     bodyWriter.endArray();
-    endSinglePayload();
-    endMessage();
+    endMessageIfBatch(RequestType.DISTRIBUTIONS);
   }
 
   public void beginLogs() throws IOException {
-    beginMessage(RequestType.LOGS);
-    beginSinglePayload();
+    beginMessageIfBatch(RequestType.LOGS);
     bodyWriter.name("logs").beginArray();
   }
 
-  public void endLogs() throws IOException {
-    bodyWriter.endArray();
-    endSinglePayload();
-    endMessage();
-  }
-
-  /**
-   * https://github.com/DataDog/instrumentation-telemetry-api-docs/blob/main/GeneratedDocumentation/ApiDocs/v2/SchemaDocumentation/Schemas/payload.md#if-request_type--app-extended-heartbeat-we-add-the-following-to-payload
-   */
   public void writeLog(LogMessage m) throws IOException {
     bodyWriter.beginObject();
     bodyWriter.name("message").value(m.getMessage());
@@ -269,12 +203,14 @@ public class TelemetryRequestBody extends RequestBody {
     bodyWriter.endObject();
   }
 
-  public void beginConfiguration() throws IOException {
-    bodyWriter.name("configuration").beginArray();
+  public void endLogs() throws IOException {
+    bodyWriter.endArray();
+    endMessageIfBatch(RequestType.LOGS);
   }
 
-  public void endConfiguration() throws IOException {
-    bodyWriter.endArray();
+  public void beginConfiguration() throws IOException {
+    beginMessageIfBatch(RequestType.APP_CLIENT_CONFIGURATION_CHANGE);
+    bodyWriter.name("configuration").beginArray();
   }
 
   public void writeConfiguration(ConfigSetting configSetting) throws IOException {
@@ -284,54 +220,36 @@ public class TelemetryRequestBody extends RequestBody {
     bodyWriter.name("value").jsonValue(configSetting.value);
     bodyWriter.setSerializeNulls(false);
     bodyWriter.name("origin").jsonValue(configSetting.origin.value);
-    // error - optional
-    // seq_id - optional
     bodyWriter.endObject();
   }
 
+  public void endConfiguration() throws IOException {
+    bodyWriter.endArray();
+    endMessageIfBatch(RequestType.APP_CLIENT_CONFIGURATION_CHANGE);
+  }
+
   public void beginIntegrations() throws IOException {
-    beginMessage(RequestType.APP_INTEGRATIONS_CHANGE);
-    beginSinglePayload();
-    bodyWriter.name("integrations");
-    bodyWriter.beginArray();
+    beginMessageIfBatch(RequestType.APP_INTEGRATIONS_CHANGE);
+    bodyWriter.name("integrations").beginArray();
+  }
+
+  public void writeIntegration(Integration i) throws IOException {
+    bodyWriter.beginObject();
+    bodyWriter.name("enabled").value(i.enabled);
+    bodyWriter.name("name").value(i.name);
+    bodyWriter.endObject();
   }
 
   public void endIntegrations() throws IOException {
     bodyWriter.endArray();
-    endSinglePayload();
-    endMessage();
-  }
-
-  /**
-   * https://github.com/DataDog/instrumentation-telemetry-api-docs/blob/main/GeneratedDocumentation/ApiDocs/v2/SchemaDocumentation/Schemas/integration.md
-   */
-  public void writeIntegration(Integration i) throws IOException {
-    bodyWriter.beginObject();
-    // auto_enabled - optional
-    // compatible - optional
-    bodyWriter.name("enabled").value(i.enabled);
-    // error - optional
-    bodyWriter.name("name").value(i.name);
-    // version - optional
-    bodyWriter.endObject();
+    endMessageIfBatch(RequestType.APP_INTEGRATIONS_CHANGE);
   }
 
   public void beginDependencies() throws IOException {
-    beginMessage(RequestType.APP_DEPENDENCIES_LOADED);
-    beginSinglePayload();
-    bodyWriter.name("dependencies");
-    bodyWriter.beginArray();
+    beginMessageIfBatch(RequestType.APP_DEPENDENCIES_LOADED);
+    bodyWriter.name("dependencies").beginArray();
   }
 
-  public void endDependencies() throws IOException {
-    bodyWriter.endArray();
-    endSinglePayload();
-    endMessage();
-  }
-
-  /**
-   * https://github.com/DataDog/instrumentation-telemetry-api-docs/blob/main/GeneratedDocumentation/ApiDocs/v2/SchemaDocumentation/Schemas/dependency.md
-   */
   public void writeDependency(Dependency d) throws IOException {
     bodyWriter.beginObject();
     bodyWriter.name("hash").value(d.hash); // optional
@@ -340,9 +258,11 @@ public class TelemetryRequestBody extends RequestBody {
     bodyWriter.endObject();
   }
 
-  /**
-   * https://github.com/DataDog/instrumentation-telemetry-api-docs/blob/main/GeneratedDocumentation/ApiDocs/v2/SchemaDocumentation/Schemas/products.md
-   */
+  public void endDependencies() throws IOException {
+    bodyWriter.endArray();
+    endMessageIfBatch(RequestType.APP_DEPENDENCIES_LOADED);
+  }
+
   public void writeProducts(boolean appsecEnabled, boolean profilerEnabled) throws IOException {
     bodyWriter.name("products");
     bodyWriter.beginObject();
@@ -360,16 +280,6 @@ public class TelemetryRequestBody extends RequestBody {
     bodyWriter.endObject();
   }
 
-  /**
-   * https://github.com/DataDog/instrumentation-telemetry-api-docs/blob/main/GeneratedDocumentation/ApiDocs/v2/SchemaDocumentation/Schemas/payload.md#if-request_type--app-extended-heartbeat-we-add-the-following-to-payload
-   */
-  public void extendedHeartbeat() {
-    // TODO
-    // configuration - optional
-    // dependencies - optional
-    // integrations - optional
-  }
-
   @Nullable
   @Override
   public MediaType contentType() {
@@ -383,5 +293,35 @@ public class TelemetryRequestBody extends RequestBody {
 
   public long size() {
     return body.size();
+  }
+
+  private void beginMessageIfBatch(RequestType messageType) {
+    if (requestType != RequestType.MESSAGE_BATCH) {
+      return;
+    }
+    try {
+      bodyWriter.beginObject();
+      bodyWriter.name("request_type").value(String.valueOf(messageType));
+      if (messageType != RequestType.APP_HEARTBEAT) {
+        bodyWriter.name("payload");
+        bodyWriter.beginObject();
+      }
+    } catch (Exception ex) {
+      throw new SerializationException("begin-message", ex);
+    }
+  }
+
+  private void endMessageIfBatch(RequestType messageType) {
+    if (requestType != RequestType.MESSAGE_BATCH) {
+      return;
+    }
+    try {
+      if (messageType != RequestType.APP_HEARTBEAT) {
+        bodyWriter.endObject(); // payload
+      }
+      bodyWriter.endObject(); // message
+    } catch (Exception ex) {
+      throw new SerializationException("end-message", ex);
+    }
   }
 }

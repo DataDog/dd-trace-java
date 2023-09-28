@@ -42,7 +42,8 @@ public class TelemetryRunnable implements Runnable {
             timeSource,
             sleeper,
             (long) (Config.get().getTelemetryHeartbeatInterval() * 1000),
-            (long) (Config.get().getTelemetryMetricsInterval() * 1000));
+            (long) (Config.get().getTelemetryMetricsInterval() * 1000),
+            Config.get().getTelemetryExtendedHeartbeatInterval() * 1000);
   }
 
   private List<MetricPeriodicAction> findMetricPeriodicActions(
@@ -70,7 +71,7 @@ public class TelemetryRunnable implements Runnable {
         if (startupEventSent) {
           mainLoopIteration();
         } else {
-          // force waiting until next heartbeat interval
+          // wait until next heartbeat interval before reattempting startup event
           scheduler.shouldRunHeartbeat();
         }
         scheduler.sleepUntilNextIteration();
@@ -125,6 +126,14 @@ public class TelemetryRunnable implements Runnable {
         }
       }
     }
+
+    if (scheduler.shouldRunExtendedHeartbeat()) {
+      if (telemetryService.sendExtendedHeartbeat()) {
+        // advance next extended-heartbeat only if request was successful, otherwise reattempt it
+        // next heartbeat interval
+        scheduler.scheduleNextExtendedHeartbeat();
+      }
+    }
   }
 
   private void collectConfigChanges() {
@@ -170,8 +179,10 @@ public class TelemetryRunnable implements Runnable {
     private final TimeSource timeSource;
     private final ThreadSleeper sleeper;
     private final long heartbeatIntervalMs;
+    private final long extendedHeartbeatIntervalMs;
     private final long metricsIntervalMs;
     private long nextHeartbeatIntervalMs;
+    private long nextExtendedHeartbeatIntervalMs;
     private long nextMetricsIntervalMs;
     private long currentTime;
 
@@ -179,13 +190,16 @@ public class TelemetryRunnable implements Runnable {
         final TimeSource timeSource,
         final ThreadSleeper sleeper,
         final long heartbeatIntervalMs,
-        final long metricsIntervalMs) {
+        final long metricsIntervalMs,
+        final long extendedHeartbeatIntervalMs) {
       this.timeSource = timeSource;
       this.sleeper = sleeper;
       this.heartbeatIntervalMs = heartbeatIntervalMs;
       this.metricsIntervalMs = metricsIntervalMs;
+      this.extendedHeartbeatIntervalMs = extendedHeartbeatIntervalMs;
       nextHeartbeatIntervalMs = 0;
       nextMetricsIntervalMs = 0;
+      nextExtendedHeartbeatIntervalMs = 0;
       currentTime = 0;
     }
 
@@ -194,6 +208,7 @@ public class TelemetryRunnable implements Runnable {
       this.currentTime = currentTime;
       nextMetricsIntervalMs = currentTime;
       nextHeartbeatIntervalMs = currentTime;
+      scheduleNextExtendedHeartbeat();
     }
 
     public boolean shouldRunMetrics() {
@@ -210,6 +225,15 @@ public class TelemetryRunnable implements Runnable {
         return true;
       }
       return false;
+    }
+
+    public boolean shouldRunExtendedHeartbeat() {
+      return currentTime >= nextExtendedHeartbeatIntervalMs;
+    }
+
+    public void scheduleNextExtendedHeartbeat() {
+      // schedule very first extended-heartbeat only after interval elapses
+      nextExtendedHeartbeatIntervalMs = currentTime + extendedHeartbeatIntervalMs;
     }
 
     public void sleepUntilNextIteration() {
@@ -229,8 +253,7 @@ public class TelemetryRunnable implements Runnable {
       while (currentTime >= nextMetricsIntervalMs) {
         // If metric collection exceeded the interval, something went really wrong. Either there's a
         // very short interval (not default), or metric collection is taking abnormally long. We
-        // skip
-        // intervals in this case.
+        // skip intervals in this case.
         nextMetricsIntervalMs += metricsIntervalMs;
       }
 

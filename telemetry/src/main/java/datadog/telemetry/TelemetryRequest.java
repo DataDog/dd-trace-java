@@ -67,19 +67,8 @@ public class TelemetryRequest {
     return builder;
   }
 
-  public void writeConfigurationMessage() {
-    if (!isWithinSizeLimits() || !eventSource.hasConfigChangeEvent()) {
-      return;
-    }
-    requestBody.beginMessage(RequestType.APP_CLIENT_CONFIGURATION_CHANGE);
-    requestBody.beginSinglePayload();
-    writeConfigurations();
-    requestBody.endSinglePayload();
-    requestBody.endMessage();
-  }
-
   public void writeConfigurations() {
-    if (!eventSource.hasConfigChangeEvent()) {
+    if (!isWithinSizeLimits() || !eventSource.hasConfigChangeEvent()) {
       return;
     }
     try {
@@ -107,7 +96,7 @@ public class TelemetryRequest {
     }
   }
 
-  public void writeIntegrationsMessage() {
+  public void writeIntegrations() {
     if (!isWithinSizeLimits() || !eventSource.hasIntegrationEvent()) {
       return;
     }
@@ -124,7 +113,7 @@ public class TelemetryRequest {
     }
   }
 
-  public void writeDependenciesMessage() {
+  public void writeDependencies() {
     if (!isWithinSizeLimits() || !eventSource.hasDependencyEvent()) {
       return;
     }
@@ -141,7 +130,7 @@ public class TelemetryRequest {
     }
   }
 
-  public void writeMetricsMessage() {
+  public void writeMetrics() {
     if (!isWithinSizeLimits() || !eventSource.hasMetricEvent()) {
       return;
     }
@@ -158,7 +147,7 @@ public class TelemetryRequest {
     }
   }
 
-  public void writeDistributionsMessage() {
+  public void writeDistributions() {
     if (!isWithinSizeLimits() || !eventSource.hasDistributionSeriesEvent()) {
       return;
     }
@@ -175,7 +164,7 @@ public class TelemetryRequest {
     }
   }
 
-  public void writeLogsMessage() {
+  public void writeLogs() {
     if (!isWithinSizeLimits() || !eventSource.hasLogMessageEvent()) {
       return;
     }
@@ -192,11 +181,11 @@ public class TelemetryRequest {
     }
   }
 
-  private boolean isWithinSizeLimits() {
-    return requestBody.size() < messageBytesSoftLimit;
+  public void writeHeartbeat() {
+    requestBody.writeHeartbeatEvent();
   }
 
-  public void writeHeartbeatEvent() {
-    requestBody.writeHeartbeatEvent();
+  private boolean isWithinSizeLimits() {
+    return requestBody.size() < messageBytesSoftLimit;
   }
 }
