@@ -375,7 +375,7 @@ public class PowerWAFModule implements AppSecModule {
     }
 
     // TODO: get addresses dynamically when will it be implemented in waf
-    addressList.add(KnownAddresses.WAF_CONTEXT_SETTINGS);
+    addressList.add(KnownAddresses.WAF_CONTEXT_PROCESSOR);
     addressList.add(KnownAddresses.HEADERS_NO_COOKIES);
     addressList.add(KnownAddresses.REQUEST_QUERY);
     addressList.add(KnownAddresses.REQUEST_PATH_PARAMS);

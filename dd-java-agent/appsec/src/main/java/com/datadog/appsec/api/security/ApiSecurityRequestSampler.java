@@ -9,7 +9,7 @@ public class ApiSecurityRequestSampler {
   private final AtomicLong cumulativeCounter = new AtomicLong();
 
   public ApiSecurityRequestSampler(final Config config) {
-    sampling = computeSamplingParameter(config.getApiSecurityRequestSampling());
+    sampling = computeSamplingParameter(config.getApiSecurityRequestSampleRate());
   }
 
   public boolean sampleRequest() {
@@ -24,14 +24,14 @@ public class ApiSecurityRequestSampler {
   }
 
   static int computeSamplingParameter(final float pct) {
-    if (pct >= 100) {
+    if (pct >= 1) {
       return 100;
     }
-    if (pct <= 0) {
+    if (pct < 0) {
       // We don't support disabling Api Security by setting it, so we set it to 100%.
       // TODO: We probably want a warning here.
       return 100;
     }
-    return (int) pct;
+    return (int) (pct * 100);
   }
 }
