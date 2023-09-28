@@ -16,6 +16,7 @@ import org.junit.platform.launcher.core.LauncherConfig
 import org.junit.platform.launcher.core.LauncherDiscoveryRequestBuilder
 import org.junit.platform.launcher.core.LauncherFactory
 import org.spockframework.runtime.SpockEngine
+import org.spockframework.util.SpockReleaseInfo
 
 import static org.junit.platform.engine.discovery.DiscoverySelectors.selectClass
 
@@ -231,7 +232,7 @@ class SpockTest extends CiVisibilityTest {
 
   @Override
   String expectedTestFrameworkVersion() {
-    return "2.2.0-groovy-3.0"
+    return SpockReleaseInfo.version
   }
 
   @Override
