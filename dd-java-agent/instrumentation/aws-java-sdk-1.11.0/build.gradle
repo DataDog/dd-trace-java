@@ -38,7 +38,7 @@ dependencies {
   testImplementation group: 'com.amazonaws', name: 'aws-java-sdk-sqs', version: '[1.11,1.11.106]'
   testImplementation group: 'com.amazonaws', name: 'aws-java-sdk-sns', version: '[1.11,1.11.106]'
   testImplementation group: 'com.amazonaws', name: 'aws-java-sdk-dynamodb', version: '[1.11,1.11.106]'
-  testImplementation group: 'com.amazonaws', name: 'aws-java-sdk-eventbridge', version: '[1.12,1.11.591]'
+  testImplementation group: 'com.amazonaws', name: 'aws-java-sdk-eventbridge', version: '[1.11,1.11.591]'
 
   // needed for kinesis:
   testImplementation group: 'com.fasterxml.jackson.dataformat', name: 'jackson-dataformat-cbor', version: versions.jackson
