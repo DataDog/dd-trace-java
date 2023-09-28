@@ -178,7 +178,7 @@ public class DatadogSparkListener extends SparkListener {
     }
 
     AgentTracer.SpanBuilder builder =
-        buildSparkSpan("spark.batch", jobProperties).withStartTimestamp(timeMs * 1000);
+        buildSparkSpan("spark.streaming_batch", jobProperties).withStartTimestamp(timeMs * 1000);
 
     // Streaming spans will always be the root span, capturing all parameters on those
     captureApplicationParameters(builder);
@@ -281,8 +281,8 @@ public class DatadogSparkListener extends SparkListener {
     /*-
      * The spark.job span hierarchy depends on the setup:
      *
-     * spark.application | spark.batch | databricks.task depending on the environment where spark is running
-     *               \          |         /
+     * spark.application | spark.streaming_batch | databricks.task depending on the environment where spark is running
+     *               \          |                   /
      *                    [spark.sql] optional, only present if using spark-sql
      *                          |
      *                      spark.job

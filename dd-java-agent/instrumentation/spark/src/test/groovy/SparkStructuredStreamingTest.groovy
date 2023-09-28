@@ -61,7 +61,7 @@ class SparkStructuredStreamingTest extends AgentTestRunner {
     assertTraces(2) {
       trace(5) {
         span {
-          operationName "spark.batch"
+          operationName "spark.streaming_batch"
           resourceName "test-query"
           spanType "spark"
           parent()
@@ -167,7 +167,7 @@ class SparkStructuredStreamingTest extends AgentTestRunner {
       }
       trace(5) {
         span {
-          operationName "spark.batch"
+          operationName "spark.streaming_batch"
           spanType "spark"
           assert span.tags["batch_id"] == 1
           parent()
@@ -218,7 +218,24 @@ class SparkStructuredStreamingTest extends AgentTestRunner {
     assertTraces(1) {
       trace(5, true) {
         span {
-          operationName "spark.batch"
+          operationName "spark.job"
+          spanType "spark"
+          errored true
+          childOf(span(1))
+        }
+        span {
+          operationName "spark.sql"
+          spanType "spark"
+          childOf(span(3))
+        }
+        span {
+          operationName "spark.stage"
+          spanType "spark"
+          errored true
+          childOf(span(0))
+        }
+        span {
+          operationName "spark.streaming_batch"
           resourceName "failing-query"
           spanType "spark"
           errored true
@@ -227,27 +244,10 @@ class SparkStructuredStreamingTest extends AgentTestRunner {
           parent()
         }
         span {
-          operationName "spark.job"
-          spanType "spark"
-          errored true
-          childOf(span(2))
-        }
-        span {
-          operationName "spark.sql"
-          spanType "spark"
-          childOf(span(0))
-        }
-        span {
-          operationName "spark.stage"
-          spanType "spark"
-          errored true
-          childOf(span(1))
-        }
-        span {
           operationName "spark.task"
           spanType "spark"
           errored true
-          childOf(span(3))
+          childOf(span(2))
         }
       }
     }
