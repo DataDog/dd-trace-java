@@ -32,7 +32,7 @@ class SpringBootSmokeTest extends AbstractAppSecServerSmokeTest {
       tags: [
         type: 'test',
         category: 'test',
-        confidence: 1,
+        confidence: '1',
       ],
       conditions: [
         [

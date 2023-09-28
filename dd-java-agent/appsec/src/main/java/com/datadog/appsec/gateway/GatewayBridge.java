@@ -3,6 +3,7 @@ package com.datadog.appsec.gateway;
 import static com.datadog.appsec.event.data.MapDataBundle.Builder.CAPACITY_6_10;
 
 import com.datadog.appsec.AppSecSystem;
+import com.datadog.appsec.api.security.ApiSecurityRequestSampler;
 import com.datadog.appsec.config.TraceSegmentPostProcessor;
 import com.datadog.appsec.event.EventProducerService;
 import com.datadog.appsec.event.EventProducerService.DataSubscriberInfo;
@@ -15,6 +16,7 @@ import com.datadog.appsec.event.data.ObjectIntrospection;
 import com.datadog.appsec.event.data.SingletonDataBundle;
 import com.datadog.appsec.report.AppSecEvent;
 import com.datadog.appsec.report.AppSecEventWrapper;
+import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.function.TriConsumer;
 import datadog.trace.api.function.TriFunction;
@@ -60,6 +62,7 @@ public class GatewayBridge {
   private final SubscriptionService subscriptionService;
   private final EventProducerService producerService;
   private final RateLimiter rateLimiter;
+  private final ApiSecurityRequestSampler requestSampler;
   private final List<TraceSegmentPostProcessor> traceSegmentPostProcessors;
 
   // subscriber cache
@@ -74,10 +77,12 @@ public class GatewayBridge {
       SubscriptionService subscriptionService,
       EventProducerService producerService,
       RateLimiter rateLimiter,
+      ApiSecurityRequestSampler requestSampler,
       List<TraceSegmentPostProcessor> traceSegmentPostProcessors) {
     this.subscriptionService = subscriptionService;
     this.producerService = producerService;
     this.rateLimiter = rateLimiter;
+    this.requestSampler = requestSampler;
     this.traceSegmentPostProcessors = traceSegmentPostProcessors;
   }
 
@@ -163,6 +168,11 @@ public class GatewayBridge {
                       }
                     });
               }
+            }
+
+            // If extracted any Api Schemas - commit them
+            if (!ctx.commitApiSchemas(traceSeg)) {
+              log.debug("Unable to commit, api security schemas and will be skipped");
             }
           }
 
@@ -539,10 +549,18 @@ public class GatewayBridge {
 
     ctx.setRespDataPublished(true);
 
+    boolean extractSchema = false;
+    if (Config.get().isApiSecurityEnabled() && requestSampler != null) {
+      extractSchema = requestSampler.sampleRequest();
+    }
+
     MapDataBundle bundle =
         MapDataBundle.of(
             KnownAddresses.RESPONSE_STATUS, String.valueOf(ctx.getResponseStatus()),
-            KnownAddresses.RESPONSE_HEADERS_NO_COOKIES, ctx.getResponseHeaders());
+            KnownAddresses.RESPONSE_HEADERS_NO_COOKIES, ctx.getResponseHeaders(),
+            // Extract api schema on response stage
+            KnownAddresses.WAF_CONTEXT_SETTINGS,
+                Collections.singletonMap("extract-schema", extractSchema));
 
     while (true) {
       DataSubscriberInfo subInfo = respDataSubInfo;

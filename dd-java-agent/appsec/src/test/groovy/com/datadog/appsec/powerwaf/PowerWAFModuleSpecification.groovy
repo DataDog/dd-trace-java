@@ -8,6 +8,7 @@ import com.datadog.appsec.config.CurrentAppSecConfig
 import com.datadog.appsec.config.TraceSegmentPostProcessor
 import com.datadog.appsec.event.ChangeableFlow
 import com.datadog.appsec.event.DataListener
+import com.datadog.appsec.event.data.Address
 import com.datadog.appsec.event.data.CaseInsensitiveMap
 import com.datadog.appsec.event.data.DataBundle
 import com.datadog.appsec.event.data.KnownAddresses
@@ -226,10 +227,12 @@ class PowerWAFModuleSpecification extends DDSpecification {
       [
         id  : 'blocked_users',
         type: 'data_with_expiration',
-        data: [[
+        data: [
+          [
             value     : 'user-to-block-2',
             expiration: '0',
-          ]]
+          ]
+        ]
       ]
     ]
     service.currentAppSecConfig.with {
@@ -360,7 +363,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
 
     def exclusions = [
       [
-        id          : 1,
+        id          : '1',
         rules_target: [
           [
             tags: [
@@ -1156,6 +1159,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
   }
 
   void 'initial configuration has unknown addresses'() {
+    Address<String> doesNotExistAddress = new Address<>("server.request.headers.does-not-exist")
     def cfgService = new StubAppSecConfigService(waf:
     new CurrentAppSecConfig(
     ddConfig: AppSecConfig.valueOf([
@@ -1173,7 +1177,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
               parameters: [
                 inputs: [
                   [
-                    address: 'server.request.headers.does-not-exist',
+                    address: doesNotExistAddress.key,
                     key_path: ['user-agent']]
                 ],
                 regex: '^Arachni\\/v'
@@ -1190,7 +1194,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
     pwafModule.config(cfgService)
 
     then:
-    pwafModule.dataSubscriptions.first().subscribedAddresses.empty
+    !pwafModule.dataSubscriptions.first().subscribedAddresses.contains(doesNotExistAddress)
   }
 
   void 'bad initial configuration is given results in no subscriptions'() {
@@ -1221,7 +1225,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
 
   void 'bad ResultWithData - empty list'() {
     def waf = new PowerWAFModule()
-    Powerwaf.ResultWithData rwd = new Powerwaf.ResultWithData(null, "[]")
+    Powerwaf.ResultWithData rwd = new Powerwaf.ResultWithData(null, "[]", null, null)
     Collection ret
 
     when:
@@ -1233,7 +1237,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
 
   void 'bad ResultWithData - empty object'() {
     def waf = new PowerWAFModule()
-    Powerwaf.ResultWithData rwd = new Powerwaf.ResultWithData(null, "[{}]")
+    Powerwaf.ResultWithData rwd = new Powerwaf.ResultWithData(null, "[{}]", null, null)
     Collection ret
 
     when:
