@@ -194,7 +194,7 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
     def response = client.newCall(request).execute()
     then:
     response.isSuccessful()
-    !hasVulnerability { vul ->
+    noVulnerability { vul ->
       vul.type == 'XCONTENTTYPE_HEADER_MISSING'
     }
   }
