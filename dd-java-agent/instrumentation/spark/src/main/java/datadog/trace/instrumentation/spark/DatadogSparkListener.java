@@ -1,5 +1,8 @@
 package datadog.trace.instrumentation.spark;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -73,6 +76,7 @@ public class DatadogSparkListener extends SparkListener {
 
   private final boolean isRunningOnDatabricks;
   private final String databricksClusterName;
+  private final String databricksServiceName;
 
   private boolean lastJobFailed = false;
   private String lastJobFailedMessage;
@@ -93,6 +97,7 @@ public class DatadogSparkListener extends SparkListener {
 
     isRunningOnDatabricks = sparkConf.contains("spark.databricks.sparkContextId");
     databricksClusterName = sparkConf.get("spark.databricks.clusterUsageTags.clusterName", null);
+    databricksServiceName = getDatabricksServiceName(sparkConf, databricksClusterName);
   }
 
   @Override
@@ -743,6 +748,10 @@ public class DatadogSparkListener extends SparkListener {
     AgentTracer.SpanBuilder builder =
         tracer.buildSpan(spanName).withSpanType("spark").withTag("app_id", appId);
 
+    if (databricksServiceName != null) {
+      builder.withServiceName(databricksServiceName);
+    }
+
     addPropertiesTags(builder, properties);
 
     return builder;
@@ -959,5 +968,52 @@ public class DatadogSparkListener extends SparkListener {
 
   private static String getBatchIdFromBatchKey(String batchKey) {
     return batchKey.substring(batchKey.lastIndexOf(".") + 1);
+  }
+
+  private static String getDatabricksServiceName(SparkConf conf, String databricksClusterName) {
+    if (Config.get().isServiceNameSetByUser()) {
+      return null;
+    }
+
+    String serviceName = null;
+    String runName = getDatabricksRunName(conf);
+    if (runName != null) {
+      serviceName = "databricks.job-cluster." + runName;
+    } else if (databricksClusterName != null) {
+      serviceName = "databricks.all-purpose-cluster." + databricksClusterName;
+    }
+
+    return serviceName;
+  }
+
+  private static String getDatabricksRunName(SparkConf conf) {
+    String allTags = conf.get("spark.databricks.clusterUsageTags.clusterAllTags", null);
+    if (allTags == null) {
+      return null;
+    }
+
+    try {
+      // Using the jackson JSON lib used by spark
+      // https://mvnrepository.com/artifact/org.apache.spark/spark-core_2.12/3.5.0
+      ObjectMapper objectMapper = new ObjectMapper();
+      JsonNode jsonNode = objectMapper.readTree(allTags);
+
+      for (JsonNode node : jsonNode) {
+        String key = node.get("key").asText();
+        if ("RunName".equals(key)) {
+          // Databricks jobs launched by Azure Data Factory have an uuid at the end of the name
+          return removeUuidFromEndOfString(node.get("value").asText());
+        }
+      }
+    } catch (Exception ignored) {
+    }
+
+    return null;
+  }
+
+  @SuppressForbidden // called at most once per spark application
+  private static String removeUuidFromEndOfString(String input) {
+    return input.replaceAll(
+        "_[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$", "");
   }
 }
