@@ -1538,6 +1538,41 @@ public class CapturedSnapshotTest {
   }
 
   @Test
+  public void unknownCollectionCount() throws IOException, URISyntaxException {
+    final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot24";
+    Snapshot snapshot = doUnknownCount(CLASS_NAME);
+    assertEquals(
+        "Unsupported Collection class: com.datadog.debugger.CapturedSnapshot24$Holder",
+        snapshot.getEvaluationErrors().get(0).getMessage());
+  }
+
+  @Test
+  public void unknownMapCount() throws IOException, URISyntaxException {
+    final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot26";
+    Snapshot snapshot = doUnknownCount(CLASS_NAME);
+    assertEquals(
+        "Unsupported Map class: com.datadog.debugger.CapturedSnapshot26$Holder",
+        snapshot.getEvaluationErrors().get(0).getMessage());
+  }
+
+  private Snapshot doUnknownCount(String CLASS_NAME) throws IOException, URISyntaxException {
+    LogProbe logProbe =
+        createProbeBuilder(PROBE_ID, CLASS_NAME, "doit", null)
+            .when(
+                new ProbeCondition(
+                    DSL.when(DSL.ge(DSL.len(DSL.ref("holder")), DSL.value(0))), "len(holder) >= 0"))
+            .build();
+    DebuggerTransformerTest.TestSnapshotListener listener = installProbes(CLASS_NAME, logProbe);
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    int result = Reflect.on(testClass).call("main", "").get();
+    Assertions.assertEquals(1, result);
+    Snapshot snapshot = assertOneSnapshot(listener);
+    assertEquals(1, snapshot.getEvaluationErrors().size());
+    assertEquals("len(holder)", snapshot.getEvaluationErrors().get(0).getExpr());
+    return snapshot;
+  }
+
+  @Test
   public void beforeForLoopLineProbe() throws IOException, URISyntaxException {
     final String CLASS_NAME = "CapturedSnapshot02";
     DebuggerTransformerTest.TestSnapshotListener listener =

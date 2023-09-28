@@ -91,6 +91,7 @@ public abstract class BaseIntegrationTest {
   protected final List<Predicate<Snapshot>> snapshotListeners = new ArrayList<>();
   protected final List<Predicate<DecodedTrace>> traceListeners = new ArrayList<>();
   protected final List<Predicate<ProbeStatus>> probeStatusListeners = new ArrayList<>();
+  protected int batchSize = 1; // to verify each snapshot upload one by one
 
   @BeforeAll
   static void setupAll() throws Exception {
@@ -146,8 +147,7 @@ public abstract class BaseIntegrationTest {
             "-Ddd.trace.agent.url=http://localhost:" + datadogAgentServer.getPort(),
             "-Ddd.jmxfetch.statsd.port=" + statsDServer.getPort(),
             "-Ddd.dynamic.instrumentation.classfile.dump.enabled=true",
-            // to verify each snapshot upload one by one
-            "-Ddd.dynamic.instrumentation.upload.batch.size=1",
+            "-Ddd.dynamic.instrumentation.upload.batch.size=" + batchSize,
             // flush uploads every 100ms to have quick tests
             "-Ddd.dynamic.instrumentation.upload.flush.interval=100"));
   }
