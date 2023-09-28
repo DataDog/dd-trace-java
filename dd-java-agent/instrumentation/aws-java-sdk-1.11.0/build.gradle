@@ -38,6 +38,7 @@ dependencies {
   testImplementation group: 'com.amazonaws', name: 'aws-java-sdk-sqs', version: '[1.11,1.11.106]'
   testImplementation group: 'com.amazonaws', name: 'aws-java-sdk-sns', version: '[1.11,1.11.106]'
   testImplementation group: 'com.amazonaws', name: 'aws-java-sdk-dynamodb', version: '[1.11,1.11.106]'
+  testImplementation group: 'com.amazonaws', name: 'aws-java-sdk-eventbridge', version: '[1.11,1.11.106]'
 
   // needed for kinesis:
   testImplementation group: 'com.fasterxml.jackson.dataformat', name: 'jackson-dataformat-cbor', version: versions.jackson
@@ -77,6 +78,11 @@ dependencies {
       strictly '1.11.0'
     }
   }
+  test_before_1_11_106Implementation(group: 'com.amazonaws', name: 'aws-java-sdk-eventbridge'){
+    version {
+      strictly '1.11.0'
+    }
+  }
 
   latestDepTestImplementation group: 'com.amazonaws', name: 'aws-java-sdk-s3', version: '+'
   latestDepTestImplementation group: 'com.amazonaws', name: 'aws-java-sdk-rds', version: '+'
@@ -85,6 +91,7 @@ dependencies {
   latestDepTestImplementation group: 'com.amazonaws', name: 'aws-java-sdk-sqs', version: '+'
   latestDepTestImplementation group: 'com.amazonaws', name: 'aws-java-sdk-sns', version: '+'
   latestDepTestImplementation group: 'com.amazonaws', name: 'aws-java-sdk-dynamodb', version: '+'
+  latestDepTestImplementation group: 'com.amazonaws', name: 'aws-java-sdk-eventbridge', version: '+'
 }
 
 tasks.named("test").configure {

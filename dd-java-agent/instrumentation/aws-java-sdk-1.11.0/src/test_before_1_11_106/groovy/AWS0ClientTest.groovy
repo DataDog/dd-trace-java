@@ -15,6 +15,7 @@ import com.amazonaws.services.rds.AmazonRDSClient
 import com.amazonaws.services.rds.model.DeleteOptionGroupRequest
 import com.amazonaws.services.s3.AmazonS3Client
 import com.amazonaws.services.s3.S3ClientOptions
+import com.amazonaws.services.s3.AmazonEventBridgeClient
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
@@ -125,6 +126,7 @@ class AWS0ClientTest extends AgentTestRunner {
     service | operation           | method | path                  | handlerCount | client                                                                      | additionalTags                    | call                                                                                                                         | body
     "S3"    | "CreateBucket"      | "PUT"  | "/testbucket/"        | 1            | new AmazonS3Client().withEndpoint("http://localhost:$server.address.port")  | ["aws.bucket.name": "testbucket", "bucketname": "testbucket"] | { c -> c.setS3ClientOptions(S3ClientOptions.builder().setPathStyleAccess(true).build()); client.createBucket("testbucket") } | ""
     "S3"    | "GetObject"         | "GET"  | "/someBucket/someKey" | 1            | new AmazonS3Client().withEndpoint("http://localhost:$server.address.port")  | ["aws.bucket.name": "someBucket", "bucketname": "someBucket"] | { c -> c.getObject("someBucket", "someKey") }                                                                                | ""
+    "EventBridge"    | "PutEvents"         | "POST"  | "/" | 1            | new AmazonEventBridgeClient().withEndpoint("http://localhost:$server.address.port")  | ["aws.rule.name": "somerule", "rulename": "somerule"] | { c -> c.putEvents("someRule", "someRule") }                                                                                | ""
     "EC2"   | "AllocateAddress"   | "POST" | "/"                   | 4            | new AmazonEC2Client().withEndpoint("http://localhost:$server.address.port") | [:]                               | { c -> c.allocateAddress() }                                                                                                 | """
             <AllocateAddressResponse xmlns="http://ec2.amazonaws.com/doc/2016-11-15/">
                <requestId>59dbff89-35bd-4eac-99ed-be587EXAMPLE</requestId> 

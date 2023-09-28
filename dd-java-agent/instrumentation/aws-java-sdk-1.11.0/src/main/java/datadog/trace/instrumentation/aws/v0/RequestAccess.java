@@ -22,6 +22,7 @@ final class RequestAccess {
   }
 
   private final MethodHandle getBucketName;
+  private final MethodHandle getRuleName;
   private final MethodHandle getQueueUrl;
   private final MethodHandle getQueueName;
   private final MethodHandle getTopicArn;
@@ -30,6 +31,7 @@ final class RequestAccess {
 
   private RequestAccess(final Class<?> requestType) {
     getBucketName = findGetter(requestType, "getBucketName");
+    getRuleName = findGetter(requestType, "getRuleName");
     getQueueUrl = findGetter(requestType, "getQueueUrl");
     getQueueName = findGetter(requestType, "getQueueName");
     getTopicArn = findGetter(requestType, "getTopicArn");
@@ -59,6 +61,10 @@ final class RequestAccess {
 
   String getTableName(final Object request) {
     return invoke(getTableName, request);
+  }
+
+  String getRuleName(final Object request) {
+    return invoke(getRuleName, request);
   }
 
   private static String invoke(final MethodHandle method, final Object request) {

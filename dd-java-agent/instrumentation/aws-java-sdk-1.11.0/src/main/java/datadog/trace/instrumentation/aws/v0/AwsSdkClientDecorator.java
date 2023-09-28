@@ -141,6 +141,13 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
       bestPrecursor = InstrumentationTags.AWS_TABLE_NAME;
       bestPeerService = tableName;
     }
+    String ruleName = access.getRuleName(originalRequest);
+    if (null != ruleName) {
+      span.setTag(InstrumentationTags.AWS_RULE_NAME, tableName);
+      span.setTag(InstrumentationTags.RULE_NAME, tableName);
+      bestPrecursor = InstrumentationTags.AWS_RULE_NAME;
+      bestPeerService = ruleName;
+    }
 
     // for aws we can calculate this eagerly without needing to have to looking up tags in the peer
     // service interceptor
