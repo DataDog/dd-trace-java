@@ -7,6 +7,7 @@ import datadog.trace.api.civisibility.config.SkippableTest
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.civisibility.CiVisibilityTest
 import datadog.trace.instrumentation.junit5.TestEventsHandlerHolder
+import io.cucumber.core.api.TypeRegistry
 import io.cucumber.junit.platform.engine.CucumberTestEngine
 import org.example.TestSkippedCucumber
 import org.example.TestSkippedExamplesCucumber
@@ -61,18 +62,25 @@ class CucumberTest extends CiVisibilityTest {
         testSuiteId = testFeatureSpan(it, 2, testSessionId, testModuleId, "Basic Arithmetic With Examples", CIConstants.TEST_PASS)
       }
       trace(1) {
-        testScenarioSpan(it, 0, testSessionId, testModuleId, testSuiteId, "Basic Arithmetic With Examples", "Many additions.Double digits.Example #1", CIConstants.TEST_PASS, null, null, false, ["foo"])
+        testScenarioSpan(it, 0, testSessionId, testModuleId, testSuiteId, "Basic Arithmetic With Examples", "Many additions.Double digits.Example" + getOutlineTestNameSuffix(2, 1), CIConstants.TEST_PASS, null, null, false, ["foo"])
       }
       trace(1) {
-        testScenarioSpan(it, 0, testSessionId, testModuleId, testSuiteId, "Basic Arithmetic With Examples", "Many additions.Double digits.Example #2", CIConstants.TEST_PASS, null, null, false, ["foo"])
+        testScenarioSpan(it, 0, testSessionId, testModuleId, testSuiteId, "Basic Arithmetic With Examples", "Many additions.Double digits.Example" + getOutlineTestNameSuffix(2, 2), CIConstants.TEST_PASS, null, null, false, ["foo"])
       }
       trace(1) {
-        testScenarioSpan(it, 0, testSessionId, testModuleId, testSuiteId, "Basic Arithmetic With Examples", "Many additions.Single digits.Example #1", CIConstants.TEST_PASS, null, null, false, ["foo"])
+        testScenarioSpan(it, 0, testSessionId, testModuleId, testSuiteId, "Basic Arithmetic With Examples", "Many additions.Single digits.Example" + getOutlineTestNameSuffix(1, 1), CIConstants.TEST_PASS, null, null, false, ["foo"])
       }
       trace(1) {
-        testScenarioSpan(it, 0, testSessionId, testModuleId, testSuiteId, "Basic Arithmetic With Examples", "Many additions.Single digits.Example #2", CIConstants.TEST_PASS, null, null, false, ["foo"])
+        testScenarioSpan(it, 0, testSessionId, testModuleId, testSuiteId, "Basic Arithmetic With Examples", "Many additions.Single digits.Example" + getOutlineTestNameSuffix(1, 2), CIConstants.TEST_PASS, null, null, false, ["foo"])
       }
     })
+  }
+
+  /**
+   * Later Cucumber versions report different example execution names
+   */
+  private String getOutlineTestNameSuffix(int exampleIdx, int rowIdx) {
+    return expectedTestFrameworkVersion() > "7" ? " #${exampleIdx}.${rowIdx}" : " #${rowIdx}"
   }
 
   def "test skipped generates spans"() {
@@ -136,16 +144,16 @@ class CucumberTest extends CiVisibilityTest {
         testSuiteId = testFeatureSpan(it, 2, testSessionId, testModuleId, "Basic Arithmetic With Examples", CIConstants.TEST_SKIP)
       }
       trace(1) {
-        testScenarioSpan(it, 0, testSessionId, testModuleId, testSuiteId, "Basic Arithmetic With Examples", "Many additions.Double digits.Example #1", CIConstants.TEST_SKIP, [(Tags.TEST_SKIP_REASON): "'cucumber.filter.tags=not ( @Disabled )' did not match this scenario"], null, false, ["foo", "Disabled"])
+        testScenarioSpan(it, 0, testSessionId, testModuleId, testSuiteId, "Basic Arithmetic With Examples", "Many additions.Double digits.Example" + getOutlineTestNameSuffix(2, 1), CIConstants.TEST_SKIP, [(Tags.TEST_SKIP_REASON): "'cucumber.filter.tags=not ( @Disabled )' did not match this scenario"], null, false, ["foo", "Disabled"])
       }
       trace(1) {
-        testScenarioSpan(it, 0, testSessionId, testModuleId, testSuiteId, "Basic Arithmetic With Examples", "Many additions.Double digits.Example #2", CIConstants.TEST_SKIP, [(Tags.TEST_SKIP_REASON): "'cucumber.filter.tags=not ( @Disabled )' did not match this scenario"], null, false, ["foo", "Disabled"])
+        testScenarioSpan(it, 0, testSessionId, testModuleId, testSuiteId, "Basic Arithmetic With Examples", "Many additions.Double digits.Example" + getOutlineTestNameSuffix(2, 2), CIConstants.TEST_SKIP, [(Tags.TEST_SKIP_REASON): "'cucumber.filter.tags=not ( @Disabled )' did not match this scenario"], null, false, ["foo", "Disabled"])
       }
       trace(1) {
-        testScenarioSpan(it, 0, testSessionId, testModuleId, testSuiteId, "Basic Arithmetic With Examples", "Many additions.Single digits.Example #1", CIConstants.TEST_SKIP, [(Tags.TEST_SKIP_REASON): "'cucumber.filter.tags=not ( @Disabled )' did not match this scenario"], null, false, ["foo", "Disabled"])
+        testScenarioSpan(it, 0, testSessionId, testModuleId, testSuiteId, "Basic Arithmetic With Examples", "Many additions.Single digits.Example" + getOutlineTestNameSuffix(1, 1), CIConstants.TEST_SKIP, [(Tags.TEST_SKIP_REASON): "'cucumber.filter.tags=not ( @Disabled )' did not match this scenario"], null, false, ["foo", "Disabled"])
       }
       trace(1) {
-        testScenarioSpan(it, 0, testSessionId, testModuleId, testSuiteId, "Basic Arithmetic With Examples", "Many additions.Single digits.Example #2", CIConstants.TEST_SKIP, [(Tags.TEST_SKIP_REASON): "'cucumber.filter.tags=not ( @Disabled )' did not match this scenario"], null, false, ["foo", "Disabled"])
+        testScenarioSpan(it, 0, testSessionId, testModuleId, testSuiteId, "Basic Arithmetic With Examples", "Many additions.Single digits.Example" + getOutlineTestNameSuffix(1, 2), CIConstants.TEST_SKIP, [(Tags.TEST_SKIP_REASON): "'cucumber.filter.tags=not ( @Disabled )' did not match this scenario"], null, false, ["foo", "Disabled"])
       }
     })
   }
@@ -296,7 +304,8 @@ class CucumberTest extends CiVisibilityTest {
 
   @Override
   String expectedTestFrameworkVersion() {
-    return "5.4.0"
+    def version = TypeRegistry.package.getImplementationVersion()
+    return version != null ? version : "5.4.0" // older releases do not have package version populated
   }
 
   @Override

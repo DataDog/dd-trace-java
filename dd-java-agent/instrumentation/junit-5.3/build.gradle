@@ -14,7 +14,16 @@ muzzle {
     assertInverse = true
     extraDependency "org.junit.jupiter:junit-jupiter-api:$jupiterVersion"
   }
+  pass {
+    group = 'org.junit.jupiter'
+    module = 'junit-jupiter-api'
+    versions = "[$jupiterVersion,)"
+    assertInverse = true
+    extraDependency "org.junit.platform:junit-platform-launcher:$platformVersion"
+  }
 }
+
+addTestSuiteForDir('latestDepTest', 'test')
 
 dependencies {
   compileOnly group: 'org.junit.platform', name: 'junit-platform-launcher', version: "$platformVersion"
@@ -23,44 +32,20 @@ dependencies {
   testImplementation testFixtures(project(':dd-java-agent:agent-ci-visibility'))
 
   // versions used below are not the minimum ones that we support,
-  // but the tests need to use them in order to be compliant with Spock 2.0
-  testImplementation(group: 'org.junit.platform', name: 'junit-platform-launcher') {
-    version {
-      strictly '1.8.2'
-    }
-  }
-  testImplementation(group: 'org.junit.platform', name: 'junit-platform-engine') {
-    version {
-      strictly '1.8.2'
-    }
-  }
-  testImplementation(group: 'org.junit.platform', name: 'junit-platform-suite') {
-    version {
-      strictly '1.8.2'
-    }
-  }
-  testImplementation(group: 'org.junit.platform', name: 'junit-platform-suite-engine') {
-    version {
-      strictly '1.8.2'
-    }
-  }
-  testImplementation(group: 'org.junit.jupiter', name: 'junit-jupiter-api') {
-    version {
-      strictly '5.8.2'
-    }
-  }
-  testImplementation(group: 'org.junit.jupiter', name: 'junit-jupiter-engine') {
-    version {
-      strictly '5.8.2'
-    }
-  }
-  testImplementation(group: 'org.junit.jupiter', name: 'junit-jupiter-params') {
-    version {
-      strictly '5.8.2'
-    }
-  }
+  // but the tests need to use them in order to be compliant with Spock 2.x
+  testImplementation group: 'org.junit.platform', name: 'junit-platform-launcher', version: '1.8.2'
+  testImplementation group: 'org.junit.jupiter', name: 'junit-jupiter-engine', version: '5.8.2'
+  testImplementation group: 'org.junit.jupiter', name: 'junit-jupiter-params', version: '5.8.2'
 
-  testImplementation group: 'io.cucumber', name: 'cucumber-java', version: '5.4.0'
-  testImplementation group: 'io.cucumber', name: 'cucumber-junit-platform-engine', version: '5.4.0'
-  testImplementation group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: '2.14.1'
+  latestDepTestImplementation group: 'org.junit.platform', name: 'junit-platform-launcher', version: '+'
+  latestDepTestImplementation group: 'org.junit.jupiter', name: 'junit-jupiter-engine', version: '+'
+  latestDepTestImplementation group: 'org.junit.jupiter', name: 'junit-jupiter-params', version: '+'
 }
+
+configurations.matching({ it.name.startsWith('test') }).each({
+  it.resolutionStrategy {
+    force group: 'org.junit.platform', name: 'junit-platform-launcher', version: '1.8.2'
+    force group: 'org.junit.jupiter', name: 'junit-jupiter-engine', version: '5.8.2'
+    force group: 'org.junit.jupiter', name: 'junit-jupiter-params', version: '5.8.2'
+  }
+})
