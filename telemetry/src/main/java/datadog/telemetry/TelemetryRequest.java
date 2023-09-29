@@ -9,6 +9,7 @@ import datadog.telemetry.api.Metric;
 import datadog.telemetry.api.RequestType;
 import datadog.telemetry.dependency.Dependency;
 import datadog.trace.api.ConfigSetting;
+import datadog.trace.api.DDTags;
 import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.api.ProductActivation;
 import java.io.IOException;
@@ -51,7 +52,7 @@ public class TelemetryRequest {
             .addHeader("Content-Length", String.valueOf(bodySize))
             .addHeader("DD-Telemetry-API-Version", API_VERSION)
             .addHeader("DD-Telemetry-Request-Type", String.valueOf(this.requestType))
-            .addHeader("DD-Client-Library-Language", "jvm")
+            .addHeader("DD-Client-Library-Language", DDTags.LANGUAGE_TAG_VALUE)
             .addHeader("DD-Client-Library-Version", TracerVersion.TRACER_VERSION)
             .post(requestBody)
             .url(url);

@@ -1,6 +1,7 @@
 package datadog.telemetry;
 
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
+import datadog.trace.api.config.GeneralConfig;
 import java.io.IOException;
 import okhttp3.HttpUrl;
 import okhttp3.OkHttpClient;
@@ -84,7 +85,14 @@ public class TelemetryHttpClient {
             telemetryReceiver = TelemetryReceiver.INTAKE;
             errorReported = false;
           } else if (!missingApiKeyReported) {
-            log.error("Cannot use Intake to send telemetry because unset API_KEY.");
+            if (intakeUrl == null) {
+              log.warn(
+                  "Cannot use Intake to send telemetry because unset {}.",
+                  GeneralConfig.TELEMETRY_INTAKE_URL);
+            } else {
+              log.warn(
+                  "Cannot use Intake to send telemetry because unset {}.", GeneralConfig.API_KEY);
+            }
             missingApiKeyReported = true;
           }
         }

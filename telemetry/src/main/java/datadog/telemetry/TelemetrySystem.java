@@ -77,7 +77,7 @@ public class TelemetrySystem {
     String apiKey = config.getApiKey();
 
     TelemetryService telemetryService =
-        new TelemetryService(
+        TelemetryService.build(
             ddAgentFeaturesDiscovery, sco.okHttpClient, sco.agentUrl, debug, intakeUrl, apiKey);
     TELEMETRY_THREAD = createTelemetryRunnable(telemetryService, dependencyService);
     TELEMETRY_THREAD.start();

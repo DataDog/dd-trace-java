@@ -56,18 +56,17 @@ public class TelemetryService {
    * @param intakeUrl - Intake URL
    * @param apiKey - api key needed to send telemetry to Intake
    */
-  public TelemetryService(
+  public static TelemetryService build(
       DDAgentFeaturesDiscovery ddAgentFeaturesDiscovery,
       final OkHttpClient okHttpClient,
       final HttpUrl agentUrl,
       final boolean debug,
       HttpUrl intakeUrl,
       String apiKey) {
-    this(
+    TelemetryHttpClient client =
         new TelemetryHttpClient(
-            ddAgentFeaturesDiscovery, okHttpClient, agentUrl, intakeUrl, apiKey),
-        DEFAULT_MESSAGE_BYTES_SOFT_LIMIT,
-        debug);
+            ddAgentFeaturesDiscovery, okHttpClient, agentUrl, intakeUrl, apiKey);
+    return new TelemetryService(client, DEFAULT_MESSAGE_BYTES_SOFT_LIMIT, debug);
   }
 
   // For testing purposes
