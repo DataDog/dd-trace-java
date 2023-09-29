@@ -126,6 +126,27 @@ abstract class AbstractIastServerSmokeTest extends AbstractServerSmokeTest {
     }
   }
 
+  protected void noVulnerability(@ClosureParams(value = SimpleType, options = ['datadog.smoketest.model.Vulnerability'])
+    final Closure<Boolean> matcher) {
+    final found = []
+    try {
+      waitForSpan(pollingConditions()) { span ->
+        final json = span.meta.get(TAG_NAME)
+        if (!json) {
+          return false
+        }
+        final batch = jsonSlurper.parseText(json) as Map
+        final vulnerabilities = batch.vulnerabilities as List<Vulnerability>
+        found.addAll(vulnerabilities)
+      }
+    } catch (SpockTimeoutError toe) {
+      // do nothing
+    }
+    if ( found.find(matcher) != null){
+      throw new AssertionError("A matching vulnerability was found while expecting none. Vulnerabilities found: ${new JsonBuilder(found).toPrettyString()}")
+    }
+  }
+
   protected TaintedObject parseTaintedLog(final String log) {
     final index = log.indexOf('tainted=')
     if (index >= 0) {

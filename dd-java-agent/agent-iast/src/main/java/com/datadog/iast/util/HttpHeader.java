@@ -58,7 +58,7 @@ public class HttpHeader {
           }
         };
     public static final HttpHeader X_CONTENT_TYPE_OPTIONS =
-        new ContextAwareHeader("X-Content-Type") {
+        new ContextAwareHeader("X-Content-Type-Options") {
           @Override
           public void onHeader(final IastRequestContext ctx, final String value) {
             ctx.setxContentTypeOptions(value);

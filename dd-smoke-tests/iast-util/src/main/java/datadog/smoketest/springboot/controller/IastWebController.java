@@ -316,6 +316,13 @@ public class IastWebController {
     return "ok";
   }
 
+  @GetMapping(value = "/xcontenttypeoptionsecure", produces = "text/html")
+  public String xContentTypeOptionsSecure(HttpServletResponse response) {
+    response.addHeader("X-Content-Type-Options", "nosniff");
+    response.setStatus(HttpStatus.OK.value());
+    return "ok";
+  }
+
   private void withProcess(final Operation<Process> op) {
     Process process = null;
     try {
