@@ -106,8 +106,8 @@ public class DatadogProfilerConfig {
     boolean isUltraMinimal = getBoolean(configProvider, PROFILING_ULTRA_MINIMAL, false);
     boolean isTracingEnabled = configProvider.getBoolean(TRACE_ENABLED, true);
     boolean disableUnlessOptedIn = isUltraMinimal || !isTracingEnabled || isJ9();
-    return getBoolean(
-        configProvider, PROFILING_DATADOG_PROFILER_WALL_ENABLED, disableUnlessOptedIn);
+    boolean enabledByDefault = !disableUnlessOptedIn;
+    return getBoolean(configProvider, PROFILING_DATADOG_PROFILER_WALL_ENABLED, enabledByDefault);
   }
 
   public static int getWallInterval(ConfigProvider configProvider) {
