@@ -92,7 +92,7 @@ class HttpResponseHeaderModuleTest extends IastModuleImplTestBase {
     module.onHeader("Strict-Transport-Security", "invalid max age")
 
     then:
-    3 * tracer.activeSpan()
+    4 * tracer.activeSpan()
     1 * overheadController.consumeQuota(_,_)
     0 * _
   }
