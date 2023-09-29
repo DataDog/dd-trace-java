@@ -720,6 +720,27 @@ jobs:
           path: ./reports
 
       - display_memory_usage
+  muzzle-dep-report:
+    <<: *defaults
+    resource_class: medium
+    steps:
+      - setup_code
+      - skip_unless_matching_files_changed:
+          pattern: "dd-java-agent/instrumentation"
+      - restore_dependency_cache:
+          cacheType: inst
+      - restore_build_cache:
+          cacheType: inst
+      - run:
+          name: Generate muzzle dep report
+          command: >-
+            SKIP_BUILDSCAN="true"
+            ./gradlew generateMuzzleReport muzzleInstrumentationReport
+      - run:
+          name: Collect Reports
+          command: .circleci/collect_muzzle_deps.sh
+      - store_artifacts:
+          path: ./reports
 
   muzzle:
     <<: *defaults
@@ -1225,6 +1246,10 @@ build_test_jobs: &build_test_jobs
             - master
             - project/*
             - release/*
+
+  - muzzle-dep-report:
+      requires:
+        - ok_to_test
 
   - system-tests:
       requires:
