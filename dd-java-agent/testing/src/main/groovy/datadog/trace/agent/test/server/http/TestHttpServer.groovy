@@ -7,6 +7,7 @@ import datadog.trace.core.DDSpan
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings
 import org.eclipse.jetty.http.HttpMethod
 import org.eclipse.jetty.http.HttpVersion
+import org.eclipse.jetty.http2.server.HTTP2CServerConnectionFactory
 import org.eclipse.jetty.server.Handler
 import org.eclipse.jetty.server.HttpConfiguration
 import org.eclipse.jetty.server.HttpConnectionFactory
@@ -101,8 +102,15 @@ class TestHttpServer implements AutoCloseable {
         final HttpConfiguration httpConfiguration = new HttpConfiguration()
 
         // HTTP
-        final ServerConnector http = new ServerConnector(internalServer,
-          new HttpConnectionFactory(httpConfiguration))
+        ServerConnector http
+        try {
+          http = new ServerConnector(internalServer,
+            new HttpConnectionFactory(httpConfiguration),
+            new HTTP2CServerConnectionFactory(httpConfiguration))
+        } catch (NoClassDefFoundError e) { // Jetty testing requires versions too early to support http2
+          http = new ServerConnector(internalServer,
+            new HttpConnectionFactory(httpConfiguration))
+        }
         http.setHost('localhost')
         http.setPort(0)
         internalServer.addConnector(http)
@@ -114,9 +122,17 @@ class TestHttpServer implements AutoCloseable {
         sslContextFactory.keyStorePassword = "datadog"
         final HttpConfiguration httpsConfiguration = new HttpConfiguration(httpConfiguration)
         httpsConfiguration.addCustomizer(new SecureRequestCustomizer())
-        final ServerConnector https = new ServerConnector(internalServer,
-          new SslConnectionFactory(sslContextFactory, HttpVersion.HTTP_1_1.asString()),
-          new HttpConnectionFactory(httpsConfiguration))
+        ServerConnector https
+        try {
+          https = new ServerConnector(internalServer,
+            new SslConnectionFactory(sslContextFactory, HttpVersion.HTTP_1_1.asString()),
+            new HttpConnectionFactory(httpsConfiguration),
+            new HTTP2CServerConnectionFactory(httpsConfiguration))
+        } catch (NoClassDefFoundError e) { // Jetty testing requires versions too early to support http2
+          https = new ServerConnector(internalServer,
+            new SslConnectionFactory(sslContextFactory, HttpVersion.HTTP_1_1.asString()),
+            new HttpConnectionFactory(httpsConfiguration))
+        }
         https.setHost('localhost')
         https.setPort(0)
         internalServer.addConnector(https)
@@ -352,7 +368,7 @@ class TestHttpServer implements AutoCloseable {
     }
 
 
-    def getResponse() {
+    ResponseApi getResponse() {
       return new ResponseApi()
     }
 

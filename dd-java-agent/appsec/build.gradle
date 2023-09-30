@@ -25,6 +25,7 @@ dependencies {
 
 configurations.testFixturesApi {
   exclude group: 'org.eclipse.jetty', module: 'jetty-server'
+  exclude group: 'org.eclipse.jetty.http2', module: 'http2-server'
 }
 
 shadowJar {

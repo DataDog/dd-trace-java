@@ -49,8 +49,9 @@ dependencies {
   api deps.testLogging
   api deps.guava
 
-  api group: 'org.eclipse.jetty', name: 'jetty-server', version: '9.2.30.v20200428'
-  // ^ 9.2 last to support java 7
+  api group: 'org.eclipse.jetty', name: 'jetty-server', version: '9.4.52.v20230823'
+  api group: 'org.eclipse.jetty.http2', name: 'http2-server', version: '9.4.52.v20230823'
+  // ^ 9.4 last to support java 8
   api group: 'com.squareup.okhttp3', name: 'logging-interceptor', version: versions.okhttp_legacy
 
   api project(':dd-java-agent:agent-tooling')
