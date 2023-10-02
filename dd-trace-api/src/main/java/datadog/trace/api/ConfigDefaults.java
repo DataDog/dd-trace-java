@@ -104,6 +104,7 @@ public final class ConfigDefaults {
   static final String DEFAULT_IAST_REDACTION_VALUE_PATTERN =
       "(?:bearer\\s+[a-z0-9\\._\\-]+|glpat-[\\w\\-]{20}|gh[opsu]_[0-9a-zA-Z]{36}|ey[I-L][\\w=\\-]+\\.ey[I-L][\\w=\\-]+(?:\\.[\\w.+/=\\-]+)?|(?:[\\-]{5}BEGIN[a-z\\s]+PRIVATE\\sKEY[\\-]{5}[^\\-]+[\\-]{5}END[a-z\\s]+PRIVATE\\sKEY[\\-]{5}|ssh-rsa\\s*[a-z0-9/\\.+]{100,}))";
 
+  static final int DEFAULT_IAST_TRUNCATION_MAX_VALUE_LENGTH = 500;
   public static final boolean DEFAULT_IAST_DEDUPLICATION_ENABLED = true;
 
   static final boolean DEFAULT_USM_ENABLED = false;

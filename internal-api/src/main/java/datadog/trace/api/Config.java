@@ -64,6 +64,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_DEBUG_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_REDACTION_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_REDACTION_NAME_PATTERN;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_REDACTION_VALUE_PATTERN;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_TRUNCATION_MAX_VALUE_LENGTH;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_WEAK_CIPHER_ALGORITHMS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_WEAK_HASH_ALGORITHMS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_JMX_FETCH_ENABLED;
@@ -222,6 +223,7 @@ import static datadog.trace.api.config.IastConfig.IAST_REDACTION_ENABLED;
 import static datadog.trace.api.config.IastConfig.IAST_REDACTION_NAME_PATTERN;
 import static datadog.trace.api.config.IastConfig.IAST_REDACTION_VALUE_PATTERN;
 import static datadog.trace.api.config.IastConfig.IAST_TELEMETRY_VERBOSITY;
+import static datadog.trace.api.config.IastConfig.IAST_TRUNCATION_MAX_VALUE_LENGTH;
 import static datadog.trace.api.config.IastConfig.IAST_WEAK_CIPHER_ALGORITHMS;
 import static datadog.trace.api.config.IastConfig.IAST_WEAK_HASH_ALGORITHMS;
 import static datadog.trace.api.config.JmxFetchConfig.JMX_FETCH_CHECK_PERIOD;
@@ -650,6 +652,8 @@ public class Config {
   private final boolean iastRedactionEnabled;
   private final String iastRedactionNamePattern;
   private final String iastRedactionValuePattern;
+
+  private final int iastTruncationMaxValueLength;
 
   private final boolean ciVisibilityTraceSanitationEnabled;
   private final boolean ciVisibilityAgentlessEnabled;
@@ -1473,6 +1477,7 @@ public class Config {
     iastRedactionValuePattern =
         configProvider.getString(
             IAST_REDACTION_VALUE_PATTERN, DEFAULT_IAST_REDACTION_VALUE_PATTERN);
+    iastTruncationMaxValueLength = configProvider.getInteger(IAST_TRUNCATION_MAX_VALUE_LENGTH, DEFAULT_IAST_TRUNCATION_MAX_VALUE_LENGTH);
 
     ciVisibilityTraceSanitationEnabled =
         configProvider.getBoolean(CIVISIBILITY_TRACE_SANITATION_ENABLED, true);
@@ -2451,6 +2456,8 @@ public class Config {
   public String getIastRedactionValuePattern() {
     return iastRedactionValuePattern;
   }
+
+  public int getIastTruncationMaxValueLength(){ return iastTruncationMaxValueLength; }
 
   public boolean isCiVisibilityEnabled() {
     return instrumenterConfig.isCiVisibilityEnabled();

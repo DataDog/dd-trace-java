@@ -9,6 +9,7 @@ import com.datadog.iast.sensitive.SensitiveHandler;
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.JsonWriter;
 import com.squareup.moshi.Moshi;
+import com.squareup.moshi.TruncatedWriter;
 import com.squareup.moshi.Types;
 import java.io.IOException;
 import java.lang.annotation.Annotation;
@@ -125,8 +126,9 @@ class AdapterFactory implements JsonAdapter.Factory {
     }
 
     @Override
-    public void toJson(@Nonnull final JsonWriter writer, @Nullable final VulnerabilityBatch value)
+    public void toJson(@Nonnull final JsonWriter jsonWriter, @Nullable final VulnerabilityBatch value)
         throws IOException {
+      JsonWriter writer = new TruncatedWriter(jsonWriter);
       if (value == null) {
         writer.nullValue();
         return;
