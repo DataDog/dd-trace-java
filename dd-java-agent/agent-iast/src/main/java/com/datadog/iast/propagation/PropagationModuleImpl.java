@@ -12,6 +12,8 @@ import com.datadog.iast.taint.Ranges;
 import com.datadog.iast.taint.TaintedObject;
 import com.datadog.iast.taint.TaintedObjects;
 import com.datadog.iast.util.ObjectVisitor;
+import com.datadog.iast.util.ObjectVisitor.State;
+import com.datadog.iast.util.ObjectVisitor.Visitor;
 import datadog.trace.api.iast.SourceTypes;
 import datadog.trace.api.iast.Taintable;
 import datadog.trace.api.iast.propagation.PropagationModule;
@@ -183,18 +185,7 @@ public class PropagationModuleImpl implements PropagationModule {
     }
     final IastRequestContext ctx = (IastRequestContext) ctx_;
     final TaintedObjects taintedObjects = ctx.getTaintedObjects();
-    ObjectVisitor.visit(
-        o,
-        (name, value) -> {
-          if (value instanceof String) {
-            final String stringValue = (String) value;
-            if (canBeTainted(stringValue)) {
-              taintedObjects.taintInputString(stringValue, new Source(source, name, stringValue));
-            }
-          }
-          return CONTINUE;
-        },
-        classFilter);
+    ObjectVisitor.visit(o, new TaintingVisitor(taintedObjects, source), classFilter);
   }
 
   @Override
@@ -340,6 +331,29 @@ public class PropagationModuleImpl implements PropagationModule {
     } else {
       final TaintedObject tainted = taintedObjects.get(object);
       return tainted == null ? null : tainted.getRanges();
+    }
+  }
+
+  private static class TaintingVisitor implements Visitor {
+
+    private final TaintedObjects taintedObjects;
+    private final byte source;
+
+    private TaintingVisitor(final TaintedObjects taintedObjects, final byte source) {
+      this.taintedObjects = taintedObjects;
+      this.source = source;
+    }
+
+    @Nonnull
+    @Override
+    public State visit(@Nonnull final String path, @Nonnull final Object value) {
+      if (value instanceof String) {
+        final String stringValue = (String) value;
+        if (canBeTainted(stringValue)) {
+          taintedObjects.taintInputString(stringValue, new Source(source, path, stringValue));
+        }
+      }
+      return CONTINUE;
     }
   }
 }
