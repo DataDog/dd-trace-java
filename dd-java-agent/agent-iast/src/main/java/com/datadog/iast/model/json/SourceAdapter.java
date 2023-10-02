@@ -3,24 +3,20 @@ package com.datadog.iast.model.json;
 import com.datadog.iast.model.Source;
 import com.datadog.iast.model.json.AdapterFactory.Context;
 import com.datadog.iast.model.json.AdapterFactory.RedactionContext;
-import com.squareup.moshi.JsonAdapter;
-import com.squareup.moshi.JsonWriter;
-import com.squareup.moshi.Moshi;
 import datadog.trace.api.Config;
 import java.io.IOException;
-import java.util.Collections;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
-public class SourceAdapter extends FormattingAdapter<Source> {
+public class SourceAdapter extends TruncatingAdapter<Source> {
 
-  private final SourceTypeAdapter sourceAdapter;
-  private final JsonAdapter<Source> defaultAdapter;
-  private final JsonAdapter<Source> redactedAdapter;
+  private final SourceTypeAdapter sourceTypeAdapter;
+  private final TruncatingAdapter<Source> defaultAdapter;
+  private final TruncatingAdapter<Source> redactedAdapter;
 
-  public SourceAdapter(final Factory factory, final Moshi moshi) {
-    sourceAdapter = new SourceTypeAdapter();
-    defaultAdapter = moshi.nextAdapter(factory, Source.class, Collections.emptySet());
+  public SourceAdapter() {
+    sourceTypeAdapter = new SourceTypeAdapter();
+    defaultAdapter = new DefaultSourceAdapter();
     redactedAdapter = new RedactedSourceAdapter();
   }
 
@@ -38,7 +34,22 @@ public class SourceAdapter extends FormattingAdapter<Source> {
     }
   }
 
-  private class RedactedSourceAdapter extends FormattingAdapter<Source> {
+  private class DefaultSourceAdapter extends TruncatingAdapter<Source> {
+
+    @Override
+    public void toJson(@Nonnull JsonWriter writer, @Nonnull Source source) throws IOException {
+      writer.beginObject();
+      writer.name("origin");
+      sourceTypeAdapter.toJson(writer.getDelegated(), source.getOrigin());
+      writer.name("name");
+      writer.value(source.getName());
+      writer.name("value");
+      writer.value(source.getValue());
+      writer.endObject();
+    }
+  }
+
+  private class RedactedSourceAdapter extends TruncatingAdapter<Source> {
 
     @Override
     public void toJson(@Nonnull final JsonWriter writer, final @Nonnull Source source)
@@ -47,7 +58,7 @@ public class SourceAdapter extends FormattingAdapter<Source> {
       if (ctx.shouldRedact()) {
         toRedactedJson(writer, source, ctx.getRedactedValue());
       } else {
-        defaultAdapter.toJson(writer, source);
+        defaultAdapter.toJson(writer.getDelegated(), source);
       }
     }
 
@@ -55,7 +66,7 @@ public class SourceAdapter extends FormattingAdapter<Source> {
         throws IOException {
       writer.beginObject();
       writer.name("origin");
-      sourceAdapter.toJson(writer, source.getOrigin());
+      sourceTypeAdapter.toJson(writer.getDelegated(), source.getOrigin());
       writer.name("name");
       writer.value(source.getName());
       writer.name("redacted");

@@ -12,7 +12,6 @@ import com.datadog.iast.sensitive.SensitiveHandler.Tokenizer;
 import com.datadog.iast.util.Ranged;
 import com.datadog.iast.util.RangedDeque;
 import com.squareup.moshi.JsonAdapter;
-import com.squareup.moshi.JsonWriter;
 import com.squareup.moshi.Moshi;
 import datadog.trace.api.Config;
 import java.io.IOException;
@@ -30,11 +29,11 @@ import java.util.stream.Collectors;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
-public class EvidenceAdapter extends FormattingAdapter<Evidence> {
+public class EvidenceAdapter extends TruncatingAdapter<Evidence> {
 
   private final JsonAdapter<Source> sourceAdapter;
-  private final JsonAdapter<Evidence> defaultAdapter;
-  private final JsonAdapter<Evidence> redactedAdapter;
+  private final TruncatingAdapter<Evidence> defaultAdapter;
+  private final TruncatingAdapter<Evidence> redactedAdapter;
 
   public EvidenceAdapter(@Nonnull final Moshi moshi) {
     sourceAdapter = moshi.adapter(Source.class, SourceIndex.class);
@@ -61,7 +60,7 @@ public class EvidenceAdapter extends FormattingAdapter<Evidence> {
     return value.substring(range.getStart(), end);
   }
 
-  private class DefaultEvidenceAdapter extends FormattingAdapter<Evidence> {
+  private class DefaultEvidenceAdapter extends TruncatingAdapter<Evidence> {
 
     @Override
     public void toJson(@Nonnull final JsonWriter writer, final @Nonnull Evidence evidence)
@@ -113,13 +112,13 @@ public class EvidenceAdapter extends FormattingAdapter<Evidence> {
       writer.value(value);
       if (range != null) {
         writer.name("source");
-        sourceAdapter.toJson(writer, range.getSource());
+        sourceAdapter.toJson(writer.getDelegated(), range.getSource());
       }
       writer.endObject();
     }
   }
 
-  private class RedactedEvidenceAdapter extends FormattingAdapter<Evidence> {
+  private class RedactedEvidenceAdapter extends TruncatingAdapter<Evidence> {
 
     @Override
     public void toJson(@Nonnull final JsonWriter writer, @Nonnull final Evidence evidence)
@@ -391,7 +390,7 @@ public class EvidenceAdapter extends FormattingAdapter<Evidence> {
         writer.name("value");
         writer.value(value);
         writer.name("source");
-        adapter.toJson(writer, source);
+        adapter.toJson(writer.getDelegated(), source);
         writer.endObject();
       }
     }
@@ -479,7 +478,7 @@ public class EvidenceAdapter extends FormattingAdapter<Evidence> {
       }
       writer.beginObject();
       writer.name("source");
-      adapter.toJson(writer, source);
+      adapter.toJson(writer.getDelegated(), source);
       if (redacted) {
         writer.name("redacted");
         writer.value(true);
