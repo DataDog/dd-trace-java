@@ -9,12 +9,8 @@ import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
-import java.util.AbstractSet;
 import java.util.IdentityHashMap;
-import java.util.Iterator;
 import java.util.Map;
-import java.util.Set;
-import java.util.Spliterator;
 import java.util.function.Predicate;
 import javax.annotation.Nonnull;
 import org.slf4j.Logger;
@@ -24,6 +20,8 @@ import org.slf4j.LoggerFactory;
 public class ObjectVisitor {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(ObjectVisitor.class);
+  /** Value for keys present in the map */
+  private static final Object PRESENT = new Object();
 
   private static final int MAX_VISITED_OBJECTS = 1000;
   private static final int MAX_DEPTH = 10;
@@ -63,7 +61,7 @@ public class ObjectVisitor {
 
   private int remaining;
   private final int maxDepth;
-  private final Set<Object> visited;
+  private final Map<Object, Object> visited;
   private final Visitor visitor;
   private final Predicate<Class<?>> classFilter;
 
@@ -74,7 +72,7 @@ public class ObjectVisitor {
       final Visitor visitor) {
     this.maxDepth = maxDepth;
     this.remaining = maxObjects;
-    this.visited = new IdentityHashSet<>();
+    this.visited = new IdentityHashMap<>();
     this.visitor = visitor;
     this.classFilter = classFilter;
   }
@@ -87,7 +85,7 @@ public class ObjectVisitor {
     if (depth > maxDepth) {
       return CONTINUE;
     }
-    if (!visited.add(value)) {
+    if (visited.put(value, PRESENT) != null) {
       return CONTINUE;
     }
     State state = CONTINUE;
@@ -245,49 +243,5 @@ public class ObjectVisitor {
   public enum State {
     CONTINUE,
     EXIT
-  }
-
-  private static class IdentityHashSet<E> extends AbstractSet<E> {
-
-    private static final Object PRESENT = new Object();
-
-    private final Map<E, Object> map;
-
-    public IdentityHashSet() {
-      map = new IdentityHashMap<>();
-    }
-
-    @Nonnull
-    public Iterator<E> iterator() {
-      return map.keySet().iterator();
-    }
-
-    public int size() {
-      return map.size();
-    }
-
-    public boolean isEmpty() {
-      return map.isEmpty();
-    }
-
-    public boolean contains(Object o) {
-      return map.containsKey(o);
-    }
-
-    public boolean add(E e) {
-      return map.put(e, PRESENT) == null;
-    }
-
-    public boolean remove(Object o) {
-      return map.remove(o) == PRESENT;
-    }
-
-    public void clear() {
-      map.clear();
-    }
-
-    public Spliterator<E> spliterator() {
-      return map.keySet().spliterator();
-    }
   }
 }

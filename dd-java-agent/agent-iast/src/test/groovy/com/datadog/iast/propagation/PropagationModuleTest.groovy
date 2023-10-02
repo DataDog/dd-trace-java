@@ -476,7 +476,7 @@ class PropagationModuleTest extends IastModuleImplTestBase {
 
   void 'test taint deeply'() {
     given:
-    final target = [Hello: " World!"]
+    final target = [Hello: " World!", Age: 25]
 
     when:
     module.taintDeeply(null, SourceTypes.GRPC_BODY, target)
@@ -488,8 +488,13 @@ class PropagationModuleTest extends IastModuleImplTestBase {
     module.taintDeeply(ctx, SourceTypes.GRPC_BODY, target)
 
     then:
-    ctx.getTaintedObjects().get(target.keySet().first()) != null
-    ctx.getTaintedObjects().get(target.values().first()) != null
+    final taintedObjects = ctx.taintedObjects
+    target.keySet().each {
+      key ->
+      assert taintedObjects.get(key) != null
+    }
+    assert taintedObjects.get(target['Hello']) != null
+    assert taintedObjects.size() == 3 // two keys and one string value
   }
 
   private <E> E taint(final E toTaint) {
