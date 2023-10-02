@@ -9,9 +9,12 @@ import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
-import java.util.HashSet;
+import java.util.AbstractSet;
+import java.util.IdentityHashMap;
+import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
+import java.util.Spliterator;
 import java.util.function.Predicate;
 import javax.annotation.Nonnull;
 import org.slf4j.Logger;
@@ -27,15 +30,7 @@ public class ObjectVisitor {
   private static final Method TRY_SET_ACCESSIBLE;
 
   static {
-    Method method = null;
-    if (Platform.isJavaVersionAtLeast(9)) {
-      try {
-        method = Field.class.getMethod("trySetAccessible");
-      } catch (NoSuchMethodException e) {
-        LOGGER.warn("Can't get method 'Field.trySetAccessible'", e);
-      }
-    }
-    TRY_SET_ACCESSIBLE = method;
+    TRY_SET_ACCESSIBLE = fetchTrySetAccessibleMethod();
   }
 
   public static void visit(@Nonnull final Object object, @Nonnull final Visitor visitor) {
@@ -79,7 +74,7 @@ public class ObjectVisitor {
       final Visitor visitor) {
     this.maxDepth = maxDepth;
     this.remaining = maxObjects;
-    this.visited = new HashSet<>();
+    this.visited = new IdentityHashSet<>();
     this.visitor = visitor;
     this.classFilter = classFilter;
   }
@@ -175,7 +170,7 @@ public class ObjectVisitor {
     while (klass != Object.class) {
       for (final Field field : klass.getDeclaredFields()) {
         try {
-          if (inspectField(field) && setAccessible(field)) {
+          if (inspectField(field) && trySetAccessible(field)) {
             final Object fieldValue = field.get(value);
             if (fieldValue != null) {
               final String fieldPath = path + "." + field.getName();
@@ -217,7 +212,19 @@ public class ObjectVisitor {
     return true;
   }
 
-  private static boolean setAccessible(final Field field) {
+  private static Method fetchTrySetAccessibleMethod() {
+    Method method = null;
+    if (Platform.isJavaVersionAtLeast(9)) {
+      try {
+        method = Field.class.getMethod("trySetAccessible");
+      } catch (NoSuchMethodException e) {
+        LOGGER.warn("Can't get method 'Field.trySetAccessible'", e);
+      }
+    }
+    return method;
+  }
+
+  private static boolean trySetAccessible(final Field field) {
     try {
       if (TRY_SET_ACCESSIBLE != null) {
         return (boolean) TRY_SET_ACCESSIBLE.invoke(field);
@@ -238,5 +245,49 @@ public class ObjectVisitor {
   public enum State {
     CONTINUE,
     EXIT
+  }
+
+  private static class IdentityHashSet<E> extends AbstractSet<E> {
+
+    private static final Object PRESENT = new Object();
+
+    private final Map<E, Object> map;
+
+    public IdentityHashSet() {
+      map = new IdentityHashMap<>();
+    }
+
+    @Nonnull
+    public Iterator<E> iterator() {
+      return map.keySet().iterator();
+    }
+
+    public int size() {
+      return map.size();
+    }
+
+    public boolean isEmpty() {
+      return map.isEmpty();
+    }
+
+    public boolean contains(Object o) {
+      return map.containsKey(o);
+    }
+
+    public boolean add(E e) {
+      return map.put(e, PRESENT) == null;
+    }
+
+    public boolean remove(Object o) {
+      return map.remove(o) == PRESENT;
+    }
+
+    public void clear() {
+      map.clear();
+    }
+
+    public Spliterator<E> spliterator() {
+      return map.keySet().spliterator();
+    }
   }
 }

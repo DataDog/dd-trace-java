@@ -18,6 +18,8 @@ import com.datadog.iast.taint.Ranges;
 import com.datadog.iast.taint.Ranges.RangesProvider;
 import com.datadog.iast.taint.TaintedObject;
 import com.datadog.iast.util.ObjectVisitor;
+import com.datadog.iast.util.ObjectVisitor.State;
+import com.datadog.iast.util.ObjectVisitor.Visitor;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.instrumentation.iastinstrumenter.IastExclusionTrie;
 import datadog.trace.util.stacktrace.StackWalker;
@@ -66,14 +68,9 @@ public abstract class SinkModuleBase implements HasDependencies {
       @Nonnull final IastRequestContext ctx,
       @Nonnull final InjectionType type,
       @Nonnull final E value) {
-    final Evidence[] evidence = new Evidence[1];
-    ObjectVisitor.visit(
-        value,
-        (path, item) -> {
-          evidence[0] = checkInjection(span, ctx, type, item);
-          return evidence[0] != null ? EXIT : CONTINUE; // report first tainted value only
-        });
-    return evidence[0];
+    final InjectionVisitor visitor = new InjectionVisitor(span, ctx, type);
+    ObjectVisitor.visit(value, visitor);
+    return visitor.evidence;
   }
 
   protected final <E> @Nullable Evidence checkInjection(
@@ -197,5 +194,27 @@ public abstract class SinkModuleBase implements HasDependencies {
             })
         .findFirst()
         .orElse(first[0]);
+  }
+
+  private class InjectionVisitor implements Visitor {
+
+    private final AgentSpan span;
+    private final IastRequestContext ctx;
+    private final InjectionType type;
+    private Evidence evidence;
+
+    private InjectionVisitor(
+        final AgentSpan span, final IastRequestContext ctx, final InjectionType type) {
+      this.span = span;
+      this.ctx = ctx;
+      this.type = type;
+    }
+
+    @Nonnull
+    @Override
+    public State visit(@Nonnull final String path, @Nonnull final Object value) {
+      evidence = checkInjection(span, ctx, type, value);
+      return evidence != null ? EXIT : CONTINUE; // report first tainted value only
+    }
   }
 }
