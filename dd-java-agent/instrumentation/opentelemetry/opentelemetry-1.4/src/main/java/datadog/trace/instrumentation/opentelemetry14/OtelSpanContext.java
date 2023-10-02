@@ -57,4 +57,18 @@ public class OtelSpanContext implements SpanContext {
   public boolean isRemote() {
     return this.remote;
   }
+
+  @Override
+  public String toString() {
+    return "OtelSpanContext{"
+        + "traceId='"
+        + getTraceId()
+        + "', spanId='"
+        + getSpanId()
+        + "', sampled="
+        + this.sampled
+        + ", remote="
+        + this.remote
+        + '}';
+  }
 }

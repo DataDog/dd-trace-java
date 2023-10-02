@@ -1,12 +1,13 @@
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.DDSpanId
 import datadog.trace.api.DDTraceId
-import datadog.trace.instrumentation.opentelemetry14.OtelContext
+import datadog.trace.instrumentation.opentelemetry14.context.OtelContext
 import io.opentelemetry.api.GlobalOpenTelemetry
 import io.opentelemetry.api.trace.Span
 import io.opentelemetry.api.trace.propagation.W3CTraceContextPropagator
 import io.opentelemetry.context.Context
 import io.opentelemetry.context.ContextKey
+import io.opentelemetry.context.ThreadLocalContextStorage
 import io.opentelemetry.context.propagation.TextMapGetter
 import io.opentelemetry.context.propagation.TextMapSetter
 import spock.lang.Subject
@@ -24,6 +25,12 @@ class OpenTelemetry14ContextTest extends AgentTestRunner {
     super.configurePreAgent()
 
     injectSysConfig("dd.integration.opentelemetry.experimental.enabled", "true")
+  }
+
+  @Override
+  void setup() {
+    // Reset OTel context storage
+    ThreadLocalContextStorage.THREAD_LOCAL_STORAGE.remove()
   }
 
   def "test Span.current/makeCurrent()"() {
@@ -172,7 +179,7 @@ class OpenTelemetry14ContextTest extends AgentTestRunner {
     !currentSpan.spanContext.isValid()
   }
 
-  def "test setting non-Datadog context"() {
+  def "test clearing context"() {
     when:
     def rootScope = Context.root().makeCurrent()
     then:
