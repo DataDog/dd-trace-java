@@ -217,8 +217,12 @@ public class EvidenceAdapter extends FormattingAdapter<Evidence> {
         }
       }
       if (nextSensitive != null) {
-        addNextStringValuePart(nextSensitive.getStart(), next); // pending string chunk
-        handleSensitiveValue(nextSensitive);
+        if (nextSensitive.isBefore(nextTainted)) {
+          addNextStringValuePart(nextSensitive.getStart(), next); // pending string chunk
+          handleSensitiveValue(nextSensitive);
+        } else {
+          sensitive.addFirst(nextSensitive);
+        }
       }
       return next.poll();
     }
