@@ -13,7 +13,6 @@ import datadog.trace.api.DDTags;
 import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.api.ProductActivation;
 import java.io.IOException;
-import okhttp3.HttpUrl;
 import okhttp3.MediaType;
 import okhttp3.Request;
 
@@ -43,7 +42,7 @@ public class TelemetryRequest {
     this.requestBody.beginRequest(debug);
   }
 
-  public Request httpRequest(HttpUrl url, String apiKey) {
+  public Request.Builder httpRequest() {
     long bodySize = requestBody.endRequest();
 
     Request.Builder builder =
@@ -54,8 +53,7 @@ public class TelemetryRequest {
             .addHeader("DD-Telemetry-Request-Type", String.valueOf(this.requestType))
             .addHeader("DD-Client-Library-Language", DDTags.LANGUAGE_TAG_VALUE)
             .addHeader("DD-Client-Library-Version", TracerVersion.TRACER_VERSION)
-            .post(requestBody)
-            .url(url);
+            .post(requestBody);
 
     final String containerId = ContainerInfo.get().getContainerId();
     if (containerId != null) {
@@ -66,11 +64,7 @@ public class TelemetryRequest {
       builder.addHeader("DD-Telemetry-Debug-Enabled", "true");
     }
 
-    if (apiKey != null) {
-      builder.addHeader("DD-API-KEY", apiKey);
-    }
-
-    return builder.build();
+    return builder;
   }
 
   public void writeConfigurationMessage() {

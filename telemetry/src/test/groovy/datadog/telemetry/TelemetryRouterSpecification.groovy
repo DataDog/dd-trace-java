@@ -12,7 +12,7 @@ import okhttp3.Response
 import okhttp3.ResponseBody
 import spock.lang.Specification
 
-class TelemetryHttpClientSpecification extends Specification {
+class TelemetryRouterSpecification extends Specification {
 
   def dummyRequest() {
     return new TelemetryRequest(Mock(EventSource), Mock(EventSink), 1000, RequestType.APP_STARTED, false)
@@ -41,7 +41,9 @@ class TelemetryHttpClientSpecification extends Specification {
   OkHttpClient okHttpClient = Mock()
   DDAgentFeaturesDiscovery ddAgentFeaturesDiscovery = Mock()
 
-  def httpClient = new TelemetryHttpClient(ddAgentFeaturesDiscovery, okHttpClient, agentUrl, intakeUrl, apiKey)
+  def agentTelemetryClient = TelemetryClient.buildAgentClient(okHttpClient, agentUrl)
+  def intakeTelemetryClient = new TelemetryClient(okHttpClient, intakeUrl, apiKey)
+  def httpClient = new TelemetryRouter(ddAgentFeaturesDiscovery, agentTelemetryClient, intakeTelemetryClient)
 
   def 'map an http status code to the correct send result'() {
     when:
@@ -53,10 +55,10 @@ class TelemetryHttpClientSpecification extends Specification {
 
     where:
     httpCode | sendResult
-    100      | TelemetryHttpClient.Result.FAILURE
-    202      | TelemetryHttpClient.Result.SUCCESS
-    404      | TelemetryHttpClient.Result.NOT_FOUND
-    500      | TelemetryHttpClient.Result.FAILURE
+    100      | TelemetryClient.Result.FAILURE
+    202      | TelemetryClient.Result.SUCCESS
+    404      | TelemetryClient.Result.NOT_FOUND
+    500      | TelemetryClient.Result.FAILURE
   }
 
   def 'catch IOException from OkHttpClient and return FAILURE'() {
@@ -64,13 +66,13 @@ class TelemetryHttpClientSpecification extends Specification {
     def result = httpClient.sendRequest(dummyRequest())
 
     then:
-    result == TelemetryHttpClient.Result.FAILURE
+    result == TelemetryClient.Result.FAILURE
     1 * okHttpClient.newCall(_) >> { throw new IOException("exception") }
   }
 
-  def 'keep trying to send telemetry to Agent despite of return code when API_KEY unset'() {
+  def 'keep trying to send telemetry to Agent despite of return code when Intake unknown'() {
     setup:
-    def httpClient = new TelemetryHttpClient(ddAgentFeaturesDiscovery, okHttpClient, agentUrl, intakeUrl, null)
+    def httpClient = new TelemetryRouter(ddAgentFeaturesDiscovery, agentTelemetryClient, null)
 
     Request request
 
@@ -99,10 +101,7 @@ class TelemetryHttpClientSpecification extends Specification {
     500        | _
   }
 
-  def 'send telemetry to Intake when Agent does not support telemetry endpoint and only when API_KEY set'() {
-    setup:
-    def httpClient = new TelemetryHttpClient(ddAgentFeaturesDiscovery, okHttpClient, agentUrl, intakeUrl, apiKey)
-
+  def 'send telemetry to Intake when Agent does not support telemetry endpoint and Intake specified'() {
     Request request
 
     when:
@@ -131,9 +130,6 @@ class TelemetryHttpClientSpecification extends Specification {
   }
 
   def 'switch to Intake when Agent stops supporting telemetry proxy and telemetry requests start failing'() {
-    setup:
-    def httpClient = new TelemetryHttpClient(ddAgentFeaturesDiscovery, okHttpClient, agentUrl, intakeUrl, apiKey)
-
     Request request
 
     when:
@@ -163,9 +159,6 @@ class TelemetryHttpClientSpecification extends Specification {
   }
 
   def 'do not switch to Intake when Agent stops supporting telemetry proxy but accepts telemetry requests'() {
-    setup:
-    def httpClient = new TelemetryHttpClient(ddAgentFeaturesDiscovery, okHttpClient, agentUrl, intakeUrl, apiKey)
-
     Request request
 
     when:
@@ -190,9 +183,6 @@ class TelemetryHttpClientSpecification extends Specification {
   }
 
   def 'switch to Intake when Agent fails to receive telemetry request'() {
-    setup:
-    def httpClient = new TelemetryHttpClient(ddAgentFeaturesDiscovery, okHttpClient, agentUrl, intakeUrl, apiKey)
-
     Request request
 
     when:
@@ -222,9 +212,6 @@ class TelemetryHttpClientSpecification extends Specification {
   }
 
   def 'switch to Agent once it becomes available and Intake still accepts requests'() {
-    setup:
-    def httpClient = new TelemetryHttpClient(ddAgentFeaturesDiscovery, okHttpClient, agentUrl, intakeUrl, apiKey)
-
     Request request
 
     when:
@@ -263,9 +250,9 @@ class TelemetryHttpClientSpecification extends Specification {
     201        | _
   }
 
-  def 'switch between Agent and Intake (only if an api key is set) when either one fails on a telemetry request'() {
+  def 'use Agent when Intake is not available'() {
     setup:
-    def httpClient = new TelemetryHttpClient(ddAgentFeaturesDiscovery, okHttpClient, agentUrl, intakeUrl, apiKey)
+    def httpClient = new TelemetryRouter(ddAgentFeaturesDiscovery, agentTelemetryClient, null)
 
     Request request
 
@@ -275,9 +262,11 @@ class TelemetryHttpClientSpecification extends Specification {
     then:
     1 * ddAgentFeaturesDiscovery.discoverIfOutdated()
     1 * ddAgentFeaturesDiscovery.supportsTelemetryProxy() >> false
-    1 * okHttpClient.newCall(_) >> { args -> request = args[0]; mockResponse(returnCode) }
+    1 * okHttpClient.newCall(_) >> { args ->
+      request = args[0]; mockResponse(returnCode)
+    }
     request.url() == expectedUrl
-    request.header(apiKeyHeader) == apiKey
+    request.header(apiKeyHeader) == expectedApiKey
 
     when:
     httpClient.sendRequest(dummyRequest())
@@ -297,13 +286,52 @@ class TelemetryHttpClientSpecification extends Specification {
     1 * ddAgentFeaturesDiscovery.supportsTelemetryProxy() >> false
     1 * okHttpClient.newCall(_) >> { args -> request = args[0]; mockResponse(returnCode) }
     request.url() == expectedUrl
-    request.header(apiKeyHeader) == apiKey
+    request.header(apiKeyHeader) == expectedApiKey
 
     where:
-    returnCode | apiKey | expectedUrl
-    404        | null   | agentTelemetryUrl
-    500        | null   | agentTelemetryUrl
-    404        | apiKey | intakeUrl
-    500        | apiKey | intakeUrl
+    returnCode | expectedApiKey | expectedUrl
+    404        | null           | agentTelemetryUrl
+    500        | null           | agentTelemetryUrl
+  }
+
+  def 'use Intake when Agent fails'() {
+    Request request
+
+    when:
+    httpClient.sendRequest(dummyRequest())
+
+    then:
+    1 * ddAgentFeaturesDiscovery.discoverIfOutdated()
+    1 * ddAgentFeaturesDiscovery.supportsTelemetryProxy() >> false
+    1 * okHttpClient.newCall(_) >> { args ->
+      request = args[0]; mockResponse(returnCode)
+    }
+    request.url() == expectedUrl
+    request.header(apiKeyHeader) == expectedApiKey
+
+    when:
+    httpClient.sendRequest(dummyRequest())
+
+    then:
+    1 * ddAgentFeaturesDiscovery.discoverIfOutdated()
+    1 * ddAgentFeaturesDiscovery.supportsTelemetryProxy() >> false
+    1 * okHttpClient.newCall(_) >> { args -> request = args[0]; mockResponse(returnCode) }
+    request.url() == agentTelemetryUrl
+    request.header(apiKeyHeader) == null
+
+    when:
+    httpClient.sendRequest(dummyRequest())
+
+    then:
+    1 * ddAgentFeaturesDiscovery.discoverIfOutdated()
+    1 * ddAgentFeaturesDiscovery.supportsTelemetryProxy() >> false
+    1 * okHttpClient.newCall(_) >> { args -> request = args[0]; mockResponse(returnCode) }
+    request.url() == expectedUrl
+    request.header(apiKeyHeader) == expectedApiKey
+
+    where:
+    returnCode | expectedApiKey | expectedUrl
+    404        | apiKey         | intakeUrl
+    500        | apiKey         | intakeUrl
   }
 }
