@@ -133,7 +133,7 @@ public class OtelSpan implements Span {
     return this.recording;
   }
 
-  AgentScope activate() {
+  public AgentScope activate() {
     return activateSpan(this.delegate);
   }
 
