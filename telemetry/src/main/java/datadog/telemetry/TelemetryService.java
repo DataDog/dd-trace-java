@@ -116,7 +116,7 @@ public class TelemetryService {
             RequestType.APP_CLOSING,
             debug);
     if (telemetryRouter.sendRequest(telemetryRequest) != TelemetryClient.Result.SUCCESS) {
-      log.error("Couldn't send app-closing event!");
+      log.warn("Couldn't send app-closing event!");
     }
   }
 

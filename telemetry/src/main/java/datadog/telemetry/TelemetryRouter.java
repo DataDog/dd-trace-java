@@ -28,23 +28,12 @@ public class TelemetryRouter {
     this.ddAgentFeaturesDiscovery = ddAgentFeaturesDiscovery;
     this.agentClient = agentClient;
     this.intakeClient = intakeClient;
+    this.currentClient = agentClient;
   }
 
   public TelemetryClient.Result sendRequest(TelemetryRequest request) {
     ddAgentFeaturesDiscovery.discoverIfOutdated();
     boolean agentSupportsTelemetryProxy = ddAgentFeaturesDiscovery.supportsTelemetryProxy();
-
-    if (currentClient == null) {
-      if (!agentSupportsTelemetryProxy && intakeClient != null) {
-        currentClient = intakeClient;
-      } else {
-        currentClient = agentClient;
-      }
-      log.info(
-          "Telemetry will be sent to {}. agentSupportsTelemetryProxy={}",
-          currentClient.getUrl(),
-          agentSupportsTelemetryProxy);
-    }
 
     Request.Builder httpRequestBuilder = request.httpRequest();
     TelemetryClient.Result result = currentClient.sendHttpRequest(httpRequestBuilder);

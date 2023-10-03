@@ -88,7 +88,7 @@ public class TelemetryClient {
       return Result.FAILURE;
     }
 
-    log.debug("Telemetry message {} sent successfully.", requestType);
+    log.debug("Telemetry message {} sent successfully to {}.", requestType, url);
     return Result.SUCCESS;
   }
 }
