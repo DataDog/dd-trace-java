@@ -517,4 +517,59 @@ class SparkTest extends AgentTestRunner {
       }
     }
   }
+
+  def "set the proper databricks service"(String ddService, String clusterName, String clusterAllTags, String expectedService) {
+    setup:
+    if (ddService != null) {
+      injectSysConfig("dd.service", ddService)
+    }
+
+    def builder = SparkSession.builder()
+      .config("spark.master", "local[2]")
+      .config("spark.databricks.sparkContextId", "some_id")
+
+    if (clusterName) {
+      builder.config("spark.databricks.clusterUsageTags.clusterName", clusterName)
+    }
+    if (clusterAllTags) {
+      builder.config("spark.databricks.clusterUsageTags.clusterAllTags", clusterAllTags)
+    }
+
+    when:
+    def sparkSession = builder.getOrCreate()
+    def df = generateSampleDataframe(sparkSession)
+    df.coalesce(1).count()
+    sparkSession.stop()
+
+    then:
+    assertTraces(1) {
+      trace(3) {
+        span {
+          operationName "spark.sql"
+          spanType "spark"
+          span.serviceName ==~ expectedService
+        }
+        span {
+          operationName "spark.job"
+          spanType "spark"
+          childOf(span(0))
+          span.serviceName ==~ expectedService
+        }
+        span {
+          operationName "spark.stage"
+          spanType "spark"
+          childOf(span(1))
+          span.serviceName ==~ expectedService
+        }
+      }
+    }
+
+    where:
+    ddService | clusterName         | clusterAllTags                                                                         | expectedService
+    "foobar"  | "some_cluster_name" | """[{"key": "foo"}, {"key": "RunName", "value": "some_run_name"}]"""                   | "^(databricks)"
+    null      | "some_cluster_name" | """[{"key": "foo"}, {"key": "RunName", "value": "some_run_name"}]"""                   | "databricks.job-cluster.some_run_name"
+    null      | "some_cluster_name" | """[{"key":"RunName","value":"some_run_name_9975a7ba-5e04-11ee-8c99-0242ac120002"}]""" | "databricks.job-cluster.some_run_name"
+    null      | "some_cluster_name" | """invalid_json"""                                                                     | "databricks.all-purpose-cluster.some_cluster_name"
+    null      | null                | null                                                                                   | "^(databricks)"
+  }
 }
