@@ -159,8 +159,7 @@ public abstract class SinkModuleBase implements HasDependencies {
       @Nonnull final Evidence evidence) {
     reporter.report(
         span,
-        new Vulnerability(
-            type, Location.forSpanAndStack(spanId(span), getCurrentStackTrace()), evidence));
+        new Vulnerability(type, Location.forSpanAndStack(span, getCurrentStackTrace()), evidence));
   }
 
   protected Object isDeeplyTainted(
@@ -242,8 +241,8 @@ public abstract class SinkModuleBase implements HasDependencies {
     return stackWalker.walk(SinkModuleBase::findValidPackageForVulnerability);
   }
 
-  static long spanId(final AgentSpan span) {
-    return span == null ? 0 : span.getSpanId();
+  protected String getServiceName(final AgentSpan span) {
+    return span != null ? span.getServiceName() : null;
   }
 
   static StackTraceElement findValidPackageForVulnerability(
