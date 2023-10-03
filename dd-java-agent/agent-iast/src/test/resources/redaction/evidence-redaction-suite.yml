@@ -1688,7 +1688,7 @@ suite:
       }
 
   - type: 'VULNERABILITIES'
-    description: 'Length based redaction '
+    description: 'Tainted range based redaction '
     input: >
       [
         {
@@ -1721,7 +1721,7 @@ suite:
       } 
 
   - type: 'VULNERABILITIES'
-    description: 'Length based redaction - with redactable source '
+    description: 'Tainted range based redaction - with redactable source '
     input: >
       [
         {
@@ -1754,7 +1754,7 @@ suite:
       } 
 
   - type: 'VULNERABILITIES'
-    description: 'Length based redaction - multiple ranges'
+    description: 'Tainted range based redaction - multiple ranges'
     input: >
       [
         {
@@ -1791,7 +1791,7 @@ suite:
       } 
 
   - type: 'VULNERABILITIES'
-    description: 'Length based redaction - first range at the beginning '
+    description: 'Tainted range based redaction - first range at the beginning '
     input: >
       [
         {
@@ -1827,7 +1827,7 @@ suite:
       } 
 
   - type: 'VULNERABILITIES'
-    description: 'Length based redaction - last range at the end '
+    description: 'Tainted range based redaction - last range at the end '
     input: >
       [
         {
@@ -1862,7 +1862,7 @@ suite:
       } 
 
   - type: 'VULNERABILITIES'
-    description: 'Length based redaction - whole text '
+    description: 'Tainted range based redaction - whole text '
     input: >
       [
         {
