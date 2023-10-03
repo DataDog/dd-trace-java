@@ -41,6 +41,18 @@ class TaintedObjectEncodingTest extends DDSpecification {
 }''', result, true)
   }
 
+  void 'test tainted truncated object'() {
+    given:
+    final value = taintedObject('test', SourceTypes.REQUEST_PARAMETER_NAME, 'key', 'Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.Sed ut perspiciatis unde omnis iste natus error sit voluptatem ac')
+
+    when:
+    final result = TaintedObjectEncoding.toJson(value)
+
+    then:
+    JSONAssert.assertEquals('''{"value":"test","ranges":[{"source":{"origin":"http.request.parameter.name","name":"key","value":"Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure do","truncated":"right"},"start":0,"length":4}]}
+''', result, true)
+  }
+
   void 'test tainted object list'() {
     given:
     final value = [

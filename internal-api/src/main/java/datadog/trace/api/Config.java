@@ -1477,7 +1477,9 @@ public class Config {
     iastRedactionValuePattern =
         configProvider.getString(
             IAST_REDACTION_VALUE_PATTERN, DEFAULT_IAST_REDACTION_VALUE_PATTERN);
-    iastTruncationMaxValueLength = configProvider.getInteger(IAST_TRUNCATION_MAX_VALUE_LENGTH, DEFAULT_IAST_TRUNCATION_MAX_VALUE_LENGTH);
+    iastTruncationMaxValueLength =
+        configProvider.getInteger(
+            IAST_TRUNCATION_MAX_VALUE_LENGTH, DEFAULT_IAST_TRUNCATION_MAX_VALUE_LENGTH);
 
     ciVisibilityTraceSanitationEnabled =
         configProvider.getBoolean(CIVISIBILITY_TRACE_SANITATION_ENABLED, true);
@@ -2457,7 +2459,9 @@ public class Config {
     return iastRedactionValuePattern;
   }
 
-  public int getIastTruncationMaxValueLength(){ return iastTruncationMaxValueLength; }
+  public int getIastTruncationMaxValueLength() {
+    return iastTruncationMaxValueLength;
+  }
 
   public boolean isCiVisibilityEnabled() {
     return instrumenterConfig.isCiVisibilityEnabled();

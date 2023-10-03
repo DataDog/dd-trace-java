@@ -15,11 +15,12 @@ import javax.annotation.Nullable;
 public class TaintedObjectAdapter {
 
   @ToJson
-  public void toJson(@Nonnull final JsonWriter writer, @Nullable final TaintedObject value)
+  public void toJson(@Nonnull final JsonWriter jsonWriter, @Nullable final TaintedObject value)
       throws IOException {
     if (value == null) {
-      writer.nullValue();
+      jsonWriter.nullValue();
     } else {
+      TruncatedWriter writer = new TruncatedWriter(jsonWriter);
       writer.beginObject();
       final Object weak = value.get();
       writer.name("value");
@@ -34,7 +35,7 @@ public class TaintedObjectAdapter {
     }
   }
 
-  private void toJson(@Nonnull final JsonWriter writer, @Nullable final Range value)
+  private void toJson(@Nonnull final TruncatedWriter writer, @Nullable final Range value)
       throws IOException {
     if (value == null) {
       writer.nullValue();
@@ -50,7 +51,7 @@ public class TaintedObjectAdapter {
     }
   }
 
-  private void toJson(@Nonnull final JsonWriter writer, @Nullable final Source value)
+  private void toJson(@Nonnull final TruncatedWriter writer, @Nullable final Source value)
       throws IOException {
     if (value == null) {
       writer.nullValue();
