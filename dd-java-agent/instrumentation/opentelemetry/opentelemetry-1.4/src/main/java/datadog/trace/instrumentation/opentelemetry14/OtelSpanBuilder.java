@@ -12,6 +12,7 @@ import io.opentelemetry.api.trace.SpanBuilder;
 import io.opentelemetry.api.trace.SpanContext;
 import io.opentelemetry.api.trace.SpanKind;
 import io.opentelemetry.context.Context;
+import java.util.List;
 import java.util.Locale;
 import java.util.concurrent.TimeUnit;
 import javax.annotation.ParametersAreNonnullByDefault;
@@ -79,7 +80,27 @@ public class OtelSpanBuilder implements SpanBuilder {
 
   @Override
   public <T> SpanBuilder setAttribute(AttributeKey<T> key, T value) {
-    this.delegate.withTag(key.getKey(), value);
+    switch (key.getType()) {
+      case STRING_ARRAY:
+      case BOOLEAN_ARRAY:
+      case LONG_ARRAY:
+      case DOUBLE_ARRAY:
+        if (value instanceof List) {
+          List<?> valueList = (List<?>) value;
+          if (valueList.isEmpty()) {
+            // Store as object to prevent delegate to remove tag when value is empty
+            this.delegate.withTag(key.getKey(), (Object) "");
+          } else {
+            for (int index = 0; index < valueList.size(); index++) {
+              this.delegate.withTag(key.getKey() + "." + index, valueList.get(index));
+            }
+          }
+        }
+        break;
+      default:
+        this.delegate.withTag(key.getKey(), value);
+        break;
+    }
     return this;
   }
 
