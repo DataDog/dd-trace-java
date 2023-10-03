@@ -48,7 +48,7 @@ public class Reporter {
     if (span == null) {
       final AgentSpan newSpan = startNewSpan();
       try (final AgentScope autoClosed = tracer().activateSpan(newSpan, ScopeSource.MANUAL)) {
-        vulnerability.getLocation().updateSpan(newSpan.getSpanId());
+        vulnerability.updateSpan(newSpan);
         reportVulnerability(newSpan, vulnerability);
       } finally {
         newSpan.finish();

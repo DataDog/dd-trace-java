@@ -17,7 +17,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class CurrentAppSecConfig {
-  private static Logger log = LoggerFactory.getLogger(CurrentAppSecConfig.class);
+  private static final Logger log = LoggerFactory.getLogger(CurrentAppSecConfig.class);
 
   private AppSecConfig ddConfig; // assume there's only one of these
   CollectedUserConfigs userConfigs = new CollectedUserConfigs();
@@ -84,6 +84,11 @@ public class CurrentAppSecConfig {
     if (dirtyStatus.rules) {
       mso.put("metadata", ddConfig.getRawConfig().getOrDefault("metadata", Collections.emptyMap()));
       mso.put("rules", ddConfig.getRawConfig().getOrDefault("rules", Collections.emptyList()));
+      mso.put(
+          "processors",
+          ddConfig.getRawConfig().getOrDefault("processors", Collections.emptyList()));
+      mso.put(
+          "scanners", ddConfig.getRawConfig().getOrDefault("scanners", Collections.emptyList()));
     }
     if (dirtyStatus.customRules) {
       mso.put("custom_rules", getMergedCustomRules());

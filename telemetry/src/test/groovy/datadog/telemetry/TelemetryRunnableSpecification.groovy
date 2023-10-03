@@ -161,11 +161,17 @@ class TelemetryRunnableSpecification extends Specification {
     1 * telemetryService.sendTelemetryEvents()
     1 * timeSource.getCurrentTimeMillis() >> 120 * 1000 + 7
     1 * sleeperMock.sleep(9993)
-    0 * _
 
     when:
     t.interrupt()
     t.join()
+
+    // flush pending data before shutdown
+    then:
+    1 * metricCollector.prepareMetrics()
+    1 * metricCollector.drain() >> []
+    1 * periodicAction.doIteration(telemetryService)
+    1 * telemetryService.sendTelemetryEvents()
 
     then:
     1 * telemetryService.sendAppClosingEvent()

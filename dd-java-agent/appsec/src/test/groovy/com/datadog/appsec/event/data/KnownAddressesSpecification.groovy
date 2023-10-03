@@ -31,12 +31,13 @@ class KnownAddressesSpecification extends Specification {
       'grpc.server.request.message',
       'grpc.server.request.metadata',
       'usr.id',
+      'waf.context.processor',
     ]
   }
 
   void 'number of known addresses is expected number'() {
     expect:
-    Address.instanceCount() == 22
-    KnownAddresses.USER_ID.serial == Address.instanceCount() - 1
+    Address.instanceCount() == 24
+    KnownAddresses.WAF_CONTEXT_PROCESSOR.serial == Address.instanceCount() - 1
   }
 }

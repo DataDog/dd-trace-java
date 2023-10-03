@@ -7,8 +7,8 @@ import com.datadog.appsec.event.EventProducerService
 import com.datadog.appsec.event.data.DataBundle
 import com.datadog.appsec.event.data.KnownAddresses
 import com.datadog.appsec.event.data.SingletonDataBundle
+import com.datadog.appsec.report.AppSecEvent
 import com.datadog.appsec.report.AppSecEventWrapper
-import com.datadog.appsec.report.raw.events.AppSecEvent100
 import datadog.trace.api.internal.TraceSegment
 import datadog.trace.api.function.TriConsumer
 import datadog.trace.api.function.TriFunction
@@ -61,7 +61,7 @@ class GatewayBridgeSpecification extends DDSpecification {
 
   RateLimiter rateLimiter = new RateLimiter(10, { -> 0L } as TimeSource, RateLimiter.ThrottledCallback.NOOP)
   TraceSegmentPostProcessor pp = Mock()
-  GatewayBridge bridge = new GatewayBridge(ig, eventDispatcher, rateLimiter, [pp])
+  GatewayBridge bridge = new GatewayBridge(ig, eventDispatcher, rateLimiter, null, [pp])
 
   Supplier<Flow<AppSecRequestContext>> requestStartedCB
   BiFunction<RequestContext, AgentSpan, Flow<Void>> requestEndedCB
@@ -115,7 +115,7 @@ class GatewayBridgeSpecification extends DDSpecification {
   }
 
   void 'request_end closes context reports attacks and publishes event'() {
-    AppSecEvent100 event = Mock()
+    AppSecEvent event = Mock()
     AppSecRequestContext mockAppSecCtx = Mock(AppSecRequestContext)
     mockAppSecCtx.requestHeaders >> ['accept':['header_value']]
     mockAppSecCtx.responseHeaders >> [
@@ -149,7 +149,7 @@ class GatewayBridgeSpecification extends DDSpecification {
   }
 
   void 'event publishing is rate limited'() {
-    AppSecEvent100 event = Mock()
+    AppSecEvent event = Mock()
     AppSecRequestContext mockAppSecCtx = Mock(AppSecRequestContext)
     mockAppSecCtx.requestHeaders >> [:]
     RequestContext mockCtx = Mock(RequestContext) {
@@ -185,7 +185,7 @@ class GatewayBridgeSpecification extends DDSpecification {
     requestEndedCB.apply(mockCtx, spanInfo)
 
     then:
-    1 * mockAppSecCtx.transferCollectedEvents() >> [Mock(AppSecEvent100)]
+    1 * mockAppSecCtx.transferCollectedEvents() >> [Mock(AppSecEvent)]
     1 * spanInfo.getTags() >> ['http.client_ip':'8.8.8.8']
     1 * traceSegment.setTagTop('actor.ip', '8.8.8.8')
   }
@@ -243,7 +243,8 @@ class GatewayBridgeSpecification extends DDSpecification {
 
     then:
     thrown(IllegalStateException)
-    assert bundle.get(KnownAddresses.HEADERS_NO_COOKIES).isEmpty()
+    def data = bundle.get(KnownAddresses.HEADERS_NO_COOKIES)
+    assert data == null || data.isEmpty()
   }
 
   void 'the socket address is distributed'() {

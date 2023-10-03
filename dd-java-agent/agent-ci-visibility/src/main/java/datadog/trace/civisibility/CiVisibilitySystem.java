@@ -150,7 +150,8 @@ public class CiVisibilitySystem {
       CIInfo ciInfo = ciProviderInfo.buildCIInfo();
       String repoRoot = ciInfo.getCiWorkspace();
 
-      RepoIndexProvider indexProvider = new RepoIndexBuilder(repoRoot, FileSystems.getDefault());
+      RepoIndexProvider indexProvider =
+          new RepoIndexBuilder(projectRoot.toString(), FileSystems.getDefault());
       SourcePathResolver sourcePathResolver = getSourcePathResolver(repoRoot, indexProvider);
       Codeowners codeowners = getCodeowners(repoRoot);
 
@@ -165,7 +166,8 @@ public class CiVisibilitySystem {
       GitDataUploader gitDataUploader =
           buildGitDataUploader(config, gitInfoProvider, gitClientFactory, backendApi, repoRoot);
       ModuleExecutionSettingsFactory moduleExecutionSettingsFactory =
-          buildModuleExecutionSettingsFactory(config, backendApi, gitDataUploader, repoRoot);
+          buildModuleExecutionSettingsFactory(
+              config, backendApi, gitDataUploader, indexProvider, repoRoot);
 
       String signalServerHost = config.getCiVisibilitySignalServerHost();
       int signalServerPort = config.getCiVisibilitySignalServerPort();
@@ -273,9 +275,10 @@ public class CiVisibilitySystem {
       if (parentProcessSessionId == null || parentProcessModuleId == null) {
         GitDataUploader gitDataUploader =
             buildGitDataUploader(config, gitInfoProvider, gitClientFactory, backendApi, repoRoot);
-        ModuleExecutionSettingsFactory moduleExecutionSettingsFactory =
-            buildModuleExecutionSettingsFactory(config, backendApi, gitDataUploader, repoRoot);
         RepoIndexProvider indexProvider = new RepoIndexBuilder(repoRoot, FileSystems.getDefault());
+        ModuleExecutionSettingsFactory moduleExecutionSettingsFactory =
+            buildModuleExecutionSettingsFactory(
+                config, backendApi, gitDataUploader, indexProvider, repoRoot);
         SourcePathResolver sourcePathResolver = getSourcePathResolver(repoRoot, indexProvider);
 
         // only start Git data upload in parent process
@@ -391,6 +394,7 @@ public class CiVisibilitySystem {
       Config config,
       BackendApi backendApi,
       GitDataUploader gitDataUploader,
+      RepoIndexProvider repoIndexProvider,
       String repositoryRoot) {
     ConfigurationApi configurationApi;
     if (backendApi == null) {
@@ -403,7 +407,7 @@ public class CiVisibilitySystem {
     return new CachingModuleExecutionSettingsFactory(
         config,
         new ModuleExecutionSettingsFactoryImpl(
-            config, configurationApi, gitDataUploader, repositoryRoot));
+            config, configurationApi, gitDataUploader, repoIndexProvider, repositoryRoot));
   }
 
   private static SourcePathResolver getSourcePathResolver(

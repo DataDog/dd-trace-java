@@ -21,6 +21,8 @@ import org.junit.platform.launcher.TestPlan;
 
 public class TracingListener implements TestExecutionListener {
 
+  private static final String JUNIT_VINTAGE_ENGINE = "junit-vintage";
+
   private final Map<String, String> versionByTestEngineId = new HashMap<>();
 
   private volatile TestPlan testPlan;
@@ -127,6 +129,11 @@ public class TracingListener implements TestExecutionListener {
 
   private void testMethodExecutionStarted(TestIdentifier testIdentifier, MethodSource testSource) {
     String testEngineId = JUnitPlatformLauncherUtils.getTestEngineId(testIdentifier);
+    if (JUNIT_VINTAGE_ENGINE.equals(testEngineId)) {
+      // vintage tests are traced with JUnit 4 instrumentation
+      return;
+    }
+
     String testFramework = getTestFramework(testEngineId);
     String testFrameworkVersion = versionByTestEngineId.get(testEngineId);
 

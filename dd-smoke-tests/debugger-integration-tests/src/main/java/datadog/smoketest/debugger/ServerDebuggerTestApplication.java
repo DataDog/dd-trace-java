@@ -1,5 +1,6 @@
 package datadog.smoketest.debugger;
 
+import datadog.trace.api.Trace;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
@@ -37,6 +38,7 @@ public class ServerDebuggerTestApplication {
 
   public static void registerMethods() {
     methodsByName.put("fullMethod", ServerDebuggerTestApplication::runFullMethod);
+    methodsByName.put("tracedMethod", ServerDebuggerTestApplication::runTracedMethod);
   }
 
   public ServerDebuggerTestApplication(String controlServerUrl) {
@@ -70,7 +72,7 @@ public class ServerDebuggerTestApplication {
   }
 
   protected void waitForInstrumentation(String className) {
-    System.out.println("waitForInstrumentation on " + className);
+    System.out.println("waitForInstrumentation on " + className + " from: " + lastMatchedLine);
     try {
       lastMatchedLine =
           TestApplicationHelper.waitForInstrumentation(LOG_FILENAME, className, lastMatchedLine);
@@ -109,7 +111,34 @@ public class ServerDebuggerTestApplication {
     fullMethod(42, "foobar", 3.42, map, "var1", "var2", "var3");
   }
 
+  @Trace
+  private static void runTracedMethod() {
+    Map<String, String> map = new HashMap<>();
+    map.put("key1", "val1");
+    map.put("key2", "val2");
+    map.put("key3", "val3");
+    tracedMethod(42, "foobar", 3.42, map, "var1", "var2", "var3");
+  }
+
   private static String fullMethod(
+      int argInt, String argStr, double argDouble, Map<String, String> argMap, String... argVar) {
+    try {
+      return argInt
+          + ", "
+          + argStr
+          + ", "
+          + argDouble
+          + ", "
+          + argMap
+          + ", "
+          + String.join(",", argVar);
+    } catch (Exception ex) {
+      ex.printStackTrace();
+      return null;
+    }
+  }
+
+  private static String tracedMethod(
       int argInt, String argStr, double argDouble, Map<String, String> argMap, String... argVar) {
     try {
       return argInt

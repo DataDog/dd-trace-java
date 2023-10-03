@@ -186,6 +186,20 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
     }
   }
 
+  void 'X content type options missing header vulnerability is absent'() {
+    setup:
+    String url = "http://localhost:${httpPort}/xcontenttypeoptionsecure"
+    def request = new Request.Builder().url(url).get().build()
+    when:
+    def response = client.newCall(request).execute()
+    then:
+    response.isSuccessful()
+    noVulnerability { vul ->
+      vul.type == 'XCONTENTTYPE_HEADER_MISSING'
+    }
+  }
+
+
   void 'no HttpOnly cookie vulnerability is present'() {
     setup:
     String url = "http://localhost:${httpPort}/insecure_cookie"

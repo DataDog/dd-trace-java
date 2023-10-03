@@ -116,7 +116,7 @@ class PeerServiceCalculatorTest extends DDSpecification {
 
     where:
     tags                                                                                   | expected       | source
-    ["component": "java-couchbase", "span.kind": "client"]                                 | "couchbase"    | "config_override"
+    ["component": "java-couchbase", "span.kind": "client"]                                 | "couchbase"    | "_component_override"
     ["peer.hostname": "host1", "span.kind": "client", "component" : "my-http-client"]      | "host1"        | "peer.hostname"
   }
 }

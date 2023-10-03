@@ -61,7 +61,7 @@ public class HttpResponseHeaderModuleImpl extends SinkModuleBase
     if (!overheadController.consumeQuota(Operations.REPORT_VULNERABILITY, span)) {
       return;
     }
-    final Location location = Location.forSpanAndStack(spanId(span), getCurrentStackTrace());
+    final Location location = Location.forSpanAndStack(span, getCurrentStackTrace());
     for (final Map.Entry<VulnerabilityType, Cookie> entry : vulnerable.entrySet()) {
       final Cookie cookie = entry.getValue();
       final Evidence evidence = new Evidence(cookie.getCookieName());

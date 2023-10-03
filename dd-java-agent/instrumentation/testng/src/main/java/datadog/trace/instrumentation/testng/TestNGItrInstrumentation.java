@@ -10,6 +10,7 @@ import datadog.trace.api.Config;
 import datadog.trace.api.civisibility.InstrumentationBridge;
 import datadog.trace.api.civisibility.config.SkippableTest;
 import java.lang.reflect.Method;
+import java.util.List;
 import java.util.Set;
 import net.bytebuddy.asm.Advice;
 import org.testng.SkipException;
@@ -61,6 +62,11 @@ public class TestNGItrInstrumentation extends Instrumenter.CiVisibility
         @Advice.Argument(0) final Method method,
         @Advice.Argument(1) final Object instance,
         @Advice.Argument(2) final Object[] parameters) {
+      List<String> groups = TestNGUtils.getGroups(method);
+      if (groups.contains(InstrumentationBridge.ITR_UNSKIPPABLE_TAG)) {
+        return;
+      }
+
       SkippableTest skippableTest = TestNGUtils.toSkippableTest(method, instance, parameters);
       if (TestEventsHandlerHolder.TEST_EVENTS_HANDLER.skip(skippableTest)) {
         throw new SkipException(InstrumentationBridge.ITR_SKIP_REASON);

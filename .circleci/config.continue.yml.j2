@@ -19,6 +19,13 @@ profiling_test_matrix: &profiling_test_matrix
       - "{{ jdk }}"
 {% endfor %}
 
+debugger_test_matrix: &debugger_test_matrix
+  parameters:
+    testJvm:
+{% for jdk in all_debugger_jdks %}
+      - "{{ jdk }}"
+{% endfor %}
+
 system_test_matrix: &system_test_matrix
   parameters:
     weblog-variant: [ 'spring-boot', 'spring-boot-jetty', 'spring-boot-openliberty', 'spring-boot-3-native', 'jersey-grizzly2', 'resteasy-netty3','ratpack', 'vertx3' ]
@@ -714,6 +721,27 @@ jobs:
           path: ./reports
 
       - display_memory_usage
+  muzzle-dep-report:
+    <<: *defaults
+    resource_class: medium
+    steps:
+      - setup_code
+      - skip_unless_matching_files_changed:
+          pattern: "dd-java-agent/instrumentation"
+      - restore_dependency_cache:
+          cacheType: inst
+      - restore_build_cache:
+          cacheType: inst
+      - run:
+          name: Generate muzzle dep report
+          command: >-
+            SKIP_BUILDSCAN="true"
+            ./gradlew generateMuzzleReport muzzleInstrumentationReport
+      - run:
+          name: Collect Reports
+          command: .circleci/collect_muzzle_deps.sh
+      - store_artifacts:
+          path: ./reports
 
   muzzle:
     <<: *defaults
@@ -1131,7 +1159,7 @@ build_test_jobs: &build_test_jobs
       stage: debugger
       cacheType: base
       matrix:
-        <<: *profiling_test_matrix
+        <<: *debugger_test_matrix
 
   - tests:
       requires:
@@ -1145,6 +1173,18 @@ build_test_jobs: &build_test_jobs
       maxWorkers: 3
       matrix:
         <<: *test_matrix
+
+  - tests:
+      requires:
+        - ok_to_test
+      name: test_semeru8_debugger_smoke
+      maxWorkers: 4
+      gradleTarget: "stageMainDist dd-smoke-tests:debugger-integration-tests:test"
+      gradleParameters: "-PskipFlakyTests"
+      triggeredBy: *debugger_modules
+      stage: debugger
+      cacheType: smoke
+      testJvm: "semeru8"
 
   - tests:
       requires:
@@ -1207,6 +1247,10 @@ build_test_jobs: &build_test_jobs
             - master
             - project/*
             - release/*
+
+  - muzzle-dep-report:
+      requires:
+        - ok_to_test
 
   - system-tests:
       requires:

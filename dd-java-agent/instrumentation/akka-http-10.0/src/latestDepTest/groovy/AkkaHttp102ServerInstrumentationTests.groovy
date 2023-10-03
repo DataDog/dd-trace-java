@@ -24,6 +24,27 @@ class AkkaHttp102ServerInstrumentationBindSyncTest extends AkkaHttpServerInstrum
   HttpServer server() {
     return new AkkaHttpTestWebServer(AkkaHttp102TestWebServer.ServerBuilderBindSync())
   }
+
+  // we test body endpoints only on the async tests
+  @Override
+  boolean testRequestBody() {
+    false
+  }
+
+  @Override
+  boolean testBodyMultipart() {
+    false
+  }
+
+  @Override
+  boolean testBodyJson() {
+    false
+  }
+
+  @Override
+  boolean testBodyUrlencoded() {
+    false
+  }
 }
 
 class AkkaHttp102ServerInstrumentationBindAsyncHttp2Test extends AkkaHttpServerInstrumentationTest {

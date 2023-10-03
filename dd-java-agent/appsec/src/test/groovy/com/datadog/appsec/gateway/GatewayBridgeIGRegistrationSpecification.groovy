@@ -10,7 +10,7 @@ class GatewayBridgeIGRegistrationSpecification extends DDSpecification {
   SubscriptionService ig = Mock()
   EventDispatcher eventDispatcher = Mock()
 
-  GatewayBridge bridge = new GatewayBridge(ig, eventDispatcher, null, [])
+  GatewayBridge bridge = new GatewayBridge(ig, eventDispatcher, null, null, [])
 
   void 'request_body_start and request_body_done are registered'() {
     given:

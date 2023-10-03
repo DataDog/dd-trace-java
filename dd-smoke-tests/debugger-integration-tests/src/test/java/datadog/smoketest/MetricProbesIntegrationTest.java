@@ -6,10 +6,16 @@ import com.datadog.debugger.el.DSL;
 import com.datadog.debugger.el.ValueScript;
 import com.datadog.debugger.probe.MetricProbe;
 import java.io.IOException;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 public class MetricProbesIntegrationTest extends SimpleAppDebuggerIntegrationTest {
+
+  @AfterEach
+  void teardown() throws Exception {
+    processRemainingRequests();
+  }
 
   @Test
   @DisplayName("testMethodMetricInc")
@@ -138,7 +144,7 @@ public class MetricProbesIntegrationTest extends SimpleAppDebuggerIntegrationTes
     MetricProbe metricProbe =
         MetricProbe.builder()
             .probeId(PROBE_ID)
-            .where("DebuggerTestApplication.java", 69)
+            .where("DebuggerTestApplication.java", 80)
             .kind(kind)
             .metricName(metricName)
             .valueScript(script)

@@ -1632,7 +1632,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
 
   def 'test blocking of request for request body variant #variant'() {
     setup:
-    assumeTrue(testUserBlocking())
+    assumeTrue(testBlocking())
     assumeTrue(executeTest)
 
     def request = request(
