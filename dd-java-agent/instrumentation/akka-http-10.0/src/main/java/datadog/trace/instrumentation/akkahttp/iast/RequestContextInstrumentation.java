@@ -13,7 +13,6 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Propagation;
-import datadog.trace.api.iast.Taintable;
 import datadog.trace.api.iast.propagation.PropagationModule;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import net.bytebuddy.asm.Advice;
@@ -50,10 +49,7 @@ public class RequestContextInstrumentation extends Instrumenter.Iast
         @Advice.This RequestContext requestContext, @Advice.Return HttpRequest request) {
 
       PropagationModule propagation = InstrumentationBridge.PROPAGATION;
-      if (propagation == null
-          || !(requestContext instanceof Taintable)
-          || !((Object) request instanceof Taintable)
-          || ((Taintable) (Object) request).$DD$isTainted()) {
+      if (propagation == null || propagation.isTainted(request)) {
         return;
       }
 

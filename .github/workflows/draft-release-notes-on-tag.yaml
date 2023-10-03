@@ -121,7 +121,7 @@ jobs:
               var line = `${decorate(pullRequest)}${pullRequest.title} (#${pullRequest.number}`
               // Add author if community labeled
               if (pullRequest.labels.some(label => label.name == "tag: community")) {
-                line += ` - thanks @${pull.user.login} for the contribution!`
+                line += ` - thanks @${pullRequest.user.login} for the contribution!`
               }
               line += ')'
               return line;

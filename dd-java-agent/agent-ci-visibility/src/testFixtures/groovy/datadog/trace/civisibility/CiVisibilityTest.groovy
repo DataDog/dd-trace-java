@@ -47,6 +47,7 @@ abstract class CiVisibilityTest extends AgentTestRunner {
   private static Path agentKeyFile
 
   private static final List<SkippableTest> skippableTests = new ArrayList<>()
+  private static volatile boolean itrEnabled = false
 
   def setupSpec() {
     def currentPath = Paths.get("").toAbsolutePath()
@@ -65,9 +66,9 @@ abstract class CiVisibilityTest extends AgentTestRunner {
     def moduleExecutionSettingsFactory = Stub(ModuleExecutionSettingsFactory)
     moduleExecutionSettingsFactory.create(_, _) >> {
       Map<String, String> properties = [
-        (CiVisibilityConfig.CIVISIBILITY_ITR_ENABLED) : String.valueOf(!skippableTests.isEmpty())
+        (CiVisibilityConfig.CIVISIBILITY_ITR_ENABLED) : String.valueOf(itrEnabled)
       ]
-      return new ModuleExecutionSettings(properties, Collections.singletonMap(dummyModule, skippableTests))
+      return new ModuleExecutionSettings(false, itrEnabled, properties, Collections.singletonMap(dummyModule, skippableTests), Collections.emptyList())
     }
 
     def coverageProbeStoreFactory = new NoopCoverageProbeStore.NoopCoverageProbeStoreFactory()
@@ -128,10 +129,12 @@ abstract class CiVisibilityTest extends AgentTestRunner {
   @Override
   void setup() {
     skippableTests.clear()
+    itrEnabled = false
   }
 
   def givenSkippableTests(List<SkippableTest> tests) {
     skippableTests.addAll(tests)
+    itrEnabled = true
   }
 
   @Override

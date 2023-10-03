@@ -12,6 +12,7 @@ import org.example.TestAssumptionAndSucceed
 import org.example.TestError
 import org.example.TestFailed
 import org.example.TestFailedAndSucceed
+import org.example.TestFailedSuiteSetUpAssumption
 import org.example.TestFailedSuiteSetup
 import org.example.TestFailedSuiteTearDown
 import org.example.TestInheritance
@@ -20,9 +21,10 @@ import org.example.TestSkipped
 import org.example.TestSkippedClass
 import org.example.TestSucceed
 import org.example.TestSucceedAndSkipped
-import org.example.TestSucceedWithCategories
 import org.example.TestSucceedSuite
-import org.example.TestFailedSuiteSetUpAssumption
+import org.example.TestSucceedUnskippable
+import org.example.TestSucceedUnskippableSuite
+import org.example.TestSucceedWithCategories
 import org.junit.runner.JUnitCore
 
 @DisableTestTrace(reason = "avoid self-tracing")
@@ -532,6 +534,96 @@ class JUnit4Test extends CiVisibilityTest {
       (Tags.TEST_SKIPPED_BY_ITR): true
     ]
     testTags_1 = [(Tags.TEST_PARAMETERS): '{"metadata":{"test_name":"parameterized_test_succeed[1]"}}']
+  }
+
+  def "test ITR unskippable"() {
+    setup:
+    givenSkippableTests([new SkippableTest("org.example.TestSucceedUnskippable", "test_succeed", null, null),])
+    runTests(TestSucceedUnskippable)
+
+    expect:
+    ListWriterAssert.assertTraces(TEST_WRITER, 2, false, SORT_TRACES_BY_DESC_SIZE_THEN_BY_NAMES, {
+      long testSessionId
+      long testModuleId
+      long testSuiteId
+      trace(3, true) {
+        testSessionId = testSessionSpan(it, 1, CIConstants.TEST_PASS)
+        testModuleId = testModuleSpan(it, 0, testSessionId, CIConstants.TEST_PASS, [
+          (Tags.TEST_ITR_TESTS_SKIPPING_ENABLED): true,
+          (Tags.TEST_ITR_TESTS_SKIPPING_TYPE): "test",
+          (Tags.TEST_ITR_TESTS_SKIPPING_COUNT): 0,
+        ])
+        testSuiteId = testSuiteSpan(it, 2, testSessionId, testModuleId, "org.example.TestSucceedUnskippable", CIConstants.TEST_PASS)
+      }
+      trace(1) {
+        testSpan(it, 0, testSessionId, testModuleId, testSuiteId, "org.example.TestSucceedUnskippable", "test_succeed", "test_succeed()V", CIConstants.TEST_PASS,
+          testTags, null, false, [TestSucceedUnskippable.datadog_itr_unskippable.name])
+      }
+    })
+
+    where:
+    testTags = [(Tags.TEST_ITR_UNSKIPPABLE): true, (Tags.TEST_ITR_FORCED_RUN): true]
+  }
+
+  def "test ITR unskippable suite"() {
+    setup:
+    givenSkippableTests([
+      new SkippableTest("org.example.TestSucceedUnskippableSuite", "test_succeed", null, null),
+    ])
+    runTests(TestSucceedUnskippableSuite)
+
+    expect:
+    ListWriterAssert.assertTraces(TEST_WRITER, 2, false, SORT_TRACES_BY_DESC_SIZE_THEN_BY_NAMES, {
+      long testSessionId
+      long testModuleId
+      long testSuiteId
+      trace(3, true) {
+        testSessionId = testSessionSpan(it, 1, CIConstants.TEST_PASS)
+        testModuleId = testModuleSpan(it, 0, testSessionId, CIConstants.TEST_PASS, [
+          (Tags.TEST_ITR_TESTS_SKIPPING_ENABLED): true,
+          (Tags.TEST_ITR_TESTS_SKIPPING_TYPE): "test",
+          (Tags.TEST_ITR_TESTS_SKIPPING_COUNT): 0,
+        ])
+        testSuiteId = testSuiteSpan(it, 2, testSessionId, testModuleId, "org.example.TestSucceedUnskippableSuite", CIConstants.TEST_PASS,
+          null, null, false, [TestSucceedUnskippableSuite.datadog_itr_unskippable.name])
+      }
+      trace(1) {
+        testSpan(it, 0, testSessionId, testModuleId, testSuiteId, "org.example.TestSucceedUnskippableSuite", "test_succeed", "test_succeed()V", CIConstants.TEST_PASS,
+          testTags, null, false, [TestSucceedUnskippableSuite.datadog_itr_unskippable.name])
+      }
+    })
+
+    where:
+    testTags = [(Tags.TEST_ITR_UNSKIPPABLE): true, (Tags.TEST_ITR_FORCED_RUN): true]
+  }
+
+  def "test unskippable ITR test that is not supposed to be skipped"() {
+    setup:
+    givenSkippableTests([])
+    runTests(TestSucceedUnskippable)
+
+    expect:
+    ListWriterAssert.assertTraces(TEST_WRITER, 2, false, SORT_TRACES_BY_DESC_SIZE_THEN_BY_NAMES, {
+      long testSessionId
+      long testModuleId
+      long testSuiteId
+      trace(3, true) {
+        testSessionId = testSessionSpan(it, 1, CIConstants.TEST_PASS)
+        testModuleId = testModuleSpan(it, 0, testSessionId, CIConstants.TEST_PASS, [
+          (Tags.TEST_ITR_TESTS_SKIPPING_ENABLED): true,
+          (Tags.TEST_ITR_TESTS_SKIPPING_TYPE): "test",
+          (Tags.TEST_ITR_TESTS_SKIPPING_COUNT): 0,
+        ])
+        testSuiteId = testSuiteSpan(it, 2, testSessionId, testModuleId, "org.example.TestSucceedUnskippable", CIConstants.TEST_PASS)
+      }
+      trace(1) {
+        testSpan(it, 0, testSessionId, testModuleId, testSuiteId, "org.example.TestSucceedUnskippable", "test_succeed", "test_succeed()V", CIConstants.TEST_PASS,
+          testTags, null, false, [TestSucceedUnskippable.datadog_itr_unskippable.name])
+      }
+    })
+
+    where:
+    testTags = [(Tags.TEST_ITR_UNSKIPPABLE): true]
   }
 
   def "test suite runner"() {

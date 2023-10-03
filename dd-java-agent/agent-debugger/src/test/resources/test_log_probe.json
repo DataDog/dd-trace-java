@@ -18,7 +18,7 @@
       "typeName": "VetController",
       "methodName": "showVetList"
     },
-    "template": "this is a log line customized! uuid={uuid} result={result} garbageStart={garbageStart}",
+    "template": "this is a log line customized! uuid={uuid} result={result} garbageStart={garbageStart} contain={contains(arg, 'foo')}",
     "segments": [
       {
         "str": "this is a log line customized! uuid="
@@ -35,6 +35,11 @@
       }, {
         "dsl": "garbageStart",
         "json": {"ref": "garbageStart"}
+      }, {
+        "str": " contain="
+      }, {
+        "dsl": "contains(arg, 'foo')",
+        "json": {"contains": [{"ref": "arg"}, "foo"]}
       }
     ]
   }]

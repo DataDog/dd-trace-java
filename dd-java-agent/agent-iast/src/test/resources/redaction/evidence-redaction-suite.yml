@@ -1639,3 +1639,50 @@ suite:
           }
         ]
       }
+  - type: 'VULNERABILITIES'
+    description: 'Consecutive ranges - at the beginning'
+    input: >
+      [
+        {
+          "type": "UNVALIDATED_REDIRECT",
+          "evidence": {
+            "value": "https://user:password@datadoghq.com:443/api/v1/test/123/?param1=pone&param2=ptwo#fragment1=fone&fragment2=ftwo",
+            "ranges": [
+              { "start" : 0, "length" : 4, "source": { "origin": "http.request.parameter", "name": "protocol", "value": "http" } },
+              { "start" : 4, "length" : 1, "source": { "origin": "http.request.parameter", "name": "secure", "value": "s" } },
+              { "start" : 22, "length" : 13, "source": { "origin": "http.request.parameter", "name": "host", "value": "datadoghq.com" } }
+            ]
+          }
+        }
+      ]
+    expected: >
+      {
+        "sources": [
+          { "origin": "http.request.parameter", "name": "protocol", "value": "http" },
+          { "origin": "http.request.parameter", "name": "secure", "value": "s" },
+          { "origin": "http.request.parameter", "name": "host", "value": "datadoghq.com" }
+        ],
+        "vulnerabilities": [
+          {
+            "type": "UNVALIDATED_REDIRECT",
+            "evidence": {
+              "valueParts": [
+                { "source": 0, "value": "http" },
+                { "source": 1, "value": "s" },
+                { "value": "://" },
+                { "redacted": true },
+                { "value": "@" },
+                { "source": 2, "value": "datadoghq.com" },
+                { "value": ":443/api/v1/test/123/?param1=" },
+                { "redacted": true },
+                { "value": "&param2=" },
+                { "redacted": true },
+                { "value": "#fragment1=" },
+                { "redacted": true },
+                { "value": "&fragment2=" },
+                { "redacted": true }
+              ]
+            }
+          }
+        ]
+      }

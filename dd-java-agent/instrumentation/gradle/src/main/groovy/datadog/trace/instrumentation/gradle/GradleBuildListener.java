@@ -106,6 +106,8 @@ public class GradleBuildListener extends BuildAdapter {
     for (Task testExecution : testExecutions) {
       GradleProjectConfigurator.INSTANCE.configureTracer(
           testExecution, moduleExecutionSettings.getSystemProperties());
+      GradleProjectConfigurator.INSTANCE.configureJacoco(
+          testExecution.getProject(), moduleExecutionSettings);
     }
   }
 

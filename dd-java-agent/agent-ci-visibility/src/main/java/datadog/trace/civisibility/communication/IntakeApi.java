@@ -20,22 +20,15 @@ public class IntakeApi implements BackendApi {
 
   private static final String API_VERSION = "v2";
   private static final String DD_API_KEY_HEADER = "dd-api-key";
-  private static final String DD_APPLICATION_KEY_HEADER = "dd-application-key";
 
   private final String apiKey;
-  private final String applicationKey;
   private final HttpRetryPolicy.Factory retryPolicyFactory;
   private final HttpUrl hostUrl;
   private final OkHttpClient httpClient;
 
   public IntakeApi(
-      String site,
-      String apiKey,
-      String applicationKey,
-      long timeoutMillis,
-      HttpRetryPolicy.Factory retryPolicyFactory) {
+      String site, String apiKey, long timeoutMillis, HttpRetryPolicy.Factory retryPolicyFactory) {
     this.apiKey = apiKey;
-    this.applicationKey = applicationKey;
     this.retryPolicyFactory = retryPolicyFactory;
 
     final String ciVisibilityAgentlessUrlStr = Config.get().getCiVisibilityAgentlessUrl();
@@ -55,10 +48,6 @@ public class IntakeApi implements BackendApi {
     HttpUrl url = hostUrl.resolve(uri);
     Request.Builder requestBuilder =
         new Request.Builder().url(url).post(requestBody).addHeader(DD_API_KEY_HEADER, apiKey);
-
-    if (applicationKey != null) {
-      requestBuilder.addHeader(DD_APPLICATION_KEY_HEADER, applicationKey);
-    }
 
     Request request = requestBuilder.build();
     HttpRetryPolicy retryPolicy = retryPolicyFactory.create();

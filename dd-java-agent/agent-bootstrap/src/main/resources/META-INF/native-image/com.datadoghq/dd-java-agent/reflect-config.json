@@ -30,6 +30,12 @@
     ]
   },
   {
+    "name" : "java.util.concurrent.ConcurrentHashMap",
+    "methods": [
+      {"name": "<init>", "parameterTypes": []}
+    ]
+  },
+  {
     "name" : "datadog.trace.agent.common.sampling.SpanSamplingRules$RuleAdapter",
     "methods": [
       {"name": "fromJson"}

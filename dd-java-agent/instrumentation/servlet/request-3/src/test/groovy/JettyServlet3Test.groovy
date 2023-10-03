@@ -298,6 +298,13 @@ class JettyServlet3TestInclude extends JettyServlet3Test {
   }
 
   @Override
+  boolean testBlocking() {
+    // setting response code from included dispatches is not supported by servlet,
+    // and would require version-dependent hacks on Jetty
+    false
+  }
+
+  @Override
   boolean testUserBlocking() {
     false
   }

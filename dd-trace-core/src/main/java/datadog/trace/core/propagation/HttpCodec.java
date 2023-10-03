@@ -194,6 +194,19 @@ public class HttpCodec {
     return encoded;
   }
 
+  /**
+   * Encodes baggage value according <a href="https://www.w3.org/TR/baggage/#value">W3C RFC</a>.
+   *
+   * @param value The baggage value.
+   * @return The encoded baggage value.
+   */
+  static String encodeBaggage(final String value) {
+    // Fix encoding to comply with https://www.w3.org/TR/baggage/#value and use percent-encoding
+    // (RFC3986)
+    // for space ( ) instead of plus (+) from 'application/x-www-form' MIME encoding
+    return encode(value).replace("+", "%20");
+  }
+
   /** URL decode value */
   static String decode(final String value) {
     String decoded = value;

@@ -228,12 +228,17 @@ public class PropagationModuleImpl implements PropagationModule {
   }
 
   @Override
-  public void taint(
-      byte origin, @Nullable String name, @Nullable String value, @Nullable Taintable t) {
+  public void taintObject(
+      byte origin, @Nullable String name, @Nullable String value, @Nullable Object t) {
     if (t == null) {
       return;
     }
-    t.$$DD$setSource(new Source(origin, name, value));
+    if (t instanceof Taintable) {
+      ((Taintable) t).$$DD$setSource(new Source(origin, name, value));
+    } else {
+      final TaintedObjects taintedObjects = TaintedObjects.activeTaintedObjects();
+      taintObject(taintedObjects, t, new Source(origin, name, value));
+    }
   }
 
   @Override

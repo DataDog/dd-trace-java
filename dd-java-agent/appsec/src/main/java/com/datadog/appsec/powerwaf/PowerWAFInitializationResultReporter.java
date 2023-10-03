@@ -2,7 +2,7 @@ package com.datadog.appsec.powerwaf;
 
 import com.datadog.appsec.config.TraceSegmentPostProcessor;
 import com.datadog.appsec.gateway.AppSecRequestContext;
-import com.datadog.appsec.report.raw.events.AppSecEvent100;
+import com.datadog.appsec.report.AppSecEvent;
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Moshi;
 import com.squareup.moshi.Types;
@@ -35,7 +35,7 @@ public class PowerWAFInitializationResultReporter implements TraceSegmentPostPro
 
   @Override
   public void processTraceSegment(
-      TraceSegment segment, AppSecRequestContext ctx, Collection<AppSecEvent100> collectedEvents) {
+      TraceSegment segment, AppSecRequestContext ctx, Collection<AppSecEvent> collectedEvents) {
     RuleSetInfo report = pendingReportRef.get();
     if (report == null) {
       return;

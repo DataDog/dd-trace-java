@@ -9,6 +9,8 @@ import akka.http.scaladsl.model.HttpResponse;
 import akka.stream.Materializer;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.muzzle.Reference;
+import datadog.trace.instrumentation.akkahttp.appsec.ScalaListCollectorMuzzleReferences;
 import net.bytebuddy.asm.Advice;
 import scala.Function1;
 import scala.concurrent.Future;
@@ -38,8 +40,17 @@ public final class AkkaHttp2ServerInstrumentation extends Instrumenter.Tracing
       packageName + ".DatadogAsyncHandlerWrapper$2",
       packageName + ".AkkaHttpServerHeaders",
       packageName + ".AkkaHttpServerDecorator",
+      packageName + ".RecoverFromBlockedExceptionPF",
       packageName + ".UriAdapter",
+      packageName + ".appsec.AkkaBlockResponseFunction",
+      packageName + ".appsec.BlockingResponseHelper",
+      packageName + ".appsec.ScalaListCollector",
     };
+  }
+
+  @Override
+  public Reference[] additionalMuzzleReferences() {
+    return ScalaListCollectorMuzzleReferences.additionalMuzzleReferences();
   }
 
   @Override
@@ -70,7 +81,7 @@ public final class AkkaHttp2ServerInstrumentation extends Instrumenter.Tracing
         @Advice.Argument(value = 0, readOnly = false)
             Function1<HttpRequest, Future<HttpResponse>> handler,
         @Advice.Argument(value = 7) final Materializer materializer) {
-      handler = new DatadogAsyncHandlerWrapper(handler, materializer.executionContext());
+      handler = new DatadogAsyncHandlerWrapper(handler, materializer);
     }
   }
 
@@ -80,7 +91,7 @@ public final class AkkaHttp2ServerInstrumentation extends Instrumenter.Tracing
         @Advice.Argument(value = 0, readOnly = false)
             Function1<HttpRequest, Future<HttpResponse>> handler,
         @Advice.Argument(value = 6) final Materializer materializer) {
-      handler = new DatadogAsyncHandlerWrapper(handler, materializer.executionContext());
+      handler = new DatadogAsyncHandlerWrapper(handler, materializer);
     }
   }
 
@@ -90,7 +101,7 @@ public final class AkkaHttp2ServerInstrumentation extends Instrumenter.Tracing
         @Advice.Argument(value = 0, readOnly = false)
             Function1<HttpRequest, Future<HttpResponse>> handler,
         @Advice.Argument(value = 5) final Materializer materializer) {
-      handler = new DatadogAsyncHandlerWrapper(handler, materializer.executionContext());
+      handler = new DatadogAsyncHandlerWrapper(handler, materializer);
     }
   }
 }

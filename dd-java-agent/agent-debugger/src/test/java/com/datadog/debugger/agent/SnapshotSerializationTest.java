@@ -54,7 +54,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
-import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.LockSupport;
@@ -702,20 +701,13 @@ public class SnapshotSerializationTest {
   }
 
   @Test
-  public void collectionValueThrows() throws IOException {
+  public void collectionUnknown() throws IOException {
     JsonAdapter<Snapshot> adapter = createSnapshotAdapter();
     Snapshot snapshot = createSnapshot();
     CapturedContext context = new CapturedContext();
     CapturedContext.CapturedValue listLocal =
         CapturedContext.CapturedValue.of(
-            "listLocal",
-            List.class.getTypeName(),
-            new ArrayList<String>() {
-              @Override
-              public int size() {
-                throw new UnsupportedOperationException();
-              }
-            });
+            "listLocal", List.class.getTypeName(), new ArrayList<String>() {});
     context.addLocals(new CapturedContext.CapturedValue[] {listLocal});
     snapshot.setExit(context);
     String buffer = adapter.toJson(snapshot);
@@ -723,24 +715,18 @@ public class SnapshotSerializationTest {
     Map<String, Object> locals = getLocalsFromJson(buffer);
     Map<String, Object> mapFieldObj = (Map<String, Object>) locals.get("listLocal");
     Assertions.assertEquals(
-        "java.lang.UnsupportedOperationException", mapFieldObj.get(NOT_CAPTURED_REASON));
+        "java.lang.RuntimeException: Unsupported Collection type: com.datadog.debugger.agent.SnapshotSerializationTest$1",
+        mapFieldObj.get(NOT_CAPTURED_REASON));
   }
 
   @Test
-  public void mapValueThrows() throws IOException {
+  public void mapValueUnknown() throws IOException {
     JsonAdapter<Snapshot> adapter = createSnapshotAdapter();
     Snapshot snapshot = createSnapshot();
     CapturedContext context = new CapturedContext();
     CapturedContext.CapturedValue mapLocal =
         CapturedContext.CapturedValue.of(
-            "mapLocal",
-            Map.class.getTypeName(),
-            new HashMap<String, String>() {
-              @Override
-              public Set<Entry<String, String>> entrySet() {
-                throw new UnsupportedOperationException();
-              }
-            });
+            "mapLocal", Map.class.getTypeName(), new HashMap<String, String>() {});
     context.addLocals(new CapturedContext.CapturedValue[] {mapLocal});
     snapshot.setExit(context);
     String buffer = adapter.toJson(snapshot);
@@ -748,7 +734,8 @@ public class SnapshotSerializationTest {
     Map<String, Object> locals = getLocalsFromJson(buffer);
     Map<String, Object> mapFieldObj = (Map<String, Object>) locals.get("mapLocal");
     Assertions.assertEquals(
-        "java.lang.UnsupportedOperationException", mapFieldObj.get(NOT_CAPTURED_REASON));
+        "java.lang.RuntimeException: Unsupported Map type: com.datadog.debugger.agent.SnapshotSerializationTest$2",
+        mapFieldObj.get(NOT_CAPTURED_REASON));
   }
 
   @Test

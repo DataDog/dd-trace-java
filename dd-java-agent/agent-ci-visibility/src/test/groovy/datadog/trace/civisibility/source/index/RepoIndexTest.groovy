@@ -12,7 +12,7 @@ class RepoIndexTest extends Specification {
     trieBuilder.put(RepoIndexSourcePathResolverTest.name + SourceType.GROOVY.extension, 1)
 
     def sourceRoots = Arrays.asList("myClassSourceRoot", "myOtherClassSourceRoot")
-    def repoIndex = new RepoIndex(trieBuilder.buildTrie(), sourceRoots)
+    def repoIndex = new RepoIndex(trieBuilder.buildTrie(), sourceRoots, Collections.emptyList())
 
     when:
     def serialized = repoIndex.serialize()

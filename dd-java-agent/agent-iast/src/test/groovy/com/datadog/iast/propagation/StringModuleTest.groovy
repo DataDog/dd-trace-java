@@ -908,6 +908,34 @@ class StringModuleTest extends IastModuleImplTestBase {
     'He==>llo %s!<=='               | ['W==>or<==ld']                     | 'He==>llo <==W==>or<==ld==>!<==' // tainted placeholder (3) [mixing with tainted parameter]
   }
 
+  void 'onStringFormat literals: #literals args: #argsTainted'() {
+    given:
+    final to = ctx.getTaintedObjects()
+    final args = argsTainted.collect {
+      final value = taint(to, it)
+      objectHolder.add(value)
+      return value
+    }
+    final expected = getStringFromTaintFormat(expectedTainted)
+
+    when:
+    module.onStringFormat(literals, args as Object[], expected)
+
+    then:
+    final tainted = to.get(expected)
+    final formattedResult = taintFormat(expected, tainted?.ranges)
+    assert formattedResult == expectedTainted: tainted?.ranges
+
+    where:
+    literals          | argsTainted                        | expectedTainted
+    ['Hello World!']  | []                                 | 'Hello World!'
+    ['', ' ', '']     | ['Hello', 'World!']                | 'Hello World!'
+    ['', ' ', '']     | ['He==>ll<==o', 'World==>!<==']    | 'He==>ll<==o World==>!<=='
+    ['Hello World!']  | []                                 | 'Hello World!'
+    ['Today is ', ''] | [date('yyyy.MM.dd', '2012.11.23')] | "Today is ==>${String.valueOf(date('yyyy.MM.dd', '2012.11.23'))}<=="
+    ['', '']          | ['He==>ll<==o', 'World==>!<==']    | 'He==>ll<==o' // extra args
+  }
+
   void 'onSplit'() {
     given:
     final to = ctx.getTaintedObjects()

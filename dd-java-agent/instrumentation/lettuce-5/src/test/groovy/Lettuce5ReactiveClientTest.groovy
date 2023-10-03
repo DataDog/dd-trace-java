@@ -663,3 +663,28 @@ class Lettuce5ReactiveClientV1ForkedTest extends Lettuce5ReactiveClientTest {
   }
 }
 
+class Lettuce5ReactiveClientProfilingForkedTest extends Lettuce5ReactiveClientTest {
+
+  @Override
+  protected void configurePreAgent() {
+    super.configurePreAgent()
+    injectSysConfig('dd.profiling.enabled', 'true')
+  }
+
+  @Override
+  int version() {
+    return 2
+  }
+
+  @Override
+  String service() {
+    return "redis"
+  }
+
+  @Override
+  String operation() {
+    return "redis.query"
+  }
+}
+
+

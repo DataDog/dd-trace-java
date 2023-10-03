@@ -80,6 +80,7 @@ public class TelemetryRunnable implements Runnable {
       }
     }
 
+    flushPendingTelemetryData();
     telemetryService.sendAppClosingEvent();
     log.debug("Telemetry thread finished");
   }
@@ -131,6 +132,19 @@ public class TelemetryRunnable implements Runnable {
     if (!collectedConfig.isEmpty()) {
       telemetryService.addConfiguration(collectedConfig);
     }
+  }
+
+  private void flushPendingTelemetryData() {
+    collectConfigChanges();
+
+    for (MetricPeriodicAction action : actionsAtMetricsInterval) {
+      action.collector().prepareMetrics();
+    }
+
+    for (final TelemetryPeriodicAction action : actions) {
+      action.doIteration(telemetryService);
+    }
+    telemetryService.sendTelemetryEvents();
   }
 
   interface ThreadSleeper {
