@@ -18,4 +18,14 @@ public interface AgentDataStreamsMonitoring extends DataStreamsCheckpointer {
    */
   void setCheckpoint(
       AgentSpan span, LinkedHashMap<String, String> sortedTags, long defaultTimestamp);
+
+  /**
+   * Not added to DataStreamsCheckpointer to not add it to the public API
+   *
+   * @param type The type of the checkpoint, usually the streaming technology being used. Examples:
+   *     kafka, kinesis, sns etc.
+   * @param source The source of data. For instance: topic, exchange or stream name.
+   * @param timestamp unix timestamp for the beginning of the messaging system edge
+   */
+  void setConsumeCheckpoint(String type, String source, long timestamp);
 }

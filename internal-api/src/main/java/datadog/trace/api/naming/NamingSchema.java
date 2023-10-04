@@ -59,7 +59,7 @@ public interface NamingSchema {
    *
    * @return
    */
-  boolean allowFakeServices();
+  boolean allowInferredServices();
 
   interface ForCache {
     /**
@@ -74,12 +74,10 @@ public interface NamingSchema {
     /**
      * Calculate the service name for a cache span.
      *
-     * @param ddService the configured service name as set by the user.
      * @param cacheSystem the caching system (e.g. redis, memcached,..)
      * @return the service name
      */
-    @Nonnull
-    String service(@Nonnull String ddService, @Nonnull String cacheSystem);
+    String service(@Nonnull String cacheSystem);
   }
 
   interface ForClient {
@@ -124,7 +122,6 @@ public interface NamingSchema {
      *     return a default value
      * @return the service name for this span
      */
-    @Nonnull
     String serviceForRequest(@Nonnull String provider, @Nullable String cloudService);
 
     /**
@@ -158,12 +155,10 @@ public interface NamingSchema {
     /**
      * Calculate the service name for a database span.
      *
-     * @param ddService the configured service name as set by the user.
      * @param databaseType the database type (e.g. postgres, elasticsearch,..)
      * @return the service name
      */
-    @Nonnull
-    String service(@Nonnull String ddService, @Nonnull String databaseType);
+    String service(@Nonnull String databaseType);
   }
 
   interface ForMessaging {
@@ -179,12 +174,11 @@ public interface NamingSchema {
     /**
      * Calculate the service name for a messaging producer span.
      *
-     * @param ddService the configured service name as set by the user.
      * @param messagingSystem the messaging system (e.g. jms, kafka, amqp,..)
+     * @param useLegacyTracing if true legacy tracing service naming will be applied if compatible
      * @return the service name
      */
-    @Nonnull
-    String inboundService(@Nonnull String ddService, @Nonnull String messagingSystem);
+    String inboundService(@Nonnull String messagingSystem, boolean useLegacyTracing);
 
     /**
      * Calculate the operation name for a messaging producer span.
@@ -198,12 +192,11 @@ public interface NamingSchema {
     /**
      * Calculate the service name for a messaging producer span.
      *
-     * @param ddService the configured service name as set by the user.
      * @param messagingSystem the messaging system (e.g. jms, kafka, amqp,..)
+     * @param useLegacyTracing if true legacy tracing service naming will be applied if compatible
      * @return the service name
      */
-    @Nonnull
-    String outboundService(@Nonnull String ddService, @Nonnull String messagingSystem);
+    String outboundService(@Nonnull String messagingSystem, boolean useLegacyTracing);
 
     /**
      * Calculate the service name for a messaging time in queue synthetic span.

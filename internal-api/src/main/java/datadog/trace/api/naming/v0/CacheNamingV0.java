@@ -5,10 +5,10 @@ import javax.annotation.Nonnull;
 
 public class CacheNamingV0 implements NamingSchema.ForCache {
 
-  private final boolean allowsFakeServices;
+  private final boolean allowInferredServices;
 
-  public CacheNamingV0(boolean allowsFakeServices) {
-    this.allowsFakeServices = allowsFakeServices;
+  public CacheNamingV0(boolean allowInferredServices) {
+    this.allowInferredServices = allowInferredServices;
   }
 
   @Nonnull
@@ -29,13 +29,11 @@ public class CacheNamingV0 implements NamingSchema.ForCache {
     return cacheSystem + postfix;
   }
 
-  @Nonnull
   @Override
-  public String service(@Nonnull String ddService, @Nonnull String cacheSystem) {
-    if (!allowsFakeServices) {
-      return ddService;
+  public String service(@Nonnull String cacheSystem) {
+    if (!allowInferredServices) {
+      return null;
     }
-
     if ("hazelcast".equals(cacheSystem)) {
       return "hazelcast-sdk";
     }

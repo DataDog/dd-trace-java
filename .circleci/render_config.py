@@ -26,6 +26,9 @@ MASTER_ONLY_JDKS = {
     "semeru17",
     "ubuntu17",
 }
+# Version to use for all the base Docker images, see
+# https://github.com/DataDog/dd-trace-java-docker-build/pkgs/container/dd-trace-java-docker-build
+DOCKER_IMAGE_VERSION="v23.09"
 
 # Get labels from pull requests to override some defaults for jobs to run.
 # `run-tests: all` will run all tests.
@@ -88,6 +91,7 @@ vars = {
     "all_debugger_jdks": all_debugger_jdks,
     "nocov_jdks": nocov_jdks,
     "flaky": branch == "master" or "flaky" in labels or "all" in labels,
+    "docker_image_prefix": "" if is_nightly else f"{DOCKER_IMAGE_VERSION}-",
 }
 
 print(f"Variables for this build: {vars}")

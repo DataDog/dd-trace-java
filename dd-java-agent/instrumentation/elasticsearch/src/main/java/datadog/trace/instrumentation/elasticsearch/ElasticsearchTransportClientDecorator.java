@@ -1,6 +1,5 @@
 package datadog.trace.instrumentation.elasticsearch;
 
-import datadog.trace.api.Config;
 import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
@@ -11,10 +10,7 @@ public class ElasticsearchTransportClientDecorator extends DBTypeProcessingDatab
 
   private static final String DB_TYPE = "elasticsearch";
   private static final String SERVICE_NAME =
-      SpanNaming.instance()
-          .namingSchema()
-          .database()
-          .service(Config.get().getServiceName(), DB_TYPE);
+      SpanNaming.instance().namingSchema().database().service(DB_TYPE);
 
   public static final CharSequence OPERATION_NAME =
       UTF8BytesString.create(SpanNaming.instance().namingSchema().database().operation(DB_TYPE));

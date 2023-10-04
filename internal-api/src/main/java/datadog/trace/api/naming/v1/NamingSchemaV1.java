@@ -44,7 +44,7 @@ public class NamingSchemaV1 implements NamingSchema {
   }
 
   @Override
-  public boolean allowFakeServices() {
+  public boolean allowInferredServices() {
     return false;
   }
 
