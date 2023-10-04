@@ -13,6 +13,8 @@ muzzle {
     module = 'mule-core'
     versions = '[,]'
     assertInverse = true
+
+    excludeDependency 'com.google.code.findbugs:jsr305' // avoid dependency issue with mule-4.5.0
   }
 
   fail {
