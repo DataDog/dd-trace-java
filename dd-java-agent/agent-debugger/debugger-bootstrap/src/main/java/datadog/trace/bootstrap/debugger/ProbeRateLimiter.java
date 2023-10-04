@@ -5,9 +5,12 @@ import java.time.Duration;
 import java.time.temporal.ChronoUnit;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** Rate limiter for sending snapshot to backend Use a global rate limiter and one per probe */
 public class ProbeRateLimiter {
+  private static final Logger LOGGER = LoggerFactory.getLogger(ProbeRateLimiter.class);
   public static final double DEFAULT_SNAPSHOT_RATE = 1.0;
   public static final double DEFAULT_LOG_RATE = 5000.0;
   private static final Duration ONE_SECOND_WINDOW = Duration.of(1, ChronoUnit.SECONDS);
@@ -22,14 +25,18 @@ public class ProbeRateLimiter {
 
   public static boolean tryProbe(String probeId) {
     RateLimitInfo rateLimitInfo =
-        PROBE_SAMPLERS.computeIfAbsent(
-            probeId, k -> new RateLimitInfo(createSampler(DEFAULT_SNAPSHOT_RATE), true));
+        PROBE_SAMPLERS.computeIfAbsent(probeId, ProbeRateLimiter::getDefaultRateLimitInfo);
     AdaptiveSampler globalSampler =
         rateLimitInfo.isCaptureSnapshot ? GLOBAL_SNAPSHOT_SAMPLER : GLOBAL_LOG_SAMPLER;
     if (globalSampler.sample()) {
       return rateLimitInfo.sampler.sample();
     }
     return false;
+  }
+
+  private static RateLimitInfo getDefaultRateLimitInfo(String probeId) {
+    LOGGER.debug("Setting sampling with default snapshot rate for probeId={}", probeId);
+    return new RateLimitInfo(createSampler(DEFAULT_SNAPSHOT_RATE), true);
   }
 
   public static void setRate(String probeId, double rate, boolean isCaptureSnapshot) {
