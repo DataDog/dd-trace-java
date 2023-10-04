@@ -28,8 +28,12 @@ public class TelemetryClient {
       String telemetryIntakeUrl, long timeoutMillis, String apiKey) {
     OkHttpClient intakeHttpClient = null;
     HttpUrl intakeUrl = null;
-    if (apiKey == null) {
-      log.info("Can't create Telemetry Intake because API_KEY unspecified.");
+    if (telemetryIntakeUrl == null) {
+      log.warn("Cannot create Telemetry Intake client because Telemetry Intake URL unset.");
+      return null;
+    } else if (apiKey == null) {
+      log.warn("Cannot create Telemetry Intake because API_KEY unspecified.");
+      return null;
     } else {
       try {
         intakeUrl = HttpUrl.get(telemetryIntakeUrl);

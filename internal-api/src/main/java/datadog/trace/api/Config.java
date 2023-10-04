@@ -1788,9 +1788,7 @@ public class Config {
             GeneralConfig.TELEMETRY_DEBUG_REQUESTS_ENABLED,
             ConfigDefaults.DEFAULT_TELEMETRY_DEBUG_REQUESTS_ENABLED);
 
-    this.telemetryIntakeUrl =
-        configProvider.getString(
-            GeneralConfig.TELEMETRY_INTAKE_URL, ConfigDefaults.DEFAULT_TELEMETRY_INTAKE_URL);
+    this.telemetryIntakeUrl = configProvider.getString(GeneralConfig.TELEMETRY_INTAKE_URL);
 
     log.debug("New instance: {}", this);
   }

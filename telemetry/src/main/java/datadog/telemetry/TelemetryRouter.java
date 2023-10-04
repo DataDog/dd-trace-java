@@ -1,7 +1,6 @@
 package datadog.telemetry;
 
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
-import datadog.trace.api.config.GeneralConfig;
 import javax.annotation.Nullable;
 import okhttp3.HttpUrl;
 import okhttp3.Request;
@@ -18,8 +17,6 @@ public class TelemetryRouter {
 
   private TelemetryClient currentClient;
   private boolean errorReported;
-
-  private boolean missingApiKeyReported;
 
   public TelemetryRouter(
       DDAgentFeaturesDiscovery ddAgentFeaturesDiscovery,
@@ -46,12 +43,6 @@ public class TelemetryRouter {
           log.info("Agent Telemetry endpoint failed. Telemetry will be sent to Intake.");
           errorReported = false;
           currentClient = intakeClient;
-        } else if (!missingApiKeyReported) {
-          log.warn(
-              "Cannot use Intake to send telemetry because unset {} or {}.",
-              GeneralConfig.TELEMETRY_INTAKE_URL,
-              GeneralConfig.API_KEY);
-          missingApiKeyReported = true;
         }
       }
     } else {
