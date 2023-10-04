@@ -13,6 +13,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.InstrumentationContext;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -30,7 +31,9 @@ public final class KafkaConsumerInstrumentation extends Instrumenter.Tracing
 
   @Override
   public Map<String, String> contextStore() {
-    return singletonMap("org.apache.kafka.clients.consumer.ConsumerRecords", "java.lang.String");
+    Map<String, String> contextStores = new HashMap<>();
+    contextStores.put("org.apache.kafka.clients.consumer.ConsumerRecords", KafkaConsumerMetadata.class.getName());
+    return contextStores;
   }
 
   @Override
@@ -84,8 +87,10 @@ public final class KafkaConsumerInstrumentation extends Instrumenter.Tracing
         @Advice.Return(readOnly = false) Iterable<ConsumerRecord<?, ?>> iterable,
         @Advice.This ConsumerRecords records) {
       if (iterable != null) {
-        String group = InstrumentationContext.get(ConsumerRecords.class, String.class).get(records);
-        iterable = new TracingIterable(iterable, KAFKA_CONSUME, CONSUMER_DECORATE, group);
+        KafkaConsumerMetadata kafkaConsumerMetadata = InstrumentationContext.get(ConsumerRecords.class, KafkaConsumerMetadata.class).get(records);
+        String group = kafkaConsumerMetadata.getConsumerGroup();
+        String clusterId = kafkaConsumerMetadata.getClusterId();
+        iterable = new TracingIterable(iterable, KAFKA_CONSUME, CONSUMER_DECORATE, group, clusterId);
       }
     }
   }
@@ -97,8 +102,10 @@ public final class KafkaConsumerInstrumentation extends Instrumenter.Tracing
         @Advice.Return(readOnly = false) List<ConsumerRecord<?, ?>> iterable,
         @Advice.This ConsumerRecords records) {
       if (iterable != null) {
-        String group = InstrumentationContext.get(ConsumerRecords.class, String.class).get(records);
-        iterable = new TracingList(iterable, KAFKA_CONSUME, CONSUMER_DECORATE, group);
+        KafkaConsumerMetadata kafkaConsumerMetadata = InstrumentationContext.get(ConsumerRecords.class, KafkaConsumerMetadata.class).get(records);
+        String group = kafkaConsumerMetadata.getConsumerGroup();
+        String clusterId = kafkaConsumerMetadata.getClusterId();
+        iterable = new TracingList(iterable, KAFKA_CONSUME, CONSUMER_DECORATE, group, clusterId);
       }
     }
   }
@@ -110,8 +117,10 @@ public final class KafkaConsumerInstrumentation extends Instrumenter.Tracing
         @Advice.Return(readOnly = false) Iterator<ConsumerRecord<?, ?>> iterator,
         @Advice.This ConsumerRecords records) {
       if (iterator != null) {
-        String group = InstrumentationContext.get(ConsumerRecords.class, String.class).get(records);
-        iterator = new TracingIterator(iterator, KAFKA_CONSUME, CONSUMER_DECORATE, group);
+        KafkaConsumerMetadata kafkaConsumerMetadata = InstrumentationContext.get(ConsumerRecords.class, KafkaConsumerMetadata.class).get(records);
+        String group = kafkaConsumerMetadata.getConsumerGroup();
+        String clusterId = kafkaConsumerMetadata.getClusterId();
+        iterator = new TracingIterator(iterator, KAFKA_CONSUME, CONSUMER_DECORATE, group, clusterId);
       }
     }
   }

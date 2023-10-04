@@ -4,6 +4,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateNe
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.closePrevious;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.core.datastreams.TagsProcessor.CLUSTER_TAG;
 import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_IN;
 import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_TAG;
 import static datadog.trace.core.datastreams.TagsProcessor.GROUP_TAG;
@@ -34,16 +35,19 @@ public class TracingIterator implements Iterator<ConsumerRecord<?, ?>> {
   private final CharSequence operationName;
   private final KafkaDecorator decorator;
   private final String group;
+  private final String clusterId;
 
   public TracingIterator(
       final Iterator<ConsumerRecord<?, ?>> delegateIterator,
       final CharSequence operationName,
       final KafkaDecorator decorator,
-      String group) {
+      String group,
+      String clusterId) {
     this.delegateIterator = delegateIterator;
     this.operationName = operationName;
     this.decorator = decorator;
     this.group = group;
+    this.clusterId = clusterId;
   }
 
   @Override
@@ -89,6 +93,7 @@ public class TracingIterator implements Iterator<ConsumerRecord<?, ?>> {
           sortedTags.put(GROUP_TAG, group);
           sortedTags.put(TOPIC_TAG, val.topic());
           sortedTags.put(TYPE_TAG, "kafka");
+          sortedTags.put(CLUSTER_TAG, clusterId);
 
           AgentTracer.get()
               .getDataStreamsMonitoring()

@@ -19,7 +19,6 @@ import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 import org.apache.kafka.clients.Metadata;
-import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.common.requests.MetadataResponse;
 
 @AutoService(Instrumenter.class)
