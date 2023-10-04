@@ -53,7 +53,7 @@ public class JakartaMultipartInstrumentation extends Instrumenter.Iast
 
   public static class GetNameAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
-    @Source(SourceTypes.REQUEST_HEADER_VALUE)
+    @Source(SourceTypes.REQUEST_MULTIPART_PARAMETER)
     public static String onExit(@Advice.Return final String name) {
       final WebModule module = InstrumentationBridge.WEB;
       if (module != null) {
@@ -65,7 +65,7 @@ public class JakartaMultipartInstrumentation extends Instrumenter.Iast
 
   public static class GetHeaderAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
-    @Source(SourceTypes.REQUEST_HEADER_VALUE)
+    @Source(SourceTypes.REQUEST_MULTIPART_PARAMETER)
     public static String onExit(
         @Advice.Return final String value, @Advice.Argument(0) final String name) {
       final WebModule module = InstrumentationBridge.WEB;
@@ -78,7 +78,7 @@ public class JakartaMultipartInstrumentation extends Instrumenter.Iast
 
   public static class GetHeadersAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
-    @Source(SourceTypes.REQUEST_HEADER_VALUE)
+    @Source(SourceTypes.REQUEST_MULTIPART_PARAMETER)
     public static void onExit(
         @Advice.Argument(0) final String headerName,
         @Advice.Return Collection<String> headerValues) {
@@ -94,7 +94,7 @@ public class JakartaMultipartInstrumentation extends Instrumenter.Iast
 
   public static class GetHeaderNamesAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
-    @Source(SourceTypes.REQUEST_HEADER_NAME)
+    @Source(SourceTypes.REQUEST_MULTIPART_PARAMETER)
     public static void onExit(@Advice.Return final Collection<String> headerNames) {
       if (null == headerNames) {
         return;
