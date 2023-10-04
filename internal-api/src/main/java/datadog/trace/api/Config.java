@@ -782,6 +782,7 @@ public class Config {
   private final float telemetryHeartbeatInterval;
   private final float telemetryMetricsInterval;
   private final boolean isTelemetryDependencyServiceEnabled;
+  private final boolean telemetryMetricsEnabled;
 
   private final boolean azureAppServices;
   private final String traceAgentPath;
@@ -1409,6 +1410,9 @@ public class Config {
       telemetryInterval = DEFAULT_TELEMETRY_METRICS_INTERVAL;
     }
     telemetryMetricsInterval = telemetryInterval;
+
+    telemetryMetricsEnabled =
+        configProvider.getBoolean(GeneralConfig.TELEMETRY_METRICS_ENABLED, true);
 
     isTelemetryDependencyServiceEnabled =
         configProvider.getBoolean(
@@ -2363,6 +2367,10 @@ public class Config {
 
   public boolean isTelemetryDependencyServiceEnabled() {
     return isTelemetryDependencyServiceEnabled;
+  }
+
+  public boolean isTelemetryMetricsEnabled() {
+    return telemetryMetricsEnabled;
   }
 
   public boolean isClientIpEnabled() {
@@ -3953,6 +3961,8 @@ public class Config {
         + telemetryDebugRequestsEnabled
         + ", telemetryIntakeUrl="
         + telemetryIntakeUrl
+        + ", telemetryMetricsEnabled="
+        + telemetryMetricsEnabled
         + '}';
   }
 }

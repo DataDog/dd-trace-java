@@ -38,15 +38,19 @@ public class TelemetrySystem {
   }
 
   static Thread createTelemetryRunnable(
-      TelemetryService telemetryService, DependencyService dependencyService) {
+      TelemetryService telemetryService,
+      DependencyService dependencyService,
+      boolean telemetryMetricsEnabled) {
     DEPENDENCY_SERVICE = dependencyService;
 
     List<TelemetryPeriodicAction> actions = new ArrayList<>();
-    actions.add(new CoreMetricsPeriodicAction());
-    actions.add(new IntegrationPeriodicAction());
-    actions.add(new WafMetricPeriodicAction());
-    if (Verbosity.OFF != Config.get().getIastTelemetryVerbosity()) {
-      actions.add(new IastMetricPeriodicAction());
+    if (telemetryMetricsEnabled) {
+      actions.add(new CoreMetricsPeriodicAction());
+      actions.add(new IntegrationPeriodicAction());
+      actions.add(new WafMetricPeriodicAction());
+      if (Verbosity.OFF != Config.get().getIastTelemetryVerbosity()) {
+        actions.add(new IastMetricPeriodicAction());
+      }
     }
     if (null != dependencyService) {
       actions.add(new DependencyPeriodicAction(dependencyService));
@@ -75,7 +79,9 @@ public class TelemetrySystem {
     TelemetryService telemetryService =
         TelemetryService.build(ddAgentFeaturesDiscovery, agentClient, intakeClient, debug);
 
-    TELEMETRY_THREAD = createTelemetryRunnable(telemetryService, dependencyService);
+    boolean telemetryMetricsEnabled = config.isTelemetryMetricsEnabled();
+    TELEMETRY_THREAD =
+        createTelemetryRunnable(telemetryService, dependencyService, telemetryMetricsEnabled);
     TELEMETRY_THREAD.start();
   }
 
