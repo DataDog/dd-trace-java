@@ -4,6 +4,7 @@ import datadog.trace.api.profiling.QueueTiming;
 import datadog.trace.api.profiling.Timer;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import datadog.trace.bootstrap.instrumentation.jfr.InstrumentationBasedProfiling;
 
 public class QueueTimerHelper {
 
@@ -14,7 +15,9 @@ public class QueueTimerHelper {
   }
 
   public static void startQueuingTimer(State state, Class<?> schedulerClass, Object task) {
-    if (task != null && state != null) {
+    // avoid calling this before JFR is initialised because it will lead to reading the wrong
+    // TSC frequency before JFR has set it up properly
+    if (task != null && state != null && InstrumentationBasedProfiling.isJFRReady()) {
       QueueTiming timing =
           (QueueTiming) AgentTracer.get().getTimer().start(Timer.TimerType.QUEUEING);
       timing.setTask(task);

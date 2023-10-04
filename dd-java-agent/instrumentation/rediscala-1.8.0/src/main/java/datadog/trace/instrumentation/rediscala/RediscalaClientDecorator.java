@@ -1,6 +1,5 @@
 package datadog.trace.instrumentation.rediscala;
 
-import datadog.trace.api.Config;
 import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
@@ -17,7 +16,7 @@ public class RediscalaClientDecorator
   public static final CharSequence OPERATION_NAME =
       UTF8BytesString.create(SpanNaming.instance().namingSchema().cache().operation("redis"));
   private static final String SERVICE_NAME =
-      SpanNaming.instance().namingSchema().cache().service(Config.get().getServiceName(), "redis");
+      SpanNaming.instance().namingSchema().cache().service("redis");
 
   @Override
   protected String[] instrumentationNames() {

@@ -1027,6 +1027,9 @@ public class AgentTracer {
         String type, String source, DataStreamsContextCarrier carrier) {}
 
     @Override
+    public void setConsumeCheckpoint(String type, String source, long timestamp) {}
+
+    @Override
     public void setProduceCheckpoint(
         String type, String target, DataStreamsContextCarrier carrier) {}
   }

@@ -216,6 +216,16 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
 
   @Override
   public void setConsumeCheckpoint(String type, String source, DataStreamsContextCarrier carrier) {
+    doSetConsumeCheckpoint(type, source, carrier, 0);
+  }
+
+  @Override
+  public void setConsumeCheckpoint(String type, String source, long timestamp) {
+    doSetConsumeCheckpoint(type, source, DataStreamsContextCarrier.NoOp.INSTANCE, timestamp);
+  }
+
+  private void doSetConsumeCheckpoint(
+      String type, String source, DataStreamsContextCarrier carrier, long timestamp) {
     if (type == null || type.isEmpty() || source == null || source.isEmpty()) {
       log.warn("setConsumeCheckpoint should be called with non-empty type and source");
       return;
@@ -233,7 +243,7 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
     sortedTags.put(TOPIC_TAG, source);
     sortedTags.put(TYPE_TAG, type);
 
-    setCheckpoint(span, sortedTags, 0);
+    setCheckpoint(span, sortedTags, timestamp);
   }
 
   @Override

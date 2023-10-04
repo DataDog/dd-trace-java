@@ -71,7 +71,8 @@ public class MetricProbesIntegrationTest extends SimpleAppDebuggerIntegrationTes
       String metricName, MetricProbe.MetricKind kind, ValueScript script, String expectedMsgFormat)
       throws IOException {
     final String METHOD_NAME = "fullMethod";
-    final String EXPECTED_UPLOADS = "3"; // 2 + 1 for letting the metric being sent (async)
+    final String EXPECTED_UPLOADS =
+        "-1"; // wait for TIMEOUT_S for letting the metric being sent (async)
     MetricProbe metricProbe =
         MetricProbe.builder()
             .probeId(PROBE_ID)
@@ -140,7 +141,8 @@ public class MetricProbesIntegrationTest extends SimpleAppDebuggerIntegrationTes
       String metricName, MetricProbe.MetricKind kind, ValueScript script, String expectedMsgFormat)
       throws IOException {
     final String METHOD_NAME = "fullMethod";
-    final String EXPECTED_UPLOADS = "3"; // 2 + 1 for letting the metric being sent (async)
+    final String EXPECTED_UPLOADS =
+        "-1"; // wait for TIMEOUT_S for letting the metric being sent (async)
     MetricProbe metricProbe =
         MetricProbe.builder()
             .probeId(PROBE_ID)

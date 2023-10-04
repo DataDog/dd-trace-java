@@ -21,10 +21,7 @@ public class ElasticsearchRestClientDecorator extends DBTypeProcessingDatabaseCl
   private static final int MAX_ELASTICSEARCH_BODY_CONTENT_LENGTH = 25000;
 
   private static final String SERVICE_NAME =
-      SpanNaming.instance()
-          .namingSchema()
-          .database()
-          .service(Config.get().getServiceName(), "elasticsearch");
+      SpanNaming.instance().namingSchema().database().service("elasticsearch");
 
   public static final CharSequence OPERATION_NAME =
       UTF8BytesString.create(

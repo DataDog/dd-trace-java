@@ -21,10 +21,9 @@ public class MessagingNamingV1 implements NamingSchema.ForMessaging {
     return normalizeForCloud(messagingSystem) + ".send";
   }
 
-  @Nonnull
   @Override
-  public String outboundService(@Nonnull String ddService, @Nonnull String messagingSystem) {
-    return ddService;
+  public String outboundService(@Nonnull String messagingSystem, boolean useLegacyTracing) {
+    return null;
   }
 
   @Nonnull
@@ -33,10 +32,9 @@ public class MessagingNamingV1 implements NamingSchema.ForMessaging {
     return normalizeForCloud(messagingSystem) + ".process";
   }
 
-  @Nonnull
   @Override
-  public String inboundService(@Nonnull String ddService, @Nonnull String messagingSystem) {
-    return ddService;
+  public String inboundService(@Nonnull String messagingSystem, boolean useLegacyTracing) {
+    return null;
   }
 
   @Override

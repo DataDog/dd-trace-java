@@ -5,10 +5,10 @@ import javax.annotation.Nonnull;
 
 public class DatabaseNamingV0 implements NamingSchema.ForDatabase {
 
-  private final boolean allowsFakeServices;
+  private final boolean allowInferredServices;
 
-  public DatabaseNamingV0(boolean allowsFakeServices) {
-    this.allowsFakeServices = allowsFakeServices;
+  public DatabaseNamingV0(boolean allowInferredServices) {
+    this.allowInferredServices = allowInferredServices;
   }
 
   @Override
@@ -26,12 +26,11 @@ public class DatabaseNamingV0 implements NamingSchema.ForDatabase {
     return databaseType + postfix;
   }
 
-  @Nonnull
   @Override
-  public String service(@Nonnull String ddService, @Nonnull String databaseType) {
-    if (allowsFakeServices) {
+  public String service(@Nonnull String databaseType) {
+    if (allowInferredServices) {
       return databaseType;
     }
-    return ddService;
+    return null;
   }
 }

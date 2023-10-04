@@ -66,6 +66,10 @@ public class ProbeStatusSink {
     List<String> serializedDiagnostics = new ArrayList<>();
     for (ProbeStatus message : diagnostics) {
       try {
+        LOGGER.debug(
+            "Sending probe status[{}] for probe id: {}",
+            message.getDiagnostics().getStatus(),
+            message.getDiagnostics().getProbeId().getId());
         serializedDiagnostics.add(PROBE_STATUS_ADAPTER.toJson(message));
       } catch (Exception e) {
         ExceptionHelper.logException(LOGGER, e, "Error during probe status serialization:");
