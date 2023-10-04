@@ -56,6 +56,7 @@ public class OpenTelemetryInstrumentation extends Instrumenter.Tracing
       packageName + ".OtelExtractedContext",
       packageName + ".OtelScope",
       packageName + ".OtelSpan",
+      packageName + ".OtelSpan$1",
       packageName + ".OtelSpan$NoopSpan",
       packageName + ".OtelSpan$NoopSpanContext",
       packageName + ".OtelSpanBuilder",

@@ -16,6 +16,7 @@ import io.opentelemetry.api.trace.SpanContext;
 import io.opentelemetry.api.trace.StatusCode;
 import io.opentelemetry.api.trace.TraceFlags;
 import io.opentelemetry.api.trace.TraceState;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 import javax.annotation.ParametersAreNonnullByDefault;
 
@@ -41,7 +42,27 @@ public class OtelSpan implements Span {
   @Override
   public <T> Span setAttribute(AttributeKey<T> key, T value) {
     if (this.recording) {
-      this.delegate.setTag(key.getKey(), value);
+      switch (key.getType()) {
+        case STRING_ARRAY:
+        case BOOLEAN_ARRAY:
+        case LONG_ARRAY:
+        case DOUBLE_ARRAY:
+          if (value instanceof List) {
+            List<?> valueList = (List<?>) value;
+            if (valueList.isEmpty()) {
+              // Store as object to prevent delegate to remove tag when value is empty
+              this.delegate.setTag(key.getKey(), (Object) "");
+            } else {
+              for (int index = 0; index < valueList.size(); index++) {
+                this.delegate.setTag(key.getKey() + "." + index, valueList.get(index));
+              }
+            }
+          }
+          break;
+        default:
+          this.delegate.setTag(key.getKey(), value);
+          break;
+      }
     }
     return this;
   }
