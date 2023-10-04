@@ -62,7 +62,7 @@ parameters:
 
   docker_image_tag:
     type: string
-    default: base
+    default: {{ docker_image_prefix }}base
 
 commands:
   check_for_leftover_files:
@@ -483,7 +483,7 @@ jobs:
     resource_class: large
 
     docker:
-      - image: << pipeline.parameters.docker_image >>:<< parameters.testJvm >>
+      - image: << pipeline.parameters.docker_image >>:{{ docker_image_prefix }}<< parameters.testJvm >>
 
     parameters:
       testJvm:
