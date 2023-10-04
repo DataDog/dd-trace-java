@@ -40,7 +40,8 @@ public abstract class SourceTypes {
     REQUEST_BODY,
     REQUEST_QUERY,
     REQUEST_PATH_PARAMETER,
-    REQUEST_MATRIX_PARAMETER
+    REQUEST_MATRIX_PARAMETER,
+    REQUEST_MULTIPART_PARAMETER
   };
 
   public static byte[] values() {
