@@ -5,7 +5,6 @@ import com.datastax.oss.driver.api.core.cql.ResultSet;
 import com.datastax.oss.driver.api.core.metadata.Node;
 import com.datastax.oss.driver.api.core.servererrors.CoordinatorException;
 import com.datastax.oss.driver.api.core.session.Session;
-import datadog.trace.api.Config;
 import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
@@ -18,10 +17,7 @@ import java.util.Objects;
 public class CassandraClientDecorator extends DBTypeProcessingDatabaseClientDecorator<Session> {
   private static final String DB_TYPE = "cassandra";
   private static final String SERVICE_NAME =
-      SpanNaming.instance()
-          .namingSchema()
-          .database()
-          .service(Config.get().getServiceName(), DB_TYPE);
+      SpanNaming.instance().namingSchema().database().service(DB_TYPE);
   public static final CharSequence OPERATION_NAME =
       UTF8BytesString.create(SpanNaming.instance().namingSchema().database().operation(DB_TYPE));
   public static final CharSequence JAVA_CASSANDRA = UTF8BytesString.create("java-cassandra");

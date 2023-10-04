@@ -3244,14 +3244,14 @@ public class Config {
 
   public boolean isLegacyTracingEnabled(
       final boolean defaultEnabled, final String... integrationNames) {
-    return SpanNaming.instance().namingSchema().allowFakeServices()
+    return SpanNaming.instance().namingSchema().allowInferredServices()
         && configProvider.isEnabled(
             Arrays.asList(integrationNames), "", ".legacy.tracing.enabled", defaultEnabled);
   }
 
   public boolean isTimeInQueueEnabled(
       final boolean defaultEnabled, final String... integrationNames) {
-    return SpanNaming.instance().namingSchema().allowFakeServices()
+    return SpanNaming.instance().namingSchema().allowInferredServices()
         && configProvider.isEnabled(
             Arrays.asList(integrationNames), "", ".time-in-queue.enabled", defaultEnabled);
   }

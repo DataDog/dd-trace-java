@@ -37,6 +37,7 @@ import datadog.trace.api.gateway.SubscriptionService;
 import datadog.trace.api.interceptor.MutableSpan;
 import datadog.trace.api.interceptor.TraceInterceptor;
 import datadog.trace.api.internal.TraceSegment;
+import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.api.profiling.Timer;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.api.scopemanager.ScopeListener;
@@ -131,6 +132,10 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   private final long startNanoTicks;
   /** How often should traced threads check clock ticks against the wall clock */
   private final long clockSyncPeriod;
+
+  /** If the tracer can create inferred services */
+  private final boolean allowInferredServices;
+
   /** Last time (in nanosecond ticks) the clock was checked for drift */
   private volatile long lastSyncTicks;
   /** Nanosecond offset to counter clock drift */
@@ -663,6 +668,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     propagationTagsFactory = PropagationTags.factory(config);
     this.profilingContextIntegration = profilingContextIntegration;
     this.injectBaggageAsTags = injectBaggageAsTags;
+    this.allowInferredServices = SpanNaming.instance().namingSchema().allowInferredServices();
   }
 
   /** Used by AgentTestRunner to inject configuration into the test tracer. */
@@ -1432,6 +1438,12 @@ public class CoreTracer implements AgentTracer.TracerAPI {
               ? parentContext.getPathwayContext()
               : dataStreamsMonitoring.newPathwayContext();
 
+      // when removing fake services the best upward service name to pick is the local root one
+      // since a split by tag (i.e. servlet context) might have happened on it.
+      if (!allowInferredServices) {
+        final DDSpan rootSpan = parentTrace.getRootSpan();
+        serviceName = rootSpan != null ? rootSpan.getServiceName() : null;
+      }
       if (serviceName == null) {
         serviceName = CoreTracer.this.serviceName;
       }
