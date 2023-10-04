@@ -33,11 +33,6 @@ abstract class AkkaHttpServerInstrumentationTest extends HttpServerTest<AkkaHttp
   }
 
   @Override
-  boolean hasPeerInformation() {
-    return false
-  }
-
-  @Override
   boolean hasExtraErrorInformation() {
     return true
   }
