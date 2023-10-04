@@ -5,6 +5,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSp
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.core.datastreams.TagsProcessor.CLUSTER_TAG;
 import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_OUT;
 import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_TAG;
 import static datadog.trace.core.datastreams.TagsProcessor.TOPIC_TAG;
@@ -13,6 +14,7 @@ import static datadog.trace.instrumentation.kafka_clients.KafkaDecorator.KAFKA_P
 import static datadog.trace.instrumentation.kafka_clients.KafkaDecorator.PRODUCER_DECORATE;
 import static datadog.trace.instrumentation.kafka_clients.KafkaDecorator.TIME_IN_QUEUE_ENABLED;
 import static datadog.trace.instrumentation.kafka_clients.TextMapInjectAdapter.SETTER;
+import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
@@ -21,12 +23,15 @@ import static org.apache.kafka.clients.producer.ProducerConfig.BOOTSTRAP_SERVERS
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.api.Config;
+import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import java.util.LinkedHashMap;
+import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import org.apache.kafka.clients.ApiVersions;
+import org.apache.kafka.clients.Metadata;
 import org.apache.kafka.clients.producer.Callback;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
@@ -59,6 +64,12 @@ public final class KafkaProducerInstrumentation extends Instrumenter.Tracing
     };
   }
 
+  // TODO figure this out
+  @Override
+  public Map<String, String> contextStore() {
+    return singletonMap("org.apache.kafka.clients.Metadata", "java.lang.String");
+  }
+
   @Override
   public void adviceTransformations(AdviceTransformation transformation) {
     transformation.applyAdvice(
@@ -80,10 +91,17 @@ public final class KafkaProducerInstrumentation extends Instrumenter.Tracing
         @Advice.FieldValue("metadata") ProducerMetadata metadata,
         @Advice.Argument(value = 0, readOnly = false) ProducerRecord record,
         @Advice.Argument(value = 1, readOnly = false) Callback callback) {
-      System.out.println("[KAFKA PRODUCER] ON METHOD ENTER");
-      System.out.println(producerConfig.getList(BOOTSTRAP_SERVERS_CONFIG));
-      System.out.println(metadata);
-
+      System.out.println("[KAFKAPRODUCER] ON METHOD ENTER");
+      System.out.println("[KAFKAPRODUCER] START");
+      //System.out.println(producerConfig.getList(BOOTSTRAP_SERVERS_CONFIG));
+      //System.out.println(metadata);
+      try {
+        System.out.println("[KAFKAPRODUCER] cluster ID from context: " + InstrumentationContext.get(Metadata.class, String.class).get(metadata));
+      } catch (Exception e) {
+        e.printStackTrace();
+      }
+      System.out.println("[KAFKAPRODUCER] done");
+      String clusterId = InstrumentationContext.get(Metadata.class, String.class).get(metadata);
 
       final AgentSpan parent = activeSpan();
       final AgentSpan span = startSpan(KAFKA_PRODUCE);
@@ -107,6 +125,9 @@ public final class KafkaProducerInstrumentation extends Instrumenter.Tracing
           && Config.get().isKafkaClientPropagationEnabled()
           && !Config.get().isKafkaClientPropagationDisabledForTopic(record.topic())) {
         LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>();
+        if (clusterId != null) {
+          sortedTags.put(CLUSTER_TAG, clusterId);
+        }
         sortedTags.put(DIRECTION_TAG, DIRECTION_OUT);
         sortedTags.put(TOPIC_TAG, record.topic());
         sortedTags.put(TYPE_TAG, "kafka");

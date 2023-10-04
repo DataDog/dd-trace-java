@@ -50,8 +50,15 @@ public final class CombiningTransformerBuilder extends AbstractTransformerBuilde
   protected void buildInstrumentation(Instrumenter.Default instrumenter) {
     InstrumenterState.registerInstrumentation(instrumenter);
 
+    if (instrumenter.getClass().getName().equals("datadog.trace.instrumentation.kafka_clients.ProducerMetadataInstrumentation")) {
+      System.out.println("[buildInstrumentation] Instrumenting ProducerMetadataInstrumentation: " + instrumenter);
+    }
+
     int id = instrumenter.instrumentationId();
     if (transformers[id] != null) {
+      if (instrumenter.getClass().getName().equals("datadog.trace.instrumentation.kafka_clients.ProducerMetadataInstrumentation")) {
+        System.out.println("[buildInstrumentation] transformers[id] " + id + " is not null");
+      }
       // this is an additional "dd.trace.methods" instrumenter configured at runtime
       // (a separate instance is created for each class listed in "dd.trace.methods")
       // allocate a distinct id for matching purposes to avoid mixing trace methods
@@ -66,38 +73,61 @@ public final class CombiningTransformerBuilder extends AbstractTransformerBuilde
   }
 
   private void buildInstrumentationMatcher(Instrumenter.Default instrumenter, int id) {
-
     if (instrumenter instanceof Instrumenter.ForSingleType
         || instrumenter instanceof Instrumenter.ForKnownTypes) {
+      if (instrumenter.getClass().getName().equals("datadog.trace.instrumentation.kafka_clients.KafkaProducerInstrumentation")) {
+        System.out.println("[buildInstrumentationMatcher] 1");
+      }
       knownTypesMask.set(id);
     } else if (instrumenter instanceof Instrumenter.ForTypeHierarchy) {
+      if (instrumenter.getClass().getName().equals("datadog.trace.instrumentation.kafka_clients.KafkaProducerInstrumentation")) {
+        System.out.println("[buildInstrumentationMatcher] 2");
+      }
       matchers.add(
           new MatchRecorder.ForHierarchy(id, (Instrumenter.ForTypeHierarchy) instrumenter));
     } else if (instrumenter instanceof Instrumenter.ForCallSite) {
+      if (instrumenter.getClass().getName().equals("datadog.trace.instrumentation.kafka_clients.KafkaProducerInstrumentation")) {
+        System.out.println("[buildInstrumentationMatcher] 3");
+      }
       matchers.add(
           new MatchRecorder.ForType(id, ((Instrumenter.ForCallSite) instrumenter).callerType()));
     }
 
     if (instrumenter instanceof Instrumenter.ForConfiguredTypes) {
+      if (instrumenter.getClass().getName().equals("datadog.trace.instrumentation.kafka_clients.KafkaProducerInstrumentation")) {
+        System.out.println("[buildInstrumentationMatcher] 4");
+      }
       Collection<String> names =
           ((Instrumenter.ForConfiguredTypes) instrumenter).configuredMatchingTypes();
       if (null != names && !names.isEmpty()) {
+        if (instrumenter.getClass().getName().equals("datadog.trace.instrumentation.kafka_clients.KafkaProducerInstrumentation")) {
+          System.out.println("[buildInstrumentationMatcher] 5");
+        }
         matchers.add(new MatchRecorder.ForType(id, namedOneOf(names)));
       }
     }
 
     if (instrumenter instanceof Instrumenter.CanShortcutTypeMatching
         && !((Instrumenter.CanShortcutTypeMatching) instrumenter).onlyMatchKnownTypes()) {
+      if (instrumenter.getClass().getName().equals("datadog.trace.instrumentation.kafka_clients.KafkaProducerInstrumentation")) {
+        System.out.println("[buildInstrumentationMatcher] 6");
+      }
       matchers.add(
           new MatchRecorder.ForHierarchy(id, (Instrumenter.ForTypeHierarchy) instrumenter));
     }
 
     ElementMatcher<ClassLoader> classLoaderMatcher = instrumenter.classLoaderMatcher();
     if (classLoaderMatcher != ANY_CLASS_LOADER) {
+      if (instrumenter.getClass().getName().equals("datadog.trace.instrumentation.kafka_clients.KafkaProducerInstrumentation")) {
+        System.out.println("[buildInstrumentationMatcher] 7");
+      }
       matchers.add(new MatchRecorder.NarrowLocation(id, classLoaderMatcher));
     }
 
     if (instrumenter instanceof Instrumenter.WithTypeStructure) {
+      if (instrumenter.getClass().getName().equals("datadog.trace.instrumentation.kafka_clients.KafkaProducerInstrumentation")) {
+        System.out.println("[buildInstrumentationMatcher] 8");
+      }
       matchers.add(
           new MatchRecorder.NarrowType(
               id, ((Instrumenter.WithTypeStructure) instrumenter).structureMatcher()));
@@ -159,10 +189,11 @@ public final class CombiningTransformerBuilder extends AbstractTransformerBuilde
 
   @Override
   public void applyAdvice(ElementMatcher<? super MethodDescription> matcher, String name) {
+    //System.out.println("[COMBINING] Apply advice: " + name);
     advice.add(
         new AgentBuilder.Transformer.ForAdvice()
             .include(Utils.getBootstrapProxy(), Utils.getAgentClassLoader())
-            .withExceptionHandler(ExceptionHandlers.defaultExceptionHandler())
+            //.withExceptionHandler(ExceptionHandlers.defaultExceptionHandler())
             .advice(not(ignoredMethods).and(matcher), name));
   }
 
