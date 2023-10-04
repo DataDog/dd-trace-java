@@ -79,14 +79,6 @@ public abstract class TruncatingAdapter<V> extends FormattingAdapter<V> {
       delegated.value(value);
     }
 
-    public void value(@Nullable Number value) throws IOException {
-      delegated.value(value);
-    }
-
-    public void close() throws IOException {
-      delegated.close();
-    }
-
     public com.squareup.moshi.JsonWriter getDelegated() {
       return delegated;
     }
