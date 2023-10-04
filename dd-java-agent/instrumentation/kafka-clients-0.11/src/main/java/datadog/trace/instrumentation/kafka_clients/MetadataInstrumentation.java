@@ -86,7 +86,7 @@ public class MetadataInstrumentation extends Instrumenter.Tracing
           System.out.println("[MetadataUpdateAdvice]   in sync repliacas: " + partitionMetadata.inSyncReplicaIds);
           System.out.println("[MetadataUpdateAdvice]   in sync repliacas: " + partitionMetadata.offlineReplicaIds);
           System.out.println("[MetadataUpdateAdvice]   leader: " + partitionMetadata.leaderId);
-          System.out.println("[MetadataUpdateAdvice]   offline replicas: " + partitionMetadata.topicPartition.);
+          System.out.println("[MetadataUpdateAdvice]   offline replicas: " + partitionMetadata.topicPartition);
           System.out.println("[MetadataUpdateAdvice] ============");
         }
       }
