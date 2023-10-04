@@ -32,6 +32,7 @@ public class PredefinedFromEntityUnmarshallersInstrumentation extends Instrument
   public String[] helperClassNames() {
     return new String[] {
       packageName + ".UnmarshallerHelpers",
+      packageName + ".UnmarshallerHelpers$UnmarkStrictFormOngoingOnUnsupportedException",
       packageName + ".AkkaBlockResponseFunction",
       packageName + ".BlockingResponseHelper",
       packageName + ".ScalaListCollector",
