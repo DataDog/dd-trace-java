@@ -22,10 +22,10 @@ import org.apache.kafka.clients.consumer.internals.ConsumerCoordinator;
 
 /** This instrumentation saves the consumer group in the context store for later use. */
 @AutoService(Instrumenter.class)
-public final class KafkaConsumerGroupInstrumentation extends Instrumenter.Tracing
+public final class KafkaConsumerMetadataInstrumentation extends Instrumenter.Tracing
     implements Instrumenter.ForSingleType {
 
-  public KafkaConsumerGroupInstrumentation() {
+  public KafkaConsumerMetadataInstrumentation() {
     super("kafka");
   }
 
@@ -58,7 +58,7 @@ public final class KafkaConsumerGroupInstrumentation extends Instrumenter.Tracin
             .and(takesArgument(0, named("org.apache.kafka.clients.consumer.ConsumerConfig")))
             .and(takesArgument(1, named("org.apache.kafka.common.serialization.Deserializer")))
             .and(takesArgument(2, named("org.apache.kafka.common.serialization.Deserializer"))),
-        KafkaConsumerGroupInstrumentation.class.getName() + "$ConstructorAdvice");
+        KafkaConsumerMetadataInstrumentation.class.getName() + "$ConstructorAdvice");
 
     transformation.applyAdvice(
         isMethod()
@@ -66,7 +66,7 @@ public final class KafkaConsumerGroupInstrumentation extends Instrumenter.Tracin
             .and(named("poll"))
             .and(takesArguments(1))
             .and(returns(named("org.apache.kafka.clients.consumer.ConsumerRecords"))),
-        KafkaConsumerGroupInstrumentation.class.getName() + "$RecordsAdvice");
+        KafkaConsumerMetadataInstrumentation.class.getName() + "$RecordsAdvice");
   }
 
   public static class ConstructorAdvice {
