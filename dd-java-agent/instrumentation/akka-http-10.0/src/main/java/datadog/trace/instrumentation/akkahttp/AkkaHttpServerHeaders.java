@@ -1,6 +1,8 @@
 package datadog.trace.instrumentation.akkahttp;
 
 import akka.http.javadsl.model.HttpHeader;
+import akka.http.javadsl.model.headers.RemoteAddress;
+import akka.http.javadsl.model.headers.TimeoutAccess;
 import akka.http.scaladsl.model.HttpMessage;
 import akka.http.scaladsl.model.HttpRequest;
 import akka.http.scaladsl.model.HttpResponse;
@@ -26,6 +28,10 @@ public class AkkaHttpServerHeaders<T extends HttpMessage>
   public void forEachKey(
       final HttpMessage carrier, final AgentPropagation.KeyClassifier classifier) {
     for (final HttpHeader header : carrier.getHeaders()) {
+      // skip synthetic headers
+      if (header instanceof RemoteAddress || header instanceof TimeoutAccess) {
+        continue;
+      }
       if (!classifier.accept(header.lowercaseName(), header.value())) {
         return;
       }
