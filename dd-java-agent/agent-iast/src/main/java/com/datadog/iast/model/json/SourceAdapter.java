@@ -1,26 +1,26 @@
 package com.datadog.iast.model.json;
 
+import static com.datadog.iast.model.json.TruncationUtils.writeTruncableValue;
+
 import com.datadog.iast.model.Source;
 import com.datadog.iast.model.json.AdapterFactory.Context;
 import com.datadog.iast.model.json.AdapterFactory.RedactionContext;
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.JsonWriter;
-import com.squareup.moshi.Moshi;
 import datadog.trace.api.Config;
 import java.io.IOException;
-import java.util.Collections;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 public class SourceAdapter extends FormattingAdapter<Source> {
 
-  private final SourceTypeAdapter sourceAdapter;
+  private final SourceTypeAdapter sourceTypeAdapter;
   private final JsonAdapter<Source> defaultAdapter;
   private final JsonAdapter<Source> redactedAdapter;
 
-  public SourceAdapter(final Factory factory, final Moshi moshi) {
-    sourceAdapter = new SourceTypeAdapter();
-    defaultAdapter = moshi.nextAdapter(factory, Source.class, Collections.emptySet());
+  public SourceAdapter() {
+    sourceTypeAdapter = new SourceTypeAdapter();
+    defaultAdapter = new DefaultSourceAdapter();
     redactedAdapter = new RedactedSourceAdapter();
   }
 
@@ -35,6 +35,21 @@ public class SourceAdapter extends FormattingAdapter<Source> {
       redactedAdapter.toJson(writer, source);
     } else {
       defaultAdapter.toJson(writer, source);
+    }
+  }
+
+  private class DefaultSourceAdapter extends FormattingAdapter<Source> {
+
+    @Override
+    public void toJson(@Nonnull JsonWriter writer, @Nonnull Source source) throws IOException {
+      writer.beginObject();
+      writer.name("origin");
+      sourceTypeAdapter.toJson(writer, source.getOrigin());
+      writer.name("name");
+      writer.value(source.getName());
+      writer.name("value");
+      writeTruncableValue(writer, source.getValue());
+      writer.endObject();
     }
   }
 
@@ -55,13 +70,13 @@ public class SourceAdapter extends FormattingAdapter<Source> {
         throws IOException {
       writer.beginObject();
       writer.name("origin");
-      sourceAdapter.toJson(writer, source.getOrigin());
+      sourceTypeAdapter.toJson(writer, source.getOrigin());
       writer.name("name");
       writer.value(source.getName());
       writer.name("redacted");
       writer.value(true);
       writer.name("pattern");
-      writer.value(value);
+      writeTruncableValue(writer, value);
       writer.endObject();
     }
   }
