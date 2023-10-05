@@ -26,6 +26,9 @@ public abstract class SourceTypes {
   public static final String REQUEST_PATH_PARAMETER_STRING = "http.request.path.parameter";
   public static final byte REQUEST_MATRIX_PARAMETER = 9;
   public static final String REQUEST_MATRIX_PARAMETER_STRING = "http.request.matrix.parameter";
+  public static final byte REQUEST_MULTIPART_PARAMETER = 10;
+  public static final String REQUEST_MULTIPART_PARAMETER_STRING =
+      "http.request.multipart.parameter";
 
   private static final byte[] VALUES = {
     REQUEST_PARAMETER_NAME,
@@ -37,7 +40,8 @@ public abstract class SourceTypes {
     REQUEST_BODY,
     REQUEST_QUERY,
     REQUEST_PATH_PARAMETER,
-    REQUEST_MATRIX_PARAMETER
+    REQUEST_MATRIX_PARAMETER,
+    REQUEST_MULTIPART_PARAMETER
   };
 
   public static byte[] values() {
@@ -66,6 +70,8 @@ public abstract class SourceTypes {
         return SourceTypes.REQUEST_PATH_PARAMETER_STRING;
       case SourceTypes.REQUEST_MATRIX_PARAMETER:
         return SourceTypes.REQUEST_MATRIX_PARAMETER_STRING;
+      case SourceTypes.REQUEST_MULTIPART_PARAMETER:
+        return SourceTypes.REQUEST_MULTIPART_PARAMETER_STRING;
       default:
         return null;
     }

@@ -48,6 +48,17 @@ public class WebModuleImpl implements WebModule {
   }
 
   @Override
+  public void onMultipartNames(@Nullable final Collection<String> headerNames) {
+    onNamed(headerNames, SourceTypes.REQUEST_MULTIPART_PARAMETER);
+  }
+
+  @Override
+  public void onMultipartValues(
+      @Nullable final String headerName, @Nullable final Collection<String> headerValues) {
+    onNamed(headerName, headerValues, SourceTypes.REQUEST_MULTIPART_PARAMETER);
+  }
+
+  @Override
   public void onCookieNames(@Nullable Iterable<String> cookieNames) {
     onNamed(cookieNames, SourceTypes.REQUEST_COOKIE_NAME);
   }
