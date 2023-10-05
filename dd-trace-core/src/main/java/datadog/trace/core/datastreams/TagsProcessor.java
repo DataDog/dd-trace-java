@@ -60,8 +60,10 @@ public class TagsProcessor {
       new StringPrefix("has_routing_key:");
 
   public static final String KAFKA_CLUSTER_ID_TAG = "kafka_cluster_id";
-  private static final DDCache<String, String> KAFKA_CLUSTER_ID_TAG_CACHE = DDCaches.newFixedSizeCache(32);
-  private static final Function<String, String> KAFKA_CLUSTER_ID_TAG_PREFIX = new StringPrefix("cluster:");
+  private static final DDCache<String, String> KAFKA_CLUSTER_ID_TAG_CACHE =
+      DDCaches.newFixedSizeCache(32);
+  private static final Function<String, String> KAFKA_CLUSTER_ID_TAG_PREFIX =
+      new StringPrefix("kafka_cluster_id:");
 
   private static final Map<String, DDCache<String, String>> TAG_TO_CACHE = createTagToCacheMap();
   private static final Map<String, Function<String, String>> TAG_TO_PREFIX = createTagToPrefixMap();

@@ -98,7 +98,7 @@ public final class KafkaProducerInstrumentation extends Instrumenter.Tracing
       PRODUCER_DECORATE.afterStart(span);
       PRODUCER_DECORATE.onProduce(span, record, producerConfig);
 
-      callback = new KafkaProducerCallback(callback, parent, span);
+      callback = new KafkaProducerCallback(callback, parent, span, clusterId);
 
       if (record.value() == null) {
         span.setTag(InstrumentationTags.TOMBSTONE, true);

@@ -4,11 +4,11 @@ import java.util.Objects;
 import javax.annotation.Nullable;
 import org.apache.kafka.clients.consumer.internals.ConsumerMetadata;
 
-public class KafkaConsumerMetadata {
+public class KafkaConsumerInfo {
   private final String consumerGroup;
   private final ConsumerMetadata consumerMetadata;
 
-  public KafkaConsumerMetadata(String consumerGroup, ConsumerMetadata consumerMetadata) {
+  public KafkaConsumerInfo(String consumerGroup, ConsumerMetadata consumerMetadata) {
     this.consumerGroup = consumerGroup;
     this.consumerMetadata = consumerMetadata;
   }
@@ -39,8 +39,8 @@ public class KafkaConsumerMetadata {
       return this;
     }
 
-    public KafkaConsumerMetadata build() {
-      return new KafkaConsumerMetadata(consumerGroup, consumerMetadata);
+    public KafkaConsumerInfo build() {
+      return new KafkaConsumerInfo(consumerGroup, consumerMetadata);
     }
   }
 
@@ -48,7 +48,7 @@ public class KafkaConsumerMetadata {
   public boolean equals(Object o) {
     if (this == o) return true;
     if (o == null || getClass() != o.getClass()) return false;
-    KafkaConsumerMetadata metadata = (KafkaConsumerMetadata) o;
+    KafkaConsumerInfo metadata = (KafkaConsumerInfo) o;
     return Objects.equals(consumerGroup, metadata.consumerGroup)
         && Objects.equals(consumerMetadata, metadata.consumerMetadata);
   }
