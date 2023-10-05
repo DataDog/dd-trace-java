@@ -19,6 +19,7 @@ import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.clients.consumer.internals.ConsumerCoordinator;
+import org.apache.kafka.clients.consumer.internals.ConsumerMetadata;
 
 /** This instrumentation saves the consumer group in the context store for later use. */
 @AutoService(Instrumenter.class)
@@ -32,10 +33,11 @@ public final class KafkaConsumerMetadataInstrumentation extends Instrumenter.Tra
   @Override
   public Map<String, String> contextStore() {
     Map<String, String> contextStores = new HashMap<>();
-    contextStores.put("org.apache.kafka.clients.consumer.KafkaConsumer", "java.lang.String");
-    contextStores.put("org.apache.kafka.clients.consumer.ConsumerRecords", "java.lang.String");
+    //contextStores.put("org.apache.kafka.clients.consumer.KafkaConsumer", "java.lang.String");
+    contextStores.put("org.apache.kafka.clients.consumer.ConsumerRecords", KafkaConsumerMetadata.class.getName());
     contextStores.put(
         "org.apache.kafka.clients.consumer.internals.ConsumerCoordinator", "java.lang.String");
+    contextStores.put("org.apache.kafka.clients.consumer.KafkaConsumer", KafkaConsumerMetadata.class.getName());
     return contextStores;
   }
 
@@ -48,6 +50,7 @@ public final class KafkaConsumerMetadataInstrumentation extends Instrumenter.Tra
   public String[] helperClassNames() {
     return new String[] {
       packageName + ".KafkaDecorator",
+      packageName + ".KafkaConsumerMetadata",
     };
   }
 
@@ -73,15 +76,30 @@ public final class KafkaConsumerMetadataInstrumentation extends Instrumenter.Tra
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void captureGroup(
         @Advice.This KafkaConsumer consumer,
+        @Advice.FieldValue("metadata") ConsumerMetadata metadata,
         @Advice.FieldValue("coordinator") ConsumerCoordinator coordinator,
         @Advice.Argument(0) ConsumerConfig consumerConfig) {
-      String consumerGroup = consumerConfig.getString(ConsumerConfig.GROUP_ID_CONFIG);
+      System.out.println("[KAFKACONSUMERMETADATA] ON METHOD ENTER");
+      System.out.println("[KAFKACONSUMERMETADATA] START");
+      try {
+        //KafkaConsumerMetadata.Builder builder = new KafkaConsumerMetadata.Builder();
+        System.out.println("[KAFKACONSUMERMETADATA] " + KafkaConsumerMetadata.class.getName());
 
-      if (consumerGroup != null && !consumerGroup.isEmpty()) {
-        InstrumentationContext.get(KafkaConsumer.class, String.class).put(consumer, consumerGroup);
-        InstrumentationContext.get(ConsumerCoordinator.class, String.class)
-            .put(coordinator, consumerGroup);
+        String consumerGroup = consumerConfig.getString(ConsumerConfig.GROUP_ID_CONFIG);
+
+        if (consumerGroup != null && !consumerGroup.isEmpty()) {
+          KafkaConsumerMetadata kafkaConsumerMetadata = new KafkaConsumerMetadata(consumerGroup, null);
+          InstrumentationContext.get(KafkaConsumer.class, KafkaConsumerMetadata.class).put(consumer, kafkaConsumerMetadata);
+          InstrumentationContext.get(ConsumerCoordinator.class, String.class)
+              .put(coordinator, consumerGroup);
+          System.out.println("[KAFKACONSUMERMETADATA] in if statement");
+        }
+      } catch (Exception e) {
+        System.out.println("[KAFKACONSUMERMETADATA] " + e.getStackTrace());
       }
+
+      System.out.println("[KAFKACONSUMERMETADATA] done");
+
     }
 
     public static void muzzleCheck(ConsumerRecord record) {
@@ -100,11 +118,10 @@ public final class KafkaConsumerMetadataInstrumentation extends Instrumenter.Tra
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void captureGroup(
         @Advice.This KafkaConsumer consumer, @Advice.Return ConsumerRecords records) {
-      String consumerGroup =
-          InstrumentationContext.get(KafkaConsumer.class, String.class).get(consumer);
-
-      if (consumerGroup != null) {
-        InstrumentationContext.get(ConsumerRecords.class, String.class).put(records, consumerGroup);
+      KafkaConsumerMetadata kafkaConsumerMetadata =
+          InstrumentationContext.get(KafkaConsumer.class, KafkaConsumerMetadata.class).get(consumer);
+      if (kafkaConsumerMetadata != null) {
+        InstrumentationContext.get(ConsumerRecords.class, KafkaConsumerMetadata.class).put(records, kafkaConsumerMetadata);
       }
     }
   }

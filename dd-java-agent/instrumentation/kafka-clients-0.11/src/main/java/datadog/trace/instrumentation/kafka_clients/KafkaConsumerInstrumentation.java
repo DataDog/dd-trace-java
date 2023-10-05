@@ -30,7 +30,7 @@ public final class KafkaConsumerInstrumentation extends Instrumenter.Tracing
 
   @Override
   public Map<String, String> contextStore() {
-    return singletonMap("org.apache.kafka.clients.consumer.ConsumerRecords", "java.lang.String");
+    return singletonMap("org.apache.kafka.clients.consumer.ConsumerRecords", KafkaConsumerMetadata.class.getName());
   }
 
   @Override
@@ -48,7 +48,8 @@ public final class KafkaConsumerInstrumentation extends Instrumenter.Tracing
       packageName + ".TracingIterator",
       packageName + ".TracingList",
       packageName + ".TracingListIterator",
-      packageName + ".Base64Decoder"
+      packageName + ".Base64Decoder",
+      packageName + ".KafkaConsumerMetadata"
     };
   }
 
@@ -84,7 +85,11 @@ public final class KafkaConsumerInstrumentation extends Instrumenter.Tracing
         @Advice.Return(readOnly = false) Iterable<ConsumerRecord<?, ?>> iterable,
         @Advice.This ConsumerRecords records) {
       if (iterable != null) {
-        String group = InstrumentationContext.get(ConsumerRecords.class, String.class).get(records);
+        String group = null;
+        KafkaConsumerMetadata kafkaConsumerMetadata = InstrumentationContext.get(ConsumerRecords.class, KafkaConsumerMetadata.class).get(records);
+        if (kafkaConsumerMetadata != null) {
+          group = kafkaConsumerMetadata.getConsumerGroup();
+        }
         iterable = new TracingIterable(iterable, KAFKA_CONSUME, CONSUMER_DECORATE, group);
       }
     }
@@ -97,7 +102,11 @@ public final class KafkaConsumerInstrumentation extends Instrumenter.Tracing
         @Advice.Return(readOnly = false) List<ConsumerRecord<?, ?>> iterable,
         @Advice.This ConsumerRecords records) {
       if (iterable != null) {
-        String group = InstrumentationContext.get(ConsumerRecords.class, String.class).get(records);
+        String group = null;
+        KafkaConsumerMetadata kafkaConsumerMetadata = InstrumentationContext.get(ConsumerRecords.class, KafkaConsumerMetadata.class).get(records);
+        if (kafkaConsumerMetadata != null) {
+          group = kafkaConsumerMetadata.getConsumerGroup();
+        }
         iterable = new TracingList(iterable, KAFKA_CONSUME, CONSUMER_DECORATE, group);
       }
     }
@@ -110,7 +119,11 @@ public final class KafkaConsumerInstrumentation extends Instrumenter.Tracing
         @Advice.Return(readOnly = false) Iterator<ConsumerRecord<?, ?>> iterator,
         @Advice.This ConsumerRecords records) {
       if (iterator != null) {
-        String group = InstrumentationContext.get(ConsumerRecords.class, String.class).get(records);
+        String group = null;
+        KafkaConsumerMetadata kafkaConsumerMetadata = InstrumentationContext.get(ConsumerRecords.class, KafkaConsumerMetadata.class).get(records);
+        if (kafkaConsumerMetadata != null) {
+          group = kafkaConsumerMetadata.getConsumerGroup();
+        }
         iterator = new TracingIterator(iterator, KAFKA_CONSUME, CONSUMER_DECORATE, group);
       }
     }
