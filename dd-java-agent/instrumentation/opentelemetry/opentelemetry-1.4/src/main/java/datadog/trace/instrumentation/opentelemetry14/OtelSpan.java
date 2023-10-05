@@ -137,6 +137,10 @@ public class OtelSpan implements Span {
     return activateSpan(this.delegate);
   }
 
+  public AgentSpan.Context getAgentSpanContext() {
+    return this.delegate.context();
+  }
+
   private static class NoopSpan implements Span {
     private static final Span INSTANCE = new NoopSpan();
 
