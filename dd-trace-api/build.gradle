@@ -29,7 +29,6 @@ excludedClassesCoverage += [
   'datadog.trace.api.experimental.DataStreamsCheckpointer',
   'datadog.trace.api.experimental.DataStreamsCheckpointer.NoOp',
   'datadog.trace.api.experimental.DataStreamsContextCarrier',
-  'datadog.trace.api.experimental.DataStreamsContextCarrier.NoOp',
   'datadog.appsec.api.blocking.*',
 ]
 
