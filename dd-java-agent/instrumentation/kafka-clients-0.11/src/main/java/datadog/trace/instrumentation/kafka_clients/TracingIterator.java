@@ -4,10 +4,10 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateNe
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.closePrevious;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
-import static datadog.trace.core.datastreams.TagsProcessor.CLUSTER_TAG;
 import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_IN;
 import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_TAG;
 import static datadog.trace.core.datastreams.TagsProcessor.GROUP_TAG;
+import static datadog.trace.core.datastreams.TagsProcessor.KAFKA_CLUSTER_ID_TAG;
 import static datadog.trace.core.datastreams.TagsProcessor.TOPIC_TAG;
 import static datadog.trace.core.datastreams.TagsProcessor.TYPE_TAG;
 import static datadog.trace.instrumentation.kafka_clients.KafkaDecorator.BROKER_DECORATE;
@@ -89,9 +89,11 @@ public class TracingIterator implements Iterator<ConsumerRecord<?, ?>> {
           }
 
           LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>();
-          sortedTags.put(CLUSTER_TAG, clusterId);
           sortedTags.put(DIRECTION_TAG, DIRECTION_IN);
           sortedTags.put(GROUP_TAG, group);
+          if (clusterId != null) {
+            sortedTags.put(KAFKA_CLUSTER_ID_TAG, clusterId);
+          }
           sortedTags.put(TOPIC_TAG, val.topic());
           sortedTags.put(TYPE_TAG, "kafka");
 
