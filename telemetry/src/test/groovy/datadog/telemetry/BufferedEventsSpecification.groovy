@@ -35,49 +35,62 @@ class BufferedEventsSpecification extends DDSpecification {
 
     when:
     events.addConfigChangeEvent(configSetting)
+
+    then:
+    !events.isEmpty()
+    events.hasConfigChangeEvent()
+    events.nextConfigChangeEvent() == configSetting
+    !events.hasConfigChangeEvent()
+    events.isEmpty()
+
+    when:
     events.addDependencyEvent(dependency)
+
+    then:
+    !events.isEmpty()
+    events.hasDependencyEvent()
+    events.nextDependencyEvent() == dependency
+    !events.hasDependencyEvent()
+    events.isEmpty()
+
+    when:
     events.addDistributionSeriesEvent(series)
+
+    then:
+    !events.isEmpty()
+    events.hasDistributionSeriesEvent()
+    events.nextDistributionSeriesEvent() == series
+    !events.hasDistributionSeriesEvent()
+    events.isEmpty()
+
+    when:
     events.addIntegrationEvent(integration)
+
+    then:
+    !events.isEmpty()
+    events.hasIntegrationEvent()
+    events.nextIntegrationEvent() == integration
+    !events.hasIntegrationEvent()
+    events.isEmpty()
+
+    when:
     events.addLogMessageEvent(logMessage)
+
+    then:
+    !events.isEmpty()
+    events.hasLogMessageEvent()
+    events.nextLogMessageEvent() == logMessage
+    !events.hasLogMessageEvent()
+    events.isEmpty()
+
+    when:
     events.addMetricEvent(metric)
 
     then:
     !events.isEmpty()
-
-    events.hasConfigChangeEvent()
-    events.nextConfigChangeEvent() == configSetting
-    !events.hasConfigChangeEvent()
-
-    !events.isEmpty()
-
-    events.hasDependencyEvent()
-    events.nextDependencyEvent() == dependency
-    !events.hasDependencyEvent()
-
-    !events.isEmpty()
-
-    events.hasDistributionSeriesEvent()
-    events.nextDistributionSeriesEvent() == series
-    !events.hasDistributionSeriesEvent()
-
-    !events.isEmpty()
-
-    events.hasIntegrationEvent()
-    events.nextIntegrationEvent() == integration
-    !events.hasIntegrationEvent()
-
-    !events.isEmpty()
-
-    events.hasLogMessageEvent()
-    events.nextLogMessageEvent() == logMessage
-    !events.hasLogMessageEvent()
-
-    !events.isEmpty()
-
     events.hasMetricEvent()
     events.nextMetricEvent() == metric
     !events.hasMetricEvent()
-
     events.isEmpty()
   }
 

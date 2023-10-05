@@ -171,6 +171,8 @@ public final class ConfigDefaults {
 
   static final boolean DEFAULT_TELEMETRY_ENABLED = true;
   static final int DEFAULT_TELEMETRY_HEARTBEAT_INTERVAL = 60; // in seconds
+  static final int DEFAULT_TELEMETRY_EXTENDED_HEARTBEAT_INTERVAL =
+      24 * 60 * 60; // 24 hours in seconds
   static final int DEFAULT_TELEMETRY_METRICS_INTERVAL = 10; // in seconds
   static final boolean DEFAULT_TELEMETRY_DEPENDENCY_COLLECTION_ENABLED = true;
 

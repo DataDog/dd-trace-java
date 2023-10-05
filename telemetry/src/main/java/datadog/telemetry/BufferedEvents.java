@@ -106,7 +106,7 @@ public final class BufferedEvents implements EventSource, EventSink {
 
   @Override
   public boolean hasMetricEvent() {
-    return dependencyEvents != null && metricIndex < dependencyEvents.size();
+    return metricEvents != null && metricIndex < metricEvents.size();
   }
 
   @Override

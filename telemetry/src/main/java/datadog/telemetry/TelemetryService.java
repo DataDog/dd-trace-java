@@ -32,6 +32,7 @@ public class TelemetryService {
   private final BlockingQueue<DistributionSeries> distributionSeries =
       new LinkedBlockingQueue<>(1024);
 
+  private final ExtendedHeartbeatData extendedHeartbeatData = new ExtendedHeartbeatData();
   private final EventSource.Queued eventSource =
       new EventSource.Queued(
           configurations, integrations, dependencies, metrics, distributionSeries, logMessages);
@@ -68,8 +69,9 @@ public class TelemetryService {
   }
 
   public boolean addConfiguration(Map<String, ConfigSetting> configuration) {
-    for (ConfigSetting configSetting : configuration.values()) {
-      if (!this.configurations.offer(configSetting)) {
+    for (ConfigSetting cs : configuration.values()) {
+      extendedHeartbeatData.pushConfigSetting(cs);
+      if (!this.configurations.offer(cs)) {
         return false;
       }
     }
@@ -77,6 +79,7 @@ public class TelemetryService {
   }
 
   public boolean addDependency(Dependency dependency) {
+    extendedHeartbeatData.pushDependency(dependency);
     return this.dependencies.offer(dependency);
   }
 
@@ -90,6 +93,7 @@ public class TelemetryService {
     if (openTelemetryIntegrationEnabled && openTracingIntegrationEnabled) {
       warnAboutExclusiveIntegrations();
     }
+    extendedHeartbeatData.pushIntegration(integration);
     return this.integrations.offer(integration);
   }
 
@@ -139,12 +143,12 @@ public class TelemetryService {
     eventSink = bufferedEvents;
 
     log.debug("Preparing app-started request");
-    TelemetryRequest telemetryRequest =
+    TelemetryRequest request =
         new TelemetryRequest(
             eventSource, eventSink, messageBytesSoftLimit, RequestType.APP_STARTED, debug);
-    telemetryRequest.writeProducts();
-    telemetryRequest.writeConfigurations();
-    if (telemetryRouter.sendRequest(telemetryRequest) == TelemetryClient.Result.SUCCESS) {
+    request.writeProducts();
+    request.writeConfigurations();
+    if (telemetryRouter.sendRequest(request) == TelemetryClient.Result.SUCCESS) {
       // discard already sent buffered event on the successful attempt
       bufferedEvents = null;
       return true;
@@ -171,29 +175,29 @@ public class TelemetryService {
       eventSource = bufferedEvents;
       eventSink = EventSink.NOOP; // TODO collect metrics for unsent events
     }
-    TelemetryRequest telemetryRequest;
+    TelemetryRequest request;
     boolean isMoreDataAvailable = false;
     if (eventSource.isEmpty()) {
       log.debug("Preparing app-heartbeat request");
-      telemetryRequest =
+      request =
           new TelemetryRequest(
               eventSource, eventSink, messageBytesSoftLimit, RequestType.APP_HEARTBEAT, debug);
     } else {
       log.debug("Preparing message-batch request");
-      telemetryRequest =
+      request =
           new TelemetryRequest(
               eventSource, eventSink, messageBytesSoftLimit, RequestType.MESSAGE_BATCH, debug);
-      telemetryRequest.writeHeartbeatEvent();
-      telemetryRequest.writeConfigurationMessage();
-      telemetryRequest.writeIntegrationsMessage();
-      telemetryRequest.writeDependenciesMessage();
-      telemetryRequest.writeMetricsMessage();
-      telemetryRequest.writeDistributionsMessage();
-      telemetryRequest.writeLogsMessage();
+      request.writeHeartbeat();
+      request.writeConfigurations();
+      request.writeIntegrations();
+      request.writeDependencies();
+      request.writeMetrics();
+      request.writeDistributions();
+      request.writeLogs();
       isMoreDataAvailable = !this.eventSource.isEmpty();
     }
 
-    TelemetryClient.Result result = telemetryRouter.sendRequest(telemetryRequest);
+    TelemetryClient.Result result = telemetryRouter.sendRequest(request);
     if (result == TelemetryClient.Result.SUCCESS) {
       log.debug("Telemetry request has been sent successfully.");
       bufferedEvents = null;
@@ -206,6 +210,28 @@ public class TelemetryService {
       }
     }
     return false;
+  }
+
+  /** @return true - if extended heartbeat request sent successfully, otherwise false */
+  public boolean sendExtendedHeartbeat() {
+    log.debug("Preparing message-batch request");
+    EventSource extendedHeartbeatDataSnapshot = extendedHeartbeatData.snapshot();
+    TelemetryRequest request =
+        new TelemetryRequest(
+            extendedHeartbeatDataSnapshot,
+            EventSink.NOOP,
+            messageBytesSoftLimit,
+            RequestType.APP_EXTENDED_HEARTBEAT,
+            debug);
+    request.writeConfigurations();
+    request.writeDependencies();
+    request.writeIntegrations();
+
+    TelemetryClient.Result result = telemetryRouter.sendRequest(request);
+    if (!extendedHeartbeatDataSnapshot.isEmpty()) {
+      log.warn("Telemetry Extended Heartbeat data does NOT fit in one request.");
+    }
+    return result == TelemetryClient.Result.SUCCESS;
   }
 
   void warnAboutExclusiveIntegrations() {

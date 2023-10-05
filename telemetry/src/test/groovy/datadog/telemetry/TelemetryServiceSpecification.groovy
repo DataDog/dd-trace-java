@@ -20,7 +20,7 @@ class TelemetryServiceSpecification extends Specification {
   def distribution = new DistributionSeries().namespace("tracers").metric("distro").points([1, 2, 3]).tags(["tag1", "tag2"]).common(false)
   def logMessage = new LogMessage().message("log-message").tags("tag1:tag2").level(LogMessageLevel.DEBUG).stackTrace("stack-trace").tracerTime(32423)
 
-  void 'happy path without data'() {
+  def 'happy path without data'() {
     setup:
     TestTelemetryRouter testHttpClient = new TestTelemetryRouter()
     TelemetryService telemetryService = new TelemetryService(testHttpClient, 10000, false)
@@ -50,7 +50,7 @@ class TelemetryServiceSpecification extends Specification {
     testHttpClient.assertNoMoreRequests()
   }
 
-  void 'happy path with data'() {
+  def 'happy path with data'() {
     setup:
     TestTelemetryRouter testHttpClient = new TestTelemetryRouter()
     TelemetryService telemetryService = new TelemetryService(testHttpClient, 10000, false)
@@ -111,7 +111,7 @@ class TelemetryServiceSpecification extends Specification {
     testHttpClient.assertNoMoreRequests()
   }
 
-  void 'happy path with data after app-started'() {
+  def 'happy path with data after app-started'() {
     setup:
     TestTelemetryRouter testHttpClient = new TestTelemetryRouter()
     TelemetryService telemetryService = new TelemetryService(testHttpClient, 10000, false)
@@ -150,7 +150,7 @@ class TelemetryServiceSpecification extends Specification {
     testHttpClient.assertNoMoreRequests()
   }
 
-  void 'do not discard data for app-started event until it has been successfully sent'() {
+  def 'do not discard data for app-started event until it has been successfully sent'() {
     setup:
     TestTelemetryRouter testHttpClient = new TestTelemetryRouter()
     TelemetryService telemetryService = new TelemetryService(testHttpClient, 10000, false)
@@ -242,7 +242,7 @@ class TelemetryServiceSpecification extends Specification {
     testHttpClient.assertNoMoreRequests()
   }
 
-  void 'send closing event request'() {
+  def 'send closing event request'() {
     setup:
     TestTelemetryRouter testHttpClient = new TestTelemetryRouter()
     TelemetryService telemetryService = new TelemetryService(testHttpClient, 10000, false)
@@ -256,7 +256,7 @@ class TelemetryServiceSpecification extends Specification {
     testHttpClient.assertNoMoreRequests()
   }
 
-  void 'report when both OTel and OT are enabled'() {
+  def 'report when both OTel and OT are enabled'() {
     setup:
     TestTelemetryRouter testHttpClient = new TestTelemetryRouter()
     TelemetryService telemetryService = Spy(new TelemetryService(testHttpClient, 1000, false))
@@ -283,7 +283,7 @@ class TelemetryServiceSpecification extends Specification {
     false       | false     | 0
   }
 
-  void 'split telemetry requests if the size above the limit'() {
+  def 'split telemetry requests if the size above the limit'() {
     setup:
     TestTelemetryRouter testHttpClient = new TestTelemetryRouter()
     TelemetryService telemetryService = new TelemetryService(testHttpClient, 5000, false)
@@ -332,5 +332,78 @@ class TelemetryServiceSpecification extends Specification {
       .assertNextMessage(RequestType.LOGS).hasPayload().logs([logMessage])
       .assertNoMoreMessages()
     testHttpClient.assertNoMoreRequests()
+  }
+
+  def 'send all collected data with extended-heartbeat request every time'() {
+    setup:
+    TestTelemetryRouter testHttpClient = new TestTelemetryRouter()
+    TelemetryService telemetryService = new TelemetryService(testHttpClient, 10000, false)
+
+    telemetryService.addConfiguration(configuration)
+    telemetryService.addIntegration(integration)
+    telemetryService.addDependency(dependency)
+
+    when:
+    testHttpClient.expectRequest(TelemetryClient.Result.SUCCESS)
+    telemetryService.sendExtendedHeartbeat()
+
+    then:
+    testHttpClient.assertRequestBody(RequestType.APP_EXTENDED_HEARTBEAT)
+      .assertPayload()
+      .configuration([confKeyValue])
+      .integrations([integration])
+      .dependencies([dependency])
+    testHttpClient.assertNoMoreRequests()
+
+    when:
+    telemetryService.addConfiguration(configuration)
+    telemetryService.addIntegration(integration)
+    telemetryService.addDependency(dependency)
+
+    testHttpClient.expectRequest(TelemetryClient.Result.SUCCESS)
+    telemetryService.sendExtendedHeartbeat()
+
+    then:
+    testHttpClient.assertRequestBody(RequestType.APP_EXTENDED_HEARTBEAT)
+      .assertPayload()
+      .configuration([confKeyValue, confKeyValue])
+      .integrations([integration, integration])
+      .dependencies([dependency, dependency])
+    testHttpClient.assertNoMoreRequests()
+  }
+
+  def 'send extended-heartbeat request, even if data already has been sent or attempted as part of another telemetry events'() {
+    setup:
+    TestTelemetryRouter testHttpClient = new TestTelemetryRouter()
+    TelemetryService telemetryService = new TelemetryService(testHttpClient, 10000, false)
+
+    telemetryService.addConfiguration(configuration)
+    telemetryService.addIntegration(integration)
+    telemetryService.addDependency(dependency)
+
+    when:
+    testHttpClient.expectRequest(resultCode)
+    telemetryService.sendTelemetryEvents()
+
+    then:
+    testHttpClient.assertRequestBody(RequestType.MESSAGE_BATCH)
+
+    when:
+    testHttpClient.expectRequest(TelemetryClient.Result.SUCCESS)
+    telemetryService.sendExtendedHeartbeat()
+
+    then:
+    testHttpClient.assertRequestBody(RequestType.APP_EXTENDED_HEARTBEAT)
+      .assertPayload()
+      .configuration([confKeyValue])
+      .integrations([integration])
+      .dependencies([dependency])
+    testHttpClient.assertNoMoreRequests()
+
+    where:
+    resultCode                           | _
+    TelemetryClient.Result.SUCCESS   | _
+    TelemetryClient.Result.FAILURE   | _
+    TelemetryClient.Result.NOT_FOUND | _
   }
 }
