@@ -5,6 +5,7 @@ import com.datadog.iast.model.Source;
 import com.datadog.iast.model.Vulnerability;
 import com.datadog.iast.model.VulnerabilityBatch;
 import com.datadog.iast.model.VulnerabilityType;
+import com.datadog.iast.model.json.TruncatedVulnerabilitiesAdapter.TruncatedVulnerabilities;
 import com.datadog.iast.sensitive.SensitiveHandler;
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.JsonWriter;
@@ -83,6 +84,8 @@ class AdapterFactory implements JsonAdapter.Factory {
       return new EvidenceAdapter(moshi);
     } else if (VulnerabilityType.class.equals(rawType)) {
       return new VulnerabilityTypeAdapter();
+    } else if (TruncatedVulnerabilities.class.equals(rawType)) {
+      return new TruncatedVulnerabilitiesAdapter(moshi);
     }
     return null;
   }
