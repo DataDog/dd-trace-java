@@ -3,7 +3,6 @@ package datadog.trace.instrumentation.kafka_clients;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.instrumentation.kafka_clients.KafkaDecorator.CONSUMER_DECORATE;
 import static datadog.trace.instrumentation.kafka_clients.KafkaDecorator.KAFKA_CONSUME;
-import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
@@ -35,7 +34,8 @@ public final class KafkaConsumerInstrumentation extends Instrumenter.Tracing
   public Map<String, String> contextStore() {
     Map<String, String> contextStores = new HashMap<>();
     contextStores.put("org.apache.kafka.clients.Metadata", "java.lang.String");
-    contextStores.put("org.apache.kafka.clients.consumer.ConsumerRecords", KafkaConsumerMetadata.class.getName());
+    contextStores.put(
+        "org.apache.kafka.clients.consumer.ConsumerRecords", KafkaConsumerMetadata.class.getName());
     return contextStores;
   }
 
@@ -93,16 +93,20 @@ public final class KafkaConsumerInstrumentation extends Instrumenter.Tracing
       if (iterable != null) {
         String group = null;
         String clusterId = null;
-        KafkaConsumerMetadata kafkaConsumerMetadata = InstrumentationContext.get(ConsumerRecords.class, KafkaConsumerMetadata.class).get(records);
+        KafkaConsumerMetadata kafkaConsumerMetadata =
+            InstrumentationContext.get(ConsumerRecords.class, KafkaConsumerMetadata.class)
+                .get(records);
         if (kafkaConsumerMetadata != null) {
           group = kafkaConsumerMetadata.getConsumerGroup();
           ConsumerMetadata consumerMetadata = kafkaConsumerMetadata.getConsumerMetadata();
           if (consumerMetadata != null) {
-            clusterId = InstrumentationContext.get(Metadata.class, String.class).get(consumerMetadata);
+            clusterId =
+                InstrumentationContext.get(Metadata.class, String.class).get(consumerMetadata);
           }
         }
         System.out.println("[KAFKACONSUMERMETADATA] cluster ID: " + clusterId);
-        iterable = new TracingIterable(iterable, KAFKA_CONSUME, CONSUMER_DECORATE, group, clusterId);
+        iterable =
+            new TracingIterable(iterable, KAFKA_CONSUME, CONSUMER_DECORATE, group, clusterId);
       }
     }
   }
@@ -116,12 +120,15 @@ public final class KafkaConsumerInstrumentation extends Instrumenter.Tracing
       if (iterable != null) {
         String group = null;
         String clusterId = null;
-        KafkaConsumerMetadata kafkaConsumerMetadata = InstrumentationContext.get(ConsumerRecords.class, KafkaConsumerMetadata.class).get(records);
+        KafkaConsumerMetadata kafkaConsumerMetadata =
+            InstrumentationContext.get(ConsumerRecords.class, KafkaConsumerMetadata.class)
+                .get(records);
         if (kafkaConsumerMetadata != null) {
           group = kafkaConsumerMetadata.getConsumerGroup();
           ConsumerMetadata consumerMetadata = kafkaConsumerMetadata.getConsumerMetadata();
           if (consumerMetadata != null) {
-            clusterId = InstrumentationContext.get(Metadata.class, String.class).get(consumerMetadata);
+            clusterId =
+                InstrumentationContext.get(Metadata.class, String.class).get(consumerMetadata);
           }
         }
         System.out.println("[KAFKACONSUMERMETADATA] cluster ID: " + clusterId);
@@ -139,16 +146,20 @@ public final class KafkaConsumerInstrumentation extends Instrumenter.Tracing
       if (iterator != null) {
         String group = null;
         String clusterId = null;
-        KafkaConsumerMetadata kafkaConsumerMetadata = InstrumentationContext.get(ConsumerRecords.class, KafkaConsumerMetadata.class).get(records);
+        KafkaConsumerMetadata kafkaConsumerMetadata =
+            InstrumentationContext.get(ConsumerRecords.class, KafkaConsumerMetadata.class)
+                .get(records);
         if (kafkaConsumerMetadata != null) {
           group = kafkaConsumerMetadata.getConsumerGroup();
           ConsumerMetadata consumerMetadata = kafkaConsumerMetadata.getConsumerMetadata();
           if (consumerMetadata != null) {
-            clusterId = InstrumentationContext.get(Metadata.class, String.class).get(consumerMetadata);
+            clusterId =
+                InstrumentationContext.get(Metadata.class, String.class).get(consumerMetadata);
           }
         }
         System.out.println("[KAFKACONSUMERMETADATA] cluster ID: " + clusterId);
-        iterator = new TracingIterator(iterator, KAFKA_CONSUME, CONSUMER_DECORATE, group, clusterId);
+        iterator =
+            new TracingIterator(iterator, KAFKA_CONSUME, CONSUMER_DECORATE, group, clusterId);
       }
     }
   }

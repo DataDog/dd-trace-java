@@ -34,10 +34,8 @@ abstract class AbstractTransformerBuilder
   @Override
   public final void applyInstrumentation(Instrumenter.HasAdvice instrumenter) {
     if (instrumenter instanceof Instrumenter.Default) {
-      //System.out.println("[applyInstrumentation default] " + instrumenter);
       buildInstrumentation((Instrumenter.Default) instrumenter);
     } else if (instrumenter instanceof Instrumenter.ForSingleType) {
-      //System.out.println("[applyInstrumentation single type] " + instrumenter);
       buildSingleAdvice((Instrumenter.ForSingleType) instrumenter); // for testing purposes
     } else {
       throw new IllegalArgumentException("Unexpected Instrumenter type");

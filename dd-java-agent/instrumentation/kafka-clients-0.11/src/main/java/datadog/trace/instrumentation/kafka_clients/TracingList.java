@@ -136,12 +136,14 @@ public class TracingList implements List<ConsumerRecord<?, ?>>, TracingIterableD
   @Override
   public ListIterator<ConsumerRecord<?, ?>> listIterator(final int index) {
     // every iteration will add spans. Not only the very first one
-    return new TracingListIterator(delegate.listIterator(index), operationName, decorator, group, clusterId);
+    return new TracingListIterator(
+        delegate.listIterator(index), operationName, decorator, group, clusterId);
   }
 
   @Override
   public List<ConsumerRecord<?, ?>> subList(final int fromIndex, final int toIndex) {
-    return new TracingList(delegate.subList(fromIndex, toIndex), operationName, decorator, group, clusterId);
+    return new TracingList(
+        delegate.subList(fromIndex, toIndex), operationName, decorator, group, clusterId);
   }
 
   @Override

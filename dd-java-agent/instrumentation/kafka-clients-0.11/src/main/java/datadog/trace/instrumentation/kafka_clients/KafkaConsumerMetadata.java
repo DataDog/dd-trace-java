@@ -2,7 +2,6 @@ package datadog.trace.instrumentation.kafka_clients;
 
 import java.util.Objects;
 import javax.annotation.Nullable;
-import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.internals.ConsumerMetadata;
 
 public class KafkaConsumerMetadata {

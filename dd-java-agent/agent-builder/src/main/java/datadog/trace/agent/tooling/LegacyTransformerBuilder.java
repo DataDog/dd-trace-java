@@ -171,7 +171,6 @@ public final class LegacyTransformerBuilder extends AbstractTransformerBuilder {
 
   @Override
   public void applyAdvice(ElementMatcher<? super MethodDescription> matcher, String name) {
-    System.out.println("[LEGACY] Apply advice: " + name);
     adviceBuilder =
         adviceBuilder.transform(
             new AgentBuilder.Transformer.ForAdvice()

@@ -18,7 +18,6 @@ import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
-import static org.apache.kafka.clients.producer.ProducerConfig.BOOTSTRAP_SERVERS_CONFIG;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -35,11 +34,12 @@ import org.apache.kafka.clients.Metadata;
 import org.apache.kafka.clients.producer.Callback;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
-import org.apache.kafka.clients.producer.internals.Sender;
 import org.apache.kafka.clients.producer.internals.ProducerMetadata;
+import org.apache.kafka.clients.producer.internals.Sender;
 import org.apache.kafka.common.record.RecordBatch;
-//import org.slf4j.Logger;
-//import org.slf4j.LoggerFactory;
+
+// import org.slf4j.Logger;
+// import org.slf4j.LoggerFactory;
 
 @AutoService(Instrumenter.class)
 public final class KafkaProducerInstrumentation extends Instrumenter.Tracing
@@ -49,7 +49,7 @@ public final class KafkaProducerInstrumentation extends Instrumenter.Tracing
     super("kafka");
   }
 
-  //private static final Logger log = LoggerFactory.getLogger(KafkaProducerInstrumentation.class);
+  // private static final Logger log = LoggerFactory.getLogger(KafkaProducerInstrumentation.class);
   @Override
   public String instrumentedType() {
     return "org.apache.kafka.clients.producer.KafkaProducer";
@@ -93,10 +93,12 @@ public final class KafkaProducerInstrumentation extends Instrumenter.Tracing
         @Advice.Argument(value = 1, readOnly = false) Callback callback) {
       System.out.println("[KAFKAPRODUCER] ON METHOD ENTER");
       System.out.println("[KAFKAPRODUCER] START");
-      //System.out.println(producerConfig.getList(BOOTSTRAP_SERVERS_CONFIG));
-      //System.out.println(metadata);
+      // System.out.println(producerConfig.getList(BOOTSTRAP_SERVERS_CONFIG));
+      // System.out.println(metadata);
       try {
-        System.out.println("[KAFKAPRODUCER] cluster ID from context: " + InstrumentationContext.get(Metadata.class, String.class).get(metadata));
+        System.out.println(
+            "[KAFKAPRODUCER] cluster ID from context: "
+                + InstrumentationContext.get(Metadata.class, String.class).get(metadata));
       } catch (Exception e) {
         e.printStackTrace();
       }

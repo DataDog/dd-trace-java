@@ -1,15 +1,11 @@
 package datadog.trace.instrumentation.kafka_clients;
 
-import datadog.trace.api.Config;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import java.io.IOException;
+import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import org.apache.kafka.clients.producer.Callback;
-import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.clients.producer.RecordMetadata;
@@ -20,17 +16,6 @@ import org.apache.kafka.common.errors.ProducerFencedException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
-
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
-import static datadog.trace.instrumentation.kafka_clients.KafkaDecorator.PRODUCER_DECORATE;
-import datadog.trace.api.Config;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import java.io.IOException;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import java.time.Duration;
 public abstract class TracedDelegateKafkaProducer implements Producer {
   private static final Logger log = LoggerFactory.getLogger(TracedDelegateKafkaProducer.class);
   private final Producer delegate;
@@ -95,10 +80,13 @@ public abstract class TracedDelegateKafkaProducer implements Producer {
   }
 
   @Override
-  public void close(Duration duration) { this.delegate.close(duration); }
+  public void close(Duration duration) {
+    this.delegate.close(duration);
+  }
 
   @Override
-  public void sendOffsetsToTransaction(Map offsets, String consumerGroupId) throws ProducerFencedException {
+  public void sendOffsetsToTransaction(Map offsets, String consumerGroupId)
+      throws ProducerFencedException {
     this.delegate.sendOffsetsToTransaction(offsets, consumerGroupId);
   }
 }

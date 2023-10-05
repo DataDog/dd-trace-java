@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.kafka_clients;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.extendsClass;
-import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
@@ -19,7 +18,6 @@ import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 import org.apache.kafka.clients.Metadata;
-import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.common.requests.MetadataResponse;
 
 @AutoService(Instrumenter.class)
@@ -42,9 +40,7 @@ public class MetadataInstrumentation extends Instrumenter.Tracing
 
   @Override
   public String[] helperClassNames() {
-    return new String[] {
-        packageName + ".KafkaDecorator"
-    };
+    return new String[] {packageName + ".KafkaDecorator"};
   }
 
   // TODO figure this out
@@ -57,16 +53,16 @@ public class MetadataInstrumentation extends Instrumenter.Tracing
   public void adviceTransformations(AdviceTransformation transformation) {
     System.out.println("[APPLYING TRANSFORMATION]");
     transformation.applyAdvice(
-        isConstructor(),
-        MetadataInstrumentation.class.getName() + "$MetadataConstructorAdvice");
+        isConstructor(), MetadataInstrumentation.class.getName() + "$MetadataConstructorAdvice");
     transformation.applyAdvice(
         isMethod().and(named("update")),
-            MetadataInstrumentation.class.getName() + "$MetadataUpdateAdvice");
+        MetadataInstrumentation.class.getName() + "$MetadataUpdateAdvice");
   }
 
   public static class MetadataUpdateAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static void onEnter(@Advice.This final Metadata metadata, @Advice.Argument(1) final MetadataResponse response) {
+    public static void onEnter(
+        @Advice.This final Metadata metadata, @Advice.Argument(1) final MetadataResponse response) {
       System.out.println("[MetadataUpdateAdvice] enter");
       if (response == null) {
         System.out.println("[MetadataUpdateAdvice] NULL RESPONSE");
@@ -76,17 +72,24 @@ public class MetadataInstrumentation extends Instrumenter.Tracing
         DateFormat dateFormat = new SimpleDateFormat("yyyy/MM/dd HH:mm:ss");
         Date date = new Date();
         System.out.println("[MetadataUpdateAdvice] timestamp: " + dateFormat.format(date));
-        InstrumentationContext.get(Metadata.class, String.class).put(metadata, response.clusterId());
+        InstrumentationContext.get(Metadata.class, String.class)
+            .put(metadata, response.clusterId());
       }
       for (MetadataResponse.TopicMetadata topicMetadata : response.topicMetadata()) {
         System.out.println("[MetadataUpdateAdvice] topic: " + topicMetadata.topic());
-        for (MetadataResponse.PartitionMetadata partitionMetadata : topicMetadata.partitionMetadata()) {
-          System.out.println("[MetadataUpdateAdvice]   partition: " + partitionMetadata.partition());
-          System.out.println("[MetadataUpdateAdvice]   in sync repliacas: " + partitionMetadata.replicaIds);
-          System.out.println("[MetadataUpdateAdvice]   in sync repliacas: " + partitionMetadata.inSyncReplicaIds);
-          System.out.println("[MetadataUpdateAdvice]   in sync repliacas: " + partitionMetadata.offlineReplicaIds);
+        for (MetadataResponse.PartitionMetadata partitionMetadata :
+            topicMetadata.partitionMetadata()) {
+          System.out.println(
+              "[MetadataUpdateAdvice]   partition: " + partitionMetadata.partition());
+          System.out.println(
+              "[MetadataUpdateAdvice]   in sync repliacas: " + partitionMetadata.replicaIds);
+          System.out.println(
+              "[MetadataUpdateAdvice]   in sync repliacas: " + partitionMetadata.inSyncReplicaIds);
+          System.out.println(
+              "[MetadataUpdateAdvice]   in sync repliacas: " + partitionMetadata.offlineReplicaIds);
           System.out.println("[MetadataUpdateAdvice]   leader: " + partitionMetadata.leaderId);
-          System.out.println("[MetadataUpdateAdvice]   offline replicas: " + partitionMetadata.topicPartition);
+          System.out.println(
+              "[MetadataUpdateAdvice]   offline replicas: " + partitionMetadata.topicPartition);
           System.out.println("[MetadataUpdateAdvice] ============");
         }
       }
@@ -116,8 +119,8 @@ public class MetadataInstrumentation extends Instrumenter.Tracing
      * 2.7 because of TracedDelegatingConsumer. This unused method is added to ensure consistent
      * muzzle validation by preventing match with 2.6.
      */
-    //public static void muzzleCheck(final TracedDelegatingConsumer consumer) {
+    // public static void muzzleCheck(final TracedDelegatingConsumer consumer) {
     //  consumer.handleRecoverOk(null);
-    //}
+    // }
   }
 }
