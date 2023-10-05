@@ -91,18 +91,6 @@ public final class KafkaProducerInstrumentation extends Instrumenter.Tracing
         @Advice.FieldValue("metadata") ProducerMetadata metadata,
         @Advice.Argument(value = 0, readOnly = false) ProducerRecord record,
         @Advice.Argument(value = 1, readOnly = false) Callback callback) {
-      System.out.println("[KAFKAPRODUCER] ON METHOD ENTER");
-      System.out.println("[KAFKAPRODUCER] START");
-      // System.out.println(producerConfig.getList(BOOTSTRAP_SERVERS_CONFIG));
-      // System.out.println(metadata);
-      try {
-        System.out.println(
-            "[KAFKAPRODUCER] cluster ID from context: "
-                + InstrumentationContext.get(Metadata.class, String.class).get(metadata));
-      } catch (Exception e) {
-        e.printStackTrace();
-      }
-      System.out.println("[KAFKAPRODUCER] done");
       String clusterId = InstrumentationContext.get(Metadata.class, String.class).get(metadata);
 
       final AgentSpan parent = activeSpan();

@@ -7,6 +7,7 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOn
 import static net.bytebuddy.matcher.ElementMatchers.isSynthetic;
 import static net.bytebuddy.matcher.ElementMatchers.not;
 
+import datadog.trace.agent.tooling.bytebuddy.ExceptionHandlers;
 import datadog.trace.agent.tooling.context.FieldBackedContextInjector;
 import datadog.trace.agent.tooling.context.FieldBackedContextMatcher;
 import datadog.trace.agent.tooling.context.FieldBackedContextRequestRewriter;
@@ -65,6 +66,7 @@ public final class CombiningTransformerBuilder extends AbstractTransformerBuilde
   }
 
   private void buildInstrumentationMatcher(Instrumenter.Default instrumenter, int id) {
+
     if (instrumenter instanceof Instrumenter.ForSingleType
         || instrumenter instanceof Instrumenter.ForKnownTypes) {
       knownTypesMask.set(id);
@@ -80,12 +82,6 @@ public final class CombiningTransformerBuilder extends AbstractTransformerBuilde
       Collection<String> names =
           ((Instrumenter.ForConfiguredTypes) instrumenter).configuredMatchingTypes();
       if (null != names && !names.isEmpty()) {
-        if (instrumenter
-            .getClass()
-            .getName()
-            .equals("datadog.trace.instrumentation.kafka_clients.KafkaProducerInstrumentation")) {
-          System.out.println("[buildInstrumentationMatcher] 5");
-        }
         matchers.add(new MatchRecorder.ForType(id, namedOneOf(names)));
       }
     }
@@ -166,6 +162,7 @@ public final class CombiningTransformerBuilder extends AbstractTransformerBuilde
     advice.add(
         new AgentBuilder.Transformer.ForAdvice()
             .include(Utils.getBootstrapProxy(), Utils.getAgentClassLoader())
+            .withExceptionHandler(ExceptionHandlers.defaultExceptionHandler())
             .advice(not(ignoredMethods).and(matcher), name));
   }
 

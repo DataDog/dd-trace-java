@@ -104,7 +104,6 @@ public final class KafkaConsumerInstrumentation extends Instrumenter.Tracing
                 InstrumentationContext.get(Metadata.class, String.class).get(consumerMetadata);
           }
         }
-        System.out.println("[KAFKACONSUMERMETADATA] cluster ID: " + clusterId);
         iterable =
             new TracingIterable(iterable, KAFKA_CONSUME, CONSUMER_DECORATE, group, clusterId);
       }
@@ -131,7 +130,6 @@ public final class KafkaConsumerInstrumentation extends Instrumenter.Tracing
                 InstrumentationContext.get(Metadata.class, String.class).get(consumerMetadata);
           }
         }
-        System.out.println("[KAFKACONSUMERMETADATA] cluster ID: " + clusterId);
         iterable = new TracingList(iterable, KAFKA_CONSUME, CONSUMER_DECORATE, group, clusterId);
       }
     }
@@ -157,7 +155,6 @@ public final class KafkaConsumerInstrumentation extends Instrumenter.Tracing
                 InstrumentationContext.get(Metadata.class, String.class).get(consumerMetadata);
           }
         }
-        System.out.println("[KAFKACONSUMERMETADATA] cluster ID: " + clusterId);
         iterator =
             new TracingIterator(iterator, KAFKA_CONSUME, CONSUMER_DECORATE, group, clusterId);
       }
