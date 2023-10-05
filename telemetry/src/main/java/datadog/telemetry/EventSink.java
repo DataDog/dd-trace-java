@@ -1,11 +1,11 @@
 package datadog.telemetry;
 
-import datadog.telemetry.api.ConfigChange;
 import datadog.telemetry.api.DistributionSeries;
 import datadog.telemetry.api.Integration;
 import datadog.telemetry.api.LogMessage;
 import datadog.telemetry.api.Metric;
 import datadog.telemetry.dependency.Dependency;
+import datadog.trace.api.ConfigSetting;
 
 /**
  * A unified interface for telemetry event sink. It is used to buffer events polled from the queues
@@ -13,7 +13,7 @@ import datadog.telemetry.dependency.Dependency;
  * failing attempt.
  */
 interface EventSink {
-  void addConfigChangeEvent(ConfigChange event);
+  void addConfigChangeEvent(ConfigSetting event);
 
   void addIntegrationEvent(Integration event);
 
@@ -31,7 +31,7 @@ interface EventSink {
     private Noop() {}
 
     @Override
-    public void addConfigChangeEvent(ConfigChange event) {}
+    public void addConfigChangeEvent(ConfigSetting event) {}
 
     @Override
     public void addIntegrationEvent(Integration event) {}

@@ -1,7 +1,8 @@
 package datadog.telemetry
 
-import datadog.telemetry.api.ConfigChange
 import datadog.telemetry.api.RequestType
+import datadog.trace.api.ConfigOrigin
+import datadog.trace.api.ConfigSetting
 import okhttp3.HttpUrl
 import okhttp3.Request
 import okio.Buffer
@@ -58,15 +59,22 @@ class TelemetryRequestStateSpecification extends Specification {
     then:
     rb.beginConfiguration()
     [
-      new ConfigChange("string", "bar"),
-      new ConfigChange("int", 2342),
-      new ConfigChange("double", Double.valueOf("123.456")),
-      new ConfigChange("map", map)
+      new ConfigSetting("string", "bar", ConfigOrigin.REMOTE),
+      new ConfigSetting("int", 2342, ConfigOrigin.DEFAULT),
+      new ConfigSetting("double", Double.valueOf("123.456"), ConfigOrigin.ENV),
+      new ConfigSetting("map", map, ConfigOrigin.JVM_PROP),
+      // make sure null values are serialized
+      new ConfigSetting("null", null, ConfigOrigin.DEFAULT)
     ].forEach { cc -> rb.writeConfiguration(cc) }
     rb.endConfiguration()
 
     then:
-    drainToString(rb.endRequest()) == ',"configuration":[{"name":"string","value":"bar","origin":"unknown"},{"name":"int","value":2342,"origin":"unknown"},{"name":"double","value":123.456,"origin":"unknown"},{"name":"map","value":{"key1":"value1","key2":432.32,"key3":324},"origin":"unknown"}]}'
+    drainToString(rb.request()) == ',"configuration":[' +
+      '{"name":"string","value":"bar","origin":"remote_config"},' +
+      '{"name":"int","value":2342,"origin":"default"},' +
+      '{"name":"double","value":123.456,"origin":"env_var"},' +
+      '{"name":"map","value":{"key1":"value1","key2":432.32,"key3":324},"origin":"jvm_prop"},' +
+      '{"name":"null","value":null,"origin":"default"}]'
   }
 
   def 'add debug flag'() {
