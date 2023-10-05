@@ -5,6 +5,7 @@ import datadog.trace.api.DD128bTraceId
 import datadog.trace.api.DDSpanId
 import io.opentelemetry.api.GlobalOpenTelemetry
 import io.opentelemetry.context.Context
+import io.opentelemetry.context.ThreadLocalContextStorage
 import io.opentelemetry.context.propagation.TextMapGetter
 import io.opentelemetry.context.propagation.TextMapPropagator
 import io.opentelemetry.context.propagation.TextMapSetter
@@ -97,6 +98,14 @@ abstract class AbstractPropagatorTest extends AgentTestRunner {
     where:
     values << values()
     (headers, traceId, spanId, sampled) = values
+  }
+
+  @Override
+  void cleanup() {
+    // Test for context leak
+    assert Context.current() == Context.root()
+    // Safely reset OTel context storage
+    ThreadLocalContextStorage.THREAD_LOCAL_STORAGE.remove()
   }
 
   static class TextMap implements TextMapGetter<Map<String, String>>, TextMapSetter<Map<String, String>> {

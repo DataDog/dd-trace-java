@@ -25,12 +25,6 @@ class OpenTelemetry14Test extends AgentTestRunner {
     injectSysConfig("dd.integration.opentelemetry.experimental.enabled", "true")
   }
 
-  @Override
-  void setup() {
-    // Reset OTel context storage
-    ThreadLocalContextStorage.THREAD_LOCAL_STORAGE.remove()
-  }
-
   def "test parent span using active span"() {
     setup:
     def parentSpan = tracer.spanBuilder("some-name").startSpan()
@@ -464,5 +458,13 @@ class OpenTelemetry14Test extends AgentTestRunner {
         }
       }
     }
+  }
+
+  @Override
+  void cleanup() {
+    // Test for context leak
+    assert Context.current() == Context.root()
+    // Safely reset OTel context storage
+    ThreadLocalContextStorage.THREAD_LOCAL_STORAGE.remove()
   }
 }
