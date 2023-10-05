@@ -5,6 +5,7 @@ import io.opentelemetry.api.GlobalOpenTelemetry
 import io.opentelemetry.api.common.AttributeKey
 import io.opentelemetry.api.trace.SpanKind
 import io.opentelemetry.context.Context
+import io.opentelemetry.context.ThreadLocalContextStorage
 import spock.lang.Subject
 
 import java.security.InvalidParameterException
@@ -22,6 +23,12 @@ class OpenTelemetry14Test extends AgentTestRunner {
     super.configurePreAgent()
 
     injectSysConfig("dd.integration.opentelemetry.experimental.enabled", "true")
+  }
+
+  @Override
+  void setup() {
+    // Reset OTel context storage
+    ThreadLocalContextStorage.THREAD_LOCAL_STORAGE.remove()
   }
 
   def "test parent span using active span"() {

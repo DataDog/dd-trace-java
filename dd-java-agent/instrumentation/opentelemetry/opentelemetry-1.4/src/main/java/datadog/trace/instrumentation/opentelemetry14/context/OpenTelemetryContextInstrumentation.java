@@ -1,7 +1,8 @@
-package datadog.trace.instrumentation.opentelemetry14;
+package datadog.trace.instrumentation.opentelemetry14.context;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
+import static datadog.trace.instrumentation.opentelemetry14.OpenTelemetryInstrumentation.ROOT_PACKAGE_NAME;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesNoArguments;
@@ -9,19 +10,16 @@ import static net.bytebuddy.matcher.ElementMatchers.takesNoArguments;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.api.InstrumenterConfig;
-import datadog.trace.util.Strings;
-import io.opentelemetry.api.trace.TracerProvider;
+import io.opentelemetry.context.Context;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public class OpenTelemetryInstrumentation extends Instrumenter.Tracing
+public class OpenTelemetryContextInstrumentation extends Instrumenter.Tracing
     implements Instrumenter.CanShortcutTypeMatching {
-  public static final String ROOT_PACKAGE_NAME =
-      Strings.getPackageName(OpenTelemetryInstrumentation.class.getName());
 
-  public OpenTelemetryInstrumentation() {
+  public OpenTelemetryContextInstrumentation() {
     super("opentelemetry.experimental", "opentelemetry-1");
   }
 
@@ -32,7 +30,7 @@ public class OpenTelemetryInstrumentation extends Instrumenter.Tracing
 
   @Override
   public String hierarchyMarkerType() {
-    return "io.opentelemetry.api.OpenTelemetry";
+    return "io.opentelemetry.context.Context";
   }
 
   @Override
@@ -43,8 +41,7 @@ public class OpenTelemetryInstrumentation extends Instrumenter.Tracing
   @Override
   public String[] knownMatchingTypes() {
     return new String[] {
-      "io.opentelemetry.api.DefaultOpenTelemetry",
-      "io.opentelemetry.api.GlobalOpenTelemetry$ObfuscatedOpenTelemetry"
+      "io.opentelemetry.context.ArrayBasedContext",
     };
   }
 
@@ -56,37 +53,37 @@ public class OpenTelemetryInstrumentation extends Instrumenter.Tracing
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".context.OtelContext",
-      packageName + ".OtelExtractedContext",
-      packageName + ".OtelScope",
-      packageName + ".OtelSpan",
-      packageName + ".OtelSpan$1",
-      packageName + ".OtelSpan$NoopSpan",
-      packageName + ".OtelSpan$NoopSpanContext",
-      packageName + ".OtelSpanBuilder",
-      packageName + ".OtelSpanBuilder$1",
-      packageName + ".OtelSpanContext",
-      packageName + ".OtelTracer",
-      packageName + ".OtelTracerBuilder",
-      packageName + ".OtelTracerProvider",
+      packageName + ".OtelContext",
+      ROOT_PACKAGE_NAME + ".OtelExtractedContext",
+      ROOT_PACKAGE_NAME + ".OtelScope",
+      ROOT_PACKAGE_NAME + ".OtelSpan",
+      ROOT_PACKAGE_NAME + ".OtelSpan$1",
+      ROOT_PACKAGE_NAME + ".OtelSpan$NoopSpan",
+      ROOT_PACKAGE_NAME + ".OtelSpan$NoopSpanContext",
+      ROOT_PACKAGE_NAME + ".OtelSpanBuilder",
+      ROOT_PACKAGE_NAME + ".OtelSpanBuilder$1",
+      ROOT_PACKAGE_NAME + ".OtelSpanContext",
+      ROOT_PACKAGE_NAME + ".OtelTracer",
+      ROOT_PACKAGE_NAME + ".OtelTracerBuilder",
+      ROOT_PACKAGE_NAME + ".OtelTracerProvider",
     };
   }
 
   @Override
   public void adviceTransformations(AdviceTransformation transformation) {
-    // TracerProvider.getTracerProvider()
+    // Context Context.root()
     transformation.applyAdvice(
         isMethod()
-            .and(named("getTracerProvider"))
+            .and(named("root"))
             .and(takesNoArguments())
-            .and(returns(named("io.opentelemetry.api.trace.TracerProvider"))),
-        OpenTelemetryInstrumentation.class.getName() + "$TracerProviderAdvice");
+            .and(returns(named("io.opentelemetry.context.Context"))),
+        OpenTelemetryContextInstrumentation.class.getName() + "$ContextRootAdvice");
   }
 
-  public static class TracerProviderAdvice {
+  public static class ContextRootAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
-    public static void returnProvider(@Advice.Return(readOnly = false) TracerProvider result) {
-      result = OtelTracerProvider.INSTANCE;
+    public static void current(@Advice.Return(readOnly = false) Context result) {
+      result = OtelContext.ROOT;
     }
   }
 }
