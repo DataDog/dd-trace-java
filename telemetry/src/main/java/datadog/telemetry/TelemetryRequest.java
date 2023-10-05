@@ -1,5 +1,7 @@
 package datadog.telemetry;
 
+import datadog.common.container.ContainerInfo;
+import datadog.communication.ddagent.TracerVersion;
 import datadog.telemetry.api.DistributionSeries;
 import datadog.telemetry.api.Integration;
 import datadog.telemetry.api.LogMessage;
@@ -7,45 +9,73 @@ import datadog.telemetry.api.Metric;
 import datadog.telemetry.api.RequestType;
 import datadog.telemetry.dependency.Dependency;
 import datadog.trace.api.ConfigSetting;
+import datadog.trace.api.DDTags;
 import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.api.ProductActivation;
 import java.io.IOException;
-import okhttp3.HttpUrl;
+import okhttp3.MediaType;
 import okhttp3.Request;
 
 public class TelemetryRequest {
+  static final String API_VERSION = "v2";
+  static final MediaType JSON = MediaType.parse("application/json; charset=utf-8");
+
   private final EventSource eventSource;
   private final EventSink eventSink;
   private final long messageBytesSoftLimit;
-  private final TelemetryRequestState telemetryRequestState;
+  private final RequestType requestType;
+  private final boolean debug;
+  private final TelemetryRequestBody requestBody;
 
   public TelemetryRequest(
       EventSource eventSource,
       EventSink eventSink,
       long messageBytesSoftLimit,
       RequestType requestType,
-      HttpUrl httpUrl,
       boolean debug) {
     this.eventSource = eventSource;
     this.eventSink = eventSink;
     this.messageBytesSoftLimit = messageBytesSoftLimit;
-    this.telemetryRequestState = new TelemetryRequestState(requestType, httpUrl, debug);
-    this.telemetryRequestState.beginRequest();
+    this.requestType = requestType;
+    this.debug = debug;
+    this.requestBody = new TelemetryRequestBody(requestType);
+    this.requestBody.beginRequest(debug);
   }
 
-  public Request httpRequest() {
-    return telemetryRequestState.endRequest();
+  public Request.Builder httpRequest() {
+    long bodySize = requestBody.endRequest();
+
+    Request.Builder builder =
+        new Request.Builder()
+            .addHeader("Content-Type", String.valueOf(JSON))
+            .addHeader("Content-Length", String.valueOf(bodySize))
+            .addHeader("DD-Telemetry-API-Version", API_VERSION)
+            .addHeader("DD-Telemetry-Request-Type", String.valueOf(this.requestType))
+            .addHeader("DD-Client-Library-Language", DDTags.LANGUAGE_TAG_VALUE)
+            .addHeader("DD-Client-Library-Version", TracerVersion.TRACER_VERSION)
+            .post(requestBody);
+
+    final String containerId = ContainerInfo.get().getContainerId();
+    if (containerId != null) {
+      builder.addHeader("Datadog-Container-ID", containerId);
+    }
+
+    if (debug) {
+      builder.addHeader("DD-Telemetry-Debug-Enabled", "true");
+    }
+
+    return builder;
   }
 
   public void writeConfigurationMessage() {
     if (!isWithinSizeLimits() || !eventSource.hasConfigChangeEvent()) {
       return;
     }
-    telemetryRequestState.beginMessage(RequestType.APP_CLIENT_CONFIGURATION_CHANGE);
-    telemetryRequestState.beginSinglePayload();
+    requestBody.beginMessage(RequestType.APP_CLIENT_CONFIGURATION_CHANGE);
+    requestBody.beginSinglePayload();
     writeConfigurations();
-    telemetryRequestState.endSinglePayload();
-    telemetryRequestState.endMessage();
+    requestBody.endSinglePayload();
+    requestBody.endMessage();
   }
 
   public void writeConfigurations() {
@@ -53,15 +83,15 @@ public class TelemetryRequest {
       return;
     }
     try {
-      telemetryRequestState.beginConfiguration();
+      requestBody.beginConfiguration();
       while (eventSource.hasConfigChangeEvent() && isWithinSizeLimits()) {
         ConfigSetting event = eventSource.nextConfigChangeEvent();
-        telemetryRequestState.writeConfiguration(event);
+        requestBody.writeConfiguration(event);
         eventSink.addConfigChangeEvent(event);
       }
-      telemetryRequestState.endConfiguration();
+      requestBody.endConfiguration();
     } catch (IOException e) {
-      throw new TelemetryRequestState.SerializationException("configuration-object", e);
+      throw new TelemetryRequestBody.SerializationException("configuration-object", e);
     }
   }
 
@@ -71,9 +101,9 @@ public class TelemetryRequest {
       boolean appsecEnabled =
           instrumenterConfig.getAppSecActivation() != ProductActivation.FULLY_DISABLED;
       boolean profilerEnabled = instrumenterConfig.isProfilingEnabled();
-      telemetryRequestState.writeProducts(appsecEnabled, profilerEnabled);
+      requestBody.writeProducts(appsecEnabled, profilerEnabled);
     } catch (IOException e) {
-      throw new TelemetryRequestState.SerializationException("products", e);
+      throw new TelemetryRequestBody.SerializationException("products", e);
     }
   }
 
@@ -82,15 +112,15 @@ public class TelemetryRequest {
       return;
     }
     try {
-      telemetryRequestState.beginIntegrations();
+      requestBody.beginIntegrations();
       while (eventSource.hasIntegrationEvent() && isWithinSizeLimits()) {
         Integration event = eventSource.nextIntegrationEvent();
-        telemetryRequestState.writeIntegration(event);
+        requestBody.writeIntegration(event);
         eventSink.addIntegrationEvent(event);
       }
-      telemetryRequestState.endIntegrations();
+      requestBody.endIntegrations();
     } catch (IOException e) {
-      throw new TelemetryRequestState.SerializationException("integrations-message", e);
+      throw new TelemetryRequestBody.SerializationException("integrations-message", e);
     }
   }
 
@@ -99,15 +129,15 @@ public class TelemetryRequest {
       return;
     }
     try {
-      telemetryRequestState.beginDependencies();
+      requestBody.beginDependencies();
       while (eventSource.hasDependencyEvent() && isWithinSizeLimits()) {
         Dependency event = eventSource.nextDependencyEvent();
-        telemetryRequestState.writeDependency(event);
+        requestBody.writeDependency(event);
         eventSink.addDependencyEvent(event);
       }
-      telemetryRequestState.endDependencies();
+      requestBody.endDependencies();
     } catch (IOException e) {
-      throw new TelemetryRequestState.SerializationException("dependencies-message", e);
+      throw new TelemetryRequestBody.SerializationException("dependencies-message", e);
     }
   }
 
@@ -116,15 +146,15 @@ public class TelemetryRequest {
       return;
     }
     try {
-      telemetryRequestState.beginMetrics();
+      requestBody.beginMetrics();
       while (eventSource.hasMetricEvent() && isWithinSizeLimits()) {
         Metric event = eventSource.nextMetricEvent();
-        telemetryRequestState.writeMetric(event);
+        requestBody.writeMetric(event);
         eventSink.addMetricEvent(event);
       }
-      telemetryRequestState.endMetrics();
+      requestBody.endMetrics();
     } catch (IOException e) {
-      throw new TelemetryRequestState.SerializationException("metrics-message", e);
+      throw new TelemetryRequestBody.SerializationException("metrics-message", e);
     }
   }
 
@@ -133,15 +163,15 @@ public class TelemetryRequest {
       return;
     }
     try {
-      telemetryRequestState.beginDistributions();
+      requestBody.beginDistributions();
       while (eventSource.hasDistributionSeriesEvent() && isWithinSizeLimits()) {
         DistributionSeries event = eventSource.nextDistributionSeriesEvent();
-        telemetryRequestState.writeDistribution(event);
+        requestBody.writeDistribution(event);
         eventSink.addDistributionSeriesEvent(event);
       }
-      telemetryRequestState.endDistributions();
+      requestBody.endDistributions();
     } catch (IOException e) {
-      throw new TelemetryRequestState.SerializationException("distributions-message", e);
+      throw new TelemetryRequestBody.SerializationException("distributions-message", e);
     }
   }
 
@@ -150,23 +180,23 @@ public class TelemetryRequest {
       return;
     }
     try {
-      telemetryRequestState.beginLogs();
+      requestBody.beginLogs();
       while (eventSource.hasLogMessageEvent() && isWithinSizeLimits()) {
         LogMessage event = eventSource.nextLogMessageEvent();
-        telemetryRequestState.writeLog(event);
+        requestBody.writeLog(event);
         eventSink.addLogMessageEvent(event);
       }
-      telemetryRequestState.endLogs();
+      requestBody.endLogs();
     } catch (IOException e) {
-      throw new TelemetryRequestState.SerializationException("logs-message", e);
+      throw new TelemetryRequestBody.SerializationException("logs-message", e);
     }
   }
 
   private boolean isWithinSizeLimits() {
-    return telemetryRequestState.size() < messageBytesSoftLimit;
+    return requestBody.size() < messageBytesSoftLimit;
   }
 
   public void writeHeartbeatEvent() {
-    telemetryRequestState.writeHeartbeatEvent();
+    requestBody.writeHeartbeatEvent();
   }
 }

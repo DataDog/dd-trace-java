@@ -101,11 +101,7 @@ public class TelemetryRunnable implements Runnable {
           attempt,
           MAX_APP_STARTED_RETRIES);
     }
-    if (!Thread.interrupted() && attempt == MAX_APP_STARTED_RETRIES) {
-      log.warn("Couldn't send an app-started event!");
-      return false;
-    }
-    return true;
+    return Thread.interrupted() || attempt < MAX_APP_STARTED_RETRIES;
   }
 
   private void mainLoopIteration() throws InterruptedException {

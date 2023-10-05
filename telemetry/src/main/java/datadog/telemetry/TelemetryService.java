@@ -1,5 +1,6 @@
 package datadog.telemetry;
 
+import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
 import datadog.telemetry.api.DistributionSeries;
 import datadog.telemetry.api.Integration;
 import datadog.telemetry.api.LogMessage;
@@ -10,9 +11,6 @@ import datadog.trace.api.ConfigSetting;
 import java.util.Map;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
-import okhttp3.HttpUrl;
-import okhttp3.OkHttpClient;
-import okhttp3.Request;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -20,11 +18,9 @@ public class TelemetryService {
 
   private static final Logger log = LoggerFactory.getLogger(TelemetryService.class);
 
-  private static final String API_ENDPOINT = "telemetry/proxy/api/v2/apmtelemetry";
-
   private static final long DEFAULT_MESSAGE_BYTES_SOFT_LIMIT = Math.round(5 * 1024 * 1024 * 0.75);
 
-  private final HttpClient httpClient;
+  private final TelemetryRouter telemetryRouter;
   private final BlockingQueue<ConfigSetting> configurations = new LinkedBlockingQueue<>();
   private final BlockingQueue<Integration> integrations = new LinkedBlockingQueue<>();
   private final BlockingQueue<Dependency> dependencies = new LinkedBlockingQueue<>();
@@ -40,7 +36,6 @@ public class TelemetryService {
       new EventSource.Queued(
           configurations, integrations, dependencies, metrics, distributionSeries, logMessages);
 
-  private final HttpUrl httpUrl;
   private final long messageBytesSoftLimit;
   private final boolean debug;
 
@@ -50,27 +45,24 @@ public class TelemetryService {
   private boolean openTracingIntegrationEnabled;
   private boolean openTelemetryIntegrationEnabled;
 
-  /**
-   * @param okHttpClient - an instance to do http calls
-   * @param httpUrl - telemetry endpoint URL
-   * @param debug - when `true` it adds a debug flag to a telemetry request to handle it on the
-   *     backend with verbose logging
-   */
-  public TelemetryService(
-      final OkHttpClient okHttpClient, final HttpUrl httpUrl, final boolean debug) {
-    this(new HttpClient(okHttpClient), httpUrl, DEFAULT_MESSAGE_BYTES_SOFT_LIMIT, debug);
+  public static TelemetryService build(
+      DDAgentFeaturesDiscovery ddAgentFeaturesDiscovery,
+      TelemetryClient agentClient,
+      TelemetryClient intakeClient,
+      boolean debug) {
+    TelemetryRouter telemetryRouter =
+        new TelemetryRouter(ddAgentFeaturesDiscovery, agentClient, intakeClient);
+    return new TelemetryService(telemetryRouter, DEFAULT_MESSAGE_BYTES_SOFT_LIMIT, debug);
   }
 
   // For testing purposes
   TelemetryService(
-      final HttpClient httpClient,
-      final HttpUrl agentUrl,
+      final TelemetryRouter telemetryRouter,
       final long messageBytesSoftLimit,
       final boolean debug) {
-    this.httpClient = httpClient;
+    this.telemetryRouter = telemetryRouter;
     this.openTracingIntegrationEnabled = false;
     this.openTelemetryIntegrationEnabled = false;
-    this.httpUrl = agentUrl.newBuilder().addPathSegments(API_ENDPOINT).build();
     this.messageBytesSoftLimit = messageBytesSoftLimit;
     this.debug = debug;
   }
@@ -122,11 +114,9 @@ public class TelemetryService {
             EventSink.NOOP,
             messageBytesSoftLimit,
             RequestType.APP_CLOSING,
-            httpUrl,
             debug);
-    Request request = telemetryRequest.httpRequest();
-    if (httpClient.sendRequest(request) != HttpClient.Result.SUCCESS) {
-      log.error("Couldn't send app-closing event!");
+    if (telemetryRouter.sendRequest(telemetryRequest) != TelemetryClient.Result.SUCCESS) {
+      log.warn("Couldn't send app-closing event!");
     }
   }
 
@@ -151,12 +141,10 @@ public class TelemetryService {
     log.debug("Preparing app-started request");
     TelemetryRequest telemetryRequest =
         new TelemetryRequest(
-            eventSource, eventSink, messageBytesSoftLimit, RequestType.APP_STARTED, httpUrl, debug);
+            eventSource, eventSink, messageBytesSoftLimit, RequestType.APP_STARTED, debug);
     telemetryRequest.writeProducts();
     telemetryRequest.writeConfigurations();
-    Request request = telemetryRequest.httpRequest();
-
-    if (httpClient.sendRequest(request) == HttpClient.Result.SUCCESS) {
+    if (telemetryRouter.sendRequest(telemetryRequest) == TelemetryClient.Result.SUCCESS) {
       // discard already sent buffered event on the successful attempt
       bufferedEvents = null;
       return true;
@@ -189,22 +177,12 @@ public class TelemetryService {
       log.debug("Preparing app-heartbeat request");
       telemetryRequest =
           new TelemetryRequest(
-              eventSource,
-              eventSink,
-              messageBytesSoftLimit,
-              RequestType.APP_HEARTBEAT,
-              httpUrl,
-              debug);
+              eventSource, eventSink, messageBytesSoftLimit, RequestType.APP_HEARTBEAT, debug);
     } else {
       log.debug("Preparing message-batch request");
       telemetryRequest =
           new TelemetryRequest(
-              eventSource,
-              eventSink,
-              messageBytesSoftLimit,
-              RequestType.MESSAGE_BATCH,
-              httpUrl,
-              debug);
+              eventSource, eventSink, messageBytesSoftLimit, RequestType.MESSAGE_BATCH, debug);
       telemetryRequest.writeHeartbeatEvent();
       telemetryRequest.writeConfigurationMessage();
       telemetryRequest.writeIntegrationsMessage();
@@ -214,10 +192,9 @@ public class TelemetryService {
       telemetryRequest.writeLogsMessage();
       isMoreDataAvailable = !this.eventSource.isEmpty();
     }
-    Request request = telemetryRequest.httpRequest();
 
-    HttpClient.Result result = httpClient.sendRequest(request);
-    if (result == HttpClient.Result.SUCCESS) {
+    TelemetryClient.Result result = telemetryRouter.sendRequest(telemetryRequest);
+    if (result == TelemetryClient.Result.SUCCESS) {
       log.debug("Telemetry request has been sent successfully.");
       bufferedEvents = null;
       return isMoreDataAvailable;

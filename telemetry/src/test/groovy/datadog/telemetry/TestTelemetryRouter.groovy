@@ -12,28 +12,31 @@ import groovy.json.JsonSlurper
 import okhttp3.Request
 import okio.Buffer
 
-class TestHttpClient extends HttpClient {
-  private Queue<Result> mockResults = new LinkedList<>()
+class TestTelemetryRouter extends TelemetryRouter {
+  private Queue<TelemetryClient.Result> mockResults = new LinkedList<>()
   private Queue<RequestAssertions> requests = new LinkedList<>()
 
-  TestHttpClient() {
-    super(null)
+  TestTelemetryRouter() {
+    super(null, null, null)
   }
 
   @Override
-  Result sendRequest(Request request) {
+  TelemetryClient.Result sendRequest(TelemetryRequest request) {
     if (mockResults.isEmpty()) {
       throw new IllegalStateException("Unexpected request has been sent. State expectations with `expectRequests` prior sending requests.")
     }
-    requests.add(new RequestAssertions(request))
+
+    def requestBuilder = request.httpRequest()
+    requestBuilder.url("https://example.com")
+    requests.add(new RequestAssertions(requestBuilder.build()))
     return mockResults.poll()
   }
 
-  void expectRequest(Result mockResult) {
+  void expectRequest(TelemetryClient.Result mockResult) {
     expectRequests(1, mockResult)
   }
 
-  void expectRequests(int requestNumber, Result mockResult) {
+  void expectRequests(int requestNumber, TelemetryClient.Result mockResult) {
     for (int i=0; i < requestNumber; i++) {
       mockResults.add(mockResult)
     }
@@ -75,18 +78,18 @@ class TestHttpClient extends HttpClient {
       assert this.request.method() == 'POST'
       assert this.request.headers().names() == [
         'Content-Type',
+        'Content-Length',
         'DD-Client-Library-Language',
         'DD-Client-Library-Version',
         'DD-Telemetry-API-Version',
-        'DD-Telemetry-Request-Type',
-        'Content-Length'
+        'DD-Telemetry-Request-Type'
       ] as Set
       assert this.request.header('Content-Type') == 'application/json; charset=utf-8'
+      assert this.request.header('Content-Length').toInteger() > 0
       assert this.request.header('DD-Client-Library-Language') == 'jvm'
       assert this.request.header('DD-Client-Library-Version') == TracerVersion.TRACER_VERSION
       assert this.request.header('DD-Telemetry-API-Version') == 'v2'
       assert this.request.header('DD-Telemetry-Request-Type') == requestType.toString()
-      assert this.request.header('Content-Length').toInteger() > 0
       return this
     }
 

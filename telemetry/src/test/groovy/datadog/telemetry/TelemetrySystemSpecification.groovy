@@ -31,7 +31,7 @@ class TelemetrySystemSpecification extends Specification {
     def depService = Mock(DependencyService)
 
     when:
-    def thread = TelemetrySystem.createTelemetryRunnable(telemetryService, depService)
+    def thread = TelemetrySystem.createTelemetryRunnable(telemetryService, depService, true)
 
     then:
     thread != null

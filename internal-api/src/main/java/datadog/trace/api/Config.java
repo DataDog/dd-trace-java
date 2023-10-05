@@ -782,6 +782,7 @@ public class Config {
   private final float telemetryHeartbeatInterval;
   private final float telemetryMetricsInterval;
   private final boolean isTelemetryDependencyServiceEnabled;
+  private final boolean telemetryMetricsEnabled;
 
   private final boolean azureAppServices;
   private final String traceAgentPath;
@@ -806,6 +807,7 @@ public class Config {
   private final float traceFlushIntervalSeconds;
 
   private final boolean telemetryDebugRequestsEnabled;
+  private final String telemetryIntakeUrl;
 
   // Read order: System Properties -> Env Variables, [-> properties file], [-> default value]
   private Config() {
@@ -1409,6 +1411,9 @@ public class Config {
     }
     telemetryMetricsInterval = telemetryInterval;
 
+    telemetryMetricsEnabled =
+        configProvider.getBoolean(GeneralConfig.TELEMETRY_METRICS_ENABLED, true);
+
     isTelemetryDependencyServiceEnabled =
         configProvider.getBoolean(
             TELEMETRY_DEPENDENCY_COLLECTION_ENABLED,
@@ -1786,6 +1791,8 @@ public class Config {
         configProvider.getBoolean(
             GeneralConfig.TELEMETRY_DEBUG_REQUESTS_ENABLED,
             ConfigDefaults.DEFAULT_TELEMETRY_DEBUG_REQUESTS_ENABLED);
+
+    this.telemetryIntakeUrl = configProvider.getString(GeneralConfig.TELEMETRY_INTAKE_URL);
 
     log.debug("New instance: {}", this);
   }
@@ -2360,6 +2367,10 @@ public class Config {
 
   public boolean isTelemetryDependencyServiceEnabled() {
     return isTelemetryDependencyServiceEnabled;
+  }
+
+  public boolean isTelemetryMetricsEnabled() {
+    return telemetryMetricsEnabled;
   }
 
   public boolean isClientIpEnabled() {
@@ -3345,6 +3356,10 @@ public class Config {
     return telemetryDebugRequestsEnabled;
   }
 
+  public String getTelemetryIntakeUrl() {
+    return telemetryIntakeUrl;
+  }
+
   private <T> Set<T> getSettingsSetFromEnvironment(
       String name, Function<String, T> mapper, boolean splitOnWS) {
     final String value = configProvider.getString(name, "");
@@ -3944,6 +3959,10 @@ public class Config {
         + spanAttributeSchemaVersion
         + ", telemetryDebugRequestsEnabled="
         + telemetryDebugRequestsEnabled
+        + ", telemetryIntakeUrl="
+        + telemetryIntakeUrl
+        + ", telemetryMetricsEnabled="
+        + telemetryMetricsEnabled
         + '}';
   }
 }

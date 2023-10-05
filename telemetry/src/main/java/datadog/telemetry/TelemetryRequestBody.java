@@ -15,14 +15,12 @@ import datadog.trace.api.Platform;
 import java.io.IOException;
 import java.util.concurrent.atomic.AtomicLong;
 import javax.annotation.Nullable;
-import okhttp3.HttpUrl;
 import okhttp3.MediaType;
-import okhttp3.Request;
 import okhttp3.RequestBody;
 import okio.Buffer;
 import okio.BufferedSink;
 
-public class TelemetryRequestState extends RequestBody {
+public class TelemetryRequestBody extends RequestBody {
 
   public static class SerializationException extends RuntimeException {
     public SerializationException(String requestPartName, Throwable cause) {
@@ -30,16 +28,12 @@ public class TelemetryRequestState extends RequestBody {
     }
   }
 
-  private static final MediaType JSON = MediaType.parse("application/json; charset=utf-8");
-  private static final String API_VERSION = "v2";
   private static final AtomicLong SEQ_ID = new AtomicLong();
   private static final String TELEMETRY_NAMESPACE_TAG_TRACER = "tracers";
 
-  private final Buffer body = new Buffer();
-  private final JsonWriter bodyWriter = JsonWriter.of(body);
   private final RequestType requestType;
-  private final Request.Builder requestBuilder;
-  private final boolean debug;
+  private final Buffer body;
+  private final JsonWriter bodyWriter;
 
   /** Exists in a separate class to avoid startup toll */
   private static class CommonData {
@@ -63,28 +57,16 @@ public class TelemetryRequestState extends RequestBody {
 
   private static final CommonData commonData = new CommonData();
 
-  TelemetryRequestState(RequestType requestType, HttpUrl httpUrl) {
-    this(requestType, httpUrl, false);
-  }
-
-  TelemetryRequestState(RequestType requestType, HttpUrl httpUrl, boolean debug) {
+  TelemetryRequestBody(RequestType requestType) {
     this.requestType = requestType;
-    this.requestBuilder =
-        new Request.Builder()
-            .url(httpUrl)
-            .addHeader("Content-Type", String.valueOf(JSON))
-            .addHeader("DD-Telemetry-API-Version", API_VERSION)
-            .addHeader("DD-Telemetry-Request-Type", String.valueOf(this.requestType))
-            .addHeader("DD-Client-Library-Language", "jvm")
-            .addHeader("DD-Client-Library-Version", TracerVersion.TRACER_VERSION)
-            .post(this);
-    this.debug = debug;
+    this.body = new Buffer();
+    this.bodyWriter = JsonWriter.of(body);
   }
 
-  public void beginRequest() {
+  public void beginRequest(boolean debug) {
     try {
       bodyWriter.beginObject();
-      bodyWriter.name("api_version").value(API_VERSION);
+      bodyWriter.name("api_version").value(TelemetryRequest.API_VERSION);
       // naming_schema_version - optional
       bodyWriter.name("runtime_id").value(commonData.runtimeId);
       bodyWriter.name("seq_id").value(SEQ_ID.incrementAndGet());
@@ -130,7 +112,8 @@ public class TelemetryRequestState extends RequestBody {
     }
   }
 
-  public Request endRequest() {
+  /** @return body size in bytes */
+  public long endRequest() {
     try {
       if (requestType == RequestType.APP_STARTED) {
         endSinglePayload();
@@ -138,8 +121,7 @@ public class TelemetryRequestState extends RequestBody {
         endMultiplePayload();
       }
       bodyWriter.endObject(); // request
-      requestBuilder.addHeader("Content-Length", String.valueOf(body.size()));
-      return request();
+      return body.size();
     } catch (Exception ex) {
       throw new SerializationException("end-request", ex);
     }
@@ -388,14 +370,10 @@ public class TelemetryRequestState extends RequestBody {
     // integrations - optional
   }
 
-  Request request() {
-    return requestBuilder.build();
-  }
-
   @Nullable
   @Override
   public MediaType contentType() {
-    return JSON;
+    return TelemetryRequest.JSON;
   }
 
   @Override

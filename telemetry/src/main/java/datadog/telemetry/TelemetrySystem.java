@@ -1,5 +1,6 @@
 package datadog.telemetry;
 
+import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
 import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.telemetry.TelemetryRunnable.TelemetryPeriodicAction;
 import datadog.telemetry.dependency.DependencyPeriodicAction;
@@ -14,6 +15,7 @@ import datadog.trace.util.AgentThreadFactory;
 import java.lang.instrument.Instrumentation;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -36,15 +38,19 @@ public class TelemetrySystem {
   }
 
   static Thread createTelemetryRunnable(
-      TelemetryService telemetryService, DependencyService dependencyService) {
+      TelemetryService telemetryService,
+      DependencyService dependencyService,
+      boolean telemetryMetricsEnabled) {
     DEPENDENCY_SERVICE = dependencyService;
 
     List<TelemetryPeriodicAction> actions = new ArrayList<>();
-    actions.add(new CoreMetricsPeriodicAction());
-    actions.add(new IntegrationPeriodicAction());
-    actions.add(new WafMetricPeriodicAction());
-    if (Verbosity.OFF != Config.get().getIastTelemetryVerbosity()) {
-      actions.add(new IastMetricPeriodicAction());
+    if (telemetryMetricsEnabled) {
+      actions.add(new CoreMetricsPeriodicAction());
+      actions.add(new IntegrationPeriodicAction());
+      actions.add(new WafMetricPeriodicAction());
+      if (Verbosity.OFF != Config.get().getIastTelemetryVerbosity()) {
+        actions.add(new IastMetricPeriodicAction());
+      }
     }
     if (null != dependencyService) {
       actions.add(new DependencyPeriodicAction(dependencyService));
@@ -58,11 +64,24 @@ public class TelemetrySystem {
   /** Called by reflection (see Agent.startTelemetry) */
   public static void startTelemetry(
       Instrumentation instrumentation, SharedCommunicationObjects sco) {
-    sco.createRemaining(Config.get());
+    Config config = Config.get();
+    sco.createRemaining(config);
     DependencyService dependencyService = createDependencyService(instrumentation);
-    boolean debug = Config.get().isTelemetryDebugRequestsEnabled();
-    TelemetryService telemetryService = new TelemetryService(sco.okHttpClient, sco.agentUrl, debug);
-    TELEMETRY_THREAD = createTelemetryRunnable(telemetryService, dependencyService);
+    boolean debug = config.isTelemetryDebugRequestsEnabled();
+    DDAgentFeaturesDiscovery ddAgentFeaturesDiscovery = sco.featuresDiscovery(config);
+
+    TelemetryClient agentClient = TelemetryClient.buildAgentClient(sco.okHttpClient, sco.agentUrl);
+    TelemetryClient intakeClient =
+        TelemetryClient.buildIntakeClient(
+            config.getTelemetryIntakeUrl(),
+            TimeUnit.SECONDS.toMillis(config.getAgentTimeout()),
+            config.getApiKey());
+    TelemetryService telemetryService =
+        TelemetryService.build(ddAgentFeaturesDiscovery, agentClient, intakeClient, debug);
+
+    boolean telemetryMetricsEnabled = config.isTelemetryMetricsEnabled();
+    TELEMETRY_THREAD =
+        createTelemetryRunnable(telemetryService, dependencyService, telemetryMetricsEnabled);
     TELEMETRY_THREAD.start();
   }
 
