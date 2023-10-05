@@ -55,9 +55,12 @@ build: &build
       when: never
     - when: on_success
   script:
+    - ./.gitlab/checkout.sh
     - GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx1900M -Xms512M' -Ddatadog.forkedMaxHeapSize=512M -Ddatadog.forkedMinHeapSize=128M" ./gradlew clean :dd-java-agent:shadowJar --build-cache --parallel --stacktrace --no-daemon --max-workers=8
-    - echo UPSTREAM_TRACER_VERSION=$(java -jar workspace/dd-java-agent/build/libs/*.jar) >> upstream.env
+    - echo "UPSTREAM_TRACER_VERSION=$(java -jar workspace/dd-java-agent/build/libs/*.jar)" >> upstream.env
     - echo "BUILD_JOB_NAME=$CI_JOB_NAME" >> build.env
+    - echo "BUILD_COMMIT_SHA=$(git rev-parse HEAD)" >> build.env
+    - echo "BUILD_COMMIT_SHORT_SHA=$(git rev-parse --short HEAD)" >> build.env
   artifacts:
     paths:
       - 'workspace/dd-java-agent/build/libs/*.jar'
@@ -103,7 +106,7 @@ deploy_to_reliability_env:
     UPSTREAM_PROJECT_NAME: $CI_PROJECT_NAME
     UPSTREAM_PIPELINE_ID: $CI_PIPELINE_ID
     UPSTREAM_BRANCH: $CI_COMMIT_REF_NAME
-    UPSTREAM_COMMIT_SHA: $CI_COMMIT_SHA
+    UPSTREAM_COMMIT_SHA: $BUILD_COMMIT_SHA
     FORCE_TRIGGER: $FORCE_TRIGGER
 
 deploy_to_profiling_backend:
@@ -148,7 +151,7 @@ deploy_to_di_backend:automatic:
     UPSTREAM_PIPELINE_ID: $CI_PIPELINE_ID
     UPSTREAM_BRANCH: $CI_COMMIT_BRANCH
     UPSTREAM_TAG: $CI_COMMIT_TAG
-    UPSTREAM_COMMIT_SHORT_SHA: $CI_COMMIT_SHORT_SHA
+    UPSTREAM_COMMIT_SHORT_SHA: $BUILD_COMMIT_SHORT_SHA
  
 deploy_to_di_backend:manual:
   stage: deploy
@@ -168,7 +171,7 @@ deploy_to_di_backend:manual:
     UPSTREAM_BRANCH: $CI_COMMIT_BRANCH
     UPSTREAM_TAG: $CI_COMMIT_TAG
     UPSTREAM_COMMIT_AUTHOR: $CI_COMMIT_AUTHOR
-    UPSTREAM_COMMIT_SHORT_SHA: $CI_COMMIT_SHORT_SHA
+    UPSTREAM_COMMIT_SHORT_SHA: $BUILD_COMMIT_SHORT_SHA
 
 deploy_to_sonatype:
   <<: *gradle_build
@@ -200,6 +203,7 @@ deploy_to_docker_registries:
     branch: main
     strategy: depend
   variables:
+    # This needs to be the CI_COMMIT_SHA since it uses images built by GitHub
     IMG_SOURCES: ghcr.io/datadog/dd-trace-java/dd-lib-java-init:$CI_COMMIT_SHA
     IMG_DESTINATIONS: dd-lib-java-init:$CI_COMMIT_TAG
     IMG_SIGNING: "false"
@@ -218,6 +222,7 @@ deploy_latest_tag_to_docker_registries:
     branch: main
     strategy: depend
   variables:
+    # This needs to be the CI_COMMIT_SHA since it uses images built by GitHub
     IMG_SOURCES: ghcr.io/datadog/dd-trace-java/dd-lib-java-init:$CI_COMMIT_SHA
     IMG_DESTINATIONS: dd-lib-java-init:latest
     IMG_SIGNING: "false"
