@@ -1,5 +1,7 @@
 package com.datadog.iast.model.json;
 
+import static com.datadog.iast.model.json.TruncationUtils.writeValue;
+
 import com.datadog.iast.model.Evidence;
 import com.datadog.iast.model.Range;
 import com.datadog.iast.model.Source;
@@ -12,6 +14,7 @@ import com.datadog.iast.sensitive.SensitiveHandler.Tokenizer;
 import com.datadog.iast.util.Ranged;
 import com.datadog.iast.util.RangedDeque;
 import com.squareup.moshi.JsonAdapter;
+import com.squareup.moshi.JsonWriter;
 import com.squareup.moshi.Moshi;
 import datadog.trace.api.Config;
 import java.io.IOException;
@@ -29,11 +32,11 @@ import java.util.stream.Collectors;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
-public class EvidenceAdapter extends TruncatingAdapter<Evidence> {
+public class EvidenceAdapter extends FormattingAdapter<Evidence> {
 
   private final JsonAdapter<Source> sourceAdapter;
-  private final TruncatingAdapter<Evidence> defaultAdapter;
-  private final TruncatingAdapter<Evidence> redactedAdapter;
+  private final FormattingAdapter<Evidence> defaultAdapter;
+  private final FormattingAdapter<Evidence> redactedAdapter;
 
   public EvidenceAdapter(@Nonnull final Moshi moshi) {
     sourceAdapter = moshi.adapter(Source.class, SourceIndex.class);
@@ -60,7 +63,7 @@ public class EvidenceAdapter extends TruncatingAdapter<Evidence> {
     return value.substring(range.getStart(), end);
   }
 
-  private class DefaultEvidenceAdapter extends TruncatingAdapter<Evidence> {
+  private class DefaultEvidenceAdapter extends FormattingAdapter<Evidence> {
 
     @Override
     public void toJson(@Nonnull final JsonWriter writer, final @Nonnull Evidence evidence)
@@ -112,13 +115,13 @@ public class EvidenceAdapter extends TruncatingAdapter<Evidence> {
       writer.value(value);
       if (range != null) {
         writer.name("source");
-        sourceAdapter.toJson(writer.getDelegated(), range.getSource());
+        sourceAdapter.toJson(writer, range.getSource());
       }
       writer.endObject();
     }
   }
 
-  private class RedactedEvidenceAdapter extends TruncatingAdapter<Evidence> {
+  private class RedactedEvidenceAdapter extends FormattingAdapter<Evidence> {
 
     @Override
     public void toJson(@Nonnull final JsonWriter writer, @Nonnull final Evidence evidence)
@@ -327,7 +330,7 @@ public class EvidenceAdapter extends TruncatingAdapter<Evidence> {
       }
       writer.beginObject();
       writer.name("value");
-      writer.value(value);
+      writeValue(writer, value); // should be truncated
       writer.endObject();
     }
   }
@@ -388,9 +391,9 @@ public class EvidenceAdapter extends TruncatingAdapter<Evidence> {
       } else {
         writer.beginObject();
         writer.name("value");
-        writer.value(value);
+        writeValue(writer, value);
         writer.name("source");
-        adapter.toJson(writer.getDelegated(), source);
+        adapter.toJson(writer, source);
         writer.endObject();
       }
     }
@@ -478,7 +481,7 @@ public class EvidenceAdapter extends TruncatingAdapter<Evidence> {
       }
       writer.beginObject();
       writer.name("source");
-      adapter.toJson(writer.getDelegated(), source);
+      adapter.toJson(writer, source);
       if (redacted) {
         writer.name("redacted");
         writer.value(true);
@@ -486,7 +489,7 @@ public class EvidenceAdapter extends TruncatingAdapter<Evidence> {
       } else {
         writer.name("value");
       }
-      writer.value(value);
+      writeValue(writer, value); // should be truncated
       writer.endObject();
     }
   }

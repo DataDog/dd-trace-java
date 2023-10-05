@@ -1,18 +1,21 @@
 package com.datadog.iast.model.json;
 
+import static com.datadog.iast.model.json.TruncationUtils.writeValue;
+
 import com.datadog.iast.model.Source;
 import com.datadog.iast.model.json.AdapterFactory.Context;
 import com.datadog.iast.model.json.AdapterFactory.RedactionContext;
+import com.squareup.moshi.JsonWriter;
 import datadog.trace.api.Config;
 import java.io.IOException;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
-public class SourceAdapter extends TruncatingAdapter<Source> {
+public class SourceAdapter extends FormattingAdapter<Source> {
 
   private final SourceTypeAdapter sourceTypeAdapter;
-  private final TruncatingAdapter<Source> defaultAdapter;
-  private final TruncatingAdapter<Source> redactedAdapter;
+  private final FormattingAdapter<Source> defaultAdapter;
+  private final FormattingAdapter<Source> redactedAdapter;
 
   public SourceAdapter() {
     sourceTypeAdapter = new SourceTypeAdapter();
@@ -34,22 +37,22 @@ public class SourceAdapter extends TruncatingAdapter<Source> {
     }
   }
 
-  private class DefaultSourceAdapter extends TruncatingAdapter<Source> {
+  private class DefaultSourceAdapter extends FormattingAdapter<Source> {
 
     @Override
     public void toJson(@Nonnull JsonWriter writer, @Nonnull Source source) throws IOException {
       writer.beginObject();
       writer.name("origin");
-      sourceTypeAdapter.toJson(writer.getDelegated(), source.getOrigin());
+      sourceTypeAdapter.toJson(writer, source.getOrigin());
       writer.name("name");
       writer.value(source.getName());
       writer.name("value");
-      writer.value(source.getValue());
+      writeValue(writer, source.getValue()); // could be truncated
       writer.endObject();
     }
   }
 
-  private class RedactedSourceAdapter extends TruncatingAdapter<Source> {
+  private class RedactedSourceAdapter extends FormattingAdapter<Source> {
 
     @Override
     public void toJson(@Nonnull final JsonWriter writer, final @Nonnull Source source)
@@ -58,7 +61,7 @@ public class SourceAdapter extends TruncatingAdapter<Source> {
       if (ctx.shouldRedact()) {
         toRedactedJson(writer, source, ctx.getRedactedValue());
       } else {
-        defaultAdapter.toJson(writer.getDelegated(), source);
+        defaultAdapter.toJson(writer, source);
       }
     }
 
@@ -66,13 +69,13 @@ public class SourceAdapter extends TruncatingAdapter<Source> {
         throws IOException {
       writer.beginObject();
       writer.name("origin");
-      sourceTypeAdapter.toJson(writer.getDelegated(), source.getOrigin());
+      sourceTypeAdapter.toJson(writer, source.getOrigin());
       writer.name("name");
       writer.value(source.getName());
       writer.name("redacted");
       writer.value(true);
       writer.name("pattern");
-      writer.value(value);
+      writeValue(writer, value); // could be truncated
       writer.endObject();
     }
   }

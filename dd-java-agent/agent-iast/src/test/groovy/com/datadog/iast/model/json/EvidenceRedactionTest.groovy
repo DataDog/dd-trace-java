@@ -56,7 +56,7 @@ class EvidenceRedactionTest extends DDSpecification {
 
   void 'test empty value parts'() {
     given:
-    final writer = new TruncatingAdapter.JsonWriter(Mock(JsonWriter))
+    final writer = Mock(JsonWriter)
     final ctx = new AdapterFactory.Context()
 
     when:
