@@ -101,9 +101,6 @@ public class KafkaDecorator extends MessagingClientDecorator {
     return spanKind;
   }
 
-  /*public TracedDelegateKafkaProducer wrapProducer(Producer producer) {
-    return new TracedDelegateKafkaProducer(producer);
-  }*/
   public void onConsume(final AgentSpan span, final ConsumerRecord record, String consumerGroup) {
     if (record != null) {
       final String topic = record.topic() == null ? "kafka" : record.topic();
@@ -135,7 +132,6 @@ public class KafkaDecorator extends MessagingClientDecorator {
 
   public void onProduce(
       final AgentSpan span, final ProducerRecord record, final ProducerConfig producerConfig) {
-    System.out.println("Kafka - on produce");
     if (record != null) {
       if (record.partition() != null) {
         span.setTag(PARTITION, record.partition());
