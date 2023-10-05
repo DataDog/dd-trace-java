@@ -35,8 +35,8 @@ import javax.annotation.Nullable;
 public class EvidenceAdapter extends FormattingAdapter<Evidence> {
 
   private final JsonAdapter<Source> sourceAdapter;
-  private final FormattingAdapter<Evidence> defaultAdapter;
-  private final FormattingAdapter<Evidence> redactedAdapter;
+  private final JsonAdapter<Evidence> defaultAdapter;
+  private final JsonAdapter<Evidence> redactedAdapter;
 
   public EvidenceAdapter(@Nonnull final Moshi moshi) {
     sourceAdapter = moshi.adapter(Source.class, SourceIndex.class);
@@ -330,7 +330,7 @@ public class EvidenceAdapter extends FormattingAdapter<Evidence> {
       }
       writer.beginObject();
       writer.name("value");
-      writeValue(writer, value); // should be truncated
+      writeValue(writer, value); // could be truncated
       writer.endObject();
     }
   }
@@ -391,7 +391,7 @@ public class EvidenceAdapter extends FormattingAdapter<Evidence> {
       } else {
         writer.beginObject();
         writer.name("value");
-        writeValue(writer, value);
+        writeValue(writer, value); // could be truncated
         writer.name("source");
         adapter.toJson(writer, source);
         writer.endObject();
@@ -489,7 +489,7 @@ public class EvidenceAdapter extends FormattingAdapter<Evidence> {
       } else {
         writer.name("value");
       }
-      writeValue(writer, value); // should be truncated
+      writeValue(writer, value); // could be truncated
       writer.endObject();
     }
   }

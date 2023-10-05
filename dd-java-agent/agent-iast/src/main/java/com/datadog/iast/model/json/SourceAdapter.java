@@ -5,6 +5,7 @@ import static com.datadog.iast.model.json.TruncationUtils.writeValue;
 import com.datadog.iast.model.Source;
 import com.datadog.iast.model.json.AdapterFactory.Context;
 import com.datadog.iast.model.json.AdapterFactory.RedactionContext;
+import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.JsonWriter;
 import datadog.trace.api.Config;
 import java.io.IOException;
@@ -14,8 +15,8 @@ import javax.annotation.Nullable;
 public class SourceAdapter extends FormattingAdapter<Source> {
 
   private final SourceTypeAdapter sourceTypeAdapter;
-  private final FormattingAdapter<Source> defaultAdapter;
-  private final FormattingAdapter<Source> redactedAdapter;
+  private final JsonAdapter<Source> defaultAdapter;
+  private final JsonAdapter<Source> redactedAdapter;
 
   public SourceAdapter() {
     sourceTypeAdapter = new SourceTypeAdapter();
