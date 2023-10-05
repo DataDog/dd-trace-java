@@ -52,6 +52,7 @@ public final class KafkaConsumerMetadataInstrumentation extends Instrumenter.Tra
     return new String[] {
       packageName + ".KafkaDecorator",
       packageName + ".KafkaConsumerMetadata",
+      packageName + ".KafkaConsumerMetadata$Builder",
     };
   }
 
@@ -85,17 +86,21 @@ public final class KafkaConsumerMetadataInstrumentation extends Instrumenter.Tra
       try {
         System.out.println("[KAFKACONSUMERMETADATA] " + KafkaConsumerMetadata.class.getName());
 
-        String consumerGroup = consumerConfig.getString(ConsumerConfig.GROUP_ID_CONFIG);
-        if (consumerGroup != null && consumerGroup.isEmpty()) {
-          consumerGroup = null;
-        }
+        KafkaConsumerMetadata.Builder metadataBuilder = new KafkaConsumerMetadata.Builder();
+        System.out.println("[KAFKACONSUMERMETADATA] 1");
+        metadataBuilder.consumerMetadata(metadata);
+        System.out.println("[KAFKACONSUMERMETADATA] 2");
 
-        KafkaConsumerMetadata kafkaConsumerMetadata = new KafkaConsumerMetadata(consumerGroup, metadata);
-        InstrumentationContext.get(KafkaConsumer.class, KafkaConsumerMetadata.class).put(consumer, kafkaConsumerMetadata);
-        if (consumerGroup != null) {
+        String consumerGroup = consumerConfig.getString(ConsumerConfig.GROUP_ID_CONFIG);
+        if (consumerGroup != null && !consumerGroup.isEmpty()) {
+          metadataBuilder.consumerGroup(consumerGroup);
           InstrumentationContext.get(ConsumerCoordinator.class, String.class)
               .put(coordinator, consumerGroup);
         }
+        System.out.println("[KAFKACONSUMERMETADATA] 3");
+
+        KafkaConsumerMetadata kafkaConsumerMetadata = metadataBuilder.build();
+        InstrumentationContext.get(KafkaConsumer.class, KafkaConsumerMetadata.class).put(consumer, kafkaConsumerMetadata);
         System.out.println("[KAFKACONSUMERMETADATA] in if statement");
       } catch (Exception e) {
         System.out.println("[KAFKACONSUMERMETADATA] " + e.getStackTrace());

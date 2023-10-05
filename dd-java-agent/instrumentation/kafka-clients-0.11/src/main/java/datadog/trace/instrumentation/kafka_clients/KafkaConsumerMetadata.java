@@ -23,28 +23,27 @@ public class KafkaConsumerMetadata {
   public ConsumerMetadata getConsumerMetadata() {
     return consumerMetadata;
   }
-/*
+
   public static class Builder {
     private String consumerGroup;
-    private String clusterId;
+    private ConsumerMetadata consumerMetadata;
 
-    Builder() {}
+    public Builder() {}
 
     public Builder consumerGroup(String consumerGroup) {
       this.consumerGroup = consumerGroup;
       return this;
     }
 
-    public Builder clusterId(String clusterId) {
-      this.clusterId = clusterId;
+    public Builder consumerMetadata(ConsumerMetadata consumerMetadata) {
+      this.consumerMetadata = consumerMetadata;
       return this;
     }
 
     public KafkaConsumerMetadata build() {
-      return new KafkaConsumerMetadata(consumerGroup, clusterId);
+      return new KafkaConsumerMetadata(consumerGroup, consumerMetadata);
     }
   }
-*/
 
   @Override
   public boolean equals(Object o) {
