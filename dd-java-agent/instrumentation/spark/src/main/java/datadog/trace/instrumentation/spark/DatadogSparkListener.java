@@ -682,6 +682,11 @@ public class DatadogSparkListener extends SparkListener {
       Long watermark = convertStringDateToMillis(progress.eventTime().get("watermark"));
       if (watermark != null) {
         batchSpan.setMetric("spark.event_time.watermark", watermark);
+
+        Long progressTimestamp = convertStringDateToMillis(progress.timestamp());
+        if (watermark > 0 && progressTimestamp != null) {
+          batchSpan.setMetric("spark.event_time.watermark_gap", progressTimestamp - watermark);
+        }
       }
       Long maxEventTime = convertStringDateToMillis(progress.eventTime().get("max"));
       if (maxEventTime != null) {
