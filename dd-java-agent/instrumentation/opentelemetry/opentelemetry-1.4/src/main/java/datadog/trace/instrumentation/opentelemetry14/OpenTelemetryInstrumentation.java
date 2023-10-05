@@ -10,6 +10,7 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.instrumentation.opentelemetry14.context.propagation.OtelContextPropagators;
+import datadog.trace.instrumentation.opentelemetry14.trace.OtelTracerProvider;
 import datadog.trace.util.Strings;
 import io.opentelemetry.api.trace.TracerProvider;
 import io.opentelemetry.context.propagation.ContextPropagators;
@@ -59,20 +60,20 @@ public class OpenTelemetryInstrumentation extends Instrumenter.Tracing
   public String[] helperClassNames() {
     return new String[] {
       packageName + ".context.OtelContext",
-      packageName + ".OtelExtractedContext",
-      packageName + ".OtelScope",
-      packageName + ".OtelSpan",
-      packageName + ".OtelSpan$1",
-      packageName + ".OtelSpan$NoopSpan",
-      packageName + ".OtelSpan$NoopSpanContext",
-      packageName + ".OtelSpanBuilder",
-      packageName + ".OtelSpanBuilder$1",
-      packageName + ".OtelSpanContext",
-      packageName + ".OtelTracer",
-      packageName + ".OtelTracerBuilder",
-      packageName + ".OtelTracerProvider",
+      packageName + ".context.OtelScope",
       packageName + ".context.propagation.AgentTextMapPropagator",
       packageName + ".context.propagation.OtelContextPropagators",
+      packageName + ".trace.OtelExtractedContext",
+      packageName + ".trace.OtelSpan",
+      packageName + ".trace.OtelSpan$1",
+      packageName + ".trace.OtelSpan$NoopSpan",
+      packageName + ".trace.OtelSpan$NoopSpanContext",
+      packageName + ".trace.OtelSpanBuilder",
+      packageName + ".trace.OtelSpanBuilder$1",
+      packageName + ".trace.OtelSpanContext",
+      packageName + ".trace.OtelTracer",
+      packageName + ".trace.OtelTracerBuilder",
+      packageName + ".trace.OtelTracerProvider",
     };
   }
 

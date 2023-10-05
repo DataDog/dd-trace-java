@@ -1,6 +1,6 @@
-package datadog.trace.instrumentation.opentelemetry14;
+package datadog.trace.instrumentation.opentelemetry14.trace;
 
-import static datadog.trace.instrumentation.opentelemetry14.OtelExtractedContext.extract;
+import static datadog.trace.instrumentation.opentelemetry14.trace.OtelExtractedContext.extract;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
