@@ -13,7 +13,7 @@ public final class TruncationUtils {
 
   private TruncationUtils() {}
 
-  public static void writeValue(@Nonnull JsonWriter writer, @Nullable String value)
+  public static void writeTruncableValue(@Nonnull JsonWriter writer, @Nullable String value)
       throws IOException {
     if (value != null && value.length() > VALUE_MAX_LENGTH) {
       writer.value(value.substring(0, VALUE_MAX_LENGTH));

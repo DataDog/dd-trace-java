@@ -1,6 +1,6 @@
 package com.datadog.iast.model.json;
 
-import static com.datadog.iast.model.json.TruncationUtils.writeValue;
+import static com.datadog.iast.model.json.TruncationUtils.writeTruncableValue;
 
 import com.datadog.iast.model.Source;
 import com.datadog.iast.model.json.AdapterFactory.Context;
@@ -48,7 +48,7 @@ public class SourceAdapter extends FormattingAdapter<Source> {
       writer.name("name");
       writer.value(source.getName());
       writer.name("value");
-      writeValue(writer, source.getValue()); // could be truncated
+      writeTruncableValue(writer, source.getValue());
       writer.endObject();
     }
   }
@@ -76,7 +76,7 @@ public class SourceAdapter extends FormattingAdapter<Source> {
       writer.name("redacted");
       writer.value(true);
       writer.name("pattern");
-      writeValue(writer, value); // could be truncated
+      writeTruncableValue(writer, value);
       writer.endObject();
     }
   }

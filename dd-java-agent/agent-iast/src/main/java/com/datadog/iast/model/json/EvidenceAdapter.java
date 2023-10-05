@@ -1,6 +1,6 @@
 package com.datadog.iast.model.json;
 
-import static com.datadog.iast.model.json.TruncationUtils.writeValue;
+import static com.datadog.iast.model.json.TruncationUtils.writeTruncableValue;
 
 import com.datadog.iast.model.Evidence;
 import com.datadog.iast.model.Range;
@@ -330,7 +330,7 @@ public class EvidenceAdapter extends FormattingAdapter<Evidence> {
       }
       writer.beginObject();
       writer.name("value");
-      writeValue(writer, value); // could be truncated
+      writeTruncableValue(writer, value);
       writer.endObject();
     }
   }
@@ -391,7 +391,7 @@ public class EvidenceAdapter extends FormattingAdapter<Evidence> {
       } else {
         writer.beginObject();
         writer.name("value");
-        writeValue(writer, value); // could be truncated
+        writeTruncableValue(writer, value);
         writer.name("source");
         adapter.toJson(writer, source);
         writer.endObject();
@@ -489,7 +489,7 @@ public class EvidenceAdapter extends FormattingAdapter<Evidence> {
       } else {
         writer.name("value");
       }
-      writeValue(writer, value); // could be truncated
+      writeTruncableValue(writer, value);
       writer.endObject();
     }
   }
