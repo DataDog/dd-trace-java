@@ -2,14 +2,16 @@ package datadog.trace.instrumentation.kafka_clients;
 
 import java.util.Objects;
 import javax.annotation.Nullable;
+import org.apache.kafka.clients.consumer.Consumer;
+import org.apache.kafka.clients.consumer.internals.ConsumerMetadata;
 
 public class KafkaConsumerMetadata {
   private final String consumerGroup;
-  private final String clusterId;
+  private final ConsumerMetadata consumerMetadata;
 
-  public KafkaConsumerMetadata(String consumerGroup, String clusterId) {
+  public KafkaConsumerMetadata(String consumerGroup, ConsumerMetadata consumerMetadata) {
     this.consumerGroup = consumerGroup;
-    this.clusterId = clusterId;
+    this.consumerMetadata = consumerMetadata;
   }
 
   @Nullable
@@ -18,8 +20,8 @@ public class KafkaConsumerMetadata {
   }
 
   @Nullable
-  public String getClusterId() {
-    return clusterId;
+  public ConsumerMetadata getConsumerMetadata() {
+    return consumerMetadata;
   }
 /*
   public static class Builder {
@@ -50,11 +52,11 @@ public class KafkaConsumerMetadata {
     if (o == null || getClass() != o.getClass()) return false;
     KafkaConsumerMetadata metadata = (KafkaConsumerMetadata) o;
     return Objects.equals(consumerGroup, metadata.consumerGroup)
-        && Objects.equals(clusterId, metadata.clusterId);
+        && Objects.equals(consumerMetadata, metadata.consumerMetadata);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(consumerGroup, clusterId);
+    return Objects.hash(consumerGroup, consumerMetadata);
   }
 }
