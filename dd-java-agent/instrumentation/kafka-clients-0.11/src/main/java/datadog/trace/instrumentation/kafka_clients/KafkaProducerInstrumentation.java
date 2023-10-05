@@ -49,7 +49,6 @@ public final class KafkaProducerInstrumentation extends Instrumenter.Tracing
     super("kafka");
   }
 
-  // private static final Logger log = LoggerFactory.getLogger(KafkaProducerInstrumentation.class);
   @Override
   public String instrumentedType() {
     return "org.apache.kafka.clients.producer.KafkaProducer";
@@ -64,7 +63,6 @@ public final class KafkaProducerInstrumentation extends Instrumenter.Tracing
     };
   }
 
-  // TODO figure this out
   @Override
   public Map<String, String> contextStore() {
     return singletonMap("org.apache.kafka.clients.Metadata", "java.lang.String");
