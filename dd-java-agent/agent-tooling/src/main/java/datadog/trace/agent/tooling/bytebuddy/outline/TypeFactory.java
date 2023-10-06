@@ -279,8 +279,8 @@ final class TypeFactory {
       Class<?> loadedType;
       if (BOOTSTRAP_LOADER == classLoader) {
         loadedType = Class.forName(name, false, BOOTSTRAP_LOADER);
-      } else if (classLoader.getClass().getName().startsWith("groovy.lang.GroovyClassLoader")) {
-        return null; // avoid due to https://issues.apache.org/jira/browse/GROOVY-9742
+      } else if (skipLoadClass(classLoader.getClass().getName())) {
+        return null; // avoid known problematic class-loaders
       } else {
         loadedType = classLoader.loadClass(name);
       }
@@ -294,6 +294,12 @@ final class TypeFactory {
     } finally {
       LOCATING_CLASS.end();
     }
+  }
+
+  private static boolean skipLoadClass(String loaderClassName) {
+    // avoid due to https://issues.apache.org/jira/browse/GROOVY-9742
+    return loaderClassName.startsWith("groovy.lang.GroovyClassLoader")
+        || loaderClassName.equals("org.apache.jasper.servlet.JasperLoader");
   }
 
   /** Type description that begins with a name and provides more details on-demand. */
