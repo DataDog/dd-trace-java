@@ -1,8 +1,7 @@
 package datadog.trace.instrumentation.opentelemetry14.context;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
-import datadog.trace.instrumentation.opentelemetry14.OtelScope;
-import datadog.trace.instrumentation.opentelemetry14.OtelSpan;
+import datadog.trace.instrumentation.opentelemetry14.trace.OtelSpan;
 import io.opentelemetry.api.trace.Span;
 import io.opentelemetry.context.Context;
 import io.opentelemetry.context.ContextKey;
