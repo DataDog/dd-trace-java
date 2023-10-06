@@ -13,7 +13,7 @@ import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.AttachableWrapper;
-import datadog.trace.instrumentation.opentelemetry14.OtelSpan;
+import datadog.trace.instrumentation.opentelemetry14.trace.OtelSpan;
 import io.opentelemetry.api.trace.Span;
 import io.opentelemetry.context.Context;
 import net.bytebuddy.asm.Advice;
@@ -60,18 +60,18 @@ public class OpenTelemetryContextStorageInstrumentation extends Instrumenter.Tra
   public String[] helperClassNames() {
     return new String[] {
       packageName + ".OtelContext",
-      ROOT_PACKAGE_NAME + ".OtelExtractedContext",
-      ROOT_PACKAGE_NAME + ".OtelScope",
-      ROOT_PACKAGE_NAME + ".OtelSpan",
-      ROOT_PACKAGE_NAME + ".OtelSpan$1",
-      ROOT_PACKAGE_NAME + ".OtelSpan$NoopSpan",
-      ROOT_PACKAGE_NAME + ".OtelSpan$NoopSpanContext",
-      ROOT_PACKAGE_NAME + ".OtelSpanBuilder",
-      ROOT_PACKAGE_NAME + ".OtelSpanBuilder$1",
-      ROOT_PACKAGE_NAME + ".OtelSpanContext",
-      ROOT_PACKAGE_NAME + ".OtelTracer",
-      ROOT_PACKAGE_NAME + ".OtelTracerBuilder",
-      ROOT_PACKAGE_NAME + ".OtelTracerProvider",
+      packageName + ".OtelScope",
+      ROOT_PACKAGE_NAME + ".trace.OtelExtractedContext",
+      ROOT_PACKAGE_NAME + ".trace.OtelSpan",
+      ROOT_PACKAGE_NAME + ".trace.OtelSpan$1",
+      ROOT_PACKAGE_NAME + ".trace.OtelSpan$NoopSpan",
+      ROOT_PACKAGE_NAME + ".trace.OtelSpan$NoopSpanContext",
+      ROOT_PACKAGE_NAME + ".trace.OtelSpanBuilder",
+      ROOT_PACKAGE_NAME + ".trace.OtelSpanBuilder$1",
+      ROOT_PACKAGE_NAME + ".trace.OtelSpanContext",
+      ROOT_PACKAGE_NAME + ".trace.OtelTracer",
+      ROOT_PACKAGE_NAME + ".trace.OtelTracerBuilder",
+      ROOT_PACKAGE_NAME + ".trace.OtelTracerProvider",
     };
   }
 
