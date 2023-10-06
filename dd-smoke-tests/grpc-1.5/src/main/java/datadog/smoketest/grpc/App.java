@@ -3,7 +3,6 @@
  */
 package datadog.smoketest.grpc;
 
-import datadog.smoketest.grpc.service.IastService;
 import io.grpc.Grpc;
 import io.grpc.InsecureServerCredentials;
 import io.grpc.Server;
@@ -21,7 +20,7 @@ public class App {
     int port = Integer.getInteger("grpc.http.port", 8080);
     server =
         Grpc.newServerBuilderForPort(port, InsecureServerCredentials.create())
-            .addService(new IastService())
+            .addService(new IastServiceImpl())
             .build()
             .start();
     logger.info("Server started, listening on " + port);

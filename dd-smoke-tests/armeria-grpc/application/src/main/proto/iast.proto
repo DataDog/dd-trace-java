@@ -1,7 +1,7 @@
 syntax = "proto3";
 
 package datadog.grpc.iast;
-option java_package = "datadog.grpc";
+option java_package = "datadog.armeria.grpc";
 
 service IastService {
   rpc ServerSideRequestForgery (Request) returns (Response) { }

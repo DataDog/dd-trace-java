@@ -46,6 +46,7 @@ dependencies {
   implementation 'io.grpc:grpc-stub:1.56.0'
   testRuntimeOnly 'io.grpc:grpc-netty-shaded:1.56.0'
   testCompileOnly 'org.apache.tomcat:annotations-api:6.0.53' // necessary for Java 9+
+  testImplementation(testFixtures(project(":dd-smoke-tests:iast-util")))
 }
 
 def appDir = "$projectDir/application"
