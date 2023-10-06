@@ -18,7 +18,7 @@ public interface DataStreamsCheckpointer {
   /**
    * @param type The type of the checkpoint, usually the streaming technology being used. Examples:
    *     kafka, kinesis, sns etc.
-   * @param source The source of data. For instance: topic, exchange or stream name.
+   * @paren source The source of data. For instance: topic, exchange or stream name.
    * @param carrier An interface to the context carrier, from which the context will be extracted.
    *     I.e. wrapper around message headers.
    */
@@ -27,7 +27,7 @@ public interface DataStreamsCheckpointer {
   /**
    * @param type The type of the checkpoint, usually the streaming technology being used. Examples:
    *     kafka, kinesis, sns etc.
-   * @param target The destination to which the data is being sent. For instance: topic, exchange or
+   * @paren target The destination to which the data is being sent. For instance: topic, exchange or
    *     stream name.
    * @param carrier An interface to the context carrier, to which the context will be injected. I.e.
    *     wrapper around message headers.
