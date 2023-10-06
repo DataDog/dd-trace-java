@@ -633,6 +633,7 @@ public class DDSpanContext
     return pathwayContext;
   }
 
+  @Override
   public void mergePathwayContext(PathwayContext pathwayContext) {
     if (pathwayContext == null) {
       return;

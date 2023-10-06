@@ -18,4 +18,8 @@ public interface AgentDataStreamsMonitoring extends DataStreamsCheckpointer {
    */
   void setCheckpoint(
       AgentSpan span, LinkedHashMap<String, String> sortedTags, long defaultTimestamp);
+
+  PathwayContext newPathwayContext();
+
+  void add(StatsPoint statsPoint);
 }
