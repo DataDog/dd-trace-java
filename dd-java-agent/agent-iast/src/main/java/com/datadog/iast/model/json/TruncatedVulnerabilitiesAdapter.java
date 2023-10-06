@@ -12,8 +12,7 @@ import java.util.List;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
-class TruncatedVulnerabilitiesAdapter
-    extends FormattingAdapter<TruncatedVulnerabilitiesAdapter.TruncatedVulnerabilities> {
+class TruncatedVulnerabilitiesAdapter extends FormattingAdapter<TruncatedVulnerabilities> {
 
   private static final String MAX_SIZE_EXCEEDED = "MAX SIZE EXCEEDED";
 
@@ -43,7 +42,7 @@ class TruncatedVulnerabilitiesAdapter
     writer.endObject();
   }
 
-  public static class TruncatedVulnerabilityAdapter extends FormattingAdapter<Vulnerability> {
+  private static class TruncatedVulnerabilityAdapter extends FormattingAdapter<Vulnerability> {
 
     private final JsonAdapter<VulnerabilityType> vulnerabilityTypeAdapter;
 
@@ -76,26 +75,13 @@ class TruncatedVulnerabilitiesAdapter
     }
   }
 
-  public static class TruncatedEvidenceAdapter extends FormattingAdapter<Evidence> {
+  private static class TruncatedEvidenceAdapter extends FormattingAdapter<Evidence> {
     @Override
     public void toJson(@Nonnull JsonWriter writer, @Nullable Evidence evidence) throws IOException {
       writer.beginObject();
       writer.name("value");
       writer.value(MAX_SIZE_EXCEEDED);
       writer.endObject();
-    }
-  }
-
-  public static class TruncatedVulnerabilities {
-
-    private final List<Vulnerability> vulnerabilities;
-
-    public TruncatedVulnerabilities(final List<Vulnerability> vulnerabilities) {
-      this.vulnerabilities = vulnerabilities;
-    }
-
-    public List<Vulnerability> getVulnerabilities() {
-      return vulnerabilities;
     }
   }
 }

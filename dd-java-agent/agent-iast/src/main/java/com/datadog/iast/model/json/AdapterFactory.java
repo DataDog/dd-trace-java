@@ -5,7 +5,6 @@ import com.datadog.iast.model.Source;
 import com.datadog.iast.model.Vulnerability;
 import com.datadog.iast.model.VulnerabilityBatch;
 import com.datadog.iast.model.VulnerabilityType;
-import com.datadog.iast.model.json.TruncatedVulnerabilitiesAdapter.TruncatedVulnerabilities;
 import com.datadog.iast.sensitive.SensitiveHandler;
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.JsonWriter;
