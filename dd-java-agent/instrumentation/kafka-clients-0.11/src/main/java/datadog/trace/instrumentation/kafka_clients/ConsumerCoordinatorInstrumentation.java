@@ -76,7 +76,7 @@ public final class ConsumerCoordinatorInstrumentation extends Instrumenter.Traci
               .get(coordinator);
 
       String consumerGroup = kafkaConsumerInfo.getConsumerGroup();
-      ConsumerMetadata consumerMetadata = kafkaConsumerInfo.getConsumerMetadata();
+      Metadata consumerMetadata = kafkaConsumerInfo.getClientMetadata();
       String clusterId = null;
       if (consumerMetadata != null) {
         clusterId = InstrumentationContext.get(Metadata.class, String.class).get(consumerMetadata);

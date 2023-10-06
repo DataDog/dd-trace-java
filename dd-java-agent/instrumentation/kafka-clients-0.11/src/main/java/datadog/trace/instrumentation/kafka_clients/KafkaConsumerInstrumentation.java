@@ -20,7 +20,6 @@ import net.bytebuddy.asm.Advice;
 import org.apache.kafka.clients.Metadata;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
-import org.apache.kafka.clients.consumer.internals.ConsumerMetadata;
 
 @AutoService(Instrumenter.class)
 public final class KafkaConsumerInstrumentation extends Instrumenter.Tracing
@@ -97,7 +96,7 @@ public final class KafkaConsumerInstrumentation extends Instrumenter.Tracing
             InstrumentationContext.get(ConsumerRecords.class, KafkaConsumerInfo.class).get(records);
         if (kafkaConsumerInfo != null) {
           group = kafkaConsumerInfo.getConsumerGroup();
-          ConsumerMetadata consumerMetadata = kafkaConsumerInfo.getConsumerMetadata();
+          Metadata consumerMetadata = kafkaConsumerInfo.getClientMetadata();
           if (consumerMetadata != null) {
             clusterId =
                 InstrumentationContext.get(Metadata.class, String.class).get(consumerMetadata);
@@ -122,7 +121,7 @@ public final class KafkaConsumerInstrumentation extends Instrumenter.Tracing
             InstrumentationContext.get(ConsumerRecords.class, KafkaConsumerInfo.class).get(records);
         if (kafkaConsumerInfo != null) {
           group = kafkaConsumerInfo.getConsumerGroup();
-          ConsumerMetadata consumerMetadata = kafkaConsumerInfo.getConsumerMetadata();
+          Metadata consumerMetadata = kafkaConsumerInfo.getClientMetadata();
           if (consumerMetadata != null) {
             clusterId =
                 InstrumentationContext.get(Metadata.class, String.class).get(consumerMetadata);
@@ -146,7 +145,7 @@ public final class KafkaConsumerInstrumentation extends Instrumenter.Tracing
             InstrumentationContext.get(ConsumerRecords.class, KafkaConsumerInfo.class).get(records);
         if (kafkaConsumerInfo != null) {
           group = kafkaConsumerInfo.getConsumerGroup();
-          ConsumerMetadata consumerMetadata = kafkaConsumerInfo.getConsumerMetadata();
+          Metadata consumerMetadata = kafkaConsumerInfo.getClientMetadata();
           if (consumerMetadata != null) {
             clusterId =
                 InstrumentationContext.get(Metadata.class, String.class).get(consumerMetadata);

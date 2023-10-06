@@ -2,15 +2,15 @@ package datadog.trace.instrumentation.kafka_clients;
 
 import java.util.Objects;
 import javax.annotation.Nullable;
-import org.apache.kafka.clients.consumer.internals.ConsumerMetadata;
+import org.apache.kafka.clients.Metadata;
 
 public class KafkaConsumerInfo {
   private final String consumerGroup;
-  private final ConsumerMetadata consumerMetadata;
+  private final Metadata clientMetadata;
 
-  public KafkaConsumerInfo(String consumerGroup, ConsumerMetadata consumerMetadata) {
+  public KafkaConsumerInfo(String consumerGroup, Metadata clientMetadata) {
     this.consumerGroup = consumerGroup;
-    this.consumerMetadata = consumerMetadata;
+    this.clientMetadata = clientMetadata;
   }
 
   @Nullable
@@ -19,13 +19,13 @@ public class KafkaConsumerInfo {
   }
 
   @Nullable
-  public ConsumerMetadata getConsumerMetadata() {
-    return consumerMetadata;
+  public Metadata getClientMetadata() {
+    return clientMetadata;
   }
 
   public static class Builder {
     private String consumerGroup;
-    private ConsumerMetadata consumerMetadata;
+    private Metadata clientMetadata;
 
     public Builder() {}
 
@@ -34,13 +34,13 @@ public class KafkaConsumerInfo {
       return this;
     }
 
-    public Builder consumerMetadata(ConsumerMetadata consumerMetadata) {
-      this.consumerMetadata = consumerMetadata;
+    public Builder clientMetadata(Metadata clientMetadata) {
+      this.clientMetadata = clientMetadata;
       return this;
     }
 
     public KafkaConsumerInfo build() {
-      return new KafkaConsumerInfo(consumerGroup, consumerMetadata);
+      return new KafkaConsumerInfo(consumerGroup, clientMetadata);
     }
   }
 
@@ -48,13 +48,13 @@ public class KafkaConsumerInfo {
   public boolean equals(Object o) {
     if (this == o) return true;
     if (o == null || getClass() != o.getClass()) return false;
-    KafkaConsumerInfo metadata = (KafkaConsumerInfo) o;
-    return Objects.equals(consumerGroup, metadata.consumerGroup)
-        && Objects.equals(consumerMetadata, metadata.consumerMetadata);
+    KafkaConsumerInfo consumerInfo = (KafkaConsumerInfo) o;
+    return Objects.equals(consumerGroup, consumerInfo.consumerGroup)
+        && Objects.equals(clientMetadata, consumerInfo.clientMetadata);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(consumerGroup, consumerMetadata);
+    return Objects.hash(consumerGroup, clientMetadata);
   }
 }

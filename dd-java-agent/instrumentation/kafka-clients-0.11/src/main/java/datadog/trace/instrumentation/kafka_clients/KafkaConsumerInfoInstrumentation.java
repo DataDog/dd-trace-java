@@ -14,6 +14,7 @@ import datadog.trace.bootstrap.InstrumentationContext;
 import java.util.HashMap;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
+import org.apache.kafka.clients.Metadata;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
@@ -83,11 +84,12 @@ public final class KafkaConsumerInfoInstrumentation extends Instrumenter.Tracing
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void captureGroup(
         @Advice.This KafkaConsumer consumer,
-        @Advice.FieldValue("metadata") ConsumerMetadata metadata,
+        @Advice.FieldValue("metadata") Metadata metadata,
         @Advice.FieldValue("coordinator") ConsumerCoordinator coordinator,
         @Advice.Argument(0) ConsumerConfig consumerConfig) {
+      System.out.println("[KAFKACONSUMERMETADATA] " + metadata);
       KafkaConsumerInfo.Builder metadataBuilder = new KafkaConsumerInfo.Builder();
-      metadataBuilder.consumerMetadata(metadata);
+      metadataBuilder.clientMetadata(metadata);
 
       String consumerGroup = consumerConfig.getString(ConsumerConfig.GROUP_ID_CONFIG);
       if (consumerGroup != null && !consumerGroup.isEmpty()) {
