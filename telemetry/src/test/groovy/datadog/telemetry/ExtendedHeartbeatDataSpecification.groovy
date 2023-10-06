@@ -31,10 +31,7 @@ class ExtendedHeartbeatDataSpecification extends Specification {
     i == limit
 
     where:
-    limit | _
-    0     | _
-    2     | _
-    10    | _
+    limit << [0, 2, 10]
   }
 
   def 'return all collected data'() {
