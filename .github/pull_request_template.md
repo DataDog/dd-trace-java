@@ -12,5 +12,5 @@ When opening a pull request, please open it as a draft to not auto assign review
 
 # Linking a JIRA ticket:
 Please link your JIRA ticket by adding its identifier between brackets (ex [PROJ-IDENT]) in the PR description, not the title.
-This requirements only applies to Datadog employees.
+This requirement only applies to Datadog employees.
 -->
