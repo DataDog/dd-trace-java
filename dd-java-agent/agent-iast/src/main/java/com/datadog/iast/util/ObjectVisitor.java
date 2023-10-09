@@ -9,8 +9,10 @@ import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
+import java.util.Collections;
 import java.util.IdentityHashMap;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Predicate;
 import javax.annotation.Nonnull;
 import org.slf4j.Logger;
@@ -20,8 +22,6 @@ import org.slf4j.LoggerFactory;
 public class ObjectVisitor {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(ObjectVisitor.class);
-  /** Value for keys present in the map */
-  private static final Object PRESENT = new Object();
 
   private static final int MAX_VISITED_OBJECTS = 1000;
   private static final int MAX_DEPTH = 10;
@@ -61,7 +61,7 @@ public class ObjectVisitor {
 
   private int remaining;
   private final int maxDepth;
-  private final Map<Object, Object> visited;
+  private final Set<Object> visited;
   private final Visitor visitor;
   private final Predicate<Class<?>> classFilter;
 
@@ -72,7 +72,7 @@ public class ObjectVisitor {
       final Visitor visitor) {
     this.maxDepth = maxDepth;
     this.remaining = maxObjects;
-    this.visited = new IdentityHashMap<>();
+    this.visited = Collections.newSetFromMap(new IdentityHashMap<>());
     this.visitor = visitor;
     this.classFilter = classFilter;
   }
@@ -85,7 +85,7 @@ public class ObjectVisitor {
     if (depth > maxDepth) {
       return CONTINUE;
     }
-    if (visited.put(value, PRESENT) != null) {
+    if (!visited.add(value)) {
       return CONTINUE;
     }
     State state = CONTINUE;
