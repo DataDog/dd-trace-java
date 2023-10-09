@@ -7,7 +7,7 @@
 Jira ticket: [PROJ-IDENT]
 
 <!--
-# Opening vs Drafting a PR: 
+# Opening vs Drafting a PR:
 When opening a pull request, please open it as a draft to not auto assign reviewers before you feel the pull request is in a reviewable state.
 
 # Linking a JIRA ticket:
