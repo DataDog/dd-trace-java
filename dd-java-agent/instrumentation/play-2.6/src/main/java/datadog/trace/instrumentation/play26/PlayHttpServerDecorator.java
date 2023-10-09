@@ -19,6 +19,7 @@ import java.util.concurrent.CompletionException;
 import play.api.mvc.Headers;
 import play.api.mvc.Request;
 import play.api.mvc.Result;
+import play.api.mvc.request.RemoteConnection;
 import play.api.routing.HandlerDef;
 import play.libs.typedmap.TypedKey;
 import play.routing.Router;
@@ -95,7 +96,12 @@ public class PlayHttpServerDecorator
 
   @Override
   protected String peerHostIP(final Request request) {
-    return request.remoteAddress();
+    RemoteConnection connection = request.connection();
+    if (connection instanceof RemoteConnectionWithRawAddress) {
+      return ((RemoteConnectionWithRawAddress) connection).originalRemoteAddress().getHostAddress();
+    } else {
+      return request.remoteAddress();
+    }
   }
 
   @Override

@@ -35,6 +35,7 @@ public final class PlayInstrumentation extends Instrumenter.Tracing
       packageName + ".PlayHeaders$Request",
       packageName + ".PlayHeaders$Result",
       packageName + ".PlayHttpServerDecorator",
+      packageName + ".RemoteConnectionWithRawAddress",
       packageName + ".RequestCompleteCallback",
       packageName + ".RequestURIDataAdapter"
     };

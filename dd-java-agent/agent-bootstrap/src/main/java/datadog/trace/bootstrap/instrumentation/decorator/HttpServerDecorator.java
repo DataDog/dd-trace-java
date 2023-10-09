@@ -250,7 +250,10 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
     }
 
     String inferredAddressStr = null;
-    if (clientIpResolverEnabled) {
+    // if there is no context we can't do anything but use the peer addr.
+    // Additionally, context == null arises on subspans for which the resolution
+    // likely already happened on the top span, so we don't need to do this again
+    if (clientIpResolverEnabled && context != null) {
       InetAddress inferredAddress = ClientIpAddressResolver.resolve(context, span);
       // the peer address should be used if:
       // 1. the headers yield nothing, regardless of whether it is public or not
