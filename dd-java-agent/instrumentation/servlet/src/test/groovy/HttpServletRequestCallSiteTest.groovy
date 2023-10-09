@@ -178,6 +178,70 @@ class HttpServletRequestCallSiteTest extends AgentTestRunner {
     HttpServletRequestWrapper | _
   }
 
+  void 'test getRequestURI'() {
+    setup:
+    final iastModule = Mock(WebModule)
+    InstrumentationBridge.registerIastModule(iastModule)
+    final mock = Mock(HttpServletRequest){
+      getRequestURI() >> 'retValue'
+    }
+    final testSuite = new TestHttpServletRequestCallSiteSuite(mock)
+
+    when:
+    testSuite.getRequestURI()
+
+    then:
+    1 * iastModule.onGetRequestURI('retValue')
+
+    where:
+    clazz                     | _
+    HttpServletRequest        | _
+    HttpServletRequestWrapper | _
+  }
+
+  void 'test getPathInfo'() {
+    setup:
+    final iastModule = Mock(WebModule)
+    InstrumentationBridge.registerIastModule(iastModule)
+    final mock = Mock(HttpServletRequest){
+      getPathInfo() >> 'retValue'
+    }
+    final testSuite = new TestHttpServletRequestCallSiteSuite(mock)
+
+    when:
+    testSuite.getPathInfo()
+
+    then:
+    1 * iastModule.onGetPathInfo('retValue')
+
+    where:
+    clazz                     | _
+    HttpServletRequest        | _
+    HttpServletRequestWrapper | _
+  }
+
+  void 'test getPathTranslated'() {
+    setup:
+    final iastModule = Mock(WebModule)
+    InstrumentationBridge.registerIastModule(iastModule)
+    final mock = Mock(HttpServletRequest){
+      getPathTranslated() >> 'retValue'
+    }
+    final testSuite = new TestHttpServletRequestCallSiteSuite(mock)
+
+    when:
+    testSuite.getPathTranslated()
+
+    then:
+    1 * iastModule.onGetPathInfo('retValue')
+
+    where:
+    clazz                     | _
+    HttpServletRequest        | _
+    HttpServletRequestWrapper | _
+  }
+
+
   private static class NuclearBomb extends RuntimeException {
     NuclearBomb(final String message) {
       super(message)
