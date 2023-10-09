@@ -23,13 +23,16 @@ import datadog.trace.api.profiling.TransientProfilingContextHolder;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.api.sampling.SamplingMechanism;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpanLink;
 import datadog.trace.bootstrap.instrumentation.api.AttachableWrapper;
 import datadog.trace.bootstrap.instrumentation.api.ErrorPriorities;
 import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import javax.annotation.Nonnull;
@@ -50,8 +53,11 @@ public class DDSpan
   public static final String CHECKPOINTED_TAG = "checkpointed";
 
   static DDSpan create(
-      final String instrumentationName, final long timestampMicro, @Nonnull DDSpanContext context) {
-    final DDSpan span = new DDSpan(instrumentationName, timestampMicro, context);
+      final String instrumentationName,
+      final long timestampMicro,
+      @Nonnull DDSpanContext context,
+      final List<AgentSpanLink> links) {
+    final DDSpan span = new DDSpan(instrumentationName, timestampMicro, context, links);
     log.debug("Started span: {}", span);
     context.getTrace().registerSpan(span);
     return span;
@@ -105,6 +111,8 @@ public class DDSpan
    */
   private volatile int longRunningVersion = 0;
 
+  private final List<AgentSpanLink> links;
+
   /**
    * Spans should be constructed using the builder, not by calling the constructor directly.
    *
@@ -115,7 +123,8 @@ public class DDSpan
   private DDSpan(
       @Nonnull String instrumentationName,
       final long timestampMicro,
-      @Nonnull DDSpanContext context) {
+      @Nonnull DDSpanContext context,
+      final List<AgentSpanLink> links) {
     this.context = context;
     this.metrics = SpanMetricRegistry.getInstance().get(instrumentationName);
     this.metrics.onSpanCreated();
@@ -129,6 +138,8 @@ public class DDSpan
       externalClock = true;
       context.getTrace().touch(); // external clock: explicitly update lastReferenced
     }
+
+    this.links = links == null ? new CopyOnWriteArrayList<>() : new CopyOnWriteArrayList<>(links);
   }
 
   public boolean isFinished() {
@@ -685,7 +696,7 @@ public class DDSpan
 
   @Override
   public void processTagsAndBaggage(final MetadataConsumer consumer) {
-    context.processTagsAndBaggage(consumer, longRunningVersion);
+    context.processTagsAndBaggage(consumer, longRunningVersion, links);
   }
 
   @Override
@@ -768,7 +779,13 @@ public class DDSpan
 
   @Override
   public String toString() {
-    return context.toString() + ", duration_ns=" + durationNano + ", forceKeep=" + forceKeep;
+    return context.toString()
+        + ", duration_ns="
+        + durationNano
+        + ", forceKeep="
+        + forceKeep
+        + ", links="
+        + links;
   }
 
   @Override
@@ -791,6 +808,13 @@ public class DDSpan
   @Override
   public TraceConfig traceConfig() {
     return context.getTrace().getTraceConfig();
+  }
+
+  @Override
+  public void addLink(AgentSpanLink link) {
+    if (link != null) {
+      this.links.add(link);
+    }
   }
 
   // to be accessible in Spock spies, which the field wouldn't otherwise be

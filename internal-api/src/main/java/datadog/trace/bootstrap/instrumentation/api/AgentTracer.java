@@ -519,7 +519,7 @@ public class AgentTracer {
   public static final class NoopAgentSpan implements AgentSpan {
     public static final NoopAgentSpan INSTANCE = new NoopAgentSpan();
 
-    protected NoopAgentSpan() {}
+    private NoopAgentSpan() {}
 
     @Override
     public DDTraceId getTraceId() {
@@ -806,6 +806,9 @@ public class AgentTracer {
     public TraceConfig traceConfig() {
       return NoopTraceConfig.INSTANCE;
     }
+
+    @Override
+    public void addLink(AgentSpanLink link) {}
   }
 
   public static final class NoopAgentScope implements AgentScope {

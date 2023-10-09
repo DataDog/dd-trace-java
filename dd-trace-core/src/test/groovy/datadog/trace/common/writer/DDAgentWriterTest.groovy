@@ -217,6 +217,6 @@ class DDAgentWriterTest extends DDCoreSpecification {
       NoopPathwayContext.INSTANCE,
       false,
       PropagationTags.factory().empty())
-    return new DDSpan("test", 0, context)
+    return new DDSpan("test", 0, context, null)
   }
 }
