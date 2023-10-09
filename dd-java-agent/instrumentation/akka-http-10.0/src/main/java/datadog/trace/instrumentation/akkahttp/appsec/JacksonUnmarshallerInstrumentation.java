@@ -25,6 +25,7 @@ public class JacksonUnmarshallerInstrumentation extends Instrumenter.AppSec
   public String[] helperClassNames() {
     return new String[] {
       packageName + ".UnmarshallerHelpers",
+      packageName + ".UnmarshallerHelpers$UnmarkStrictFormOngoingOnUnsupportedException",
       packageName + ".AkkaBlockResponseFunction",
       packageName + ".BlockingResponseHelper",
       packageName + ".ScalaListCollector",

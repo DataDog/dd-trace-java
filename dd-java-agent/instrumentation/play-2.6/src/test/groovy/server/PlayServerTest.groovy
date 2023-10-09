@@ -106,11 +106,6 @@ class PlayServerTest extends HttpServerTest<Server> {
     true
   }
 
-  @Override
-  boolean hasPeerPort() {
-    false
-  }
-
   boolean testExceptionBody() {
     // I can't figure out how to set a proper exception handler to customize the response body.
     false

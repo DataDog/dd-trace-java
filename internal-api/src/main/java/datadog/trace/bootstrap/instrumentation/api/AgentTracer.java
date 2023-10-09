@@ -1023,6 +1023,14 @@ public class AgentTracer {
         AgentSpan span, LinkedHashMap<String, String> sortedTags, long defaultTimestamp) {}
 
     @Override
+    public PathwayContext newPathwayContext() {
+      return NoopPathwayContext.INSTANCE;
+    }
+
+    @Override
+    public void add(StatsPoint statsPoint) {}
+
+    @Override
     public void setConsumeCheckpoint(
         String type, String source, DataStreamsContextCarrier carrier) {}
 

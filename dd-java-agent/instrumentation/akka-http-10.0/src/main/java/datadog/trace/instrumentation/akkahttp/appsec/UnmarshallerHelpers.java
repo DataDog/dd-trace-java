@@ -11,6 +11,7 @@ import akka.http.scaladsl.model.FormData;
 import akka.http.scaladsl.model.HttpEntity;
 import akka.http.scaladsl.unmarshalling.Unmarshaller;
 import akka.http.scaladsl.unmarshalling.Unmarshaller$;
+import akka.japi.JavaPartialFunction;
 import akka.stream.Materializer;
 import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.api.gateway.BlockResponseFunction;
@@ -30,6 +31,7 @@ import java.util.function.BiFunction;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import scala.Function1;
+import scala.PartialFunction;
 import scala.Tuple2;
 import scala.collection.Iterable;
 import scala.collection.Iterator;
@@ -297,9 +299,21 @@ public class UnmarshallerHelpers {
   private static final WeakHashMap<RequestContext, Boolean> STRICT_FORM_SERIALIZATION_ONGOING =
       new WeakHashMap<>();
 
+  // when unmarshalling parts of multipart requests, some other unmarshallers that
+  // we also instrument, like the string unmarshaller, can run. Those runs happen
+  // in a subset of the data, so we are not interested in them: instead we want
+  // to submit all the data at the same time, after having finished fully
+  // unmarshalling the StrictForm. We suppress the sub-runs of unmarshallers by
+  // noticing when the StrictForm unmarshaller starts running
   private static void markStrictFormOngoing(AgentSpan agentSpan) {
     synchronized (STRICT_FORM_SERIALIZATION_ONGOING) {
       STRICT_FORM_SERIALIZATION_ONGOING.put(agentSpan.getRequestContext(), Boolean.TRUE);
+    }
+  }
+
+  private static void unmarkStrictFormOngoing(AgentSpan agentSpan) {
+    synchronized (STRICT_FORM_SERIALIZATION_ONGOING) {
+      STRICT_FORM_SERIALIZATION_ONGOING.remove(agentSpan.getRequestContext());
     }
   }
 
@@ -323,6 +337,30 @@ public class UnmarshallerHelpers {
         return sf;
       };
 
+  public static class UnmarkStrictFormOngoingOnUnsupportedException
+      extends JavaPartialFunction<Throwable, StrictForm> {
+    public static final PartialFunction<Throwable, StrictForm> INSTANCE =
+        new UnmarkStrictFormOngoingOnUnsupportedException();
+
+    @Override
+    public StrictForm apply(Throwable x, boolean isCheck) throws Exception {
+      if (!(x
+          instanceof
+          akka.http.scaladsl.unmarshalling.Unmarshaller.UnsupportedContentTypeException)) {
+        throw noMatch();
+      }
+      if (isCheck) {
+        return null;
+      }
+
+      AgentSpan agentSpan = activeSpan();
+      if (agentSpan != null) {
+        unmarkStrictFormOngoing(agentSpan);
+      }
+      throw (Exception) x;
+    }
+  }
+
   public static Unmarshaller<HttpEntity, StrictForm> transformStrictFormUnmarshaller(
       Unmarshaller<HttpEntity, StrictForm> original) {
     JFunction1<ExecutionContext, Function1<Materializer, Function1<HttpEntity, Future<StrictForm>>>>
@@ -336,16 +374,20 @@ public class UnmarshallerHelpers {
                           if (agentSpan != null) {
                             markStrictFormOngoing(agentSpan);
                           }
-                          return original.apply(entity, ec, mat);
+
+                          Future<StrictForm> resFut = original.apply(entity, ec, mat);
+                          return resFut
+                              .recover(UnmarkStrictFormOngoingOnUnsupportedException.INSTANCE, ec)
+                              .map(STRICT_FORM_DATA_POST_TRANSF, ec);
                         };
                     return h;
                   };
               return g;
             };
-    Unmarshaller<HttpEntity, StrictForm> wrappedBeforeU =
+    Unmarshaller<HttpEntity, StrictForm> wrapped =
         Unmarshaller$.MODULE$.withMaterializer(wrappedBeforeF);
 
-    return wrappedBeforeU.map(STRICT_FORM_DATA_POST_TRANSF);
+    return wrapped;
   }
 
   private static void handleStrictFormData(StrictForm sf) {
