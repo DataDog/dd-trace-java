@@ -401,29 +401,18 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
   }
 
   private Flow<Void> callIGCallbackRequestHeaders(AgentSpan span, REQUEST_CARRIER carrier) {
-    CallbackProvider cbpAppsec = tracer().getCallbackProvider(RequestContextSlot.APPSEC);
-    CallbackProvider cbpIast = tracer().getCallbackProvider(RequestContextSlot.IAST);
+    CallbackProvider cbp = tracer().getUniversalCallbackProvider();
     RequestContext requestContext = span.getRequestContext();
     AgentPropagation.ContextVisitor<REQUEST_CARRIER> getter = getter();
     if (requestContext == null || getter == null) {
       return Flow.ResultFlow.empty();
     }
-    if (cbpIast != null) {
+    if (cbp != null) {
       IGKeyClassifier igKeyClassifier =
           IGKeyClassifier.create(
               requestContext,
-              cbpIast.getCallback(EVENTS.requestHeader()),
-              cbpIast.getCallback(EVENTS.requestHeaderDone()));
-      if (null != igKeyClassifier) {
-        getter.forEachKey(carrier, igKeyClassifier);
-      }
-    }
-    if (cbpAppsec != null) {
-      IGKeyClassifier igKeyClassifier =
-          IGKeyClassifier.create(
-              requestContext,
-              cbpAppsec.getCallback(EVENTS.requestHeader()),
-              cbpAppsec.getCallback(EVENTS.requestHeaderDone()));
+              cbp.getCallback(EVENTS.requestHeader()),
+              cbp.getCallback(EVENTS.requestHeaderDone()));
       if (null != igKeyClassifier) {
         getter.forEachKey(carrier, igKeyClassifier);
         return igKeyClassifier.done();
