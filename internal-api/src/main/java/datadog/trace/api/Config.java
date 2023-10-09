@@ -652,7 +652,7 @@ public class Config {
   private final boolean iastRedactionEnabled;
   private final String iastRedactionNamePattern;
   private final String iastRedactionValuePattern;
-
+  private final int iastMaxRangeCount;
   private final int iastTruncationMaxValueLength;
 
   private final boolean ciVisibilityTraceSanitationEnabled;
@@ -1480,6 +1480,7 @@ public class Config {
     iastTruncationMaxValueLength =
         configProvider.getInteger(
             IAST_TRUNCATION_MAX_VALUE_LENGTH, DEFAULT_IAST_TRUNCATION_MAX_VALUE_LENGTH);
+    iastMaxRangeCount = iastDetectionMode.getIastMaxRangeCount(configProvider);
 
     ciVisibilityTraceSanitationEnabled =
         configProvider.getBoolean(CIVISIBILITY_TRACE_SANITATION_ENABLED, true);
@@ -2461,6 +2462,10 @@ public class Config {
 
   public int getIastTruncationMaxValueLength() {
     return iastTruncationMaxValueLength;
+  }
+
+  public int getIastMaxRangeCount() {
+    return iastMaxRangeCount;
   }
 
   public boolean isCiVisibilityEnabled() {

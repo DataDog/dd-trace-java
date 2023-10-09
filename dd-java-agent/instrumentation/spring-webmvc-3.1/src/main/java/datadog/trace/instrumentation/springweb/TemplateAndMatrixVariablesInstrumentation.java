@@ -11,6 +11,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 import com.google.auto.service.AutoService;
 import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.iast.IastPostProcessorFactory;
 import datadog.trace.api.gateway.BlockResponseFunction;
 import datadog.trace.api.gateway.CallbackProvider;
 import datadog.trace.api.gateway.Flow;
@@ -33,15 +34,21 @@ import net.bytebuddy.matcher.ElementMatcher;
 /** Obtain template and matrix variables for RequestMappingInfoHandlerMapping. */
 @AutoService(Instrumenter.class)
 public class TemplateAndMatrixVariablesInstrumentation extends Instrumenter.Default
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.WithPostProcessor {
+
+  private Advice.PostProcessor.Factory postProcessorFactory;
+
   public TemplateAndMatrixVariablesInstrumentation() {
     super("spring-web");
   }
 
   @Override
   public boolean isApplicable(Set<TargetSystem> enabledSystems) {
-    return enabledSystems.contains(TargetSystem.APPSEC)
-        || enabledSystems.contains(TargetSystem.IAST);
+    if (enabledSystems.contains(TargetSystem.IAST)) {
+      postProcessorFactory = IastPostProcessorFactory.INSTANCE;
+      return true;
+    }
+    return enabledSystems.contains(TargetSystem.APPSEC);
   }
 
   @Override
@@ -75,6 +82,11 @@ public class TemplateAndMatrixVariablesInstrumentation extends Instrumenter.Defa
     return new String[] {
       packageName + ".PairList",
     };
+  }
+
+  @Override
+  public Advice.PostProcessor.Factory postProcessor() {
+    return postProcessorFactory;
   }
 
   public static class HandleMatchAdvice {
