@@ -51,16 +51,12 @@ public class MetadataInstrumentation extends Instrumenter.Tracing
     transformation.applyAdvice(
         isMethod()
             .and(named("update"))
-            .and(
-                takesArgument(
-                    0, named("org.apache.kafka.common.requests.MetadataResponse"))),
+            .and(takesArgument(0, named("org.apache.kafka.common.requests.MetadataResponse"))),
         MetadataInstrumentation.class.getName() + "$MetadataUpdateBefore22Advice");
     transformation.applyAdvice(
         isMethod()
             .and(named("update"))
-            .and(
-                takesArgument(
-                    1, named("org.apache.kafka.common.requests.MetadataResponse"))),
+            .and(takesArgument(1, named("org.apache.kafka.common.requests.MetadataResponse"))),
         MetadataInstrumentation.class.getName() + "$MetadataUpdate22AndAfterAdvice");
   }
 
@@ -73,7 +69,7 @@ public class MetadataInstrumentation extends Instrumenter.Tracing
             .put(metadata, newCluster.clusterResource().clusterId());
       }
     }
-    
+
     public static void muzzleCheck(ConsumerRecord record) {
       // KafkaConsumerInstrumentation only applies for kafka versions with headers
       // Make an explicit call so MetadataInstrumentation does the same
