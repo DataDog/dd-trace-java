@@ -34,12 +34,8 @@ import org.apache.kafka.clients.Metadata;
 import org.apache.kafka.clients.producer.Callback;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
-import org.apache.kafka.clients.producer.internals.ProducerMetadata;
 import org.apache.kafka.clients.producer.internals.Sender;
 import org.apache.kafka.common.record.RecordBatch;
-
-// import org.slf4j.Logger;
-// import org.slf4j.LoggerFactory;
 
 @AutoService(Instrumenter.class)
 public final class KafkaProducerInstrumentation extends Instrumenter.Tracing
@@ -86,7 +82,7 @@ public final class KafkaProducerInstrumentation extends Instrumenter.Tracing
         @Advice.FieldValue("apiVersions") final ApiVersions apiVersions,
         @Advice.FieldValue("producerConfig") ProducerConfig producerConfig,
         @Advice.FieldValue("sender") Sender sender,
-        @Advice.FieldValue("metadata") ProducerMetadata metadata,
+        @Advice.FieldValue("metadata") Metadata metadata,
         @Advice.Argument(value = 0, readOnly = false) ProducerRecord record,
         @Advice.Argument(value = 1, readOnly = false) Callback callback) {
       String clusterId = InstrumentationContext.get(Metadata.class, String.class).get(metadata);

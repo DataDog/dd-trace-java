@@ -14,6 +14,7 @@ import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 import org.apache.kafka.clients.Metadata;
+import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.common.Cluster;
 import org.apache.kafka.common.requests.MetadataResponse;
 
@@ -73,6 +74,12 @@ public class MetadataInstrumentation extends Instrumenter.Tracing
             .put(metadata, newCluster.clusterResource().clusterId());
       }
     }
+    
+    public static void muzzleCheck(ConsumerRecord record) {
+      // KafkaConsumerInstrumentation only applies for kafka versions with headers
+      // Make an explicit call so MetadataInstrumentation does the same
+      record.headers();
+    }
   }
 
   public static class MetadataUpdate22AndAfterAdvice {
@@ -84,6 +91,12 @@ public class MetadataInstrumentation extends Instrumenter.Tracing
         InstrumentationContext.get(Metadata.class, String.class)
             .put(metadata, response.clusterId());
       }
+    }
+
+    public static void muzzleCheck(ConsumerRecord record) {
+      // KafkaConsumerInstrumentation only applies for kafka versions with headers
+      // Make an explicit call so MetadataInstrumentation does the same
+      record.headers();
     }
   }
 }
