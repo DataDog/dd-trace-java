@@ -847,18 +847,20 @@ public class Agent {
    * on JFR.
    */
   private static ProfilingContextIntegration createProfilingContextIntegration() {
+    ProfilingContextIntegration ddprof = ProfilingContextIntegration.NoOp.INSTANCE;
     if (Config.get().isProfilingEnabled() && !Platform.isWindows()) {
       try {
-        return (ProfilingContextIntegration)
-            AGENT_CLASSLOADER
-                .loadClass("com.datadog.profiling.ddprof.DatadogProfilingIntegration")
-                .getDeclaredConstructor()
-                .newInstance();
+        ddprof =
+            (ProfilingContextIntegration)
+                AGENT_CLASSLOADER
+                    .loadClass("com.datadog.profiling.ddprof.DatadogProfilingIntegration")
+                    .getDeclaredConstructor()
+                    .newInstance();
       } catch (Throwable t) {
         log.debug("Profiling context labeling not available. {}", t.getMessage());
       }
     }
-    return ProfilingContextIntegration.NoOp.INSTANCE;
+    return ddprof;
   }
 
   private static void startProfilingAgent(final boolean isStartingFirst) {

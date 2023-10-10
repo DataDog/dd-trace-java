@@ -4,6 +4,8 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.ProfilerContext;
 import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
 import datadog.trace.bootstrap.instrumentation.api.ScopeSource;
+import datadog.trace.core.DDSpanContext;
+
 import java.util.ArrayDeque;
 
 /**
@@ -112,6 +114,9 @@ final class ScopeStack {
 
   private void onTopChanged(ContinuableScope top) {
     AgentSpan.Context context = top.span.context();
+    if (context instanceof DDSpanContext) {
+      DDSpanContext.profilingContextAccess.set((DDSpanContext)context);
+    }
     if (context instanceof ProfilerContext) {
       try {
         profilingContextIntegration.setContext((ProfilerContext) context);
@@ -133,6 +138,7 @@ final class ScopeStack {
   /** Notifies profiler that this thread no longer has a context */
   private void onBecomeEmpty() {
     try {
+      DDSpanContext.profilingContextAccess.unset();
       profilingContextIntegration.clearContext();
       profilingContextIntegration.onDetach();
     } catch (Throwable e) {

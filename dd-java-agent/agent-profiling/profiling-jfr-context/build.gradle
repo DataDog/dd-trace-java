@@ -1,0 +1,20 @@
+apply from: "$rootDir/gradle/java.gradle"
+
+tasks.withType(JavaCompile) {
+  options.fork = true
+  options.forkOptions.executable = project.getProperties()['jfr_context.javac']
+}
+
+dependencies {
+  api deps.slf4j
+  api project(':internal-api')
+  api project(':dd-trace-core')
+
+  testImplementation deps.junit5
+  testImplementation deps.mockito
+  testImplementation group: 'org.hamcrest', name: 'hamcrest', version: '2.1'
+}
+
+forbiddenApisMain {
+  failOnMissingClasses = false
+}

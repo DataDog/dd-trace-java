@@ -270,7 +270,7 @@ public final class ProfileUploader {
           public void onResponse(final Call call, final Response response) throws IOException {
             if (handled.compareAndSet(false, true)) {
               handleResponse(call, response, data, onCompletion);
-              latch.countDown();
+              //              latch.countDown();
             }
           }
 
@@ -278,7 +278,7 @@ public final class ProfileUploader {
           public void onFailure(final Call call, final IOException e) {
             if (handled.compareAndSet(false, true)) {
               handleFailure(call, e, data, onCompletion);
-              latch.countDown();
+              //              latch.countDown();
             }
           }
         });
