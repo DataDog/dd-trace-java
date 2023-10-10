@@ -63,42 +63,58 @@ class SymbolExtractionTransformerTest {
     Reflect.on(testClass).call("main", "1").get();
     transformer.flushScopes(null);
     Scope classScope = symbolSinkMock.jarScopes.get(0).getScopes().get(0);
-    assertScope(classScope, ScopeType.CLASS, CLASS_NAME, 2, 20, SOURCE_FILE);
-    assertEquals(0, classScope.getSymbols().size());
-    assertEquals(2, classScope.getScopes().size());
-    assertScope(classScope.getScopes().get(0), ScopeType.METHOD, "<init>", 2, 2, SOURCE_FILE);
+    assertScope(classScope, ScopeType.CLASS, CLASS_NAME, 2, 20, SOURCE_FILE, 2, 0);
+    assertScope(classScope.getScopes().get(0), ScopeType.METHOD, "<init>", 2, 2, SOURCE_FILE, 0, 0);
     Scope mainMethodScope = classScope.getScopes().get(1);
-    assertScope(mainMethodScope, ScopeType.METHOD, "main", 4, 20, SOURCE_FILE);
-    assertEquals(1, mainMethodScope.getSymbols().size());
+    assertScope(mainMethodScope, ScopeType.METHOD, "main", 4, 20, SOURCE_FILE, 1, 1);
     assertSymbol(
         mainMethodScope.getSymbols().get(0), SymbolType.ARG, "arg", String.class.getTypeName(), 4);
-    assertEquals(4, mainMethodScope.getScopes().size());
-    Scope local0 = mainMethodScope.getScopes().get(0);
-    assertScope(local0, ScopeType.LOCAL, null, 8, 15, SOURCE_FILE);
-    assertEquals(3, local0.getSymbols().size());
+    Scope mainMethodLocalScope = mainMethodScope.getScopes().get(0);
+    assertScope(mainMethodLocalScope, ScopeType.LOCAL, null, 4, 20, SOURCE_FILE, 1, 2);
     assertSymbol(
-        local0.getSymbols().get(0), SymbolType.LOCAL, "foo", Integer.TYPE.getTypeName(), 8);
+        mainMethodLocalScope.getSymbols().get(0),
+        SymbolType.LOCAL,
+        "var1",
+        Integer.TYPE.getTypeName(),
+        4);
     assertSymbol(
-        local0.getSymbols().get(1), SymbolType.LOCAL, "bar", Integer.TYPE.getTypeName(), 9);
-    assertSymbol(local0.getSymbols().get(2), SymbolType.LOCAL, "j", Integer.TYPE.getTypeName(), 11);
-    Scope local1 = mainMethodScope.getScopes().get(1);
-    assertScope(local1, ScopeType.LOCAL, null, 7, 15, SOURCE_FILE);
-    assertEquals(1, local1.getSymbols().size());
-    assertSymbol(local1.getSymbols().get(0), SymbolType.LOCAL, "i", Integer.TYPE.getTypeName(), 7);
-    Scope local2 = mainMethodScope.getScopes().get(2);
-    assertScope(local2, ScopeType.LOCAL, null, 6, 17, SOURCE_FILE);
-    assertEquals(1, local2.getSymbols().size());
+        mainMethodLocalScope.getSymbols().get(1),
+        SymbolType.LOCAL,
+        "var3",
+        Integer.TYPE.getTypeName(),
+        19);
+    Scope ifLine5Scope = mainMethodLocalScope.getScopes().get(0);
+    assertScope(ifLine5Scope, ScopeType.LOCAL, null, 6, 17, SOURCE_FILE, 1, 1);
     assertSymbol(
-        local2.getSymbols().get(0), SymbolType.LOCAL, "var2", Integer.TYPE.getTypeName(), 6);
-    Scope local3 = mainMethodScope.getScopes().get(3);
-    assertScope(local3, ScopeType.LOCAL, null, 4, 20, SOURCE_FILE);
-    assertEquals(3, local3.getSymbols().size());
+        ifLine5Scope.getSymbols().get(0), SymbolType.LOCAL, "var2", Integer.TYPE.getTypeName(), 6);
+    Scope forLine7Scope = ifLine5Scope.getScopes().get(0);
+    assertScope(forLine7Scope, ScopeType.LOCAL, null, 7, 15, SOURCE_FILE, 1, 1);
     assertSymbol(
-        local3.getSymbols().get(0), SymbolType.LOCAL, "arg", String.class.getTypeName(), 4);
+        forLine7Scope.getSymbols().get(0), SymbolType.LOCAL, "i", Integer.TYPE.getTypeName(), 7);
+    Scope forBodyLine7Scope = forLine7Scope.getScopes().get(0);
+    assertScope(forBodyLine7Scope, ScopeType.LOCAL, null, 8, 15, SOURCE_FILE, 1, 3);
     assertSymbol(
-        local3.getSymbols().get(1), SymbolType.LOCAL, "var1", Integer.TYPE.getTypeName(), 4);
+        forBodyLine7Scope.getSymbols().get(0),
+        SymbolType.LOCAL,
+        "foo",
+        Integer.TYPE.getTypeName(),
+        8);
     assertSymbol(
-        local3.getSymbols().get(2), SymbolType.LOCAL, "var3", Integer.TYPE.getTypeName(), 19);
+        forBodyLine7Scope.getSymbols().get(1),
+        SymbolType.LOCAL,
+        "bar",
+        Integer.TYPE.getTypeName(),
+        9);
+    assertSymbol(
+        forBodyLine7Scope.getSymbols().get(2),
+        SymbolType.LOCAL,
+        "j",
+        Integer.TYPE.getTypeName(),
+        11);
+    Scope whileLine12 = forBodyLine7Scope.getScopes().get(0);
+    assertScope(whileLine12, ScopeType.LOCAL, null, 13, 14, SOURCE_FILE, 0, 1);
+    assertSymbol(
+        whileLine12.getSymbols().get(0), SymbolType.LOCAL, "var4", Integer.TYPE.getTypeName(), 13);
   }
 
   @Test
@@ -113,21 +129,20 @@ class SymbolExtractionTransformerTest {
     Reflect.on(testClass).call("main", "1").get();
     transformer.flushScopes(null);
     Scope classScope = symbolSinkMock.jarScopes.get(0).getScopes().get(0);
-    assertScope(classScope, ScopeType.CLASS, CLASS_NAME, 3, 6, SOURCE_FILE);
-    assertEquals(0, classScope.getSymbols().size());
-    assertEquals(2, classScope.getScopes().size());
-    assertScope(classScope.getScopes().get(0), ScopeType.METHOD, "<init>", 3, 3, SOURCE_FILE);
+    assertScope(classScope, ScopeType.CLASS, CLASS_NAME, 3, 6, SOURCE_FILE, 2, 0);
+    assertScope(classScope.getScopes().get(0), ScopeType.METHOD, "<init>", 3, 3, SOURCE_FILE, 0, 0);
     Scope mainMethodScope = classScope.getScopes().get(1);
-    assertScope(mainMethodScope, ScopeType.METHOD, "main", 5, 6, SOURCE_FILE);
-    assertEquals(1, mainMethodScope.getSymbols().size());
+    assertScope(mainMethodScope, ScopeType.METHOD, "main", 5, 6, SOURCE_FILE, 1, 1);
     assertSymbol(
         mainMethodScope.getSymbols().get(0), SymbolType.ARG, "arg", String.class.getTypeName(), 5);
-    assertEquals(1, mainMethodScope.getScopes().size());
-    Scope local0 = mainMethodScope.getScopes().get(0);
-    assertScope(local0, ScopeType.LOCAL, null, 5, 6, SOURCE_FILE);
-    assertEquals(1, local0.getSymbols().size());
+    Scope mainMethodLocalScope = mainMethodScope.getScopes().get(0);
+    assertScope(mainMethodLocalScope, ScopeType.LOCAL, null, 5, 6, SOURCE_FILE, 0, 1);
     assertSymbol(
-        local0.getSymbols().get(0), SymbolType.LOCAL, "var1", String.class.getTypeName(), 5);
+        mainMethodLocalScope.getSymbols().get(0),
+        SymbolType.LOCAL,
+        "var1",
+        String.class.getTypeName(),
+        5);
   }
 
   @Test
@@ -142,41 +157,60 @@ class SymbolExtractionTransformerTest {
     Reflect.on(testClass).call("main", "1").get();
     transformer.flushScopes(null);
     Scope classScope = symbolSinkMock.jarScopes.get(0).getScopes().get(0);
-    assertScope(classScope, ScopeType.CLASS, CLASS_NAME, 4, 28, SOURCE_FILE);
-    assertEquals(0, classScope.getSymbols().size());
-    assertEquals(2, classScope.getScopes().size());
-    assertScope(classScope.getScopes().get(0), ScopeType.METHOD, "<init>", 4, 4, SOURCE_FILE);
+    assertScope(classScope, ScopeType.CLASS, CLASS_NAME, 4, 28, SOURCE_FILE, 2, 0);
+    assertScope(classScope.getScopes().get(0), ScopeType.METHOD, "<init>", 4, 4, SOURCE_FILE, 0, 0);
     Scope mainMethodScope = classScope.getScopes().get(1);
-    assertScope(mainMethodScope, ScopeType.METHOD, "main", 6, 28, SOURCE_FILE);
-    assertEquals(1, mainMethodScope.getSymbols().size());
+    assertScope(mainMethodScope, ScopeType.METHOD, "main", 6, 28, SOURCE_FILE, 1, 1);
     assertSymbol(
         mainMethodScope.getSymbols().get(0), SymbolType.ARG, "arg", String.class.getTypeName(), 6);
-    assertEquals(3, mainMethodScope.getScopes().size());
-    Scope local0 = mainMethodScope.getScopes().get(0);
-    assertScope(local0, ScopeType.LOCAL, null, 20, 21, SOURCE_FILE);
-    assertEquals(1, local0.getSymbols().size());
+    Scope mainMethodLocalScope = mainMethodScope.getScopes().get(0);
+    assertScope(mainMethodLocalScope, ScopeType.LOCAL, null, 6, 28, SOURCE_FILE, 2, 2);
     assertSymbol(
-        local0.getSymbols().get(0), SymbolType.LOCAL, "var4", String.class.getTypeName(), 20);
-    Scope local1 = mainMethodScope.getScopes().get(1);
-    assertScope(local1, ScopeType.LOCAL, null, 12, 24, SOURCE_FILE);
-    assertEquals(4, local1.getSymbols().size());
+        mainMethodLocalScope.getSymbols().get(0),
+        SymbolType.LOCAL,
+        "var1",
+        String.class.getTypeName(),
+        6);
     assertSymbol(
-        local1.getSymbols().get(0), SymbolType.LOCAL, "var31", String.class.getTypeName(), 12);
+        mainMethodLocalScope.getSymbols().get(1),
+        SymbolType.LOCAL,
+        "var5",
+        String.class.getTypeName(),
+        27);
+    Scope elseLine10Scope = mainMethodLocalScope.getScopes().get(0);
+    assertScope(elseLine10Scope, ScopeType.LOCAL, null, 12, 24, SOURCE_FILE, 1, 4);
     assertSymbol(
-        local1.getSymbols().get(1), SymbolType.LOCAL, "var32", String.class.getTypeName(), 13);
+        elseLine10Scope.getSymbols().get(0),
+        SymbolType.LOCAL,
+        "var31",
+        String.class.getTypeName(),
+        12);
     assertSymbol(
-        local1.getSymbols().get(2), SymbolType.LOCAL, "var30", String.class.getTypeName(), 15);
+        elseLine10Scope.getSymbols().get(1),
+        SymbolType.LOCAL,
+        "var32",
+        String.class.getTypeName(),
+        13);
     assertSymbol(
-        local1.getSymbols().get(3), SymbolType.LOCAL, "var3", String.class.getTypeName(), 17);
-    Scope local2 = mainMethodScope.getScopes().get(2);
-    assertScope(local2, ScopeType.LOCAL, null, 6, 28, SOURCE_FILE);
-    assertEquals(3, local2.getSymbols().size());
+        elseLine10Scope.getSymbols().get(2),
+        SymbolType.LOCAL,
+        "var30",
+        String.class.getTypeName(),
+        15);
     assertSymbol(
-        local2.getSymbols().get(0), SymbolType.LOCAL, "arg", String.class.getTypeName(), 6);
+        elseLine10Scope.getSymbols().get(3),
+        SymbolType.LOCAL,
+        "var3",
+        String.class.getTypeName(),
+        17);
+    Scope ifLine19Scope = elseLine10Scope.getScopes().get(0);
+    assertScope(ifLine19Scope, ScopeType.LOCAL, null, 20, 21, SOURCE_FILE, 0, 1);
     assertSymbol(
-        local2.getSymbols().get(1), SymbolType.LOCAL, "var1", String.class.getTypeName(), 6);
-    assertSymbol(
-        local2.getSymbols().get(2), SymbolType.LOCAL, "var5", String.class.getTypeName(), 27);
+        ifLine19Scope.getSymbols().get(0),
+        SymbolType.LOCAL,
+        "var4",
+        String.class.getTypeName(),
+        20);
   }
 
   @Test
@@ -191,44 +225,64 @@ class SymbolExtractionTransformerTest {
     Reflect.on(testClass).call("main", "1").get();
     transformer.flushScopes(null);
     Scope classScope = symbolSinkMock.jarScopes.get(0).getScopes().get(0);
-    assertScope(classScope, ScopeType.CLASS, CLASS_NAME, 3, 18, SOURCE_FILE);
-    assertEquals(0, classScope.getSymbols().size());
-    assertEquals(2, classScope.getScopes().size());
-    assertScope(classScope.getScopes().get(0), ScopeType.METHOD, "<init>", 3, 3, SOURCE_FILE);
+    assertScope(classScope, ScopeType.CLASS, CLASS_NAME, 3, 18, SOURCE_FILE, 2, 0);
+    assertScope(classScope.getScopes().get(0), ScopeType.METHOD, "<init>", 3, 3, SOURCE_FILE, 0, 0);
     Scope mainMethodScope = classScope.getScopes().get(1);
-    assertScope(mainMethodScope, ScopeType.METHOD, "main", 5, 18, SOURCE_FILE);
-    assertEquals(1, mainMethodScope.getSymbols().size());
+    assertScope(mainMethodScope, ScopeType.METHOD, "main", 5, 18, SOURCE_FILE, 1, 1);
     assertSymbol(
         mainMethodScope.getSymbols().get(0), SymbolType.ARG, "arg", String.class.getTypeName(), 5);
-    assertEquals(5, mainMethodScope.getScopes().size());
-    Scope local0 = mainMethodScope.getScopes().get(0);
-    assertScope(local0, ScopeType.LOCAL, null, 10, 12, SOURCE_FILE);
-    assertEquals(1, local0.getSymbols().size());
-    assertSymbol(local0.getSymbols().get(0), SymbolType.LOCAL, "k", Integer.TYPE.getTypeName(), 10);
-    Scope local1 = mainMethodScope.getScopes().get(1);
-    assertScope(local1, ScopeType.LOCAL, null, 9, 15, SOURCE_FILE);
-    assertEquals(2, local1.getSymbols().size());
+    Scope mainMethodLocalScope = mainMethodScope.getScopes().get(0);
+    assertScope(mainMethodLocalScope, ScopeType.LOCAL, null, 5, 18, SOURCE_FILE, 1, 1);
     assertSymbol(
-        local1.getSymbols().get(0), SymbolType.LOCAL, "var3", String.class.getTypeName(), 9);
+        mainMethodLocalScope.getSymbols().get(0),
+        SymbolType.LOCAL,
+        "var1",
+        String.class.getTypeName(),
+        5);
+    Scope forLine6Scope = mainMethodLocalScope.getScopes().get(0);
+    assertScope(forLine6Scope, ScopeType.LOCAL, null, 6, 15, SOURCE_FILE, 1, 1);
     assertSymbol(
-        local1.getSymbols().get(1), SymbolType.LOCAL, "var5", String.class.getTypeName(), 14);
-    Scope local2 = mainMethodScope.getScopes().get(2);
-    assertScope(local2, ScopeType.LOCAL, null, 7, 15, SOURCE_FILE);
-    assertEquals(2, local2.getSymbols().size());
-    assertSymbol(local2.getSymbols().get(0), SymbolType.LOCAL, "j", Integer.TYPE.getTypeName(), 8);
+        forLine6Scope.getSymbols().get(0), SymbolType.LOCAL, "i", Integer.TYPE.getTypeName(), 6);
+    Scope forBodyLine6Scope = forLine6Scope.getScopes().get(0);
+    assertScope(forBodyLine6Scope, ScopeType.LOCAL, null, 7, 15, SOURCE_FILE, 1, 2);
     assertSymbol(
-        local2.getSymbols().get(1), SymbolType.LOCAL, "var2", String.class.getTypeName(), 7);
-    Scope local3 = mainMethodScope.getScopes().get(3);
-    assertScope(local3, ScopeType.LOCAL, null, 6, 15, SOURCE_FILE);
-    assertEquals(1, local3.getSymbols().size());
-    assertSymbol(local3.getSymbols().get(0), SymbolType.LOCAL, "i", Integer.TYPE.getTypeName(), 6);
-    Scope local4 = mainMethodScope.getScopes().get(4);
-    assertScope(local4, ScopeType.LOCAL, null, 5, 18, SOURCE_FILE);
-    assertEquals(2, local4.getSymbols().size());
+        forBodyLine6Scope.getSymbols().get(0),
+        SymbolType.LOCAL,
+        "j",
+        Integer.TYPE.getTypeName(),
+        8);
     assertSymbol(
-        local4.getSymbols().get(0), SymbolType.LOCAL, "arg", String.class.getTypeName(), 5);
+        forBodyLine6Scope.getSymbols().get(1),
+        SymbolType.LOCAL,
+        "var2",
+        String.class.getTypeName(),
+        7);
+    Scope forBodyLine8Scope = forBodyLine6Scope.getScopes().get(0);
+    assertScope(forBodyLine8Scope, ScopeType.LOCAL, null, 9, 15, SOURCE_FILE, 1, 2);
     assertSymbol(
-        local4.getSymbols().get(1), SymbolType.LOCAL, "var1", String.class.getTypeName(), 5);
+        forBodyLine8Scope.getSymbols().get(0),
+        SymbolType.LOCAL,
+        "var3",
+        String.class.getTypeName(),
+        9);
+    assertSymbol(
+        forBodyLine8Scope.getSymbols().get(1),
+        SymbolType.LOCAL,
+        "var5",
+        String.class.getTypeName(),
+        14);
+    Scope forLine10Scope = forBodyLine8Scope.getScopes().get(0);
+    assertScope(forLine10Scope, ScopeType.LOCAL, null, 10, 12, SOURCE_FILE, 1, 1);
+    assertSymbol(
+        forLine10Scope.getSymbols().get(0), SymbolType.LOCAL, "k", Integer.TYPE.getTypeName(), 10);
+    Scope forBodyLine10Scope = forLine10Scope.getScopes().get(0);
+    assertScope(forBodyLine10Scope, ScopeType.LOCAL, null, 11, 12, SOURCE_FILE, 0, 1);
+    assertSymbol(
+        forBodyLine10Scope.getSymbols().get(0),
+        SymbolType.LOCAL,
+        "var4",
+        String.class.getTypeName(),
+        11);
   }
 
   @Test
@@ -243,28 +297,38 @@ class SymbolExtractionTransformerTest {
     Reflect.on(testClass).call("main", "1").get();
     transformer.flushScopes(null);
     Scope classScope = symbolSinkMock.jarScopes.get(0).getScopes().get(0);
-    assertScope(classScope, ScopeType.CLASS, CLASS_NAME, 3, 15, SOURCE_FILE);
-    assertEquals(0, classScope.getSymbols().size());
-    assertEquals(2, classScope.getScopes().size());
-    assertScope(classScope.getScopes().get(0), ScopeType.METHOD, "<init>", 3, 3, SOURCE_FILE);
+    assertScope(classScope, ScopeType.CLASS, CLASS_NAME, 3, 15, SOURCE_FILE, 2, 0);
+    assertScope(classScope.getScopes().get(0), ScopeType.METHOD, "<init>", 3, 3, SOURCE_FILE, 0, 0);
     Scope mainMethodScope = classScope.getScopes().get(1);
-    assertScope(mainMethodScope, ScopeType.METHOD, "main", 5, 15, SOURCE_FILE);
-    assertEquals(1, mainMethodScope.getSymbols().size());
+    assertScope(mainMethodScope, ScopeType.METHOD, "main", 5, 15, SOURCE_FILE, 1, 1);
     assertSymbol(
         mainMethodScope.getSymbols().get(0), SymbolType.ARG, "arg", String.class.getTypeName(), 5);
-    assertEquals(2, mainMethodScope.getScopes().size());
-    Scope local0 = mainMethodScope.getScopes().get(0);
-    assertScope(local0, ScopeType.LOCAL, null, 7, 13, SOURCE_FILE);
-    assertEquals(2, local0.getSymbols().size());
+    Scope mainMethodLocalScope = mainMethodScope.getScopes().get(0);
+    assertScope(mainMethodLocalScope, ScopeType.LOCAL, null, 5, 15, SOURCE_FILE, 1, 1);
     assertSymbol(
-        local0.getSymbols().get(0), SymbolType.LOCAL, "var1", Integer.TYPE.getTypeName(), 7);
-    assertSymbol(local0.getSymbols().get(1), SymbolType.LOCAL, "j", Integer.TYPE.getTypeName(), 8);
-    Scope local1 = mainMethodScope.getScopes().get(1);
-    assertScope(local1, ScopeType.LOCAL, null, 5, 15, SOURCE_FILE);
-    assertEquals(2, local1.getSymbols().size());
+        mainMethodLocalScope.getSymbols().get(0),
+        SymbolType.LOCAL,
+        "i",
+        Integer.TYPE.getTypeName(),
+        5);
+    Scope whileLine6Scope = mainMethodLocalScope.getScopes().get(0);
+    assertScope(whileLine6Scope, ScopeType.LOCAL, null, 7, 13, SOURCE_FILE, 1, 2);
     assertSymbol(
-        local1.getSymbols().get(0), SymbolType.LOCAL, "arg", String.class.getTypeName(), 5);
-    assertSymbol(local1.getSymbols().get(1), SymbolType.LOCAL, "i", Integer.TYPE.getTypeName(), 5);
+        whileLine6Scope.getSymbols().get(0),
+        SymbolType.LOCAL,
+        "var1",
+        Integer.TYPE.getTypeName(),
+        7);
+    assertSymbol(
+        whileLine6Scope.getSymbols().get(1), SymbolType.LOCAL, "j", Integer.TYPE.getTypeName(), 8);
+    Scope whileLine9Scope = whileLine6Scope.getScopes().get(0);
+    assertScope(whileLine9Scope, ScopeType.LOCAL, null, 10, 11, SOURCE_FILE, 0, 1);
+    assertSymbol(
+        whileLine9Scope.getSymbols().get(0),
+        SymbolType.LOCAL,
+        "var2",
+        Integer.TYPE.getTypeName(),
+        10);
   }
 
   @Test
@@ -279,34 +343,38 @@ class SymbolExtractionTransformerTest {
     Reflect.on(testClass).call("main", "1").get();
     transformer.flushScopes(null);
     Scope classScope = symbolSinkMock.jarScopes.get(0).getScopes().get(0);
-    assertScope(classScope, ScopeType.CLASS, CLASS_NAME, 3, 13, SOURCE_FILE);
-    assertEquals(0, classScope.getSymbols().size());
-    assertEquals(2, classScope.getScopes().size());
-    assertScope(classScope.getScopes().get(0), ScopeType.METHOD, "<init>", 3, 3, SOURCE_FILE);
+    assertScope(classScope, ScopeType.CLASS, CLASS_NAME, 3, 13, SOURCE_FILE, 2, 0);
+    assertScope(classScope.getScopes().get(0), ScopeType.METHOD, "<init>", 3, 3, SOURCE_FILE, 0, 0);
     Scope mainMethodScope = classScope.getScopes().get(1);
-    assertScope(mainMethodScope, ScopeType.METHOD, "main", 5, 13, SOURCE_FILE);
-    assertEquals(1, mainMethodScope.getSymbols().size());
+    assertScope(mainMethodScope, ScopeType.METHOD, "main", 5, 13, SOURCE_FILE, 1, 1);
     assertSymbol(
         mainMethodScope.getSymbols().get(0), SymbolType.ARG, "arg", String.class.getTypeName(), 5);
-    assertEquals(2, mainMethodScope.getScopes().size());
-    Scope local0 = mainMethodScope.getScopes().get(0);
-    assertScope(local0, ScopeType.LOCAL, null, 9, 11, SOURCE_FILE);
-    assertEquals(2, local0.getSymbols().size());
+    Scope mainMethodLocalScope = mainMethodScope.getScopes().get(0);
+    assertScope(mainMethodLocalScope, ScopeType.LOCAL, null, 5, 13, SOURCE_FILE, 2, 1);
     assertSymbol(
-        local0.getSymbols().get(0), SymbolType.LOCAL, "var3", Integer.TYPE.getTypeName(), 10);
+        mainMethodLocalScope.getSymbols().get(0),
+        SymbolType.LOCAL,
+        "var1",
+        Integer.TYPE.getTypeName(),
+        5);
+    Scope catchLine9Scope = mainMethodLocalScope.getScopes().get(0);
+    assertScope(catchLine9Scope, ScopeType.LOCAL, null, 9, 11, SOURCE_FILE, 0, 2);
     assertSymbol(
-        local0.getSymbols().get(1),
+        catchLine9Scope.getSymbols().get(0),
+        SymbolType.LOCAL,
+        "var3",
+        Integer.TYPE.getTypeName(),
+        10);
+    assertSymbol(
+        catchLine9Scope.getSymbols().get(1),
         SymbolType.LOCAL,
         "rte",
         RuntimeException.class.getTypeName(),
         9);
-    Scope local1 = mainMethodScope.getScopes().get(1);
-    assertScope(local1, ScopeType.LOCAL, null, 5, 13, SOURCE_FILE);
-    assertEquals(2, local1.getSymbols().size());
+    Scope tryLine6Scope = mainMethodLocalScope.getScopes().get(1);
+    assertScope(tryLine6Scope, ScopeType.LOCAL, null, 7, 8, SOURCE_FILE, 0, 1);
     assertSymbol(
-        local1.getSymbols().get(0), SymbolType.LOCAL, "arg", String.class.getTypeName(), 5);
-    assertSymbol(
-        local1.getSymbols().get(1), SymbolType.LOCAL, "var1", Integer.TYPE.getTypeName(), 5);
+        tryLine6Scope.getSymbols().get(0), SymbolType.LOCAL, "var2", Integer.TYPE.getTypeName(), 7);
   }
 
   @Test
@@ -321,22 +389,24 @@ class SymbolExtractionTransformerTest {
     Reflect.on(testClass).call("main", "1").get();
     transformer.flushScopes(null);
     Scope classScope = symbolSinkMock.jarScopes.get(0).getScopes().get(0);
-    assertScope(classScope, ScopeType.CLASS, CLASS_NAME, 3, 10, SOURCE_FILE);
-    assertEquals(0, classScope.getSymbols().size());
-    assertEquals(2, classScope.getScopes().size());
-    assertScope(classScope.getScopes().get(0), ScopeType.METHOD, "<init>", 3, 3, SOURCE_FILE);
+    assertScope(classScope, ScopeType.CLASS, CLASS_NAME, 3, 10, SOURCE_FILE, 2, 0);
+    assertScope(classScope.getScopes().get(0), ScopeType.METHOD, "<init>", 3, 3, SOURCE_FILE, 0, 0);
     Scope mainMethodScope = classScope.getScopes().get(1);
-    assertScope(mainMethodScope, ScopeType.METHOD, "main", 5, 10, SOURCE_FILE);
-    assertEquals(1, mainMethodScope.getSymbols().size());
+    assertScope(mainMethodScope, ScopeType.METHOD, "main", 5, 10, SOURCE_FILE, 1, 1);
     assertSymbol(
         mainMethodScope.getSymbols().get(0), SymbolType.ARG, "arg", String.class.getTypeName(), 5);
-    assertEquals(1, mainMethodScope.getScopes().size());
-    Scope local0 = mainMethodScope.getScopes().get(0);
-    assertScope(local0, ScopeType.LOCAL, null, 5, 10, SOURCE_FILE);
-    assertEquals(2, local0.getSymbols().size());
+    Scope mainMethodLocalScope = mainMethodScope.getScopes().get(0);
+    assertScope(mainMethodLocalScope, ScopeType.LOCAL, null, 5, 10, SOURCE_FILE, 1, 1);
     assertSymbol(
-        local0.getSymbols().get(0), SymbolType.LOCAL, "arg", String.class.getTypeName(), 5);
-    assertSymbol(local0.getSymbols().get(1), SymbolType.LOCAL, "i", Integer.TYPE.getTypeName(), 5);
+        mainMethodLocalScope.getSymbols().get(0),
+        SymbolType.LOCAL,
+        "i",
+        Integer.TYPE.getTypeName(),
+        5);
+    Scope doLine6Scope = mainMethodLocalScope.getScopes().get(0);
+    assertScope(doLine6Scope, ScopeType.LOCAL, null, 7, 8, SOURCE_FILE, 0, 1);
+    assertSymbol(
+        doLine6Scope.getSymbols().get(0), SymbolType.LOCAL, "j", Integer.TYPE.getTypeName(), 7);
   }
 
   @Test
@@ -351,28 +421,26 @@ class SymbolExtractionTransformerTest {
     Reflect.on(testClass).call("main", "1").get();
     transformer.flushScopes(null);
     Scope classScope = symbolSinkMock.jarScopes.get(0).getScopes().get(0);
-    assertScope(classScope, ScopeType.CLASS, CLASS_NAME, 3, 11, SOURCE_FILE);
-    assertEquals(0, classScope.getSymbols().size());
-    assertEquals(2, classScope.getScopes().size());
-    assertScope(classScope.getScopes().get(0), ScopeType.METHOD, "<init>", 3, 3, SOURCE_FILE);
+    assertScope(classScope, ScopeType.CLASS, CLASS_NAME, 3, 11, SOURCE_FILE, 2, 0);
+    assertScope(classScope.getScopes().get(0), ScopeType.METHOD, "<init>", 3, 3, SOURCE_FILE, 0, 0);
     Scope mainMethodScope = classScope.getScopes().get(1);
-    assertScope(mainMethodScope, ScopeType.METHOD, "main", 5, 11, SOURCE_FILE);
-    assertEquals(1, mainMethodScope.getSymbols().size());
+    assertScope(mainMethodScope, ScopeType.METHOD, "main", 5, 11, SOURCE_FILE, 1, 1);
     assertSymbol(
         mainMethodScope.getSymbols().get(0), SymbolType.ARG, "arg", String.class.getTypeName(), 5);
-    assertEquals(2, mainMethodScope.getScopes().size());
-    Scope local0 = mainMethodScope.getScopes().get(0);
-    assertScope(local0, ScopeType.LOCAL, null, 8, 9, SOURCE_FILE);
-    assertEquals(1, local0.getSymbols().size());
+    Scope mainMethodLocalScope = mainMethodScope.getScopes().get(0);
+    assertScope(mainMethodLocalScope, ScopeType.LOCAL, null, 5, 11, SOURCE_FILE, 1, 1);
     assertSymbol(
-        local0.getSymbols().get(0), SymbolType.LOCAL, "var3", Integer.TYPE.getTypeName(), 8);
-    Scope local1 = mainMethodScope.getScopes().get(1);
-    assertScope(local1, ScopeType.LOCAL, null, 5, 11, SOURCE_FILE);
-    assertEquals(2, local1.getSymbols().size());
+        mainMethodLocalScope.getSymbols().get(0),
+        SymbolType.LOCAL,
+        "var1",
+        Integer.TYPE.getTypeName(),
+        5);
+    Scope line6Scope = mainMethodLocalScope.getScopes().get(0);
+    assertScope(line6Scope, ScopeType.LOCAL, null, 7, 9, SOURCE_FILE, 0, 2);
     assertSymbol(
-        local1.getSymbols().get(0), SymbolType.LOCAL, "arg", String.class.getTypeName(), 5);
+        line6Scope.getSymbols().get(0), SymbolType.LOCAL, "var2", Integer.TYPE.getTypeName(), 7);
     assertSymbol(
-        local1.getSymbols().get(1), SymbolType.LOCAL, "var1", Integer.TYPE.getTypeName(), 5);
+        line6Scope.getSymbols().get(1), SymbolType.LOCAL, "var3", Integer.TYPE.getTypeName(), 8);
   }
 
   @Test
@@ -387,38 +455,42 @@ class SymbolExtractionTransformerTest {
     Reflect.on(testClass).call("main", "1").get();
     transformer.flushScopes(null);
     Scope classScope = symbolSinkMock.jarScopes.get(0).getScopes().get(0);
-    assertScope(classScope, ScopeType.CLASS, CLASS_NAME, 5, 12, SOURCE_FILE);
-    assertEquals(0, classScope.getSymbols().size());
-    assertEquals(3, classScope.getScopes().size());
-    assertScope(classScope.getScopes().get(0), ScopeType.METHOD, "<init>", 5, 5, SOURCE_FILE);
+    assertScope(classScope, ScopeType.CLASS, CLASS_NAME, 5, 12, SOURCE_FILE, 3, 0);
+    assertScope(classScope.getScopes().get(0), ScopeType.METHOD, "<init>", 5, 5, SOURCE_FILE, 0, 0);
     Scope mainMethodScope = classScope.getScopes().get(1);
-    assertScope(mainMethodScope, ScopeType.METHOD, "main", 7, 12, SOURCE_FILE);
-    assertEquals(1, mainMethodScope.getSymbols().size());
+    assertScope(mainMethodScope, ScopeType.METHOD, "main", 7, 12, SOURCE_FILE, 1, 1);
     assertSymbol(
         mainMethodScope.getSymbols().get(0), SymbolType.ARG, "arg", String.class.getTypeName(), 7);
-    assertEquals(1, mainMethodScope.getScopes().size());
-    Scope local0 = mainMethodScope.getScopes().get(0);
-    assertScope(local0, ScopeType.LOCAL, null, 7, 12, SOURCE_FILE);
-    assertEquals(2, local0.getSymbols().size());
+    Scope mainMethodLocalScope = mainMethodScope.getScopes().get(0);
+    assertScope(mainMethodLocalScope, ScopeType.LOCAL, null, 7, 12, SOURCE_FILE, 0, 2);
     assertSymbol(
-        local0.getSymbols().get(0), SymbolType.LOCAL, "outside", Integer.TYPE.getTypeName(), 7);
+        mainMethodLocalScope.getSymbols().get(0),
+        SymbolType.LOCAL,
+        "outside",
+        Integer.TYPE.getTypeName(),
+        7);
     assertSymbol(
-        local0.getSymbols().get(1), SymbolType.LOCAL, "lambda", Supplier.class.getTypeName(), 8);
+        mainMethodLocalScope.getSymbols().get(1),
+        SymbolType.LOCAL,
+        "lambda",
+        Supplier.class.getTypeName(),
+        8);
     Scope lambdaMethodScope = classScope.getScopes().get(2);
-    assertScope(lambdaMethodScope, ScopeType.METHOD, "lambda$main$0", 9, 10, SOURCE_FILE);
-    assertEquals(1, lambdaMethodScope.getSymbols().size());
+    assertScope(lambdaMethodScope, ScopeType.METHOD, "lambda$main$0", 9, 10, SOURCE_FILE, 1, 1);
     assertSymbol(
         lambdaMethodScope.getSymbols().get(0),
         SymbolType.ARG,
         "outside",
         Integer.TYPE.getTypeName(),
         9);
-    assertEquals(1, lambdaMethodScope.getScopes().size());
-    Scope lambdaLocal0 = lambdaMethodScope.getScopes().get(0);
-    assertScope(lambdaLocal0, ScopeType.LOCAL, null, 9, 10, SOURCE_FILE);
-    assertEquals(1, lambdaLocal0.getSymbols().size());
+    Scope lambdaMethodLocalScope = lambdaMethodScope.getScopes().get(0);
+    assertScope(lambdaMethodLocalScope, ScopeType.LOCAL, null, 9, 10, SOURCE_FILE, 0, 1);
     assertSymbol(
-        lambdaLocal0.getSymbols().get(0), SymbolType.LOCAL, "var1", Integer.TYPE.getTypeName(), 9);
+        lambdaMethodLocalScope.getSymbols().get(0),
+        SymbolType.LOCAL,
+        "var1",
+        Integer.TYPE.getTypeName(),
+        9);
   }
 
   @Test
@@ -434,47 +506,42 @@ class SymbolExtractionTransformerTest {
     transformer.flushScopes(null);
     assertEquals(2, symbolSinkMock.jarScopes.get(0).getScopes().size());
     Scope classScope = symbolSinkMock.jarScopes.get(0).getScopes().get(0);
-    assertScope(classScope, ScopeType.CLASS, CLASS_NAME, 3, 6, SOURCE_FILE);
-    assertEquals(0, classScope.getSymbols().size());
-    assertEquals(2, classScope.getScopes().size());
-    assertScope(classScope.getScopes().get(0), ScopeType.METHOD, "<init>", 3, 3, SOURCE_FILE);
+    assertScope(classScope, ScopeType.CLASS, CLASS_NAME, 3, 6, SOURCE_FILE, 2, 0);
+    assertScope(classScope.getScopes().get(0), ScopeType.METHOD, "<init>", 3, 3, SOURCE_FILE, 0, 0);
     Scope mainMethodScope = classScope.getScopes().get(1);
-    assertScope(mainMethodScope, ScopeType.METHOD, "main", 5, 6, SOURCE_FILE);
-    assertEquals(1, mainMethodScope.getSymbols().size());
+    assertScope(mainMethodScope, ScopeType.METHOD, "main", 5, 6, SOURCE_FILE, 1, 1);
     assertSymbol(
         mainMethodScope.getSymbols().get(0), SymbolType.ARG, "arg", String.class.getTypeName(), 5);
-    assertEquals(1, mainMethodScope.getScopes().size());
-    Scope local0 = mainMethodScope.getScopes().get(0);
-    assertScope(local0, ScopeType.LOCAL, null, 5, 6, SOURCE_FILE);
-    assertEquals(1, local0.getSymbols().size());
+    Scope mainMethodLocalScope = mainMethodScope.getScopes().get(0);
+    assertScope(mainMethodLocalScope, ScopeType.LOCAL, null, 5, 6, SOURCE_FILE, 0, 1);
     assertSymbol(
-        local0.getSymbols().get(0),
+        mainMethodLocalScope.getSymbols().get(0),
         SymbolType.LOCAL,
         "winner",
         "com.datadog.debugger.symbol.SymbolExtraction10$Inner",
         5);
     Scope innerClassScope = symbolSinkMock.jarScopes.get(0).getScopes().get(1);
-    assertScope(innerClassScope, ScopeType.CLASS, CLASS_NAME + "$Inner", 9, 13, SOURCE_FILE);
-    assertEquals(1, innerClassScope.getSymbols().size());
-    assertEquals(2, innerClassScope.getScopes().size());
+    assertScope(innerClassScope, ScopeType.CLASS, CLASS_NAME + "$Inner", 9, 13, SOURCE_FILE, 2, 1);
     assertSymbol(
         innerClassScope.getSymbols().get(0),
         SymbolType.FIELD,
         "field1",
         Integer.TYPE.getTypeName(),
         0);
-    assertScope(innerClassScope.getScopes().get(0), ScopeType.METHOD, "<init>", 9, 10, SOURCE_FILE);
+    assertScope(
+        innerClassScope.getScopes().get(0), ScopeType.METHOD, "<init>", 9, 10, SOURCE_FILE, 0, 0);
     Scope addToMethod = innerClassScope.getScopes().get(1);
-    assertScope(addToMethod, ScopeType.METHOD, "addTo", 12, 13, SOURCE_FILE);
-    assertEquals(1, addToMethod.getSymbols().size());
+    assertScope(addToMethod, ScopeType.METHOD, "addTo", 12, 13, SOURCE_FILE, 1, 1);
     assertSymbol(
         addToMethod.getSymbols().get(0), SymbolType.ARG, "arg", Integer.TYPE.getTypeName(), 12);
-    assertEquals(1, addToMethod.getScopes().size());
-    Scope addToLocal0 = addToMethod.getScopes().get(0);
-    assertScope(addToLocal0, ScopeType.LOCAL, null, 12, 13, SOURCE_FILE);
-    assertEquals(1, addToLocal0.getSymbols().size());
+    Scope addToMethodLocalScope = addToMethod.getScopes().get(0);
+    assertScope(addToMethodLocalScope, ScopeType.LOCAL, null, 12, 13, SOURCE_FILE, 0, 1);
     assertSymbol(
-        addToLocal0.getSymbols().get(0), SymbolType.LOCAL, "var1", Integer.TYPE.getTypeName(), 12);
+        addToMethodLocalScope.getSymbols().get(0),
+        SymbolType.LOCAL,
+        "var1",
+        Integer.TYPE.getTypeName(),
+        12);
   }
 
   @Test
@@ -489,25 +556,26 @@ class SymbolExtractionTransformerTest {
     Reflect.on(testClass).call("main", 1).get();
     transformer.flushScopes(null);
     Scope classScope = symbolSinkMock.jarScopes.get(0).getScopes().get(0);
-    assertScope(classScope, ScopeType.CLASS, CLASS_NAME, 3, 11, SOURCE_FILE);
-    assertEquals(1, classScope.getSymbols().size());
+    assertScope(classScope, ScopeType.CLASS, CLASS_NAME, 3, 11, SOURCE_FILE, 2, 1);
     assertSymbol(
         classScope.getSymbols().get(0), SymbolType.FIELD, "field1", Integer.TYPE.getTypeName(), 0);
-    assertEquals(2, classScope.getScopes().size());
-    assertScope(classScope.getScopes().get(0), ScopeType.METHOD, "<init>", 3, 4, SOURCE_FILE);
+    assertScope(classScope.getScopes().get(0), ScopeType.METHOD, "<init>", 3, 4, SOURCE_FILE, 0, 0);
     Scope mainMethodScope = classScope.getScopes().get(1);
-    assertScope(mainMethodScope, ScopeType.METHOD, "main", 6, 11, SOURCE_FILE);
-    assertEquals(1, mainMethodScope.getSymbols().size());
+    assertScope(mainMethodScope, ScopeType.METHOD, "main", 6, 11, SOURCE_FILE, 1, 1);
     assertSymbol(
         mainMethodScope.getSymbols().get(0), SymbolType.ARG, "arg", Integer.TYPE.getTypeName(), 6);
-    assertEquals(1, mainMethodScope.getScopes().size());
-    Scope local0 = mainMethodScope.getScopes().get(0);
-    assertScope(local0, ScopeType.LOCAL, null, 6, 11, SOURCE_FILE);
-    assertEquals(2, local0.getSymbols().size());
+    Scope mainMethodLocalScope = mainMethodScope.getScopes().get(0);
+    assertScope(mainMethodLocalScope, ScopeType.LOCAL, null, 6, 11, SOURCE_FILE, 1, 1);
     assertSymbol(
-        local0.getSymbols().get(0), SymbolType.LOCAL, "arg", Integer.TYPE.getTypeName(), 6);
+        mainMethodLocalScope.getSymbols().get(0),
+        SymbolType.LOCAL,
+        "var1",
+        Integer.TYPE.getTypeName(),
+        6);
+    Scope ifLine7Scope = mainMethodLocalScope.getScopes().get(0);
+    assertScope(ifLine7Scope, ScopeType.LOCAL, null, 8, 9, SOURCE_FILE, 0, 1);
     assertSymbol(
-        local0.getSymbols().get(1), SymbolType.LOCAL, "var1", Integer.TYPE.getTypeName(), 6);
+        ifLine7Scope.getSymbols().get(0), SymbolType.LOCAL, "var2", Integer.TYPE.getTypeName(), 8);
   }
 
   @Test
@@ -522,30 +590,32 @@ class SymbolExtractionTransformerTest {
     Reflect.on(testClass).call("main", 1).get();
     transformer.flushScopes(null);
     Scope classScope = symbolSinkMock.jarScopes.get(0).getScopes().get(0);
-    assertScope(classScope, ScopeType.CLASS, CLASS_NAME, 6, 20, SOURCE_FILE);
-    assertEquals(0, classScope.getSymbols().size());
-    assertEquals(7, classScope.getScopes().size());
-    assertScope(classScope.getScopes().get(0), ScopeType.METHOD, "<init>", 6, 6, SOURCE_FILE);
+    assertScope(classScope, ScopeType.CLASS, CLASS_NAME, 6, 20, SOURCE_FILE, 7, 0);
+    assertScope(classScope.getScopes().get(0), ScopeType.METHOD, "<init>", 6, 6, SOURCE_FILE, 0, 0);
     Scope mainMethodScope = classScope.getScopes().get(1);
-    assertScope(mainMethodScope, ScopeType.METHOD, "main", 8, 13, SOURCE_FILE);
-    assertEquals(1, mainMethodScope.getSymbols().size());
+    assertScope(mainMethodScope, ScopeType.METHOD, "main", 8, 13, SOURCE_FILE, 1, 1);
     assertSymbol(
         mainMethodScope.getSymbols().get(0), SymbolType.ARG, "arg", Integer.TYPE.getTypeName(), 8);
-    assertEquals(1, mainMethodScope.getScopes().size());
-    Scope local0 = mainMethodScope.getScopes().get(0);
-    assertScope(local0, ScopeType.LOCAL, null, 8, 13, SOURCE_FILE);
-    assertEquals(2, local0.getSymbols().size());
-    assertSymbol(local0.getSymbols().get(0), SymbolType.LOCAL, "list", List.class.getTypeName(), 8);
+    Scope mainMethodLocalScope = mainMethodScope.getScopes().get(0);
+    assertScope(mainMethodLocalScope, ScopeType.LOCAL, null, 8, 13, SOURCE_FILE, 0, 2);
     assertSymbol(
-        local0.getSymbols().get(1), SymbolType.LOCAL, "sum", Integer.TYPE.getTypeName(), 12);
+        mainMethodLocalScope.getSymbols().get(0),
+        SymbolType.LOCAL,
+        "list",
+        List.class.getTypeName(),
+        8);
+    assertSymbol(
+        mainMethodLocalScope.getSymbols().get(1),
+        SymbolType.LOCAL,
+        "sum",
+        Integer.TYPE.getTypeName(),
+        12);
     Scope fooMethodScope = classScope.getScopes().get(2);
-    assertScope(fooMethodScope, ScopeType.METHOD, "foo", 17, 20, SOURCE_FILE);
-    assertEquals(1, fooMethodScope.getSymbols().size());
+    assertScope(fooMethodScope, ScopeType.METHOD, "foo", 17, 20, SOURCE_FILE, 0, 1);
     assertSymbol(
         fooMethodScope.getSymbols().get(0), SymbolType.ARG, "arg", Integer.TYPE.getTypeName(), 17);
     Scope lambdaFoo3MethodScope = classScope.getScopes().get(3);
-    assertScope(lambdaFoo3MethodScope, ScopeType.METHOD, "lambda$foo$3", 19, 19, SOURCE_FILE);
-    assertEquals(1, lambdaFoo3MethodScope.getSymbols().size());
+    assertScope(lambdaFoo3MethodScope, ScopeType.METHOD, "lambda$foo$3", 19, 19, SOURCE_FILE, 0, 1);
     assertSymbol(
         lambdaFoo3MethodScope.getSymbols().get(0),
         SymbolType.ARG,
@@ -553,8 +623,7 @@ class SymbolExtractionTransformerTest {
         Integer.TYPE.getTypeName(),
         19);
     Scope lambdaFoo2MethodScope = classScope.getScopes().get(4);
-    assertScope(lambdaFoo2MethodScope, ScopeType.METHOD, "lambda$foo$2", 19, 19, SOURCE_FILE);
-    assertEquals(1, lambdaFoo2MethodScope.getSymbols().size());
+    assertScope(lambdaFoo2MethodScope, ScopeType.METHOD, "lambda$foo$2", 19, 19, SOURCE_FILE, 0, 1);
     assertSymbol(
         lambdaFoo2MethodScope.getSymbols().get(0),
         SymbolType.ARG,
@@ -562,8 +631,8 @@ class SymbolExtractionTransformerTest {
         Integer.class.getTypeName(),
         19);
     Scope lambdaMain1MethodScope = classScope.getScopes().get(5);
-    assertScope(lambdaMain1MethodScope, ScopeType.METHOD, "lambda$main$1", 11, 11, SOURCE_FILE);
-    assertEquals(1, lambdaMain1MethodScope.getSymbols().size());
+    assertScope(
+        lambdaMain1MethodScope, ScopeType.METHOD, "lambda$main$1", 11, 11, SOURCE_FILE, 0, 1);
     assertSymbol(
         lambdaMain1MethodScope.getSymbols().get(0),
         SymbolType.ARG,
@@ -571,8 +640,8 @@ class SymbolExtractionTransformerTest {
         Integer.TYPE.getTypeName(),
         11);
     Scope lambdaMain0MethodScope = classScope.getScopes().get(6);
-    assertScope(lambdaMain0MethodScope, ScopeType.METHOD, "lambda$main$0", 11, 11, SOURCE_FILE);
-    assertEquals(1, lambdaMain0MethodScope.getSymbols().size());
+    assertScope(
+        lambdaMain0MethodScope, ScopeType.METHOD, "lambda$main$0", 11, 11, SOURCE_FILE, 0, 1);
     assertSymbol(
         lambdaMain0MethodScope.getSymbols().get(0),
         SymbolType.ARG,
@@ -587,12 +656,16 @@ class SymbolExtractionTransformerTest {
       String name,
       int startLine,
       int endLine,
-      String sourceFile) {
+      String sourceFile,
+      int nbScopes,
+      int nbSymbols) {
     assertEquals(scopeType, scope.getScopeType());
     assertEquals(name, scope.getName());
     assertEquals(startLine, scope.getStartLine());
     assertEquals(endLine, scope.getEndLine());
     assertEquals(sourceFile, scope.getSourceFile());
+    assertEquals(nbScopes, scope.getScopes().size());
+    assertEquals(nbSymbols, scope.getSymbols().size());
   }
 
   private void assertSymbol(

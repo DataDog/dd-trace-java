@@ -120,25 +120,4 @@ public class SymbolExtractionTransformer implements ClassFileTransformer {
     }
     return null;
   }
-  /*
-   private void dumpOriginalClassFile(String className, byte[] classfileBuffer) {
-     Path classFilePath = dumpClassFile(className + "_orig", classfileBuffer);
-     if (classFilePath != null) {
-       LOGGER.debug("Original class saved as: {}", classFilePath.toString());
-     }
-   }
-
-   private static Path dumpClassFile(String className, byte[] classfileBuffer) {
-     try {
-       Path classFilePath = Paths.get("/tmp/debugger/" + className + ".class");
-       Files.createDirectories(classFilePath.getParent());
-       Files.write(classFilePath, classfileBuffer, StandardOpenOption.CREATE);
-       return classFilePath;
-     } catch (IOException e) {
-       LOGGER.error("", e);
-       return null;
-     }
-   }
-
-  */
 }

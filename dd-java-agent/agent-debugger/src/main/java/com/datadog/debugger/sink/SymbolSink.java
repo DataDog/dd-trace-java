@@ -36,8 +36,6 @@ public class SymbolSink {
   private final BatchUploader symbolUploader;
   private final BlockingQueue<ServiceVersion> scopes = new ArrayBlockingQueue<>(CAPACITY);
   private final BatchUploader.MultiPartContent event;
-  private long totalSize;
-  private long totalClasses;
 
   public SymbolSink(Config config) {
     this(config, new BatchUploader(config, config.getFinalDebuggerSymDBUrl()));
@@ -71,8 +69,6 @@ public class SymbolSink {
             "Sending scope: {}, size={}",
             serviceVersion.getScopes().get(0).getName(),
             json.length());
-        // totalSize += json.length();
-        // totalClasses += serviceVersion.getScopes().get(0).getScopes().size();
         symbolUploader.uploadAsMultipart(
             "",
             event,
@@ -82,6 +78,5 @@ public class SymbolSink {
         ExceptionHelper.logException(LOGGER, e, "Error during scope serialization:");
       }
     }
-    LOGGER.debug("Total uploaded size={} classes={}", totalSize, totalClasses);
   }
 }

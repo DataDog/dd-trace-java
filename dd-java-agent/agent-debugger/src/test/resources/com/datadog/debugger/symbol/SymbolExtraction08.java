@@ -6,7 +6,7 @@ public class SymbolExtraction08 {
     {
       int var2 = 2;
       int var3 = 3;
-      int var4 = var2 + var3; // Wow, why is this not in the LocalVariableTable?
+      int var4 = var2 + var3; // var4 is not in the LocalVariableTable because last statement of the scope
     }
     return arg.length();
   }

@@ -114,14 +114,17 @@ public class SymbolExtractor {
       MethodNode methodNode,
       Map<Label, Integer> monotonicLineMap,
       List<Scope> varScopes,
-      int locaVarBaseSlot) {
+      int localVarBaseSlot) {
     if (methodNode.localVariables == null) {
       return;
     }
     // using a LinkedHashMap only for having a stable order of local scopes (tests)
     Map<LabelNode, List<LocalVariableNode>> varsByEndLabel = new LinkedHashMap<>();
-    for (int i = locaVarBaseSlot; i < methodNode.localVariables.size(); i++) {
+    for (int i = 0; i < methodNode.localVariables.size(); i++) {
       LocalVariableNode localVariable = methodNode.localVariables.get(i);
+      if (localVariable.index < localVarBaseSlot) {
+        continue;
+      }
       varsByEndLabel.merge(
           localVariable.end,
           new ArrayList<>(Collections.singletonList(localVariable)),
@@ -130,6 +133,7 @@ public class SymbolExtractor {
             return curr;
           });
     }
+    List<Scope> tmpScopes = new ArrayList<>();
     for (Map.Entry<LabelNode, List<LocalVariableNode>> entry : varsByEndLabel.entrySet()) {
       List<Symbol> varSymbols = new ArrayList<>();
       int minLine = Integer.MAX_VALUE;
@@ -141,9 +145,61 @@ public class SymbolExtractor {
       }
       int endLine = monotonicLineMap.get(entry.getKey().getLabel());
       Scope varScope =
-          Scope.builder(ScopeType.LOCAL, sourceFile, minLine, endLine).symbols(varSymbols).build();
-      varScopes.add(varScope);
+          Scope.builder(ScopeType.LOCAL, sourceFile, minLine, endLine)
+              .symbols(varSymbols)
+              .scopes(new ArrayList<>())
+              .build();
+      tmpScopes.add(varScope);
     }
+    nestScopes(varScopes, tmpScopes);
+  }
+
+  private static Scope removeWidestScope(List<Scope> scopes) {
+    Scope widestScope = null;
+    for (Scope scope : scopes) {
+      widestScope = widestScope != null ? maxScope(widestScope, scope) : scope;
+    }
+    // Remove the actual widest instance from the list, based on reference equality
+    scopes.remove(widestScope);
+    return widestScope;
+  }
+
+  private static void nestScopes(List<Scope> outerScopes, List<Scope> scopes) {
+    Scope widestScope = removeWidestScope(scopes);
+    if (widestScope == null) {
+      return;
+    }
+    outerScopes.add(widestScope);
+    for (Scope scope : scopes) {
+      boolean added = false;
+      for (Scope outerScope : outerScopes) {
+        if (isInnerScope(outerScope, scope)) {
+          outerScope.getScopes().add(scope);
+          added = true;
+          break;
+        }
+      }
+      if (!added) {
+        outerScopes.add(scope);
+      }
+    }
+    for (Scope outerScope : outerScopes) {
+      List<Scope> tmpScopes = new ArrayList<>(outerScope.getScopes());
+      outerScope.getScopes().clear();
+      nestScopes(outerScope.getScopes(), tmpScopes);
+    }
+  }
+
+  private static boolean isInnerScope(Scope enclosingScope, Scope scope) {
+    return scope.getStartLine() >= enclosingScope.getStartLine()
+        && scope.getEndLine() <= enclosingScope.getEndLine();
+  }
+
+  private static Scope maxScope(Scope scope1, Scope scope2) {
+    return scope1.getStartLine() > scope2.getStartLine()
+            || scope1.getEndLine() < scope2.getEndLine()
+        ? scope2
+        : scope1;
   }
 
   private static int getFirstLine(MethodNode methodNode) {
