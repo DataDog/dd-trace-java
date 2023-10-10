@@ -41,6 +41,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
 import org.jctools.queues.MpscBlockingConsumerArrayQueue;
 import org.slf4j.Logger;
@@ -51,8 +52,8 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
 
   static final long FEATURE_CHECK_INTERVAL_NANOS = TimeUnit.MINUTES.toNanos(5);
 
-  private static final StatsPoint REPORT =
-      new StatsPoint(Collections.emptyList(), 0, 0, 0, 0, 0, 0);
+  private static final StatsPoint REPORT = new StatsPoint(Collections.emptyList(), 0, 0, 0, 0, 0, 0);
+  private static final StatsPoint FLUSH = new StatsPoint(Collections.emptyList(), 0, 0, 0, 0, 0, 0);
   private static final StatsPoint POISON_PILL =
       new StatsPoint(Collections.emptyList(), 0, 0, 0, 0, 0, 0);
 
@@ -66,6 +67,8 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
   private final long bucketDurationNanos;
   private final DataStreamContextInjector injector;
   private final Thread thread;
+  private volatile boolean closed = false;
+  private final AtomicInteger flushCounter = new AtomicInteger(0);
   private AgentTaskScheduler.Scheduled<DefaultDataStreamsMonitoring> cancellation;
   private volatile long nextFeatureCheck;
   private volatile boolean supportsDataStreams = false;
@@ -272,6 +275,8 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
       thread.join(THREAD_JOIN_TIMOUT_MS);
     } catch (InterruptedException ignored) {
     }
+    inbox.clear();
+    closed = true;
   }
 
   private class InboxProcessor implements Runnable {
@@ -295,6 +300,10 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
               flush(Long.MAX_VALUE);
             }
             break;
+          } else if (payload == FLUSH) {
+            if (supportsDataStreams) {
+              flush(Long.MAX_VALUE);
+            }
           } else if (supportsDataStreams) {
             if (payload instanceof StatsPoint) {
               StatsPoint statsPoint = (StatsPoint) payload;
@@ -343,6 +352,37 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
     if (!includedBuckets.isEmpty()) {
       log.debug("Flushing {} buckets", includedBuckets.size());
       payloadWriter.writePayload(includedBuckets);
+    }
+    flushCounter.incrementAndGet();
+  }
+
+  private void yieldOrSleep(final int loop) {
+    if (loop <= 3) {
+      Thread.yield();
+    } else {
+      try {
+        Thread.sleep(10);
+      } catch (Throwable ignored) {
+      }
+    }
+  }
+
+  @Override
+  public void flushAll() {
+    if (!thread.isAlive() || !supportsDataStreams || closed) {
+      return;
+    }
+    int count = flushCounter.get();
+    int loop = 1;
+    boolean signaled = inbox.offer(FLUSH);
+    while (!signaled && supportsDataStreams && !closed) {
+      yieldOrSleep(loop++);
+      signaled = inbox.offer(FLUSH);
+    }
+    int newCount = flushCounter.get();
+    while (count >= newCount && supportsDataStreams && !closed) {
+      yieldOrSleep(loop++);
+      newCount = flushCounter.get();
     }
   }
 
