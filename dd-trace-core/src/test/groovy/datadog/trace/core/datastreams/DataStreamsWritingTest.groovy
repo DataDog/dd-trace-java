@@ -100,6 +100,50 @@ class DataStreamsWritingTest extends DDCoreSpecification {
     dataStreams.close()
   }
 
+
+  def "Test flushing stats"() {
+    given:
+    def conditions = new PollingConditions(timeout: 2)
+
+    def testOkhttpClient = OkHttpUtils.buildHttpClient(HttpUrl.get(server.address), 5000L)
+
+    def features = Stub(DDAgentFeaturesDiscovery) {
+      supportsDataStreams() >> true
+    }
+
+    def wellKnownTags = new WellKnownTags("runtimeid", "hostname", "test", Config.get().getServiceName(), "version", "java")
+
+    def fakeConfig = Stub(Config) {
+      getAgentUrl() >> server.address.toString()
+      getWellKnownTags() >> wellKnownTags
+      getPrimaryTag() >> "region-1"
+    }
+
+    def sharedCommObjects = new SharedCommunicationObjects()
+    sharedCommObjects.featuresDiscovery = features
+    sharedCommObjects.okHttpClient = testOkhttpClient
+    sharedCommObjects.createRemaining(fakeConfig)
+
+    def timeSource = new ControllableTimeSource()
+
+    def traceConfig = Mock(TraceConfig) {
+      isDataStreamsEnabled() >> true
+    }
+
+    when:
+    def dataStreams = new DefaultDataStreamsMonitoring(fakeConfig, sharedCommObjects, timeSource, { traceConfig })
+    dataStreams.start()
+    dataStreams.add(new StatsPoint([], 9, 0, timeSource.currentTimeNanos, 0, 0))
+    dataStreams.add(new StatsPoint(["type:testType", "group:testGroup", "topic:testTopic"], 1, 2, timeSource.currentTimeNanos, 0, 0))
+    dataStreams.flushAll()
+
+    then:
+    assert requestBodies.size() == 1
+
+    cleanup:
+    dataStreams.close()
+  }
+
   def validateMessage(byte[] message) {
     GzipSource gzipSource = new GzipSource(Okio.source(new ByteArrayInputStream(message)))
 
