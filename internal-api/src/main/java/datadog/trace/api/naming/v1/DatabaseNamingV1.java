@@ -33,9 +33,8 @@ public class DatabaseNamingV1 implements NamingSchema.ForDatabase {
     return prefix + ".query";
   }
 
-  @Nonnull
   @Override
-  public String service(@Nonnull String ddService, @Nonnull String databaseType) {
-    return ddService;
+  public String service(@Nonnull String databaseType) {
+    return null;
   }
 }

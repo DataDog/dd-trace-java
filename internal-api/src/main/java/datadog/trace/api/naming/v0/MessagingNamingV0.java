@@ -1,13 +1,14 @@
 package datadog.trace.api.naming.v0;
 
+import datadog.trace.api.Config;
 import datadog.trace.api.naming.NamingSchema;
 import javax.annotation.Nonnull;
 
 public class MessagingNamingV0 implements NamingSchema.ForMessaging {
-  private final boolean allowsFakeServices;
+  private final boolean allowInferredServices;
 
-  public MessagingNamingV0(boolean allowsFakeServices) {
-    this.allowsFakeServices = allowsFakeServices;
+  public MessagingNamingV0(final boolean allowInferredServices) {
+    this.allowInferredServices = allowInferredServices;
   }
 
   @Nonnull
@@ -19,14 +20,9 @@ public class MessagingNamingV0 implements NamingSchema.ForMessaging {
     return messagingSystem + ".produce";
   }
 
-  @Nonnull
   @Override
-  public String outboundService(
-      @Nonnull final String ddService, @Nonnull final String messagingSystem) {
-    if (allowsFakeServices) {
-      return messagingSystem;
-    }
-    return ddService;
+  public String outboundService(@Nonnull final String messagingSystem, boolean useLegacyTracing) {
+    return inboundService(messagingSystem, useLegacyTracing);
   }
 
   @Nonnull
@@ -42,14 +38,13 @@ public class MessagingNamingV0 implements NamingSchema.ForMessaging {
     }
   }
 
-  @Nonnull
   @Override
-  public String inboundService(
-      @Nonnull final String ddService, @Nonnull final String messagingSystem) {
-    if (allowsFakeServices) {
-      return messagingSystem;
+  public String inboundService(@Nonnull final String messagingSystem, boolean useLegacyTracing) {
+    if (allowInferredServices) {
+      return useLegacyTracing ? messagingSystem : Config.get().getServiceName();
+    } else {
+      return null;
     }
-    return ddService;
   }
 
   @Override

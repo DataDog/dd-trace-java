@@ -21,10 +21,7 @@ public class OpensearchRestClientDecorator extends DBTypeProcessingDatabaseClien
 
   private static final int MAX_OPENSEARCH_BODY_CONTENT_LENGTH = 25000;
   private static final String SERVICE_NAME =
-      SpanNaming.instance()
-          .namingSchema()
-          .database()
-          .service(Config.get().getServiceName(), "opensearch");
+      SpanNaming.instance().namingSchema().database().service("opensearch");
 
   public static final CharSequence OPERATION_NAME =
       UTF8BytesString.create(

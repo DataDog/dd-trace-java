@@ -4,6 +4,7 @@ import static datadog.trace.bootstrap.instrumentation.api.Tags.DB_OPERATION;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.DDSpanId;
+import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
@@ -34,7 +35,8 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
       UTF8BytesString.create("java-jdbc-statement");
   private static final UTF8BytesString JDBC_PREPARED_STATEMENT =
       UTF8BytesString.create("java-jdbc-prepared_statement");
-
+  private static final String DEFAULT_SERVICE_NAME =
+      SpanNaming.instance().namingSchema().database().service("jdbc");
   public static final String DBM_PROPAGATION_MODE_STATIC = "service";
   public static final String DBM_PROPAGATION_MODE_FULL = "full";
 
@@ -78,7 +80,7 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
 
   @Override
   protected String service() {
-    return "jdbc"; // Overridden by onConnection
+    return DEFAULT_SERVICE_NAME; // Overridden by onConnection
   }
 
   @Override
@@ -226,7 +228,9 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
   @Override
   protected void postProcessServiceAndOperationName(
       AgentSpan span, DatabaseClientDecorator.NamingEntry namingEntry) {
-    span.setServiceName(namingEntry.getService());
+    if (namingEntry.getService() != null) {
+      span.setServiceName(namingEntry.getService());
+    }
     span.setOperationName(namingEntry.getOperation());
   }
 }

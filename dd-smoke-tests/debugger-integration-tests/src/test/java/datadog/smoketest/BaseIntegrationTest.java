@@ -17,6 +17,7 @@ import com.datadog.debugger.util.MoshiSnapshotTestHelper;
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Types;
 import datadog.trace.bootstrap.debugger.CapturedContext;
+import datadog.trace.bootstrap.debugger.ProbeRateLimiter;
 import datadog.trace.test.agent.decoder.DecodedMessage;
 import datadog.trace.test.agent.decoder.DecodedSpan;
 import datadog.trace.test.agent.decoder.DecodedTrace;
@@ -120,6 +121,7 @@ public abstract class BaseIntegrationTest {
     }
     datadogAgentServer.shutdown();
     statsDServer.close();
+    ProbeRateLimiter.resetAll();
   }
 
   protected ProcessBuilder createProcessBuilder(Path logFilePath, String... params) {

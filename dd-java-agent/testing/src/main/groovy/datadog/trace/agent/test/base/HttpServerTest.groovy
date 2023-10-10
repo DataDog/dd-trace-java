@@ -1632,7 +1632,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
 
   def 'test blocking of request for request body variant #variant'() {
     setup:
-    assumeTrue(testUserBlocking())
+    assumeTrue(testBlocking())
     assumeTrue(executeTest)
 
     def request = request(
@@ -1943,6 +1943,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
   static final String IG_PARAMETERS_BLOCK_HEADER = "x-block-parameters"
   static final String IG_BODY_END_BLOCK_HEADER = "x-block-body-end"
   static final String IG_BODY_CONVERTED_HEADER = "x-block-body-converted"
+  static final String IG_ASK_FOR_RESPONSE_HEADER_TAGS_HEADER = "x-include-response-headers-in-tags"
   static final String IG_PEER_ADDRESS = "ig-peer-address"
   static final String IG_PEER_PORT = "ig-peer-port"
   static final String IG_RESPONSE_STATUS = "ig-response-status"
@@ -1964,6 +1965,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
       String responseBlock
       boolean bodyEndBlock
       boolean bodyConvertedBlock
+      boolean responseHeadersInTags
     }
 
     static final String stringOrEmpty(String string) {
@@ -2013,6 +2015,9 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
       }
       if (IG_BODY_CONVERTED_HEADER.equalsIgnoreCase(key)) {
         context.bodyConvertedBlock = true
+      }
+      if (IG_ASK_FOR_RESPONSE_HEADER_TAGS_HEADER.equalsIgnoreCase(key)) {
+        context.responseHeadersInTags = true
       }
     } as TriConsumer<RequestContext, String, String>
 
@@ -2117,6 +2122,9 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     final TriConsumer<RequestContext, String, String> responseHeaderCb =
     { RequestContext rqCtxt, String key, String value ->
       Context context = rqCtxt.getData(RequestContextSlot.APPSEC)
+      if (context.responseHeadersInTags) {
+        context.tags["response.header.${key.toLowerCase()}"] = value
+      }
       if (IG_RESPONSE_HEADER.equalsIgnoreCase(key)) {
         context.igResponseHeaderValue = stringOrEmpty(context.igResponseHeaderValue) + value
       }

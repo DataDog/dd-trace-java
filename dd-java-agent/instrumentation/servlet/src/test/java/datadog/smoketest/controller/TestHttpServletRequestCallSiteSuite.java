@@ -31,4 +31,16 @@ public class TestHttpServletRequestCallSiteSuite {
   public String getQueryString() {
     return request.getQueryString();
   }
+
+  public String getRequestURI() {
+    return request.getRequestURI();
+  }
+
+  public String getPathInfo() {
+    return request.getPathInfo();
+  }
+
+  public String getPathTranslated() {
+    return request.getPathTranslated();
+  }
 }

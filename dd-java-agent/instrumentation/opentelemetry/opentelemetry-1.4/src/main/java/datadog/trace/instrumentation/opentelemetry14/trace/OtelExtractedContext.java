@@ -1,4 +1,4 @@
-package datadog.trace.instrumentation.opentelemetry14;
+package datadog.trace.instrumentation.opentelemetry14.trace;
 
 import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTraceId;
@@ -14,7 +14,7 @@ import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-class OtelExtractedContext implements AgentSpan.Context {
+public class OtelExtractedContext implements AgentSpan.Context {
   private static final Logger LOGGER = LoggerFactory.getLogger(OtelExtractedContext.class);
   private final DDTraceId traceId;
   private final long spanId;
@@ -27,7 +27,7 @@ class OtelExtractedContext implements AgentSpan.Context {
         context.isSampled() ? PrioritySampling.SAMPLER_KEEP : PrioritySampling.UNSET;
   }
 
-  static AgentSpan.Context extract(Context context) {
+  public static AgentSpan.Context extract(Context context) {
     Span span = Span.fromContext(context);
     SpanContext spanContext = span.getSpanContext();
     if (spanContext instanceof OtelSpanContext) {

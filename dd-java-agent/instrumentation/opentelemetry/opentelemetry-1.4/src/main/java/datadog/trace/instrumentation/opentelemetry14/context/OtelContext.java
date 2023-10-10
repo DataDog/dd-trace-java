@@ -1,6 +1,7 @@
-package datadog.trace.instrumentation.opentelemetry14;
+package datadog.trace.instrumentation.opentelemetry14.context;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
+import datadog.trace.instrumentation.opentelemetry14.trace.OtelSpan;
 import io.opentelemetry.api.trace.Span;
 import io.opentelemetry.context.Context;
 import io.opentelemetry.context.ContextKey;
@@ -10,6 +11,9 @@ import javax.annotation.ParametersAreNonnullByDefault;
 
 @ParametersAreNonnullByDefault
 public class OtelContext implements Context {
+  /** Overridden root context. */
+  public static final OtelContext ROOT = new OtelContext(OtelSpan.invalid(), OtelSpan.invalid());
+
   private static final String OTEL_CONTEXT_SPAN_KEY = "opentelemetry-trace-span-key";
   private static final String DATADOG_CONTEXT_ROOT_SPAN_KEY = "datadog-root-span-key";
 
@@ -50,5 +54,15 @@ public class OtelContext implements Context {
       scope = new OtelScope(scope, agentScope);
     }
     return scope;
+  }
+
+  @Override
+  public String toString() {
+    return "OtelContext{"
+        + "currentSpan="
+        + this.currentSpan.getSpanContext()
+        + ", rootSpan="
+        + this.rootSpan.getSpanContext()
+        + '}';
   }
 }

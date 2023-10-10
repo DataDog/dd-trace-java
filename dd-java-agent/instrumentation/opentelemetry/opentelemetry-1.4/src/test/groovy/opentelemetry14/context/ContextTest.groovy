@@ -1,21 +1,19 @@
+package opentelemetry14.context
+
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.DDSpanId
-import datadog.trace.api.DDTraceId
-import datadog.trace.instrumentation.opentelemetry14.OtelContext
 import io.opentelemetry.api.GlobalOpenTelemetry
 import io.opentelemetry.api.trace.Span
-import io.opentelemetry.api.trace.propagation.W3CTraceContextPropagator
 import io.opentelemetry.context.Context
 import io.opentelemetry.context.ContextKey
-import io.opentelemetry.context.propagation.TextMapGetter
-import io.opentelemetry.context.propagation.TextMapSetter
+import io.opentelemetry.context.ThreadLocalContextStorage
 import spock.lang.Subject
 
-import javax.annotation.Nullable
-
 import static datadog.trace.bootstrap.instrumentation.api.ScopeSource.MANUAL
+import static datadog.trace.instrumentation.opentelemetry14.context.OtelContext.DATADOG_CONTEXT_ROOT_SPAN_KEY
+import static datadog.trace.instrumentation.opentelemetry14.context.OtelContext.OTEL_CONTEXT_SPAN_KEY
 
-class OpenTelemetry14ContextTest extends AgentTestRunner {
+class ContextTest extends AgentTestRunner {
   @Subject
   def tracer = GlobalOpenTelemetry.get().tracerProvider.get("context-instrumentation")
 
@@ -172,7 +170,7 @@ class OpenTelemetry14ContextTest extends AgentTestRunner {
     !currentSpan.spanContext.isValid()
   }
 
-  def "test setting non-Datadog context"() {
+  def "test clearing context"() {
     when:
     def rootScope = Context.root().makeCurrent()
     then:
@@ -241,8 +239,8 @@ class OpenTelemetry14ContextTest extends AgentTestRunner {
     setup:
     def parentSpan = tracer.spanBuilder("some-name").startSpan()
     def parentScope = parentSpan.makeCurrent()
-    def currentSpanKey = ContextKey.named(OtelContext.OTEL_CONTEXT_SPAN_KEY)
-    def rootSpanKey = ContextKey.named(OtelContext.DATADOG_CONTEXT_ROOT_SPAN_KEY)
+    def currentSpanKey = ContextKey.named(OTEL_CONTEXT_SPAN_KEY)
+    def rootSpanKey = ContextKey.named(DATADOG_CONTEXT_ROOT_SPAN_KEY)
 
     when:
     def current = Context.current()
@@ -274,59 +272,11 @@ class OpenTelemetry14ContextTest extends AgentTestRunner {
     parentSpan.end()
   }
 
-  def "test context extraction and injection"() {
-    setup:
-    def propagator = W3CTraceContextPropagator.getInstance()
-    def httpHeaders = ['traceparent': traceparent]
-    def context = propagator.extract(Context.root(), httpHeaders, new TextMapGetter<Map<String, String>>() {
-        @Override
-        Iterable<String> keys(Map<String, String> carrier) {
-          return carrier.keySet()
-        }
-
-        @Override
-        String get(@Nullable Map<String, String> carrier, String key) {
-          return carrier.get(key)
-        }
-      })
-
-    def localSpan = tracer.spanBuilder("some-name")
-      .setParent(context)
-      .startSpan()
-
-    when:
-    def localSpanContext = localSpan.getSpanContext()
-    def localSpanId = localSpanContext.getSpanId()
-    def spanSampled = localSpanContext.getTraceFlags().isSampled()
-    def scope = localSpan.makeCurrent()
-    Map<String, String> injectedHeaders = [:]
-    propagator.inject(Context.current(), injectedHeaders, new TextMapSetter<Map<String, String>>() {
-        @Override
-        void set(@Nullable Map<String, String> carrier, String key, String value) {
-          carrier.put(key, value)
-        }
-      })
-    scope.close()
-    localSpan.end()
-
-    then:
-    assertTraces(1) {
-      trace(1) {
-        span {
-          operationName "some-name"
-          traceDDId(DDTraceId.fromHex(traceId))
-          parentSpanId(DDSpanId.fromHex(spanId).toLong() as BigInteger)
-        }
-      }
-    }
-    spanSampled == sampled
-    injectedHeaders == ['traceparent': "00-$traceId-$localSpanId-$sampleFlag" as String]
-
-    where:
-    traceId | spanId | sampled
-    '00000000000000001111111111111111' | '2222222222222222' | true
-    '00000000000000001111111111111111' | '2222222222222222' | false
-    sampleFlag = sampled ? '01' : '00'
-    traceparent = "00-$traceId-$spanId-$sampleFlag" as String
+  @Override
+  void cleanup() {
+    // Test for context leak
+    assert Context.current() == Context.root()
+    // Safely reset OTel context storage
+    ThreadLocalContextStorage.THREAD_LOCAL_STORAGE.remove()
   }
 }

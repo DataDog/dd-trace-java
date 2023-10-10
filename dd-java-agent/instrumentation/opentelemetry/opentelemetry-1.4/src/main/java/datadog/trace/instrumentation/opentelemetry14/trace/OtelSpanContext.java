@@ -1,4 +1,4 @@
-package datadog.trace.instrumentation.opentelemetry14;
+package datadog.trace.instrumentation.opentelemetry14.trace;
 
 import datadog.trace.api.DDSpanId;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -56,5 +56,19 @@ public class OtelSpanContext implements SpanContext {
   @Override
   public boolean isRemote() {
     return this.remote;
+  }
+
+  @Override
+  public String toString() {
+    return "OtelSpanContext{"
+        + "traceId='"
+        + getTraceId()
+        + "', spanId='"
+        + getSpanId()
+        + "', sampled="
+        + this.sampled
+        + ", remote="
+        + this.remote
+        + '}';
   }
 }

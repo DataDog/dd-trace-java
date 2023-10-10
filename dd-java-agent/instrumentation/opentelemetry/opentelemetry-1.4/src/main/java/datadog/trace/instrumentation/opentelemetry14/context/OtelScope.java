@@ -1,4 +1,4 @@
-package datadog.trace.instrumentation.opentelemetry14;
+package datadog.trace.instrumentation.opentelemetry14.context;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AttachableWrapper;

@@ -104,12 +104,13 @@ public class ConfigurationUpdater
     ConfigurationComparer changes =
         new ConfigurationComparer(currentConfiguration, newConfiguration, instrumentationResults);
     currentConfiguration = newConfiguration;
+    if (changes.hasRateLimitRelatedChanged()) {
+      // apply rate limit config first to avoid racing with execution/instrumentation of log probes
+      applyRateLimiter(changes);
+    }
     if (changes.hasProbeRelatedChanges()) {
       LOGGER.info("Applying new probe configuration, changes: {}", changes);
       handleProbesChanges(changes);
-    }
-    if (changes.hasRateLimitRelatedChanged()) {
-      applyRateLimiter(changes);
     }
   }
 

@@ -381,18 +381,35 @@ public class InstrumentationGateway {
     switch (eventType.getId()) {
       case REQUEST_ENDED_ID:
         return (C)
-            new BiFunction<RequestContext, IGSpanInfo, Flow<Void>>() {
-              @Override
-              public Flow<Void> apply(RequestContext ctx, IGSpanInfo agentSpan) {
-                Flow<Void> flowAppSec =
-                    ((BiFunction<RequestContext, IGSpanInfo, Flow<Void>>) callbackAppSec)
-                        .apply(ctx, agentSpan);
-                Flow<Void> flowIast =
-                    ((BiFunction<RequestContext, IGSpanInfo, Flow<Void>>) callbackIast)
-                        .apply(ctx, agentSpan);
-                return mergeFlows(flowAppSec, flowIast);
-              }
-            };
+            (BiFunction<RequestContext, IGSpanInfo, Flow<Void>>)
+                (ctx, agentSpan) -> {
+                  Flow<Void> flowAppSec =
+                      ((BiFunction<RequestContext, IGSpanInfo, Flow<Void>>) callbackAppSec)
+                          .apply(ctx, agentSpan);
+                  Flow<Void> flowIast =
+                      ((BiFunction<RequestContext, IGSpanInfo, Flow<Void>>) callbackIast)
+                          .apply(ctx, agentSpan);
+                  return mergeFlows(flowAppSec, flowIast);
+                };
+      case REQUEST_HEADER_ID:
+        return (C)
+            (TriConsumer<RequestContext, String, String>)
+                (requestContext, s, s2) -> {
+                  ((TriConsumer<RequestContext, String, String>) callbackAppSec)
+                      .accept(requestContext, s, s2);
+                  ((TriConsumer<RequestContext, String, String>) callbackIast)
+                      .accept(requestContext, s, s2);
+                };
+      case REQUEST_HEADER_DONE_ID:
+        return (C)
+            (Function<RequestContext, Flow<Void>>)
+                requestContext -> {
+                  Flow<Void> flowAppSec =
+                      ((Function<RequestContext, Flow<Void>>) callbackAppSec).apply(requestContext);
+                  Flow<Void> flowIast =
+                      ((Function<RequestContext, Flow<Void>>) callbackIast).apply(requestContext);
+                  return mergeFlows(flowAppSec, flowIast);
+                };
     }
     return null;
   }

@@ -3,16 +3,20 @@ package com.datadog.iast.taint
 import com.datadog.iast.model.Range
 import com.datadog.iast.model.Source
 import com.datadog.iast.model.VulnerabilityType
+import datadog.trace.api.Config
 import datadog.trace.api.iast.SourceTypes
 import datadog.trace.api.iast.VulnerabilityMarks
 import datadog.trace.test.util.DDSpecification
 
 import static com.datadog.iast.model.Range.NOT_MARKED
+import static com.datadog.iast.taint.Ranges.mergeRanges
 import static com.datadog.iast.taint.Ranges.rangesProviderFor
+import static datadog.trace.api.iast.SourceTypes.REQUEST_HEADER_NAME
 
 class RangesTest extends DDSpecification {
 
   private static final int NEGATIVE_MARK = 1 << 31
+  private static final int MAX_RANGE_COUNT = Config.get().iastMaxRangeCount
 
   void 'forString'() {
     given:
@@ -280,6 +284,29 @@ class RangesTest extends DDSpecification {
     NEGATIVE_MARK                                 | _
   }
 
+  void 'test merge ranges with limits'() {
+    given:
+    final leftRanges = (0..<left).collect { index -> rangeFor(index) } as Range[]
+    final rightRanges = (0..<right).collect { index -> rangeFor(index) } as Range[]
+
+    when:
+    final merged = mergeRanges(offset, leftRanges, rightRanges)
+
+    then:
+    merged.size() == expected
+
+    where:
+    offset | left            | right           | expected
+    0      | 1               | 1               | 2
+    0      | MAX_RANGE_COUNT | 1               | MAX_RANGE_COUNT
+    0      | 1               | MAX_RANGE_COUNT | MAX_RANGE_COUNT
+    0      | MAX_RANGE_COUNT | MAX_RANGE_COUNT | MAX_RANGE_COUNT
+    10     | 1               | 1               | 2
+    10     | MAX_RANGE_COUNT | 1               | MAX_RANGE_COUNT
+    10     | 1               | MAX_RANGE_COUNT | MAX_RANGE_COUNT
+    10     | MAX_RANGE_COUNT | MAX_RANGE_COUNT | MAX_RANGE_COUNT
+  }
+
 
   Range[] rangesFromSpec(List<List<Object>> spec) {
     def ranges = new Range[spec.size()]
@@ -303,5 +330,9 @@ class RangesTest extends DDSpecification {
     return Mock(TaintedObject) {
       getRanges() >> ranges
     }
+  }
+
+  Range rangeFor(final int index) {
+    return new Range(index, 1, new Source(REQUEST_HEADER_NAME, 'a', 'b'), NOT_MARKED)
   }
 }

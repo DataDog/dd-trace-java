@@ -1,7 +1,8 @@
-package datadog.trace.instrumentation.opentelemetry14;
+package datadog.trace.instrumentation.opentelemetry14.context;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
+import static datadog.trace.instrumentation.opentelemetry14.OpenTelemetryInstrumentation.ROOT_PACKAGE_NAME;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesNoArguments;
@@ -12,6 +13,7 @@ import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.AttachableWrapper;
+import datadog.trace.instrumentation.opentelemetry14.trace.OtelSpan;
 import io.opentelemetry.api.trace.Span;
 import io.opentelemetry.context.Context;
 import net.bytebuddy.asm.Advice;
@@ -19,10 +21,10 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public class OpenTelemetryContextInstrumentation extends Instrumenter.Tracing
+public class OpenTelemetryContextStorageInstrumentation extends Instrumenter.Tracing
     implements Instrumenter.CanShortcutTypeMatching {
 
-  public OpenTelemetryContextInstrumentation() {
+  public OpenTelemetryContextStorageInstrumentation() {
     super("opentelemetry.experimental", "opentelemetry-1");
   }
 
@@ -58,42 +60,40 @@ public class OpenTelemetryContextInstrumentation extends Instrumenter.Tracing
   public String[] helperClassNames() {
     return new String[] {
       packageName + ".OtelContext",
-      packageName + ".OtelExtractedContext",
       packageName + ".OtelScope",
-      packageName + ".OtelSpan",
-      packageName + ".OtelSpan$NoopSpan",
-      packageName + ".OtelSpan$NoopSpanContext",
-      packageName + ".OtelSpanBuilder",
-      packageName + ".OtelSpanBuilder$1",
-      packageName + ".OtelSpanContext",
-      packageName + ".OtelTracer",
-      packageName + ".OtelTracerBuilder",
-      packageName + ".OtelTracerProvider",
+      ROOT_PACKAGE_NAME + ".trace.OtelExtractedContext",
+      ROOT_PACKAGE_NAME + ".trace.OtelSpan",
+      ROOT_PACKAGE_NAME + ".trace.OtelSpan$1",
+      ROOT_PACKAGE_NAME + ".trace.OtelSpan$NoopSpan",
+      ROOT_PACKAGE_NAME + ".trace.OtelSpan$NoopSpanContext",
+      ROOT_PACKAGE_NAME + ".trace.OtelSpanBuilder",
+      ROOT_PACKAGE_NAME + ".trace.OtelSpanBuilder$1",
+      ROOT_PACKAGE_NAME + ".trace.OtelSpanContext",
+      ROOT_PACKAGE_NAME + ".trace.OtelTracer",
+      ROOT_PACKAGE_NAME + ".trace.OtelTracerBuilder",
+      ROOT_PACKAGE_NAME + ".trace.OtelTracerProvider",
     };
   }
 
   @Override
   public void adviceTransformations(AdviceTransformation transformation) {
-    // Context.current()
+    // Context ContextStorage.current()
     transformation.applyAdvice(
         isMethod()
             .and(named("current"))
             .and(takesNoArguments())
             .and(returns(named("io.opentelemetry.context.Context"))),
-        OpenTelemetryContextInstrumentation.class.getName() + "$ContextCurrentAdvice");
+        OpenTelemetryContextStorageInstrumentation.class.getName()
+            + "$ContextStorageCurrentAdvice");
   }
 
-  public static class ContextCurrentAdvice {
+  public static class ContextStorageCurrentAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void current(@Advice.Return(readOnly = false) Context result) {
+      // Check empty context
       AgentSpan agentCurrentSpan = AgentTracer.activeSpan();
       if (null == agentCurrentSpan) {
-        if (result instanceof OtelContext) {
-          // context was ours, but is now out of scope, so invalidate it
-          result = new OtelContext(OtelSpan.invalid(), OtelSpan.invalid());
-        } else {
-          // otherwise leave non-Datadog context unchanged
-        }
+        result = OtelContext.ROOT;
         return;
       }
       // Get OTel current span

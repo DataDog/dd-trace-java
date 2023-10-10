@@ -114,7 +114,7 @@ shadowJar {
   relocate('datadog.', 'ddtrot.dd.') {
     exclude('datadog.opentracing.*')
     exclude('datadog.opentracing.resolver.*')
-    exclude('datadog.trace.api.*')
+    exclude('%regex[datadog/trace/api/(?!Functions|Endpoint)[^/]*]')
     exclude('datadog.trace.api.config.*')
     exclude('datadog.trace.api.experimental.*')
     exclude('datadog.trace.api.interceptor.*')

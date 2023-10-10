@@ -40,12 +40,14 @@ public class KafkaStreamsDecorator extends MessagingClientDecorator {
       DDCaches.newFixedSizeCache(32);
   private static final Functions.Prefix PREFIX = new Functions.Prefix("Consume Topic ");
 
-  private static final String LOCAL_SERVICE_NAME =
-      KAFKA_LEGACY_TRACING ? "kafka" : Config.get().getServiceName();
-
   public static final KafkaStreamsDecorator CONSUMER_DECORATE =
       new KafkaStreamsDecorator(
-          Tags.SPAN_KIND_CONSUMER, InternalSpanTypes.MESSAGE_CONSUMER, LOCAL_SERVICE_NAME);
+          Tags.SPAN_KIND_CONSUMER,
+          InternalSpanTypes.MESSAGE_CONSUMER,
+          SpanNaming.instance()
+              .namingSchema()
+              .messaging()
+              .inboundService(KAFKA, KAFKA_LEGACY_TRACING));
 
   public static final KafkaStreamsDecorator BROKER_DECORATE =
       new KafkaStreamsDecorator(

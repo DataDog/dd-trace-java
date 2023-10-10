@@ -173,6 +173,8 @@ public interface AgentSpan extends MutableSpan, IGSpanInfo {
 
     PathwayContext getPathwayContext();
 
+    default void mergePathwayContext(PathwayContext pathwayContext) {}
+
     interface Extracted extends Context {
       String getForwarded();
 
