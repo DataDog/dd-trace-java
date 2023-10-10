@@ -318,19 +318,30 @@ public class TracingServerInterceptor implements ServerInterceptor {
       return;
     }
 
-    CallbackProvider cbp = tracer().getCallbackProvider(RequestContextSlot.APPSEC);
-    if (cbp == null) {
-      return;
-    }
-    BiFunction<RequestContext, Object, Flow<Void>> callback =
-        cbp.getCallback(EVENTS.grpcServerRequestMessage());
-    if (callback == null) {
+    CallbackProvider cbpAppsec = tracer().getCallbackProvider(RequestContextSlot.APPSEC);
+    CallbackProvider cbpIast = tracer().getCallbackProvider(RequestContextSlot.IAST);
+    if (cbpAppsec == null && cbpIast == null) {
       return;
     }
     RequestContext requestContext = span.getRequestContext();
     if (requestContext == null) {
       return;
     }
-    callback.apply(requestContext, obj);
+
+    if (cbpAppsec != null) {
+      BiFunction<RequestContext, Object, Flow<Void>> callback =
+          cbpAppsec.getCallback(EVENTS.grpcServerRequestMessage());
+      if (callback != null) {
+        callback.apply(requestContext, obj);
+      }
+    }
+
+    if (cbpIast != null) {
+      BiFunction<RequestContext, Object, Flow<Void>> callback =
+          cbpIast.getCallback(EVENTS.grpcServerRequestMessage());
+      if (callback != null) {
+        callback.apply(requestContext, obj);
+      }
+    }
   }
 }

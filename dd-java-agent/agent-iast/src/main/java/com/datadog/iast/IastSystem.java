@@ -74,7 +74,8 @@ public class IastSystem {
     iastModules().forEach(registerModule(dependencies));
     registerRequestStartedCallback(ss, addTelemetry, dependencies);
     registerRequestEndedCallback(ss, addTelemetry, dependencies);
-    registerHeadersCallback(ss, dependencies);
+    registerHeadersCallback(ss);
+    registerGrpcServerRequestMessageCallback(ss);
     LOGGER.debug("IAST started");
   }
 
@@ -131,11 +132,14 @@ public class IastSystem {
     ss.registerCallback(event, addTelemetry ? new TelemetryRequestEndedHandler(handler) : handler);
   }
 
-  private static void registerHeadersCallback(
-      final SubscriptionService ss, final Dependencies dependencies) {
+  private static void registerHeadersCallback(final SubscriptionService ss) {
     final EventType<TriConsumer<RequestContext, String, String>> event =
         Events.get().requestHeader();
     final TriConsumer<RequestContext, String, String> handler = new RequestHeaderHandler();
     ss.registerCallback(event, handler);
+  }
+
+  private static void registerGrpcServerRequestMessageCallback(final SubscriptionService ss) {
+    ss.registerCallback(Events.get().grpcServerRequestMessage(), new GrpcRequestMessageHandler());
   }
 }
