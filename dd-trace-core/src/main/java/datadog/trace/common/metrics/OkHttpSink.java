@@ -72,7 +72,7 @@ public final class OkHttpSink implements Sink, EventListener {
     // so need to copy and buffer the request, and let it be executed
     // on the main task scheduler as a last resort
     if (!bufferingEnabled || lastRequestTime.get() < ASYNC_THRESHOLD_LATENCY) {
-      send(prepareRequest(metricsUrl, headers).post(makeRequestBody(buffer)).build());      
+      send(prepareRequest(metricsUrl, headers).post(makeRequestBody(buffer)).build());
       AgentTaskScheduler.Scheduled<OkHttpSink> future = this.future;
       if (future != null && enqueuedRequests.isEmpty()) {
         // async mode has been started but request latency is normal,
