@@ -80,7 +80,6 @@ public final class ConsumerCoordinatorInstrumentation extends Instrumenter.Traci
       if (consumerMetadata != null) {
         clusterId = InstrumentationContext.get(Metadata.class, String.class).get(consumerMetadata);
       }
-      System.out.println("[KAFKACONSUMERMETADATA] clusterId: " + clusterId);
 
       for (Map.Entry<TopicPartition, OffsetAndMetadata> entry : offsets.entrySet()) {
         if (consumerGroup == null) {

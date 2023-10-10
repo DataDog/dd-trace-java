@@ -69,7 +69,6 @@ public class MetadataInstrumentation extends Instrumenter.Tracing
     public static void onEnter(
         @Advice.This final Metadata metadata, @Advice.Argument(0) final Cluster newCluster) {
       if (newCluster != null && !newCluster.isBootstrapConfigured()) {
-        System.out.println("[KAFKACONSUMERMETADATA] " + newCluster.clusterResource().clusterId());
         InstrumentationContext.get(Metadata.class, String.class)
             .put(metadata, newCluster.clusterResource().clusterId());
       }
@@ -87,7 +86,6 @@ public class MetadataInstrumentation extends Instrumenter.Tracing
     public static void onEnter(
         @Advice.This final Metadata metadata, @Advice.Argument(1) final MetadataResponse response) {
       if (response != null) {
-        System.out.println("[KAFKACONSUMERMETADATA] " + response.clusterId());
         InstrumentationContext.get(Metadata.class, String.class)
             .put(metadata, response.clusterId());
       }

@@ -86,7 +86,6 @@ public final class KafkaConsumerInfoInstrumentation extends Instrumenter.Tracing
         @Advice.FieldValue("metadata") Metadata metadata,
         @Advice.FieldValue("coordinator") ConsumerCoordinator coordinator,
         @Advice.Argument(0) ConsumerConfig consumerConfig) {
-      System.out.println("[KAFKACONSUMERMETADATA] " + metadata);
       KafkaConsumerInfo.Builder metadataBuilder = new KafkaConsumerInfo.Builder();
       metadataBuilder.clientMetadata(metadata);
 
