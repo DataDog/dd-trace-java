@@ -9,6 +9,7 @@ import com.datadog.debugger.el.RefResolverHelper;
 import com.datadog.debugger.el.Value;
 import datadog.trace.bootstrap.debugger.el.ValueReferenceResolver;
 import datadog.trace.bootstrap.debugger.el.ValueReferences;
+import datadog.trace.bootstrap.debugger.util.Redaction;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
@@ -98,5 +99,20 @@ class ValueRefExpressionTest {
         assertThrows(RuntimeException.class, () -> invalidExpression.evaluate(resolver).getValue());
     assertEquals("Cannot find synthetic var: invalid", runtimeException.getMessage());
     assertEquals("@invalid", print(invalidExpression));
+  }
+
+  @Test
+  public void redacted() {
+    ValueRefExpression valueRef = new ValueRefExpression("password");
+    class StoreSecret {
+      String password;
+
+      public StoreSecret(String password) {
+        this.password = password;
+      }
+    }
+    StoreSecret instance = new StoreSecret("secret123");
+    Value<?> val = valueRef.evaluate(RefResolverHelper.createResolver(instance));
+    assertEquals(Redaction.REDACTED_VALUE, val.getValue());
   }
 }

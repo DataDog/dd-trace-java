@@ -11,6 +11,7 @@ import datadog.trace.bootstrap.debugger.el.DebuggerScript;
 import datadog.trace.bootstrap.debugger.el.ValueReferenceResolver;
 import edu.umd.cs.findbugs.annotations.NonNull;
 import java.io.IOException;
+import java.util.Map;
 
 /** Implements expression language for probe condition */
 public final class ProbeCondition implements DebuggerScript<Boolean> {
@@ -103,14 +104,55 @@ public final class ProbeCondition implements DebuggerScript<Boolean> {
     if (when == null) {
       return true;
     }
-    if (when.evaluate(valueRefResolver)) {
-      then.evaluate(valueRefResolver);
+    ProbeConditionResolver conditionResolver = new ProbeConditionResolver(valueRefResolver);
+    if (when.evaluate(conditionResolver)) {
+      then.evaluate(conditionResolver);
+      conditionResolver.checkRedacted();
       return true;
     }
+    conditionResolver.checkRedacted();
     return false;
   }
 
   public void accept(Visitor visitor) {
     when.accept(visitor);
+  }
+
+  private static class ProbeConditionResolver implements ValueReferenceResolver {
+    private final ValueReferenceResolver delegate;
+    private String expr;
+    private boolean redacted;
+
+    public ProbeConditionResolver(ValueReferenceResolver delegate) {
+      this.delegate = delegate;
+    }
+
+    @Override
+    public Object lookup(String name) {
+      return delegate.lookup(name);
+    }
+
+    @Override
+    public Object getMember(Object target, String name) {
+      return delegate.getMember(target, name);
+    }
+
+    @Override
+    public void redacted(String expr) {
+      this.redacted = true;
+      this.expr = expr;
+    }
+
+    public void checkRedacted() {
+      if (redacted) {
+        throw new EvaluationException(
+            "Could not evaluate the expression because '" + expr + "' was redacted", expr);
+      }
+    }
+
+    @Override
+    public ValueReferenceResolver withExtensions(Map<String, Object> extensions) {
+      return delegate.withExtensions(extensions);
+    }
   }
 }

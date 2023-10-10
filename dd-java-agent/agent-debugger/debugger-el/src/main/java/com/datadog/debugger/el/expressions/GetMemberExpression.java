@@ -2,9 +2,11 @@ package com.datadog.debugger.el.expressions;
 
 import com.datadog.debugger.el.EvaluationException;
 import com.datadog.debugger.el.Generated;
+import com.datadog.debugger.el.PrettyPrintVisitor;
 import com.datadog.debugger.el.Value;
 import com.datadog.debugger.el.Visitor;
 import datadog.trace.bootstrap.debugger.el.ValueReferenceResolver;
+import datadog.trace.bootstrap.debugger.util.Redaction;
 import java.util.Objects;
 
 public class GetMemberExpression implements ValueExpression<Value<?>> {
@@ -23,7 +25,11 @@ public class GetMemberExpression implements ValueExpression<Value<?>> {
       return targetValue;
     }
     try {
-      return Value.of(valueRefResolver.getMember(targetValue.getValue(), memberName));
+      Object member = valueRefResolver.getMember(targetValue.getValue(), memberName);
+      if (member == Redaction.REDACTED_VALUE) {
+        valueRefResolver.redacted(PrettyPrintVisitor.print(this));
+      }
+      return Value.of(member);
     } catch (RuntimeException ex) {
       throw new EvaluationException(ex.getMessage(), memberName, ex);
     }
