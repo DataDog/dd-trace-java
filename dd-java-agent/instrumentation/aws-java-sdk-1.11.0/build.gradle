@@ -23,7 +23,15 @@ apply from: "$rootDir/gradle/java.gradle"
 // We test older version in separate test set to test newer version and latest deps in the 'default'
 // test dir. Otherwise we get strange warnings in Idea.
 addTestSuite('test_before_1_11_106')
+addTestSuiteExtendingForDir('test_before_1_11_106ForkedTest', 'test_before_1_11_106', 'test_before_1_11_106')
+
 addTestSuiteForDir('latestDepTest', 'test')
+addTestSuiteExtendingForDir('latestDepForkedTest', 'latestDepTest', 'test')
+
+addTestSuite('kinesisDsmTest')
+addTestSuiteExtendingForDir('kinesisDsmForkedTest', 'kinesisDsmTest', 'kinesisDsmTest')
+addTestSuiteForDir('latestKinesisDsmTest', 'kinesisDsmTest')
+addTestSuiteExtendingForDir('latestKinesisDsmForkedTest', 'latestKinesisDsmTest', 'kinesisDsmTest')
 
 dependencies {
   compileOnly group: 'com.amazonaws', name: 'aws-java-sdk-core', version: '1.11.0'
@@ -78,6 +86,9 @@ dependencies {
     }
   }
 
+  kinesisDsmTestImplementation group: 'com.amazonaws', name: 'aws-java-sdk-kinesis', version: '1.12.366'
+  latestKinesisDsmTestImplementation group: 'com.amazonaws', name: 'aws-java-sdk-kinesis', version: '+'
+
   latestDepTestImplementation group: 'com.amazonaws', name: 'aws-java-sdk-s3', version: '+'
   latestDepTestImplementation group: 'com.amazonaws', name: 'aws-java-sdk-rds', version: '+'
   latestDepTestImplementation group: 'com.amazonaws', name: 'aws-java-sdk-ec2', version: '+'
@@ -89,4 +100,8 @@ dependencies {
 
 tasks.named("test").configure {
   dependsOn "test_before_1_11_106"
+}
+
+tasks.named("forkedTest").configure {
+  dependsOn "test_before_1_11_106ForkedTest"
 }

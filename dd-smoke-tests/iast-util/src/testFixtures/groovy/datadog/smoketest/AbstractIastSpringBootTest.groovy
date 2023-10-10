@@ -794,4 +794,19 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
     hasVulnerabilityInLogs { vul -> vul.type == 'UNVALIDATED_REDIRECT' && vul.location.method == 'getViewfromTaintedString' }
   }
 
+  void 'getRequestURI taints its output'() {
+    setup:
+    final url = "http://localhost:${httpPort}/getrequesturi"
+    final request = new Request.Builder().url(url).get().build()
+
+    when:
+    client.newCall(request).execute()
+
+    then:
+    hasTainted { tainted ->
+      tainted.value == '/getrequesturi' &&
+        tainted.ranges[0].source.origin == 'http.request.uri'
+    }
+  }
+
 }
