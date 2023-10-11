@@ -22,7 +22,7 @@ jobs:
       - checkout
       - run:
           name: Install dependencies
-          command: pip3 install jinja2 requests
+          command: pip3 install --force-reinstall jinja2 requests "urllib3<2"
       - run:
           name: Generate config
           command: >-
