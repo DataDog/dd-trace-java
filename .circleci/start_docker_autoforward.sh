@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 set -eux
 
+# workaround for https://github.com/docker/docker-py/issues/3113
+pip3 install --force-reinstall "urllib3<2"
+
 if [[ -n "${DOCKER_CERT_PATH:-}" ]]; then
     TLS_ARGS="
         --secure
