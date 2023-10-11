@@ -47,7 +47,7 @@ public class SQLCommenter {
     sb.append(sql);
     sb.append(OPEN_COMMENT);
     toComment(sb, injectTrace, parentService, dbService, env, version, traceParent);
-    if (sb.length() == 2 + sql.length()) {
+    if (sb.length() == OPEN_COMMENT.length() + sql.length()) {
       return sql;
     }
     sb.append(CLOSE_COMMENT);
