@@ -34,19 +34,20 @@ public final class AnnotationSubstitutionProcessorInstrumentation
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      "datadog.trace.instrumentation.graal.nativeimage.Target_org_jctools_counters_FixedSizeStripedLongCounterFields",
-      "datadog.trace.instrumentation.graal.nativeimage.Target_org_jctools_util_UnsafeRefArrayAccess"
+      packageName + ".Target_org_jctools_counters_FixedSizeStripedLongCounterFields",
+      packageName + ".Target_org_jctools_util_UnsafeRefArrayAccess"
     };
   }
 
   @Override
   public String[] muzzleIgnoredClassNames() {
-    // ignore JVMCI classes which are part of GraalVM but aren't available in public repositories
     return new String[] {
+      // JVMCI classes which are part of GraalVM but aren't available in public repositories
       "jdk.vm.ci.meta.ResolvedJavaType",
       "jdk.vm.ci.meta.ResolvedJavaField",
-      "datadog.trace.instrumentation.graal.nativeimage.Target_org_jctools_counters_FixedSizeStripedLongCounterFields",
-      "datadog.trace.instrumentation.graal.nativeimage.Target_org_jctools_util_UnsafeRefArrayAccess"
+      // ignore helper class names as usual
+      packageName + ".Target_org_jctools_counters_FixedSizeStripedLongCounterFields",
+      packageName + ".Target_org_jctools_util_UnsafeRefArrayAccess"
     };
   }
 
