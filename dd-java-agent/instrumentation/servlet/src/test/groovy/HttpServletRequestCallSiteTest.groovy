@@ -3,7 +3,6 @@ import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.SourceTypes
 import datadog.trace.api.iast.propagation.PropagationModule
-import datadog.trace.api.iast.source.WebModule
 import datadog.trace.instrumentation.servlet.request.HttpServletRequestCallSite
 import groovy.transform.CompileDynamic
 
@@ -23,7 +22,7 @@ class HttpServletRequestCallSiteTest extends AgentTestRunner {
     InstrumentationBridge.clearIastModules()
   }
 
-  def 'test getHeader'(final Class<? extends HttpServletRequest> clazz) {
+  def 'test getHeader'() {
     setup:
     final iastModule = Mock(PropagationModule)
     InstrumentationBridge.registerIastModule(iastModule)
@@ -36,7 +35,7 @@ class HttpServletRequestCallSiteTest extends AgentTestRunner {
 
     then:
     result == 'value'
-    1 * iastModule.taint(SourceTypes.REQUEST_HEADER_VALUE, 'header', 'value')
+    1 * iastModule.taint('value', SourceTypes.REQUEST_HEADER_VALUE, 'header')
 
     where:
     clazz                     | _
@@ -46,18 +45,19 @@ class HttpServletRequestCallSiteTest extends AgentTestRunner {
 
   void 'test getHeaders'() {
     setup:
-    final iastModule = Mock(WebModule)
+    final iastModule = Mock(PropagationModule)
     InstrumentationBridge.registerIastModule(iastModule)
+    final headers = ['value1', 'value2']
     final testSuite = new TestHttpServletRequestCallSiteSuite(Mock(clazz) {
-      getHeaders('headers') >> Collections.enumeration(['value1', 'value2'])
+      getHeaders('headers') >> Collections.enumeration(headers)
     })
 
     when:
     final result = testSuite.getHeaders('headers')?.toList()
 
     then:
-    result == ['value1', 'value2']
-    1 * iastModule.onHeaderValues('headers', ['value1', 'value2'])
+    result == headers
+    headers.each { 1 * iastModule.taint(_, it, SourceTypes.REQUEST_HEADER_VALUE, 'headers') }
 
     where:
     clazz                     | _
@@ -67,7 +67,7 @@ class HttpServletRequestCallSiteTest extends AgentTestRunner {
 
   void 'test getHeaderNames'() {
     setup:
-    final iastModule = Mock(WebModule)
+    final iastModule = Mock(PropagationModule)
     InstrumentationBridge.registerIastModule(iastModule)
     final headers = ['header1', 'header2']
     final testSuite = new TestHttpServletRequestCallSiteSuite(Mock(clazz) {
@@ -79,7 +79,7 @@ class HttpServletRequestCallSiteTest extends AgentTestRunner {
 
     then:
     result == headers
-    1 * iastModule.onHeaderNames(headers)
+    headers.each { 1 * iastModule.taint(_, it, SourceTypes.REQUEST_HEADER_NAME, it) }
 
     where:
     clazz                     | _
@@ -87,7 +87,7 @@ class HttpServletRequestCallSiteTest extends AgentTestRunner {
     HttpServletRequestWrapper | _
   }
 
-  void 'test getCookies'(final Class<? extends HttpServletRequest> clazz) {
+  void 'test getCookies'() {
     setup:
     final iastModule = Mock(PropagationModule)
     InstrumentationBridge.registerIastModule(iastModule)
@@ -101,7 +101,7 @@ class HttpServletRequestCallSiteTest extends AgentTestRunner {
 
     then:
     result == cookies
-    1 * iastModule.taintObjects(SourceTypes.REQUEST_COOKIE_VALUE, cookies)
+    cookies.each {  1 * iastModule.taint(_, it, SourceTypes.REQUEST_COOKIE_VALUE) }
 
     where:
     clazz                     | _
@@ -111,7 +111,7 @@ class HttpServletRequestCallSiteTest extends AgentTestRunner {
 
   def 'test that get headers does not fail when servlet related code fails'(final Class<? extends HttpServletRequest> clazz) {
     setup:
-    final iastModule = Mock(WebModule)
+    final iastModule = Mock(PropagationModule)
     InstrumentationBridge.registerIastModule(iastModule)
     final enumeration = Mock(Enumeration) {
       hasMoreElements() >> { throw new NuclearBomb('Boom!!!')}
@@ -135,7 +135,7 @@ class HttpServletRequestCallSiteTest extends AgentTestRunner {
 
   def 'test that get header names does not fail when servlet related code fails'(final Class<? extends HttpServletRequest> clazz) {
     setup:
-    final iastModule = Mock(WebModule)
+    final iastModule = Mock(PropagationModule)
     InstrumentationBridge.registerIastModule(iastModule)
     final enumeration = Mock(Enumeration) {
       hasMoreElements() >> { throw new NuclearBomb('Boom!!!')}
@@ -170,7 +170,7 @@ class HttpServletRequestCallSiteTest extends AgentTestRunner {
 
     then:
 
-    1 * iastModule.taint(SourceTypes.REQUEST_QUERY, null, 'paramName=paramValue')
+    1 * iastModule.taint('paramName=paramValue', SourceTypes.REQUEST_QUERY)
 
     where:
     clazz                     | _
@@ -180,7 +180,7 @@ class HttpServletRequestCallSiteTest extends AgentTestRunner {
 
   void 'test getRequestURI'() {
     setup:
-    final iastModule = Mock(WebModule)
+    final iastModule = Mock(PropagationModule)
     InstrumentationBridge.registerIastModule(iastModule)
     final mock = Mock(clazz){
       getRequestURI() >> 'retValue'
@@ -191,7 +191,7 @@ class HttpServletRequestCallSiteTest extends AgentTestRunner {
     testSuite.getRequestURI()
 
     then:
-    1 * iastModule.onGetPathInfo('retValue')
+    1 * iastModule.taint('retValue', SourceTypes.REQUEST_PATH)
 
     where:
     clazz                     | _
@@ -213,7 +213,7 @@ class HttpServletRequestCallSiteTest extends AgentTestRunner {
     testSuite.getRequestURL()
 
     then:
-    1 * module.taintObject(_,_,_,_)
+    1 * module.taint(retValue, SourceTypes.REQUEST_URI)
 
     where:
     clazz                     | _
@@ -224,7 +224,7 @@ class HttpServletRequestCallSiteTest extends AgentTestRunner {
 
   void 'test getPathInfo'() {
     setup:
-    final iastModule = Mock(WebModule)
+    final iastModule = Mock(PropagationModule)
     InstrumentationBridge.registerIastModule(iastModule)
     final mock = Mock(HttpServletRequest){
       getPathInfo() >> 'retValue'
@@ -235,7 +235,7 @@ class HttpServletRequestCallSiteTest extends AgentTestRunner {
     testSuite.getPathInfo()
 
     then:
-    1 * iastModule.onGetPathInfo('retValue')
+    1 * iastModule.taint('retValue', SourceTypes.REQUEST_PATH)
 
     where:
     clazz                     | _
@@ -245,7 +245,7 @@ class HttpServletRequestCallSiteTest extends AgentTestRunner {
 
   void 'test getPathTranslated'() {
     setup:
-    final iastModule = Mock(WebModule)
+    final iastModule = Mock(PropagationModule)
     InstrumentationBridge.registerIastModule(iastModule)
     final mock = Mock(HttpServletRequest){
       getPathTranslated() >> 'retValue'
@@ -256,7 +256,7 @@ class HttpServletRequestCallSiteTest extends AgentTestRunner {
     testSuite.getPathTranslated()
 
     then:
-    1 * iastModule.onGetPathInfo('retValue')
+    1 * iastModule.taint('retValue', SourceTypes.REQUEST_PATH)
 
     where:
     clazz                     | _

@@ -1,6 +1,7 @@
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.iast.InstrumentationBridge
-import datadog.trace.api.iast.source.WebModule
+import datadog.trace.api.iast.SourceTypes
+import datadog.trace.api.iast.propagation.PropagationModule
 import foo.bar.smoketest.MockPart
 
 class MultipartInstrumentationForkedTest extends AgentTestRunner {
@@ -16,57 +17,57 @@ class MultipartInstrumentationForkedTest extends AgentTestRunner {
 
   void 'test getName'() {
     given:
-    final module = Mock(WebModule)
+    final module = Mock(PropagationModule)
     InstrumentationBridge.registerIastModule(module)
-    final part = new MockPart("partName", "headerValue")
+    final part = new MockPart('partName', 'headerName', 'headerValue')
 
     when:
     part.getName()
 
     then:
-    1 * module.onMultipartValues(_, _)
+    1 * module.taint('partName', SourceTypes.REQUEST_MULTIPART_PARAMETER, 'Content-Disposition')
     0 * _
   }
 
-  void 'test getHeader'(){
+  void 'test getHeader'() {
     given:
-    final module = Mock(WebModule)
+    final module = Mock(PropagationModule)
     InstrumentationBridge.registerIastModule(module)
-    final part = new MockPart("partName", "headerValue")
+    final part = new MockPart('partName', 'headerName', 'headerValue')
 
     when:
-    part.getHeader("headerName")
+    part.getHeader('headerName')
 
     then:
-    1 * module.onMultipartValues(_, _)
+    1 * module.taint('headerValue', SourceTypes.REQUEST_MULTIPART_PARAMETER, 'headerName')
     0 * _
   }
 
-  void 'test getHeaders'(){
+  void 'test getHeaders'() {
     given:
-    final module = Mock(WebModule)
+    final module = Mock(PropagationModule)
     InstrumentationBridge.registerIastModule(module)
-    final part = new MockPart("partName", "headerValue")
+    final part = new MockPart('partName', 'headerName', 'headerValue')
 
     when:
-    part.getHeaders("headerName")
+    part.getHeaders('headerName')
 
     then:
-    1 *  module.onMultipartValues(_, _)
+    1 * module.taint(_, 'headerValue', SourceTypes.REQUEST_MULTIPART_PARAMETER, 'headerName')
     0 * _
   }
 
-  void 'test getHeaderNames'(){
+  void 'test getHeaderNames'() {
     given:
-    final module = Mock(WebModule)
+    final module = Mock(PropagationModule)
     InstrumentationBridge.registerIastModule(module)
-    final part = new MockPart("partName", "headerValue")
+    final part = new MockPart('partName', 'headerName', 'headerValue')
 
     when:
     part.getHeaderNames()
 
     then:
-    1 * module.onMultipartNames(_)
+    1 * module.taint(_, 'headerName', SourceTypes.REQUEST_MULTIPART_PARAMETER)
     0 * _
   }
 }

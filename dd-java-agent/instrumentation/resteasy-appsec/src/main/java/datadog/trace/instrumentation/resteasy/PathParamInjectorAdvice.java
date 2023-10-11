@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.resteasy;
 
+import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Source;
 import datadog.trace.api.iast.SourceTypes;
@@ -17,13 +18,14 @@ public class PathParamInjectorAdvice {
       if (module != null) {
         if (result instanceof Collection) {
           Collection<?> collection = (Collection<?>) result;
+          final IastContext ctx = IastContext.Provider.get();
           for (Object o : collection) {
             if (o instanceof String) {
-              module.taint(SourceTypes.REQUEST_PATH_PARAMETER, paramName, (String) o);
+              module.taint(ctx, o, SourceTypes.REQUEST_PATH_PARAMETER, paramName);
             }
           }
         } else {
-          module.taint(SourceTypes.REQUEST_PATH_PARAMETER, paramName, (String) result);
+          module.taint(result, SourceTypes.REQUEST_PATH_PARAMETER, paramName);
         }
       }
     }
