@@ -52,7 +52,7 @@ class GitClientTest extends Specification {
     def upstreamBranch = gitClient.getUpstreamBranch()
 
     then:
-    upstreamBranch == "origin/master"
+    upstreamBranch == "master"
   }
 
   def "test unshallow: #remoteSha"() {

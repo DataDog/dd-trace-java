@@ -81,13 +81,7 @@ public class GitClient {
    */
   public String getUpstreamBranch() throws IOException, TimeoutException, InterruptedException {
     return commandExecutor
-        .executeCommand(
-            IOUtils::readFully,
-            "git",
-            "rev-parse",
-            "--abbrev-ref",
-            "--symbolic-full-name",
-            "@{upstream}")
+        .executeCommand(IOUtils::readFully, "git", "rev-parse", "@{upstream}")
         .trim();
   }
 
