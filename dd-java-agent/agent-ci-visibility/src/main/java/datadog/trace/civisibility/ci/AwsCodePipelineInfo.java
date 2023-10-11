@@ -20,7 +20,10 @@ class AwsCodePipelineInfo implements CIProviderInfo {
     return CIInfo.builder()
         .ciProviderName(AWS_CODEPIPELINE_PROVIDER_NAME)
         .ciPipelineId(System.getenv(AWS_CODEPIPELINE_EXECUTION_ID))
-        .ciEnvVars(AWS_CODEPIPELINE_EXECUTION_ID, AWS_CODEPIPELINE_ACTION_EXECUTION_ID, AWS_CODEPIPELINE_ARN)
+        .ciEnvVars(
+            AWS_CODEPIPELINE_EXECUTION_ID,
+            AWS_CODEPIPELINE_ACTION_EXECUTION_ID,
+            AWS_CODEPIPELINE_ARN)
         .build();
   }
 }
