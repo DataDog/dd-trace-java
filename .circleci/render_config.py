@@ -14,9 +14,11 @@ OUT_FILENAME = "config.continue.yml"
 GENERATED_CONFIG_PATH = os.path.join(SCRIPT_DIR, OUT_FILENAME)
 
 # JDKs that will run on every pipeline.
-ALWAYS_ON_JDKS = {"8", "11", "17"}
+ALWAYS_ON_JDKS = {"8"}
 # And these will run only in master and release/ branches.
 MASTER_ONLY_JDKS = {
+    "11",
+    "17",
     "ibm8",
     "oracle8",
     "semeru8",
@@ -28,7 +30,7 @@ MASTER_ONLY_JDKS = {
 }
 # Version to use for all the base Docker images, see
 # https://github.com/DataDog/dd-trace-java-docker-build/pkgs/container/dd-trace-java-docker-build
-DOCKER_IMAGE_VERSION="v23.09"
+DOCKER_IMAGE_VERSION="73_merge"
 
 # Get labels from pull requests to override some defaults for jobs to run.
 # `run-tests: all` will run all tests.
