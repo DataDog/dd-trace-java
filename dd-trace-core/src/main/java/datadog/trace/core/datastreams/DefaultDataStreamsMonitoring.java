@@ -269,7 +269,6 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
       thread.join(THREAD_JOIN_TIMOUT_MS);
     } catch (InterruptedException ignored) {
     }
-    inbox.clear();
   }
 
   private class InboxProcessor implements Runnable {
