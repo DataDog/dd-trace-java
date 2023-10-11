@@ -33,11 +33,10 @@ dd-java-agent/agent-debugger/ @DataDog/debugger-java
 dd-smoke-tests/debugger-integration-tests/ @DataDog/debugger-java
 
 # @DataDog/asm-java (AppSec/IAST)
-dd-java-agent/appsec/                  @DataDog/asm-java
 dd-java-agent/agent-iast/              @DataDog/asm-java
 dd-java-agent/instrumentation/*iast*   @DataDog/asm-java
 dd-java-agent/instrumentation/*appsec* @DataDog/asm-java
-dd-smoke-tests/appsec/                 @DataDog/asm-java
+**/appsec/                             @DataDog/asm-java
 **/iast/                               @DataDog/asm-java
 **/Iast*.java                          @DataDog/asm-java
 **/Iast*.groovy                        @DataDog/asm-java
