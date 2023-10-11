@@ -1,10 +1,13 @@
 package datadog.smoketest.springboot.controller;
 
+import com.google.gson.Gson;
+import com.google.gson.JsonParser;
 import datadog.smoketest.springboot.TestBean;
 import ddtest.client.sources.Hasher;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.File;
 import java.io.IOException;
+import java.io.StringReader;
 import java.io.UnsupportedEncodingException;
 import java.net.HttpCookie;
 import java.net.HttpURLConnection;
@@ -347,6 +350,20 @@ public class IastWebController {
   String requestURL(HttpServletRequest request) {
     StringBuffer requestURL = request.getRequestURL();
     return String.format("Request.getRequestURL returns %s", requestURL);
+  }
+
+  @PostMapping("/gson_deserialization")
+  String gson(@RequestParam("json") String json) {
+    Gson gson = new Gson();
+    TestBean testBean = gson.fromJson(json, TestBean.class);
+    return "Test bean -> name: " + testBean.getName() + ", value: " + testBean.getValue();
+  }
+
+  @PostMapping("/gson_json_parser_deserialization")
+  String gsonJsonParser(@RequestParam("json") String json) {
+    StringReader reader = new StringReader(json);
+    JsonParser.parseReader(reader);
+    return "Ok";
   }
 
   private void withProcess(final Operation<Process> op) {
