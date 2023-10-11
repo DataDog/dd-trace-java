@@ -4,6 +4,12 @@ import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.DDTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.core.datastreams.StatsGroup
+import org.eclipse.jetty.http2.server.HTTP2CServerConnectionFactory
+import org.eclipse.jetty.server.HttpConfiguration
+import org.eclipse.jetty.server.HttpConnectionFactory
+import org.eclipse.jetty.server.Server
+import org.eclipse.jetty.server.ServerConnector
+import org.eclipse.jetty.server.SslConnectionFactory
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider
 import software.amazon.awssdk.core.ResponseInputStream
@@ -20,6 +26,7 @@ import software.amazon.awssdk.services.kinesis.model.PutRecordsRequest
 import software.amazon.awssdk.services.kinesis.model.PutRecordsRequestEntry
 import spock.lang.AutoCleanup
 import spock.lang.Shared
+import spock.lang.Unroll
 
 import java.time.Instant
 import java.util.concurrent.Future
@@ -46,12 +53,27 @@ abstract class Aws2KinesisDataStreamsTest extends VersionedNamingTestBase {
   @AutoCleanup
   @Shared
   def server = httpServer {
+    customizer { {
+        Server server -> {
+          ServerConnector httpConnector = server.getConnectors().find {
+            !it.connectionFactories.any {
+              it instanceof SslConnectionFactory
+            }
+          }
+          HttpConfiguration config = (httpConnector.connectionFactories.find {
+            it instanceof HttpConnectionFactory
+          }
+          as HttpConnectionFactory).getHttpConfiguration()
+          httpConnector.addConnectionFactory(new HTTP2CServerConnectionFactory(config))
+        }
+      }
+    }
     handlers {
       all {
         response
-          .status(200)
-          .addHeader("x-amzn-RequestId", servedRequestId.get())
-          .sendWithType("application/x-amz-json-1.1", responseBody.get())
+        .status(200)
+        .addHeader("x-amzn-RequestId", servedRequestId.get())
+        .sendWithType("application/x-amz-json-1.1", responseBody.get())
       }
     }
   }
@@ -84,23 +106,24 @@ abstract class Aws2KinesisDataStreamsTest extends VersionedNamingTestBase {
 
   def watch(builder, callback) {
     builder.addExecutionInterceptor(new ExecutionInterceptor() {
-        @Override
-        void afterExecution(Context.AfterExecution context, ExecutionAttributes executionAttributes) {
-          callback.call()
-        }
-      })
+      @Override
+      void afterExecution(Context.AfterExecution context, ExecutionAttributes executionAttributes) {
+        callback.call()
+      }
+    })
   }
 
+  @Unroll
   def "send #operation request with builder #builder.class.getSimpleName() mocked response"() {
     setup:
     boolean executed = false
     def client = builder
-      // tests that our instrumentation doesn't disturb any overridden configuration
-      .overrideConfiguration({ watch(it, { executed = true }) })
-      .endpointOverride(server.address)
-      .region(Region.AP_NORTHEAST_1)
-      .credentialsProvider(CREDENTIALS_PROVIDER)
-      .build()
+    // tests that our instrumentation doesn't disturb any overridden configuration
+    .overrideConfiguration({ watch(it, { executed = true }) })
+    .endpointOverride(server.address)
+    .region(Region.AP_NORTHEAST_1)
+    .credentialsProvider(CREDENTIALS_PROVIDER)
+    .build()
     responseBody.set(body)
     servedRequestId.set(requestId)
     when:
@@ -205,12 +228,12 @@ abstract class Aws2KinesisDataStreamsTest extends VersionedNamingTestBase {
     setup:
     boolean executed = false
     def client = builder
-      // tests that our instrumentation doesn't disturb any overridden configuration
-      .overrideConfiguration({ watch(it, { executed = true }) })
-      .endpointOverride(server.address)
-      .region(Region.AP_NORTHEAST_1)
-      .credentialsProvider(CREDENTIALS_PROVIDER)
-      .build()
+    // tests that our instrumentation doesn't disturb any overridden configuration
+    .overrideConfiguration({ watch(it, { executed = true }) })
+    .endpointOverride(server.address)
+    .region(Region.AP_NORTHEAST_1)
+    .credentialsProvider(CREDENTIALS_PROVIDER)
+    .build()
     responseBody.set(body)
     servedRequestId.set(requestId)
     when:
@@ -309,7 +332,7 @@ abstract class Aws2KinesisDataStreamsTest extends VersionedNamingTestBase {
   }
 }
 
-class Aws2KinesisDataStreamsV0ForkedTest extends Aws2KinesisDataStreamsTest {
+class Aws2KinesisDataStreamsV0Test extends Aws2KinesisDataStreamsTest {
 
   @Override
   String expectedOperation(String awsService, String awsOperation) {

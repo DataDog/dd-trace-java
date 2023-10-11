@@ -37,6 +37,9 @@ dependencies {
   testImplementation group: 'software.amazon.awssdk', name: 'dynamodb', version: '2.2.0'
   testImplementation group: 'software.amazon.awssdk', name: 'kinesis', version: '2.2.0'
 
+  testImplementation group: 'org.eclipse.jetty', name: 'jetty-server', version: '9.3.0.v20150612'
+  testImplementation group: 'org.eclipse.jetty.http2', name: 'http2-server', version: '9.3.0.v20150612'
+
   // First version where dsm traced operations have required StreamARN parameter
   kinesisDsmTestImplementation group: 'software.amazon.awssdk', name: 'apache-client', version: '2.18.40'
   kinesisDsmTestImplementation group: 'software.amazon.awssdk', name: 'kinesis', version: '2.18.40'

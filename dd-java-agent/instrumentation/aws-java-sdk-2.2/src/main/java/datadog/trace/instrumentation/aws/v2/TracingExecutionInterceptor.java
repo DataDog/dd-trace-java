@@ -104,12 +104,10 @@ public class TracingExecutionInterceptor implements ExecutionInterceptor {
     final AgentSpan span = executionAttributes.getAttribute(SPAN_ATTRIBUTE);
     if (span != null) {
       executionAttributes.putAttribute(SPAN_ATTRIBUTE, null);
-      try (AgentScope ignored = activateSpan(span)) {
-        // Call onResponse on both types of responses:
-        DECORATE.onSdkResponse(span, context.response(), executionAttributes);
-        DECORATE.onResponse(span, context.httpResponse());
-        DECORATE.beforeFinish(span);
-      }
+      // Call onResponse on both types of responses:
+      DECORATE.onSdkResponse(span, context.response(), executionAttributes);
+      DECORATE.onResponse(span, context.httpResponse());
+      DECORATE.beforeFinish(span);
       span.finish();
     }
     if (!AWS_LEGACY_TRACING && isPollingResponse(context.response())) {

@@ -32,12 +32,10 @@ dependencies {
   testFixturesApi group: 'org.jboss.resteasy', name: 'resteasy-multipart-provider', version: '3.0.0.Final'
   testFixturesImplementation project(':dd-java-agent:testing'), {
     exclude group: 'org.eclipse.jetty', module: 'jetty-server'
-    exclude group: 'org.eclipse.jetty.http2', module: 'http2-server'
   }
 
   testImplementation project(':dd-java-agent:testing'), {
     exclude group: 'org.eclipse.jetty', module: 'jetty-server'
-    exclude group: 'org.eclipse.jetty.http2', module: 'http2-server'
   }
 
   nettyTestImplementation group: 'io.netty', name: 'netty', version: '3.8.0.Final' // upgrade netty to a version we support

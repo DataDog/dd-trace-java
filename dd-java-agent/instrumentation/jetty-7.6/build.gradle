@@ -19,18 +19,13 @@ dependencies {
   // Don't want to conflict with jetty from the test server.
   testImplementation(project(':dd-java-agent:testing')) {
     exclude group: 'org.eclipse.jetty', module: 'jetty-server'
-    exclude group: 'org.eclipse.jetty.http2', module: 'http2-server'
   }
   testImplementation project(':dd-java-agent:instrumentation:jetty-util')
 
   testImplementation group: 'org.eclipse.jetty', name: 'jetty-server', version: '7.6.0.v20120127'
   testImplementation group: 'org.eclipse.jetty', name: 'jetty-servlet', version: '7.6.0.v20120127'
   testImplementation group: 'org.eclipse.jetty', name: 'jetty-continuation', version: '7.6.0.v20120127'
-
-  testImplementation(testFixtures(project(':dd-java-agent:instrumentation:servlet:request-3'))) {
-    exclude group: 'org.eclipse.jetty.http2', module: 'http2-server'
-  }
-
+  testImplementation testFixtures(project(':dd-java-agent:instrumentation:servlet:request-3'))
   testRuntimeOnly project(':dd-java-agent:instrumentation:servlet:request-2')
   testRuntimeOnly project(':dd-java-agent:instrumentation:jetty-appsec-7')
 
