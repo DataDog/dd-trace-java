@@ -11,6 +11,7 @@ import datadog.trace.api.Config;
 import datadog.trace.api.TracePropagationStyle;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstanceStore;
+import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -54,9 +55,10 @@ public class TracingExecutionInterceptor implements ExecutionInterceptor {
       final Context.AfterMarshalling context, final ExecutionAttributes executionAttributes) {
     final AgentSpan span = executionAttributes.getAttribute(SPAN_ATTRIBUTE);
     if (span != null) {
-      DECORATE.onRequest(span, context.httpRequest());
-      DECORATE.onSdkRequest(span, context.request());
-      DECORATE.onAttributes(span, executionAttributes);
+      try (AgentScope ignored = activateSpan(span)) {
+        DECORATE.onRequest(span, context.httpRequest());
+        DECORATE.onSdkRequest(span, context.request(), executionAttributes);
+      }
     }
   }
 
@@ -103,7 +105,7 @@ public class TracingExecutionInterceptor implements ExecutionInterceptor {
     if (span != null) {
       executionAttributes.putAttribute(SPAN_ATTRIBUTE, null);
       // Call onResponse on both types of responses:
-      DECORATE.onResponse(span, context.response());
+      DECORATE.onSdkResponse(span, context.response(), executionAttributes);
       DECORATE.onResponse(span, context.httpResponse());
       DECORATE.beforeFinish(span);
       span.finish();

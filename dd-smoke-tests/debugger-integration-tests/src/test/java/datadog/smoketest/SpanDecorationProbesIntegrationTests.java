@@ -23,6 +23,7 @@ import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -235,6 +236,34 @@ public class SpanDecorationProbesIntegrationTests extends ServerAppDebuggerInteg
             }
           }
           return snapshotTest.get() && spanTest.get();
+        });
+    processRequests();
+  }
+
+  @Test
+  @DisplayName("testSamplingSpanDecoration")
+  void testSamplingSpanDecoration() throws Exception {
+    SpanDecorationProbe spanDecorationProbe =
+        SpanDecorationProbe.builder()
+            .probeId(PROBE_ID)
+            .where(TEST_APP_CLASS_NAME, TRACED_METHOD_NAME)
+            .decorate(createDecoration("tag1", "staticText"))
+            .targetSpan(SpanDecorationProbe.TargetSpan.ACTIVE)
+            .build();
+    addProbe(spanDecorationProbe);
+    waitForInstrumentation(appUrl);
+    execute(appUrl, "loopingTracedMethod", "100");
+    AtomicInteger count = new AtomicInteger();
+    registerTraceListener(
+        decodedTrace -> {
+          for (DecodedSpan span : decodedTrace.getSpans()) {
+            if (isTracedFullMethodSpan(span)) {
+              if (span.getMeta().containsKey("tag1")) {
+                return count.incrementAndGet() >= 100;
+              }
+            }
+          }
+          return false;
         });
     processRequests();
   }
