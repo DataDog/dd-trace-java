@@ -93,8 +93,13 @@ public class ServerAppDebuggerIntegrationTest extends BaseIntegrationTest {
   }
 
   protected void execute(String appUrl, String methodName) throws IOException {
+    execute(appUrl, methodName, null);
+  }
+
+  protected void execute(String appUrl, String methodName, String arg) throws IOException {
     datadogAgentServer.enqueue(EMPTY_200_RESPONSE); // expect 1 snapshot
-    String url = String.format(appUrl + "/execute?methodname=%s", methodName);
+    String executeFormat = arg != null ? "/execute?methodname=%s&arg=%s" : "/execute?methodname=%s";
+    String url = String.format(appUrl + executeFormat, methodName, arg);
     sendRequest(url);
     LOG.info("Execution done");
   }

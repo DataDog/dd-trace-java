@@ -1,6 +1,8 @@
 package datadog.trace.bootstrap.debugger;
 
 import datadog.trace.api.sampling.AdaptiveSampler;
+import datadog.trace.api.sampling.ConstantSampler;
+import datadog.trace.api.sampling.Sampler;
 import java.time.Duration;
 import java.time.temporal.ChronoUnit;
 import java.util.concurrent.ConcurrentHashMap;
@@ -19,14 +21,13 @@ public class ProbeRateLimiter {
   private static final double DEFAULT_GLOBAL_LOG_RATE = 5000.0;
   private static final ConcurrentMap<String, RateLimitInfo> PROBE_SAMPLERS =
       new ConcurrentHashMap<>();
-  private static AdaptiveSampler GLOBAL_SNAPSHOT_SAMPLER =
-      createSampler(DEFAULT_GLOBAL_SNAPSHOT_RATE);
-  private static AdaptiveSampler GLOBAL_LOG_SAMPLER = createSampler(DEFAULT_GLOBAL_LOG_RATE);
+  private static Sampler GLOBAL_SNAPSHOT_SAMPLER = createSampler(DEFAULT_GLOBAL_SNAPSHOT_RATE);
+  private static Sampler GLOBAL_LOG_SAMPLER = createSampler(DEFAULT_GLOBAL_LOG_RATE);
 
   public static boolean tryProbe(String probeId) {
     RateLimitInfo rateLimitInfo =
         PROBE_SAMPLERS.computeIfAbsent(probeId, ProbeRateLimiter::getDefaultRateLimitInfo);
-    AdaptiveSampler globalSampler =
+    Sampler globalSampler =
         rateLimitInfo.isCaptureSnapshot ? GLOBAL_SNAPSHOT_SAMPLER : GLOBAL_LOG_SAMPLER;
     if (globalSampler.sample()) {
       return rateLimitInfo.sampler.sample();
@@ -64,7 +65,10 @@ public class ProbeRateLimiter {
     resetGlobalRate();
   }
 
-  private static AdaptiveSampler createSampler(double rate) {
+  private static Sampler createSampler(double rate) {
+    if (rate < 0) {
+      return new ConstantSampler(true);
+    }
     if (rate < 1) {
       int intRate = (int) Math.round(rate * 10);
       return new AdaptiveSampler(TEN_SECONDS_WINDOW, intRate, 180, 16);
@@ -73,10 +77,10 @@ public class ProbeRateLimiter {
   }
 
   private static class RateLimitInfo {
-    final AdaptiveSampler sampler;
+    final Sampler sampler;
     final boolean isCaptureSnapshot;
 
-    public RateLimitInfo(AdaptiveSampler sampler, boolean isCaptureSnapshot) {
+    public RateLimitInfo(Sampler sampler, boolean isCaptureSnapshot) {
       this.sampler = sampler;
       this.isCaptureSnapshot = isCaptureSnapshot;
     }
