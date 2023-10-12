@@ -19,6 +19,13 @@ profiling_test_matrix: &profiling_test_matrix
       - "{{ jdk }}"
 {% endfor %}
 
+debugger_test_matrix: &debugger_test_matrix
+  parameters:
+    testJvm:
+{% for jdk in all_debugger_jdks %}
+      - "{{ jdk }}"
+{% endfor %}
+
 system_test_matrix: &system_test_matrix
   parameters:
     weblog-variant: [ 'spring-boot', 'spring-boot-jetty', 'spring-boot-openliberty', 'spring-boot-3-native', 'jersey-grizzly2', 'resteasy-netty3','ratpack', 'vertx3' ]
@@ -29,7 +36,7 @@ instrumentation_modules: &instrumentation_modules "dd-java-agent/instrumentation
 debugger_modules: &debugger_modules "dd-java-agent/agent-debugger|dd-java-agent/agent-bootstrap|dd-java-agent/agent-builder|internal-api|communication|dd-trace-core"
 profiling_modules: &profiling_modules "dd-java-agent/agent-profiling"
 
-default_system_tests_commit: &default_system_tests_commit 897fcb9541b14c0a2d96defd45c13505f22dc246
+default_system_tests_commit: &default_system_tests_commit edfea31b7a9ceaed03b705de34a4e525853444c0
 
 parameters:
   nightly:
@@ -55,7 +62,7 @@ parameters:
 
   docker_image_tag:
     type: string
-    default: base
+    default: {{ docker_image_prefix }}base
 
 commands:
   check_for_leftover_files:
@@ -476,7 +483,7 @@ jobs:
     resource_class: large
 
     docker:
-      - image: << pipeline.parameters.docker_image >>:<< parameters.testJvm >>
+      - image: << pipeline.parameters.docker_image >>:{{ docker_image_prefix }}<< parameters.testJvm >>
 
     parameters:
       testJvm:
@@ -628,7 +635,7 @@ jobs:
     <<: *tests
 
     docker:
-      - image: << pipeline.parameters.docker_image >>:<< parameters.testJvm >>
+      - image: << pipeline.parameters.docker_image >>:{{ docker_image_prefix }}<< parameters.testJvm >>
         environment:
           - CI_USE_TEST_AGENT=true
       - image: ghcr.io/datadog/dd-apm-test-agent/ddapm-test-agent:v1.11.0
@@ -669,7 +676,7 @@ jobs:
     resource_class: medium
 
     docker:
-      - image: << pipeline.parameters.docker_image >>:7
+      - image: << pipeline.parameters.docker_image >>:{{ docker_image_prefix }}8
       - image: datadog/agent:7.34.0
         environment:
           - DD_APM_ENABLED=true
@@ -680,7 +687,7 @@ jobs:
     <<: *defaults
     resource_class: medium
     docker:
-      - image: << pipeline.parameters.docker_image >>:7
+      - image: << pipeline.parameters.docker_image >>:{{ docker_image_prefix }}7
 
     steps:
       - setup_code
@@ -713,6 +720,27 @@ jobs:
           path: ./reports
 
       - display_memory_usage
+  muzzle-dep-report:
+    <<: *defaults
+    resource_class: medium
+    steps:
+      - setup_code
+      - skip_unless_matching_files_changed:
+          pattern: "dd-java-agent/instrumentation"
+      - restore_dependency_cache:
+          cacheType: inst
+      - restore_build_cache:
+          cacheType: inst
+      - run:
+          name: Generate muzzle dep report
+          command: >-
+            SKIP_BUILDSCAN="true"
+            ./gradlew generateMuzzleReport muzzleInstrumentationReport
+      - run:
+          name: Collect Reports
+          command: .circleci/collect_muzzle_deps.sh
+      - store_artifacts:
+          path: ./reports
 
   muzzle:
     <<: *defaults
@@ -1130,7 +1158,7 @@ build_test_jobs: &build_test_jobs
       stage: debugger
       cacheType: base
       matrix:
-        <<: *profiling_test_matrix
+        <<: *debugger_test_matrix
 
   - tests:
       requires:
@@ -1144,6 +1172,18 @@ build_test_jobs: &build_test_jobs
       maxWorkers: 3
       matrix:
         <<: *test_matrix
+
+  - tests:
+      requires:
+        - ok_to_test
+      name: test_semeru8_debugger_smoke
+      maxWorkers: 4
+      gradleTarget: "stageMainDist dd-smoke-tests:debugger-integration-tests:test"
+      gradleParameters: "-PskipFlakyTests"
+      triggeredBy: *debugger_modules
+      stage: debugger
+      cacheType: smoke
+      testJvm: "semeru8"
 
   - tests:
       requires:
@@ -1206,6 +1246,10 @@ build_test_jobs: &build_test_jobs
             - master
             - project/*
             - release/*
+
+  - muzzle-dep-report:
+      requires:
+        - ok_to_test
 
   - system-tests:
       requires:

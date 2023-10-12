@@ -620,3 +620,29 @@ class Lettuce5SyncClientV1ForkedTest extends Lettuce5AsyncClientTest {
     return "redis.command"
   }
 }
+
+
+class Lettuce5AsyncProfilingForkedTest extends Lettuce5AsyncClientTest {
+
+  @Override
+  protected void configurePreAgent() {
+
+    super.configurePreAgent()
+    injectSysConfig('dd.profiling.enabled', 'true')
+  }
+
+  @Override
+  int version() {
+    return 2
+  }
+
+  @Override
+  String service() {
+    return "redis"
+  }
+
+  @Override
+  String operation() {
+    return "redis.query"
+  }
+}

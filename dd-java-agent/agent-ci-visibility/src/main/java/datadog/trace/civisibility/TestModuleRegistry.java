@@ -6,7 +6,6 @@ import datadog.trace.civisibility.ipc.ModuleExecutionResult;
 import datadog.trace.civisibility.ipc.SignalResponse;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import org.jacoco.core.data.ExecutionDataStore;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -14,20 +13,23 @@ public class TestModuleRegistry {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(TestModuleRegistry.class);
 
-  private final Map<Long, DDTestModuleParent> testModuleById;
+  private final Map<Long, DDBuildSystemModule> testModuleById;
 
   public TestModuleRegistry() {
     this.testModuleById = new ConcurrentHashMap<>();
   }
 
-  public void addModule(DDTestModuleParent module) {
+  public void addModule(DDBuildSystemModule module) {
     testModuleById.put(module.getId(), module);
   }
 
-  public SignalResponse onModuleExecutionResultReceived(
-      ModuleExecutionResult result, ExecutionDataStore coverageData) {
+  public void removeModule(DDBuildSystemModule module) {
+    testModuleById.remove(module.getId());
+  }
+
+  public SignalResponse onModuleExecutionResultReceived(ModuleExecutionResult result) {
     long moduleId = result.getModuleId();
-    DDTestModuleParent module = testModuleById.remove(moduleId);
+    DDBuildSystemModule module = testModuleById.get(moduleId);
     if (module == null) {
       String message =
           String.format(
@@ -37,7 +39,7 @@ public class TestModuleRegistry {
       return new ErrorResponse(message);
     }
 
-    module.onModuleExecutionResultReceived(result, coverageData);
+    module.onModuleExecutionResultReceived(result);
     return AckResponse.INSTANCE;
   }
 }

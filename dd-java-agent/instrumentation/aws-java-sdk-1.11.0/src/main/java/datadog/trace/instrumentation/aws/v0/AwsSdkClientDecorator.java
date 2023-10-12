@@ -10,14 +10,18 @@ import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
+import datadog.trace.api.experimental.DataStreamsContextCarrier.NoOp;
 import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
+import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator;
 import java.net.URI;
+import java.util.List;
 import java.util.Locale;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -46,6 +50,9 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
   private static final DDCache<String, String> serviceNameCache = DDCaches.newFixedSizeCache(128);
   private static final Pattern AWS_SERVICE_NAME_PATTERN = Pattern.compile("Amazon\\s?(\\w+)");
 
+  private static final String PUT_RECORD_OPERATION_NAME = "PutRecordRequest";
+  private static final String PUT_RECORDS_OPERATION_NAME = "PutRecordsRequest";
+
   private static String simplifyServiceName(String awsServiceName) {
     return serviceNameCache.computeIfAbsent(
         awsServiceName, AwsSdkClientDecorator::applyServiceNamePattern);
@@ -69,6 +76,7 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
     final String awsServiceName = request.getServiceName();
     final AmazonWebServiceRequest originalRequest = request.getOriginalRequest();
     final Class<?> awsOperation = originalRequest.getClass();
+    final GetterAccess access = GetterAccess.of(originalRequest);
 
     span.setTag(InstrumentationTags.AWS_AGENT, COMPONENT_NAME);
     span.setTag(InstrumentationTags.AWS_SERVICE, awsServiceName);
@@ -86,20 +94,26 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
       case "SQS.ReceiveMessage":
       case "SQS.DeleteMessage":
       case "SQS.DeleteMessageBatch":
-        span.setServiceName(SQS_SERVICE_NAME);
+        if (SQS_SERVICE_NAME != null) {
+          span.setServiceName(SQS_SERVICE_NAME);
+        }
         break;
       case "SNS.Publish":
-        span.setServiceName(SNS_SERVICE_NAME);
+        if (SNS_SERVICE_NAME != null) {
+          span.setServiceName(SNS_SERVICE_NAME);
+        }
         break;
       default:
-        span.setServiceName(GENERIC_SERVICE_NAME);
+        if (GENERIC_SERVICE_NAME != null) {
+          span.setServiceName(GENERIC_SERVICE_NAME);
+        }
         break;
     }
 
-    RequestAccess access = RequestAccess.of(originalRequest);
-    String bucketName = access.getBucketName(originalRequest);
     String bestPrecursor = null;
     String bestPeerService = null;
+
+    String bucketName = access.getBucketName(originalRequest);
     if (null != bucketName) {
       span.setTag(InstrumentationTags.AWS_BUCKET_NAME, bucketName);
       span.setTag(InstrumentationTags.BUCKET_NAME, bucketName);
@@ -134,6 +148,17 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
       bestPrecursor = InstrumentationTags.AWS_STREAM_NAME;
       bestPeerService = streamName;
     }
+    String streamArn = access.getStreamARN(originalRequest);
+    if (null != streamArn) {
+      int streamNameStart = streamArn.indexOf(":stream/");
+      if (streamNameStart >= 0) {
+        streamName = streamArn.substring(streamNameStart + 8);
+        span.setTag(InstrumentationTags.AWS_STREAM_NAME, streamName);
+        span.setTag(InstrumentationTags.STREAM_NAME, streamName);
+        bestPrecursor = InstrumentationTags.AWS_STREAM_NAME;
+        bestPeerService = streamName;
+      }
+    }
     String tableName = access.getTableName(originalRequest);
     if (null != tableName) {
       span.setTag(InstrumentationTags.AWS_TABLE_NAME, tableName);
@@ -147,6 +172,32 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
     if (bestPrecursor != null && SpanNaming.instance().namingSchema().peerService().supports()) {
       span.setTag(Tags.PEER_SERVICE, bestPeerService);
       span.setTag(DDTags.PEER_SERVICE_SOURCE, bestPrecursor);
+    }
+
+    if (span.traceConfig().isDataStreamsEnabled()
+        && null != streamArn
+        && "AmazonKinesis".equals(awsServiceName)) {
+      switch (awsOperation.getSimpleName()) {
+        case PUT_RECORD_OPERATION_NAME:
+          try (AgentScope scope = AgentTracer.activateSpan(span)) {
+            AgentTracer.get()
+                .getDataStreamsMonitoring()
+                .setProduceCheckpoint("kinesis", streamArn, NoOp.INSTANCE);
+          }
+          break;
+        case PUT_RECORDS_OPERATION_NAME:
+          try (AgentScope scope = AgentTracer.activateSpan(span)) {
+            List records = access.getRecords(originalRequest);
+            for (Object ignored : records) {
+              AgentTracer.get()
+                  .getDataStreamsMonitoring()
+                  .setProduceCheckpoint("kinesis", streamArn, NoOp.INSTANCE);
+            }
+          }
+          break;
+        default:
+          break;
+      }
     }
 
     return span;

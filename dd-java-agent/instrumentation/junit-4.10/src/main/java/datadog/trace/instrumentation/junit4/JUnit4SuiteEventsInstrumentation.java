@@ -1,7 +1,9 @@
 package datadog.trace.instrumentation.junit4;
 
+import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.declaresMethod;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.extendsClass;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
+import static net.bytebuddy.matcher.ElementMatchers.not;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
@@ -20,7 +22,7 @@ public class JUnit4SuiteEventsInstrumentation extends Instrumenter.CiVisibility
     implements Instrumenter.ForTypeHierarchy {
 
   public JUnit4SuiteEventsInstrumentation() {
-    super("junit-4-suite-events");
+    super("ci-visibility", "junit-4");
   }
 
   @Override
@@ -36,19 +38,23 @@ public class JUnit4SuiteEventsInstrumentation extends Instrumenter.CiVisibility
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".SkippedByItr",
-      packageName + ".JUnit4Utils$Cucumber",
-      packageName + ".JUnit4Utils$Munit",
-      packageName + ".JUnit4Utils",
       packageName + ".TestEventsHandlerHolder",
+      packageName + ".SkippedByItr",
+      packageName + ".JUnit4Utils",
       packageName + ".TracingListener",
+      packageName + ".JUnit4TracingListener",
     };
   }
 
   @Override
   public void adviceTransformations(AdviceTransformation transformation) {
     transformation.applyAdvice(
-        named("run").and(takesArgument(0, named("org.junit.runner.notification.RunNotifier"))),
+        named("run")
+            .and(
+                takesArgument(
+                    0,
+                    named("org.junit.runner.notification.RunNotifier")
+                        .and(not(declaresMethod(named("fireTestSuiteStarted")))))),
         JUnit4SuiteEventsInstrumentation.class.getName() + "$JUnit4SuiteEventsAdvice");
   }
 
@@ -57,10 +63,6 @@ public class JUnit4SuiteEventsInstrumentation extends Instrumenter.CiVisibility
     public static void fireSuiteStartedEvent(
         @Advice.Argument(0) final RunNotifier runNotifier,
         @Advice.This final ParentRunner<?> runner) {
-      if (JUnit4Utils.NATIVE_SUITE_EVENTS_SUPPORTED) {
-        return;
-      }
-
       final List<RunListener> runListeners = JUnit4Utils.runListenersFromRunNotifier(runNotifier);
       if (runListeners == null) {
         return;
@@ -78,10 +80,6 @@ public class JUnit4SuiteEventsInstrumentation extends Instrumenter.CiVisibility
     public static void fireSuiteFinishedEvent(
         @Advice.Argument(0) final RunNotifier runNotifier,
         @Advice.This final ParentRunner<?> runner) {
-      if (JUnit4Utils.NATIVE_SUITE_EVENTS_SUPPORTED) {
-        return;
-      }
-
       final List<RunListener> runListeners = JUnit4Utils.runListenersFromRunNotifier(runNotifier);
       if (runListeners == null) {
         return;

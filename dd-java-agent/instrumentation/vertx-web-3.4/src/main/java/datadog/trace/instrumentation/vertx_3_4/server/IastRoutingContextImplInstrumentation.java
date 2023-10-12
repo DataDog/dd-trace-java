@@ -53,7 +53,7 @@ public class IastRoutingContextImplInstrumentation extends Instrumenter.Iast
 
   public static class CookiesAdvice {
     @Advice.OnMethodExit
-    @Source(SourceTypes.REQUEST_COOKIE_VALUE_STRING)
+    @Source(SourceTypes.REQUEST_COOKIE_VALUE)
     public static void onCookies(@Advice.Return final Set<Object> cookies) {
       final PropagationModule module = InstrumentationBridge.PROPAGATION;
       try {
@@ -66,7 +66,7 @@ public class IastRoutingContextImplInstrumentation extends Instrumenter.Iast
 
   public static class GetCookieAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
-    @Source(SourceTypes.REQUEST_COOKIE_VALUE_STRING)
+    @Source(SourceTypes.REQUEST_COOKIE_VALUE)
     public static void onGetCookie(@Advice.Return final Object cookie) {
       final PropagationModule module = InstrumentationBridge.PROPAGATION;
       if (module != null) {

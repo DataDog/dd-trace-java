@@ -6,16 +6,18 @@ import datadog.trace.api.naming.v1.PeerServiceNamingV1;
 
 public class NamingSchemaV0 implements NamingSchema {
 
-  private final boolean allowsFakeServices = !Config.get().isRemoveIntegrationServiceNamesEnabled();
-  private final NamingSchema.ForCache cacheNaming = new CacheNamingV0(allowsFakeServices);
+  private final boolean allowInferredServices =
+      !Config.get().isRemoveIntegrationServiceNamesEnabled();
+  private final NamingSchema.ForCache cacheNaming = new CacheNamingV0(allowInferredServices);
   private final NamingSchema.ForClient clientNaming = new ClientNamingV0();
-  private final NamingSchema.ForCloud cloudNaming = new CloudNamingV0(allowsFakeServices);
-  private final NamingSchema.ForDatabase databaseNaming = new DatabaseNamingV0(allowsFakeServices);
+  private final NamingSchema.ForCloud cloudNaming = new CloudNamingV0(allowInferredServices);
+  private final NamingSchema.ForDatabase databaseNaming =
+      new DatabaseNamingV0(allowInferredServices);
   private final NamingSchema.ForMessaging messagingNaming =
-      new MessagingNamingV0(allowsFakeServices);
+      new MessagingNamingV0(allowInferredServices);
   private final NamingSchema.ForPeerService peerServiceNaming =
       Config.get().isPeerServiceDefaultsEnabled()
-          ? new PeerServiceNamingV1()
+          ? new PeerServiceNamingV1(Config.get().getPeerServiceComponentOverrides())
           : new PeerServiceNamingV0();
   private final NamingSchema.ForServer serverNaming = new ServerNamingV0();
 
@@ -55,7 +57,7 @@ public class NamingSchemaV0 implements NamingSchema {
   }
 
   @Override
-  public boolean allowFakeServices() {
-    return allowsFakeServices;
+  public boolean allowInferredServices() {
+    return allowInferredServices;
   }
 }

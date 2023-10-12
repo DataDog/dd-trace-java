@@ -6,7 +6,6 @@ import java.net.URL;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-import java.util.function.Function;
 import org.osgi.framework.Bundle;
 import org.osgi.framework.wiring.BundleRevision;
 import org.osgi.framework.wiring.BundleWire;
@@ -51,59 +50,73 @@ public final class BundleWiringHelper {
     return SKIP_REQUEST;
   }
 
-  /** Delegates the resource request to any bundles wired as dependencies. */
+  /** Delegates resource request to any direct dependencies (Import-Package, Require-Bundle etc.) */
   public static URL getResource(final Bundle origin, final String resourceName) {
-    return searchDirectWires(
-        (BundleWiring) origin.adapt(BundleWiring.class),
-        // Uses inner class for predictable name for Instrumenter.Default.helperClassNames()
-        new Function<BundleWiring, URL>() {
-          @Override
-          public URL apply(final BundleWiring wiring) {
-            return wiring.getBundle().getResource(resourceName);
-          }
-        },
-        new HashSet<BundleRevision>());
-  }
-
-  /** Delegates the class-load request to any bundles wired as dependencies. */
-  public static Class<?> loadClass(final Bundle origin, final String className) {
-    return searchDirectWires(
-        (BundleWiring) origin.adapt(BundleWiring.class),
-        // Uses inner class for predictable name for Instrumenter.Default.helperClassNames()
-        new Function<BundleWiring, Class<?>>() {
-          @Override
-          public Class<?> apply(final BundleWiring wiring) {
-            try {
-              return wiring.getBundle().loadClass(className);
-            } catch (ClassNotFoundException e) {
-              return null;
-            }
-          }
-        },
-        new HashSet<BundleRevision>());
-  }
-
-  /** Searches a bundle's direct dependencies (Import-Package, Require-Bundle etc.) */
-  private static <T> T searchDirectWires(
-      final BundleWiring origin,
-      final Function<BundleWiring, T> filter,
-      final Set<BundleRevision> visited) {
-    if (null != origin) {
+    BundleWiring wiring = (BundleWiring) origin.adapt(BundleWiring.class);
+    if (null != wiring) {
       // track which bundles we've visited to avoid dependency cycles
-      visited.add(origin.getRevision());
-      List<BundleWire> wires = origin.getRequiredWires(null);
-      if (null != wires) {
-        for (BundleWire wire : wires) {
-          BundleWiring wiring = wire.getProviderWiring();
-          if (null != wiring && visited.add(wiring.getRevision())) {
-            T result = filter.apply(wiring);
-            if (null != result) {
-              return result;
+      Set<BundleRevision> visited = new HashSet<>();
+      visited.add(wiring.getRevision());
+      // check all Import-Package and Require-Bundle dependencies for resources
+      List<BundleWire> dependencies = wiring.getRequiredWires(null);
+      if (null != dependencies) {
+        for (BundleWire dependency : dependencies) {
+          BundleWiring provider = dependency.getProviderWiring();
+          if (null != provider && visited.add(provider.getRevision())) {
+            try {
+              URL result = provider.getBundle().getResource(resourceName);
+              if (null != result) {
+                return result;
+              }
+            } catch (Exception ignore) {
+              // continue search...
             }
           }
         }
       }
     }
     return null;
+  }
+
+  /** Delegates class-load request to those direct dependencies that provide a similar package. */
+  public static Class<?> loadClass(final Bundle origin, final String className) {
+    BundleWiring wiring = (BundleWiring) origin.adapt(BundleWiring.class);
+    if (null != wiring) {
+      // track which bundles we've visited to avoid dependency cycles
+      Set<BundleRevision> visited = new HashSet<>();
+      visited.add(wiring.getRevision());
+      // check Import-Package dependencies that share a package prefix with the class
+      List<BundleWire> dependencies = wiring.getRequiredWires(PACKAGE_NAMESPACE);
+      if (null != dependencies) {
+        for (BundleWire dependency : dependencies) {
+          Object pkg = dependency.getCapability().getAttributes().get(PACKAGE_NAMESPACE);
+          if (pkg instanceof String && isRelatedPackage((String) pkg, className)) {
+            BundleWiring provider = dependency.getProviderWiring();
+            if (null != provider && visited.add(provider.getRevision())) {
+              try {
+                return provider.getBundle().loadClass(className);
+              } catch (Exception ignore) {
+                // continue search...
+              }
+            }
+          }
+        }
+      }
+    }
+    return null;
+  }
+
+  private static boolean isRelatedPackage(String providedPackage, String className) {
+    int segmentsMatched = 0;
+    for (int i = 0; i < providedPackage.length(); i++) {
+      char c = providedPackage.charAt(i);
+      if (i >= className.length() || c != className.charAt(i)) {
+        return false; // no common package prefix
+      }
+      if (c == '.' && ++segmentsMatched >= 3) {
+        break; // three package segments matched, assume related
+      }
+    }
+    return true;
   }
 }

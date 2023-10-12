@@ -5,12 +5,10 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import com.datadog.debugger.agent.DebuggerTracer;
 import com.datadog.debugger.agent.ProbeStatus;
 import com.datadog.debugger.probe.SpanProbe;
-import datadog.trace.test.agent.decoder.DecodedMessage;
 import datadog.trace.test.agent.decoder.DecodedSpan;
-import datadog.trace.test.agent.decoder.Decoder;
 import java.nio.file.Path;
 import java.util.List;
-import okhttp3.mockwebserver.RecordedRequest;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -33,10 +31,7 @@ public class SpanProbesIntegrationTest extends SimpleAppDebuggerIntegrationTest 
         SpanProbe.builder().probeId(PROBE_ID).where(MAIN_CLASS_NAME, METHOD_NAME).build();
     setCurrentConfiguration(createSpanConfig(spanProbe));
     targetProcess = createProcessBuilder(logFilePath, METHOD_NAME, EXPECTED_UPLOADS).start();
-    RecordedRequest spanRequest = retrieveSpanRequest();
-    DecodedMessage decodedMessage = Decoder.decodeV04(spanRequest.getBody().readByteArray());
-    DecodedSpan decodedSpan = decodedMessage.getTraces().get(0).getSpans().get(0);
-    assertEquals(DebuggerTracer.OPERATION_NAME, decodedSpan.getName());
+    DecodedSpan decodedSpan = retrieveSpanRequest(DebuggerTracer.OPERATION_NAME);
     assertEquals("Main.fullMethod", decodedSpan.getResource());
   }
 
@@ -46,14 +41,11 @@ public class SpanProbesIntegrationTest extends SimpleAppDebuggerIntegrationTest 
     final String METHOD_NAME = "fullMethod";
     final String EXPECTED_UPLOADS = "3"; // 2 + 1 for letting the trace being sent (async)
     SpanProbe spanProbe =
-        SpanProbe.builder().probeId(PROBE_ID).where(MAIN_CLASS_NAME, 68, 77).build();
+        SpanProbe.builder().probeId(PROBE_ID).where(MAIN_CLASS_NAME, 80, 89).build();
     setCurrentConfiguration(createSpanConfig(spanProbe));
     targetProcess = createProcessBuilder(logFilePath, METHOD_NAME, EXPECTED_UPLOADS).start();
-    RecordedRequest spanRequest = retrieveSpanRequest();
-    DecodedMessage decodedMessage = Decoder.decodeV04(spanRequest.getBody().readByteArray());
-    DecodedSpan decodedSpan = decodedMessage.getTraces().get(0).getSpans().get(0);
-    assertEquals(DebuggerTracer.OPERATION_NAME, decodedSpan.getName());
-    assertEquals("Main.fullMethod:L68-77", decodedSpan.getResource());
+    DecodedSpan decodedSpan = retrieveSpanRequest(DebuggerTracer.OPERATION_NAME);
+    assertEquals("Main.fullMethod:L80-89", decodedSpan.getResource());
   }
 
   @Test
@@ -61,15 +53,23 @@ public class SpanProbesIntegrationTest extends SimpleAppDebuggerIntegrationTest 
   void testSingleLineSpan() throws Exception {
     final String METHOD_NAME = "fullMethod";
     final String EXPECTED_UPLOADS = "2"; // 2 probe statuses: RECEIVED + ERROR
-    SpanProbe spanProbe = SpanProbe.builder().probeId(PROBE_ID).where(MAIN_CLASS_NAME, 68).build();
+    SpanProbe spanProbe = SpanProbe.builder().probeId(PROBE_ID).where(MAIN_CLASS_NAME, 80).build();
     setCurrentConfiguration(createSpanConfig(spanProbe));
     targetProcess = createProcessBuilder(logFilePath, METHOD_NAME, EXPECTED_UPLOADS).start();
-    ProbeStatus status = retrieveProbeStatusRequest();
-    assertEquals(ProbeStatus.Status.RECEIVED, status.getDiagnostics().getStatus());
-    status = retrieveProbeStatusRequest();
-    assertEquals(ProbeStatus.Status.ERROR, status.getDiagnostics().getStatus());
-    assertEquals(
-        "Single line span is not supported, you need to provide a range.",
-        status.getDiagnostics().getException().getMessage());
+    AtomicBoolean received = new AtomicBoolean(false);
+    AtomicBoolean error = new AtomicBoolean(false);
+    registerProbeStatusListener(
+        probeStatus -> {
+          if (probeStatus.getDiagnostics().getStatus() == ProbeStatus.Status.RECEIVED) {
+            received.set(true);
+          }
+          if (probeStatus.getDiagnostics().getStatus() == ProbeStatus.Status.ERROR) {
+            assertEquals(
+                "Single line span is not supported, you need to provide a range.",
+                probeStatus.getDiagnostics().getException().getMessage());
+            error.set(true);
+          }
+          return received.get() && error.get();
+        });
   }
 }

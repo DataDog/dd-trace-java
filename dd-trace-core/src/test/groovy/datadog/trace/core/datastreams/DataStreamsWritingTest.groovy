@@ -107,7 +107,7 @@ class DataStreamsWritingTest extends DDCoreSpecification {
     BufferedSource bufferedSource = Okio.buffer(gzipSource)
     MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(bufferedSource.inputStream())
 
-    assert unpacker.unpackMapHeader() == 6
+    assert unpacker.unpackMapHeader() == 7
     assert unpacker.unpackString() == "Env"
     assert unpacker.unpackString() == "test"
     assert unpacker.unpackString() == "Service"
@@ -118,6 +118,8 @@ class DataStreamsWritingTest extends DDCoreSpecification {
     assert unpacker.unpackString() == "region-1"
     assert unpacker.unpackString() == "TracerVersion"
     assert unpacker.unpackString() == DDTraceCoreInfo.VERSION
+    assert unpacker.unpackString() == "Version"
+    assert unpacker.unpackString() == "version"
     assert unpacker.unpackString() == "Stats"
     assert unpacker.unpackArrayHeader() == 2  // 2 time buckets
 

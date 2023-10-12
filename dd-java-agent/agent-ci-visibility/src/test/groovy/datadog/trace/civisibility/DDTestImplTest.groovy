@@ -7,10 +7,10 @@ import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.IdGenerationStrategy
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import datadog.trace.civisibility.codeowners.CodeownersImpl
-import datadog.trace.civisibility.context.ParentProcessTestContext
 import datadog.trace.civisibility.coverage.NoopCoverageProbeStore
 import datadog.trace.civisibility.decorator.TestDecoratorImpl
 import datadog.trace.civisibility.source.MethodLinesResolver
+import datadog.trace.civisibility.utils.SpanUtils
 import datadog.trace.common.writer.ListWriter
 import datadog.trace.core.CoreTracer
 import datadog.trace.test.util.DDSpecification
@@ -105,9 +105,6 @@ class DDTestImplTest extends DDSpecification {
     def moduleId = 456
     def suiteId = 789
 
-    def moduleContext = new ParentProcessTestContext(sessionId, moduleId)
-    def suiteContext = new ParentProcessTestContext(moduleId, suiteId)
-
     def config = Config.get()
     def testDecorator = new TestDecoratorImpl("component", [:])
     def sourcePathResolver = { it -> null }
@@ -115,12 +112,12 @@ class DDTestImplTest extends DDSpecification {
     def codeowners = CodeownersImpl.EMPTY
     def coverageProbeStoreFactory = new NoopCoverageProbeStore.NoopCoverageProbeStoreFactory()
     new DDTestImpl(
-      suiteContext,
-      moduleContext,
+      sessionId,
+      moduleId,
+      suiteId,
       "moduleName",
       "suiteName",
       "testName",
-      null,
       null,
       null,
       null,
@@ -129,7 +126,8 @@ class DDTestImplTest extends DDSpecification {
       sourcePathResolver,
       methodLinesResolver,
       codeowners,
-      coverageProbeStoreFactory
+      coverageProbeStoreFactory,
+      SpanUtils.DO_NOT_PROPAGATE_CI_VISIBILITY_TAGS
       )
   }
 

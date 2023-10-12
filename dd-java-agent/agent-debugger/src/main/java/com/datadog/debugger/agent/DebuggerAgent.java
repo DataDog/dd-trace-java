@@ -68,7 +68,8 @@ public class DebuggerAgent {
     DebuggerContext.initValueSerializer(snapshotSerializer);
     DebuggerContext.initTracer(new DebuggerTracer());
     if (config.isDebuggerInstrumentTheWorld()) {
-      setupInstrumentTheWorldTransformer(config, instrumentation, sink, statsdMetricForwarder);
+      setupInstrumentTheWorldTransformer(
+          config, instrumentation, debuggerSink, statsdMetricForwarder);
     }
 
     String probeFileLocation = config.getDebuggerProbeFileLocation();
@@ -137,11 +138,11 @@ public class DebuggerAgent {
   static ClassFileTransformer setupInstrumentTheWorldTransformer(
       Config config,
       Instrumentation instrumentation,
-      Sink sink,
+      DebuggerSink debuggerSink,
       StatsdMetricForwarder statsdMetricForwarder) {
     log.info("install Instrument-The-World transformer");
     DebuggerTransformer transformer =
-        createTransformer(config, Configuration.builder().build(), null);
+        createTransformer(config, Configuration.builder().build(), null, debuggerSink);
     DebuggerContext.init(transformer::instrumentTheWorldResolver, statsdMetricForwarder);
     instrumentation.addTransformer(transformer);
     return transformer;
@@ -158,8 +159,9 @@ public class DebuggerAgent {
   private static DebuggerTransformer createTransformer(
       Config config,
       Configuration configuration,
-      DebuggerTransformer.InstrumentationListener listener) {
-    return new DebuggerTransformer(config, configuration, listener);
+      DebuggerTransformer.InstrumentationListener listener,
+      DebuggerSink debuggerSink) {
+    return new DebuggerTransformer(config, configuration, listener, debuggerSink);
   }
 
   static void stop() {

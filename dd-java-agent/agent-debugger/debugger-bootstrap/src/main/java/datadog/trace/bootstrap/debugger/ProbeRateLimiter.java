@@ -1,13 +1,18 @@
 package datadog.trace.bootstrap.debugger;
 
 import datadog.trace.api.sampling.AdaptiveSampler;
+import datadog.trace.api.sampling.ConstantSampler;
+import datadog.trace.api.sampling.Sampler;
 import java.time.Duration;
 import java.time.temporal.ChronoUnit;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** Rate limiter for sending snapshot to backend Use a global rate limiter and one per probe */
 public class ProbeRateLimiter {
+  private static final Logger LOGGER = LoggerFactory.getLogger(ProbeRateLimiter.class);
   public static final double DEFAULT_SNAPSHOT_RATE = 1.0;
   public static final double DEFAULT_LOG_RATE = 5000.0;
   private static final Duration ONE_SECOND_WINDOW = Duration.of(1, ChronoUnit.SECONDS);
@@ -16,20 +21,23 @@ public class ProbeRateLimiter {
   private static final double DEFAULT_GLOBAL_LOG_RATE = 5000.0;
   private static final ConcurrentMap<String, RateLimitInfo> PROBE_SAMPLERS =
       new ConcurrentHashMap<>();
-  private static AdaptiveSampler GLOBAL_SNAPSHOT_SAMPLER =
-      createSampler(DEFAULT_GLOBAL_SNAPSHOT_RATE);
-  private static AdaptiveSampler GLOBAL_LOG_SAMPLER = createSampler(DEFAULT_GLOBAL_LOG_RATE);
+  private static Sampler GLOBAL_SNAPSHOT_SAMPLER = createSampler(DEFAULT_GLOBAL_SNAPSHOT_RATE);
+  private static Sampler GLOBAL_LOG_SAMPLER = createSampler(DEFAULT_GLOBAL_LOG_RATE);
 
   public static boolean tryProbe(String probeId) {
     RateLimitInfo rateLimitInfo =
-        PROBE_SAMPLERS.computeIfAbsent(
-            probeId, k -> new RateLimitInfo(createSampler(DEFAULT_SNAPSHOT_RATE), true));
-    AdaptiveSampler globalSampler =
+        PROBE_SAMPLERS.computeIfAbsent(probeId, ProbeRateLimiter::getDefaultRateLimitInfo);
+    Sampler globalSampler =
         rateLimitInfo.isCaptureSnapshot ? GLOBAL_SNAPSHOT_SAMPLER : GLOBAL_LOG_SAMPLER;
     if (globalSampler.sample()) {
       return rateLimitInfo.sampler.sample();
     }
     return false;
+  }
+
+  private static RateLimitInfo getDefaultRateLimitInfo(String probeId) {
+    LOGGER.debug("Setting sampling with default snapshot rate for probeId={}", probeId);
+    return new RateLimitInfo(createSampler(DEFAULT_SNAPSHOT_RATE), true);
   }
 
   public static void setRate(String probeId, double rate, boolean isCaptureSnapshot) {
@@ -57,7 +65,10 @@ public class ProbeRateLimiter {
     resetGlobalRate();
   }
 
-  private static AdaptiveSampler createSampler(double rate) {
+  private static Sampler createSampler(double rate) {
+    if (rate < 0) {
+      return new ConstantSampler(true);
+    }
     if (rate < 1) {
       int intRate = (int) Math.round(rate * 10);
       return new AdaptiveSampler(TEN_SECONDS_WINDOW, intRate, 180, 16);
@@ -66,10 +77,10 @@ public class ProbeRateLimiter {
   }
 
   private static class RateLimitInfo {
-    final AdaptiveSampler sampler;
+    final Sampler sampler;
     final boolean isCaptureSnapshot;
 
-    public RateLimitInfo(AdaptiveSampler sampler, boolean isCaptureSnapshot) {
+    public RateLimitInfo(Sampler sampler, boolean isCaptureSnapshot) {
       this.sampler = sampler;
       this.isCaptureSnapshot = isCaptureSnapshot;
     }

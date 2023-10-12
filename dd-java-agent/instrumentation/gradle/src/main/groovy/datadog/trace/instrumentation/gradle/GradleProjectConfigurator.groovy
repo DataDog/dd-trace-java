@@ -1,7 +1,9 @@
 package datadog.trace.instrumentation.gradle
 
 import datadog.trace.api.Config
+import datadog.trace.api.civisibility.config.ModuleExecutionSettings
 import datadog.trace.bootstrap.DatadogClassLoader
+import datadog.trace.util.Strings
 import org.gradle.api.Project
 import org.gradle.api.Task
 import org.gradle.internal.jvm.Jvm
@@ -11,6 +13,7 @@ import org.slf4j.LoggerFactory
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
+import java.util.regex.Matcher
 import java.util.regex.Pattern
 
 /**
@@ -43,6 +46,8 @@ class GradleProjectConfigurator {
 
   public static final GradleProjectConfigurator INSTANCE = new GradleProjectConfigurator()
 
+  private static final String JACOCO_PLUGIN_ID = 'jacoco'
+
   void configureTracer(Task task, Map<String, String> propagatedSystemProperties) {
     List<String> jvmArgs = new ArrayList<>(task.jvmArgs != null ? task.jvmArgs : Collections.<String> emptyList())
 
@@ -51,16 +56,40 @@ class GradleProjectConfigurator {
       jvmArgs.add("-D" + e.key + '=' + e.value)
     }
 
-    def ciVisibilityDebugPort = Config.get().ciVisibilityDebugPort
+    def config = Config.get()
+    def ciVisibilityDebugPort = config.ciVisibilityDebugPort
     if (ciVisibilityDebugPort != null) {
       jvmArgs.add(
         "-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address="
         + ciVisibilityDebugPort)
     }
 
-    jvmArgs.add("-javaagent:" + Config.get().ciVisibilityAgentJarFile.toPath())
+    String additionalArgs = config.ciVisibilityAdditionalChildProcessJvmArgs
+    if (additionalArgs != null) {
+      def project = task.getProject()
+      def projectProperties = project.getProperties()
+      def processedArgs = replaceProjectProperties(additionalArgs, projectProperties)
+      def splitArgs = processedArgs.split(" ")
+      jvmArgs.addAll(splitArgs)
+    }
+
+    jvmArgs.add("-javaagent:" + config.ciVisibilityAgentJarFile.toPath())
 
     task.jvmArgs(jvmArgs)
+  }
+
+  private static final Pattern PROJECT_PROPERTY_REFERENCE = Pattern.compile("\\\$\\{([^}]+)\\}")
+
+  static String replaceProjectProperties(String s, Map<String, ?> projectProperties) {
+    StringBuffer output = new StringBuffer()
+    Matcher matcher = PROJECT_PROPERTY_REFERENCE.matcher(s)
+    while (matcher.find()) {
+      def propertyName = matcher.group(1)
+      def propertyValue = projectProperties.get(propertyName)
+      matcher.appendReplacement(output, Matcher.quoteReplacement(String.valueOf(propertyValue)))
+    }
+    matcher.appendTail(output)
+    return output.toString()
   }
 
   void configureCompilerPlugin(Project project, String compilerPluginVersion) {
@@ -140,15 +169,13 @@ class GradleProjectConfigurator {
     return null
   }
 
-  void configureJacoco(Project project) {
-    def config = Config.get()
-    String jacocoPluginVersion = config.getCiVisibilityJacocoPluginVersion()
-    if (jacocoPluginVersion == null) {
+  void configureJacoco(Project project, ModuleExecutionSettings moduleExecutionSettings) {
+    if (!moduleExecutionSettings.codeCoverageEnabled || project.plugins.hasPlugin(JACOCO_PLUGIN_ID)) {
       return
     }
 
-    project.apply("plugin": "jacoco")
-    project.jacoco.toolVersion = jacocoPluginVersion
+    project.apply("plugin": JACOCO_PLUGIN_ID)
+    project.jacoco.toolVersion = Config.get().ciVisibilityJacocoPluginVersion
 
     // if instrumented project does dependency verification,
     // we need to exclude configurations added by Jacoco
@@ -160,16 +187,13 @@ class GradleProjectConfigurator {
       }
     }
 
+    def coverageEnabledPackages = moduleExecutionSettings.getCoverageEnabledPackages()
     forEveryTestTask project, { task ->
       task.jacoco.excludeClassLoaders += [DatadogClassLoader.name]
 
-      Collection<String> instrumentedPackages = config.ciVisibilityJacocoPluginIncludes
-      if (instrumentedPackages != null && !instrumentedPackages.empty) {
-        task.jacoco.includes += instrumentedPackages
-      } else {
-        Collection<String> excludedPackages = config.ciVisibilityJacocoPluginExcludes
-        if (excludedPackages != null && !excludedPackages.empty) {
-          task.jacoco.excludes += excludedPackages
+      for (String coverageEnabledPackage : coverageEnabledPackages) {
+        if (Strings.isNotBlank(coverageEnabledPackage)) {
+          task.jacoco.includes += coverageEnabledPackage
         }
       }
     }
@@ -196,8 +220,6 @@ class GradleProjectConfigurator {
       String compilerPluginVersion = config.getCiVisibilityCompilerPluginVersion()
       configureCompilerPlugin(project, compilerPluginVersion)
     }
-
-    configureJacoco(project)
 
     Map<Path, Collection<Task>> testExecutions = new HashMap<>()
     for (Task task : project.tasks) {

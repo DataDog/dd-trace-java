@@ -10,11 +10,11 @@ final class CachedData {
     okhttp_legacy : "[3.0,3.12.12]", // 3.12.x is last version to support Java7)
     okio          : "1.17.6", // Datadog fork
 
-    spock         : "2.1-groovy-$spockGroovyVer",
+    spock         : "2.2-groovy-$spockGroovyVer",
     groovy        : groovyVer,
     junit5        : "5.9.2",
     logback       : "1.2.3",
-    bytebuddy     : "1.14.5",
+    bytebuddy     : "1.14.8",
     scala         : "2.11.12",  // Last version to support Java 7 (2.12+ require Java 8+)
     scala210      : "2.10.7",
     scala211      : "2.11.12",
@@ -33,8 +33,8 @@ final class CachedData {
     testcontainers: '1.17.3',
     jmc           : "8.1.0",
     autoservice   : "1.0-rc7",
-    ddprof        : "0.72.0",
-    asm           : "9.5",
+    ddprof        : "0.81.0",
+    asm           : "9.6",
     cafe_crypto   : "0.1.0"
   ]
 

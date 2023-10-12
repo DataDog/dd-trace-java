@@ -438,8 +438,7 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
     context.setCheckpoint(new LinkedHashMap<>(["type": "internal"]), pointConsumer)
 
     def encoded = context.strEncode()
-    def jsonPathway = String.format("{\"%s\": \"%s\"}", PathwayContext.PROPAGATION_KEY_BASE64, encoded)
-    Map<String, String> carrier = [(PathwayContext.DATADOG_KEY): jsonPathway, "someotherkey": "someothervalue"]
+    Map<String, String> carrier = [(PathwayContext.PROPAGATION_KEY_BASE64): encoded, "someotherkey": "someothervalue"]
     timeSource.advance(MILLISECONDS.toNanos(1))
     def decodedContext = DefaultPathwayContext.extract(carrier, contextVisitor, timeSource, wellKnownTags)
     timeSource.advance(MILLISECONDS.toNanos(25))
@@ -459,8 +458,7 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
 
     when:
     def secondEncode = decodedContext.strEncode()
-    def secondJsonPathway = String.format("{\"%s\": \"%s\"}", PathwayContext.PROPAGATION_KEY_BASE64, secondEncode)
-    carrier = [(PathwayContext.DATADOG_KEY): secondJsonPathway]
+    carrier = [(PathwayContext.PROPAGATION_KEY_BASE64): secondEncode]
     timeSource.advance(MILLISECONDS.toNanos(2))
     def secondDecode = DefaultPathwayContext.extract(carrier, contextVisitor, timeSource, wellKnownTags)
     timeSource.advance(MILLISECONDS.toNanos(30))

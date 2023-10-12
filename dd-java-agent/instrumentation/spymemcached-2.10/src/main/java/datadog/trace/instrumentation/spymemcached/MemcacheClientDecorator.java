@@ -1,6 +1,5 @@
 package datadog.trace.instrumentation.spymemcached;
 
-import datadog.trace.api.Config;
 import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
@@ -15,7 +14,7 @@ public class MemcacheClientDecorator
   public static final String DB_TYPE = "memcached";
 
   private static final String SERVICE_NAME =
-      SpanNaming.instance().namingSchema().cache().service(Config.get().getServiceName(), DB_TYPE);
+      SpanNaming.instance().namingSchema().cache().service(DB_TYPE);
   public static final UTF8BytesString OPERATION_NAME =
       UTF8BytesString.create(SpanNaming.instance().namingSchema().cache().operation(DB_TYPE));
   public static final MemcacheClientDecorator DECORATE = new MemcacheClientDecorator();

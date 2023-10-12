@@ -86,6 +86,11 @@ public class TestApplicationHelper {
   }
 
   public static void waitForUpload(String logFileName, int expectedUploads) throws IOException {
+    if (expectedUploads == -1) {
+      System.out.println("wait for " + TIMEOUT_S + "s");
+      LockSupport.parkNanos(Duration.ofSeconds(TIMEOUT_S).toNanos());
+      return;
+    }
     System.out.println("waitForUpload #" + expectedUploads);
     AtomicInteger uploadCount = new AtomicInteger(0);
     waitForSpecificLogLine(

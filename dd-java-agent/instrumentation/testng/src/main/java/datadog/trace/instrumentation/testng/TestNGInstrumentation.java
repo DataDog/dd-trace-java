@@ -49,8 +49,7 @@ public class TestNGInstrumentation extends Instrumenter.CiVisibility
         }
       }
 
-      final String version = TestNGUtils.getTestNGVersion();
-      final TracingListener tracingListener = new TracingListener(version);
+      final TracingListener tracingListener = new TracingListener();
       testNG.addListener((ITestNGListener) tracingListener);
 
       TestNGSuiteListener suiteListener = new TestNGSuiteListener(tracingListener);

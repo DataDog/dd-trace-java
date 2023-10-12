@@ -1,5 +1,6 @@
 package datadog.trace.api.naming.v1;
 
+import datadog.trace.api.Config;
 import datadog.trace.api.naming.NamingSchema;
 
 public class NamingSchemaV1 implements NamingSchema {
@@ -8,7 +9,8 @@ public class NamingSchemaV1 implements NamingSchema {
   private final NamingSchema.ForCloud cloudNaming = new CloudNamingV1();
   private final NamingSchema.ForDatabase databaseNaming = new DatabaseNamingV1();
   private final NamingSchema.ForMessaging messagingNaming = new MessagingNamingV1();
-  private final NamingSchema.ForPeerService peerServiceNaming = new PeerServiceNamingV1();
+  private final NamingSchema.ForPeerService peerServiceNaming =
+      new PeerServiceNamingV1(Config.get().getPeerServiceComponentOverrides());
   private final NamingSchema.ForServer serverNaming = new ServerNamingV1();
 
   @Override
@@ -42,7 +44,7 @@ public class NamingSchemaV1 implements NamingSchema {
   }
 
   @Override
-  public boolean allowFakeServices() {
+  public boolean allowInferredServices() {
     return false;
   }
 

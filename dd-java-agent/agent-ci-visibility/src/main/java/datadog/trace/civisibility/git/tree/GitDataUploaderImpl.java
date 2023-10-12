@@ -4,7 +4,9 @@ import datadog.trace.api.Config;
 import datadog.trace.api.git.GitInfo;
 import datadog.trace.api.git.GitInfoProvider;
 import datadog.trace.civisibility.utils.FileUtils;
+import datadog.trace.civisibility.utils.ShellCommandExecutor;
 import datadog.trace.util.AgentThreadFactory;
+import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -80,7 +82,7 @@ public class GitDataUploaderImpl implements GitDataUploader {
   private void uploadGitData() {
     try {
       if (config.isCiVisibilityGitUnshallowEnabled() && gitClient.isShallow()) {
-        gitClient.unshallow();
+        unshallowRepository();
       }
 
       GitInfo gitInfo = gitInfoProvider.getGitInfo(repoRoot);
@@ -134,6 +136,27 @@ public class GitDataUploaderImpl implements GitDataUploader {
       callback.completeExceptionally(e);
     } finally {
       Runtime.getRuntime().removeShutdownHook(uploadFinishedShutdownHook);
+    }
+  }
+
+  private void unshallowRepository() throws IOException, TimeoutException, InterruptedException {
+    try {
+      gitClient.unshallow(GitClient.HEAD);
+      return;
+    } catch (ShellCommandExecutor.ShellCommandFailedException e) {
+      LOGGER.debug(
+          "Could not unshallow using HEAD - assuming HEAD points to a local commit that does not exist in the remote repo",
+          e);
+    }
+
+    try {
+      String upstreamBranch = gitClient.getUpstreamBranch();
+      gitClient.unshallow(upstreamBranch);
+    } catch (ShellCommandExecutor.ShellCommandFailedException e) {
+      LOGGER.debug(
+          "Could not unshallow using upstream branch - assuming currently checked out local branch does not track any remote branch",
+          e);
+      gitClient.unshallow(null);
     }
   }
 

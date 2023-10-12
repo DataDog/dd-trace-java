@@ -10,6 +10,8 @@ package datadog.trace.api.config;
  * <p>If using dd-java-agent, these keys represent settings that should be configured via system
  * properties, environment variables, or config properties file. See online documentation for
  * details.
+ *
+ * @see TraceInstrumentationConfig for instrumentation specific configuration
  */
 public final class TracerConfig {
   public static final String ID_GENERATION_STRATEGY = "id.generation.strategy";
@@ -115,6 +117,9 @@ public final class TracerConfig {
       "trace.experimental.long-running.flush.interval";
   public static final String TRACE_PEER_SERVICE_DEFAULTS_ENABLED =
       "trace.peer.service.defaults.enabled";
+
+  public static final String TRACE_PEER_SERVICE_COMPONENT_OVERRIDES =
+      "trace.peer.service.component.overrides";
 
   public static final String TRACE_REMOVE_INTEGRATION_SERVICE_NAMES_ENABLED =
       "trace.remove.integration-service-names.enabled";

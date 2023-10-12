@@ -1,0 +1,36 @@
+
+apply from: "$rootDir/gradle/java.gradle"
+
+muzzle {
+  pass {
+    group = 'io.vertx'
+    module = 'vertx-mysql-client'
+    versions = '[4.0.0,5.0.0)'
+    assertInverse = true
+  }
+}
+
+addTestSuiteForDir('latestDepTest', 'test')
+addTestSuiteExtendingForDir('latestDepForkedTest', 'latestDepTest', 'test')
+
+apply from: "$rootDir/gradle/configure_tests.gradle"
+
+latestDepTest {
+  finalizedBy 'latestDepForkedTest'
+}
+
+dependencies {
+  compileOnly group: 'io.vertx', name: 'vertx-mysql-client', version: '4.0.0'
+
+  testImplementation group: 'io.vertx', name: 'vertx-mysql-client', version: '4.0.0'
+
+  // This is needed for the test container to start
+  testImplementation group: 'mysql', name: 'mysql-connector-java', version: '8.0.23'
+  testImplementation "org.testcontainers:mysql:${versions.testcontainers}"
+
+  latestDepTestImplementation group: 'io.vertx', name: 'vertx-mysql-client', version: '4.0.+'
+}
+
+tasks.withType(Test).configureEach {
+  usesService(testcontainersLimit)
+}

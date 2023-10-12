@@ -1,0 +1,63 @@
+muzzle {
+  pass {
+    group = 'org.scala-lang'
+    module = 'scala-library'
+    versions = '[2.3,4.0)'
+    assertInverse = true
+  }
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+apply plugin: 'scala'
+apply plugin: 'call-site-instrumentation'
+
+dependencies {
+  // First 2.10 version that accepts target 1.8
+  compileOnly group: 'org.scala-lang', name: 'scala-library', version: '2.10.7'
+  testImplementation group: 'org.scala-lang', name: 'scala-library', version: '2.10.7'
+  testImplementation(testFixtures(project(':dd-java-agent:agent-iast')))
+  testRuntimeOnly project(':dd-java-agent:instrumentation:iast-instrumenter')
+}
+
+final scalaVersions = [deps.scala211, deps.scala212, deps.scala213, 'org.scala-lang:scala3-library_3:3.3.0'] as List<String>
+
+final testTasks = scalaVersions.collect { scalaLibrary ->
+
+  final version = scalaLibrary.substring(scalaLibrary.lastIndexOf(':') + 1).replaceAll('\\.', '_')
+  def (major, minor) = version.split('_').collect(Integer.&valueOf)
+  final javaConcatenation = major > 2 || minor > 11 // after 2.11 scala uses java.lang.StringBuilder to perform concatenation
+
+  final configuration = configurations.create("${version}Implementation")
+
+  dependencies { handler ->
+    handler.add(configuration.name, scalaLibrary)
+    handler.add(configuration.name, deps.slf4j)
+    if (javaConcatenation) {
+      handler.add(configuration.name, project(':dd-java-agent:instrumentation:java-lang'))
+    }
+  }
+
+  final customSourceSet = sourceSets.create("${version}") {
+    scala {
+      srcDirs = ['src/test/scala']
+      compileClasspath += configuration
+    }
+  }
+
+  return tasks.register("test$version", Test) {
+    classpath = classpath
+      .filter { !it.toString().contains('scala-library') }   // exclude default scala-library
+      .minus(files(sourceSets.test.scala.classesDirectory))  // exclude default /build/classes/scala/test folder
+      .plus(customSourceSet.output.classesDirs)              // add /build/classes/scala/${version} folder
+      .plus(configuration)                                   // add new scala-library configuration
+    systemProperty('uses.java.concat', javaConcatenation)
+    dependsOn(tasks.named("compile${version.capitalize()}Scala"))
+    group = 'verification'
+  }
+}
+
+tasks.named('test', Test).configure {
+  systemProperty('uses.java.concat', false) // version 2.10.7 does not use java concatenation
+  finalizedBy(testTasks)
+}
+

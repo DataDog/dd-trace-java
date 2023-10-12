@@ -424,6 +424,7 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
       startSpan(_, _, _) >> mSpan
       getCallbackProvider(RequestContextSlot.APPSEC) >> cbpAppSec
       getCallbackProvider(RequestContextSlot.IAST) >> CallbackProvider.CallbackProviderNoop.INSTANCE
+      getUniversalCallbackProvider() >> cbpAppSec // no iast callbacks, so this is equivalent
       getDataStreamsMonitoring() >> Mock(DataStreamsMonitoring)
     }
     def decorator = newDecorator(mTracer)

@@ -86,12 +86,14 @@ public final class ConfigDefaults {
   static final int DEFAULT_APPSEC_TRACE_RATE_LIMIT = 100;
   static final boolean DEFAULT_APPSEC_WAF_METRICS = true;
   static final int DEFAULT_APPSEC_WAF_TIMEOUT = 100000; // 0.1 s
+  static final boolean DEFAULT_API_SECURITY_ENABLED = false;
+  static final float DEFAULT_API_SECURITY_REQUEST_SAMPLE_RATE = 0.1f; // 10 %
 
   static final String DEFAULT_IAST_ENABLED = "false";
   static final boolean DEFAULT_IAST_DEBUG_ENABLED = false;
   public static final int DEFAULT_IAST_MAX_CONCURRENT_REQUESTS = 4;
   public static final int DEFAULT_IAST_VULNERABILITIES_PER_REQUEST = 2;
-  public static final int DEFAULT_IAST_REQUEST_SAMPLING = 30;
+  public static final int DEFAULT_IAST_REQUEST_SAMPLING = 33;
   static final Set<String> DEFAULT_IAST_WEAK_HASH_ALGORITHMS =
       new HashSet<>(Arrays.asList("SHA1", "SHA-1", "MD2", "MD5", "RIPEMD128", "MD4"));
   static final String DEFAULT_IAST_WEAK_CIPHER_ALGORITHMS =
@@ -101,7 +103,9 @@ public final class ConfigDefaults {
       "(?:p(?:ass)?w(?:or)?d|pass(?:_?phrase)?|secret|(?:api_?|private_?|public_?|access_?|secret_?)key(?:_?id)?|token|consumer_?(?:id|key|secret)|sign(?:ed|ature)?|auth(?:entication|orization)?)";
   static final String DEFAULT_IAST_REDACTION_VALUE_PATTERN =
       "(?:bearer\\s+[a-z0-9\\._\\-]+|glpat-[\\w\\-]{20}|gh[opsu]_[0-9a-zA-Z]{36}|ey[I-L][\\w=\\-]+\\.ey[I-L][\\w=\\-]+(?:\\.[\\w.+/=\\-]+)?|(?:[\\-]{5}BEGIN[a-z\\s]+PRIVATE\\sKEY[\\-]{5}[^\\-]+[\\-]{5}END[a-z\\s]+PRIVATE\\sKEY[\\-]{5}|ssh-rsa\\s*[a-z0-9/\\.+]{100,}))";
+  public static final int DEFAULT_IAST_MAX_RANGE_COUNT = 10;
 
+  static final int DEFAULT_IAST_TRUNCATION_MAX_VALUE_LENGTH = 250;
   public static final boolean DEFAULT_IAST_DEDUPLICATION_ENABLED = true;
 
   static final boolean DEFAULT_USM_ENABLED = false;
@@ -114,6 +118,7 @@ public final class ConfigDefaults {
   static final boolean DEFAULT_CIVISIBILITY_AUTO_CONFIGURATION_ENABLED = true;
   static final boolean DEFAULT_CIVISIBILITY_COMPILER_PLUGIN_AUTO_CONFIGURATION_ENABLED = true;
   static final String DEFAULT_CIVISIBILITY_COMPILER_PLUGIN_VERSION = "0.1.7";
+  static final String DEFAULT_CIVISIBILITY_JACOCO_PLUGIN_VERSION = "0.8.10";
   static final String DEFAULT_CIVISIBILITY_JACOCO_PLUGIN_EXCLUDES =
       "datadog.trace.*:org.apache.commons.*:org.mockito.*";
   static final boolean DEFAULT_CIVISIBILITY_GIT_UPLOAD_ENABLED = true;
@@ -149,6 +154,7 @@ public final class ConfigDefaults {
 
   static final boolean DEFAULT_TRACE_REPORT_HOSTNAME = false;
   static final String DEFAULT_TRACE_ANNOTATIONS = null;
+  static final boolean DEFAULT_TRACE_ANNOTATION_ASYNC = false;
   static final boolean DEFAULT_TRACE_EXECUTORS_ALL = false;
   static final String DEFAULT_TRACE_METHODS = null;
   static final String DEFAULT_MEASURE_METHODS = "";

@@ -37,7 +37,7 @@ public class AbstractFormProviderInstrumentation extends Instrumenter.Iast
 
   public static class InstrumenterAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
-    @Source(SourceTypes.REQUEST_PARAMETER_VALUE_STRING)
+    @Source(SourceTypes.REQUEST_PARAMETER_VALUE)
     public static void onExit(@Advice.Return Map<String, List<String>> result) {
       final WebModule module = InstrumentationBridge.WEB;
       final PropagationModule prop = InstrumentationBridge.PROPAGATION;

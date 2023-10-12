@@ -18,9 +18,7 @@ excludedClassesCoverage += [
   'datadog.trace.api.internal.TraceSegment',
   'datadog.trace.api.internal.TraceSegment.NoOp',
   'datadog.trace.api.civisibility.CIVisibility',
-  'datadog.trace.api.civisibility.config.Configurations',
   'datadog.trace.api.civisibility.DDTestModule',
-  'datadog.trace.api.civisibility.config.SkippableTest',
   'datadog.trace.api.config.ProfilingConfig',
   'datadog.trace.api.interceptor.MutableSpan',
   'datadog.trace.api.profiling.Profiling',
@@ -31,6 +29,7 @@ excludedClassesCoverage += [
   'datadog.trace.api.experimental.DataStreamsCheckpointer',
   'datadog.trace.api.experimental.DataStreamsCheckpointer.NoOp',
   'datadog.trace.api.experimental.DataStreamsContextCarrier',
+  'datadog.trace.api.experimental.DataStreamsContextCarrier.NoOp',
   'datadog.appsec.api.blocking.*',
 ]
 

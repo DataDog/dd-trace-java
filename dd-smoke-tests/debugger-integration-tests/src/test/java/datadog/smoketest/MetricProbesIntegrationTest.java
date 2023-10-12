@@ -6,10 +6,16 @@ import com.datadog.debugger.el.DSL;
 import com.datadog.debugger.el.ValueScript;
 import com.datadog.debugger.probe.MetricProbe;
 import java.io.IOException;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 public class MetricProbesIntegrationTest extends SimpleAppDebuggerIntegrationTest {
+
+  @AfterEach
+  void teardown() throws Exception {
+    processRemainingRequests();
+  }
 
   @Test
   @DisplayName("testMethodMetricInc")
@@ -65,7 +71,8 @@ public class MetricProbesIntegrationTest extends SimpleAppDebuggerIntegrationTes
       String metricName, MetricProbe.MetricKind kind, ValueScript script, String expectedMsgFormat)
       throws IOException {
     final String METHOD_NAME = "fullMethod";
-    final String EXPECTED_UPLOADS = "3"; // 2 + 1 for letting the metric being sent (async)
+    final String EXPECTED_UPLOADS =
+        "-1"; // wait for TIMEOUT_S for letting the metric being sent (async)
     MetricProbe metricProbe =
         MetricProbe.builder()
             .probeId(PROBE_ID)
@@ -134,11 +141,12 @@ public class MetricProbesIntegrationTest extends SimpleAppDebuggerIntegrationTes
       String metricName, MetricProbe.MetricKind kind, ValueScript script, String expectedMsgFormat)
       throws IOException {
     final String METHOD_NAME = "fullMethod";
-    final String EXPECTED_UPLOADS = "3"; // 2 + 1 for letting the metric being sent (async)
+    final String EXPECTED_UPLOADS =
+        "-1"; // wait for TIMEOUT_S for letting the metric being sent (async)
     MetricProbe metricProbe =
         MetricProbe.builder()
             .probeId(PROBE_ID)
-            .where("DebuggerTestApplication.java", 69)
+            .where("DebuggerTestApplication.java", 80)
             .kind(kind)
             .metricName(metricName)
             .valueScript(script)

@@ -46,9 +46,6 @@ public final class JMSDecorator extends MessagingClientDecorator {
   private static final Join QUEUE_JOINER = PrefixJoin.of("Queue ");
   private static final Join TOPIC_JOINER = PrefixJoin.of("Topic ");
 
-  private static final String LOCAL_SERVICE_NAME =
-      JMS_LEGACY_TRACING ? "jms" : Config.get().getServiceName();
-
   private final DDCache<CharSequence, CharSequence> resourceNameCache =
       DDCaches.newFixedSizeCache(32);
 
@@ -69,14 +66,20 @@ public final class JMSDecorator extends MessagingClientDecorator {
           "Produced for ",
           Tags.SPAN_KIND_PRODUCER,
           InternalSpanTypes.MESSAGE_PRODUCER,
-          LOCAL_SERVICE_NAME);
+          SpanNaming.instance()
+              .namingSchema()
+              .messaging()
+              .outboundService("jms", JMS_LEGACY_TRACING));
 
   public static final JMSDecorator CONSUMER_DECORATE =
       new JMSDecorator(
           "Consumed from ",
           Tags.SPAN_KIND_CONSUMER,
           InternalSpanTypes.MESSAGE_CONSUMER,
-          LOCAL_SERVICE_NAME);
+          SpanNaming.instance()
+              .namingSchema()
+              .messaging()
+              .inboundService("jms", JMS_LEGACY_TRACING));
 
   public static final JMSDecorator BROKER_DECORATE =
       new JMSDecorator(

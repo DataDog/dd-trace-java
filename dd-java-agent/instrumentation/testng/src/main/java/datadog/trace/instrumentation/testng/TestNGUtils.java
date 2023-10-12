@@ -111,6 +111,26 @@ public abstract class TestNGUtils {
     return !groups.isEmpty() ? groups : null;
   }
 
+  public static List<String> getGroups(Method method) {
+    List<String> groups = new ArrayList<>();
+
+    Test methodAnnotation = method.getAnnotation(Test.class);
+    if (methodAnnotation != null) {
+      Collections.addAll(groups, methodAnnotation.groups());
+    }
+
+    Class<?> clazz = method.getDeclaringClass();
+    do {
+      Test classAnnotation = clazz.getAnnotation(Test.class);
+      if (classAnnotation != null) {
+        Collections.addAll(groups, classAnnotation.groups());
+      }
+      clazz = clazz.getSuperclass();
+    } while (clazz != null);
+
+    return groups;
+  }
+
   public static TestNGClassListener getTestNGClassListener(ITestContext testContext) {
     try {
       if (!(testContext instanceof ITestResultNotifier)) {

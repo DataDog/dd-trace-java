@@ -59,9 +59,9 @@ class SparkStructuredStreamingTest extends AgentTestRunner {
 
     expect:
     assertTraces(2) {
-      trace(4) {
+      trace(5) {
         span {
-          operationName "spark.batch"
+          operationName "spark.streaming_batch"
           resourceName "test-query"
           spanType "spark"
           parent()
@@ -129,6 +129,7 @@ class SparkStructuredStreamingTest extends AgentTestRunner {
             "spark.task_with_output_count" Long
 
             // Config tags
+            "config.spark_version" String
             "config.spark_app_id" String
             "config.spark_app_name" String
             "config.spark_jobGroup_id" String
@@ -144,42 +145,52 @@ class SparkStructuredStreamingTest extends AgentTestRunner {
           }
         }
         span {
-          operationName "spark.job"
+          operationName "spark.sql"
           spanType "spark"
           childOf(span(0))
         }
         span {
-          operationName "spark.stage"
+          operationName "spark.job"
           spanType "spark"
           childOf(span(1))
         }
         span {
           operationName "spark.stage"
           spanType "spark"
-          childOf(span(1))
+          childOf(span(2))
+        }
+        span {
+          operationName "spark.stage"
+          spanType "spark"
+          childOf(span(2))
         }
       }
-      trace(4) {
+      trace(5) {
         span {
-          operationName "spark.batch"
+          operationName "spark.streaming_batch"
           spanType "spark"
           assert span.tags["batch_id"] == 1
           parent()
         }
         span {
-          operationName "spark.job"
+          operationName "spark.sql"
           spanType "spark"
           childOf(span(0))
         }
         span {
-          operationName "spark.stage"
+          operationName "spark.job"
           spanType "spark"
           childOf(span(1))
         }
         span {
           operationName "spark.stage"
           spanType "spark"
-          childOf(span(1))
+          childOf(span(2))
+        }
+        span {
+          operationName "spark.stage"
+          spanType "spark"
+          childOf(span(2))
         }
       }
     }
@@ -205,27 +216,32 @@ class SparkStructuredStreamingTest extends AgentTestRunner {
     sparkSession.stop()
 
     assertTraces(1) {
-      trace(4) {
+      trace(5, true) {
         span {
-          operationName "spark.batch"
+          operationName "spark.job"
+          spanType "spark"
+          errored true
+          childOf(span(1))
+        }
+        span {
+          operationName "spark.sql"
+          spanType "spark"
+          childOf(span(3))
+        }
+        span {
+          operationName "spark.stage"
+          spanType "spark"
+          errored true
+          childOf(span(0))
+        }
+        span {
+          operationName "spark.streaming_batch"
           resourceName "failing-query"
           spanType "spark"
           errored true
           assert span.tags["error.message"] =~ /org.apache.spark.SparkException: .*\n/
           assert span.tags["error.stack"] =~ /(?s).*Job aborted due to stage failure.*Caused by: java.lang.NullPointerException.*/
           parent()
-        }
-        span {
-          operationName "spark.job"
-          spanType "spark"
-          errored true
-          childOf(span(0))
-        }
-        span {
-          operationName "spark.stage"
-          spanType "spark"
-          errored true
-          childOf(span(1))
         }
         span {
           operationName "spark.task"

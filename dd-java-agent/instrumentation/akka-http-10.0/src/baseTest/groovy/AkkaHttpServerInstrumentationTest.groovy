@@ -3,10 +3,20 @@ import datadog.trace.agent.test.base.HttpServerTest
 import datadog.trace.agent.test.naming.TestingGenericHttpNamingConventions
 import datadog.trace.agent.test.utils.ThreadUtils
 import datadog.trace.instrumentation.akkahttp.AkkaHttpServerDecorator
+import okhttp3.HttpUrl
+import okhttp3.MultipartBody
 import okhttp3.Request
+import okhttp3.RequestBody
+import okhttp3.Response
 import spock.lang.Shared
 
 import java.util.concurrent.atomic.AtomicInteger
+
+import static datadog.trace.agent.test.base.HttpServerTest.IG_ASK_FOR_RESPONSE_HEADER_TAGS_HEADER
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_JSON
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_MULTIPART
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
+import static org.junit.Assume.assumeTrue
 
 abstract class AkkaHttpServerInstrumentationTest extends HttpServerTest<AkkaHttpTestWebServer> {
 
@@ -26,17 +36,52 @@ abstract class AkkaHttpServerInstrumentationTest extends HttpServerTest<AkkaHttp
   }
 
   @Override
-  boolean hasPeerInformation() {
-    return false
-  }
-
-  @Override
   boolean hasExtraErrorInformation() {
     return true
   }
 
   @Override
+  protected boolean enabledFinishTimingChecks() {
+    true
+  }
+
+  @Override
   boolean changesAll404s() {
+    true
+  }
+
+  @Override
+  boolean testBlocking() {
+    true
+  }
+
+  @Override
+  boolean testBlockingOnResponse() {
+    true
+  }
+
+  @Override
+  boolean testRequestBody() {
+    true
+  }
+
+  @Override
+  boolean testBodyUrlencoded() {
+    true
+  }
+
+  @Override
+  boolean testBodyMultipart() {
+    true
+  }
+
+  @Override
+  boolean testBodyJson() {
+    true
+  }
+
+  @Override
+  boolean isRequestBodyNoStreaming() {
     true
   }
 
@@ -73,6 +118,89 @@ abstract class AkkaHttpServerInstrumentationTest extends HttpServerTest<AkkaHttp
     and:
     TEST_WRITER.waitForTraces(totalInvocations)
   }
+
+  def 'test instrumentation gateway multipart request body — strict variant'() {
+    setup:
+    assumeTrue(testBodyMultipart())
+    def body = new MultipartBody.Builder()
+      .setType(MultipartBody.FORM)
+      .addFormDataPart('a', 'x')
+      .build()
+
+    def url = HttpUrl.get(BODY_MULTIPART.resolve(address)).newBuilder()
+      .encodedQuery('variant=strictUnmarshaller')
+      .build()
+    def request = new Request.Builder()
+      .url(url)
+      .method('POST', body)
+      .build()
+    def response = client.newCall(request).execute()
+    if (isDataStreamsEnabled()) {
+      TEST_DATA_STREAMS_WRITER.waitForGroups(1)
+    }
+
+    expect:
+    response.body().charStream().text == '[a:[x]]'
+
+    when:
+    TEST_WRITER.waitForTraces(1)
+
+    then:
+    TEST_WRITER.get(0).any {
+      it.getTag('request.body.converted') == '[a:[x]]'
+    }
+  }
+
+  def 'test instrumentation gateway json request body — spray variant'() {
+    assumeTrue(testBodyJson())
+
+    setup:
+    def url = HttpUrl.get(BODY_JSON.resolve(address)).newBuilder()
+      .encodedQuery('variant=spray')
+      .build()
+    def request = new Request.Builder()
+      .url(url)
+      .method('POST', RequestBody.create(okhttp3.MediaType.get('application/json'), '{"a":"x"}\n'))
+      .build()
+    def response = client.newCall(request).execute()
+    if (isDataStreamsEnabled()) {
+      TEST_DATA_STREAMS_WRITER.waitForGroups(1)
+    }
+
+    expect:
+    response.body().charStream().text == '{"a":"x"}'
+
+    when:
+    TEST_WRITER.waitForTraces(1)
+
+    then:
+    TEST_WRITER.get(0).any {
+      it.getTag('request.body.converted') == '[a:[x]]'
+    }
+  }
+
+  void 'content length and type are provided to IG on strict responses'() {
+    setup:
+    Request request = request(SUCCESS, 'GET', null)
+      .header(IG_EXTRA_SPAN_NAME_HEADER, 'ig-span')
+      .header(IG_ASK_FOR_RESPONSE_HEADER_TAGS_HEADER, 'true')
+      .build()
+    Response response = client.newCall(request).execute()
+    if (isDataStreamsEnabled()) {
+      TEST_DATA_STREAMS_WRITER.waitForGroups(1)
+    }
+
+    expect:
+    response.body().charStream().text == SUCCESS.body
+
+    when:
+    TEST_WRITER.waitForTraces(1)
+    def tags = TEST_WRITER.get(0).find { it.spanName == 'ig-span' }.tags
+
+    then:
+    tags['response.header.content-type'] != null
+    tags['response.header.content-length'] == SUCCESS.body.length() as String
+  }
 }
 
 abstract class AkkaHttpServerInstrumentationSyncTest extends AkkaHttpServerInstrumentationTest {
@@ -84,6 +212,27 @@ abstract class AkkaHttpServerInstrumentationSyncTest extends AkkaHttpServerInstr
   @Override
   String expectedOperationName() {
     return operation()
+  }
+
+  // we test body endpoints only on the async tests
+  @Override
+  boolean testRequestBody() {
+    false
+  }
+
+  @Override
+  boolean testBodyMultipart() {
+    false
+  }
+
+  @Override
+  boolean testBodyJson() {
+    false
+  }
+
+  @Override
+  boolean testBodyUrlencoded() {
+    false
   }
 }
 
@@ -115,26 +264,56 @@ class AkkaHttpServerInstrumentationAsyncTest extends AkkaHttpServerInstrumentati
 }
 
 class AkkaHttpServerInstrumentationBindAndHandleTest extends AkkaHttpServerInstrumentationTest {
+  String akkaHttpVersion
+
   @Override
   HttpServer server() {
-    return new AkkaHttpTestWebServer(AkkaHttpTestWebServer.BindAndHandle())
+    AkkaHttpTestWebServer server = new AkkaHttpTestWebServer(AkkaHttpTestWebServer.BindAndHandle())
+    akkaHttpVersion = server.system().settings().config().getString('akka.http.version')
+    server
   }
 
   @Override
   boolean redirectHasBody() {
     return true
+  }
+
+  // StrictForm marshaller rejects with providing a Rejection
+  // We can't detect the BlockingException as a consequence
+  @Override
+  boolean testBodyMultipart() {
+    akkaHttpVersion != '10.0.10'
+  }
+
+  @Override
+  boolean testBodyUrlencoded() {
+    akkaHttpVersion != '10.0.10'
   }
 }
 
 class AkkaHttpServerInstrumentationBindAndHandleAsyncWithRouteAsyncHandlerTest extends AkkaHttpServerInstrumentationTest {
+  String akkaHttpVersion
+
   @Override
   HttpServer server() {
-    return new AkkaHttpTestWebServer(AkkaHttpTestWebServer.BindAndHandleAsyncWithRouteAsyncHandler())
+    AkkaHttpTestWebServer server = new AkkaHttpTestWebServer(AkkaHttpTestWebServer.BindAndHandleAsyncWithRouteAsyncHandler())
+    akkaHttpVersion = server.system().settings().config().getString('akka.http.version')
+    server
   }
 
   @Override
   boolean redirectHasBody() {
     return true
+  }
+
+  @Override
+  boolean testBodyMultipart() {
+    akkaHttpVersion != '10.0.10'
+  }
+
+  @Override
+  boolean testBodyUrlencoded() {
+    akkaHttpVersion != '10.0.10'
   }
 }
 

@@ -4,6 +4,8 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_AGENT_HOST;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_AGENT_TIMEOUT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_AGENT_WRITER_TYPE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_ANALYTICS_SAMPLE_RATE;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_API_SECURITY_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_API_SECURITY_REQUEST_SAMPLE_RATE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_REPORTING_INBAND;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_TRACE_RATE_LIMIT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_WAF_METRICS;
@@ -20,6 +22,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_GIT_UNSHALLO
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_GIT_UPLOAD_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_GIT_UPLOAD_TIMEOUT_MILLIS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_JACOCO_PLUGIN_EXCLUDES;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_JACOCO_PLUGIN_VERSION;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_SIGNAL_SERVER_HOST;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_SIGNAL_SERVER_PORT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_SOURCE_DATA_ENABLED;
@@ -61,6 +64,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_DEBUG_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_REDACTION_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_REDACTION_NAME_PATTERN;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_REDACTION_VALUE_PATTERN;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_TRUNCATION_MAX_VALUE_LENGTH;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_WEAK_CIPHER_ALGORITHMS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_WEAK_HASH_ALGORITHMS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_JMX_FETCH_ENABLED;
@@ -111,6 +115,8 @@ import static datadog.trace.api.DDTags.SCHEMA_VERSION_TAG_KEY;
 import static datadog.trace.api.DDTags.SERVICE;
 import static datadog.trace.api.DDTags.SERVICE_TAG;
 import static datadog.trace.api.UserEventTrackingMode.SAFE;
+import static datadog.trace.api.config.AppSecConfig.API_SECURITY_ENABLED;
+import static datadog.trace.api.config.AppSecConfig.API_SECURITY_REQUEST_SAMPLE_RATE;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_AUTOMATED_USER_EVENTS_TRACKING;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_HTTP_BLOCKED_TEMPLATE_HTML;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_HTTP_BLOCKED_TEMPLATE_JSON;
@@ -123,6 +129,7 @@ import static datadog.trace.api.config.AppSecConfig.APPSEC_RULES_FILE;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_TRACE_RATE_LIMIT;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_WAF_METRICS;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_WAF_TIMEOUT;
+import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_ADDITIONAL_CHILD_PROCESS_JVM_ARGS;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_AGENTLESS_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_AGENTLESS_URL;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_AGENT_JAR_URI;
@@ -216,6 +223,7 @@ import static datadog.trace.api.config.IastConfig.IAST_REDACTION_ENABLED;
 import static datadog.trace.api.config.IastConfig.IAST_REDACTION_NAME_PATTERN;
 import static datadog.trace.api.config.IastConfig.IAST_REDACTION_VALUE_PATTERN;
 import static datadog.trace.api.config.IastConfig.IAST_TELEMETRY_VERBOSITY;
+import static datadog.trace.api.config.IastConfig.IAST_TRUNCATION_MAX_VALUE_LENGTH;
 import static datadog.trace.api.config.IastConfig.IAST_WEAK_CIPHER_ALGORITHMS;
 import static datadog.trace.api.config.IastConfig.IAST_WEAK_HASH_ALGORITHMS;
 import static datadog.trace.api.config.JmxFetchConfig.JMX_FETCH_CHECK_PERIOD;
@@ -361,6 +369,7 @@ import static datadog.trace.api.config.TracerConfig.TRACE_GIT_METADATA_ENABLED;
 import static datadog.trace.api.config.TracerConfig.TRACE_HTTP_CLIENT_PATH_RESOURCE_NAME_MAPPING;
 import static datadog.trace.api.config.TracerConfig.TRACE_HTTP_RESOURCE_REMOVE_TRAILING_SLASH;
 import static datadog.trace.api.config.TracerConfig.TRACE_HTTP_SERVER_PATH_RESOURCE_NAME_MAPPING;
+import static datadog.trace.api.config.TracerConfig.TRACE_PEER_SERVICE_COMPONENT_OVERRIDES;
 import static datadog.trace.api.config.TracerConfig.TRACE_PEER_SERVICE_DEFAULTS_ENABLED;
 import static datadog.trace.api.config.TracerConfig.TRACE_PEER_SERVICE_MAPPING;
 import static datadog.trace.api.config.TracerConfig.TRACE_PROPAGATION_STYLE;
@@ -432,14 +441,22 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Config reads values with the following priority: 1) system properties, 2) environment variables,
- * 3) optional configuration file, 4) platform dependant properties. It also includes default values
- * to ensure a valid config.
+ * Config reads values with the following priority:
  *
- * <p>
+ * <p>1) system properties
+ *
+ * <p>2) environment variables,
+ *
+ * <p>3) optional configuration file
+ *
+ * <p>4) platform dependant properties. It also includes default values to ensure a valid config.
  *
  * <p>System properties are {@link Config#PREFIX}'ed. Environment variables are the same as the
  * system property, but uppercased and '.' is replaced with '_'.
+ *
+ * @see ConfigProvider for details on how configs are processed
+ * @see InstrumenterConfig for pre-instrumentation configurations
+ * @see DynamicConfig for configuration that can be dynamically updated via remote-config
  */
 @Deprecated
 public class Config {
@@ -501,6 +518,7 @@ public class Config {
   private final boolean traceResolverEnabled;
   private final int spanAttributeSchemaVersion;
   private final boolean peerServiceDefaultsEnabled;
+  private final Map<String, String> peerServiceComponentOverrides;
   private final boolean removeIntegrationServiceNamesEnabled;
   private final Map<String, String> peerServiceMapping;
   private final Map<String, String> serviceMapping;
@@ -622,6 +640,8 @@ public class Config {
   private final String appSecHttpBlockedTemplateHtml;
   private final String appSecHttpBlockedTemplateJson;
   private final UserEventTrackingMode appSecUserEventsTracking;
+  private final boolean apiSecurityEnabled;
+  private final float apiSecurityRequestSampleRate;
 
   private final IastDetectionMode iastDetectionMode;
   private final int iastMaxConcurrentRequests;
@@ -632,6 +652,8 @@ public class Config {
   private final boolean iastRedactionEnabled;
   private final String iastRedactionNamePattern;
   private final String iastRedactionValuePattern;
+  private final int iastMaxRangeCount;
+  private final int iastTruncationMaxValueLength;
 
   private final boolean ciVisibilityTraceSanitationEnabled;
   private final boolean ciVisibilityAgentlessEnabled;
@@ -644,6 +666,7 @@ public class Config {
   private final Long ciVisibilityModuleId;
   private final String ciVisibilityAgentJarUri;
   private final boolean ciVisibilityAutoConfigurationEnabled;
+  private final String ciVisibilityAdditionalChildProcessJvmArgs;
   private final boolean ciVisibilityCompilerPluginAutoConfigurationEnabled;
   private final boolean ciVisibilityCodeCoverageEnabled;
   private final boolean ciVisibilityCodeCoveragePercentageCalculationEnabled;
@@ -1013,6 +1036,8 @@ public class Config {
     // in v1+ defaults are always calculated regardless this feature flag
     peerServiceDefaultsEnabled =
         configProvider.getBoolean(TRACE_PEER_SERVICE_DEFAULTS_ENABLED, false);
+    peerServiceComponentOverrides =
+        configProvider.getMergedMap(TRACE_PEER_SERVICE_COMPONENT_OVERRIDES);
     // feature flag to remove fake services in v0
     removeIntegrationServiceNamesEnabled =
         configProvider.getBoolean(TRACE_REMOVE_INTEGRATION_SERVICE_NAMES_ENABLED, false);
@@ -1421,6 +1446,11 @@ public class Config {
         UserEventTrackingMode.fromString(
             configProvider.getStringNotEmpty(
                 APPSEC_AUTOMATED_USER_EVENTS_TRACKING, SAFE.toString()));
+    apiSecurityEnabled =
+        configProvider.getBoolean(API_SECURITY_ENABLED, DEFAULT_API_SECURITY_ENABLED);
+    apiSecurityRequestSampleRate =
+        configProvider.getFloat(
+            API_SECURITY_REQUEST_SAMPLE_RATE, DEFAULT_API_SECURITY_REQUEST_SAMPLE_RATE);
 
     iastDebugEnabled = configProvider.getBoolean(IAST_DEBUG_ENABLED, DEFAULT_IAST_DEBUG_ENABLED);
 
@@ -1447,6 +1477,10 @@ public class Config {
     iastRedactionValuePattern =
         configProvider.getString(
             IAST_REDACTION_VALUE_PATTERN, DEFAULT_IAST_REDACTION_VALUE_PATTERN);
+    iastTruncationMaxValueLength =
+        configProvider.getInteger(
+            IAST_TRUNCATION_MAX_VALUE_LENGTH, DEFAULT_IAST_TRUNCATION_MAX_VALUE_LENGTH);
+    iastMaxRangeCount = iastDetectionMode.getIastMaxRangeCount(configProvider);
 
     ciVisibilityTraceSanitationEnabled =
         configProvider.getBoolean(CIVISIBILITY_TRACE_SANITATION_ENABLED, true);
@@ -1493,6 +1527,8 @@ public class Config {
         configProvider.getBoolean(
             CIVISIBILITY_AUTO_CONFIGURATION_ENABLED,
             DEFAULT_CIVISIBILITY_AUTO_CONFIGURATION_ENABLED);
+    ciVisibilityAdditionalChildProcessJvmArgs =
+        configProvider.getString(CIVISIBILITY_ADDITIONAL_CHILD_PROCESS_JVM_ARGS);
     ciVisibilityCompilerPluginAutoConfigurationEnabled =
         configProvider.getBoolean(
             CIVISIBILITY_COMPILER_PLUGIN_AUTO_CONFIGURATION_ENABLED,
@@ -1506,7 +1542,9 @@ public class Config {
     ciVisibilityCompilerPluginVersion =
         configProvider.getString(
             CIVISIBILITY_COMPILER_PLUGIN_VERSION, DEFAULT_CIVISIBILITY_COMPILER_PLUGIN_VERSION);
-    ciVisibilityJacocoPluginVersion = configProvider.getString(CIVISIBILITY_JACOCO_PLUGIN_VERSION);
+    ciVisibilityJacocoPluginVersion =
+        configProvider.getString(
+            CIVISIBILITY_JACOCO_PLUGIN_VERSION, DEFAULT_CIVISIBILITY_JACOCO_PLUGIN_VERSION);
     ciVisibilityJacocoPluginIncludes =
         Arrays.asList(
             COLON.split(configProvider.getString(CIVISIBILITY_JACOCO_PLUGIN_INCLUDES, ":")));
@@ -1898,6 +1936,10 @@ public class Config {
 
   public boolean isPeerServiceDefaultsEnabled() {
     return peerServiceDefaultsEnabled;
+  }
+
+  public Map<String, String> getPeerServiceComponentOverrides() {
+    return peerServiceComponentOverrides;
   }
 
   public boolean isRemoveIntegrationServiceNamesEnabled() {
@@ -2374,6 +2416,14 @@ public class Config {
     return appSecUserEventsTracking;
   }
 
+  public boolean isApiSecurityEnabled() {
+    return apiSecurityEnabled;
+  }
+
+  public float getApiSecurityRequestSampleRate() {
+    return apiSecurityRequestSampleRate;
+  }
+
   public ProductActivation getIastActivation() {
     return instrumenterConfig.getIastActivation();
   }
@@ -2408,6 +2458,14 @@ public class Config {
 
   public String getIastRedactionValuePattern() {
     return iastRedactionValuePattern;
+  }
+
+  public int getIastTruncationMaxValueLength() {
+    return iastTruncationMaxValueLength;
+  }
+
+  public int getIastMaxRangeCount() {
+    return iastMaxRangeCount;
   }
 
   public boolean isCiVisibilityEnabled() {
@@ -2469,6 +2527,10 @@ public class Config {
 
   public boolean isCiVisibilityAutoConfigurationEnabled() {
     return ciVisibilityAutoConfigurationEnabled;
+  }
+
+  public String getCiVisibilityAdditionalChildProcessJvmArgs() {
+    return ciVisibilityAdditionalChildProcessJvmArgs;
   }
 
   public boolean isCiVisibilityCompilerPluginAutoConfigurationEnabled() {
@@ -3198,14 +3260,14 @@ public class Config {
 
   public boolean isLegacyTracingEnabled(
       final boolean defaultEnabled, final String... integrationNames) {
-    return SpanNaming.instance().namingSchema().allowFakeServices()
+    return SpanNaming.instance().namingSchema().allowInferredServices()
         && configProvider.isEnabled(
             Arrays.asList(integrationNames), "", ".legacy.tracing.enabled", defaultEnabled);
   }
 
   public boolean isTimeInQueueEnabled(
       final boolean defaultEnabled, final String... integrationNames) {
-    return SpanNaming.instance().namingSchema().allowFakeServices()
+    return SpanNaming.instance().namingSchema().allowInferredServices()
         && configProvider.isEnabled(
             Arrays.asList(integrationNames), "", ".time-in-queue.enabled", defaultEnabled);
   }
@@ -3849,6 +3911,10 @@ public class Config {
         + appSecWafTimeout
         + " us, appSecHttpBlockedTemplateJson="
         + appSecHttpBlockedTemplateJson
+        + ", apiSecurityEnabled="
+        + apiSecurityEnabled
+        + ", apiSecurityRequestSampleRate="
+        + apiSecurityRequestSampleRate
         + ", cwsEnabled="
         + cwsEnabled
         + ", cwsTlsRefresh="
@@ -3873,6 +3939,14 @@ public class Config {
         + sparkTaskHistogramEnabled
         + ", jaxRsExceptionAsErrorsEnabled="
         + jaxRsExceptionAsErrorsEnabled
+        + ", peerServiceDefaultsEnabled="
+        + peerServiceDefaultsEnabled
+        + ", peerServiceComponentOverrides="
+        + peerServiceComponentOverrides
+        + ", removeIntegrationServiceNamesEnabled="
+        + removeIntegrationServiceNamesEnabled
+        + ", spanAttributeSchemaVersion="
+        + spanAttributeSchemaVersion
         + '}';
   }
 }

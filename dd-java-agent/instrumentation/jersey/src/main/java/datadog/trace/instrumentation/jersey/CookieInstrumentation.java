@@ -37,7 +37,7 @@ public class CookieInstrumentation extends Instrumenter.Iast implements Instrume
 
   public static class InstrumenterAdviceGetName {
     @Advice.OnMethodExit(suppress = Throwable.class)
-    @Source(SourceTypes.REQUEST_COOKIE_NAME_STRING)
+    @Source(SourceTypes.REQUEST_COOKIE_NAME)
     public static void onExit(@Advice.Return String cookieName, @Advice.This Object self) {
       final PropagationModule module = InstrumentationBridge.PROPAGATION;
       if (module != null) {
@@ -48,7 +48,7 @@ public class CookieInstrumentation extends Instrumenter.Iast implements Instrume
 
   public static class GetValueAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
-    @Source(SourceTypes.REQUEST_COOKIE_VALUE_STRING)
+    @Source(SourceTypes.REQUEST_COOKIE_VALUE)
     public static void onExit(
         @Advice.Return String cookieValue,
         @Advice.FieldValue("name") String name,

@@ -1,7 +1,7 @@
 FROM scratch AS java_agent
 COPY dd-java-agent.jar /
 
-FROM busybox
+FROM alpine:3.18.3
 
 ARG UID=10000
 RUN addgroup -g 10000 -S datadog \

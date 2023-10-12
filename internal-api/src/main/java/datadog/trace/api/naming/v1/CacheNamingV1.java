@@ -10,9 +10,8 @@ public class CacheNamingV1 implements NamingSchema.ForCache {
     return cacheSystem + ".command";
   }
 
-  @Nonnull
   @Override
-  public String service(@Nonnull String ddService, @Nonnull String cacheSystem) {
-    return ddService;
+  public String service(@Nonnull String cacheSystem) {
+    return null;
   }
 }

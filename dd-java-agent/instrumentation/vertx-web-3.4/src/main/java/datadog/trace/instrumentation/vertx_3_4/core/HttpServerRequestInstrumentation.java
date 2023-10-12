@@ -47,7 +47,7 @@ public class HttpServerRequestInstrumentation extends AbstractHttpServerRequestI
     }
 
     @Advice.OnMethodExit()
-    @Source(SourceTypes.REQUEST_HEADER_VALUE_STRING)
+    @Source(SourceTypes.REQUEST_HEADER_VALUE)
     public static void onExit(
         @Advice.Local("beforeHeaders") final Object beforeHeaders,
         @Advice.Return final Object multiMap) {

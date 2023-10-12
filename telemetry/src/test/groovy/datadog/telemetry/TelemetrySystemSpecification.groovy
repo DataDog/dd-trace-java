@@ -55,7 +55,8 @@ class TelemetrySystemSpecification extends Specification {
 
     then:
     TelemetrySystem.TELEMETRY_THREAD == null ||
-      TelemetrySystem.TELEMETRY_THREAD.isInterrupted()
+      TelemetrySystem.TELEMETRY_THREAD.isInterrupted() ||
+      !TelemetrySystem.TELEMETRY_THREAD.isAlive()
   }
 
   private SharedCommunicationObjects sharedCommunicationObjects() {

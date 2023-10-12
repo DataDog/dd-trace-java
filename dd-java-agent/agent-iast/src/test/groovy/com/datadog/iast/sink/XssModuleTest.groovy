@@ -119,6 +119,54 @@ class XssModuleTest extends IastModuleImplTestBase {
     '/==>var<==' | ['a', 'b']             | VulnerabilityMarks.SQL_INJECTION_MARK | "/==>var<== a b"
   }
 
+  void 'module detects Charsequence XSS with file and line'() {
+    setup:
+    final param = mapTainted(s, mark)
+
+    when:
+    module.onXss(param as CharSequence, file as String, line as int)
+
+    then:
+    if (expected != null) {
+      1 * reporter.report(_, _) >> { args -> assertEvidence(args[1] as Vulnerability, expected) }
+    } else {
+      0 * reporter.report(_, _)
+    }
+
+    where:
+    s     | file | line        | mark                                  | expected
+    null    | 'test' | 3      | NOT_MARKED                            | null
+    '/var'    | 'test' | 3    | NOT_MARKED                            | null
+    '/==>var<=='| 'test' | 3  | NOT_MARKED                            | "/==>var<=="
+    '/==>var<=='| 'test' | 3  | VulnerabilityMarks.XSS_MARK           | null
+    '/==>var<=='| 'test' | 3  | VulnerabilityMarks.SQL_INJECTION_MARK | "/==>var<=="
+    '/==>var<=='| null | 3  | VulnerabilityMarks.SQL_INJECTION_MARK | null
+  }
+
+  void 'iast module detects String xss with class and method (#value)'() {
+    setup:
+    final param = mapTainted(value, mark)
+    final clazz = "class"
+    final method = "method"
+
+    when:
+    module.onXss(param, clazz, method)
+
+    then:
+    if (expected != null) {
+      1 * reporter.report(_, _) >> { args -> assertEvidence(args[1] as Vulnerability, expected) }
+    } else {
+      0 * reporter.report(_, _)
+    }
+
+    where:
+    value        | mark| expected
+    null         | NOT_MARKED| null
+    '/var'       | NOT_MARKED| null
+    '/==>var<==' | VulnerabilityMarks.XSS_MARK| null
+    '/==>var<==' | VulnerabilityMarks.SQL_INJECTION_MARK| "/==>var<=="
+  }
+
 
   private String mapTainted(final String value, final int mark) {
     final result = addFromTaintFormat(ctx.taintedObjects, value, mark)

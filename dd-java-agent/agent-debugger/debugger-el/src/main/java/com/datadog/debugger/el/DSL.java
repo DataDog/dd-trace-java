@@ -16,6 +16,7 @@ import com.datadog.debugger.el.expressions.IfExpression;
 import com.datadog.debugger.el.expressions.IndexExpression;
 import com.datadog.debugger.el.expressions.IsEmptyExpression;
 import com.datadog.debugger.el.expressions.LenExpression;
+import com.datadog.debugger.el.expressions.MatchesExpression;
 import com.datadog.debugger.el.expressions.NotExpression;
 import com.datadog.debugger.el.expressions.StartsWithExpression;
 import com.datadog.debugger.el.expressions.StringPredicateExpression;
@@ -192,7 +193,16 @@ public class DSL {
     return new ContainsExpression(valueExpression, str);
   }
 
+  public static StringPredicateExpression matches(
+      ValueExpression<?> valueExpression, StringValue str) {
+    return new MatchesExpression(valueExpression, str);
+  }
+
   public static WhenExpression when(BooleanExpression expression) {
     return new WhenExpression(expression);
+  }
+
+  public static BooleanValueExpressionAdapter bool(BooleanExpression expression) {
+    return new BooleanValueExpressionAdapter(expression);
   }
 }

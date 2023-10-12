@@ -13,6 +13,7 @@ import datadog.trace.plugin.csi.impl.assertion.AdviceAssert
 import datadog.trace.plugin.csi.impl.assertion.AssertBuilder
 import datadog.trace.plugin.csi.impl.assertion.CallSiteAssert
 import datadog.trace.plugin.csi.impl.ext.tests.IastExtensionCallSite
+import datadog.trace.plugin.csi.impl.ext.tests.SourceTypes
 import groovy.transform.CompileDynamic
 import spock.lang.TempDir
 
@@ -85,18 +86,32 @@ class IastExtensionTest extends BaseCsiPluginTest {
       advices(0) {
         pointcut('javax/servlet/http/HttpServletRequest', 'getHeader', '(Ljava/lang/String;)Ljava/lang/String;')
         instrumentedMetric('IastMetric.INSTRUMENTED_SOURCE') {
-          metricStatements('IastMetricCollector.add(IastMetric.INSTRUMENTED_SOURCE, "http.request.header.name", 1);')
+          metricStatements('IastMetricCollector.add(IastMetric.INSTRUMENTED_SOURCE, (byte) 3, 1);')
         }
         executedMetric('IastMetric.EXECUTED_SOURCE') {
           metricStatements(
             'handler.field(net.bytebuddy.jar.asm.Opcodes.GETSTATIC, "datadog/trace/api/iast/telemetry/IastMetric", "EXECUTED_SOURCE", "Ldatadog/trace/api/iast/telemetry/IastMetric;");',
-            'handler.loadConstant("http.request.header.name");',
+            'handler.instruction(net.bytebuddy.jar.asm.Opcodes.ICONST_3);',
             'handler.instruction(net.bytebuddy.jar.asm.Opcodes.ICONST_1);',
-            'handler.method(net.bytebuddy.jar.asm.Opcodes.INVOKESTATIC, "datadog/trace/api/iast/telemetry/IastMetricCollector", "add", "(Ldatadog/trace/api/iast/telemetry/IastMetric;Ljava/lang/String;I)V", false);'
+            'handler.method(net.bytebuddy.jar.asm.Opcodes.INVOKESTATIC, "datadog/trace/api/iast/telemetry/IastMetricCollector", "add", "(Ldatadog/trace/api/iast/telemetry/IastMetric;BI)V", false);'
           )
         }
       }
       advices(1) {
+        pointcut('javax/servlet/http/HttpServletRequest', 'getInputStream', '()Ljavax/servlet/ServletInputStream;')
+        instrumentedMetric('IastMetric.INSTRUMENTED_SOURCE') {
+          metricStatements('IastMetricCollector.add(IastMetric.INSTRUMENTED_SOURCE, (byte) 127, 1);')
+        }
+        executedMetric('IastMetric.EXECUTED_SOURCE') {
+          metricStatements(
+            'handler.field(net.bytebuddy.jar.asm.Opcodes.GETSTATIC, "datadog/trace/api/iast/telemetry/IastMetric", "EXECUTED_SOURCE", "Ldatadog/trace/api/iast/telemetry/IastMetric;");',
+            'handler.instruction(net.bytebuddy.jar.asm.Opcodes.BIPUSH, 127);',
+            'handler.instruction(net.bytebuddy.jar.asm.Opcodes.ICONST_1);',
+            'handler.method(net.bytebuddy.jar.asm.Opcodes.INVOKESTATIC, "datadog/trace/api/iast/telemetry/IastMetricCollector", "add", "(Ldatadog/trace/api/iast/telemetry/IastMetric;BI)V", false);'
+          )
+        }
+      }
+      advices(2) {
         pointcut('javax/servlet/ServletRequest', 'getReader', '()Ljava/io/BufferedReader;')
         instrumentedMetric('IastMetric.INSTRUMENTED_PROPAGATION') {
           metricStatements('IastMetricCollector.add(IastMetric.INSTRUMENTED_PROPAGATION, 1);')

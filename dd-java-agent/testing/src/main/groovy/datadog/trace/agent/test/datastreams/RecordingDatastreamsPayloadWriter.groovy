@@ -3,10 +3,11 @@ package datadog.trace.agent.test.datastreams
 import datadog.trace.core.datastreams.DatastreamsPayloadWriter
 import datadog.trace.core.datastreams.StatsBucket
 import datadog.trace.core.datastreams.StatsGroup
-
+import groovy.util.logging.Slf4j
 
 import java.util.concurrent.TimeUnit
 
+@Slf4j
 class RecordingDatastreamsPayloadWriter implements DatastreamsPayloadWriter {
   @SuppressWarnings('UnusedPrivateField') // bug in codenarc
   private final List<StatsBucket> payloads = []
@@ -19,6 +20,7 @@ class RecordingDatastreamsPayloadWriter implements DatastreamsPayloadWriter {
 
   @Override
   synchronized void writePayload(Collection<StatsBucket> data) {
+    log.info("payload written - {}", data)
     this.@payloads.addAll(data)
     data.each { this.@groups.addAll(it.groups) }
     for (StatsBucket bucket : data) {

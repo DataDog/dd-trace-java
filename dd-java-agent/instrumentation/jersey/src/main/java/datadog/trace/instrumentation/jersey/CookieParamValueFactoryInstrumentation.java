@@ -37,7 +37,7 @@ public class CookieParamValueFactoryInstrumentation extends Instrumenter.Iast
 
   public static class InstrumenterAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    @Source(SourceTypes.REQUEST_COOKIE_VALUE_STRING)
+    @Source(SourceTypes.REQUEST_COOKIE_VALUE)
     public static void onExit() {
       ThreadLocalSourceType.set(SourceTypes.REQUEST_COOKIE_VALUE);
     }

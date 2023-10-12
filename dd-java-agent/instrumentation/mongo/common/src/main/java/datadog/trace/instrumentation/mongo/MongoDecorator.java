@@ -5,7 +5,6 @@ import com.mongodb.connection.ConnectionDescription;
 import com.mongodb.connection.ConnectionId;
 import com.mongodb.connection.ServerId;
 import com.mongodb.event.CommandStartedEvent;
-import datadog.trace.api.Config;
 import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -24,10 +23,7 @@ public abstract class MongoDecorator
   private static final String DB_TYPE =
       SpanNaming.instance().namingSchema().database().normalizedName("mongo");
   private static final String SERVICE_NAME =
-      SpanNaming.instance()
-          .namingSchema()
-          .database()
-          .service(Config.get().getServiceName(), DB_TYPE);
+      SpanNaming.instance().namingSchema().database().service(DB_TYPE);
   public static final UTF8BytesString OPERATION_NAME =
       UTF8BytesString.create(SpanNaming.instance().namingSchema().database().operation(DB_TYPE));
 
