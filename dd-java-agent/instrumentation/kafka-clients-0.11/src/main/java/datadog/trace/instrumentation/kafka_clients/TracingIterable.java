@@ -8,22 +8,25 @@ public class TracingIterable implements Iterable<ConsumerRecord<?, ?>>, TracingI
   private final CharSequence operationName;
   private final KafkaDecorator decorator;
   private final String group;
+  private final String clusterId;
 
   public TracingIterable(
       final Iterable<ConsumerRecord<?, ?>> delegate,
       final CharSequence operationName,
       final KafkaDecorator decorator,
-      String group) {
+      String group,
+      String clusterId) {
     this.delegate = delegate;
     this.operationName = operationName;
     this.decorator = decorator;
     this.group = group;
+    this.clusterId = clusterId;
   }
 
   @Override
   public Iterator<ConsumerRecord<?, ?>> iterator() {
     // every iteration will add spans. Not only the very first one
-    return new TracingIterator(delegate.iterator(), operationName, decorator, group);
+    return new TracingIterator(delegate.iterator(), operationName, decorator, group, clusterId);
   }
 
   @Override

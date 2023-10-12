@@ -14,28 +14,36 @@ import datadog.trace.bootstrap.InstrumentationContext;
 import java.util.HashMap;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
+import org.apache.kafka.clients.Metadata;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.clients.consumer.internals.ConsumerCoordinator;
 
-/** This instrumentation saves the consumer group in the context store for later use. */
+/**
+ * This instrumentation saves additional information from the KafkaConsumer, such as consumer group
+ * and cluster ID, in the context store for later use.
+ */
 @AutoService(Instrumenter.class)
-public final class KafkaConsumerGroupInstrumentation extends Instrumenter.Tracing
+public final class KafkaConsumerInfoInstrumentation extends Instrumenter.Tracing
     implements Instrumenter.ForSingleType {
 
-  public KafkaConsumerGroupInstrumentation() {
+  public KafkaConsumerInfoInstrumentation() {
     super("kafka");
   }
 
   @Override
   public Map<String, String> contextStore() {
     Map<String, String> contextStores = new HashMap<>();
-    contextStores.put("org.apache.kafka.clients.consumer.KafkaConsumer", "java.lang.String");
-    contextStores.put("org.apache.kafka.clients.consumer.ConsumerRecords", "java.lang.String");
+    contextStores.put("org.apache.kafka.clients.Metadata", "java.lang.String");
     contextStores.put(
-        "org.apache.kafka.clients.consumer.internals.ConsumerCoordinator", "java.lang.String");
+        "org.apache.kafka.clients.consumer.ConsumerRecords", KafkaConsumerInfo.class.getName());
+    contextStores.put(
+        "org.apache.kafka.clients.consumer.internals.ConsumerCoordinator",
+        KafkaConsumerInfo.class.getName());
+    contextStores.put(
+        "org.apache.kafka.clients.consumer.KafkaConsumer", KafkaConsumerInfo.class.getName());
     return contextStores;
   }
 
@@ -48,6 +56,8 @@ public final class KafkaConsumerGroupInstrumentation extends Instrumenter.Tracin
   public String[] helperClassNames() {
     return new String[] {
       packageName + ".KafkaDecorator",
+      packageName + ".KafkaConsumerInfo",
+      packageName + ".KafkaConsumerInfo$Builder",
     };
   }
 
@@ -58,7 +68,7 @@ public final class KafkaConsumerGroupInstrumentation extends Instrumenter.Tracin
             .and(takesArgument(0, named("org.apache.kafka.clients.consumer.ConsumerConfig")))
             .and(takesArgument(1, named("org.apache.kafka.common.serialization.Deserializer")))
             .and(takesArgument(2, named("org.apache.kafka.common.serialization.Deserializer"))),
-        KafkaConsumerGroupInstrumentation.class.getName() + "$ConstructorAdvice");
+        KafkaConsumerInfoInstrumentation.class.getName() + "$ConstructorAdvice");
 
     transformation.applyAdvice(
         isMethod()
@@ -66,22 +76,29 @@ public final class KafkaConsumerGroupInstrumentation extends Instrumenter.Tracin
             .and(named("poll"))
             .and(takesArguments(1))
             .and(returns(named("org.apache.kafka.clients.consumer.ConsumerRecords"))),
-        KafkaConsumerGroupInstrumentation.class.getName() + "$RecordsAdvice");
+        KafkaConsumerInfoInstrumentation.class.getName() + "$RecordsAdvice");
   }
 
   public static class ConstructorAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void captureGroup(
         @Advice.This KafkaConsumer consumer,
+        @Advice.FieldValue("metadata") Metadata metadata,
         @Advice.FieldValue("coordinator") ConsumerCoordinator coordinator,
         @Advice.Argument(0) ConsumerConfig consumerConfig) {
-      String consumerGroup = consumerConfig.getString(ConsumerConfig.GROUP_ID_CONFIG);
+      KafkaConsumerInfo.Builder metadataBuilder = new KafkaConsumerInfo.Builder();
+      metadataBuilder.clientMetadata(metadata);
 
+      String consumerGroup = consumerConfig.getString(ConsumerConfig.GROUP_ID_CONFIG);
       if (consumerGroup != null && !consumerGroup.isEmpty()) {
-        InstrumentationContext.get(KafkaConsumer.class, String.class).put(consumer, consumerGroup);
-        InstrumentationContext.get(ConsumerCoordinator.class, String.class)
-            .put(coordinator, consumerGroup);
+        metadataBuilder.consumerGroup(consumerGroup);
       }
+
+      KafkaConsumerInfo kafkaConsumerInfo = metadataBuilder.build();
+      InstrumentationContext.get(KafkaConsumer.class, KafkaConsumerInfo.class)
+          .put(consumer, kafkaConsumerInfo);
+      InstrumentationContext.get(ConsumerCoordinator.class, KafkaConsumerInfo.class)
+          .put(coordinator, kafkaConsumerInfo);
     }
 
     public static void muzzleCheck(ConsumerRecord record) {
@@ -100,11 +117,11 @@ public final class KafkaConsumerGroupInstrumentation extends Instrumenter.Tracin
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void captureGroup(
         @Advice.This KafkaConsumer consumer, @Advice.Return ConsumerRecords records) {
-      String consumerGroup =
-          InstrumentationContext.get(KafkaConsumer.class, String.class).get(consumer);
-
-      if (consumerGroup != null) {
-        InstrumentationContext.get(ConsumerRecords.class, String.class).put(records, consumerGroup);
+      KafkaConsumerInfo kafkaConsumerInfo =
+          InstrumentationContext.get(KafkaConsumer.class, KafkaConsumerInfo.class).get(consumer);
+      if (kafkaConsumerInfo != null) {
+        InstrumentationContext.get(ConsumerRecords.class, KafkaConsumerInfo.class)
+            .put(records, kafkaConsumerInfo);
       }
     }
   }

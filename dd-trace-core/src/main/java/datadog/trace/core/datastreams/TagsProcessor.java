@@ -59,6 +59,12 @@ public class TagsProcessor {
   private static final Function<String, String> HAS_ROUTING_KEY_TAG_PREFIX =
       new StringPrefix("has_routing_key:");
 
+  public static final String KAFKA_CLUSTER_ID_TAG = "kafka_cluster_id";
+  private static final DDCache<String, String> KAFKA_CLUSTER_ID_TAG_CACHE =
+      DDCaches.newFixedSizeCache(32);
+  private static final Function<String, String> KAFKA_CLUSTER_ID_TAG_PREFIX =
+      new StringPrefix("kafka_cluster_id:");
+
   private static final Map<String, DDCache<String, String>> TAG_TO_CACHE = createTagToCacheMap();
   private static final Map<String, Function<String, String>> TAG_TO_PREFIX = createTagToPrefixMap();
 
@@ -72,6 +78,7 @@ public class TagsProcessor {
     result.put(CONSUMER_GROUP_TAG, CONSUMER_GROUP_TAG_CACHE);
     result.put(EXCHANGE_TAG, EXCHANGE_TAG_CACHE);
     result.put(HAS_ROUTING_KEY_TAG, HAS_ROUTING_KEY_TAG_CACHE);
+    result.put(KAFKA_CLUSTER_ID_TAG, KAFKA_CLUSTER_ID_TAG_CACHE);
     return result;
   }
 
@@ -85,6 +92,7 @@ public class TagsProcessor {
     result.put(CONSUMER_GROUP_TAG, CONSUMER_GROUP_TAG_PREFIX);
     result.put(EXCHANGE_TAG, EXCHANGE_TAG_PREFIX);
     result.put(HAS_ROUTING_KEY_TAG, HAS_ROUTING_KEY_TAG_PREFIX);
+    result.put(KAFKA_CLUSTER_ID_TAG, KAFKA_CLUSTER_ID_TAG_PREFIX);
     return result;
   }
 

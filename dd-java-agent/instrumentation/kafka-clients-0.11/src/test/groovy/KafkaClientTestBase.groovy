@@ -95,7 +95,14 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
   def "test kafka produce and consume"() {
     setup:
     def senderProps = KafkaTestUtils.senderProps(embeddedKafka.getBrokersAsString())
+    if (isDataStreamsEnabled()) {
+      senderProps.put(ProducerConfig.METADATA_MAX_AGE_CONFIG, 1000)
+    }
     Producer<String, String> producer = new KafkaProducer<>(senderProps, new StringSerializer(), new StringSerializer())
+    if (isDataStreamsEnabled()) {
+      producer.flush()
+      Thread.sleep(1500)
+    }
 
     // set up the Kafka consumer properties
     def consumerProperties = KafkaTestUtils.consumerProps("sender", "false", embeddedKafka)
@@ -176,10 +183,11 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
     new String(headers.headers("x-datadog-parent-id").iterator().next().value()) == "${TEST_WRITER[0][2].spanId}"
 
     if (isDataStreamsEnabled()) {
+      String clusterId = embeddedKafka.getKafkaServer(0).clusterId()
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(first) {
-        edgeTags == ["direction:out", "topic:$SHARED_TOPIC".toString(), "type:kafka"]
-        edgeTags.size() == 3
+        edgeTags == ["direction:out", "kafka_cluster_id:$clusterId", "topic:$SHARED_TOPIC".toString(), "type:kafka"]
+        edgeTags.size() == 4
       }
 
       StatsGroup second = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == first.hash }
@@ -187,14 +195,21 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
         edgeTags == [
           "direction:in",
           "group:sender",
+          "kafka_cluster_id:$clusterId",
           "topic:$SHARED_TOPIC".toString(),
           "type:kafka"
         ]
-        edgeTags.size() == 4
+        edgeTags.size() == 5
       }
-      List<String> produce = ["partition:"+received.partition(), "topic:"+SHARED_TOPIC, "type:kafka_produce"]
+      List<String> produce = [
+        "kafka_cluster_id:$clusterId",
+        "partition:"+received.partition(),
+        "topic:"+SHARED_TOPIC,
+        "type:kafka_produce"
+      ]
       List<String> commit = [
         "consumer_group:sender",
+        "kafka_cluster_id:$clusterId",
         "partition:"+received.partition(),
         "topic:"+SHARED_TOPIC,
         "type:kafka_commit"
@@ -231,8 +246,15 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
   def "test spring kafka template produce and consume"() {
     setup:
     def senderProps = KafkaTestUtils.senderProps(embeddedKafka.getBrokersAsString())
+    if (isDataStreamsEnabled()) {
+      senderProps.put(ProducerConfig.METADATA_MAX_AGE_CONFIG, 1000)
+    }
     def producerFactory = new DefaultKafkaProducerFactory<String, String>(senderProps)
     def kafkaTemplate = new KafkaTemplate<String, String>(producerFactory)
+    if (isDataStreamsEnabled()) {
+      kafkaTemplate.flush()
+      Thread.sleep(1500)
+    }
 
     // set up the Kafka consumer properties
     def consumerProperties = KafkaTestUtils.consumerProps("sender", "false", embeddedKafka)
@@ -310,10 +332,16 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
     new String(headers.headers("x-datadog-parent-id").iterator().next().value()) == "${TEST_WRITER[0][2].spanId}"
 
     if (isDataStreamsEnabled()) {
+      String clusterId = embeddedKafka.getKafkaServer(0)._clusterId
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(first) {
-        edgeTags == ["direction:out", "topic:$SHARED_TOPIC".toString(), "type:kafka"]
-        edgeTags.size() == 3
+        edgeTags == [
+          "direction:out",
+          "kafka_cluster_id:$clusterId".toString(),
+          "topic:$SHARED_TOPIC".toString(),
+          "type:kafka"
+        ]
+        edgeTags.size() == 4
       }
 
       StatsGroup second = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == first.hash }
@@ -321,14 +349,21 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
         edgeTags == [
           "direction:in",
           "group:sender",
+          "kafka_cluster_id:$clusterId".toString(),
           "topic:$SHARED_TOPIC".toString(),
           "type:kafka"
         ]
-        edgeTags.size() == 4
+        edgeTags.size() == 5
       }
-      List<String> produce = ["partition:"+received.partition(), "topic:"+SHARED_TOPIC, "type:kafka_produce"]
+      List<String> produce = [
+        "kafka_cluster_id:$clusterId".toString(),
+        "partition:"+received.partition(),
+        "topic:"+SHARED_TOPIC,
+        "type:kafka_produce"
+      ]
       List<String> commit = [
         "consumer_group:sender",
+        "kafka_cluster_id:$clusterId".toString(),
         "partition:"+received.partition(),
         "topic:"+SHARED_TOPIC,
         "type:kafka_commit"
@@ -690,8 +725,15 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
   def "test spring kafka template produce and batch consume"() {
     setup:
     def senderProps = KafkaTestUtils.senderProps(embeddedKafka.getBrokersAsString())
+    if (isDataStreamsEnabled()) {
+      senderProps.put(ProducerConfig.METADATA_MAX_AGE_CONFIG, 1000)
+    }
     def producerFactory = new DefaultKafkaProducerFactory<String, String>(senderProps)
     def kafkaTemplate = new KafkaTemplate<String, String>(producerFactory)
+    if (isDataStreamsEnabled()) {
+      kafkaTemplate.flush()
+      Thread.sleep(1500)
+    }
 
     def consumerProperties = KafkaTestUtils.consumerProps("sender", "false", embeddedKafka)
     def consumerFactory = new DefaultKafkaConsumerFactory<String, String>(consumerProperties)
@@ -781,16 +823,23 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
     }
 
     if (isDataStreamsEnabled()) {
+      String clusterId = embeddedKafka.getKafkaServer(0).clusterId()
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(first) {
-        edgeTags == ["topic:$SHARED_TOPIC".toString(), "type:internal"]
-        edgeTags.size() == 2
+        edgeTags == ["direction:out", "kafka_cluster_id:$clusterId", "topic:$SHARED_TOPIC".toString(), "type:kafka"]
+        edgeTags.size() == 4
       }
 
       StatsGroup second = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == first.hash }
       verifyAll(second) {
-        edgeTags == ["group:sender", "topic:$SHARED_TOPIC".toString(), "type:kafka"]
-        edgeTags.size() == 3
+        edgeTags == [
+          "direction:in",
+          "group:sender",
+          "kafka_cluster_id:$clusterId",
+          "topic:$SHARED_TOPIC".toString(),
+          "type:kafka"
+        ]
+        edgeTags.size() == 5
       }
     }
 
