@@ -313,23 +313,28 @@ class KafkaClientTest extends AgentTestRunner {
     new String(headers.headers("x-datadog-trace-id").iterator().next().value()) == "${TEST_WRITER[0][2].traceId}"
     new String(headers.headers("x-datadog-parent-id").iterator().next().value()) == "${TEST_WRITER[0][2].spanId}"
 
+    String expectedKafkaClusterId = embeddedKafka.getKafkaServer(0).clusterId()
     StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
     verifyAll(first) {
+      edgeTags == [
+        "direction:out",
+        "kafka_cluster_id:$expectedKafkaClusterId",
+        "topic:$SHARED_TOPIC".toString(),
+        "type:kafka"
+      ]
       edgeTags.size() == 4
-      edgeTags[0] == "direction:out"
-      edgeTags[1].startsWith("kafka_cluster_id:")
-      edgeTags[2] == "topic:$SHARED_TOPIC".toString()
-      edgeTags[3] == "type:kafka"
     }
 
     StatsGroup second = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == first.hash }
     verifyAll(second) {
+      edgeTags == [
+        "direction:in",
+        "group:sender",
+        "kafka_cluster_id:$expectedKafkaClusterId",
+        "topic:$SHARED_TOPIC".toString(),
+        "type:kafka"
+      ]
       edgeTags.size() == 5
-      edgeTags[0] == "direction:in"
-      edgeTags[1] == "group:sender"
-      edgeTags[2].startsWith("kafka_cluster_id:")
-      edgeTags[3] == "topic:$SHARED_TOPIC".toString()
-      edgeTags[4] == "type:kafka"
     }
 
     cleanup:
@@ -970,23 +975,28 @@ class KafkaClientTest extends AgentTestRunner {
       }
     }
 
+    String expectedKafkaClusterId = embeddedKafka.getKafkaServer(0).clusterId()
     StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
     verifyAll(first) {
+      edgeTags == [
+        "direction:out",
+        "kafka_cluster_id:$expectedKafkaClusterId",
+        "topic:$SHARED_TOPIC".toString(),
+        "type:kafka"
+      ]
       edgeTags.size() == 4
-      edgeTags[0] == "direction:out"
-      edgeTags[1].startsWith("kafka_cluster_id:")
-      edgeTags[2] == "topic:$SHARED_TOPIC".toString()
-      edgeTags[3] == "type:kafka"
     }
 
     StatsGroup second = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == first.hash }
     verifyAll(second) {
+      edgeTags == [
+        "direction:in",
+        "group:sender",
+        "kafka_cluster_id:$expectedKafkaClusterId",
+        "topic:$SHARED_TOPIC".toString(),
+        "type:kafka"
+      ]
       edgeTags.size() == 5
-      edgeTags[0] == "direction:in"
-      edgeTags[1] == "group:sender"
-      edgeTags[2].startsWith("kafka_cluster_id:")
-      edgeTags[3] == "topic:$SHARED_TOPIC".toString()
-      edgeTags[4] == "type:kafka"
     }
 
     cleanup:
