@@ -19,6 +19,10 @@ public class IastRequestContext implements HasMetricCollector {
   private final TaintedObjects taintedObjects;
   private final OverheadContext overheadContext;
   private final IastMetricCollector collector;
+  private volatile String strictTransportSecurity;
+  private volatile String xContentTypeOptions;
+  private volatile String xForwardedProto;
+  private volatile String contentType;
 
   public IastRequestContext() {
     this(TaintedObjects.acquire(), null);
@@ -39,6 +43,38 @@ public class IastRequestContext implements HasMetricCollector {
 
   public VulnerabilityBatch getVulnerabilityBatch() {
     return vulnerabilityBatch;
+  }
+
+  public String getStrictTransportSecurity() {
+    return strictTransportSecurity;
+  }
+
+  public void setStrictTransportSecurity(final String strictTransportSecurity) {
+    this.strictTransportSecurity = strictTransportSecurity;
+  }
+
+  public String getxContentTypeOptions() {
+    return xContentTypeOptions;
+  }
+
+  public void setxContentTypeOptions(final String xContentTypeOptions) {
+    this.xContentTypeOptions = xContentTypeOptions;
+  }
+
+  public String getxForwardedProto() {
+    return xForwardedProto;
+  }
+
+  public void setxForwardedProto(final String xForwardedProto) {
+    this.xForwardedProto = xForwardedProto;
+  }
+
+  public String getContentType() {
+    return contentType;
+  }
+
+  public void setContentType(final String contentType) {
+    this.contentType = contentType;
   }
 
   public boolean getAndSetSpanDataIsSet() {

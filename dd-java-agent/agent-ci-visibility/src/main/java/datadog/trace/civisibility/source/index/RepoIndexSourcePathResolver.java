@@ -1,7 +1,7 @@
 package datadog.trace.civisibility.source.index;
 
 import datadog.trace.api.Config;
-import datadog.trace.api.civisibility.source.SourcePathResolver;
+import datadog.trace.civisibility.source.SourcePathResolver;
 import java.net.URL;
 import java.nio.file.FileSystem;
 import java.security.CodeSource;
@@ -20,9 +20,9 @@ public class RepoIndexSourcePathResolver implements SourcePathResolver {
   }
 
   RepoIndexSourcePathResolver(
-      String repoRoot, SourceRootResolver sourceRootResolver, FileSystem fileSystem) {
+      String repoRoot, PackageResolver packageResolver, FileSystem fileSystem) {
     this.repoRoot = repoRoot;
-    this.indexProvider = new RepoIndexBuilder(repoRoot, sourceRootResolver, fileSystem);
+    this.indexProvider = new RepoIndexBuilder(repoRoot, packageResolver, fileSystem);
   }
 
   @Nullable

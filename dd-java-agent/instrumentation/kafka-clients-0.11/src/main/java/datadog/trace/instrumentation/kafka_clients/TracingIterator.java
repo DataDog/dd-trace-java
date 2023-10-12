@@ -93,11 +93,15 @@ public class TracingIterator implements Iterator<ConsumerRecord<?, ?>> {
           sortedTags.put(TYPE_TAG, "kafka");
 
           if (StreamingContext.empty()) {
-            AgentTracer.get().setDataStreamCheckpoint(span, sortedTags, val.timestamp());
+            AgentTracer.get()
+                .getDataStreamsMonitoring()
+                .setCheckpoint(span, sortedTags, val.timestamp());
           } else {
             // when we're in a streaming context we want to consume only from source topics
             if (StreamingContext.isSourceTopic(val.topic())) {
-              AgentTracer.get().setDataStreamCheckpoint(span, sortedTags, val.timestamp());
+              AgentTracer.get()
+                  .getDataStreamsMonitoring()
+                  .setCheckpoint(span, sortedTags, val.timestamp());
               // We have to inject the context to headers here,
               // since the data received from the source may leave the topology on
               // some other instance of the application, breaking the context propagation

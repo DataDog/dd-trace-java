@@ -1,8 +1,8 @@
 package datadog.trace.core;
 
 import static datadog.trace.api.cache.RadixTreeCache.HTTP_STATUSES;
+import static datadog.trace.bootstrap.instrumentation.api.ErrorPriorities.UNSET;
 
-import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.Functions;
@@ -16,7 +16,6 @@ import datadog.trace.api.internal.TraceSegment;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.api.sampling.SamplingMechanism;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.ErrorPriorities;
 import datadog.trace.bootstrap.instrumentation.api.PathwayContext;
 import datadog.trace.bootstrap.instrumentation.api.ProfilerContext;
 import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
@@ -25,10 +24,7 @@ import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.core.propagation.PropagationTags;
 import datadog.trace.core.taginterceptor.TagInterceptor;
-import datadog.trace.core.tagprocessor.PeerServiceCalculator;
-import datadog.trace.core.tagprocessor.PostProcessorChain;
-import datadog.trace.core.tagprocessor.QueryObfuscator;
-import datadog.trace.core.tagprocessor.TagsPostProcessor;
+import datadog.trace.core.tagprocessor.TagsPostProcessorFactory;
 import datadog.trace.util.TagsHelper;
 import java.io.Closeable;
 import java.io.IOException;
@@ -84,11 +80,6 @@ public class DDSpanContext
 
   private volatile short httpStatusCode;
 
-  private static final TagsPostProcessor postProcessor =
-      new PostProcessorChain(
-          new PeerServiceCalculator(),
-          new QueryObfuscator(Config.get().getObfuscationQueryRegexp()));
-
   /**
    * Tags are associated to the current span, they will not propagate to the children span.
    *
@@ -114,7 +105,7 @@ public class DDSpanContext
   /** True indicates that the span reports an error */
   private volatile boolean errorFlag;
 
-  private volatile byte errorFlagPriority = ErrorPriorities.UNSET;
+  private volatile byte errorFlagPriority = UNSET;
 
   private volatile boolean measured;
 
@@ -440,7 +431,7 @@ public class DDSpanContext
   }
 
   public void setErrorFlag(final boolean errorFlag, final byte priority) {
-    if (priority >= this.errorFlagPriority) {
+    if (priority > UNSET && priority >= this.errorFlagPriority) {
       this.errorFlag = errorFlag;
       this.errorFlagPriority = priority;
     }
@@ -642,6 +633,7 @@ public class DDSpanContext
     return pathwayContext;
   }
 
+  @Override
   public void mergePathwayContext(PathwayContext pathwayContext) {
     if (pathwayContext == null) {
       return;
@@ -791,7 +783,7 @@ public class DDSpanContext
           new Metadata(
               threadId,
               threadName,
-              postProcessor.processTags(unsafeTags),
+              TagsPostProcessorFactory.instance().processTagsWithContext(unsafeTags, this),
               baggageItemsWithPropagationTags,
               samplingPriority != PrioritySampling.UNSET ? samplingPriority : getSamplingPriority(),
               measured,

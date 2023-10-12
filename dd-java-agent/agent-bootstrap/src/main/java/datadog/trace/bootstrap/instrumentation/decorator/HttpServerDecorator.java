@@ -143,7 +143,7 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
     }
     AgentPropagation.ContextVisitor<REQUEST_CARRIER> getter = getter();
     if (null != carrier && null != getter) {
-      tracer().setDataStreamCheckpoint(span, SERVER_PATHWAY_EDGE_TAGS, 0);
+      tracer().getDataStreamsMonitoring().setCheckpoint(span, SERVER_PATHWAY_EDGE_TAGS, 0);
     }
     return span;
   }
@@ -401,20 +401,22 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
   }
 
   private Flow<Void> callIGCallbackRequestHeaders(AgentSpan span, REQUEST_CARRIER carrier) {
-    CallbackProvider cbp = tracer().getCallbackProvider(RequestContextSlot.APPSEC);
+    CallbackProvider cbp = tracer().getUniversalCallbackProvider();
     RequestContext requestContext = span.getRequestContext();
     AgentPropagation.ContextVisitor<REQUEST_CARRIER> getter = getter();
-    if (requestContext == null || cbp == null || getter == null) {
+    if (requestContext == null || getter == null) {
       return Flow.ResultFlow.empty();
     }
-    IGKeyClassifier igKeyClassifier =
-        IGKeyClassifier.create(
-            requestContext,
-            cbp.getCallback(EVENTS.requestHeader()),
-            cbp.getCallback(EVENTS.requestHeaderDone()));
-    if (null != igKeyClassifier) {
-      getter.forEachKey(carrier, igKeyClassifier);
-      return igKeyClassifier.done();
+    if (cbp != null) {
+      IGKeyClassifier igKeyClassifier =
+          IGKeyClassifier.create(
+              requestContext,
+              cbp.getCallback(EVENTS.requestHeader()),
+              cbp.getCallback(EVENTS.requestHeaderDone()));
+      if (null != igKeyClassifier) {
+        getter.forEachKey(carrier, igKeyClassifier);
+        return igKeyClassifier.done();
+      }
     }
     return Flow.ResultFlow.empty();
   }

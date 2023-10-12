@@ -111,6 +111,26 @@ public abstract class TestNGUtils {
     return !groups.isEmpty() ? groups : null;
   }
 
+  public static List<String> getGroups(Method method) {
+    List<String> groups = new ArrayList<>();
+
+    Test methodAnnotation = method.getAnnotation(Test.class);
+    if (methodAnnotation != null) {
+      Collections.addAll(groups, methodAnnotation.groups());
+    }
+
+    Class<?> clazz = method.getDeclaringClass();
+    do {
+      Test classAnnotation = clazz.getAnnotation(Test.class);
+      if (classAnnotation != null) {
+        Collections.addAll(groups, classAnnotation.groups());
+      }
+      clazz = clazz.getSuperclass();
+    } while (clazz != null);
+
+    return groups;
+  }
+
   public static TestNGClassListener getTestNGClassListener(ITestContext testContext) {
     try {
       if (!(testContext instanceof ITestResultNotifier)) {
@@ -154,7 +174,8 @@ public abstract class TestNGUtils {
   }
 
   public static SkippableTest toSkippableTest(Method method, Object instance, Object[] parameters) {
-    String testSuiteName = instance.getClass().getName();
+    Class<?> testClass = instance != null ? instance.getClass() : method.getDeclaringClass();
+    String testSuiteName = testClass.getName();
     String testName = method.getName();
     String testParameters = TestNGUtils.getParameters(parameters);
     return new SkippableTest(testSuiteName, testName, testParameters, null);

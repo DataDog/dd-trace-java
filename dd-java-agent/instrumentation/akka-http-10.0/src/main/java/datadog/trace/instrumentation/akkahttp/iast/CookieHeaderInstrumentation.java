@@ -53,7 +53,7 @@ public class CookieHeaderInstrumentation extends Instrumenter.Iast
 
   static class TaintAllCookiesAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
-    @Source(SourceTypes.REQUEST_COOKIE_VALUE_STRING)
+    @Source(SourceTypes.REQUEST_COOKIE_VALUE)
     static void after(
         @Advice.This HttpHeader cookie, @Advice.Return Seq<HttpCookiePair> cookiePairs) {
       WebModule mod = InstrumentationBridge.WEB;

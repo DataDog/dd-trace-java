@@ -36,7 +36,7 @@ public class PathParamValueFactoryInstrumentation extends Instrumenter.Iast
 
   public static class InstrumenterAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    @Source(SourceTypes.REQUEST_PATH_PARAMETER_STRING)
+    @Source(SourceTypes.REQUEST_PATH_PARAMETER)
     public static void onExit() {
       ThreadLocalSourceType.set(SourceTypes.REQUEST_PATH_PARAMETER);
     }

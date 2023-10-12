@@ -4,10 +4,13 @@ import static org.jboss.netty.handler.codec.http.HttpHeaders.setContentLength;
 
 import datadog.appsec.api.blocking.BlockingContentType;
 import datadog.trace.api.gateway.Flow;
+import datadog.trace.api.internal.TraceSegment;
 import datadog.trace.bootstrap.blocking.BlockingActionHelper;
 import java.util.Map;
+import java.util.NoSuchElementException;
 import org.jboss.netty.buffer.ChannelBuffer;
 import org.jboss.netty.buffer.ChannelBuffers;
+import org.jboss.netty.channel.ChannelFuture;
 import org.jboss.netty.channel.ChannelHandlerContext;
 import org.jboss.netty.channel.Channels;
 import org.jboss.netty.channel.MessageEvent;
@@ -20,6 +23,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class BlockingResponseHandler extends SimpleChannelUpstreamHandler {
+  private final TraceSegment segment;
   private final int statusCode;
   private final BlockingContentType bct;
   private final Map<String, String> extraHeaders;
@@ -30,14 +34,18 @@ public class BlockingResponseHandler extends SimpleChannelUpstreamHandler {
   private boolean hasBlockedAlready;
 
   public BlockingResponseHandler(
-      int statusCode, BlockingContentType bct, Map<String, String> extraHeaders) {
+      TraceSegment segment,
+      int statusCode,
+      BlockingContentType bct,
+      Map<String, String> extraHeaders) {
+    this.segment = segment;
     this.statusCode = statusCode;
     this.bct = bct;
     this.extraHeaders = extraHeaders;
   }
 
-  public BlockingResponseHandler(Flow.Action.RequestBlockingAction rba) {
-    this(rba.getStatusCode(), rba.getBlockingContentType(), rba.getExtraHeaders());
+  public BlockingResponseHandler(TraceSegment segment, Flow.Action.RequestBlockingAction rba) {
+    this(segment, rba.getStatusCode(), rba.getBlockingContentType(), rba.getExtraHeaders());
   }
 
   @Override
@@ -52,25 +60,39 @@ public class BlockingResponseHandler extends SimpleChannelUpstreamHandler {
       return;
     }
 
-    // the http encoder may be placed after the decoder (and therefore this handler),
-    // so when sending the downstream message, we may not reach the encoder as the message
-    // is processed starting in the current point of the pipeline, not from the globally last
-    // handler
-    ChannelHandlerContext ctxForDownstream =
-        ctx.getPipeline().getContext(HttpServerResponseTracingHandler.class);
-    if (ctxForDownstream == null) {
-      ctxForDownstream = ctx.getPipeline().getContext(HttpServerTracingHandler.class);
+    // the usual disposition of the pipeline is:
+    // ...
+    // (1) BlockingResponseHandler (upstream, this handler)
+    // (2) HttpServerResponseTracingHandler / HttpServerTracingHandler (downstream / duplex)
+    // (3) MaybeBlockResponseHandler (downstream)
+    // ...
+    // when writing our blocking response, we want (2) to analyze it to report
+    // the status code, etc., but we need not run MaybeBlockResponseHandler
+    // because response blocking on a blocking response is not supported.
+    // We add a handler after (3) blocking all further writes, in case something
+    // tries to write after we've written the blocking response
+    ChannelHandlerContext ctxForDownstream = null;
+    try {
+      ctx.getPipeline()
+          .addAfter(
+              MaybeBlockResponseHandler.class.getName(),
+              "block_all_writes",
+              BlockAllWritesHandler.INSTANCE);
+      // write will start AFTER the referenced handler. It will start in (2)
+      ctxForDownstream = ctx.getPipeline().getContext(MaybeBlockResponseHandler.class.getName());
+    } catch (NoSuchElementException nse) {
+      if (HAS_WARNED) {
+        log.debug(
+            "Unable to block because MaybeBlockResponseHandler was not found on the pipeline");
+      } else {
+        log.warn("Unable to block because MaybeBlockResponseHandler was not found on the pipeline");
+        HAS_WARNED = true;
+      }
+    } catch (IllegalArgumentException iae) {
+      // already added
     }
 
     if (ctxForDownstream == null) {
-      if (HAS_WARNED) {
-        log.debug(
-            "Unable to block because HttpServerResponseTracingHandler was not found on the pipeline");
-      } else {
-        log.warn(
-            "Unable to block because HttpServerResponseTracingHandler was not found on the pipeline");
-        HAS_WARNED = true;
-      }
       ctx.sendUpstream(e);
       return;
     }
@@ -102,17 +124,19 @@ public class BlockingResponseHandler extends SimpleChannelUpstreamHandler {
     }
 
     this.hasBlockedAlready = true;
+    segment.effectivelyBlocked();
 
-    Channels.write(ctxForDownstream.getChannel(), response)
-        .addListener(
-            fut -> {
-              if (!fut.isSuccess()) {
-                log.warn("Write of blocking response failed", fut.getCause());
-              }
-              // close the connection because it can be in an invalid state at this point
-              // For instance, in a POST request we will still be receiving data from the
-              // client
-              fut.getChannel().close();
-            });
+    ChannelFuture future = Channels.future(ctx.getChannel());
+    future.addListener(
+        fut -> {
+          if (!fut.isSuccess()) {
+            log.warn("Write of blocking response failed", fut.getCause());
+          }
+          // close the connection because it can be in an invalid state at this point
+          // For instance, in a POST request we will still be receiving data from the
+          // client
+          fut.getChannel().close();
+        });
+    Channels.write(ctxForDownstream, future, response);
   }
 }

@@ -1,5 +1,7 @@
 package com.datadog.debugger.agent;
 
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.NOOP_TRACER;
+
 import datadog.trace.bootstrap.debugger.DebuggerContext;
 import datadog.trace.bootstrap.debugger.DebuggerSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
@@ -8,12 +10,12 @@ import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.ScopeSource;
 
 public class DebuggerTracer implements DebuggerContext.Tracer {
-  private static final String OPERATION_NAME = "dd.dynamic.span";
+  public static final String OPERATION_NAME = "dd.dynamic.span";
 
   @Override
   public DebuggerSpan createSpan(String resourceName, String[] tags) {
     AgentTracer.TracerAPI tracerAPI = AgentTracer.get();
-    if (tracerAPI == null) {
+    if (tracerAPI == null || tracerAPI == NOOP_TRACER) {
       return DebuggerSpan.NOOP_SPAN;
     }
     AgentSpan dynamicSpan =

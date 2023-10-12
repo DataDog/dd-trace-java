@@ -103,4 +103,19 @@ class TestServlet5 extends HttpServlet {
       }
     }
   }
+  static HttpServerTest.ServerEndpoint getEndpoint(HttpServletRequest req) {
+    String truePath
+    if (req.servletPath == "") {
+      truePath = req.requestURI - ~'^/[^/]+'
+    } else {
+      // Most correct would be to get the dispatched path from the request
+      // This is not part of the spec varies by implementation so the simplest is just removing
+      // "/dispatch"
+      truePath = req.servletPath.replace("/dispatch", "")
+    }
+    return HttpServerTest.ServerEndpoint.forPath(truePath)
+  }
+  HttpServerTest.ServerEndpoint determineEndpoint(HttpServletRequest req) {
+    getEndpoint(req)
+  }
 }

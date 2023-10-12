@@ -1,7 +1,9 @@
 package datadog.trace.instrumentation.junit4;
 
+import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.declaresMethod;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.extendsClass;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
+import static net.bytebuddy.matcher.ElementMatchers.not;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
@@ -20,7 +22,7 @@ public class JUnit4SuiteEventsInstrumentation extends Instrumenter.CiVisibility
     implements Instrumenter.ForTypeHierarchy {
 
   public JUnit4SuiteEventsInstrumentation() {
-    super("junit-4-suite-events");
+    super("ci-visibility", "junit-4");
   }
 
   @Override
@@ -36,17 +38,23 @@ public class JUnit4SuiteEventsInstrumentation extends Instrumenter.CiVisibility
   @Override
   public String[] helperClassNames() {
     return new String[] {
+      packageName + ".TestEventsHandlerHolder",
       packageName + ".SkippedByItr",
       packageName + ".JUnit4Utils",
-      packageName + ".TestEventsHandlerHolder",
       packageName + ".TracingListener",
+      packageName + ".JUnit4TracingListener",
     };
   }
 
   @Override
   public void adviceTransformations(AdviceTransformation transformation) {
     transformation.applyAdvice(
-        named("run").and(takesArgument(0, named("org.junit.runner.notification.RunNotifier"))),
+        named("run")
+            .and(
+                takesArgument(
+                    0,
+                    named("org.junit.runner.notification.RunNotifier")
+                        .and(not(declaresMethod(named("fireTestSuiteStarted")))))),
         JUnit4SuiteEventsInstrumentation.class.getName() + "$JUnit4SuiteEventsAdvice");
   }
 
@@ -63,7 +71,7 @@ public class JUnit4SuiteEventsInstrumentation extends Instrumenter.CiVisibility
       for (final RunListener listener : runListeners) {
         TracingListener tracingListener = JUnit4Utils.toTracingListener(listener);
         if (tracingListener != null) {
-          tracingListener.testSuiteStarted(runner.getTestClass(), runner.getDescription());
+          tracingListener.testSuiteStarted(runner.getDescription());
         }
       }
     }
@@ -80,7 +88,7 @@ public class JUnit4SuiteEventsInstrumentation extends Instrumenter.CiVisibility
       for (final RunListener listener : runListeners) {
         TracingListener tracingListener = JUnit4Utils.toTracingListener(listener);
         if (tracingListener != null) {
-          tracingListener.testSuiteFinished(runner.getTestClass(), runner.getDescription());
+          tracingListener.testSuiteFinished(runner.getDescription());
         }
       }
     }

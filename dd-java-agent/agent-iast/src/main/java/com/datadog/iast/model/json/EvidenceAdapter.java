@@ -1,5 +1,7 @@
 package com.datadog.iast.model.json;
 
+import static com.datadog.iast.model.json.TruncationUtils.writeTruncableValue;
+
 import com.datadog.iast.model.Evidence;
 import com.datadog.iast.model.Range;
 import com.datadog.iast.model.Source;
@@ -217,8 +219,12 @@ public class EvidenceAdapter extends FormattingAdapter<Evidence> {
         }
       }
       if (nextSensitive != null) {
-        addNextStringValuePart(nextSensitive.getStart(), next); // pending string chunk
-        handleSensitiveValue(nextSensitive);
+        if (nextSensitive.isBefore(nextTainted)) {
+          addNextStringValuePart(nextSensitive.getStart(), next); // pending string chunk
+          handleSensitiveValue(nextSensitive);
+        } else {
+          sensitive.addFirst(nextSensitive);
+        }
       }
       return next.poll();
     }
@@ -324,7 +330,7 @@ public class EvidenceAdapter extends FormattingAdapter<Evidence> {
       }
       writer.beginObject();
       writer.name("value");
-      writer.value(value);
+      writeTruncableValue(writer, value);
       writer.endObject();
     }
   }
@@ -339,7 +345,7 @@ public class EvidenceAdapter extends FormattingAdapter<Evidence> {
 
     @Override
     public void write(final Context ctx, final JsonWriter writer) throws IOException {
-      if (value == null || value.isEmpty()) {
+      if (value == null) {
         return;
       }
       writer.beginObject();
@@ -385,7 +391,7 @@ public class EvidenceAdapter extends FormattingAdapter<Evidence> {
       } else {
         writer.beginObject();
         writer.name("value");
-        writer.value(value);
+        writeTruncableValue(writer, value);
         writer.name("source");
         adapter.toJson(writer, source);
         writer.endObject();
@@ -470,7 +476,7 @@ public class EvidenceAdapter extends FormattingAdapter<Evidence> {
 
     @Override
     public void write(final Context ctx, final JsonWriter writer) throws IOException {
-      if (value == null || value.isEmpty()) {
+      if (value == null) {
         return;
       }
       writer.beginObject();
@@ -483,7 +489,7 @@ public class EvidenceAdapter extends FormattingAdapter<Evidence> {
       } else {
         writer.name("value");
       }
-      writer.value(value);
+      writeTruncableValue(writer, value);
       writer.endObject();
     }
   }

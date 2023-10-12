@@ -159,7 +159,7 @@ public class ProfilingAgent {
         log.warn(e.getMessage());
         log.debug("", e);
       } catch (final ConfigurationException e) {
-        log.warn("Failed to initialize profiling agent! " + e.getMessage());
+        log.warn("Failed to initialize profiling agent! {}", e.getMessage());
         log.debug("Failed to initialize profiling agent!", e);
       }
     }

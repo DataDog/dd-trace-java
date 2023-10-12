@@ -2,6 +2,7 @@ package com.datadog.debugger.probe;
 
 import com.datadog.debugger.agent.Generated;
 import com.datadog.debugger.instrumentation.DiagnosticMessage;
+import com.datadog.debugger.instrumentation.InstrumentationResult;
 import com.datadog.debugger.instrumentation.SpanInstrumentor;
 import datadog.trace.bootstrap.debugger.MethodLocation;
 import datadog.trace.bootstrap.debugger.ProbeId;
@@ -23,13 +24,13 @@ public class SpanProbe extends ProbeDefinition {
   }
 
   @Override
-  public void instrument(
+  public InstrumentationResult.Status instrument(
       ClassLoader classLoader,
       ClassNode classNode,
       MethodNode methodNode,
       List<DiagnosticMessage> diagnostics,
       List<String> probeIds) {
-    new SpanInstrumentor(this, classLoader, classNode, methodNode, diagnostics, probeIds)
+    return new SpanInstrumentor(this, classLoader, classNode, methodNode, diagnostics, probeIds)
         .instrument();
   }
 

@@ -12,7 +12,7 @@ import javax.servlet.http.HttpServletRequest;
 @CallSite(spi = IastCallSites.class)
 public class HttpServletRequestInputStreamCallSite {
 
-  @Source(SourceTypes.REQUEST_BODY_STRING)
+  @Source(SourceTypes.REQUEST_BODY)
   @CallSite.After(
       "javax.servlet.ServletInputStream javax.servlet.http.HttpServletRequest.getInputStream()")
   @CallSite.After(

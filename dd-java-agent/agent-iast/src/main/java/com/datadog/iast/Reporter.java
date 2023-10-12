@@ -4,6 +4,7 @@ import static com.datadog.iast.IastTag.ANALYZED;
 
 import com.datadog.iast.model.Vulnerability;
 import com.datadog.iast.model.VulnerabilityBatch;
+import com.datadog.iast.taint.TaintedObjects;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.gateway.RequestContext;
@@ -41,10 +42,13 @@ public class Reporter {
   }
 
   public void report(@Nullable final AgentSpan span, @Nonnull final Vulnerability vulnerability) {
+    if (duplicated.test(vulnerability)) {
+      return;
+    }
     if (span == null) {
       final AgentSpan newSpan = startNewSpan();
       try (final AgentScope autoClosed = tracer().activateSpan(newSpan, ScopeSource.MANUAL)) {
-        vulnerability.getLocation().updateSpan(newSpan.getSpanId());
+        vulnerability.updateSpan(newSpan);
         reportVulnerability(newSpan, vulnerability);
       } finally {
         newSpan.finish();
@@ -64,9 +68,6 @@ public class Reporter {
     if (ctx == null) {
       return;
     }
-    if (duplicated.test(vulnerability)) {
-      return;
-    }
     final VulnerabilityBatch batch = ctx.getVulnerabilityBatch();
     batch.add(vulnerability);
     if (!ctx.getAndSetSpanDataIsSet()) {
@@ -81,7 +82,8 @@ public class Reporter {
 
   private AgentSpan startNewSpan() {
     final AgentSpan.Context tagContext =
-        new TagContext().withRequestContextDataIast(new IastRequestContext());
+        new TagContext()
+            .withRequestContextDataIast(new IastRequestContext(TaintedObjects.NoOp.INSTANCE));
     final AgentSpan span =
         tracer()
             .startSpan("iast", VULNERABILITY_SPAN_NAME, tagContext)

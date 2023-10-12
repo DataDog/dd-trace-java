@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.rabbitmq.amqp;
 
+import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.extendsClass;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.nameEndsWith;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
@@ -64,7 +65,9 @@ public class RabbitChannelInstrumentation extends Instrumenter.Tracing
 
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return implementsInterface(named(hierarchyMarkerType()));
+    return implementsInterface(named(hierarchyMarkerType()))
+        // Class is added to ignores trie, but it's not final so just being safe
+        .and(not(extendsClass(named("reactor.rabbitmq.ChannelProxy"))));
   }
 
   @Override

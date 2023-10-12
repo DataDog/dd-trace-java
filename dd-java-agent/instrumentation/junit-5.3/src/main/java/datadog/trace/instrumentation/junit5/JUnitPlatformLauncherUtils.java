@@ -9,7 +9,6 @@ import java.util.Collection;
 import java.util.Deque;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.ListIterator;
 import java.util.ServiceLoader;
 import java.util.Set;
 import javax.annotation.Nullable;
@@ -82,21 +81,7 @@ public abstract class JUnitPlatformLauncherUtils {
 
   public static @Nullable String getTestEngineId(final TestIdentifier testIdentifier) {
     UniqueId uniqueId = getUniqueId(testIdentifier);
-    List<UniqueId.Segment> segments = uniqueId.getSegments();
-    ListIterator<UniqueId.Segment> iterator = segments.listIterator(segments.size());
-    // Iterating from the end of the list,
-    // since we want the last segment with type "engine".
-    // In case junit-platform-suite engine is used,
-    // its segment will be the first,
-    // and the actual engine that runs the test
-    // will be in some later segment
-    while (iterator.hasPrevious()) {
-      UniqueId.Segment segment = iterator.previous();
-      if ("engine".equals(segment.getType())) {
-        return segment.getValue();
-      }
-    }
-    return null;
+    return JUnitPlatformUtils.getTestEngineId(uniqueId);
   }
 
   public static UniqueId getUniqueId(TestIdentifier testIdentifier) {

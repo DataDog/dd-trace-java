@@ -168,8 +168,8 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
           supportsDropping,
           supportsLongRunning,
           dataStreamsEndpoint,
-          evpProxyEndpoint,
-          configEndpoint);
+          configEndpoint,
+          evpProxyEndpoint);
     }
   }
 
@@ -272,6 +272,10 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
   private static void discoverStatsDPort(final Map<String, Object> info) {
     try {
       Map<String, ?> config = (Map<String, ?>) info.get("config");
+      if (config == null) {
+        log.debug("config missing from trace agent /info response");
+        return;
+      }
       final Object statsdPortObj = config.get("statsd_port");
       if (statsdPortObj == null) {
         log.debug("statsd_port missing from trace agent /info response");
@@ -279,8 +283,8 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
       }
       int statsdPort = ((Number) statsdPortObj).intValue();
       DDAgentStatsDClientManager.setDefaultStatsDPort(statsdPort);
-    } catch (Throwable ignore) {
-      log.debug("statsd_port missing from trace agent /info response", ignore);
+    } catch (Exception ex) {
+      log.debug("statsd_port missing from trace agent /info response", ex);
     }
   }
 

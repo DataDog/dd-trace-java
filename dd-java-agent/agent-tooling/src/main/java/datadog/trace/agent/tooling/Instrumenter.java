@@ -7,6 +7,7 @@ import static java.util.Collections.emptyMap;
 import static java.util.Collections.singletonList;
 import static net.bytebuddy.matcher.ElementMatchers.isSynthetic;
 
+import datadog.trace.agent.tooling.iast.IastPostProcessorFactory;
 import datadog.trace.agent.tooling.muzzle.Reference;
 import datadog.trace.agent.tooling.muzzle.ReferenceMatcher;
 import datadog.trace.agent.tooling.muzzle.ReferenceProvider;
@@ -24,6 +25,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import net.bytebuddy.asm.Advice;
 import net.bytebuddy.asm.AsmVisitorWrapper;
 import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
@@ -115,6 +117,11 @@ public interface Instrumenter {
   /** Instrumentation that wants to apply additional structure checks after type matching. */
   interface WithTypeStructure {
     ElementMatcher<TypeDescription> structureMatcher();
+  }
+
+  /** Instrumentation that wants to apply additional structure checks after type matching. */
+  interface WithPostProcessor {
+    Advice.PostProcessor.Factory postProcessor();
   }
 
   /** Instrumentation that provides method advice. */
@@ -314,8 +321,9 @@ public interface Instrumenter {
 
     @Override
     public boolean isEnabled() {
-      return !ConfigProvider.getInstance()
-          .getBoolean(ProfilingConfig.PROFILING_ULTRA_MINIMAL, false);
+      return super.isEnabled()
+          && !ConfigProvider.getInstance()
+              .getBoolean(ProfilingConfig.PROFILING_ULTRA_MINIMAL, false);
     }
   }
 
@@ -333,7 +341,7 @@ public interface Instrumenter {
 
   /** Parent class for all IAST related instrumentations */
   @SuppressForbidden
-  abstract class Iast extends Default {
+  abstract class Iast extends Default implements WithPostProcessor {
 
     private static final Logger log = LoggerFactory.getLogger(Instrumenter.Iast.class);
 
@@ -373,6 +381,11 @@ public interface Instrumenter {
     /** Get classes to force load* */
     public String[] getClassNamesToBePreloaded() {
       return null;
+    }
+
+    @Override
+    public Advice.PostProcessor.Factory postProcessor() {
+      return IastPostProcessorFactory.INSTANCE;
     }
   }
 

@@ -18,6 +18,7 @@ import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter
 import datadog.trace.bootstrap.instrumentation.api.URIDefaultDataAdapter
+import datadog.trace.core.datastreams.DataStreamsMonitoring
 
 import java.util.function.Function
 import java.util.function.Supplier
@@ -418,10 +419,13 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
     def mSpan = Mock(AgentSpan) {
       getRequestContext() >> reqCtxt
     }
+
     def mTracer = Mock(TracerAPI) {
       startSpan(_, _, _) >> mSpan
       getCallbackProvider(RequestContextSlot.APPSEC) >> cbpAppSec
       getCallbackProvider(RequestContextSlot.IAST) >> CallbackProvider.CallbackProviderNoop.INSTANCE
+      getUniversalCallbackProvider() >> cbpAppSec // no iast callbacks, so this is equivalent
+      getDataStreamsMonitoring() >> Mock(DataStreamsMonitoring)
     }
     def decorator = newDecorator(mTracer)
 

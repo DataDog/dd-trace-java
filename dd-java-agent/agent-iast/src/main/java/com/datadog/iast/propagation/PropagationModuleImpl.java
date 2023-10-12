@@ -3,6 +3,7 @@ package com.datadog.iast.propagation;
 import static com.datadog.iast.model.Range.NOT_MARKED;
 import static com.datadog.iast.taint.Ranges.highestPriorityRange;
 import static com.datadog.iast.taint.Tainteds.canBeTainted;
+import static com.datadog.iast.util.ObjectVisitor.State.CONTINUE;
 
 import com.datadog.iast.IastRequestContext;
 import com.datadog.iast.model.Range;
@@ -10,12 +11,17 @@ import com.datadog.iast.model.Source;
 import com.datadog.iast.taint.Ranges;
 import com.datadog.iast.taint.TaintedObject;
 import com.datadog.iast.taint.TaintedObjects;
+import com.datadog.iast.util.ObjectVisitor;
+import com.datadog.iast.util.ObjectVisitor.State;
+import com.datadog.iast.util.ObjectVisitor.Visitor;
 import datadog.trace.api.iast.SourceTypes;
 import datadog.trace.api.iast.Taintable;
 import datadog.trace.api.iast.propagation.PropagationModule;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Predicate;
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 public class PropagationModuleImpl implements PropagationModule {
@@ -164,6 +170,25 @@ public class PropagationModuleImpl implements PropagationModule {
   }
 
   @Override
+  public void taintDeeply(@Nullable final Object ctx_, final byte source, @Nonnull final Object o) {
+    taintDeeply(ctx_, source, o, ObjectVisitor::inspectClass);
+  }
+
+  @Override
+  public void taintDeeply(
+      @Nullable final Object ctx_,
+      final byte source,
+      @Nonnull final Object o,
+      @Nonnull final Predicate<Class<?>> classFilter) {
+    if (ctx_ == null) {
+      return;
+    }
+    final IastRequestContext ctx = (IastRequestContext) ctx_;
+    final TaintedObjects taintedObjects = ctx.getTaintedObjects();
+    ObjectVisitor.visit(o, new TaintingVisitor(taintedObjects, source), classFilter);
+  }
+
+  @Override
   public void taintObjectIfInputIsTaintedKeepingRanges(
       @Nullable final Object toTaint, @Nullable Object input) {
     if (toTaint == null || input == null) {
@@ -228,12 +253,17 @@ public class PropagationModuleImpl implements PropagationModule {
   }
 
   @Override
-  public void taint(
-      byte origin, @Nullable String name, @Nullable String value, @Nullable Taintable t) {
+  public void taintObject(
+      byte origin, @Nullable String name, @Nullable String value, @Nullable Object t) {
     if (t == null) {
       return;
     }
-    t.$$DD$setSource(new Source(origin, name, value));
+    if (t instanceof Taintable) {
+      ((Taintable) t).$$DD$setSource(new Source(origin, name, value));
+    } else {
+      final TaintedObjects taintedObjects = TaintedObjects.activeTaintedObjects();
+      taintObject(taintedObjects, t, new Source(origin, name, value));
+    }
   }
 
   @Override
@@ -301,6 +331,29 @@ public class PropagationModuleImpl implements PropagationModule {
     } else {
       final TaintedObject tainted = taintedObjects.get(object);
       return tainted == null ? null : tainted.getRanges();
+    }
+  }
+
+  private static class TaintingVisitor implements Visitor {
+
+    private final TaintedObjects taintedObjects;
+    private final byte source;
+
+    private TaintingVisitor(final TaintedObjects taintedObjects, final byte source) {
+      this.taintedObjects = taintedObjects;
+      this.source = source;
+    }
+
+    @Nonnull
+    @Override
+    public State visit(@Nonnull final String path, @Nonnull final Object value) {
+      if (value instanceof String) {
+        final String stringValue = (String) value;
+        if (canBeTainted(stringValue)) {
+          taintedObjects.taintInputString(stringValue, new Source(source, path, stringValue));
+        }
+      }
+      return CONTINUE;
     }
   }
 }

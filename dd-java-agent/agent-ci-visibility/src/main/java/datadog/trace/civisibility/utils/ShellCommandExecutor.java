@@ -115,7 +115,7 @@ public class ShellCommandExecutor {
       if (p.waitFor(timeoutMillis, TimeUnit.MILLISECONDS)) {
         int exitValue = p.exitValue();
         if (exitValue != 0) {
-          throw new IOException(
+          throw new ShellCommandFailedException(
               "Command '"
                   + Strings.join(" ", command)
                   + "' failed with exit code "
@@ -192,5 +192,11 @@ public class ShellCommandExecutor {
     OutputParser<Void> IGNORE = is -> null;
 
     T parse(InputStream inputStream) throws IOException;
+  }
+
+  public static final class ShellCommandFailedException extends IOException {
+    public ShellCommandFailedException(String message) {
+      super(message);
+    }
   }
 }

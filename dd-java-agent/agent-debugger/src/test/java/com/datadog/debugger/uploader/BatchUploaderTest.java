@@ -1,5 +1,6 @@
 package com.datadog.debugger.uploader;
 
+import static com.datadog.debugger.uploader.BatchUploader.HEADER_DD_API_KEY;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -13,10 +14,8 @@ import datadog.trace.api.Config;
 import datadog.trace.relocate.api.RatelimitedLogger;
 import java.io.IOException;
 import java.net.ConnectException;
-import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import okhttp3.ConnectionSpec;
@@ -41,6 +40,7 @@ public class BatchUploaderTest {
   private final Duration REQUEST_TIMEOUT = Duration.ofSeconds(10);
   private final Duration REQUEST_IO_OPERATION_TIMEOUT = Duration.ofSeconds(5);
   private final Duration FOREVER_REQUEST_TIMEOUT = Duration.ofSeconds(1000);
+  private static final String API_KEY_VALUE = "testkey";
 
   @Mock private Config config;
   @Mock private RatelimitedLogger ratelimitedLogger;
@@ -178,13 +178,11 @@ public class BatchUploaderTest {
       uploader.upload(SNAPSHOT_BUFFER);
     }
 
-    final List<ByteBuffer> hangingRequests = new ArrayList<>();
     // We schedule one additional request to check case when request would be rejected immediately
     // rather than added to the queue.
     for (int i = 0; i < BatchUploader.MAX_ENQUEUED_REQUESTS + 1; i++) {
       uploader.upload(SNAPSHOT_BUFFER);
     }
-
     // Make sure all expected requests happened
     for (int i = 0; i < BatchUploader.MAX_RUNNING_REQUESTS; i++) {
       assertNotNull(server.takeRequest(5, TimeUnit.SECONDS));
@@ -233,5 +231,18 @@ public class BatchUploaderTest {
 
     RecordedRequest request = server.takeRequest(100, TimeUnit.MILLISECONDS);
     assertEquals("testContainerId", request.getHeader("Datadog-Container-ID"));
+  }
+
+  @Test
+  public void testApiKey() throws InterruptedException {
+    server.enqueue(new MockResponse().setResponseCode(200));
+    when(config.getApiKey()).thenReturn(API_KEY_VALUE);
+
+    BatchUploader uploaderWithApiKey = new BatchUploader(config, ratelimitedLogger);
+    uploaderWithApiKey.upload(SNAPSHOT_BUFFER);
+    uploaderWithApiKey.shutdown();
+
+    RecordedRequest request = server.takeRequest(100, TimeUnit.MILLISECONDS);
+    assertEquals(API_KEY_VALUE, request.getHeader(HEADER_DD_API_KEY));
   }
 }

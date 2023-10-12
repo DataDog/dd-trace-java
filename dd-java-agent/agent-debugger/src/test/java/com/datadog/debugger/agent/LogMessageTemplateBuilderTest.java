@@ -5,6 +5,9 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.datadog.debugger.el.DSL;
+import com.datadog.debugger.el.ValueScript;
+import com.datadog.debugger.el.values.StringValue;
 import com.datadog.debugger.probe.LogProbe;
 import datadog.trace.bootstrap.debugger.CapturedContext;
 import datadog.trace.bootstrap.debugger.EvaluationError;
@@ -16,6 +19,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.DisabledIf;
 import org.junit.jupiter.api.condition.EnabledOnJre;
 import org.junit.jupiter.api.condition.JRE;
 
@@ -64,6 +68,24 @@ class LogMessageTemplateBuilderTest {
         });
     String message = summaryBuilder.evaluate(capturedContext, new LogProbe.LogStatus(probe));
     assertEquals("foo", message);
+  }
+
+  @Test
+  public void booleanArgTemplate() {
+    List<LogProbe.Segment> segments = new ArrayList<>();
+    segments.add(
+        new LogProbe.Segment(
+            new ValueScript(
+                DSL.bool(DSL.contains(DSL.ref("arg"), new StringValue("o"))), "{arg}")));
+    LogProbe probe = LogProbe.builder().template("{contains(arg, 'o')}", segments).build();
+    LogMessageTemplateBuilder summaryBuilder = new LogMessageTemplateBuilder(probe.getSegments());
+    CapturedContext capturedContext = new CapturedContext();
+    capturedContext.addArguments(
+        new CapturedContext.CapturedValue[] {
+          CapturedContext.CapturedValue.of("arg", String.class.getTypeName(), "foo")
+        });
+    String message = summaryBuilder.evaluate(capturedContext, new LogProbe.LogStatus(probe));
+    assertEquals("true", message);
   }
 
   @Test
@@ -203,6 +225,7 @@ class LogMessageTemplateBuilderTest {
 
   @Test
   @EnabledOnJre(JRE.JAVA_17)
+  @DisabledIf("datadog.trace.api.Platform#isJ9")
   public void argInaccessibleFieldTemplate() {
     LogProbe probe = createLogProbe("{obj}");
     LogMessageTemplateBuilder summaryBuilder = new LogMessageTemplateBuilder(probe.getSegments());

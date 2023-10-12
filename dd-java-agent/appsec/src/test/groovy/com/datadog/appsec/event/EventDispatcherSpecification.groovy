@@ -9,34 +9,9 @@ import datadog.appsec.api.blocking.BlockingContentType
 import datadog.trace.api.gateway.Flow
 import datadog.trace.test.util.DDSpecification
 
-import static org.hamcrest.Matchers.containsInAnyOrder
-import static spock.util.matcher.HamcrestSupport.expect
-
 class EventDispatcherSpecification extends DDSpecification {
   EventDispatcher dispatcher = new EventDispatcher()
   AppSecRequestContext ctx = Mock()
-
-  void 'notifies about events in order'() {
-    given:
-    EventListener eventListener1 = Mock()
-    EventListener eventListener2 = Mock()
-    eventListener1.priority >> OrderedCallback.Priority.DEFAULT
-    eventListener2.priority >> OrderedCallback.Priority.HIGH
-
-    def set = new EventDispatcher.EventSubscriptionSet()
-    set.addSubscription(EventType.REQUEST_END, eventListener1)
-    set.addSubscription(EventType.REQUEST_END, eventListener2)
-    dispatcher.subscribeEvents(set)
-
-    when:
-    dispatcher.publishEvent(ctx, EventType.REQUEST_END)
-
-    then:
-    1 * eventListener2.onEvent(ctx, EventType.REQUEST_END)
-
-    then:
-    1 * eventListener1.onEvent(ctx, EventType.REQUEST_END)
-  }
 
   void 'notifies about data in order with the same flow'() {
     Flow savedFlow1, savedFlow2, savedFlow3
@@ -163,22 +138,16 @@ class EventDispatcherSpecification extends DDSpecification {
   }
 
   void 'saves the subscribed to events and addresses'() {
-    when:
-    EventListener eventListener = Mock()
-    eventListener.priority >> OrderedCallback.Priority.DEFAULT
-    def set = new EventDispatcher.EventSubscriptionSet()
-    set.addSubscription(EventType.REQUEST_END, eventListener)
-
+    given:
+    def addressSet = new EventDispatcher.DataSubscriptionSet()
     DataListener dataListener = Mock()
     dataListener.priority >> OrderedCallback.Priority.DEFAULT
-    dispatcher.subscribeEvents(set)
-    def addressSet = new EventDispatcher.DataSubscriptionSet()
+
+    when:
     addressSet.addSubscription([KnownAddresses.REQUEST_CLIENT_IP], dataListener)
-    dispatcher.subscribeDataAvailable(addressSet)
 
     then:
-    expect dispatcher.allSubscribedDataAddresses(), containsInAnyOrder(KnownAddresses.REQUEST_CLIENT_IP)
-    expect dispatcher.allSubscribedEvents(), containsInAnyOrder(EventType.REQUEST_END)
+    dispatcher.subscribeDataAvailable(addressSet)
   }
 
   void 'throws ExpiredSubscriberInfo if it is from a different EventDispatcher'() {

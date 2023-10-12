@@ -52,6 +52,7 @@
 0 java.nio.DirectByteBuffer
 0 java.nio.ByteBuffer
 0 java.rmi.*
+0 java.util.Timer
 0 java.util.concurrent.*
 1 java.util.concurrent.ConcurrentHashMap*
 1 java.util.concurrent.atomic.*
@@ -121,6 +122,9 @@
 2 akka.http.scaladsl.*
 0 akka.http.scaladsl.Http2Ext
 0 akka.http.scaladsl.HttpExt
+0 akka.http.scaladsl.server.ExceptionHandler$
+0 akka.http.scaladsl.common.StrictForm$
+0 akka.http.impl.engine.server.HttpServerBluePrint$ControllerStage$$anon$*
 # saves ~0.1s skipping ~407 classes
 2 akka.stream.*
 0 akka.stream.impl.FanIn$SubInput
@@ -132,6 +136,8 @@
 0 akka.http.javadsl.model.HttpHeader
 0 akka.http.scaladsl.model.HttpRequest
 0 akka.http.scaladsl.model.headers.*
+0 akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport
+0 akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport$class
 0 akka.http.scaladsl.unmarshalling.*
 0 akka.http.scaladsl.server.PathMatcher$Matched
 0 akka.http.scaladsl.server.directives.ParameterDirectives$class
@@ -141,6 +147,7 @@
 0 akka.http.scaladsl.server.directives.FormFieldDirectives$class
 0 akka.http.scaladsl.server.directives.FormFieldDirectives
 0 akka.http.scaladsl.model.Uri
+0 akka.http.scaladsl.model.Multipart$FormData
 0 akka.http.scaladsl.model.FormData
 0 akka.http.scaladsl.server.RequestContextImpl
 0 akka.http.scaladsl.server.directives.CookieDirectives$class
@@ -244,6 +251,7 @@
 0 org.springframework.beans.factory.support.DefaultListableBeanFactory
 0 org.springframework.beans.factory.support.DisposableBeanAdapter
 2 org.springframework.boot.*
+0 org.apache.xalan.transformer.TransformerImpl
 # More runnables to deal with
 0 org.springframework.boot.autoconfigure.BackgroundPreinitializer$*
 0 org.springframework.boot.autoconfigure.condition.OnClassCondition$*
@@ -321,14 +329,19 @@
 0 org.springframework.web.servlet.*
 # Included for IAST
 0 org.springframework.web.util.WebUtils
-# Included for IAST Spring mvc unvalidated redirect vulnerability
-0 org.springframework.web.method.support.InvocableHandlerMethod
+# Need for IAST so propagation of tainted objects is complete in spring 2.7.5
+0 org.springframework.util.StreamUtils$NonClosingInputStream
+# Included for IAST Spring mvc unvalidated redirect and xss vulnerability
+0 org.springframework.web.method.support.HandlerMethodReturnValueHandlerComposite
 2 org.xml.*
 2 org.yaml.snakeyaml.*
 # saves ~0.5s skipping instrumentation of almost ~470 classes
 2 scala.collection.*
 
 # -------- SPECIAL CASES --------
+
+# incomplete wrapper that throws exceptions for all but one method
+1 reactor.rabbitmq.ChannelProxy
 
 3 com.mchange.v2.c3p0.*
 4 org.springframework.http.converter.*

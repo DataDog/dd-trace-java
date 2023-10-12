@@ -22,7 +22,7 @@ import javax.servlet.http.HttpServletRequest;
 @CallSite(spi = IastCallSites.class)
 public class HttpServletRequestCallSite {
 
-  @Source(SourceTypes.REQUEST_HEADER_VALUE_STRING)
+  @Source(SourceTypes.REQUEST_HEADER_VALUE)
   @CallSite.After(
       "java.lang.String javax.servlet.http.HttpServletRequest.getHeader(java.lang.String)")
   @CallSite.After(
@@ -42,7 +42,7 @@ public class HttpServletRequestCallSite {
     return value;
   }
 
-  @Source(SourceTypes.REQUEST_HEADER_VALUE_STRING)
+  @Source(SourceTypes.REQUEST_HEADER_VALUE)
   @CallSite.After(
       "java.util.Enumeration javax.servlet.http.HttpServletRequest.getHeaders(java.lang.String)")
   @CallSite.After(
@@ -77,7 +77,7 @@ public class HttpServletRequestCallSite {
     }
   }
 
-  @Source(SourceTypes.REQUEST_HEADER_NAME_STRING)
+  @Source(SourceTypes.REQUEST_HEADER_NAME)
   @CallSite.After("java.util.Enumeration javax.servlet.http.HttpServletRequest.getHeaderNames()")
   @CallSite.After(
       "java.util.Enumeration javax.servlet.http.HttpServletRequestWrapper.getHeaderNames()")
@@ -110,7 +110,7 @@ public class HttpServletRequestCallSite {
     }
   }
 
-  @Source(SourceTypes.REQUEST_COOKIE_VALUE_STRING)
+  @Source(SourceTypes.REQUEST_COOKIE_VALUE)
   @CallSite.After("javax.servlet.http.Cookie[] javax.servlet.http.HttpServletRequest.getCookies()")
   @CallSite.After(
       "javax.servlet.http.Cookie[] javax.servlet.http.HttpServletRequestWrapper.getCookies()")
@@ -129,7 +129,7 @@ public class HttpServletRequestCallSite {
     return cookies;
   }
 
-  @Source(SourceTypes.REQUEST_QUERY_STRING)
+  @Source(SourceTypes.REQUEST_QUERY)
   @CallSite.After("java.lang.String javax.servlet.http.HttpServletRequest.getQueryString()")
   @CallSite.After("java.lang.String javax.servlet.http.HttpServletRequestWrapper.getQueryString()")
   public static String afterGetQueryString(
@@ -145,7 +145,7 @@ public class HttpServletRequestCallSite {
     return queryString;
   }
 
-  @Source(SourceTypes.REQUEST_PARAMETER_VALUE_STRING)
+  @Source(SourceTypes.REQUEST_PARAMETER_VALUE)
   @CallSite.After(
       "java.lang.String javax.servlet.http.HttpServletRequest.getParameter(java.lang.String)")
   @CallSite.After(
@@ -165,7 +165,7 @@ public class HttpServletRequestCallSite {
     return value;
   }
 
-  @Source(SourceTypes.REQUEST_PARAMETER_NAME_STRING)
+  @Source(SourceTypes.REQUEST_PARAMETER_NAME)
   @CallSite.After("java.util.Enumeration javax.servlet.http.HttpServletRequest.getParameterNames()")
   @CallSite.After(
       "java.util.Enumeration javax.servlet.http.HttpServletRequestWrapper.getParameterNames()")
@@ -196,7 +196,7 @@ public class HttpServletRequestCallSite {
     }
   }
 
-  @Source(SourceTypes.REQUEST_PARAMETER_VALUE_STRING)
+  @Source(SourceTypes.REQUEST_PARAMETER_VALUE)
   @CallSite.After(
       "java.lang.String[] javax.servlet.http.HttpServletRequest.getParameterValues(java.lang.String)")
   @CallSite.After(
@@ -218,7 +218,7 @@ public class HttpServletRequestCallSite {
     return parameterValues;
   }
 
-  @Source(SourceTypes.REQUEST_BODY_STRING)
+  @Source(SourceTypes.REQUEST_BODY)
   @CallSite.After("java.io.BufferedReader javax.servlet.http.HttpServletRequest.getReader()")
   @CallSite.After("java.io.BufferedReader javax.servlet.http.HttpServletRequestWrapper.getReader()")
   public static BufferedReader afterGetReader(
@@ -249,5 +249,40 @@ public class HttpServletRequestCallSite {
         module.onUnexpectedException("beforeRequestDispatcher threw", e);
       }
     }
+  }
+
+  @Source(SourceTypes.REQUEST_URI)
+  @CallSite.After("java.lang.String javax.servlet.http.HttpServletRequest.getRequestURI()")
+  public static String afterGetRequestURI(
+      @CallSite.This final HttpServletRequest self, @CallSite.Return final String retValue) {
+    if (null != retValue && !retValue.isEmpty()) {
+      final WebModule module = InstrumentationBridge.WEB;
+      if (module != null) {
+        try {
+          module.onGetRequestURI(retValue);
+        } catch (final Throwable e) {
+          module.onUnexpectedException("afterGetRequestURI threw", e);
+        }
+      }
+    }
+    return retValue;
+  }
+
+  @Source(SourceTypes.REQUEST_PATH)
+  @CallSite.After("java.lang.String javax.servlet.http.HttpServletRequest.getPathInfo()")
+  @CallSite.After("java.lang.String javax.servlet.http.HttpServletRequest.getPathTranslated()")
+  public static String afterGetPathInfo(
+      @CallSite.This final HttpServletRequest self, @CallSite.Return final String retValue) {
+    if (null != retValue && !retValue.isEmpty()) {
+      final WebModule module = InstrumentationBridge.WEB;
+      if (module != null) {
+        try {
+          module.onGetPathInfo(retValue);
+        } catch (final Throwable e) {
+          module.onUnexpectedException("afterGetPathInfo threw", e);
+        }
+      }
+    }
+    return retValue;
   }
 }

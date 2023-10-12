@@ -1,6 +1,9 @@
 package datadog.trace.instrumentation.netty40.server;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
+import static datadog.trace.instrumentation.netty40.AttributeKeys.ANALYZED_RESPONSE_KEY;
+import static datadog.trace.instrumentation.netty40.AttributeKeys.BLOCKED_RESPONSE_KEY;
+import static datadog.trace.instrumentation.netty40.AttributeKeys.REQUEST_HEADERS_ATTRIBUTE_KEY;
 import static datadog.trace.instrumentation.netty40.AttributeKeys.SPAN_ATTRIBUTE_KEY;
 import static datadog.trace.instrumentation.netty40.server.NettyHttpServerDecorator.DECORATE;
 
@@ -8,6 +11,7 @@ import datadog.trace.api.gateway.Flow;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan.Context;
+import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
@@ -21,8 +25,9 @@ public class HttpServerRequestTracingHandler extends ChannelInboundHandlerAdapte
   @Override
   public void channelRead(final ChannelHandlerContext ctx, final Object msg) {
 
+    Channel channel = ctx.channel();
     if (!(msg instanceof HttpRequest)) {
-      final AgentSpan span = ctx.channel().attr(SPAN_ATTRIBUTE_KEY).get();
+      final AgentSpan span = channel.attr(SPAN_ATTRIBUTE_KEY).get();
       if (span == null) {
         ctx.fireChannelRead(msg); // superclass does not throw
       } else {
@@ -41,16 +46,23 @@ public class HttpServerRequestTracingHandler extends ChannelInboundHandlerAdapte
 
     try (final AgentScope scope = activateSpan(span)) {
       DECORATE.afterStart(span);
-      DECORATE.onRequest(span, ctx.channel(), request, extractedContext);
+      DECORATE.onRequest(span, channel, request, extractedContext);
 
       scope.setAsyncPropagation(true);
 
-      ctx.channel().attr(SPAN_ATTRIBUTE_KEY).set(span);
+      channel.attr(ANALYZED_RESPONSE_KEY).set(null);
+      channel.attr(BLOCKED_RESPONSE_KEY).set(null);
+
+      channel.attr(SPAN_ATTRIBUTE_KEY).set(span);
+      channel.attr(REQUEST_HEADERS_ATTRIBUTE_KEY).set(request.headers());
 
       Flow.Action.RequestBlockingAction rba = span.getRequestBlockingAction();
       if (rba != null) {
-        span.getRequestContext().getTraceSegment().effectivelyBlocked();
-        ctx.pipeline().addAfter(ctx.name(), "blocking_handler", new BlockingResponseHandler(rba));
+        ctx.pipeline()
+            .addAfter(
+                ctx.name(),
+                "blocking_handler",
+                new BlockingResponseHandler(span.getRequestContext().getTraceSegment(), rba));
       }
 
       try {

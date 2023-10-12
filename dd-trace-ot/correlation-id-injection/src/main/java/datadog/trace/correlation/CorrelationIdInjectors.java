@@ -38,7 +38,7 @@ public final class CorrelationIdInjectors {
       Class<?> injectorClass = Class.forName(className);
       injectorClass.getConstructor(InternalTracer.class).newInstance(tracer);
     } catch (ReflectiveOperationException e) {
-      log.warn("Failed to enable injector " + className + ".", e);
+      log.warn("Failed to enable injector {}.", className, e);
     }
   }
 

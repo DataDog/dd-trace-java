@@ -1,0 +1,101 @@
+plugins {
+  id 'com.google.protobuf' version '0.9.3'
+}
+
+ext {
+  minJavaVersionForTests = JavaVersion.VERSION_17
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+
+sourceSets {
+  main {
+    proto {
+      // In addition to the default 'src/main/proto'
+      srcDir 'application/src/main/proto'
+    }
+  }
+}
+
+protobuf {
+  // Configure the protoc executable.
+  protoc {
+    // Download from the repository.
+    artifact = 'com.google.protobuf:protoc:3.22.3'
+  }
+
+  // Locate the codegen plugins.
+  plugins {
+    // Locate a plugin with name 'grpc'.
+    grpc {
+      // Download from the repository.
+      artifact = 'io.grpc:protoc-gen-grpc-java:1.56.0'
+    }
+  }
+  generateProtoTasks {
+    ofSourceSet('main')*.plugins {
+      grpc {}
+    }
+  }
+}
+
+dependencies {
+  testImplementation project(':dd-smoke-tests')
+
+  implementation 'io.grpc:grpc-protobuf:1.56.0'
+  implementation 'io.grpc:grpc-stub:1.56.0'
+  testRuntimeOnly 'io.grpc:grpc-netty-shaded:1.56.0'
+  testCompileOnly 'org.apache.tomcat:annotations-api:6.0.53' // necessary for Java 9+
+  testImplementation(testFixtures(project(":dd-smoke-tests:iast-util")))
+}
+
+def appDir = "$projectDir/application"
+def appBuildDir = "$buildDir/application"
+def isWindows = System.getProperty("os.name").toLowerCase().contains("win")
+def gradlewCommand = isWindows ? 'gradlew.bat' : 'gradlew'
+
+// define the task that builds the armeria project
+tasks.register('armeriaBuild', Exec) {
+  workingDir "$appDir"
+  def toolchain17 = getJavaLauncherFor(17).get()
+  environment += ["GRADLE_OPTS": "-Dorg.gradle.jvmargs='-Xmx512M'", "JAVA_HOME": "$toolchain17.metadata.installationPath"]
+  commandLine "${rootDir}/${gradlewCommand}", "build", "--no-daemon", "--max-workers=4", "-PappBuildDir=$appBuildDir", "-PapiJar=${project(':dd-trace-api').tasks.jar.archiveFile.get()}"
+
+  outputs.cacheIf { true }
+
+  outputs.dir(appBuildDir)
+    .withPropertyName("applicationJar")
+
+  inputs.files(fileTree(appDir) {
+    include '**/*'
+    exclude '.gradle/**'
+  })
+  .withPropertyName("application")
+  .withPathSensitivity(PathSensitivity.RELATIVE)
+}
+
+evaluationDependsOn ':dd-trace-api'
+armeriaBuild {
+  dependsOn project(':dd-trace-api').tasks.named("jar")
+}
+
+tasks.named("compileTestGroovy").configure {
+  dependsOn 'armeriaBuild'
+  outputs.upToDateWhen {
+    !armeriaBuild.didWork
+  }
+}
+
+tasks.withType(Test).configureEach {
+  jvmArgs "-Ddatadog.smoketest.armeria.uberJar.path=$appBuildDir/libs/armeria-smoketest-all.jar"
+}
+
+spotless {
+  java {
+    target "**/*.java"
+  }
+
+  groovyGradle {
+    target '*.gradle', "**/*.gradle"
+  }
+}

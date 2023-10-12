@@ -101,7 +101,7 @@ public final class KafkaProducerInstrumentation extends Instrumenter.Tracing
         try {
           propagate().inject(span, record.headers(), SETTER);
           if (StreamingContext.empty() || StreamingContext.isSinkTopic(record.topic())) {
-            propagate().injectBinaryPathwayContext(span, record.headers(), SETTER, sortedTags);
+            propagate().injectPathwayContext(span, record.headers(), SETTER, sortedTags);
           }
         } catch (final IllegalStateException e) {
           // headers must be read-only from reused record. try again with new one.
@@ -116,7 +116,7 @@ public final class KafkaProducerInstrumentation extends Instrumenter.Tracing
 
           propagate().inject(span, record.headers(), SETTER);
           if (StreamingContext.empty() || StreamingContext.isSinkTopic(record.topic())) {
-            propagate().injectBinaryPathwayContext(span, record.headers(), SETTER, sortedTags);
+            propagate().injectPathwayContext(span, record.headers(), SETTER, sortedTags);
           }
         }
         if (TIME_IN_QUEUE_ENABLED) {

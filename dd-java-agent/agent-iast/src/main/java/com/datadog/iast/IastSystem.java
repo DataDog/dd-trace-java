@@ -6,6 +6,7 @@ import com.datadog.iast.propagation.FastCodecModule;
 import com.datadog.iast.propagation.PropagationModuleImpl;
 import com.datadog.iast.propagation.StringModuleImpl;
 import com.datadog.iast.sink.CommandInjectionModuleImpl;
+import com.datadog.iast.sink.HstsMissingHeaderModuleImpl;
 import com.datadog.iast.sink.HttpResponseHeaderModuleImpl;
 import com.datadog.iast.sink.InsecureCookieModuleImpl;
 import com.datadog.iast.sink.LdapInjectionModuleImpl;
@@ -19,6 +20,7 @@ import com.datadog.iast.sink.UnvalidatedRedirectModuleImpl;
 import com.datadog.iast.sink.WeakCipherModuleImpl;
 import com.datadog.iast.sink.WeakHashModuleImpl;
 import com.datadog.iast.sink.WeakRandomnessModuleImpl;
+import com.datadog.iast.sink.XContentTypeModuleImpl;
 import com.datadog.iast.sink.XPathInjectionModuleImpl;
 import com.datadog.iast.sink.XssModuleImpl;
 import com.datadog.iast.source.WebModuleImpl;
@@ -26,6 +28,7 @@ import com.datadog.iast.telemetry.TelemetryRequestEndedHandler;
 import com.datadog.iast.telemetry.TelemetryRequestStartedHandler;
 import datadog.trace.api.Config;
 import datadog.trace.api.ProductActivation;
+import datadog.trace.api.function.TriConsumer;
 import datadog.trace.api.gateway.EventType;
 import datadog.trace.api.gateway.Events;
 import datadog.trace.api.gateway.Flow;
@@ -71,6 +74,8 @@ public class IastSystem {
     iastModules().forEach(registerModule(dependencies));
     registerRequestStartedCallback(ss, addTelemetry, dependencies);
     registerRequestEndedCallback(ss, addTelemetry, dependencies);
+    registerHeadersCallback(ss);
+    registerGrpcServerRequestMessageCallback(ss);
     LOGGER.debug("IAST started");
   }
 
@@ -96,8 +101,10 @@ public class IastSystem {
         new LdapInjectionModuleImpl(),
         new PropagationModuleImpl(),
         new HttpResponseHeaderModuleImpl(),
+        new HstsMissingHeaderModuleImpl(),
         new InsecureCookieModuleImpl(),
         new NoHttpOnlyCookieModuleImpl(),
+        new XContentTypeModuleImpl(),
         new NoSameSiteCookieModuleImpl(),
         new SsrfModuleImpl(),
         new UnvalidatedRedirectModuleImpl(),
@@ -123,5 +130,16 @@ public class IastSystem {
         Events.get().requestEnded();
     final RequestEndedHandler handler = new RequestEndedHandler(dependencies);
     ss.registerCallback(event, addTelemetry ? new TelemetryRequestEndedHandler(handler) : handler);
+  }
+
+  private static void registerHeadersCallback(final SubscriptionService ss) {
+    final EventType<TriConsumer<RequestContext, String, String>> event =
+        Events.get().requestHeader();
+    final TriConsumer<RequestContext, String, String> handler = new RequestHeaderHandler();
+    ss.registerCallback(event, handler);
+  }
+
+  private static void registerGrpcServerRequestMessageCallback(final SubscriptionService ss) {
+    ss.registerCallback(Events.get().grpcServerRequestMessage(), new GrpcRequestMessageHandler());
   }
 }

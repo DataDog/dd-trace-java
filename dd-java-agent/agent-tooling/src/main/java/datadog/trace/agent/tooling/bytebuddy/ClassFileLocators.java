@@ -101,6 +101,8 @@ public final class ClassFileLocators {
   private ClassFileLocators() {}
 
   public static final class LazyResolution implements Resolution {
+    private static final Boolean USE_URL_CACHES = InstrumenterConfig.get().isResolverUseUrlCaches();
+
     private final URL url;
     private byte[] bytecode;
 
@@ -122,7 +124,9 @@ public final class ClassFileLocators {
       if (null == bytecode) {
         try {
           URLConnection uc = url.openConnection();
-          uc.setUseCaches(false);
+          if (null != USE_URL_CACHES) {
+            uc.setUseCaches(USE_URL_CACHES);
+          }
           try (InputStream in = uc.getInputStream()) {
             bytecode = StreamDrainer.DEFAULT.drain(in);
           }

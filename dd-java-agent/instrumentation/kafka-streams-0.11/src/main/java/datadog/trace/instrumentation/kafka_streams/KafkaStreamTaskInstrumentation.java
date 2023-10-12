@@ -249,7 +249,9 @@ public class KafkaStreamTaskInstrumentation extends Instrumenter.Tracing
           AgentTracer.get().setDataStreamCheckpoint(span, sortedTags, record.timestamp);
         } else {
           if (StreamingContext.isSourceTopic(record.topic())) {
-            AgentTracer.get().setDataStreamCheckpoint(span, sortedTags, record.timestamp);
+            AgentTracer.get()
+            .getDataStreamsMonitoring()
+            .setCheckpoint(span, sortedTags, record.timestamp);
 
             PathwayContext pathwayContext = span.context().getPathwayContext();
             pathwayContext.injectBinary(record, SR_GETTER_SETTER);
@@ -319,10 +321,14 @@ public class KafkaStreamTaskInstrumentation extends Instrumenter.Tracing
         sortedTags.put(TYPE_TAG, "kafka");
 
         if (StreamingContext.empty()) {
-          AgentTracer.get().setDataStreamCheckpoint(span, sortedTags, record.timestamp());
+          AgentTracer.get()
+              .getDataStreamsMonitoring()
+              .setCheckpoint(span, sortedTags, record.timestamp());
         } else {
           if (StreamingContext.isSourceTopic(record.topic())) {
-            AgentTracer.get().setDataStreamCheckpoint(span, sortedTags, record.timestamp());
+            AgentTracer.get()
+                .getDataStreamsMonitoring()
+                .setCheckpoint(span, sortedTags, record.timestamp());
 
             PathwayContext pathwayContext = span.context().getPathwayContext();
             pathwayContext.injectBinary(record, PR_GETTER_SETTER);

@@ -2,6 +2,7 @@ package datadog.trace.core.datastreams
 
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery
 import datadog.trace.api.DDTraceId
+import datadog.trace.api.TraceConfig
 import datadog.trace.api.WellKnownTags
 import datadog.trace.api.time.ControllableTimeSource
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation
@@ -437,8 +438,7 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
     context.setCheckpoint(new LinkedHashMap<>(["type": "internal"]), pointConsumer)
 
     def encoded = context.strEncode()
-    def jsonPathway = String.format("{\"%s\": \"%s\"}", PathwayContext.PROPAGATION_KEY_BASE64, encoded)
-    Map<String, String> carrier = [(PathwayContext.DATADOG_KEY): jsonPathway, "someotherkey": "someothervalue"]
+    Map<String, String> carrier = [(PathwayContext.PROPAGATION_KEY_BASE64): encoded, "someotherkey": "someothervalue"]
     timeSource.advance(MILLISECONDS.toNanos(1))
     def decodedContext = DefaultPathwayContext.extract(carrier, contextVisitor, timeSource, wellKnownTags)
     timeSource.advance(MILLISECONDS.toNanos(25))
@@ -458,8 +458,7 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
 
     when:
     def secondEncode = decodedContext.strEncode()
-    def secondJsonPathway = String.format("{\"%s\": \"%s\"}", PathwayContext.PROPAGATION_KEY_BASE64, secondEncode)
-    carrier = [(PathwayContext.DATADOG_KEY): secondJsonPathway]
+    carrier = [(PathwayContext.PROPAGATION_KEY_BASE64): secondEncode]
     timeSource.advance(MILLISECONDS.toNanos(2))
     def secondDecode = DefaultPathwayContext.extract(carrier, contextVisitor, timeSource, wellKnownTags)
     timeSource.advance(MILLISECONDS.toNanos(30))
@@ -541,7 +540,16 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
     }
     def timeSource = new ControllableTimeSource()
     def payloadWriter = Mock(DatastreamsPayloadWriter)
-    def dataStreams = new DefaultDataStreamsMonitoring(sink, features, timeSource, wellKnownTags, payloadWriter, DEFAULT_BUCKET_DURATION_NANOS)
+
+    def globalTraceConfig = Mock(TraceConfig) {
+      isDataStreamsEnabled() >> { return globalDsmEnabled }
+    }
+
+    def localTraceConfig = Mock(TraceConfig) {
+      isDataStreamsEnabled() >> { return localDsmEnabled }
+    }
+
+    def dataStreams = new DefaultDataStreamsMonitoring(sink, features, timeSource, { globalTraceConfig }, wellKnownTags, payloadWriter, DEFAULT_BUCKET_DURATION_NANOS)
 
     def context = new DefaultPathwayContext(timeSource, wellKnownTags)
     timeSource.advance(MILLISECONDS.toNanos(50))
@@ -549,16 +557,29 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
     def encoded = context.strEncode()
     Map<String, String> carrier = [(PathwayContext.PROPAGATION_KEY_BASE64): encoded, "someotherkey": "someothervalue"]
     def contextVisitor = new Base64MapContextVisitor()
-    def extractor = new FakeExtractor()
-    def decorated = dataStreams.decorate(extractor)
 
     when:
+    def extractor = new FakeExtractor()
+    extractor.traceConfig = localTraceConfig
+    def decorated = dataStreams.extractor(extractor)
     def extracted = decorated.extract(carrier, contextVisitor)
 
     then:
     extracted != null
-    extracted.pathwayContext != null
-    extracted.pathwayContext.isStarted()
+
+    if (shouldExtractPathwayContext) {
+      assert extracted.pathwayContext != null
+      assert extracted.pathwayContext.isStarted()
+    } else {
+      assert extracted.pathwayContext == null
+    }
+
+    where:
+    localDsmEnabled | globalDsmEnabled | shouldExtractPathwayContext
+    true            | true             | true
+    true            | false            | true
+    false           | true             | false
+    false           | false            | false
   }
 
   def "Check context extractor decorator behavior when trace data is null"() {
@@ -569,7 +590,12 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
     }
     def timeSource = new ControllableTimeSource()
     def payloadWriter = Mock(DatastreamsPayloadWriter)
-    def dataStreams = new DefaultDataStreamsMonitoring(sink, features, timeSource, wellKnownTags, payloadWriter, DEFAULT_BUCKET_DURATION_NANOS)
+
+    def globalTraceConfig = Mock(TraceConfig) {
+      isDataStreamsEnabled() >> { return globalDsmEnabled }
+    }
+
+    def dataStreams = new DefaultDataStreamsMonitoring(sink, features, timeSource, { globalTraceConfig }, wellKnownTags, payloadWriter, DEFAULT_BUCKET_DURATION_NANOS)
 
     def context = new DefaultPathwayContext(timeSource, wellKnownTags)
     timeSource.advance(MILLISECONDS.toNanos(50))
@@ -578,15 +604,63 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
     Map<String, String> carrier = [(PathwayContext.PROPAGATION_KEY_BASE64): encoded, "someotherkey": "someothervalue"]
     def contextVisitor = new Base64MapContextVisitor()
     def extractor = new NullExtractor()
-    def decorated = dataStreams.decorate(extractor)
+    def decorated = dataStreams.extractor(extractor)
+
+    when:
+    def extracted = decorated.extract(carrier, contextVisitor)
+
+    then:
+
+    if (globalDsmEnabled) {
+      extracted != null
+      extracted.pathwayContext != null
+      extracted.pathwayContext.isStarted()
+    } else {
+      extracted == null
+    }
+
+    where:
+    globalDsmEnabled << [true, false]
+  }
+
+  def "Check context extractor decorator behavior when local trace config is null"() {
+    given:
+    def sink = Mock(Sink)
+    def features = Stub(DDAgentFeaturesDiscovery) {
+      supportsDataStreams() >> true
+    }
+    def timeSource = new ControllableTimeSource()
+    def payloadWriter = Mock(DatastreamsPayloadWriter)
+
+    def globalTraceConfig = Mock(TraceConfig) {
+      isDataStreamsEnabled() >> { return globalDsmEnabled }
+    }
+
+    def dataStreams = new DefaultDataStreamsMonitoring(sink, features, timeSource, { globalTraceConfig }, wellKnownTags, payloadWriter, DEFAULT_BUCKET_DURATION_NANOS)
+
+    def context = new DefaultPathwayContext(timeSource, wellKnownTags)
+    timeSource.advance(MILLISECONDS.toNanos(50))
+    context.setCheckpoint(new LinkedHashMap<>(["type": "internal"]), pointConsumer)
+    def encoded = context.strEncode()
+    Map<String, String> carrier = [(PathwayContext.PROPAGATION_KEY_BASE64): encoded, "someotherkey": "someothervalue"]
+    def contextVisitor = new Base64MapContextVisitor()
+    def extractor = new FakeExtractor()
+    def decorated = dataStreams.extractor(extractor)
 
     when:
     def extracted = decorated.extract(carrier, contextVisitor)
 
     then:
     extracted != null
-    extracted.pathwayContext != null
-    extracted.pathwayContext.isStarted()
+    if (globalDsmEnabled) {
+      extracted.pathwayContext != null
+      extracted.pathwayContext.isStarted()
+    } else {
+      extracted.pathwayContext == null
+    }
+
+    where:
+    globalDsmEnabled << [true, false]
   }
 
   def "Check context extractor decorator behavior when trace data and dsm data are null"() {
@@ -597,12 +671,17 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
     }
     def timeSource = new ControllableTimeSource()
     def payloadWriter = Mock(DatastreamsPayloadWriter)
-    def dataStreams = new DefaultDataStreamsMonitoring(sink, features, timeSource, wellKnownTags, payloadWriter, DEFAULT_BUCKET_DURATION_NANOS)
+
+    def traceConfig = Mock(TraceConfig) {
+      isDataStreamsEnabled() >> true
+    }
+
+    def dataStreams = new DefaultDataStreamsMonitoring(sink, features, timeSource, { traceConfig }, wellKnownTags, payloadWriter, DEFAULT_BUCKET_DURATION_NANOS)
 
     Map<String, String> carrier = ["someotherkey": "someothervalue"]
     def contextVisitor = new Base64MapContextVisitor()
     def extractor = new NullExtractor()
-    def decorated = dataStreams.decorate(extractor)
+    def decorated = dataStreams.extractor(extractor)
 
     when:
     def extracted = decorated.extract(carrier, contextVisitor)
@@ -612,9 +691,11 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
   }
 
   class FakeExtractor implements HttpCodec.Extractor {
+    TraceConfig traceConfig
+
     @Override
     <C> TagContext extract(C carrier, AgentPropagation.ContextVisitor<C> getter) {
-      return new ExtractedContext(DDTraceId.ONE, 1, 0, null, null)
+      return new ExtractedContext(DDTraceId.ONE, 1, 0, null, 0, null, null, null, null, traceConfig )
     }
   }
 

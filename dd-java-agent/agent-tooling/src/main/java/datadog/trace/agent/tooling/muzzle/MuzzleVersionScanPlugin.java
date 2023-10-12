@@ -164,6 +164,15 @@ public class MuzzleVersionScanPlugin {
     }
   }
 
+  public static Set<String> listInstrumentationNames(
+      final ClassLoader instrumentationLoader, String directive) throws Exception {
+    final Set<String> ret = new HashSet<>();
+    for (final Instrumenter.Default instrumenter : toBeTested(instrumentationLoader, directive)) {
+      ret.add(instrumenter.name());
+    }
+    return ret;
+  }
+
   private static String prettyPrint(final String prefix, final Reference ref) {
     final StringBuilder builder = new StringBuilder(prefix);
     builder.append(Reference.prettyPrint(ref.flags));

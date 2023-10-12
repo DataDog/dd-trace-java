@@ -1,0 +1,14 @@
+syntax = "proto3";
+
+package com.datadog.iast.protobuf;
+
+message Proto3Child {
+  optional string optional = 1;
+  string required = 2;
+  repeated string repeated = 3;
+  map<string, string> map = 4;
+}
+
+message Proto3Parent {
+  Proto3Child child = 1;
+}

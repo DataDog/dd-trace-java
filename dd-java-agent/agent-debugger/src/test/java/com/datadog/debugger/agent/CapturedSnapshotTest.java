@@ -1,5 +1,6 @@
 package com.datadog.debugger.agent;
 
+import static com.datadog.debugger.util.LogProbeTestHelper.parseTemplate;
 import static com.datadog.debugger.util.MoshiSnapshotHelper.DEPTH_REASON;
 import static com.datadog.debugger.util.MoshiSnapshotHelper.FIELD_COUNT_REASON;
 import static com.datadog.debugger.util.MoshiSnapshotHelper.NOT_CAPTURED_REASON;
@@ -7,9 +8,12 @@ import static com.datadog.debugger.util.TestHelper.setFieldInConfig;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static utils.InstrumentationTestHelper.compile;
 import static utils.InstrumentationTestHelper.compileAndLoadClass;
@@ -19,6 +23,8 @@ import static utils.TestHelper.getFixtureContent;
 import com.datadog.debugger.el.DSL;
 import com.datadog.debugger.el.ProbeCondition;
 import com.datadog.debugger.probe.LogProbe;
+import com.datadog.debugger.sink.DebuggerSink;
+import com.datadog.debugger.sink.ProbeStatusSink;
 import com.datadog.debugger.sink.Snapshot;
 import com.datadog.debugger.util.MoshiHelper;
 import com.datadog.debugger.util.MoshiSnapshotTestHelper;
@@ -64,6 +70,7 @@ import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.mockito.ArgumentCaptor;
 import utils.SourceCompiler;
 
 public class CapturedSnapshotTest {
@@ -79,6 +86,7 @@ public class CapturedSnapshotTest {
 
   private Instrumentation instr = ByteBuddyAgent.install();
   private ClassFileTransformer currentTransformer;
+  private ProbeStatusSink probeStatusSink;
 
   @BeforeEach
   public void before() {
@@ -102,9 +110,8 @@ public class CapturedSnapshotTest {
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.on(testClass).call("main", "2").get();
     Assertions.assertEquals(2, result);
-    Assertions.assertEquals(
-        "Cannot find method CapturedSnapshot01::foobar",
-        listener.errors.get(PROBE_ID.getId()).get(0).getMessage());
+    verify(probeStatusSink)
+        .addError(eq(PROBE_ID), eq("Cannot find method CapturedSnapshot01::foobar"));
   }
 
   @Test
@@ -206,6 +213,18 @@ public class CapturedSnapshotTest {
     Assertions.assertNotNull(testClass);
     testClass.newInstance();
     assertOneSnapshot(listener);
+  }
+
+  @Test
+  public void oldJavacBug() throws Exception {
+    final String CLASS_NAME = "com.datadog.debugger.classfiles.JavacBug"; // compiled with jdk 1.6
+    DebuggerTransformerTest.TestSnapshotListener listener =
+        installSingleProbe(CLASS_NAME, "main", null);
+    Class<?> testClass = Class.forName(CLASS_NAME);
+    Assertions.assertNotNull(testClass);
+    int result = Reflect.on(testClass).call("main", "").get();
+    assertEquals(45, result);
+    assertEquals(0, listener.snapshots.size());
   }
 
   @Test
@@ -1250,12 +1269,15 @@ public class CapturedSnapshotTest {
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.on(testClass).call("main", "").get();
     Assertions.assertEquals(1, result);
+    ArgumentCaptor<ProbeId> probeIdCaptor = ArgumentCaptor.forClass(ProbeId.class);
+    ArgumentCaptor<String> strCaptor = ArgumentCaptor.forClass(String.class);
+    verify(probeStatusSink, times(2)).addError(probeIdCaptor.capture(), strCaptor.capture());
+    Assertions.assertEquals(PROBE_ID1.getId(), probeIdCaptor.getAllValues().get(0).getId());
     Assertions.assertEquals(
-        "Cannot instrument an abstract or native method",
-        listener.errors.get(PROBE_ID1.getId()).get(0).getMessage());
+        "Cannot instrument an abstract or native method", strCaptor.getAllValues().get(0));
+    Assertions.assertEquals(PROBE_ID2.getId(), probeIdCaptor.getAllValues().get(1).getId());
     Assertions.assertEquals(
-        "Cannot instrument an abstract or native method",
-        listener.errors.get(PROBE_ID2.getId()).get(0).getMessage());
+        "Cannot instrument an abstract or native method", strCaptor.getAllValues().get(1));
   }
 
   @Test
@@ -1516,6 +1538,41 @@ public class CapturedSnapshotTest {
   }
 
   @Test
+  public void unknownCollectionCount() throws IOException, URISyntaxException {
+    final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot24";
+    Snapshot snapshot = doUnknownCount(CLASS_NAME);
+    assertEquals(
+        "Unsupported Collection class: com.datadog.debugger.CapturedSnapshot24$Holder",
+        snapshot.getEvaluationErrors().get(0).getMessage());
+  }
+
+  @Test
+  public void unknownMapCount() throws IOException, URISyntaxException {
+    final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot26";
+    Snapshot snapshot = doUnknownCount(CLASS_NAME);
+    assertEquals(
+        "Unsupported Map class: com.datadog.debugger.CapturedSnapshot26$Holder",
+        snapshot.getEvaluationErrors().get(0).getMessage());
+  }
+
+  private Snapshot doUnknownCount(String CLASS_NAME) throws IOException, URISyntaxException {
+    LogProbe logProbe =
+        createProbeBuilder(PROBE_ID, CLASS_NAME, "doit", null)
+            .when(
+                new ProbeCondition(
+                    DSL.when(DSL.ge(DSL.len(DSL.ref("holder")), DSL.value(0))), "len(holder) >= 0"))
+            .build();
+    DebuggerTransformerTest.TestSnapshotListener listener = installProbes(CLASS_NAME, logProbe);
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    int result = Reflect.on(testClass).call("main", "").get();
+    Assertions.assertEquals(1, result);
+    Snapshot snapshot = assertOneSnapshot(listener);
+    assertEquals(1, snapshot.getEvaluationErrors().size());
+    assertEquals("len(holder)", snapshot.getEvaluationErrors().get(0).getExpr());
+    return snapshot;
+  }
+
+  @Test
   public void beforeForLoopLineProbe() throws IOException, URISyntaxException {
     final String CLASS_NAME = "CapturedSnapshot02";
     DebuggerTransformerTest.TestSnapshotListener listener =
@@ -1527,6 +1584,29 @@ public class CapturedSnapshotTest {
     assertCaptureLocals(snapshot.getCaptures().getLines().get(46), "count", "int", "31");
   }
 
+  @Test
+  public void dupLineProbeSameTemplate() throws IOException, URISyntaxException {
+    final String CLASS_NAME = "CapturedSnapshot08";
+    final String LOG_TEMPLATE = "msg1={typed.fld.fld.msg}";
+    LogProbe probe1 =
+        createProbeBuilder(PROBE_ID1, CLASS_NAME, null, null, "39")
+            .template(LOG_TEMPLATE, parseTemplate(LOG_TEMPLATE))
+            .build();
+    LogProbe probe2 =
+        createProbeBuilder(PROBE_ID2, CLASS_NAME, null, null, "39")
+            .template(LOG_TEMPLATE, parseTemplate(LOG_TEMPLATE))
+            .build();
+    DebuggerTransformerTest.TestSnapshotListener listener =
+        installProbes(CLASS_NAME, probe1, probe2);
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    int result = Reflect.on(testClass).call("main", "1").get();
+    Assertions.assertEquals(3, result);
+    List<Snapshot> snapshots = assertSnapshots(listener, 2, PROBE_ID1, PROBE_ID2);
+    for (Snapshot snapshot : snapshots) {
+      assertEquals("msg1=hello", snapshot.getMessage());
+    }
+  }
+
   private DebuggerTransformerTest.TestSnapshotListener setupInstrumentTheWorldTransformer(
       String excludeFileName) {
     Config config = mock(Config.class);
@@ -1534,11 +1614,15 @@ public class CapturedSnapshotTest {
     when(config.isDebuggerClassFileDumpEnabled()).thenReturn(true);
     when(config.isDebuggerInstrumentTheWorld()).thenReturn(true);
     when(config.getDebuggerExcludeFiles()).thenReturn(excludeFileName);
+    when(config.getFinalDebuggerSnapshotUrl())
+        .thenReturn("http://localhost:8126/debugger/v1/input");
+    when(config.getDebuggerUploadBatchSize()).thenReturn(100);
     DebuggerTransformerTest.TestSnapshotListener listener =
         new DebuggerTransformerTest.TestSnapshotListener();
     DebuggerAgentHelper.injectSink(listener);
     currentTransformer =
-        DebuggerAgent.setupInstrumentTheWorldTransformer(config, instr, listener, null);
+        DebuggerAgent.setupInstrumentTheWorldTransformer(
+            config, instr, new DebuggerSink(config), null);
     DebuggerContext.initClassFilter(new DenyListHelper(null));
     return listener;
   }
@@ -1576,8 +1660,13 @@ public class CapturedSnapshotTest {
     when(config.isDebuggerEnabled()).thenReturn(true);
     when(config.isDebuggerClassFileDumpEnabled()).thenReturn(true);
     when(config.isDebuggerVerifyByteCode()).thenReturn(true);
+    when(config.getFinalDebuggerSnapshotUrl())
+        .thenReturn("http://localhost:8126/debugger/v1/input");
     Collection<LogProbe> logProbes = configuration.getLogProbes();
-    currentTransformer = new DebuggerTransformer(config, configuration, null);
+    probeStatusSink = mock(ProbeStatusSink.class);
+    currentTransformer =
+        new DebuggerTransformer(
+            config, configuration, null, new DebuggerSink(config, probeStatusSink));
     instr.addTransformer(currentTransformer);
     DebuggerTransformerTest.TestSnapshotListener listener =
         new DebuggerTransformerTest.TestSnapshotListener();

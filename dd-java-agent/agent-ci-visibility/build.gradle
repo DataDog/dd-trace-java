@@ -12,12 +12,15 @@ minimumInstructionCoverage = 0.8
 excludedClassesCoverage += [
   "datadog.trace.civisibility.CiVisibilitySystem",
   "datadog.trace.civisibility.CiVisibilitySystem.1",
-  "datadog.trace.civisibility.DDTestModuleChild",
+  "datadog.trace.civisibility.DDBuildSystemModuleImpl",
+  "datadog.trace.civisibility.DDBuildSystemSessionImpl",
+  "datadog.trace.civisibility.DDTestFrameworkModuleImpl",
+  "datadog.trace.civisibility.DDTestFrameworkModuleProxy",
+  "datadog.trace.civisibility.DDTestFrameworkModuleProxy.TestFrameworkData",
+  "datadog.trace.civisibility.DDTestFrameworkSessionImpl",
+  "datadog.trace.civisibility.DDTestFrameworkSessionProxy",
   "datadog.trace.civisibility.DDTestModuleImpl",
-  "datadog.trace.civisibility.DDTestModuleParent",
-  "datadog.trace.civisibility.DDTestSessionChild",
   "datadog.trace.civisibility.DDTestSessionImpl",
-  "datadog.trace.civisibility.DDTestSessionParent",
   "datadog.trace.civisibility.DDTestSuiteImpl",
   "datadog.trace.civisibility.DDTestImpl",
   "datadog.trace.civisibility.TestModuleRegistry",
@@ -27,6 +30,7 @@ excludedClassesCoverage += [
   "datadog.trace.civisibility.config.JvmInfoFactory",
   "datadog.trace.civisibility.config.ConfigurationApi",
   "datadog.trace.civisibility.config.ModuleExecutionSettingsFactory",
+  "datadog.trace.civisibility.config.JvmInfo",
   "datadog.trace.civisibility.config.JvmInfoFactory.JvmVersionOutputParser",
   "datadog.trace.civisibility.config.CachingModuleExecutionSettingsFactory",
   "datadog.trace.civisibility.config.CachingModuleExecutionSettingsFactory.Key",
@@ -35,11 +39,8 @@ excludedClassesCoverage += [
   "datadog.trace.civisibility.config.ConfigurationApi.1",
   "datadog.trace.civisibility.config.ModuleExecutionSettingsFactoryImpl",
   "datadog.trace.civisibility.config.SkippableTestsSerializer",
-  "datadog.trace.civisibility.context.AbstractTestContext",
-  "datadog.trace.civisibility.context.EmptyTestContext",
-  "datadog.trace.civisibility.context.ParentProcessTestContext",
-  "datadog.trace.civisibility.context.SpanTestContext",
-  "datadog.trace.civisibility.coverage.TestProbes.TestProbesFactory",
+  "datadog.trace.civisibility.coverage.CoverageUtils",
+  "datadog.trace.civisibility.coverage.CoverageUtils.RepoIndexFileLocator",
   "datadog.trace.civisibility.coverage.ExecutionDataAdapter",
   "datadog.trace.civisibility.coverage.NoopCoverageProbeStore",
   "datadog.trace.civisibility.coverage.NoopCoverageProbeStore.NoopCoverageProbeStoreFactory",
@@ -47,11 +48,14 @@ excludedClassesCoverage += [
   "datadog.trace.civisibility.coverage.SegmentlessTestProbes.SegmentlessTestProbesFactory",
   "datadog.trace.civisibility.coverage.SourceAnalyzer",
   "datadog.trace.civisibility.coverage.TestProbes",
+  "datadog.trace.civisibility.coverage.TestProbes.TestProbesFactory",
   "datadog.trace.civisibility.events.BuildEventsHandlerImpl",
   "datadog.trace.civisibility.events.TestEventsHandlerImpl",
   "datadog.trace.civisibility.events.TestDescriptor",
   "datadog.trace.civisibility.events.TestModuleDescriptor",
   "datadog.trace.civisibility.events.TestSuiteDescriptor",
+  "datadog.trace.civisibility.git.CILocalGitInfoBuilder",
+  "datadog.trace.civisibility.git.GitClientGitInfoBuilder",
   "datadog.trace.civisibility.git.GitObject",
   "datadog.trace.civisibility.git.tree.*",
   "datadog.trace.civisibility.ipc.ModuleExecutionResult",
@@ -60,13 +64,18 @@ excludedClassesCoverage += [
   "datadog.trace.civisibility.ipc.SignalServer",
   "datadog.trace.civisibility.ipc.SignalType",
   "datadog.trace.civisibility.ipc.SignalClient",
+  "datadog.trace.civisibility.ipc.SignalClient.Factory",
   "datadog.trace.civisibility.ipc.SkippableTestsResponse",
+  "datadog.trace.civisibility.ipc.TestFramework",
   "datadog.trace.civisibility.source.MethodLinesResolver.MethodLines",
+  "datadog.trace.civisibility.source.index.PackageTree.Node",
+  "datadog.trace.civisibility.source.index.RepoIndex",
   "datadog.trace.civisibility.source.index.RepoIndexBuilder.RepoIndexingFileVisitor",
   "datadog.trace.civisibility.source.index.RepoIndexFetcher",
   "datadog.trace.civisibility.source.index.RepoIndexSourcePathResolver",
   "datadog.trace.civisibility.utils.ShellCommandExecutor",
   "datadog.trace.civisibility.utils.ShellCommandExecutor.OutputParser",
+  "datadog.trace.civisibility.utils.SpanUtils"
 ]
 
 dependencies {
@@ -75,6 +84,7 @@ dependencies {
   implementation deps.asm
   implementation deps.asmcommons
   implementation group: 'org.jacoco', name: 'org.jacoco.core', version: '0.8.9'
+  implementation group: 'org.jacoco', name: 'org.jacoco.report', version: '0.8.9'
 
   implementation project(':communication')
   implementation project(':internal-api')

@@ -1,5 +1,6 @@
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.agent.test.timer.TestTimer
+import datadog.trace.bootstrap.instrumentation.jfr.InstrumentationBasedProfiling
 import io.netty.util.concurrent.DefaultEventExecutorGroup
 
 import java.util.concurrent.TimeUnit
@@ -12,6 +13,7 @@ class TimingTest extends AgentTestRunner {
   protected void configurePreAgent() {
     injectSysConfig("dd.profiling.enabled", "true")
     injectSysConfig("dd.profiling.experimental.queueing.time.enabled", "true")
+    InstrumentationBasedProfiling.enableInstrumentationBasedProfiling()
     super.configurePreAgent()
   }
 
@@ -52,13 +54,20 @@ class TimingTest extends AgentTestRunner {
   void verify() {
     assert TEST_TIMER.isBalanced()
     assert !TEST_TIMER.closedTimings.isEmpty()
+    int numAsserts = 0
     while (!TEST_TIMER.closedTimings.isEmpty()) {
       def timing = TEST_TIMER.closedTimings.takeFirst() as TestTimer.TestQueueTiming
-      assert timing != null
-      assert timing.task == TestRunnable
-      assert timing.scheduler == DefaultEventExecutorGroup
-      assert timing.origin == Thread.currentThread()
+      // filter out any netty chores, filtering these out by class name in the instrumentation
+      // may be too expensive. They should get filtered out by duration anyway.
+      if (!(timing.task as Class).simpleName.isEmpty()) {
+        assert timing != null
+        assert timing.task == TestRunnable
+        assert timing.scheduler == DefaultEventExecutorGroup
+        assert timing.origin == Thread.currentThread()
+        numAsserts++
+      }
     }
+    assert numAsserts > 0
   }
 
 

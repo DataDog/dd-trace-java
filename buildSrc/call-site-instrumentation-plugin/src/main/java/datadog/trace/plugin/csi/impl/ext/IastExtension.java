@@ -16,8 +16,10 @@ import com.github.javaparser.ast.body.MethodDeclaration;
 import com.github.javaparser.ast.expr.AnnotationExpr;
 import com.github.javaparser.ast.expr.AssignExpr;
 import com.github.javaparser.ast.expr.BooleanLiteralExpr;
+import com.github.javaparser.ast.expr.CastExpr;
 import com.github.javaparser.ast.expr.Expression;
 import com.github.javaparser.ast.expr.FieldAccessExpr;
+import com.github.javaparser.ast.expr.IntegerLiteralExpr;
 import com.github.javaparser.ast.expr.LambdaExpr;
 import com.github.javaparser.ast.expr.MemberValuePair;
 import com.github.javaparser.ast.expr.MethodCallExpr;
@@ -172,7 +174,7 @@ public class IastExtension implements Extension {
       final TypeResolver resolver, final LambdaExpr adviceLambda, final AdviceMetadata metaData) {
     final BlockStmt lambdaBody = adviceLambda.getBody().asBlockStmt();
     final String metric = getMetricName(metaData);
-    final String tagValue = getMetricTagValue(resolver, metaData);
+    final Byte tagValue = getMetricTagValue(resolver, metaData);
     final String instrumentedMetric = "INSTRUMENTED_" + metric;
     final IfStmt instrumentedStatement =
         new IfStmt()
@@ -197,7 +199,7 @@ public class IastExtension implements Extension {
   }
 
   private static MethodCallExpr addTelemetryCollectorMethod(
-      final String metric, final String tagValue) {
+      final String metric, final Byte tagValue) {
     final MethodCallExpr method =
         new MethodCallExpr()
             .setScope(new NameExpr(IAST_METRIC_COLLECTOR_CLASS))
@@ -205,14 +207,16 @@ public class IastExtension implements Extension {
             .addArgument(
                 new FieldAccessExpr().setScope(new NameExpr(IAST_METRIC_CLASS)).setName(metric));
     if (tagValue != null) {
-      method.addArgument(new StringLiteralExpr(tagValue));
+      method.addArgument(
+          new CastExpr()
+              .setExpression(new IntegerLiteralExpr(Byte.toString(tagValue)))
+              .setType(byte.class));
     }
     method.addArgument(intLiteral(1));
     return method;
   }
 
-  private static BlockStmt addTelemetryCollectorByteCode(
-      final String metric, final String tagValue) {
+  private static BlockStmt addTelemetryCollectorByteCode(final String metric, final Byte tagValue) {
     final BlockStmt stmt = new BlockStmt();
     // this code generates the java source code needed to provide the bytecode for the statement
     // IastTelemetryCollector.add(${metric}, 1); or IastTelemetryCollector.add(${metric}, ${tag},
@@ -227,11 +231,7 @@ public class IastExtension implements Extension {
             .addArgument(new StringLiteralExpr(metric))
             .addArgument(new StringLiteralExpr("L" + IAST_METRIC_INTERNAL_NAME + ";")));
     if (tagValue != null) {
-      stmt.addStatement(
-          new MethodCallExpr()
-              .setScope(new NameExpr("handler"))
-              .setName("loadConstant")
-              .addArgument(new StringLiteralExpr(tagValue)));
+      stmt.addStatement(pushByteExpression(tagValue));
     }
     stmt.addStatement(
         new MethodCallExpr()
@@ -241,7 +241,7 @@ public class IastExtension implements Extension {
                 new FieldAccessExpr().setScope(new NameExpr(OPCODES_FQDN)).setName("ICONST_1")));
     final String descriptor =
         tagValue != null
-            ? "(L" + IAST_METRIC_INTERNAL_NAME + ";Ljava/lang/String;I)V"
+            ? "(L" + IAST_METRIC_INTERNAL_NAME + ";BI)V"
             : "(L" + IAST_METRIC_INTERNAL_NAME + ";I)V";
     stmt.addStatement(
         new MethodCallExpr()
@@ -261,26 +261,26 @@ public class IastExtension implements Extension {
     return kind.getName().getId().toUpperCase();
   }
 
-  private static String getMetricTagValue(
+  private static Byte getMetricTagValue(
       final TypeResolver resolver, final AdviceMetadata metadata) {
     if (metadata.getTag() == null) {
       return null;
     }
     final Expression tag = metadata.getTag();
-    if (tag.isStringLiteralExpr()) {
-      return tag.asStringLiteralExpr().getValue();
+    if (tag.isIntegerLiteralExpr()) {
+      return tag.asIntegerLiteralExpr().asNumber().byteValue();
     } else {
       return getFieldValue(resolver, tag.asFieldAccessExpr());
     }
   }
 
-  private static String getFieldValue(final TypeResolver resolver, final FieldAccessExpr tag) {
+  private static Byte getFieldValue(final TypeResolver resolver, final FieldAccessExpr tag) {
     final FieldAccessExpr fieldAccessExpr = tag.asFieldAccessExpr();
     final ResolvedFieldDeclaration value = fieldAccessExpr.resolve().asField();
     try {
       final Field field = getField(value);
       field.setAccessible(true);
-      return (String) field.get(field.getDeclaringClass());
+      return (Byte) field.get(field.getDeclaringClass());
     } catch (Exception e) {
       throw new RuntimeException(e);
     }
@@ -418,6 +418,31 @@ public class IastExtension implements Extension {
           .findFirst()
           .orElse(null);
     }
+  }
+
+  public static Expression pushByteExpression(final byte value) {
+    final FieldAccessExpr opCodes = new FieldAccessExpr().setScope(new NameExpr(OPCODES_FQDN));
+    final MethodCallExpr result =
+        new MethodCallExpr().setScope(new NameExpr("handler")).setName("instruction");
+    switch (value) {
+      case -1:
+        result.addArgument(opCodes.setName("ICONST_M1"));
+        break;
+      case 0:
+      case 1:
+      case 2:
+      case 3:
+      case 4:
+      case 5:
+        result.addArgument(opCodes.setName("ICONST_" + value));
+        break;
+      default:
+        result
+            .addArgument(opCodes.setName("BIPUSH"))
+            .addArgument(new IntegerLiteralExpr(Integer.toString(value)));
+        break;
+    }
+    return result;
   }
 
   private static class AdviceMetadata {

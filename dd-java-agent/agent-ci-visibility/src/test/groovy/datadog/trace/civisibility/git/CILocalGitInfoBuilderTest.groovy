@@ -1,6 +1,6 @@
 package datadog.trace.civisibility.git
 
-
+import datadog.trace.civisibility.git.tree.GitClient
 import spock.lang.Specification
 
 import java.nio.file.Paths
@@ -9,7 +9,10 @@ class CILocalGitInfoBuilderTest extends Specification {
 
   def "returns empty git info when repository path is not specified"() {
     setup:
-    def builder = new CILocalGitInfoBuilder(".git")
+    def gitClientFactory = Stub(GitClient.Factory)
+    gitClientFactory.create(_) >> Stub(GitClient)
+
+    def builder = new CILocalGitInfoBuilder(gitClientFactory,".git")
 
     when:
     def gitInfo = builder.build(null)
@@ -21,7 +24,10 @@ class CILocalGitInfoBuilderTest extends Specification {
 
   def "parses git info"() {
     setup:
-    def builder = new CILocalGitInfoBuilder("git_folder_for_tests")
+    def gitClientFactory = Stub(GitClient.Factory)
+    gitClientFactory.create(_) >> Stub(GitClient)
+
+    def builder = new CILocalGitInfoBuilder(gitClientFactory, "git_folder_for_tests")
     def workspace = resolve("ci/ci_workspace_for_tests")
 
     when:

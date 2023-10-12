@@ -120,13 +120,15 @@ public class ConfigurationTest {
     ArrayList<LogProbe> logProbes = new ArrayList<>(config.getLogProbes());
     assertEquals(1, logProbes.size());
     LogProbe logProbe0 = logProbes.get(0);
-    assertEquals(6, logProbe0.getSegments().size());
+    assertEquals(8, logProbe0.getSegments().size());
     assertEquals("this is a log line customized! uuid=", logProbe0.getSegments().get(0).getStr());
     assertEquals("uuid", logProbe0.getSegments().get(1).getExpr());
     assertEquals(" result=", logProbe0.getSegments().get(2).getStr());
     assertEquals("result", logProbe0.getSegments().get(3).getExpr());
     assertEquals(" garbageStart=", logProbe0.getSegments().get(4).getStr());
     assertEquals("garbageStart", logProbe0.getSegments().get(5).getExpr());
+    assertEquals(" contain=", logProbe0.getSegments().get(6).getStr());
+    assertEquals("contains(arg, 'foo')", logProbe0.getSegments().get(7).getExpr());
   }
 
   @Test

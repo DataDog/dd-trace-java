@@ -51,7 +51,7 @@ public class ClassInstrumenterInstrumentation extends Instrumenter.CiVisibility
     static void enter(
         @Advice.FieldValue(value = "className") final String className,
         @Advice.Argument(0) int count) {
-      InstrumentationBridge.getCoverageProbeStoreFactory().setTotalProbeCount(className, count);
+      InstrumentationBridge.getCoverageProbeStoreRegistry().setTotalProbeCount(className, count);
     }
   }
 }

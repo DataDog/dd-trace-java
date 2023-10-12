@@ -14,11 +14,11 @@ import static com.datadog.profiling.ddprof.DatadogProfilerConfig.getWallContextF
 import static com.datadog.profiling.ddprof.DatadogProfilerConfig.getWallInterval;
 import static com.datadog.profiling.ddprof.DatadogProfilerConfig.isAllocationProfilingEnabled;
 import static com.datadog.profiling.ddprof.DatadogProfilerConfig.isCpuProfilerEnabled;
-import static com.datadog.profiling.ddprof.DatadogProfilerConfig.isJmethodIdCacheEnabled;
 import static com.datadog.profiling.ddprof.DatadogProfilerConfig.isLiveHeapSizeTrackingEnabled;
 import static com.datadog.profiling.ddprof.DatadogProfilerConfig.isMemoryLeakProfilingEnabled;
 import static com.datadog.profiling.ddprof.DatadogProfilerConfig.isSpanNameContextAttributeEnabled;
 import static com.datadog.profiling.ddprof.DatadogProfilerConfig.isWallClockProfilerEnabled;
+import static com.datadog.profiling.ddprof.DatadogProfilerConfig.omitLineNumbers;
 import static com.datadog.profiling.utils.ProfilingMode.ALLOCATION;
 import static com.datadog.profiling.utils.ProfilingMode.CPU;
 import static com.datadog.profiling.utils.ProfilingMode.MEMLEAK;
@@ -144,6 +144,7 @@ public final class DatadogProfiler {
     try {
       profiler =
           JavaProfiler.getInstance(
+              configProvider.getString(ProfilingConfig.PROFILING_DATADOG_PROFILER_LIBPATH),
               configProvider.getString(
                   ProfilingConfig.PROFILING_DATADOG_PROFILER_SCRATCH,
                   ProfilingConfig.PROFILING_DATADOG_PROFILER_SCRATCH_DEFAULT));
@@ -305,6 +306,9 @@ public final class DatadogProfiler {
     cmd.append(",cstack=").append(getCStack(configProvider));
     cmd.append(",safemode=").append(getSafeMode(configProvider));
     cmd.append(",attributes=").append(String.join(";", orderedContextAttributes));
+    if (omitLineNumbers(configProvider)) {
+      cmd.append(",linenumbers=f");
+    }
     if (profilingModes.contains(CPU)) {
       // cpu profiling is enabled.
       String schedulingEvent = getSchedulingEvent(configProvider);
@@ -342,10 +346,6 @@ public final class DatadogProfiler {
       if (profilingModes.contains(MEMLEAK)) {
         cmd.append(isLiveHeapSizeTrackingEnabled(configProvider) ? 'L' : 'l');
       }
-    }
-    if (isJmethodIdCacheEnabled()) {
-      // element retention is 30 chunk rotations, will be checked only if >10000 elements in cache
-      cmd.append(",minfocache=30:1000");
     }
     String cmdString = cmd.toString();
     log.debug("Datadog profiler command line: {}", cmdString);

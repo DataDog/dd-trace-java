@@ -4,6 +4,7 @@ import datadog.trace.api.iast.propagation.CodecModule;
 import datadog.trace.api.iast.propagation.PropagationModule;
 import datadog.trace.api.iast.propagation.StringModule;
 import datadog.trace.api.iast.sink.CommandInjectionModule;
+import datadog.trace.api.iast.sink.HstsMissingHeaderModule;
 import datadog.trace.api.iast.sink.HttpResponseHeaderModule;
 import datadog.trace.api.iast.sink.InsecureCookieModule;
 import datadog.trace.api.iast.sink.LdapInjectionModule;
@@ -17,6 +18,7 @@ import datadog.trace.api.iast.sink.UnvalidatedRedirectModule;
 import datadog.trace.api.iast.sink.WeakCipherModule;
 import datadog.trace.api.iast.sink.WeakHashModule;
 import datadog.trace.api.iast.sink.WeakRandomnessModule;
+import datadog.trace.api.iast.sink.XContentTypeModule;
 import datadog.trace.api.iast.sink.XPathInjectionModule;
 import datadog.trace.api.iast.sink.XssModule;
 import datadog.trace.api.iast.source.WebModule;
@@ -41,6 +43,10 @@ public abstract class InstrumentationBridge {
   public static volatile UnvalidatedRedirectModule UNVALIDATED_REDIRECT;
   public static volatile WeakRandomnessModule WEAK_RANDOMNESS;
   public static volatile HttpResponseHeaderModule RESPONSE_HEADER_MODULE;
+  public static volatile HstsMissingHeaderModule HSTS_MISSING_HEADER_MODULE;
+
+  public static volatile XContentTypeModule X_CONTENT_TYPE_HEADER_MODULE;
+
   public static volatile TrustBoundaryViolationModule TRUST_BOUNDARY_VIOLATION;
 
   public static volatile XPathInjectionModule XPATH_INJECTION;
@@ -84,6 +90,10 @@ public abstract class InstrumentationBridge {
       WEAK_RANDOMNESS = (WeakRandomnessModule) module;
     } else if (module instanceof HttpResponseHeaderModule) {
       RESPONSE_HEADER_MODULE = (HttpResponseHeaderModule) module;
+    } else if (module instanceof HstsMissingHeaderModule) {
+      HSTS_MISSING_HEADER_MODULE = (HstsMissingHeaderModule) module;
+    } else if (module instanceof XContentTypeModule) {
+      X_CONTENT_TYPE_HEADER_MODULE = (XContentTypeModule) module;
     } else if (module instanceof XPathInjectionModule) {
       XPATH_INJECTION = (XPathInjectionModule) module;
     } else if (module instanceof TrustBoundaryViolationModule) {
@@ -151,6 +161,12 @@ public abstract class InstrumentationBridge {
     if (type == HttpResponseHeaderModule.class) {
       return (E) RESPONSE_HEADER_MODULE;
     }
+    if (type == HstsMissingHeaderModule.class) {
+      return (E) HSTS_MISSING_HEADER_MODULE;
+    }
+    if (type == XContentTypeModule.class) {
+      return (E) X_CONTENT_TYPE_HEADER_MODULE;
+    }
     if (type == TrustBoundaryViolationModule.class) {
       return (E) TRUST_BOUNDARY_VIOLATION;
     }
@@ -179,6 +195,8 @@ public abstract class InstrumentationBridge {
     UNVALIDATED_REDIRECT = null;
     WEAK_RANDOMNESS = null;
     RESPONSE_HEADER_MODULE = null;
+    HSTS_MISSING_HEADER_MODULE = null;
+    X_CONTENT_TYPE_HEADER_MODULE = null;
     XPATH_INJECTION = null;
     TRUST_BOUNDARY_VIOLATION = null;
     XSS = null;

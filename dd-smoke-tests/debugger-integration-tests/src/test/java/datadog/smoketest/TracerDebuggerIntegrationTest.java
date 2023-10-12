@@ -10,6 +10,7 @@ import com.datadog.debugger.probe.LogProbe;
 import com.datadog.debugger.sink.Snapshot;
 import com.squareup.moshi.JsonAdapter;
 import datadog.trace.agent.test.utils.PortUtils;
+import datadog.trace.bootstrap.debugger.MethodLocation;
 import datadog.trace.bootstrap.debugger.ProbeId;
 import datadog.trace.util.TagsHelper;
 import java.io.IOException;
@@ -52,6 +53,28 @@ public class TracerDebuggerIntegrationTest extends BaseIntegrationTest {
                 "doService",
                 "(HttpServletRequest, HttpServletResponse)")
             .captureSnapshot(true)
+            .build();
+    JsonSnapshotSerializer.IntakeRequest request = doTestTracer(logProbe);
+    Snapshot snapshot = request.getDebugger().getSnapshot();
+    assertEquals("123356536", snapshot.getProbe().getId());
+    assertTrue(Pattern.matches("[0-9a-f]+", request.getTraceId()));
+    assertTrue(Pattern.matches("\\d+", request.getSpanId()));
+    assertFalse(
+        logHasErrors(logFilePath, it -> it.contains("TypePool$Resolution$NoSuchTypeException")));
+  }
+
+  @Test
+  @DisplayName("testTracerDynamicLog")
+  void testTracerDynamicLog() throws Exception {
+    LogProbe logProbe =
+        LogProbe.builder()
+            .probeId(PROBE_ID)
+            .where(
+                "org.springframework.web.servlet.DispatcherServlet",
+                "doService",
+                "(HttpServletRequest, HttpServletResponse)")
+            .captureSnapshot(false)
+            .evaluateAt(MethodLocation.EXIT)
             .build();
     JsonSnapshotSerializer.IntakeRequest request = doTestTracer(logProbe);
     Snapshot snapshot = request.getDebugger().getSnapshot();

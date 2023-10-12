@@ -2,9 +2,13 @@ import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.DDTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import io.opentelemetry.api.GlobalOpenTelemetry
+import io.opentelemetry.api.common.AttributeKey
 import io.opentelemetry.api.trace.SpanKind
 import io.opentelemetry.context.Context
+import io.opentelemetry.context.ThreadLocalContextStorage
 import spock.lang.Subject
+
+import java.security.InvalidParameterException
 
 import static io.opentelemetry.api.trace.StatusCode.ERROR
 import static io.opentelemetry.api.trace.StatusCode.OK
@@ -153,9 +157,18 @@ class OpenTelemetry14Test extends AgentTestRunner {
     if (tagBuilder) {
       builder.setAttribute(DDTags.RESOURCE_NAME, "some-resource")
         .setAttribute("string", "a")
+        .setAttribute("null-string", null)
         .setAttribute("empty_string", "")
         .setAttribute("number", 1)
         .setAttribute("boolean", true)
+        .setAttribute(AttributeKey.stringKey("null-string-attribute"), null)
+        .setAttribute(AttributeKey.stringKey("empty-string-attribute"), "")
+        .setAttribute(AttributeKey.stringArrayKey("string-array"), ["a", "b", "c"])
+        .setAttribute(AttributeKey.booleanArrayKey("boolean-array"), [true, false])
+        .setAttribute(AttributeKey.longArrayKey("long-array"), [1L, 2L, 3L, 4L])
+        .setAttribute(AttributeKey.doubleArrayKey("double-array"), [1.23D, 4.56D])
+        .setAttribute(AttributeKey.stringArrayKey("empty-array"), Collections.emptyList())
+        .setAttribute(AttributeKey.stringArrayKey("null-array"), null)
     }
     def result = builder.startSpan()
     if (tagSpan) {
@@ -164,6 +177,14 @@ class OpenTelemetry14Test extends AgentTestRunner {
       result.setAttribute("empty_string", "")
       result.setAttribute("number", 2)
       result.setAttribute("boolean", false)
+      result.setAttribute(AttributeKey.stringKey("null-string-attribute"), null)
+      result.setAttribute(AttributeKey.stringKey("empty-string-attribute"), "")
+      result.setAttribute(AttributeKey.stringArrayKey("string-array"), ["d", "e", "f"])
+      result.setAttribute(AttributeKey.booleanArrayKey("boolean-array"), [false, true])
+      result.setAttribute(AttributeKey.longArrayKey("long-array"), [5L, 6L, 7L, 8L])
+      result.setAttribute(AttributeKey.doubleArrayKey("double-array"), [2.34D, 5.67D])
+      result.setAttribute(AttributeKey.stringArrayKey("empty-array"), Collections.emptyList())
+      result.setAttribute(AttributeKey.stringArrayKey("null-array"), null)
     }
 
     when:
@@ -189,11 +210,37 @@ class OpenTelemetry14Test extends AgentTestRunner {
               "empty_string" ""
               "number" 2
               "boolean" false
+              "empty-string-attribute" ""
+              "string-array.0" "d"
+              "string-array.1" "e"
+              "string-array.2" "f"
+              "boolean-array.0" false
+              "boolean-array.1" true
+              "long-array.0" 5L
+              "long-array.1" 6L
+              "long-array.2" 7L
+              "long-array.3" 8L
+              "double-array.0" 2.34D
+              "double-array.1" 5.67D
+              "empty-array" ""
             } else if (tagBuilder) {
               "string" "a"
               "empty_string" ""
               "number" 1
               "boolean" true
+              "empty-string-attribute" ""
+              "string-array.0" "a"
+              "string-array.1" "b"
+              "string-array.2" "c"
+              "boolean-array.0" true
+              "boolean-array.1" false
+              "long-array.0" 1L
+              "long-array.1" 2L
+              "long-array.2" 3L
+              "long-array.3" 4L
+              "double-array.0" 1.23D
+              "double-array.1" 4.56D
+              "empty-array" ""
             }
             defaultTags()
           }
@@ -313,6 +360,48 @@ class OpenTelemetry14Test extends AgentTestRunner {
     }
   }
 
+  def "test span record exception"() {
+    setup:
+    def builder = tracer.spanBuilder("some-name")
+    def result = builder.startSpan()
+    def message = "input can't be null"
+    def exception = new InvalidParameterException(message)
+
+    expect:
+    result.delegate.getTag(DDTags.ERROR_MSG) == null
+    result.delegate.getTag(DDTags.ERROR_TYPE) == null
+    result.delegate.getTag(DDTags.ERROR_STACK) == null
+    !result.delegate.isError()
+
+    when:
+    result.recordException(exception)
+
+    then:
+    result.delegate.getTag(DDTags.ERROR_MSG) == message
+    result.delegate.getTag(DDTags.ERROR_TYPE) == InvalidParameterException.name
+    result.delegate.getTag(DDTags.ERROR_STACK) != null
+    !result.delegate.isError()
+
+    when:
+    result.end()
+
+    then:
+    assertTraces(1) {
+      trace(1) {
+        span {
+          parent()
+          operationName "some-name"
+          resourceName "some-name"
+          errored false
+          tags {
+            defaultTags()
+            errorTags(exception)
+          }
+        }
+      }
+    }
+  }
+
   def "test span name update"() {
     setup:
     def builder = tracer.spanBuilder("some-name")
@@ -340,5 +429,42 @@ class OpenTelemetry14Test extends AgentTestRunner {
         }
       }
     }
+  }
+
+  def "test span update after end"() {
+    setup:
+    def builder = tracer.spanBuilder("some-name")
+    def result = builder.startSpan()
+
+    when:
+    result.setAttribute("string", "value")
+    result.setStatus(ERROR)
+    result.end()
+    result.updateName("other-name")
+    result.setAttribute("string", "other-value")
+    result.setStatus(OK)
+
+    then:
+    assertTraces(1) {
+      trace(1) {
+        span {
+          parent()
+          operationName "some-name"
+          errored true
+          tags {
+            defaultTags()
+            "string" "value"
+          }
+        }
+      }
+    }
+  }
+
+  @Override
+  void cleanup() {
+    // Test for context leak
+    assert Context.current() == Context.root()
+    // Safely reset OTel context storage
+    ThreadLocalContextStorage.THREAD_LOCAL_STORAGE.remove()
   }
 }

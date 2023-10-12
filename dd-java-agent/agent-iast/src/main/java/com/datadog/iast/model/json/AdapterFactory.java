@@ -73,7 +73,7 @@ class AdapterFactory implements JsonAdapter.Factory {
       if (hasSourceIndexAnnotation(annotations)) {
         return new SourceIndexAdapter();
       } else {
-        return new SourceAdapter(this, moshi);
+        return new SourceAdapter();
       }
     } else if (VulnerabilityBatch.class.equals(rawType)) {
       return new VulnerabilityBatchAdapter(moshi);

@@ -8,13 +8,13 @@ final class CachedData {
     guava         : "[16.0,20.0]", // Last version to support Java 7
     okhttp        : "3.12.15", // Datadog fork to support Java 7
     okhttp_legacy : "[3.0,3.12.12]", // 3.12.x is last version to support Java7)
-    okio          : "1.16.0",
+    okio          : "1.17.6", // Datadog fork
 
-    spock         : "2.1-groovy-$spockGroovyVer",
+    spock         : "2.2-groovy-$spockGroovyVer",
     groovy        : groovyVer,
     junit5        : "5.9.2",
     logback       : "1.2.3",
-    bytebuddy     : "1.14.5",
+    bytebuddy     : "1.14.8",
     scala         : "2.11.12",  // Last version to support Java 7 (2.12+ require Java 8+)
     scala210      : "2.10.7",
     scala211      : "2.11.12",
@@ -33,8 +33,9 @@ final class CachedData {
     testcontainers: '1.17.3',
     jmc           : "8.1.0",
     autoservice   : "1.0-rc7",
-    ddprof        : "0.70.0",
-    asm           : "9.5"
+    ddprof        : "0.81.0",
+    asm           : "9.6",
+    cafe_crypto   : "0.1.0"
   ]
 
   static deps = [
@@ -45,7 +46,7 @@ final class CachedData {
     jctools              : "org.jctools:jctools-core:${versions.jctools}",
     okhttp               : "com.datadoghq.okhttp3:okhttp:${versions.okhttp}",
     okhttp_legacy        : "com.squareup.okhttp3:okhttp:${versions.okhttp_legacy}",
-    okio                 : "com.squareup.okio:okio:${versions.okio}",
+    okio                 : "com.datadoghq.okio:okio:${versions.okio}",
     bytebuddy            : "net.bytebuddy:byte-buddy:${versions.bytebuddy}",
     bytebuddyagent       : "net.bytebuddy:byte-buddy-agent:${versions.bytebuddy}",
     autoserviceProcessor : "com.google.auto.service:auto-service:${versions.autoservice}",
@@ -55,6 +56,11 @@ final class CachedData {
     asm                  : "org.ow2.asm:asm:${versions.asm}",
     asmcommons           : "org.ow2.asm:asm-commons:${versions.asm}",
     dogstatsd            : "com.datadoghq:java-dogstatsd-client:${versions.dogstatsd}",
+
+    cafe_crypto          : [
+      "cafe.cryptography:ed25519-elisabeth:${versions.cafe_crypto}",
+      "cafe.cryptography:curve25519-elisabeth:${versions.cafe_crypto}"
+    ],
 
     // Testing
 
@@ -95,11 +101,11 @@ final class CachedData {
 
     // Shared between appsec, agent tooling, iast, instrumentation, JMXFetch, profiling, and ci-visibility
     shared               : [
-      "com.datadoghq.okhttp3:okhttp:${versions.okhttp}",
       // Force specific version of okio required by com.squareup.moshi:moshi
       // When all of the dependencies are declared in dd-trace-core, moshi overrides the okhttp's
       // transitive dependency.  Since okhttp is declared here and moshi is not, this lead to an incompatible version
-      "com.squareup.okio:okio:${versions.okio}",
+      "com.datadoghq.okio:okio:${versions.okio}",
+      "com.datadoghq.okhttp3:okhttp:${versions.okhttp}",
       "com.datadoghq:java-dogstatsd-client:${versions.dogstatsd}",
       "com.github.jnr:jnr-unixsocket:${versions.jnr_unixsocket}",
       "com.squareup.moshi:moshi:${versions.moshi}",
@@ -125,8 +131,10 @@ final class CachedData {
       exclude(project(':utils:version-utils'))
       exclude(dependency('org.slf4j::'))
 
-      // okhttp and its transitives
+      // okhttp and its transitives (both fork and non-fork)
       exclude(dependency('com.datadoghq.okhttp3:okhttp'))
+      exclude(dependency('com.squareup.okhttp3:okhttp'))
+      exclude(dependency('com.datadoghq.okio:okio'))
       exclude(dependency('com.squareup.okio:okio'))
 
       // dogstatsd and its transitives
@@ -139,6 +147,9 @@ final class CachedData {
 
       // jctools and its transitives
       exclude(dependency('org.jctools::'))
+
+      // cafe_crypto and its transitives
+      exclude(dependency('cafe.cryptography::'))
     }
   ]
 }

@@ -78,6 +78,10 @@ public class MapDataBundle implements DataBundle {
     }
 
     public <A extends Address<?>, V> Builder add(A address, V value) {
+      if (address == null || value == null) return this;
+      if (value instanceof Collection && ((Collection<?>) value).isEmpty()) return this;
+      if (value instanceof Map && ((Map<?, ?>) value).isEmpty()) return this;
+
       map.put(address, value);
       return this;
     }

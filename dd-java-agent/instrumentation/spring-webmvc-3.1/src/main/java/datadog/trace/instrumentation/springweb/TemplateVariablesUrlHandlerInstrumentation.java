@@ -11,6 +11,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 import com.google.auto.service.AutoService;
 import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.iast.IastPostProcessorFactory;
 import datadog.trace.api.gateway.BlockResponseFunction;
 import datadog.trace.api.gateway.CallbackProvider;
 import datadog.trace.api.gateway.Flow;
@@ -32,7 +33,9 @@ import net.bytebuddy.matcher.ElementMatcher;
 /** Obtain template and matrix variables for AbstractUrlHandlerMapping */
 @AutoService(Instrumenter.class)
 public class TemplateVariablesUrlHandlerInstrumentation extends Instrumenter.Default
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.WithPostProcessor {
+
+  private Advice.PostProcessor.Factory postProcessorFactory;
 
   public TemplateVariablesUrlHandlerInstrumentation() {
     super("spring-web");
@@ -40,8 +43,11 @@ public class TemplateVariablesUrlHandlerInstrumentation extends Instrumenter.Def
 
   @Override
   public boolean isApplicable(Set<TargetSystem> enabledSystems) {
-    return enabledSystems.contains(TargetSystem.APPSEC)
-        || enabledSystems.contains(TargetSystem.IAST);
+    if (enabledSystems.contains(TargetSystem.IAST)) {
+      postProcessorFactory = IastPostProcessorFactory.INSTANCE;
+      return true;
+    }
+    return enabledSystems.contains(TargetSystem.APPSEC);
   }
 
   @Override
@@ -68,13 +74,18 @@ public class TemplateVariablesUrlHandlerInstrumentation extends Instrumenter.Def
         TemplateVariablesUrlHandlerInstrumentation.class.getName() + "$InterceptorPreHandleAdvice");
   }
 
+  @Override
+  public Advice.PostProcessor.Factory postProcessor() {
+    return postProcessorFactory;
+  }
+
   public static class InterceptorPreHandleAdvice {
     private static final String URI_TEMPLATE_VARIABLES_ATTRIBUTE =
         "org.springframework.web.servlet.HandlerMapping.uriTemplateVariables";
 
     @SuppressWarnings("Duplicates")
     @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
-    @Source(SourceTypes.REQUEST_PATH_PARAMETER_STRING)
+    @Source(SourceTypes.REQUEST_PATH_PARAMETER)
     public static void after(
         @Advice.Argument(0) final HttpServletRequest req,
         @Advice.Thrown(readOnly = false) Throwable t) {
@@ -115,9 +126,11 @@ public class TemplateVariablesUrlHandlerInstrumentation extends Instrumenter.Def
               BlockResponseFunction brf = reqCtx.getBlockResponseFunction();
               if (brf != null) {
                 brf.tryCommitBlockingResponse(
-                    rba.getStatusCode(), rba.getBlockingContentType(), rba.getExtraHeaders());
+                    reqCtx.getTraceSegment(),
+                    rba.getStatusCode(),
+                    rba.getBlockingContentType(),
+                    rba.getExtraHeaders());
               }
-              reqCtx.getTraceSegment().effectivelyBlocked();
               t =
                   new BlockingException(
                       "Blocked request (for UriTemplateVariablesHandlerInterceptor/preHandle)");

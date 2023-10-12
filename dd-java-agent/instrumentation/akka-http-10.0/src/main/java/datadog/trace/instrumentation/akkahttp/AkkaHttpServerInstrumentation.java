@@ -11,6 +11,8 @@ import akka.stream.javadsl.BidiFlow;
 import akka.stream.scaladsl.Flow;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.muzzle.Reference;
+import datadog.trace.instrumentation.akkahttp.appsec.ScalaListCollectorMuzzleReferences;
 import net.bytebuddy.asm.Advice;
 
 /**
@@ -71,7 +73,16 @@ public final class AkkaHttpServerInstrumentation extends Instrumenter.Tracing
       packageName + ".AkkaHttpServerHeaders",
       packageName + ".AkkaHttpServerDecorator",
       packageName + ".UriAdapter",
+      packageName + ".RecoverFromBlockedExceptionPF",
+      packageName + ".appsec.BlockingResponseHelper",
+      packageName + ".appsec.ScalaListCollector",
+      packageName + ".appsec.AkkaBlockResponseFunction",
     };
+  }
+
+  @Override
+  public Reference[] additionalMuzzleReferences() {
+    return ScalaListCollectorMuzzleReferences.additionalMuzzleReferences();
   }
 
   @Override
@@ -87,6 +98,7 @@ public final class AkkaHttpServerInstrumentation extends Instrumenter.Tracing
         @Advice.Argument(value = 0, readOnly = false)
             Flow<HttpRequest, HttpResponse, NotUsed> handler,
         @Advice.Argument(value = 4, readOnly = false) ServerSettings settings) {
+      handler = handler.asJava().recover(RecoverFromBlockedExceptionPF.INSTANCE).asScala();
       final BidiFlow<HttpResponse, HttpResponse, HttpRequest, HttpRequest, NotUsed> wrapper =
           BidiFlow.fromGraph(new DatadogServerRequestResponseFlowWrapper(settings));
       handler = wrapper.reversed().join(handler.asJava()).asScala();

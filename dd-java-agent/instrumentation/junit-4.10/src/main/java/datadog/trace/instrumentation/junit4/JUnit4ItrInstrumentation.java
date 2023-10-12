@@ -2,14 +2,18 @@ package datadog.trace.instrumentation.junit4;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.extendsClass;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
+import static net.bytebuddy.matcher.ElementMatchers.not;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.api.Config;
+import datadog.trace.api.civisibility.InstrumentationBridge;
 import datadog.trace.api.civisibility.config.SkippableTest;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+import java.lang.reflect.Method;
+import java.util.List;
 import java.util.Set;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
@@ -25,7 +29,7 @@ public class JUnit4ItrInstrumentation extends Instrumenter.CiVisibility
     implements Instrumenter.ForTypeHierarchy {
 
   public JUnit4ItrInstrumentation() {
-    super("junit", "junit-4", "junit-4-itr");
+    super("ci-visibility", "junit-4");
   }
 
   @Override
@@ -40,16 +44,19 @@ public class JUnit4ItrInstrumentation extends Instrumenter.CiVisibility
 
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return extendsClass(named(hierarchyMarkerType()));
+    return extendsClass(named(hierarchyMarkerType()))
+        // ITR skipping for Cucumber is done in a dedicated instrumentation
+        .and(not(extendsClass(named("io.cucumber.junit.FeatureRunner"))));
   }
 
   @Override
   public String[] helperClassNames() {
     return new String[] {
+      packageName + ".TestEventsHandlerHolder",
       packageName + ".SkippedByItr",
       packageName + ".JUnit4Utils",
-      packageName + ".TestEventsHandlerHolder",
       packageName + ".TracingListener",
+      packageName + ".JUnit4TracingListener",
     };
   }
 
@@ -79,6 +86,15 @@ public class JUnit4ItrInstrumentation extends Instrumenter.CiVisibility
       if (ignoreAnnotation != null) {
         // class is ignored, ITR not applicable
         return null;
+      }
+
+      Class<?> testClass = description.getTestClass();
+      Method testMethod = JUnit4Utils.getTestMethod(description);
+      List<String> categories = JUnit4Utils.getCategories(testClass, testMethod);
+      for (String category : categories) {
+        if (category.endsWith(InstrumentationBridge.ITR_UNSKIPPABLE_TAG)) {
+          return null;
+        }
       }
 
       SkippableTest test = JUnit4Utils.toSkippableTest(description);

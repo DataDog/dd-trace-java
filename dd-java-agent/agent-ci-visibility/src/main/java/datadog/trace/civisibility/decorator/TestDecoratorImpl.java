@@ -1,11 +1,11 @@
 package datadog.trace.civisibility.decorator;
 
 import datadog.trace.api.DDTags;
-import datadog.trace.api.civisibility.config.JvmInfo;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
+import datadog.trace.civisibility.config.JvmInfo;
 import java.util.Map;
 
 public class TestDecoratorImpl implements TestDecorator {
@@ -82,11 +82,6 @@ public class TestDecoratorImpl implements TestDecorator {
       span.setTag(ciTag.getKey(), ciTag.getValue());
     }
 
-    return span;
-  }
-
-  @Override
-  public AgentSpan beforeFinish(AgentSpan span) {
     return span;
   }
 }

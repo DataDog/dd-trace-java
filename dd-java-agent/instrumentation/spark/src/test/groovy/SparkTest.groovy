@@ -1,6 +1,7 @@
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.DDSpanId
 import datadog.trace.api.DDTraceId
+import datadog.trace.api.Platform
 import datadog.trace.instrumentation.spark.DatabricksParentContext
 import datadog.trace.instrumentation.spark.DatadogSparkListener
 import datadog.trace.test.util.Flaky
@@ -9,9 +10,17 @@ import org.apache.hadoop.yarn.conf.YarnConfiguration
 import org.apache.spark.deploy.SparkSubmit
 import org.apache.spark.deploy.yarn.ApplicationMaster
 import org.apache.spark.deploy.yarn.ApplicationMasterArguments
+import org.apache.spark.sql.Dataset
+import org.apache.spark.sql.Row
+import org.apache.spark.sql.RowFactory
 import org.apache.spark.sql.SparkSession
+import org.apache.spark.sql.types.StructType
 import scala.reflect.ClassTag$
+import spock.lang.IgnoreIf
 
+@IgnoreIf(reason="https://issues.apache.org/jira/browse/HADOOP-18174", value = {
+  Platform.isJ9()
+})
 class SparkTest extends AgentTestRunner {
 
   @Override
@@ -214,64 +223,112 @@ class SparkTest extends AgentTestRunner {
       .config("spark.default.parallelism", "2") // Small parallelism to speed up tests
       .config("spark.sql.shuffle.partitions", "2")
       .config("spark.databricks.sparkContextId", "some_id")
+      .config("spark.databricks.clusterUsageTags.clusterName", "job-1234-run-8765-Job_cluster")
       .getOrCreate()
 
     sparkSession.sparkContext().setLocalProperty("spark.databricks.job.id", "1234")
     sparkSession.sparkContext().setLocalProperty("spark.databricks.job.runId", "9012")
-    sparkSession.sparkContext().setLocalProperty("spark.databricks.clusterUsageTags.clusterName", "job-1234-run-5678-Job_cluster")
+    sparkSession.sparkContext().setLocalProperty("spark.jobGroup.id", "0000_job-3456-run-7890-action-0000")
+    sparkSession.sparkContext().setLocalProperty("spark.databricks.workload.id", "01-123-456")
+    sparkSession.sparkContext().setLocalProperty("spark.databricks.job.parentRunId", "5678")
+    sparkSession.sparkContext().setLocalProperty("spark.databricks.clusterUsageTags.clusterName", "job-1234-run-901-Job_cluster")
     TestSparkComputation.generateTestSparkComputation(sparkSession)
 
     sparkSession.sparkContext().setLocalProperty("spark.databricks.job.id", null)
     sparkSession.sparkContext().setLocalProperty("spark.databricks.job.runId", null)
+    sparkSession.sparkContext().setLocalProperty("spark.databricks.job.parentRunId", null)
+    TestSparkComputation.generateTestSparkComputation(sparkSession)
+
+    sparkSession.sparkContext().setLocalProperty("spark.jobGroup.id", null)
+    sparkSession.sparkContext().setLocalProperty("spark.databricks.job.parentRunId", null)
     sparkSession.sparkContext().setLocalProperty("spark.databricks.clusterUsageTags.clusterName", null)
     TestSparkComputation.generateTestSparkComputation(sparkSession)
 
+    sparkSession.sparkContext().setLocalProperty("spark.databricks.workload.id", null)
+    TestSparkComputation.generateTestSparkComputation(sparkSession)
+
     expect:
-    assertTraces(2) {
+    assertTraces(4) {
       trace(3) {
         span {
           operationName "spark.job"
-          resourceName "count at TestSparkComputation.java:17"
           spanType "spark"
-          errored false
           traceId 8944764253919609482G
           parentSpanId 15104224823446433673G
+          assert span.tags["databricks_job_id"] == "1234"
+          assert span.tags["databricks_job_run_id"] == "5678"
+          assert span.tags["databricks_task_run_id"] == "9012"
         }
         span {
           operationName "spark.stage"
-          resourceName "count at TestSparkComputation.java:17"
           spanType "spark"
-          errored false
           childOf(span(0))
         }
         span {
           operationName "spark.stage"
-          resourceName "distinct at TestSparkComputation.java:17"
           spanType "spark"
-          errored false
           childOf(span(0))
         }
       }
       trace(3) {
         span {
           operationName "spark.job"
-          resourceName "count at TestSparkComputation.java:17"
           spanType "spark"
-          errored false
-          parent()
+          traceId 5240384461065211484G
+          parentSpanId 14128229261586201946G
+          assert span.tags["databricks_job_id"] == "3456"
+          assert span.tags["databricks_job_run_id"] == "901"
+          assert span.tags["databricks_task_run_id"] == "7890"
         }
         span {
           operationName "spark.stage"
-          resourceName "count at TestSparkComputation.java:17"
           spanType "spark"
-          errored false
           childOf(span(0))
         }
         span {
           operationName "spark.stage"
-          resourceName "distinct at TestSparkComputation.java:17"
           spanType "spark"
-          errored false
+          childOf(span(0))
+        }
+      }
+      trace(3) {
+        span {
+          operationName "spark.job"
+          spanType "spark"
+          traceId 2235374731114184741G
+          parentSpanId 8956125882166502063G
+          assert span.tags["databricks_job_id"] == "123"
+          assert span.tags["databricks_job_run_id"] == "8765"
+          assert span.tags["databricks_task_run_id"] == "456"
+        }
+        span {
+          operationName "spark.stage"
+          spanType "spark"
+          childOf(span(0))
+        }
+        span {
+          operationName "spark.stage"
+          spanType "spark"
+          childOf(span(0))
+        }
+      }
+      trace(3) {
+        span {
+          operationName "spark.job"
+          spanType "spark"
+          parent()
+          assert span.tags["databricks_job_id"] == null
+          assert span.tags["databricks_job_run_id"] == "8765"
+          assert span.tags["databricks_task_run_id"] == null
+        }
+        span {
+          operationName "spark.stage"
+          spanType "spark"
+          childOf(span(0))
+        }
+        span {
+          operationName "spark.stage"
+          spanType "spark"
           childOf(span(0))
         }
       }
@@ -300,5 +357,219 @@ class SparkTest extends AgentTestRunner {
 
     contextWithoutTaskRunId.getTraceId() == DDTraceId.ZERO
     contextWithoutTaskRunId.getSpanId() == DDSpanId.ZERO
+  }
+
+  private Dataset<Row> generateSampleDataframe(SparkSession spark) {
+    def structType = new StructType()
+    structType = structType.add("col", "String", false)
+
+    def rows = new ArrayList<Row>()
+    rows.add(RowFactory.create("value"))
+    spark.createDataFrame(rows, structType)
+  }
+
+  def "generate spark sql spans"() {
+    setup:
+    def sparkSession = SparkSession.builder()
+      .config("spark.master", "local[2]")
+      .config("spark.sql.shuffle.partitions", "2")
+      .getOrCreate()
+
+    def df = generateSampleDataframe(sparkSession)
+    df.coalesce(1).count()
+    sparkSession.stop()
+
+    expect:
+    assertTraces(1) {
+      trace(4) {
+        span {
+          operationName "spark.application"
+          spanType "spark"
+          parent()
+        }
+        span {
+          operationName "spark.sql"
+          spanType "spark"
+          childOf(span(0))
+        }
+        span {
+          operationName "spark.job"
+          spanType "spark"
+          childOf(span(1))
+        }
+        span {
+          operationName "spark.stage"
+          spanType "spark"
+          childOf(span(2))
+        }
+      }
+    }
+  }
+
+  def "generate spark sql spans on databricks"() {
+    setup:
+    def sparkSession = SparkSession.builder()
+      .config("spark.master", "local[2]")
+      .config("spark.sql.shuffle.partitions", "2")
+      .config("spark.databricks.sparkContextId", "some_id")
+      .config("spark.databricks.clusterUsageTags.clusterName", "job-1234-run-5678-Job_cluster")
+      .getOrCreate()
+
+    sparkSession.sparkContext().setLocalProperty("spark.databricks.job.id", "1234")
+    sparkSession.sparkContext().setLocalProperty("spark.databricks.job.runId", "9012")
+
+    def df = generateSampleDataframe(sparkSession)
+    df.coalesce(1).count()
+    sparkSession.stop()
+
+    expect:
+    assertTraces(1) {
+      trace(3) {
+        span {
+          operationName "spark.sql"
+          spanType "spark"
+          traceId 8944764253919609482G
+          parentSpanId 15104224823446433673G
+        }
+        span {
+          operationName "spark.job"
+          spanType "spark"
+          childOf(span(0))
+        }
+        span {
+          operationName "spark.stage"
+          spanType "spark"
+          childOf(span(1))
+        }
+      }
+    }
+  }
+
+  def "add custom tags to spark spans"() {
+    def sparkSession = SparkSession.builder()
+      .config("spark.master", "local[2]")
+      .config("spark.sql.shuffle.partitions", "2")
+      .getOrCreate()
+
+    def df = generateSampleDataframe(sparkSession)
+
+    sparkSession.sparkContext().setLocalProperty("spark.datadog.tags.tag_1", "value_1")
+    sparkSession.sparkContext().setLocalProperty("spark.datadog.tags.tag_2", "value_2")
+    df.coalesce(1).count()
+
+    sparkSession.sparkContext().setLocalProperty("spark.datadog.tags.tag_1", "value_11")
+    sparkSession.sparkContext().setLocalProperty("spark.datadog.tags.tag_2", null)
+    df.coalesce(1).count()
+    sparkSession.stop()
+
+    expect:
+    assertTraces(1) {
+      trace(7) {
+        span {
+          operationName "spark.application"
+          spanType "spark"
+          assert span.tags["tag_1"] == null
+          assert span.tags["tag_2"] == null
+          parent()
+        }
+        span {
+          operationName "spark.sql"
+          spanType "spark"
+          assert span.tags["tag_1"] == "value_11"
+          assert span.tags["tag_2"] == null
+          childOf(span(0))
+        }
+        span {
+          operationName "spark.job"
+          spanType "spark"
+          assert span.tags["tag_1"] == "value_11"
+          assert span.tags["tag_2"] == null
+          childOf(span(1))
+        }
+        span {
+          operationName "spark.stage"
+          spanType "spark"
+          assert span.tags["tag_1"] == "value_11"
+          assert span.tags["tag_2"] == null
+          childOf(span(2))
+        }
+        span {
+          operationName "spark.sql"
+          spanType "spark"
+          assert span.tags["tag_1"] == "value_1"
+          assert span.tags["tag_2"] == "value_2"
+          childOf(span(0))
+        }
+        span {
+          operationName "spark.job"
+          spanType "spark"
+          assert span.tags["tag_1"] == "value_1"
+          assert span.tags["tag_2"] == "value_2"
+          childOf(span(4))
+        }
+        span {
+          operationName "spark.stage"
+          spanType "spark"
+          assert span.tags["tag_1"] == "value_1"
+          assert span.tags["tag_2"] == "value_2"
+          childOf(span(5))
+        }
+      }
+    }
+  }
+
+  def "set the proper databricks service"(String ddService, String clusterName, String clusterAllTags, String expectedService) {
+    setup:
+    if (ddService != null) {
+      injectSysConfig("dd.service", ddService)
+    }
+
+    def builder = SparkSession.builder()
+      .config("spark.master", "local[2]")
+      .config("spark.databricks.sparkContextId", "some_id")
+
+    if (clusterName) {
+      builder.config("spark.databricks.clusterUsageTags.clusterName", clusterName)
+    }
+    if (clusterAllTags) {
+      builder.config("spark.databricks.clusterUsageTags.clusterAllTags", clusterAllTags)
+    }
+
+    when:
+    def sparkSession = builder.getOrCreate()
+    def df = generateSampleDataframe(sparkSession)
+    df.coalesce(1).count()
+    sparkSession.stop()
+
+    then:
+    assertTraces(1) {
+      trace(3) {
+        span {
+          operationName "spark.sql"
+          spanType "spark"
+          span.serviceName ==~ expectedService
+        }
+        span {
+          operationName "spark.job"
+          spanType "spark"
+          childOf(span(0))
+          span.serviceName ==~ expectedService
+        }
+        span {
+          operationName "spark.stage"
+          spanType "spark"
+          childOf(span(1))
+          span.serviceName ==~ expectedService
+        }
+      }
+    }
+
+    where:
+    ddService | clusterName         | clusterAllTags                                                                         | expectedService
+    "foobar"  | "some_cluster_name" | """[{"key": "foo"}, {"key": "RunName", "value": "some_run_name"}]"""                   | "^(databricks)"
+    null      | "some_cluster_name" | """[{"key": "foo"}, {"key": "RunName", "value": "some_run_name"}]"""                   | "databricks.job-cluster.some_run_name"
+    null      | "some_cluster_name" | """[{"key":"RunName","value":"some_run_name_9975a7ba-5e04-11ee-8c99-0242ac120002"}]""" | "databricks.job-cluster.some_run_name"
+    null      | "some_cluster_name" | """invalid_json"""                                                                     | "databricks.all-purpose-cluster.some_cluster_name"
+    null      | null                | null                                                                                   | "^(databricks)"
   }
 }

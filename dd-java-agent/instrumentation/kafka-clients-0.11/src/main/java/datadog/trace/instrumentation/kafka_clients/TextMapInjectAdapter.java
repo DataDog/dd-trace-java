@@ -7,8 +7,7 @@ import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import org.apache.kafka.common.header.Headers;
 
-public class TextMapInjectAdapter
-    implements AgentPropagation.Setter<Headers>, AgentPropagation.BinarySetter<Headers> {
+public class TextMapInjectAdapter implements AgentPropagation.BinarySetter<Headers> {
 
   public static final TextMapInjectAdapter SETTER = new TextMapInjectAdapter();
 

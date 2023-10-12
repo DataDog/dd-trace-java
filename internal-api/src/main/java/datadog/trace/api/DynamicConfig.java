@@ -20,7 +20,16 @@ import java.util.Map;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 
-/** Manages dynamic configuration for a particular {@link Tracer} instance. */
+/**
+ * Config that can be dynamically updated via remote-config
+ *
+ * <p>Only a small subset of config is currently supported
+ *
+ * <p>Not every config should be dynamic because there are performance implications
+ *
+ * @see InstrumenterConfig for pre-instrumentation configurations
+ * @see Config for other configurations
+ */
 public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
 
   static final Function<Map.Entry<String, String>, String> KEY = DynamicConfig::key;
@@ -126,6 +135,7 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
       return setServiceMapping(serviceMapping.entrySet());
     }
 
+    @SuppressWarnings("deprecation")
     public Builder setHeaderTags(Map<String, String> headerTags) {
       if (Config.get().getRequestHeaderTags().equals(headerTags)
           && !Config.get().getResponseHeaderTags().equals(headerTags)) {
@@ -239,6 +249,7 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
     ConfigCollector.get().putAll(update);
   }
 
+  @SuppressWarnings("SameParameterValue")
   private static void maybePut(Map<String, Object> update, String key, Object value) {
     if (null != value) {
       update.put(key, value);

@@ -6,67 +6,72 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import datadog.trace.api.Config;
 import datadog.trace.api.civisibility.CIConstants;
 import datadog.trace.api.civisibility.DDTestSuite;
-import datadog.trace.api.civisibility.source.SourcePathResolver;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.civisibility.codeowners.Codeowners;
-import datadog.trace.civisibility.context.SpanTestContext;
-import datadog.trace.civisibility.context.TestContext;
+import datadog.trace.civisibility.coverage.CoverageProbeStoreFactory;
 import datadog.trace.civisibility.decorator.TestDecorator;
 import datadog.trace.civisibility.source.MethodLinesResolver;
+import datadog.trace.civisibility.source.SourcePathResolver;
+import datadog.trace.civisibility.utils.SpanUtils;
 import java.lang.reflect.Method;
+import java.util.function.Consumer;
 import javax.annotation.Nullable;
 
 public class DDTestSuiteImpl implements DDTestSuite {
 
+  private final AgentSpan span;
+  private final long sessionId;
+  private final long moduleId;
   private final String moduleName;
   private final String testSuiteName;
   private final Class<?> testClass;
-  private final AgentSpan span;
-  private final TestContext context;
-  private final TestContext moduleContext;
   private final Config config;
   private final TestDecorator testDecorator;
   private final SourcePathResolver sourcePathResolver;
   private final Codeowners codeowners;
   private final MethodLinesResolver methodLinesResolver;
+  private final CoverageProbeStoreFactory coverageProbeStoreFactory;
   private final boolean parallelized;
+  private final Consumer<AgentSpan> onSpanFinish;
 
   public DDTestSuiteImpl(
-      TestContext moduleContext,
+      @Nullable AgentSpan.Context moduleSpanContext,
+      long sessionId,
+      long moduleId,
       String moduleName,
       String testSuiteName,
       @Nullable Class<?> testClass,
       @Nullable Long startTime,
+      boolean parallelized,
       Config config,
       TestDecorator testDecorator,
       SourcePathResolver sourcePathResolver,
       Codeowners codeowners,
       MethodLinesResolver methodLinesResolver,
-      boolean parallelized) {
+      CoverageProbeStoreFactory coverageProbeStoreFactory,
+      Consumer<AgentSpan> onSpanFinish) {
+    this.sessionId = sessionId;
+    this.moduleId = moduleId;
     this.moduleName = moduleName;
-    this.moduleContext = moduleContext;
     this.testSuiteName = testSuiteName;
+    this.parallelized = parallelized;
     this.config = config;
     this.testDecorator = testDecorator;
     this.sourcePathResolver = sourcePathResolver;
     this.codeowners = codeowners;
     this.methodLinesResolver = methodLinesResolver;
-    this.parallelized = parallelized;
-
-    AgentSpan moduleSpan = this.moduleContext.getSpan();
-    AgentSpan.Context moduleSpanContext = moduleSpan != null ? moduleSpan.context() : null;
+    this.coverageProbeStoreFactory = coverageProbeStoreFactory;
+    this.onSpanFinish = onSpanFinish;
 
     if (startTime != null) {
       span = startSpan(testDecorator.component() + ".test_suite", moduleSpanContext, startTime);
     } else {
       span = startSpan(testDecorator.component() + ".test_suite", moduleSpanContext);
     }
-
-    context = new SpanTestContext(span, moduleContext);
 
     span.setSpanType(InternalSpanTypes.TEST_SUITE_END);
     span.setTag(Tags.SPAN_KIND, Tags.SPAN_KIND_TEST_SUITE);
@@ -75,9 +80,13 @@ public class DDTestSuiteImpl implements DDTestSuite {
     span.setTag(Tags.TEST_SUITE, testSuiteName);
     span.setTag(Tags.TEST_MODULE, moduleName);
 
-    span.setTag(Tags.TEST_SUITE_ID, context.getId());
-    span.setTag(Tags.TEST_MODULE_ID, moduleContext.getId());
-    span.setTag(Tags.TEST_SESSION_ID, moduleContext.getParentId());
+    span.setTag(Tags.TEST_SUITE_ID, span.getSpanId());
+    span.setTag(Tags.TEST_MODULE_ID, moduleId);
+    span.setTag(Tags.TEST_SESSION_ID, sessionId);
+
+    // setting status to skip initially,
+    // as we do not know in advance whether the suite will have any children
+    span.setTag(Tags.TEST_STATUS, CIConstants.TEST_SKIP);
 
     this.testClass = testClass;
     if (this.testClass != null) {
@@ -139,52 +148,34 @@ public class DDTestSuiteImpl implements DDTestSuite {
       scope.close();
     }
 
-    testDecorator.beforeFinish(span);
+    onSpanFinish.accept(span);
 
-    String status = context.getStatus();
-    if (status != null) {
-      // do not report test suite if no execution took place
-      span.setTag(Tags.TEST_STATUS, status);
-      moduleContext.reportChildStatus(status);
-
-      if (endTime != null) {
-        span.finish(endTime);
-      } else {
-        span.finish();
-      }
+    if (endTime != null) {
+      span.finish(endTime);
+    } else {
+      span.finish();
     }
-
-    moduleContext.reportChildTag(Tags.TEST_FRAMEWORK, span.getTag(Tags.TEST_FRAMEWORK));
-    moduleContext.reportChildTag(
-        Tags.TEST_FRAMEWORK_VERSION, span.getTag(Tags.TEST_FRAMEWORK_VERSION));
   }
 
   @Override
   public DDTestImpl testStart(
       String testName, @Nullable Method testMethod, @Nullable Long startTime) {
-    return testStart(
-        testName, testMethod != null ? testMethod.getName() : null, testMethod, startTime);
-  }
-
-  public DDTestImpl testStart(
-      String testName,
-      @Nullable String methodName,
-      @Nullable Method testMethod,
-      @Nullable Long startTime) {
     return new DDTestImpl(
-        context,
-        moduleContext,
+        sessionId,
+        moduleId,
+        span.getSpanId(),
         moduleName,
         testSuiteName,
         testName,
         startTime,
         testClass,
-        methodName,
         testMethod,
         config,
         testDecorator,
         sourcePathResolver,
         methodLinesResolver,
-        codeowners);
+        codeowners,
+        coverageProbeStoreFactory,
+        SpanUtils.propagateCiVisibilityTagsTo(span));
   }
 }

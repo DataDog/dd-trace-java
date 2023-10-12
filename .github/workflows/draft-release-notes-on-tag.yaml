@@ -117,17 +117,21 @@ jobs:
               }
               return line
             }
+            function cleanUpTitle(title) {
+              // Remove tags between brackets
+              return title.replace(/\[[^\]]+\]/g, '')
+            }
             function format(pullRequest) {
-              var line = `${decorate(pullRequest)}${pullRequest.title} (#${pullRequest.number}`
-              // Add author if community labeled
+              var line = `${decorate(pullRequest)}${cleanUpTitle(pullRequest.title)} (#${pullRequest.number} - @${pullRequest.user.login}`
+              // Add special thanks if community labeled
               if (pullRequest.labels.some(label => label.name == "tag: community")) {
-                line += ` - thanks @${pull.user.login} for the contribution!`
+                line += ` - thanks for the contribution!`
               }
               line += ')'
               return line;
             }
 
-            var changelog = '';
+            var changelog = ''
             if (prByComponents.size > 0) {
               changelog += '# Components\n\n';
               for (let pair of prByComponents) {

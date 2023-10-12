@@ -14,11 +14,6 @@ public class ReplaceableEventProducerService implements EventProducerService {
   }
 
   @Override
-  public void publishEvent(AppSecRequestContext ctx, EventType event) {
-    cur.publishEvent(ctx, event);
-  }
-
-  @Override
   public DataSubscriberInfo getDataSubscribers(Address<?>... newAddresses) {
     return cur.getDataSubscribers(newAddresses);
   }
@@ -31,11 +26,6 @@ public class ReplaceableEventProducerService implements EventProducerService {
       boolean isTransient)
       throws ExpiredSubscriberInfoException {
     return cur.publishDataEvent(subscribers, ctx, newData, isTransient);
-  }
-
-  @Override
-  public Collection<EventType> allSubscribedEvents() {
-    return cur.allSubscribedEvents();
   }
 
   @Override

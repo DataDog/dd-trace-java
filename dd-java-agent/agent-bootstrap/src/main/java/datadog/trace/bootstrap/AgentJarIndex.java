@@ -81,7 +81,7 @@ public final class AgentJarIndex {
         return new AgentJarIndex(prefixes, ClassNameTrie.readFrom(in));
       }
     } catch (Throwable e) {
-      log.error("Unable to read " + AGENT_INDEX_FILE_NAME, e);
+      log.error("Unable to read {}", AGENT_INDEX_FILE_NAME, e);
       return null;
     }
   }

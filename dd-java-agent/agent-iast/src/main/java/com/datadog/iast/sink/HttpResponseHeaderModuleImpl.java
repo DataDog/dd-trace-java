@@ -1,13 +1,17 @@
 package com.datadog.iast.sink;
 
+import static com.datadog.iast.util.HttpHeader.Values.SET_COOKIE;
 import static java.util.Collections.singletonList;
 
+import com.datadog.iast.IastRequestContext;
 import com.datadog.iast.model.Evidence;
 import com.datadog.iast.model.Location;
 import com.datadog.iast.model.Vulnerability;
 import com.datadog.iast.model.VulnerabilityType;
 import com.datadog.iast.overhead.Operations;
 import com.datadog.iast.util.CookieSecurityParser;
+import com.datadog.iast.util.HttpHeader;
+import com.datadog.iast.util.HttpHeader.ContextAwareHeader;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.sink.HttpCookieModule;
 import datadog.trace.api.iast.sink.HttpResponseHeaderModule;
@@ -22,15 +26,24 @@ import javax.annotation.Nonnull;
 
 public class HttpResponseHeaderModuleImpl extends SinkModuleBase
     implements HttpResponseHeaderModule {
-  private static final String SET_COOKIE_HEADER = "Set-Cookie";
 
   @Override
   public void onHeader(@Nonnull final String name, final String value) {
-    if (SET_COOKIE_HEADER.equalsIgnoreCase(name)) {
-      onCookies(CookieSecurityParser.parse(value));
-    }
-    if (null != InstrumentationBridge.UNVALIDATED_REDIRECT) {
-      InstrumentationBridge.UNVALIDATED_REDIRECT.onHeader(name, value);
+    final HttpHeader header = HttpHeader.from(name);
+    if (header != null) {
+      if (header instanceof ContextAwareHeader) {
+        final AgentSpan span = AgentTracer.activeSpan();
+        final IastRequestContext ctx = IastRequestContext.get(span);
+        if (ctx != null) {
+          ((ContextAwareHeader) header).onHeader(ctx, value);
+        }
+      }
+      if (header == SET_COOKIE) {
+        onCookies(CookieSecurityParser.parse(value));
+      }
+      if (null != InstrumentationBridge.UNVALIDATED_REDIRECT) {
+        InstrumentationBridge.UNVALIDATED_REDIRECT.onHeader(name, value);
+      }
     }
   }
 
@@ -48,7 +61,7 @@ public class HttpResponseHeaderModuleImpl extends SinkModuleBase
     if (!overheadController.consumeQuota(Operations.REPORT_VULNERABILITY, span)) {
       return;
     }
-    final Location location = Location.forSpanAndStack(spanId(span), getCurrentStackTrace());
+    final Location location = Location.forSpanAndStack(span, getCurrentStackTrace());
     for (final Map.Entry<VulnerabilityType, Cookie> entry : vulnerable.entrySet()) {
       final Cookie cookie = entry.getValue();
       final Evidence evidence = new Evidence(cookie.getCookieName());

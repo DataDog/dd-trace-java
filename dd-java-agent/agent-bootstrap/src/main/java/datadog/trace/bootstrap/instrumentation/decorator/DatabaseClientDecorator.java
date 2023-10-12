@@ -21,7 +21,7 @@ public abstract class DatabaseClientDecorator<CONNECTION> extends ClientDecorato
     private NamingEntry(String rawDbType) {
       final NamingSchema.ForDatabase schema = SpanNaming.instance().namingSchema().database();
       this.dbType = schema.normalizedName(rawDbType);
-      this.service = schema.service(Config.get().getServiceName(), dbType);
+      this.service = schema.service(dbType);
       this.operation = UTF8BytesString.create(schema.operation(dbType));
     }
 

@@ -35,6 +35,7 @@ excludedClassesCoverage += [
   "datadog.trace.api.profiling.ProfilingSnapshot.Kind",
   "datadog.trace.api.WithGlobalTracer.1",
   "datadog.trace.api.naming.**",
+  "datadog.trace.api.gateway.RequestContext.Noop",
   // an enum
   "datadog.trace.api.sampling.AdaptiveSampler",
   "datadog.trace.api.sampling.ConstantSampler",
@@ -46,6 +47,8 @@ excludedClassesCoverage += [
   "datadog.trace.bootstrap.instrumentation.api.java.lang.ProcessImplInstrumentationHelpers",
   "datadog.trace.bootstrap.instrumentation.api.Tags",
   "datadog.trace.bootstrap.instrumentation.api.CommonTagValues",
+  // Caused by empty 'default' interface method
+  "datadog.trace.bootstrap.instrumentation.api.AgentSpan.Context",
   "datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopAgentPropagation",
   "datadog.trace.bootstrap.instrumentation.api.AgentTracer",
   "datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopContext",
@@ -61,7 +64,6 @@ excludedClassesCoverage += [
   "datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopAgentHistogram",
   "datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopTraceConfig",
   "datadog.trace.bootstrap.instrumentation.api.AgentTracer.TracerAPI",
-  "datadog.trace.bootstrap.instrumentation.api.NoopDataStreamsMonitoring",
   "datadog.trace.bootstrap.instrumentation.api.Backlog",
   "datadog.trace.bootstrap.instrumentation.api.StatsPoint",
   "datadog.trace.bootstrap.instrumentation.api.ScopeSource",
@@ -72,8 +74,9 @@ excludedClassesCoverage += [
   "datadog.trace.bootstrap.instrumentation.api.ForwardedTagContext",
   "datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities",
   "datadog.trace.bootstrap.instrumentation.api.ErrorPriorities",
-  "datadog.trace.api.civisibility.config.JvmInfo",
+  'datadog.trace.api.civisibility.config.Configurations',
   "datadog.trace.api.civisibility.config.ModuleExecutionSettings",
+  'datadog.trace.api.civisibility.config.SkippableTest',
   "datadog.trace.api.civisibility.coverage.TestReport",
   "datadog.trace.api.civisibility.coverage.TestReportFileEntry",
   "datadog.trace.api.civisibility.coverage.TestReportFileEntry.Segment",
@@ -81,6 +84,7 @@ excludedClassesCoverage += [
   "datadog.trace.api.civisibility.events.BuildEventsHandler.ModuleInfo",
   // POJO
   "datadog.trace.api.git.GitInfo",
+  "datadog.trace.api.git.GitInfoProvider",
   // POJO
   "datadog.trace.api.git.PersonInfo",
   // POJO
@@ -100,6 +104,7 @@ excludedClassesCoverage += [
   "datadog.trace.util.ClassNameTrie.Builder",
   "datadog.trace.util.ClassNameTrie.JavaGenerator",
   "datadog.trace.util.CollectionUtils",
+  "datadog.trace.util.MethodHandles",
   "datadog.trace.util.PidHelper",
   "datadog.trace.util.PidHelper.Fallback",
   "datadog.trace.util.ProcessUtils",
@@ -153,8 +158,8 @@ dependencies {
   api project(":utils:time-utils")
 
   // has to be loaded by system classloader:
-  // it contains annotation that is also present in the instrumented application classes
-  api "com.datadoghq:dd-javac-plugin-client:0.1.6"
+  // it contains annotations that are also present in the instrumented application classes
+  api "com.datadoghq:dd-javac-plugin-client:0.1.7"
 
   testImplementation project(":utils:test-utils")
   testImplementation("org.assertj:assertj-core:3.20.2")

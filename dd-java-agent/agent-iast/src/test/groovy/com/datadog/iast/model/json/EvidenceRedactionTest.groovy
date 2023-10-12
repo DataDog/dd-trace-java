@@ -70,11 +70,8 @@ class EvidenceRedactionTest extends DDSpecification {
     new StringValuePart(null)                                  | _
     new StringValuePart('')                                    | _
     new RedactedValuePart(null)                                | _
-    new RedactedValuePart('')                                  | _
     new TaintedValuePart(Mock(JsonAdapter), null, null, true)  | _
-    new TaintedValuePart(Mock(JsonAdapter), null, '', true)    | _
     new TaintedValuePart(Mock(JsonAdapter), null, null, false) | _
-    new TaintedValuePart(Mock(JsonAdapter), null, '', false)   | _
   }
 
   void 'test #suite'() {

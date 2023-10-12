@@ -2,19 +2,22 @@ package datadog.trace.civisibility.config;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.civisibility.config.Configurations;
-import datadog.trace.api.civisibility.config.JvmInfo;
 import datadog.trace.api.civisibility.config.ModuleExecutionSettings;
 import datadog.trace.api.civisibility.config.SkippableTest;
 import datadog.trace.api.config.CiVisibilityConfig;
 import datadog.trace.api.git.GitInfo;
 import datadog.trace.api.git.GitInfoProvider;
 import datadog.trace.civisibility.git.tree.GitDataUploader;
+import datadog.trace.civisibility.source.index.RepoIndex;
+import datadog.trace.civisibility.source.index.RepoIndexProvider;
 import datadog.trace.util.Strings;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -32,16 +35,19 @@ public class ModuleExecutionSettingsFactoryImpl implements ModuleExecutionSettin
   private final Config config;
   private final ConfigurationApi configurationApi;
   private final GitDataUploader gitDataUploader;
+  private final RepoIndexProvider repoIndexProvider;
   private final String repositoryRoot;
 
   public ModuleExecutionSettingsFactoryImpl(
       Config config,
       ConfigurationApi configurationApi,
       GitDataUploader gitDataUploader,
+      RepoIndexProvider repoIndexProvider,
       String repositoryRoot) {
     this.config = config;
     this.configurationApi = configurationApi;
     this.gitDataUploader = gitDataUploader;
+    this.repoIndexProvider = repoIndexProvider;
     this.repositoryRoot = repositoryRoot;
   }
 
@@ -68,7 +74,13 @@ public class ModuleExecutionSettingsFactoryImpl implements ModuleExecutionSettin
             ? getSkippableTestsByModulePath(Paths.get(repositoryRoot), tracerEnvironment)
             : Collections.emptyMap();
 
-    return new ModuleExecutionSettings(systemProperties, skippableTestsByModulePath);
+    List<String> coverageEnabledPackages = getCoverageEnabledPackages(codeCoverageEnabled);
+    return new ModuleExecutionSettings(
+        codeCoverageEnabled,
+        itrEnabled,
+        systemProperties,
+        skippableTestsByModulePath,
+        coverageEnabledPackages);
   }
 
   private TracerEnvironment buildTracerEnvironment(
@@ -180,5 +192,47 @@ public class ModuleExecutionSettingsFactoryImpl implements ModuleExecutionSettin
       LOGGER.error("Could not obtain list of skippable tests, will proceed without skipping", e);
       return Collections.emptyMap();
     }
+  }
+
+  private List<String> getCoverageEnabledPackages(boolean codeCoverageEnabled) {
+    if (!codeCoverageEnabled) {
+      return Collections.emptyList();
+    }
+
+    List<String> includedPackages = config.getCiVisibilityJacocoPluginIncludes();
+    if (includedPackages != null && !includedPackages.isEmpty()) {
+      return includedPackages;
+    }
+
+    RepoIndex repoIndex = repoIndexProvider.getIndex();
+    List<String> packages = new ArrayList<>(repoIndex.getRootPackages());
+    List<String> excludedPackages = config.getCiVisibilityJacocoPluginExcludes();
+    if (excludedPackages != null && !excludedPackages.isEmpty()) {
+      removeMatchingPackages(packages, excludedPackages);
+    }
+    return packages;
+  }
+
+  private static void removeMatchingPackages(List<String> packages, List<String> excludedPackages) {
+    List<String> excludedPrefixes =
+        excludedPackages.stream()
+            .map(ModuleExecutionSettingsFactoryImpl::trimTrailingAsterisk)
+            .collect(Collectors.toList());
+
+    Iterator<String> packagesIterator = packages.iterator();
+    while (packagesIterator.hasNext()) {
+      String p = packagesIterator.next();
+
+      for (String excludedPrefix : excludedPrefixes) {
+        if (p.startsWith(excludedPrefix)) {
+          packagesIterator.remove();
+          break;
+        }
+      }
+    }
+  }
+
+  private static String trimTrailingAsterisk(String s) {
+    return s.endsWith("*") ? s.substring(0, s.length() - 1) : s;
   }
 }

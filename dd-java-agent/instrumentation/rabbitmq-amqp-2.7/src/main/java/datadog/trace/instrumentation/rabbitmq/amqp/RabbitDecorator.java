@@ -51,17 +51,30 @@ public class RabbitDecorator extends MessagingClientDecorator {
   public static final boolean TIME_IN_QUEUE_ENABLED =
       Config.get().isTimeInQueueEnabled(!RABBITMQ_LEGACY_TRACING, "rabbit", "rabbitmq");
 
-  private static final String LOCAL_SERVICE_NAME =
-      RABBITMQ_LEGACY_TRACING ? "rabbitmq" : Config.get().getServiceName();
   public static final RabbitDecorator CLIENT_DECORATE =
       new RabbitDecorator(
-          Tags.SPAN_KIND_CLIENT, InternalSpanTypes.MESSAGE_CLIENT, LOCAL_SERVICE_NAME);
+          Tags.SPAN_KIND_CLIENT,
+          InternalSpanTypes.MESSAGE_CLIENT,
+          SpanNaming.instance()
+              .namingSchema()
+              .messaging()
+              .outboundService("rabbitmq", RABBITMQ_LEGACY_TRACING));
   public static final RabbitDecorator PRODUCER_DECORATE =
       new RabbitDecorator(
-          Tags.SPAN_KIND_PRODUCER, InternalSpanTypes.MESSAGE_PRODUCER, LOCAL_SERVICE_NAME);
+          Tags.SPAN_KIND_PRODUCER,
+          InternalSpanTypes.MESSAGE_PRODUCER,
+          SpanNaming.instance()
+              .namingSchema()
+              .messaging()
+              .outboundService("rabbitmq", RABBITMQ_LEGACY_TRACING));
   public static final RabbitDecorator CONSUMER_DECORATE =
       new RabbitDecorator(
-          Tags.SPAN_KIND_CONSUMER, InternalSpanTypes.MESSAGE_CONSUMER, LOCAL_SERVICE_NAME);
+          Tags.SPAN_KIND_CONSUMER,
+          InternalSpanTypes.MESSAGE_CONSUMER,
+          SpanNaming.instance()
+              .namingSchema()
+              .messaging()
+              .inboundService("rabbitmq", RABBITMQ_LEGACY_TRACING));
   public static final RabbitDecorator BROKER_DECORATE =
       new RabbitDecorator(
           Tags.SPAN_KIND_BROKER,
@@ -234,7 +247,7 @@ public class RabbitDecorator extends MessagingClientDecorator {
       sortedTags.put(DIRECTION_TAG, DIRECTION_IN);
       sortedTags.put(TOPIC_TAG, queue);
       sortedTags.put(TYPE_TAG, "rabbitmq");
-      AgentTracer.get().setDataStreamCheckpoint(span, sortedTags, produceMillis);
+      AgentTracer.get().getDataStreamsMonitoring().setCheckpoint(span, sortedTags, produceMillis);
     }
 
     CONSUMER_DECORATE.afterStart(span);

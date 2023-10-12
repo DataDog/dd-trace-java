@@ -21,7 +21,7 @@ import java.util.Map;
 @CallSite(spi = IastCallSites.class)
 public class JakartaHttpServletRequestCallSite {
 
-  @Source(SourceTypes.REQUEST_PARAMETER_VALUE_STRING)
+  @Source(SourceTypes.REQUEST_PARAMETER_VALUE)
   @CallSite.After(
       "java.lang.String jakarta.servlet.http.HttpServletRequest.getParameter(java.lang.String)")
   @CallSite.After(
@@ -41,7 +41,7 @@ public class JakartaHttpServletRequestCallSite {
     return value;
   }
 
-  @Source(SourceTypes.REQUEST_PARAMETER_NAME_STRING)
+  @Source(SourceTypes.REQUEST_PARAMETER_NAME)
   @CallSite.After(
       "java.util.Enumeration jakarta.servlet.http.HttpServletRequest.getParameterNames()")
   @CallSite.After(
@@ -73,7 +73,7 @@ public class JakartaHttpServletRequestCallSite {
     }
   }
 
-  @Source(SourceTypes.REQUEST_PARAMETER_VALUE_STRING)
+  @Source(SourceTypes.REQUEST_PARAMETER_VALUE)
   @CallSite.After(
       "java.lang.String[] jakarta.servlet.http.HttpServletRequest.getParameterValues(java.lang.String)")
   @CallSite.After(
@@ -95,7 +95,7 @@ public class JakartaHttpServletRequestCallSite {
     return parameterValues;
   }
 
-  @Source(SourceTypes.REQUEST_PARAMETER_VALUE_STRING)
+  @Source(SourceTypes.REQUEST_PARAMETER_VALUE)
   @CallSite.After("java.util.Map jakarta.servlet.http.HttpServletRequest.getParameterMap()")
   @CallSite.After("java.util.Map jakarta.servlet.http.HttpServletRequestWrapper.getParameterMap()")
   public static java.util.Map<java.lang.String, java.lang.String[]> afterGetParameterMap(

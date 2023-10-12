@@ -134,6 +134,11 @@ public class AgentTracer {
     return get().activeScope();
   }
 
+  public static AgentScope.Continuation capture() {
+    final AgentScope activeScope = activeScope();
+    return activeScope == null ? null : activeScope.capture();
+  }
+
   public static AgentPropagation propagate() {
     return get().propagate();
   }
@@ -168,12 +173,7 @@ public class AgentTracer {
   private AgentTracer() {}
 
   public interface TracerAPI
-      extends datadog.trace.api.Tracer,
-          InternalTracer,
-          AgentPropagation,
-          EndpointCheckpointer,
-          DataStreamsCheckpointer,
-          ScopeStateAware {
+      extends datadog.trace.api.Tracer, InternalTracer, EndpointCheckpointer, ScopeStateAware {
 
     /**
      * Create and start a new span.
@@ -269,19 +269,6 @@ public class AgentTracer {
     CallbackProvider getCallbackProvider(RequestContextSlot slot);
 
     CallbackProvider getUniversalCallbackProvider();
-
-    /**
-     * Sets data streams checkpoint, used for both produce and consume operations.
-     *
-     * @param span active span
-     * @param sortedTags alphabetically sorted tags for the checkpoint (direction, queue type etc)
-     * @param defaultTimestamp unix timestamp to use as a start of the pathway if this is the first
-     *     checkpoint in the chain. Zero should be passed if we can't extract the timestamp from the
-     *     message / payload itself (for instance: produce operations; http produce / consume etc).
-     *     Value will be ignored for checkpoints happening not at the start of the pipeline.
-     */
-    void setDataStreamCheckpoint(
-        AgentSpan span, LinkedHashMap<String, String> sortedTags, long defaultTimestamp);
 
     AgentSpan.Context notifyExtensionStart(Object event);
 
@@ -461,7 +448,7 @@ public class AgentTracer {
 
     @Override
     public DataStreamsCheckpointer getDataStreamsCheckpointer() {
-      return this;
+      return getDataStreamsMonitoring();
     }
 
     @Override
@@ -489,47 +476,12 @@ public class AgentTracer {
     }
 
     @Override
-    public AgentScope.Continuation capture() {
-      return null;
-    }
-
-    @Override
-    public <C> void inject(final AgentSpan span, final C carrier, final Setter<C> setter) {}
-
-    @Override
-    public <C> void inject(final Context context, final C carrier, final Setter<C> setter) {}
-
-    @Override
-    public <C> void inject(
-        AgentSpan span, C carrier, Setter<C> setter, TracePropagationStyle style) {}
-
-    @Override
-    public <C> void injectBinaryPathwayContext(
-        AgentSpan span,
-        C carrier,
-        BinarySetter<C> setter,
-        LinkedHashMap<String, String> sortedTags) {}
-
-    @Override
-    public <C> void injectPathwayContext(
-        AgentSpan span, C carrier, Setter<C> setter, LinkedHashMap<String, String> sortedTags) {}
-
-    @Override
-    public <C> Context.Extracted extract(final C carrier, final ContextVisitor<C> getter) {
-      return null;
-    }
-
-    @Override
     public void onRootSpanFinished(AgentSpan root, EndpointTracker tracker) {}
 
     @Override
     public EndpointTracker onRootSpanStarted(AgentSpan root) {
       return EndpointTracker.NO_OP;
     }
-
-    @Override
-    public void setDataStreamCheckpoint(
-        AgentSpan span, LinkedHashMap<String, String> sortedTags, long defaultTimestamp) {}
 
     @Override
     public AgentSpan.Context notifyExtensionStart(Object event) {
@@ -550,14 +502,6 @@ public class AgentTracer {
     }
 
     @Override
-    public void setConsumeCheckpoint(
-        String type, String source, DataStreamsContextCarrier carrier) {}
-
-    @Override
-    public void setProduceCheckpoint(
-        String type, String target, DataStreamsContextCarrier carrier) {}
-
-    @Override
     public Timer getTimer() {
       return Timer.NoOp.INSTANCE;
     }
@@ -576,7 +520,7 @@ public class AgentTracer {
   public static final class NoopAgentSpan implements AgentSpan {
     public static final NoopAgentSpan INSTANCE = new NoopAgentSpan();
 
-    private NoopAgentSpan() {}
+    protected NoopAgentSpan() {}
 
     @Override
     public DDTraceId getTraceId() {
@@ -703,7 +647,7 @@ public class AgentTracer {
 
     @Override
     public RequestContext getRequestContext() {
-      return null;
+      return RequestContext.Noop.INSTANCE;
     }
 
     @Override
@@ -906,11 +850,6 @@ public class AgentTracer {
     static final NoopAgentPropagation INSTANCE = new NoopAgentPropagation();
 
     @Override
-    public AgentScope.Continuation capture() {
-      return NoopContinuation.INSTANCE;
-    }
-
-    @Override
     public <C> void inject(final AgentSpan span, final C carrier, final Setter<C> setter) {}
 
     @Override
@@ -919,13 +858,6 @@ public class AgentTracer {
     @Override
     public <C> void inject(
         AgentSpan span, C carrier, Setter<C> setter, TracePropagationStyle style) {}
-
-    @Override
-    public <C> void injectBinaryPathwayContext(
-        AgentSpan span,
-        C carrier,
-        BinarySetter<C> setter,
-        LinkedHashMap<String, String> sortedTags) {}
 
     @Override
     public <C> void injectPathwayContext(
@@ -1086,6 +1018,26 @@ public class AgentTracer {
 
     @Override
     public void trackBacklog(LinkedHashMap<String, String> sortedTags, long value) {}
+
+    @Override
+    public void setCheckpoint(
+        AgentSpan span, LinkedHashMap<String, String> sortedTags, long defaultTimestamp) {}
+
+    @Override
+    public PathwayContext newPathwayContext() {
+      return NoopPathwayContext.INSTANCE;
+    }
+
+    @Override
+    public void add(StatsPoint statsPoint) {}
+
+    @Override
+    public void setConsumeCheckpoint(
+        String type, String source, DataStreamsContextCarrier carrier) {}
+
+    @Override
+    public void setProduceCheckpoint(
+        String type, String target, DataStreamsContextCarrier carrier) {}
   }
 
   public static class NoopPathwayContext implements PathwayContext {

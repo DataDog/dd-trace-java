@@ -49,7 +49,7 @@ public class OTTracer implements Tracer {
     if (carrier instanceof TextMap) {
       final AgentSpan.Context context = converter.toContext(spanContext);
 
-      tracer.inject(context, (TextMap) carrier, OTTextMapSetter.INSTANCE);
+      tracer.propagate().inject(context, (TextMap) carrier, OTTextMapSetter.INSTANCE);
     } else {
       log.debug("Unsupported format for propagation - {}", format.getClass().getName());
     }
@@ -59,7 +59,9 @@ public class OTTracer implements Tracer {
   public <C> SpanContext extract(final Format<C> format, final C carrier) {
     if (carrier instanceof TextMap) {
       final AgentSpan.Context tagContext =
-          tracer.extract((TextMap) carrier, ContextVisitors.<TextMap>stringValuesEntrySet());
+          tracer
+              .propagate()
+              .extract((TextMap) carrier, ContextVisitors.<TextMap>stringValuesEntrySet());
 
       return converter.toSpanContext(tagContext);
     } else {

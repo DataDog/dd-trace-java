@@ -22,12 +22,18 @@ excludedClassesCoverage += [
   "datadog.opentracing.DDTracer.DDTracerBuilder"
 ]
 
-addTestSuite('ot31CompatabilityTest')
-addTestSuite('ot33CompatabilityTest')
+addTestSuite('ot31CompatibilityTest')
+addTestSuite('ot33CompatibilityTest')
 
 dependencies {
   annotationProcessor deps.autoserviceProcessor
   compileOnly deps.autoserviceAnnotation
+
+  modules {
+    module("com.squareup.okio:okio") {
+      replacedBy("com.datadoghq.okio:okio") // embed our patched fork
+    }
+  }
 
   api project(':dd-trace-api')
   implementation (project(':dd-trace-core')) {
@@ -46,17 +52,17 @@ dependencies {
 
   testImplementation project(":dd-java-agent:testing")
 
-  ot33CompatabilityTestImplementation('io.opentracing:opentracing-api') {
+  ot33CompatibilityTestImplementation('io.opentracing:opentracing-api') {
     version {
       strictly '0.33.0'
     }
   }
-  ot33CompatabilityTestImplementation('io.opentracing:opentracing-util')  {
+  ot33CompatibilityTestImplementation('io.opentracing:opentracing-util')  {
     version {
       strictly '0.33.0'
     }
   }
-  ot33CompatabilityTestImplementation('io.opentracing:opentracing-noop')  {
+  ot33CompatibilityTestImplementation('io.opentracing:opentracing-noop')  {
     version {
       strictly '0.33.0'
     }
@@ -73,7 +79,7 @@ configurations.matching({ it.name.startsWith('ot31') }).each({
 })
 
 tasks.named("test").configure {
-  finalizedBy "ot31CompatabilityTest", "ot33CompatabilityTest"
+  finalizedBy "ot31CompatibilityTest", "ot33CompatibilityTest"
 }
 
 jar {
@@ -108,16 +114,23 @@ shadowJar {
   relocate('datadog.', 'ddtrot.dd.') {
     exclude('datadog.opentracing.*')
     exclude('datadog.opentracing.resolver.*')
-    exclude('datadog.trace.api.*')
+    exclude('%regex[datadog/trace/api/(?!Functions|Endpoint)[^/]*]')
     exclude('datadog.trace.api.config.*')
     exclude('datadog.trace.api.experimental.*')
     exclude('datadog.trace.api.interceptor.*')
     exclude('datadog.trace.api.internal.*')
     exclude('datadog.trace.api.internal.util.*')
+    exclude('datadog.trace.api.profiling.*')
     exclude('datadog.trace.api.sampling.*')
     exclude('datadog.trace.context.*')
   }
-  exclude('META-INF/maven/')
+
+  duplicatesStrategy = DuplicatesStrategy.FAIL
+
+  // Remove some cruft from the final jar.
+  // These patterns should NOT include **/META-INF/maven/**/pom.properties, which is
+  // used to report our own dependencies.
+  exclude '**/META-INF/maven/**/pom.xml'
   exclude('META-INF/proguard/')
   exclude('/META-INF/*.kotlin_module')
 }

@@ -22,8 +22,8 @@ public class TelemetrySystem {
   private static final long TELEMETRY_STOP_WAIT_MILLIS = 5000L;
   private static final Logger log = LoggerFactory.getLogger(TelemetrySystem.class);
 
-  private static Thread TELEMETRY_THREAD;
-  private static DependencyService DEPENDENCY_SERVICE;
+  private static volatile Thread TELEMETRY_THREAD;
+  private static volatile DependencyService DEPENDENCY_SERVICE;
 
   static DependencyService createDependencyService(Instrumentation instrumentation) {
     if (instrumentation != null && Config.get().isTelemetryDependencyServiceEnabled()) {
@@ -65,22 +65,24 @@ public class TelemetrySystem {
     TELEMETRY_THREAD.start();
   }
 
+  /** Called by reflection (see Agent.stopTelemetry) */
   public static void stop() {
-    // TODO This is never called in the prod code. Should be part of Agent.shutdown?
-    if (DEPENDENCY_SERVICE != null) {
-      DEPENDENCY_SERVICE.stop();
+    DependencyService dependencyService = DEPENDENCY_SERVICE;
+    if (dependencyService != null) {
+      dependencyService.stop();
     }
-    if (TELEMETRY_THREAD != null) {
-      TELEMETRY_THREAD.interrupt();
+
+    Thread telemetryThread = TELEMETRY_THREAD;
+    if (telemetryThread != null) {
+      telemetryThread.interrupt();
       try {
-        TELEMETRY_THREAD.join(TELEMETRY_STOP_WAIT_MILLIS);
+        telemetryThread.join(TELEMETRY_STOP_WAIT_MILLIS);
       } catch (InterruptedException e) {
         log.warn("Telemetry thread join was interrupted");
       }
-      if (TELEMETRY_THREAD.isAlive()) {
+      if (telemetryThread.isAlive()) {
         log.warn("Telemetry thread join was not completed");
       }
-      TELEMETRY_THREAD = null;
     }
   }
 }
