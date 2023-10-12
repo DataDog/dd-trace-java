@@ -408,7 +408,7 @@ abstract class Aws2ClientTest extends VersionedNamingTestBase {
   }
 }
 
-class Aws2ClientV0Test extends Aws2ClientTest {
+class Aws2ClientV0ForkedTest extends Aws2ClientTest {
 
   @Override
   String expectedOperation(String awsService, String awsOperation) {
