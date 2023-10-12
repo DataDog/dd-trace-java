@@ -63,6 +63,11 @@ public class StampedRecordContextVisitor
   }
 
   @Override
+  public void set(StampedRecord carrier, String key, String value) {
+    set(carrier, key, value.getBytes(StandardCharsets.UTF_8));
+  }
+
+  @Override
   public void set(StampedRecord carrier, String key, byte[] value) {
     Headers headers = carrier.value.headers();
     if (headers != null) {

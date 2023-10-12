@@ -246,7 +246,9 @@ public class KafkaStreamTaskInstrumentation extends Instrumenter.Tracing
         sortedTags.put(TYPE_TAG, "kafka");
 
         if (StreamingContext.empty()) {
-          AgentTracer.get().setDataStreamCheckpoint(span, sortedTags, record.timestamp);
+          AgentTracer.get()
+              .getDataStreamsMonitoring()
+              .setCheckpoint(span, sortedTags, record.timestamp);
         } else {
           if (StreamingContext.isSourceTopic(record.topic())) {
             AgentTracer.get()

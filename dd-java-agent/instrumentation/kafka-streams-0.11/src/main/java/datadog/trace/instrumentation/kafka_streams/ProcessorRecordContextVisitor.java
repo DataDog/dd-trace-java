@@ -105,6 +105,11 @@ public class ProcessorRecordContextVisitor
   }
 
   @Override
+  public void set(ProcessorRecordContext carrier, String key, String value) {
+    set(carrier, key, value.getBytes(StandardCharsets.UTF_8));
+  }
+
+  @Override
   public void set(ProcessorRecordContext carrier, String key, byte[] value) {
     if (HEADERS_METHOD == null) {
       return;
