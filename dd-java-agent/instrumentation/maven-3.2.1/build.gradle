@@ -1,3 +1,5 @@
+apply from: "$rootDir/gradle/java.gradle"
+
 muzzle {
   pass {
     group = 'org.apache.maven'
@@ -7,7 +9,7 @@ muzzle {
   }
 }
 
-apply from: "$rootDir/gradle/java.gradle"
+addTestSuiteForDir('latestDepTest', 'test')
 
 dependencies {
   compileOnly 'org.apache.maven:maven-embedder:3.2.1'
@@ -17,7 +19,11 @@ dependencies {
   // this is not the earliest version of Maven that we support,
   // but using the earliest one is not possible here because of dependency conflicts
   testImplementation 'org.apache.maven:maven-embedder:3.2.5'
-  testImplementation 'org.eclipse.aether:aether-connector-basic:1.0.0.v20140518'
-  testImplementation 'org.eclipse.aether:aether-transport-wagon:1.0.0.v20140518'
-  testImplementation 'org.apache.maven.wagon:wagon-http:2.8'
+  testImplementation group: 'org.apache.maven.resolver', name: 'maven-resolver-connector-basic', version: '1.0.3'
+  testImplementation group: 'org.apache.maven.resolver', name: 'maven-resolver-transport-http', version: '1.0.3'
+
+  latestDepTestImplementation group: 'org.apache.maven', name: 'maven-embedder', version: '+'
+  latestDepTestImplementation group: 'org.apache.maven.resolver', name: 'maven-resolver-connector-basic', version: '+'
+  latestDepTestImplementation group: 'org.apache.maven.resolver', name: 'maven-resolver-transport-http', version: '+'
+  latestDepTestImplementation group: 'org.fusesource.jansi', name: 'jansi', version: '+'
 }
