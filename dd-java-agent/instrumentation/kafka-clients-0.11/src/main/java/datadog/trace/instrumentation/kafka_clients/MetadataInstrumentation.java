@@ -64,7 +64,6 @@ public class MetadataInstrumentation extends Instrumenter.Tracing
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void onEnter(
         @Advice.This final Metadata metadata, @Advice.Argument(0) final Cluster newCluster) {
-      System.out.println("[METADATA UPDATE]");
       if (newCluster != null && !newCluster.isBootstrapConfigured()) {
         InstrumentationContext.get(Metadata.class, String.class)
             .put(metadata, newCluster.clusterResource().clusterId());
@@ -82,7 +81,6 @@ public class MetadataInstrumentation extends Instrumenter.Tracing
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void onEnter(
         @Advice.This final Metadata metadata, @Advice.Argument(1) final MetadataResponse response) {
-      System.out.println("[METADATA UPDATE]");
       if (response != null) {
         InstrumentationContext.get(Metadata.class, String.class)
             .put(metadata, response.clusterId());
