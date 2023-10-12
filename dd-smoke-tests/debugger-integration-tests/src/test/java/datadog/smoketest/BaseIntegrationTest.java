@@ -310,6 +310,7 @@ public abstract class BaseIntegrationTest {
   }
 
   protected void processRequests() throws InterruptedException {
+    long start = System.currentTimeMillis();
     RecordedRequest request;
     do {
       request = datadogAgentServer.takeRequest(REQUEST_WAIT_TIMEOUT, TimeUnit.SECONDS);
@@ -322,7 +323,8 @@ public abstract class BaseIntegrationTest {
           return;
         }
       }
-    } while (request != null);
+    } while (request != null && (System.currentTimeMillis() - start < 30_000));
+    throw new RuntimeException("timeout!");
   }
 
   protected void processRemainingRequests() throws InterruptedException {
