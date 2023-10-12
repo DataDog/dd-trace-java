@@ -5,7 +5,6 @@ import java.io.Closeable;
 import java.lang.reflect.Method;
 import java.nio.file.Path;
 import java.util.Collection;
-import java.util.List;
 import javax.annotation.Nullable;
 
 public interface TestEventsHandler extends Closeable {
@@ -66,7 +65,7 @@ public interface TestEventsHandler extends Closeable {
       @Nullable String testFramework,
       @Nullable String testFrameworkVersion,
       @Nullable String testParameters,
-      @Nullable List<String> categories,
+      @Nullable Collection<String> categories,
       @Nullable Class<?> testClass,
       @Nullable String testMethodName,
       @Nullable Method testMethod,

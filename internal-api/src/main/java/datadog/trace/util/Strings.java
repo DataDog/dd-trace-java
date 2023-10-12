@@ -268,25 +268,25 @@ public final class Strings {
     return input.subSequence(0, limit);
   }
 
-  public static String toJson(final Map<String, String> map) {
+  public static String toJson(final Map<String, ?> map) {
     return toJson(map, false);
   }
 
-  public static String toJson(final Map<String, String> map, boolean valuesAreJson) {
+  public static String toJson(final Map<String, ?> map, boolean valuesAreJson) {
     if (map == null || map.isEmpty()) {
       return "{}";
     }
     final StringBuilder sb = new StringBuilder("{");
-    final Iterator<Entry<String, String>> entriesIter = map.entrySet().iterator();
+    final Iterator<? extends Entry<String, ?>> entriesIter = map.entrySet().iterator();
     while (entriesIter.hasNext()) {
-      final Entry<String, String> entry = entriesIter.next();
+      final Entry<String, ?> entry = entriesIter.next();
 
       sb.append("\"").append(escapeToJson(entry.getKey())).append("\":");
 
       if (valuesAreJson) {
         sb.append(entry.getValue());
       } else {
-        sb.append("\"").append(escapeToJson(entry.getValue())).append("\"");
+        sb.append("\"").append(escapeToJson(String.valueOf(entry.getValue()))).append("\"");
       }
 
       if (entriesIter.hasNext()) {
