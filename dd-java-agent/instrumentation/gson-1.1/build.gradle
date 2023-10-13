@@ -2,7 +2,7 @@ muzzle {
   pass {
     group = 'com.google.code.gson'
     module = 'gson'
-    versions = '[1.1,]'
+    versions = '[1.1]'
     assertInverse = true
   }
 }
@@ -19,5 +19,5 @@ dependencies {
 
   testRuntimeOnly project(':dd-java-agent:instrumentation:iast-instrumenter')
 
-  latestDepTestImplementation group: 'com.google.code.gson', name: 'gson', version: '+'
+  latestDepTestImplementation group: 'com.google.code.gson', name: 'gson', version: '1.1'
 }
