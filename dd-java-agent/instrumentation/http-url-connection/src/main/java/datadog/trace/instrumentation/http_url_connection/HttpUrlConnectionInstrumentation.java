@@ -11,6 +11,7 @@ import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
@@ -23,7 +24,9 @@ import net.bytebuddy.asm.Advice;
 
 @AutoService(Instrumenter.class)
 public class HttpUrlConnectionInstrumentation extends Instrumenter.Tracing
-    implements Instrumenter.ForBootstrap, Instrumenter.ForKnownTypes {
+    implements Instrumenter.ForBootstrap,
+        Instrumenter.ForKnownTypes,
+        Instrumenter.ForConfiguredType {
 
   public HttpUrlConnectionInstrumentation() {
     super("httpurlconnection");
@@ -35,6 +38,12 @@ public class HttpUrlConnectionInstrumentation extends Instrumenter.Tracing
     return new String[] {
       "sun.net.www.protocol.http.HttpURLConnection", "java.net.HttpURLConnection"
     };
+  }
+
+  @Override
+  public String configuredMatchingType() {
+    // this won't match any class unless the property is set
+    return InstrumenterConfig.get().getHttpURLConnectionClassName();
   }
 
   @Override
