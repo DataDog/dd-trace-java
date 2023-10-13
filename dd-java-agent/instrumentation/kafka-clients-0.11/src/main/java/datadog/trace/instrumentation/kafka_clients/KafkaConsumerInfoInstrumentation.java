@@ -87,11 +87,11 @@ public final class KafkaConsumerInfoInstrumentation extends Instrumenter.Tracing
         @Advice.FieldValue("coordinator") ConsumerCoordinator coordinator,
         @Advice.Argument(0) ConsumerConfig consumerConfig) {
       KafkaConsumerInfo.Builder metadataBuilder = new KafkaConsumerInfo.Builder();
-      metadataBuilder.clientMetadata(metadata);
+      metadataBuilder = metadataBuilder.clientMetadata(metadata);
 
       String consumerGroup = consumerConfig.getString(ConsumerConfig.GROUP_ID_CONFIG);
       if (consumerGroup != null && !consumerGroup.isEmpty()) {
-        metadataBuilder.consumerGroup(consumerGroup);
+        metadataBuilder = metadataBuilder.consumerGroup(consumerGroup);
       }
 
       KafkaConsumerInfo kafkaConsumerInfo = metadataBuilder.build();
