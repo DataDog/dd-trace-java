@@ -107,7 +107,7 @@ abstract class AbstractServerSmokeTest extends AbstractSmokeTest {
     return remaining.isEmpty()
   }
 
-  private Set<String> assertTraceCounts(Set<String> expected, Map<String, AtomicInteger> traceCounts) {
+  protected Set<String> assertTraceCounts(Set<String> expected, Map<String, AtomicInteger> traceCounts) {
     Set<String> remaining = expected.collect().toSet()
     for (Map.Entry<String, AtomicInteger> entry : traceCounts.entrySet()) {
       if (expected.contains(entry.getKey()) && entry.getValue().get() > 0) {

@@ -29,6 +29,10 @@ public class HttpServerFilterInstrumentation extends Instrumenter.Tracing
   public String[] helperClassNames() {
     return new String[] {
       packageName + ".GrizzlyDecorator",
+      packageName + ".GrizzlyDecorator$GrizzlyHttpBlockResponseFunction",
+      packageName + ".GrizzlyHttpBlockingHelper",
+      packageName + ".GrizzlyHttpBlockingHelper$CloseCompletionHandler",
+      packageName + ".GrizzlyHttpBlockingHelper$JustCompleteProcessor",
       packageName + ".HTTPRequestPacketURIDataAdapter",
       packageName + ".ExtractAdapter"
     };

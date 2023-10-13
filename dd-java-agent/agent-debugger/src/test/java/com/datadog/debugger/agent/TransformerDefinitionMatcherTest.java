@@ -1,189 +1,206 @@
 package com.datadog.debugger.agent;
 
+import static com.datadog.debugger.util.ClassFileHelperTest.getClassFileBytes;
+import static java.util.Collections.emptyList;
 import static org.junit.jupiter.api.Assertions.*;
 
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.net.URL;
+import com.datadog.debugger.probe.LogProbe;
+import com.datadog.debugger.probe.MetricProbe;
+import com.datadog.debugger.probe.ProbeDefinition;
+import com.datadog.debugger.probe.SpanProbe;
+import datadog.trace.bootstrap.debugger.ProbeId;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 
 public class TransformerDefinitionMatcherTest {
+  private static final ProbeId PROBE_ID1 = new ProbeId("beae1807-f3b0-4ea8-a74f-826790c5e6f6", 0);
+  private static final ProbeId PROBE_ID2 = new ProbeId("beae1807-f3b0-4ea8-a74f-826790c5e6f7", 0);
+  private static final ProbeId PROBE_ID3 = new ProbeId("beae1807-f3b0-4ea8-a74f-826790c5e6f8", 0);
   private static final String SERVICE_NAME = "service-name";
-  private static final long ORG_ID = 2;
-  private static final String PROBE_ID1 = "beae1807-f3b0-4ea8-a74f-826790c5e6f6";
-  private static final String PROBE_ID2 = "beae1807-f3b0-4ea8-a74f-826790c5e6f7";
 
   @Test
   public void empty() {
-    TransformerDefinitionMatcher matcher =
-        createMatcher(Collections.emptyList(), Collections.emptyList());
+    TransformerDefinitionMatcher matcher = createMatcher(emptyList(), emptyList(), emptyList());
     assertTrue(matcher.isEmpty());
   }
 
   @Test
   public void fullQualifiedClassName() {
-    SnapshotProbe probe = createProbe(PROBE_ID1, "java.lang.String", "indexOf");
+    LogProbe probe = createProbe(PROBE_ID1, "java.lang.String", "indexOf");
     TransformerDefinitionMatcher matcher =
-        createMatcher(Arrays.asList(probe), Collections.emptyList());
+        createMatcher(emptyList(), Arrays.asList(probe), emptyList());
     List<ProbeDefinition> probeDefinitions = match(matcher, String.class);
     assertEquals(1, probeDefinitions.size());
-    assertEquals(PROBE_ID1, probeDefinitions.get(0).getId());
+    assertEquals(PROBE_ID1, probeDefinitions.get(0).getProbeId());
   }
 
   @Test
   public void simpleClassName() {
-    SnapshotProbe probe = createProbe(PROBE_ID1, "String", "indexOf");
+    LogProbe probe = createProbe(PROBE_ID1, "String", "indexOf");
     TransformerDefinitionMatcher matcher =
-        createMatcher(Arrays.asList(probe), Collections.emptyList());
+        createMatcher(emptyList(), Arrays.asList(probe), emptyList());
     List<ProbeDefinition> probeDefinitions = match(matcher, String.class);
     assertEquals(1, probeDefinitions.size());
-    assertEquals(PROBE_ID1, probeDefinitions.get(0).getId());
+    assertEquals(PROBE_ID1, probeDefinitions.get(0).getProbeId());
   }
 
   @Test
   public void simpleClassNameNoClassRedefined() {
-    SnapshotProbe probe = createProbe(PROBE_ID1, "String", "indexOf");
+    LogProbe probe = createProbe(PROBE_ID1, "String", "indexOf");
     TransformerDefinitionMatcher matcher =
-        createMatcher(Arrays.asList(probe), Collections.emptyList());
+        createMatcher(emptyList(), Arrays.asList(probe), emptyList());
     List<ProbeDefinition> probeDefinitions =
         matcher.match(
             null,
             getClassPath(String.class),
-            String.class.getName(),
+            String.class.getTypeName(),
             getClassFileBytes(String.class));
     assertEquals(1, probeDefinitions.size());
-    assertEquals(PROBE_ID1, probeDefinitions.get(0).getId());
+    assertEquals(PROBE_ID1, probeDefinitions.get(0).getProbeId());
   }
 
   @Test
   public void sourceFileFullFileName() {
-    SnapshotProbe probe = createProbe(PROBE_ID1, "src/main/java/java/lang/String.java", 23);
+    LogProbe probe = createProbe(PROBE_ID1, "src/main/java/java/lang/String.java", 23);
     TransformerDefinitionMatcher matcher =
-        createMatcher(Arrays.asList(probe), Collections.emptyList());
+        createMatcher(emptyList(), Arrays.asList(probe), emptyList());
     List<ProbeDefinition> probeDefinitions = match(matcher, String.class);
     assertEquals(1, probeDefinitions.size());
-    assertEquals(PROBE_ID1, probeDefinitions.get(0).getId());
+    assertEquals(PROBE_ID1, probeDefinitions.get(0).getProbeId());
   }
 
   @Test
   public void sourceFileAbsoluteFileName() {
-    SnapshotProbe probe =
+    LogProbe probe =
         createProbe(PROBE_ID1, "/home/user/project/src/main/java/java/lang/String.java", 23);
     TransformerDefinitionMatcher matcher =
-        createMatcher(Arrays.asList(probe), Collections.emptyList());
+        createMatcher(emptyList(), Arrays.asList(probe), emptyList());
     List<ProbeDefinition> probeDefinitions = match(matcher, String.class);
     assertEquals(1, probeDefinitions.size());
-    assertEquals(PROBE_ID1, probeDefinitions.get(0).getId());
+    assertEquals(PROBE_ID1, probeDefinitions.get(0).getProbeId());
   }
 
   @Test
   public void sourceFileSimpleFileName() {
-    SnapshotProbe probe = createProbe(PROBE_ID1, "String.java", 23);
+    LogProbe probe = createProbe(PROBE_ID1, "String.java", 23);
     TransformerDefinitionMatcher matcher =
-        createMatcher(Arrays.asList(probe), Collections.emptyList());
+        createMatcher(emptyList(), Arrays.asList(probe), emptyList());
     List<ProbeDefinition> probeDefinitions = match(matcher, String.class);
     assertEquals(1, probeDefinitions.size());
-    assertEquals(PROBE_ID1, probeDefinitions.get(0).getId());
+    assertEquals(PROBE_ID1, probeDefinitions.get(0).getProbeId());
   }
 
   @Test
   public void multiProbesFQN() {
-    SnapshotProbe probe1 = createProbe(PROBE_ID1, "java.lang.String", "indexOf");
-    SnapshotProbe probe2 = createProbe(PROBE_ID2, "java.lang.String", "substring");
+    LogProbe probe1 = createProbe(PROBE_ID1, "java.lang.String", "indexOf");
+    LogProbe probe2 = createProbe(PROBE_ID2, "java.lang.String", "substring");
     TransformerDefinitionMatcher matcher =
-        createMatcher(Arrays.asList(probe1, probe2), Collections.emptyList());
+        createMatcher(emptyList(), Arrays.asList(probe1, probe2), emptyList());
     List<ProbeDefinition> probeDefinitions = match(matcher, String.class);
     assertEquals(2, probeDefinitions.size());
-    assertEquals(PROBE_ID1, probeDefinitions.get(0).getId());
-    assertEquals(PROBE_ID2, probeDefinitions.get(1).getId());
+    assertEquals(PROBE_ID1, probeDefinitions.get(0).getProbeId());
+    assertEquals(PROBE_ID2, probeDefinitions.get(1).getProbeId());
   }
 
   @Test
   public void multiProbesSimpleName() {
-    SnapshotProbe probe1 = createProbe(PROBE_ID1, "String", "indexOf");
-    SnapshotProbe probe2 = createProbe(PROBE_ID2, "String", "substring");
+    LogProbe probe1 = createProbe(PROBE_ID1, "String", "indexOf");
+    LogProbe probe2 = createProbe(PROBE_ID2, "String", "substring");
     TransformerDefinitionMatcher matcher =
-        createMatcher(Arrays.asList(probe1, probe2), Collections.emptyList());
+        createMatcher(emptyList(), Arrays.asList(probe1, probe2), emptyList());
     List<ProbeDefinition> probeDefinitions = match(matcher, String.class);
     assertEquals(2, probeDefinitions.size());
-    assertEquals(PROBE_ID1, probeDefinitions.get(0).getId());
-    assertEquals(PROBE_ID2, probeDefinitions.get(1).getId());
+    assertEquals(PROBE_ID1, probeDefinitions.get(0).getProbeId());
+    assertEquals(PROBE_ID2, probeDefinitions.get(1).getProbeId());
   }
 
   @Test
   public void multiProbesSourceFile() {
-    SnapshotProbe probe1 = createProbe(PROBE_ID1, "src/main/java/java/lang/String.java", 23);
-    SnapshotProbe probe2 = createProbe(PROBE_ID2, "src/main/java/java/lang/String.java", 42);
+    LogProbe probe1 = createProbe(PROBE_ID1, "src/main/java/java/lang/String.java", 23);
+    LogProbe probe2 = createProbe(PROBE_ID2, "src/main/java/java/lang/String.java", 42);
     TransformerDefinitionMatcher matcher =
-        createMatcher(Arrays.asList(probe1, probe2), Collections.emptyList());
+        createMatcher(emptyList(), Arrays.asList(probe1, probe2), emptyList());
     List<ProbeDefinition> probeDefinitions = match(matcher, String.class);
     assertEquals(2, probeDefinitions.size());
-    assertEquals(PROBE_ID1, probeDefinitions.get(0).getId());
-    assertEquals(PROBE_ID2, probeDefinitions.get(1).getId());
+    assertEquals(PROBE_ID1, probeDefinitions.get(0).getProbeId());
+    assertEquals(PROBE_ID2, probeDefinitions.get(1).getProbeId());
   }
 
   @Test
   public void mixedProbesFQNSimple() {
-    SnapshotProbe probe1 = createProbe(PROBE_ID1, "java.lang.String", "indexOf");
-    SnapshotProbe probe2 = createProbe(PROBE_ID2, "String", "substring");
+    LogProbe probe1 = createProbe(PROBE_ID1, "java.lang.String", "indexOf");
+    LogProbe probe2 = createProbe(PROBE_ID2, "String", "substring");
     TransformerDefinitionMatcher matcher =
-        createMatcher(Arrays.asList(probe1, probe2), Collections.emptyList());
+        createMatcher(emptyList(), Arrays.asList(probe1, probe2), emptyList());
     List<ProbeDefinition> probeDefinitions = match(matcher, String.class);
     assertEquals(2, probeDefinitions.size());
-    assertEquals(PROBE_ID1, probeDefinitions.get(0).getId());
-    assertEquals(PROBE_ID2, probeDefinitions.get(1).getId());
+    assertEquals(PROBE_ID1, probeDefinitions.get(0).getProbeId());
+    assertEquals(PROBE_ID2, probeDefinitions.get(1).getProbeId());
   }
 
   @Test
   public void mixedSnapshotMetricProbes() {
-    SnapshotProbe probe1 = createProbe(PROBE_ID1, "java.lang.String", "indexOf");
+    LogProbe probe1 = createProbe(PROBE_ID1, "java.lang.String", "indexOf");
     MetricProbe probe2 = createMetric(PROBE_ID2, "String", "substring");
     TransformerDefinitionMatcher matcher =
-        createMatcher(Arrays.asList(probe1), Arrays.asList(probe2));
+        createMatcher(Arrays.asList(probe2), Arrays.asList(probe1), emptyList());
     List<ProbeDefinition> probeDefinitions = match(matcher, String.class);
     assertEquals(2, probeDefinitions.size());
-    assertEquals(PROBE_ID1, probeDefinitions.get(0).getId());
-    assertEquals(PROBE_ID2, probeDefinitions.get(1).getId());
+    assertEquals(PROBE_ID1, probeDefinitions.get(0).getProbeId());
+    assertEquals(PROBE_ID2, probeDefinitions.get(1).getProbeId());
   }
 
   @Test
   public void partialSimpleNameShouldNotMatch() {
-    SnapshotProbe probe1 = createProbe(PROBE_ID1, "SuperString.java", 11);
+    LogProbe probe1 = createProbe(PROBE_ID1, "SuperString.java", 11);
     TransformerDefinitionMatcher matcher =
-        createMatcher(Arrays.asList(probe1), Collections.emptyList());
+        createMatcher(emptyList(), Arrays.asList(probe1), emptyList());
     List<ProbeDefinition> probeDefinitions = match(matcher, String.class);
     assertEquals(0, probeDefinitions.size());
   }
 
+  @Test
+  public void mixedSourceFileName() {
+    LogProbe probe1 = createProbe(PROBE_ID1, "src/main/java/java/lang/String.java", 23);
+    LogProbe probe2 = createProbe(PROBE_ID2, "myproject/src/main/java/java/lang/String.java", 42);
+    LogProbe probe3 = createProbe(PROBE_ID3, "String.java", 11);
+    TransformerDefinitionMatcher matcher =
+        createMatcher(emptyList(), Arrays.asList(probe1, probe2, probe3), emptyList());
+    List<ProbeDefinition> probeDefinitions = match(matcher, String.class);
+    assertEquals(3, probeDefinitions.size());
+    assertEquals(PROBE_ID1.getId(), probeDefinitions.get(0).getId());
+    assertEquals(PROBE_ID2.getId(), probeDefinitions.get(1).getId());
+    assertEquals(PROBE_ID3.getId(), probeDefinitions.get(2).getId());
+  }
+
   private TransformerDefinitionMatcher createMatcher(
-      Collection<SnapshotProbe> snapshotProbes, Collection<MetricProbe> metricProbes) {
+      Collection<MetricProbe> metricProbes,
+      Collection<LogProbe> logProbes,
+      Collection<SpanProbe> spanProbes) {
     return new TransformerDefinitionMatcher(
-        new Configuration(SERVICE_NAME, ORG_ID, snapshotProbes, metricProbes));
+        new Configuration(SERVICE_NAME, metricProbes, logProbes, spanProbes));
   }
 
   private static List<ProbeDefinition> match(TransformerDefinitionMatcher matcher, Class<?> clazz) {
     return matcher.match(clazz, getClassPath(clazz), clazz.getName(), getClassFileBytes(clazz));
   }
 
-  private SnapshotProbe createProbe(String probeId, String typeName, String methodName) {
-    return SnapshotProbe.builder().probeId(probeId).where(typeName, methodName).build();
+  private LogProbe createProbe(ProbeId probeId, String typeName, String methodName) {
+    return LogProbe.builder().probeId(probeId).where(typeName, methodName).build();
   }
 
-  private SnapshotProbe createProbe(String probeId, String sourceFileName, int line) {
-    return SnapshotProbe.builder()
+  private LogProbe createProbe(ProbeId probeId, String sourceFileName, int line) {
+    return LogProbe.builder()
         .probeId(probeId)
         .where(null, null, null, line, sourceFileName)
         .build();
   }
 
-  private MetricProbe createMetric(String probeId, String typeName, String methodName) {
+  private MetricProbe createMetric(ProbeId probeId, String typeName, String methodName) {
     return MetricProbe.builder()
-        .metricId(probeId)
+        .probeId(probeId)
         .where(typeName, methodName)
         .metricName("count")
         .kind(MetricProbe.MetricKind.COUNT)
@@ -192,20 +209,5 @@ public class TransformerDefinitionMatcherTest {
 
   private static String getClassPath(Class<?> clazz) {
     return clazz.getName().replace('.', '/');
-  }
-
-  private static byte[] getClassFileBytes(Class<?> clazz) {
-    URL resource = clazz.getResource(clazz.getSimpleName() + ".class");
-    byte[] buffer = new byte[4096];
-    ByteArrayOutputStream os = new ByteArrayOutputStream();
-    try (InputStream is = resource.openStream()) {
-      int readBytes;
-      while ((readBytes = is.read(buffer)) != -1) {
-        os.write(buffer, 0, readBytes);
-      }
-    } catch (IOException e) {
-      e.printStackTrace();
-    }
-    return os.toByteArray();
   }
 }

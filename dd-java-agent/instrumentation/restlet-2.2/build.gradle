@@ -1,0 +1,37 @@
+muzzle {
+  pass {
+    group = "org.restlet.jse"
+    module = "org.restlet"
+    versions = "[2.2.0,)"
+    assertInverse = false
+  }
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+
+repositories {
+  maven {
+    // only place that has 'org.restlet.jse:org.restlet' publicly accessible
+    name 'talend-restlet'
+    url 'https://maven.restlet.talend.com/'
+  }
+}
+
+// Header classes have moved around versions, so we need to split out parts of the test code
+addTestSuiteForDir('baseForkedTest', 'baseTest')
+addTestSuite('latestDepTest')
+
+tasks.named("test").configure {
+  dependsOn "baseForkedTest"
+}
+
+dependencies {
+  compileOnly group: 'org.restlet.jse', name: 'org.restlet', version: '2.2.0'
+
+  testImplementation group: 'org.restlet.jse', name: 'org.restlet', version: '2.2.0'
+
+  baseForkedTestImplementation sourceSets.test.output
+
+  latestDepTestImplementation group: 'org.restlet.jse', name: 'org.restlet', version: '2.4+'
+  latestDepTestImplementation sourceSets.test.output
+}

@@ -1,8 +1,7 @@
 import datadog.trace.agent.test.AgentTestRunner
-import datadog.trace.agent.test.checkpoints.CheckpointValidator
-import datadog.trace.agent.test.checkpoints.CheckpointValidationMode
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
+import datadog.trace.test.util.Flaky
 import org.elasticsearch.action.admin.cluster.health.ClusterHealthRequest
 import org.elasticsearch.common.io.FileSystemUtils
 import org.elasticsearch.common.settings.Settings
@@ -11,12 +10,11 @@ import org.elasticsearch.index.IndexNotFoundException
 import org.elasticsearch.node.Node
 import org.elasticsearch.node.NodeBuilder
 import org.elasticsearch.transport.TransportService
-import spock.lang.Retry
 import spock.lang.Shared
 
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 
-@Retry(count = 3, delay = 1000, mode = Retry.Mode.SETUP_FEATURE_CLEANUP)
+@Flaky
 class Elasticsearch2NodeClientTest extends AgentTestRunner {
   public static final long TIMEOUT = 10000 // 10 seconds
 
@@ -63,9 +61,6 @@ class Elasticsearch2NodeClientTest extends AgentTestRunner {
 
   def "test elasticsearch status"() {
     setup:
-    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
-      CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.THREAD_SEQUENCE)
 
     def result = client.admin().cluster().health(new ClusterHealthRequest(new String[0]))
 
@@ -87,7 +82,7 @@ class Elasticsearch2NodeClientTest extends AgentTestRunner {
             "$Tags.DB_TYPE" "elasticsearch"
             "elasticsearch.action" "ClusterHealthAction"
             "elasticsearch.request" "ClusterHealthRequest"
-            defaultTags()
+            defaultTagsNoPeerService()
           }
         }
       }
@@ -118,7 +113,7 @@ class Elasticsearch2NodeClientTest extends AgentTestRunner {
             "elasticsearch.request" "GetRequest"
             "elasticsearch.request.indices" indexName
             errorTags IndexNotFoundException, "no such index"
-            defaultTags()
+            defaultTagsNoPeerService()
           }
         }
       }
@@ -132,9 +127,6 @@ class Elasticsearch2NodeClientTest extends AgentTestRunner {
 
   def "test elasticsearch get"() {
     setup:
-    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
-      CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.THREAD_SEQUENCE)
 
     assert TEST_WRITER == []
     def indexResult = client.admin().indices().prepareCreate(indexName).get()
@@ -186,7 +178,7 @@ class Elasticsearch2NodeClientTest extends AgentTestRunner {
             "elasticsearch.action" "CreateIndexAction"
             "elasticsearch.request" "CreateIndexRequest"
             "elasticsearch.request.indices" indexName
-            defaultTags()
+            defaultTagsNoPeerService()
           }
         }
       }
@@ -202,7 +194,7 @@ class Elasticsearch2NodeClientTest extends AgentTestRunner {
             "$Tags.DB_TYPE" "elasticsearch"
             "elasticsearch.action" "ClusterHealthAction"
             "elasticsearch.request" "ClusterHealthRequest"
-            defaultTags()
+            defaultTagsNoPeerService()
           }
         }
       }
@@ -222,7 +214,7 @@ class Elasticsearch2NodeClientTest extends AgentTestRunner {
             "elasticsearch.type" indexType
             "elasticsearch.id" "1"
             "elasticsearch.version"(-1)
-            defaultTags()
+            defaultTagsNoPeerService()
           }
         }
       }
@@ -240,7 +232,7 @@ class Elasticsearch2NodeClientTest extends AgentTestRunner {
             "elasticsearch.request" "IndexRequest"
             "elasticsearch.request.indices" indexName
             "elasticsearch.request.write.type" indexType
-            defaultTags()
+            defaultTagsNoPeerService()
           }
         }
       }
@@ -257,7 +249,7 @@ class Elasticsearch2NodeClientTest extends AgentTestRunner {
             "elasticsearch.action" "PutMappingAction"
             "elasticsearch.request" "PutMappingRequest"
             "elasticsearch.request.indices" indexName
-            defaultTags()
+            defaultTagsNoPeerService()
           }
         }
       }
@@ -277,7 +269,7 @@ class Elasticsearch2NodeClientTest extends AgentTestRunner {
             "elasticsearch.type" indexType
             "elasticsearch.id" "1"
             "elasticsearch.version" 1
-            defaultTags()
+            defaultTagsNoPeerService()
           }
         }
       }

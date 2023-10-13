@@ -6,6 +6,8 @@ import static datadog.trace.util.AgentThreadFactory.newAgentThread;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
 import datadog.communication.ddagent.DroppingPolicy;
+import datadog.trace.api.Config;
+import datadog.trace.common.sampling.SingleSpanSampler;
 import datadog.trace.common.writer.ddagent.FlushEvent;
 import datadog.trace.common.writer.ddagent.Prioritization;
 import datadog.trace.common.writer.ddagent.PrioritizationStrategy;
@@ -38,6 +40,8 @@ public class TraceProcessingWorker implements AutoCloseable {
   private final Thread serializerThread;
   private final int capacity;
 
+  private final SpanSamplingWorker spanSamplingWorker;
+
   public TraceProcessingWorker(
       final int capacity,
       final HealthMetrics healthMetrics,
@@ -45,20 +49,39 @@ public class TraceProcessingWorker implements AutoCloseable {
       final DroppingPolicy droppingPolicy,
       final Prioritization prioritization,
       final long flushInterval,
-      final TimeUnit timeUnit) {
+      final TimeUnit timeUnit,
+      final SingleSpanSampler singleSpanSampler) {
     this.capacity = capacity;
     this.primaryQueue = createQueue(capacity);
     this.secondaryQueue = createQueue(capacity);
+    this.spanSamplingWorker =
+        SpanSamplingWorker.build(
+            capacity,
+            primaryQueue,
+            secondaryQueue,
+            singleSpanSampler,
+            healthMetrics,
+            droppingPolicy);
     this.prioritizationStrategy =
-        prioritization.create(primaryQueue, secondaryQueue, droppingPolicy);
+        prioritization.create(
+            primaryQueue,
+            secondaryQueue,
+            spanSamplingWorker.getSpanSamplingQueue(),
+            droppingPolicy);
+
+    boolean runAsDaemon = !Config.get().isCiVisibilityEnabled();
     this.serializingHandler =
-        new TraceSerializingHandler(
-            primaryQueue, secondaryQueue, healthMetrics, dispatcher, flushInterval, timeUnit);
-    this.serializerThread = newAgentThread(TRACE_PROCESSOR, serializingHandler);
+        runAsDaemon
+            ? new DaemonTraceSerializingHandler(
+                primaryQueue, secondaryQueue, healthMetrics, dispatcher, flushInterval, timeUnit)
+            : new NonDaemonTraceSerializingHandler(
+                primaryQueue, secondaryQueue, healthMetrics, dispatcher, flushInterval, timeUnit);
+    this.serializerThread = newAgentThread(TRACE_PROCESSOR, serializingHandler, runAsDaemon);
   }
 
   public void start() {
     this.serializerThread.start();
+    this.spanSamplingWorker.start();
   }
 
   public boolean flush(long timeout, TimeUnit timeUnit) {
@@ -78,6 +101,7 @@ public class TraceProcessingWorker implements AutoCloseable {
 
   @Override
   public void close() {
+    spanSamplingWorker.close();
     serializerThread.interrupt();
     try {
       serializerThread.join(THREAD_JOIN_TIMOUT_MS);
@@ -85,7 +109,7 @@ public class TraceProcessingWorker implements AutoCloseable {
     }
   }
 
-  public <T extends CoreSpan<T>> boolean publish(
+  public <T extends CoreSpan<T>> PrioritizationStrategy.PublishResult publish(
       T root, int samplingPriority, final List<T> trace) {
     return prioritizationStrategy.publish(root, samplingPriority, trace);
   }
@@ -103,8 +127,77 @@ public class TraceProcessingWorker implements AutoCloseable {
     return new MpscBlockingConsumerArrayQueue<>(capacity);
   }
 
-  public static class TraceSerializingHandler
-      implements Runnable, MessagePassingQueue.Consumer<Object> {
+  private static class DaemonTraceSerializingHandler extends TraceSerializingHandler {
+    public DaemonTraceSerializingHandler(
+        MpscBlockingConsumerArrayQueue<Object> primaryQueue,
+        MpscBlockingConsumerArrayQueue<Object> secondaryQueue,
+        HealthMetrics healthMetrics,
+        PayloadDispatcher payloadDispatcher,
+        long flushInterval,
+        TimeUnit timeUnit) {
+      super(
+          primaryQueue, secondaryQueue, healthMetrics, payloadDispatcher, flushInterval, timeUnit);
+    }
+
+    @Override
+    public void run() {
+      try {
+        runDutyCycle();
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+      }
+      log.debug("Datadog trace processor exited. Publishing traces stopped");
+    }
+
+    private void runDutyCycle() throws InterruptedException {
+      Thread thread = Thread.currentThread();
+      while (!thread.isInterrupted()) {
+        consumeFromPrimaryQueue();
+        consumeFromSecondaryQueue();
+        flushIfNecessary();
+      }
+    }
+  }
+
+  private static class NonDaemonTraceSerializingHandler extends TraceSerializingHandler {
+    private static final double SHUTDOWN_TIMEOUT_MILLIS = 5_000;
+    private Long shutdownSignalTimestamp;
+
+    public NonDaemonTraceSerializingHandler(
+        MpscBlockingConsumerArrayQueue<Object> primaryQueue,
+        MpscBlockingConsumerArrayQueue<Object> secondaryQueue,
+        HealthMetrics healthMetrics,
+        PayloadDispatcher payloadDispatcher,
+        long flushInterval,
+        TimeUnit timeUnit) {
+      super(
+          primaryQueue, secondaryQueue, healthMetrics, payloadDispatcher, flushInterval, timeUnit);
+    }
+
+    @Override
+    public void run() {
+      while (!shouldShutdown()) {
+        try {
+          consumeFromPrimaryQueue();
+          consumeFromSecondaryQueue();
+          flushIfNecessary();
+        } catch (InterruptedException e) {
+          if (shutdownSignalTimestamp == null) {
+            shutdownSignalTimestamp = System.currentTimeMillis();
+          }
+        }
+      }
+      log.debug("Datadog trace processor exited. Unpublished traces left: " + !queuesAreEmpty());
+    }
+
+    private boolean shouldShutdown() {
+      return shutdownSignalTimestamp != null
+          && (shutdownSignalTimestamp + SHUTDOWN_TIMEOUT_MILLIS <= System.currentTimeMillis()
+              || queuesAreEmpty());
+    }
+  }
+
+  public abstract static class TraceSerializingHandler implements Runnable {
 
     private final MpscBlockingConsumerArrayQueue<Object> primaryQueue;
     private final MpscBlockingConsumerArrayQueue<Object> secondaryQueue;
@@ -157,26 +250,7 @@ public class TraceProcessingWorker implements AutoCloseable {
       }
     }
 
-    @Override
-    public void run() {
-      try {
-        runDutyCycle();
-      } catch (InterruptedException e) {
-        Thread.currentThread().interrupt();
-      }
-      log.debug("Datadog trace processor exited. Publishing traces stopped");
-    }
-
-    private void runDutyCycle() throws InterruptedException {
-      Thread thread = Thread.currentThread();
-      while (!thread.isInterrupted()) {
-        consumeFromPrimaryQueue();
-        consumeFromSecondaryQueue();
-        flushIfNecessary();
-      }
-    }
-
-    private void consumeFromPrimaryQueue() throws InterruptedException {
+    protected void consumeFromPrimaryQueue() throws InterruptedException {
       Object event = primaryQueue.poll(100, MILLISECONDS);
       if (null != event) {
         // there's a high priority trace, consume it,
@@ -186,7 +260,7 @@ public class TraceProcessingWorker implements AutoCloseable {
       }
     }
 
-    private void consumeFromSecondaryQueue() {
+    protected void consumeFromSecondaryQueue() {
       // if there's something there now, take it and try to fill a batch,
       // if not, it's the secondary queue so get back to polling the primary ASAP
       Object event = secondaryQueue.poll();
@@ -196,7 +270,7 @@ public class TraceProcessingWorker implements AutoCloseable {
       }
     }
 
-    private void flushIfNecessary() {
+    protected void flushIfNecessary() {
       if (shouldFlush()) {
         payloadDispatcher.flush();
       }
@@ -215,12 +289,11 @@ public class TraceProcessingWorker implements AutoCloseable {
     }
 
     private void consumeBatch(MessagePassingQueue<Object> queue) {
-      queue.drain(this, queue.size());
+      queue.drain(this::onEvent, queue.size());
     }
 
-    @Override
-    public void accept(Object event) {
-      onEvent(event);
+    protected boolean queuesAreEmpty() {
+      return primaryQueue.isEmpty() && secondaryQueue.isEmpty();
     }
   }
 }

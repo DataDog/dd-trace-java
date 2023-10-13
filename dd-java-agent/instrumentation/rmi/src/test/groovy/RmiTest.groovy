@@ -1,11 +1,11 @@
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.naming.VersionedNamingTestBase
 import datadog.trace.agent.test.utils.PortUtils
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
+import datadog.trace.test.util.Flaky
 import rmi.app.Greeter
 import rmi.app.Server
 import rmi.app.ServerLegacy
-import spock.lang.Ignore
 
 import java.rmi.registry.LocateRegistry
 import java.rmi.server.UnicastRemoteObject
@@ -14,10 +14,25 @@ import static datadog.trace.agent.test.asserts.ListWriterAssert.assertTraces
 import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 
-class RmiTest extends AgentTestRunner {
+abstract class RmiTest extends VersionedNamingTestBase {
   def registryPort = PortUtils.randomOpenPort()
   def serverRegistry = LocateRegistry.createRegistry(registryPort)
   def clientRegistry = LocateRegistry.getRegistry("localhost", registryPort)
+
+
+  @Override
+  final String service() {
+    return null
+  }
+
+  @Override
+  final String operation() {
+    return null
+  }
+
+  protected abstract String clientOperation()
+
+  protected abstract String serverOperation()
 
   def cleanup() {
     UnicastRemoteObject.unexportObject(serverRegistry, true)
@@ -41,14 +56,16 @@ class RmiTest extends AgentTestRunner {
         basicSpan(it, "parent")
         span {
           resourceName "Greeter.hello"
-          operationName "rmi.invoke"
+          operationName clientOperation()
           childOf span(0)
           spanType DDSpanTypes.RPC
           measured true
 
           tags {
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
+            "$Tags.RPC_SERVICE" "rmi.app.Greeter"
             "$Tags.COMPONENT" "rmi-client"
+            peerServiceFrom(Tags.RPC_SERVICE)
             defaultTags()
           }
         }
@@ -56,7 +73,7 @@ class RmiTest extends AgentTestRunner {
       trace(2) {
         span {
           resourceName "Server.hello"
-          operationName "rmi.request"
+          operationName serverOperation()
           spanType DDSpanTypes.RPC
           measured true
 
@@ -68,7 +85,7 @@ class RmiTest extends AgentTestRunner {
         }
         span {
           resourceName "Server.someMethod"
-          operationName "rmi.request"
+          operationName serverOperation()
           spanType DDSpanTypes.RPC
           measured true
           tags {
@@ -121,7 +138,7 @@ class RmiTest extends AgentTestRunner {
         basicSpan(it, "parent", null, thrownException)
         span {
           resourceName "Greeter.exceptional"
-          operationName "rmi.invoke"
+          operationName clientOperation()
           childOf span(0)
           errored true
           spanType DDSpanTypes.RPC
@@ -129,8 +146,10 @@ class RmiTest extends AgentTestRunner {
 
           tags {
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
+            "$Tags.RPC_SERVICE" "rmi.app.Greeter"
             "$Tags.COMPONENT" "rmi-client"
             errorTags(RuntimeException, String)
+            peerServiceFrom(Tags.RPC_SERVICE)
             defaultTags()
           }
         }
@@ -138,7 +157,7 @@ class RmiTest extends AgentTestRunner {
       trace(1) {
         span {
           resourceName "Server.exceptional"
-          operationName "rmi.request"
+          operationName serverOperation()
           errored true
           spanType DDSpanTypes.RPC
           measured true
@@ -157,7 +176,7 @@ class RmiTest extends AgentTestRunner {
     serverRegistry.unbind("Server")
   }
 
-  @Ignore("Fails sometimes with NegativeArraySizeException in TimelinePrinter https://github.com/DataDog/dd-trace-java/issues/3869")
+  @Flaky("Fails sometimes with NegativeArraySizeException in TimelinePrinter https://github.com/DataDog/dd-trace-java/issues/3869")
   def "Client call using ServerLegacy_stub creates spans"() {
     setup:
     def server = new ServerLegacy()
@@ -176,13 +195,15 @@ class RmiTest extends AgentTestRunner {
         basicSpan(it, "parent")
         span {
           resourceName "Greeter.hello"
-          operationName "rmi.invoke"
+          operationName clientOperation()
           spanType DDSpanTypes.RPC
           childOf span(0)
           measured true
           tags {
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
             "$Tags.COMPONENT" "rmi-client"
+            "$Tags.RPC_SERVICE" "rmi.app.Greeter"
+            peerServiceFrom(Tags.RPC_SERVICE)
             defaultTags()
           }
         }
@@ -191,7 +212,7 @@ class RmiTest extends AgentTestRunner {
         span {
           childOf trace(0)[1]
           resourceName "ServerLegacy.hello"
-          operationName "rmi.request"
+          operationName serverOperation()
           spanType DDSpanTypes.RPC
           measured true
           tags {
@@ -205,5 +226,41 @@ class RmiTest extends AgentTestRunner {
 
     cleanup:
     serverRegistry.unbind(ServerLegacy.RMI_ID)
+  }
+}
+
+class RmiV0Test extends RmiTest {
+
+  @Override
+  int version() {
+    return 0
+  }
+
+  @Override
+  String serverOperation() {
+    return "rmi.request"
+  }
+
+  @Override
+  String clientOperation() {
+    return "rmi.invoke"
+  }
+}
+
+class RmiV1ForkedTest extends RmiTest {
+
+  @Override
+  int version() {
+    return 1
+  }
+
+  @Override
+  String serverOperation() {
+    return "rmi.server.request"
+  }
+
+  @Override
+  String clientOperation() {
+    return "rmi.client.request"
   }
 }

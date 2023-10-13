@@ -5,7 +5,6 @@ import static datadog.trace.bootstrap.instrumentation.jdbc.DBInfo.DEFAULT;
 import datadog.trace.api.Pair;
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
-import datadog.trace.api.function.Function;
 import datadog.trace.bootstrap.ExceptionLogger;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.UnsupportedEncodingException;
@@ -14,8 +13,10 @@ import java.net.URLDecoder;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Properties;
+import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -143,7 +144,7 @@ public enum JDBCConnectionUrlParser {
     }
   },
 
-  POSTGRES("postgresql") {
+  POSTGRES("postgresql", "edb") {
     private static final String DEFAULT_HOST = "localhost";
     private static final int DEFAULT_PORT = 5432;
 
@@ -748,6 +749,21 @@ public enum JDBCConnectionUrlParser {
 
       return builder;
     }
+  },
+
+  REDSHIFT("redshift") {
+    @Override
+    DBInfo.Builder doParse(String jdbcUrl, DBInfo.Builder builder) {
+      builder = GENERIC_URL_LIKE.doParse(jdbcUrl, builder);
+      final DBInfo dbInfo = builder.build();
+      if (dbInfo.getHost() != null) {
+        int firstDotLoc = dbInfo.getHost().indexOf('.');
+        if (firstDotLoc > 0) {
+          builder.instance(dbInfo.getHost().substring(0, firstDotLoc));
+        }
+      }
+      return builder;
+    }
   };
 
   private static final Map<String, JDBCConnectionUrlParser> typeParsers = new HashMap<>();
@@ -763,13 +779,7 @@ public enum JDBCConnectionUrlParser {
   private static final DDCache<Pair<String, Properties>, DBInfo> CACHED_DB_INFO =
       DDCaches.newFixedSizeCache(32);
   private static final Function<Pair<String, Properties>, DBInfo> PARSE =
-      new Function<Pair<String, Properties>, DBInfo>() {
-
-        @Override
-        public DBInfo apply(Pair<String, Properties> input) {
-          return parse(input.getLeft(), input.getRight());
-        }
-      };
+      input -> parse(input.getLeft(), input.getRight());
 
   private final String[] typeKeys;
 
@@ -788,7 +798,7 @@ public enum JDBCConnectionUrlParser {
       return DEFAULT;
     }
     // Make this easier and ignore case.
-    connectionUrl = connectionUrl.toLowerCase();
+    connectionUrl = connectionUrl.toLowerCase(Locale.ROOT);
 
     if (!connectionUrl.startsWith("jdbc:")) {
       return DEFAULT;
@@ -873,7 +883,7 @@ public enum JDBCConnectionUrlParser {
         try {
           builder.port(Integer.parseInt(portNumber));
         } catch (final NumberFormatException e) {
-          ExceptionLogger.LOGGER.debug("Error parsing portnumber property: " + portNumber, e);
+          ExceptionLogger.LOGGER.debug("Error parsing portnumber property: {}", portNumber, e);
         }
       }
 
@@ -882,7 +892,7 @@ public enum JDBCConnectionUrlParser {
         try {
           builder.port(Integer.parseInt(portNumber));
         } catch (final NumberFormatException e) {
-          ExceptionLogger.LOGGER.debug("Error parsing portNumber property: " + portNumber, e);
+          ExceptionLogger.LOGGER.debug("Error parsing portNumber property: {}", portNumber, e);
         }
       }
     }

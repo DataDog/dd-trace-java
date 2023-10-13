@@ -13,11 +13,12 @@ import spray.routing.RequestContext;
 
 public class SprayHttpServerDecorator
     extends HttpServerDecorator<HttpRequest, RequestContext, HttpResponse, HttpRequest> {
-  public static final CharSequence SPRAY_HTTP_REQUEST =
-      UTF8BytesString.create("spray-http.request");
   public static final CharSequence SPRAY_HTTP_SERVER = UTF8BytesString.create("spray-http-server");
 
   public static final SprayHttpServerDecorator DECORATE = new SprayHttpServerDecorator();
+
+  private static final CharSequence SPRAY_HTTP_REQUEST =
+      UTF8BytesString.create(DECORATE.operationName());
 
   @Override
   protected AgentPropagation.ContextVisitor<HttpRequest> getter() {

@@ -1,0 +1,25 @@
+apply from: "$rootDir/gradle/java.gradle"
+
+addTestSuiteForDir('latestDepTest', 'test')
+
+muzzle {
+  pass {
+    group = 'com.aerospike'
+    module = 'aerospike-client'
+    versions = "[4,)"
+    skipVersions += "4.4.19" // bad release
+  }
+}
+
+dependencies {
+  compileOnly group: 'com.aerospike', name: 'aerospike-client', version: '4.0.0'
+
+  testImplementation group: 'com.aerospike', name: 'aerospike-client', version: '4.0.0'
+  testImplementation deps.testcontainers
+
+  latestDepTestImplementation group: 'com.aerospike', name: 'aerospike-client', version: '+'
+}
+
+tasks.withType(Test).configureEach {
+  usesService(testcontainersLimit)
+}

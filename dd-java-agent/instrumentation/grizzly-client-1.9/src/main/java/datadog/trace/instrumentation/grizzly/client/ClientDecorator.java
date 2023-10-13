@@ -9,10 +9,11 @@ import java.net.URISyntaxException;
 
 public class ClientDecorator extends HttpClientDecorator<Request, Response> {
 
-  public static final CharSequence HTTP_REQUEST = UTF8BytesString.create("http.request");
   private static final CharSequence GRIZZLY_HTTP_ASYNC_CLIENT =
       UTF8BytesString.create("grizzly-http-async-client");
   public static final ClientDecorator DECORATE = new ClientDecorator();
+
+  public static final CharSequence HTTP_REQUEST = UTF8BytesString.create(DECORATE.operationName());
 
   @Override
   protected String[] instrumentationNames() {
@@ -37,5 +38,15 @@ public class ClientDecorator extends HttpClientDecorator<Request, Response> {
   @Override
   protected int status(final Response response) {
     return response.getStatusCode();
+  }
+
+  @Override
+  protected String getRequestHeader(Request request, String headerName) {
+    return request.getHeaders().getFirstValue(headerName);
+  }
+
+  @Override
+  protected String getResponseHeader(Response response, String headerName) {
+    return response.getHeader(headerName);
   }
 }

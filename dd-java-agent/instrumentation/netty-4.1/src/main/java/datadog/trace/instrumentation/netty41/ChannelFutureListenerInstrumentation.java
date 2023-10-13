@@ -53,6 +53,9 @@ public class ChannelFutureListenerInstrumentation extends Instrumenter.Tracing
       // server helpers
       packageName + ".server.ResponseExtractAdapter",
       packageName + ".server.NettyHttpServerDecorator",
+      packageName + ".server.NettyHttpServerDecorator$NettyBlockResponseFunction",
+      packageName + ".server.BlockingResponseHandler",
+      packageName + ".server.BlockingResponseHandler$IgnoreAllWritesHandler",
       packageName + ".server.HttpServerRequestTracingHandler",
       packageName + ".server.HttpServerResponseTracingHandler",
       packageName + ".server.HttpServerTracingHandler"

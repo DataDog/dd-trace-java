@@ -1,5 +1,7 @@
 package datadog.trace.core;
 
+import static datadog.trace.api.Config.isDatadogProfilerEnablementOverridden;
+import static datadog.trace.api.Config.isDatadogProfilerSafeInCurrentEnvironment;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
 import com.squareup.moshi.JsonAdapter;
@@ -7,6 +9,7 @@ import com.squareup.moshi.JsonReader;
 import com.squareup.moshi.JsonWriter;
 import com.squareup.moshi.Moshi;
 import datadog.trace.api.Config;
+import datadog.trace.api.ProductActivation;
 import datadog.trace.logging.LoggingSettingsDescription;
 import datadog.trace.util.AgentTaskScheduler;
 import java.io.IOException;
@@ -86,6 +89,14 @@ public final class StatusLogger extends JsonAdapter<Config>
     writer.value(!agentServiceCheck(config));
     writer.name("debug");
     writer.value(config.isDebugEnabled());
+    writer.name("trace_propagation_style_extract");
+    writer.beginArray();
+    writeSet(writer, config.getTracePropagationStylesToExtract());
+    writer.endArray();
+    writer.name("trace_propagation_style_inject");
+    writer.beginArray();
+    writeSet(writer, config.getTracePropagationStylesToInject());
+    writer.endArray();
     writer.name("analytics_enabled");
     writer.value(config.isTraceAnalyticsEnabled());
     writer.name("sample_rate");
@@ -106,9 +117,11 @@ public final class StatusLogger extends JsonAdapter<Config>
     writer.name("debugger_enabled");
     writer.value(config.isDebuggerEnabled());
     writer.name("appsec_enabled");
-    writer.value(config.getAppSecEnabledConfig().toString());
+    writer.value(config.getAppSecActivation().toString());
     writer.name("appsec_rules_file_path");
     writer.value(config.getAppSecRulesFile());
+    writer.name("telemetry_enabled");
+    writer.value(config.isTelemetryEnabled());
     writer.name("dd_version");
     writer.value(config.getVersion());
     writer.name("health_checks_enabled");
@@ -123,6 +136,16 @@ public final class StatusLogger extends JsonAdapter<Config>
     writer.value(config.isCwsEnabled());
     writer.name("cws_tls_refresh");
     writer.value(config.getCwsTlsRefresh());
+    writer.name("datadog_profiler_enabled");
+    writer.value(config.isDatadogProfilerEnabled());
+    writer.name("datadog_profiler_safe");
+    writer.value(isDatadogProfilerSafeInCurrentEnvironment());
+    writer.name("datadog_profiler_enabled_overridden");
+    writer.value(isDatadogProfilerEnablementOverridden());
+    if (config.getIastActivation() != ProductActivation.FULLY_DISABLED) {
+      writer.name("iast_enabled");
+      writer.value(config.getIastActivation().toString());
+    }
     writer.endObject();
   }
 
@@ -159,6 +182,12 @@ public final class StatusLogger extends JsonAdapter<Config>
       }
     }
     writer.endObject();
+  }
+
+  private static void writeSet(JsonWriter writer, Set<?> set) throws IOException {
+    for (Object o : set) {
+      writer.value(o.toString());
+    }
   }
 
   @Override

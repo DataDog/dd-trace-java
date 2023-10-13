@@ -3,15 +3,21 @@ package datadog.trace.agent.tooling;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.GlobalIgnoresMatcher.globalIgnoresMatcher;
 import static net.bytebuddy.matcher.ElementMatchers.isDefaultFinalizer;
 
-import datadog.trace.agent.tooling.bytebuddy.DDCachingPoolStrategy;
-import datadog.trace.agent.tooling.bytebuddy.DDOutlinePoolStrategy;
 import datadog.trace.agent.tooling.bytebuddy.SharedTypePools;
+import datadog.trace.agent.tooling.bytebuddy.iast.TaintableRedefinitionStrategyListener;
 import datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers;
-import datadog.trace.api.Config;
+import datadog.trace.agent.tooling.bytebuddy.memoize.MemoizedMatchers;
+import datadog.trace.agent.tooling.bytebuddy.outline.TypePoolFacade;
+import datadog.trace.agent.tooling.usm.UsmExtractorImpl;
+import datadog.trace.agent.tooling.usm.UsmMessageFactoryImpl;
+import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.api.IntegrationsCollector;
-import datadog.trace.api.ProductActivationConfig;
+import datadog.trace.api.ProductActivation;
 import datadog.trace.bootstrap.FieldBackedContextAccessor;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter;
+import datadog.trace.util.AgentTaskScheduler;
+import de.thetaphi.forbiddenapis.SuppressForbidden;
+import java.lang.instrument.ClassFileTransformer;
 import java.lang.instrument.Instrumentation;
 import java.util.Collections;
 import java.util.EnumSet;
@@ -19,9 +25,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.TimeUnit;
 import net.bytebuddy.ByteBuddy;
 import net.bytebuddy.agent.builder.AgentBuilder;
-import net.bytebuddy.agent.builder.ResettableClassFileTransformer;
 import net.bytebuddy.description.type.TypeDefinition;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.dynamic.DynamicType;
@@ -39,50 +45,69 @@ public class AgentInstaller {
 
   static {
     addByteBuddyRawSetting();
-    // register weak map/cache suppliers as early as possible
+    // register weak map supplier as early as possible
     WeakMaps.registerAsSupplier();
-    WeakCaches.registerAsSupplier();
+    circularityErrorWorkaround();
+  }
+
+  @SuppressForbidden
+  private static void circularityErrorWorkaround() {
+    // these classes have been involved in intermittent ClassCircularityErrors during startup
+    // they don't need context storage, so it's safe to load them before installing the agent
+    try {
+      Class.forName("java.util.concurrent.ThreadLocalRandom");
+    } catch (Throwable ignore) {
+    }
   }
 
   public static void installBytebuddyAgent(final Instrumentation inst) {
     /*
-     * ByteBuddy agent is used by tracing, profiling, appsec and civisibility and since they can
-     * be enabled independently we need to install the agent when either of them
-     * is active.
+     * ByteBuddy agent is used by several systems which can be enabled independently;
+     * we need to install the agent whenever any of them is active.
      */
-    if (Config.get().isTraceEnabled()
-        || Config.get().isProfilingEnabled()
-        || Config.get().getAppSecEnabledConfig() != ProductActivationConfig.FULLY_DISABLED
-        || Config.get().isIastEnabled()
-        || Config.get().isCiVisibilityEnabled()) {
-      installBytebuddyAgent(inst, false, new AgentBuilder.Listener[0]);
+    Set<Instrumenter.TargetSystem> enabledSystems = getEnabledSystems();
+    if (!enabledSystems.isEmpty()) {
+      installBytebuddyAgent(inst, false, enabledSystems);
       if (DEBUG) {
-        log.debug("Class instrumentation installed");
+        log.debug("Instrumentation installed for {}", enabledSystems);
+      }
+      int poolCleaningInterval = InstrumenterConfig.get().getResolverResetInterval();
+      if (poolCleaningInterval > 0) {
+        AgentTaskScheduler.INSTANCE.scheduleAtFixedRate(
+            SharedTypePools::clear,
+            poolCleaningInterval,
+            Math.max(poolCleaningInterval, 10),
+            TimeUnit.SECONDS);
       }
     } else if (DEBUG) {
-      log.debug("There are not any enabled subsystems, not installing instrumentations.");
+      log.debug("No target systems enabled, skipping instrumentation.");
     }
   }
 
   /**
    * Install the core bytebuddy agent along with all implementations of {@link Instrumenter}.
    *
-   * @param inst Java Instrumentation used to install bytebuddy
    * @return the agent's class transformer
    */
-  public static ResettableClassFileTransformer installBytebuddyAgent(
+  public static ClassFileTransformer installBytebuddyAgent(
       final Instrumentation inst,
       final boolean skipAdditionalLibraryMatcher,
+      final Set<Instrumenter.TargetSystem> enabledSystems,
       final AgentBuilder.Listener... listeners) {
     Utils.setInstrumentation(inst);
 
-    if (Config.get().isResolverOutlinePoolEnabled()) {
-      DDOutlinePoolStrategy.registerTypePoolFacade();
+    TypePoolFacade.registerAsSupplier();
+
+    if (InstrumenterConfig.get().isResolverMemoizingEnabled()) {
+      MemoizedMatchers.registerAsSupplier();
     } else {
-      DDCachingPoolStrategy.registerAsSupplier();
+      DDElementMatchers.registerAsSupplier();
     }
 
-    DDElementMatchers.registerAsSupplier();
+    if (enabledSystems.contains(Instrumenter.TargetSystem.USM)) {
+      UsmMessageFactoryImpl.registerAsSupplier();
+      UsmExtractorImpl.registerAsSupplier();
+    }
 
     // By default ByteBuddy will skip all methods that are synthetic or default finalizer
     // but we need to instrument some synthetic methods in Scala, so change the ignore matcher
@@ -95,6 +120,7 @@ public class AgentInstaller {
             .with(AgentStrategies.transformerDecorator())
             .with(AgentBuilder.RedefinitionStrategy.RETRANSFORMATION)
             .with(AgentStrategies.rediscoveryStrategy())
+            .with(redefinitionStrategyListener(enabledSystems))
             .with(AgentStrategies.locationStrategy())
             .with(AgentStrategies.poolStrategy())
             .with(AgentBuilder.DescriptionStrategy.Default.POOL_ONLY)
@@ -111,6 +137,7 @@ public class AgentInstaller {
           agentBuilder
               .with(AgentBuilder.RedefinitionStrategy.RETRANSFORMATION)
               .with(AgentStrategies.rediscoveryStrategy())
+              .with(redefinitionStrategyListener(enabledSystems))
               .with(new RedefinitionLoggingListener())
               .with(new TransformLoggingListener());
     }
@@ -120,9 +147,10 @@ public class AgentInstaller {
     }
 
     Instrumenters instrumenters = Instrumenters.load(AgentInstaller.class.getClassLoader());
+    int maxInstrumentationId = instrumenters.maxInstrumentationId();
 
     // pre-size state before registering instrumentations to reduce number of allocations
-    InstrumenterState.setMaxInstrumentationId(instrumenters.maxInstrumentationId());
+    InstrumenterState.setMaxInstrumentationId(maxInstrumentationId);
 
     // This needs to be a separate loop through all the instrumenters before we start adding
     // advice so that we can exclude field injection, since that will try to check exclusion
@@ -140,10 +168,14 @@ public class AgentInstaller {
       }
     }
 
-    AgentTransformerBuilder transformerBuilder = new AgentTransformerBuilder(agentBuilder);
+    Instrumenter.TransformerBuilder transformerBuilder;
+    if (InstrumenterConfig.get().isLegacyInstallerEnabled()) {
+      transformerBuilder = new LegacyTransformerBuilder(agentBuilder);
+    } else {
+      transformerBuilder = new CombiningTransformerBuilder(agentBuilder, maxInstrumentationId);
+    }
 
     int installedCount = 0;
-    Set<Instrumenter.TargetSystem> enabledSystems = getEnabledSystems();
     for (Instrumenter instrumenter : instrumenters) {
       if (!instrumenter.isApplicable(enabledSystems)) {
         if (DEBUG) {
@@ -166,7 +198,7 @@ public class AgentInstaller {
       log.debug("Installed {} instrumenter(s)", installedCount);
     }
 
-    if (Config.get().isTelemetryEnabled()) {
+    if (InstrumenterConfig.get().isTelemetryEnabled()) {
       InstrumenterState.setObserver(
           new InstrumenterState.Observer() {
             @Override
@@ -184,24 +216,27 @@ public class AgentInstaller {
     }
   }
 
-  private static Set<Instrumenter.TargetSystem> getEnabledSystems() {
+  public static Set<Instrumenter.TargetSystem> getEnabledSystems() {
     EnumSet<Instrumenter.TargetSystem> enabledSystems =
         EnumSet.noneOf(Instrumenter.TargetSystem.class);
-    Config cfg = Config.get();
+    InstrumenterConfig cfg = InstrumenterConfig.get();
     if (cfg.isTraceEnabled()) {
       enabledSystems.add(Instrumenter.TargetSystem.TRACING);
     }
     if (cfg.isProfilingEnabled()) {
       enabledSystems.add(Instrumenter.TargetSystem.PROFILING);
     }
-    if (cfg.getAppSecEnabledConfig() != ProductActivationConfig.FULLY_DISABLED) {
+    if (cfg.getAppSecActivation() != ProductActivation.FULLY_DISABLED) {
       enabledSystems.add(Instrumenter.TargetSystem.APPSEC);
     }
-    if (cfg.isIastEnabled()) {
+    if (cfg.getIastActivation() != ProductActivation.FULLY_DISABLED) {
       enabledSystems.add(Instrumenter.TargetSystem.IAST);
     }
     if (cfg.isCiVisibilityEnabled()) {
       enabledSystems.add(Instrumenter.TargetSystem.CIVISIBILITY);
+    }
+    if (cfg.isUsmEnabled()) {
+      enabledSystems.add(Instrumenter.TargetSystem.USM);
     }
     return enabledSystems;
   }
@@ -220,6 +255,15 @@ public class AgentInstaller {
       } else {
         System.setProperty(TypeDefinition.RAW_TYPES_PROPERTY, savedPropertyValue);
       }
+    }
+  }
+
+  private static AgentBuilder.RedefinitionStrategy.Listener redefinitionStrategyListener(
+      final Set<Instrumenter.TargetSystem> enabledSystems) {
+    if (enabledSystems.contains(Instrumenter.TargetSystem.IAST)) {
+      return TaintableRedefinitionStrategyListener.INSTANCE;
+    } else {
+      return AgentBuilder.RedefinitionStrategy.Listener.NoOp.INSTANCE;
     }
   }
 

@@ -8,10 +8,8 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSp
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.twilio.TwilioClientDecorator.DECORATE;
 import static datadog.trace.instrumentation.twilio.TwilioClientDecorator.TWILIO_SDK;
-import static net.bytebuddy.matcher.ElementMatchers.isAbstract;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
-import static net.bytebuddy.matcher.ElementMatchers.not;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
 
 import com.google.auto.service.AutoService;
@@ -81,7 +79,6 @@ public class TwilioAsyncInstrumentation extends Instrumenter.Tracing
         isMethod()
             .and(namedOneOf("createAsync", "deleteAsync", "readAsync", "fetchAsync", "updateAsync"))
             .and(isPublic())
-            .and(not(isAbstract()))
             .and(returns(named("com.google.common.util.concurrent.ListenableFuture"))),
         TwilioAsyncInstrumentation.class.getName() + "$TwilioClientAsyncAdvice");
   }

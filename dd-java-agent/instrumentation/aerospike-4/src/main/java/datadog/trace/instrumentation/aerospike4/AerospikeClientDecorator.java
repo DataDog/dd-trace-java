@@ -7,6 +7,7 @@ import com.aerospike.client.cluster.Cluster;
 import com.aerospike.client.cluster.Node;
 import com.aerospike.client.cluster.Partition;
 import datadog.trace.api.Config;
+import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
@@ -14,9 +15,12 @@ import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.DBTypeProcessingDatabaseClientDecorator;
 
 public class AerospikeClientDecorator extends DBTypeProcessingDatabaseClientDecorator<Node> {
+  private static final String DB_TYPE = "aerospike";
+  private static final String SERVICE_NAME =
+      SpanNaming.instance().namingSchema().database().service(DB_TYPE);
   public static final UTF8BytesString JAVA_AEROSPIKE = UTF8BytesString.create("java-aerospike");
-  public static final UTF8BytesString AEROSPIKE_COMMAND =
-      UTF8BytesString.create("aerospike.command");
+  public static final UTF8BytesString OPERATION_NAME =
+      UTF8BytesString.create(SpanNaming.instance().namingSchema().database().operation(DB_TYPE));
 
   public static final AerospikeClientDecorator DECORATE = new AerospikeClientDecorator();
 
@@ -27,7 +31,7 @@ public class AerospikeClientDecorator extends DBTypeProcessingDatabaseClientDeco
 
   @Override
   protected String service() {
-    return "aerospike";
+    return SERVICE_NAME;
   }
 
   @Override
@@ -42,7 +46,7 @@ public class AerospikeClientDecorator extends DBTypeProcessingDatabaseClientDeco
 
   @Override
   protected String dbType() {
-    return "aerospike";
+    return DB_TYPE;
   }
 
   @Override
@@ -89,7 +93,7 @@ public class AerospikeClientDecorator extends DBTypeProcessingDatabaseClientDeco
   }
 
   public AgentSpan startAerospikeSpan(final String methodName) {
-    final AgentSpan span = startSpan(AEROSPIKE_COMMAND);
+    final AgentSpan span = startSpan(OPERATION_NAME);
     afterStart(span);
     withMethod(span, methodName);
     return span;

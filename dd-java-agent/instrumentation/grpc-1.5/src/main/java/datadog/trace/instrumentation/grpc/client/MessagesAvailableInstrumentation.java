@@ -5,8 +5,8 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSp
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.grpc.client.GrpcClientDecorator.DECORATE;
-import static datadog.trace.instrumentation.grpc.client.GrpcClientDecorator.GRPC_CLIENT;
 import static datadog.trace.instrumentation.grpc.client.GrpcClientDecorator.GRPC_MESSAGE;
+import static datadog.trace.instrumentation.grpc.client.GrpcClientDecorator.OPERATION_NAME;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 
 import com.google.auto.service.AutoService;
@@ -67,7 +67,7 @@ public final class MessagesAvailableInstrumentation extends Instrumenter.Tracing
     @Advice.OnMethodEnter
     public static AgentScope before() {
       AgentSpan clientSpan = activeSpan();
-      if (clientSpan != null && clientSpan.getOperationName() == GRPC_CLIENT) {
+      if (clientSpan != null && OPERATION_NAME.equals(clientSpan.getOperationName())) {
         AgentSpan messageSpan =
             startSpan(GRPC_MESSAGE).setTag("message.type", clientSpan.getTag("response.type"));
         DECORATE.afterStart(messageSpan);

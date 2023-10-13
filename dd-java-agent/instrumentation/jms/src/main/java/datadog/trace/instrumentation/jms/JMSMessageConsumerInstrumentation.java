@@ -11,7 +11,7 @@ import static datadog.trace.instrumentation.jms.JMSDecorator.BROKER_DECORATE;
 import static datadog.trace.instrumentation.jms.JMSDecorator.CONSUMER_DECORATE;
 import static datadog.trace.instrumentation.jms.JMSDecorator.JMS_CONSUME;
 import static datadog.trace.instrumentation.jms.JMSDecorator.JMS_DELIVER;
-import static datadog.trace.instrumentation.jms.JMSDecorator.JMS_LEGACY_TRACING;
+import static datadog.trace.instrumentation.jms.JMSDecorator.TIME_IN_QUEUE_ENABLED;
 import static datadog.trace.instrumentation.jms.MessageExtractAdapter.GETTER;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
@@ -21,6 +21,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.jms.MessageConsumerState;
@@ -91,32 +92,48 @@ public final class JMSMessageConsumerInstrumentation extends Instrumenter.Tracin
   public static class ConsumerAdvice {
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static void beforeReceive(@Advice.This final MessageConsumer consumer) {
+    public static MessageConsumerState beforeReceive(@Advice.This final MessageConsumer consumer) {
       MessageConsumerState consumerState =
           InstrumentationContext.get(MessageConsumer.class, MessageConsumerState.class)
               .get(consumer);
-      if (null != consumerState) {
-        boolean finishSpan = consumerState.getSessionState().isAutoAcknowledge();
-        closePrevious(finishSpan);
-        if (finishSpan) {
-          consumerState.finishTimeInQueueSpan(false);
-        }
+
+      // ignore consumers who aren't bound to a tracked session via consumerState
+      if (null == consumerState) {
+        return null;
       }
+
+      boolean finishSpan = consumerState.getSessionState().isAutoAcknowledge();
+      closePrevious(finishSpan);
+      if (finishSpan) {
+        consumerState.finishTimeInQueueSpan(false);
+      }
+
+      // don't create spans for nested receive calls, even if different consumers are involved
+      final int callDepth = CallDepthThreadLocalMap.incrementCallDepth(MessageConsumer.class);
+      if (callDepth > 0) {
+        return null;
+      }
+
+      return consumerState;
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void afterReceive(
+        @Advice.Enter final MessageConsumerState consumerState,
         @Advice.This final MessageConsumer consumer,
         @Advice.Return final Message message,
         @Advice.Thrown final Throwable throwable) {
-      if (message == null) {
-        // don't create spans (traces) for each poll if the queue is empty
+
+      if (consumerState == null) {
+        // either we're not tracking the consumer or this is a nested receive
         return;
       }
-      MessageConsumerState consumerState =
-          InstrumentationContext.get(MessageConsumer.class, MessageConsumerState.class)
-              .get(consumer);
-      if (null == consumerState) {
+
+      // outermost receive call - make sure we reset call-depth before returning
+      CallDepthThreadLocalMap.reset(MessageConsumer.class);
+
+      if (message == null) {
+        // don't create spans (traces) for each poll if the queue is empty
         return;
       }
 
@@ -126,14 +143,14 @@ public final class JMSMessageConsumerInstrumentation extends Instrumenter.Tracin
         propagatedContext = propagate().extract(message, GETTER);
       }
       long startMillis = GETTER.extractTimeInQueueStart(message);
-      if (startMillis == 0 || JMS_LEGACY_TRACING) {
+      if (startMillis == 0 || !TIME_IN_QUEUE_ENABLED) {
         span = startSpan(JMS_CONSUME, propagatedContext);
       } else {
         long batchId = GETTER.extractMessageBatchId(message);
         AgentSpan timeInQueue = consumerState.getTimeInQueueSpan(batchId);
         if (null == timeInQueue) {
           timeInQueue =
-              startSpan(JMS_DELIVER, propagatedContext, MILLISECONDS.toMicros(startMillis), false);
+              startSpan(JMS_DELIVER, propagatedContext, MILLISECONDS.toMicros(startMillis));
           BROKER_DECORATE.afterStart(timeInQueue);
           BROKER_DECORATE.onTimeInQueue(
               timeInQueue,

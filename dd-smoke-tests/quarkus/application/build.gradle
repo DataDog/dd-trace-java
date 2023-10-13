@@ -1,8 +1,7 @@
 plugins {
   id 'java'
   id 'io.quarkus'
-  id 'com.diffplug.spotless' version '5.12.5'
-  id 'pl.allegro.tech.build.axion-release' version '1.10.3'
+  id "com.diffplug.spotless" version "6.11.0"
 }
 
 def sharedRootDir = "$rootDir/../../../"
@@ -16,14 +15,7 @@ if (hasProperty('appBuildDir')) {
   buildDir = property('appBuildDir')
 }
 
-scmVersion {
-  repository {
-    directory = project.rootProject.file(sharedRootDir)
-  }
-}
-apply from: "$sharedConfigDirectory/scm.gradle"
-
-version = scmVersion.version
+version = ""
 
 dependencies {
   implementation enforcedPlatform("${quarkusPlatformGroupId}:${quarkusPlatformArtifactId}:${quarkusPlatformVersion}")
@@ -33,11 +25,6 @@ dependencies {
   } else {
     implementation "com.datadoghq:dd-trace-api:0.68.0"
   }
-}
-
-java {
-  sourceCompatibility = JavaVersion.VERSION_1_8
-  targetCompatibility = JavaVersion.VERSION_1_8
 }
 
 quarkusBuild {

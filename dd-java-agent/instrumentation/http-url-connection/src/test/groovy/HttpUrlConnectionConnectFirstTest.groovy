@@ -1,9 +1,10 @@
+import datadog.trace.agent.test.naming.TestingGenericHttpNamingConventions
 import spock.lang.Timeout
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope
 
 @Timeout(5)
-class HttpUrlConnectionConnectFirstTest extends HttpUrlConnectionTest {
+class HttpUrlConnectionConnectFirstTest extends HttpUrlConnectionTest implements TestingGenericHttpNamingConventions.ClientV0{
 
   @Override
   int doRequest(String method, URI uri, Map<String, String> headers, String body, Closure callback) {

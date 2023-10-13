@@ -9,10 +9,10 @@ import java.net.URI;
 public class JaxRsClientV1Decorator extends HttpClientDecorator<ClientRequest, ClientResponse> {
 
   public static final CharSequence JAX_RS_CLIENT = UTF8BytesString.create("jax-rs.client");
-  public static final CharSequence JAX_RS_CLIENT_CALL =
-      UTF8BytesString.create("jax-rs.client.call");
 
   public static final JaxRsClientV1Decorator DECORATE = new JaxRsClientV1Decorator();
+  public static final CharSequence JAX_RS_CLIENT_CALL =
+      UTF8BytesString.create(DECORATE.operationName());
 
   @Override
   protected String[] instrumentationNames() {
@@ -37,5 +37,19 @@ public class JaxRsClientV1Decorator extends HttpClientDecorator<ClientRequest, C
   @Override
   protected int status(final ClientResponse clientResponse) {
     return clientResponse.getStatus();
+  }
+
+  @Override
+  protected String getRequestHeader(ClientRequest request, String headerName) {
+    Object headerValue = request.getHeaders().getFirst(headerName);
+    if (null != headerValue) {
+      return headerValue.toString();
+    }
+    return null;
+  }
+
+  @Override
+  protected String getResponseHeader(ClientResponse response, String headerName) {
+    return response.getHeaders().getFirst(headerName);
   }
 }

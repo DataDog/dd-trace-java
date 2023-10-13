@@ -5,7 +5,7 @@ buildscript {
     }
   }
   dependencies {
-    classpath "de.thetaphi:forbiddenapis:3.1"
+    classpath "de.thetaphi:forbiddenapis:3.5.1"
   }
 }
 
@@ -21,11 +21,8 @@ forbiddenApis {
 
 // disable forbiddenApis for all test tasks
 afterEvaluate {
-  tasks.withType(forbiddenApisTest.class).configureEach {
-    def name = it.name
-    if (name.endsWith("Test")) {
-      it.enabled = false
-    }
+  tasks.matching({it.name.startsWith('forbiddenApis') && it.name.endsWith('Test')}).configureEach {
+    it.enabled = false
   }
 }
 

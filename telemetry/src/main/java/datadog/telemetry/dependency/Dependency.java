@@ -4,7 +4,6 @@ import datadog.trace.util.Strings;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
-import java.lang.reflect.UndeclaredThrowableException;
 import java.math.BigInteger;
 import java.security.DigestInputStream;
 import java.security.MessageDigest;
@@ -20,6 +19,7 @@ import java.util.jar.JarFile;
 import java.util.jar.Manifest;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -32,61 +32,29 @@ public final class Dependency {
 
   private static final byte[] buf = new byte[8192];
 
-  private final String name;
-  private final String version;
-  private final String source;
-  private final String hash;
+  private static final MessageDigest md;
 
-  Dependency(String name, String version, String source) {
-    this(name, version, source, null);
-  }
-
-  Dependency(String name, String version, String source, String hash) {
-    this.name = checkNotNull(name);
-    this.version = checkNotNull(version);
-    this.source = checkNotNull(source);
-    this.hash = hash;
-  }
-
-  private static <T> T checkNotNull(T val) {
-    if (val == null) {
-      throw new NullPointerException("Expected arg to be non-null");
+  static {
+    MessageDigest digest = null;
+    try {
+      digest = MessageDigest.getInstance("SHA-1");
+    } catch (NoSuchAlgorithmException e) {
+      // should not happen
+      log.error("Unable to create cipher", e);
     }
-    return val;
+    md = digest;
   }
 
-  public String getName() {
-    return name;
-  }
+  public final String name;
+  public final String version;
+  public final String source;
+  public final String hash;
 
-  public String getVersion() {
-    return version;
-  }
-
-  public String getSource() {
-    return source;
-  }
-
-  public String getHash() {
-    return hash;
-  }
-
-  @Override
-  public String toString() {
-    return "Dependency{"
-        + "name='"
-        + name
-        + '\''
-        + ", version='"
-        + version
-        + '\''
-        + ", source='"
-        + source
-        + '\''
-        + ", hash='"
-        + hash
-        + '\''
-        + '}';
+  public Dependency(String name, String version, String source, @Nullable String hash) {
+    this.name = name;
+    this.version = version;
+    this.source = source;
+    this.hash = hash;
   }
 
   public static List<Dependency> fromMavenPom(JarFile jar) {
@@ -120,7 +88,16 @@ public final class Dependency {
                 artifactId,
                 version);
           } else {
-            dependencies.add(new Dependency(name, version, (new File(jar.getName())).getName()));
+            log.debug(
+                "dependency found in pom.properties: "
+                    + "jar={}, entry={}, groupId={}, artifactId={}, version={}",
+                jar.getName(),
+                jarEntry.getName(),
+                groupId,
+                artifactId,
+                version);
+            dependencies.add(
+                new Dependency(name, version, new File(jar.getName()).getName(), null));
           }
         } catch (IOException e) {
           log.debug("unable to read 'pom.properties' file from {}", jar.getName(), e);
@@ -136,7 +113,7 @@ public final class Dependency {
     String artifactId;
     String groupId = null;
     String version;
-    String hash;
+    String hash = null;
 
     // Guess from manifest
     String bundleSymbolicName = null;
@@ -176,7 +153,7 @@ public final class Dependency {
       artifactId = bundleSymbolicName;
     } else if (isValidArtifactId(bundleName)) {
       artifactId = bundleName;
-    } else if (isValidArtifactId(implementationVersion)) {
+    } else if (isValidArtifactId(implementationTitle)) {
       artifactId = implementationTitle;
     } else if (fileNameArtifact != null) {
       artifactId = fileNameArtifact;
@@ -219,25 +196,21 @@ public final class Dependency {
       name = artifactId;
     }
 
-    // Compute hash for all dependencies that has no pom
-    // No reliable version calculate hash and use any version
-    MessageDigest md;
-    try {
-      md = MessageDigest.getInstance("SHA-1");
-    } catch (NoSuchAlgorithmException e) {
-      // should not happen
-      throw new UndeclaredThrowableException(e);
+    if (md != null) {
+      // Compute hash for all dependencies that has no pom
+      // No reliable version calculate hash and use any version
+      md.reset();
+      is = new DigestInputStream(is, md);
+      while (is.read(buf, 0, buf.length) > 0) {}
+      hash = String.format("%040X", new BigInteger(1, md.digest()));
     }
-    is = new DigestInputStream(is, md);
-    while (is.read(buf, 0, buf.length) > 0) {}
-    hash = String.format("%040X", new BigInteger(1, md.digest()));
-
+    log.debug("No maven dependency added {}.{} jar name {} hash {}", name, version, source, hash);
     return new Dependency(name, version, source, hash);
   }
 
   /** Check is string is valid artifactId. Should be a non-capital single word. */
   private static boolean isValidArtifactId(String artifactId) {
-    return artifactId != null
+    return hasText(artifactId)
         && !artifactId.contains(" ")
         && !artifactId.contains(".")
         && !Character.isUpperCase(artifactId.charAt(0));
@@ -245,10 +218,14 @@ public final class Dependency {
 
   /** Check is string is valid groupId. Should be a non-capital plural-word separated with dot. */
   private static boolean isValidGroupId(String group) {
-    return group != null
+    return hasText(group)
         && !group.contains(" ")
         && group.contains(".")
         && !Character.isUpperCase(group.charAt(0));
+  }
+
+  private static boolean hasText(final String value) {
+    return value != null && !value.isEmpty();
   }
 
   private static boolean equalsNonNull(String s1, String s2) {
@@ -258,7 +235,7 @@ public final class Dependency {
   private static String parseGroupId(String bundleSymbolicName, String bundleName) {
     // Usually bundleSymbolicName contains bundleName at the end. Check this
 
-    // Bundle name can contains dash, so normalize it
+    // Bundle name can contain dash, so normalize it
     String normalizedBundleName = Strings.replace(bundleName, "-", ".");
 
     String bundleNameWithPrefix = "." + normalizedBundleName;

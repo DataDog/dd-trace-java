@@ -1,0 +1,53 @@
+variables:
+  EXPLORATION_TESTS_IMAGE: $REGISTRY/ci/dd-trace-java:exploration-tests
+
+build-exploration-tests-image:
+  stage: exploration-tests
+  when: manual
+  needs: []
+  tags: [ "runner:docker" ]
+  image: $REGISTRY/docker:20.10.3
+  script:
+    - docker build --tag $EXPLORATION_TESTS_IMAGE -f dd-java-agent/agent-debugger/exploration-tests/Dockerfile.exploration-tests dd-java-agent/agent-debugger/exploration-tests
+    - docker push $EXPLORATION_TESTS_IMAGE
+
+.common-exploration-tests: &common-exploration-tests
+  before_script:
+    - source $HOME/.sdkman/bin/sdkman-init.sh
+    - export JAVA_HOME=$JAVA_8_HOME
+    - ./gradlew :dd-java-agent:shadowJar --no-scan
+    - cp workspace/dd-java-agent/build/libs/*.jar /exploration-tests/dd-java-agent.jar
+    - cp dd-java-agent/agent-debugger/exploration-tests/run-exploration-tests.sh /exploration-tests
+    - cp dd-java-agent/agent-debugger/exploration-tests/exclude*.txt /exploration-tests
+    - cd /exploration-tests
+  after_script:
+    - cd $CI_PROJECT_DIR
+    - cp /exploration-tests/$PROJECT/agent.log agent.log
+    - gzip agent.log
+    - tar czf surefire-reports.tar.gz /exploration-tests/$PROJECT/target/surefire-reports
+    - tar czf debugger-dumps.tar.gz /tmp/debugger
+  stage: exploration-tests
+  when: manual
+  tags: [ "runner:main"]
+  needs: []
+  image: $EXPLORATION_TESTS_IMAGE
+  artifacts:
+    paths:
+      - agent.log.gz
+      - surefire-reports.tar.gz
+      - debugger-dumps.tar.gz
+
+
+exploration-tests-jackson-core:
+  <<: *common-exploration-tests
+  variables:
+    PROJECT: jackson-core
+  script:
+    - ./run-exploration-tests.sh "$PROJECT" "./mvnw verify"
+
+exploration-tests-jackson-databind:
+  <<: *common-exploration-tests
+  variables:
+    PROJECT: jackson-databind
+  script:
+    - ./run-exploration-tests.sh "$PROJECT" "./mvnw verify" "exclude_$PROJECT.txt"

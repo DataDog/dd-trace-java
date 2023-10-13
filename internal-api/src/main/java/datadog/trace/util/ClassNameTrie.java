@@ -258,11 +258,11 @@ public final class ClassNameTrie {
 
     /** Allow querying while the class-name trie is being built. */
     public int apply(String key) {
-      return ClassNameTrie.apply(trieData, longJumps, key);
+      return trieLength > 0 ? ClassNameTrie.apply(trieData, longJumps, key) : -1;
     }
 
     public ClassNameTrie buildTrie() {
-      if (null == trieData) {
+      if (trieLength == 0) {
         return EMPTY_TRIE;
       }
       // avoid unnecessary allocation when compaction isn't required

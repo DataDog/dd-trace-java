@@ -55,6 +55,7 @@ class TestHttpServer implements AutoCloseable {
 
   private final Server internalServer
   private HandlersSpec handlers
+  private Closure customizer =  {}
 
   public String keystorePath
   private URI address
@@ -120,6 +121,8 @@ class TestHttpServer implements AutoCloseable {
         https.setHost('localhost')
         https.setPort(0)
         internalServer.addConnector(https)
+
+        customizer.call(internalServer)
 
         internalServer.start()
         // set after starting, otherwise two callbacks get added.
@@ -194,6 +197,10 @@ class TestHttpServer implements AutoCloseable {
     return last.get()
   }
 
+  void customizer(Closure<Closure> spec) {
+    this.customizer = spec.call()
+  }
+
   void handlers(@DelegatesTo(value = HandlersSpec, strategy = Closure.DELEGATE_FIRST) Closure spec) {
     assert handlers == null: "handlers already defined"
     handlers = new HandlersSpec()
@@ -204,7 +211,7 @@ class TestHttpServer implements AutoCloseable {
     clone(handlers)
   }
 
-  static distributedRequestTrace(ListWriterAssert traces, DDSpan parentSpan = null) {
+  static distributedRequestTrace(ListWriterAssert traces, DDSpan parentSpan = null, Map<String, Serializable> extraTags = null) {
     traces.trace(1) {
       span {
         operationName "test-http-server"
@@ -218,6 +225,9 @@ class TestHttpServer implements AutoCloseable {
           "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
           "path" String
           defaultTags(parentSpan != null)
+          if (extraTags) {
+            it.addTags(extraTags)
+          }
         }
       }
     }
@@ -366,7 +376,7 @@ class TestHttpServer implements AutoCloseable {
       if (isDDServer) {
         final AgentSpan.Context extractedContext = propagate().extract(req.orig, GETTER)
         if (extractedContext != null) {
-          startSpan("test-http-server", extractedContext, true)
+          startSpan("test-http-server", extractedContext)
             .setTag("path", request.path)
             .setTag(Tags.SPAN_KIND, Tags.SPAN_KIND_SERVER).finish()
         } else {

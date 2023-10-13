@@ -1,6 +1,9 @@
 import datadog.smoketest.AbstractServerSmokeTest
 import okhttp3.Request
 
+import java.util.concurrent.atomic.AtomicInteger
+import java.util.regex.Pattern
+
 class SpringBootWebmvcIntegrationTest extends AbstractServerSmokeTest {
 
   @Override
@@ -11,7 +14,7 @@ class SpringBootWebmvcIntegrationTest extends AbstractServerSmokeTest {
     command.add(javaPath())
     command.addAll(defaultJavaProperties)
     command.addAll((String[]) [
-      "-Ddd.writer.type=MultiWriter:TraceStructureWriter:${output.getAbsolutePath()},DDAgentWriter",
+      "-Ddd.writer.type=MultiWriter:TraceStructureWriter:${output.getAbsolutePath()}:includeResource,DDAgentWriter",
       "-jar",
       springBootShadowJar,
       "--server.port=${httpPort}"
@@ -27,12 +30,29 @@ class SpringBootWebmvcIntegrationTest extends AbstractServerSmokeTest {
 
   @Override
   protected Set<String> expectedTraces() {
-    return ["[servlet.request[spring.handler]]"]
+    return [
+      "\\[servlet\\.request:GET /fruits\\[spring\\.handler:FruitController\\.listFruits\\[repository\\.operation:FruitRepository\\.findAll\\[h2\\.query:.*",
+      "\\[servlet\\.request:GET /fruits/\\{name}\\[spring\\.handler:FruitController\\.findOneFruit\\[repository\\.operation:FruitRepository\\.findByName\\[h2\\.query:.*"
+    ]
   }
 
-  def "put docs and find all docs"() {
+  @Override
+  protected Set<String> assertTraceCounts(Set<String> expected, Map<String, AtomicInteger> traceCounts) {
+    List<Pattern> remaining = expected.collect { Pattern.compile(it) }.toList()
+    for (def i = remaining.size() - 1; i >= 0; i--) {
+      for (Map.Entry<String, AtomicInteger> entry : traceCounts.entrySet()) {
+        if (entry.getValue() > 0 && remaining.get(i).matcher(entry.getKey()).matches()) {
+          remaining.remove(i)
+          break
+        }
+      }
+    }
+    return remaining.collect { it.pattern() }.toSet()
+  }
+
+  def "find all fruits"() {
     setup:
-    String url = "http://localhost:${httpPort}/hello"
+    String url = "http://localhost:${httpPort}/fruits"
 
     when:
     def response = client.newCall(new Request.Builder().url(url).get().build()).execute()
@@ -40,7 +60,22 @@ class SpringBootWebmvcIntegrationTest extends AbstractServerSmokeTest {
     then:
     def responseBodyStr = response.body().string()
     responseBodyStr != null
-    responseBodyStr.contains("Hello world")
+    ["banana", "apple", "orange"].each { responseBodyStr.contains(it) }
+    waitForTraceCount(1)
+  }
+
+  def "find a banana"() {
+    setup:
+    String url = "http://localhost:${httpPort}/fruits/banana"
+
+    when:
+    def response = client.newCall(new Request.Builder().url(url).get().build()).execute()
+
+    then:
+    def responseBodyStr = response.body().string()
+    responseBodyStr != null
+    ["apple", "orange"].each { !responseBodyStr.contains(it) }
+    responseBodyStr.contains("banana")
     waitForTraceCount(1)
   }
 }

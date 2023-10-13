@@ -1,0 +1,78 @@
+import org.datanucleus.enhancer.DataNucleusEnhancer
+
+buildscript {
+  repositories {
+    mavenCentral()
+  }
+
+  dependencies {
+    classpath group: 'org.datanucleus', name: 'datanucleus-core', version: '4.0.5'
+    classpath group: 'org.datanucleus', name: 'datanucleus-api-jdo', version: '4.0.5'
+    classpath group: 'org.datanucleus', name: 'javax.jdo', version: '3.2.0-m1'
+  }
+}
+
+muzzle {
+  // 2 libraries are instrumented.
+  // Muzzle is tested by keeping one version fixed and modifying the other
+  // Ideally, muzzle would handle this directly and keep both versions in lockstep
+  pass {
+    group = "org.datanucleus"
+    module = "datanucleus-core"
+    versions = "[4.0.5,]"
+    extraDependency "org.datanucleus:datanucleus-api-jdo:4.0.5"
+    extraDependency "org.datanucleus:javax.jdo:3.2.0-m1"
+  }
+
+  pass {
+    group = "org.datanucleus"
+    module = "datanucleus-api-jdo"
+    versions = "[4.0.5,]"
+    extraDependency "org.datanucleus:datanucleus-core:4.0.5"
+    extraDependency "org.datanucleus:javax.jdo:3.2.0-m1"
+  }
+}
+
+apply from: "${rootDir}/gradle/java.gradle"
+
+def datanucleusVersion = '4.0.5'
+
+// Datanucleus modifies persistable objects with bytecode manipulation
+// The unofficial plugin (org.rm3l.datanucleus-gradle-plugin) doesn't work with our build
+// The enhancement is done manually here for the test classes
+// LatestDepTest can't be used because the enhancer class generates incompatible code
+// Specifically, org.datanucleus.enhancer.Persistable changes package
+// Only one version can be set as the script classpath in the 'buildScript' block
+tasks.register('enhance') {
+  doLast {
+    def outputUrls = (sourceSets.test.output.classesDirs.files + sourceSets.test.output.resourcesDir)
+      .collect { it.toURI().toURL() } as URL[]
+
+    def testClassloader = new URLClassLoader(outputUrls, Thread.currentThread().getContextClassLoader())
+
+    DataNucleusEnhancer enhancer = new DataNucleusEnhancer("JDO", null)
+    enhancer.setVerbose(true).addPersistenceUnit("testPersistenceUnit")
+    enhancer.setSystemOut(true)
+    enhancer.setClassLoader(testClassloader)
+    enhancer.enhance()
+  }
+
+  dependsOn "testClasses"
+}
+
+tasks.withType(Test).configureEach {
+  dependsOn "enhance"
+}
+
+dependencies {
+  compileOnly group: 'org.datanucleus', name: 'datanucleus-core', version: datanucleusVersion
+  compileOnly group: 'org.datanucleus', name: 'datanucleus-api-jdo', version: datanucleusVersion
+  compileOnly group: 'org.datanucleus', name: 'javax.jdo', version: '3.2.0-m1'
+
+  testImplementation project(':dd-java-agent:instrumentation:jdbc')
+  testImplementation group: 'org.datanucleus', name: 'datanucleus-core', version: datanucleusVersion
+  testImplementation group: 'org.datanucleus', name: 'datanucleus-api-jdo', version: datanucleusVersion
+  testImplementation group: 'org.datanucleus', name: 'datanucleus-rdbms', version: datanucleusVersion
+  testImplementation group: 'org.datanucleus', name: 'javax.jdo', version: '3.2.0-m1'
+  testImplementation group: 'com.h2database', name: 'h2', version: '1.3.169'
+}

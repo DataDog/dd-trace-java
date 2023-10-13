@@ -1,8 +1,9 @@
-
 package test
 
-import datadog.trace.agent.test.AgentTestRunner
+
 import datadog.trace.agent.test.asserts.TraceAssert
+import datadog.trace.agent.test.naming.VersionedNamingTestBase
+import datadog.trace.api.Config
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import org.apache.ignite.Ignite
@@ -12,9 +13,14 @@ import org.apache.ignite.spi.discovery.tcp.TcpDiscoverySpi
 import org.apache.ignite.spi.discovery.tcp.ipfinder.vm.TcpDiscoveryVmIpFinder
 import spock.lang.Shared
 
-abstract class AbstractIgniteTest extends AgentTestRunner {
+abstract class AbstractIgniteTest extends VersionedNamingTestBase {
+  static final String V0_SERVICE = "ignite"
+  static final String V1_SERVICE = Config.get().getServiceName()
+  static final String V0_OPERATION = "ignite.cache"
+  static final String V1_OPERATION = "ignite.command"
 
-  @Shared Ignite igniteServer, igniteClient
+  @Shared
+  Ignite igniteServer, igniteClient
 
   @Override
   protected void configurePreAgent() {
@@ -53,9 +59,9 @@ abstract class AbstractIgniteTest extends AgentTestRunner {
 
   void assertIgniteCall(TraceAssert trace, String name, String cacheName, boolean parentSpan = true) {
     trace.span {
-      serviceName "ignite"
+      serviceName service()
       resourceName name + " on " + cacheName
-      operationName "ignite.cache"
+      operationName operation()
       spanType DDSpanTypes.CACHE
       errored false
       if (parentSpan) {
@@ -73,7 +79,7 @@ abstract class AbstractIgniteTest extends AgentTestRunner {
           "ignite.instance" igniteClient.name()
         }
         "ignite.version" igniteClient.version().toString()
-        defaultTags()
+        defaultTagsNoPeerService()
       }
     }
   }

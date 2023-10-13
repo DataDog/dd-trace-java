@@ -1,7 +1,5 @@
 package test
 
-import datadog.trace.agent.test.checkpoints.CheckpointValidator
-import datadog.trace.agent.test.checkpoints.CheckpointValidationMode
 import datadog.trace.core.DDSpan
 import org.apache.ignite.IgniteCache
 import spock.lang.Shared
@@ -12,9 +10,10 @@ import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 
-class IgniteCacheAsyncTest extends AbstractIgniteTest {
+abstract class IgniteCacheAsyncTest extends AbstractIgniteTest {
 
-  @Shared IgniteCache cache
+  @Shared
+  IgniteCache cache
 
   def setup() {
     // Start with a fresh cache for each test
@@ -29,9 +28,6 @@ class IgniteCacheAsyncTest extends AbstractIgniteTest {
 
   def "put command"() {
     setup:
-    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
-      CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.THREAD_SEQUENCE)
 
     when:
 
@@ -54,9 +50,6 @@ class IgniteCacheAsyncTest extends AbstractIgniteTest {
 
   def "size command"() {
     setup:
-    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
-      CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.THREAD_SEQUENCE)
 
     when:
     cache.put("foo", "bar")
@@ -80,5 +73,40 @@ class IgniteCacheAsyncTest extends AbstractIgniteTest {
       }
     }
   }
+}
 
+class IgniteCacheAsyncV0ForkedTest extends IgniteCacheAsyncTest {
+
+  @Override
+  int version() {
+    return 0
+  }
+
+  @Override
+  String service() {
+    return AbstractIgniteTest.V0_SERVICE
+  }
+
+  @Override
+  String operation() {
+    return AbstractIgniteTest.V0_OPERATION
+  }
+}
+
+class IgniteCacheAsyncV1ForkedTest extends IgniteCacheAsyncTest {
+
+  @Override
+  int version() {
+    return 1
+  }
+
+  @Override
+  String service() {
+    return AbstractIgniteTest.V1_SERVICE
+  }
+
+  @Override
+  String operation() {
+    return AbstractIgniteTest.V1_OPERATION
+  }
 }

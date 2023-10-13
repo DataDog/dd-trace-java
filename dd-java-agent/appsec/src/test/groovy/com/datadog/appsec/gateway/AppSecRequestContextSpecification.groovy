@@ -1,9 +1,10 @@
 package com.datadog.appsec.gateway
 
-import com.datadog.appsec.config.AppSecConfig
+
+import com.datadog.appsec.config.CurrentAppSecConfig
 import com.datadog.appsec.event.data.KnownAddresses
 import com.datadog.appsec.event.data.MapDataBundle
-import com.datadog.appsec.report.raw.events.AppSecEvent100
+import com.datadog.appsec.report.AppSecEvent
 import com.datadog.appsec.test.StubAppSecConfigService
 import datadog.trace.test.util.DDSpecification
 import io.sqreen.powerwaf.Additive
@@ -97,7 +98,7 @@ class AppSecRequestContextSpecification extends DDSpecification {
 
   void 'can collect events'() {
     when:
-    ctx.reportEvents([new AppSecEvent100(), new AppSecEvent100()], null)
+    ctx.reportEvents([new AppSecEvent(), new AppSecEvent()])
     def events = ctx.transferCollectedEvents()
 
     then:
@@ -106,7 +107,7 @@ class AppSecRequestContextSpecification extends DDSpecification {
     events[1] != null
 
     when:
-    ctx.reportEvents([new AppSecEvent100()], null)
+    ctx.reportEvents([new AppSecEvent()])
 
     then:
     thrown IllegalStateException
@@ -165,9 +166,10 @@ class AppSecRequestContextSpecification extends DDSpecification {
     Powerwaf.initialize false
     def service = new StubAppSecConfigService()
     service.init()
-    AppSecConfig config = service.lastConfig['waf']
+    CurrentAppSecConfig config = service.lastConfig['waf']
     String uniqueId = UUID.randomUUID() as String
-    PowerwafContext context = Powerwaf.createContext(uniqueId, config.rawConfig)
+    config.dirtyStatus.markAllDirty()
+    PowerwafContext context = Powerwaf.createContext(uniqueId, config.mergedUpdateConfig.rawConfig)
     new Additive(context)
   }
 
@@ -181,6 +183,6 @@ class AppSecRequestContextSpecification extends DDSpecification {
 
     then:
     ctx.additive == null
-    additive.online == false
+    !additive.online
   }
 }

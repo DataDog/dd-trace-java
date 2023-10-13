@@ -11,13 +11,13 @@ import datadog.trace.api.Config;
 import datadog.trace.util.AgentProxySelector;
 import java.io.File;
 import java.io.IOException;
+import java.net.ConnectException;
 import java.net.InetSocketAddress;
 import java.net.Proxy;
 import java.nio.ByteBuffer;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import okhttp3.Authenticator;
 import okhttp3.ConnectionPool;
 import okhttp3.ConnectionSpec;
 import okhttp3.Credentials;
@@ -28,7 +28,6 @@ import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.RequestBody;
 import okhttp3.Response;
-import okhttp3.Route;
 import okio.BufferedSink;
 import okio.GzipSink;
 import okio.Okio;
@@ -149,16 +148,15 @@ public final class OkHttpUtils {
       builder.proxy(new Proxy(Proxy.Type.HTTP, new InetSocketAddress(proxyHost, proxyPort)));
       if (proxyUsername != null) {
         builder.proxyAuthenticator(
-            new Authenticator() {
-              @Override
-              public Request authenticate(final Route route, final Response response) {
-                final String credential =
-                    Credentials.basic(proxyUsername, proxyPassword == null ? "" : proxyPassword);
+            (route, response) -> {
+              final String credential =
+                  Credentials.basic(proxyUsername, proxyPassword == null ? "" : proxyPassword);
 
-                return new SafeRequestBuilder(response.request().newBuilder())
-                    .header("Proxy-Authorization", credential)
-                    .build();
-              }
+              return response
+                  .request()
+                  .newBuilder()
+                  .header("Proxy-Authorization", credential)
+                  .build();
             });
       }
     }
@@ -176,8 +174,8 @@ public final class OkHttpUtils {
 
   public static Request.Builder prepareRequest(final HttpUrl url, Map<String, String> headers) {
 
-    final SafeRequestBuilder builder =
-        new SafeRequestBuilder()
+    final Request.Builder builder =
+        new Request.Builder()
             .url(url)
             .addHeader(DATADOG_META_LANG, "java")
             .addHeader(DATADOG_META_LANG_VERSION, JAVA_VERSION)
@@ -193,7 +191,7 @@ public final class OkHttpUtils {
       builder.addHeader(e.getKey(), e.getValue());
     }
 
-    return builder.getBuilder();
+    return builder;
   }
 
   public static Request.Builder prepareRequest(
@@ -207,7 +205,7 @@ public final class OkHttpUtils {
     if (agentless && apiKey != null) {
       // we only add the api key header if we know we're doing agentless. No point in adding it to
       // other agent-based requests since we know the datadog-agent isn't going to make use of it.
-      builder = SafeRequestBuilder.addHeader(builder, DD_API_KEY, apiKey);
+      builder = builder.addHeader(DD_API_KEY, apiKey);
     }
 
     return builder;
@@ -219,6 +217,36 @@ public final class OkHttpUtils {
 
   public static RequestBody gzippedMsgpackRequestBodyOf(List<ByteBuffer> buffers) {
     return new GZipByteBufferRequestBody(buffers);
+  }
+
+  public static RequestBody jsonRequestBodyOf(byte[] json) {
+    return new JsonRequestBody(json);
+  }
+
+  private static class JsonRequestBody extends RequestBody {
+
+    private static final MediaType JSON = MediaType.get("application/json");
+
+    private final byte[] json;
+
+    private JsonRequestBody(byte[] json) {
+      this.json = json;
+    }
+
+    @Override
+    public long contentLength() {
+      return json.length;
+    }
+
+    @Override
+    public MediaType contentType() {
+      return JSON;
+    }
+
+    @Override
+    public void writeTo(BufferedSink sink) throws IOException {
+      sink.write(json);
+    }
   }
 
   private static class ByteBufferRequestBody extends RequestBody {
@@ -272,6 +300,43 @@ public final class OkHttpUtils {
       super.writeTo(gzipSink);
 
       gzipSink.close();
+    }
+  }
+
+  public static Response sendWithRetries(
+      OkHttpClient httpClient, HttpRetryPolicy retryPolicy, Request request) throws IOException {
+    while (true) {
+      try {
+        okhttp3.Response response = httpClient.newCall(request).execute();
+        if (response.isSuccessful()) {
+          return response;
+        }
+        if (!retryPolicy.shouldRetry(response)) {
+          return response;
+        } else {
+          closeQuietly(response);
+        }
+      } catch (ConnectException ex) {
+        if (!retryPolicy.shouldRetry(null)) {
+          throw ex;
+        }
+      }
+      // If we get here, there has been an error, and we still have retries left
+      long backoffMs = retryPolicy.backoff();
+      try {
+        Thread.sleep(backoffMs);
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+        throw new IOException(e);
+      }
+    }
+  }
+
+  private static void closeQuietly(Response response) {
+    try {
+      response.close();
+    } catch (Exception e) {
+      // ignore
     }
   }
 }

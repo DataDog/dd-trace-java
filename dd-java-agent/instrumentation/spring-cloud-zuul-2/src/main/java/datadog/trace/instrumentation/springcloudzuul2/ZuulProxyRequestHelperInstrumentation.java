@@ -9,8 +9,8 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import java.util.Locale;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.type.TypeDescription;
 
 @AutoService(Instrumenter.class)
 public class ZuulProxyRequestHelperInstrumentation extends Instrumenter.Tracing
@@ -27,7 +27,7 @@ public class ZuulProxyRequestHelperInstrumentation extends Instrumenter.Tracing
   @Override
   public void adviceTransformations(AdviceTransformation transformation) {
     transformation.applyAdvice(
-        isMethod().and(named("isIncludedHeader")).and(takesArgument(0, TypeDescription.STRING)),
+        isMethod().and(named("isIncludedHeader")).and(takesArgument(0, String.class)),
         ZuulProxyRequestHelperInstrumentation.class.getName() + "$ProxyRequestHelperAdvice");
   }
 
@@ -48,7 +48,7 @@ public class ZuulProxyRequestHelperInstrumentation extends Instrumenter.Tracing
         @Advice.Argument(0) final String header, @Advice.Return(readOnly = false) boolean include) {
       if (!include) return;
 
-      String lowercaseHeader = header.toLowerCase();
+      String lowercaseHeader = header.toLowerCase(Locale.ROOT);
       if (lowercaseHeader.startsWith(HAYSTACK_PACKAGE_PREFIX)
           || lowercaseHeader.startsWith(DD_PACKAGE_PREFIX)
           || EXCLUDED_HEADERS.contains(lowercaseHeader)) {

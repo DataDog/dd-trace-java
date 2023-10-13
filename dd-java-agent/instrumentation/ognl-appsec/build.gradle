@@ -1,0 +1,17 @@
+muzzle {
+  pass {
+    group = 'ognl'
+    module = 'ognl'
+    versions = '[2.1.4,)'
+  }
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+
+dependencies {
+  compileOnly group: 'ognl', name: 'ognl', version: '3.3.2'
+  testImplementation group: 'ognl', name: 'ognl', version: '3.3.2'
+
+  testImplementation project(':utils:test-utils')
+}
+

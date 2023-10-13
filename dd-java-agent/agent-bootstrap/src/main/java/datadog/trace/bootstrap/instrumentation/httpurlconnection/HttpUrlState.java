@@ -10,22 +10,13 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.net.HttpURLConnection;
 
 public class HttpUrlState {
-
-  public static final String OPERATION_NAME = "http.request";
-
-  public static final ContextStore.Factory<HttpUrlState> FACTORY =
-      new ContextStore.Factory<HttpUrlState>() {
-        @Override
-        public HttpUrlState create() {
-          return new HttpUrlState();
-        }
-      };
+  public static final ContextStore.Factory<HttpUrlState> FACTORY = HttpUrlState::new;
 
   private volatile AgentSpan span = null;
   private volatile boolean finished = false;
 
   public AgentSpan start(final HttpURLConnection connection) {
-    span = startSpan(OPERATION_NAME);
+    span = startSpan(DECORATE.operationName());
     try (final AgentScope scope = activateSpan(span)) {
       DECORATE.afterStart(span);
       DECORATE.onRequest(span, connection);
@@ -45,10 +36,12 @@ public class HttpUrlState {
     finished = true;
   }
 
-  public void finishSpan(final int responseCode, final Throwable throwable) {
+  public void finishSpan(
+      final HttpURLConnection connection, final int responseCode, final Throwable throwable) {
     try (final AgentScope scope = activateSpan(span)) {
       if (responseCode > 0) {
-        DECORATE.onResponse(span, responseCode);
+        // safe to access response data as 'responseCode' is set
+        DECORATE.onResponse(span, connection);
       } else {
         // Ignoring the throwable if we have response code
         // to have consistent behavior with other http clients.
@@ -61,7 +54,7 @@ public class HttpUrlState {
     }
   }
 
-  public void finishSpan(final int responseCode) {
+  public void finishSpan(final HttpURLConnection connection, final int responseCode) {
     /*
      * responseCode field is sometimes not populated.
      * We can't call getResponseCode() due to some unwanted side-effects
@@ -69,7 +62,8 @@ public class HttpUrlState {
      */
     if (responseCode > 0) {
       try (final AgentScope scope = activateSpan(span)) {
-        DECORATE.onResponse(span, responseCode);
+        // safe to access response data as 'responseCode' is set
+        DECORATE.onResponse(span, connection);
         DECORATE.beforeFinish(span);
         span.finish();
         span = null;

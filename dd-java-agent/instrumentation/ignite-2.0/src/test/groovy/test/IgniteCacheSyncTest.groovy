@@ -15,7 +15,7 @@ import spock.lang.Shared
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 
-class IgniteCacheSyncTest extends AbstractIgniteTest {
+abstract class IgniteCacheSyncTest extends AbstractIgniteTest {
 
   @Shared IgniteCache cache
 
@@ -113,9 +113,9 @@ class IgniteCacheSyncTest extends AbstractIgniteTest {
       }
       trace(1) {
         span {
-          serviceName "ignite"
+          serviceName service()
           resourceName sql
-          operationName "ignite.cache"
+          operationName operation()
           spanType DDSpanTypes.CACHE
           errored false
           tags {
@@ -130,7 +130,7 @@ class IgniteCacheSyncTest extends AbstractIgniteTest {
               "ignite.instance" igniteClient.name()
             }
             "ignite.version" igniteClient.version().toString()
-            defaultTags()
+            defaultTagsNoPeerService()
           }
         }
       }
@@ -171,9 +171,9 @@ class IgniteCacheSyncTest extends AbstractIgniteTest {
       }
       trace(1) {
         span {
-          serviceName "ignite"
+          serviceName service()
           resourceName "SELECT * FROM Person WHERE ${sql}"
-          operationName "ignite.cache"
+          operationName operation()
           spanType DDSpanTypes.CACHE
           errored false
           tags {
@@ -189,7 +189,7 @@ class IgniteCacheSyncTest extends AbstractIgniteTest {
               "ignite.instance" igniteClient.name()
             }
             "ignite.version" igniteClient.version().toString()
-            defaultTags()
+            defaultTagsNoPeerService()
           }
         }
       }
@@ -225,9 +225,9 @@ class IgniteCacheSyncTest extends AbstractIgniteTest {
       }
       trace(1) {
         span {
-          serviceName "ignite"
+          serviceName service()
           resourceName "cache.query ${TextQuery.getSimpleName()} on PersonText"
-          operationName "ignite.cache"
+          operationName operation()
           spanType DDSpanTypes.CACHE
           errored false
           tags {
@@ -241,7 +241,7 @@ class IgniteCacheSyncTest extends AbstractIgniteTest {
               "ignite.instance" igniteClient.name()
             }
             "ignite.version" igniteClient.version().toString()
-            defaultTags()
+            defaultTagsNoPeerService()
           }
         }
       }
@@ -306,4 +306,40 @@ class IgniteCacheSyncTest extends AbstractIgniteTest {
     nearCache?.close()
   }
 
+}
+
+class IgniteCacheSyncV0ForkedTest extends IgniteCacheSyncTest {
+
+  @Override
+  int version() {
+    return 0
+  }
+
+  @Override
+  String service() {
+    return AbstractIgniteTest.V0_SERVICE
+  }
+
+  @Override
+  String operation() {
+    return AbstractIgniteTest.V0_OPERATION
+  }
+}
+
+class IgniteCacheSyncV1ForkedTest extends IgniteCacheSyncTest {
+
+  @Override
+  int version() {
+    return 1
+  }
+
+  @Override
+  String service() {
+    return AbstractIgniteTest.V1_SERVICE
+  }
+
+  @Override
+  String operation() {
+    return AbstractIgniteTest.V1_OPERATION
+  }
 }

@@ -5,19 +5,25 @@ import static datadog.trace.util.TraceUtils.normalizeOperationName;
 import static datadog.trace.util.TraceUtils.normalizeServiceName;
 import static datadog.trace.util.TraceUtils.normalizeSpanType;
 
+import datadog.trace.api.interceptor.AbstractTraceInterceptor;
 import datadog.trace.api.interceptor.MutableSpan;
-import datadog.trace.api.interceptor.TraceInterceptor;
+import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.core.DDSpan;
 import datadog.trace.util.TraceUtils;
 import java.util.Collection;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class DDIntakeTraceInterceptor implements TraceInterceptor {
+public class DDIntakeTraceInterceptor extends AbstractTraceInterceptor {
 
-  public static final DDIntakeTraceInterceptor INSTANCE = new DDIntakeTraceInterceptor();
+  public static final DDIntakeTraceInterceptor INSTANCE =
+      new DDIntakeTraceInterceptor(Priority.DD_INTAKE);
 
   private static final Logger log = LoggerFactory.getLogger(DDIntakeTraceInterceptor.class);
+
+  protected DDIntakeTraceInterceptor(Priority priority) {
+    super(priority);
+  }
 
   @Override
   public Collection<? extends MutableSpan> onTraceComplete(
@@ -37,7 +43,7 @@ public class DDIntakeTraceInterceptor implements TraceInterceptor {
   private void process(DDSpan span) {
     span.setServiceName(normalizeServiceName(span.getServiceName()));
     span.setOperationName(normalizeOperationName(span.getOperationName()));
-    span.setSpanType(normalizeSpanType(span.getSpanType()));
+    span.setSpanType(normalizeSpanType(span.getType()));
 
     if (span.getResourceName() == null || span.getResourceName().length() == 0) {
       log.debug(
@@ -47,22 +53,15 @@ public class DDIntakeTraceInterceptor implements TraceInterceptor {
       span.setResourceName(span.getOperationName());
     }
 
-    if (span.getTag("env") != null) {
-      span.setTag("env", TraceUtils.normalizeEnv((String) span.getTag("env")));
-    }
+    span.setTag(Tags.ENV, TraceUtils.normalizeEnv((String) span.getTag(Tags.ENV)));
 
     final short httpStatusCode = span.getHttpStatusCode();
-    if (!isValidStatusCode(httpStatusCode)) {
+    if (httpStatusCode != 0 && !isValidStatusCode(httpStatusCode)) {
       log.debug(
           "Fixing malformed trace. HTTP status code is invalid (reason:invalid_http_status_code), dropping invalid http.status_code={}: {}",
           httpStatusCode,
           span);
       span.setHttpStatusCode(0);
     }
-  }
-
-  @Override
-  public int priority() {
-    return 0;
   }
 }

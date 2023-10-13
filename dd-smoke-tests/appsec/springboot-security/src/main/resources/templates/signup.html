@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Spring Security Example</title>
+</head>
+<body>
+    <h1>Registration form</h1>
+    <div th:if="${param.error}" style="color:red">
+        ERROR: Invalid username and password.
+    </div>
+    <form th:action="@{/register}" method="post">
+        <div><label> User Name : <input type="text" name="username"/> </label></div>
+        <div><label> Password: <input type="password" name="password"/> </label></div>
+        <br/>
+        <div><input type="submit" value="Sign up"/></div>
+    </form>
+    <br/>
+    <div>Already have account? Please <a th:href="@{/login}">login</a></div>
+</body>
+</html>

@@ -1,0 +1,7 @@
+apply from: "$rootDir/gradle/java.gradle"
+
+addTestSuiteForDir('latestDepTest', 'test')
+
+dependencies {
+  compileOnly group: 'io.reactivex', name: 'rxjava', version: '1.0.7'
+}

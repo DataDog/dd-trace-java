@@ -3,26 +3,29 @@ package datadog.trace.instrumentation.springweb
 import datadog.trace.agent.test.AgentTestRunner
 import org.jboss.resteasy.plugins.spring.SpringBeanProcessor
 import org.springframework.beans.factory.config.ConfigurableListableBeanFactory
+import org.springframework.beans.factory.support.BeanDefinitionRegistry
 import org.springframework.beans.factory.support.GenericBeanDefinition
-
-import javax.ws.rs.ext.Provider
+import test.boot.TestProvider
 
 class ResteasySpringBeanProcessorTest extends AgentTestRunner {
 
-  @Provider
-  class TestBean {}
+  interface TestBeanFactory extends ConfigurableListableBeanFactory, BeanDefinitionRegistry {}
 
   def "resteasy-spring should ignore our intercepting filter bean"() {
     given:
-    // mimic Spring's use of clone which loses the original 'beanClass' value
-    def filterDefinition = new HandlerMappingResourceNameFilter.BeanDefinition().clone()
+    def beanFactory = Mock(TestBeanFactory)
+    def originalDefinition = new HandlerMappingResourceNameFilter.BeanDefinition()
+    // trigger capture of the original 'beanClass' value
+    beanFactory.registerBeanDefinition('filter', originalDefinition)
+    // mimic situation where the original 'beanClass' value might be lost
+    def filterDefinition = originalDefinition.clone()
+    filterDefinition.setBeanClassName(originalDefinition.getBeanClassName()) // discards 'beanClass'
     // simple test bean to make sure resteasy isn't ignoring all bean definitions
     def testDefinition = Mock(GenericBeanDefinition)
-    testDefinition.getBeanClassName() >> TestBean.name
+    testDefinition.getBeanClassName() >> TestProvider.name
     testDefinition.isSingleton() >> true
 
     and:
-    def beanFactory = Mock(ConfigurableListableBeanFactory)
     beanFactory.getBeanDefinitionNames() >> ['filter', 'test']
     beanFactory.getBeanDefinition('filter') >> filterDefinition
     beanFactory.getBeanDefinition('test') >> testDefinition
@@ -33,8 +36,8 @@ class ResteasySpringBeanProcessorTest extends AgentTestRunner {
     def isolatedContext = new ClassLoader(null) {
         @Override
         protected Class<?> loadClass(String name, boolean resolve) throws ClassNotFoundException {
-          if (name == TestBean.name) {
-            return TestBean
+          if (name == TestProvider.name) {
+            return TestProvider
           }
           throw new ClassNotFoundException(name)
         }

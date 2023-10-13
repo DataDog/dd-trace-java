@@ -5,13 +5,7 @@ import datadog.trace.api.Config
 import datadog.trace.test.util.DDSpecification
 import okhttp3.HttpUrl
 import okhttp3.OkHttpClient
-import spock.lang.Requires
 
-import static datadog.trace.api.Platform.isJavaVersionAtLeast
-
-@Requires({
-  isJavaVersionAtLeast(8)
-})
 class SharedCommunicationsObjectsSpecification extends DDSpecification {
   SharedCommunicationObjects sco = new SharedCommunicationObjects()
 

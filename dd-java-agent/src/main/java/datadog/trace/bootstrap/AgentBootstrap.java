@@ -5,6 +5,7 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.io.PrintStream;
 import java.lang.instrument.Instrumentation;
 import java.lang.management.ManagementFactory;
 import java.lang.reflect.Field;
@@ -14,7 +15,10 @@ import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.security.CodeSource;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.IdentityHashMap;
 import java.util.List;
+import java.util.Set;
 import java.util.jar.JarFile;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -42,30 +46,122 @@ import java.util.regex.Pattern;
  */
 public final class AgentBootstrap {
   private static final Class<?> thisClass = AgentBootstrap.class;
+  private static final int MAX_EXCEPTION_CHAIN_LENGTH = 99;
+
+  private static boolean initialized = false;
 
   public static void premain(final String agentArgs, final Instrumentation inst) {
     agentmain(agentArgs, inst);
   }
 
   public static void agentmain(final String agentArgs, final Instrumentation inst) {
+    if (alreadyInitialized() || lessThanJava8() || isJdkTool()) {
+      return;
+    }
+
     try {
       final URL agentJarURL = installAgentJar(inst);
-
-      final Class<?> agentClass =
-          ClassLoader.getSystemClassLoader().loadClass("datadog.trace.bootstrap.Agent");
+      final Class<?> agentClass = Class.forName("datadog.trace.bootstrap.Agent", true, null);
       if (agentClass.getClassLoader() != null) {
         throw new IllegalStateException("DD Java Agent NOT added to bootstrap classpath.");
       }
-      final Method startMethod = agentClass.getMethod("start", Instrumentation.class, URL.class);
-      startMethod.invoke(null, inst, agentJarURL);
+      final Method startMethod =
+          agentClass.getMethod("start", Instrumentation.class, URL.class, String.class);
+      startMethod.invoke(null, inst, agentJarURL, agentArgs);
     } catch (final Throwable ex) {
+      if (exceptionCauseChainContains(
+          ex, "datadog.trace.util.throwable.FatalAgentMisconfigurationError")) {
+        throw new Error(ex);
+      }
       // Don't rethrow.  We don't have a log manager here, so just print.
       System.err.println("ERROR " + thisClass.getName());
       ex.printStackTrace();
     }
   }
 
+  static boolean exceptionCauseChainContains(Throwable ex, String exClassName) {
+    Set<Throwable> stack = Collections.newSetFromMap(new IdentityHashMap<Throwable, Boolean>());
+    Throwable t = ex;
+    while (t != null && stack.add(t) && stack.size() <= MAX_EXCEPTION_CHAIN_LENGTH) {
+      // cannot do an instanceof check since most of the agent's code is loaded by an isolated CL
+      if (t.getClass().getName().equals(exClassName)) {
+        return true;
+      }
+      t = t.getCause();
+    }
+    return false;
+  }
+
+  private static boolean lessThanJava8() {
+    return lessThanJava8(System.getProperty("java.version"), System.out);
+  }
+
+  // Reachable for testing
+  static boolean lessThanJava8(String version, PrintStream output) {
+    if (parseJavaMajorVersion(version) < 8) {
+      String agentVersion = "This version"; // If we can't find the agent version
+      try {
+        agentVersion = AgentJar.getAgentVersion();
+        agentVersion = "Version " + agentVersion;
+      } catch (IOException ignored) {
+      }
+      output.println(
+          "Warning: "
+              + agentVersion
+              + " of dd-java-agent is not compatible with Java "
+              + version
+              + " and will not be installed.");
+      output.println(
+          "Please upgrade your Java version to 8+ or use the 0.x version of dd-java-agent in your build tool or download it from https://dtdg.co/java-tracer-v0");
+      return true;
+    }
+    return false;
+  }
+
+  private static boolean alreadyInitialized() {
+    if (initialized) {
+      System.out.println(
+          "Warning: dd-java-agent is being initialized more than once. Please, check that you are defining -javaagent:dd-java-agent.jar only once.");
+      return true;
+    }
+    initialized = true;
+    return false;
+  }
+
+  private static boolean isJdkTool() {
+    return System.getProperty("jdk.module.main", "").startsWith("jdk.");
+  }
+
+  // Reachable for testing
+  static int parseJavaMajorVersion(String version) {
+    int major = 0;
+    if (null == version || version.isEmpty()) {
+      return major;
+    }
+    int start = 0;
+    if (version.charAt(0) == '1'
+        && version.length() >= 3
+        && version.charAt(1) == '.'
+        && Character.isDigit(version.charAt(2))) {
+      start = 2;
+    }
+    // Parse the major digit and be a bit lenient, allowing digits followed by any non digit
+    for (int i = start; i < version.length(); i++) {
+      char c = version.charAt(i);
+      if (Character.isDigit(c)) {
+        major *= 10;
+        major += Character.digit(c, 10);
+      } else {
+        break;
+      }
+    }
+    return major;
+  }
+
   public static void main(final String[] args) {
+    if (lessThanJava8()) {
+      return;
+    }
     AgentJar.main(args);
   }
 
@@ -137,6 +233,7 @@ public final class AgentBootstrap {
   private static List<String> getVMArgumentsThroughReflection() {
     try {
       // Try Oracle-based
+      // IBM Semeru Runtime 1.8.0_345-b01 will throw UnsatisfiedLinkError here.
       final Class<?> managementFactoryHelperClass =
           Class.forName("sun.management.ManagementFactoryHelper");
 
@@ -157,7 +254,7 @@ public final class AgentBootstrap {
 
       return (List<String>) vmManagementClass.getMethod("getVmArguments").invoke(vmManagement);
 
-    } catch (final ReflectiveOperationException e) {
+    } catch (final ReflectiveOperationException | UnsatisfiedLinkError e) {
       try { // Try IBM-based.
         final Class<?> VMClass = Class.forName("com.ibm.oti.vm.VM");
         final String[] argArray = (String[]) VMClass.getMethod("getVMArgs").invoke(null);

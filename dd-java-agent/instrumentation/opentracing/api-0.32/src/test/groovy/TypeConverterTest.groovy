@@ -1,6 +1,6 @@
 import datadog.trace.agent.test.AgentTestRunner
-import datadog.trace.api.DDId
-import datadog.trace.api.StatsDClient
+import datadog.trace.api.DDSpanId
+import datadog.trace.api.DDTraceId
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopPathwayContext
@@ -8,7 +8,7 @@ import datadog.trace.bootstrap.instrumentation.api.ScopeSource
 import datadog.trace.core.DDSpan
 import datadog.trace.core.DDSpanContext
 import datadog.trace.core.PendingTrace
-import datadog.trace.core.propagation.DatadogTags
+import datadog.trace.core.propagation.PropagationTags
 import datadog.trace.core.scopemanager.ContinuableScopeManager
 import datadog.trace.instrumentation.opentracing.DefaultLogHandler
 import datadog.trace.instrumentation.opentracing32.TypeConverter
@@ -24,8 +24,8 @@ class TypeConverterTest extends AgentTestRunner {
 
   def "should avoid extra allocation for a span wrapper"() {
     def context = createTestSpanContext()
-    def span1 = new DDSpan(0, context)
-    def span2 = new DDSpan(0, context)
+    def span1 = new DDSpan("test", 0, context)
+    def span2 = new DDSpan("test", 0, context)
     expect:
     // return the same wrapper for the same span
     typeConverter.toSpan(span1) is typeConverter.toSpan(span1)
@@ -50,10 +50,10 @@ class TypeConverterTest extends AgentTestRunner {
   }
 
   def "should avoid extra allocation for a scope wrapper"() {
-    def scopeManager = new ContinuableScopeManager(0, StatsDClient.NO_OP, false, true)
+    def scopeManager = new ContinuableScopeManager(0, false, true)
     def context = createTestSpanContext()
-    def span1 = new DDSpan(0, context)
-    def span2 = new DDSpan(0, context)
+    def span1 = new DDSpan("test", 0, context)
+    def span2 = new DDSpan("test", 0, context)
     def scope1 = scopeManager.activate(span1, ScopeSource.MANUAL)
     def scope2 = scopeManager.activate(span2, ScopeSource.MANUAL)
     expect:
@@ -69,9 +69,9 @@ class TypeConverterTest extends AgentTestRunner {
   def createTestSpanContext() {
     def trace = Mock(PendingTrace)
     return new DDSpanContext(
-      DDId.from(1),
-      DDId.from(1),
-      DDId.ZERO,
+      DDTraceId.ONE,
+      1,
+      DDSpanId.ZERO,
       null,
       "fakeService",
       "fakeOperation",
@@ -87,7 +87,7 @@ class TypeConverterTest extends AgentTestRunner {
       null,
       NoopPathwayContext.INSTANCE,
       false,
-      DatadogTags.factory().empty()) {
+      PropagationTags.factory().empty()) {
         @Override void setServiceName(final String serviceName) {
           // override this method that is called from the DDSpanContext constructor
           // because it causes NPE when calls trace.getTracer from within setServiceName

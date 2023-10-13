@@ -1,6 +1,6 @@
 package datadog.trace.agent.test.base
 
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.naming.VersionedNamingTestBase
 import datadog.trace.agent.test.utils.OkHttpUtils
 import datadog.trace.agent.test.utils.PortUtils
 import net.bytebuddy.utility.JavaModule
@@ -8,18 +8,26 @@ import okhttp3.OkHttpClient
 import spock.lang.Shared
 import spock.lang.Subject
 
+import java.lang.management.ManagementFactory
+import java.lang.management.RuntimeMXBean
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
 
-abstract class WithHttpServer<SERVER> extends AgentTestRunner {
+abstract class WithHttpServer<SERVER> extends VersionedNamingTestBase {
 
   @Shared
   @Subject
-  HttpServer server = server()
+  HttpServer server
+
+  @Lazy
+  private static int timeoutValue = debugging ? 1500 : 15
+
   @Shared
-  OkHttpClient client = OkHttpUtils.client(15, 15, TimeUnit.SECONDS)
+  OkHttpClient client = OkHttpUtils.client(timeoutValue, timeoutValue, TimeUnit.SECONDS)
+
   @Shared
   URI address = null
+
 
   HttpServer server() {
     return new DefaultHttpServer()
@@ -55,7 +63,8 @@ abstract class WithHttpServer<SERVER> extends AgentTestRunner {
     }
   }
 
-  def setupSpec() {
+  void setupSpec() {
+    server = server()
     server.start()
     address = server.address()
     assert address.port > 0
@@ -63,7 +72,7 @@ abstract class WithHttpServer<SERVER> extends AgentTestRunner {
     println "$server started at: $address"
   }
 
-  def cleanupSpec() {
+  void cleanupSpec() {
     server.stop()
     println "$server stopped at: $address"
   }
@@ -89,5 +98,16 @@ abstract class WithHttpServer<SERVER> extends AgentTestRunner {
 
   void stopServer(SERVER server) {
     throw new UnsupportedOperationException()
+  }
+
+  private static boolean isDebugging() {
+    RuntimeMXBean runtimeMXBean = ManagementFactory.runtimeMXBean
+    List<String> inputArguments = runtimeMXBean.inputArguments
+    for (String arg : inputArguments) {
+      if (arg.contains("-agentlib:jdwp")) {
+        return true
+      }
+    }
+    false
   }
 }

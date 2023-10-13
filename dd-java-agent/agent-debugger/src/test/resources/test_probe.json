@@ -9,7 +9,7 @@
     "packagePrefixes": ["java.security", "sun.security"],
     "classes": []
   },
-  "snapshotProbes": [{
+  "logProbes": [{
     "id": "123356536",
     "language": "java",
     "created": 1606407800.445507000,

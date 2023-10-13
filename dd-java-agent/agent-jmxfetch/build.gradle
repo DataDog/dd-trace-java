@@ -1,0 +1,105 @@
+import java.nio.file.Files
+import java.nio.file.attribute.BasicFileAttributes
+import java.util.stream.Collectors
+
+import static java.nio.file.StandardCopyOption.REPLACE_EXISTING
+import static java.nio.file.StandardOpenOption.CREATE
+
+plugins {
+  id "com.github.johnrengelman.shadow"
+}
+apply from: "$rootDir/gradle/java.gradle"
+
+dependencies {
+  api('com.datadoghq:jmxfetch:0.47.10') {
+    exclude group: 'org.slf4j', module: 'slf4j-api'
+    exclude group: 'org.slf4j', module: 'slf4j-jdk14'
+    exclude group: 'com.beust', module: 'jcommander'
+    exclude group: 'com.fasterxml.jackson.core', module: 'jackson-core'
+    exclude group: 'com.fasterxml.jackson.jr', module: 'jackson-jr-objects'
+  }
+  api deps.slf4j
+  api project(':internal-api')
+}
+
+shadowJar {
+  dependencies deps.excludeShared
+}
+
+tasks.register("submodulesUpdate", Exec) {
+  group 'Build Setup'
+  description 'Initializes and updates integrations-core git submodule'
+  commandLine 'git', 'submodule', 'update', '--init', 'integrations-core'
+  def submoduleHead = file("${project.rootDir}/.git/modules/dd-java-agent/agent-jmxfetch/integrations-core/HEAD")
+  if (submoduleHead.exists()) {
+    inputs.file "${project.rootDir}/.git/modules/dd-java-agent/agent-jmxfetch/integrations-core/HEAD"
+  }
+  def integrationsCore = file("$projectDir/integrations-core")
+  outputs.dir integrationsCore
+  if (integrationsCore.list().length == 0) {
+    outputs.upToDateWhen { false }
+  }
+}
+
+abstract class CopyMetricConfigsTask extends DefaultTask {
+  def static final METRICS_FILENAME = 'metrics.yaml'
+  def static final REPORT_LOCATION = 'datadog/trace/agent/jmxfetch/metricconfigs'
+  def static final REPORT_FILENAME = 'metricconfigs.txt'
+
+  @InputDirectory
+  File inputDirectory
+
+  @OutputDirectory
+  File outputDirectory
+
+  @TaskAction
+  def copyMetricConfig() {
+    def configDirectoryPath = createConfigDirectory()
+    def configPaths = Files.find(this.inputDirectory.toPath(), 10, this::checkMetricsFile)
+    .map(p -> copyMetricsFile(configDirectoryPath, p))
+    .collect(Collectors.toList())
+    saveConfig(configDirectoryPath.parent, configPaths)
+  }
+
+  def createConfigDirectory() {
+    def configDirectoryPath = this.outputDirectory.toPath().resolve(REPORT_LOCATION)
+    if (!Files.isDirectory(configDirectoryPath)) {
+      Files.createDirectories(configDirectoryPath)
+    }
+    return configDirectoryPath
+  }
+
+  static def saveConfig(java.nio.file.Path reportDirectory, List < String > configPaths) {
+    def reportPath = reportDirectory.resolve(REPORT_FILENAME)
+    Files.write(reportPath, configPaths, CREATE)
+  }
+
+  static def checkMetricsFile(java.nio.file.Path path, BasicFileAttributes attributes) {
+    if (METRICS_FILENAME != path.fileName.toString()) {
+      return false
+    }
+    if (!Files.lines(path).anyMatch(s -> s.contains('jmx_metrics:'))) {
+      return false
+    }
+    return true
+  }
+
+  static def copyMetricsFile(java.nio.file.Path configDirectoryPath, java.nio.file.Path configPath) {
+    def outputFilename = configPath.parent.parent.fileName.toString() + '.yaml'
+    Files.copy(configPath, configDirectoryPath.resolve(outputFilename), REPLACE_EXISTING)
+    return outputFilename
+  }
+}
+
+tasks.register('copyMetricConfigs', CopyMetricConfigsTask) {
+  group 'Build Setup'
+  description 'Copy metrics.yaml files from integrations-core into resources'
+  inputDirectory = file("$projectDir/integrations-core")
+  outputDirectory = file("$buildDir/integrations-core-resources")
+  dependsOn 'submodulesUpdate'
+}
+
+processResources {
+  dependsOn 'copyMetricConfigs'
+  from("$buildDir/integrations-core-resources")
+}

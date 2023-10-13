@@ -8,9 +8,6 @@ import com.mongodb.event.CommandFailedEvent
 import com.mongodb.event.CommandListener
 import com.mongodb.event.CommandStartedEvent
 import com.mongodb.event.CommandSucceededEvent
-import datadog.trace.agent.test.asserts.TraceAssert
-import datadog.trace.api.DDSpanTypes
-import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.core.DDSpan
 import org.bson.BsonDocument
 import org.bson.BsonString
@@ -22,7 +19,7 @@ import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_INSTANCE
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 
-class MongoJava34ClientTest extends MongoBaseTest {
+abstract class MongoJava34ClientTest extends MongoBaseTest {
 
   @Shared
   MongoClient client
@@ -246,29 +243,50 @@ class MongoJava34ClientTest extends MongoBaseTest {
     where:
     collectionName = randomCollectionName()
   }
+}
 
-  def mongoSpan(TraceAssert trace, int index, String operation, String statement, boolean renameService = false, String instance = "some-description", Object parentSpan = null, Throwable exception = null) {
-    trace.span {
-      serviceName renameService ? instance : "mongo"
-      operationName "mongo.query"
-      resourceName matchesStatement(statement)
-      spanType DDSpanTypes.MONGO
-      if (parentSpan == null) {
-        parent()
-      } else {
-        childOf((DDSpan) parentSpan)
-      }
-      topLevel true
-      tags {
-        "$Tags.COMPONENT" "java-mongo"
-        "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
-        "$Tags.PEER_HOSTNAME" "localhost"
-        "$Tags.PEER_PORT" port
-        "$Tags.DB_TYPE" "mongo"
-        "$Tags.DB_INSTANCE" instance
-        "$Tags.DB_OPERATION" operation
-        defaultTags()
-      }
-    }
+class MongoJava34ClientV0Test extends MongoJava34ClientTest {
+
+  @Override
+  int version() {
+    return 0
+  }
+
+  @Override
+  String service() {
+    return V0_SERVICE
+  }
+
+  @Override
+  String operation() {
+    return V0_OPERATION
+  }
+
+  @Override
+  String dbType() {
+    return V0_DB_TYPE
+  }
+}
+
+class MongoJava34ClientV1ForkedTest extends MongoJava34ClientTest {
+
+  @Override
+  int version() {
+    return 1
+  }
+
+  @Override
+  String service() {
+    return V1_SERVICE
+  }
+
+  @Override
+  String operation() {
+    return V1_OPERATION
+  }
+
+  @Override
+  String dbType() {
+    return V1_DB_TYPE
   }
 }

@@ -1,8 +1,7 @@
 import datadog.trace.agent.test.AgentTestRunner
-import datadog.trace.agent.test.checkpoints.CheckpointValidator
-import datadog.trace.agent.test.checkpoints.CheckpointValidationMode
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
+import datadog.trace.test.util.Flaky
 import groovy.json.JsonSlurper
 import org.apache.http.HttpHost
 import org.apache.http.client.config.RequestConfig
@@ -17,10 +16,9 @@ import org.elasticsearch.http.HttpServerTransport
 import org.elasticsearch.node.InternalSettingsPreparer
 import org.elasticsearch.node.Node
 import org.elasticsearch.transport.Netty4Plugin
-import spock.lang.Retry
 import spock.lang.Shared
 
-@Retry(count = 3, delay = 1000, mode = Retry.Mode.SETUP_FEATURE_CLEANUP)
+@Flaky
 class Elasticsearch6RestClientTest extends AgentTestRunner {
   @Shared
   TransportAddress httpTransportAddress
@@ -69,9 +67,6 @@ class Elasticsearch6RestClientTest extends AgentTestRunner {
 
   def "test elasticsearch status"() {
     setup:
-    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
-      CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.THREAD_SEQUENCE)
 
     Response response = client.performRequest("GET", "_cluster/health")
 
@@ -101,14 +96,16 @@ class Elasticsearch6RestClientTest extends AgentTestRunner {
         }
         span {
           serviceName "elasticsearch"
-          resourceName "GET _cluster/health"
+          resourceName "GET /_cluster/health"
           operationName "http.request"
           spanType DDSpanTypes.HTTP_CLIENT
           childOf span(0)
           tags {
             "$Tags.COMPONENT" "apache-httpasyncclient"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
-            "$Tags.HTTP_URL" "_cluster/health"
+            "$Tags.PEER_HOSTNAME" httpTransportAddress.address
+            "$Tags.PEER_PORT" httpTransportAddress.port
+            "$Tags.HTTP_URL" "http://${httpTransportAddress.address}:${httpTransportAddress.port}/_cluster/health"
             "$Tags.HTTP_METHOD" "GET"
             "$Tags.HTTP_STATUS" 200
             defaultTags()

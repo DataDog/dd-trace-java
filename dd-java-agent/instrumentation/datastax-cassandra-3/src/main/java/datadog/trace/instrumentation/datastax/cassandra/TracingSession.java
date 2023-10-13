@@ -3,8 +3,8 @@ package datadog.trace.instrumentation.datastax.cassandra;
 import static com.google.common.util.concurrent.MoreExecutors.directExecutor;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
-import static datadog.trace.instrumentation.datastax.cassandra.CassandraClientDecorator.CASSANDRA_EXECUTE;
 import static datadog.trace.instrumentation.datastax.cassandra.CassandraClientDecorator.DECORATE;
+import static datadog.trace.instrumentation.datastax.cassandra.CassandraClientDecorator.OPERATION_NAME;
 import static datadog.trace.util.AgentThreadFactory.AgentThread.TRACE_CASSANDRA_ASYNC_SESSION;
 
 import com.datastax.driver.core.BoundStatement;
@@ -21,21 +21,41 @@ import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import datadog.trace.util.AgentThreadFactory;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import javax.annotation.Nullable;
 
 public class TracingSession implements Session {
+  public static class SessionTransfomer implements Function<Session, Session> {
+    private final String contactPoints;
+
+    public SessionTransfomer(String contactPoints) {
+      this.contactPoints = contactPoints;
+    }
+
+    @Nullable
+    @Override
+    public Session apply(@Nullable Session s) {
+      if (s == null) {
+        return null;
+      }
+      return new TracingSession(s, contactPoints);
+    }
+  }
 
   private static final ExecutorService EXECUTOR_SERVICE =
       Executors.newCachedThreadPool(new AgentThreadFactory(TRACE_CASSANDRA_ASYNC_SESSION));
 
   private final Session session;
+  private final String contactPoints;
 
-  public TracingSession(final Session session) {
+  public TracingSession(final Session session, final String contactPoints) {
     this.session = session;
+    this.contactPoints = contactPoints;
   }
 
   @Override
@@ -45,20 +65,13 @@ public class TracingSession implements Session {
 
   @Override
   public Session init() {
-    return new TracingSession(session.init());
+    return new TracingSession(session.init(), contactPoints);
   }
 
   @Override
   public ListenableFuture<Session> initAsync() {
     return Futures.transform(
-        session.initAsync(),
-        new Function<Session, Session>() {
-          @Override
-          public Session apply(final Session session) {
-            return new TracingSession(session);
-          }
-        },
-        directExecutor());
+        session.initAsync(), new SessionTransfomer(contactPoints), directExecutor());
   }
 
   @Override
@@ -239,10 +252,11 @@ public class TracingSession implements Session {
   }
 
   private AgentScope startSpanWithScope(final String query) {
-    final AgentSpan span = startSpan(CASSANDRA_EXECUTE);
+    final AgentSpan span = startSpan(OPERATION_NAME);
     DECORATE.afterStart(span);
     DECORATE.onConnection(span, session);
     DECORATE.onStatement(span, query);
+    span.setTag(InstrumentationTags.CASSANDRA_CONTACT_POINTS, contactPoints);
     return activateSpan(span);
   }
 

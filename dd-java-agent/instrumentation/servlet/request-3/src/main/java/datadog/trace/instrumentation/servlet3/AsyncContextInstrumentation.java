@@ -33,6 +33,11 @@ public final class AsyncContextInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
+  public String muzzleDirective() {
+    return "servlet-3.x";
+  }
+
+  @Override
   public String hierarchyMarkerType() {
     return "javax.servlet.AsyncContext";
   }
@@ -44,7 +49,15 @@ public final class AsyncContextInstrumentation extends Instrumenter.Tracing
 
   @Override
   public String[] helperClassNames() {
-    return new String[] {packageName + ".AsyncDispatcherDecorator"};
+    return new String[] {
+      packageName + ".AsyncDispatcherDecorator",
+      packageName + ".FinishAsyncDispatchListener",
+      packageName + ".HttpServletExtractAdapter",
+      packageName + ".HttpServletExtractAdapter$Request",
+      packageName + ".HttpServletExtractAdapter$Response",
+      packageName + ".Servlet3Decorator",
+      packageName + ".ServletRequestURIAdapter",
+    };
   }
 
   @Override
@@ -57,7 +70,7 @@ public final class AsyncContextInstrumentation extends Instrumenter.Tracing
   /**
    * When a request is dispatched, we want new request to have propagation headers from its parent
    * request. The parent request's span is later closed by {@code
-   * TagSettingAsyncListener#onStartAsync}
+   * FinishAsyncDispatchListener#onStartAsync}
    */
   public static class DispatchAdvice {
 
@@ -76,21 +89,27 @@ public final class AsyncContextInstrumentation extends Instrumenter.Tracing
 
         final AgentSpan span = startSpan(SERVLET_DISPATCH, parent.context());
         // This span should get finished by Servlet3Advice
+        // However, when using Jetty without servlets (directly org.eclipse.jetty.server.Handler),
+        // that's not the case (see jetty's HandleAdvice)
         DECORATE.afterStart(span);
 
         // These are pulled from attributes because jetty clears them from the request too early.
         span.setTag(SERVLET_CONTEXT, request.getAttribute(DD_CONTEXT_PATH_ATTRIBUTE));
         span.setTag(SERVLET_PATH, request.getAttribute(DD_SERVLET_PATH_ATTRIBUTE));
 
-        request.setAttribute(DD_DISPATCH_SPAN_ATTRIBUTE, span);
+        synchronized (request) {
+          request.setAttribute(DD_DISPATCH_SPAN_ATTRIBUTE, span);
+        }
 
         if (args.length == 1 && args[0] instanceof String) {
           span.setResourceName((String) args[0]);
         } else if (args.length == 2 && args[1] instanceof String) {
           span.setResourceName((String) args[1]);
         }
-        // request may be processed on any thread; signal thread migration
-        span.startThreadMigration();
+
+        // We can't register FinishAsyncDispatchListener here.
+        // The dispatch may happen on an onTimeout/onError, and adding listeners
+        // when listeners are being iterated on causes a ConcurrentModificationException on jetty
       }
       return true;
     }

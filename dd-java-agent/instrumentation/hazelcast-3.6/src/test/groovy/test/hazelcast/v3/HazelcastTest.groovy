@@ -1,12 +1,21 @@
 package test.hazelcast.v3
 
+import com.hazelcast.client.HazelcastClient
+import com.hazelcast.client.config.ClientConfig
+import com.hazelcast.config.Config
+import com.hazelcast.core.Hazelcast
+import com.hazelcast.core.HazelcastInstance
 import com.hazelcast.core.Message
 import com.hazelcast.core.MessageListener
 import com.hazelcast.query.Predicates
+import datadog.trace.agent.test.asserts.ListWriterAssert
+import datadog.trace.agent.test.asserts.TraceAssert
+import datadog.trace.agent.test.naming.VersionedNamingTestBase
+import datadog.trace.agent.test.utils.PortUtils
 import datadog.trace.api.DDSpanTypes
-import datadog.trace.agent.test.checkpoints.CheckpointValidator
-import datadog.trace.agent.test.checkpoints.CheckpointValidationMode
 import datadog.trace.bootstrap.instrumentation.api.Tags
+import net.bytebuddy.utility.RandomString
+import spock.lang.Shared
 import spock.util.concurrent.BlockingVariable
 
 import java.util.concurrent.TimeUnit
@@ -14,13 +23,65 @@ import java.util.concurrent.TimeUnit
 import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 
-class HazelcastTest extends AbstractHazelcastTest {
+abstract class HazelcastTest extends VersionedNamingTestBase {
+
+  @Shared
+  HazelcastInstance h1, client
+  @Shared
+  String randomName
+
+  final resourceNamePattern = ~/^(?<name>(?<service>\w+)\[[^]]+])\.(?<operation>\w+)$/
+
+  @Override
+  protected void configurePreAgent() {
+    super.configurePreAgent()
+
+    injectSysConfig("dd.integration.hazelcast_legacy.enabled", "true")
+  }
+
+  @Override
+  def setupSpec() {
+    def port = PortUtils.randomOpenPort()
+    def groupName = RandomString.make(8)
+    def groupPassword = RandomString.make(8)
+
+    def serverConfig = new Config()
+    serverConfig.groupConfig.name = groupName
+    serverConfig.groupConfig.password = groupPassword
+
+    serverConfig.networkConfig.port = port
+    serverConfig.networkConfig.portAutoIncrement = false
+    serverConfig.networkConfig.join.multicastConfig.enabled = false
+    configureServer(serverConfig)
+
+    h1 = Hazelcast.newHazelcastInstance(serverConfig)
+
+    def clientConfig = new ClientConfig()
+    clientConfig.groupConfig.name = groupName
+    clientConfig.groupConfig.password = groupPassword
+    clientConfig.networkConfig.addAddress("127.0.0.1:$port")
+    client = HazelcastClient.newHazelcastClient(clientConfig)
+  }
+
+  @Override
+  def cleanupSpec() {
+    try {
+      Hazelcast.shutdownAll()
+    } catch (Exception e) {
+      e.printStackTrace()
+    }
+  }
+
+  void configureServer(Config config) {
+  }
+
+  def setup() {
+    randomName = randomResourceName()
+  }
+
 
   def "map"() {
     setup:
-    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
-      CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.THREAD_SEQUENCE)
 
     when:
     def serverMap = h1.getMap("test")
@@ -39,9 +100,6 @@ class HazelcastTest extends AbstractHazelcastTest {
 
   def "map predicate"() {
     setup:
-    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
-      CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.THREAD_SEQUENCE)
 
     when:
     def serverMap = h1.getMap("test")
@@ -60,9 +118,6 @@ class HazelcastTest extends AbstractHazelcastTest {
 
   def "map async"() {
     setup:
-    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
-      CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.THREAD_SEQUENCE)
 
     when:
     def serverMap = h1.getMap("test")
@@ -89,9 +144,6 @@ class HazelcastTest extends AbstractHazelcastTest {
 
   def "multimap"() {
     setup:
-    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
-      CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.THREAD_SEQUENCE)
 
     when:
     def serverMultiMap = h1.getMultiMap("test")
@@ -112,9 +164,6 @@ class HazelcastTest extends AbstractHazelcastTest {
 
   def "queue"() {
     setup:
-    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
-      CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.THREAD_SEQUENCE)
 
     when:
     def serverQueue = h1.getQueue("test")
@@ -138,9 +187,6 @@ class HazelcastTest extends AbstractHazelcastTest {
 
   def "topic"() {
     given:
-    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
-      CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.THREAD_SEQUENCE)
 
     def serverTopic = h1.getTopic("test")
 
@@ -172,9 +218,6 @@ class HazelcastTest extends AbstractHazelcastTest {
 
   def "set"() {
     setup:
-    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
-      CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.THREAD_SEQUENCE)
 
     when:
     def serverSet = h1.getSet("test")
@@ -194,9 +237,6 @@ class HazelcastTest extends AbstractHazelcastTest {
 
   def "list"() {
     setup:
-    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
-      CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.THREAD_SEQUENCE)
 
     when:
     def serverList = h1.getList("test")
@@ -216,9 +256,6 @@ class HazelcastTest extends AbstractHazelcastTest {
 
   def "lock"() {
     setup:
-    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
-      CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.THREAD_SEQUENCE)
 
     when:
     def serverLock = h1.getLock("test")
@@ -241,9 +278,6 @@ class HazelcastTest extends AbstractHazelcastTest {
 
   def "list error"() {
     setup:
-    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
-      CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.THREAD_SEQUENCE)
 
     when:
     def serverList = h1.getList(randomName)
@@ -257,8 +291,8 @@ class HazelcastTest extends AbstractHazelcastTest {
     assertTraces(1) {
       trace(1) {
         span {
-          serviceName "hazelcast-sdk"
-          operationName "hazelcast.invoke"
+          serviceName service()
+          operationName operation()
           resourceName "list[${randomName}].get"
           parent()
           spanType DDSpanTypes.HTTP_CLIENT
@@ -276,5 +310,80 @@ class HazelcastTest extends AbstractHazelcastTest {
         }
       }
     }
+  }
+
+  void hazelcastTrace(ListWriterAssert writer, String name) {
+    writer.trace(1) {
+      hazelcastSpan(it, name)
+    }
+  }
+
+  def hazelcastSpan(TraceAssert trace, String name, boolean isParent = true) {
+    def matcher = name =~ resourceNamePattern
+    assert matcher.matches()
+
+    trace.span {
+      serviceName service()
+      resourceName name
+      operationName operation()
+      spanType DDSpanTypes.HTTP_CLIENT
+      errored false
+      measured true
+      if (isParent) {
+        parent()
+      } else {
+        childOfPrevious()
+      }
+      tags {
+        "$Tags.COMPONENT" "hazelcast-sdk"
+        "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
+        "hazelcast.name" matcher.group("name")
+        "hazelcast.operation" matcher.group("operation")
+        "hazelcast.service" "hz:impl:${matcher.group("service")}Service"
+        "hazelcast.instance" client.name
+        peerServiceFrom("hazelcast.instance")
+        defaultTags()
+      }
+    }
+  }
+
+  def randomResourceName(int length = 8) {
+    RandomString.make(length)
+  }
+}
+
+class HazelcastV0ForkedTest extends HazelcastTest {
+
+  @Override
+  int version() {
+    return 0
+  }
+
+  @Override
+  String service() {
+    return "hazelcast-sdk"
+  }
+
+  @Override
+  String operation() {
+    return "hazelcast.invoke"
+  }
+}
+
+class HazelcastV1ForkedTest extends HazelcastTest {
+
+  @Override
+  int version() {
+    return 1
+  }
+
+  @Override
+  String service() {
+    return datadog.trace.api.Config.get().getServiceName()
+  }
+
+  @Override
+  String operation() {
+    return "hazelcast.command"
   }
 }

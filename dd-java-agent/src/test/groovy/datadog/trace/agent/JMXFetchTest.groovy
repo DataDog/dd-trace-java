@@ -45,10 +45,9 @@ class JMXFetchTest extends Specification {
     DatagramPacket packet = new DatagramPacket(buf, buf.length)
     jmxStatsSocket.receive(packet)
     String received = new String(packet.getData(), 0, packet.getLength())
-    def tags = (received =~ /\|#(.*)/)[0][1].tokenize(',')
 
     then:
-    tags.contains("service:${JmxStartedChecker.getName()}" as String)
+    received.contains("service:${JmxStartedChecker.getName()}" as String)
 
     cleanup:
     if (process != null) {

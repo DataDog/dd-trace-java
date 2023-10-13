@@ -1,0 +1,21 @@
+muzzle {
+  pass {
+    group = "com.google.http-client"
+    module = "google-http-client"
+
+    // 1.19.0 is the first release.  The versions before are betas and RCs
+    versions = "[1.19.0,)"
+  }
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+
+addTestSuiteForDir('latestDepTest', 'test')
+
+dependencies {
+  compileOnly group: 'com.google.http-client', name: 'google-http-client', version: '1.19.0'
+
+  testImplementation group: 'com.google.http-client', name: 'google-http-client', version: '1.19.0'
+
+  latestDepTestImplementation group: 'com.google.http-client', name: 'google-http-client', version: '+'
+}

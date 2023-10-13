@@ -3,12 +3,14 @@ import com.datastax.oss.driver.api.core.config.DefaultDriverOption
 import com.datastax.oss.driver.api.core.config.DriverConfigLoader
 import com.datastax.oss.driver.api.core.servererrors.SyntaxError
 import com.datastax.oss.driver.api.core.session.Session
-import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.agent.test.asserts.TraceAssert
+import datadog.trace.agent.test.naming.VersionedNamingTestBase
+import datadog.trace.api.Config
 import datadog.trace.api.DDSpanTypes
+import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.core.DDSpan
-import org.cassandraunit.utils.EmbeddedCassandraServerHelper
+import org.testcontainers.containers.CassandraContainer
 import spock.lang.Shared
 import spock.util.concurrent.BlockingVariable
 
@@ -21,7 +23,7 @@ import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_INSTANCE
 
-class CassandraClientTest extends AgentTestRunner {
+abstract class CassandraClientTest extends VersionedNamingTestBase {
   private static final int TIMEOUT = 30
 
   @Override
@@ -36,17 +38,14 @@ class CassandraClientTest extends AgentTestRunner {
   @Shared
   InetSocketAddress address
 
-  def setupSpec() {
-    /*
-     This timeout seems excessive but we've seen tests fail with timeout of 40s.
-     TODO: if we continue to see failures we may want to consider using 'real' Cassandra
-     started in container like we do for memcached. Note: this will complicate things because
-     tests would have to assume they run under shared Cassandra and act accordingly.
-     */
-    EmbeddedCassandraServerHelper.startEmbeddedCassandra(EmbeddedCassandraServerHelper.CASSANDRA_RNDPORT_YML_FILE, 120000L)
+  @Shared
+  CassandraContainer container
 
-    port = EmbeddedCassandraServerHelper.getNativeTransportPort()
-    address = new InetSocketAddress(EmbeddedCassandraServerHelper.getHost(), port)
+  def setupSpec() {
+    container = new CassandraContainer("cassandra:4").withStartupTimeout(Duration.ofSeconds(120))
+    container.start()
+    port = container.getMappedPort(9042)
+    address = new InetSocketAddress("127.0.0.1", port)
 
     runUnderTrace("setup") {
       Session session = sessionBuilder().build()
@@ -60,7 +59,7 @@ class CassandraClientTest extends AgentTestRunner {
   }
 
   def cleanupSpec() {
-    EmbeddedCassandraServerHelper.cleanEmbeddedCassandra()
+    container?.stop()
   }
 
   def "test sync"() {
@@ -213,8 +212,8 @@ class CassandraClientTest extends AgentTestRunner {
 
   def cassandraSpan(TraceAssert trace, String statement, String keyspace, boolean renameService, Object parentSpan = null, Throwable throwable = null) {
     trace.span {
-      serviceName renameService && keyspace ? keyspace : "cassandra"
-      operationName "cassandra.query"
+      serviceName renameService && keyspace ? keyspace : service()
+      operationName operation()
       resourceName statement
       spanType DDSpanTypes.CASSANDRA
       if (parentSpan == null) {
@@ -231,12 +230,50 @@ class CassandraClientTest extends AgentTestRunner {
         "$Tags.PEER_PORT" port
         "$Tags.DB_TYPE" "cassandra"
         "$Tags.DB_INSTANCE" keyspace
+        "$InstrumentationTags.CASSANDRA_CONTACT_POINTS"  "127.0.0.1:${port}"
 
         if (throwable != null) {
           errorTags(throwable)
         }
+        peerServiceFrom(InstrumentationTags.CASSANDRA_CONTACT_POINTS)
         defaultTags()
       }
     }
+  }
+}
+
+class CassandraClientV0Test extends CassandraClientTest {
+
+  @Override
+  int version() {
+    return 0
+  }
+
+  @Override
+  String service() {
+    return "cassandra"
+  }
+
+  @Override
+  String operation() {
+    return "cassandra.query"
+  }
+}
+
+class CassandraClientV1ForkedTest extends CassandraClientTest {
+
+  @Override
+  int version() {
+    return 1
+  }
+
+  @Override
+  String service() {
+    return Config.get().getServiceName()
+  }
+
+  @Override
+  String operation() {
+    return "cassandra.query"
   }
 }

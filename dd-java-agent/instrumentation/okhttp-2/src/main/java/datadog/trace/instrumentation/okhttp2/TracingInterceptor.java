@@ -12,6 +12,7 @@ import com.squareup.okhttp.Request;
 import com.squareup.okhttp.Response;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator;
 import java.io.IOException;
 
 public class TracingInterceptor implements Interceptor {
@@ -26,6 +27,9 @@ public class TracingInterceptor implements Interceptor {
 
       final Request.Builder requestBuilder = chain.request().newBuilder();
       propagate().inject(span, requestBuilder, SETTER);
+      propagate()
+          .injectPathwayContext(
+              span, requestBuilder, SETTER, HttpClientDecorator.CLIENT_PATHWAY_EDGE_TAGS);
 
       final Response response;
       try {

@@ -1,6 +1,6 @@
 package datadog.trace.agent.tooling.bytebuddy.matcher;
 
-import datadog.trace.api.Config;
+import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.util.ClassNameTrie;
 import java.nio.file.Paths;
 import java.util.List;
@@ -16,7 +16,7 @@ public class CustomExcludes {
   private static final ClassNameTrie excludes;
 
   static {
-    List<String> excludedClasses = Config.get().getExcludedClasses();
+    List<String> excludedClasses = InstrumenterConfig.get().getExcludedClasses();
     if (excludedClasses.isEmpty()) {
       excludes = null;
     } else {
@@ -24,7 +24,7 @@ public class CustomExcludes {
       for (String name : excludedClasses) {
         builder.put(name, 1);
       }
-      String excludedClassesFile = Config.get().getExcludedClassesFile();
+      String excludedClassesFile = InstrumenterConfig.get().getExcludedClassesFile();
       if (null != excludedClassesFile) {
         try {
           builder.readClassNameMapping(Paths.get(excludedClassesFile));

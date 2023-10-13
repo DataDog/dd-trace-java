@@ -15,6 +15,7 @@ public class DDSpanTypes {
   public static final String REDIS = "redis";
   public static final String MEMCACHED = "memcached";
   public static final String ELASTICSEARCH = "elasticsearch";
+  public static final String OPENSEARCH = "opensearch";
   public static final String HIBERNATE = "hibernate";
   public static final String AEROSPIKE = "aerospike";
   public static final String DATANUCLEUS = "datanucleus";
@@ -27,4 +28,9 @@ public class DDSpanTypes {
   public static final String GRAPHQL = "graphql";
 
   public static final String TEST = "test";
+  public static final String TEST_SUITE_END = "test_suite_end";
+  public static final String TEST_MODULE_END = "test_module_end";
+  public static final String TEST_SESSION_END = "test_session_end";
+
+  public static final String VULNERABILITY = "vulnerability";
 }

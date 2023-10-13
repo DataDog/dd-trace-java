@@ -2,11 +2,7 @@ package datadog.trace.plugin.csi;
 
 import datadog.trace.plugin.csi.ValidationContext.BaseValidationContext;
 import datadog.trace.plugin.csi.impl.CallSiteSpecification;
-import datadog.trace.plugin.csi.impl.CallSiteSpecification.AdviceSpecification;
 import java.io.File;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.stream.Stream;
 import javax.annotation.Nonnull;
 
 /**
@@ -21,42 +17,15 @@ public interface AdviceGenerator {
   final class CallSiteResult extends BaseValidationContext {
 
     private final CallSiteSpecification specification;
-    private final List<AdviceResult> advices = new ArrayList<>();
 
-    public CallSiteResult(@Nonnull final CallSiteSpecification specification) {
-      this.specification = specification;
-    }
-
-    @Override
-    public boolean isSuccess() {
-      return super.isSuccess() && getAdvices().allMatch(AdviceResult::isSuccess);
-    }
-
-    public Stream<AdviceResult> getAdvices() {
-      return advices.stream();
-    }
-
-    public void addAdvice(final AdviceResult advice) {
-      this.advices.add(advice);
-    }
-
-    public CallSiteSpecification getSpecification() {
-      return specification;
-    }
-  }
-
-  final class AdviceResult extends BaseValidationContext {
-
-    private final AdviceSpecification specification;
     private final File file;
 
-    public AdviceResult(
-        @Nonnull final AdviceSpecification specification, @Nonnull final File file) {
+    public CallSiteResult(@Nonnull final CallSiteSpecification specification, final File file) {
       this.specification = specification;
       this.file = file;
     }
 
-    public AdviceSpecification getSpecification() {
+    public CallSiteSpecification getSpecification() {
       return specification;
     }
 

@@ -14,14 +14,7 @@ import net.bytebuddy.agent.builder.ResettableClassFileTransformer;
  */
 public final class DDClassFileTransformer extends ResettableClassFileTransformer.WithDelegation {
 
-  public static final TransformerDecorator DECORATOR =
-      new TransformerDecorator() {
-        @Override
-        public ResettableClassFileTransformer decorate(
-            final ResettableClassFileTransformer classFileTransformer) {
-          return new DDClassFileTransformer(classFileTransformer);
-        }
-      };
+  public static final TransformerDecorator DECORATOR = DDClassFileTransformer::new;
 
   public DDClassFileTransformer(final ResettableClassFileTransformer classFileTransformer) {
     super(classFileTransformer);

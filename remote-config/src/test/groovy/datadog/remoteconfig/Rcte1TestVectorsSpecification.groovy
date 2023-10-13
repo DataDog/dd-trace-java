@@ -76,7 +76,7 @@ class Rcte1TestVectorsSpecification extends DDSpecification {
     poller.addListener(
       Product.ASM_DD,
       { SLURPER.parse(it) } as ConfigurationDeserializer<Map>,
-      { String cfgKey, Map map, ConfigurationChangesListener.PollingRateHinter hinter -> savedConfig = map } as ConfigurationChangesListener<Map>
+      { String cfgKey, Map map, ConfigurationChangesListener.PollingRateHinter hinter -> savedConfig = map } as ConfigurationChangesTypedListener<Map>
       )
 
     when:
@@ -100,7 +100,7 @@ class Rcte1TestVectorsSpecification extends DDSpecification {
     poller.addListener(
       Product.ASM_DD,
       { assert false, 'should never be called' } as ConfigurationDeserializer<Map>,
-      { Object[] args -> } as ConfigurationChangesListener<Map>
+      { Object[] args -> } as ConfigurationChangesTypedListener<Map>
       )
 
     when:

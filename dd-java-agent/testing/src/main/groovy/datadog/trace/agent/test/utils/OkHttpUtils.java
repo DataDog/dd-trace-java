@@ -3,7 +3,9 @@ package datadog.trace.agent.test.utils;
 import datadog.trace.agent.test.server.http.TestHttpServer;
 import java.net.ProxySelector;
 import java.util.concurrent.TimeUnit;
+import okhttp3.Interceptor;
 import okhttp3.OkHttpClient;
+import okhttp3.Request;
 import okhttp3.logging.HttpLoggingInterceptor;
 import okhttp3.logging.HttpLoggingInterceptor.Level;
 import org.slf4j.Logger;
@@ -22,21 +24,25 @@ public class OkHttpUtils {
   }
 
   private static final HttpLoggingInterceptor LOGGING_INTERCEPTOR =
-      new HttpLoggingInterceptor(
-          new HttpLoggingInterceptor.Logger() {
-            @Override
-            public void log(final String message) {
-              CLIENT_LOGGER.debug(message);
-            }
-          });
+      new HttpLoggingInterceptor(CLIENT_LOGGER::debug);
+
+  private static final Interceptor EXPECT_CONTINUE_INTERCEPTOR =
+      chain -> {
+        final Request.Builder builder = chain.request().newBuilder();
+        if (chain.request().body() != null) {
+          builder.addHeader("Expect", "100-continue");
+        }
+        return chain.proceed(builder.build());
+      };
 
   static {
     LOGGING_INTERCEPTOR.setLevel(Level.BASIC);
   }
 
-  static OkHttpClient.Builder clientBuilder() {
+  public static OkHttpClient.Builder clientBuilder() {
     final TimeUnit unit = TimeUnit.MINUTES;
     return new OkHttpClient.Builder()
+        .addInterceptor(EXPECT_CONTINUE_INTERCEPTOR)
         .addInterceptor(LOGGING_INTERCEPTOR)
         .connectTimeout(1, unit)
         .writeTimeout(1, unit)

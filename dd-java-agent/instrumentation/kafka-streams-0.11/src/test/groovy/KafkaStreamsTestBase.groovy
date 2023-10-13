@@ -1,7 +1,5 @@
-import datadog.trace.agent.test.AgentTestRunner
-import datadog.trace.agent.test.checkpoints.CheckpointValidationMode
-import datadog.trace.agent.test.checkpoints.CheckpointValidator
-import datadog.trace.api.Platform
+import datadog.trace.agent.test.naming.VersionedNamingTestBase
+import datadog.trace.api.DDTags
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.core.datastreams.StatsGroup
@@ -28,15 +26,13 @@ import spock.lang.Shared
 import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.TimeUnit
 
-abstract class KafkaStreamsTestBase extends AgentTestRunner {
+abstract class KafkaStreamsTestBase extends VersionedNamingTestBase {
   static final STREAM_PENDING = "test.pending"
   static final STREAM_PROCESSED = "test.processed"
 
   @Shared
   @ClassRule
   KafkaEmbedded embeddedKafka = new KafkaEmbedded(1, true, 1, STREAM_PENDING, STREAM_PROCESSED)
-
-  abstract String expectedServiceName()
 
   abstract boolean hasQueueSpan()
 
@@ -47,10 +43,32 @@ abstract class KafkaStreamsTestBase extends AgentTestRunner {
     return true
   }
 
+  @Override
+  int version() {
+    0
+  }
+
+  @Override
+  String operation() {
+    return null
+  }
+
+  String operationForProducer() {
+    "kafka.produce"
+  }
+
+  String operationForConsumer() {
+    "kafka.consume"
+  }
+
+  String serviceForTimeInQueue() {
+    "kafka"
+  }
+
+
   @Ignore("Repeatedly fails with the wrong parent span https://github.com/DataDog/dd-trace-java/issues/3865")
   def "test kafka produce and consume with streams in-between"() {
     setup:
-    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(CheckpointValidationMode.INTERVALS)
     def config = new Properties()
     def senderProps = KafkaTestUtils.senderProps(embeddedKafka.getBrokersAsString())
     config.putAll(senderProps)
@@ -74,7 +92,7 @@ abstract class KafkaStreamsTestBase extends AgentTestRunner {
           // this is the last processing step so we should see 2 traces here
           TEST_WRITER.waitForTraces(2)
           TEST_TRACER.activeSpan().setTag("testing", 123)
-          if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled()) {
+          if (isDataStreamsEnabled()) {
             TEST_DATA_STREAMS_WRITER.waitForGroups(1)
           }
           records.add(record)
@@ -96,7 +114,7 @@ abstract class KafkaStreamsTestBase extends AgentTestRunner {
         String apply(String textLine) {
           TEST_WRITER.waitForTraces(1) // ensure consistent ordering of traces
           TEST_TRACER.activeSpan().setTag("asdf", "testing")
-          if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled()) {
+          if (isDataStreamsEnabled()) {
             TEST_DATA_STREAMS_WRITER.waitForGroups(1)
           }
           return textLine.toLowerCase()
@@ -129,8 +147,8 @@ abstract class KafkaStreamsTestBase extends AgentTestRunner {
         // PRODUCER span 0
         span {
           firstProducerSpan = it.span
-          serviceName expectedServiceName()
-          operationName "kafka.produce"
+          serviceName service()
+          operationName operationForProducer()
           resourceName "Produce Topic $STREAM_PENDING"
           spanType "queue"
           errored false
@@ -139,7 +157,10 @@ abstract class KafkaStreamsTestBase extends AgentTestRunner {
           tags {
             "$Tags.COMPONENT" "java-kafka"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_PRODUCER
-            defaultTags()
+            if ({ isDataStreamsEnabled() }){
+              "$DDTags.PATHWAY_HASH" { String }
+            }
+            defaultTagsNoPeerService()
           }
         }
       }
@@ -149,7 +170,7 @@ abstract class KafkaStreamsTestBase extends AgentTestRunner {
         if (hasQueueSpan) {
           span {
             firstQueueSpan = it.span
-            serviceName splitByDestination() ? "$STREAM_PENDING" : "kafka"
+            serviceName splitByDestination() ? "$STREAM_PENDING" : serviceForTimeInQueue()
             operationName "kafka.deliver"
             resourceName "$STREAM_PENDING"
             spanType "queue"
@@ -166,8 +187,8 @@ abstract class KafkaStreamsTestBase extends AgentTestRunner {
 
         // STREAMING span 0
         span {
-          serviceName expectedServiceName()
-          operationName "kafka.consume"
+          serviceName service()
+          operationName operationForConsumer()
           resourceName "Consume Topic $STREAM_PENDING"
           spanType "queue"
           errored false
@@ -181,6 +202,9 @@ abstract class KafkaStreamsTestBase extends AgentTestRunner {
             "$InstrumentationTags.OFFSET" 0
             "$InstrumentationTags.PROCESSOR_NAME" "KSTREAM-SOURCE-0000000000"
             "asdf" "testing"
+            if ({isDataStreamsEnabled()}) {
+              "$DDTags.PATHWAY_HASH" { String }
+            }
             defaultTags(!hasQueueSpan)
           }
         }
@@ -188,8 +212,8 @@ abstract class KafkaStreamsTestBase extends AgentTestRunner {
         // STREAMING span 1
         span {
           secondProducerSpan = it.span
-          serviceName expectedServiceName()
-          operationName "kafka.produce"
+          serviceName service()
+          operationName operationForProducer()
           resourceName "Produce Topic $STREAM_PROCESSED"
           spanType "queue"
           errored false
@@ -199,7 +223,10 @@ abstract class KafkaStreamsTestBase extends AgentTestRunner {
           tags {
             "$Tags.COMPONENT" "java-kafka"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_PRODUCER
-            defaultTags()
+            if ({isDataStreamsEnabled()}) {
+              "$DDTags.PATHWAY_HASH" { String }
+            }
+            defaultTagsNoPeerService()
           }
         }
       }
@@ -209,7 +236,7 @@ abstract class KafkaStreamsTestBase extends AgentTestRunner {
         if (hasQueueSpan) {
           span {
             secondQueueSpan = it.span
-            serviceName splitByDestination() ? "$STREAM_PROCESSED" : "kafka"
+            serviceName splitByDestination() ? "$STREAM_PROCESSED" : serviceForTimeInQueue()
             operationName "kafka.deliver"
             resourceName "$STREAM_PROCESSED"
             spanType "queue"
@@ -226,8 +253,8 @@ abstract class KafkaStreamsTestBase extends AgentTestRunner {
 
         // CONSUMER span 0
         span {
-          serviceName expectedServiceName()
-          operationName "kafka.consume"
+          serviceName service()
+          operationName operationForConsumer()
           resourceName "Consume Topic $STREAM_PROCESSED"
           spanType "queue"
           errored false
@@ -241,6 +268,9 @@ abstract class KafkaStreamsTestBase extends AgentTestRunner {
             "$InstrumentationTags.CONSUMER_GROUP" "sender"
             "$InstrumentationTags.RECORD_QUEUE_TIME_MS" { it >= 0 }
             "testing" 123
+            if ({isDataStreamsEnabled()}) {
+              "$DDTags.PATHWAY_HASH" { String }
+            }
             defaultTags(!hasQueueSpan)
           }
         }
@@ -252,28 +282,33 @@ abstract class KafkaStreamsTestBase extends AgentTestRunner {
     new String(headers.headers("x-datadog-trace-id").iterator().next().value()) == "${TEST_WRITER[1][0].traceId}"
     new String(headers.headers("x-datadog-parent-id").iterator().next().value()) == "${TEST_WRITER[1][0].spanId}"
 
-    if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled()) {
+    if (isDataStreamsEnabled()) {
       StatsGroup originProducerPoint = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(originProducerPoint) {
-        edgeTags == ["topic:$STREAM_PENDING", "type:internal"]
-        edgeTags.size() == 2
+        edgeTags == ["direction:out", "topic:$STREAM_PENDING", "type:kafka"]
+        edgeTags.size() == 3
       }
 
       StatsGroup kafkaStreamsConsumerPoint = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == originProducerPoint.hash }
       verifyAll(kafkaStreamsConsumerPoint) {
-        edgeTags == ["group:test-application", "partition:0", "topic:$STREAM_PENDING".toString(), "type:kafka"]
+        edgeTags == [
+          "direction:in",
+          "group:test-application",
+          "topic:$STREAM_PENDING".toString(),
+          "type:kafka"
+        ]
         edgeTags.size() == 4
       }
 
       StatsGroup kafkaStreamsProducerPoint = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == kafkaStreamsConsumerPoint.hash }
       verifyAll(kafkaStreamsProducerPoint) {
-        edgeTags == ["topic:$STREAM_PROCESSED", "type:internal"]
-        edgeTags.size() == 2
+        edgeTags == ["direction:out", "topic:$STREAM_PROCESSED", "type:kafka"]
+        edgeTags.size() == 3
       }
 
       StatsGroup finalConsumerPoint = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == kafkaStreamsProducerPoint.hash }
       verifyAll(finalConsumerPoint) {
-        edgeTags == ["group:sender", "partition:0", "topic:$STREAM_PROCESSED".toString(), "type:kafka"]
+        edgeTags == ["direction:in", "group:sender", "topic:$STREAM_PROCESSED".toString(), "type:kafka"]
         edgeTags.size() == 4
       }
     }
@@ -285,16 +320,15 @@ abstract class KafkaStreamsTestBase extends AgentTestRunner {
   }
 }
 
-class KafkaStreamsForkedTest extends KafkaStreamsTestBase {
+abstract class KafkaStreamsForkedTest extends KafkaStreamsTestBase {
   @Override
   void configurePreAgent() {
     super.configurePreAgent()
     injectSysConfig("dd.service", "KafkaStreamsTest")
-    injectSysConfig("dd.kafka.legacy.tracing.enabled", "false")
   }
 
   @Override
-  String expectedServiceName()  {
+  String service()  {
     return "KafkaStreamsTest"
   }
 
@@ -305,6 +339,37 @@ class KafkaStreamsForkedTest extends KafkaStreamsTestBase {
 
   @Override
   boolean splitByDestination() {
+    return false
+  }
+}
+
+class KafkaStreamsV0ForkedTest extends KafkaStreamsForkedTest {
+
+}
+
+class KafkaStreamsV1ForkedTest extends KafkaStreamsForkedTest {
+  @Override
+  int version() {
+    1
+  }
+
+  @Override
+  String operationForProducer() {
+    "kafka.send"
+  }
+
+  @Override
+  String operationForConsumer() {
+    return "kafka.process"
+  }
+
+  @Override
+  String serviceForTimeInQueue() {
+    "kafka-queue"
+  }
+
+  @Override
+  boolean hasQueueSpan() {
     return false
   }
 }
@@ -319,7 +384,7 @@ class KafkaStreamsSplitByDestinationForkedTest extends KafkaStreamsTestBase {
   }
 
   @Override
-  String expectedServiceName()  {
+  String service()  {
     return "KafkaStreamsTest"
   }
 
@@ -334,16 +399,12 @@ class KafkaStreamsSplitByDestinationForkedTest extends KafkaStreamsTestBase {
   }
 }
 
-class KafkaStreamsLegacyTracingForkedTest extends KafkaStreamsTestBase {
+abstract class KafkaStreamsLegacyTracingForkedTest extends KafkaStreamsTestBase {
   @Override
   void configurePreAgent() {
     super.configurePreAgent()
+    injectSysConfig("dd.service", "KafkaStreamsLegacyTracingTest")
     injectSysConfig("dd.kafka.legacy.tracing.enabled", "true")
-  }
-
-  @Override
-  String expectedServiceName() {
-    return "kafka"
   }
 
   @Override
@@ -356,6 +417,33 @@ class KafkaStreamsLegacyTracingForkedTest extends KafkaStreamsTestBase {
     return false
   }
 }
+class KafkaStreamsLegacyTracingV0ForkedTest extends KafkaStreamsLegacyTracingForkedTest {
+  @Override
+  String service() {
+    "kafka"
+  }
+}
+
+class KafkaStreamsLegacyTracingV1ForkedTest extends KafkaStreamsLegacyTracingForkedTest {
+  @Override
+  String service() {
+    "KafkaStreamsLegacyTracingTest"
+  }
+  @Override
+  String operationForProducer() {
+    "kafka.send"
+  }
+
+  @Override
+  String operationForConsumer() {
+    return "kafka.process"
+  }
+
+  @Override
+  String serviceForTimeInQueue() {
+    "kafka-queue"
+  }
+}
 
 class KafkaStreamsDataStreamsDisabledForkedTest extends KafkaStreamsTestBase {
   @Override
@@ -366,7 +454,7 @@ class KafkaStreamsDataStreamsDisabledForkedTest extends KafkaStreamsTestBase {
   }
 
   @Override
-  String expectedServiceName()  {
+  String service()  {
     return "KafkaStreamsDataStreamsDisabledForkedTest"
   }
 

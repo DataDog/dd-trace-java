@@ -1,0 +1,33 @@
+muzzle {
+  fail {
+    group = "commons-httpclient"
+    module = "commons-httpclient"
+    versions = "[,4.0)"
+    skipVersions += '3.1-jenkins-1'
+    skipVersions += '2.0-final' // broken metadata on maven central
+  }
+  pass {
+    group = "org.apache.httpcomponents"
+    module = "httpclient"
+    versions = "[4.0,5)"
+    assertInverse = true
+  }
+  pass {
+    // We want to support the dropwizard clients too.
+    group = 'io.dropwizard'
+    module = 'dropwizard-client'
+    versions = "[,3)" // dropwizard-client 3+ uses httpclient5
+  }
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+
+addTestSuiteForDir('latestDepTest', 'test')
+
+dependencies {
+  compileOnly group: 'org.apache.httpcomponents', name: 'httpclient', version: '4.0'
+
+  testImplementation group: 'org.apache.httpcomponents', name: 'httpclient', version: '4.0'
+
+  latestDepTestImplementation group: 'org.apache.httpcomponents', name: 'httpclient', version: '+'
+}

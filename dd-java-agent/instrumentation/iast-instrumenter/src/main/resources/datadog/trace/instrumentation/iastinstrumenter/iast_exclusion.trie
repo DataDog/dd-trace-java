@@ -1,0 +1,307 @@
+# Generates 'IastExclusionsTrie.java'
+
+# This file lists classes that are globally ignored by the iast instrumenter
+# Use 0 to allow transformation of packages or classes beneath ignored packages
+# End lines with '.*' to match any sub-package or '$*' to match nested-classes
+
+# 0 = global allows and not filter stacktrace
+# 1 = Iast Instrumenter ignores and filter stacktrace
+# 2 = Iast Instrumenter allows and filter stacktrace
+
+# -------- JDK --------
+1 com.azul.*
+1 com.sun.*
+1 java.*
+1 javafx.*
+1 javax.*
+1 jdk.*
+1 openj9.*
+1 org.omg.*
+1 org.w3c.*
+1 org.xml.*
+1 $Proxy*
+1 sun.*
+
+# -------- Groovy --------
+1 groovy*
+1 org.groovy.*
+
+# -------- Scala --------
+1 scala.*
+
+# -------- Kotlin --------
+1 kotlin.*
+
+# -------- DataDog --------
+1 com.datadog.*
+0 com.datadog.demo.*
+1 datadog.*
+0 datadog.smoketest.*
+1 com.timgroup.statsd.*
+
+# -------- Libraries --------
+1 aj.org.objectweb.*
+1 akka.*
+1 antlr.*
+1 brave.*
+1 bsh.*
+1 ch.qos.*
+1 coldfusion.*
+1 com.adobe.*
+1 com.amazonaws.*
+1 com.apple.java.*
+1 com.apple.crypto.*
+1 com.arjuna.*
+1 com.atlassian.jira.*
+1 com.bea.*
+1 com.blogspot.*
+1 com.certicom.*
+1 com.codahale.*
+1 com.cognos.*
+1 com.couchbase.*
+1 com.ctc.*
+1 com.cystaldecisions.*
+1 com.datastax.*
+1 com.datical.liquibase.*
+1 com.denodo.vdb.jdbcdriver.*
+1 com.dwr.*
+1 com.ecwid.consul.*
+1 org.egothor.*
+1 com.esotericsoftware.kryo.*
+1 com.fasterxml.*
+#Need for JsonFactoryCallSite.createParser()
+2 com.fasterxml.jackson.databind.ObjectMapper
+1 com.filenet.*
+1 com.github.benmanes.caffeine.*
+1 com.github.jknack.handlebars.*
+1 com.google.*
+1 com.googlecode.*
+1 com.hazelcast.*
+1 com.hdivsecurity.*
+1 com.ibm.*
+# ibm compiled jsps
+0 com.ibm._jsp.*
+1 com.intellij.*
+1 com.itext.*
+1 com.itextpdf.*
+1 com.jcraft.*
+1 com.jhlabs.*
+1 com.jprofiler.*
+1 com.liferay.*
+1 com.lowagie.*
+1 com.mchange.*
+1 com.mongodb.*
+1 com.mysql.*
+1 com.neo4j.*
+1 com.netscape.*
+1 com.ning.*
+1 com.novell.*
+1 com.ocpsoft.*
+1 com.octetstring.*
+1 com.opencsv.*
+1 com.opensymphony.*
+1 com.octo.captcha.*
+1 com.oracle.*
+1 com.rabbitmq.*
+1 com.rsa.*
+1 com.safelayer.*
+1 com.solarmetric.*
+1 com.squareup.*
+# Required for propagation purposes
+2 com.squareup.okhttp.Request
+2 com.squareup.okhttp.Request$*
+1 com.tangosol.*
+1 com.thoughtworks.*
+1 com.typesafe.*
+1 com.zaxxer.*
+1 commonj.work.*
+1 cryptix.*
+1 edu.emory.*
+1 edu.oswego.*
+1 freemarker.*
+1 gnu.*
+1 graphql.*
+1 io.dropwizard.*
+1 io.github.lukehutch.fastclasspathscanner.*
+1 io.grpc.*
+1 io.leangen.geantyref.*
+1 io.jsonwebtoken.*
+1 io.ktor.*
+1 io.prometheus.*
+1 io.quarkus.*
+1 io.micrometer.*
+1 io.micronaut.*
+1 io.netty.*
+1 io.r2dbc.*
+1 io.reactivex.*
+1 io.smallrye.*
+1 io.springfox.*
+1 io.swagger.*
+1 io.undertow.*
+1 io.vertx.*
+# https://github.com/tsegismont/vertx-musicstore
+0 io.vertx.demo.*
+1 jakarta.*
+1 jasperreports.*
+1 javassist.*
+1 javolution.*
+1 jersey.repackaged.*
+1 jnr.ffi.*
+1 jnr.posix.*
+1 joptsimple.*
+1 jregex.*
+1 jrun.*
+1 jrunx.*
+1 jva_cup.*
+1 liquibase.*
+1 kodo.*
+1 macromedia.*
+1 Microsoft.*
+1 nanoxml.*
+1 nano.xml.*
+1 net.bytebuddy.*
+1 net.jcip.*
+# Amusing weak randomness false positive in XXHashFactory
+1 net.jpountz.xxhash.*
+1 net.logstash.*
+1 net.nicholaswilliams.*
+1 net.sf.beanlib.*
+1 net.sf.cglib.*
+1 net.sf.ehcache.*
+1 net.sf.jasperreports.*
+1 net.sf.jsqlparser.*
+1 net.sf.saxon.*
+1 net.sourceforge.argparse4j.*
+1 net.sourceforge.barbecue.*
+1 netscape.*
+1 nu.xom.*
+1 okhttp3.*
+2 okhttp3.Request
+2 okhttp3.Request$*
+1 ognl.*
+1 oracle.jdbc.*
+1 oracle.sql.*
+1 org.ajax4jsf.*
+1 org.aopalliance.*
+1 org.antlr.*
+1 org.apache.*
+# apache compiled jsps
+0 org.apache.jsp.*
+1 org.apiguardian.*
+1 org.aspectj.*
+1 org.attoparser.*
+1 org.bouncycastle.*
+1 org.bson.*
+1 org.clojure.*
+1 org.codehaus.*
+1 org.crac.*
+1 org.cyberneko.*
+1 org.directwebremoting.*
+1 org.dom4j.*
+1 org.eclipse.*
+1 org.ehcache.*
+1 org.flywaydb.*
+1 org.gjt.mm.mysql.*
+1 org.glassfish.*
+1 org.graalvm.*
+# TODO weak hash detected, add proper support for SQLi in GORM and exclude all
+1 org.grails.orm.hibernate.cfg.GrailsDomainBinder
+1 org.h2.*
+1 org.hamcrest.*
+1 org.hdiv.*
+# hdiv related propagations
+2 org.hdiv.urlProcessor.UrlDataImpl
+2 org.hdiv.ee.urlProcessor.EELinkUrlProcessor
+2 org.hdiv.urlProcessor.LinkUrlProcessor
+2 org.hdiv.urlProcessor.CachedUrlDataImpl
+1 org.hibernate.*
+1 org.hsqldb.*
+1 org.htmlparser.*
+1 org.ietf.*
+1 org.infinispan.*
+1 org.jaxen.*
+1 org.jboss.*
+1 org.jcp.xml.*
+1 org.jdbcdslog
+1 org.jdbi.*
+1 org.jdom.*
+1 org.jetbrains.*
+1 org.jfree.*
+1 org.jnp.*
+1 org.joda.*
+1 org.jooq.*
+1 org.jruby.*
+1 org.json.*
+1 org.jsoup.*
+1 org.junit.*
+1 org.jvnet.hk2.*
+# Non exploitable path traversal
+1 org.keycloak.theme.FolderTheme
+1 org.liquibase.*
+1 org.mariadb.*
+1 org.mockito.*
+1 org.modelmapper.*
+1 org.mongodb.*
+1 org.mortbay.*
+1 org.objectweb.*
+1 org.openxmlformats.*
+1 org.osgi.*
+1 org.owasp.*
+# https://github.com/OWASP-Benchmark/BenchmarkJava
+0 org.owasp.benchmark.*
+# https://github.com/WebGoat/WebGoat
+0 org.owasp.webgoat.*
+1 org.picketbox.*
+1 org.picketlink.*
+1 org.postgresql.*
+1 org.primefaces.*
+1 org.python.*
+1 org.quartz.*
+1 org.reactivestreams.*
+1 org.relaxng.*
+1 org.renjin.*
+1 org.richfaces.*
+1 org.slf4j.*
+1 org.springdoc.*
+1 org.springframework.*
+# Update when JdbcTemplate call sites are ready
+2 org.springframework.jdbc.core.JdbcTemplate$*
+# https://github.com/spring-projects/spring-petclinic
+0 org.springframework.samples.*
+# Used by insecure-bank
+2 org.springframework.security.web.authentication.*
+2 org.springframework.web.context.request.*
+2 org.springframework.web.util.WebUtils
+# Need for ServletRequestCallSite.getInputStream()
+2 org.springframework.http.server.*
+1 org.sqlite.*
+1 org.stringtemplate.*
+1 org.synchronoss.*
+1 org.terracotta.*
+1 org.testcontainers.*
+1 org.testng.*
+1 org.thymeleaf.*
+1 org.tigris.gef.*
+1 org.wildfly.*
+1 org.xerial.snappy.*
+1 org.xnio.*
+1 org.yaml.*
+1 org.yecht.*
+1 reactor.*
+1 sbt.*
+1 schemacom_bea_xml.*
+1 serp.*
+1 sl.org.objectweb.asm.*
+1 software.amazon.awssdk.*
+1 springfox.*
+1 System.*
+1 tech.jhipster.*
+1 uk.ltd.getahead.*
+1 weblogic.*
+1 zipkin2.*
+
+# --------- testing ----------------
+
+1 org.gradle.*
+1 org.spockframework.*
+1 worker.org.gradle.*

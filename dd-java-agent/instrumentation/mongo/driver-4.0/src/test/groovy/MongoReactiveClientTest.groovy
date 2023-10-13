@@ -4,9 +4,6 @@ import com.mongodb.reactivestreams.client.MongoClient
 import com.mongodb.reactivestreams.client.MongoClients
 import com.mongodb.reactivestreams.client.MongoCollection
 import com.mongodb.reactivestreams.client.MongoDatabase
-import datadog.trace.agent.test.asserts.TraceAssert
-import datadog.trace.api.DDSpanTypes
-import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.core.DDSpan
 import org.bson.BsonDocument
 import org.bson.BsonString
@@ -22,13 +19,13 @@ import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 
-class MongoReactiveClientTest extends MongoBaseTest {
+abstract class MongoReactiveClientTest extends MongoBaseTest {
 
   @Shared
   MongoClient client
 
   def setup() throws Exception {
-    client = MongoClients.create("mongodb://localhost:$port/?appname=some-instance")
+    client = MongoClients.create("mongodb://localhost:$port/?appname=some-description")
   }
 
   def cleanup() throws Exception {
@@ -101,7 +98,7 @@ class MongoReactiveClientTest extends MongoBaseTest {
       trace(2) {
         sortSpansByStart()
         basicSpan(it, 0,"parent")
-        mongoSpan(it, 1, "create", "{\"create\":\"$collectionName\",\"capped\":\"?\"}", "some-instance", span(0))
+        mongoSpan(it, 1, "create", "{\"create\":\"$collectionName\",\"capped\":\"?\"}", false, "some-description", span(0))
       }
     }
 
@@ -119,7 +116,7 @@ class MongoReactiveClientTest extends MongoBaseTest {
     then:
     assertTraces(1) {
       trace(1) {
-        mongoSpan(it, 0, "create", "{\"create\":\"$collectionName\",\"capped\":\"?\"}", databaseName)
+        mongoSpan(it, 0, "create", "{\"create\":\"$collectionName\",\"capped\":\"?\"}", false, databaseName)
       }
     }
 
@@ -141,7 +138,7 @@ class MongoReactiveClientTest extends MongoBaseTest {
       trace(2) {
         sortSpansByStart()
         basicSpan(it, 0,"parent")
-        mongoSpan(it, 1, "create", "{\"create\":\"$collectionName\",\"capped\":\"?\"}", databaseName, span(0))
+        mongoSpan(it, 1, "create", "{\"create\":\"$collectionName\",\"capped\":\"?\"}", false, databaseName, span(0))
       }
     }
 
@@ -185,7 +182,7 @@ class MongoReactiveClientTest extends MongoBaseTest {
       trace(2) {
         sortSpansByStart()
         basicSpan(it, 0,"parent")
-        mongoSpan(it, 1, "count", "{\"count\":\"$collectionName\",\"query\":{}}", "some-instance", span(0))
+        mongoSpan(it, 1, "count", "{\"count\":\"$collectionName\",\"query\":{}}", false, "some-description", span(0))
       }
     }
 
@@ -236,8 +233,8 @@ class MongoReactiveClientTest extends MongoBaseTest {
       trace(3) {
         sortSpansByStart()
         basicSpan(it, 0,"parent")
-        mongoSpan(it, 1, "insert", "{\"insert\":\"$collectionName\",\"ordered\":true,\"documents\":[]}", "some-instance", span(0))
-        mongoSpan(it, 2, "count", "{\"count\":\"$collectionName\",\"query\":{}}", "some-instance", span(0))
+        mongoSpan(it, 1, "insert", "{\"insert\":\"$collectionName\",\"ordered\":true,\"documents\":[]}", false, "some-description", span(0))
+        mongoSpan(it, 2, "count", "{\"count\":\"$collectionName\",\"query\":{}}", false, "some-description", span(0))
       }
     }
 
@@ -300,8 +297,8 @@ class MongoReactiveClientTest extends MongoBaseTest {
       trace(3) {
         sortSpansByStart()
         basicSpan(it, 0,"parent")
-        mongoSpan(it, 1, "update", "{\"update\":\"$collectionName\",\"ordered\":true,\"updates\":[]}", "some-instance", span(0))
-        mongoSpan(it, 2, "count", "{\"count\":\"$collectionName\",\"query\":{}}", "some-instance", span(0))
+        mongoSpan(it, 1, "update", "{\"update\":\"$collectionName\",\"ordered\":true,\"updates\":[]}", false, "some-description", span(0))
+        mongoSpan(it, 2, "count", "{\"count\":\"$collectionName\",\"query\":{}}", false, "some-description", span(0))
       }
     }
 
@@ -360,8 +357,8 @@ class MongoReactiveClientTest extends MongoBaseTest {
       trace(3) {
         sortSpansByStart()
         basicSpan(it, 0,"parent")
-        mongoSpan(it, 1, "delete", "{\"delete\":\"$collectionName\",\"ordered\":true,\"deletes\":[]}", "some-instance", span(0))
-        mongoSpan(it, 2, "count", "{\"count\":\"$collectionName\",\"query\":{}}", "some-instance", span(0))
+        mongoSpan(it, 1, "delete", "{\"delete\":\"$collectionName\",\"ordered\":true,\"deletes\":[]}", false, "some-description", span(0))
+        mongoSpan(it, 2, "count", "{\"count\":\"$collectionName\",\"query\":{}}", false, "some-description", span(0))
       }
     }
 
@@ -397,29 +394,50 @@ class MongoReactiveClientTest extends MongoBaseTest {
         }
       }
   }
+}
 
-  def mongoSpan(TraceAssert trace, int index, String operation, String statement, String instance = "some-instance", Object parentSpan = null, Throwable exception = null) {
-    trace.span(index) {
-      serviceName "mongo"
-      operationName "mongo.query"
-      resourceName matchesStatement(statement)
-      spanType DDSpanTypes.MONGO
-      if (parentSpan == null) {
-        parent()
-      } else {
-        childOf((DDSpan) parentSpan)
-      }
-      topLevel true
-      tags {
-        "$Tags.COMPONENT" "java-mongo"
-        "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
-        "$Tags.PEER_HOSTNAME" "localhost"
-        "$Tags.PEER_PORT" port
-        "$Tags.DB_TYPE" "mongo"
-        "$Tags.DB_INSTANCE" instance
-        "$Tags.DB_OPERATION" operation
-        defaultTags()
-      }
-    }
+class MongoReactiveClientV0Test extends MongoReactiveClientTest {
+
+  @Override
+  int version() {
+    return 0
+  }
+
+  @Override
+  String service() {
+    return V0_SERVICE
+  }
+
+  @Override
+  String operation() {
+    return V0_OPERATION
+  }
+
+  @Override
+  String dbType() {
+    return V0_DB_TYPE
+  }
+}
+
+class MongoReactiveClientV1ForkedTest extends MongoReactiveClientTest {
+
+  @Override
+  int version() {
+    return 1
+  }
+
+  @Override
+  String service() {
+    return V1_SERVICE
+  }
+
+  @Override
+  String operation() {
+    return V1_OPERATION
+  }
+
+  @Override
+  String dbType() {
+    return V1_DB_TYPE
   }
 }

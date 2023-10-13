@@ -1,17 +1,15 @@
-import com.squareup.okhttp.Callback
-import com.squareup.okhttp.Headers
-import com.squareup.okhttp.MediaType
-import com.squareup.okhttp.Request
-import com.squareup.okhttp.RequestBody
-import com.squareup.okhttp.Response
+import com.squareup.okhttp.*
 import com.squareup.okhttp.internal.http.HttpMethod
+import datadog.trace.agent.test.naming.TestingGenericHttpNamingConventions
+import datadog.trace.agent.test.utils.TraceUtils
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.atomic.AtomicReference
 
 import static java.util.concurrent.TimeUnit.SECONDS
 
-class OkHttp2AsyncTest extends OkHttp2Test {
+abstract class OkHttp2AsyncTest extends OkHttp2Test {
   @Override
   boolean useStrictTraceWrites() {
     // TODO fix this by making sure that spans get closed properly
@@ -40,6 +38,7 @@ class OkHttp2AsyncTest extends OkHttp2Test {
 
         void onFailure(Request req, IOException e) {
           exRef.set(e)
+          callback?.call()
           latch.countDown()
         }
       })
@@ -49,4 +48,48 @@ class OkHttp2AsyncTest extends OkHttp2Test {
     }
     return responseRef.get().code()
   }
+
+  def "callbacks should carry context" () {
+
+    when:
+    def captured = AgentTracer.noopSpan()
+    try {
+      TraceUtils.runUnderTrace("parent", {
+        doRequest(method, url, ["Datadog-Meta-Lang": "java"], "", { captured = AgentTracer.activeSpan() })
+      })
+    } catch (Exception e) {
+      assert error == true
+    }
+
+    then:
+    "parent".contentEquals(captured.getOperationName())
+
+    where:
+    url                                 | error
+    server.address.resolve("/success")  | false
+    new URI("http://240.0.0.1")         | true
+
+    method = "GET"
+  }
+}
+
+class OkHttp2AsyncV0ForkedTest extends OkHttp2AsyncTest {
+
+  @Override
+  int version() {
+    return 0
+  }
+
+  @Override
+  String service() {
+    return null
+  }
+
+  @Override
+  String operation() {
+    return "okhttp.request"
+  }
+}
+
+class OkHttp2AsyncV1ForkedTest extends OkHttp2AsyncTest implements TestingGenericHttpNamingConventions.ClientV1 {
 }

@@ -1,6 +1,6 @@
 package datadog.trace.api;
 
-import datadog.trace.api.function.Function;
+import java.util.function.Function;
 
 public final class GenericClassValue<T> extends ClassValue<T> {
 

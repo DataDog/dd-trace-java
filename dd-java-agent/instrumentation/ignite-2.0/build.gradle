@@ -1,0 +1,26 @@
+ext {
+  // See https://ignite.apache.org/docs/latest/quick-start/java#running-ignite-with-java-11-or-later
+  maxJavaVersionForTests = JavaVersion.VERSION_1_8
+}
+
+muzzle {
+  pass {
+    group = 'org.apache.ignite'
+    module = 'ignite-core'
+    versions = "[2.0.0,)"
+  }
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+
+addTestSuiteForDir('latestDepTest', 'test')
+
+dependencies {
+  compileOnly group: 'org.apache.ignite', name: 'ignite-core', version: '2.0.0'
+
+  testImplementation group: 'org.apache.ignite', name: 'ignite-core', version: '2.0.0'
+  testImplementation group: 'org.apache.ignite', name: 'ignite-indexing', version: '2.0.0'
+
+  latestDepTestImplementation group: 'org.apache.ignite', name: 'ignite-core', version: '2.+'
+  latestDepTestImplementation group: 'org.apache.ignite', name: 'ignite-indexing', version: '2.+'
+}

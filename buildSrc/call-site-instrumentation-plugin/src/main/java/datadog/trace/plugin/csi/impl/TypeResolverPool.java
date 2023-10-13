@@ -1,7 +1,12 @@
 package datadog.trace.plugin.csi.impl;
 
+import static datadog.trace.plugin.csi.util.CallSiteUtils.classNameToType;
 import static datadog.trace.plugin.csi.util.CallSiteUtils.repeat;
 
+import com.github.javaparser.resolution.declarations.ResolvedReferenceTypeDeclaration;
+import com.github.javaparser.symbolsolver.model.resolution.SymbolReference;
+import com.github.javaparser.symbolsolver.model.resolution.TypeSolver;
+import com.github.javaparser.symbolsolver.reflectionmodel.ReflectionFactory;
 import datadog.trace.plugin.csi.HasErrors.Failure;
 import datadog.trace.plugin.csi.TypeResolver;
 import datadog.trace.plugin.csi.util.ErrorCode;
@@ -111,6 +116,38 @@ public class TypeResolverPool implements TypeResolver {
       throw e;
     } catch (final Throwable e) {
       throw new ResolutionException(new Failure(e, ErrorCode.UNRESOLVED_METHOD, method));
+    }
+  }
+
+  @Override
+  public TypeSolver getParent() {
+    return null;
+  }
+
+  @Override
+  public void setParent(final TypeSolver parent) {}
+
+  @Override
+  public SymbolReference<ResolvedReferenceTypeDeclaration> tryToSolveType(final String name) {
+    try {
+      // inner classes use a dollar instead of a dot in the class name
+      final StringBuilder builder = new StringBuilder(name.length());
+      final String[] parts = name.split("\\.");
+      for (int i = 0; i < parts.length; i++) {
+        final String part = parts[i];
+        if (i > 0) {
+          final String prev = parts[i - 1];
+          final boolean inner =
+              Character.isUpperCase(prev.charAt(0)) && Character.isUpperCase(part.charAt(0));
+          builder.append(inner ? '$' : '.');
+        }
+        builder.append(part);
+      }
+      final Type type = classNameToType(builder.toString());
+      final Class<?> clazz = resolveType(type);
+      return SymbolReference.solved(ReflectionFactory.typeDeclarationFor(clazz, getRoot()));
+    } catch (final Throwable e) {
+      return SymbolReference.unsolved(ResolvedReferenceTypeDeclaration.class);
     }
   }
 }

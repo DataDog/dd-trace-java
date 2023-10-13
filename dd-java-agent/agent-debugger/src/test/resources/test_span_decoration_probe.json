@@ -1,0 +1,169 @@
+{
+  "id": "petclinic",
+  "orgId": 2,
+  "allowList": {
+    "packagePrefixes": ["com.datadog", "org.apache"],
+    "classes": []
+  },
+  "denyList": {
+    "packagePrefixes": ["java.security", "sun.security"],
+    "classes": []
+  },
+  "spanDecorationProbes": [{
+    "id": "123356536",
+    "language": "java",
+    "created": 1606407800.445507000,
+    "where": {
+      "typeName": "java.lang.Object",
+      "methodName": "toString",
+      "signature": "java.lang.String ()"
+    },
+    "targetSpan": "ACTIVE",
+    "decorations": [
+      {
+        "when":
+        {
+          "dsl": "uuid == 'showMe'",
+          "json":
+          {
+            "eq":
+            [
+              {
+                "ref": "uuid"
+              },
+              "showMe"
+            ]
+          }
+        },
+        "tags":
+        [
+          {
+            "name": "uuid",
+            "value":
+            {
+              "template": "uuid={uuid}",
+              "segments": [
+                {
+                  "str": "uuid="
+                },
+                {
+                  "dsl": "uuid",
+                  "json": {
+                    "ref": "uuid"
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    ]
+  }, {
+    "id": "123356537",
+    "language": "java",
+    "created": 1606407801.445507000,
+    "where": {
+      "typeName": "java.lang.Object",
+      "methodName": "toString",
+      "signature": "java.lang.String ()"
+    },
+    "tags": ["version:v123", "env:staging"],
+    "targetSpan": "ACTIVE",
+    "decorations": [
+      {
+        "tags":
+        [
+          {
+            "name": "uuid",
+            "value":
+            {
+              "template": "uuid={uuid}",
+              "segments": [{
+                "str": "uuid="
+              }, {
+                "dsl": "uuid",
+                "json": {
+                  "ref": "uuid"
+                }
+              }]
+            }
+          },
+          {
+            "name": "tag2",
+            "value":
+            {
+              "template": "{arg2}",
+              "segments": [{
+                "dsl": "arg2",
+                "json": {
+                  "ref": "arg2"
+                }
+              }]
+            }
+          }
+        ]
+      }
+    ]
+  }, {
+    "id": "123356538",
+    "language": "java",
+    "created": 1606407801.445507000,
+    "where": {
+      "typeName": "java.lang.Object",
+      "methodName": "toString",
+      "signature": "java.lang.String ()"
+    },
+    "tags": ["version:v123", "env:staging"],
+    "targetSpan": "ROOT",
+    "decorations": [
+    ]
+  },{
+    "id": "123356539",
+    "language": "java",
+    "created": 1606407801.445507000,
+    "where": {
+      "typeName": "java.lang.Object",
+      "methodName": "toString",
+      "signature": "java.lang.String ()"
+    },
+    "tags": ["version:v123", "env:staging"],
+    "evaluateAt": "EXIT",
+    "targetSpan": "ROOT",
+    "decorations": [
+      {
+        "when":
+        {
+          "dsl": "@duration > 0",
+          "json":
+          {
+            "gt":
+            [
+              {
+                "ref": "@duration"
+              },
+              0
+            ]
+          }
+        },
+        "tags":
+        [
+          {
+            "name": "uuid",
+            "value":
+            {
+              "template": "uuid={uuid}",
+              "segments": [{
+                "str": "uuid="
+              },{
+                "dsl": "uuid",
+                "json": {
+                  "ref": "uuid"
+                }
+              }]
+            }
+          }
+        ]
+      }
+    ]
+  }]
+}

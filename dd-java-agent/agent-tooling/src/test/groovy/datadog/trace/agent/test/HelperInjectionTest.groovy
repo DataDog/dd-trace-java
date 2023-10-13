@@ -6,7 +6,6 @@ import datadog.trace.test.util.DDSpecification
 import net.bytebuddy.description.type.TypeDescription
 import net.bytebuddy.dynamic.ClassFileLocator
 import net.bytebuddy.dynamic.loading.ClassInjector
-import spock.lang.Retry
 
 import java.lang.ref.WeakReference
 import java.util.concurrent.atomic.AtomicReference
@@ -17,7 +16,7 @@ import static datadog.trace.test.util.GCUtils.awaitGC
 class HelperInjectionTest extends DDSpecification {
   static final String HELPER_CLASS_NAME = 'datadog.trace.agent.test.HelperClass'
 
-  @Retry
+  //@Flaky("awaitGC usage is flaky")
   def "helpers injected to non-delegating classloader"() {
     setup:
     HelperInjector injector = new HelperInjector("test", HELPER_CLASS_NAME)
@@ -47,7 +46,7 @@ class HelperInjectionTest extends DDSpecification {
     null == ref.get()
   }
 
-  @Retry
+  //@Flaky("awaitGC usage is flaky")
   def "check hard references on class injection"() {
     setup:
 

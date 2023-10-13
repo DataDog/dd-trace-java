@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.liberty20;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.Collections;
 import java.util.Enumeration;
 import javax.servlet.http.HttpServletRequest;
@@ -36,17 +37,28 @@ public abstract class HttpServletExtractAdapter<T> implements AgentPropagation.C
     }
   }
 
+  @SuppressFBWarnings("DCN_NULLPOINTER_EXCEPTION")
   public static final class Response extends HttpServletExtractAdapter<HttpServletResponse> {
     public static final Response GETTER = new Response();
 
     @Override
-    Enumeration<String> getHeaderNames(HttpServletResponse request) {
-      return Collections.enumeration(request.getHeaderNames());
+    Enumeration<String> getHeaderNames(HttpServletResponse response) {
+      try {
+        return Collections.enumeration(response.getHeaderNames());
+      } catch (NullPointerException e) {
+        // SRTServletResponse#getHeaderNames() will throw NPE if called after response close.
+        return Collections.emptyEnumeration();
+      }
     }
 
     @Override
     String getHeader(HttpServletResponse request, String name) {
-      return request.getHeader(name);
+      try {
+        return request.getHeader(name);
+      } catch (NullPointerException e) {
+        // SRTServletResponse#getHeader(name) will throw NPE if called after response close.
+        return null;
+      }
     }
   }
 }

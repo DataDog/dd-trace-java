@@ -3,9 +3,6 @@ import com.mongodb.client.MongoClient
 import com.mongodb.client.MongoClients
 import com.mongodb.client.MongoCollection
 import com.mongodb.client.MongoDatabase
-import datadog.trace.agent.test.asserts.TraceAssert
-import datadog.trace.api.DDSpanTypes
-import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.core.DDSpan
 import org.bson.BsonDocument
 import org.bson.BsonString
@@ -14,13 +11,10 @@ import spock.lang.Shared
 
 import static datadog.trace.agent.test.utils.PortUtils.UNUSABLE_PORT
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
-import static datadog.trace.api.Checkpointer.CPU
-import static datadog.trace.api.Checkpointer.END
-import static datadog.trace.api.Checkpointer.SPAN
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_INSTANCE
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 
-class MongoCore37ClientTest extends MongoBaseTest {
+abstract class MongoCore37ClientTest extends MongoBaseTest {
 
   @Shared
   MongoClient client
@@ -46,17 +40,9 @@ class MongoCore37ClientTest extends MongoBaseTest {
     then:
     assertTraces(1) {
       trace(1) {
-        mongoSpan(it, 0, "create", "{\"create\":\"$collectionName\",\"capped\":\"?\"}", renameService)
+        mongoSpan(it, 0, "create", "{\"create\":\"$collectionName\",\"capped\":\"?\"}", renameService, "some-instance")
       }
     }
-    and: "synchronous checkpoints span the driver activity"
-    1 * TEST_CHECKPOINTER.checkpoint(_, SPAN)
-    1 * TEST_CHECKPOINTER.checkpoint(_, SPAN | END)
-    _ * TEST_CHECKPOINTER.checkpoint(_, CPU)
-    _ * TEST_CHECKPOINTER.checkpoint(_, CPU | END)
-    _ * TEST_CHECKPOINTER.onRootSpanWritten(_, _, _)
-    _ * TEST_CHECKPOINTER.onRootSpanStarted(_)
-    0 * TEST_CHECKPOINTER._
 
     where:
     collectionName = randomCollectionName()
@@ -92,17 +78,9 @@ class MongoCore37ClientTest extends MongoBaseTest {
     count == 0
     assertTraces(1) {
       trace(1) {
-        mongoSpan(it, 0, "count", "{\"count\":\"$collectionName\",\"query\":{}}")
+        mongoSpan(it, 0, "count", "{\"count\":\"$collectionName\",\"query\":{}}", false, "some-instance")
       }
     }
-    and: "synchronous checkpoints span the driver activity"
-    1 * TEST_CHECKPOINTER.checkpoint(_, SPAN)
-    1 * TEST_CHECKPOINTER.checkpoint(_, SPAN | END)
-    _ * TEST_CHECKPOINTER.checkpoint(_, CPU)
-    _ * TEST_CHECKPOINTER.checkpoint(_, CPU | END)
-    _ * TEST_CHECKPOINTER.onRootSpanWritten(_, _, _)
-    _ * TEST_CHECKPOINTER.onRootSpanStarted(_)
-    0 * TEST_CHECKPOINTER._
 
     where:
     collectionName = randomCollectionName()
@@ -129,20 +107,12 @@ class MongoCore37ClientTest extends MongoBaseTest {
     estimatedCount == 1
     assertTraces(2) {
       trace(1) {
-        mongoSpan(it, 0, "insert", "{\"insert\":\"$collectionName\",\"ordered\":true,\"documents\":[]}")
+        mongoSpan(it, 0, "insert", "{\"insert\":\"$collectionName\",\"ordered\":true,\"documents\":[]}", false, "some-instance")
       }
       trace(1) {
-        mongoSpan(it, 0, "count", "{\"count\":\"$collectionName\",\"query\":{}}")
+        mongoSpan(it, 0, "count", "{\"count\":\"$collectionName\",\"query\":{}}", false, "some-instance")
       }
     }
-    and: "synchronous checkpoints span the driver activity"
-    2 * TEST_CHECKPOINTER.checkpoint(_, SPAN)
-    2 * TEST_CHECKPOINTER.checkpoint(_, SPAN | END)
-    _ * TEST_CHECKPOINTER.checkpoint(_, CPU)
-    _ * TEST_CHECKPOINTER.checkpoint(_, CPU | END)
-    _ * TEST_CHECKPOINTER.onRootSpanWritten(_, _, _)
-    _ * TEST_CHECKPOINTER.onRootSpanStarted(_)
-    0 * TEST_CHECKPOINTER._
 
     where:
     collectionName = randomCollectionName()
@@ -174,20 +144,12 @@ class MongoCore37ClientTest extends MongoBaseTest {
     estimatedCount == 1
     assertTraces(2) {
       trace(1) {
-        mongoSpan(it, 0, "update", "{\"update\":\"$collectionName\",\"ordered\":true,\"updates\":[]}")
+        mongoSpan(it, 0, "update", "{\"update\":\"$collectionName\",\"ordered\":true,\"updates\":[]}", false, "some-instance")
       }
       trace(1) {
-        mongoSpan(it, 0, "count", "{\"count\":\"$collectionName\",\"query\":{}}")
+        mongoSpan(it, 0, "count", "{\"count\":\"$collectionName\",\"query\":{}}", false, "some-instance")
       }
     }
-    and: "synchronous checkpoints span the driver activity"
-    2 * TEST_CHECKPOINTER.checkpoint(_, SPAN)
-    2 * TEST_CHECKPOINTER.checkpoint(_, SPAN | END)
-    _ * TEST_CHECKPOINTER.checkpoint(_, CPU)
-    _ * TEST_CHECKPOINTER.checkpoint(_, CPU | END)
-    _ * TEST_CHECKPOINTER.onRootSpanWritten(_, _, _)
-    _ * TEST_CHECKPOINTER.onRootSpanStarted(_)
-    0 * TEST_CHECKPOINTER._
 
     where:
     collectionName = randomCollectionName()
@@ -217,20 +179,12 @@ class MongoCore37ClientTest extends MongoBaseTest {
     estimatedCount == 0
     assertTraces(2) {
       trace(1) {
-        mongoSpan(it, 0, "delete", "{\"delete\":\"$collectionName\",\"ordered\":true,\"deletes\":[]}")
+        mongoSpan(it, 0, "delete", "{\"delete\":\"$collectionName\",\"ordered\":true,\"deletes\":[]}", false, "some-instance")
       }
       trace(1) {
-        mongoSpan(it, 0, "count", "{\"count\":\"$collectionName\",\"query\":{}}")
+        mongoSpan(it, 0, "count", "{\"count\":\"$collectionName\",\"query\":{}}", false, "some-instance")
       }
     }
-    and: "synchronous checkpoints span the driver activity"
-    2 * TEST_CHECKPOINTER.checkpoint(_, SPAN)
-    2 * TEST_CHECKPOINTER.checkpoint(_, SPAN | END)
-    _ * TEST_CHECKPOINTER.checkpoint(_, CPU)
-    _ * TEST_CHECKPOINTER.checkpoint(_, CPU | END)
-    _ * TEST_CHECKPOINTER.onRootSpanWritten(_, _, _)
-    _ * TEST_CHECKPOINTER.onRootSpanStarted(_)
-    0 * TEST_CHECKPOINTER._
 
     where:
     collectionName = randomCollectionName()
@@ -276,29 +230,50 @@ class MongoCore37ClientTest extends MongoBaseTest {
     where:
     collectionName = randomCollectionName()
   }
+}
 
-  def mongoSpan(TraceAssert trace, int index, String operation, String statement, boolean renameService = false, String instance = "some-instance", Object parentSpan = null, Throwable exception = null) {
-    trace.span {
-      serviceName renameService ? instance : "mongo"
-      operationName "mongo.query"
-      resourceName matchesStatement(statement)
-      spanType DDSpanTypes.MONGO
-      if (parentSpan == null) {
-        parent()
-      } else {
-        childOf((DDSpan) parentSpan)
-      }
-      topLevel true
-      tags {
-        "$Tags.COMPONENT" "java-mongo"
-        "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
-        "$Tags.PEER_HOSTNAME" "localhost"
-        "$Tags.PEER_PORT" port
-        "$Tags.DB_TYPE" "mongo"
-        "$Tags.DB_INSTANCE" instance
-        "$Tags.DB_OPERATION" operation
-        defaultTags()
-      }
-    }
+class MongoCore37ClientV0Test extends MongoCore37ClientTest {
+
+  @Override
+  int version() {
+    return 0
+  }
+
+  @Override
+  String service() {
+    return V0_SERVICE
+  }
+
+  @Override
+  String operation() {
+    return V0_OPERATION
+  }
+
+  @Override
+  String dbType() {
+    return V0_DB_TYPE
+  }
+}
+
+class MongoCore37ClientV1ForkedTest extends MongoCore37ClientTest {
+
+  @Override
+  int version() {
+    return 1
+  }
+
+  @Override
+  String service() {
+    return V1_SERVICE
+  }
+
+  @Override
+  String operation() {
+    return V1_OPERATION
+  }
+
+  @Override
+  String dbType() {
+    return V1_DB_TYPE
   }
 }

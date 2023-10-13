@@ -1,0 +1,58 @@
+ext {
+  minJavaVersionForTests = JavaVersion.VERSION_11
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+
+jar {
+  manifest {
+    attributes('Main-Class': 'datadog.smoketest.moduleapp.ModuleApplication')
+  }
+}
+
+sourceCompatibility = JavaVersion.VERSION_1_8
+targetCompatibility = JavaVersion.VERSION_1_8
+
+[JavaCompile, GroovyCompile].each {
+  tasks.withType(it).configureEach { AbstractCompile ac ->
+    setJavaVersion(ac, 11)
+    // read up classpath lazily to avoid early locking of gradle settings
+    ac.options.compilerArgumentProviders.add(new CommandLineArgumentProvider() {
+        @Override
+        Iterable<String> asArguments() {
+          { return ['--module-path', ac.classpath.asPath]}
+        }
+      })
+  }
+}
+
+tasks.withType(Test).configureEach {
+  dependsOn "jar"
+}
+
+tasks.withType(Test).forEach {
+  it.doFirst {
+    JavaInstallationMetadata metadata = it.getJavaLauncher().get().metadata
+    // We can safely assume that the general configuration has disabled this test if
+    // the JVM version is not 11+
+    Directory specificJDKHome = metadata.installationPath
+    def jlinkExecutable = specificJDKHome.file("bin/jlink")
+    def jdkModulesPath = specificJDKHome.dir("jmods")
+    def generatedImageDir = "${buildDir}/${it.name}image"
+
+    delete generatedImageDir
+
+    // Run the jlink command to create the image
+    exec {
+      commandLine jlinkExecutable, '--no-man-pages', '--no-header-files',
+        '--add-modules', 'java.instrument,datadog.smoketest.moduleapp',
+        "--module-path", "${jdkModulesPath}:" + jar.archiveFile.get().toString(), "--output", generatedImageDir
+    }
+
+    it.jvmArgs "-Ddatadog.smoketest.module.image=${generatedImageDir}"
+  }
+}
+
+dependencies {
+  testImplementation project(':dd-smoke-tests')
+}

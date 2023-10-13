@@ -17,7 +17,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.ByteCodeElement;
+import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 import org.bson.BsonDocument;
 import org.bson.ByteBuf;
@@ -40,7 +40,7 @@ public final class MongoClient31Instrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public ElementMatcher<? extends ByteCodeElement> structureMatcher() {
+  public ElementMatcher<TypeDescription> structureMatcher() {
     return declaresField(named("commandListeners"));
   }
 

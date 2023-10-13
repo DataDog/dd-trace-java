@@ -1,6 +1,7 @@
 package test
 
-import datadog.trace.agent.test.AgentTestRunner
+
+import datadog.trace.agent.test.naming.VersionedNamingTestBase
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.core.DDSpan
@@ -12,8 +13,6 @@ import org.apache.ignite.spi.discovery.tcp.TcpDiscoverySpi
 import org.apache.ignite.spi.discovery.tcp.ipfinder.vm.TcpDiscoveryVmIpFinder
 import spock.lang.Shared
 
-import datadog.trace.agent.test.checkpoints.CheckpointValidator
-import datadog.trace.agent.test.checkpoints.CheckpointValidationMode
 import javax.cache.CacheException
 import java.util.concurrent.TimeUnit
 
@@ -21,7 +20,7 @@ import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 
-class IgniteCacheFailureTest extends AgentTestRunner {
+abstract class IgniteCacheFailureTest extends VersionedNamingTestBase {
 
   @Shared
   IgniteCache cache
@@ -85,9 +84,9 @@ class IgniteCacheFailureTest extends AgentTestRunner {
     assertTraces(1) {
       trace(1) {
         span {
-          serviceName "ignite"
+          serviceName service()
           resourceName "cache.put on testCache"
-          operationName "ignite.cache"
+          operationName operation()
           spanType DDSpanTypes.CACHE
           errored true
           tags {
@@ -101,7 +100,7 @@ class IgniteCacheFailureTest extends AgentTestRunner {
             }
             "ignite.version" igniteClient.version().toString()
             errorTags(ex.class, ex.message)
-            defaultTags()
+            defaultTagsNoPeerService()
           }
         }
       }
@@ -110,9 +109,6 @@ class IgniteCacheFailureTest extends AgentTestRunner {
 
   def "server down async"() {
     setup:
-    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
-      CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.THREAD_SEQUENCE)
 
     igniteServer.close()
 
@@ -130,9 +126,9 @@ class IgniteCacheFailureTest extends AgentTestRunner {
         sortSpansByStart()
         basicSpan(it, "test", null, ex)
         span {
-          serviceName "ignite"
+          serviceName service()
           resourceName "cache.putAsync on testCache"
-          operationName "ignite.cache"
+          operationName operation()
           spanType DDSpanTypes.CACHE
           errored true
           tags {
@@ -146,10 +142,46 @@ class IgniteCacheFailureTest extends AgentTestRunner {
             }
             "ignite.version" igniteClient.version().toString()
             errorTags(ex.class, ex.message)
-            defaultTags()
+            defaultTagsNoPeerService()
           }
         }
       }
     }
+  }
+}
+
+class IgniteCacheFailureV0ForkedTest extends IgniteCacheFailureTest {
+
+  @Override
+  int version() {
+    return 0
+  }
+
+  @Override
+  String service() {
+    return AbstractIgniteTest.V0_SERVICE
+  }
+
+  @Override
+  String operation() {
+    return AbstractIgniteTest.V0_OPERATION
+  }
+}
+
+class IgniteCacheFailureV1ForkedTest extends IgniteCacheFailureTest {
+
+  @Override
+  int version() {
+    return 1
+  }
+
+  @Override
+  String service() {
+    return AbstractIgniteTest.V1_SERVICE
+  }
+
+  @Override
+  String operation() {
+    return AbstractIgniteTest.V1_OPERATION
   }
 }

@@ -26,11 +26,11 @@ public class AdviceUtils {
     if (state != null) {
       final AgentScope.Continuation continuation = state.getAndResetContinuation();
       if (continuation != null) {
-        if (migrated) {
-          continuation.migrated();
-        }
         final AgentScope scope = continuation.activate();
         scope.setAsyncPropagation(true);
+        // important - stop timing after the scope has been activated so the time in the queue can
+        // be attributed to the correct context without duplicating the propagated information
+        state.stopTiming();
         return scope;
       }
     }
@@ -67,9 +67,7 @@ public class AdviceUtils {
         state = State.FACTORY.create();
         contextStore.put(task, state);
       }
-      if (state.captureAndSetContinuation(activeScope) && startThreadMigration) {
-        state.startThreadMigration();
-      }
+      state.captureAndSetContinuation(activeScope);
     }
   }
 }

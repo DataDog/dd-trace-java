@@ -2,10 +2,9 @@ package springdata
 
 
 import datadog.trace.agent.test.AgentTestRunner
-import datadog.trace.agent.test.checkpoints.CheckpointValidator
-import datadog.trace.agent.test.checkpoints.CheckpointValidationMode
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
+import datadog.trace.test.util.Flaky
 import org.elasticsearch.action.search.SearchResponse
 import org.elasticsearch.common.io.FileSystemUtils
 import org.elasticsearch.common.settings.Settings
@@ -19,12 +18,11 @@ import org.springframework.data.elasticsearch.core.ResultsExtractor
 import org.springframework.data.elasticsearch.core.query.IndexQueryBuilder
 import org.springframework.data.elasticsearch.core.query.NativeSearchQuery
 import org.springframework.data.elasticsearch.core.query.NativeSearchQueryBuilder
-import spock.lang.Retry
 import spock.lang.Shared
 
 import java.util.concurrent.atomic.AtomicLong
 
-@Retry(count = 3, delay = 1000, mode = Retry.Mode.SETUP_FEATURE_CLEANUP)
+@Flaky
 class Elasticsearch2SpringTemplateTest extends AgentTestRunner {
   public static final long TIMEOUT = 10000 // 10 seconds
 
@@ -65,9 +63,6 @@ class Elasticsearch2SpringTemplateTest extends AgentTestRunner {
 
   def "test elasticsearch error"() {
     setup:
-    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
-      CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.THREAD_SEQUENCE)
 
     when:
     template.refresh(indexName)
@@ -92,7 +87,7 @@ class Elasticsearch2SpringTemplateTest extends AgentTestRunner {
             "elasticsearch.request" "RefreshRequest"
             "elasticsearch.request.indices" indexName
             errorTags IndexNotFoundException, "no such index"
-            defaultTags()
+            defaultTagsNoPeerService()
           }
         }
       }
@@ -104,9 +99,6 @@ class Elasticsearch2SpringTemplateTest extends AgentTestRunner {
 
   def "test elasticsearch get"() {
     setup:
-    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
-      CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.THREAD_SEQUENCE)
 
     expect:
     template.createIndex(indexName)
@@ -152,7 +144,7 @@ class Elasticsearch2SpringTemplateTest extends AgentTestRunner {
             "elasticsearch.action" "CreateIndexAction"
             "elasticsearch.request" "CreateIndexRequest"
             "elasticsearch.request.indices" indexName
-            defaultTags()
+            defaultTagsNoPeerService()
           }
         }
       }
@@ -168,7 +160,7 @@ class Elasticsearch2SpringTemplateTest extends AgentTestRunner {
             "$Tags.DB_TYPE" "elasticsearch"
             "elasticsearch.action" "ClusterHealthAction"
             "elasticsearch.request" "ClusterHealthRequest"
-            defaultTags()
+            defaultTagsNoPeerService()
           }
         }
       }
@@ -186,7 +178,7 @@ class Elasticsearch2SpringTemplateTest extends AgentTestRunner {
             "elasticsearch.request" "SearchRequest"
             "elasticsearch.request.indices" indexName
             "elasticsearch.request.search.types" indexType
-            defaultTags()
+            defaultTagsNoPeerService()
           }
         }
       }
@@ -204,7 +196,7 @@ class Elasticsearch2SpringTemplateTest extends AgentTestRunner {
             "elasticsearch.request" "IndexRequest"
             "elasticsearch.request.indices" indexName
             "elasticsearch.request.write.type" indexType
-            defaultTags()
+            defaultTagsNoPeerService()
           }
         }
       }
@@ -221,7 +213,7 @@ class Elasticsearch2SpringTemplateTest extends AgentTestRunner {
             "elasticsearch.action" "PutMappingAction"
             "elasticsearch.request" "PutMappingRequest"
             "elasticsearch.request.indices" indexName
-            defaultTags()
+            defaultTagsNoPeerService()
           }
         }
       }
@@ -241,7 +233,7 @@ class Elasticsearch2SpringTemplateTest extends AgentTestRunner {
             "elasticsearch.shard.broadcast.failed" 0
             "elasticsearch.shard.broadcast.successful" 5
             "elasticsearch.shard.broadcast.total" 10
-            defaultTags()
+            defaultTagsNoPeerService()
           }
         }
       }
@@ -259,7 +251,7 @@ class Elasticsearch2SpringTemplateTest extends AgentTestRunner {
             "elasticsearch.request" "SearchRequest"
             "elasticsearch.request.indices" indexName
             "elasticsearch.request.search.types" indexType
-            defaultTags()
+            defaultTagsNoPeerService()
           }
         }
       }
@@ -276,9 +268,6 @@ class Elasticsearch2SpringTemplateTest extends AgentTestRunner {
 
   def "test results extractor"() {
     setup:
-    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
-      CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.THREAD_SEQUENCE)
 
     template.createIndex(indexName)
     TEST_WRITER.waitForTraces(1)
@@ -346,7 +335,7 @@ class Elasticsearch2SpringTemplateTest extends AgentTestRunner {
             "elasticsearch.action" "SearchAction"
             "elasticsearch.request" "SearchRequest"
             "elasticsearch.request.indices" indexName
-            defaultTags()
+            defaultTagsNoPeerService()
           }
         }
       }

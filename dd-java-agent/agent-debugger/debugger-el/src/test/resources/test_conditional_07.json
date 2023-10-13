@@ -1,0 +1,13 @@
+{
+  "dsl": "intArray[2] > 0 && intArray[idx] > 0 && intArray[count(strArray)] > 0 && intArray[intArray[1]] > 0 && strMap[\"foo\"] != null && strMap[strMap[\"foo\"]] == \"foobar\"",
+  "json": {
+    "and": [
+      {"gt": [{"index": [{"ref": "intArray"}, 2]}, 0]},
+      {"gt": [{"index": [{"ref": "intArray"}, {"ref": "idx"}]}, 0]},
+      {"gt": [{"index": [{"ref": "intArray"}, {"count": {"ref": "strArray"}} ]}, 0]},
+      {"gt": [{"index": [{"ref": "intArray"}, {"index": [{"ref": "intArray"}, 1]} ]}, 0]},
+      {"ne": [{"index": [{"ref": "strMap"}, "foo" ]}, null]},
+      {"eq": [{"index": [{"ref": "strMap"}, {"index": [{"ref": "strMap"}, "foo"]}]}, "foobar"]}
+    ]
+  }
+}

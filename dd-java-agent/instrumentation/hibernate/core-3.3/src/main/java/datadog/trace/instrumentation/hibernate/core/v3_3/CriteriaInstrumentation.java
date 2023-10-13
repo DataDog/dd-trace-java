@@ -26,7 +26,7 @@ public class CriteriaInstrumentation extends AbstractHibernateInstrumentation {
 
   @Override
   public Map<String, String> contextStore() {
-    return singletonMap("org.hibernate.Criteria", SessionState.class.getName());
+    return singletonMap("org.hibernate.Criteria", SESSION_STATE);
   }
 
   @Override

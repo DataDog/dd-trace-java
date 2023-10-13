@@ -1,7 +1,6 @@
 package datadog.trace.common.metrics;
 
 import datadog.trace.core.histogram.Histogram;
-import datadog.trace.core.histogram.HistogramFactory;
 import datadog.trace.core.histogram.Histograms;
 import java.util.concurrent.atomic.AtomicLongArray;
 
@@ -11,8 +10,6 @@ public final class AggregateMetric {
   static final long ERROR_TAG = 0x8000000000000000L;
   static final long TOP_LEVEL_TAG = 0x4000000000000000L;
 
-  private static final HistogramFactory HISTOGRAM_FACTORY = Histograms.newHistogramFactory();
-
   private final Histogram okLatencies;
   private final Histogram errorLatencies;
   private int errorCount;
@@ -21,8 +18,8 @@ public final class AggregateMetric {
   private long duration;
 
   public AggregateMetric() {
-    okLatencies = HISTOGRAM_FACTORY.newHistogram();
-    errorLatencies = HISTOGRAM_FACTORY.newHistogram();
+    okLatencies = Histograms.newHistogram();
+    errorLatencies = Histograms.newHistogram();
   }
 
   public AggregateMetric recordDurations(int count, AtomicLongArray durations) {

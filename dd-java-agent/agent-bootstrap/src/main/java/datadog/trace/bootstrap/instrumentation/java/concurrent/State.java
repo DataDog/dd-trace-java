@@ -2,6 +2,7 @@ package datadog.trace.bootstrap.instrumentation.java.concurrent;
 
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ContinuationClaim.CLAIMED;
 
+import datadog.trace.api.profiling.Timing;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -9,19 +10,18 @@ import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 
 public final class State {
 
-  public static ContextStore.Factory<State> FACTORY =
-      new ContextStore.Factory<State>() {
-        @Override
-        public State create() {
-          return new State();
-        }
-      };
+  public static ContextStore.Factory<State> FACTORY = State::new;
 
   private static final AtomicReferenceFieldUpdater<State, AgentScope.Continuation> CONTINUATION =
       AtomicReferenceFieldUpdater.newUpdater(
           State.class, AgentScope.Continuation.class, "continuation");
 
   private volatile AgentScope.Continuation continuation = null;
+
+  private static final AtomicReferenceFieldUpdater<State, Timing> TIMING =
+      AtomicReferenceFieldUpdater.newUpdater(State.class, Timing.class, "timing");
+
+  private volatile Timing timing = null;
 
   private State() {}
 
@@ -74,10 +74,18 @@ public final class State {
     return continuation;
   }
 
-  public void startThreadMigration() {
-    AgentScope.Continuation continuation = CONTINUATION.get(this);
-    if (null != continuation) {
-      continuation.migrate();
+  public void setTiming(Timing timing) {
+    TIMING.lazySet(this, timing);
+  }
+
+  public boolean isTimed() {
+    return TIMING.get(this) != null;
+  }
+
+  public void stopTiming() {
+    Timing timing = TIMING.getAndSet(this, null);
+    if (timing != null) {
+      timing.close();
     }
   }
 }

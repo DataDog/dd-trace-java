@@ -1,0 +1,7 @@
+apply from: "$rootDir/gradle/java.gradle"
+
+dependencies {
+  compileOnly group: 'javax.servlet', name: 'servlet-api', version: '2.3'
+  testImplementation group: 'javax.servlet', name: 'servlet-api', version: '2.3'
+  testImplementation group: 'org.apache.tomcat.embed', name: 'tomcat-embed-core', version: '10.0.8'
+}

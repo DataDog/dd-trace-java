@@ -18,13 +18,7 @@ public final class ConcurrentState {
 
   private static final Logger log = LoggerFactory.getLogger(ConcurrentState.class);
 
-  public static ContextStore.Factory<ConcurrentState> FACTORY =
-      new ContextStore.Factory<ConcurrentState>() {
-        @Override
-        public ConcurrentState create() {
-          return new ConcurrentState();
-        }
-      };
+  public static ContextStore.Factory<ConcurrentState> FACTORY = ConcurrentState::new;
 
   private volatile AgentScope.Continuation continuation = null;
 

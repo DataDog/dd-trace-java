@@ -30,8 +30,9 @@ public class ConnectionHandleRequestVisitor extends ClassVisitor {
       int access, String name, String descriptor, String signature, String[] exceptions) {
     MethodVisitor superVisitor = super.visitMethod(access, name, descriptor, signature, exceptions);
     if (name.equals("handleRequest") && descriptor.equals("()V")) {
+      MethodVisitor mcfMv = new MergeConsecutiveFramesMethodVisitor(this.api, superVisitor);
       DelayLoadsMethodVisitor delayLoadsMethodVisitor =
-          new DelayLoadsMethodVisitor(this.api, superVisitor);
+          new DelayLoadsMethodVisitor(this.api, mcfMv);
       return new HandleRequestVisitor(
           this.api, this.classVersion, delayLoadsMethodVisitor, this.connClassInternalName);
     } else {

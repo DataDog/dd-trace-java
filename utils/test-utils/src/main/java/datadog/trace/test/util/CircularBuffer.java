@@ -22,9 +22,11 @@ public class CircularBuffer<T> implements Iterable<T> {
     buffer = createBuffer(capacity);
   }
 
-  public void add(final T obj) {
+  public T add(final T obj) {
+    final T current = buffer[index];
     buffer[index] = obj;
     index = (index + 1) & lengthMask;
+    return current;
   }
 
   public Iterator<T> iterator() {

@@ -27,7 +27,7 @@ public class OverheadControllerBenchmark {
   public void setup() {
     System.setProperty("dd.iast.request-sampling", "100");
     System.setProperty("dd.iast.max-context-operations", "100000");
-    overheadController = new OverheadController(Config.get(), null);
+    overheadController = OverheadController.build(Config.get(), null);
   }
 
   @Benchmark

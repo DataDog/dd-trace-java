@@ -4,13 +4,18 @@ import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.agent.test.base.HttpServer
 import datadog.trace.agent.test.base.HttpServerTest
 import datadog.trace.api.DDSpanTypes
+import datadog.trace.api.iast.InstrumentationBridge
+import datadog.trace.api.iast.SourceTypes
+import datadog.trace.api.iast.propagation.PropagationModule
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.core.DDSpan
-import datadog.trace.instrumentation.servlet3.Servlet3Decorator
 import datadog.trace.instrumentation.springweb.SpringWebHttpServerDecorator
+import okhttp3.Request
+import okhttp3.Response
 import org.springframework.boot.SpringApplication
 import org.springframework.boot.context.embedded.EmbeddedWebApplicationContext
 import org.springframework.context.ConfigurableApplicationContext
+import test.SetupSpecHelper
 import test.boot.SecurityConfig
 
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
@@ -56,18 +61,33 @@ class UrlHandlerMappingTest extends HttpServerTest<ConfigurableApplicationContex
   }
 
   @Override
+  protected void configurePreAgent() {
+    super.configurePreAgent()
+    injectSysConfig('dd.iast.enabled', 'true')
+  }
+
+  @Override
   HttpServer server() {
     new SpringBootServer()
   }
 
   @Override
   String component() {
-    Servlet3Decorator.DECORATE.component()
+    'tomcat-server'
   }
 
   @Override
   String expectedOperationName() {
     'servlet.request'
+  }
+
+  def setupSpec() {
+    SetupSpecHelper.provideBlockResponseFunction()
+  }
+
+  @Override
+  protected boolean enabledFinishTimingChecks() {
+    true
   }
 
   @Override
@@ -93,6 +113,21 @@ class UrlHandlerMappingTest extends HttpServerTest<ConfigurableApplicationContex
   }
 
   @Override
+  boolean testBadUrl() {
+    false
+  }
+
+  @Override
+  boolean testBlocking() {
+    true
+  }
+
+  @Override
+  boolean testUserBlocking() {
+    false
+  }
+
+  @Override
   Serializable expectedServerSpanRoute(ServerEndpoint endpoint) {
     switch (endpoint) {
       case LOGIN:
@@ -112,7 +147,12 @@ class UrlHandlerMappingTest extends HttpServerTest<ConfigurableApplicationContex
 
   @Override
   Map<String, Serializable> expectedExtraServerTags(ServerEndpoint endpoint) {
-    ['servlet.path': endpoint.path]
+    ['servlet.path': endpoint.path, 'servlet.context': '/']
+  }
+
+  @Override
+  String expectedServiceName() {
+    'root-servlet'
   }
 
   @Override
@@ -147,5 +187,25 @@ class UrlHandlerMappingTest extends HttpServerTest<ConfigurableApplicationContex
     then:
     response.code() == PATH_PARAM.status
     span.getTag(IG_PATH_PARAMS_TAG) == [id: '123']
+  }
+
+  void 'tainting on template var'() {
+    setup:
+    PropagationModule mod = Mock()
+    InstrumentationBridge.registerIastModule(mod)
+    Request request = this.request(PATH_PARAM, 'GET', null).build()
+
+    when:
+    Response response = client.newCall(request).execute()
+    response.code() == PATH_PARAM.status
+    response.close()
+    TEST_WRITER.waitForTraces(1)
+
+    then:
+    1 * mod.taint(_, SourceTypes.REQUEST_PATH_PARAMETER, 'id', '123')
+    0 * mod._
+
+    cleanup:
+    InstrumentationBridge.clearIastModules()
   }
 }

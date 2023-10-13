@@ -33,4 +33,11 @@ public interface URIDataAdapter {
 
   /** The raw path(?query) of this URI. */
   String raw();
+
+  /**
+   * The URI is a valid one or not (looks malformed)
+   *
+   * @return
+   */
+  boolean isValid();
 }

@@ -1,0 +1,114 @@
+plugins {
+  id 'war'
+  id 'org.springframework.boot' version '2.5.12'
+}
+
+ext {
+  serverName = 'tomcat'
+  serverModule = 'tomcat-8'
+  serverVersion = '8.5.84'
+  serverExtension = 'zip'
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+description = 'SpringBoot Tomcat Smoke Tests.'
+
+
+repositories {
+  ivy {
+    url 'https://archive.apache.org/dist'
+    patternLayout {
+      artifact '/[organisation]/[module]/v[revision]/bin/apache-[organisation]-[revision].[ext]'
+      metadataSources {
+        artifact()
+      }
+    }
+  }
+}
+
+configurations {
+  serverFile {
+    extendsFrom implementation
+    canBeResolved = true
+  }
+}
+
+dependencies {
+  // uses the ivy repository url to download the tomcat server
+  // organisation = serverName, revision = serverVersion, module = serverModule, ext = serverExtension
+  serverFile "${serverName}:${serverModule}:${serverVersion}@${serverExtension}"
+
+  testImplementation project(':dd-smoke-tests')
+}
+
+tasks.register("unzip", Copy) {
+  def zipFileNamePrefix = "tomcat"
+  def zipPath = project.configurations.serverFile.find {
+    it.name.startsWith(zipFileNamePrefix)
+  }
+  if (zipPath != null) {
+    def zipFile = file(zipPath)
+    def outputDir = file("${buildDir}")
+
+    from zipTree(zipFile)
+    into outputDir
+  } else {
+    throw new GradleException("Can't find server zip file that starts with: " + zipFileNamePrefix)
+  }
+
+  // When tests are disabled this would still be run, so disable this manually
+  onlyIf { !project.rootProject.hasProperty("skipTests") }
+}
+
+dependencies {
+  implementation group: 'org.springframework.boot', name: 'spring-boot-starter-web', version: '2.5.12'
+  providedRuntime group: 'org.springframework.boot', name: 'spring-boot-starter-tomcat', version: '2.5.12'
+  testImplementation group: 'commons-io', name: 'commons-io', version: '2.11.0'
+  testImplementation project(':dd-smoke-tests')
+}
+
+tasks.packageSources {
+  dependsOn 'unzip'
+}
+
+tasks.sourcesJar {
+  dependsOn 'unzip'
+}
+
+tasks.javadocJar {
+  dependsOn 'unzip'
+}
+
+tasks.bootWar {
+  dependsOn 'unzip'
+}
+
+tasks.bootWarMainClassName {
+  dependsOn 'unzip'
+}
+
+tasks.war {
+  dependsOn 'unzip'
+}
+
+tasks.javadocJar{
+  dependsOn 'unzip'
+}
+
+tasks.packageSources{
+  dependsOn 'unzip'
+}
+
+tasks.sourcesJar{
+  dependsOn 'unzip'
+}
+
+tasks.matching({it.name.startsWith('compileTest')}).configureEach {
+  dependsOn 'war', 'bootWar', 'unzip'
+}
+
+tasks.withType(Test).configureEach {
+  dependsOn "war", "bootWar", "unzip"
+  jvmArgs "-Ddatadog.smoketest.springboot.war.path=${tasks.bootWar.archiveFile.get().getAsFile()}"
+  jvmArgs "-Ddatadog.smoketest.tomcatDir=${buildDir}/apache-${serverName}-${serverVersion}"
+}

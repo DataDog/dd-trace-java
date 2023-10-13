@@ -1,13 +1,11 @@
 package datadog.trace.core.datastreams;
 
 import datadog.trace.core.histogram.Histogram;
-import datadog.trace.core.histogram.HistogramFactory;
 import datadog.trace.core.histogram.Histograms;
 import java.util.List;
 
 public class StatsGroup {
   private static final double NANOSECONDS_TO_SECOND = 1_000_000_000d;
-  private static final HistogramFactory HISTOGRAM_FACTORY = Histograms.newHistogramFactory();
 
   private final List<String> edgeTags;
   private final long hash;
@@ -19,8 +17,8 @@ public class StatsGroup {
     this.edgeTags = edgeTags;
     this.hash = hash;
     this.parentHash = parentHash;
-    pathwayLatency = HISTOGRAM_FACTORY.newHistogram();
-    edgeLatency = HISTOGRAM_FACTORY.newHistogram();
+    pathwayLatency = Histograms.newHistogram();
+    edgeLatency = Histograms.newHistogram();
   }
 
   public void add(long pathwayLatencyNano, long edgeLatencyNano) {

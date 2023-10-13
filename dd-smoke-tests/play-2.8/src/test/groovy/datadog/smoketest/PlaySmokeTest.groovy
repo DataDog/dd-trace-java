@@ -2,6 +2,8 @@ package datadog.smoketest
 
 import datadog.trace.agent.test.server.http.TestHttpServer
 import datadog.trace.agent.test.utils.ThreadUtils
+
+import java.nio.file.Files
 import java.util.concurrent.ThreadLocalRandom
 import java.util.concurrent.atomic.AtomicInteger
 import okhttp3.Request
@@ -9,6 +11,7 @@ import spock.lang.AutoCleanup
 import spock.lang.Shared
 
 import static datadog.trace.agent.test.server.http.TestHttpServer.httpServer
+import static java.util.concurrent.TimeUnit.SECONDS
 
 abstract class PlaySmokeTest extends AbstractServerSmokeTest {
 
@@ -39,8 +42,9 @@ abstract class PlaySmokeTest extends AbstractServerSmokeTest {
     if (runningPid.exists()) {
       runningPid.delete()
     }
+    def command = isWindows() ? 'main.bat' : 'main'
     ProcessBuilder processBuilder =
-      new ProcessBuilder("${playDirectory}/bin/main")
+      new ProcessBuilder("${playDirectory}/bin/${command}")
     processBuilder.directory(playDirectory)
     processBuilder.environment().put("JAVA_OPTS",
       defaultJavaProperties.join(" ")
@@ -117,5 +121,25 @@ abstract class PlaySmokeTest extends AbstractServerSmokeTest {
       doAndValidateRequest(id)
     })
     waitForTraceCount(totalInvocations) == totalInvocations
+  }
+
+  // Ensure to clean up server and not only the shell script that starts it
+  def cleanupSpec() {
+    def pid = runningServerPid()
+    if (pid) {
+      def commands = isWindows() ? ['taskkill', '/PID', pid, '/T', '/F'] : ['kill', '-9', pid]
+      new ProcessBuilder(commands).start().waitFor(10, SECONDS)
+    }
+  }
+
+  def runningServerPid() {
+    def runningPid = new File(playDirectory.getPath(), 'RUNNING_PID')
+    if (runningPid.exists()) {
+      return Files.lines(runningPid.toPath()).findAny().orElse(null)
+    }
+  }
+
+  static isWindows() {
+    return System.getProperty('os.name').toLowerCase().contains("win")
   }
 }

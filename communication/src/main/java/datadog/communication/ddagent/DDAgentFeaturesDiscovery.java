@@ -41,9 +41,13 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
 
   public static final String V01_DATASTREAMS_ENDPOINT = "v0.1/pipeline_stats";
 
+  public static final String V2_EVP_PROXY_ENDPOINT = "evp_proxy/v2/";
+
   public static final String DATADOG_AGENT_STATE = "Datadog-Agent-State";
 
   public static final String DEBUGGER_ENDPOINT = "debugger/v1/input";
+
+  private static final long MIN_FEATURE_DISCOVERY_INTERVAL_MILLIS = 60 * 1000;
 
   private final OkHttpClient client;
   private final HttpUrl agentBaseUrl;
@@ -53,15 +57,20 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
   private final String[] configEndpoints = {V7_CONFIG_ENDPOINT};
   private final boolean metricsEnabled;
   private final String[] dataStreamsEndpoints = {V01_DATASTREAMS_ENDPOINT};
+  private final String[] evpProxyEndpoints = {V2_EVP_PROXY_ENDPOINT};
 
   private volatile String traceEndpoint;
   private volatile String metricsEndpoint;
   private volatile String dataStreamsEndpoint;
+  private volatile boolean supportsLongRunning;
   private volatile boolean supportsDropping;
   private volatile String state;
   private volatile String configEndpoint;
   private volatile String debuggerEndpoint;
+  private volatile String evpProxyEndpoint;
   private volatile String version;
+
+  private long lastTimeDiscovered;
 
   public DDAgentFeaturesDiscovery(
       OkHttpClient client,
@@ -83,13 +92,40 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
     traceEndpoint = null;
     metricsEndpoint = null;
     supportsDropping = false;
+    supportsLongRunning = false;
     state = null;
     configEndpoint = null;
     debuggerEndpoint = null;
+    dataStreamsEndpoint = null;
+    evpProxyEndpoint = null;
     version = null;
+    lastTimeDiscovered = 0;
   }
 
+  /** Run feature discovery, unconditionally. */
   public void discover() {
+    discoverIfOutdated(0);
+  }
+
+  /** Run feature discovery, if it was not run recently. */
+  public void discoverIfOutdated() {
+    discoverIfOutdated(getFeaturesDiscoveryMinDelayMillis());
+  }
+
+  protected long getFeaturesDiscoveryMinDelayMillis() {
+    return MIN_FEATURE_DISCOVERY_INTERVAL_MILLIS;
+  }
+
+  private synchronized void discoverIfOutdated(final long maxElapsedMs) {
+    final long now = System.currentTimeMillis();
+    final long elapsed = now - lastTimeDiscovered;
+    if (elapsed > maxElapsedMs) {
+      doDiscovery();
+      lastTimeDiscovered = now;
+    }
+  }
+
+  private void doDiscovery() {
     reset();
     // 1. try to fetch info about the agent, if the endpoint is there
     // 2. try to parse the response, if it can be parsed, finish
@@ -108,6 +144,7 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
       }
       if (fallback) {
         supportsDropping = false;
+        supportsLongRunning = false;
         log.debug("Falling back to probing, client dropping will be disabled");
         // disable metrics unless the info endpoint is present, which prevents
         // sending metrics to 7.26.0, which has a bug in reporting metric origin
@@ -125,12 +162,14 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
 
     if (log.isDebugEnabled()) {
       log.debug(
-          "discovered traceEndpoint={}, metricsEndpoint={}, supportsDropping={}, dataStreamsEndpoint={}, configEndpoint={}",
+          "discovered traceEndpoint={}, metricsEndpoint={}, supportsDropping={}, supportsLongRunning={}, dataStreamsEndpoint={}, configEndpoint={}, evpProxyEndpoint={}",
           traceEndpoint,
           metricsEndpoint,
           supportsDropping,
+          supportsLongRunning,
           dataStreamsEndpoint,
-          configEndpoint);
+          configEndpoint,
+          evpProxyEndpoint);
     }
   }
 
@@ -194,16 +233,21 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
         debuggerEndpoint = DEBUGGER_ENDPOINT;
       }
 
-      String foundDatastreamsEndpoint = null;
       for (String endpoint : dataStreamsEndpoints) {
         if (endpoints.contains(endpoint) || endpoints.contains("/" + endpoint)) {
-          foundDatastreamsEndpoint = endpoint;
+          dataStreamsEndpoint = endpoint;
           break;
         }
       }
 
-      // This is done outside of the loop to set dataStreamsEndpoint to null if not found
-      dataStreamsEndpoint = foundDatastreamsEndpoint;
+      for (String endpoint : evpProxyEndpoints) {
+        if (endpoints.contains(endpoint) || endpoints.contains("/" + endpoint)) {
+          evpProxyEndpoint = endpoint;
+          break;
+        }
+      }
+
+      supportsLongRunning = Boolean.TRUE.equals(map.getOrDefault("long_running_spans", false));
 
       if (metricsEnabled) {
         Object canDrop = map.get("client_drop_p0s");
@@ -228,10 +272,19 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
   private static void discoverStatsDPort(final Map<String, Object> info) {
     try {
       Map<String, ?> config = (Map<String, ?>) info.get("config");
-      int statsdPort = ((Number) config.get("statsd_port")).intValue();
+      if (config == null) {
+        log.debug("config missing from trace agent /info response");
+        return;
+      }
+      final Object statsdPortObj = config.get("statsd_port");
+      if (statsdPortObj == null) {
+        log.debug("statsd_port missing from trace agent /info response");
+        return;
+      }
+      int statsdPort = ((Number) statsdPortObj).intValue();
       DDAgentStatsDClientManager.setDefaultStatsDPort(statsdPort);
-    } catch (Throwable ignore) {
-      log.debug("statsd_port missing from trace agent /info response", ignore);
+    } catch (Exception ex) {
+      log.debug("statsd_port missing from trace agent /info response", ex);
     }
   }
 
@@ -247,6 +300,10 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
     return supportsDropping;
   }
 
+  public boolean supportsLongRunning() {
+    return supportsLongRunning;
+  }
+
   public String getMetricsEndpoint() {
     return metricsEndpoint;
   }
@@ -259,12 +316,20 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
     return dataStreamsEndpoint;
   }
 
+  public String getEvpProxyEndpoint() {
+    return evpProxyEndpoint;
+  }
+
   public HttpUrl buildUrl(String endpoint) {
     return agentBaseUrl.resolve(endpoint);
   }
 
   public boolean supportsDataStreams() {
     return dataStreamsEndpoint != null;
+  }
+
+  public boolean supportsEvpProxy() {
+    return evpProxyEndpoint != null;
   }
 
   public String getConfigEndpoint() {

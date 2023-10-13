@@ -2,7 +2,6 @@ package datadog.trace.agent.tooling.bytebuddy;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.canSkipClassLoaderByName;
 
-import datadog.trace.agent.tooling.bytebuddy.matcher.GlobalIgnoresMatcher;
 import datadog.trace.agent.tooling.bytebuddy.matcher.IgnoredClassNameTrie;
 import java.lang.instrument.ClassFileTransformer;
 import java.lang.instrument.Instrumentation;
@@ -53,6 +52,7 @@ public final class DDRediscoveryStrategy implements RedefinitionStrategy.Discove
             if (next.isEmpty()) {
               round = MAX_ROUNDS; // halt iterator, nothing more to re-transform
             } else {
+              visited.addAll(next); // mark as visited so they're not transformed again
               round++;
             }
             return next;
@@ -73,22 +73,34 @@ public final class DDRediscoveryStrategy implements RedefinitionStrategy.Discove
     List<Class<?>> retransforming = new ArrayList<>();
     for (Class<?> clazz : instrumentation.getAllLoadedClasses()) {
       ClassLoader classLoader = clazz.getClassLoader();
-      if ((null == classLoader
-              ? shouldRetransformBootstrapClass(clazz.getName())
-              : !canSkipClassLoaderByName(classLoader))
-          && visited.add(clazz)) {
+      if (null != classLoader) {
+        if (canSkipClassLoaderByName(classLoader)) {
+          continue;
+        }
+        Class<?> loaderClass = classLoader.getClass();
+        // postpone transforming types if their class-loader has yet to be transformed
+        // (this stops us from accidentally marking the class-loader as skipped when we
+        // haven't yet patched it to delegate to the boot-class-path for tracer types)
+        if (!visited.contains(loaderClass) && allowRetransform(loaderClass)) {
+          continue;
+        }
+      }
+      if (!visited.contains(clazz) && allowRetransform(clazz)) {
         retransforming.add(clazz);
       }
     }
     return retransforming;
   }
 
-  /**
-   * This can be viewed as the inverse of {@link GlobalIgnoresMatcher} - it only lists bootstrap
-   * classes loaded during agent installation that we explicitly want to be re-transformed.
-   */
-  static boolean shouldRetransformBootstrapClass(final String name) {
-    // optimization: only retransform bootstrap classes we explicitly allow in global ignores
-    return IgnoredClassNameTrie.apply(name) == 0;
+  private static boolean allowRetransform(Class<?> clazz) {
+    switch (IgnoredClassNameTrie.apply(clazz.getName())) {
+      case 0:
+        return true; // explicitly allowed
+      case -1:
+        // unknown type; if it's from the boot-class-path ignore it, otherwise allow
+        return null != clazz.getClassLoader();
+      default:
+        return false; // explicitly ignored
+    }
   }
 }

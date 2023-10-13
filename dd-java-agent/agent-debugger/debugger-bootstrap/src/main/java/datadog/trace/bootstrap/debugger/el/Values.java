@@ -17,4 +17,12 @@ public final class Values {
           return "NULL";
         }
       };
+
+  public static final Object THIS_OBJECT =
+      new Object() {
+        @Override
+        public String toString() {
+          return "this";
+        }
+      };
 }

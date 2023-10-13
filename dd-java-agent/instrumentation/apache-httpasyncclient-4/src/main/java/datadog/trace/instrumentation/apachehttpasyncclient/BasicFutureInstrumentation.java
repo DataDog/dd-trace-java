@@ -10,7 +10,7 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.InstrumentationContext;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.ByteCodeElement;
+import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 import org.apache.http.concurrent.BasicFuture;
 import org.apache.http.concurrent.FutureCallback;
@@ -34,7 +34,7 @@ public final class BasicFutureInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public ElementMatcher<? extends ByteCodeElement> structureMatcher() {
+  public ElementMatcher<TypeDescription> structureMatcher() {
     return declaresField(named("callback"));
   }
 

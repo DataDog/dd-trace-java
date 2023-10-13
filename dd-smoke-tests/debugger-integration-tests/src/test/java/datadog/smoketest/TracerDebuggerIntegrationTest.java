@@ -6,10 +6,12 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.datadog.debugger.agent.JsonSnapshotSerializer;
-import com.datadog.debugger.agent.SnapshotProbe;
+import com.datadog.debugger.probe.LogProbe;
+import com.datadog.debugger.sink.Snapshot;
 import com.squareup.moshi.JsonAdapter;
 import datadog.trace.agent.test.utils.PortUtils;
-import datadog.trace.bootstrap.debugger.Snapshot;
+import datadog.trace.bootstrap.debugger.MethodLocation;
+import datadog.trace.bootstrap.debugger.ProbeId;
 import datadog.trace.util.TagsHelper;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -28,7 +30,7 @@ public class TracerDebuggerIntegrationTest extends BaseIntegrationTest {
 
   private static final String DEBUGGER_TEST_APP_CLASS =
       "datadog.smoketest.debugger.SpringBootTestApplication";
-  private static final String PROBE_ID = "123356536";
+  private static final ProbeId PROBE_ID = new ProbeId("123356536", 1);
 
   @Override
   protected String getAppClass() {
@@ -43,15 +45,65 @@ public class TracerDebuggerIntegrationTest extends BaseIntegrationTest {
   @Test
   @DisplayName("testTracer")
   void testTracer() throws Exception {
-    SnapshotProbe snapshotProbe =
-        SnapshotProbe.builder()
+    LogProbe logProbe =
+        LogProbe.builder()
             .probeId(PROBE_ID)
             .where(
                 "org.springframework.web.servlet.DispatcherServlet",
                 "doService",
                 "(HttpServletRequest, HttpServletResponse)")
+            .captureSnapshot(true)
             .build();
-    setCurrentConfiguration(createConfig(snapshotProbe));
+    JsonSnapshotSerializer.IntakeRequest request = doTestTracer(logProbe);
+    Snapshot snapshot = request.getDebugger().getSnapshot();
+    assertEquals("123356536", snapshot.getProbe().getId());
+    assertTrue(Pattern.matches("[0-9a-f]+", request.getTraceId()));
+    assertTrue(Pattern.matches("\\d+", request.getSpanId()));
+    assertFalse(
+        logHasErrors(logFilePath, it -> it.contains("TypePool$Resolution$NoSuchTypeException")));
+  }
+
+  @Test
+  @DisplayName("testTracerDynamicLog")
+  void testTracerDynamicLog() throws Exception {
+    LogProbe logProbe =
+        LogProbe.builder()
+            .probeId(PROBE_ID)
+            .where(
+                "org.springframework.web.servlet.DispatcherServlet",
+                "doService",
+                "(HttpServletRequest, HttpServletResponse)")
+            .captureSnapshot(false)
+            .evaluateAt(MethodLocation.EXIT)
+            .build();
+    JsonSnapshotSerializer.IntakeRequest request = doTestTracer(logProbe);
+    Snapshot snapshot = request.getDebugger().getSnapshot();
+    assertEquals("123356536", snapshot.getProbe().getId());
+    assertTrue(Pattern.matches("[0-9a-f]+", request.getTraceId()));
+    assertTrue(Pattern.matches("\\d+", request.getSpanId()));
+    assertFalse(
+        logHasErrors(logFilePath, it -> it.contains("TypePool$Resolution$NoSuchTypeException")));
+  }
+
+  @Test
+  @DisplayName("testTracerSameMethod")
+  void testTracerSameMethod() throws Exception {
+    LogProbe logProbe =
+        LogProbe.builder()
+            .probeId(PROBE_ID)
+            .where("datadog.smoketest.debugger.controller.WebController", "processWithArg", null)
+            .captureSnapshot(true)
+            .build();
+    JsonSnapshotSerializer.IntakeRequest request = doTestTracer(logProbe);
+    Snapshot snapshot = request.getDebugger().getSnapshot();
+    assertEquals("123356536", snapshot.getProbe().getId());
+    assertEquals(42, snapshot.getCaptures().getEntry().getArguments().get("argInt").getValue());
+    assertTrue(Pattern.matches("[0-9a-f]+", request.getTraceId()));
+    assertTrue(Pattern.matches("\\d+", request.getSpanId()));
+  }
+
+  private JsonSnapshotSerializer.IntakeRequest doTestTracer(LogProbe logProbe) throws Exception {
+    setCurrentConfiguration(createConfig(logProbe));
     String httpPort = String.valueOf(PortUtils.randomOpenPort());
     targetProcess = createProcessBuilder(logFilePath, "--server.port=" + httpPort).start();
     // assert in logs app started
@@ -73,26 +125,22 @@ public class TracerDebuggerIntegrationTest extends BaseIntegrationTest {
           System.out.println("Empty config was not provided!");
         }
       }
-      setCurrentConfiguration(createConfig(snapshotProbe));
+      setCurrentConfiguration(createConfig(logProbe));
       snapshotRequest = retrieveSnapshotRequest();
     }
     assertNotNull(snapshotRequest);
     String bodyStr = snapshotRequest.getBody().readUtf8();
     JsonAdapter<List<JsonSnapshotSerializer.IntakeRequest>> adapter = createAdapterForSnapshot();
     System.out.println(bodyStr);
-    JsonSnapshotSerializer.IntakeRequest request = adapter.fromJson(bodyStr).get(0);
-    Snapshot snapshot = request.getDebugger().getSnapshot();
-    assertEquals("123356536", snapshot.getProbe().getId());
-    assertTrue(Pattern.matches("\\d+", request.getTraceId()));
-    assertTrue(Pattern.matches("\\d+", request.getSpanId()));
-    assertFalse(
-        logHasErrors(logFilePath, it -> it.contains("TypePool$Resolution$NoSuchTypeException")));
+    return adapter.fromJson(bodyStr).get(0);
   }
 
   @Override
   protected ProcessBuilder createProcessBuilder(Path logFilePath, String... params) {
     List<String> commandParams = getDebuggerCommandParams();
     commandParams.add("-Ddd.trace.enabled=true");
+    commandParams.add(
+        "-Ddd.trace.methods=datadog.smoketest.debugger.controller.WebController[processWithArg]");
     return ProcessBuilderHelper.createProcessBuilder(
         commandParams, logFilePath, getAppClass(), params);
   }

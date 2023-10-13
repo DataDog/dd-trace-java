@@ -2,7 +2,7 @@ package datadog.communication.monitor;
 
 import com.timgroup.statsd.ServiceCheck;
 import datadog.trace.api.StatsDClient;
-import datadog.trace.api.function.Function;
+import java.util.function.Function;
 
 final class DDAgentStatsDClient implements StatsDClient {
   private final DDAgentStatsDConnection connection;
@@ -51,6 +51,18 @@ final class DDAgentStatsDClient implements StatsDClient {
   @Override
   public void histogram(final String metricName, final double value, final String... tags) {
     connection.statsd.recordHistogramValue(
+        nameMapping.apply(metricName), value, tagMapping.apply(tags));
+  }
+
+  @Override
+  public void distribution(String metricName, long value, String... tags) {
+    connection.statsd.recordDistributionValue(
+        nameMapping.apply(metricName), value, tagMapping.apply(tags));
+  }
+
+  @Override
+  public void distribution(String metricName, double value, String... tags) {
+    connection.statsd.recordDistributionValue(
         nameMapping.apply(metricName), value, tagMapping.apply(tags));
   }
 

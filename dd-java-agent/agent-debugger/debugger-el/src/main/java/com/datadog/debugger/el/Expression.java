@@ -6,4 +6,8 @@ import datadog.trace.bootstrap.debugger.el.ValueReferenceResolver;
 @FunctionalInterface
 public interface Expression<ReturnType> {
   ReturnType evaluate(ValueReferenceResolver valueRefResolver);
+
+  default <R> R accept(Visitor<R> visitor) {
+    return null;
+  }
 }

@@ -12,20 +12,12 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.api.Config;
 import java.util.List;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.ByteCodeElement;
+import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public class QueueBufferConfigInstrumentation extends Instrumenter.Tracing
+public class QueueBufferConfigInstrumentation extends AbstractSqsInstrumentation
     implements Instrumenter.ForSingleType, Instrumenter.WithTypeStructure {
-  public QueueBufferConfigInstrumentation() {
-    super("aws-sdk");
-  }
-
-  @Override
-  protected boolean defaultEnabled() {
-    return super.defaultEnabled() && Config.get().isSqsPropagationEnabled();
-  }
 
   @Override
   public String instrumentedType() {
@@ -33,7 +25,7 @@ public class QueueBufferConfigInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public ElementMatcher<? extends ByteCodeElement> structureMatcher() {
+  public ElementMatcher<TypeDescription> structureMatcher() {
     return declaresField(named("receiveAttributeNames"));
   }
 
@@ -52,16 +44,18 @@ public class QueueBufferConfigInstrumentation extends Instrumenter.Tracing
     public static void onExit(
         @Advice.FieldValue(value = "receiveAttributeNames", readOnly = false)
             List<String> receiveAttributeNames) {
-      // QueueBufferConfig maintains an immutable list which we may need to replace
-      for (String name : receiveAttributeNames) {
-        if ("AWSTraceHeader".equals(name) || "All".equals(name)) {
-          return;
+      if (Config.get().isSqsPropagationEnabled()) {
+        // QueueBufferConfig maintains an immutable list which we may need to replace
+        for (String name : receiveAttributeNames) {
+          if ("AWSTraceHeader".equals(name) || "All".equals(name)) {
+            return;
+          }
         }
+        int oldLength = receiveAttributeNames.size();
+        String[] nameArray = receiveAttributeNames.toArray(new String[oldLength + 1]);
+        nameArray[oldLength] = "AWSTraceHeader";
+        receiveAttributeNames = asList(nameArray);
       }
-      int oldLength = receiveAttributeNames.size();
-      String[] nameArray = receiveAttributeNames.toArray(new String[oldLength + 1]);
-      nameArray[oldLength] = "AWSTraceHeader";
-      receiveAttributeNames = asList(nameArray);
     }
   }
 }

@@ -1,0 +1,19 @@
+// Set properties before any plugins get loaded
+ext {
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+
+minimumBranchCoverage = 0.78
+
+excludedClassesCoverage += [// an enum with no additional functionality
+  'com.datadog.profiling.utils.ProfilingMode',]
+
+dependencies {
+  api project(':internal-api')
+  implementation deps.slf4j
+
+  testImplementation deps.junit5
+  testImplementation deps.mockito
+}
+

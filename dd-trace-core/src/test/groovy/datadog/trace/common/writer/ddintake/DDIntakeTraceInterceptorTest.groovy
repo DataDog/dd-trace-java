@@ -1,6 +1,7 @@
 package datadog.trace.common.writer.ddintake
 
 import datadog.trace.bootstrap.instrumentation.api.Tags
+import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString
 import datadog.trace.common.writer.ListWriter
 import datadog.trace.core.test.DDCoreSpecification
 import spock.lang.Timeout
@@ -11,7 +12,7 @@ class DDIntakeTraceInterceptorTest extends DDCoreSpecification {
   def writer = new ListWriter()
   def tracer = tracerBuilder().writer(writer).build()
 
-  def setup(){
+  def setup() {
     tracer.addTraceInterceptor(DDIntakeTraceInterceptor.INSTANCE)
   }
 
@@ -26,7 +27,7 @@ class DDIntakeTraceInterceptorTest extends DDCoreSpecification {
       .withSpanType("my-span-type")
       .withServiceName("my-service-name")
       .withTag("some-tag-key", "some-tag-value")
-      .withTag("env","     My_____Env     ")
+      .withTag("env", "     My_____Env     ")
       .withTag(Tags.HTTP_STATUS, httpStatus)
       .start().finish()
     writer.waitForTraces(1)
@@ -47,10 +48,42 @@ class DDIntakeTraceInterceptorTest extends DDCoreSpecification {
 
     where:
     httpStatus | expectedHttpStatus
-    null | null
-    "" | null
-    "500" | 500
-    500 | 500
-    600 | null
+    null       | null
+    ""         | null
+    "500"      | 500
+    500        | 500
+    600        | null
+  }
+
+  def "test normalization does not implicitly convert span type"() {
+    setup:
+    def originalSpanType = UTF8BytesString.create("a UTF8 span type")
+    tracer.buildSpan("my-operation-name")
+      .withSpanType(originalSpanType)
+      .start().finish()
+
+    when:
+    writer.waitForTraces(1)
+
+    then:
+    def trace = writer.firstTrace()
+    trace.size() == 1
+
+    def span = trace[0]
+    span.type == originalSpanType
+  }
+
+  def "test default env setting"() {
+    setup:
+    tracer.buildSpan("my-operation-name").start().finish()
+    writer.waitForTraces(1)
+
+    expect:
+    def trace = writer.firstTrace()
+    trace.size() == 1
+
+    def span = trace[0]
+
+    span.getTag("env") == "none"
   }
 }

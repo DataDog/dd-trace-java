@@ -1,16 +1,16 @@
 package datadog.trace.common.writer;
 
 import datadog.communication.ddagent.DroppingPolicy;
-import datadog.communication.http.RetryPolicy;
 import datadog.communication.monitor.Monitoring;
 import datadog.trace.api.Config;
-import datadog.trace.api.StatsDClient;
 import datadog.trace.api.WellKnownTags;
 import datadog.trace.api.intake.TrackType;
+import datadog.trace.common.sampling.SingleSpanSampler;
 import datadog.trace.common.writer.ddagent.Prioritization;
-import datadog.trace.common.writer.ddintake.DDIntakeApi;
 import datadog.trace.common.writer.ddintake.DDIntakeMapperDiscovery;
 import datadog.trace.core.monitor.HealthMetrics;
+import java.util.EnumMap;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 public class DDIntakeWriter extends RemoteWriter {
@@ -25,57 +25,28 @@ public class DDIntakeWriter extends RemoteWriter {
   }
 
   public static class DDIntakeWriterBuilder {
-    String site = Config.get().getSite();
     WellKnownTags wellKnownTags = Config.get().getWellKnownTags();
-    TrackType trackType = TrackType.NOOP;
-    String apiVersion = DEFAULT_INTAKE_VERSION;
-    long timeoutMillis = TimeUnit.SECONDS.toMillis(DEFAULT_INTAKE_TIMEOUT);
     int traceBufferSize = BUFFER_SIZE;
-    HealthMetrics healthMetrics = new HealthMetrics(StatsDClient.NO_OP);
-    int flushFrequencySeconds = 1;
+    HealthMetrics healthMetrics = HealthMetrics.NO_OP;
+    int flushIntervalMilliseconds = 1000;
     Monitoring monitoring = Monitoring.DISABLED;
     DroppingPolicy droppingPolicy = DroppingPolicy.DISABLED;
     Prioritization prioritization = Prioritization.FAST_LANE;
-    RetryPolicy retryPolicy = RetryPolicy.builder().withMaxRetry(5).withBackoff(100).build();
     private int flushTimeout = 5;
     private TimeUnit flushTimeoutUnit = TimeUnit.SECONDS;
-    private boolean alwaysFlush = true;
+    private boolean alwaysFlush = false;
 
-    private DDIntakeApi intakeApi;
-    private String apiKey;
+    private final Map<TrackType, RemoteApi> tracks = new EnumMap<>(TrackType.class);
 
-    public DDIntakeWriterBuilder intakeApi(final DDIntakeApi intakeApi) {
-      this.intakeApi = intakeApi;
-      return this;
-    }
+    private SingleSpanSampler singleSpanSampler;
 
-    public DDIntakeWriterBuilder apiKey(final String apiKey) {
-      this.apiKey = apiKey;
-      return this;
-    }
-
-    public DDIntakeWriterBuilder site(final String site) {
-      this.site = site;
-      return this;
-    }
-
-    public DDIntakeWriterBuilder trackType(final TrackType trackType) {
-      this.trackType = trackType;
-      return this;
-    }
-
-    public DDIntakeWriterBuilder apiVersion(final String apiVersion) {
-      this.apiVersion = apiVersion;
+    public DDIntakeWriterBuilder addTrack(final TrackType trackType, final RemoteApi intakeApi) {
+      tracks.put(trackType, intakeApi);
       return this;
     }
 
     public DDIntakeWriterBuilder monitoring(final Monitoring monitoring) {
       this.monitoring = monitoring;
-      return this;
-    }
-
-    public DDIntakeWriterBuilder timeoutMillis(long timeoutMillis) {
-      this.timeoutMillis = timeoutMillis;
       return this;
     }
 
@@ -89,8 +60,8 @@ public class DDIntakeWriter extends RemoteWriter {
       return this;
     }
 
-    public DDIntakeWriterBuilder flushFrequencySeconds(int flushFrequencySeconds) {
-      this.flushFrequencySeconds = flushFrequencySeconds;
+    public DDIntakeWriterBuilder flushIntervalMilliseconds(int flushIntervalMilliseconds) {
+      this.flushIntervalMilliseconds = flushIntervalMilliseconds;
       return this;
     }
 
@@ -114,11 +85,6 @@ public class DDIntakeWriter extends RemoteWriter {
       return this;
     }
 
-    public DDIntakeWriterBuilder retryPolicy(final RetryPolicy retryPolicy) {
-      this.retryPolicy = retryPolicy;
-      return this;
-    }
-
     public DDIntakeWriterBuilder flushTimeout(
         final int flushTimeout, final TimeUnit flushTimeoutUnit) {
       this.flushTimeout = flushTimeout;
@@ -126,23 +92,27 @@ public class DDIntakeWriter extends RemoteWriter {
       return this;
     }
 
+    public DDIntakeWriterBuilder singleSpanSampler(SingleSpanSampler singleSpanSampler) {
+      this.singleSpanSampler = singleSpanSampler;
+      return this;
+    }
+
     public DDIntakeWriter build() {
-      if (null == intakeApi) {
-        intakeApi =
-            DDIntakeApi.builder()
-                .site(site)
-                .trackType(trackType)
-                .apiVersion(apiVersion)
-                .apiKey(apiKey)
-                .timeoutMillis(timeoutMillis)
-                .retryPolicy(retryPolicy)
-                .build();
+      if (tracks.isEmpty()) {
+        throw new IllegalArgumentException("At least one track needs to be configured");
       }
 
-      final DDIntakeMapperDiscovery mapperDiscovery =
-          new DDIntakeMapperDiscovery(trackType, wellKnownTags);
-      final PayloadDispatcher dispatcher =
-          new PayloadDispatcher(mapperDiscovery, intakeApi, healthMetrics, monitoring);
+      PayloadDispatcher dispatcher;
+      if (tracks.size() == 1) {
+        dispatcher = createDispatcher(tracks.entrySet().iterator().next());
+      } else {
+        PayloadDispatcher[] dispatchers =
+            tracks.entrySet().stream()
+                .map(this::createDispatcher)
+                .toArray(PayloadDispatcher[]::new);
+        dispatcher = new CompositePayloadDispatcher(dispatchers);
+      }
+
       final TraceProcessingWorker traceProcessingWorker =
           new TraceProcessingWorker(
               traceBufferSize,
@@ -150,58 +120,43 @@ public class DDIntakeWriter extends RemoteWriter {
               dispatcher,
               droppingPolicy,
               prioritization,
-              flushFrequencySeconds,
-              TimeUnit.SECONDS);
+              flushIntervalMilliseconds,
+              TimeUnit.MILLISECONDS,
+              singleSpanSampler);
 
       return new DDIntakeWriter(
-          intakeApi,
-          healthMetrics,
-          dispatcher,
           traceProcessingWorker,
+          dispatcher,
+          healthMetrics,
           flushTimeout,
           flushTimeoutUnit,
           alwaysFlush);
     }
+
+    private PayloadDispatcher createDispatcher(Map.Entry<TrackType, RemoteApi> e) {
+      TrackType trackType = e.getKey();
+      RemoteApi intakeApi = e.getValue();
+      DDIntakeMapperDiscovery mapperDiscovery =
+          new DDIntakeMapperDiscovery(trackType, wellKnownTags);
+      return new PayloadDispatcherImpl(mapperDiscovery, intakeApi, healthMetrics, monitoring);
+    }
   }
 
-  private DDIntakeWriter(
-      RemoteApi api,
-      HealthMetrics healthMetrics,
-      Monitoring monitoring,
+  DDIntakeWriter(
       TraceProcessingWorker worker,
-      RemoteMapperDiscovery discovery) {
-    this(
-        api,
-        healthMetrics,
-        new PayloadDispatcher(discovery, api, healthMetrics, monitoring),
-        worker,
-        true);
-  }
-
-  protected DDIntakeWriter(
-      RemoteApi api,
-      HealthMetrics healthMetrics,
       PayloadDispatcher dispatcher,
-      TraceProcessingWorker traceProcessingWorker,
-      boolean alwaysFlush) {
-    super(api, traceProcessingWorker, dispatcher, healthMetrics, alwaysFlush);
-  }
-
-  protected DDIntakeWriter(
-      RemoteApi api,
       HealthMetrics healthMetrics,
-      PayloadDispatcher dispatcher,
-      TraceProcessingWorker traceProcessingWorker,
       int flushTimeout,
       TimeUnit flushTimeoutUnit,
       boolean alwaysFlush) {
-    super(
-        api,
-        traceProcessingWorker,
-        dispatcher,
-        healthMetrics,
-        flushTimeout,
-        flushTimeoutUnit,
-        alwaysFlush);
+    super(worker, dispatcher, healthMetrics, flushTimeout, flushTimeoutUnit, alwaysFlush);
+  }
+
+  DDIntakeWriter(
+      TraceProcessingWorker worker,
+      PayloadDispatcher dispatcher,
+      HealthMetrics healthMetrics,
+      boolean alwaysFlush) {
+    super(worker, dispatcher, healthMetrics, alwaysFlush);
   }
 }

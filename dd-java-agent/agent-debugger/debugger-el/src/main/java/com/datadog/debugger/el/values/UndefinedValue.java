@@ -32,4 +32,9 @@ public final class UndefinedValue extends Literal<Object> {
   public boolean isNull() {
     return false;
   }
+
+  @Override
+  public String toString() {
+    return "UNDEFINED";
+  }
 }

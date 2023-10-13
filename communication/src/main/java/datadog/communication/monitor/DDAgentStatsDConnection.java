@@ -37,6 +37,7 @@ final class DDAgentStatsDConnection implements StatsDClientErrorHandler {
   private volatile String host;
   private volatile Integer port;
   private final String namedPipe;
+  private final boolean useAggregation;
 
   private final AtomicInteger clientCount = new AtomicInteger(0);
   private final AtomicInteger errorCount = new AtomicInteger(0);
@@ -44,10 +45,12 @@ final class DDAgentStatsDConnection implements StatsDClientErrorHandler {
 
   volatile com.timgroup.statsd.StatsDClient statsd = NO_OP;
 
-  DDAgentStatsDConnection(final String host, final Integer port, final String namedPipe) {
+  DDAgentStatsDConnection(
+      final String host, final Integer port, final String namedPipe, boolean useAggregation) {
     this.host = host;
     this.port = port;
     this.namedPipe = namedPipe;
+    this.useAggregation = useAggregation;
   }
 
   @Override
@@ -105,6 +108,7 @@ final class DDAgentStatsDConnection implements StatsDClientErrorHandler {
             new NonBlockingStatsDClientBuilder()
                 .threadFactory(STATSD_CLIENT_THREAD_FACTORY)
                 .enableTelemetry(false)
+                .enableAggregation(useAggregation)
                 .hostname(host)
                 .port(port)
                 .namedPipe(namedPipe)

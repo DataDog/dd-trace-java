@@ -1,33 +1,42 @@
 package datadog.trace.common.writer
 
-import datadog.trace.api.DDId
+import datadog.communication.ddagent.DDAgentFeaturesDiscovery
+import datadog.trace.api.DDSpanId
+import datadog.trace.api.DDTraceId
 import datadog.trace.api.StatsDClient
+import datadog.trace.api.intake.TrackType
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
-import datadog.trace.common.writer.ddintake.DDIntakeApi
-import datadog.trace.common.writer.ddintake.DDIntakeMapperDiscovery
+import datadog.trace.common.writer.ddagent.DDAgentApi
+import datadog.trace.common.writer.ddagent.DDAgentMapperDiscovery
 import datadog.trace.core.CoreTracer
 import datadog.trace.core.DDSpan
 import datadog.trace.core.DDSpanContext
 import datadog.trace.core.PendingTrace
 import datadog.trace.core.monitor.HealthMetrics
 import datadog.trace.core.monitor.MonitoringImpl
-import datadog.trace.core.propagation.DatadogTags
+import datadog.trace.core.propagation.PropagationTags
 import datadog.trace.core.test.DDCoreSpecification
 import spock.lang.Subject
 
 import java.util.concurrent.TimeUnit
 
-class DDIntakeWriterTest extends DDCoreSpecification{
+import static datadog.trace.common.writer.ddagent.PrioritizationStrategy.PublishResult.DROPPED_BUFFER_OVERFLOW
+import static datadog.trace.common.writer.ddagent.PrioritizationStrategy.PublishResult.DROPPED_BY_POLICY
+import static datadog.trace.common.writer.ddagent.PrioritizationStrategy.PublishResult.ENQUEUED_FOR_SERIALIZATION
+import static datadog.trace.common.writer.ddagent.PrioritizationStrategy.PublishResult.ENQUEUED_FOR_SINGLE_SPAN_SAMPLING
 
-  def api = Mock(DDIntakeApi)
+class DDIntakeWriterTest extends DDCoreSpecification {
+
   def healthMetrics = Mock(HealthMetrics)
-  def monitoring = new MonitoringImpl(StatsDClient.NO_OP, 1, TimeUnit.SECONDS)
   def worker = Mock(TraceProcessingWorker)
-  def mapperDiscovery = Mock(DDIntakeMapperDiscovery)
+  def discovery = Mock(DDAgentFeaturesDiscovery)
+  def api = Mock(DDAgentApi)
+  def monitoring = new MonitoringImpl(StatsDClient.NO_OP, 1, TimeUnit.SECONDS)
+  def dispatcher = new PayloadDispatcherImpl(new DDAgentMapperDiscovery(discovery), api, healthMetrics, monitoring)
 
   @Subject
-  def writer = new DDIntakeWriter(api, healthMetrics, monitoring, worker, mapperDiscovery)
+  def writer = new DDIntakeWriter(worker, dispatcher, healthMetrics, false)
 
   // Only used to create spans
   def dummyTracer = tracerBuilder().writer(new ListWriter()).build()
@@ -39,7 +48,7 @@ class DDIntakeWriterTest extends DDCoreSpecification{
 
   def "test writer builder"() {
     when:
-    def writer = DDIntakeWriter.builder().apiKey("some-apikey").build()
+    def writer = DDIntakeWriter.builder().addTrack(TrackType.NOOP, Mock(RemoteApi)).build()
 
     then:
     writer != null
@@ -88,7 +97,7 @@ class DDIntakeWriterTest extends DDCoreSpecification{
     0 * _
   }
 
-  def "test writer.write"() {
+  def "test writer.write publish succeeds"() {
     setup:
     def trace = [dummyTracer.buildSpan("fakeOperation").start()]
 
@@ -96,19 +105,41 @@ class DDIntakeWriterTest extends DDCoreSpecification{
     writer.write(trace)
 
     then: "monitor is notified of successful publication"
-    1 * worker.publish(_, _, trace) >> true
+    1 * worker.publish(_, _, trace) >> ENQUEUED_FOR_SERIALIZATION
     1 * healthMetrics.onPublish(trace, _)
     _ * worker.flush(1, TimeUnit.SECONDS)
     0 * _
+  }
+
+  def "test writer.write publish for single span sampling"() {
+    setup:
+    def trace = [dummyTracer.buildSpan("fakeOperation").start()]
+
+    when: "publish succeeds"
+    writer.write(trace)
+
+    then: "monitor is notified of successful publication"
+    1 * worker.publish(_, _, trace) >> ENQUEUED_FOR_SINGLE_SPAN_SAMPLING
+    // shouldn't call monitor.onPublish
+    _ * worker.flush(1, TimeUnit.SECONDS)
+    0 * _
+  }
+
+  def "test writer.write publish fails"() {
+    setup:
+    def trace = [dummyTracer.buildSpan("fakeOperation").start()]
 
     when: "publish fails"
     writer.write(trace)
 
     then: "monitor is notified of unsuccessful publication"
-    1 * worker.publish(_, _, trace) >> false
-    1 * healthMetrics.onFailedPublish(_)
+    1 * worker.publish(_, _, trace) >> publishResult
+    1 * healthMetrics.onFailedPublish(_,1)
     _ * worker.flush(1, TimeUnit.SECONDS)
     0 * _
+
+    where:
+    publishResult << [DROPPED_BUFFER_OVERFLOW, DROPPED_BY_POLICY]
   }
 
   def "empty traces should be reported as failures"() {
@@ -116,7 +147,7 @@ class DDIntakeWriterTest extends DDCoreSpecification{
     writer.write([])
 
     then: "monitor is notified of unsuccessful publication"
-    1 * healthMetrics.onFailedPublish(_)
+    1 * healthMetrics.onFailedPublish(_,0)
     _ * worker.flush(1, TimeUnit.SECONDS)
     0 * _
   }
@@ -130,15 +161,15 @@ class DDIntakeWriterTest extends DDCoreSpecification{
     writer.write(trace)
 
     then:
-    1 * healthMetrics.onFailedPublish(_)
+    1 * healthMetrics.onFailedPublish(_,1)
     _ * worker.flush(1, TimeUnit.SECONDS)
     0 * _
   }
 
   def "dropped trace is counted"() {
     setup:
-    def dispatcher = Mock(PayloadDispatcher)
-    def writer = new DDIntakeWriter(api, healthMetrics, dispatcher, worker, true)
+    def dispatcher = Mock(PayloadDispatcherImpl)
+    def writer = new DDIntakeWriter(worker, dispatcher, healthMetrics, true)
     def p0 = newSpan()
     p0.setSamplingPriority(PrioritySampling.SAMPLER_DROP)
     def trace = [p0, newSpan()]
@@ -147,19 +178,22 @@ class DDIntakeWriterTest extends DDCoreSpecification{
     writer.write(trace)
 
     then:
-    1 * worker.publish(trace[0], PrioritySampling.SAMPLER_DROP, trace) >> false
+    1 * worker.publish(trace[0], PrioritySampling.SAMPLER_DROP, trace) >> publishResult
     1 * dispatcher.onDroppedTrace(trace.size())
+
+    where:
+    publishResult << [DROPPED_BY_POLICY, DROPPED_BUFFER_OVERFLOW]
   }
 
   def newSpan() {
     CoreTracer tracer = Mock(CoreTracer)
-    tracer.mapServiceName(_) >> { String serviceName -> serviceName }
     PendingTrace trace = Mock(PendingTrace)
+    trace.mapServiceName(_) >> { String serviceName -> serviceName }
     trace.getTracer() >> tracer
     def context = new DDSpanContext(
-      DDId.from(1),
-      DDId.from(1),
-      DDId.ZERO,
+      DDTraceId.ONE,
+      1,
+      DDSpanId.ZERO,
       null,
       "",
       "",
@@ -175,8 +209,8 @@ class DDIntakeWriterTest extends DDCoreSpecification{
       null,
       AgentTracer.NoopPathwayContext.INSTANCE,
       false,
-      DatadogTags.factory().empty())
-    return new DDSpan(0, context)
+      PropagationTags.factory().empty())
+    return new DDSpan("test", 0, context)
   }
 
 }

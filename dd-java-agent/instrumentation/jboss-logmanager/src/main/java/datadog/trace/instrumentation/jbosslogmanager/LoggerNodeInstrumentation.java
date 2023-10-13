@@ -2,13 +2,13 @@ package datadog.trace.instrumentation.jbosslogmanager;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.traceConfig;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.api.Config;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -21,11 +21,6 @@ public class LoggerNodeInstrumentation extends Instrumenter.Tracing
     implements Instrumenter.ForSingleType {
   public LoggerNodeInstrumentation() {
     super("jboss-logmanager");
-  }
-
-  @Override
-  protected boolean defaultEnabled() {
-    return Config.get().isLogsInjectionEnabled();
   }
 
   @Override
@@ -57,7 +52,7 @@ public class LoggerNodeInstrumentation extends Instrumenter.Tracing
 
       AgentSpan span = activeSpan();
 
-      if (span != null) {
+      if (span != null && traceConfig(span).isLogsInjectionEnabled()) {
         InstrumentationContext.get(ExtLogRecord.class, AgentSpan.Context.class)
             .put(record, span.context());
       }

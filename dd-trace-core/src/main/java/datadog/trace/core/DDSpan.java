@@ -10,24 +10,24 @@ import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
 
 import datadog.trace.api.Config;
-import datadog.trace.api.DDId;
+import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTags;
-import datadog.trace.api.function.ToIntFunction;
+import datadog.trace.api.DDTraceId;
+import datadog.trace.api.EndpointTracker;
+import datadog.trace.api.TraceConfig;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.RequestContext;
-import datadog.trace.api.profiling.TracingContextTracker;
-import datadog.trace.api.profiling.TracingContextTrackerFactory;
+import datadog.trace.api.metrics.SpanMetricRegistry;
+import datadog.trace.api.metrics.SpanMetrics;
 import datadog.trace.api.profiling.TransientProfilingContextHolder;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.api.sampling.SamplingMechanism;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AttachableWrapper;
-import datadog.trace.bootstrap.instrumentation.api.PathwayContext;
+import datadog.trace.bootstrap.instrumentation.api.ErrorPriorities;
 import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities;
-import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import java.io.PrintWriter;
 import java.io.StringWriter;
-import java.nio.ByteBuffer;
 import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
@@ -49,18 +49,16 @@ public class DDSpan
 
   public static final String CHECKPOINTED_TAG = "checkpointed";
 
-  static DDSpan create(final long timestampMicro, @Nonnull DDSpanContext context) {
-    return create(timestampMicro, context, true);
-  }
-
   static DDSpan create(
-      final long timestampMicro, @Nonnull DDSpanContext context, boolean emitCheckpoints) {
-    final DDSpan span = new DDSpan(timestampMicro, context, emitCheckpoints);
+      final String instrumentationName, final long timestampMicro, @Nonnull DDSpanContext context) {
+    final DDSpan span = new DDSpan(instrumentationName, timestampMicro, context);
     log.debug("Started span: {}", span);
     context.getTrace().registerSpan(span);
-    span.tracingContextTracker = TracingContextTrackerFactory.instance(span);
     return span;
   }
+
+  /** The metrics for this span instance. */
+  private final SpanMetrics metrics;
 
   /** The context attached to the span */
   private final DDSpanContext context;
@@ -89,11 +87,6 @@ public class DDSpan
 
   private boolean forceKeep;
 
-  // Marked as volatile to assure proper publication to child spans executed on different threads
-  private volatile byte emittingCheckpoints; // 0 = unset, 1 = true, -1 = false
-
-  private final boolean withCheckpoints;
-
   private volatile EndpointTracker endpointTracker;
 
   // Cached OT/OTel wrapper to avoid multiple allocations, e.g. when span is activated
@@ -105,41 +98,27 @@ public class DDSpan
   private volatile Flow.Action.RequestBlockingAction requestBlockingAction;
 
   /**
+   * Version of a span that can be set by the long running spans feature:
+   * <li>eq 0 -> span is not long running.
+   * <li>lt 0 -> finished span that had running versions previously written.
+   * <li>gt 0 -> long running span and its write version.
+   */
+  private volatile int longRunningVersion = 0;
+
+  /**
    * Spans should be constructed using the builder, not by calling the constructor directly.
    *
+   * @param instrumentationName instrumentation that creates the span
    * @param timestampMicro if greater than zero, use this time instead of the current time
    * @param context the context used for the span
    */
-  private DDSpan(final long timestampMicro, @Nonnull DDSpanContext context) {
-    this(timestampMicro, context, true);
-  }
-
-  private volatile TracingContextTracker tracingContextTracker;
-  // custom function to persist tracing context in the span tag with minimum number of extra
-  // allocations
-  private final ToIntFunction<ByteBuffer> tracingContextPersistor =
-      new ToIntFunction<ByteBuffer>() {
-        @Override
-        public int applyAsInt(ByteBuffer byteBuffer) {
-          String contextTagName = "_dd_tracing_context_" + tracingContextTracker.getVersion();
-          UTF8BytesString encodedString =
-              UTF8BytesString.create(Base64Encoder.INSTANCE.encode(byteBuffer));
-          if (log.isTraceEnabled()) {
-            log.trace(
-                "Tracing context data for s_id:{}, tag:{}={}",
-                getSpanId(),
-                contextTagName,
-                encodedString);
-          }
-          context.setTag(contextTagName, encodedString);
-          return encodedString.encodedLength();
-        }
-      };
-
   private DDSpan(
-      final long timestampMicro, @Nonnull DDSpanContext context, boolean emitLocalCheckpoints) {
+      @Nonnull String instrumentationName,
+      final long timestampMicro,
+      @Nonnull DDSpanContext context) {
     this.context = context;
-    this.withCheckpoints = emitLocalCheckpoints;
+    this.metrics = SpanMetricRegistry.getInstance().get(instrumentationName);
+    this.metrics.onSpanCreated();
 
     if (timestampMicro <= 0L) {
       // note: getting internal time from the trace implicitly 'touches' it
@@ -159,7 +138,8 @@ public class DDSpan
   private void finishAndAddToTrace(final long durationNano) {
     // ensure a min duration of 1
     if (DURATION_NANO_UPDATER.compareAndSet(this, 0, Math.max(1, durationNano))) {
-      context.getTrace().onFinish(this);
+      setLongRunningVersion(-this.longRunningVersion);
+      this.metrics.onSpanFinished();
       PendingTrace.PublishState publishState = context.getTrace().onPublish(this);
       log.debug("Finished span ({}): {}", publishState, this);
     } else {
@@ -168,7 +148,7 @@ public class DDSpan
   }
 
   @Override
-  public final void finish() {
+  public void finish() {
     if (!externalClock) {
       // no external clock was used, so we can rely on nano time
       finishAndAddToTrace(context.getTrace().getCurrentTimeNano() - startTimeNano);
@@ -178,7 +158,7 @@ public class DDSpan
   }
 
   @Override
-  public final void finish(final long stopTimeMicros) {
+  public void finish(final long stopTimeMicros) {
     long durationNano;
     if (!externalClock) {
       // first capture wall-clock offset from 'now' to external stop time
@@ -254,7 +234,6 @@ public class DDSpan
     }
     // Flip the negative bit of the result to allow verifying that publish() is only called once.
     if (DURATION_NANO_UPDATER.compareAndSet(this, 0, Math.max(1, durationNano) | Long.MIN_VALUE)) {
-      context.getTrace().onFinish(this);
       log.debug("Finished span (PHASED): {}", this);
       return true;
     } else {
@@ -277,20 +256,14 @@ public class DDSpan
     }
   }
 
-  public int storeContextToTag() {
-    try {
-      return tracingContextTracker.persist(tracingContextPersistor);
-    } catch (Throwable t) {
-      log.error("", t);
-    } finally {
-      tracingContextTracker.release();
-    }
-    return -1;
+  @Override
+  public DDSpan setError(final boolean error) {
+    return setError(error, ErrorPriorities.DEFAULT);
   }
 
   @Override
-  public DDSpan setError(final boolean error) {
-    context.setErrorFlag(error);
+  public DDSpan setError(final boolean error, final byte priority) {
+    context.setErrorFlag(error, priority);
     return this;
   }
 
@@ -310,40 +283,6 @@ public class DDSpan
     return forceKeep;
   }
 
-  @Override
-  public void setEmittingCheckpoints(boolean value) {
-    /*
-    The decision to emit checkpoints is made at the local root span level.
-    This is to ensure consistency in the emitted checkpoints where the whole
-    local root span subtree must either be fully covered or no checkpoints should
-    be emitted at all.
-    */
-    DDSpan rootSpan = getLocalRootSpan();
-    if (rootSpan.emittingCheckpoints == 0) {
-      rootSpan.emittingCheckpoints = value ? 1 : (byte) -1;
-      if (value) {
-        rootSpan.setTag(CHECKPOINTED_TAG, value);
-      }
-    }
-  }
-
-  @Override
-  public Boolean isEmittingCheckpoints() {
-    /*
-    The decision to emit checkpoints is made at the local root span level.
-    This is to ensure consistency in the emitted checkpoints where the whole
-    local root span subtree must either be fully covered or no checkpoints should
-    be emitted at all.
-    */
-    byte flag = getLocalRootSpan().emittingCheckpoints;
-    return flag == 0 ? null : flag > 0 ? Boolean.TRUE : Boolean.FALSE;
-  }
-
-  @Override
-  public boolean hasCheckpoints() {
-    return withCheckpoints;
-  }
-
   /**
    * Check if the span is the root parent. It means that the traceId is the same as the spanId. In
    * the context of distributed tracing this will return true if an only if this is the application
@@ -352,7 +291,7 @@ public class DDSpan
    * @return true if root, false otherwise
    */
   public final boolean isRootSpan() {
-    return DDId.ZERO.equals(context.getParentId());
+    return context.getParentId() == DDSpanId.ZERO;
   }
 
   @Override
@@ -379,7 +318,6 @@ public class DDSpan
   public boolean isSameTrace(final AgentSpan otherSpan) {
     // FIXME [API] AgentSpan or AgentSpan.Context should have a "getTraceId()" type method
     if (otherSpan instanceof DDSpan) {
-      // minor optimization to avoid BigInteger.toString()
       return getTraceId().equals(otherSpan.getTraceId());
     }
 
@@ -393,6 +331,11 @@ public class DDSpan
 
   @Override
   public DDSpan addThrowable(final Throwable error) {
+    return addThrowable(error, ErrorPriorities.DEFAULT);
+  }
+
+  @Override
+  public DDSpan addThrowable(Throwable error, byte errorPriority) {
     if (null != error) {
       String message = error.getMessage();
       if (!"broken pipe".equalsIgnoreCase(message)
@@ -402,7 +345,7 @@ public class DDSpan
         // which might happen because the application is overloaded
         // or warming up - capturing the stack trace and keeping
         // the trace may exacerbate existing problems.
-        setError(true);
+        setError(true, errorPriority);
         final StringWriter errorString = new StringWriter();
         error.printStackTrace(new PrintWriter(errorString));
         setTag(DDTags.ERROR_STACK, errorString.toString());
@@ -411,13 +354,17 @@ public class DDSpan
       setTag(DDTags.ERROR_MSG, message);
       setTag(DDTags.ERROR_TYPE, error.getClass().getName());
     }
-
     return this;
   }
 
   @Override
   public final DDSpan setTag(final String tag, final String value) {
-    context.setTag(tag, value);
+    if (value == null || value.isEmpty()) {
+      // Remove the tag
+      context.setTag(tag, null);
+    } else {
+      context.setTag(tag, value);
+    }
     return this;
   }
 
@@ -498,7 +445,12 @@ public class DDSpan
 
   @Override
   public DDSpan setTag(final String tag, final CharSequence value) {
-    context.setTag(tag, value);
+    if (value == null || value.length() == 0) {
+      // Remove the tag
+      context.setTag(tag, null);
+    } else {
+      context.setTag(tag, value);
+    }
     return this;
   }
 
@@ -583,50 +535,19 @@ public class DDSpan
   }
 
   @Override
-  public void startThreadMigration() {
-    if (hasCheckpoints()) {
-      context.getTracer().onStartThreadMigration(this);
-    }
-  }
-
-  @Override
-  public void finishThreadMigration() {
-    if (hasCheckpoints()) {
-      context.getTracer().onFinishThreadMigration(this);
-    }
-  }
-
-  @Override
-  public void startWork() {
-    if (tracingContextTracker != null) {
-      tracingContextTracker.activateContext();
-    }
-    if (hasCheckpoints()) {
-      CoreTracer tracer = context.getTracer();
-      if (tracer != null) {
-        tracer.onStartWork(this);
-      }
-    }
-  }
-
-  @Override
-  public void finishWork() {
-    if (tracingContextTracker != null) {
-      tracingContextTracker.deactivateContext();
-    }
-    if (hasCheckpoints()) {
-      context.getTracer().onFinishWork(this);
-    }
-  }
-
-  @Override
   public RequestContext getRequestContext() {
     return context.getRequestContext();
   }
 
   @Override
-  public void mergePathwayContext(PathwayContext pathwayContext) {
-    context.mergePathwayContext(pathwayContext);
+  public Integer forceSamplingDecision() {
+    PendingTrace trace = this.context.getTrace();
+    DDSpan rootSpan = trace.getRootSpan();
+    trace.setSamplingPriorityIfNecessary();
+    if (rootSpan == null) {
+      return null;
+    }
+    return rootSpan.getSamplingPriority();
   }
 
   @Deprecated
@@ -657,6 +578,12 @@ public class DDSpan
   }
 
   @Override
+  public DDSpan setSpanSamplingPriority(double rate, int limit) {
+    context.setSpanSamplingPriority(rate, limit);
+    return this;
+  }
+
+  @Override
   public final DDSpan setSpanType(final CharSequence type) {
     context.setSpanType(type);
     return this;
@@ -680,17 +607,17 @@ public class DDSpan
   }
 
   @Override
-  public DDId getTraceId() {
+  public DDTraceId getTraceId() {
     return context.getTraceId();
   }
 
   @Override
-  public DDId getSpanId() {
+  public long getSpanId() {
     return context.getSpanId();
   }
 
   @Override
-  public DDId getParentId() {
+  public long getParentId() {
     return context.getParentId();
   }
 
@@ -758,7 +685,7 @@ public class DDSpan
 
   @Override
   public void processTagsAndBaggage(final MetadataConsumer consumer) {
-    context.processTagsAndBaggage(consumer);
+    context.processTagsAndBaggage(consumer, longRunningVersion);
   }
 
   @Override
@@ -841,7 +768,7 @@ public class DDSpan
 
   @Override
   public String toString() {
-    return context.toString() + ", duration_ns=" + durationNano;
+    return context.toString() + ", duration_ns=" + durationNano + ", forceKeep=" + forceKeep;
   }
 
   @Override
@@ -852,5 +779,22 @@ public class DDSpan
   @Override
   public Object getWrapper() {
     return WRAPPER_FIELD_UPDATER.get(this);
+  }
+
+  public void setLongRunningVersion(int longRunningVersion) {
+    if (this.longRunningVersion < 0) {
+      return;
+    }
+    this.longRunningVersion = longRunningVersion;
+  }
+
+  @Override
+  public TraceConfig traceConfig() {
+    return context.getTrace().getTraceConfig();
+  }
+
+  // to be accessible in Spock spies, which the field wouldn't otherwise be
+  public long getStartTimeNano() {
+    return startTimeNano;
   }
 }

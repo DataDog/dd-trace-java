@@ -5,31 +5,69 @@ import static com.squareup.moshi.JsonReader.Token.END_ARRAY;
 import static com.squareup.moshi.JsonReader.Token.NUMBER;
 import static com.squareup.moshi.JsonReader.Token.STRING;
 
-import com.datadog.debugger.el.expressions.PredicateExpression;
+import com.datadog.debugger.el.expressions.BooleanExpression;
+import com.datadog.debugger.el.expressions.StringPredicateExpression;
 import com.datadog.debugger.el.expressions.ValueExpression;
+import com.datadog.debugger.el.values.StringValue;
 import com.squareup.moshi.JsonReader;
-import datadog.trace.bootstrap.debugger.el.ValueReferences;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
+import java.util.function.BiFunction;
 
 /** Converts json representation to object model */
 public class JsonToExpressionConverter {
 
+  private static final Set<String> PREDICATE_FUNCTIONS =
+      new HashSet<>(
+          Arrays.asList(
+              "not",
+              "==",
+              "eq",
+              "!=",
+              "neq",
+              "ne",
+              ">=",
+              "ge",
+              ">",
+              "gt",
+              "<=",
+              "le",
+              "<",
+              "lt",
+              "or",
+              "and",
+              "hasAny",
+              "hasAll",
+              "isEmpty",
+              "startsWith",
+              "endsWith",
+              "contains",
+              "matches"));
+
   @FunctionalInterface
   interface BinaryPredicateExpressionFunction<T extends Expression> {
-    PredicateExpression apply(T left, T right);
+    BooleanExpression apply(T left, T right);
   }
 
   @FunctionalInterface
   interface CompositePredicateExpressionFunction<T extends Expression> {
-    PredicateExpression apply(T... values);
+    BooleanExpression apply(T... values);
   }
 
-  public static PredicateExpression createPredicate(JsonReader reader) throws IOException {
+  public static BooleanExpression createPredicate(JsonReader reader) throws IOException {
     reader.beginObject();
     String predicateType = reader.nextName();
-    PredicateExpression expr = null;
+    BooleanExpression expr = internalCreatePredicate(reader, predicateType);
+    reader.endObject();
+    return expr;
+  }
+
+  private static BooleanExpression internalCreatePredicate(JsonReader reader, String predicateType)
+      throws IOException {
     switch (predicateType) {
       case "not":
         {
@@ -38,8 +76,7 @@ public class JsonToExpressionConverter {
             throw new UnsupportedOperationException(
                 "Operation 'not' expects a predicate as its argument");
           }
-          expr = DSL.not(createPredicate(reader));
-          break;
+          return DSL.not(createPredicate(reader));
         }
       case "==":
       case "eq":
@@ -50,22 +87,23 @@ public class JsonToExpressionConverter {
                 "Operation 'eq' expects the arguments to be defined as array");
           }
           reader.beginArray();
-          expr = createBinaryValuePredicate(reader, DSL::eq);
+          BooleanExpression expr = createBinaryValuePredicate(reader, DSL::eq);
           reader.endArray();
-          break;
+          return expr;
         }
       case "!=":
       case "neq":
+      case "ne":
         {
           JsonReader.Token token = reader.peek();
           if (token != BEGIN_ARRAY) {
             throw new UnsupportedOperationException(
-                "Operation 'neq' expects the arguments to be defined as array");
+                "Operation 'ne' expects the arguments to be defined as array");
           }
           reader.beginArray();
-          expr = DSL.not(createBinaryValuePredicate(reader, DSL::eq));
+          BooleanExpression expr = DSL.not(createBinaryValuePredicate(reader, DSL::eq));
           reader.endArray();
-          break;
+          return expr;
         }
       case ">=":
       case "ge":
@@ -76,9 +114,9 @@ public class JsonToExpressionConverter {
                 "Operation 'ge' expects the arguments to be defined as array");
           }
           reader.beginArray();
-          expr = createBinaryValuePredicate(reader, DSL::ge);
+          BooleanExpression expr = createBinaryValuePredicate(reader, DSL::ge);
           reader.endArray();
-          break;
+          return expr;
         }
       case ">":
       case "gt":
@@ -89,9 +127,9 @@ public class JsonToExpressionConverter {
                 "Operation 'gt' expects the arguments to be defined as array");
           }
           reader.beginArray();
-          expr = createBinaryValuePredicate(reader, DSL::gt);
+          BooleanExpression expr = createBinaryValuePredicate(reader, DSL::gt);
           reader.endArray();
-          break;
+          return expr;
         }
       case "<=":
       case "le":
@@ -102,9 +140,9 @@ public class JsonToExpressionConverter {
                 "Operation 'le' expects the arguments to be defined as array");
           }
           reader.beginArray();
-          expr = createBinaryValuePredicate(reader, DSL::le);
+          BooleanExpression expr = createBinaryValuePredicate(reader, DSL::le);
           reader.endArray();
-          break;
+          return expr;
         }
       case "<":
       case "lt":
@@ -115,9 +153,9 @@ public class JsonToExpressionConverter {
                 "Operation 'lt' expects the arguments to be defined as array");
           }
           reader.beginArray();
-          expr = createBinaryValuePredicate(reader, DSL::lt);
+          BooleanExpression expr = createBinaryValuePredicate(reader, DSL::lt);
           reader.endArray();
-          break;
+          return expr;
         }
       case "or":
         {
@@ -127,9 +165,9 @@ public class JsonToExpressionConverter {
                 "Operation 'or' expects the arguments to be defined as array");
           }
           reader.beginArray();
-          expr = createCompositeLogicalPredicate(reader, DSL::or);
+          BooleanExpression expr = createCompositeLogicalPredicate(reader, DSL::or);
           reader.endArray();
-          break;
+          return expr;
         }
       case "and":
         {
@@ -139,9 +177,9 @@ public class JsonToExpressionConverter {
                 "Operation 'and' expects the arguments to be defined as array");
           }
           reader.beginArray();
-          expr = createCompositeLogicalPredicate(reader, DSL::and);
+          BooleanExpression expr = createCompositeLogicalPredicate(reader, DSL::and);
           reader.endArray();
-          break;
+          return expr;
         }
       case "hasAny":
         {
@@ -151,9 +189,9 @@ public class JsonToExpressionConverter {
                 "Operation 'hasAny' expects the arguments to be defined as array");
           }
           reader.beginArray();
-          expr = createHasAnyPredicate(reader);
+          BooleanExpression expr = createHasAnyPredicate(reader);
           reader.endArray();
-          break;
+          return expr;
         }
       case "hasAll":
         {
@@ -163,9 +201,9 @@ public class JsonToExpressionConverter {
                 "Operation 'hasAll' expects the arguments to be defined as array");
           }
           reader.beginArray();
-          expr = createHasAllPredicate(reader);
+          BooleanExpression expr = createHasAllPredicate(reader);
           reader.endArray();
-          break;
+          return expr;
         }
       case "isEmpty":
         {
@@ -174,21 +212,34 @@ public class JsonToExpressionConverter {
             throw new UnsupportedOperationException(
                 "Operation 'isEmpty' expects exactly one value argument");
           }
-          expr = DSL.isEmpty(asValueExpression(reader));
-          break;
+          return DSL.isEmpty(asValueExpression(reader));
+        }
+      case "startsWith":
+        {
+          return createStringPredicateExpression(reader, DSL::startsWith);
+        }
+      case "endsWith":
+        {
+          return createStringPredicateExpression(reader, DSL::endsWith);
+        }
+      case "contains":
+        {
+          return createStringPredicateExpression(reader, DSL::contains);
+        }
+      case "matches":
+        {
+          return createStringPredicateExpression(reader, DSL::matches);
         }
       default:
         throw new UnsupportedOperationException("Unsupported operation '" + predicateType + "'");
     }
-    reader.endObject();
-    return expr;
   }
 
-  public static PredicateExpression createHasAnyPredicate(JsonReader reader) throws IOException {
+  public static BooleanExpression createHasAnyPredicate(JsonReader reader) throws IOException {
     return DSL.any(asValueExpression(reader), createPredicate(reader));
   }
 
-  public static PredicateExpression createHasAllPredicate(JsonReader reader) throws IOException {
+  public static BooleanExpression createHasAllPredicate(JsonReader reader) throws IOException {
     return DSL.all(asValueExpression(reader), createPredicate(reader));
   }
 
@@ -196,53 +247,91 @@ public class JsonToExpressionConverter {
     return DSL.filter(asValueExpression(reader), createPredicate(reader));
   }
 
-  public static PredicateExpression createBinaryValuePredicate(
+  public static BooleanExpression createBinaryValuePredicate(
       JsonReader reader, BinaryPredicateExpressionFunction<ValueExpression<?>> function)
       throws IOException {
     return function.apply(asValueExpression(reader), asValueExpression(reader));
   }
 
-  public static PredicateExpression createBinaryLogicalPredicate(
-      JsonReader reader, BinaryPredicateExpressionFunction<PredicateExpression> function)
+  public static BooleanExpression createBinaryLogicalPredicate(
+      JsonReader reader, BinaryPredicateExpressionFunction<BooleanExpression> function)
       throws IOException {
     return function.apply(createPredicate(reader), createPredicate(reader));
   }
 
-  public static PredicateExpression createCompositeLogicalPredicate(
-      JsonReader reader, CompositePredicateExpressionFunction<PredicateExpression> function)
+  public static BooleanExpression createCompositeLogicalPredicate(
+      JsonReader reader, CompositePredicateExpressionFunction<BooleanExpression> function)
       throws IOException {
-    List<PredicateExpression> expressions = new ArrayList<>(2);
+    List<BooleanExpression> expressions = new ArrayList<>(2);
     while (reader.hasNext() && reader.peek() != END_ARRAY) {
       expressions.add(createPredicate(reader));
     }
-    return function.apply(expressions.toArray(new PredicateExpression[0]));
+    return function.apply(expressions.toArray(new BooleanExpression[0]));
   }
 
   public static ValueExpression<?> asValueExpression(JsonReader reader) throws IOException {
-    ValueExpression<?> value;
-    switch (reader.peek()) {
+    JsonReader.Token currentToken = reader.peek();
+    switch (currentToken) {
       case NUMBER:
         {
-          // handle int/long?
-          value = DSL.value(reader.nextDouble());
-          break;
+          // Moshi always consider numbers as decimal. need to parse it as string and detect if dot
+          // is present
+          // or not to determine ints/longs vs doubles
+          String numberStrValue = reader.nextString();
+          if (numberStrValue.indexOf('.') > 0) {
+            return DSL.value(Double.parseDouble(numberStrValue));
+          }
+          return DSL.value(Long.parseLong(numberStrValue));
         }
       case STRING:
         {
           String textValue = reader.nextString();
-          if (ValueReferences.isRefExpression(textValue)) {
-            value = DSL.ref(textValue);
-          } else {
-            value = DSL.value(textValue);
-          }
-          break;
+          return DSL.value(textValue);
         }
       case BEGIN_OBJECT:
         {
           reader.beginObject();
           try {
             String fieldName = reader.nextName();
+            if (PREDICATE_FUNCTIONS.contains(fieldName)) {
+              return DSL.bool(internalCreatePredicate(reader, fieldName));
+            }
             switch (fieldName) {
+              case "ref":
+                {
+                  JsonReader.Token token = reader.peek();
+                  if (token != STRING) {
+                    throw new UnsupportedOperationException(
+                        "Operation 'ref' expect exactly one textual argument");
+                  }
+                  return DSL.ref(reader.nextString());
+                }
+              case "getmember":
+                {
+                  JsonReader.Token token = reader.peek();
+                  if (token == BEGIN_ARRAY) {
+                    reader.beginArray();
+                    ValueExpression<?> target = asValueExpression(reader);
+                    String name = reader.nextString();
+                    reader.endArray();
+                    return DSL.getMember(target, name);
+                  }
+                  throw new UnsupportedOperationException(
+                      "Operation 'getmember' expects the arguments to be defined as array");
+                }
+              case "index":
+                {
+                  JsonReader.Token token = reader.peek();
+                  if (token == BEGIN_ARRAY) {
+                    reader.beginArray();
+                    ValueExpression<?> target = asValueExpression(reader);
+                    ValueExpression<?> key = asValueExpression(reader);
+                    reader.endArray();
+                    return DSL.index(target, key);
+                  }
+                  throw new UnsupportedOperationException(
+                      "Operation 'index' expects the arguments to be defined as array");
+                }
               case "filter":
                 {
                   JsonReader.Token token = reader.peek();
@@ -265,6 +354,20 @@ public class JsonToExpressionConverter {
                   }
                   return DSL.len(asValueExpression(reader));
                 }
+              case "substring":
+                {
+                  JsonReader.Token token = reader.peek();
+                  if (token == BEGIN_ARRAY) {
+                    reader.beginArray();
+                    ValueExpression<?> target = asValueExpression(reader);
+                    int startIndex = reader.nextInt();
+                    int endIndex = reader.nextInt();
+                    reader.endArray();
+                    return DSL.subString(target, startIndex, endIndex);
+                  }
+                  throw new UnsupportedOperationException(
+                      "Operation 'substring' expects the arguments to be defined as array");
+                }
               default:
                 throw new UnsupportedOperationException("Invalid value definition: " + fieldName);
             }
@@ -272,9 +375,31 @@ public class JsonToExpressionConverter {
             reader.endObject();
           }
         }
+      case NULL:
+        {
+          reader.nextNull();
+          return DSL.nullValue();
+        }
       default:
-        throw new UnsupportedOperationException("Invalid value definition: ");
+        throw new UnsupportedOperationException(
+            "Invalid value definition, not supported token: " + currentToken);
     }
-    return value;
+  }
+
+  private static StringPredicateExpression createStringPredicateExpression(
+      JsonReader reader,
+      BiFunction<ValueExpression<?>, StringValue, StringPredicateExpression> predicateFunc)
+      throws IOException {
+    JsonReader.Token token = reader.peek();
+    if (token != BEGIN_ARRAY) {
+      throw new UnsupportedOperationException(
+          "Operation 'startsWith' expects the arguments to be defined as array");
+    }
+    reader.beginArray();
+    ValueExpression<?> source = asValueExpression(reader);
+    StringValue str = new StringValue(reader.nextString());
+    StringPredicateExpression expr = predicateFunc.apply(source, str);
+    reader.endArray();
+    return expr;
   }
 }

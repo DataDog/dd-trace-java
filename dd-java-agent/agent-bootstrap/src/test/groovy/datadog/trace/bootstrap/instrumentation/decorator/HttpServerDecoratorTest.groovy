@@ -1,23 +1,27 @@
 package datadog.trace.bootstrap.instrumentation.decorator
 
 import datadog.trace.api.DDTags
-import datadog.trace.api.function.Function
-import datadog.trace.api.function.Supplier
 import datadog.trace.api.function.TriConsumer
 import datadog.trace.api.gateway.CallbackProvider
 import datadog.trace.api.gateway.Flow
 import datadog.trace.api.gateway.InstrumentationGateway
 import datadog.trace.api.gateway.RequestContext
 import datadog.trace.api.gateway.RequestContextSlot
+import datadog.trace.bootstrap.ActiveSubsystems
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.TracerAPI
 import datadog.trace.bootstrap.instrumentation.api.ContextVisitors
+import datadog.trace.bootstrap.instrumentation.api.ErrorPriorities
 import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter
 import datadog.trace.bootstrap.instrumentation.api.URIDefaultDataAdapter
+import datadog.trace.core.datastreams.DataStreamsMonitoring
+
+import java.util.function.Function
+import java.util.function.Supplier
 
 import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_SERVER_RAW_QUERY_STRING
 import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_SERVER_RAW_RESOURCE
@@ -27,6 +31,18 @@ import static datadog.trace.api.gateway.Events.EVENTS
 class HttpServerDecoratorTest extends ServerDecoratorTest {
 
   def span = Mock(AgentSpan)
+
+  boolean origAppSecActive
+
+  void setup() {
+    origAppSecActive = ActiveSubsystems.APPSEC_ACTIVE
+    ActiveSubsystems.APPSEC_ACTIVE = true
+    errorPriority = ErrorPriorities.HTTP_SERVER_DECORATOR
+  }
+
+  void cleanup() {
+    ActiveSubsystems.APPSEC_ACTIVE = origAppSecActive
+  }
 
   def "test onRequest"() {
     setup:
@@ -40,10 +56,12 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
       1 * this.span.setTag(Tags.HTTP_METHOD, "test-method")
       1 * this.span.setTag(DDTags.HTTP_QUERY, _)
       1 * this.span.setTag(DDTags.HTTP_FRAGMENT, _)
-      1 * this.span.setTag(Tags.HTTP_URL, url)
+      1 * this.span.setTag(Tags.HTTP_URL, {it.toString() == url})
       1 * this.span.setTag(Tags.HTTP_HOSTNAME, req.url.host)
-      1 * this.span.getRequestContext()
+      2 * this.span.getRequestContext()
       1 * this.span.setResourceName({ it as String == req.method.toUpperCase() + " " + req.path }, ResourceNamePriorities.HTTP_PATH_NORMALIZER)
+    } else {
+      1 * this.span.getRequestContext()
     }
     0 * _
 
@@ -67,8 +85,8 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
 
     then:
     if (expectedUrl) {
-      1 * this.span.setTag(Tags.HTTP_URL, expectedUrl)
-      1 * this.span.getRequestContext()
+      1 * this.span.setTag(Tags.HTTP_URL, {it.toString() == expectedUrl})
+      2 * this.span.getRequestContext()
     }
     if (expectedUrl && tagQueryString) {
       1 * this.span.setTag(DDTags.HTTP_QUERY, expectedQuery)
@@ -80,6 +98,7 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
         1 * this.span.setTag(Tags.HTTP_HOSTNAME, req.url.host)
       }
     } else {
+      1 * this.span.getRequestContext()
       1 * this.span.setResourceName({ it as String == expectedPath })
     }
     1 * this.span.setTag(Tags.HTTP_METHOD, null)
@@ -115,11 +134,11 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
     decorator.onRequest(this.span, null, req, null)
 
     then:
-    1 * this.span.setTag(Tags.HTTP_URL, expectedUrl)
+    1 * this.span.setTag(Tags.HTTP_URL, {it.toString() == expectedUrl})
     1 * this.span.setTag(Tags.HTTP_HOSTNAME, req.url.host)
     1 * this.span.setTag(DDTags.HTTP_QUERY, expectedQuery)
     1 * this.span.setTag(DDTags.HTTP_FRAGMENT, null)
-    1 * this.span.getRequestContext()
+    2 * this.span.getRequestContext()
     1 * this.span.setResourceName({ it as String == expectedResource }, ResourceNamePriorities.HTTP_PATH_NORMALIZER)
     1 * this.span.setTag(Tags.HTTP_METHOD, null)
     0 * _
@@ -143,71 +162,37 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
     decorator.onRequest(this.span, conn, null, ctx)
 
     then:
-    _ * ctx.getForwarded() >> null
-    _ * ctx.getForwardedFor() >> null
-    _ * ctx.getForwardedProto() >> null
-    _ * ctx.getForwardedHost() >> null
-    _ * ctx.getForwardedIp() >> null
-    _ * ctx.getForwardedPort() >> null
-    _ * ctx.getXForwarded()
-    _ * ctx.getXForwardedFor() >> null
-    _ * ctx.getXClusterClientIp() >> null
-    _ * ctx.getXRealIp() >> null
-    _ * ctx.getClientIp() >> null
-    _ * ctx.getUserAgent() >> null
-    _ * ctx.getCustomIpHeader() >> null
-    _ * ctx.getTrueClientIp() >> null
-    _ * ctx.getVia() >> null
-    if (conn) {
-      1 * this.span.setTag(Tags.PEER_PORT, 555)
-      if (ipv4) {
-        1 * this.span.setTag(Tags.PEER_HOST_IPV4, "10.0.0.1")
-        1 * this.span.setTag(Tags.HTTP_CLIENT_IP, "10.0.0.1")
-      } else if (ipv4 != null) {
-        1 * this.span.setTag(Tags.PEER_HOST_IPV6, "3ffe:1900:4545:3:200:f8ff:fe21:67cf")
-        1 * this.span.setTag(Tags.HTTP_CLIENT_IP, "3ffe:1900:4545:3:200:f8ff:fe21:67cf")
-      }
-    }
-    _ * this.span.getRequestContext() >> null
-    0 * _
-
-    when:
-    decorator.onRequest(this.span, conn, null, ctx)
-
-    then:
     _ * ctx.getForwarded() >> "by=<identifier>;for=<identifier>;host=<host>;proto=<http|https>"
     _ * ctx.getForwardedFor() >> null
-    _ * ctx.getForwardedProto() >> "https"
-    _ * ctx.getForwardedHost() >> "somehost"
-    _ * ctx.getForwardedIp() >> (ipv4 ? "10.1.1.1, 192.168.1.1" : "0::1")
-    _ * ctx.getForwardedPort() >> "123"
+    _ * ctx.getXForwardedProto() >> "https"
+    _ * ctx.getXForwardedHost() >> "somehost"
+    _ * ctx.getXForwardedFor() >> conn?.ip
+    _ * ctx.getXForwardedPort() >> "123"
     _ * ctx.getXForwarded()
-    _ * ctx.getXForwardedFor() >> null
     _ * ctx.getXClusterClientIp() >> null
     _ * ctx.getXRealIp() >> null
-    _ * ctx.getClientIp() >> null
+    _ * ctx.getXClientIp() >> null
     _ * ctx.getUserAgent() >> "some-user-agent"
     _ * ctx.getCustomIpHeader() >> null
     _ * ctx.getTrueClientIp() >> null
-    _ * ctx.getVia() >> null
+    _ * ctx.getFastlyClientIp() >> null
+    _ * ctx.getCfConnectingIp() >> null
+    _ * ctx.getCfConnectingIpv6() >> null
     1 * this.span.setTag(Tags.HTTP_FORWARDED, "by=<identifier>;for=<identifier>;host=<host>;proto=<http|https>")
     1 * this.span.setTag(Tags.HTTP_FORWARDED_PROTO, "https")
     1 * this.span.setTag(Tags.HTTP_FORWARDED_HOST, "somehost")
-    if (ipv4) {
-      1 * this.span.setTag(Tags.HTTP_FORWARDED_IP, "10.1.1.1, 192.168.1.1")
-      1 * this.span.setTag(Tags.PEER_HOST_IPV4, "10.0.0.1")
-    } else if (conn?.ip) {
-      1 * this.span.setTag(Tags.HTTP_FORWARDED_IP, "0::1")
-      1 * this.span.setTag(Tags.PEER_HOST_IPV6, "3ffe:1900:4545:3:200:f8ff:fe21:67cf")
-    } else {
-      1 * this.span.setTag(Tags.HTTP_FORWARDED_IP, "0::1")
+    if (conn?.peerIp) {
+      1 * this.span.setTag(ipv4 ? Tags.PEER_HOST_IPV4 : Tags.PEER_HOST_IPV6, conn.peerIp)
+    }
+    if (conn?.ip) {
+      1 * this.span.setTag(Tags.HTTP_CLIENT_IP, conn.ip)
+      1 * this.span.setTag(Tags.HTTP_FORWARDED_IP, conn?.ip)
+    } else if (conn?.peerIp) {
+      1 * this.span.setTag(Tags.HTTP_CLIENT_IP, conn.peerIp)
     }
     1 * this.span.setTag(Tags.HTTP_FORWARDED_PORT, "123")
-    if (conn) {
-      1 * this.span.setTag(Tags.PEER_PORT, 555)
-      if (conn.ip) {
-        1 * this.span.setTag(Tags.HTTP_CLIENT_IP, conn.ip)
-      }
+    if (conn?.port) {
+      1 * this.span.setTag(Tags.PEER_PORT, conn.port)
     }
     1 * this.span.setTag(Tags.HTTP_USER_AGENT, "some-user-agent")
     _ * this.span.getRequestContext() >> null
@@ -216,8 +201,8 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
     where:
     ipv4  | conn
     null  | null
-    null  | [ip: null, port: 555]
-    true  | [ip: "10.0.0.1", port: 555]
+    true  | [ip: null, peerIp: '127.0.0.1', port: 555]
+    true  | [ip: '10.0.0.1', port: 555]
     false | [ip: "3ffe:1900:4545:3:200:f8ff:fe21:67cf", port: 555]
   }
 
@@ -227,8 +212,8 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
     def decorator = newDecorator()
 
     when:
-    1 * ctx.getClientIp() >> headerIpAddr
-    decorator.onRequest(this.span, [ip: peerIpAddr], null, ctx)
+    1 * ctx.getXClientIp() >> headerIpAddr
+    decorator.onRequest(this.span, [peerIp: peerIpAddr], null, ctx)
 
     then:
     1 * this.span.setTag(Tags.HTTP_CLIENT_IP, result)
@@ -241,6 +226,74 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
     null         | '127.0.0.1' | '127.0.0.1'
   }
 
+  void 'disabling ip resolution disables header collection and ip address resolution'() {
+    setup:
+    injectSysConfig('dd.trace.client-ip.resolver.enabled', 'false')
+
+    def ctx = Mock(AgentSpan.Context.Extracted)
+    def decorator = newDecorator()
+
+    when:
+    decorator.onRequest(this.span, [peerIp: '4.4.4.4'], null, ctx)
+
+    then:
+    0 * ctx.getForwarded()
+    0 * span.setTag(Tags.HTTP_FORWARDED, _)
+    0 * this.span.setTag(Tags.HTTP_CLIENT_IP, _)
+  }
+
+  void 'disabling appsec disables header collection and ip address resolution'() {
+    setup:
+    ActiveSubsystems.APPSEC_ACTIVE = false
+
+    def ctx = Mock(AgentSpan.Context.Extracted)
+    def decorator = newDecorator()
+
+    when:
+    decorator.onRequest(this.span, [peerIp: '4.4.4.4'], null, ctx)
+
+    then:
+    0 * ctx.getForwarded()
+    0 * span.setTag(Tags.HTTP_FORWARDED, _)
+    0 * this.span.setTag(Tags.HTTP_CLIENT_IP, _)
+  }
+
+  void 'disabling appsec but enabling client_ip_without_appsec enables header collection and ip address resolution'() {
+    setup:
+    injectSysConfig('dd.trace.client-ip.enabled', 'true')
+    ActiveSubsystems.APPSEC_ACTIVE = false
+
+    def ctx = Mock(AgentSpan.Context.Extracted)
+    def decorator = newDecorator()
+
+    when:
+    decorator.onRequest(this.span, [peerIp: '4.4.4.4'], null, ctx)
+
+    then:
+    2 * ctx.getXForwardedFor() >> '2.3.4.5'
+    1 * this.span.setTag(Tags.HTTP_CLIENT_IP, '2.3.4.5')
+    1 * this.span.setTag(Tags.HTTP_FORWARDED_IP, '2.3.4.5')
+
+    // Forwarded doesn't participate in client ip resolution anymore
+    1 * ctx.getForwarded() >> 'for=9.9.9.9'
+    1 * this.span.setTag(Tags.HTTP_FORWARDED, 'for=9.9.9.9')
+  }
+
+  void 'client ip reporting with custom header'() {
+    setup:
+    injectSysConfig('dd.trace.client-ip-header', 'my-header')
+
+    def ctx = Mock(AgentSpan.Context.Extracted)
+    def decorator = newDecorator()
+
+    when:
+    decorator.onRequest(this.span, [peerIp: '4.4.4.4'], null, ctx)
+
+    then:
+    1 * ctx.getCustomIpHeader() >> '5.5.5.5'
+    1 * this.span.setTag(Tags.HTTP_CLIENT_IP, '5.5.5.5')
+  }
+
   def "test onResponse"() {
     setup:
     def decorator = newDecorator()
@@ -251,9 +304,7 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
     then:
     if (status) {
       1 * this.span.setHttpStatusCode(status)
-    }
-    if (error) {
-      1 * this.span.setError(true)
+      1 * this.span.setError(error, ErrorPriorities.HTTP_SERVER_DECORATOR)
     }
     if (status == 404) {
       1 * this.span.setResourceName({ it as String == "404" }, ResourceNamePriorities.HTTP_404)
@@ -261,6 +312,7 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
     if (resp) {
       1 * this.span.getRequestContext()
     }
+    _ * span.getTag('error.type')
     0 * _
 
     where:
@@ -330,7 +382,7 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
 
         @Override
         protected String peerHostIP(Map m) {
-          return m.ip
+          return m.peerIp
         }
 
         @Override
@@ -367,15 +419,18 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
     def mSpan = Mock(AgentSpan) {
       getRequestContext() >> reqCtxt
     }
+
     def mTracer = Mock(TracerAPI) {
       startSpan(_, _, _) >> mSpan
       getCallbackProvider(RequestContextSlot.APPSEC) >> cbpAppSec
       getCallbackProvider(RequestContextSlot.IAST) >> CallbackProvider.CallbackProviderNoop.INSTANCE
+      getUniversalCallbackProvider() >> cbpAppSec // no iast callbacks, so this is equivalent
+      getDataStreamsMonitoring() >> Mock(DataStreamsMonitoring)
     }
     def decorator = newDecorator(mTracer)
 
     when:
-    decorator.startSpan(headers, null)
+    decorator.startSpan("test", headers, null)
 
     then:
     1 * mSpan.setMeasured(true) >> mSpan

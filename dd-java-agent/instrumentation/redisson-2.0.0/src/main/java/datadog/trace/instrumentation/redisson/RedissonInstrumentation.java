@@ -3,6 +3,7 @@ package datadog.trace.instrumentation.redisson;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.instrumentation.redisson.RedissonClientDecorator.DECORATE;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
@@ -15,6 +16,7 @@ import datadog.trace.util.Strings;
 import java.util.ArrayList;
 import java.util.List;
 import net.bytebuddy.asm.Advice;
+import org.redisson.client.RedisConnection;
 import org.redisson.client.protocol.CommandData;
 import org.redisson.client.protocol.CommandsData;
 
@@ -58,18 +60,20 @@ public final class RedissonInstrumentation extends Instrumenter.Tracing
   public static class RedissonCommandAdvice {
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static AgentScope onEnter(@Advice.Argument(0) final CommandData<?, ?> command) {
-      final AgentSpan span = startSpan(RedissonClientDecorator.REDIS_COMMAND);
-      RedissonClientDecorator.DECORATE.afterStart(span);
-      RedissonClientDecorator.DECORATE.onStatement(span, command.getCommand().getName());
+    public static AgentScope onEnter(
+        @Advice.Argument(0) final CommandData<?, ?> command, @Advice.This RedisConnection thiz) {
+      final AgentSpan span = startSpan(RedissonClientDecorator.OPERATION_NAME);
+      DECORATE.afterStart(span);
+      DECORATE.onPeerConnection(span, thiz.getRedisClient().getAddr());
+      DECORATE.onStatement(span, command.getCommand().getName());
       return activateSpan(span);
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void stopSpan(
         @Advice.Enter final AgentScope scope, @Advice.Thrown final Throwable throwable) {
-      RedissonClientDecorator.DECORATE.onError(scope.span(), throwable);
-      RedissonClientDecorator.DECORATE.beforeFinish(scope.span());
+      DECORATE.onError(scope.span(), throwable);
+      DECORATE.beforeFinish(scope.span());
       scope.close();
       scope.span().finish();
     }
@@ -78,22 +82,25 @@ public final class RedissonInstrumentation extends Instrumenter.Tracing
   public static class RedissonCommandsAdvice {
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static AgentScope onEnter(@Advice.Argument(0) final CommandsData command) {
-      final AgentSpan span = startSpan(RedissonClientDecorator.REDIS_COMMAND);
-      RedissonClientDecorator.DECORATE.afterStart(span);
+    public static AgentScope onEnter(
+        @Advice.Argument(0) final CommandsData command, @Advice.This final RedisConnection thiz) {
+      final AgentSpan span = startSpan(RedissonClientDecorator.OPERATION_NAME);
+      DECORATE.afterStart(span);
+      DECORATE.onPeerConnection(span, thiz.getRedisClient().getAddr());
+
       List<String> commandResourceNames = new ArrayList<>();
       for (CommandData<?, ?> commandData : command.getCommands()) {
         commandResourceNames.add(commandData.getCommand().getName());
       }
-      RedissonClientDecorator.DECORATE.onStatement(span, Strings.join(";", commandResourceNames));
+      DECORATE.onStatement(span, Strings.join(";", commandResourceNames));
       return activateSpan(span);
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void stopSpan(
         @Advice.Enter final AgentScope scope, @Advice.Thrown final Throwable throwable) {
-      RedissonClientDecorator.DECORATE.onError(scope.span(), throwable);
-      RedissonClientDecorator.DECORATE.beforeFinish(scope.span());
+      DECORATE.onError(scope.span(), throwable);
+      DECORATE.beforeFinish(scope.span());
       scope.close();
       scope.span().finish();
     }

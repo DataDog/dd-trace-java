@@ -1,26 +1,27 @@
 package datadog.trace.agent.tooling.csi;
 
 import java.lang.annotation.ElementType;
+import java.lang.annotation.Repeatable;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
-/**
- * TODO when project is migrated to JDK8 review the possibility to use <code>
- * java.lang.annotation.Repeatable</code> annotations
- */
 @Target(ElementType.TYPE)
 @Retention(RetentionPolicy.CLASS)
 public @interface CallSite {
 
-  /** Interface to be used for SPI injection, by default {@link CallSiteAdvice} */
-  Class<?> spi() default CallSiteAdvice.class;
+  /** Interface to be used for SPI injection */
+  Class<?> spi();
+
+  /** Enable or disable the call site: (fully qualified name, method name and arguments) */
+  String[] enabled() default {};
 
   /** Helper classes for the advice */
   Class<?>[] helpers() default {};
 
   @Target(ElementType.METHOD)
   @Retention(RetentionPolicy.CLASS)
+  @Repeatable(AfterArray.class)
   @interface After {
     /**
      * Pointcut expression for the advice (e.g. {@code java.lang.StringBuilder
@@ -39,6 +40,7 @@ public @interface CallSite {
 
   @Target(ElementType.METHOD)
   @Retention(RetentionPolicy.CLASS)
+  @Repeatable(AroundArray.class)
   @interface Around {
     /**
      * Pointcut expression for the advice (e.g. {@code java.lang.StringBuilder
@@ -57,6 +59,7 @@ public @interface CallSite {
 
   @Target(ElementType.METHOD)
   @Retention(RetentionPolicy.CLASS)
+  @Repeatable(BeforeArray.class)
   @interface Before {
     /**
      * Pointcut expression for the advice (e.g. {@code java.lang.StringBuilder
@@ -79,7 +82,9 @@ public @interface CallSite {
 
   @Target(ElementType.PARAMETER)
   @Retention(RetentionPolicy.CLASS)
-  @interface Argument {}
+  @interface Argument {
+    int value() default -1;
+  }
 
   @Target(ElementType.PARAMETER)
   @Retention(RetentionPolicy.CLASS)

@@ -7,13 +7,14 @@ import datadog.trace.api.Functions.Join;
 import datadog.trace.api.Functions.PrefixJoin;
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
-import datadog.trace.api.function.Function;
+import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.MessagingClientDecorator;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
 import javax.jms.Destination;
 import javax.jms.Message;
 import javax.jms.Queue;
@@ -27,20 +28,23 @@ public final class JMSDecorator extends MessagingClientDecorator {
   private static final Logger log = LoggerFactory.getLogger(JMSDecorator.class);
 
   public static final CharSequence JMS = UTF8BytesString.create("jms");
-  public static final CharSequence JMS_CONSUME = UTF8BytesString.create("jms.consume");
-  public static final CharSequence JMS_PRODUCE = UTF8BytesString.create("jms.produce");
+  public static final CharSequence JMS_CONSUME =
+      UTF8BytesString.create(
+          SpanNaming.instance().namingSchema().messaging().inboundOperation(JMS.toString()));
+  public static final CharSequence JMS_PRODUCE =
+      UTF8BytesString.create(
+          SpanNaming.instance().namingSchema().messaging().outboundOperation(JMS.toString()));
   public static final CharSequence JMS_DELIVER = UTF8BytesString.create("jms.deliver");
 
   public static final boolean JMS_LEGACY_TRACING = Config.get().isLegacyTracingEnabled(true, "jms");
 
+  public static final boolean TIME_IN_QUEUE_ENABLED =
+      Config.get().isTimeInQueueEnabled(!JMS_LEGACY_TRACING, "jms");
   public static final String JMS_PRODUCED_KEY = "x_datadog_jms_produced";
   public static final String JMS_BATCH_ID_KEY = "x_datadog_jms_batch_id";
 
   private static final Join QUEUE_JOINER = PrefixJoin.of("Queue ");
   private static final Join TOPIC_JOINER = PrefixJoin.of("Topic ");
-
-  private static final String LOCAL_SERVICE_NAME =
-      JMS_LEGACY_TRACING ? "jms" : Config.get().getServiceName();
 
   private final DDCache<CharSequence, CharSequence> resourceNameCache =
       DDCaches.newFixedSizeCache(32);
@@ -62,21 +66,27 @@ public final class JMSDecorator extends MessagingClientDecorator {
           "Produced for ",
           Tags.SPAN_KIND_PRODUCER,
           InternalSpanTypes.MESSAGE_PRODUCER,
-          LOCAL_SERVICE_NAME);
+          SpanNaming.instance()
+              .namingSchema()
+              .messaging()
+              .outboundService("jms", JMS_LEGACY_TRACING));
 
   public static final JMSDecorator CONSUMER_DECORATE =
       new JMSDecorator(
           "Consumed from ",
           Tags.SPAN_KIND_CONSUMER,
           InternalSpanTypes.MESSAGE_CONSUMER,
-          LOCAL_SERVICE_NAME);
+          SpanNaming.instance()
+              .namingSchema()
+              .messaging()
+              .inboundService("jms", JMS_LEGACY_TRACING));
 
   public static final JMSDecorator BROKER_DECORATE =
       new JMSDecorator(
           "",
           Tags.SPAN_KIND_BROKER,
           InternalSpanTypes.MESSAGE_BROKER,
-          null /* service name will be set later on */);
+          SpanNaming.instance().namingSchema().messaging().timeInQueueService(JMS.toString()));
 
   public JMSDecorator(
       String resourcePrefix, String spanKind, CharSequence spanType, String serviceName) {
@@ -138,6 +148,12 @@ public final class JMSDecorator extends MessagingClientDecorator {
     if (null != resourceName) {
       span.setResourceName(resourceName);
     }
+  }
+
+  public static boolean canInject(Message message) {
+    // JMS->SQS already stores the trace context in 'X-Amzn-Trace-Id' / 'AWSTraceHeader',
+    // so skip storing same context again to avoid SQS limit of 10 attributes per message.
+    return !message.getClass().getName().startsWith("com.amazon.sqs.javamessaging");
   }
 
   public void onTimeInQueue(AgentSpan span, CharSequence resourceName, String serviceName) {

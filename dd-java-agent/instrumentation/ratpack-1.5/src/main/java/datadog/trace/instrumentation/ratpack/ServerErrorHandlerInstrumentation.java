@@ -1,9 +1,8 @@
 package datadog.trace.instrumentation.ratpack;
 
+import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.concreteClass;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-import static net.bytebuddy.matcher.ElementMatchers.isAbstract;
-import static net.bytebuddy.matcher.ElementMatchers.not;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
@@ -26,7 +25,7 @@ public class ServerErrorHandlerInstrumentation extends Instrumenter.Tracing
 
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return not(isAbstract()).and(implementsInterface(named(hierarchyMarkerType())));
+    return concreteClass().and(implementsInterface(named(hierarchyMarkerType())));
   }
 
   @Override

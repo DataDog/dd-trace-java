@@ -1,0 +1,43 @@
+import com.github.jengelman.gradle.plugins.shadow.transformers.PropertiesFileTransformer
+
+plugins {
+  id "com.github.johnrengelman.shadow"
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+description = 'Spring Boot 2.6 Webflux Smoke Tests.'
+
+// The standard spring-boot plugin doesn't play nice with our project
+// so we'll build a fat jar instead
+jar {
+  manifest {
+    attributes('Main-Class': 'datadog.smoketest.springboot.SpringbootApplication')
+  }
+}
+
+shadowJar {
+  configurations = [project.configurations.runtimeClasspath]
+  mergeServiceFiles()
+  append 'META-INF/spring.handlers'
+  append 'META-INF/spring.schemas'
+  append 'META-INF/spring.tooling'
+  transform(PropertiesFileTransformer) {
+    paths = ['META-INF/spring.factories']
+    mergeStrategy = "append"
+  }}
+
+dependencies {
+  implementation group: 'org.springframework.boot', name: 'spring-boot-starter-webflux', version: '2.6.0+'
+  implementation group: 'org.springframework.boot', name: 'spring-boot-starter-data-jpa', version: '2.6.0+'
+  implementation group: 'com.h2database', name: 'h2', version: '2.1.214'
+  implementation group: 'jakarta.xml.bind', name: 'jakarta.xml.bind-api', version: '2.3.3'
+  implementation group: 'com.sun.xml.bind', name: 'jaxb-ri', version: '2.3.3'
+
+  testImplementation project(':dd-smoke-tests')
+}
+
+tasks.withType(Test).configureEach {
+  dependsOn "shadowJar"
+
+  jvmArgs "-Ddatadog.smoketest.springboot.shadowJar.path=${tasks.shadowJar.archiveFile.get()}"
+}

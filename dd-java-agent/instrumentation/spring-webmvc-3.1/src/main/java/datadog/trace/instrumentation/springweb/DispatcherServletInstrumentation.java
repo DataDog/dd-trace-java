@@ -17,6 +17,7 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.ErrorPriorities;
 import java.util.List;
 import net.bytebuddy.asm.Advice;
 import org.springframework.context.ApplicationContext;
@@ -121,7 +122,7 @@ public final class DispatcherServletInstrumentation extends Instrumenter.Tracing
         // We rely on a decorator to set the error state based on response code. (5xx -> error)
         // Status code might not be set though if the span isn't the server span.
         // Meaning the error won't be set by the status code. (Probably ok since not measured.)
-        span.setError(alreadyError);
+        span.setError(alreadyError, ErrorPriorities.HTTP_SERVER_DECORATOR);
       }
     }
   }

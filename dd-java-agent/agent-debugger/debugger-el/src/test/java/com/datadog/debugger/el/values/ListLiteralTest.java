@@ -1,5 +1,6 @@
 package com.datadog.debugger.el.values;
 
+import static com.datadog.debugger.el.PrettyPrintVisitor.print;
 import static org.junit.jupiter.api.Assertions.*;
 
 import com.datadog.debugger.el.Value;
@@ -25,6 +26,7 @@ class ListLiteralTest {
     assertTrue(literal.isNull());
     assertTrue(literal.isEmpty());
     assertFalse(literal.isUndefined());
+    assertEquals(String.valueOf((Object) null), print(literal));
   }
 
   private void checkUndefinedLiteral(Object undefinedValue) {
@@ -32,5 +34,6 @@ class ListLiteralTest {
     assertFalse(literal.isNull());
     assertTrue(literal.isEmpty());
     assertTrue(literal.isUndefined());
+    assertEquals(String.valueOf((Object) null), print(literal));
   }
 }

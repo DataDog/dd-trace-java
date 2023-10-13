@@ -12,9 +12,10 @@ import javax.servlet.http.HttpServletRequest;
 public class Servlet2Decorator
     extends HttpServerDecorator<
         HttpServletRequest, HttpServletRequest, Integer, HttpServletRequest> {
-  public static final CharSequence SERVLET_REQUEST = UTF8BytesString.create("servlet.request");
   public static final CharSequence JAVA_WEB_SERVLET = UTF8BytesString.create("java-web-servlet");
   public static final Servlet2Decorator DECORATE = new Servlet2Decorator();
+  public static final CharSequence SERVLET_REQUEST =
+      UTF8BytesString.create(DECORATE.operationName());
 
   @Override
   protected String[] instrumentationNames() {

@@ -12,8 +12,10 @@ import static datadog.trace.instrumentation.netty38.client.NettyResponseInjectAd
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator;
 import datadog.trace.instrumentation.netty38.ChannelTraceContext;
 import java.net.InetSocketAddress;
+import java.net.SocketAddress;
 import org.jboss.netty.channel.Channel;
 import org.jboss.netty.channel.ChannelHandlerContext;
 import org.jboss.netty.channel.MessageEvent;
@@ -57,9 +59,16 @@ public class HttpClientRequestTracingHandler extends SimpleChannelDownstreamHand
     try (final AgentScope scope = activateSpan(span)) {
       decorate.afterStart(span);
       decorate.onRequest(span, request);
-      decorate.onPeerConnection(span, (InetSocketAddress) ctx.getChannel().getRemoteAddress());
+
+      SocketAddress socketAddress = ctx.getChannel().getRemoteAddress();
+      if (socketAddress instanceof InetSocketAddress) {
+        decorate.onPeerConnection(span, (InetSocketAddress) socketAddress);
+      }
 
       propagate().inject(span, request.headers(), SETTER);
+      propagate()
+          .injectPathwayContext(
+              span, request.headers(), SETTER, HttpClientDecorator.CLIENT_PATHWAY_EDGE_TAGS);
 
       channelTraceContext.setClientSpan(span);
 
@@ -71,8 +80,6 @@ public class HttpClientRequestTracingHandler extends SimpleChannelDownstreamHand
         span.finish();
         throw throwable;
       }
-
-      span.startThreadMigration();
     } finally {
       if (parentScope != null) {
         parentScope.close();

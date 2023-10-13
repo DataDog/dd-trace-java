@@ -41,4 +41,26 @@ class GraphQLInstallationTest extends AgentTestRunner {
     then:
     inst2 == inst3
   }
+
+  def "add GraphQL instrumentation to the existing chained instrumentation"() {
+    when:
+    def testInst1 = new TestInst()
+    def testInst2 = new TestInst()
+    def inst3 = GraphQLInstrumentation.install(new ChainedInstrumentation([testInst1, testInst2]))
+
+    then:
+    inst3.class == ChainedInstrumentation
+    def insts = inst3.getInstrumentations()
+    insts.get(0) == testInst1
+    insts.get(1) == testInst2
+    def inst = insts.get(2)
+    inst.class == GraphQLInstrumentation
+
+    when:
+    // do not install if it's already been installed
+    def inst4 = GraphQLInstrumentation.install(inst3)
+
+    then:
+    inst3 == inst4
+  }
 }

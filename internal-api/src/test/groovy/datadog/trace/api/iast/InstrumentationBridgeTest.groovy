@@ -1,79 +1,68 @@
 package datadog.trace.api.iast
 
-
+import datadog.trace.api.iast.propagation.CodecModule
+import datadog.trace.api.iast.propagation.StringModule
+import datadog.trace.api.iast.sink.CommandInjectionModule
+import datadog.trace.api.iast.sink.LdapInjectionModule
+import datadog.trace.api.iast.sink.PathTraversalModule
+import datadog.trace.api.iast.sink.SqlInjectionModule
+import datadog.trace.api.iast.sink.SsrfModule
+import datadog.trace.api.iast.sink.UnvalidatedRedirectModule
+import datadog.trace.api.iast.sink.WeakCipherModule
+import datadog.trace.api.iast.sink.WeakHashModule
+import datadog.trace.api.iast.sink.WeakRandomnessModule
+import datadog.trace.api.iast.sink.XPathInjectionModule
+import datadog.trace.api.iast.source.WebModule
 import datadog.trace.test.util.DDSpecification
 
 class InstrumentationBridgeTest extends DDSpecification {
 
-  def "bridge calls module when a new hash is detected"() {
-    setup:
-    final module = Mock(IastModule)
-    InstrumentationBridge.registerIastModule(module)
+  private final static BRIDGE_MODULES = [
+    WeakCipherModule,
+    WeakHashModule,
+    WebModule,
+    StringModule,
+    CodecModule,
+    SqlInjectionModule,
+    CommandInjectionModule,
+    PathTraversalModule,
+    LdapInjectionModule,
+    SsrfModule,
+    UnvalidatedRedirectModule,
+    WeakRandomnessModule,
+    XPathInjectionModule
+  ]
 
-    when:
-    InstrumentationBridge.onMessageDigestGetInstance('SHA-1')
-
-    then:
-    1 * module.onHashingAlgorithm('SHA-1')
+  def cleanup() {
+    InstrumentationBridge.clearIastModules()
   }
 
-  def "bridge calls don't fail with null module when a new hash is detected"() {
+  void '#module can be registered'(final Class<? extends IastModule> module) {
     setup:
-    InstrumentationBridge.registerIastModule(null)
+    final instance = Mock(module)
+    InstrumentationBridge.registerIastModule(instance)
 
     when:
-    InstrumentationBridge.onMessageDigestGetInstance('SHA-1')
+    def result = InstrumentationBridge.getIastModule(module)
 
     then:
-    noExceptionThrown()
+    instance == result
+
+    where:
+    module << BRIDGE_MODULES
   }
 
-  def "bridge calls don't leak exceptions when a new hash is detected"() {
-    setup:
-    final module = Mock(IastModule)
-    InstrumentationBridge.registerIastModule(module)
-
+  void 'unsupported modules throw exceptions'() {
     when:
-    InstrumentationBridge.onMessageDigestGetInstance('SHA-1')
+    InstrumentationBridge.registerIastModule(Mock(IastModule))
 
     then:
-    1 * module.onHashingAlgorithm(_) >> { throw new Error('Boom!!!') }
-    noExceptionThrown()
-  }
-
-  def "bridge calls module when a new cipher is detected"() {
-    setup:
-    final module = Mock(IastModule)
-    InstrumentationBridge.registerIastModule(module)
+    thrown(UnsupportedOperationException)
 
     when:
-    InstrumentationBridge.onCipherGetInstance('AES')
+    InstrumentationBridge.getIastModule(IastModule)
 
     then:
-    1 * module.onCipherAlgorithm('AES')
-  }
-
-  def "bridge calls don't fail with null module when a new cipher is detected"() {
-    setup:
-    InstrumentationBridge.registerIastModule(null)
-
-    when:
-    InstrumentationBridge.onCipherGetInstance('AES')
-
-    then:
-    noExceptionThrown()
-  }
-
-  def "bridge calls don't leak exceptions when a new cipher is detected"() {
-    setup:
-    final module = Mock(IastModule)
-    InstrumentationBridge.registerIastModule(module)
-
-    when:
-    InstrumentationBridge.onCipherGetInstance('AES')
-
-    then:
-    1 * module.onCipherAlgorithm(_) >> { throw new Error('Boom!!!') }
-    noExceptionThrown()
+    thrown(UnsupportedOperationException)
   }
 }

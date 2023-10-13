@@ -1,0 +1,12 @@
+apply from: "$rootDir/gradle/java_no_deps.gradle"
+
+ext {
+  minimumInstructionCoverage = 0.7
+  excludedClassesCoverage = ['datadog.trace.test.agent.decoder.v04.raw.*', 'datadog.trace.test.agent.decoder.v05.raw.*',]
+}
+
+dependencies {
+  implementation group: 'org.msgpack', name: 'msgpack-core', version: '0.8.24'
+  testImplementation deps.junit5
+  testImplementation deps.truth
+}

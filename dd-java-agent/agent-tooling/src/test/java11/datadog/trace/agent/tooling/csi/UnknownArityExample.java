@@ -1,7 +1,7 @@
 package datadog.trace.agent.tooling.csi;
 
-import datadog.trace.api.function.Supplier;
 import java.util.UUID;
+import java.util.function.Supplier;
 
 public class UnknownArityExample implements Supplier<String> {
 

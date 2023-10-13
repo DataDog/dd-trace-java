@@ -45,11 +45,10 @@ abstract class AbstractAppSecServerSmokeTest extends AbstractServerSmokeTest {
     // disable AppSec rate limit
     "-Ddd.appsec.trace.rate.limit=-1"
   ] + (System.getProperty('smoke_test.appsec.enabled') == 'inactive' ?
-  // enable remote config so that appsec is partially enabled
+  // enable remote config so that appsec is partially enabled (rc is now enabled by default)
   [
-    '-Ddd.remote_config.enabled=true',
     '-Ddd.remote_config.url=https://127.0.0.1:54670/invalid_endpoint',
-    '-Ddd.remote_config.initial.poll.interval=3600'
+    '-Ddd.remote_config.poll_interval.seconds=3600'
   ]:
   ['-Ddd.remote_config.enabled=false']
   )

@@ -5,11 +5,12 @@ import com.ning.http.client.RequestBuilder
 import com.ning.http.client.Response
 import com.ning.http.client.uri.Uri
 import datadog.trace.agent.test.base.HttpClientTest
+import datadog.trace.agent.test.naming.TestingGenericHttpNamingConventions
 import datadog.trace.instrumentation.grizzly.client.ClientDecorator
 import spock.lang.AutoCleanup
 import spock.lang.Shared
 
-class GrizzlyAsyncHttpClientTest extends HttpClientTest {
+abstract class GrizzlyAsyncHttpClientTest extends HttpClientTest {
 
   @AutoCleanup
   @Shared
@@ -76,4 +77,9 @@ class GrizzlyAsyncHttpClientTest extends HttpClientTest {
   }
 }
 
+class GrizzlyAsyncHttpClientV0ForkedTest extends GrizzlyAsyncHttpClientTest implements TestingGenericHttpNamingConventions.ClientV0 {
+}
+
+class GrizzlyAsyncHttpClientV1ForkedTest extends GrizzlyAsyncHttpClientTest implements TestingGenericHttpNamingConventions.ClientV1 {
+}
 

@@ -5,15 +5,15 @@ import static datadog.trace.api.cache.RadixTreeCache.UNSET_STATUS;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator;
 import java.net.URI;
+import org.apache.http.Header;
 import org.apache.http.HttpRequest;
 import org.apache.http.HttpResponse;
 
 public final class SynapseClientDecorator extends HttpClientDecorator<HttpRequest, HttpResponse> {
   public static final SynapseClientDecorator DECORATE = new SynapseClientDecorator();
-
-  public static final CharSequence SYNAPSE_REQUEST = UTF8BytesString.create("http.request");
   public static final CharSequence SYNAPSE_CLIENT = UTF8BytesString.create("synapse-client");
-
+  public static final CharSequence SYNAPSE_REQUEST =
+      UTF8BytesString.create(DECORATE.operationName());
   public static final String SYNAPSE_SPAN_KEY = "dd.trace.synapse.span";
   public static final String SYNAPSE_CONTINUATION_KEY = "dd.trace.synapse.continuation";
 
@@ -43,5 +43,23 @@ public final class SynapseClientDecorator extends HttpClientDecorator<HttpReques
       return response.getStatusLine().getStatusCode();
     }
     return UNSET_STATUS;
+  }
+
+  @Override
+  protected String getRequestHeader(HttpRequest request, String headerName) {
+    Header header = request.getFirstHeader(headerName);
+    if (null != header) {
+      return header.getValue();
+    }
+    return null;
+  }
+
+  @Override
+  protected String getResponseHeader(HttpResponse response, String headerName) {
+    Header header = response.getFirstHeader(headerName);
+    if (null != header) {
+      return header.getValue();
+    }
+    return null;
   }
 }

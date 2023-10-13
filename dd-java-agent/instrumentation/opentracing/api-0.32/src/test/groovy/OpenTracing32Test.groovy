@@ -1,12 +1,13 @@
 import datadog.trace.agent.test.AgentTestRunner
-import datadog.trace.api.DDId
+import datadog.trace.api.DDSpanId
 import datadog.trace.api.DDTags
+import datadog.trace.api.DDTraceId
 import datadog.trace.api.interceptor.MutableSpan
 import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities
 import datadog.trace.context.TraceScope
 import datadog.trace.core.DDSpan
-import datadog.trace.core.propagation.DatadogTags
 import datadog.trace.core.propagation.ExtractedContext
+import datadog.trace.core.propagation.PropagationTags
 import datadog.trace.instrumentation.opentracing.DefaultLogHandler
 import datadog.trace.instrumentation.opentracing32.OTTracer
 import datadog.trace.instrumentation.opentracing32.TypeConverter
@@ -49,7 +50,7 @@ class OpenTracing32Test extends AgentTestRunner {
         .withTag("boolean", true)
     }
     if (addReference) {
-      def ctx = new ExtractedContext(DDId.ONE, DDId.from(2), SAMPLER_DROP, null, 0, [:], [:], null, DatadogTags.factory().empty())
+      def ctx = new ExtractedContext(DDTraceId.ONE, 2, SAMPLER_DROP, null, PropagationTags.factory().empty())
       builder.addReference(addReference, tracer.tracer.converter.toSpanContext(ctx))
     }
     def result = builder.start()
@@ -85,7 +86,7 @@ class OpenTracing32Test extends AgentTestRunner {
       trace(1) {
         span {
           if ([References.CHILD_OF, References.FOLLOWS_FROM].contains(addReference)) {
-            parentDDId(DDId.from(2))
+            parentSpanId(2)
           } else {
             parent()
           }
@@ -133,7 +134,7 @@ class OpenTracing32Test extends AgentTestRunner {
 
     expect:
     otherSpan.operationName == "other"
-    (otherSpan.delegate as DDSpan).parentId == DDId.ZERO
+    (otherSpan.delegate as DDSpan).parentId == DDSpanId.ZERO
   }
 
   def "test startActive"() {

@@ -1,28 +1,24 @@
 package datadog.trace.instrumentation.elasticsearch;
 
-import static datadog.trace.bootstrap.instrumentation.api.Tags.DB_TYPE;
-
+import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
-import datadog.trace.bootstrap.instrumentation.decorator.DatabaseClientDecorator;
+import datadog.trace.bootstrap.instrumentation.decorator.DBTypeProcessingDatabaseClientDecorator;
 
-public class ElasticsearchTransportClientDecorator extends DatabaseClientDecorator {
+public class ElasticsearchTransportClientDecorator extends DBTypeProcessingDatabaseClientDecorator {
 
-  public static final CharSequence ELASTICSEARCH_QUERY =
-      UTF8BytesString.create("elasticsearch.query");
+  private static final String DB_TYPE = "elasticsearch";
+  private static final String SERVICE_NAME =
+      SpanNaming.instance().namingSchema().database().service(DB_TYPE);
+
+  public static final CharSequence OPERATION_NAME =
+      UTF8BytesString.create(SpanNaming.instance().namingSchema().database().operation(DB_TYPE));
   public static final CharSequence ELASTICSEARCH_JAVA =
       UTF8BytesString.create("elasticsearch-java");
 
   public static final ElasticsearchTransportClientDecorator DECORATE =
       new ElasticsearchTransportClientDecorator();
-
-  @Override
-  public AgentSpan afterStart(AgentSpan span) {
-    span.setServiceName(dbType());
-    span.setTag(DB_TYPE, dbType());
-    return super.afterStart(span);
-  }
 
   @Override
   protected String[] instrumentationNames() {
@@ -31,7 +27,7 @@ public class ElasticsearchTransportClientDecorator extends DatabaseClientDecorat
 
   @Override
   protected String service() {
-    return "elasticsearch";
+    return SERVICE_NAME;
   }
 
   @Override
@@ -46,7 +42,7 @@ public class ElasticsearchTransportClientDecorator extends DatabaseClientDecorat
 
   @Override
   protected String dbType() {
-    return "elasticsearch";
+    return DB_TYPE;
   }
 
   @Override

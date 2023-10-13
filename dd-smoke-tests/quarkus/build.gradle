@@ -1,0 +1,56 @@
+
+apply from: "$rootDir/gradle/java.gradle"
+
+dependencies {
+  testImplementation project(':dd-smoke-tests')
+}
+
+def appDir = "$projectDir/application"
+def appBuildDir = "$buildDir/application"
+def isWindows = System.getProperty("os.name").toLowerCase().contains("win")
+def gradlewCommand = isWindows ? 'gradlew.bat' : 'gradlew'
+
+// define the task that builds the quarkus project
+tasks.register('quarkusBuild', Exec) {
+  workingDir "$appDir"
+  environment += ["GRADLE_OPTS": "-Dorg.gradle.jvmargs='-Xmx512M'"]
+  commandLine "${rootDir}/${gradlewCommand}", "build", "--no-daemon", "--max-workers=4", "-PappBuildDir=$appBuildDir", "-PapiJar=${project(':dd-trace-api').tasks.jar.archiveFile.get()}"
+
+  outputs.cacheIf { true }
+
+  outputs.dir(appBuildDir)
+    .withPropertyName("applicationJar")
+
+  inputs.files(fileTree(appDir) {
+    include '**/*'
+    exclude '.gradle/**'
+  })
+  .withPropertyName("application")
+  .withPathSensitivity(PathSensitivity.RELATIVE)
+}
+
+evaluationDependsOn ':dd-trace-api'
+quarkusBuild {
+  dependsOn project(':dd-trace-api').tasks.named("jar")
+}
+
+tasks.named("compileTestGroovy").configure {
+  dependsOn 'quarkusBuild'
+  outputs.upToDateWhen {
+    !quarkusBuild.didWork
+  }
+}
+
+tasks.withType(Test).configureEach {
+  jvmArgs "-Ddatadog.smoketest.quarkus.uberJar.path=$appBuildDir/quarkus-smoketest--runner.jar"
+}
+
+spotless {
+  java {
+    target "**/*.java"
+  }
+
+  groovyGradle {
+    target '*.gradle', "**/*.gradle"
+  }
+}

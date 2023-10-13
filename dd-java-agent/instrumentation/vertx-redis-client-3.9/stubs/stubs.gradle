@@ -1,5 +1,0 @@
-apply from: "$rootDir/gradle/java.gradle"
-
-dependencies {
-  main_java8CompileOnly group: 'io.vertx', name: 'vertx-redis-client', version: '3.9.0'
-}

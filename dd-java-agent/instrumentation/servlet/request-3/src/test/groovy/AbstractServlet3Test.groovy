@@ -1,6 +1,8 @@
 import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.agent.test.base.HttpServerTest
+import datadog.trace.agent.test.naming.TestingGenericHttpNamingConventions
 import datadog.trace.api.DDSpanTypes
+import datadog.trace.api.DDTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import okhttp3.Request
 import okhttp3.RequestBody
@@ -18,7 +20,12 @@ import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.TIMEOU
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.UNKNOWN
 import static org.junit.Assume.assumeTrue
 
-abstract class AbstractServlet3Test<SERVER, CONTEXT> extends HttpServerTest<SERVER> {
+abstract class AbstractServlet3Test<SERVER, CONTEXT> extends HttpServerTest<SERVER> implements TestingGenericHttpNamingConventions.ServerV0 {
+  @Override
+  protected boolean enabledFinishTimingChecks() {
+    true
+  }
+
   @Override
   boolean testRequestBody() {
     true
@@ -31,6 +38,11 @@ abstract class AbstractServlet3Test<SERVER, CONTEXT> extends HttpServerTest<SERV
 
   @Override
   boolean testBlocking() {
+    true
+  }
+
+  @Override
+  boolean testBlockingOnResponse() {
     true
   }
 
@@ -50,7 +62,7 @@ abstract class AbstractServlet3Test<SERVER, CONTEXT> extends HttpServerTest<SERV
 
   @Override
   String expectedOperationName() {
-    return "servlet.request"
+    return operation()
   }
 
   boolean hasHandlerSpan() {
@@ -108,7 +120,7 @@ abstract class AbstractServlet3Test<SERVER, CONTEXT> extends HttpServerTest<SERV
       }
   }
 
-  protected void setupDispatchServlets(CONTEXT context, Class<Servlet> dispatchServlet) {
+  protected void setupDispatchServlets(CONTEXT context, Class<? extends Servlet> dispatchServlet) {
     ServerEndpoint.values()
       .findAll { !(it in [NOT_FOUND, UNKNOWN, MATRIX_PARAM]) }
       .each {
@@ -176,9 +188,12 @@ abstract class AbstractServlet3Test<SERVER, CONTEXT> extends HttpServerTest<SERV
         "servlet.path" "/dispatch$endpoint.path"
 
         if (endpoint.throwsException) {
-          "error.msg" endpoint.body
+          "error.message" endpoint.body
           "error.type" { it == Exception.name || it == InputMismatchException.name }
           "error.stack" String
+        }
+        if ({ isDataStreamsEnabled() }){
+          "$DDTags.PATHWAY_HASH" { String }
         }
         defaultTags()
       }
@@ -206,9 +221,12 @@ abstract class AbstractServlet3Test<SERVER, CONTEXT> extends HttpServerTest<SERV
         }
 
         if (endpoint.throwsException) {
-          "error.msg" endpoint.body
+          "error.message" endpoint.body
           "error.type" { it == Exception.name || it == InputMismatchException.name }
           "error.stack" String
+        }
+        if ({ isDataStreamsEnabled() }){
+          "$DDTags.PATHWAY_HASH" { String }
         }
         defaultTags()
       }
@@ -217,6 +235,10 @@ abstract class AbstractServlet3Test<SERVER, CONTEXT> extends HttpServerTest<SERV
 
   boolean hasResponseSpan(ServerEndpoint endpoint) {
     return [REDIRECT, ERROR, NOT_FOUND].contains(endpoint)
+  }
+
+  boolean isRespSpanChildOfDispatchOnException() {
+    false
   }
 
   void responseSpan(TraceAssert trace, ServerEndpoint endpoint) {
@@ -238,7 +260,14 @@ abstract class AbstractServlet3Test<SERVER, CONTEXT> extends HttpServerTest<SERV
       operationName "servlet.response"
       resourceName "HttpServletResponse.$method"
       if (endpoint.throwsException) {
-        childOf(trace.span(0)) // Not a child of the controller because sendError called by framework
+        // Not a child of the controller because sendError called by framework
+        if (dispatch && respSpanChildOfDispatchOnException) {
+          // on jetty the response span is started around the scope of dispatch span
+          // (because we instrument on a lower level on jetty, not just around the servlet)
+          childOf(trace.span(1))
+        } else {
+          childOf(trace.span(0))
+        }
       } else {
         childOfPrevious()
       }

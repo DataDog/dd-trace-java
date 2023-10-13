@@ -10,15 +10,15 @@ import spock.lang.Requires
 class ScopeAndContinuationLayoutTest extends DDSpecification {
 
   def "continuable scope layout"() {
-    expect: layoutAcceptable(ContinuableScopeManager.ContinuableScope, 32)
+    expect: layoutAcceptable(ContinuableScope, 32)
   }
 
   def "single continuation layout"() {
-    expect: layoutAcceptable(ContinuableScopeManager.SingleContinuation, 32)
+    expect: layoutAcceptable(SingleContinuation, 32)
   }
 
   def "concurrent continuation layout"() {
-    expect: layoutAcceptable(ContinuableScopeManager.ConcurrentContinuation, 32)
+    expect: layoutAcceptable(ConcurrentContinuation, 32)
   }
 
   def layoutAcceptable(Class<?> klass, int acceptableSize) {

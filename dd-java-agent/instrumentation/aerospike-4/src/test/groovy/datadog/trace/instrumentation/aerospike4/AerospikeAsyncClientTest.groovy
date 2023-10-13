@@ -8,14 +8,12 @@ import com.aerospike.client.async.EventLoops
 import com.aerospike.client.async.NioEventLoops
 import com.aerospike.client.listener.WriteListener
 import com.aerospike.client.policy.ClientPolicy
-import spock.lang.Requires
+import datadog.trace.api.Config
 import spock.lang.Shared
 
 import static org.junit.Assert.fail
 
-// Do not run tests on Java7 since testcontainers are not compatible with Java7
-@Requires({ jvm.java8Compatible })
-class AerospikeAsyncClientTest extends AerospikeBaseTest {
+abstract class AerospikeAsyncClientTest extends AerospikeBaseTest {
 
   @Shared
   AerospikeClient client
@@ -63,3 +61,38 @@ class AerospikeAsyncClientTest extends AerospikeBaseTest {
     }
   }
 }
+
+class AerospikeAsyncClientV0ForkedTest extends AerospikeAsyncClientTest {
+  @Override
+  int version() {
+    return 0
+  }
+
+  @Override
+  String service() {
+    return "aerospike"
+  }
+
+  @Override
+  String operation() {
+    return "aerospike.query"
+  }
+}
+
+class AerospikeAsyncClientV1ForkedTest extends AerospikeAsyncClientTest {
+  @Override
+  int version() {
+    return 1
+  }
+
+  @Override
+  String service() {
+    return Config.get().getServiceName()
+  }
+
+  @Override
+  String operation() {
+    return "aerospike.query"
+  }
+}
+

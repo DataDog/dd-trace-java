@@ -1,12 +1,12 @@
 package datadog.cws.tls;
 
-import datadog.trace.api.DDId;
+import datadog.trace.api.DDTraceId;
 
 public interface Tls {
 
-  public void registerSpan(DDId traceId, DDId spanId);
+  public void registerSpan(DDTraceId traceId, long spanId);
 
-  public DDId getSpanId();
+  public long getSpanId();
 
-  public DDId getTraceId();
+  public DDTraceId getTraceId();
 }

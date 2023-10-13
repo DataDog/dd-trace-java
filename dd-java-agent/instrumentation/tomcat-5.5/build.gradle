@@ -1,0 +1,112 @@
+muzzle {
+  // Catalina doesn't reliably depend on coyote, so we use a different dependency that does.
+  pass {
+    group = "org.apache.tomcat"
+    module = 'tomcat-catalina-ha' // includes catalina and coyote (to simplify muzzle check)
+    versions = "[7,]"
+    assertInverse = true
+  }
+  pass {
+    group = "org.apache.tomcat"
+    module = 'catalina-ha' // includes catalina and coyote (to simplify muzzle check)
+    versions = "[6,7)" // not all versions are on maven central.
+    assertInverse = true
+  }
+  // Older versions are sparse on maven central, so test what we can.
+  pass {
+    group = "tomcat"
+    module = 'catalina'
+    versions = "[5.5,6)"
+    extraDependency 'tomcat:tomcat-coyote:5.5.23'
+    assertInverse = true
+  }
+  pass {
+    group = "tomcat"
+    module = 'tomcat-coyote'
+    versions = "[5.5,6)"
+    extraDependency 'tomcat:catalina:5.5.23'
+    extraDependency 'tomcat:tomcat-util:5.5.23'
+    assertInverse = true
+  }
+  // org.apache.catalina.connector.CoyoteAdapter introduced in Catalina 5.5
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+
+addTestSuite('latestDepTest')
+
+def tomcatVersion = '5.5.12' // earliest 5.5.x available in maven central (with all needed dependencies).
+
+configurations.all {
+  // shut up about broken xml-api pom relocation
+  resolutionStrategy {
+    force 'xml-apis:xml-apis:1.4.01'
+  }
+}
+
+tasks.named("latestDepTest").configure {
+  javaLauncher = getJavaLauncherFor(11)
+}
+tasks.named("compileLatestDepTestJava").configure {
+  setJavaVersion(it, 11)
+}
+tasks.named("compileLatestDepTestGroovy").configure {
+  javaLauncher = getJavaLauncherFor(11)
+}
+
+
+dependencies {
+  compileOnly group: 'tomcat', name: 'catalina', version: tomcatVersion
+  compileOnly group: 'tomcat', name: 'tomcat-coyote', version: tomcatVersion
+  compileOnly group: 'tomcat', name: 'tomcat-util', version: tomcatVersion
+
+  // Version that corresponds with Tomcat 5.5
+  // https://tomcat.apache.org/whichversion.html
+  compileOnly group: 'javax.servlet', name: 'servlet-api', version: '2.4'
+
+  implementation project(':dd-java-agent:instrumentation:tomcat-5.5-common')
+
+  testImplementation(project(':dd-java-agent:testing')) {
+    exclude group: 'org.eclipse.jetty', module: 'jetty-server'
+  }
+
+  // Required jars for embedded tomcat:
+  testImplementation group: 'tomcat', name: 'catalina', version: tomcatVersion
+  testImplementation group: 'tomcat', name: 'tomcat-coyote', version: tomcatVersion
+  testImplementation group: 'tomcat', name: 'tomcat-http', version: tomcatVersion
+  testImplementation group: 'tomcat', name: 'tomcat-util', version: tomcatVersion
+  testImplementation group: 'tomcat', name: 'naming-resources', version: tomcatVersion
+  testImplementation group: 'tomcat', name: 'naming-factory', version: tomcatVersion
+  testImplementation group: 'commons-modeler', name: 'commons-modeler', version: '2.0.1'
+  testImplementation group: 'javax.servlet', name: 'servlet-api', version: '2.4'
+  testImplementation testFixtures(project(':dd-java-agent:instrumentation:servlet:request-3'))
+
+  testRuntimeOnly project(':dd-java-agent:instrumentation:tomcat-appsec-5.5')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:tomcat-appsec-6')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:servlet')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:servlet:request-2')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:servlet:request-3')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:servlet:request-5')
+  testImplementation testFixtures(project(':dd-java-agent:instrumentation:servlet:request-5'))
+
+  latestDepTestImplementation group: 'org.apache.tomcat.embed', name: 'tomcat-embed-core', version: '10+'
+  latestDepTestImplementation group: 'org.apache.tomcat', name: 'jakartaee-migration', version: '1.+'
+  latestDepTestImplementation(testFixtures(project(":dd-java-agent:appsec")))
+
+  latestDepTestRuntimeOnly(project(':dd-java-agent:instrumentation:tomcat-appsec-6'))
+  latestDepTestRuntimeOnly(project(':dd-java-agent:instrumentation:tomcat-appsec-7'))
+}
+
+// Exclude all the dependencies from test for latestDepTest since the names are completely different.
+configurations {
+  latestDepTestImplementation {
+    exclude group: 'tomcat', module: 'catalina'
+    exclude group: 'tomcat', module: 'tomcat-coyote'
+    exclude group: 'tomcat', module: 'tomcat-util'
+    exclude group: 'tomcat', module: 'tomcat-http'
+    exclude group: 'tomcat', module: 'naming-resources'
+    exclude group: 'tomcat', module: 'naming-factory'
+    exclude group: 'commons-modeler', module: 'commons-modeler'
+    exclude group: 'javax.servlet', module: 'servlet-api'
+  }
+}

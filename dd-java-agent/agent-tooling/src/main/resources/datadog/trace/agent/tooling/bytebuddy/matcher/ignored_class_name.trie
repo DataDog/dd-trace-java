@@ -39,15 +39,20 @@
 1 datadog.trace.core.*
 1 io.micrometer.*
 1 io.micronaut.tracing.*
+1 io.opentelemetry.javaagent.*
 1 java.*
-# allow exceptions for IAST. This is the only way to use existing infrastructure to detect the vulnerability without call site instrumentation.
-0 java.security.MessageDigest
 # allow exception profiling instrumentation
 0 java.lang.Throwable
+# allow ProcessImpl instrumentation
+0 java.lang.ProcessImpl
+0 java.net.http.*
 0 java.net.HttpURLConnection
+0 java.net.Socket
 0 java.net.URL
 0 java.nio.DirectByteBuffer
+0 java.nio.ByteBuffer
 0 java.rmi.*
+0 java.util.Timer
 0 java.util.concurrent.*
 1 java.util.concurrent.ConcurrentHashMap*
 1 java.util.concurrent.atomic.*
@@ -57,7 +62,10 @@
 0 java.lang.Shutdown
 # Concurrent instrumentation modifies the structure of the Cleaner class incompatibly with java9+ modules.
 1 java.util.logging.LogManager$Cleaner
+# Need for IAST
+0 java.io.PushbackInputStream
 1 jdk.*
+0 jdk.internal.net.http.*
 1 net.bytebuddy.*
 1 org.apache.felix.framework.URLHandlers*
 1 org.apache.groovy.*
@@ -74,6 +82,8 @@
 1 org.springframework.core.$Proxy*
 1 org.springframework.instrument.classloading.ShadowingClassLoader
 1 org.springframework.instrument.classloading.SimpleThrowawayClassLoader
+1 org.springframework.util.ConcurrentLruCache$*
+1 com.fasterxml.jackson.databind.util.internal.PrivateMaxEntriesMap$*
 1 org.eclipse.osgi.framework.internal.protocol.*
 1 sun.*
 0 sun.net.www.http.HttpClient
@@ -81,6 +91,15 @@
 0 sun.net.www.protocol.https.*
 0 sun.rmi.server.*
 0 sun.rmi.transport.*
+0 sun.nio.ch.FileChannelImpl
+# USM needs it
+0 sun.security.ssl.*
+0 javax.net.ssl.SSLSocket
+
+# Prevent IllegalAccessError in OpenJDK 17.0.4
+1 javax.management.*
+1 javax.swing.*
+
 
 # -------- ADDITIONAL IGNORES --------
 
@@ -103,6 +122,9 @@
 2 akka.http.scaladsl.*
 0 akka.http.scaladsl.Http2Ext
 0 akka.http.scaladsl.HttpExt
+0 akka.http.scaladsl.server.ExceptionHandler$
+0 akka.http.scaladsl.common.StrictForm$
+0 akka.http.impl.engine.server.HttpServerBluePrint$ControllerStage$$anon$*
 # saves ~0.1s skipping ~407 classes
 2 akka.stream.*
 0 akka.stream.impl.FanIn$SubInput
@@ -110,6 +132,33 @@
 0 akka.stream.impl.fusing.ActorGraphInterpreter$*
 0 akka.stream.stage.GraphStageLogic$*
 0 akka.stream.stage.TimerGraphStageLogic$*
+# needed for IAST
+0 akka.http.javadsl.model.HttpHeader
+0 akka.http.scaladsl.model.HttpRequest
+0 akka.http.scaladsl.model.headers.*
+0 akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport
+0 akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport$class
+0 akka.http.scaladsl.unmarshalling.*
+0 akka.http.scaladsl.server.PathMatcher$Matched
+0 akka.http.scaladsl.server.directives.ParameterDirectives$class
+0 akka.http.scaladsl.server.directives.ParameterDirectives
+0 akka.http.scaladsl.server.directives.BasicDirectives$class
+0 akka.http.scaladsl.server.directives.BasicDirectives
+0 akka.http.scaladsl.server.directives.FormFieldDirectives$class
+0 akka.http.scaladsl.server.directives.FormFieldDirectives
+0 akka.http.scaladsl.model.Uri
+0 akka.http.scaladsl.model.Multipart$FormData
+0 akka.http.scaladsl.model.FormData
+0 akka.http.scaladsl.server.RequestContextImpl
+0 akka.http.scaladsl.server.directives.CookieDirectives$class
+0 akka.http.scaladsl.server.directives.CookieDirectives
+0 akka.http.scaladsl.server.directives.MarshallingDirectives$class
+0 akka.http.scaladsl.server.directives.MarshallingDirectives
+0 akka.http.scaladsl.server.directives.ParameterDirectives$Impl$
+0 akka.http.scaladsl.server.directives.FormFieldDirectives$Impl$
+0 akka.http.scaladsl.model.HttpEntity$Strict
+0 akka.http.scaladsl.model.HttpEntity$Default
+0 akka.http.scaladsl.model.HttpEntity$Chunked
 2 ch.qos.logback.*
 0 ch.qos.logback.classic.Logger
 0 ch.qos.logback.classic.spi.LoggingEvent*
@@ -128,6 +177,12 @@
 0 com.couchbase.client.deps.org.LatencyUtils.*
 2 com.fasterxml.classmate.*
 2 com.fasterxml.jackson.*
+# Included for IAST
+0 com.fasterxml.jackson.core.*
+0 com.fasterxml.jackson.databind.node.TreeTraversingParser
+0 com.fasterxml.jackson.databind.util.TokenBuffer
+0 com.fasterxml.jackson.databind.util.TokenBuffer$Parser
+0 com.fasterxml.jackson.databind.ObjectMapper
 0 com.fasterxml.jackson.module.afterburner.util.MyClassLoader
 2 com.github.mustachejava.*
 2 com.google.api.*
@@ -171,6 +226,7 @@
 2 org.apache.xerces.*
 2 org.apache.xml.*
 2 org.apache.xpath.*
+2 org.bouncycastle.*
 2 org.h2.*
 0 org.h2.Driver
 # Some runnables that get instrumented
@@ -195,6 +251,7 @@
 0 org.springframework.beans.factory.support.DefaultListableBeanFactory
 0 org.springframework.beans.factory.support.DisposableBeanAdapter
 2 org.springframework.boot.*
+0 org.apache.xalan.transformer.TransformerImpl
 # More runnables to deal with
 0 org.springframework.boot.autoconfigure.BackgroundPreinitializer$*
 0 org.springframework.boot.autoconfigure.condition.OnClassCondition$*
@@ -227,20 +284,34 @@
 2 org.springframework.expression.*
 2 org.springframework.format.*
 2 org.springframework.http.*
+# Need for IAST: calls ServletRequest methods instrumented at callsite
+0 org.springframework.http.server.ServletServerHttpRequest
+# Need for IAST: we instrument these classes
+0 org.springframework.http.HttpHeaders
+0 org.springframework.http.ReadOnlyHttpHeaders
+0 org.springframework.http.codec.json.Jackson2Tokenizer
+0 org.springframework.http.server.reactive.UndertowServerHttpRequest$UndertowDataBuffer
+0 org.springframework.core.io.buffer.DataBuffer
+0 org.springframework.core.io.buffer.DefaultDataBuffer
+0 org.springframework.core.io.buffer.NettyDataBuffer
 # There are some Mono implementation that get instrumented
 0 org.springframework.http.server.reactive.*
 2 org.springframework.instrument.*
 2 org.springframework.jca.*
 2 org.springframework.jdbc.*
+# Need for IAST (Update when JdbcTemplate call sites are ready)
+0 org.springframework.jdbc.core.JdbcTemplate$*
 2 org.springframework.jms.*
 0 org.springframework.jms.listener.*
 2 org.springframework.jmx.*
 2 org.springframework.jndi.*
 2 org.springframework.lang.*
 2 org.springframework.messaging.*
+0 org.springframework.messaging.handler.invocation.InvocableHandlerMethod
 2 org.springframework.objenesis.*
 2 org.springframework.orm.*
 2 org.springframework.remoting.*
+0 org.springframework.samples.*
 2 org.springframework.scripting.*
 2 org.springframework.stereotype.*
 2 org.springframework.transaction.*
@@ -250,17 +321,27 @@
 2 org.springframework.validation.*
 2 org.springframework.web.*
 0 org.springframework.web.context.request.async.*
+0 org.springframework.web.context.request.*
 0 org.springframework.web.context.support.AbstractRefreshableWebApplicationContext
 0 org.springframework.web.context.support.GenericWebApplicationContext
 0 org.springframework.web.context.support.XmlWebApplicationContext
 0 org.springframework.web.reactive.*
 0 org.springframework.web.servlet.*
+# Included for IAST
+0 org.springframework.web.util.WebUtils
+# Need for IAST so propagation of tainted objects is complete in spring 2.7.5
+0 org.springframework.util.StreamUtils$NonClosingInputStream
+# Included for IAST Spring mvc unvalidated redirect and xss vulnerability
+0 org.springframework.web.method.support.HandlerMethodReturnValueHandlerComposite
 2 org.xml.*
 2 org.yaml.snakeyaml.*
 # saves ~0.5s skipping instrumentation of almost ~470 classes
 2 scala.collection.*
 
 # -------- SPECIAL CASES --------
+
+# incomplete wrapper that throws exceptions for all but one method
+1 reactor.rabbitmq.ChannelProxy
 
 3 com.mchange.v2.c3p0.*
 4 org.springframework.http.converter.*

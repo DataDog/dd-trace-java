@@ -1,7 +1,6 @@
 package datadog.trace.bootstrap.instrumentation.java.concurrent;
 
 import datadog.trace.api.GenericClassValue;
-import datadog.trace.api.function.Function;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.EnumMap;
@@ -81,24 +80,17 @@ public class ExcludeFilter {
   }
 
   private static final ClassValue<EnumSet<ExcludeType>> SKIP =
-      GenericClassValue.of(
-          new Function<Class<?>, EnumSet<ExcludeType>>() {
-            // FIXME replace with Method Reference
-            @Override
-            public EnumSet<ExcludeType> apply(Class<?> input) {
-              return exclude(input);
-            }
-          });
+      GenericClassValue.of(ExcludeFilter::exclude);
 
   private static final EnumMap<ExcludeType, Set<String>> excludedClassNames =
       new EnumMap<>(ExcludeType.class);
 
   static {
     for (ExcludeType type : ExcludeType.values()) {
-      excludedClassNames.put(type, new HashSet<String>());
+      excludedClassNames.put(type, new HashSet<>());
     }
     for (ExcludeType type : SKIP_TYPE_VALUES) {
-      SKIP_TYPE_PREFIXES.put(type, new ArrayList<String>());
+      SKIP_TYPE_PREFIXES.put(type, new ArrayList<>());
     }
     // TODO generic prefix registration
     SKIP_TYPE_PREFIXES.get(ExcludeType.RUNNABLE).add("slick.");

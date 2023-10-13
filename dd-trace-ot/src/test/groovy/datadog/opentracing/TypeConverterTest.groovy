@@ -1,7 +1,7 @@
 package datadog.opentracing
 
-import datadog.trace.api.DDId
-import datadog.trace.api.StatsDClient
+import datadog.trace.api.DDSpanId
+import datadog.trace.api.DDTraceId
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import datadog.trace.bootstrap.instrumentation.api.ScopeSource
@@ -9,7 +9,7 @@ import datadog.trace.core.CoreTracer
 import datadog.trace.core.DDSpan
 import datadog.trace.core.DDSpanContext
 import datadog.trace.core.PendingTrace
-import datadog.trace.core.propagation.DatadogTags
+import datadog.trace.core.propagation.PropagationTags
 import datadog.trace.core.scopemanager.ContinuableScopeManager
 import datadog.trace.test.util.DDSpecification
 
@@ -26,8 +26,8 @@ class TypeConverterTest extends DDSpecification {
 
   def "should avoid extra allocation for a span wrapper"() {
     def context = createTestSpanContext()
-    def span1 = new DDSpan(0, context)
-    def span2 = new DDSpan(0, context)
+    def span1 = new DDSpan("test", 0, context)
+    def span2 = new DDSpan("test", 0, context)
     expect:
     // return the same wrapper for the same span
     typeConverter.toSpan(span1) is typeConverter.toSpan(span1)
@@ -52,10 +52,10 @@ class TypeConverterTest extends DDSpecification {
   }
 
   def "should avoid extra allocation for a scope wrapper"() {
-    def scopeManager = new ContinuableScopeManager(0, StatsDClient.NO_OP, false, true)
+    def scopeManager = new ContinuableScopeManager(0, false, true)
     def context = createTestSpanContext()
-    def span1 = new DDSpan(0, context)
-    def span2 = new DDSpan(0, context)
+    def span1 = new DDSpan("test", 0, context)
+    def span2 = new DDSpan("test", 0, context)
     def scope1 = scopeManager.activate(span1, ScopeSource.MANUAL)
     def scope2 = scopeManager.activate(span2, ScopeSource.MANUAL)
     expect:
@@ -70,14 +70,14 @@ class TypeConverterTest extends DDSpecification {
 
   def createTestSpanContext() {
     def tracer = Mock(CoreTracer)
-    tracer.mapServiceName(_) >> { String serviceName -> serviceName }
     def trace = Mock(PendingTrace)
+    trace.mapServiceName(_) >> { String serviceName -> serviceName }
     trace.getTracer() >> tracer
 
     return new DDSpanContext(
-      DDId.from(1),
-      DDId.from(1),
-      DDId.ZERO,
+      DDTraceId.ONE,
+      1,
+      DDSpanId.ZERO,
       null,
       "fakeService",
       "fakeOperation",
@@ -93,6 +93,6 @@ class TypeConverterTest extends DDSpecification {
       null,
       NoopPathwayContext.INSTANCE,
       false,
-      DatadogTags.factory().empty())
+      PropagationTags.factory().empty())
   }
 }

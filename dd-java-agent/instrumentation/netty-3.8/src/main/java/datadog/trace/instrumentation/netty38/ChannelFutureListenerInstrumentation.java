@@ -47,11 +47,20 @@ public class ChannelFutureListenerInstrumentation extends Instrumenter.Tracing
   @Override
   public String[] helperClassNames() {
     return new String[] {
+      packageName + ".util.CombinedSimpleChannelHandler",
       packageName + ".AbstractNettyAdvice",
       packageName + ".ChannelTraceContext",
       packageName + ".ChannelTraceContext$Factory",
       packageName + ".server.ResponseExtractAdapter",
-      packageName + ".server.NettyHttpServerDecorator"
+      packageName + ".server.NettyHttpServerDecorator",
+      packageName + ".server.NettyHttpServerDecorator$NettyBlockResponseFunction",
+      packageName + ".server.NettyHttpServerDecorator$IgnoreBlockingExceptionHandler",
+      packageName + ".server.BlockingResponseHandler",
+      packageName + ".server.BlockAllWritesHandler",
+      packageName + ".server.HttpServerRequestTracingHandler",
+      packageName + ".server.HttpServerResponseTracingHandler",
+      packageName + ".server.HttpServerTracingHandler",
+      packageName + ".server.MaybeBlockResponseHandler",
     };
   }
 

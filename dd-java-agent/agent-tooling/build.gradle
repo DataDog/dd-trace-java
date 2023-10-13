@@ -1,0 +1,91 @@
+plugins {
+  id 'me.champeau.jmh'
+  id 'java-test-fixtures'
+}
+apply from: "$rootDir/gradle/java.gradle"
+apply from: "$rootDir/gradle/tries.gradle"
+
+minimumBranchCoverage = 0.6
+excludedClassesCoverage += ['datadog.trace.agent.tooling.*']
+
+sourceSets {
+  test_java11 {
+    java {
+      srcDirs = [file('src/test/java11')]
+    }
+  }
+  test {
+    groovy {
+      compileClasspath += sourceSets.test_java11.output
+      runtimeClasspath += sourceSets.test_java11.output
+    }
+  }
+}
+
+configurations {
+  instrumentPluginClasspath {
+    canBeConsumed = true
+    canBeResolved = false
+    extendsFrom runtimeElements
+  }
+
+  test_java11Implementation {
+    extendsFrom testImplementation
+  }
+}
+
+compileJava.dependsOn 'generateClassNameTries'
+packageSources.dependsOn 'generateClassNameTries'
+sourcesJar.dependsOn 'generateClassNameTries'
+
+dependencies {
+  api(project(':dd-java-agent:agent-bootstrap')) {
+    exclude group: 'com.datadoghq', module: 'agent-logging'
+  }
+  api group: 'com.blogspot.mydailyjava', name: 'weak-lock-free', version: '0.17'
+  api deps.bytebuddy
+  api deps.bytebuddyagent
+  implementation group: 'net.java.dev.jna', name: 'jna', version: '5.8.0'
+  implementation group: 'net.java.dev.jna', name: 'jna-platform', version: '5.8.0'
+
+  api project(':dd-trace-core')
+
+  implementation project(':dd-java-agent:agent-crashtracking')
+
+  compileOnly group: 'com.github.jnr', name: 'jnr-posix', version: "${versions.jnr_posix}"
+
+  testImplementation project(':dd-java-agent:testing')
+  testImplementation deps.bytebuddy
+  testImplementation group: 'com.google.guava', name: 'guava-testlib', version: '20.0'
+
+  jmhImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-web', version: '2.3.5.RELEASE'
+}
+
+jmh {
+  jmhVersion = '1.32'
+  includeTests = true
+}
+compileJmhJava.dependsOn compileTestJava
+compileTestJava.dependsOn 'generateTestClassNameTries'
+
+forbiddenApisJmh {
+  ignoreFailures = true
+}
+
+forbiddenApisTest_java11 {
+  // it will fail due to missing JDK >= 9 classes
+  // java.lang.ClassNotFoundException: java.lang.invoke.StringConcatFactory
+  failOnMissingClasses = false
+}
+
+project.tasks.compileTestJava.dependsOn(project.tasks.generateTestClassNameTries)
+project.tasks.compileTestGroovy.dependsOn(project.tasks.compileTest_java11Java)
+project.tasks.compileTest_java11Java.configure {
+  sourceCompatibility = JavaVersion.VERSION_11
+  targetCompatibility = JavaVersion.VERSION_11
+  setJavaVersion(it, 11)
+}
+
+final jmh = project.tasks.jmh
+jmh.outputs.upToDateWhen { false }
+jmh.dependsOn(compileTestJava)

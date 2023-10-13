@@ -44,10 +44,6 @@ abstract class PlayWSClientTestBase extends HttpClientTest {
     return PlayWSClientDecorator.DECORATE.component()
   }
 
-  String expectedOperationName() {
-    return "play-ws.request"
-  }
-
   @Override
   boolean testCircularRedirects() {
     return false
@@ -56,5 +52,20 @@ abstract class PlayWSClientTestBase extends HttpClientTest {
   @Override
   boolean testCallbackWithParent() {
     return false
+  }
+
+  @Override
+  int version() {
+    return 0
+  }
+
+  @Override
+  String service() {
+    return null
+  }
+
+  @Override
+  String operation() {
+    return "play-ws.request"
   }
 }

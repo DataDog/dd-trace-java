@@ -1,0 +1,26 @@
+// Made this a variable so we can easily update to latest releases.
+def otelVersion = '0.3.0'
+
+muzzle {
+  pass {
+    module = 'opentelemetry-api'
+    group = 'io.opentelemetry'
+    versions = "[$otelVersion,0.8.0)"
+    assertInverse = true
+    skipVersions = ['0.2.2', '0.2.3', '0.9.0', '0.13.0']
+  }
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+
+addTestSuiteForDir('latestDepTest', 'test')
+
+dependencies {
+  compileOnly group: 'io.opentelemetry', name: 'opentelemetry-api', version: otelVersion
+
+  compileOnly group: 'com.google.code.findbugs', name: 'jsr305', version: '3.0.2'
+  compileOnly group: 'com.google.auto.value', name: 'auto-value-annotations', version: '1.6.6'
+
+  testImplementation group: 'io.opentelemetry', name: 'opentelemetry-api', version: otelVersion
+  latestDepTestImplementation group: 'io.opentelemetry', name: 'opentelemetry-api', version: '0.7+'
+}

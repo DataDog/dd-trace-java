@@ -1,0 +1,91 @@
+ext {
+  // need access to sun.misc package
+  skipSettingCompilerRelease = true
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+
+repositories {
+  ivy {
+    artifactPattern 'https://sqreen-ci-java.s3.amazonaws.com/jars/[organisation]/[artifact]-[revision](-[classifier]).[ext]'
+    ivyPattern 'https://sqreen-ci-java.s3.amazonaws.com/jars/[organisation]/[module]-[revision].xml'
+  }
+}
+
+minimumBranchCoverage = 0.5
+minimumInstructionCoverage = 0.5
+excludedClassesCoverage += [
+  'datadog.trace.agent.test.asserts.*Assert',
+  'datadog.trace.agent.test.asserts.*Assert.*',
+  'datadog.trace.agent.test.base.*',
+  'datadog.trace.agent.test.log.*',
+  // Util class used in TestFrameworkTest
+  'datadog.trace.agent.test.civisibility.coverage.NoopCoverageProbeStore',
+  'datadog.trace.agent.test.civisibility.coverage.NoopCoverageProbeStore.NoopCoverageProbeStoreFactory',
+  // Groovy generates unreachable lines see:
+  // https://issues.apache.org/jira/browse/GROOVY-9610
+  'datadog.trace.agent.test.AgentTestRunner',
+  'datadog.trace.agent.test.AbortTransformationException',
+  'datadog.trace.agent.test.naming.VersionedNamingTestBase',
+  'datadog.trace.agent.test.server.http.TestHttpServer.*',
+  'datadog.trace.agent.test.utils.*',
+  // Avoid applying jacoco instrumentation to classes instrumented by tested agent
+  'context.FieldInjectionTestInstrumentation**',
+  'context.ExcludeFilterTestInstrumentation**',
+  'datadog.trace.agent.test.AgentTestRunner**',
+  'datadog.trace.agent.test.checkpoints.**',
+  'datadog.trace.agent.test.datastreams.**',
+  // profiling
+  'datadog.trace.agent.test.TestProfilingContextIntegration',
+  'datadog.trace.agent.test.timer.TestTimer',
+  'datadog.trace.agent.test.timer.TestTimer.TestQueueTiming'
+]
+
+dependencies {
+  api deps.bytebuddy
+  api deps.bytebuddyagent
+  api deps.slf4j
+  api deps.spock
+  api deps.testLogging
+  api deps.guava
+
+  api group: 'org.eclipse.jetty', name: 'jetty-server', version: '9.2.30.v20200428'
+  // ^ 9.2 last to support java 7
+  api group: 'com.squareup.okhttp3', name: 'logging-interceptor', version: versions.okhttp_legacy
+
+  api project(':dd-java-agent:agent-tooling')
+  api project(':dd-java-agent:agent-builder')
+  api project(':utils:test-utils')
+  api project(':utils:time-utils')
+
+  api deps.groovy
+
+  implementation 'org.junit.platform:junit-platform-runner:1.9.0'
+  implementation project(':dd-java-agent:appsec')
+
+  testImplementation project(':utils:test-utils')
+  testImplementation project(':dd-java-agent:instrumentation:trace-annotation')
+
+  testImplementation group: 'cglib', name: 'cglib', version: '3.2.5'
+  // test instrumenting java 1.1 bytecode
+  testImplementation group: 'net.sf.jt400', name: 'jt400', version: '6.1'
+
+  // We have autoservices defined in test subtree, looks like we need this to be able to properly rebuild this
+  testAnnotationProcessor deps.autoserviceProcessor
+  testCompileOnly deps.autoserviceAnnotation
+}
+
+tasks.withType(Test).configureEach {
+  // SpockRunner that we use to run agent tests cannot be properly ported to JUnit 5,
+  // since the framework does not provide the hooks / extension points
+  // that can be used to shadow the tested class.
+
+  // In order to mitigate this, SpockRunner extends JUnitPlatform,
+  // which is a JUnit 4 runner that allows executing JUnit 5 tests in a JUnit 4 environment
+  // (i.e. running them as JUnit 4 tests).
+
+  // So even though Spock 2 tests run on top of JUnit 5,
+  // we execute them in "compatibility mode" so that SpockRunner could shadow the test class
+  // See https://junit.org/junit5/docs/current/user-guide/#running-tests-junit-platform-runner for more details.
+  useJUnit()
+}

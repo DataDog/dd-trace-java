@@ -321,14 +321,6 @@ class TestScopeManager implements ScopeManager {
           AgentSpan getSpan() {
             return TestAgentScope.this.span()
           }
-
-          @Override
-          void migrate() {
-          }
-
-          @Override
-          void migrated() {
-          }
         }
     }
 
@@ -345,11 +337,6 @@ class TestScopeManager implements ScopeManager {
     @Override
     void setAsyncPropagation(boolean value) {
       asyncPropagating = value
-    }
-
-    @Override
-    boolean checkpointed() {
-      return false
     }
 
     @Override

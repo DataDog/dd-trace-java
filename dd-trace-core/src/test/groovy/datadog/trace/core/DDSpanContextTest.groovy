@@ -1,23 +1,31 @@
 package datadog.trace.core
 
-import datadog.trace.api.DDId
 import datadog.trace.api.DDTags
+import datadog.trace.api.DDTraceId
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
+import datadog.trace.bootstrap.instrumentation.api.ErrorPriorities
+import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration
 import datadog.trace.common.writer.ListWriter
 import datadog.trace.core.propagation.ExtractedContext
 import datadog.trace.core.test.DDCoreSpecification
 
 import static datadog.trace.api.sampling.PrioritySampling.*
 import static datadog.trace.api.sampling.SamplingMechanism.*
+import static datadog.trace.core.DDSpanContext.SPAN_SAMPLING_MECHANISM_TAG
+import static datadog.trace.core.DDSpanContext.SPAN_SAMPLING_RULE_RATE_TAG
+import static datadog.trace.core.DDSpanContext.SPAN_SAMPLING_MAX_PER_SECOND_TAG
 
 class DDSpanContextTest extends DDCoreSpecification {
 
   def writer
   def tracer
+  def profilingContextIntegration
 
   def setup() {
     writer = new ListWriter()
-    tracer = tracerBuilder().writer(writer).build()
+    profilingContextIntegration = Mock(ProfilingContextIntegration)
+    tracer = tracerBuilder().writer(writer)
+      .profilingContextIntegration(profilingContextIntegration).build()
   }
 
   def cleanup() {
@@ -36,7 +44,7 @@ class DDSpanContextTest extends DDCoreSpecification {
     when:
     context.setTag("some.tag", "asdf")
     context.setTag(name, null)
-    context.setErrorFlag(true)
+    context.setErrorFlag(true, ErrorPriorities.DEFAULT)
     span.finish()
 
     writer.waitForTraces(1)
@@ -173,8 +181,8 @@ class DDSpanContextTest extends DDCoreSpecification {
 
   def "set TraceSegment tags and data on correct span"() {
     setup:
-    def extracted = new ExtractedContext(DDId.from(123), DDId.from(456), SAMPLER_KEEP, "789", 0, [:], [:], null, tracer.getDatadogTagsFactory().empty())
-    .withRequestContextDataAppSec("dummy")
+    def extracted = new ExtractedContext(DDTraceId.from(123), 456, SAMPLER_KEEP, "789", tracer.getPropagationTagsFactory().empty())
+      .withRequestContextDataAppSec("dummy")
 
     def top = tracer.buildSpan("top").asChildOf((AgentSpan.Context) extracted).start()
     def topC = (DDSpanContext) top.context()
@@ -204,6 +212,69 @@ class DDSpanContextTest extends DDCoreSpecification {
     top.finish()
   }
 
+  def "set single span sampling tags"() {
+    setup:
+    def span = tracer.buildSpan("fakeOperation")
+      .withServiceName("fakeService")
+      .withResourceName("fakeResource")
+      .start()
+    def context = span.context() as DDSpanContext
+
+    expect:
+    context.getSamplingPriority() == UNSET
+
+    when:
+    context.setSpanSamplingPriority(rate, limit)
+
+    then:
+    context.getTag(SPAN_SAMPLING_MECHANISM_TAG) == SPAN_SAMPLING_RATE
+    context.getTag(SPAN_SAMPLING_RULE_RATE_TAG) == rate
+    context.getTag(SPAN_SAMPLING_MAX_PER_SECOND_TAG) == (limit == Integer.MAX_VALUE ? null : limit)
+    // single span sampling should not change the trace sampling priority
+    context.getSamplingPriority() == UNSET
+    // make sure the `_dd.p.dm` tag has not been set by single span sampling
+    !context.getPropagationTags().createTagMap().containsKey("_dd.p.dm")
+
+    where:
+    rate | limit
+    1.0  | 10
+    0.5  | 100
+    0.25 | Integer.MAX_VALUE
+  }
+
+  def "setting resource name to null is ignored"() {
+    setup:
+    def span = tracer.buildSpan("fakeOperation")
+      .withServiceName("fakeService")
+      .withResourceName("fakeResource")
+      .start()
+
+    when:
+    span.setResourceName(null)
+
+    then:
+    span.resourceName == "fakeResource"
+  }
+
+  def "setting operation name triggers constant encoding"() {
+    when:
+    def span = tracer.buildSpan("fakeOperation")
+      .withServiceName("fakeService")
+      .withResourceName("fakeResource")
+      .start()
+
+    then: "encoded operation name matches operation name"
+    1 * profilingContextIntegration.encode("fakeOperation") >> 1
+    span.context.encodedOperationName == 1
+
+    when:
+    span.setOperationName("newOperationName")
+
+    then:
+    1 * profilingContextIntegration.encode("newOperationName") >> 2
+    span.context.encodedOperationName == 2
+  }
+
   private static String dataTag(String tag) {
     "_dd.${tag}.json"
   }
@@ -214,6 +285,9 @@ class DDSpanContextTest extends DDCoreSpecification {
     sourceWithoutCommonTags.remove("language")
     sourceWithoutCommonTags.remove("_dd.agent_psr")
     sourceWithoutCommonTags.remove("_sample_rate")
+    sourceWithoutCommonTags.remove("process_id")
+    sourceWithoutCommonTags.remove("_dd.trace_span_attribute_schema")
+    sourceWithoutCommonTags.remove(DDTags.PROFILING_ENABLED)
     if (removeThread) {
       sourceWithoutCommonTags.remove(DDTags.THREAD_ID)
       sourceWithoutCommonTags.remove(DDTags.THREAD_NAME)

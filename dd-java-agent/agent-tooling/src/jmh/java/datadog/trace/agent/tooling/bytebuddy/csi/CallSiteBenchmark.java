@@ -62,15 +62,15 @@ public class CallSiteBenchmark {
     CALL_SITE("callSite"),
     CALLEE("callee");
 
-    private final String instrumenter;
+    private final String instrumentation;
 
-    Type(final String instrumenter) {
-      this.instrumenter = instrumenter;
+    Type(final String instrumentation) {
+      this.instrumentation = instrumentation;
     }
 
     public void apply(final Instrumentation instrumentation) {
-      if (instrumenter != null) {
-        System.setProperty("dd.benchmark.instrumentation", instrumenter);
+      if (this.instrumentation != null) {
+        System.setProperty("dd.benchmark.instrumentation", this.instrumentation);
         AgentInstaller.installBytebuddyAgent(instrumentation);
       }
     }
@@ -79,7 +79,7 @@ public class CallSiteBenchmark {
       if (response == null) {
         throw new RuntimeException("Empty response received");
       }
-      String expected = instrumenter == null ? "Hello!" : "Hello! [Transformed]";
+      String expected = instrumentation == null ? "Hello!" : "Hello! [Transformed]";
       if (!expected.equals(response)) {
         throw new RuntimeException(
             String.format("Wrong response, expected '%s' but received '%s'", expected, response));

@@ -1,0 +1,6 @@
+# Ignore all project specific gradle directories/files
+.gradle
+gradle
+build
+gradlew
+gradlew.bat

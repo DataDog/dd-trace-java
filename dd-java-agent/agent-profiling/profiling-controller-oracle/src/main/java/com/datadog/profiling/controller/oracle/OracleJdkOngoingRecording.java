@@ -81,7 +81,7 @@ public class OracleJdkOngoingRecording implements OngoingRecording {
     try {
       helper.closeRecording(recordingId);
     } catch (IOException e) {
-      log.warn("Unable to close recording {}", name, e);
+      log.debug("Unable to close recording {}", name, e);
     }
   }
 

@@ -1,10 +1,84 @@
 package datadog.trace.common.writer;
 
-public interface RemoteApi {
+import datadog.trace.relocate.api.IOLogger;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+import java.io.IOException;
+import org.slf4j.Logger;
 
-  Response sendSerializedTraces(final Payload payload);
+public abstract class RemoteApi {
 
-  void addResponseListener(final RemoteResponseListener listener);
+  protected final IOLogger ioLogger = new IOLogger(getLogger());
+
+  protected long totalTraces = 0;
+  protected long receivedTraces = 0;
+  protected long sentTraces = 0;
+  protected long failedTraces = 0;
+
+  protected void countAndLogSuccessfulSend(final int traceCount, final int sizeInBytes) {
+    // count the successful traces
+    sentTraces += traceCount;
+
+    ioLogger.success(createSendLogMessage(traceCount, sizeInBytes, "Success"));
+  }
+
+  protected void countAndLogFailedSend(
+      final int traceCount,
+      final int sizeInBytes,
+      final okhttp3.Response response,
+      final IOException outer) {
+    // count the failed traces
+    failedTraces += traceCount;
+    // these are used to catch and log if there is a failure in debug logging the response body
+    String responseBody = getResponseBody(response);
+    String sendErrorString =
+        createSendLogMessage(
+            traceCount, sizeInBytes, responseBody.isEmpty() ? "Error" : responseBody);
+
+    ioLogger.error(sendErrorString, toLoggerResponse(response, responseBody), outer);
+  }
+
+  protected static IOLogger.Response toLoggerResponse(okhttp3.Response response, String body) {
+    if (response == null) {
+      return null;
+    }
+    return new IOLogger.Response(response.code(), response.message(), body);
+  }
+
+  protected String createSendLogMessage(
+      final int traceCount, final int sizeInBytes, final String prefix) {
+    String sizeString = sizeInBytes > 1024 ? (sizeInBytes / 1024) + "KB" : sizeInBytes + "B";
+    return prefix
+        + " while sending "
+        + traceCount
+        + " (size="
+        + sizeString
+        + ")"
+        + " traces."
+        + " Total: "
+        + totalTraces
+        + ", Received: "
+        + receivedTraces
+        + ", Sent: "
+        + sentTraces
+        + ", Failed: "
+        + failedTraces
+        + ".";
+  }
+
+  @SuppressFBWarnings("DCN_NULLPOINTER_EXCEPTION")
+  protected static String getResponseBody(okhttp3.Response response) {
+    if (response != null) {
+      try {
+        return response.body().string().trim();
+      } catch (NullPointerException | IOException ignored) {
+      }
+    }
+    return "";
+  }
+
+  protected abstract Response sendSerializedTraces(final Payload payload);
+
+  protected abstract Logger getLogger();
 
   /**
    * Encapsulates an attempted response from the remote location.
@@ -18,7 +92,7 @@ public interface RemoteApi {
    * <p>NOTE: A successful communication may still contain an exception if there was a problem
    * parsing the response from the Datadog agent.
    */
-  final class Response {
+  public static final class Response {
     /** Factory method for a successful request with a trivial response body */
     public static Response success(final int status) {
       return new Response(true, status, null, null);

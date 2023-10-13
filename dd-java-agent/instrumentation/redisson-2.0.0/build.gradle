@@ -1,0 +1,46 @@
+
+muzzle {
+  pass {
+    group = "org.redisson"
+    module = "redisson"
+    versions = "[2.0.0,)"
+    skipVersions += "0.9.0"
+    assertInverse = true
+  }
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+
+addTestSuiteForDir('latestRedisson20Test', 'test/redisson20')
+addTestSuiteExtendingForDir('latestRedisson20ForkedTest', 'latestRedisson20Test', 'test/redisson20')
+addTestSuiteForDir('latestRedisson23Test', 'test/redisson23')
+addTestSuiteExtendingForDir('latestRedisson23ForkedTest', 'latestRedisson23Test', 'test/redisson23')
+addTestSuiteForDir('latestDepTest', 'test/redissonLatest')
+addTestSuiteExtendingForDir('latestDepForkedTest', 'latestDepTest', 'test/redissonLatest')
+
+latestRedisson20Test {
+  finalizedBy latestRedisson20ForkedTest
+}
+
+latestRedisson23Test {
+  finalizedBy latestRedisson20ForkedTest
+}
+
+latestDepTest {
+  finalizedBy latestDepForkedTest
+}
+
+tasks.named('test').configure {
+  dependsOn('latestRedisson20Test', 'latestRedisson23Test')
+}
+
+dependencies {
+  compileOnly group: 'org.redisson', name: 'redisson', version: '2.0.0'
+
+  testImplementation group: 'com.github.kstyrc', name: 'embedded-redis', version: '0.6'
+  testImplementation group: 'org.redisson', name: 'redisson', version: '2.0.0'
+
+  latestRedisson20TestImplementation group: 'org.redisson', name: 'redisson', version: '2.2.+'
+  latestRedisson23TestImplementation group: 'org.redisson', name: 'redisson', version: '2.3+'
+  latestDepTestImplementation group: 'org.redisson', name: 'redisson', version: '3+'
+}

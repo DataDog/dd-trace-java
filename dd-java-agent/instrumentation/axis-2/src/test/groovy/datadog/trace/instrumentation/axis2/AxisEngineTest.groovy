@@ -371,7 +371,7 @@ class AxisEngineTest extends AgentTestRunner {
       topLevel parentSpan == null
       tags {
         if (error instanceof Exception) {
-          "error.msg" error.message
+          "error.message" error.message
           "error.type" { it == error.class.name }
           "error.stack" String
         }

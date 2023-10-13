@@ -1,16 +1,15 @@
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.naming.VersionedNamingTestBase
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.DatadogClassLoader
 import datadog.trace.bootstrap.instrumentation.api.Tags
-import datadog.trace.instrumentation.http_url_connection.UrlInstrumentation
+import datadog.trace.bootstrap.instrumentation.decorator.UrlConnectionDecorator
 
 import static datadog.trace.agent.test.utils.PortUtils.UNUSABLE_PORT
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_CLIENT_HOST_SPLIT_BY_DOMAIN
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope
-import static datadog.trace.bootstrap.instrumentation.httpurlconnection.HttpUrlState.OPERATION_NAME
 
-class UrlConnectionTest extends AgentTestRunner {
+abstract class UrlConnectionTest extends VersionedNamingTestBase {
 
   def "trace request with connection failure #scheme"() {
     when:
@@ -42,7 +41,7 @@ class UrlConnectionTest extends AgentTestRunner {
           if (renameService) {
             serviceName "localhost"
           }
-          operationName OPERATION_NAME
+          operationName operation("http")
           resourceName "GET /"
           spanType DDSpanTypes.HTTP_CLIENT
           childOf span(0)
@@ -95,18 +94,18 @@ class UrlConnectionTest extends AgentTestRunner {
           }
         }
         span {
-          operationName "file.request"
+          operationName operation(url.protocol)
           resourceName "$url.path"
           spanType DDSpanTypes.HTTP_CLIENT
           childOf span(0)
           errored true
           tags {
-            "$Tags.COMPONENT" UrlInstrumentation.COMPONENT
+            "$Tags.COMPONENT" UrlConnectionDecorator.COMPONENT
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
             // FIXME: These tags really make no sense for non-http connections, why do we set them?
             "$Tags.HTTP_URL" "$url"
             errorTags IllegalArgumentException, String
-            defaultTags()
+            defaultTagsNoPeerService()
           }
         }
       }
@@ -143,5 +142,43 @@ class UrlConnectionTest extends AgentTestRunner {
         }
       }
     }
+  }
+
+  @Override
+  final String service() {
+    return null
+  }
+
+  @Override
+  final String operation() {
+    return null
+  }
+
+  abstract String operation(String protocol)
+}
+
+class UrlConnectionV0ForkedTest extends UrlConnectionTest {
+
+  @Override
+  int version() {
+    return 0
+  }
+
+  @Override
+  String operation(String protocol) {
+    return "${protocol}.request"
+  }
+}
+
+class UrlConnectionV1ForkedTest extends UrlConnectionTest {
+
+  @Override
+  int version() {
+    return 1
+  }
+
+  @Override
+  String operation(String protocol) {
+    return "${protocol}.client.request"
   }
 }

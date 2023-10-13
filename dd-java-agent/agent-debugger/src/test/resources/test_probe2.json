@@ -1,7 +1,7 @@
 {
   "id": "petclinic",
   "orgId": 2,
-  "snapshotProbes": [{
+  "logProbes": [{
     "id": "123356536",
     "language": "java",
     "where": {

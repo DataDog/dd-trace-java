@@ -1,6 +1,7 @@
 import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.agent.test.base.HttpServer
 import datadog.trace.agent.test.base.HttpServerTest
+import datadog.trace.agent.test.naming.TestingGenericHttpNamingConventions
 import org.eclipse.jetty.server.Server
 import org.eclipse.jetty.server.handler.ErrorHandler
 import org.eclipse.jetty.servlet.ServletContextHandler
@@ -15,7 +16,7 @@ import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.NOT_FO
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.REDIRECT
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.UNKNOWN
 
-class JettyServlet2Test extends HttpServerTest<Server> {
+abstract class JettyServlet2Test extends HttpServerTest<Server> {
 
   private static final CONTEXT = "ctx"
 
@@ -87,7 +88,12 @@ class JettyServlet2Test extends HttpServerTest<Server> {
 
   @Override
   String expectedOperationName() {
-    return "servlet.request"
+    return operation()
+  }
+
+  @Override
+  protected boolean enabledFinishTimingChecks() {
+    true
   }
 
   @Override
@@ -102,6 +108,11 @@ class JettyServlet2Test extends HttpServerTest<Server> {
 
   @Override
   boolean testBlocking() {
+    true
+  }
+
+  @Override
+  boolean testBlockingOnResponse() {
     true
   }
 
@@ -181,4 +192,12 @@ class JettyServlet2Test extends HttpServerTest<Server> {
   //
   //    security
   //  }
+}
+
+class JettyServlet2V0ForkedTest extends JettyServlet2Test implements TestingGenericHttpNamingConventions.ServerV0 {
+
+}
+
+class JettyServlet2V1ForkedTest extends JettyServlet2Test implements TestingGenericHttpNamingConventions.ServerV1 {
+
 }

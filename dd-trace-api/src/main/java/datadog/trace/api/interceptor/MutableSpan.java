@@ -40,6 +40,11 @@ public interface MutableSpan {
 
   Map<String, Object> getTags();
 
+  default Object getTag(String key) {
+    Map<String, Object> tags = getTags();
+    return tags == null ? null : tags.get(key);
+  }
+
   MutableSpan setTag(final String tag, final String value);
 
   MutableSpan setTag(final String tag, final boolean value);

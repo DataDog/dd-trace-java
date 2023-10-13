@@ -1,9 +1,11 @@
 import com.mchange.v2.c3p0.ComboPooledDataSource
 import com.zaxxer.hikari.HikariConfig
 import com.zaxxer.hikari.HikariDataSource
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.naming.VersionedNamingTestBase
 import datadog.trace.agent.test.utils.PortUtils
+import datadog.trace.api.Config
 import datadog.trace.api.DDSpanTypes
+import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import org.testcontainers.containers.MySQLContainer
 import org.testcontainers.containers.PostgreSQLContainer
@@ -22,14 +24,11 @@ import java.util.concurrent.TimeUnit
 
 import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
-import static datadog.trace.api.Checkpointer.CPU
-import static datadog.trace.api.Checkpointer.END
-import static datadog.trace.api.Checkpointer.SPAN
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_INSTANCE
 
 // workaround for SSLHandShakeException on J9 only with Hikari/MySQL
-@Requires({ jvm.java8Compatible && !System.getProperty("java.vendor").contains("IBM") })
-class RemoteJDBCInstrumentationTest extends AgentTestRunner {
+@Requires({ !System.getProperty("java.vendor").contains("IBM") })
+abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
   @Shared
   def dbName = "jdbcUnitTest"
 
@@ -193,19 +192,20 @@ class RemoteJDBCInstrumentationTest extends AgentTestRunner {
     TEST_WRITER.waitForTraces(1)
 
     then:
+    def addDbmTag = dbmTraceInjected()
     resultSet.next()
     resultSet.getInt(1) == 3
     assertTraces(1) {
       trace(2) {
         basicSpan(it, "parent")
         span {
-          serviceName renameService ? dbName.toLowerCase() : driver
-          operationName "${driver}.query"
+          serviceName renameService ? dbName.toLowerCase() : service(driver)
+          operationName this.operation(driver)
           resourceName obfuscatedQuery
           spanType DDSpanTypes.SQL
           childOf span(0)
           errored false
-          topLevel true
+          measured true
           tags {
             "$Tags.COMPONENT" "java-jdbc-statement"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
@@ -217,18 +217,15 @@ class RemoteJDBCInstrumentationTest extends AgentTestRunner {
             // since Connection.getClientInfo will not provide the username
             "$Tags.DB_USER" { it == null || it == jdbcUserNames.get(driver) }
             "$Tags.DB_OPERATION" operation
+            if (addDbmTag) {
+              "$InstrumentationTags.DBM_TRACE_INJECTED" true
+            }
+            peerServiceFrom(Tags.DB_INSTANCE)
             defaultTags()
           }
         }
       }
     }
-    2 * TEST_CHECKPOINTER.checkpoint(_, SPAN)
-    2 * TEST_CHECKPOINTER.checkpoint(_, SPAN | END)
-    _ * TEST_CHECKPOINTER.checkpoint(_, CPU)
-    _ * TEST_CHECKPOINTER.checkpoint(_, CPU | END)
-    _ * TEST_CHECKPOINTER.onRootSpanWritten(_, _, _)
-    _ * TEST_CHECKPOINTER.onRootSpanStarted(_)
-    0 * _
 
     cleanup:
     statement.close()
@@ -265,13 +262,13 @@ class RemoteJDBCInstrumentationTest extends AgentTestRunner {
       trace(2) {
         basicSpan(it, "parent")
         span {
-          operationName "${driver}.query"
-          serviceName driver
+          operationName this.operation(driver)
+          serviceName service(driver)
           resourceName obfuscatedQuery
           spanType DDSpanTypes.SQL
           childOf span(0)
           errored false
-          topLevel true
+          measured true
           tags {
             "$Tags.COMPONENT" "java-jdbc-prepared_statement"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
@@ -284,18 +281,12 @@ class RemoteJDBCInstrumentationTest extends AgentTestRunner {
             // since Connection.getClientInfo will not provide the username
             "$Tags.DB_USER" { it == null || it == jdbcUserNames.get(driver) }
             "$Tags.DB_OPERATION" operation
+            peerServiceFrom(Tags.DB_INSTANCE)
             defaultTags()
           }
         }
       }
     }
-    2 * TEST_CHECKPOINTER.checkpoint(_, SPAN)
-    2 * TEST_CHECKPOINTER.checkpoint(_, SPAN | END)
-    _ * TEST_CHECKPOINTER.checkpoint(_, CPU)
-    _ * TEST_CHECKPOINTER.checkpoint(_, CPU | END)
-    _ * TEST_CHECKPOINTER.onRootSpanWritten(_, _, _)
-    _ * TEST_CHECKPOINTER.onRootSpanStarted(_)
-    0 * _
 
     cleanup:
     statement.close()
@@ -330,13 +321,13 @@ class RemoteJDBCInstrumentationTest extends AgentTestRunner {
       trace(2) {
         basicSpan(it, "parent")
         span {
-          operationName "${driver}.query"
-          serviceName driver
+          operationName this.operation(driver)
+          serviceName service(driver)
           resourceName obfuscatedQuery
           spanType DDSpanTypes.SQL
           childOf span(0)
           errored false
-          topLevel true
+          measured true
           tags {
             "$Tags.COMPONENT" "java-jdbc-prepared_statement"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
@@ -349,18 +340,12 @@ class RemoteJDBCInstrumentationTest extends AgentTestRunner {
             // since Connection.getClientInfo will not provide the username
             "$Tags.DB_USER" { it == null || it == jdbcUserNames.get(driver) }
             "$Tags.DB_OPERATION" operation
+            peerServiceFrom(Tags.DB_INSTANCE)
             defaultTags()
           }
         }
       }
     }
-    2 * TEST_CHECKPOINTER.checkpoint(_, SPAN)
-    2 * TEST_CHECKPOINTER.checkpoint(_, SPAN | END)
-    _ * TEST_CHECKPOINTER.checkpoint(_, CPU)
-    _ * TEST_CHECKPOINTER.checkpoint(_, CPU | END)
-    _ * TEST_CHECKPOINTER.onRootSpanWritten(_, _, _)
-    _ * TEST_CHECKPOINTER.onRootSpanStarted(_)
-    0 * _
 
     cleanup:
     statement.close()
@@ -395,13 +380,13 @@ class RemoteJDBCInstrumentationTest extends AgentTestRunner {
       trace(2) {
         basicSpan(it, "parent")
         span {
-          operationName "${driver}.query"
-          serviceName driver
+          operationName this.operation(driver)
+          serviceName service(driver)
           resourceName obfuscatedQuery
           spanType DDSpanTypes.SQL
           childOf span(0)
           errored false
-          topLevel true
+          measured true
           tags {
             "$Tags.COMPONENT" "java-jdbc-prepared_statement"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
@@ -419,13 +404,6 @@ class RemoteJDBCInstrumentationTest extends AgentTestRunner {
         }
       }
     }
-    2 * TEST_CHECKPOINTER.checkpoint(_, SPAN)
-    2 * TEST_CHECKPOINTER.checkpoint(_, SPAN | END)
-    _ * TEST_CHECKPOINTER.checkpoint(_, CPU)
-    _ * TEST_CHECKPOINTER.checkpoint(_, CPU | END)
-    _ * TEST_CHECKPOINTER.onRootSpanWritten(_, _, _)
-    _ * TEST_CHECKPOINTER.onRootSpanStarted(_)
-    0 * _
 
     cleanup:
     statement.close()
@@ -456,13 +434,14 @@ class RemoteJDBCInstrumentationTest extends AgentTestRunner {
     TEST_WRITER.waitForTraces(1)
 
     then:
+    def addDbmTag = dbmTraceInjected()
     statement.updateCount == 0
     assertTraces(1) {
       trace(2) {
         basicSpan(it, "parent")
         span {
-          operationName "${driver}.query"
-          serviceName driver
+          operationName this.operation(driver)
+          serviceName service(driver)
           resourceName query
           spanType DDSpanTypes.SQL
           childOf span(0)
@@ -479,17 +458,15 @@ class RemoteJDBCInstrumentationTest extends AgentTestRunner {
             // since Connection.getClientInfo will not provide the username
             "$Tags.DB_USER" { it == null || it == jdbcUserNames.get(driver) }
             "${Tags.DB_OPERATION}" operation
+            if (addDbmTag) {
+              "$InstrumentationTags.DBM_TRACE_INJECTED" true
+            }
+            peerServiceFrom(Tags.DB_INSTANCE)
             defaultTags()
           }
         }
       }
     }
-    2 * TEST_CHECKPOINTER.checkpoint(_, SPAN)
-    2 * TEST_CHECKPOINTER.checkpoint(_, SPAN | END)
-    _ * TEST_CHECKPOINTER.checkpoint(_, CPU)
-    _ * TEST_CHECKPOINTER.checkpoint(_, CPU | END)
-    _ * TEST_CHECKPOINTER.onRootSpanWritten(_, _, _)
-    _ * TEST_CHECKPOINTER.onRootSpanStarted(_)
 
 
     cleanup:
@@ -524,5 +501,96 @@ class RemoteJDBCInstrumentationTest extends AgentTestRunner {
   Connection connect(String driverClass, String url, Properties properties) {
     return newDriver(driverClass)
       .connect(url, properties)
+  }
+
+  @Override
+  final String service() {
+    return null
+  }
+
+  @Override
+  final String operation() {
+    return null
+  }
+
+  protected abstract String service(String dbType)
+
+  protected abstract String operation(String dbType)
+
+  protected abstract boolean dbmTraceInjected()
+}
+
+class RemoteJDBCInstrumentationV0Test extends RemoteJDBCInstrumentationTest {
+
+  @Override
+  int version() {
+    return 0
+  }
+
+  @Override
+  protected String service(String dbType) {
+    return dbType
+  }
+
+  @Override
+  protected String operation(String dbType) {
+    return "${dbType}.query"
+  }
+
+  @Override
+  protected boolean dbmTraceInjected() {
+    return false
+  }
+}
+
+class RemoteJDBCInstrumentationV1ForkedTest extends RemoteJDBCInstrumentationTest {
+
+  @Override
+  int version() {
+    return 1
+  }
+
+  @Override
+  protected String service(String dbType) {
+    return Config.get().getServiceName()
+  }
+
+  @Override
+  protected String operation(String dbType) {
+    return "${dbType}.query"
+  }
+
+  @Override
+  protected boolean dbmTraceInjected() {
+    return false
+  }
+}
+
+class RemoteDBMTraceInjectedForkedTest extends RemoteJDBCInstrumentationTest {
+
+  @Override
+  void configurePreAgent() {
+    super.configurePreAgent()
+    injectSysConfig("dd.dbm.propagation.mode", "full")
+  }
+
+  @Override
+  protected boolean dbmTraceInjected() {
+    return true
+  }
+
+  @Override
+  int version() {
+    return 1
+  }
+
+  @Override
+  protected String service(String dbType) {
+    return Config.get().getServiceName()
+  }
+
+  @Override
+  protected String operation(String dbType) {
+    return "${dbType}.query"
   }
 }

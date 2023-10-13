@@ -6,10 +6,8 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSp
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.twilio.TwilioClientDecorator.DECORATE;
 import static datadog.trace.instrumentation.twilio.TwilioClientDecorator.TWILIO_SDK;
-import static net.bytebuddy.matcher.ElementMatchers.isAbstract;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
-import static net.bytebuddy.matcher.ElementMatchers.not;
 
 import com.google.auto.service.AutoService;
 import com.twilio.Twilio;
@@ -65,10 +63,7 @@ public class TwilioSyncInstrumentation extends Instrumenter.Tracing
        which we weren't interested in annotating.
     */
     transformation.applyAdvice(
-        isMethod()
-            .and(isPublic())
-            .and(not(isAbstract()))
-            .and(namedOneOf("create", "delete", "read", "fetch", "update")),
+        isMethod().and(isPublic()).and(namedOneOf("create", "delete", "read", "fetch", "update")),
         TwilioSyncInstrumentation.class.getName() + "$TwilioClientAdvice");
   }
 

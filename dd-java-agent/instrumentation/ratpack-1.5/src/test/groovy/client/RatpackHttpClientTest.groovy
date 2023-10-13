@@ -1,6 +1,7 @@
 package client
 
 import datadog.trace.agent.test.base.HttpClientTest
+import datadog.trace.agent.test.naming.TestingNettyHttpNamingConventions
 import datadog.trace.instrumentation.netty41.client.NettyHttpClientDecorator
 import ratpack.exec.ExecResult
 import ratpack.http.client.HttpClient
@@ -12,7 +13,7 @@ import spock.lang.Timeout
 import java.time.Duration
 
 @Timeout(5)
-class RatpackHttpClientTest extends HttpClientTest {
+class RatpackHttpClientTest extends HttpClientTest implements TestingNettyHttpNamingConventions.ClientV0 {
 
   @AutoCleanup
   @Shared
@@ -53,10 +54,6 @@ class RatpackHttpClientTest extends HttpClientTest {
     return NettyHttpClientDecorator.DECORATE.component()
   }
 
-  @Override
-  String expectedOperationName() {
-    return "netty.client.request"
-  }
 
   @Override
   boolean testRedirects() {

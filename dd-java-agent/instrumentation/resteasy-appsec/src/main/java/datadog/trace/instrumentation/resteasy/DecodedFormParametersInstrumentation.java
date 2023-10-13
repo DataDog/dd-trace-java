@@ -6,10 +6,13 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
+import datadog.appsec.api.blocking.BlockingException;
+import datadog.trace.advice.ActiveRequestContext;
+import datadog.trace.advice.RequiresRequestContext;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.muzzle.Reference;
 import datadog.trace.agent.tooling.muzzle.ReferenceProvider;
-import datadog.trace.api.function.BiFunction;
+import datadog.trace.api.gateway.BlockResponseFunction;
 import datadog.trace.api.gateway.CallbackProvider;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.RequestContext;
@@ -18,6 +21,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.BiFunction;
 import javax.ws.rs.core.MultivaluedMap;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.pool.TypePool;
@@ -30,8 +34,13 @@ public class DecodedFormParametersInstrumentation extends Instrumenter.AppSec
     super("resteasy");
   }
 
-  private static final String NETTY_HTTP_REQUEST_CLASS_NAME =
+  public static final String NETTY_HTTP_REQUEST_CLASS_NAME =
       "org.jboss.resteasy.plugins.server.netty.NettyHttpRequest";
+
+  @Override
+  public String muzzleDirective() {
+    return "jaxrs";
+  }
 
   @Override
   public String[] knownMatchingTypes() {
@@ -49,27 +58,30 @@ public class DecodedFormParametersInstrumentation extends Instrumenter.AppSec
         DecodedFormParametersInstrumentation.class.getName() + "$GetDecodedFormParametersAdvice");
   }
 
-  private static final Reference BASE_HTTP_REQUEST_DECODED_PARAMETERS =
-      new Reference.Builder("org.jboss.resteasy.plugins.server.BaseHttpRequest")
-          .withField(new String[0], 0, "decodedFormParameters", "Ljavax/ws/rs/core/MultivaluedMap;")
-          .build();
-
-  private static final Reference HTTP_SERVLET_INPUT_MESSAGE_DECODED_PARAMETERS =
-      new Reference.Builder("org.jboss.resteasy.plugins.server.servlet.HttpServletInputMessage")
-          .withField(new String[0], 0, "decodedFormParameters", "Ljavax/ws/rs/core/MultivaluedMap;")
-          .build();
-
-  private static final Reference NETTY_HTTP_REQUEST_DECODED_PARAMETERS =
-      new Reference.Builder(NETTY_HTTP_REQUEST_CLASS_NAME)
-          .withField(new String[0], 0, "decodedFormParameters", "Ljavax/ws/rs/core/MultivaluedMap;")
-          .build();
-
   @Override
   public ReferenceProvider runtimeMuzzleReferences() {
     return new CustomReferenceProvider();
   }
 
-  static class CustomReferenceProvider implements ReferenceProvider {
+  public static class CustomReferenceProvider implements ReferenceProvider {
+    private static final Reference BASE_HTTP_REQUEST_DECODED_PARAMETERS =
+        new Reference.Builder("org.jboss.resteasy.plugins.server.BaseHttpRequest")
+            .withField(
+                new String[0], 0, "decodedFormParameters", "Ljavax/ws/rs/core/MultivaluedMap;")
+            .build();
+
+    private static final Reference HTTP_SERVLET_INPUT_MESSAGE_DECODED_PARAMETERS =
+        new Reference.Builder("org.jboss.resteasy.plugins.server.servlet.HttpServletInputMessage")
+            .withField(
+                new String[0], 0, "decodedFormParameters", "Ljavax/ws/rs/core/MultivaluedMap;")
+            .build();
+
+    private static final Reference NETTY_HTTP_REQUEST_DECODED_PARAMETERS =
+        new Reference.Builder(NETTY_HTTP_REQUEST_CLASS_NAME)
+            .withField(
+                new String[0], 0, "decodedFormParameters", "Ljavax/ws/rs/core/MultivaluedMap;")
+            .build();
+
     @Override
     public Iterable<Reference> buildReferences(TypePool typePool) {
       List<Reference> references = new ArrayList<>();
@@ -82,6 +94,7 @@ public class DecodedFormParametersInstrumentation extends Instrumenter.AppSec
     }
   }
 
+  @RequiresRequestContext(RequestContextSlot.APPSEC)
   public static class GetDecodedFormParametersAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     static boolean before(
@@ -92,11 +105,13 @@ public class DecodedFormParametersInstrumentation extends Instrumenter.AppSec
       return map == null;
     }
 
-    @Advice.OnMethodExit(suppress = Throwable.class)
+    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
     static void after(
         @Advice.FieldValue("decodedFormParameters") final MultivaluedMap<String, String> map,
+        @ActiveRequestContext RequestContext reqCtx,
+        @Advice.Thrown(readOnly = false) Throwable t,
         @Advice.Enter boolean proceed) {
-      if (!proceed || map == null || map.isEmpty()) {
+      if (!proceed || map == null || map.isEmpty() || t != null) {
         return;
       }
 
@@ -112,7 +127,21 @@ public class DecodedFormParametersInstrumentation extends Instrumenter.AppSec
       if (requestContext == null || callback == null) {
         return;
       }
-      callback.apply(requestContext, map);
+      Flow<Void> flow = callback.apply(requestContext, map);
+      Flow.Action action = flow.getAction();
+      if (action instanceof Flow.Action.RequestBlockingAction) {
+        Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
+        BlockResponseFunction blockResponseFunction = reqCtx.getBlockResponseFunction();
+        if (blockResponseFunction != null) {
+          blockResponseFunction.tryCommitBlockingResponse(
+              reqCtx.getTraceSegment(),
+              rba.getStatusCode(),
+              rba.getBlockingContentType(),
+              rba.getExtraHeaders());
+          t = new BlockingException("Blocked request (for getDecodedFormParameters)");
+          requestContext.getTraceSegment().effectivelyBlocked();
+        }
+      }
     }
   }
 }

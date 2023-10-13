@@ -15,8 +15,8 @@
  */
 package com.datadog.profiling.controller;
 
+import datadog.trace.api.Config;
 import datadog.trace.api.Platform;
-import datadog.trace.api.config.ProfilingConfig;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.lang.reflect.InvocationTargetException;
@@ -31,7 +31,7 @@ public final class ControllerFactory {
     NONE(),
     ORACLE("com.datadog.profiling.controller.oracle.OracleJdkController"),
     OPENJDK("com.datadog.profiling.controller.openjdk.OpenJdkController"),
-    ASYNC("com.datadog.profiling.controller.async.AsyncController");
+    ASYNC("com.datadog.profiling.controller.ddprof.DatadogProfilerController");
 
     private final String className;
 
@@ -60,13 +60,17 @@ public final class ControllerFactory {
   public static Controller createController(final ConfigProvider configProvider)
       throws UnsupportedEnvironmentException, ConfigurationException {
     Implementation impl = Implementation.NONE;
-    try {
-      Class.forName("com.oracle.jrockit.jfr.Producer");
-      impl = Implementation.ORACLE;
-    } catch (ClassNotFoundException ignored) {
-      log.debug("Failed to load oracle profiler", ignored);
+    boolean isOracleJDK8 = Platform.isOracleJDK8();
+    boolean isDatadogProfilerEnabled = Config.get().isDatadogProfilerEnabled();
+    if (isOracleJDK8 && !isDatadogProfilerEnabled) {
+      try {
+        Class.forName("com.oracle.jrockit.jfr.Producer");
+        impl = Implementation.ORACLE;
+      } catch (ClassNotFoundException ignored) {
+        log.debug("Failed to load oracle profiler", ignored);
+      }
     }
-    if (impl == Implementation.NONE) {
+    if (!isOracleJDK8) {
       try {
         Class.forName("jdk.jfr.Event");
         impl = Implementation.OPENJDK;
@@ -75,25 +79,23 @@ public final class ControllerFactory {
       }
     }
     if (impl == Implementation.NONE) {
-      if (Platform.isLinux()
-          && configProvider.getBoolean(
-              ProfilingConfig.PROFILING_ASYNC_ENABLED,
-              ProfilingConfig.PROFILING_ASYNC_ENABLED_DEFAULT || Platform.isJ9())) {
+      if ((Platform.isLinux() || Platform.isMac()) && isDatadogProfilerEnabled) {
         try {
-          Class<?> asyncProfilerClass = Class.forName("com.datadog.profiling.async.AsyncProfiler");
+          Class<?> datadogProfilerClass =
+              Class.forName("com.datadog.profiling.ddprof.DatadogProfiler");
           if ((boolean)
-              asyncProfilerClass
+              datadogProfilerClass
                   .getMethod("isAvailable")
-                  .invoke(asyncProfilerClass.getMethod("getInstance").invoke(null))) {
+                  .invoke(datadogProfilerClass.getMethod("getInstance").invoke(null))) {
             impl = Implementation.ASYNC;
           } else {
-            log.debug("Failed to load async profiler, it is not available");
+            log.debug("Failed to load Datadog profiler, it is not available");
           }
         } catch (final ClassNotFoundException
             | NoSuchMethodException
             | IllegalAccessException
             | InvocationTargetException ignored) {
-          log.debug("Failed to load async profiler", ignored);
+          log.debug("Failed to load Datadog profiler", ignored);
         }
       }
     }
@@ -102,7 +104,7 @@ public final class ControllerFactory {
     }
 
     try {
-      log.debug("Trying to load " + impl.className());
+      log.debug("Trying to load {}", impl.className());
       return Class.forName(impl.className())
           .asSubclass(Controller.class)
           .getDeclaredConstructor(ConfigProvider.class)

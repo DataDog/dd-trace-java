@@ -5,17 +5,21 @@ import static datadog.trace.api.gateway.Events.EVENTS;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
+import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.advice.ActiveRequestContext;
 import datadog.trace.advice.RequiresRequestContext;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.muzzle.Reference;
-import datadog.trace.api.function.BiFunction;
+import datadog.trace.api.gateway.BlockResponseFunction;
 import datadog.trace.api.gateway.CallbackProvider;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
+import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import java.util.function.BiFunction;
 import net.bytebuddy.asm.Advice;
+import org.eclipse.jetty.server.Request;
 import org.eclipse.jetty.util.MultiMap;
 
 @AutoService(Instrumenter.class)
@@ -35,7 +39,7 @@ public class RequestExtractContentParametersInstrumentation extends Instrumenter
   @Override
   public void adviceTransformations(AdviceTransformation transformation) {
     transformation.applyAdvice(
-        named("extractContentParameters").and(takesArguments(0)),
+        named("extractContentParameters").and(takesArguments(0)).or(named("getParts")),
         getClass().getName() + "$ExtractContentParametersAdvice");
   }
 
@@ -52,10 +56,22 @@ public class RequestExtractContentParametersInstrumentation extends Instrumenter
 
   @RequiresRequestContext(RequestContextSlot.APPSEC)
   public static class ExtractContentParametersAdvice {
-    @Advice.OnMethodExit(suppress = Throwable.class)
+    @Advice.OnMethodEnter(suppress = Throwable.class)
+    static boolean before(@Advice.FieldValue("_contentParameters") final MultiMap<String> map) {
+      final int callDepth = CallDepthThreadLocalMap.incrementCallDepth(Request.class);
+      return callDepth == 0 && map == null;
+    }
+
+    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
     static void after(
+        @Advice.Enter boolean proceed,
         @Advice.FieldValue("_contentParameters") final MultiMap<String> map,
-        @ActiveRequestContext RequestContext reqCtx) {
+        @ActiveRequestContext RequestContext reqCtx,
+        @Advice.Thrown(readOnly = false) Throwable t) {
+      CallDepthThreadLocalMap.decrementCallDepth(Request.class);
+      if (!proceed) {
+        return;
+      }
       if (map == null || map.isEmpty()) {
         return;
       }
@@ -66,7 +82,24 @@ public class RequestExtractContentParametersInstrumentation extends Instrumenter
       if (callback == null) {
         return;
       }
-      callback.apply(reqCtx, map);
+
+      Flow<Void> flow = callback.apply(reqCtx, map);
+      Flow.Action action = flow.getAction();
+      if (action instanceof Flow.Action.RequestBlockingAction) {
+        Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
+        BlockResponseFunction blockResponseFunction = reqCtx.getBlockResponseFunction();
+        if (blockResponseFunction != null) {
+          blockResponseFunction.tryCommitBlockingResponse(
+              reqCtx.getTraceSegment(),
+              rba.getStatusCode(),
+              rba.getBlockingContentType(),
+              rba.getExtraHeaders());
+          if (t == null) {
+            t = new BlockingException("Blocked request (for Request/extractContentParameters)");
+            reqCtx.getTraceSegment().effectivelyBlocked();
+          }
+        }
+      }
     }
   }
 }

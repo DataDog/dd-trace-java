@@ -1,0 +1,31 @@
+muzzle {
+  pass {
+    group = "org.apache.spark"
+    module = "spark-sql_2.12"
+    versions = "[2.4.0,)"
+  }
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+
+addTestSuiteForDir('latestDepTest', 'test')
+
+ext {
+  // Spark does not support Java > 11 until 3.3.0 https://issues.apache.org/jira/browse/SPARK-33772
+  maxJavaVersionForTests = JavaVersion.VERSION_11
+}
+
+dependencies {
+  compileOnly group: 'org.apache.spark', name: 'spark-core_2.12', version: '2.4.0'
+  compileOnly group: 'org.apache.spark', name: 'spark-sql_2.12', version: '2.4.0'
+
+  testImplementation group: 'com.datadoghq', name: 'sketches-java', version: '0.8.2'
+  testImplementation group: 'com.google.protobuf', name: 'protobuf-java', version: '3.14.0'
+  testImplementation group: 'org.apache.spark', name: 'spark-core_2.12', version: '2.4.0'
+  testImplementation group: 'org.apache.spark', name: 'spark-sql_2.12', version: '2.4.0' // Needed to instantiate spark in tests
+  testImplementation group: 'org.apache.spark', name: 'spark-yarn_2.12', version: '2.4.0'
+
+  latestDepTestImplementation group: 'org.apache.spark', name: 'spark-core_2.12', version: '+'
+  latestDepTestImplementation group: 'org.apache.spark', name: 'spark-sql_2.12', version: '+' // Needed to instantiate spark in tests
+  latestDepTestImplementation group: 'org.apache.spark', name: 'spark-yarn_2.12', version: '+'
+}

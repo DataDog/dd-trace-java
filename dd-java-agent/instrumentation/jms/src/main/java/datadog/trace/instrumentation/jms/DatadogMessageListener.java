@@ -7,7 +7,7 @@ import static datadog.trace.instrumentation.jms.JMSDecorator.BROKER_DECORATE;
 import static datadog.trace.instrumentation.jms.JMSDecorator.CONSUMER_DECORATE;
 import static datadog.trace.instrumentation.jms.JMSDecorator.JMS_CONSUME;
 import static datadog.trace.instrumentation.jms.JMSDecorator.JMS_DELIVER;
-import static datadog.trace.instrumentation.jms.JMSDecorator.JMS_LEGACY_TRACING;
+import static datadog.trace.instrumentation.jms.JMSDecorator.TIME_IN_QUEUE_ENABLED;
 import static datadog.trace.instrumentation.jms.MessageExtractAdapter.GETTER;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
@@ -42,14 +42,13 @@ public class DatadogMessageListener implements MessageListener {
       propagatedContext = propagate().extract(message, GETTER);
     }
     long startMillis = GETTER.extractTimeInQueueStart(message);
-    if (startMillis == 0 || JMS_LEGACY_TRACING) {
+    if (startMillis == 0 || !TIME_IN_QUEUE_ENABLED) {
       span = startSpan(JMS_CONSUME, propagatedContext);
     } else {
       long batchId = GETTER.extractMessageBatchId(message);
       AgentSpan timeInQueue = consumerState.getTimeInQueueSpan(batchId);
       if (null == timeInQueue) {
-        timeInQueue =
-            startSpan(JMS_DELIVER, propagatedContext, MILLISECONDS.toMicros(startMillis), false);
+        timeInQueue = startSpan(JMS_DELIVER, propagatedContext, MILLISECONDS.toMicros(startMillis));
         BROKER_DECORATE.afterStart(timeInQueue);
         BROKER_DECORATE.onTimeInQueue(
             timeInQueue,
@@ -61,21 +60,22 @@ public class DatadogMessageListener implements MessageListener {
     }
     CONSUMER_DECORATE.afterStart(span);
     CONSUMER_DECORATE.onConsume(span, message, consumerState.getConsumerResourceName());
+    SessionState sessionState = consumerState.getSessionState();
+    if (sessionState.isClientAcknowledge()) {
+      // consumed spans will be finished by a call to Message.acknowledge
+      sessionState.finishOnAcknowledge(span);
+      messageAckStore.put(message, sessionState);
+    } else if (sessionState.isTransactedSession()) {
+      // span will be finished by Session.commit/rollback/close
+      sessionState.finishOnCommit(span);
+    }
     try (AgentScope scope = activateSpan(span)) {
       messageListener.onMessage(message);
     } catch (RuntimeException | Error thrown) {
       CONSUMER_DECORATE.onError(span, thrown);
       throw thrown;
     } finally {
-      SessionState sessionState = consumerState.getSessionState();
-      if (sessionState.isClientAcknowledge()) {
-        // consumed spans will be finished by a call to Message.acknowledge
-        sessionState.finishOnAcknowledge(span);
-        messageAckStore.put(message, sessionState);
-      } else if (sessionState.isTransactedSession()) {
-        // span will be finished by Session.commit/rollback/close
-        sessionState.finishOnCommit(span);
-      } else { // Session.AUTO_ACKNOWLEDGE
+      if (sessionState.isAutoAcknowledge()) {
         span.finish();
         consumerState.finishTimeInQueueSpan(false);
       }

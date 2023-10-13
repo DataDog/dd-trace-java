@@ -18,7 +18,6 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_CLASSES_
 class AgentTestRunnerTest extends AgentTestRunner {
   private static final ClassLoader BOOTSTRAP_CLASSLOADER = null
   private static final BigDecimal JAVA_VERSION = new BigDecimal(System.getProperty("java.specification.version"))
-  private static final boolean IS_AT_LEAST_JAVA_8 = JAVA_VERSION.isAtLeast(8.0)
   private static final boolean IS_AT_LEAST_JAVA_17 = JAVA_VERSION.isAtLeast(17.0)
 
   @Shared
@@ -49,8 +48,6 @@ class AgentTestRunnerTest extends AgentTestRunner {
         if (info.getName().startsWith(Constants.BOOTSTRAP_PACKAGE_PREFIXES[i])) {
           if (!jfrSupported && info.name.startsWith("datadog.trace.bootstrap.instrumentation.jfr.")) {
             continue // skip exception-profiling classes - they won't load if JFR is not available
-          } else if (!IS_AT_LEAST_JAVA_8 && info.name.startsWith("datadog.trace.bootstrap.instrumentation.api8.")) {
-            continue // Java8+ classes that will only be loaded on Java8+
           }
           try {
             Class<?> bootstrapClass = Class.forName(info.getName())

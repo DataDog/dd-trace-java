@@ -4,9 +4,6 @@ import com.mongodb.async.client.*
 import com.mongodb.client.result.DeleteResult
 import com.mongodb.client.result.UpdateResult
 import com.mongodb.connection.ClusterSettings
-import datadog.trace.agent.test.asserts.TraceAssert
-import datadog.trace.api.DDSpanTypes
-import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.core.DDSpan
 import org.bson.BsonDocument
 import org.bson.BsonString
@@ -19,7 +16,7 @@ import java.util.concurrent.CountDownLatch
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 
-class MongoAsyncClientTest extends MongoBaseTest {
+abstract class MongoAsyncClientTest extends MongoBaseTest {
 
   @Shared
   MongoClient client
@@ -68,7 +65,7 @@ class MongoAsyncClientTest extends MongoBaseTest {
     then:
     assertTraces(1) {
       trace(1) {
-        mongoSpan(it, 0, "create", "{\"create\":\"$collectionName\",\"capped\":\"?\"}", databaseName)
+        mongoSpan(it, 0, "create", "{\"create\":\"$collectionName\",\"capped\":\"?\"}", false, databaseName)
       }
     }
 
@@ -230,29 +227,50 @@ class MongoAsyncClientTest extends MongoBaseTest {
         }
       }
   }
+}
 
-  def mongoSpan(TraceAssert trace, int index, String operation, String statement, String instance = "some-description", Object parentSpan = null, Throwable exception = null) {
-    trace.span {
-      serviceName "mongo"
-      operationName "mongo.query"
-      resourceName matchesStatement(statement)
-      spanType DDSpanTypes.MONGO
-      if (parentSpan == null) {
-        parent()
-      } else {
-        childOf((DDSpan) parentSpan)
-      }
-      topLevel true
-      tags {
-        "$Tags.COMPONENT" "java-mongo"
-        "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
-        "$Tags.PEER_HOSTNAME" "localhost"
-        "$Tags.PEER_PORT" port
-        "$Tags.DB_TYPE" "mongo"
-        "$Tags.DB_INSTANCE" instance
-        "$Tags.DB_OPERATION" operation
-        defaultTags()
-      }
-    }
+class MongoAsyncClientV0Test extends MongoAsyncClientTest {
+
+  @Override
+  int version() {
+    return 0
+  }
+
+  @Override
+  String service() {
+    return V0_SERVICE
+  }
+
+  @Override
+  String operation() {
+    return V0_OPERATION
+  }
+
+  @Override
+  String dbType() {
+    return V0_DB_TYPE
+  }
+}
+
+class MongoAsyncClientV1ForkedTest extends MongoAsyncClientTest {
+
+  @Override
+  int version() {
+    return 1
+  }
+
+  @Override
+  String service() {
+    return V1_SERVICE
+  }
+
+  @Override
+  String operation() {
+    return V1_OPERATION
+  }
+
+  @Override
+  String dbType() {
+    return V1_DB_TYPE
   }
 }

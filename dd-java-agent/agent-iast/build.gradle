@@ -1,0 +1,106 @@
+plugins {
+  id 'com.github.johnrengelman.shadow'
+  id 'me.champeau.jmh'
+  id 'java-test-fixtures'
+  id 'com.google.protobuf' version '0.8.18'
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+apply from: "$rootDir/gradle/version.gradle"
+
+// First version with Mac M1 support
+def grpcVersion = '1.42.2'
+protobuf {
+  protoc {
+    // Download compiler rather than using locally installed version:
+    // First version with Mac M1 support
+    artifact = 'com.google.protobuf:protoc:3.17.3'
+  }
+  plugins {
+    // First version with aarch support
+    grpc { artifact = "io.grpc:protoc-gen-grpc-java:${grpcVersion}" }
+  }
+  generateProtoTasks {
+    all()*.plugins { grpc {} }
+  }
+}
+
+dependencies {
+  api deps.slf4j
+
+  compileOnly project(':dd-java-agent:instrumentation:iast-instrumenter')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:iast-instrumenter')
+
+  implementation project(':internal-api')
+  implementation project(':internal-api:internal-api-9')
+  implementation group: 'com.squareup.moshi', name: 'moshi', version: versions.moshi
+
+  testFixturesApi project(':dd-java-agent:testing')
+  testFixturesApi project(':utils:test-utils')
+  testImplementation deps.bytebuddy
+  testImplementation('org.skyscreamer:jsonassert:1.5.1')
+  testImplementation('org.codehaus.groovy:groovy-yaml:3.0.17')
+
+  testImplementation group: 'io.grpc', name: 'grpc-core', version: grpcVersion
+  testImplementation group: 'io.grpc', name: 'grpc-protobuf', version: grpcVersion
+
+  jmh project(':utils:test-utils')
+  jmh project(':dd-trace-core')
+  jmh project(':dd-java-agent:agent-builder')
+  jmh project(':dd-java-agent:instrumentation:iast-instrumenter')
+  jmh project(':dd-java-agent:instrumentation:java-lang')
+}
+
+shadowJar {
+  dependencies deps.excludeShared
+}
+
+jar {
+  archiveClassifier = 'unbundled'
+}
+
+ext {
+  minimumBranchCoverage = 0.6
+  minimumInstructionCoverage = 0.8
+  excludedClassesCoverage = [
+    // Avoid coverage measurement of model getters atm
+    'com.datadog.iast.model.Evidence',
+    'com.datadog.iast.model.Range',
+    'com.datadog.iast.model.Source',
+    'com.datadog.iast.model.Vulnerability',
+    // Small JsonAdapters with unimplemented fromJson
+    'com.datadog.iast.model.json.FormattingAdapter',
+    'com.datadog.iast.model.json.SourceTypeAdapter',
+    'com.datadog.iast.model.json.VulnerabilityTypeAdapter',
+  ]
+  excludedClassesBranchCoverage = []
+  excludedClassesInstructionCoverage = []
+}
+
+tasks.withType(Test).configureEach {
+  jvmArgs += ['-Ddd.iast.enabled=true']
+}
+def rootDir = project.rootDir
+spotless {
+  java {
+    target 'src/**/*.java'
+  }
+}
+
+jmh {
+  jmhVersion = '1.28'
+  duplicateClassesStrategy = DuplicatesStrategy.EXCLUDE
+}
+
+pitest {
+  targetClasses = ['com.datadog.iast.*']
+  jvmArgs = ['-Ddd.iast.enabled=true']
+}
+
+sourceSets {
+  test {
+    java {
+      srcDirs += ["$buildDir/generated/source/proto/test/java"]
+    }
+  }
+}

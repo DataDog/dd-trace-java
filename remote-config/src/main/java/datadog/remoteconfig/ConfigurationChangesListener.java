@@ -1,13 +1,15 @@
 package datadog.remoteconfig;
 
+import java.io.IOException;
 import java.time.Duration;
 import javax.annotation.Nullable;
 
-public interface ConfigurationChangesListener<T> {
+public interface ConfigurationChangesListener {
   void accept(
       String configKey,
-      @Nullable T configuration, // null to "unapply" the configuration
-      PollingRateHinter pollingRateHinter);
+      @Nullable byte[] content, // null to "unapply" the configuration
+      PollingRateHinter pollingRateHinter)
+      throws IOException;
 
   interface PollingRateHinter {
     PollingRateHinter NOOP = new PollingHinterNoop();

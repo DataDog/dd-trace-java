@@ -3,6 +3,7 @@ package datadog.trace.instrumentation.netty38.server;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.instrumentation.netty38.server.NettyHttpServerDecorator.DECORATE;
 
+import datadog.trace.api.gateway.Flow;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -25,8 +26,7 @@ public class HttpServerRequestTracingHandler extends SimpleChannelUpstreamHandle
   }
 
   @Override
-  public void messageReceived(final ChannelHandlerContext ctx, final MessageEvent msg)
-      throws Exception {
+  public void messageReceived(final ChannelHandlerContext ctx, final MessageEvent msg) {
     final ChannelTraceContext channelTraceContext =
         contextStore.putIfAbsent(ctx.getChannel(), ChannelTraceContext.Factory.INSTANCE);
 
@@ -48,6 +48,9 @@ public class HttpServerRequestTracingHandler extends SimpleChannelUpstreamHandle
     final Context.Extracted context = DECORATE.extract(headers);
     final AgentSpan span = DECORATE.startSpan(headers, context);
 
+    channelTraceContext.reset();
+    channelTraceContext.setRequestHeaders(headers);
+
     try (final AgentScope scope = activateSpan(span)) {
       DECORATE.afterStart(span);
       DECORATE.onRequest(span, ctx.getChannel(), request, context);
@@ -55,6 +58,15 @@ public class HttpServerRequestTracingHandler extends SimpleChannelUpstreamHandle
       scope.setAsyncPropagation(true);
 
       channelTraceContext.setServerSpan(span);
+
+      Flow.Action.RequestBlockingAction rba = span.getRequestBlockingAction();
+      if (rba != null) {
+        ctx.getPipeline()
+            .addAfter(
+                ctx.getName(),
+                "blocking_handler",
+                new BlockingResponseHandler(span.getRequestContext().getTraceSegment(), rba));
+      }
 
       try {
         ctx.sendUpstream(msg);

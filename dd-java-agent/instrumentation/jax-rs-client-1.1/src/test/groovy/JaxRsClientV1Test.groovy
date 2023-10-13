@@ -3,12 +3,12 @@ import com.sun.jersey.api.client.ClientResponse
 import com.sun.jersey.api.client.filter.GZIPContentEncodingFilter
 import com.sun.jersey.api.client.filter.LoggingFilter
 import datadog.trace.agent.test.base.HttpClientTest
+import datadog.trace.agent.test.naming.TestingGenericHttpNamingConventions
 import datadog.trace.instrumentation.jaxrs.v1.JaxRsClientV1Decorator
 import spock.lang.Shared
 import spock.lang.Timeout
 
-@Timeout(5)
-class JaxRsClientV1Test extends HttpClientTest {
+abstract class JaxRsClientV1Test extends HttpClientTest {
 
   @Shared
   Client client = Client.create()
@@ -37,12 +37,30 @@ class JaxRsClientV1Test extends HttpClientTest {
     return JaxRsClientV1Decorator.DECORATE.component()
   }
 
-  @Override
-  String expectedOperationName() {
-    return "jax-rs.client.call"
-  }
-
   boolean testCircularRedirects() {
     false
   }
+}
+
+@Timeout(5)
+class JaxRsClientV1NamingV0ForkedTest extends JaxRsClientV1Test {
+
+  @Override
+  int version() {
+    return 0
+  }
+
+  @Override
+  String service() {
+    return null
+  }
+
+  @Override
+  String operation() {
+    return "jax-rs.client.call"
+  }
+}
+
+@Timeout(5)
+class JaxRsClientV1NamingV1ForkedTest extends JaxRsClientV1Test implements TestingGenericHttpNamingConventions.ClientV1 {
 }

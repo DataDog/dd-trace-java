@@ -152,11 +152,6 @@ class TypeConverter {
     }
 
     @Override
-    public boolean checkpointed() {
-      return delegate.checkpointed();
-    }
-
-    @Override
     public boolean isAsyncPropagating() {
       return delegate.isAsyncPropagating();
     }
@@ -218,11 +213,6 @@ class TypeConverter {
     @Override
     public Continuation captureConcurrent() {
       return null;
-    }
-
-    @Override
-    public boolean checkpointed() {
-      return false;
     }
 
     @Override

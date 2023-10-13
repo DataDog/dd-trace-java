@@ -1,0 +1,40 @@
+FROM debian:bookworm-slim
+
+ARG JAVA_8_VERSION="8.0.372-tem"
+ARG JAVA_11_VERSION="11.0.19-tem"
+ARG JAVA_17_VERSION="17.0.7-tem"
+ARG MAVEN_VERSION=3.8.4
+
+RUN apt-get update && \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y procps tini build-essential git curl unzip zip && \
+    apt-get -y clean && \
+    rm -rf /var/lib/apt/lists/*
+
+# install sdkman
+RUN curl -s "https://get.sdkman.io" | bash
+RUN bash -c "source $HOME/.sdkman/bin/sdkman-init.sh && \
+    yes | sdk install java $JAVA_8_VERSION && \
+    yes | sdk install java $JAVA_11_VERSION && \
+    yes | sdk install java $JAVA_17_VERSION && \
+    yes | sdk install maven $MAVEN_VERSION && \
+    rm -rf $HOME/.sdkman/archives/* && \
+    rm -rf $HOME/.sdkman/tmp/*"
+ENV JAVA_8_HOME=/root/.sdkman/candidates/java/$JAVA_8_VERSION
+ENV JAVA_11_HOME=/root/.sdkman/candidates/java/$JAVA_11_VERSION
+ENV JAVA_17_HOME=/root/.sdkman/candidates/java/$JAVA_17_VERSION
+
+RUN mkdir exploration-tests
+WORKDIR /exploration-tests
+# Jackson
+RUN git clone https://github.com/FasterXML/jackson-core.git
+RUN bash -c "source $HOME/.sdkman/bin/sdkman-init.sh && cd jackson-core && ./mvnw dependency:resolve dependency:resolve-plugins"
+RUN git clone https://github.com/FasterXML/jackson-databind.git
+RUN bash -c "source $HOME/.sdkman/bin/sdkman-init.sh && cd jackson-databind && ./mvnw dependency:resolve dependency:resolve-plugins"
+# Netty
+RUN git clone https://github.com/netty/netty.git
+RUN bash -c "source $HOME/.sdkman/bin/sdkman-init.sh && cd netty && ./mvnw dependency:resolve dependency:resolve-plugins"
+
+# Guava
+RUN git clone https://github.com/google/guava.git
+RUN bash -c "source $HOME/.sdkman/bin/sdkman-init.sh && cd guava && mvn -B -P!standard-with-extra-repos verify -U -Dmaven.javadoc.skip=true -DskipTests=true"
+

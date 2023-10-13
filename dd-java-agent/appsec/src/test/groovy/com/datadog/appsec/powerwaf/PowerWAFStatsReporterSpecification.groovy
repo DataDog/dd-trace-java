@@ -1,7 +1,7 @@
 package com.datadog.appsec.powerwaf
 
 import com.datadog.appsec.gateway.AppSecRequestContext
-import datadog.trace.api.TraceSegment
+import datadog.trace.api.internal.TraceSegment
 import datadog.trace.test.util.DDSpecification
 import io.sqreen.powerwaf.PowerwafMetrics
 

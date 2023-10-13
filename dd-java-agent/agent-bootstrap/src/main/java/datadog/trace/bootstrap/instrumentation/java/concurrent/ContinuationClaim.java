@@ -13,16 +13,6 @@ final class ContinuationClaim implements AgentScope.Continuation {
   }
 
   @Override
-  public void migrate() {
-    throw new IllegalStateException();
-  }
-
-  @Override
-  public void migrated() {
-    throw new IllegalStateException();
-  }
-
-  @Override
   public AgentSpan getSpan() {
     throw new IllegalStateException();
   }

@@ -1,0 +1,44 @@
+apply from: "$rootDir/gradle/java.gradle"
+apply plugin: "idea"
+
+minimumBranchCoverage = 0.6
+excludedClassesCoverage += ['datadog.trace.agent.tooling.*']
+
+dependencies {
+  api project(':dd-java-agent:agent-tooling')
+
+  testImplementation project(':dd-java-agent:testing')
+}
+
+// Use Java 11 to build a delegating ClassFileTransformer that understands Java modules
+sourceSets {
+  "main_java11" {
+    java.srcDirs "${project.projectDir}/src/main/java11"
+  }
+}
+
+compileMain_java11Java.configure {
+  setJavaVersion(it, 11)
+  sourceCompatibility = JavaVersion.VERSION_1_8
+  targetCompatibility = JavaVersion.VERSION_1_8
+}
+
+dependencies {
+  main_java11CompileOnly project(':dd-java-agent:agent-tooling')
+  main_java11CompileOnly sourceSets.main.output
+  runtimeOnly sourceSets.main_java11.output
+}
+
+jar {
+  from sourceSets.main_java11.output
+}
+
+forbiddenApisMain_java11 {
+  failOnMissingClasses = false
+}
+
+idea {
+  module {
+    jdkName = '11'
+  }
+}

@@ -1,15 +1,14 @@
 package datadog.trace.bootstrap.debugger;
 
 import java.lang.reflect.Field;
-import java.util.Arrays;
 import java.util.function.BiConsumer;
-import java.util.function.ObjIntConsumer;
+import java.util.function.Consumer;
 import java.util.function.Predicate;
 
 /** Helper class for processing fields of an instance */
 public class Fields {
   public interface ProcessField {
-    void accept(Field field, Object value, int maxDepth);
+    void accept(Field field, Object value, Limits limits);
   }
 
   public static void processFields(
@@ -17,29 +16,30 @@ public class Fields {
       Predicate<Field> filteringIn,
       ProcessField processing,
       BiConsumer<Exception, Field> exHandling,
-      ObjIntConsumer<Field> onMaxFieldCount,
-      int maxFieldCount,
-      int maxDepth) {
-    Field[] fields = o.getClass().getDeclaredFields();
+      Consumer<Field> onMaxFieldCount,
+      Limits limits) {
+    Class<?> currentClass = o.getClass();
     int processedFieldCount = 0;
-    for (Field field : fields) {
-      try {
-        if (!filteringIn.test(field)) {
-          continue;
+    do {
+      Field[] fields = currentClass.getDeclaredFields();
+      for (Field field : fields) {
+        try {
+          if (!filteringIn.test(field)) {
+            continue;
+          }
+          field.setAccessible(true);
+          Object value = field.get(o);
+          processing.accept(field, value, limits);
+          processedFieldCount++;
+          if (processedFieldCount >= limits.maxFieldCount) {
+            onMaxFieldCount.accept(field);
+            return;
+          }
+        } catch (Exception e) {
+          exHandling.accept(e, field);
         }
-        field.setAccessible(true);
-        Object value = field.get(o);
-        processing.accept(field, value, maxDepth);
-        processedFieldCount++;
-        if (processedFieldCount >= maxFieldCount) {
-          int total = (int) Arrays.stream(fields).filter(filteringIn::test).count();
-          onMaxFieldCount.accept(field, total);
-          break;
-        }
-      } catch (Exception e) {
-        exHandling.accept(e, field);
       }
-    }
+    } while ((currentClass = currentClass.getSuperclass()) != null);
   }
 
   static boolean isPrimitiveClass(Object obj) {

@@ -1,0 +1,25 @@
+plugins {
+  id "com.github.johnrengelman.shadow"
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+
+dependencies {
+  implementation project(path: ':dd-trace-ot', configuration: 'shadow')
+  implementation project(':dd-trace-api')
+  // OpenTracing
+  implementation group: 'io.opentracing', name: 'opentracing-api', version: '0.32.0'
+  implementation group: 'io.opentracing', name: 'opentracing-noop', version: '0.32.0'
+  implementation group: 'io.opentracing', name: 'opentracing-util', version: '0.32.0'
+  implementation group: 'io.opentracing.contrib', name: 'opentracing-tracerresolver', version: '0.1.0'
+
+  implementation deps.slf4j
+
+  testImplementation project(':dd-smoke-tests')
+}
+
+tasks.withType(Test).configureEach {
+  dependsOn "shadowJar"
+
+  jvmArgs "-Ddatadog.smoketest.shadowJar.path=${tasks.shadowJar.archiveFile.get()}"
+}

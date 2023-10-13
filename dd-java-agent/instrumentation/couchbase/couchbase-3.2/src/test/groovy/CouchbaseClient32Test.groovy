@@ -1,3 +1,6 @@
+import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
+import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
+
 import com.couchbase.client.core.env.TimeoutConfig
 import com.couchbase.client.core.error.CouchbaseException
 import com.couchbase.client.core.error.DocumentNotFoundException
@@ -8,21 +11,21 @@ import com.couchbase.client.java.ClusterOptions
 import com.couchbase.client.java.env.ClusterEnvironment
 import com.couchbase.client.java.json.JsonObject
 import com.couchbase.client.java.query.QueryOptions
-import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.agent.test.asserts.TraceAssert
+import datadog.trace.agent.test.naming.VersionedNamingTestBase
+import datadog.trace.api.Config
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.DDTags
+import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.core.DDSpan
-import java.time.Duration
 import org.testcontainers.couchbase.BucketDefinition
 import org.testcontainers.couchbase.CouchbaseContainer
 import spock.lang.Shared
 
-import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
-import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
+import java.time.Duration
 
-class CouchbaseClient32Test extends AgentTestRunner {
+abstract class CouchbaseClient32Test extends VersionedNamingTestBase {
   static final String BUCKET = 'test-bucket'
 
   @Shared
@@ -64,7 +67,7 @@ class CouchbaseClient32Test extends AgentTestRunner {
     couchbase?.stop()
   }
 
-  private static void insertData(Bucket bucket, String id, String something, String orOther) {
+  void insertData(Bucket bucket, String id, String something, String orOther) {
     JsonObject  data = JsonObject.create()
       .put('something', something)
       .put('or_other', orOther)
@@ -371,14 +374,14 @@ class CouchbaseClient32Test extends AgentTestRunner {
   }
 
   void assertCouchbaseCall(TraceAssert trace, String name, Map<String, Serializable> extraTags, Object parentSpan, boolean internal = false, Throwable ex = null) {
-    def opName = internal ? 'couchbase.internal' : 'couchbase.call'
+    def opName = internal ? 'couchbase.internal' : operation()
     def isMeasured = !internal
     def isErrored = ex != null
     // Later versions of the couchbase client adds more information at the end of the exception message in some cases,
     // so let's just match on the start of the message when that happens
     String exMessage = isErrored ? isLatestDepTest ? ex.message.split("\\{")[0] : ex.message: null
     trace.span {
-      serviceName "couchbase"
+      serviceName service()
       resourceName name
       operationName opName
       spanType DDSpanTypes.COUCHBASE
@@ -394,6 +397,7 @@ class CouchbaseClient32Test extends AgentTestRunner {
         "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
         "$Tags.DB_TYPE" 'couchbase'
         'db.system' 'couchbase'
+        "$InstrumentationTags.COUCHBASE_SEED_NODES" { it =="localhost" || it == "127.0.0.1" }
         if (isErrored) {
           it.tag(DDTags.ERROR_MSG, { exMessage.length() > 0 && ((String) it).startsWith(exMessage) })
           it.tag(DDTags.ERROR_TYPE, ex.class.name)
@@ -402,6 +406,7 @@ class CouchbaseClient32Test extends AgentTestRunner {
         if (extraTags != null) {
           addTags(extraTags)
         }
+        peerServiceFrom(InstrumentationTags.COUCHBASE_SEED_NODES)
         defaultTags()
       }
     }
@@ -421,6 +426,40 @@ class CouchbaseClient32Test extends AgentTestRunner {
     if (extraTags != null) {
       allExtraTags.putAll(extraTags)
     }
-    assertCouchbaseCall(trace, 'dispatch_to_server', allExtraTags, parentSpan, true)
+    assertCouchbaseCall(trace, 'dispatch_to_server', allExtraTags, parentSpan, true, null)
+  }
+}
+
+class CouchbaseClient32V0Test extends CouchbaseClient32Test {
+  @Override
+  int version() {
+    return 0
+  }
+
+  @Override
+  String service() {
+    return "couchbase"
+  }
+
+  @Override
+  String operation() {
+    return "couchbase.call"
+  }
+}
+
+class CouchbaseClient32V1ForkedTest extends CouchbaseClient32Test {
+  @Override
+  int version() {
+    return 1
+  }
+
+  @Override
+  String service() {
+    return Config.get().getServiceName()
+  }
+
+  @Override
+  String operation() {
+    return "couchbase.query"
   }
 }

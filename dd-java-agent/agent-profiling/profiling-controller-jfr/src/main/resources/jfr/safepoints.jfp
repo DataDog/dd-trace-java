@@ -1,0 +1,10 @@
+jdk.SafepointBegin#enabled=true
+jdk.SafepointBegin#threshold=0 ms
+jdk.SafepointStateSynchronization#enabled=true
+jdk.SafepointStateSynchronization#threshold=0 ms
+jdk.SafepointWaitBlocked#enabled=false
+jdk.SafepointCleanup#enabled=false
+jdk.SafepointCleanupTask#enabled=false
+jdk.SafepointEnd#enabled=true
+jdk.SafepointEnd#threshold=0 ms
+jdk.ExecuteVMOperation#enabled=true

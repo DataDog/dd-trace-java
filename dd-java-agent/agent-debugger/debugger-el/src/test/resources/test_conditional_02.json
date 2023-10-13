@@ -1,9 +1,9 @@
 {
-  "dsl": "count(#vets) \u003e 2",
+  "dsl": "count(vets) \u003e 2",
   "json": {
     "gt": [
       {
-        "count": "#vets"
+        "count": {"ref": "vets"}
       },
       2
     ]

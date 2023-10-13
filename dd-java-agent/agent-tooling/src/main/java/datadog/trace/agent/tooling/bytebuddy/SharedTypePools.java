@@ -36,6 +36,10 @@ public final class SharedTypePools {
     SUPPLIER.endTransform();
   }
 
+  public static void clear() {
+    SUPPLIER.clear();
+  }
+
   public static synchronized void registerIfAbsent(Supplier supplier) {
     if (null == SUPPLIER) {
       SUPPLIER = supplier;
@@ -54,6 +58,8 @@ public final class SharedTypePools {
 
     /** Hints that the javaagent has finished calling {@link ClassFileTransformer#transform}. */
     void endTransform();
+
+    void clear();
   }
 
   /** Simple cache for use during the build when testing or validating muzzle ranges. */
@@ -72,6 +78,9 @@ public final class SharedTypePools {
 
       @Override
       public void endTransform() {}
+
+      @Override
+      public void clear() {}
     };
   }
 

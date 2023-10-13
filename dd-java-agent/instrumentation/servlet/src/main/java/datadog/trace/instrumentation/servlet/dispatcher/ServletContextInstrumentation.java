@@ -46,7 +46,7 @@ public final class ServletContextInstrumentation extends Instrumenter.Tracing
             // javax.servlet.ServletContext.getRequestDispatcher
             // javax.servlet.ServletContext.getNamedDispatcher
             .and(isPublic()),
-        RequestDispatcherTargetAdvice.class.getName());
+        ServletContextInstrumentation.class.getName() + "$RequestDispatcherTargetAdvice");
   }
 
   public static class RequestDispatcherTargetAdvice {

@@ -1,22 +1,83 @@
 package datadog.trace.api;
 
-import datadog.trace.util.Strings;
+import java.lang.management.GarbageCollectorMXBean;
+import java.lang.management.ManagementFactory;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 
 public final class Platform {
+
+  public enum GC {
+    SERIAL("marksweep"),
+    PARALLEL("ps"),
+    CMS("concurrentmarksweep"),
+    G1("g1"),
+    SHENANDOAH("shenandoah"),
+    Z("z"),
+    UNKNOWN("");
+
+    private final String identifierPrefix;
+
+    GC(String identifierPrefix) {
+      this.identifierPrefix = identifierPrefix;
+    }
+
+    static GC current() {
+      for (GarbageCollectorMXBean mxBean : ManagementFactory.getGarbageCollectorMXBeans()) {
+        if (mxBean.isValid()) {
+          String name = mxBean.getName().toLowerCase(Locale.ROOT);
+          for (GC gc : GC.values()) {
+            if (gc != UNKNOWN && name.startsWith(gc.identifierPrefix)) {
+              return gc;
+            }
+          }
+        }
+      }
+      return UNKNOWN;
+    }
+  }
 
   private static final Version JAVA_VERSION = parseJavaVersion(System.getProperty("java.version"));
   private static final JvmRuntime RUNTIME = new JvmRuntime();
 
+  private static final GC GARBAGE_COLLECTOR = GC.current();
+
+  private static final boolean HAS_JFR = checkForJfr();
+  private static final boolean IS_NATIVE_IMAGE_BUILDER = checkForNativeImageBuilder();
+
+  public static GC activeGarbageCollector() {
+    return GARBAGE_COLLECTOR;
+  }
+
   public static boolean hasJfr() {
-    /* Check only for the open-sources JFR implementation.
-     * If it is ever needed to support also the closed sourced JDK 8 version the check should be
-     * enhanced.
-     * Need this custom check because ClassLoaderMatchers.hasClassNamed() does not support bootstrap class loader yet.
-     * Note: the downside of this is that we load some JFR classes at startup.
-     */
-    return ClassLoader.getSystemClassLoader().getResource("jdk/jfr/Event.class") != null;
+    return HAS_JFR;
+  }
+
+  public static boolean isNativeImageBuilder() {
+    return IS_NATIVE_IMAGE_BUILDER;
+  }
+
+  private static boolean checkForJfr() {
+    try {
+      /* Check only for the open-sources JFR implementation.
+       * If it is ever needed to support also the closed sourced JDK 8 version the check should be
+       * enhanced.
+       * Need this custom check because ClassLoaderMatchers.hasClassNamed() does not support bootstrap class loader yet.
+       * Note: the downside of this is that we load some JFR classes at startup.
+       */
+      return ClassLoader.getSystemClassLoader().getResource("jdk/jfr/Event.class") != null;
+    } catch (Throwable e) {
+      return false;
+    }
+  }
+
+  private static boolean checkForNativeImageBuilder() {
+    try {
+      return "org.graalvm.nativeimage.builder".equals(System.getProperty("jdk.module.main"));
+    } catch (Throwable e) {
+      return false;
+    }
   }
 
   /* The method splits java version string by digits. Delimiters are: dot, underscore and plus */
@@ -42,7 +103,11 @@ public final class Platform {
   }
 
   private static Version parseJavaVersion(String javaVersion) {
-    javaVersion = Strings.replace(javaVersion, "-ea", "");
+    // Remove pre-release part, usually -ea
+    final int indexOfDash = javaVersion.indexOf('-');
+    if (indexOfDash >= 0) {
+      javaVersion = javaVersion.substring(0, indexOfDash);
+    }
 
     int major = 0;
     int minor = 0;
@@ -215,17 +280,17 @@ public final class Platform {
   }
 
   public static boolean isLinux() {
-    return System.getProperty("os.name").toLowerCase().contains("linux");
+    return System.getProperty("os.name").toLowerCase(Locale.ROOT).contains("linux");
   }
 
   public static boolean isWindows() {
     // https://mkyong.com/java/how-to-detect-os-in-java-systemgetpropertyosname/
-    final String os = System.getProperty("os.name").toLowerCase();
+    final String os = System.getProperty("os.name").toLowerCase(Locale.ROOT);
     return os.contains("win");
   }
 
   public static boolean isMac() {
-    final String os = System.getProperty("os.name").toLowerCase();
+    final String os = System.getProperty("os.name").toLowerCase(Locale.ROOT);
     return os.contains("mac");
   }
 

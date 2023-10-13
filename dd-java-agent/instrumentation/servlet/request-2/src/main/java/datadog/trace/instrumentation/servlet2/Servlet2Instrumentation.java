@@ -24,6 +24,11 @@ public final class Servlet2Instrumentation extends Instrumenter.Tracing
     super("servlet", "servlet-2");
   }
 
+  @Override
+  public String muzzleDirective() {
+    return "servlet-2.x";
+  }
+
   // Avoid matching servlet 3 which has its own instrumentation
   static final ElementMatcher<ClassLoader> NOT_SERVLET_3 =
       not(hasClassNamed("javax.servlet.AsyncEvent"));

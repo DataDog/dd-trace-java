@@ -26,7 +26,8 @@
     "kind": "COUNT",
     "metricName": "datadog.debugger.calls",
     "value": {
-      "expr": 42
+      "dsl": "42",
+      "json": 42
     }
   }, {
     "id": "123356537",
@@ -45,7 +46,8 @@
     "kind": "GAUGE",
     "metricName": "datadog.debugger.gauge_value",
     "value": {
-      "expr": "^value"
+      "dsl": "value",
+      "json": { "ref": "value" }
     }
   }, {
     "id": "123356538",
@@ -58,9 +60,22 @@
     },
     "tags": ["version:v123", "env:staging"],
     "kind": "GAUGE",
-    "metricName": "datadog.debugger.invalid_value",
+    "metricName": "datadog.debugger.refpathvalue",
     "value": {
-      "expr": "invalid"
+      "dsl": "obj.field",
+      "json": {"getmember": [{ "ref": "obj" }, "field"]}
     }
+  },{
+    "id": "123356539",
+    "language": "java",
+    "created": 1606407801.445507000,
+    "where": {
+      "typeName": "java.lang.Object",
+      "methodName": "toString",
+      "signature": "java.lang.String ()"
+    },
+    "tags": ["version:v123", "env:staging"],
+    "kind": "COUNT",
+    "metricName": "datadog.debugger.novalue"
   }]
 }

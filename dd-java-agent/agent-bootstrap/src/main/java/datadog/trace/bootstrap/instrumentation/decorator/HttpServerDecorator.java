@@ -1,22 +1,27 @@
 package datadog.trace.bootstrap.instrumentation.decorator;
 
-import static datadog.trace.api.cache.RadixTreeCache.UNSET_PORT;
 import static datadog.trace.api.cache.RadixTreeCache.UNSET_STATUS;
 import static datadog.trace.api.gateway.Events.EVENTS;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.traceConfig;
 import static datadog.trace.bootstrap.instrumentation.decorator.http.HttpResourceDecorator.HTTP_RESOURCE_DECORATOR;
 
+import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
-import datadog.trace.api.function.*;
-import datadog.trace.api.function.Function;
+import datadog.trace.api.function.TriConsumer;
+import datadog.trace.api.function.TriFunction;
+import datadog.trace.api.gateway.BlockResponseFunction;
 import datadog.trace.api.gateway.CallbackProvider;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.IGSpanInfo;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
+import datadog.trace.api.naming.SpanNaming;
+import datadog.trace.bootstrap.ActiveSubsystems;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import datadog.trace.bootstrap.instrumentation.api.ErrorPriorities;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities;
 import datadog.trace.bootstrap.instrumentation.api.TagContext;
@@ -27,7 +32,13 @@ import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.http.ClientIpAddressResolver;
 import java.net.InetAddress;
 import java.util.BitSet;
+import java.util.LinkedHashMap;
+import java.util.Locale;
 import java.util.Map;
+import java.util.concurrent.ExecutionException;
+import java.util.function.BiFunction;
+import java.util.function.Function;
+import java.util.function.Supplier;
 import javax.annotation.Nonnull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -40,7 +51,19 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
 
   public static final String DD_SPAN_ATTRIBUTE = "datadog.span";
   public static final String DD_DISPATCH_SPAN_ATTRIBUTE = "datadog.span.dispatch";
+  public static final String DD_FIN_DISP_LIST_SPAN_ATTRIBUTE =
+      "datadog.span.finish_dispatch_listener";
   public static final String DD_RESPONSE_ATTRIBUTE = "datadog.response";
+  public static final String DD_IGNORE_COMMIT_ATTRIBUTE = "datadog.commit.ignore";
+
+  public static final LinkedHashMap<String, String> SERVER_PATHWAY_EDGE_TAGS;
+
+  static {
+    SERVER_PATHWAY_EDGE_TAGS = new LinkedHashMap<>(2);
+    // TODO: Refactor TagsProcessor to move it into a package that we can link the constants for.
+    SERVER_PATHWAY_EDGE_TAGS.put("direction", "in");
+    SERVER_PATHWAY_EDGE_TAGS.put("type", "http");
+  }
 
   private static final UTF8BytesString DEFAULT_RESOURCE_NAME = UTF8BytesString.create("/");
   protected static final UTF8BytesString NOT_FOUND_RESOURCE_NAME = UTF8BytesString.create("404");
@@ -52,6 +75,9 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
       Config.get().isRuleEnabled("URLAsResourceNameRule");
 
   private static final BitSet SERVER_ERROR_STATUSES = Config.get().getHttpServerErrorStatuses();
+
+  private final boolean traceClientIpResolverEnabled =
+      Config.get().isTraceClientIpResolverEnabled();
 
   protected abstract AgentPropagation.ContextVisitor<REQUEST_CARRIER> getter();
 
@@ -68,6 +94,13 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
   protected abstract int peerPort(CONNECTION connection);
 
   protected abstract int status(RESPONSE response);
+
+  public CharSequence operationName() {
+    return SpanNaming.instance()
+        .namingSchema()
+        .server()
+        .operationForComponent(component().toString());
+  }
 
   @Override
   protected CharSequence spanType() {
@@ -92,12 +125,25 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
     return tracer().propagate().extract(carrier, getter);
   }
 
+  /** Deprecated. Use {@link #startSpan(String, Object, AgentSpan.Context.Extracted)} instead. */
+  @Deprecated
   public AgentSpan startSpan(REQUEST_CARRIER carrier, AgentSpan.Context.Extracted context) {
+    return startSpan("http-server", carrier, context);
+  }
+
+  public AgentSpan startSpan(
+      String instrumentationName, REQUEST_CARRIER carrier, AgentSpan.Context.Extracted context) {
     AgentSpan span =
-        tracer().startSpan(spanName(), callIGCallbackStart(context), true).setMeasured(true);
+        tracer()
+            .startSpan(instrumentationName, spanName(), callIGCallbackStart(context))
+            .setMeasured(true);
     Flow<Void> flow = callIGCallbackRequestHeaders(span, carrier);
     if (flow.getAction() instanceof Flow.Action.RequestBlockingAction) {
       span.setRequestBlockingAction((Flow.Action.RequestBlockingAction) flow.getAction());
+    }
+    AgentPropagation.ContextVisitor<REQUEST_CARRIER> getter = getter();
+    if (null != carrier && null != getter) {
+      tracer().getDataStreamsMonitoring().setCheckpoint(span, SERVER_PATHWAY_EDGE_TAGS, 0);
     }
     return span;
   }
@@ -108,27 +154,42 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
       final REQUEST request,
       final AgentSpan.Context.Extracted context) {
     Config config = Config.get();
+    boolean clientIpResolverEnabled =
+        config.isClientIpEnabled()
+            || traceClientIpResolverEnabled && ActiveSubsystems.APPSEC_ACTIVE;
+
+    if (ActiveSubsystems.APPSEC_ACTIVE) {
+      RequestContext requestContext = span.getRequestContext();
+      if (requestContext != null) {
+        BlockResponseFunction brf = createBlockResponseFunction(request, connection);
+        if (brf != null) {
+          requestContext.setBlockResponseFunction(brf);
+        }
+      }
+    }
 
     if (context != null) {
-      String forwarded = context.getForwarded();
-      if (forwarded != null) {
-        span.setTag(Tags.HTTP_FORWARDED, forwarded);
-      }
-      String forwardedProto = context.getForwardedProto();
-      if (forwardedProto != null) {
-        span.setTag(Tags.HTTP_FORWARDED_PROTO, forwardedProto);
-      }
-      String forwardedHost = context.getForwardedHost();
-      if (forwardedHost != null) {
-        span.setTag(Tags.HTTP_FORWARDED_HOST, forwardedHost);
-      }
-      String forwardedIp = context.getForwardedIp();
-      if (forwardedIp != null) {
-        span.setTag(Tags.HTTP_FORWARDED_IP, forwardedIp);
-      }
-      String forwardedPort = context.getForwardedPort();
-      if (forwardedPort != null) {
-        span.setTag(Tags.HTTP_FORWARDED_PORT, forwardedPort);
+      if (clientIpResolverEnabled) {
+        String forwarded = context.getForwarded();
+        if (forwarded != null) {
+          span.setTag(Tags.HTTP_FORWARDED, forwarded);
+        }
+        String forwardedProto = context.getXForwardedProto();
+        if (forwardedProto != null) {
+          span.setTag(Tags.HTTP_FORWARDED_PROTO, forwardedProto);
+        }
+        String forwardedHost = context.getXForwardedHost();
+        if (forwardedHost != null) {
+          span.setTag(Tags.HTTP_FORWARDED_HOST, forwardedHost);
+        }
+        String forwardedIp = context.getXForwardedFor();
+        if (forwardedIp != null) {
+          span.setTag(Tags.HTTP_FORWARDED_IP, forwardedIp);
+        }
+        String forwardedPort = context.getXForwardedPort();
+        if (forwardedPort != null) {
+          span.setTag(Tags.HTTP_FORWARDED_PORT, forwardedPort);
+        }
       }
       String userAgent = context.getUserAgent();
       if (userAgent != null) {
@@ -146,16 +207,21 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
         if (url != null) {
           boolean supportsRaw = url.supportsRaw();
           boolean encoded = supportsRaw && config.isHttpServerRawResource();
+          boolean valid = url.isValid();
           String path = encoded ? url.rawPath() : url.path();
-
-          span.setTag(Tags.HTTP_URL, URIUtils.buildURL(url.scheme(), url.host(), url.port(), path));
-          if (context != null && context.getForwardedHost() != null) {
-            span.setTag(Tags.HTTP_HOSTNAME, context.getForwardedHost());
+          if (valid) {
+            span.setTag(
+                Tags.HTTP_URL, URIUtils.lazyValidURL(url.scheme(), url.host(), url.port(), path));
+          } else if (supportsRaw) {
+            span.setTag(Tags.HTTP_URL, URIUtils.lazyInvalidUrl(url.raw()));
+          }
+          if (context != null && context.getXForwardedHost() != null) {
+            span.setTag(Tags.HTTP_HOSTNAME, context.getXForwardedHost());
           } else if (url.host() != null) {
             span.setTag(Tags.HTTP_HOSTNAME, url.host());
           }
 
-          if (config.isHttpServerTagQueryString()) {
+          if (valid && config.isHttpServerTagQueryString()) {
             String query =
                 supportsRaw && config.isHttpServerRawQueryString() ? url.rawQuery() : url.query();
             span.setTag(DDTags.HTTP_QUERY, query);
@@ -165,7 +231,7 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
           if (flow.getAction() instanceof Flow.Action.RequestBlockingAction) {
             span.setRequestBlockingAction((Flow.Action.RequestBlockingAction) flow.getAction());
           }
-          if (SHOULD_SET_URL_RESOURCE_NAME) {
+          if (valid && SHOULD_SET_URL_RESOURCE_NAME) {
             HTTP_RESOURCE_DECORATOR.withServerPath(span, method, path, encoded);
           }
         } else if (SHOULD_SET_URL_RESOURCE_NAME) {
@@ -184,7 +250,7 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
     }
 
     String inferredAddressStr = null;
-    if (config.isTraceClientIpResolverEnabled()) {
+    if (clientIpResolverEnabled) {
       InetAddress inferredAddress = ClientIpAddressResolver.resolve(context, span);
       // the peer address should be used if:
       // 1. the headers yield nothing, regardless of whether it is public or not
@@ -221,29 +287,62 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
     return span;
   }
 
+  protected BlockResponseFunction createBlockResponseFunction(
+      REQUEST request, CONNECTION connection) {
+    return null;
+  }
+
+  public AgentSpan onResponseStatus(final AgentSpan span, final int status) {
+    if (status > UNSET_STATUS) {
+      span.setHttpStatusCode(status);
+      // explicitly set here because some other decorators might already set an error without
+      // looking at the status code
+      // XXX: the logic is questionable: span.error becomes equivalent to status 5xx,
+      // even if the server chooses not to respond with 5xx to an error.
+      // Anyway, we def don't want it applied to blocked requests
+      if (!BlockingException.class.getName().equals(span.getTag("error.type"))) {
+        span.setError(SERVER_ERROR_STATUSES.get(status), ErrorPriorities.HTTP_SERVER_DECORATOR);
+      }
+    }
+
+    if (SHOULD_SET_404_RESOURCE_NAME && status == 404) {
+      span.setResourceName(NOT_FOUND_RESOURCE_NAME, ResourceNamePriorities.HTTP_404);
+    }
+    return span;
+  }
+
+  /**
+   * Whether AppSec should NOT be called during onResponse() for analysis of the status code and
+   * headers.
+   *
+   * <p>{@link #onResponse(AgentSpan, Object)} is usually called too late for AppSec to be able to
+   * alter the response, so for those modules where we support blocking on response this is <code>
+   * true</code> and AppSec has its own (earlier) hook point for processing the response (just
+   * before commit).
+   *
+   * @return whether AppSec analysis of the response is run separately from onResponse
+   */
+  protected boolean isAppSecOnResponseSeparate() {
+    return false;
+  }
+
   public AgentSpan onResponse(final AgentSpan span, final RESPONSE response) {
     if (response != null) {
       final int status = status(response);
-      if (status > UNSET_STATUS) {
-        span.setHttpStatusCode(status);
-      }
-      if (SERVER_ERROR_STATUSES.get(status)) {
-        span.setError(true);
-      }
-      if (SHOULD_SET_404_RESOURCE_NAME && status == 404) {
-        span.setResourceName(NOT_FOUND_RESOURCE_NAME, ResourceNamePriorities.HTTP_404);
-      }
+      onResponseStatus(span, status);
 
       AgentPropagation.ContextVisitor<RESPONSE> getter = responseGetter();
       if (getter != null) {
         ResponseHeaderTagClassifier tagger =
-            ResponseHeaderTagClassifier.create(span, Config.get().getResponseHeaderTags());
+            ResponseHeaderTagClassifier.create(span, traceConfig(span).getResponseHeaderTags());
         if (tagger != null) {
           getter.forEachKey(response, tagger);
         }
       }
 
-      callIGCallbackResponseAndHeaders(span, response, status);
+      if (!isAppSecOnResponseSeparate()) {
+        callIGCallbackResponseAndHeaders(span, response, status);
+      }
     }
     return span;
   }
@@ -291,39 +390,60 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
     return context;
   }
 
+  @Override
+  public AgentSpan onError(final AgentSpan span, final Throwable throwable) {
+    if (throwable != null) {
+      span.addThrowable(
+          throwable instanceof ExecutionException ? throwable.getCause() : throwable,
+          ErrorPriorities.HTTP_SERVER_DECORATOR);
+    }
+    return span;
+  }
+
   private Flow<Void> callIGCallbackRequestHeaders(AgentSpan span, REQUEST_CARRIER carrier) {
-    CallbackProvider cbp = tracer().getCallbackProvider(RequestContextSlot.APPSEC);
+    CallbackProvider cbp = tracer().getUniversalCallbackProvider();
     RequestContext requestContext = span.getRequestContext();
     AgentPropagation.ContextVisitor<REQUEST_CARRIER> getter = getter();
-    if (requestContext == null || cbp == null || getter == null) {
+    if (requestContext == null || getter == null) {
       return Flow.ResultFlow.empty();
     }
-    IGKeyClassifier igKeyClassifier =
-        IGKeyClassifier.create(
-            requestContext,
-            cbp.getCallback(EVENTS.requestHeader()),
-            cbp.getCallback(EVENTS.requestHeaderDone()));
-    if (null != igKeyClassifier) {
-      getter.forEachKey(carrier, igKeyClassifier);
-      return igKeyClassifier.done();
+    if (cbp != null) {
+      IGKeyClassifier igKeyClassifier =
+          IGKeyClassifier.create(
+              requestContext,
+              cbp.getCallback(EVENTS.requestHeader()),
+              cbp.getCallback(EVENTS.requestHeaderDone()));
+      if (null != igKeyClassifier) {
+        getter.forEachKey(carrier, igKeyClassifier);
+        return igKeyClassifier.done();
+      }
     }
     return Flow.ResultFlow.empty();
   }
 
-  private void callIGCallbackResponseAndHeaders(AgentSpan span, RESPONSE carrier, int status) {
+  private Flow<Void> callIGCallbackResponseAndHeaders(
+      AgentSpan span, RESPONSE carrier, int status) {
+    return callIGCallbackResponseAndHeaders(span, carrier, status, responseGetter());
+  }
+
+  public <RESP> Flow<Void> callIGCallbackResponseAndHeaders(
+      AgentSpan span,
+      RESP carrier,
+      int status,
+      AgentPropagation.ContextVisitor<RESP> contextVisitor) {
     CallbackProvider cbp = tracer().getCallbackProvider(RequestContextSlot.APPSEC);
     RequestContext requestContext = span.getRequestContext();
     if (cbp == null || requestContext == null) {
-      return;
+      return Flow.ResultFlow.empty();
     }
+
     BiFunction<RequestContext, Integer, Flow<Void>> addrCallback =
         cbp.getCallback(EVENTS.responseStarted());
     if (null != addrCallback) {
       addrCallback.apply(requestContext, status);
     }
-    AgentPropagation.ContextVisitor<RESPONSE> getter = responseGetter();
-    if (getter == null) {
-      return;
+    if (contextVisitor == null) {
+      return Flow.ResultFlow.empty();
     }
     IGKeyClassifier igKeyClassifier =
         IGKeyClassifier.create(
@@ -331,9 +451,10 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
             cbp.getCallback(EVENTS.responseHeader()),
             cbp.getCallback(EVENTS.responseHeaderDone()));
     if (null != igKeyClassifier) {
-      getter.forEachKey(carrier, igKeyClassifier);
-      igKeyClassifier.done();
+      contextVisitor.forEachKey(carrier, igKeyClassifier);
+      return igKeyClassifier.done();
     }
+    return Flow.ResultFlow.empty();
   }
 
   private Flow<Void> callIGCallbackURI(
@@ -407,9 +528,9 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
   }
 
   /** This passes the headers through to the InstrumentationGateway */
-  private static final class IGKeyClassifier implements AgentPropagation.KeyClassifier {
+  protected static final class IGKeyClassifier implements AgentPropagation.KeyClassifier {
 
-    private static IGKeyClassifier create(
+    public static IGKeyClassifier create(
         RequestContext requestContext,
         TriConsumer<RequestContext, String, String> headerCallback,
         Function<RequestContext, Flow<Void>> doneCallback) {
@@ -447,8 +568,7 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
   }
 
   private static final class ResponseHeaderTagClassifier implements AgentPropagation.KeyClassifier {
-    static final ResponseHeaderTagClassifier create(
-        AgentSpan span, Map<String, String> headerTags) {
+    static ResponseHeaderTagClassifier create(AgentSpan span, Map<String, String> headerTags) {
       if (span == null || headerTags == null || headerTags.isEmpty()) {
         return null;
       }
@@ -465,7 +585,7 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
 
     @Override
     public boolean accept(String key, String value) {
-      String mappedKey = headerTags.get(key.toLowerCase());
+      String mappedKey = headerTags.get(key.toLowerCase(Locale.ROOT));
       if (mappedKey != null) {
         span.setTag(mappedKey, value);
       }

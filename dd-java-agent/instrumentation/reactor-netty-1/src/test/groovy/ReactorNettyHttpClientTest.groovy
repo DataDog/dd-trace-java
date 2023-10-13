@@ -1,4 +1,5 @@
 import datadog.trace.agent.test.base.HttpClientTest
+import datadog.trace.agent.test.naming.TestingNettyHttpNamingConventions
 import datadog.trace.instrumentation.netty41.client.NettyHttpClientDecorator
 import io.netty.handler.codec.http.HttpMethod
 import reactor.core.publisher.Flux
@@ -14,7 +15,7 @@ import java.util.function.BiFunction
 import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 
-class ReactorNettyHttpClientTest extends HttpClientTest {
+class ReactorNettyHttpClientTest extends HttpClientTest implements TestingNettyHttpNamingConventions.ClientV0{
   // Can't be @Shared otherwise field-injected classes get loaded too early.
   HttpClient httpClient = HttpClient.create()
   .followRedirect(true)
@@ -43,10 +44,6 @@ class ReactorNettyHttpClientTest extends HttpClientTest {
     return NettyHttpClientDecorator.DECORATE.component()
   }
 
-  @Override
-  String expectedOperationName() {
-    return "netty.client.request"
-  }
 
   @Override
   boolean testRedirects() {

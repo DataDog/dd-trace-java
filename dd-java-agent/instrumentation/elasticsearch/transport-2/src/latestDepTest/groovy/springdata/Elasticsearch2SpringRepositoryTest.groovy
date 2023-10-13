@@ -2,19 +2,17 @@ package springdata
 
 
 import datadog.trace.agent.test.AgentTestRunner
-import datadog.trace.agent.test.checkpoints.CheckpointValidator
-import datadog.trace.agent.test.checkpoints.CheckpointValidationMode
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
+import datadog.trace.test.util.Flaky
 import org.springframework.context.ApplicationContext
 import org.springframework.context.annotation.AnnotationConfigApplicationContext
-import spock.lang.Retry
 import spock.lang.Shared
 
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 
-@Retry(count = 3, delay = 1000, mode = Retry.Mode.SETUP_FEATURE_CLEANUP)
+@Flaky
 class Elasticsearch2SpringRepositoryTest extends AgentTestRunner {
   @Shared
   ApplicationContext applicationContext = new AnnotationConfigApplicationContext(Config)
@@ -33,9 +31,6 @@ class Elasticsearch2SpringRepositoryTest extends AgentTestRunner {
 
   def "test empty repo"() {
     setup:
-    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
-      CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.THREAD_SEQUENCE)
 
     when:
     def result = repo.findAll()
@@ -60,7 +55,7 @@ class Elasticsearch2SpringRepositoryTest extends AgentTestRunner {
             "elasticsearch.request" "SearchRequest"
             "elasticsearch.request.indices" indexName
             "elasticsearch.request.search.types" "doc"
-            defaultTags()
+            defaultTagsNoPeerService()
           }
         }
       }
@@ -72,9 +67,6 @@ class Elasticsearch2SpringRepositoryTest extends AgentTestRunner {
 
   def "test CRUD"() {
     setup:
-    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
-      CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.THREAD_SEQUENCE)
 
     when:
     def doc = new Doc()
@@ -83,7 +75,7 @@ class Elasticsearch2SpringRepositoryTest extends AgentTestRunner {
     repo.index(doc) == doc
 
     and:
-    assertTraces(2) {
+    assertTraces(3) {
       trace(1) {
         span {
           resourceName "IndexAction"
@@ -97,7 +89,23 @@ class Elasticsearch2SpringRepositoryTest extends AgentTestRunner {
             "elasticsearch.request" "IndexRequest"
             "elasticsearch.request.indices" indexName
             "elasticsearch.request.write.type" "doc"
-            defaultTags()
+            defaultTagsNoPeerService()
+          }
+        }
+      }
+      trace(1) {
+        span {
+          resourceName "PutMappingAction"
+          operationName "elasticsearch.query"
+          spanType DDSpanTypes.ELASTICSEARCH
+          tags {
+            "$Tags.COMPONENT" "elasticsearch-java"
+            "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
+            "$Tags.DB_TYPE" "elasticsearch"
+            "elasticsearch.action" "PutMappingAction"
+            "elasticsearch.request" "PutMappingRequest"
+            "elasticsearch.request.indices" indexName
+            defaultTagsNoPeerService()
           }
         }
       }
@@ -116,7 +124,7 @@ class Elasticsearch2SpringRepositoryTest extends AgentTestRunner {
             "elasticsearch.shard.broadcast.failed" 0
             "elasticsearch.shard.broadcast.successful" 5
             "elasticsearch.shard.broadcast.total" 10
-            defaultTags()
+            defaultTagsNoPeerService()
           }
         }
       }
@@ -144,7 +152,7 @@ class Elasticsearch2SpringRepositoryTest extends AgentTestRunner {
             "elasticsearch.type" "doc"
             "elasticsearch.id" "1"
             "elasticsearch.version" Number
-            defaultTags()
+            defaultTagsNoPeerService()
           }
         }
       }
@@ -173,7 +181,7 @@ class Elasticsearch2SpringRepositoryTest extends AgentTestRunner {
             "elasticsearch.request" "IndexRequest"
             "elasticsearch.request.indices" indexName
             "elasticsearch.request.write.type" "doc"
-            defaultTags()
+            defaultTagsNoPeerService()
           }
         }
       }
@@ -192,7 +200,7 @@ class Elasticsearch2SpringRepositoryTest extends AgentTestRunner {
             "elasticsearch.shard.broadcast.failed" 0
             "elasticsearch.shard.broadcast.successful" 5
             "elasticsearch.shard.broadcast.total" 10
-            defaultTags()
+            defaultTagsNoPeerService()
           }
         }
       }
@@ -212,7 +220,7 @@ class Elasticsearch2SpringRepositoryTest extends AgentTestRunner {
             "elasticsearch.type" "doc"
             "elasticsearch.id" "1"
             "elasticsearch.version" Number
-            defaultTags()
+            defaultTagsNoPeerService()
           }
         }
       }
@@ -240,7 +248,7 @@ class Elasticsearch2SpringRepositoryTest extends AgentTestRunner {
             "elasticsearch.request" "DeleteRequest"
             "elasticsearch.request.indices" indexName
             "elasticsearch.request.write.type" "doc"
-            defaultTags()
+            defaultTagsNoPeerService()
           }
         }
       }
@@ -259,7 +267,7 @@ class Elasticsearch2SpringRepositoryTest extends AgentTestRunner {
             "elasticsearch.shard.broadcast.failed" 0
             "elasticsearch.shard.broadcast.successful" 5
             "elasticsearch.shard.broadcast.total" 10
-            defaultTags()
+            defaultTagsNoPeerService()
           }
         }
       }
@@ -277,7 +285,7 @@ class Elasticsearch2SpringRepositoryTest extends AgentTestRunner {
             "elasticsearch.request" "SearchRequest"
             "elasticsearch.request.indices" indexName
             "elasticsearch.request.search.types" "doc"
-            defaultTags()
+            defaultTagsNoPeerService()
           }
         }
       }

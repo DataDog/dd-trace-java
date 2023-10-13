@@ -1,10 +1,11 @@
+import datadog.trace.agent.test.naming.TestingGenericHttpNamingConventions
 import org.restlet.Request
 import org.restlet.Response
 import org.restlet.engine.header.Header
 import org.restlet.routing.Filter
 import org.restlet.util.Series
 
-class RestletTest extends RestletTestBase {
+abstract class RestletTest extends RestletTestBase {
 
   @Override
   protected Filter createHeaderFilter() {
@@ -24,4 +25,11 @@ class RestletTest extends RestletTestBase {
       super.afterHandle(request, response)
     }
   }
+}
+
+class RestletV0ForkedTest extends RestletTest {
+  //V0 expected operation already defined on the base test class
+}
+
+class RestletV1ForkedTest extends RestletTest implements TestingGenericHttpNamingConventions.ServerV1 {
 }

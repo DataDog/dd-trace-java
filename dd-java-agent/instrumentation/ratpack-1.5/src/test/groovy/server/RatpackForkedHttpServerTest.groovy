@@ -1,5 +1,6 @@
 package server
 
+import datadog.appsec.api.blocking.Blocking
 import datadog.trace.agent.test.base.HttpServer
 import datadog.trace.agent.test.base.HttpServerTest
 import ratpack.exec.Promise
@@ -10,6 +11,7 @@ import ratpack.handling.HandlerDecorator
 import java.nio.charset.StandardCharsets
 
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_JSON
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_MULTIPART
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_URLENCODED
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.CREATED
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
@@ -21,6 +23,7 @@ import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_PARAM
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.REDIRECT
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.USER_BLOCK
 
 class RatpackForkedHttpServerTest extends RatpackHttpServerTest {
 
@@ -81,16 +84,18 @@ class RatpackForkedHttpServerTest extends RatpackHttpServerTest {
             }
           }
         }
-        prefix(BODY_URLENCODED.relativeRawPath()) {
-          all {
-            Promise.sync {
-              BODY_URLENCODED
-            }.fork().then { endpoint ->
-              controller(BODY_URLENCODED) {
-                context.parse(Form).then { form ->
-                  def text = form.findAll { it.key != 'ignore' }
-                  .collectEntries { [it.key, it.value as List] } as String
-                  response.status(BODY_URLENCODED.status).send('text/plain', text)
+        [BODY_URLENCODED, BODY_MULTIPART].each { endpoint ->
+          prefix(endpoint.relativeRawPath()) {
+            all {
+              Promise.sync {
+                endpoint
+              }.fork().then { ep ->
+                controller(endpoint) {
+                  context.parse(Form).then { form ->
+                    def text = form.findAll { it.key != 'ignore' }
+                    .collectEntries { [it.key, it.value as List] } as String
+                    response.status(endpoint.status).send('text/plain', text)
+                  }
                 }
               }
             }
@@ -138,6 +143,18 @@ class RatpackForkedHttpServerTest extends RatpackHttpServerTest {
             }.fork().then { HttpServerTest.ServerEndpoint endpoint ->
               controller(endpoint) {
                 context.response.status(endpoint.status).send(endpoint.bodyForQuery(request.query))
+              }
+            }
+          }
+        }
+        prefix(USER_BLOCK.relativeRawPath()) {
+          all {
+            Promise.sync {
+              USER_BLOCK
+            }.fork().then { HttpServerTest.ServerEndpoint endpoint ->
+              controller(endpoint) {
+                Blocking.forUser('user-to-block').blockIfMatch()
+                context.response.status(200).send('should never be reached')
               }
             }
           }

@@ -19,7 +19,7 @@ class RuleBasedSamplingTest extends DDCoreSpecification {
     Sampler sampler = Sampler.Builder.forConfig(new Properties())
 
     then:
-    !(sampler instanceof RuleBasedSampler)
+    !(sampler instanceof RuleBasedTraceSampler)
   }
 
   def "Rule Based Sampler is not created when just rate limit set"() {
@@ -29,7 +29,7 @@ class RuleBasedSamplingTest extends DDCoreSpecification {
     Sampler sampler = Sampler.Builder.forConfig(properties)
 
     then:
-    !(sampler instanceof RuleBasedSampler)
+    !(sampler instanceof RuleBasedTraceSampler)
   }
 
   def "sampling config combinations"() {
@@ -64,9 +64,9 @@ class RuleBasedSamplingTest extends DDCoreSpecification {
     ((PrioritySampler) sampler).setSamplingPriority(span)
 
     then:
-    span.getTag(RuleBasedSampler.SAMPLING_RULE_RATE) == expectedRuleRate
-    span.getTag(RuleBasedSampler.SAMPLING_LIMIT_RATE) == expectedRateLimit
-    span.getTag(RateByServiceSampler.SAMPLING_AGENT_RATE) == expectedAgentRate
+    span.getTag(RuleBasedTraceSampler.SAMPLING_RULE_RATE) == expectedRuleRate
+    span.getTag(RuleBasedTraceSampler.SAMPLING_LIMIT_RATE) == expectedRateLimit
+    span.getTag(RateByServiceTraceSampler.SAMPLING_AGENT_RATE) == expectedAgentRate
     span.getSamplingPriority() == expectedPriority
 
     cleanup:
@@ -163,9 +163,9 @@ class RuleBasedSamplingTest extends DDCoreSpecification {
     ((PrioritySampler) sampler).setSamplingPriority(span)
 
     then:
-    span.getTag(RuleBasedSampler.SAMPLING_RULE_RATE) == expectedRuleRate
-    span.getTag(RuleBasedSampler.SAMPLING_LIMIT_RATE) == expectedRateLimit
-    span.getTag(RateByServiceSampler.SAMPLING_AGENT_RATE) == expectedAgentRate
+    span.getTag(RuleBasedTraceSampler.SAMPLING_RULE_RATE) == expectedRuleRate
+    span.getTag(RuleBasedTraceSampler.SAMPLING_LIMIT_RATE) == expectedRateLimit
+    span.getTag(RateByServiceTraceSampler.SAMPLING_AGENT_RATE) == expectedAgentRate
     span.getSamplingPriority() == expectedPriority
 
     cleanup:
@@ -258,14 +258,14 @@ class RuleBasedSamplingTest extends DDCoreSpecification {
     ((PrioritySampler) sampler).setSamplingPriority(span2)
 
     then:
-    span1.getTag(RuleBasedSampler.SAMPLING_RULE_RATE) == 1.0
-    span1.getTag(RuleBasedSampler.SAMPLING_LIMIT_RATE) == 1.0
-    span1.getTag(RateByServiceSampler.SAMPLING_AGENT_RATE) == null
+    span1.getTag(RuleBasedTraceSampler.SAMPLING_RULE_RATE) == 1.0
+    span1.getTag(RuleBasedTraceSampler.SAMPLING_LIMIT_RATE) == 1.0
+    span1.getTag(RateByServiceTraceSampler.SAMPLING_AGENT_RATE) == null
     span1.getSamplingPriority() == USER_KEEP
 
-    span2.getTag(RuleBasedSampler.SAMPLING_RULE_RATE) == 1.0
-    span2.getTag(RuleBasedSampler.SAMPLING_LIMIT_RATE) == 1.0
-    span2.getTag(RateByServiceSampler.SAMPLING_AGENT_RATE) == null
+    span2.getTag(RuleBasedTraceSampler.SAMPLING_RULE_RATE) == 1.0
+    span2.getTag(RuleBasedTraceSampler.SAMPLING_LIMIT_RATE) == 1.0
+    span2.getTag(RateByServiceTraceSampler.SAMPLING_AGENT_RATE) == null
     span2.getSamplingPriority() == USER_DROP
 
     cleanup:
@@ -297,14 +297,14 @@ class RuleBasedSamplingTest extends DDCoreSpecification {
     ((PrioritySampler) sampler).setSamplingPriority(span2)
 
     then:
-    span1.getTag(RuleBasedSampler.SAMPLING_RULE_RATE) == 1.0
-    span1.getTag(RuleBasedSampler.SAMPLING_LIMIT_RATE) == 1.0
-    span1.getTag(RateByServiceSampler.SAMPLING_AGENT_RATE) == null
+    span1.getTag(RuleBasedTraceSampler.SAMPLING_RULE_RATE) == 1.0
+    span1.getTag(RuleBasedTraceSampler.SAMPLING_LIMIT_RATE) == 1.0
+    span1.getTag(RateByServiceTraceSampler.SAMPLING_AGENT_RATE) == null
     span1.getSamplingPriority() == USER_KEEP
 
-    span2.getTag(RuleBasedSampler.SAMPLING_RULE_RATE) == 1.0
-    span2.getTag(RuleBasedSampler.SAMPLING_LIMIT_RATE) == 1.0
-    span2.getTag(RateByServiceSampler.SAMPLING_AGENT_RATE) == null
+    span2.getTag(RuleBasedTraceSampler.SAMPLING_RULE_RATE) == 1.0
+    span2.getTag(RuleBasedTraceSampler.SAMPLING_LIMIT_RATE) == 1.0
+    span2.getTag(RateByServiceTraceSampler.SAMPLING_AGENT_RATE) == null
     span2.getSamplingPriority() == USER_DROP
 
     cleanup:
@@ -335,14 +335,14 @@ class RuleBasedSamplingTest extends DDCoreSpecification {
     ((PrioritySampler) sampler).setSamplingPriority(span2)
 
     then:
-    span1.getTag(RuleBasedSampler.SAMPLING_RULE_RATE) == 1.0
-    span1.getTag(RuleBasedSampler.SAMPLING_LIMIT_RATE) == 1.0
-    span1.getTag(RateByServiceSampler.SAMPLING_AGENT_RATE) == null
+    span1.getTag(RuleBasedTraceSampler.SAMPLING_RULE_RATE) == 1.0
+    span1.getTag(RuleBasedTraceSampler.SAMPLING_LIMIT_RATE) == 1.0
+    span1.getTag(RateByServiceTraceSampler.SAMPLING_AGENT_RATE) == null
     span1.getSamplingPriority() == USER_KEEP
 
-    span2.getTag(RuleBasedSampler.SAMPLING_RULE_RATE) == 1.0
-    span2.getTag(RuleBasedSampler.SAMPLING_LIMIT_RATE) == 1.0
-    span2.getTag(RateByServiceSampler.SAMPLING_AGENT_RATE) == null
+    span2.getTag(RuleBasedTraceSampler.SAMPLING_RULE_RATE) == 1.0
+    span2.getTag(RuleBasedTraceSampler.SAMPLING_LIMIT_RATE) == 1.0
+    span2.getTag(RateByServiceTraceSampler.SAMPLING_AGENT_RATE) == null
     span2.getSamplingPriority() == USER_DROP
 
     cleanup:

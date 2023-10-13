@@ -1,12 +1,12 @@
 package datadog.trace.api.http
 
-import datadog.trace.api.function.BiFunction
 import datadog.trace.api.gateway.Flow
 import datadog.trace.api.gateway.RequestContext
 import spock.lang.Specification
 
 import java.nio.ByteBuffer
 import java.nio.charset.Charset
+import java.util.function.BiFunction
 
 class StoredByteBodyTest extends Specification {
   RequestContext requestContext = Mock()

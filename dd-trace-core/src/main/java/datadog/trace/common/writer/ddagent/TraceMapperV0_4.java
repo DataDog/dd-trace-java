@@ -8,6 +8,7 @@ import datadog.trace.common.writer.Payload;
 import datadog.trace.core.CoreSpan;
 import datadog.trace.core.Metadata;
 import datadog.trace.core.MetadataConsumer;
+import datadog.trace.core.PendingTrace;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.WritableByteChannel;
@@ -28,7 +29,7 @@ public final class TraceMapperV0_4 implements TraceMapper {
     this(5 << 20);
   }
 
-  private static final class MetaWriter extends MetadataConsumer {
+  private static final class MetaWriter implements MetadataConsumer {
 
     private Writable writable;
     private boolean writeSamplingPriority;
@@ -55,11 +56,17 @@ public final class TraceMapperV0_4 implements TraceMapper {
           (writeSamplingPriority && metadata.hasSamplingPriority() ? 1 : 0)
               + (metadata.measured() ? 1 : 0)
               + (metadata.topLevel() ? 1 : 0)
+              + (metadata.longRunningVersion() != 0 ? 1 : 0)
               + 1;
       for (Map.Entry<String, Object> tag : metadata.getTags().entrySet()) {
-        if (tag.getValue() instanceof Number) {
+        Object value = tag.getValue();
+        if (value instanceof Number) {
           ++metricsSize;
           --metaSize;
+        } else if (value instanceof Map) {
+          // Compute size based on amount of elements in tree
+          --metaSize;
+          metaSize += getFlatMapSize((Map) value);
         }
       }
       writable.writeUTF8(METRICS);
@@ -75,6 +82,15 @@ public final class TraceMapperV0_4 implements TraceMapper {
       if (metadata.topLevel()) {
         writable.writeUTF8(InstrumentationTags.DD_TOP_LEVEL);
         writable.writeInt(1);
+      }
+      if (metadata.longRunningVersion() != 0) {
+        if (metadata.longRunningVersion() > 0) {
+          writable.writeUTF8(InstrumentationTags.DD_PARTIAL_VERSION);
+          writable.writeInt(metadata.longRunningVersion());
+        } else {
+          writable.writeUTF8(InstrumentationTags.DD_WAS_LONG_RUNNING);
+          writable.writeInt(1);
+        }
       }
       writable.writeUTF8(THREAD_ID);
       writable.writeLong(metadata.getThreadId());
@@ -105,9 +121,57 @@ public final class TraceMapperV0_4 implements TraceMapper {
         writable.writeString(metadata.getOrigin(), null);
       }
       for (Map.Entry<String, Object> entry : metadata.getTags().entrySet()) {
-        if (!(entry.getValue() instanceof Number)) {
+        String key = entry.getKey();
+        Object value = entry.getValue();
+        if (value instanceof Map) {
+          // Write map as flat map
+          writeFlatMap(key, (Map) value);
+        } else if (!(value instanceof Number)) {
           writable.writeString(entry.getKey(), null);
           writable.writeObjectString(entry.getValue(), null);
+        }
+      }
+    }
+
+    /**
+     * Calculate number of all values from map and all sub-maps Assuming map could be a binary tree
+     *
+     * @param map map to traverse
+     * @return number of all elements in the tree
+     */
+    private int getFlatMapSize(Map<String, Object> map) {
+      int size = 0;
+      for (Object value : map.values()) {
+        if (value instanceof Map) {
+          size += getFlatMapSize((Map) value);
+        } else {
+          size++;
+        }
+      }
+      return size;
+    }
+
+    /**
+     * Method write map of maps into writeable as FlatMap
+     *
+     * <p>Example: "root": { "key1": "val1" "key2": { "sub1": "val2", "sub2": "val3" } } "plain":
+     * "123"
+     *
+     * <p>Result: "root.key1" -> "val1" "root.key2.sub1" -> "val2" "root.key2.sub2" -> "val3"
+     * "plain" -> "123"
+     *
+     * @param key key name used as base
+     * @param mapValue map of tags that can contain sub-maps as values
+     */
+    private void writeFlatMap(String key, Map<String, Object> mapValue) {
+      for (Map.Entry<String, Object> entry : mapValue.entrySet()) {
+        String newKey = key + '.' + entry.getKey();
+        Object newValue = entry.getValue();
+        if (newValue instanceof Map) {
+          writeFlatMap(newKey, (Map) newValue);
+        } else {
+          writable.writeString(newKey, null);
+          writable.writeObjectString(newValue, null);
         }
       }
     }
@@ -132,19 +196,19 @@ public final class TraceMapperV0_4 implements TraceMapper {
       writable.writeObject(span.getResourceName(), null);
       /* 4  */
       writable.writeUTF8(TRACE_ID);
-      writable.writeLong(span.getTraceId().toLong());
+      writable.writeUnsignedLong(span.getTraceId().toLong());
       /* 5  */
       writable.writeUTF8(SPAN_ID);
-      writable.writeLong(span.getSpanId().toLong());
+      writable.writeUnsignedLong(span.getSpanId());
       /* 6  */
       writable.writeUTF8(PARENT_ID);
-      writable.writeLong(span.getParentId().toLong());
+      writable.writeUnsignedLong(span.getParentId());
       /* 7  */
       writable.writeUTF8(START);
       writable.writeLong(span.getStartTime());
       /* 8  */
       writable.writeUTF8(DURATION);
-      writable.writeLong(span.getDurationNano());
+      writable.writeLong(PendingTrace.getDurationNano(span));
       /* 9  */
       writable.writeUTF8(TYPE);
       writable.writeString(span.getType(), null);

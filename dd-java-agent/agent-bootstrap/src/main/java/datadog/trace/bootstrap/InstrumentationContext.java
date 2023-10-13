@@ -26,4 +26,15 @@ public class InstrumentationContext {
     throw new RuntimeException(
         "Calls to this method will be rewritten by Instrumentation Context Provider (e.g. FieldBackedProvider)");
   }
+
+  /**
+   * Find a {@link ContextStore} instance for given key class name and context class name.
+   *
+   * @apiNote This is a fallback for when the key/context are only available as string constants at
+   *     compile time, in all other situations prefer the method that accepts class literals
+   */
+  public static <K, C> ContextStore<K, C> get(final String keyClass, final String contextClass) {
+    throw new RuntimeException(
+        "Calls to this method will be rewritten by Instrumentation Context Provider (e.g. FieldBackedProvider)");
+  }
 }

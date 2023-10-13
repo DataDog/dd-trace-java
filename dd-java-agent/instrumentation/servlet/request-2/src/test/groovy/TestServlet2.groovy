@@ -1,3 +1,4 @@
+import datadog.appsec.api.blocking.Blocking
 import datadog.trace.agent.test.base.HttpServerTest
 import groovy.servlet.AbstractHttpServlet
 
@@ -13,6 +14,7 @@ import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_PARAM
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.REDIRECT
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.USER_BLOCK
 
 class TestServlet2 {
 
@@ -48,6 +50,9 @@ class TestServlet2 {
             break
           case ERROR:
             resp.sendError(endpoint.status, endpoint.body)
+            break
+          case USER_BLOCK:
+            Blocking.forUser('user-to-block').blockIfMatch()
             break
           case EXCEPTION:
             throw new Exception(endpoint.body)

@@ -58,7 +58,7 @@ public class NettyChannelInstrumentation extends Instrumenter.Tracing
   @Override
   public Map<String, String> contextStore() {
     return Collections.singletonMap(
-        "org.jboss.netty.channel.Channel", ChannelTraceContext.class.getName());
+        "org.jboss.netty.channel.Channel", packageName + ".ChannelTraceContext");
   }
 
   public static class ChannelConnectAdvice extends AbstractNettyAdvice {

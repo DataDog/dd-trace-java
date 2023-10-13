@@ -1,11 +1,8 @@
 import com.google.common.util.concurrent.MoreExecutors
-import datadog.trace.agent.test.AgentTestRunner
-import datadog.trace.api.DDId
+import datadog.trace.agent.test.naming.VersionedNamingTestBase
+import datadog.trace.api.DDSpanId
 import datadog.trace.api.DDSpanTypes
-import datadog.trace.api.Platform
-import datadog.trace.api.function.Function
-import datadog.trace.api.function.BiFunction
-import datadog.trace.api.function.Supplier
+import datadog.trace.api.DDTags
 import datadog.trace.api.function.TriConsumer
 import datadog.trace.api.gateway.Flow
 import datadog.trace.api.gateway.RequestContext
@@ -32,16 +29,15 @@ import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import java.util.concurrent.ForkJoinPool
 import java.util.concurrent.TimeUnit
+import java.util.function.BiFunction
+import java.util.function.Function
+import java.util.function.Supplier
 
 import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
-import static datadog.trace.api.Checkpointer.CPU
-import static datadog.trace.api.Checkpointer.END
-import static datadog.trace.api.Checkpointer.SPAN
-import static datadog.trace.api.Checkpointer.THREAD_MIGRATION
 import static datadog.trace.api.gateway.Events.EVENTS
 
-abstract class GrpcTest extends AgentTestRunner {
+abstract class GrpcTest extends VersionedNamingTestBase {
 
   @Shared
   def ig
@@ -51,10 +47,27 @@ abstract class GrpcTest extends AgentTestRunner {
   def collectedAppSecReqMsgs = []
 
   @Override
+  final String service() {
+    return null
+  }
+
+  @Override
+  final String operation() {
+    return null
+  }
+
+  protected abstract String clientOperation()
+
+  protected abstract String serverOperation()
+
+  @Override
   protected void configurePreAgent() {
     super.configurePreAgent()
     injectSysConfig("dd.trace.grpc.ignored.inbound.methods", "example.Greeter/IgnoreInbound")
     injectSysConfig("dd.trace.grpc.ignored.outbound.methods", "example.Greeter/Ignore")
+    // here to trigger wrapping to record scheduling time - the logic is trivial so it's enough to verify
+    // that ClassCastExceptions do not arise from the wrapping
+    injectSysConfig("dd.profiling.enabled", "true")
   }
 
   def setupSpec() {
@@ -66,7 +79,7 @@ abstract class GrpcTest extends AgentTestRunner {
     ig.registerCallback(EVENTS.requestHeader(), { reqCtx, name, value ->
       collectedAppSecHeaders[name] = value
     } as TriConsumer<RequestContext, String, String>)
-    ig.registerCallback(EVENTS.requestHeaderDone(),{
+    ig.registerCallback(EVENTS.requestHeaderDone(), {
       appSecHeaderDone = true
       Flow.ResultFlow.empty()
     } as Function<RequestContext, Flow<Void>>)
@@ -82,9 +95,6 @@ abstract class GrpcTest extends AgentTestRunner {
 
   def "test request-response"() {
     setup:
-    //    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
-    //      CheckpointValidationMode.INTERVALS,
-    //      CheckpointValidationMode.THREAD_SEQUENCE)
 
     ExecutorService responseExecutor = Executors.newSingleThreadExecutor()
     BindableService greeter = new GreeterGrpc.GreeterImplBase() {
@@ -116,7 +126,7 @@ abstract class GrpcTest extends AgentTestRunner {
     }
     // wait here to make checkpoint asserts deterministic
     TEST_WRITER.waitForTraces(2)
-    if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled()) {
+    if (isDataStreamsEnabled()) {
       TEST_DATA_STREAMS_WRITER.waitForGroups(2)
     }
 
@@ -126,7 +136,7 @@ abstract class GrpcTest extends AgentTestRunner {
       trace(3) {
         basicSpan(it, "parent")
         span {
-          operationName "grpc.client"
+          operationName clientOperation()
           resourceName "example.Greeter/SayHello"
           spanType DDSpanTypes.RPC
           childOf span(0)
@@ -135,9 +145,14 @@ abstract class GrpcTest extends AgentTestRunner {
           tags {
             "$Tags.COMPONENT" "grpc-client"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
+            "$Tags.RPC_SERVICE" "example.Greeter"
             "status.code" "OK"
             "request.type" "example.Helloworld\$Request"
             "response.type" "example.Helloworld\$Response"
+            if ({ isDataStreamsEnabled() }) {
+              "$DDTags.PATHWAY_HASH" { String }
+            }
+            peerServiceFrom(Tags.RPC_SERVICE)
             defaultTags()
           }
         }
@@ -152,13 +167,13 @@ abstract class GrpcTest extends AgentTestRunner {
             "$Tags.COMPONENT" "grpc-client"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
             "message.type" "example.Helloworld\$Response"
-            defaultTags()
+            defaultTagsNoPeerService()
           }
         }
       }
       trace(2) {
         span {
-          operationName "grpc.server"
+          operationName serverOperation()
           resourceName "example.Greeter/SayHello"
           spanType DDSpanTypes.RPC
           childOf trace(0).get(1)
@@ -168,6 +183,9 @@ abstract class GrpcTest extends AgentTestRunner {
             "$Tags.COMPONENT" "grpc-server"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
             "status.code" "OK"
+            if ({ isDataStreamsEnabled() }) {
+              "$DDTags.PATHWAY_HASH" { String }
+            }
             defaultTags(true)
           }
         }
@@ -187,15 +205,6 @@ abstract class GrpcTest extends AgentTestRunner {
         }
       }
     }
-    5 * TEST_CHECKPOINTER.checkpoint(_, SPAN)
-    5 * TEST_CHECKPOINTER.checkpoint(_, SPAN | END)
-    _ * TEST_CHECKPOINTER.checkpoint(_, THREAD_MIGRATION)
-    _ * TEST_CHECKPOINTER.checkpoint(_, THREAD_MIGRATION | END)
-    _ * TEST_CHECKPOINTER.checkpoint(_, CPU)
-    _ * TEST_CHECKPOINTER.checkpoint(_, CPU | END)
-    _ * TEST_CHECKPOINTER.onRootSpanStarted(_)
-    _ * TEST_CHECKPOINTER.onRootSpanWritten(_, _, _)
-    0 * TEST_CHECKPOINTER._
 
     and:
     def traceId = TEST_WRITER[0].traceId.first()
@@ -204,17 +213,17 @@ abstract class GrpcTest extends AgentTestRunner {
     collectedAppSecReqMsgs.first().name == name
 
     and:
-    if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled()) {
+    if (isDataStreamsEnabled()) {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(first) {
-        edgeTags.containsAll(["type:internal"])
-        edgeTags.size() == 1
+        edgeTags.containsAll(["direction:out", "type:grpc"])
+        edgeTags.size() == 2
       }
 
       StatsGroup second = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == first.hash }
       verifyAll(second) {
-        edgeTags.containsAll(["type:grpc"])
-        edgeTags.size() == 1
+        edgeTags.containsAll(["direction:in", "type:grpc"])
+        edgeTags.size() == 2
       }
     }
 
@@ -267,7 +276,7 @@ abstract class GrpcTest extends AgentTestRunner {
     assertTraces(2) {
       trace(1) {
         span {
-          operationName "grpc.client"
+          operationName clientOperation()
           resourceName "example.Greeter/SayHello"
           spanType DDSpanTypes.RPC
           parent()
@@ -276,17 +285,22 @@ abstract class GrpcTest extends AgentTestRunner {
           tags {
             "$Tags.COMPONENT" "grpc-client"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
+            "$Tags.RPC_SERVICE" "example.Greeter"
             "status.code" "${status.code.name()}"
             "status.description" description
             "request.type" "example.Helloworld\$Request"
             "response.type" "example.Helloworld\$Response"
+            if ({ isDataStreamsEnabled() }) {
+              "$DDTags.PATHWAY_HASH" { String }
+            }
+            peerServiceFrom(Tags.RPC_SERVICE)
             defaultTags()
           }
         }
       }
       trace(2) {
         span {
-          operationName "grpc.server"
+          operationName serverOperation()
           resourceName "example.Greeter/SayHello"
           spanType DDSpanTypes.RPC
           childOf trace(0).get(0)
@@ -299,6 +313,9 @@ abstract class GrpcTest extends AgentTestRunner {
             "status.description" description
             if (status.cause != null) {
               errorTags status.cause.class, status.cause.message
+            }
+            if ({ isDataStreamsEnabled() }) {
+              "$DDTags.PATHWAY_HASH" { String }
             }
             defaultTags(true)
           }
@@ -319,16 +336,6 @@ abstract class GrpcTest extends AgentTestRunner {
         }
       }
     }
-
-    3 * TEST_CHECKPOINTER.checkpoint(_, SPAN)
-    3 * TEST_CHECKPOINTER.checkpoint(_, SPAN | END)
-    _ * TEST_CHECKPOINTER.checkpoint(_, THREAD_MIGRATION)
-    _ * TEST_CHECKPOINTER.checkpoint(_, THREAD_MIGRATION | END)
-    _ * TEST_CHECKPOINTER.checkpoint(_, CPU | END)
-    _ * TEST_CHECKPOINTER.checkpoint(_, CPU)
-    _ * TEST_CHECKPOINTER.onRootSpanStarted(_)
-    _ * TEST_CHECKPOINTER.onRootSpanWritten(_, _, _)
-    0 * TEST_CHECKPOINTER._
 
     cleanup:
     channel?.shutdownNow()?.awaitTermination(10, TimeUnit.SECONDS)
@@ -371,7 +378,7 @@ abstract class GrpcTest extends AgentTestRunner {
     assertTraces(2) {
       trace(1) {
         span {
-          operationName "grpc.client"
+          operationName clientOperation()
           resourceName "example.Greeter/SayHello"
           spanType DDSpanTypes.RPC
           parent()
@@ -380,16 +387,21 @@ abstract class GrpcTest extends AgentTestRunner {
           tags {
             "$Tags.COMPONENT" "grpc-client"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
+            "$Tags.RPC_SERVICE" "example.Greeter"
             "status.code" "UNKNOWN"
             "request.type" "example.Helloworld\$Request"
             "response.type" "example.Helloworld\$Response"
+            if ({ isDataStreamsEnabled() }) {
+              "$DDTags.PATHWAY_HASH" { String }
+            }
+            peerServiceFrom(Tags.RPC_SERVICE)
             defaultTags()
           }
         }
       }
       trace(2) {
         span {
-          operationName "grpc.server"
+          operationName serverOperation()
           resourceName "example.Greeter/SayHello"
           spanType DDSpanTypes.RPC
           childOf trace(0).get(0)
@@ -399,6 +411,9 @@ abstract class GrpcTest extends AgentTestRunner {
             "$Tags.COMPONENT" "grpc-server"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
             errorTags error.class, error.message
+            if ({ isDataStreamsEnabled() }) {
+              "$DDTags.PATHWAY_HASH" { String }
+            }
             defaultTags(true)
           }
         }
@@ -418,16 +433,6 @@ abstract class GrpcTest extends AgentTestRunner {
         }
       }
     }
-
-    3 * TEST_CHECKPOINTER.checkpoint(_, SPAN)
-    3 * TEST_CHECKPOINTER.checkpoint(_, SPAN | END)
-    _ * TEST_CHECKPOINTER.checkpoint(_, THREAD_MIGRATION)
-    _ * TEST_CHECKPOINTER.checkpoint(_, THREAD_MIGRATION | END)
-    _ * TEST_CHECKPOINTER.checkpoint(_, CPU | END)
-    _ * TEST_CHECKPOINTER.checkpoint(_, CPU)
-    _ * TEST_CHECKPOINTER.onRootSpanStarted(_)
-    _ * TEST_CHECKPOINTER.onRootSpanWritten(_, _, _)
-    0 * TEST_CHECKPOINTER._
 
     cleanup:
     channel?.shutdownNow()?.awaitTermination(10, TimeUnit.SECONDS)
@@ -497,16 +502,19 @@ abstract class GrpcTest extends AgentTestRunner {
       }
       trace(2) {
         span {
-          operationName "grpc.server"
+          operationName serverOperation()
           resourceName "example.Greeter/Ignore"
           spanType DDSpanTypes.RPC
-          parentDDId DDId.ZERO
+          parentSpanId DDSpanId.ZERO
           errored false
           measured true
           tags {
             "$Tags.COMPONENT" "grpc-server"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
             "status.code" "OK"
+            if ({ isDataStreamsEnabled() }) {
+              "$DDTags.PATHWAY_HASH" { String }
+            }
             defaultTags(true)
           }
         }
@@ -559,7 +567,7 @@ abstract class GrpcTest extends AgentTestRunner {
     assertTraces(1) {
       trace(2) {
         span {
-          operationName "grpc.client"
+          operationName clientOperation()
           resourceName "example.Greeter/IgnoreInbound"
           spanType DDSpanTypes.RPC
           parent()
@@ -568,9 +576,14 @@ abstract class GrpcTest extends AgentTestRunner {
           tags {
             "$Tags.COMPONENT" "grpc-client"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
+            "$Tags.RPC_SERVICE" "example.Greeter"
             "status.code" "OK"
             "request.type" "example.Helloworld\$Request"
             "response.type" "example.Helloworld\$Response"
+            if ({ isDataStreamsEnabled() }) {
+              "$DDTags.PATHWAY_HASH" { String }
+            }
+            peerServiceFrom(Tags.RPC_SERVICE)
             defaultTags()
           }
         }
@@ -585,7 +598,7 @@ abstract class GrpcTest extends AgentTestRunner {
             "$Tags.COMPONENT" "grpc-client"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
             "message.type" "example.Helloworld\$Response"
-            defaultTags()
+            defaultTagsNoPeerService()
           }
         }
       }
@@ -605,29 +618,67 @@ abstract class GrpcTest extends AgentTestRunner {
   }
 }
 
-class GrpcDataStreamsEnabledForkedTest extends GrpcTest {
-  @Override
-  protected void configurePreAgent() {
-    super.configurePreAgent()
-    injectSysConfig("dd.data.streams.enabled", "true")
-  }
-
+abstract class GrpcDataStreamsEnabledForkedTest extends GrpcTest {
   @Override
   protected boolean isDataStreamsEnabled() {
     return true
   }
+}
 
+class GrpcDataStreamsEnabledV0ForkedTest extends GrpcDataStreamsEnabledForkedTest {
+
+  @Override
+  int version() {
+    return 0
+  }
+
+  @Override
+  protected String clientOperation() {
+    return "grpc.client"
+  }
+
+  @Override
+  protected String serverOperation() {
+    return "grpc.server"
+  }
+}
+
+class GrpcDataStreamsEnabledV1ForkedTest extends GrpcDataStreamsEnabledForkedTest {
+
+  @Override
+  int version() {
+    return 1
+  }
+
+  @Override
+  protected String clientOperation() {
+    return "grpc.client.request"
+  }
+
+  @Override
+  protected String serverOperation() {
+    return "grpc.server.request"
+  }
 }
 
 class GrpcDataStreamsDisabledForkedTest extends GrpcTest {
   @Override
-  protected void configurePreAgent() {
-    super.configurePreAgent()
-    injectSysConfig("dd.data.streams.enabled", "false")
+  protected boolean isDataStreamsEnabled() {
+    return false
   }
 
   @Override
-  protected boolean isDataStreamsEnabled() {
-    return false
+  int version() {
+    return 0
+  }
+
+  @Override
+  protected String clientOperation() {
+    return "grpc.client"
+  }
+
+  @Override
+  protected String serverOperation() {
+    return "grpc.server"
   }
 }

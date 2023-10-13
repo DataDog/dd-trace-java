@@ -98,6 +98,9 @@ public class SpanV04 implements DecodedSpan {
   private static String unpackString(String expectedKey, MessageUnpacker unpacker)
       throws IOException {
     unpackKey(expectedKey, unpacker);
+    if (unpacker.tryUnpackNil()) {
+      return null;
+    }
     return unpacker.unpackString();
   }
 

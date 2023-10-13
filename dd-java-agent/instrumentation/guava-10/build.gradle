@@ -1,0 +1,26 @@
+muzzle {
+  pass {
+    group = "com.google.guava"
+    module = "guava"
+    versions = "[10.0,]"
+    skipVersions += '13.0-final' // not on maven central
+    skipVersions += '32.1.0-android' // bad gradle dependency module
+    skipVersions += '32.1.0-jre' // bad gradle dependency module
+    assertInverse = true
+  }
+}
+
+apply from: "${rootDir}/gradle/java.gradle"
+
+addTestSuiteForDir('latestDepTest', 'test')
+
+dependencies {
+  compileOnly group: 'com.google.guava', name: 'guava', version: '10.0'
+
+  testImplementation project(':dd-java-agent:instrumentation:opentelemetry:opentelemetry-annotations-1.20')
+  testImplementation group: 'com.google.guava', name: 'guava', version: '16.0'
+  // ^ first version with com.google.common.reflect.ClassPath.getAllClasses()
+  testImplementation group: 'io.opentelemetry.instrumentation', name: 'opentelemetry-instrumentation-annotations', version: '1.28.0'
+
+  latestDepTestImplementation group: 'com.google.guava', name: 'guava', version: '+'
+}

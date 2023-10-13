@@ -18,6 +18,7 @@ public class InternalSpanTypes {
   public static final CharSequence MEMCACHED = UTF8BytesString.create(DDSpanTypes.MEMCACHED);
   public static final CharSequence ELASTICSEARCH =
       UTF8BytesString.create(DDSpanTypes.ELASTICSEARCH);
+  public static final CharSequence OPENSEARCH = UTF8BytesString.create(DDSpanTypes.OPENSEARCH);
   public static final CharSequence HIBERNATE = UTF8BytesString.create(DDSpanTypes.HIBERNATE);
   public static final CharSequence AEROSPIKE = UTF8BytesString.create(DDSpanTypes.AEROSPIKE);
   public static final CharSequence DATANUCLEUS = UTF8BytesString.create(DDSpanTypes.DATANUCLEUS);
@@ -34,5 +35,13 @@ public class InternalSpanTypes {
 
   public static final CharSequence GRAPHQL = UTF8BytesString.create(DDSpanTypes.GRAPHQL);
 
-  public static final CharSequence TEST = UTF8BytesString.create(DDSpanTypes.TEST);
+  public static final UTF8BytesString TEST = UTF8BytesString.create(DDSpanTypes.TEST);
+  public static final UTF8BytesString TEST_SUITE_END =
+      UTF8BytesString.create(DDSpanTypes.TEST_SUITE_END);
+  public static final UTF8BytesString TEST_MODULE_END =
+      UTF8BytesString.create(DDSpanTypes.TEST_MODULE_END);
+  public static final UTF8BytesString TEST_SESSION_END =
+      UTF8BytesString.create(DDSpanTypes.TEST_SESSION_END);
+  public static final UTF8BytesString VULNERABILITY =
+      UTF8BytesString.create(DDSpanTypes.VULNERABILITY);
 }

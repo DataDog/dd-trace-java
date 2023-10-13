@@ -7,9 +7,11 @@ import okhttp3.Request;
 import okhttp3.Response;
 
 public class OkHttpClientDecorator extends HttpClientDecorator<Request, Response> {
-  public static final CharSequence OKHTTP_REQUEST = UTF8BytesString.create("okhttp.request");
   public static final CharSequence OKHTTP = UTF8BytesString.create("okhttp");
   public static final OkHttpClientDecorator DECORATE = new OkHttpClientDecorator();
+
+  public static final CharSequence OKHTTP_REQUEST =
+      UTF8BytesString.create(DECORATE.operationName());
 
   @Override
   protected String[] instrumentationNames() {
@@ -39,5 +41,15 @@ public class OkHttpClientDecorator extends HttpClientDecorator<Request, Response
   @Override
   protected int status(final Response httpResponse) {
     return httpResponse.code();
+  }
+
+  @Override
+  protected String getRequestHeader(Request request, String headerName) {
+    return request.header(headerName);
+  }
+
+  @Override
+  protected String getResponseHeader(Response response, String headerName) {
+    return response.header(headerName);
   }
 }

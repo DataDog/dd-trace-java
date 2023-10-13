@@ -1,0 +1,23 @@
+
+muzzle {
+  pass {
+    group = 'org.quartz-scheduler'
+    module = 'quartz'
+    versions = "[2.0.0,2.4.0)"
+    assertInverse = true
+  }
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+
+addTestSuiteForDir('latestDepTest', 'test')
+
+dependencies {
+  compileOnly group: 'org.quartz-scheduler', name: 'quartz', version: '2.0.0'
+  testImplementation group: 'org.quartz-scheduler', name: 'quartz', version: '2.0.0'
+
+  latestDepTestImplementation group: 'org.quartz-scheduler', name: 'quartz', version: '2.3.+'
+  // these dependencies are required for XML configurations when quartz version > 2.2+
+  latestDepTestImplementation group: 'org.quartz-scheduler', name: 'quartz-jobs', version: '2.3.+'
+  latestDepTestImplementation group: 'javax.transaction', name: 'jta', version: '1.1'
+}

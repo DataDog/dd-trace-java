@@ -1,24 +1,24 @@
 package datadog.trace.core.scopemanager
 
 import datadog.trace.agent.test.utils.ThreadUtils
-import datadog.trace.api.Checkpointer
-import datadog.trace.api.DDId
+import datadog.trace.api.DDTraceId
+import datadog.trace.api.EndpointCheckpointer
 import datadog.trace.api.StatsDClient
+import datadog.trace.api.TraceConfig
 import datadog.trace.api.interceptor.MutableSpan
 import datadog.trace.api.interceptor.TraceInterceptor
 import datadog.trace.api.scopemanager.ExtendedScopeListener
 import datadog.trace.bootstrap.instrumentation.api.AgentScope
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopAgentSpan
-import datadog.trace.bootstrap.instrumentation.api.ContextThreadListener
+import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration
 import datadog.trace.bootstrap.instrumentation.api.ScopeSource
 import datadog.trace.common.writer.ListWriter
-import datadog.trace.context.ScopeListener
+import datadog.trace.api.scopemanager.ScopeListener
 import datadog.trace.context.TraceScope
 import datadog.trace.core.CoreTracer
 import datadog.trace.core.DDSpan
 import datadog.trace.core.test.DDCoreSpecification
-import spock.lang.Retry
 import spock.lang.Shared
 
 import java.lang.ref.WeakReference
@@ -29,9 +29,6 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
 
-import static datadog.trace.api.Checkpointer.CPU
-import static datadog.trace.api.Checkpointer.END
-import static datadog.trace.api.Checkpointer.SPAN
 import static datadog.trace.core.scopemanager.EVENT.ACTIVATE
 import static datadog.trace.core.scopemanager.EVENT.CLOSE
 import static datadog.trace.test.util.GCUtils.awaitGC
@@ -53,14 +50,16 @@ class ScopeManagerTest extends DDCoreSpecification {
   StatsDClient statsDClient
   EventCountingListener eventCountingListener
   EventCountingExtendedListener eventCountingExtendedListener
-  Checkpointer checkpointer
+  EndpointCheckpointer rootSpanCheckpointer
+  ProfilingContextIntegration profilingContext
 
   def setup() {
-    checkpointer = Mock()
+    profilingContext = Mock(ProfilingContextIntegration)
+    rootSpanCheckpointer = Mock()
     writer = new ListWriter()
     statsDClient = Mock()
-    tracer = tracerBuilder().writer(writer).statsDClient(statsDClient).build()
-    tracer.registerCheckpointer(checkpointer)
+    tracer = tracerBuilder().writer(writer).statsDClient(statsDClient).profilingContextIntegration(profilingContext).build()
+    tracer.registerCheckpointer(rootSpanCheckpointer)
     scopeManager = tracer.scopeManager
     eventCountingListener = new EventCountingListener()
     scopeManager.addScopeListener(eventCountingListener)
@@ -72,13 +71,98 @@ class ScopeManagerTest extends DDCoreSpecification {
     tracer.close()
   }
 
+  def "scope state should be able to fetch and activate state when there is no active span"() {
+    when:
+    def initialScopeState = scopeManager.newScopeState()
+    initialScopeState.fetchFromActive()
+
+    then:
+    scopeManager.active() == null
+
+    when:
+    def newScopeState = scopeManager.newScopeState()
+    newScopeState.activate()
+
+    then:
+    scopeManager.active() == null
+
+    when:
+    def span = tracer.buildSpan("test").start()
+    def scope = tracer.activateSpan(span)
+
+    then:
+    scope.span() == span
+    scopeManager.active() == scope
+
+    when:
+    initialScopeState.activate()
+
+    then:
+    scopeManager.active() == null
+
+    when:
+    newScopeState.activate()
+
+    then:
+    scopeManager.active() == scope
+
+    when:
+    span.finish()
+    scope.close()
+    writer.waitForTraces(1)
+
+    then:
+    writer == [[scope.span()]]
+    scopeManager.active() == null
+
+    when:
+    initialScopeState.activate()
+
+    then:
+    scopeManager.active() == null
+  }
+
+  def "scope state should be able to fetch and activate state when there is an active span"() {
+    when:
+    def span = tracer.buildSpan("test").start()
+    def scope = tracer.activateSpan(span)
+    def initialScopeState = scopeManager.newScopeState()
+    initialScopeState.fetchFromActive()
+
+    then:
+    scope.span() == span
+    scopeManager.active() == scope
+
+    when:
+    def newScopeState = scopeManager.newScopeState()
+    newScopeState.activate()
+
+    then:
+    scopeManager.active() == null
+
+    when:
+    initialScopeState.activate()
+
+    then:
+    scopeManager.active() == scope
+
+    when:
+    span.finish()
+    scope.close()
+    writer.waitForTraces(1)
+
+    then:
+    scopeManager.active() == null
+    writer == [[scope.span()]]
+  }
+
   def "non-ddspan activation results in a continuable scope"() {
     when:
     def scope = scopeManager.activate(NoopAgentSpan.INSTANCE, ScopeSource.INSTRUMENTATION)
 
     then:
     scopeManager.active() == scope
-    scope instanceof ContinuableScopeManager.ContinuableScope
+    scope instanceof ContinuableScope
 
     when:
     scope.close()
@@ -106,7 +190,7 @@ class ScopeManagerTest extends DDCoreSpecification {
     scope.span() == span
     !spanFinished(scope.span())
     scopeManager.active() == scope
-    scope instanceof ContinuableScopeManager.ContinuableScope
+    scope instanceof ContinuableScope
     writer.empty
 
     when:
@@ -212,7 +296,7 @@ class ScopeManagerTest extends DDCoreSpecification {
     concurrent << [false, true]
   }
 
-  @Retry
+  // @Flaky("awaitGC is flaky")
   def "test continuation doesn't have hard reference on scope"() {
     when:
     def span = tracer.buildSpan("test").start()
@@ -313,7 +397,7 @@ class ScopeManagerTest extends DDCoreSpecification {
     }
 
     then: "the continued scope becomes active and span state doesnt change"
-    newScope instanceof ContinuableScopeManager.ContinuableScope
+    newScope instanceof ContinuableScope
     newScope.isAsyncPropagating()
     scopeManager.active() == newScope
     newScope != childScope
@@ -363,7 +447,7 @@ class ScopeManagerTest extends DDCoreSpecification {
     }
 
     then: "the continuation sets the active scope"
-    newScope instanceof ContinuableScopeManager.ContinuableScope
+    newScope instanceof ContinuableScope
     newScope != scope
     scopeManager.active() == newScope
     spanFinished(span)
@@ -427,7 +511,7 @@ class ScopeManagerTest extends DDCoreSpecification {
     AgentScope continuableScope = tracer.activateSpan(span)
 
     then:
-    continuableScope instanceof ContinuableScopeManager.ContinuableScope
+    continuableScope instanceof ContinuableScope
     assertEvents([ACTIVATE])
 
     when:
@@ -435,7 +519,7 @@ class ScopeManagerTest extends DDCoreSpecification {
     AgentScope childDDScope = tracer.activateSpan(childSpan)
 
     then:
-    childDDScope instanceof ContinuableScopeManager.ContinuableScope
+    childDDScope instanceof ContinuableScope
     assertEvents([ACTIVATE, ACTIVATE])
 
     when:
@@ -466,12 +550,13 @@ class ScopeManagerTest extends DDCoreSpecification {
 
     then:
     assertEvents([ACTIVATE, ACTIVATE])
-    2 * checkpointer.checkpoint(_, SPAN) // two spans started by test
-    1 * checkpointer.checkpoint(_, SPAN | END) // span ended by test
-    _ * checkpointer.checkpoint(_, CPU)
-    _ * checkpointer.checkpoint(_, CPU | END)
     1 * statsDClient.incrementCounter("scope.close.error")
-    1 * checkpointer.onRootSpanStarted(_)
+    1 * rootSpanCheckpointer.onRootSpanStarted(_)
+    3 * profilingContext.setContext(_)
+    1 * profilingContext.onAttach()
+    1 * profilingContext.encode("foo")
+    1 * profilingContext.encode("bar")
+    _ * profilingContext._
     0 * _
 
     when:
@@ -479,11 +564,10 @@ class ScopeManagerTest extends DDCoreSpecification {
     secondScope.close()
 
     then:
-    1 * checkpointer.checkpoint(_, SPAN | END) // span ended by test
-    _ * checkpointer.checkpoint(_, CPU)
-    _ * checkpointer.checkpoint(_, CPU | END)
-    1 * checkpointer.onRootSpanWritten(_, _, _)
+    1 * rootSpanCheckpointer.onRootSpanFinished(_, _)
     _ * statsDClient.close()
+    1 * profilingContext.clearContext()
+    1 * profilingContext.onDetach()
     assertEvents([ACTIVATE, ACTIVATE, CLOSE, CLOSE])
     0 * _
 
@@ -509,10 +593,11 @@ class ScopeManagerTest extends DDCoreSpecification {
     tracer.activeSpan() == firstSpan
     tracer.activeScope() == firstScope
     assertEvents([ACTIVATE])
-    1 * checkpointer.checkpoint(_, SPAN) // span started by test
-    _ * checkpointer.checkpoint(_, CPU)
-    _ * checkpointer.checkpoint(_, CPU | END)
-    1 * checkpointer.onRootSpanStarted(_)
+    1 * rootSpanCheckpointer.onRootSpanStarted(_)
+    1 * profilingContext.onAttach()
+    1 * profilingContext.setContext(_)
+    1 * profilingContext.encode("foo")
+    _ * profilingContext._
     0 * _
 
     when:
@@ -520,13 +605,13 @@ class ScopeManagerTest extends DDCoreSpecification {
     AgentScope secondScope = tracer.activateSpan(secondSpan)
 
     then:
-    1 * checkpointer.checkpoint(_, SPAN) // span started by test
-    _ * checkpointer.checkpoint(_, CPU)
-    _ * checkpointer.checkpoint(_, CPU | END)
     assertEvents([ACTIVATE, ACTIVATE])
     tracer.activeSpan() == secondSpan
     tracer.activeScope() == secondScope
     assertEvents([ACTIVATE, ACTIVATE])
+    1 * profilingContext.setContext(_)
+    1 * profilingContext.encode("bar")
+    _ * profilingContext._
     0 * _
 
     when:
@@ -534,13 +619,13 @@ class ScopeManagerTest extends DDCoreSpecification {
     AgentScope thirdScope = tracer.activateSpan(thirdSpan)
 
     then:
-    1 * checkpointer.checkpoint(_, SPAN) // span started by test
-    _ * checkpointer.checkpoint(_, CPU)
-    _ * checkpointer.checkpoint(_, CPU | END)
     assertEvents([ACTIVATE, ACTIVATE, ACTIVATE])
     tracer.activeSpan() == thirdSpan
     tracer.activeScope() == thirdScope
     assertEvents([ACTIVATE, ACTIVATE, ACTIVATE])
+    1 * profilingContext.setContext(_)
+    1 * profilingContext.encode("quux")
+    _ * profilingContext._
     0 * _
 
     when:
@@ -552,6 +637,7 @@ class ScopeManagerTest extends DDCoreSpecification {
     tracer.activeScope() == thirdScope
     assertEvents([ACTIVATE, ACTIVATE, ACTIVATE])
     1 * statsDClient.incrementCounter("scope.close.error")
+    1 * profilingContext.setContext(_)
     0 * _
 
     when:
@@ -563,8 +649,8 @@ class ScopeManagerTest extends DDCoreSpecification {
     tracer.activeScope() == firstScope
 
     assertEvents([ACTIVATE, ACTIVATE, ACTIVATE, CLOSE, CLOSE, ACTIVATE])
-    _ * checkpointer.checkpoint(_, _)
     _ * statsDClient.close()
+    1 * profilingContext.setContext(_)
     0 * _
 
     when:
@@ -590,8 +676,9 @@ class ScopeManagerTest extends DDCoreSpecification {
       ACTIVATE,
       CLOSE
     ])
-    _ * checkpointer.checkpoint(_, _)
     _ * statsDClient.close()
+    1 * profilingContext.clearContext()
+    1 * profilingContext.onDetach()
     0 * _
   }
 
@@ -617,13 +704,13 @@ class ScopeManagerTest extends DDCoreSpecification {
     0 * _
 
     then:
-    1 * checkpointer.checkpoint(_, SPAN) // span started by test
-    _ * checkpointer.checkpoint(_, CPU)
-    _ * checkpointer.checkpoint(_, CPU | END)
     assertEvents([ACTIVATE, ACTIVATE])
     tracer.activeSpan() == thirdSpan
     tracer.activeScope() == thirdScope
     assertEvents([ACTIVATE, ACTIVATE])
+    1 * profilingContext.setContext(_)
+    1 * profilingContext.encode("quux")
+    _ * profilingContext._
     0 * _
 
     when:
@@ -640,8 +727,7 @@ class ScopeManagerTest extends DDCoreSpecification {
 
     then: 'Closing scope above multiple activated scope does not close it'
     assertEvents([ACTIVATE, ACTIVATE, CLOSE, ACTIVATE])
-    1 * checkpointer.checkpoint(_, SPAN | END) // span finished by test
-    _ * checkpointer.checkpoint(_, _)
+    1 * profilingContext.setContext(_)
     _ * statsDClient.close()
     0 * _
 
@@ -672,7 +758,7 @@ class ScopeManagerTest extends DDCoreSpecification {
       continuation.cancel()
     }
     AgentSpan secondSpan = tracer.buildSpan("test2").start()
-    AgentScope secondScope = (ContinuableScopeManager.ContinuableScope) tracer.activateSpan(secondSpan)
+    AgentScope secondScope = (ContinuableScope) tracer.activateSpan(secondSpan)
 
     then:
     scopeManager.active() == secondScope
@@ -808,7 +894,7 @@ class ScopeManagerTest extends DDCoreSpecification {
     when:
     def span = tracer.buildSpan("test").start()
     def start = System.nanoTime()
-    def scope = (ContinuableScopeManager.ContinuableScope) tracer.activateSpan(span)
+    def scope = (ContinuableScope) tracer.activateSpan(span)
     scope.setAsyncPropagation(true)
     continuation = scope.captureConcurrent()
     scope.close()
@@ -972,12 +1058,17 @@ class ScopeManagerTest extends DDCoreSpecification {
 
   def "context thread listener notified when scope activated on thread for the first time"() {
     setup:
-    ContextThreadListener listener = Mock(ContextThreadListener)
-    scopeManager.addContextThreadListener(listener)
     def numThreads = 5
     ExecutorService executor = Executors.newFixedThreadPool(numThreads)
 
-    when:
+    when: "usage of an instrumented executor results in scopestack initialisation but not scope creation"
+    executor.submit({
+      assert scopeManager.active() == null
+    }).get()
+    then: "the listener is not notified"
+    0 * profilingContext.onAttach()
+
+    when: "scopes activate on threads"
     AgentSpan span = tracer.buildSpan("foo").start()
     def futures = new Future[20]
     for (int i = 0; i < 20; i++) {
@@ -994,12 +1085,13 @@ class ScopeManagerTest extends DDCoreSpecification {
     for (Future future : futures) {
       future.get()
     }
-    executor.shutdown()
-    executor.awaitTermination(10, TimeUnit.SECONDS)
 
-    then:
-    numThreads * listener.onAttach()
+    then: "the first activation notifies the listener"
+    numThreads * profilingContext.onAttach()
     _ * _
+
+    cleanup:
+    executor.shutdown()
   }
 
   boolean spanFinished(AgentSpan span) {
@@ -1040,7 +1132,7 @@ class EventCountingExtendedListener implements ExtendedScopeListener {
   }
 
   @Override
-  void afterScopeActivated(DDId traceId, DDId spanId) {
+  void afterScopeActivated(DDTraceId traceId, long localRootSpanId, long spanId, TraceConfig traceConfig) {
     synchronized (events) {
       events.add(ACTIVATE)
     }

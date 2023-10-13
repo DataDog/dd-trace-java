@@ -7,6 +7,7 @@ import com.squareup.moshi.Moshi;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InterruptedIOException;
 import java.lang.reflect.UndeclaredThrowableException;
 import java.math.BigInteger;
 import java.nio.charset.StandardCharsets;
@@ -63,6 +64,8 @@ public class RemoteConfigResponse {
         }
         response.targetsJson = null;
         return Optional.of(response);
+      } catch (InterruptedIOException ignored) {
+        return Optional.empty();
       } catch (IOException | RuntimeException e) {
         throw new RuntimeException("Failed to parse fleet response: " + e.getMessage(), e);
       }
@@ -107,10 +110,10 @@ public class RemoteConfigResponse {
     return this.targets.targetsSignedUntyped;
   }
 
-  public Optional<byte[]> getFileContents(String configKey) {
+  public byte[] getFileContents(String configKey) {
 
     if (targetFiles == null) {
-      return Optional.empty();
+      throw new MissingContentException("No content for " + configKey);
     }
 
     try {
@@ -152,7 +155,7 @@ public class RemoteConfigResponse {
                   + decode.length);
         }
 
-        return Optional.of(decode);
+        return decode;
       }
     } catch (IntegrityCheckException e) {
       throw e;
@@ -161,7 +164,7 @@ public class RemoteConfigResponse {
           "Could not get file contents from remote config, file " + configKey, exception);
     }
 
-    return Optional.empty();
+    throw new MissingContentException("No content for " + configKey);
   }
 
   private static BigInteger sha256(byte[] bytes) {

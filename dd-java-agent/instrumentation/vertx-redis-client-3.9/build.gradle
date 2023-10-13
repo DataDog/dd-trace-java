@@ -1,0 +1,34 @@
+
+apply from: "$rootDir/gradle/java.gradle"
+
+muzzle {
+  pass {
+    group = 'io.vertx'
+    module = 'vertx-redis-client'
+    versions = '[3.9.0,4)'
+    assertInverse = true
+  }
+}
+
+addTestSuiteForDir('latestDepTest', 'test')
+addTestSuiteExtendingForDir('latestDepForkedTest', 'latestDepTest', 'test')
+
+apply from: "$rootDir/gradle/configure_tests.gradle"
+
+latestDepTest {
+  finalizedBy 'latestDepForkedTest'
+}
+
+dependencies {
+  compileOnly project(':dd-java-agent:instrumentation:vertx-redis-client-3.9:stubs')
+  compileOnly group: 'io.vertx', name: 'vertx-redis-client', version: '3.9.0'
+
+  // only needed for the rx tests
+  testImplementation project(':dd-java-agent:instrumentation:vertx-rx-3.5')
+  testImplementation group: 'io.vertx', name: 'vertx-redis-client', version: '3.9.0'
+  testImplementation group: 'io.vertx', name: 'vertx-rx-java2', version: '3.9.0'
+  testImplementation group: 'com.github.kstyrc', name: 'embedded-redis', version: '0.6'
+
+  latestDepTestImplementation group: 'io.vertx', name: 'vertx-redis-client', version: '3.9+'
+  latestDepTestImplementation group: 'io.vertx', name: 'vertx-rx-java2', version: '3.9+'
+}

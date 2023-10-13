@@ -1,5 +1,5 @@
 import com.google.common.util.concurrent.MoreExecutors
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.naming.VersionedNamingTestBase
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import example.GreeterGrpc
@@ -16,13 +16,30 @@ import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicReference
 
-class GrpcStreamingTest extends AgentTestRunner {
+abstract class GrpcStreamingTest extends VersionedNamingTestBase {
+
+  @Override
+  final String service() {
+    return null
+  }
+
+  @Override
+  final String operation() {
+    return null
+  }
+
+  protected abstract String clientOperation()
+
+  protected abstract String serverOperation()
 
   @Override
   protected void configurePreAgent() {
     super.configurePreAgent()
     injectSysConfig("dd.trace.grpc.ignored.inbound.methods", "example.Greeter/IgnoreInbound")
     injectSysConfig("dd.trace.grpc.ignored.outbound.methods", "example.Greeter/Ignore")
+    // here to trigger wrapping to record scheduling time - the logic is trivial so it's enough to verify
+    // that ClassCastExceptions do not arise from the wrapping
+    injectSysConfig("dd.profiling.enabled", "true")
   }
 
   def "test conversation #name"() {
@@ -80,7 +97,7 @@ class GrpcStreamingTest extends AgentTestRunner {
     GreeterGrpc.GreeterStub client = GreeterGrpc.newStub(channel).withWaitForReady()
 
     when:
-    def observer = client.conversation(new StreamObserver<Helloworld.Response>() {
+    def streamObserver = client.conversation(new StreamObserver<Helloworld.Response>() {
         @Override
         void onNext(Helloworld.Response value) {
           if (TEST_TRACER.activeScope().isAsyncPropagating()) {
@@ -109,9 +126,9 @@ class GrpcStreamingTest extends AgentTestRunner {
 
     clientRange.each {
       def message = Helloworld.Response.newBuilder().setMessage("call $it").build()
-      observer.onNext(message)
+      streamObserver.onNext(message)
     }
-    observer.onCompleted()
+    streamObserver.onCompleted()
 
     then:
     error.get() == null
@@ -127,7 +144,7 @@ class GrpcStreamingTest extends AgentTestRunner {
     assertTraces(2) {
       trace((clientMessageCount * serverMessageCount) + 1) {
         span {
-          operationName "grpc.client"
+          operationName clientOperation()
           resourceName "example.Greeter/Conversation"
           spanType DDSpanTypes.RPC
           parent()
@@ -135,9 +152,11 @@ class GrpcStreamingTest extends AgentTestRunner {
           tags {
             "$Tags.COMPONENT" "grpc-client"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
+            "$Tags.RPC_SERVICE" "example.Greeter"
             "status.code" "OK"
             "request.type" "example.Helloworld\$Response"
             "response.type" "example.Helloworld\$Response"
+            peerServiceFrom(Tags.RPC_SERVICE)
             defaultTags()
           }
         }
@@ -152,14 +171,14 @@ class GrpcStreamingTest extends AgentTestRunner {
               "$Tags.COMPONENT" "grpc-client"
               "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
               "message.type" "example.Helloworld\$Response"
-              defaultTags()
+              defaultTagsNoPeerService()
             }
           }
         }
       }
       trace(clientMessageCount + 1) {
         span {
-          operationName "grpc.server"
+          operationName serverOperation()
           resourceName "example.Greeter/Conversation"
           spanType DDSpanTypes.RPC
           childOf trace(0).get(0)
@@ -208,5 +227,41 @@ class GrpcStreamingTest extends AgentTestRunner {
 
     clientRange = 1..clientMessageCount
     serverRange = 1..serverMessageCount
+  }
+}
+
+class GrpcStreamingV0ForkedTest extends GrpcStreamingTest {
+
+  @Override
+  int version() {
+    return 0
+  }
+
+  @Override
+  protected String clientOperation() {
+    return "grpc.client"
+  }
+
+  @Override
+  protected String serverOperation() {
+    return "grpc.server"
+  }
+}
+
+class GrpcStreamingV1ForkedTest extends GrpcStreamingTest {
+
+  @Override
+  int version() {
+    return 1
+  }
+
+  @Override
+  protected String clientOperation() {
+    return "grpc.client.request"
+  }
+
+  @Override
+  protected String serverOperation() {
+    return "grpc.server.request"
   }
 }

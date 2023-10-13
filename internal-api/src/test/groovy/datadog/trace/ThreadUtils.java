@@ -56,27 +56,24 @@ public class ThreadUtils {
     for (int i = 0; i < poolSize; i++) {
       final int invocations = each + (remainder <= 0 ? 0 : 1);
       executor.execute(
-          new Runnable() {
-            @Override
-            public void run() {
-              try {
-                startBarrier.countDown();
-                startBarrier.await();
-                for (int c = 0; c < invocations && throwable.get() == null; c++) {
-                  try {
-                    closure.call();
-                  } catch (Throwable t) {
-                    throwable.compareAndSet(null, t);
-                  }
-                }
-              } catch (Throwable t) {
-                throwable.compareAndSet(null, t);
-              } finally {
+          () -> {
+            try {
+              startBarrier.countDown();
+              startBarrier.await();
+              for (int c = 0; c < invocations && throwable.get() == null; c++) {
                 try {
-                  endBarrier.countDown();
+                  closure.call();
                 } catch (Throwable t) {
                   throwable.compareAndSet(null, t);
                 }
+              }
+            } catch (Throwable t) {
+              throwable.compareAndSet(null, t);
+            } finally {
+              try {
+                endBarrier.countDown();
+              } catch (Throwable t) {
+                throwable.compareAndSet(null, t);
               }
             }
           });

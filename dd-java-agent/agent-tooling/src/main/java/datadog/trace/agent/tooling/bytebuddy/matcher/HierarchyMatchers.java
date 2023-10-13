@@ -1,10 +1,11 @@
 package datadog.trace.agent.tooling.bytebuddy.matcher;
 
 import static net.bytebuddy.matcher.ElementMatchers.none;
+import static net.bytebuddy.matcher.ElementMatchers.not;
 
 import datadog.trace.agent.tooling.bytebuddy.SharedTypePools;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
-import net.bytebuddy.description.DeclaredByType;
+import net.bytebuddy.description.ByteCodeElement;
 import net.bytebuddy.description.NamedElement;
 import net.bytebuddy.description.annotation.AnnotationSource;
 import net.bytebuddy.description.field.FieldDescription;
@@ -37,6 +38,10 @@ public final class HierarchyMatchers {
   public static ElementMatcher.Junction<TypeDescription> declaresMethod(
       ElementMatcher.Junction<? super MethodDescription> matcher) {
     return SUPPLIER.declaresMethod(matcher);
+  }
+
+  public static ElementMatcher.Junction<TypeDescription> concreteClass() {
+    return SUPPLIER.concreteClass();
   }
 
   public static ElementMatcher.Junction<TypeDescription> extendsClass(
@@ -77,15 +82,17 @@ public final class HierarchyMatchers {
     return SUPPLIER.declaresContextField(keyClassName, contextClassName);
   }
 
+  /** Use this to match annotated fields, methods, or method parameters. */
   @SuppressForbidden
-  public static <T extends AnnotationSource & DeclaredByType.WithMandatoryDeclaration>
+  public static <T extends AnnotationSource & ByteCodeElement.TypeDependant<?, ?>>
       ElementMatcher.Junction<T> isAnnotatedWith(NameMatchers.Named<? super NamedElement> matcher) {
     SharedTypePools.annotationOfInterest(matcher.name);
     return ElementMatchers.isAnnotatedWith(matcher);
   }
 
+  /** Use this to match annotated fields, methods, or method parameters. */
   @SuppressForbidden
-  public static <T extends AnnotationSource & DeclaredByType.WithMandatoryDeclaration>
+  public static <T extends AnnotationSource & ByteCodeElement.TypeDependant<?, ?>>
       ElementMatcher.Junction<T> isAnnotatedWith(NameMatchers.OneOf<? super NamedElement> matcher) {
     SharedTypePools.annotationsOfInterest(matcher.names);
     return ElementMatchers.isAnnotatedWith(matcher);
@@ -106,6 +113,8 @@ public final class HierarchyMatchers {
 
     ElementMatcher.Junction<TypeDescription> declaresMethod(
         ElementMatcher.Junction<? super MethodDescription> matcher);
+
+    ElementMatcher.Junction<TypeDescription> concreteClass();
 
     ElementMatcher.Junction<TypeDescription> extendsClass(
         ElementMatcher.Junction<? super TypeDescription> matcher);
@@ -148,6 +157,12 @@ public final class HierarchyMatchers {
       public ElementMatcher.Junction<TypeDescription> declaresMethod(
           ElementMatcher.Junction<? super MethodDescription> matcher) {
         return ElementMatchers.declaresMethod(matcher);
+      }
+
+      @Override
+      @SuppressForbidden
+      public ElementMatcher.Junction<TypeDescription> concreteClass() {
+        return not(ElementMatchers.isAbstract());
       }
 
       @Override

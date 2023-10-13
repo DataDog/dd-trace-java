@@ -1,18 +1,24 @@
 import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.agent.test.base.HttpServer
+import datadog.trace.agent.test.naming.TestingGenericHttpNamingConventions
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.instrumentation.servlet3.AsyncDispatcherDecorator
+import datadog.trace.instrumentation.servlet3.TestServlet3
+import groovy.servlet.AbstractHttpServlet
 import org.eclipse.jetty.server.Request
 import org.eclipse.jetty.server.Server
 import org.eclipse.jetty.server.handler.ErrorHandler
 import org.eclipse.jetty.servlet.ServletContextHandler
 
+import javax.servlet.AsyncEvent
+import javax.servlet.AsyncListener
 import javax.servlet.Servlet
 import javax.servlet.ServletException
+import javax.servlet.annotation.WebServlet
 import javax.servlet.http.HttpServletRequest
 import javax.servlet.http.HttpServletResponse
 
-import static TestServlet3.SERVLET_TIMEOUT
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.CUSTOM_EXCEPTION
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
@@ -21,6 +27,8 @@ import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.REDIRE
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.TIMEOUT
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.TIMEOUT_ERROR
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan
+import static datadog.trace.instrumentation.servlet3.TestServlet3.SERVLET_TIMEOUT
 
 abstract class JettyServlet3Test extends AbstractServlet3Test<Server, ServletContextHandler> {
   static final boolean IS_LATEST
@@ -127,6 +135,11 @@ abstract class JettyServlet3Test extends AbstractServlet3Test<Server, ServletCon
   }
 
   @Override
+  boolean isRespSpanChildOfDispatchOnException() {
+    true
+  }
+
+  @Override
   boolean hasResponseSpan(ServerEndpoint endpoint) {
     if (IS_LATEST) {
       return [NOT_FOUND, ERROR, REDIRECT].contains(endpoint)
@@ -142,7 +155,7 @@ abstract class JettyServlet3Test extends AbstractServlet3Test<Server, ServletCon
   @Override
   Map<String, Serializable> expectedExtraErrorInformation(ServerEndpoint endpoint) {
     if (endpoint.throwsException) {
-      ["error.msg": "${endpoint.body}",
+      ["error.message": "${endpoint.body}",
         "error.type": { it == Exception.name || it == InputMismatchException.name },
         "error.stack": String]
     } else {
@@ -167,7 +180,7 @@ abstract class JettyServlet3Test extends AbstractServlet3Test<Server, ServletCon
         }
         "servlet.path" "/dispatch$endpoint.path"
         if (endpoint.throwsException) {
-          "error.msg" endpoint.body
+          "error.message" endpoint.body
           "error.type" { it == Exception.name || it == InputMismatchException.name }
           "error.stack" String
         }
@@ -209,6 +222,11 @@ class JettyServlet3TestSync extends JettyServlet3Test {
   }
 }
 
+
+class JettyServlet3SyncV1ForkedTest extends JettyServlet3TestSync implements TestingGenericHttpNamingConventions.ServerV1 {
+
+}
+
 class JettyServlet3TestAsync extends JettyServlet3Test {
 
   @Override
@@ -228,6 +246,9 @@ class JettyServlet3TestAsync extends JettyServlet3Test {
   }
 }
 
+class JettyServlet3ASyncV1ForkedTest extends JettyServlet3TestAsync implements TestingGenericHttpNamingConventions.ServerV1 {
+
+}
 class JettyServlet3TestFakeAsync extends JettyServlet3Test {
 
   @Override
@@ -274,6 +295,18 @@ class JettyServlet3TestInclude extends JettyServlet3Test {
 
   boolean isDispatch() {
     return true
+  }
+
+  @Override
+  boolean testBlocking() {
+    // setting response code from included dispatches is not supported by servlet,
+    // and would require version-dependent hacks on Jetty
+    false
+  }
+
+  @Override
+  boolean testUserBlocking() {
+    false
   }
 
   @Override
@@ -354,5 +387,134 @@ class JettyServlet3TestDispatchAsync extends JettyServlet3Test {
     super.setupServlets(context)
     setupDispatchServlets(context, TestServlet3.DispatchAsync)
     addServlet(context, "/dispatch/recursive", TestServlet3.DispatchRecursive)
+  }
+}
+
+
+@WebServlet(asyncSupported = true)
+class DispatchTimeoutAsync extends AbstractHttpServlet {
+  @Override
+  protected void service(HttpServletRequest req, HttpServletResponse resp) {
+    def target = req.servletPath.replace("/dispatch", "")
+    def context = req.startAsync()
+    context.addListener(new AsyncListener() {
+        @Override
+        void onComplete(AsyncEvent event) throws IOException {}
+
+        @Override
+        void onTimeout(AsyncEvent event) throws IOException {
+          event.asyncContext.dispatch(target)
+        }
+
+        @Override
+        void onError(AsyncEvent event) throws IOException {}
+
+        @Override
+        void onStartAsync(AsyncEvent event) throws IOException {}
+      })
+    context.timeout = 1
+  }
+}
+
+class JettyServlet3TestSyncDispatchOnAsyncTimeout extends JettyServlet3Test {
+  @Override
+  Class<Servlet> servlet() {
+    TestServlet3.Sync
+  }
+
+  @Override
+  boolean isDispatch() {
+    true
+  }
+
+  @Override
+  void handlerSpan(TraceAssert trace, ServerEndpoint endpoint = SUCCESS) {
+    dispatchSpan(trace, endpoint)
+  }
+
+  @Override
+  protected void setupServlets(ServletContextHandler context) {
+    super.setupServlets(context)
+    setupDispatchServlets(context, DispatchTimeoutAsync)
+    addServlet(context, "/dispatch/recursive", TestServlet3.DispatchRecursive)
+  }
+}
+
+class JettyServlet3TestAsyncDispatchOnAsyncTimeout extends JettyServlet3Test {
+  @Override
+  Class<Servlet> servlet() {
+    TestServlet3.Async
+  }
+
+  @Override
+  boolean testTimeout() {
+    true
+  }
+
+  boolean testException() {
+    false
+  }
+
+
+  @Override
+  boolean isDispatch() {
+    true
+  }
+
+  @Override
+  void handlerSpan(TraceAssert trace, ServerEndpoint endpoint = SUCCESS) {
+    dispatchSpan(trace, endpoint)
+  }
+
+  @Override
+  protected void setupServlets(ServletContextHandler context) {
+    super.setupServlets(context)
+    setupDispatchServlets(context, DispatchTimeoutAsync)
+    addServlet(context, "/dispatch/recursive", TestServlet3.DispatchRecursive)
+  }
+}
+
+@WebServlet(asyncSupported = true)
+class ServeFromOnAsyncTimeout extends AbstractHttpServlet {
+  @Override
+  protected void service(HttpServletRequest req, HttpServletResponse resp) {
+    def context = req.startAsync()
+    context.addListener(new AsyncListener() {
+        Servlet delegateServlet = new TestServlet3.Sync()
+
+        @Override
+        void onComplete(AsyncEvent event) throws IOException {}
+
+        @Override
+        void onTimeout(AsyncEvent event) throws IOException {
+          AgentSpan span = event.getSuppliedRequest().getAttribute('datadog.span')
+          activateSpan(span).withCloseable {
+            try {
+              delegateServlet.service(req, resp)
+            } finally {
+              event.asyncContext.complete()
+            }
+          }
+        }
+
+        @Override
+        void onError(AsyncEvent event) throws IOException {}
+
+        @Override
+        void onStartAsync(AsyncEvent event) throws IOException {}
+      })
+    context.timeout = 1
+  }
+}
+
+class JettyServlet3ServeFromAsyncTimeout extends JettyServlet3Test {
+  @Override
+  Class<Servlet> servlet() {
+    ServeFromOnAsyncTimeout
+  }
+
+  @Override
+  boolean testException() {
+    false
   }
 }

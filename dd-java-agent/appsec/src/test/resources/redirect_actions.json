@@ -1,0 +1,102 @@
+{
+  "version": "2.1",
+  "metadata": {
+    "rules_version": "0.42.0"
+  },
+  "actions": [
+    {
+      "id": "redirect1",
+      "type": "redirect_request",
+      "parameters": {
+        "location": "https://example1.com/"
+      }
+    },
+    {
+      "id": "redirect2",
+      "type": "redirect_request",
+      "parameters": {
+        "status_code": 301,
+        "location": "https://example2.com/"
+      }
+    },
+    {
+      "id": "redirect3",
+      "type": "redirect_request",
+      "parameters": {
+        "status_code": 400,
+        "location": "https://example3.com/"
+      }
+    }
+  ],
+  "rules": [
+    {
+      "id": "redirect1",
+      "name": "Trigger redirect1",
+      "tags": {
+        "type": ""
+      },
+      "conditions": [
+        {
+          "parameters": {
+            "inputs": [
+              {
+                "address": "server.request.headers.no_cookies"
+              }
+            ],
+            "list": [
+              "redirect1"
+            ]
+          },
+          "operator": "phrase_match"
+        }
+      ],
+      "on_match": ["redirect1"]
+    },
+    {
+      "id": "redirect2",
+      "name": "Trigger redirect2",
+      "tags": {
+        "type": ""
+      },
+      "conditions": [
+        {
+          "parameters": {
+            "inputs": [
+              {
+                "address": "server.request.headers.no_cookies"
+              }
+            ],
+            "list": [
+              "redirect2"
+            ]
+          },
+          "operator": "phrase_match"
+        }
+      ],
+      "on_match": ["redirect2"]
+    },
+    {
+      "id": "redirect3",
+      "name": "Trigger redirect3",
+      "tags": {
+        "type": ""
+      },
+      "conditions": [
+        {
+          "parameters": {
+            "inputs": [
+              {
+                "address": "server.request.headers.no_cookies"
+              }
+            ],
+            "list": [
+              "redirect3"
+            ]
+          },
+          "operator": "phrase_match"
+        }
+      ],
+      "on_match": ["redirect3"]
+    }
+  ]
+}

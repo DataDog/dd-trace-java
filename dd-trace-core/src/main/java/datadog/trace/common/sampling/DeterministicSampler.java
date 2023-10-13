@@ -6,7 +6,33 @@ import datadog.trace.core.CoreSpan;
  * This implements the deterministic sampling algorithm used by the Datadog Agent as well as the
  * tracers for other languages
  */
-public class DeterministicSampler<T extends CoreSpan<T>> implements RateSampler<T> {
+public abstract class DeterministicSampler implements RateSampler {
+
+  /** Uses trace-id as a sampling id */
+  public static final class TraceSampler extends DeterministicSampler {
+
+    public TraceSampler(double rate) {
+      super(rate);
+    }
+
+    @Override
+    protected <T extends CoreSpan<T>> long getSamplingId(T span) {
+      return span.getTraceId().toLong();
+    }
+  }
+
+  /** Uses span-id as a sampling id */
+  public static final class SpanSampler extends DeterministicSampler {
+
+    public SpanSampler(double rate) {
+      super(rate);
+    }
+
+    @Override
+    protected <T extends CoreSpan<T>> long getSamplingId(T span) {
+      return span.getSpanId();
+    }
+  }
 
   private static final long KNUTH_FACTOR = 1111111111111111111L;
 
@@ -19,10 +45,12 @@ public class DeterministicSampler<T extends CoreSpan<T>> implements RateSampler<
   }
 
   @Override
-  public boolean sample(final T span) {
+  public <T extends CoreSpan<T>> boolean sample(final T span) {
     // unsigned 64 bit comparison with cutoff
-    return span.getTraceId().toLong() * KNUTH_FACTOR + Long.MIN_VALUE < cutoff(rate);
+    return getSamplingId(span) * KNUTH_FACTOR + Long.MIN_VALUE < cutoff(rate);
   }
+
+  protected abstract <T extends CoreSpan<T>> long getSamplingId(T span);
 
   @Override
   public double getSampleRate() {

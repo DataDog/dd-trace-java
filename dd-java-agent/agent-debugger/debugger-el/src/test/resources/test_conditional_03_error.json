@@ -1,9 +1,9 @@
 {
-  "dsl": "count(#vets) >= 2",
+  "dsl": "count(vets) >= 2",
   "json": {
     "gte": [
       {
-        "count": "#vets"
+        "count": {"ref": "vets"}
       },
       2
     ]

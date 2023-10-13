@@ -59,7 +59,7 @@ class ClientIpAddressResolverSpecification extends Specification {
     'x-real-ip' | '::ffff:127.0.0.1' | '127.0.0.1'
     'x-real-ip' | '42' | '0.0.0.42'
 
-    'client-ip' | '2.2.2.2' | '2.2.2.2'
+    'x-client-ip' | '2.2.2.2' | '2.2.2.2'
     'x-forwarded' | 'for="[2001::1]:1111"' | '2001::1'
     'x-forwarded' | 'fOr="[2001::1]:1111"' | '2001::1'
     'x-forwarded' | 'for=some_host' | null
@@ -74,16 +74,11 @@ class ClientIpAddressResolverSpecification extends Specification {
 
     'forwarded-for' | '::1, 127.0.0.1, 2001::1' | '2001::1'
 
-    'forwarded' | 'for=8.8.8.8' | '8.8.8.8'
-
-    'via' | '1.0 127.0.0.1, HTTP/1.1 [2001::1]:8888' | '2001::1'
-    'via' | 'HTTP/1.1 [2001::1, HTTP/1.1 [2001::2]' | '2001::2'
-    'via' | '8.8.8.8' | null
-    'via' | '8.8.8.8, 1.0 9.9.9.9:8888,' | '9.9.9.9'
-    'via' | '1.0 bad_ip_address, 1.0 9.9.9.9:8888,' | '9.9.9.9'
-    'via' | ",,8.8.8.8  127.0.0.1 6.6.6.6, 1.0\t  1.1.1.1\tcomment," | '1.1.1.1'
-
     'true-client-ip' | '8.8.8.8' | '8.8.8.8'
+
+    'fastly-client-ip' | '3.3.3.3' | '3.3.3.3'
+    'cf-connecting-ip' | '4.4.4.4' | '4.4.4.4'
+    'cf-connecting-ipv6' | '2001::2' | '2001::2'
   }
 
   void 'test recognition strategy with custom header'() {
@@ -116,31 +111,34 @@ class ClientIpAddressResolverSpecification extends Specification {
     1 * context.getXForwardedFor() >> null
 
     then:
-    1 * context.getXRealIp() >> null
+    1 * context.getXRealIp() >> '127.0.0.1'
 
     then:
-    1 * context.getClientIp() >> null
+    1 * context.getTrueClientIp() >> null
+
+    then:
+    1 * context.getXClientIp() >> null
 
     then:
     1 * context.getXForwarded() >> null
 
     then:
-    1 * context.getXClusterClientIp() >> null
-
-    then:
     1 * context.getForwardedFor() >> null
 
     then:
-    1 * context.getForwarded() >> null
+    1 * context.getXClusterClientIp() >> null
 
     then:
-    1 * context.getVia() >> null
+    1 * context.getFastlyClientIp() >> null
 
     then:
-    1* context.getTrueClientIp() >> '8.8.8.8'
+    1 * context.getCfConnectingIp() >> null
+
+    then:
+    1 * context.getCfConnectingIpv6() >> '2001::1'
     0 * _
 
-    ip == InetAddress.getByName('8.8.8.8')
+    ip == InetAddress.getByName('2001::1')
   }
 
   void 'no custom header public IP address is preferred'() {
@@ -156,11 +154,7 @@ class ClientIpAddressResolverSpecification extends Specification {
 
     then:
     1 * context.getXRealIp() >> '127.0.0.1'
-    1 * context.getClientIp() >> '8.8.8.8'
-    1 * context.getXClusterClientIp() >> '127.0.0.2'
-
-    then:
-    1 * span.setTag('_dd.multiple-ip-headers', 'x-cluster-client-ip,client-ip,x-real-ip')
+    1 * context.getXClientIp() >> '8.8.8.8'
 
     ip == InetAddress.getByName('8.8.8.8')
   }
@@ -179,18 +173,15 @@ class ClientIpAddressResolverSpecification extends Specification {
     then:
     1 * context.getXForwardedFor() >> '127.0.0.1'
     1 * context.getXRealIp() >> '127.0.0.2'
-    1 * context.getClientIp() >> '127.0.0.3'
+    1 * context.getXClientIp() >> '127.0.0.3'
     1 * context.getXForwarded() >> 'for=127.0.0.4'
     1 * context.getXClusterClientIp() >> '127.0.0.5'
     1 * context.getForwardedFor() >> '127.0.0.6'
-    1 * context.getForwarded() >> 'for=127.0.0.7'
-    1 * context.getVia() >> '1.0 127.0.0.8'
     1 * context.getTrueClientIp() >> '127.0.0.9'
+    1 * context.getFastlyClientIp() >> '127.0.0.10'
+    1 * context.getCfConnectingIp() >> '127.0.0.11'
+    1 * context.getCfConnectingIpv6() >> '::1'
 
-    then:
-    1 * span.setTag('_dd.multiple-ip-headers',
-      'true-client-ip,via,forwarded,forwarded-for,x-cluster-client-ip,x-forwarded,client-ip,x-real-ip,x-forward-for')
-
-    ip == InetAddress.getByName('127.0.0.9')
+    ip == InetAddress.getByName('127.0.0.1')
   }
 }

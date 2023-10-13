@@ -1,22 +1,11 @@
-import datadog.trace.agent.test.AgentTestRunner
-import datadog.trace.instrumentation.aws.v1.lambda.LambdaHandlerInstrumentation
+import datadog.trace.agent.test.naming.VersionedNamingTestBase
+import java.nio.charset.StandardCharsets
 
-class LambdaHandlerInstrumentationTest extends AgentTestRunner {
+abstract class LambdaHandlerInstrumentationTest extends VersionedNamingTestBase {
 
-  def "test constructor"() {
-    when:
-    environmentVariables.set("_HANDLER", handlerEnv)
-    def objTest = new LambdaHandlerInstrumentation()
-
-    then:
-    objTest.configuredMatchingType() == instrumentedType
-    objTest.getMethodName() == methodName
-    environmentVariables.clear("_HANDLER")
-
-    where:
-    instrumentedType     | methodName        | handlerEnv
-    "example.Handler"    | "mySuperHandler"  | "example.Handler::mySuperHandler"
-    "package.type"       | "handleRequest"   | "package.type"
+  @Override
+  String service() {
+    null
   }
 
   def "test lambda handler"() {
@@ -27,10 +16,52 @@ class LambdaHandlerInstrumentationTest extends AgentTestRunner {
     assertTraces(1) {
       trace(1) {
         span {
-          operationName "dd-tracer-serverless-span"
+          operationName operation()
           errored false
         }
       }
     }
+  }
+
+  def "test lambda streaming handler"() {
+    when:
+    def input = new ByteArrayInputStream(StandardCharsets.UTF_8.encode("Hello").array())
+    def output = new ByteArrayOutputStream()
+    new HandlerStreaming().handleRequest(input, output, null)
+
+    then:
+    assertTraces(1) {
+      trace(1) {
+        span {
+          operationName operation()
+          errored false
+        }
+      }
+    }
+  }
+}
+
+
+class LambdaHandlerInstrumentationV0Test extends LambdaHandlerInstrumentationTest {
+  @Override
+  int version() {
+    0
+  }
+
+  @Override
+  String operation() {
+    "dd-tracer-serverless-span"
+  }
+}
+
+class LambdaHandlerInstrumentationV1ForkedTest extends LambdaHandlerInstrumentationTest {
+  @Override
+  int version() {
+    1
+  }
+
+  @Override
+  String operation() {
+    "aws.lambda.invoke"
   }
 }

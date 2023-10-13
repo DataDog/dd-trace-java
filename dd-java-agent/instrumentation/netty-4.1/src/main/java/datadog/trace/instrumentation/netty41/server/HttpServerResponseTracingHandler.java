@@ -11,6 +11,7 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelOutboundHandlerAdapter;
 import io.netty.channel.ChannelPromise;
 import io.netty.handler.codec.http.HttpResponse;
+import io.netty.handler.codec.http.HttpResponseStatus;
 
 @ChannelHandler.Sharable
 public class HttpServerResponseTracingHandler extends ChannelOutboundHandlerAdapter {
@@ -25,11 +26,6 @@ public class HttpServerResponseTracingHandler extends ChannelOutboundHandlerAdap
     }
 
     try (final AgentScope scope = activateSpan(span)) {
-      /*
-      The span was retrieved from the channel related context and is currently 'suspended' -
-      we need to 'resume' it before proceeding with the span related work.
-       */
-      span.finishThreadMigration();
       final HttpResponse response = (HttpResponse) msg;
 
       try {
@@ -40,9 +36,11 @@ public class HttpServerResponseTracingHandler extends ChannelOutboundHandlerAdap
         span.finish(); // Finish the span manually since finishSpanOnClose was false
         throw throwable;
       }
-      DECORATE.onResponse(span, response);
-      DECORATE.beforeFinish(span);
-      span.finish(); // Finish the span manually since finishSpanOnClose was false
+      if (response.status() != HttpResponseStatus.CONTINUE) {
+        DECORATE.onResponse(span, response);
+        DECORATE.beforeFinish(span);
+        span.finish(); // Finish the span manually since finishSpanOnClose was false
+      }
     }
   }
 }

@@ -1,0 +1,28 @@
+plugins {
+  id "com.github.johnrengelman.shadow"
+}
+
+description = 'Check classes loaded by custom system class-loader are transformed'
+apply from: "$rootDir/gradle/java.gradle"
+
+jar {
+  manifest {
+    attributes('Main-Class': 'sample.app.App')
+  }
+}
+
+shadowJar {
+  configurations = [project.configurations.runtimeClasspath]
+}
+
+dependencies {
+  api group: 'javax.ws.rs', name: 'javax.ws.rs-api', version: '2.0'
+
+  testImplementation project(':dd-smoke-tests')
+}
+
+tasks.withType(Test).configureEach {
+  dependsOn "shadowJar"
+
+  jvmArgs "-Ddatadog.smoketest.systemloader.shadowJar.path=${tasks.shadowJar.archiveFile.get()}"
+}

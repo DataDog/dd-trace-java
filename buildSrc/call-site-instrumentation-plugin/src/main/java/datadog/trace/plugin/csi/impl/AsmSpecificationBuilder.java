@@ -9,7 +9,6 @@ import static datadog.trace.plugin.csi.util.CallSiteConstants.AROUND_ARRAY_ANNOT
 import static datadog.trace.plugin.csi.util.CallSiteConstants.ASM_API_VERSION;
 import static datadog.trace.plugin.csi.util.CallSiteConstants.BEFORE_ANNOTATION;
 import static datadog.trace.plugin.csi.util.CallSiteConstants.BEFORE_ARRAY_ANNOTATION;
-import static datadog.trace.plugin.csi.util.CallSiteConstants.CALL_SITE_ADVICE_CLASS;
 import static datadog.trace.plugin.csi.util.CallSiteConstants.CALL_SITE_ANNOTATION;
 import static datadog.trace.plugin.csi.util.CallSiteConstants.INVOKE_DYNAMIC_CONSTANTS_ANNOTATION;
 import static datadog.trace.plugin.csi.util.CallSiteConstants.RETURN_ANNOTATION;
@@ -77,7 +76,8 @@ public class AsmSpecificationBuilder implements SpecificationBuilder {
     private boolean isCallSite;
     private final List<AdviceSpecification> advices = new ArrayList<>();
     private final Set<Type> helpers = new HashSet<>();
-    private Type spi = classNameToType(CALL_SITE_ADVICE_CLASS); // default annotation value
+    private Type spi;
+    private List<String> enabled = new ArrayList<>();
     private CallSiteSpecification result;
 
     public SpecificationVisitor() {
@@ -117,6 +117,13 @@ public class AsmSpecificationBuilder implements SpecificationBuilder {
                   helpers.add((Type) value);
                 }
               };
+            } else if ("enabled".equals(name)) {
+              return new AnnotationVisitor(ASM_API_VERSION) {
+                @Override
+                public void visit(final String name, final Object value) {
+                  enabled.add((String) value);
+                }
+              };
             }
             return null;
           }
@@ -141,7 +148,7 @@ public class AsmSpecificationBuilder implements SpecificationBuilder {
     @Override
     public void visitEnd() {
       if (isCallSite) {
-        result = new CallSiteSpecification(clazz, advices, spi, helpers);
+        result = new CallSiteSpecification(clazz, advices, spi, enabled, helpers);
       }
     }
 
@@ -179,9 +186,8 @@ public class AsmSpecificationBuilder implements SpecificationBuilder {
     private final SpecificationVisitor spec;
     private final MethodType advice;
     private final Map<Integer, ParameterSpecification> parameters = new HashMap<>();
-    private final List<String> signatures = new ArrayList<>();
-    private boolean inokeDynamic;
-    private AdviceSpecificationCtor adviceCtor;
+    private final Map<AdviceSpecificationCtor, List<AdviceSpecificationData>> adviceData =
+        new HashMap<>();
 
     public AdviceMethodVisitor(
         @Nonnull final SpecificationVisitor spec,
@@ -194,15 +200,19 @@ public class AsmSpecificationBuilder implements SpecificationBuilder {
 
     @Override
     public AnnotationVisitor visitAnnotation(final String descriptor, final boolean visible) {
-      adviceCtor = ADVICE_BUILDERS.get(descriptor);
-      if (adviceCtor != null) {
+      AdviceSpecificationCtor ctor = ADVICE_BUILDERS.get(descriptor);
+      if (ctor != null) {
+        final List<AdviceSpecificationData> list =
+            adviceData.computeIfAbsent(ctor, c -> new ArrayList<>());
+        final AdviceSpecificationData data = new AdviceSpecificationData();
+        list.add(data);
         return new AnnotationVisitor(ASM_API_VERSION) {
           @Override
           public void visit(final String key, final Object value) {
             if ("value".equals(key)) {
-              signatures.add((String) value);
+              data.signature = (String) value;
             } else if ("invokeDynamic".equals(key)) {
-              inokeDynamic = (boolean) value;
+              data.invokeDynamic = (boolean) value;
             }
           }
         };
@@ -230,7 +240,7 @@ public class AsmSpecificationBuilder implements SpecificationBuilder {
     @Override
     public AnnotationVisitor visitParameterAnnotation(
         final int parameter, final String descriptor, final boolean visible) {
-      if (adviceCtor != null) {
+      if (!adviceData.isEmpty()) {
         final ParameterSpecificationCtor parameterCtor = PARAMETER_BUILDERS.get(descriptor);
         if (parameterCtor != null) {
           ParameterSpecification parameterSpec = parameterCtor.build();
@@ -239,15 +249,19 @@ public class AsmSpecificationBuilder implements SpecificationBuilder {
                 parameters.values().stream()
                     .filter(it -> it instanceof ArgumentSpecification)
                     .count();
-            ((ArgumentSpecification) parameterSpec).setIndex((int) index);
+            ((ArgumentSpecification) parameterSpec)
+                .setIndex((int) index); // can change in annotation visitor
           }
           parameters.put(parameter, parameterSpec);
+
           return new AnnotationVisitor(ASM_API_VERSION) {
             @Override
             public void visit(final String key, final Object value) {
               if ("includeThis".equals(key) && parameterSpec instanceof AllArgsSpecification) {
                 final AllArgsSpecification allArgs = (AllArgsSpecification) parameterSpec;
                 allArgs.setIncludeThis((boolean) value);
+              } else if ("value".equals(key) && parameterSpec instanceof ArgumentSpecification) {
+                ((ArgumentSpecification) parameterSpec).setIndex((Integer) value);
               }
             }
           };
@@ -258,11 +272,13 @@ public class AsmSpecificationBuilder implements SpecificationBuilder {
 
     @Override
     public void visitEnd() {
-      if (adviceCtor != null) {
-        signatures.stream()
-            .map(sig -> adviceCtor.build(advice, parameters, sig, inokeDynamic))
-            .forEach(spec.advices::add);
-      }
+      adviceData.forEach(
+          (adviceCtor, list) ->
+              list.stream()
+                  .map(
+                      data ->
+                          adviceCtor.build(advice, parameters, data.signature, data.invokeDynamic))
+                  .forEach(spec.advices::add));
     }
   }
 
@@ -278,5 +294,10 @@ public class AsmSpecificationBuilder implements SpecificationBuilder {
   @FunctionalInterface
   private interface ParameterSpecificationCtor {
     ParameterSpecification build();
+  }
+
+  private static class AdviceSpecificationData {
+    private String signature;
+    private boolean invokeDynamic;
   }
 }

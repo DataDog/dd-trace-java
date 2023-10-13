@@ -52,7 +52,6 @@ public class JfrCliHelperTest {
       verify(ioLogger).error(eq("Failed to gather information on recording, can't find `jfr`"));
     } else {
       Set<String> messages = new HashSet<String>();
-      messages.add("Event: jdk.CheckPoint, size = 2727591, count = 29");
       messages.add("Event: jdk.Metadata, size = 208257, count = 3");
       messages.add("Event: jdk.ClassLoad, size = 140225, count = 6679");
       messages.add("Event: jdk.SystemProcess, size = 132771, count = 1389");

@@ -1,6 +1,6 @@
 package com.datadog.debugger.instrumentation;
 
-import org.junit.Assert;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.objectweb.asm.tree.LabelNode;
 import org.objectweb.asm.tree.LineNumberNode;
@@ -18,8 +18,8 @@ public class LineMapTest {
   void isEmptyReturnTrue() {
     LineMap map = new LineMap();
 
-    Assert.assertEquals(true, map.isEmpty());
-    Assert.assertEquals(null, map.getLineLabel(2));
+    Assertions.assertEquals(true, map.isEmpty());
+    Assertions.assertEquals(null, map.getLineLabel(2));
   }
 
   @Test
@@ -29,13 +29,13 @@ public class LineMapTest {
     LabelNode line2 = addLine(map, 2);
     LabelNode line5 = addLine(map, 5);
 
-    Assert.assertEquals(line1, map.getLineLabel(0));
-    Assert.assertEquals(line1, map.getLineLabel(1));
-    Assert.assertEquals(line2, map.getLineLabel(2));
-    Assert.assertEquals(line5, map.getLineLabel(3));
-    Assert.assertEquals(line5, map.getLineLabel(4));
-    Assert.assertEquals(line5, map.getLineLabel(5));
-    Assert.assertEquals(null, map.getLineLabel(6));
+    Assertions.assertEquals(line1, map.getLineLabel(0));
+    Assertions.assertEquals(line1, map.getLineLabel(1));
+    Assertions.assertEquals(line2, map.getLineLabel(2));
+    Assertions.assertEquals(line5, map.getLineLabel(3));
+    Assertions.assertEquals(line5, map.getLineLabel(4));
+    Assertions.assertEquals(line5, map.getLineLabel(5));
+    Assertions.assertEquals(null, map.getLineLabel(6));
   }
 
   @Test
@@ -46,18 +46,18 @@ public class LineMapTest {
     map.addLine(new LineNumberNode(1, line1));
     LabelNode line5 = addLine(map, 5);
 
-    Assert.assertEquals(line1, map.getLineLabel(0));
-    Assert.assertEquals(line1, map.getLineLabel(1));
-    Assert.assertEquals(line2, map.getLineLabel(2));
+    Assertions.assertEquals(line1, map.getLineLabel(0));
+    Assertions.assertEquals(line1, map.getLineLabel(1));
+    Assertions.assertEquals(line2, map.getLineLabel(2));
   }
 
   @Test
-  void AddingDifferentLabelsOverwriteLabel() {
+  void AddingDifferentLabelsDontOverwriteLabel() {
     LineMap map = new LineMap();
     LabelNode line1 = addLine(map, 1);
     LabelNode line1b = addLine(map, 1);
 
-    Assert.assertEquals(line1b, map.getLineLabel(0));
-    Assert.assertEquals(line1b, map.getLineLabel(1));
+    Assertions.assertEquals(line1, map.getLineLabel(0));
+    Assertions.assertEquals(line1, map.getLineLabel(1));
   }
 }

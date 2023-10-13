@@ -1,6 +1,6 @@
-import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.agent.test.asserts.ListWriterAssert
 import datadog.trace.agent.test.asserts.TraceAssert
+import datadog.trace.agent.test.naming.VersionedNamingTestBase
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.config.GeneralConfig
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
@@ -13,7 +13,7 @@ import javax.jms.Connection
 import javax.jms.Session
 import javax.jms.TextMessage
 
-abstract class TimeInQueueForkedTestBase extends AgentTestRunner {
+abstract class TimeInQueueForkedTestBase extends VersionedNamingTestBase {
   @Shared
   EmbeddedActiveMQBroker broker = new EmbeddedActiveMQBroker()
   @Shared
@@ -38,10 +38,41 @@ abstract class TimeInQueueForkedTestBase extends AgentTestRunner {
   TextMessage message5 = session.createTextMessage(messageText5)
 
   @Override
+  String operation() {
+    null
+  }
+
+  @Override
+  int version() {
+    0
+  }
+
+  @Override
+  String service() {
+    "myService"
+  }
+
+  String operationForProducer() {
+    "jms.produce"
+  }
+
+  String operationForConsumer() {
+    "jms.consume"
+  }
+
+  String serviceForTimeInQueue() {
+    "jms"
+  }
+
+
+  @Override
   protected void configurePreAgent() {
     super.configurePreAgent()
 
-    injectSysConfig("jms.legacy.tracing.enabled", 'false')
+    // test explicit only on v0 since we're also testing that in v1 is implicit
+    if (version() == 0) {
+      injectSysConfig("jms.legacy.tracing.enabled", 'false')
+    }
     injectSysConfig(GeneralConfig.SERVICE_NAME, 'myService')
   }
 
@@ -120,7 +151,7 @@ abstract class TimeInQueueForkedTestBase extends AgentTestRunner {
     consumerSession.close()
 
     where:
-    destination                              | jmsResourceName
+    destination                      | jmsResourceName
     session.createQueue("someQueue") | "Queue someQueue"
     session.createTopic("someTopic") | "Topic someTopic"
     session.createTemporaryQueue()   | "Temporary Queue"
@@ -198,7 +229,39 @@ abstract class TimeInQueueForkedTestBase extends AgentTestRunner {
     consumerSession.close()
 
     where:
-    destination                              | jmsResourceName
+    destination                      | jmsResourceName
+    session.createQueue("someQueue") | "Queue someQueue"
+    session.createTopic("someTopic") | "Topic someTopic"
+    session.createTemporaryQueue()   | "Temporary Queue"
+    session.createTemporaryTopic()   | "Temporary Topic"
+  }
+
+  def "sending messages to #jmsResourceName with listener acknowledgement generates time-in-queue spans"() {
+    setup:
+    def producerSession = connection.createSession(false, Session.AUTO_ACKNOWLEDGE)
+    def producer = producerSession.createProducer(destination)
+    def consumerSession = connection.createSession(false, Session.CLIENT_ACKNOWLEDGE)
+    def consumer = consumerSession.createConsumer(destination)
+
+    when:
+    consumer.setMessageListener { it.acknowledge() }
+    producer.send(message1)
+
+    then:
+    assertTraces(2, SORT_TRACES_BY_ID) {
+      producerTrace(it, jmsResourceName)
+      trace(2) {
+        timeInQueueSpan(it, jmsResourceName, trace(0)[0])
+        consumerSpan(it, jmsResourceName, trace(1)[0], false)
+      }
+    }
+
+    cleanup:
+    producerSession.close()
+    consumerSession.close()
+
+    where:
+    destination                      | jmsResourceName
     session.createQueue("someQueue") | "Queue someQueue"
     session.createTopic("someTopic") | "Topic someTopic"
     session.createTemporaryQueue()   | "Temporary Queue"
@@ -275,7 +338,39 @@ abstract class TimeInQueueForkedTestBase extends AgentTestRunner {
     consumerSession.close()
 
     where:
-    destination                              | jmsResourceName
+    destination                      | jmsResourceName
+    session.createQueue("someQueue") | "Queue someQueue"
+    session.createTopic("someTopic") | "Topic someTopic"
+    session.createTemporaryQueue()   | "Temporary Queue"
+    session.createTemporaryTopic()   | "Temporary Topic"
+  }
+
+  def "sending messages to #jmsResourceName with listener commit generates time-in-queue spans"() {
+    setup:
+    def producerSession = connection.createSession(false, Session.AUTO_ACKNOWLEDGE)
+    def producer = producerSession.createProducer(destination)
+    def consumerSession = connection.createSession(true, Session.SESSION_TRANSACTED)
+    def consumer = consumerSession.createConsumer(destination)
+
+    when:
+    consumer.setMessageListener { consumerSession.commit() }
+    producer.send(message1)
+
+    then:
+    assertTraces(2, SORT_TRACES_BY_ID) {
+      producerTrace(it, jmsResourceName)
+      trace(2) {
+        timeInQueueSpan(it, jmsResourceName, trace(0)[0])
+        consumerSpan(it, jmsResourceName, trace(1)[0], false)
+      }
+    }
+
+    cleanup:
+    producerSession.close()
+    consumerSession.close()
+
+    where:
+    destination                      | jmsResourceName
     session.createQueue("someQueue") | "Queue someQueue"
     session.createTopic("someTopic") | "Topic someTopic"
     session.createTemporaryQueue()   | "Temporary Queue"
@@ -371,7 +466,7 @@ abstract class TimeInQueueForkedTestBase extends AgentTestRunner {
     consumerSession.close()
 
     where:
-    destination                              | jmsResourceName
+    destination                      | jmsResourceName
     session.createQueue("someQueue") | "Queue someQueue"
     session.createTopic("someTopic") | "Topic someTopic"
     session.createTemporaryQueue()   | "Temporary Queue"
@@ -451,7 +546,7 @@ abstract class TimeInQueueForkedTestBase extends AgentTestRunner {
     consumerSession.close()
 
     where:
-    destination                              | jmsResourceName
+    destination                      | jmsResourceName
     session.createQueue("someQueue") | "Queue someQueue"
     session.createTopic("someTopic") | "Topic someTopic"
     session.createTemporaryQueue()   | "Temporary Queue"
@@ -530,7 +625,7 @@ abstract class TimeInQueueForkedTestBase extends AgentTestRunner {
     consumerSession.close()
 
     where:
-    destination                              | jmsResourceName
+    destination                      | jmsResourceName
     session.createQueue("someQueue") | "Queue someQueue"
     session.createTopic("someTopic") | "Topic someTopic"
     session.createTemporaryQueue()   | "Temporary Queue"
@@ -545,8 +640,8 @@ abstract class TimeInQueueForkedTestBase extends AgentTestRunner {
 
   def producerSpan(TraceAssert traceAssert, String jmsResourceName) {
     return traceAssert.span {
-      serviceName "myService"
-      operationName "jms.produce"
+      serviceName service()
+      operationName operationForProducer()
       resourceName "Produced for $jmsResourceName"
       spanType DDSpanTypes.MESSAGE_PRODUCER
       errored false
@@ -556,7 +651,7 @@ abstract class TimeInQueueForkedTestBase extends AgentTestRunner {
       tags {
         "$Tags.COMPONENT" "jms"
         "$Tags.SPAN_KIND" Tags.SPAN_KIND_PRODUCER
-        defaultTags()
+        defaultTagsNoPeerService()
       }
     }
   }
@@ -570,8 +665,8 @@ abstract class TimeInQueueForkedTestBase extends AgentTestRunner {
 
   def consumerSpan(TraceAssert traceAssert, String jmsResourceName, DDSpan parentSpan, boolean isTimestampDisabled = false) {
     return traceAssert.span {
-      serviceName "myService"
-      operationName "jms.consume"
+      serviceName service()
+      operationName operationForConsumer()
       resourceName "Consumed from $jmsResourceName"
       spanType DDSpanTypes.MESSAGE_CONSUMER
       errored false
@@ -591,7 +686,7 @@ abstract class TimeInQueueForkedTestBase extends AgentTestRunner {
 
   def timeInQueueSpan(TraceAssert traceAssert, String jmsResourceName, DDSpan parentSpan) {
     return traceAssert.span {
-      serviceName splitByDestination() ? "${jmsResourceName.replaceFirst(/(Queue |Topic )/,'')}" : "jms"
+      serviceName splitByDestination() ? "${jmsResourceName.replaceFirst(/(Queue |Topic )/, '')}" : serviceForTimeInQueue()
       operationName "jms.deliver"
       resourceName "$jmsResourceName"
       spanType DDSpanTypes.MESSAGE_BROKER
@@ -600,7 +695,7 @@ abstract class TimeInQueueForkedTestBase extends AgentTestRunner {
       tags {
         "$Tags.COMPONENT" "jms"
         "$Tags.SPAN_KIND" Tags.SPAN_KIND_BROKER
-        defaultTags(true)
+        defaultTagsNoPeerService(true)
       }
     }
   }

@@ -13,6 +13,8 @@ public class OTWithoutAgentApplication {
     // register the same tracer with the Datadog API
     datadog.trace.api.GlobalTracer.registerIfAbsent(tracer);
 
+    ApiVerification.verifyInterceptors(tracer);
+
     final Span span = tracer.buildSpan("someOperation").start();
     try (final Scope scope = tracer.activateSpan(span)) {
       span.setTag(DDTags.SERVICE_NAME, "someService");

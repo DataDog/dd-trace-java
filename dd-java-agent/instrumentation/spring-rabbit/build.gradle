@@ -1,0 +1,30 @@
+
+muzzle {
+  pass {
+    group = 'org.springframework.boot'
+    module = 'spring-boot-starter-amqp'
+    versions = '[1.5.0.RELEASE,3)'
+    extraDependency 'com.rabbitmq:amqp-client:2.7.0'
+  }
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+
+addTestSuiteForDir('latestDepTest', 'test')
+
+dependencies {
+  compileOnly group: 'org.springframework.amqp', name: 'spring-rabbit', version: '2.0.0.RELEASE'
+  compileOnly group: 'org.springframework.amqp', name: 'spring-amqp', version: '2.0.0.RELEASE'
+
+  testImplementation project(':dd-java-agent:instrumentation:trace-annotation')
+  testImplementation project(':dd-java-agent:instrumentation:rabbitmq-amqp-2.7')
+
+  testImplementation group: 'org.testcontainers', name: 'rabbitmq', version: versions.testcontainers
+  testImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-amqp', version: '2.4.0'
+
+  latestDepTestImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-amqp', version: '2.+'
+}
+
+tasks.withType(Test).configureEach {
+  usesService(testcontainersLimit)
+}

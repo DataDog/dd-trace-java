@@ -1,21 +1,19 @@
 package datadog.trace.lambda
 
 import datadog.trace.api.Config
-import datadog.trace.core.propagation.DatadogTags
+import datadog.trace.api.DDSpanId
+import datadog.trace.api.DDTraceId
+import datadog.trace.core.propagation.PropagationTags
 import datadog.trace.core.test.DDCoreSpecification
-import datadog.trace.api.DDId
 import datadog.trace.core.DDSpan
 import com.amazonaws.services.lambda.runtime.events.SQSEvent
 import com.amazonaws.services.lambda.runtime.events.SNSEvent
 import com.amazonaws.services.lambda.runtime.events.S3Event
 import com.amazonaws.services.lambda.runtime.events.APIGatewayProxyRequestEvent
 import com.amazonaws.services.lambda.runtime.events.models.s3.S3EventNotification
-import spock.lang.Requires
 
 import static datadog.trace.agent.test.server.http.TestHttpServer.httpServer
 
-// Java8 is the lowest supported version by AWS Lambda
-@Requires({ jvm.java8Compatible })
 class LambdaHandlerTest extends DDCoreSpecification {
 
   class TestObject {
@@ -48,7 +46,7 @@ class LambdaHandlerTest extends DDCoreSpecification {
     LambdaHandler.setExtensionBaseUrl(server.address.toString())
 
     when:
-    def objTest = LambdaHandler.notifyStartInvocation(obj, DatadogTags.factory(config))
+    def objTest = LambdaHandler.notifyStartInvocation(obj, PropagationTags.factory(config))
 
     then:
     objTest.getTraceId().toString() == traceId
@@ -79,7 +77,7 @@ class LambdaHandlerTest extends DDCoreSpecification {
     LambdaHandler.setExtensionBaseUrl(server.address.toString())
 
     when:
-    def objTest = LambdaHandler.notifyStartInvocation(obj, DatadogTags.factory(config))
+    def objTest = LambdaHandler.notifyStartInvocation(obj, PropagationTags.factory(config))
 
     then:
     objTest == expected
@@ -105,13 +103,13 @@ class LambdaHandlerTest extends DDCoreSpecification {
     }
     LambdaHandler.setExtensionBaseUrl(server.address.toString())
     DDSpan span = Mock(DDSpan) {
-      getTraceId() >> DDId.from("1234")
-      getSpanId() >> DDId.from("5678")
+      getTraceId() >> DDTraceId.from("1234")
+      getSpanId() >> DDSpanId.from("5678")
       getSamplingPriority() >> 2
     }
 
     when:
-    def result = LambdaHandler.notifyEndInvocation(span, boolValue)
+    def result = LambdaHandler.notifyEndInvocation(span, lambdaResult, boolValue)
 
     then:
     server.lastRequest.headers.get("x-datadog-invocation-error") == eHeaderValue
@@ -124,9 +122,9 @@ class LambdaHandlerTest extends DDCoreSpecification {
     server.close()
 
     where:
-    expected | eHeaderValue | tIdHeaderValue | sIdHeaderValue | sPIdHeaderValue | boolValue
-    true     | "true"       | "1234"         | "5678"         | "2"             | true
-    true     | null         | "1234"         | "5678"         | "2"             | false
+    expected | eHeaderValue | tIdHeaderValue | sIdHeaderValue | sPIdHeaderValue | lambdaResult | boolValue
+    true     | "true"       | "1234"         | "5678"         | "2"             | {}           | true
+    true     | null         | "1234"         | "5678"         | "2"             | "12345"      | false
   }
 
   def "test end invocation failure"() {
@@ -142,13 +140,13 @@ class LambdaHandlerTest extends DDCoreSpecification {
     }
     LambdaHandler.setExtensionBaseUrl(server.address.toString())
     DDSpan span = Mock(DDSpan) {
-      getTraceId() >> DDId.from("1234")
-      getSpanId() >> DDId.from("5678")
+      getTraceId() >> DDTraceId.from("1234")
+      getSpanId() >> DDSpanId.from("5678")
       getSamplingPriority() >> 2
     }
 
     when:
-    def result = LambdaHandler.notifyEndInvocation(span, boolValue)
+    def result = LambdaHandler.notifyEndInvocation(span, lambdaResult, boolValue)
 
     then:
     result == expected
@@ -158,12 +156,12 @@ class LambdaHandlerTest extends DDCoreSpecification {
     server.close()
 
     where:
-    expected  | headerValue     | boolValue
-    false     | "true"          | true
-    false     | null            | false
+    expected | headerValue | lambdaResult | boolValue
+    false    | "true"      | {}           | true
+    false    | null        | "12345"      | false
   }
 
-  def "test moshi toJson SNSEvent"() {
+  def "test moshi toJson SQSEvent"() {
     given:
     def myEvent = new SQSEvent()
     List<SQSEvent.SQSMessage> records = new ArrayList<>()
@@ -224,5 +222,17 @@ class LambdaHandlerTest extends DDCoreSpecification {
 
     then:
     result == "{\"body\":\"bababango\",\"httpMethod\":\"POST\"}"
+  }
+
+  def "test moshi toJson InputStream"() {
+    given:
+    def body = "{\"body\":\"bababango\",\"httpMethod\":\"POST\"}"
+    def myEvent = new ByteArrayInputStream(body.getBytes())
+
+    when:
+    def result = LambdaHandler.writeValueAsString(myEvent)
+
+    then:
+    result == body
   }
 }

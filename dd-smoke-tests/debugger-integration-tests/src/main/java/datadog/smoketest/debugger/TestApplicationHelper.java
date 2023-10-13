@@ -18,14 +18,26 @@ public class TestApplicationHelper {
   private static final String INSTRUMENTATION_DONE_BCKG_THREAD =
       "[dd-remote-config] DEBUG com.datadog.debugger.agent.DebuggerTransformer - Generating bytecode for class: %s";
   private static final String RENTRANSFORMATION_CLASS =
-      "[dd-remote-config] INFO com.datadog.debugger.agent.ConfigurationUpdater - re-transforming %s";
+      "[dd-remote-config] INFO com.datadog.debugger.agent.ConfigurationUpdater - Re-transforming class: %s";
   private static final String RETRANSFORMATION_DONE =
       "com.datadog.debugger.agent.ConfigurationUpdater - Re-transformation done";
   private static final long SLEEP_MS = 100;
   private static final long TIMEOUT_S = 10;
 
-  public static void waitForInstrumentation(String logFileName) throws IOException {
-    waitForInstrumentation(logFileName, "datadog.smoketest.debugger.DebuggerTestApplication", null);
+  public static void waitForTransformerInstalled(String logFileName) throws IOException {
+    waitForSpecificLogLine(
+        Paths.get(logFileName),
+        line ->
+            line.contains(
+                "DEBUG com.datadog.debugger.agent.ConfigurationUpdater - New transformer installed"),
+        () -> {},
+        Duration.ofMillis(SLEEP_MS),
+        Duration.ofSeconds(TIMEOUT_S));
+  }
+
+  public static void waitForInstrumentation(String logFileName, String className)
+      throws IOException {
+    waitForInstrumentation(logFileName, className, null);
   }
 
   public static String waitForInstrumentation(String logFileName, String className, String fromLine)
@@ -74,6 +86,11 @@ public class TestApplicationHelper {
   }
 
   public static void waitForUpload(String logFileName, int expectedUploads) throws IOException {
+    if (expectedUploads == -1) {
+      System.out.println("wait for " + TIMEOUT_S + "s");
+      LockSupport.parkNanos(Duration.ofSeconds(TIMEOUT_S).toNanos());
+      return;
+    }
     System.out.println("waitForUpload #" + expectedUploads);
     AtomicInteger uploadCount = new AtomicInteger(0);
     waitForSpecificLogLine(

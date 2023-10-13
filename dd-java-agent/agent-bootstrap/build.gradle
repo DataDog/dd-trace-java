@@ -1,0 +1,65 @@
+// The shadowJar of this project will be injected into the JVM's bootstrap classloader
+plugins {
+  id "com.github.johnrengelman.shadow"
+  id 'me.champeau.jmh'
+}
+
+ext {
+  // need access to sun.* packages
+  skipSettingCompilerRelease = true
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+apply plugin: "idea"
+
+// FIXME: Improve test coverage.
+minimumBranchCoverage = 0.0
+minimumInstructionCoverage = 0.0
+
+dependencies {
+  api project(':dd-trace-api')
+  api project(':internal-api')
+  api project(':internal-api:internal-api-9')
+  api project(':dd-java-agent:agent-logging')
+  api deps.slf4j
+  // ^ Generally a bad idea for libraries, but we're shadowing.
+
+  testImplementation project(':dd-java-agent:testing')
+}
+
+// Must use Java 11 to build JFR enabled code - there is no JFR in OpenJDK 8 (revisit once JFR in Java 8 is available)
+sourceSets {
+  "main_java11" {
+    java.srcDirs "${project.projectDir}/src/main/java11"
+  }
+}
+
+compileMain_java11Java.configure {
+  setJavaVersion(it, 11)
+  sourceCompatibility = JavaVersion.VERSION_1_8
+  targetCompatibility = JavaVersion.VERSION_1_8
+}
+
+dependencies {
+  main_java11CompileOnly project(':internal-api')
+  main_java11CompileOnly sourceSets.main.output
+}
+
+jar {
+  from sourceSets.main_java11.output
+}
+
+forbiddenApisMain_java11 {
+  failOnMissingClasses = false
+}
+
+idea {
+  module {
+    jdkName = '11'
+  }
+}
+
+jmh {
+  jmhVersion = '1.32'
+  duplicateClassesStrategy = DuplicatesStrategy.EXCLUDE
+}

@@ -1,13 +1,31 @@
 package datadog.trace.api.gateway;
 
-import static datadog.trace.api.gateway.Events.*;
+import static datadog.trace.api.gateway.Events.GRPC_SERVER_REQUEST_MESSAGE_ID;
+import static datadog.trace.api.gateway.Events.MAX_EVENTS;
+import static datadog.trace.api.gateway.Events.REQUEST_BODY_CONVERTED_ID;
+import static datadog.trace.api.gateway.Events.REQUEST_BODY_DONE_ID;
+import static datadog.trace.api.gateway.Events.REQUEST_BODY_START_ID;
+import static datadog.trace.api.gateway.Events.REQUEST_CLIENT_SOCKET_ADDRESS_ID;
+import static datadog.trace.api.gateway.Events.REQUEST_ENDED_ID;
+import static datadog.trace.api.gateway.Events.REQUEST_HEADER_DONE_ID;
+import static datadog.trace.api.gateway.Events.REQUEST_HEADER_ID;
+import static datadog.trace.api.gateway.Events.REQUEST_INFERRED_CLIENT_ADDRESS_ID;
+import static datadog.trace.api.gateway.Events.REQUEST_METHOD_URI_RAW_ID;
+import static datadog.trace.api.gateway.Events.REQUEST_PATH_PARAMS_ID;
+import static datadog.trace.api.gateway.Events.REQUEST_STARTED_ID;
+import static datadog.trace.api.gateway.Events.RESPONSE_HEADER_DONE_ID;
+import static datadog.trace.api.gateway.Events.RESPONSE_HEADER_ID;
+import static datadog.trace.api.gateway.Events.RESPONSE_STARTED_ID;
 
-import datadog.trace.api.function.*;
-import datadog.trace.api.function.Function;
+import datadog.trace.api.function.TriConsumer;
+import datadog.trace.api.function.TriFunction;
 import datadog.trace.api.http.StoredBodySupplier;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReferenceArray;
+import java.util.function.BiFunction;
+import java.util.function.Function;
+import java.util.function.Supplier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -85,10 +103,14 @@ public class InstrumentationGateway {
     private final AtomicReferenceArray<Object> callbacks = new AtomicReferenceArray<>(MAX_EVENTS);
 
     // for tests
-    void reset() {
+    public void reset() {
       for (int i = 0; i < callbacks.length(); i++) {
         callbacks.set(i, null);
       }
+    }
+
+    void reset(EventType<?> et) {
+      callbacks.set(et.getId(), null);
     }
 
     @Override
@@ -359,18 +381,35 @@ public class InstrumentationGateway {
     switch (eventType.getId()) {
       case REQUEST_ENDED_ID:
         return (C)
-            new BiFunction<RequestContext, IGSpanInfo, Flow<Void>>() {
-              @Override
-              public Flow<Void> apply(RequestContext ctx, IGSpanInfo agentSpan) {
-                Flow<Void> flowAppSec =
-                    ((BiFunction<RequestContext, IGSpanInfo, Flow<Void>>) callbackAppSec)
-                        .apply(ctx, agentSpan);
-                Flow<Void> flowIast =
-                    ((BiFunction<RequestContext, IGSpanInfo, Flow<Void>>) callbackIast)
-                        .apply(ctx, agentSpan);
-                return mergeFlows(flowAppSec, flowIast);
-              }
-            };
+            (BiFunction<RequestContext, IGSpanInfo, Flow<Void>>)
+                (ctx, agentSpan) -> {
+                  Flow<Void> flowAppSec =
+                      ((BiFunction<RequestContext, IGSpanInfo, Flow<Void>>) callbackAppSec)
+                          .apply(ctx, agentSpan);
+                  Flow<Void> flowIast =
+                      ((BiFunction<RequestContext, IGSpanInfo, Flow<Void>>) callbackIast)
+                          .apply(ctx, agentSpan);
+                  return mergeFlows(flowAppSec, flowIast);
+                };
+      case REQUEST_HEADER_ID:
+        return (C)
+            (TriConsumer<RequestContext, String, String>)
+                (requestContext, s, s2) -> {
+                  ((TriConsumer<RequestContext, String, String>) callbackAppSec)
+                      .accept(requestContext, s, s2);
+                  ((TriConsumer<RequestContext, String, String>) callbackIast)
+                      .accept(requestContext, s, s2);
+                };
+      case REQUEST_HEADER_DONE_ID:
+        return (C)
+            (Function<RequestContext, Flow<Void>>)
+                requestContext -> {
+                  Flow<Void> flowAppSec =
+                      ((Function<RequestContext, Flow<Void>>) callbackAppSec).apply(requestContext);
+                  Flow<Void> flowIast =
+                      ((Function<RequestContext, Flow<Void>>) callbackIast).apply(requestContext);
+                  return mergeFlows(flowAppSec, flowIast);
+                };
     }
     return null;
   }

@@ -1,4 +1,5 @@
 import datadog.trace.agent.test.base.HttpClientTest
+import datadog.trace.agent.test.naming.TestingGenericHttpNamingConventions
 import datadog.trace.instrumentation.apachehttpasyncclient.ApacheHttpAsyncClientDecorator
 import org.apache.http.HttpResponse
 import org.apache.http.client.config.RequestConfig
@@ -13,7 +14,7 @@ import java.util.concurrent.CompletableFuture
 import java.util.concurrent.TimeUnit
 
 @Timeout(5)
-class ApacheHttpAsyncClientCallbackTest extends HttpClientTest {
+class ApacheHttpAsyncClientCallbackTest extends HttpClientTest implements TestingGenericHttpNamingConventions.ClientV0 {
 
   @Shared
   RequestConfig requestConfig = RequestConfig.custom()

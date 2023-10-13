@@ -1,7 +1,7 @@
 package datadog.trace.bootstrap;
 
 import datadog.trace.api.GenericClassValue;
-import datadog.trace.api.function.Function;
+import java.util.function.Function;
 
 /**
  * An {@code InstanceStore} is a class global map for registering instances. This can be useful when
@@ -16,12 +16,7 @@ public final class InstanceStore {
 
   private static final ClassValue<? super ContextStore<String, ?>> classInstanceStore =
       GenericClassValue.of(
-          new Function<Class<?>, ContextStore<String, ?>>() {
-            @Override
-            public ContextStore<String, ?> apply(Class<?> input) {
-              return new WeakMapContextStore<>(100);
-            }
-          });
+          (Function<Class<?>, ContextStore<String, ?>>) input -> new WeakMapContextStore<>(100));
 
   @SuppressWarnings("unchecked")
   public static <T> ContextStore<String, T> of(Class<T> type) {

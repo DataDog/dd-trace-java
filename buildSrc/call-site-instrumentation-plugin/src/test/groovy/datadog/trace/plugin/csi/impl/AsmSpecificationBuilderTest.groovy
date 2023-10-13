@@ -1,22 +1,29 @@
 package datadog.trace.plugin.csi.impl
 
 import datadog.trace.agent.tooling.csi.CallSite
+import datadog.trace.agent.tooling.csi.CallSites
 import datadog.trace.plugin.csi.impl.CallSiteSpecification.AdviceSpecification
 import datadog.trace.plugin.csi.impl.CallSiteSpecification.AfterSpecification
 import datadog.trace.plugin.csi.impl.CallSiteSpecification.AroundSpecification
 import datadog.trace.plugin.csi.impl.CallSiteSpecification.BeforeSpecification
+import datadog.trace.plugin.csi.util.Types
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+import groovy.transform.CompileDynamic
 import org.objectweb.asm.Type
 
+import javax.annotation.Nonnull
+import javax.annotation.Nullable
 import javax.servlet.ServletRequest
 import java.lang.invoke.MethodHandles
 import java.lang.invoke.MethodType
 import java.util.stream.Collectors
 
+@CompileDynamic
 final class AsmSpecificationBuilderTest extends BaseCsiPluginTest {
 
   static class NonCallSite {}
 
-  def 'test specification builder for non call site'() {
+  void 'test specification builder for non call site'() {
     setup:
     final advice = fetchClass(NonCallSite)
     final specificationBuilder = new AsmSpecificationBuilder()
@@ -33,7 +40,7 @@ final class AsmSpecificationBuilderTest extends BaseCsiPluginTest {
     interface Spi {}
   }
 
-  def 'test specification builder with custom spi class'() {
+  void 'test specification builder with custom spi class'() {
     setup:
     final advice = fetchClass(WithSpiClass)
     final specificationBuilder = new AsmSpecificationBuilder()
@@ -45,13 +52,13 @@ final class AsmSpecificationBuilderTest extends BaseCsiPluginTest {
     result.spi == Type.getType(WithSpiClass.Spi)
   }
 
-  @CallSite(helpers = [SampleHelper1.class, SampleHelper2.class])
+  @CallSite(spi = CallSites, helpers = [SampleHelper1.class, SampleHelper2.class])
   static class HelpersAdvice {
     static class SampleHelper1 {}
     static class SampleHelper2 {}
   }
 
-  def 'test specification builder with custom helper classes'() {
+  void 'test specification builder with custom helper classes'() {
     setup:
     final advice = fetchClass(HelpersAdvice)
     final specificationBuilder = new AsmSpecificationBuilder()
@@ -67,14 +74,14 @@ final class AsmSpecificationBuilderTest extends BaseCsiPluginTest {
     ])
   }
 
-  @CallSite
+  @CallSite(spi = CallSites)
   static class BeforeAdvice {
     @CallSite.Before('java.lang.String java.lang.String.replaceAll(java.lang.String, java.lang.String)')
     static void before(@CallSite.This final String self, @CallSite.Argument final String regexp, @CallSite.Argument final String replacement) {
     }
   }
 
-  def 'test specification builder for before advice'() {
+  void 'test specification builder for before advice'() {
     setup:
     final advice = fetchClass(BeforeAdvice)
     final specificationBuilder = new AsmSpecificationBuilder()
@@ -96,7 +103,7 @@ final class AsmSpecificationBuilderTest extends BaseCsiPluginTest {
     arguments == [0, 1]
   }
 
-  @CallSite
+  @CallSite(spi = CallSites)
   static class AroundAdvice {
     @CallSite.Around('java.lang.String java.lang.String.replaceAll(java.lang.String, java.lang.String)')
     static String around(@CallSite.This final String self, @CallSite.Argument final String regexp, @CallSite.Argument final String replacement) {
@@ -104,7 +111,7 @@ final class AsmSpecificationBuilderTest extends BaseCsiPluginTest {
     }
   }
 
-  def 'test specification builder for around advice'() {
+  void 'test specification builder for around advice'() {
     setup:
     final advice = fetchClass(AroundAdvice)
     final specificationBuilder = new AsmSpecificationBuilder()
@@ -126,7 +133,7 @@ final class AsmSpecificationBuilderTest extends BaseCsiPluginTest {
     arguments == [0, 1]
   }
 
-  @CallSite
+  @CallSite(spi = CallSites)
   static class AfterAdvice {
     @CallSite.After('java.lang.String java.lang.String.replaceAll(java.lang.String, java.lang.String)')
     static String after(@CallSite.This final String self, @CallSite.Argument final String regexp, @CallSite.Argument final String replacement, @CallSite.Return final String result) {
@@ -134,7 +141,7 @@ final class AsmSpecificationBuilderTest extends BaseCsiPluginTest {
     }
   }
 
-  def 'test specification builder for after advice'() {
+  void 'test specification builder for after advice'() {
     setup:
     final advice = fetchClass(AfterAdvice)
     final specificationBuilder = new AsmSpecificationBuilder()
@@ -164,7 +171,7 @@ final class AsmSpecificationBuilderTest extends BaseCsiPluginTest {
     }
   }
 
-  def 'test specification builder for advice with @AllArguments'() {
+  void 'test specification builder for advice with @AllArguments'() {
     setup:
     final advice = fetchClass(AllArgsAdvice)
     final specificationBuilder = new AsmSpecificationBuilder()
@@ -188,7 +195,7 @@ final class AsmSpecificationBuilderTest extends BaseCsiPluginTest {
     arguments == []
   }
 
-  @CallSite
+  @CallSite(spi = CallSites)
   static class InvokeDynamicBeforeAdvice {
     @CallSite.After(
       value = 'java.lang.invoke.CallSite java.lang.invoke.StringConcatFactory.makeConcatWithConstants(java.lang.invoke.MethodHandles$Lookup, java.lang.String, java.lang.invoke.MethodType, java.lang.String, java.lang.Object[])',
@@ -199,7 +206,7 @@ final class AsmSpecificationBuilderTest extends BaseCsiPluginTest {
     }
   }
 
-  def 'test specification builder for before invoke dynamic'() {
+  void 'test specification builder for before invoke dynamic'() {
     setup:
     final advice = fetchClass(InvokeDynamicBeforeAdvice)
     final specificationBuilder = new AsmSpecificationBuilder()
@@ -223,7 +230,7 @@ final class AsmSpecificationBuilderTest extends BaseCsiPluginTest {
     arguments == []
   }
 
-  @CallSite
+  @CallSite(spi = CallSites)
   static class InvokeDynamicAroundAdvice {
     @CallSite.Around(
       value = 'java.lang.invoke.CallSite java.lang.invoke.StringConcatFactory.makeConcatWithConstants(java.lang.invoke.MethodHandles$Lookup, java.lang.String, java.lang.invoke.MethodType, java.lang.String, java.lang.Object[])',
@@ -238,7 +245,7 @@ final class AsmSpecificationBuilderTest extends BaseCsiPluginTest {
     }
   }
 
-  def 'test specification builder for around invoke dynamic'() {
+  void 'test specification builder for around invoke dynamic'() {
     setup:
     final advice = fetchClass(InvokeDynamicAroundAdvice)
     final specificationBuilder = new AsmSpecificationBuilder()
@@ -260,7 +267,7 @@ final class AsmSpecificationBuilderTest extends BaseCsiPluginTest {
     arguments == [0, 1, 2, 3, 4]
   }
 
-  @CallSite
+  @CallSite(spi = CallSites)
   static class TestInvokeDynamicConstants {
     @CallSite.After(
       value = 'java.lang.invoke.CallSite java.lang.invoke.StringConcatFactory.makeConcatWithConstants(java.lang.invoke.MethodHandles$Lookup, java.lang.String, java.lang.invoke.MethodType, java.lang.String, java.lang.Object[])',
@@ -273,7 +280,7 @@ final class AsmSpecificationBuilderTest extends BaseCsiPluginTest {
     }
   }
 
-  def 'test invoke dynamic constants'() {
+  void 'test invoke dynamic constants'() {
     setup:
     final advice = fetchClass(TestInvokeDynamicConstants)
     final specificationBuilder = new AsmSpecificationBuilder()
@@ -294,7 +301,7 @@ final class AsmSpecificationBuilderTest extends BaseCsiPluginTest {
     arguments == []
   }
 
-  @CallSite
+  @CallSite(spi = CallSites)
   static class TestBeforeArray {
 
     @CallSite.BeforeArray([
@@ -304,7 +311,7 @@ final class AsmSpecificationBuilderTest extends BaseCsiPluginTest {
     static void before(@CallSite.This final ServletRequest request) { }
   }
 
-  def 'test specification builder for before advice array'() {
+  void 'test specification builder for before advice array'() {
     setup:
     final advice = fetchClass(TestBeforeArray)
     final specificationBuilder = new AsmSpecificationBuilder()
@@ -314,7 +321,7 @@ final class AsmSpecificationBuilderTest extends BaseCsiPluginTest {
 
     then:
     result.clazz.className == TestBeforeArray.name
-    final list = result.advices.collect(Collectors.toList())
+    final list = result.advices
     list.size() == 2
     list.each {
       assert it instanceof BeforeSpecification
@@ -332,7 +339,7 @@ final class AsmSpecificationBuilderTest extends BaseCsiPluginTest {
     }
   }
 
-  @CallSite
+  @CallSite(spi = CallSites)
   static class TestAroundArray {
 
     @CallSite.AroundArray([
@@ -344,7 +351,7 @@ final class AsmSpecificationBuilderTest extends BaseCsiPluginTest {
     }
   }
 
-  def 'test specification builder for before advice array'() {
+  void 'test specification builder for around advice array'() {
     setup:
     final advice = fetchClass(TestAroundArray)
     final specificationBuilder = new AsmSpecificationBuilder()
@@ -354,7 +361,7 @@ final class AsmSpecificationBuilderTest extends BaseCsiPluginTest {
 
     then:
     result.clazz.className == TestAroundArray.name
-    final list = result.advices.collect(Collectors.toList())
+    final list = result.advices
     list.size() == 2
     list.each {
       assert it instanceof AroundSpecification
@@ -372,7 +379,7 @@ final class AsmSpecificationBuilderTest extends BaseCsiPluginTest {
     }
   }
 
-  @CallSite
+  @CallSite(spi = CallSites)
   static class TestAfterArray {
 
     @CallSite.AfterArray([
@@ -384,7 +391,7 @@ final class AsmSpecificationBuilderTest extends BaseCsiPluginTest {
     }
   }
 
-  def 'test specification builder for before advice array'() {
+  void 'test specification builder for before advice array'() {
     setup:
     final advice = fetchClass(TestAfterArray)
     final specificationBuilder = new AsmSpecificationBuilder()
@@ -394,7 +401,7 @@ final class AsmSpecificationBuilderTest extends BaseCsiPluginTest {
 
     then:
     result.clazz.className == TestAfterArray.name
-    final list = result.advices.collect(Collectors.toList())
+    final list = result.advices
     list.size() == 2
     list.each {
       assert it instanceof AfterSpecification
@@ -412,7 +419,7 @@ final class AsmSpecificationBuilderTest extends BaseCsiPluginTest {
     }
   }
 
-  @CallSite
+  @CallSite(spi = CallSites)
   static class TestInheritedMethod {
     @CallSite.After('java.lang.String javax.servlet.http.HttpServletRequest.getParameter(java.lang.String)')
     static String after(@CallSite.This final ServletRequest request, @CallSite.Argument final String parameter, @CallSite.Return final String value) {
@@ -420,7 +427,7 @@ final class AsmSpecificationBuilderTest extends BaseCsiPluginTest {
     }
   }
 
-  def 'test specification builder for inherited methods'() {
+  void 'test specification builder for inherited methods'() {
     setup:
     final advice = fetchClass(TestInheritedMethod)
     final specificationBuilder = new AsmSpecificationBuilder()
@@ -442,11 +449,68 @@ final class AsmSpecificationBuilderTest extends BaseCsiPluginTest {
     arguments == [0]
   }
 
-  protected static List<Integer> getArguments(final AdviceSpecification advice) {
+  static class IsEnabled {
+    static boolean isEnabled(final String defaultValue) {
+      return true
+    }
+  }
+
+  @CallSite(spi = CallSites, enabled = ['datadog.trace.plugin.csi.impl.AsmSpecificationBuilderTest$IsEnabled', 'isEnabled', 'true'])
+  static class TestEnablement {
+    @CallSite.After('java.lang.String javax.servlet.http.HttpServletRequest.getParameter(java.lang.String)')
+    static String after(@CallSite.This final ServletRequest request, @CallSite.Argument final String parameter, @CallSite.Return final String value) {
+      return value
+    }
+  }
+
+  void 'test specification builder with enabled property'() {
+    setup:
+    final advice = fetchClass(TestEnablement)
+    final specificationBuilder = new AsmSpecificationBuilder()
+
+    when:
+    final result = specificationBuilder.build(advice).orElseThrow(RuntimeException::new)
+
+    then:
+    result.clazz.className == TestEnablement.name
+    result.enabled != null
+    result.enabled.method.owner == Type.getType(IsEnabled)
+    result.enabled.method.methodName == 'isEnabled'
+    result.enabled.method.methodType == Type.getMethodType(Types.BOOLEAN, Types.STRING)
+    result.enabled.arguments == ['true']
+  }
+
+  @CallSite(spi = CallSites)
+  static class TestWithOtherAnnotations {
+    @CallSite.Around("java.lang.StringBuilder java.lang.StringBuilder.append(java.lang.Object)")
+    @CallSite.Around("java.lang.StringBuffer java.lang.StringBuffer.append(java.lang.Object)")
+    @Nonnull
+    @SuppressFBWarnings(
+      "NP_PARAMETER_MUST_BE_NONNULL_BUT_MARKED_AS_NULLABLE") // we do check for null on self
+    // parameter
+    static Appendable aroundAppend(@CallSite.This @Nullable final Appendable self, @CallSite.Argument(0) @Nullable final Object param) throws Throwable {
+      return self.append(param.toString())
+    }
+  }
+
+  void 'test specification builder with multiple method annotations'() {
+    setup:
+    final advice = fetchClass(TestWithOtherAnnotations)
+    final specificationBuilder = new AsmSpecificationBuilder()
+
+    when:
+    final result = specificationBuilder.build(advice).orElseThrow(RuntimeException::new)
+
+    then:
+    result.clazz.className == TestWithOtherAnnotations.name
+    result.advices.size() == 2
+  }
+
+  private static List<Integer> getArguments(final AdviceSpecification advice) {
     return advice.arguments.map(it -> it.index).collect(Collectors.toList())
   }
 
   private static AdviceSpecification findAdvice(final CallSiteSpecification result, final String name) {
-    return result.advices.filter { it.advice.methodName == name }.findFirst().get()
+    return result.advices.find { it.advice.methodName == name }
   }
 }

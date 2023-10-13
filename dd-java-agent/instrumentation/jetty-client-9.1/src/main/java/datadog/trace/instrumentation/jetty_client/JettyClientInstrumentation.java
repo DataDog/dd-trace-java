@@ -18,6 +18,7 @@ import datadog.trace.agent.tooling.ExcludeFilterProvider;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter;
 import java.util.Collection;
 import java.util.List;
@@ -85,7 +86,9 @@ public class JettyClientInstrumentation extends Instrumenter.Tracing
       DECORATE.afterStart(span);
       DECORATE.onRequest(span, request);
       propagate().inject(span, request, SETTER);
-      span.startThreadMigration();
+      propagate()
+          .injectPathwayContext(
+              span, request, SETTER, HttpClientDecorator.CLIENT_PATHWAY_EDGE_TAGS);
       return span;
     }
 

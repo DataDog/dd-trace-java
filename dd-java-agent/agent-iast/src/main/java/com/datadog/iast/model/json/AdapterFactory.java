@@ -1,18 +1,20 @@
 package com.datadog.iast.model.json;
 
+import com.datadog.iast.model.Evidence;
 import com.datadog.iast.model.Source;
 import com.datadog.iast.model.Vulnerability;
 import com.datadog.iast.model.VulnerabilityBatch;
+import com.datadog.iast.model.VulnerabilityType;
+import com.datadog.iast.sensitive.SensitiveHandler;
 import com.squareup.moshi.JsonAdapter;
-import com.squareup.moshi.JsonReader;
 import com.squareup.moshi.JsonWriter;
 import com.squareup.moshi.Moshi;
 import com.squareup.moshi.Types;
-import datadog.trace.api.DDId;
 import java.io.IOException;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -27,16 +29,36 @@ import javax.annotation.Nullable;
  */
 class AdapterFactory implements JsonAdapter.Factory {
 
-  private static final ThreadLocal<Context> CONTEXT_THREAD_LOCAL =
-      ThreadLocal.withInitial(Context::new);
+  static class Context {
 
-  private static class Context {
-    private final List<Source> sources;
-    private final Map<Source, Integer> sourceIndexMap;
+    private static final ThreadLocal<Context> CONTEXT_THREAD_LOCAL =
+        ThreadLocal.withInitial(Context::new);
+
+    final List<Source> sources;
+    final Map<Source, Integer> sourceIndexMap;
+    final Map<Source, RedactionContext> sourceContext;
+    Vulnerability vulnerability;
 
     public Context() {
       sources = new ArrayList<>();
       sourceIndexMap = new HashMap<>();
+      sourceContext = new HashMap<>();
+    }
+
+    public static Context get() {
+      return CONTEXT_THREAD_LOCAL.get();
+    }
+
+    public static void set(@Nonnull final Context context) {
+      CONTEXT_THREAD_LOCAL.set(context);
+    }
+
+    public static void remove() {
+      CONTEXT_THREAD_LOCAL.remove();
+    }
+
+    public RedactionContext getRedaction(final Source source) {
+      return sourceContext.computeIfAbsent(source, RedactionContext::new);
     }
   }
 
@@ -48,21 +70,29 @@ class AdapterFactory implements JsonAdapter.Factory {
       @Nonnull final Moshi moshi) {
     final Class<?> rawType = Types.getRawType(type);
     if (Source.class.equals(rawType)) {
-      for (final Annotation annotation : annotations) {
-        if (SourceIndex.class.equals(annotation.annotationType())) {
-          return new SourceIndexAdapter();
-        }
+      if (hasSourceIndexAnnotation(annotations)) {
+        return new SourceIndexAdapter();
+      } else {
+        return new SourceAdapter();
       }
-      return null;
     } else if (VulnerabilityBatch.class.equals(rawType)) {
       return new VulnerabilityBatchAdapter(moshi);
-    } else if (DDId.class.equals(rawType)) {
-      return new DDIdAdapter();
+    } else if (Vulnerability.class.equals(rawType)) {
+      return new VulnerabilityAdapter(this, moshi);
+    } else if (Evidence.class.equals(rawType)) {
+      return new EvidenceAdapter(moshi);
+    } else if (VulnerabilityType.class.equals(rawType)) {
+      return new VulnerabilityTypeAdapter();
     }
     return null;
   }
 
-  public static class SourceIndexAdapter extends JsonAdapter<Source> {
+  protected boolean hasSourceIndexAnnotation(@Nonnull final Set<? extends Annotation> annotations) {
+    return annotations.stream()
+        .anyMatch(annotation -> annotation.annotationType() == SourceIndex.class);
+  }
+
+  public static class SourceIndexAdapter extends FormattingAdapter<Source> {
 
     @Override
     public void toJson(@Nonnull final JsonWriter writer, @Nullable @SourceIndex final Source value)
@@ -71,7 +101,7 @@ class AdapterFactory implements JsonAdapter.Factory {
         writer.nullValue();
         return;
       }
-      final Context ctx = CONTEXT_THREAD_LOCAL.get();
+      final Context ctx = Context.get();
       Integer index = ctx.sourceIndexMap.get(value);
       if (index == null) {
         index = ctx.sources.size();
@@ -80,15 +110,9 @@ class AdapterFactory implements JsonAdapter.Factory {
       }
       writer.value(index);
     }
-
-    @Nullable
-    @Override
-    public @SourceIndex Source fromJson(@Nonnull final JsonReader reader) throws IOException {
-      throw new UnsupportedOperationException("Source deserialization is not supported");
-    }
   }
 
-  public static class VulnerabilityBatchAdapter extends JsonAdapter<VulnerabilityBatch> {
+  public static class VulnerabilityBatchAdapter extends FormattingAdapter<VulnerabilityBatch> {
 
     private final JsonAdapter<List<Source>> sourcesAdapter;
 
@@ -108,7 +132,7 @@ class AdapterFactory implements JsonAdapter.Factory {
         return;
       }
 
-      final Context ctx = CONTEXT_THREAD_LOCAL.get();
+      final Context ctx = Context.get();
       try {
         final List<Vulnerability> vulnerabilities = value.getVulnerabilities();
         writer.beginObject();
@@ -124,15 +148,71 @@ class AdapterFactory implements JsonAdapter.Factory {
 
         writer.endObject();
       } finally {
-        CONTEXT_THREAD_LOCAL.remove();
+        Context.remove();
+      }
+    }
+  }
+
+  public static class VulnerabilityAdapter extends FormattingAdapter<Vulnerability> {
+
+    private final JsonAdapter<Vulnerability> adapter;
+
+    public VulnerabilityAdapter(@Nonnull final AdapterFactory factory, @Nonnull final Moshi moshi) {
+      adapter = moshi.nextAdapter(factory, Vulnerability.class, Collections.emptySet());
+    }
+
+    @Override
+    public void toJson(@Nonnull final JsonWriter writer, @Nullable final Vulnerability value)
+        throws IOException {
+      if (value == null) {
+        return;
+      }
+      final Context ctx = Context.get();
+      ctx.vulnerability = value;
+      try {
+        adapter.toJson(writer, value);
+      } finally {
+        ctx.vulnerability = null;
+      }
+    }
+  }
+
+  public static class RedactionContext {
+    private final Source source;
+    private final boolean sensitive;
+    private boolean sensitiveRanges;
+    private String redactedValue;
+
+    public RedactionContext(final Source source) {
+      this.source = source;
+      final SensitiveHandler handler = SensitiveHandler.get();
+      this.sensitive = handler.isSensitive(source);
+      if (this.sensitive) {
+        this.redactedValue = handler.redactSource(source);
       }
     }
 
-    @Nullable
-    @Override
-    public VulnerabilityBatch fromJson(@Nonnull final JsonReader reader) throws IOException {
-      throw new UnsupportedOperationException(
-          "VulnerabilityBatch deserialization is not supported");
+    public Source getSource() {
+      return source;
+    }
+
+    public boolean isSensitive() {
+      return sensitive;
+    }
+
+    public boolean shouldRedact() {
+      return sensitive || sensitiveRanges;
+    }
+
+    public String getRedactedValue() {
+      return redactedValue;
+    }
+
+    public void markWithSensitiveRanges() {
+      sensitiveRanges = true;
+      if (redactedValue == null) {
+        redactedValue = SensitiveHandler.get().redactSource(source);
+      }
     }
   }
 }

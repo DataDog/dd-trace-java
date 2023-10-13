@@ -1,6 +1,8 @@
 import datadog.trace.agent.test.base.HttpServer
 import datadog.trace.api.config.GeneralConfig
 import datadog.trace.api.env.CapturedEnvironment
+import datadog.trace.instrumentation.servlet3.TestServlet3
+import org.eclipse.jetty.http.HttpStatus
 import org.eclipse.jetty.server.Request
 import org.eclipse.jetty.server.Server
 import org.eclipse.jetty.server.handler.ErrorHandler
@@ -29,6 +31,9 @@ class JettyServletHandlerTest extends AbstractServlet3Test<Server, ServletHandle
       setupServlets(handler)
       server.addBean(new ErrorHandler() {
           protected void handleErrorPage(HttpServletRequest request, Writer writer, int code, String message) throws IOException {
+            if (message == null) {
+              message = HttpStatus.getMessage(code)
+            }
             Throwable t = (Throwable) request.getAttribute("javax.servlet.error.exception")
             def response = ((Request) request).response
             if (t) {
@@ -106,7 +111,7 @@ class JettyServletHandlerTest extends AbstractServlet3Test<Server, ServletHandle
   @Override
   Map<String, Serializable> expectedExtraErrorInformation(ServerEndpoint endpoint) {
     if (endpoint.throwsException && !dispatch) {
-      ["error.msg": "${endpoint.body}",
+      ["error.message": "${endpoint.body}",
         "error.type": { it == Exception.name || it == InputMismatchException.name },
         "error.stack": String]
     } else {
@@ -124,6 +129,11 @@ class JettyServletHandlerTest extends AbstractServlet3Test<Server, ServletHandle
 
   @Override
   boolean testNotFound() {
+    false
+  }
+
+  @Override
+  boolean testBadUrl() {
     false
   }
 }

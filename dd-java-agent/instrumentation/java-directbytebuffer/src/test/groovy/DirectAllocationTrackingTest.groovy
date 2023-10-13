@@ -1,4 +1,6 @@
 import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer
+import datadog.trace.bootstrap.instrumentation.jfr.InstrumentationBasedProfiling
 import jdk.jfr.FlightRecorder
 import jdk.jfr.Recording
 import jdk.jfr.consumer.RecordingFile
@@ -7,7 +9,10 @@ import java.nio.ByteBuffer
 import java.nio.channels.FileChannel
 import java.nio.file.Files
 import java.time.Instant
+import java.util.concurrent.atomic.AtomicLong
 import java.util.stream.Collectors
+
+import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 
 class DirectAllocationTrackingTest extends AgentTestRunner {
 
@@ -18,11 +23,13 @@ class DirectAllocationTrackingTest extends AgentTestRunner {
   protected void configurePreAgent() {
     super.configurePreAgent()
     injectSysConfig("dd.profiling.enabled", "true")
-    injectSysConfig("dd.integration.directbytebuffer.enabled", "true")
+    injectSysConfig("dd.integration.mmap.enabled", "true")
+    injectSysConfig("dd.profiling.directallocation.enabled", "true")
   }
 
   def "test track memory mapped file"() {
     setup:
+    AtomicLong expectedSpanId = new AtomicLong()
     setupRecording()
     def file = File.createTempFile(getClass().getName() + "-" + UUID.randomUUID(), ".test")
     file.deleteOnExit()
@@ -30,12 +37,23 @@ class DirectAllocationTrackingTest extends AgentTestRunner {
 
     when:
     raf = new RandomAccessFile(file, "rw")
-    raf.getChannel().map(FileChannel.MapMode.READ_WRITE, 0, 20)
+    runUnderTrace("context", {
+      expectedSpanId.set(AgentTracer.activeSpan().getSpanId())
+      raf.getChannel().map(FileChannel.MapMode.READ_WRITE, 0, 20)
+    })
     def directAllocations = getDirectAllocations()
 
     then:
-    directAllocations.size() == 1
-    directAllocations.get(0).getInt("capacity") == 20
+    directAllocations.size() == 2
+    def sample = directAllocations.find({ it.getEventType().name.equals("datadog.DirectAllocationSample")})
+    sample.getLong("allocated") == 20
+    sample.getString("source") == "MMAP"
+    sample.getString("allocatingClass") == "org.codehaus.groovy.runtime.callsite.PlainObjectMetaMethodSite"
+    sample.getLong("spanId") == expectedSpanId.get()
+    def total = directAllocations.find({ it.getEventType().name.equals("datadog.DirectAllocationTotal")})
+    total.getLong("allocated") == 20
+    total.getString("source") == "MMAP"
+    total.getString("allocatingClass") == "org.codehaus.groovy.runtime.callsite.PlainObjectMetaMethodSite"
 
     cleanup:
     recording.close()
@@ -45,12 +63,24 @@ class DirectAllocationTrackingTest extends AgentTestRunner {
   def "test track direct allocation"() {
     when:
     setupRecording()
-    ByteBuffer.allocateDirect(10)
+    AtomicLong expectedSpanId = new AtomicLong()
+    runUnderTrace("context", {
+      expectedSpanId.set(AgentTracer.activeSpan().getSpanId())
+      ByteBuffer.allocateDirect(10)
+    })
     def directAllocations = getDirectAllocations()
 
     then:
-    directAllocations.size() == 1
-    directAllocations.get(0).getInt("capacity") == 10
+    directAllocations.size() == 2
+    def sample = directAllocations.find({ it.getEventType().name.equals("datadog.DirectAllocationSample")})
+    sample.getLong("allocated") == 10
+    sample.getString("source") == "ALLOCATE_DIRECT"
+    sample.getString("allocatingClass") == "java_nio_ByteBuffer\$allocateDirect"
+    sample.getLong("spanId") == expectedSpanId.get()
+    def total = directAllocations.find({ it.getEventType().name.equals("datadog.DirectAllocationTotal")})
+    total.getLong("allocated") == 10
+    total.getString("source") == "ALLOCATE_DIRECT"
+    total.getString("allocatingClass") == "java_nio_ByteBuffer\$allocateDirect"
 
     cleanup:
     recording.close()
@@ -65,8 +95,11 @@ class DirectAllocationTrackingTest extends AgentTestRunner {
     def directAllocations = getDirectAllocations()
 
     then:
-    directAllocations.size() == 1
-    directAllocations.get(0).getInt("capacity") == 10
+    directAllocations.size() == 2
+    def sample = directAllocations.find({ it.getEventType().name.equals("datadog.DirectAllocationSample")})
+    sample.getLong("allocated") == 10
+    def total = directAllocations.find({ it.getEventType().name.equals("datadog.DirectAllocationTotal")})
+    total.getLong("allocated") == 10
 
     cleanup:
     recording.close()
@@ -80,14 +113,16 @@ class DirectAllocationTrackingTest extends AgentTestRunner {
     stream.transferTo(new FileOutputStream(output))
     return RecordingFile.readAllEvents(output.toPath())
       .stream()
-      .filter({ it.getEventType().name.equals("datadog.DirectAllocationEvent")})
+      .filter({ ["datadog.DirectAllocationSample", "datadog.DirectAllocationTotal"].contains(it.getEventType().name)})
       .collect(Collectors.toList())
   }
 
   def setupRecording() {
     recording = new Recording()
-    recording.enable("datadog.DirectAllocationEvent")
+    recording.enable("datadog.DirectAllocationSample")
+    recording.enable("datadog.DirectAllocationTotal")
     recording.start()
     start = Instant.now()
+    InstrumentationBasedProfiling.enableInstrumentationBasedProfiling()
   }
 }

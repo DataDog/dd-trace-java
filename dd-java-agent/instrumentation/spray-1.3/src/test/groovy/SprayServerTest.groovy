@@ -1,10 +1,9 @@
 import datadog.trace.agent.test.base.HttpServer
 import datadog.trace.agent.test.base.HttpServerTest
-import datadog.trace.agent.test.checkpoints.CheckpointValidator
-import datadog.trace.agent.test.checkpoints.CheckpointValidationMode
+import datadog.trace.agent.test.naming.TestingGenericHttpNamingConventions
 import datadog.trace.instrumentation.spray.SprayHttpServerDecorator
 
-class SprayServerTest extends HttpServerTest<SprayHttpTestWebServer> {
+abstract class SprayServerTest extends HttpServerTest<SprayHttpTestWebServer> {
 
   @Override
   HttpServer server() {
@@ -25,12 +24,17 @@ class SprayServerTest extends HttpServerTest<SprayHttpTestWebServer> {
 
   @Override
   String expectedOperationName() {
-    return SprayHttpServerDecorator.DECORATE.SPRAY_HTTP_REQUEST
+    return operation()
   }
 
   @Override
   boolean testExceptionBody() {
     // Todo: Response{protocol=http/1.1, code=500, message=Internal Server Error, url=...}
+    false
+  }
+
+  @Override
+  boolean testBadUrl() {
     false
   }
 
@@ -56,7 +60,25 @@ class SprayServerTest extends HttpServerTest<SprayHttpTestWebServer> {
 
   @Override
   def setup() {
-    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
-      CheckpointValidationMode.INTERVALS)
   }
+}
+
+class SprayServerV0ForkedTest extends SprayServerTest {
+  @Override
+  int version() {
+    return 0
+  }
+
+  @Override
+  String service() {
+    return null
+  }
+
+  @Override
+  String operation() {
+    return "spray-http.request"
+  }
+}
+
+class SprayServerV1ForkedTest extends SprayServerTest implements TestingGenericHttpNamingConventions.ServerV1 {
 }

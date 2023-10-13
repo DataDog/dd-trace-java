@@ -1,6 +1,9 @@
 package com.datadog.debugger.el.expressions;
 
+import com.datadog.debugger.el.EvaluationException;
+import com.datadog.debugger.el.PrettyPrintVisitor;
 import com.datadog.debugger.el.Value;
+import com.datadog.debugger.el.Visitor;
 import com.datadog.debugger.el.values.CollectionValue;
 import com.datadog.debugger.el.values.NumericValue;
 import com.datadog.debugger.el.values.StringValue;
@@ -26,16 +29,29 @@ public final class LenExpression implements ValueExpression<Value<? extends Numb
   @Override
   public Value<Number> evaluate(ValueReferenceResolver valueRefResolver) {
     Value<?> materialized = source == null ? Value.nullValue() : source.evaluate(valueRefResolver);
-    if (materialized.isNull()) {
-      return (NumericValue) Value.of(-1);
-    } else if (materialized.isUndefined()) {
-      return (NumericValue) Value.of(0);
-    } else if (materialized instanceof StringValue) {
-      return (NumericValue) Value.of(((StringValue) materialized).length());
-    } else if (materialized instanceof CollectionValue) {
-      return (NumericValue) Value.of(((CollectionValue) materialized).count());
+    try {
+      if (materialized.isNull()) {
+        return (NumericValue) Value.of(-1);
+      } else if (materialized.isUndefined()) {
+        return (NumericValue) Value.of(0);
+      } else if (materialized instanceof StringValue) {
+        return (NumericValue) Value.of(((StringValue) materialized).length());
+      } else if (materialized instanceof CollectionValue) {
+        return (NumericValue) Value.of(((CollectionValue) materialized).count());
+      }
+    } catch (RuntimeException ex) {
+      throw new EvaluationException(ex.getMessage(), PrettyPrintVisitor.print(this));
     }
     log.warn("Can not compute length for {}", materialized);
     return Value.undefined();
+  }
+
+  public ValueExpression<?> getSource() {
+    return source;
+  }
+
+  @Override
+  public <R> R accept(Visitor<R> visitor) {
+    return visitor.visit(this);
   }
 }

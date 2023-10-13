@@ -3,14 +3,18 @@ package datadog.trace.instrumentation.datastax.cassandra;
 import com.datastax.driver.core.Host;
 import com.datastax.driver.core.ResultSet;
 import com.datastax.driver.core.Session;
+import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.DBTypeProcessingDatabaseClientDecorator;
 
 public class CassandraClientDecorator extends DBTypeProcessingDatabaseClientDecorator<Session> {
-
-  public static final CharSequence CASSANDRA_EXECUTE = UTF8BytesString.create("cassandra.execute");
+  private static final String DB_TYPE = "cassandra";
+  private static final String SERVICE_NAME =
+      SpanNaming.instance().namingSchema().database().service(DB_TYPE);
+  public static final CharSequence OPERATION_NAME =
+      UTF8BytesString.create(SpanNaming.instance().namingSchema().database().operation(DB_TYPE));
   public static final CharSequence JAVA_CASSANDRA = UTF8BytesString.create("java-cassandra");
 
   public static final CassandraClientDecorator DECORATE = new CassandraClientDecorator();
@@ -22,7 +26,7 @@ public class CassandraClientDecorator extends DBTypeProcessingDatabaseClientDeco
 
   @Override
   protected String service() {
-    return "cassandra";
+    return SERVICE_NAME;
   }
 
   @Override
@@ -37,7 +41,7 @@ public class CassandraClientDecorator extends DBTypeProcessingDatabaseClientDeco
 
   @Override
   protected String dbType() {
-    return "cassandra";
+    return DB_TYPE;
   }
 
   @Override

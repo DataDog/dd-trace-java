@@ -1,23 +1,31 @@
 package com.datadog.appsec.powerwaf;
 
-import static java.util.Collections.*;
+import static java.util.Collections.emptyList;
+import static java.util.Collections.singletonList;
 import static java.util.stream.Collectors.toMap;
 
 import com.datadog.appsec.AppSecModule;
 import com.datadog.appsec.config.AppSecConfig;
 import com.datadog.appsec.config.AppSecModuleConfigurer;
+import com.datadog.appsec.config.CurrentAppSecConfig;
 import com.datadog.appsec.event.ChangeableFlow;
-import com.datadog.appsec.event.EventType;
 import com.datadog.appsec.event.data.Address;
 import com.datadog.appsec.event.data.DataBundle;
 import com.datadog.appsec.event.data.KnownAddresses;
 import com.datadog.appsec.gateway.AppSecRequestContext;
-import com.datadog.appsec.report.raw.events.*;
+import com.datadog.appsec.report.AppSecEvent;
+import com.datadog.appsec.report.Parameter;
+import com.datadog.appsec.report.Rule;
+import com.datadog.appsec.report.RuleMatch;
 import com.datadog.appsec.util.StandardizedLogging;
-import com.google.auto.service.AutoService;
-import com.squareup.moshi.*;
+import com.squareup.moshi.JsonAdapter;
+import com.squareup.moshi.Moshi;
+import com.squareup.moshi.Types;
+import datadog.appsec.api.blocking.BlockingContentType;
 import datadog.trace.api.Config;
+import datadog.trace.api.ProductActivation;
 import datadog.trace.api.gateway.Flow;
+import datadog.trace.api.telemetry.WafMetricCollector;
 import io.sqreen.powerwaf.Additive;
 import io.sqreen.powerwaf.Powerwaf;
 import io.sqreen.powerwaf.PowerwafConfig;
@@ -26,6 +34,7 @@ import io.sqreen.powerwaf.PowerwafMetrics;
 import io.sqreen.powerwaf.RuleSetInfo;
 import io.sqreen.powerwaf.exception.AbstractPowerwafException;
 import io.sqreen.powerwaf.exception.InvalidRuleSetException;
+import io.sqreen.powerwaf.exception.TimeoutPowerwafException;
 import java.io.IOException;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationHandler;
@@ -33,55 +42,40 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.lang.reflect.UndeclaredThrowableException;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.NoSuchElementException;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 import javax.annotation.Nonnull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-@AutoService(AppSecModule.class)
 public class PowerWAFModule implements AppSecModule {
   private static final Logger log = LoggerFactory.getLogger(PowerWAFModule.class);
 
   private static final int MAX_DEPTH = 10;
   private static final int MAX_ELEMENTS = 150;
   private static final int MAX_STRING_SIZE = 4096;
-  private static final Powerwaf.Limits LIMITS =
-      new Powerwaf.Limits(
-          MAX_DEPTH,
-          MAX_ELEMENTS,
-          MAX_STRING_SIZE,
-          /* set effectively infinite budgets. Don't use Long.MAX_VALUE, because
-           * traditionally powerwaf has had problems with too large budgets */
-          ((long) Integer.MAX_VALUE) * 1000,
-          ((long) Integer.MAX_VALUE) * 1000);
+  private static volatile Powerwaf.Limits LIMITS;
   private static final Class<?> PROXY_CLASS =
       Proxy.getProxyClass(PowerWAFModule.class.getClassLoader(), Set.class);
   private static final Constructor<?> PROXY_CLASS_CONSTRUCTOR;
-  private static final Set<EventType> EVENTS_OF_INTEREST;
 
   private static final JsonAdapter<List<PowerWAFResultData>> RES_JSON_ADAPTER;
 
   private static final Map<String, ActionInfo> DEFAULT_ACTIONS;
-
-  private static class RuleInfo {
-    final String name;
-    final String type;
-    final Map<String, String> tags;
-
-    RuleInfo(AppSecConfig.Rule rule) {
-      this.name = rule.getName();
-      Map<String, String> tags = rule.getTags();
-      if (tags != null) {
-        this.type = tags.getOrDefault("type", "waf");
-        this.tags = tags;
-      } else {
-        this.type = "invalid";
-        this.tags = Collections.emptyMap();
-      }
-    }
-  }
 
   private static class ActionInfo {
     final String type;
@@ -96,18 +90,19 @@ public class PowerWAFModule implements AppSecModule {
   private static class CtxAndAddresses {
     final Collection<Address<?>> addressesOfInterest;
     final PowerwafContext ctx;
-    final Map<String, RuleInfo> rulesInfoMap;
     final Map<String /* id */, ActionInfo> actionInfoMap;
 
     private CtxAndAddresses(
         Collection<Address<?>> addressesOfInterest,
         PowerwafContext ctx,
-        Map<String, RuleInfo> rulesInfoMap,
         Map<String, ActionInfo> actionInfoMap) {
       this.addressesOfInterest = addressesOfInterest;
       this.ctx = ctx;
-      this.rulesInfoMap = rulesInfoMap;
       this.actionInfoMap = actionInfoMap;
+    }
+
+    CtxAndAddresses withNewActions(Map<String, ActionInfo> actionInfoMap) {
+      return new CtxAndAddresses(this.addressesOfInterest, this.ctx, actionInfoMap);
     }
   }
 
@@ -117,10 +112,6 @@ public class PowerWAFModule implements AppSecModule {
     } catch (NoSuchMethodException e) {
       throw new UndeclaredThrowableException(e);
     }
-
-    EVENTS_OF_INTEREST = new HashSet<>();
-    EVENTS_OF_INTEREST.add(EventType.REQUEST_START);
-    EVENTS_OF_INTEREST.add(EventType.REQUEST_END);
 
     Moshi moshi = new Moshi.Builder().build();
     RES_JSON_ADAPTER =
@@ -132,44 +123,49 @@ public class PowerWAFModule implements AppSecModule {
     actionParams.put("grpc_status_code", 10);
     DEFAULT_ACTIONS =
         Collections.singletonMap("block", new ActionInfo("block_request", actionParams));
+    createLimitsObject();
+  }
+
+  // used in testing
+  static void createLimitsObject() {
+    LIMITS =
+        new Powerwaf.Limits(
+            MAX_DEPTH,
+            MAX_ELEMENTS,
+            MAX_STRING_SIZE,
+            /* set effectively infinite budgets. Don't use Long.MAX_VALUE, because
+             * traditionally powerwaf has had problems with too large budgets */
+            ((long) Integer.MAX_VALUE) * 1000,
+            Config.get().getAppSecWafTimeout());
   }
 
   private final boolean wafMetricsEnabled =
       Config.get().isAppSecWafMetrics(); // could be static if not for tests
   private final AtomicReference<CtxAndAddresses> ctxAndAddresses = new AtomicReference<>();
-  private AtomicReference<List<Map<String, Object>>> wafData =
-      new AtomicReference<>(Collections.emptyList());
-  private final AtomicReference<Map<String, Boolean>> wafRulesOverride =
-      new AtomicReference<>(Collections.emptyMap());
   private final PowerWAFInitializationResultReporter initReporter =
       new PowerWAFInitializationResultReporter();
   private final PowerWAFStatsReporter statsReporter = new PowerWAFStatsReporter();
 
+  private String currentRulesVersion;
+
   @Override
   public void config(AppSecModuleConfigurer appSecConfigService)
       throws AppSecModuleActivationException {
-    Optional<Object> initialData =
-        appSecConfigService.addSubConfigListener("waf_data", this::updateWafData);
-    if (initialData.isPresent()) {
-      this.wafData.set((List<Map<String, Object>>) initialData.get());
-    }
-    Optional<Object> initialRuleStatus =
-        appSecConfigService.addSubConfigListener(
-            "waf_rules_override", this::updateWafRulesOverride);
-    if (initialRuleStatus.isPresent()) {
-      this.wafRulesOverride.set((Map<String, Boolean>) initialRuleStatus.get());
-    }
 
     Optional<Object> initialConfig =
         appSecConfigService.addSubConfigListener("waf", this::applyConfig);
-    if (!initialConfig.isPresent()) {
-      throw new AppSecModuleActivationException("No initial config for WAF");
-    }
 
-    try {
-      applyConfig(initialConfig.get(), AppSecModuleConfigurer.Reconfiguration.NOOP);
-    } catch (ClassCastException e) {
-      throw new AppSecModuleActivationException("Config expected to be AppSecConfig", e);
+    ProductActivation appSecEnabledConfig = Config.get().getAppSecActivation();
+    if (appSecEnabledConfig == ProductActivation.FULLY_ENABLED) {
+      if (!initialConfig.isPresent()) {
+        throw new AppSecModuleActivationException("No initial config for WAF");
+      }
+
+      try {
+        applyConfig(initialConfig.get(), AppSecModuleConfigurer.Reconfiguration.NOOP);
+      } catch (ClassCastException e) {
+        throw new AppSecModuleActivationException("Config expected to be CurrentAppSecConfig", e);
+      }
     }
 
     appSecConfigService.addTraceSegmentPostProcessor(initReporter);
@@ -178,95 +174,106 @@ public class PowerWAFModule implements AppSecModule {
     }
   }
 
-  // after the initial config, changes in ctxAndAddresses and wafData
-  // should happen on the same thread (the remote config thread), so it can't
-  // happen that ctxAndAddresses is replaced before we have a chance of
-  // updating the rule data.
-  // We need to protect against races with the thread doing initial config though
-  private void updateWafData(Object data_, AppSecModuleConfigurer.Reconfiguration ignoredReconf) {
-    List<Map<String, Object>> data = (List<Map<String, Object>>) data_;
-
-    this.wafData.set(data); // save for reapplying data on future rule updates
-    CtxAndAddresses curCtxAndAddr = this.ctxAndAddresses.get();
-    if (curCtxAndAddr != null) {
-      curCtxAndAddr.ctx.updateRuleData(data);
-    }
-  }
-
-  private void updateWafRulesOverride(
-      Object data_, AppSecModuleConfigurer.Reconfiguration reconfiguration) {
-    Map<String, Boolean> data = (Map<String, Boolean>) data_;
-    this.wafRulesOverride.set(data);
-    CtxAndAddresses curCtxAndAddr = this.ctxAndAddresses.get();
-    if (curCtxAndAddr != null) {
-      Map<String, Boolean> toggleSpec =
-          new FilledInRuleTogglingMap(data, curCtxAndAddr.rulesInfoMap.keySet());
-      curCtxAndAddr.ctx.toggleRules(toggleSpec);
-    }
-  }
-
+  // this function is called from one thread in the beginning that's different
+  // from the RC thread that calls it later on
   private void applyConfig(Object config_, AppSecModuleConfigurer.Reconfiguration reconf)
       throws AppSecModuleActivationException {
-    log.info("Configuring WAF");
+    log.debug("Configuring WAF");
 
-    AppSecConfig config = (AppSecConfig) config_;
+    CurrentAppSecConfig config = (CurrentAppSecConfig) config_;
 
-    CtxAndAddresses prevContextAndAddresses = this.ctxAndAddresses.get();
-    CtxAndAddresses newContextAndAddresses;
+    CtxAndAddresses curCtxAndAddresses = this.ctxAndAddresses.get();
 
     if (!LibSqreenInitialization.ONLINE) {
       throw new AppSecModuleActivationException(
           "In-app WAF initialization failed. See previous log entries");
     }
 
+    if (curCtxAndAddresses == null) {
+      config.dirtyStatus.markAllDirty();
+    }
+
+    try {
+      if (config.dirtyStatus.isDirtyForDdwafUpdate()) {
+        // ddwaf_init/update
+        initializeNewWafCtx(reconf, config, curCtxAndAddresses);
+      } else if (config.dirtyStatus.isDirtyForActions()) {
+        // only internal actions change
+        // if we're here curCtxAndAddresses is not null
+        Map<String, ActionInfo> actionInfoMap =
+            calculateEffectiveActions(curCtxAndAddresses, config.getMergedUpdateConfig());
+        CtxAndAddresses newCtxAndAddresses = curCtxAndAddresses.withNewActions(actionInfoMap);
+        boolean success =
+            this.ctxAndAddresses.compareAndSet(curCtxAndAddresses, newCtxAndAddresses);
+        if (!success) {
+          throw new AppSecModuleActivationException("Concurrent update of WAF configuration");
+        }
+      }
+    } catch (Exception e) {
+      throw new AppSecModuleActivationException("Could not initialize/update waf", e);
+    }
+  }
+
+  private void initializeNewWafCtx(
+      AppSecModuleConfigurer.Reconfiguration reconf,
+      CurrentAppSecConfig config,
+      CtxAndAddresses prevContextAndAddresses)
+      throws AppSecModuleActivationException, IOException {
+    CtxAndAddresses newContextAndAddresses;
     RuleSetInfo initReport = null;
 
+    AppSecConfig ruleConfig = config.getMergedUpdateConfig();
     PowerwafContext newPwafCtx = null;
     try {
       String uniqueId = UUID.randomUUID().toString();
-      PowerwafConfig pwConfig = createPowerwafConfig();
-      newPwafCtx = Powerwaf.createContext(uniqueId, pwConfig, config.getRawConfig());
+
+      if (prevContextAndAddresses == null) {
+        PowerwafConfig pwConfig = createPowerwafConfig();
+        newPwafCtx = Powerwaf.createContext(uniqueId, pwConfig, ruleConfig.getRawConfig());
+      } else {
+        newPwafCtx = prevContextAndAddresses.ctx.update(uniqueId, ruleConfig.getRawConfig());
+      }
 
       initReport = newPwafCtx.getRuleSetInfo();
       Collection<Address<?>> addresses = getUsedAddresses(newPwafCtx);
 
-      List<Map<String, Object>> wafData = this.wafData.get();
-      if (!wafData.isEmpty()) {
-        newPwafCtx.updateRuleData(wafData);
+      // Update current rules' version if you need
+      if (initReport != null && initReport.rulesetVersion != null) {
+        currentRulesVersion = initReport.rulesetVersion;
       }
 
-      Map<String, RuleInfo> rulesInfoMap =
-          config.getRules().stream().collect(toMap(AppSecConfig.Rule::getId, RuleInfo::new));
-
-      Map<String, ActionInfo> actionInfoMap = new HashMap<>(DEFAULT_ACTIONS);
-      actionInfoMap.putAll(
-          ((List<Map<String, Object>>)
-                  config.getRawConfig().getOrDefault("actions", Collections.emptyList()))
-              .stream()
-                  .collect(
-                      toMap(
-                          m -> (String) m.get("id"),
-                          m ->
-                              new ActionInfo(
-                                  (String) m.get("type"),
-                                  (Map<String, Object>) m.get("parameters")))));
-
-      Map<String, Boolean> rulesOverride = this.wafRulesOverride.get();
-      if (!rulesOverride.isEmpty()) {
-        newPwafCtx.toggleRules(new FilledInRuleTogglingMap(rulesOverride, rulesInfoMap.keySet()));
+      if (prevContextAndAddresses == null) {
+        WafMetricCollector.get().wafInit(Powerwaf.LIB_VERSION, currentRulesVersion);
+      } else {
+        WafMetricCollector.get().wafUpdates(currentRulesVersion);
       }
 
-      newContextAndAddresses =
-          new CtxAndAddresses(addresses, newPwafCtx, rulesInfoMap, actionInfoMap);
       if (initReport != null) {
-        this.statsReporter.rulesVersion = initReport.fileVersion;
+        log.info(
+            "Created {} WAF context with rules ({} OK, {} BAD), version {}",
+            prevContextAndAddresses == null ? "new" : "updated",
+            initReport.getNumRulesOK(),
+            initReport.getNumRulesError(),
+            initReport.rulesetVersion);
+      } else {
+        log.warn(
+            "Created {} WAF context without rules",
+            prevContextAndAddresses == null ? "new" : "updated");
+      }
+
+      Map<String, ActionInfo> actionInfoMap =
+          calculateEffectiveActions(prevContextAndAddresses, ruleConfig);
+
+      newContextAndAddresses = new CtxAndAddresses(addresses, newPwafCtx, actionInfoMap);
+      if (initReport != null) {
+        this.statsReporter.rulesVersion = initReport.rulesetVersion;
       }
     } catch (InvalidRuleSetException irse) {
       initReport = irse.ruleSetInfo;
       throw new AppSecModuleActivationException("Error creating WAF rules", irse);
     } catch (RuntimeException | AbstractPowerwafException e) {
       if (newPwafCtx != null) {
-        newPwafCtx.delReference();
+        newPwafCtx.close();
       }
       throw new AppSecModuleActivationException("Error creating WAF rules", e);
     } finally {
@@ -276,15 +283,46 @@ public class PowerWAFModule implements AppSecModule {
     }
 
     if (!this.ctxAndAddresses.compareAndSet(prevContextAndAddresses, newContextAndAddresses)) {
-      newPwafCtx.delReference();
+      newPwafCtx.close();
       throw new AppSecModuleActivationException("Concurrent update of WAF configuration");
     }
 
     if (prevContextAndAddresses != null) {
-      prevContextAndAddresses.ctx.delReference();
+      prevContextAndAddresses.ctx.close();
     }
 
     reconf.reloadSubscriptions();
+  }
+
+  private Map<String, ActionInfo> calculateEffectiveActions(
+      CtxAndAddresses prevContextAndAddresses, AppSecConfig ruleConfig) {
+    Map<String, ActionInfo> actionInfoMap;
+    List<Map<String, Object>> actions =
+        (List<Map<String, Object>>) ruleConfig.getRawConfig().get("actions");
+    if (actions == null) {
+      if (prevContextAndAddresses == null) {
+        // brand-new context; no actions provided: use default ones
+        actionInfoMap = DEFAULT_ACTIONS;
+      } else {
+        // in update, no changed actions; keep the old one
+        actionInfoMap = prevContextAndAddresses.actionInfoMap;
+      }
+    } else {
+      // actions were updated
+      actionInfoMap = new HashMap<>(DEFAULT_ACTIONS);
+      actionInfoMap.putAll(
+          ((List<Map<String, Object>>)
+                  ruleConfig.getRawConfig().getOrDefault("actions", Collections.emptyList()))
+              .stream()
+                  .collect(
+                      toMap(
+                          m -> (String) m.get("id"),
+                          m ->
+                              new ActionInfo(
+                                  (String) m.get("type"),
+                                  (Map<String, Object>) m.get("parameters")))));
+    }
+    return actionInfoMap;
   }
 
   private PowerwafConfig createPowerwafConfig() {
@@ -313,35 +351,12 @@ public class PowerWAFModule implements AppSecModule {
       return "powerwaf(libddwaf: " + Powerwaf.LIB_VERSION + ") no rules loaded";
     }
 
-    return "powerwaf(libddwaf: "
-        + Powerwaf.LIB_VERSION
-        + ") loaded "
-        + ctxAndAddresses.rulesInfoMap.size()
-        + " rules";
-  }
-
-  @Override
-  public Collection<EventSubscription> getEventSubscriptions() {
-    return singletonList(new PowerWAFEventsCallback());
-  }
-
-  private static class PowerWAFEventsCallback extends EventSubscription {
-    public PowerWAFEventsCallback() {
-      super(EventType.REQUEST_END, Priority.DEFAULT);
-    }
-
-    @Override
-    public void onEvent(AppSecRequestContext reqCtx, EventType eventType) {
-      if (eventType == EventType.REQUEST_END) {
-        reqCtx.closeAdditive();
-      }
-    }
+    return "powerwaf(libddwaf: " + Powerwaf.LIB_VERSION + ") loaded";
   }
 
   @Override
   public Collection<DataSubscription> getDataSubscriptions() {
     if (this.ctxAndAddresses.get() == null) {
-      log.warn("No subscriptions provided because module is not configured");
       return Collections.emptyList();
     }
     return singletonList(new PowerWAFDataCallback());
@@ -349,7 +364,7 @@ public class PowerWAFModule implements AppSecModule {
 
   private static Collection<Address<?>> getUsedAddresses(PowerwafContext ctx) {
     String[] usedAddresses = ctx.getUsedAddresses();
-    List<Address<?>> addressList = new ArrayList<>(usedAddresses.length);
+    Set<Address<?>> addressList = new HashSet<>(usedAddresses.length);
     for (String addrKey : usedAddresses) {
       Address<?> address = KnownAddresses.forName(addrKey);
       if (address != null) {
@@ -358,6 +373,17 @@ public class PowerWAFModule implements AppSecModule {
         log.warn("WAF has rule against unknown address {}", addrKey);
       }
     }
+
+    // TODO: get addresses dynamically when will it be implemented in waf
+    addressList.add(KnownAddresses.WAF_CONTEXT_PROCESSOR);
+    addressList.add(KnownAddresses.HEADERS_NO_COOKIES);
+    addressList.add(KnownAddresses.REQUEST_QUERY);
+    addressList.add(KnownAddresses.REQUEST_PATH_PARAMS);
+    addressList.add(KnownAddresses.REQUEST_COOKIES);
+    addressList.add(KnownAddresses.REQUEST_BODY_RAW);
+    addressList.add(KnownAddresses.RESPONSE_HEADERS_NO_COOKIES);
+    addressList.add(KnownAddresses.RESPONSE_BODY_OBJECT);
+
     return addressList;
   }
 
@@ -375,23 +401,26 @@ public class PowerWAFModule implements AppSecModule {
         log.debug("Skipped; the WAF is not configured");
         return;
       }
+
+      StandardizedLogging.executingWAF(log);
+      long start = 0L;
+      if (log.isDebugEnabled()) {
+        start = System.currentTimeMillis();
+      }
+
       try {
-        StandardizedLogging.executingWAF(log);
-        long start = 0L;
-        if (log.isDebugEnabled()) {
-          start = System.currentTimeMillis();
-        }
-
         resultWithData = doRunPowerwaf(reqCtx, newData, ctxAndAddr, isTransient);
-
+      } catch (TimeoutPowerwafException tpe) {
+        log.debug("Timeout calling the WAF", tpe);
+        return;
+      } catch (AbstractPowerwafException e) {
+        log.error("Error calling WAF", e);
+        return;
+      } finally {
         if (log.isDebugEnabled()) {
           long elapsed = System.currentTimeMillis() - start;
           StandardizedLogging.finishedExecutionWAF(log, elapsed);
         }
-
-      } catch (AbstractPowerwafException e) {
-        log.error("Error calling WAF", e);
-        return;
       }
 
       StandardizedLogging.inAppWafReturn(log, resultWithData);
@@ -401,41 +430,73 @@ public class PowerWAFModule implements AppSecModule {
           log.warn("WAF signalled result {}: {}", resultWithData.result, resultWithData.data);
         }
 
-        if (resultWithData.actions.length > 0) {
-          for (String action : resultWithData.actions) {
-            ActionInfo actionInfo = ctxAndAddr.actionInfoMap.get(action);
-            if (actionInfo == null) {
-              log.warn(
-                  "WAF indicated action {}, but such action id is unknown (not one from {})",
-                  action,
-                  ctxAndAddr.actionInfoMap.keySet());
-            } else if ("block_request".equals(actionInfo.type)) {
-              Flow.Action.RequestBlockingAction rba = createRequestBlockingAction(actionInfo);
-              flow.setAction(rba);
-              break;
-            } else {
-              log.info("Ignoring action with type {}", actionInfo.type);
-            }
+        for (String action : resultWithData.actions) {
+          ActionInfo actionInfo = ctxAndAddr.actionInfoMap.get(action);
+          if (actionInfo == null) {
+            log.warn(
+                "WAF indicated action {}, but such action id is unknown (not one from {})",
+                action,
+                ctxAndAddr.actionInfoMap.keySet());
+          } else if ("block_request".equals(actionInfo.type)) {
+            Flow.Action.RequestBlockingAction rba = createBlockRequestAction(actionInfo);
+            flow.setAction(rba);
+            break;
+          } else if ("redirect_request".equals(actionInfo.type)) {
+            Flow.Action.RequestBlockingAction rba = createRedirectRequestAction(actionInfo);
+            flow.setAction(rba);
+            break;
+          } else {
+            log.info("Ignoring action with type {}", actionInfo.type);
           }
         }
-        Collection<AppSecEvent100> events = buildEvents(resultWithData, ctxAndAddr.rulesInfoMap);
-        reqCtx.reportEvents(events, null);
+        Collection<AppSecEvent> events = buildEvents(resultWithData);
+        reqCtx.reportEvents(events);
+
+        if (flow.isBlocking()) {
+          WafMetricCollector.get().wafRequestBlocked();
+        } else {
+          WafMetricCollector.get().wafRequestTriggered();
+        }
+
+      } else {
+        WafMetricCollector.get().wafRequest();
+      }
+
+      if (resultWithData != null && resultWithData.schemas != null) {
+        reqCtx.reportApiSchemas(resultWithData.schemas);
       }
     }
 
-    private Flow.Action.RequestBlockingAction createRequestBlockingAction(ActionInfo actionInfo) {
+    private Flow.Action.RequestBlockingAction createBlockRequestAction(ActionInfo actionInfo) {
       try {
         int statusCode =
             ((Number) actionInfo.parameters.getOrDefault("status_code", 403)).intValue();
         String contentType = (String) actionInfo.parameters.getOrDefault("type", "auto");
-        Flow.Action.BlockingContentType blockingContentType = Flow.Action.BlockingContentType.AUTO;
+        BlockingContentType blockingContentType = BlockingContentType.AUTO;
         try {
-          blockingContentType =
-              Flow.Action.BlockingContentType.valueOf(contentType.toUpperCase(Locale.ROOT));
+          blockingContentType = BlockingContentType.valueOf(contentType.toUpperCase(Locale.ROOT));
         } catch (IllegalArgumentException iae) {
           log.warn("Unknown content type: {}; using auto", contentType);
         }
         return new Flow.Action.RequestBlockingAction(statusCode, blockingContentType);
+      } catch (RuntimeException cce) {
+        log.warn("Invalid blocking action data", cce);
+        return null;
+      }
+    }
+
+    private Flow.Action.RequestBlockingAction createRedirectRequestAction(ActionInfo actionInfo) {
+      try {
+        int statusCode =
+            ((Number) actionInfo.parameters.getOrDefault("status_code", 303)).intValue();
+        if (statusCode < 300 || statusCode > 399) {
+          statusCode = 303;
+        }
+        String location = (String) actionInfo.parameters.get("location");
+        if (location == null) {
+          throw new RuntimeException("redirect_request action has no location");
+        }
+        return Flow.Action.RequestBlockingAction.forRedirect(statusCode, location);
       } catch (RuntimeException cce) {
         log.warn("Invalid blocking action data", cce);
         return null;
@@ -475,8 +536,7 @@ public class PowerWAFModule implements AppSecModule {
         new DataBundleMapWrapper(ctxAndAddr.addressesOfInterest, bundle), LIMITS, metrics);
   }
 
-  private Collection<AppSecEvent100> buildEvents(
-      Powerwaf.ResultWithData actionWithData, Map<String, RuleInfo> rulesInfoMap) {
+  private Collection<AppSecEvent> buildEvents(Powerwaf.ResultWithData actionWithData) {
     Collection<PowerWAFResultData> listResults;
     try {
       listResults = RES_JSON_ADAPTER.fromJson(actionWithData.data);
@@ -486,15 +546,14 @@ public class PowerWAFModule implements AppSecModule {
 
     if (listResults != null && !listResults.isEmpty()) {
       return listResults.stream()
-          .map(wafResult -> buildEvent(wafResult, rulesInfoMap))
+          .map(this::buildEvent)
           .filter(Objects::nonNull)
           .collect(Collectors.toList());
     }
     return emptyList();
   }
 
-  private AppSecEvent100 buildEvent(
-      PowerWAFResultData wafResult, Map<String, RuleInfo> rulesInfoMap) {
+  private AppSecEvent buildEvent(PowerWAFResultData wafResult) {
 
     if (wafResult == null || wafResult.rule == null || wafResult.rule_matches == null) {
       log.warn("WAF result is empty: {}", wafResult);
@@ -508,7 +567,7 @@ public class PowerWAFModule implements AppSecModule {
 
       for (PowerWAFResultData.Parameter parameter : rule_match.parameters) {
         parameterList.add(
-            new Parameter.ParameterBuilder()
+            new Parameter.Builder()
                 .withAddress(parameter.address)
                 .withKeyPath(parameter.key_path)
                 .withValue(parameter.value)
@@ -517,7 +576,7 @@ public class PowerWAFModule implements AppSecModule {
       }
 
       RuleMatch ruleMatch =
-          new RuleMatch.RuleMatchBuilder()
+          new RuleMatch.Builder()
               .withOperator(rule_match.operator)
               .withOperatorValue(rule_match.operator_value)
               .withParameters(parameterList)
@@ -526,18 +585,12 @@ public class PowerWAFModule implements AppSecModule {
       ruleMatchList.add(ruleMatch);
     }
 
-    RuleInfo ruleInfo = rulesInfoMap.get(wafResult.rule.id);
-
-    return new AppSecEvent100.AppSecEvent100Builder()
+    return new AppSecEvent.Builder()
         .withRule(
-            new Rule.RuleBuilder()
+            new Rule.Builder()
                 .withId(wafResult.rule.id)
-                .withName(ruleInfo.name)
-                .withTags(
-                    new Tags.TagsBuilder()
-                        .withType(ruleInfo.tags.get("type"))
-                        .withCategory(ruleInfo.tags.get("category"))
-                        .build())
+                .withName(wafResult.rule.name)
+                .withTags(wafResult.rule.tags)
                 .build())
         .withRuleMatches(ruleMatchList)
         .build();
@@ -677,55 +730,6 @@ public class PowerWAFModule implements AppSecModule {
 
     @Override
     public Object setValue(Object value) {
-      throw new UnsupportedOperationException();
-    }
-  }
-
-  class FilledInRuleTogglingMap extends AbstractMap<String, Boolean> {
-    final Map<String, Boolean> explicitCfg;
-    final Set<String> rulesNames;
-    private int size = -1;
-
-    FilledInRuleTogglingMap(Map<String, Boolean> explicitCfg, Set<String> allRuleNames) {
-      this.explicitCfg = explicitCfg;
-      this.rulesNames = allRuleNames;
-    }
-
-    @Override
-    public Set<Entry<String, Boolean>> entrySet() {
-      return this.rulesNames.stream()
-          .map(
-              ruleName ->
-                  new RuleEnabledEntry(
-                      ruleName,
-                      this.explicitCfg.containsKey(ruleName)
-                          ? this.explicitCfg.get(ruleName)
-                          : Boolean.TRUE))
-          .collect(Collectors.toSet());
-    }
-  }
-
-  static class RuleEnabledEntry implements Map.Entry<String, Boolean> {
-    final String ruleName;
-    final boolean enabled;
-
-    RuleEnabledEntry(String ruleName, boolean enabled) {
-      this.ruleName = ruleName;
-      this.enabled = enabled;
-    }
-
-    @Override
-    public String getKey() {
-      return this.ruleName;
-    }
-
-    @Override
-    public Boolean getValue() {
-      return this.enabled;
-    }
-
-    @Override
-    public Boolean setValue(Boolean value) {
       throw new UnsupportedOperationException();
     }
   }

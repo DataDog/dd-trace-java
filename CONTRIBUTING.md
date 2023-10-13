@@ -3,20 +3,26 @@
 Pull requests for bug fixes are welcome, but before submitting new features or changes to current functionality [open an issue](https://github.com/DataDog/dd-trace-java/issues/new)
 and discuss your ideas or propose the changes you wish to make. After a resolution is reached a PR can be submitted for review.
 
+When opening a pull request, please open it as a [draft](https://github.blog/2019-02-14-introducing-draft-pull-requests/) to not auto assign reviewers before you feel the pull request is in a reviewable state.
+
 ## Requirements
 
-To build the full project from the command line:
+To build the full project:
 
 * JDK version 8 must be installed.
 * JDK version 11 must be installed.
+* JDK version 17 must be installed.
 * `JAVA_8_HOME` must point to the JDK-8 location.
 * `JAVA_11_HOME` must point to the JDK-11 location.
+* `JAVA_17_HOME` must point to the JDK-17 location.
 * The JDK-8 `bin` directory must be the only JDK on the PATH (e.g. `$JAVA_8_HOME/bin`).
 * `JAVA_HOME` may be unset. If set, it must point to JDK-8 (same as `JAVA_8_HOME`).
 
 MacOS users, remember that `/usr/libexec/java_home` may control which JDK is in your path.
 
 In contrast to the [IntelliJ IDEA setup](#intellij-idea) the default JVM to build and run tests from the command line should be Java 8.
+
+There is no Oracle JDK v8 for ARM. ARM users might want to use [Azul's Zulu](/Users/albert.cintora/go/src/github.com/DataDog/dd-trace-java/dd-java-agent/instrumentation/build.gradle) builds of Java 8. On MacOS, they can be installed using `brew tap homebrew/cask-versions && brew install --cask zulu8`. [Amazon Corretto](https://aws.amazon.com/corretto/) builds have also been proven to work.
 
 # Building
 
@@ -166,6 +172,19 @@ There is a pre-commit hook setup to verify formatting before committing. It can 
 git config core.hooksPath .githooks
 ```
 
+## Git submodule setup
+
+Git does not automatically update submodules when switching branches.
+
+Add the following configuration setting or you will need to remember to add `--recurse-submodules` to `git checkout` when switching to old branches.
+
+```bash
+git config --local submodule.recurse true
+```
+
+This will keep the submodule in `dd-java-agent/agent-jmxfetch/integrations-core` up to date.
+
+
 ## Intellij IDEA
 
 Compiler settings:
@@ -181,13 +200,11 @@ Suggested plugins and settings:
   * With java use the following import layout (groovy should still use the default) to ensure consistency with google-java-format:
     ![import layout](https://user-images.githubusercontent.com/734411/43430811-28442636-94ae-11e8-86f1-f270ddcba023.png)
 * [Google Java Format](https://plugins.jetbrains.com/plugin/8527-google-java-format)
-* [Save Actions](https://plugins.jetbrains.com/plugin/7642-save-actions)
-  ![Recommended Settings](https://user-images.githubusercontent.com/35850765/124003079-838f4280-d9a4-11eb-9250-5c517631e362.png)
 
 ## Troubleshooting
 
-* P: When Gradle is building the project, the error `Could not find netty-transport-native-epoll-4.1.43.Final-linux-x86_64.jar` is shown.
-  * S: Execute `rm -rf  ~/.m2/repository/io/netty/netty-transport*` in a Terminal and re-build again.
+* When Gradle is building the project, the error `Could not find netty-transport-native-epoll-4.1.43.Final-linux-x86_64.jar` is shown.
+  * Execute `rm -rf  ~/.m2/repository/io/netty/netty-transport*` in a Terminal and re-build again.
 
 * IntelliJ 2021.3 complains `Failed to find KotlinGradleProjectData for GradleSourceSetData` https://youtrack.jetbrains.com/issue/KTIJ-20173
   * Switch to `IntelliJ IDEA CE 2021.2.3`
@@ -195,6 +212,9 @@ Suggested plugins and settings:
 * IntelliJ Gradle fails to import the project with `JAVA_11_HOME must be set to build Java 11 code`
   * A workaround is to run IntelliJ from terminal with `JAVA_11_HOME`
   * In order to verify what's visible from IntelliJ use `Add Configuration` bar and go to `Add New` -> `Gradle` -> `Environmental Variables`
+
+* Gradle fails with a "too many open files" error.
+  * You can check the `ulimit` for open files in your current shell by doing `ulimit -n` and raise it by calling `ulimit -n <new number>`
 
 ## Running tests on another JVM
 
@@ -205,3 +225,19 @@ To run tests on a different JVM than the one used for doing the build, you need 
 2) A command line option to the gradle task on the form `-PtestJvm=[JDKNAME]`, i.e. `-PtestJvm=ZULU15`
 
 Please note that the JDK name needs to end with the JDK version, i.e. `11`, `ZULU15`, `ORACLE8`, et.c.
+
+## The APM Test Agent
+
+The APM test agent emulates the APM endpoints of the Datadog Agent. The Test Agent container runs alongside Java tracer
+Instrumentation Tests in CI, handling all traces during test runs and performing a number of `Trace Checks`. Trace
+Check results are returned within the `Get APM Test Agent Trace Check Results` step for all instrumentation test jobs.
+
+For more information on Trace Checks, see:
+https://github.com/DataDog/dd-apm-test-agent#trace-invariant-checks
+
+The APM Test Agent also emits helpful logging, including logging received traces' headers, spans, errors encountered,
+ands information on trace checks being performed. Logs can be viewed in CircleCI within the Test-Agent container step
+for all instrumentation test suites, ie: `z_test_8_inst` job
+
+Read more about the APM Test Agent:
+https://github.com/datadog/dd-apm-test-agent#readme

@@ -1,6 +1,7 @@
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
+import datadog.trace.test.util.Flaky
 import org.elasticsearch.action.admin.cluster.health.ClusterHealthRequest
 import org.elasticsearch.client.transport.TransportClient
 import org.elasticsearch.common.io.FileSystemUtils
@@ -11,12 +12,11 @@ import org.elasticsearch.node.Node
 import org.elasticsearch.node.NodeBuilder
 import org.elasticsearch.transport.RemoteTransportException
 import org.elasticsearch.transport.TransportService
-import spock.lang.Retry
 import spock.lang.Shared
 
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 
-@Retry(count = 3, delay = 1000, mode = Retry.Mode.SETUP_FEATURE_CLEANUP)
+@Flaky
 class Elasticsearch2TransportClientTest extends AgentTestRunner {
   public static final long TIMEOUT = 10000 // 10 seconds
 
@@ -94,6 +94,7 @@ class Elasticsearch2TransportClientTest extends AgentTestRunner {
             "$Tags.DB_TYPE" "elasticsearch"
             "elasticsearch.action" "ClusterHealthAction"
             "elasticsearch.request" "ClusterHealthRequest"
+            peerServiceFrom(Tags.PEER_HOSTNAME)
             defaultTags()
           }
         }
@@ -125,7 +126,7 @@ class Elasticsearch2TransportClientTest extends AgentTestRunner {
             "elasticsearch.request" "GetRequest"
             "elasticsearch.request.indices" indexName
             errorTags RemoteTransportException, String
-            defaultTags()
+            defaultTagsNoPeerService()
           }
         }
       }
@@ -192,6 +193,7 @@ class Elasticsearch2TransportClientTest extends AgentTestRunner {
             "elasticsearch.action" "CreateIndexAction"
             "elasticsearch.request" "CreateIndexRequest"
             "elasticsearch.request.indices" indexName
+            peerServiceFrom(Tags.PEER_HOSTNAME)
             defaultTags()
           }
         }
@@ -211,6 +213,7 @@ class Elasticsearch2TransportClientTest extends AgentTestRunner {
             "$Tags.DB_TYPE" "elasticsearch"
             "elasticsearch.action" "ClusterHealthAction"
             "elasticsearch.request" "ClusterHealthRequest"
+            peerServiceFrom(Tags.PEER_HOSTNAME)
             defaultTags()
           }
         }
@@ -234,6 +237,7 @@ class Elasticsearch2TransportClientTest extends AgentTestRunner {
             "elasticsearch.type" indexType
             "elasticsearch.id" "1"
             "elasticsearch.version"(-1)
+            peerServiceFrom(Tags.PEER_HOSTNAME)
             defaultTags()
           }
         }
@@ -255,6 +259,7 @@ class Elasticsearch2TransportClientTest extends AgentTestRunner {
             "elasticsearch.request" "IndexRequest"
             "elasticsearch.request.indices" indexName
             "elasticsearch.request.write.type" indexType
+            peerServiceFrom(Tags.PEER_HOSTNAME)
             defaultTags()
           }
         }
@@ -272,7 +277,7 @@ class Elasticsearch2TransportClientTest extends AgentTestRunner {
             "elasticsearch.action" "PutMappingAction"
             "elasticsearch.request" "PutMappingRequest"
             "elasticsearch.request.indices" indexName
-            defaultTags()
+            defaultTagsNoPeerService()
           }
         }
       }
@@ -295,6 +300,7 @@ class Elasticsearch2TransportClientTest extends AgentTestRunner {
             "elasticsearch.type" indexType
             "elasticsearch.id" "1"
             "elasticsearch.version" 1
+            peerServiceFrom(Tags.PEER_HOSTNAME)
             defaultTags()
           }
         }

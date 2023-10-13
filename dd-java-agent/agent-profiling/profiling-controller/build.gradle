@@ -1,0 +1,32 @@
+apply from: "$rootDir/gradle/java.gradle"
+
+// We have some general logging paths that are hard to test
+minimumInstructionCoverage = 0.8
+minimumBranchCoverage = 0.8
+
+excludedClassesCoverage += [
+  // ControllerFactory gets better tested in actual controller implementations
+  'com.datadog.profiling.controller.ControllerFactory',
+  // There are some code paths that is impossible/very-very hard to hit
+  'com.datadog.profiling.controller.ProfilingSystem.StartRecording',
+  'com.datadog.profiling.controller.ProfilingSystem.StopRecording',
+  // This is almost fully abstract class so nothing to test
+  'com.datadog.profiling.controller.RecordingData',
+  // A simple data holder class, nothing to test
+  'com.datadog.profiling.controller.ProfilerSettingsSupport',
+  'com.datadog.profiling.controller.ProfilingSupport',
+  // A simple enum
+  'com.datadog.profiling.controller.ControllerFactory.Implementation',
+]
+
+dependencies {
+  api deps.slf4j
+  api project(':internal-api')
+  api project(':dd-java-agent:agent-profiling:profiling-utils')
+
+  testImplementation deps.junit5
+  testImplementation deps.guava
+  testImplementation deps.mockito
+  testImplementation group: 'org.awaitility', name: 'awaitility', version: '4.0.1'
+}
+

@@ -1,7 +1,8 @@
 package datadog.trace.api.gateway
 
-import datadog.trace.api.function.Function
 import spock.lang.Specification
+
+import java.util.function.Function
 
 class SubscriptionServiceNoopTest extends Specification {
   void 'registration on noop implementation'() {

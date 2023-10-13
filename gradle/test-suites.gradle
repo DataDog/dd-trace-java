@@ -1,0 +1,76 @@
+import org.gradle.api.plugins.jvm.JvmTestSuite
+
+ext.addTestSuiteExtendingForDir = (String testSuiteName, String parentSuiteName, String dirName) -> {
+  testing {
+    suites {
+      create(testSuiteName, JvmTestSuite, {
+        sources {
+          java {
+            srcDirs = ["src/$dirName/java"]
+          }
+          resources {
+            srcDirs = ["src/$dirName/resources"]
+          }
+          if (project.plugins.hasPlugin('groovy')) {
+            groovy {
+              srcDirs = ["src/$dirName/groovy"]
+            }
+          }
+          if (project.plugins.hasPlugin('kotlin')) {
+            kotlin {
+              srcDirs = ["src/$dirName/kotlin"]
+            }
+          }
+          if (project.plugins.hasPlugin('scala')) {
+            scala {
+              srcDirs = ["src/$dirName/scala"]
+            }
+          }
+        }
+        dependencies {
+          implementation project(project.path)
+        }
+      })
+    }
+  }
+
+  configurations {
+    def extendConf = {
+      String suffix ->
+      def config = named("${testSuiteName}${suffix}")
+      def parentConfig = named("${parentSuiteName}${suffix}")
+      if (parentConfig.present) {
+        config.configure {
+          extendsFrom(parentConfig.get())
+        }
+      }
+
+      if (testSuiteName ==~ /.*ForkedTest\z/) {
+        def nonForkedBaseConfName = testSuiteName - ~/Forked/
+        def nonForkedConfig = maybeCreate("${nonForkedBaseConfName}${suffix}")
+        config.configure {
+          extendsFrom(nonForkedConfig)
+        }
+      }
+    }
+
+    extendConf('CompileOnly')
+    extendConf('Implementation')
+    extendConf('RuntimeOnly')
+    extendConf('AnnotationProcessor')
+  }
+
+  tasks.register("${testSuiteName}Jar", Jar) {
+    dependsOn(tasks.named("${testSuiteName}Classes").get())
+    from(sourceSets.named(testSuiteName).get().output)
+    archiveClassifier = testSuiteName
+  }
+}
+
+ext.addTestSuiteForDir = (String testSuiteName, String dirName) -> {
+  ext.addTestSuiteExtendingForDir(testSuiteName, 'test', dirName)
+}
+
+ext.addTestSuite = (String testSuiteName) -> {
+  ext.addTestSuiteForDir(testSuiteName, testSuiteName)
+}

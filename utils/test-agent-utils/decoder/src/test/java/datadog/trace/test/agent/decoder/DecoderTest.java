@@ -10,7 +10,7 @@ import java.nio.file.Path;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 public class DecoderTest {
 
@@ -107,7 +107,7 @@ public class DecoderTest {
   }
 
   private byte[] readResourceFile(String resourceName) throws IOException {
-    Path path = new File(this.getClass().getResource(resourceName).getFile()).toPath();
+    Path path = new File(getClass().getResource(resourceName).getFile()).toPath();
     return Files.readAllBytes(path);
   }
 

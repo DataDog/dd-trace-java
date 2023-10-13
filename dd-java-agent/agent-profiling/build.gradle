@@ -1,0 +1,40 @@
+plugins {
+  id "com.github.johnrengelman.shadow"
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+
+dependencies {
+  api deps.slf4j
+  api project(':internal-api')
+
+  implementation project(path: ':dd-java-agent:agent-profiling:profiling-ddprof', configuration: 'shadow')
+  api project(':dd-java-agent:agent-profiling:profiling-auxiliary')
+  api project(':dd-java-agent:agent-profiling:profiling-auxiliary-ddprof')
+  api project(':dd-java-agent:agent-profiling:profiling-uploader')
+  api project(':dd-java-agent:agent-profiling:profiling-controller')
+  api project(':dd-java-agent:agent-profiling:profiling-controller-ddprof')
+  api project(':dd-java-agent:agent-profiling:profiling-controller-openjdk')
+  api project(':dd-java-agent:agent-profiling:profiling-controller-oracle')
+}
+
+Project parent_project = project
+subprojects { Project subProj ->
+  subProj.tasks.withType(Test).configureEach { subTask ->
+    onlyIf { !project.rootProject.hasProperty("skipProfilingTests") }
+  }
+}
+
+configurations {
+  // exclude bootstrap dependencies from shadowJar
+  runtime.exclude module: deps.slf4j
+  runtime.exclude group: 'org.slf4j'
+}
+
+shadowJar {
+  dependencies deps.excludeShared
+}
+
+jar {
+  archiveClassifier = 'unbundled'
+}

@@ -38,7 +38,7 @@ public class OpenJdkOngoingRecording implements OngoingRecording {
     if (auxiliaryProfiler.isEnabled()) {
       auxiliaryRecording = auxiliaryProfiler.start();
       if (auxiliaryRecording != null) {
-        disableOverridenEvents();
+        disableOverriddenEvents();
       }
     } else {
       auxiliaryRecording = null;
@@ -53,7 +53,7 @@ public class OpenJdkOngoingRecording implements OngoingRecording {
     if (auxiliaryProfiler.isEnabled()) {
       auxiliaryRecording = auxiliaryProfiler.start();
       if (auxiliaryRecording != null) {
-        disableOverridenEvents();
+        disableOverriddenEvents();
       }
     } else {
       auxiliaryRecording = null;
@@ -62,26 +62,29 @@ public class OpenJdkOngoingRecording implements OngoingRecording {
     log.debug("Recording {} started", recording.getName());
   }
 
-  private void disableOverridenEvents() {
+  private void disableOverriddenEvents() {
     for (ProfilingMode mode : auxiliaryProfiler.enabledModes()) {
       switch (mode) {
         case CPU:
           {
             // CPU execution profiling will take over these events
-            log.info("Disabling built-in CPU profiling events");
+            log.debug("Disabling built-in CPU profiling events");
             recording.disable("jdk.ExecutionSample");
             recording.disable("jdk.NativeMethodSample");
             break;
           }
         case WALL:
           {
-            // do nothing here for now - this mode is not really supported yet
+            log.debug("Disabling built-in wall-time tracing events");
+            recording.disable("jdk.JavaMonitorWait");
+            recording.disable("jdk.ThreadPark");
+            recording.disable("jdk.ThreadSleep");
             break;
           }
         case ALLOCATION:
           {
             // allocation profiling will take over these events
-            log.info("Disabling built-in allocation profiling events");
+            log.debug("Disabling built-in allocation profiling events");
             recording.disable("jdk.ObjectAllocationOutsideTLAB");
             recording.disable("jdk.ObjectAllocationInNewTLAB");
             recording.disable("jdk.ObjectAllocationSample");
@@ -90,7 +93,7 @@ public class OpenJdkOngoingRecording implements OngoingRecording {
         case MEMLEAK:
           {
             // memleak profiling will take over these events
-            log.info("Disabling built-in memory leak profiling events");
+            log.debug("Disabling built-in memory leak profiling events");
             recording.disable("jdk.OldObjectSample");
             break;
           }

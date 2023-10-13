@@ -6,11 +6,12 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
+import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.advice.ActiveRequestContext;
 import datadog.trace.advice.RequiresRequestContext;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.muzzle.Reference;
-import datadog.trace.api.function.BiFunction;
+import datadog.trace.api.gateway.BlockResponseFunction;
 import datadog.trace.api.gateway.CallbackProvider;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.RequestContext;
@@ -20,6 +21,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.function.BiFunction;
 import net.bytebuddy.asm.Advice;
 import org.apache.tomcat.util.http.Parameters;
 
@@ -104,7 +106,8 @@ public class ParsedBodyParametersInstrumentation extends Instrumenter.AppSec
         @Advice.Local("origParamHashValues") Map<String, ArrayList<String>> origParamValues,
         @Advice.FieldValue("paramHashValues") final Map<String, ArrayList<String>> paramValuesField,
         @Advice.Enter final int depth,
-        @ActiveRequestContext RequestContext reqCtx) {
+        @ActiveRequestContext RequestContext reqCtx,
+        @Advice.Thrown(readOnly = false) Throwable t) {
       if (depth > 0) {
         return;
       }
@@ -121,7 +124,25 @@ public class ParsedBodyParametersInstrumentation extends Instrumenter.AppSec
         if (reqCtx == null || callback == null) {
           return;
         }
-        callback.apply(reqCtx, paramValuesField);
+        Flow<Void> flow = callback.apply(reqCtx, paramValuesField);
+        Flow.Action action = flow.getAction();
+        if (action instanceof Flow.Action.RequestBlockingAction) {
+          Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
+          BlockResponseFunction blockResponseFunction = reqCtx.getBlockResponseFunction();
+          if (blockResponseFunction != null) {
+            boolean committedBlockingResponse =
+                blockResponseFunction.tryCommitBlockingResponse(
+                    reqCtx.getTraceSegment(),
+                    rba.getStatusCode(),
+                    rba.getBlockingContentType(),
+                    rba.getExtraHeaders());
+            if (committedBlockingResponse) {
+              if (t == null) {
+                t = new BlockingException("Blocked request (for processParameters)");
+              }
+            }
+          }
+        }
       } finally {
         if (origParamValues != null) {
           paramValuesField.putAll(origParamValues);

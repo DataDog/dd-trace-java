@@ -1,18 +1,14 @@
-import com.squareup.okhttp.Headers
-import com.squareup.okhttp.MediaType
-import com.squareup.okhttp.OkHttpClient
-import com.squareup.okhttp.Request
-import com.squareup.okhttp.RequestBody
+import com.squareup.okhttp.*
 import com.squareup.okhttp.internal.http.HttpMethod
 import datadog.trace.agent.test.base.HttpClientTest
+import datadog.trace.agent.test.naming.TestingGenericHttpNamingConventions
 import datadog.trace.instrumentation.okhttp2.OkHttpClientDecorator
 import spock.lang.Shared
 import spock.lang.Timeout
 
 import java.util.concurrent.TimeUnit
 
-@Timeout(5)
-class OkHttp2Test extends HttpClientTest {
+abstract class OkHttp2Test extends HttpClientTest {
   @Override
   boolean useStrictTraceWrites() {
     // TODO fix this by making sure that spans get closed properly
@@ -48,13 +44,30 @@ class OkHttp2Test extends HttpClientTest {
     return OkHttpClientDecorator.DECORATE.component()
   }
 
-  @Override
-  String expectedOperationName() {
-    return "okhttp.request"
-  }
-
-
   boolean testRedirects() {
     false
   }
+}
+
+@Timeout(5)
+class OkHttp2V0ForkedTest extends OkHttp2Test {
+
+  @Override
+  int version() {
+    return 0
+  }
+
+  @Override
+  String service() {
+    return null
+  }
+
+  @Override
+  String operation() {
+    return "okhttp.request"
+  }
+}
+
+@Timeout(5)
+class OkHttp2V1ForkedTest extends OkHttp2Test implements TestingGenericHttpNamingConventions.ClientV1 {
 }

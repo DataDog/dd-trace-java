@@ -1,0 +1,20 @@
+plugins {
+  id "com.github.johnrengelman.shadow"
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+description = 'Gradle Daemon Instrumentation Smoke Tests.'
+
+dependencies {
+  testImplementation project(':dd-smoke-tests')
+  testImplementation gradleTestKit()
+
+  testImplementation group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: '2.14.0'
+  testImplementation group: 'org.msgpack', name: 'jackson-dataformat-msgpack', version: '0.8.20'
+}
+
+test {
+  testLogging {
+    events "passed", "skipped", "failed", "standardOut", "standardError"
+  }
+}

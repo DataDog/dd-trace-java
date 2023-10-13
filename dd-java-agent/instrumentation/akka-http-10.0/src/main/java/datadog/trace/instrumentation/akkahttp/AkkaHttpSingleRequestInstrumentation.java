@@ -17,6 +17,7 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator;
 import net.bytebuddy.asm.Advice;
 import scala.concurrent.Future;
 
@@ -77,6 +78,9 @@ public final class AkkaHttpSingleRequestInstrumentation extends Instrumenter.Tra
 
       if (request != null) {
         propagate().inject(span, request, headers);
+        propagate()
+            .injectPathwayContext(
+                span, request, headers, HttpClientDecorator.CLIENT_PATHWAY_EDGE_TAGS);
         // Request is immutable, so we have to assign new value once we update headers
         request = headers.getRequest();
       }

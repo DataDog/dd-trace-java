@@ -1,11 +1,11 @@
 package datadog.trace.common.writer
 
-import datadog.trace.api.StatsDClient
+import datadog.trace.common.sampling.SingleSpanSampler
+import datadog.trace.common.writer.ddagent.PrioritizationStrategy.PublishResult
+import datadog.trace.core.CoreSpan
 import datadog.trace.core.DDSpan
 import datadog.trace.core.monitor.HealthMetrics
-import datadog.trace.core.monitor.MonitoringImpl
 import datadog.trace.test.util.DDSpecification
-import spock.lang.Shared
 import spock.util.concurrent.PollingConditions
 
 import java.util.concurrent.TimeUnit
@@ -17,16 +17,14 @@ import static datadog.trace.api.sampling.PrioritySampling.UNSET
 import static datadog.trace.api.sampling.PrioritySampling.USER_DROP
 import static datadog.trace.api.sampling.PrioritySampling.USER_KEEP
 import static datadog.trace.common.writer.ddagent.Prioritization.FAST_LANE
+import static datadog.trace.common.writer.ddagent.PrioritizationStrategy.PublishResult.ENQUEUED_FOR_SERIALIZATION
 
 class TraceProcessingWorkerTest extends DDSpecification {
-
-  @Shared
-  MonitoringImpl monitoring = new MonitoringImpl(StatsDClient.NO_OP, 1, TimeUnit.SECONDS)
 
   def conditions = new PollingConditions(timeout: 5, initialDelay: 0, factor: 1.25)
 
   def flushCountingPayloadDispatcher(AtomicInteger flushCounter) {
-    PayloadDispatcher dispatcher = Mock(PayloadDispatcher)
+    PayloadDispatcherImpl dispatcher = Mock(PayloadDispatcherImpl)
     dispatcher.flush() >> {
       flushCounter.incrementAndGet()
     }
@@ -42,14 +40,16 @@ class TraceProcessingWorkerTest extends DDSpecification {
       },
       FAST_LANE,
       1,
-      TimeUnit.NANOSECONDS) // stop heartbeats from being throttled
+      TimeUnit.NANOSECONDS,
+      null
+      ) // stop heartbeats from being throttled
 
     when: "processor is started"
     worker.start()
 
     then: "heartbeat occurs automatically"
     conditions.eventually {
-      flushCount.get() > 0
+      assert flushCount.get() > 0
     }
 
     cleanup:
@@ -66,7 +66,9 @@ class TraceProcessingWorkerTest extends DDSpecification {
       },
       FAST_LANE,
       1,
-      TimeUnit.NANOSECONDS) // stop heartbeats from being throttled
+      TimeUnit.NANOSECONDS,
+      null
+      ) // stop heartbeats from being throttled
     def timeConditions = new PollingConditions(timeout: 1, initialDelay: 1, factor: 1.25)
 
     when: "processor is started"
@@ -74,7 +76,7 @@ class TraceProcessingWorkerTest extends DDSpecification {
 
     then: "heartbeat occurs automatically approximately once per second"
     timeConditions.eventually {
-      flushCount.get() > 1
+      assert flushCount.get() > 1
     }
 
     cleanup:
@@ -90,7 +92,7 @@ class TraceProcessingWorkerTest extends DDSpecification {
         false
       },
       FAST_LANE,
-      100, TimeUnit.SECONDS) // prevent heartbeats from helping the flush happen
+      100, TimeUnit.SECONDS, null) // prevent heartbeats from helping the flush happen
 
     when: "there is pending work it is completed before a flush"
     // processing this span will throw an exception, but it should be caught
@@ -111,7 +113,7 @@ class TraceProcessingWorkerTest extends DDSpecification {
   def "should report failure if serialization fails"() {
     setup:
     Throwable theError = new IllegalStateException("thrown by test")
-    PayloadDispatcher throwingDispatcher = Mock(PayloadDispatcher)
+    PayloadDispatcherImpl throwingDispatcher = Mock(PayloadDispatcherImpl)
     throwingDispatcher.addTrace(_) >> {
       throw theError
     }
@@ -129,7 +131,7 @@ class TraceProcessingWorkerTest extends DDSpecification {
       throwingDispatcher, {
         false
       }, FAST_LANE,
-      100, TimeUnit.SECONDS) // prevent heartbeats from helping the flush happen
+      100, TimeUnit.SECONDS, null) // prevent heartbeats from helping the flush happen
     worker.start()
 
     when: "a trace is processed but can't be passed on"
@@ -137,7 +139,7 @@ class TraceProcessingWorkerTest extends DDSpecification {
 
     then: "the error is reported to the monitor"
     conditions.eventually {
-      1 == errorReported.get()
+      assert 1 == errorReported.get()
     }
 
     cleanup:
@@ -150,7 +152,7 @@ class TraceProcessingWorkerTest extends DDSpecification {
   def "traces should be processed"() {
     setup:
     AtomicInteger acceptedCount = new AtomicInteger()
-    PayloadDispatcher countingDispatcher = Mock(PayloadDispatcher)
+    PayloadDispatcherImpl countingDispatcher = Mock(PayloadDispatcherImpl)
     countingDispatcher.addTrace(_) >> {
       acceptedCount.getAndIncrement()
     }
@@ -158,25 +160,25 @@ class TraceProcessingWorkerTest extends DDSpecification {
     TraceProcessingWorker worker = new TraceProcessingWorker(10, healthMetrics,
       countingDispatcher, {
         false
-      }, FAST_LANE, 100, TimeUnit.SECONDS)
+      }, FAST_LANE, 100, TimeUnit.SECONDS, null)
     // prevent heartbeats from helping the flush happen
     worker.start()
 
     when: "traces are submitted"
     int submitted = 0
     for (int i = 0; i < traceCount; ++i) {
-      submitted += worker.publish(Mock(DDSpan), priority, [Mock(DDSpan)]) ? 1 : 0
+      PublishResult publishResult = worker.publish(Mock(DDSpan), priority, [Mock(DDSpan)])
+      submitted += publishResult == ENQUEUED_FOR_SERIALIZATION ? 1 : 0
     }
 
     then: "traces are passed through unless rejected on submission"
     0 * healthMetrics.onFailedSerialize(_, _)
     conditions.eventually {
-      submitted == acceptedCount.get()
+      assert submitted == acceptedCount.get()
     }
 
     cleanup:
     worker.close()
-
 
     where:
     priority     | traceCount | strategy
@@ -200,17 +202,16 @@ class TraceProcessingWorkerTest extends DDSpecification {
     SAMPLER_KEEP | 100        | FAST_LANE
     USER_KEEP    | 100        | FAST_LANE
     UNSET        | 100        | FAST_LANE
-
   }
 
   def "flush of full queue after worker thread stopped will not flush but will return"() {
     setup:
-    PayloadDispatcher countingDispatcher = Mock(PayloadDispatcher)
+    PayloadDispatcherImpl countingDispatcher = Mock(PayloadDispatcherImpl)
     HealthMetrics healthMetrics = Mock(HealthMetrics)
     TraceProcessingWorker worker = new TraceProcessingWorker(10, healthMetrics,
       countingDispatcher, {
         false
-      }, FAST_LANE, 100, TimeUnit.SECONDS)
+      }, FAST_LANE, 100, TimeUnit.SECONDS, null)
     worker.start()
     worker.close()
     int queueSize = 0
@@ -222,6 +223,158 @@ class TraceProcessingWorkerTest extends DDSpecification {
     boolean flushed = worker.flush(1, TimeUnit.SECONDS)
     then:
     !flushed
+  }
+
+  def "send unsampled traces to the SpanProcessingWorker and expect only sampled spans dispatched when dropping policy is active"() {
+    setup:
+    HealthMetrics healthMetrics = Mock(HealthMetrics)
+    AtomicInteger acceptedCount = new AtomicInteger()
+    AtomicInteger acceptedSpanCount = new AtomicInteger()
+    PayloadDispatcherImpl countingDispatcher = Mock(PayloadDispatcherImpl)
+    countingDispatcher.addTrace(_) >> {
+      List traceList = it[0]
+      acceptedSpanCount.getAndAdd(traceList.size())
+      acceptedCount.getAndIncrement()
+    }
+    AtomicInteger sampledSpansCount = new AtomicInteger()
+    SingleSpanSampler singleSpanSampler = new SingleSpanSampler() {
+        int counter = 0
+        boolean setSamplingPriority(CoreSpan span) {
+          if (counter++ % 2 == 0) {
+            sampledSpansCount.incrementAndGet()
+            return true
+          }
+          // drop every other trace span
+          return false
+        }
+      }
+    TraceProcessingWorker worker = new TraceProcessingWorker(10, healthMetrics, countingDispatcher, { true }, FAST_LANE, 100, TimeUnit.SECONDS, singleSpanSampler)
+    worker.start()
+
+    when: "traces are submitted"
+    for (int i = 0; i < traceCount; ++i) {
+      worker.publish(trace.get(0), priority, trace)
+    }
+
+    then: "traces are passed through unless rejected on submission"
+    conditions.eventually {
+      assert acceptedTraces == acceptedCount.get()
+      assert acceptedSpans == acceptedSpanCount.get()
+      assert sampledSingleSpans == sampledSpansCount.get()
+    }
+
+    cleanup:
+    worker.close()
+
+    where:
+    priority     | traceCount | acceptedTraces | acceptedSpans | sampledSingleSpans | trace
+    SAMPLER_DROP | 1          | 1              | 1             | 1                  | [Mock(DDSpan)]
+    USER_DROP    | 1          | 1              | 1             | 1                  | [Mock(DDSpan), Mock(DDSpan)]
+    SAMPLER_DROP | 1          | 1              | 2             | 2                  | [Mock(DDSpan), Mock(DDSpan), Mock(DDSpan)]
+    USER_DROP    | 1          | 1              | 2             | 2                  | [Mock(DDSpan), Mock(DDSpan), Mock(DDSpan), Mock(DDSpan)]
+    SAMPLER_DROP | 1          | 1              | 3             | 3                  | [Mock(DDSpan), Mock(DDSpan), Mock(DDSpan), Mock(DDSpan), Mock(DDSpan)]
+    USER_DROP    | 2          | 1              | 1             | 1                  | [Mock(DDSpan)] // expectedTraceCount = 1 b/o 2nd trace's only span gets unsampled
+    SAMPLER_DROP | 2          | 2              | 2             | 2                  | [Mock(DDSpan), Mock(DDSpan)]
+    USER_DROP    | 2          | 2              | 3             | 3                  | [Mock(DDSpan), Mock(DDSpan), Mock(DDSpan)]
+    SAMPLER_DROP | 2          | 2              | 4             | 4                  | [Mock(DDSpan), Mock(DDSpan), Mock(DDSpan), Mock(DDSpan)]
+    USER_DROP    | 2          | 2              | 5             | 5                  | [Mock(DDSpan), Mock(DDSpan), Mock(DDSpan), Mock(DDSpan), Mock(DDSpan)]
+    SAMPLER_DROP | 10         | 5              | 5             | 5                  | [Mock(DDSpan)] // expectedTraceCount = 5 b/o every 2nd trace's only span gets unsampled
+    USER_DROP    | 10         | 10             | 10            | 10                 | [Mock(DDSpan), Mock(DDSpan)]
+    SAMPLER_DROP | 10         | 10             | 15            | 15                 | [Mock(DDSpan), Mock(DDSpan), Mock(DDSpan)]
+    USER_DROP    | 10         | 10             | 20            | 20                 | [Mock(DDSpan), Mock(DDSpan), Mock(DDSpan), Mock(DDSpan)]
+    SAMPLER_DROP | 10         | 10             | 25            | 25                 | [Mock(DDSpan), Mock(DDSpan), Mock(DDSpan), Mock(DDSpan), Mock(DDSpan)]
+    // do not dispatch kept traces to the single span sampler
+    SAMPLER_KEEP | 1          | 1              | 1             | 0                  | [Mock(DDSpan)]
+    USER_KEEP    | 1          | 1              | 2             | 0                  | [Mock(DDSpan), Mock(DDSpan)]
+    SAMPLER_KEEP | 1          | 1              | 3             | 0                  | [Mock(DDSpan), Mock(DDSpan), Mock(DDSpan)]
+    USER_KEEP    | 1          | 1              | 4             | 0                  | [Mock(DDSpan), Mock(DDSpan), Mock(DDSpan), Mock(DDSpan)]
+    SAMPLER_KEEP | 1          | 1              | 5             | 0                  | [Mock(DDSpan), Mock(DDSpan), Mock(DDSpan), Mock(DDSpan), Mock(DDSpan)]
+    USER_KEEP    | 2          | 2              | 2             | 0                  | [Mock(DDSpan)]
+    SAMPLER_KEEP | 2          | 2              | 4             | 0                  | [Mock(DDSpan), Mock(DDSpan)]
+    USER_KEEP    | 2          | 2              | 6             | 0                  | [Mock(DDSpan), Mock(DDSpan), Mock(DDSpan)]
+    SAMPLER_KEEP | 2          | 2              | 8             | 0                  | [Mock(DDSpan), Mock(DDSpan), Mock(DDSpan), Mock(DDSpan)]
+    USER_KEEP    | 2          | 2              | 10            | 0                  | [Mock(DDSpan), Mock(DDSpan), Mock(DDSpan), Mock(DDSpan), Mock(DDSpan)]
+    SAMPLER_KEEP | 10         | 10             | 10            | 0                  | [Mock(DDSpan)]
+    USER_KEEP    | 10         | 10             | 20            | 0                  | [Mock(DDSpan), Mock(DDSpan)]
+    SAMPLER_KEEP | 10         | 10             | 30            | 0                  | [Mock(DDSpan), Mock(DDSpan), Mock(DDSpan)]
+    USER_KEEP    | 10         | 10             | 40            | 0                  | [Mock(DDSpan), Mock(DDSpan), Mock(DDSpan), Mock(DDSpan)]
+    SAMPLER_KEEP | 10         | 10             | 50            | 0                  | [Mock(DDSpan), Mock(DDSpan), Mock(DDSpan), Mock(DDSpan), Mock(DDSpan)]
+  }
+
+  def "send unsampled traces to the SpanProcessingWorker and expect all spans dispatched when dropping policy is inactive"() {
+    setup:
+    HealthMetrics healthMetrics = Mock(HealthMetrics)
+    AtomicInteger chunksCount = new AtomicInteger()
+    AtomicInteger spansCount = new AtomicInteger()
+    PayloadDispatcherImpl countingDispatcher = Mock(PayloadDispatcherImpl)
+    countingDispatcher.addTrace(_) >> {
+      List traceList = it[0]
+      spansCount.getAndAdd(traceList.size())
+      chunksCount.getAndIncrement()
+    }
+    AtomicInteger sampledSpansCount = new AtomicInteger()
+    SingleSpanSampler singleSpanSampler = new SingleSpanSampler() {
+        int counter = 0
+        boolean setSamplingPriority(CoreSpan span) {
+          if (counter++ % 2 == 0) {
+            sampledSpansCount.incrementAndGet()
+            return true
+          }
+          // drop every other trace span
+          return false
+        }
+      }
+    TraceProcessingWorker worker = new TraceProcessingWorker(10, healthMetrics, countingDispatcher, { false }, FAST_LANE, 100, TimeUnit.SECONDS, singleSpanSampler)
+    worker.start()
+
+    when: "traces are submitted"
+    for (int i = 0; i < traceCount; ++i) {
+      worker.publish(trace.get(0), priority, trace)
+    }
+
+    then: "traces are passed through unless rejected on submission"
+    conditions.eventually {
+      assert expectedChunks == chunksCount.get()
+      assert expectedSpans == spansCount.get()
+      assert sampledSingleSpans == sampledSpansCount.get()
+    }
+
+    cleanup:
+    worker.close()
+
+    where:
+    priority     | traceCount | expectedChunks | expectedSpans | sampledSingleSpans | trace
+    SAMPLER_DROP | 1          | 1              | 1             | 1                  | [Mock(DDSpan)]
+    USER_DROP    | 1          | 2              | 2             | 1                  | [Mock(DDSpan), Mock(DDSpan)]
+    SAMPLER_DROP | 1          | 2              | 3             | 2                  | [Mock(DDSpan), Mock(DDSpan), Mock(DDSpan)]
+    USER_DROP    | 1          | 2              | 4             | 2                  | [Mock(DDSpan), Mock(DDSpan), Mock(DDSpan), Mock(DDSpan)]
+    SAMPLER_DROP | 1          | 2              | 5             | 3                  | [Mock(DDSpan), Mock(DDSpan), Mock(DDSpan), Mock(DDSpan), Mock(DDSpan)]
+    USER_DROP    | 2          | 2              | 2*1           | 1                  | [Mock(DDSpan)]
+    SAMPLER_DROP | 2          | 2*2            | 2*2           | 2                  | [Mock(DDSpan), Mock(DDSpan)]
+    USER_DROP    | 2          | 2*2            | 2*3           | 3                  | [Mock(DDSpan), Mock(DDSpan), Mock(DDSpan)]
+    SAMPLER_DROP | 2          | 2*2            | 2*4           | 4                  | [Mock(DDSpan), Mock(DDSpan), Mock(DDSpan), Mock(DDSpan)]
+    USER_DROP    | 2          | 2*2            | 2*5           | 5                  | [Mock(DDSpan), Mock(DDSpan), Mock(DDSpan), Mock(DDSpan), Mock(DDSpan)]
+    USER_DROP    | 10         | 10             | 10            | 10/2*1             | [Mock(DDSpan)]
+    SAMPLER_DROP | 10         | 10*2           | 20            | 10/2*2             | [Mock(DDSpan), Mock(DDSpan)]
+    USER_DROP    | 10         | 10*2           | 30            | 10/2*3             | [Mock(DDSpan), Mock(DDSpan), Mock(DDSpan)]
+    SAMPLER_DROP | 10         | 10*2           | 40            | 10/2*4             | [Mock(DDSpan), Mock(DDSpan), Mock(DDSpan), Mock(DDSpan)]
+    USER_DROP    | 10         | 10*2           | 50            | 10/2*5             | [Mock(DDSpan), Mock(DDSpan), Mock(DDSpan), Mock(DDSpan), Mock(DDSpan)]
+    // do not dispatch kept traces to the single span sampler
+    SAMPLER_KEEP | 1          | 1              | 1             | 0                  | [Mock(DDSpan)]
+    USER_KEEP    | 1          | 1              | 2             | 0                  | [Mock(DDSpan), Mock(DDSpan)]
+    SAMPLER_KEEP | 1          | 1              | 3             | 0                  | [Mock(DDSpan), Mock(DDSpan), Mock(DDSpan)]
+    USER_KEEP    | 1          | 1              | 4             | 0                  | [Mock(DDSpan), Mock(DDSpan), Mock(DDSpan), Mock(DDSpan)]
+    SAMPLER_KEEP | 1          | 1              | 5             | 0                  | [Mock(DDSpan), Mock(DDSpan), Mock(DDSpan), Mock(DDSpan), Mock(DDSpan)]
+    USER_KEEP    | 2          | 2              | 2*1           | 0                  | [Mock(DDSpan)]
+    SAMPLER_KEEP | 2          | 2              | 2*2           | 0                  | [Mock(DDSpan), Mock(DDSpan)]
+    USER_KEEP    | 2          | 2              | 2*3           | 0                  | [Mock(DDSpan), Mock(DDSpan), Mock(DDSpan)]
+    SAMPLER_KEEP | 2          | 2              | 2*4           | 0                  | [Mock(DDSpan), Mock(DDSpan), Mock(DDSpan), Mock(DDSpan)]
+    USER_KEEP    | 2          | 2              | 2*5           | 0                  | [Mock(DDSpan), Mock(DDSpan), Mock(DDSpan), Mock(DDSpan), Mock(DDSpan)]
+    SAMPLER_KEEP | 10         | 10             | 10            | 0                  | [Mock(DDSpan)]
+    USER_KEEP    | 10         | 10             | 20            | 0                  | [Mock(DDSpan), Mock(DDSpan)]
+    SAMPLER_KEEP | 10         | 10             | 30            | 0                  | [Mock(DDSpan), Mock(DDSpan), Mock(DDSpan)]
+    USER_KEEP    | 10         | 10             | 40            | 0                  | [Mock(DDSpan), Mock(DDSpan), Mock(DDSpan), Mock(DDSpan)]
+    SAMPLER_KEEP | 10         | 10             | 50            | 0                  | [Mock(DDSpan), Mock(DDSpan), Mock(DDSpan), Mock(DDSpan), Mock(DDSpan)]
   }
 
 }

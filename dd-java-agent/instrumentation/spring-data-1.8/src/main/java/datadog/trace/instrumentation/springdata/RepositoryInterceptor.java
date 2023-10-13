@@ -13,9 +13,11 @@ import org.aopalliance.intercept.MethodInvocation;
 import org.springframework.data.repository.Repository;
 
 final class RepositoryInterceptor implements MethodInterceptor {
-  public static final MethodInterceptor INSTANCE = new RepositoryInterceptor();
+  private final Class<?> repositoryInterface;
 
-  private RepositoryInterceptor() {}
+  RepositoryInterceptor(Class<?> repositoryInterface) {
+    this.repositoryInterface = repositoryInterface;
+  }
 
   @Override
   public Object invoke(final MethodInvocation methodInvocation) throws Throwable {
@@ -31,7 +33,7 @@ final class RepositoryInterceptor implements MethodInterceptor {
 
     final AgentSpan span = startSpan(REPOSITORY_OPERATION);
     DECORATOR.afterStart(span);
-    DECORATOR.onOperation(span, invokedMethod);
+    DECORATOR.onOperation(span, invokedMethod, repositoryInterface);
 
     final AgentScope scope = activateSpan(span);
     scope.setAsyncPropagation(true);

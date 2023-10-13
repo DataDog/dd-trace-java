@@ -55,6 +55,13 @@ public class RemoteConfigRequest {
     public static final long CAPABILITY_ASM_ACTIVATION = 1 << 1;
     public static final long CAPABILITY_ASM_IP_BLOCKING = 1 << 2;
     public static final long CAPABILITY_ASM_DD_RULES = 1 << 3;
+    public static final long CAPABILITY_ASM_EXCLUSIONS = 1 << 4;
+    public static final long CAPABILITY_ASM_REQUEST_BLOCKING = 1 << 5;
+    public static final long CAPABILITY_ASM_RESPONSE_BLOCKING = 1 << 6;
+    public static final long CAPABILITY_ASM_USER_BLOCKING = 1 << 7;
+    public static final long CAPABILITY_ASM_CUSTOM_RULES = 1 << 8;
+    public static final long CAPABILITY_ASM_CUSTOM_BLOCKING_RESPONSE = 1 << 9;
+    public static final long CAPABILITY_ASM_TRUSTED_IPS = 1 << 10;
 
     @Json(name = "state")
     private final ClientState clientState;
@@ -81,12 +88,19 @@ public class RemoteConfigRequest {
         String id,
         Collection<String> productNames,
         TracerInfo tracerInfo,
-        long capabilities) {
+        final long capabilities) {
       this.clientState = clientState;
       this.id = id;
       this.products = productNames;
       this.tracerInfo = tracerInfo;
-      this.capabilities = new byte[] {(byte) capabilities};
+
+      // Big-endian encoding of the `long` capabilities, stripping any trailing zero bytes
+      // (except the first one)
+      final int size = Math.max(1, Long.BYTES - Long.numberOfLeadingZeros(capabilities) / 8);
+      this.capabilities = new byte[size];
+      for (int i = size - 1; i >= 0; i--) {
+        this.capabilities[size - i - 1] = (byte) (capabilities >>> (i * 8));
+      }
     }
 
     public TracerInfo getTracerInfo() {

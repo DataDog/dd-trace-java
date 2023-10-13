@@ -26,9 +26,16 @@ public final class ConfigProvider {
 
   private static final Logger log = LoggerFactory.getLogger(ConfigProvider.class);
 
-  protected final ConfigProvider.Source[] sources;
+  private final boolean collectConfig;
+
+  private final ConfigProvider.Source[] sources;
 
   private ConfigProvider(ConfigProvider.Source... sources) {
+    this(true, sources);
+  }
+
+  private ConfigProvider(boolean collectConfig, ConfigProvider.Source... sources) {
+    this.collectConfig = collectConfig;
     this.sources = sources;
   }
 
@@ -64,6 +71,26 @@ public final class ConfigProvider {
     for (ConfigProvider.Source source : sources) {
       String value = source.get(key, aliases);
       if (value != null) {
+        if (collectConfig) {
+          ConfigCollector.get().put(key, value);
+        }
+        return value;
+      }
+    }
+    return defaultValue;
+  }
+
+  /**
+   * Like {@link #getString(String, String, String...)} but falls back to next source if a value is
+   * an empty or blank string.
+   */
+  public String getStringNotEmpty(String key, String defaultValue, String... aliases) {
+    for (ConfigProvider.Source source : sources) {
+      String value = source.get(key, aliases);
+      if (value != null && !value.trim().isEmpty()) {
+        if (collectConfig) {
+          ConfigCollector.get().put(key, value);
+        }
         return value;
       }
     }
@@ -82,6 +109,9 @@ public final class ConfigProvider {
 
       String value = source.get(key, aliases);
       if (value != null) {
+        if (collectConfig) {
+          ConfigCollector.get().put(key, value);
+        }
         return value;
       }
     }
@@ -147,15 +177,17 @@ public final class ConfigProvider {
 
   private <T> T get(String key, T defaultValue, Class<T> type, String... aliases) {
     for (ConfigProvider.Source source : sources) {
-      T value;
       try {
-        value = ConfigConverter.valueOf(source.get(key, aliases), type);
+        String sourceValue = source.get(key, aliases);
+        T value = ConfigConverter.valueOf(sourceValue, type);
+        if (value != null) {
+          if (collectConfig) {
+            ConfigCollector.get().put(key, sourceValue);
+          }
+          return value;
+        }
       } catch (NumberFormatException ex) {
-        continue;
-      }
-      if (value != null) {
-        ConfigCollector.get().put(key, value);
-        return value;
+        // continue
       }
     }
     return defaultValue;
@@ -163,6 +195,15 @@ public final class ConfigProvider {
 
   public List<String> getList(String key) {
     return ConfigConverter.parseList(getString(key));
+  }
+
+  public List<String> getList(String key, List<String> defaultValue) {
+    String list = getString(key);
+    if (null == list) {
+      return defaultValue;
+    } else {
+      return ConfigConverter.parseList(getString(key));
+    }
   }
 
   public Set<String> getSet(String key, Set<String> defaultValue) {
@@ -188,20 +229,22 @@ public final class ConfigProvider {
       String value = sources[i].get(key);
       merged.putAll(ConfigConverter.parseMap(value, key));
     }
+    collectMapSetting(key, merged);
     return merged;
   }
 
   public Map<String, String> getOrderedMap(String key) {
-    LinkedHashMap<String, String> map = new LinkedHashMap<>();
+    LinkedHashMap<String, String> merged = new LinkedHashMap<>();
     // System properties take precedence over env
     // prior art:
     // https://docs.spring.io/spring-boot/docs/1.5.6.RELEASE/reference/html/boot-features-external-config.html
     // We reverse iterate to allow overrides
     for (int i = sources.length - 1; 0 <= i; i--) {
       String value = sources[i].get(key);
-      map.putAll(ConfigConverter.parseOrderedMap(value, key));
+      merged.putAll(ConfigConverter.parseOrderedMap(value, key));
     }
-    return map;
+    collectMapSetting(key, merged);
+    return merged;
   }
 
   public Map<String, String> getMergedMapWithOptionalMappings(
@@ -217,6 +260,7 @@ public final class ConfigProvider {
         merged.putAll(
             ConfigConverter.parseMapWithOptionalMappings(value, key, defaultPrefix, lowercaseKeys));
       }
+      collectMapSetting(key, merged);
     }
     return merged;
   }
@@ -226,9 +270,30 @@ public final class ConfigProvider {
     try {
       return value == null ? defaultValue : ConfigConverter.parseIntegerRangeSet(value, key);
     } catch (final NumberFormatException e) {
-      log.warn("Invalid configuration for " + key, e);
+      log.warn("Invalid configuration for {}", key, e);
       return defaultValue;
     }
+  }
+
+  public boolean isEnabled(
+      final Iterable<String> settingNames,
+      final String settingPrefix,
+      final String settingSuffix,
+      final boolean defaultEnabled) {
+    // If default is enabled, we want to disable individually.
+    // If default is disabled, we want to enable individually.
+    boolean anyEnabled = defaultEnabled;
+    for (final String name : settingNames) {
+      final String configKey = settingPrefix + name + settingSuffix;
+      final String fullKey = configKey.startsWith("trace.") ? configKey : "trace." + configKey;
+      final boolean configEnabled = getBoolean(fullKey, defaultEnabled, configKey);
+      if (defaultEnabled) {
+        anyEnabled &= configEnabled;
+      } else {
+        anyEnabled |= configEnabled;
+      }
+    }
+    return anyEnabled;
   }
 
   public static ConfigProvider getInstance() {
@@ -246,6 +311,27 @@ public final class ConfigProvider {
           new CapturedEnvironmentConfigSource());
     } else {
       return new ConfigProvider(
+          new SystemPropertiesConfigSource(),
+          new EnvironmentConfigSource(),
+          new PropertiesConfigSource(configProperties, true),
+          new CapturedEnvironmentConfigSource());
+    }
+  }
+
+  public static ConfigProvider withoutCollector() {
+    Properties configProperties =
+        loadConfigurationFile(
+            new ConfigProvider(
+                false, new SystemPropertiesConfigSource(), new EnvironmentConfigSource()));
+    if (configProperties.isEmpty()) {
+      return new ConfigProvider(
+          false,
+          new SystemPropertiesConfigSource(),
+          new EnvironmentConfigSource(),
+          new CapturedEnvironmentConfigSource());
+    } else {
+      return new ConfigProvider(
+          false,
           new SystemPropertiesConfigSource(),
           new EnvironmentConfigSource(),
           new PropertiesConfigSource(configProperties, true),
@@ -274,6 +360,24 @@ public final class ConfigProvider {
           new EnvironmentConfigSource(),
           new PropertiesConfigSource(configProperties, true),
           new CapturedEnvironmentConfigSource());
+    }
+  }
+
+  private void collectMapSetting(String key, Map<String, String> merged) {
+    if (!collectConfig || merged.isEmpty()) {
+      return;
+    }
+    StringBuilder mergedValue = new StringBuilder();
+    for (Map.Entry<String, String> entry : merged.entrySet()) {
+      if (mergedValue.length() > 0) {
+        mergedValue.append(',');
+      }
+      mergedValue.append(entry.getKey());
+      mergedValue.append(':');
+      mergedValue.append(entry.getValue());
+    }
+    if (mergedValue.length() > 0) {
+      ConfigCollector.get().put(key, mergedValue.toString());
     }
   }
 

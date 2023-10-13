@@ -8,8 +8,8 @@ import org.eclipse.jetty.client.api.Response;
 
 public class JettyClientDecorator extends HttpClientDecorator<Request, Response> {
   public static final CharSequence JETTY_CLIENT = UTF8BytesString.create("jetty-client");
-  public static final CharSequence HTTP_REQUEST = UTF8BytesString.create("http.request");
   public static final JettyClientDecorator DECORATE = new JettyClientDecorator();
+  public static final CharSequence HTTP_REQUEST = UTF8BytesString.create(DECORATE.operationName());
 
   @Override
   protected String[] instrumentationNames() {
@@ -34,5 +34,15 @@ public class JettyClientDecorator extends HttpClientDecorator<Request, Response>
   @Override
   protected int status(final Response httpResponse) {
     return httpResponse.getStatus();
+  }
+
+  @Override
+  protected String getRequestHeader(Request request, String headerName) {
+    return request.getHeaders().get(headerName);
+  }
+
+  @Override
+  protected String getResponseHeader(Response response, String headerName) {
+    return response.getHeaders().get(headerName);
   }
 }

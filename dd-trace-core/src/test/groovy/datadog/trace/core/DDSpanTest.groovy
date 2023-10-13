@@ -1,33 +1,43 @@
 package datadog.trace.core
 
-import datadog.trace.api.Checkpointer
-import datadog.trace.api.DDId
+import datadog.trace.api.Config
+import datadog.trace.api.DDSpanId
 import datadog.trace.api.DDTags
+import datadog.trace.api.DDTraceId
+import datadog.trace.api.DynamicConfig
+import datadog.trace.api.gateway.RequestContextSlot
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopPathwayContext
+import datadog.trace.bootstrap.instrumentation.api.ContextVisitors
+import datadog.trace.bootstrap.instrumentation.api.ErrorPriorities
+import datadog.trace.bootstrap.instrumentation.api.SpanLink
 import datadog.trace.bootstrap.instrumentation.api.TagContext
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString
-import datadog.trace.common.sampling.RateByServiceSampler
-import datadog.trace.api.gateway.RequestContextSlot
+import datadog.trace.common.sampling.RateByServiceTraceSampler
 import datadog.trace.common.writer.ListWriter
 import datadog.trace.core.propagation.ExtractedContext
+import datadog.trace.core.propagation.W3CHttpCodec
 import datadog.trace.core.test.DDCoreSpecification
+import groovy.json.JsonSlurper
 import spock.lang.Shared
 
 import java.util.concurrent.TimeUnit
 
-import static datadog.trace.api.Checkpointer.CPU
-import static datadog.trace.api.Checkpointer.END
-import static datadog.trace.api.Checkpointer.SPAN
-import static datadog.trace.api.Checkpointer.THREAD_MIGRATION
+import static datadog.trace.api.sampling.PrioritySampling.UNSET
+import static datadog.trace.api.sampling.SamplingMechanism.SPAN_SAMPLING_RATE
+import static datadog.trace.core.DDSpanContext.SPAN_SAMPLING_MAX_PER_SECOND_TAG
+import static datadog.trace.core.DDSpanContext.SPAN_SAMPLING_MECHANISM_TAG
+import static datadog.trace.core.DDSpanContext.SPAN_SAMPLING_RULE_RATE_TAG
+import static datadog.trace.core.propagation.W3CHttpCodec.TRACE_PARENT_KEY
+import static datadog.trace.core.propagation.W3CHttpCodec.TRACE_STATE_KEY
 
 class DDSpanTest extends DDCoreSpecification {
 
   @Shared def writer = new ListWriter()
-  @Shared def sampler = new RateByServiceSampler()
+  @Shared def sampler = new RateByServiceTraceSampler()
   @Shared def tracer = tracerBuilder().writer(writer).sampler(sampler).build()
-  @Shared def datadogTagsFactory = tracer.getDatadogTagsFactory()
+  @Shared def propagationTagsFactory = tracer.getPropagationTagsFactory()
 
   def cleanup() {
     tracer?.close()
@@ -145,7 +155,7 @@ class DDSpanTest extends DDCoreSpecification {
     then:
     finish
     span.context().trace.pendingReferenceCount == 1
-    span.context().trace.finishedSpans.isEmpty()
+    span.context().trace.spans.isEmpty()
     writer.isEmpty()
 
     and: "duration is recorded as negative to allow publishing"
@@ -164,7 +174,7 @@ class DDSpanTest extends DDCoreSpecification {
     then: "have no effect"
     !finish
     span.context().trace.pendingReferenceCount == 1
-    span.context().trace.finishedSpans.isEmpty()
+    span.context().trace.spans.isEmpty()
     writer.isEmpty()
 
     when:
@@ -270,9 +280,9 @@ class DDSpanTest extends DDCoreSpecification {
     child.@origin == null // Access field directly instead of getter.
 
     where:
-    extractedContext                                                                                                                          | _
-    new TagContext("some-origin", [:])                                                                                                        | _
-    new ExtractedContext(DDId.ONE, DDId.from(2), PrioritySampling.SAMPLER_DROP, "some-origin", 0, [:], [:], null, datadogTagsFactory.empty()) | _
+    extractedContext                                                                                                                           | _
+    new TagContext("some-origin", [:])                                                                                                         | _
+    new ExtractedContext(DDTraceId.ONE, 2, PrioritySampling.SAMPLER_DROP, "some-origin", propagationTagsFactory.empty()) | _
   }
 
   def "isRootSpan() in and not in the context of distributed tracing"() {
@@ -289,9 +299,9 @@ class DDSpanTest extends DDCoreSpecification {
     root.finish()
 
     where:
-    extractedContext                                                                                                                          | isTraceRootSpan
-    null                                                                                                                                      | true
-    new ExtractedContext(DDId.from(123), DDId.from(456), PrioritySampling.SAMPLER_KEEP, "789", 0, [:], [:], null, datadogTagsFactory.empty()) | false
+    extractedContext                                                                                                                        | isTraceRootSpan
+    null                                                                                                                                    | true
+    new ExtractedContext(DDTraceId.from(123), 456, PrioritySampling.SAMPLER_KEEP, "789", propagationTagsFactory.empty()) | false
   }
 
   def "getApplicationRootSpan() in and not in the context of distributed tracing"() {
@@ -313,7 +323,7 @@ class DDSpanTest extends DDCoreSpecification {
     where:
     extractedContext                                                                                                                          | isTraceRootSpan
     null                                                                                                                                      | true
-    new ExtractedContext(DDId.from(123), DDId.from(456), PrioritySampling.SAMPLER_KEEP, "789", 0, [:], [:], null, datadogTagsFactory.empty()) | false
+    new ExtractedContext(DDTraceId.from(123), 456, PrioritySampling.SAMPLER_KEEP, "789", propagationTagsFactory.empty()) | false
   }
 
   def 'publishing of root span closes the request context data'() {
@@ -342,13 +352,13 @@ class DDSpanTest extends DDCoreSpecification {
 
   def "infer top level from parent service name"() {
     setup:
-    def datadogTagsFactory = tracer.getDatadogTagsFactory()
+    def propagationTagsFactory = tracer.getPropagationTagsFactory()
     when:
     DDSpanContext context =
       new DDSpanContext(
-      DDId.from(1),
-      DDId.from(1),
-      DDId.ZERO,
+      DDTraceId.ONE,
+      1,
+      DDSpanId.ZERO,
       parentServiceName,
       "fakeService",
       "fakeOperation",
@@ -359,12 +369,12 @@ class DDSpanTest extends DDCoreSpecification {
       false,
       "fakeType",
       0,
-      tracer.pendingTraceFactory.create(DDId.ONE),
+      tracer.pendingTraceFactory.create(DDTraceId.ONE),
       null,
       null,
       NoopPathwayContext.INSTANCE,
       false,
-      datadogTagsFactory.empty())
+      propagationTagsFactory.empty())
     then:
     context.isTopLevel() == expectTopLevel
 
@@ -376,61 +386,6 @@ class DDSpanTest extends DDCoreSpecification {
     UTF8BytesString.create("fakeService") | false
     ""                                    | true
     null                                  | true
-  }
-
-  def "span start and finish emit checkpoints"() {
-    setup:
-    Checkpointer checkpointer = Mock()
-    tracer.registerCheckpointer(checkpointer)
-    def datadogTagsFactory = tracer.getDatadogTagsFactory()
-    DDSpanContext context =
-      new DDSpanContext(
-      DDId.from(1),
-      DDId.from(1),
-      DDId.ZERO,
-      null,
-      "fakeService",
-      "fakeOperation",
-      "fakeResource",
-      PrioritySampling.UNSET,
-      null,
-      Collections.<String, String> emptyMap(),
-      false,
-      "fakeType",
-      0,
-      tracer.pendingTraceFactory.create(DDId.ONE),
-      null,
-      null,
-      NoopPathwayContext.INSTANCE,
-      false,
-      datadogTagsFactory.empty())
-
-    def span = null
-
-    when:
-    span = DDSpan.create(1, context)
-    then:
-    // can not assert against 'span' as this check seems to operate on 'span' value before it has been created
-    1 * checkpointer.checkpoint(_, SPAN)
-
-    when:
-    span.startThreadMigration()
-    then:
-    1 * checkpointer.checkpoint(span, THREAD_MIGRATION)
-    when:
-    span.finishThreadMigration()
-    then:
-    1 * checkpointer.checkpoint(span, THREAD_MIGRATION | END)
-
-    when:
-    span.finishWork()
-    then:
-    1 * checkpointer.checkpoint(span, CPU | END)
-
-    when:
-    span.finish()
-    then:
-    1 * checkpointer.checkpoint(span, SPAN | END)
   }
 
   def "broken pipe exception does not create error span"() {
@@ -462,20 +417,111 @@ class DDSpanTest extends DDCoreSpecification {
     span.getTag(DDTags.ERROR_STACK) == null
   }
 
-  def "checkpointing set only on root span"() {
+  def "set single span sampling tags"() {
     setup:
-    def parent = tracer.buildSpan("testRoot").start()
-    def child = tracer.buildSpan("testSpan").asChildOf(parent).start()
+    def span = tracer.buildSpan("testSpan").start() as DDSpan
+
+    expect:
+    span.samplingPriority() == UNSET
 
     when:
-    child.setEmittingCheckpoints(true)
+    span.setSpanSamplingPriority(rate, limit)
 
     then:
-    parent.isEmittingCheckpoints() == true
-    parent.@emittingCheckpoints == 1 // Access field directly instead of getter.
-    parent.getTag(DDSpan.CHECKPOINTED_TAG) == true
-    child.isEmittingCheckpoints() == true // flag is reflected in children
-    child.@emittingCheckpoints == 0 // but no value is stored in the field
-    child.getTag(DDSpan.CHECKPOINTED_TAG) == null // child span does not get the tag set
+    span.getTag(SPAN_SAMPLING_MECHANISM_TAG) == SPAN_SAMPLING_RATE
+    span.getTag(SPAN_SAMPLING_RULE_RATE_TAG) == rate
+    span.getTag(SPAN_SAMPLING_MAX_PER_SECOND_TAG) == (limit == Integer.MAX_VALUE ? null : limit)
+    // single span sampling should not change the trace sampling priority
+    span.samplingPriority() == UNSET
+
+    where:
+    rate | limit
+    1.0  | 10
+    0.5  | 100
+    0.25 | Integer.MAX_VALUE
+  }
+
+  def "error priorities should be respected"() {
+    setup:
+    def span = tracer.buildSpan("testSpan").start() as DDSpan
+
+    expect:
+    !span.isError()
+
+    when:
+    span.setError(true)
+    then:
+    span.isError()
+
+    when:
+    span.setError(false)
+    then:
+    !span.isError()
+
+    when:
+    span.setError(true, ErrorPriorities.HTTP_SERVER_DECORATOR)
+    then:
+    !span.isError()
+
+    when:
+    span.setError(true, Byte.MAX_VALUE)
+    then:
+    span.isError()
+  }
+
+  def "create span link from extracted context"() {
+    setup:
+    def traceId = "11223344556677889900aabbccddeeff"
+    def spanId = "123456789abcdef0"
+    def traceState = "dd=s:-1;o:some;t.dm:-4"
+    Map<String, String> headers = [
+      (TRACE_PARENT_KEY.toUpperCase()): "00-$traceId-$spanId-00",
+      (TRACE_STATE_KEY.toUpperCase()) : "$traceState"
+    ]
+    def extractor = W3CHttpCodec.newExtractor(Config.get(), { DynamicConfig.create().apply().captureTraceConfig() })
+
+    when:
+    final ExtractedContext context = extractor.extract(headers, ContextVisitors.stringValuesMap())
+    def link = DDSpanLink.from(context)
+
+    then:
+    link.traceId() == DDTraceId.fromHex(traceId)
+    link.spanId() == DDSpanId.fromHex(spanId)
+    link.traceState() == "$traceState;t.tid:${traceId.substring(0, 16)}"
+  }
+
+  def "test span link attributes encoding"() {
+    when:
+    def span = tracer.buildSpan("test", "operation").withLink(new SpanLink(
+      DDTraceId.fromHex("11223344556677889900aabbccddeeff"),
+      DDSpanId.fromHex("1234567890abcdef"),
+      "",
+      ['key1': 'value1',
+        'key2': '',
+        'key3': '"',
+        'key4': 'value,key=value']
+      )).start()
+    def spanLinksJson = span.getTag(DDTags.SPAN_LINKS)
+
+    then:
+    spanLinksJson != null
+    spanLinksJson instanceof String
+
+    when:
+    def slurper = new JsonSlurper()
+    def spanLinks = slurper.parseText(spanLinksJson as String)
+
+    then:
+    spanLinks instanceof List
+    spanLinks.size == 1
+    spanLinks[0].attributes instanceof Map
+    spanLinks[0].attributes instanceof Map
+    spanLinks[0].attributes['key1'] == 'value1'
+    spanLinks[0].attributes['key2'] == ''
+    spanLinks[0].attributes['key3'] == '"'
+    spanLinks[0].attributes['key4'] == 'value,key=value'
+
+    cleanup:
+    span.finish()
   }
 }

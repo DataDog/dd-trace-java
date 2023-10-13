@@ -1,21 +1,23 @@
 package test
 
 import datadog.trace.agent.test.AgentTestRunner
-import datadog.trace.api.iast.IastModule
 import datadog.trace.api.iast.InstrumentationBridge
+import datadog.trace.api.iast.sink.WeakCipherModule
+import foo.bar.TestSuite
 
 import javax.crypto.Cipher
 import java.security.NoSuchAlgorithmException
+import java.security.Provider
 
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 
-class WeakCipherTest  extends AgentTestRunner {
+class WeakCipherTest extends AgentTestRunner {
 
   def "unavailable cipher algorithm"() {
 
     when:
     runUnderTrace("WeakHashingRootSpan") {
-      Cipher.getInstance("SHA-XXX")
+      new TestSuite().getCipherInstance("SHA-XXX")
     }
 
     then:
@@ -24,11 +26,76 @@ class WeakCipherTest  extends AgentTestRunner {
 
   def "test weak cipher instrumentation"() {
     setup:
-    IastModule module = Mock(IastModule)
+    WeakCipherModule module = Mock(WeakCipherModule)
     InstrumentationBridge.registerIastModule(module)
 
     when:
-    Cipher.getInstance("DES")
+    new TestSuite().getCipherInstance("DES")
+
+    then:
+    1 * module.onCipherAlgorithm(_)
+  }
+
+  def "test weak cipher instrumentation with provider"() {
+    setup:
+    WeakCipherModule module = Mock(WeakCipherModule)
+    InstrumentationBridge.registerIastModule(module)
+    final provider = providerFor('DES')
+
+    when:
+    new TestSuite().getCipherInstance("DES", provider)
+
+    then:
+    1 * module.onCipherAlgorithm(_)
+  }
+
+  def "test weak cipher instrumentation with provider string"() {
+    setup:
+    WeakCipherModule module = Mock(WeakCipherModule)
+    InstrumentationBridge.registerIastModule(module)
+    final provider = providerFor('DES')
+
+    when:
+    new TestSuite().getCipherInstance('DES', provider.getName())
+
+    then:
+    1 * module.onCipherAlgorithm(_)
+  }
+
+  // Key Generator
+  def "test weak cipher instrumentation"() {
+    setup:
+    WeakCipherModule module = Mock(WeakCipherModule)
+    InstrumentationBridge.registerIastModule(module)
+
+    when:
+    new TestSuite().getKeyGeneratorInstance("DES")
+
+    then:
+    1 * module.onCipherAlgorithm(_)
+  }
+
+  def "test weak cipher instrumentation with provider"() {
+    setup:
+    WeakCipherModule module = Mock(WeakCipherModule)
+    InstrumentationBridge.registerIastModule(module)
+    final provider = providerFor('DES')
+
+    when:
+    new TestSuite().getKeyGeneratorInstance("DES", provider)
+
+    then:
+    1 * module.onCipherAlgorithm(_)
+  }
+
+  def "test weak cipher instrumentation with provider string"() {
+    setup:
+    WeakCipherModule module = Mock(WeakCipherModule)
+    InstrumentationBridge.registerIastModule(module)
+    final provider = providerFor('DES')
+
+    when:
+    new TestSuite().getKeyGeneratorInstance('DES', provider.getName())
 
     then:
     1 * module.onCipherAlgorithm(_)
@@ -36,13 +103,18 @@ class WeakCipherTest  extends AgentTestRunner {
 
   def "weak cipher instrumentation with null argument"() {
     setup:
-    IastModule module = Mock(IastModule)
+    WeakCipherModule module = Mock(WeakCipherModule)
     InstrumentationBridge.registerIastModule(module)
 
     when:
-    Cipher.getInstance(null)
+    new TestSuite().getCipherInstance(null)
 
     then:
     thrown NoSuchAlgorithmException
+  }
+
+  private static Provider providerFor(final String algo) {
+    final instance = Cipher.getInstance(algo)
+    return instance.getProvider()
   }
 }

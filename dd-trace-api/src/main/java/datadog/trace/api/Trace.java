@@ -16,4 +16,10 @@ public @interface Trace {
 
   /** The resource name. By default it uses the same value as the operation name */
   String resourceName() default "";
+
+  /** Set whether to measure a trace. By default traces are not measured. */
+  boolean measured() default false;
+
+  /** Set whether to start a new trace. By default it continues the current trace. */
+  boolean noParent() default false;
 }

@@ -1,9 +1,9 @@
 package datadog.trace.api.cache
 
-
-import datadog.trace.api.function.Function
 import datadog.trace.api.Functions
 import datadog.trace.test.util.DDSpecification
+
+import java.util.function.Function
 
 class QualifiedClassNameCacheTest extends DDSpecification {
 
@@ -21,8 +21,8 @@ class QualifiedClassNameCacheTest extends DDSpecification {
     qualified == expected
     where:
     type   | prefix | func                                                | expected
-    String | "foo." | Functions.Suffix.ZERO                               | "foo.String"
-    String | ".foo" | Functions.Prefix.ZERO                               | "String.foo"
+    String | "foo." | Functions.SuffixJoin.ZERO                           | "foo.String"
+    String | ".foo" | Functions.PrefixJoin.ZERO                           | "String.foo"
     String | "foo"  | Functions.SuffixJoin.of(".")                        | "foo.String"
     String | "foo"  | Functions.PrefixJoin.of(".")                        | "String.foo"
     String | "foo"  | Functions.SuffixJoin.of(".", new Replace("oo", "")) | "f.String"
@@ -36,14 +36,14 @@ class QualifiedClassNameCacheTest extends DDSpecification {
         CharSequence apply(Class<?> input) {
           return input.getSimpleName()
         }
-      }, Functions.Prefix.ZERO)
+      }, Functions.PrefixJoin.ZERO)
     then:
     cache.getClassName(type) == expected
 
     where:
-    type           | expected
-    String         | "String"
-    Functions.Zero | "Zero"
+    type             | expected
+    String           | "String"
+    Functions.Suffix | "Suffix"
   }
 
   class Replace implements Function<String, String> {

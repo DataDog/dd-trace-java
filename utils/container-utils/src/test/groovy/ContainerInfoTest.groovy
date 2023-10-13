@@ -80,6 +80,9 @@ class ContainerInfoTest extends DDSpecification {
     1  | ["name=systemd"]        | "/ecs/55091c13-b8cf-4801-b527-f4601742204d/432624d2150b349fe35ba397284dea788c2bf66b885d14dfc1569b01890ca7da"                    | "432624d2150b349fe35ba397284dea788c2bf66b885d14dfc1569b01890ca7da" | null                                   | "1:name=systemd:/ecs/55091c13-b8cf-4801-b527-f4601742204d/432624d2150b349fe35ba397284dea788c2bf66b885d14dfc1569b01890ca7da"
     1  | ["name=systemd"]        | "/ecs/34dc0b5e626f2c5c4c5170e34b10e765-1234567890"                    | "34dc0b5e626f2c5c4c5170e34b10e765-1234567890" | null    | "1:name=systemd:/ecs/34dc0b5e626f2c5c4c5170e34b10e765-1234567890"
 
+    // PCF example
+    1  | ["freezer"]             | "/garden/6f265890-5165-7fab-6b52-18d1"                                                                                          | "6f265890-5165-7fab-6b52-18d1"                                     | null                                   | "1:freezer:/garden/6f265890-5165-7fab-6b52-18d1"
+
     //Reference impl examples
     1  | ["name=systemd"]        | "/system.slice/docker-cde7c2bab394630a42d73dc610b9c57415dced996106665d427f6d0566594411.scope"                                   | "cde7c2bab394630a42d73dc610b9c57415dced996106665d427f6d0566594411" | null                                   | "1:name=systemd:/system.slice/docker-cde7c2bab394630a42d73dc610b9c57415dced996106665d427f6d0566594411.scope"
     1  | ["name=systemd"]        | "/docker/051e2ee0bce99116029a13df4a9e943137f19f957f38ac02d6bad96f9b700f76/not_hex"                                              | null       | null                                   | "1:name=systemd:/docker/051e2ee0bce99116029a13df4a9e943137f19f957f38ac02d6bad96f9b700f76/not_hex"
@@ -165,6 +168,21 @@ class ContainerInfoTest extends DDSpecification {
 3:blkio:/ecs/55091c13-b8cf-4801-b527-f4601742204d/432624d2150b349fe35ba397284dea788c2bf66b885d14dfc1569b01890ca7da
 2:memory:/ecs/55091c13-b8cf-4801-b527-f4601742204d/432624d2150b349fe35ba397284dea788c2bf66b885d14dfc1569b01890ca7da
 1:name=systemd:/ecs/34dc0b5e626f2c5c4c5170e34b10e765-1234567890"""
+
+    // PCF file
+    "6f265890-5165-7fab-6b52-18d1" | null                                   | 12   | """12:rdma:/
+11:net_cls,net_prio:/garden/6f265890-5165-7fab-6b52-18d1
+10:freezer:/garden/6f265890-5165-7fab-6b52-18d1
+9:devices:/system.slice/garden.service/garden/6f265890-5165-7fab-6b52-18d1
+8:blkio:/system.slice/garden.service/garden/6f265890-5165-7fab-6b52-18d1
+7:pids:/system.slice/garden.service/garden/6f265890-5165-7fab-6b52-18d1
+6:memory:/system.slice/garden.service/garden/6f265890-5165-7fab-6b52-18d1
+5:cpuset:/garden/6f265890-5165-7fab-6b52-18d1
+4:cpu,cpuacct:/system.slice/garden.service/garden/6f265890-5165-7fab-6b52-18d1
+3:perf_event:/garden/6f265890-5165-7fab-6b52-18d1
+2:hugetlb:/garden/6f265890-5165-7fab-6b52-18d1
+1:name=systemd:/system.slice/garden.service/garden/6f265890-5165-7fab-6b52-18d1"""
+
     // spotless:on
   }
 

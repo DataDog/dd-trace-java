@@ -1,0 +1,102 @@
+plugins {
+  id 'biz.aQute.bnd.builder' version '6.1.0' apply false
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+description = 'OSGi Application Smoke Tests.'
+
+configurations {
+  equinox
+  felix
+  bundles
+}
+
+configurations.bundles {
+  transitive = false
+}
+
+dependencies {
+  compileOnly group: 'org.osgi', name: 'org.osgi.core', version: '4.2.0'
+  compileOnly group: 'org.osgi', name: 'org.osgi.compendium', version: '4.2.0'
+  compileOnly group: 'org.slf4j', name: 'slf4j-api', version: '1.7.25'
+  compileOnly group: 'com.google.guava', name: 'guava', version: '20.0'
+  compileOnly group: 'org.apache.httpcomponents', name: 'httpclient', version: '4.5.13'
+
+  equinox 'org.eclipse.platform:org.eclipse.osgi:3.15.300'
+  felix 'org.apache.felix:org.apache.felix.framework:6.0.5'
+
+  bundles 'org.ops4j.pax.logging:pax-logging-api:1.11.0'
+  bundles 'com.google.guava:guava:20.0'
+  bundles 'org.apache.felix:org.apache.felix.configadmin:1.9.18'
+  bundles 'org.apache.httpcomponents:httpcore-osgi:4.4.14'
+  bundles 'org.apache.httpcomponents:httpclient-osgi:4.5.13'
+
+  testImplementation project(':dd-smoke-tests')
+}
+
+jar {
+  include 'datadog/smoketest/osgi/app/**'
+}
+
+import aQute.bnd.gradle.Bundle
+
+tasks.register('commonBundle', Bundle) {
+  archiveClassifier = 'common'
+  from sourceSets.main.output
+  include 'datadog/smoketest/osgi/common/**'
+  manifest {
+    attributes('Export-Package': 'datadog.smoketest.osgi.common')
+  }
+}
+
+tasks.register('clientBundle', Bundle) {
+  archiveClassifier = 'client'
+  from sourceSets.main.output
+  include 'datadog/smoketest/osgi/client/**'
+  manifest {
+    attributes('Bundle-Activator': 'datadog.smoketest.osgi.client.Activator')
+  }
+}
+
+tasks.register('messagingBundle', Bundle) {
+  archiveClassifier = 'messaging'
+  from sourceSets.main.output
+  include 'datadog/smoketest/osgi/messaging/**'
+  manifest {
+    attributes('Export-Package': 'datadog.smoketest.osgi.messaging')
+  }
+}
+
+tasks.register('publishingBundle', Bundle) {
+  archiveClassifier = 'publishing'
+  from sourceSets.main.output
+  include 'datadog/smoketest/osgi/publishing/**'
+  manifest {
+    attributes('Bundle-Activator': 'datadog.smoketest.osgi.publishing.Activator')
+  }
+}
+
+tasks.register('subscribingBundle', Bundle) {
+  archiveClassifier = 'subscribing'
+  from sourceSets.main.output
+  include 'datadog/smoketest/osgi/subscribing/**'
+  manifest {
+    attributes('Bundle-Activator': 'datadog.smoketest.osgi.subscribing.Activator')
+  }
+}
+
+tasks.withType(Test).configureEach {
+  dependsOn "commonBundle", "clientBundle", "messagingBundle", "publishingBundle", "subscribingBundle", "jar"
+
+  jvmArgs "-Ddatadog.smoketest.osgi.appJar.path=${tasks.jar.archiveFile.get()}"
+  jvmArgs "-Ddatadog.smoketest.osgi.equinoxJar.path=${configurations.equinox.first().path}"
+  jvmArgs "-Ddatadog.smoketest.osgi.felixJar.path=${configurations.felix.first().path}"
+
+  jvmArgs "-Ddatadog.smoketest.osgi.bundle.paths=" +
+    "${tasks.commonBundle.archiveFile.get()}," +
+    "${tasks.clientBundle.archiveFile.get()}," +
+    "${tasks.messagingBundle.archiveFile.get()}," +
+    "${tasks.publishingBundle.archiveFile.get()}," +
+    "${tasks.subscribingBundle.archiveFile.get()}," +
+    "${configurations.bundles*.path.join(',')}"
+}

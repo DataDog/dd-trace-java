@@ -1,0 +1,45 @@
+muzzle {
+  pass {
+    group = "com.rabbitmq"
+    module = 'amqp-client'
+    versions = "[2.7.0,)"
+    assertInverse = true
+  }
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+
+addTestSuiteForDir('latestDepTest', 'test')
+
+addTestSuiteForDir('latestReactorTest', 'reactorTest')
+addTestSuite('reactorTest')
+
+dependencies {
+  compileOnly group: 'com.rabbitmq', name: 'amqp-client', version: '2.7.0'
+
+  testImplementation group: 'com.rabbitmq', name: 'amqp-client', version: '2.7.0'
+  testImplementation group: 'org.springframework.amqp', name: 'spring-rabbit', version: '1.1.0.RELEASE'
+
+  testImplementation deps.testcontainers
+  testImplementation group: 'org.testcontainers', name: 'rabbitmq', version: versions.testcontainers
+
+  latestDepTestImplementation group: 'com.rabbitmq', name: 'amqp-client', version: '+'
+  latestDepTestImplementation group: 'org.springframework.amqp', name: 'spring-rabbit', version: '2.+'
+
+  reactorTestImplementation group: 'io.projectreactor.rabbitmq', name: 'reactor-rabbitmq', version: '1.0.0.RELEASE'
+  latestReactorTestImplementation group: 'io.projectreactor.rabbitmq', name: 'reactor-rabbitmq', version: '+'
+}
+
+configurations.testRuntimeOnly {
+  resolutionStrategy {
+    force group: 'com.rabbitmq', name: 'amqp-client', version: '2.7.0'
+  }
+}
+
+tasks.withType(Test).configureEach {
+  usesService(testcontainersLimit)
+}
+
+tasks.named("latestDepTest").configure {
+  finalizedBy latestReactorTest
+}

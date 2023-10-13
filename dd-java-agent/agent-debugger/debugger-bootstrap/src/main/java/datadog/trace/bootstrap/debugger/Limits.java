@@ -23,8 +23,27 @@ public class Limits {
     this.maxFieldCount = maxFieldCount;
   }
 
-  public static Limits decDepthLimits(int maxDepth, Limits current) {
+  public int getMaxReferenceDepth() {
+    return maxReferenceDepth;
+  }
+
+  public int getMaxCollectionSize() {
+    return maxCollectionSize;
+  }
+
+  public int getMaxLength() {
+    return maxLength;
+  }
+
+  public int getMaxFieldCount() {
+    return maxFieldCount;
+  }
+
+  public static Limits decDepthLimits(Limits current) {
     return new Limits(
-        maxDepth - 1, current.maxCollectionSize, current.maxLength, current.maxFieldCount);
+        current.maxReferenceDepth - 1,
+        current.maxCollectionSize,
+        current.maxLength,
+        current.maxFieldCount);
   }
 }

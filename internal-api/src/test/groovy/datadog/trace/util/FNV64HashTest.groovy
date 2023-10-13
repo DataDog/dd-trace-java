@@ -1,11 +1,8 @@
 package datadog.trace.util
 
 import datadog.trace.test.util.DDSpecification
-import spock.lang.Requires
 
 // Test cases from http://www.isthe.com/chongo/src/fnv/test_fnv.c
-// This test requires Java8 for "Long.parseUnsignedLong(..)" although the underlying implementation does not
-@Requires({  jvm.java8Compatible })
 class FNV64HashTest extends DDSpecification {
 
   def "String test cases"() {

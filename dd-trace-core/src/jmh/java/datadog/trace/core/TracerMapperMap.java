@@ -1,7 +1,8 @@
 package datadog.trace.core;
 
 import datadog.communication.serialization.msgpack.MsgPackWriter;
-import datadog.trace.api.DDId;
+import datadog.trace.api.DDSpanId;
+import datadog.trace.api.DDTraceId;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopPathwayContext;
 import datadog.trace.common.writer.LoggingWriter;
@@ -94,14 +95,15 @@ public class TracerMapperMap {
   }
 
   private DDSpan createSpanWithOrigin(int iter, final String origin) {
-    final DDId traceId = DDId.from(iter);
+    final DDTraceId traceId = DDTraceId.from(iter);
     final PendingTrace trace = tracer.createTrace(traceId);
     return DDSpan.create(
+        "benchmark",
         System.currentTimeMillis() * 1000,
         new DDSpanContext(
             traceId,
-            DDId.from(1000 + iter),
-            DDId.ZERO,
+            1000 + iter,
+            DDSpanId.ZERO,
             null,
             "service",
             "operation",

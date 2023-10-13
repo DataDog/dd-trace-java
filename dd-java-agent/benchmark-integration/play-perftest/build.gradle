@@ -1,0 +1,49 @@
+plugins {
+  id 'org.gradle.playframework'
+}
+
+def playVer = "2.6.20"
+def scalaVer = System.getProperty("scala.binary.version", /* default = */ "2.12")
+
+play {
+  platform {
+    playVersion = playVer
+    scalaVersion = scalaVer
+    javaVersion = JavaVersion.VERSION_1_8
+  }
+  injectedRoutesGenerator = true
+}
+
+dependencies {
+  implementation "com.typesafe.play:play-guice_$scalaVer:$playVer"
+  implementation "com.typesafe.play:play-logback_$scalaVer:$playVer"
+  implementation "com.typesafe.play:filters-helpers_$scalaVer:$playVer"
+
+  implementation project(':dd-trace-api')
+  implementation project(':dd-java-agent:benchmark-integration')
+  implementation group: 'io.opentracing', name: 'opentracing-api', version: '0.32.0'
+  implementation group: 'io.opentracing', name: 'opentracing-util', version: '0.32.0'
+}
+
+repositories {
+  mavenCentral()
+  gradlePluginPortal()
+  maven {
+    name "lightbend-maven-releases"
+    url "https://repo.lightbend.com/lightbend/maven-release"
+  }
+  ivy {
+    name "lightbend-ivy-release"
+    url "https://repo.lightbend.com/lightbend/ivy-releases"
+    layout "ivy"
+  }
+}
+
+spotless {
+  java {
+    target "**/*.java"
+  }
+  scala {
+    target "**/*.scala"
+  }
+}

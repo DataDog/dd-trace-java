@@ -1,6 +1,17 @@
+include:
+  - remote: https://gitlab-templates.ddbuild.io/libdatadog/include/ci_authenticated_job.yml
+  - remote: https://gitlab-templates.ddbuild.io/apm/packaging.yml
+  - local: ".gitlab/benchmarks.yml"
+  - local: ".gitlab/exploration-tests.yml"
+  - local: ".gitlab/ci-visibility-tests.yml"
+
 stages:
   - build
+  - package
   - deploy
+  - benchmarks
+  - exploration-tests
+  - ci-visibility-tests
   - generate-signing-key
 
 variables:
@@ -32,7 +43,7 @@ cache: &default_cache
 
 .gradle_build: &gradle_build
   <<: *common
-  image: datadog/dd-trace-java-docker-build:latest
+  image: ghcr.io/datadog/dd-trace-java-docker-build:base
   before_script:
     - export GRADLE_USER_HOME=`pwd`/.gradle
 
@@ -46,10 +57,13 @@ build: &build
   script:
     - GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx1900M -Xms512M' -Ddatadog.forkedMaxHeapSize=512M -Ddatadog.forkedMinHeapSize=128M" ./gradlew clean :dd-java-agent:shadowJar --build-cache --parallel --stacktrace --no-daemon --max-workers=8
     - echo UPSTREAM_TRACER_VERSION=$(java -jar workspace/dd-java-agent/build/libs/*.jar) >> upstream.env
+    - echo "BUILD_JOB_NAME=$CI_JOB_NAME" >> build.env
   artifacts:
     paths:
       - 'workspace/dd-java-agent/build/libs/*.jar'
       - 'upstream.env'
+    reports:
+      dotenv: build.env
 
 build_with_cache:
   <<: *build
@@ -62,17 +76,29 @@ build_with_cache:
     <<: *default_cache
     policy: push
 
+package:
+  extends: .package
+  when: on_success # this can't use 'needs: [build]', since build is not available in the scheduled pipeline
+  script:
+    - ../.gitlab/build_java_package.sh
+
+.release-package:
+  stage: deploy
+  variables:
+    PRODUCT_NAME: auto_inject-java
+
 deploy_to_reliability_env:
   stage: deploy
   rules:
-    - if: '$POPULATE_CACHE'
-      when: never
-    - when: on_success
+    - if: $CI_PIPELINE_SOURCE == "schedule"
+      when: on_success
+    - when: manual
+      allow_failure: true
   trigger:
     project: DataDog/apm-reliability/datadog-reliability-env
     branch: $DOWNSTREAM_BRANCH
   variables:
-    UPSTREAM_PACKAGE_JOB: build
+    UPSTREAM_PACKAGE_JOB: $BUILD_JOB_NAME
     UPSTREAM_PROJECT_ID: $CI_PROJECT_ID
     UPSTREAM_PROJECT_NAME: $CI_PROJECT_NAME
     UPSTREAM_PIPELINE_ID: $CI_PIPELINE_ID
@@ -85,7 +111,7 @@ deploy_to_profiling_backend:
   rules:
     - if: '$POPULATE_CACHE'
       when: never
-    - if: '$CI_COMMIT_BRANCH == "master"'
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
       when: on_success
     - if: '$CI_COMMIT_TAG =~ /^v.*/'
       when: on_success
@@ -102,6 +128,47 @@ deploy_to_profiling_backend:
     UPSTREAM_BRANCH: $CI_COMMIT_BRANCH
     UPSTREAM_TAG: $CI_COMMIT_TAG
     FORCE_TRIGGER: $FORCE_TRIGGER
+
+deploy_to_di_backend:automatic:
+  stage: deploy
+  rules:
+    - if: '$POPULATE_CACHE'
+      when: never
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+      when: on_success
+    - if: '$CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+$/'
+      when: on_success
+  trigger:
+    project: DataDog/debugger-demos
+    branch: main
+  variables:
+    UPSTREAM_PACKAGE_JOB: build
+    UPSTREAM_PROJECT_ID: $CI_PROJECT_ID
+    UPSTREAM_PROJECT_NAME: $CI_PROJECT_NAME
+    UPSTREAM_PIPELINE_ID: $CI_PIPELINE_ID
+    UPSTREAM_BRANCH: $CI_COMMIT_BRANCH
+    UPSTREAM_TAG: $CI_COMMIT_TAG
+    UPSTREAM_COMMIT_SHORT_SHA: $CI_COMMIT_SHORT_SHA
+ 
+deploy_to_di_backend:manual:
+  stage: deploy
+  rules:
+    - if: '$POPULATE_CACHE'
+      when: never
+    - when: manual
+      allow_failure: true
+  trigger:
+    project: DataDog/debugger-demos
+    branch: main
+  variables:
+    UPSTREAM_PACKAGE_JOB: build
+    UPSTREAM_PROJECT_ID: $CI_PROJECT_ID
+    UPSTREAM_PROJECT_NAME: $CI_PROJECT_NAME
+    UPSTREAM_PIPELINE_ID: $CI_PIPELINE_ID
+    UPSTREAM_BRANCH: $CI_COMMIT_BRANCH
+    UPSTREAM_TAG: $CI_COMMIT_TAG
+    UPSTREAM_COMMIT_AUTHOR: $CI_COMMIT_AUTHOR
+    UPSTREAM_COMMIT_SHORT_SHA: $CI_COMMIT_SHORT_SHA
 
 deploy_to_sonatype:
   <<: *gradle_build
@@ -142,7 +209,7 @@ deploy_latest_tag_to_docker_registries:
   rules:
     - if: '$POPULATE_CACHE'
       when: never
-    - if: '$CI_COMMIT_TAG =~ /^v.*/'
+    - if: '$CI_COMMIT_TAG =~ /^v1\..*/'
       when: on_success
     - when: manual
       allow_failure: true
@@ -170,3 +237,35 @@ create_key:
     expire_in: 13 mos
     paths:
       - pubkeys
+
+tracer-base-image-release:
+  extends: .ci_authenticated_job
+  stage: deploy
+  rules:
+    - if: '$POPULATE_CACHE'
+      when: never
+    - if: '$CI_COMMIT_TAG =~ /^v1\..*/'
+      when: on_success
+  dependencies:
+  - build
+  script:
+    - echo $GH_TOKEN|docker login ghcr.io/datadog -u uploader --password-stdin
+    - mkdir -p ./tooling/ci/binaries/ && cp workspace/dd-java-agent/build/libs/*.jar ./tooling/ci/binaries/dd-java-agent.jar
+    - docker build -t ghcr.io/datadog/dd-trace-java/dd-trace-java:latest -f ./tooling/ci/Dockerfile .
+    - docker push ghcr.io/datadog/dd-trace-java/dd-trace-java:latest  
+
+tracer-base-image-snapshot:
+  extends: .ci_authenticated_job
+  stage: deploy
+  rules:
+    - if: '$POPULATE_CACHE'
+      when: never
+    - if: '$CI_COMMIT_BRANCH == "master"'
+      when: on_success
+  dependencies:
+  - build
+  script:
+    - echo $GH_TOKEN|docker login ghcr.io/datadog -u uploader --password-stdin
+    - mkdir -p ./tooling/ci/binaries/ && cp workspace/dd-java-agent/build/libs/*.jar ./tooling/ci/binaries/dd-java-agent.jar
+    - docker build -t ghcr.io/datadog/dd-trace-java/dd-trace-java:latest_snapshot -f ./tooling/ci/Dockerfile .
+    - docker push ghcr.io/datadog/dd-trace-java/dd-trace-java:latest_snapshot  

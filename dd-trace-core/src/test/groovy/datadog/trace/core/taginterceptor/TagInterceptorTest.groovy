@@ -1,5 +1,10 @@
 package datadog.trace.core.taginterceptor
 
+import static datadog.trace.api.ConfigDefaults.DEFAULT_SERVICE_NAME
+import static datadog.trace.api.ConfigDefaults.DEFAULT_SERVLET_ROOT_CONTEXT_SERVICE_NAME
+import static datadog.trace.api.DDTags.ANALYTICS_SAMPLE_RATE
+import static datadog.trace.api.config.TracerConfig.SPLIT_BY_TAGS
+
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.DDTags
 import datadog.trace.api.config.GeneralConfig
@@ -13,11 +18,6 @@ import datadog.trace.common.writer.ListWriter
 import datadog.trace.common.writer.LoggingWriter
 import datadog.trace.core.CoreSpan
 import datadog.trace.core.test.DDCoreSpecification
-
-import static datadog.trace.api.ConfigDefaults.DEFAULT_SERVICE_NAME
-import static datadog.trace.api.ConfigDefaults.DEFAULT_SERVLET_ROOT_CONTEXT_SERVICE_NAME
-import static datadog.trace.api.DDTags.ANALYTICS_SAMPLE_RATE
-import static datadog.trace.api.config.TracerConfig.SPLIT_BY_TAGS
 
 class TagInterceptorTest extends DDCoreSpecification {
   def setup() {
@@ -299,6 +299,23 @@ class TagInterceptorTest extends DDCoreSpecification {
     name = "my resource name"
   }
 
+  def "set resource name ignores null"() {
+    when:
+    def writer = new ListWriter()
+    def tracer = tracerBuilder().writer(writer).build()
+
+    def span = tracer.buildSpan("test").withResourceName("keep").start()
+    span.setTag(DDTags.RESOURCE_NAME, null)
+    span.finish()
+    writer.waitForTraces(1)
+
+    then:
+    span.getResourceName() == "keep"
+
+    cleanup:
+    tracer.close()
+  }
+
   def "set span type"() {
     when:
     def tracer = tracerBuilder().writer(new ListWriter()).build()
@@ -573,6 +590,88 @@ class TagInterceptorTest extends DDCoreSpecification {
     (child as CoreSpan).isTopLevel()
 
     cleanup:
+    tracer.close()
+  }
+
+  def "treat `1` value as `true` for boolean tag values"() {
+    setup:
+    def tracer = tracerBuilder()
+      .serviceName("some-service")
+      .writer(new LoggingWriter())
+      .sampler(new AllSampler())
+      .build()
+
+    when:
+    AgentSpan span = tracer.buildSpan("test").start()
+
+    then:
+    span.getSamplingPriority() == null
+
+    when:
+    span.setTag(tag, value)
+
+    then:
+    span.getSamplingPriority() == samplingPriority
+
+    where:
+    tag                | value | samplingPriority
+    DDTags.MANUAL_DROP | true  | PrioritySampling.USER_DROP
+    DDTags.MANUAL_DROP | "1"   | PrioritySampling.USER_DROP
+    DDTags.MANUAL_DROP | false | null
+    DDTags.MANUAL_DROP | "0"   | null
+    DDTags.MANUAL_KEEP | true  | PrioritySampling.USER_KEEP
+    DDTags.MANUAL_KEEP | "1"   | PrioritySampling.USER_KEEP
+    DDTags.MANUAL_KEEP | false | null
+    DDTags.MANUAL_KEEP | "0"   | null
+  }
+
+  def "URLAsResourceNameRule sets the resource name"() {
+    setup:
+    def tracer = tracerBuilder().writer(new ListWriter()).build()
+
+    def span = tracer.buildSpan("fakeOperation").start()
+    meta.each {
+      span.setTag(it.key, (String) it.value)
+    }
+
+    when:
+    span.setTag(Tags.HTTP_URL, value)
+
+    then:
+    span.resourceName.toString() == resourceName
+
+    cleanup:
+    span.finish()
+    tracer.close()
+
+    where:
+    value                       | resourceName        | meta
+    null                        | "fakeOperation"     | [:]
+    " "                         | "/"                 | [:]
+    "\t"                        | "/"                 | [:]
+    "/path"                     | "/path"             | [:]
+    "/ABC/a-1/b_2/c.3/d4d/5f/6" | "/ABC/?/?/?/?/?/?"  | [:]
+    "/not-found"                | "404"               | [(Tags.HTTP_STATUS): "404"]
+    "/with-method"              | "POST /with-method" | [(Tags.HTTP_METHOD): "Post"]
+
+    ignore = meta.put(Tags.HTTP_URL, value)
+  }
+
+  def "when user sets peer.service the source should be peer.service"() {
+    setup:
+    def tracer = tracerBuilder().writer(new ListWriter()).build()
+
+    def span = tracer.buildSpan("fakeOperation").start()
+
+
+    when:
+    span.setTag(Tags.PEER_SERVICE, "test")
+
+    then:
+    span.getTag(DDTags.PEER_SERVICE_SOURCE) == "peer.service"
+
+    cleanup:
+    span.finish()
     tracer.close()
   }
 }

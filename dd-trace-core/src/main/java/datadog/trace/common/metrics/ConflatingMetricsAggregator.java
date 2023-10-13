@@ -4,7 +4,8 @@ import static datadog.communication.ddagent.DDAgentFeaturesDiscovery.V6_METRICS_
 import static datadog.trace.api.Functions.UTF8_ENCODE;
 import static datadog.trace.common.metrics.AggregateMetric.ERROR_TAG;
 import static datadog.trace.common.metrics.AggregateMetric.TOP_LEVEL_TAG;
-import static datadog.trace.common.metrics.Batch.REPORT;
+import static datadog.trace.common.metrics.SignalItem.ReportSignal.REPORT;
+import static datadog.trace.common.metrics.SignalItem.StopSignal.STOP;
 import static datadog.trace.util.AgentThreadFactory.AgentThread.METRICS_AGGREGATOR;
 import static datadog.trace.util.AgentThreadFactory.THREAD_JOIN_TIMOUT_MS;
 import static datadog.trace.util.AgentThreadFactory.newAgentThread;
@@ -17,6 +18,7 @@ import datadog.trace.api.WellKnownTags;
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
+import datadog.trace.common.metrics.SignalItem.ReportSignal;
 import datadog.trace.common.writer.ddagent.DDAgentApi;
 import datadog.trace.core.CoreSpan;
 import datadog.trace.core.DDTraceCoreInfo;
@@ -26,10 +28,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.Queue;
 import java.util.Set;
-import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import org.jctools.maps.NonBlockingHashMap;
-import org.jctools.queues.MpscBlockingConsumerArrayQueue;
+import org.jctools.queues.MpscCompoundQueue;
 import org.jctools.queues.SpmcArrayQueue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -46,14 +49,12 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
 
   private static final CharSequence SYNTHETICS_ORIGIN = "synthetics";
 
-  static final Batch POISON_PILL = Batch.NULL;
-
   private final Set<String> ignoredResources;
   private final Queue<Batch> batchPool;
   private final NonBlockingHashMap<MetricKey, Batch> pending;
   private final NonBlockingHashMap<MetricKey, MetricKey> keys;
   private final Thread thread;
-  private final BlockingQueue<Batch> inbox;
+  private final MpscCompoundQueue<InboxItem> inbox;
   private final Sink sink;
   private final Aggregator aggregator;
   private final long reportingInterval;
@@ -119,7 +120,7 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
       long reportingInterval,
       TimeUnit timeUnit) {
     this.ignoredResources = ignoredResources;
-    this.inbox = new MpscBlockingConsumerArrayQueue<>(queueSize);
+    this.inbox = new MpscCompoundQueue<>(queueSize);
     this.batchPool = new SpmcArrayQueue<>(maxAggregates);
     this.pending = new NonBlockingHashMap<>(maxAggregates * 4 / 3);
     this.keys = new NonBlockingHashMap<>();
@@ -142,10 +143,7 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
 
   @Override
   public void start() {
-    if (features.getMetricsEndpoint() == null) {
-      features.discover();
-    }
-    if (features.supportsMetrics()) {
+    if (isMetricsEnabled()) {
       sink.register(this);
       thread.start();
       cancellation =
@@ -159,6 +157,13 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
     } else {
       log.debug("metrics not supported by trace agent");
     }
+  }
+
+  private boolean isMetricsEnabled() {
+    if (features.getMetricsEndpoint() == null) {
+      features.discoverIfOutdated();
+    }
+    return features.supportsMetrics();
   }
 
   @Override
@@ -176,12 +181,47 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
   }
 
   @Override
+  public Future<Boolean> forceReport() {
+    // Ensure the feature is enabled
+    if (!isMetricsEnabled()) {
+      return CompletableFuture.completedFuture(false);
+    }
+    // Wait for the thread to start
+    while (cancellation == null || (cancellation.get() != null && !thread.isAlive())) {
+      try {
+        Thread.sleep(10);
+      } catch (InterruptedException e) {
+        return CompletableFuture.completedFuture(false);
+      }
+    }
+    // Try to send the report signal
+    ReportSignal reportSignal = new ReportSignal();
+    boolean published = false;
+    while (thread.isAlive() && !published) {
+      published = inbox.offer(reportSignal);
+      if (!published) {
+        try {
+          Thread.sleep(10);
+        } catch (InterruptedException e) {
+          log.debug("Failed to ask for report");
+          break;
+        }
+      }
+    }
+    if (published) {
+      return reportSignal.future;
+    } else {
+      return CompletableFuture.completedFuture(false);
+    }
+  }
+
+  @Override
   public boolean publish(List<? extends CoreSpan<?>> trace) {
     boolean forceKeep = false;
     if (features.supportsMetrics()) {
       for (CoreSpan<?> span : trace) {
         boolean isTopLevel = span.isTopLevel();
-        if (isTopLevel || span.isMeasured()) {
+        if (shouldComputeMetric(span)) {
           if (ignoredResources.contains(span.getResourceName().toString())) {
             // skip publishing all children
             return false;
@@ -191,6 +231,10 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
       }
     }
     return forceKeep;
+  }
+
+  private boolean shouldComputeMetric(CoreSpan<?> span) {
+    return (span.isMeasured() || span.isTopLevel()) && span.getDurationNano() > 0;
   }
 
   private boolean publish(CoreSpan<?> span, boolean isTopLevel) {
@@ -252,7 +296,7 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
     if (null != cancellation) {
       cancellation.cancel();
     }
-    inbox.offer(POISON_PILL);
+    inbox.offer(STOP);
   }
 
   @Override

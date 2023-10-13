@@ -36,10 +36,10 @@ public class SessionInstrumentation extends AbstractHibernateInstrumentation {
   @Override
   public Map<String, String> contextStore() {
     final Map<String, String> map = new HashMap<>();
-    map.put("org.hibernate.SharedSessionContract", SessionState.class.getName());
-    map.put("org.hibernate.Query", SessionState.class.getName());
-    map.put("org.hibernate.Transaction", SessionState.class.getName());
-    map.put("org.hibernate.Criteria", SessionState.class.getName());
+    map.put("org.hibernate.SharedSessionContract", SESSION_STATE);
+    map.put("org.hibernate.Query", SESSION_STATE);
+    map.put("org.hibernate.Transaction", SESSION_STATE);
+    map.put("org.hibernate.Criteria", SESSION_STATE);
     return Collections.unmodifiableMap(map);
   }
 

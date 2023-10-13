@@ -2,6 +2,7 @@ package datadog.trace.agent.tooling.bytebuddy.csi;
 
 import static net.bytebuddy.jar.asm.ClassWriter.COMPUTE_MAXS;
 
+import datadog.trace.agent.tooling.HelperInjector;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.csi.CallSiteAdvice;
 import datadog.trace.agent.tooling.csi.CallSiteAdvice.StackDupMode;
@@ -26,12 +27,26 @@ import net.bytebuddy.utility.JavaModule;
 
 public class CallSiteTransformer implements Instrumenter.AdviceTransformer {
 
+  private static final Instrumenter.AdviceTransformer NO_OP =
+      (builder, typeDescription, classLoader, module, pd) -> builder;
+
   public static final int ASM_API = Opcodes.ASM8;
 
   private final Advices advices;
 
+  private final Instrumenter.AdviceTransformer helperInjector;
+
   public CallSiteTransformer(@Nonnull final Advices advices) {
+    this("call-site-transformer", advices);
+  }
+
+  public CallSiteTransformer(@Nonnull final String name, @Nonnull final Advices advices) {
     this.advices = advices;
+    final String[] helpers = advices.getHelpers();
+    this.helperInjector =
+        helpers == null || helpers.length == 0
+            ? NO_OP
+            : new HelperInjector(name, advices.getHelpers());
   }
 
   @Override
@@ -41,8 +56,13 @@ public class CallSiteTransformer implements Instrumenter.AdviceTransformer {
       final ClassLoader classLoader,
       final JavaModule module,
       final ProtectionDomain pd) {
-    Advices discovered = advices.findAdvices(type, classLoader);
-    return discovered.isEmpty() ? builder : builder.visit(new CallSiteVisitorWrapper(discovered));
+    Advices discovered = advices.findAdvices(builder, type, classLoader);
+    if (discovered.isEmpty()) {
+      return builder;
+    }
+    final DynamicType.Builder<?> withHelpers =
+        helperInjector.transform(builder, type, classLoader, module, pd);
+    return withHelpers.visit(new CallSiteVisitorWrapper(discovered));
   }
 
   private static class CallSiteVisitorWrapper extends AsmVisitorWrapper.AbstractBase {
@@ -55,7 +75,7 @@ public class CallSiteTransformer implements Instrumenter.AdviceTransformer {
 
     @Override
     public int mergeWriter(final int flags) {
-      return advices.computeMaxStack() ? flags | COMPUTE_MAXS : flags;
+      return flags | COMPUTE_MAXS;
     }
 
     @Override
@@ -142,6 +162,16 @@ public class CallSiteTransformer implements Instrumenter.AdviceTransformer {
     }
 
     @Override
+    public void instruction(final int opcode, final int parameter) {
+      mv.visitIntInsn(opcode, parameter);
+    }
+
+    @Override
+    public void instruction(final int opcode, final String type) {
+      mv.visitTypeInsn(opcode, type);
+    }
+
+    @Override
     public void loadConstant(final Object constant) {
       mv.visitLdcInsn(constant);
     }
@@ -149,6 +179,12 @@ public class CallSiteTransformer implements Instrumenter.AdviceTransformer {
     @Override
     public void loadConstantArray(final Object[] array) {
       CallSiteUtils.pushConstantArray(mv, array);
+    }
+
+    @Override
+    public void field(
+        final int opcode, final String owner, final String field, final String descriptor) {
+      mv.visitFieldInsn(opcode, owner, field, descriptor);
     }
 
     @Override
@@ -180,14 +216,53 @@ public class CallSiteTransformer implements Instrumenter.AdviceTransformer {
     }
 
     @Override
+    public void dupParameters(final String methodDescriptor, int[] indices, String owner) {
+      final Type method = Type.getMethodType(methodDescriptor);
+      Type[] stackArgTypes;
+      if (owner != null) {
+        stackArgTypes = methodParamTypesWithThis(owner, methodDescriptor);
+        int[] newIndices = new int[indices.length];
+        for (int i = 0; i < indices.length; i++) {
+          newIndices[i] = indices[i] + 1;
+        }
+        indices = newIndices;
+      } else {
+        stackArgTypes = method.getArgumentTypes();
+      }
+      CallSiteUtils.dup(mv, stackArgTypes, indices);
+    }
+
+    @Override
     public void dupInvoke(
         final String owner, final String methodDescriptor, final StackDupMode mode) {
+      final Type[] parameters = methodParamTypesWithThis(owner, methodDescriptor);
+      CallSiteUtils.dup(mv, parameters, mode);
+    }
+
+    @Override
+    public void dupInvoke(String owner, String methodDescriptor, int[] parameterIndices) {
+      final Type[] methodParameterTypesWithThis = methodParamTypesWithThis(owner, methodDescriptor);
+
+      int[] parameterIndicesWithThis = new int[parameterIndices.length + 1];
+      parameterIndicesWithThis[0] = 0;
+      for (int i = 0; i < parameterIndices.length; i++) {
+        parameterIndicesWithThis[i + 1] = parameterIndices[i] + 1;
+      }
+      CallSiteUtils.dup(mv, methodParameterTypesWithThis, parameterIndicesWithThis);
+    }
+
+    private Type[] methodParamTypesWithThis(String owner, String methodDescriptor) {
       final Type method = Type.getMethodType(methodDescriptor);
       Type ownerType = Type.getType("L" + owner + ";");
-      final Type[] parameters = new Type[method.getArgumentTypes().length + 1];
-      parameters[0] = ownerType;
-      System.arraycopy(method.getArgumentTypes(), 0, parameters, 1, parameters.length - 1);
-      CallSiteUtils.dup(mv, parameters, mode);
+      final Type[] methodParameterTypesWithThis = new Type[method.getArgumentTypes().length + 1];
+      methodParameterTypesWithThis[0] = ownerType;
+      System.arraycopy(
+          method.getArgumentTypes(),
+          0,
+          methodParameterTypesWithThis,
+          1,
+          methodParameterTypesWithThis.length - 1);
+      return methodParameterTypesWithThis;
     }
   }
 }

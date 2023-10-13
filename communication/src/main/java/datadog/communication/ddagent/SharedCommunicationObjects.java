@@ -1,15 +1,15 @@
 package datadog.communication.ddagent;
 
+import static datadog.communication.ddagent.TracerVersion.TRACER_VERSION;
+
 import datadog.common.container.ContainerInfo;
 import datadog.common.socket.SocketUtils;
 import datadog.communication.http.OkHttpUtils;
 import datadog.communication.monitor.Monitoring;
+import datadog.remoteconfig.ConfigurationPoller;
 import datadog.trace.api.Config;
-import datadog.trace.api.Platform;
-import datadog.trace.api.function.Supplier;
-import java.lang.reflect.Constructor;
-import java.lang.reflect.InvocationTargetException;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
 import okhttp3.HttpUrl;
 import okhttp3.OkHttpClient;
 import org.slf4j.Logger;
@@ -22,7 +22,7 @@ public class SharedCommunicationObjects {
   public HttpUrl agentUrl;
   public Monitoring monitoring;
   private DDAgentFeaturesDiscovery featuresDiscovery;
-  private Object configurationPoller; // java 8
+  private ConfigurationPoller configurationPoller;
 
   public void createRemaining(Config config) {
     if (monitoring == null) {
@@ -30,6 +30,9 @@ public class SharedCommunicationObjects {
     }
     if (agentUrl == null) {
       agentUrl = HttpUrl.parse(config.getAgentUrl());
+      if (agentUrl == null) {
+        throw new IllegalArgumentException("Bad agent URL: " + config.getAgentUrl());
+      }
     }
     if (okHttpClient == null) {
       String unixDomainSocket = SocketUtils.discoverApmSocket(config);
@@ -43,57 +46,25 @@ public class SharedCommunicationObjects {
     }
   }
 
-  public Object configurationPoller(Config config) {
-    if (configurationPoller != null) {
-      return configurationPoller;
+  public ConfigurationPoller configurationPoller(Config config) {
+    if (configurationPoller == null && config.isRemoteConfigEnabled()) {
+      configurationPoller = createPoller(config);
     }
-    if (!isAtLeastJava8()) {
-      return null;
-    }
-
-    try {
-      this.configurationPoller = maybeCreatePoller(config);
-    } catch (ClassNotFoundException
-        | NoSuchMethodException
-        | InstantiationException
-        | IllegalAccessException
-        | InvocationTargetException e) {
-      log.error("Error creating remote configuration poller", e);
-      return null;
-    }
-
     return configurationPoller;
   }
 
-  private Object maybeCreatePoller(Config config)
-      throws ClassNotFoundException, NoSuchMethodException, InstantiationException,
-          IllegalAccessException, InvocationTargetException {
-    if (!config.isRemoteConfigEnabled()) {
-      return null;
-    }
-
-    Class<?> confPollerCls =
-        getClass().getClassLoader().loadClass("datadog.remoteconfig.ConfigurationPoller");
-    Constructor<?> constructor =
-        confPollerCls.getConstructor(
-            Config.class, String.class, String.class, Supplier.class, OkHttpClient.class);
-
+  private ConfigurationPoller createPoller(Config config) {
     String containerId = ContainerInfo.get().getContainerId();
-    String remoteConfigUrl = config.getFinalRemoteConfigUrl();
     Supplier<String> configUrlSupplier;
+    String remoteConfigUrl = config.getFinalRemoteConfigUrl();
     if (remoteConfigUrl != null) {
       configUrlSupplier = new FixedConfigUrlSupplier(remoteConfigUrl);
     } else {
       createRemaining(config);
       configUrlSupplier = new RetryConfigUrlSupplier(this, config);
     }
-
-    return constructor.newInstance(
-        config, TracerVersion.TRACER_VERSION, containerId, configUrlSupplier, okHttpClient);
-  }
-
-  private static boolean isAtLeastJava8() {
-    return Platform.isJavaVersionAtLeast(8, 0);
+    return new ConfigurationPoller(
+        config, TRACER_VERSION, containerId, configUrlSupplier, okHttpClient);
   }
 
   // for testing
@@ -135,8 +106,6 @@ public class SharedCommunicationObjects {
     private String configUrl;
     private final SharedCommunicationObjects sco;
     private final Config config;
-    private long lastTry = 0;
-    private long retryInterval = 5000;
 
     private RetryConfigUrlSupplier(final SharedCommunicationObjects sco, final Config config) {
       this.sco = sco;
@@ -149,30 +118,14 @@ public class SharedCommunicationObjects {
         return configUrl;
       }
 
-      long now = System.currentTimeMillis();
-      long elapsed = now - lastTry;
-      if (elapsed > retryInterval) {
-
-        if (sco.featuresDiscovery == null) {
-          // Note that feature discovery initialization also runs discovery on its first call.
-          sco.featuresDiscovery(config);
-        } else {
-          // Feature discovery might have run elsewhere. In that case, we don't need another call.
-          if (sco.featuresDiscovery.getConfigEndpoint() == null) {
-            sco.featuresDiscovery.discover();
-          }
-          retryInterval = 60000;
-        }
-      } else {
-        return null;
-      }
-      lastTry = now;
-      String configEndpoint = sco.featuresDiscovery.getConfigEndpoint();
+      final DDAgentFeaturesDiscovery discovery = sco.featuresDiscovery(config);
+      discovery.discoverIfOutdated();
+      final String configEndpoint = discovery.getConfigEndpoint();
       if (configEndpoint == null) {
         return null;
       }
-
-      this.configUrl = sco.featuresDiscovery.buildUrl(configEndpoint).toString();
+      this.configUrl = discovery.buildUrl(configEndpoint).toString();
+      log.debug("Found remote config endpoint: {}", this.configUrl);
       return this.configUrl;
     }
   }

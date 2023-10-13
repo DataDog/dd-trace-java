@@ -3,7 +3,7 @@ package datadog.trace.util;
 import static org.junit.Assert.assertEquals;
 
 import java.nio.charset.StandardCharsets;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 public class TagsHelperTest {
 
@@ -55,5 +55,13 @@ public class TagsHelperTest {
     }
     assertEquals(200, TagsHelper.sanitize(tag.toString()).length());
     assertEquals(200, TagsHelper.sanitize(tag.toString()).getBytes(StandardCharsets.UTF_8).length);
+  }
+
+  @Test
+  public void concat() {
+    assertEquals("", TagsHelper.concatTags());
+    assertEquals("", TagsHelper.concatTags(""));
+    assertEquals("foo:bar", TagsHelper.concatTags("foo:bar"));
+    assertEquals("foo0:bar0,foo1:bar1", TagsHelper.concatTags("foo0:bar0", "foo1:bar1"));
   }
 }

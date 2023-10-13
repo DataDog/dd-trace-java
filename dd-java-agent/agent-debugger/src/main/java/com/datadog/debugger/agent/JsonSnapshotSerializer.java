@@ -1,26 +1,24 @@
 package com.datadog.debugger.agent;
 
+import com.datadog.debugger.sink.Snapshot;
 import com.datadog.debugger.util.MoshiHelper;
 import com.datadog.debugger.util.MoshiSnapshotHelper;
 import com.squareup.moshi.Json;
 import com.squareup.moshi.JsonAdapter;
+import datadog.trace.api.Config;
+import datadog.trace.bootstrap.debugger.CapturedContext;
 import datadog.trace.bootstrap.debugger.DebuggerContext;
-import datadog.trace.bootstrap.debugger.Snapshot;
 import java.util.Map;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /** Serializes snapshots in Json using Moshi */
-public class JsonSnapshotSerializer implements DebuggerContext.SnapshotSerializer {
-  private static final Logger LOG = LoggerFactory.getLogger(JsonSnapshotSerializer.class);
+public class JsonSnapshotSerializer implements DebuggerContext.ValueSerializer {
   private static final String DD_TRACE_ID = "dd.trace_id";
   private static final String DD_SPAN_ID = "dd.span_id";
   private static final JsonAdapter<IntakeRequest> ADAPTER =
       MoshiHelper.createMoshiSnapshot().adapter(IntakeRequest.class);
-  private static final JsonAdapter<Snapshot.CapturedValue> VALUE_ADAPTER =
+  private static final JsonAdapter<CapturedContext.CapturedValue> VALUE_ADAPTER =
       new MoshiSnapshotHelper.CapturedValueAdapter();
 
-  @Override
   public String serializeSnapshot(String serviceName, Snapshot snapshot) {
     IntakeRequest request = new IntakeRequest(serviceName, new DebuggerIntakeRequestData(snapshot));
     handleCorrelationFields(snapshot, request);
@@ -30,78 +28,47 @@ public class JsonSnapshotSerializer implements DebuggerContext.SnapshotSerialize
   }
 
   @Override
-  public String serializeValue(Snapshot.CapturedValue value) {
+  public String serializeValue(CapturedContext.CapturedValue value) {
     return VALUE_ADAPTER.toJson(value);
   }
 
   private void handlerLogger(Snapshot snapshot, IntakeRequest request) {
     request.loggerName = snapshot.getProbe().getLocation().getType();
     request.loggerMethod = snapshot.getProbe().getLocation().getMethod();
-    request.loggerVersion = snapshot.retrieveVersion();
-    request.loggerThreadId = snapshot.retrieveThread().getId();
-    request.loggerThreadName = snapshot.retrieveThread().getName();
+    request.loggerVersion = snapshot.getVersion();
+    request.loggerThreadId = snapshot.getThread().getId();
+    request.loggerThreadName = snapshot.getThread().getName();
   }
 
   private void handleDuration(Snapshot snapshot, IntakeRequest request) {
-    request.duration = snapshot.retrieveDuration();
+    request.duration = snapshot.getDuration();
   }
 
   private void handleCorrelationFields(Snapshot snapshot, IntakeRequest request) {
-    Snapshot.CapturedContext entry = snapshot.getCaptures().getEntry();
+    request.traceId = snapshot.getTraceId();
+    request.spanId = snapshot.getSpanId();
+    CapturedContext entry = snapshot.getCaptures().getEntry();
     if (entry != null) {
-      addTraceSpanId(entry, request);
       removeTraceSpanId(entry);
     }
     if (snapshot.getCaptures().getLines() != null) {
-      for (Snapshot.CapturedContext context : snapshot.getCaptures().getLines().values()) {
-        addTraceSpanId(context, request);
+      for (CapturedContext context : snapshot.getCaptures().getLines().values()) {
         removeTraceSpanId(context);
       }
     }
     removeTraceSpanId(snapshot.getCaptures().getReturn());
   }
 
-  private void removeTraceSpanId(Snapshot.CapturedContext context) {
+  private void removeTraceSpanId(CapturedContext context) {
     if (context == null) {
       return;
     }
-    Map<String, Snapshot.CapturedValue> fields = context.getFields();
+    Map<String, CapturedContext.CapturedValue> fields = context.getFields();
     if (fields == null) {
       return;
     }
     fields.remove(DD_TRACE_ID);
     fields.remove(DD_SPAN_ID);
-  }
-
-  private void addTraceSpanId(Snapshot.CapturedContext context, IntakeRequest request) {
-    Map<String, Snapshot.CapturedValue> fields = context.getFields();
-    if (fields == null) {
-      return;
-    }
-    request.traceId = extractCorrelationField(fields, DD_TRACE_ID);
-    request.spanId = extractCorrelationField(fields, DD_SPAN_ID);
-  }
-
-  private String extractCorrelationField(
-      Map<String, Snapshot.CapturedValue> fields, String fieldName) {
-    Snapshot.CapturedValue fieldValue = fields.get(fieldName);
-    if (fieldValue != null) {
-      return getValue(fieldValue, fieldName);
-    }
-    return null;
-  }
-
-  public static String getValue(Snapshot.CapturedValue capturedValue, String name) {
-    if (capturedValue != null) {
-      try {
-        Snapshot.CapturedValue deserializedValue =
-            VALUE_ADAPTER.fromJson(capturedValue.getStrValue());
-        return String.valueOf(deserializedValue.getValue());
-      } catch (Exception e) {
-        LOG.warn("Cannot deserialize " + name, e);
-      }
-    }
-    return null;
   }
 
   public static class IntakeRequest {
@@ -140,18 +107,9 @@ public class JsonSnapshotSerializer implements DebuggerContext.SnapshotSerialize
     public IntakeRequest(String service, DebuggerIntakeRequestData debugger) {
       this.service = service;
       this.debugger = debugger;
-      this.message = debugger.snapshot.getSummary();
-      this.ddtags = debugger.snapshot.getProbe().getTags();
+      this.message = debugger.snapshot.getMessage();
+      this.ddtags = debugger.snapshot.getProbe().getStrTags();
       this.timestamp = debugger.snapshot.getTimestamp();
-    }
-
-    public static String concatTags(String... tags) {
-      StringBuilder sb = new StringBuilder();
-      for (String tag : tags) {
-        sb.append(tag);
-        sb.append(",");
-      }
-      return sb.substring(0, sb.length() - 1); // Remove last comma
     }
 
     public String getService() {
@@ -181,6 +139,26 @@ public class JsonSnapshotSerializer implements DebuggerContext.SnapshotSerialize
     public long getTimestamp() {
       return timestamp;
     }
+
+    public String getLoggerName() {
+      return loggerName;
+    }
+
+    public String getLoggerMethod() {
+      return loggerMethod;
+    }
+
+    public int getLoggerVersion() {
+      return loggerVersion;
+    }
+
+    public long getLoggerThreadId() {
+      return loggerThreadId;
+    }
+
+    public String getLoggerThreadName() {
+      return loggerThreadName;
+    }
   }
 
   public static class DebuggerIntakeRequestData {
@@ -192,6 +170,10 @@ public class JsonSnapshotSerializer implements DebuggerContext.SnapshotSerialize
 
     public Snapshot getSnapshot() {
       return snapshot;
+    }
+
+    public String getRuntimeId() {
+      return Config.get().getRuntimeId();
     }
   }
 }

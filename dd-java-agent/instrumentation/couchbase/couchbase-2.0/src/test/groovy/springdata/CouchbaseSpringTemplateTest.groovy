@@ -1,14 +1,12 @@
 package springdata
 
-import datadog.trace.agent.test.checkpoints.CheckpointValidator
-import datadog.trace.agent.test.checkpoints.CheckpointValidationMode
 import com.couchbase.client.java.Bucket
 import com.couchbase.client.java.Cluster
 import com.couchbase.client.java.CouchbaseCluster
 import com.couchbase.client.java.cluster.ClusterManager
 import com.couchbase.client.java.env.CouchbaseEnvironment
+import datadog.trace.test.util.Flaky
 import org.springframework.data.couchbase.core.CouchbaseTemplate
-import spock.lang.Retry
 import spock.lang.Shared
 import spock.lang.Unroll
 import util.AbstractCouchbaseTest
@@ -17,7 +15,7 @@ import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 
-@Retry(count = 10, delay = 500)
+@Flaky
 @Unroll
 class CouchbaseSpringTemplateTest extends AbstractCouchbaseTest {
 
@@ -72,9 +70,6 @@ class CouchbaseSpringTemplateTest extends AbstractCouchbaseTest {
 
   def "test write #name"() {
     setup:
-    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
-      CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.THREAD_SEQUENCE)
     def doc = new Doc()
     def result
 
@@ -104,9 +99,6 @@ class CouchbaseSpringTemplateTest extends AbstractCouchbaseTest {
 
   def "test remove #name"() {
     setup:
-    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
-      CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.THREAD_SEQUENCE)
     def doc = new Doc()
 
     when:

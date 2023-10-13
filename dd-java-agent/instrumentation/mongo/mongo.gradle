@@ -1,5 +1,0 @@
-apply from: "$rootDir/gradle/java.gradle"
-
-dependencies {
-  testImplementation group: 'de.flapdoodle.embed', name: 'de.flapdoodle.embed.mongo', version: '1.50.5'
-}

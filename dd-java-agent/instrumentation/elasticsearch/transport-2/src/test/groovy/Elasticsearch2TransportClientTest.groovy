@@ -1,6 +1,8 @@
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.naming.VersionedNamingTestBase
+import datadog.trace.api.Config
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
+import datadog.trace.test.util.Flaky
 import org.elasticsearch.action.admin.cluster.health.ClusterHealthRequest
 import org.elasticsearch.action.admin.cluster.stats.ClusterStatsRequest
 import org.elasticsearch.client.transport.TransportClient
@@ -12,13 +14,12 @@ import org.elasticsearch.node.Node
 import org.elasticsearch.node.NodeBuilder
 import org.elasticsearch.transport.RemoteTransportException
 import org.elasticsearch.transport.TransportService
-import spock.lang.Retry
 import spock.lang.Shared
 
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 
-@Retry(count = 3, delay = 1000, mode = Retry.Mode.SETUP_FEATURE_CLEANUP)
-class Elasticsearch2TransportClientTest extends AgentTestRunner {
+@Flaky
+abstract class Elasticsearch2TransportClientTest extends VersionedNamingTestBase {
   public static final long TIMEOUT = 10000 // 10 seconds
 
   @Shared
@@ -83,9 +84,9 @@ class Elasticsearch2TransportClientTest extends AgentTestRunner {
     assertTraces(1) {
       trace(1) {
         span {
-          serviceName "elasticsearch"
+          serviceName service()
           resourceName "ClusterHealthAction"
-          operationName "elasticsearch.query"
+          operationName operation()
           spanType DDSpanTypes.ELASTICSEARCH
           tags {
             "$Tags.COMPONENT" "elasticsearch-java"
@@ -96,6 +97,7 @@ class Elasticsearch2TransportClientTest extends AgentTestRunner {
             "$Tags.DB_TYPE" "elasticsearch"
             "elasticsearch.action" "ClusterHealthAction"
             "elasticsearch.request" "ClusterHealthRequest"
+            peerServiceFrom(Tags.PEER_HOSTNAME)
             defaultTags()
           }
         }
@@ -117,9 +119,9 @@ class Elasticsearch2TransportClientTest extends AgentTestRunner {
     assertTraces(1) {
       trace(1) {
         span {
-          serviceName "elasticsearch"
+          serviceName service()
           resourceName "ClusterStatsAction"
-          operationName "elasticsearch.query"
+          operationName operation()
           spanType DDSpanTypes.ELASTICSEARCH
           tags {
             "$Tags.COMPONENT" "elasticsearch-java"
@@ -131,6 +133,7 @@ class Elasticsearch2TransportClientTest extends AgentTestRunner {
             "elasticsearch.action" "ClusterStatsAction"
             "elasticsearch.request" "ClusterStatsRequest"
             "elasticsearch.node.cluster.name" clusterName
+            peerServiceFrom(Tags.PEER_HOSTNAME)
             defaultTags()
           }
         }
@@ -149,9 +152,9 @@ class Elasticsearch2TransportClientTest extends AgentTestRunner {
     assertTraces(1) {
       trace(1) {
         span {
-          serviceName "elasticsearch"
+          serviceName service()
           resourceName "GetAction"
-          operationName "elasticsearch.query"
+          operationName operation()
           spanType DDSpanTypes.ELASTICSEARCH
           errored true
           tags {
@@ -162,7 +165,7 @@ class Elasticsearch2TransportClientTest extends AgentTestRunner {
             "elasticsearch.request" "GetRequest"
             "elasticsearch.request.indices" indexName
             errorTags RemoteTransportException, String
-            defaultTags()
+            defaultTagsNoPeerService()
           }
         }
       }
@@ -215,9 +218,9 @@ class Elasticsearch2TransportClientTest extends AgentTestRunner {
     assertTraces(6) {
       trace(1) {
         span {
-          serviceName "elasticsearch"
+          serviceName service()
           resourceName "CreateIndexAction"
-          operationName "elasticsearch.query"
+          operationName operation()
           spanType DDSpanTypes.ELASTICSEARCH
           tags {
             "$Tags.COMPONENT" "elasticsearch-java"
@@ -229,15 +232,16 @@ class Elasticsearch2TransportClientTest extends AgentTestRunner {
             "elasticsearch.action" "CreateIndexAction"
             "elasticsearch.request" "CreateIndexRequest"
             "elasticsearch.request.indices" indexName
+            peerServiceFrom(Tags.PEER_HOSTNAME)
             defaultTags()
           }
         }
       }
       trace(1) {
         span {
-          serviceName "elasticsearch"
+          serviceName service()
           resourceName "ClusterHealthAction"
-          operationName "elasticsearch.query"
+          operationName operation()
           spanType DDSpanTypes.ELASTICSEARCH
           tags {
             "$Tags.COMPONENT" "elasticsearch-java"
@@ -248,15 +252,16 @@ class Elasticsearch2TransportClientTest extends AgentTestRunner {
             "$Tags.DB_TYPE" "elasticsearch"
             "elasticsearch.action" "ClusterHealthAction"
             "elasticsearch.request" "ClusterHealthRequest"
+            peerServiceFrom(Tags.PEER_HOSTNAME)
             defaultTags()
           }
         }
       }
       trace(1) {
         span {
-          serviceName "elasticsearch"
+          serviceName service()
           resourceName "GetAction"
-          operationName "elasticsearch.query"
+          operationName operation()
           spanType DDSpanTypes.ELASTICSEARCH
           tags {
             "$Tags.COMPONENT" "elasticsearch-java"
@@ -271,15 +276,16 @@ class Elasticsearch2TransportClientTest extends AgentTestRunner {
             "elasticsearch.type" indexType
             "elasticsearch.id" "1"
             "elasticsearch.version"(-1)
+            peerServiceFrom(Tags.PEER_HOSTNAME)
             defaultTags()
           }
         }
       }
       trace(1) {
         span {
-          serviceName "elasticsearch"
+          serviceName service()
           resourceName "IndexAction"
-          operationName "elasticsearch.query"
+          operationName operation()
           spanType DDSpanTypes.ELASTICSEARCH
           tags {
             "$Tags.COMPONENT" "elasticsearch-java"
@@ -292,15 +298,16 @@ class Elasticsearch2TransportClientTest extends AgentTestRunner {
             "elasticsearch.request" "IndexRequest"
             "elasticsearch.request.indices" indexName
             "elasticsearch.request.write.type" indexType
+            peerServiceFrom(Tags.PEER_HOSTNAME)
             defaultTags()
           }
         }
       }
       trace(1) {
         span {
-          serviceName "elasticsearch"
+          serviceName service()
           resourceName "PutMappingAction"
-          operationName "elasticsearch.query"
+          operationName operation()
           spanType DDSpanTypes.ELASTICSEARCH
           tags {
             "$Tags.COMPONENT" "elasticsearch-java"
@@ -309,15 +316,15 @@ class Elasticsearch2TransportClientTest extends AgentTestRunner {
             "elasticsearch.action" "PutMappingAction"
             "elasticsearch.request" "PutMappingRequest"
             "elasticsearch.request.indices" indexName
-            defaultTags()
+            defaultTagsNoPeerService()
           }
         }
       }
       trace(1) {
         span {
-          serviceName "elasticsearch"
+          serviceName service()
           resourceName "GetAction"
-          operationName "elasticsearch.query"
+          operationName operation()
           spanType DDSpanTypes.ELASTICSEARCH
           tags {
             "$Tags.COMPONENT" "elasticsearch-java"
@@ -332,6 +339,7 @@ class Elasticsearch2TransportClientTest extends AgentTestRunner {
             "elasticsearch.type" indexType
             "elasticsearch.id" "1"
             "elasticsearch.version" 1
+            peerServiceFrom(Tags.PEER_HOSTNAME)
             defaultTags()
           }
         }
@@ -345,5 +353,41 @@ class Elasticsearch2TransportClientTest extends AgentTestRunner {
     indexName = "test-index"
     indexType = "test-type"
     id = "1"
+  }
+}
+
+class Elasticsearch2TransportClientV0Test extends Elasticsearch2TransportClientTest {
+
+  @Override
+  int version() {
+    return 0
+  }
+
+  @Override
+  String service() {
+    return "elasticsearch"
+  }
+
+  @Override
+  String operation() {
+    return "elasticsearch.query"
+  }
+}
+
+class Elasticsearch2TransportClientV1ForkedTest extends Elasticsearch2TransportClientTest {
+
+  @Override
+  int version() {
+    return 1
+  }
+
+  @Override
+  String service() {
+    return Config.get().getServiceName()
+  }
+
+  @Override
+  String operation() {
+    return "elasticsearch.query"
   }
 }

@@ -1,11 +1,12 @@
 package com.datadog.debugger.el.values;
 
 import com.datadog.debugger.el.Value;
+import com.datadog.debugger.el.Visitor;
 import com.datadog.debugger.el.expressions.ValueExpression;
 import datadog.trace.bootstrap.debugger.el.ValueReferenceResolver;
 import datadog.trace.bootstrap.debugger.el.Values;
+import datadog.trace.bootstrap.debugger.util.WellKnownClasses;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -16,7 +17,7 @@ import org.slf4j.LoggerFactory;
  * A map-like {@linkplain Value}.<br>
  * Allows wrapping of {@linkplain Map} instances.
  */
-public final class MapValue implements CollectionValue<MapValue>, ValueExpression<MapValue> {
+public final class MapValue implements CollectionValue<Object>, ValueExpression<MapValue> {
   private static final Logger log = LoggerFactory.getLogger(MapValue.class);
 
   public static final class Entry {
@@ -33,7 +34,7 @@ public final class MapValue implements CollectionValue<MapValue>, ValueExpressio
 
   public MapValue(Object object) {
     if (object instanceof Map) {
-      mapHolder = new HashMap<>((Map<?, ?>) object);
+      mapHolder = object;
     } else if (object == null || object == Values.NULL_OBJECT) {
       mapHolder = Value.nullValue();
     } else {
@@ -53,7 +54,11 @@ public final class MapValue implements CollectionValue<MapValue>, ValueExpressio
 
   public int count() {
     if (mapHolder instanceof Map) {
-      return ((Map<?, ?>) mapHolder).size();
+      if (WellKnownClasses.isSizeSafe((Map<?, ?>) mapHolder)) {
+        return ((Map<?, ?>) mapHolder).size();
+      } else {
+        throw new RuntimeException("Unsupported Map class: " + mapHolder.getClass().getTypeName());
+      }
     } else if (mapHolder == Value.nullValue()) {
       return 0;
     }
@@ -97,12 +102,21 @@ public final class MapValue implements CollectionValue<MapValue>, ValueExpressio
   }
 
   @Override
-  public MapValue getValue() {
-    return this;
+  public Object getValue() {
+    return mapHolder;
   }
 
   @Override
   public MapValue evaluate(ValueReferenceResolver valueRefResolver) {
     return this;
+  }
+
+  @Override
+  public <R> R accept(Visitor<R> visitor) {
+    return visitor.visit(this);
+  }
+
+  public Object getMapHolder() {
+    return mapHolder;
   }
 }

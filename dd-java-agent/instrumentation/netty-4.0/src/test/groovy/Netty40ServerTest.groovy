@@ -1,5 +1,8 @@
+import datadog.appsec.api.blocking.Blocking
 import datadog.trace.agent.test.base.HttpServer
 import datadog.trace.agent.test.base.HttpServerTest
+import datadog.trace.agent.test.naming.TestingNettyHttpNamingConventions
+import datadog.trace.bootstrap.instrumentation.api.URIUtils
 import datadog.trace.instrumentation.netty40.server.NettyHttpServerDecorator
 import io.netty.bootstrap.ServerBootstrap
 import io.netty.buffer.ByteBuf
@@ -21,6 +24,7 @@ import io.netty.handler.codec.http.HttpResponseStatus
 import io.netty.handler.logging.LogLevel
 import io.netty.handler.logging.LoggingHandler
 import io.netty.util.CharsetUtil
+import spock.lang.Ignore
 
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
@@ -31,12 +35,15 @@ import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_PARAM
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.REDIRECT
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.USER_BLOCK
 import static io.netty.handler.codec.http.HttpHeaders.Names.CONTENT_LENGTH
 import static io.netty.handler.codec.http.HttpHeaders.Names.CONTENT_TYPE
+import static io.netty.handler.codec.http.HttpHeaders.is100ContinueExpected
+import static io.netty.handler.codec.http.HttpResponseStatus.CONTINUE
 import static io.netty.handler.codec.http.HttpResponseStatus.INTERNAL_SERVER_ERROR
 import static io.netty.handler.codec.http.HttpVersion.HTTP_1_1
 
-class Netty40ServerTest extends HttpServerTest<EventLoopGroup> {
+abstract class Netty40ServerTest extends HttpServerTest<EventLoopGroup> {
 
   static final LoggingHandler LOGGING_HANDLER = new LoggingHandler(SERVER_LOGGER.name, LogLevel.DEBUG)
 
@@ -60,7 +67,14 @@ class Netty40ServerTest extends HttpServerTest<EventLoopGroup> {
               channelRead0       : { ChannelHandlerContext ctx, msg ->
                 if (msg instanceof HttpRequest) {
                   def request = msg as HttpRequest
-                  def uri = URI.create(request.uri)
+                  if (is100ContinueExpected(request)) {
+                    ctx.write(new DefaultFullHttpResponse(HTTP_1_1, CONTINUE))
+                  }
+                  def uri = URIUtils.safeParse(request.uri)
+                  if (uri == null) {
+                    ctx.write(new DefaultFullHttpResponse(request.protocolVersion, HttpResponseStatus.BAD_REQUEST))
+                    return
+                  }
                   HttpServerTest.ServerEndpoint endpoint = HttpServerTest.ServerEndpoint.forPath(uri.path)
                   ctx.write controller(endpoint) {
                     ByteBuf content = null
@@ -87,6 +101,12 @@ class Netty40ServerTest extends HttpServerTest<EventLoopGroup> {
                         break
                       case EXCEPTION:
                         throw new Exception(endpoint.body)
+                      case USER_BLOCK:
+                        Blocking.forUser('user-to-block').blockIfMatch()
+                      // should never be output:
+                        response = new DefaultFullHttpResponse(HTTP_1_1, HttpResponseStatus.valueOf(200))
+                        response.content = 'should never be reached'
+                        break
                       default:
                         content = Unpooled.copiedBuffer(NOT_FOUND.body, CharsetUtil.UTF_8)
                         response = new DefaultFullHttpResponse(HTTP_1_1, HttpResponseStatus.valueOf(NOT_FOUND.status), content)
@@ -141,6 +161,33 @@ class Netty40ServerTest extends HttpServerTest<EventLoopGroup> {
 
   @Override
   String expectedOperationName() {
-    "netty.request"
+    operation()
   }
+
+  @Override
+  protected boolean enabledFinishTimingChecks() {
+    true
+  }
+
+  @Override
+  boolean testBlocking() {
+    true
+  }
+
+  @Override
+  boolean testBlockingOnResponse() {
+    true
+  }
+
+  @Ignore("https://github.com/DataDog/dd-trace-java/pull/5213")
+  @Override
+  boolean testBadUrl() {
+    false
+  }
+}
+
+class Netty40ServerV0Test extends Netty40ServerTest implements TestingNettyHttpNamingConventions.ServerV0 {
+}
+
+class Netty40ServerV1ForkedTest extends Netty40ServerTest implements TestingNettyHttpNamingConventions.ServerV1 {
 }

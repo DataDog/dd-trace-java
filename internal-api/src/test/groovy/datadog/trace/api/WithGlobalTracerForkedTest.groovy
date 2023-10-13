@@ -1,65 +1,64 @@
 package datadog.trace.api
 
-import datadog.trace.api.interceptor.TraceInterceptor
-import datadog.trace.context.ScopeListener
+
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import datadog.trace.test.util.DDSpecification
 
 import java.util.concurrent.ConcurrentLinkedQueue
 
 class WithGlobalTracerForkedTest extends DDSpecification {
-  static final QUEUE = new ConcurrentLinkedQueue<Tracer>()
-
-  static final CALLBACK = new WithGlobalTracer.Callback() {
-    @Override
-    void withTracer(Tracer tracer) {
-      QUEUE.add(tracer)
-    }
-  }
-
-  static final TRACER = new Tracer() {
-    @Override
-    String getTraceId() {
-      return null
-    }
-
-    @Override
-    String getSpanId() {
-      return null
-    }
-
-    @Override
-    boolean addTraceInterceptor(TraceInterceptor traceInterceptor) {
-      return false
-    }
-
-    @Override
-    void addScopeListener(ScopeListener listener) {
-    }
-  }
 
   def "should call the callback at the right time"() {
-    when:
-    WithGlobalTracer.registerOrExecute(CALLBACK)
+    setup:
+    def tracer = Mock(AgentTracer.TracerAPI)
+    def queue = new ConcurrentLinkedQueue<Tracer>()
 
-    then:
-    QUEUE.isEmpty()
-
-    when:
-    WithGlobalTracer.registerOrExecute(CALLBACK)
-
-    then:
-    QUEUE.isEmpty()
-
-    when:
-    GlobalTracer.registerIfAbsent(TRACER)
-
-    then:
-    QUEUE.toList() == [TRACER, TRACER]
+    def callback = new WithGlobalTracer.Callback() {
+        @Override
+        void withTracer(AgentTracer.TracerAPI t) {
+          queue.add(t)
+        }
+      }
 
     when:
-    WithGlobalTracer.registerOrExecute(CALLBACK)
+    WithGlobalTracer.registerOrExecute(callback)
 
     then:
-    QUEUE.toList() == [TRACER, TRACER, TRACER]
+    queue.isEmpty()
+
+    when:
+    WithGlobalTracer.registerOrExecute(callback)
+
+    then:
+    queue.isEmpty()
+
+    when:
+    GlobalTracer.registerIfAbsent(tracer)
+
+    then:
+    queue.toList() == [tracer, tracer]
+
+    when:
+    WithGlobalTracer.registerOrExecute(callback)
+
+    then:
+    queue.toList() == [tracer, tracer, tracer]
+  }
+
+  def "should not crash on unsupported tracer type"() {
+    setup:
+    def tracer = Mock(Tracer)
+    def callback = new WithGlobalTracer.Callback() {
+        @Override
+        void withTracer(AgentTracer.TracerAPI t) {
+        }
+      }
+
+    when:
+    WithGlobalTracer.registerOrExecute(callback)
+    GlobalTracer.registerIfAbsent(tracer)
+
+    then:
+    notThrown(ClassCastException)
   }
 }

@@ -3,7 +3,7 @@ package datadog.trace.common.sampling;
 import datadog.trace.core.CoreSpan;
 
 /** Sampler that always says yes... */
-public class AllSampler<T extends CoreSpan<T>> implements Sampler<T> {
+public class AllSampler implements Sampler {
 
   @Override
   public String toString() {
@@ -11,7 +11,7 @@ public class AllSampler<T extends CoreSpan<T>> implements Sampler<T> {
   }
 
   @Override
-  public boolean sample(T span) {
+  public <T extends CoreSpan<T>> boolean sample(T span) {
     return true;
   }
 }

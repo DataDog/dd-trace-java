@@ -7,12 +7,17 @@ import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
 
 import datadog.trace.api.Config;
-import datadog.trace.api.DDId;
+import datadog.trace.api.DD128bTraceId;
+import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTags;
+import datadog.trace.api.DDTraceId;
+import datadog.trace.api.TraceConfig;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
+import datadog.trace.bootstrap.instrumentation.api.TagContext;
 import datadog.trace.core.DDSpanContext;
 import java.util.Map;
 import java.util.TreeMap;
+import java.util.function.Supplier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -20,28 +25,37 @@ import org.slf4j.LoggerFactory;
 class DatadogHttpCodec {
   private static final Logger log = LoggerFactory.getLogger(DatadogHttpCodec.class);
 
-  private static final String OT_BAGGAGE_PREFIX = "ot-baggage-";
-  private static final String TRACE_ID_KEY = "x-datadog-trace-id";
-  private static final String SPAN_ID_KEY = "x-datadog-parent-id";
-  private static final String SAMPLING_PRIORITY_KEY = "x-datadog-sampling-priority";
-  private static final String ORIGIN_KEY = "x-datadog-origin";
+  static final String OT_BAGGAGE_PREFIX = "ot-baggage-";
+  static final String TRACE_ID_KEY = "x-datadog-trace-id";
+  static final String SPAN_ID_KEY = "x-datadog-parent-id";
+  static final String SAMPLING_PRIORITY_KEY = "x-datadog-sampling-priority";
+  static final String ORIGIN_KEY = "x-datadog-origin";
   private static final String E2E_START_KEY = OT_BAGGAGE_PREFIX + DDTags.TRACE_START_TIME;
-  private static final String DATADOG_TAGS_KEY = "x-datadog-tags";
+  static final String DATADOG_TAGS_KEY = "x-datadog-tags";
 
   private DatadogHttpCodec() {
     // This class should not be created. This also makes code coverage checks happy.
   }
 
-  public static final HttpCodec.Injector INJECTOR = new Injector();
+  public static HttpCodec.Injector newInjector(Map<String, String> invertedBaggageMapping) {
+    return new Injector(invertedBaggageMapping);
+  }
 
   private static class Injector implements HttpCodec.Injector {
+
+    private final Map<String, String> invertedBaggageMapping;
+
+    public Injector(Map<String, String> invertedBaggageMapping) {
+      assert invertedBaggageMapping != null;
+      this.invertedBaggageMapping = invertedBaggageMapping;
+    }
 
     @Override
     public <C> void inject(
         final DDSpanContext context, final C carrier, final AgentPropagation.Setter<C> setter) {
 
       setter.set(carrier, TRACE_ID_KEY, context.getTraceId().toString());
-      setter.set(carrier, SPAN_ID_KEY, context.getSpanId().toString());
+      setter.set(carrier, SPAN_ID_KEY, DDSpanId.toString(context.getSpanId()));
       if (context.lockSamplingPriority()) {
         setter.set(carrier, SAMPLING_PRIORITY_KEY, String.valueOf(context.getSamplingPriority()));
       }
@@ -55,31 +69,24 @@ class DatadogHttpCodec {
       }
 
       for (final Map.Entry<String, String> entry : context.baggageItems()) {
-        setter.set(carrier, OT_BAGGAGE_PREFIX + entry.getKey(), HttpCodec.encode(entry.getValue()));
+        String header = invertedBaggageMapping.get(entry.getKey());
+        header = header != null ? header : OT_BAGGAGE_PREFIX + entry.getKey();
+        setter.set(carrier, header, HttpCodec.encodeBaggage(entry.getValue()));
       }
 
       // inject x-datadog-tags
-      String datadogTags = context.getDatadogTags().headerValue();
+      String datadogTags =
+          context.getPropagationTags().headerValue(PropagationTags.HeaderType.DATADOG);
       if (datadogTags != null) {
         setter.set(carrier, DATADOG_TAGS_KEY, datadogTags);
       }
     }
   }
 
-  public static HttpCodec.Extractor newExtractor(final Map<String, String> tagMapping) {
-    return newExtractor(tagMapping, Config.get());
-  }
-
   public static HttpCodec.Extractor newExtractor(
-      final Map<String, String> tagMapping, final Config config) {
+      Config config, Supplier<TraceConfig> traceConfigSupplier) {
     return new TagContextExtractor(
-        tagMapping,
-        new ContextInterpreter.Factory() {
-          @Override
-          protected ContextInterpreter construct(Map<String, String> mapping) {
-            return new DatadogContextInterpreter(mapping, config);
-          }
-        });
+        traceConfigSupplier, () -> new DatadogContextInterpreter(config));
   }
 
   private static class DatadogContextInterpreter extends ContextInterpreter {
@@ -88,19 +95,18 @@ class DatadogHttpCodec {
     private static final int SPAN_ID = 1;
     private static final int ORIGIN = 2;
     private static final int SAMPLING_PRIORITY = 3;
-    private static final int TAGS = 4;
-    private static final int OT_BAGGAGE = 5;
-    private static final int E2E_START = 6;
-    private static final int DD_TAGS = 7;
+    private static final int OT_BAGGAGE = 4;
+    private static final int E2E_START = 5;
+    private static final int DD_TAGS = 6;
     private static final int IGNORE = -1;
 
     private final boolean isAwsPropagationEnabled;
-    private final DatadogTags.Factory datadogTagsFactory;
+    private final PropagationTags.Factory datadogTagsFactory;
 
-    private DatadogContextInterpreter(Map<String, String> taggedHeaders, Config config) {
-      super(taggedHeaders);
+    private DatadogContextInterpreter(Config config) {
+      super(config);
       isAwsPropagationEnabled = config.isAwsPropagationEnabled();
-      datadogTagsFactory = DatadogTags.factory(config);
+      datadogTagsFactory = PropagationTags.factory(config);
     }
 
     @Override
@@ -154,50 +160,29 @@ class DatadogHttpCodec {
         default:
       }
 
-      if (handledIpHeaders(key, value)) {
-        return true;
-      }
-
-      if (!taggedHeaders.isEmpty() && classification == IGNORE) {
-        lowerCaseKey = toLowerCase(key);
-        if (taggedHeaders.containsKey(lowerCaseKey)) {
-          classification = TAGS;
-        }
-      }
       if (classification != IGNORE) {
         try {
-          String firstValue = firstHeaderValue(value);
-          if (null != firstValue) {
+          if (null != value) {
             switch (classification) {
               case TRACE_ID:
-                traceId = DDId.from(firstValue);
+                traceId = DDTraceId.from(firstHeaderValue(value));
                 break;
               case SPAN_ID:
-                spanId = DDId.from(firstValue);
+                spanId = DDSpanId.from(firstHeaderValue(value));
                 break;
               case ORIGIN:
-                origin = firstValue;
+                origin = firstHeaderValue(value);
                 break;
               case SAMPLING_PRIORITY:
-                samplingPriority = Integer.parseInt(firstValue);
+                samplingPriority = Integer.parseInt(firstHeaderValue(value));
                 break;
               case E2E_START:
-                endToEndStartTime = extractEndToEndStartTime(firstValue);
+                endToEndStartTime = extractEndToEndStartTime(firstHeaderValue(value));
                 break;
               case DD_TAGS:
-                datadogTags = datadogTagsFactory.fromHeaderValue(value);
+                propagationTags =
+                    datadogTagsFactory.fromHeaderValue(PropagationTags.HeaderType.DATADOG, value);
                 break;
-              case TAGS:
-                {
-                  String mappedKey = taggedHeaders.get(lowerCaseKey);
-                  if (null != mappedKey) {
-                    if (tags.isEmpty()) {
-                      tags = new TreeMap<>();
-                    }
-                    tags.put(mappedKey, HttpCodec.decode(value));
-                  }
-                  break;
-                }
               case OT_BAGGAGE:
                 {
                   if (baggage.isEmpty()) {
@@ -215,8 +200,22 @@ class DatadogHttpCodec {
           log.debug("Exception when extracting context", e);
           return false;
         }
+      } else {
+        if (handledIpHeaders(key, value)) {
+          return true;
+        }
+        if (handleTags(key, value)) {
+          return true;
+        }
+        handleMappedBaggage(key, value);
       }
       return true;
+    }
+
+    @Override
+    protected TagContext build() {
+      restore128bTraceId();
+      return super.build();
     }
 
     private long extractEndToEndStartTime(String value) {
@@ -225,6 +224,17 @@ class DatadogHttpCodec {
       } catch (RuntimeException e) {
         log.debug("Ignoring invalid end-to-end start time {}", value, e);
         return 0;
+      }
+    }
+
+    private void restore128bTraceId() {
+      long highOrderBits;
+      // Check if the low-order 64 bits of the TraceId, and propagation tags were parsed
+      if (traceId != DDTraceId.ZERO
+          && propagationTags != null
+          && (highOrderBits = propagationTags.getTraceIdHighOrderBits()) != 0) {
+        // Restore the 128-bit TraceId
+        traceId = DD128bTraceId.from(highOrderBits, traceId.toLong());
       }
     }
   }

@@ -4,16 +4,21 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.ex
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.nameStartsWith;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopSpan;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
+import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
+import software.amazon.awssdk.core.internal.http.RequestExecutionContext;
 import software.amazon.awssdk.core.internal.http.pipeline.stages.MakeAsyncHttpRequestStage;
 
 /**
@@ -42,12 +47,17 @@ public final class AwsHttpClientInstrumentation extends AbstractAwsClientInstrum
   @Override
   public void adviceTransformations(AdviceTransformation transformation) {
     transformation.applyAdvice(
-        isMethod().and(isPublic()).and(named("execute")),
+        isMethod()
+            .and(isPublic())
+            .and(named("execute"))
+            .and(
+                takesArgument(
+                    1, named("software.amazon.awssdk.core.internal.http.RequestExecutionContext"))),
         AwsHttpClientInstrumentation.class.getName() + "$AwsHttpClientAdvice");
   }
 
   public static class AwsHttpClientAdvice {
-    // scope.close here doesn't actually close the span.
+    // scope.close here doesn't actually finish the span.
 
     /**
      * FIXME: This is a hack to prevent netty instrumentation from messing things up.
@@ -59,25 +69,28 @@ public final class AwsHttpClientInstrumentation extends AbstractAwsClientInstrum
      * stored in channel attributes.
      */
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static boolean methodEnter(@Advice.This final Object thiz) {
-      if (thiz instanceof MakeAsyncHttpRequestStage) {
-        final AgentScope scope = activeScope();
-        if (scope != null) {
-          scope.close();
-          return true;
+    public static AgentScope methodEnter(
+        @Advice.This final Object thiz,
+        @Advice.Argument(1) final RequestExecutionContext requestExecutionContext) {
+      final AgentScope scope = activeScope();
+      // check name in case TracingExecutionInterceptor failed to activate the span
+      if (scope != null
+          && (scope.span() instanceof AgentTracer.NoopAgentSpan
+              || AwsSdkClientDecorator.DECORATE
+                  .spanName(requestExecutionContext.executionAttributes())
+                  .equals(scope.span().getSpanName()))) {
+        if (thiz instanceof MakeAsyncHttpRequestStage) {
+          scope.close(); // close async legacy HTTP span to avoid Netty leak
+        } else {
+          return scope; // keep sync legacy HTTP span alive for duration of call
         }
       }
-      return false;
+      return activateSpan(noopSpan());
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void methodExit(@Advice.Enter final boolean scopeAlreadyClosed) {
-      if (!scopeAlreadyClosed) {
-        final AgentScope scope = activeScope();
-        if (scope != null) {
-          scope.close();
-        }
-      }
+    public static void methodExit(@Advice.Enter final AgentScope scope) {
+      scope.close();
     }
 
     /**

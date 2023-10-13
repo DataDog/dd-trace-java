@@ -2,7 +2,7 @@ package com.datadog.profiling.utils;
 
 import java.util.Set;
 
-/** Various profiling modes that can be supported by async-profiler */
+/** Various profiling modes that can be supported by Datadog profiler */
 public enum ProfilingMode {
   CPU(1 << 0),
   WALL(1 << 1),

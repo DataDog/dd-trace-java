@@ -35,7 +35,7 @@ public class DependencyResolverQueue {
 
     // ignore already processed url
     synchronized (this) {
-      if (processedUrlsSet.contains(uri)) {
+      if (!processedUrlsSet.add(uri)) {
         return;
       }
     }
@@ -53,19 +53,11 @@ public class DependencyResolverQueue {
 
     List<Dependency> dep = DependencyResolver.resolve(uri);
     if (dep.isEmpty()) {
-      if ("jrt".equals(uri.getScheme()) || "x-internal-jar".equals(uri.getScheme())) {
-        log.debug("unable to detect dependency for URI {}", uri);
-      } else {
-        log.warn("unable to detect dependency for URI {}", uri);
-      }
+      log.debug("unable to detect dependency for URI {}", uri);
       return Collections.emptyList();
     }
     if (log.isDebugEnabled()) {
       log.debug("dependency detected {} for {}", dep, uri);
-    }
-
-    synchronized (this) {
-      processedUrlsSet.add(uri);
     }
 
     return dep;

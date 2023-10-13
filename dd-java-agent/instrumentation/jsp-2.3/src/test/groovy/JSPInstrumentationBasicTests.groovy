@@ -110,7 +110,7 @@ class JSPInstrumentationBasicTests extends JSPTestBase {
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
             "$Tags.PEER_HOST_IPV4" "127.0.0.1"
             "$Tags.PEER_PORT" Integer
-            "$Tags.HTTP_URL" "http://localhost:$port/$jspWebappContext/getQuery.jsp"
+            "$Tags.HTTP_URL" "http://localhost:$port/$jspWebappContext/getQuery.jsp?HELLO"
             "$DDTags.HTTP_QUERY" "HELLO"
             "$Tags.HTTP_HOSTNAME" "localhost"
             "$Tags.HTTP_METHOD" "GET"
@@ -265,7 +265,7 @@ class JSPInstrumentationBasicTests extends JSPTestBase {
             "error.type" { String tagExceptionType ->
               return tagExceptionType == exceptionClass.getName() || tagExceptionType.contains(exceptionClass.getSimpleName())
             }
-            "error.msg" { String tagErrorMsg ->
+            "error.message" { String tagErrorMsg ->
               return errorMessageOptional || tagErrorMsg instanceof String
             }
             "error.stack" String
@@ -285,7 +285,7 @@ class JSPInstrumentationBasicTests extends JSPTestBase {
             "error.type" { String tagExceptionType ->
               return tagExceptionType == exceptionClass.getName() || tagExceptionType.contains(exceptionClass.getSimpleName())
             }
-            "error.msg" { String tagErrorMsg ->
+            "error.message" { String tagErrorMsg ->
               return errorMessageOptional || tagErrorMsg instanceof String
             }
             "error.stack" String

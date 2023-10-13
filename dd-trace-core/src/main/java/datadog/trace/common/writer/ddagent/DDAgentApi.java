@@ -13,7 +13,6 @@ import datadog.trace.common.writer.Payload;
 import datadog.trace.common.writer.RemoteApi;
 import datadog.trace.common.writer.RemoteResponseListener;
 import datadog.trace.core.DDTraceCoreInfo;
-import datadog.trace.relocate.api.IOLogger;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -27,7 +26,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** The API pointing to a DD agent */
-public class DDAgentApi implements RemoteApi {
+public class DDAgentApi extends RemoteApi {
 
   public static final String DATADOG_META_TRACER_VERSION = "Datadog-Meta-Tracer-Version";
   private static final Logger log = LoggerFactory.getLogger(DDAgentApi.class);
@@ -45,11 +44,6 @@ public class DDAgentApi implements RemoteApi {
   private final List<RemoteResponseListener> responseListeners = new ArrayList<>();
   private final boolean metricsEnabled;
 
-  private long totalTraces = 0;
-  private long receivedTraces = 0;
-  private long sentTraces = 0;
-  private long failedTraces = 0;
-
   private final Recording sendPayloadTimer;
   private final Counter agentErrorCounter;
 
@@ -66,8 +60,6 @@ public class DDAgentApi implements RemoteApi {
   private final OkHttpClient httpClient;
   private final HttpUrl agentUrl;
   private final Map<String, String> headers;
-
-  private final IOLogger ioLogger = new IOLogger(log);
 
   public DDAgentApi(
       OkHttpClient client,
@@ -97,7 +89,7 @@ public class DDAgentApi implements RemoteApi {
     final int sizeInBytes = payload.sizeInBytes();
     String tracesEndpoint = featuresDiscovery.getTraceEndpoint();
     if (null == tracesEndpoint) {
-      featuresDiscovery.discover();
+      featuresDiscovery.discoverIfOutdated();
       tracesEndpoint = featuresDiscovery.getTraceEndpoint();
       if (null == tracesEndpoint) {
         log.error("No datadog agent detected");
@@ -159,63 +151,12 @@ public class DDAgentApi implements RemoteApi {
     }
   }
 
-  private void countAndLogSuccessfulSend(final int traceCount, final int sizeInBytes) {
-    // count the successful traces
-    this.sentTraces += traceCount;
-
-    ioLogger.success(createSendLogMessage(traceCount, sizeInBytes, "Success"));
+  @Override
+  protected Logger getLogger() {
+    return log;
   }
 
-  private void countAndLogFailedSend(
-      final int traceCount,
-      final int sizeInBytes,
-      final okhttp3.Response response,
-      final IOException outer) {
-    // count the failed traces
-    this.failedTraces += traceCount;
-    // these are used to catch and log if there is a failure in debug logging the response body
-    String agentError = getResponseBody(response);
-    String sendErrorString =
-        createSendLogMessage(traceCount, sizeInBytes, agentError.isEmpty() ? "Error" : agentError);
-
-    ioLogger.error(sendErrorString, toLoggerResponse(response, agentError), outer);
-  }
-
-  private static IOLogger.Response toLoggerResponse(okhttp3.Response response, String body) {
-    if (response == null) {
-      return null;
-    }
-    return new IOLogger.Response(response.code(), response.message(), body);
-  }
-
-  private static String getResponseBody(okhttp3.Response response) {
-    if (response != null) {
-      try {
-        return response.body().string().trim();
-      } catch (NullPointerException | IOException ignored) {
-      }
-    }
-    return "";
-  }
-
-  private String createSendLogMessage(
-      final int traceCount, final int sizeInBytes, final String prefix) {
-    String sizeString = sizeInBytes > 1024 ? (sizeInBytes / 1024) + "KB" : sizeInBytes + "B";
-    return prefix
-        + " while sending "
-        + traceCount
-        + " (size="
-        + sizeString
-        + ")"
-        + " traces to the DD agent."
-        + " Total: "
-        + this.totalTraces
-        + ", Received: "
-        + this.receivedTraces
-        + ", Sent: "
-        + this.sentTraces
-        + ", Failed: "
-        + this.failedTraces
-        + ".";
+  public void setHeader(String k, String v) {
+    this.headers.put(k, v);
   }
 }

@@ -1,0 +1,47 @@
+apply from: "$rootDir/gradle/java.gradle"
+
+ext {
+  minimumBranchCoverage = 0.6
+  minimumInstructionCoverage = 0.8
+  excludedClassesCoverage = [
+    'datadog.telemetry.TelemetryRunnable.ThreadSleeperImpl',
+    'datadog.telemetry.HostInfo',
+    'datadog.telemetry.HostInfo.Os',
+    'datadog.telemetry.dependency.LocationsCollectingTransformer',
+    'datadog.telemetry.dependency.JbossVirtualFileHelper',
+    'datadog.telemetry.RequestBuilder.NumberJsonAdapter',
+    'datadog.telemetry.RequestBuilderSupplier',
+    'datadog.telemetry.TelemetrySystem',
+    'datadog.telemetry.api.*',
+  ]
+  excludedClassesBranchCoverage = [
+    'datadog.telemetry.PolymorphicAdapterFactory.1',
+    'datadog.telemetry.HostInfo',
+    'datadog.telemetry.HostInfo.Os',
+  ]
+  excludedClassesInstructionCoverage = []
+}
+
+dependencies {
+  implementation deps.slf4j
+
+  implementation project(':internal-api')
+
+  compileOnly project(':dd-java-agent:agent-tooling')
+  testImplementation project(':dd-java-agent:agent-tooling')
+
+  compileOnly project(':communication')
+  testImplementation project(':communication')
+
+  compileOnly project(':utils:container-utils')
+  testImplementation project(':utils:container-utils')
+
+  api deps.okhttp
+  api deps.moshi
+
+  testImplementation project(':utils:test-utils')
+  testImplementation group: 'org.hamcrest', name: 'hamcrest', version: '2.2'
+  testImplementation group: 'org.jboss', name: 'jboss-vfs', version: '3.2.16.Final'
+  testImplementation group: 'org.springframework.boot', name: 'spring-boot-loader', version: '1.5.22.RELEASE'
+}
+

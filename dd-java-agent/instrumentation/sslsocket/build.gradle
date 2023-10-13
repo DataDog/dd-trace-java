@@ -1,0 +1,7 @@
+muzzle {
+  pass {
+    coreJdk()
+  }
+}
+
+apply from: "$rootDir/gradle/java.gradle"

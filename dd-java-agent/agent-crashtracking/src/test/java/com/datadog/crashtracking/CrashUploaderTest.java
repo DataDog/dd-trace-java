@@ -11,16 +11,20 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import datadog.common.version.VersionInfo;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
+import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.io.PrintStream;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import okhttp3.HttpUrl;
 import okhttp3.mockwebserver.MockResponse;
@@ -73,8 +77,6 @@ public class CrashUploaderTest {
 
   @BeforeEach
   public void setup() throws IOException {
-    configProvider = ConfigProvider.getInstance();
-
     server.start();
     url = server.url(URL_PATH);
 
@@ -92,7 +94,7 @@ public class CrashUploaderTest {
     // Given
 
     // When
-    uploader = new CrashUploader(config, configProvider);
+    uploader = new CrashUploader(config);
     List<String> filesContent = new ArrayList<>();
     filesContent.add(CRASH);
     ByteArrayOutputStream out = new ByteArrayOutputStream();
@@ -110,11 +112,41 @@ public class CrashUploaderTest {
   }
 
   @Test
+  public void testExtractStackTraceFromRealCrashFile() throws IOException {
+    uploader = new CrashUploader(config);
+    List<String> filesContent = new ArrayList<>();
+    filesContent.add(readFileAsString("sample-crash.txt"));
+    ByteArrayOutputStream out = new ByteArrayOutputStream();
+    uploader.uploadToLogs(filesContent, new PrintStream(out));
+
+    // Then
+    final ObjectMapper mapper = new ObjectMapper();
+    final JsonNode event = mapper.readTree(out.toString(StandardCharsets.UTF_8.name()));
+
+    assertEquals("crashtracker", event.get("ddsource").asText());
+    assertEquals(HOSTNAME, event.get("hostname").asText());
+    assertEquals(SERVICE, event.get("service").asText());
+    assertEquals(filesContent.get(0), event.get("message").asText());
+    assertEquals(
+        readFileAsString("sample-stacktrace.txt"), event.get("error").get("stack").asText());
+    assertEquals("ERROR", event.get("level").asText());
+  }
+
+  private String readFileAsString(String resource) throws IOException {
+    try (InputStream stream = getClass().getClassLoader().getResourceAsStream(resource)) {
+      return new BufferedReader(
+              new InputStreamReader(Objects.requireNonNull(stream), StandardCharsets.UTF_8))
+          .lines()
+          .collect(Collectors.joining("\n"));
+    }
+  }
+
+  @Test
   public void testTelemetryHappyPath() throws Exception {
     // Given
 
     // When
-    uploader = new CrashUploader(config, configProvider);
+    uploader = new CrashUploader(config);
     server.enqueue(new MockResponse().setResponseCode(200));
     List<String> filesContent = new ArrayList<>();
     filesContent.add(CRASH);
@@ -152,7 +184,7 @@ public class CrashUploaderTest {
     when(config.getApiKey()).thenReturn(API_KEY_VALUE);
     when(config.isCrashTrackingAgentless()).thenReturn(true);
 
-    uploader = new CrashUploader(config, configProvider);
+    uploader = new CrashUploader(config);
     server.enqueue(new MockResponse().setResponseCode(200));
     List<InputStream> files = new ArrayList<>();
     files.add(new ByteArrayInputStream(CRASH.getBytes()));
@@ -168,7 +200,7 @@ public class CrashUploaderTest {
     // test added to get the coverage checks to pass since we log conditionally in this case
     when(config.getApiKey()).thenReturn(null);
 
-    uploader = new CrashUploader(config, configProvider);
+    uploader = new CrashUploader(config);
     server.enqueue(new MockResponse().setResponseCode(404));
     List<InputStream> files = new ArrayList<>();
     files.add(new ByteArrayInputStream(CRASH.getBytes()));
@@ -186,7 +218,7 @@ public class CrashUploaderTest {
     when(config.getApiKey()).thenReturn(API_KEY_VALUE);
     when(config.isCrashTrackingAgentless()).thenReturn(true);
 
-    uploader = new CrashUploader(config, configProvider);
+    uploader = new CrashUploader(config);
     server.enqueue(new MockResponse().setResponseCode(404));
     List<InputStream> files = new ArrayList<>();
     files.add(new ByteArrayInputStream(CRASH.getBytes()));

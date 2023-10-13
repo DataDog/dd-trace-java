@@ -11,11 +11,13 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.api.CorrelationIdentifier;
 import datadog.trace.api.GlobalTracer;
+import datadog.trace.api.gateway.Flow;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan.Context;
 import net.bytebuddy.asm.Advice;
 import org.glassfish.grizzly.http.server.Request;
+import org.glassfish.grizzly.http.server.Response;
 
 @AutoService(Instrumenter.class)
 public class GrizzlyHttpHandlerInstrumentation extends Instrumenter.Tracing
@@ -42,8 +44,10 @@ public class GrizzlyHttpHandlerInstrumentation extends Instrumenter.Tracing
       packageName + ".ExtractAdapter$Request",
       packageName + ".ExtractAdapter$Response",
       packageName + ".GrizzlyDecorator",
+      packageName + ".GrizzlyDecorator$GrizzlyBlockResponseFunction",
       packageName + ".RequestURIDataAdapter",
-      packageName + ".SpanClosingListener"
+      packageName + ".SpanClosingListener",
+      packageName + ".GrizzlyBlockingHelper",
     };
   }
 
@@ -59,10 +63,13 @@ public class GrizzlyHttpHandlerInstrumentation extends Instrumenter.Tracing
 
   public static class HandleAdvice {
 
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static AgentScope methodEnter(@Advice.Argument(0) final Request request) {
+    @Advice.OnMethodEnter(suppress = Throwable.class, skipOn = Advice.OnNonDefaultValue.class)
+    public static boolean /* skip body */ methodEnter(
+        @Advice.Local("agentScope") AgentScope scope,
+        @Advice.Argument(0) final Request request,
+        @Advice.Argument(1) final Response response) {
       if (request.getAttribute(DD_SPAN_ATTRIBUTE) != null) {
-        return null;
+        return false;
       }
 
       final Context.Extracted parentContext = DECORATE.extract(request);
@@ -70,20 +77,32 @@ public class GrizzlyHttpHandlerInstrumentation extends Instrumenter.Tracing
       DECORATE.afterStart(span);
       DECORATE.onRequest(span, request, request, parentContext);
 
-      final AgentScope scope = activateSpan(span);
+      scope = activateSpan(span);
       scope.setAsyncPropagation(true);
 
       request.setAttribute(DD_SPAN_ATTRIBUTE, span);
       request.setAttribute(CorrelationIdentifier.getTraceIdKey(), GlobalTracer.get().getTraceId());
       request.setAttribute(CorrelationIdentifier.getSpanIdKey(), GlobalTracer.get().getSpanId());
+
+      Flow.Action.RequestBlockingAction rba = span.getRequestBlockingAction();
+      if (rba != null) {
+        boolean success = GrizzlyBlockingHelper.block(request, response, rba, scope);
+        if (success) {
+          return true; /* skip body */
+        }
+      }
+
       request.addAfterServiceListener(SpanClosingListener.LISTENER);
 
-      return scope;
+      return false;
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void methodExit(
-        @Advice.Enter final AgentScope scope, @Advice.Thrown final Throwable throwable) {
+        @Advice.Enter boolean skippedBody,
+        @Advice.Return(readOnly = false) boolean retVal,
+        @Advice.Local("agentScope") AgentScope scope,
+        @Advice.Thrown final Throwable throwable) {
       if (scope == null) {
         return;
       }
@@ -96,6 +115,10 @@ public class GrizzlyHttpHandlerInstrumentation extends Instrumenter.Tracing
       }
       scope.close();
       // span finished by SpanClosingListener
+
+      if (skippedBody) {
+        retVal = true; // return true to avoid suspending the request
+      }
     }
   }
 }

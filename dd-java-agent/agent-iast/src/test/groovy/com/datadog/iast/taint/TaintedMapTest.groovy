@@ -3,10 +3,10 @@ package com.datadog.iast.taint
 import com.datadog.iast.model.Range
 import datadog.trace.test.util.CircularBuffer
 import datadog.trace.test.util.DDSpecification
-import datadog.trace.test.util.GCUtils
 
-import java.util.concurrent.ArrayBlockingQueue
-import java.util.concurrent.ConcurrentHashMap
+import java.lang.ref.Reference
+import java.lang.ref.ReferenceQueue
+import java.lang.ref.WeakReference
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
 
@@ -14,19 +14,20 @@ class TaintedMapTest extends DDSpecification {
 
   def 'simple workflow'() {
     given:
-    def map = new DefaultTaintedMap()
+    def map = new TaintedMap()
     final o = new Object()
     final to = new TaintedObject(o, [] as Range[], map.getReferenceQueue())
 
     expect:
     map.size() == 0
-    map.toList().size() == 0
+    map.count() == 0
 
     when:
     map.put(to)
 
     then:
-    map.toList().size() == 1
+    map.size() == 1
+    map.count() == 1
 
     and:
     map.get(o) != null
@@ -36,13 +37,28 @@ class TaintedMapTest extends DDSpecification {
     map.clear()
 
     then:
-    map.toList().size() == 0
+    map.size() == 0
+    map.count() == 0
+  }
+
+  def 'get non-existent object'() {
+    given:
+    def map = new TaintedMap()
+    final o = new Object()
+
+    expect:
+    !map.isFlat()
+    map.get(o) == null
+    map.size() == 0
+    map.count() == 0
   }
 
   def 'last put always exists'() {
     given:
-    int nTotalObjects = DefaultTaintedMap.DEFAULT_CAPACITY
-    def map = new DefaultTaintedMap()
+    int capacity = 256
+    int flatModeThreshold = (int) (capacity / 2)
+    def map = new TaintedMap(capacity, flatModeThreshold, new ReferenceQueue<>())
+    int nTotalObjects = capacity * 10
 
     expect:
     (1..nTotalObjects).each { i ->
@@ -53,36 +69,159 @@ class TaintedMapTest extends DDSpecification {
     }
   }
 
-  def 'garbage-collected entries are purged'() {
+  def 'do not fail on extraneous reference'() {
     given:
-    int iters = 16
-    int nObjectsPerIter = 1024
-    int nRetainedObjects = 8
-    def map = new DefaultTaintedMap()
-    def objectBuffer = new CircularBuffer<Object>(nRetainedObjects)
+    int capacity = 256
+    int flatModeThreshold = (int) (capacity / 2)
+    def queue = new MockReferenceQueue()
+    def map = new TaintedMap(capacity, flatModeThreshold, queue)
+    def gen = new ObjectGen(capacity)
 
-    when:
-    (1..nRetainedObjects).each {
-      final o = new Object()
+    when: 'extraneous reference in enqueued'
+    queue.free(new WeakReference<Object>(new Object()))
+
+    and: 'purge is triggered'
+    gen.genObjects(1, ObjectGen.TRIGGERS_PURGE).each { o ->
       final to = new TaintedObject(o, [] as Range[], map.getReferenceQueue())
+      queue.hold(o, to)
       map.put(to)
-      objectBuffer.add(o)
-      assert map.get(o) == to
-    }
-    (1..iters).each {
-      (1..nObjectsPerIter).each {
-        final o = new Object()
-        final to = new TaintedObject(o, [] as Range[], map.getReferenceQueue())
-        map.put(to)
-      }
-      GCUtils.awaitGC()
     }
 
     then:
     !map.isFlat()
+    map.size() == 1
+    map.count() == 1
+  }
+
+  def 'do not fail on double free'() {
+    given:
+    int capacity = 256
+    int flatModeThreshold = (int) (capacity / 2)
+    def queue = new MockReferenceQueue()
+    def map = new TaintedMap(capacity, flatModeThreshold, queue)
+    def gen = new ObjectGen(capacity)
+
+    when: 'reference to non-present object in enqueued'
+    queue.free(new TaintedObject(new Object(), new Range[0] as Range[], queue))
+
+    and: 'purge is triggered'
+    gen.genObjects(1, ObjectGen.TRIGGERS_PURGE).each { o ->
+      final to = new TaintedObject(o, [] as Range[], map.getReferenceQueue())
+      queue.hold(o, to)
+      map.put(to)
+    }
+
+    then:
+    !map.isFlat()
+    map.size() == 1
+    map.count() == 1
+  }
+
+  def 'do not fail on double free with previous data'() {
+    given:
+    int capacity = 256
+    int flatModeThreshold = (int) (capacity / 2)
+    def queue = new MockReferenceQueue()
+    def map = new TaintedMap(capacity, flatModeThreshold, queue)
+    def gen = new ObjectGen(capacity)
+    def bucket = gen.genBucket(2, ObjectGen.TRIGGERS_PURGE)
+
+    when:
+    queue.free(new TaintedObject(bucket[0], new Range[0] as Range[], queue))
+    final to = new TaintedObject(bucket[1], [] as Range[], map.getReferenceQueue())
+    map.put(to)
+
+    then:
+    !map.isFlat()
+    map.size() == 1
+    map.count() == 1
+  }
+
+  def 'flat mode - last put wins'() {
+    given:
+    int capacity = 256
+    int flatModeThreshold = (int) (capacity / 2)
+    def queue = new MockReferenceQueue()
+    def map = new TaintedMap(capacity, flatModeThreshold, queue)
+    def gen = new ObjectGen(capacity)
+
+    when:
+    // Number of purges required to switch to flat mode (in the absence of garbage collection)
+    final int purgesToFlatMode = (int) (flatModeThreshold / TaintedMap.PURGE_COUNT) + 1
+    gen.genObjects(purgesToFlatMode, ObjectGen.TRIGGERS_PURGE).each { o ->
+      final to = new TaintedObject(o, [] as Range[], map.getReferenceQueue())
+      queue.hold(o, to)
+      map.put(to)
+    }
+
+    then:
+    map.isFlat()
+
+    when:
+    def lastPuts = []
+    def nonLastPuts = []
+    gen.genBuckets(capacity, 2).each { bucket ->
+      bucket.each { o ->
+        final to = new TaintedObject(o, [] as Range[], map.getReferenceQueue())
+        queue.hold(o, to)
+        map.put(to)
+      }
+      lastPuts.add(bucket[-1])
+      nonLastPuts.addAll(bucket[0..-2])
+    }
+
+    then:
+    map.size() == capacity
+    map.count() == capacity
+
+    and: 'last puts are present'
+    lastPuts.each { o ->
+      assert map.get(o).get() == o
+    }
+
+    and: 'non-last puts are not present'
+    nonLastPuts.each { o ->
+      assert map.get(o) == null
+    }
+  }
+
+  def 'garbage-collected entries are purged'() {
+    given:
+    int capacity = 128
+    int flatModeThreshold = 64
+    def queue = new MockReferenceQueue()
+    def map = new TaintedMap(capacity, flatModeThreshold, queue)
+
+    int iters = 16
+    int nObjectsPerIter = flatModeThreshold - 1
+    def gen = new ObjectGen(capacity)
+    def objectBuffer = new CircularBuffer<Object>(iters)
+
+    when:
+    (1..iters).each {
+      // Insert objects that do not trigger purge
+      gen.genObjects(nObjectsPerIter, ObjectGen.DOES_NOT_TRIGGER_PURGE).each { o ->
+        final to = new TaintedObject(o, [] as Range[], map.getReferenceQueue())
+        queue.hold(o, to)
+        map.put(to)
+      }
+      // Clear previous objects
+      queue.clear()
+      // Trigger purge
+      final o = gen.genObjects(1, ObjectGen.TRIGGERS_PURGE)[0]
+      final to = new TaintedObject(o, [] as Range[], map.getReferenceQueue())
+      objectBuffer.add(o)
+      map.put(to)
+    }
+
+    then:
+    !map.isFlat()
+    map.size() == iters
+    map.count() == iters
     final entries = map.toList()
-    entries.size() <= nRetainedObjects + nObjectsPerIter
-    entries.findAll { it.get() != null}.size() == nRetainedObjects
+    entries.findAll { it.get() != null }.size() == iters
+
+    and: 'all objects are as expected'
     objectBuffer.each { o ->
       final to = map.get(o)
       assert to != null
@@ -90,249 +229,251 @@ class TaintedMapTest extends DDSpecification {
     }
   }
 
-  def 'single-threaded put-intensive workflow without garbage collection interaction and under max size'() {
+  def 'garbage-collected entries are purged in flat mode'() {
     given:
-    int nTotalObjects = 1024
-    int nRetainedObjects = 1024
-    def map = new DefaultTaintedMap()
-    def objectBuffer = new CircularBuffer<Tuple2<Object, TaintedObject>>(nRetainedObjects)
+    int capacity = 128
+    int flatModeThreshold = 64
+    def queue = new MockReferenceQueue()
+    def map = new TaintedMap(capacity, flatModeThreshold, queue)
 
-    when: 'perform puts'
-    (1..nTotalObjects).each { i ->
-      final o = new Object()
+    int iters = 1
+    def gen = new ObjectGen(capacity)
+    def objectBuffer = new CircularBuffer<Object>(iters)
+
+    when:
+    // Number of purges required to switch to flat mode (in the absence of garbage collection)
+    final int purgesToFlatMode = (int) (flatModeThreshold / TaintedMap.PURGE_COUNT) + 1
+    gen.genObjects(purgesToFlatMode, ObjectGen.TRIGGERS_PURGE).each { o ->
       final to = new TaintedObject(o, [] as Range[], map.getReferenceQueue())
-      objectBuffer.add(new Tuple2(o, to))
+      queue.hold(o, to)
       map.put(to)
     }
 
-    then: 'map contains exact amount of objects'
-    map.toList().size() == nTotalObjects
-
-    and: 'all objects are as expected'
-    objectBuffer.each {
-      assert map.get(it.get(0)) == it.get(1)
-    }
-  }
-
-  def 'single-threaded put-intensive workflow with garbage collection interaction and under max size'() {
-    given:
-    int nTotalObjects = 1024 * 2
-    int nRetainedObjects = 1024
-    def map = new DefaultTaintedMap()
-    def objectBuffer = new CircularBuffer<Tuple2<Object, TaintedObject>>(nRetainedObjects)
-
-    when: 'perform puts'
-    (1..nTotalObjects).each { i ->
-      final o = new Object()
-      final to = new TaintedObject(o, [] as Range[], map.getReferenceQueue())
-      objectBuffer.add(new Tuple2(o, to))
-      map.put(to)
-    }
-
-    then: 'map is not in flat mode'
-    !map.isFlat()
-
-    and: 'map contains exact amount of objects'
-    map.toList().size() == nTotalObjects
-
-    and: 'all objects are as expected'
-    objectBuffer.each {
-      assert map.get(it.get(0)) == it.get(1)
-    }
-  }
-
-  def 'single-threaded put-intensive workflow without garbage collection interaction and over max size'() {
-    given:
-    int nTotalObjects = DefaultTaintedMap.DEFAULT_FLAT_MODE_THRESHOLD * 4
-    int nRetainedObjects = nTotalObjects
-    def map = new DefaultTaintedMap()
-    def objectBuffer = new CircularBuffer<Tuple2<Object, TaintedObject>>(nRetainedObjects)
-
-    when: 'perform puts'
-    (1..nTotalObjects).each { i ->
-      final o = new Object()
-      final to = new TaintedObject(o, [] as Range[], map.getReferenceQueue())
-      objectBuffer.add(new Tuple2(o, to))
-      map.put(to)
-    }
-
-    then: 'map is in flat mode'
+    then:
     map.isFlat()
 
-    and: 'map contains enough objects'
-    map.toList().size() >= DefaultTaintedMap.DEFAULT_FLAT_MODE_THRESHOLD * 0.9
-
-    and: 'all objects are as expected'
-    int presentObjects = objectBuffer.count {
-      map.get(it.get(0)) == it.get(1)
-    }
-    presentObjects >= DefaultTaintedMap.DEFAULT_FLAT_MODE_THRESHOLD * 0.9
-  }
-
-  def 'single-threaded put-intensive workflow with garbage collection interaction and over max size'() {
-    given:
-    int nTotalObjects = DefaultTaintedMap.DEFAULT_FLAT_MODE_THRESHOLD * 4
-    int nRetainedObjects = 1024
-    def map = new DefaultTaintedMap()
-    def objectBuffer = new CircularBuffer<Tuple2<Object, Object>>(nRetainedObjects)
-
-    when: 'perform puts'
-    (1..nTotalObjects).each { i ->
-      final o = new Object()
+    when:
+    (1..iters).each {
+      // Clear previous objects
+      queue.clear()
+      // Trigger purge
+      final o = gen.genObjects(1, ObjectGen.TRIGGERS_PURGE)[0]
       final to = new TaintedObject(o, [] as Range[], map.getReferenceQueue())
-      objectBuffer.add(new Tuple2(o, to))
+      objectBuffer.add(o)
       map.put(to)
     }
 
-    then: 'map is in flat mode'
+    then:
     map.isFlat()
-
-    and: 'map contains enough objects'
-    map.toList().size() >= DefaultTaintedMap.DEFAULT_FLAT_MODE_THRESHOLD * 0.6
-
-    and: 'all objects are as expected'
-    // FIXME: This might need improvement, we remove too many new objects.
-    int presentObjects = objectBuffer.count {
-      map.get(it.get(0)) == it.get(1)
-    }
-    presentObjects >= nRetainedObjects * 0.9
-  }
-
-  def 'multi-threaded put-intensive workflow without garbage collection interaction and under max size'() {
-    given:
-    float maxAcceptableLoss = 0.999
-    int nThreads = 32
-    int nObjectsPerThread = (int) Math.floor((DefaultTaintedMap.DEFAULT_FLAT_MODE_THRESHOLD - 4096) / nThreads)
-    int nTotalObjects = nThreads * nObjectsPerThread
-    def executorService = Executors.newFixedThreadPool(nThreads)
-    def startLatch = new CountDownLatch(nThreads)
-    def map = new DefaultTaintedMap()
-
-    // Holder to avoid objects being garbage collected
-    def objectHolder = new ConcurrentHashMap<Object, TaintedObject>()
-
-    when: 'perform a high amount of concurrent puts'
-    def futures = (1..nThreads).collect { thread ->
-      executorService.submit({
-        ->
-        final tuples = new ArrayList<Tuple2<Object, TaintedObject>>(nObjectsPerThread)
-        for (int i = 1; i <= nObjectsPerThread; i++) {
-          final o = new Object()
-          final to = new TaintedObject(o, [] as Range[], map.getReferenceQueue())
-          tuples.add(new Tuple2<Object, TaintedObject>(o, to))
-          objectHolder.put(o, to)
-        }
-        startLatch.countDown()
-        startLatch.await()
-        tuples.each { map.put(it.get(1)) }
-      } as Runnable)
-    }
-    futures.collect({
-      it.get()
-    })
-
-    then: 'map is not in flat mode'
-    !map.isFlat()
-
-    then: 'map does not contain extra objects'
-    map.toList().size() <= nTotalObjects
-
-    and: 'map did not lose too many objects'
-    map.toList().size() >= nTotalObjects * maxAcceptableLoss
-
-    and: 'sanity check'
-    objectHolder.size() == nTotalObjects
+    map.size() == iters
+    map.count() == iters
+    final entries = map.toList()
+    entries.findAll { it.get() != null }.size() == iters
 
     and: 'all objects are as expected'
-    objectHolder.count {
-      map.get(it.getKey()) == it.getValue()
-    } >= nTotalObjects * maxAcceptableLoss
-
-    cleanup:
-    executorService?.shutdown()
+    objectBuffer.each { o ->
+      final to = map.get(o)
+      assert to != null
+      assert to.get() == o
+    }
   }
 
-
-  def 'multi-threaded put-intensive workflow with garbage collection interaction and under max size'() {
+  def 'multi-threaded with no collisions, no GC, non-flat mode'() {
     given:
-    float maxAcceptableLoss = 0.999
-    float maxAcceptableLossPerThread = 0.9
+    int capacity = 128
+    int flatModeThreshold = 64
+    def queue = new MockReferenceQueue()
+    def map = new TaintedMap(capacity, flatModeThreshold, queue)
+
+    and:
     int nThreads = 16
-    int nObjectsPerThread = (int) Math.floor(DefaultTaintedMap.DEFAULT_FLAT_MODE_THRESHOLD / nThreads) * 2
-    int nRetainedObjectsPerThread = 128
-    // Each thread will wait for garbage collection after this number of puts.
-    int nBeforeWaitGC = 64
-
-    // Total number of puts should go over the flat mode threshold.
-    assert nObjectsPerThread * nThreads > DefaultTaintedMap.DEFAULT_FLAT_MODE_THRESHOLD
-    // Total retained objects (plus a wide margin given the probabilistic size estimate) should not go
-    // over the flat mode threshold.
-    assert nRetainedObjectsPerThread * 2 * nThreads < DefaultTaintedMap.DEFAULT_FLAT_MODE_THRESHOLD
-    assert nBeforeWaitGC <= nRetainedObjectsPerThread
-
+    int nObjectsPerThread = 1000
+    def gen = new ObjectGen(capacity)
     def executorService = Executors.newFixedThreadPool(nThreads)
-    def startLatch = new CountDownLatch(nThreads)
-    def map = new DefaultTaintedMap()
+    def latch = new CountDownLatch(nThreads)
+    def buckets = gen.genBuckets(nThreads, nObjectsPerThread, ObjectGen.DOES_NOT_TRIGGER_PURGE)
 
-    // Holders to avoid objects being garbage collected
-    def objectHolders = (1..nThreads).collect { new CircularBuffer<>(nRetainedObjectsPerThread) }
-
-    when: 'perform a high amount of concurrent puts'
-    def futures = (1..nThreads).collect { thread ->
+    when: 'puts from different threads to different buckets'
+    def futures = (0..nThreads-1).collect { thread ->
       executorService.submit({
         ->
-        final buffer = objectHolders.get(thread - 1)
-        final tuples = new ArrayBlockingQueue<Tuple2<Object, TaintedObject>>(nObjectsPerThread)
-        for (int i = 1; i <= nObjectsPerThread; i++) {
-          final o = new Object()
+        latch.countDown()
+        latch.await()
+        buckets[thread].each { o ->
           final to = new TaintedObject(o, [] as Range[], map.getReferenceQueue())
-          tuples.add(new Tuple2<Object, TaintedObject>(o, to))
-        }
-        startLatch.countDown()
-        startLatch.await()
-        for (int i = 1; i <= nObjectsPerThread; i++) {
-          if (i % nBeforeWaitGC == 0) {
-            GCUtils.awaitGC()
-          }
-          def tuple = tuples.poll()
-          buffer.add(tuple.getFirst())
-          map.put(tuple.getSecond())
-        }
-        while (!tuples.isEmpty()) {
-          def tuple = tuples.poll()
-          buffer.add(tuple.getFirst())
-          map.put(tuple.getSecond())
+          map.put(to)
         }
       } as Runnable)
     }
     futures.collect({
       it.get()
     })
-    GCUtils.awaitGC()
 
-    then: 'map is not in flat mode'
+    then:
     !map.isFlat()
-
-    and: 'map does not contain too many extra entries'
-    map.toList().size() <= nThreads * nRetainedObjectsPerThread * 2
-
-    and: 'map does not contain extra objects'
-    map.toList().findAll { it.get() != null }.size() <= nThreads * nRetainedObjectsPerThread
-
-    and: 'map did not lose too many objects'
-    map.toList().findAll { it.get() != null }.size() >= nThreads * nRetainedObjectsPerThread * maxAcceptableLoss
-
-    and: 'sanity check'
-    objectHolders.every {it.size() == nRetainedObjectsPerThread }
+    nThreads == buckets.size()
 
     and: 'all objects are as expected'
-    for (final CircularBuffer<Object> objectHolder : objectHolders) {
-      assert objectHolder.count {
-        map.get(it) != null && map.get(it).get() == it
-      } >= nRetainedObjectsPerThread * maxAcceptableLossPerThread
+    buckets.each { bucket ->
+      bucket.each { o ->
+        assert map.get(o) != null
+        assert map.get(o).get() == o
+      }
     }
 
     cleanup:
     executorService?.shutdown()
+  }
+
+  def 'multi-threaded with no collisions, no GC, flat mode'() {
+    given:
+    int capacity = 128
+    int flatModeThreshold = 64
+    def queue = new MockReferenceQueue()
+    def map = new TaintedMap(capacity, flatModeThreshold, queue)
+
+    and:
+    int nThreads = 16
+    def gen = new ObjectGen(capacity)
+    def executorService = Executors.newFixedThreadPool(nThreads)
+    def latch = new CountDownLatch(nThreads)
+
+    when:
+    // Number of purges required to switch to flat mode (in the absence of garbage collection)
+    final int purgesToFlatMode = (int) (flatModeThreshold / TaintedMap.PURGE_COUNT) + 1
+    gen.genObjects(purgesToFlatMode, ObjectGen.TRIGGERS_PURGE).each { o ->
+      final to = new TaintedObject(o, [] as Range[], map.getReferenceQueue())
+      queue.hold(o, to)
+      map.put(to)
+    }
+
+    then:
+    map.isFlat()
+
+    when: 'puts from different threads to any buckets'
+    def futures = (0..nThreads-1).collect { thread ->
+      // Each thread has multiple objects for each bucket
+      def objects = gen.genBuckets(capacity, 10).flatten()
+      def taintedObjects = objects.collect {o ->
+        final to = new TaintedObject(o, [] as Range[], map.getReferenceQueue())
+        queue.hold(o, to)
+        return to
+      }
+      Collections.shuffle(taintedObjects)
+
+      executorService.submit({
+        ->
+        latch.countDown()
+        latch.await()
+        taintedObjects.each { to ->
+          map.put(to)
+        }
+      } as Runnable)
+    }
+    futures.collect({
+      it.get()
+    })
+
+    then:
+    map.isFlat()
+    map.size() == capacity
+    map.count() == capacity
+    map.toList().findAll({ it.get() != null }).size() == capacity
+    map.toList().collect({ it.get() }).toSet().size() == capacity
+
+    cleanup:
+    executorService?.shutdown()
+  }
+
+  def 'clear is thread-safe (does not throw)'() {
+    given:
+    int capacity = 128
+    int flatModeThreshold = 64
+    def queue = new MockReferenceQueue()
+    def map = new TaintedMap(capacity, flatModeThreshold, queue)
+
+    and:
+    int nThreads = 16
+    def gen = new ObjectGen(capacity)
+    def executorService = Executors.newFixedThreadPool(nThreads)
+    def latch = new CountDownLatch(nThreads)
+
+    when: 'puts from different threads to any buckets'
+    def futures = (0..nThreads-1).collect { thread ->
+      // Each thread has multiple objects for each bucket
+      def objects = gen.genBuckets(capacity, 32).flatten()
+      def taintedObjects = objects.collect {o ->
+        final to = new TaintedObject(o, [] as Range[], map.getReferenceQueue())
+        queue.hold(o, to)
+        return to
+      }
+      Collections.shuffle(taintedObjects)
+
+      executorService.submit({
+        ->
+        latch.countDown()
+        latch.await()
+        taintedObjects.each { to ->
+          if (System.identityHashCode(to) % 10 == 0) {
+            map.clear()
+          }
+          map.put(to)
+        }
+      } as Runnable)
+    }
+    futures.collect({
+      it.get()
+    })
+    map.clear()
+
+    then:
+    map.size() == 0
+    map.count() == 0
+    !map.isFlat()
+
+    cleanup:
+    executorService?.shutdown()
+  }
+
+  private static class MockReferenceQueue extends ReferenceQueue<Object> {
+    private List<Reference<?>> queue = new ArrayList()
+    private Map<Object, Reference<?>> objects = new HashMap<>()
+
+    void hold(Object referent, Reference<?> reference) {
+      objects.put(referent, reference)
+    }
+
+    void free(Reference<?> ref) {
+      def referent = ref.get()
+      ref.clear()
+      queue.push(ref)
+      if (referent != null) {
+        objects.remove(referent)
+      }
+    }
+
+    void clear() {
+      objects.values().toList().each {
+        free(it)
+      }
+    }
+
+    @Override
+    Reference<?> poll() {
+      if (queue.isEmpty()) {
+        return null
+      }
+      return queue.pop()
+    }
+
+    @Override
+    Reference<?> remove() throws InterruptedException {
+      throw new UnsupportedOperationException("NOT IMPLEMENTED")
+    }
+
+    @Override
+    Reference<?> remove(long timeout) throws IllegalArgumentException, InterruptedException {
+      throw new UnsupportedOperationException("NOT IMPLEMENTED")
+    }
   }
 }

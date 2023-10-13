@@ -1,23 +1,23 @@
 package datadog.telemetry.dependency;
 
+import datadog.trace.api.cache.DDCache;
+import datadog.trace.api.cache.DDCaches;
 import java.lang.instrument.ClassFileTransformer;
 import java.net.URL;
 import java.security.CodeSource;
 import java.security.ProtectionDomain;
-import java.util.Collections;
-import java.util.IdentityHashMap;
-import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 class LocationsCollectingTransformer implements ClassFileTransformer {
   private static final Logger log = LoggerFactory.getLogger(LocationsCollectingTransformer.class);
 
-  private final DependencyServiceImpl dependencyService;
-  private final Set<ProtectionDomain> seenDomains =
-      Collections.newSetFromMap(new IdentityHashMap<ProtectionDomain, Boolean>());
+  private static final int MAX_CACHED_JARS = 1024;
+  private final DependencyService dependencyService;
+  private final DDCache<ProtectionDomain, Boolean> seenDomains =
+      DDCaches.newFixedSizeWeakKeyCache(MAX_CACHED_JARS);
 
-  public LocationsCollectingTransformer(DependencyServiceImpl dependencyService) {
+  public LocationsCollectingTransformer(DependencyService dependencyService) {
     this.dependencyService = dependencyService;
   }
 
@@ -28,26 +28,21 @@ class LocationsCollectingTransformer implements ClassFileTransformer {
       Class<?> classBeingRedefined,
       ProtectionDomain protectionDomain,
       byte[] classfileBuffer) {
-    if (protectionDomain == null) {
-      return null;
+    if (protectionDomain != null) {
+      seenDomains.computeIfAbsent(protectionDomain, this::addDependency);
     }
-    if (!seenDomains.add(protectionDomain)) {
-      return null;
-    }
-
-    CodeSource codeSource = protectionDomain.getCodeSource();
-    if (codeSource == null) {
-      return null;
-    }
-
-    URL location = codeSource.getLocation();
-    if (location == null) {
-      return null;
-    }
-
-    dependencyService.addURL(location);
-
     // returning 'null' is the best way to indicate that no transformation has been done.
     return null;
+  }
+
+  private boolean addDependency(final ProtectionDomain domain) {
+    final CodeSource codeSource = domain.getCodeSource();
+    final URL location = codeSource != null ? codeSource.getLocation() : null;
+    final ClassLoader classLoader = domain.getClassLoader();
+    log.debug("New protection domain with location {} and class loader {}", location, classLoader);
+    if (location != null) {
+      dependencyService.addURL(location);
+    }
+    return true;
   }
 }

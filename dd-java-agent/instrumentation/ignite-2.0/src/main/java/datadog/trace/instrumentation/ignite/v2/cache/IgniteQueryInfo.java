@@ -3,13 +3,13 @@ package datadog.trace.instrumentation.ignite.v2.cache;
 import datadog.trace.api.Pair;
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
-import datadog.trace.api.function.Function;
 import datadog.trace.api.normalize.SQLNormalizer;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.function.Function;
 
 public final class IgniteQueryInfo {
 
@@ -17,6 +17,7 @@ public final class IgniteQueryInfo {
       DDCaches.newFixedSizeCache(512);
 
   private static final Function<Pair<String, String>, IgniteQueryInfo> NORMALIZE =
+      // Uses inner class for predictable name for Instrumenter.Default.helperClassNames()
       new Function<Pair<String, String>, IgniteQueryInfo>() {
         @Override
         public IgniteQueryInfo apply(Pair<String, String> Pair) {

@@ -1,3 +1,8 @@
+import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
+import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
+import static datadog.trace.api.config.TraceInstrumentationConfig.RABBIT_PROPAGATION_DISABLED_EXCHANGES
+import static datadog.trace.api.config.TraceInstrumentationConfig.RABBIT_PROPAGATION_DISABLED_QUEUES
+
 import com.rabbitmq.client.AMQP
 import com.rabbitmq.client.AlreadyClosedException
 import com.rabbitmq.client.Channel
@@ -6,11 +11,12 @@ import com.rabbitmq.client.Consumer
 import com.rabbitmq.client.DefaultConsumer
 import com.rabbitmq.client.Envelope
 import com.rabbitmq.client.GetResponse
-import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.agent.test.asserts.TraceAssert
+import datadog.trace.agent.test.naming.VersionedNamingTestBase
 import datadog.trace.agent.test.utils.PortUtils
+import datadog.trace.api.Config
 import datadog.trace.api.DDSpanTypes
-import datadog.trace.api.Platform
+import datadog.trace.api.DDTags
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.core.DDSpan
@@ -22,7 +28,6 @@ import org.springframework.amqp.rabbit.connection.CachingConnectionFactory
 import org.springframework.amqp.rabbit.core.RabbitAdmin
 import org.springframework.amqp.rabbit.core.RabbitTemplate
 import org.testcontainers.containers.RabbitMQContainer
-import spock.lang.Requires
 import spock.lang.Shared
 
 import java.time.Duration
@@ -30,14 +35,7 @@ import java.util.concurrent.Phaser
 import java.util.concurrent.Semaphore
 import java.util.concurrent.TimeUnit
 
-import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
-import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
-import static datadog.trace.api.config.TraceInstrumentationConfig.RABBIT_PROPAGATION_DISABLED_EXCHANGES
-import static datadog.trace.api.config.TraceInstrumentationConfig.RABBIT_PROPAGATION_DISABLED_QUEUES
-
-// Do not run tests on Java7 since testcontainers are not compatible with Java7
-@Requires({ jvm.java8Compatible })
-abstract class RabbitMQTestBase extends AgentTestRunner {
+abstract class RabbitMQTestBase extends VersionedNamingTestBase {
   @Shared
   def rabbitMQContainer
   @Shared
@@ -95,11 +93,37 @@ abstract class RabbitMQTestBase extends AgentTestRunner {
     }
   }
 
-  abstract String expectedServiceName()
-
   abstract boolean hasQueueSpan()
 
   abstract boolean splitByDestination()
+
+  boolean excludesRoutingKeyFromResource() {
+    false
+  }
+
+  String operationForProducer() {
+    "amqp.command"
+  }
+
+  String operationForConsumer() {
+    "amqp.command"
+  }
+
+  String serviceForTimeInQueue() {
+    "rabbitmq"
+  }
+
+
+  @Override
+  int version() {
+    return 0
+  }
+
+
+  @Override
+  String operation() {
+    return "amqp.command"
+  }
 
   def "test rabbit publish/get"() {
     setup:
@@ -111,7 +135,7 @@ abstract class RabbitMQTestBase extends AgentTestRunner {
       channel.basicPublish(exchangeName, routingKey, null, "Hello, world!".getBytes())
       return channel.basicGet(queueName, true)
     }
-    if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled()) {
+    if (isDataStreamsEnabled()) {
       TEST_DATA_STREAMS_WRITER.waitForGroups(2)
     }
 
@@ -121,39 +145,39 @@ abstract class RabbitMQTestBase extends AgentTestRunner {
     and:
     assertTraces(2, SORT_TRACES_BY_ID) {
       def publishSpan = null
-      trace(5, true) {
-        publishSpan = span(0)
-        def parentSpan = span(4)
-        rabbitSpan(it, "basic.publish $exchangeName -> $routingKey", false, parentSpan)
-        rabbitSpan(it, "exchange.declare", false, parentSpan)
+      trace(5) {
+        publishSpan = span(1)
+        def parentSpan = span(0)
+        basicSpan(it, "parent")
+        rabbitSpan(it, "basic.publish $exchangeName -> $routingKey", false, parentSpan, operationForProducer())
         rabbitSpan(it, "queue.bind", false, parentSpan)
         rabbitSpan(it, "queue.declare", false, parentSpan)
-        basicSpan(it, "parent")
+        rabbitSpan(it, "exchange.declare", false, parentSpan)
       }
       if (hasQueueSpan()) {
-        trace(2, true) {
-          rabbitSpan(it, "basic.get <generated>", false, span(1))
+        trace(2) {
+          rabbitSpan(it, "basic.get <generated>", false, span(1), operationForConsumer())
           rabbitQueueSpan(it, "amqp.deliver <generated>", true, publishSpan)
         }
       } else {
         trace(1) {
-          rabbitSpan(it, "basic.get <generated>", true, publishSpan)
+          rabbitSpan(it, "basic.get <generated>", true, publishSpan, operationForConsumer())
         }
       }
     }
 
     and:
-    if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled()) {
+    if (isDataStreamsEnabled()) {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(first) {
-        edgeTags == ["exchange:" + exchangeName, "has_routing_key:true", "type:internal"]
-        edgeTags.size() == 3
+        edgeTags == ["direction:out", "exchange:" + exchangeName, "has_routing_key:true", "type:rabbitmq"]
+        edgeTags.size() == 4
       }
 
       StatsGroup second = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == first.hash }
       verifyAll(second) {
-        edgeTags == ["topic:" + queueName, "type:rabbitmq"]
-        edgeTags.size() == 2
+        edgeTags == ["direction:in", "topic:" + queueName, "type:rabbitmq"]
+        edgeTags.size() == 3
       }
     }
 
@@ -167,7 +191,7 @@ abstract class RabbitMQTestBase extends AgentTestRunner {
     String queueName = channel.queueDeclare().getQueue()
     channel.basicPublish("", queueName, null, "Hello, world!".getBytes())
     GetResponse response = channel.basicGet(queueName, true)
-    if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled()) {
+    if (isDataStreamsEnabled()) {
       TEST_DATA_STREAMS_WRITER.waitForGroups(2)
     }
 
@@ -182,32 +206,32 @@ abstract class RabbitMQTestBase extends AgentTestRunner {
       }
       trace(1) {
         publishSpan = span(0)
-        rabbitSpan(it, "basic.publish <default> -> <generated>")
+        rabbitSpan(it, "basic.publish <default> -> <generated>", false, null, operationForProducer())
       }
       if (hasQueueSpan()) {
-        trace(2, true) {
-          rabbitSpan(it, "basic.get <generated>", false, span(1))
+        trace(2) {
+          rabbitSpan(it, "basic.get <generated>", false, span(1), operationForConsumer())
           rabbitQueueSpan(it, "amqp.deliver <generated>", true, publishSpan)
         }
       } else {
         trace(1) {
-          rabbitSpan(it, "basic.get <generated>", true, publishSpan)
+          rabbitSpan(it, "basic.get <generated>", true, publishSpan, operationForConsumer())
         }
       }
     }
 
     and:
-    if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled()) {
+    if (isDataStreamsEnabled()) {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(first) {
-        edgeTags == ["exchange:", "has_routing_key:true", "type:internal"]
-        edgeTags.size() == 3
+        edgeTags == ["direction:out", "exchange:", "has_routing_key:true", "type:rabbitmq"]
+        edgeTags.size() == 4
       }
 
       StatsGroup second = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == first.hash }
       verifyAll(second) {
-        edgeTags == ["topic:" + queueName, "type:rabbitmq"]
-        edgeTags.size() == 2
+        edgeTags == ["direction:in", "topic:" + queueName, "type:rabbitmq"]
+        edgeTags.size() == 3
       }
     }
   }
@@ -245,7 +269,7 @@ abstract class RabbitMQTestBase extends AgentTestRunner {
         channel.basicPublish(exchangeName, "", null, "msg $it".getBytes())
       }
       TEST_WRITER.waitForTraces(5 + ((it - 1) * 2))
-      if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled()) {
+      if (isDataStreamsEnabled()) {
         TEST_DATA_STREAMS_WRITER.waitForGroups(it * 2)
       }
       phaser.arriveAndAwaitAdvance()
@@ -270,11 +294,11 @@ abstract class RabbitMQTestBase extends AgentTestRunner {
         def deliverParentSpan = null
         trace(1) {
           deliverParentSpan = span(0)
-          rabbitSpan(it, "basic.publish $exchangeName -> <all>")
+          rabbitSpan(it, "basic.publish $exchangeName -> <all>", false, null, operationForProducer())
         }
         if (hasQueueSpan()) {
-          trace(2, true) {
-            rabbitSpan(it, "basic.deliver $resourceQueueName", false, span(1),
+          trace(2) {
+            rabbitSpan(it, "basic.deliver $resourceQueueName", false, span(1), operationForConsumer(),
               null, null, setTimestamp)
             rabbitQueueSpan(it, "amqp.deliver $resourceQueueName", true, deliverParentSpan)
           }
@@ -282,7 +306,7 @@ abstract class RabbitMQTestBase extends AgentTestRunner {
           trace(1) {
             // TODO - test with and without feature enabled once Config is easier to control
             rabbitSpan(it, "basic.deliver $resourceQueueName", true, deliverParentSpan,
-              null, null, setTimestamp)
+              operationForConsumer(), null, null, setTimestamp)
           }
         }
       }
@@ -291,21 +315,21 @@ abstract class RabbitMQTestBase extends AgentTestRunner {
     deliveries == (1..messageCount).collect { "msg $it" }
 
     and:
-    if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled()) {
+    if (isDataStreamsEnabled()) {
       // Look for all StatsPoints created by the producer. They will have the same hash, which would be the consumer
       // points' parent hash.
       List<StatsGroup> producerPoints = TEST_DATA_STREAMS_WRITER.groups.findAll { it.parentHash == 0 }
       producerPoints.each { producerPoint ->
         verifyAll(producerPoint) {
-          edgeTags == ["exchange:" + exchangeName, "has_routing_key:false", "type:internal"]
-          edgeTags.size() == 3
+          edgeTags == ["direction:out", "exchange:" + exchangeName, "has_routing_key:false", "type:rabbitmq"]
+          edgeTags.size() == 4
         }
       }
 
       StatsGroup consumerPoint = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == producerPoints.get(0).hash }
       verifyAll(consumerPoint) {
-        edgeTags == ["topic:" + queueName, "type:rabbitmq"]
-        edgeTags.size() == 2
+        edgeTags == ["direction:in", "topic:" + queueName, "type:rabbitmq"]
+        edgeTags.size() == 3
       }
     }
 
@@ -347,7 +371,7 @@ abstract class RabbitMQTestBase extends AgentTestRunner {
     channel.basicPublish(exchangeName, "", null, "msg".getBytes())
     TEST_WRITER.waitForTraces(3)
     phaser.arriveAndAwaitAdvance()
-    if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled()) {
+    if (isDataStreamsEnabled()) {
       TEST_DATA_STREAMS_WRITER.waitForGroups(2)
     }
 
@@ -368,35 +392,35 @@ abstract class RabbitMQTestBase extends AgentTestRunner {
       def deliverParentSpan = null
       trace(1) {
         deliverParentSpan = span(0)
-        rabbitSpan(it, "basic.publish $exchangeName -> <all>")
+        rabbitSpan(it, "basic.publish $exchangeName -> <all>", false, null, operationForProducer())
       }
       if (hasQueueSpan()) {
-        trace(2, true) {
-          rabbitSpan(it, "basic.deliver <generated>", false, span(1), error,
-            error.message, false)
+        trace(2) {
+          rabbitSpan(it, "basic.deliver <generated>", false, span(1), operationForConsumer(),
+            error, error.message, false)
           rabbitQueueSpan(it, "amqp.deliver <generated>", true, deliverParentSpan)
         }
       } else {
         trace(1) {
           // TODO - test with and without feature enabled once Config is easier to control
-          rabbitSpan(it, "basic.deliver <generated>", true, deliverParentSpan, error,
-            error.message, false)
+          rabbitSpan(it, "basic.deliver <generated>", true, deliverParentSpan, operationForConsumer(),
+            error, error.message, false)
         }
       }
     }
 
     and:
-    if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled()) {
+    if (isDataStreamsEnabled()) {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(first) {
-        edgeTags == ["exchange:" + exchangeName, "has_routing_key:false", "type:internal"]
-        edgeTags.size() == 3
+        edgeTags == ["direction:out", "exchange:" + exchangeName, "has_routing_key:false", "type:rabbitmq"]
+        edgeTags.size() == 4
       }
 
       StatsGroup second = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == first.hash }
       verifyAll(second) {
-        edgeTags == ["topic:" + queueName, "type:rabbitmq"]
-        edgeTags.size() == 2
+        edgeTags == ["direction:in", "topic:" + queueName, "type:rabbitmq"]
+        edgeTags.size() == 3
       }
     }
 
@@ -415,19 +439,19 @@ abstract class RabbitMQTestBase extends AgentTestRunner {
 
     assertTraces(1, SORT_TRACES_BY_ID) {
       trace(1) {
-        rabbitSpan(it, command, false, null, throwable, errorMsg)
+        rabbitSpan(it, command, false, null, exptectedOperation, throwable, errorMsg)
       }
     }
 
     where:
-    command                 | exception             | errorMsg                                           | closure
-    "exchange.declare"      | IOException           | null                                               | {
+    command                 | exception             | exptectedOperation     | errorMsg                                           | closure
+    "exchange.declare"      | IOException           | operation()            | null                                               | {
       it.exchangeDeclare("some-exchange", "invalid-type", true)
     }
-    "Channel.basicConsume"  | IllegalStateException | "Invalid configuration: 'queue' must be non-null." | {
+    "Channel.basicConsume"  | IllegalStateException | operation()            | "Invalid configuration: 'queue' must be non-null." | {
       it.basicConsume(null, null)
     }
-    "basic.get <generated>" | IOException           | null                                               | {
+    "basic.get <generated>" | IOException           | operationForConsumer() | null                                               | {
       it.basicGet("amq.gen-invalid-channel", true)
     }
   }
@@ -441,7 +465,7 @@ abstract class RabbitMQTestBase extends AgentTestRunner {
     AmqpTemplate template = new RabbitTemplate(connectionFactory)
     template.convertAndSend(queue.name, "foo")
     String message = (String) template.receiveAndConvert(queue.name)
-    if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled()) {
+    if (isDataStreamsEnabled()) {
       TEST_DATA_STREAMS_WRITER.waitForGroups(2)
     }
 
@@ -456,32 +480,32 @@ abstract class RabbitMQTestBase extends AgentTestRunner {
       def publishSpan = null
       trace(1) {
         publishSpan = span(0)
-        rabbitSpan(it, "basic.publish <default> -> some-routing-queue")
+        rabbitSpan(it, "basic.publish <default> -> some-routing-queue", false, null, operationForProducer())
       }
       if (hasQueueSpan()) {
-        trace(2, true) {
-          rabbitSpan(it, "basic.get ${queue.name}", false, span(1))
+        trace(2) {
+          rabbitSpan(it, "basic.get ${queue.name}", false, span(1), operationForConsumer())
           rabbitQueueSpan(it, "amqp.deliver ${queue.name}", true, publishSpan)
         }
       } else {
         trace(1) {
-          rabbitSpan(it, "basic.get ${queue.name}", true, publishSpan)
+          rabbitSpan(it, "basic.get ${queue.name}", true, publishSpan, operationForConsumer())
         }
       }
     }
 
     and:
-    if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled()) {
+    if (isDataStreamsEnabled()) {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(first) {
-        edgeTags.containsAll(["exchange:", "has_routing_key:true", "type:internal"])
-        edgeTags.size() == 3
+        edgeTags.containsAll(["direction:out", "exchange:", "has_routing_key:true", "type:rabbitmq"])
+        edgeTags.size() == 4
       }
 
       StatsGroup second = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == first.hash }
       verifyAll(second) {
-        edgeTags == ["topic:some-routing-queue", "type:rabbitmq"]
-        edgeTags.size() == 2
+        edgeTags == ["direction:in", "topic:some-routing-queue", "type:rabbitmq"]
+        edgeTags.size() == 3
       }
     }
   }
@@ -514,7 +538,7 @@ abstract class RabbitMQTestBase extends AgentTestRunner {
       default:
         break
     }
-    if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled() && !noParent) {
+    if (isDataStreamsEnabled() && !noParent) {
       // In the noParent case, the exchange is disabled so we don't expect any pathway injections.
       TEST_DATA_STREAMS_WRITER.waitForGroups(2)
     }
@@ -528,7 +552,7 @@ abstract class RabbitMQTestBase extends AgentTestRunner {
       trace(5) {
         publishSpan = span(1)
         basicSpan(it, "parent")
-        rabbitSpan(it, "basic.publish $exchangeName -> $routingKey", false, span(0))
+        rabbitSpan(it, "basic.publish $exchangeName -> $routingKey", false, span(0), operationForProducer())
         rabbitSpan(it, "queue.bind", false, span(0))
         rabbitSpan(it, "exchange.declare", false, span(0))
         rabbitSpan(it, "queue.declare", false, span(0))
@@ -540,32 +564,32 @@ abstract class RabbitMQTestBase extends AgentTestRunner {
       }
       if (hasQueueSpan() && !noParent) {
         trace(2) {
-          rabbitSpan(it, "basic.$type $queueName", false, span(1))
+          rabbitSpan(it, "basic.$type $queueName", false, span(1), operationForConsumer())
           rabbitQueueSpan(it, "amqp.deliver $queueName", true, publishSpan)
         }
       } else {
         trace(1) {
           if (noParent) {
-            rabbitSpan(it, "basic.$type $queueName")
+            rabbitSpan(it, "basic.$type $queueName", false, null, operationForConsumer())
           } else {
-            rabbitSpan(it, "basic.$type $queueName", true, publishSpan)
+            rabbitSpan(it, "basic.$type $queueName", true, publishSpan, operationForConsumer())
           }
         }
       }
     }
 
     and:
-    if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled() && !noParent) {
+    if (isDataStreamsEnabled() && !noParent) {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(first) {
-        edgeTags == ["exchange:" + exchangeName, "has_routing_key:true", "type:internal"]
-        edgeTags.size() == 3
+        edgeTags == ["direction:out", "exchange:" + exchangeName, "has_routing_key:true", "type:rabbitmq"]
+        edgeTags.size() == 4
       }
 
       StatsGroup second = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == first.hash }
       verifyAll(second) {
-        edgeTags == ["topic:" + queueName, "type:rabbitmq"]
-        edgeTags.size() == 2
+        edgeTags == ["direction:in", "topic:" + queueName, "type:rabbitmq"]
+        edgeTags.size() == 3
       }
     }
 
@@ -607,7 +631,7 @@ abstract class RabbitMQTestBase extends AgentTestRunner {
       default:
         break
     }
-    if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled() && !noParent) {
+    if (isDataStreamsEnabled() && !noParent) {
       // In the noParent case, the queue is disabled so we don't expect any pathway injections.
       TEST_DATA_STREAMS_WRITER.waitForGroups(2)
     }
@@ -621,7 +645,7 @@ abstract class RabbitMQTestBase extends AgentTestRunner {
       trace(5) {
         publishSpan = span(1)
         basicSpan(it, "parent")
-        rabbitSpan(it, "basic.publish $exchangeName -> $routingKey", false, span(0))
+        rabbitSpan(it, "basic.publish $exchangeName -> $routingKey", false, span(0), operationForProducer())
         rabbitSpan(it, "queue.bind", false, span(0))
         rabbitSpan(it, "exchange.declare", false, span(0))
         rabbitSpan(it, "queue.declare", false, span(0))
@@ -632,33 +656,33 @@ abstract class RabbitMQTestBase extends AgentTestRunner {
         }
       }
       if (hasQueueSpan() && !noParent) {
-        trace(2, true) {
-          rabbitSpan(it, "basic.$type $queueName", false, span(1))
+        trace(2) {
+          rabbitSpan(it, "basic.$type $queueName", false, span(1), operationForConsumer())
           rabbitQueueSpan(it, "amqp.deliver $queueName", true, publishSpan)
         }
       } else {
         trace(1) {
           if (noParent) {
-            rabbitSpan(it, "basic.$type $queueName")
+            rabbitSpan(it, "basic.$type $queueName", false, null, operationForConsumer())
           } else {
-            rabbitSpan(it, "basic.$type $queueName", true, publishSpan)
+            rabbitSpan(it, "basic.$type $queueName", true, publishSpan, operationForConsumer())
           }
         }
       }
     }
 
     and:
-    if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled() && !noParent) {
+    if (isDataStreamsEnabled() && !noParent) {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(first) {
-        edgeTags == ["exchange:" + exchangeName, "has_routing_key:true", "type:internal"]
-        edgeTags.size() == 3
+        edgeTags == ["direction:out", "exchange:" + exchangeName, "has_routing_key:true", "type:rabbitmq"]
+        edgeTags.size() == 4
       }
 
       StatsGroup second = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == first.hash }
       verifyAll(second) {
-        edgeTags == ["topic:" + queueName, "type:rabbitmq"]
-        edgeTags.size() == 2
+        edgeTags == ["direction:in", "topic:" + queueName, "type:rabbitmq"]
+        edgeTags.size() == 3
       }
     }
 
@@ -677,15 +701,16 @@ abstract class RabbitMQTestBase extends AgentTestRunner {
     String resource,
     Boolean distributedRootSpan = false,
     DDSpan parentSpan = null,
+    String operation = operation(),
     Throwable exception = null,
     String errorMsg = null,
     Boolean expectTimestamp = false
   ) {
     internalRabbitSpan(
       trace,
-      expectedServiceName(),
-      "amqp.command",
-      resource,
+      service(),
+      operation,
+      excludesRoutingKeyFromResource() ? resource.replaceAll(" -> .*", "") : resource,
       distributedRootSpan,
       parentSpan,
       exception,
@@ -705,7 +730,7 @@ abstract class RabbitMQTestBase extends AgentTestRunner {
   ) {
     internalRabbitSpan(
       trace,
-      splitByDestination() ? resource.replace("amqp.deliver ", "") : "rabbitmq",
+      splitByDestination() ? resource.replace("amqp.deliver ", "") : serviceForTimeInQueue(),
       "amqp.deliver",
       resource,
       distributedRootSpan,
@@ -765,7 +790,6 @@ abstract class RabbitMQTestBase extends AgentTestRunner {
         if (expectTimestamp) {
           "$InstrumentationTags.RECORD_QUEUE_TIME_MS" { it instanceof Long && it >= 0 }
         }
-
         // FIXME: this is broken in the instrumentation
         // `it` should never be null
         "$InstrumentationTags.RECORD_END_TO_END_DURATION_MS" { it == null || it >= 0 }
@@ -809,7 +833,15 @@ abstract class RabbitMQTestBase extends AgentTestRunner {
         if (exception) {
           errorTags(exception.class, errorMsg)
         }
-        defaultTags(distributedRootSpan)
+        if ({ isDataStreamsEnabled() }) {
+          "$DDTags.PATHWAY_HASH" { String }
+        }
+        if ([Tags.SPAN_KIND_PRODUCER, Tags.SPAN_KIND_CLIENT].any({ it == tag(Tags.SPAN_KIND) })) {
+          peerServiceFrom(Tags.PEER_HOSTNAME)
+          defaultTags(distributedRootSpan)
+        } else {
+          defaultTagsNoPeerService(distributedRootSpan)
+        }
       }
     }
   }
@@ -836,8 +868,7 @@ abstract class RabbitMQTestBase extends AgentTestRunner {
   }
 }
 
-@Requires({ jvm.java8Compatible })
-class RabbitMQForkedTest extends RabbitMQTestBase {
+abstract class RabbitMQForkedTest extends RabbitMQTestBase {
   @Override
   void configurePreAgent() {
     super.configurePreAgent()
@@ -846,7 +877,7 @@ class RabbitMQForkedTest extends RabbitMQTestBase {
   }
 
   @Override
-  String expectedServiceName()  {
+  String service() {
     return "RabbitMQTest"
   }
 
@@ -861,7 +892,37 @@ class RabbitMQForkedTest extends RabbitMQTestBase {
   }
 }
 
-@Requires({ jvm.java8Compatible })
+class RabbitMQNamingV0Test extends RabbitMQForkedTest {
+
+}
+
+class RabbitMQNamingV1ForkedTest extends RabbitMQForkedTest {
+  @Override
+  String operationForProducer() {
+    "amqp.send"
+  }
+
+  @Override
+  String operationForConsumer() {
+    "amqp.process"
+  }
+
+  @Override
+  String serviceForTimeInQueue() {
+    "rabbitmq-queue"
+  }
+
+  @Override
+  int version() {
+    1
+  }
+
+  @Override
+  boolean hasQueueSpan() {
+    false
+  }
+}
+
 class RabbitMQDatastreamsDisabledForkedTest extends RabbitMQTestBase {
   @Override
   void configurePreAgent() {
@@ -871,7 +932,7 @@ class RabbitMQDatastreamsDisabledForkedTest extends RabbitMQTestBase {
   }
 
   @Override
-  String expectedServiceName()  {
+  String service() {
     return "RabbitMQDatastreamsDisabledForkedTest"
   }
 
@@ -891,7 +952,6 @@ class RabbitMQDatastreamsDisabledForkedTest extends RabbitMQTestBase {
   }
 }
 
-@Requires({ jvm.java8Compatible })
 class RabbitMQSplitByDestinationForkedTest extends RabbitMQTestBase {
   @Override
   void configurePreAgent() {
@@ -902,7 +962,7 @@ class RabbitMQSplitByDestinationForkedTest extends RabbitMQTestBase {
   }
 
   @Override
-  String expectedServiceName()  {
+  String service() {
     return "RabbitMQTest"
   }
 
@@ -917,8 +977,7 @@ class RabbitMQSplitByDestinationForkedTest extends RabbitMQTestBase {
   }
 }
 
-@Requires({ jvm.java8Compatible })
-class RabbitMQLegacyTracingForkedTest extends RabbitMQTestBase {
+class RabbitMQLegacyTracingV0ForkedTest extends RabbitMQTestBase {
   @Override
   void configurePreAgent() {
     super.configurePreAgent()
@@ -926,7 +985,7 @@ class RabbitMQLegacyTracingForkedTest extends RabbitMQTestBase {
   }
 
   @Override
-  String expectedServiceName() {
+  String service() {
     return "rabbitmq"
   }
 
@@ -938,5 +997,57 @@ class RabbitMQLegacyTracingForkedTest extends RabbitMQTestBase {
   @Override
   boolean splitByDestination() {
     return false
+  }
+}
+
+class RabbitMQLegacyTracingV1ForkedTest extends RabbitMQLegacyTracingV0ForkedTest {
+  @Override
+  String operationForProducer() {
+    "amqp.send"
+  }
+
+  @Override
+  String operationForConsumer() {
+    "amqp.process"
+  }
+
+  @Override
+  String service() {
+    Config.get().getServiceName()
+  }
+
+  @Override
+  int version() {
+    1
+  }
+}
+
+class RabbitMQRoutingKeyExcludedForkedTest extends RabbitMQTestBase {
+  @Override
+  void configurePreAgent() {
+    super.configurePreAgent()
+    injectSysConfig("dd.service", "RabbitMQRoutingKeyExcludedForkedTest")
+    injectSysConfig("dd.rabbit.include.routingkey.in.resource", "false")
+    injectSysConfig("dd.rabbit.legacy.tracing.enabled", "false")
+  }
+
+  @Override
+  String service() {
+    return "RabbitMQRoutingKeyExcludedForkedTest"
+  }
+
+  @Override
+  boolean hasQueueSpan() {
+    return true
+  }
+
+  @Override
+  boolean splitByDestination() {
+    return false
+  }
+
+  @Override
+  boolean excludesRoutingKeyFromResource() {
+    return true
   }
 }

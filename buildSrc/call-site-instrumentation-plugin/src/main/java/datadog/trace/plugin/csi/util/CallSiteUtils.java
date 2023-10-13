@@ -1,7 +1,9 @@
 package datadog.trace.plugin.csi.util;
 
 import java.io.File;
-import java.io.IOException;
+import java.net.MalformedURLException;
+import java.net.URL;
+import java.nio.file.Path;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import javax.annotation.Nonnull;
@@ -23,31 +25,6 @@ public abstract class CallSiteUtils {
     return "L" + className.replaceAll("\\.", "/") + ";";
   }
 
-  public static String capitalize(final String str) {
-    if (str == null || str.isEmpty()) {
-      return str;
-    }
-    if (str.length() == 1) {
-      return str.toUpperCase();
-    }
-    return str.substring(0, 1).toUpperCase() + str.substring(1);
-  }
-
-  public static void createNewFile(@Nonnull final File file) {
-    final File folder = file.getParentFile();
-    if (!folder.exists() && !folder.mkdirs()) {
-      throw new RuntimeException("Cannot create folder: " + folder);
-    }
-    deleteFile(file);
-    try {
-      if (!file.createNewFile()) {
-        throw new RuntimeException("Cannot create file: " + file);
-      }
-    } catch (IOException e) {
-      throw new RuntimeException(e);
-    }
-  }
-
   public static void deleteFile(@Nonnull final File file) {
     if (file.exists() && !file.delete()) {
       throw new RuntimeException("Cannot delete file: " + file);
@@ -66,5 +43,13 @@ public abstract class CallSiteUtils {
 
   public static String repeat(final char value, int count) {
     return repeat(Character.toString(value), count);
+  }
+
+  public static URL toURL(final Path path) {
+    try {
+      return path.toUri().toURL();
+    } catch (MalformedURLException e) {
+      throw new RuntimeException(e);
+    }
   }
 }

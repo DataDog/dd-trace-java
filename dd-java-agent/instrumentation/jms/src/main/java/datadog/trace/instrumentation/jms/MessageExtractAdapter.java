@@ -5,10 +5,11 @@ import static datadog.trace.instrumentation.jms.JMSDecorator.JMS_PRODUCED_KEY;
 
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
-import datadog.trace.api.function.Function;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.util.Enumeration;
+import java.util.Locale;
+import java.util.function.Function;
 import javax.jms.JMSException;
 import javax.jms.Message;
 import org.slf4j.Logger;
@@ -16,13 +17,12 @@ import org.slf4j.LoggerFactory;
 
 public final class MessageExtractAdapter implements AgentPropagation.ContextVisitor<Message> {
   private static final Logger log = LoggerFactory.getLogger(MessageExtractAdapter.class);
-
   private static final Function<String, String> KEY_MAPPER =
       new Function<String, String>() {
         @SuppressForbidden
         @Override
         public String apply(String key) {
-          return key.replace("__dash__", "-").replace('$', '-').toLowerCase();
+          return key.replace("__dash__", "-").replace('$', '-').toLowerCase(Locale.ROOT);
         }
       };
 

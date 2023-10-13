@@ -1,14 +1,16 @@
 package datadog.trace.common.writer;
 
-import datadog.trace.api.DDId;
+import datadog.trace.api.DDSpanId;
+import datadog.trace.api.DDTraceId;
+import datadog.trace.api.Platform;
 import datadog.trace.core.DDSpan;
-import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.regex.Pattern;
 import org.slf4j.Logger;
@@ -47,14 +49,11 @@ public class TraceStructureWriter implements Writer {
       outputFile = outputFile.substring(1);
     }
     try {
-      String[] args = ARGS_DELIMITER.split(outputFile);
+      String[] args = parseArgs(outputFile);
       String fileName = args[0];
-      this.out =
-          fileName.isEmpty()
-              ? System.err
-              : new PrintStream(new FileOutputStream(new File(fileName)));
+      this.out = fileName.isEmpty() ? System.err : new PrintStream(new FileOutputStream(fileName));
       for (int i = 1; i < args.length; i++) {
-        switch (args[i].toLowerCase()) {
+        switch (args[i].toLowerCase(Locale.ROOT)) {
           case "includeresource":
             argsIncludeResource = true;
             break;
@@ -65,7 +64,7 @@ public class TraceStructureWriter implements Writer {
             argsDebugLog = true;
             break;
           default:
-            log.warn("Illegal TraceStructureWriter argument '" + args[i] + "'");
+            log.warn("Illegal TraceStructureWriter argument '{}'", args[i]);
             break;
         }
       }
@@ -77,14 +76,29 @@ public class TraceStructureWriter implements Writer {
     this.includeService = argsIncludeService;
   }
 
+  private static String[] parseArgs(String outputFile) {
+    String[] args = ARGS_DELIMITER.split(outputFile);
+    // Check Windows absolute paths (<drive>:<path>) as column is used as arg delimiter
+    if (Platform.isWindows()
+        && args.length > 1
+        && args[0].length() == 1
+        && (args[1].startsWith("\\") || args[1].startsWith("/"))) {
+      String[] windowsArgs = new String[args.length - 1];
+      windowsArgs[0] = args[0] + ":" + args[1];
+      System.arraycopy(args, 2, windowsArgs, 1, args.length - 2);
+      args = windowsArgs;
+    }
+    return args;
+  }
+
   @Override
   public void write(List<DDSpan> trace) {
     if (trace.isEmpty()) {
-      output("[]", null, null);
+      output("[]", null, DDSpanId.ZERO);
     } else {
-      DDId traceId = trace.get(0).getTraceId();
-      DDId rootSpanId = trace.get(0).getSpanId();
-      Map<DDId, Node> nodesById = new HashMap<>();
+      DDTraceId traceId = trace.get(0).getTraceId();
+      long rootSpanId = trace.get(0).getSpanId();
+      Map<Long, Node> nodesById = new HashMap<>();
       // index the tree
       for (DDSpan span : trace) {
         if (span.getLocalRootSpan() == span) {
@@ -111,7 +125,7 @@ public class TraceStructureWriter implements Writer {
           }
           return;
         }
-        if (!rootSpanId.equals(span.getSpanId())) {
+        if (rootSpanId != span.getSpanId()) {
           Node parent = nodesById.get(span.getParentId());
           if (null == parent) {
             String message =
@@ -138,18 +152,18 @@ public class TraceStructureWriter implements Writer {
     }
   }
 
-  private void output(String trace, DDId traceId, DDId rootSpanId) {
+  private void output(String trace, DDTraceId traceId, long rootSpanId) {
     out.println(trace);
     if (debugLog && log.isDebugEnabled()) {
       StringBuilder start = new StringBuilder();
       if (traceId != null) {
         start.append("t_id=").append(traceId);
       }
-      if (rootSpanId != null) {
+      if (rootSpanId != DDSpanId.ZERO) {
         if (start.length() > 0) {
           start.append(", ");
         }
-        start.append("s_id=").append(rootSpanId);
+        start.append("s_id=").append(DDSpanId.toString(rootSpanId));
       }
       if (start.length() > 0) {
         start.append(" -> ");

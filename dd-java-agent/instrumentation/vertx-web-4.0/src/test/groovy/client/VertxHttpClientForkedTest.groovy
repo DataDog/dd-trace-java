@@ -1,19 +1,22 @@
 package client
 
 import datadog.trace.agent.test.base.HttpClientTest
+import datadog.trace.agent.test.naming.TestingNettyHttpNamingConventions
 import datadog.trace.instrumentation.netty41.client.NettyHttpClientDecorator
 import io.vertx.core.Vertx
 import io.vertx.core.VertxOptions
 import io.vertx.core.http.HttpClientOptions
 import io.vertx.core.http.HttpClientResponse
 import io.vertx.core.http.HttpMethod
+import io.vertx.core.http.RequestOptions
+import io.vertx.core.http.impl.NoStackTraceTimeoutException
 import spock.lang.AutoCleanup
 import spock.lang.Shared
 
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.TimeUnit
 
-class VertxHttpClientForkedTest extends HttpClientTest {
+class VertxHttpClientForkedTest extends HttpClientTest implements TestingNettyHttpNamingConventions.ClientV0 {
 
   @Override
   boolean useStrictTraceWrites() {
@@ -36,9 +39,20 @@ class VertxHttpClientForkedTest extends HttpClientTest {
 
   @Override
   int doRequest(String method, URI uri, Map<String, String> headers, String body, Closure callback) {
+    return doRequest(method, uri, headers, body, callback, -1)
+  }
+
+  int doRequest(String method, URI uri, Map<String, String> headers, String body, Closure callback, long timeout) {
     CompletableFuture<HttpClientResponse> future = new CompletableFuture<>()
 
-    httpClient.request(HttpMethod.valueOf(method), uri.port, uri.host, "$uri", { requestReadyToBeSend ->
+    RequestOptions requestOptions = new RequestOptions()
+      .setMethod(HttpMethod.valueOf(method))
+      .setHost(uri.host)
+      .setPort(uri.port)
+      .setURI(uri.toString())
+      .setTimeout(timeout)
+
+    httpClient.request(requestOptions, { requestReadyToBeSend ->
       def request = requestReadyToBeSend.result()
       headers.each { request.putHeader(it.key, it.value) }
       request.send(body, { response ->
@@ -51,17 +65,13 @@ class VertxHttpClientForkedTest extends HttpClientTest {
       })
     })
 
-    return future.get(10, TimeUnit.SECONDS).statusCode()
+    HttpClientResponse response = future.get(10, TimeUnit.SECONDS)
+    return response == null ? 0 : response.statusCode()
   }
 
   @Override
   CharSequence component() {
     return NettyHttpClientDecorator.DECORATE.component()
-  }
-
-  @Override
-  String expectedOperationName() {
-    return "netty.client.request"
   }
 
   @Override
@@ -77,5 +87,24 @@ class VertxHttpClientForkedTest extends HttpClientTest {
   boolean testRemoteConnection() {
     // FIXME: figure out how to configure timeouts.
     false
+  }
+
+  def "handle timeout"() {
+    when:
+    def status = doRequest(method, url, [:], "", null, timeout)
+
+    then:
+    status == 0
+    assertTraces(1) {
+      trace(size(1)) {
+        clientSpan(it, null, method, false, false, url, null, true, ex)
+      }
+    }
+
+    where:
+    timeout = 1000
+    method = "GET"
+    url = server.address.resolve("/timeout")
+    ex = new NoStackTraceTimeoutException("The timeout period of ${timeout}ms has been exceeded while executing GET http://localhost:${url.port}/timeout for server localhost:${url.port}")
   }
 }

@@ -19,11 +19,15 @@ public class SamplingMechanism {
   public static final byte APPSEC = 5;
   /** User-defined target; reserved for future use */
   public static final byte REMOTE_USER_RATE = 6;
+  /** Span Sampling Rate (single span sampled on account of a span sampling rule) */
+  public static final byte SPAN_SAMPLING_RATE = 8;
+  /** Force override sampling decision from external source, like W3C traceparent. */
+  public static final byte EXTERNAL_OVERRIDE = Byte.MIN_VALUE;
 
   public static boolean validateWithSamplingPriority(int mechanism, int priority) {
     switch (mechanism) {
       case UNKNOWN:
-        return priority >= USER_DROP && priority <= USER_KEEP || priority == UNSET;
+        return true;
 
       case DEFAULT:
       case AGENT_RATE:
@@ -37,6 +41,9 @@ public class SamplingMechanism {
 
       case APPSEC:
         return priority == PrioritySampling.USER_KEEP;
+
+      case EXTERNAL_OVERRIDE:
+        return false;
     }
     return true;
   }

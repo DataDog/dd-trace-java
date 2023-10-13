@@ -2,7 +2,6 @@ package datadog.trace.logging
 
 import datadog.trace.logging.ddlogger.DDLogger
 import datadog.trace.logging.ddlogger.DDLoggerFactory
-import datadog.trace.logging.ddlogger.SwitchableLogLevelFactory
 import datadog.trace.logging.simplelogger.SLCompatFactory
 import datadog.trace.logging.simplelogger.SLCompatSettings
 import org.slf4j.ILoggerFactory
@@ -18,7 +17,7 @@ class GlobalLogLevelSwitcherTest extends LogValidatingSpecification {
     def globalValidator = createValidator(GlobalLogLevelSwitcher.name)
     def printStream = new PrintStream(globalValidator.outputStream, true)
     def settings = new SLCompatSettings(props, null, printStream)
-    def factory = new DDLoggerFactory(new SwitchableLogLevelFactory(new SLCompatFactory(props, settings)))
+    def factory = new DDLoggerFactory(new SLCompatFactory(props, settings))
     def logger = factory.getLogger("foo.bar")
     def loggerValidator = globalValidator.withName("foo.bar")
     def global = new GlobalLogLevelSwitcher(factory)
@@ -48,7 +47,7 @@ class GlobalLogLevelSwitcherTest extends LogValidatingSpecification {
     def globalValidator = createValidator(GlobalLogLevelSwitcher.name)
     def printStream = new PrintStream(globalValidator.outputStream, true)
     def settings = new SLCompatSettings(props, null, printStream)
-    def factory = new LoggerFactory(new SwitchableLogLevelFactory(new SLCompatFactory(props, settings)))
+    def factory = new LoggerFactory(new SLCompatFactory(props, settings))
     def logger = factory.getLogger("foo.bar")
     def loggerValidator = globalValidator.withName("foo.bar")
     def global = new GlobalLogLevelSwitcher(factory)
@@ -89,7 +88,7 @@ class GlobalLogLevelSwitcherTest extends LogValidatingSpecification {
 
     @Override
     Logger getLogger(String name) {
-      return new DDLogger(helperFactory, name)
+      return new DDLogger(helperFactory.loggerHelperForName(name), name)
     }
   }
 }

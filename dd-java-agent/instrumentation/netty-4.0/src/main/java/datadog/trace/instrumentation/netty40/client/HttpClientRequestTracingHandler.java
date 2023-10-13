@@ -13,15 +13,16 @@ import static datadog.trace.instrumentation.netty40.client.NettyHttpClientDecora
 import static datadog.trace.instrumentation.netty40.client.NettyResponseInjectAdapter.SETTER;
 
 import datadog.trace.api.Config;
-import datadog.trace.api.PropagationStyle;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelOutboundHandlerAdapter;
 import io.netty.channel.ChannelPromise;
 import io.netty.handler.codec.http.HttpRequest;
 import java.net.InetSocketAddress;
+import java.net.SocketAddress;
 
 @ChannelHandler.Sharable
 public class HttpClientRequestTracingHandler extends ChannelOutboundHandlerAdapter {
@@ -41,6 +42,9 @@ public class HttpClientRequestTracingHandler extends ChannelOutboundHandlerAdapt
     SSL_HANDLER = (Class<ChannelHandler>) sslHandler;
   }
 
+  private static final boolean AWS_LEGACY_TRACING =
+      Config.get().isLegacyTracingEnabled(false, "aws-sdk");
+
   @Override
   public void write(final ChannelHandlerContext ctx, final Object msg, final ChannelPromise prm) {
     if (!(msg instanceof HttpRequest)) {
@@ -56,6 +60,18 @@ public class HttpClientRequestTracingHandler extends ChannelOutboundHandlerAdapt
     }
 
     final HttpRequest request = (HttpRequest) msg;
+    boolean awsClientCall = request.headers().contains("amz-sdk-invocation-id");
+    if (!AWS_LEGACY_TRACING && awsClientCall) {
+      // avoid creating an extra HTTP client span beneath the AWS client call
+      try {
+        ctx.write(msg, prm);
+        return;
+      } finally {
+        if (null != parentScope) {
+          parentScope.close();
+        }
+      }
+    }
 
     ctx.channel().attr(CLIENT_PARENT_ATTRIBUTE_KEY).set(activeSpan());
     boolean isSecure = SSL_HANDLER != null && ctx.pipeline().get(SSL_HANDLER) != null;
@@ -65,13 +81,18 @@ public class HttpClientRequestTracingHandler extends ChannelOutboundHandlerAdapt
     try (final AgentScope scope = activateSpan(span)) {
       decorate.afterStart(span);
       decorate.onRequest(span, request);
-      decorate.onPeerConnection(span, (InetSocketAddress) ctx.channel().remoteAddress());
+
+      SocketAddress socketAddress = ctx.channel().remoteAddress();
+      if (socketAddress instanceof InetSocketAddress) {
+        decorate.onPeerConnection(span, (InetSocketAddress) socketAddress);
+      }
 
       // AWS calls are often signed, so we can't add headers without breaking the signature.
-      if (!request.headers().contains("amz-sdk-invocation-id")) {
+      if (!awsClientCall) {
         propagate().inject(span, request.headers(), SETTER);
-      } else if (Config.get().isAwsPropagationEnabled()) {
-        propagate().inject(span, request.headers(), SETTER, PropagationStyle.XRAY);
+        propagate()
+            .injectPathwayContext(
+                span, request.headers(), SETTER, HttpClientDecorator.CLIENT_PATHWAY_EDGE_TAGS);
       }
 
       ctx.channel().attr(SPAN_ATTRIBUTE_KEY).set(span);
@@ -84,8 +105,6 @@ public class HttpClientRequestTracingHandler extends ChannelOutboundHandlerAdapt
         span.finish();
         throw throwable;
       }
-
-      span.startThreadMigration();
     } finally {
       if (null != parentScope) {
         parentScope.close();

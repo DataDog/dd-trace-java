@@ -13,6 +13,7 @@ import datadog.trace.common.writer.Payload;
 import datadog.trace.core.CoreSpan;
 import datadog.trace.core.Metadata;
 import datadog.trace.core.MetadataConsumer;
+import datadog.trace.core.PendingTrace;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.WritableByteChannel;
@@ -62,15 +63,15 @@ public final class TraceMapperV0_5 implements TraceMapper {
       /* 3  */
       writeDictionaryEncoded(writable, span.getResourceName());
       /* 4  */
-      writable.writeLong(span.getTraceId().toLong());
+      writable.writeUnsignedLong(span.getTraceId().toLong());
       /* 5  */
-      writable.writeLong(span.getSpanId().toLong());
+      writable.writeUnsignedLong(span.getSpanId());
       /* 6  */
-      writable.writeLong(span.getParentId().toLong());
+      writable.writeUnsignedLong(span.getParentId());
       /* 7  */
       writable.writeLong(span.getStartTime());
       /* 8  */
-      writable.writeLong(span.getDurationNano());
+      writable.writeLong(PendingTrace.getDurationNano(span));
       /* 9  */
       writable.writeInt(span.getError());
       /* 10, 11  */
@@ -175,7 +176,7 @@ public final class TraceMapperV0_5 implements TraceMapper {
     }
   }
 
-  private final class MetaWriter extends MetadataConsumer {
+  private final class MetaWriter implements MetadataConsumer {
 
     private Writable writable;
     private boolean writeSamplingPriority;
@@ -202,11 +203,17 @@ public final class TraceMapperV0_5 implements TraceMapper {
           (writeSamplingPriority && metadata.hasSamplingPriority() ? 1 : 0)
               + (metadata.measured() ? 1 : 0)
               + (metadata.topLevel() ? 1 : 0)
+              + (metadata.longRunningVersion() != 0 ? 1 : 0)
               + 1;
       for (Map.Entry<String, Object> tag : metadata.getTags().entrySet()) {
-        if (tag.getValue() instanceof Number) {
+        Object value = tag.getValue();
+        if (value instanceof Number) {
           ++metricsSize;
           --metaSize;
+        } else if (value instanceof Map) {
+          // Compute size based on amount of elements in tree
+          --metaSize;
+          metaSize += getFlatMapSize((Map) value);
         }
       }
       writable.startMap(metaSize);
@@ -228,9 +235,14 @@ public final class TraceMapperV0_5 implements TraceMapper {
         writeDictionaryEncoded(writable, metadata.getOrigin());
       }
       for (Map.Entry<String, Object> entry : metadata.getTags().entrySet()) {
-        if (!(entry.getValue() instanceof Number)) {
-          writeDictionaryEncoded(writable, entry.getKey());
-          writeDictionaryEncoded(writable, entry.getValue());
+        String key = entry.getKey();
+        Object value = entry.getValue();
+        if (value instanceof Map) {
+          // Write map as flat map
+          writeFlatMap(key, (Map) value);
+        } else if (!(value instanceof Number)) {
+          writeDictionaryEncoded(writable, key);
+          writeDictionaryEncoded(writable, value);
         }
       }
       writable.startMap(metricsSize);
@@ -246,12 +258,64 @@ public final class TraceMapperV0_5 implements TraceMapper {
         writeDictionaryEncoded(writable, InstrumentationTags.DD_TOP_LEVEL);
         writable.writeInt(1);
       }
+      if (metadata.longRunningVersion() != 0) {
+        if (metadata.longRunningVersion() > 0) {
+          writable.writeUTF8(InstrumentationTags.DD_PARTIAL_VERSION);
+          writable.writeInt(metadata.longRunningVersion());
+        } else {
+          writable.writeUTF8(InstrumentationTags.DD_WAS_LONG_RUNNING);
+          writable.writeInt(1);
+        }
+      }
       writeDictionaryEncoded(writable, THREAD_ID);
       writable.writeLong(metadata.getThreadId());
       for (Map.Entry<String, Object> entry : metadata.getTags().entrySet()) {
         if (entry.getValue() instanceof Number) {
           writeDictionaryEncoded(writable, entry.getKey());
           writable.writeObject(entry.getValue(), null);
+        }
+      }
+    }
+
+    /**
+     * Calculate number of all values from map and all sub-maps Assuming map could be a binary tree
+     *
+     * @param map map to traverse
+     * @return number of all elements in the tree
+     */
+    private int getFlatMapSize(Map<String, Object> map) {
+      int size = 0;
+      for (Object value : map.values()) {
+        if (value instanceof Map) {
+          size += getFlatMapSize((Map) value);
+        } else {
+          size++;
+        }
+      }
+      return size;
+    }
+
+    /**
+     * Method write map of maps into writeable as FlatMap
+     *
+     * <p>Example: "root": { "key1": "val1" "key2": { "sub1": "val2", "sub2": "val3" } } "plain":
+     * "123"
+     *
+     * <p>Result: "root.key1" -> "val1" "root.key2.sub1" -> "val2" "root.key2.sub2" -> "val3"
+     * "plain" -> "123"
+     *
+     * @param key key name used as base
+     * @param mapValue map of tags that can contain sub-maps as values
+     */
+    private void writeFlatMap(String key, Map<String, Object> mapValue) {
+      for (Map.Entry<String, Object> entry : mapValue.entrySet()) {
+        String newKey = key + '.' + entry.getKey();
+        Object newValue = entry.getValue();
+        if (newValue instanceof Map) {
+          writeFlatMap(newKey, (Map) newValue);
+        } else {
+          writeDictionaryEncoded(writable, newKey);
+          writeDictionaryEncoded(writable, newValue);
         }
       }
     }

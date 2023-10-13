@@ -1,5 +1,6 @@
 package com.datadog.debugger.agent;
 
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.lenient;
 
@@ -9,6 +10,7 @@ import com.datadog.debugger.agent.ProbeStatus.ProbeException;
 import com.datadog.debugger.agent.ProbeStatus.Status;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.debugger.CapturedStackFrame;
+import datadog.trace.bootstrap.debugger.ProbeId;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -23,10 +25,11 @@ import org.mockito.junit.jupiter.MockitoExtension;
 class ProbeStatusTest {
 
   private static final String SERVICE_NAME = "service-name";
-  private static final String PROBE_ID = "probe-id";
+  private static final ProbeId PROBE_ID = new ProbeId("probe-id", 42);
   private static final String RECEIVED_MESSAGE = "Received probe " + PROBE_ID + ".";
   private static final String INSTALLED_MESSAGE = "Installed probe " + PROBE_ID + ".";
   private static final String ERROR_MESSAGE = "Error installing probe " + PROBE_ID + ".";
+  private static final String RUNTIME_ID = "foo";
 
   @Mock private Config config;
 
@@ -35,6 +38,7 @@ class ProbeStatusTest {
   @BeforeEach
   void setUp() {
     lenient().when(config.getServiceName()).thenReturn(SERVICE_NAME);
+    lenient().when(config.getRuntimeId()).thenReturn(RUNTIME_ID);
     builder = new Builder(config);
   }
 
@@ -42,16 +46,28 @@ class ProbeStatusTest {
   void builderReceived() {
     ProbeStatus expected =
         new ProbeStatus(
-            SERVICE_NAME, RECEIVED_MESSAGE, new Diagnostics(PROBE_ID, Status.RECEIVED, null));
+            SERVICE_NAME,
+            RECEIVED_MESSAGE,
+            new Diagnostics(PROBE_ID, RUNTIME_ID, Status.RECEIVED, null));
     ProbeStatus actual = builder.receivedMessage(PROBE_ID);
     assertEquals(expected, actual);
+  }
+
+  @Test
+  void builderReceivedNullSafe() {
+    assertDoesNotThrow(
+        () -> {
+          builder.receivedMessage(null);
+        });
   }
 
   @Test
   void builderInstalled() {
     ProbeStatus expected =
         new ProbeStatus(
-            SERVICE_NAME, INSTALLED_MESSAGE, new Diagnostics(PROBE_ID, Status.INSTALLED, null));
+            SERVICE_NAME,
+            INSTALLED_MESSAGE,
+            new Diagnostics(PROBE_ID, RUNTIME_ID, Status.INSTALLED, null));
     ProbeStatus actual = builder.installedMessage(PROBE_ID);
     assertEquals(expected, actual);
   }
@@ -65,6 +81,7 @@ class ProbeStatusTest {
             ERROR_MESSAGE,
             new Diagnostics(
                 PROBE_ID,
+                RUNTIME_ID,
                 Status.ERROR,
                 new ProbeException("NO_TYPE", exceptionMessage, Collections.emptyList())));
     ProbeStatus actual = builder.errorMessage(PROBE_ID, exceptionMessage);
@@ -85,6 +102,7 @@ class ProbeStatusTest {
             ERROR_MESSAGE,
             new Diagnostics(
                 PROBE_ID,
+                RUNTIME_ID,
                 Status.ERROR,
                 new ProbeException("java.lang.Exception", exceptionMessage, capturedStackFrames)));
     ProbeStatus actual = builder.errorMessage(PROBE_ID, exception);
@@ -93,7 +111,7 @@ class ProbeStatusTest {
 
   @Test
   void received() {
-    Diagnostics diagnostics = new Diagnostics(PROBE_ID, Status.RECEIVED, null);
+    Diagnostics diagnostics = new Diagnostics(PROBE_ID, RUNTIME_ID, Status.RECEIVED, null);
     ProbeStatus message = new ProbeStatus(SERVICE_NAME, RECEIVED_MESSAGE, diagnostics);
     assertEquals(SERVICE_NAME, message.getService());
     assertEquals(RECEIVED_MESSAGE, message.getMessage());
@@ -102,7 +120,7 @@ class ProbeStatusTest {
 
   @Test
   void installed() {
-    Diagnostics diagnostics = new Diagnostics(PROBE_ID, Status.INSTALLED, null);
+    Diagnostics diagnostics = new Diagnostics(PROBE_ID, RUNTIME_ID, Status.INSTALLED, null);
     ProbeStatus message = new ProbeStatus(SERVICE_NAME, INSTALLED_MESSAGE, diagnostics);
     assertEquals(SERVICE_NAME, message.getService());
     assertEquals(INSTALLED_MESSAGE, message.getMessage());
@@ -113,7 +131,7 @@ class ProbeStatusTest {
   void errorMessage() {
     ProbeException exception =
         new ProbeException("NO_TYPE", ERROR_MESSAGE, Collections.emptyList());
-    Diagnostics diagnostics = new Diagnostics(PROBE_ID, Status.ERROR, exception);
+    Diagnostics diagnostics = new Diagnostics(PROBE_ID, RUNTIME_ID, Status.ERROR, exception);
     ProbeStatus message = new ProbeStatus(SERVICE_NAME, ERROR_MESSAGE, diagnostics);
     assertEquals(SERVICE_NAME, message.getService());
     assertEquals(ERROR_MESSAGE, message.getMessage());
@@ -129,7 +147,7 @@ class ProbeStatusTest {
             .collect(Collectors.toList());
     ProbeException probeException =
         new ProbeException("java.lang.Exception", ERROR_MESSAGE, stackTrace);
-    Diagnostics diagnostics = new Diagnostics(PROBE_ID, Status.ERROR, probeException);
+    Diagnostics diagnostics = new Diagnostics(PROBE_ID, RUNTIME_ID, Status.ERROR, probeException);
     ProbeStatus message = new ProbeStatus(SERVICE_NAME, ERROR_MESSAGE, diagnostics);
     assertEquals(SERVICE_NAME, message.getService());
     assertEquals(ERROR_MESSAGE, message.getMessage());

@@ -9,12 +9,11 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 import javax.annotation.Nonnull;
 
 public interface HasErrors {
 
-  Stream<Failure> getErrors();
+  List<Failure> getErrors();
 
   void addError(@Nonnull Failure failure);
 
@@ -28,7 +27,7 @@ public interface HasErrors {
   }
 
   default boolean isSuccess() {
-    return !getErrors().findAny().isPresent();
+    return !getErrors().isEmpty();
   }
 
   final class Failure {
@@ -94,8 +93,8 @@ public interface HasErrors {
       this(Arrays.asList(errors));
     }
 
-    public Stream<Failure> getErrors() {
-      return errors.stream();
+    public List<Failure> getErrors() {
+      return errors;
     }
 
     @Override
@@ -126,7 +125,7 @@ public interface HasErrors {
     }
 
     @Override
-    public Stream<Failure> getErrors() {
+    public List<Failure> getErrors() {
       return errors.getErrors();
     }
 
@@ -136,12 +135,13 @@ public interface HasErrors {
     }
 
     private static String buildMessage(@Nonnull final HasErrors errors) {
-      return errors.getErrors().map(Failure::getMessage).collect(Collectors.joining(" | "));
+      return errors.getErrors().stream()
+          .map(Failure::getMessage)
+          .collect(Collectors.joining(" | "));
     }
 
     private static Throwable firstCause(@Nonnull final HasErrors errors) {
-      return errors
-          .getErrors()
+      return errors.getErrors().stream()
           .map(Failure::getCause)
           .filter(Objects::nonNull)
           .findFirst()

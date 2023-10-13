@@ -1,7 +1,8 @@
 package datadog.trace.plugin.csi.impl;
 
-import static datadog.trace.plugin.csi.util.CallSiteConstants.CALL_SITE_ADVICE_CLASS;
 import static datadog.trace.plugin.csi.util.CallSiteConstants.TYPE_RESOLVER;
+import static datadog.trace.plugin.csi.util.CallSiteUtils.classNameToType;
+import static java.util.Collections.emptyList;
 
 import datadog.trace.plugin.csi.AdvicePointcutParser;
 import datadog.trace.plugin.csi.TypeResolver;
@@ -10,10 +11,13 @@ import datadog.trace.plugin.csi.Validatable;
 import datadog.trace.plugin.csi.ValidationContext;
 import datadog.trace.plugin.csi.util.ErrorCode;
 import datadog.trace.plugin.csi.util.MethodType;
+import datadog.trace.plugin.csi.util.Types;
 import java.lang.reflect.Executable;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
+import java.util.Arrays;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -29,16 +33,19 @@ public class CallSiteSpecification implements Validatable {
   private final Type clazz;
   private final List<AdviceSpecification> advices;
   private final Type spi;
+  private final Enabled enabled;
   private final Type[] helpers;
 
   public CallSiteSpecification(
       @Nonnull final Type clazz,
       @Nonnull final List<AdviceSpecification> advices,
       @Nonnull final Type spi,
+      @Nonnull final List<String> enabled,
       @Nonnull final Set<Type> helpers) {
     this.clazz = clazz;
     this.advices = advices;
     this.spi = spi;
+    this.enabled = enabled.isEmpty() ? null : new Enabled(enabled);
     this.helpers = helpers.toArray(new Type[0]);
   }
 
@@ -46,18 +53,27 @@ public class CallSiteSpecification implements Validatable {
   public void validate(@Nonnull final ValidationContext context) {
     final TypeResolver typeResolver = context.getContextProperty(TYPE_RESOLVER);
     try {
-      if (!CALL_SITE_ADVICE_CLASS.equals(spi.getClassName())) {
-        Class<?> spiClass = typeResolver.resolveType(spi);
-        if (!spiClass.isInterface()) {
-          context.addError(ErrorCode.CALL_SITE_SPI_SHOULD_BE_AN_INTERFACE, spiClass);
-        } else {
-          if (spiClass.getDeclaredMethods().length > 0) {
-            context.addError(ErrorCode.CALL_SITE_SPI_SHOULD_BE_EMPTY, spiClass);
-          }
+      Class<?> spiClass = typeResolver.resolveType(spi);
+      if (!spiClass.isInterface()) {
+        context.addError(ErrorCode.CALL_SITE_SPI_SHOULD_BE_AN_INTERFACE, spiClass);
+      } else {
+        if (spiClass.getDeclaredMethods().length > 0) {
+          context.addError(ErrorCode.CALL_SITE_SPI_SHOULD_BE_EMPTY, spiClass);
         }
       }
     } catch (ResolutionException e) {
       e.getErrors().forEach(context::addError);
+    }
+    if (enabled != null) {
+      try {
+        final Method enabledMethod = (Method) typeResolver.resolveMethod(enabled.getMethod());
+        final int modifiers = enabledMethod.getModifiers();
+        if (!Modifier.isPublic(modifiers) || !Modifier.isStatic(modifiers)) {
+          context.addError(ErrorCode.CALL_SITE_ENABLED_SHOULD_BE_STATIC_AND_PUBLIC, enabledMethod);
+        }
+      } catch (ResolutionException e) {
+        e.getErrors().forEach(context::addError);
+      }
     }
     if (advices.isEmpty()) {
       context.addError(ErrorCode.CALL_SITE_SHOULD_HAVE_ADVICE_METHODS);
@@ -72,12 +88,16 @@ public class CallSiteSpecification implements Validatable {
     return spi;
   }
 
+  public Enabled getEnabled() {
+    return enabled;
+  }
+
   public Type[] getHelpers() {
     return helpers;
   }
 
-  public Stream<AdviceSpecification> getAdvices() {
-    return advices.stream();
+  public List<AdviceSpecification> getAdvices() {
+    return advices;
   }
 
   /**
@@ -88,7 +108,7 @@ public class CallSiteSpecification implements Validatable {
   public abstract static class AdviceSpecification implements Validatable {
 
     protected final MethodType advice;
-    private final Map<Integer, ParameterSpecification> parameters;
+    private final Map<Integer /* param idx on the advice */, ParameterSpecification> parameters;
     protected final String signature;
     protected final boolean invokeDynamic;
     protected MethodType pointcut;
@@ -130,10 +150,6 @@ public class CallSiteSpecification implements Validatable {
           validateThisSpecCompatibility(context, adviceArgumentTypes);
           validateArgumentSpecCompatibility(context, adviceArgumentTypes, pointcutParameters);
           validateReturnSpecCompatibility(context, adviceArgumentTypes);
-          if (!pointcutParameters.isEmpty()) {
-            context.addError(
-                ErrorCode.ADVICE_POINT_CUT_PARAMETERS_NOT_CONSUMED, pointcutParameters);
-          }
         }
       } catch (ResolutionException e) {
         e.getErrors().forEach(context::addError);
@@ -162,7 +178,10 @@ public class CallSiteSpecification implements Validatable {
       withParameter(
           ReturnSpecification.class,
           (i, spec) -> {
-            final Type rType = pointcut.getMethodType().getReturnType();
+            final Type rType =
+                pointcut.isConstructor()
+                    ? pointcut.getOwner()
+                    : pointcut.getMethodType().getReturnType();
             final Type advice = adviceArgumentTypes[i];
             validateCompatibility(
                 context, rType, advice, ErrorCode.ADVICE_METHOD_PARAM_RETURN_NOT_COMPATIBLE, i);
@@ -181,7 +200,7 @@ public class CallSiteSpecification implements Validatable {
           });
     }
 
-    private void validateAdviceReturnTypeCompatibility(final ValidationContext context) {
+    protected void validateAdviceReturnTypeCompatibility(final ValidationContext context) {
       if (!advice.isVoidReturn()) {
         final Type pointcutType =
             pointcut.isConstructor()
@@ -200,7 +219,7 @@ public class CallSiteSpecification implements Validatable {
       withParameter(
           InvokeDynamicConstantsSpecification.class,
           (i, spec) -> {
-            final Type type = Type.getType(Object[].class);
+            final Type type = Types.OBJECT_ARRAY;
             final Type advice = adviceArgumentTypes[i];
             pointcutParameters.clear();
             validateCompatibility(
@@ -219,7 +238,7 @@ public class CallSiteSpecification implements Validatable {
       withParameter(
           AllArgsSpecification.class,
           (i, spec) -> {
-            final Type type = Type.getType(Object[].class);
+            final Type type = Types.OBJECT_ARRAY;
             final Type advice = adviceArgumentTypes[i];
             pointcutParameters.clear();
             validateCompatibility(
@@ -403,6 +422,28 @@ public class CallSiteSpecification implements Validatable {
       return invokeDynamic;
     }
 
+    /* Whether not all of the pointcut arguments are consumed or they're not
+     * consumed in sequential order or there are no pointcut arguments at all */
+    public boolean isPositionalArguments() {
+      if (parameters.isEmpty()) {
+        return true;
+      }
+      if (pointcut.getMethodType().getArgumentTypes().length != getArguments().count()) {
+        return true;
+      }
+
+      Iterator<ArgumentSpecification> iterator = getArguments().iterator();
+      int i = 0;
+      while (iterator.hasNext()) {
+        ArgumentSpecification spec = iterator.next();
+        if (spec.getIndex() != i) {
+          return true;
+        }
+        i++;
+      }
+      return false;
+    }
+
     public boolean includeThis() {
       if (findThis() != null) {
         return true;
@@ -450,10 +491,6 @@ public class CallSiteSpecification implements Validatable {
       return parameters.values().stream()
           .filter(it -> it instanceof ArgumentSpecification)
           .map(it -> (ArgumentSpecification) it);
-    }
-
-    public boolean isComputeMaxStack() {
-      return !(this instanceof AroundSpecification);
     }
   }
 
@@ -534,16 +571,16 @@ public class CallSiteSpecification implements Validatable {
       if (advice.isVoidReturn()) {
         context.addError(ErrorCode.ADVICE_AFTER_SHOULD_NOT_RETURN_VOID);
       }
-      if (!isStaticPointcut() && !includeThis()) {
-        context.addError(ErrorCode.ADVICE_AFTER_SHOULD_HAVE_THIS);
+      if (findReturn() == null) {
+        context.addError(ErrorCode.ADVICE_AFTER_SHOULD_HAVE_RETURN);
       }
       if (!pointcut.isConstructor()) {
-        if (findReturn() == null) {
-          context.addError(ErrorCode.ADVICE_AFTER_SHOULD_HAVE_RETURN);
+        if (!isStaticPointcut() && !includeThis()) {
+          context.addError(ErrorCode.ADVICE_AFTER_SHOULD_HAVE_THIS);
         }
       } else {
-        if (findReturn() != null) {
-          context.addError(ErrorCode.ADVICE_AFTER_CONSTRUCTOR_SHOULD_NOT_HAVE_RETURN);
+        if (findAllArguments() == null) {
+          context.addError(ErrorCode.ADVICE_AFTER_CONSTRUCTOR_ALL_ARGUMENTS);
         }
       }
       super.validateAdvice(context);
@@ -611,7 +648,7 @@ public class CallSiteSpecification implements Validatable {
 
     @Override
     public String toString() {
-      return "@Argument";
+      return "@Argument(" + index + ")";
     }
   }
 
@@ -619,6 +656,34 @@ public class CallSiteSpecification implements Validatable {
     @Override
     public String toString() {
       return "@InvokeDynamicConstants";
+    }
+  }
+
+  public static final class Enabled {
+    private final MethodType method;
+    private final List<String> arguments;
+
+    public Enabled(final List<String> enabled) {
+      this.arguments = enabled.size() <= 2 ? emptyList() : enabled.subList(2, enabled.size());
+      this.method =
+          new MethodType(
+              classNameToType(enabled.get(0)),
+              enabled.get(1),
+              Type.getMethodType(Types.BOOLEAN, stringTypeArray(arguments.size())));
+    }
+
+    public MethodType getMethod() {
+      return method;
+    }
+
+    public List<String> getArguments() {
+      return arguments;
+    }
+
+    private Type[] stringTypeArray(final int size) {
+      final Type[] types = new Type[size];
+      Arrays.fill(types, Types.STRING);
+      return types;
     }
   }
 }

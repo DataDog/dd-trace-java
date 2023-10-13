@@ -1,0 +1,37 @@
+plugins {
+  id 'java'
+  id 'org.springframework.boot' version '3.0.0'
+  id 'io.spring.dependency-management' version '1.0.14.RELEASE'
+  id 'org.graalvm.buildtools.native' version '0.9.23'
+  id 'com.diffplug.spotless' version "6.11.0"
+}
+
+def sharedRootDir = "$rootDir/../../../"
+def sharedConfigDirectory = "$sharedRootDir/gradle"
+rootProject.ext.sharedConfigDirectory = sharedConfigDirectory
+
+apply from: "$sharedConfigDirectory/repositories.gradle"
+apply from: "$sharedConfigDirectory/spotless.gradle"
+
+if (hasProperty('appBuildDir')) {
+  buildDir = property('appBuildDir')
+}
+
+dependencies {
+  implementation 'org.springframework.boot:spring-boot-starter-web'
+  if (hasProperty('apiJar')) {
+    implementation files(property('apiJar'))
+  } else {
+    implementation "com.datadoghq:dd-trace-api:1.2.0"
+  }
+}
+
+if (hasProperty('agentPath')) {
+  graalvmNative {
+    binaries {
+      main {
+        buildArgs.add("-J-javaagent:${property('agentPath')}")
+      }
+    }
+  }
+}

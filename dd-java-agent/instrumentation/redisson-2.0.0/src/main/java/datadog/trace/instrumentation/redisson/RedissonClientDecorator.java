@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.redisson;
 
+import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.DBTypeProcessingDatabaseClientDecorator;
@@ -7,10 +8,13 @@ import org.redisson.client.protocol.CommandData;
 
 public class RedissonClientDecorator
     extends DBTypeProcessingDatabaseClientDecorator<CommandData<?, ?>> {
-  public static final CharSequence REDIS_COMMAND = UTF8BytesString.create("redis.command");
   public static final RedissonClientDecorator DECORATE = new RedissonClientDecorator();
 
-  private static final String SERVICE_NAME = "redis";
+  public static final CharSequence OPERATION_NAME =
+      UTF8BytesString.create(SpanNaming.instance().namingSchema().cache().operation("redis"));
+  private static final String SERVICE_NAME =
+      SpanNaming.instance().namingSchema().cache().service("redis");
+
   private static final CharSequence COMPONENT_NAME = UTF8BytesString.create("redis-command");
 
   @Override

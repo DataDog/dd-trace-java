@@ -8,6 +8,9 @@ public class RuleFlags {
     // These names all derive from the simple class names which
     // were exposed as config at some point in the past.
     RESOURCE_NAME("ResourceNameRule"),
+    URL_AS_RESOURCE_NAME("URLAsResourceNameRule"),
+    STATUS_404("Status404Rule"),
+    STATUS_404_DECORATOR("Status404Decorator"),
     DB_STATEMENT("DBStatementRule"),
     FORCE_MANUAL_DROP("ForceManualDropTagInterceptor"),
     FORCE_MANUAL_KEEP("ForceManualKeepTagInterceptor"),

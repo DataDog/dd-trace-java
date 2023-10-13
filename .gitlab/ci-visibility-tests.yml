@@ -1,0 +1,19 @@
+run-ci-visibility-test-environment:
+  stage: ci-visibility-tests
+  when: manual
+  needs: []
+  trigger:
+    project: DataDog/apm-reliability/test-environment
+    branch: main
+    strategy: depend
+  variables:
+    UPSTREAM_PACKAGE_JOB: build
+    UPSTREAM_PROJECT_ID: $CI_PROJECT_ID
+    UPSTREAM_PROJECT_NAME: $CI_PROJECT_NAME
+    UPSTREAM_PIPELINE_ID: $CI_PIPELINE_ID
+    UPSTREAM_BRANCH: $CI_COMMIT_BRANCH
+    UPSTREAM_TAG: $CI_COMMIT_TAG
+    UPSTREAM_COMMIT_AUTHOR: $CI_COMMIT_AUTHOR
+    UPSTREAM_COMMIT_SHORT_SHA: $CI_COMMIT_SHORT_SHA
+    TRACER_LANG: java
+    JAVA_TRACER_REF_TO_TEST: $CI_COMMIT_BRANCH

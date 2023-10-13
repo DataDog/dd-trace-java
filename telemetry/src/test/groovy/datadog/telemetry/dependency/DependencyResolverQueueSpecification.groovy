@@ -45,5 +45,12 @@ class DependencyResolverQueueSpecification extends DepSpecification {
 
     then:
     assert deps.isEmpty()
+
+    when: 'a repeated dependency is added'
+    resolverQueue.queueURI(getJar('junit-4.12.jar').toURI())
+    deps = resolverQueue.pollDependency()
+
+    then: 'it has no effect'
+    assert deps.isEmpty()
   }
 }

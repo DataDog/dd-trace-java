@@ -19,6 +19,7 @@ public class TraceUtils {
 
   static final String DEFAULT_SERVICE_NAME = "unnamed-service";
   static final String DEFAULT_OPERATION_NAME = "unnamed_operation";
+  static final String DEFAULT_ENV = "none";
 
   private static final Logger log = LoggerFactory.getLogger(TraceUtils.class);
 
@@ -61,7 +62,7 @@ public class TraceUtils {
     return name;
   }
 
-  public static String normalizeSpanType(final String spanType) {
+  public static CharSequence normalizeSpanType(final CharSequence spanType) {
     if (spanType != null && spanType.length() > MAX_TYPE_LEN) {
       log.debug(
           "Fixing malformed trace. Type is too long (reason:type_truncate), truncating span.type to length={}",
@@ -73,7 +74,7 @@ public class TraceUtils {
 
   public static String normalizeEnv(final String env) {
     if (env == null || env.length() == 0) {
-      return "";
+      return DEFAULT_ENV;
     }
 
     String e = truncate(env, MAX_ENV_LEN);
@@ -85,6 +86,7 @@ public class TraceUtils {
   }
 
   // spotless:off
+
   /**
    * Normalizes a tag value:
    * - Only letters, digits, ":", ".", "-", "_" and "/" are allowed.
@@ -146,6 +148,7 @@ public class TraceUtils {
   }
 
   // spotless:off
+
   /**
    * Normalizes the span name:
    * - Only alphanumeric chars, "_" and "." are allowed.

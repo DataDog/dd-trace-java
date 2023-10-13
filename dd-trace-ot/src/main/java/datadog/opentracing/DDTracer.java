@@ -4,17 +4,21 @@ import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.GlobalTracer;
 import datadog.trace.api.StatsDClient;
+import datadog.trace.api.experimental.DataStreamsCheckpointer;
 import datadog.trace.api.interceptor.TraceInterceptor;
+import datadog.trace.api.internal.InternalTracer;
+import datadog.trace.api.internal.TraceSegment;
+import datadog.trace.api.profiling.Profiling;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.common.sampling.Sampler;
 import datadog.trace.common.writer.Writer;
-import datadog.trace.context.ScopeListener;
 import datadog.trace.core.CoreTracer;
 import datadog.trace.core.DDSpanContext;
 import datadog.trace.core.propagation.ExtractedContext;
 import datadog.trace.core.propagation.HttpCodec;
+import datadog.trace.correlation.CorrelationIdInjectors;
 import io.opentracing.References;
 import io.opentracing.Scope;
 import io.opentracing.ScopeManager;
@@ -36,8 +40,8 @@ import org.slf4j.LoggerFactory;
  * DDTracer implements the <code>io.opentracing.Tracer</code> interface to make it easy to send
  * traces and spans to Datadog using the OpenTracing API.
  */
-public class DDTracer implements Tracer, datadog.trace.api.Tracer {
-
+public class DDTracer implements Tracer, datadog.trace.api.Tracer, InternalTracer {
+  private static final String INSTRUMENTATION_NAME = "opentracing";
   private static final Logger log = LoggerFactory.getLogger(DDTracer.class);
 
   static {
@@ -326,9 +330,9 @@ public class DDTracer implements Tracer, datadog.trace.api.Tracer {
 
     // Check if the tracer is already installed by the agent
     // Unable to use "instanceof" because of class renaming
-    if ((writer == null
-            || writer.getClass().getName().equals("datadog.trace.common.writer.DDAgentWriter"))
-        && GlobalTracer.get().getClass().getName().equals("datadog.trace.agent.core.CoreTracer")) {
+    String expectedName =
+        "avoid_rewrite.datadog.trace.agent.core.CoreTracer".substring("avoid_rewrite.".length());
+    if (GlobalTracer.get().getClass().getName().equals(expectedName)) {
       log.error(
           "Datadog Tracer already installed by `dd-java-agent`. NOTE: Manually creating the tracer while using `dd-java-agent` is not supported");
       throw new IllegalStateException("Datadog Tracer already installed");
@@ -405,6 +409,11 @@ public class DDTracer implements Tracer, datadog.trace.api.Tracer {
     if (scopeManager == null) {
       this.scopeManager = new OTScopeManager(tracer, converter);
     }
+
+    if ((config != null && config.isLogsInjectionEnabled())
+        || (config == null && Config.get().isLogsInjectionEnabled())) {
+      CorrelationIdInjectors.register(this);
+    }
   }
 
   private static Map<String, String> customRuntimeTags(
@@ -430,8 +439,8 @@ public class DDTracer implements Tracer, datadog.trace.api.Tracer {
   }
 
   @Override
-  public void addScopeListener(final ScopeListener listener) {
-    tracer.addScopeListener(listener);
+  public DataStreamsCheckpointer getDataStreamsCheckpointer() {
+    return tracer.getDataStreamsCheckpointer();
   }
 
   @Override
@@ -459,7 +468,7 @@ public class DDTracer implements Tracer, datadog.trace.api.Tracer {
     if (carrier instanceof TextMap) {
       final AgentSpan.Context context = converter.toContext(spanContext);
 
-      tracer.inject(context, (TextMap) carrier, TextMapSetter.INSTANCE);
+      tracer.propagate().inject(context, (TextMap) carrier, TextMapSetter.INSTANCE);
     } else {
       log.debug("Unsupported format for propagation - {}", format.getClass().getName());
     }
@@ -469,13 +478,43 @@ public class DDTracer implements Tracer, datadog.trace.api.Tracer {
   public <C> SpanContext extract(final Format<C> format, final C carrier) {
     if (carrier instanceof TextMap) {
       final AgentSpan.Context tagContext =
-          tracer.extract((TextMap) carrier, new TextMapGetter((TextMap) carrier));
+          tracer.propagate().extract((TextMap) carrier, new TextMapGetter((TextMap) carrier));
 
       return converter.toSpanContext(tagContext);
     } else {
       log.debug("Unsupported format for propagation - {}", format.getClass().getName());
       return null;
     }
+  }
+
+  @Override
+  public void addScopeListener(
+      Runnable afterScopeActivatedCallback, Runnable afterScopeClosedCallback) {
+    tracer.addScopeListener(afterScopeActivatedCallback, afterScopeClosedCallback);
+  }
+
+  @Override
+  public void flush() {
+    tracer.flush();
+  }
+
+  @Override
+  public void flushMetrics() {
+    tracer.flushMetrics();
+  }
+
+  @Override
+  public Profiling getProfilingContext() {
+    return tracer != null ? tracer.getProfilingContext() : Profiling.NoOp.INSTANCE;
+  }
+
+  @Override
+  public TraceSegment getTraceSegment() {
+    AgentSpan.Context ctx = tracer.activeSpan().context();
+    if (ctx instanceof DDSpanContext) {
+      return ((DDSpanContext) ctx).getTraceSegment();
+    }
+    return null;
   }
 
   @Override
@@ -513,7 +552,7 @@ public class DDTracer implements Tracer, datadog.trace.api.Tracer {
     private final AgentTracer.SpanBuilder delegate;
 
     public DDSpanBuilder(final String operationName) {
-      delegate = tracer.buildSpan(operationName);
+      delegate = tracer.buildSpan(INSTRUMENTATION_NAME, operationName);
     }
 
     @Override

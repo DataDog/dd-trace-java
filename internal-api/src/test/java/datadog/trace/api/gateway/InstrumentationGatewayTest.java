@@ -3,19 +3,21 @@ package datadog.trace.api.gateway;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import datadog.trace.api.TraceSegment;
-import datadog.trace.api.function.BiConsumer;
-import datadog.trace.api.function.BiFunction;
-import datadog.trace.api.function.Function;
-import datadog.trace.api.function.Supplier;
+import datadog.appsec.api.blocking.BlockingContentType;
 import datadog.trace.api.function.TriConsumer;
 import datadog.trace.api.function.TriFunction;
 import datadog.trace.api.http.StoredBodySupplier;
+import datadog.trace.api.internal.TraceSegment;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import java.io.IOException;
+import java.util.Collections;
+import java.util.function.BiConsumer;
+import java.util.function.BiFunction;
+import java.util.function.Function;
+import java.util.function.Supplier;
 import org.assertj.core.api.ThrowableAssert;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 public class InstrumentationGatewayTest {
 
@@ -27,7 +29,7 @@ public class InstrumentationGatewayTest {
   private Callback callback;
   private Events<Object> events;
 
-  @Before
+  @BeforeEach
   public void setUp() {
     gateway = new InstrumentationGateway();
     ss = gateway.getSubscriptionService(RequestContextSlot.APPSEC);
@@ -45,6 +47,14 @@ public class InstrumentationGatewayTest {
           @Override
           public TraceSegment getTraceSegment() {
             return TraceSegment.NoOp.INSTANCE;
+          }
+
+          @Override
+          public void setBlockResponseFunction(BlockResponseFunction blockResponseFunction) {}
+
+          @Override
+          public BlockResponseFunction getBlockResponseFunction() {
+            return null;
           }
         };
     flow = new Flow.ResultFlow<>(null);
@@ -123,10 +133,26 @@ public class InstrumentationGatewayTest {
   @Test
   public void testRequestBlockingAction() {
     Flow.Action.RequestBlockingAction rba =
-        new Flow.Action.RequestBlockingAction(400, Flow.Action.BlockingContentType.HTML);
+        new Flow.Action.RequestBlockingAction(400, BlockingContentType.HTML);
     assertThat(rba.isBlocking()).isTrue();
     assertThat(rba.getStatusCode()).isEqualTo(400);
-    assertThat(rba.getBlockingContentType()).isEqualTo(Flow.Action.BlockingContentType.HTML);
+    assertThat(rba.getBlockingContentType()).isEqualTo(BlockingContentType.HTML);
+
+    rba =
+        new Flow.Action.RequestBlockingAction(
+            400,
+            BlockingContentType.HTML,
+            Collections.singletonMap("Location", "https://www.google.com/"));
+    assertThat(rba.isBlocking()).isTrue();
+    assertThat(rba.getStatusCode()).isEqualTo(400);
+    assertThat(rba.getBlockingContentType()).isEqualTo(BlockingContentType.HTML);
+    assertThat(rba.getExtraHeaders().get("Location")).isEqualTo("https://www.google.com/");
+
+    rba = Flow.Action.RequestBlockingAction.forRedirect(301, "https://www.google.com/");
+    assertThat(rba.isBlocking()).isTrue();
+    assertThat(rba.getStatusCode()).isEqualTo(301);
+    assertThat(rba.getBlockingContentType()).isEqualTo(BlockingContentType.NONE);
+    assertThat(rba.getExtraHeaders().get("Location")).isEqualTo("https://www.google.com/");
   }
 
   @Test
@@ -138,7 +164,7 @@ public class InstrumentationGatewayTest {
     assertThat(cbp.getCallback(events.requestEnded()).apply(null, null)).isEqualTo(flow);
     ss.registerCallback(events.requestHeader(), callback);
     cbp.getCallback(events.requestHeader()).accept(null, null, null);
-    ss.registerCallback(events.requestHeaderDone(), callback);
+    ss.registerCallback(events.requestHeaderDone(), callback.function);
     assertThat(cbp.getCallback(events.requestHeaderDone()).apply(null)).isEqualTo(flow);
     ss.registerCallback(events.requestMethodUriRaw(), callback);
     assertThat(cbp.getCallback(events.requestMethodUriRaw()).apply(null, null, null))
@@ -166,7 +192,7 @@ public class InstrumentationGatewayTest {
     cbp.getCallback(events.responseStarted()).apply(null, null);
     ss.registerCallback(events.responseHeader(), callback);
     cbp.getCallback(events.responseHeader()).accept(null, null, null);
-    ss.registerCallback(events.responseHeaderDone(), callback);
+    ss.registerCallback(events.responseHeaderDone(), callback.function);
     cbp.getCallback(events.responseHeaderDone()).apply(null);
     assertThat(callback.count).isEqualTo(Events.MAX_EVENTS);
   }
@@ -182,7 +208,7 @@ public class InstrumentationGatewayTest {
         .isEqualTo(Flow.ResultFlow.empty());
     ss.registerCallback(events.requestHeader(), throwback);
     cbp.getCallback(events.requestHeader()).accept(null, null, null);
-    ss.registerCallback(events.requestHeaderDone(), throwback);
+    ss.registerCallback(events.requestHeaderDone(), throwback.function);
     assertThat(cbp.getCallback(events.requestHeaderDone()).apply(null))
         .isEqualTo(Flow.ResultFlow.empty());
     ss.registerCallback(events.requestMethodUriRaw(), throwback);
@@ -212,7 +238,7 @@ public class InstrumentationGatewayTest {
     cbp.getCallback(events.responseStarted()).apply(null, null);
     ss.registerCallback(events.responseHeader(), throwback);
     cbp.getCallback(events.responseHeader()).accept(null, null, null);
-    ss.registerCallback(events.responseHeaderDone(), throwback);
+    ss.registerCallback(events.responseHeaderDone(), throwback.function);
     cbp.getCallback(events.responseHeaderDone()).apply(null);
     assertThat(throwback.count).isEqualTo(Events.MAX_EVENTS);
   }
@@ -257,14 +283,11 @@ public class InstrumentationGatewayTest {
     SubscriptionService ssIast = gateway.getSubscriptionService(RequestContextSlot.IAST);
     final int[] count = new int[1];
     BiFunction<RequestContext, IGSpanInfo, Flow<Void>> cb =
-        new BiFunction<RequestContext, IGSpanInfo, Flow<Void>>() {
-          @Override
-          public Flow<Void> apply(RequestContext requestContext, IGSpanInfo igSpanInfo) {
-            assertThat(requestContext).isSameAs(callback.ctxt);
-            assertThat(igSpanInfo).isSameAs(AgentTracer.NoopAgentSpan.INSTANCE);
-            count[0]++;
-            return new Flow.ResultFlow<>(null);
-          }
+        (requestContext, igSpanInfo) -> {
+          assertThat(requestContext).isSameAs(callback.ctxt);
+          assertThat(igSpanInfo).isSameAs(AgentTracer.NoopAgentSpan.INSTANCE);
+          count[0]++;
+          return new Flow.ResultFlow<>(null);
         };
     ss.registerCallback(events.requestEnded(), cb);
     ssIast.registerCallback(events.requestEnded(), cb);
@@ -325,7 +348,7 @@ public class InstrumentationGatewayTest {
         new Flow.ResultFlow<Void>(null) {
           @Override
           public Action getAction() {
-            return new Action.RequestBlockingAction(410, Action.BlockingContentType.AUTO);
+            return new Action.RequestBlockingAction(410, BlockingContentType.AUTO);
           }
         };
 
@@ -362,7 +385,6 @@ public class InstrumentationGatewayTest {
 
   private static class Callback<D, T>
       implements Supplier<Flow<D>>,
-          Function<RequestContext, Flow<Void>>,
           BiConsumer<RequestContext, T>,
           TriConsumer<RequestContext, T, T>,
           BiFunction<RequestContext, T, Flow<Void>>,
@@ -371,16 +393,16 @@ public class InstrumentationGatewayTest {
     private final RequestContext ctxt;
     private final Flow<Void> flow;
     private int count = 0;
+    private final Function<RequestContext, Flow<Void>> function;
 
     public Callback(RequestContext ctxt, Flow<Void> flow) {
       this.ctxt = ctxt;
       this.flow = flow;
-    }
-
-    @Override
-    public Flow<Void> apply(RequestContext input) {
-      count++;
-      return flow;
+      function =
+          input -> {
+            count++;
+            return flow;
+          };
     }
 
     @Override
@@ -401,33 +423,23 @@ public class InstrumentationGatewayTest {
     }
 
     public TriFunction<RequestContext, String, Short, Flow<Void>> asClientSocketAddress() {
-      return new TriFunction<RequestContext, String, Short, Flow<Void>>() {
-        @Override
-        public Flow<Void> apply(RequestContext requestContext, String s, Short aShort) {
-          count++;
-          return flow;
-        }
+      return (requestContext, s, aShort) -> {
+        count++;
+        return flow;
       };
     }
 
     public BiFunction<RequestContext, StoredBodySupplier, Void> asRequestBodyStart() {
-      return new BiFunction<RequestContext, StoredBodySupplier, Void>() {
-        @Override
-        public Void apply(RequestContext requestContext, StoredBodySupplier storedBodySupplier) {
-          count++;
-          return null;
-        }
+      return (requestContext, storedBodySupplier) -> {
+        count++;
+        return null;
       };
     }
 
     public BiFunction<RequestContext, StoredBodySupplier, Flow<Void>> asRequestBodyDone() {
-      return new BiFunction<RequestContext, StoredBodySupplier, Flow<Void>>() {
-        @Override
-        public Flow<Void> apply(
-            RequestContext requestContext, StoredBodySupplier storedBodySupplier) {
-          count++;
-          return new Flow.ResultFlow<>(null);
-        }
+      return (requestContext, storedBodySupplier) -> {
+        count++;
+        return new Flow.ResultFlow<>(null);
       };
     }
 
@@ -445,7 +457,6 @@ public class InstrumentationGatewayTest {
 
   private static class Throwback<D, T>
       implements Supplier<Flow<D>>,
-          Function<RequestContext, Flow<Void>>,
           BiConsumer<RequestContext, T>,
           TriConsumer<RequestContext, T, T>,
           BiFunction<RequestContext, T, Flow<Void>>,
@@ -453,11 +464,11 @@ public class InstrumentationGatewayTest {
 
     private int count = 0;
 
-    @Override
-    public Flow<Void> apply(RequestContext input) {
-      count++;
-      throw new IllegalArgumentException();
-    }
+    private final Function<RequestContext, Flow<Void>> function =
+        input -> {
+          count++;
+          throw new IllegalArgumentException();
+        };
 
     @Override
     public Flow<Void> apply(RequestContext requestContext, T arg) {
@@ -484,43 +495,30 @@ public class InstrumentationGatewayTest {
     }
 
     public TriFunction<RequestContext, String, Short, Flow<Void>> asClientSocketAddress() {
-      return new TriFunction<RequestContext, String, Short, Flow<Void>>() {
-        @Override
-        public Flow<Void> apply(RequestContext requestContext, String s, Short aShort) {
-          count++;
-          throw new IllegalArgumentException();
-        }
+      return (requestContext, s, aShort) -> {
+        count++;
+        throw new IllegalArgumentException();
       };
     }
 
     public BiFunction<RequestContext, String, Flow<Void>> asInferredClientAddress() {
-      return new BiFunction<RequestContext, String, Flow<Void>>() {
-        @Override
-        public Flow<Void> apply(RequestContext requestContext, String s) {
-          count++;
-          throw new IllegalArgumentException();
-        }
+      return (requestContext, s) -> {
+        count++;
+        throw new IllegalArgumentException();
       };
     }
 
     public BiFunction<RequestContext, StoredBodySupplier, Void> asRequestBodyStart() {
-      return new BiFunction<RequestContext, StoredBodySupplier, Void>() {
-        @Override
-        public Void apply(RequestContext requestContext, StoredBodySupplier storedBodySupplier) {
-          count++;
-          throw new IllegalArgumentException();
-        }
+      return (requestContext, storedBodySupplier) -> {
+        count++;
+        throw new IllegalArgumentException();
       };
     }
 
     public BiFunction<RequestContext, StoredBodySupplier, Flow<Void>> asRequestBodyDone() {
-      return new BiFunction<RequestContext, StoredBodySupplier, Flow<Void>>() {
-        @Override
-        public Flow<Void> apply(
-            RequestContext requestContext, StoredBodySupplier storedBodySupplier) {
-          count++;
-          throw new IllegalArgumentException();
-        }
+      return (requestContext, storedBodySupplier) -> {
+        count++;
+        throw new IllegalArgumentException();
       };
     }
 

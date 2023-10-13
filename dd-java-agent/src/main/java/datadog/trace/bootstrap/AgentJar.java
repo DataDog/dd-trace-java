@@ -3,10 +3,7 @@ package datadog.trace.bootstrap;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.net.MalformedURLException;
-import java.net.URL;
 import java.nio.charset.StandardCharsets;
-import java.security.CodeSource;
 import java.util.Arrays;
 
 /** Entry point when running the agent as a sample application with -jar. */
@@ -29,6 +26,9 @@ public final class AgentJar {
             break;
           case "uploadCrash":
             uploadCrash(args);
+            break;
+          case "scanDependencies":
+            scanDependencies(args);
             break;
           case "--list-integrations":
           case "-li":
@@ -59,6 +59,7 @@ public final class AgentJar {
     System.out.println("usage:");
     System.out.println("  sampleTrace [-c count] [-i interval]");
     System.out.println("  uploadCrash file ...");
+    System.out.println("  scanDependencies <path> ...");
     System.out.println("  [-li | --list-integrations]");
     System.out.println("  [-h  | --help]");
     System.out.println("  [-v  | --version]");
@@ -100,18 +101,22 @@ public final class AgentJar {
         .invoke(null, new Object[] {Arrays.copyOfRange(args, 1, args.length)});
   }
 
+  private static void scanDependencies(final String[] args) throws Exception {
+    if (args.length < 2) {
+      throw new IllegalArgumentException("missing path");
+    }
+
+    installAgentCLI()
+        .getMethod("scanDependencies", String[].class)
+        .invoke(null, new Object[] {Arrays.copyOfRange(args, 1, args.length)});
+  }
+
   private static void printIntegrationNames() throws Exception {
     installAgentCLI().getMethod("printIntegrationNames").invoke(null);
   }
 
   private static Class<?> installAgentCLI() throws Exception {
-    CodeSource codeSource = thisClass.getProtectionDomain().getCodeSource();
-    if (codeSource == null || codeSource.getLocation() == null) {
-      throw new MalformedURLException("Could not get jar location from code source");
-    }
-
-    return (Class<?>)
-        agentClass.getMethod("installAgentCLI", URL.class).invoke(null, codeSource.getLocation());
+    return (Class<?>) agentClass.getMethod("installAgentCLI").invoke(null);
   }
 
   private static void printAgentVersion() {

@@ -8,9 +8,10 @@ import play.shaded.ahc.org.asynchttpclient.Request;
 import play.shaded.ahc.org.asynchttpclient.Response;
 
 public class PlayWSClientDecorator extends HttpClientDecorator<Request, Response> {
-  public static final CharSequence PLAY_WS_REQUEST = UTF8BytesString.create("play-ws.request");
   public static final CharSequence PLAY_WS = UTF8BytesString.create("play-ws");
   public static final PlayWSClientDecorator DECORATE = new PlayWSClientDecorator();
+  public static final CharSequence PLAY_WS_REQUEST =
+      UTF8BytesString.create(DECORATE.operationName());
 
   @Override
   protected String method(final Request request) {
@@ -35,5 +36,15 @@ public class PlayWSClientDecorator extends HttpClientDecorator<Request, Response
   @Override
   protected CharSequence component() {
     return PLAY_WS;
+  }
+
+  @Override
+  protected String getRequestHeader(Request request, String headerName) {
+    return request.getHeaders().get(headerName);
+  }
+
+  @Override
+  protected String getResponseHeader(Response response, String headerName) {
+    return response.getHeaders().get(headerName);
   }
 }

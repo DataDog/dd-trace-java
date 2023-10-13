@@ -1,17 +1,13 @@
-import com.google.common.io.Files
 import datadog.trace.agent.test.base.HttpServer
+import datadog.trace.instrumentation.servlet5.TestServlet5
 import jakarta.servlet.Servlet
 import jakarta.servlet.ServletException
 import org.apache.catalina.Context
 import org.apache.catalina.Wrapper
 import org.apache.catalina.connector.Request
 import org.apache.catalina.connector.Response
-import org.apache.catalina.core.StandardHost
 import org.apache.catalina.startup.Tomcat
 import org.apache.catalina.valves.ErrorReportValve
-import org.apache.catalina.valves.RemoteIpValve
-import org.apache.tomcat.JarScanFilter
-import org.apache.tomcat.JarScanType
 import spock.lang.Unroll
 
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.CUSTOM_EXCEPTION
@@ -22,66 +18,6 @@ import static org.junit.Assume.assumeTrue
 @Unroll
 class TomcatServletTest extends AbstractServletTest<Tomcat, Context> {
 
-  class TomcatServer implements HttpServer {
-    def port = 0
-    final Tomcat server
-
-    TomcatServer() {
-      server = new Tomcat()
-
-      def baseDir = Files.createTempDir()
-      baseDir.deleteOnExit()
-      server.setBaseDir(baseDir.getAbsolutePath())
-
-      server.setPort(0) // select random open port
-      server.getConnector().enableLookups = true // get localhost instead of 127.0.0.1
-
-      final File applicationDir = new File(baseDir, "/webapps/ROOT")
-      if (!applicationDir.exists()) {
-        applicationDir.mkdirs()
-        applicationDir.deleteOnExit()
-      }
-      Context servletContext = server.addWebapp("/$context", applicationDir.getAbsolutePath())
-      // Speed up startup by disabling jar scanning:
-      servletContext.getJarScanner().setJarScanFilter(new JarScanFilter() {
-          @Override
-          boolean check(JarScanType jarScanType, String jarName) {
-            return false
-          }
-        })
-
-      setupServlets(servletContext)
-
-      (server.host as StandardHost).errorReportValveClass = ErrorHandlerValve.name
-      server.host.pipeline.addValve(new RemoteIpValve())
-    }
-
-    @Override
-    void start() {
-      server.start()
-      port = server.service.findConnectors()[0].localPort
-      assert port > 0
-    }
-
-    @Override
-    void stop() {
-      server.stop()
-      server.destroy()
-    }
-
-    @Override
-    URI address() {
-      if (dispatch) {
-        return new URI("http://localhost:$port/$context/dispatch/")
-      }
-      return new URI("http://localhost:$port/$context/")
-    }
-
-    @Override
-    String toString() {
-      return this.class.name
-    }
-  }
 
   @Override
   boolean hasExtraErrorInformation() {
@@ -99,10 +35,30 @@ class TomcatServletTest extends AbstractServletTest<Tomcat, Context> {
   }
 
   @Override
+  boolean testRequestBody() {
+    true
+  }
+
+  @Override
+  boolean testRequestBodyISVariant() {
+    true
+  }
+
+  @Override
+  boolean testBodyMultipart() {
+    true
+  }
+
+  @Override
+  boolean testBlockingOnResponse() {
+    true
+  }
+
+  @Override
   Map<String, Serializable> expectedExtraErrorInformation(ServerEndpoint endpoint) {
     if (endpoint.throwsException) {
       // Exception classes get wrapped in ServletException
-      ["error.msg": { endpoint == EXCEPTION ? "Servlet execution threw an exception" : it == endpoint.body },
+      ["error.message": { endpoint == EXCEPTION ? "Servlet execution threw an exception" : it == endpoint.body },
         "error.type": { it == ServletException.name || it == InputMismatchException.name },
         "error.stack": String]
     } else {
@@ -131,7 +87,7 @@ class TomcatServletTest extends AbstractServletTest<Tomcat, Context> {
 
   @Override
   HttpServer server() {
-    return new TomcatServer()
+    new TomcatServer(context, dispatch, this.&setupServlets)
   }
 
   @Override
@@ -144,13 +100,14 @@ class TomcatServletTest extends AbstractServletTest<Tomcat, Context> {
     Wrapper wrapper = servletContext.createWrapper()
     wrapper.name = UUID.randomUUID()
     wrapper.servletClass = servlet.name
+    wrapper.asyncSupported =true
     servletContext.addChild(wrapper)
     servletContext.addServletMappingDecoded(path, wrapper.name)
   }
 
   @Override
   Class<Servlet> servlet() {
-    TestServlet
+    TestServlet5
   }
 
   def "test exception with custom status"() {

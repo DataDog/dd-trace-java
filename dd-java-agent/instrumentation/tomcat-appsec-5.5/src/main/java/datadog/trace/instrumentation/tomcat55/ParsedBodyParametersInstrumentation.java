@@ -7,11 +7,12 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
+import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.advice.ActiveRequestContext;
 import datadog.trace.advice.RequiresRequestContext;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.muzzle.Reference;
-import datadog.trace.api.function.BiFunction;
+import datadog.trace.api.gateway.BlockResponseFunction;
 import datadog.trace.api.gateway.CallbackProvider;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.RequestContext;
@@ -19,6 +20,7 @@ import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import java.util.Hashtable;
+import java.util.function.BiFunction;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.matcher.ElementMatcher;
 import org.apache.tomcat.util.http.Parameters;
@@ -29,6 +31,11 @@ public class ParsedBodyParametersInstrumentation extends Instrumenter.AppSec
 
   public ParsedBodyParametersInstrumentation() {
     super("tomcat");
+  }
+
+  @Override
+  public String muzzleDirective() {
+    return "until6035_7022";
   }
 
   @Override
@@ -111,6 +118,7 @@ public class ParsedBodyParametersInstrumentation extends Instrumenter.AppSec
         @Advice.FieldValue(value = "paramHashStringArray", readOnly = false)
             Hashtable<String, String[]> paramValuesField,
         @Advice.Enter final int depth,
+        @Advice.Thrown(readOnly = false) Throwable t,
         @ActiveRequestContext RequestContext reqCtx) {
       if (depth > 0) {
         return;
@@ -128,7 +136,22 @@ public class ParsedBodyParametersInstrumentation extends Instrumenter.AppSec
         if (callback == null) {
           return;
         }
-        callback.apply(reqCtx, paramValuesField);
+        Flow<Void> flow = callback.apply(reqCtx, paramValuesField);
+        Flow.Action action = flow.getAction();
+        if (action instanceof Flow.Action.RequestBlockingAction) {
+          Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
+          BlockResponseFunction blockResponseFunction = reqCtx.getBlockResponseFunction();
+          if (blockResponseFunction != null) {
+            blockResponseFunction.tryCommitBlockingResponse(
+                reqCtx.getTraceSegment(),
+                rba.getStatusCode(),
+                rba.getBlockingContentType(),
+                rba.getExtraHeaders());
+            if (t == null) {
+              t = new BlockingException("Blocked request (for processParameters)");
+            }
+          }
+        }
       } finally {
         if (origParamValues != null) {
           origParamValues.putAll(paramValuesField);

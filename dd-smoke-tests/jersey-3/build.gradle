@@ -1,0 +1,29 @@
+plugins {
+  id "com.github.johnrengelman.shadow"
+  id 'java-test-fixtures'
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+description = 'Jersey 3 Smoke Tests.'
+
+jar {
+  manifest {
+    attributes "Main-Class": "smoketest.MainApp"
+  }
+}
+
+dependencies {
+  implementation group: 'org.glassfish.jersey.containers', name: 'jersey-container-grizzly2-http', version:'3.0.2'
+  implementation group: 'org.glassfish.jersey.inject', name: 'jersey-hk2', version:'3.0.2'
+  implementation group: 'org.glassfish.hk2', name: 'hk2-metadata-generator', version:'3.0.2'
+  implementation group: 'jakarta.activation', name: 'jakarta.activation-api', version:'2.0.1'
+  testImplementation project(':dd-smoke-tests')
+  testImplementation(testFixtures(project(":dd-smoke-tests:iast-util")))
+}
+
+tasks.withType(Test).configureEach {
+  dependsOn "shadowJar"
+  jvmArgs "-Ddatadog.smoketest.jersey3.jar.path=${tasks.shadowJar.archiveFile.get()}"
+}
+
+

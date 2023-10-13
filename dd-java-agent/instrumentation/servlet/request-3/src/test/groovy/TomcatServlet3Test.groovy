@@ -1,9 +1,11 @@
 import com.google.common.io.Files
 import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.agent.test.base.HttpServer
+import datadog.trace.agent.test.naming.TestingGenericHttpNamingConventions
 import datadog.trace.api.CorrelationIdentifier
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.instrumentation.servlet3.AsyncDispatcherDecorator
+import datadog.trace.instrumentation.servlet3.TestServlet3
 import org.apache.catalina.AccessLog
 import org.apache.catalina.Context
 import org.apache.catalina.connector.Request
@@ -20,19 +22,24 @@ import spock.lang.Unroll
 import javax.servlet.Servlet
 import javax.servlet.ServletException
 
-import static TestServlet3.SERVLET_TIMEOUT
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.CUSTOM_EXCEPTION
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.TIMEOUT
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.TIMEOUT_ERROR
+import static datadog.trace.instrumentation.servlet3.TestServlet3.SERVLET_TIMEOUT
 
 @Unroll
 abstract class TomcatServlet3Test extends AbstractServlet3Test<Tomcat, Context> {
 
   @Shared
-  def accessLogValue = (server as TomcatServer).accessLogValue
+  TestAccessLogValve accessLogValue
+
+  @Override
+  boolean testBlockingOnResponse() {
+    true
+  }
 
   class TomcatServer implements HttpServer {
     def port = 0
@@ -55,6 +62,7 @@ abstract class TomcatServlet3Test extends AbstractServlet3Test<Tomcat, Context> 
         applicationDir.deleteOnExit()
       }
       Context servletContext = server.addWebapp("/$context", applicationDir.getAbsolutePath())
+      servletContext.allowCasualMultipartParsing = true
       // Speed up startup by disabling jar scanning:
       servletContext.getJarScanner().setJarScanFilter(new JarScanFilter() {
           @Override
@@ -79,6 +87,7 @@ abstract class TomcatServlet3Test extends AbstractServlet3Test<Tomcat, Context> 
 
     @Override
     void stop() {
+      //      sleep 10_000
       server.stop()
       server.destroy()
     }
@@ -103,6 +112,7 @@ abstract class TomcatServlet3Test extends AbstractServlet3Test<Tomcat, Context> 
   }
 
   def setup() {
+    accessLogValue = (server as TomcatServer).accessLogValue
     accessLogValue.loggedIds.clear()
   }
 
@@ -111,11 +121,19 @@ abstract class TomcatServlet3Test extends AbstractServlet3Test<Tomcat, Context> 
     return "tomcat-server"
   }
 
+  //@Ignore("https://github.com/DataDog/dd-trace-java/pull/5213")
+  @Override
+  boolean testBadUrl() {
+    // Tomcat seems to exit too early:
+    //   java.lang.IllegalArgumentException: Invalid character found in the request target. The valid characters are defined in RFC 7230 and RFC 3986
+    false
+  }
+
   @Override
   Map<String, Serializable> expectedExtraErrorInformation(ServerEndpoint endpoint) {
     if (endpoint.throwsException) {
       // Exception classes get wrapped in ServletException
-      ["error.msg": { endpoint == EXCEPTION ? "Servlet execution threw an exception" : it == endpoint.body },
+      ["error.message": { endpoint == EXCEPTION ? "Servlet execution threw an exception" : it == endpoint.body },
         "error.type": { it == ServletException.name || it == InputMismatchException.name },
         "error.stack": String]
     } else {
@@ -156,7 +174,7 @@ abstract class TomcatServlet3Test extends AbstractServlet3Test<Tomcat, Context> 
         }
         "servlet.path" "/dispatch$endpoint.path"
         if (endpoint.throwsException) {
-          "error.msg" endpoint.body
+          "error.message" endpoint.body
           "error.type" { it == Exception.name || it == InputMismatchException.name }
           "error.stack" String
         }
@@ -334,9 +352,23 @@ class TestAccessLogValve extends ValveBase implements AccessLog {
 class TomcatServlet3TestSync extends TomcatServlet3Test {
 
   @Override
+  boolean testBodyUrlencoded() {
+    true
+  }
+
+  @Override
+  boolean testBodyMultipart() {
+    true
+  }
+
+  @Override
   Class<Servlet> servlet() {
     TestServlet3.Sync
   }
+}
+
+class TomcatServlet3SyncV1ForkedTest extends TomcatServlet3TestSync implements TestingGenericHttpNamingConventions.ServerV1 {
+
 }
 
 class TomcatServlet3TestAsync extends TomcatServlet3Test {
@@ -356,6 +388,11 @@ class TomcatServlet3TestAsync extends TomcatServlet3Test {
     // The exception will just cause an async timeout
     false
   }
+
+}
+
+class TomcatServlet3AsyncV1ForkedTest extends TomcatServlet3TestAsync implements TestingGenericHttpNamingConventions.ServerV1 {
+
 }
 
 class TomcatServlet3TestFakeAsync extends TomcatServlet3Test {

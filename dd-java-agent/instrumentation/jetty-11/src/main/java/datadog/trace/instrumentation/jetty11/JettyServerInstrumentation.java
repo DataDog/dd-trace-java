@@ -1,20 +1,16 @@
 package datadog.trace.instrumentation.jetty11;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.declaresMethod;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.RUNNABLE;
-import static net.bytebuddy.matcher.ElementMatchers.isDeclaredBy;
-import static net.bytebuddy.matcher.ElementMatchers.not;
 import static net.bytebuddy.matcher.ElementMatchers.takesNoArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.ExcludeFilterProvider;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.api.Config;
-import datadog.trace.api.ProductActivationConfig;
+import datadog.trace.api.ProductActivation;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter;
 import datadog.trace.instrumentation.jetty9.HttpChannelHandleVisitor;
-import java.security.ProtectionDomain;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
@@ -24,13 +20,11 @@ import net.bytebuddy.description.field.FieldDescription;
 import net.bytebuddy.description.field.FieldList;
 import net.bytebuddy.description.method.MethodList;
 import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.dynamic.DynamicType;
 import net.bytebuddy.implementation.Implementation;
 import net.bytebuddy.jar.asm.ClassVisitor;
 import net.bytebuddy.jar.asm.ClassWriter;
 import net.bytebuddy.jar.asm.Opcodes;
 import net.bytebuddy.pool.TypePool;
-import net.bytebuddy.utility.JavaModule;
 
 @AutoService(Instrumenter.class)
 public final class JettyServerInstrumentation extends Instrumenter.Tracing
@@ -56,40 +50,24 @@ public final class JettyServerInstrumentation extends Instrumenter.Tracing
       packageName + ".JettyServerAdvice",
       packageName + ".JettyServerAdvice$HandleAdvice",
       packageName + ".JettyServerAdvice$ResetAdvice",
+      "datadog.trace.instrumentation.jetty.JettyBlockResponseFunction",
+      "datadog.trace.instrumentation.jetty.JettyBlockingHelper",
     };
   }
 
   @Override
   public void adviceTransformations(AdviceTransformation transformation) {
     transformation.applyAdvice(
-        takesNoArguments()
-            .and(
-                named("handle")
-                    .or(
-                        // In 9.0.3 the handle logic was extracted out to "handle"
-                        // but we still want to instrument run in case handle is missing
-                        // (without the risk of double instrumenting).
-                        named("run").and(isDeclaredBy(not(declaresMethod(named("handle"))))))),
-        packageName + ".JettyServerAdvice$HandleAdvice");
+        takesNoArguments().and(named("handle")), packageName + ".JettyServerAdvice$HandleAdvice");
     transformation.applyAdvice(
         named("recycle").and(takesNoArguments()), packageName + ".JettyServerAdvice$ResetAdvice");
   }
 
   public AdviceTransformer transformer() {
-    return new AdviceTransformer() {
-      @Override
-      public DynamicType.Builder<?> transform(
-          DynamicType.Builder<?> builder,
-          TypeDescription typeDescription,
-          ClassLoader classLoader,
-          JavaModule module,
-          ProtectionDomain pd) {
-        return builder.visit(new HttpChannelHandleVisitorWrapper());
-      }
-    };
+    return new VisitingTransformer(new HttpChannelHandleVisitorWrapper());
   }
 
-  private static class HttpChannelHandleVisitorWrapper implements AsmVisitorWrapper {
+  public static class HttpChannelHandleVisitorWrapper implements AsmVisitorWrapper {
 
     @Override
     public int mergeWriter(int flags) {
@@ -111,7 +89,7 @@ public final class JettyServerInstrumentation extends Instrumenter.Tracing
         MethodList<?> methods,
         int writerFlags,
         int readerFlags) {
-      if (Config.get().getAppSecEnabledConfig() == ProductActivationConfig.FULLY_DISABLED) {
+      if (Config.get().getAppSecActivation() == ProductActivation.FULLY_DISABLED) {
         return classVisitor;
       }
 

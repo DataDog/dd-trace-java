@@ -3,14 +3,13 @@ package context
 import datadog.trace.agent.test.AbortTransformationException
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.agent.test.utils.ClasspathUtils
-import datadog.trace.api.Config
+import datadog.trace.api.InstrumenterConfig
 import datadog.trace.test.util.GCUtils
 import net.bytebuddy.agent.ByteBuddyAgent
 import net.bytebuddy.utility.JavaModule
 import net.sf.cglib.proxy.Enhancer
 import net.sf.cglib.proxy.MethodInterceptor
 import net.sf.cglib.proxy.MethodProxy
-import spock.lang.Retry
 
 import java.lang.instrument.ClassDefinition
 import java.lang.ref.WeakReference
@@ -100,9 +99,11 @@ class FieldInjectionForkedTest extends AgentTestRunner {
   def "get/put test"() {
     when:
     instance1.putContextCount(10)
+    instance1.putContextCount2(10)
 
     then:
     instance1.getContextCount() == 10
+    instance1.getContextCount2() == 10
 
     where:
     instance1                     | _
@@ -112,7 +113,7 @@ class FieldInjectionForkedTest extends AgentTestRunner {
 
   def "serializability not impacted"() {
     setup:
-    assumeTrue(Config.get().isSerialVersionUIDFieldInjection())
+    assumeTrue(InstrumenterConfig.get().isSerialVersionUIDFieldInjection())
 
     expect:
     serialVersionUID(serializable) == serialVersionUID
@@ -156,7 +157,7 @@ class FieldInjectionForkedTest extends AgentTestRunner {
     noExceptionThrown()
   }
 
-  @Retry
+  //@Flaky("awaitGC is flaky")
   def "backing map should not create strong refs to key class instances #keyValue.get().getClass().getName()"() {
     when:
     final int count = keyValue.get().incrementContextCount()

@@ -1,39 +1,22 @@
 package datadog.trace.api;
 
-import datadog.trace.api.function.Function;
-import datadog.trace.api.function.TwoArgFunction;
+import static java.util.function.Function.identity;
+
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
+import java.util.Locale;
+import java.util.function.BiFunction;
+import java.util.function.Function;
 
 public final class Functions {
 
   private Functions() {}
 
-  // the majority of this can be removed/simplified in JDK8
+  public abstract static class Concatenate {
 
-  public static final class Zero<T> implements Function<T, T> {
-
-    @Override
-    public T apply(T input) {
-      return input;
-    }
-  }
-
-  @SuppressWarnings("rawtypes")
-  private static final Zero ZERO = new Zero();
-
-  @SuppressWarnings("unchecked")
-  public static <T> Zero<T> zero() {
-    return (Zero<T>) ZERO;
-  }
-
-  public abstract static class Concatenate
-      implements TwoArgFunction<CharSequence, CharSequence, CharSequence> {
-
-    @Override
-    public CharSequence apply(CharSequence left, CharSequence right) {
+    public CharSequence concatenate(CharSequence left, CharSequence right) {
       return UTF8BytesString.create(String.valueOf(left) + right);
     }
   }
@@ -49,20 +32,13 @@ public final class Functions {
     }
 
     public Suffix(String suffix) {
-      this(suffix, Functions.<CharSequence>zero());
+      this(suffix, identity());
     }
 
     @Override
     public CharSequence apply(CharSequence key) {
-      return apply(transformer.apply(key), suffix);
+      return concatenate(transformer.apply(key), suffix);
     }
-
-    @Override
-    public Function<CharSequence, CharSequence> curry(CharSequence suffix) {
-      return new Suffix(suffix, transformer);
-    }
-
-    public static final Suffix ZERO = new Suffix("", Functions.<CharSequence>zero());
   }
 
   public static final class Prefix extends Concatenate
@@ -76,24 +52,17 @@ public final class Functions {
     }
 
     public Prefix(CharSequence prefix) {
-      this(prefix, Functions.<CharSequence>zero());
+      this(prefix, identity());
     }
 
     @Override
     public CharSequence apply(CharSequence key) {
-      return apply(prefix, transformer.apply(key));
+      return concatenate(prefix, transformer.apply(key));
     }
-
-    @Override
-    public Function<CharSequence, CharSequence> curry(CharSequence prefix) {
-      return new Prefix(prefix, transformer);
-    }
-
-    public static final Prefix ZERO = new Prefix("", Functions.<CharSequence>zero());
   }
 
   public abstract static class Join
-      implements TwoArgFunction<CharSequence, CharSequence, CharSequence> {
+      implements BiFunction<CharSequence, CharSequence, CharSequence> {
     protected final CharSequence joiner;
     protected final Function<CharSequence, CharSequence> transformer;
 
@@ -106,6 +75,8 @@ public final class Functions {
     public CharSequence apply(CharSequence left, CharSequence right) {
       return UTF8BytesString.create(String.valueOf(left) + joiner + right);
     }
+
+    public abstract Function<CharSequence, CharSequence> curry(CharSequence specialisation);
   }
 
   public static class PrefixJoin extends Join {
@@ -125,8 +96,10 @@ public final class Functions {
     }
 
     public static PrefixJoin of(String joiner) {
-      return of(joiner, Functions.<CharSequence>zero());
+      return of(joiner, identity());
     }
+
+    public static final PrefixJoin ZERO = of("");
   }
 
   public static class SuffixJoin extends Join {
@@ -146,17 +119,13 @@ public final class Functions {
     }
 
     public static SuffixJoin of(CharSequence joiner) {
-      return of(joiner, Functions.<CharSequence>zero());
+      return of(joiner, identity());
     }
+
+    public static final SuffixJoin ZERO = of("");
   }
 
-  public static final Function<String, UTF8BytesString> UTF8_ENCODE =
-      new Function<String, UTF8BytesString>() {
-        @Override
-        public UTF8BytesString apply(String input) {
-          return UTF8BytesString.create(input);
-        }
-      };
+  public static final Function<String, UTF8BytesString> UTF8_ENCODE = UTF8BytesString::create;
 
   public static final class LowerCase implements Function<String, String> {
 
@@ -164,7 +133,7 @@ public final class Functions {
 
     @Override
     public String apply(String key) {
-      return key.toLowerCase();
+      return key.toLowerCase(Locale.ROOT);
     }
   }
 

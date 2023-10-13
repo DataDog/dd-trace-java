@@ -1,0 +1,51 @@
+plugins {
+  id 'java'
+  id "com.github.johnrengelman.shadow"
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+description = 'SpringBoot Smoke Tests.'
+
+// The standard spring-boot plugin doesn't play nice with our project
+// so we'll build a fat jar instead
+jar {
+  manifest {
+    attributes('Main-Class': 'datadog.smoketest.appsec.springbootsecurity.SpringbootApplication')
+  }
+}
+
+forbiddenApisMain {
+  failOnMissingClasses = false
+}
+
+// Use Java 17 to build application
+tasks.withType(JavaCompile) {
+  setJavaVersion(delegate, 17)
+}
+
+dependencies {
+  implementation 'org.springframework.boot:spring-boot-starter-web:2.5.0'
+  implementation 'org.springframework.boot:spring-boot-autoconfigure:2.5.0'
+  implementation 'org.springframework.boot:spring-boot-starter-security:2.5.0'
+  implementation 'org.springframework.boot:spring-boot-starter-thymeleaf:2.5.0'
+  implementation 'org.springframework.boot:spring-boot-starter-jdbc:2.5.0'
+  implementation 'org.thymeleaf.extras:thymeleaf-extras-springsecurity5:3.1.1.RELEASE'
+  implementation 'com.h2database:h2:2.1.212'
+
+  testImplementation 'org.springframework.boot:spring-boot-starter-test:2.5.0'
+  testImplementation 'org.springframework.security:spring-security-test:5.8.2'
+
+  testImplementation project(':dd-smoke-tests:appsec')
+}
+
+tasks.withType(Test).configureEach {
+  dependsOn "shadowJar"
+
+  jvmArgs "-Ddatadog.smoketest.appsec.springbootsecurity.shadowJar.path=${tasks.shadowJar.archiveFile.get()}"
+}
+
+task testRuntimeActivation(type: Test) {
+  jvmArgs '-Dsmoke_test.appsec.enabled=inactive',
+    "-Ddatadog.smoketest.appsec.springbootsecurity.shadowJar.path=${tasks.shadowJar.archiveFile.get()}"
+}
+tasks['check'].dependsOn(testRuntimeActivation)

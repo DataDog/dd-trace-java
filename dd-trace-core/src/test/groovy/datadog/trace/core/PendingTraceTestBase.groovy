@@ -2,7 +2,6 @@ package datadog.trace.core
 
 import ch.qos.logback.classic.Level
 import ch.qos.logback.classic.Logger
-import datadog.trace.api.Checkpointer
 import datadog.trace.common.writer.ListWriter
 import datadog.trace.core.test.DDCoreSpecification
 import org.slf4j.LoggerFactory
@@ -10,8 +9,6 @@ import org.slf4j.LoggerFactory
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 
-import static datadog.trace.api.Checkpointer.END
-import static datadog.trace.api.Checkpointer.SPAN
 import static datadog.trace.api.config.TracerConfig.PARTIAL_FLUSH_MIN_SPANS
 
 abstract class PendingTraceTestBase extends DDCoreSpecification {
@@ -38,7 +35,7 @@ abstract class PendingTraceTestBase extends DDCoreSpecification {
     writer.waitForTraces(1)
 
     then:
-    trace.finishedSpans.isEmpty()
+    trace.spans.isEmpty()
     writer == [[rootSpan]]
     writer.traceCount.get() == 1
   }
@@ -55,7 +52,7 @@ abstract class PendingTraceTestBase extends DDCoreSpecification {
 
     then:
     trace.pendingReferenceCount == 1
-    trace.finishedSpans.asList() == [child]
+    trace.spans.asList() == [child]
     writer == []
 
     when:
@@ -64,7 +61,7 @@ abstract class PendingTraceTestBase extends DDCoreSpecification {
 
     then:
     trace.pendingReferenceCount == 0
-    trace.finishedSpans.isEmpty()
+    trace.spans.isEmpty()
     writer == [[rootSpan, child]]
     writer.traceCount.get() == 1
   }
@@ -81,7 +78,7 @@ abstract class PendingTraceTestBase extends DDCoreSpecification {
 
     then:
     trace.pendingReferenceCount == 1
-    trace.finishedSpans.asList() == [rootSpan]
+    trace.spans.asList() == [rootSpan]
     writer == []
 
     when:
@@ -90,7 +87,7 @@ abstract class PendingTraceTestBase extends DDCoreSpecification {
 
     then:
     trace.pendingReferenceCount == 0
-    trace.finishedSpans.isEmpty()
+    trace.spans.isEmpty()
     writer == [[child, rootSpan]]
     writer.traceCount.get() == 1
   }
@@ -107,7 +104,7 @@ abstract class PendingTraceTestBase extends DDCoreSpecification {
 
     expect:
     trace.pendingReferenceCount == 0
-    trace.finishedSpans.isEmpty()
+    trace.spans.isEmpty()
     writer == [[rootSpan], [childSpan]]
   }
 
@@ -119,7 +116,7 @@ abstract class PendingTraceTestBase extends DDCoreSpecification {
 
   def "partial flush"() {
     when:
-    injectSysConfig(PARTIAL_FLUSH_MIN_SPANS, "1")
+    injectSysConfig(PARTIAL_FLUSH_MIN_SPANS, "2")
     def quickTracer = tracerBuilder().writer(writer).build()
     def rootSpan = quickTracer.buildSpan("root").start()
     def trace = rootSpan.context().trace
@@ -134,7 +131,7 @@ abstract class PendingTraceTestBase extends DDCoreSpecification {
 
     then:
     trace.pendingReferenceCount == 2
-    trace.finishedSpans.asList() == [child2]
+    trace.spans.asList() == [child2]
     writer == []
     writer.traceCount.get() == 0
 
@@ -144,7 +141,7 @@ abstract class PendingTraceTestBase extends DDCoreSpecification {
 
     then:
     trace.pendingReferenceCount == 1
-    trace.finishedSpans.asList() == []
+    trace.spans.asList() == []
     writer == [[child1, child2]]
     writer.traceCount.get() == 1
 
@@ -154,7 +151,7 @@ abstract class PendingTraceTestBase extends DDCoreSpecification {
 
     then:
     trace.pendingReferenceCount == 0
-    trace.finishedSpans.isEmpty()
+    trace.spans.isEmpty()
     writer == [[child1, child2], [rootSpan]]
     writer.traceCount.get() == 2
 
@@ -164,7 +161,7 @@ abstract class PendingTraceTestBase extends DDCoreSpecification {
 
   def "partial flush with root span closed last"() {
     when:
-    injectSysConfig(PARTIAL_FLUSH_MIN_SPANS, "1")
+    injectSysConfig(PARTIAL_FLUSH_MIN_SPANS, "2")
     def quickTracer = tracerBuilder().writer(writer).build()
     def rootSpan = quickTracer.buildSpan("root").start()
     def trace = rootSpan.context().trace
@@ -179,7 +176,7 @@ abstract class PendingTraceTestBase extends DDCoreSpecification {
 
     then:
     trace.pendingReferenceCount == 2
-    trace.finishedSpans.asList() == [child1]
+    trace.spans.asList() == [child1]
     writer == []
     writer.traceCount.get() == 0
 
@@ -189,7 +186,7 @@ abstract class PendingTraceTestBase extends DDCoreSpecification {
 
     then:
     trace.pendingReferenceCount == 1
-    trace.finishedSpans.isEmpty()
+    trace.spans.isEmpty()
     writer == [[child2, child1]]
     writer.traceCount.get() == 1
 
@@ -199,7 +196,7 @@ abstract class PendingTraceTestBase extends DDCoreSpecification {
 
     then:
     trace.pendingReferenceCount == 0
-    trace.finishedSpans.isEmpty()
+    trace.spans.isEmpty()
     writer == [[child2, child1], [rootSpan]]
     writer.traceCount.get() == 2
 
@@ -215,7 +212,7 @@ abstract class PendingTraceTestBase extends DDCoreSpecification {
 
     setup:
     def latch = new CountDownLatch(1)
-    def rootSpan = tracer.buildSpan("root").start()
+    def rootSpan = tracer.buildSpan("test", "root").start()
     PendingTrace trace = rootSpan.context().trace
     def exceptions = []
     def threads = (1..threadCount).collect {
@@ -223,7 +220,7 @@ abstract class PendingTraceTestBase extends DDCoreSpecification {
         try {
           latch.await()
           def spans = (1..spanCount).collect {
-            tracer.startSpan("child", rootSpan.context(), true)
+            tracer.startSpan("test", "child", rootSpan.context())
           }
           spans.each {
             it.finish()
@@ -266,26 +263,5 @@ abstract class PendingTraceTestBase extends DDCoreSpecification {
     5           | 2000
     10          | 1000
     50          | 500
-  }
-
-  def "start and finish span emits checkpoints from PendingTrace"() {
-    // this test is kept close to pending trace despite not exercising
-    // its methods directly because this is where the reponsibility lies
-    // for emitting the checkpoints, and this is the least surprising place
-    // for a test to fail when modifying PendingTrace
-    setup:
-    Checkpointer checkpointer = Mock()
-    tracer.registerCheckpointer(checkpointer)
-
-    // unfortunately the span can't be
-    when:
-    def span = tracer.buildSpan("test").start()
-    then:
-    1 * checkpointer.checkpoint(_, SPAN)
-
-    when:
-    span.finish()
-    then:
-    1 * checkpointer.checkpoint(_, SPAN | END)
   }
 }

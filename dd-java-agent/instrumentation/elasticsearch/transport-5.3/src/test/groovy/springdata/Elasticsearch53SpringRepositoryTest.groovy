@@ -1,13 +1,11 @@
 package springdata
 
 import datadog.trace.agent.test.AgentTestRunner
-import datadog.trace.agent.test.checkpoints.CheckpointValidator
-import datadog.trace.agent.test.checkpoints.CheckpointValidationMode
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
+import datadog.trace.test.util.Flaky
 import org.springframework.context.annotation.AnnotationConfigApplicationContext
 import org.springframework.context.support.AbstractApplicationContext
-import spock.lang.Retry
 import spock.lang.Shared
 
 import java.lang.reflect.InvocationHandler
@@ -15,9 +13,10 @@ import java.lang.reflect.Method
 import java.lang.reflect.Proxy
 
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
+import static datadog.trace.api.config.TraceInstrumentationConfig.SPRING_DATA_REPOSITORY_INTERFACE_RESOURCE_NAME
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 
-@Retry(count = 3, delay = 1000, mode = Retry.Mode.SETUP_FEATURE_CLEANUP)
+@Flaky
 class Elasticsearch53SpringRepositoryTest extends AgentTestRunner {
   // Setting up appContext & repo with @Shared doesn't allow
   // spring-data instrumentation to applied.
@@ -76,10 +75,7 @@ class Elasticsearch53SpringRepositoryTest extends AgentTestRunner {
 
   def "test empty repo"() {
     setup:
-    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
-      CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.THREAD_SEQUENCE)
-
+    injectSysConfig(SPRING_DATA_REPOSITORY_INTERFACE_RESOURCE_NAME, "false")
     when:
     def result = repo.findAll()
 
@@ -128,9 +124,6 @@ class Elasticsearch53SpringRepositoryTest extends AgentTestRunner {
 
   def "test CRUD"() {
     setup:
-    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
-      CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.THREAD_SEQUENCE)
 
     when:
     def doc = new Doc()
@@ -143,7 +136,7 @@ class Elasticsearch53SpringRepositoryTest extends AgentTestRunner {
       sortSpansByStart()
       trace(3) {
         span {
-          resourceName "ElasticsearchRepository.index"
+          resourceName "DocRepository.index"
           operationName "repository.operation"
           tags {
             "$Tags.COMPONENT" "spring-data"
@@ -218,7 +211,7 @@ class Elasticsearch53SpringRepositoryTest extends AgentTestRunner {
       sortSpansByStart()
       trace(2) {
         span {
-          resourceName "CrudRepository.findById"
+          resourceName "DocRepository.findById"
           operationName "repository.operation"
           tags {
             "$Tags.COMPONENT" "spring-data"
@@ -262,7 +255,7 @@ class Elasticsearch53SpringRepositoryTest extends AgentTestRunner {
       sortSpansByStart()
       trace(3) {
         span {
-          resourceName "ElasticsearchRepository.index"
+          resourceName "DocRepository.index"
           operationName "repository.operation"
           tags {
             "$Tags.COMPONENT" "spring-data"
@@ -312,7 +305,7 @@ class Elasticsearch53SpringRepositoryTest extends AgentTestRunner {
       }
       trace(2) {
         span {
-          resourceName "CrudRepository.findById"
+          resourceName "DocRepository.findById"
           operationName "repository.operation"
           tags {
             "$Tags.COMPONENT" "spring-data"
@@ -355,7 +348,7 @@ class Elasticsearch53SpringRepositoryTest extends AgentTestRunner {
       sortSpansByStart()
       trace(3) {
         span {
-          resourceName "CrudRepository.deleteById"
+          resourceName "DocRepository.deleteById"
           operationName "repository.operation"
           tags {
             "$Tags.COMPONENT" "spring-data"
@@ -405,7 +398,7 @@ class Elasticsearch53SpringRepositoryTest extends AgentTestRunner {
 
       trace(2) {
         span {
-          resourceName "CrudRepository.findAll"
+          resourceName "DocRepository.findAll"
           operationName "repository.operation"
           tags {
             "$Tags.COMPONENT" "spring-data"

@@ -4,29 +4,25 @@ import net.bytebuddy.jar.asm.Handle;
 
 public interface CallSiteAdvice {
 
-  Pointcut pointcut();
-
-  interface HasHelpers {
-    String[] helperClassNames();
-  }
-
-  interface HasFlags {
-    int COMPUTE_MAX_STACK = 1;
-
-    int flags();
-  }
-
-  /** Interface to isolate advices from ASM */
   interface MethodHandler {
 
     /** Executes an instruction without parameters */
     void instruction(int opcode);
+
+    /** Executes an instruction with an int parameter */
+    void instruction(final int opcode, final int parameter);
+
+    /** Executes an instruction with a type parameter */
+    void instruction(int opcode, String type);
 
     /** Loads a constant into the stack */
     void loadConstant(Object constant);
 
     /** Loads an array of constants into the stack as a reference of type <code>Object[]</code> */
     void loadConstantArray(Object[] array);
+
+    /** Performs a field access invocation (static, special, virtual, interface...) */
+    void field(int opcode, String owner, String field, String descriptor);
 
     /** Performs a method invocation (static, special, virtual, interface...) */
     void method(int opcode, String owner, String name, String descriptor, boolean isInterface);
@@ -42,10 +38,22 @@ public interface CallSiteAdvice {
     void dupParameters(String methodDescriptor, StackDupMode mode);
 
     /**
+     * Duplicates the specified method parameters in the stack just before the method is invoked.
+     *
+     * @param owner if this is an instance method (but the advice method doesn't have any parameter
+     *     annotated with @This), then the owner of the method invocation. Otherwise <code>null
+     *     </code>.
+     */
+    void dupParameters(String methodDescriptor, int[] indexes, String owner);
+
+    /**
      * Duplicates the <code>this</code> reference and all the method parameters in the stack just
      * before the method is invoked (only for instance methods for obvious reasons).
      */
     void dupInvoke(String owner, String methodDescriptor, StackDupMode mode);
+
+    /** Variant taking positional (partial or non-sequential) argument injection. */
+    void dupInvoke(String owner, String methodDescriptor, int[] parameterIndices);
   }
 
   /** This enumeration describes how to duplicate the parameters in the stack */
@@ -54,6 +62,11 @@ public interface CallSiteAdvice {
     COPY,
     /** Copies the parameters in an array and prepends it */
     PREPEND_ARRAY,
+    /**
+     * Copies the parameters in an array, prepends it and swaps the array with the uninitialized
+     * instance in a ctor
+     */
+    PREPEND_ARRAY_CTOR,
     /** Copies the parameters in an array and appends it */
     APPEND_ARRAY
   }

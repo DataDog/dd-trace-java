@@ -6,7 +6,6 @@ import static net.bytebuddy.matcher.ElementMatchers.not;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.api.Config;
 import datadog.trace.api.WithGlobalTracer;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.matcher.ElementMatcher;
@@ -18,11 +17,6 @@ public class ThreadContextInstrumentation extends Instrumenter.Tracing
 
   public ThreadContextInstrumentation() {
     super("log4j", "log4j-2");
-  }
-
-  @Override
-  protected boolean defaultEnabled() {
-    return Config.get().isLogsInjectionEnabled();
   }
 
   @Override

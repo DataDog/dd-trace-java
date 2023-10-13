@@ -13,7 +13,6 @@ import static net.bytebuddy.matcher.ElementMatchers.returns;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.api.Config;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.implementation.bytecode.assign.Assigner;
 import org.apache.logging.log4j.core.ContextDataInjector;
@@ -23,11 +22,6 @@ public class ContextDataInjectorFactoryInstrumentation extends Instrumenter.Trac
     implements Instrumenter.ForSingleType {
   public ContextDataInjectorFactoryInstrumentation() {
     super("log4j", "log4j-2");
-  }
-
-  @Override
-  protected boolean defaultEnabled() {
-    return Config.get().isLogsInjectionEnabled();
   }
 
   @Override

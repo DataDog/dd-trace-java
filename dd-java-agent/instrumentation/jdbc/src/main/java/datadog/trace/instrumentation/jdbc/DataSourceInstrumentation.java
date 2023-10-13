@@ -48,7 +48,8 @@ public final class DataSourceInstrumentation extends Instrumenter.Tracing
 
   @Override
   public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(named("getConnection"), GetConnectionAdvice.class.getName());
+    transformation.applyAdvice(
+        named("getConnection"), DataSourceInstrumentation.class.getName() + "$GetConnectionAdvice");
   }
 
   public static class GetConnectionAdvice {

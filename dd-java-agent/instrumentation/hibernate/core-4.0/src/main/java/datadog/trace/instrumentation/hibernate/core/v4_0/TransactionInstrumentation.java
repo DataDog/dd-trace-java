@@ -24,7 +24,7 @@ public class TransactionInstrumentation extends AbstractHibernateInstrumentation
 
   @Override
   public Map<String, String> contextStore() {
-    return singletonMap("org.hibernate.Transaction", SessionState.class.getName());
+    return singletonMap("org.hibernate.Transaction", SESSION_STATE);
   }
 
   @Override

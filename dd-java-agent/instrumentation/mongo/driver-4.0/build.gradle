@@ -1,0 +1,43 @@
+
+muzzle {
+  pass {
+    group = "org.mongodb"
+    module = "mongodb-driver-sync"
+    versions = "[4.0,)"
+    assertInverse = true
+  }
+  pass {
+    group = "org.mongodb"
+    module = "mongodb-driver-reactivestreams"
+    versions = "[4.0,)"
+    assertInverse = true
+  }
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+
+addTestSuiteForDir('latestDepTest', 'test')
+
+dependencies {
+  compileOnly group: 'org.mongodb', name: 'mongodb-driver-sync', version: '4.0.0'
+  compileOnly group: 'org.mongodb', name: 'mongodb-driver-reactivestreams', version: '4.0.0'
+
+  testImplementation(project(':dd-java-agent:instrumentation:mongo:common')) {
+    transitive = false
+  }
+  testImplementation(project(':dd-java-agent:instrumentation:mongo:driver-3.1')) {
+    transitive = false
+  }
+  testImplementation(project(':dd-java-agent:instrumentation:mongo:driver-3.4')) {
+    transitive = false
+  }
+
+  testImplementation project(':dd-java-agent:instrumentation:mongo').sourceSets.test.output
+  testImplementation group: 'de.flapdoodle.embed', name: 'de.flapdoodle.embed.mongo', version: '4.5.1'
+  testImplementation group: 'commons-io', name: 'commons-io', version: '2.11.0'
+
+  testImplementation group: 'org.mongodb', name: 'mongodb-driver-sync', version: '4.0.1'
+  testImplementation group: 'org.mongodb', name: 'mongodb-driver-reactivestreams', version: '4.0.1'  // race condition bug in 4.0.0
+  latestDepTestImplementation group: 'org.mongodb', name: 'mongodb-driver-reactivestreams', version: '4.2+'
+  latestDepTestImplementation group: 'org.mongodb', name: 'mongodb-driver-sync', version: '4.2+'
+}

@@ -1,5 +1,7 @@
 package datadog.trace.util;
 
+import java.util.Locale;
+
 /** Helper class for handling tags */
 public final class TagsHelper {
   private static final int MAX_LENGTH = 200;
@@ -43,7 +45,7 @@ public final class TagsHelper {
     if (tag == null) {
       return null;
     }
-    String lower = tag.toLowerCase().trim();
+    String lower = tag.toLowerCase(Locale.ROOT).trim();
     int length = Math.min(lower.length(), MAX_LENGTH);
     StringBuilder sanitized = new StringBuilder(length);
     for (int i = 0; i < length; ++i) {
@@ -65,5 +67,17 @@ public final class TagsHelper {
         || c == '.'
         || c == '/'
         || c == ':';
+  }
+
+  public static String concatTags(String... tags) {
+    if (tags == null || tags.length == 0) {
+      return "";
+    }
+    StringBuilder sb = new StringBuilder();
+    for (String tag : tags) {
+      sb.append(tag);
+      sb.append(",");
+    }
+    return sb.substring(0, sb.length() - 1); // Remove last comma
   }
 }

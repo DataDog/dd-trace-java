@@ -9,7 +9,7 @@ import static datadog.trace.common.writer.ddagent.Prioritization.FAST_LANE;
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
 import datadog.communication.monitor.Monitoring;
 import datadog.trace.api.Config;
-import datadog.trace.api.StatsDClient;
+import datadog.trace.common.sampling.SingleSpanSampler;
 import datadog.trace.common.writer.ddagent.DDAgentApi;
 import datadog.trace.common.writer.ddagent.DDAgentMapperDiscovery;
 import datadog.trace.common.writer.ddagent.Prioritization;
@@ -34,8 +34,8 @@ public class DDAgentWriter extends RemoteWriter {
     String namedPipe = null;
     long timeoutMillis = TimeUnit.SECONDS.toMillis(DEFAULT_AGENT_TIMEOUT);
     int traceBufferSize = BUFFER_SIZE;
-    HealthMetrics healthMetrics = new HealthMetrics(StatsDClient.NO_OP);
-    int flushFrequencySeconds = 1;
+    HealthMetrics healthMetrics = HealthMetrics.NO_OP;
+    int flushIntervalMilliseconds = 1000;
     Monitoring monitoring = Monitoring.DISABLED;
     boolean traceAgentV05Enabled = Config.get().isTraceAgentV05Enabled();
     boolean metricsReportingEnabled = Config.get().isTracerMetricsEnabled();
@@ -44,6 +44,7 @@ public class DDAgentWriter extends RemoteWriter {
     private DDAgentApi agentApi;
     private Prioritization prioritization;
     private DDAgentFeaturesDiscovery featureDiscovery;
+    private SingleSpanSampler singleSpanSampler;
 
     public DDAgentWriterBuilder agentApi(DDAgentApi agentApi) {
       this.agentApi = agentApi;
@@ -85,8 +86,8 @@ public class DDAgentWriter extends RemoteWriter {
       return this;
     }
 
-    public DDAgentWriterBuilder flushFrequencySeconds(int flushFrequencySeconds) {
-      this.flushFrequencySeconds = flushFrequencySeconds;
+    public DDAgentWriterBuilder flushIntervalMilliseconds(int flushIntervalMilliseconds) {
+      this.flushIntervalMilliseconds = flushIntervalMilliseconds;
       return this;
     }
 
@@ -120,6 +121,11 @@ public class DDAgentWriter extends RemoteWriter {
       return this;
     }
 
+    public DDAgentWriterBuilder spanSamplingRules(SingleSpanSampler singleSpanSampler) {
+      this.singleSpanSampler = singleSpanSampler;
+      return this;
+    }
+
     public DDAgentWriter build() {
       final HttpUrl agentUrl = HttpUrl.get("http://" + agentHost + ":" + traceAgentPort);
       final OkHttpClient client =
@@ -138,7 +144,7 @@ public class DDAgentWriter extends RemoteWriter {
 
       final DDAgentMapperDiscovery mapperDiscovery = new DDAgentMapperDiscovery(featureDiscovery);
       final PayloadDispatcher dispatcher =
-          new PayloadDispatcher(mapperDiscovery, agentApi, healthMetrics, monitoring);
+          new PayloadDispatcherImpl(mapperDiscovery, agentApi, healthMetrics, monitoring);
       final TraceProcessingWorker traceProcessingWorker =
           new TraceProcessingWorker(
               traceBufferSize,
@@ -146,51 +152,19 @@ public class DDAgentWriter extends RemoteWriter {
               dispatcher,
               featureDiscovery,
               null == prioritization ? FAST_LANE : prioritization,
-              flushFrequencySeconds,
-              TimeUnit.SECONDS);
+              flushIntervalMilliseconds,
+              TimeUnit.MILLISECONDS,
+              singleSpanSampler);
 
-      return new DDAgentWriter(
-          featureDiscovery,
-          agentApi,
-          healthMetrics,
-          dispatcher,
-          traceProcessingWorker,
-          alwaysFlush);
+      return new DDAgentWriter(traceProcessingWorker, dispatcher, healthMetrics, alwaysFlush);
     }
   }
 
-  private DDAgentWriter(
-      DDAgentFeaturesDiscovery discovery,
-      DDAgentApi api,
-      HealthMetrics healthMetrics,
-      PayloadDispatcher dispatcher,
+  DDAgentWriter(
       TraceProcessingWorker worker,
-      boolean alwaysFlush) {
-    super(api, worker, dispatcher, healthMetrics, alwaysFlush);
-  }
-
-  private DDAgentWriter(
-      DDAgentFeaturesDiscovery discovery,
-      DDAgentApi api,
-      HealthMetrics healthMetrics,
-      Monitoring monitoring,
-      TraceProcessingWorker worker) {
-    this(
-        discovery,
-        api,
-        healthMetrics,
-        new PayloadDispatcher(
-            new DDAgentMapperDiscovery(discovery), api, healthMetrics, monitoring),
-        worker,
-        false);
-  }
-
-  private DDAgentWriter(
-      DDAgentFeaturesDiscovery discovery,
-      DDAgentApi api,
-      HealthMetrics healthMetrics,
       PayloadDispatcher dispatcher,
-      TraceProcessingWorker worker) {
-    this(discovery, api, healthMetrics, dispatcher, worker, false);
+      HealthMetrics healthMetrics,
+      boolean alwaysFlush) {
+    super(worker, dispatcher, healthMetrics, alwaysFlush);
   }
 }

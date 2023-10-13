@@ -1,17 +1,11 @@
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.core.DDSpan
 import io.netty.channel.DefaultEventLoopGroup
-import spock.lang.Requires
 import spock.lang.Shared
 
 import java.util.concurrent.Executors
 import java.util.concurrent.ForkJoinPool
 
-import static datadog.trace.api.Platform.isJavaVersionAtLeast
-
-@Requires({
-  isJavaVersionAtLeast(8)
-})
 class RecursiveThreadPoolPropagationTest extends AgentTestRunner {
 
   @Shared

@@ -3,103 +3,88 @@ on:
   push:
     branches:
       - master
-      - 'releases/*'
+      - 'release/*'
+    tags:
+      - '*'
   pull_request:
     branches:
       - master
 
 jobs:
-  test-app-image-build:
+
+  build-and-publish-init-image:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@5a4ac9002d0be2fb38bd78e4b4dbde5606d7042f # 2.3.4
+    
+    - name: Checkout repository
+      uses: actions/checkout@5a4ac9002d0be2fb38bd78e4b4dbde5606d7042f # 2.3.4
+      with:
+        fetch-depth: 0
 
-      - name: Log in to the Container registry
-        uses: docker/login-action@49ed152c8eca782a232dede0303416e8f356c37b # 2.0.0
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+    - name: Set up QEMU
+      uses: docker/setup-qemu-action@8b122486cedac8393e77aa9734c3528886e4a1a8 # 2.0.0
 
-      - name: Build app image
-        run: |
-          JAVA_HOME=$JAVA_HOME_8_X64 JAVA_8_HOME=$JAVA_HOME_8_X64 JAVA_11_HOME=$JAVA_HOME_11_X64 \
-          ./lib-injection/run.sh build-test-app-image push-test-app-image
+    - name: Set up Docker Buildx
+      id: buildx
+      uses: docker/setup-buildx-action@dc7b9719a96d48369863986a06765841d7ea23f6 # 2.0.0
+      with:
+        version: v0.9.1 # https://github.com/docker/buildx/issues/1533
 
-  lib-injection-image-build:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@5a4ac9002d0be2fb38bd78e4b4dbde5606d7042f # 2.3.4
+    - name: Set up Docker platforms
+      id: buildx-platforms
+      run:  |
+        BUILDX_PLATFORMS=`docker buildx imagetools inspect --raw alpine:3.18.3 | jq -r 'reduce (.manifests[] | [ .platform.os, .platform.architecture, .platform.variant ] | join("/") | sub("\\/$"; "")) as $item (""; . + "," + $item)' | sed 's/,//'`
+        echo "$BUILDX_PLATFORMS"
+        echo "platforms=$BUILDX_PLATFORMS" >> $GITHUB_OUTPUT
 
-      - name: Log in to the Container registry
-        uses: docker/login-action@49ed152c8eca782a232dede0303416e8f356c37b # 2.0.0
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+    - name: lib-injection-tags
+      id: lib-injection-tags
+      uses: DataDog/system-tests/lib-injection/docker-tags@89d754340046eafcc72dc5c5fd6ea651ca7b920e # main
+      with:
+        init-image-name: 'dd-lib-java-init'
+        main-branch-name: 'master'
 
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@8b122486cedac8393e77aa9734c3528886e4a1a8 # 2.0.0
+    - name: Build dd-java-agent.jar
+      run:  ./lib-injection/build_java_agent.sh
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@dc7b9719a96d48369863986a06765841d7ea23f6 # 2.0.0
-        with:
-          install: true
-          config-inline: |
-            [worker.oci]
-              max-parallelism = 1
+    - name: Login to Docker
+      run: docker login -u publisher -p ${{ secrets.GITHUB_TOKEN }} ghcr.io
 
-      - name: Build dd-java-agent.jar
-        run: JAVA_HOME=$JAVA_HOME_8_X64 JAVA_8_HOME=$JAVA_HOME_8_X64 JAVA_11_HOME=$JAVA_HOME_11_X64 ./gradlew clean shadowJar --build-cache --parallel --no-daemon --max-workers=8
+    - name: Docker Build
+      uses: docker/build-push-action@c56af957549030174b10d6867f20e78cfd7debc5 # 3.2.0
+      with:
+        push: true
+        tags: ${{ steps.lib-injection-tags.outputs.tag-names }}
+        platforms: ${{ steps.buildx-platforms.outputs.platforms }}
+        context: ./lib-injection
 
-      - name: Build injection image
-        run: |
-          ./lib-injection/run.sh build-and-push-init-image
-
-  system-tests:
+  injection-tests:
     needs:
-      - lib-injection-image-build
-      - test-app-image-build
+      - build-and-publish-init-image
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
     strategy:
       matrix:
-        lib-injection-enabled: ['lib-injection-enabled']
-        lib-injection-connection: ['network', 'uds']
+        lib-injection-connection: [ 'network','uds']
         lib-injection-use-admission-controller: ['', 'use-admission-controller']
+        weblog-variant: [ 'dd-lib-java-init-test-app']
+      fail-fast: false
     env:
       TEST_LIBRARY: java
-      DD_API_KEY: ${{ secrets.DD_API_KEY }}
+      WEBLOG_VARIANT: ${{ matrix.weblog-variant }}
       LIBRARY_INJECTION_CONNECTION: ${{ matrix.lib-injection-connection }}
-      LIBRARY_INJECTION_ADMISSION_CONTROLLER: ${{ matrix.lib-injection-admission-controller }}
-      LIBRARY_INJECTION_INIT_IMAGE: ghcr.io/datadog/dd-trace-java/dd-lib-java-init:${{ github.sha }}
-      LIBRARY_INJECTION_TEST_APP_IMAGE: ghcr.io/datadog/dd-trace-java/dd-lib-java-init-test-app:${{ github.sha }}
-
-    steps:
-      - name: Checkout system tests
-        uses: actions/checkout@5a4ac9002d0be2fb38bd78e4b4dbde5606d7042f # 2.3.4
+      LIBRARY_INJECTION_ADMISSION_CONTROLLER: ${{ matrix.lib-injection-use-admission-controller }}
+      DOCKER_REGISTRY_IMAGES_PATH: ghcr.io/datadog
+      DOCKER_IMAGE_TAG: ${{ github.sha }}
+      MODE: manual
+    steps:     
+      - name: lib-injection test runner
+        id: lib-injection-test-runner
+        uses: DataDog/system-tests/lib-injection/runner@89d754340046eafcc72dc5c5fd6ea651ca7b920e # main
         with:
-          repository: 'DataDog/system-tests'
-
-      - name: Checkout dd-trace-java
-        uses: actions/checkout@5a4ac9002d0be2fb38bd78e4b4dbde5606d7042f # 2.3.4
-        with:
-          path: 'binaries/dd-trace-java'
-
-      - name: Build
-        run: ./lib-injection/build.sh
-
-      - name: Run
-        run: ./lib-injection/run-lib-injection.sh
-
-      - name: Compress artifact
-        if: ${{ always() }}
-        run: tar -czvf artifact.tar.gz $(ls | grep logs) || true
-
-      - name: Upload artifact
-        uses: actions/upload-artifact@82c141cc518b40d92cc801eee768e7aafc9c2fa2
-        if: ${{ always() }}
-        with:
-          name: logs
-          path: artifact.tar.gz
+          docker-registry: ghcr.io
+          docker-registry-username: ${{ github.repository_owner }}
+          docker-registry-password: ${{ secrets.GITHUB_TOKEN }}
+          test-script: ./lib-injection/run-manual-lib-injection.sh

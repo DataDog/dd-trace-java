@@ -2,7 +2,6 @@ package datadog.smoketest
 
 import spock.lang.Shared
 import spock.lang.Specification
-import spock.lang.Timeout
 
 import java.nio.file.Files
 import java.nio.file.Path
@@ -11,14 +10,15 @@ import java.util.concurrent.ForkJoinTask
 import java.util.concurrent.FutureTask
 import java.util.concurrent.RecursiveTask
 import java.util.concurrent.RunnableFuture
-import java.util.concurrent.TimeUnit
 import java.util.regex.Matcher
 import java.util.regex.Pattern
 
 import static datadog.trace.test.util.ForkedTestUtils.getMaxMemoryArgumentForFork
 import static datadog.trace.test.util.ForkedTestUtils.getMinMemoryArgumentForFork
+import static java.util.concurrent.TimeUnit.SECONDS
 
 class FieldInjectionSmokeTest extends Specification {
+  private static final int TIMEOUT_SECS = 20
 
   private static final Pattern CONTEXT_STORE_ALLOCATION =
   Pattern.compile('.*Allocated ContextStore #(\\d+) - instrumentation.target.context=(\\S+)->(\\S+)')
@@ -35,7 +35,6 @@ class FieldInjectionSmokeTest extends Specification {
   @Shared
   protected String logFilePath = "${buildDirectory}/reports/testProcess.${this.getClass().getName()}.log"
 
-  @Timeout(value = 20, unit = TimeUnit.SECONDS)
   def "types are injected with expected fields"() {
     setup:
     // send them all over in one go to keep the test quick
@@ -58,6 +57,10 @@ class FieldInjectionSmokeTest extends Specification {
     command.add("${getMinMemoryArgumentForFork()}" as String)
     command.add("-javaagent:${shadowJarPath}" as String)
     command.add("-XX:ErrorFile=/tmp/hs_err_pid%p.log")
+    // turn off these features as their debug output can break up our expected logging lines on IBM JVMs
+    // causing random test failures (we are not testing these features here so they don't need to be on)
+    command.add("-Ddd.instrumentation.telemetry.enabled=false")
+    command.add("-Ddd.remote_config.enabled=false")
     command.add("-Ddd.writer.type=TraceStructureWriter")
     command.add("-Ddd.trace.debug=true")
     command.add("-jar")
@@ -75,7 +78,8 @@ class FieldInjectionSmokeTest extends Specification {
     Process testedProcess = processBuilder.start()
 
     expect:
-    testedProcess.waitFor() == 0
+    testedProcess.waitFor(TIMEOUT_SECS, SECONDS)
+    testedProcess.exitValue() == 0
     List<String> lines = Files.readAllLines(testOutput)
     Map<String, Set<String>> foundTypesAndFields = new HashMap<>()
     Map<String, List<String>> foundTypesAndInterfaces = new HashMap<>()

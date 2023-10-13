@@ -9,9 +9,12 @@ import datadog.communication.serialization.msgpack.MsgPackWriter;
 import datadog.trace.api.WellKnownTags;
 import datadog.trace.common.metrics.Sink;
 import java.util.Collection;
+import java.util.List;
+import java.util.Map;
 
 public class MsgPackDatastreamsPayloadWriter implements DatastreamsPayloadWriter {
   private static final byte[] ENV = "Env".getBytes(ISO_8859_1);
+  private static final byte[] VERSION = "Version".getBytes(ISO_8859_1);
   private static final byte[] PRIMARY_TAG = "PrimaryTag".getBytes(ISO_8859_1);
   private static final byte[] LANG = "Lang".getBytes(ISO_8859_1);
   private static final byte[] TRACER_VERSION = "TracerVersion".getBytes(ISO_8859_1);
@@ -22,8 +25,11 @@ public class MsgPackDatastreamsPayloadWriter implements DatastreamsPayloadWriter
   private static final byte[] EDGE_LATENCY = "EdgeLatency".getBytes(ISO_8859_1);
   private static final byte[] SERVICE = "Service".getBytes(ISO_8859_1);
   private static final byte[] EDGE_TAGS = "EdgeTags".getBytes(ISO_8859_1);
+  private static final byte[] BACKLOGS = "Backlogs".getBytes(ISO_8859_1);
   private static final byte[] HASH = "Hash".getBytes(ISO_8859_1);
   private static final byte[] PARENT_HASH = "ParentHash".getBytes(ISO_8859_1);
+  private static final byte[] BACKLOG_VALUE = "Value".getBytes(ISO_8859_1);
+  private static final byte[] BACKLOG_TAGS = "Tags".getBytes(ISO_8859_1);
 
   private static final int INITIAL_CAPACITY = 512 * 1024;
 
@@ -50,7 +56,7 @@ public class MsgPackDatastreamsPayloadWriter implements DatastreamsPayloadWriter
 
   @Override
   public void writePayload(Collection<StatsBucket> data) {
-    writer.startMap(6);
+    writer.startMap(7);
     /* 1 */
     writer.writeUTF8(ENV);
     writer.writeUTF8(wellKnownTags.getEnv());
@@ -72,10 +78,16 @@ public class MsgPackDatastreamsPayloadWriter implements DatastreamsPayloadWriter
     writer.writeUTF8(tracerVersionValue);
 
     /* 6 */
+    writer.writeUTF8(VERSION);
+    writer.writeUTF8(wellKnownTags.getVersion());
+
+    /* 7 */
     writer.writeUTF8(STATS);
     writer.startArray(data.size());
+
     for (StatsBucket bucket : data) {
-      writer.startMap(3);
+      boolean hasBacklogs = !bucket.getBacklogs().isEmpty();
+      writer.startMap(3 + (hasBacklogs ? 1 : 0));
 
       /* 1 */
       writer.writeUTF8(START);
@@ -88,6 +100,11 @@ public class MsgPackDatastreamsPayloadWriter implements DatastreamsPayloadWriter
       /* 3 */
       writer.writeUTF8(STATS);
       writeBucket(bucket, writer);
+
+      if (hasBacklogs) {
+        /* 4 */
+        writeBacklogs(bucket.getBacklogs(), writer);
+      }
     }
 
     buffer.mark();
@@ -127,6 +144,21 @@ public class MsgPackDatastreamsPayloadWriter implements DatastreamsPayloadWriter
           packer.writeString(tag, null);
         }
       }
+    }
+  }
+
+  private void writeBacklogs(Collection<Map.Entry<List<String>, Long>> backlogs, Writable packer) {
+    packer.writeUTF8(BACKLOGS);
+    packer.startArray(backlogs.size());
+    for (Map.Entry<List<String>, Long> entry : backlogs) {
+      packer.startMap(2);
+      packer.writeUTF8(BACKLOG_TAGS);
+      packer.startArray(entry.getKey().size());
+      for (String tag : entry.getKey()) {
+        packer.writeString(tag, null);
+      }
+      packer.writeUTF8(BACKLOG_VALUE);
+      packer.writeLong(entry.getValue());
     }
   }
 }

@@ -4,7 +4,6 @@ import com.squareup.moshi.FromJson;
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Moshi;
 import com.squareup.moshi.Types;
-import java.io.IOException;
 import java.lang.reflect.ParameterizedType;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -12,7 +11,7 @@ import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** Represents list of sampling rules read from JSON. See TRACE_SAMPLING_RULES */
+/** Represents list of Trace Sampling Rules read from JSON. See TRACE_SAMPLING_RULES */
 public class TraceSamplingRules {
 
   private static final Logger log = LoggerFactory.getLogger(TraceSamplingRules.class);
@@ -77,8 +76,13 @@ public class TraceSamplingRules {
     }
   }
 
-  public static TraceSamplingRules deserialize(String json) throws IOException {
-    return new TraceSamplingRules(LIST_OF_RULES_ADAPTER.fromJson(json));
+  public static TraceSamplingRules deserialize(String json) {
+    try {
+      return new TraceSamplingRules(LIST_OF_RULES_ADAPTER.fromJson(json));
+    } catch (Throwable ex) {
+      log.error("Couldn't parse Trace Sampling Rules from JSON: {}", json, ex);
+      return null;
+    }
   }
 
   private static final class JsonRule {

@@ -1,0 +1,31 @@
+apply from: "$rootDir/gradle/java.gradle"
+
+// FIXME: Improve test coverage.
+minimumBranchCoverage = 0.6
+// runtime dependent parts (eg. looking up values from the JVM args) are not easy to exercise in unit tests
+// the minimum coverage is reduced to reflect that
+// minimumInstructionCoverage = 0.9
+minimumInstructionCoverage = 0.7
+
+evaluationDependsOn ':dd-java-agent'
+
+tasks.withType(Test).configureEach { subTask ->
+  dependsOn project(':dd-java-agent').tasks.named("shadowJar")
+}
+
+dependencies {
+  implementation deps.slf4j
+  implementation project(':communication')
+  implementation project(':internal-api')
+  implementation project(':utils:container-utils')
+  implementation project(':utils:version-utils')
+
+  implementation deps.okhttp
+  implementation group: 'com.squareup.moshi', name: 'moshi', version: versions.moshi
+
+  testImplementation deps.junit5
+  testImplementation deps.mockito
+  testImplementation group: 'com.squareup.okhttp3', name: 'mockwebserver', version: versions.okhttp_legacy
+  testImplementation(group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: '2.9.10')
+}
+

@@ -3,10 +3,10 @@ package datadog.communication.monitor;
 import static datadog.communication.monitor.DDAgentStatsDClient.serviceCheckStatus;
 
 import datadog.trace.api.StatsDClient;
-import datadog.trace.api.function.Function;
 import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;
 import java.util.Locale;
+import java.util.function.Function;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -17,6 +17,7 @@ public final class LoggingStatsDClient implements StatsDClient {
   private static final String COUNT_FORMAT = "{}:{}|c{}";
   private static final String GAUGE_FORMAT = "{}:{}|g{}";
   private static final String HISTOGRAM_FORMAT = "{}:{}|h{}";
+  private static final String DISTRIBUTION_FORMAT = "{}:{}|d{}";
   private static final String SERVICE_CHECK_FORMAT = "_sc|{}|{}{}{}";
 
   private static final DecimalFormat DECIMAL_FORMAT;
@@ -68,6 +69,21 @@ public final class LoggingStatsDClient implements StatsDClient {
   public void histogram(final String metricName, final double value, final String... tags) {
     log.info(
         HISTOGRAM_FORMAT,
+        nameMapping.apply(metricName),
+        DECIMAL_FORMAT.format(value),
+        join(tagMapping.apply(tags)));
+  }
+
+  @Override
+  public void distribution(String metricName, long value, String... tags) {
+    log.info(
+        DISTRIBUTION_FORMAT, nameMapping.apply(metricName), value, join(tagMapping.apply(tags)));
+  }
+
+  @Override
+  public void distribution(String metricName, double value, String... tags) {
+    log.info(
+        DISTRIBUTION_FORMAT,
         nameMapping.apply(metricName),
         DECIMAL_FORMAT.format(value),
         join(tagMapping.apply(tags)));

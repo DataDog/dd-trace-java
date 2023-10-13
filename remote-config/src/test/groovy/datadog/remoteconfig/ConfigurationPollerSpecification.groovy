@@ -2,12 +2,13 @@ import cafe.cryptography.ed25519.Ed25519PrivateKey
 import cafe.cryptography.ed25519.Ed25519PublicKey
 import cafe.cryptography.ed25519.Ed25519Signature
 import datadog.remoteconfig.ConfigurationChangesListener
+import datadog.remoteconfig.ConfigurationChangesTypedListener
 import datadog.remoteconfig.ConfigurationDeserializer
 import datadog.remoteconfig.ConfigurationPoller
 import datadog.remoteconfig.JsonCanonicalizer
 import datadog.remoteconfig.Product
+import datadog.remoteconfig.state.ProductListener
 import datadog.trace.api.Config
-import datadog.trace.api.function.Supplier
 import datadog.trace.test.util.DDSpecification
 import datadog.trace.util.AgentTaskScheduler
 import groovy.json.JsonOutput
@@ -28,6 +29,7 @@ import java.security.MessageDigest
 import java.security.SecureRandom
 import java.time.Duration
 import java.util.concurrent.TimeUnit
+import java.util.function.Supplier
 
 import static datadog.remoteconfig.tuf.RemoteConfigRequest.ClientInfo.ClientState.ConfigState.APPLY_STATE_ERROR
 
@@ -98,7 +100,7 @@ class ConfigurationPollerSpecification extends DDSpecification {
     when:
     poller.addListener(Product.ASM_DD,
       {throw new RuntimeException('should not be called') } as ConfigurationDeserializer,
-      { cfg, hinter -> true } as ConfigurationChangesListener)
+      { cfg, hinter -> true } as ConfigurationChangesTypedListener)
     poller.removeListener(Product.ASM_DD)
     task.run(poller)
 
@@ -113,7 +115,7 @@ class ConfigurationPollerSpecification extends DDSpecification {
   }
 
   void 'issues request if there is a subscription'() {
-    ConfigurationChangesListener listener = Mock()
+    ConfigurationChangesTypedListener listener = Mock()
 
     when:
     poller.addListener(Product.ASM_DD,
@@ -161,7 +163,7 @@ class ConfigurationPollerSpecification extends DDSpecification {
   void 'issues no request if the config url supplier returns null'() {
     setup:
     def deserializer = Mock(ConfigurationDeserializer)
-    def listener = Mock(ConfigurationChangesListener)
+    def listener = Mock(ConfigurationChangesTypedListener)
     configUrlSupplier = { -> }
 
     when:
@@ -181,7 +183,7 @@ class ConfigurationPollerSpecification extends DDSpecification {
   void 'once the supplier provides a url it is not called anymore'() {
     setup:
     def deserializer = Mock(ConfigurationDeserializer)
-    def listener = Mock(ConfigurationChangesListener)
+    def listener = Mock(ConfigurationChangesTypedListener)
     configUrlSupplier = Mock(Supplier)
 
     when:
@@ -203,9 +205,9 @@ class ConfigurationPollerSpecification extends DDSpecification {
     0 * _._
   }
 
-  void 'processing happens in a specific order'() {
+  void 'processing happens for all listeners'() {
     def deserializer = Mock(ConfigurationDeserializer)
-    List<ConfigurationChangesListener> listeners = (1..5).collect { Mock(ConfigurationChangesListener) }
+    List<ConfigurationChangesTypedListener> listeners = (1..5).collect { Mock(ConfigurationChangesTypedListener) }
     def respBody = JsonOutput.toJson(
       client_configs: [
         'datadog/2/ASM_FEATURES/asm_features_activation/config',
@@ -293,20 +295,12 @@ class ConfigurationPollerSpecification extends DDSpecification {
     then:
     1 * deserializer.deserialize(_) >> true
     1 * listeners[0].accept(*_)
-
-    then:
     1 * deserializer.deserialize(_) >> true
     1 * listeners[1].accept(*_)
-
-    then:
     1 * deserializer.deserialize(_) >> true
     1 * listeners[2].accept(*_)
-
-    then:
     1 * deserializer.deserialize(_) >> true
     1 * listeners[3].accept(*_)
-
-    then:
     1 * deserializer.deserialize(_) >> true
     1 * listeners[4].accept(*_)
 
@@ -321,7 +315,7 @@ class ConfigurationPollerSpecification extends DDSpecification {
         hinter.suggestPollingRate(Duration.ofMillis(124))
         hinter.suggestPollingRate(Duration.ofMillis(123))
         hinter.suggestPollingRate(Duration.ofMillis(1230)) // higher is ignored
-      } as ConfigurationChangesListener)
+      } as ConfigurationChangesTypedListener)
     poller.start()
 
     then:
@@ -342,7 +336,7 @@ class ConfigurationPollerSpecification extends DDSpecification {
     when:
     poller.addListener(Product.ASM_DD,
       { SLURPER.parse(it) } as ConfigurationDeserializer,
-      { Object[] args -> } as ConfigurationChangesListener)
+      { Object[] args -> } as ConfigurationChangesTypedListener)
     poller.start()
 
     then:
@@ -375,7 +369,7 @@ class ConfigurationPollerSpecification extends DDSpecification {
 
       client.state.config_states.size() == 1
       with(client.state.config_states[0]) {
-        id == 'employee/ASM_DD/1.recommended.json/config'
+        id == '1.recommended.json'
         product == 'ASM_DD'
         version == 1
       }
@@ -386,7 +380,7 @@ class ConfigurationPollerSpecification extends DDSpecification {
     when:
     poller.addListener(Product.ASM_DD,
       { SLURPER.parse(it) } as ConfigurationDeserializer,
-      { Object[] args -> } as ConfigurationChangesListener)
+      { Object[] args -> } as ConfigurationChangesTypedListener)
     poller.start()
 
     then:
@@ -432,7 +426,7 @@ class ConfigurationPollerSpecification extends DDSpecification {
     when:
     poller.addListener(Product.ASM_DD,
       { SLURPER.parse(it) } as ConfigurationDeserializer,
-      { Object[] args -> } as ConfigurationChangesListener)
+      { Object[] args -> } as ConfigurationChangesTypedListener)
     poller.start()
 
     then:
@@ -489,7 +483,7 @@ class ConfigurationPollerSpecification extends DDSpecification {
   }
 
   void 'applies configuration only if the hash has changed'() {
-    ConfigurationChangesListener listener = Mock()
+    ConfigurationChangesTypedListener listener = Mock()
 
     when:
     poller.addListener(Product.ASM_DD,
@@ -535,7 +529,7 @@ class ConfigurationPollerSpecification extends DDSpecification {
   }
 
   void 'configuration cannot be applied without hashes'() {
-    ConfigurationChangesListener listener = Mock()
+    ConfigurationChangesTypedListener listener = Mock()
 
     when:
     poller.addListener(Product.ASM_DD,
@@ -583,7 +577,7 @@ class ConfigurationPollerSpecification extends DDSpecification {
   }
 
   void 'encoded file is not valid base64 data'() {
-    ConfigurationChangesListener listener = Mock()
+    ConfigurationChangesTypedListener listener = Mock()
 
     when:
     poller.addListener(Product.ASM_DD,
@@ -625,7 +619,7 @@ class ConfigurationPollerSpecification extends DDSpecification {
   }
 
   void 'deserializer can return null to indicate no config should be applied'() {
-    ConfigurationChangesListener listener = Mock()
+    ConfigurationChangesTypedListener listener = Mock()
 
     when:
     poller.addListener(Product.ASM_DD,
@@ -646,7 +640,7 @@ class ConfigurationPollerSpecification extends DDSpecification {
   }
 
   void 'rejects configuration if the hash is wrong'() {
-    ConfigurationChangesListener listener = Mock()
+    ConfigurationChangesTypedListener listener = Mock()
 
     when:
     poller.addListener(Product.ASM_DD,
@@ -678,7 +672,7 @@ class ConfigurationPollerSpecification extends DDSpecification {
     when:
     poller.addListener(Product.ASM_DD,
       { throw new RuntimeException('should not be called') } as ConfigurationDeserializer,
-      { throw new RuntimeException('should not be called' ) } as ConfigurationChangesListener)
+      { throw new RuntimeException('should not be called' ) } as ConfigurationChangesTypedListener)
     poller.start()
 
     then:
@@ -693,8 +687,65 @@ class ConfigurationPollerSpecification extends DDSpecification {
     0 * _._
   }
 
+  void 'applies and remove called for product listener'() {
+    ProductListener listener = Mock()
+    String cfgWithoutAsm = SLURPER.parse(SAMPLE_RESP_BODY.bytes).with {
+      it['client_configs'] = []
+      def targetDecoded = Base64.decoder.decode(it['targets'])
+      def target = ConfigurationPollerSpecification.SLURPER.parse(targetDecoded)
+      target['signed']['targets']['employee/ASM_DD/1.recommended.json/config']['hashes']['sha256'] = 'aec070645fe53ee3b3763059376134f058cc337247c978add178b6ccdfb0019f'
+      it['targets'] = signAndBase64EncodeTargets(target)
+      JsonOutput.toJson(it)
+    }
+
+    when:
+    poller.addListener(Product.ASM_DD, listener)
+    poller.start()
+
+    then:
+    1 * scheduler.scheduleAtFixedRate(_, poller, 0, DEFAULT_POLL_PERIOD, TimeUnit.MILLISECONDS) >> { task = it[0]; scheduled }
+
+    when:
+    task.run(poller)
+
+    then:
+    1 * okHttpClient.newCall(_ as Request) >> { request = it[0]; call }
+    1 * call.execute() >> { buildOKResponse(SAMPLE_RESP_BODY) }
+    1 * listener.accept(_, { it != null }, _) >> false
+    1 * listener.commit(_)
+    0 * _._
+
+    when:
+    task.run(poller)
+
+    then:
+    1 * okHttpClient.newCall(_ as Request) >> { request = it[0]; call }
+    1 * call.execute() >> { buildOKResponse(SAMPLE_RESP_BODY) }
+    // no listnenr.commit() should be called as no changed where detected
+    0 * _._
+
+    when:
+    task.run(poller)
+
+    then:
+    1 * okHttpClient.newCall(_ as Request) >> { request = it[0]; call }
+    1 * call.execute() >> { buildOKResponse(cfgWithoutAsm) }
+    1 * listener.remove(_, _)
+    1 * listener.commit(_)
+    0 * _._
+
+    when:
+    task.run(poller)
+
+    then:
+    1 * okHttpClient.newCall(_ as Request) >> { request = it[0]; call }
+    1 * call.execute() >> { buildOKResponse(cfgWithoutAsm) }
+    // no listnenr.commit() should be called as no changed where detected
+    0 * _._
+  }
+
   void 'unapplies configurations it has stopped seeing'() {
-    ConfigurationChangesListener<Map<String, Object>> listener = Mock()
+    ConfigurationChangesTypedListener<Map<String, Object>> listener = Mock()
     String cfgWithoutAsm = SLURPER.parse(SAMPLE_RESP_BODY.bytes).with {
       it['client_configs'] = []
       def targetDecoded = Base64.decoder.decode(it['targets'])
@@ -742,7 +793,7 @@ class ConfigurationPollerSpecification extends DDSpecification {
   }
 
   void 'support multiple configurations'() {
-    ConfigurationChangesListener<Map<String, Object>> listener = Mock()
+    ConfigurationChangesTypedListener<Map<String, Object>> listener = Mock()
     String multiConfigs = SLURPER.parse(SAMPLE_RESP_BODY.bytes).with {
       it['client_configs'] = ['employee/ASM_DD/1.recommended.json/config', 'employee/ASM_DD/2.suggested.json/config']
       JsonOutput.toJson(it)
@@ -804,15 +855,16 @@ class ConfigurationPollerSpecification extends DDSpecification {
   }
 
   void 'exception applying one config should not prevent others from being applied'() {
-    String newConfigKey = 'datadog/2/LIVE_DEBUGGING/1ba66cc9-146a-3479-9e66-2b63fd580f48/config'
+    String newConfigId = '1ba66cc9-146a-3479-9e66-2b63fd580f48'
+    String newConfigKey = "datadog/2/LIVE_DEBUGGING/${newConfigId}/config"
 
     when:
     poller.addListener(Product.ASM_DD,
       { SLURPER.parse(it) } as ConfigurationDeserializer,
-      { Object[] args -> throw new RuntimeException('throw here') } as ConfigurationChangesListener)
+      { Object[] args -> throw new RuntimeException('throw here') } as ConfigurationChangesTypedListener)
     poller.addListener(Product.LIVE_DEBUGGING,
       { SLURPER.parse(it) } as ConfigurationDeserializer,
-      { Object[] args -> } as ConfigurationChangesListener)
+      { Object[] args -> } as ConfigurationChangesTypedListener)
     poller.start()
 
     then:
@@ -857,15 +909,22 @@ class ConfigurationPollerSpecification extends DDSpecification {
     def body = parseBody(request.body())
     with(body) {
       client.state.config_states.size() == 2
-      with(client.state.config_states[0]) {
-        id == newConfigKey
+      def first = client.state.config_states[0]
+      def second = client.state.config_states[1]
+      def liveDebuggingConfig = first.product == 'LIVE_DEBUGGING'? first : second
+      def asmConfig = first.product == 'ASM_DD'? first : second
+      with(liveDebuggingConfig) {
+        id == newConfigId
         product == 'LIVE_DEBUGGING'
         version == 3
+        apply_error == null
       }
-      with(client.state.config_states[1]) {
-        id == 'employee/ASM_DD/1.recommended.json/config'
+      with(asmConfig) {
+        id == '1.recommended.json'
         product == 'ASM_DD'
         version == 1
+        apply_state == APPLY_STATE_ERROR
+        apply_error == "throw here"
       }
     }
   }
@@ -874,7 +933,7 @@ class ConfigurationPollerSpecification extends DDSpecification {
     when:
     poller.addListener(Product.ASM_DD,
       { throw new RuntimeException('should not be called') } as ConfigurationDeserializer,
-      { } as ConfigurationChangesListener)
+      { } as ConfigurationChangesTypedListener)
     poller.start()
 
     then:
@@ -913,7 +972,7 @@ class ConfigurationPollerSpecification extends DDSpecification {
     when:
     poller.addListener(Product.ASM_DD,
       { throw new RuntimeException('should not be called') } as ConfigurationDeserializer,
-      { } as ConfigurationChangesListener)
+      { } as ConfigurationChangesTypedListener)
     poller.start()
 
     then:
@@ -940,7 +999,7 @@ class ConfigurationPollerSpecification extends DDSpecification {
     when:
     poller.addListener(Product.ASM_DD,
       { throw new RuntimeException('should not be called') } as ConfigurationDeserializer,
-      { } as ConfigurationChangesListener)
+      { } as ConfigurationChangesTypedListener)
     poller.start()
 
     then:
@@ -987,6 +1046,13 @@ class ConfigurationPollerSpecification extends DDSpecification {
       JsonOutput.toJson(it)
     } | 'No content for employee/ASM_DD/1.recommended.json/config'
 
+    // two reportable errors
+    SLURPER.parse(SAMPLE_RESP_BODY.bytes).with {
+      it['client_configs'] = ['foobar', 'employee/ASM_DD/1.recommended.json/config']
+      it['target_files'] = []
+      JsonOutput.toJson(it)
+    } | 'Failed to apply configuration due to 2 errors:\n (1) Not a valid config key: foobar\n (2) No content for employee/ASM_DD/1.recommended.json/config\n'
+
     // in target_files, but not targets.signed.targets
     SLURPER.parse(SAMPLE_RESP_BODY.bytes).with {
       def targetDecoded = Base64.decoder.decode(it['targets'])
@@ -1026,7 +1092,7 @@ class ConfigurationPollerSpecification extends DDSpecification {
     when:
     poller.addListener(Product.ASM_DD,
       { throw new RuntimeException('my deserializer error') } as ConfigurationDeserializer,
-      { } as ConfigurationChangesListener)
+      { } as ConfigurationChangesTypedListener)
     poller.start()
 
     then:
@@ -1063,7 +1129,7 @@ class ConfigurationPollerSpecification extends DDSpecification {
     when:
     poller.addListener(Product.ASM_DD,
       { true } as ConfigurationDeserializer,
-      { Object[] args -> throw new RuntimeException('error applying config') } as ConfigurationChangesListener)
+      { Object[] args -> throw new RuntimeException('error applying config') } as ConfigurationChangesTypedListener)
     poller.start()
 
     then:
@@ -1101,7 +1167,7 @@ class ConfigurationPollerSpecification extends DDSpecification {
     when:
     poller.addListener(Product.ASM_DD,
       deserializer,
-      { throw new RuntimeException('throw here') } as ConfigurationChangesListener)
+      { throw new RuntimeException('throw here') } as ConfigurationChangesTypedListener)
     poller.start()
 
     then:
@@ -1131,7 +1197,7 @@ class ConfigurationPollerSpecification extends DDSpecification {
     when:
     poller.addFileListener(file,
       { SLURPER.parse(it) } as ConfigurationDeserializer,
-      { path, conf, hinter -> savedConf = conf } as ConfigurationChangesListener)
+      { path, conf, hinter -> savedConf = conf } as ConfigurationChangesTypedListener)
     poller.start()
     file << '{"foo":"bar"}'.getBytes('UTF-8')
 
@@ -1159,7 +1225,7 @@ class ConfigurationPollerSpecification extends DDSpecification {
   }
 
   void 'distributes features'() {
-    ConfigurationChangesListener listener = Mock()
+    ConfigurationChangesTypedListener listener = Mock()
 
     when:
     poller.addListener(Product.ASM_FEATURES,
@@ -1184,12 +1250,12 @@ class ConfigurationPollerSpecification extends DDSpecification {
   }
 
   void 'distributes features upon subscribing'() {
-    ConfigurationChangesListener listener = Mock()
+    ConfigurationChangesTypedListener listener = Mock()
 
     when:
     poller.addListener(Product.ASM_FEATURES,
       { throw new RuntimeException('should not be called') } as ConfigurationDeserializer,
-      { Object[] args -> throw new RuntimeException('should not be called') } as ConfigurationChangesListener)
+      { Object[] args -> throw new RuntimeException('should not be called') } as ConfigurationChangesTypedListener)
     poller.start()
 
     then:
@@ -1217,7 +1283,7 @@ class ConfigurationPollerSpecification extends DDSpecification {
     when:
     poller.addListener(Product.ASM_FEATURES,
       {true } as ConfigurationDeserializer<Boolean>,
-      { Object[] args -> called = true; throw new RuntimeException('throws') } as ConfigurationChangesListener<Boolean>)
+      { Object[] args -> called = true; throw new RuntimeException('throws') } as ConfigurationChangesTypedListener<Boolean>)
     poller.start()
 
     then:
@@ -1235,12 +1301,12 @@ class ConfigurationPollerSpecification extends DDSpecification {
   }
 
   void 'removing feature listeners'() {
-    ConfigurationChangesListener listener = Mock()
+    ConfigurationChangesTypedListener listener = Mock()
 
     when:
     poller.addListener(Product._UNKNOWN,
       { throw new RuntimeException('should not be called') } as ConfigurationDeserializer,
-      { Object[] args -> throw new RuntimeException('should not be called') } as ConfigurationChangesListener)
+      { Object[] args -> throw new RuntimeException('should not be called') } as ConfigurationChangesTypedListener)
     poller.addListener(Product.ASM_FEATURES,
       {} as ConfigurationDeserializer<Boolean>,
       listener)
@@ -1267,7 +1333,7 @@ class ConfigurationPollerSpecification extends DDSpecification {
   }
 
   void 'check setting of capabilities negative test'() {
-    ConfigurationChangesListener listener = Mock()
+    ConfigurationChangesTypedListener listener = Mock()
 
     when:
     poller.addListener(Product._UNKNOWN,
@@ -1312,13 +1378,14 @@ class ConfigurationPollerSpecification extends DDSpecification {
   }
 
 
-  void 'check setting of capabilities positive test'() {
+  void 'check setting of capabilities positive test #capabilities'() {
+    setup:
     ConfigurationDeserializer deserializer = { true } as ConfigurationDeserializer<Boolean>
-    ConfigurationChangesListener listener = { Object[] args -> } as ConfigurationChangesListener
+    ConfigurationChangesTypedListener listener = { Object[] args -> } as ConfigurationChangesTypedListener
 
     when:
     poller.addListener(Product._UNKNOWN, deserializer, listener)
-    poller.addCapabilities(14L)
+    poller.addCapabilities(capabilities)
     poller.start()
 
     then:
@@ -1332,9 +1399,15 @@ class ConfigurationPollerSpecification extends DDSpecification {
     1 * call.execute() >> { buildOKResponse(FEATURES_RESP_BODY) }
     0 * _._
     def body = parseBody(request.body())
-    with(body.client) {
-      capabilities[0] == 14
-    }
+    body.client.capabilities as byte[] == encoded
+
+    where:
+    capabilities          | encoded
+    0                     | [0] as byte[]
+    14L                   | [14] as byte[]
+    1 << 8                | [1, 0] as byte[]
+    1 << 9                | [2, 0] as byte[]
+    -9223372036854775807L | [128, 0, 0, 0, 0, 0, 0, 1] as byte[]
   }
 
   private static final String SAMPLE_RESP_BODY = """

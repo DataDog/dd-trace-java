@@ -1,7 +1,8 @@
 package datadog.trace.common.writer
 
-import datadog.trace.api.DDId
+import datadog.trace.api.DDSpanId
 import datadog.trace.api.DDTags
+import datadog.trace.api.DDTraceId
 import datadog.trace.api.IdGenerationStrategy
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString
@@ -29,12 +30,20 @@ class TraceGenerator {
     List<CoreSpan> trace = new ArrayList<>(size)
     long traceId = ThreadLocalRandom.current().nextLong(1, Long.MAX_VALUE)
     for (int i = 0; i < size; ++i) {
-      trace.add(randomSpan(traceId, lowCardinality))
+      def spanType = "type-" + ThreadLocalRandom.current().nextInt(lowCardinality ? 1 : 100)
+      trace.add(randomSpan(traceId, lowCardinality, spanType, Collections.emptyMap()))
     }
     return trace
   }
 
-  private static CoreSpan randomSpan(long traceId, boolean lowCardinality) {
+  private static final IdGenerationStrategy ID_GENERATION_STRATEGY = IdGenerationStrategy.fromName("RANDOM")
+
+  static CoreSpan generateRandomSpan(CharSequence type, Map<String, Object> extraTags) {
+    long traceId = ThreadLocalRandom.current().nextLong(1, Long.MAX_VALUE)
+    return randomSpan(traceId, true, type, extraTags)
+  }
+
+  private static CoreSpan randomSpan(long traceId, boolean lowCardinality, CharSequence type, Map<String, Object> extraTags) {
     ThreadLocalRandom random = ThreadLocalRandom.current()
     Map<String, String> baggage = new HashMap<>()
     if (random.nextBoolean()) {
@@ -44,7 +53,7 @@ class TraceGenerator {
         baggage.put("tag.2", "qux")
       }
     }
-    Map<String, Object> tags = new HashMap<>()
+    Map<String, Object> tags = new HashMap<>(extraTags)
     int tagCount = random.nextInt(0, 20)
     for (int i = 0; i < tagCount; ++i) {
       tags.put("tag." + i, random.nextBoolean() ? "foo" : randomString(2000))
@@ -52,10 +61,10 @@ class TraceGenerator {
       tags.put("tag.2." + i, random.nextBoolean())
       switch (random.nextInt(8)) {
         case 0:
-          tags.put("tag.3." + i , BigDecimal.valueOf(random.nextDouble()))
+          tags.put("tag.3." + i, BigDecimal.valueOf(random.nextDouble()))
           break
         case 1:
-          tags.put("tag.3." + i , BigInteger.valueOf(random.nextLong()))
+          tags.put("tag.3." + i, BigInteger.valueOf(random.nextLong()))
           break
         default:
           break
@@ -81,19 +90,20 @@ class TraceGenerator {
       }
       tags.put(name, metric)
     }
+
     return new PojoSpan(
       "service-" + random.nextInt(lowCardinality ? 1 : 10),
       "operation-" + random.nextInt(lowCardinality ? 1 : 100),
       UTF8BytesString.create("resource-" + random.nextInt(lowCardinality ? 1 : 100)),
-      DDId.from(traceId),
-      IdGenerationStrategy.RANDOM.generate(),
-      DDId.ZERO,
+      DDTraceId.from(traceId),
+      ID_GENERATION_STRATEGY.generateSpanId(),
+      DDSpanId.ZERO,
       TimeUnit.MILLISECONDS.toNanos(System.currentTimeMillis()),
       random.nextLong(500, 10_000_000),
       random.nextInt(2),
       baggage,
       tags,
-      "type-" + random.nextInt(lowCardinality ? 1 : 100),
+      type,
       random.nextBoolean(),
       PrioritySampling.SAMPLER_KEEP,
       200,
@@ -123,13 +133,13 @@ class TraceGenerator {
     private final CharSequence serviceName
     private final CharSequence operationName
     private final CharSequence resourceName
-    private final DDId traceId
-    private final DDId spanId
-    private final DDId parentId
+    private final DDTraceId traceId
+    private final long spanId
+    private final long parentId
     private final long start
     private final long duration
     private final int error
-    private final String type
+    private final CharSequence type
     private final boolean measured
     private final Metadata metadata
     private short httpStatusCode
@@ -139,15 +149,15 @@ class TraceGenerator {
     String serviceName,
     String operationName,
     CharSequence resourceName,
-    DDId traceId,
-    DDId spanId,
-    DDId parentId,
+    DDTraceId traceId,
+    long spanId,
+    long parentId,
     long start,
     long duration,
     int error,
     Map<String, String> baggage,
     Map<String, Object> tags,
-    String type,
+    CharSequence type,
     boolean measured,
     int samplingPriority,
     int statusCode,
@@ -166,7 +176,7 @@ class TraceGenerator {
       this.samplingPriority = samplingPriority
       this.metadata = new Metadata(Thread.currentThread().getId(),
         UTF8BytesString.create(Thread.currentThread().getName()), tags, baggage, samplingPriority, measured, topLevel,
-        statusCode == 0 ? null : UTF8BytesString.create(Integer.toString(statusCode)), origin)
+        statusCode == 0 ? null : UTF8BytesString.create(Integer.toString(statusCode)), origin, 0)
       this.httpStatusCode = (short) statusCode
     }
 
@@ -191,17 +201,17 @@ class TraceGenerator {
     }
 
     @Override
-    DDId getTraceId() {
+    DDTraceId getTraceId() {
       return traceId
     }
 
     @Override
-    DDId getSpanId() {
+    long getSpanId() {
       return spanId
     }
 
     @Override
-    DDId getParentId() {
+    long getParentId() {
       return parentId
     }
 
@@ -277,6 +287,7 @@ class TraceGenerator {
 
     @Override
     PojoSpan removeTag(String tag) {
+      metadata.getTags().remove(tag)
       return this
     }
 
@@ -301,7 +312,7 @@ class TraceGenerator {
     }
 
     @Override
-    CharSequence getOrigin(){
+    CharSequence getOrigin() {
       return metadata.getOrigin()
     }
 
@@ -314,8 +325,8 @@ class TraceGenerator {
     }
 
     @Override
-    String getType() {
-      return type
+    CharSequence getType() {
+      return this.type
     }
 
     @Override
@@ -330,6 +341,11 @@ class TraceGenerator {
 
     @Override
     PojoSpan setSamplingPriority(int samplingPriority, CharSequence rate, double sampleRate, int samplingMechanism) {
+      return this
+    }
+
+    @Override
+    PojoSpan setSpanSamplingPriority(double rate, int limit) {
       return this
     }
 

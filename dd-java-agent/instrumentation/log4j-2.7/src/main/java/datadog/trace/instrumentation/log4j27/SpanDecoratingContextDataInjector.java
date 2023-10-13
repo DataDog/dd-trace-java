@@ -5,9 +5,13 @@
 package datadog.trace.instrumentation.log4j27;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.traceConfig;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.CorrelationIdentifier;
+import datadog.trace.api.DDSpanId;
+import datadog.trace.api.DDTraceId;
+import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import java.util.List;
@@ -28,31 +32,37 @@ public final class SpanDecoratingContextDataInjector implements ContextDataInjec
   public StringMap injectContextData(List<Property> list, StringMap reusable) {
     StringMap contextData = delegate.injectContextData(list, reusable);
 
+    AgentSpan span = activeSpan();
+
+    if (!traceConfig(span).isLogsInjectionEnabled()) {
+      return contextData;
+    }
+
     // We're at most adding 5 tags
     StringMap newContextData = new SortedArrayStringMap(contextData.size() + 5);
 
-    if (Config.get().isLogsMDCTagsInjectionEnabled()) {
-      String env = Config.get().getEnv();
-      if (null != env && !env.isEmpty()) {
-        newContextData.putValue(Tags.DD_ENV, env);
-      }
-      String serviceName = Config.get().getServiceName();
-      if (null != serviceName && !serviceName.isEmpty()) {
-        newContextData.putValue(Tags.DD_SERVICE, serviceName);
-      }
-      String version = Config.get().getVersion();
-      if (null != version && !version.isEmpty()) {
-        newContextData.putValue(Tags.DD_VERSION, version);
-      }
+    String env = Config.get().getEnv();
+    if (null != env && !env.isEmpty()) {
+      newContextData.putValue(Tags.DD_ENV, env);
+    }
+    String serviceName = Config.get().getServiceName();
+    if (null != serviceName && !serviceName.isEmpty()) {
+      newContextData.putValue(Tags.DD_SERVICE, serviceName);
+    }
+    String version = Config.get().getVersion();
+    if (null != version && !version.isEmpty()) {
+      newContextData.putValue(Tags.DD_VERSION, version);
     }
 
-    AgentSpan span = activeSpan();
-
     if (span != null) {
+      DDTraceId traceId = span.context().getTraceId();
+      String traceIdValue =
+          InstrumenterConfig.get().isLogs128bTraceIdEnabled() && traceId.toHighOrderLong() != 0
+              ? traceId.toHexString()
+              : traceId.toString();
+      newContextData.putValue(CorrelationIdentifier.getTraceIdKey(), traceIdValue);
       newContextData.putValue(
-          CorrelationIdentifier.getSpanIdKey(), span.context().getSpanId().toString());
-      newContextData.putValue(
-          CorrelationIdentifier.getTraceIdKey(), span.context().getTraceId().toString());
+          CorrelationIdentifier.getSpanIdKey(), DDSpanId.toString(span.context().getSpanId()));
     }
 
     newContextData.putAll(contextData);

@@ -1,8 +1,6 @@
 package datadog.trace.common.metrics
 
-import datadog.trace.core.histogram.Histogram
 import datadog.trace.test.util.DDSpecification
-import spock.lang.Requires
 
 import java.util.concurrent.BlockingDeque
 import java.util.concurrent.CountDownLatch
@@ -13,13 +11,9 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicLongArray
 
-import static datadog.trace.api.Platform.isJavaVersionAtLeast
 import static datadog.trace.common.metrics.AggregateMetric.ERROR_TAG
 import static datadog.trace.common.metrics.AggregateMetric.TOP_LEVEL_TAG
 
-@Requires({
-  isJavaVersionAtLeast(8)
-})
 class AggregateMetricTest extends DDSpecification {
 
   def "record durations sums up to total"() {
@@ -123,10 +117,10 @@ class AggregateMetricTest extends DDSpecification {
       new AtomicLongArray(1, 100 | ERROR_TAG, 2, 99 | ERROR_TAG, 3,
       98  | ERROR_TAG, 4, 97  | ERROR_TAG))
     then:
-    Histogram errorLatencies = aggregate.getErrorLatencies()
-    Histogram okLatencies = aggregate.getOkLatencies()
-    errorLatencies.max() >= 99
-    okLatencies.max() <= 5
+    def errorLatencies = aggregate.getErrorLatencies()
+    def okLatencies = aggregate.getOkLatencies()
+    errorLatencies.getMaxValue() >= 99
+    okLatencies.getMaxValue() <= 5
   }
 
   def "consistent under concurrent attempts to read and write"() {

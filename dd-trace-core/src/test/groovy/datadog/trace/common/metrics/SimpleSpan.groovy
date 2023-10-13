@@ -1,6 +1,7 @@
 package datadog.trace.common.metrics
 
-import datadog.trace.api.DDId
+import datadog.trace.api.DDSpanId
+import datadog.trace.api.DDTraceId
 import datadog.trace.core.CoreSpan
 import datadog.trace.core.MetadataConsumer
 
@@ -61,18 +62,18 @@ class SimpleSpan implements CoreSpan<SimpleSpan> {
   }
 
   @Override
-  DDId getTraceId() {
-    return DDId.ZERO
+  DDTraceId getTraceId() {
+    return DDTraceId.ZERO
   }
 
   @Override
-  DDId getSpanId() {
-    return DDId.ZERO
+  long getSpanId() {
+    return DDSpanId.ZERO
   }
 
   @Override
-  DDId getParentId() {
-    return DDId.ZERO
+  long getParentId() {
+    return DDSpanId.ZERO
   }
 
   @Override
@@ -206,6 +207,11 @@ class SimpleSpan implements CoreSpan<SimpleSpan> {
 
   @Override
   SimpleSpan setSamplingPriority(int samplingPriority, CharSequence rate, double sampleRate, int samplingMechanism) {
+    return this
+  }
+
+  @Override
+  SimpleSpan setSpanSamplingPriority(double rate, int limit) {
     return this
   }
 

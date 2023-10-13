@@ -13,7 +13,7 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 import java.io.IOException;
 
 /** Implements expression language for probe condition */
-public final class ProbeCondition implements DebuggerScript {
+public final class ProbeCondition implements DebuggerScript<Boolean> {
   public static final ProbeCondition NONE = new ProbeCondition(null, "");
 
   private final String dslExpression;
@@ -28,6 +28,10 @@ public final class ProbeCondition implements DebuggerScript {
 
   public String getDslExpression() {
     return dslExpression;
+  }
+
+  public WhenExpression getWhen() {
+    return when;
   }
 
   public static class ProbeConditionJsonAdapter extends JsonAdapter<ProbeCondition> {
@@ -45,10 +49,14 @@ public final class ProbeCondition implements DebuggerScript {
 
     @Override
     public void toJson(@NonNull JsonWriter jsonWriter, ProbeCondition value) throws IOException {
-      if (value != null) {
-        throw new UnsupportedOperationException();
+      if (value == null) {
+        jsonWriter.nullValue();
+        return;
       }
-      jsonWriter.nullValue();
+      jsonWriter.beginObject();
+      jsonWriter.name("dsl");
+      jsonWriter.value(value.dslExpression);
+      jsonWriter.endObject();
     }
   }
 
@@ -65,6 +73,11 @@ public final class ProbeCondition implements DebuggerScript {
   @Override
   public int hashCode() {
     return getDslExpression().hashCode();
+  }
+
+  @Override
+  public String toString() {
+    return "ProbeCondition{" + "dslExpression='" + dslExpression + '\'' + '}';
   }
 
   public static ProbeCondition load(JsonReader reader) throws IOException {
@@ -86,14 +99,18 @@ public final class ProbeCondition implements DebuggerScript {
   }
 
   @Override
-  public boolean execute(ValueReferenceResolver valueRefResolver) {
+  public Boolean execute(ValueReferenceResolver valueRefResolver) {
     if (when == null) {
       return true;
     }
-    if (when.evaluate(valueRefResolver).test()) {
+    if (when.evaluate(valueRefResolver)) {
       then.evaluate(valueRefResolver);
       return true;
     }
     return false;
+  }
+
+  public void accept(Visitor visitor) {
+    when.accept(visitor);
   }
 }

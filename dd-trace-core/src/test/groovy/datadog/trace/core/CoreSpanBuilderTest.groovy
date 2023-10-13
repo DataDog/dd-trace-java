@@ -1,20 +1,27 @@
 package datadog.trace.core
 
+import static datadog.trace.api.DDTags.PROFILING_ENABLED
+import static datadog.trace.api.DDTags.SCHEMA_VERSION_TAG_KEY
+
 import datadog.trace.api.Config
-import datadog.trace.api.DDId
+import datadog.trace.api.DDSpanId
+import datadog.trace.api.DDTraceId
+import datadog.trace.api.gateway.RequestContextSlot
+import datadog.trace.api.naming.SpanNaming
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.bootstrap.instrumentation.api.AgentScope
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopPathwayContext
 import datadog.trace.bootstrap.instrumentation.api.TagContext
 import datadog.trace.common.writer.ListWriter
-import datadog.trace.core.propagation.DatadogTags
+import datadog.trace.core.propagation.PropagationTags
 import datadog.trace.core.propagation.ExtractedContext
 import datadog.trace.core.test.DDCoreSpecification
 
 import static datadog.trace.api.DDTags.LANGUAGE_TAG_KEY
 import static datadog.trace.api.DDTags.LANGUAGE_TAG_VALUE
 import static datadog.trace.api.DDTags.ORIGIN_KEY
+import static datadog.trace.api.DDTags.PID_TAG
 import static datadog.trace.api.DDTags.RUNTIME_ID_TAG
 import static datadog.trace.api.DDTags.THREAD_ID
 import static datadog.trace.api.DDTags.THREAD_NAME
@@ -70,6 +77,9 @@ class CoreSpanBuilderTest extends DDCoreSpecification {
       (THREAD_ID)       : Thread.currentThread().getId(),
       (RUNTIME_ID_TAG)  : Config.get().getRuntimeId(),
       (LANGUAGE_TAG_KEY): LANGUAGE_TAG_VALUE,
+      (PID_TAG)         : Config.get().getProcessId(),
+      (SCHEMA_VERSION_TAG_KEY) : SpanNaming.instance().version(),
+      (PROFILING_ENABLED)     : Config.get().isProfilingEnabled() ? 1 : 0
     ]
 
     when:
@@ -159,15 +169,16 @@ class CoreSpanBuilderTest extends DDCoreSpecification {
 
   def "should link to parent span"() {
     setup:
-    final DDId spanId = DDId.ONE
-    final DDId expectedParentId = spanId
+    final long spanId = 1
+    final DDTraceId traceId = DDTraceId.ONE
+    final long expectedParentId = spanId
 
     final DDSpanContext mockedContext = Mock()
-    1 * mockedContext.getTraceId() >> spanId
+    1 * mockedContext.getTraceId() >> traceId
     1 * mockedContext.getSpanId() >> spanId
     _ * mockedContext.getServiceName() >> "foo"
     1 * mockedContext.getBaggageItems() >> [:]
-    1 * mockedContext.getTrace() >> tracer.pendingTraceFactory.create(DDId.ONE)
+    1 * mockedContext.getTrace() >> tracer.pendingTraceFactory.create(DDTraceId.ONE)
     _ * mockedContext.getPathwayContext() >> NoopPathwayContext.INSTANCE
 
     final String expectedName = "fakeName"
@@ -183,7 +194,7 @@ class CoreSpanBuilderTest extends DDCoreSpecification {
 
     expect:
     actualContext.getParentId() == expectedParentId
-    actualContext.getTraceId() == spanId
+    actualContext.getTraceId() == traceId
   }
 
   def "should link to parent span implicitly"() {
@@ -191,7 +202,7 @@ class CoreSpanBuilderTest extends DDCoreSpecification {
     final AgentScope parent = tracer.activateSpan(noopParent ?
       AgentTracer.NoopAgentSpan.INSTANCE : tracer.buildSpan("parent").withServiceName("service").start())
 
-    final DDId expectedParentId = noopParent ? DDId.ZERO : parent.span().context().getSpanId()
+    final long expectedParentId = noopParent ? DDSpanId.ZERO : parent.span().context().getSpanId()
 
     final String expectedName = "fakeName"
 
@@ -299,8 +310,8 @@ class CoreSpanBuilderTest extends DDCoreSpecification {
     expect:
     root.context().getTrace().rootSpan == root
     root.context().getTrace().size() == nbSamples
-    root.context().getTrace().finishedSpans.containsAll(spans)
-    spans[(int) (Math.random() * nbSamples)].context.trace.finishedSpans.containsAll(spans)
+    root.context().getTrace().spans.containsAll(spans)
+    spans[(int) (Math.random() * nbSamples)].context.trace.spans.containsAll(spans)
   }
 
   def "ExtractedContext should populate new span details"() {
@@ -321,12 +332,12 @@ class CoreSpanBuilderTest extends DDCoreSpecification {
     }
     span.getTag(THREAD_ID) == thread.id
     span.getTag(THREAD_NAME) == thread.name
-    span.context().datadogTags.headerValue() == extractedContext.datadogTags.headerValue()
+    span.context().propagationTags.headerValue(PropagationTags.HeaderType.DATADOG) == extractedContext.propagationTags.headerValue(PropagationTags.HeaderType.DATADOG)
 
     where:
-    extractedContext | _
-    new ExtractedContext(DDId.ONE, DDId.from(2), PrioritySampling.SAMPLER_DROP, null, 0, [:], [:], null, DatadogTags.factory().fromHeaderValue("_dd.p.dm=934086a686-4,_dd.p.anytag=value"))                 | _
-    new ExtractedContext(DDId.from(3), DDId.from(4), PrioritySampling.SAMPLER_KEEP, "some-origin", 0, ["asdf": "qwer"], [(ORIGIN_KEY): "some-origin", "zxcv": "1234"], null, DatadogTags.factory().empty()) | _
+    extractedContext                                                                                                                                                                                                                | _
+    new ExtractedContext(DDTraceId.ONE, 2, PrioritySampling.SAMPLER_DROP, null, 0, [:], [:], null, PropagationTags.factory().fromHeaderValue(PropagationTags.HeaderType.DATADOG, "_dd.p.dm=934086a686-4,_dd.p.anytag=value"), null) | _
+    new ExtractedContext(DDTraceId.from(3), 4, PrioritySampling.SAMPLER_KEEP, "some-origin", 0, ["asdf": "qwer"], [(ORIGIN_KEY): "some-origin", "zxcv": "1234"], null, PropagationTags.factory().empty(), null)                     | _
   }
 
   def "TagContext should populate default span details"() {
@@ -335,14 +346,18 @@ class CoreSpanBuilderTest extends DDCoreSpecification {
     final DDSpan span = tracer.buildSpan("op name").asChildOf(tagContext).start()
 
     expect:
-    span.traceId != DDId.ZERO
-    span.parentId == DDId.ZERO
+    span.traceId != DDTraceId.ZERO
+    span.parentId == DDSpanId.ZERO
     span.samplingPriority == null
     span.context().origin == tagContext.origin
     span.context().baggageItems == [:]
-    span.context().tags == tagContext.tags + [(RUNTIME_ID_TAG)  : Config.get().getRuntimeId(),
-      (LANGUAGE_TAG_KEY): LANGUAGE_TAG_VALUE,
-      (THREAD_NAME)     : thread.name, (THREAD_ID): thread.id]
+    span.context().tags == tagContext.tags +
+      [(RUNTIME_ID_TAG)        : Config.get().getRuntimeId(),
+        (LANGUAGE_TAG_KEY)      : LANGUAGE_TAG_VALUE,
+        (THREAD_NAME)           : thread.name, (THREAD_ID): thread.id, (PID_TAG): Config.get().getProcessId(),
+        (SCHEMA_VERSION_TAG_KEY): SpanNaming.instance().version(),
+        (PROFILING_ENABLED)     : Config.get().isProfilingEnabled() ? 1 : 0
+      ]
 
     where:
     tagContext                                      | _
@@ -358,10 +373,13 @@ class CoreSpanBuilderTest extends DDCoreSpecification {
 
     expect:
     span.tags == tags + [
-      (THREAD_NAME)     : Thread.currentThread().getName(),
-      (THREAD_ID)       : Thread.currentThread().getId(),
-      (RUNTIME_ID_TAG)  : Config.get().getRuntimeId(),
-      (LANGUAGE_TAG_KEY): LANGUAGE_TAG_VALUE,
+      (THREAD_NAME)           : Thread.currentThread().getName(),
+      (THREAD_ID)             : Thread.currentThread().getId(),
+      (RUNTIME_ID_TAG)        : Config.get().getRuntimeId(),
+      (LANGUAGE_TAG_KEY)      : LANGUAGE_TAG_VALUE,
+      (PID_TAG)               : Config.get().getProcessId(),
+      (SCHEMA_VERSION_TAG_KEY): SpanNaming.instance().version(),
+      (PROFILING_ENABLED)     : Config.get().isProfilingEnabled() ? 1 : 0
     ]
 
     cleanup:
@@ -374,5 +392,67 @@ class CoreSpanBuilderTest extends DDCoreSpecification {
     "a:x"         | [a: "x"]
     "a:a,a:b,a:c" | [a: "c"]
     "a:1,b-c:d"   | [a: "1", "b-c": "d"]
+  }
+
+  def "can overwrite RequestContext data with builder from empty"() {
+    when:
+    def span1 = tracer.startSpan("test", "span1")
+
+    then:
+    span1.getRequestContext().getData(RequestContextSlot.APPSEC) == null
+    span1.getRequestContext().getData(RequestContextSlot.CI_VISIBILITY) == null
+    span1.getRequestContext().getData(RequestContextSlot.IAST) == null
+
+    when:
+    def span2 = tracer.buildSpan("span2")
+      .asChildOf(span1.context())
+      .withRequestContextData(RequestContextSlot.APPSEC, "override")
+      .withRequestContextData(RequestContextSlot.CI_VISIBILITY, "override")
+      .withRequestContextData(RequestContextSlot.IAST, "override")
+      .start()
+
+    then:
+    span2.getRequestContext().getData(RequestContextSlot.APPSEC) == "override"
+    span2.getRequestContext().getData(RequestContextSlot.CI_VISIBILITY) == "override"
+    span2.getRequestContext().getData(RequestContextSlot.IAST) == "override"
+
+    cleanup:
+    span2.finish()
+    span1.finish()
+  }
+
+  def "can overwrite RequestContext data with builder"() {
+    setup:
+    TagContext context = new TagContext()
+      .withCiVisibilityContextData("value")
+      .withRequestContextDataIast("value")
+      .withRequestContextDataAppSec("value")
+    def span1 = tracer.buildSpan("span1").asChildOf(context).start()
+
+    when:
+    def span2 = tracer.buildSpan("span2").asChildOf(span1.context()).start()
+
+    then:
+    span2.getRequestContext().getData(RequestContextSlot.APPSEC) == "value"
+    span2.getRequestContext().getData(RequestContextSlot.CI_VISIBILITY) == "value"
+    span2.getRequestContext().getData(RequestContextSlot.IAST) == "value"
+
+    when:
+    def span3 = tracer.buildSpan("span3")
+      .asChildOf(span2.context())
+      .withRequestContextData(RequestContextSlot.APPSEC, "override")
+      .withRequestContextData(RequestContextSlot.CI_VISIBILITY, "override")
+      .withRequestContextData(RequestContextSlot.IAST, "override")
+      .start()
+
+    then:
+    span3.getRequestContext().getData(RequestContextSlot.APPSEC) == "override"
+    span3.getRequestContext().getData(RequestContextSlot.CI_VISIBILITY) == "override"
+    span3.getRequestContext().getData(RequestContextSlot.IAST) == "override"
+
+    cleanup:
+    span3.finish()
+    span2.finish()
+    span1.finish()
   }
 }

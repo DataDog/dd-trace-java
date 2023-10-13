@@ -1,0 +1,41 @@
+def zioVersion = '2.0.0'
+def scalaVersion = '2.12'
+
+muzzle {
+  pass {
+    group = 'dev.zio'
+    module = "zio_2.12"
+    versions = "[$zioVersion,)"
+    assertInverse = true
+  }
+  pass {
+    group = 'dev.zio'
+    module = "zio_2.13"
+    versions = "[$zioVersion,)"
+    assertInverse = true
+  }
+  pass {
+    group = 'dev.zio'
+    module = "zio_3"
+    versions = "[$zioVersion,)"
+    assertInverse = true
+  }
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+apply from: "$rootDir/gradle/test-with-scala.gradle"
+
+addTestSuiteForDir('latestDepTest', 'test')
+tasks.named("compileLatestDepTestGroovy").configure {
+  dependsOn "compileLatestDepTestScala"
+  classpath += files(compileLatestDepTestScala.destinationDirectory)
+}
+
+dependencies {
+  compileOnly group: 'dev.zio', name: "zio_$scalaVersion", version: zioVersion
+
+  testImplementation deps.scala
+  testImplementation group: 'dev.zio', name: "zio_$scalaVersion", version: zioVersion
+
+  latestDepTestImplementation group: 'dev.zio', name: "zio_$scalaVersion", version: '+'
+}

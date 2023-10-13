@@ -1,5 +1,6 @@
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.naming.VersionedNamingTestBase
 import datadog.trace.agent.test.utils.PortUtils
+import datadog.trace.api.Config
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import redis.clients.jedis.Jedis
@@ -10,7 +11,7 @@ import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_INSTANCE
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 
-class Jedis30ClientTest extends AgentTestRunner {
+abstract class Jedis30ClientTest extends VersionedNamingTestBase {
 
   @Shared
   int port = PortUtils.randomOpenPort()
@@ -60,15 +61,17 @@ class Jedis30ClientTest extends AgentTestRunner {
     assertTraces(1) {
       trace(1) {
         span {
-          serviceName "redis"
-          operationName "redis.query"
+          serviceName service()
+          operationName operation()
           resourceName "SET"
           spanType DDSpanTypes.REDIS
-          topLevel true
+          measured true
           tags {
             "$Tags.COMPONENT" "redis-command"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
             "$Tags.DB_TYPE" "redis"
+            "$Tags.PEER_HOSTNAME" "localhost"
+            peerServiceFrom(Tags.PEER_HOSTNAME)
             defaultTags()
           }
         }
@@ -87,29 +90,33 @@ class Jedis30ClientTest extends AgentTestRunner {
     assertTraces(2) {
       trace(1) {
         span {
-          serviceName "redis"
-          operationName "redis.query"
+          serviceName service()
+          operationName operation()
           resourceName "SET"
           spanType DDSpanTypes.REDIS
           tags {
             "$Tags.COMPONENT" "redis-command"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
             "$Tags.DB_TYPE" "redis"
+            "$Tags.PEER_HOSTNAME" "localhost"
+            peerServiceFrom(Tags.PEER_HOSTNAME)
             defaultTags()
           }
         }
       }
       trace(1) {
         span {
-          serviceName "redis"
-          operationName "redis.query"
+          serviceName service()
+          operationName operation()
           resourceName "GET"
           spanType DDSpanTypes.REDIS
-          topLevel true
+          measured true
           tags {
             "$Tags.COMPONENT" "redis-command"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
             "$Tags.DB_TYPE" "redis"
+            "$Tags.PEER_HOSTNAME" "localhost"
+            peerServiceFrom(Tags.PEER_HOSTNAME)
             defaultTags()
           }
         }
@@ -128,30 +135,34 @@ class Jedis30ClientTest extends AgentTestRunner {
     assertTraces(2) {
       trace(1) {
         span {
-          serviceName "redis"
-          operationName "redis.query"
+          serviceName service()
+          operationName operation()
           resourceName "SET"
           spanType DDSpanTypes.REDIS
-          topLevel true
+          measured true
           tags {
             "$Tags.COMPONENT" "redis-command"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
             "$Tags.DB_TYPE" "redis"
+            "$Tags.PEER_HOSTNAME" "localhost"
+            peerServiceFrom(Tags.PEER_HOSTNAME)
             defaultTags()
           }
         }
       }
       trace(1) {
         span {
-          serviceName "redis"
-          operationName "redis.query"
+          serviceName service()
+          operationName operation()
           resourceName "RANDOMKEY"
           spanType DDSpanTypes.REDIS
-          topLevel true
+          measured true
           tags {
             "$Tags.COMPONENT" "redis-command"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
             "$Tags.DB_TYPE" "redis"
+            "$Tags.PEER_HOSTNAME" "localhost"
+            peerServiceFrom(Tags.PEER_HOSTNAME)
             defaultTags()
           }
         }
@@ -176,28 +187,32 @@ class Jedis30ClientTest extends AgentTestRunner {
     assertTraces(2) {
       trace(1) {
         span {
-          serviceName "redis"
-          operationName "redis.query"
+          serviceName service()
+          operationName operation()
           resourceName "HMSET"
           spanType DDSpanTypes.REDIS
           tags {
             "$Tags.COMPONENT" "redis-command"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
             "$Tags.DB_TYPE" "redis"
+            "$Tags.PEER_HOSTNAME" "localhost"
+            peerServiceFrom(Tags.PEER_HOSTNAME)
             defaultTags()
           }
         }
       }
       trace(1) {
         span {
-          serviceName "redis"
-          operationName "redis.query"
+          serviceName service()
+          operationName operation()
           resourceName "HGETALL"
           spanType DDSpanTypes.REDIS
           tags {
             "$Tags.COMPONENT" "redis-command"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
             "$Tags.DB_TYPE" "redis"
+            "$Tags.PEER_HOSTNAME" "localhost"
+            peerServiceFrom(Tags.PEER_HOSTNAME)
             defaultTags()
           }
         }
@@ -225,74 +240,120 @@ class Jedis30ClientTest extends AgentTestRunner {
     assertTraces(5) {
       trace(1) {
         span {
-          serviceName "redis"
-          operationName "redis.query"
+          serviceName service()
+          operationName operation()
           resourceName "ZADD"
           spanType DDSpanTypes.REDIS
           tags {
             "$Tags.COMPONENT" "redis-command"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
             "$Tags.DB_TYPE" "redis"
+            "$Tags.PEER_HOSTNAME" "localhost"
+            peerServiceFrom(Tags.PEER_HOSTNAME)
             defaultTags()
           }
         }
       }
       trace(1) {
         span {
-          serviceName "redis"
-          operationName "redis.query"
+          serviceName service()
+          operationName operation()
           resourceName "ZADD"
           spanType DDSpanTypes.REDIS
           tags {
             "$Tags.COMPONENT" "redis-command"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
             "$Tags.DB_TYPE" "redis"
+            "$Tags.PEER_HOSTNAME" "localhost"
+            peerServiceFrom(Tags.PEER_HOSTNAME)
             defaultTags()
           }
         }
       }
       trace(1) {
         span {
-          serviceName "redis"
-          operationName "redis.query"
+          serviceName service()
+          operationName operation()
           resourceName "ZADD"
           spanType DDSpanTypes.REDIS
           tags {
             "$Tags.COMPONENT" "redis-command"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
             "$Tags.DB_TYPE" "redis"
+            "$Tags.PEER_HOSTNAME" "localhost"
+            peerServiceFrom(Tags.PEER_HOSTNAME)
             defaultTags()
           }
         }
       }
       trace(1) {
         span {
-          serviceName "redis"
-          operationName "redis.query"
+          serviceName service()
+          operationName operation()
           resourceName "ZADD"
           spanType DDSpanTypes.REDIS
           tags {
             "$Tags.COMPONENT" "redis-command"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
             "$Tags.DB_TYPE" "redis"
+            "$Tags.PEER_HOSTNAME" "localhost"
+            peerServiceFrom(Tags.PEER_HOSTNAME)
             defaultTags()
           }
         }
       }
       trace(1) {
         span {
-          serviceName "redis"
-          operationName "redis.query"
+          serviceName service()
+          operationName operation()
           resourceName "ZRANGEBYSCORE"
           spanType DDSpanTypes.REDIS
           tags {
             "$Tags.COMPONENT" "redis-command"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
             "$Tags.DB_TYPE" "redis"
+            "$Tags.PEER_HOSTNAME" "localhost"
+            peerServiceFrom(Tags.PEER_HOSTNAME)
             defaultTags()
           }
         }
       }
     }
+  }
+}
+
+class Jedis30ClientV0Test extends Jedis30ClientTest {
+
+  @Override
+  int version() {
+    return 0
+  }
+
+  @Override
+  String service() {
+    return "redis"
+  }
+
+  @Override
+  String operation() {
+    return "redis.query"
+  }
+}
+
+class Jedis30ClientV1ForkedTest extends Jedis30ClientTest {
+
+  @Override
+  int version() {
+    return 1
+  }
+
+  @Override
+  String service() {
+    return Config.get().getServiceName()
+  }
+
+  @Override
+  String operation() {
+    return "redis.command"
   }
 }

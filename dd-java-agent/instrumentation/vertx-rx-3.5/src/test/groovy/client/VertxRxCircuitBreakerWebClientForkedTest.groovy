@@ -1,6 +1,7 @@
 package client
 
 import datadog.trace.agent.test.base.HttpClientTest
+import datadog.trace.agent.test.naming.TestingNettyHttpNamingConventions
 import datadog.trace.instrumentation.netty41.client.NettyHttpClientDecorator
 import io.vertx.circuitbreaker.CircuitBreakerOptions
 import io.vertx.core.VertxOptions
@@ -16,7 +17,7 @@ import spock.lang.Timeout
 import java.util.concurrent.CompletableFuture
 
 @Timeout(10)
-class VertxRxCircuitBreakerWebClientForkedTest extends HttpClientTest {
+class VertxRxCircuitBreakerWebClientForkedTest extends HttpClientTest implements TestingNettyHttpNamingConventions.ClientV0 {
 
   @Override
   boolean useStrictTraceWrites() {
@@ -68,11 +69,6 @@ class VertxRxCircuitBreakerWebClientForkedTest extends HttpClientTest {
   @Override
   CharSequence component() {
     return NettyHttpClientDecorator.DECORATE.component()
-  }
-
-  @Override
-  String expectedOperationName() {
-    return "netty.client.request"
   }
 
   @Override

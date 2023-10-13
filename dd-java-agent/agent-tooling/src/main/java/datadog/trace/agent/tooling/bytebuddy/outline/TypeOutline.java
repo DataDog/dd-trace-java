@@ -30,6 +30,7 @@ final class TypeOutline extends WithName {
   private final int modifiers;
   private final String superName;
   private final String[] interfaces;
+  private String declaringName;
 
   private List<AnnotationDescription> declaredAnnotations;
 
@@ -70,6 +71,19 @@ final class TypeOutline extends WithName {
   }
 
   @Override
+  public TypeDescription getDeclaringType() {
+    if (null != declaringName) {
+      return findType(declaringName.replace('/', '.'));
+    }
+    return null;
+  }
+
+  @Override
+  public TypeDescription getEnclosingType() {
+    return getDeclaringType(); // equivalent for outline purposes
+  }
+
+  @Override
   public int getModifiers() {
     return modifiers;
   }
@@ -94,6 +108,10 @@ final class TypeOutline extends WithName {
   @Override
   public MethodList<MethodDescription.InDefinedShape> getDeclaredMethods() {
     return declaredMethods.isEmpty() ? NO_METHODS : new MethodList.Explicit<>(declaredMethods);
+  }
+
+  void declaredBy(String declaringName) {
+    this.declaringName = declaringName;
   }
 
   void declare(AnnotationDescription annotation) {

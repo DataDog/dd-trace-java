@@ -9,10 +9,10 @@ import javax.ws.rs.client.ClientResponseContext;
 public class JaxRsClientDecorator
     extends HttpClientDecorator<ClientRequestContext, ClientResponseContext> {
   public static final CharSequence JAX_RS_CLIENT = UTF8BytesString.create("jax-rs.client");
-  public static final CharSequence JAX_RS_CLIENT_CALL =
-      UTF8BytesString.create("jax-rs.client.call");
-
   public static final JaxRsClientDecorator DECORATE = new JaxRsClientDecorator();
+
+  public static final CharSequence JAX_RS_CLIENT_CALL =
+      UTF8BytesString.create(DECORATE.operationName());
 
   @Override
   protected String[] instrumentationNames() {
@@ -37,5 +37,15 @@ public class JaxRsClientDecorator
   @Override
   protected int status(final ClientResponseContext httpResponse) {
     return httpResponse.getStatus();
+  }
+
+  @Override
+  protected String getRequestHeader(ClientRequestContext request, String headerName) {
+    return request.getHeaderString(headerName);
+  }
+
+  @Override
+  protected String getResponseHeader(ClientResponseContext response, String headerName) {
+    return response.getHeaderString(headerName);
   }
 }

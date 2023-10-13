@@ -1,6 +1,7 @@
 import groovy.transform.CompileDynamic
 import groovy.transform.CompileStatic
 import org.gradle.api.GradleException
+import org.gradle.api.JavaVersion
 import org.gradle.api.Plugin
 import org.gradle.api.Project
 import org.gradle.api.Task
@@ -45,6 +46,11 @@ class CallSiteInstrumentationPlugin implements Plugin<Project> {
     csiSourceSet.compileClasspath += mainSourceSet.output // mainly needed for the plugin tests
     csiSourceSet.annotationProcessorPath += mainSourceSet.annotationProcessorPath
     csiSourceSet.java.srcDir(targetFolder)
+    target.getTasksByName(csiSourceSet.getCompileTaskName('java'), false).each {
+      final compile = (AbstractCompile) it
+      compile.sourceCompatibility = JavaVersion.VERSION_1_8
+      compile.targetCompatibility = JavaVersion.VERSION_1_8
+    }
 
     // add csi classes to test classpath
     final testSourceSet = sourceSets.getByName(SourceSet.TEST_SOURCE_SET_NAME)
@@ -53,7 +59,7 @@ class CallSiteInstrumentationPlugin implements Plugin<Project> {
     target.dependencies.add('testImplementation', csiSourceSet.output)
 
     // include classes in final JAR
-    target.tasks.named('jar').configure { Jar it -> it.from(csiSourceSet.output.classesDirs) }
+    (target.tasks.named('jar').get()).configure { Jar it -> it.from(csiSourceSet.output.classesDirs) }
   }
 
   private static void createTasks(final Project target) {
@@ -130,9 +136,10 @@ class CallSiteInstrumentationPlugin implements Plugin<Project> {
     callSiteGeneratorTask.doFirst { JavaExec execTask ->
       final argumentFile = newTempFile(execTask.getTemporaryDir(), "call-site-arguments")
       argumentFile.withWriter {
+        it.writeLine(target.getProjectDir().toPath().resolve(extension.srcFolder).toString())
         it.writeLine(input.get().asFile.toString())
         it.writeLine(output.get().asFile.toString())
-        it.writeLine(extension.suffix);
+        it.writeLine(extension.suffix)
         it.writeLine(extension.reporters.join(','))
         getProgramClasspath(target).each { classpath -> it.writeLine(classpath.toString()) }
       }
@@ -140,8 +147,8 @@ class CallSiteInstrumentationPlugin implements Plugin<Project> {
     }
     callSiteGeneratorTask.doLast { JavaExec task ->
       target.logger.info(stdout.toString())
+      target.logger.error(stderr.toString())
       if (task.executionResult.get().exitValue != 0) {
-        target.logger.error(stderr.toString())
         throw new GradleException("Failed to generate call site classes, check task logs for more information")
       }
     }
@@ -193,13 +200,10 @@ class CallSiteInstrumentationPlugin implements Plugin<Project> {
 @CompileStatic
 class CallSiteInstrumentationExtension {
   String suffix = 'CallSite'
+  String srcFolder = "src${File.separatorChar}main${File.separatorChar}java"
   String targetFolder = "generated${File.separatorChar}sources${File.separatorChar}csi"
   List<String> reporters = ['CONSOLE']
   File rootFolder
   JavaLanguageVersion javaVersion
   String[] jvmArgs = ['-Xmx128m', '-Xms64m']
 }
-
-
-
-

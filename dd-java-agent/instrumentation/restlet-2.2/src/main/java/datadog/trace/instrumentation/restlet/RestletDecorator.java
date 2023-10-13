@@ -11,10 +11,12 @@ import datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator;
 
 public class RestletDecorator
     extends HttpServerDecorator<HttpExchange, HttpExchange, HttpExchange, HttpExchange> {
-  public static final CharSequence RESTLET_REQUEST = UTF8BytesString.create("restlet-http.request");
   public static final CharSequence RESTLET_HTTP_SERVER =
       UTF8BytesString.create("restlet-http-server");
   public static final RestletDecorator DECORATE = new RestletDecorator();
+
+  private static final CharSequence RESTLET_REQUEST =
+      UTF8BytesString.create(DECORATE.operationName());
 
   @Override
   protected String[] instrumentationNames() {

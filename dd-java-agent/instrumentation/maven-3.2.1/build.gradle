@@ -1,0 +1,29 @@
+apply from: "$rootDir/gradle/java.gradle"
+
+muzzle {
+  pass {
+    group = 'org.apache.maven'
+    module = 'maven-embedder'
+    versions = '[3.2.1,)'
+    assertInverse = true
+  }
+}
+
+addTestSuiteForDir('latestDepTest', 'test')
+
+dependencies {
+  compileOnly 'org.apache.maven:maven-embedder:3.2.1'
+
+  testImplementation testFixtures(project(':dd-java-agent:agent-ci-visibility'))
+
+  // this is not the earliest version of Maven that we support,
+  // but using the earliest one is not possible here because of dependency conflicts
+  testImplementation 'org.apache.maven:maven-embedder:3.2.5'
+  testImplementation group: 'org.apache.maven.resolver', name: 'maven-resolver-connector-basic', version: '1.0.3'
+  testImplementation group: 'org.apache.maven.resolver', name: 'maven-resolver-transport-http', version: '1.0.3'
+
+  latestDepTestImplementation group: 'org.apache.maven', name: 'maven-embedder', version: '+'
+  latestDepTestImplementation group: 'org.apache.maven.resolver', name: 'maven-resolver-connector-basic', version: '+'
+  latestDepTestImplementation group: 'org.apache.maven.resolver', name: 'maven-resolver-transport-http', version: '+'
+  latestDepTestImplementation group: 'org.fusesource.jansi', name: 'jansi', version: '+'
+}

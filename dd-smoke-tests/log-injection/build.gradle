@@ -1,0 +1,356 @@
+import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
+
+plugins {
+  id "com.github.johnrengelman.shadow"
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+description = 'Log injection Smoke Tests.'
+
+configurations {
+  jcl
+  log4j1
+  log4j1Latest.extendsFrom log4j1
+
+  log4j2
+  log4j2Latest.extendsFrom log4j2
+  julLog4j2Bridge
+  julLog4j2BridgeLatest.extendsFrom julLog4j2Bridge
+  jclLog4j2Bridge
+  jclLog4j2BridgeLatest.extendsFrom jclLog4j2Bridge
+  log4j1Log4j2Bridge
+  log4j1Log4j2BridgeLatest.extendsFrom log4j1Log4j2Bridge
+  log4j2Slf4jBridge
+  log4j2Slf4jBridgeLatest.extendsFrom log4j2Slf4jBridge
+
+  slf4jInterface
+  logbackBackend
+  logbackBackendLatest.extendsFrom logbackBackend
+
+  slf4jJULBridge
+  slf4jJCLBridge
+  slf4jLog4j1Bridge
+  slf4jLog4j2Bridge
+  slf4jLog4j2BridgeLatest.extendsFrom slf4jLog4j2Bridge
+  julSlf4jBridge
+  jclSlf4jBridge
+  log4j1Slf4jBridge
+
+  slf4jSimpleBackend
+
+  jbossInterface
+  jbossBackend
+  jbossBackendLatest.extendsFrom jbossBackend
+
+  floggerInterface
+  floggerJULBackend
+  floggerSlf4jBackend
+}
+
+sourceSets {
+  logging {
+    resources {
+      srcDir 'src/logging/resources'
+    }
+  }
+}
+
+
+tasks.named('processLoggingResources').configure {
+  // Don't know why this tries to copy the logback.xml file twice, but only accept it once
+  duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+}
+
+
+dependencies {
+  implementation project(path: ':dd-trace-ot', configuration: 'shadow')
+  implementation project(':dd-trace-api')
+
+  compileOnly deps.slf4j
+  compileOnly 'log4j:log4j:1.2.17'
+  compileOnly 'commons-logging:commons-logging:1.2'
+  compileOnly 'org.apache.logging.log4j:log4j-core:2.14.0'
+  compileOnly 'org.jboss.logging:jboss-logging:3.4.1.Final'
+  compileOnly 'com.google.flogger:flogger:0.5.1'
+
+  jcl 'commons-logging:commons-logging:1.2'
+
+  log4j1 'log4j:log4j:1.2.7'
+  log4j1Latest 'log4j:log4j:+'
+
+  log4j2 'org.apache.logging.log4j:log4j-core:2.7'
+  log4j2 'org.jctools:jctools-core:1.2.1'
+  log4j2 'com.fasterxml.jackson.core:jackson-core:2.8.3'
+  log4j2 'com.fasterxml.jackson.core:jackson-databind:2.8.3'
+  log4j2 'com.fasterxml.jackson.core:jackson-annotations:2.8.3'
+  julLog4j2Bridge 'org.apache.logging.log4j:log4j-jul:2.7'
+  jclLog4j2Bridge 'org.apache.logging.log4j:log4j-jcl:2.7'
+  log4j1Log4j2Bridge 'org.apache.logging.log4j:log4j-1.2-api:2.7'
+  slf4jLog4j2Bridge 'org.apache.logging.log4j:log4j-slf4j-impl:2.7'
+  log4j2Slf4jBridge 'org.apache.logging.log4j:log4j-to-slf4j:2.7'
+
+  log4j2Latest 'org.apache.logging.log4j:log4j-core:2.+'
+  julLog4j2BridgeLatest 'org.apache.logging.log4j:log4j-jul:2.+'
+  jclLog4j2BridgeLatest 'org.apache.logging.log4j:log4j-jcl:2.+'
+  log4j1Log4j2BridgeLatest 'org.apache.logging.log4j:log4j-1.2-api:2.+'
+  slf4jLog4j2BridgeLatest 'org.apache.logging.log4j:log4j-slf4j-impl:2.+'
+  log4j2Slf4jBridgeLatest 'org.apache.logging.log4j:log4j-to-slf4j:2.+'
+
+  slf4jInterface deps.slf4j
+
+  slf4jJULBridge "org.slf4j:slf4j-jdk14:${versions.slf4j}"
+  slf4jJCLBridge "org.slf4j:slf4j-jcl:${versions.slf4j}"
+  slf4jLog4j1Bridge "org.slf4j:slf4j-log4j12:${versions.slf4j}"
+  julSlf4jBridge "org.slf4j:jul-to-slf4j:${versions.slf4j}"
+  jclSlf4jBridge "org.slf4j:jcl-over-slf4j:${versions.slf4j}"
+  log4j1Slf4jBridge "org.slf4j:log4j-over-slf4j:${versions.slf4j}"
+
+  slf4jSimpleBackend "org.slf4j:slf4j-simple:${versions.slf4j}"
+
+  logbackBackend 'ch.qos.logback:logback-classic:1.0.0'
+  logbackBackend 'net.logstash.logback:logstash-logback-encoder:3.0'
+
+  // Logback has a bunch of alpha versions after this
+  logbackBackendLatest 'ch.qos.logback:logback-classic:1.2.3'
+  logbackBackendLatest 'net.logstash.logback:logstash-logback-encoder:6.6'
+
+  jbossInterface 'org.jboss.logging:jboss-logging:3.4.1.Final'
+  jbossBackend 'org.jboss.logmanager:jboss-logmanager:1.2.0.GA'
+  jbossBackendLatest 'org.jboss.logmanager:jboss-logmanager:2.+'
+
+  floggerInterface 'com.google.flogger:flogger:0.5.1'
+  floggerJULBackend 'com.google.flogger:flogger-system-backend:0.5.1'
+  floggerSlf4jBackend 'com.google.flogger:flogger-slf4j-backend:0.5.1'
+
+  testImplementation project(':dd-smoke-tests')
+}
+
+def generateTestingJar(String interfaceName, String backend, List<Configuration> configurationsList) {
+  def name = interfaceName + "Interface" + backend + "Backend"
+  tasks.register(name, ShadowJar).configure {
+    from sourceSets.main.output
+    from sourceSets.logging.output
+
+    // Jar signing prevents proper loading
+    exclude 'META-INF/*.SF'
+    exclude 'META-INF/*.DSA'
+    exclude 'META-INF/*.RSA'
+
+    // This file causes issues when merging jars
+    // https://stackoverflow.com/questions/48033792/log4j2-error-statuslogger-unrecognized-conversion-specifier
+    // https://issues.apache.org/jira/browse/LOG4J2-673
+    exclude '**/Log4j2Plugins.dat'
+
+    archiveClassifier.set('')
+    archiveVersion.set('')
+
+    manifest {
+      attributes('Main-Class': 'datadog.smoketest.loginjection.' + interfaceName + "Interface")
+    }
+
+    archiveBaseName.set(name)
+
+    configurations = [project.configurations.runtimeClasspath]+ configurationsList
+  }
+}
+
+generateTestingJar('JUL', 'JUL', [])
+
+generateTestingJar('JUL', 'Log4j2',
+  [configurations.julLog4j2Bridge, configurations.log4j2])
+
+generateTestingJar('JUL', 'Log4j2Latest',
+  [configurations.julLog4j2BridgeLatest, configurations.log4j2Latest])
+
+generateTestingJar('JUL', 'JBoss', [configurations.jbossBackend])
+
+generateTestingJar('JUL', 'JBossLatest', [configurations.jbossBackendLatest])
+
+generateTestingJar('JCL', 'JUL', [configurations.jcl])
+
+generateTestingJar('JCL', 'Log4j1',
+  [configurations.jcl, configurations.log4j1])
+
+generateTestingJar('JCL', 'Log4j1Latest',
+  [configurations.jcl, configurations.log4j1Latest])
+
+generateTestingJar('JCL', 'Log4j2',
+  [configurations.jcl, configurations.jclLog4j2Bridge, configurations.log4j2])
+
+generateTestingJar('JCL', 'Log4j2Latest',
+  [
+    configurations.jcl,
+    configurations.jclLog4j2BridgeLatest,
+    configurations.log4j2Latest
+  ])
+
+generateTestingJar('Log4j1', 'Log4j1', [configurations.log4j1])
+
+generateTestingJar('Log4j1', 'Log4j1Latest', [configurations.log4j1Latest])
+
+generateTestingJar('Log4j1', 'Log4j2',
+  [configurations.log4j1Log4j2Bridge, configurations.log4j2])
+
+generateTestingJar('Log4j1', 'Log4j2Latest',
+  [configurations.log4j1Log4j2BridgeLatest, configurations.log4j2Latest])
+
+generateTestingJar('Log4j2', 'Log4j2',
+  [configurations.log4j2])
+
+generateTestingJar('Log4j2', 'Log4j2Latest',
+  [configurations.log4j2Latest])
+
+generateTestingJar('Slf4j', 'Logback',
+  [configurations.slf4jInterface, configurations.logbackBackend])
+
+generateTestingJar('Slf4j', 'LogbackLatest',
+  [configurations.slf4jInterface, configurations.logbackBackendLatest])
+
+generateTestingJar('Slf4j', 'Log4j1',
+  [
+    configurations.slf4jInterface,
+    configurations.slf4jLog4j1Bridge,
+    configurations.log4j1
+  ])
+
+generateTestingJar('Slf4j', 'Log4j1Latest',
+  [
+    configurations.slf4jInterface,
+    configurations.slf4jLog4j1Bridge,
+    configurations.log4j1Latest
+  ])
+
+generateTestingJar('Slf4j', 'Log4j2',
+  [
+    configurations.slf4jInterface,
+    configurations.slf4jLog4j2Bridge,
+    configurations.log4j2
+  ])
+
+generateTestingJar('Slf4j', 'Log4j2Latest',
+  [
+    configurations.slf4jInterface,
+    configurations.slf4jLog4j2BridgeLatest,
+    configurations.log4j2Latest
+  ])
+
+generateTestingJar('Slf4j', 'Slf4jSimple',
+  [configurations.slf4jInterface, configurations.slf4jSimpleBackend])
+
+generateTestingJar('Slf4j', 'JUL',
+  [configurations.slf4jInterface, configurations.slf4jJULBridge])
+
+generateTestingJar('Slf4j', 'JCLToLog4j1',
+  [
+    configurations.slf4jInterface,
+    configurations.slf4jJCLBridge,
+    configurations.jcl,
+    configurations.log4j1
+  ])
+
+generateTestingJar('Slf4j', 'JCLToLog4j1Latest',
+  [
+    configurations.slf4jInterface,
+    configurations.slf4jJCLBridge,
+    configurations.jcl,
+    configurations.log4j1Latest
+  ])
+
+generateTestingJar('Slf4j', 'JCLToLog4j2',
+  [
+    configurations.slf4jInterface,
+    configurations.slf4jJCLBridge,
+    configurations.jcl,
+    configurations.jclLog4j2Bridge,
+    configurations.log4j2
+  ])
+
+generateTestingJar('Slf4j', 'JCLToLog4j2Latest',
+  [
+    configurations.slf4jInterface,
+    configurations.slf4jJCLBridge,
+    configurations.jcl,
+    configurations.jclLog4j2BridgeLatest,
+    configurations.log4j2Latest
+  ])
+
+generateTestingJar('JUL', 'Slf4jToLogback',
+  [configurations.julSlf4jBridge, configurations.logbackBackend])
+
+generateTestingJar('JUL', 'Slf4jToLogbackLatest',
+  [configurations.julSlf4jBridge, configurations.logbackBackendLatest])
+
+generateTestingJar('JCL', 'Slf4jToLogback',
+  [configurations.jclSlf4jBridge, configurations.logbackBackend])
+
+generateTestingJar('JCL', 'Slf4jToLogbackLatest',
+  [configurations.jclSlf4jBridge, configurations.logbackBackendLatest])
+
+generateTestingJar('Log4j1', 'Slf4jToLogback',
+  [configurations.log4j1Slf4jBridge, configurations.logbackBackend])
+
+generateTestingJar('Log4j1', 'Slf4jToLogbackLatest',
+  [configurations.log4j1Slf4jBridge, configurations.logbackBackendLatest])
+
+generateTestingJar('Log4j2', 'Slf4jToLogback',
+  [configurations.log4j2Slf4jBridge, configurations.logbackBackend])
+
+generateTestingJar('Log4j2', 'Slf4jToLogbackLatest',
+  [configurations.log4j2Slf4jBridge, configurations.logbackBackendLatest])
+
+generateTestingJar('JBoss', 'JBoss',
+  [configurations.jbossInterface, configurations.jbossBackend])
+
+generateTestingJar('JBoss', 'JBossLatest',
+  [configurations.jbossInterface, configurations.jbossBackendLatest])
+
+generateTestingJar('JBoss', 'Log4j1',
+  [configurations.jbossInterface, configurations.log4j1])
+
+generateTestingJar('JBoss', 'Log4j1Latest',
+  [configurations.jbossInterface, configurations.log4j1Latest])
+
+generateTestingJar('JBoss', 'Log4j2',
+  [configurations.jbossInterface, configurations.log4j2])
+
+generateTestingJar('JBoss', 'Log4j2Latest',
+  [configurations.jbossInterface, configurations.log4j2Latest])
+
+generateTestingJar('JBoss', 'Slf4jToLogback',
+  [
+    configurations.jbossInterface,
+    configurations.slf4jInterface,
+    configurations.logbackBackend
+  ])
+
+generateTestingJar('JBoss', 'Slf4jToLogbackLatest',
+  [
+    configurations.jbossInterface,
+    configurations.slf4jInterface,
+    configurations.logbackBackendLatest
+  ])
+
+generateTestingJar('JBoss', 'JUL', [configurations.jbossInterface])
+
+generateTestingJar('Flogger', 'JUL',
+  [configurations.floggerInterface, configurations.floggerJULBackend])
+
+generateTestingJar('Flogger', 'Slf4jToLogback',
+  [
+    configurations.floggerInterface,
+    configurations.floggerSlf4jBackend,
+    configurations.logbackBackend
+  ])
+
+generateTestingJar('Flogger', 'Slf4jToLogbackLatest',
+  [
+    configurations.floggerInterface,
+    configurations.floggerSlf4jBackend,
+    configurations.logbackBackendLatest
+  ])
+
+tasks.withType(Test).configureEach {
+  dependsOn tasks.withType(ShadowJar)
+}
+
+

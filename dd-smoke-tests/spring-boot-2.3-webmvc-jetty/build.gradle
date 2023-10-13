@@ -1,0 +1,42 @@
+plugins {
+  id "com.github.johnrengelman.shadow"
+}
+
+
+import com.github.jengelman.gradle.plugins.shadow.transformers.PropertiesFileTransformer
+
+apply from: "$rootDir/gradle/java.gradle"
+description = 'Spring Boot 2.3 Jetty Smoke Tests.'
+
+// The standard spring-boot plugin doesn't play nice with our project
+// so we'll build a fat jar instead
+jar {
+  manifest {
+    attributes('Main-Class': 'datadog.smoketest.springboot.SpringbootApplication')
+  }
+}
+
+shadowJar {
+  configurations = [project.configurations.runtimeClasspath]
+  mergeServiceFiles()
+  append 'META-INF/spring.handlers'
+  append 'META-INF/spring.schemas'
+  append 'META-INF/spring.tooling'
+  transform(PropertiesFileTransformer) {
+    paths = ['META-INF/spring.factories']
+    mergeStrategy = "append"
+  }
+}
+
+dependencies {
+  implementation group: 'org.springframework.boot', name: 'spring-boot-starter-web', version: '2.3.1.RELEASE'
+  implementation group: 'org.springframework.boot', name: 'spring-boot-starter-jetty', version: '2.3.1.RELEASE'
+
+  testImplementation project(':dd-smoke-tests')
+}
+
+tasks.withType(Test).configureEach {
+  dependsOn "shadowJar"
+
+  jvmArgs "-Ddatadog.smoketest.springboot.shadowJar.path=${tasks.shadowJar.archiveFile.get()}"
+}

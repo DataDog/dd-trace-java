@@ -1,8 +1,10 @@
 package datadog.trace.plugin.csi.impl
 
 import datadog.trace.agent.tooling.csi.CallSite
+import datadog.trace.agent.tooling.csi.CallSites
 import datadog.trace.plugin.csi.HasErrors.Failure
 import datadog.trace.plugin.csi.util.ErrorCode
+import groovy.transform.CompileDynamic
 import org.objectweb.asm.Type
 
 import datadog.trace.plugin.csi.impl.CallSiteSpecification.ThisSpecification as This
@@ -18,12 +20,13 @@ import java.lang.invoke.MethodHandles
 import java.lang.invoke.MethodType
 import java.security.MessageDigest
 
+@CompileDynamic
 class AdviceSpecificationTest extends BaseCsiPluginTest {
 
-  @CallSite
+  @CallSite(spi = CallSites)
   class EmptyAdvice {}
 
-  def 'test class generator error, call site without advices'() {
+  void 'test class generator error, call site without advices'() {
     setup:
     final context = mockValidationContext()
     final spec = buildClassSpecification(EmptyAdvice)
@@ -35,13 +38,13 @@ class AdviceSpecificationTest extends BaseCsiPluginTest {
     1 * context.addError(ErrorCode.CALL_SITE_SHOULD_HAVE_ADVICE_METHODS, _)
   }
 
-  @CallSite
+  @CallSite(spi = CallSites)
   class NonPublicStaticMethodAdvice {
     @CallSite.Before("void java.lang.Runnable.run()")
     private void advice(@CallSite.This final Runnable run) {}
   }
 
-  def 'test class generator error, non public static method'() {
+  void 'test class generator error, non public static method'() {
     setup:
     final context = mockValidationContext()
     final spec = buildClassSpecification(NonPublicStaticMethodAdvice)
@@ -57,7 +60,7 @@ class AdviceSpecificationTest extends BaseCsiPluginTest {
     static void concat(final String self, final String value) {}
   }
 
-  def 'advice class should be on the classpath'(final Type type, final int errors) {
+  void 'test advice class should be on the classpath'(final Type type, final int errors) {
     setup:
     final context = mockValidationContext()
     final spec = before {
@@ -73,16 +76,16 @@ class AdviceSpecificationTest extends BaseCsiPluginTest {
     spec.validate(context)
 
     then:
-    errors * context.addError({ Failure failure -> failure.errorCode == ErrorCode.UNRESOLVED_TYPE })
+    errors * context.addError { Failure failure -> failure.errorCode == ErrorCode.UNRESOLVED_TYPE }
     0 * context.addError(*_)
 
     where:
-    type                             || errors
-    Type.getType('Lfoo/bar/FooBar;') || 1
-    Type.getType(BeforeStringConcat) || 0
+    type                             | errors
+    Type.getType('Lfoo/bar/FooBar;') | 1
+    Type.getType(BeforeStringConcat) | 0
   }
 
-  def 'before advice should return void'(final Class<?> returnType, final int errors) {
+  void 'test before advice should return void'(final Class<?> returnType, final int errors) {
     setup:
     final context = mockValidationContext()
     final spec = before {
@@ -115,7 +118,7 @@ class AdviceSpecificationTest extends BaseCsiPluginTest {
     }
   }
 
-  def 'around advice should return type compatible with pointcut'(final Class<?> returnType, final int errors) {
+  void 'test around advice should return type compatible with pointcut'(final Class<?> returnType, final int errors) {
     setup:
     final context = mockValidationContext()
     final spec = around {
@@ -136,10 +139,10 @@ class AdviceSpecificationTest extends BaseCsiPluginTest {
     0 * context.addError(*_)
 
     where:
-    returnType    || errors
-    MessageDigest || 1
-    Object        || 0
-    String        || 0
+    returnType    | errors
+    MessageDigest | 1
+    Object        | 0
+    String        | 0
   }
 
   class AfterStringConcat {
@@ -148,7 +151,7 @@ class AdviceSpecificationTest extends BaseCsiPluginTest {
     }
   }
 
-  def 'after advice should return type compatible with pointcut'(final Class<?> returnType, final int errors) {
+  void 'test after advice should return type compatible with pointcut'(final Class<?> returnType, final int errors) {
     setup:
     final context = mockValidationContext()
     final spec = after {
@@ -170,13 +173,13 @@ class AdviceSpecificationTest extends BaseCsiPluginTest {
     0 * context.addError(*_)
 
     where:
-    returnType    || errors
-    MessageDigest || 1
-    Object        || 0
-    String        || 0
+    returnType    | errors
+    MessageDigest | 1
+    Object        | 0
+    String        | 0
   }
 
-  def 'this parameter should always be the first'(final List<ParameterSpecification> params, final int errors) {
+  void 'test this parameter should always be the first'(final List<ParameterSpecification> params, final int errors) {
     setup:
     final context = mockValidationContext()
     final spec = around {
@@ -195,13 +198,13 @@ class AdviceSpecificationTest extends BaseCsiPluginTest {
     0 * context.addError(*_)
 
     where:
-    params                  || errors
-    [new This(), new Arg()] || 0
-    [new Arg(), new This()] || 1
+    params                  | errors
+    [new This(), new Arg()] | 0
+    [new Arg(), new This()] | 1
   }
 
 
-  def 'this parameter should be compatible with pointcut'(final Class<?> type, final int errors) {
+  void 'test this parameter should be compatible with pointcut'(final Class<?> type, final int errors) {
     setup:
     final context = mockValidationContext()
     final spec = around {
@@ -221,18 +224,18 @@ class AdviceSpecificationTest extends BaseCsiPluginTest {
     errors * context.addError(ErrorCode.ADVICE_METHOD_PARAM_THIS_NOT_COMPATIBLE, _)
     // advice returns String so other return types won't be able to find the method
     if (type != String) {
-      1 * context.addError({ Failure failure -> failure.errorCode == ErrorCode.UNRESOLVED_METHOD })
+      1 * context.addError { Failure failure -> failure.errorCode == ErrorCode.UNRESOLVED_METHOD }
     }
     0 * context.addError(*_)
 
     where:
-    type          || errors
-    MessageDigest || 1
-    Object        || 0
-    String        || 0
+    type          | errors
+    MessageDigest | 1
+    Object        | 0
+    String        | 0
   }
 
-  def 'return parameter should always be the last'(final List<ParameterSpecification> params, final int errors) {
+  void 'test return parameter should always be the last'(final List<ParameterSpecification> params, final int errors) {
     setup:
     final context = mockValidationContext()
     final spec = after {
@@ -251,13 +254,13 @@ class AdviceSpecificationTest extends BaseCsiPluginTest {
     // other errors are ignored
 
     where:
-    params                                || errors
-    [new This(), new Arg(), new Return()] || 0
-    [new This(), new Return(), new Arg()] || 1
+    params                                | errors
+    [new This(), new Arg(), new Return()] | 0
+    [new This(), new Return(), new Arg()] | 1
   }
 
 
-  def 'return parameter should be compatible with pointcut'(final Class<?> returnType, final int errors) {
+  void 'test return parameter should be compatible with pointcut'(final Class<?> returnType, final int errors) {
     setup:
     final context = mockValidationContext()
     final spec = after {
@@ -277,19 +280,19 @@ class AdviceSpecificationTest extends BaseCsiPluginTest {
     errors * context.addError(ErrorCode.ADVICE_METHOD_PARAM_RETURN_NOT_COMPATIBLE, _)
     // advice returns String so other return types won't be able to find the method
     if (returnType != String) {
-      1 * context.addError({ Failure failure -> failure.errorCode == ErrorCode.UNRESOLVED_METHOD })
+      1 * context.addError { Failure failure -> failure.errorCode == ErrorCode.UNRESOLVED_METHOD }
     }
     0 * context.addError(*_)
 
     where:
-    returnType    || errors
-    MessageDigest || 1
-    String        || 0
-    Object        || 0
+    returnType    | errors
+    MessageDigest | 1
+    String        | 0
+    Object        | 0
   }
 
 
-  def 'argument parameter should be compatible with pointcut'(final Class<?> parameterType, final int errors) {
+  void 'test argument parameter should be compatible with pointcut'(final Class<?> parameterType, final int errors) {
     setup:
     final context = mockValidationContext()
     final spec = after {
@@ -309,15 +312,15 @@ class AdviceSpecificationTest extends BaseCsiPluginTest {
     errors * context.addError(ErrorCode.ADVICE_METHOD_PARAM_NOT_COMPATIBLE, _)
     // advice parameter is a String so with other types won't be able to find the method
     if (parameterType != String) {
-      1 * context.addError({ Failure failure -> failure.errorCode == ErrorCode.UNRESOLVED_METHOD })
+      1 * context.addError { Failure failure -> failure.errorCode == ErrorCode.UNRESOLVED_METHOD }
     }
     0 * context.addError(*_)
 
     where:
-    parameterType || errors
-    MessageDigest || 1
-    String        || 0
-    Object        || 0
+    parameterType | errors
+    MessageDigest | 1
+    String        | 0
+    Object        | 0
   }
 
   class BadAfterStringConcat {
@@ -326,7 +329,7 @@ class AdviceSpecificationTest extends BaseCsiPluginTest {
     }
   }
 
-  def 'after advice requires @This and @Return parameters'(final List<ParameterSpecification> params, final ErrorCode error) {
+  void 'test after advice requires @This and @Return parameters'(final List<ParameterSpecification> params, final ErrorCode error) {
     setup:
     final context = mockValidationContext()
     final spec = after {
@@ -345,9 +348,9 @@ class AdviceSpecificationTest extends BaseCsiPluginTest {
     0 * context.addError(*_)
 
     where:
-    params                    || error
-    [new Arg(), new Return()] || ErrorCode.ADVICE_AFTER_SHOULD_HAVE_THIS
-    [new This(), new Arg()]   || ErrorCode.ADVICE_AFTER_SHOULD_HAVE_RETURN
+    params                    | error
+    [new Arg(), new Return()] | ErrorCode.ADVICE_AFTER_SHOULD_HAVE_THIS
+    [new This(), new Arg()]   | ErrorCode.ADVICE_AFTER_SHOULD_HAVE_RETURN
   }
 
   class BadAllArgsAfterStringConcat {
@@ -356,7 +359,7 @@ class AdviceSpecificationTest extends BaseCsiPluginTest {
     }
   }
 
-  def 'should not mix @AllArguments and @Argument'() {
+  void 'should not mix @AllArguments and @Argument'() {
     setup:
     final context = mockValidationContext()
     final spec = after {
@@ -382,7 +385,7 @@ class AdviceSpecificationTest extends BaseCsiPluginTest {
     }
   }
 
-  def 'test inherited methods'() {
+  void 'test inherited methods'() {
     setup:
     final context = mockValidationContext()
     final spec = after {
@@ -409,7 +412,7 @@ class AdviceSpecificationTest extends BaseCsiPluginTest {
   @Requires({
     jvm.java9Compatible
   })
-  def 'invoke dynamic constants'() {
+  void 'test invoke dynamic constants'() {
     setup:
     final context = mockValidationContext()
     final spec = after {
@@ -431,7 +434,7 @@ class AdviceSpecificationTest extends BaseCsiPluginTest {
   @Requires({
     jvm.java9Compatible
   })
-  def 'invoke dynamic constants should be last'(final List<ParameterSpecification> params, final ErrorCode error) {
+  void 'test invoke dynamic constants should be last'(final List<ParameterSpecification> params, final ErrorCode error) {
     setup:
     final context = mockValidationContext()
     final spec = after {
@@ -453,9 +456,9 @@ class AdviceSpecificationTest extends BaseCsiPluginTest {
     0 * context.addError(*_)
 
     where:
-    params                                         || error
-    [new AllArgs(), new Return(), new DynConsts()] || null
-    [new AllArgs(), new DynConsts(), new Return()] || ErrorCode.ADVICE_PARAMETER_INVOKE_DYNAMIC_CONSTANTS_SHOULD_BE_LAST
+    params                                         | error
+    [new AllArgs(), new Return(), new DynConsts()] | null
+    [new AllArgs(), new DynConsts(), new Return()] | ErrorCode.ADVICE_PARAMETER_INVOKE_DYNAMIC_CONSTANTS_SHOULD_BE_LAST
   }
 
   static class TestInvokeDynamicConstantsNonInvokeDynamic {
@@ -467,7 +470,7 @@ class AdviceSpecificationTest extends BaseCsiPluginTest {
   @Requires({
     jvm.java9Compatible
   })
-  def 'invoke dynamic constants on non invoke dynamic pointcut'() {
+  void 'test invoke dynamic constants on non invoke dynamic pointcut'() {
     setup:
     final context = mockValidationContext()
     final spec = after {
@@ -493,7 +496,7 @@ class AdviceSpecificationTest extends BaseCsiPluginTest {
   @Requires({
     jvm.java9Compatible
   })
-  def 'invoke dynamic constants on non @After advice'() {
+  void 'test invoke dynamic constants on non @After advice'() {
     setup:
     final context = mockValidationContext()
     final spec = before {
@@ -521,7 +524,7 @@ class AdviceSpecificationTest extends BaseCsiPluginTest {
   @Requires({
     jvm.java9Compatible
   })
-  def 'invoke dynamic on @Around advice'() {
+  void 'test invoke dynamic on @Around advice'() {
     setup:
     final context = mockValidationContext()
     final spec = around {

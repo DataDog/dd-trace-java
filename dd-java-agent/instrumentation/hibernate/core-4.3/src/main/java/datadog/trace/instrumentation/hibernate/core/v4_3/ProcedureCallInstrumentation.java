@@ -2,6 +2,7 @@ package datadog.trace.instrumentation.hibernate.core.v4_3;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
+import static datadog.trace.instrumentation.hibernate.core.v4_3.SessionInstrumentation.SESSION_STATE;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 
@@ -27,7 +28,7 @@ public class ProcedureCallInstrumentation extends Instrumenter.Tracing
 
   @Override
   public Map<String, String> contextStore() {
-    return singletonMap("org.hibernate.procedure.ProcedureCall", SessionState.class.getName());
+    return singletonMap("org.hibernate.procedure.ProcedureCall", SESSION_STATE);
   }
 
   @Override

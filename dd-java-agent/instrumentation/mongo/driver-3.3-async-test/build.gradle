@@ -1,0 +1,20 @@
+
+apply from: "$rootDir/gradle/java.gradle"
+
+addTestSuiteForDir('latestDepTest', 'test')
+
+dependencies {
+  testImplementation(project(':dd-java-agent:instrumentation:mongo:common')) {
+    transitive = false
+  }
+  testImplementation(project(':dd-java-agent:instrumentation:mongo:driver-3.1')) {
+    transitive = false
+  }
+
+  testImplementation project(':dd-java-agent:instrumentation:mongo').sourceSets.test.output
+  testImplementation group: 'de.flapdoodle.embed', name: 'de.flapdoodle.embed.mongo', version: '4.5.1'
+  testImplementation group: 'commons-io', name: 'commons-io', version: '2.11.0'
+
+  testImplementation group: 'org.mongodb', name: 'mongodb-driver-async', version: '3.3.0'
+  latestDepTestImplementation group: 'org.mongodb', name: 'mongodb-driver-async', version: '+'
+}

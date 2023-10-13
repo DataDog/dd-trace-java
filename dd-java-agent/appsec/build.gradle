@@ -1,0 +1,119 @@
+plugins {
+  id "com.github.johnrengelman.shadow"
+  id "me.champeau.jmh"
+  id 'java-test-fixtures'
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+apply from: "$rootDir/gradle/version.gradle"
+
+dependencies {
+  api deps.slf4j
+  implementation project(':internal-api')
+  implementation project(':communication')
+  implementation project(':telemetry')
+  implementation group: 'io.sqreen', name: 'libsqreen', version: '8.0.0'
+  implementation group: 'com.squareup.moshi', name: 'moshi', version: versions.moshi
+
+  testImplementation deps.bytebuddy
+  testImplementation project(':utils:test-utils')
+  testImplementation group: 'org.hamcrest', name: 'hamcrest', version: '2.2'
+  testImplementation group: 'com.flipkart.zjsonpatch', name: 'zjsonpatch', version: '0.4.11'
+
+  testFixturesApi project(':dd-java-agent:testing')
+}
+
+configurations.testFixturesApi {
+  exclude group: 'org.eclipse.jetty', module: 'jetty-server'
+}
+
+shadowJar {
+  exclude '**/*-dbgsym.zip'
+  dependencies deps.excludeShared
+}
+
+jar {
+  archiveClassifier = 'unbundled'
+}
+
+jmh {
+  jmhVersion = '1.32'
+  duplicateClassesStrategy = DuplicatesStrategy.EXCLUDE
+  jvmArgs = ['-Ddd.appsec.enabled=true -Xms64m -Xmx64m']
+  failOnError = false
+  forceGC = true
+  if (project.hasProperty('jmhIncludes')) {
+    includes = [project.jmhIncludes]
+  }
+}
+jmhJar {
+  exclude 'org/slf4j/impl/**/*'
+}
+
+
+task runSampleApp(type: GradleBuild, dependsOn: ':dd-java-agent:shadowJar') {
+  description = "Run AppSec sample app with instrumentation"
+  group = 'application'
+
+  def agentShadowJar = project(':dd-java-agent').tasks['shadowJar']
+
+  def jvmArgs = '-Ddd.appsec.enabled=true'
+  if (project.hasProperty('jvmArgs')) {
+    jvmArgs += " ${project.'jvmArgs'}"
+  }
+
+  doFirst {
+    startParameter = startParameter.newInstance()
+    startParameter.projectProperties = [
+      testExecutable: System.getenv('TEST_EXECUTABLE') ?: '',
+      jvmArgs       : "-javaagent:${agentShadowJar.archiveFile.get().asFile} $jvmArgs",
+      debugJvm      : project.hasProperty('debugJvm') ? project.debugJvm : 'false',
+    ]
+  }
+  tasks = ['weblog:weblog-spring-app:bootRun']
+}
+
+ext {
+  minimumBranchCoverage = 0.6
+  minimumInstructionCoverage = 0.8
+  excludedClassesCoverage = [
+    'com.datadog.appsec.config.MergedAsmData.InvalidAsmDataException',
+    'com.datadog.appsec.powerwaf.LibSqreenInitialization',
+    'com.datadog.appsec.report.*',
+    'com.datadog.appsec.config.AppSecConfigServiceImpl.SubscribeFleetServiceRunnable.1',
+    'com.datadog.appsec.util.StandardizedLogging',
+    'com.datadog.appsec.util.AbortStartupException',
+    'com.datadog.appsec.config.AppSecConfig.AppSecConfigV1',
+    'com.datadog.appsec.config.AppSecConfig.AppSecConfigV2',
+    'com.datadog.appsec.config.AppSecConfig.NumberJsonAdapter',
+    'com.datadog.appsec.event.ReplaceableEventProducerService',
+  ]
+  excludedClassesBranchCoverage = [
+    'com.datadog.appsec.gateway.GatewayBridge',
+    'com.datadog.appsec.event.data.Address',
+    'com.datadog.appsec.config.CurrentAppSecConfig',
+    // equals() / hashCode() are not well covered
+    'com.datadog.appsec.config.AppSecConfig.Helper',
+    'com.datadog.appsec.powerwaf.PowerWAFModule.PowerWAFDataCallback',
+    'com.datadog.appsec.powerwaf.PowerWAFModule.PowerWAFEventsCallback',
+    // assert never fails
+    'com.datadog.appsec.util.StandardizedLogging',
+    'com.datadog.appsec.util.AbortStartupException',
+  ]
+  excludedClassesInstructionCoverage = ['com.datadog.appsec.report.ReportServiceImpl.TaskSchedulerImpl',]
+}
+
+tasks.withType(Test).configureEach {
+  jvmArgs += ['-Ddd.appsec.enabled=true']
+}
+def rootDir = project.rootDir
+spotless {
+  java {
+    target 'src/**/*.java'
+  }
+}
+
+pitest {
+  targetClasses = ['com.datadog.appsec.*']
+  jvmArgs = ['-Ddd.appsec.enabled=true']
+}

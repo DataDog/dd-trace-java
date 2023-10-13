@@ -1,27 +1,42 @@
 # Automatically assign the team as a reviewer.
 # https://help.github.com/en/articles/about-code-owners
 
+# Default owners, overridden by file/directory specific owners below
 * @DataDog/apm-java
 
-dd-java-agent/agent-profiling/  @DataDog/profiling-java
-dd-smoke-tests/profiling-integration-tests/ @DataDog/profiling-java
-
-# @ValentinZakharov is not in the @DataDog org :( so add him here
-dd-java-agent/appsec/  @DataDog/appsec-java @ValentinZakharov
+# @DataDog/profiling-java
+dd-java-agent/agent-profiling/                                                             @DataDog/profiling-java
+dd-java-agent/agent-crashtracking/                                                         @DataDog/profiling-java
+dd-java-agent/instrumentation/exception-profiling/                                         @DataDog/profiling-java
+dd-java-agent/instrumentation/java-directbytebuffer/                                       @DataDog/profiling-java
+dd-java-agent/agent-bootstrap/src/main/java/datadog/trace/bootstrap/instrumentation/jfr/   @DataDog/profiling-java
+dd-java-agent/agent-bootstrap/src/main/java11/datadog/trace/bootstrap/instrumentation/jfr/ @DataDog/profiling-java
+dd-smoke-tests/profiling-integration-tests/                                                @DataDog/profiling-java
 
 # @DataDog/ci-app-libraries-java
-internal-api/src/main/java/datadog/trace/bootstrap/instrumentation/ci/ @DataDog/ci-app-libraries-java
-dd-trace-core/src/main/java/datadog/trace/civisibility/                @DataDog/ci-app-libraries-java
-dd-java-agent/instrumentation/junit-4.10/                              @DataDog/ci-app-libraries-java
-dd-java-agent/instrumentation/junit-5.3/                               @DataDog/ci-app-libraries-java
-dd-java-agent/instrumentation/testng-6.4/                              @DataDog/ci-app-libraries-java
+dd-java-agent/agent-ci-visibility/         @DataDog/ci-app-libraries-java
+dd-java-agent/instrumentation/cucumber/    @DataDog/ci-app-libraries-java
+dd-java-agent/instrumentation/jacoco/      @DataDog/ci-app-libraries-java
+dd-java-agent/instrumentation/junit-4.10/  @DataDog/ci-app-libraries-java
+dd-java-agent/instrumentation/junit-5.3/   @DataDog/ci-app-libraries-java
+dd-java-agent/instrumentation/testng/      @DataDog/ci-app-libraries-java
+dd-java-agent/instrumentation/gradle/      @DataDog/ci-app-libraries-java
+dd-java-agent/instrumentation/maven-3.2.1/ @DataDog/ci-app-libraries-java
+dd-smoke-tests/gradle/                     @DataDog/ci-app-libraries-java
+dd-smoke-tests/maven/                      @DataDog/ci-app-libraries-java
+**/civisibility/                           @DataDog/ci-app-libraries-java
+**/CiVisibility*.java                      @DataDog/ci-app-libraries-java
+**/CiVisibility*.groovy                    @DataDog/ci-app-libraries-java
 
 # @DataDog/debugger-java (Live Debugger)
 dd-java-agent/agent-debugger/ @DataDog/debugger-java
 dd-smoke-tests/debugger-integration-tests/ @DataDog/debugger-java
 
-# @DataDog/iast-java
-dd-java-agent/agent-iast/   @DataDog/iast-java
-**/iast/                    @DataDog/iast-java
-**/Iast*.java               @DataDog/iast-java
-**/Iast*.groovy             @DataDog/iast-java
+# @DataDog/asm-java (AppSec/IAST)
+dd-java-agent/agent-iast/              @DataDog/asm-java
+dd-java-agent/instrumentation/*iast*   @DataDog/asm-java
+dd-java-agent/instrumentation/*appsec* @DataDog/asm-java
+**/appsec/                             @DataDog/asm-java
+**/iast/                               @DataDog/asm-java
+**/Iast*.java                          @DataDog/asm-java
+**/Iast*.groovy                        @DataDog/asm-java

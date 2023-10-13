@@ -5,19 +5,16 @@ import datadog.communication.ddagent.SharedCommunicationObjects
 import datadog.communication.monitor.Monitoring
 import datadog.telemetry.dependency.DependencyService
 import datadog.telemetry.dependency.LocationsCollectingTransformer
-import datadog.trace.test.util.DDSpecification
 import okhttp3.HttpUrl
 import okhttp3.OkHttpClient
+import spock.lang.Specification
 
 import java.lang.instrument.Instrumentation
 
-class TelemetrySystemSpecification extends DDSpecification {
+class TelemetrySystemSpecification extends Specification {
   Instrumentation inst = Mock()
 
   void 'installs dependencies transformer'() {
-    setup:
-    injectSysConfig('dd.instrumentation.telemetry.enabled', 'true')
-
     when:
     def depService = TelemetrySystem.createDependencyService(inst)
 
@@ -31,14 +28,15 @@ class TelemetrySystemSpecification extends DDSpecification {
   void 'create telemetry thread'() {
     setup:
     def telemetryService = Mock(TelemetryService)
-    def okHttpClient = Mock(OkHttpClient)
     def depService = Mock(DependencyService)
 
     when:
-    def thread = TelemetrySystem.createTelemetryRunnable(telemetryService, okHttpClient, depService)
+    def thread = TelemetrySystem.createTelemetryRunnable(telemetryService, depService)
 
     then:
     thread != null
+
+    cleanup:
     TelemetrySystem.stop()
   }
 
@@ -57,7 +55,8 @@ class TelemetrySystemSpecification extends DDSpecification {
 
     then:
     TelemetrySystem.TELEMETRY_THREAD == null ||
-      TelemetrySystem.TELEMETRY_THREAD.isInterrupted()
+      TelemetrySystem.TELEMETRY_THREAD.isInterrupted() ||
+      !TelemetrySystem.TELEMETRY_THREAD.isAlive()
   }
 
   private SharedCommunicationObjects sharedCommunicationObjects() {

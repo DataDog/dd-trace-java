@@ -3,12 +3,11 @@ package datadog.trace.agent.tooling.bytebuddy.matcher;
 import static datadog.trace.bootstrap.AgentClassLoading.PROBING_CLASSLOADER;
 import static net.bytebuddy.matcher.ElementMatchers.any;
 
-import datadog.trace.agent.tooling.WeakCaches;
-import datadog.trace.api.Config;
+import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.api.Tracer;
-import datadog.trace.api.function.Function;
+import datadog.trace.api.cache.DDCache;
+import datadog.trace.api.cache.DDCaches;
 import datadog.trace.bootstrap.PatchLogger;
-import datadog.trace.bootstrap.WeakCache;
 import datadog.trace.util.Strings;
 import java.util.ArrayList;
 import java.util.BitSet;
@@ -27,39 +26,11 @@ public final class ClassLoaderMatchers {
   private static final ClassLoader BOOTSTRAP_CLASSLOADER = null;
 
   private static final boolean HAS_CLASSLOADER_EXCLUDES =
-      !Config.get().getExcludedClassLoaders().isEmpty();
-
-  /* Cache of classloader-instance -> (true|false). True = skip instrumentation. False = safe to instrument. */
-  private static final WeakCache<ClassLoader, Boolean> skipCache = WeakCaches.newWeakCache(64);
+      !InstrumenterConfig.get().getExcludedClassLoaders().isEmpty();
 
   /** A private constructor that must not be invoked. */
   private ClassLoaderMatchers() {
     throw new UnsupportedOperationException();
-  }
-
-  public static boolean skipClassLoader(final ClassLoader loader) {
-    if (loader == BOOTSTRAP_CLASSLOADER) {
-      // Don't skip bootstrap loader
-      return false;
-    }
-    if (canSkipClassLoaderByName(loader)) {
-      return true;
-    }
-    Boolean v = skipCache.getIfPresent(loader);
-    if (v != null) {
-      return v;
-    }
-    // when ClassloadingInstrumentation is active, checking delegatesToBootstrap() below is not
-    // required, because ClassloadingInstrumentation forces all class loaders to load all of the
-    // classes in Constants.BOOTSTRAP_PACKAGE_PREFIXES directly from the bootstrap class loader
-    //
-    // however, at this time we don't want to introduce the concept of a required instrumentation,
-    // and we don't want to introduce the concept of the tooling code depending on whether or not
-    // a particular instrumentation is active (mainly because this particular use case doesn't
-    // seem to justify introducing either of these new concepts)
-    v = !delegatesToBootstrap(loader);
-    skipCache.put(loader, v);
-    return v;
   }
 
   public static boolean canSkipClassLoaderByName(final ClassLoader loader) {
@@ -75,9 +46,14 @@ public final class ClassLoaderMatchers {
         return true;
     }
     if (HAS_CLASSLOADER_EXCLUDES) {
-      return Config.get().getExcludedClassLoaders().contains(classLoaderName);
+      return InstrumenterConfig.get().getExcludedClassLoaders().contains(classLoaderName);
     }
     return false;
+  }
+
+  public static boolean incompatibleClassLoader(final ClassLoader loader) {
+    return loader != BOOTSTRAP_CLASSLOADER && hasClassMask(loader) == INCOMPATIBLE_CLASS_LOADER;
+    // note: must use '==' to distinguish INCOMPATIBLE_CLASS_LOADER from NO_CLASS_NAME_MATCHES
   }
 
   /**
@@ -90,7 +66,8 @@ public final class ClassLoaderMatchers {
   public static ElementMatcher.Junction<ClassLoader> hasClassNamed(String className) {
     ElementMatcher.Junction<ClassLoader> matcher = hasClassMatchers.get(className);
     if (null == matcher) {
-      hasClassMatchers.put(className, matcher = new HasClassMatcher(hasClassMatchers.size()));
+      // each matcher is given an id based on where to find its resource-name in the sequence
+      hasClassMatchers.put(className, matcher = new HasClassMatcher(hasClassResourceNames.size()));
       hasClassResourceNames.add(Strings.getResourceName(className));
     }
     return matcher;
@@ -112,7 +89,7 @@ public final class ClassLoaderMatchers {
     return new ElementMatcher.Junction.Disjunction<>(matchers);
   }
 
-  public static void reset() {
+  public static void resetState() {
     hasClassCache.clear();
   }
 
@@ -151,26 +128,30 @@ public final class ClassLoaderMatchers {
   static final List<String> hasClassResourceNames = new ArrayList<>();
 
   /** Cache of classloader-instance -> has-class mask. */
-  static final WeakCache<ClassLoader, BitSet> hasClassCache = WeakCaches.newWeakCache(64);
+  static final DDCache<ClassLoader, BitSet> hasClassCache = DDCaches.newFixedSizeWeakKeyCache(512);
+
+  /** Distinct result used to mark an incompatible classloader that the tracer should skip. */
+  static final BitSet INCOMPATIBLE_CLASS_LOADER = new BitSet();
 
   static final BitSet NO_CLASS_NAME_MATCHES = new BitSet();
 
-  /** Function that generates a has-class mask for a given class-loader. */
-  static final Function<ClassLoader, BitSet> buildHasClassMask =
-      new Function<ClassLoader, BitSet>() {
-        @Override
-        public BitSet apply(ClassLoader input) {
-          return buildHasClassMask(input);
-        }
-      };
+  static BitSet hasClassMask(ClassLoader loader) {
+    return hasClassCache.computeIfAbsent(loader, ClassLoaderMatchers::buildHasClassMask);
+  }
 
-  static BitSet buildHasClassMask(ClassLoader cl) {
+  static BitSet buildHasClassMask(ClassLoader loader) {
+    if (!delegatesToBootstrap(loader)) {
+      // when ClassloadingInstrumentation is active this check is not strictly required,
+      // because that instrumentation forces all class loaders to load classes covered by
+      // Constants.BOOTSTRAP_PACKAGE_PREFIXES directly from the bootstrap class loader
+      return INCOMPATIBLE_CLASS_LOADER;
+    }
     PROBING_CLASSLOADER.begin();
     try {
       BitSet hasClassMask = NO_CLASS_NAME_MATCHES;
       for (int hasClassId = hasClassResourceNames.size() - 1; hasClassId >= 0; hasClassId--) {
         try {
-          if (cl.getResource(hasClassResourceNames.get(hasClassId)) != null) {
+          if (loader.getResource(hasClassResourceNames.get(hasClassId)) != null) {
             if (hasClassMask.isEmpty()) {
               hasClassMask = new BitSet(hasClassId + 1);
             }
@@ -194,8 +175,8 @@ public final class ClassLoaderMatchers {
     }
 
     @Override
-    protected boolean doMatch(final ClassLoader cl) {
-      return hasClassCache.computeIfAbsent(cl, buildHasClassMask).get(hasClassId);
+    protected boolean doMatch(final ClassLoader loader) {
+      return hasClassMask(loader).get(hasClassId);
     }
   }
 }

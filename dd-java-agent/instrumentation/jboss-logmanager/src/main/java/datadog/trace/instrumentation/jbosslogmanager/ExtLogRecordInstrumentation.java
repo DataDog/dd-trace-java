@@ -12,8 +12,12 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.log.UnionMap;
 import datadog.trace.api.Config;
 import datadog.trace.api.CorrelationIdentifier;
+import datadog.trace.api.DDSpanId;
+import datadog.trace.api.DDTraceId;
+import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import java.util.HashMap;
 import java.util.Map;
@@ -28,11 +32,6 @@ public class ExtLogRecordInstrumentation extends Instrumenter.Tracing
     implements Instrumenter.ForTypeHierarchy {
   public ExtLogRecordInstrumentation() {
     super("jboss-logmanager");
-  }
-
-  @Override
-  protected boolean defaultEnabled() {
-    return Config.get().isLogsInjectionEnabled();
   }
 
   @Override
@@ -83,6 +82,14 @@ public class ExtLogRecordInstrumentation extends Instrumenter.Tracing
         return;
       }
 
+      AgentSpan.Context context =
+          InstrumentationContext.get(ExtLogRecord.class, AgentSpan.Context.class).get(record);
+
+      // Nothing to add so return early
+      if (context == null && !AgentTracer.traceConfig().isLogsInjectionEnabled()) {
+        return;
+      }
+
       switch (key) {
         case Tags.DD_SERVICE:
           value = Config.get().getServiceName();
@@ -103,21 +110,19 @@ public class ExtLogRecordInstrumentation extends Instrumenter.Tracing
           }
           break;
         case "dd.trace_id":
-          {
-            AgentSpan.Context context =
-                InstrumentationContext.get(ExtLogRecord.class, AgentSpan.Context.class).get(record);
-            if (context != null) {
-              value = context.getTraceId().toString();
+          if (context != null) {
+            DDTraceId traceId = context.getTraceId();
+            if (traceId.toHighOrderLong() != 0
+                && InstrumenterConfig.get().isLogs128bTraceIdEnabled()) {
+              value = traceId.toHexString();
+            } else {
+              value = traceId.toString();
             }
           }
           break;
         case "dd.span_id":
-          {
-            AgentSpan.Context context =
-                InstrumentationContext.get(ExtLogRecord.class, AgentSpan.Context.class).get(record);
-            if (context != null) {
-              value = context.getSpanId().toString();
-            }
+          if (context != null) {
+            value = DDSpanId.toString(context.getSpanId());
           }
           break;
         default:
@@ -138,34 +143,36 @@ public class ExtLogRecordInstrumentation extends Instrumenter.Tracing
 
       AgentSpan.Context context =
           InstrumentationContext.get(ExtLogRecord.class, AgentSpan.Context.class).get(record);
-      boolean mdcTagsInjectionEnabled = Config.get().isLogsMDCTagsInjectionEnabled();
 
       // Nothing to add so return early
-      if (context == null && !mdcTagsInjectionEnabled) {
+      if (context == null && !AgentTracer.traceConfig().isLogsInjectionEnabled()) {
         return;
       }
 
       Map<String, String> correlationValues = new HashMap<>(8);
 
       if (context != null) {
+        DDTraceId traceId = context.getTraceId();
+        String traceIdValue =
+            InstrumenterConfig.get().isLogs128bTraceIdEnabled() && traceId.toHighOrderLong() != 0
+                ? traceId.toHexString()
+                : traceId.toString();
+        correlationValues.put(CorrelationIdentifier.getTraceIdKey(), traceIdValue);
         correlationValues.put(
-            CorrelationIdentifier.getTraceIdKey(), context.getTraceId().toString());
-        correlationValues.put(CorrelationIdentifier.getSpanIdKey(), context.getSpanId().toString());
+            CorrelationIdentifier.getSpanIdKey(), DDSpanId.toString(context.getSpanId()));
       }
 
-      if (mdcTagsInjectionEnabled) {
-        String serviceName = Config.get().getServiceName();
-        if (null != serviceName && !serviceName.isEmpty()) {
-          correlationValues.put(Tags.DD_SERVICE, serviceName);
-        }
-        String env = Config.get().getEnv();
-        if (null != env && !env.isEmpty()) {
-          correlationValues.put(Tags.DD_ENV, env);
-        }
-        String version = Config.get().getVersion();
-        if (null != version && !version.isEmpty()) {
-          correlationValues.put(Tags.DD_VERSION, version);
-        }
+      String serviceName = Config.get().getServiceName();
+      if (null != serviceName && !serviceName.isEmpty()) {
+        correlationValues.put(Tags.DD_SERVICE, serviceName);
+      }
+      String env = Config.get().getEnv();
+      if (null != env && !env.isEmpty()) {
+        correlationValues.put(Tags.DD_ENV, env);
+      }
+      String version = Config.get().getVersion();
+      if (null != version && !version.isEmpty()) {
+        correlationValues.put(Tags.DD_VERSION, version);
       }
 
       mdc = null != mdc ? new UnionMap<>(mdc, correlationValues) : correlationValues;

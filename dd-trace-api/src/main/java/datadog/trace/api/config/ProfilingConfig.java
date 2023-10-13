@@ -42,6 +42,13 @@ public final class ProfilingConfig {
   public static final String PROFILING_PROXY_PASSWORD = "profiling.proxy.password";
   public static final String PROFILING_EXCEPTION_SAMPLE_LIMIT = "profiling.exception.sample.limit";
   public static final int PROFILING_EXCEPTION_SAMPLE_LIMIT_DEFAULT = 10_000;
+  public static final String PROFILING_EXCEPTION_RECORD_MESSAGE =
+      "profiling.exception.record.message";
+  public static final boolean PROFILING_EXCEPTION_RECORD_MESSAGE_DEFAULT = true;
+
+  public static final String PROFILING_DIRECT_ALLOCATION_SAMPLE_LIMIT =
+      "profiling.direct.allocation.sample.limit";
+  public static final int PROFILING_DIRECT_ALLOCATION_SAMPLE_LIMIT_DEFAULT = 2_000;
   public static final String PROFILING_EXCEPTION_HISTOGRAM_TOP_ITEMS =
       "profiling.exception.histogram.top-items";
   public static final int PROFILING_EXCEPTION_HISTOGRAM_TOP_ITEMS_DEFAULT = 50;
@@ -54,89 +61,90 @@ public final class ProfilingConfig {
   public static final String PROFILING_AUXILIARY_TYPE = "profiling.auxiliary";
   public static final String PROFILING_AUXILIARY_TYPE_DEFAULT = "none";
 
-  public static final String PROFILING_ASYNC_ENABLED = "profiling.async.enabled";
-  public static final boolean PROFILING_ASYNC_ENABLED_DEFAULT = false;
-  public static final String PROFILING_ASYNC_LIBPATH = "profiling.async.lib";
-  public static final String PROFILING_ASYNC_ALLOC_ENABLED = "profiling.async.alloc.enabled";
-  public static final boolean PROFILING_ASYNC_ALLOC_ENABLED_DEFAULT = false;
-  public static final String PROFILING_ASYNC_ALLOC_INTERVAL = "profiling.async.alloc.interval";
-  public static final int PROFILING_ASYNC_ALLOC_INTERVAL_DEFAULT = 256 * 1024;
-  public static final String PROFILING_ASYNC_CPU_ENABLED = "profiling.async.cpu.enabled";
-  public static final boolean PROFILING_ASYNC_CPU_ENABLED_DEFAULT = true;
-  public static final String PROFILING_ASYNC_CPU_INTERVAL = "profiling.async.cpu.interval.ms";
-  public static final int PROFILING_ASYNC_CPU_INTERVAL_DEFAULT = 10;
-  public static final String PROFILING_ASYNC_WALL_ENABLED = "profiling.async.wall.enabled";
-  public static final boolean PROFILING_ASYNC_WALL_ENABLED_DEFAULT = true;
-  public static final String PROFILING_ASYNC_WALL_INTERVAL = "profiling.async.wall.interval.ms";
-  public static final int PROFILING_ASYNC_WALL_INTERVAL_DEFAULT = 10;
+  public static final String PROFILING_DATADOG_PROFILER_ENABLED = "profiling.ddprof.enabled";
 
-  public static final String PROFILING_ASYNC_WALL_THREAD_FILTER_ENABLED =
-      "profiling.async.wall.thread.filter.enabled";
+  public static final String PROFILING_DIRECT_ALLOCATION_ENABLED =
+      "profiling.directallocation.enabled";
+  public static final boolean PROFILING_DIRECT_ALLOCATION_ENABLED_DEFAULT = false;
 
-  public static final boolean PROFILING_ASYNC_WALL_THREAD_FILTER_ENABLED_DEFAULT = true;
+  // Java profiler lib needs to be extracted from JAR and placed into the scratch location
+  // By default the scratch is the os temp directory but can be overridden by user
+  public static final String PROFILING_DATADOG_PROFILER_SCRATCH = "profiling.ddprof.scratch";
+  public static final String PROFILING_DATADOG_PROFILER_SCRATCH_DEFAULT =
+      System.getProperty("java.io.tmpdir");
+  public static final String PROFILING_DATADOG_PROFILER_LIBPATH = "profiling.ddprof.debug.lib";
+  public static final String PROFILING_DATADOG_PROFILER_ALLOC_ENABLED =
+      "profiling.ddprof.alloc.enabled";
+  public static final boolean PROFILING_DATADOG_PROFILER_ALLOC_ENABLED_DEFAULT = false;
+  public static final String PROFILING_DATADOG_PROFILER_ALLOC_INTERVAL =
+      "profiling.ddprof.alloc.interval";
+  public static final int PROFILING_DATADOG_PROFILER_ALLOC_INTERVAL_DEFAULT = 256 * 1024;
+  public static final String PROFILING_DATADOG_PROFILER_CPU_ENABLED =
+      "profiling.ddprof.cpu.enabled";
+  public static final boolean PROFILING_DATADOG_PROFILER_CPU_ENABLED_DEFAULT = true;
+  public static final String PROFILING_DATADOG_PROFILER_CPU_INTERVAL =
+      "profiling.ddprof.cpu.interval.ms";
+  public static final int PROFILING_DATADOG_PROFILER_CPU_INTERVAL_DEFAULT = 10;
+  public static final String PROFILING_DATADOG_PROFILER_WALL_ENABLED =
+      "profiling.ddprof.wall.enabled";
+  public static final boolean PROFILING_DATADOG_PROFILER_WALL_ENABLED_DEFAULT = true;
+  public static final String PROFILING_DATADOG_PROFILER_WALL_INTERVAL =
+      "profiling.ddprof.wall.interval.ms";
+  public static final int PROFILING_DATADOG_PROFILER_WALL_INTERVAL_DEFAULT = 10;
 
-  public static final String PROFILING_ASYNC_LOG_LEVEL = "profiling.async.loglevel";
+  public static final String PROFILING_DATADOG_PROFILER_WALL_COLLAPSING =
+      "profiling.ddprof.wall.collapsing";
+  public static final boolean PROFILING_DATADOG_PROFILER_WALL_COLLAPSING_DEFAULT = false;
 
-  public static final String PROFILING_ASYNC_LOG_LEVEL_DEFAULT = "NONE";
+  public static final String PROFILING_DATADOG_PROFILER_WALL_CONTEXT_FILTER =
+      "profiling.ddprof.wall.context.filter";
+  public static final boolean PROFILING_DATADOG_PROFILER_WALL_CONTEXT_FILTER_DEFAULT = true;
 
-  public static final String PROFILING_ASYNC_WALL_COLLAPSE_SAMPLES =
-      "profiling.async.wall.collapse.samples";
-  public static final boolean PROFILING_ASYNC_WALL_COLLAPSE_SAMPLES_DEFAULT = true;
+  public static final String PROFILING_DATADOG_PROFILER_SCHEDULING_EVENT =
+      "profiling.experimental.ddprof.scheduling.event";
 
-  public static final String PROFILING_ASYNC_STACKDEPTH = "profiling.async.stackdepth";
-  public static final int PROFILING_ASYNC_STACKDEPTH_DEFAULT = 512;
-  public static final String PROFILING_ASYNC_CSTACK = "profiling.async.cstack";
-  public static final String PROFILING_ASYNC_CSTACK_DEFAULT = "default";
-  public static final String PROFILING_ASYNC_SAFEMODE = "profiling.async.safemode";
-  public static final int PROFILING_ASYNC_SAFEMODE_DEFAULT = 12; // POP_FRAME|SCAN_STACK
-  public static final String PROFILING_ASYNC_MEMLEAK_ENABLED = "profiling.async.memleak.enabled";
-  public static final boolean PROFILING_ASYNC_MEMLEAK_ENABLED_DEFAULT = false;
-  public static final String PROFILING_ASYNC_MEMLEAK_INTERVAL = "profiling.async.memleak.interval";
-  public static final String PROFILING_ASYNC_MEMLEAK_CAPACITY = "profiling.async.memleak.capacity";
-  public static final int PROFILING_ASYNC_MEMLEAK_CAPACITY_DEFAULT = 1024;
-  public static final String PROFILING_TRACING_CONTEXT_ENABLED =
-      "profiling.tracing_context.enabled";
-  public static final boolean PROFILING_TRACING_CONTEXT_ENABLED_DEFAULT = false;
-  public static final String PROFILING_TRACING_CONTEXT_TRACKER_INACTIVE_SEC =
-      "profiling.tracing_context.tracker.inactive.seconds";
-  public static final int PROFILING_TRACING_CONTEXT_TRACKER_INACTIVE_DEFAULT = 90;
-  public static final String PROFILING_TRACING_CONTEXT_RESERVED_MEMORY_SIZE =
-      "profiling.tracing_context.memory.bytes";
-  public static final int PROFILING_TRACING_CONTEXT_RESERVED_MEMORY_SIZE_DEFAULT =
-      32 * 1024 * 1024; // 32MB
+  public static final String PROFILING_DATADOG_PROFILER_SCHEDULING_EVENT_INTERVAL =
+      "profiling.experimental.ddprof.scheduling.event.interval";
 
-  public static final String PROFILING_TRACING_CONTEXT_RESERVED_MEMORY_TYPE =
-      "profiling.tracing_context.memory.type";
-  public static final String PROFILING_TRACING_CONTEXT_RESERVED_MEMORY_TYPE_DEFAULT = "heap";
+  public static final String PROFILING_DATADOG_PROFILER_LOG_LEVEL = "profiling.ddprof.loglevel";
 
-  public static final String PROFILING_TRACING_CONTEXT_MAX_SIZE =
-      "profiling.tracing_context.max_size.bytes";
-  public static final int PROFILING_TRACING_CONTEXT_MAX_SIZE_DEFAULT =
-      20_000; // 20k bytes is the default
+  public static final String PROFILING_DATADOG_PROFILER_LOG_LEVEL_DEFAULT = "NONE";
+  public static final String PROFILING_DATADOG_PROFILER_STACKDEPTH = "profiling.ddprof.stackdepth";
+  public static final int PROFILING_DATADOG_PROFILER_STACKDEPTH_DEFAULT = 512;
+  public static final String PROFILING_DATADOG_PROFILER_CSTACK = "profiling.ddprof.cstack";
+  public static final String PROFILING_DATADOG_PROFILER_CSTACK_DEFAULT = "fp";
+  public static final String PROFILING_DATADOG_PROFILER_SAFEMODE = "profiling.ddprof.safemode";
+  public static final int PROFILING_DATADOG_PROFILER_SAFEMODE_DEFAULT =
+      12; // POP_METHOD|UNWIND_NATIVE
 
-  public static final String PROFILING_TRACING_CONTEXT_SPAN_INACTIVITY_CHECK =
-      "profiling.tracing_context.span_inactivity_check.ms";
+  public static final String PROFILING_DATADOG_PROFILER_LINE_NUMBERS =
+      "profiling.ddprof.linenumbers";
 
-  public static final int PROFILING_TRACING_CONTEXT_SPAN_INACTIVITY_CHECK_DEFAULT =
-      5_000; // 5 secs default
+  public static final boolean PROFILING_DATADOG_PROFILER_LINE_NUMBERS_DEFAULT = true;
 
-  public static final String PROFILING_TRACING_CONTEXT_MAX_SPANS =
-      "profiling.tracing_context.inflight_spans.max";
-  public static final int PROFILING_TRACING_CONTEXT_MAX_SPANS_DEFAULT = 1_000_000;
+  @Deprecated
+  public static final String PROFILING_DATADOG_PROFILER_MEMLEAK_ENABLED =
+      "profiling.ddprof.memleak.enabled";
 
-  public static final String PROFILING_LEGACY_TRACING_INTEGRATION =
-      "profiling.legacy.tracing.integration";
-  public static final boolean PROFILING_LEGACY_TRACING_INTEGRATION_DEFAULT = true;
-  public static final String PROFILING_CHECKPOINTS_RECORD_CPU_TIME =
-      "profiling.checkpoints.record.cpu.time";
-  public static final String PROFILING_CHECKPOINTS_SAMPLER_RATE_LIMIT =
-      "profiling.checkpoints.sampler.rate-limit";
-  public static final int PROFILING_CHECKPOINTS_SAMPLER_RATE_LIMIT_DEFAULT = 100000;
-  public static final String PROFILING_CHECKPOINTS_SAMPLER_WINDOW_MS =
-      "profiling.checkpoints.sampler.sliding-window.ms";
-  public static final int PROFILING_CHECKPOINTS_SAMPLER_WINDOW_MS_DEFAULT = 5000;
-  public static final String PROFILING_CHECKPOINTS_SAMPLER_LIMIT = "profiling.checkpoints.limit";
-  public static final int PROFILING_CHECKPOINTS_SAMPLER_LIMIT_DEFAULT = 500_000;
+  @Deprecated
+  public static final String PROFILING_DATADOG_PROFILER_MEMLEAK_INTERVAL =
+      "profiling.ddprof.memleak.interval";
+
+  @Deprecated
+  public static final String PROFILING_DATADOG_PROFILER_MEMLEAK_CAPACITY =
+      "profiling.ddprof.memleak.capacity";
+
+  public static final String PROFILING_DATADOG_PROFILER_LIVEHEAP_ENABLED =
+      "profiling.ddprof.liveheap.enabled";
+  public static final boolean PROFILING_DATADOG_PROFILER_LIVEHEAP_ENABLED_DEFAULT = false;
+  public static final String PROFILING_DATADOG_PROFILER_LIVEHEAP_INTERVAL =
+      "profiling.ddprof.liveheap.interval";
+  public static final String PROFILING_DATADOG_PROFILER_LIVEHEAP_CAPACITY =
+      "profiling.ddprof.liveheap.capacity";
+  public static final int PROFILING_DATADOG_PROFILER_LIVEHEAP_CAPACITY_DEFAULT = 1024;
+  public static final String PROFILING_DATADOG_PROFILER_LIVEHEAP_TRACK_HEAPSIZE =
+      "profiling.ddprof.liveheap.track_size.enabled";
+  public static final boolean PROFILING_DATADOG_PROFILER_LIVEHEAP_TRACK_HEAPSIZE_DEFAFULT = true;
   public static final String PROFILING_ENDPOINT_COLLECTION_ENABLED =
       "profiling.endpoint.collection.enabled";
   public static final boolean PROFILING_ENDPOINT_COLLECTION_ENABLED_DEFAULT = true;
@@ -153,7 +161,26 @@ public final class ProfilingConfig {
   public static final boolean PROFILING_AGENTLESS_DEFAULT = false;
 
   public static final String PROFILING_DISABLED_EVENTS = "profiling.disabled.events";
-  public static final String PROFILING_ENABLED_EVENTS = "profiling.disabled.events";
+  public static final String PROFILING_ENABLED_EVENTS = "profiling.enabled.events";
+
+  public static final String PROFILING_DEBUG_DUMP_PATH = "profiling.debug.dump_path";
+
+  public static final String PROFILING_CONTEXT_ATTRIBUTES = "profiling.context.attributes";
+
+  public static final String PROFILING_CONTEXT_ATTRIBUTES_SPAN_NAME_ENABLED =
+      "profiling.context.attributes.span.name.enabled";
+
+  public static final String PROFILING_QUEUEING_TIME_ENABLED =
+      "profiling.experimental.queueing.time.enabled";
+
+  public static final boolean PROFILING_QUEUEING_TIME_ENABLED_DEFAULT = false;
+
+  public static final String PROFILING_QUEUEING_TIME_THRESHOLD_MILLIS =
+      "profiling.experimental.queueing.time.threshold.millis";
+
+  public static final long PROFILING_QUEUEING_TIME_THRESHOLD_MILLIS_DEFAULT = 50;
+
+  public static final String PROFILING_ULTRA_MINIMAL = "profiling.ultra.minimal";
 
   private ProfilingConfig() {}
 }

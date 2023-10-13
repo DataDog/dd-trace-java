@@ -10,14 +10,14 @@ class CallSiteInstrumentationPluginTest extends Specification {
     plugins {
       id 'java'
       id 'call-site-instrumentation'
-      id("com.diffplug.spotless") version "5.11.0"
+      id("com.diffplug.spotless") version "6.11.0"
     }
     
     sourceCompatibility = JavaVersion.VERSION_1_8
     targetCompatibility = JavaVersion.VERSION_1_8
 
     csi {
-      suffix = 'CallSiteTest'
+      suffix = 'CallSite'
       targetFolder = 'csi'
       rootFolder = file('$$ROOT_FOLDER$$')
     }
@@ -40,8 +40,8 @@ class CallSiteInstrumentationPluginTest extends Specification {
     createGradleProject(buildDir, buildGradle, '''
       import datadog.trace.agent.tooling.csi.*;
       
-      @CallSite
-      public class BeforeAdviceCallSiteTest {
+      @CallSite(spi = CallSites.class)
+      public class BeforeAdviceCallSite {
         @CallSite.Before("java.lang.StringBuilder java.lang.StringBuilder.append(java.lang.String)")
         public static void beforeAppend(@CallSite.This final StringBuilder self, @CallSite.Argument final String param) {
         }
@@ -52,14 +52,12 @@ class CallSiteInstrumentationPluginTest extends Specification {
     final result = buildGradleProject(buildDir)
 
     then:
-    final generated = resolve(buildDir, 'build', 'csi', 'BeforeAdviceCallSiteTestBeforeAppend.java')
+    final generated = resolve(buildDir, 'build', 'csi', 'BeforeAdviceCallSites.java')
     generated.exists()
 
     final output = result.output
     !output.contains('[⨉]')
-    output.contains('BeforeAdviceCallSiteTest')
-    output.contains('beforeAppend')
-    output.contains('java.lang.StringBuilder java.lang.StringBuilder.append(java.lang.String)') // pointcut
+    output.contains('[✓] @CallSite BeforeAdviceCallSite')
   }
 
   def 'test call site instrumentation plugin with error'() {
@@ -67,8 +65,8 @@ class CallSiteInstrumentationPluginTest extends Specification {
     createGradleProject(buildDir, buildGradle, '''
       import datadog.trace.agent.tooling.csi.*;
       
-      @CallSite
-      public class BeforeAdviceCallSiteTest {
+      @CallSite(spi = CallSites.class)
+      public class BeforeAdviceCallSite {
         @CallSite.Before("java.lang.StringBuilder java.lang.StringBuilder.append(java.lang.String)")
         private void beforeAppend(@CallSite.This final StringBuilder self, @CallSite.Argument final String param) {
         }
@@ -81,7 +79,7 @@ class CallSiteInstrumentationPluginTest extends Specification {
     then:
     final error = thrown(UnexpectedBuildFailure)
 
-    final generated = resolve(buildDir, 'build', 'csi', 'BeforeAdviceCallSiteTest$BeforeAppend.java')
+    final generated = resolve(buildDir, 'build', 'csi', 'BeforeAdviceCallSites.java')
     !generated.exists()
 
     final output = error.message
@@ -92,7 +90,7 @@ class CallSiteInstrumentationPluginTest extends Specification {
   private static void createGradleProject(final File buildDir, final String gradleFile, final String advice) {
     final projectFolder = new File(System.getProperty('user.dir')).parentFile
     final callSiteJar = resolve(projectFolder, 'buildSrc', 'call-site-instrumentation-plugin')
-    final gradleFileContent = gradleFile.replace('$$ROOT_FOLDER$$', projectFolder.toString())
+    final gradleFileContent = gradleFile.replace('$$ROOT_FOLDER$$', projectFolder.toString().replace("\\","\\\\"))
 
     final buildGradle = resolve(buildDir, 'build.gradle')
     buildGradle.text = gradleFileContent

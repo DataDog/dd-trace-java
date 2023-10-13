@@ -1,8 +1,7 @@
 import datadog.trace.agent.test.AgentTestRunner
-import datadog.trace.agent.test.checkpoints.CheckpointValidator
-import datadog.trace.agent.test.checkpoints.CheckpointValidationMode
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
+import datadog.trace.test.util.Flaky
 import groovy.json.JsonSlurper
 import org.apache.http.HttpHost
 import org.apache.http.client.config.RequestConfig
@@ -17,10 +16,9 @@ import org.elasticsearch.http.HttpServerTransport
 import org.elasticsearch.node.InternalSettingsPreparer
 import org.elasticsearch.node.Node
 import org.elasticsearch.transport.Netty4Plugin
-import spock.lang.Retry
 import spock.lang.Shared
 
-@Retry(count = 3, delay = 1000, mode = Retry.Mode.SETUP_FEATURE_CLEANUP)
+@Flaky
 class Elasticsearch6RestClientTest extends AgentTestRunner {
   @Shared
   TransportAddress httpTransportAddress
@@ -35,7 +33,6 @@ class Elasticsearch6RestClientTest extends AgentTestRunner {
   RestClient client
 
   def setupSpec() {
-
     esWorkingDir = File.createTempDir("test-es-working-dir-", "")
     esWorkingDir.deleteOnExit()
     println "ES work dir: $esWorkingDir"
@@ -69,9 +66,7 @@ class Elasticsearch6RestClientTest extends AgentTestRunner {
 
   def "test elasticsearch status"() {
     setup:
-    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
-      CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.THREAD_SEQUENCE)
+    injectSysConfig("httpasyncclient4.legacy.tracing.enabled",  "true")
 
     Response response = client.performRequest("GET", "_cluster/health")
 
@@ -111,7 +106,7 @@ class Elasticsearch6RestClientTest extends AgentTestRunner {
             "$Tags.HTTP_URL" "_cluster/health"
             "$Tags.HTTP_METHOD" "GET"
             "$Tags.HTTP_STATUS" 200
-            defaultTags()
+            defaultTagsNoPeerService()
           }
         }
       }

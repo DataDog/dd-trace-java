@@ -1,0 +1,35 @@
+plugins {
+  id "com.github.johnrengelman.shadow"
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+description = 'Spring Boot 2.5 Webflux Smoke Tests.'
+
+// The standard spring-boot plugin doesn't play nice with our project
+// so we'll build a fat jar instead
+jar {
+  manifest {
+    attributes('Main-Class': 'datadog.smoketest.springboot.SpringbootApplication')
+  }
+}
+
+shadowJar {
+  configurations = [project.configurations.runtimeClasspath]
+}
+
+// Only needed until the final release of 2.5.0
+repositories {
+  mavenCentral()
+  maven { url 'https://repo.spring.io/milestone' }
+}
+
+dependencies {
+  implementation group: 'org.springframework.boot', name: 'spring-boot-starter-webflux', version: '2.5.0+'
+  testImplementation project(':dd-smoke-tests')
+}
+
+tasks.withType(Test).configureEach {
+  dependsOn "shadowJar"
+
+  jvmArgs "-Ddatadog.smoketest.springboot.shadowJar.path=${tasks.shadowJar.archiveFile.get()}"
+}

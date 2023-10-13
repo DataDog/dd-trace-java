@@ -9,7 +9,7 @@ import play.api.mvc._
 import play.Configuration
 import scala.concurrent.{ExecutionContext, Future}
 
-class SController @Inject()(
+class SController @Inject() (
     executionContext: ExecutionContext,
     ws: WSClient,
     configuration: Configuration

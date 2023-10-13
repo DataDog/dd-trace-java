@@ -8,9 +8,10 @@ import java.net.URI;
 import java.net.URISyntaxException;
 
 public class OkHttpClientDecorator extends HttpClientDecorator<Request, Response> {
-  public static final CharSequence OKHTTP_REQUEST = UTF8BytesString.create("okhttp.request");
   public static final CharSequence OKHTTP = UTF8BytesString.create("okhttp");
   public static final OkHttpClientDecorator DECORATE = new OkHttpClientDecorator();
+  public static final CharSequence OKHTTP_REQUEST =
+      UTF8BytesString.create(DECORATE.operationName());
 
   @Override
   protected String method(Request request) {
@@ -35,5 +36,15 @@ public class OkHttpClientDecorator extends HttpClientDecorator<Request, Response
   @Override
   protected CharSequence component() {
     return OKHTTP;
+  }
+
+  @Override
+  protected String getRequestHeader(Request request, String headerName) {
+    return request.header(headerName);
+  }
+
+  @Override
+  protected String getResponseHeader(Response response, String headerName) {
+    return response.header(headerName);
   }
 }

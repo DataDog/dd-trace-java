@@ -1,0 +1,23 @@
+plugins {
+  id 'java-test-fixtures'
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+apply from: "$rootDir/gradle/test-with-kotlin.gradle"
+
+tasks.named("compileTestFixturesGroovy").configure {
+  classpath += files(compileTestFixturesKotlin.destinationDirectory)
+}
+
+dependencies {
+  api project(':dd-java-agent:instrumentation:java-concurrent')
+  compileOnly deps.kotlin
+  compileOnly deps.coroutines
+
+  testFixturesImplementation deps.kotlin
+  testFixturesImplementation deps.coroutines
+  testFixturesApi project(':dd-trace-api')
+  testFixturesApi project(':dd-java-agent:instrumentation:trace-annotation')
+  testFixturesApi project(':dd-java-agent:testing')
+  testFixturesApi 'com.github.spotbugs:spotbugs-annotations:4.2.0'
+}

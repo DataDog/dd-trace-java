@@ -7,7 +7,7 @@ import java.util.Objects;
 
 /** Represents any literal/constant in expression language */
 public class Literal<ConstantType>
-    implements Predicate, Value<ConstantType>, ValueExpression<Value<ConstantType>> {
+    implements Value<ConstantType>, ValueExpression<Value<ConstantType>> {
   protected final ConstantType value;
 
   protected Literal(ConstantType value) {
@@ -22,11 +22,6 @@ public class Literal<ConstantType>
   @Override
   public boolean isUndefined() {
     return value != null && (value == Values.UNDEFINED_OBJECT || value == Value.undefinedValue());
-  }
-
-  @Override
-  public boolean test() {
-    return !isNull();
   }
 
   @Override

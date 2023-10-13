@@ -1,17 +1,13 @@
 import datadog.trace.agent.test.base.HttpClientTest
+import datadog.trace.agent.test.naming.TestingGenericHttpNamingConventions
 import datadog.trace.instrumentation.okhttp3.OkHttpClientDecorator
-import okhttp3.Headers
-import okhttp3.MediaType
-import okhttp3.OkHttpClient
-import okhttp3.Request
-import okhttp3.RequestBody
+import okhttp3.*
 import okhttp3.internal.http.HttpMethod
 import spock.lang.Timeout
 
 import java.util.concurrent.TimeUnit
 
-@Timeout(5)
-class OkHttp3Test extends HttpClientTest {
+abstract class OkHttp3Test extends HttpClientTest {
 
   @Override
   protected void configurePreAgent() {
@@ -19,6 +15,11 @@ class OkHttp3Test extends HttpClientTest {
     // disable tracer metrics because it uses OkHttp and class loading is
     // not isolated in tests
     injectSysConfig("dd.trace.tracer.metrics.enabled", "false")
+  }
+
+  @Override
+  boolean isTestAgentEnabled() {
+    return false
   }
 
   @Override
@@ -51,12 +52,6 @@ class OkHttp3Test extends HttpClientTest {
     return OkHttpClientDecorator.DECORATE.component()
   }
 
-  @Override
-  String expectedOperationName() {
-    return "okhttp.request"
-  }
-
-
   boolean testRedirects() {
     false
   }
@@ -83,4 +78,27 @@ class OkHttp3Test extends HttpClientTest {
     method = "GET"
     url = server.address.resolve(path)
   }
+}
+
+@Timeout(5)
+class OkHttp3V0ForkedTest extends OkHttp3Test {
+
+  @Override
+  int version() {
+    return 0
+  }
+
+  @Override
+  String service() {
+    return null
+  }
+
+  @Override
+  String operation() {
+    return "okhttp.request"
+  }
+}
+
+@Timeout(5)
+class OkHttp3V1ForkedTest extends OkHttp3Test implements TestingGenericHttpNamingConventions.ClientV1 {
 }

@@ -1,0 +1,82 @@
+apply from: "$rootDir/gradle/java.gradle"
+
+description = 'Spring Boot 3.0 Native Smoke Tests.'
+
+dependencies {
+  testImplementation project(':dd-smoke-tests')
+}
+
+// Check 'testJvm' gradle command parameter to be at least GraalVM 17
+def testJvm = gradle.startParameter.projectProperties.getOrDefault('testJvm', '')
+def matcher = testJvm.toLowerCase(Locale.ROOT) =~ /graalvm([0-9]+)/
+if (matcher.size() == 1 && Integer.parseInt(matcher[0][1]) >= 17) {
+  // Retrieve GRAALVM_HOME from JVM environment variables
+  def testJvmEnv = "JAVA_${testJvm}_HOME"
+  def testJvmHome = System.getenv(testJvmEnv)
+  if (!testJvmHome) {
+    throw new GradleException("Unable to find launcher for Java '$testJvm'. Have you set '$testJvmEnv'?")
+  }
+  // Configure build directory for application
+  def appDir = "$projectDir/application"
+  def appBuildDir = "$buildDir/application"
+  def isWindows = System.getProperty('os.name').toLowerCase().contains('win')
+  def gradlewCommand = isWindows ? 'gradlew.bat' : 'gradlew'
+  // Define the task that builds the project
+  tasks.register('springNativeBuild', Exec) {
+    workingDir "$appDir"
+    environment += [
+      'GRADLE_OPTS': "-Dorg.gradle.jvmargs='-Xmx512M'",
+      'JAVA_HOME': testJvmHome,
+      'GRAALVM_HOME': testJvmHome,
+      'DD_TRACE_METHODS' : 'datadog.smoketest.springboot.controller.WebController[sayHello]',
+      'NATIVE_IMAGE_DEPRECATED_BUILDER_SANITATION' : 'true'
+    ]
+    commandLine(
+      "$rootDir/${gradlewCommand}",
+      'nativeCompile',
+      '--no-daemon',
+      '--max-workers=4',
+      "-PappBuildDir=$appBuildDir",
+      "-PapiJar=${project(':dd-trace-api').tasks.jar.archiveFile.get()}",
+      "-PagentPath=${project(':dd-java-agent').tasks.shadowJar.archiveFile.get()}"
+      )
+    outputs.cacheIf { true }
+    outputs.dir(appBuildDir)
+      .withPropertyName('nativeApplication')
+    inputs.files(fileTree(appDir) {
+      include '**/*'
+      exclude '.gradle/**'
+    }).withPropertyName('application')
+    .withPathSensitivity(PathSensitivity.RELATIVE)
+  }
+
+  springNativeBuild {
+    dependsOn project(':dd-trace-api').tasks.named("jar") // Use dev @Trace annotation
+    dependsOn project(':dd-java-agent').tasks.named('shadowJar') // Use dev agent
+  }
+
+  tasks.named('compileTestGroovy').configure {
+    dependsOn 'springNativeBuild'
+    outputs.upToDateWhen {
+      !springNativeBuild.didWork
+    }
+  }
+
+  tasks.withType(Test).configureEach {
+    jvmArgs "-Ddatadog.smoketest.spring.native.executable=$appBuildDir/native/nativeCompile/native-3.0-smoketest"
+  }
+} else {
+  tasks.withType(Test).configureEach {
+    enabled = false
+  }
+}
+
+spotless {
+  java {
+    target "**/*.java"
+  }
+
+  groovyGradle {
+    target '*.gradle', "**/*.gradle"
+  }
+}

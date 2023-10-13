@@ -3,10 +3,10 @@ package com.datadog.appsec.gateway;
 import com.datadog.appsec.event.data.Address;
 import com.datadog.appsec.event.data.DataBundle;
 import com.datadog.appsec.event.data.KnownAddresses;
-import com.datadog.appsec.report.raw.events.AppSecEvent100;
+import com.datadog.appsec.report.AppSecEvent;
 import com.datadog.appsec.util.StandardizedLogging;
-import datadog.trace.api.TraceSegment;
 import datadog.trace.api.http.StoredBodySupplier;
+import datadog.trace.api.internal.TraceSegment;
 import io.sqreen.powerwaf.Additive;
 import io.sqreen.powerwaf.PowerwafContext;
 import io.sqreen.powerwaf.PowerwafMetrics;
@@ -36,6 +36,9 @@ public class AppSecRequestContext implements DataBundle, Closeable {
               "via",
               "client-ip",
               "true-client-ip",
+              "fastly-client-ip",
+              "cf-connecting-ip",
+              "cf-connecting-ipv6",
               "content-length",
               "content-type",
               "content-encoding",
@@ -47,7 +50,7 @@ public class AppSecRequestContext implements DataBundle, Closeable {
               "accept-language"));
 
   private final ConcurrentHashMap<Address<?>, Object> persistentData = new ConcurrentHashMap<>();
-  private Collection<AppSecEvent100> collectedEvents; // guarded by this
+  private Collection<AppSecEvent> collectedEvents; // guarded by this
 
   // assume these will always be written and read by the same thread
   private String scheme;
@@ -70,6 +73,7 @@ public class AppSecRequestContext implements DataBundle, Closeable {
   private boolean rawReqBodyPublished;
   private boolean convertedReqBodyPublished;
   private boolean respDataPublished;
+  private Map<String, String> apiSchemas;
 
   // should be guarded by this
   private Additive additive;
@@ -199,7 +203,7 @@ public class AppSecRequestContext implements DataBundle, Closeable {
     }
 
     List<String> strings =
-        requestHeaders.computeIfAbsent(name.toLowerCase(), h -> new ArrayList<>(1));
+        requestHeaders.computeIfAbsent(name.toLowerCase(Locale.ROOT), h -> new ArrayList<>(1));
     strings.add(value);
   }
 
@@ -225,7 +229,7 @@ public class AppSecRequestContext implements DataBundle, Closeable {
     }
 
     List<String> strings =
-        responseHeaders.computeIfAbsent(name.toLowerCase(), h -> new ArrayList<>(1));
+        responseHeaders.computeIfAbsent(name.toLowerCase(Locale.ROOT), h -> new ArrayList<>(1));
     strings.add(value);
   }
 
@@ -353,8 +357,8 @@ public class AppSecRequestContext implements DataBundle, Closeable {
     return storedRequestBodySupplier.get();
   }
 
-  public void reportEvents(Collection<AppSecEvent100> events, TraceSegment traceSegment) {
-    for (AppSecEvent100 event : events) {
+  public void reportEvents(Collection<AppSecEvent> events) {
+    for (AppSecEvent event : events) {
       StandardizedLogging.attackDetected(log, event);
     }
     synchronized (this) {
@@ -369,8 +373,8 @@ public class AppSecRequestContext implements DataBundle, Closeable {
     }
   }
 
-  Collection<AppSecEvent100> transferCollectedEvents() {
-    Collection<AppSecEvent100> events;
+  Collection<AppSecEvent> transferCollectedEvents() {
+    Collection<AppSecEvent> events;
     synchronized (this) {
       events = this.collectedEvents;
       this.collectedEvents = Collections.emptyList();
@@ -380,5 +384,23 @@ public class AppSecRequestContext implements DataBundle, Closeable {
     } else {
       return Collections.emptyList();
     }
+  }
+
+  public void reportApiSchemas(Map<String, String> schemas) {
+    if (schemas == null || schemas.isEmpty()) return;
+
+    if (apiSchemas == null) {
+      apiSchemas = schemas;
+    } else {
+      apiSchemas.putAll(schemas);
+    }
+  }
+
+  boolean commitApiSchemas(TraceSegment traceSegment) {
+    if (traceSegment == null || apiSchemas == null) {
+      return false;
+    }
+    apiSchemas.forEach(traceSegment::setTagTop);
+    return true;
   }
 }

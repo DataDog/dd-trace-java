@@ -1,20 +1,23 @@
 package datadog.remoteconfig;
 
-import static java.util.Comparator.comparing;
+import static datadog.remoteconfig.ConfigurationChangesTypedListener.Builder.useDeserializer;
 
 import cafe.cryptography.curve25519.InvalidEncodingException;
 import cafe.cryptography.ed25519.Ed25519PublicKey;
 import cafe.cryptography.ed25519.Ed25519Signature;
 import com.squareup.moshi.Moshi;
 import datadog.remoteconfig.ConfigurationChangesListener.PollingRateHinter;
+import datadog.remoteconfig.state.ParsedConfigKey;
+import datadog.remoteconfig.state.ProductListener;
+import datadog.remoteconfig.state.ProductState;
+import datadog.remoteconfig.state.SimpleProductListener;
 import datadog.remoteconfig.tuf.InstantJsonAdapter;
 import datadog.remoteconfig.tuf.RawJsonAdapter;
-import datadog.remoteconfig.tuf.RemoteConfigRequest.CachedTargetFile;
+import datadog.remoteconfig.tuf.RemoteConfigRequest;
 import datadog.remoteconfig.tuf.RemoteConfigRequest.ClientInfo.ClientState;
 import datadog.remoteconfig.tuf.RemoteConfigRequest.ClientInfo.ClientState.ConfigState;
 import datadog.remoteconfig.tuf.RemoteConfigResponse;
 import datadog.trace.api.Config;
-import datadog.trace.api.function.Supplier;
 import datadog.trace.relocate.api.RatelimitedLogger;
 import datadog.trace.util.AgentTaskScheduler;
 import datadog.trace.util.AgentThreadFactory;
@@ -23,21 +26,21 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InterruptedIOException;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
+import java.util.function.Supplier;
+import java.util.stream.Collectors;
 import okhttp3.Call;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
@@ -55,26 +58,31 @@ public class ConfigurationPoller
 
   private final String keyId;
   private final Ed25519PublicKey key;
+  private final Config config;
+  private final String tracerVersion;
+  private final String containerId;
   private final OkHttpClient httpClient;
   private final RatelimitedLogger ratelimitedLogger;
+  private final Supplier<String> urlSupplier;
   private final PollerScheduler scheduler;
   private final long maxPayloadSize;
   private final boolean integrityChecks;
-  private final RemoteConfigResponse.Factory responseFactory;
 
-  /** Map from product name to deserializer/listener. */
-  private final Map<String, DeserializerAndListener<?>> listeners = new HashMap<>();
+  private final Map<Product, ProductState> productStates = new HashMap<>();
+  private final Map<File, ConfigurationChangesListener> fileListeners = new HashMap<>();
+  private final List<ConfigurationEndListener> configurationEndListeners = new ArrayList<>();
 
-  private final Map<File, DeserializerAndListener<?>> fileListeners = new HashMap<>();
   private final ClientState nextClientState = new ClientState();
-  private final Map<String /*cfg key*/, CachedTargetFile> cachedTargetFiles = new HashMap<>();
   private final AtomicInteger startCount = new AtomicInteger(0);
-  private final Moshi moshi;
-  private PollerRequestFactory requestFactory;
   private long capabilities;
-
   private Duration durationHint;
-  private final Map<String /*cfg key*/, String /*error msg*/> collectedCfgErrors = new HashMap<>();
+
+  // Initialization of these is delayed until the remote config URL is available.
+  // See #initialize().
+  private Moshi moshi;
+  private PollerRequestFactory requestFactory;
+  private RemoteConfigResponse.Factory responseFactory;
+  private boolean fatalOnInitialization = false;
 
   public ConfigurationPoller(
       Config config,
@@ -99,6 +107,10 @@ public class ConfigurationPoller
       Supplier<String> urlSupplier,
       OkHttpClient httpClient,
       AgentTaskScheduler taskScheduler) {
+    this.config = config;
+    this.tracerVersion = tracerVersion;
+    this.containerId = containerId;
+    this.urlSupplier = urlSupplier;
     this.keyId = config.getRemoteConfigTargetsKeyId();
     String keyStr = config.getRemoteConfigTargetsKey();
     try {
@@ -113,33 +125,37 @@ public class ConfigurationPoller
         new RatelimitedLogger(log, MINUTES_BETWEEN_ERROR_LOG, TimeUnit.MINUTES);
     this.maxPayloadSize = config.getRemoteConfigMaxPayloadSizeBytes();
     this.integrityChecks = config.isRemoteConfigIntegrityCheckEnabled();
-    this.moshi =
-        new Moshi.Builder()
-            .add(Instant.class, new InstantJsonAdapter())
-            .add(ByteString.class, new RawJsonAdapter())
-            .build();
-    this.requestFactory =
-        new PollerRequestFactory(config, tracerVersion, containerId, urlSupplier, moshi);
-    this.responseFactory = new RemoteConfigResponse.Factory(moshi);
     this.httpClient = httpClient;
+  }
+
+  public synchronized <T> void addListener(Product product, ProductListener listener) {
+    this.productStates.put(product, new ProductState(product, listener));
   }
 
   public synchronized <T> void addListener(
       Product product,
       ConfigurationDeserializer<T> deserializer,
-      ConfigurationChangesListener<T> listener) {
-    this.listeners.put(product.name(), new DeserializerAndListener<>(deserializer, listener));
+      ConfigurationChangesTypedListener<T> listener) {
+    this.addListener(product, new SimpleProductListener(useDeserializer(deserializer, listener)));
   }
 
   public synchronized void removeListener(Product product) {
-    this.listeners.remove(product.name());
+    this.productStates.remove(product);
   }
 
   public synchronized <T> void addFileListener(
       File file,
       ConfigurationDeserializer<T> deserializer,
-      ConfigurationChangesListener<T> listener) {
-    this.fileListeners.put(file, new DeserializerAndListener<>(deserializer, listener));
+      ConfigurationChangesTypedListener<T> listener) {
+    this.fileListeners.put(file, useDeserializer(deserializer, listener));
+  }
+
+  public synchronized void addConfigurationEndListener(ConfigurationEndListener listener) {
+    this.configurationEndListeners.add(listener);
+  }
+
+  public synchronized void removeConfigurationEndListener(ConfigurationEndListener listener) {
+    this.configurationEndListeners.removeIf(l -> l == listener);
   }
 
   public synchronized void addCapabilities(long flags) {
@@ -170,24 +186,63 @@ public class ConfigurationPoller
   }
 
   synchronized void poll(ConfigurationPoller poller) {
-    for (Map.Entry<File, DeserializerAndListener<?>> e : this.fileListeners.entrySet()) {
+    for (Map.Entry<File, ConfigurationChangesListener> e : this.fileListeners.entrySet()) {
       loadFromFile(e.getKey(), e.getValue());
     }
 
-    if (!this.listeners.isEmpty()) {
+    if (!this.productStates.isEmpty()) {
+
+      if (!initialize()) {
+        // Do not log anything before initialization to avoid excessive verboseness when remote
+        // config is disabled in the agent. The urlSupplier will log failed attempts whenever it
+        // actually makes requests to feature discovery (at a higher polling interval).
+        return;
+      }
+
       try {
         sendRequest(this::handleAgentResponse);
+      } catch (InterruptedIOException ignored) {
       } catch (IOException | RuntimeException ex) {
         ExceptionHelper.rateLimitedLogException(
             ratelimitedLogger,
             log,
             ex,
             "Failed to poll remote configuration from {}",
-            requestFactory.url != null
-                ? requestFactory.url.toString()
-                : "(no endpoint discovered yet)");
+            requestFactory.url.toString());
       }
     }
+  }
+
+  /** Tries to initialize remote config, and returns true if it is ready to run. */
+  private boolean initialize() {
+    if (fatalOnInitialization) {
+      return false;
+    }
+
+    if (requestFactory != null && responseFactory != null) {
+      return true;
+    }
+
+    final String url = urlSupplier.get();
+    if (url == null) {
+      return false;
+    }
+
+    try {
+      this.moshi =
+          new Moshi.Builder()
+              .add(Instant.class, new InstantJsonAdapter())
+              .add(ByteString.class, new RawJsonAdapter())
+              .build();
+      this.responseFactory = new RemoteConfigResponse.Factory(moshi);
+      this.requestFactory =
+          new PollerRequestFactory(config, tracerVersion, containerId, url, moshi);
+    } catch (Exception e) {
+      // We can't recover from this, so we'll not try to initialize again.
+      fatalOnInitialization = true;
+      log.error("Remote configuration poller initialization failed", e);
+    }
+    return true;
   }
 
   private Response fetchConfiguration() throws IOException {
@@ -195,21 +250,44 @@ public class ConfigurationPoller
         this.requestFactory.newConfigurationRequest(
             getSubscribedProductNames(),
             this.nextClientState,
-            this.cachedTargetFiles.values(),
+            getCachedTargetFiles(),
             capabilities);
     if (request == null) {
       throw new IOException("Endpoint has not been discovered yet");
     }
+    log.debug("Sending Remote configuration request: {}", request);
     Call call = this.httpClient.newCall(request);
     return call.execute();
   }
 
   private Collection<String> getSubscribedProductNames() {
-    return this.listeners.keySet();
+    return this.productStates.keySet().stream().map(Enum::name).collect(Collectors.toList());
+  }
+
+  List<RemoteConfigRequest.CachedTargetFile> getCachedTargetFiles() {
+    List<RemoteConfigRequest.CachedTargetFile> cachedTargetFiles = new ArrayList<>();
+
+    for (ProductState state : productStates.values()) {
+      cachedTargetFiles.addAll(state.getCachedTargetFiles());
+    }
+    return cachedTargetFiles;
+  }
+
+  List<ConfigState> getConfigState() {
+    List<ConfigState> configStates = new ArrayList<>();
+
+    for (ProductState state : productStates.values()) {
+      configStates.addAll(state.getConfigStates());
+    }
+    return configStates;
   }
 
   void sendRequest(Consumer<ResponseBody> responseBodyConsumer) throws IOException {
     try (Response response = fetchConfiguration()) {
+      if (response.code() == 404) {
+        log.debug("Remote configuration endpoint is disabled");
+        return;
+      }
       ResponseBody body = response.body();
       if (response.isSuccessful()) {
         if (body == null) {
@@ -241,9 +319,6 @@ public class ConfigurationPoller
   }
 
   private void handleAgentResponse(ResponseBody body) {
-    int successes = 0, failures = 0;
-
-    List<String> inspectedConfigurationKeys = new ArrayList<>();
     RemoteConfigResponse fleetResponse;
 
     try (InputStream inputStream = new SizeCheckedInputStream(body.byteStream(), maxPayloadSize)) {
@@ -276,249 +351,99 @@ public class ConfigurationPoller
       return;
     }
 
-    Iterable<String> configsToApply =
-        fleetResponse.getClientConfigs().stream()
-                .sorted(comparing(ConfigurationPoller::extractProductFromKey))
-            ::iterator;
-    String errorMessage = null;
-    this.durationHint = null;
-    this.collectedCfgErrors.clear();
-    for (String configKey : configsToApply) {
-      // The spec specifies that everything should stop once there is a problem
-      // applying one of the configurations. This would make the configurations
-      // be applied or not depending solely on the (unspecified) iteration order, with
-      // unpredictable results. We continue trying to process configurations after
-      // we encounter an error. This is (arguably) in spec, as it corresponds
-      // to a situation where the (unspecified) iteration order where the error
-      // triggering config keys would be processed at the end.
+    List<ReportableException> errors = new ArrayList<>();
+
+    Map<Product, List<ParsedConfigKey>> parsedKeysByProduct = new HashMap<>();
+
+    for (String configKey : fleetResponse.getClientConfigs()) {
       try {
-        processConfigKey(fleetResponse, configKey, inspectedConfigurationKeys, this);
-        successes++;
-      } catch (ReportableException rpe) {
-        this.ratelimitedLogger.warn(
-            "Error processing config key {}: {}", configKey, rpe.getMessage(), rpe);
-        failures++;
-        errorMessage = rpe.getMessage();
-      } catch (Exception e) {
-        this.ratelimitedLogger.warn(
-            "Error processing config key {}: {}", configKey, e.getMessage(), e);
-        this.collectedCfgErrors.put(configKey, e.getMessage());
-        failures++;
+        ParsedConfigKey parsedConfigKey = ParsedConfigKey.parse(configKey);
+        Product product = parsedConfigKey.getProduct();
+        if (!(productStates.containsKey(product))) {
+          throw new ReportableException(
+              "Told to handle config key "
+                  + configKey
+                  + ", but the product "
+                  + parsedConfigKey.getProductName()
+                  + " is not being handled");
+        }
+        parsedKeysByProduct.computeIfAbsent(product, k -> new ArrayList<>()).add(parsedConfigKey);
+      } catch (ReportableException e) {
+        errors.add(e);
       }
     }
 
-    updateNextState(fleetResponse, inspectedConfigurationKeys, errorMessage);
-
-    if (successes == 0 && failures > 0) {
-      throw new RuntimeException(
-          "None of the configuration data was successfully read and processed");
+    boolean appliedAny = false;
+    for (Map.Entry<Product, ProductState> entry : productStates.entrySet()) {
+      Product product = entry.getKey();
+      ProductState state = entry.getValue();
+      List<ParsedConfigKey> relevantKeys =
+          parsedKeysByProduct.getOrDefault(product, Collections.EMPTY_LIST);
+      appliedAny = state.apply(fleetResponse, relevantKeys, this) || appliedAny;
+      if (state.hasError()) {
+        errors.addAll(state.getErrors());
+      }
     }
+
+    if (appliedAny) {
+      for (ConfigurationEndListener listener : this.configurationEndListeners) {
+        runConfigurationEndListener(listener, errors);
+      }
+    }
+
+    updateNextState(fleetResponse, buildErrorMessage(errors));
 
     rescheduleBaseOnConfiguration(this.durationHint);
   }
 
-  private DeserializerAndListener<?> extractDeserializerAndListenerFromKey(String configKey) {
-    String productName = extractProductNameFromKey(configKey);
-    if (productName == null) {
-      throw new ReportableException("Cannot extract product from key " + configKey);
+  private void runConfigurationEndListener(
+      ConfigurationEndListener listener, List<ReportableException> errors) {
+    try {
+      listener.onConfigurationEnd();
+    } catch (ReportableException re) {
+      errors.add(re);
+    } catch (RuntimeException rte) {
+      // XXX: we have no way to report this error back
+      // This is because errors are scoped to a specific config key and this listener
+      // is about combining configuration from different products
+      ratelimitedLogger.warn(
+          "Error running configuration listener {}: {}", listener, rte.getMessage(), rte);
     }
-
-    DeserializerAndListener<?> dl = this.listeners.get(productName);
-    if (dl == null) {
-      throw new ReportableException(
-          "Told to handle config key "
-              + configKey
-              + ", but the product "
-              + productName
-              + " is not being handled");
-    }
-
-    return dl;
   }
 
-  private void notifyConfigurationKeyRemoved(String configKey, PollingRateHinter pollingRateHinter)
-      throws IOException {
-    extractDeserializerAndListenerFromKey(configKey)
-        .deserializeAndAccept(configKey, null, pollingRateHinter);
-  }
-
-  private void processConfigKey(
-      RemoteConfigResponse fleetResponse,
-      String configKey,
-      List<String> inspectedConfigurationKeys,
-      PollingRateHinter pollingRateHinter) {
-    // find right product from configKey
-    DeserializerAndListener<?> dl = extractDeserializerAndListenerFromKey(configKey);
-
-    // check if the hash of this configuration file actually changed
-    CachedTargetFile cachedTargetFile = this.cachedTargetFiles.get(configKey);
-    RemoteConfigResponse.Targets.ConfigTarget target = fleetResponse.getTarget(configKey);
-    if (target == null) {
-      throw new ReportableException(
-          "Told to apply config for "
-              + configKey
-              + " but no corresponding entry exists in targets.targets_signed.targets");
+  private String buildErrorMessage(List<ReportableException> errors) {
+    if (errors.isEmpty()) {
+      return null;
     }
-    if (cachedTargetFile != null && cachedTargetFile.hashesMatch(target.hashes)) {
-      log.debug("No change in configuration for key {}", configKey);
-      inspectedConfigurationKeys.add(configKey);
-      return;
+    if (errors.size() == 1) {
+      return errors.get(0).getMessage();
     }
-
-    // fetch the content
-    Optional<byte[]> maybeFileContent;
-    try {
-      maybeFileContent = fleetResponse.getFileContents(configKey);
-    } catch (Exception e) {
-      throw new ReportableException(e.getMessage());
+    StringBuilder aggregateMessage = new StringBuilder();
+    aggregateMessage.append(
+        String.format("Failed to apply configuration due to %d errors:%n", errors.size()));
+    for (int i = 0; i < errors.size(); i++) {
+      aggregateMessage.append(String.format(" (%d) %s%n", i + 1, errors.get(i).getMessage()));
     }
-    if (!maybeFileContent.isPresent()) {
-      if (this.cachedTargetFiles.containsKey(configKey)) {
-        throw new ReportableException(
-            "Told to apply config "
-                + configKey
-                + " but content not present even though hash differs from that of 'cached file'");
-      }
-
-      throw new ReportableException("No content for " + configKey);
-    }
-
-    // add to inspectedConfigurationKeys so it's reported on config_states
-    // (even if deserializing or applying config fails)
-    inspectedConfigurationKeys.add(configKey);
-
-    // deserialize and apply config
-    byte[] fileContent = maybeFileContent.get();
-
-    try {
-      log.debug("Applying configuration for {}", configKey);
-      dl.deserializeAndAccept(configKey, fileContent, pollingRateHinter);
-    } catch (IOException ioe) {
-      throw new RuntimeException(ioe);
-    } catch (RuntimeException ex) {
-      throw ex;
-    }
+    return aggregateMessage.toString();
   }
 
   /**
    * @param fleetResponse the response the agent sent
-   * @param inspectedConfigKeys the configurations that were applied to the tracer either a) in this
-   *     iteration or b) in a previous request, and the configuration has not changed. If there is
-   *     an error that resulted in no config keys even be inspected then the config states and
-   *     cached files are emptied.
-   * @param errorMessage a procedural error that occurred during the update; it does not include
-   *     errors during registered deserializers and config listeners. If there is an error, the
+   * @param error a procedural error that occurred during the update; it does not include errors
+   *     during registered deserializers and config listeners. If there is an error, the
    *     targets_version in client.state is not updated (but the rest is).
    */
-  private void updateNextState(
-      RemoteConfigResponse fleetResponse, List<String> inspectedConfigKeys, String errorMessage) {
+  private void updateNextState(RemoteConfigResponse fleetResponse, String error) {
     RemoteConfigResponse.Targets.TargetsSigned targetsSigned = fleetResponse.getTargetsSigned();
-    List<ConfigState> configStates = this.nextClientState.configStates;
-
-    int numInspectedConfigs = inspectedConfigKeys.size();
-
-    if (targetsSigned == null || targetsSigned.targets == null) {
-      ratelimitedLogger.warn("No targets in response; can't properly " + "set config_states");
-      numInspectedConfigs = 0;
-    }
-
-    // Do config_states
-    int csi = 0; // config_states index
-    for (int i = 0; i < numInspectedConfigs; i++) {
-      String configKey = inspectedConfigKeys.get(i);
-      RemoteConfigResponse.Targets.ConfigTarget target = targetsSigned.targets.get(configKey);
-
-      if (target == null || target.custom == null) {
-        ratelimitedLogger.warn(
-            "Target for {} does not exist or does not define 'custom' field", configKey);
-        continue;
-      }
-      long version = target.custom.version;
-
-      ConfigState configState;
-      if (csi >= configStates.size()) {
-        configState = new ConfigState();
-        configStates.add(configState);
-      } else {
-        // recycle objects if possible
-        configState = configStates.get(csi);
-      }
-      csi++;
-
-      configState.setState(
-          configKey,
-          version,
-          extractProductNameFromKey(configKey),
-          this.collectedCfgErrors.get(configKey));
-    }
-    // remove excess configStates
-    int numConfigStates = configStates.size();
-    for (int i = csi; i < numConfigStates; i++) {
-      configStates.remove(configStates.size() - 1);
-    }
 
     long newTargetsVersion = targetsSigned.version;
     this.nextClientState.setState(
         // if there was an error, we did not apply the configurations fully
         // the system tests expect here the targets version not to be updated
-        errorMessage == null ? newTargetsVersion : this.nextClientState.targetsVersion,
-        configStates,
-        errorMessage,
+        error == null ? newTargetsVersion : this.nextClientState.targetsVersion,
+        getConfigState(),
+        error == null ? null : error,
         targetsSigned.custom != null ? targetsSigned.custom.opaqueBackendState : null);
-
-    // Do cached_target_files
-    for (String configKey : inspectedConfigKeys) {
-      CachedTargetFile curCTF = this.cachedTargetFiles.get(configKey);
-      RemoteConfigResponse.Targets.ConfigTarget target = targetsSigned.targets.get(configKey);
-      // configuration is not applied without correct hashes, so this is guaranteedly non-null
-      assert target != null && target.hashes != null;
-
-      if (curCTF != null) {
-        if (curCTF.length != target.length || !curCTF.hashesMatch(target.hashes)) {
-          curCTF = null;
-        }
-      }
-
-      if (curCTF == null) {
-        CachedTargetFile newCTF = new CachedTargetFile(configKey, target.length, target.hashes);
-        this.cachedTargetFiles.put(configKey, newCTF);
-      }
-    }
-
-    // remove cachedTargetFiles for the pulled configurations
-    Iterator<String> cachedConfigKeysIter = this.cachedTargetFiles.keySet().iterator();
-    while (cachedConfigKeysIter.hasNext()) {
-      String configKey = cachedConfigKeysIter.next();
-      if (!inspectedConfigKeys.contains(configKey)) {
-        cachedConfigKeysIter.remove();
-        try {
-          log.debug("Removing configuration for {}", configKey);
-          notifyConfigurationKeyRemoved(configKey, this);
-        } catch (IOException | RuntimeException ex) {
-          ratelimitedLogger.warn("Error handling configuration removal for " + configKey, ex);
-        }
-      }
-    }
-  }
-
-  private static final Pattern EXTRACT_PRODUCT_REGEX =
-      Pattern.compile("[^/]+(?:/\\d+)?/([^/]+)/[^/]+/config");
-
-  private static String extractProductNameFromKey(String configKey) {
-    Matcher matcher = EXTRACT_PRODUCT_REGEX.matcher(configKey);
-    if (!matcher.matches()) {
-      throw new ReportableException("Not a valid config key: " + configKey);
-    }
-    return matcher.group(1);
-  }
-
-  private static Product extractProductFromKey(String configKey) {
-    String name = extractProductNameFromKey(configKey);
-    try {
-      return Product.valueOf(name.toUpperCase(Locale.ROOT));
-    } catch (IllegalArgumentException iae) {
-      return Product._UNKNOWN;
-    }
   }
 
   private void rescheduleBaseOnConfiguration(Duration hint) {
@@ -529,7 +454,7 @@ public class ConfigurationPoller
     scheduler.reschedule(hint.toMillis());
   }
 
-  private void loadFromFile(File file, DeserializerAndListener<?> deserializerAndListener) {
+  private void loadFromFile(File file, ConfigurationChangesListener listener) {
     log.debug("Loading configuration from file {}", file);
 
     try (InputStream inputStream =
@@ -545,8 +470,7 @@ public class ConfigurationPoller
       } while (bytesRead > -1);
 
       try {
-        deserializerAndListener.deserializeAndAccept(
-            file.getAbsolutePath(), outputStream.toByteArray(), PollingRateHinter.NOOP);
+        listener.accept(file.getAbsolutePath(), outputStream.toByteArray(), PollingRateHinter.NOOP);
         log.debug("Loaded configuration from file {}", file);
       } catch (Exception ex) {
         ratelimitedLogger.warn(
@@ -564,31 +488,6 @@ public class ConfigurationPoller
       durationHint = duration;
     } else if (duration.compareTo(durationHint) < 0) {
       durationHint = duration;
-    }
-  }
-
-  private static class DeserializerAndListener<T> {
-    final ConfigurationDeserializer<T> deserializer;
-    final ConfigurationChangesListener<T> listener;
-
-    DeserializerAndListener(
-        ConfigurationDeserializer<T> deserializer, ConfigurationChangesListener<T> listener) {
-      this.deserializer = deserializer;
-      this.listener = listener;
-    }
-
-    void deserializeAndAccept(String configKey, byte[] bytes, PollingRateHinter hinter)
-        throws IOException {
-      T configuration = null;
-
-      if (bytes != null) {
-        configuration = this.deserializer.deserialize(bytes);
-        // ensure deserializer return a value.
-        if (configuration == null) {
-          throw new RuntimeException("Configuration deserializer didn't provide a configuration");
-        }
-      }
-      this.listener.accept(configKey, configuration, hinter);
     }
   }
 

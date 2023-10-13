@@ -1,8 +1,7 @@
 package datadog.trace.instrumentation.ignite.v2.cache;
 
-import static datadog.trace.bootstrap.instrumentation.api.Tags.DB_TYPE;
-
 import datadog.trace.api.Config;
+import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
@@ -15,11 +14,10 @@ import org.apache.ignite.cache.query.SqlFieldsQuery;
 import org.apache.ignite.cache.query.SqlQuery;
 
 public class IgniteCacheDecorator extends DBTypeProcessingDatabaseClientDecorator<IgniteCache> {
-
-  public static final CharSequence IGNITE_COMMAND = UTF8BytesString.create("ignite.cache");
   public static final IgniteCacheDecorator DECORATE = new IgniteCacheDecorator();
-
-  private static final String SERVICE_NAME = "ignite";
+  public static final String DB_TYPE = "ignite";
+  public static final CharSequence OPERATION_NAME =
+      UTF8BytesString.create(SpanNaming.instance().namingSchema().cache().operation(DB_TYPE));
   private static final CharSequence SPAN_TYPE = InternalSpanTypes.CACHE;
   private static final CharSequence COMPONENT_NAME = UTF8BytesString.create("ignite-cache");
 
@@ -40,7 +38,7 @@ public class IgniteCacheDecorator extends DBTypeProcessingDatabaseClientDecorato
 
   @Override
   protected String service() {
-    return SERVICE_NAME;
+    return SpanNaming.instance().namingSchema().cache().service(DB_TYPE);
   }
 
   @Override
@@ -55,7 +53,7 @@ public class IgniteCacheDecorator extends DBTypeProcessingDatabaseClientDecorato
 
   @Override
   protected String dbType() {
-    return "ignite";
+    return DB_TYPE;
   }
 
   @Override
@@ -161,12 +159,5 @@ public class IgniteCacheDecorator extends DBTypeProcessingDatabaseClientDecorato
 
   public AgentSpan onResult(AgentSpan span, Object result) {
     return span;
-  }
-
-  @Override
-  protected void processDatabaseType(AgentSpan span, String dbType) {
-    span.setServiceName(dbType);
-    span.setOperationName("ignite.cache");
-    span.setTag(DB_TYPE, dbType);
   }
 }
