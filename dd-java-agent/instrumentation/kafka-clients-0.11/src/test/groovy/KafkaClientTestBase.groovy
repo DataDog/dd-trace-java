@@ -98,10 +98,15 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
     if (isDataStreamsEnabled()) {
       senderProps.put(ProducerConfig.METADATA_MAX_AGE_CONFIG, 1000)
     }
-    Producer<String, String> producer = new KafkaProducer<>(senderProps, new StringSerializer(), new StringSerializer())
+    KafkaProducer<String, String> producer = new KafkaProducer<>(senderProps, new StringSerializer(), new StringSerializer())
+    String clusterId = ""
     if (isDataStreamsEnabled()) {
       producer.flush()
-      Thread.sleep(1500)
+      clusterId = producer.metadata.cluster.clusterResource().clusterId()
+      while (clusterId == null || clusterId.isEmpty()) {
+        Thread.sleep(1500)
+        clusterId = producer.metadata.cluster.clusterResource().clusterId()
+      }
     }
 
     // set up the Kafka consumer properties
@@ -183,7 +188,6 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
     new String(headers.headers("x-datadog-parent-id").iterator().next().value()) == "${TEST_WRITER[0][2].spanId}"
 
     if (isDataStreamsEnabled()) {
-      String clusterId = embeddedKafka.getKafkaServer(0).clusterId()
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(first) {
         edgeTags == ["direction:out", "kafka_cluster_id:$clusterId", "topic:$SHARED_TOPIC".toString(), "type:kafka"]
@@ -251,9 +255,9 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
     }
     def producerFactory = new DefaultKafkaProducerFactory<String, String>(senderProps)
     def kafkaTemplate = new KafkaTemplate<String, String>(producerFactory)
+    String clusterId = null
     if (isDataStreamsEnabled()) {
-      kafkaTemplate.flush()
-      Thread.sleep(1500)
+      clusterId = waitForKafkaMetadataUpdate(kafkaTemplate)
     }
 
     // set up the Kafka consumer properties
@@ -332,7 +336,6 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
     new String(headers.headers("x-datadog-parent-id").iterator().next().value()) == "${TEST_WRITER[0][2].spanId}"
 
     if (isDataStreamsEnabled()) {
-      String clusterId = embeddedKafka.getKafkaServer(0)._clusterId
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(first) {
         edgeTags == [
@@ -730,9 +733,9 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
     }
     def producerFactory = new DefaultKafkaProducerFactory<String, String>(senderProps)
     def kafkaTemplate = new KafkaTemplate<String, String>(producerFactory)
+    String clusterId = null
     if (isDataStreamsEnabled()) {
-      kafkaTemplate.flush()
-      Thread.sleep(1500)
+      clusterId = waitForKafkaMetadataUpdate(kafkaTemplate)
     }
 
     def consumerProperties = KafkaTestUtils.consumerProps("sender", "false", embeddedKafka)
@@ -823,7 +826,6 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
     }
 
     if (isDataStreamsEnabled()) {
-      String clusterId = embeddedKafka.getKafkaServer(0).clusterId()
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(first) {
         edgeTags == ["direction:out", "kafka_cluster_id:$clusterId", "topic:$SHARED_TOPIC".toString(), "type:kafka"]
@@ -1013,6 +1015,20 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
         defaultTags(distributedRootSpan)
       }
     }
+  }
+
+  def waitForKafkaMetadataUpdate(KafkaTemplate kafkaTemplate) {
+    kafkaTemplate.flush()
+    Producer<String, String> wrappedProducer = kafkaTemplate.getTheProducer()
+    assert(wrappedProducer instanceof DefaultKafkaProducerFactory.CloseSafeProducer)
+    Producer<String, String> producer = wrappedProducer.delegate
+    assert(producer instanceof KafkaProducer)
+    String clusterId = producer.metadata.cluster.clusterResource().clusterId()
+    while (clusterId == null || clusterId.isEmpty()) {
+      Thread.sleep(1500)
+      clusterId = producer.metadata.cluster.clusterResource().clusterId()
+    }
+    return clusterId
   }
 }
 

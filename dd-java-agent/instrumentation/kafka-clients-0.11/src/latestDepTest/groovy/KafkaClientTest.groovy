@@ -207,8 +207,7 @@ class KafkaClientTest extends AgentTestRunner {
     producerProps.put(ProducerConfig.METADATA_MAX_AGE_CONFIG, 1000)
     def producerFactory = new DefaultKafkaProducerFactory<String, String>(producerProps)
     def kafkaTemplate = new KafkaTemplate<String, String>(producerFactory)
-    kafkaTemplate.flush()
-    Thread.sleep(1500)
+    String clusterId = waitForKafkaMetadataUpdate(kafkaTemplate)
 
     // set up the Kafka consumer properties
     def consumerProperties = KafkaTestUtils.consumerProps("sender", "false", embeddedKafka)
@@ -313,12 +312,11 @@ class KafkaClientTest extends AgentTestRunner {
     new String(headers.headers("x-datadog-trace-id").iterator().next().value()) == "${TEST_WRITER[0][2].traceId}"
     new String(headers.headers("x-datadog-parent-id").iterator().next().value()) == "${TEST_WRITER[0][2].spanId}"
 
-    String expectedKafkaClusterId = embeddedKafka.getKafkaServer(0).clusterId()
     StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
     verifyAll(first) {
       edgeTags == [
         "direction:out",
-        "kafka_cluster_id:$expectedKafkaClusterId",
+        "kafka_cluster_id:$clusterId",
         "topic:$SHARED_TOPIC".toString(),
         "type:kafka"
       ]
@@ -330,7 +328,7 @@ class KafkaClientTest extends AgentTestRunner {
       edgeTags == [
         "direction:in",
         "group:sender",
-        "kafka_cluster_id:$expectedKafkaClusterId",
+        "kafka_cluster_id:$clusterId",
         "topic:$SHARED_TOPIC".toString(),
         "type:kafka"
       ]
@@ -794,8 +792,7 @@ class KafkaClientTest extends AgentTestRunner {
     producerProps.put(ProducerConfig.METADATA_MAX_AGE_CONFIG, 1000)
     def producerFactory = new DefaultKafkaProducerFactory<String, String>(producerProps)
     def kafkaTemplate = new KafkaTemplate<String, String>(producerFactory)
-    kafkaTemplate.flush()
-    Thread.sleep(1500)
+    String clusterId = waitForKafkaMetadataUpdate(kafkaTemplate)
 
     def consumerProperties = KafkaTestUtils.consumerProps("sender", "false", embeddedKafka)
     def consumerFactory = new DefaultKafkaConsumerFactory<String, String>(consumerProperties)
@@ -975,12 +972,11 @@ class KafkaClientTest extends AgentTestRunner {
       }
     }
 
-    String expectedKafkaClusterId = embeddedKafka.getKafkaServer(0).clusterId()
     StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
     verifyAll(first) {
       edgeTags == [
         "direction:out",
-        "kafka_cluster_id:$expectedKafkaClusterId",
+        "kafka_cluster_id:$clusterId",
         "topic:$SHARED_TOPIC".toString(),
         "type:kafka"
       ]
@@ -992,7 +988,7 @@ class KafkaClientTest extends AgentTestRunner {
       edgeTags == [
         "direction:in",
         "group:sender",
-        "kafka_cluster_id:$expectedKafkaClusterId",
+        "kafka_cluster_id:$clusterId",
         "topic:$SHARED_TOPIC".toString(),
         "type:kafka"
       ]
@@ -1072,4 +1068,18 @@ class KafkaClientTest extends AgentTestRunner {
     }
   }
 
+
+  def waitForKafkaMetadataUpdate(KafkaTemplate kafkaTemplate) {
+    kafkaTemplate.flush()
+    Producer<String, String> wrappedProducer = kafkaTemplate.getTheProducer()
+    assert(wrappedProducer instanceof DefaultKafkaProducerFactory.CloseSafeProducer)
+    Producer<String, String> producer = wrappedProducer.delegate
+    assert(producer instanceof KafkaProducer)
+    String clusterId = producer.metadata.fetch().clusterResource().clusterId()
+    while (clusterId == null || clusterId.isEmpty()) {
+      Thread.sleep(1500)
+      clusterId = producer.metadata.fetch().clusterResource().clusterId()
+    }
+    return clusterId
+  }
 }
