@@ -67,7 +67,7 @@ public class GitClient {
   }
 
   /**
-   * Returns the full symbolic name of the upstream (remote tracking) branch for the currently
+   * Returns the SHA of the head commit of the upstream (remote tracking) branch for the currently
    * checked-out local branch. If the local branch is not tracking any remote branches, a {@link
    * datadog.trace.civisibility.utils.ShellCommandExecutor.ShellCommandFailedException} exception
    * will be thrown.
@@ -79,15 +79,9 @@ public class GitClient {
    * @throws InterruptedException If current thread was interrupted while waiting for Git command to
    *     finish
    */
-  public String getUpstreamBranch() throws IOException, TimeoutException, InterruptedException {
+  public String getUpstreamBranchSha() throws IOException, TimeoutException, InterruptedException {
     return commandExecutor
-        .executeCommand(
-            IOUtils::readFully,
-            "git",
-            "rev-parse",
-            "--abbrev-ref",
-            "--symbolic-full-name",
-            "@{upstream}")
+        .executeCommand(IOUtils::readFully, "git", "rev-parse", "@{upstream}")
         .trim();
   }
 

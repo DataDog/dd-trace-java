@@ -150,7 +150,7 @@ public class GitDataUploaderImpl implements GitDataUploader {
     }
 
     try {
-      String upstreamBranch = gitClient.getUpstreamBranch();
+      String upstreamBranch = gitClient.getUpstreamBranchSha();
       gitClient.unshallow(upstreamBranch);
     } catch (ShellCommandExecutor.ShellCommandFailedException e) {
       LOGGER.debug(
