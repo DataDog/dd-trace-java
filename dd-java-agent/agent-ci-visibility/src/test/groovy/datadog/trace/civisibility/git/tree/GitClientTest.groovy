@@ -43,16 +43,16 @@ class GitClientTest extends Specification {
     shallow
   }
 
-  def "test get upstream branch"() {
+  def "test get upstream branch SHA"() {
     given:
     givenGitRepo("ci/git/shallow/git")
 
     when:
     def gitClient = givenGitClient()
-    def upstreamBranch = gitClient.getUpstreamBranch()
+    def upstreamBranch = gitClient.getUpstreamBranchSha()
 
     then:
-    upstreamBranch == "origin/master"
+    upstreamBranch == "98b944cc44f18bfb78e3021de2999cdcda8efdf6"
   }
 
   def "test unshallow: #remoteSha"() {
