@@ -1023,6 +1023,13 @@ public class AgentTracer {
         AgentSpan span, LinkedHashMap<String, String> sortedTags, long defaultTimestamp) {}
 
     @Override
+    public void setCheckpoint(
+        AgentSpan span,
+        LinkedHashMap<String, String> sortedTags,
+        long defaultTimestamp,
+        long payloadSizeBytes) {}
+
+    @Override
     public PathwayContext newPathwayContext() {
       return NoopPathwayContext.INSTANCE;
     }
@@ -1051,6 +1058,13 @@ public class AgentTracer {
     public long getHash() {
       return 0L;
     }
+
+    @Override
+    public void setCheckpoint(
+        LinkedHashMap<String, String> sortedTags,
+        Consumer<StatsPoint> pointConsumer,
+        long defaultTimestamp,
+        long payloadSizeBytes) {}
 
     @Override
     public void setCheckpoint(
