@@ -206,6 +206,9 @@ import static datadog.trace.api.config.GeneralConfig.RUNTIME_METRICS_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.SERVICE_NAME;
 import static datadog.trace.api.config.GeneralConfig.SITE;
 import static datadog.trace.api.config.GeneralConfig.STARTUP_LOGS_ENABLED;
+import static datadog.trace.api.config.GeneralConfig.STATSD_CLIENT_QUEUE_SIZE;
+import static datadog.trace.api.config.GeneralConfig.STATSD_CLIENT_SOCKET_BUFFER;
+import static datadog.trace.api.config.GeneralConfig.STATSD_CLIENT_SOCKET_TIMEOUT;
 import static datadog.trace.api.config.GeneralConfig.TAGS;
 import static datadog.trace.api.config.GeneralConfig.TELEMETRY_DEPENDENCY_COLLECTION_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.TELEMETRY_HEARTBEAT_INTERVAL;
@@ -560,6 +563,10 @@ public class Config {
 
   private final String dogStatsDNamedPipe;
   private final int dogStatsDStartDelay;
+
+  private final Integer statsDClientQueueSize;
+  private final Integer statsDClientSocketBuffer;
+  private final Integer statsDClientSocketTimeout;
 
   private final boolean runtimeMetricsEnabled;
   private final boolean jmxFetchEnabled;
@@ -1224,6 +1231,10 @@ public class Config {
     dogStatsDStartDelay =
         configProvider.getInteger(
             DOGSTATSD_START_DELAY, DEFAULT_DOGSTATSD_START_DELAY, JMX_FETCH_START_DELAY);
+
+    statsDClientQueueSize = configProvider.getInteger(STATSD_CLIENT_QUEUE_SIZE);
+    statsDClientSocketBuffer = configProvider.getInteger(STATSD_CLIENT_SOCKET_BUFFER);
+    statsDClientSocketTimeout = configProvider.getInteger(STATSD_CLIENT_SOCKET_TIMEOUT);
 
     runtimeMetricsEnabled = configProvider.getBoolean(RUNTIME_METRICS_ENABLED, true);
 
@@ -2086,6 +2097,18 @@ public class Config {
 
   public int getDogStatsDStartDelay() {
     return dogStatsDStartDelay;
+  }
+
+  public Integer getStatsDClientQueueSize() {
+    return statsDClientQueueSize;
+  }
+
+  public Integer getStatsDClientSocketBuffer() {
+    return statsDClientSocketBuffer;
+  }
+
+  public Integer getStatsDClientSocketTimeout() {
+    return statsDClientSocketTimeout;
   }
 
   public boolean isRuntimeMetricsEnabled() {
