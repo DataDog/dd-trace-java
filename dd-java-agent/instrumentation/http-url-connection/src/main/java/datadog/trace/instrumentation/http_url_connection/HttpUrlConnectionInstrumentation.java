@@ -33,7 +33,9 @@ public class HttpUrlConnectionInstrumentation extends Instrumenter.Tracing
   public String[] knownMatchingTypes() {
     // we deliberately exclude various subclasses that are simple delegators
     return new String[] {
-      "sun.net.www.protocol.http.HttpURLConnection", "java.net.HttpURLConnection"
+      "sun.net.www.protocol.http.HttpURLConnection",
+      "java.net.HttpURLConnection",
+      "weblogic.net.http.HttpURLConnection"
     };
   }
 
