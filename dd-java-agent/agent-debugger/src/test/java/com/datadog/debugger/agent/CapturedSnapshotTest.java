@@ -926,7 +926,7 @@ public class CapturedSnapshotTest {
     Assertions.assertEquals(1, listener.snapshots.size());
     List<EvaluationError> evaluationErrors = listener.snapshots.get(0).getEvaluationErrors();
     Assertions.assertEquals(1, evaluationErrors.size());
-    Assertions.assertEquals("fld", evaluationErrors.get(0).getExpr());
+    Assertions.assertEquals("nullTyped.fld.fld", evaluationErrors.get(0).getExpr());
     Assertions.assertEquals(
         "Cannot dereference to field: fld", evaluationErrors.get(0).getMessage());
   }
@@ -1005,7 +1005,7 @@ public class CapturedSnapshotTest {
     List<Snapshot> snapshots = doMergedProbeConditions(condition1, condition2, 1);
     List<EvaluationError> evaluationErrors = snapshots.get(0).getEvaluationErrors();
     Assertions.assertEquals(1, evaluationErrors.size());
-    Assertions.assertEquals("fld", evaluationErrors.get(0).getExpr());
+    Assertions.assertEquals("nullTyped.fld.fld", evaluationErrors.get(0).getExpr());
     Assertions.assertEquals(
         "Cannot dereference to field: fld", evaluationErrors.get(0).getMessage());
   }
@@ -1025,7 +1025,7 @@ public class CapturedSnapshotTest {
     List<Snapshot> snapshots = doMergedProbeConditions(condition1, condition2, 2);
     List<EvaluationError> evaluationErrors = snapshots.get(0).getEvaluationErrors();
     Assertions.assertEquals(1, evaluationErrors.size());
-    Assertions.assertEquals("fld", evaluationErrors.get(0).getExpr());
+    Assertions.assertEquals("nullTyped.fld.fld", evaluationErrors.get(0).getExpr());
     Assertions.assertEquals(
         "Cannot dereference to field: fld", evaluationErrors.get(0).getMessage());
     assertNull(snapshots.get(1).getEvaluationErrors());
@@ -1046,7 +1046,7 @@ public class CapturedSnapshotTest {
     List<Snapshot> snapshots = doMergedProbeConditions(condition1, condition2, 1);
     List<EvaluationError> evaluationErrors = snapshots.get(0).getEvaluationErrors();
     Assertions.assertEquals(1, evaluationErrors.size());
-    Assertions.assertEquals("fld", evaluationErrors.get(0).getExpr());
+    Assertions.assertEquals("nullTyped.fld.fld", evaluationErrors.get(0).getExpr());
     Assertions.assertEquals(
         "Cannot dereference to field: fld", evaluationErrors.get(0).getMessage());
   }
@@ -1067,7 +1067,7 @@ public class CapturedSnapshotTest {
     assertNull(snapshots.get(0).getEvaluationErrors());
     List<EvaluationError> evaluationErrors = snapshots.get(1).getEvaluationErrors();
     Assertions.assertEquals(1, evaluationErrors.size());
-    Assertions.assertEquals("fld", evaluationErrors.get(0).getExpr());
+    Assertions.assertEquals("nullTyped.fld.fld", evaluationErrors.get(0).getExpr());
     Assertions.assertEquals(
         "Cannot dereference to field: fld", evaluationErrors.get(0).getMessage());
   }

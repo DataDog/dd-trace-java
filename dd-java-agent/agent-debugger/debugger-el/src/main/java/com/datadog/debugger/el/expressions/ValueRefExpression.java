@@ -19,17 +19,18 @@ public final class ValueRefExpression implements ValueExpression<Value<?>> {
 
   @Override
   public Value<?> evaluate(ValueReferenceResolver valueRefResolver) {
+    Object symbol;
     try {
-      Object symbol = valueRefResolver.lookup(symbolName);
-      if (symbol == Redaction.REDACTED_VALUE) {
-        String expr = PrettyPrintVisitor.print(this);
-        throw new EvaluationException(
-            "Could not evaluate the expression because '" + expr + "' was redacted", expr);
-      }
-      return Value.of(symbol);
+      symbol = valueRefResolver.lookup(symbolName);
     } catch (RuntimeException ex) {
-      throw new EvaluationException(ex.getMessage(), symbolName);
+      throw new EvaluationException(ex.getMessage(), PrettyPrintVisitor.print(this));
     }
+    if (symbol == Redaction.REDACTED_VALUE) {
+      String expr = PrettyPrintVisitor.print(this);
+      throw new EvaluationException(
+          "Could not evaluate the expression because '" + expr + "' was redacted", expr);
+    }
+    return Value.of(symbol);
   }
 
   @Generated

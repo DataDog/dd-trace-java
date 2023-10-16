@@ -24,17 +24,18 @@ public class GetMemberExpression implements ValueExpression<Value<?>> {
     if (targetValue == Value.undefined()) {
       return targetValue;
     }
+    Object member;
     try {
-      Object member = valueRefResolver.getMember(targetValue.getValue(), memberName);
-      if (member == Redaction.REDACTED_VALUE) {
-        String expr = PrettyPrintVisitor.print(this);
-        throw new EvaluationException(
-            "Could not evaluate the expression because '" + expr + "' was redacted", expr);
-      }
-      return Value.of(member);
+      member = valueRefResolver.getMember(targetValue.getValue(), memberName);
     } catch (RuntimeException ex) {
-      throw new EvaluationException(ex.getMessage(), memberName, ex);
+      throw new EvaluationException(ex.getMessage(), PrettyPrintVisitor.print(this), ex);
     }
+    if (member == Redaction.REDACTED_VALUE) {
+      String expr = PrettyPrintVisitor.print(this);
+      throw new EvaluationException(
+          "Could not evaluate the expression because '" + expr + "' was redacted", expr);
+    }
+    return Value.of(member);
   }
 
   @Generated
