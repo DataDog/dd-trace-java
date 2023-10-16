@@ -54,7 +54,7 @@ public class Redaction {
       boolean isRemovable = isRemovableChar(c);
       if (isUpper || isRemovable || sb != null) {
         if (sb == null) {
-          sb = new StringBuilder();
+          sb = new StringBuilder(name.substring(0, i));
         }
         if (isUpper) {
           sb.append(Character.toLowerCase(c));

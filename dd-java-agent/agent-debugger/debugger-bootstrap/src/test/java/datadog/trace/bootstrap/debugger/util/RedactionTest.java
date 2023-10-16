@@ -14,6 +14,7 @@ class RedactionTest {
     assertFalse(Redaction.isRedactedKeyword("@-_$"));
     assertTrue(Redaction.isRedactedKeyword("password"));
     assertTrue(Redaction.isRedactedKeyword("PassWord"));
+    assertTrue(Redaction.isRedactedKeyword("pass-word"));
     assertTrue(Redaction.isRedactedKeyword("_Pass-Word_"));
     assertTrue(Redaction.isRedactedKeyword("$pass_worD"));
     assertTrue(Redaction.isRedactedKeyword("@passWord@"));
