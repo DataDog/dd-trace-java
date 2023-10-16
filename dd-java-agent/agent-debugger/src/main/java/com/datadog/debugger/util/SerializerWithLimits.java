@@ -120,7 +120,7 @@ public class SerializerWithLimits {
       throw new IllegalArgumentException("Type is required for serialization");
     }
     tokenWriter.prologue(value, type);
-    if (value == REDACTED_VALUE) {
+    if (value == REDACTED_VALUE || Redaction.isRedactedType(type)) {
       tokenWriter.notCaptured(NotCapturedReason.REDACTED);
       tokenWriter.epilogue(value);
       return;

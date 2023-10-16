@@ -47,6 +47,12 @@ public class IndexExpression implements ValueExpression<Value<?>> {
     } catch (IllegalArgumentException ex) {
       throw new EvaluationException(ex.getMessage(), PrettyPrintVisitor.print(this), ex);
     }
+    Object obj = result.getValue();
+    if (obj != null && Redaction.isRedactedType(obj.getClass().getTypeName())) {
+      String expr = PrettyPrintVisitor.print(this);
+      throw new EvaluationException(
+          "Could not evaluate the expression because '" + expr + "' was redacted", expr);
+    }
     return result;
   }
 
