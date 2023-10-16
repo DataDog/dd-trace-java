@@ -13,14 +13,13 @@ import org.junit.platform.engine.reporting.ReportEntry;
 import org.junit.platform.engine.support.descriptor.ClassSource;
 import org.junit.platform.engine.support.descriptor.MethodSource;
 
-public class TracingListener implements EngineExecutionListener {
+public class SpockTracingListener implements EngineExecutionListener {
 
   private final String testFramework;
   private final String testFrameworkVersion;
 
-  public TracingListener(TestEngine testEngine) {
-    String engineId = testEngine.getId();
-    testFramework = engineId != null && engineId.startsWith("junit") ? "junit5" : engineId;
+  public SpockTracingListener(TestEngine testEngine) {
+    testFramework = testEngine.getId();
     testFrameworkVersion = testEngine.getVersion().orElse(null);
   }
 
@@ -54,7 +53,7 @@ public class TracingListener implements EngineExecutionListener {
   }
 
   private void containerExecutionStarted(final TestDescriptor testDescriptor) {
-    if (!JUnitPlatformUtils.isSuite(testDescriptor)) {
+    if (!SpockUtils.isSpec(testDescriptor)) {
       return;
     }
 
@@ -70,7 +69,7 @@ public class TracingListener implements EngineExecutionListener {
 
   private void containerExecutionFinished(
       final TestDescriptor testDescriptor, final TestExecutionResult testExecutionResult) {
-    if (!JUnitPlatformUtils.isSuite(testDescriptor)) {
+    if (!SpockUtils.isSpec(testDescriptor)) {
       return;
     }
 
@@ -109,19 +108,18 @@ public class TracingListener implements EngineExecutionListener {
   private void testMethodExecutionStarted(TestDescriptor testDescriptor, MethodSource testSource) {
     String testSuitName = testSource.getClassName();
     String displayName = testDescriptor.getDisplayName();
-    String testName = testSource.getMethodName();
 
     String testParameters = JUnitPlatformUtils.getParameters(testSource, displayName);
     List<String> tags =
         testDescriptor.getTags().stream().map(TestTag::getName).collect(Collectors.toList());
 
-    Class<?> testClass = JUnitPlatformUtils.getTestClass(testSource);
-    Method testMethod = JUnitPlatformUtils.getTestMethod(testSource);
+    Class<?> testClass = testSource.getJavaClass();
+    Method testMethod = SpockUtils.getTestMethod(testSource);
     String testMethodName = testSource.getMethodName();
 
     TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestStart(
         testSuitName,
-        testName,
+        displayName,
         null,
         testFramework,
         testFrameworkVersion,
@@ -145,24 +143,23 @@ public class TracingListener implements EngineExecutionListener {
       TestExecutionResult testExecutionResult,
       MethodSource testSource) {
     String testSuiteName = testSource.getClassName();
-    Class<?> testClass = JUnitPlatformUtils.getTestClass(testSource);
+    Class<?> testClass = testSource.getJavaClass();
     String displayName = testDescriptor.getDisplayName();
-    String testName = testSource.getMethodName();
     String testParameters = JUnitPlatformUtils.getParameters(testSource, displayName);
 
     Throwable throwable = testExecutionResult.getThrowable().orElse(null);
     if (throwable != null) {
       if (JUnitPlatformUtils.isAssumptionFailure(throwable)) {
         TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSkip(
-            testSuiteName, testClass, testName, null, testParameters, throwable.getMessage());
+            testSuiteName, testClass, displayName, null, testParameters, throwable.getMessage());
       } else {
         TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestFailure(
-            testSuiteName, testClass, testName, null, testParameters, throwable);
+            testSuiteName, testClass, displayName, null, testParameters, throwable);
       }
     }
 
     TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestFinish(
-        testSuiteName, testClass, testName, null, testParameters);
+        testSuiteName, testClass, displayName, null, testParameters);
   }
 
   @Override
@@ -180,7 +177,7 @@ public class TracingListener implements EngineExecutionListener {
   }
 
   private void containerExecutionSkipped(final TestDescriptor testDescriptor, final String reason) {
-    if (!JUnitPlatformUtils.isSuite(testDescriptor)) {
+    if (!SpockUtils.isSpec(testDescriptor)) {
       return;
     }
 
@@ -206,19 +203,18 @@ public class TracingListener implements EngineExecutionListener {
       final TestDescriptor testDescriptor, final MethodSource methodSource, final String reason) {
     String testSuiteName = methodSource.getClassName();
     String displayName = testDescriptor.getDisplayName();
-    String testName = methodSource.getMethodName();
 
     String testParameters = JUnitPlatformUtils.getParameters(methodSource, displayName);
     List<String> tags =
         testDescriptor.getTags().stream().map(TestTag::getName).collect(Collectors.toList());
 
-    Class<?> testClass = JUnitPlatformUtils.getTestClass(methodSource);
-    Method testMethod = JUnitPlatformUtils.getTestMethod(methodSource);
+    Class<?> testClass = methodSource.getJavaClass();
+    Method testMethod = SpockUtils.getTestMethod(methodSource);
     String testMethodName = methodSource.getMethodName();
 
     TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestIgnore(
         testSuiteName,
-        testName,
+        displayName,
         null,
         testFramework,
         testFrameworkVersion,

@@ -1,49 +1,45 @@
 package datadog.trace.instrumentation.junit5;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-import static net.bytebuddy.matcher.ElementMatchers.not;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 import org.junit.platform.engine.EngineExecutionListener;
 import org.junit.platform.engine.ExecutionRequest;
 import org.junit.platform.engine.TestEngine;
 import org.junit.platform.engine.support.hierarchical.SameThreadHierarchicalTestExecutorService;
+import org.spockframework.runtime.SpockEngine;
 
 @AutoService(Instrumenter.class)
-public class JUnit5Instrumentation extends Instrumenter.CiVisibility
-    implements Instrumenter.ForTypeHierarchy {
+public class JUnit5SpockInstrumentation extends Instrumenter.CiVisibility
+    implements Instrumenter.ForSingleType {
 
-  public JUnit5Instrumentation() {
-    super("ci-visibility", "junit-5");
+  public JUnit5SpockInstrumentation() {
+    super("ci-visibility", "junit-5", "junit-5-spock");
   }
 
   @Override
-  public String hierarchyMarkerType() {
-    return "org.junit.platform.engine.TestEngine";
+  public ElementMatcher<ClassLoader> classLoaderMatcher() {
+    return hasClassNamed("org.spockframework.runtime.SpockEngine");
   }
 
   @Override
-  public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return implementsInterface(named(hierarchyMarkerType()))
-        // JUnit 4 has a dedicated instrumentation
-        .and(not(named("org.junit.vintage.engine.VintageTestEngine")))
-        // suites are only used to organize other test engines
-        .and(not(named("org.junit.platform.suite.engine.SuiteTestEngine")));
+  public String instrumentedType() {
+    return "org.junit.platform.engine.support.hierarchical.HierarchicalTestEngine";
   }
 
   @Override
   public String[] helperClassNames() {
     return new String[] {
       packageName + ".JUnitPlatformUtils",
+      packageName + ".SpockUtils",
       packageName + ".TestEventsHandlerHolder",
-      packageName + ".TracingListener",
+      packageName + ".SpockTracingListener",
       packageName + ".CompositeEngineListener",
     };
   }
@@ -52,25 +48,20 @@ public class JUnit5Instrumentation extends Instrumenter.CiVisibility
   public void adviceTransformations(AdviceTransformation transformation) {
     transformation.applyAdvice(
         named("execute").and(takesArgument(0, named("org.junit.platform.engine.ExecutionRequest"))),
-        JUnit5Instrumentation.class.getName() + "$JUnit5Advice");
+        JUnit5SpockInstrumentation.class.getName() + "$SpockAdvice");
   }
 
-  public static class JUnit5Advice {
+  @SuppressFBWarnings(
+      value = "UC_USELESS_OBJECT",
+      justification = "executionRequest is the argument of the original method")
+  public static class SpockAdvice {
 
-    @SuppressFBWarnings(
-        value = "UC_USELESS_OBJECT",
-        justification = "executionRequest is the argument of the original method")
     @Advice.OnMethodEnter
     public static void addTracingListener(
         @Advice.This TestEngine testEngine,
         @Advice.Argument(value = 0, readOnly = false) ExecutionRequest executionRequest) {
-      String testEngineClassName = testEngine.getClass().getName();
-      if (testEngineClassName.startsWith("io.cucumber")
-          || testEngineClassName.startsWith("org.spockframework")) {
-        // Cucumber and Spock have dedicated instrumentations.
-        // We can only filter out calls to their engines at runtime,
-        // since they do not declare their own "execute" method,
-        // but inherit it from their parent class
+      if (!(testEngine instanceof SpockEngine)) {
+        // wrong test engine
         return;
       }
 
@@ -84,7 +75,7 @@ public class JUnit5Instrumentation extends Instrumenter.CiVisibility
         return;
       }
 
-      TracingListener tracingListener = new TracingListener(testEngine);
+      SpockTracingListener tracingListener = new SpockTracingListener(testEngine);
       EngineExecutionListener originalListener = executionRequest.getEngineExecutionListener();
       EngineExecutionListener compositeListener =
           new CompositeEngineListener(tracingListener, originalListener);
