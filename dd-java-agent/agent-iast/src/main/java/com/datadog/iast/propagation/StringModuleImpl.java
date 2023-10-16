@@ -133,7 +133,10 @@ public class StringModuleImpl implements StringModule {
     if (to == null) {
       return;
     }
-    taintedObjects.taint(result, to.getRanges());
+    // A StringBuilder / StringBuffer might be tainted without bounds, so we
+    // need to make sure the resulting ranges are within bounds of the string.
+    final Range[] ranges = Ranges.unboundToBound(result, to.getRanges());
+    taintedObjects.taint(result, ranges);
   }
 
   @Override

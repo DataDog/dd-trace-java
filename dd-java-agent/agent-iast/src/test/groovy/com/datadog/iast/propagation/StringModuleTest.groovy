@@ -2,8 +2,10 @@ package com.datadog.iast.propagation
 
 import com.datadog.iast.IastModuleImplTestBase
 import com.datadog.iast.IastRequestContext
+import com.datadog.iast.model.Source
 import datadog.trace.api.gateway.RequestContext
 import datadog.trace.api.gateway.RequestContextSlot
+import datadog.trace.api.iast.SourceTypes
 import datadog.trace.api.iast.propagation.StringModule
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import groovy.transform.CompileDynamic
@@ -236,6 +238,28 @@ class StringModuleTest extends IastModuleImplTestBase {
     sb('123')          | '123'
     sb('==>123<==')    | '==>123<=='
     sb('==>123<==456') | '==>123<==456'
+  }
+
+  void 'onStringBuilderToString with full range'() {
+    given:
+    final taintedObjects = ctx.getTaintedObjects()
+    final builder = new StringBuffer("foo")
+    taintedObjects.taintInputObject(builder, new Source(SourceTypes.REQUEST_BODY, null, "foo"))
+
+    when:
+    final toString = builder?.toString()
+    module.onStringBuilderToString(builder, toString)
+
+    then:
+    1 * tracer.activeSpan() >> span
+    1 * span.getRequestContext() >> reqCtx
+    1 * reqCtx.getData(RequestContextSlot.IAST) >> ctx
+    0 * _
+    def to = ctx.getTaintedObjects().get(toString)
+    assert to != null
+    assert to.ranges.length == 1
+    assert to.ranges[0].start == 0
+    assert to.ranges[0].length == 3
   }
 
   void 'onStringConcatFactory null or empty (#args)'() {

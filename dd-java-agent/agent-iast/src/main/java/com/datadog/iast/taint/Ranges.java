@@ -74,6 +74,18 @@ public final class Ranges {
     }
   }
 
+  /** Detects when we have a single unbound range and returns a single bound range. */
+  public static Range[] unboundToBound(final String s, final Range[] ranges) {
+    if (ranges == null || ranges.length != 1) {
+      return ranges;
+    }
+    final Range range = ranges[0];
+    if (range.isUnbound()) {
+      return new Range[] {new Range(0, s.length(), range.getSource(), range.getMarks())};
+    }
+    return ranges;
+  }
+
   public static Range[] mergeRanges(
       final int offset, @Nonnull final Range[] rangesLeft, @Nonnull final Range[] rangesRight) {
     final long nRanges = rangesLeft.length + rangesRight.length;

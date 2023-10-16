@@ -81,4 +81,9 @@ public final class Range implements Ranged {
   public boolean isMarked(final int mark) {
     return (marks & mark) != NOT_MARKED;
   }
+
+  /** Check if this is an "unbound" range, covering the whole object. */
+  public boolean isUnbound() {
+    return start == 0 && length == Integer.MAX_VALUE;
+  }
 }
