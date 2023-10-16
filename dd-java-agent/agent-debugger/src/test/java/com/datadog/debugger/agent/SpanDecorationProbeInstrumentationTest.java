@@ -290,16 +290,32 @@ public class SpanDecorationProbeInstrumentationTest extends ProbeInstrumentation
   @Test
   public void keywordRedaction() throws IOException, URISyntaxException {
     final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot28";
-    SpanDecorationProbe.Decoration decoration =
-        createDecoration("tag1", "{password} {this.password} {strMap['password']}");
+    SpanDecorationProbe.Decoration decoration1 = createDecoration("tag1", "{password}");
+    SpanDecorationProbe.Decoration decoration2 = createDecoration("tag2", "{this.password}");
+    SpanDecorationProbe.Decoration decoration3 = createDecoration("tag3", "{strMap['password']}");
+    List<SpanDecorationProbe.Decoration> decorations =
+        Arrays.asList(decoration1, decoration2, decoration3);
     installSingleSpanDecoration(
-        CLASS_NAME, ACTIVE, decoration, "process", "int (java.lang.String)");
+        CLASS_NAME, ACTIVE, decorations, "process", "int (java.lang.String)");
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.on(testClass).call("main", "secret123").get();
     assertEquals(42, result);
     MutableSpan span = traceInterceptor.getFirstSpan();
-    assertEquals("{redacted} {redacted} {redacted}", span.getTags().get("tag1"));
+    assertFalse(span.getTags().containsKey("tag1"));
     assertEquals(PROBE_ID.getId(), span.getTags().get("_dd.di.tag1.probe_id"));
+    assertEquals(
+        "Could not evaluate the expression because 'password' was redacted",
+        span.getTags().get("_dd.di.tag1.evaluation_error"));
+    assertFalse(span.getTags().containsKey("tag2"));
+    assertEquals(PROBE_ID.getId(), span.getTags().get("_dd.di.tag2.probe_id"));
+    assertEquals(
+        "Could not evaluate the expression because 'this.password' was redacted",
+        span.getTags().get("_dd.di.tag2.evaluation_error"));
+    assertFalse(span.getTags().containsKey("tag3"));
+    assertEquals(PROBE_ID.getId(), span.getTags().get("_dd.di.tag3.probe_id"));
+    assertEquals(
+        "Could not evaluate the expression because 'strMap[\"password\"]' was redacted",
+        span.getTags().get("_dd.di.tag3.evaluation_error"));
   }
 
   @Test

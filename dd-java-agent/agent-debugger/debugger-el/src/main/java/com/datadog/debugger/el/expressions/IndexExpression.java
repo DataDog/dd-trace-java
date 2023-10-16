@@ -34,8 +34,9 @@ public class IndexExpression implements ValueExpression<Value<?>> {
       if (targetValue instanceof MapValue) {
         Object objKey = keyValue.getValue();
         if (objKey instanceof String && Redaction.isRedactedKeyword((String) objKey)) {
-          valueRefResolver.redacted(PrettyPrintVisitor.print(this));
-          result = Value.of(Redaction.REDACTED_VALUE);
+          String expr = PrettyPrintVisitor.print(this);
+          throw new EvaluationException(
+              "Could not evaluate the expression because '" + expr + "' was redacted", expr);
         } else {
           result = ((MapValue) targetValue).get(objKey);
         }

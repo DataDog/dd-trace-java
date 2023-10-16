@@ -5,11 +5,11 @@ import static com.datadog.debugger.el.PrettyPrintVisitor.print;
 import static org.junit.jupiter.api.Assertions.*;
 
 import com.datadog.debugger.el.DSL;
+import com.datadog.debugger.el.EvaluationException;
 import com.datadog.debugger.el.RefResolverHelper;
 import com.datadog.debugger.el.Value;
 import datadog.trace.bootstrap.debugger.el.ValueReferenceResolver;
 import datadog.trace.bootstrap.debugger.el.ValueReferences;
-import datadog.trace.bootstrap.debugger.util.Redaction;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
@@ -112,7 +112,12 @@ class ValueRefExpressionTest {
       }
     }
     StoreSecret instance = new StoreSecret("secret123");
-    Value<?> val = valueRef.evaluate(RefResolverHelper.createResolver(instance));
-    assertEquals(Redaction.REDACTED_VALUE, val.getValue());
+    EvaluationException evaluationException =
+        assertThrows(
+            EvaluationException.class,
+            () -> valueRef.evaluate(RefResolverHelper.createResolver(instance)));
+    assertEquals(
+        "Could not evaluate the expression because 'password' was redacted",
+        evaluationException.getMessage());
   }
 }

@@ -22,7 +22,9 @@ public final class ValueRefExpression implements ValueExpression<Value<?>> {
     try {
       Object symbol = valueRefResolver.lookup(symbolName);
       if (symbol == Redaction.REDACTED_VALUE) {
-        valueRefResolver.redacted(PrettyPrintVisitor.print(this));
+        String expr = PrettyPrintVisitor.print(this);
+        throw new EvaluationException(
+            "Could not evaluate the expression because '" + expr + "' was redacted", expr);
       }
       return Value.of(symbol);
     } catch (RuntimeException ex) {

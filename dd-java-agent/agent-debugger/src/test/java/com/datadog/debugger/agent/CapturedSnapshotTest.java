@@ -1627,7 +1627,7 @@ public class CapturedSnapshotTest {
     Assertions.assertEquals(42, result);
     Snapshot snapshot = assertOneSnapshot(listener);
     assertEquals(
-        "arg=secret123 secret={redacted} password={redacted} fromMap={redacted}",
+        "arg=secret123 secret={Could not evaluate the expression because 'secret' was redacted} password={Could not evaluate the expression because 'this.password' was redacted} fromMap={Could not evaluate the expression because 'strMap[\"password\"]' was redacted}",
         snapshot.getMessage());
     CapturedContext.CapturedValue secretLocalVar =
         snapshot.getCaptures().getReturn().getLocals().get("secret");
