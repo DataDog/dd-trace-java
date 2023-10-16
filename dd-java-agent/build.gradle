@@ -14,16 +14,17 @@ apply from: "$rootDir/gradle/publish.gradle"
 configurations {
   shadowInclude
   sharedShadowInclude
+  traceShadowInclude
 }
 
 sourceCompatibility = JavaVersion.VERSION_1_7
 targetCompatibility = JavaVersion.VERSION_1_7
 
 /*
- * 7 shadow jars are created
+ * Several shadow jars are created
  * - The main "dd-java-agent" jar that also has the bootstrap project
- * - 5 jars based on projects (instrumentation, jmxfetch, profiling, appsec, iast)
- * - 1 based on the shared dependencies
+ * - Major feature jars (trace, instrumentation, jmxfetch, profiling, appsec, iast, debugger, ci-visibility)
+ * - A shared dependencies jar
  * This general config is shared by all of them
  */
 
@@ -123,6 +124,15 @@ def sharedShadowJar = tasks.register('sharedShadowJar', ShadowJar) {
   }
 }
 includeShadowJar(sharedShadowJar, 'shared')
+
+// place the tracer in its own shadow jar separate to instrumentation
+def traceShadowJar = tasks.register('traceShadowJar', ShadowJar) {
+  configurations = [project.configurations.traceShadowInclude]
+  it.destinationDirectory.set(file("${project.buildDir}/trace-lib"))
+  archiveClassifier = 'trace'
+  it.dependencies deps.excludeShared
+}
+includeShadowJar(traceShadowJar, 'trace')
 
 shadowJar generalShadowJarConfig >> {
   configurations = [project.configurations.shadowInclude]
@@ -224,6 +234,7 @@ dependencies {
   sharedShadowInclude project(':utils:version-utils'), {
     transitive = false
   }
+  traceShadowInclude project(':dd-trace-core')
 }
 
 tasks.withType(Test).configureEach {
