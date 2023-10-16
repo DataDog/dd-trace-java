@@ -15,6 +15,8 @@ import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILE
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_CSTACK;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_CSTACK_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_LIBPATH;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_LINE_NUMBERS;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_LINE_NUMBERS_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_LIVEHEAP_CAPACITY;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_LIVEHEAP_CAPACITY_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_LIVEHEAP_ENABLED;
@@ -242,6 +244,13 @@ public class DatadogProfilerConfig {
 
   public static String getCStack() {
     return getCStack(ConfigProvider.getInstance());
+  }
+
+  public static boolean omitLineNumbers(ConfigProvider configProvider) {
+    return !getBoolean(
+        configProvider,
+        PROFILING_DATADOG_PROFILER_LINE_NUMBERS,
+        PROFILING_DATADOG_PROFILER_LINE_NUMBERS_DEFAULT);
   }
 
   private static int clamp(int min, int max, int value) {

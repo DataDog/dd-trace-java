@@ -6,6 +6,8 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import java.util.List;
+import net.bytebuddy.asm.Advice;
 
 @AutoService(Instrumenter.class)
 public final class AnnotationSubstitutionProcessorInstrumentation
@@ -23,11 +25,37 @@ public final class AnnotationSubstitutionProcessorInstrumentation
             .and(named("lookup"))
             .and(takesArgument(0, named("jdk.vm.ci.meta.ResolvedJavaField"))),
         packageName + ".DeleteFieldAdvice");
+    transformation.applyAdvice(
+        isMethod().and(named("findTargetClasses")),
+        AnnotationSubstitutionProcessorInstrumentation.class.getName()
+            + "$FindTargetClassesAdvice");
+  }
+
+  @Override
+  public String[] helperClassNames() {
+    return new String[] {
+      packageName + ".Target_org_jctools_counters_FixedSizeStripedLongCounterFields",
+      packageName + ".Target_org_jctools_util_UnsafeRefArrayAccess"
+    };
   }
 
   @Override
   public String[] muzzleIgnoredClassNames() {
-    // ignore JVMCI classes which are part of GraalVM but aren't available in public repositories
-    return new String[] {"jdk.vm.ci.meta.ResolvedJavaType", "jdk.vm.ci.meta.ResolvedJavaField"};
+    // JVMCI classes which are part of GraalVM but aren't available in public repositories
+    return new String[] {
+      "jdk.vm.ci.meta.ResolvedJavaType",
+      "jdk.vm.ci.meta.ResolvedJavaField",
+      // ignore helper class names as usual
+      packageName + ".Target_org_jctools_counters_FixedSizeStripedLongCounterFields",
+      packageName + ".Target_org_jctools_util_UnsafeRefArrayAccess"
+    };
+  }
+
+  public static class FindTargetClassesAdvice {
+    @Advice.OnMethodExit(suppress = Throwable.class)
+    public static void onExit(@Advice.Return(readOnly = false) List<Class<?>> result) {
+      result.add(Target_org_jctools_counters_FixedSizeStripedLongCounterFields.class);
+      result.add(Target_org_jctools_util_UnsafeRefArrayAccess.class);
+    }
   }
 }

@@ -72,6 +72,10 @@ public abstract class DatabaseClientDecorator<CONNECTION> extends ClientDecorato
       CharSequence hostName = dbHostname(connection);
       if (hostName != null) {
         span.setTag(Tags.PEER_HOSTNAME, hostName);
+
+        if (Config.get().isDbClientSplitByHost()) {
+          span.setServiceName(hostName.toString());
+        }
       }
     }
     return span;
