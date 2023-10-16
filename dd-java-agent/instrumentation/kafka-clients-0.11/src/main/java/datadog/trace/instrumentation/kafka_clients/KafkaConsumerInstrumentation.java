@@ -85,24 +85,6 @@ public final class KafkaConsumerInstrumentation extends Instrumenter.Tracing
         KafkaConsumerInstrumentation.class.getName() + "$IteratorAdvice");
   }
 
-  public static class Helper {
-    public static Pair<String, String> helper(ConsumerRecords records) {
-      String group = null;
-      String clusterId = null;
-      KafkaConsumerInfo kafkaConsumerInfo =
-          InstrumentationContext.get(ConsumerRecords.class, KafkaConsumerInfo.class).get(records);
-      if (kafkaConsumerInfo != null) {
-        group = kafkaConsumerInfo.getConsumerGroup();
-        Metadata consumerMetadata = kafkaConsumerInfo.getClientMetadata();
-        if (consumerMetadata != null) {
-          clusterId =
-              InstrumentationContext.get(Metadata.class, String.class).get(consumerMetadata);
-        }
-      }
-      return Pair.of(group, clusterId);
-    }
-  }
-
   public static class IterableAdvice {
 
     @Advice.OnMethodExit(suppress = Throwable.class)
@@ -110,7 +92,11 @@ public final class KafkaConsumerInstrumentation extends Instrumenter.Tracing
         @Advice.Return(readOnly = false) Iterable<ConsumerRecord<?, ?>> iterable,
         @Advice.This ConsumerRecords records) {
       if (iterable != null) {
-        Pair<String, String> data = Helper.helper(records);
+        Pair<String, String> data =
+            KafkaConsumerInstrumentationHelper.helper(
+                records,
+                InstrumentationContext.get(ConsumerRecords.class, KafkaConsumerInfo.class),
+                InstrumentationContext.get(Metadata.class, String.class));
         iterable =
             new TracingIterable(
                 iterable, KAFKA_CONSUME, CONSUMER_DECORATE, data.getLeft(), data.getRight());
@@ -125,7 +111,11 @@ public final class KafkaConsumerInstrumentation extends Instrumenter.Tracing
         @Advice.Return(readOnly = false) List<ConsumerRecord<?, ?>> iterable,
         @Advice.This ConsumerRecords records) {
       if (iterable != null) {
-        Pair<String, String> data = Helper.helper(records);
+        Pair<String, String> data =
+            KafkaConsumerInstrumentationHelper.helper(
+                records,
+                InstrumentationContext.get(ConsumerRecords.class, KafkaConsumerInfo.class),
+                InstrumentationContext.get(Metadata.class, String.class));
         iterable =
             new TracingList(
                 iterable, KAFKA_CONSUME, CONSUMER_DECORATE, data.getLeft(), data.getRight());
@@ -140,7 +130,11 @@ public final class KafkaConsumerInstrumentation extends Instrumenter.Tracing
         @Advice.Return(readOnly = false) Iterator<ConsumerRecord<?, ?>> iterator,
         @Advice.This ConsumerRecords records) {
       if (iterator != null) {
-        Pair<String, String> data = Helper.helper(records);
+        Pair<String, String> data =
+            KafkaConsumerInstrumentationHelper.helper(
+                records,
+                InstrumentationContext.get(ConsumerRecords.class, KafkaConsumerInfo.class),
+                InstrumentationContext.get(Metadata.class, String.class));
         iterator =
             new TracingIterator(
                 iterator, KAFKA_CONSUME, CONSUMER_DECORATE, data.getLeft(), data.getRight());
