@@ -132,6 +132,8 @@ excludedClassesCoverage += [
   // POJO
   'datadog.trace.api.iast.util.Cookie',
   'datadog.trace.api.iast.util.Cookie.Builder',
+  'datadog.trace.api.LogCollector.RawLogMessage',
+  'datadog.trace.api.LogCollector.Holder',
   // stubs
   'datadog.trace.api.profiling.Timing.NoOp',
   'datadog.trace.api.profiling.Timer.NoOp',

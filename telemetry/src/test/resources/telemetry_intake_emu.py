@@ -12,7 +12,8 @@ req_types = [
   'app-integrations-change',
   'app-closing',
   'app-heartbeat',
-  'generate-metrics'
+  'generate-metrics',
+  'logs'
 ]
 
 def print_line():
@@ -34,13 +35,25 @@ class Handler(http.server.SimpleHTTPRequestHandler):
 
         self.send_response(HTTPStatus.ACCEPTED)
         self.end_headers()
-        hdr = self.headers.get('Content-Length')
-        if hdr is not None:
-            content_len = int(hdr)
-            body = str(self.rfile.read(content_len), 'utf-8')
-            print(body)
-            #print(f'\033[0;33m{body}\033[0m')
-            #self.wfile.write(b'Hello world')
+
+        if 'Content-Length' in self.headers:
+          content_len = int(self.headers.get('Content-Length'))
+          body = str(self.rfile.read(content_len), 'utf-8')
+          print(body)
+        elif 'chunked' in self.headers.get("Transfer-Encoding", ""):
+          while True:
+            line = self.rfile.readline().strip()
+            chunk_length = int(line, 16)
+            if chunk_length != 0:
+              chunk = str(self.rfile.read(chunk_length), 'utf-8')
+              print(chunk)
+
+            self.rfile.readline()
+
+            if chunk_length == 0:
+              break
+
+
     def log_message(self, format, *args):
         return
 

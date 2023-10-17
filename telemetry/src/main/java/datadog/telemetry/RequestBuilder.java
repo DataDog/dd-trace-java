@@ -45,26 +45,26 @@ public class RequestBuilder extends RequestBody {
   private enum CommonData {
     INSTANCE;
 
-    Config config = Config.get();
-    String env = config.getEnv();
-    String langVersion = Platform.getLangVersion();
-    String runtimeName = Platform.getRuntimeVendor();
-    String runtimePatches = Platform.getRuntimePatches();
-    String runtimeVersion = Platform.getRuntimeVersion();
-    String serviceName = config.getServiceName();
-    String serviceVersion = config.getVersion();
-    String runtimeId = config.getRuntimeId();
-    String architecture = HostInfo.getArchitecture();
-    String hostname = HostInfo.getHostname();
-    String kernelName = HostInfo.getKernelName();
-    String kernelRelease = HostInfo.getKernelRelease();
-    String kernelVersion = HostInfo.getKernelVersion();
-    String osName = HostInfo.getOsName();
-    String osVersion = HostInfo.getOsVersion();
+    final Config config = Config.get();
+    final String env = config.getEnv();
+    final String langVersion = Platform.getLangVersion();
+    final String runtimeName = Platform.getRuntimeVendor();
+    final String runtimePatches = Platform.getRuntimePatches();
+    final String runtimeVersion = Platform.getRuntimeVersion();
+    final String serviceName = config.getServiceName();
+    final String serviceVersion = config.getVersion();
+    final String runtimeId = config.getRuntimeId();
+    final String architecture = HostInfo.getArchitecture();
+    final String hostname = HostInfo.getHostname();
+    final String kernelName = HostInfo.getKernelName();
+    final String kernelRelease = HostInfo.getKernelRelease();
+    final String kernelVersion = HostInfo.getKernelVersion();
+    final String osName = HostInfo.getOsName();
+    final String osVersion = HostInfo.getOsVersion();
   }
 
   RequestBuilder(RequestType requestType, HttpUrl httpUrl) {
-    this(requestType, httpUrl, false);
+    this(requestType, httpUrl, Config.get().isDebugEnabled());
   }
 
   RequestBuilder(RequestType requestType, HttpUrl httpUrl, boolean debug) {
@@ -77,6 +77,7 @@ public class RequestBuilder extends RequestBody {
             .addHeader("DD-Telemetry-Request-Type", String.valueOf(requestType))
             .addHeader("DD-Client-Library-Language", "jvm")
             .addHeader("DD-Client-Library-Version", TracerVersion.TRACER_VERSION)
+            .addHeader("DD-Telemetry-Debug-Enabled", Boolean.toString(debug))
             .post(this)
             .build();
     this.debug = debug;

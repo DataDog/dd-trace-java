@@ -82,7 +82,8 @@ class TestHttpClient extends HttpClient {
         'DD-Client-Library-Language',
         'DD-Client-Library-Version',
         'DD-Telemetry-API-Version',
-        'DD-Telemetry-Request-Type'
+        'DD-Telemetry-Request-Type',
+        'DD-Telemetry-Debug-Enabled'
       ] as Set
       assert request.header('Content-Type') == 'application/json; charset=utf-8'
       assert request.header('DD-Client-Library-Language') == 'jvm'
