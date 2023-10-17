@@ -49,6 +49,21 @@ public abstract class StackUtils {
         });
   }
 
+  public static <E extends Throwable> E filterPackagesIn(
+      final E throwable, final String[] packages) {
+    return filter(
+        throwable,
+        ste -> {
+          final String clazz = ste.getClassName();
+          for (String p : packages) {
+            if (clazz.startsWith(p)) {
+              return true;
+            }
+          }
+          return false;
+        });
+  }
+
   private static class OneTimePredicate<T> implements Predicate<T> {
 
     private final Predicate<T> delegate;
