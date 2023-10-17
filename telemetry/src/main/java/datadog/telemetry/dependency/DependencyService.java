@@ -84,9 +84,12 @@ public class DependencyService implements Runnable {
         uri =
             new URI(
                 location.getProtocol(),
+                location.getUserInfo(),
                 location.getHost(),
+                location.getPort(),
                 location.getPath(),
-                location.getQuery());
+                location.getQuery(),
+                null);
       } catch (URISyntaxException e) {
         log.warn("Error converting URL to URI", e);
         // silently ignored
