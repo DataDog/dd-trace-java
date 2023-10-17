@@ -7,7 +7,7 @@ import java.util.Set;
 public class Redaction {
   // Need to be a unique instance (new String) for reference equality (==) and
   // avoid internalization (intern) by the JVM because it's a string constant
-  public static final String REDACTED_VALUE = new String("REDACTED");
+  public static final String REDACTED_VALUE = new String("REDACTED".toCharArray());
 
   /*
    * based on sentry list: https://github.com/getsentry/sentry-python/blob/fefb454287b771ac31db4e30fa459d9be2f977b8/sentry_sdk/scrubber.py#L17-L58
