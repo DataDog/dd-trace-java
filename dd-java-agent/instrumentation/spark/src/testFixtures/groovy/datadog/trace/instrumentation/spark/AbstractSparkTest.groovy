@@ -1,9 +1,9 @@
+package datadog.trace.instrumentation.spark
+
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.DDSpanId
 import datadog.trace.api.DDTraceId
 import datadog.trace.api.Platform
-import datadog.trace.instrumentation.spark.DatabricksParentContext
-import datadog.trace.instrumentation.spark.DatadogSparkListener
 import datadog.trace.test.util.Flaky
 import org.apache.hadoop.yarn.api.records.FinalApplicationStatus
 import org.apache.hadoop.yarn.conf.YarnConfiguration
@@ -15,13 +15,14 @@ import org.apache.spark.sql.Row
 import org.apache.spark.sql.RowFactory
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.types.StructType
-import scala.reflect.ClassTag$
 import spock.lang.IgnoreIf
+import spock.lang.Unroll
 
+@Unroll
 @IgnoreIf(reason="https://issues.apache.org/jira/browse/HADOOP-18174", value = {
   Platform.isJ9()
 })
-class SparkTest extends AgentTestRunner {
+abstract class AbstractSparkTest extends AgentTestRunner {
 
   @Override
   void configurePreAgent() {
@@ -54,21 +55,21 @@ class SparkTest extends AgentTestRunner {
         }
         span {
           operationName "spark.job"
-          resourceName "count at TestSparkComputation.java:17"
+          resourceName "count at TestSparkComputation.java:19"
           spanType "spark"
           errored false
           childOf(span(0))
         }
         span {
           operationName "spark.stage"
-          resourceName "count at TestSparkComputation.java:17"
+          resourceName "count at TestSparkComputation.java:19"
           spanType "spark"
           errored false
           childOf(span(1))
         }
         span {
           operationName "spark.stage"
-          resourceName "distinct at TestSparkComputation.java:17"
+          resourceName "distinct at TestSparkComputation.java:19"
           spanType "spark"
           errored false
           childOf(span(1))
@@ -127,13 +128,11 @@ class SparkTest extends AgentTestRunner {
     }
     catch (Exception ignored) {}
 
-    def datadogSparkListener = (DatadogSparkListener)sparkSession
+    sparkSession
       .sparkContext()
       .listenerBus()
-      .findListenersByClass(ClassTag$.MODULE$.apply(DatadogSparkListener))
-      .apply(0)
+      .waitUntilEmpty(1000)
 
-    blockUntilChildSpansFinished(datadogSparkListener.applicationSpan, 3)
     sparkSession.stop()
 
     expect:
@@ -151,7 +150,7 @@ class SparkTest extends AgentTestRunner {
         }
         span {
           operationName "spark.job"
-          resourceName "collect at TestSparkComputation.java:26"
+          resourceName "collect at TestSparkComputation.java:28"
           spanType "spark"
           errored true
           childOf(span(0))
@@ -161,13 +160,13 @@ class SparkTest extends AgentTestRunner {
         }
         span {
           operationName "spark.stage"
-          resourceName "collect at TestSparkComputation.java:26"
+          resourceName "collect at TestSparkComputation.java:28"
           spanType "spark"
           errored true
           childOf(span(1))
           assert span.tags["error.type"] == "Spark Stage Failed"
           assert span.tags["error.message"] =~ /^Job aborted due to stage failure.*java.lang.NullPointerException$/
-          assert span.tags["error.stack"] =~ /(?s).*\n\tat TestSparkComputation.{500,}\$/
+          assert span.tags["error.stack"] =~ /(?s).*\n\tat datadog.trace.instrumentation.spark.TestSparkComputation.{500,}\$/
         }
         span {
           operationName "spark.task"
@@ -176,7 +175,7 @@ class SparkTest extends AgentTestRunner {
           childOf(span(2))
           assert span.tags["error.type"] == "Spark Task Failed"
           assert span.tags["error.message"] == "java.lang.NullPointerException: null"
-          assert span.tags["error.stack"] =~ /(?s)^java.lang.NullPointerException\n\tat TestSparkComputation.{500,}\$/
+          assert span.tags["error.stack"] =~ /(?s)^java.lang.NullPointerException\n\tat datadog.trace.instrumentation.spark.TestSparkComputation.{500,}\$/
         }
       }
     }
@@ -213,7 +212,7 @@ class SparkTest extends AgentTestRunner {
 
     cleanup:
     sparkSession.stop()
-    DatadogSparkListener.finishTraceOnApplicationEnd = true
+    AbstractDatadogSparkListener.finishTraceOnApplicationEnd = true
   }
 
   def "generate databricks spans"() {

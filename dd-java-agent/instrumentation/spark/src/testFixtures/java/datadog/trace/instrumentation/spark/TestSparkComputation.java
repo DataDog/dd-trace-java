@@ -1,3 +1,5 @@
+package datadog.trace.instrumentation.spark;
+
 import java.util.concurrent.TimeoutException;
 import org.apache.spark.api.java.function.MapFunction;
 import org.apache.spark.sql.Dataset;

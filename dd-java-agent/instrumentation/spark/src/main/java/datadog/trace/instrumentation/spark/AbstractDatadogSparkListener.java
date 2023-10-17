@@ -33,15 +33,15 @@ import org.apache.spark.sql.streaming.StreamingQueryProgress;
 import scala.Tuple2;
 
 /**
- * Implementation of the SparkListener {@link org.apache.spark.scheduler.SparkListener} to generate
- * spans from the execution of a spark application.
+ * Implementation of the SparkListener {@link SparkListener} to generate spans from the execution of
+ * a spark application.
  *
  * <p>All the callbacks are called inside the spark driver and in the same thread, but since some
  * methods (like finishApplication) are called from the instrumentation advice, thread-safety is
  * still needed
  */
-public class DatadogSparkListener extends SparkListener {
-  public static volatile DatadogSparkListener listener = null;
+public abstract class AbstractDatadogSparkListener extends SparkListener {
+  public static volatile AbstractDatadogSparkListener listener = null;
   public static volatile boolean finishTraceOnApplicationEnd = true;
 
   private final int MAX_COLLECTION_SIZE = 1000;
@@ -88,7 +88,7 @@ public class DatadogSparkListener extends SparkListener {
 
   private boolean applicationEnded = false;
 
-  public DatadogSparkListener(SparkConf sparkConf, String appId, String sparkVersion) {
+  public AbstractDatadogSparkListener(SparkConf sparkConf, String appId, String sparkVersion) {
     tracer = AgentTracer.get();
 
     this.sparkConf = sparkConf;
@@ -99,6 +99,15 @@ public class DatadogSparkListener extends SparkListener {
     databricksClusterName = sparkConf.get("spark.databricks.clusterUsageTags.clusterName", null);
     databricksServiceName = getDatabricksServiceName(sparkConf, databricksClusterName);
   }
+
+  /** Resource name of the spark job. Provide an implementation based on a specific scala version */
+  protected abstract String getSparkJobName(SparkListenerJobStart jobStart);
+
+  /** Stage ids of the spark job. Provide an implementation based on a specific scala version */
+  protected abstract ArrayList<Integer> getSparkJobStageIds(SparkListenerJobStart jobStart);
+
+  /** Stage count of the spark job. Provide an implementation based on a specific scala version */
+  protected abstract int getStageCount(SparkListenerJobStart jobStart);
 
   @Override
   public synchronized void onApplicationStart(SparkListenerApplicationStart applicationStart) {
@@ -273,7 +282,7 @@ public class DatadogSparkListener extends SparkListener {
         buildSparkSpan("spark.job", jobStart.properties())
             .withStartTimestamp(jobStart.time() * 1000)
             .withTag("job_id", jobStart.jobId())
-            .withTag("stage_count", jobStart.stageInfos().size());
+            .withTag("stage_count", getStageCount(jobStart));
 
     String batchKey = getStreamingBatchKey(jobStart.properties());
     Long sqlExecutionId = getSqlExecutionId(jobStart.properties());
@@ -306,10 +315,7 @@ public class DatadogSparkListener extends SparkListener {
       jobSpanBuilder.asChildOf(applicationSpan.context());
     }
 
-    if (jobStart.stageInfos().nonEmpty()) {
-      // In the spark UI, the name of a job is the name of its last stage
-      jobSpanBuilder.withTag(DDTags.RESOURCE_NAME, jobStart.stageInfos().last().name());
-    }
+    jobSpanBuilder.withTag(DDTags.RESOURCE_NAME, getSparkJobName(jobStart));
 
     // Some properties can change at runtime, so capturing properties of all jobs
     captureJobParameters(jobSpanBuilder, jobStart.properties());
@@ -317,8 +323,9 @@ public class DatadogSparkListener extends SparkListener {
     AgentSpan jobSpan = jobSpanBuilder.start();
     jobSpan.setMeasured(true);
 
-    jobStart.stageInfos().foreach(stage -> stageToJob.put(stage.stageId(), jobStart.jobId()));
-
+    for (int stageId : getSparkJobStageIds(jobStart)) {
+      stageToJob.put(stageId, jobStart.jobId());
+    }
     jobSpans.put(jobStart.jobId(), jobSpan);
   }
 
@@ -393,7 +400,6 @@ public class DatadogSparkListener extends SparkListener {
             .withTag("stage_id", stageId)
             .withTag("task_count", stageSubmitted.stageInfo().numTasks())
             .withTag("attempt_id", stageAttemptId)
-            .withTag("parent_stages_ids", stageSubmitted.stageInfo().parentIds())
             .withTag("details", stageSubmitted.stageInfo().details())
             .withTag(DDTags.RESOURCE_NAME, stageSubmitted.stageInfo().name())
             .start();
@@ -426,8 +432,6 @@ public class DatadogSparkListener extends SparkListener {
       span.setTag(DDTags.ERROR_STACK, stageInfo.failureReason().get());
       span.setTag(DDTags.ERROR_TYPE, "Spark Stage Failed");
     }
-
-    stageInfo.rddInfos().foreach(rdd -> span.setTag("rdd." + rdd.name(), rdd.toString()));
 
     long completionTimeMs;
     if (stageCompleted.stageInfo().completionTime().isDefined()) {
