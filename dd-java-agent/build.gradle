@@ -234,6 +234,9 @@ dependencies {
   sharedShadowInclude project(':utils:version-utils'), {
     transitive = false
   }
+  sharedShadowInclude project(':dd-java-agent:agent-crashtracking'), {
+    transitive = false
+  }
   traceShadowInclude project(':dd-trace-core')
 }
 
