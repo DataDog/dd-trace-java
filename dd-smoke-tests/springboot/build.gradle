@@ -24,7 +24,7 @@ dependencies {
   implementation group: 'com.auth0', name: 'java-jwt', version: '4.0.0-beta.0'
   implementation group: 'com.auth0', name: 'jwks-rsa', version: '0.21.1'
   implementation group: 'com.nimbusds', name: 'nimbus-jose-jwt', version: '9.22'
-  implementation group: 'com.google.code.gson', name: 'gson', version: '1.1'
+  implementation group: 'com.google.code.gson', name: 'gson', version: '2.10'
 
   implementation group: 'org.springframework', name: 'spring-web', version: '1.5.18.RELEASE'
 
