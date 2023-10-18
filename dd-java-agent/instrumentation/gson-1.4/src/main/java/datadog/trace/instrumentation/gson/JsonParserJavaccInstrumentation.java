@@ -9,6 +9,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 import com.google.auto.service.AutoService;
 import com.google.gson.JsonPrimitive;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.muzzle.Reference;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Propagation;
 import datadog.trace.api.iast.propagation.PropagationModule;
@@ -25,6 +26,11 @@ public class JsonParserJavaccInstrumentation extends Instrumenter.Iast
   @Override
   public String instrumentedType() {
     return "com.google.gson.JsonParserJavacc";
+  }
+
+  @Override
+  public Reference[] additionalMuzzleReferences() {
+    return new Reference[] {new Reference.Builder("com.google.gson.JsonParserJavacc").build()};
   }
 
   @Override
