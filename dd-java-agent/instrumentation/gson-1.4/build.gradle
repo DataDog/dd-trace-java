@@ -2,7 +2,7 @@ muzzle {
   pass {
     group = 'com.google.code.gson'
     module = 'gson'
-    versions = '[1.4]'
+    versions = '[1.4, 1.5]'
     assertInverse = true
   }
 }
