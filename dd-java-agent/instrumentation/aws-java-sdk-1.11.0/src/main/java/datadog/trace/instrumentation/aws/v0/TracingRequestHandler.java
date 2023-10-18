@@ -129,6 +129,9 @@ public class TracingRequestHandler extends RequestHandler2 {
       request.addHandlerContext(SPAN_CONTEXT_KEY, null);
       if (response != null) {
         DECORATE.onResponse(span, response);
+        if (span.isError()) {
+          DECORATE.onError(span, e);
+        }
       } else {
         DECORATE.onError(span, e);
       }

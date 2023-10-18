@@ -131,6 +131,9 @@ public class TracingExecutionInterceptor implements ExecutionInterceptor {
         SdkResponse response = responseOpt.get();
         DECORATE.onSdkResponse(span, response, executionAttributes);
         DECORATE.onResponse(span, response.sdkHttpResponse());
+        if (span.isError()) {
+          DECORATE.onError(span, context.exception());
+        }
       } else {
         DECORATE.onError(span, context.exception());
       }
