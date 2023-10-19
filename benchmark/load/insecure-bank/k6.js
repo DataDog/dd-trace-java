@@ -6,7 +6,7 @@ const baseUrl = 'http://localhost:8080';
 export const options = {
   discardResponseBodies: true,
   vus: 5,
-  iterations: 40000
+  iterations: 2000
 };
 
 export default function () {

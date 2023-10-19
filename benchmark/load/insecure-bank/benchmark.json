@@ -4,7 +4,7 @@
   "service": "bash -c \"${UTILS_DIR}/run-k6-load-test.sh http://localhost:8080/login ${OUTPUT_DIR}/${VARIANT} 'pkill java'\"",
   "run": "bash -c \"java ${JAVA_OPTS} -Xms3G -Xmx3G -jar ${INSECURE_BANK} &> ${OUTPUT_DIR}/${VARIANT}/insecure-bank.log\"",
   "timeout": 150,
-  "iterations": 1,
+  "iterations": 20,
   "variants": {
     "${NO_AGENT_VARIANT}": {
       "env": {
