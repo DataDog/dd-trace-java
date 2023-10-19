@@ -117,6 +117,11 @@ public final class ProfilingConfig {
   public static final int PROFILING_DATADOG_PROFILER_SAFEMODE_DEFAULT =
       12; // POP_METHOD|UNWIND_NATIVE
 
+  public static final String PROFILING_DATADOG_PROFILER_LINE_NUMBERS =
+      "profiling.ddprof.linenumbers";
+
+  public static final boolean PROFILING_DATADOG_PROFILER_LINE_NUMBERS_DEFAULT = true;
+
   @Deprecated
   public static final String PROFILING_DATADOG_PROFILER_MEMLEAK_ENABLED =
       "profiling.ddprof.memleak.enabled";

@@ -55,6 +55,7 @@ class TestHttpServer implements AutoCloseable {
 
   private final Server internalServer
   private HandlersSpec handlers
+  private Closure customizer =  {}
 
   public String keystorePath
   private URI address
@@ -120,6 +121,8 @@ class TestHttpServer implements AutoCloseable {
         https.setHost('localhost')
         https.setPort(0)
         internalServer.addConnector(https)
+
+        customizer.call(internalServer)
 
         internalServer.start()
         // set after starting, otherwise two callbacks get added.
@@ -192,6 +195,10 @@ class TestHttpServer implements AutoCloseable {
 
   def getLastRequest() {
     return last.get()
+  }
+
+  void customizer(Closure<Closure> spec) {
+    this.customizer = spec.call()
   }
 
   void handlers(@DelegatesTo(value = HandlersSpec, strategy = Closure.DELEGATE_FIRST) Closure spec) {

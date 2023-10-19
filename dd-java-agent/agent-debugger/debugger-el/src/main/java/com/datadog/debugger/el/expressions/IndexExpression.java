@@ -7,6 +7,7 @@ import com.datadog.debugger.el.Visitor;
 import com.datadog.debugger.el.values.ListValue;
 import com.datadog.debugger.el.values.MapValue;
 import datadog.trace.bootstrap.debugger.el.ValueReferenceResolver;
+import datadog.trace.bootstrap.debugger.util.Redaction;
 
 public class IndexExpression implements ValueExpression<Value<?>> {
 
@@ -31,7 +32,14 @@ public class IndexExpression implements ValueExpression<Value<?>> {
     }
     try {
       if (targetValue instanceof MapValue) {
-        result = ((MapValue) targetValue).get(keyValue.getValue());
+        Object objKey = keyValue.getValue();
+        if (objKey instanceof String && Redaction.isRedactedKeyword((String) objKey)) {
+          String expr = PrettyPrintVisitor.print(this);
+          throw new EvaluationException(
+              "Could not evaluate the expression because '" + expr + "' was redacted", expr);
+        } else {
+          result = ((MapValue) targetValue).get(objKey);
+        }
       }
       if (targetValue instanceof ListValue) {
         result = ((ListValue) targetValue).get(keyValue.getValue());

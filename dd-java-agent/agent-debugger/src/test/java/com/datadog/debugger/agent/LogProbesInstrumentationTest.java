@@ -283,7 +283,7 @@ public class LogProbesInstrumentationTest {
         "this is log line with field={Cannot dereference to field: intValue}",
         snapshot.getMessage());
     assertEquals(1, snapshot.getEvaluationErrors().size());
-    assertEquals("intValue", snapshot.getEvaluationErrors().get(0).getExpr());
+    assertEquals("nullObject.intValue", snapshot.getEvaluationErrors().get(0).getExpr());
     assertEquals(
         "Cannot dereference to field: intValue",
         snapshot.getEvaluationErrors().get(0).getMessage());

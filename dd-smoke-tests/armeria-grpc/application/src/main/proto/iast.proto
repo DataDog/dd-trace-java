@@ -1,0 +1,27 @@
+syntax = "proto3";
+
+package datadog.grpc.iast;
+option java_package = "datadog.armeria.grpc";
+
+service IastService {
+  rpc ServerSideRequestForgery (Request) returns (Response) { }
+}
+
+message Request {
+  enum Type{
+    URL = 0;
+  }
+
+  message Url {
+    string value = 1;
+  }
+
+  Type type = 1;
+  oneof payload {
+    Url url = 2;
+  }
+}
+
+message Response {
+  string message = 1;
+}

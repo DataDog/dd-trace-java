@@ -18,6 +18,7 @@ import static utils.InstrumentationTestHelper.compileAndLoadClass;
 import com.datadog.debugger.el.DSL;
 import com.datadog.debugger.el.ProbeCondition;
 import com.datadog.debugger.el.expressions.BooleanExpression;
+import com.datadog.debugger.el.values.StringValue;
 import com.datadog.debugger.probe.LogProbe;
 import com.datadog.debugger.probe.SpanDecorationProbe;
 import com.datadog.debugger.sink.DebuggerSink;
@@ -284,6 +285,79 @@ public class SpanDecorationProbeInstrumentationTest extends ProbeInstrumentation
     CapturedContext.CapturedValue intLocal =
         snapshots.get(0).getCaptures().getReturn().getLocals().get("intLocal");
     assertNotNull(intLocal);
+  }
+
+  @Test
+  public void keywordRedaction() throws IOException, URISyntaxException {
+    final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot28";
+    SpanDecorationProbe.Decoration decoration1 = createDecoration("tag1", "{password}");
+    SpanDecorationProbe.Decoration decoration2 = createDecoration("tag2", "{this.password}");
+    SpanDecorationProbe.Decoration decoration3 = createDecoration("tag3", "{strMap['password']}");
+    List<SpanDecorationProbe.Decoration> decorations =
+        Arrays.asList(decoration1, decoration2, decoration3);
+    installSingleSpanDecoration(
+        CLASS_NAME, ACTIVE, decorations, "process", "int (java.lang.String)");
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    int result = Reflect.on(testClass).call("main", "secret123").get();
+    assertEquals(42, result);
+    MutableSpan span = traceInterceptor.getFirstSpan();
+    assertFalse(span.getTags().containsKey("tag1"));
+    assertEquals(PROBE_ID.getId(), span.getTags().get("_dd.di.tag1.probe_id"));
+    assertEquals(
+        "Could not evaluate the expression because 'password' was redacted",
+        span.getTags().get("_dd.di.tag1.evaluation_error"));
+    assertFalse(span.getTags().containsKey("tag2"));
+    assertEquals(PROBE_ID.getId(), span.getTags().get("_dd.di.tag2.probe_id"));
+    assertEquals(
+        "Could not evaluate the expression because 'this.password' was redacted",
+        span.getTags().get("_dd.di.tag2.evaluation_error"));
+    assertFalse(span.getTags().containsKey("tag3"));
+    assertEquals(PROBE_ID.getId(), span.getTags().get("_dd.di.tag3.probe_id"));
+    assertEquals(
+        "Could not evaluate the expression because 'strMap[\"password\"]' was redacted",
+        span.getTags().get("_dd.di.tag3.evaluation_error"));
+  }
+
+  @Test
+  public void keywordRedactionConditions() throws IOException, URISyntaxException {
+    final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot28";
+    SpanDecorationProbe.Decoration decoration1 =
+        createDecoration(
+            DSL.contains(DSL.getMember(DSL.ref("this"), "password"), new StringValue("123")),
+            "contains(this.password, '123')",
+            "tag1",
+            "foo");
+    SpanDecorationProbe.Decoration decoration2 =
+        createDecoration(
+            DSL.eq(DSL.ref("password"), DSL.value("123")), "password == '123'", "tag2", "foo");
+    SpanDecorationProbe.Decoration decoration3 =
+        createDecoration(
+            DSL.eq(DSL.index(DSL.ref("strMap"), DSL.value("password")), DSL.value("123")),
+            "strMap['password'] == '123'",
+            "tag3",
+            "foo");
+    List<SpanDecorationProbe.Decoration> decorations =
+        Arrays.asList(decoration1, decoration2, decoration3);
+    installSingleSpanDecoration(
+        CLASS_NAME, ACTIVE, decorations, "process", "int (java.lang.String)");
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    int result = Reflect.on(testClass).call("main", "secret123").get();
+    assertEquals(42, result);
+    assertFalse(traceInterceptor.getFirstSpan().getTags().containsKey("tag1"));
+    assertFalse(traceInterceptor.getFirstSpan().getTags().containsKey("tag2"));
+    assertFalse(traceInterceptor.getFirstSpan().getTags().containsKey("tag3"));
+    assertEquals(1, mockSink.getSnapshots().size());
+    Snapshot snapshot = mockSink.getSnapshots().get(0);
+    assertEquals(3, snapshot.getEvaluationErrors().size());
+    assertEquals(
+        "Could not evaluate the expression because 'this.password' was redacted",
+        snapshot.getEvaluationErrors().get(0).getMessage());
+    assertEquals(
+        "Could not evaluate the expression because 'password' was redacted",
+        snapshot.getEvaluationErrors().get(1).getMessage());
+    assertEquals(
+        "Could not evaluate the expression because 'strMap[\"password\"]' was redacted",
+        snapshot.getEvaluationErrors().get(2).getMessage());
   }
 
   private SpanDecorationProbe.Decoration createDecoration(String tagName, String valueDsl) {

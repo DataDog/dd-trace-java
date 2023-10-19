@@ -101,9 +101,7 @@ final class DDAgentStatsDConnection implements StatsDClientErrorHandler {
         if (log.isDebugEnabled()) {
           log.debug("Creating StatsD client - {}", statsDAddress());
         }
-        // when using UDS, set "entity-id" to "none" to avoid having the DogStatsD
-        // server add origin tags (see https://github.com/DataDog/jmxfetch/pull/264)
-        String entityID = port == 0 ? "none" : null;
+
         NonBlockingStatsDClientBuilder clientBuilder =
             new NonBlockingStatsDClientBuilder()
                 .threadFactory(STATSD_CLIENT_THREAD_FACTORY)
@@ -112,12 +110,53 @@ final class DDAgentStatsDConnection implements StatsDClientErrorHandler {
                 .hostname(host)
                 .port(port)
                 .namedPipe(namedPipe)
-                .errorHandler(this)
-                .entityID(entityID);
-        // when using UDS set the datagram size to 8k (2k on Mac due to lower OS default)
+                .errorHandler(this);
+
+        // when using UDS, set "entity-id" to "none" to avoid having the DogStatsD
+        // server add origin tags (see https://github.com/DataDog/jmxfetch/pull/264)
         if (this.port == 0) {
-          clientBuilder.maxPacketSizeBytes(Platform.isMac() ? 2048 : 8192);
+          clientBuilder.constantTags("dd.internal.card:none");
+          clientBuilder.entityID("none");
+        } else {
+          clientBuilder.entityID(null);
         }
+
+        Integer queueSize = Config.get().getStatsDClientQueueSize();
+        if (queueSize != null) {
+          clientBuilder.queueSize(queueSize);
+        }
+
+        // when using UDS set the datagram size to 8k (2k on Mac due to lower OS default)
+        // but also make sure packet size isn't larger than the configured socket buffer
+        if (this.port == 0) {
+          Integer timeout = Config.get().getStatsDClientSocketTimeout();
+          if (timeout != null) {
+            clientBuilder.timeout(timeout);
+          }
+          Integer bufferSize = Config.get().getStatsDClientSocketBuffer();
+          if (bufferSize != null) {
+            clientBuilder.socketBufferSize(bufferSize);
+          }
+          int packetSize = Platform.isMac() ? 2048 : 8192;
+          if (bufferSize != null && bufferSize < packetSize) {
+            packetSize = bufferSize;
+          }
+          clientBuilder.maxPacketSizeBytes(packetSize);
+        }
+
+        if (log.isDebugEnabled()) {
+          if (this.port == 0) {
+            log.debug(
+                "Configured StatsD client - queueSize={}, maxPacketSize={}, socketBuffer={}, socketTimeout={}",
+                clientBuilder.queueSize,
+                clientBuilder.maxPacketSizeBytes,
+                clientBuilder.socketBufferSize,
+                clientBuilder.timeout);
+          } else {
+            log.debug("Configured StatsD client - queueSize={}", clientBuilder.queueSize);
+          }
+        }
+
         try {
           statsd = clientBuilder.build();
           if (log.isDebugEnabled()) {
