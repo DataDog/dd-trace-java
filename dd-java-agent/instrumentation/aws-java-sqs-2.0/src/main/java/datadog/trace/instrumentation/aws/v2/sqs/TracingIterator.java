@@ -20,11 +20,15 @@ import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import java.nio.charset.StandardCharsets;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
+import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.core.SdkBytes;
 import software.amazon.awssdk.services.sqs.model.Message;
+import software.amazon.awssdk.services.sqs.model.MessageAttributeValue;
 
 public class TracingIterator<L extends Iterator<Message>> implements Iterator<Message> {
   private static final Logger log = LoggerFactory.getLogger(TracingIterator.class);
@@ -91,7 +95,9 @@ public class TracingIterator<L extends Iterator<Message>> implements Iterator<Me
         sortedTags.put(DIRECTION_TAG, DIRECTION_IN);
         sortedTags.put(TOPIC_TAG, urlFileName(queueUrl));
         sortedTags.put(TYPE_TAG, "sqs");
-        AgentTracer.get().getDataStreamsMonitoring().setCheckpoint(span, sortedTags, 0, 0);
+        AgentTracer.get()
+            .getDataStreamsMonitoring()
+            .setCheckpoint(span, sortedTags, 0, computePayloadSizeBytes(message));
 
         CONSUMER_DECORATE.afterStart(span);
         CONSUMER_DECORATE.onConsume(span, queueUrl, requestId);
@@ -104,6 +110,29 @@ public class TracingIterator<L extends Iterator<Message>> implements Iterator<Me
     } catch (Exception e) {
       log.debug("Problem tracing new SQS message span", e);
     }
+  }
+
+  private static long computePayloadSizeBytes(Message message) {
+    long size = 0;
+    if (message.body() != null) size += message.body().getBytes(StandardCharsets.UTF_8).length;
+
+    for (Map.Entry<String, MessageAttributeValue> attr : message.messageAttributes().entrySet()) {
+      size += attr.getKey().getBytes(StandardCharsets.UTF_8).length;
+
+      MessageAttributeValue val = attr.getValue();
+      if (null != val.stringValue())
+        size += val.stringValue().getBytes(StandardCharsets.UTF_8).length;
+      if (null != val.binaryValue())
+        // using Unsafe method to avoid a mem copy
+        size += val.binaryValue().asByteArrayUnsafe().length;
+      for (String s : val.stringListValues()) {
+        size += s.getBytes(StandardCharsets.UTF_8).length;
+      }
+      for (SdkBytes b : val.binaryListValues()) {
+        size += b.asByteArrayUnsafe().length;
+      }
+    }
+    return size;
   }
 
   @Override

@@ -17,6 +17,7 @@ import com.rabbitmq.client.AMQP;
 import com.rabbitmq.client.Command;
 import com.rabbitmq.client.Consumer;
 import com.rabbitmq.client.Envelope;
+import com.rabbitmq.client.LongString;
 import datadog.trace.api.Config;
 import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
@@ -27,6 +28,7 @@ import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.MessagingClientDecorator;
+import java.nio.charset.StandardCharsets;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
@@ -249,7 +251,11 @@ public class RabbitDecorator extends MessagingClientDecorator {
       sortedTags.put(TYPE_TAG, "rabbitmq");
       AgentTracer.get()
           .getDataStreamsMonitoring()
-          .setCheckpoint(span, sortedTags, produceMillis, 0);
+          .setCheckpoint(
+              span,
+              sortedTags,
+              produceMillis,
+              (body != null ? body.length : 0) + computeHeadersSizeBytes(headers));
     }
 
     CONSUMER_DECORATE.afterStart(span);
@@ -258,6 +264,19 @@ public class RabbitDecorator extends MessagingClientDecorator {
       queueSpan.finish(spanStartMicros);
     }
     return scope;
+  }
+
+  private static long computeHeadersSizeBytes(Map<String, Object> headers) {
+    long size = 0;
+    for (Map.Entry<String, Object> kv : headers.entrySet()) {
+      size += kv.getKey().getBytes(StandardCharsets.UTF_8).length;
+
+      Object v = kv.getValue();
+      // most things get converted to this type in RMQ headers
+      if (v instanceof LongString) size += ((LongString) v).getBytes().length;
+      // todo handle more types ?
+    }
+    return size;
   }
 
   public static void finishReceivingSpan(AgentScope scope) {
