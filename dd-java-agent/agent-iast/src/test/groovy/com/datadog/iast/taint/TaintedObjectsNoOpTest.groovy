@@ -18,6 +18,7 @@ class TaintedObjectsNoOpTest extends Specification {
 
     then:
     taintedString == null
+    taintedCharSequence == null
     taintedObject == null
     instance.get(toTaint) == null
     instance.estimatedSize == 0
