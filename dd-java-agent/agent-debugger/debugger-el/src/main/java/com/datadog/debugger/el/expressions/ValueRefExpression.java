@@ -27,9 +27,7 @@ public final class ValueRefExpression implements ValueExpression<Value<?>> {
     }
     if (symbol == Redaction.REDACTED_VALUE
         || (symbol != null && Redaction.isRedactedType(symbol.getClass().getTypeName()))) {
-      String expr = PrettyPrintVisitor.print(this);
-      throw new EvaluationException(
-          "Could not evaluate the expression because '" + expr + "' was redacted", expr);
+      ExpressionHelper.throwRedactedException(this);
     }
     return Value.of(symbol);
   }
