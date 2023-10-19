@@ -3938,7 +3938,7 @@ public class Config {
         + '\''
         + ", idGenerationStrategy="
         + idGenerationStrategy
-        + ", trace128bitTraceIdGenerationEnabled"
+        + ", trace128bitTraceIdGenerationEnabled="
         + trace128bitTraceIdGenerationEnabled
         + ", grpcIgnoredInboundMethods="
         + grpcIgnoredInboundMethods
