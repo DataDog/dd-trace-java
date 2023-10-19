@@ -7,7 +7,6 @@ import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
 import datadog.trace.bootstrap.ExceptionLogger;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
-
 import java.io.UnsupportedEncodingException;
 import java.net.URI;
 import java.net.URLDecoder;
@@ -61,7 +60,6 @@ public enum JDBCConnectionUrlParser {
         if (uri.getPort() > 0) {
           builder.port(uri.getPort());
         }
-
 
         return builder.type(uri.getScheme());
       } catch (final Exception e) {
@@ -694,9 +692,7 @@ public enum JDBCConnectionUrlParser {
     }
   },
 
-  /**
-   * http://jtds.sourceforge.net/faq.html#urlFormat
-   */
+  /** http://jtds.sourceforge.net/faq.html#urlFormat */
   JTDS("jtds") {
     private static final String DEFAULT_HOST = "localhost";
     private static final int DEFAULT_SQL_SERVER_PORT = 1433;
@@ -871,7 +867,8 @@ public enum JDBCConnectionUrlParser {
    *
    * @param jdbcUrl The JDBC URL, including 0 or more failover servers.
    * @return the List of Pairs of hosts and ports
-   * @see <a href="https://docs.oracle.com/cd/E17952_01/connector-j-8.0-en/connector-j-reference-jdbc-url-format.html">...</a>
+   * @see <a
+   *     href="https://docs.oracle.com/cd/E17952_01/connector-j-8.0-en/connector-j-reference-jdbc-url-format.html">...</a>
    */
   private static List<Pair<String, Integer>> buildServerList(String jdbcUrl) {
     List<Pair<String, Integer>> serverList = new LinkedList<>();
