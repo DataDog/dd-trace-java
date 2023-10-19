@@ -10,10 +10,10 @@ import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.UnsupportedEncodingException;
 import java.net.URI;
 import java.net.URLDecoder;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -871,7 +871,7 @@ public enum JDBCConnectionUrlParser {
    *     href="https://docs.oracle.com/cd/E17952_01/connector-j-8.0-en/connector-j-reference-jdbc-url-format.html">...</a>
    */
   private static List<Pair<String, Integer>> buildServerList(String jdbcUrl) {
-    List<Pair<String, Integer>> serverList = new LinkedList<>();
+    List<Pair<String, Integer>> serverList = new ArrayList<>();
     int beginIdx = jdbcUrl.indexOf("://") + 3;
     int endIdx = jdbcUrl.indexOf("/", beginIdx + 1);
     String multiServerString = jdbcUrl.substring(beginIdx, endIdx);
