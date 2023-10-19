@@ -59,6 +59,7 @@ class TaintedObjectsLazyTest extends IastModuleImplTestBase {
     'getEstimatedSize' | []
     'isFlat'           | []
     'taintInputString' | ['', new Source((byte) 0, null, null)]
+    'taintInputCharSequence' | ['', new Source((byte) 0, null, null)]
     'taintInputObject' | ['', new Source((byte) 0, null, null)]
     'taint'            | ['', Ranges.EMPTY]
     'get'              | ['']

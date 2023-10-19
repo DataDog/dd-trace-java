@@ -23,6 +23,8 @@ public interface TaintedObjects extends Iterable<TaintedObject> {
 
   TaintedObject taintInputString(@Nonnull String obj, @Nonnull Source source, int mark);
 
+  TaintedObject taintInputCharSequence(@Nonnull CharSequence obj, @Nonnull Source source, int mark);
+
   TaintedObject taintInputObject(@Nonnull Object obj, @Nonnull Source source, int mark);
 
   TaintedObject taint(@Nonnull Object obj, @Nonnull Range[] ranges);
@@ -39,6 +41,10 @@ public interface TaintedObjects extends Iterable<TaintedObject> {
 
   default TaintedObject taintInputString(@Nonnull String obj, @Nonnull Source source) {
     return taintInputString(obj, source, NOT_MARKED);
+  }
+
+  default TaintedObject taintInputCharSequence(@Nonnull CharSequence obj, @Nonnull Source source) {
+    return taintInputCharSequence(obj, source, NOT_MARKED);
   }
 
   default TaintedObject taintInputObject(@Nonnull Object obj, @Nonnull Source source) {
@@ -90,7 +96,18 @@ public interface TaintedObjects extends Iterable<TaintedObject> {
     public TaintedObject taintInputString(
         final @Nonnull String obj, final @Nonnull Source source, final int mark) {
       final TaintedObject tainted =
-          new TaintedObject(obj, Ranges.forString(obj, source, mark), map.getReferenceQueue());
+          new TaintedObject(
+              obj, Ranges.forCharSequence(obj, source, mark), map.getReferenceQueue());
+      map.put(tainted);
+      return tainted;
+    }
+
+    @Override
+    public TaintedObject taintInputCharSequence(
+        final @Nonnull CharSequence obj, final @Nonnull Source source, final int mark) {
+      final TaintedObject tainted =
+          new TaintedObject(
+              obj, Ranges.forCharSequence(obj, source, mark), map.getReferenceQueue());
       map.put(tainted);
       return tainted;
     }
@@ -159,6 +176,14 @@ public interface TaintedObjects extends Iterable<TaintedObject> {
     public TaintedObject taintInputString(
         final @Nonnull String obj, final @Nonnull Source source, final int mark) {
       final TaintedObject tainted = delegated.taintInputString(obj, source, mark);
+      logTainted(tainted);
+      return tainted;
+    }
+
+    @Override
+    public TaintedObject taintInputCharSequence(
+        @Nonnull CharSequence obj, @Nonnull Source source, int mark) {
+      final TaintedObject tainted = delegated.taintInputCharSequence(obj, source, mark);
       logTainted(tainted);
       return tainted;
     }
@@ -242,6 +267,13 @@ public interface TaintedObjects extends Iterable<TaintedObject> {
     }
 
     @Override
+    public TaintedObject taintInputCharSequence(
+        @Nonnull CharSequence obj, @Nonnull Source source, int mark) {
+      final TaintedObjects to = getTaintedObjects();
+      return to == null ? null : to.taintInputCharSequence(obj, source, mark);
+    }
+
+    @Override
     public TaintedObject taintInputObject(
         @Nonnull final Object obj, @Nonnull final Source source, final int mark) {
       final TaintedObjects to = getTaintedObjects();
@@ -307,6 +339,12 @@ public interface TaintedObjects extends Iterable<TaintedObject> {
     @Override
     public TaintedObject taintInputString(
         @Nonnull final String obj, @Nonnull final Source source, final int mark) {
+      return null;
+    }
+
+    @Override
+    public TaintedObject taintInputCharSequence(
+        @Nonnull CharSequence obj, @Nonnull Source source, int mark) {
       return null;
     }
 
