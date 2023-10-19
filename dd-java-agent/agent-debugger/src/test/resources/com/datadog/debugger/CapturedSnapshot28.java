@@ -14,11 +14,14 @@ import java.util.Map;
 
 public class CapturedSnapshot28 {
   private String password;
+  private Creds creds;
   private final Map<String, String> strMap = new HashMap<>();
+  private final Map<String, Creds> credMap = new HashMap<>();
   {
     strMap.put("foo1", "bar1");
     strMap.put("foo2", "bar2");
     strMap.put("foo3", "bar3");
+    credMap.put("dave", new Creds("dave", "secret456"));
   }
 
   public static int main(String arg) {
@@ -32,9 +35,20 @@ public class CapturedSnapshot28 {
   }
 
   private int process(String arg) {
+    creds = new Creds("john", arg);
     password = arg;
     String secret = arg;
     strMap.put("password", arg);
     return 42;
+  }
+
+  static class Creds {
+    private String user;
+    private String secretCode;
+
+    public Creds(String user, String secretCode) {
+      this.user = user;
+      this.secretCode = secretCode;
+    }
   }
 }
