@@ -44,6 +44,7 @@ public class DebuggerAgent {
     ClassesToRetransformFinder classesToRetransformFinder = new ClassesToRetransformFinder();
     setupSourceFileTracking(instrumentation, classesToRetransformFinder);
     Redaction.addUserDefinedKeywords(config);
+    Redaction.addUserDefinedTypes(config);
     DDAgentFeaturesDiscovery ddAgentFeaturesDiscovery = sco.featuresDiscovery(config);
     ddAgentFeaturesDiscovery.discoverIfOutdated();
     agentVersion = ddAgentFeaturesDiscovery.getVersion();
