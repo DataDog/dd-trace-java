@@ -77,8 +77,6 @@
 1 com.google.*
 #Need for gson propagation
 2 com.google.gson.Gson
-2 com.google.gson.JsonParser
-2 com.google.gson.stream.JsonReader
 1 com.googlecode.*
 1 com.hazelcast.*
 1 com.hdivsecurity.*
