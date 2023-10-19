@@ -1,12 +1,13 @@
+package datadog.trace.instrumentation.spark
+
 import com.datadoghq.sketch.ddsketch.DDSketchProtoBinding
 import com.datadoghq.sketch.ddsketch.proto.DDSketch
 import com.datadoghq.sketch.ddsketch.store.CollapsingLowestDenseStore
 import datadog.trace.agent.test.AgentTestRunner
-import datadog.trace.instrumentation.spark.DatadogSparkListener
-import org.apache.spark.SparkConf
 import org.apache.spark.Success$
 import org.apache.spark.executor.TaskMetrics
 import org.apache.spark.scheduler.JobSucceeded$
+import org.apache.spark.scheduler.SparkListener
 import org.apache.spark.scheduler.SparkListenerApplicationEnd
 import org.apache.spark.scheduler.SparkListenerApplicationStart
 import org.apache.spark.scheduler.SparkListenerExecutorAdded
@@ -26,15 +27,14 @@ import scala.collection.immutable.HashMap
 import scala.collection.immutable.Seq
 
 import scala.collection.JavaConverters
+import spock.lang.Unroll
 
-class SparkListenerTest extends AgentTestRunner {
+@Unroll
+abstract class AbstractSparkListenerTest extends AgentTestRunner {
 
-  private getTestDatadogSparkListener() {
-    def conf = new SparkConf()
-    return new DatadogSparkListener(conf, "some_app_id", "some_version")
-  }
+  protected abstract SparkListener getTestDatadogSparkListener()
 
-  private applicationStartEvent(time=0L) {
+  protected applicationStartEvent(time=0L) {
     // Constructor of SparkListenerApplicationStart changed starting spark 3.0
     if (TestSparkComputation.getSparkVersion() < "3") {
       return new SparkListenerApplicationStart(
@@ -58,7 +58,7 @@ class SparkListenerTest extends AgentTestRunner {
       )
   }
 
-  private jobStartEvent(Integer jobId, Long time, ArrayList<Integer> stageIds) {
+  protected jobStartEvent(Integer jobId, Long time, ArrayList<Integer> stageIds) {
     def stageInfos = stageIds.collect { stageId ->
       createStageInfo(stageId)
     }
@@ -71,7 +71,7 @@ class SparkListenerTest extends AgentTestRunner {
       )
   }
 
-  private createStageInfo(Integer stageId) {
+  protected createStageInfo(Integer stageId) {
     if (TestSparkComputation.getSparkVersion() < "3") {
       return new StageInfo(
         stageId,
@@ -83,6 +83,22 @@ class SparkListenerTest extends AgentTestRunner {
         "stage_details",
         null as TaskMetrics,
         null
+        )
+    }
+
+    if (TestSparkComputation.getSparkVersion() < "3.3") {
+      return new StageInfo(
+        stageId,
+        0,
+        "stage_name",
+        0,
+        JavaConverters.asScalaBuffer([]).toSeq() as Seq<RDDInfo>,
+        JavaConverters.asScalaBuffer([]).toSeq() as Seq<Integer>,
+        "stage_details",
+        null as TaskMetrics,
+        null,
+        Option.apply(),
+        0,
         )
     }
 
@@ -103,24 +119,24 @@ class SparkListenerTest extends AgentTestRunner {
       )
   }
 
-  private jobEndEvent(Integer jobId, Long time) {
+  protected jobEndEvent(Integer jobId, Long time) {
     return new SparkListenerJobEnd(jobId, time, JobSucceeded$.MODULE$)
   }
 
-  private stageSubmittedEvent(Integer stageId, Long time) {
+  protected stageSubmittedEvent(Integer stageId, Long time) {
     def stageInfo = createStageInfo(stageId)
     stageInfo.submissionTime = Option.apply(time)
 
     return new SparkListenerStageSubmitted(stageInfo, null)
   }
 
-  private stageCompletedEvent(Integer stageId, Long time) {
+  protected stageCompletedEvent(Integer stageId, Long time) {
     def stageInfo = createStageInfo(stageId)
     stageInfo.completionTime = Option.apply(time)
     return new SparkListenerStageCompleted(stageInfo)
   }
 
-  private taskEndEvent(Integer stageId, Long launchTime, Long executorTime, Long deserializeTime = 0L, Long resultSerializeTime = 0L, Long peakExecutionMemory = 0L) {
+  protected taskEndEvent(Integer stageId, Long launchTime, Long executorTime, Long deserializeTime = 0L, Long resultSerializeTime = 0L, Long peakExecutionMemory = 0L) {
     def taskInfo = new TaskInfo(
       0,
       0,
@@ -160,7 +176,7 @@ class SparkListenerTest extends AgentTestRunner {
       )
   }
 
-  private executorAddedEvent(time=0L, executorId="executor-0", totalCores=0) {
+  protected executorAddedEvent(time=0L, executorId="executor-0", totalCores=0) {
     new SparkListenerExecutorAdded(
       time,
       executorId,
@@ -172,7 +188,7 @@ class SparkListenerTest extends AgentTestRunner {
       )
   }
 
-  private executorRemovedEvent(time=0L, executorId="0") {
+  protected executorRemovedEvent(time=0L, executorId="0") {
     new SparkListenerExecutorRemoved(
       time,
       executorId,
@@ -443,12 +459,12 @@ class SparkListenerTest extends AgentTestRunner {
     }
   }
 
-  private validateRelativeError(double value, double expected, double relativeAccuracy) {
+  protected validateRelativeError(double value, double expected, double relativeAccuracy) {
     double relativeError = Math.abs(value - expected) / expected
     assert relativeError < relativeAccuracy
   }
 
-  private validateSerializedHistogram(String base64Hist, double expectedP50, double expectedP75, double expectedMax, double relativeAccuracy) {
+  protected validateSerializedHistogram(String base64Hist, double expectedP50, double expectedP75, double expectedMax, double relativeAccuracy) {
     byte[] bytes = Base64.getDecoder().decode(base64Hist)
 
     def sketch = DDSketchProtoBinding.fromProto({
