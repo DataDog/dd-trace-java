@@ -72,11 +72,11 @@ class AbstractSparkStructuredStreamingTest extends AgentTestRunner {
           tags {
             defaultTags()
             // Streaming tags
-            "batch_id" 0
-            "name" "test-query"
+            "streaming_query.batch_id" 0
+            "streaming_query.name" "test-query"
             "app_id" String
-            "id" UUID
-            "run_id" UUID
+            "streaming_query.id" UUID
+            "streaming_query.run_id" UUID
             "spark.num_input_rows" 3
             "spark.add_batch_duration" Long
             "spark.get_batch_duration" Long
@@ -173,7 +173,7 @@ class AbstractSparkStructuredStreamingTest extends AgentTestRunner {
         span {
           operationName "spark.streaming_batch"
           spanType "spark"
-          assert span.tags["batch_id"] == 1
+          assert span.tags["streaming_query.batch_id"] == 1
           parent()
         }
         span {

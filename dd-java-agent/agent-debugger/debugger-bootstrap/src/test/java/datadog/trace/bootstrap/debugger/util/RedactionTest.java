@@ -2,12 +2,14 @@ package datadog.trace.bootstrap.debugger.util;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+import datadog.trace.api.Config;
+import java.lang.reflect.Field;
 import org.junit.jupiter.api.Test;
 
 class RedactionTest {
 
   @Test
-  public void test() {
+  public void basic() {
     assertFalse(Redaction.isRedactedKeyword(null));
     assertFalse(Redaction.isRedactedKeyword(""));
     assertFalse(Redaction.isRedactedKeyword("foobar"));
@@ -18,5 +20,41 @@ class RedactionTest {
     assertTrue(Redaction.isRedactedKeyword("_Pass-Word_"));
     assertTrue(Redaction.isRedactedKeyword("$pass_worD"));
     assertTrue(Redaction.isRedactedKeyword("@passWord@"));
+  }
+
+  @Test
+  public void userDefinedKeywords() {
+    Config config = Config.get();
+    setFieldInConfig(config, "debuggerRedactedIdentifiers", "_MotDePasse,$Passwort");
+    try {
+      Redaction.addUserDefinedKeywords(config);
+      assertTrue(Redaction.isRedactedKeyword("mot-de-passe"));
+      assertTrue(Redaction.isRedactedKeyword("Passwort"));
+    } finally {
+      Redaction.resetUserDefinedKeywords();
+    }
+  }
+
+  @Test
+  public void userDefinedTypes() {
+    Config config = Config.get();
+    setFieldInConfig(config, "debuggerRedactedTypes", "java.security.Security,javax.security.*");
+    try {
+      Redaction.addUserDefinedTypes(Config.get());
+      assertTrue(Redaction.isRedactedType("java.security.Security"));
+      assertTrue(Redaction.isRedactedType("javax.security.SecurityContext"));
+    } finally {
+      Redaction.clearUserDefinedTypes();
+    }
+  }
+
+  private static void setFieldInConfig(Config config, String fieldName, Object value) {
+    try {
+      Field field = config.getClass().getDeclaredField(fieldName);
+      field.setAccessible(true);
+      field.set(config, value);
+    } catch (Throwable e) {
+      e.printStackTrace();
+    }
   }
 }

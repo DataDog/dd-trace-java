@@ -24,7 +24,9 @@ import static utils.TestHelper.getFixtureContent;
 import com.datadog.debugger.el.DSL;
 import com.datadog.debugger.el.ProbeCondition;
 import com.datadog.debugger.el.values.StringValue;
+import com.datadog.debugger.instrumentation.InstrumentationResult;
 import com.datadog.debugger.probe.LogProbe;
+import com.datadog.debugger.probe.ProbeDefinition;
 import com.datadog.debugger.sink.DebuggerSink;
 import com.datadog.debugger.sink.ProbeStatusSink;
 import com.datadog.debugger.sink.Snapshot;
@@ -35,6 +37,7 @@ import com.squareup.moshi.JsonAdapter;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.debugger.*;
 import datadog.trace.bootstrap.debugger.el.ValueReferences;
+import datadog.trace.bootstrap.debugger.util.Redaction;
 import groovy.lang.GroovyClassLoader;
 import java.io.File;
 import java.io.IOException;
@@ -90,6 +93,7 @@ public class CapturedSnapshotTest {
   private Instrumentation instr = ByteBuddyAgent.install();
   private ClassFileTransformer currentTransformer;
   private ProbeStatusSink probeStatusSink;
+  private MockInstrumentationListener instrumentationListener;
 
   @BeforeEach
   public void before() {
@@ -103,6 +107,7 @@ public class CapturedSnapshotTest {
     }
     ProbeRateLimiter.resetAll();
     Assertions.assertFalse(DebuggerContext.isInProbe());
+    Redaction.clearUserDefinedTypes();
   }
 
   @Test
@@ -1695,6 +1700,117 @@ public class CapturedSnapshotTest {
         snapshots.get(2).getEvaluationErrors().get(0).getMessage());
   }
 
+  @Test
+  public void typeRedactionBlockedProbe() throws IOException, URISyntaxException {
+    final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot27";
+    Config config = mock(Config.class);
+    when(config.getDebuggerRedactedTypes()).thenReturn("com.datadog.debugger.CapturedSnapshot27");
+    Redaction.addUserDefinedTypes(config);
+    LogProbe probe1 =
+        createProbeBuilder(PROBE_ID, CLASS_NAME, "doit", null)
+            .captureSnapshot(true)
+            .evaluateAt(MethodLocation.EXIT)
+            .build();
+    DebuggerTransformerTest.TestSnapshotListener listener = installProbes(CLASS_NAME, probe1);
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    int result = Reflect.on(testClass).call("main", "secret123").get();
+    Assertions.assertEquals(42, result);
+    assertEquals(0, listener.snapshots.size());
+    InstrumentationResult instrumentationResult =
+        instrumentationListener.results.get(PROBE_ID.getId());
+    assertTrue(instrumentationResult.isBlocked());
+  }
+
+  @Test
+  public void typeRedactionSnapshot() throws IOException, URISyntaxException {
+    final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot27";
+    final String LOG_TEMPLATE =
+        "arg={arg} credentials={creds} user={this.creds.user} code={creds.secretCode} dave={credMap['dave'].user}";
+    Config config = mock(Config.class);
+    when(config.getDebuggerRedactedTypes())
+        .thenReturn("com.datadog.debugger.CapturedSnapshot27$Creds");
+    Redaction.addUserDefinedTypes(config);
+    LogProbe probe1 =
+        createProbeBuilder(PROBE_ID, CLASS_NAME, "doit", null)
+            .template(LOG_TEMPLATE, parseTemplate(LOG_TEMPLATE))
+            .captureSnapshot(true)
+            .evaluateAt(MethodLocation.EXIT)
+            .build();
+    DebuggerTransformerTest.TestSnapshotListener listener = installProbes(CLASS_NAME, probe1);
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    int result = Reflect.on(testClass).call("main", "secret123").get();
+    Assertions.assertEquals(42, result);
+    Snapshot snapshot = assertOneSnapshot(listener);
+    assertEquals(
+        "arg=secret123 credentials={Could not evaluate the expression because 'creds' was redacted} user={Could not evaluate the expression because 'this.creds' was redacted} code={Could not evaluate the expression because 'creds' was redacted} dave={Could not evaluate the expression because 'credMap[\"dave\"]' was redacted}",
+        snapshot.getMessage());
+    Map<String, CapturedContext.CapturedValue> thisFields =
+        getFields(snapshot.getCaptures().getReturn().getArguments().get("this"));
+    CapturedContext.CapturedValue credsField = thisFields.get("creds");
+    assertEquals("redacted", credsField.getNotCapturedReason());
+    Map<String, String> credMap = (Map<String, String>) thisFields.get("credMap").getValue();
+    assertNull(credMap.get("dave"));
+  }
+
+  @Test
+  public void typeRedactionCondition() throws IOException, URISyntaxException {
+    final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot27";
+    Config config = mock(Config.class);
+    when(config.getDebuggerRedactedTypes())
+        .thenReturn("com.datadog.debugger.CapturedSnapshot27$Creds");
+    Redaction.addUserDefinedTypes(config);
+    LogProbe probe1 =
+        createProbeBuilder(PROBE_ID1, CLASS_NAME, "doit", null)
+            .when(
+                new ProbeCondition(
+                    DSL.when(
+                        DSL.contains(
+                            DSL.getMember(DSL.getMember(DSL.ref("this"), "creds"), "secretCode"),
+                            new StringValue("123"))),
+                    "contains(this.creds.secretCode, '123')"))
+            .captureSnapshot(true)
+            .evaluateAt(MethodLocation.EXIT)
+            .build();
+    LogProbe probe2 =
+        createProbeBuilder(PROBE_ID2, CLASS_NAME, "doit", null)
+            .when(
+                new ProbeCondition(
+                    DSL.when(
+                        DSL.eq(DSL.getMember(DSL.ref("creds"), "secretCode"), DSL.value("123"))),
+                    "creds.secretCode == '123'"))
+            .captureSnapshot(true)
+            .evaluateAt(MethodLocation.EXIT)
+            .build();
+    LogProbe probe3 =
+        createProbeBuilder(PROBE_ID3, CLASS_NAME, "doit", null)
+            .when(
+                new ProbeCondition(
+                    DSL.when(
+                        DSL.eq(DSL.index(DSL.ref("credMap"), DSL.value("dave")), DSL.value("123"))),
+                    "credMap['dave'] == '123'"))
+            .captureSnapshot(true)
+            .evaluateAt(MethodLocation.EXIT)
+            .build();
+    DebuggerTransformerTest.TestSnapshotListener listener =
+        installProbes(CLASS_NAME, probe1, probe2, probe3);
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    int result = Reflect.on(testClass).call("main", "secret123").get();
+    Assertions.assertEquals(42, result);
+    List<Snapshot> snapshots = assertSnapshots(listener, 3, PROBE_ID1, PROBE_ID2, PROBE_ID3);
+    assertEquals(1, snapshots.get(0).getEvaluationErrors().size());
+    assertEquals(
+        "Could not evaluate the expression because 'this.creds' was redacted",
+        snapshots.get(0).getEvaluationErrors().get(0).getMessage());
+    assertEquals(1, snapshots.get(1).getEvaluationErrors().size());
+    assertEquals(
+        "Could not evaluate the expression because 'creds' was redacted",
+        snapshots.get(1).getEvaluationErrors().get(0).getMessage());
+    assertEquals(1, snapshots.get(2).getEvaluationErrors().size());
+    assertEquals(
+        "Could not evaluate the expression because 'credMap[\"dave\"]' was redacted",
+        snapshots.get(2).getEvaluationErrors().get(0).getMessage());
+  }
+
   private DebuggerTransformerTest.TestSnapshotListener setupInstrumentTheWorldTransformer(
       String excludeFileName) {
     Config config = mock(Config.class);
@@ -1751,10 +1867,14 @@ public class CapturedSnapshotTest {
     when(config.getFinalDebuggerSnapshotUrl())
         .thenReturn("http://localhost:8126/debugger/v1/input");
     Collection<LogProbe> logProbes = configuration.getLogProbes();
+    instrumentationListener = new MockInstrumentationListener();
     probeStatusSink = mock(ProbeStatusSink.class);
     currentTransformer =
         new DebuggerTransformer(
-            config, configuration, null, new DebuggerSink(config, probeStatusSink));
+            config,
+            configuration,
+            instrumentationListener,
+            new DebuggerSink(config, probeStatusSink));
     instr.addTransformer(currentTransformer);
     DebuggerTransformerTest.TestSnapshotListener listener =
         new DebuggerTransformerTest.TestSnapshotListener();
@@ -2016,6 +2136,15 @@ public class CapturedSnapshotTest {
         .captureSnapshot(true)
         .where(null, null, null, line, sourceFile)
         .build();
+  }
+
+  static class MockInstrumentationListener implements DebuggerTransformer.InstrumentationListener {
+    final Map<String, InstrumentationResult> results = new HashMap<>();
+
+    @Override
+    public void instrumentationResult(ProbeDefinition definition, InstrumentationResult result) {
+      results.put(definition.getId(), result);
+    }
   }
 
   static class KotlinHelper {

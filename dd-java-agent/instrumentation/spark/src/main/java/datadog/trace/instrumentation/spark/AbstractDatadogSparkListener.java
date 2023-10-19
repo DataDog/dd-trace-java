@@ -638,11 +638,11 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
           metrics.setSpanMetrics(batchSpan);
         }
 
-        batchSpan.setTag("id", event.id());
-        batchSpan.setTag("run_id", event.runId());
-        batchSpan.setTag("batch_id", getBatchIdFromBatchKey(batchKey));
+        batchSpan.setTag("streaming_query.id", event.id());
+        batchSpan.setTag("streaming_query.run_id", event.runId());
+        batchSpan.setTag("streaming_query.batch_id", getBatchIdFromBatchKey(batchKey));
         if (startedEvent != null) {
-          batchSpan.setTag("name", startedEvent.name());
+          batchSpan.setTag("streaming_query.name", startedEvent.name());
           batchSpan.setTag(DDTags.RESOURCE_NAME, startedEvent.name());
         }
 
@@ -673,10 +673,10 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
         metrics.setSpanMetrics(batchSpan);
       }
 
-      batchSpan.setTag("id", progress.id());
-      batchSpan.setTag("run_id", progress.runId());
-      batchSpan.setTag("batch_id", progress.batchId());
-      batchSpan.setTag("name", progress.name());
+      batchSpan.setTag("streaming_query.id", progress.id());
+      batchSpan.setTag("streaming_query.run_id", progress.runId());
+      batchSpan.setTag("streaming_query.batch_id", progress.batchId());
+      batchSpan.setTag("streaming_query.name", progress.name());
       batchSpan.setTag(DDTags.RESOURCE_NAME, progress.name());
 
       batchSpan.setMetric("spark.num_input_rows", progress.numInputRows());
