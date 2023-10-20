@@ -304,6 +304,10 @@ public final class Platform {
     return System.getProperty("java.vm.name").contains("J9");
   }
 
+  public static boolean isIBMJava() {
+    return System.getProperty("java.vendor").contains("IBM") && !isJ9();
+  }
+
   public static String getLangVersion() {
     return String.valueOf(JAVA_VERSION.major);
   }
