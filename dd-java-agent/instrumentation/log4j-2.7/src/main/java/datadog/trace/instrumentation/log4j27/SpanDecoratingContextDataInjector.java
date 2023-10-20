@@ -20,8 +20,13 @@ import org.apache.logging.log4j.core.config.Property;
 import org.apache.logging.log4j.util.ReadOnlyStringMap;
 import org.apache.logging.log4j.util.SortedArrayStringMap;
 import org.apache.logging.log4j.util.StringMap;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public final class SpanDecoratingContextDataInjector implements ContextDataInjector {
+  private static final Logger log =
+      LoggerFactory.getLogger(SpanDecoratingContextDataInjector.class);
+
   private final ContextDataInjector delegate;
 
   public SpanDecoratingContextDataInjector(ContextDataInjector delegate) {
@@ -33,8 +38,10 @@ public final class SpanDecoratingContextDataInjector implements ContextDataInjec
     StringMap contextData = delegate.injectContextData(list, reusable);
 
     AgentSpan span = activeSpan();
+    log.debug("injectContextData {} - oldContextData={}", span, reusable);
 
     if (!traceConfig(span).isLogsInjectionEnabled()) {
+      log.debug("injectContextData {} - injection not enabled", span);
       return contextData;
     }
 
@@ -66,6 +73,7 @@ public final class SpanDecoratingContextDataInjector implements ContextDataInjec
     }
 
     newContextData.putAll(contextData);
+    log.debug("injectContextData {} - newContextData={}", span, newContextData);
     return newContextData;
   }
 
