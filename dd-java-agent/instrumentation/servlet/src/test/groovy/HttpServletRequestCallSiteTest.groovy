@@ -191,7 +191,7 @@ class HttpServletRequestCallSiteTest extends AgentTestRunner {
     testSuite.getRequestURI()
 
     then:
-    1 * iastModule.onGetRequestURI('retValue')
+    1 * iastModule.onGetPathInfo('retValue')
 
     where:
     clazz                     | _
