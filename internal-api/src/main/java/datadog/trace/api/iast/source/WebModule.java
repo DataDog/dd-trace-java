@@ -31,6 +31,4 @@ public interface WebModule extends IastModule {
       @Nullable String headerName, @Nullable final Collection<String> headerValues);
 
   void onGetPathInfo(@Nullable String s);
-
-  void onGetRequestURI(@Nullable String s);
 }

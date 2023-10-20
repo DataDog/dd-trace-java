@@ -251,11 +251,28 @@ public class HttpServletRequestCallSite {
     }
   }
 
+  @Source(SourceTypes.REQUEST_URI)
+  @CallSite.After("java.lang.StringBuffer javax.servlet.http.HttpServletRequest.getRequestURL()")
+  public static StringBuffer afterGetRequestURL(
+      @CallSite.This final HttpServletRequest self, @CallSite.Return final StringBuffer retValue) {
+    if (null != retValue && retValue.length() > 0) {
+      final PropagationModule module = InstrumentationBridge.PROPAGATION;
+      if (module != null) {
+        try {
+          module.taintObject(SourceTypes.REQUEST_URI, null, retValue.toString(), retValue);
+        } catch (final Throwable e) {
+          module.onUnexpectedException("afterGetRequestURL threw", e);
+        }
+      }
+    }
+    return retValue;
+  }
+
   @Source(SourceTypes.REQUEST_PATH)
   @CallSite.After("java.lang.String javax.servlet.http.HttpServletRequest.getRequestURI()")
   @CallSite.After("java.lang.String javax.servlet.http.HttpServletRequest.getPathInfo()")
   @CallSite.After("java.lang.String javax.servlet.http.HttpServletRequest.getPathTranslated()")
-  public static String afterGetPathInfo(
+  public static String afterGetPath(
       @CallSite.This final HttpServletRequest self, @CallSite.Return final String retValue) {
     if (null != retValue && !retValue.isEmpty()) {
       final WebModule module = InstrumentationBridge.WEB;

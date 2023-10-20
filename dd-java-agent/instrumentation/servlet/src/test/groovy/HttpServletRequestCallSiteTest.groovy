@@ -182,7 +182,7 @@ class HttpServletRequestCallSiteTest extends AgentTestRunner {
     setup:
     final iastModule = Mock(WebModule)
     InstrumentationBridge.registerIastModule(iastModule)
-    final mock = Mock(HttpServletRequest){
+    final mock = Mock(clazz){
       getRequestURI() >> 'retValue'
     }
     final testSuite = new TestHttpServletRequestCallSiteSuite(mock)
@@ -198,6 +198,29 @@ class HttpServletRequestCallSiteTest extends AgentTestRunner {
     HttpServletRequest        | _
     HttpServletRequestWrapper | _
   }
+
+  void 'test getRequestURL'() {
+    setup:
+    final module = Mock(PropagationModule)
+    final retValue = new StringBuffer("retValue")
+    InstrumentationBridge.registerIastModule(module)
+    final mock = Mock(clazz){
+      getRequestURL() >> retValue
+    }
+    final testSuite = new TestHttpServletRequestCallSiteSuite(mock)
+
+    when:
+    testSuite.getRequestURL()
+
+    then:
+    1 * module.taintObject(_,_,_,_)
+
+    where:
+    clazz                     | _
+    HttpServletRequest        | _
+    HttpServletRequestWrapper | _
+  }
+
 
   void 'test getPathInfo'() {
     setup:

@@ -69,11 +69,6 @@ public class WebModuleImpl implements WebModule {
     onNamed(Collections.singleton(s), SourceTypes.REQUEST_PATH);
   }
 
-  @Override
-  public void onGetRequestURI(@Nullable String s) {
-    onNamed(Collections.singleton(s), SourceTypes.REQUEST_URI);
-  }
-
   private static void onNamed(@Nullable final Iterable<String> names, final byte source) {
     if (names == null) {
       return;
