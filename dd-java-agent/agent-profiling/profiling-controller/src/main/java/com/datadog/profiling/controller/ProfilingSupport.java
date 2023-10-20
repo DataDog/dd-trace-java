@@ -26,6 +26,12 @@ public class ProfilingSupport {
     return isJavaVersionAtLeast(16);
   }
 
+  public static boolean isObjectCountParallelized() {
+    // parallelized jdk.ObjectCount implemented in JDK21 and backported to JDK17
+    // https://bugs.openjdk.org/browse/JDK-8307348
+    return (isJavaVersion(17) && isJavaVersionAtLeast(17, 0, 9)) || isJavaVersionAtLeast(21);
+  }
+
   public static boolean isNativeMethodSampleAvailable() {
     if (isOracleJDK8()) {
       return false;
