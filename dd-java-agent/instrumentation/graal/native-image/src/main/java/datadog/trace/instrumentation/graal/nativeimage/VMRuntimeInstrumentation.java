@@ -1,20 +1,27 @@
 package datadog.trace.instrumentation.graal.nativeimage;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
+import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.RUNNABLE;
+import static java.util.Collections.singletonList;
+import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 
 import com.google.auto.service.AutoService;
+import datadog.trace.agent.tooling.ExcludeFilterProvider;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.api.Config;
+import datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter;
 import datadog.trace.logging.GlobalLogLevelSwitcher;
 import datadog.trace.logging.LogLevel;
+import java.util.Collection;
+import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 @AutoService(Instrumenter.class)
 public final class VMRuntimeInstrumentation extends AbstractNativeImageInstrumentation
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, ExcludeFilterProvider {
 
   @Override
   public String instrumentedType() {
@@ -36,6 +43,12 @@ public final class VMRuntimeInstrumentation extends AbstractNativeImageInstrumen
   @Override
   public boolean injectHelperDependencies() {
     return true;
+  }
+
+  @Override
+  public Map<ExcludeFilter.ExcludeType, ? extends Collection<String>> excludedClasses() {
+    return singletonMap(
+        RUNNABLE, singletonList("com.oracle.svm.core.thread.VMOperationControl$VMOperationThread"));
   }
 
   public static class InitializeAdvice {
