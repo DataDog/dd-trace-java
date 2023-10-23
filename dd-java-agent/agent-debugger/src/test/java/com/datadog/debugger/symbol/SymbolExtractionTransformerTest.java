@@ -20,7 +20,8 @@ import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 
 class SymbolExtractionTransformerTest {
-  private static final String SYMBOL_PACKAGE = "com.datadog.debugger.symbol";
+  private static final String SYMBOL_PACKAGE = "com.datadog.debugger.symbol.";
+  private static final String SYMBOL_PACKAGE_DIR = SYMBOL_PACKAGE.replace('.', '/');
 
   private Instrumentation instr = ByteBuddyAgent.install();
   private Config config;
@@ -30,21 +31,20 @@ class SymbolExtractionTransformerTest {
     config = Mockito.mock(Config.class);
     when(config.getDebuggerSymbolIncludes()).thenReturn(SYMBOL_PACKAGE);
     when(config.getFinalDebuggerSymDBUrl()).thenReturn("http://localhost:8126/symdb/v1/input");
+    when(config.getDebuggerSymbolFlushThreshold()).thenReturn(1);
   }
 
   @Test
   public void noIncludesFilterOutDatadogClass() throws IOException, URISyntaxException {
     config = Mockito.mock(Config.class);
     when(config.getFinalDebuggerSymDBUrl()).thenReturn("http://localhost:8126/symdb/v1/input");
-    final String CLASS_NAME = SYMBOL_PACKAGE + ".SymbolExtraction01";
-    final String SOURCE_FILE = "SymbolExtraction01.java";
+    final String CLASS_NAME = SYMBOL_PACKAGE + "SymbolExtraction01";
     SymbolSinkMock symbolSinkMock = new SymbolSinkMock(config);
     SymbolExtractionTransformer transformer =
         new SymbolExtractionTransformer(symbolSinkMock, config);
     instr.addTransformer(transformer);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     Reflect.on(testClass).call("main", "1").get();
-    transformer.flushScopes(null);
     assertFalse(
         symbolSinkMock.jarScopes.stream()
             .flatMap(scope -> scope.getScopes().stream())
@@ -53,15 +53,14 @@ class SymbolExtractionTransformerTest {
 
   @Test
   public void symbolExtraction01() throws IOException, URISyntaxException {
-    final String CLASS_NAME = SYMBOL_PACKAGE + ".SymbolExtraction01";
-    final String SOURCE_FILE = "SymbolExtraction01.java";
+    final String CLASS_NAME = SYMBOL_PACKAGE + "SymbolExtraction01";
+    final String SOURCE_FILE = SYMBOL_PACKAGE_DIR + "SymbolExtraction01.java";
     SymbolSinkMock symbolSinkMock = new SymbolSinkMock(config);
     SymbolExtractionTransformer transformer =
         new SymbolExtractionTransformer(symbolSinkMock, config);
     instr.addTransformer(transformer);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     Reflect.on(testClass).call("main", "1").get();
-    transformer.flushScopes(null);
     Scope classScope = symbolSinkMock.jarScopes.get(0).getScopes().get(0);
     assertScope(classScope, ScopeType.CLASS, CLASS_NAME, 2, 20, SOURCE_FILE, 2, 0);
     assertScope(classScope.getScopes().get(0), ScopeType.METHOD, "<init>", 2, 2, SOURCE_FILE, 0, 0);
@@ -119,15 +118,14 @@ class SymbolExtractionTransformerTest {
 
   @Test
   public void symbolExtraction02() throws IOException, URISyntaxException {
-    final String CLASS_NAME = SYMBOL_PACKAGE + ".SymbolExtraction02";
-    final String SOURCE_FILE = "SymbolExtraction02.java";
+    final String CLASS_NAME = SYMBOL_PACKAGE + "SymbolExtraction02";
+    final String SOURCE_FILE = SYMBOL_PACKAGE_DIR + "SymbolExtraction02.java";
     SymbolSinkMock symbolSinkMock = new SymbolSinkMock(config);
     SymbolExtractionTransformer transformer =
         new SymbolExtractionTransformer(symbolSinkMock, config);
     instr.addTransformer(transformer);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     Reflect.on(testClass).call("main", "1").get();
-    transformer.flushScopes(null);
     Scope classScope = symbolSinkMock.jarScopes.get(0).getScopes().get(0);
     assertScope(classScope, ScopeType.CLASS, CLASS_NAME, 3, 6, SOURCE_FILE, 2, 0);
     assertScope(classScope.getScopes().get(0), ScopeType.METHOD, "<init>", 3, 3, SOURCE_FILE, 0, 0);
@@ -147,15 +145,14 @@ class SymbolExtractionTransformerTest {
 
   @Test
   public void symbolExtraction03() throws IOException, URISyntaxException {
-    final String CLASS_NAME = SYMBOL_PACKAGE + ".SymbolExtraction03";
-    final String SOURCE_FILE = "SymbolExtraction03.java";
+    final String CLASS_NAME = SYMBOL_PACKAGE + "SymbolExtraction03";
+    final String SOURCE_FILE = SYMBOL_PACKAGE_DIR + "SymbolExtraction03.java";
     SymbolSinkMock symbolSinkMock = new SymbolSinkMock(config);
     SymbolExtractionTransformer transformer =
         new SymbolExtractionTransformer(symbolSinkMock, config);
     instr.addTransformer(transformer);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     Reflect.on(testClass).call("main", "1").get();
-    transformer.flushScopes(null);
     Scope classScope = symbolSinkMock.jarScopes.get(0).getScopes().get(0);
     assertScope(classScope, ScopeType.CLASS, CLASS_NAME, 4, 28, SOURCE_FILE, 2, 0);
     assertScope(classScope.getScopes().get(0), ScopeType.METHOD, "<init>", 4, 4, SOURCE_FILE, 0, 0);
@@ -215,15 +212,14 @@ class SymbolExtractionTransformerTest {
 
   @Test
   public void symbolExtraction04() throws IOException, URISyntaxException {
-    final String CLASS_NAME = SYMBOL_PACKAGE + ".SymbolExtraction04";
-    final String SOURCE_FILE = "SymbolExtraction04.java";
+    final String CLASS_NAME = SYMBOL_PACKAGE + "SymbolExtraction04";
+    final String SOURCE_FILE = SYMBOL_PACKAGE_DIR + "SymbolExtraction04.java";
     SymbolSinkMock symbolSinkMock = new SymbolSinkMock(config);
     SymbolExtractionTransformer transformer =
         new SymbolExtractionTransformer(symbolSinkMock, config);
     instr.addTransformer(transformer);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     Reflect.on(testClass).call("main", "1").get();
-    transformer.flushScopes(null);
     Scope classScope = symbolSinkMock.jarScopes.get(0).getScopes().get(0);
     assertScope(classScope, ScopeType.CLASS, CLASS_NAME, 3, 18, SOURCE_FILE, 2, 0);
     assertScope(classScope.getScopes().get(0), ScopeType.METHOD, "<init>", 3, 3, SOURCE_FILE, 0, 0);
@@ -287,15 +283,14 @@ class SymbolExtractionTransformerTest {
 
   @Test
   public void symbolExtraction05() throws IOException, URISyntaxException {
-    final String CLASS_NAME = SYMBOL_PACKAGE + ".SymbolExtraction05";
-    final String SOURCE_FILE = "SymbolExtraction05.java";
+    final String CLASS_NAME = SYMBOL_PACKAGE + "SymbolExtraction05";
+    final String SOURCE_FILE = SYMBOL_PACKAGE_DIR + "SymbolExtraction05.java";
     SymbolSinkMock symbolSinkMock = new SymbolSinkMock(config);
     SymbolExtractionTransformer transformer =
         new SymbolExtractionTransformer(symbolSinkMock, config);
     instr.addTransformer(transformer);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     Reflect.on(testClass).call("main", "1").get();
-    transformer.flushScopes(null);
     Scope classScope = symbolSinkMock.jarScopes.get(0).getScopes().get(0);
     assertScope(classScope, ScopeType.CLASS, CLASS_NAME, 3, 15, SOURCE_FILE, 2, 0);
     assertScope(classScope.getScopes().get(0), ScopeType.METHOD, "<init>", 3, 3, SOURCE_FILE, 0, 0);
@@ -333,15 +328,14 @@ class SymbolExtractionTransformerTest {
 
   @Test
   public void symbolExtraction06() throws IOException, URISyntaxException {
-    final String CLASS_NAME = SYMBOL_PACKAGE + ".SymbolExtraction06";
-    final String SOURCE_FILE = "SymbolExtraction06.java";
+    final String CLASS_NAME = SYMBOL_PACKAGE + "SymbolExtraction06";
+    final String SOURCE_FILE = SYMBOL_PACKAGE_DIR + "SymbolExtraction06.java";
     SymbolSinkMock symbolSinkMock = new SymbolSinkMock(config);
     SymbolExtractionTransformer transformer =
         new SymbolExtractionTransformer(symbolSinkMock, config);
     instr.addTransformer(transformer);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     Reflect.on(testClass).call("main", "1").get();
-    transformer.flushScopes(null);
     Scope classScope = symbolSinkMock.jarScopes.get(0).getScopes().get(0);
     assertScope(classScope, ScopeType.CLASS, CLASS_NAME, 3, 13, SOURCE_FILE, 2, 0);
     assertScope(classScope.getScopes().get(0), ScopeType.METHOD, "<init>", 3, 3, SOURCE_FILE, 0, 0);
@@ -379,15 +373,14 @@ class SymbolExtractionTransformerTest {
 
   @Test
   public void symbolExtraction07() throws IOException, URISyntaxException {
-    final String CLASS_NAME = SYMBOL_PACKAGE + ".SymbolExtraction07";
-    final String SOURCE_FILE = "SymbolExtraction07.java";
+    final String CLASS_NAME = SYMBOL_PACKAGE + "SymbolExtraction07";
+    final String SOURCE_FILE = SYMBOL_PACKAGE_DIR + "SymbolExtraction07.java";
     SymbolSinkMock symbolSinkMock = new SymbolSinkMock(config);
     SymbolExtractionTransformer transformer =
         new SymbolExtractionTransformer(symbolSinkMock, config);
     instr.addTransformer(transformer);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     Reflect.on(testClass).call("main", "1").get();
-    transformer.flushScopes(null);
     Scope classScope = symbolSinkMock.jarScopes.get(0).getScopes().get(0);
     assertScope(classScope, ScopeType.CLASS, CLASS_NAME, 3, 10, SOURCE_FILE, 2, 0);
     assertScope(classScope.getScopes().get(0), ScopeType.METHOD, "<init>", 3, 3, SOURCE_FILE, 0, 0);
@@ -411,15 +404,14 @@ class SymbolExtractionTransformerTest {
 
   @Test
   public void symbolExtraction08() throws IOException, URISyntaxException {
-    final String CLASS_NAME = SYMBOL_PACKAGE + ".SymbolExtraction08";
-    final String SOURCE_FILE = "SymbolExtraction08.java";
+    final String CLASS_NAME = SYMBOL_PACKAGE + "SymbolExtraction08";
+    final String SOURCE_FILE = SYMBOL_PACKAGE_DIR + "SymbolExtraction08.java";
     SymbolSinkMock symbolSinkMock = new SymbolSinkMock(config);
     SymbolExtractionTransformer transformer =
         new SymbolExtractionTransformer(symbolSinkMock, config);
     instr.addTransformer(transformer);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     Reflect.on(testClass).call("main", "1").get();
-    transformer.flushScopes(null);
     Scope classScope = symbolSinkMock.jarScopes.get(0).getScopes().get(0);
     assertScope(classScope, ScopeType.CLASS, CLASS_NAME, 3, 11, SOURCE_FILE, 2, 0);
     assertScope(classScope.getScopes().get(0), ScopeType.METHOD, "<init>", 3, 3, SOURCE_FILE, 0, 0);
@@ -445,15 +437,14 @@ class SymbolExtractionTransformerTest {
 
   @Test
   public void symbolExtraction09() throws IOException, URISyntaxException {
-    final String CLASS_NAME = SYMBOL_PACKAGE + ".SymbolExtraction09";
-    final String SOURCE_FILE = "SymbolExtraction09.java";
+    final String CLASS_NAME = SYMBOL_PACKAGE + "SymbolExtraction09";
+    final String SOURCE_FILE = SYMBOL_PACKAGE_DIR + "SymbolExtraction09.java";
     SymbolSinkMock symbolSinkMock = new SymbolSinkMock(config);
     SymbolExtractionTransformer transformer =
         new SymbolExtractionTransformer(symbolSinkMock, config);
     instr.addTransformer(transformer);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     Reflect.on(testClass).call("main", "1").get();
-    transformer.flushScopes(null);
     Scope classScope = symbolSinkMock.jarScopes.get(0).getScopes().get(0);
     assertScope(classScope, ScopeType.CLASS, CLASS_NAME, 5, 12, SOURCE_FILE, 3, 0);
     assertScope(classScope.getScopes().get(0), ScopeType.METHOD, "<init>", 5, 5, SOURCE_FILE, 0, 0);
@@ -495,15 +486,15 @@ class SymbolExtractionTransformerTest {
 
   @Test
   public void symbolExtraction10() throws IOException, URISyntaxException {
-    final String CLASS_NAME = SYMBOL_PACKAGE + ".SymbolExtraction10";
-    final String SOURCE_FILE = "SymbolExtraction10.java";
+    final String CLASS_NAME = SYMBOL_PACKAGE + "SymbolExtraction10";
+    final String SOURCE_FILE = SYMBOL_PACKAGE_DIR + "SymbolExtraction10.java";
+    when(config.getDebuggerSymbolFlushThreshold()).thenReturn(2);
     SymbolSinkMock symbolSinkMock = new SymbolSinkMock(config);
     SymbolExtractionTransformer transformer =
         new SymbolExtractionTransformer(symbolSinkMock, config);
     instr.addTransformer(transformer);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     Reflect.on(testClass).call("main", "1").get();
-    transformer.flushScopes(null);
     assertEquals(2, symbolSinkMock.jarScopes.get(0).getScopes().size());
     Scope classScope = symbolSinkMock.jarScopes.get(0).getScopes().get(0);
     assertScope(classScope, ScopeType.CLASS, CLASS_NAME, 3, 6, SOURCE_FILE, 2, 0);
@@ -546,15 +537,14 @@ class SymbolExtractionTransformerTest {
 
   @Test
   public void symbolExtraction11() throws IOException, URISyntaxException {
-    final String CLASS_NAME = SYMBOL_PACKAGE + ".SymbolExtraction11";
-    final String SOURCE_FILE = "SymbolExtraction11.java";
+    final String CLASS_NAME = SYMBOL_PACKAGE + "SymbolExtraction11";
+    final String SOURCE_FILE = SYMBOL_PACKAGE_DIR + "SymbolExtraction11.java";
     SymbolSinkMock symbolSinkMock = new SymbolSinkMock(config);
     SymbolExtractionTransformer transformer =
         new SymbolExtractionTransformer(symbolSinkMock, config);
     instr.addTransformer(transformer);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     Reflect.on(testClass).call("main", 1).get();
-    transformer.flushScopes(null);
     Scope classScope = symbolSinkMock.jarScopes.get(0).getScopes().get(0);
     assertScope(classScope, ScopeType.CLASS, CLASS_NAME, 3, 11, SOURCE_FILE, 2, 1);
     assertSymbol(
@@ -580,15 +570,14 @@ class SymbolExtractionTransformerTest {
 
   @Test
   public void symbolExtraction12() throws IOException, URISyntaxException {
-    final String CLASS_NAME = SYMBOL_PACKAGE + ".SymbolExtraction12";
-    final String SOURCE_FILE = "SymbolExtraction12.java";
+    final String CLASS_NAME = SYMBOL_PACKAGE + "SymbolExtraction12";
+    final String SOURCE_FILE = SYMBOL_PACKAGE_DIR + "SymbolExtraction12.java";
     SymbolSinkMock symbolSinkMock = new SymbolSinkMock(config);
     SymbolExtractionTransformer transformer =
         new SymbolExtractionTransformer(symbolSinkMock, config);
     instr.addTransformer(transformer);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     Reflect.on(testClass).call("main", 1).get();
-    transformer.flushScopes(null);
     Scope classScope = symbolSinkMock.jarScopes.get(0).getScopes().get(0);
     assertScope(classScope, ScopeType.CLASS, CLASS_NAME, 6, 20, SOURCE_FILE, 7, 0);
     assertScope(classScope.getScopes().get(0), ScopeType.METHOD, "<init>", 6, 6, SOURCE_FILE, 0, 0);

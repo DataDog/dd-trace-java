@@ -34,6 +34,7 @@ public class SymbolExtractor {
 
   private static Scope extractScopes(ClassNode classNode, String jarName) {
     try {
+      String sourceFile = extractSourceFile(classNode);
       List<Scope> methodScopes = new ArrayList<>();
       for (MethodNode method : classNode.methods) {
         MethodLineInfo methodLineInfo = extractMethodLineInfo(method);
@@ -41,13 +42,9 @@ public class SymbolExtractor {
         List<Symbol> methodSymbols = new ArrayList<>();
         int localVarBaseSlot = extractArgs(method, methodSymbols, methodLineInfo.start);
         extractScopesFromVariables(
-            classNode.sourceFile, method, methodLineInfo.lineMap, varScopes, localVarBaseSlot);
+            sourceFile, method, methodLineInfo.lineMap, varScopes, localVarBaseSlot);
         Scope methodScope =
-            Scope.builder(
-                    ScopeType.METHOD,
-                    classNode.sourceFile,
-                    methodLineInfo.start,
-                    methodLineInfo.end)
+            Scope.builder(ScopeType.METHOD, sourceFile, methodLineInfo.start, methodLineInfo.end)
                 .name(method.name)
                 .scopes(varScopes)
                 .symbols(methodSymbols)
@@ -68,7 +65,7 @@ public class SymbolExtractor {
             new Symbol(symbolType, fieldNode.name, 0, Type.getType(fieldNode.desc).getClassName()));
       }
       Scope classScope =
-          Scope.builder(ScopeType.CLASS, classNode.sourceFile, classStartLine, classEndLine)
+          Scope.builder(ScopeType.CLASS, sourceFile, classStartLine, classEndLine)
               .name(Strings.getClassName(classNode.name))
               .scopes(methodScopes)
               .symbols(fields)
@@ -81,6 +78,13 @@ public class SymbolExtractor {
       LoggerFactory.getLogger(SymbolExtractor.class).info("", ex);
       return null;
     }
+  }
+
+  private static String extractSourceFile(ClassNode classNode) {
+    String packageName = classNode.name;
+    int idx = packageName.lastIndexOf('/');
+    packageName = idx >= 0 ? packageName.substring(0, idx + 1) : "";
+    return packageName + classNode.sourceFile;
   }
 
   private static int extractArgs(

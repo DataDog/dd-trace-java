@@ -45,6 +45,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_MAX_PAYLOAD_SIZE
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_METRICS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_POLL_INTERVAL;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_SYMBOL_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_SYMBOL_FLUSH_THRESHOLD;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_UPLOAD_BATCH_SIZE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_UPLOAD_FLUSH_INTERVAL;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_UPLOAD_TIMEOUT;
@@ -183,6 +184,7 @@ import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_PROBE_FILE_LOCATI
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_REDACTED_IDENTIFIERS;
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_REDACTED_TYPES;
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_SYMBOL_ENABLED;
+import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_SYMBOL_FLUSH_THRESHOLD;
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_SYMBOL_INCLUDES;
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_UPLOAD_BATCH_SIZE;
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_UPLOAD_FLUSH_INTERVAL;
@@ -735,6 +737,7 @@ public class Config {
   private final String debuggerRedactedTypes;
   private final boolean debuggerSymbolEnabled;
   private final String debuggerSymbolIncludes;
+  private final int debuggerSymbolFlushThreshold;
 
   private final boolean awsPropagationEnabled;
   private final boolean sqsPropagationEnabled;
@@ -1679,6 +1682,9 @@ public class Config {
     debuggerSymbolEnabled =
         configProvider.getBoolean(DEBUGGER_SYMBOL_ENABLED, DEFAULT_DEBUGGER_SYMBOL_ENABLED);
     debuggerSymbolIncludes = configProvider.getString(DEBUGGER_SYMBOL_INCLUDES, null);
+    debuggerSymbolFlushThreshold =
+        configProvider.getInteger(
+            DEBUGGER_SYMBOL_FLUSH_THRESHOLD, DEFAULT_DEBUGGER_SYMBOL_FLUSH_THRESHOLD);
 
     awsPropagationEnabled = isPropagationEnabled(true, "aws", "aws-sdk");
     sqsPropagationEnabled = isPropagationEnabled(true, "sqs");
@@ -2767,6 +2773,10 @@ public class Config {
 
   public String getDebuggerSymbolIncludes() {
     return debuggerSymbolIncludes;
+  }
+
+  public int getDebuggerSymbolFlushThreshold() {
+    return debuggerSymbolFlushThreshold;
   }
 
   public String getFinalDebuggerProbeUrl() {
