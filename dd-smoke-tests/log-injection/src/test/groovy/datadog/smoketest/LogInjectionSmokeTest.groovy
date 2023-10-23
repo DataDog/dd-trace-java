@@ -362,6 +362,11 @@ class JCLInterfaceLog4j1Backend128bTid extends JCLInterfaceLog4j1Backend {}
 
 class JCLInterfaceLog4j2Backend extends LogInjectionSmokeTest {
   def backend() { "Log4j2" }
+
+  // workaround https://github.com/apache/logging-log4j2/issues/1865
+  List additionalArguments() {
+    return ['-Dorg.apache.commons.logging.LogFactory=org.apache.logging.log4j.jcl.LogFactoryImpl' as String]
+  }
 }
 
 class JCLInterfaceLog4j2BackendNoTags extends JCLInterfaceLog4j2Backend {}
@@ -442,6 +447,11 @@ class Slf4jInterfaceJCLToLog4j1LatestBackend extends Slf4jInterfaceJCLToLog4j1Ba
 
 class Slf4jInterfaceJCLToLog4j2Backend extends LogInjectionSmokeTest {
   def backend() { "Log4j2" }
+
+  // workaround https://github.com/apache/logging-log4j2/issues/1865
+  List additionalArguments() {
+    return ['-Dorg.apache.commons.logging.LogFactory=org.apache.logging.log4j.jcl.LogFactoryImpl' as String]
+  }
 }
 
 class Slf4jInterfaceJCLToLog4j2BackendNoTags extends Slf4jInterfaceJCLToLog4j2Backend {}

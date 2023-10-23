@@ -56,6 +56,7 @@ class TaintedObjectsLogTest extends DDSpecification {
     TaintedObjects taintedObjects = TaintedObjects.acquire()
     taintedObjects.taint('A', [new Range(0, 1, new Source(SourceTypes.NONE, null, null), Range.NOT_MARKED)] as Range[])
     taintedObjects.taintInputString('B', new Source(SourceTypes.REQUEST_PARAMETER_NAME, 'test', 'value'))
+    taintedObjects.taintInputCharSequence(new StringBuffer('B'), new Source(SourceTypes.REQUEST_PARAMETER_NAME, 'test', 'value'))
     taintedObjects.taintInputObject(new Date(), new Source(SourceTypes.REQUEST_HEADER_VALUE, 'test', 'value'))
 
     when:

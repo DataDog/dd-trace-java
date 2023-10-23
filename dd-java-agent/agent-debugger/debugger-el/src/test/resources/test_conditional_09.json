@@ -1,0 +1,6 @@
+{
+  "dsl": "password == 'secret123'",
+  "json": {
+    "eq": [{"ref": "password"}, "secret123"]
+  }
+}
