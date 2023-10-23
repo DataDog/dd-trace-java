@@ -194,7 +194,6 @@
 2 com.google.gson.*
 # Need for IAST: we instrument this class
 0 com.google.gson.Gson
-0 com.google.gson.JsonParser
 0 com.google.gson.JsonParserJavacc
 0 com.google.gson.stream.JsonReader
 2 com.google.inject.*
