@@ -31,8 +31,12 @@ import java.util.Queue;
 import java.util.stream.Collectors;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class EvidenceAdapter extends FormattingAdapter<Evidence> {
+
+  private static final Logger log = LoggerFactory.getLogger(EvidenceAdapter.class);
 
   private final JsonAdapter<Source> sourceAdapter;
   private final JsonAdapter<Evidence> defaultAdapter;
@@ -59,7 +63,11 @@ public class EvidenceAdapter extends FormattingAdapter<Evidence> {
   }
 
   private String substring(final String value, final Ranged range) {
-    final int end = Math.min(range.getStart() + range.getLength(), value.length());
+    int end = Math.min(range.getStart() + range.getLength(), value.length());
+    if (end < 0) {
+      log.debug("Invalid negative end parameter for substring. Value: {} Range: {}", value, range);
+      end = value.length();
+    }
     return value.substring(range.getStart(), end);
   }
 
