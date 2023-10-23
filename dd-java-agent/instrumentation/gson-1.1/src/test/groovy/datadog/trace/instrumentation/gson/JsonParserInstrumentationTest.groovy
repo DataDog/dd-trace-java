@@ -31,12 +31,20 @@ class JsonParserInstrumentationTest extends AgentTestRunner {
     given:
     final module = Mock(PropagationModule)
     InstrumentationBridge.registerIastModule(module)
+    final input = inputClass.newInstance(inputClass == StringReader ? json : json.getBytes())
 
     when:
-    final parser = new JsonParser(new StringReader(json))
+    final parser = new JsonParser(input)
 
     then:
-    1 * module.taintIfInputIsTainted(_ as JsonParser, _ as StringReader)
+    1 * module.taintIfInputIsTainted(_ as JsonParser, input)
+    0 * _
+
+    when:
+    parser.ReInit(input)
+
+    then:
+    1 * module.taintIfInputIsTainted(_ as JsonParser, input)
     0 * _
 
     when:
@@ -47,12 +55,17 @@ class JsonParserInstrumentationTest extends AgentTestRunner {
     0 * _
 
     where:
-    json | callsAfterParse
-    '"Test"' | 1
-    '1' | 0
-    '{"name": "nameTest", "value" : "valueTest"}' | 4
-    '[{"name": "nameTest", "value" : "valueTest"}]' | 4
-    '[{"name": "nameTest", "value" : "valueTest"}, {"name": "nameTest2", "value" : "valueTest2"}]' | 8
+    json | inputClass | callsAfterParse
+    '"Test"' | StringReader  | 1
+    '1'| StringReader| 0
+    '{"name": "nameTest", "value" : "valueTest"}'| StringReader| 4
+    '[{"name": "nameTest", "value" : "valueTest"}]'| StringReader| 4
+    '[{"name": "nameTest", "value" : "valueTest"}, {"name": "nameTest2", "value" : "valueTest2"}]'| StringReader | 8
+    '"Test"' | StringReader|  1
+    '1'| ByteArrayInputStream |  0
+    '{"name": "nameTest", "value" : "valueTest"}'| ByteArrayInputStream | 4
+    '[{"name": "nameTest", "value" : "valueTest"}]'| ByteArrayInputStream |  4
+    '[{"name": "nameTest", "value" : "valueTest"}, {"name": "nameTest2", "value" : "valueTest2"}]'| ByteArrayInputStream | 8
   }
 
 
@@ -66,16 +79,8 @@ class JsonParserInstrumentationTest extends AgentTestRunner {
       return name
     }
 
-    void setName(String name) {
-      this.name = name
-    }
-
     String getValue() {
       return value
-    }
-
-    void setValue(String value) {
-      this.value = value
     }
   }
 }

@@ -13,6 +13,7 @@ import datadog.trace.agent.tooling.muzzle.Reference;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Propagation;
 import datadog.trace.api.iast.propagation.PropagationModule;
+import java.io.InputStream;
 import net.bytebuddy.asm.Advice;
 
 @AutoService(Instrumenter.class)
@@ -43,7 +44,22 @@ public class JsonParserInstrumentation extends Instrumenter.Iast
         isConstructor().and(takesArguments(1)).and(takesArgument(0, named("java.io.Reader"))),
         getClass().getName() + "$ConstructAdvice");
     transformation.applyAdvice(
-        isMethod().and(takesArguments(0).and(named("JsonString"))),
+        isConstructor().and(takesArguments(2)).and(takesArguments(InputStream.class, String.class)),
+        getClass().getName() + "$ConstructAdvice");
+    transformation.applyAdvice(
+        isMethod()
+            .and(named("ReInit"))
+            .and(takesArguments(1))
+            .and(takesArgument(0, named("java.io.Reader"))),
+        getClass().getName() + "$ConstructAdvice");
+    transformation.applyAdvice(
+        isMethod()
+            .and(named("ReInit"))
+            .and(takesArguments(2))
+            .and(takesArguments(InputStream.class, String.class)),
+        getClass().getName() + "$ConstructAdvice");
+    transformation.applyAdvice(
+        isMethod().and(named("JsonString")).and(takesArguments(0)),
         getClass().getName() + "$ParseAdvice");
   }
 
@@ -51,7 +67,7 @@ public class JsonParserInstrumentation extends Instrumenter.Iast
     @Advice.OnMethodExit(suppress = Throwable.class)
     @Propagation
     public static void afterInit(
-        @Advice.This Object self, @Advice.Argument(0) final java.io.Reader input) {
+        @Advice.This Object self, @Advice.Argument(0) final java.lang.Object input) {
       final PropagationModule iastModule = InstrumentationBridge.PROPAGATION;
       if (iastModule != null && input != null) {
         iastModule.taintIfInputIsTainted(self, input);
