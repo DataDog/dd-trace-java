@@ -1,5 +1,6 @@
 package datadog.trace.logging.ddlogger;
 
+import datadog.trace.api.Resettable;
 import datadog.trace.logging.LogLevel;
 import datadog.trace.logging.LogLevelSwitcher;
 import datadog.trace.logging.LoggerHelper;
@@ -10,7 +11,7 @@ import org.slf4j.ILoggerFactory;
 import org.slf4j.Logger;
 import org.slf4j.Marker;
 
-public class DDLoggerFactory implements ILoggerFactory, LogLevelSwitcher {
+public class DDLoggerFactory implements ILoggerFactory, LogLevelSwitcher, Resettable {
 
   private volatile LoggerHelperFactory helperFactory = null;
 
@@ -74,5 +75,10 @@ public class DDLoggerFactory implements ILoggerFactory, LogLevelSwitcher {
       }
     }
     return factory;
+  }
+
+  @Override
+  public void reset() {
+    helperFactory = null;
   }
 }
