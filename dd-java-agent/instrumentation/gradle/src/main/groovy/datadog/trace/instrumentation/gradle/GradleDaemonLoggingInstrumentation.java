@@ -4,10 +4,8 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.api.Resettable;
+import datadog.trace.logging.GlobalLogLevelSwitcher;
 import net.bytebuddy.asm.Advice;
-import org.slf4j.ILoggerFactory;
-import org.slf4j.LoggerFactory;
 
 @AutoService(Instrumenter.class)
 public class GradleDaemonLoggingInstrumentation extends Instrumenter.CiVisibility
@@ -43,11 +41,7 @@ public class GradleDaemonLoggingInstrumentation extends Instrumenter.CiVisibilit
   public static class ReinitialiseLogging {
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void reinitialiseTracerLogging() {
-      ILoggerFactory loggerFactory = LoggerFactory.getILoggerFactory();
-      if (loggerFactory instanceof Resettable) {
-        Resettable resettable = (Resettable) loggerFactory;
-        resettable.reset();
-      }
+      GlobalLogLevelSwitcher.get().reinitialize();
     }
   }
 }
