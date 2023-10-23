@@ -179,6 +179,8 @@ import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_MAX_PAYLOAD_SIZE;
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_METRICS_ENABLED;
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_POLL_INTERVAL;
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_PROBE_FILE_LOCATION;
+import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_REDACTED_IDENTIFIERS;
+import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_REDACTED_TYPES;
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_UPLOAD_BATCH_SIZE;
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_UPLOAD_FLUSH_INTERVAL;
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_UPLOAD_TIMEOUT;
@@ -726,6 +728,8 @@ public class Config {
   private final boolean debuggerInstrumentTheWorld;
   private final String debuggerExcludeFiles;
   private final int debuggerCaptureTimeout;
+  private final String debuggerRedactedIdentifiers;
+  private final String debuggerRedactedTypes;
 
   private final boolean awsPropagationEnabled;
   private final boolean sqsPropagationEnabled;
@@ -1665,6 +1669,8 @@ public class Config {
     debuggerExcludeFiles = configProvider.getString(DEBUGGER_EXCLUDE_FILES);
     debuggerCaptureTimeout =
         configProvider.getInteger(DEBUGGER_CAPTURE_TIMEOUT, DEFAULT_DEBUGGER_CAPTURE_TIMEOUT);
+    debuggerRedactedIdentifiers = configProvider.getString(DEBUGGER_REDACTED_IDENTIFIERS, null);
+    debuggerRedactedTypes = configProvider.getString(DEBUGGER_REDACTED_TYPES, null);
 
     awsPropagationEnabled = isPropagationEnabled(true, "aws", "aws-sdk");
     sqsPropagationEnabled = isPropagationEnabled(true, "sqs");
@@ -2759,6 +2765,14 @@ public class Config {
 
   public String getDebuggerProbeFileLocation() {
     return debuggerProbeFileLocation;
+  }
+
+  public String getDebuggerRedactedIdentifiers() {
+    return debuggerRedactedIdentifiers;
+  }
+
+  public String getDebuggerRedactedTypes() {
+    return debuggerRedactedTypes;
   }
 
   public boolean isAwsPropagationEnabled() {

@@ -117,7 +117,7 @@ public class DependencyResolver {
       fileName = lastPart.substring(lastPart.lastIndexOf("/") + 1);
 
       return Dependency.guessFallbackNoPom(manifest, fileName, jarConnection.getInputStream());
-    } catch (IOException e) {
+    } catch (Exception e) {
       log.debug("unable to open nested jar manifest for {}", uri, e);
     }
     log.debug(

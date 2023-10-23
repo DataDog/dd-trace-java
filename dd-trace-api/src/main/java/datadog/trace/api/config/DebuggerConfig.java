@@ -22,6 +22,9 @@ public final class DebuggerConfig {
       "dynamic.instrumentation.instrument.the.world";
   public static final String DEBUGGER_EXCLUDE_FILES = "dynamic.instrumentation.exclude.files";
   public static final String DEBUGGER_CAPTURE_TIMEOUT = "dynamic.instrumentation.capture.timeout";
+  public static final String DEBUGGER_REDACTED_IDENTIFIERS =
+      "dynamic.instrumentation.redacted.identifiers";
+  public static final String DEBUGGER_REDACTED_TYPES = "dynamic.instrumentation.redacted.types";
 
   private DebuggerConfig() {}
 }

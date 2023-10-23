@@ -17,7 +17,7 @@ class ShadowPackageRenamingTest extends Specification {
     final URL agentOkioDep =
       ddClass
       .getClassLoader()
-      .loadClass("okio.BufferedSink")
+      .loadClass("datadog.okio.BufferedSink")
       .getProtectionDomain()
       .getCodeSource()
       .getLocation()

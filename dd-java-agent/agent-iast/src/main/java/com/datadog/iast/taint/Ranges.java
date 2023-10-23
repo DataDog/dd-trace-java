@@ -41,8 +41,8 @@ public final class Ranges {
 
   private Ranges() {}
 
-  public static Range[] forString(
-      final @Nonnull String obj, final @Nonnull Source source, final int mark) {
+  public static Range[] forCharSequence(
+      final @Nonnull CharSequence obj, final @Nonnull Source source, final int mark) {
     return new Range[] {new Range(0, obj.length(), source, mark)};
   }
 

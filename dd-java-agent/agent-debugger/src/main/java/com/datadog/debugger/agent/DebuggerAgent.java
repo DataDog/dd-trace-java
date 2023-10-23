@@ -12,6 +12,7 @@ import datadog.remoteconfig.Product;
 import datadog.remoteconfig.SizeCheckedInputStream;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.debugger.DebuggerContext;
+import datadog.trace.bootstrap.debugger.util.Redaction;
 import java.io.ByteArrayOutputStream;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -21,7 +22,6 @@ import java.lang.instrument.Instrumentation;
 import java.lang.ref.WeakReference;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.Objects;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -43,14 +43,11 @@ public class DebuggerAgent {
     log.info("Starting Dynamic Instrumentation");
     ClassesToRetransformFinder classesToRetransformFinder = new ClassesToRetransformFinder();
     setupSourceFileTracking(instrumentation, classesToRetransformFinder);
-    String finalDebuggerSnapshotUrl = config.getFinalDebuggerSnapshotUrl();
-    String agentUrl = config.getAgentUrl();
-    boolean isSnapshotUploadThroughAgent = Objects.equals(finalDebuggerSnapshotUrl, agentUrl);
-
+    Redaction.addUserDefinedKeywords(config);
+    Redaction.addUserDefinedTypes(config);
     DDAgentFeaturesDiscovery ddAgentFeaturesDiscovery = sco.featuresDiscovery(config);
     ddAgentFeaturesDiscovery.discoverIfOutdated();
     agentVersion = ddAgentFeaturesDiscovery.getVersion();
-
     DebuggerSink debuggerSink = new DebuggerSink(config);
     debuggerSink.start();
     ConfigurationUpdater configurationUpdater =
@@ -71,19 +68,15 @@ public class DebuggerAgent {
       setupInstrumentTheWorldTransformer(
           config, instrumentation, debuggerSink, statsdMetricForwarder);
     }
-
     String probeFileLocation = config.getDebuggerProbeFileLocation();
-
     if (probeFileLocation != null) {
       Path probeFilePath = Paths.get(probeFileLocation);
       loadFromFile(probeFilePath, configurationUpdater, config.getDebuggerMaxPayloadSize());
       return;
     }
-
     configurationPoller = sco.configurationPoller(config);
     if (configurationPoller != null) {
       subscribeConfigurationPoller(config, configurationUpdater);
-
       try {
         /*
         Note: shutdown hooks are tricky because JVM holds reference for them forever preventing

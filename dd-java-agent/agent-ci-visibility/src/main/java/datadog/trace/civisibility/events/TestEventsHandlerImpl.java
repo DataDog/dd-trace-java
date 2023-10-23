@@ -14,7 +14,6 @@ import datadog.trace.civisibility.DDTestSuiteImpl;
 import java.lang.reflect.Method;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import javax.annotation.Nullable;
@@ -258,7 +257,7 @@ public class TestEventsHandlerImpl implements TestEventsHandler {
       final @Nullable String testFramework,
       final @Nullable String testFrameworkVersion,
       final @Nullable String testParameters,
-      final @Nullable List<String> categories,
+      final @Nullable Collection<String> categories,
       final @Nullable Class<?> testClass,
       final @Nullable String testMethodName,
       final @Nullable Method testMethod,

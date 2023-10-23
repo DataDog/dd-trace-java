@@ -2,56 +2,56 @@ package datadog.trace.instrumentation.junit5;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-import static net.bytebuddy.matcher.ElementMatchers.takesNoArguments;
+import static net.bytebuddy.matcher.ElementMatchers.not;
+import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
-import java.util.ArrayList;
-import java.util.Collection;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
+import org.junit.platform.engine.EngineExecutionListener;
+import org.junit.platform.engine.ExecutionRequest;
 import org.junit.platform.engine.TestEngine;
 import org.junit.platform.engine.support.hierarchical.SameThreadHierarchicalTestExecutorService;
-import org.junit.platform.launcher.TestExecutionListener;
-import org.junit.platform.launcher.core.LauncherConfig;
 
 @AutoService(Instrumenter.class)
 public class JUnit5Instrumentation extends Instrumenter.CiVisibility
     implements Instrumenter.ForTypeHierarchy {
 
   public JUnit5Instrumentation() {
-    super("junit", "junit-5");
+    super("ci-visibility", "junit-5");
   }
 
   @Override
   public String hierarchyMarkerType() {
-    return "org.junit.platform.launcher.core.LauncherConfig";
+    return "org.junit.platform.engine.TestEngine";
   }
 
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return implementsInterface(named(hierarchyMarkerType()));
+    return implementsInterface(named(hierarchyMarkerType()))
+        // JUnit 4 has a dedicated instrumentation
+        .and(not(named("org.junit.vintage.engine.VintageTestEngine")))
+        // suites are only used to organize other test engines
+        .and(not(named("org.junit.platform.suite.engine.SuiteTestEngine")));
   }
 
   @Override
   public String[] helperClassNames() {
     return new String[] {
       packageName + ".JUnitPlatformUtils",
-      packageName + ".JUnitPlatformUtils$Cucumber",
-      packageName + ".JUnitPlatformUtils$Spock",
-      packageName + ".JUnitPlatformLauncherUtils",
-      packageName + ".JUnitPlatformLauncherUtils$Cucumber",
       packageName + ".TestEventsHandlerHolder",
       packageName + ".TracingListener",
+      packageName + ".CompositeEngineListener",
     };
   }
 
   @Override
   public void adviceTransformations(AdviceTransformation transformation) {
     transformation.applyAdvice(
-        named("getAdditionalTestExecutionListeners").and(takesNoArguments()),
+        named("execute").and(takesArgument(0, named("org.junit.platform.engine.ExecutionRequest"))),
         JUnit5Instrumentation.class.getName() + "$JUnit5Advice");
   }
 
@@ -59,11 +59,20 @@ public class JUnit5Instrumentation extends Instrumenter.CiVisibility
 
     @SuppressFBWarnings(
         value = "UC_USELESS_OBJECT",
-        justification = "listeners is the return value of the instrumented method")
-    @Advice.OnMethodExit
+        justification = "executionRequest is the argument of the original method")
+    @Advice.OnMethodEnter
     public static void addTracingListener(
-        @Advice.This LauncherConfig config,
-        @Advice.Return(readOnly = false) Collection<TestExecutionListener> listeners) {
+        @Advice.This TestEngine testEngine,
+        @Advice.Argument(value = 0, readOnly = false) ExecutionRequest executionRequest) {
+      String testEngineClassName = testEngine.getClass().getName();
+      if (testEngineClassName.startsWith("io.cucumber")
+          || testEngineClassName.startsWith("org.spockframework")) {
+        // Cucumber and Spock have dedicated instrumentations.
+        // We can only filter out calls to their engines at runtime,
+        // since they do not declare their own "execute" method,
+        // but inherit it from their parent class
+        return;
+      }
 
       if (JUnitPlatformUtils.isTestInProgress()) {
         // a test case that is in progress starts a new JUnit instance.
@@ -75,13 +84,15 @@ public class JUnit5Instrumentation extends Instrumenter.CiVisibility
         return;
       }
 
-      Collection<TestEngine> testEngines = JUnitPlatformLauncherUtils.getTestEngines(config);
-      final TracingListener listener = new TracingListener(testEngines);
-
-      Collection<TestExecutionListener> modifiedListeners = new ArrayList<>(listeners);
-      modifiedListeners.add(listener);
-
-      listeners = modifiedListeners;
+      TracingListener tracingListener = new TracingListener(testEngine);
+      EngineExecutionListener originalListener = executionRequest.getEngineExecutionListener();
+      EngineExecutionListener compositeListener =
+          new CompositeEngineListener(tracingListener, originalListener);
+      executionRequest =
+          new ExecutionRequest(
+              executionRequest.getRootTestDescriptor(),
+              compositeListener,
+              executionRequest.getConfigurationParameters());
     }
 
     // JUnit 5.3.0 and above

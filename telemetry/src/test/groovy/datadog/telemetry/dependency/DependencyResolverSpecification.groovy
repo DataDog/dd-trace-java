@@ -152,6 +152,33 @@ class DependencyResolverSpecification extends DepSpecification {
     temp.delete()
   }
 
+  void 'try to determine non existing lib name'() throws IOException {
+    setup:
+    File temp = File.createTempFile('temp', '.zip')
+    temp.delete()
+
+    expect:
+    DependencyResolver.extractDependenciesFromJar(temp).isEmpty()
+  }
+
+  void 'try to determine invalid jar lib'() throws IOException {
+    setup:
+    File temp = File.createTempFile('temp', '.jar')
+    temp.write("just a text file")
+
+    expect:
+    DependencyResolver.extractDependenciesFromJar(temp).isEmpty()
+  }
+
+  void 'try to determine invalid jar lib'() throws IOException {
+    setup:
+    File temp = File.createTempFile('temp', '.jar')
+    temp.write("just a text file")
+
+    expect:
+    DependencyResolver.getNestedDependency(temp.toURI()) == null
+  }
+
   void 'spring boot dependency'() throws IOException {
     setup:
     org.springframework.boot.loader.jar.JarFile.registerUrlProtocolHandler()

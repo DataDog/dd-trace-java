@@ -29,7 +29,7 @@ public class MethodHandles {
       return lookup.unreflectGetter(field);
 
     } catch (Throwable t) {
-      log.error("Could not get private field {} getter from class {}", fieldName, className, t);
+      log.debug("Could not get private field {} getter from class {}", fieldName, className, t);
       return null;
     }
   }
@@ -42,7 +42,7 @@ public class MethodHandles {
       return lookup.unreflectConstructor(constructor);
 
     } catch (Throwable t) {
-      log.error(
+      log.debug(
           "Could not get constructor accepting {} from class {}",
           Arrays.toString(parameterTypes),
           className,
