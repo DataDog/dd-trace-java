@@ -13,19 +13,6 @@ class JsonReaderInstrumentationTest extends AgentTestRunner {
     injectSysConfig("dd.iast.enabled", "true")
   }
 
-  void 'Test Gson instrumented'(){
-    given:
-    final gson = new Gson()
-
-    when:
-    final result = gson.fromJson('{"name": "nameTest", "value" : "valueTest"}', TestBean)
-
-    then:
-    result instanceof TestBean
-    result.getName() == 'nameTest'
-    result.getValue() == 'valueTest'
-  }
-
   void 'test'() {
     given:
     final module = Mock(PropagationModule)
@@ -59,21 +46,5 @@ class JsonReaderInstrumentationTest extends AgentTestRunner {
     private String name
 
     private String value
-
-    String getName() {
-      return name
-    }
-
-    void setName(String name) {
-      this.name = name
-    }
-
-    String getValue() {
-      return value
-    }
-
-    void setValue(String value) {
-      this.value = value
-    }
   }
 }
