@@ -13,6 +13,7 @@ import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstanceStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.core.SdkRequest;
@@ -125,7 +126,17 @@ public class TracingExecutionInterceptor implements ExecutionInterceptor {
     final AgentSpan span = executionAttributes.getAttribute(SPAN_ATTRIBUTE);
     if (span != null) {
       executionAttributes.putAttribute(SPAN_ATTRIBUTE, null);
-      DECORATE.onError(span, context.exception());
+      Optional<SdkResponse> responseOpt = context.response();
+      if (responseOpt.isPresent()) {
+        SdkResponse response = responseOpt.get();
+        DECORATE.onSdkResponse(span, response, executionAttributes);
+        DECORATE.onResponse(span, response.sdkHttpResponse());
+        if (span.isError()) {
+          DECORATE.onError(span, context.exception());
+        }
+      } else {
+        DECORATE.onError(span, context.exception());
+      }
       DECORATE.beforeFinish(span);
       span.finish();
     }

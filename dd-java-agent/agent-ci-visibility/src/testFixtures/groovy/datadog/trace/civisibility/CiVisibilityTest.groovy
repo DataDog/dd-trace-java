@@ -367,7 +367,7 @@ abstract class CiVisibilityTest extends AgentTestRunner {
     return testSuiteId
   }
 
-  void testSpan(final TraceAssert trace,
+  long testSpan(final TraceAssert trace,
   final int index,
   final Long testSessionId,
   final Long testModuleId,
@@ -385,7 +385,10 @@ abstract class CiVisibilityTest extends AgentTestRunner {
     def testFramework = expectedTestFramework()
     def testFrameworkVersion = expectedTestFrameworkVersion()
 
+    def testId
     trace.span(index) {
+      testId = span.getSpanId()
+
       parent()
       operationName expectedOperationPrefix() + ".test"
       resourceName "$testSuite.$testName"
@@ -446,6 +449,7 @@ abstract class CiVisibilityTest extends AgentTestRunner {
         defaultTags()
       }
     }
+    return testId
   }
 
   String component = component()

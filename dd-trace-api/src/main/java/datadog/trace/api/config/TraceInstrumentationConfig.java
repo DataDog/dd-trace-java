@@ -47,6 +47,7 @@ public final class TraceInstrumentationConfig {
   public static final String DB_CLIENT_HOST_SPLIT_BY_INSTANCE = "trace.db.client.split-by-instance";
   public static final String DB_CLIENT_HOST_SPLIT_BY_INSTANCE_TYPE_SUFFIX =
       "trace.db.client.split-by-instance.type.suffix";
+  public static final String DB_CLIENT_HOST_SPLIT_BY_HOST = "trace.db.client.split-by-host";
 
   public static final String JDBC_PREPARED_STATEMENT_CLASS_NAME =
       "trace.jdbc.prepared.statement.class.name";
@@ -54,6 +55,9 @@ public final class TraceInstrumentationConfig {
   public static final String DB_DBM_PROPAGATION_MODE_MODE = "dbm.propagation.mode";
 
   public static final String JDBC_CONNECTION_CLASS_NAME = "trace.jdbc.connection.class.name";
+
+  public static final String HTTP_URL_CONNECTION_CLASS_NAME =
+      "trace.http.url.connection.class.name";
 
   public static final String RUNTIME_CONTEXT_FIELD_INJECTION =
       "trace.runtime.context.field.injection";

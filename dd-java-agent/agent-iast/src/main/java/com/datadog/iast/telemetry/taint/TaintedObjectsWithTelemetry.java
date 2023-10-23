@@ -57,6 +57,16 @@ public class TaintedObjectsWithTelemetry implements TaintedObjects {
   }
 
   @Override
+  public TaintedObject taintInputCharSequence(
+      @Nonnull CharSequence obj, @Nonnull Source source, int mark) {
+    final TaintedObject result = delegate.taintInputCharSequence(obj, source, mark);
+    if (debug) {
+      IastMetricCollector.add(EXECUTED_TAINTED, 1, ctx);
+    }
+    return result;
+  }
+
+  @Override
   public TaintedObject taint(@Nonnull Object obj, @Nonnull Range[] ranges) {
     final TaintedObject result = delegate.taint(obj, ranges);
     if (debug) {

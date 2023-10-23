@@ -132,6 +132,12 @@ if (project.gradle.startParameter.taskNames.any {it.endsWith("generateMuzzleRepo
 
 tasks.named('shadowJar').configure {
   duplicatesStrategy = DuplicatesStrategy.FAIL
+  dependencies {
+    // the tracer is now in a separate shadow jar
+    exclude(project(":dd-trace-core"))
+    exclude(dependency('com.datadoghq:sketches-java'))
+    exclude(dependency('com.google.re2j:re2j'))
+  }
   dependencies deps.excludeShared
 }
 

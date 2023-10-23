@@ -54,6 +54,18 @@ public class SayTracedHello {
     return sayHello() + sayHAWithResource();
   }
 
+  @Trace(measured = true)
+  public static String sayHelloMeasured() {
+    activeSpan().setTag(DDTags.SERVICE_NAME, "test");
+    return "hello!";
+  }
+
+  @Trace(noParent = true)
+  public static String sayHelloNoParent() {
+    activeSpan().setTag(DDTags.SERVICE_NAME, "test");
+    return "hello!";
+  }
+
   @Trace(operationName = "ERROR")
   public static String sayERROR() {
     throw new RuntimeException();

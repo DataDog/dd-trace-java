@@ -16,7 +16,10 @@
 package com.datadog.profiling.controller.openjdk;
 
 import static com.datadog.profiling.controller.ProfilingSupport.*;
+import static com.datadog.profiling.controller.ProfilingSupport.isObjectCountParallelized;
 import static datadog.trace.api.Platform.isJavaVersionAtLeast;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_HEAP_HISTOGRAM_ENABLED;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_HEAP_HISTOGRAM_ENABLED_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_ULTRA_MINIMAL;
 
 import com.datadog.profiling.controller.ConfigurationException;
@@ -97,6 +100,16 @@ public final class OpenJdkController implements Controller {
 
     if (!isFileWriteDurationCorrect()) {
       disableEvent(recordingSettings, "jdk.FileWrite", EXPENSIVE_ON_CURRENT_JVM);
+    }
+
+    if (configProvider.getBoolean(
+        PROFILING_HEAP_HISTOGRAM_ENABLED, PROFILING_HEAP_HISTOGRAM_ENABLED_DEFAULT)) {
+      if (!isObjectCountParallelized()) {
+        log.warn(
+            "enabling Datadog heap histogram on JVM without an efficient implementation of the jdk.ObjectCount event. "
+                + "This may increase p99 latency. Consider upgrading to JDK 17.0.9+ or 21+ to reduce latency impact.");
+      }
+      enableEvent(recordingSettings, "jdk.ObjectCount", "user enabled histogram heap collection");
     }
 
     // Toggle settings from override file

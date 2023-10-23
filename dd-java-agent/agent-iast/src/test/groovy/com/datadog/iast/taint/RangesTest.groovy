@@ -23,7 +23,7 @@ class RangesTest extends DDSpecification {
     final source = new Source(SourceTypes.NONE, null, null)
 
     when:
-    final result = Ranges.forString(s, source, VulnerabilityMarks.SQL_INJECTION_MARK)
+    final result = Ranges.forCharSequence(s, source, VulnerabilityMarks.SQL_INJECTION_MARK)
 
     then:
     result != null

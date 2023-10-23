@@ -180,6 +180,19 @@ public class ProbeConditionTest {
     assertEquals("Unsupported operation 'gte'", ex.getMessage());
   }
 
+  @Test
+  void redaction() throws IOException {
+    ProbeCondition probeCondition = load("/test_conditional_09.json");
+    Map<String, Object> args = new HashMap<>();
+    args.put("password", "secret123");
+    ValueReferenceResolver ctx = RefResolverHelper.createResolver(args, null, null);
+    EvaluationException evaluationException =
+        assertThrows(EvaluationException.class, () -> probeCondition.execute(ctx));
+    assertEquals(
+        "Could not evaluate the expression because 'password' was redacted",
+        evaluationException.getMessage());
+  }
+
   private static ProbeCondition load(String resourcePath) throws IOException {
     InputStream input = ProbeConditionTest.class.getResourceAsStream(resourcePath);
     Moshi moshi =
