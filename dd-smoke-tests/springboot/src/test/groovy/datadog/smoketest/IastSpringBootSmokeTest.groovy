@@ -1,6 +1,7 @@
 package datadog.smoketest
 
 import groovy.transform.CompileDynamic
+import okhttp3.FormBody
 import okhttp3.Request
 import okhttp3.Response
 
@@ -30,8 +31,9 @@ class IastSpringBootSmokeTest extends AbstractIastSpringBootTest {
   void 'gson deserialization'() {
 
     given:
-    final url = "http://localhost:${httpPort}/gson_deserialization?json=%7B%22name%22%3A%20%22gsonTest%22%2C%20%22value%22%20%3A%20%22valueTest%22%7D"
-    final request = new Request.Builder().url(url).get().build()
+    final url = "http://localhost:${httpPort}/gson_deserialization"
+    final body = new FormBody.Builder().add('json', '{"name": "gsonTest", "value" : "valueTest"}').build()
+    final request = new Request.Builder().url(url).post(body).build()
 
     when:
     client.newCall(request).execute()

@@ -344,7 +344,7 @@ public class IastWebController {
     return String.format("Request.getRequestURI returns %s", pathInfo);
   }
 
-  @GetMapping("/gson_deserialization")
+  @PostMapping("/gson_deserialization")
   String gson(@RequestParam("json") String json) {
     Gson gson = new Gson();
     TestBean testBean = gson.fromJson(json, TestBean.class);
