@@ -310,6 +310,7 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.GRPC_SERVER_TR
 import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_CLIENT_HOST_SPLIT_BY_DOMAIN;
 import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_CLIENT_TAG_HEADERS;
 import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_CLIENT_TAG_QUERY_STRING;
+import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_SERVER_DECODED_RESOURCE_PRESERVE_SPACES;
 import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_SERVER_RAW_QUERY_STRING;
 import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_SERVER_RAW_RESOURCE;
 import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_SERVER_ROUTE_BASED_NAMING;
@@ -545,6 +546,7 @@ public class Config {
   private final boolean httpServerTagQueryString;
   private final boolean httpServerRawQueryString;
   private final boolean httpServerRawResource;
+  private final boolean httpServerDecodedResourcePreserveSpaces;
   private final boolean httpServerRouteBasedNaming;
   private final Map<String, String> httpServerPathResourceNameMapping;
   private final Map<String, String> httpClientPathResourceNameMapping;
@@ -1092,6 +1094,9 @@ public class Config {
     httpServerRawQueryString = configProvider.getBoolean(HTTP_SERVER_RAW_QUERY_STRING, true);
 
     httpServerRawResource = configProvider.getBoolean(HTTP_SERVER_RAW_RESOURCE, false);
+
+    httpServerDecodedResourcePreserveSpaces =
+        configProvider.getBoolean(HTTP_SERVER_DECODED_RESOURCE_PRESERVE_SPACES, true);
 
     httpServerRouteBasedNaming =
         configProvider.getBoolean(
@@ -2034,6 +2039,10 @@ public class Config {
 
   public boolean isHttpServerRawResource() {
     return httpServerRawResource;
+  }
+
+  public boolean isHttpServerDecodedResourcePreserveSpaces() {
+    return httpServerDecodedResourcePreserveSpaces;
   }
 
   public boolean isHttpServerRouteBasedNaming() {

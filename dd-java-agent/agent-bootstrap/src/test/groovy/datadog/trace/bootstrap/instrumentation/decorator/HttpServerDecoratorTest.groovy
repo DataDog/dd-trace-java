@@ -23,6 +23,7 @@ import datadog.trace.core.datastreams.DataStreamsMonitoring
 import java.util.function.Function
 import java.util.function.Supplier
 
+import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_SERVER_DECODED_RESOURCE_PRESERVE_SPACES
 import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_SERVER_RAW_QUERY_STRING
 import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_SERVER_RAW_RESOURCE
 import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_SERVER_TAG_QUERY_STRING
@@ -151,6 +152,20 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
     true     | true        | "http://host/p%20ath?query%3F?" | "http://host/p%20ath" | "query%3F?"   | "/p%20ath"
 
     req = [url: url == null ? null : new URI(url)]
+  }
+
+  void 'url handling without space preservation'() {
+    setup:
+    injectSysConfig(HTTP_SERVER_RAW_RESOURCE, 'false')
+    injectSysConfig(HTTP_SERVER_DECODED_RESOURCE_PRESERVE_SPACES, 'false')
+    def decorator = newDecorator()
+
+    when:
+    decorator.onRequest(this.span, null, [url: new URI('http://host/p%20ath')], null)
+
+    then:
+    1 * this.span.setResourceName({ it as String == '/path' }, ResourceNamePriorities.HTTP_PATH_NORMALIZER)
+    _ * _
   }
 
   def "test onConnection"() {
