@@ -150,7 +150,13 @@ public class Agent {
     createAgentClassloader(agentJarURL);
 
     if (Platform.isNativeImageBuilder()) {
+      // these default services are not used during native-image builds
+      jmxFetchEnabled = false;
+      remoteConfigEnabled = false;
+      telemetryEnabled = false;
+      // apply trace instrumentation, but skip starting other services
       startDatadogAgent(inst);
+      StaticEventLogger.end("Agent.start");
       return;
     }
 
