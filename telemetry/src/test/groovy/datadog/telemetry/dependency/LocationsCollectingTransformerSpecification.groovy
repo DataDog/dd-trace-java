@@ -92,7 +92,8 @@ class LocationsCollectingTransformerSpecification extends DepSpecification {
     }
 
     then:
-    nDomains * depService.addURL(_)
+    nDomains * depService.add(_)
+    0 * _
   }
 
   @Timeout(10)
@@ -129,7 +130,7 @@ class LocationsCollectingTransformerSpecification extends DepSpecification {
     futures.each { it.get() }
 
     then:
-    nDomains * depService.addURL(_)
+    nDomains * depService.add(_)
     0 * _
 
     cleanup:
@@ -165,7 +166,7 @@ class LocationsCollectingTransformerSpecification extends DepSpecification {
     futures.each { it.get() }
 
     then:
-    (1..threads) * depService.addURL(_)
+    (1..threads) * depService.add(_)
     0 * _
 
     cleanup:

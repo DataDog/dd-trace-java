@@ -8,6 +8,11 @@ import java.util.jar.Manifest
 
 class DependencyResolverSpecification extends DepSpecification {
 
+  void 'null is safe'() {
+    expect:
+    DependencyResolver.fromURL(null).isEmpty()
+  }
+
   void 'guess groupId/artifactId from bundleSymbolicName - #jar'() {
     expect:
     knownJarCheck(
@@ -98,7 +103,7 @@ class DependencyResolverSpecification extends DepSpecification {
     JarFile file = new JarFile(jar)
     Manifest manifest = file.manifest
     String source = jar.name
-    Dependency dep = Dependency.guessFallbackNoPom(manifest, source, new FileInputStream(jar))
+    Dependency dep = DependencyResolver.guessFallbackNoPom(manifest, source, new FileInputStream(jar))
 
     then:
     dep != null
@@ -115,7 +120,7 @@ class DependencyResolverSpecification extends DepSpecification {
     JarFile file = new JarFile(jar)
     Manifest manifest = file.manifest
     String source = jar.name
-    Dependency dep = Dependency.guessFallbackNoPom(manifest, source, new FileInputStream(jar))
+    Dependency dep = DependencyResolver.guessFallbackNoPom(manifest, source, new FileInputStream(jar))
 
     then:
     dep != null
@@ -131,7 +136,7 @@ class DependencyResolverSpecification extends DepSpecification {
     JarFile file = new JarFile(jar)
     Manifest manifest = file.manifest
     String source = jar.name
-    Dependency dep = Dependency.guessFallbackNoPom(manifest, source, new FileInputStream(jar))
+    Dependency dep = DependencyResolver.guessFallbackNoPom(manifest, source, new FileInputStream(jar))
 
     then:
     dep != null
@@ -141,12 +146,38 @@ class DependencyResolverSpecification extends DepSpecification {
     dep.source == 'hsqldb-2.3.5-jdk6debug.jar'
   }
 
+  void 'test guessFallbackNoPom with bundle-symbolicname = #bundleSymbolicName'() {
+    given:
+    final attributes = Mock(Attributes) {
+      getValue('bundle-symbolicname') >> bundleSymbolicName
+    }
+    final manifest = Mock(Manifest) {
+      getMainAttributes() >> attributes
+    }
+    final stream = Mock(InputStream)
+
+    when:
+    DependencyResolver.guessFallbackNoPom(manifest, "abc", stream)
+
+    then:
+    noExceptionThrown()
+
+    where:
+    bundleSymbolicName              | _
+    null                            | _
+    ''                              | _
+    'org.osgi.framework.bsnversion' | _
+  }
+
   void 'try to determine lib name'() throws IOException {
     setup:
-    File temp = File.createTempFile('temp', '.zip')
+    def temp = File.createTempFile('temp', '.zip')
 
-    expect:
-    DependencyResolver.extractDependenciesFromJar(temp).isEmpty()
+    when:
+    def deps = DependencyResolver.fromURL(temp.toURL())
+
+    then:
+    deps.isEmpty()
 
     cleanup:
     temp.delete()
@@ -154,40 +185,48 @@ class DependencyResolverSpecification extends DepSpecification {
 
   void 'try to determine non existing lib name'() throws IOException {
     setup:
-    File temp = File.createTempFile('temp', '.zip')
+    def temp = File.createTempFile('temp', '.zip')
     temp.delete()
 
-    expect:
-    DependencyResolver.extractDependenciesFromJar(temp).isEmpty()
+    when:
+    def deps= DependencyResolver.fromURL(temp.toURL())
+
+    then:
+    deps.isEmpty()
   }
 
   void 'try to determine invalid jar lib'() throws IOException {
     setup:
-    File temp = File.createTempFile('temp', '.jar')
+    def temp = File.createTempFile('temp', '.jar')
     temp.write("just a text file")
 
-    expect:
-    DependencyResolver.extractDependenciesFromJar(temp).isEmpty()
+    when:
+    def deps= DependencyResolver.fromURL(temp.toURL())
+
+    then:
+    deps.isEmpty()
   }
 
-  void 'try to determine invalid jar lib'() throws IOException {
+  void 'try to determine invalid nested jar lib'() throws IOException {
     setup:
-    File temp = File.createTempFile('temp', '.jar')
+    def temp = File.createTempFile('temp', '.jar')
     temp.write("just a text file")
 
-    expect:
-    DependencyResolver.getNestedDependency(temp.toURI()) == null
+    when:
+    def dep = DependencyResolver.fromNestedJar(temp.toURL())
+
+    then:
+    dep == null
   }
 
   void 'spring boot dependency'() throws IOException {
-    setup:
+    given:
     org.springframework.boot.loader.jar.JarFile.registerUrlProtocolHandler()
+    def zipPath = Classloader.classLoader.getResource('datadog/telemetry/dependencies/spring-boot-app.jar').path
+    def url = new URL("jar:file:$zipPath!/BOOT-INF/lib/opentracing-util-0.33.0.jar!/")
 
     when:
-    String zipPath = Classloader.classLoader.getResource('datadog/telemetry/dependencies/spring-boot-app.jar').path
-    URI uri = new URI("jar:file:$zipPath!/BOOT-INF/lib/opentracing-util-0.33.0.jar!/")
-
-    Dependency dep = DependencyResolver.resolve(uri).get(0)
+    Dependency dep = DependencyResolver.fromURL(url).get(0)
 
     then:
     dep != null
@@ -198,26 +237,24 @@ class DependencyResolverSpecification extends DepSpecification {
   }
 
   void 'fat jar with multiple pom.properties'() throws IOException {
-    setup:
+    given:
     org.springframework.boot.loader.jar.JarFile.registerUrlProtocolHandler()
+    def url = Classloader.classLoader.getResource('datadog/telemetry/dependencies/budgetapp.jar')
 
     when:
-    URI uri = Classloader.classLoader.getResource('datadog/telemetry/dependencies/budgetapp.jar').toURI()
-
-    List<Dependency> deps = DependencyResolver.resolve(uri)
+    List<Dependency> deps = DependencyResolver.fromURL(url)
 
     then:
     deps.size() == 105
   }
 
   void 'fat jar with two pom.properties'() throws IOException {
-    setup:
+    given:
     org.springframework.boot.loader.jar.JarFile.registerUrlProtocolHandler()
+    def url = Classloader.classLoader.getResource('datadog/telemetry/dependencies/budgetappreduced.jar')
 
     when:
-    URI uri = Classloader.classLoader.getResource('datadog/telemetry/dependencies/budgetappreduced.jar').toURI()
-
-    List<Dependency> deps = DependencyResolver.resolve(uri)
+    List<Dependency> deps = DependencyResolver.fromURL(url)
     Dependency dep1 = deps.get(0)
     Dependency dep2 = deps.get(1)
 
@@ -227,13 +264,12 @@ class DependencyResolverSpecification extends DepSpecification {
   }
 
   void 'fat jar with two pom.properties one of them bad'() throws IOException {
-    setup:
+    given:
     org.springframework.boot.loader.jar.JarFile.registerUrlProtocolHandler()
+    def url = Classloader.classLoader.getResource('datadog/telemetry/dependencies/budgetappreducedbadproperties.jar')
 
     when:
-    URI uri = Classloader.classLoader.getResource('datadog/telemetry/dependencies/budgetappreducedbadproperties.jar').toURI()
-
-    List<Dependency> deps = DependencyResolver.resolve(uri)
+    List<Dependency> deps = DependencyResolver.fromURL(url)
     Dependency dep1 = deps.get(0)
 
     then:
@@ -251,22 +287,9 @@ class DependencyResolverSpecification extends DepSpecification {
       hash: '6438819DAB9C9AC18D8A6922C8A923C2ADAEA85D')
   }
 
-  void 'retrieve manifest attributes'() {
-    when:
-    Attributes attributes = manifestAttributesFromJar('junit-4.12.jar')
-
-    then:
-    attributes != null
-
-    attributes.getValue('implementation-title') == 'JUnit'
-    attributes.getValue('implementation-version') == '4.12'
-    attributes.getValue('implementation-vendor') == 'JUnit'
-    attributes.getValue('built-by') == 'jenkins'
-  }
-
   private static void knownJarCheck(Map opts) {
-    File jarFile = getJar(opts['jarName'])
-    List<Dependency> deps = DependencyResolver.extractDependenciesFromJar(jarFile)
+    final jarFile = getJar(opts['jarName'])
+    final deps = DependencyResolver.fromURL(jarFile.toURL())
 
     assert deps.size() == 1
     Dependency dep = deps.get(0)
@@ -275,13 +298,5 @@ class DependencyResolverSpecification extends DepSpecification {
     assert dep.name == opts['name']
     assert dep.version == opts['version']
     assert dep.hash == opts['hash']
-  }
-
-  private static Attributes manifestAttributesFromJar(String jarName) {
-    File jarFile = getJar(jarName)
-
-    Attributes attributes = DependencyResolver.getManifestAttributes(jarFile)
-    assert attributes != null
-    attributes
   }
 }

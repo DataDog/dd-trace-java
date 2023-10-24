@@ -2,14 +2,16 @@ package datadog.telemetry.dependency;
 
 import datadog.trace.util.AgentTaskScheduler;
 import java.lang.instrument.Instrumentation;
-import java.net.URI;
-import java.net.URISyntaxException;
 import java.net.URL;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Queue;
+import java.util.Set;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
@@ -21,8 +23,9 @@ import org.slf4j.LoggerFactory;
 public class DependencyService implements Runnable {
 
   private static final Logger log = LoggerFactory.getLogger(DependencyService.class);
-
-  private final DependencyResolverQueue resolverQueue = new DependencyResolverQueue();
+  // URL hashcode/equals can have side-effects, we enforce there's only file: and jar:file only.
+  private final Queue<URL> resolverQueue = new ConcurrentLinkedQueue<>();
+  private final Set<URL> seenUrls = new HashSet<>();
 
   private final BlockingQueue<Dependency> newDependencies = new LinkedBlockingQueue<>();
 
@@ -35,12 +38,20 @@ public class DependencyService implements Runnable {
   }
 
   public void resolveOneDependency() {
-    List<Dependency> dependencies = resolverQueue.pollDependency();
-    if (!dependencies.isEmpty()) {
-      for (Dependency dependency : dependencies) {
-        log.debug("Resolved dependency {}", dependency.name);
-        newDependencies.add(dependency);
-      }
+    final URL url = resolverQueue.poll();
+    if (url == null) {
+      return;
+    }
+
+    final List<Dependency> dependencies = DependencyResolver.fromURL(url);
+    if (dependencies.isEmpty()) {
+      log.debug("Unable to detect dependencies for {}", url);
+      return;
+    }
+
+    for (final Dependency dependency : dependencies) {
+      log.debug("Resolved dependency {} from {}", dependency.name, url);
+      newDependencies.add(dependency);
     }
   }
 
@@ -62,33 +73,23 @@ public class DependencyService implements Runnable {
     return Collections.emptyList();
   }
 
-  public void addURL(URL url) {
-    resolverQueue.queueURI(convertToURI(url));
-  }
-
-  private URI convertToURI(URL location) {
-    URI uri = null;
-
-    if (location.getProtocol().equals("vfs")) {
-      // resolve jboss virtual file system
-      try {
-        uri = JbossVirtualFileHelper.getJbossVfsPath(location);
-      } catch (RuntimeException rte) {
-        log.debug("Error in call to getJbossVfsPath", rte);
-        return null;
+  public void add(URL url) {
+    if (url == null) {
+      return;
+    }
+    if ("vfs".equals(url.getProtocol())) {
+      url = JbossVirtualFileHelper.getJbossVfsPath(url);
+    }
+    if (!DependencyResolver.isValidURL(url)) {
+      return;
+    }
+    // Process each URL just once.
+    synchronized (this) {
+      if (!seenUrls.add(url)) {
+        return;
       }
     }
-
-    if (uri == null) {
-      try {
-        uri = new URI(location.toString().replace(" ", "%20"));
-      } catch (URISyntaxException e) {
-        log.warn("Error converting URL to URI", e);
-        // silently ignored
-      }
-    }
-
-    return uri;
+    resolverQueue.add(url);
   }
 
   @Override
