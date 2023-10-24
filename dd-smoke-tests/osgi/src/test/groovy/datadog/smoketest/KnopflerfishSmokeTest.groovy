@@ -7,6 +7,8 @@ class KnopflerfishSmokeTest extends AbstractOSGiSmokeTest {
   }
 
   List<String> frameworkArguments() {
-    return ["-Dframework.factory=org.knopflerfish.framework.FrameworkFactoryImpl",]
+    return ["-Dframework.factory=org.knopflerfish.framework.FrameworkFactoryImpl", "-Ddd.trace.debug=true"
+            //, "-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=*:5005"
+    ]
   }
 }
