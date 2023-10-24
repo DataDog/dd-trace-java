@@ -4,6 +4,7 @@ import static datadog.trace.util.AgentThreadFactory.AGENT_THREAD_GROUP;
 
 import com.datadog.debugger.sink.DebuggerSink;
 import com.datadog.debugger.sink.Sink;
+import com.datadog.debugger.symbol.SymbolExtractionTransformer;
 import com.datadog.debugger.uploader.BatchUploader;
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
 import datadog.communication.ddagent.SharedCommunicationObjects;
@@ -90,6 +91,10 @@ public class DebuggerAgent {
       }
     } else {
       log.debug("No configuration poller available from SharedCommunicationObjects");
+    }
+    if (config.getDebuggerSymbolEnabled()) {
+      instrumentation.addTransformer(
+          new SymbolExtractionTransformer(debuggerSink.getSymbolSink(), config));
     }
   }
 
