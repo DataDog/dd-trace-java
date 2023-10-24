@@ -5,7 +5,9 @@ import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.common.header.Header;
 import org.apache.kafka.common.header.Headers;
 
-public class Utils {
+public final class Utils {
+  private Utils() {} // prevent instanciation
+
   // this method is used in kafka-clients and kafka-streams instrumentations
   public static long computePayloadSizeBytes(ConsumerRecord<?, ?> val) {
     long headersSize = 0;
