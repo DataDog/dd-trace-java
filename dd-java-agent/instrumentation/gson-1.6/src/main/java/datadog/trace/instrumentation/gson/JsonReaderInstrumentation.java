@@ -1,10 +1,12 @@
 package datadog.trace.instrumentation.gson;
 
+import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
+import static net.bytebuddy.matcher.ElementMatchers.not;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
@@ -16,6 +18,7 @@ import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Propagation;
 import datadog.trace.api.iast.propagation.PropagationModule;
 import net.bytebuddy.asm.Advice;
+import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
 public class JsonReaderInstrumentation extends Instrumenter.Iast
@@ -30,9 +33,10 @@ public class JsonReaderInstrumentation extends Instrumenter.Iast
     return "com.google.gson.stream.JsonReader";
   }
 
+
   @Override
-  public Reference[] additionalMuzzleReferences() {
-    return new Reference[] {new Reference.Builder("com.google.gson.stream.JsonReader").build()};
+  public ElementMatcher<ClassLoader> classLoaderMatcher() {
+    return hasClassNamed("com.google.gson.stream.JsonReader");
   }
 
   @Override
