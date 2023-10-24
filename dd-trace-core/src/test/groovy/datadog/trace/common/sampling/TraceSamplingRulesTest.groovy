@@ -23,7 +23,7 @@ class TraceSamplingRulesTest extends DDCoreSpecification {
     ]""")
 
     then:
-    rules.rules.size() == 4
+    rules.rules.size() == 5
 
     rules.rules[0].service == "usersvc"
     rules.rules[0].name == "healthcheck"
@@ -37,6 +37,7 @@ class TraceSamplingRulesTest extends DDCoreSpecification {
 
     rules.rules[2].service == null
     rules.rules[2].name == "operation-name"
+    rules.rules[2].resource == null
     rules.rules[2].sampleRate == 0.75d
 
     rules.rules[3].service == null
