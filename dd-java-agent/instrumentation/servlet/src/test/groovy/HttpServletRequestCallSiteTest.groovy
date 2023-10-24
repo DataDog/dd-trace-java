@@ -180,7 +180,7 @@ class HttpServletRequestCallSiteTest extends AgentTestRunner {
 
   void 'test getRequestURI'() {
     setup:
-    final iastModule = Mock(WebModule)
+    final iastModule = Mock(PropagationModule)
     InstrumentationBridge.registerIastModule(iastModule)
     final mock = Mock(HttpServletRequest){
       getRequestURI() >> 'retValue'
@@ -191,7 +191,7 @@ class HttpServletRequestCallSiteTest extends AgentTestRunner {
     testSuite.getRequestURI()
 
     then:
-    1 * iastModule.onGetPathInfo('retValue')
+    1 * iastModule.taint(SourceTypes.REQUEST_PATH, null, 'retValue')
 
     where:
     clazz                     | _
@@ -201,7 +201,7 @@ class HttpServletRequestCallSiteTest extends AgentTestRunner {
 
   void 'test getPathInfo'() {
     setup:
-    final iastModule = Mock(WebModule)
+    final iastModule = Mock(PropagationModule)
     InstrumentationBridge.registerIastModule(iastModule)
     final mock = Mock(HttpServletRequest){
       getPathInfo() >> 'retValue'
@@ -212,7 +212,7 @@ class HttpServletRequestCallSiteTest extends AgentTestRunner {
     testSuite.getPathInfo()
 
     then:
-    1 * iastModule.onGetPathInfo('retValue')
+    1 * iastModule.taint(SourceTypes.REQUEST_PATH, null, 'retValue')
 
     where:
     clazz                     | _
@@ -222,7 +222,7 @@ class HttpServletRequestCallSiteTest extends AgentTestRunner {
 
   void 'test getPathTranslated'() {
     setup:
-    final iastModule = Mock(WebModule)
+    final iastModule = Mock(PropagationModule)
     InstrumentationBridge.registerIastModule(iastModule)
     final mock = Mock(HttpServletRequest){
       getPathTranslated() >> 'retValue'
@@ -233,7 +233,7 @@ class HttpServletRequestCallSiteTest extends AgentTestRunner {
     testSuite.getPathTranslated()
 
     then:
-    1 * iastModule.onGetPathInfo('retValue')
+    1 * iastModule.taint(SourceTypes.REQUEST_PATH, null, 'retValue')
 
     where:
     clazz                     | _

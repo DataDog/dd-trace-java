@@ -258,10 +258,10 @@ public class HttpServletRequestCallSite {
   public static String afterGetPathInfo(
       @CallSite.This final HttpServletRequest self, @CallSite.Return final String retValue) {
     if (null != retValue && !retValue.isEmpty()) {
-      final WebModule module = InstrumentationBridge.WEB;
+      final PropagationModule module = InstrumentationBridge.PROPAGATION;
       if (module != null) {
         try {
-          module.onGetPathInfo(retValue);
+          module.taint(SourceTypes.REQUEST_PATH, null, retValue);
         } catch (final Throwable e) {
           module.onUnexpectedException("afterGetPathInfo threw", e);
         }

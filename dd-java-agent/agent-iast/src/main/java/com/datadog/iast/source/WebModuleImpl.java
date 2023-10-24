@@ -65,11 +65,6 @@ public class WebModuleImpl implements WebModule {
   }
 
   @Override
-  public void onGetPathInfo(@Nullable String s) {
-    onNamed(Collections.singleton(s), SourceTypes.REQUEST_PATH);
-  }
-
-  @Override
   public void onGetRequestURI(@Nullable String s) {
     onNamed(Collections.singleton(s), SourceTypes.REQUEST_URI);
   }
