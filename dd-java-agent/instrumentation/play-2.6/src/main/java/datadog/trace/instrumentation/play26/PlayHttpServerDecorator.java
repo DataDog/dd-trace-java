@@ -134,7 +134,7 @@ public class PlayHttpServerDecorator
         CharSequence path =
             PATH_CACHE.computeIfAbsent(
                 defOption.get().path(), p -> addMissingSlash(p, request.path()));
-        HTTP_RESOURCE_DECORATOR.withRoute(span, request.method(), path);
+        HTTP_RESOURCE_DECORATOR.withRoute(span, request.method(), path, true);
       }
     }
     return span;

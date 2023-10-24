@@ -104,7 +104,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
   }
 
   @CompileStatic
-  def setupSpec() {
+  void setupSpec() {
     // Register the Instrumentation Gateway callbacks
     def ss = get().getSubscriptionService(RequestContextSlot.APPSEC)
     def callbacks = new IGCallbacks()
