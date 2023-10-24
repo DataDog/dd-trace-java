@@ -1,11 +1,8 @@
 package datadog.trace.bootstrap;
 
 import de.thetaphi.forbiddenapis.SuppressForbidden;
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.PrintStream;
+
+import java.io.*;
 import java.lang.instrument.Instrumentation;
 import java.lang.management.ManagementFactory;
 import java.lang.reflect.Field;
@@ -60,8 +57,27 @@ public final class AgentBootstrap {
     }
 
     try {
+      String agentVersion = AgentJar.getAgentVersion();
+      System.out.println(agentVersion);
+     // System.setProperty("dd.version", agentVersion);
       final URL agentJarURL = installAgentJar(inst);
-      final Class<?> agentClass = Class.forName("datadog.trace.bootstrap.Agent", true, null);
+    //  System.out.println(agentArgs);
+      if (agentArgs != null && !agentArgs.equals("")) {
+        String[] split = agentArgs.split(",");
+        for (int i = 0; i < split.length; i++) {
+          String[] strings = split[i].split("=");
+          if (strings.length != 2) {
+            continue;
+          }
+          String envStr = strings[0].replace('.', '_').replace('-', '_').toUpperCase();
+          if (System.getProperty(strings[0]) == null && System.getenv(envStr) == null) {
+            System.out.println("set " + strings[0] + " = " + strings[1]);
+            System.setProperty(strings[0], strings[1]);
+          }
+        }
+      }
+      final Class<?> agentClass =
+          ClassLoader.getSystemClassLoader().loadClass("datadog.trace.bootstrap.Agent");
       if (agentClass.getClassLoader() != null) {
         throw new IllegalStateException("DD Java Agent NOT added to bootstrap classpath.");
       }
@@ -273,8 +289,8 @@ public final class AgentBootstrap {
     final URL manifestUrl = new URL("jar:" + jarUrl + "!/META-INF/MANIFEST.MF");
     final String mainClassLine = "Main-Class: " + thisClass.getCanonicalName();
     try (final BufferedReader reader =
-        new BufferedReader(
-            new InputStreamReader(manifestUrl.openStream(), StandardCharsets.UTF_8))) {
+             new BufferedReader(
+                 new InputStreamReader(manifestUrl.openStream(), StandardCharsets.UTF_8))) {
       String line;
       while ((line = reader.readLine()) != null) {
         if (line.equals(mainClassLine)) {

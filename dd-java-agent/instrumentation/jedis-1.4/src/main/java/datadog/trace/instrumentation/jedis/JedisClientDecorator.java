@@ -1,29 +1,27 @@
 package datadog.trace.instrumentation.jedis;
-
 import datadog.trace.api.Config;
-import datadog.trace.api.naming.SpanNaming;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.DBTypeProcessingDatabaseClientDecorator;
-import redis.clients.jedis.Connection;
+import redis.clients.jedis.Protocol;
 
-public class JedisClientDecorator extends DBTypeProcessingDatabaseClientDecorator<Connection> {
-  private static final String REDIS = "redis";
+public class JedisClientDecorator
+    extends DBTypeProcessingDatabaseClientDecorator<Protocol.Command> {
   public static final CharSequence COMPONENT_NAME = UTF8BytesString.create("redis-command");
-  public static final CharSequence OPERATION_NAME =
-      UTF8BytesString.create(SpanNaming.instance().namingSchema().cache().operation(REDIS));
-  private static final String SERVICE_NAME =
-      SpanNaming.instance().namingSchema().cache().service(Config.get().getServiceName(), REDIS);
+  public static final CharSequence REDIS_COMMAND = UTF8BytesString.create("redis.command");
+
+  public boolean RedisCommandRaw = Config.get().getRedisCommandArgs();
   public static final JedisClientDecorator DECORATE = new JedisClientDecorator();
 
   @Override
   protected String[] instrumentationNames() {
-    return new String[] {"jedis", REDIS};
+    return new String[] {"jedis", "redis"};
   }
 
   @Override
   protected String service() {
-    return SERVICE_NAME;
+    return "redis";
   }
 
   @Override
@@ -38,21 +36,28 @@ public class JedisClientDecorator extends DBTypeProcessingDatabaseClientDecorato
 
   @Override
   protected String dbType() {
-    return REDIS;
+    return "redis";
   }
 
   @Override
-  protected String dbUser(final Connection connection) {
+  protected String dbUser(final Protocol.Command session) {
     return null;
   }
 
   @Override
-  protected String dbInstance(final Connection connection) {
+  protected String dbInstance(final Protocol.Command session) {
     return null;
   }
 
   @Override
-  protected String dbHostname(Connection connection) {
-    return connection.getHost();
+  protected String dbHostname(Protocol.Command command) {
+    return null;
+  }
+
+  public AgentSpan setRaw(AgentSpan span, String raw) {
+    if (RedisCommandRaw){
+      span.setTag("redis.command.args",raw);
+    }
+    return span;
   }
 }
