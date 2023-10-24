@@ -59,6 +59,9 @@ public class SymbolSink {
   }
 
   public void flush() {
+    if (scopes.isEmpty()) {
+      return;
+    }
     List<ServiceVersion> scopesToSerialize = new ArrayList<>();
     scopes.drainTo(scopesToSerialize);
     LOGGER.debug("Sending {} scopes", scopesToSerialize.size());

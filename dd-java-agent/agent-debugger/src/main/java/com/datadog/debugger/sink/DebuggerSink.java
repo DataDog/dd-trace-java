@@ -171,6 +171,7 @@ public class DebuggerSink implements Sink {
 
   // visible for testing
   void flush(DebuggerSink ignored) {
+    symbolSink.flush();
     List<String> diagnostics = probeStatusSink.getSerializedDiagnostics();
     List<String> snapshots = snapshotSink.getSerializedSnapshots();
     if (snapshots.size() + diagnostics.size() == 0) {
@@ -182,7 +183,6 @@ public class DebuggerSink implements Sink {
     if (diagnostics.size() > 0) {
       uploadPayloads(diagnostics);
     }
-    symbolSink.flush();
   }
 
   private void uploadPayloads(List<String> payloads) {

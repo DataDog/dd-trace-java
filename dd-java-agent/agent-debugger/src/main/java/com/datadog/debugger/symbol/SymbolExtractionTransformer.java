@@ -4,6 +4,7 @@ import com.datadog.debugger.agent.AllowListHelper;
 import com.datadog.debugger.agent.Configuration;
 import com.datadog.debugger.sink.SymbolSink;
 import datadog.trace.api.Config;
+import datadog.trace.util.AgentTaskScheduler;
 import datadog.trace.util.Strings;
 import java.lang.instrument.ClassFileTransformer;
 import java.net.URL;
@@ -15,6 +16,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -26,6 +28,7 @@ public class SymbolExtractionTransformer implements ClassFileTransformer {
 
   private final SymbolSink sink;
   private final Map<String, Scope> jarScopesByName = new HashMap<>();
+  private final AgentTaskScheduler.Scheduled<SymbolExtractionTransformer> scheduled;
   private final Object jarScopeLock = new Object();
   private final AllowListHelper allowListHelper;
   private int totalClasses;
@@ -37,6 +40,9 @@ public class SymbolExtractionTransformer implements ClassFileTransformer {
 
   public SymbolExtractionTransformer(SymbolSink sink, Config config) {
     this.sink = sink;
+    this.scheduled =
+        AgentTaskScheduler.INSTANCE.scheduleAtFixedRate(
+            this::flushRemainingScopes, this, 30, 30, TimeUnit.SECONDS);
     String includes = config.getDebuggerSymbolIncludes();
     if (includes != null) {
       this.allowListHelper = new AllowListHelper(buildFilterList(includes));
@@ -44,6 +50,16 @@ public class SymbolExtractionTransformer implements ClassFileTransformer {
       this.allowListHelper = null;
     }
     this.symbolFlushThreshold = config.getDebuggerSymbolFlushThreshold();
+  }
+
+  private void flushRemainingScopes(SymbolExtractionTransformer symbolExtractionTransformer) {
+    synchronized (jarScopeLock) {
+      if (jarScopesByName.isEmpty()) {
+        return;
+      }
+      LOGGER.debug("Flush remaining scopes");
+      addJarScope(null, true); // force flush remaining scopes
+    }
   }
 
   private Configuration.FilterList buildFilterList(String includes) {
@@ -88,21 +104,23 @@ public class SymbolExtractionTransformer implements ClassFileTransformer {
     }
     LOGGER.debug("Extracting Symbols from: {}, located in: {}", className, jarName);
     Scope jarScope = SymbolExtractor.extract(classfileBuffer, jarName);
-    addJarScope(jarScope);
+    addJarScope(jarScope, false);
     return null;
   }
 
-  private void addJarScope(Scope jarScope) {
+  private void addJarScope(Scope jarScope, boolean forceFlush) {
     List<Scope> scopes = Collections.emptyList();
     synchronized (jarScopeLock) {
-      Scope scope = jarScopesByName.get(jarScope.getName());
-      if (scope != null) {
-        scope.getScopes().addAll(jarScope.getScopes());
-      } else {
-        jarScopesByName.put(jarScope.getName(), jarScope);
+      if (jarScope != null) {
+        Scope scope = jarScopesByName.get(jarScope.getName());
+        if (scope != null) {
+          scope.getScopes().addAll(jarScope.getScopes());
+        } else {
+          jarScopesByName.put(jarScope.getName(), jarScope);
+        }
+        totalClasses++;
       }
-      totalClasses++;
-      if (totalClasses >= symbolFlushThreshold) {
+      if (totalClasses >= symbolFlushThreshold || forceFlush) {
         scopes = new ArrayList<>(jarScopesByName.values());
         jarScopesByName.clear();
         totalClasses = 0;
