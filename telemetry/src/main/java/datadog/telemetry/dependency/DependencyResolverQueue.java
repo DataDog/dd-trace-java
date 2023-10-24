@@ -14,50 +14,41 @@ public class DependencyResolverQueue {
 
   private static final Logger log = LoggerFactory.getLogger(DependencyResolverQueue.class);
 
-  private final Queue<URI> newUrlsQueue;
-  private final Set<URI> processedUrlsSet; // guarded by this
+  private final Queue<DependencyPath> queue;
+  private final Set<String> processedLocations;
 
   public DependencyResolverQueue() {
-    newUrlsQueue = new ConcurrentLinkedQueue<>();
-    processedUrlsSet = new HashSet<>();
+    queue = new ConcurrentLinkedQueue<>();
+    processedLocations = new HashSet<>();
   }
 
-  public void queueURI(URI uri) {
-    if (uri == null) {
+  public void add(final DependencyPath dependencyPath) {
+    if (dependencyPath == null || dependencyPath.location == null) {
       return;
     }
-
-    // we ignore .class files directly within webapp folder (they aren't part of dependencies)
-    String path = uri.getPath();
-    if (path != null && path.endsWith(".class")) {
-      return;
-    }
-
-    // ignore already processed url
     synchronized (this) {
-      if (!processedUrlsSet.add(uri)) {
+      if (!processedLocations.add(dependencyPath.location)) {
         return;
       }
     }
-
-    newUrlsQueue.add(uri);
+    queue.add(dependencyPath);
   }
 
   public List<Dependency> pollDependency() {
-    URI uri = newUrlsQueue.poll();
+    final DependencyPath dependencyPath = queue.poll();
 
     // no new deps
-    if (uri == null) {
+    if (dependencyPath == null) {
       return Collections.emptyList();
     }
 
-    List<Dependency> dep = DependencyResolver.resolve(uri);
+    List<Dependency> dep = DependencyResolver.resolve(dependencyPath);
     if (dep.isEmpty()) {
-      log.debug("unable to detect dependency for URI {}", uri);
+      log.debug("unable to detect dependency for path {}", dependencyPath.location);
       return Collections.emptyList();
     }
     if (log.isDebugEnabled()) {
-      log.debug("dependency detected {} for {}", dep, uri);
+      log.debug("dependencies detected {} for {}", dep, dependencyPath.location);
     }
 
     return dep;
