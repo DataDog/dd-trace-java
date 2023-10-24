@@ -43,8 +43,10 @@ class JsonReaderInstrumentationTest extends AgentTestRunner {
 
   static final class TestBean {
 
+    @SuppressWarnings('CodeNarc')
     private String name
 
+    @SuppressWarnings('CodeNarc')
     private String value
   }
 }
