@@ -71,6 +71,6 @@ public class OSGiApplication {
     framework.waitForStop(1_000);
 
     // XXX: Knopflerfish will leave some dangling non-daemon thread and prevent shutdown here.
-    System.exit(0);
+    //System.exit(0);
   }
 }

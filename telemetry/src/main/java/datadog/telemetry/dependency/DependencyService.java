@@ -62,33 +62,8 @@ public class DependencyService implements Runnable {
     return Collections.emptyList();
   }
 
-  public void addURL(URL url) {
-    resolverQueue.queueURI(convertToURI(url));
-  }
-
-  private URI convertToURI(URL location) {
-    URI uri = null;
-
-    if (location.getProtocol().equals("vfs")) {
-      // resolve jboss virtual file system
-      try {
-        uri = JbossVirtualFileHelper.getJbossVfsPath(location);
-      } catch (RuntimeException rte) {
-        log.debug("Error in call to getJbossVfsPath", rte);
-        return null;
-      }
-    }
-
-    if (uri == null) {
-      try {
-        uri = new URI(location.toString().replace(" ", "%20"));
-      } catch (URISyntaxException e) {
-        log.warn("Error converting URL to URI", e);
-        // silently ignored
-      }
-    }
-
-    return uri;
+  public void add(final DependencyPath dependencyPath) {
+    resolverQueue.add(dependencyPath);
   }
 
   @Override

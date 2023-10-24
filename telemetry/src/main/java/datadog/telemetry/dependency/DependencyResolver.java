@@ -18,39 +18,25 @@ import org.slf4j.LoggerFactory;
 public class DependencyResolver {
 
   private static final Logger log = LoggerFactory.getLogger(DependencyResolver.class);
-  private static final String JAR_SUFFIX = ".jar";
 
-  public static List<Dependency> resolve(URI uri) {
-    return extractDependenciesFromURI(uri);
+  public static List<Dependency> resolve(final DependencyPath dependencyPath) {
+    return extractDependencies(dependencyPath);
   }
 
-  /**
-   * Identify library from a URI
-   *
-   * @param uri URI to a dependency
-   * @return dependency, or null if unable to qualify jar
-   */
   // package private for testing
-  static List<Dependency> extractDependenciesFromURI(URI uri) {
-    String scheme = uri.getScheme();
+  static List<Dependency> extractDependencies(final DependencyPath dependencyPath) {
     List<Dependency> dependencies = Collections.emptyList();
     try {
-      if ("file".equals(scheme)) {
-        File f;
-        if (uri.isOpaque()) {
-          f = new File(uri.getSchemeSpecificPart());
-        } else {
-          f = new File(uri);
-        }
-        dependencies = extractDependenciesFromJar(f);
-      } else if ("jar".equals(scheme)) {
-        Dependency dependency = getNestedDependency(uri);
+      if (DependencyPath.Type.JAR.equals(dependencyPath.type)) {
+        dependencies = extractDependenciesFromJar(new File(dependencyPath.location));
+      } else if (dependencyPath.isInJar) {
+        Dependency dependency = getNestedDependency(dependencyPath.location);
         if (dependency != null) {
           dependencies = Collections.singletonList(dependency);
         }
       }
     } catch (RuntimeException rte) {
-      log.debug("Failed to determine dependency for uri {}", uri, rte);
+      log.debug("Failed to determine dependency for {}", dependencyPath.location, rte);
     }
     // TODO : moving jboss vfs here is probably a idea
     // it might however require to do somme checks to make sure it's only applied to jboss
@@ -68,9 +54,6 @@ public class DependencyResolver {
   static List<Dependency> extractDependenciesFromJar(File jar) {
     if (!jar.exists()) {
       log.debug("unable to find dependency {} (path does not exist)", jar);
-      return Collections.emptyList();
-    } else if (!jar.getName().endsWith(JAR_SUFFIX)) {
-      log.debug("unsupported file dependency type : {}", jar);
       return Collections.emptyList();
     }
 
@@ -96,11 +79,11 @@ public class DependencyResolver {
   }
 
   /* for jar urls as handled by spring boot */
-  static Dependency getNestedDependency(URI uri) {
+  static Dependency getNestedDependency(String location) {
     String lastPart = null;
     String fileName = null;
     try {
-      URL url = uri.toURL();
+      URL url = new URL(location);
       JarURLConnection jarConnection = (JarURLConnection) url.openConnection();
       Manifest manifest = jarConnection.getManifest();
 
@@ -110,7 +93,7 @@ public class DependencyResolver {
       String jarFileName = jarFile.getName();
       int posSep = jarFileName.indexOf("!/");
       if (posSep == -1) {
-        log.debug("Unable to guess nested dependency for uri '{}': '!/' not found", uri);
+        log.debug("Unable to guess nested dependency for uri '{}': '!/' not found", location);
         return null;
       }
       lastPart = jarFileName.substring(posSep + 1);
@@ -118,11 +101,11 @@ public class DependencyResolver {
 
       return Dependency.guessFallbackNoPom(manifest, fileName, jarConnection.getInputStream());
     } catch (Exception e) {
-      log.debug("unable to open nested jar manifest for {}", uri, e);
+      log.debug("unable to open nested jar manifest for {}", location, e);
     }
     log.debug(
         "Unable to guess nested dependency for uri '{}', lastPart: '{}', fileName: '{}'",
-        uri,
+        location,
         lastPart,
         fileName);
     return null;
