@@ -3,6 +3,7 @@ package datadog.trace.instrumentation.pulsar;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.instrumentation.pulsar.ConsumerDecorator.startAndEnd;
 import static datadog.trace.instrumentation.pulsar.ConsumerDecorator.wrap;
+import static datadog.trace.instrumentation.pulsar.ConsumerDecorator.wrapBatch;
 import static datadog.trace.instrumentation.pulsar.PulsarRequest.*;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
@@ -126,8 +127,7 @@ public final class ConsumerImplInstrumentation extends Instrumenter.Tracing
         return;
       }
       
-      //message.getMessageBuilder().addProperty().setKey(key).setValue(value);
-     startAndEnd(create(message), throwable, brokerUrl);
+      startAndEnd(create(message), throwable, brokerUrl);
     }
   }
 
@@ -139,12 +139,12 @@ public final class ConsumerImplInstrumentation extends Instrumenter.Tracing
         @Advice.This Consumer<?> consumer,
         @Advice.Return Message<?> message,
         @Advice.Thrown Throwable throwable) {
-      ContextStore<Consumer, String> contextStore =
-          InstrumentationContext.get(Consumer.class, String.class);
-      String brokerUrl = contextStore.get(consumer);
       if (message == null) {
         return;
       }
+      ContextStore<Consumer, String> contextStore =
+          InstrumentationContext.get(Consumer.class, String.class);
+      String brokerUrl = contextStore.get(consumer);
 
       startAndEnd(create(message), throwable, brokerUrl);
     }
@@ -171,9 +171,10 @@ public final class ConsumerImplInstrumentation extends Instrumenter.Tracing
     public static void onExit(
         @Advice.This Consumer<?> consumer,
         @Advice.Return(readOnly = false) CompletableFuture<Messages<?>> future) {
-      //ContextStore<Consumer, String> contextStore = InstrumentationContext.get(Consumer.class, String.class);
-      //String brokerUrl = contextStore.get(consumer);
-     // future = wrapBatch(future, brokerUrl);
+      ContextStore<Consumer, String> contextStore =
+          InstrumentationContext.get(Consumer.class, String.class);
+      String brokerUrl = contextStore.get(consumer);
+      future = wrapBatch(future, brokerUrl);
     }
   }
 }

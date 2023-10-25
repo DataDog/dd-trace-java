@@ -115,9 +115,13 @@ public class ConsumerDecorator extends BaseDecorator {
           for (Message m: messages) {
             if(m !=null) {
               message = m;
-              return;}
+              break;
+            }
           }
-          startAndEnd(create(message), throwable,brokerUrl);
+
+          if (message != null){
+            startAndEnd(create(message), throwable,brokerUrl);
+          }
           runWithContext(
               () -> {
                 if (throwable != null) {
