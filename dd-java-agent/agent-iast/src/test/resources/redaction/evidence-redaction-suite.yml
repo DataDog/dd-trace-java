@@ -248,6 +248,38 @@ suite:
         ]
       }
   - type: 'VULNERABILITIES'
+    description: 'Query with single quoted string literal and null source'
+    input: >
+      [
+        {
+          "type": "SQL_INJECTION",
+          "evidence": {
+            "value": "select * from users where username = 'user'",
+            "ranges": [
+              { "start" : 38, "length" : 4, "source": { "origin": "http.request.body" } }
+            ]
+          }
+        }
+      ]
+    expected: >
+      {
+        "sources": [
+          { "origin": "http.request.body" }
+        ],
+        "vulnerabilities": [
+          {
+            "type": "SQL_INJECTION",
+            "evidence": {
+              "valueParts": [
+                { "value": "select * from users where username = '" },
+                { "redacted": true, "source": 0, "pattern": "****" },
+                { "value": "'" }
+              ]
+            }
+          }
+        ]
+      }
+  - type: 'VULNERABILITIES'
     description: '$1 query with double quoted string literal $2'
     parameters:
       $1:

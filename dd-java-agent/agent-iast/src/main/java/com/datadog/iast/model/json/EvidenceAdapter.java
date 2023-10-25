@@ -444,7 +444,7 @@ public class EvidenceAdapter extends FormattingAdapter<Evidence> {
         } else {
           final int length = chunk.length();
           final String sourceValue = source.getValue();
-          final int matching = (sourceValue == null) ? 0 : sourceValue.indexOf(chunk);
+          final int matching = (sourceValue == null) ? -1 : sourceValue.indexOf(chunk);
           final String pattern;
           if (matching >= 0) {
             // if matches append the matching part from the redacted value
