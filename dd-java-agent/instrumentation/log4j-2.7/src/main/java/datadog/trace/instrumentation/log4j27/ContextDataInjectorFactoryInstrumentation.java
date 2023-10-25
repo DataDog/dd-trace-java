@@ -50,6 +50,11 @@ public class ContextDataInjectorFactoryInstrumentation extends Instrumenter.Trac
     public static void onExit(
         @Advice.Return(typing = Assigner.Typing.DYNAMIC, readOnly = false)
             ContextDataInjector injector) {
+      System.out.println(
+          "createInjector "
+              + injector
+              + " : "
+              + (injector == null ? "" : injector.getClass().getName()));
       injector = new SpanDecoratingContextDataInjector(injector);
     }
   }

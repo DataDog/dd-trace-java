@@ -232,4 +232,16 @@ class OTSpan implements Span, MutableSpan {
   public int hashCode() {
     return delegate.hashCode();
   }
+
+  @Override
+  public String toString() {
+    return "OTSpan{"
+        + "delegate="
+        + delegate
+        + ", converter="
+        + converter
+        + ", logHandler="
+        + logHandler
+        + '}';
+  }
 }

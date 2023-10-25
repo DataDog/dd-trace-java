@@ -79,6 +79,11 @@ public final class SpanDecoratingContextDataInjector implements ContextDataInjec
 
   @Override
   public ReadOnlyStringMap rawContextData() {
-    return delegate.rawContextData();
+    ReadOnlyStringMap rawContext = delegate.rawContextData();
+
+    AgentSpan span = activeSpan();
+    log.debug("rawContextData {} - rawContextData={}", span, rawContext);
+
+    return rawContext;
   }
 }
