@@ -1753,6 +1753,40 @@ suite:
         ]
       } 
 
+
+  - type: 'VULNERABILITIES'
+    description: 'Tainted range based redaction - with null source '
+    input: >
+      [
+        {
+          "type": "XSS",
+          "evidence": {
+            "value": "this could be a super long text, so we need to reduce it before send it to the backend. This redaction strategy applies to XSS vulnerability but can be extended to future ones",
+            "ranges": [
+              { "start" : 123, "length" : 3, "source": { "origin": "http.request.body" } }
+            ]
+          }
+        }
+      ]
+    expected: >
+      {
+        "sources": [
+          { "origin": "http.request.body" }
+        ],
+        "vulnerabilities": [
+          {
+            "type": "XSS",
+            "evidence": {
+              "valueParts": [
+                { "redacted": true },
+                { "source": 0, "value": "XSS" },
+                { "redacted": true }
+              ]
+            }
+          }
+        ]
+      }
+
   - type: 'VULNERABILITIES'
     description: 'Tainted range based redaction - multiple ranges'
     input: >

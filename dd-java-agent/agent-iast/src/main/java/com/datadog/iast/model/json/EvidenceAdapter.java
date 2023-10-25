@@ -443,7 +443,8 @@ public class EvidenceAdapter extends FormattingAdapter<Evidence> {
           valueParts.add(new TaintedValuePart(adapter, source, chunk, false));
         } else {
           final int length = chunk.length();
-          final int matching = source.getValue().indexOf(chunk);
+          final String sourceValue = source.getValue();
+          final int matching = (sourceValue == null) ? 0 : sourceValue.indexOf(chunk);
           final String pattern;
           if (matching >= 0) {
             // if matches append the matching part from the redacted value
