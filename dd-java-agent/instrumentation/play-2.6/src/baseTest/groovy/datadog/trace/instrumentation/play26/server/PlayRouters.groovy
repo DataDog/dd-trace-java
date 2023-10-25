@@ -15,6 +15,7 @@ import play.routing.Router
 import play.routing.RoutingDsl
 import scala.collection.JavaConverters
 import scala.concurrent.ExecutionContextExecutor
+import scala.xml.NodeSeq
 
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CompletionStage
@@ -26,6 +27,7 @@ import java.util.function.Supplier
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_JSON
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_MULTIPART
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_URLENCODED
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_XML
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.CREATED
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.CUSTOM_EXCEPTION
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
@@ -149,6 +151,13 @@ class PlayRouters {
         controller(BODY_JSON) {
           JsValue json = body().asJson().get()
           Results.status(BODY_JSON.status, Json$.MODULE$.stringify(json))
+        }
+      } as Supplier)
+      .POST(BODY_XML.path).routeTo({
+        ->
+        controller(BODY_XML) {
+          NodeSeq node = body().asXml().get()
+          Results.status(BODY_XML.status, node.toString())
         }
       } as Supplier)
       .build()
@@ -278,6 +287,16 @@ class PlayRouters {
           ->
           controller(BODY_JSON) {
             Results.status(BODY_JSON.status, Json$.MODULE$.stringify(json))
+          }
+        }, execContext)
+      } as Supplier)
+      .POST(BODY_XML.path).routeAsync({
+        ->
+        NodeSeq node = body().asXml().get()
+        CompletableFuture.supplyAsync({
+          ->
+          controller(BODY_XML) {
+            Results.status(BODY_XML.status, node.toString())
           }
         }, execContext)
       } as Supplier)

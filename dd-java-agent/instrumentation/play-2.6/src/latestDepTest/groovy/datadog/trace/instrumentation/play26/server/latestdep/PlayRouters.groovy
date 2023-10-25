@@ -6,6 +6,7 @@ import datadog.appsec.api.blocking.Blocking
 import datadog.trace.agent.test.base.HttpServerTest
 import datadog.trace.instrumentation.play26.server.TestHttpErrorHandler
 import groovy.transform.CompileStatic
+import org.w3c.dom.Document
 import play.BuiltInComponents
 import play.libs.concurrent.ClassLoaderExecution
 import play.mvc.Http
@@ -16,6 +17,10 @@ import play.routing.Router
 import play.routing.RoutingDsl
 import scala.concurrent.ExecutionContextExecutor
 
+import javax.xml.transform.OutputKeys
+import javax.xml.transform.TransformerFactory
+import javax.xml.transform.dom.DOMSource
+import javax.xml.transform.stream.StreamResult
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CompletionStage
 import java.util.concurrent.ExecutorService
@@ -23,6 +28,7 @@ import java.util.concurrent.ExecutorService
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_JSON
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_MULTIPART
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_URLENCODED
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_XML
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.CREATED
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.CUSTOM_EXCEPTION
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
@@ -116,6 +122,12 @@ class PlayRouters {
         controller(BODY_JSON) {
           JsonNode json = req.body().asJson()
           Results.status(BODY_JSON.status, new ObjectMapper().writeValueAsString(json))
+        }
+      } as RequestFunctions.Params0<Result>)
+      .POST(BODY_XML.path).routingTo({ Http.Request req ->
+        controller(BODY_XML) {
+          Document xml = req.body().asXml()
+          Results.status(BODY_XML.status, documentToString(xml))
         }
       } as RequestFunctions.Params0<Result>)
       .build()
@@ -246,6 +258,15 @@ class PlayRouters {
           }
         }, execContext)
       } as RequestFunctions.Params0<? extends CompletionStage<Result>>)
+      .POST(BODY_XML.path).routingAsync({ Http.Request req ->
+        Document xml = req.body().asXml()
+        CompletableFuture.supplyAsync({
+          ->
+          controller(BODY_XML) {
+            Results.status(BODY_XML.status, documentToString(xml))
+          }
+        }, execContext)
+      } as RequestFunctions.Params0<? extends CompletionStage<Result>>)
       .build()
   }
 
@@ -262,5 +283,14 @@ class PlayRouters {
         }
       })
     }
+  }
+
+  private static String documentToString(Document doc) {
+    StringWriter writer = new StringWriter()
+    TransformerFactory.newInstance().newTransformer().with {
+      setOutputProperty(OutputKeys.INDENT, "no")
+      transform(new DOMSource(doc), new StreamResult(writer))
+    }
+    writer.toString()
   }
 }
