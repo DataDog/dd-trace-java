@@ -64,6 +64,7 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
     } else {
       1 * this.span.getRequestContext()
     }
+    _ * this.span.getLocalRootSpan() >> this.span
     0 * _
 
     where:
@@ -103,6 +104,7 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
       1 * this.span.setResourceName({ it as String == expectedPath })
     }
     1 * this.span.setTag(Tags.HTTP_METHOD, null)
+    _ * this.span.getLocalRootSpan() >> this.span
     0 * _
 
     where:
@@ -142,6 +144,7 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
     2 * this.span.getRequestContext()
     1 * this.span.setResourceName({ it as String == expectedResource }, ResourceNamePriorities.HTTP_PATH_NORMALIZER)
     1 * this.span.setTag(Tags.HTTP_METHOD, null)
+    _ * this.span.getLocalRootSpan() >> this.span
     0 * _
 
     where:
@@ -165,6 +168,7 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
 
     then:
     1 * this.span.setResourceName({ it as String == '/path' }, ResourceNamePriorities.HTTP_PATH_NORMALIZER)
+    _ * this.span.getLocalRootSpan() >> this.span
     _ * _
   }
 
@@ -284,6 +288,7 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
     when:
     decorator.onRequest(this.span, [peerIp: '4.4.4.4'], null, ctx)
 
+    _ * this.span.getLocalRootSpan() >> this.span
     then:
     2 * ctx.getXForwardedFor() >> '2.3.4.5'
     1 * this.span.setTag(Tags.HTTP_CLIENT_IP, '2.3.4.5')
