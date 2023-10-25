@@ -1814,24 +1814,30 @@ public class CapturedSnapshotTest {
 
   @Test
   public void samplingMethodProbe() throws IOException, URISyntaxException {
-    doSamplingTest(this::methodProbe);
+    doSamplingTest(this::methodProbe, 1, 1);
   }
 
   @Test
   public void samplingProbeCondition() throws IOException, URISyntaxException {
-    doSamplingTest(this::simpleConditionTest);
+    doSamplingTest(this::simpleConditionTest, 1, 1);
+  }
+
+  @Test
+  public void samplingDupMethodProbeCondition() throws IOException, URISyntaxException {
+    doSamplingTest(this::mergedProbesWithAdditionalProbeConditionTest, 2, 2);
   }
 
   @Test
   public void samplingLineProbe() throws IOException, URISyntaxException {
-    doSamplingTest(this::singleLineProbe);
+    doSamplingTest(this::singleLineProbe, 1, 1);
   }
 
   interface TestMethod {
     void run() throws IOException, URISyntaxException;
   }
 
-  private void doSamplingTest(TestMethod testRun) throws IOException, URISyntaxException {
+  private void doSamplingTest(TestMethod testRun, int expectedGlobalCount, int expectedProbeCount)
+      throws IOException, URISyntaxException {
     MockSampler probeSampler = new MockSampler();
     MockSampler globalSampler = new MockSampler();
     ProbeRateLimiter.setSamplerSupplier(rate -> rate < 101 ? probeSampler : globalSampler);
@@ -1841,8 +1847,8 @@ public class CapturedSnapshotTest {
     } finally {
       ProbeRateLimiter.setSamplerSupplier(null);
     }
-    assertEquals(1, globalSampler.callCount);
-    assertEquals(1, probeSampler.callCount);
+    assertEquals(expectedGlobalCount, globalSampler.callCount);
+    assertEquals(expectedProbeCount, probeSampler.callCount);
   }
 
   private DebuggerTransformerTest.TestSnapshotListener setupInstrumentTheWorldTransformer(

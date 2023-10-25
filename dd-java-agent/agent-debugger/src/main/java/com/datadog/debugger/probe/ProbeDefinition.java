@@ -143,7 +143,8 @@ public abstract class ProbeDefinition implements ProbeImplementation {
   }
 
   @Override
-  public void evaluate(CapturedContext context, CapturedContext.Status status) {}
+  public void evaluate(
+      CapturedContext context, CapturedContext.Status status, MethodLocation methodLocation) {}
 
   @Override
   public void commit(
