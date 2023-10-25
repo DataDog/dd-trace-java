@@ -243,6 +243,7 @@ class RuleBasedSamplingTest extends DDCoreSpecification {
     "[{\"service\": \"service\", \"name\": \"xxx\", \"sample_rate\": 0}, {\"service\": \"service\", \"name\": \"operation\", \"sample_rate\": 1}]"       | null        | 1.0              | 50                | null              | USER_KEEP
     "[{\"service\": \"service\", \"name\": \"xxx\", \"sample_rate\": 0}, {\"service\": \"service\", \"sample_rate\": 1}]"                                | null        | 1.0              | 50                | null              | USER_KEEP
     "[{\"service\": \"service\", \"name\": \"xxx\", \"sample_rate\": 0}, {\"name\": \"operation\", \"sample_rate\": 1}]"                                 | null        | 1.0              | 50                | null              | USER_KEEP
+    "[{\"service\": \"service\", \"resource\": \"xxx\", \"sample_rate\": 0}, {\"resource\": \"resource\", \"sample_rate\": 1}]"                          | null        | 1.0              | 50                | null              | USER_KEEP
     "[{\"service\": \"service\", \"name\": \"operation\", \"sample_rate\": 0}, {\"service\": \"service\", \"name\": \"operation\", \"sample_rate\": 1}]" | null        | 0                | null              | null              | USER_DROP
     "[{\"service\": \"service\", \"name\": \"operation\", \"sample_rate\": 0}]"                                                                          | null        | 0                | null              | null              | USER_DROP
   }
