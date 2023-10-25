@@ -4,7 +4,7 @@ plugins {
 
 repositories {
   maven {
-    url 'https://www.knopflerfish.org/releases/6.1.5/maven2'
+    url 'https://resources.knopflerfish.org/repo/maven2/release'
   }
 }
 
