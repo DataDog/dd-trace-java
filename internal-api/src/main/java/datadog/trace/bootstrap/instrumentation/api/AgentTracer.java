@@ -1020,10 +1020,6 @@ public class AgentTracer {
 
     @Override
     public void setCheckpoint(
-        AgentSpan span, LinkedHashMap<String, String> sortedTags, long defaultTimestamp) {}
-
-    @Override
-    public void setCheckpoint(
         AgentSpan span,
         LinkedHashMap<String, String> sortedTags,
         long defaultTimestamp,

@@ -205,12 +205,6 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
 
   @Override
   public void setCheckpoint(
-      AgentSpan span, LinkedHashMap<String, String> sortedTags, long defaultTimestamp) {
-    setCheckpoint(span, sortedTags, defaultTimestamp, 0);
-  }
-
-  @Override
-  public void setCheckpoint(
       AgentSpan span,
       LinkedHashMap<String, String> sortedTags,
       long defaultTimestamp,
@@ -243,7 +237,7 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
     sortedTags.put(TOPIC_TAG, source);
     sortedTags.put(TYPE_TAG, type);
 
-    setCheckpoint(span, sortedTags, 0);
+    setCheckpoint(span, sortedTags, 0, 0);
   }
 
   @Override
