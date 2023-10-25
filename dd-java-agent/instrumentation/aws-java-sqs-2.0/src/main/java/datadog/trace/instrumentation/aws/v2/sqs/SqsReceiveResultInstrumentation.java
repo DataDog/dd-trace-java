@@ -11,7 +11,6 @@ import datadog.trace.bootstrap.InstrumentationContext;
 import java.util.List;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
-import software.amazon.awssdk.core.SdkResponse;
 import software.amazon.awssdk.services.sqs.model.Message;
 import software.amazon.awssdk.services.sqs.model.ReceiveMessageResponse;
 
@@ -44,7 +43,8 @@ public class SqsReceiveResultInstrumentation extends AbstractSqsInstrumentation
 
   @Override
   public Map<String, String> contextStore() {
-    return singletonMap("software.amazon.awssdk.core.SdkResponse", "java.lang.String");
+    return singletonMap(
+        "software.amazon.awssdk.services.sqs.model.ReceiveMessageResponse", "java.lang.String");
   }
 
   @Override
@@ -59,7 +59,8 @@ public class SqsReceiveResultInstrumentation extends AbstractSqsInstrumentation
         @Advice.This ReceiveMessageResponse result,
         @Advice.Return(readOnly = false) List<Message> messages) {
       if (messages != null && !messages.isEmpty() && !(messages instanceof TracingList)) {
-        String queueUrl = InstrumentationContext.get(SdkResponse.class, String.class).get(result);
+        String queueUrl =
+            InstrumentationContext.get(ReceiveMessageResponse.class, String.class).get(result);
         if (queueUrl != null) {
           messages = new TracingList(messages, queueUrl, result.responseMetadata().requestId());
         }

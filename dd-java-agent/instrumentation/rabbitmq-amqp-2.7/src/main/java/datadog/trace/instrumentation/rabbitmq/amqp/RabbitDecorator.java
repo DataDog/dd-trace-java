@@ -3,6 +3,7 @@ package datadog.trace.instrumentation.rabbitmq.amqp;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.AMQP_COMMAND;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.AMQP_EXCHANGE;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.AMQP_QUEUE;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.AMQP_ROUTING_KEY;
@@ -17,12 +18,12 @@ import com.rabbitmq.client.Command;
 import com.rabbitmq.client.Consumer;
 import com.rabbitmq.client.Envelope;
 import datadog.trace.api.Config;
+import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.ContextVisitors;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
-import datadog.trace.bootstrap.instrumentation.api.PathwayContext;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.MessagingClientDecorator;
@@ -32,29 +33,53 @@ import java.util.concurrent.TimeUnit;
 
 public class RabbitDecorator extends MessagingClientDecorator {
 
-  public static final CharSequence AMQP_COMMAND = UTF8BytesString.create("amqp.command");
-  public static final CharSequence AMQP_DELIVER = UTF8BytesString.create("amqp.deliver");
+  public static final CharSequence OPERATION_AMQP_COMMAND = UTF8BytesString.create("amqp.command");
+  public static final CharSequence OPERATION_AMQP_INBOUND =
+      UTF8BytesString.create(
+          SpanNaming.instance().namingSchema().messaging().inboundOperation("amqp"));
+
+  public static final CharSequence OPERATION_AMQP_DELIVER = UTF8BytesString.create("amqp.deliver");
+
+  public static final CharSequence OPERATION_AMQP_OUTBOUND =
+      UTF8BytesString.create(
+          SpanNaming.instance().namingSchema().messaging().outboundOperation("amqp"));
   public static final CharSequence RABBITMQ_AMQP = UTF8BytesString.create("rabbitmq-amqp");
 
   public static final boolean RABBITMQ_LEGACY_TRACING =
       Config.get().isLegacyTracingEnabled(true, "rabbit", "rabbitmq");
 
-  private static final String LOCAL_SERVICE_NAME =
-      RABBITMQ_LEGACY_TRACING ? "rabbitmq" : Config.get().getServiceName();
+  public static final boolean TIME_IN_QUEUE_ENABLED =
+      Config.get().isTimeInQueueEnabled(!RABBITMQ_LEGACY_TRACING, "rabbit", "rabbitmq");
+
   public static final RabbitDecorator CLIENT_DECORATE =
       new RabbitDecorator(
-          Tags.SPAN_KIND_CLIENT, InternalSpanTypes.MESSAGE_CLIENT, LOCAL_SERVICE_NAME);
+          Tags.SPAN_KIND_CLIENT,
+          InternalSpanTypes.MESSAGE_CLIENT,
+          SpanNaming.instance()
+              .namingSchema()
+              .messaging()
+              .outboundService("rabbitmq", RABBITMQ_LEGACY_TRACING));
   public static final RabbitDecorator PRODUCER_DECORATE =
       new RabbitDecorator(
-          Tags.SPAN_KIND_PRODUCER, InternalSpanTypes.MESSAGE_PRODUCER, LOCAL_SERVICE_NAME);
+          Tags.SPAN_KIND_PRODUCER,
+          InternalSpanTypes.MESSAGE_PRODUCER,
+          SpanNaming.instance()
+              .namingSchema()
+              .messaging()
+              .outboundService("rabbitmq", RABBITMQ_LEGACY_TRACING));
   public static final RabbitDecorator CONSUMER_DECORATE =
       new RabbitDecorator(
-          Tags.SPAN_KIND_CONSUMER, InternalSpanTypes.MESSAGE_CONSUMER, LOCAL_SERVICE_NAME);
+          Tags.SPAN_KIND_CONSUMER,
+          InternalSpanTypes.MESSAGE_CONSUMER,
+          SpanNaming.instance()
+              .namingSchema()
+              .messaging()
+              .inboundService("rabbitmq", RABBITMQ_LEGACY_TRACING));
   public static final RabbitDecorator BROKER_DECORATE =
       new RabbitDecorator(
           Tags.SPAN_KIND_BROKER,
           InternalSpanTypes.MESSAGE_BROKER,
-          null /* service name will be set later on */);
+          SpanNaming.instance().namingSchema().messaging().timeInQueueService("rabbitmq"));
 
   private final String spanKind;
   private final CharSequence spanType;
@@ -105,14 +130,14 @@ public class RabbitDecorator extends MessagingClientDecorator {
   public void onGet(final AgentSpan span, final String queue) {
     span.setResourceName("basic.get " + normalizeQueueName(queue));
     // This span is created after the command has returned, so we need to set the tag here
-    span.setTag(AMQP_COMMAND.toString(), "basic.get");
+    span.setTag(AMQP_COMMAND, "basic.get");
     span.setTag(AMQP_QUEUE, queue);
   }
 
   public void onDeliver(final AgentSpan span, final String queue, final Envelope envelope) {
     span.setResourceName("basic.deliver " + normalizeQueueName(queue));
     // This span happens after any AMQP commands so we need to set the tag here
-    span.setTag(AMQP_COMMAND.toString(), "basic.deliver");
+    span.setTag(AMQP_COMMAND, "basic.deliver");
     if (envelope != null) {
       span.setTag(AMQP_EXCHANGE, envelope.getExchange());
       span.setTag(AMQP_ROUTING_KEY, envelope.getRoutingKey());
@@ -125,15 +150,13 @@ public class RabbitDecorator extends MessagingClientDecorator {
     if (!name.equals("basic.publish")) {
       span.setResourceName(name);
     }
-    span.setTag(AMQP_COMMAND.toString(), name);
+    span.setTag(AMQP_COMMAND, name);
   }
 
   public void onTimeInQueue(final AgentSpan span, final String queue, final byte[] body) {
     String normalizedQueueName = normalizeQueueName(queue);
     if (Config.get().isMessageBrokerSplitByDestination()) {
       span.setServiceName(normalizedQueueName);
-    } else {
-      span.setServiceName("rabbitmq");
     }
     span.setResourceName("amqp.deliver " + normalizedQueueName);
     if (null != body) {
@@ -186,7 +209,7 @@ public class RabbitDecorator extends MessagingClientDecorator {
       spanStartMillis = System.currentTimeMillis();
     }
     long queueStartMillis = 0;
-    if (null != headers && !RABBITMQ_LEGACY_TRACING) {
+    if (null != headers && TIME_IN_QUEUE_ENABLED) {
       queueStartMillis = extractTimeInQueueStart(headers);
     }
     long spanStartMicros = TimeUnit.MILLISECONDS.toMicros(spanStartMillis);
@@ -194,7 +217,10 @@ public class RabbitDecorator extends MessagingClientDecorator {
     if (queueStartMillis != 0) {
       queueStartMillis = Math.min(spanStartMillis, queueStartMillis);
       queueSpan =
-          startSpan(AMQP_DELIVER, parentContext, TimeUnit.MILLISECONDS.toMicros(queueStartMillis));
+          startSpan(
+              OPERATION_AMQP_DELIVER,
+              parentContext,
+              TimeUnit.MILLISECONDS.toMicros(queueStartMillis));
       BROKER_DECORATE.afterStart(queueSpan);
       BROKER_DECORATE.onTimeInQueue(queueSpan, queue, body);
       parentContext = queueSpan.context();
@@ -202,29 +228,28 @@ public class RabbitDecorator extends MessagingClientDecorator {
       // The queueSpan will be finished after the inner span has been activated to ensure that the
       // spans are written out together by the TraceStructureWriter when running in strict mode
     }
-    final AgentSpan span = startSpan(AMQP_COMMAND, parentContext, spanStartMicros);
-
-    if (null != headers) {
-      PathwayContext pathwayContext =
-          propagate().extractPathwayContext(headers, ContextVisitors.objectValuesMap());
-      span.mergePathwayContext(pathwayContext);
-      LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>();
-      sortedTags.put(DIRECTION_TAG, DIRECTION_IN);
-      sortedTags.put(TOPIC_TAG, queue);
-      sortedTags.put(TYPE_TAG, "rabbitmq");
-      AgentTracer.get().setDataStreamCheckpoint(span, sortedTags);
-    }
+    final AgentSpan span = startSpan(OPERATION_AMQP_INBOUND, parentContext, spanStartMicros);
 
     if (null != body) {
       span.setTag("message.size", body.length);
     }
     // TODO - do we still need both?
+    long produceMillis = 0;
     if (null != properties && null != properties.getTimestamp()) {
       // this will be set if the sender sets the timestamp,
       // or if a plugin is installed on the rabbitmq broker
-      long produceMillis = properties.getTimestamp().getTime();
+      produceMillis = properties.getTimestamp().getTime();
       span.setTag(RECORD_QUEUE_TIME_MS, Math.max(0L, spanStartMillis - produceMillis));
     }
+
+    if (null != headers) {
+      LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>();
+      sortedTags.put(DIRECTION_TAG, DIRECTION_IN);
+      sortedTags.put(TOPIC_TAG, queue);
+      sortedTags.put(TYPE_TAG, "rabbitmq");
+      AgentTracer.get().getDataStreamsMonitoring().setCheckpoint(span, sortedTags, produceMillis);
+    }
+
     CONSUMER_DECORATE.afterStart(span);
     AgentScope scope = activateSpan(span);
     if (null != queueSpan) {

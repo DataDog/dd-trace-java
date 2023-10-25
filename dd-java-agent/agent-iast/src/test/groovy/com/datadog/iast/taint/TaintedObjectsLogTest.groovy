@@ -5,7 +5,7 @@ import ch.qos.logback.classic.Logger
 import com.datadog.iast.IastSystem
 import com.datadog.iast.model.Range
 import com.datadog.iast.model.Source
-import com.datadog.iast.model.SourceType
+import datadog.trace.api.iast.SourceTypes
 import datadog.trace.test.util.DDSpecification
 import groovy.transform.CompileDynamic
 
@@ -35,7 +35,7 @@ class TaintedObjectsLogTest extends DDSpecification {
     final value = "A"
 
     when:
-    def tainted = taintedObjects.taintInputString(value, new Source(SourceType.NONE, null, null))
+    def tainted = taintedObjects.taintInputString(value, new Source(SourceTypes.NONE, null, null))
 
     then:
     noExceptionThrown()
@@ -54,9 +54,10 @@ class TaintedObjectsLogTest extends DDSpecification {
     IastSystem.DEBUG = true
     logger.level = Level.ALL
     TaintedObjects taintedObjects = TaintedObjects.acquire()
-    taintedObjects.taint('A', [new Range(0, 1, new Source(SourceType.NONE, null, null))] as Range[])
-    taintedObjects.taintInputString('B', new Source(SourceType.REQUEST_PARAMETER_NAME, 'test', 'value'))
-    taintedObjects.taintInputObject(new Date(), new Source(SourceType.REQUEST_HEADER_VALUE, 'test', 'value'))
+    taintedObjects.taint('A', [new Range(0, 1, new Source(SourceTypes.NONE, null, null), Range.NOT_MARKED)] as Range[])
+    taintedObjects.taintInputString('B', new Source(SourceTypes.REQUEST_PARAMETER_NAME, 'test', 'value'))
+    taintedObjects.taintInputCharSequence(new StringBuffer('B'), new Source(SourceTypes.REQUEST_PARAMETER_NAME, 'test', 'value'))
+    taintedObjects.taintInputObject(new Date(), new Source(SourceTypes.REQUEST_HEADER_VALUE, 'test', 'value'))
 
     when:
     taintedObjects.release()

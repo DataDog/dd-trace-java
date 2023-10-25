@@ -3,7 +3,7 @@ package datadog.trace.util;
 import static org.junit.Assert.assertEquals;
 
 import java.nio.charset.StandardCharsets;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 public class TagsHelperTest {
 

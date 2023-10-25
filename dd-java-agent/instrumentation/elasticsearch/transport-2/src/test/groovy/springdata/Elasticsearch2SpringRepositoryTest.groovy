@@ -65,7 +65,7 @@ abstract class Elasticsearch2SpringRepositoryTest extends VersionedNamingTestBas
             "elasticsearch.request" "SearchRequest"
             "elasticsearch.request.indices" indexName
             "elasticsearch.request.search.types" "doc"
-            defaultTags()
+            defaultTagsNoPeerService()
           }
         }
       }
@@ -101,6 +101,7 @@ abstract class Elasticsearch2SpringRepositoryTest extends VersionedNamingTestBas
             "elasticsearch.request" "IndexRequest"
             "elasticsearch.request.indices" indexName
             "elasticsearch.request.write.type" "doc"
+            peerServiceFrom(Tags.PEER_HOSTNAME)
             defaultTags()
           }
         }
@@ -120,7 +121,7 @@ abstract class Elasticsearch2SpringRepositoryTest extends VersionedNamingTestBas
             "elasticsearch.shard.broadcast.failed" 0
             "elasticsearch.shard.broadcast.successful" 5
             "elasticsearch.shard.broadcast.total" 10
-            defaultTags()
+            defaultTagsNoPeerService()
           }
         }
       }
@@ -150,6 +151,7 @@ abstract class Elasticsearch2SpringRepositoryTest extends VersionedNamingTestBas
             "elasticsearch.type" "doc"
             "elasticsearch.id" "1"
             "elasticsearch.version" Number
+            peerServiceFrom(Tags.PEER_HOSTNAME)
             defaultTags()
           }
         }
@@ -181,6 +183,7 @@ abstract class Elasticsearch2SpringRepositoryTest extends VersionedNamingTestBas
             "elasticsearch.request" "IndexRequest"
             "elasticsearch.request.indices" indexName
             "elasticsearch.request.write.type" "doc"
+            peerServiceFrom(Tags.PEER_HOSTNAME)
             defaultTags()
           }
         }
@@ -200,7 +203,7 @@ abstract class Elasticsearch2SpringRepositoryTest extends VersionedNamingTestBas
             "elasticsearch.shard.broadcast.failed" 0
             "elasticsearch.shard.broadcast.successful" 5
             "elasticsearch.shard.broadcast.total" 10
-            defaultTags()
+            defaultTagsNoPeerService()
           }
         }
       }
@@ -222,6 +225,7 @@ abstract class Elasticsearch2SpringRepositoryTest extends VersionedNamingTestBas
             "elasticsearch.type" "doc"
             "elasticsearch.id" "1"
             "elasticsearch.version" Number
+            peerServiceFrom(Tags.PEER_HOSTNAME)
             defaultTags()
           }
         }
@@ -252,6 +256,7 @@ abstract class Elasticsearch2SpringRepositoryTest extends VersionedNamingTestBas
             "elasticsearch.request" "DeleteRequest"
             "elasticsearch.request.indices" indexName
             "elasticsearch.request.write.type" "doc"
+            peerServiceFrom(Tags.PEER_HOSTNAME)
             defaultTags()
           }
         }
@@ -271,7 +276,7 @@ abstract class Elasticsearch2SpringRepositoryTest extends VersionedNamingTestBas
             "elasticsearch.shard.broadcast.failed" 0
             "elasticsearch.shard.broadcast.successful" 5
             "elasticsearch.shard.broadcast.total" 10
-            defaultTags()
+            defaultTagsNoPeerService()
           }
         }
       }
@@ -289,7 +294,7 @@ abstract class Elasticsearch2SpringRepositoryTest extends VersionedNamingTestBas
             "elasticsearch.request" "SearchRequest"
             "elasticsearch.request.indices" indexName
             "elasticsearch.request.search.types" "doc"
-            defaultTags()
+            defaultTagsNoPeerService()
           }
         }
       }
@@ -300,7 +305,7 @@ abstract class Elasticsearch2SpringRepositoryTest extends VersionedNamingTestBas
   }
 }
 
-class Elasticsearch2SpringRepositoryV0ForkedTest extends Elasticsearch2SpringRepositoryTest {
+class Elasticsearch2SpringRepositoryV0Test extends Elasticsearch2SpringRepositoryTest {
 
   @Override
   int version() {
@@ -327,7 +332,7 @@ class Elasticsearch2SpringRepositoryV1ForkedTest extends Elasticsearch2SpringRep
 
   @Override
   String service() {
-    return datadog.trace.api.Config.get().getServiceName() + "-elasticsearch"
+    return datadog.trace.api.Config.get().getServiceName()
   }
 
   @Override

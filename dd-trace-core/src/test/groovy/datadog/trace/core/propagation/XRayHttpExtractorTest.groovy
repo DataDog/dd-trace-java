@@ -1,7 +1,10 @@
 package datadog.trace.core.propagation
 
+import datadog.trace.api.Config
+import datadog.trace.api.DD64bTraceId
 import datadog.trace.api.DDSpanId
 import datadog.trace.api.DDTraceId
+import datadog.trace.api.DynamicConfig
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.bootstrap.ActiveSubsystems
 import datadog.trace.bootstrap.instrumentation.api.ContextVisitors
@@ -12,11 +15,17 @@ import static datadog.trace.api.config.TracerConfig.PROPAGATION_EXTRACT_LOG_HEAD
 
 class XRayHttpExtractorTest extends DDSpecification {
 
-  HttpCodec.Extractor extractor = XRayHttpCodec.newExtractor(["SOME_HEADER": "some-tag"], ["SOME_CUSTOM_BAGGAGE_HEADER": "some-baggage", "SOME_CUSTOM_BAGGAGE_HEADER_2": "some-CaseSensitive-baggage"])
+  DynamicConfig dynamicConfig
+  HttpCodec.Extractor extractor
 
   boolean origAppSecActive
 
   void setup() {
+    dynamicConfig = DynamicConfig.create()
+      .setHeaderTags(["SOME_HEADER": "some-tag"])
+      .setBaggageMapping(["SOME_CUSTOM_BAGGAGE_HEADER": "some-baggage", "SOME_CUSTOM_BAGGAGE_HEADER_2": "some-CaseSensitive-baggage"])
+      .apply()
+    extractor = XRayHttpCodec.newExtractor(Config.get(), { dynamicConfig.captureTraceConfig() })
     origAppSecActive = ActiveSubsystems.APPSEC_ACTIVE
     ActiveSubsystems.APPSEC_ACTIVE = true
 
@@ -199,7 +208,7 @@ class XRayHttpExtractorTest extends DDSpecification {
     then:
     if (expectedTraceId) {
       assert context.traceId == expectedTraceId
-      assert context.traceId.toHexStringOrOriginal() == traceId.padLeft(16, '0')
+      assert context.traceId.toHexStringPadded(16) == traceId.padLeft(16, '0')
       assert context.spanId == expectedSpanId
       assert DDSpanId.toHexStringPadded(context.spanId) == spanId.padLeft(16, '0')
     } else {
@@ -208,11 +217,11 @@ class XRayHttpExtractorTest extends DDSpecification {
 
     where:
     traceId            | spanId             | expectedTraceId                       | expectedSpanId
-    "00001"            | "00001"            | DDTraceId.ONE                         | 1
-    "463ac35c9f6413ad" | "463ac35c9f6413ad" | DDTraceId.from("5060571933882717101") | DDSpanId.from("5060571933882717101")
-    "48485a3953bb6124" | "1"                | DDTraceId.from("5208512171318403364") | 1
-    "f" * 16           | "1"                | DDTraceId.MAX                         | 1
-    "1"                | "f" * 16           | DDTraceId.ONE                         | DDSpanId.MAX
+    "00001"            | "00001"            | DD64bTraceId.ONE | 1
+    "463ac35c9f6413ad" | "463ac35c9f6413ad" | DD64bTraceId.fromHex("463ac35c9f6413ad") | DDSpanId.from("5060571933882717101")
+    "48485a3953bb6124" | "1"                | DD64bTraceId.fromHex("48485a3953bb6124") | 1
+    "f" * 16           | "1"                | DD64bTraceId.MAX                         | 1
+    "1"                | "f" * 16           | DD64bTraceId.ONE                         | DDSpanId.MAX
   }
 
   def "extract headers with end-to-end"() {
@@ -244,11 +253,13 @@ class XRayHttpExtractorTest extends DDSpecification {
       (HttpCodec.USER_AGENT_KEY): 'some-user-agent',
       (HttpCodec.X_CLUSTER_CLIENT_IP_KEY): '1.1.1.1',
       (HttpCodec.X_REAL_IP_KEY): '2.2.2.2',
-      (HttpCodec.CLIENT_IP_KEY): '3.3.3.3',
+      (HttpCodec.X_CLIENT_IP_KEY): '3.3.3.3',
       (HttpCodec.TRUE_CLIENT_IP_KEY): '4.4.4.4',
-      (HttpCodec.VIA_KEY): '5.5.5.5',
-      (HttpCodec.FORWARDED_FOR_KEY): '6.6.6.6',
-      (HttpCodec.X_FORWARDED_KEY): '7.7.7.7'
+      (HttpCodec.FORWARDED_FOR_KEY): '5.5.5.5',
+      (HttpCodec.X_FORWARDED_KEY): '6.6.6.6',
+      (HttpCodec.FASTLY_CLIENT_IP_KEY): '7.7.7.7',
+      (HttpCodec.CF_CONNECTING_IP_KEY): '8.8.8.8',
+      (HttpCodec.CF_CONNECTING_IP_V6_KEY): '9.9.9.9',
     ]
 
     when:
@@ -258,10 +269,12 @@ class XRayHttpExtractorTest extends DDSpecification {
     assert context.userAgent == 'some-user-agent'
     assert context.XClusterClientIp == '1.1.1.1'
     assert context.XRealIp == '2.2.2.2'
-    assert context.clientIp == '3.3.3.3'
+    assert context.XClientIp == '3.3.3.3'
     assert context.trueClientIp == '4.4.4.4'
-    assert context.via == '5.5.5.5'
-    assert context.forwardedFor == '6.6.6.6'
-    assert context.XForwarded == '7.7.7.7'
+    assert context.forwardedFor == '5.5.5.5'
+    assert context.XForwarded == '6.6.6.6'
+    assert context.fastlyClientIp == '7.7.7.7'
+    assert context.cfConnectingIp == '8.8.8.8'
+    assert context.cfConnectingIpv6 == '9.9.9.9'
   }
 }

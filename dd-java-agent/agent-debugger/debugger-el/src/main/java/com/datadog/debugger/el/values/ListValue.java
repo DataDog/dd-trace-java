@@ -5,6 +5,7 @@ import com.datadog.debugger.el.Visitor;
 import com.datadog.debugger.el.expressions.ValueExpression;
 import datadog.trace.bootstrap.debugger.el.ValueReferenceResolver;
 import datadog.trace.bootstrap.debugger.el.Values;
+import datadog.trace.bootstrap.debugger.util.WellKnownClasses;
 import java.lang.reflect.Array;
 import java.util.Collection;
 import java.util.List;
@@ -68,7 +69,12 @@ public class ListValue implements CollectionValue<Object>, ValueExpression<ListV
 
   public int count() {
     if (listHolder instanceof Collection) {
-      return ((Collection<?>) listHolder).size();
+      if (WellKnownClasses.isSizeSafe((Collection<?>) listHolder)) {
+        return ((Collection<?>) listHolder).size();
+      } else {
+        throw new RuntimeException(
+            "Unsupported Collection class: " + listHolder.getClass().getTypeName());
+      }
     } else if (listHolder == Value.nullValue()) {
       return 0;
     } else if (arrayHolder != null) {

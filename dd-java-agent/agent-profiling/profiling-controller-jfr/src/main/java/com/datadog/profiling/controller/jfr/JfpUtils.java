@@ -20,6 +20,7 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.HashMap;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Properties;
@@ -32,6 +33,8 @@ import java.util.Properties;
  */
 public final class JfpUtils {
   public static final String DEFAULT_JFP = "jfr/dd.jfp";
+
+  public static final String SAFEPOINTS_JFP = "jfr/safepoints.jfp";
   private static final String OVERRIDES_PATH = "jfr/overrides/";
   public static final String JFP_EXTENSION = ".jfp";
 
@@ -71,7 +74,7 @@ public final class JfpUtils {
 
   public static Map<String, String> readOverrideJfpResource(String name) throws IOException {
     if (name != null) {
-      if (!name.toLowerCase().endsWith(JFP_EXTENSION)) {
+      if (!name.toLowerCase(Locale.ROOT).endsWith(JFP_EXTENSION)) {
         name = name + JFP_EXTENSION;
       }
       final File file = new File(name);

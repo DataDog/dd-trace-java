@@ -35,7 +35,7 @@ public class DDAgentWriter extends RemoteWriter {
     long timeoutMillis = TimeUnit.SECONDS.toMillis(DEFAULT_AGENT_TIMEOUT);
     int traceBufferSize = BUFFER_SIZE;
     HealthMetrics healthMetrics = HealthMetrics.NO_OP;
-    int flushFrequencySeconds = 1;
+    int flushIntervalMilliseconds = 1000;
     Monitoring monitoring = Monitoring.DISABLED;
     boolean traceAgentV05Enabled = Config.get().isTraceAgentV05Enabled();
     boolean metricsReportingEnabled = Config.get().isTracerMetricsEnabled();
@@ -86,8 +86,8 @@ public class DDAgentWriter extends RemoteWriter {
       return this;
     }
 
-    public DDAgentWriterBuilder flushFrequencySeconds(int flushFrequencySeconds) {
-      this.flushFrequencySeconds = flushFrequencySeconds;
+    public DDAgentWriterBuilder flushIntervalMilliseconds(int flushIntervalMilliseconds) {
+      this.flushIntervalMilliseconds = flushIntervalMilliseconds;
       return this;
     }
 
@@ -144,7 +144,7 @@ public class DDAgentWriter extends RemoteWriter {
 
       final DDAgentMapperDiscovery mapperDiscovery = new DDAgentMapperDiscovery(featureDiscovery);
       final PayloadDispatcher dispatcher =
-          new PayloadDispatcher(mapperDiscovery, agentApi, healthMetrics, monitoring);
+          new PayloadDispatcherImpl(mapperDiscovery, agentApi, healthMetrics, monitoring);
       final TraceProcessingWorker traceProcessingWorker =
           new TraceProcessingWorker(
               traceBufferSize,
@@ -152,52 +152,19 @@ public class DDAgentWriter extends RemoteWriter {
               dispatcher,
               featureDiscovery,
               null == prioritization ? FAST_LANE : prioritization,
-              flushFrequencySeconds,
-              TimeUnit.SECONDS,
+              flushIntervalMilliseconds,
+              TimeUnit.MILLISECONDS,
               singleSpanSampler);
 
-      return new DDAgentWriter(
-          featureDiscovery,
-          agentApi,
-          healthMetrics,
-          dispatcher,
-          traceProcessingWorker,
-          alwaysFlush);
+      return new DDAgentWriter(traceProcessingWorker, dispatcher, healthMetrics, alwaysFlush);
     }
   }
 
-  private DDAgentWriter(
-      DDAgentFeaturesDiscovery discovery,
-      DDAgentApi api,
-      HealthMetrics healthMetrics,
-      PayloadDispatcher dispatcher,
+  DDAgentWriter(
       TraceProcessingWorker worker,
-      boolean alwaysFlush) {
-    super(api, worker, dispatcher, healthMetrics, alwaysFlush);
-  }
-
-  private DDAgentWriter(
-      DDAgentFeaturesDiscovery discovery,
-      DDAgentApi api,
-      HealthMetrics healthMetrics,
-      Monitoring monitoring,
-      TraceProcessingWorker worker) {
-    this(
-        discovery,
-        api,
-        healthMetrics,
-        new PayloadDispatcher(
-            new DDAgentMapperDiscovery(discovery), api, healthMetrics, monitoring),
-        worker,
-        false);
-  }
-
-  private DDAgentWriter(
-      DDAgentFeaturesDiscovery discovery,
-      DDAgentApi api,
-      HealthMetrics healthMetrics,
       PayloadDispatcher dispatcher,
-      TraceProcessingWorker worker) {
-    this(discovery, api, healthMetrics, dispatcher, worker, false);
+      HealthMetrics healthMetrics,
+      boolean alwaysFlush) {
+    super(worker, dispatcher, healthMetrics, alwaysFlush);
   }
 }

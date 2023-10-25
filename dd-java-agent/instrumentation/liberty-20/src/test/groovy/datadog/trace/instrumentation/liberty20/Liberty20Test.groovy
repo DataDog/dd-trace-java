@@ -1,78 +1,30 @@
 package datadog.trace.instrumentation.liberty20
 
 import com.ibm.wsspi.kernel.embeddable.Server
-import com.ibm.wsspi.kernel.embeddable.ServerBuilder
+import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.agent.test.base.HttpServer
 import datadog.trace.agent.test.base.HttpServerTest
 import datadog.trace.agent.test.naming.TestingGenericHttpNamingConventions
-import datadog.trace.agent.test.utils.PortUtils
-import groovy.xml.XmlUtil
+import datadog.trace.api.config.GeneralConfig
+import datadog.trace.api.env.CapturedEnvironment
+import datadog.trace.bootstrap.instrumentation.api.Tags
+import datadog.trace.core.DDSpan
 import spock.lang.IgnoreIf
 
-import java.util.concurrent.TimeUnit
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.TIMEOUT_ERROR
+import static org.junit.Assume.assumeTrue
 
 abstract class Liberty20Test extends HttpServerTest<Server> {
-
-  class Liberty20Server implements HttpServer {
-    File serverXmlFile = new File(System.getProperty('server.xml'))
-    long serverXmlLastModified
-    byte[] origServerXml
-
-    def port
-    Server server
-
-    @Override
-    void start() {
-      findRandomPort()
-      changeServerXml()
-      ServerBuilder sb = new ServerBuilder(name: 'defaultServer')
-      server = sb.build()
-      // set bootdelegation to mimic how our -javaagent delegates requests for our shaded slf4j package
-      // (at this point in the build we haven't shaded slf4j or transformed any framework class-loaders)
-      def result = server.start(["org.osgi.framework.bootdelegation":"org.slf4j"]).get(45, TimeUnit.SECONDS)
-      if (!result.successful()) {
-        throw new IllegalStateException("OpenLiberty startup has failed")
-      }
-    }
-
-    private void findRandomPort() {
-      port = PortUtils.randomOpenPort()
-    }
-
-    private void changeServerXml() {
-      serverXmlLastModified = serverXmlFile.lastModified()
-      origServerXml = serverXmlFile.bytes
-      def xml = new XmlParser().parse(serverXmlFile)
-      xml.httpEndpoint[0].'@httpPort' = port as String
-      xml.httpEndpoint[0].attributes().remove 'httpsPort'
-
-      serverXmlFile.text = XmlUtil.serialize(xml)
-    }
-
-    @Override
-    void stop() {
-      def result = server.stop().get(30, TimeUnit.SECONDS)
-      if (!result.successful()) {
-        throw new IllegalStateException("OpenLiberty stop has failed")
-      }
-      serverXmlFile.bytes = origServerXml
-      serverXmlFile.lastModified = serverXmlLastModified
-    }
-
-    @Override
-    URI address() {
-      new URI("http://localhost:$port/testapp/")
-    }
-
-    @Override
-    String toString() {
-      return this.class.name
-    }
-  }
 
   @Override
   HttpServer server() {
     new Liberty20Server()
+  }
+
+  protected String getPathPrefix() {
+    ''
   }
 
   @Override
@@ -85,6 +37,11 @@ abstract class Liberty20Test extends HttpServerTest<Server> {
     super.expectedServiceName()
   }
 
+  boolean expectedErrored(ServerEndpoint endpoint) {
+    // our test makes openliberty generate a FileNotFoundException
+    endpoint == ServerEndpoint.NOT_FOUND ? true : super.expectedErrored(endpoint)
+  }
+
   @Override
   Map<String, Serializable> expectedExtraServerTags(ServerEndpoint endpoint) {
     def res = ['servlet.context': '/testapp']
@@ -93,9 +50,21 @@ abstract class Liberty20Test extends HttpServerTest<Server> {
       res['error.type'] = 'java.io.FileNotFoundException'
       res['error.stack'] = ~/java\.io\.FileNotFoundException: SRVE0190E: File not found: \/not-found.*/
     } else {
-      res['servlet.path'] = endpoint.path
+      res['servlet.path'] = "${pathPrefix}${endpoint.path}"
     }
     res
+  }
+
+  @Override
+  Map<String, Serializable> expectedExtraErrorInformation(ServerEndpoint endpoint) {
+    // sendError produces an error span (as expected by the test)
+    if (endpoint == ServerEndpoint.ERROR) {
+      [
+        "error.message": 'controller error' // not "controller exception", as super indicates
+      ]
+    } else {
+      super.expectedExtraErrorInformation(endpoint)
+    }
   }
 
   @Override
@@ -106,6 +75,11 @@ abstract class Liberty20Test extends HttpServerTest<Server> {
   @Override
   String expectedOperationName() {
     component()
+  }
+
+  @Override
+  protected boolean enabledFinishTimingChecks() {
+    true
   }
 
   @Override
@@ -124,12 +98,113 @@ abstract class Liberty20Test extends HttpServerTest<Server> {
   }
 
   @Override
+  boolean testBlockingOnResponse() {
+    true
+  }
+
+  @Override
+  boolean testRequestBody() {
+    true
+  }
+
+  @Override
+  boolean testRequestBodyISVariant() {
+    true
+  }
+
+  @Override
   boolean hasExtraErrorInformation() {
     true
   }
 
-  boolean expectedErrored(ServerEndpoint endpoint) {
-    endpoint == ServerEndpoint.NOT_FOUND ? true : super.expectedErrored(endpoint)
+  @Override
+  boolean testBodyMultipart() {
+    true
+  }
+
+  @Override
+  String expectedResourceName(ServerEndpoint endpoint, String method, URI address) {
+    if (endpoint.path == '/not-found') {
+      'GET /testapp/not-found'
+    } else {
+      super.expectedResourceName(endpoint, method, address)
+    }
+  }
+
+  def 'test blocking on response with commit during the response'() {
+    setup:
+    assumeTrue(testBlockingOnResponse())
+
+    def request = request(SUCCESS, 'GET', null)
+      .header(IG_BLOCK_RESPONSE_HEADER, 'json')
+      .header('x-commit-during-response', 'true')
+      .build()
+
+    when:
+    def response = client.newCall(request).execute()
+
+    then:
+    if (isDataStreamsEnabled()) {
+      TEST_DATA_STREAMS_WRITER.waitForGroups(1)
+    }
+    response.code() == 413
+    response.header('Content-type') =~ /(?i)\Aapplication\/json(?:;\s?charset=utf-8)?\z/
+    response.body().charStream().text.contains('"title":"You\'ve been blocked"')
+    TEST_WRITER.waitForTraces(1)
+
+    then:
+    TEST_WRITER.flatten().find { DDSpan it ->
+      it.tags['http.status_code'] == 413 &&
+        it.tags['appsec.blocked'] == 'true'
+    } != null
+  }
+}
+
+// make it forked because there are instrumentation errors when we shutdown and
+// restart the server on the same JVM
+class Liberty20AsyncForkedTest extends Liberty20Test implements TestingGenericHttpNamingConventions.ServerV0 {
+  @Override
+  HttpServer server() {
+    new Liberty20Server('async/')
+  }
+
+  @Override
+  protected String getPathPrefix() {
+    '/async'
+  }
+
+  @Override
+  boolean hasHandlerSpan() {
+    true
+  }
+
+  @Override
+  boolean testNotFound() {
+    false // only has 1 span; test expects the handler span there too
+  }
+
+  @Override
+  boolean testResponseHeadersMapping() {
+    false
+  }
+
+  void handlerSpan(TraceAssert trace, ServerEndpoint endpoint) {
+    trace.span {
+      serviceName CapturedEnvironment.get().getProperties().get(GeneralConfig.SERVICE_NAME)
+      operationName "servlet.dispatch"
+      resourceName 'servlet.dispatch'
+      errored(endpoint.throwsException || endpoint == TIMEOUT_ERROR)
+      childOfPrevious()
+      tags {
+        "$Tags.COMPONENT" 'java-web-servlet-async-dispatcher'
+        if (endpoint == EXCEPTION) {
+          "error.message" 'controller exception'
+          "error.type" Exception.name
+          "error.stack" String
+        }
+        defaultTags()
+      }
+    }
   }
 }
 
@@ -139,7 +214,6 @@ abstract class Liberty20Test extends HttpServerTest<Server> {
   System.getProperty('java.vm.name') == 'IBM J9 VM' &&
   System.getProperty('java.specification.version') == '1.8' })
 class Liberty20V0ForkedTest extends Liberty20Test implements TestingGenericHttpNamingConventions.ServerV0 {
-
 }
 
 @IgnoreIf({
@@ -148,5 +222,4 @@ class Liberty20V0ForkedTest extends Liberty20Test implements TestingGenericHttpN
   System.getProperty('java.vm.name') == 'IBM J9 VM' &&
   System.getProperty('java.specification.version') == '1.8' })
 class Liberty20V1ForkedTest extends Liberty20Test implements TestingGenericHttpNamingConventions.ServerV1 {
-
 }

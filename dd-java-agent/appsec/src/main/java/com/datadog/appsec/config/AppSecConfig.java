@@ -1,22 +1,25 @@
 package com.datadog.appsec.config;
 
 import com.squareup.moshi.JsonAdapter;
+import com.squareup.moshi.JsonReader;
+import com.squareup.moshi.JsonWriter;
 import com.squareup.moshi.Moshi;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import javax.annotation.Nullable;
 
 public interface AppSecConfig {
 
-  Moshi MOSHI = new Moshi.Builder().build();
+  Moshi MOSHI = new Moshi.Builder().add(Double.class, new NumberJsonAdapter()).build();
   JsonAdapter<AppSecConfigV1> ADAPTER_V1 = MOSHI.adapter(AppSecConfigV1.class);
   JsonAdapter<AppSecConfigV2> ADAPTER_V2 = MOSHI.adapter(AppSecConfigV2.class);
 
   String getVersion();
 
-  List<Rule> getRules();
+  int getNumberOfRules();
 
   Map<String, Object> getRawConfig();
 
@@ -47,30 +50,9 @@ public interface AppSecConfig {
     throw new IOException("Config version '" + version + "' is not supported");
   }
 
-  class Rule {
-    private String id;
-    private String name;
-    private Map<String, String> tags;
-    private Object conditions;
-    private Object transformers;
-
-    public String getId() {
-      return id;
-    }
-
-    public String getName() {
-      return name;
-    }
-
-    public Map<String, String> getTags() {
-      return tags;
-    }
-  }
-
   class AppSecConfigV1 implements AppSecConfig {
 
     private String version;
-    private List<Rule> events;
     private Map<String, Object> rawConfig;
 
     @Override
@@ -79,8 +61,8 @@ public interface AppSecConfig {
     }
 
     @Override
-    public List<Rule> getRules() {
-      return events != null ? events : Collections.emptyList();
+    public int getNumberOfRules() {
+      return ((List<?>) rawConfig.getOrDefault("rules", Collections.emptyList())).size();
     }
 
     @Override
@@ -93,25 +75,20 @@ public interface AppSecConfig {
       if (this == o) return true;
       if (o == null || getClass() != o.getClass()) return false;
       AppSecConfigV1 that = (AppSecConfigV1) o;
-      return Objects.equals(version, that.version)
-          && Objects.equals(events, that.events)
-          && Objects.equals(rawConfig, that.rawConfig);
+      return Objects.equals(version, that.version) && Objects.equals(rawConfig, that.rawConfig);
     }
 
     @Override
     public int hashCode() {
       int hash = 1;
       hash = 31 * hash + (version == null ? 0 : version.hashCode());
-      hash = 31 * hash + (events == null ? 0 : events.hashCode());
       hash = 31 * hash + (rawConfig == null ? 0 : rawConfig.hashCode());
       return hash;
     }
   }
 
   class AppSecConfigV2 implements AppSecConfig {
-
     private String version;
-    private List<Rule> rules;
     // Note: the tendency is for new code to manipulate rawConfig directly
     private Map<String, Object> rawConfig;
 
@@ -121,8 +98,9 @@ public interface AppSecConfig {
     }
 
     @Override
-    public List<Rule> getRules() {
-      return rules != null ? rules : Collections.emptyList();
+    public int getNumberOfRules() {
+      return ((List<?>) rawConfig.getOrDefault("rules", Collections.emptyList())).size()
+          + ((List<?>) rawConfig.getOrDefault("custom_rules", Collections.emptyList())).size();
     }
 
     @Override
@@ -135,18 +113,29 @@ public interface AppSecConfig {
       if (this == o) return true;
       if (o == null || getClass() != o.getClass()) return false;
       AppSecConfigV2 that = (AppSecConfigV2) o;
-      return Objects.equals(version, that.version)
-          && Objects.equals(rules, that.rules)
-          && Objects.equals(rawConfig, that.rawConfig);
+      return Objects.equals(version, that.version) && Objects.equals(rawConfig, that.rawConfig);
     }
 
     @Override
     public int hashCode() {
       int hash = 1;
       hash = 31 * hash + (version == null ? 0 : version.hashCode());
-      hash = 31 * hash + (rules == null ? 0 : rules.hashCode());
       hash = 31 * hash + (rawConfig == null ? 0 : rawConfig.hashCode());
       return hash;
+    }
+  }
+
+  class NumberJsonAdapter extends JsonAdapter<Number> {
+
+    @Nullable
+    @Override
+    public Number fromJson(JsonReader reader) throws IOException {
+      return reader.nextInt();
+    }
+
+    @Override
+    public void toJson(JsonWriter writer, @Nullable Number value) throws IOException {
+      writer.value(value);
     }
   }
 }

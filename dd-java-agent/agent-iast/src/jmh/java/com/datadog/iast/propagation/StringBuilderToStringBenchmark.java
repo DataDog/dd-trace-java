@@ -16,7 +16,9 @@ public class StringBuilderToStringBenchmark
         notTainted(new StringBuilder("I am not a tainted string builder"));
     final StringBuilder taintedBuilder =
         tainted(
-            context, new StringBuilder("I am a tainted string builder"), new Range(5, 7, source()));
+            context,
+            new StringBuilder("I am a tainted string builder"),
+            new Range(5, 7, source(), Range.NOT_MARKED));
     return new Context(context, notTaintedBuilder, taintedBuilder);
   }
 

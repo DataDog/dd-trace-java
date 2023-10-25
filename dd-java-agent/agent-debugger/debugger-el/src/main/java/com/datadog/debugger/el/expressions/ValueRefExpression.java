@@ -1,9 +1,12 @@
 package com.datadog.debugger.el.expressions;
 
+import com.datadog.debugger.el.EvaluationException;
 import com.datadog.debugger.el.Generated;
+import com.datadog.debugger.el.PrettyPrintVisitor;
 import com.datadog.debugger.el.Value;
 import com.datadog.debugger.el.Visitor;
 import datadog.trace.bootstrap.debugger.el.ValueReferenceResolver;
+import datadog.trace.bootstrap.debugger.util.Redaction;
 import java.util.Objects;
 
 /** An expression taking a reference path and resolving to {@linkplain Value} */
@@ -16,7 +19,17 @@ public final class ValueRefExpression implements ValueExpression<Value<?>> {
 
   @Override
   public Value<?> evaluate(ValueReferenceResolver valueRefResolver) {
-    return Value.of(valueRefResolver.lookup(symbolName));
+    Object symbol;
+    try {
+      symbol = valueRefResolver.lookup(symbolName);
+    } catch (RuntimeException ex) {
+      throw new EvaluationException(ex.getMessage(), PrettyPrintVisitor.print(this));
+    }
+    if (symbol == Redaction.REDACTED_VALUE
+        || (symbol != null && Redaction.isRedactedType(symbol.getClass().getTypeName()))) {
+      ExpressionHelper.throwRedactedException(this);
+    }
+    return Value.of(symbol);
   }
 
   @Generated

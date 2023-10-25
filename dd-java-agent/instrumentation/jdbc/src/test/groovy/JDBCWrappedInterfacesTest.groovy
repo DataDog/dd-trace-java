@@ -259,7 +259,7 @@ class JDBCWrappedInterfacesTest extends AgentTestRunner {
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
             "$Tags.DB_TYPE" "${database}"
             "$Tags.DB_OPERATION" "${operation}"
-            defaultTags()
+            defaultTagsNoPeerService()
           }
         }
       }

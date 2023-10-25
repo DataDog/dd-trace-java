@@ -31,7 +31,7 @@ public class TaintedMapEmptyBenchmark {
 
   @Setup(Level.Iteration)
   public void setup() {
-    map = new DefaultTaintedMap();
+    map = new TaintedMap();
   }
 
   @Benchmark

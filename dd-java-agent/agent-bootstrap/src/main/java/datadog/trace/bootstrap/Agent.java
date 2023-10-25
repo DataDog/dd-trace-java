@@ -1,5 +1,6 @@
 package datadog.trace.bootstrap;
 
+import static datadog.trace.api.ConfigDefaults.DEFAULT_STARTUP_LOGS_ENABLED;
 import static datadog.trace.api.Platform.getRuntimeVendor;
 import static datadog.trace.api.Platform.isJavaVersionAtLeast;
 import static datadog.trace.api.Platform.isOracleJDK8;
@@ -28,8 +29,11 @@ import datadog.trace.api.config.JmxFetchConfig;
 import datadog.trace.api.config.ProfilingConfig;
 import datadog.trace.api.config.RemoteConfigConfig;
 import datadog.trace.api.config.TraceInstrumentationConfig;
+import datadog.trace.api.config.TracerConfig;
+import datadog.trace.api.config.UsmConfig;
 import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.gateway.SubscriptionService;
+import datadog.trace.api.profiling.Timer;
 import datadog.trace.api.scopemanager.ScopeListener;
 import datadog.trace.bootstrap.benchmark.StaticEventLogger;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
@@ -43,7 +47,10 @@ import java.lang.instrument.Instrumentation;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.UndeclaredThrowableException;
+import java.net.MalformedURLException;
+import java.net.URISyntaxException;
 import java.net.URL;
+import java.security.CodeSource;
 import java.util.EnumSet;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -74,14 +81,14 @@ public class Agent {
 
   private static final int DEFAULT_JMX_START_DELAY = 15; // seconds
 
-  private static final String STARTUP_LOGS_ENABLED = "trace.startup.logs";
-
   private static final Logger log;
 
   private enum AgentFeature {
     TRACING(propertyNameToSystemPropertyName(TraceInstrumentationConfig.TRACE_ENABLED), true),
     JMXFETCH(propertyNameToSystemPropertyName(JmxFetchConfig.JMX_FETCH_ENABLED), true),
-    STARTUP_LOGS(propertyNameToSystemPropertyName(STARTUP_LOGS_ENABLED), true),
+    STARTUP_LOGS(
+        propertyNameToSystemPropertyName(GeneralConfig.STARTUP_LOGS_ENABLED),
+        DEFAULT_STARTUP_LOGS_ENABLED),
     PROFILING(propertyNameToSystemPropertyName(ProfilingConfig.PROFILING_ENABLED), false),
     APPSEC(propertyNameToSystemPropertyName(AppSecConfig.APPSEC_ENABLED), false),
     IAST(propertyNameToSystemPropertyName(IastConfig.IAST_ENABLED), false),
@@ -90,6 +97,7 @@ public class Agent {
     CIVISIBILITY(propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_ENABLED), false),
     CIVISIBILITY_AGENTLESS(
         propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_AGENTLESS_ENABLED), false),
+    USM(propertyNameToSystemPropertyName(UsmConfig.USM_ENABLED), false),
     TELEMETRY(propertyNameToSystemPropertyName(GeneralConfig.TELEMETRY_ENABLED), true),
     DEBUGGER(propertyNameToSystemPropertyName(DebuggerConfig.DEBUGGER_ENABLED), false);
 
@@ -131,18 +139,29 @@ public class Agent {
   private static boolean iastEnabled = false;
   private static boolean cwsEnabled = false;
   private static boolean ciVisibilityEnabled = false;
+  private static boolean usmEnabled = false;
   private static boolean telemetryEnabled = true;
   private static boolean debuggerEnabled = false;
 
-  public static void start(final Instrumentation inst, final URL agentJarURL) {
+  public static void start(final Instrumentation inst, final URL agentJarURL, String agentArgs) {
     StaticEventLogger.begin("Agent");
     StaticEventLogger.begin("Agent.start");
 
     createAgentClassloader(agentJarURL);
 
     if (Platform.isNativeImageBuilder()) {
+      // these default services are not used during native-image builds
+      jmxFetchEnabled = false;
+      remoteConfigEnabled = false;
+      telemetryEnabled = false;
+      // apply trace instrumentation, but skip starting other services
       startDatadogAgent(inst);
+      StaticEventLogger.end("Agent.start");
       return;
+    }
+
+    if (agentArgs != null && !agentArgs.isEmpty()) {
+      injectAgentArgsConfig(agentArgs);
     }
 
     // Retro-compatibility for the old way to configure CI Visibility
@@ -163,7 +182,17 @@ public class Agent {
       setSystemPropertyDefault(AgentFeature.CWS.getSystemProp(), "false");
 
       /*if CI Visibility is enabled, the PrioritizationType should be {@code Prioritization.ENSURE_TRACE} */
-      setSystemPropertyDefault("dd.prioritization.type", "ENSURE_TRACE");
+      setSystemPropertyDefault(
+          propertyNameToSystemPropertyName(TracerConfig.PRIORITIZATION_TYPE), "ENSURE_TRACE");
+
+      try {
+        setSystemPropertyDefault(
+            propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_AGENT_JAR_URI),
+            agentJarURL.toURI().toString());
+      } catch (URISyntaxException e) {
+        throw new IllegalArgumentException(
+            "Could not create URI from agent JAR URL: " + agentJarURL, e);
+      }
     }
 
     if (!isSupportedAppSecArch()) {
@@ -177,6 +206,7 @@ public class Agent {
     jmxFetchEnabled = isFeatureEnabled(AgentFeature.JMXFETCH);
     profilingEnabled = isFeatureEnabled(AgentFeature.PROFILING);
     iastEnabled = isFeatureEnabled(AgentFeature.IAST);
+    usmEnabled = isFeatureEnabled(AgentFeature.USM);
     appSecEnabled = isFeatureEnabled(AgentFeature.APPSEC);
     appSecFullyDisabled = isAppSecFullyDisabled();
     remoteConfigEnabled = isFeatureEnabled(AgentFeature.REMOTE_CONFIG);
@@ -292,6 +322,18 @@ public class Agent {
     StaticEventLogger.end("Agent.start");
   }
 
+  private static void injectAgentArgsConfig(String agentArgs) {
+    try {
+      final Class<?> agentArgsInjectorClass =
+          AGENT_CLASSLOADER.loadClass("datadog.trace.bootstrap.config.provider.AgentArgsInjector");
+      final Method registerCallbackMethod =
+          agentArgsInjectorClass.getMethod("injectAgentArgsConfig", String.class);
+      registerCallbackMethod.invoke(null, agentArgs);
+    } catch (final Exception ex) {
+      log.error("Error injecting agent args config {}", agentArgs, ex);
+    }
+  }
+
   public static void shutdown(final boolean sync) {
     StaticEventLogger.end("Agent");
     StaticEventLogger.stop();
@@ -299,15 +341,30 @@ public class Agent {
     if (profilingEnabled) {
       shutdownProfilingAgent(sync);
     }
+    if (telemetryEnabled) {
+      stopTelemetry();
+    }
   }
 
-  public static synchronized Class<?> installAgentCLI(final URL agentJarURL) throws Exception {
+  public static synchronized Class<?> installAgentCLI() throws Exception {
     if (null == AGENT_CLASSLOADER) {
       // in CLI mode we skip installation of instrumentation because we're not running as an agent
       // we still create the agent classloader so we can install the tracer and query integrations
-      createAgentClassloader(agentJarURL);
+      CodeSource codeSource = Agent.class.getProtectionDomain().getCodeSource();
+      if (codeSource == null || codeSource.getLocation() == null) {
+        throw new MalformedURLException("Could not get jar location from code source");
+      }
+      createAgentClassloader(codeSource.getLocation());
     }
     return AGENT_CLASSLOADER.loadClass("datadog.trace.agent.tooling.AgentCLI");
+  }
+
+  /** Used by AgentCLI to send sample traces from the command-line. */
+  public static void startDatadogTracer() throws Exception {
+    Class<?> scoClass =
+        AGENT_CLASSLOADER.loadClass("datadog.communication.ddagent.SharedCommunicationObjects");
+    installDatadogTracer(scoClass, scoClass.getConstructor().newInstance());
+    startJmx(); // send runtime metrics along with the traces
   }
 
   private static void registerLogManagerCallback(final ClassLoadCallBack callback) {
@@ -592,7 +649,7 @@ public class Agent {
   private static synchronized void initializeJmxSystemAccessProvider(
       final ClassLoader classLoader) {
     if (log.isDebugEnabled()) {
-      log.debug("Initializing JMX system access provider for " + classLoader.toString());
+      log.debug("Initializing JMX system access provider for {}", classLoader);
     }
     try {
       final Class<?> tracerInstallerClass =
@@ -699,15 +756,16 @@ public class Agent {
     }
   }
 
-  private static void maybeStartCiVisibility(Class<?> scoClass, Object o) {
+  private static void maybeStartCiVisibility(Class<?> scoClass, Object sco) {
     if (ciVisibilityEnabled) {
       StaticEventLogger.begin("CI Visibility");
 
       try {
         final Class<?> ciVisibilitySysClass =
             AGENT_CLASSLOADER.loadClass("datadog.trace.civisibility.CiVisibilitySystem");
-        final Method ciVisibilityInstallerMethod = ciVisibilitySysClass.getMethod("start");
-        ciVisibilityInstallerMethod.invoke(null);
+        final Method ciVisibilityInstallerMethod =
+            ciVisibilitySysClass.getMethod("start", scoClass);
+        ciVisibilityInstallerMethod.invoke(null, sco);
       } catch (final Throwable e) {
         log.warn("Not starting CI Visibility subsystem", e);
       }
@@ -730,6 +788,21 @@ public class Agent {
     }
 
     StaticEventLogger.end("Telemetry");
+  }
+
+  private static void stopTelemetry() {
+    if (AGENT_CLASSLOADER == null) {
+      return;
+    }
+
+    try {
+      final Class<?> telemetrySystem =
+          AGENT_CLASSLOADER.loadClass("datadog.telemetry.TelemetrySystem");
+      final Method stopTelemetry = telemetrySystem.getMethod("stop");
+      stopTelemetry.invoke(null);
+    } catch (final Throwable ex) {
+      log.error("Error encountered while stopping telemetry", ex);
+    }
   }
 
   private static void initializeCrashUploader() {
@@ -780,7 +853,7 @@ public class Agent {
    * on JFR.
    */
   private static ProfilingContextIntegration createProfilingContextIntegration() {
-    if (Config.get().isProfilingEnabled()) {
+    if (Config.get().isProfilingEnabled() && !Platform.isWindows()) {
       try {
         return (ProfilingContextIntegration)
             AGENT_CLASSLOADER
@@ -796,6 +869,11 @@ public class Agent {
 
   private static void startProfilingAgent(final boolean isStartingFirst) {
     StaticEventLogger.begin("ProfilingAgent");
+
+    if (isAwsLambdaRuntime()) {
+      log.info("Profiling not supported in AWS Lambda runtimes");
+      return;
+    }
 
     final ClassLoader contextLoader = Thread.currentThread().getContextClassLoader();
     try {
@@ -815,18 +893,35 @@ public class Agent {
             new WithGlobalTracer.Callback() {
               @Override
               public void withTracer(TracerAPI tracer) {
+                // TODO simplify this by reworking module boundaries
                 log.debug("Initializing profiler tracer integrations");
+                String checkpointerClassName =
+                    Config.get().isDatadogProfilerEnabled()
+                        ? "com.datadog.profiling.controller.ddprof.DatadogProfilerCheckpointer"
+                        : Platform.isOracleJDK8() || Platform.isJ9()
+                            ? null
+                            : "com.datadog.profiling.controller.openjdk.JFRCheckpointer";
+                String timerClassName =
+                    Config.get().isDatadogProfilerEnabled()
+                        ? "com.datadog.profiling.controller.ddprof.DatadogProfilerTimer"
+                        : null;
                 try {
-                  if (Platform.isOracleJDK8() || Platform.isJ9()) {
-                    return;
+                  if (checkpointerClassName != null) {
+                    tracer.registerCheckpointer(
+                        (EndpointCheckpointer)
+                            AGENT_CLASSLOADER
+                                .loadClass(checkpointerClassName)
+                                .getDeclaredConstructor()
+                                .newInstance());
                   }
-                  EndpointCheckpointer endpointCheckpointer =
-                      (EndpointCheckpointer)
-                          AGENT_CLASSLOADER
-                              .loadClass("com.datadog.profiling.controller.openjdk.JFRCheckpointer")
-                              .getDeclaredConstructor()
-                              .newInstance();
-                  tracer.registerCheckpointer(endpointCheckpointer);
+                  if (timerClassName != null) {
+                    tracer.registerTimer(
+                        (Timer)
+                            AGENT_CLASSLOADER
+                                .loadClass(timerClassName)
+                                .getDeclaredConstructor()
+                                .newInstance());
+                  }
                 } catch (Throwable e) {
                   if (e instanceof InvocationTargetException) {
                     e = e.getCause();
@@ -843,6 +938,11 @@ public class Agent {
     }
 
     StaticEventLogger.end("ProfilingAgent");
+  }
+
+  private static boolean isAwsLambdaRuntime() {
+    String val = System.getenv("AWS_LAMBDA_FUNCTION_NAME");
+    return val != null && !val.isEmpty();
   }
 
   private static ScopeListener createScopeListener(String className) throws Throwable {
@@ -970,7 +1070,7 @@ public class Agent {
     }
   }
 
-  /** @see datadog.trace.api.ProductActivationConfig#fromString(String) */
+  /** @see datadog.trace.api.ProductActivation#fromString(String) */
   private static boolean isAppSecFullyDisabled() {
     // must be kept in sync with logic from Config!
     final String featureEnabledSysprop = AgentFeature.APPSEC.systemProp;

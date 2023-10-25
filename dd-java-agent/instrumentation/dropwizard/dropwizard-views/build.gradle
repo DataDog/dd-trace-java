@@ -2,7 +2,7 @@ muzzle {
   pass {
     group = 'io.dropwizard'
     module = 'dropwizard-views'
-    versions = "[,]"
+    versions = "[,3)"
   }
 }
 

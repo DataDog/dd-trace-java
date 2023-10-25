@@ -53,8 +53,8 @@ public final class AgentCLI {
    * @param count how many traces to send, negative means send forever
    * @param interval the interval (in seconds) to wait for each trace
    */
-  public static void sendSampleTraces(final int count, final double interval) {
-    Agent.start(null, Agent.class.getProtectionDomain().getCodeSource().getLocation());
+  public static void sendSampleTraces(final int count, final double interval) throws Exception {
+    Agent.startDatadogTracer();
 
     int numTraces = 0;
     while (++numTraces <= count || count < 0) {
@@ -89,7 +89,7 @@ public final class AgentCLI {
   public static void scanDependencies(final String[] args) throws Exception {
     Class depClass =
         Class.forName(
-            "datadog.telemetry.dependency.DependencyServiceImpl",
+            "datadog.telemetry.dependency.DependencyService",
             true,
             AgentCLI.class.getClassLoader());
     Object depService = depClass.getConstructor().newInstance();
@@ -128,7 +128,7 @@ public final class AgentCLI {
 
   private static void unzipJar(Consumer<File> invoker, File file) throws IOException {
     try (JarFile jar = new JarFile(file)) {
-      log.debug("Finding entries in file:" + file.getName());
+      log.debug("Finding entries in file: {}", file.getName());
 
       jar.stream()
           .forEach(

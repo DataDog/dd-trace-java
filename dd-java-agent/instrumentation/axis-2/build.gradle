@@ -8,14 +8,7 @@ muzzle {
 
 apply from: "$rootDir/gradle/java.gradle"
 
-apply plugin: 'org.unbroken-dome.test-sets'
-
-testSets {
-  latestDepTest {
-    dirName = 'test'
-  }
-}
-
+addTestSuiteForDir('latestDepTest', 'test')
 configurations.all {
   // the version used by axis2 isn't available in a public repository - we don't need it, so exclude it
   exclude group: 'org.apache.woden', module: 'woden'

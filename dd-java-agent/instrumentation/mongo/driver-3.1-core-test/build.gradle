@@ -1,12 +1,7 @@
 apply from: "$rootDir/gradle/java.gradle"
 
-apply plugin: 'org.unbroken-dome.test-sets'
+addTestSuiteForDir('latestDepTest', 'test')
 
-testSets {
-  latestDepTest {
-    dirName = 'test'
-  }
-}
 dependencies {
   testImplementation project(':dd-java-agent:instrumentation:mongo').sourceSets.test.output
   testImplementation group: 'de.flapdoodle.embed', name: 'de.flapdoodle.embed.mongo', version: '4.5.1'

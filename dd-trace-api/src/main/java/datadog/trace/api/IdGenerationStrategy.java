@@ -1,5 +1,7 @@
 package datadog.trace.api;
 
+import static java.lang.Long.MAX_VALUE;
+
 import java.security.SecureRandom;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicLong;
@@ -11,48 +13,74 @@ import java.util.concurrent.atomic.AtomicLong;
  * configuration based, for example 128 bit trace ids et.c., without changing the public API.
  */
 public abstract class IdGenerationStrategy {
-  private IdGenerationStrategy() {}
+  protected final boolean traceId128BitGenerationEnabled;
+
+  private IdGenerationStrategy(boolean traceId128BitGenerationEnabled) {
+    this.traceId128BitGenerationEnabled = traceId128BitGenerationEnabled;
+  }
 
   public static IdGenerationStrategy fromName(String name) {
+    return fromName(name, false);
+  }
+
+  public static IdGenerationStrategy fromName(String name, boolean traceId128BitGenerationEnabled) {
     switch (name.toUpperCase()) {
       case "RANDOM":
-        return new Random();
+        return new Random(traceId128BitGenerationEnabled);
       case "SEQUENTIAL":
-        return new Sequential();
+        return new Sequential(traceId128BitGenerationEnabled);
       case "SECURE_RANDOM":
-        return new SRandom();
+        return new SRandom(traceId128BitGenerationEnabled);
       default:
         return null;
     }
   }
 
-  public abstract DDTraceId generateTraceId();
+  public DDTraceId generateTraceId() {
+    return this.traceId128BitGenerationEnabled
+        ? DD128bTraceId.from(generateHighOrderBits(), getNonZeroPositiveLong())
+        : DD64bTraceId.from(getNonZeroPositiveLong());
+  }
 
-  public abstract long generateSpanId();
+  public long generateSpanId() {
+    return getNonZeroPositiveLong();
+  }
+
+  protected abstract long getNonZeroPositiveLong();
+
+  protected long generateHighOrderBits() {
+    long timestamp = System.currentTimeMillis() / 1000;
+    return timestamp << 32;
+  }
 
   static final class Random extends IdGenerationStrategy {
-    @Override
-    public DDTraceId generateTraceId() {
-      return DDTraceId.from(ThreadLocalRandom.current().nextLong(1, Long.MAX_VALUE));
+    private Random(boolean traceId128BitGenerationEnabled) {
+      super(traceId128BitGenerationEnabled);
     }
 
     @Override
-    public long generateSpanId() {
-      return ThreadLocalRandom.current().nextLong(1, Long.MAX_VALUE);
+    protected long getNonZeroPositiveLong() {
+      return ThreadLocalRandom.current().nextLong(0, MAX_VALUE) + 1;
     }
   }
 
   static final class Sequential extends IdGenerationStrategy {
-    private final AtomicLong id = new AtomicLong(0);
+    private final AtomicLong id;
 
-    @Override
-    public DDTraceId generateTraceId() {
-      return DDTraceId.from(id.incrementAndGet());
+    private Sequential(boolean traceId128BitGenerationEnabled) {
+      super(traceId128BitGenerationEnabled);
+      this.id = new AtomicLong(0);
     }
 
     @Override
-    public long generateSpanId() {
-      return id.incrementAndGet();
+    public DDTraceId generateTraceId() {
+      // Only use 64-bit TraceId to use incremental values only
+      return DD64bTraceId.from(getNonZeroPositiveLong());
+    }
+
+    @Override
+    protected long getNonZeroPositiveLong() {
+      return this.id.incrementAndGet();
     }
   }
 
@@ -64,11 +92,12 @@ public abstract class IdGenerationStrategy {
   static final class SRandom extends IdGenerationStrategy {
     private final SecureRandom secureRandom;
 
-    SRandom() {
-      this(SecureRandom::getInstanceStrong);
+    SRandom(boolean traceId128BitGenerationEnabled) {
+      this(traceId128BitGenerationEnabled, SecureRandom::getInstanceStrong);
     }
 
-    SRandom(ThrowingSupplier<SecureRandom> supplier) {
+    SRandom(boolean traceId128BitGenerationEnabled, ThrowingSupplier<SecureRandom> supplier) {
+      super(traceId128BitGenerationEnabled);
       try {
         secureRandom = supplier.get();
       } catch (Throwable e) {
@@ -76,22 +105,13 @@ public abstract class IdGenerationStrategy {
       }
     }
 
-    private long getNonZeroPositiveLong() {
-      long value = secureRandom.nextLong() & Long.MAX_VALUE;
+    @Override
+    protected long getNonZeroPositiveLong() {
+      long value = secureRandom.nextLong() & MAX_VALUE;
       while (value == 0) {
-        value = secureRandom.nextLong() & Long.MAX_VALUE;
+        value = secureRandom.nextLong() & MAX_VALUE;
       }
       return value;
-    }
-
-    @Override
-    public DDTraceId generateTraceId() {
-      return DDTraceId.from(getNonZeroPositiveLong());
-    }
-
-    @Override
-    public long generateSpanId() {
-      return getNonZeroPositiveLong();
     }
   }
 }

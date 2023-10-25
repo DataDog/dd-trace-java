@@ -1,5 +1,6 @@
 plugins {
   id 'me.champeau.jmh'
+  id 'java-test-fixtures'
 }
 apply from: "$rootDir/gradle/java.gradle"
 apply from: "$rootDir/gradle/tries.gradle"
@@ -22,11 +23,10 @@ sourceSets {
 }
 
 configurations {
-  // classpath used by the instrumentation muzzle plugin
-  instrumentationMuzzle {
+  instrumentPluginClasspath {
     canBeConsumed = true
     canBeResolved = false
-    extendsFrom implementation
+    extendsFrom runtimeElements
   }
 
   test_java11Implementation {
@@ -43,9 +43,10 @@ dependencies {
     exclude group: 'com.datadoghq', module: 'agent-logging'
   }
   api group: 'com.blogspot.mydailyjava', name: 'weak-lock-free', version: '0.17'
-  api group: 'com.googlecode.concurrentlinkedhashmap', name: 'concurrentlinkedhashmap-lru', version: '1.4.2'
   api deps.bytebuddy
   api deps.bytebuddyagent
+  implementation group: 'net.java.dev.jna', name: 'jna', version: '5.8.0'
+  implementation group: 'net.java.dev.jna', name: 'jna-platform', version: '5.8.0'
 
   api project(':dd-trace-core')
 
@@ -54,6 +55,7 @@ dependencies {
   compileOnly group: 'com.github.jnr', name: 'jnr-posix', version: "${versions.jnr_posix}"
 
   testImplementation project(':dd-java-agent:testing')
+  testImplementation deps.bytebuddy
   testImplementation group: 'com.google.guava', name: 'guava-testlib', version: '20.0'
 
   jmhImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-web', version: '2.3.5.RELEASE'

@@ -1,15 +1,6 @@
 repositories {
   mavenLocal()
   mavenCentral()
-  maven {
-    url "https://adoptopenjdk.jfrog.io/adoptopenjdk/jmc-libs-snapshots"
-    content {
-      includeGroup "org.openjdk.jmc"
-    }
-    mavenContent {
-      snapshotsOnly()
-    }
-  }
   // add sonatype repository for snapshot dependencies
   maven {
     content {
@@ -19,5 +10,12 @@ repositories {
       snapshotsOnly()
     }
     url 'https://oss.sonatype.org/content/repositories/snapshots/'
+  }
+  ivy {
+    artifactPattern 'https://sqreen-ci-java.s3.amazonaws.com/jars/[organisation]/[artifact]-[revision](-[classifier]).[ext]'
+    ivyPattern 'https://sqreen-ci-java.s3.amazonaws.com/jars/[organisation]/[module]-[revision].xml'
+    content {
+      includeGroup 'io.sqreen'
+    }
   }
 }

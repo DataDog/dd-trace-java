@@ -1,6 +1,10 @@
-import datadog.trace.agent.test.AgentTestRunner
+import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
+import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
+
 import datadog.trace.agent.test.asserts.ListWriterAssert
 import datadog.trace.agent.test.asserts.TraceAssert
+import datadog.trace.agent.test.naming.VersionedNamingTestBase
 import datadog.trace.agent.test.utils.PortUtils
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
@@ -22,11 +26,7 @@ import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import java.util.function.Function
 
-import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
-import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
-
-abstract class VertxRedisTestBase extends AgentTestRunner {
+abstract class VertxRedisTestBase extends VersionedNamingTestBase {
 
   @Shared
   int port = PortUtils.randomOpenPort()
@@ -49,6 +49,21 @@ abstract class VertxRedisTestBase extends AgentTestRunner {
   @AutoCleanup
   @Shared
   Redis redis = null
+
+  @Override
+  int version() {
+    return 0
+  }
+
+  @Override
+  String service() {
+    return "redis"
+  }
+
+  @Override
+  String operation() {
+    return "redis.query"
+  }
 
   def setupSpec() {
     println "Using redis: $redisServer.args"
@@ -98,7 +113,7 @@ abstract class VertxRedisTestBase extends AgentTestRunner {
     result
   }
 
-  static void parentTraceWithCommandAndHandler(ListWriterAssert lw, String command) {
+  void parentTraceWithCommandAndHandler(ListWriterAssert lw, String command) {
     lw.trace(3, true) {
       basicSpan(it, "handler", span(1))
       basicSpan(it,"parent")
@@ -106,20 +121,23 @@ abstract class VertxRedisTestBase extends AgentTestRunner {
     }
   }
 
-  static void redisSpan(TraceAssert trace, String command, DDSpan parentSpan = null) {
+  void redisSpan(TraceAssert trace, String command, DDSpan parentSpan = null) {
     trace.span {
       if (parentSpan) {
         childOf parentSpan
       }
-      serviceName "redis"
-      operationName "redis.query"
+      serviceName service()
+      operationName operation()
       resourceName command
       spanType DDSpanTypes.REDIS
-      topLevel true
+      measured true
       tags {
         "$Tags.COMPONENT" "redis-command"
         "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
         "$Tags.DB_TYPE" "redis"
+        "$Tags.PEER_PORT" port
+        "$Tags.PEER_HOSTNAME" "127.0.0.1"
+        peerServiceFrom(Tags.PEER_HOSTNAME)
         defaultTags()
       }
     }

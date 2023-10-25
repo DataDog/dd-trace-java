@@ -14,13 +14,17 @@ import static com.datadog.profiling.ddprof.DatadogProfilerConfig.getWallContextF
 import static com.datadog.profiling.ddprof.DatadogProfilerConfig.getWallInterval;
 import static com.datadog.profiling.ddprof.DatadogProfilerConfig.isAllocationProfilingEnabled;
 import static com.datadog.profiling.ddprof.DatadogProfilerConfig.isCpuProfilerEnabled;
+import static com.datadog.profiling.ddprof.DatadogProfilerConfig.isLiveHeapSizeTrackingEnabled;
 import static com.datadog.profiling.ddprof.DatadogProfilerConfig.isMemoryLeakProfilingEnabled;
 import static com.datadog.profiling.ddprof.DatadogProfilerConfig.isSpanNameContextAttributeEnabled;
 import static com.datadog.profiling.ddprof.DatadogProfilerConfig.isWallClockProfilerEnabled;
+import static com.datadog.profiling.ddprof.DatadogProfilerConfig.omitLineNumbers;
 import static com.datadog.profiling.utils.ProfilingMode.ALLOCATION;
 import static com.datadog.profiling.utils.ProfilingMode.CPU;
 import static com.datadog.profiling.utils.ProfilingMode.MEMLEAK;
 import static com.datadog.profiling.utils.ProfilingMode.WALL;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_QUEUEING_TIME_THRESHOLD_MILLIS;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_QUEUEING_TIME_THRESHOLD_MILLIS_DEFAULT;
 
 import com.datadog.profiling.controller.OngoingRecording;
 import com.datadog.profiling.controller.RecordingData;
@@ -50,6 +54,12 @@ import org.slf4j.LoggerFactory;
  */
 public final class DatadogProfiler {
   private static final Logger log = LoggerFactory.getLogger(DatadogProfiler.class);
+
+  private static final int[] EMPTY = new int[0];
+
+  private static final String OPERATION = "_dd.trace.operation";
+
+  private static final int MAX_NUM_ENDPOINTS = 8192;
 
   private static final class Singleton {
     private static final DatadogProfiler INSTANCE = newInstance();
@@ -83,7 +93,13 @@ public final class DatadogProfiler {
     return instance;
   }
 
-  static DatadogProfiler newInstance(ConfigProvider configProvider) {
+  public static DatadogProfiler newInstance(ConfigProvider configProvider) {
+    // do not recreate the default instance
+    // it is ok to use identity check as we are requiring the exact same instance
+    if (configProvider == Singleton.INSTANCE.configProvider) {
+      return Singleton.INSTANCE;
+    }
+
     DatadogProfiler instance = null;
     try {
       instance = new DatadogProfiler(configProvider);
@@ -103,6 +119,8 @@ public final class DatadogProfiler {
 
   private final List<String> orderedContextAttributes;
 
+  private final long queueTimeThreshold;
+
   private DatadogProfiler() throws UnsupportedEnvironmentException {
     this(ConfigProvider.getInstance());
   }
@@ -112,6 +130,7 @@ public final class DatadogProfiler {
     this.profiler = null;
     this.contextSetter = null;
     this.orderedContextAttributes = null;
+    this.queueTimeThreshold = Long.MAX_VALUE;
   }
 
   private DatadogProfiler(ConfigProvider configProvider) throws UnsupportedEnvironmentException {
@@ -125,6 +144,7 @@ public final class DatadogProfiler {
     try {
       profiler =
           JavaProfiler.getInstance(
+              configProvider.getString(ProfilingConfig.PROFILING_DATADOG_PROFILER_LIBPATH),
               configProvider.getString(
                   ProfilingConfig.PROFILING_DATADOG_PROFILER_SCRATCH,
                   ProfilingConfig.PROFILING_DATADOG_PROFILER_SCRATCH_DEFAULT));
@@ -151,9 +171,13 @@ public final class DatadogProfiler {
     }
     this.orderedContextAttributes = new ArrayList<>(contextAttributes);
     if (isSpanNameContextAttributeEnabled(configProvider)) {
-      orderedContextAttributes.add(0, "operation");
+      orderedContextAttributes.add(OPERATION);
     }
     this.contextSetter = new ContextSetter(profiler, orderedContextAttributes);
+    this.queueTimeThreshold =
+        configProvider.getLong(
+            PROFILING_QUEUEING_TIME_THRESHOLD_MILLIS,
+            PROFILING_QUEUEING_TIME_THRESHOLD_MILLIS_DEFAULT);
     try {
       // sanity test - force load Datadog profiler to catch it not being available early
       profiler.execute("status");
@@ -282,6 +306,9 @@ public final class DatadogProfiler {
     cmd.append(",cstack=").append(getCStack(configProvider));
     cmd.append(",safemode=").append(getSafeMode(configProvider));
     cmd.append(",attributes=").append(String.join(";", orderedContextAttributes));
+    if (omitLineNumbers(configProvider)) {
+      cmd.append(",linenumbers=f");
+    }
     if (profilingModes.contains(CPU)) {
       // cpu profiling is enabled.
       String schedulingEvent = getSchedulingEvent(configProvider);
@@ -317,7 +344,7 @@ public final class DatadogProfiler {
         cmd.append('a');
       }
       if (profilingModes.contains(MEMLEAK)) {
-        cmd.append('l');
+        cmd.append(isLiveHeapSizeTrackingEnabled(configProvider) ? 'L' : 'l');
       }
     }
     String cmdString = cmd.toString();
@@ -325,8 +352,19 @@ public final class DatadogProfiler {
     return cmdString;
   }
 
+  public void recordTraceRoot(long rootSpanId, String endpoint) {
+    if (profiler != null) {
+      if (!profiler.recordTraceRoot(rootSpanId, endpoint, MAX_NUM_ENDPOINTS)) {
+        log.debug(
+            "Endpoint event not written because more than {} distinct endpoints have been encountered."
+                + " This avoids excessive memory overhead.",
+            MAX_NUM_ENDPOINTS);
+      }
+    }
+  }
+
   public int operationNameOffset() {
-    return offsetOf("operation");
+    return offsetOf(OPERATION);
   }
 
   public int offsetOf(String attribute) {
@@ -338,7 +376,7 @@ public final class DatadogProfiler {
       try {
         profiler.setContext(spanId, rootSpanId);
       } catch (IllegalStateException e) {
-        log.warn("Failed to clear context", e);
+        log.debug("Failed to clear context", e);
       }
     }
   }
@@ -348,7 +386,7 @@ public final class DatadogProfiler {
       try {
         profiler.setContext(0L, 0L);
       } catch (IllegalStateException e) {
-        log.warn("Failed to set context", e);
+        log.debug("Failed to set context", e);
       }
     }
   }
@@ -394,5 +432,31 @@ public final class DatadogProfiler {
       return contextSetter.encode(constant.toString());
     }
     return 0;
+  }
+
+  public int[] snapshot() {
+    if (contextSetter != null) {
+      return contextSetter.snapshotTags();
+    }
+    return EMPTY;
+  }
+
+  public void recordSetting(String name, String value) {
+    if (profiler != null) {
+      profiler.recordSetting(name, value);
+    }
+  }
+
+  public void recordSetting(String name, String value, String unit) {
+    if (profiler != null) {
+      profiler.recordSetting(name, value, unit);
+    }
+  }
+
+  public QueueTimeTracker newQueueTimeTracker() {
+    if (profiler != null) {
+      return new QueueTimeTracker(profiler, queueTimeThreshold);
+    }
+    return null;
   }
 }

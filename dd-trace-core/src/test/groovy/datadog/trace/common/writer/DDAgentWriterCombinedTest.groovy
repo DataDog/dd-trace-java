@@ -69,7 +69,7 @@ class DDAgentWriterCombinedTest extends DDCoreSpecification {
       .agentApi(api)
       .traceBufferSize(8)
       .monitoring(monitoring)
-      .flushFrequencySeconds(-1)
+      .flushIntervalMilliseconds(-1)
       .build()
     writer.start()
 
@@ -95,7 +95,7 @@ class DDAgentWriterCombinedTest extends DDCoreSpecification {
       .agentApi(api)
       .traceBufferSize(1024)
       .monitoring(monitoring)
-      .flushFrequencySeconds(-1)
+      .flushIntervalMilliseconds(-1)
       .build()
     writer.start()
     def trace = [dummyTracer.buildSpan("fakeOperation").start()]
@@ -126,7 +126,7 @@ class DDAgentWriterCombinedTest extends DDCoreSpecification {
       .agentApi(api)
       .traceBufferSize(bufferSize)
       .monitoring(monitoring)
-      .flushFrequencySeconds(-1)
+      .flushIntervalMilliseconds(-1)
       .build()
     writer.start()
     def trace = [dummyTracer.buildSpan("fakeOperation").start()]
@@ -161,7 +161,7 @@ class DDAgentWriterCombinedTest extends DDCoreSpecification {
       .agentApi(api)
       .healthMetrics(healthMetrics)
       .monitoring(monitoring)
-      .flushFrequencySeconds(1)
+      .flushIntervalMilliseconds(1000)
       .build()
     writer.start()
     def span = dummyTracer.buildSpan("fakeOperation").start()
@@ -201,7 +201,7 @@ class DDAgentWriterCombinedTest extends DDCoreSpecification {
       .traceBufferSize(BUFFER_SIZE)
       .prioritization(ENSURE_TRACE)
       .monitoring(monitoring)
-      .flushFrequencySeconds(-1)
+      .flushIntervalMilliseconds(-1)
       .build()
     writer.start()
 
@@ -248,7 +248,7 @@ class DDAgentWriterCombinedTest extends DDCoreSpecification {
 
     then:
     // this will be checked during flushing
-    1 * healthMetrics.onFailedPublish(_)
+    1 * healthMetrics.onFailedPublish(_,_)
     1 * healthMetrics.onFlush(_)
     1 * healthMetrics.onShutdown(_)
     1 * healthMetrics.close()
@@ -263,8 +263,8 @@ class DDAgentWriterCombinedTest extends DDCoreSpecification {
 
   def createMinimalContext() {
     def tracer = Mock(CoreTracer)
-    tracer.mapServiceName(_) >> { String serviceName -> serviceName }
     def trace = Mock(PendingTrace)
+    trace.mapServiceName(_) >> { String serviceName -> serviceName }
     trace.getTracer() >> tracer
     return new DDSpanContext(
       DDTraceId.ONE,
@@ -290,7 +290,7 @@ class DDAgentWriterCombinedTest extends DDCoreSpecification {
 
   def createMinimalTrace() {
     def context = createMinimalContext()
-    def minimalSpan = new DDSpan(0, context)
+    def minimalSpan = new DDSpan("test", 0, context)
     context.getTrace().getRootSpan() >> minimalSpan
     def minimalTrace = [minimalSpan]
 
@@ -488,7 +488,7 @@ class DDAgentWriterCombinedTest extends DDCoreSpecification {
       onPublish(_, _) >> {
         numPublished.incrementAndGet()
       }
-      onFailedPublish(_) >> {
+      onFailedPublish(_,_) >> {
         numFailedPublish.incrementAndGet()
       }
       onFlush(_) >> {
@@ -592,7 +592,7 @@ class DDAgentWriterCombinedTest extends DDCoreSpecification {
       onPublish(_, _) >> {
         numPublished.incrementAndGet()
       }
-      onFailedPublish(_) >> {
+      onFailedPublish(_,_) >> {
         numFailedPublish.incrementAndGet()
       }
       onSend(_, _, _) >> { repCount, sizeInBytes, response ->

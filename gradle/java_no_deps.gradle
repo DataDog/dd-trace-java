@@ -8,6 +8,7 @@ apply from: "$rootDir/gradle/spotless.gradle"
 apply from: "$rootDir/gradle/spotbugs.gradle"
 apply from: "$rootDir/gradle/repositories.gradle"
 apply from: "$rootDir/gradle/pitest.gradle"
+apply from: "$rootDir/gradle/test-suites.gradle"
 
 // Only run one testcontainers test at a time
 ext.testcontainersLimit = gradle.sharedServices.registerIfAbsent("testcontainersLimit", BuildService) {
@@ -15,11 +16,10 @@ ext.testcontainersLimit = gradle.sharedServices.registerIfAbsent("testcontainers
 }
 
 // Task for tests that want to run forked in their own separate JVM
-tasks.register('forkedTest', Test) {
-}
-
-test {
-  finalizedBy "forkedTest"
+if (tasks.matching({it.name == 'forkedTest'}).empty) {
+  tasks.register('forkedTest', Test).configure {
+    useJUnitPlatform()
+  }
 }
 
 def applyCodeCoverage = !(
@@ -60,8 +60,8 @@ if (project.hasProperty('minJavaVersionForTests') && project.getProperty('minJav
   }
 
   dependencies {
-    compileOnly sourceSets."main_$name".compileClasspath
-    implementation sourceSets."main_$name".output
+    compileOnly files(project.sourceSets."main_$name".compileClasspath)
+    implementation files(project.sourceSets."main_$name".output)
   }
 
   jar {
@@ -104,7 +104,7 @@ jar {
 }
 
 tasks.register("packageSources", Jar) {
-  classifier = 'sources'
+  archiveClassifier = 'sources'
   from sourceSets.main.allSource
 }
 artifacts.archives packageSources
@@ -167,10 +167,6 @@ project.afterEvaluate {
     // Only change test JVM if it's not the one we are running the gradle build with
     if (currentJavaHomePath != testJvmHomePath) {
       def jvmSpec = new SpecificInstallationToolchainSpec(project.getObjects(), file(testJvmHomePath))
-      // Not really sure why this has to be done forcefully, but if it's not then gradle will complain that
-      // javaLauncher.metadata.taskInputs.languageVersion doesn't have a configured value (even though it is
-      // populated automatically by the javaToolchainsService)
-      jvmSpec.languageVersion.set(JavaLanguageVersion.of(testJvmLanguageVersion))
       // The provider always says that a value is present so we need to wrap it for proper error messages
       Provider<JavaLauncher> launcher = providers.provider {
         try {
@@ -203,9 +199,12 @@ project.afterEvaluate {
     } else {
       def name = it.name
       onlyIf { isJavaVersionAllowed(JavaVersion.current(), name) }
+      if (JavaVersion.current().isCompatibleWith(JavaVersion.VERSION_16)) {
+        jvmArgs += ['--add-opens=java.base/java.lang=ALL-UNNAMED', '--add-opens=java.base/java.util=ALL-UNNAMED']
+      }
     }
 
-    if (project.plugins.hasPlugin('org.unbroken-dome.test-sets') && configurations.hasProperty("latestDepTestRuntime")) {
+    if (configurations.hasProperty("latestDepTestRuntimeClasspath")) {
       doFirst {
         def testArtifacts = configurations.testRuntimeClasspath.resolvedConfiguration.resolvedArtifacts
         def latestTestArtifacts = configurations.latestDepTestRuntimeClasspath.resolvedConfiguration.resolvedArtifacts
@@ -272,7 +271,11 @@ ext.setJavaVersion = (it, javaVersionInteger) -> {
   try {
     ac.configure {
       options.fork = true
-      options.forkOptions.javaHome = compiler.get().metadata.installationPath.asFile
+      if (ac.hasProperty('javaCompiler')) {
+        javaCompiler = compiler
+      } else {
+        options.forkOptions.javaHome = compiler.get().metadata.installationPath.asFile
+      }
     }
   } catch (NoSuchElementException ignored) {
     throw new GradleException("Unable to find compiler for Java $javaVersionInteger. Have you set JAVA_${javaVersionInteger}_HOME?")
@@ -311,16 +314,22 @@ def isJavaLanguageVersionAllowed(JavaLanguageVersion languageVersion, String tes
 }
 
 def isJdkForced(String javaName) {
-  return (project.hasProperty('forceJdk') && project.getProperty('forceJdk').contains(javaName))
+  return (project.hasProperty('forceJdk') && project.getProperty('forceJdk').any { it.equalsIgnoreCase(javaName) })
 }
 
 def isJdkExcluded(String javaName) {
-  return (project.hasProperty('excludeJdk') && project.getProperty('excludeJdk').contains(javaName))
+  return (project.hasProperty('excludeJdk') && project.getProperty('excludeJdk').any { it.equalsIgnoreCase(javaName) })
 }
 
 def getJavaHomePath(String path) {
   def javaHome = new File(path).toPath().toRealPath()
   return javaHome.endsWith("jre") ? javaHome.parent : javaHome
+}
+
+tasks.register('testJar', Jar) {
+  dependsOn(testClasses)
+  from sourceSets.test.output
+  archiveClassifier = 'test'
 }
 
 apply from: "$rootDir/gradle/configure_tests.gradle"

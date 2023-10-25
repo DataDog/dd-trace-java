@@ -4,14 +4,16 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSp
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
-import static datadog.trace.instrumentation.aws.v2.AwsSdkClientDecorator.AWS_HTTP;
 import static datadog.trace.instrumentation.aws.v2.AwsSdkClientDecorator.AWS_LEGACY_TRACING;
 import static datadog.trace.instrumentation.aws.v2.AwsSdkClientDecorator.DECORATE;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.TracePropagationStyle;
 import datadog.trace.bootstrap.ContextStore;
+import datadog.trace.bootstrap.InstanceStore;
+import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.core.SdkRequest;
@@ -26,14 +28,15 @@ import software.amazon.awssdk.http.SdkHttpRequest;
 public class TracingExecutionInterceptor implements ExecutionInterceptor {
 
   public static final ExecutionAttribute<AgentSpan> SPAN_ATTRIBUTE =
-      new ExecutionAttribute<>("DatadogSpan");
+      InstanceStore.of(ExecutionAttribute.class)
+          .putIfAbsent("DatadogSpan", () -> new ExecutionAttribute<>("DatadogSpan"));
 
   private static final Logger log = LoggerFactory.getLogger(TracingExecutionInterceptor.class);
 
-  private final ContextStore<SdkResponse, String> contextStore;
+  private final ContextStore<Object, String> responseQueueStore;
 
-  public TracingExecutionInterceptor(ContextStore<SdkResponse, String> contextStore) {
-    this.contextStore = contextStore;
+  public TracingExecutionInterceptor(ContextStore<Object, String> responseQueueStore) {
+    this.responseQueueStore = responseQueueStore;
   }
 
   @Override
@@ -43,7 +46,7 @@ public class TracingExecutionInterceptor implements ExecutionInterceptor {
       return; // SQS messages spans are created by aws-java-sqs-2.0
     }
 
-    final AgentSpan span = startSpan(AWS_HTTP);
+    final AgentSpan span = startSpan(DECORATE.spanName(executionAttributes));
     DECORATE.afterStart(span);
     executionAttributes.putAttribute(SPAN_ATTRIBUTE, span);
   }
@@ -53,9 +56,10 @@ public class TracingExecutionInterceptor implements ExecutionInterceptor {
       final Context.AfterMarshalling context, final ExecutionAttributes executionAttributes) {
     final AgentSpan span = executionAttributes.getAttribute(SPAN_ATTRIBUTE);
     if (span != null) {
-      DECORATE.onRequest(span, context.httpRequest());
-      DECORATE.onSdkRequest(span, context.request());
-      DECORATE.onAttributes(span, executionAttributes);
+      try (AgentScope ignored = activateSpan(span)) {
+        DECORATE.onRequest(span, context.httpRequest());
+        DECORATE.onSdkRequest(span, context.request(), executionAttributes);
+      }
     }
   }
 
@@ -102,17 +106,17 @@ public class TracingExecutionInterceptor implements ExecutionInterceptor {
     if (span != null) {
       executionAttributes.putAttribute(SPAN_ATTRIBUTE, null);
       // Call onResponse on both types of responses:
-      DECORATE.onResponse(span, context.response());
+      DECORATE.onSdkResponse(span, context.response(), executionAttributes);
       DECORATE.onResponse(span, context.httpResponse());
       DECORATE.beforeFinish(span);
       span.finish();
     }
-    if (!AWS_LEGACY_TRACING && isPollingRequest(context.request())) {
+    if (!AWS_LEGACY_TRACING && isPollingResponse(context.response())) {
       // store queueUrl inside response for SqsReceiveResultInstrumentation
       context
           .request()
           .getValueForField("QueueUrl", String.class)
-          .ifPresent(queueUrl -> contextStore.put(context.response(), queueUrl));
+          .ifPresent(queueUrl -> responseQueueStore.put(context.response(), queueUrl));
     }
   }
 
@@ -122,7 +126,17 @@ public class TracingExecutionInterceptor implements ExecutionInterceptor {
     final AgentSpan span = executionAttributes.getAttribute(SPAN_ATTRIBUTE);
     if (span != null) {
       executionAttributes.putAttribute(SPAN_ATTRIBUTE, null);
-      DECORATE.onError(span, context.exception());
+      Optional<SdkResponse> responseOpt = context.response();
+      if (responseOpt.isPresent()) {
+        SdkResponse response = responseOpt.get();
+        DECORATE.onSdkResponse(span, response, executionAttributes);
+        DECORATE.onResponse(span, response.sdkHttpResponse());
+        if (span.isError()) {
+          DECORATE.onError(span, context.exception());
+        }
+      } else {
+        DECORATE.onError(span, context.exception());
+      }
       DECORATE.beforeFinish(span);
       span.finish();
     }
@@ -132,6 +146,12 @@ public class TracingExecutionInterceptor implements ExecutionInterceptor {
     return null != request
         && "software.amazon.awssdk.services.sqs.model.ReceiveMessageRequest"
             .equals(request.getClass().getName());
+  }
+
+  private static boolean isPollingResponse(SdkResponse response) {
+    return null != response
+        && "software.amazon.awssdk.services.sqs.model.ReceiveMessageResponse"
+            .equals(response.getClass().getName());
   }
 
   public static void muzzleCheck() {

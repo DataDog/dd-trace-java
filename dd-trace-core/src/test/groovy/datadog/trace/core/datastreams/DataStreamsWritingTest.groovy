@@ -4,6 +4,7 @@ import datadog.communication.ddagent.DDAgentFeaturesDiscovery
 import datadog.communication.ddagent.SharedCommunicationObjects
 import datadog.communication.http.OkHttpUtils
 import datadog.trace.api.Config
+import datadog.trace.api.TraceConfig
 import datadog.trace.api.WellKnownTags
 import datadog.trace.api.time.ControllableTimeSource
 import datadog.trace.bootstrap.instrumentation.api.StatsPoint
@@ -71,18 +72,22 @@ class DataStreamsWritingTest extends DDCoreSpecification {
 
     def timeSource = new ControllableTimeSource()
 
+    def traceConfig = Mock(TraceConfig) {
+      isDataStreamsEnabled() >> true
+    }
+
     when:
-    def dataStreams = new DefaultDataStreamsMonitoring(fakeConfig, sharedCommObjects, timeSource)
+    def dataStreams = new DefaultDataStreamsMonitoring(fakeConfig, sharedCommObjects, timeSource, { traceConfig })
     dataStreams.start()
-    dataStreams.accept(new StatsPoint([], 9, 0, timeSource.currentTimeNanos, 0, 0))
-    dataStreams.accept(new StatsPoint(["type:testType", "group:testGroup", "topic:testTopic"], 1, 2, timeSource.currentTimeNanos, 0, 0))
+    dataStreams.add(new StatsPoint([], 9, 0, timeSource.currentTimeNanos, 0, 0))
+    dataStreams.add(new StatsPoint(["type:testType", "group:testGroup", "topic:testTopic"], 1, 2, timeSource.currentTimeNanos, 0, 0))
     dataStreams.trackBacklog(new LinkedHashMap<>(["partition":"1", "topic":"testTopic", "type":"kafka_produce"]), 100)
     dataStreams.trackBacklog(new LinkedHashMap<>(["partition":"1", "topic":"testTopic", "type":"kafka_produce"]), 130)
     timeSource.advance(DEFAULT_BUCKET_DURATION_NANOS - 100l)
-    dataStreams.accept(new StatsPoint(["type:testType", "group:testGroup", "topic:testTopic"], 1, 2, timeSource.currentTimeNanos, SECONDS.toNanos(10), SECONDS.toNanos(10)))
+    dataStreams.add(new StatsPoint(["type:testType", "group:testGroup", "topic:testTopic"], 1, 2, timeSource.currentTimeNanos, SECONDS.toNanos(10), SECONDS.toNanos(10)))
     timeSource.advance(DEFAULT_BUCKET_DURATION_NANOS)
-    dataStreams.accept(new StatsPoint(["type:testType", "group:testGroup", "topic:testTopic"], 1, 2, timeSource.currentTimeNanos, SECONDS.toNanos(5), SECONDS.toNanos(5)))
-    dataStreams.accept(new StatsPoint(["type:testType", "group:testGroup", "topic:testTopic2"], 3, 4, timeSource.currentTimeNanos, SECONDS.toNanos(2), 0))
+    dataStreams.add(new StatsPoint(["type:testType", "group:testGroup", "topic:testTopic"], 1, 2, timeSource.currentTimeNanos, SECONDS.toNanos(5), SECONDS.toNanos(5)))
+    dataStreams.add(new StatsPoint(["type:testType", "group:testGroup", "topic:testTopic2"], 3, 4, timeSource.currentTimeNanos, SECONDS.toNanos(2), 0))
     timeSource.advance(DEFAULT_BUCKET_DURATION_NANOS)
     dataStreams.report()
 
@@ -102,7 +107,7 @@ class DataStreamsWritingTest extends DDCoreSpecification {
     BufferedSource bufferedSource = Okio.buffer(gzipSource)
     MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(bufferedSource.inputStream())
 
-    assert unpacker.unpackMapHeader() == 6
+    assert unpacker.unpackMapHeader() == 7
     assert unpacker.unpackString() == "Env"
     assert unpacker.unpackString() == "test"
     assert unpacker.unpackString() == "Service"
@@ -113,6 +118,8 @@ class DataStreamsWritingTest extends DDCoreSpecification {
     assert unpacker.unpackString() == "region-1"
     assert unpacker.unpackString() == "TracerVersion"
     assert unpacker.unpackString() == DDTraceCoreInfo.VERSION
+    assert unpacker.unpackString() == "Version"
+    assert unpacker.unpackString() == "version"
     assert unpacker.unpackString() == "Stats"
     assert unpacker.unpackArrayHeader() == 2  // 2 time buckets
 

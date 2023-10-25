@@ -1,8 +1,10 @@
 package datadog.smoketest.debugger;
 
+import datadog.trace.api.Trace;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.function.Consumer;
 import okhttp3.HttpUrl;
 import okhttp3.MediaType;
 import okhttp3.OkHttpClient;
@@ -17,7 +19,7 @@ import okhttp3.mockwebserver.RecordedRequest;
 public class ServerDebuggerTestApplication {
   private static final MockResponse EMPTY_HTTP_200 = new MockResponse().setResponseCode(200);
   private static final String LOG_FILENAME = System.getenv().get("DD_LOG_FILE");
-  private static final Map<String, Runnable> methodsByName = new HashMap<>();
+  private static final Map<String, Consumer<String>> methodsByName = new HashMap<>();
   private final MockWebServer webServer = new MockWebServer();
   private final String controlServerUrl;
   private final OkHttpClient httpClient = new OkHttpClient();
@@ -37,6 +39,9 @@ public class ServerDebuggerTestApplication {
 
   public static void registerMethods() {
     methodsByName.put("fullMethod", ServerDebuggerTestApplication::runFullMethod);
+    methodsByName.put("tracedMethod", ServerDebuggerTestApplication::runTracedMethod);
+    methodsByName.put("loopingFullMethod", ServerDebuggerTestApplication::runLoopingFullMethod);
+    methodsByName.put("loopingTracedMethod", ServerDebuggerTestApplication::runLoopingTracedMethod);
   }
 
   public ServerDebuggerTestApplication(String controlServerUrl) {
@@ -70,7 +75,7 @@ public class ServerDebuggerTestApplication {
   }
 
   protected void waitForInstrumentation(String className) {
-    System.out.println("waitForInstrumentation on " + className);
+    System.out.println("waitForInstrumentation on " + className + " from: " + lastMatchedLine);
     try {
       lastMatchedLine =
           TestApplicationHelper.waitForInstrumentation(LOG_FILENAME, className, lastMatchedLine);
@@ -91,17 +96,17 @@ public class ServerDebuggerTestApplication {
     }
   }
 
-  protected void execute(String methodName) {
-    Runnable method = methodsByName.get(methodName);
+  protected void execute(String methodName, String arg) {
+    Consumer<String> method = methodsByName.get(methodName);
     if (method == null) {
       throw new RuntimeException("cannot find method: " + methodName);
     }
     System.out.println("Executing method: " + methodName);
-    method.run();
+    method.accept(arg);
     System.out.println("Executed");
   }
 
-  private static void runFullMethod() {
+  private static void runFullMethod(String arg) {
     Map<String, String> map = new HashMap<>();
     map.put("key1", "val1");
     map.put("key2", "val2");
@@ -109,7 +114,50 @@ public class ServerDebuggerTestApplication {
     fullMethod(42, "foobar", 3.42, map, "var1", "var2", "var3");
   }
 
+  private static void runLoopingFullMethod(String arg) {
+    Map<String, String> map = new HashMap<>();
+    map.put("key1", "val1");
+    map.put("key2", "val2");
+    map.put("key3", "val3");
+    for (int i = 0; i < Integer.parseInt(arg); i++) {
+      fullMethod(42, "foobar", 3.42, map, "var1", "var2", "var3");
+    }
+  }
+
+  @Trace
+  private static void runTracedMethod(String arg) {
+    Map<String, String> map = new HashMap<>();
+    map.put("key1", "val1");
+    map.put("key2", "val2");
+    map.put("key3", "val3");
+    tracedMethod(42, "foobar", 3.42, map, "var1", "var2", "var3");
+  }
+
+  private static void runLoopingTracedMethod(String arg) {
+    for (int i = 0; i < Integer.parseInt(arg); i++) {
+      runTracedMethod(arg);
+    }
+  }
+
   private static String fullMethod(
+      int argInt, String argStr, double argDouble, Map<String, String> argMap, String... argVar) {
+    try {
+      return argInt
+          + ", "
+          + argStr
+          + ", "
+          + argDouble
+          + ", "
+          + argMap
+          + ", "
+          + String.join(",", argVar);
+    } catch (Exception ex) {
+      ex.printStackTrace();
+      return null;
+    }
+  }
+
+  private static String tracedMethod(
       int argInt, String argStr, double argDouble, Map<String, String> argMap, String... argVar) {
     try {
       return argInt
@@ -153,7 +201,8 @@ public class ServerDebuggerTestApplication {
         case "/app/execute":
           {
             String methodName = request.getRequestUrl().queryParameter("methodname");
-            app.execute(methodName);
+            String arg = request.getRequestUrl().queryParameter("arg");
+            app.execute(methodName, arg);
             break;
           }
         case "/app/stop":

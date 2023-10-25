@@ -1,6 +1,5 @@
 package datadog.trace.instrumentation.springweb6;
 
-import datadog.trace.instrumentation.springweb.OrderedServletPathRequestFilter;
 import net.bytebuddy.asm.Advice;
 import org.springframework.beans.factory.config.ConfigurableListableBeanFactory;
 import org.springframework.beans.factory.support.BeanDefinitionRegistry;

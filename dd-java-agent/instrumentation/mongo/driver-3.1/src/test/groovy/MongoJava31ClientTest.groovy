@@ -247,7 +247,7 @@ abstract class MongoJava31ClientTest extends MongoBaseTest {
   }
 }
 
-class MongoJava31ClientV0ForkedTest extends MongoJava31ClientTest {
+class MongoJava31ClientV0Test extends MongoJava31ClientTest {
 
   @Override
   int version() {
@@ -262,6 +262,11 @@ class MongoJava31ClientV0ForkedTest extends MongoJava31ClientTest {
   @Override
   String operation() {
     return V0_OPERATION
+  }
+
+  @Override
+  String dbType() {
+    return V0_DB_TYPE
   }
 }
 
@@ -280,5 +285,10 @@ class MongoJava31ClientV1ForkedTest extends MongoJava31ClientTest {
   @Override
   String operation() {
     return V1_OPERATION
+  }
+
+  @Override
+  String dbType() {
+    return V1_DB_TYPE
   }
 }

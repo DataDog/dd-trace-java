@@ -1,8 +1,10 @@
 package com.datadog.profiling.controller.jfr;
 
+import static com.datadog.profiling.controller.jfr.JfpUtils.SAFEPOINTS_JFP;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
 import java.util.Map;
@@ -52,6 +54,40 @@ public class JfpUtilsTest {
     assertEquals("500 ms", config.get("jdk.ThreadSleep#threshold"));
     assertEquals("false", config.get("jdk.OldObjectSample#enabled"));
     assertEquals("false", config.get("jdk.ObjectAllocationInNewTLAB#enabled"));
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {SAFEPOINTS_JFP})
+  public void testLoadingConfigSafepoints(String safepoints) throws IOException {
+    Map<String, String> config = JfpUtils.readNamedJfpResource(safepoints);
+    assertEquals("true", config.get("jdk.SafepointStateSynchronization#enabled"));
+    assertEquals("true", config.get("jdk.SafepointBegin#enabled"));
+    assertEquals("true", config.get("jdk.SafepointEnd#enabled"));
+    assertEquals("false", config.get("jdk.SafepointWaitBlocked#enabled"));
+    assertEquals("false", config.get("jdk.SafepointCleanup#enabled"));
+    assertEquals("false", config.get("jdk.SafepointCleanupTask#enabled"));
+    assertEquals("true", config.get("jdk.ExecuteVMOperation#enabled"));
+    config
+        .keySet()
+        .forEach(
+            key ->
+                assertTrue(
+                    key.startsWith("jdk.Safepoint")
+                        || key.equals("jdk.ExecuteVMOperation#enabled")));
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {"minimal", "minimal.jfp"})
+  public void testOverrideSafepointsConfig(String override) throws IOException {
+    Map<String, String> config = JfpUtils.readJfpResources(SAFEPOINTS_JFP, override);
+    assertEquals("true", config.get("jdk.SafepointStateSynchronization#enabled"));
+    assertEquals("true", config.get("jdk.SafepointBegin#enabled"));
+    assertEquals("true", config.get("jdk.SafepointEnd#enabled"));
+    assertEquals("false", config.get("jdk.SafepointWaitBlocked#enabled"));
+    assertEquals("false", config.get("jdk.SafepointCleanup#enabled"));
+    assertEquals("false", config.get("jdk.SafepointCleanupTask#enabled"));
+    assertEquals("true", config.get("jdk.ExecuteVMOperation#enabled"));
+    assertEquals("true", config.get("jdk.ThreadSleep#enabled"));
   }
 
   @ParameterizedTest

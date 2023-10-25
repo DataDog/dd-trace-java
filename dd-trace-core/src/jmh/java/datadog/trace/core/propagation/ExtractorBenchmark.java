@@ -6,6 +6,7 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTraceId;
+import datadog.trace.api.DynamicConfig;
 import datadog.trace.api.Pair;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.TagContext;
@@ -84,8 +85,12 @@ public class ExtractorBenchmark {
     }
 
     System.setProperty("dd.propagation.style.extract", propagations.toString());
-    extractor =
-        HttpCodec.createExtractor(Config.get(), Collections.emptyMap(), Collections.emptyMap());
+    DynamicConfig dynamicConfig =
+        DynamicConfig.create()
+            .setHeaderTags(Collections.emptyMap())
+            .setBaggageMapping(Collections.emptyMap())
+            .apply();
+    extractor = HttpCodec.createExtractor(Config.get(), dynamicConfig::captureTraceConfig);
 
     if (extractPropagationStyles.startsWith("datadog")) {
       traceId = DDTraceId.from("12345");

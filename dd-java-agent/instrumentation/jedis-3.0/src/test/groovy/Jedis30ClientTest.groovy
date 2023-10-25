@@ -65,11 +65,13 @@ abstract class Jedis30ClientTest extends VersionedNamingTestBase {
           operationName operation()
           resourceName "SET"
           spanType DDSpanTypes.REDIS
-          topLevel true
+          measured true
           tags {
             "$Tags.COMPONENT" "redis-command"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
             "$Tags.DB_TYPE" "redis"
+            "$Tags.PEER_HOSTNAME" "localhost"
+            peerServiceFrom(Tags.PEER_HOSTNAME)
             defaultTags()
           }
         }
@@ -96,6 +98,8 @@ abstract class Jedis30ClientTest extends VersionedNamingTestBase {
             "$Tags.COMPONENT" "redis-command"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
             "$Tags.DB_TYPE" "redis"
+            "$Tags.PEER_HOSTNAME" "localhost"
+            peerServiceFrom(Tags.PEER_HOSTNAME)
             defaultTags()
           }
         }
@@ -106,11 +110,13 @@ abstract class Jedis30ClientTest extends VersionedNamingTestBase {
           operationName operation()
           resourceName "GET"
           spanType DDSpanTypes.REDIS
-          topLevel true
+          measured true
           tags {
             "$Tags.COMPONENT" "redis-command"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
             "$Tags.DB_TYPE" "redis"
+            "$Tags.PEER_HOSTNAME" "localhost"
+            peerServiceFrom(Tags.PEER_HOSTNAME)
             defaultTags()
           }
         }
@@ -133,11 +139,13 @@ abstract class Jedis30ClientTest extends VersionedNamingTestBase {
           operationName operation()
           resourceName "SET"
           spanType DDSpanTypes.REDIS
-          topLevel true
+          measured true
           tags {
             "$Tags.COMPONENT" "redis-command"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
             "$Tags.DB_TYPE" "redis"
+            "$Tags.PEER_HOSTNAME" "localhost"
+            peerServiceFrom(Tags.PEER_HOSTNAME)
             defaultTags()
           }
         }
@@ -148,11 +156,13 @@ abstract class Jedis30ClientTest extends VersionedNamingTestBase {
           operationName operation()
           resourceName "RANDOMKEY"
           spanType DDSpanTypes.REDIS
-          topLevel true
+          measured true
           tags {
             "$Tags.COMPONENT" "redis-command"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
             "$Tags.DB_TYPE" "redis"
+            "$Tags.PEER_HOSTNAME" "localhost"
+            peerServiceFrom(Tags.PEER_HOSTNAME)
             defaultTags()
           }
         }
@@ -185,6 +195,8 @@ abstract class Jedis30ClientTest extends VersionedNamingTestBase {
             "$Tags.COMPONENT" "redis-command"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
             "$Tags.DB_TYPE" "redis"
+            "$Tags.PEER_HOSTNAME" "localhost"
+            peerServiceFrom(Tags.PEER_HOSTNAME)
             defaultTags()
           }
         }
@@ -199,6 +211,8 @@ abstract class Jedis30ClientTest extends VersionedNamingTestBase {
             "$Tags.COMPONENT" "redis-command"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
             "$Tags.DB_TYPE" "redis"
+            "$Tags.PEER_HOSTNAME" "localhost"
+            peerServiceFrom(Tags.PEER_HOSTNAME)
             defaultTags()
           }
         }
@@ -234,6 +248,8 @@ abstract class Jedis30ClientTest extends VersionedNamingTestBase {
             "$Tags.COMPONENT" "redis-command"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
             "$Tags.DB_TYPE" "redis"
+            "$Tags.PEER_HOSTNAME" "localhost"
+            peerServiceFrom(Tags.PEER_HOSTNAME)
             defaultTags()
           }
         }
@@ -248,6 +264,8 @@ abstract class Jedis30ClientTest extends VersionedNamingTestBase {
             "$Tags.COMPONENT" "redis-command"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
             "$Tags.DB_TYPE" "redis"
+            "$Tags.PEER_HOSTNAME" "localhost"
+            peerServiceFrom(Tags.PEER_HOSTNAME)
             defaultTags()
           }
         }
@@ -262,6 +280,8 @@ abstract class Jedis30ClientTest extends VersionedNamingTestBase {
             "$Tags.COMPONENT" "redis-command"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
             "$Tags.DB_TYPE" "redis"
+            "$Tags.PEER_HOSTNAME" "localhost"
+            peerServiceFrom(Tags.PEER_HOSTNAME)
             defaultTags()
           }
         }
@@ -276,6 +296,8 @@ abstract class Jedis30ClientTest extends VersionedNamingTestBase {
             "$Tags.COMPONENT" "redis-command"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
             "$Tags.DB_TYPE" "redis"
+            "$Tags.PEER_HOSTNAME" "localhost"
+            peerServiceFrom(Tags.PEER_HOSTNAME)
             defaultTags()
           }
         }
@@ -290,6 +312,8 @@ abstract class Jedis30ClientTest extends VersionedNamingTestBase {
             "$Tags.COMPONENT" "redis-command"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
             "$Tags.DB_TYPE" "redis"
+            "$Tags.PEER_HOSTNAME" "localhost"
+            peerServiceFrom(Tags.PEER_HOSTNAME)
             defaultTags()
           }
         }
@@ -298,7 +322,7 @@ abstract class Jedis30ClientTest extends VersionedNamingTestBase {
   }
 }
 
-class Jedis30ClientV0ForkedTest extends Jedis30ClientTest {
+class Jedis30ClientV0Test extends Jedis30ClientTest {
 
   @Override
   int version() {
@@ -325,7 +349,7 @@ class Jedis30ClientV1ForkedTest extends Jedis30ClientTest {
 
   @Override
   String service() {
-    return Config.get().getServiceName() + "-redis"
+    return Config.get().getServiceName()
   }
 
   @Override

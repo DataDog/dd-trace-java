@@ -21,26 +21,18 @@ import com.datadog.debugger.probe.SpanProbe;
 import com.datadog.debugger.sink.DebuggerSink;
 import com.datadog.debugger.sink.ProbeStatusSink;
 import datadog.trace.api.Config;
-import datadog.trace.bootstrap.debugger.Snapshot;
+import datadog.trace.bootstrap.debugger.ProbeId;
+import datadog.trace.bootstrap.debugger.ProbeImplementation;
 import java.lang.instrument.Instrumentation;
 import java.lang.instrument.UnmodifiableClassException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.Arguments;
-import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -48,12 +40,12 @@ import org.mockito.junit.jupiter.MockitoExtension;
 @ExtendWith(MockitoExtension.class)
 public class ConfigurationUpdaterTest {
   private static final String LANGUAGE = "java";
-  private static final String PROBE_ID = "beae1807-f3b0-4ea8-a74f-826790c5e6f8";
-  private static final String PROBE_ID2 = "beae1808-f3b0-4ea8-a74f-826790c5e6f8";
-  private static final String METRIC_ID = "cfbf2918-e4c1-5fb9-b85e-937881d6f7e9";
-  private static final String METRIC_ID2 = "cfbf2919-e4c1-5fb9-b85e-937881d6f7e9";
-  private static final String LOG_ID = "d0c03a2a-f5d2-60ca-c96f-a48992e708fa";
-  private static final String LOG_ID2 = "d0c03a2b-f5d2-60ca-c96f-a48992e708fa";
+  private static final ProbeId PROBE_ID = new ProbeId("beae1807-f3b0-4ea8-a74f-826790c5e6f8", 42);
+  private static final ProbeId PROBE_ID2 = new ProbeId("beae1808-f3b0-4ea8-a74f-826790c5e6f8", 12);
+  private static final ProbeId METRIC_ID = new ProbeId("cfbf2918-e4c1-5fb9-b85e-937881d6f7e9", 1);
+  private static final ProbeId METRIC_ID2 = new ProbeId("cfbf2919-e4c1-5fb9-b85e-937881d6f7e9", 5);
+  private static final ProbeId LOG_ID = new ProbeId("d0c03a2a-f5d2-60ca-c96f-a48992e708fa", 2);
+  private static final ProbeId LOG_ID2 = new ProbeId("d0c03a2b-f5d2-60ca-c96f-a48992e708fa", 6);
   private static final String SERVICE_NAME = "service-name";
 
   @Mock private Instrumentation inst;
@@ -68,6 +60,7 @@ public class ConfigurationUpdaterTest {
   void setUp() {
     lenient().when(tracerConfig.getFinalDebuggerSnapshotUrl()).thenReturn("http://localhost");
     lenient().when(tracerConfig.getDebuggerUploadBatchSize()).thenReturn(100);
+    lenient().when(tracerConfig.getFinalDebuggerSymDBUrl()).thenReturn("http://localhost");
 
     debuggerSinkWithMockStatusSink = new DebuggerSink(tracerConfig, probeStatusSink);
   }
@@ -104,7 +97,7 @@ public class ConfigurationUpdaterTest {
     verify(inst).getAllLoadedClasses();
     Map<String, ProbeDefinition> appliedDefinitions = configurationUpdater.getAppliedDefinitions();
     assertEquals(1, appliedDefinitions.size());
-    assertTrue(appliedDefinitions.containsKey(PROBE_ID));
+    assertTrue(appliedDefinitions.containsKey(PROBE_ID.getId()));
     verify(probeStatusSink).addReceived(eq(PROBE_ID));
   }
 
@@ -160,10 +153,9 @@ public class ConfigurationUpdaterTest {
     verify(inst).addTransformer(any(), eq(true));
     verify(inst).getAllLoadedClasses();
     Map<String, ProbeDefinition> appliedDefinitions = configurationUpdater.getAppliedDefinitions();
-    assertEquals(1, appliedDefinitions.size());
-    assertTrue(appliedDefinitions.containsKey(PROBE_ID));
-    assertEquals(1, appliedDefinitions.get(PROBE_ID).getAdditionalProbes().size());
-    assertEquals(PROBE_ID2, appliedDefinitions.get(PROBE_ID).getAdditionalProbes().get(0).getId());
+    assertEquals(2, appliedDefinitions.size());
+    assertTrue(appliedDefinitions.containsKey(PROBE_ID.getId()));
+    assertTrue(appliedDefinitions.containsKey(PROBE_ID2.getId()));
     verify(probeStatusSink).addReceived(eq(PROBE_ID));
     verify(probeStatusSink).addReceived(eq(PROBE_ID2));
   }
@@ -187,7 +179,7 @@ public class ConfigurationUpdaterTest {
     verify(inst).getAllLoadedClasses();
     Map<String, ProbeDefinition> appliedDefinitions = configurationUpdater.getAppliedDefinitions();
     assertEquals(1, appliedDefinitions.size());
-    assertTrue(appliedDefinitions.containsKey(PROBE_ID));
+    assertTrue(appliedDefinitions.containsKey(PROBE_ID.getId()));
     // phase 2: add duplicated probe definitions
     logProbes =
         Arrays.asList(
@@ -195,10 +187,9 @@ public class ConfigurationUpdaterTest {
             LogProbe.builder().probeId(PROBE_ID2).where("java.lang.String", "concat").build());
     configurationUpdater.accept(createApp(logProbes));
     appliedDefinitions = configurationUpdater.getAppliedDefinitions();
-    assertEquals(1, appliedDefinitions.size());
-    assertEquals(1, appliedDefinitions.get(PROBE_ID).getAdditionalProbes().size());
-    assertEquals(PROBE_ID2, appliedDefinitions.get(PROBE_ID).getAdditionalProbes().get(0).getId());
-    verify(probeStatusSink, times(2)).addReceived(eq(PROBE_ID)); // re-installed for PROBE_ID2
+    assertEquals(2, appliedDefinitions.size());
+    assertTrue(appliedDefinitions.containsKey(PROBE_ID2.getId()));
+    verify(probeStatusSink).addReceived(eq(PROBE_ID));
     verify(probeStatusSink).addReceived(eq(PROBE_ID2));
   }
 
@@ -221,10 +212,9 @@ public class ConfigurationUpdaterTest {
     verify(inst).addTransformer(any(), eq(true));
     verify(inst).getAllLoadedClasses();
     Map<String, ProbeDefinition> appliedDefinitions = configurationUpdater.getAppliedDefinitions();
-    assertEquals(1, appliedDefinitions.size());
-    assertEquals(1, appliedDefinitions.get(PROBE_ID).getAdditionalProbes().size());
-    assertTrue(appliedDefinitions.containsKey(PROBE_ID));
-    assertEquals(PROBE_ID2, appliedDefinitions.get(PROBE_ID).getAdditionalProbes().get(0).getId());
+    assertEquals(2, appliedDefinitions.size());
+    assertTrue(appliedDefinitions.containsKey(PROBE_ID.getId()));
+    assertTrue(appliedDefinitions.containsKey(PROBE_ID2.getId()));
     // phase 2: remove duplicated probe definitions
     logProbes =
         Arrays.asList(
@@ -232,10 +222,10 @@ public class ConfigurationUpdaterTest {
     configurationUpdater.accept(createApp(logProbes));
     appliedDefinitions = configurationUpdater.getAppliedDefinitions();
     assertEquals(1, appliedDefinitions.size());
-    assertTrue(appliedDefinitions.containsKey(PROBE_ID));
-    assertEquals(0, appliedDefinitions.get(PROBE_ID).getAdditionalProbes().size());
-    verify(probeStatusSink, times(2)).addReceived(eq(PROBE_ID)); // re-installed for PROBE_ID2
+    assertTrue(appliedDefinitions.containsKey(PROBE_ID.getId()));
+    verify(probeStatusSink).addReceived(eq(PROBE_ID));
     verify(probeStatusSink).addReceived(eq(PROBE_ID2));
+    verify(probeStatusSink).removeDiagnostics(eq(PROBE_ID2));
   }
 
   @Test
@@ -259,8 +249,8 @@ public class ConfigurationUpdaterTest {
     verify(inst).getAllLoadedClasses();
     Map<String, ProbeDefinition> appliedDefinitions = configurationUpdater.getAppliedDefinitions();
     assertEquals(2, appliedDefinitions.size());
-    assertTrue(appliedDefinitions.containsKey(PROBE_ID));
-    assertTrue(appliedDefinitions.containsKey(METRIC_ID));
+    assertTrue(appliedDefinitions.containsKey(PROBE_ID.getId()));
+    assertTrue(appliedDefinitions.containsKey(METRIC_ID.getId()));
     verify(probeStatusSink).addReceived(eq(PROBE_ID));
     verify(probeStatusSink).addReceived(eq(METRIC_ID));
   }
@@ -283,7 +273,7 @@ public class ConfigurationUpdaterTest {
     verify(inst).retransformClasses(eq(String.class));
     Map<String, ProbeDefinition> appliedDefinitions = configurationUpdater.getAppliedDefinitions();
     assertEquals(1, appliedDefinitions.size());
-    assertTrue(appliedDefinitions.containsKey(PROBE_ID));
+    assertTrue(appliedDefinitions.containsKey(PROBE_ID.getId()));
   }
 
   @Test
@@ -310,7 +300,7 @@ public class ConfigurationUpdaterTest {
     verify(inst).retransformClasses(eq(String.class));
     Map<String, ProbeDefinition> appliedDefinitions = configurationUpdater.getAppliedDefinitions();
     assertEquals(1, appliedDefinitions.size());
-    assertTrue(appliedDefinitions.containsKey(PROBE_ID));
+    assertTrue(appliedDefinitions.containsKey(PROBE_ID.getId()));
   }
 
   @Test
@@ -336,72 +326,7 @@ public class ConfigurationUpdaterTest {
     verify(inst).retransformClasses(eq(runnable.getClass()));
     Map<String, ProbeDefinition> appliedDefinitions = configurationUpdater.getAppliedDefinitions();
     assertEquals(1, appliedDefinitions.size());
-    assertTrue(appliedDefinitions.containsKey(PROBE_ID));
-  }
-
-  @Test
-  public void acceptDeactivatedProbes() {
-    ConfigurationUpdater configurationUpdater =
-        new ConfigurationUpdater(
-            inst,
-            (tracerConfig, configuration, listener) -> {
-              assertEquals(0, configuration.getDefinitions().size());
-              return transformer;
-            },
-            tracerConfig,
-            new ClassesToRetransformFinder());
-    List<LogProbe> logProbes =
-        Arrays.asList(
-            LogProbe.builder()
-                .language(LANGUAGE)
-                .probeId(PROBE_ID)
-                .active(false)
-                .where("java.lang.String", "concat")
-                .build(),
-            LogProbe.builder()
-                .language(LANGUAGE)
-                .probeId(PROBE_ID2)
-                .active(false)
-                .where("java.util.HashMap", "<init>", "void ()")
-                .build());
-    configurationUpdater.accept(createApp(logProbes));
-    verify(inst, never()).addTransformer(any(), eq(true));
-    verify(inst, never()).getAllLoadedClasses();
-    verify(inst, never()).removeTransformer(any());
-    assertEquals(0, configurationUpdater.getAppliedDefinitions().size());
-  }
-
-  @Test
-  public void acceptDeactivateProbe() throws UnmodifiableClassException {
-    when(inst.getAllLoadedClasses()).thenReturn(new Class[] {String.class});
-    AtomicInteger expectedDefinitions = new AtomicInteger(1);
-    ConfigurationUpdater configurationUpdater =
-        new ConfigurationUpdater(
-            inst,
-            (tracerConfig, configuration, listener) -> {
-              assertEquals(expectedDefinitions.get(), configuration.getDefinitions().size());
-              return transformer;
-            },
-            tracerConfig,
-            new ClassesToRetransformFinder());
-    List<LogProbe> logProbes =
-        Collections.singletonList(
-            LogProbe.builder().probeId(PROBE_ID).where("java.lang.String", "concat").build());
-    configurationUpdater.accept(createApp(logProbes));
-    logProbes =
-        Collections.singletonList(
-            LogProbe.builder()
-                .probeId(PROBE_ID)
-                .active(false)
-                .where("java.lang.String", "concat")
-                .build());
-    expectedDefinitions.set(0);
-    configurationUpdater.accept(createApp(logProbes));
-    verify(inst, times(1)).addTransformer(any(), eq(true)); // no transformer when no more probe
-    verify(inst, times(2)).getAllLoadedClasses();
-    verify(inst, times(2)).retransformClasses(any());
-    Map<String, ProbeDefinition> appliedDefinitions = configurationUpdater.getAppliedDefinitions();
-    assertEquals(0, appliedDefinitions.size());
+    assertTrue(appliedDefinitions.containsKey(PROBE_ID.getId()));
   }
 
   @Test
@@ -452,7 +377,7 @@ public class ConfigurationUpdaterTest {
     ConfigurationUpdater configurationUpdater =
         new ConfigurationUpdater(
             inst,
-            (tracerConfig, configuration, listener) -> {
+            (tracerConfig, configuration, listener, debuggerSink) -> {
               assertEquals(expectedDefinitions.get(), configuration.getDefinitions().size());
               return transformer;
             },
@@ -527,12 +452,14 @@ public class ConfigurationUpdaterTest {
                     new ProbeCondition(
                         DSL.when(DSL.eq(DSL.ref("arg"), DSL.value("foo"))), "arg == 'foo'"))
                 .build());
+    logProbes.get(0).buildLocation(null);
     configurationUpdater.accept(createApp(logProbes));
-    Snapshot.ProbeDetails probeDetails = configurationUpdater.resolve(PROBE_ID, String.class);
-    Assertions.assertEquals(PROBE_ID, probeDetails.getId());
-    Assertions.assertEquals("java.lang.String", probeDetails.getLocation().getType());
-    Assertions.assertEquals("concat", probeDetails.getLocation().getMethod());
-    Assertions.assertNotNull(probeDetails.getScript());
+    ProbeImplementation probeImplementation =
+        configurationUpdater.resolve(PROBE_ID.getId(), String.class);
+    Assertions.assertEquals(PROBE_ID.getId(), probeImplementation.getId());
+    Assertions.assertEquals("java.lang.String", probeImplementation.getLocation().getType());
+    Assertions.assertEquals("concat", probeImplementation.getLocation().getMethod());
+    Assertions.assertNotNull(((LogProbe) probeImplementation).getProbeCondition());
   }
 
   @Test
@@ -547,8 +474,9 @@ public class ConfigurationUpdaterTest {
     configurationUpdater.accept(createApp(logProbes));
     verify(inst).retransformClasses(eq(String.class));
     // simulate that there is a snapshot probe instrumentation left in HashMap class
-    Snapshot.ProbeDetails probeDetails = configurationUpdater.resolve(PROBE_ID2, HashMap.class);
-    Assertions.assertNull(probeDetails);
+    ProbeImplementation probeImplementation =
+        configurationUpdater.resolve(PROBE_ID2.getId(), HashMap.class);
+    Assertions.assertNull(probeImplementation);
     verify(inst).retransformClasses(eq(HashMap.class));
   }
 
@@ -559,7 +487,7 @@ public class ConfigurationUpdaterTest {
     for (int i = 0; i < 200; i++) {
       logProbes.add(
           LogProbe.builder()
-              .probeId(String.valueOf(i))
+              .probeId(String.valueOf(i), 0)
               .where("java.lang.String", "concat" + i)
               .build());
     }
@@ -572,41 +500,6 @@ public class ConfigurationUpdaterTest {
         configurationUpdater.getAppliedDefinitions().size());
   }
 
-  private static Stream<Arguments> provideEnvAndVersion() {
-    return Stream.of(
-        // <Agent env>, <agent version>, <probe tags>, <should match>
-        Arguments.of("dev", "foo", new String[] {"env:dev", "version:foo"}, true),
-        Arguments.of("prod", "bar", new String[] {"env:dev", "version:foo"}, false),
-        Arguments.of("prod", "--wildcard--", new String[] {"env:prod", "version"}, true),
-        Arguments.of("--wildcard--", "foo", new String[] {"env", "version:foo"}, true),
-        Arguments.of("--wildcard--", "--wildcard--", new String[] {"env", "version"}, true),
-        Arguments.of("", "", new String[] {"env:dev", "version:foo"}, false),
-        Arguments.of("", "", new String[] {"env", "version"}, true),
-        Arguments.of("", "", new String[] {}, true),
-        Arguments.of("foo", "bar", new String[] {}, true),
-        Arguments.of("foo", "", new String[] {}, true),
-        Arguments.of("", "bar", new String[] {}, true),
-        Arguments.of("", "bar", null, true));
-  }
-
-  @ParameterizedTest
-  @MethodSource("provideEnvAndVersion")
-  public void acceptProbesBasedOnEnvAndVersion(
-      String agentEnv, String agentVersion, String[] tags, boolean expectation) {
-    lenient().when(inst.getAllLoadedClasses()).thenReturn(new Class[] {String.class});
-    lenient().when(tracerConfig.getEnv()).thenReturn(agentEnv);
-    lenient().when(tracerConfig.getVersion()).thenReturn(agentVersion);
-    List<LogProbe> logProbes = new ArrayList<>();
-    logProbes.add(
-        LogProbe.builder().probeId("foo").tags(tags).where("java.lang.String", "concat").build());
-    ConfigurationUpdater configurationUpdater =
-        new ConfigurationUpdater(
-            inst, this::createTransformer, tracerConfig, new ClassesToRetransformFinder());
-    configurationUpdater.accept(createApp(logProbes));
-    Assertions.assertEquals(
-        expectation ? 1 : 0, configurationUpdater.getAppliedDefinitions().size());
-  }
-
   @Test
   public void acceptNewMetric() {
     when(inst.getAllLoadedClasses()).thenReturn(new Class[] {String.class});
@@ -615,13 +508,16 @@ public class ConfigurationUpdaterTest {
             inst, this::createTransformer, tracerConfig, new ClassesToRetransformFinder());
     List<MetricProbe> metricProbes =
         Collections.singletonList(
-            MetricProbe.builder().probeId(METRIC_ID).where("java.lang.String", "concat").build());
+            MetricProbe.builder()
+                .probeId(METRIC_ID.getId(), 0)
+                .where("java.lang.String", "concat")
+                .build());
     configurationUpdater.accept(createAppMetrics(metricProbes));
     verify(inst).addTransformer(any(), eq(true));
     verify(inst).getAllLoadedClasses();
     Map<String, ProbeDefinition> appliedDefinitions = configurationUpdater.getAppliedDefinitions();
     assertEquals(1, appliedDefinitions.size());
-    assertTrue(appliedDefinitions.containsKey(METRIC_ID));
+    assertTrue(appliedDefinitions.containsKey(METRIC_ID.getId()));
   }
 
   @Test
@@ -638,7 +534,7 @@ public class ConfigurationUpdaterTest {
     verify(inst).getAllLoadedClasses();
     Map<String, ProbeDefinition> appliedDefinitions = configurationUpdater.getAppliedDefinitions();
     assertEquals(1, appliedDefinitions.size());
-    assertTrue(appliedDefinitions.containsKey(LOG_ID));
+    assertTrue(appliedDefinitions.containsKey(LOG_ID.getId()));
   }
 
   @Test
@@ -780,7 +676,7 @@ public class ConfigurationUpdaterTest {
     assertEquals(StringBuilder.class, allValues.get(4));
     Map<String, ProbeDefinition> appliedDefinitions = configurationUpdater.getAppliedDefinitions();
     assertEquals(1, appliedDefinitions.size());
-    assertTrue(appliedDefinitions.containsKey(METRIC_ID));
+    assertTrue(appliedDefinitions.containsKey(METRIC_ID.getId()));
   }
 
   private static Configuration createApp(List<LogProbe> logProbes) {
@@ -803,7 +699,8 @@ public class ConfigurationUpdaterTest {
   private DebuggerTransformer createTransformer(
       Config tracerConfig,
       Configuration configuration,
-      DebuggerTransformer.InstrumentationListener listener) {
+      DebuggerTransformer.InstrumentationListener listener,
+      DebuggerSink debuggerSink) {
     return transformer;
   }
 }

@@ -2,8 +2,11 @@ plugins {
   id 'idea'
 }
 
+ext {
+  minJavaVersionForTests = JavaVersion.VERSION_11
+}
+
 apply from: "$rootDir/gradle/java.gradle"
-apply plugin: 'org.unbroken-dome.test-sets'
 apply plugin: 'call-site-instrumentation'
 
 muzzle {
@@ -18,27 +21,14 @@ idea {
   }
 }
 
-if (!JavaVersion.current().java11Compatible) {
-  project.afterEvaluate {
-    tasks.each {
-      logger.info("Disabling task $it.path (requires Java 11)")
-      it.enabled = false
-    }
-  }
-}
-
 csi {
   javaVersion = JavaLanguageVersion.of(11)
 }
 
-testSets {
-  latestDepTest {
-    dirName = 'test'
-  }
-}
+addTestSuiteForDir('latestDepTest', 'test')
 
 dependencies {
-  testRuntimeClasspath project(':dd-java-agent:instrumentation:iast-instrumenter')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:iast-instrumenter')
 }
 
 project.tasks.withType(AbstractCompile).configureEach {

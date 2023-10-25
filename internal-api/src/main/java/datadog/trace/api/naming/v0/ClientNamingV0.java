@@ -4,6 +4,7 @@ import datadog.trace.api.naming.NamingSchema;
 import javax.annotation.Nonnull;
 
 public class ClientNamingV0 implements NamingSchema.ForClient {
+
   @Nonnull
   @Override
   public String operationForProtocol(@Nonnull String protocol) {
@@ -33,6 +34,8 @@ public class ClientNamingV0 implements NamingSchema.ForClient {
         return "netty.client.request";
       case "akka-http-client":
         return "akka-http.client.request";
+      case "pekko-http-client":
+        return "pekko-http.client.request";
       case "jax-rs.client":
         return "jax-rs.client.call";
       default:

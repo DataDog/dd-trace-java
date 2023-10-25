@@ -10,11 +10,16 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.iast.IastPostProcessorFactory;
 import datadog.trace.agent.tooling.muzzle.Reference;
+import java.util.Set;
+import net.bytebuddy.asm.Advice;
 
 @AutoService(Instrumenter.class)
-public class RouteImplInstrumentation extends Instrumenter.AppSec
-    implements Instrumenter.ForKnownTypes {
+public class RouteImplInstrumentation extends Instrumenter.Default
+    implements Instrumenter.ForKnownTypes, Instrumenter.WithPostProcessor {
+
+  private Advice.PostProcessor.Factory postProcessorFactory;
 
   public RouteImplInstrumentation() {
     super("vertx", "vertx-3.4");
@@ -23,6 +28,15 @@ public class RouteImplInstrumentation extends Instrumenter.AppSec
   @Override
   public Reference[] additionalMuzzleReferences() {
     return new Reference[] {PARSABLE_HEADER_VALUE, VIRTUAL_HOST_HANDLER};
+  }
+
+  @Override
+  public boolean isApplicable(Set<TargetSystem> enabledSystems) {
+    if (enabledSystems.contains(TargetSystem.IAST)) {
+      postProcessorFactory = IastPostProcessorFactory.INSTANCE;
+      return true;
+    }
+    return enabledSystems.contains(TargetSystem.APPSEC);
   }
 
   @Override
@@ -63,5 +77,10 @@ public class RouteImplInstrumentation extends Instrumenter.AppSec
             .and(takesArgument(2, boolean.class))
             .and(returns(boolean.class)),
         packageName + ".RouteMatchesAdvice$BooleanReturnVariant");
+  }
+
+  @Override
+  public Advice.PostProcessor.Factory postProcessor() {
+    return postProcessorFactory;
   }
 }

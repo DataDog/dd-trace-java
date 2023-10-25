@@ -1,3 +1,5 @@
+import static MuzzleAction.createClassLoader
+
 import org.apache.maven.repository.internal.MavenRepositorySystemUtils
 import org.eclipse.aether.DefaultRepositorySystemSession
 import org.eclipse.aether.RepositorySystem
@@ -13,6 +15,7 @@ import org.eclipse.aether.resolution.VersionRangeResult
 import org.eclipse.aether.spi.connector.RepositoryConnectorFactory
 import org.eclipse.aether.spi.connector.transport.TransporterFactory
 import org.eclipse.aether.transport.http.HttpTransporterFactory
+import org.eclipse.aether.util.version.GenericVersionScheme
 import org.eclipse.aether.version.Version
 import org.gradle.api.Action
 import org.gradle.api.DefaultTask
@@ -20,16 +23,21 @@ import org.gradle.api.GradleException
 import org.gradle.api.Plugin
 import org.gradle.api.Project
 import org.gradle.api.Task
+import org.gradle.api.artifacts.Configuration
 import org.gradle.api.file.ConfigurableFileCollection
 import org.gradle.api.file.FileCollection
+import org.gradle.api.invocation.BuildInvocationDetails
 import org.gradle.api.model.ObjectFactory
 import org.gradle.api.provider.Property
 import org.gradle.api.tasks.SourceSet
+import org.gradle.jvm.toolchain.JavaLanguageVersion
+import org.gradle.jvm.toolchain.JavaToolchainService
 import org.gradle.workers.WorkAction
 import org.gradle.workers.WorkParameters
 import org.gradle.workers.WorkerExecutor
 
 import java.lang.reflect.Method
+import java.util.function.BiFunction
 import java.util.regex.Pattern
 
 /**
@@ -54,6 +62,26 @@ class MuzzlePlugin implements Plugin<Project> {
     MUZZLE_REPOS = Collections.unmodifiableList(Arrays.asList(central, restlet, typesafe))
   }
 
+  static class TestedArtifact {
+    final String instrumentation
+    final String group
+    final String module
+    final Version lowVersion
+    final Version highVersion
+
+    TestedArtifact(String instrumentation, String group, String module, Version lowVersion, Version highVersion) {
+      this.instrumentation = instrumentation
+      this.group = group
+      this.module = module
+      this.lowVersion = lowVersion
+      this.highVersion = highVersion
+    }
+
+    String key() {
+      "$instrumentation:$group:$module"
+    }
+  }
+
   @Override
   void apply(Project project) {
     def childProjects = project.rootProject.getChildProjects().get('dd-java-agent').getChildProjects()
@@ -61,42 +89,68 @@ class MuzzlePlugin implements Plugin<Project> {
     def toolingProject = childProjects.get('agent-tooling')
     project.extensions.create("muzzle", MuzzleExtension, project.objects)
 
+    def muzzleBootstrap = project.configurations.create('muzzleBootstrap', {
+      canBeConsumed: false
+      canBeResolved: true
+    })
+    def muzzleTooling = project.configurations.create('muzzleTooling', {
+      canBeConsumed: false
+      canBeResolved: true
+    })
+    project.dependencies.add('muzzleBootstrap', bootstrapProject)
+    project.dependencies.add('muzzleTooling', toolingProject)
+
+    project.evaluationDependsOn ':dd-java-agent:agent-bootstrap'
+    project.evaluationDependsOn ':dd-java-agent:agent-tooling'
+
     // compileMuzzle compiles all projects required to run muzzle validation.
     // Not adding group and description to keep this task from showing in `gradle tasks`.
     def compileMuzzle = project.task('compileMuzzle')
-    toolingProject.afterEvaluate {
-      compileMuzzle.dependsOn(toolingProject.tasks.named("compileJava"))
-    }
+    compileMuzzle.dependsOn(toolingProject.tasks.named("compileJava"))
     project.afterEvaluate {
-      project.tasks.matching { it.name in ['instrumentJava', 'instrumentScala', 'instrumentKotlin'] }.all {
+      project.tasks.matching {
+        it.name =~ /\Ainstrument(Main)?(_.+)?(Java|Scala|Kotlin)/
+      }.all {
         compileMuzzle.dependsOn(it)
       }
     }
+    compileMuzzle.dependsOn bootstrapProject.tasks.compileJava
+    compileMuzzle.dependsOn bootstrapProject.tasks.compileMain_java11Java
+    compileMuzzle.dependsOn toolingProject.tasks.compileJava
 
-    def muzzle = project.task(['type': MuzzleTask], 'muzzle') {
+    project.task(['type': MuzzleTask], 'muzzle') {
       description = "Run instrumentation muzzle on compile time dependencies"
       doLast {
         if (!project.muzzle.directives.any { it.assertPass }) {
           project.getLogger().info('No muzzle pass directives configured. Asserting pass against instrumentation compile-time dependencies')
-          assertMuzzle(bootstrapProject, toolingProject, project)
+          assertMuzzle(muzzleBootstrap, muzzleTooling, project)
         }
       }
+      dependsOn compileMuzzle
     }
-    def printReferences = project.task(['type': MuzzleTask],'printReferences') {
+
+    project.task(['type': MuzzleTask], 'printReferences') {
       description = "Print references created by instrumentation muzzle"
       doLast {
         printMuzzle(project)
       }
+      dependsOn compileMuzzle
     }
-    bootstrapProject.afterEvaluate {
-      compileMuzzle.dependsOn it.tasks.compileJava
-      compileMuzzle.dependsOn it.tasks.compileMain_java11Java
+    project.task(['type': MuzzleTask], 'generateMuzzleReport') {
+      description = "Print instrumentation version report"
+      doLast {
+        dumpVersionRanges(project)
+      }
+      dependsOn compileMuzzle
     }
-    toolingProject.afterEvaluate {
-      compileMuzzle.dependsOn it.tasks.compileJava
+
+
+    project.task(['type': MuzzleTask], 'mergeMuzzleReports') {
+      description = "Merge generated version reports in one unique csv"
+      doLast {
+        mergeReports(project)
+      }
     }
-    muzzle.dependsOn(compileMuzzle)
-    printReferences.dependsOn(compileMuzzle)
 
     def hasRelevantTask = project.gradle.startParameter.taskNames.any { taskName ->
       // removing leading ':' if present
@@ -114,26 +168,25 @@ class MuzzlePlugin implements Plugin<Project> {
 
     final RepositorySystem system = newRepositorySystem()
     final RepositorySystemSession session = newRepositorySystemSession(system)
-
     project.afterEvaluate {
       // use runAfter to set up task finalizers in version order
       Task runAfter = project.tasks.muzzle
       // runLast is the last task to finish, so we can time the execution
       Task runLast = runAfter
-
       for (MuzzleDirective muzzleDirective : project.muzzle.directives) {
         project.getLogger().info("configured $muzzleDirective")
 
         if (muzzleDirective.coreJdk) {
-          runLast = runAfter = addMuzzleTask(muzzleDirective, null, project, runAfter, bootstrapProject, toolingProject)
+          runLast = runAfter = addMuzzleTask(muzzleDirective, null, project, runAfter, muzzleBootstrap, muzzleTooling)
         } else {
-          runLast = muzzleDirectiveToArtifacts(muzzleDirective, system, session).inject(runLast) { last, Artifact singleVersion ->
-            runAfter = addMuzzleTask(muzzleDirective, singleVersion, project, runAfter, bootstrapProject, toolingProject)
+          def range = resolveVersionRange(muzzleDirective, system, session)
+          runLast = muzzleDirectiveToArtifacts(muzzleDirective, range).inject(runLast) { last, Artifact singleVersion ->
+            runAfter = addMuzzleTask(muzzleDirective, singleVersion, project, runAfter, muzzleBootstrap, muzzleTooling)
           }
           if (muzzleDirective.assertInverse) {
             runLast = inverseOf(muzzleDirective, system, session).inject(runLast) { last1, MuzzleDirective inverseDirective ->
-              muzzleDirectiveToArtifacts(inverseDirective, system, session).inject(last1) { last2, Artifact singleVersion ->
-                runAfter = addMuzzleTask(inverseDirective, singleVersion, project, runAfter, bootstrapProject, toolingProject)
+              muzzleDirectiveToArtifacts(inverseDirective, resolveVersionRange(inverseDirective, system, session)).inject(last1) { last2, Artifact singleVersion ->
+                runAfter = addMuzzleTask(inverseDirective, singleVersion, project, runAfter, muzzleBootstrap, muzzleTooling)
               }
             }
           }
@@ -147,6 +200,85 @@ class MuzzlePlugin implements Plugin<Project> {
       }
       runLast.finalizedBy(timingTask)
     }
+  }
+
+  static Version highest(Version a, Version b) {
+    (a <=> b) > 0 ? a : b
+  }
+
+  static Version lowest(Version a, Version b) {
+    (a <=> b) < 0 ? a : b
+  }
+
+  static Map resolveInstrumentationAndJarVersions(MuzzleDirective directive, ClassLoader cl,
+                                                  Version lowVersion, Version highVersion) {
+
+    Method listMethod = cl.loadClass('datadog.trace.agent.tooling.muzzle.MuzzleVersionScanPlugin')
+      .getMethod('listInstrumentationNames', ClassLoader.class, String.class)
+
+    Set<String> names = (Set<String>) listMethod.invoke(null, cl, directive.getName())
+    Map<String, TestedArtifact> ret = [:]
+    for (String n : names) {
+      def testedArtifact = new TestedArtifact(n, directive.group, directive.module, lowVersion, highVersion)
+      def value = ret.get(testedArtifact.key(), testedArtifact)
+      ret.put(testedArtifact.key(), new TestedArtifact(value.instrumentation, value.group, value.module, lowest(lowVersion, value.lowVersion),
+        highest(highVersion, value.highVersion)))
+    }
+    return ret
+  }
+
+  private static void mergeReports(Project project) {
+    def dir = project.file("${project.rootProject.buildDir}/muzzle-deps-results")
+    Map<String, TestedArtifact> map = new TreeMap<>()
+    def versionScheme = new GenericVersionScheme()
+    dir.eachFileMatch(~/.*\.csv/) { file ->
+      file.eachLine  { line, nb ->
+        if (nb == 1) {
+          // skip header
+          return
+        }
+        def split = line.split(",")
+        def parsed = new TestedArtifact(split[0], split[1], split[2], versionScheme.parseVersion(split[3]),
+          versionScheme.parseVersion(split[4]))
+        map.merge(parsed.key(), parsed, [
+          apply: { TestedArtifact x, TestedArtifact y ->
+            return new TestedArtifact(x.instrumentation, x.group, x.module, lowest(x.lowVersion, y.lowVersion), highest(x.highVersion, y.highVersion))
+          }
+        ] as BiFunction)
+      }
+    }
+    dumpVersionsToCsv(project, map)
+  }
+
+
+  private static void dumpVersionRanges(Project project) {
+    final RepositorySystem system = newRepositorySystem()
+    final RepositorySystemSession session = newRepositorySystemSession(system)
+    def versions = new TreeMap<String, TestedArtifact>()
+    project.muzzle.directives.findAll { !((MuzzleDirective) it).isCoreJdk() }.each {
+      def range = resolveVersionRange(it as MuzzleDirective, system, session)
+      def cp = project.sourceSets.main.runtimeClasspath
+      def cl = new URLClassLoader(cp*.toURI()*.toURL() as URL[], null as ClassLoader)
+      def partials = resolveInstrumentationAndJarVersions(it as MuzzleDirective, cl,
+        range.lowestVersion, range.highestVersion)
+      partials.each {
+        versions.merge(it.getKey(), it.getValue(), [
+          apply: { TestedArtifact x, TestedArtifact y ->
+            return new TestedArtifact(x.instrumentation, x.group, x.module, lowest(x.lowVersion, y.lowVersion), highest(x.highVersion, y.highVersion))
+          }
+        ] as BiFunction)
+      }
+    }
+    dumpVersionsToCsv(project, versions)
+  }
+
+  private static void dumpVersionsToCsv(Project project, SortedMap<String, TestedArtifact> versions) {
+    def filename = project.path.replaceFirst('^:', '').replace(':', '_')
+    def dir = project.file("${project.rootProject.buildDir}/muzzle-deps-results")
+    dir.mkdirs()
+    def file = project.file("${dir}/${filename}.csv")
+    file.write "instrumentation,jarGroupId,jarArtifactId,lowestVersion,highestVersion\n"
+    file << versions.values().collect { [it.instrumentation, it.group, it.module, it.lowVersion.toString(), it.highVersion.toString()].join(",") }.join("\n")
   }
 
   private static void generateResultsXML(Project project, long millis) {
@@ -191,27 +323,28 @@ class MuzzlePlugin implements Plugin<Project> {
     return cp
   }
 
-  /**
-   * Convert a muzzle directive to a list of artifacts
-   */
-  private static Set<Artifact> muzzleDirectiveToArtifacts(MuzzleDirective muzzleDirective, RepositorySystem system, RepositorySystemSession session) {
-    final Artifact directiveArtifact = new DefaultArtifact(muzzleDirective.group, muzzleDirective.module, "jar", muzzleDirective.versions)
+  static VersionRangeResult resolveVersionRange(MuzzleDirective muzzleDirective, RepositorySystem system, RepositorySystemSession session) {
+    final Artifact directiveArtifact = new DefaultArtifact(muzzleDirective.group, muzzleDirective.module, muzzleDirective.classifier ?: "", "jar", muzzleDirective.versions)
 
     final VersionRangeRequest rangeRequest = new VersionRangeRequest()
     rangeRequest.setRepositories(muzzleDirective.getRepositories(MUZZLE_REPOS))
     rangeRequest.setArtifact(directiveArtifact)
-    final VersionRangeResult rangeResult = system.resolveVersionRange(session, rangeRequest)
+    return system.resolveVersionRange(session, rangeRequest)
+  }
+
+  /**
+   * Convert a muzzle directive to a list of artifacts
+   */
+  private static Set<Artifact> muzzleDirectiveToArtifacts(MuzzleDirective muzzleDirective, VersionRangeResult rangeResult) {
+
     final Set<Version> versions = filterAndLimitVersions(rangeResult, muzzleDirective.skipVersions)
 
-//    println "Range Request: " + rangeRequest
-//    println "Range Result: " + rangeResult
-
     final Set<Artifact> allVersionArtifacts = versions.collect { version ->
-      new DefaultArtifact(muzzleDirective.group, muzzleDirective.module, "jar", version.toString())
+      new DefaultArtifact(muzzleDirective.group, muzzleDirective.module, muzzleDirective.classifier ?: "", "jar", version.toString())
     }.toSet()
 
     if (allVersionArtifacts.isEmpty()) {
-      throw new GradleException("No muzzle artifacts found for $muzzleDirective.group:$muzzleDirective.module $muzzleDirective.versions")
+      throw new GradleException("No muzzle artifacts found for $muzzleDirective.group:$muzzleDirective.module $muzzleDirective.versions $muzzleDirective.classifier")
     }
 
     return allVersionArtifacts
@@ -292,7 +425,7 @@ class MuzzlePlugin implements Plugin<Project> {
    *
    * @return The created muzzle task.
    */
-  private static Task addMuzzleTask(MuzzleDirective muzzleDirective, Artifact versionArtifact, Project instrumentationProject, Task runAfter, Project bootstrapProject, Project toolingProject) {
+  private static Task addMuzzleTask(MuzzleDirective muzzleDirective, Artifact versionArtifact, Project instrumentationProject, Task runAfter, Configuration muzzleBootstrap, Configuration muzzleTooling) {
     def taskName
     if (muzzleDirective.coreJdk) {
       taskName = "muzzle-Assert$muzzleDirective"
@@ -302,7 +435,11 @@ class MuzzlePlugin implements Plugin<Project> {
     def config = instrumentationProject.configurations.create(taskName)
 
     if (!muzzleDirective.coreJdk) {
-      def dep = instrumentationProject.dependencies.create("$versionArtifact.groupId:$versionArtifact.artifactId:$versionArtifact.version") {
+      def depId = "$versionArtifact.groupId:$versionArtifact.artifactId:$versionArtifact.version"
+      if (versionArtifact.classifier) {
+        depId += ":" + versionArtifact.classifier
+      }
+      def dep = instrumentationProject.dependencies.create(depId) {
         transitive = true
       }
       // The following optional transitive dependencies are brought in by some legacy module such as log4j 1.x but are no
@@ -325,11 +462,12 @@ class MuzzlePlugin implements Plugin<Project> {
 
     def muzzleTask = instrumentationProject.task(['type': MuzzleTask], taskName) {
       doLast {
-        assertMuzzle(bootstrapProject, toolingProject, instrumentationProject, muzzleDirective)
+        assertMuzzle(muzzleBootstrap, muzzleTooling, instrumentationProject, muzzleDirective)
       }
     }
+
     runAfter.finalizedBy(muzzleTask)
-    return muzzleTask
+    muzzleTask
   }
 
   /**
@@ -365,7 +503,7 @@ class MuzzlePlugin implements Plugin<Project> {
    */
   private static filterVersion(Set<Version> list, Set<String> skipVersions) {
     list.removeIf {
-      def version = it.toString().toLowerCase()
+      def version = it.toString().toLowerCase(Locale.ROOT)
       return version.endsWith("-snapshot") ||
         version.contains("rc") ||
         version.contains(".cr") ||
@@ -406,6 +544,7 @@ class MuzzleDirective {
 
   String group
   String module
+  String classifier
   String versions
   Set<String> skipVersions = new HashSet<>()
   List<String> additionalDependencies = new ArrayList<>()
@@ -414,9 +553,11 @@ class MuzzleDirective {
   boolean assertPass
   boolean assertInverse = false
   boolean coreJdk = false
+  String javaVersion
 
-  void coreJdk() {
+  void coreJdk(version = null) {
     coreJdk = true
+    javaVersion = version
   }
 
   /**
@@ -532,7 +673,7 @@ class MuzzleExtension {
   private postConstruct(MuzzleDirective directive) {
     // Make skipVersions case insensitive.
     directive.skipVersions = directive.skipVersions.collect {
-      it.toLowerCase()
+      it.toLowerCase(Locale.ROOT)
     }
     // Add existing repositories
     directive.additionalRepositories.addAll(additionalRepositories)
@@ -545,12 +686,36 @@ abstract class MuzzleTask extends DefaultTask {
   }
 
   @javax.inject.Inject
+  abstract JavaToolchainService getJavaToolchainService()
+
+  @javax.inject.Inject
+  abstract BuildInvocationDetails getInvocationDetails()
+
+  @javax.inject.Inject
   abstract WorkerExecutor getWorkerExecutor()
 
-  void assertMuzzle(Project bootstrapProject, Project toolingProject, Project instrumentationProject, MuzzleDirective muzzleDirective = null) {
-    workerExecutor.noIsolation().submit(MuzzleAction.class, parameters -> {
-      parameters.bootstrapClassPath.setFrom(MuzzlePlugin.createAgentClassPath(bootstrapProject))
-      parameters.toolingClassPath.setFrom(MuzzlePlugin.createAgentClassPath(toolingProject))
+  void assertMuzzle(Configuration muzzleBootstrap,
+                    Configuration muzzleTooling,
+                    Project instrumentationProject,
+                    MuzzleDirective muzzleDirective = null) {
+    def workQueue
+    String javaVersion = muzzleDirective?.javaVersion
+    if (javaVersion) {
+      def javaLauncher = javaToolchainService.launcherFor { spec ->
+        spec.languageVersion.set(JavaLanguageVersion.of(javaVersion))
+      }.get()
+      workQueue = workerExecutor.processIsolation { spec ->
+        spec.forkOptions { fork ->
+          fork.executable = javaLauncher.executablePath
+        }
+      }
+    } else {
+      workQueue = workerExecutor.noIsolation()
+    }
+    workQueue.submit(MuzzleAction.class, parameters -> {
+      parameters.buildStartedTime.set(invocationDetails.buildStartedTime)
+      parameters.bootstrapClassPath.setFrom(muzzleBootstrap)
+      parameters.toolingClassPath.setFrom(muzzleTooling)
       parameters.instrumentationClassPath.setFrom(MuzzlePlugin.createAgentClassPath(instrumentationProject))
       parameters.testApplicationClassPath.setFrom(MuzzlePlugin.createMuzzleClassPath(instrumentationProject, name))
       if (muzzleDirective) {
@@ -562,8 +727,6 @@ abstract class MuzzleTask extends DefaultTask {
     })
   }
 
-
-
   void printMuzzle(Project instrumentationProject) {
     FileCollection cp = instrumentationProject.sourceSets.main.runtimeClasspath
     ClassLoader cl = new URLClassLoader(cp*.toURI()*.toURL() as URL[], null as ClassLoader)
@@ -574,32 +737,37 @@ abstract class MuzzleTask extends DefaultTask {
 }
 
 interface MuzzleWorkParameters extends WorkParameters {
+  Property<Long> getBuildStartedTime()
+
   ConfigurableFileCollection getBootstrapClassPath()
+
   ConfigurableFileCollection getToolingClassPath()
+
   ConfigurableFileCollection getInstrumentationClassPath()
+
   ConfigurableFileCollection getTestApplicationClassPath()
+
   Property<Boolean> getAssertPass()
+
   Property<String> getMuzzleDirective()
 }
 
 abstract class MuzzleAction implements WorkAction<MuzzleWorkParameters> {
   private static final Object lock = new Object()
-  private static volatile ClassLoader bootCL
-  private static volatile ClassLoader toolCL
+  private static ClassLoader bootCL
+  private static ClassLoader toolCL
+  private static volatile long lastBuildStamp
 
   @Override
   void execute() {
-    if (!bootCL) {
+    // reset shared class-loaders each time a new build starts
+    long buildStamp = parameters.buildStartedTime.get()
+    if (lastBuildStamp < buildStamp || !bootCL || !toolCL) {
       synchronized (lock) {
-        if (!bootCL) {
+        if (lastBuildStamp < buildStamp || !bootCL || !toolCL) {
           bootCL = createClassLoader(parameters.bootstrapClassPath)
-        }
-      }
-    }
-    if (!toolCL) {
-      synchronized (lock) {
-        if (!toolCL) {
           toolCL = createClassLoader(parameters.toolingClassPath, bootCL)
+          lastBuildStamp = buildStamp
         }
       }
     }
@@ -608,11 +776,11 @@ abstract class MuzzleAction implements WorkAction<MuzzleWorkParameters> {
     boolean assertPass = parameters.assertPass.get()
     String muzzleDirective = parameters.muzzleDirective.getOrNull()
     Method assertionMethod = instCL.loadClass('datadog.trace.agent.tooling.muzzle.MuzzleVersionScanPlugin')
-      .getMethod('assertInstrumentationMuzzled', ClassLoader.class, ClassLoader.class, boolean.class, String.class)
+      .getMethod('assertInstrumentationMuzzled', ClassLoader, ClassLoader, boolean, String)
     assertionMethod.invoke(null, instCL, testCL, assertPass, muzzleDirective)
   }
 
-  static ClassLoader createClassLoader(cp, parent = null) {
+  static ClassLoader createClassLoader(cp, parent = ClassLoader.systemClassLoader) {
     return new URLClassLoader(cp*.toURI()*.toURL() as URL[], parent as ClassLoader)
   }
 }

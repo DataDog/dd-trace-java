@@ -4,6 +4,7 @@ import static datadog.trace.api.sampling.PrioritySampling.UNSET;
 
 import datadog.trace.core.DDSpan;
 import datadog.trace.core.monitor.HealthMetrics;
+import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
@@ -27,7 +28,6 @@ public abstract class RemoteWriter implements Writer {
 
   private static final Logger log = LoggerFactory.getLogger(RemoteWriter.class);
 
-  private final RemoteApi api;
   protected final TraceProcessingWorker traceProcessingWorker;
   private final PayloadDispatcher dispatcher;
   private final boolean alwaysFlush;
@@ -38,14 +38,12 @@ public abstract class RemoteWriter implements Writer {
   public final HealthMetrics healthMetrics;
 
   protected RemoteWriter(
-      final RemoteApi api,
       final TraceProcessingWorker traceProcessingWorker,
       final PayloadDispatcher dispatcher,
       final HealthMetrics healthMetrics,
       final int flushTimeout,
       final TimeUnit flushTimeoutUnit,
       final boolean alwaysFlush) {
-    this.api = api;
     this.traceProcessingWorker = traceProcessingWorker;
     this.dispatcher = dispatcher;
     this.healthMetrics = healthMetrics;
@@ -55,21 +53,12 @@ public abstract class RemoteWriter implements Writer {
   }
 
   protected RemoteWriter(
-      final RemoteApi api,
       final TraceProcessingWorker traceProcessingWorker,
       final PayloadDispatcher dispatcher,
       final HealthMetrics healthMetrics,
       final boolean alwaysFlush) {
     // Default constructor with 1 second of flush timeout. Used by the DDAgentWriter.
-    this(api, traceProcessingWorker, dispatcher, healthMetrics, 1, TimeUnit.SECONDS, alwaysFlush);
-  }
-
-  public void addResponseListener(final RemoteResponseListener listener) {
-    api.addResponseListener(listener);
-  }
-
-  public RemoteApi getApi() {
-    return api;
+    this(traceProcessingWorker, dispatcher, healthMetrics, 1, TimeUnit.SECONDS, alwaysFlush);
   }
 
   @Override
@@ -83,9 +72,11 @@ public abstract class RemoteWriter implements Writer {
         final int samplingPriority = root.samplingPriority();
         switch (traceProcessingWorker.publish(root, samplingPriority, trace)) {
           case ENQUEUED_FOR_SERIALIZATION:
+            log.debug("Enqueued for serialization: {}", trace);
             healthMetrics.onPublish(trace, samplingPriority);
             break;
           case ENQUEUED_FOR_SINGLE_SPAN_SAMPLING:
+            log.debug("Enqueued for single span sampling: {}", trace);
             break;
           case DROPPED_BY_POLICY:
             handleDroppedTrace("Dropping policy is active", trace, samplingPriority);
@@ -106,7 +97,8 @@ public abstract class RemoteWriter implements Writer {
   private void handleDroppedTrace(
       final String reason, final List<DDSpan> trace, final int samplingPriority) {
     log.debug("{}. Counted but dropping trace: {}", reason, trace);
-    healthMetrics.onFailedPublish(samplingPriority);
+    healthMetrics.onFailedPublish(
+        trace.isEmpty() ? 0 : trace.get(0).samplingPriority(), trace.size());
     incrementDropCounts(trace.size());
   }
 
@@ -140,12 +132,17 @@ public abstract class RemoteWriter implements Writer {
     final boolean flushed = flush();
     closed = true;
     traceProcessingWorker.close();
-    healthMetrics.close();
     healthMetrics.onShutdown(flushed);
+    healthMetrics.close();
   }
 
   @Override
   public void incrementDropCounts(int spanCount) {
     dispatcher.onDroppedTrace(spanCount);
+  }
+
+  // used by tests
+  public Collection<Class<? extends RemoteApi>> getApis() {
+    return dispatcher.getApis();
   }
 }

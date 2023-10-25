@@ -62,6 +62,10 @@ public abstract class PropagationTags {
 
   public abstract CharSequence getOrigin();
 
+  public abstract long getTraceIdHighOrderBits();
+
+  public abstract void updateTraceIdHighOrderBits(long highOrderBits);
+
   /**
    * Constructs a header value that includes valid propagated _dd.p.* tags and possibly a new
    * sampling decision tag _dd.p.dm based on the current state. Returns null if the value length

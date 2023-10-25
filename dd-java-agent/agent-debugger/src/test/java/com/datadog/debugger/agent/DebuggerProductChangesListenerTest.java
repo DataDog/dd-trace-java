@@ -3,7 +3,6 @@ package com.datadog.debugger.agent;
 import static com.datadog.debugger.util.LogProbeTestHelper.parseTemplate;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.lenient;
 
 import com.datadog.debugger.probe.LogProbe;
@@ -16,7 +15,6 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import java.util.UUID;
-import org.junit.Assert;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -60,7 +58,7 @@ public class DebuggerProductChangesListenerTest {
         new DebuggerProductChangesListener(tracerConfig, acceptor);
     listener.commit(pollingHinter);
 
-    Assert.assertEquals(emptyConfig, acceptor.getConfiguration());
+    Assertions.assertEquals(emptyConfig, acceptor.getConfiguration());
   }
 
   @Test
@@ -79,7 +77,7 @@ public class DebuggerProductChangesListenerTest {
     acceptConfig(listener, config, UUID.randomUUID().toString());
     listener.commit(pollingHinter);
 
-    Assert.assertEquals(config, acceptor.getConfiguration());
+    Assertions.assertEquals(config, acceptor.getConfiguration());
   }
 
   @Test
@@ -103,7 +101,7 @@ public class DebuggerProductChangesListenerTest {
 
     listener.commit(pollingHinter);
 
-    Assert.assertEquals(
+    Assertions.assertEquals(
         Configuration.builder().setService(SERVICE_NAME).build(), acceptor.getConfiguration());
   }
 
@@ -120,19 +118,19 @@ public class DebuggerProductChangesListenerTest {
 
     acceptMetricProbe(listener, metricProbe);
     listener.commit(pollingHinter);
-    Assert.assertEquals(
+    Assertions.assertEquals(
         Configuration.builder().setService(SERVICE_NAME).add(metricProbe).build(),
         acceptor.getConfiguration());
 
     acceptLogProbe(listener, logProbe);
     listener.commit(pollingHinter);
-    Assert.assertEquals(
+    Assertions.assertEquals(
         Configuration.builder().setService(SERVICE_NAME).add(metricProbe).add(logProbe).build(),
         acceptor.getConfiguration());
 
     acceptSpanProbe(listener, spanProbe);
     listener.commit(pollingHinter);
-    Assert.assertEquals(
+    Assertions.assertEquals(
         Configuration.builder()
             .setService(SERVICE_NAME)
             .add(metricProbe)
@@ -143,19 +141,19 @@ public class DebuggerProductChangesListenerTest {
 
     removeMetricProbe(listener, metricProbe);
     listener.commit(pollingHinter);
-    Assert.assertEquals(
+    Assertions.assertEquals(
         Configuration.builder().setService(SERVICE_NAME).add(logProbe).add(spanProbe).build(),
         acceptor.getConfiguration());
 
     removeLogProbe(listener, logProbe);
     listener.commit(pollingHinter);
-    Assert.assertEquals(
+    Assertions.assertEquals(
         Configuration.builder().setService(SERVICE_NAME).add(spanProbe).build(),
         acceptor.getConfiguration());
 
     removeSpanProbe(listener, spanProbe);
     listener.commit(pollingHinter);
-    Assert.assertEquals(
+    Assertions.assertEquals(
         Configuration.builder().setService(SERVICE_NAME).build(), acceptor.getConfiguration());
   }
 
@@ -186,11 +184,12 @@ public class DebuggerProductChangesListenerTest {
     listener.commit(pollingHinter);
     Configuration expectedConfig =
         Configuration.builder().add(config).add(logProbeWithSnapshot).build();
-    Assert.assertEquals(expectedConfig.getService(), acceptor.getConfiguration().getService());
-    Assert.assertEquals(
+    Assertions.assertEquals(expectedConfig.getService(), acceptor.getConfiguration().getService());
+    Assertions.assertEquals(
         expectedConfig.getMetricProbes(), acceptor.getConfiguration().getMetricProbes());
-    Assert.assertTrue(acceptor.getConfiguration().getLogProbes().contains(logProbeWithSnapshot));
-    Assert.assertTrue(acceptor.getConfiguration().getLogProbes().contains(logProbe));
+    Assertions.assertTrue(
+        acceptor.getConfiguration().getLogProbes().contains(logProbeWithSnapshot));
+    Assertions.assertTrue(acceptor.getConfiguration().getLogProbes().contains(logProbe));
   }
 
   @Test
@@ -214,11 +213,9 @@ public class DebuggerProductChangesListenerTest {
     acceptLogProbe(listener, logProbe);
     listener.commit(pollingHinter);
     LogProbe receivedProbe = acceptor.getConfiguration().getLogProbes().iterator().next();
-    receivedProbe.addAdditionalProbe(createLogProbe(UUID.randomUUID().toString()));
     listener.commit(pollingHinter);
     LogProbe receivedProbe2 = acceptor.getConfiguration().getLogProbes().iterator().next();
     assertNotSame(receivedProbe, receivedProbe2);
-    assertTrue(receivedProbe2.getAdditionalProbes().isEmpty());
   }
 
   byte[] toContent(Configuration configuration) {
@@ -289,7 +286,7 @@ public class DebuggerProductChangesListenerTest {
 
   LogProbe createLogProbeWithSnapshot(String id) {
     return LogProbe.builder()
-        .probeId(id)
+        .probeId(id, 0)
         .where(null, null, null, 1966, "src/main/java/java/lang/String.java")
         .captureSnapshot(true)
         .build();
@@ -297,7 +294,7 @@ public class DebuggerProductChangesListenerTest {
 
   MetricProbe createMetricProbe(String id) {
     return MetricProbe.builder()
-        .probeId(id)
+        .probeId(id, 0)
         .kind(MetricProbe.MetricKind.COUNT)
         .where(null, null, null, 1966, "src/main/java/java/lang/String.java")
         .build();
@@ -306,7 +303,7 @@ public class DebuggerProductChangesListenerTest {
   LogProbe createLogProbe(String id) {
     final String LOG_LINE = "hello {world}";
     return LogProbe.builder()
-        .probeId(id)
+        .probeId(id, 0)
         .where(null, null, null, 1966, "src/main/java/java/lang/String.java")
         .template(LOG_LINE, parseTemplate(LOG_LINE))
         .build();
@@ -314,7 +311,7 @@ public class DebuggerProductChangesListenerTest {
 
   SpanProbe createSpanProbe(String id) {
     return SpanProbe.builder()
-        .probeId(id)
+        .probeId(id, 0)
         .where(null, null, null, 1966, "src/main/java/java/lang/String.java")
         .build();
   }

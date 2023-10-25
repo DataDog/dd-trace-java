@@ -16,18 +16,13 @@ muzzle {
     // We want to support the dropwizard clients too.
     group = 'io.dropwizard'
     module = 'dropwizard-client'
-    versions = "[,]"
+    versions = "[,3)" // dropwizard-client 3+ uses httpclient5
   }
 }
 
 apply from: "$rootDir/gradle/java.gradle"
-apply plugin: 'org.unbroken-dome.test-sets'
 
-testSets {
-  latestDepTest {
-    dirName = 'test'
-  }
-}
+addTestSuiteForDir('latestDepTest', 'test')
 
 dependencies {
   compileOnly group: 'org.apache.httpcomponents', name: 'httpclient', version: '4.0'

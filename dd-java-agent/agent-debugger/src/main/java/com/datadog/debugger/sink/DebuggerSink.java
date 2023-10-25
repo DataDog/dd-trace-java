@@ -1,12 +1,12 @@
 package com.datadog.debugger.sink;
 
 import com.datadog.debugger.agent.DebuggerAgent;
+import com.datadog.debugger.instrumentation.DiagnosticMessage;
 import com.datadog.debugger.uploader.BatchUploader;
 import com.datadog.debugger.util.DebuggerMetrics;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.debugger.DebuggerContext;
-import datadog.trace.bootstrap.debugger.DiagnosticMessage;
-import datadog.trace.bootstrap.debugger.Snapshot;
+import datadog.trace.bootstrap.debugger.ProbeId;
 import datadog.trace.core.DDTraceCoreInfo;
 import datadog.trace.util.AgentTaskScheduler;
 import datadog.trace.util.TagsHelper;
@@ -17,7 +17,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Collects data that needs to be sent to the backend: Snapshots, metrics and statuses */
-public class DebuggerSink implements DebuggerContext.Sink {
+public class DebuggerSink implements Sink {
   private static final Logger log = LoggerFactory.getLogger(DebuggerSink.class);
   private static final double FREE_CAPACITY_LOWER_THRESHOLD = 0.25;
   private static final double FREE_CAPACITY_UPPER_THRESHOLD = 0.75;
@@ -30,6 +30,7 @@ public class DebuggerSink implements DebuggerContext.Sink {
 
   private final ProbeStatusSink probeStatusSink;
   private final SnapshotSink snapshotSink;
+  private final SymbolSink symbolSink;
   private final DebuggerMetrics debuggerMetrics;
   private final BatchUploader batchUploader;
   private final String tags;
@@ -42,10 +43,11 @@ public class DebuggerSink implements DebuggerContext.Sink {
   public DebuggerSink(Config config) {
     this(
         config,
-        new BatchUploader(config),
+        new BatchUploader(config, config.getFinalDebuggerSnapshotUrl()),
         DebuggerMetrics.getInstance(config),
         new ProbeStatusSink(config),
-        new SnapshotSink(config));
+        new SnapshotSink(config),
+        new SymbolSink(config));
   }
 
   DebuggerSink(Config config, BatchUploader batchUploader) {
@@ -54,16 +56,18 @@ public class DebuggerSink implements DebuggerContext.Sink {
         batchUploader,
         DebuggerMetrics.getInstance(config),
         new ProbeStatusSink(config),
-        new SnapshotSink(config));
+        new SnapshotSink(config),
+        new SymbolSink(config));
   }
 
   public DebuggerSink(Config config, ProbeStatusSink probeStatusSink) {
     this(
         config,
-        new BatchUploader(config),
+        new BatchUploader(config, config.getFinalDebuggerSnapshotUrl()),
         DebuggerMetrics.getInstance(config),
         probeStatusSink,
-        new SnapshotSink(config));
+        new SnapshotSink(config),
+        new SymbolSink(config));
   }
 
   DebuggerSink(Config config, BatchUploader batchUploader, DebuggerMetrics debuggerMetrics) {
@@ -72,7 +76,8 @@ public class DebuggerSink implements DebuggerContext.Sink {
         batchUploader,
         debuggerMetrics,
         new ProbeStatusSink(config),
-        new SnapshotSink(config));
+        new SnapshotSink(config),
+        new SymbolSink(config));
   }
 
   public DebuggerSink(
@@ -80,12 +85,14 @@ public class DebuggerSink implements DebuggerContext.Sink {
       BatchUploader batchUploader,
       DebuggerMetrics debuggerMetrics,
       ProbeStatusSink probeStatusSink,
-      SnapshotSink snapshotSink) {
+      SnapshotSink snapshotSink,
+      SymbolSink symbolSink) {
     this.batchUploader = batchUploader;
     tags = getDefaultTagsMergedWithGlobalTags(config);
     this.debuggerMetrics = debuggerMetrics;
     this.probeStatusSink = probeStatusSink;
     this.snapshotSink = snapshotSink;
+    this.symbolSink = symbolSink;
     this.uploadFlushInterval = config.getDebuggerUploadFlushInterval();
   }
 
@@ -136,6 +143,10 @@ public class DebuggerSink implements DebuggerContext.Sink {
     return batchUploader;
   }
 
+  public SymbolSink getSymbolSink() {
+    return symbolSink;
+  }
+
   @Override
   public void addSnapshot(Snapshot snapshot) {
     boolean added = snapshotSink.offer(snapshot);
@@ -160,15 +171,16 @@ public class DebuggerSink implements DebuggerContext.Sink {
 
   // visible for testing
   void flush(DebuggerSink ignored) {
+    symbolSink.flush();
     List<String> diagnostics = probeStatusSink.getSerializedDiagnostics();
     List<String> snapshots = snapshotSink.getSerializedSnapshots();
     if (snapshots.size() + diagnostics.size() == 0) {
       return;
     }
-    if (snapshots.size() >= 1) {
+    if (snapshots.size() > 0) {
       uploadPayloads(snapshots);
     }
-    if (diagnostics.size() >= 1) {
+    if (diagnostics.size() > 0) {
       uploadPayloads(diagnostics);
     }
   }
@@ -205,24 +217,23 @@ public class DebuggerSink implements DebuggerContext.Sink {
     }
   }
 
-  public void addReceived(String probeId) {
+  public void addReceived(ProbeId probeId) {
     probeStatusSink.addReceived(probeId);
   }
 
-  public void addInstalled(String probeId) {
+  public void addInstalled(ProbeId probeId) {
     probeStatusSink.addInstalled(probeId);
   }
 
-  public void addBlocked(String probeId) {
+  public void addBlocked(ProbeId probeId) {
     probeStatusSink.addBlocked(probeId);
   }
 
-  public void removeDiagnostics(String probeId) {
+  public void removeDiagnostics(ProbeId probeId) {
     probeStatusSink.removeDiagnostics(probeId);
   }
 
-  @Override
-  public void addDiagnostics(String probeId, List<DiagnosticMessage> messages) {
+  public void addDiagnostics(ProbeId probeId, List<DiagnosticMessage> messages) {
     for (DiagnosticMessage msg : messages) {
       switch (msg.getKind()) {
         case INFO:
@@ -239,7 +250,7 @@ public class DebuggerSink implements DebuggerContext.Sink {
     }
   }
 
-  private void reportError(String probeId, DiagnosticMessage msg) {
+  private void reportError(ProbeId probeId, DiagnosticMessage msg) {
     Throwable throwable = msg.getThrowable();
     if (throwable != null) {
       probeStatusSink.addError(probeId, throwable);
@@ -248,6 +259,7 @@ public class DebuggerSink implements DebuggerContext.Sink {
     }
   }
 
+  /** Notifies the snapshot was skipped for one of the SkipCause reason */
   @Override
   public void skipSnapshot(String probeId, DebuggerContext.SkipCause cause) {
     String causeTag;

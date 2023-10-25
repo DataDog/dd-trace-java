@@ -21,17 +21,8 @@ repositories {
   }
 }
 
-apply plugin: 'org.unbroken-dome.test-sets'
-
-testSets {
-  latestDepTest {
-  }
-
-  latestDepForkedTest {
-    extendsFrom latestDepTest
-    dirName = 'test'
-  }
-}
+addTestSuite('latestDepTest')
+addTestSuiteExtendingForDir('latestDepForkedTest', 'latestDepTest', 'test')
 
 apply from: "$rootDir/gradle/configure_tests.gradle"
 

@@ -92,6 +92,11 @@ abstract class JettyServlet2Test extends HttpServerTest<Server> {
   }
 
   @Override
+  protected boolean enabledFinishTimingChecks() {
+    true
+  }
+
+  @Override
   boolean testNotFound() {
     false
   }
@@ -103,6 +108,11 @@ abstract class JettyServlet2Test extends HttpServerTest<Server> {
 
   @Override
   boolean testBlocking() {
+    true
+  }
+
+  @Override
+  boolean testBlockingOnResponse() {
     true
   }
 

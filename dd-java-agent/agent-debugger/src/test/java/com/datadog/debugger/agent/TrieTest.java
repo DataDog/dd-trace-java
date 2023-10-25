@@ -2,6 +2,7 @@ package com.datadog.debugger.agent;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+import java.util.Collection;
 import org.junit.jupiter.api.Test;
 
 public class TrieTest {
@@ -46,6 +47,19 @@ public class TrieTest {
     trie.insert("abcde");
     trie.insert("abcfe");
     assertNull(trie.getStringStartingWith("abc"));
+  }
+
+  @Test
+  public void getStringsStartingWith() {
+    Trie trie = new Trie();
+    trie.insert("java.Main");
+    trie.insert("java.Main/debugger/datadog/com/java/main/src");
+    trie.insert("java.Main/debugger/datadog/com/java/main/src/myproject");
+    trie.insert("java.Configuration/config/debugger/datadog/com/java/main/src");
+    Collection<String> strings = trie.getStringsStartingWith("java.Main/debugger/datadog/com");
+    assertEquals(2, strings.size());
+    assertTrue(strings.contains("java.Main/debugger/datadog/com/java/main/src"));
+    assertTrue(strings.contains("java.Main/debugger/datadog/com/java/main/src/myproject"));
   }
 
   @Test

@@ -228,7 +228,7 @@ class JMS2Test extends AgentTestRunner {
         tags {
           "$Tags.COMPONENT" "jms"
           "$Tags.SPAN_KIND" Tags.SPAN_KIND_PRODUCER
-          defaultTags()
+          defaultTagsNoPeerService()
         }
       }
     }
@@ -250,7 +250,7 @@ class JMS2Test extends AgentTestRunner {
           if (!isTimestampDisabled) {
             "$InstrumentationTags.RECORD_QUEUE_TIME_MS" {it >= 0 }
           }
-          defaultTags(true)
+          defaultTagsNoPeerService(true)
         }
       }
     }

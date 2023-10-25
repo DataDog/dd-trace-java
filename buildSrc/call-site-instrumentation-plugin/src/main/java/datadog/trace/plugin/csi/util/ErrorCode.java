@@ -1,5 +1,6 @@
 package datadog.trace.plugin.csi.util;
 
+import java.lang.reflect.Method;
 import java.util.function.Function;
 import org.objectweb.asm.Type;
 
@@ -39,6 +40,15 @@ public enum ErrorCode implements Function<Object[], String> {
     public String apply(final Object[] objects) {
       final Class<?> spiClass = (Class<?>) objects[0];
       return String.format("@CallSite spi class should be an interface, received '%s'", spiClass);
+    }
+  },
+
+  CALL_SITE_ENABLED_SHOULD_BE_STATIC_AND_PUBLIC {
+    @Override
+    public String apply(final Object[] objects) {
+      final Method method = (Method) objects[0];
+      return String.format(
+          "@CallSite enabled method should be static and public, received '%s'", method);
     }
   },
 
@@ -352,14 +362,14 @@ public enum ErrorCode implements Function<Object[], String> {
   ADVICE_AFTER_SHOULD_HAVE_RETURN {
     @Override
     public String apply(final Object[] objects) {
-      return "After advice last parameter should be annotated with @Return for non constructors";
+      return "After advice last parameter should be annotated with @Return";
     }
   },
 
-  ADVICE_AFTER_CONSTRUCTOR_SHOULD_NOT_HAVE_RETURN {
+  ADVICE_AFTER_CONSTRUCTOR_ALL_ARGUMENTS {
     @Override
     public String apply(final Object[] objects) {
-      return "After advice should not be annotated with @Return for constructors";
+      return "After advice in constructors should use @AllArguments";
     }
   },
 

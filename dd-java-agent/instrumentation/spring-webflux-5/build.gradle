@@ -32,32 +32,45 @@ muzzle {
     versions = "[0.7.0.RELEASE,)"
     extraDependency "org.springframework:spring-webflux:5.0.0.RELEASE"
   }
+
+  pass {
+    name = "webflux_with_jackson"
+    group = "org.springframework"
+    module = "spring-webflux"
+    versions = "[5.0.0.RELEASE,6)"
+    extraDependency 'com.fasterxml.jackson.core:jackson-databind:2.9.4'
+    extraDependency 'org.springframework:spring-web:5.0.0.RELEASE'
+  }
+
+  pass {
+    name = "read_only_headers"
+    group = "org.springframework"
+    module = "spring-webflux"
+    versions = "[5.1.1.RELEASE,6)"
+  }
 }
 
 apply from: "$rootDir/gradle/java.gradle"
 
-apply plugin: 'org.unbroken-dome.test-sets'
 
-testSets {
-  latestDepTest {
-    dirName = 'test'
-  }
+addTestSuiteForDir('latestDepTest', 'test')
+addTestSuiteForDir('latestBoot20Test', 'bootTest')
+addTestSuiteForDir('latestBoot24Test', 'bootTest')
+addTestSuiteForDir('latestBoot2LatestTest', 'bootTest')
+addTestSuite('iastTest')
+addTestSuiteForDir('latestIast24Test', 'iastTest')
+addTestSuiteForDir('latestIastTest', 'iastTest')
+addTestSuiteForDir('latestIast3Test', 'iastTest')
 
-  latestBoot20Test {
-    dirName = 'bootTest'
-  }
-
-  latestBoot24Test {
-    dirName = 'bootTest'
-  }
-
-  latestBoot2LatestTest {
-    dirName = 'bootTest'
-  }
+configurations {
+  latestIast24TestImplementation.extendsFrom(iastTestImplementation)
+  latestIastTestImplementation.extendsFrom(iastTestImplementation)
+  latestIast3TestImplementation.extendsFrom(iastTestImplementation)
 }
 
 dependencies {
   compileOnly group: 'org.springframework', name: 'spring-webflux', version: '5.0.0.RELEASE'
+  compileOnly group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: '2.9.4'
 
   testImplementation project(':dd-java-agent:instrumentation:trace-annotation')
   testImplementation project(':dd-java-agent:instrumentation:netty-4.1')
@@ -86,6 +99,34 @@ dependencies {
   latestBoot2LatestTestImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-webflux', version: '2+'
   latestBoot2LatestTestImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-test', version: '2+'
   latestBoot2LatestTestImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-reactor-netty', version: '2+'
+
+  iastTestImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-webflux', version: '2.0.+'
+  iastTestImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-test', version: '2.0.+', {
+    // these conflict with hamcrest:hamcrest:2.x
+    exclude group: 'org.hamcrest', module: 'hamcrest-core'
+    exclude group: 'org.hamcrest', module: 'hamcrest-library'
+  }
+  iastTestImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-reactor-netty', version: '2.0.+'
+  iastTestImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-json', version: '2.0.+'
+  iastTestImplementation(testFixtures(project(':dd-java-agent:agent-iast')))
+  iastTestImplementation project(':dd-java-agent:instrumentation:jackson-core')
+
+  latestIast24TestImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-webflux', version: '2.4.+'
+  latestIast24TestImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-test', version: '2.4.+', {
+    // these conflict with hamcrest:hamcrest:2.x
+    exclude group: 'org.hamcrest', module: 'hamcrest-core'
+    exclude group: 'org.hamcrest', module: 'hamcrest-library'
+  }
+  latestIast24TestImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-reactor-netty', version: '2.4.+'
+  latestIast24TestImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-json', version: '2.4.+'
+
+  latestIastTestImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-webflux', version: '2.+'
+  latestIastTestImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-test', version: '2.+', {
+    exclude group: 'org.hamcrest', module: 'hamcrest-core'
+    exclude group: 'org.hamcrest', module: 'hamcrest-library'
+  }
+  latestIastTestImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-reactor-netty', version: '2.+'
+  latestIastTestImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-json', version: '2.+'
 }
 
 tasks.named("latestDepTest").configure {

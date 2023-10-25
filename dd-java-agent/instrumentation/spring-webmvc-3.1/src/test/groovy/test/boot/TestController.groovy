@@ -1,5 +1,6 @@
 package test.boot
 
+import datadog.appsec.api.blocking.Blocking
 import datadog.trace.agent.test.base.HttpServerTest
 import org.springframework.http.HttpStatus
 import org.springframework.http.MediaType
@@ -19,8 +20,8 @@ import org.springframework.web.servlet.view.RedirectView
 
 import javax.servlet.http.HttpServletRequest
 
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_URLENCODED
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_JSON
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_URLENCODED
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.FORWARDED
@@ -32,6 +33,7 @@ import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_PARAM
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.REDIRECT
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.USER_BLOCK
 
 @Controller
 class TestController {
@@ -92,10 +94,26 @@ class TestController {
     }
   }
 
+  @RequestMapping("/user-block")
+  String userBlock() {
+    HttpServerTest.controller(USER_BLOCK) {
+      Blocking.forUser('user-to-block').blockIfMatch()
+      'should not be reached'
+    }
+  }
+
   @RequestMapping(value = "/body-urlencoded",
   method = RequestMethod.POST, consumes = MediaType.APPLICATION_FORM_URLENCODED_VALUE)
   @ResponseBody
   String body_urlencoded(@RequestParam MultiValueMap<String, String> body) {
+    HttpServerTest.controller(BODY_URLENCODED) {
+      body.findAll { it.key != 'ignore' } as String
+    }
+  }
+
+  @PostMapping(value = "/body-multipart", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+  @ResponseBody
+  String body_multipart(@RequestParam MultiValueMap<String, String> body) {
     HttpServerTest.controller(BODY_URLENCODED) {
       body.findAll { it.key != 'ignore' } as String
     }

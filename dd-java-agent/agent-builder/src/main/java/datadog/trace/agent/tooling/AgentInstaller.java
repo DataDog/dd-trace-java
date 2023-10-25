@@ -3,10 +3,13 @@ package datadog.trace.agent.tooling;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.GlobalIgnoresMatcher.globalIgnoresMatcher;
 import static net.bytebuddy.matcher.ElementMatchers.isDefaultFinalizer;
 
-import datadog.trace.agent.tooling.bytebuddy.DDCachingPoolStrategy;
-import datadog.trace.agent.tooling.bytebuddy.DDOutlinePoolStrategy;
 import datadog.trace.agent.tooling.bytebuddy.SharedTypePools;
+import datadog.trace.agent.tooling.bytebuddy.iast.TaintableRedefinitionStrategyListener;
 import datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers;
+import datadog.trace.agent.tooling.bytebuddy.memoize.MemoizedMatchers;
+import datadog.trace.agent.tooling.bytebuddy.outline.TypePoolFacade;
+import datadog.trace.agent.tooling.usm.UsmExtractorImpl;
+import datadog.trace.agent.tooling.usm.UsmMessageFactoryImpl;
 import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.api.IntegrationsCollector;
 import datadog.trace.api.ProductActivation;
@@ -93,13 +96,18 @@ public class AgentInstaller {
       final AgentBuilder.Listener... listeners) {
     Utils.setInstrumentation(inst);
 
-    if (InstrumenterConfig.get().isResolverOutliningEnabled()) {
-      DDOutlinePoolStrategy.registerTypePoolFacade();
+    TypePoolFacade.registerAsSupplier();
+
+    if (InstrumenterConfig.get().isResolverMemoizingEnabled()) {
+      MemoizedMatchers.registerAsSupplier();
     } else {
-      DDCachingPoolStrategy.registerAsSupplier();
+      DDElementMatchers.registerAsSupplier();
     }
 
-    DDElementMatchers.registerAsSupplier();
+    if (enabledSystems.contains(Instrumenter.TargetSystem.USM)) {
+      UsmMessageFactoryImpl.registerAsSupplier();
+      UsmExtractorImpl.registerAsSupplier();
+    }
 
     // By default ByteBuddy will skip all methods that are synthetic or default finalizer
     // but we need to instrument some synthetic methods in Scala, so change the ignore matcher
@@ -112,6 +120,7 @@ public class AgentInstaller {
             .with(AgentStrategies.transformerDecorator())
             .with(AgentBuilder.RedefinitionStrategy.RETRANSFORMATION)
             .with(AgentStrategies.rediscoveryStrategy())
+            .with(redefinitionStrategyListener(enabledSystems))
             .with(AgentStrategies.locationStrategy())
             .with(AgentStrategies.poolStrategy())
             .with(AgentBuilder.DescriptionStrategy.Default.POOL_ONLY)
@@ -128,6 +137,7 @@ public class AgentInstaller {
           agentBuilder
               .with(AgentBuilder.RedefinitionStrategy.RETRANSFORMATION)
               .with(AgentStrategies.rediscoveryStrategy())
+              .with(redefinitionStrategyListener(enabledSystems))
               .with(new RedefinitionLoggingListener())
               .with(new TransformLoggingListener());
     }
@@ -219,11 +229,14 @@ public class AgentInstaller {
     if (cfg.getAppSecActivation() != ProductActivation.FULLY_DISABLED) {
       enabledSystems.add(Instrumenter.TargetSystem.APPSEC);
     }
-    if (cfg.isIastEnabled()) {
+    if (cfg.getIastActivation() != ProductActivation.FULLY_DISABLED) {
       enabledSystems.add(Instrumenter.TargetSystem.IAST);
     }
     if (cfg.isCiVisibilityEnabled()) {
       enabledSystems.add(Instrumenter.TargetSystem.CIVISIBILITY);
+    }
+    if (cfg.isUsmEnabled()) {
+      enabledSystems.add(Instrumenter.TargetSystem.USM);
     }
     return enabledSystems;
   }
@@ -242,6 +255,15 @@ public class AgentInstaller {
       } else {
         System.setProperty(TypeDefinition.RAW_TYPES_PROPERTY, savedPropertyValue);
       }
+    }
+  }
+
+  private static AgentBuilder.RedefinitionStrategy.Listener redefinitionStrategyListener(
+      final Set<Instrumenter.TargetSystem> enabledSystems) {
+    if (enabledSystems.contains(Instrumenter.TargetSystem.IAST)) {
+      return TaintableRedefinitionStrategyListener.INSTANCE;
+    } else {
+      return AgentBuilder.RedefinitionStrategy.Listener.NoOp.INSTANCE;
     }
   }
 

@@ -10,19 +10,9 @@ import java.util.concurrent.Executors
 
 class LocationsCollectingTransformerSpecification extends DepSpecification {
 
-  DependencyServiceImpl depService = new DependencyServiceImpl()
+  DependencyService depService = new DependencyService()
 
   LocationsCollectingTransformer transformer = new LocationsCollectingTransformer(depService)
-
-  void 'no dependency for agent jar'() {
-    when:
-    transformer.transform(null, null, null, getClass().getProtectionDomain(), null)
-
-    then:
-    depService.resolveOneDependency()
-    def dependencies = depService.drainDeterminedDependencies()
-    dependencies.isEmpty()
-  }
 
   void 'no dependency if null protection domain'() {
     when:
@@ -93,7 +83,7 @@ class LocationsCollectingTransformerSpecification extends DepSpecification {
     }
 
     and:
-    def depService = Mock(DependencyServiceImpl)
+    def depService = Mock(DependencyService)
     def transformer = new LocationsCollectingTransformer(depService)
 
     when:
@@ -122,7 +112,7 @@ class LocationsCollectingTransformerSpecification extends DepSpecification {
     }
 
     and:
-    def depService = Mock(DependencyServiceImpl)
+    def depService = Mock(DependencyService)
     def transformer = new LocationsCollectingTransformer(depService)
 
     when:
@@ -159,7 +149,7 @@ class LocationsCollectingTransformerSpecification extends DepSpecification {
     ProtectionDomain domain = new ProtectionDomain(source, null)
 
     and:
-    def depService = Mock(DependencyServiceImpl)
+    def depService = Mock(DependencyService)
     def transformer = new LocationsCollectingTransformer(depService)
 
     when:

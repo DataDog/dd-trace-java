@@ -11,13 +11,7 @@ muzzle {
 
 apply from: "$rootDir/gradle/java.gradle"
 
-apply plugin: 'org.unbroken-dome.test-sets'
-
-testSets {
-  latestDepTest {
-    dirName = 'test'
-  }
-}
+addTestSuiteForDir('latestDepTest', 'test')
 
 dependencies {
   compileOnly group: 'io.ratpack', name: 'ratpack-core', version: '1.5.0'
@@ -26,5 +20,6 @@ dependencies {
   testImplementation project(':dd-java-agent:instrumentation:netty-4.1')
   testImplementation group: 'io.ratpack', name: 'ratpack-groovy-test', version: '1.5.0'
   testImplementation 'com.sun.activation:jakarta.activation:1.2.2'
+  testImplementation testFixtures(project(':dd-java-agent:appsec'))
   latestDepTestImplementation group: 'io.ratpack', name: 'ratpack-groovy-test', version: '1.+'
 }

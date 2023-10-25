@@ -11,6 +11,7 @@ import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
@@ -23,7 +24,9 @@ import net.bytebuddy.asm.Advice;
 
 @AutoService(Instrumenter.class)
 public class HttpUrlConnectionInstrumentation extends Instrumenter.Tracing
-    implements Instrumenter.ForBootstrap, Instrumenter.ForKnownTypes {
+    implements Instrumenter.ForBootstrap,
+        Instrumenter.ForKnownTypes,
+        Instrumenter.ForConfiguredType {
 
   public HttpUrlConnectionInstrumentation() {
     super("httpurlconnection");
@@ -33,8 +36,16 @@ public class HttpUrlConnectionInstrumentation extends Instrumenter.Tracing
   public String[] knownMatchingTypes() {
     // we deliberately exclude various subclasses that are simple delegators
     return new String[] {
-      "sun.net.www.protocol.http.HttpURLConnection", "java.net.HttpURLConnection"
+      "sun.net.www.protocol.http.HttpURLConnection",
+      "java.net.HttpURLConnection",
+      "weblogic.net.http.HttpURLConnection"
     };
+  }
+
+  @Override
+  public String configuredMatchingType() {
+    // this won't match any class unless the property is set
+    return InstrumenterConfig.get().getHttpURLConnectionClassName();
   }
 
   @Override
@@ -85,6 +96,7 @@ public class HttpUrlConnectionInstrumentation extends Instrumenter.Tracing
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void methodExit(
         @Advice.Enter final HttpUrlState state,
+        @Advice.This final HttpURLConnection thiz,
         @Advice.FieldValue("responseCode") final int responseCode,
         @Advice.Thrown final Throwable throwable,
         @Advice.Origin("#m") final String methodName) {
@@ -96,9 +108,9 @@ public class HttpUrlConnectionInstrumentation extends Instrumenter.Tracing
       synchronized (state) {
         if (state.hasSpan() && !state.isFinished()) {
           if (throwable != null) {
-            state.finishSpan(responseCode, throwable);
+            state.finishSpan(thiz, responseCode, throwable);
           } else if ("getInputStream".equals(methodName)) {
-            state.finishSpan(responseCode);
+            state.finishSpan(thiz, responseCode);
           }
         }
       }

@@ -18,6 +18,7 @@ import datadog.trace.agent.tooling.context.FieldBackedContextRequestRewriter;
 import datadog.trace.api.InstrumenterConfig;
 import java.lang.instrument.ClassFileTransformer;
 import java.lang.instrument.Instrumentation;
+import java.util.Collection;
 import java.util.Map;
 import net.bytebuddy.agent.builder.AgentBuilder;
 import net.bytebuddy.description.method.MethodDescription;
@@ -102,7 +103,7 @@ public final class LegacyTransformerBuilder extends AbstractTransformerBuilder {
     } else if (instrumenter instanceof Instrumenter.ForTypeHierarchy) {
       typeMatcher = ((Instrumenter.ForTypeHierarchy) instrumenter).hierarchyMatcher();
       hierarchyHint = ((Instrumenter.ForTypeHierarchy) instrumenter).hierarchyMarkerType();
-    } else if (instrumenter instanceof Instrumenter.ForConfiguredType) {
+    } else if (instrumenter instanceof Instrumenter.ForConfiguredTypes) {
       typeMatcher = none(); // handle below, just like when it's combined with other matchers
     } else if (instrumenter instanceof Instrumenter.ForCallSite) {
       typeMatcher = ((Instrumenter.ForCallSite) instrumenter).callerType();
@@ -119,12 +120,13 @@ public final class LegacyTransformerBuilder extends AbstractTransformerBuilder {
       hierarchyHint = ((Instrumenter.ForTypeHierarchy) instrumenter).hierarchyMarkerType();
     }
 
-    if (instrumenter instanceof Instrumenter.ForConfiguredType) {
-      String name = ((Instrumenter.ForConfiguredType) instrumenter).configuredMatchingType();
+    if (instrumenter instanceof Instrumenter.ForConfiguredTypes) {
+      Collection<String> names =
+          ((Instrumenter.ForConfiguredTypes) instrumenter).configuredMatchingTypes();
       // only add this optional matcher when it's been configured
-      if (null != name && !name.isEmpty()) {
+      if (null != names && !names.isEmpty()) {
         typeMatcher =
-            new ElementMatcher.Junction.Disjunction(typeMatcher, new SingleTypeMatcher(name));
+            new ElementMatcher.Junction.Disjunction(typeMatcher, new KnownTypesMatcher(names));
       }
     }
 

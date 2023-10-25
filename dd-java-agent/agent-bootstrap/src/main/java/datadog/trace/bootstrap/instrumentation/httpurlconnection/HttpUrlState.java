@@ -36,10 +36,12 @@ public class HttpUrlState {
     finished = true;
   }
 
-  public void finishSpan(final int responseCode, final Throwable throwable) {
+  public void finishSpan(
+      final HttpURLConnection connection, final int responseCode, final Throwable throwable) {
     try (final AgentScope scope = activateSpan(span)) {
       if (responseCode > 0) {
-        DECORATE.onResponse(span, responseCode);
+        // safe to access response data as 'responseCode' is set
+        DECORATE.onResponse(span, connection);
       } else {
         // Ignoring the throwable if we have response code
         // to have consistent behavior with other http clients.
@@ -52,7 +54,7 @@ public class HttpUrlState {
     }
   }
 
-  public void finishSpan(final int responseCode) {
+  public void finishSpan(final HttpURLConnection connection, final int responseCode) {
     /*
      * responseCode field is sometimes not populated.
      * We can't call getResponseCode() due to some unwanted side-effects
@@ -60,7 +62,8 @@ public class HttpUrlState {
      */
     if (responseCode > 0) {
       try (final AgentScope scope = activateSpan(span)) {
-        DECORATE.onResponse(span, responseCode);
+        // safe to access response data as 'responseCode' is set
+        DECORATE.onResponse(span, connection);
         DECORATE.beforeFinish(span);
         span.finish();
         span = null;

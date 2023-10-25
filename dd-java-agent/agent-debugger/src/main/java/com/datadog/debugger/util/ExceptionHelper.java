@@ -1,6 +1,9 @@
 package com.datadog.debugger.util;
 
 import datadog.trace.relocate.api.RatelimitedLogger;
+import java.io.PrintWriter;
+import java.io.StringWriter;
+import java.io.Writer;
 import java.util.Arrays;
 import org.slf4j.Logger;
 
@@ -31,6 +34,26 @@ public class ExceptionHelper {
       logException(log, ex, message, params);
     } else {
       ratelimitedLogger.warn(message + " " + ex.toString(), params);
+    }
+  }
+
+  public static String foldExceptionStackTrace(Throwable t) {
+    StringWriter writer = new StringWriter();
+    t.printStackTrace(new NoNewLinePrintWriter(writer));
+    return writer.toString();
+  }
+
+  private static class NoNewLinePrintWriter extends PrintWriter {
+    public NoNewLinePrintWriter(Writer out) {
+      super(out);
+    }
+
+    @Override
+    public void println() {}
+
+    @Override
+    public void write(String s, int off, int len) {
+      super.write(s.replace('\t', ' '), off, len);
     }
   }
 }

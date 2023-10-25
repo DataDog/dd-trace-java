@@ -11,7 +11,7 @@ import datadog.trace.common.writer.Payload
 import datadog.trace.common.writer.TraceGenerator
 import datadog.trace.core.DDSpanContext
 import datadog.trace.test.util.DDSpecification
-import org.junit.Assert
+import org.junit.jupiter.api.Assertions
 import org.msgpack.core.MessageFormat
 import org.msgpack.core.MessagePack
 import org.msgpack.core.MessageUnpacker
@@ -23,9 +23,9 @@ import java.nio.channels.WritableByteChannel
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.DD_MEASURED
 import static datadog.trace.common.writer.TraceGenerator.generateRandomSpan
 import static datadog.trace.common.writer.TraceGenerator.generateRandomTraces
-import static org.junit.Assert.assertEquals
-import static org.junit.Assert.assertFalse
-import static org.junit.Assert.assertNotNull
+import static org.junit.jupiter.api.Assertions.assertEquals
+import static org.junit.jupiter.api.Assertions.assertFalse
+import static org.junit.jupiter.api.Assertions.assertNotNull
 import static org.msgpack.core.MessageFormat.FLOAT32
 import static org.msgpack.core.MessageFormat.FLOAT64
 import static org.msgpack.core.MessageFormat.INT16
@@ -270,13 +270,13 @@ class CiTestCycleMapperV1PayloadTest extends DDSpecification {
           assertEquals("content", unpacker.unpackString())
           assertEquals(11, unpacker.unpackMapHeader())
           assertEquals("trace_id", unpacker.unpackString())
-          long traceId = unpacker.unpackLong()
+          long traceId = unpacker.unpackValue().asNumberValue().toLong()
           assertEquals(expectedSpan.getTraceId().toLong(), traceId)
           assertEquals("span_id", unpacker.unpackString())
-          long spanId = unpacker.unpackLong()
+          long spanId = unpacker.unpackValue().asNumberValue().toLong()
           assertEquals(expectedSpan.getSpanId(), spanId)
           assertEquals("parent_id", unpacker.unpackString())
-          long parentId = unpacker.unpackLong()
+          long parentId = unpacker.unpackValue().asNumberValue().toLong()
           assertEquals(expectedSpan.getParentId(), parentId)
           assertEquals("service", unpacker.unpackString())
           String serviceName = unpacker.unpackString()
@@ -326,7 +326,7 @@ class CiTestCycleMapperV1PayloadTest extends DDSpecification {
                 n = unpacker.unpackDouble()
                 break
               default:
-                Assert.fail("Unexpected type in metrics values: " + format)
+                Assertions.fail("Unexpected type in metrics values: " + format)
             }
             if (DD_MEASURED.toString() == key) {
               assert ((n == 1) && expectedSpan.isMeasured()) || !expectedSpan.isMeasured()
@@ -368,7 +368,7 @@ class CiTestCycleMapperV1PayloadTest extends DDSpecification {
           }
         }
       } catch (IOException e) {
-        Assert.fail(e.getMessage())
+        Assertions.fail(e.getMessage())
       } finally {
         mapper.reset()
         captured.position(0)

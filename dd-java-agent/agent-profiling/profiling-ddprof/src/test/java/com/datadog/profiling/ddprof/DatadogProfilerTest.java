@@ -1,5 +1,6 @@
 package com.datadog.profiling.ddprof;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -9,6 +10,7 @@ import com.datadog.profiling.controller.RecordingData;
 import com.datadog.profiling.controller.UnsupportedEnvironmentException;
 import com.datadog.profiling.utils.ProfilingMode;
 import datadog.trace.api.config.ProfilingConfig;
+import datadog.trace.api.profiling.ProfilingScope;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -88,7 +90,7 @@ class DatadogProfilerTest {
       assertTrue(cmd.matches(".*?memory=[0-9]+b?:.*?a.*"), cmd);
     }
     if (profiler.enabledModes().contains(ProfilingMode.MEMLEAK)) {
-      assertTrue(cmd.matches(".*?memory=[0-9]+b?:.*?l.*"), cmd);
+      assertTrue(cmd.matches(".*?memory=[0-9]+b?:.*?[lL].*"), cmd);
     }
   }
 
@@ -112,6 +114,26 @@ class DatadogProfilerTest {
     assertTrue(profiler.setContextValue("bar", "abc"));
     assertTrue(profiler.setContextValue("foo", "xyz"));
     assertFalse(profiler.setContextValue("xyz", "foo"));
+
+    DatadogProfilerContextSetter fooSetter = new DatadogProfilerContextSetter("foo", profiler);
+    DatadogProfilerContextSetter barSetter = new DatadogProfilerContextSetter("bar", profiler);
+    int[] snapshot0 = profiler.snapshot();
+    try (ProfilingScope outer = new DatadogProfilingScope(profiler)) {
+      fooSetter.set("foo0");
+      barSetter.set("bar0");
+      int[] snapshot1 = profiler.snapshot();
+      try (ProfilingScope inner = new DatadogProfilingScope(profiler)) {
+        fooSetter.set("foo1");
+        barSetter.set("bar1");
+        assertFalse(Arrays.equals(snapshot1, profiler.snapshot()));
+        int[] snapshot2 = profiler.snapshot();
+        inner.setContextValue("foo", "foo2");
+        inner.setContextValue("bar", "bar2");
+        assertFalse(Arrays.equals(snapshot2, profiler.snapshot()));
+      }
+      assertArrayEquals(snapshot1, profiler.snapshot());
+    }
+    assertArrayEquals(snapshot0, profiler.snapshot());
   }
 
   private static ConfigProvider configProvider(

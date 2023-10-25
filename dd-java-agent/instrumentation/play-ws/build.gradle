@@ -1,8 +1,6 @@
 
 apply from: "$rootDir/gradle/java.gradle"
 
-apply plugin: 'org.unbroken-dome.test-sets'
-
 def scalaVersion = '2.12'
 
 configurations {

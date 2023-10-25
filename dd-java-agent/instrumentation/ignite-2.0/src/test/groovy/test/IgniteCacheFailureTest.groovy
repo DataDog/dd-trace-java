@@ -100,7 +100,7 @@ abstract class IgniteCacheFailureTest extends VersionedNamingTestBase {
             }
             "ignite.version" igniteClient.version().toString()
             errorTags(ex.class, ex.message)
-            defaultTags()
+            defaultTagsNoPeerService()
           }
         }
       }
@@ -142,7 +142,7 @@ abstract class IgniteCacheFailureTest extends VersionedNamingTestBase {
             }
             "ignite.version" igniteClient.version().toString()
             errorTags(ex.class, ex.message)
-            defaultTags()
+            defaultTagsNoPeerService()
           }
         }
       }

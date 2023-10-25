@@ -2,14 +2,18 @@ package datadog.trace.agent.tooling;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.ANY_CLASS_LOADER;
 import static java.util.Collections.addAll;
+import static java.util.Collections.emptyList;
 import static java.util.Collections.emptyMap;
 import static java.util.Collections.singletonList;
 import static net.bytebuddy.matcher.ElementMatchers.isSynthetic;
 
+import datadog.trace.agent.tooling.iast.IastPostProcessorFactory;
 import datadog.trace.agent.tooling.muzzle.Reference;
 import datadog.trace.agent.tooling.muzzle.ReferenceMatcher;
 import datadog.trace.agent.tooling.muzzle.ReferenceProvider;
 import datadog.trace.api.InstrumenterConfig;
+import datadog.trace.api.config.ProfilingConfig;
+import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import datadog.trace.util.Strings;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
@@ -17,9 +21,11 @@ import java.lang.instrument.ClassFileTransformer;
 import java.lang.instrument.Instrumentation;
 import java.security.ProtectionDomain;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import net.bytebuddy.asm.Advice;
 import net.bytebuddy.asm.AsmVisitorWrapper;
 import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
@@ -47,6 +53,7 @@ public interface Instrumenter {
    *   <li>{@link TargetSystem#APPSEC appsec}
    *   <li>{@link TargetSystem#IAST iast}
    *   <li>{@link TargetSystem#CIVISIBILITY ci-visibility}
+   *   <li>{@link TargetSystem#USM usm}
    * </ul>
    */
   enum TargetSystem {
@@ -54,17 +61,14 @@ public interface Instrumenter {
     PROFILING,
     APPSEC,
     IAST,
-    CIVISIBILITY
+    CIVISIBILITY,
+
+    USM
   }
 
   /** Instrumentation that only matches a single named type. */
   interface ForSingleType {
     String instrumentedType();
-  }
-
-  /** Instrumentation that matches a type configured at runtime. */
-  interface ForConfiguredType {
-    String configuredMatchingType();
   }
 
   /** Instrumentation that can match a series of named types. */
@@ -80,6 +84,26 @@ public interface Instrumenter {
     ElementMatcher<TypeDescription> hierarchyMatcher();
   }
 
+  /** Instrumentation that matches a series of types configured at runtime. */
+  interface ForConfiguredTypes {
+    Collection<String> configuredMatchingTypes();
+  }
+
+  /** Instrumentation that matches an optional type configured at runtime. */
+  interface ForConfiguredType extends ForConfiguredTypes {
+    @Override
+    default Collection<String> configuredMatchingTypes() {
+      String type = configuredMatchingType();
+      if (null != type && !type.isEmpty()) {
+        return singletonList(type);
+      } else {
+        return emptyList();
+      }
+    }
+
+    String configuredMatchingType();
+  }
+
   /** Instrumentation that matches based on the caller of an instruction. */
   interface ForCallSite {
     ElementMatcher<TypeDescription> callerType();
@@ -93,6 +117,11 @@ public interface Instrumenter {
   /** Instrumentation that wants to apply additional structure checks after type matching. */
   interface WithTypeStructure {
     ElementMatcher<TypeDescription> structureMatcher();
+  }
+
+  /** Instrumentation that wants to apply additional structure checks after type matching. */
+  interface WithPostProcessor {
+    Advice.PostProcessor.Factory postProcessor();
   }
 
   /** Instrumentation that provides method advice. */
@@ -289,6 +318,13 @@ public interface Instrumenter {
     public boolean isApplicable(Set<TargetSystem> enabledSystems) {
       return enabledSystems.contains(TargetSystem.PROFILING);
     }
+
+    @Override
+    public boolean isEnabled() {
+      return super.isEnabled()
+          && !ConfigProvider.getInstance()
+              .getBoolean(ProfilingConfig.PROFILING_ULTRA_MINIMAL, false);
+    }
   }
 
   /** Parent class for all AppSec related instrumentations */
@@ -305,7 +341,7 @@ public interface Instrumenter {
 
   /** Parent class for all IAST related instrumentations */
   @SuppressForbidden
-  abstract class Iast extends Default {
+  abstract class Iast extends Default implements WithPostProcessor {
 
     private static final Logger log = LoggerFactory.getLogger(Instrumenter.Iast.class);
 
@@ -345,6 +381,23 @@ public interface Instrumenter {
     /** Get classes to force load* */
     public String[] getClassNamesToBePreloaded() {
       return null;
+    }
+
+    @Override
+    public Advice.PostProcessor.Factory postProcessor() {
+      return IastPostProcessorFactory.INSTANCE;
+    }
+  }
+
+  /** Parent class for all USM related instrumentations */
+  abstract class Usm extends Default {
+    public Usm(String instrumentationName, String... additionalNames) {
+      super(instrumentationName, additionalNames);
+    }
+
+    @Override
+    public boolean isApplicable(Set<TargetSystem> enabledSystems) {
+      return enabledSystems.contains(TargetSystem.USM);
     }
   }
 

@@ -1,0 +1,14 @@
+
+muzzle {
+  pass {
+    group = 'org.springframework'
+    module = 'spring-beans'
+    versions = "[3.1.0.RELEASE,)"
+  }
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+
+dependencies {
+  compileOnly group: 'org.springframework', name: 'spring-beans', version: '3.1.0.RELEASE'
+}

@@ -7,6 +7,7 @@ import org.apache.http.client.config.RequestConfig
 import org.apache.http.util.EntityUtils
 import org.elasticsearch.client.Request
 import org.elasticsearch.client.Response
+import org.elasticsearch.client.ResponseListener
 import org.elasticsearch.client.RestClient
 import org.elasticsearch.client.RestClientBuilder
 import org.elasticsearch.common.io.FileSystemUtils
@@ -17,6 +18,10 @@ import org.elasticsearch.node.InternalSettingsPreparer
 import org.elasticsearch.node.Node
 import org.elasticsearch.transport.Netty4Plugin
 import spock.lang.Shared
+
+import java.util.concurrent.CountDownLatch
+
+import static java.util.concurrent.TimeUnit.SECONDS
 
 class Elasticsearch7RestClientTest extends AgentTestRunner {
   @Shared
@@ -32,7 +37,6 @@ class Elasticsearch7RestClientTest extends AgentTestRunner {
   RestClient client
 
   def setupSpec() {
-
     esWorkingDir = File.createTempDir("test-es-working-dir-", "")
     esWorkingDir.deleteOnExit()
     println "ES work dir: $esWorkingDir"
@@ -66,7 +70,7 @@ class Elasticsearch7RestClientTest extends AgentTestRunner {
     }
   }
 
-  def "test elasticsearch status #nr"() {
+  def "test elasticsearch sync status #nr"() {
     setup:
     Request request = new Request("GET", "_cluster/health")
     Response response = client.performRequest(request)
@@ -75,7 +79,37 @@ class Elasticsearch7RestClientTest extends AgentTestRunner {
 
     expect:
     result.status == "green"
+    assertClientTraces()
 
+    where:
+    nr << (1..101)
+  }
+
+  def "test elasticsearch async status request #nr"() {
+    setup:
+    Request request = new Request("GET", "_cluster/health")
+
+    def listener = new BlockingResponseListener()
+    client.performRequestAsync(request, listener)
+    def done = listener.waitFor()
+
+    expect:
+    done
+    listener.response != null
+    listener.exception == null
+
+    when:
+    Map result = new JsonSlurper().parseText(EntityUtils.toString(listener.response.entity))
+
+    then:
+    result.status == "green"
+    assertClientTraces()
+
+    where:
+    nr << (1..101)
+  }
+
+  private assertClientTraces() {
     assertTraces(1) {
       sortSpansByStart()
       trace(2) {
@@ -98,14 +132,16 @@ class Elasticsearch7RestClientTest extends AgentTestRunner {
         }
         span {
           serviceName "elasticsearch"
-          resourceName "GET _cluster/health"
+          resourceName "GET /_cluster/health"
           operationName "http.request"
           spanType DDSpanTypes.HTTP_CLIENT
           childOf span(0)
           tags {
             "$Tags.COMPONENT" "apache-httpasyncclient"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
-            "$Tags.HTTP_URL" "_cluster/health"
+            "$Tags.PEER_HOSTNAME" httpTransportAddress.address
+            "$Tags.PEER_PORT" httpTransportAddress.port
+            "$Tags.HTTP_URL" "http://${httpTransportAddress.address}:${httpTransportAddress.port}/_cluster/health"
             "$Tags.HTTP_METHOD" "GET"
             "$Tags.HTTP_STATUS" 200
             defaultTags()
@@ -113,8 +149,32 @@ class Elasticsearch7RestClientTest extends AgentTestRunner {
         }
       }
     }
+    return true
+  }
 
-    where:
-    nr << (1..101)
+  static class BlockingResponseListener implements ResponseListener {
+    private final CountDownLatch latch
+    Response response
+    Exception exception
+
+    BlockingResponseListener() {
+      this.latch = new CountDownLatch(1)
+    }
+
+    @Override
+    void onSuccess(Response response) {
+      this.response = response
+      this.latch.countDown()
+    }
+
+    @Override
+    void onFailure(Exception exception) {
+      this.exception = exception
+      this.latch.countDown()
+    }
+
+    boolean waitFor() {
+      return this.latch.await(2, SECONDS)
+    }
   }
 }

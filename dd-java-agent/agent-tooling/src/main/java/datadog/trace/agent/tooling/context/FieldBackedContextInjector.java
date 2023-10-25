@@ -1,9 +1,9 @@
 package datadog.trace.agent.tooling.context;
 
-import static datadog.trace.agent.tooling.context.ShouldInjectFieldsState.hasInjectedField;
 import static datadog.trace.bootstrap.FieldBackedContextStores.getContextStoreId;
 import static datadog.trace.util.Strings.getInternalName;
 
+import datadog.trace.agent.tooling.bytebuddy.memoize.MemoizedMatchers;
 import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.FieldBackedContextAccessor;
@@ -69,6 +69,8 @@ public final class FieldBackedContextInjector implements AsmVisitorWrapper {
 
   final boolean serialVersionUIDFieldInjection =
       InstrumenterConfig.get().isSerialVersionUIDFieldInjection();
+
+  final boolean isMemoizingEnabled = InstrumenterConfig.get().isResolverMemoizingEnabled();
 
   final String keyClassName;
   final String contextClassName;
@@ -200,17 +202,23 @@ public final class FieldBackedContextInjector implements AsmVisitorWrapper {
         final BitSet injectedStoreIds = getInjectedContextStores();
         if (null != injectedStoreIds) {
           if (!foundGetter || !foundPutter) {
-            BitSet excludedStoreIds = new BitSet();
+            BitSet weakStoreIds = new BitSet();
 
             // check hierarchy to see if we might need to delegate to the superclass
-            boolean hasSuperStores =
-                hasInjectedField(instrumentedType.getSuperClass(), excludedStoreIds);
+            boolean hasSuperStores;
+            if (isMemoizingEnabled) {
+              hasSuperStores = MemoizedMatchers.hasSuperStores(instrumentedType, weakStoreIds);
+            } else {
+              hasSuperStores =
+                  ShouldInjectFieldsState.hasInjectedField(
+                      instrumentedType.getSuperClass(), weakStoreIds);
+            }
 
             if (!foundGetter) {
-              addStoreGetter(injectedStoreIds, hasSuperStores, excludedStoreIds);
+              addStoreGetter(injectedStoreIds, hasSuperStores, weakStoreIds);
             }
             if (!foundPutter) {
-              addStorePutter(injectedStoreIds, hasSuperStores, excludedStoreIds);
+              addStorePutter(injectedStoreIds, hasSuperStores, weakStoreIds);
             }
           }
         }
@@ -239,16 +247,14 @@ public final class FieldBackedContextInjector implements AsmVisitorWrapper {
       }
 
       private void addStoreGetter(
-          final BitSet injectedStoreIds,
-          final boolean hasSuperStores,
-          final BitSet excludedStoreIds) {
+          final BitSet injectedStoreIds, final boolean hasSuperStores, final BitSet weakStoreIds) {
         final MethodVisitor mv =
             cv.visitMethod(Opcodes.ACC_PUBLIC, GETTER_METHOD, GETTER_METHOD_DESCRIPTOR, null, null);
 
         mv.visitCode();
 
         String instrumentedName = instrumentedType.getInternalName();
-        boolean hasMoreStores = hasSuperStores || !excludedStoreIds.isEmpty();
+        boolean hasMoreStores = hasSuperStores || !weakStoreIds.isEmpty();
 
         // if...else... blocks for stores injected into this class
         int injectedStoreId = injectedStoreIds.nextSetBit(0);
@@ -256,7 +262,7 @@ public final class FieldBackedContextInjector implements AsmVisitorWrapper {
           int nextStoreId = injectedStoreIds.nextSetBit(injectedStoreId + 1);
 
           // optimization: if we know the superclass hierarchy doesn't have any context store
-          // (injected or excluded) then we can skip the id check and go straight to the field
+          // (injected or weak-map) then we can skip the id check and go straight to the field
           Label nextStoreLabel = null;
           if (hasMoreStores || nextStoreId >= 0) {
             nextStoreLabel = compareStoreId(mv, injectedStoreId);
@@ -270,19 +276,19 @@ public final class FieldBackedContextInjector implements AsmVisitorWrapper {
           injectedStoreId = nextStoreId;
         }
 
-        // if...else... blocks for stores excluded between this class and last injected superclass
-        int excludedStoreId = excludedStoreIds.nextSetBit(0);
-        while (excludedStoreId >= 0) {
-          int nextStoreId = excludedStoreIds.nextSetBit(excludedStoreId + 1);
-          Label nextStoreLabel = compareStoreId(mv, excludedStoreId);
+        // if...else... blocks for weak stores between this class and last injected superclass
+        int weakStoreId = weakStoreIds.nextSetBit(0);
+        while (weakStoreId >= 0) {
+          int nextStoreId = weakStoreIds.nextSetBit(weakStoreId + 1);
+          Label nextStoreLabel = compareStoreId(mv, weakStoreId);
 
           invokeWeakGet(mv);
 
           beginNextStore(mv, nextStoreLabel);
-          excludedStoreId = nextStoreId;
+          weakStoreId = nextStoreId;
         }
 
-        // else... delegate to superclass - but be prepared to fall-back to weakmap
+        // else... delegate to superclass - but be prepared to fall back to weak-map
         if (hasMoreStores) {
           Label superStoreLabel = new Label();
           Label defaultStoreLabel = new Label();
@@ -306,16 +312,14 @@ public final class FieldBackedContextInjector implements AsmVisitorWrapper {
       }
 
       private void addStorePutter(
-          final BitSet injectedStoreIds,
-          final boolean hasSuperStores,
-          final BitSet excludedStoreIds) {
+          final BitSet injectedStoreIds, final boolean hasSuperStores, final BitSet weakStoreIds) {
         final MethodVisitor mv =
             cv.visitMethod(Opcodes.ACC_PUBLIC, PUTTER_METHOD, PUTTER_METHOD_DESCRIPTOR, null, null);
 
         mv.visitCode();
 
         String instrumentedName = instrumentedType.getInternalName();
-        boolean hasMoreStores = hasSuperStores || !excludedStoreIds.isEmpty();
+        boolean hasMoreStores = hasSuperStores || !weakStoreIds.isEmpty();
 
         // if...else... blocks for stores injected into this class
         int injectedStoreId = injectedStoreIds.nextSetBit(0);
@@ -323,7 +327,7 @@ public final class FieldBackedContextInjector implements AsmVisitorWrapper {
           int nextStoreId = injectedStoreIds.nextSetBit(injectedStoreId + 1);
 
           // optimization: if we know the superclass hierarchy doesn't have any context store
-          // (injected or excluded) then we can skip the id check and go straight to the field
+          // (injected or weak-map) then we can skip the id check and go straight to the field
           Label nextStoreLabel = null;
           if (hasMoreStores || nextStoreId >= 0) {
             nextStoreLabel = compareStoreId(mv, injectedStoreId);
@@ -337,19 +341,19 @@ public final class FieldBackedContextInjector implements AsmVisitorWrapper {
           injectedStoreId = nextStoreId;
         }
 
-        // if...else... blocks for stores excluded between this class and last injected superclass
-        int excludedStoreId = excludedStoreIds.nextSetBit(0);
-        while (excludedStoreId >= 0) {
-          int nextStoreId = excludedStoreIds.nextSetBit(excludedStoreId + 1);
-          Label nextStoreLabel = compareStoreId(mv, excludedStoreId);
+        // if...else... blocks for weak stores between this class and last injected superclass
+        int weakStoreId = weakStoreIds.nextSetBit(0);
+        while (weakStoreId >= 0) {
+          int nextStoreId = weakStoreIds.nextSetBit(weakStoreId + 1);
+          Label nextStoreLabel = compareStoreId(mv, weakStoreId);
 
           invokeWeakPut(mv);
 
           beginNextStore(mv, nextStoreLabel);
-          excludedStoreId = nextStoreId;
+          weakStoreId = nextStoreId;
         }
 
-        // else... delegate to superclass - but be prepared to fall-back to weakmap
+        // else... delegate to superclass - but be prepared to fall back to weak-map
         if (hasMoreStores) {
           Label superStoreLabel = new Label();
           Label defaultStoreLabel = new Label();

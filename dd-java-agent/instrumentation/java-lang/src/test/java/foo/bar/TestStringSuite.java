@@ -1,5 +1,7 @@
 package foo.bar;
 
+import java.io.UnsupportedEncodingException;
+import java.nio.charset.Charset;
 import java.util.Locale;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -84,9 +86,88 @@ public class TestStringSuite {
   }
 
   public static String stringConstructor(String self) {
-    LOGGER.debug("Before string stringConstructor {} from {}", self);
+    LOGGER.debug("Before string stringConstructor {}", self);
     final String result = new String(self);
     LOGGER.debug("After string stringConstructor {}", result);
+    return result;
+  }
+
+  public static String stringConstructor(final byte[] value) {
+    LOGGER.debug("Before string stringConstructor {}", value);
+    final String result = new String(value);
+    LOGGER.debug("After string stringConstructor {}", result);
+    return result;
+  }
+
+  public static String stringConstructor(final byte[] value, final String charset)
+      throws UnsupportedEncodingException {
+    LOGGER.debug("Before string stringConstructor {} {}", value, charset);
+    final String result = new String(value, charset);
+    LOGGER.debug("After string stringConstructor {}", result);
+    return result;
+  }
+
+  public static String stringConstructor(final byte[] value, final Charset charset) {
+    LOGGER.debug("Before string stringConstructor {} {}", value, charset);
+    final String result = new String(value, charset);
+    LOGGER.debug("After string stringConstructor {}", result);
+    return result;
+  }
+
+  public static byte[] getBytes(final String self) {
+    LOGGER.debug("Before string getBytes {}", self);
+    final byte[] result = self.getBytes();
+    LOGGER.debug("After string getBytes {}", result);
+    return result;
+  }
+
+  public static byte[] getBytes(final String self, final String charset)
+      throws UnsupportedEncodingException {
+    LOGGER.debug("Before string getBytes {} {}", self, charset);
+    final byte[] result = self.getBytes(charset);
+    LOGGER.debug("After string getBytes {}", result);
+    return result;
+  }
+
+  public static byte[] getBytes(final String self, final Charset charset) {
+    LOGGER.debug("Before string getBytes {} {}", self, charset);
+    final byte[] result = self.getBytes(charset);
+    LOGGER.debug("After string getBytes {}", result);
+    return result;
+  }
+
+  public static String format(final String pattern, final Object... args) {
+    LOGGER.debug("Before format {} {}", pattern, args);
+    final String result = String.format(pattern, args);
+    LOGGER.debug("After format {}", result);
+    return result;
+  }
+
+  public static String format(final Locale locale, final String pattern, final Object... args) {
+    LOGGER.debug("Before format {} {} {}", locale, pattern, args);
+    final String result = String.format(locale, pattern, args);
+    LOGGER.debug("After format {}", result);
+    return result;
+  }
+
+  public static char[] toCharArray(final String string) {
+    LOGGER.debug("Before toCharArray {}", string);
+    char[] result = string.toCharArray();
+    LOGGER.debug("After toCharArray {}", result);
+    return result;
+  }
+
+  public static String[] split(final String string, final String regex) {
+    LOGGER.debug("Before split {} {}", string, regex);
+    String[] result = string.split(regex);
+    LOGGER.debug("After split {}", result);
+    return result;
+  }
+
+  public static String[] split(final String string, final String regex, final int limit) {
+    LOGGER.debug("Before split {} {} {}", string, regex, limit);
+    String[] result = string.split(regex, limit);
+    LOGGER.debug("After split {}", result);
     return result;
   }
 }

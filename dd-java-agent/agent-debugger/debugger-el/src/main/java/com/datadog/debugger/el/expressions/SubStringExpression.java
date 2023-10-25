@@ -1,5 +1,6 @@
 package com.datadog.debugger.el.expressions;
 
+import com.datadog.debugger.el.EvaluationException;
 import com.datadog.debugger.el.PrettyPrintVisitor;
 import com.datadog.debugger.el.Value;
 import com.datadog.debugger.el.Visitor;
@@ -24,7 +25,7 @@ public class SubStringExpression implements ValueExpression<Value<String>> {
       try {
         return (Value<String>) Value.of(sourceStr.substring(startIndex, endIndex));
       } catch (StringIndexOutOfBoundsException ex) {
-        valueRefResolver.addEvaluationError(PrettyPrintVisitor.print(this), ex.getMessage());
+        throw new EvaluationException(ex.getMessage(), PrettyPrintVisitor.print(this), ex);
       }
     }
     return Value.undefined();

@@ -134,7 +134,7 @@ class KafkaStreamsTest extends AgentTestRunner {
             if ({ isDataStreamsEnabled()}) {
               "$DDTags.PATHWAY_HASH" { String }
             }
-            defaultTags()
+            defaultTagsNoPeerService()
           }
         }
       }
@@ -183,7 +183,7 @@ class KafkaStreamsTest extends AgentTestRunner {
             if ({ isDataStreamsEnabled()}) {
               "$DDTags.PATHWAY_HASH" { String }
             }
-            defaultTags()
+            defaultTagsNoPeerService()
           }
         }
       }
@@ -231,11 +231,10 @@ class KafkaStreamsTest extends AgentTestRunner {
         edgeTags == [
           "direction:in",
           "group:test-application",
-          "partition:0",
           "topic:$STREAM_PENDING".toString(),
           "type:kafka"
         ]
-        edgeTags.size() == 5
+        edgeTags.size() == 4
       }
 
       StatsGroup kafkaStreamsProducerPoint = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == kafkaStreamsConsumerPoint.hash }
@@ -246,8 +245,8 @@ class KafkaStreamsTest extends AgentTestRunner {
 
       StatsGroup finalConsumerPoint = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == kafkaStreamsProducerPoint.hash }
       verifyAll(finalConsumerPoint) {
-        edgeTags == ["direction:in", "group:sender", "partition:0", "topic:$STREAM_PROCESSED".toString(), "type:kafka"]
-        edgeTags.size() == 5
+        edgeTags == ["direction:in", "group:sender", "topic:$STREAM_PROCESSED".toString(), "type:kafka"]
+        edgeTags.size() == 4
       }
     }
 

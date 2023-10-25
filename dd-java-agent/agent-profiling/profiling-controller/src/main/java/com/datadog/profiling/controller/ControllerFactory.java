@@ -60,13 +60,17 @@ public final class ControllerFactory {
   public static Controller createController(final ConfigProvider configProvider)
       throws UnsupportedEnvironmentException, ConfigurationException {
     Implementation impl = Implementation.NONE;
-    try {
-      Class.forName("com.oracle.jrockit.jfr.Producer");
-      impl = Implementation.ORACLE;
-    } catch (ClassNotFoundException ignored) {
-      log.debug("Failed to load oracle profiler", ignored);
+    boolean isOracleJDK8 = Platform.isOracleJDK8();
+    boolean isDatadogProfilerEnabled = Config.get().isDatadogProfilerEnabled();
+    if (isOracleJDK8 && !isDatadogProfilerEnabled) {
+      try {
+        Class.forName("com.oracle.jrockit.jfr.Producer");
+        impl = Implementation.ORACLE;
+      } catch (ClassNotFoundException ignored) {
+        log.debug("Failed to load oracle profiler", ignored);
+      }
     }
-    if (impl == Implementation.NONE) {
+    if (!isOracleJDK8) {
       try {
         Class.forName("jdk.jfr.Event");
         impl = Implementation.OPENJDK;
@@ -75,7 +79,7 @@ public final class ControllerFactory {
       }
     }
     if (impl == Implementation.NONE) {
-      if ((Platform.isLinux() || Platform.isMac()) && Config.get().isDatadogProfilerEnabled()) {
+      if ((Platform.isLinux() || Platform.isMac()) && isDatadogProfilerEnabled) {
         try {
           Class<?> datadogProfilerClass =
               Class.forName("com.datadog.profiling.ddprof.DatadogProfiler");
@@ -100,7 +104,7 @@ public final class ControllerFactory {
     }
 
     try {
-      log.debug("Trying to load " + impl.className());
+      log.debug("Trying to load {}", impl.className());
       return Class.forName(impl.className())
           .asSubclass(Controller.class)
           .getDeclaredConstructor(ConfigProvider.class)

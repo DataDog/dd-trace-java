@@ -37,4 +37,14 @@ public class PlayWSClientDecorator extends HttpClientDecorator<Request, Response
   protected CharSequence component() {
     return PLAY_WS;
   }
+
+  @Override
+  protected String getRequestHeader(Request request, String headerName) {
+    return request.getHeaders().get(headerName);
+  }
+
+  @Override
+  protected String getResponseHeader(Response response, String headerName) {
+    return response.getHeaders().get(headerName);
+  }
 }

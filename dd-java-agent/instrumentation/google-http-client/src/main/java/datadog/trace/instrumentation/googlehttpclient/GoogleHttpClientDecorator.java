@@ -6,6 +6,7 @@ import static datadog.trace.instrumentation.googlehttpclient.HeadersInjectAdapte
 import com.google.api.client.http.HttpRequest;
 import com.google.api.client.http.HttpResponse;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.URIUtils;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator;
 import java.net.URI;
@@ -30,7 +31,7 @@ public class GoogleHttpClientDecorator extends HttpClientDecorator<HttpRequest, 
     // Add "+" back for consistency with the other http client instrumentations
     final String url = httpRequest.getUrl().build();
     final String fixedUrl = URL_REPLACEMENT.matcher(url).replaceAll("+");
-    return new URI(fixedUrl);
+    return URIUtils.safeParse(fixedUrl);
   }
 
   public AgentSpan prepareSpan(AgentSpan span, HttpRequest request) {
@@ -55,5 +56,15 @@ public class GoogleHttpClientDecorator extends HttpClientDecorator<HttpRequest, 
   @Override
   protected CharSequence component() {
     return GOOGLE_HTTP_CLIENT;
+  }
+
+  @Override
+  protected String getRequestHeader(HttpRequest request, String headerName) {
+    return request.getHeaders().getFirstHeaderStringValue(headerName);
+  }
+
+  @Override
+  protected String getResponseHeader(HttpResponse response, String headerName) {
+    return response.getHeaders().getFirstHeaderStringValue(headerName);
   }
 }

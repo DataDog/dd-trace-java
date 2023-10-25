@@ -33,7 +33,6 @@ class Elasticsearch6RestClientTest extends AgentTestRunner {
   RestClient client
 
   def setupSpec() {
-
     esWorkingDir = File.createTempDir("test-es-working-dir-", "")
     esWorkingDir.deleteOnExit()
     println "ES work dir: $esWorkingDir"
@@ -67,6 +66,7 @@ class Elasticsearch6RestClientTest extends AgentTestRunner {
 
   def "test elasticsearch status"() {
     setup:
+    injectSysConfig("httpasyncclient4.legacy.tracing.enabled",  "true")
 
     Response response = client.performRequest("GET", "_cluster/health")
 
@@ -106,7 +106,7 @@ class Elasticsearch6RestClientTest extends AgentTestRunner {
             "$Tags.HTTP_URL" "_cluster/health"
             "$Tags.HTTP_METHOD" "GET"
             "$Tags.HTTP_STATUS" 200
-            defaultTags()
+            defaultTagsNoPeerService()
           }
         }
       }

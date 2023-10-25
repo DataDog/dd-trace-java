@@ -5,7 +5,6 @@ import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.common.writer.RemoteApi
 import datadog.trace.common.writer.RemoteWriter
 import datadog.trace.test.util.DDSpecification
-import datadog.trace.test.util.Flaky
 import spock.lang.Ignore
 import spock.lang.Subject
 
@@ -74,35 +73,38 @@ class HealthMetricsTest extends DDSpecification {
 
   def "test onFailedPublish"() {
     setup:
-    def latch = new CountDownLatch(1)
+    def latch = new CountDownLatch(2)
     def healthMetrics = new TracerHealthMetrics(new Latched(statsD, latch), 100, TimeUnit.MILLISECONDS)
     healthMetrics.start()
 
     when:
-    healthMetrics.onFailedPublish(samplingPriority)
-    latch.await(10, TimeUnit.SECONDS)
+    healthMetrics.onFailedPublish(samplingPriority,spanCount)
+    latch.await(2, TimeUnit.SECONDS)
 
     then:
-    1 * statsD.count('queue.dropped.traces', 1, _)
+    1 * statsD.count('queue.dropped.traces', 1, samplingTag)
+    1 * statsD.count('queue.dropped.spans', 1, samplingTag)
     0 * _
 
     cleanup:
     healthMetrics.close()
 
     where:
-    samplingPriority << [
-      PrioritySampling.SAMPLER_KEEP,
-      PrioritySampling.USER_KEEP,
-      PrioritySampling.USER_DROP,
-      PrioritySampling.SAMPLER_DROP,
-      PrioritySampling.UNSET
-    ]
+    // spotless:off
+    samplingPriority              | samplingTag             | spanCount
+    PrioritySampling.SAMPLER_KEEP | "priority:sampler_keep" | 1
+    PrioritySampling.USER_KEEP    | "priority:user_keep"    | 1
+    PrioritySampling.USER_DROP    | "priority:user_drop"    | 1
+    PrioritySampling.SAMPLER_DROP | "priority:sampler_drop" | 1
+    PrioritySampling.UNSET        | "priority:unset"        | 1
+    // spotless:off
+
+
   }
 
-  @Flaky
   def "test onPartialPublish"() {
     setup:
-    def latch = new CountDownLatch(1)
+    def latch = new CountDownLatch(2)
     def healthMetrics = new TracerHealthMetrics(new Latched(statsD, latch), 100, TimeUnit.MILLISECONDS)
     healthMetrics.start()
 
@@ -112,17 +114,19 @@ class HealthMetricsTest extends DDSpecification {
 
     then:
     1 * statsD.count('queue.partial.traces', 1)
-    1 * statsD.count('queue.dropped.spans', droppedSpans)
+    1 * statsD.count('queue.dropped.spans', droppedSpans, samplingPriority)
     0 * _
 
     cleanup:
     healthMetrics.close()
 
     where:
-    droppedSpans | traces
-    1            | 4
-    42           | 1
-    3            | 5
+    // spotless:off
+    droppedSpans | traces | samplingPriority
+    1            | 4      | ['priority:sampler_drop']
+    42           | 1      | ['priority:sampler_drop']
+    3            | 5      | ['priority:sampler_drop']
+    // spotless:on
   }
 
   def "test onScheduleFlush"() {
@@ -270,6 +274,100 @@ class HealthMetricsTest extends DDSpecification {
     cleanup:
     healthMetrics.close()
   }
+  def "test onSingleSpanSample"() {
+    setup:
+    def latch = new CountDownLatch(1)
+    def healthMetrics = new TracerHealthMetrics(new Latched(statsD, latch), 100, TimeUnit.MILLISECONDS)
+    healthMetrics.start()
+    when:
+    healthMetrics.onSingleSpanSample()
+    latch.await(5, TimeUnit.SECONDS)
+    then:
+    1 * statsD.count("span.sampling.sampled", 1, _)
+    cleanup:
+    healthMetrics.close()
+  }
+  def "test onSingleSpanUnsampled"() {
+    setup:
+    def latch = new CountDownLatch(1)
+    def healthMetrics = new TracerHealthMetrics(new Latched(statsD, latch), 100, TimeUnit.MILLISECONDS)
+    healthMetrics.start()
+    when:
+    healthMetrics.onSingleSpanUnsampled()
+    latch.await(5, TimeUnit.SECONDS)
+    then:
+    1 * statsD.count("span.sampling.unsampled", 1, _)
+    cleanup:
+    healthMetrics.close()
+  }
+  def "test onFinishSpan"() {
+    setup:
+    def latch = new CountDownLatch(1)
+    def healthMetrics = new TracerHealthMetrics(new Latched(statsD, latch), 100, TimeUnit.MILLISECONDS)
+    healthMetrics.start()
+    when:
+    healthMetrics.onFinishSpan()
+    latch.await(5, TimeUnit.SECONDS)
+    then:
+    1 * statsD.count("span.pending.finished", 1, _)
+    cleanup:
+    healthMetrics.close()
+  }
+  def "test onActivateScope"() {
+    setup:
+    def latch = new CountDownLatch(1)
+    def healthMetrics = new TracerHealthMetrics(new Latched(statsD, latch), 100, TimeUnit.MILLISECONDS)
+    healthMetrics.start()
+    when:
+    healthMetrics.onActivateScope()
+    latch.await(5, TimeUnit.SECONDS)
+    then:
+    1 * statsD.count("scope.activate.count", 1, _)
+    cleanup:
+    healthMetrics.close()
+  }
+  def "test onCloseScope"() {
+    setup:
+    def latch = new CountDownLatch(1)
+    def healthMetrics = new TracerHealthMetrics(new Latched(statsD, latch), 100, TimeUnit.MILLISECONDS)
+    healthMetrics.start()
+    when:
+    healthMetrics.onCloseScope()
+    latch.await(5, TimeUnit.SECONDS)
+    then:
+    1 * statsD.count("scope.close.count", 1, _)
+    cleanup:
+    healthMetrics.close()
+  }
+  def "test onScopeStackOverflow"() {
+    setup:
+    def latch = new CountDownLatch(1)
+    def healthMetrics = new TracerHealthMetrics(new Latched(statsD, latch), 100, TimeUnit.MILLISECONDS)
+    healthMetrics.start()
+    when:
+    healthMetrics.onScopeStackOverflow()
+    latch.await(5, TimeUnit.SECONDS)
+    then:
+    1 * statsD.count("scope.error.stack-overflow", 1, _)
+    cleanup:
+    healthMetrics.close()
+  }
+
+  def "test onLongRunningUpdate"() {
+    setup:
+    def latch = new CountDownLatch(3)
+    def healthMetrics = new TracerHealthMetrics(new Latched(statsD, latch), 100, TimeUnit.MILLISECONDS)
+    healthMetrics.start()
+    when:
+    healthMetrics.onLongRunningUpdate(3,10,1)
+    latch.await(10, TimeUnit.SECONDS)
+    then:
+    1 * statsD.count("long-running.write", 10, _)
+    1 * statsD.count("long-running.dropped", 3, _)
+    1 * statsD.count("long-running.expired", 1, _)
+    cleanup:
+    healthMetrics.close()
+  }
 
   private static class Latched implements StatsDClient {
     final StatsDClient delegate
@@ -329,6 +427,24 @@ class HealthMetricsTest extends DDSpecification {
     void histogram(String metricName, double value, String... tags) {
       try {
         delegate.histogram(metricName, value, tags)
+      } finally {
+        latch.countDown()
+      }
+    }
+
+    @Override
+    void distribution(String metricName, long value, String... tags) {
+      try {
+        delegate.distribution(metricName, value, tags)
+      } finally {
+        latch.countDown()
+      }
+    }
+
+    @Override
+    void distribution(String metricName, double value, String... tags) {
+      try {
+        delegate.distribution(metricName, value, tags)
       } finally {
         latch.countDown()
       }

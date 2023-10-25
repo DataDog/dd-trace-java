@@ -16,11 +16,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class HostInfo {
-
-  private static final Path PROC_HOSTNAME =
-      FileSystems.getDefault().getPath("/proc/sys/kernel/hostname");
-  private static final Path ETC_HOSTNAME = FileSystems.getDefault().getPath("/etc/hostname");
-
   private static final Path PROC_VERSION = FileSystems.getDefault().getPath("/proc/version");
   private static final Logger log = LoggerFactory.getLogger(RequestBuilder.class);
 
@@ -29,6 +24,7 @@ public class HostInfo {
   private static String osVersion;
   private static String kernelRelease;
   private static String kernelVersion;
+  private static String architecture;
 
   public static String getHostname() {
     if (hostname != null) {
@@ -86,6 +82,14 @@ public class HostInfo {
       }
     }
     return kernelVersion;
+  }
+
+  public static String getArchitecture() {
+    if (architecture == null) {
+      // In Linux, os.arch == uname -me
+      architecture = System.getProperty("os.arch");
+    }
+    return architecture;
   }
 
   private static String tryReadFile(Path file) {

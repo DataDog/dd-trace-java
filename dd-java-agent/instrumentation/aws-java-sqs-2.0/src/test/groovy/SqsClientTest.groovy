@@ -1,27 +1,37 @@
+import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
+import static java.nio.charset.StandardCharsets.UTF_8
+
 import com.amazon.sqs.javamessaging.ProviderConfiguration
 import com.amazon.sqs.javamessaging.SQSConnectionFactory
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.naming.VersionedNamingTestBase
 import datadog.trace.agent.test.utils.TraceUtils
+import datadog.trace.api.Config
+import datadog.trace.api.DDTags
 import datadog.trace.api.DDSpanId
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.config.GeneralConfig
+import datadog.trace.api.naming.SpanNaming
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
+import datadog.trace.core.datastreams.StatsGroup
+import datadog.trace.instrumentation.aws.v2.sqs.TracingList
 import org.elasticmq.rest.sqs.SQSRestServerBuilder
 import software.amazon.awssdk.auth.credentials.AnonymousCredentialsProvider
+import software.amazon.awssdk.core.SdkBytes
 import software.amazon.awssdk.core.SdkSystemSetting
 import software.amazon.awssdk.regions.Region
 import software.amazon.awssdk.services.sqs.SqsClient
 import software.amazon.awssdk.services.sqs.model.CreateQueueRequest
 import software.amazon.awssdk.services.sqs.model.ReceiveMessageRequest
 import software.amazon.awssdk.services.sqs.model.SendMessageRequest
+import software.amazon.awssdk.services.sqs.model.Message
+import software.amazon.awssdk.services.sqs.model.MessageAttributeValue
+import spock.lang.IgnoreIf
 import spock.lang.Shared
 
 import javax.jms.Session
 
-import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
-
-class SqsClientTest extends AgentTestRunner {
+abstract class SqsClientTest extends VersionedNamingTestBase {
 
   def setup() {
     System.setProperty(SdkSystemSetting.AWS_ACCESS_KEY_ID.property(), "my-access-key")
@@ -33,6 +43,7 @@ class SqsClientTest extends AgentTestRunner {
     super.configurePreAgent()
     // Set a service name that gets sorted early with SORT_BY_NAMES
     injectSysConfig(GeneralConfig.SERVICE_NAME, "A-service")
+    injectSysConfig(GeneralConfig.DATA_STREAMS_ENABLED, isDataStreamsEnabled().toString())
   }
 
   @Shared
@@ -50,6 +61,24 @@ class SqsClientTest extends AgentTestRunner {
     }
   }
 
+  @Override
+  String operation() {
+    null
+  }
+
+  @Override
+  String service() {
+    null
+  }
+
+  boolean hasTimeInQueueSpan() {
+    false
+  }
+
+  abstract String expectedOperation(String awsService, String awsOperation)
+
+  abstract String expectedService(String awsService, String awsOperation)
+
   def "trace details propagated via SQS system message attributes"() {
     setup:
     def client = SqsClient.builder()
@@ -66,6 +95,10 @@ class SqsClientTest extends AgentTestRunner {
     })
     def messages = client.receiveMessage(ReceiveMessageRequest.builder().queueUrl(queueUrl).build()).messages()
 
+    if (isDataStreamsEnabled()) {
+      TEST_DATA_STREAMS_WRITER.waitForGroups(2)
+    }
+
     messages.forEach {/* consume to create message spans */ }
 
     then:
@@ -74,8 +107,8 @@ class SqsClientTest extends AgentTestRunner {
       trace(2) {
         basicSpan(it, "parent")
         span {
-          serviceName "sqs"
-          operationName "aws.http"
+          serviceName expectedService("Sqs", "SendMessage")
+          operationName expectedOperation("Sqs", "SendMessage")
           resourceName "Sqs.SendMessage"
           spanType DDSpanTypes.HTTP_CLIENT
           errored false
@@ -90,10 +123,14 @@ class SqsClientTest extends AgentTestRunner {
             "$Tags.PEER_PORT" address.port
             "$Tags.PEER_HOSTNAME" "localhost"
             "aws.service" "Sqs"
+            "aws_service" "Sqs"
             "aws.operation" "SendMessage"
             "aws.agent" "java-aws-sdk"
             "aws.queue.url" "http://localhost:${address.port}/000000000000/somequeue"
             "aws.requestId" "00000000-0000-0000-0000-000000000000"
+            if ({ isDataStreamsEnabled() }) {
+              "$DDTags.PATHWAY_HASH" { String }
+            }
             defaultTags()
           }
         }
@@ -101,8 +138,8 @@ class SqsClientTest extends AgentTestRunner {
       }
       trace(1) {
         span {
-          serviceName "sqs"
-          operationName "aws.http"
+          serviceName expectedService("Sqs", "ReceiveMessage")
+          operationName expectedOperation("Sqs", "ReceiveMessage")
           resourceName "Sqs.ReceiveMessage"
           spanType DDSpanTypes.MESSAGE_CONSUMER
           errored false
@@ -112,13 +149,33 @@ class SqsClientTest extends AgentTestRunner {
             "$Tags.COMPONENT" "java-aws-sdk"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CONSUMER
             "aws.service" "Sqs"
+            "aws_service" "Sqs"
             "aws.operation" "ReceiveMessage"
             "aws.agent" "java-aws-sdk"
             "aws.queue.url" "http://localhost:${address.port}/000000000000/somequeue"
             "aws.requestId" "00000000-0000-0000-0000-000000000000"
+            if ({ isDataStreamsEnabled() }) {
+              "$DDTags.PATHWAY_HASH" { String }
+            }
             defaultTags(true)
           }
         }
+      }
+    }
+
+    and:
+    if (isDataStreamsEnabled()) {
+      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
+
+      verifyAll(first) {
+        edgeTags == ["direction:out", "topic:somequeue", "type:sqs"]
+        edgeTags.size() == 3
+      }
+
+      StatsGroup second = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == first.hash }
+      verifyAll(second) {
+        edgeTags == ["direction:in", "topic:somequeue", "type:sqs"]
+        edgeTags.size() == 3
       }
     }
 
@@ -129,6 +186,93 @@ class SqsClientTest extends AgentTestRunner {
     client.close()
   }
 
+  @IgnoreIf({instance.isDataStreamsEnabled()})
+  def "trace details propagated via embedded SQS message attribute (string)"() {
+    setup:
+    TEST_WRITER.clear()
+
+    when:
+    def message = Message.builder().messageAttributes(['_datadog': MessageAttributeValue.builder().dataType('String').stringValue(
+      "{\"x-datadog-trace-id\": \"4948377316357291421\", \"x-datadog-parent-id\": \"6746998015037429512\", \"x-datadog-sampling-priority\": \"1\"}"
+      ).build()]).build()
+    def messages = new TracingList([message],
+    "http://localhost:${address.port}/000000000000/somequeue",
+    "00000000-0000-0000-0000-000000000000")
+
+    messages.forEach {/* consume to create message spans */ }
+
+    then:
+    assertTraces(1) {
+      trace(1) {
+        span {
+          serviceName expectedService("Sqs", "ReceiveMessage")
+          operationName expectedOperation("Sqs", "ReceiveMessage")
+          resourceName "Sqs.ReceiveMessage"
+          spanType DDSpanTypes.MESSAGE_CONSUMER
+          errored false
+          measured true
+          traceId(4948377316357291421 as BigInteger)
+          parentSpanId(6746998015037429512 as BigInteger)
+          tags {
+            "$Tags.COMPONENT" "java-aws-sdk"
+            "$Tags.SPAN_KIND" Tags.SPAN_KIND_CONSUMER
+            "aws.service" "Sqs"
+            "aws_service" "Sqs"
+            "aws.operation" "ReceiveMessage"
+            "aws.agent" "java-aws-sdk"
+            "aws.queue.url" "http://localhost:${address.port}/000000000000/somequeue"
+            "aws.requestId" "00000000-0000-0000-0000-000000000000"
+            defaultTags(true)
+          }
+        }
+      }
+    }
+  }
+
+  @IgnoreIf({instance.isDataStreamsEnabled()})
+  def "trace details propagated via embedded SQS message attribute (binary)"() {
+    setup:
+    TEST_WRITER.clear()
+
+    when:
+    def message = Message.builder().messageAttributes(['_datadog': MessageAttributeValue.builder().dataType('Binary').binaryValue(SdkBytes.fromByteBuffer(
+      UTF_8.encode('eyJ4LWRhdGFkb2ctdHJhY2UtaWQiOiI0OTQ4Mzc3MzE2MzU3MjkxNDIxIiwieC1kYXRhZG9nLXBhcmVudC1pZCI6IjY3NDY5OTgwMTUwMzc0Mjk1MTIiLCJ4LWRhdGFkb2ctc2FtcGxpbmctcHJpb3JpdHkiOiIxIn0=')
+      )).build()]).build()
+    def messages = new TracingList([message],
+    "http://localhost:${address.port}/000000000000/somequeue",
+    "00000000-0000-0000-0000-000000000000")
+
+    messages.forEach {/* consume to create message spans */ }
+
+    then:
+    assertTraces(1) {
+      trace(1) {
+        span {
+          serviceName expectedService("Sqs", "ReceiveMessage")
+          operationName expectedOperation("Sqs", "ReceiveMessage")
+          resourceName "Sqs.ReceiveMessage"
+          spanType DDSpanTypes.MESSAGE_CONSUMER
+          errored false
+          measured true
+          traceId(4948377316357291421 as BigInteger)
+          parentSpanId(6746998015037429512 as BigInteger)
+          tags {
+            "$Tags.COMPONENT" "java-aws-sdk"
+            "$Tags.SPAN_KIND" Tags.SPAN_KIND_CONSUMER
+            "aws.service" "Sqs"
+            "aws_service" "Sqs"
+            "aws.operation" "ReceiveMessage"
+            "aws.agent" "java-aws-sdk"
+            "aws.queue.url" "http://localhost:${address.port}/000000000000/somequeue"
+            "aws.requestId" "00000000-0000-0000-0000-000000000000"
+            defaultTags(true)
+          }
+        }
+      }
+    }
+  }
+
+  @IgnoreIf({instance.isDataStreamsEnabled()})
   def "trace details propagated from SQS to JMS"() {
     setup:
     def client = SqsClient.builder()
@@ -155,12 +299,14 @@ class SqsClientTest extends AgentTestRunner {
 
     then:
     def sendSpan
-    assertTraces(4, SORT_TRACES_BY_NAMES) {
+    def timeInQueue = hasTimeInQueueSpan()
+
+    assertTraces(4, SORT_TRACES_BY_START) {
       trace(2) {
         basicSpan(it, "parent")
         span {
-          serviceName "sqs"
-          operationName "aws.http"
+          serviceName expectedService("Sqs", "SendMessage")
+          operationName expectedOperation("Sqs", "SendMessage")
           resourceName "Sqs.SendMessage"
           spanType DDSpanTypes.HTTP_CLIENT
           errored false
@@ -175,6 +321,7 @@ class SqsClientTest extends AgentTestRunner {
             "$Tags.PEER_PORT" address.port
             "$Tags.PEER_HOSTNAME" "localhost"
             "aws.service" "Sqs"
+            "aws_service" "Sqs"
             "aws.operation" "SendMessage"
             "aws.agent" "java-aws-sdk"
             "aws.queue.url" "http://localhost:${address.port}/000000000000/somequeue"
@@ -184,27 +331,51 @@ class SqsClientTest extends AgentTestRunner {
         }
         sendSpan = span(1)
       }
-      trace(1) {
+      trace(timeInQueue ? 2 : 1) {
         span {
-          serviceName "jms"
-          operationName "jms.consume"
-          resourceName "Consumed from Queue somequeue"
+          serviceName expectedService("Sqs", "ReceiveMessage")
+          operationName expectedOperation("Sqs", "ReceiveMessage")
+          resourceName "Sqs.ReceiveMessage"
           spanType DDSpanTypes.MESSAGE_CONSUMER
           errored false
           measured true
-          childOf(sendSpan)
+          childOf(timeInQueue ? span(1): sendSpan)
           tags {
-            "$Tags.COMPONENT" "jms"
+            "$Tags.COMPONENT" "java-aws-sdk"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CONSUMER
-            "$InstrumentationTags.RECORD_QUEUE_TIME_MS" { it >= 0 }
-            defaultTags(true)
+            "aws.service" "Sqs"
+            "aws_service" "Sqs"
+            "aws.operation" "ReceiveMessage"
+            "aws.agent" "java-aws-sdk"
+            "aws.queue.url" "http://localhost:${address.port}/000000000000/somequeue"
+            "aws.requestId" "00000000-0000-0000-0000-000000000000"
+            defaultTags(!timeInQueue)
+          }
+        }
+        if (timeInQueue) {
+          // only v1 has this automatically without legacy disabled
+          span {
+            serviceName "sqs-queue"
+            operationName "aws.sqs.deliver"
+            resourceName "Sqs.DeliverMessage"
+            spanType DDSpanTypes.MESSAGE_BROKER
+            errored false
+            measured true
+            childOf(sendSpan)
+            tags {
+              "$Tags.COMPONENT" "java-aws-sdk"
+              "$Tags.SPAN_KIND" Tags.SPAN_KIND_BROKER
+              "aws.queue.url" "http://localhost:${address.port}/000000000000/somequeue"
+              "aws.requestId" "00000000-0000-0000-0000-000000000000"
+              defaultTags(true)
+            }
           }
         }
       }
       trace(1) {
         span {
-          serviceName "sqs"
-          operationName "aws.http"
+          serviceName expectedService("Sqs", "DeleteMessage")
+          operationName expectedOperation("Sqs", "DeleteMessage")
           resourceName "Sqs.DeleteMessage"
           spanType DDSpanTypes.HTTP_CLIENT
           errored false
@@ -219,6 +390,7 @@ class SqsClientTest extends AgentTestRunner {
             "$Tags.PEER_PORT" address.port
             "$Tags.PEER_HOSTNAME" "localhost"
             "aws.service" "Sqs"
+            "aws_service" "Sqs"
             "aws.operation" "DeleteMessage"
             "aws.agent" "java-aws-sdk"
             "aws.queue.url" "http://localhost:${address.port}/000000000000/somequeue"
@@ -229,21 +401,17 @@ class SqsClientTest extends AgentTestRunner {
       }
       trace(1) {
         span {
-          serviceName "sqs"
-          operationName "aws.http"
-          resourceName "Sqs.ReceiveMessage"
+          serviceName SpanNaming.instance().namingSchema().messaging().inboundService("jms", Config.get().isLegacyTracingEnabled(true, "jms")) ?: Config.get().getServiceName()
+          operationName SpanNaming.instance().namingSchema().messaging().inboundOperation("jms")
+          resourceName "Consumed from Queue somequeue"
           spanType DDSpanTypes.MESSAGE_CONSUMER
           errored false
           measured true
           childOf(sendSpan)
           tags {
-            "$Tags.COMPONENT" "java-aws-sdk"
+            "$Tags.COMPONENT" "jms"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CONSUMER
-            "aws.service" "Sqs"
-            "aws.operation" "ReceiveMessage"
-            "aws.agent" "java-aws-sdk"
-            "aws.queue.url" "http://localhost:${address.port}/000000000000/somequeue"
-            "aws.requestId" "00000000-0000-0000-0000-000000000000"
+            "$InstrumentationTags.RECORD_QUEUE_TIME_MS" { it >= 0 }
             defaultTags(true)
           }
         }
@@ -260,3 +428,106 @@ class SqsClientTest extends AgentTestRunner {
     client.close()
   }
 }
+
+class SqsClientV0Test extends SqsClientTest {
+
+  @Override
+  String expectedOperation(String awsService, String awsOperation) {
+    "aws.http"
+  }
+
+  @Override
+  String expectedService(String awsService, String awsOperation) {
+    if ("Sqs" == awsService) {
+      return "sqs"
+    }
+    return "java-aws-sdk"
+  }
+
+  @Override
+  int version() {
+    0
+  }
+}
+
+class SqsClientV1ForkedTest extends SqsClientTest {
+
+  @Override
+  String expectedOperation(String awsService, String awsOperation) {
+    if (awsService == "Sqs") {
+      if (awsOperation == "ReceiveMessage") {
+        return "aws.sqs.process"
+      } else if (awsOperation == "SendMessage") {
+        return "aws.sqs.send"
+      }
+    }
+    return "aws.${awsService.toLowerCase()}.request"
+  }
+
+  @Override
+  String expectedService(String awsService, String awsOperation) {
+    "A-service"
+  }
+
+  @Override
+  int version() {
+    1
+  }
+}
+
+class SqsClientV0DataStreamsTest extends SqsClientTest {
+  @Override
+  String expectedOperation(String awsService, String awsOperation) {
+    "aws.http"
+  }
+
+  @Override
+  String expectedService(String awsService, String awsOperation) {
+    if ("Sqs" == awsService) {
+      return "sqs"
+    }
+    return "java-aws-sdk"
+  }
+
+  @Override
+  boolean isDataStreamsEnabled() {
+    true
+  }
+
+
+  @Override
+  int version() {
+    0
+  }
+}
+
+class SqsClientV1DataStreamsForkedTest extends SqsClientTest {
+  @Override
+  String expectedOperation(String awsService, String awsOperation) {
+    if (awsService == "Sqs") {
+      if (awsOperation == "ReceiveMessage") {
+        return "aws.sqs.process"
+      } else if (awsOperation == "SendMessage") {
+        return "aws.sqs.send"
+      }
+    }
+    return "aws.${awsService.toLowerCase()}.request"
+  }
+
+  @Override
+  String expectedService(String awsService, String awsOperation) {
+    "A-service"
+  }
+
+  @Override
+  boolean isDataStreamsEnabled() {
+    true
+  }
+
+  @Override
+  int version() {
+    1
+  }
+}
+
+

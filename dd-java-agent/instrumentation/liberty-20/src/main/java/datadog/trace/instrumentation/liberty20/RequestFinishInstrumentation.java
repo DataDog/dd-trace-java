@@ -11,6 +11,7 @@ import com.ibm.ws.webcontainer.srt.SRTServletResponse;
 import com.ibm.wsspi.webcontainer.servlet.IExtendedResponse;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import net.bytebuddy.asm.Advice;
 
 @AutoService(Instrumenter.class)
@@ -46,6 +47,7 @@ public class RequestFinishInstrumentation extends Instrumenter.Tracing
   }
 
   /** The function finish is called when a server receives and sends out a request */
+  @SuppressFBWarnings("DCN_NULLPOINTER_EXCEPTION")
   public static class RequestFinishAdvice {
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void stopSpan(@Advice.This SRTServletRequest req) {

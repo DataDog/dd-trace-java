@@ -17,14 +17,14 @@ import static datadog.trace.api.sampling.PrioritySampling.UNSET
 import static datadog.trace.api.sampling.PrioritySampling.USER_DROP
 import static datadog.trace.api.sampling.PrioritySampling.USER_KEEP
 import static datadog.trace.common.writer.ddagent.Prioritization.FAST_LANE
-import static datadog.trace.common.writer.ddagent.PrioritizationStrategy.PublishResult.*
+import static datadog.trace.common.writer.ddagent.PrioritizationStrategy.PublishResult.ENQUEUED_FOR_SERIALIZATION
 
 class TraceProcessingWorkerTest extends DDSpecification {
 
   def conditions = new PollingConditions(timeout: 5, initialDelay: 0, factor: 1.25)
 
   def flushCountingPayloadDispatcher(AtomicInteger flushCounter) {
-    PayloadDispatcher dispatcher = Mock(PayloadDispatcher)
+    PayloadDispatcherImpl dispatcher = Mock(PayloadDispatcherImpl)
     dispatcher.flush() >> {
       flushCounter.incrementAndGet()
     }
@@ -113,7 +113,7 @@ class TraceProcessingWorkerTest extends DDSpecification {
   def "should report failure if serialization fails"() {
     setup:
     Throwable theError = new IllegalStateException("thrown by test")
-    PayloadDispatcher throwingDispatcher = Mock(PayloadDispatcher)
+    PayloadDispatcherImpl throwingDispatcher = Mock(PayloadDispatcherImpl)
     throwingDispatcher.addTrace(_) >> {
       throw theError
     }
@@ -152,7 +152,7 @@ class TraceProcessingWorkerTest extends DDSpecification {
   def "traces should be processed"() {
     setup:
     AtomicInteger acceptedCount = new AtomicInteger()
-    PayloadDispatcher countingDispatcher = Mock(PayloadDispatcher)
+    PayloadDispatcherImpl countingDispatcher = Mock(PayloadDispatcherImpl)
     countingDispatcher.addTrace(_) >> {
       acceptedCount.getAndIncrement()
     }
@@ -206,7 +206,7 @@ class TraceProcessingWorkerTest extends DDSpecification {
 
   def "flush of full queue after worker thread stopped will not flush but will return"() {
     setup:
-    PayloadDispatcher countingDispatcher = Mock(PayloadDispatcher)
+    PayloadDispatcherImpl countingDispatcher = Mock(PayloadDispatcherImpl)
     HealthMetrics healthMetrics = Mock(HealthMetrics)
     TraceProcessingWorker worker = new TraceProcessingWorker(10, healthMetrics,
       countingDispatcher, {
@@ -230,10 +230,10 @@ class TraceProcessingWorkerTest extends DDSpecification {
     HealthMetrics healthMetrics = Mock(HealthMetrics)
     AtomicInteger acceptedCount = new AtomicInteger()
     AtomicInteger acceptedSpanCount = new AtomicInteger()
-    PayloadDispatcher countingDispatcher = Mock(PayloadDispatcher)
+    PayloadDispatcherImpl countingDispatcher = Mock(PayloadDispatcherImpl)
     countingDispatcher.addTrace(_) >> {
-      List trace = it[0]
-      acceptedSpanCount.getAndAdd(trace.size())
+      List traceList = it[0]
+      acceptedSpanCount.getAndAdd(traceList.size())
       acceptedCount.getAndIncrement()
     }
     AtomicInteger sampledSpansCount = new AtomicInteger()
@@ -306,10 +306,10 @@ class TraceProcessingWorkerTest extends DDSpecification {
     HealthMetrics healthMetrics = Mock(HealthMetrics)
     AtomicInteger chunksCount = new AtomicInteger()
     AtomicInteger spansCount = new AtomicInteger()
-    PayloadDispatcher countingDispatcher = Mock(PayloadDispatcher)
+    PayloadDispatcherImpl countingDispatcher = Mock(PayloadDispatcherImpl)
     countingDispatcher.addTrace(_) >> {
-      List trace = it[0]
-      spansCount.getAndAdd(trace.size())
+      List traceList = it[0]
+      spansCount.getAndAdd(traceList.size())
       chunksCount.getAndIncrement()
     }
     AtomicInteger sampledSpansCount = new AtomicInteger()

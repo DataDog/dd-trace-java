@@ -9,16 +9,8 @@ muzzle {
   }
 }
 
-apply plugin: 'org.unbroken-dome.test-sets'
-
-testSets {
-  latestDep4Test {
-    dirName = 'test'
-  }
-  latestDepTest {
-    dirName = 'test'
-  }
-}
+addTestSuiteForDir('latestDep4Test', 'test')
+addTestSuiteForDir('latestDepTest', 'test')
 
 dependencies {
   compileOnly group: 'io.netty', name: 'netty-common', version: '4.0.0.Final'

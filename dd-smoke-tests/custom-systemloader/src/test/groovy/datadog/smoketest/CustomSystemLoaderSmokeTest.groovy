@@ -32,7 +32,7 @@ class CustomSystemLoaderSmokeTest extends AbstractSmokeTest {
     testedProcess.waitFor(TIMEOUT_SECS, SECONDS)
     int loadedResources = 0
     int transformedResources = 0
-    checkLog {
+    checkLogPostExit {
       if (it =~ /Loading sample.app.Resource[$]Test[1-3] from TestLoader/) {
         loadedResources++
       }

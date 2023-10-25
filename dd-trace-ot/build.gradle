@@ -22,16 +22,18 @@ excludedClassesCoverage += [
   "datadog.opentracing.DDTracer.DDTracerBuilder"
 ]
 
-apply plugin: 'org.unbroken-dome.test-sets'
-
-testSets {
-  ot31CompatabilityTest
-  ot33CompatabilityTest
-}
+addTestSuite('ot31CompatibilityTest')
+addTestSuite('ot33CompatibilityTest')
 
 dependencies {
   annotationProcessor deps.autoserviceProcessor
   compileOnly deps.autoserviceAnnotation
+
+  modules {
+    module("com.squareup.okio:okio") {
+      replacedBy("com.datadoghq.okio:okio") // embed our patched fork
+    }
+  }
 
   api project(':dd-trace-api')
   implementation (project(':dd-trace-core')) {
@@ -50,29 +52,34 @@ dependencies {
 
   testImplementation project(":dd-java-agent:testing")
 
-  ot31CompatabilityTestImplementation('io.opentracing:opentracing-api:0.31.0') {
-    force = true
+  ot33CompatibilityTestImplementation('io.opentracing:opentracing-api') {
+    version {
+      strictly '0.33.0'
+    }
   }
-  ot31CompatabilityTestImplementation('io.opentracing:opentracing-util:0.31.0')  {
-    force = true
+  ot33CompatibilityTestImplementation('io.opentracing:opentracing-util')  {
+    version {
+      strictly '0.33.0'
+    }
   }
-  ot31CompatabilityTestImplementation('io.opentracing:opentracing-noop:0.31.0')  {
-    force = true
-  }
-
-  ot33CompatabilityTestImplementation('io.opentracing:opentracing-api:0.33.0') {
-    force = true
-  }
-  ot33CompatabilityTestImplementation('io.opentracing:opentracing-util:0.33.0')  {
-    force = true
-  }
-  ot33CompatabilityTestImplementation('io.opentracing:opentracing-noop:0.33.0')  {
-    force = true
+  ot33CompatibilityTestImplementation('io.opentracing:opentracing-noop')  {
+    version {
+      strictly '0.33.0'
+    }
   }
 }
 
+// gradle can't downgrade the opentracing dependencies with `strictly`
+configurations.matching({ it.name.startsWith('ot31') }).each({
+  it.resolutionStrategy {
+    force group: 'io.opentracing', name: 'opentracing-api', version: '0.31.0'
+    force group: 'io.opentracing', name: 'opentracing-util', version: '0.31.0'
+    force group: 'io.opentracing', name: 'opentracing-noop', version: '0.31.0'
+  }
+})
+
 tasks.named("test").configure {
-  finalizedBy "ot31CompatabilityTest", "ot33CompatabilityTest"
+  finalizedBy "ot31CompatibilityTest", "ot33CompatibilityTest"
 }
 
 jar {
@@ -107,16 +114,23 @@ shadowJar {
   relocate('datadog.', 'ddtrot.dd.') {
     exclude('datadog.opentracing.*')
     exclude('datadog.opentracing.resolver.*')
-    exclude('datadog.trace.api.*')
+    exclude('%regex[datadog/trace/api/(?!Functions|Endpoint)[^/]*]')
     exclude('datadog.trace.api.config.*')
     exclude('datadog.trace.api.experimental.*')
     exclude('datadog.trace.api.interceptor.*')
     exclude('datadog.trace.api.internal.*')
     exclude('datadog.trace.api.internal.util.*')
+    exclude('datadog.trace.api.profiling.*')
     exclude('datadog.trace.api.sampling.*')
     exclude('datadog.trace.context.*')
   }
-  exclude('META-INF/maven/')
+
+  duplicatesStrategy = DuplicatesStrategy.FAIL
+
+  // Remove some cruft from the final jar.
+  // These patterns should NOT include **/META-INF/maven/**/pom.properties, which is
+  // used to report our own dependencies.
+  exclude '**/META-INF/maven/**/pom.xml'
   exclude('META-INF/proguard/')
   exclude('/META-INF/*.kotlin_module')
 }

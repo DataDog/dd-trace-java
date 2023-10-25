@@ -4,18 +4,11 @@ import datadog.trace.api.TracePropagationStyle;
 import java.util.LinkedHashMap;
 
 public interface AgentPropagation {
-
-  AgentScope.Continuation capture();
-
   <C> void inject(AgentSpan span, C carrier, Setter<C> setter);
 
   <C> void inject(AgentSpan.Context context, C carrier, Setter<C> setter);
 
   <C> void inject(AgentSpan span, C carrier, Setter<C> setter, TracePropagationStyle style);
-
-  // The input tags should be sorted.
-  <C> void injectBinaryPathwayContext(
-      AgentSpan span, C carrier, BinarySetter<C> setter, LinkedHashMap<String, String> sortedTags);
 
   // The input tags should be sorted.
   <C> void injectPathwayContext(
@@ -25,15 +18,11 @@ public interface AgentPropagation {
     void set(C carrier, String key, String value);
   }
 
-  interface BinarySetter<C> {
+  interface BinarySetter<C> extends Setter<C> {
     void set(C carrier, String key, byte[] value);
   }
 
   <C> AgentSpan.Context.Extracted extract(C carrier, ContextVisitor<C> getter);
-
-  <C> PathwayContext extractBinaryPathwayContext(C carrier, BinaryContextVisitor<C> getter);
-
-  <C> PathwayContext extractPathwayContext(C carrier, ContextVisitor<C> getter);
 
   interface KeyClassifier {
 
@@ -48,7 +37,7 @@ public interface AgentPropagation {
     void forEachKey(C carrier, KeyClassifier classifier);
   }
 
-  interface BinaryContextVisitor<C> {
+  interface BinaryContextVisitor<C> extends ContextVisitor<C> {
     void forEachKey(C carrier, BinaryKeyClassifier classifier);
   }
 }

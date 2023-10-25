@@ -4,63 +4,124 @@ import static com.datadog.iast.taint.Tainteds.canBeTainted;
 
 import com.datadog.iast.IastRequestContext;
 import com.datadog.iast.model.Source;
-import com.datadog.iast.model.SourceType;
-import com.datadog.iast.taint.Ranges;
 import com.datadog.iast.taint.TaintedObjects;
+import datadog.trace.api.iast.SourceTypes;
 import datadog.trace.api.iast.source.WebModule;
-import java.io.BufferedReader;
-import java.io.InputStream;
-import javax.annotation.Nonnull;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Iterator;
+import java.util.Map;
 import javax.annotation.Nullable;
 
 public class WebModuleImpl implements WebModule {
 
   @Override
-  public void onParameterName(@Nullable final String paramName) {
-    if (!canBeTainted(paramName)) {
-      return;
-    }
-    final IastRequestContext ctx = IastRequestContext.get();
-    if (ctx == null) {
-      return;
-    }
-    final TaintedObjects taintedObjects = ctx.getTaintedObjects();
-    taintedObjects.taintInputString(
-        paramName, new Source(SourceType.REQUEST_PARAMETER_NAME, paramName, null));
+  public void onParameterNames(@Nullable final Collection<String> paramNames) {
+    onNamed(paramNames, SourceTypes.REQUEST_PARAMETER_NAME);
   }
 
   @Override
-  public void onParameterValue(
-      @Nullable final String paramName, @Nullable final String paramValue) {
-    if (!canBeTainted(paramValue)) {
-      return;
-    }
-    final IastRequestContext ctx = IastRequestContext.get();
-    if (ctx == null) {
-      return;
-    }
-    final TaintedObjects taintedObjects = ctx.getTaintedObjects();
-    taintedObjects.taintInputString(
-        paramValue, new Source(SourceType.REQUEST_PARAMETER_VALUE, paramName, paramValue));
+  public void onParameterValues(
+      @Nullable final String paramName, @Nullable final String[] paramValues) {
+    onNamed(paramName, paramValues, SourceTypes.REQUEST_PARAMETER_VALUE);
   }
 
   @Override
-  public void onHeaderName(@Nullable final String headerName) {
-    if (!canBeTainted(headerName)) {
-      return;
-    }
-    final IastRequestContext ctx = IastRequestContext.get();
-    if (ctx == null) {
-      return;
-    }
-    final TaintedObjects taintedObjects = ctx.getTaintedObjects();
-    taintedObjects.taintInputString(
-        headerName, new Source(SourceType.REQUEST_HEADER_NAME, headerName, null));
+  public void onParameterValues(
+      @Nullable final String paramName, @Nullable final Collection<String> paramValues) {
+    onNamed(paramName, paramValues, SourceTypes.REQUEST_PARAMETER_VALUE);
   }
 
   @Override
-  public <COOKIE> void onCookies(@Nonnull COOKIE[] cookies) {
-    if (cookies == null || cookies.length == 0) {
+  public void onParameterValues(@Nullable final Map<String, String[]> values) {
+    onNamed(values, SourceTypes.REQUEST_PARAMETER_VALUE);
+  }
+
+  @Override
+  public void onHeaderNames(@Nullable final Collection<String> headerNames) {
+    onNamed(headerNames, SourceTypes.REQUEST_HEADER_NAME);
+  }
+
+  @Override
+  public void onHeaderValues(
+      @Nullable final String headerName, @Nullable final Collection<String> headerValues) {
+    onNamed(headerName, headerValues, SourceTypes.REQUEST_HEADER_VALUE);
+  }
+
+  @Override
+  public void onMultipartNames(@Nullable final Collection<String> headerNames) {
+    onNamed(headerNames, SourceTypes.REQUEST_MULTIPART_PARAMETER);
+  }
+
+  @Override
+  public void onMultipartValues(
+      @Nullable final String headerName, @Nullable final Collection<String> headerValues) {
+    onNamed(headerName, headerValues, SourceTypes.REQUEST_MULTIPART_PARAMETER);
+  }
+
+  @Override
+  public void onCookieNames(@Nullable Iterable<String> cookieNames) {
+    onNamed(cookieNames, SourceTypes.REQUEST_COOKIE_NAME);
+  }
+
+  @Override
+  public void onGetPathInfo(@Nullable String s) {
+    onNamed(Collections.singleton(s), SourceTypes.REQUEST_PATH);
+  }
+
+  @Override
+  public void onGetRequestURI(@Nullable String s) {
+    onNamed(Collections.singleton(s), SourceTypes.REQUEST_URI);
+  }
+
+  private static void onNamed(@Nullable final Iterable<String> names, final byte source) {
+    if (names == null) {
+      return;
+    }
+    Iterator<String> iterator = names.iterator();
+    if (!iterator.hasNext()) {
+      return;
+    }
+
+    final IastRequestContext ctx = IastRequestContext.get();
+    if (ctx == null) {
+      return;
+    }
+    final TaintedObjects taintedObjects = ctx.getTaintedObjects();
+    do {
+      String name = iterator.next();
+      if (canBeTainted(name)) {
+        taintedObjects.taintInputString(name, new Source(source, name, name));
+      }
+    } while (iterator.hasNext());
+  }
+
+  private static void onNamed(
+      @Nullable final String name, @Nullable final Iterable<String> values, final byte source) {
+    if (values == null) {
+      return;
+    }
+    Iterator<String> iterator = values.iterator();
+    if (!iterator.hasNext()) {
+      return;
+    }
+
+    final IastRequestContext ctx = IastRequestContext.get();
+    if (ctx == null) {
+      return;
+    }
+    final TaintedObjects taintedObjects = ctx.getTaintedObjects();
+    do {
+      String value = iterator.next();
+      if (canBeTainted(value)) {
+        taintedObjects.taintInputString(value, new Source(source, name, value));
+      }
+    } while (iterator.hasNext());
+  }
+
+  private static void onNamed(
+      @Nullable final String name, @Nullable final String[] values, final byte source) {
+    if (values == null || values.length == 0) {
       return;
     }
     final IastRequestContext ctx = IastRequestContext.get();
@@ -68,17 +129,15 @@ public class WebModuleImpl implements WebModule {
       return;
     }
     final TaintedObjects taintedObjects = ctx.getTaintedObjects();
-    for (COOKIE cookie : cookies) {
-      if (cookie != null) {
-        taintedObjects.taint(cookie, Ranges.EMPTY);
+    for (final String value : values) {
+      if (canBeTainted(value)) {
+        taintedObjects.taintInputString(value, new Source(source, name, value));
       }
     }
   }
 
-  @Override
-  public <COOKIE> void onCookieGetter(
-      COOKIE self, String name, String result, byte sourceTypeValue) {
-    if (!canBeTainted(result)) {
+  private static void onNamed(@Nullable final Map<String, String[]> values, final byte source) {
+    if (values == null || values.isEmpty()) {
       return;
     }
     final IastRequestContext ctx = IastRequestContext.get();
@@ -86,49 +145,17 @@ public class WebModuleImpl implements WebModule {
       return;
     }
     final TaintedObjects taintedObjects = ctx.getTaintedObjects();
-    if (taintedObjects.get(self) != null) {
-      taintedObjects.taintInputString(result, new Source(sourceTypeValue, name, result));
+    final byte nameSource = SourceTypes.namedSource(source);
+    for (final Map.Entry<String, String[]> entry : values.entrySet()) {
+      final String name = entry.getKey();
+      if (canBeTainted(name)) {
+        taintedObjects.taintInputString(name, new Source(nameSource, name, name));
+      }
+      for (final String value : entry.getValue()) {
+        if (canBeTainted(value)) {
+          taintedObjects.taintInputString(value, new Source(source, name, value));
+        }
+      }
     }
-  }
-
-  @Override
-  public void onGetInputStream(@Nullable InputStream inputStream) {
-    if (inputStream == null) {
-      return;
-    }
-    final IastRequestContext ctx = IastRequestContext.get();
-    if (ctx == null) {
-      return;
-    }
-    final TaintedObjects taintedObjects = ctx.getTaintedObjects();
-    taintedObjects.taintInputObject(inputStream, new Source(SourceType.REQUEST_BODY, null, null));
-  }
-
-  @Override
-  public void onGetReader(@Nullable BufferedReader bufferedReader) {
-    if (bufferedReader == null) {
-      return;
-    }
-    final IastRequestContext ctx = IastRequestContext.get();
-    if (ctx == null) {
-      return;
-    }
-    final TaintedObjects taintedObjects = ctx.getTaintedObjects();
-    taintedObjects.taintInputObject(
-        bufferedReader, new Source(SourceType.REQUEST_BODY, null, null));
-  }
-
-  @Override
-  public void onHeaderValue(@Nullable final String headerName, @Nullable final String headerValue) {
-    if (!canBeTainted(headerValue)) {
-      return;
-    }
-    final IastRequestContext ctx = IastRequestContext.get();
-    if (ctx == null) {
-      return;
-    }
-    final TaintedObjects taintedObjects = ctx.getTaintedObjects();
-    taintedObjects.taintInputString(
-        headerValue, new Source(SourceType.REQUEST_HEADER_VALUE, headerName, headerValue));
   }
 }

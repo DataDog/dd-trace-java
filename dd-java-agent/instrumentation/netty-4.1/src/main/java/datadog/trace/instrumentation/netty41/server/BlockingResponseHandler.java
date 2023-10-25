@@ -2,6 +2,7 @@ package datadog.trace.instrumentation.netty41.server;
 
 import datadog.appsec.api.blocking.BlockingContentType;
 import datadog.trace.api.gateway.Flow;
+import datadog.trace.api.internal.TraceSegment;
 import datadog.trace.bootstrap.blocking.BlockingActionHelper;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
@@ -23,6 +24,7 @@ public class BlockingResponseHandler extends ChannelInboundHandlerAdapter {
   public static final Logger log = LoggerFactory.getLogger(BlockingResponseHandler.class);
   private static volatile boolean HAS_WARNED;
 
+  private final TraceSegment segment;
   private final int statusCode;
   private final BlockingContentType bct;
   private final Map<String, String> extraHeaders;
@@ -30,14 +32,18 @@ public class BlockingResponseHandler extends ChannelInboundHandlerAdapter {
   private boolean hasBlockedAlready;
 
   public BlockingResponseHandler(
-      int statusCode, BlockingContentType bct, Map<String, String> extraHeaders) {
+      TraceSegment segment,
+      int statusCode,
+      BlockingContentType bct,
+      Map<String, String> extraHeaders) {
+    this.segment = segment;
     this.statusCode = statusCode;
     this.bct = bct;
     this.extraHeaders = extraHeaders;
   }
 
-  public BlockingResponseHandler(Flow.Action.RequestBlockingAction rba) {
-    this(rba.getStatusCode(), rba.getBlockingContentType(), rba.getExtraHeaders());
+  public BlockingResponseHandler(TraceSegment segment, Flow.Action.RequestBlockingAction rba) {
+    this(segment, rba.getStatusCode(), rba.getBlockingContentType(), rba.getExtraHeaders());
   }
 
   @Override
@@ -114,6 +120,8 @@ public class BlockingResponseHandler extends ChannelInboundHandlerAdapter {
                 "ignore_all_writes_handler",
                 IgnoreAllWritesHandler.INSTANCE)
             .context("ignore_all_writes_handler");
+
+    segment.effectivelyBlocked();
 
     ctxForDownstream
         .writeAndFlush(response)

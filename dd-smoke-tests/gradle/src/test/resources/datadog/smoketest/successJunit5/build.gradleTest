@@ -1,0 +1,19 @@
+apply plugin: 'java'
+apply plugin: 'jvm-test-suite'
+
+repositories {
+  mavenLocal()
+  mavenCentral()
+}
+
+testing {
+    suites {
+        test {
+            useJUnitJupiter()
+
+            dependencies {
+              implementation 'org.junit.platform:junit-platform-launcher:1.9.3'
+            }
+        }
+    }
+}

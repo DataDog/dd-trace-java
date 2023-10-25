@@ -20,7 +20,15 @@ public final class DebuggerConfig {
   public static final String DEBUGGER_VERIFY_BYTECODE = "dynamic.instrumentation.verify.bytecode";
   public static final String DEBUGGER_INSTRUMENT_THE_WORLD =
       "dynamic.instrumentation.instrument.the.world";
-  public static final String DEBUGGER_EXCLUDE_FILE = "dynamic.instrumentation.exclude.file";
+  public static final String DEBUGGER_EXCLUDE_FILES = "dynamic.instrumentation.exclude.files";
+  public static final String DEBUGGER_CAPTURE_TIMEOUT = "dynamic.instrumentation.capture.timeout";
+  public static final String DEBUGGER_REDACTED_IDENTIFIERS =
+      "dynamic.instrumentation.redacted.identifiers";
+  public static final String DEBUGGER_REDACTED_TYPES = "dynamic.instrumentation.redacted.types";
+  public static final String DEBUGGER_SYMBOL_ENABLED = "dynamic.instrumentation.symbol.enabled";
+  public static final String DEBUGGER_SYMBOL_INCLUDES = "dynamic.instrumentation.symbol.includes";
+  public static final String DEBUGGER_SYMBOL_FLUSH_THRESHOLD =
+      "dynamic.instrumentation.symbol.flush.threshold";
 
   private DebuggerConfig() {}
 }

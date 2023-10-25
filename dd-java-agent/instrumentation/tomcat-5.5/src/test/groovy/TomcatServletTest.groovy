@@ -3,6 +3,7 @@ import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.agent.test.base.HttpServer
 import datadog.trace.agent.test.naming.TestingGenericHttpNamingConventions
 import datadog.trace.api.DDTags
+import datadog.trace.instrumentation.servlet3.TestServlet3
 import org.apache.catalina.Context
 import org.apache.catalina.Engine
 import org.apache.catalina.Wrapper
@@ -19,11 +20,11 @@ import javax.servlet.Servlet
 import javax.servlet.ServletException
 
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.CUSTOM_EXCEPTION
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.NOT_FOUND
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.REDIRECT
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.TIMEOUT_ERROR
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
 import static org.junit.Assume.assumeTrue
 
 @Unroll
@@ -129,7 +130,7 @@ abstract class TomcatServletTest extends AbstractServletTest<Embedded, Context> 
 
   @Override
   Class<Servlet> servlet() {
-    TestServlet
+    TestServlet3.Sync
   }
 
   @Override
@@ -150,6 +151,21 @@ abstract class TomcatServletTest extends AbstractServletTest<Embedded, Context> 
 
   @Override
   boolean testBlocking() {
+    true
+  }
+
+  @Override
+  boolean testRequestBody() {
+    true
+  }
+
+  @Override
+  boolean testRequestBodyISVariant() {
+    true
+  }
+
+  @Override
+  boolean testBlockingOnResponse() {
     true
   }
 

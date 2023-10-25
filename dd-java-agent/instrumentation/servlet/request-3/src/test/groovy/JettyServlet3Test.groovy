@@ -135,6 +135,11 @@ abstract class JettyServlet3Test extends AbstractServlet3Test<Server, ServletCon
   }
 
   @Override
+  boolean isRespSpanChildOfDispatchOnException() {
+    true
+  }
+
+  @Override
   boolean hasResponseSpan(ServerEndpoint endpoint) {
     if (IS_LATEST) {
       return [NOT_FOUND, ERROR, REDIRECT].contains(endpoint)
@@ -290,6 +295,13 @@ class JettyServlet3TestInclude extends JettyServlet3Test {
 
   boolean isDispatch() {
     return true
+  }
+
+  @Override
+  boolean testBlocking() {
+    // setting response code from included dispatches is not supported by servlet,
+    // and would require version-dependent hacks on Jetty
+    false
   }
 
   @Override

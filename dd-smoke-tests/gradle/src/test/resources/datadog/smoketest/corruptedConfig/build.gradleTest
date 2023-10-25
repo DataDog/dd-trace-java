@@ -1,0 +1,10 @@
+apply plugin: 'java'
+
+repositories {
+  mavenLocal()
+  mavenCentral()
+}
+
+dependencies {{{{ // this project is expected to fail due to parsing error
+  testImplementation 'junit:junit:4.10'
+}

@@ -1,6 +1,6 @@
 package datadog.communication.monitor
 
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 class DisabledMonitoringTest {
   Monitoring disabledMonitoring = Monitoring.DISABLED

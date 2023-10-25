@@ -2,11 +2,17 @@ package com.datadog.debugger.probe;
 
 import com.datadog.debugger.agent.Generated;
 import com.datadog.debugger.el.ValueScript;
+import com.datadog.debugger.instrumentation.DiagnosticMessage;
+import com.datadog.debugger.instrumentation.InstrumentationResult;
 import com.datadog.debugger.instrumentation.MetricInstrumentor;
-import datadog.trace.bootstrap.debugger.DiagnosticMessage;
+import datadog.trace.bootstrap.debugger.MethodLocation;
+import datadog.trace.bootstrap.debugger.ProbeId;
 import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
+import org.objectweb.asm.Type;
 import org.objectweb.asm.tree.ClassNode;
 import org.objectweb.asm.tree.MethodNode;
 
@@ -14,9 +20,82 @@ import org.objectweb.asm.tree.MethodNode;
 public class MetricProbe extends ProbeDefinition {
 
   public enum MetricKind {
-    COUNT,
-    GAUGE,
-    HISTOGRAM
+    COUNT {
+      @Override
+      public boolean isCompatible(Type type) {
+        return isLongOnlyCompatible(type);
+      }
+
+      @Override
+      public Collection<Type> getSupportedTypes() {
+        return Collections.singleton(Type.LONG_TYPE);
+      }
+    },
+    GAUGE {
+      @Override
+      public boolean isCompatible(Type type) {
+        return isLongAndDoubleCompatible(type);
+      }
+
+      @Override
+      public Collection<Type> getSupportedTypes() {
+        return Arrays.asList(Type.LONG_TYPE, Type.DOUBLE_TYPE);
+      }
+    },
+    HISTOGRAM {
+      @Override
+      public boolean isCompatible(Type type) {
+        return isLongAndDoubleCompatible(type);
+      }
+
+      @Override
+      public Collection<Type> getSupportedTypes() {
+        return Arrays.asList(Type.LONG_TYPE, Type.DOUBLE_TYPE);
+      }
+    },
+    DISTRIBUTION {
+      @Override
+      public boolean isCompatible(Type type) {
+        return isLongAndDoubleCompatible(type);
+      }
+
+      @Override
+      public Collection<Type> getSupportedTypes() {
+        return Arrays.asList(Type.LONG_TYPE, Type.DOUBLE_TYPE);
+      }
+    };
+
+    public abstract boolean isCompatible(Type type);
+
+    public abstract Collection<Type> getSupportedTypes();
+
+    protected boolean isLongOnlyCompatible(Type type) {
+      switch (type.getSort()) {
+        case Type.BYTE:
+        case Type.SHORT:
+        case Type.CHAR:
+        case Type.INT:
+        case Type.LONG:
+        case Type.BOOLEAN:
+          return true;
+      }
+      return false;
+    }
+
+    protected boolean isLongAndDoubleCompatible(Type type) {
+      switch (type.getSort()) {
+        case Type.BYTE:
+        case Type.SHORT:
+        case Type.CHAR:
+        case Type.INT:
+        case Type.LONG:
+        case Type.FLOAT:
+        case Type.DOUBLE:
+        case Type.BOOLEAN:
+          return true;
+      }
+      return false;
+    }
   }
 
   private final MetricKind kind;
@@ -26,20 +105,19 @@ public class MetricProbe extends ProbeDefinition {
   // no-arg constructor is required by Moshi to avoid creating instance with unsafe and by-passing
   // constructors, including field initializers.
   public MetricProbe() {
-    this(LANGUAGE, null, true, null, null, MethodLocation.DEFAULT, MetricKind.COUNT, null, null);
+    this(LANGUAGE, null, null, null, MethodLocation.DEFAULT, MetricKind.COUNT, null, null);
   }
 
   public MetricProbe(
       String language,
-      String probeId,
-      boolean active,
+      ProbeId probeId,
       String[] tagStrs,
       Where where,
       MethodLocation evaluateAt,
       MetricKind kind,
       String metricName,
       ValueScript value) {
-    super(language, probeId, active, tagStrs, where, evaluateAt);
+    super(language, probeId, tagStrs, where, evaluateAt);
     this.kind = kind;
     this.metricName = metricName;
     this.value = value;
@@ -58,12 +136,14 @@ public class MetricProbe extends ProbeDefinition {
   }
 
   @Override
-  public void instrument(
+  public InstrumentationResult.Status instrument(
       ClassLoader classLoader,
       ClassNode classNode,
       MethodNode methodNode,
-      List<DiagnosticMessage> diagnostics) {
-    new MetricInstrumentor(this, classLoader, classNode, methodNode, diagnostics).instrument();
+      List<DiagnosticMessage> diagnostics,
+      List<String> probeIds) {
+    return new MetricInstrumentor(this, classLoader, classNode, methodNode, diagnostics, probeIds)
+        .instrument();
   }
 
   public static Builder builder() {
@@ -92,7 +172,7 @@ public class MetricProbe extends ProbeDefinition {
 
     public MetricProbe build() {
       return new MetricProbe(
-          language, probeId, active, tagStrs, where, evaluateAt, kind, metricName, valueScript);
+          language, probeId, tagStrs, where, evaluateAt, kind, metricName, valueScript);
     }
   }
 
@@ -102,9 +182,9 @@ public class MetricProbe extends ProbeDefinition {
     if (this == o) return true;
     if (o == null || getClass() != o.getClass()) return false;
     MetricProbe that = (MetricProbe) o;
-    return active == that.active
-        && Objects.equals(language, that.language)
+    return Objects.equals(language, that.language)
         && Objects.equals(id, that.id)
+        && version == that.version
         && Arrays.equals(tags, that.tags)
         && Objects.equals(tagMap, that.tagMap)
         && Objects.equals(where, that.where)
@@ -118,7 +198,7 @@ public class MetricProbe extends ProbeDefinition {
   @Override
   public int hashCode() {
     int result =
-        Objects.hash(language, id, active, tagMap, where, evaluateAt, kind, metricName, value);
+        Objects.hash(language, id, version, tagMap, where, evaluateAt, kind, metricName, value);
     result = 31 * result + Arrays.hashCode(tags);
     return result;
   }
@@ -133,8 +213,8 @@ public class MetricProbe extends ProbeDefinition {
         + ", id='"
         + id
         + '\''
-        + ", active="
-        + active
+        + ", version="
+        + version
         + ", tags="
         + Arrays.toString(tags)
         + ", tagMap="

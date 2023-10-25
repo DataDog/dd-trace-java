@@ -105,7 +105,7 @@ public class ConfigurationComparer {
         new AllowListHelper(incomingConfiguration.getAllowList());
     DenyListHelper incomingDenyListHelper = new DenyListHelper(incomingConfiguration.getDenyList());
 
-    List<String> changedTypes = new ArrayList();
+    List<String> changedTypes = new ArrayList<>();
 
     for (InstrumentationResult result : instrumentationResults.values()) {
       boolean originalAllowed = true;

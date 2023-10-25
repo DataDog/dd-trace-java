@@ -7,6 +7,7 @@ import java.util.Iterator;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.concurrent.ThreadLocalRandom;
 import javax.annotation.Nonnull;
 
 public final class Strings {
@@ -176,7 +177,19 @@ public final class Strings {
    */
   @Nonnull
   public static String propertyNameToEnvironmentVariableName(final String setting) {
-    return "DD_" + setting.replace('.', '_').replace('-', '_').toUpperCase();
+    return "DD_" + toEnvVar(setting);
+  }
+
+  /**
+   * Converts the system property name, e.g. 'dd.service.name' into a public environment variable
+   * name, e.g. `DD_SERVICE_NAME`.
+   *
+   * @param setting The system property name, e.g. `dd.service.name`
+   * @return The public facing environment variable name
+   */
+  @Nonnull
+  public static String systemPropertyNameToEnvironmentVariableName(final String setting) {
+    return setting.replace('.', '_').replace('-', '_').toUpperCase();
   }
 
   /**
@@ -189,6 +202,36 @@ public final class Strings {
   @Nonnull
   public static String propertyNameToSystemPropertyName(final String setting) {
     return "dd." + setting;
+  }
+
+  @Nonnull
+  public static String normalizedHeaderTag(String str) {
+    if (str.isEmpty()) {
+      return "";
+    }
+    StringBuilder builder = new StringBuilder(str.length());
+    int firstNonWhiteSpace = -1;
+    int lastNonWhitespace = -1;
+    for (int i = 0; i < str.length(); i++) {
+      char c = str.charAt(i);
+      if (Character.isWhitespace(c)) {
+        builder.append('_');
+      } else {
+        firstNonWhiteSpace = firstNonWhiteSpace == -1 ? i : firstNonWhiteSpace;
+        lastNonWhitespace = i;
+        if (Character.isLetterOrDigit(c) || c == '_' || c == '-' || c == '/') {
+          builder.append(Character.toLowerCase(c));
+        } else {
+          builder.append('_');
+        }
+      }
+    }
+    if (firstNonWhiteSpace == -1) {
+      return "";
+    } else {
+      str = builder.substring(firstNonWhiteSpace, lastNonWhitespace + 1);
+      return str;
+    }
   }
 
   @Nonnull
@@ -225,25 +268,25 @@ public final class Strings {
     return input.subSequence(0, limit);
   }
 
-  public static String toJson(final Map<String, String> map) {
+  public static String toJson(final Map<String, ?> map) {
     return toJson(map, false);
   }
 
-  public static String toJson(final Map<String, String> map, boolean valuesAreJson) {
+  public static String toJson(final Map<String, ?> map, boolean valuesAreJson) {
     if (map == null || map.isEmpty()) {
       return "{}";
     }
     final StringBuilder sb = new StringBuilder("{");
-    final Iterator<Entry<String, String>> entriesIter = map.entrySet().iterator();
+    final Iterator<? extends Entry<String, ?>> entriesIter = map.entrySet().iterator();
     while (entriesIter.hasNext()) {
-      final Entry<String, String> entry = entriesIter.next();
+      final Entry<String, ?> entry = entriesIter.next();
 
       sb.append("\"").append(escapeToJson(entry.getKey())).append("\":");
 
       if (valuesAreJson) {
         sb.append(entry.getValue());
       } else {
-        sb.append("\"").append(escapeToJson(entry.getValue())).append("\"");
+        sb.append("\"").append(escapeToJson(String.valueOf(entry.getValue()))).append("\"");
       }
 
       if (entriesIter.hasNext()) {
@@ -269,5 +312,47 @@ public final class Strings {
     }
     json.append("]");
     return json.toString();
+  }
+
+  /**
+   * Checks that a string is not blank, i.e. contains at least one character that is not a
+   * whitespace
+   *
+   * @param s The string to be checked
+   * @return {@code true} if string is not blank, {@code false} otherwise (string is {@code null},
+   *     empty, or contains only whitespace characters)
+   */
+  public static boolean isNotBlank(String s) {
+    if (s == null || s.isEmpty()) {
+      return false;
+    }
+
+    // the code below traverses string characters one by one
+    // and checks if there is any character that is not a whitespace (space, tab, newline, etc);
+    final int length = s.length();
+    for (int offset = 0; offset < length; ) {
+      // codepoints are used instead of chars, to properly handle non-unicode symbols
+      final int codepoint = s.codePointAt(offset);
+      if (!Character.isWhitespace(codepoint)) {
+        return true;
+      }
+      offset += Character.charCount(codepoint);
+    }
+
+    return false;
+  }
+
+  /**
+   * Generates a random string of the given length from lowercase characters a-z
+   *
+   * @param length length of the string
+   * @return random string containing lowercase latin characters
+   */
+  public static String random(int length) {
+    char[] c = new char[length];
+    for (int i = 0; i < length; i++) {
+      c[i] = (char) ('a' + ThreadLocalRandom.current().nextInt(26));
+    }
+    return new String(c);
   }
 }

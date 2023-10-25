@@ -2,6 +2,7 @@ package datadog.trace.core.datastreams;
 
 import static java.nio.charset.StandardCharsets.ISO_8859_1;
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
 import com.datadoghq.sketch.ddsketch.encoding.ByteArrayInput;
 import com.datadoghq.sketch.ddsketch.encoding.GrowingByteArrayOutput;
@@ -94,6 +95,14 @@ public class DefaultPathwayContext implements PathwayContext {
   @Override
   public void setCheckpoint(
       LinkedHashMap<String, String> sortedTags, Consumer<StatsPoint> pointConsumer) {
+    setCheckpoint(sortedTags, pointConsumer, 0);
+  }
+
+  @Override
+  public void setCheckpoint(
+      LinkedHashMap<String, String> sortedTags,
+      Consumer<StatsPoint> pointConsumer,
+      long defaultTimestamp) {
     long startNanos = timeSource.getCurrentTimeNanos();
     long nanoTicks = timeSource.getNanoTicks();
     lock.lock();
@@ -104,9 +113,18 @@ public class DefaultPathwayContext implements PathwayContext {
       PathwayHashBuilder pathwayHashBuilder = new PathwayHashBuilder(wellKnownTags);
 
       if (!started) {
-        pathwayStartNanos = startNanos;
-        pathwayStartNanoTicks = nanoTicks;
-        edgeStartNanoTicks = nanoTicks;
+        if (defaultTimestamp == 0) {
+          pathwayStartNanos = startNanos;
+          pathwayStartNanoTicks = nanoTicks;
+          edgeStartNanoTicks = nanoTicks;
+        } else {
+          pathwayStartNanos = MILLISECONDS.toNanos(defaultTimestamp);
+          pathwayStartNanoTicks =
+              nanoTicks
+                  - MILLISECONDS.toNanos(timeSource.getCurrentTimeMillis() - defaultTimestamp);
+          edgeStartNanoTicks = pathwayStartNanoTicks;
+        }
+
         hash = 0;
         started = true;
         log.debug("Started {}", this);
@@ -274,11 +292,15 @@ public class DefaultPathwayContext implements PathwayContext {
     }
   }
 
-  public static <C> DefaultPathwayContext extract(
+  static <C> DefaultPathwayContext extract(
       C carrier,
       AgentPropagation.ContextVisitor<C> getter,
       TimeSource timeSource,
       WellKnownTags wellKnownTags) {
+    if (getter instanceof AgentPropagation.BinaryContextVisitor) {
+      return extractBinary(
+          carrier, (AgentPropagation.BinaryContextVisitor) getter, timeSource, wellKnownTags);
+    }
     PathwayContextExtractor pathwayContextExtractor =
         new PathwayContextExtractor(timeSource, wellKnownTags);
     getter.forEachKey(carrier, pathwayContextExtractor);
@@ -290,7 +312,7 @@ public class DefaultPathwayContext implements PathwayContext {
     return pathwayContextExtractor.extractedContext;
   }
 
-  public static <C> DefaultPathwayContext extractBinary(
+  static <C> DefaultPathwayContext extractBinary(
       C carrier,
       AgentPropagation.BinaryContextVisitor<C> getter,
       TimeSource timeSource,
@@ -306,18 +328,18 @@ public class DefaultPathwayContext implements PathwayContext {
     return pathwayContextExtractor.extractedContext;
   }
 
-  public static DefaultPathwayContext strDecode(
+  private static DefaultPathwayContext strDecode(
       TimeSource timeSource, WellKnownTags wellKnownTags, String data) throws IOException {
     byte[] base64Bytes = data.getBytes(UTF_8);
     return base64Decode(timeSource, wellKnownTags, base64Bytes);
   }
 
-  public static DefaultPathwayContext base64Decode(
+  private static DefaultPathwayContext base64Decode(
       TimeSource timeSource, WellKnownTags wellKnownTags, byte[] data) throws IOException {
     return decode(timeSource, wellKnownTags, Base64.getDecoder().decode(data));
   }
 
-  public static DefaultPathwayContext decode(
+  private static DefaultPathwayContext decode(
       TimeSource timeSource, WellKnownTags wellKnownTags, byte[] data) throws IOException {
     ByteArrayInput input = ByteArrayInput.wrap(data);
 

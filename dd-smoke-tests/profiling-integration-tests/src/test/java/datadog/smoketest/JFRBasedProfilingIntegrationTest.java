@@ -43,6 +43,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInfo;
@@ -98,7 +99,8 @@ class JFRBasedProfilingIntegrationTest {
   public static final IAttribute<String> FOO = attr("foo", "", "", PLAIN_TEXT);
   public static final IAttribute<String> BAR = attr("bar", "", "", PLAIN_TEXT);
 
-  public static final IAttribute<String> OPERATION = attr("operation", "", "", PLAIN_TEXT);
+  public static final IAttribute<String> OPERATION =
+      attr("_dd.trace.operation", "", "", PLAIN_TEXT);
 
   private MockWebServer profilingServer;
   private MockWebServer tracingServer;
@@ -143,23 +145,46 @@ class JFRBasedProfilingIntegrationTest {
   }
 
   @Test
-  @DisplayName("Test continuous recording - no jmx delay")
+  @DisplayName("Test continuous recording - no jmx delay, no jmethodid cache")
   public void testContinuousRecording_no_jmx_delay(final TestInfo testInfo) throws Exception {
     testWithRetry(
         () ->
             testContinuousRecording(
-                0, ENDPOINT_COLLECTION_ENABLED, OperatingSystem.getCurrent().isLinux()),
+                0, ENDPOINT_COLLECTION_ENABLED, OperatingSystem.getCurrent().isLinux(), false),
         testInfo,
         5);
   }
 
   @Test
-  @DisplayName("Test continuous recording - 1 sec jmx delay")
+  @DisplayName("Test continuous recording - no jmx delay, jmethodid cache")
+  public void testContinuousRecording_no_jmx_delay_jmethodid_cache(final TestInfo testInfo)
+      throws Exception {
+    testWithRetry(
+        () ->
+            testContinuousRecording(
+                0, ENDPOINT_COLLECTION_ENABLED, OperatingSystem.getCurrent().isLinux(), true),
+        testInfo,
+        5);
+  }
+
+  @Test
+  @DisplayName("Test continuous recording - 1 sec jmx delay, no jmethodid cache")
   public void testContinuousRecording(final TestInfo testInfo) throws Exception {
     testWithRetry(
         () ->
             testContinuousRecording(
-                1, ENDPOINT_COLLECTION_ENABLED, OperatingSystem.getCurrent().isLinux()),
+                1, ENDPOINT_COLLECTION_ENABLED, OperatingSystem.getCurrent().isLinux(), false),
+        testInfo,
+        5);
+  }
+
+  @Test
+  @DisplayName("Test continuous recording - 1 sec jmx delay, jmethodid cache")
+  public void testContinuousRecording_jmethodid_cache(final TestInfo testInfo) throws Exception {
+    testWithRetry(
+        () ->
+            testContinuousRecording(
+                1, ENDPOINT_COLLECTION_ENABLED, OperatingSystem.getCurrent().isLinux(), true),
         testInfo,
         5);
   }
@@ -167,13 +192,18 @@ class JFRBasedProfilingIntegrationTest {
   private void testContinuousRecording(
       final int jmxFetchDelay,
       final boolean endpointCollectionEnabled,
-      final boolean asyncProfilerEnabled)
+      final boolean asyncProfilerEnabled,
+      final boolean jmethodIdCacheEnabled)
       throws Exception {
     final ObjectMapper mapper = new ObjectMapper();
     try {
       targetProcess =
           createDefaultProcessBuilder(
-                  jmxFetchDelay, endpointCollectionEnabled, asyncProfilerEnabled, logFilePath)
+                  jmxFetchDelay,
+                  endpointCollectionEnabled,
+                  asyncProfilerEnabled,
+                  jmethodIdCacheEnabled,
+                  logFilePath)
               .start();
 
       Assumptions.assumeFalse(Platform.isJ9());
@@ -394,6 +424,7 @@ class JFRBasedProfilingIntegrationTest {
                         PROFILING_UPLOAD_PERIOD_SECONDS,
                         ENDPOINT_COLLECTION_ENABLED,
                         true,
+                        false,
                         exitDelay,
                         logFilePath)
                     .start();
@@ -436,6 +467,7 @@ class JFRBasedProfilingIntegrationTest {
 
   @Test
   @DisplayName("Test shutdown")
+  @Disabled("https://github.com/DataDog/dd-trace-java/pull/5213")
   void testShutdown(final TestInfo testInfo) throws Exception {
     testWithRetry(
         () -> {
@@ -450,6 +482,7 @@ class JFRBasedProfilingIntegrationTest {
                         PROFILING_UPLOAD_PERIOD_SECONDS,
                         ENDPOINT_COLLECTION_ENABLED,
                         true,
+                        false,
                         duration,
                         logFilePath)
                     .start();
@@ -575,6 +608,9 @@ class JFRBasedProfilingIntegrationTest {
     }
     if (asyncProfilerEnabled) {
       verifyDatadogEventsNotCorrupt(events);
+      assertEquals(
+          Platform.isJavaVersionAtLeast(11),
+          events.apply(ItemFilters.type("datadog.ObjectSample")).hasItems());
     }
 
     // check exception events
@@ -599,6 +635,8 @@ class JFRBasedProfilingIntegrationTest {
     assertEquals(Runtime.getRuntime().availableProcessors(), val);
 
     assertTrue(events.apply(ItemFilters.type("datadog.ProfilerSetting")).hasItems());
+    // FIXME - for some reason the events are disabled by JFR despite being explicitly enabled
+    // assertTrue(events.apply(ItemFilters.type("datadog.QueueTime")).hasItems());
   }
 
   private static <T> T getParameter(
@@ -611,6 +649,7 @@ class JFRBasedProfilingIntegrationTest {
       final int jmxFetchDelay,
       final boolean endpointCollectionEnabled,
       final boolean asyncProfilerEnabled,
+      final boolean jmethodIdCacheEnabled,
       final Path logFilePath) {
     return createProcessBuilder(
         VALID_API_KEY,
@@ -619,6 +658,7 @@ class JFRBasedProfilingIntegrationTest {
         PROFILING_UPLOAD_PERIOD_SECONDS,
         endpointCollectionEnabled,
         asyncProfilerEnabled,
+        jmethodIdCacheEnabled,
         0,
         logFilePath);
   }
@@ -630,6 +670,7 @@ class JFRBasedProfilingIntegrationTest {
       final int profilingUploadPeriodSecs,
       final boolean endpointCollectionEnabled,
       final boolean asyncProfilerEnabled,
+      final boolean jmethodIdCacheEnabled,
       final int exitDelay,
       final Path logFilePath) {
     return createProcessBuilder(
@@ -641,6 +682,7 @@ class JFRBasedProfilingIntegrationTest {
         profilingUploadPeriodSecs,
         endpointCollectionEnabled,
         asyncProfilerEnabled,
+        jmethodIdCacheEnabled,
         exitDelay,
         logFilePath);
   }
@@ -654,6 +696,7 @@ class JFRBasedProfilingIntegrationTest {
       final int profilingUploadPeriodSecs,
       final boolean endpointCollectionEnabled,
       final boolean asyncProfilerEnabled,
+      final boolean jmethodIdCacheEnabled,
       final int exitDelay,
       final Path logFilePath) {
     final String templateOverride =
@@ -675,6 +718,7 @@ class JFRBasedProfilingIntegrationTest {
             "-Ddd.version=99",
             "-Ddd.profiling.enabled=true",
             "-Ddd.profiling.ddprof.enabled=" + asyncProfilerEnabled,
+            "-Ddd.profiling.ddprof.alloc.enabled=" + asyncProfilerEnabled,
             "-Ddd.profiling.agentless=" + (apiKey != null),
             "-Ddd.profiling.start-delay=" + profilingStartDelaySecs,
             "-Ddd.profiling.upload.period=" + profilingUploadPeriodSecs,
@@ -683,9 +727,11 @@ class JFRBasedProfilingIntegrationTest {
             "-Ddd.profiling.endpoint.collection.enabled=" + endpointCollectionEnabled,
             "-Ddd.profiling.upload.timeout=" + PROFILING_UPLOAD_TIMEOUT_SECONDS,
             "-Ddd.profiling.debug.dump_path=/tmp/dd-profiler",
-            "-Ddd.profiling.ddprof.experimental.queueing.time.enabled=true",
+            "-Ddd.profiling.experimental.queueing.time.enabled=true",
+            "-Ddd.profiling.experimental.queueing.time.threshold.millis=0",
+            "-Ddd.profiling.experimental.jmethodid_cache.enabled=" + jmethodIdCacheEnabled,
             "-Ddatadog.slf4j.simpleLogger.defaultLogLevel=debug",
-            "-Ddd.profiling.experimental.context.attributes=foo,bar",
+            "-Ddd.profiling.context.attributes=foo,bar",
             "-Dorg.slf4j.simpleLogger.defaultLogLevel=debug",
             "-XX:+IgnoreUnrecognizedVMOptions",
             "-XX:+UnlockCommercialFeatures",

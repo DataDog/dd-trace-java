@@ -4,30 +4,37 @@ import datadog.trace.api.naming.NamingSchema;
 import javax.annotation.Nonnull;
 
 public class DatabaseNamingV1 implements NamingSchema.ForDatabase {
-  @Nonnull
-  private String normalizeDatabaseType(@Nonnull String databaseType) {
-    // there will more entries (e.g. postgres,..) since the name we use is not always
-    // the one chosen for v1 naming conventions
-    switch (databaseType) {
+  @Override
+  public String normalizedName(@Nonnull String rawName) {
+    switch (rawName) {
       case "mongo":
         return "mongodb";
-      case "elasticsearch.rest":
-        return "elasticsearch";
-      case "postgresql":
-        return "postgres";
+      case "sqlserver":
+        return "mssql";
     }
-    return databaseType;
+    return rawName;
   }
 
   @Nonnull
   @Override
   public String operation(@Nonnull String databaseType) {
-    return normalizeDatabaseType(databaseType) + ".query";
+    final String prefix;
+    switch (databaseType) {
+      case "elasticsearch.rest":
+        prefix = "elasticsearch";
+        break;
+      case "opensearch.rest":
+        prefix = "opensearch";
+        break;
+      default:
+        prefix = databaseType;
+    }
+    // already normalized when calling dbType on the decorator. It saves one operation
+    return prefix + ".query";
   }
 
-  @Nonnull
   @Override
-  public String service(@Nonnull String ddService, @Nonnull String databaseType) {
-    return ddService + "-" + normalizeDatabaseType(databaseType);
+  public String service(@Nonnull String databaseType) {
+    return null;
   }
 }

@@ -9,4 +9,9 @@ public class TestFileOutputStreamSuite {
       throws FileNotFoundException {
     return new FileOutputStream(path);
   }
+
+  public static FileOutputStream newFileOutputStream(final String path, final boolean append)
+      throws FileNotFoundException {
+    return new FileOutputStream(path, append);
+  }
 }

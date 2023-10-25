@@ -26,6 +26,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScop
 import static org.junit.Assume.assumeTrue
 
 abstract class ExecutorInstrumentationTest extends AgentTestRunner {
+
   @Shared
   def executeRunnable = { e, c -> e.execute((Runnable) c) }
   @Shared
@@ -498,5 +499,12 @@ class ExecutorInstrumentationForkedTest extends ExecutorInstrumentationTest {
 class ExecutorInstrumentationLegacyForkedTest extends ExecutorInstrumentationTest {
   def setupSpec() {
     System.setProperty("dd.trace.thread-pool-executors.legacy.tracing.enabled", "true")
+  }
+}
+
+class ExecutorInstrumentationQueueTimeForkedTest extends ExecutorInstrumentationTest {
+  def setupSpec() {
+    System.setProperty("dd.profiling.enabled", "true")
+    System.setProperty("dd.profiling.experimental.queueing.time.enabled", "true")
   }
 }

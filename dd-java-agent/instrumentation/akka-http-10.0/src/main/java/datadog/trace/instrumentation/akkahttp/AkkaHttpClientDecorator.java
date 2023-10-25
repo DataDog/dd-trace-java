@@ -1,7 +1,9 @@
 package datadog.trace.instrumentation.akkahttp;
 
+import akka.http.javadsl.model.HttpHeader;
 import akka.http.scaladsl.model.HttpRequest;
 import akka.http.scaladsl.model.HttpResponse;
+import datadog.trace.bootstrap.instrumentation.api.URIUtils;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator;
 import java.net.URI;
@@ -30,11 +32,21 @@ public class AkkaHttpClientDecorator extends HttpClientDecorator<HttpRequest, Ht
 
   @Override
   protected URI url(final HttpRequest httpRequest) throws URISyntaxException {
-    return new URI(httpRequest.uri().toString());
+    return URIUtils.safeParse(httpRequest.uri().toString());
   }
 
   @Override
   protected int status(final HttpResponse httpResponse) {
     return httpResponse.status().intValue();
+  }
+
+  @Override
+  protected String getRequestHeader(HttpRequest request, String headerName) {
+    return request.getHeader(headerName).map(HttpHeader::value).orElse(null);
+  }
+
+  @Override
+  protected String getResponseHeader(HttpResponse response, String headerName) {
+    return response.getHeader(headerName).map(HttpHeader::value).orElse(null);
   }
 }

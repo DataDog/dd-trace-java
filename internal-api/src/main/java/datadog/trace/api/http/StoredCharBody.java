@@ -1,5 +1,7 @@
 package datadog.trace.api.http;
 
+import datadog.appsec.api.blocking.BlockingException;
+import datadog.trace.api.gateway.BlockResponseFunction;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.RequestContext;
 import java.nio.CharBuffer;
@@ -145,6 +147,24 @@ public class StoredCharBody implements StoredBodySupplier {
       return this.endCb.apply(httpContext, supplierInNotifications);
     }
     return Flow.ResultFlow.empty();
+  }
+
+  public synchronized void maybeNotifyAndBlock() {
+    Flow<Void> flow = maybeNotify();
+    Flow.Action action = flow.getAction();
+    if (action instanceof Flow.Action.RequestBlockingAction) {
+      Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
+
+      BlockResponseFunction blockResponseFunction = httpContext.getBlockResponseFunction();
+      if (blockResponseFunction != null) {
+        blockResponseFunction.tryCommitBlockingResponse(
+            httpContext.getTraceSegment(),
+            rba.getStatusCode(),
+            rba.getBlockingContentType(),
+            rba.getExtraHeaders());
+      }
+      throw new BlockingException("Blocked request (for request body stream read)");
+    }
   }
 
   @Override

@@ -11,7 +11,6 @@ public class OnErrorDecorator extends BaseDecorator {
       new HandlerContextKey<>("DatadogSpan"); // same as TracingRequestHandler.SPAN_CONTEXT_KEY
 
   public static final OnErrorDecorator DECORATE = new OnErrorDecorator();
-  public static final CharSequence AWS_HTTP = UTF8BytesString.create("aws.http");
 
   private static final CharSequence COMPONENT_NAME = UTF8BytesString.create("java-aws-sdk");
 

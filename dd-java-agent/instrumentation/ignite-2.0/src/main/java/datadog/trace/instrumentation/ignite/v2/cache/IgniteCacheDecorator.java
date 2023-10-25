@@ -38,10 +38,7 @@ public class IgniteCacheDecorator extends DBTypeProcessingDatabaseClientDecorato
 
   @Override
   protected String service() {
-    return SpanNaming.instance()
-        .namingSchema()
-        .cache()
-        .service(Config.get().getServiceName(), DB_TYPE);
+    return SpanNaming.instance().namingSchema().cache().service(DB_TYPE);
   }
 
   @Override
@@ -163,7 +160,4 @@ public class IgniteCacheDecorator extends DBTypeProcessingDatabaseClientDecorato
   public AgentSpan onResult(AgentSpan span, Object result) {
     return span;
   }
-
-  @Override
-  protected void postProcessServiceAndOperationName(AgentSpan span, String dbType) {}
 }

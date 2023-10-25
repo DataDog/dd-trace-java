@@ -28,6 +28,9 @@ public class AdviceUtils {
       if (continuation != null) {
         final AgentScope scope = continuation.activate();
         scope.setAsyncPropagation(true);
+        // important - stop timing after the scope has been activated so the time in the queue can
+        // be attributed to the correct context without duplicating the propagated information
+        state.stopTiming();
         return scope;
       }
     }

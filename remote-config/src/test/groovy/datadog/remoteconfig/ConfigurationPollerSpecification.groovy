@@ -369,7 +369,7 @@ class ConfigurationPollerSpecification extends DDSpecification {
 
       client.state.config_states.size() == 1
       with(client.state.config_states[0]) {
-        id == 'employee/ASM_DD/1.recommended.json/config'
+        id == '1.recommended.json'
         product == 'ASM_DD'
         version == 1
       }
@@ -855,7 +855,8 @@ class ConfigurationPollerSpecification extends DDSpecification {
   }
 
   void 'exception applying one config should not prevent others from being applied'() {
-    String newConfigKey = 'datadog/2/LIVE_DEBUGGING/1ba66cc9-146a-3479-9e66-2b63fd580f48/config'
+    String newConfigId = '1ba66cc9-146a-3479-9e66-2b63fd580f48'
+    String newConfigKey = "datadog/2/LIVE_DEBUGGING/${newConfigId}/config"
 
     when:
     poller.addListener(Product.ASM_DD,
@@ -913,13 +914,13 @@ class ConfigurationPollerSpecification extends DDSpecification {
       def liveDebuggingConfig = first.product == 'LIVE_DEBUGGING'? first : second
       def asmConfig = first.product == 'ASM_DD'? first : second
       with(liveDebuggingConfig) {
-        id == newConfigKey
+        id == newConfigId
         product == 'LIVE_DEBUGGING'
         version == 3
         apply_error == null
       }
       with(asmConfig) {
-        id == 'employee/ASM_DD/1.recommended.json/config'
+        id == '1.recommended.json'
         product == 'ASM_DD'
         version == 1
         apply_state == APPLY_STATE_ERROR
@@ -1377,13 +1378,14 @@ class ConfigurationPollerSpecification extends DDSpecification {
   }
 
 
-  void 'check setting of capabilities positive test'() {
+  void 'check setting of capabilities positive test #capabilities'() {
+    setup:
     ConfigurationDeserializer deserializer = { true } as ConfigurationDeserializer<Boolean>
     ConfigurationChangesTypedListener listener = { Object[] args -> } as ConfigurationChangesTypedListener
 
     when:
     poller.addListener(Product._UNKNOWN, deserializer, listener)
-    poller.addCapabilities(14L)
+    poller.addCapabilities(capabilities)
     poller.start()
 
     then:
@@ -1397,9 +1399,15 @@ class ConfigurationPollerSpecification extends DDSpecification {
     1 * call.execute() >> { buildOKResponse(FEATURES_RESP_BODY) }
     0 * _._
     def body = parseBody(request.body())
-    with(body.client) {
-      capabilities[0] == 14
-    }
+    body.client.capabilities as byte[] == encoded
+
+    where:
+    capabilities          | encoded
+    0                     | [0] as byte[]
+    14L                   | [14] as byte[]
+    1 << 8                | [1, 0] as byte[]
+    1 << 9                | [2, 0] as byte[]
+    -9223372036854775807L | [128, 0, 0, 0, 0, 0, 0, 1] as byte[]
   }
 
   private static final String SAMPLE_RESP_BODY = """

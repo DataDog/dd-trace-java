@@ -27,12 +27,12 @@ public class JettyServerAdvice {
 
       final AgentSpan.Context.Extracted extractedContext = DECORATE.extract(req);
       span = DECORATE.startSpan(req, extractedContext);
+      final AgentScope scope = activateSpan(span);
+      scope.setAsyncPropagation(true);
       span.setMeasured(true);
       DECORATE.afterStart(span);
       DECORATE.onRequest(span, req, req, extractedContext);
 
-      final AgentScope scope = activateSpan(span);
-      scope.setAsyncPropagation(true);
       req.setAttribute(DD_SPAN_ATTRIBUTE, span);
       req.setAttribute(CorrelationIdentifier.getTraceIdKey(), GlobalTracer.get().getTraceId());
       req.setAttribute(CorrelationIdentifier.getSpanIdKey(), GlobalTracer.get().getSpanId());
@@ -42,6 +42,10 @@ public class JettyServerAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
     public static void closeScope(@Advice.Enter final AgentScope scope) {
       scope.close();
+    }
+
+    private void muzzleCheck(Request r) {
+      r.getAsyncContext(); // there must be a getAsyncContext returning a jakarta AsyncContext
     }
   }
 

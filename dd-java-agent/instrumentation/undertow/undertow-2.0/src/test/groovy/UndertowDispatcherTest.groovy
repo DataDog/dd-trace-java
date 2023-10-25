@@ -6,7 +6,10 @@ import datadog.trace.agent.test.naming.TestingGenericHttpNamingConventions
 import io.undertow.Handlers
 import io.undertow.Undertow
 import io.undertow.UndertowOptions
+import io.undertow.io.IoCallback
+import io.undertow.io.Sender
 import io.undertow.server.DefaultResponseListener
+import io.undertow.server.HttpServerExchange
 import io.undertow.util.Headers
 import io.undertow.util.HttpString
 import io.undertow.util.StatusCodes
@@ -22,14 +25,24 @@ abstract class UndertowDispatcherTest extends HttpServerTest<Undertow> {
       undertowServer = Undertow.builder()
         .addHttpListener(port, "localhost")
         .setServerOption(UndertowOptions.DECODE_URL, true)
-        .setHandler(Handlers.path()
+        .setHandler(Handlers.httpContinueRead (Handlers.path()
         .addExactPath(SUCCESS.getPath()) { exchange ->
           exchange.dispatch(
             new Runnable() {
               void run() {
                 controller(SUCCESS) {
-                  exchange.getResponseSender().send(SUCCESS.body)
-                  exchange.endExchange()
+                  exchange.getResponseSender().send(SUCCESS.body, new IoCallback() {
+                      @Override
+                      void onComplete(HttpServerExchange xchg, Sender sender) {
+                        xchg.endExchange()
+                      }
+
+                      @Override
+                      void onException(HttpServerExchange xchg, Sender sender, IOException exception) {
+                        exception.print(System.err)
+                        xchg.endExchange()
+                      }
+                    })
                 }
               }
             }
@@ -121,7 +134,7 @@ abstract class UndertowDispatcherTest extends HttpServerTest<Undertow> {
             }
           }
         }
-        ).build()
+        )).build()
     }
 
     @Override
@@ -158,6 +171,11 @@ abstract class UndertowDispatcherTest extends HttpServerTest<Undertow> {
   }
 
   @Override
+  protected boolean enabledFinishTimingChecks() {
+    true
+  }
+
+  @Override
   boolean testExceptionBody() {
     false
   }
@@ -169,6 +187,11 @@ abstract class UndertowDispatcherTest extends HttpServerTest<Undertow> {
 
   @Override
   boolean testBlocking() {
+    true
+  }
+
+  @Override
+  boolean testBlockingOnResponse() {
     true
   }
 

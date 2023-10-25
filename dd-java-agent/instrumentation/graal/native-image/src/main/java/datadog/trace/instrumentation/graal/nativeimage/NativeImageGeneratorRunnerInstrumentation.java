@@ -55,15 +55,19 @@ public final class NativeImageGeneratorRunnerInstrumentation
               + "META-INF/native-image/com.datadoghq/dd-java-agent/reflect-config.json";
       args[oldLength++] =
           "-H:ClassInitialization="
+              + "datadog.trace.api.Config:rerun,"
               + "datadog.trace.api.Platform:rerun,"
               + "datadog.trace.api.env.CapturedEnvironment:build_time,"
               + "datadog.trace.api.ConfigDefaults:build_time,"
               + "datadog.trace.api.InstrumenterConfig:build_time,"
               + "datadog.trace.api.Functions:build_time,"
               + "datadog.trace.api.GlobalTracer:build_time,"
+              + "datadog.trace.api.MethodFilterConfigParser:build_time,"
               + "datadog.trace.api.WithGlobalTracer:build_time,"
+              + "datadog.trace.api.PropagationStyle:build_time,"
               + "datadog.trace.bootstrap.config.provider.ConfigConverter:build_time,"
               + "datadog.trace.bootstrap.config.provider.ConfigProvider:build_time,"
+              + "datadog.trace.bootstrap.config.provider.ConfigProvider$Singleton:build_time,"
               + "datadog.trace.bootstrap.Agent:build_time,"
               + "datadog.trace.bootstrap.BootstrapProxy:build_time,"
               + "datadog.trace.bootstrap.CallDepthThreadLocalMap:build_time,"
@@ -73,6 +77,7 @@ public final class NativeImageGeneratorRunnerInstrumentation
               + "datadog.trace.bootstrap.benchmark.StaticEventLogger:build_time,"
               + "datadog.trace.bootstrap.instrumentation.java.concurrent.ConcurrentState:build_time,"
               + "datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter:build_time,"
+              + "datadog.trace.bootstrap.instrumentation.java.concurrent.QueueTimeHelper:build_time,"
               + "datadog.trace.bootstrap.instrumentation.java.concurrent.TPEHelper:build_time,"
               + "datadog.trace.logging.LoggingSettingsDescription:build_time,"
               + "datadog.trace.logging.simplelogger.SLCompatFactory:build_time,"
@@ -81,7 +86,9 @@ public final class NativeImageGeneratorRunnerInstrumentation
               + "datadog.slf4j.LoggerFactory:build_time,"
               + "com.blogspot.mydailyjava.weaklockfree.WeakConcurrentMap:build_time,"
               + "net.bytebuddy:build_time,"
-              + "com.sun.proxy:build_time";
+              + "com.sun.proxy:build_time,"
+              + "jnr.enxio.channels:run_time,"
+              + "jnr.unixsocket:run_time";
     }
   }
 

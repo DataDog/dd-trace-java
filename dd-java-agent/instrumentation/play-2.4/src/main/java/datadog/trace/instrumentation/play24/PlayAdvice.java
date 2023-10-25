@@ -37,10 +37,10 @@ public class PlayAdvice {
       span = startSpan(PLAY_REQUEST);
       span.setMeasured(true);
     }
-    DECORATE.afterStart(span);
 
     final AgentScope scope = activateSpan(span);
     scope.setAsyncPropagation(true);
+    DECORATE.afterStart(span);
 
     req = RequestHelper.withTag(req, "_dd_HasPlayRequestSpan", "true");
 

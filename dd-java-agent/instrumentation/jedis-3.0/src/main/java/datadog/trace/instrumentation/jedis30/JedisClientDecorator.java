@@ -1,21 +1,19 @@
 package datadog.trace.instrumentation.jedis30;
 
-import datadog.trace.api.Config;
 import datadog.trace.api.naming.SpanNaming;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.DBTypeProcessingDatabaseClientDecorator;
-import redis.clients.jedis.commands.ProtocolCommand;
+import redis.clients.jedis.Connection;
 
-public class JedisClientDecorator extends DBTypeProcessingDatabaseClientDecorator<ProtocolCommand> {
+public class JedisClientDecorator extends DBTypeProcessingDatabaseClientDecorator<Connection> {
   public static final JedisClientDecorator DECORATE = new JedisClientDecorator();
 
   private static final String REDIS = "redis";
   public static final CharSequence OPERATION_NAME =
       UTF8BytesString.create(SpanNaming.instance().namingSchema().cache().operation(REDIS));
   private static final String SERVICE_NAME =
-      SpanNaming.instance().namingSchema().cache().service(Config.get().getServiceName(), REDIS);
+      SpanNaming.instance().namingSchema().cache().service(REDIS);
   private static final CharSequence COMPONENT_NAME = UTF8BytesString.create("redis-command");
 
   @Override
@@ -44,20 +42,17 @@ public class JedisClientDecorator extends DBTypeProcessingDatabaseClientDecorato
   }
 
   @Override
-  protected String dbUser(final ProtocolCommand session) {
+  protected String dbUser(final Connection connection) {
     return null;
   }
 
   @Override
-  protected String dbInstance(final ProtocolCommand session) {
+  protected String dbInstance(final Connection connection) {
     return null;
   }
 
   @Override
-  protected String dbHostname(ProtocolCommand protocolCommand) {
-    return null;
+  protected String dbHostname(final Connection connection) {
+    return connection.getHost();
   }
-
-  @Override
-  protected void postProcessServiceAndOperationName(AgentSpan span, String dbType) {}
 }

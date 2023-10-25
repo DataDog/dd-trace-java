@@ -1,9 +1,11 @@
 package com.datadog.debugger.el;
 
 import com.datadog.debugger.el.expressions.GetMemberExpression;
+import com.datadog.debugger.el.expressions.IndexExpression;
 import com.datadog.debugger.el.expressions.LenExpression;
 import com.datadog.debugger.el.expressions.ValueExpression;
 import com.datadog.debugger.el.expressions.ValueRefExpression;
+import com.datadog.debugger.el.values.StringValue;
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.JsonReader;
 import com.squareup.moshi.JsonWriter;
@@ -28,6 +30,10 @@ public class ValueScript implements DebuggerScript<Value<?>> {
 
   public String getDsl() {
     return dsl;
+  }
+
+  public ValueExpression<?> getExpr() {
+    return expr;
   }
 
   @Override
@@ -57,18 +63,19 @@ public class ValueScript implements DebuggerScript<Value<?>> {
     String[] parts = PERIOD_PATTERN.split(refPath);
     String head;
     int startIdx = 1;
-    if (parts[0].equals("this") && parts.length >= 2) {
-      head = parts[0] + "." + parts[1];
-      startIdx++;
-    } else {
-      head = parts[0];
-    }
+    head = parts[0];
     ValueExpression<?> current;
     Matcher matcher = INDEX_PATTERN.matcher(head);
     if (matcher.matches()) {
       String key = matcher.group(2);
-      ValueExpression<?> keyExpr =
-          key.matches("[0-9]+") ? DSL.value(Integer.parseInt(key)) : DSL.value(key);
+      ValueExpression<?> keyExpr;
+      if (key.matches("[0-9]+")) {
+        keyExpr = DSL.value(Integer.parseInt(key));
+      } else if (key.matches("[\"'].*[\"']")) {
+        keyExpr = DSL.value(key.substring(1, key.length() - 1));
+      } else {
+        keyExpr = parseRefPath(key);
+      }
       current = DSL.index(DSL.ref(matcher.group(1)), keyExpr);
     } else {
       current = DSL.ref(head);
@@ -126,6 +133,14 @@ public class ValueScript implements DebuggerScript<Value<?>> {
 
     private void writeValueExpression(JsonWriter jsonWriter, ValueExpression<?> expr)
         throws IOException {
+      if (expr instanceof Value) {
+        if (expr instanceof StringValue) {
+          jsonWriter.value(((StringValue) expr).getValue());
+        } else {
+          throw new IOException("Unsupported operation: " + expr.getClass().getTypeName());
+        }
+        return;
+      }
       jsonWriter.beginObject();
       if (expr instanceof ValueRefExpression) {
         ValueRefExpression valueRefExpr = (ValueRefExpression) expr;
@@ -141,6 +156,13 @@ public class ValueScript implements DebuggerScript<Value<?>> {
       } else if (expr instanceof LenExpression) {
         jsonWriter.name("count");
         writeValueExpression(jsonWriter, ((LenExpression) expr).getSource());
+      } else if (expr instanceof IndexExpression) {
+        IndexExpression idxExpr = (IndexExpression) expr;
+        jsonWriter.name("index");
+        jsonWriter.beginArray();
+        writeValueExpression(jsonWriter, idxExpr.getTarget());
+        writeValueExpression(jsonWriter, idxExpr.getKey());
+        jsonWriter.endArray();
       } else {
         throw new IOException("Unsupported operation: " + expr.getClass().getTypeName());
       }

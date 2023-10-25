@@ -62,6 +62,7 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
   private volatile String traceEndpoint;
   private volatile String metricsEndpoint;
   private volatile String dataStreamsEndpoint;
+  private volatile boolean supportsLongRunning;
   private volatile boolean supportsDropping;
   private volatile String state;
   private volatile String configEndpoint;
@@ -91,6 +92,7 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
     traceEndpoint = null;
     metricsEndpoint = null;
     supportsDropping = false;
+    supportsLongRunning = false;
     state = null;
     configEndpoint = null;
     debuggerEndpoint = null;
@@ -142,6 +144,7 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
       }
       if (fallback) {
         supportsDropping = false;
+        supportsLongRunning = false;
         log.debug("Falling back to probing, client dropping will be disabled");
         // disable metrics unless the info endpoint is present, which prevents
         // sending metrics to 7.26.0, which has a bug in reporting metric origin
@@ -159,13 +162,14 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
 
     if (log.isDebugEnabled()) {
       log.debug(
-          "discovered traceEndpoint={}, metricsEndpoint={}, supportsDropping={}, dataStreamsEndpoint={}, configEndpoint={}, evpProxyEndpoint={}",
+          "discovered traceEndpoint={}, metricsEndpoint={}, supportsDropping={}, supportsLongRunning={}, dataStreamsEndpoint={}, configEndpoint={}, evpProxyEndpoint={}",
           traceEndpoint,
           metricsEndpoint,
           supportsDropping,
+          supportsLongRunning,
           dataStreamsEndpoint,
-          evpProxyEndpoint,
-          configEndpoint);
+          configEndpoint,
+          evpProxyEndpoint);
     }
   }
 
@@ -243,6 +247,8 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
         }
       }
 
+      supportsLongRunning = Boolean.TRUE.equals(map.getOrDefault("long_running_spans", false));
+
       if (metricsEnabled) {
         Object canDrop = map.get("client_drop_p0s");
         supportsDropping =
@@ -266,6 +272,10 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
   private static void discoverStatsDPort(final Map<String, Object> info) {
     try {
       Map<String, ?> config = (Map<String, ?>) info.get("config");
+      if (config == null) {
+        log.debug("config missing from trace agent /info response");
+        return;
+      }
       final Object statsdPortObj = config.get("statsd_port");
       if (statsdPortObj == null) {
         log.debug("statsd_port missing from trace agent /info response");
@@ -273,8 +283,8 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
       }
       int statsdPort = ((Number) statsdPortObj).intValue();
       DDAgentStatsDClientManager.setDefaultStatsDPort(statsdPort);
-    } catch (Throwable ignore) {
-      log.debug("statsd_port missing from trace agent /info response", ignore);
+    } catch (Exception ex) {
+      log.debug("statsd_port missing from trace agent /info response", ex);
     }
   }
 
@@ -288,6 +298,10 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
 
   boolean supportsDropping() {
     return supportsDropping;
+  }
+
+  public boolean supportsLongRunning() {
+    return supportsLongRunning;
   }
 
   public String getMetricsEndpoint() {

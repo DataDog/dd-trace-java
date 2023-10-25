@@ -3,7 +3,7 @@ package com.datadog.debugger.probe;
 import com.datadog.debugger.util.MoshiHelper;
 import com.squareup.moshi.JsonAdapter;
 import java.io.IOException;
-import org.junit.Assert;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
 public class WhereTest {
@@ -12,11 +12,11 @@ public class WhereTest {
     Where where =
         new Where(
             "java.lang.Object", "toString()", "java.lang.String ()", new String[] {"5-7"}, null);
-    Assert.assertTrue(where.isSignatureMatching("java.lang.String ()"));
+    Assertions.assertTrue(where.isSignatureMatching("java.lang.String ()"));
     String[] lines = where.getLines();
-    Assert.assertNotNull(lines);
-    Assert.assertEquals(1, lines.length);
-    Assert.assertEquals("5-7", lines[0]);
+    Assertions.assertNotNull(lines);
+    Assertions.assertEquals(1, lines.length);
+    Assertions.assertEquals("5-7", lines[0]);
   }
 
   @Test
@@ -28,12 +28,12 @@ public class WhereTest {
             "java.lang.String ()",
             new String[] {"12-25", "42-45"},
             null);
-    Assert.assertTrue(where.isSignatureMatching("java.lang.String ()"));
+    Assertions.assertTrue(where.isSignatureMatching("java.lang.String ()"));
     String[] lines = where.getLines();
-    Assert.assertNotNull(lines);
-    Assert.assertEquals(2, lines.length);
-    Assert.assertEquals("12-25", lines[0]);
-    Assert.assertEquals("42-45", lines[1]);
+    Assertions.assertNotNull(lines);
+    Assertions.assertEquals(2, lines.length);
+    Assertions.assertEquals("12-25", lines[0]);
+    Assertions.assertEquals("42-45", lines[1]);
   }
 
   @Test
@@ -41,11 +41,11 @@ public class WhereTest {
     Where where =
         new Where(
             "java.lang.Object", "toString()", "java.lang.String ()", new String[] {"12"}, null);
-    Assert.assertTrue(where.isSignatureMatching("java.lang.String ()"));
+    Assertions.assertTrue(where.isSignatureMatching("java.lang.String ()"));
     String[] lines = where.getLines();
-    Assert.assertNotNull(lines);
-    Assert.assertEquals(1, lines.length);
-    Assert.assertEquals("12", lines[0]);
+    Assertions.assertNotNull(lines);
+    Assertions.assertEquals(1, lines.length);
+    Assertions.assertEquals("12", lines[0]);
   }
 
   @Test
@@ -57,9 +57,9 @@ public class WhereTest {
             "java.lang.String ()",
             (Where.SourceLine[]) null,
             null);
-    Assert.assertTrue(where.isSignatureMatching("java.lang.String ()"));
+    Assertions.assertTrue(where.isSignatureMatching("java.lang.String ()"));
     String[] lines = where.getLines();
-    Assert.assertNull(lines);
+    Assertions.assertNull(lines);
   }
 
   @Test
@@ -69,27 +69,27 @@ public class WhereTest {
 
     String linesJson = "[\"12\",\"40-42\"]";
     Where.SourceLine[] lines = adapter.fromJson(linesJson);
-    Assert.assertEquals(2, lines.length);
-    Assert.assertEquals(new Where.SourceLine(12), lines[0]);
-    Assert.assertEquals(new Where.SourceLine(40, 42), lines[1]);
-    Assert.assertEquals(linesJson, adapter.toJson(lines));
+    Assertions.assertEquals(2, lines.length);
+    Assertions.assertEquals(new Where.SourceLine(12), lines[0]);
+    Assertions.assertEquals(new Where.SourceLine(40, 42), lines[1]);
+    Assertions.assertEquals(linesJson, adapter.toJson(lines));
   }
 
   @Test
   public void methodMatching() {
     Where where = new Where("String", "substring", "(int,int)", new String[0], null);
-    Assert.assertTrue(where.isMethodMatching("substring", "(II)Ljava/lang/String;"));
+    Assertions.assertTrue(where.isMethodMatching("substring", "(II)Ljava/lang/String;"));
     where = new Where("String", "replaceAll", "(String,String)", new String[0], null);
-    Assert.assertTrue(
+    Assertions.assertTrue(
         where.isMethodMatching(
             "replaceAll", "(Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;"));
     where = new Where("HashMap", "<init>", "(Map)", new String[0], null);
-    Assert.assertTrue(where.isMethodMatching("<init>", "(Ljava/util/Map;)V"));
+    Assertions.assertTrue(where.isMethodMatching("<init>", "(Ljava/util/Map;)V"));
     where = new Where("ArrayList", "removeIf", "(Predicate)", new String[0], null);
-    Assert.assertTrue(where.isMethodMatching("removeIf", "(Ljava/util/function/Predicate;)Z"));
+    Assertions.assertTrue(where.isMethodMatching("removeIf", "(Ljava/util/function/Predicate;)Z"));
     where = new Where("String", "concat", "", new String[0], null);
-    Assert.assertTrue(where.isMethodMatching("concat", "String (String)"));
+    Assertions.assertTrue(where.isMethodMatching("concat", "String (String)"));
     where = new Where("String", "concat", " \t", new String[0], null);
-    Assert.assertTrue(where.isMethodMatching("concat", "String (String)"));
+    Assertions.assertTrue(where.isMethodMatching("concat", "String (String)"));
   }
 }

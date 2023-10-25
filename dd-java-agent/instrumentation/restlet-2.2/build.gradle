@@ -17,14 +17,9 @@ repositories {
   }
 }
 
-apply plugin: 'org.unbroken-dome.test-sets'
-
-testSets {
-  // Header classes have moved around versions, so we need to split out parts of the test code
-  baseForkedTest {dirName "baseTest"}
-
-  latestDepTest
-}
+// Header classes have moved around versions, so we need to split out parts of the test code
+addTestSuiteForDir('baseForkedTest', 'baseTest')
+addTestSuite('latestDepTest')
 
 tasks.named("test").configure {
   dependsOn "baseForkedTest"

@@ -6,8 +6,6 @@ ext {
 
 apply from: "$rootDir/gradle/java.gradle"
 
-apply plugin: 'org.unbroken-dome.test-sets'
-
 muzzle {
   pass {
     group = 'io.vertx'
@@ -17,16 +15,8 @@ muzzle {
   }
 }
 
-testSets {
-  latestDepTest {
-    dirName = 'test'
-  }
-
-  latestDepForkedTest {
-    extendsFrom latestDepTest
-    dirName = 'test'
-  }
-}
+addTestSuiteForDir('latestDepTest', 'test')
+addTestSuiteExtendingForDir('latestDepForkedTest', 'latestDepTest', 'test')
 
 apply from: "$rootDir/gradle/configure_tests.gradle"
 
@@ -48,9 +38,16 @@ dependencies {
 
   testImplementation project(':dd-java-agent:instrumentation:netty-4.1')
   testImplementation project(':dd-java-agent:instrumentation:trace-annotation')
+  testImplementation(testFixtures(project(':dd-java-agent:agent-iast')))
+  testRuntimeOnly project(':dd-java-agent:instrumentation:iast-instrumenter')
+
 
   testImplementation group: 'io.vertx', name: 'vertx-web', version: '3.4.0'
   testImplementation group: 'io.vertx', name: 'vertx-web-client', version: '3.4.0'
+
+  testImplementation group: 'org.mockito', name: 'mockito-inline', version: '4.11.0'
+
+  testImplementation testFixtures(project(':dd-java-agent:appsec'))
 
   latestDepTestImplementation group: 'io.vertx', name: 'vertx-web', version: '3.+'
   latestDepTestImplementation group: 'io.vertx', name: 'vertx-web-client', version: '3.+'

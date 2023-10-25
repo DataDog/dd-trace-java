@@ -4,10 +4,11 @@ import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.GlobalTracer;
 import datadog.trace.api.StatsDClient;
-import datadog.trace.api.experimental.ProfilingContext;
+import datadog.trace.api.experimental.DataStreamsCheckpointer;
 import datadog.trace.api.interceptor.TraceInterceptor;
 import datadog.trace.api.internal.InternalTracer;
 import datadog.trace.api.internal.TraceSegment;
+import datadog.trace.api.profiling.Profiling;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
@@ -40,7 +41,7 @@ import org.slf4j.LoggerFactory;
  * traces and spans to Datadog using the OpenTracing API.
  */
 public class DDTracer implements Tracer, datadog.trace.api.Tracer, InternalTracer {
-
+  private static final String INSTRUMENTATION_NAME = "opentracing";
   private static final Logger log = LoggerFactory.getLogger(DDTracer.class);
 
   static {
@@ -438,6 +439,11 @@ public class DDTracer implements Tracer, datadog.trace.api.Tracer, InternalTrace
   }
 
   @Override
+  public DataStreamsCheckpointer getDataStreamsCheckpointer() {
+    return tracer.getDataStreamsCheckpointer();
+  }
+
+  @Override
   public ScopeManager scopeManager() {
     return scopeManager;
   }
@@ -462,7 +468,7 @@ public class DDTracer implements Tracer, datadog.trace.api.Tracer, InternalTrace
     if (carrier instanceof TextMap) {
       final AgentSpan.Context context = converter.toContext(spanContext);
 
-      tracer.inject(context, (TextMap) carrier, TextMapSetter.INSTANCE);
+      tracer.propagate().inject(context, (TextMap) carrier, TextMapSetter.INSTANCE);
     } else {
       log.debug("Unsupported format for propagation - {}", format.getClass().getName());
     }
@@ -472,7 +478,7 @@ public class DDTracer implements Tracer, datadog.trace.api.Tracer, InternalTrace
   public <C> SpanContext extract(final Format<C> format, final C carrier) {
     if (carrier instanceof TextMap) {
       final AgentSpan.Context tagContext =
-          tracer.extract((TextMap) carrier, new TextMapGetter((TextMap) carrier));
+          tracer.propagate().extract((TextMap) carrier, new TextMapGetter((TextMap) carrier));
 
       return converter.toSpanContext(tagContext);
     } else {
@@ -498,8 +504,8 @@ public class DDTracer implements Tracer, datadog.trace.api.Tracer, InternalTrace
   }
 
   @Override
-  public ProfilingContext getProfilingContext() {
-    return tracer != null ? tracer.getProfilingContext() : ProfilingContext.NoOp.INSTANCE;
+  public Profiling getProfilingContext() {
+    return tracer != null ? tracer.getProfilingContext() : Profiling.NoOp.INSTANCE;
   }
 
   @Override
@@ -546,7 +552,7 @@ public class DDTracer implements Tracer, datadog.trace.api.Tracer, InternalTrace
     private final AgentTracer.SpanBuilder delegate;
 
     public DDSpanBuilder(final String operationName) {
-      delegate = tracer.buildSpan(operationName);
+      delegate = tracer.buildSpan(INSTRUMENTATION_NAME, operationName);
     }
 
     @Override

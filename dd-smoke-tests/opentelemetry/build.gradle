@@ -6,7 +6,7 @@ plugins {
 apply from: "$rootDir/gradle/java.gradle"
 
 application {
-  mainClassName = 'datadog.smoketest.opentelemetry.Application'
+  mainClass = 'datadog.smoketest.opentelemetry.Application'
 }
 
 dependencies {
@@ -16,5 +16,5 @@ dependencies {
 
 tasks.withType(Test).configureEach {
   dependsOn 'shadowJar'
-  jvmArgs "-Ddatadog.smoketest.shadowJar.path=${tasks.shadowJar.getArchiveFile().get()}"
+  jvmArgs "-Ddatadog.smoketest.shadowJar.path=${tasks.shadowJar.archiveFile.get()}"
 }

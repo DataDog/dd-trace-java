@@ -1,5 +1,7 @@
 package datadog.trace.core.propagation.ptags;
 
+import static datadog.trace.api.internal.util.LongStringUtils.toHexStringPadded;
+
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.core.propagation.PropagationTags;
 import datadog.trace.core.propagation.ptags.PTagsFactory.PTags;
@@ -86,6 +88,7 @@ public class W3CPTagsCodec extends PTagsCodec {
     int samplingPriority = PrioritySampling.UNSET;
     CharSequence origin = null;
     TagValue decisionMakerTagValue = null;
+    TagValue traceIdTagValue = null;
     int maxUnknownSize = 0;
     while (tagPos < ddMemberValueEnd) {
       int tagKeyEndsAt =
@@ -128,11 +131,16 @@ public class W3CPTagsCodec extends PTagsCodec {
                 "Invalid datadog tags header value: '{}' invalid tag value at {}",
                 value,
                 tagValuePos);
+            if (tagKey.equals(TRACE_ID_TAG)) {
+              return tagsFactory.createInvalid(PROPAGATION_ERROR_MALFORMED_TID + tagValue);
+            }
             // TODO drop parts?
             return empty(tagsFactory, value, firstMemberStart, ddMemberStart, ddMemberValueEnd);
           }
           if (tagKey.equals(DECISION_MAKER_TAG)) {
             decisionMakerTagValue = tagValue;
+          } else if (tagKey.equals(TRACE_ID_TAG)) {
+            traceIdTagValue = tagValue;
           } else {
             if (tagPairs == null) {
               // This is roughly the size of a two element linked list but can hold six
@@ -163,6 +171,7 @@ public class W3CPTagsCodec extends PTagsCodec {
         tagsFactory,
         tagPairs,
         decisionMakerTagValue,
+        traceIdTagValue,
         samplingPriority,
         origin,
         value,
@@ -647,6 +656,7 @@ public class W3CPTagsCodec extends PTagsCodec {
         factory,
         null,
         null,
+        null,
         PrioritySampling.UNSET,
         null,
         original,
@@ -662,11 +672,13 @@ public class W3CPTagsCodec extends PTagsCodec {
     private final int ddMemberStart;
     private final int ddMemberValueEnd;
     private final int maxUnknownSize;
+    private String error;
 
     public W3CPTags(
         PTagsFactory factory,
         List<TagElement> tagPairs,
         TagValue decisionMakerTagValue,
+        TagValue traceIdTagValue,
         int samplingPriority,
         CharSequence origin,
         String original,
@@ -674,12 +686,32 @@ public class W3CPTagsCodec extends PTagsCodec {
         int ddMemberStart,
         int ddMemberValueEnd,
         int maxUnknownSize) {
-      super(factory, tagPairs, decisionMakerTagValue, samplingPriority, origin);
+      super(factory, tagPairs, decisionMakerTagValue, traceIdTagValue, samplingPriority, origin);
       this.original = original;
       this.firstMemberStart = firstMemberStart;
       this.ddMemberStart = ddMemberStart;
       this.ddMemberValueEnd = ddMemberValueEnd;
       this.maxUnknownSize = maxUnknownSize;
+      this.error = null;
+    }
+
+    @Override
+    String getError() {
+      if (this.error != null) {
+        return this.error;
+      }
+      return super.getError();
+    }
+
+    @Override
+    public void updateTraceIdHighOrderBits(long highOrderBits) {
+      long currentHighOrderBits = getTraceIdHighOrderBits();
+      // If defined from parsing but different from expected value, mark as decoding error
+      if (currentHighOrderBits != 0 && currentHighOrderBits != highOrderBits) {
+        this.error =
+            PROPAGATION_ERROR_INCONSISTENT_TID + toHexStringPadded(currentHighOrderBits, 16);
+      }
+      super.updateTraceIdHighOrderBits(highOrderBits);
     }
   }
 }

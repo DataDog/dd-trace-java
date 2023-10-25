@@ -13,9 +13,11 @@ import com.squareup.moshi.Moshi;
 import datadog.trace.bootstrap.debugger.el.ValueReferenceResolver;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import okio.Okio;
 import org.junit.jupiter.api.Test;
@@ -29,14 +31,23 @@ public class ProbeConditionTest {
     ProbeCondition probeCondition = load("/test_conditional_01.json");
 
     Collection<String> tags = Arrays.asList("hello", "world", "ko");
+    Map<String, Object> fields = new HashMap<>();
+    fields.put("tags", tags);
+    fields.put("field", 10);
+    class Obj {
+      List<String> field2 = new ArrayList<>();
+    }
     ValueReferenceResolver ctx =
-        RefResolverHelper.createResolver(null, null, singletonMap("tags", tags));
+        RefResolverHelper.createResolver(singletonMap("this", new Obj()), null, fields);
 
     assertTrue(probeCondition.execute(ctx));
 
     Collection<String> tags2 = Arrays.asList("hey", "world", "ko");
+    fields = new HashMap<>();
+    fields.put("tags", tags2);
+    fields.put("field", 10);
     ValueReferenceResolver ctx2 =
-        RefResolverHelper.createResolver(null, null, singletonMap("tags", tags2));
+        RefResolverHelper.createResolver(singletonMap("this", new Obj()), null, fields);
     assertFalse(probeCondition.execute(ctx2));
   }
 
@@ -61,7 +72,9 @@ public class ProbeConditionTest {
             singletonMap("this", new Obj2()),
             singletonMap("container", new Container("world")),
             null);
-    assertFalse(probeCondition.execute(ctx2));
+    RuntimeException runtimeException =
+        assertThrows(RuntimeException.class, () -> probeCondition.execute(ctx2));
+    assertEquals("Cannot dereference to field: container", runtimeException.getMessage());
   }
 
   @Test
@@ -70,8 +83,10 @@ public class ProbeConditionTest {
     class Obj {
       int intField1 = 42;
     }
+    Obj obj = new Obj();
     ValueReferenceResolver ctx =
-        RefResolverHelper.createResolver(singletonMap("this", new Obj()), null, null);
+        RefResolverHelper.createResolver(
+            singletonMap("this", obj), null, singletonMap("intField1", obj.intField1));
     assertTrue(probeCondition.execute(ctx));
   }
 
@@ -163,6 +178,19 @@ public class ProbeConditionTest {
         assertThrows(
             UnsupportedOperationException.class, () -> load("/test_conditional_03_error.json"));
     assertEquals("Unsupported operation 'gte'", ex.getMessage());
+  }
+
+  @Test
+  void redaction() throws IOException {
+    ProbeCondition probeCondition = load("/test_conditional_09.json");
+    Map<String, Object> args = new HashMap<>();
+    args.put("password", "secret123");
+    ValueReferenceResolver ctx = RefResolverHelper.createResolver(args, null, null);
+    EvaluationException evaluationException =
+        assertThrows(EvaluationException.class, () -> probeCondition.execute(ctx));
+    assertEquals(
+        "Could not evaluate the expression because 'password' was redacted",
+        evaluationException.getMessage());
   }
 
   private static ProbeCondition load(String resourcePath) throws IOException {

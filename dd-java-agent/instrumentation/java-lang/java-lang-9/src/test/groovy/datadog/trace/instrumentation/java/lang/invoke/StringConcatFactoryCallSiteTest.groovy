@@ -1,16 +1,21 @@
 package datadog.trace.instrumentation.java.lang.invoke
 
 import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.api.Platform
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.propagation.StringModule
 import foo.bar.TestStringConcatFactorySuite
 import groovy.transform.CompileDynamic
+import spock.lang.IgnoreIf
 import spock.lang.Requires
 
 import static foo.bar.TestStringConcatFactorySuite.stringPlusWithPrimitive
 
 @Requires({
   jvm.java9Compatible
+})
+@IgnoreIf(reason = "https://github.com/DataDog/dd-trace-java/issues/5715", value = {
+  Platform.isJ9()
 })
 @CompileDynamic
 class StringConcatFactoryCallSiteTest extends AgentTestRunner {
@@ -184,14 +189,14 @@ class StringConcatFactoryCallSiteTest extends AgentTestRunner {
     0 * _
 
     where:
-    method                                                                 | expectedResult           | expectedArgs
-    { it -> stringPlusWithPrimitive('Hello World! in ', (int) 2023) }      | 'Hello World! in 2023'   | ['Hello World! in ', '2023']
-    { it -> stringPlusWithPrimitive('Give me a number : ', (byte) 5) }     | 'Give me a number : 5'   | ['Give me a number : ', '5']
-    { it -> stringPlusWithPrimitive('Give me a number : ', (short) 5) }    | 'Give me a number : 5'   | ['Give me a number : ', '5']
-    { it -> stringPlusWithPrimitive('Are you mad? ', (boolean) false) }    | 'Are you mad? false'     | ['Are you mad? ', 'false']
-    { it -> stringPlusWithPrimitive('Give me a letter : ', (char) 'c') }   | 'Give me a letter : c'   | ['Give me a letter : ', 'c']
-    { it -> stringPlusWithPrimitive('Hello World! in ', (long) 2023) }     | 'Hello World! in 2023'   | ['Hello World! in ', '2023']
-    { it -> stringPlusWithPrimitive('Hello World! in ', (float) 2023.0) }  | 'Hello World! in 2023.0' | ['Hello World! in ', '2023.0']
-    { it -> stringPlusWithPrimitive('Hello World! in ', (double) 2023.0) } | 'Hello World! in 2023.0' | ['Hello World! in ', '2023.0']
+    expectedResult           | expectedArgs                   | method
+    'Hello World! in 2023'   | ['Hello World! in ', '2023']   | { it -> stringPlusWithPrimitive('Hello World! in ', (int) 2023) }
+    'Give me a number : 5'   | ['Give me a number : ', '5']   | { it -> stringPlusWithPrimitive('Give me a number : ', (byte) 5) }
+    'Give me a number : 5'   | ['Give me a number : ', '5']   | { it -> stringPlusWithPrimitive('Give me a number : ', (short) 5) }
+    'Are you mad? false'     | ['Are you mad? ', 'false']     | { it -> stringPlusWithPrimitive('Are you mad? ', (boolean) false) }
+    'Give me a letter : c'   | ['Give me a letter : ', 'c']   | { it -> stringPlusWithPrimitive('Give me a letter : ', (char) 'c') }
+    'Hello World! in 2023'   | ['Hello World! in ', '2023']   | { it -> stringPlusWithPrimitive('Hello World! in ', (long) 2023) }
+    'Hello World! in 2023.0' | ['Hello World! in ', '2023.0'] | { it -> stringPlusWithPrimitive('Hello World! in ', (float) 2023.0) }
+    'Hello World! in 2023.0' | ['Hello World! in ', '2023.0'] | { it -> stringPlusWithPrimitive('Hello World! in ', (double) 2023.0) }
   }
 }

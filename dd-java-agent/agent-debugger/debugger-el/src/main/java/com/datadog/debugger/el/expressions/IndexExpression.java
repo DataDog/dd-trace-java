@@ -1,11 +1,13 @@
 package com.datadog.debugger.el.expressions;
 
+import com.datadog.debugger.el.EvaluationException;
 import com.datadog.debugger.el.PrettyPrintVisitor;
 import com.datadog.debugger.el.Value;
 import com.datadog.debugger.el.Visitor;
 import com.datadog.debugger.el.values.ListValue;
 import com.datadog.debugger.el.values.MapValue;
 import datadog.trace.bootstrap.debugger.el.ValueReferenceResolver;
+import datadog.trace.bootstrap.debugger.util.Redaction;
 
 public class IndexExpression implements ValueExpression<Value<?>> {
 
@@ -30,15 +32,23 @@ public class IndexExpression implements ValueExpression<Value<?>> {
     }
     try {
       if (targetValue instanceof MapValue) {
-        result = ((MapValue) targetValue).get(keyValue.getValue());
+        Object objKey = keyValue.getValue();
+        if (objKey instanceof String && Redaction.isRedactedKeyword((String) objKey)) {
+          ExpressionHelper.throwRedactedException(this);
+        } else {
+          result = ((MapValue) targetValue).get(objKey);
+        }
       }
       if (targetValue instanceof ListValue) {
         result = ((ListValue) targetValue).get(keyValue.getValue());
       }
     } catch (IllegalArgumentException ex) {
-      valueRefResolver.addEvaluationError(PrettyPrintVisitor.print(this), ex.getMessage());
+      throw new EvaluationException(ex.getMessage(), PrettyPrintVisitor.print(this), ex);
     }
-
+    Object obj = result.getValue();
+    if (obj != null && Redaction.isRedactedType(obj.getClass().getTypeName())) {
+      ExpressionHelper.throwRedactedException(this);
+    }
     return result;
   }
 

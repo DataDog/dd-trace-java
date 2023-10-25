@@ -28,6 +28,7 @@ public class CapturedSnapshot04 {
   public static class SimpleData {
     private final String strValue;
     final int intValue;
+    private final long longValue = 1042;
     private final List<String> listValue = new ArrayList<>();
 
     public SimpleData(String strValue, int intValue) {

@@ -6,28 +6,10 @@ import groovy.transform.CompileDynamic
 import net.bytebuddy.jar.asm.MethodVisitor
 import net.bytebuddy.jar.asm.Opcodes
 import net.bytebuddy.jar.asm.Type
-import sun.reflect.generics.reflectiveObjects.NotImplementedException
 
-import static datadog.trace.agent.tooling.csi.CallSiteAdvice.StackDupMode.APPEND_ARRAY
-import static datadog.trace.agent.tooling.csi.CallSiteAdvice.StackDupMode.PREPEND_ARRAY
-import static datadog.trace.agent.tooling.csi.CallSiteAdvice.StackDupMode.COPY
-import static datadog.trace.agent.tooling.csi.CallSiteUtilsTest.StackObject.forBoolean
-import static datadog.trace.agent.tooling.csi.CallSiteUtilsTest.StackObject.forByte
-import static datadog.trace.agent.tooling.csi.CallSiteUtilsTest.StackObject.forChar
-import static datadog.trace.agent.tooling.csi.CallSiteUtilsTest.StackObject.forDouble
-import static datadog.trace.agent.tooling.csi.CallSiteUtilsTest.StackObject.forFloat
-import static datadog.trace.agent.tooling.csi.CallSiteUtilsTest.StackObject.forInt
-import static datadog.trace.agent.tooling.csi.CallSiteUtilsTest.StackObject.forLong
-import static datadog.trace.agent.tooling.csi.CallSiteUtilsTest.StackObject.forObject
-import static datadog.trace.agent.tooling.csi.CallSiteUtilsTest.StackObject.forShort
-import static net.bytebuddy.jar.asm.Type.BOOLEAN_TYPE
-import static net.bytebuddy.jar.asm.Type.BYTE_TYPE
-import static net.bytebuddy.jar.asm.Type.CHAR_TYPE
-import static net.bytebuddy.jar.asm.Type.DOUBLE_TYPE
-import static net.bytebuddy.jar.asm.Type.FLOAT_TYPE
-import static net.bytebuddy.jar.asm.Type.INT_TYPE
-import static net.bytebuddy.jar.asm.Type.LONG_TYPE
-import static net.bytebuddy.jar.asm.Type.SHORT_TYPE
+import static datadog.trace.agent.tooling.csi.CallSiteAdvice.StackDupMode.*
+import static datadog.trace.agent.tooling.csi.CallSiteUtilsTest.StackObject.*
+import static net.bytebuddy.jar.asm.Type.*
 
 @CompileDynamic
 class CallSiteUtilsTest extends DDSpecification {
@@ -219,6 +201,45 @@ class CallSiteUtilsTest extends DDSpecification {
     [forObject('PI = '), forDouble(3.14D), forChar((char) '?'), forBoolean(true)] | items
   }
 
+  void 'test stack dup with array before ctor of #items'() {
+    setup:
+    final stack = buildStack(items)
+    final visitor = mockMethodVisitor(stack)
+
+    when:
+    CallSiteUtils.dup(visitor, expected*.type as Type[], PREPEND_ARRAY_CTOR)
+
+    then: 'the first element of the stack should be an array with the parameters'
+    final arrayFromStack = stack.remove(0)
+    arrayFromStack.type.descriptor == '[Ljava/lang/Object;'
+    final array = (arrayFromStack.value as Object[]).toList() as List<StackObject>
+    [array, expected].transpose().each { arrayItem, expectedItem ->
+      assert arrayItem.value == expectedItem.value // some of the items might be boxed so be careful
+    }
+
+    then: 'the rest of the stack should contain the original values'
+    final result = fromStack(stack)
+    result == items
+
+    where:
+    items                                                                                                             | expected
+    [forObject('NEW'), forObject('DUP'), forInt(1)]                                                                   | items.subList(2, items.size())
+    [forObject('NEW'), forObject('DUP'), forInt(1), forInt(2)]                                                        | items.subList(2, items.size())
+    [forObject('NEW'), forObject('DUP'), forLong(1L)]                                                                 | items.subList(2, items.size())
+    [forObject('NEW'), forObject('DUP'), forLong(1L), forLong(2L)]                                                    | items.subList(2, items.size())
+    [forObject('NEW'), forObject('DUP'), forInt(1), forLong(2L)]                                                      | items.subList(2, items.size())
+    [forObject('NEW'), forObject('DUP'), forInt(1), forInt(2), forLong(3L)]                                           | items.subList(2, items.size())
+    [forObject('NEW'), forObject('DUP'), forInt(1), forInt(2), forInt(3), forLong(4L)]                                | items.subList(2, items.size())
+    [
+      forObject('NEW'),
+      forObject('DUP'),
+      forObject('PI = '),
+      forDouble(3.14D),
+      forChar((char) '?'),
+      forBoolean(true)
+    ] | items.subList(2, items.size())
+  }
+
   private MethodVisitor mockMethodVisitor(final List<StackObject> stack) {
     return Mock(MethodVisitor) {
       visitInsn(Opcodes.DUP) >> { handleDUP(stack) }
@@ -248,7 +269,7 @@ class CallSiteUtilsTest extends DDSpecification {
         if (method ==~ /(:?char|boolean|byte|short|int|long|float|double)Value/) {
           handleUnBoxing(stack, it[1] as String, method)
         } else {
-          throw new NotImplementedException()
+          throw new UnsupportedOperationException()
         }
       }
       _ >> { throw new IllegalArgumentException('Not yet implemented') }

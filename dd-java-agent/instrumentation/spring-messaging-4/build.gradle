@@ -1,0 +1,36 @@
+
+muzzle {
+  pass {
+    group = 'org.springframework'
+    module = 'spring-messaging'
+    versions = "[4.0.0.RELEASE,)"
+    assertInverse = true
+  }
+}
+
+ext {
+  minJavaVersionForTests = JavaVersion.VERSION_17
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+
+addTestSuiteForDir('latestDepTest', 'test')
+
+[compileTestGroovy, compileLatestDepTestGroovy].each {
+  it.javaLauncher = getJavaLauncherFor(17)
+}
+
+dependencies {
+  compileOnly group: 'org.springframework', name: 'spring-messaging', version: '4.0.0.RELEASE'
+
+  // capture SQS send and receive spans, propagate trace details in messages
+  testImplementation project(':dd-java-agent:instrumentation:apache-httpclient-4')
+  testImplementation project(':dd-java-agent:instrumentation:aws-java-sdk-2.2')
+  testImplementation project(':dd-java-agent:instrumentation:aws-java-sqs-2.0')
+
+  testImplementation group: 'jakarta.annotation', name: 'jakarta.annotation-api', version: '2.0.0'
+  testImplementation group: 'io.awspring.cloud', name: 'spring-cloud-aws-sqs', version: '3.0.1'
+  testImplementation group: 'org.elasticmq', name: 'elasticmq-rest-sqs_2.13', version: '1.2.3'
+
+  latestDepTestImplementation group: 'org.springframework', name: 'spring-messaging', version: '+'
+}

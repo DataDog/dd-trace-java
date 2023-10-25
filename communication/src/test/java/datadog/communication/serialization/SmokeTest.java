@@ -1,7 +1,7 @@
 package datadog.communication.serialization;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 import datadog.communication.serialization.msgpack.MsgPackWriter;
 import java.io.IOException;
@@ -13,8 +13,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
 import org.msgpack.core.MessagePack;
 import org.msgpack.core.MessageUnpacker;
 
@@ -99,7 +99,7 @@ public class SmokeTest {
                       }
                     }
                   } catch (IOException e) {
-                    Assert.fail(e.getMessage());
+                    Assertions.fail(e.getMessage());
                   }
                 }));
     packer.format(

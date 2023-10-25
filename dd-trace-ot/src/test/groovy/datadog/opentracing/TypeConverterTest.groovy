@@ -26,8 +26,8 @@ class TypeConverterTest extends DDSpecification {
 
   def "should avoid extra allocation for a span wrapper"() {
     def context = createTestSpanContext()
-    def span1 = new DDSpan(0, context)
-    def span2 = new DDSpan(0, context)
+    def span1 = new DDSpan("test", 0, context)
+    def span2 = new DDSpan("test", 0, context)
     expect:
     // return the same wrapper for the same span
     typeConverter.toSpan(span1) is typeConverter.toSpan(span1)
@@ -54,8 +54,8 @@ class TypeConverterTest extends DDSpecification {
   def "should avoid extra allocation for a scope wrapper"() {
     def scopeManager = new ContinuableScopeManager(0, false, true)
     def context = createTestSpanContext()
-    def span1 = new DDSpan(0, context)
-    def span2 = new DDSpan(0, context)
+    def span1 = new DDSpan("test", 0, context)
+    def span2 = new DDSpan("test", 0, context)
     def scope1 = scopeManager.activate(span1, ScopeSource.MANUAL)
     def scope2 = scopeManager.activate(span2, ScopeSource.MANUAL)
     expect:
@@ -70,8 +70,8 @@ class TypeConverterTest extends DDSpecification {
 
   def createTestSpanContext() {
     def tracer = Mock(CoreTracer)
-    tracer.mapServiceName(_) >> { String serviceName -> serviceName }
     def trace = Mock(PendingTrace)
+    trace.mapServiceName(_) >> { String serviceName -> serviceName }
     trace.getTracer() >> tracer
 
     return new DDSpanContext(

@@ -8,13 +8,11 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.implementation.bytecode.assign.Assigner;
 import net.bytebuddy.matcher.ElementMatcher;
-import org.apache.hc.client5.http.classic.HttpClient;
 import org.apache.hc.core5.http.ClassicHttpRequest;
 import org.apache.hc.core5.http.HttpHost;
 import org.apache.hc.core5.http.io.HttpClientResponseHandler;
@@ -110,11 +108,6 @@ public class ApacheHttpClientInstrumentation extends Instrumenter.Tracing
   public static class RequestAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope methodEnter(@Advice.Argument(0) final ClassicHttpRequest request) {
-      final int callDepth = CallDepthThreadLocalMap.incrementCallDepth(HttpClient.class);
-      if (callDepth > 0) {
-        return null;
-      }
-
       return HelperMethods.doMethodEnter(request);
     }
 
@@ -123,7 +116,6 @@ public class ApacheHttpClientInstrumentation extends Instrumenter.Tracing
         @Advice.Enter final AgentScope scope,
         @Advice.Return final Object result,
         @Advice.Thrown final Throwable throwable) {
-
       HelperMethods.doMethodExit(scope, result, throwable);
     }
   }
@@ -133,12 +125,7 @@ public class ApacheHttpClientInstrumentation extends Instrumenter.Tracing
     public static AgentScope methodEnter(
         @Advice.Argument(0) final HttpHost host,
         @Advice.Argument(1) final ClassicHttpRequest request) {
-      final int callDepth = CallDepthThreadLocalMap.incrementCallDepth(HttpClient.class);
-      if (callDepth > 0) {
-        return null;
-      }
-
-      return HelperMethods.doMethodEnter(new HostAndRequestAsHttpUriRequest(host, request));
+      return HelperMethods.doMethodEnter(host, request);
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
@@ -146,7 +133,6 @@ public class ApacheHttpClientInstrumentation extends Instrumenter.Tracing
         @Advice.Enter final AgentScope scope,
         @Advice.Return final Object result,
         @Advice.Thrown final Throwable throwable) {
-
       HelperMethods.doMethodExit(scope, result, throwable);
     }
   }
@@ -164,14 +150,7 @@ public class ApacheHttpClientInstrumentation extends Instrumenter.Tracing
                 typing = Assigner.Typing.DYNAMIC,
                 readOnly = false)
             Object handler) {
-      final int callDepth = CallDepthThreadLocalMap.incrementCallDepth(HttpClient.class);
-      if (callDepth > 0) {
-        return null;
-      }
-
-      final AgentScope scope =
-          HelperMethods.doMethodEnter(new HostAndRequestAsHttpUriRequest(host, request));
-
+      final AgentScope scope = HelperMethods.doMethodEnter(host, request);
       // Wrap the handler so we capture the status code
       if (null != scope && handler instanceof HttpClientResponseHandler) {
         handler =
@@ -186,7 +165,6 @@ public class ApacheHttpClientInstrumentation extends Instrumenter.Tracing
         @Advice.Enter final AgentScope scope,
         @Advice.Return final Object result,
         @Advice.Thrown final Throwable throwable) {
-
       HelperMethods.doMethodExit(scope, result, throwable);
     }
   }

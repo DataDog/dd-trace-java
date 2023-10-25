@@ -72,6 +72,11 @@ public class JettyDecorator extends HttpServerDecorator<Request, Request, Respon
     return response.getStatus();
   }
 
+  @Override
+  protected boolean isAppSecOnResponseSeparate() {
+    return true;
+  }
+
   public AgentSpan onResponse(AgentSpan span, HttpConnection channel) {
     Request request = channel.getRequest();
     Response response = channel.getResponse();

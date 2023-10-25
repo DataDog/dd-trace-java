@@ -1,9 +1,11 @@
 import datadog.trace.agent.test.AgentTestRunner
-import datadog.trace.api.config.TracerConfig
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.source.WebModule
+import foo.bar.smoketest.HttpServlet3TestSuite
+import foo.bar.smoketest.HttpServletWrapper3TestSuite
 import foo.bar.smoketest.Servlet3TestSuite
 
+import javax.servlet.ServletRequest
 import javax.servlet.http.HttpServletRequest
 import javax.servlet.http.HttpServletRequestWrapper
 
@@ -11,31 +13,33 @@ class Servlet3TestGetParameterInstrumentation extends AgentTestRunner {
 
   @Override
   protected void configurePreAgent() {
-    injectSysConfig(TracerConfig.SCOPE_ITERATION_KEEP_ALIVE, "1") // don't let iteration spans linger
     injectSysConfig("dd.iast.enabled", "true")
   }
 
-  def 'test getParameter'() {
+  void cleanup() {
+    InstrumentationBridge.clearIastModules()
+  }
 
+  void 'test getParameter'() {
     setup:
-    WebModule iastModule = Mock(WebModule)
+    final iastModule = Mock(WebModule)
     InstrumentationBridge.registerIastModule(iastModule)
-    HashMap<String, String[]> map = new HashMap<>()
-    map.put("param1", ["value1", "value2"] as String[])
-    final servletRequest = Mock(HttpServletRequest)
-    servletRequest.getParameterMap() >> map
-    final wrapper = new HttpServletRequestWrapper(servletRequest)
-    final testSuite = new Servlet3TestSuite(wrapper)
-
+    final map = [param1: ['value1', 'value2'] as String[]]
+    final request = Mock(requestClass) {
+      getParameterMap() >> map
+    }
 
     when:
-    Map<String, String[]> returnedMap = testSuite.getParameterMap()
+    final returnedMap = suite.getParameterMap(request)
 
     then:
-    returnedMap != null
-    returnedMap.get("param1")[0] == "value1"
-    returnedMap.get("param1")[1] == "value2"
-    2 * iastModule.onParameterValue(_,_)
-    1 * iastModule.onParameterName(_)
+    returnedMap == map
+    1 * iastModule.onParameterValues(map)
+
+    where:
+    suite                              | requestClass
+    new Servlet3TestSuite()            | ServletRequest
+    new HttpServlet3TestSuite()        | HttpServletRequest
+    new HttpServletWrapper3TestSuite() | HttpServletRequestWrapper
   }
 }

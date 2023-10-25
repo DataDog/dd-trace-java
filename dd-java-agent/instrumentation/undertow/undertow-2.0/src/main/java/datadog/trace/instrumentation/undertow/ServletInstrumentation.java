@@ -4,6 +4,7 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.SERVLET_CONTEXT;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.SERVLET_PATH;
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_SPAN_ATTRIBUTE;
+import static datadog.trace.bootstrap.instrumentation.decorator.http.HttpResourceDecorator.HTTP_RESOURCE_DECORATOR;
 import static datadog.trace.instrumentation.undertow.UndertowDecorator.DD_UNDERTOW_CONTINUATION;
 import static datadog.trace.instrumentation.undertow.UndertowDecorator.SERVLET_REQUEST;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
@@ -13,8 +14,10 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import io.undertow.server.HttpServerExchange;
+import io.undertow.servlet.handlers.ServletPathMatch;
 import io.undertow.servlet.handlers.ServletRequestContext;
 import javax.servlet.ServletRequest;
+import javax.servlet.http.MappingMatch;
 import net.bytebuddy.asm.Advice;
 
 @AutoService(Instrumenter.class)
@@ -42,6 +45,7 @@ public final class ServletInstrumentation extends Instrumenter.Tracing
       packageName + ".HttpServerExchangeURIDataAdapter",
       packageName + ".UndertowDecorator",
       packageName + ".UndertowBlockingHandler",
+      packageName + ".IgnoreSendAttribute",
       packageName + ".UndertowBlockResponseFunction",
       packageName + ".UndertowExtractAdapter",
       packageName + ".UndertowExtractAdapter$Request",
@@ -62,7 +66,20 @@ public final class ServletInstrumentation extends Instrumenter.Tracing
         undertowSpan.setSpanName(SERVLET_REQUEST);
 
         undertowSpan.setTag(SERVLET_CONTEXT, request.getServletContext().getContextPath());
-        undertowSpan.setTag(SERVLET_PATH, exchange.getRelativePath());
+        String relativePath = exchange.getRelativePath();
+
+        ServletPathMatch servletPathMatch = servletRequestContext.getServletPathMatch();
+        if (servletPathMatch != null
+            && servletPathMatch.getMappingMatch() != MappingMatch.DEFAULT) {
+          // Set the route unless the mapping match is default, this way we prevent setting route
+          // for a non-existing resource. Otherwise, it'd set a non-existing resource name with
+          // higher priority than 404 resource, so it wouldn't be able to set resource 404 later in
+          // the onResponse instrumentation.
+          HTTP_RESOURCE_DECORATOR.withRoute(
+              undertowSpan, exchange.getRequestMethod().toString(), relativePath, false);
+        }
+        // The servlet.path tag is expected even for a non-existing resource.
+        undertowSpan.setTag(SERVLET_PATH, relativePath);
       }
     }
   }

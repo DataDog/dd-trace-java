@@ -17,15 +17,28 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class CurrentAppSecConfig {
-  private static Logger log = LoggerFactory.getLogger(CurrentAppSecConfig.class);
+  private static final Logger log = LoggerFactory.getLogger(CurrentAppSecConfig.class);
 
-  AppSecConfig ddConfig; // assume there's only one of these
+  private AppSecConfig ddConfig; // assume there's only one of these
   CollectedUserConfigs userConfigs = new CollectedUserConfigs();
   MergedAsmData mergedAsmData = new MergedAsmData(new HashMap<>());
   public final DirtyStatus dirtyStatus = new DirtyStatus();
 
+  public void setDdConfig(AppSecConfig newConfig) {
+    this.ddConfig = newConfig;
+
+    List<Map<String, Object>> rulesData =
+        (List<Map<String, Object>>) newConfig.getRawConfig().get("rules_data");
+    if (rulesData != null) {
+      mergedAsmData.addConfig(MergedAsmData.KEY_BUNDLED_RULE_DATA, rulesData);
+    } else {
+      mergedAsmData.removeConfig(MergedAsmData.KEY_BUNDLED_RULE_DATA);
+    }
+  }
+
   public static class DirtyStatus {
     public boolean rules;
+    public boolean customRules;
     public boolean ruleOverrides;
     public boolean actions;
     public boolean data;
@@ -33,6 +46,7 @@ public class CurrentAppSecConfig {
 
     public void mergeFrom(DirtyStatus o) {
       rules = rules || o.rules;
+      customRules = customRules || o.customRules;
       ruleOverrides = ruleOverrides || o.ruleOverrides;
       actions = actions || o.actions;
       data = data || o.data;
@@ -40,11 +54,11 @@ public class CurrentAppSecConfig {
     }
 
     public void clearDirty() {
-      rules = ruleOverrides = actions = data = exclusions = false;
+      rules = customRules = ruleOverrides = actions = data = exclusions = false;
     }
 
     public void markAllDirty() {
-      rules = ruleOverrides = actions = data = exclusions = true;
+      rules = customRules = ruleOverrides = actions = data = exclusions = true;
     }
 
     public boolean isAnyDirty() {
@@ -52,7 +66,7 @@ public class CurrentAppSecConfig {
     }
 
     public boolean isDirtyForDdwafUpdate() {
-      return rules || ruleOverrides || data || exclusions;
+      return rules || customRules || ruleOverrides || data || exclusions;
     }
 
     public boolean isDirtyForActions() {
@@ -69,7 +83,15 @@ public class CurrentAppSecConfig {
     Map<String, Object> mso = new HashMap<>();
     if (dirtyStatus.rules) {
       mso.put("metadata", ddConfig.getRawConfig().getOrDefault("metadata", Collections.emptyMap()));
-      mso.put("rules", getEffectiveBaseRules());
+      mso.put("rules", ddConfig.getRawConfig().getOrDefault("rules", Collections.emptyList()));
+      mso.put(
+          "processors",
+          ddConfig.getRawConfig().getOrDefault("processors", Collections.emptyList()));
+      mso.put(
+          "scanners", ddConfig.getRawConfig().getOrDefault("scanners", Collections.emptyList()));
+    }
+    if (dirtyStatus.customRules) {
+      mso.put("custom_rules", getMergedCustomRules());
     }
     if (dirtyStatus.exclusions) {
       mso.put("exclusions", getMergedExclusions());
@@ -89,8 +111,9 @@ public class CurrentAppSecConfig {
     if (log.isDebugEnabled()) {
       log.debug(
           "Providing WAF config with: "
-              + "rules: {}, exclusions: {}, ruleOverrides: {}, rules_data: {}, actions: {}",
+              + "rules: {}, custom_rules: {}, exclusions: {}, ruleOverrides: {}, rules_data: {}, actions: {}",
           debugRuleSummary(mso),
+          debugCustomRuleSummary(mso),
           debugExclusionsSummary(mso),
           debugRuleOverridesSummary(mso),
           debugRulesDataSummary(mso),
@@ -155,6 +178,14 @@ public class CurrentAppSecConfig {
     return "[" + rules.size() + " rules]";
   }
 
+  private static String debugCustomRuleSummary(Map<String, Object> mso) {
+    List<Map<String, Object>> rules = (List<Map<String, Object>>) mso.get("custom_rules");
+    if (rules == null) {
+      return "<absent>";
+    }
+    return "[" + rules.size() + " rules]";
+  }
+
   // does not include default actions
   private List<Map<String, Object>> getMergedActions() {
     List<Map<String, Object>> actions =
@@ -165,18 +196,12 @@ public class CurrentAppSecConfig {
         .reduce(actions, (a, b) -> b.actions, CurrentAppSecConfig::mergeMapsByIdKeepLatest);
   }
 
-  private List<Map<String, Object>> getEffectiveBaseRules() {
-    // rules + custom rules
-    List<Map<String, Object>> rules =
-        (List<Map<String, Object>>) ddConfig.getRawConfig().get("rules");
-
-    List<AppSecUserConfig> userConfigs = this.userConfigs;
-    for (AppSecUserConfig userCfg : userConfigs) {
-      if (!userCfg.customRules.isEmpty()) {
-        rules = mergeMapsByIdKeepLatest(rules, userCfg.customRules);
-      }
-    }
-    return rules;
+  private List<Map<String, Object>> getMergedCustomRules() {
+    List<Map<String, Object>> customRules =
+        this.userConfigs.stream()
+            .map(uc -> uc.customRules)
+            .reduce(Collections.emptyList(), CurrentAppSecConfig::mergeMapsByIdKeepLatest);
+    return customRules;
   }
 
   private List<Map<String, Object>> getMergedExclusions() {

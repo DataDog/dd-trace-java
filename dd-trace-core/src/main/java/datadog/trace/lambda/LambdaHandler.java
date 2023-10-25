@@ -10,6 +10,7 @@ import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.core.propagation.ExtractedContext;
 import datadog.trace.core.propagation.PropagationTags;
+import java.io.ByteArrayInputStream;
 import okhttp3.MediaType;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
@@ -54,8 +55,8 @@ public class LambdaHandler {
   private static final MediaType jsonMediaType = MediaType.parse("application/json");
   private static final JsonAdapter<Object> adapter =
       new Moshi.Builder()
-          // we need to bypass abstract Classes as we can't JSON serialize them
-          .add(SkipAbstractTypeJsonSerializer.newFactory())
+          .add(ByteArrayInputStream.class, new ReadFromInputStreamJsonAdapter())
+          .add(SkipUnsupportedTypeJsonAdapter.newFactory())
           .build()
           .adapter(Object.class);
 
@@ -91,15 +92,7 @@ public class LambdaHandler {
               propagationTagsFactory.fromHeaderValue(
                   PropagationTags.HeaderType.DATADOG, response.headers().get(DATADOG_TAGS_KEY));
           return new ExtractedContext(
-              DDTraceId.from(traceID),
-              DDSpanId.ZERO,
-              samplingPriority,
-              null,
-              0,
-              null,
-              null,
-              null,
-              propagationTags);
+              DDTraceId.from(traceID), DDSpanId.ZERO, samplingPriority, null, propagationTags);
         } else {
           log.debug(
               "could not find traceID or sampling priority in notifyStartInvocation, not injecting the context");

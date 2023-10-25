@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.servlet3;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_DISPATCH_SPAN_ATTRIBUTE;
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_FIN_DISP_LIST_SPAN_ATTRIBUTE;
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_SPAN_ATTRIBUTE;
@@ -29,6 +30,7 @@ public class Servlet3Advice {
       @Advice.Argument(value = 0, readOnly = false) ServletRequest request,
       @Advice.Argument(value = 1) ServletResponse response,
       @Advice.Local("isDispatch") boolean isDispatch,
+      @Advice.Local("finishSpan") boolean finishSpan,
       @Advice.Local("agentScope") AgentScope scope) {
     final boolean invalidRequest =
         !(request instanceof HttpServletRequest) || !(response instanceof HttpServletResponse);
@@ -46,9 +48,14 @@ public class Servlet3Advice {
       // Activate the dispatch span as the request span so it can be finished with the request.
       // We don't want to create a new servlet.request span since this is internal processing.
       AgentSpan castDispatchSpan = (AgentSpan) dispatchSpan;
+      // the dispatch span was already activated in Jetty's HandleAdvice. We let it finish the span
+      // to avoid trying to finish twice
+      finishSpan = activeSpan() != dispatchSpan;
       scope = activateSpan(castDispatchSpan);
       return false;
     }
+
+    finishSpan = true;
 
     Object spanAttrValue = request.getAttribute(DD_SPAN_ATTRIBUTE);
     final boolean hasServletTrace = spanAttrValue instanceof AgentSpan;
@@ -60,12 +67,11 @@ public class Servlet3Advice {
 
     final AgentSpan.Context.Extracted extractedContext = DECORATE.extract(httpServletRequest);
     final AgentSpan span = DECORATE.startSpan(httpServletRequest, extractedContext);
+    scope = activateSpan(span);
+    scope.setAsyncPropagation(true);
 
     DECORATE.afterStart(span);
     DECORATE.onRequest(span, httpServletRequest, httpServletRequest, extractedContext);
-
-    scope = activateSpan(span);
-    scope.setAsyncPropagation(true);
 
     httpServletRequest.setAttribute(DD_SPAN_ATTRIBUTE, span);
     httpServletRequest.setAttribute(
@@ -75,7 +81,9 @@ public class Servlet3Advice {
 
     Flow.Action.RequestBlockingAction rba = span.getRequestBlockingAction();
     if (rba != null) {
-      ServletBlockingHelper.commitBlockingResponse(httpServletRequest, httpServletResponse, rba);
+      ServletBlockingHelper.commitBlockingResponse(
+          span.getRequestContext().getTraceSegment(), httpServletRequest, httpServletResponse, rba);
+      span.getRequestContext().getTraceSegment().effectivelyBlocked();
       return true; // skip method body
     }
 
@@ -88,6 +96,7 @@ public class Servlet3Advice {
       @Advice.Argument(1) final ServletResponse response,
       @Advice.Local("agentScope") final AgentScope scope,
       @Advice.Local("isDispatch") boolean isDispatch,
+      @Advice.Local("finishSpan") boolean finishSpan,
       @Advice.Thrown final Throwable throwable) {
     // Set user.principal regardless of who created this span.
     final Object spanAttr = request.getAttribute(DD_SPAN_ATTRIBUTE);
@@ -125,8 +134,10 @@ public class Servlet3Advice {
           if (!isDispatch) {
             DECORATE.onResponse(span, resp);
           }
-          DECORATE.beforeFinish(span);
-          span.finish(); // Finish the span manually since finishSpanOnClose was false
+          if (finishSpan) {
+            DECORATE.beforeFinish(span);
+            span.finish(); // Finish the span manually since finishSpanOnClose was false
+          }
         }
       } else { // not async
         // Finish the span manually since finishSpanOnClose was false
@@ -146,8 +157,10 @@ public class Servlet3Advice {
           }
           DECORATE.onError(span, throwable);
         }
-        DECORATE.beforeFinish(span);
-        span.finish(); // Finish the span manually since finishSpanOnClose was false
+        if (finishSpan) {
+          DECORATE.beforeFinish(span);
+          span.finish(); // Finish the span manually since finishSpanOnClose was false
+        }
       }
     }
     scope.close();

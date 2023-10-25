@@ -1,228 +1,232 @@
 package datadog.trace.instrumentation.junit5;
 
-import static datadog.trace.instrumentation.junit5.JUnit5Decorator.DECORATE;
-
-import datadog.trace.bootstrap.instrumentation.civisibility.TestEventsHandler;
 import java.lang.reflect.Method;
-import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.stream.Collectors;
+import org.junit.platform.engine.EngineExecutionListener;
+import org.junit.platform.engine.TestDescriptor;
 import org.junit.platform.engine.TestEngine;
 import org.junit.platform.engine.TestExecutionResult;
 import org.junit.platform.engine.TestSource;
 import org.junit.platform.engine.TestTag;
-import org.junit.platform.engine.UniqueId;
+import org.junit.platform.engine.reporting.ReportEntry;
 import org.junit.platform.engine.support.descriptor.ClassSource;
 import org.junit.platform.engine.support.descriptor.MethodSource;
-import org.junit.platform.launcher.TestExecutionListener;
-import org.junit.platform.launcher.TestIdentifier;
-import org.junit.platform.launcher.TestPlan;
 
-public class TracingListener implements TestExecutionListener {
+public class TracingListener implements EngineExecutionListener {
 
-  private final TestEventsHandler testEventsHandler;
+  private final String testFramework;
+  private final String testFrameworkVersion;
 
-  private final Map<String, String> versionsByEngineId;
-
-  private volatile TestPlan testPlan;
-
-  public TracingListener(final Iterable<TestEngine> testEngines) {
-    final Map<String, String> versions = new HashMap<>();
-    for (TestEngine testEngine : testEngines) {
-      testEngine.getVersion().ifPresent(version -> versions.put(testEngine.getId(), version));
-    }
-    versionsByEngineId = Collections.unmodifiableMap(versions);
-    testEventsHandler = new TestEventsHandler(DECORATE);
+  public TracingListener(TestEngine testEngine) {
+    String engineId = testEngine.getId();
+    testFramework = engineId != null && engineId.startsWith("junit") ? "junit5" : engineId;
+    testFrameworkVersion = testEngine.getVersion().orElse(null);
   }
 
   @Override
-  public void testPlanExecutionStarted(final TestPlan testPlan) {
-    this.testPlan = testPlan;
-
-    String versions = getVersions(testPlan);
-    testEventsHandler.onTestModuleStart(versions);
+  public void dynamicTestRegistered(TestDescriptor testDescriptor) {
+    // no op
   }
 
   @Override
-  public void testPlanExecutionFinished(final TestPlan testPlan) {
-    testEventsHandler.onTestModuleFinish();
+  public void reportingEntryPublished(TestDescriptor testDescriptor, ReportEntry entry) {
+    // no op
   }
 
   @Override
-  public void executionStarted(final TestIdentifier testIdentifier) {
-    if (testIdentifier.isContainer()) {
-      containerExecutionStarted(testIdentifier);
-    } else if (testIdentifier.isTest()) {
-      testCaseExecutionStarted(testIdentifier);
+  public void executionStarted(final TestDescriptor testDescriptor) {
+    if (testDescriptor.isContainer()) {
+      containerExecutionStarted(testDescriptor);
+    } else if (testDescriptor.isTest()) {
+      testCaseExecutionStarted(testDescriptor);
     }
   }
 
   @Override
   public void executionFinished(
-      final TestIdentifier testIdentifier, final TestExecutionResult testExecutionResult) {
-    if (testIdentifier.isContainer()) {
-      containerExecutionFinished(testIdentifier, testExecutionResult);
-    } else if (testIdentifier.isTest()) {
-      testCaseExecutionFinished(testIdentifier, testExecutionResult);
+      TestDescriptor testDescriptor, TestExecutionResult testExecutionResult) {
+    if (testDescriptor.isContainer()) {
+      containerExecutionFinished(testDescriptor, testExecutionResult);
+    } else if (testDescriptor.isTest()) {
+      testCaseExecutionFinished(testDescriptor, testExecutionResult);
     }
   }
 
-  private void containerExecutionStarted(final TestIdentifier testIdentifier) {
-    if (JUnit5Utils.isRootContainer(testIdentifier) || JUnit5Utils.isTestCase(testIdentifier)) {
+  private void containerExecutionStarted(final TestDescriptor testDescriptor) {
+    if (!JUnitPlatformUtils.isSuite(testDescriptor)) {
       return;
     }
 
-    Class<?> testClass = JUnit5Utils.getJavaClass(testIdentifier);
+    Class<?> testClass = JUnitPlatformUtils.getJavaClass(testDescriptor);
     String testSuiteName =
-        testClass != null ? testClass.getName() : testIdentifier.getLegacyReportingName();
-    String version = getVersion(testIdentifier);
+        testClass != null ? testClass.getName() : testDescriptor.getLegacyReportingName();
+
     List<String> tags =
-        testIdentifier.getTags().stream().map(TestTag::getName).collect(Collectors.toList());
-    testEventsHandler.onTestSuiteStart(testSuiteName, testClass, version, tags);
+        testDescriptor.getTags().stream().map(TestTag::getName).collect(Collectors.toList());
+    TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSuiteStart(
+        testSuiteName, testFramework, testFrameworkVersion, testClass, tags, false);
   }
 
   private void containerExecutionFinished(
-      final TestIdentifier testIdentifier, final TestExecutionResult testExecutionResult) {
-    if (JUnit5Utils.isRootContainer(testIdentifier) || JUnit5Utils.isTestCase(testIdentifier)) {
+      final TestDescriptor testDescriptor, final TestExecutionResult testExecutionResult) {
+    if (!JUnitPlatformUtils.isSuite(testDescriptor)) {
       return;
     }
 
+    Class<?> testClass = JUnitPlatformUtils.getJavaClass(testDescriptor);
+    String testSuiteName =
+        testClass != null ? testClass.getName() : testDescriptor.getLegacyReportingName();
+
     Throwable throwable = testExecutionResult.getThrowable().orElse(null);
     if (throwable != null) {
-      if (JUnit5Utils.isAssumptionFailure(throwable)) {
+      if (JUnitPlatformUtils.isAssumptionFailure(throwable)) {
 
         String reason = throwable.getMessage();
-        testEventsHandler.onSkip(reason);
+        TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSuiteSkip(
+            testSuiteName, testClass, reason);
 
-        for (TestIdentifier child : testPlan.getChildren(testIdentifier)) {
+        for (TestDescriptor child : testDescriptor.getChildren()) {
           executionSkipped(child, reason);
         }
 
       } else {
-        testEventsHandler.onFailure(throwable);
+        TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSuiteFailure(
+            testSuiteName, testClass, throwable);
       }
     }
 
-    Class<?> testClass = JUnit5Utils.getJavaClass(testIdentifier);
-    String testSuiteName =
-        testClass != null ? testClass.getName() : testIdentifier.getLegacyReportingName();
-    testEventsHandler.onTestSuiteFinish(testSuiteName, testClass);
+    TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSuiteFinish(testSuiteName, testClass);
   }
 
-  private void testCaseExecutionStarted(final TestIdentifier testIdentifier) {
-    TestSource testSource = testIdentifier.getSource().orElse(null);
-    if (!(testSource instanceof MethodSource)) {
-      return;
+  private void testCaseExecutionStarted(final TestDescriptor testDescriptor) {
+    TestSource testSource = testDescriptor.getSource().orElse(null);
+    if (testSource instanceof MethodSource) {
+      testMethodExecutionStarted(testDescriptor, (MethodSource) testSource);
     }
+  }
 
-    MethodSource methodSource = (MethodSource) testSource;
+  private void testMethodExecutionStarted(TestDescriptor testDescriptor, MethodSource testSource) {
+    String testSuitName = testSource.getClassName();
+    String displayName = testDescriptor.getDisplayName();
+    String testName = testSource.getMethodName();
 
-    String testSuitName = methodSource.getClassName();
-    String testName = methodSource.getMethodName();
-    String testParameters = JUnit5Utils.getParameters(methodSource, testIdentifier);
-
+    String testParameters = JUnitPlatformUtils.getParameters(testSource, displayName);
     List<String> tags =
-        testIdentifier.getTags().stream().map(TestTag::getName).collect(Collectors.toList());
+        testDescriptor.getTags().stream().map(TestTag::getName).collect(Collectors.toList());
 
-    String version = getVersion(testIdentifier);
+    Class<?> testClass = JUnitPlatformUtils.getTestClass(testSource);
+    Method testMethod = JUnitPlatformUtils.getTestMethod(testSource);
+    String testMethodName = testSource.getMethodName();
 
-    Class<?> testClass = JUnit5Utils.getTestClass(methodSource);
-    Method testMethod = JUnit5Utils.getTestMethod(methodSource);
-
-    testEventsHandler.onTestStart(
-        testSuitName, testName, testParameters, tags, version, testClass, testMethod);
+    TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestStart(
+        testSuitName,
+        testName,
+        null,
+        testFramework,
+        testFrameworkVersion,
+        testParameters,
+        tags,
+        testClass,
+        testMethodName,
+        testMethod);
   }
 
   private void testCaseExecutionFinished(
-      final TestIdentifier testIdentifier, final TestExecutionResult testExecutionResult) {
-    TestSource testSource = testIdentifier.getSource().orElse(null);
-    if (!(testSource instanceof MethodSource)) {
-      return;
+      final TestDescriptor testDescriptor, final TestExecutionResult testExecutionResult) {
+    TestSource testSource = testDescriptor.getSource().orElse(null);
+    if (testSource instanceof MethodSource) {
+      testMethodExecutionFinished(testDescriptor, testExecutionResult, (MethodSource) testSource);
     }
+  }
+
+  private static void testMethodExecutionFinished(
+      TestDescriptor testDescriptor,
+      TestExecutionResult testExecutionResult,
+      MethodSource testSource) {
+    String testSuiteName = testSource.getClassName();
+    Class<?> testClass = JUnitPlatformUtils.getTestClass(testSource);
+    String displayName = testDescriptor.getDisplayName();
+    String testName = testSource.getMethodName();
+    String testParameters = JUnitPlatformUtils.getParameters(testSource, displayName);
 
     Throwable throwable = testExecutionResult.getThrowable().orElse(null);
     if (throwable != null) {
-      if (JUnit5Utils.isAssumptionFailure(throwable)) {
-        testEventsHandler.onSkip(throwable.getMessage());
+      if (JUnitPlatformUtils.isAssumptionFailure(throwable)) {
+        TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSkip(
+            testSuiteName, testClass, testName, null, testParameters, throwable.getMessage());
       } else {
-        testEventsHandler.onFailure(throwable);
+        TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestFailure(
+            testSuiteName, testClass, testName, null, testParameters, throwable);
       }
     }
 
-    MethodSource methodSource = (MethodSource) testSource;
-    String testSuiteName = methodSource.getClassName();
-    Class<?> testClass = JUnit5Utils.getTestClass(methodSource);
-    testEventsHandler.onTestFinish(testSuiteName, testClass);
+    TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestFinish(
+        testSuiteName, testClass, testName, null, testParameters);
   }
 
   @Override
-  public void executionSkipped(final TestIdentifier testIdentifier, final String reason) {
-    TestSource testSource = testIdentifier.getSource().orElse(null);
+  public void executionSkipped(final TestDescriptor testDescriptor, final String reason) {
+    TestSource testSource = testDescriptor.getSource().orElse(null);
 
     if (testSource instanceof ClassSource) {
       // The annotation @Disabled is kept at type level.
-      containerExecutionSkipped(testIdentifier, reason);
+      containerExecutionSkipped(testDescriptor, reason);
 
     } else if (testSource instanceof MethodSource) {
       // The annotation @Disabled is kept at method level.
-      testCaseExecutionSkipped(testIdentifier, (MethodSource) testSource, reason);
+      testMethodExecutionSkipped(testDescriptor, (MethodSource) testSource, reason);
     }
   }
 
-  private void containerExecutionSkipped(final TestIdentifier testIdentifier, final String reason) {
-    Class<?> testClass = JUnit5Utils.getJavaClass(testIdentifier);
+  private void containerExecutionSkipped(final TestDescriptor testDescriptor, final String reason) {
+    if (!JUnitPlatformUtils.isSuite(testDescriptor)) {
+      return;
+    }
+
+    Class<?> testClass = JUnitPlatformUtils.getJavaClass(testDescriptor);
     String testSuiteName =
-        testClass != null ? testClass.getName() : testIdentifier.getLegacyReportingName();
-    String version = getVersion(testIdentifier);
+        testClass != null ? testClass.getName() : testDescriptor.getLegacyReportingName();
+
     List<String> tags =
-        testIdentifier.getTags().stream().map(TestTag::getName).collect(Collectors.toList());
+        testDescriptor.getTags().stream().map(TestTag::getName).collect(Collectors.toList());
 
-    testEventsHandler.onTestSuiteStart(testSuiteName, testClass, version, tags);
-    testEventsHandler.onSkip(reason);
+    TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSuiteStart(
+        testSuiteName, testFramework, testFrameworkVersion, testClass, tags, false);
+    TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSuiteSkip(testSuiteName, testClass, reason);
 
-    for (TestIdentifier child : testPlan.getChildren(testIdentifier)) {
+    for (TestDescriptor child : testDescriptor.getChildren()) {
       executionSkipped(child, reason);
     }
 
-    testEventsHandler.onTestSuiteFinish(testSuiteName, testClass);
+    TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSuiteFinish(testSuiteName, testClass);
   }
 
-  private void testCaseExecutionSkipped(
-      final TestIdentifier testIdentifier, final MethodSource methodSource, final String reason) {
+  private void testMethodExecutionSkipped(
+      final TestDescriptor testDescriptor, final MethodSource methodSource, final String reason) {
     String testSuiteName = methodSource.getClassName();
+    String displayName = testDescriptor.getDisplayName();
     String testName = methodSource.getMethodName();
-    String testParameters = JUnit5Utils.getParameters(methodSource, testIdentifier);
+
+    String testParameters = JUnitPlatformUtils.getParameters(methodSource, displayName);
     List<String> tags =
-        testIdentifier.getTags().stream().map(TestTag::getName).collect(Collectors.toList());
-    String version = getVersion(testIdentifier);
+        testDescriptor.getTags().stream().map(TestTag::getName).collect(Collectors.toList());
 
-    Class<?> testClass = JUnit5Utils.getTestClass(methodSource);
-    Method testMethod = JUnit5Utils.getTestMethod(methodSource);
+    Class<?> testClass = JUnitPlatformUtils.getTestClass(methodSource);
+    Method testMethod = JUnitPlatformUtils.getTestMethod(methodSource);
+    String testMethodName = methodSource.getMethodName();
 
-    testEventsHandler.onTestIgnore(
-        testSuiteName, testName, testParameters, tags, version, testClass, testMethod, reason);
-  }
-
-  private String getVersions(final TestPlan testPlan) {
-    StringBuilder versions = new StringBuilder();
-    for (TestIdentifier root : testPlan.getRoots()) {
-      String version = getVersion(root);
-      if (version != null) {
-        if (versions.length() > 0) {
-          versions.append(',');
-        }
-        versions.append(version);
-      }
-    }
-    return versions.length() > 0 ? versions.toString() : null;
-  }
-
-  private String getVersion(final TestIdentifier testIdentifier) {
-    return UniqueId.parse(testIdentifier.getUniqueId())
-        .getEngineId()
-        .map(versionsByEngineId::get)
-        .orElse(null);
+    TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestIgnore(
+        testSuiteName,
+        testName,
+        null,
+        testFramework,
+        testFrameworkVersion,
+        testParameters,
+        tags,
+        testClass,
+        testMethodName,
+        testMethod,
+        reason);
   }
 }

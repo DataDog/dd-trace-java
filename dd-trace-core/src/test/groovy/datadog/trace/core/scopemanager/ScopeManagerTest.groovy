@@ -4,6 +4,7 @@ import datadog.trace.agent.test.utils.ThreadUtils
 import datadog.trace.api.DDTraceId
 import datadog.trace.api.EndpointCheckpointer
 import datadog.trace.api.StatsDClient
+import datadog.trace.api.TraceConfig
 import datadog.trace.api.interceptor.MutableSpan
 import datadog.trace.api.interceptor.TraceInterceptor
 import datadog.trace.api.scopemanager.ExtendedScopeListener
@@ -555,6 +556,7 @@ class ScopeManagerTest extends DDCoreSpecification {
     1 * profilingContext.onAttach()
     1 * profilingContext.encode("foo")
     1 * profilingContext.encode("bar")
+    _ * profilingContext._
     0 * _
 
     when:
@@ -595,6 +597,7 @@ class ScopeManagerTest extends DDCoreSpecification {
     1 * profilingContext.onAttach()
     1 * profilingContext.setContext(_)
     1 * profilingContext.encode("foo")
+    _ * profilingContext._
     0 * _
 
     when:
@@ -608,6 +611,7 @@ class ScopeManagerTest extends DDCoreSpecification {
     assertEvents([ACTIVATE, ACTIVATE])
     1 * profilingContext.setContext(_)
     1 * profilingContext.encode("bar")
+    _ * profilingContext._
     0 * _
 
     when:
@@ -621,6 +625,7 @@ class ScopeManagerTest extends DDCoreSpecification {
     assertEvents([ACTIVATE, ACTIVATE, ACTIVATE])
     1 * profilingContext.setContext(_)
     1 * profilingContext.encode("quux")
+    _ * profilingContext._
     0 * _
 
     when:
@@ -705,6 +710,7 @@ class ScopeManagerTest extends DDCoreSpecification {
     assertEvents([ACTIVATE, ACTIVATE])
     1 * profilingContext.setContext(_)
     1 * profilingContext.encode("quux")
+    _ * profilingContext._
     0 * _
 
     when:
@@ -1126,7 +1132,7 @@ class EventCountingExtendedListener implements ExtendedScopeListener {
   }
 
   @Override
-  void afterScopeActivated(DDTraceId traceId, long localRootSpanId, long spanId) {
+  void afterScopeActivated(DDTraceId traceId, long localRootSpanId, long spanId, TraceConfig traceConfig) {
     synchronized (events) {
       events.add(ACTIVATE)
     }

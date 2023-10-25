@@ -1,9 +1,11 @@
 package datadog.trace.bootstrap.instrumentation.api;
 
 import datadog.trace.api.DDTraceId;
+import datadog.trace.api.TraceConfig;
 import datadog.trace.api.gateway.IGSpanInfo;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.interceptor.MutableSpan;
+import datadog.trace.api.sampling.PrioritySampling;
 import java.util.Map;
 
 public interface AgentSpan extends MutableSpan, IGSpanInfo {
@@ -48,11 +50,15 @@ public interface AgentSpan extends MutableSpan, IGSpanInfo {
   @Override
   AgentSpan setError(boolean error);
 
+  AgentSpan setError(boolean error, byte priority);
+
   AgentSpan setMeasured(boolean measured);
 
   AgentSpan setErrorMessage(String errorMessage);
 
   AgentSpan addThrowable(Throwable throwable);
+
+  AgentSpan addThrowable(Throwable throwable, byte errorPriority);
 
   @Override
   AgentSpan getLocalRootSpan();
@@ -126,21 +132,57 @@ public interface AgentSpan extends MutableSpan, IGSpanInfo {
   /** RequestContext for the Instrumentation Gateway */
   RequestContext getRequestContext();
 
-  void mergePathwayContext(PathwayContext pathwayContext);
+  Integer forceSamplingDecision();
+
+  TraceConfig traceConfig();
 
   interface Context {
+    /**
+     * Gets the TraceId of the span's trace.
+     *
+     * @return The TraceId of the span's trace, or {@link DDTraceId#ZERO} if not set.
+     */
     DDTraceId getTraceId();
 
+    /**
+     * Gets the SpanId.
+     *
+     * @return The span identifier, or {@link datadog.trace.api.DDSpanId#ZERO} if not set.
+     */
     long getSpanId();
 
+    /**
+     * Get the span's trace.
+     *
+     * @return The span's trace, or a noop {@link AgentTracer.NoopAgentTrace#INSTANCE} if the trace
+     *     is not valid.
+     */
     AgentTrace getTrace();
+
+    /**
+     * Gets the trace sampling priority of the span's trace.
+     *
+     * <p>Check {@link PrioritySampling} for possible values.
+     *
+     * @return The trace sampling priority of the span's trace, or {@link PrioritySampling#UNSET} if
+     *     no priority has been set.
+     */
+    int getSamplingPriority();
 
     Iterable<Map.Entry<String, String>> baggageItems();
 
     PathwayContext getPathwayContext();
 
+    default void mergePathwayContext(PathwayContext pathwayContext) {}
+
     interface Extracted extends Context {
       String getForwarded();
+
+      String getFastlyClientIp();
+
+      String getCfConnectingIp();
+
+      String getCfConnectingIpv6();
 
       String getXForwardedProto();
 
@@ -158,11 +200,9 @@ public interface AgentSpan extends MutableSpan, IGSpanInfo {
 
       String getXRealIp();
 
-      String getClientIp();
+      String getXClientIp();
 
       String getUserAgent();
-
-      String getVia();
 
       String getTrueClientIp();
 

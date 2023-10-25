@@ -14,6 +14,7 @@ import datadog.trace.common.writer.RemoteMapper;
 import datadog.trace.core.CoreSpan;
 import datadog.trace.core.Metadata;
 import datadog.trace.core.MetadataConsumer;
+import datadog.trace.util.Strings;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.WritableByteChannel;
@@ -23,6 +24,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import okhttp3.RequestBody;
 
 public class CiTestCycleMapperV1 implements RemoteMapper {
@@ -75,7 +77,8 @@ public class CiTestCycleMapperV1 implements RemoteMapper {
       Long spanId;
       Long parentId;
       int version;
-      if (InternalSpanTypes.TEST.equals(span.getType())) {
+      CharSequence spanType = span.getType();
+      if (equals(InternalSpanTypes.TEST, spanType)) {
         type = InternalSpanTypes.TEST;
         traceId = span.getTraceId().toLong();
         spanId = span.getSpanId();
@@ -85,15 +88,22 @@ public class CiTestCycleMapperV1 implements RemoteMapper {
         // i.e. emitted by framework that does not support testing suites yet
         version = topLevelTagsCount > 0 ? 2 : 1;
 
-      } else if (InternalSpanTypes.TEST_SUITE_END.equals(span.getType())) {
+      } else if (equals(InternalSpanTypes.TEST_SUITE_END, spanType)) {
         type = InternalSpanTypes.TEST_SUITE_END;
         traceId = null;
         spanId = null;
         parentId = null;
         version = 1;
 
-      } else if (InternalSpanTypes.TEST_MODULE_END.equals(span.getType())) {
+      } else if (equals(InternalSpanTypes.TEST_MODULE_END, spanType)) {
         type = InternalSpanTypes.TEST_MODULE_END;
+        traceId = null;
+        spanId = null;
+        parentId = null;
+        version = 1;
+
+      } else if (equals(InternalSpanTypes.TEST_SESSION_END, spanType)) {
+        type = InternalSpanTypes.TEST_SESSION_END;
         traceId = null;
         spanId = null;
         parentId = null;
@@ -127,15 +137,15 @@ public class CiTestCycleMapperV1 implements RemoteMapper {
 
       if (traceId != null) {
         writable.writeUTF8(TRACE_ID);
-        writable.writeLong(traceId);
+        writable.writeUnsignedLong(traceId);
       }
       if (spanId != null) {
         writable.writeUTF8(SPAN_ID);
-        writable.writeLong(spanId);
+        writable.writeUnsignedLong(spanId);
       }
       if (parentId != null) {
         writable.writeUTF8(PARENT_ID);
-        writable.writeLong(parentId);
+        writable.writeUnsignedLong(parentId);
       }
 
       for (String topLevelTag : topLevelTags) {
@@ -175,6 +185,11 @@ public class CiTestCycleMapperV1 implements RemoteMapper {
       span.processTagsAndBaggage(metaWriter.withWritable(writable));
     }
     eventCount += trace.size();
+  }
+
+  private static boolean equals(CharSequence a, CharSequence b) {
+    return a == null && b == null
+        || a != null && b != null && Objects.equals(a.toString(), b.toString());
   }
 
   private final MetaWriter metaWriter = new MetaWriter();
@@ -225,7 +240,7 @@ public class CiTestCycleMapperV1 implements RemoteMapper {
     return "citestcycle/v1";
   }
 
-  private static final class MetaWriter extends MetadataConsumer {
+  private static final class MetaWriter implements MetadataConsumer {
 
     private Writable writable;
 
@@ -270,9 +285,15 @@ public class CiTestCycleMapperV1 implements RemoteMapper {
         writable.writeUTF8(metadata.getHttpStatusCode());
       }
       for (Map.Entry<String, Object> entry : metadata.getTags().entrySet()) {
-        if (!(entry.getValue() instanceof Number)) {
+        Object value = entry.getValue();
+        if (!(value instanceof Number)) {
           writable.writeString(entry.getKey(), null);
-          writable.writeObjectString(entry.getValue(), null);
+          if (!(value instanceof Iterable)) {
+            writable.writeObjectString(value, null);
+          } else {
+            String serializedValue = Strings.toJson((Iterable<String>) value);
+            writable.writeString(serializedValue, null);
+          }
         }
       }
     }

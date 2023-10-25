@@ -176,7 +176,7 @@ class TraceGenerator {
       this.samplingPriority = samplingPriority
       this.metadata = new Metadata(Thread.currentThread().getId(),
         UTF8BytesString.create(Thread.currentThread().getName()), tags, baggage, samplingPriority, measured, topLevel,
-        statusCode == 0 ? null : UTF8BytesString.create(Integer.toString(statusCode)), origin)
+        statusCode == 0 ? null : UTF8BytesString.create(Integer.toString(statusCode)), origin, 0)
       this.httpStatusCode = (short) statusCode
     }
 

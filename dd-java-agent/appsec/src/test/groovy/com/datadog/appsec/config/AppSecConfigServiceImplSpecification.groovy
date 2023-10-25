@@ -213,7 +213,7 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
     }
     1 * poller.addConfigurationEndListener(_) >> { listeners.savedConfEndListener = it[0] }
     1 * poller.addCapabilities(2L)
-    1 * poller.addCapabilities(956L)
+    1 * poller.addCapabilities(1980L)
     0 * _._
     initialWafConfig.get() != null
 
@@ -350,7 +350,7 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
     }
     1 * poller.addConfigurationEndListener(_) >> { listeners.savedConfEndListener = it[0] }
     1 * poller.addCapabilities(2L)
-    1 * poller.addCapabilities(956L)
+    1 * poller.addCapabilities(1980L)
     0 * _._
 
     when:
@@ -375,7 +375,7 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
       mergedAsmData = casc.mergedAsmData
       mergedUpdateConfig = casc.mergedUpdateConfig
     }
-    mergedUpdateConfig.rules.isEmpty() == true
+    mergedUpdateConfig.numberOfRules == 0
     mergedUpdateConfig.rawConfig['rules_override'].isEmpty() == false
     mergedAsmData.isEmpty() == false
 
@@ -392,7 +392,7 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
       mergedUpdateConfig = casc.mergedUpdateConfig
     }
 
-    mergedUpdateConfig.rules.isEmpty() == false
+    mergedUpdateConfig.numberOfRules > 0
     mergedUpdateConfig.rawConfig['rules_override'].isEmpty() == true
     mergedAsmData.isEmpty() == true
   }
@@ -406,7 +406,7 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
     poller = null
 
     then:
-    1 * poller.removeCapabilities(958L)
+    1 * poller.removeCapabilities(1982L)
     4 * poller.removeListener(_)
     1 * poller.removeConfigurationEndListener(_)
     1 * poller.stop()

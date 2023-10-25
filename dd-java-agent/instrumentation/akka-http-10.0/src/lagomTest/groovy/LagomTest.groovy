@@ -71,6 +71,9 @@ class LagomTest extends AgentTestRunner {
             "$Tags.HTTP_METHOD" "GET"
             "$Tags.HTTP_STATUS" 101
             "$Tags.HTTP_USER_AGENT" String
+            "$Tags.PEER_HOST_IPV4" '127.0.0.1'
+            "$Tags.PEER_PORT" Integer
+            "$Tags.HTTP_CLIENT_IP" '127.0.0.1'
             defaultTags()
           }
         }
@@ -115,6 +118,9 @@ class LagomTest extends AgentTestRunner {
             "$Tags.HTTP_METHOD" "GET"
             "$Tags.HTTP_STATUS" 500
             "$Tags.HTTP_USER_AGENT" String
+            "$Tags.PEER_HOST_IPV4" '127.0.0.1'
+            "$Tags.PEER_PORT" Integer
+            "$Tags.HTTP_CLIENT_IP" '127.0.0.1'
             defaultTags()
           }
         }

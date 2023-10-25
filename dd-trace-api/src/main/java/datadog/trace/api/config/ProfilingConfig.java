@@ -48,7 +48,7 @@ public final class ProfilingConfig {
 
   public static final String PROFILING_DIRECT_ALLOCATION_SAMPLE_LIMIT =
       "profiling.direct.allocation.sample.limit";
-  public static final int PROFILING_DIRECT_ALLOCATION_SAMPLE_LIMIT_DEFAULT = 10_000;
+  public static final int PROFILING_DIRECT_ALLOCATION_SAMPLE_LIMIT_DEFAULT = 2_000;
   public static final String PROFILING_EXCEPTION_HISTOGRAM_TOP_ITEMS =
       "profiling.exception.histogram.top-items";
   public static final int PROFILING_EXCEPTION_HISTOGRAM_TOP_ITEMS_DEFAULT = 50;
@@ -112,18 +112,39 @@ public final class ProfilingConfig {
   public static final String PROFILING_DATADOG_PROFILER_STACKDEPTH = "profiling.ddprof.stackdepth";
   public static final int PROFILING_DATADOG_PROFILER_STACKDEPTH_DEFAULT = 512;
   public static final String PROFILING_DATADOG_PROFILER_CSTACK = "profiling.ddprof.cstack";
-  public static final String PROFILING_DATADOG_PROFILER_CSTACK_DEFAULT = "no";
+  public static final String PROFILING_DATADOG_PROFILER_CSTACK_DEFAULT = "fp";
   public static final String PROFILING_DATADOG_PROFILER_SAFEMODE = "profiling.ddprof.safemode";
   public static final int PROFILING_DATADOG_PROFILER_SAFEMODE_DEFAULT =
       12; // POP_METHOD|UNWIND_NATIVE
+
+  public static final String PROFILING_DATADOG_PROFILER_LINE_NUMBERS =
+      "profiling.ddprof.linenumbers";
+
+  public static final boolean PROFILING_DATADOG_PROFILER_LINE_NUMBERS_DEFAULT = true;
+
+  @Deprecated
   public static final String PROFILING_DATADOG_PROFILER_MEMLEAK_ENABLED =
       "profiling.ddprof.memleak.enabled";
-  public static final boolean PROFILING_DATADOG_PROFILER_MEMLEAK_ENABLED_DEFAULT = false;
+
+  @Deprecated
   public static final String PROFILING_DATADOG_PROFILER_MEMLEAK_INTERVAL =
       "profiling.ddprof.memleak.interval";
+
+  @Deprecated
   public static final String PROFILING_DATADOG_PROFILER_MEMLEAK_CAPACITY =
       "profiling.ddprof.memleak.capacity";
-  public static final int PROFILING_DATADOG_PROFILER_MEMLEAK_CAPACITY_DEFAULT = 1024;
+
+  public static final String PROFILING_DATADOG_PROFILER_LIVEHEAP_ENABLED =
+      "profiling.ddprof.liveheap.enabled";
+  public static final boolean PROFILING_DATADOG_PROFILER_LIVEHEAP_ENABLED_DEFAULT = false;
+  public static final String PROFILING_DATADOG_PROFILER_LIVEHEAP_INTERVAL =
+      "profiling.ddprof.liveheap.interval";
+  public static final String PROFILING_DATADOG_PROFILER_LIVEHEAP_CAPACITY =
+      "profiling.ddprof.liveheap.capacity";
+  public static final int PROFILING_DATADOG_PROFILER_LIVEHEAP_CAPACITY_DEFAULT = 1024;
+  public static final String PROFILING_DATADOG_PROFILER_LIVEHEAP_TRACK_HEAPSIZE =
+      "profiling.ddprof.liveheap.track_size.enabled";
+  public static final boolean PROFILING_DATADOG_PROFILER_LIVEHEAP_TRACK_HEAPSIZE_DEFAFULT = true;
   public static final String PROFILING_ENDPOINT_COLLECTION_ENABLED =
       "profiling.endpoint.collection.enabled";
   public static final boolean PROFILING_ENDPOINT_COLLECTION_ENABLED_DEFAULT = true;
@@ -144,16 +165,25 @@ public final class ProfilingConfig {
 
   public static final String PROFILING_DEBUG_DUMP_PATH = "profiling.debug.dump_path";
 
-  public static final String PROFILING_CONTEXT_ATTRIBUTES =
-      "profiling.experimental.context.attributes";
+  public static final String PROFILING_CONTEXT_ATTRIBUTES = "profiling.context.attributes";
 
   public static final String PROFILING_CONTEXT_ATTRIBUTES_SPAN_NAME_ENABLED =
-      "profiling.experimental.context.attributes.span.name.enabled";
+      "profiling.context.attributes.span.name.enabled";
 
   public static final String PROFILING_QUEUEING_TIME_ENABLED =
-      "profiling.ddprof.experimental.queueing.time.enabled";
+      "profiling.experimental.queueing.time.enabled";
 
   public static final boolean PROFILING_QUEUEING_TIME_ENABLED_DEFAULT = false;
+
+  public static final String PROFILING_QUEUEING_TIME_THRESHOLD_MILLIS =
+      "profiling.experimental.queueing.time.threshold.millis";
+
+  public static final long PROFILING_QUEUEING_TIME_THRESHOLD_MILLIS_DEFAULT = 50;
+
+  public static final String PROFILING_ULTRA_MINIMAL = "profiling.ultra.minimal";
+
+  public static final String PROFILING_HEAP_HISTOGRAM_ENABLED = "profiling.heap.histogram.enabled";
+  public static final boolean PROFILING_HEAP_HISTOGRAM_ENABLED_DEFAULT = false;
 
   private ProfilingConfig() {}
 }

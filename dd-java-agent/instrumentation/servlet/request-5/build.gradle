@@ -1,5 +1,9 @@
 import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 
+plugins {
+  id 'java-test-fixtures'
+}
+
 muzzle {
   pass {
     group = "jakarta.servlet"
@@ -9,8 +13,6 @@ muzzle {
 }
 
 apply from: "$rootDir/gradle/java.gradle"
-
-apply plugin: 'org.unbroken-dome.test-sets'
 apply plugin: 'call-site-instrumentation'
 
 // jakarta.servlet-api dependencies are compiled with Java 11 and
@@ -60,6 +62,11 @@ dependencies {
   javaxClassesToRelocate project(':dd-java-agent:instrumentation:servlet:request-3'), {
     transitive = false
   }
+
+  testFixturesImplementation(project(':dd-java-agent:testing')) {
+    exclude group: 'org.eclipse.jetty', module: 'jetty-server'
+  }
+  testFixturesCompileOnly group: 'jakarta.servlet', name: 'jakarta.servlet-api', version: '5.0.0'
 
   // tested on tomcat-5.5:latestDepTest
 }

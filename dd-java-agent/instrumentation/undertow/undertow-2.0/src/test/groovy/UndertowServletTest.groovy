@@ -2,15 +2,34 @@ import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.agent.test.base.HttpServer
 import datadog.trace.agent.test.base.HttpServerTest
 import datadog.trace.agent.test.naming.TestingGenericHttpNamingConventions
+import datadog.trace.bootstrap.instrumentation.api.Tags
+import io.undertow.Handlers
 import io.undertow.Undertow
 import io.undertow.UndertowOptions
-import io.undertow.server.handlers.PathHandler
 import io.undertow.servlet.api.DeploymentInfo
 import io.undertow.servlet.api.DeploymentManager
 import io.undertow.servlet.api.ServletContainer
 import io.undertow.servlet.api.ServletInfo
 
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.*
+import javax.servlet.MultipartConfigElement
+
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_MULTIPART
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_URLENCODED
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.CREATED
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.CREATED_IS
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.FORWARDED
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.LOGIN
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.NOT_FOUND
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.NOT_HERE
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.PATH_PARAM
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_ENCODED_BOTH
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_ENCODED_QUERY
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_PARAM
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.REDIRECT
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.USER_BLOCK
 
 abstract class UndertowServletTest extends HttpServerTest<Undertow> {
   private static final CONTEXT = "ctx"
@@ -20,10 +39,11 @@ abstract class UndertowServletTest extends HttpServerTest<Undertow> {
     Undertow undertowServer
 
     UndertowServer() {
-      final PathHandler root = new PathHandler()
+      def root = Handlers.path()
       final ServletContainer container = ServletContainer.Factory.newInstance()
 
       DeploymentInfo builder = new DeploymentInfo()
+        .setDefaultMultipartConfig(new MultipartConfigElement(System.getProperty('java.io.tmpdir'), 1024, 1024, 1024))
         .setClassLoader(UndertowServletTest.getClassLoader())
         .setContextPath("/$CONTEXT")
         .setDeploymentName("servletContext.war")
@@ -36,16 +56,20 @@ abstract class UndertowServletTest extends HttpServerTest<Undertow> {
         .addServlet(new ServletInfo("ErrorServlet", ErrorServlet).addMapping(ERROR.getPath()))
         .addServlet(new ServletInfo("ExceptionServlet", ExceptionServlet).addMapping(EXCEPTION.getPath()))
         .addServlet(new ServletInfo("UserBlockServlet", UserBlockServlet).addMapping(USER_BLOCK.path))
+        .addServlet(new ServletInfo("NotHereServlet", NotHereServlet).addMapping(NOT_HERE.path))
+        .addServlet(new ServletInfo("CreatedServlet", CreatedServlet).addMapping(CREATED.path))
+        .addServlet(new ServletInfo("CreatedISServlet", CreatedISServlet).addMapping(CREATED_IS.path))
+        .addServlet(new ServletInfo("BodyUrlEncodedServlet", BodyUrlEncodedServlet).addMapping(BODY_URLENCODED.path))
+        .addServlet(new ServletInfo("BodyMultipartServlet", BodyMultipartServlet).addMapping(BODY_MULTIPART.path))
 
       DeploymentManager manager = container.addDeployment(builder)
       manager.deploy()
-      System.out.println(">>> builder.getContextPath(): " + builder.getContextPath())
       root.addPrefixPath(builder.getContextPath(), manager.start())
 
       undertowServer = Undertow.builder()
         .addHttpListener(port, "localhost")
         .setServerOption(UndertowOptions.DECODE_URL, true)
-        .setHandler(root)
+        .setHandler(Handlers.httpContinueRead(root))
         .build()
     }
 
@@ -83,12 +107,42 @@ abstract class UndertowServletTest extends HttpServerTest<Undertow> {
   }
 
   @Override
+  protected boolean enabledFinishTimingChecks() {
+    true
+  }
+
+  @Override
   boolean testExceptionBody() {
     false
   }
 
   @Override
   boolean testBlocking() {
+    true
+  }
+
+  @Override
+  boolean testRequestBody() {
+    true
+  }
+
+  @Override
+  boolean testRequestBodyISVariant() {
+    true
+  }
+
+  @Override
+  boolean testBodyUrlencoded() {
+    true
+  }
+
+  @Override
+  boolean testBodyMultipart() {
+    true
+  }
+
+  @Override
+  boolean testBlockingOnResponse() {
     true
   }
 
@@ -99,6 +153,17 @@ abstract class UndertowServletTest extends HttpServerTest<Undertow> {
   @Override
   String expectedServiceName() {
     CONTEXT
+  }
+
+  @Override
+  String expectedResourceName(ServerEndpoint endpoint, String method, URI address) {
+    if (endpoint.status == 404 && endpoint.path == "/not-found") {
+      return "404"
+    } else if (endpoint.hasPathParam) {
+      return "$method ${testPathParam()}"
+    }
+    def base = endpoint == LOGIN ? address : address.resolve("/")
+    return "$method ${endpoint.resolve(base).path}"
   }
 
   @Override
@@ -130,6 +195,64 @@ abstract class UndertowServletTest extends HttpServerTest<Undertow> {
       }
     } else {
       throw new UnsupportedOperationException("responseSpan not implemented for " + endpoint)
+    }
+  }
+
+  @Override
+  Serializable expectedServerSpanRoute(ServerEndpoint endpoint) {
+    switch (endpoint) {
+      case LOGIN:
+      case NOT_FOUND:
+        return null
+      case PATH_PARAM:
+        return testPathParam()
+      default:
+        return endpoint.path
+    }
+  }
+
+  def "test not-here"() {
+    setup:
+    def request = request(NOT_HERE, method, body).build()
+    def response = client.newCall(request).execute()
+
+    expect:
+    response.code() == NOT_HERE.status
+
+    and:
+    assertTraces(1) {
+      trace(3) {
+        sortSpansByStart()
+        serverSpan(it, null, null, method, NOT_HERE)
+        controllerSpan(it)
+        handlerSpan(it, NOT_HERE)
+      }
+    }
+
+    where:
+    method = "GET"
+    body = null
+  }
+
+  @Override
+  void handlerSpan(TraceAssert trace, ServerEndpoint endpoint = SUCCESS) {
+    trace.span {
+      serviceName expectedServiceName()
+      operationName "servlet.response"
+      resourceName "HttpServletResponse.sendError"
+      spanType null
+      errored endpoint == EXCEPTION
+      if (endpoint != REDIRECT) {
+        childOfPrevious()
+      }
+      tags {
+        "$Tags.COMPONENT" "java-web-servlet-response"
+        "$Tags.SPAN_KIND" null
+        if (endpoint == EXCEPTION) {
+          errorTags(Exception, EXCEPTION.body)
+        }
+        defaultTags()
+      }
     }
   }
 }

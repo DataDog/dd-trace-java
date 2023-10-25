@@ -62,6 +62,20 @@ class DDAgentStatsDClientTest extends DDSpecification {
     client.histogram(metricName, Math.PI, tags)
     server.waitForMessage().startsWith("$expectedMetricName:3.141593|h|#$expectedTags")
 
+    client.distribution(metricName, Integer.MIN_VALUE, tags)
+    server.waitForMessage().startsWith("$expectedMetricName:-2147483648|d|#$expectedTags")
+    client.distribution(metricName, Integer.MAX_VALUE, tags)
+    server.waitForMessage().startsWith("$expectedMetricName:2147483647|d|#$expectedTags")
+    client.distribution(metricName, Long.MIN_VALUE, tags)
+    server.waitForMessage().startsWith("$expectedMetricName:-9223372036854775808|d|#$expectedTags")
+    client.distribution(metricName, Long.MAX_VALUE, tags)
+    server.waitForMessage().startsWith("$expectedMetricName:9223372036854775807|d|#$expectedTags")
+
+    client.distribution(metricName, -Math.E, tags)
+    server.waitForMessage().startsWith("$expectedMetricName:-2.718282|d|#$expectedTags")
+    client.distribution(metricName, Math.PI, tags)
+    server.waitForMessage().startsWith("$expectedMetricName:3.141593|d|#$expectedTags")
+
     client.serviceCheck(checkName, "OK", null, tags)
     server.waitForMessage().startsWith("_sc|$expectedCheckName|0|#$expectedTags")
     client.serviceCheck(checkName, "WARN", null, tags)

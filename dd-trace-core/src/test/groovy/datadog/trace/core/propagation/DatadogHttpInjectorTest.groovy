@@ -1,7 +1,9 @@
 package datadog.trace.core.propagation
 
+import datadog.trace.api.DD128bTraceId
 import datadog.trace.api.DDSpanId
 import datadog.trace.api.DDTraceId
+import datadog.trace.api.internal.util.LongStringUtils
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopPathwayContext
 import datadog.trace.common.writer.ListWriter
 import datadog.trace.core.DDSpanContext
@@ -114,7 +116,7 @@ class DatadogHttpInjectorTest extends DDCoreSpecification {
     1 * carrier.put(OT_BAGGAGE_PREFIX + "t0", "${(long) (mockedContext.endToEndStartTime / 1000000L)}")
     1 * carrier.put(OT_BAGGAGE_PREFIX + "k1", "v1")
     1 * carrier.put(OT_BAGGAGE_PREFIX + "k2", "v2")
-    1 * carrier.put('x-datadog-tags', '_dd.p.dm=-4,_dd.p.anytag=value')
+    1 * carrier.put(DATADOG_TAGS_KEY, '_dd.p.dm=-4,_dd.p.anytag=value')
     0 * _
 
     cleanup:
@@ -161,10 +163,71 @@ class DatadogHttpInjectorTest extends DDCoreSpecification {
     1 * carrier.put(OT_BAGGAGE_PREFIX + "k1", "v1")
     1 * carrier.put(OT_BAGGAGE_PREFIX + "k2", "v2")
     1 * carrier.put('x-datadog-sampling-priority', '2')
-    1 * carrier.put('x-datadog-tags', '_dd.p.dm=-4')
+    1 * carrier.put(DATADOG_TAGS_KEY, '_dd.p.dm=-4')
     0 * _
 
     cleanup:
     tracer.close()
+  }
+
+  def "inject http headers with 128-bit TraceId"() {
+    setup:
+    def writer = new ListWriter()
+    def tracer = tracerBuilder().writer(writer).build()
+    def traceId = DD128bTraceId.fromHex(hexId)
+    final DDSpanContext mockedContext =
+      new DDSpanContext(
+      traceId,
+      DDSpanId.from("2"),
+      DDSpanId.ZERO,
+      null,
+      "fakeService",
+      "fakeOperation",
+      "fakeResource",
+      UNSET,
+      null,
+      ["k1" : "v1", "k2" : "v2"],
+      false,
+      "fakeType",
+      0,
+      tracer.pendingTraceFactory.create(DDTraceId.ONE),
+      null,
+      null,
+      NoopPathwayContext.INSTANCE,
+      false,
+      PropagationTags.factory().fromHeaderValue(PropagationTags.HeaderType.DATADOG, "_dd.p.dm=-4,_dd.p.anytag=value"))
+
+    mockedContext.beginEndToEnd()
+
+    final Map<String, String> carrier = Mock()
+
+    when:
+    injector.inject(mockedContext, carrier, MapSetter.INSTANCE)
+
+    then:
+    1 * carrier.put(TRACE_ID_KEY, traceId.toString())
+    1 * carrier.put(SPAN_ID_KEY, "2")
+    1 * carrier.put(OT_BAGGAGE_PREFIX + "t0", "${(long) (mockedContext.endToEndStartTime / 1000000L)}")
+    1 * carrier.put(OT_BAGGAGE_PREFIX + "k1", "v1")
+    1 * carrier.put(OT_BAGGAGE_PREFIX + "k2", "v2")
+    if (traceId.toHighOrderLong() == 0) {
+      1 * carrier.put(DATADOG_TAGS_KEY, '_dd.p.dm=-4,_dd.p.anytag=value')
+    } else {
+      def tId = LongStringUtils.toHexStringPadded(traceId.toHighOrderLong(), 16)
+      1 * carrier.put(DATADOG_TAGS_KEY, "_dd.p.dm=-4,_dd.p.tid=${tId},_dd.p.anytag=value")
+    }
+    0 * _
+
+    cleanup:
+    tracer.close()
+
+    where:
+    hexId << [
+      "1",
+      "123456789abcdef0",
+      "123456789abcdef0123456789abcdef0",
+      "64184f2400000000123456789abcdef0",
+      "f" * 32
+    ]
   }
 }

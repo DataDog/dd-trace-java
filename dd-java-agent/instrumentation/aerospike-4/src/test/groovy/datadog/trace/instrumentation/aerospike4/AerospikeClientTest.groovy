@@ -65,7 +65,7 @@ class AerospikeClientV1ForkedTest extends AerospikeClientTest {
 
   @Override
   String service() {
-    return Config.get().getServiceName() + "-aerospike"
+    return Config.get().getServiceName()
   }
 
   @Override

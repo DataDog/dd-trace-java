@@ -10,6 +10,7 @@ import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.regex.Pattern;
 import org.slf4j.Logger;
@@ -52,7 +53,7 @@ public class TraceStructureWriter implements Writer {
       String fileName = args[0];
       this.out = fileName.isEmpty() ? System.err : new PrintStream(new FileOutputStream(fileName));
       for (int i = 1; i < args.length; i++) {
-        switch (args[i].toLowerCase()) {
+        switch (args[i].toLowerCase(Locale.ROOT)) {
           case "includeresource":
             argsIncludeResource = true;
             break;
@@ -63,7 +64,7 @@ public class TraceStructureWriter implements Writer {
             argsDebugLog = true;
             break;
           default:
-            log.warn("Illegal TraceStructureWriter argument '" + args[i] + "'");
+            log.warn("Illegal TraceStructureWriter argument '{}'", args[i]);
             break;
         }
       }

@@ -32,7 +32,7 @@ public class ExecutionInstrumentationContext extends SimpleInstrumentationContex
         requestSpan.setError(true);
       }
     }
-    requestSpan.setTag("graphql.query", state.getQuery());
+    requestSpan.setTag("graphql.source", state.getQuery());
     DECORATE.beforeFinish(requestSpan);
     requestSpan.finish();
   }

@@ -1,64 +1,75 @@
 package datadog.trace.api.civisibility;
 
-import datadog.trace.api.civisibility.codeowners.Codeowners;
-import datadog.trace.api.civisibility.source.MethodLinesResolver;
-import datadog.trace.api.civisibility.source.SourcePathResolver;
-import java.util.Map;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
+
+import datadog.trace.api.civisibility.coverage.CoverageDataSupplier;
+import datadog.trace.api.civisibility.coverage.CoverageProbeStore;
+import datadog.trace.api.civisibility.events.BuildEventsHandler;
+import datadog.trace.api.civisibility.events.TestEventsHandler;
+import datadog.trace.api.gateway.RequestContext;
+import datadog.trace.api.gateway.RequestContextSlot;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import java.nio.file.Path;
 
 public abstract class InstrumentationBridge {
 
-  private static volatile boolean CI;
-  private static volatile Map<String, String> CI_TAGS;
-  private static volatile Codeowners CODEOWNERS;
-  private static volatile MethodLinesResolver METHOD_LINES_RESOLVER;
-  private static volatile SourcePathResolver SOURCE_PATH_RESOLVER;
-  private static volatile String MODULE;
+  public static final String ITR_SKIP_REASON = "Skipped by Datadog Intelligent Test Runner";
+  public static final String ITR_UNSKIPPABLE_TAG = "datadog_itr_unskippable";
 
-  public static boolean isCi() {
-    return CI;
+  private static volatile TestEventsHandler.Factory TEST_EVENTS_HANDLER_FACTORY;
+  private static volatile BuildEventsHandler.Factory BUILD_EVENTS_HANDLER_FACTORY;
+  private static volatile CoverageProbeStore.Registry COVERAGE_PROBE_STORE_REGISTRY;
+  private static volatile CoverageDataSupplier COVERAGE_DATA_SUPPLIER;
+
+  public static void registerTestEventsHandlerFactory(
+      TestEventsHandler.Factory testEventsHandlerFactory) {
+    TEST_EVENTS_HANDLER_FACTORY = testEventsHandlerFactory;
   }
 
-  public static void setCi(boolean ci) {
-    CI = ci;
+  public static TestEventsHandler createTestEventsHandler(String component, Path path) {
+    return TEST_EVENTS_HANDLER_FACTORY.create(component, path);
   }
 
-  public static Map<String, String> getCiTags() {
-    return CI_TAGS;
+  public static void registerBuildEventsHandlerFactory(
+      BuildEventsHandler.Factory buildEventsHandlerFactory) {
+    BUILD_EVENTS_HANDLER_FACTORY = buildEventsHandlerFactory;
   }
 
-  public static void setCiTags(Map<String, String> ciTags) {
-    CI_TAGS = ciTags;
+  public static <U> BuildEventsHandler<U> createBuildEventsHandler() {
+    return BUILD_EVENTS_HANDLER_FACTORY.create();
   }
 
-  public static Codeowners getCodeowners() {
-    return CODEOWNERS;
+  public static void registerCoverageProbeStoreRegistry(
+      CoverageProbeStore.Registry coverageProbeStoreRegistry) {
+    COVERAGE_PROBE_STORE_REGISTRY = coverageProbeStoreRegistry;
   }
 
-  public static void setCodeowners(Codeowners codeowners) {
-    InstrumentationBridge.CODEOWNERS = codeowners;
+  public static CoverageProbeStore.Registry getCoverageProbeStoreRegistry() {
+    return COVERAGE_PROBE_STORE_REGISTRY;
   }
 
-  public static MethodLinesResolver getMethodLinesResolver() {
-    return METHOD_LINES_RESOLVER;
+  public static void registerCoverageDataSupplier(CoverageDataSupplier coverageDataSupplier) {
+    COVERAGE_DATA_SUPPLIER = coverageDataSupplier;
   }
 
-  public static void setMethodLinesResolver(MethodLinesResolver methodLinesResolver) {
-    METHOD_LINES_RESOLVER = methodLinesResolver;
+  public static byte[] getCoverageData() {
+    return COVERAGE_DATA_SUPPLIER != null ? COVERAGE_DATA_SUPPLIER.get() : null;
   }
 
-  public static SourcePathResolver getSourcePathResolver() {
-    return SOURCE_PATH_RESOLVER;
-  }
-
-  public static void setSourcePathResolver(SourcePathResolver sourcePathResolver) {
-    SOURCE_PATH_RESOLVER = sourcePathResolver;
-  }
-
-  public static String getModule() {
-    return MODULE;
-  }
-
-  public static void setModule(String MODULE) {
-    InstrumentationBridge.MODULE = MODULE;
+  /* This method is referenced by name in bytecode added in the jacoco module */
+  public static void currentCoverageProbeStoreRecord(
+      long classId, String className, Class<?> clazz, int probeId) {
+    AgentSpan span = activeSpan();
+    if (span == null) {
+      return;
+    }
+    RequestContext requestContext = span.getRequestContext();
+    if (requestContext == null) {
+      return;
+    }
+    CoverageProbeStore probes = requestContext.getData(RequestContextSlot.CI_VISIBILITY);
+    if (probes != null) {
+      probes.record(clazz, classId, className, probeId);
+    }
   }
 }

@@ -14,9 +14,15 @@ sourceCompatibility = JavaVersion.VERSION_1_8
 targetCompatibility = JavaVersion.VERSION_1_8
 
 [JavaCompile, GroovyCompile].each {
-  tasks.withType(it).configureEach {
-    setJavaVersion(it, 11)
-    options.compilerArgs = ['--module-path', classpath.asPath]
+  tasks.withType(it).configureEach { AbstractCompile ac ->
+    setJavaVersion(ac, 11)
+    // read up classpath lazily to avoid early locking of gradle settings
+    ac.options.compilerArgumentProviders.add(new CommandLineArgumentProvider() {
+        @Override
+        Iterable<String> asArguments() {
+          { return ['--module-path', ac.classpath.asPath]}
+        }
+      })
   }
 }
 

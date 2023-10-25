@@ -1,7 +1,11 @@
 package com.datadog.iast.taint;
 
+import static com.datadog.iast.model.Range.NOT_MARKED;
+import static com.datadog.iast.taint.TaintedObject.MAX_RANGE_COUNT;
+
 import com.datadog.iast.model.Range;
 import com.datadog.iast.model.Source;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -37,20 +41,34 @@ public final class Ranges {
 
   private Ranges() {}
 
-  public static Range[] forString(final @Nonnull String obj, final @Nonnull Source source) {
-    return new Range[] {new Range(0, obj.length(), source)};
+  public static Range[] forCharSequence(
+      final @Nonnull CharSequence obj, final @Nonnull Source source, final int mark) {
+    return new Range[] {new Range(0, obj.length(), source, mark)};
   }
 
-  public static Range[] forObject(final @Nonnull Source source) {
-    return new Range[] {new Range(0, Integer.MAX_VALUE, source)};
+  public static Range[] forObject(final @Nonnull Source source, final int mark) {
+    return new Range[] {new Range(0, Integer.MAX_VALUE, source, mark)};
   }
 
   public static void copyShift(
       final @Nonnull Range[] src, final @Nonnull Range[] dst, final int dstPos, final int shift) {
+    copyShift(src, dst, dstPos, shift, src.length);
+  }
+
+  public static void copyShift(
+      final @Nonnull Range[] src,
+      final @Nonnull Range[] dst,
+      final int dstPos,
+      final int shift,
+      final int max) {
+    final int srcLength = Math.min(max, src.length);
+    if (srcLength <= 0) {
+      return;
+    }
     if (shift == 0) {
-      System.arraycopy(src, 0, dst, dstPos, src.length);
+      System.arraycopy(src, 0, dst, dstPos, srcLength);
     } else {
-      for (int iSrc = 0, iDst = dstPos; iSrc < src.length; iSrc++, iDst++) {
+      for (int iSrc = 0, iDst = dstPos; iSrc < srcLength; iSrc++, iDst++) {
         dst[iDst] = src[iSrc].shift(shift);
       }
     }
@@ -58,13 +76,16 @@ public final class Ranges {
 
   public static Range[] mergeRanges(
       final int offset, @Nonnull final Range[] rangesLeft, @Nonnull final Range[] rangesRight) {
-    final int nRanges = rangesLeft.length + rangesRight.length;
-    final Range[] ranges = new Range[nRanges];
+    final long nRanges = rangesLeft.length + rangesRight.length;
+    final Range[] ranges = newArray(nRanges);
+    int remaining = ranges.length;
     if (rangesLeft.length > 0) {
-      System.arraycopy(rangesLeft, 0, ranges, 0, rangesLeft.length);
+      final int count = Math.min(rangesLeft.length, remaining);
+      System.arraycopy(rangesLeft, 0, ranges, 0, count);
+      remaining -= count;
     }
-    if (rangesRight.length > 0) {
-      Ranges.copyShift(rangesRight, ranges, rangesLeft.length, offset);
+    if (rangesRight.length > 0 && remaining > 0) {
+      Ranges.copyShift(rangesRight, ranges, rangesLeft.length, offset, remaining);
     }
     return ranges;
   }
@@ -75,6 +96,14 @@ public final class Ranges {
       return (RangesProvider<E>) EMPTY_PROVIDER;
     }
     return new ArrayProvider<>(items, to);
+  }
+
+  public static <E> RangesProvider<E> rangesProviderFor(
+      @Nonnull final TaintedObjects to, @Nullable final E item) {
+    if (item == null) {
+      return (RangesProvider<E>) EMPTY_PROVIDER;
+    }
+    return new SingleProvider<>(item, to);
   }
 
   public static <E> RangesProvider<E> rangesProviderFor(
@@ -116,7 +145,8 @@ public final class Ranges {
           newLength = length - newStart;
         }
         if (newLength > 0) {
-          newRanges[newRangeIndex] = new Range(newStart, newLength, range.getSource());
+          newRanges[newRangeIndex] =
+              new Range(newStart, newLength, range.getSource(), range.getMarks());
         }
       }
     }
@@ -143,6 +173,30 @@ public final class Ranges {
       }
     }
     return new int[] {start, end};
+  }
+
+  public static Range highestPriorityRange(@Nonnull final Range[] ranges) {
+    /*
+     * This approach is better but not completely correct ideally the highest priority should use the following patterns:
+     * 1) Range coming from the request with no mark related with the vulnerability
+     * 2) Range coming from other origins with no mark related with the vulnerability
+     * 3) Range coming from the request with a mark related with the vulnerability
+     * 4) Range coming from other origins with a mark related with the vulnerability
+     *
+     * To improve performance we decide to simplify the algorithm:
+     * 1) First range with no mark
+     * 2) Fist Range
+     */
+    for (Range range : ranges) {
+      if (range.getMarks() == NOT_MARKED) {
+        return range;
+      }
+    }
+    return ranges[0];
+  }
+
+  public static Range[] newArray(final long size) {
+    return new Range[size > MAX_RANGE_COUNT ? MAX_RANGE_COUNT : (int) size];
   }
 
   public interface RangesProvider<E> {
@@ -208,6 +262,36 @@ public final class Ranges {
     protected abstract E item(@Nonnull final LIST items, final int index);
   }
 
+  private static class SingleProvider<E> implements RangesProvider<E> {
+    private final E value;
+    private final TaintedObject tainted;
+
+    private SingleProvider(@Nonnull final E value, @Nonnull final TaintedObjects to) {
+      this.value = value;
+      tainted = to.get(value);
+    }
+
+    @Override
+    public int rangeCount() {
+      return tainted == null ? 0 : tainted.getRanges().length;
+    }
+
+    @Override
+    public int size() {
+      return 1;
+    }
+
+    @Override
+    public E value(int index) {
+      return index == 0 ? value : null;
+    }
+
+    @Override
+    public Range[] ranges(E value) {
+      return value == this.value && tainted != null ? tainted.getRanges() : null;
+    }
+  }
+
   private static class ArrayProvider<E> extends IterableProvider<E, E[]> {
 
     private ArrayProvider(@Nonnull final E[] items, @Nonnull final TaintedObjects to) {
@@ -242,35 +326,67 @@ public final class Ranges {
     }
   }
 
-  public static Range createIfDifferent(Range range, int start, int length) {
-    if (start != range.getStart() || length != range.getLength()) {
-      return new Range(start, length, range.getSource());
-    } else {
-      return range;
+  public static Range[] getNotMarkedRanges(final Range[] ranges, final int mark) {
+    if (ranges == null) {
+      return null;
     }
+    int markedRangesNumber = 0;
+    for (Range range : ranges) {
+      if (range.isMarked(mark)) {
+        markedRangesNumber++;
+      }
+    }
+    if (markedRangesNumber == 0) {
+      return ranges;
+    }
+    if (markedRangesNumber == ranges.length) {
+      return null;
+    }
+    Range[] notMarkedRanges = new Range[ranges.length - markedRangesNumber];
+    int notMarkedRangesIndex = 0;
+    for (Range range : ranges) {
+      if (!range.isMarked(mark)) {
+        notMarkedRanges[notMarkedRangesIndex] = range;
+        notMarkedRangesIndex++;
+      }
+    }
+    return notMarkedRanges;
   }
 
-  static int calculateSubstringSkippedRanges(int offset, int length, @Nonnull Range[] ranges) {
-    // calculate how many skipped ranges are there
-    int skippedRanges = 0;
-    for (int rangeIndex = 0; rangeIndex < ranges.length; rangeIndex++) {
-      final Range rangeSelf = ranges[rangeIndex];
-      if (rangeSelf.getStart() + rangeSelf.getLength() <= offset) {
-        skippedRanges++;
-      } else {
-        break;
-      }
+  public static Range copyWithPosition(final Range range, final int offset, final int length) {
+    return new Range(offset, length, range.getSource(), range.getMarks());
+  }
+
+  public static class RangeList {
+    private final ArrayList<Range> delegate = new ArrayList<>();
+    private int remaining;
+
+    public RangeList() {
+      this(MAX_RANGE_COUNT);
     }
 
-    for (int rangeIndex = ranges.length - 1; rangeIndex >= 0; rangeIndex--) {
-      final Range rangeSelf = ranges[rangeIndex];
-      if (rangeSelf.getStart() - offset >= length) {
-        skippedRanges++;
-      } else {
-        break;
-      }
+    public RangeList(final int maxSize) {
+      this.remaining = maxSize;
     }
 
-    return skippedRanges;
+    public boolean add(final Range item) {
+      if (remaining > 0 && delegate.add(item)) {
+        remaining--;
+        return true;
+      }
+      return false;
+    }
+
+    public boolean isEmpty() {
+      return delegate.isEmpty();
+    }
+
+    public boolean isFull() {
+      return remaining == 0;
+    }
+
+    public Range[] toArray() {
+      return delegate.toArray(new Range[0]);
+    }
   }
 }

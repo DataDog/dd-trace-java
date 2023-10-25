@@ -2,19 +2,24 @@ package datadog.trace.civisibility.interceptor;
 
 import datadog.trace.api.DDSpanTypes;
 import datadog.trace.api.DDTags;
+import datadog.trace.api.interceptor.AbstractTraceInterceptor;
 import datadog.trace.api.interceptor.MutableSpan;
-import datadog.trace.api.interceptor.TraceInterceptor;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.core.DDSpan;
 import datadog.trace.core.DDTraceCoreInfo;
 import java.util.Collection;
 import java.util.Collections;
 
-public class CiVisibilityTraceInterceptor implements TraceInterceptor {
+public class CiVisibilityTraceInterceptor extends AbstractTraceInterceptor {
 
-  public static final CiVisibilityTraceInterceptor INSTANCE = new CiVisibilityTraceInterceptor();
+  public static final CiVisibilityTraceInterceptor INSTANCE =
+      new CiVisibilityTraceInterceptor(Priority.CI_VISIBILITY_TRACE);
 
   static final UTF8BytesString CIAPP_TEST_ORIGIN = UTF8BytesString.create("ciapp-test");
+
+  protected CiVisibilityTraceInterceptor(Priority priority) {
+    super(priority);
+  }
 
   @Override
   public Collection<? extends MutableSpan> onTraceComplete(
@@ -33,7 +38,8 @@ public class CiVisibilityTraceInterceptor implements TraceInterceptor {
     if (type == null
         || (!DDSpanTypes.TEST.contentEquals(type)
             && !DDSpanTypes.TEST_SUITE_END.contentEquals(type)
-            && !DDSpanTypes.TEST_MODULE_END.contentEquals(type))) {
+            && !DDSpanTypes.TEST_MODULE_END.contentEquals(type)
+            && !DDSpanTypes.TEST_SESSION_END.contentEquals(type))) {
       return Collections.emptyList();
     }
 
@@ -46,10 +52,5 @@ public class CiVisibilityTraceInterceptor implements TraceInterceptor {
     }
 
     return trace;
-  }
-
-  @Override
-  public int priority() {
-    return 0;
   }
 }

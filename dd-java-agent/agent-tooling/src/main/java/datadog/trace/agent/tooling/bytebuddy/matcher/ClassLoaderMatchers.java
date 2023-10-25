@@ -89,7 +89,7 @@ public final class ClassLoaderMatchers {
     return new ElementMatcher.Junction.Disjunction<>(matchers);
   }
 
-  public static void reset() {
+  public static void resetState() {
     hasClassCache.clear();
   }
 

@@ -1,5 +1,7 @@
 package datadog.trace.agent.test
 
+import datadog.trace.api.profiling.ProfilingContextAttribute
+import datadog.trace.api.profiling.ProfilingScope
 import datadog.trace.bootstrap.instrumentation.api.ProfilerContext
 import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration
 
@@ -40,10 +42,12 @@ class TestProfilingContextIntegration implements ProfilingContextIntegration {
   }
 
   @Override
-  void setContextValue(String attribute, String value) {
+  ProfilingContextAttribute createContextAttribute(String attribute) {
+    return ProfilingContextAttribute.NoOp.INSTANCE
   }
 
   @Override
-  void clearContextValue(String attribute) {
+  ProfilingScope newScope() {
+    return ProfilingScope.NO_OP
   }
 }

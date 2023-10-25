@@ -27,7 +27,7 @@ public class SamplingMechanism {
   public static boolean validateWithSamplingPriority(int mechanism, int priority) {
     switch (mechanism) {
       case UNKNOWN:
-        return priority >= USER_DROP && priority <= USER_KEEP || priority == UNSET;
+        return true;
 
       case DEFAULT:
       case AGENT_RATE:

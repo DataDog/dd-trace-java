@@ -58,6 +58,7 @@ final class DatadogPTagsCodec extends PTagsCodec {
     int len = value.length();
     int tagPos = 0;
     TagValue decisionMakerTagValue = null;
+    TagValue traceIdTagValue = null;
     while (tagPos < len) {
       int tagKeyEndsAt =
           validateCharsUntilSeparatorOrEnd(
@@ -83,10 +84,15 @@ final class DatadogPTagsCodec extends PTagsCodec {
                 "Invalid datadog tags header value: '{}' invalid tag value at {}",
                 value,
                 tagValuePos);
+            if (tagKey.equals(TRACE_ID_TAG)) {
+              return tagsFactory.createInvalid(PROPAGATION_ERROR_MALFORMED_TID + tagValue);
+            }
             return tagsFactory.createInvalid(PROPAGATION_ERROR_DECODING_ERROR);
           }
           if (tagKey.equals(DECISION_MAKER_TAG)) {
             decisionMakerTagValue = tagValue;
+          } else if (tagKey.equals(TRACE_ID_TAG)) {
+            traceIdTagValue = tagValue;
           } else {
             if (tagPairs == null) {
               // This is roughly the size of a two element linked list but can hold six
@@ -99,7 +105,7 @@ final class DatadogPTagsCodec extends PTagsCodec {
       }
       tagPos = tagValueEndsAt + 1;
     }
-    return tagsFactory.createValid(tagPairs, decisionMakerTagValue);
+    return tagsFactory.createValid(tagPairs, decisionMakerTagValue, traceIdTagValue);
   }
 
   @Override

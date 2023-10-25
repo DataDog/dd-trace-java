@@ -1,5 +1,6 @@
 package datadog.trace.bootstrap.instrumentation.jms;
 
+import datadog.trace.api.Config;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.ArrayDeque;
@@ -11,7 +12,7 @@ import java.util.Map;
 import java.util.PriorityQueue;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 
@@ -40,9 +41,13 @@ public final class SessionState {
         }
       };
 
-  // hard bound at 8192 captured spans, degrade to finishing spans early
+  // hard bound of captured spans, degrade to finishing spans early
   // if transactions are very large, rather than use lots of space
-  static final int MAX_CAPTURED_SPANS = 8192;
+  static final int MAX_CAPTURED_SPANS = 512;
+
+  // mimic implicit message ack if oldest unacknowledged message span is too old
+  static final long UNACKNOWLEDGED_MAX_AGE =
+      TimeUnit.SECONDS.toMillis(Config.get().getJmsUnacknowledgedMaxAge());
 
   private static final int MAX_TRACKED_THREADS = 100;
   private static final int MIN_EVICTED_THREADS = 10;
@@ -55,6 +60,7 @@ public final class SessionState {
 
   // consumer-related session state
   private final Deque<AgentSpan> capturedSpans;
+  private long oldestCaptureTime = 0;
   private final Map<Thread, TimeInQueue> timeInQueueSpans;
   private volatile int timeInQueueSpanCount = 0;
 
@@ -62,17 +68,17 @@ public final class SessionState {
   @SuppressFBWarnings("IS2_INCONSISTENT_SYNC")
   private boolean capturingFlipped = false;
 
-  public SessionState(int ackMode, boolean legacyTracing) {
+  public SessionState(int ackMode, boolean timeInQueueEnabled) {
     this.ackMode = ackMode;
     if (isAutoAcknowledge()) {
       this.capturedSpans = null; // unused in auto-ack
     } else {
       this.capturedSpans = new ArrayDeque<>();
     }
-    if (legacyTracing) {
-      this.timeInQueueSpans = Collections.emptyMap();
-    } else {
+    if (timeInQueueEnabled) {
       this.timeInQueueSpans = new ConcurrentHashMap<>();
+    } else {
+      this.timeInQueueSpans = Collections.emptyMap();
     }
   }
 
@@ -127,6 +133,9 @@ public final class SessionState {
   private void captureMessageSpan(AgentSpan span) {
     if (null != capturedSpans) {
       synchronized (capturedSpans) {
+        if (isClientAcknowledge() && implicitMessageAck()) {
+          finishCapturedSpans(); // time-in-queues spans have a different clean-up mechanism
+        }
         if (capturedSpans.size() < MAX_CAPTURED_SPANS) {
           // change capture direction of the deque on each commit/ack
           // avoids mixing new spans with the old group while still supporting LIFO
@@ -141,6 +150,15 @@ public final class SessionState {
     }
     // unable to capture span; finish it to avoid unbounded growth
     span.finish();
+  }
+
+  private boolean implicitMessageAck() {
+    long now = System.currentTimeMillis();
+    if (oldestCaptureTime == 0) {
+      oldestCaptureTime = now; // will be cleared when finishCapturedSpans is called
+      return false;
+    }
+    return (now - oldestCaptureTime) > UNACKNOWLEDGED_MAX_AGE;
   }
 
   public void onAcknowledgeOrRecover() {
@@ -179,6 +197,7 @@ public final class SessionState {
       finishingFlipped = capturingFlipped;
       // update capturing to use the other end of the deque for the next group of spans
       capturingFlipped = !finishingFlipped;
+      oldestCaptureTime = 0;
     }
     for (int i = 0; i < spansToFinish; ++i) {
       AgentSpan span;
@@ -272,7 +291,7 @@ public final class SessionState {
     // didn't find enough stopped threads, so evict oldest N time-in-queue spans
     if (evictedThreads < MIN_EVICTED_THREADS) {
       for (Map.Entry<Thread, TimeInQueue> entry : oldestEntries) {
-        if (((ConcurrentMap<?, ?>) timeInQueueSpans).remove(entry.getKey(), entry.getValue())) {
+        if (timeInQueueSpans.remove(entry.getKey(), entry.getValue())) {
           maybeFinishTimeInQueueSpan(entry.getValue());
         }
       }

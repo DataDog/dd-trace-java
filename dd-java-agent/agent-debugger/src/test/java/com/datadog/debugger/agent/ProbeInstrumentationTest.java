@@ -1,8 +1,9 @@
 package com.datadog.debugger.agent;
 
+import com.datadog.debugger.sink.ProbeStatusSink;
+import com.datadog.debugger.sink.Sink;
+import com.datadog.debugger.sink.Snapshot;
 import datadog.trace.bootstrap.debugger.DebuggerContext;
-import datadog.trace.bootstrap.debugger.DiagnosticMessage;
-import datadog.trace.bootstrap.debugger.Snapshot;
 import java.lang.instrument.ClassFileTransformer;
 import java.lang.instrument.Instrumentation;
 import java.util.ArrayList;
@@ -16,6 +17,7 @@ public class ProbeInstrumentationTest {
   protected Instrumentation instr = ByteBuddyAgent.install();
   protected ClassFileTransformer currentTransformer;
   protected MockSink mockSink;
+  protected ProbeStatusSink probeStatusSink;
 
   @AfterEach
   public void after() {
@@ -24,23 +26,20 @@ public class ProbeInstrumentationTest {
     }
   }
 
-  protected static class MockSink implements DebuggerContext.Sink {
+  protected static class MockSink implements Sink {
 
-    private final List<DiagnosticMessage> currentDiagnostics = new ArrayList<>();
-
-    @Override
-    public void addSnapshot(Snapshot snapshot) {}
+    private final List<Snapshot> snapshots = new ArrayList<>();
 
     @Override
-    public void addDiagnostics(String probeId, List<DiagnosticMessage> messages) {
-      for (DiagnosticMessage msg : messages) {
-        System.out.println(msg);
-      }
-      currentDiagnostics.addAll(messages);
+    public void addSnapshot(Snapshot snapshot) {
+      snapshots.add(snapshot);
     }
 
-    public List<DiagnosticMessage> getCurrentDiagnostics() {
-      return currentDiagnostics;
+    @Override
+    public void skipSnapshot(String probeId, DebuggerContext.SkipCause cause) {}
+
+    public List<Snapshot> getSnapshots() {
+      return snapshots;
     }
   }
 }

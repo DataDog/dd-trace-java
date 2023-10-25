@@ -393,7 +393,7 @@ final class JfrMBeanHelper {
         }
       default:
         {
-          log.warn(
+          log.debug(
               "Unsupported time unit: {}. Assuming {}", valueUnit[1], defaultTimeUnit.toString());
           return Duration.of(value, defaultTimeUnit);
         }
@@ -457,7 +457,7 @@ final class JfrMBeanHelper {
     try {
       return ObjectName.getInstance(objectName);
     } catch (MalformedObjectNameException e) {
-      log.warn("Invalid object name: {}", objectName);
+      log.debug("Invalid object name: {}", objectName);
     }
     return null;
   }

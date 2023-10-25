@@ -7,13 +7,17 @@ import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
 
 import datadog.trace.api.Config;
+import datadog.trace.api.DD128bTraceId;
 import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.DDTraceId;
+import datadog.trace.api.TraceConfig;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
+import datadog.trace.bootstrap.instrumentation.api.TagContext;
 import datadog.trace.core.DDSpanContext;
 import java.util.Map;
 import java.util.TreeMap;
+import java.util.function.Supplier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -67,7 +71,7 @@ class DatadogHttpCodec {
       for (final Map.Entry<String, String> entry : context.baggageItems()) {
         String header = invertedBaggageMapping.get(entry.getKey());
         header = header != null ? header : OT_BAGGAGE_PREFIX + entry.getKey();
-        setter.set(carrier, header, HttpCodec.encode(entry.getValue()));
+        setter.set(carrier, header, HttpCodec.encodeBaggage(entry.getValue()));
       }
 
       // inject x-datadog-tags
@@ -80,24 +84,9 @@ class DatadogHttpCodec {
   }
 
   public static HttpCodec.Extractor newExtractor(
-      final Map<String, String> tagMapping, final Map<String, String> baggageMapping) {
-    return newExtractor(tagMapping, baggageMapping, Config.get());
-  }
-
-  public static HttpCodec.Extractor newExtractor(
-      final Map<String, String> tagMapping,
-      final Map<String, String> baggageMapping,
-      final Config config) {
+      Config config, Supplier<TraceConfig> traceConfigSupplier) {
     return new TagContextExtractor(
-        tagMapping,
-        baggageMapping,
-        new ContextInterpreter.Factory() {
-          @Override
-          protected ContextInterpreter construct(
-              Map<String, String> mapping, Map<String, String> baggageMapping) {
-            return new DatadogContextInterpreter(mapping, baggageMapping, config);
-          }
-        });
+        traceConfigSupplier, () -> new DatadogContextInterpreter(config));
   }
 
   private static class DatadogContextInterpreter extends ContextInterpreter {
@@ -114,9 +103,8 @@ class DatadogHttpCodec {
     private final boolean isAwsPropagationEnabled;
     private final PropagationTags.Factory datadogTagsFactory;
 
-    private DatadogContextInterpreter(
-        Map<String, String> taggedHeaders, Map<String, String> baggageMapping, Config config) {
-      super(taggedHeaders, baggageMapping, config);
+    private DatadogContextInterpreter(Config config) {
+      super(config);
       isAwsPropagationEnabled = config.isAwsPropagationEnabled();
       datadogTagsFactory = PropagationTags.factory(config);
     }
@@ -224,12 +212,29 @@ class DatadogHttpCodec {
       return true;
     }
 
+    @Override
+    protected TagContext build() {
+      restore128bTraceId();
+      return super.build();
+    }
+
     private long extractEndToEndStartTime(String value) {
       try {
         return MILLISECONDS.toNanos(Long.parseLong(value));
       } catch (RuntimeException e) {
         log.debug("Ignoring invalid end-to-end start time {}", value, e);
         return 0;
+      }
+    }
+
+    private void restore128bTraceId() {
+      long highOrderBits;
+      // Check if the low-order 64 bits of the TraceId, and propagation tags were parsed
+      if (traceId != DDTraceId.ZERO
+          && propagationTags != null
+          && (highOrderBits = propagationTags.getTraceIdHighOrderBits()) != 0) {
+        // Restore the 128-bit TraceId
+        traceId = DD128bTraceId.from(highOrderBits, traceId.toLong());
       }
     }
   }

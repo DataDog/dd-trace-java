@@ -10,9 +10,11 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
+import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.advice.ActiveRequestContext;
 import datadog.trace.advice.RequiresRequestContext;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.api.gateway.BlockResponseFunction;
 import datadog.trace.api.gateway.CallbackProvider;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.RequestContext;
@@ -72,10 +74,12 @@ public class HttpMessageConverterInstrumentation extends Instrumenter.AppSec
 
   @RequiresRequestContext(RequestContextSlot.APPSEC)
   public static class HttpMessageConverterReadAdvice {
-    @Advice.OnMethodExit(suppress = Throwable.class)
+    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
     public static void after(
-        @Advice.Return final Object obj, @ActiveRequestContext RequestContext reqCtx) {
-      if (obj == null) {
+        @Advice.Return final Object obj,
+        @ActiveRequestContext RequestContext reqCtx,
+        @Advice.Thrown(readOnly = false) Throwable t) {
+      if (obj == null || t != null) {
         return;
       }
 
@@ -85,7 +89,20 @@ public class HttpMessageConverterInstrumentation extends Instrumenter.AppSec
       if (callback == null) {
         return;
       }
-      callback.apply(reqCtx, obj);
+      Flow<Void> flow = callback.apply(reqCtx, obj);
+      Flow.Action action = flow.getAction();
+      if (action instanceof Flow.Action.RequestBlockingAction) {
+        Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
+        BlockResponseFunction brf = reqCtx.getBlockResponseFunction();
+        if (brf != null) {
+          brf.tryCommitBlockingResponse(
+              reqCtx.getTraceSegment(),
+              rba.getStatusCode(),
+              rba.getBlockingContentType(),
+              rba.getExtraHeaders());
+        }
+        t = new BlockingException("Blocked request (for HttpMessageConverter/read)");
+      }
     }
   }
 }

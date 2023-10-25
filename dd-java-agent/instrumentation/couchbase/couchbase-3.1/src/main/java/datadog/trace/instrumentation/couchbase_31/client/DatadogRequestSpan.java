@@ -1,9 +1,12 @@
 package datadog.trace.instrumentation.couchbase_31.client;
 
+import com.couchbase.client.core.Core;
 import com.couchbase.client.core.cnc.RequestSpan;
 import com.couchbase.client.core.msg.RequestContext;
 import datadog.trace.api.DDTags;
+import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import datadog.trace.bootstrap.instrumentation.api8.java.concurrent.StatusSettable;
 import java.time.Instant;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -15,6 +18,8 @@ public class DatadogRequestSpan implements RequestSpan, StatusSettable<Integer> 
   // We need to keep track of the paren spans to propagate error information
   private DatadogRequestSpan parent;
 
+  private final ContextStore<Core, String> coreContext;
+
   // The interaction between error setting in StatusSettingCompletableFuture and the span is a bit
   // involved since we need to make sure that we don't finish the span before we have set the error
   // on it. That's why we have a counter here and let the status setting code finish the span if
@@ -25,12 +30,14 @@ public class DatadogRequestSpan implements RequestSpan, StatusSettable<Integer> 
   // future, so we need to ensure that the completion of the future does not overwrite the error
   private AtomicBoolean statusSet = new AtomicBoolean(false);
 
-  private DatadogRequestSpan(AgentSpan span) {
+  private DatadogRequestSpan(AgentSpan span, final ContextStore<Core, String> coreContext) {
     this.span = span;
+    this.coreContext = coreContext;
   }
 
-  public static DatadogRequestSpan wrap(AgentSpan span) {
-    return new DatadogRequestSpan(span);
+  public static DatadogRequestSpan wrap(
+      AgentSpan span, final ContextStore<Core, String> coreContext) {
+    return new DatadogRequestSpan(span, coreContext);
   }
 
   public static AgentSpan unwrap(RequestSpan span) {
@@ -109,7 +116,7 @@ public class DatadogRequestSpan implements RequestSpan, StatusSettable<Integer> 
 
   @Override
   public void requestContext(RequestContext requestContext) {
-    // TODO should we add tags/metrics based on the request context when the span ends?
+    span.setTag(InstrumentationTags.COUCHBASE_SEED_NODES, coreContext.get(requestContext.core()));
   }
 
   private boolean shouldSetStatus() {
@@ -132,9 +139,9 @@ public class DatadogRequestSpan implements RequestSpan, StatusSettable<Integer> 
 
   @Override
   public void setSuccess(Integer context) {
-    if (context == 0 && shouldSetStatus()) {
-      span.setError(false);
-    }
+    // We can get a call to setSuccess from StatusSettingCompletableFuture before we intercept an
+    // exception.
+    // So do nothing here.
   }
 
   @Override

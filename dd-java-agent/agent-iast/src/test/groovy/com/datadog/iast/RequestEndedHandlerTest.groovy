@@ -2,13 +2,13 @@ package com.datadog.iast
 
 import com.datadog.iast.HasDependencies.Dependencies
 import com.datadog.iast.overhead.OverheadController
-import com.datadog.iast.telemetry.IastTelemetry
 import datadog.trace.api.Config
-import datadog.trace.api.internal.TraceSegment
 import datadog.trace.api.gateway.Flow
 import datadog.trace.api.gateway.IGSpanInfo
 import datadog.trace.api.gateway.RequestContext
 import datadog.trace.api.gateway.RequestContextSlot
+import datadog.trace.api.iast.InstrumentationBridge
+import datadog.trace.api.internal.TraceSegment
 import datadog.trace.test.util.DDSpecification
 import datadog.trace.util.stacktrace.StackWalker
 import groovy.transform.CompileDynamic
@@ -16,14 +16,17 @@ import groovy.transform.CompileDynamic
 @CompileDynamic
 class RequestEndedHandlerTest extends DDSpecification {
 
+  def setup() {
+    InstrumentationBridge.clearIastModules()
+  }
+
   void 'request ends with IAST context'() {
     given:
     final OverheadController overheadController = Mock(OverheadController)
     final iastCtx = Mock(IastRequestContext)
-    final IastTelemetry telemetry = Mock(IastTelemetry)
     final StackWalker stackWalker = Mock(StackWalker)
     final dependencies = new Dependencies(
-      Config.get(), new Reporter(), overheadController, telemetry, stackWalker
+      Config.get(), new Reporter(), overheadController, stackWalker
       )
     final handler = new RequestEndedHandler(dependencies)
     final TraceSegment traceSegment = Mock(TraceSegment)
@@ -43,17 +46,15 @@ class RequestEndedHandlerTest extends DDSpecification {
     1 * traceSegment.setTagTop("_dd.iast.enabled", 1)
     1 * iastCtx.getTaintedObjects() >> null
     1 * overheadController.releaseRequest()
-    1 * telemetry.onRequestEnded(_, _)
     0 * _
   }
 
   void 'request ends without IAST context'() {
     given:
     final OverheadController overheadController = Mock(OverheadController)
-    final IastTelemetry telemetry = Mock(IastTelemetry)
     final StackWalker stackWalker = Mock(StackWalker)
     final dependencies = new Dependencies(
-      Config.get(), new Reporter(), overheadController, telemetry, stackWalker
+      Config.get(), new Reporter(), overheadController, stackWalker
       )
     final handler = new RequestEndedHandler(dependencies)
     final TraceSegment traceSegment = Mock(TraceSegment)

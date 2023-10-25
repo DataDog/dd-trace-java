@@ -8,11 +8,7 @@ muzzle {
 
 apply from: "$rootDir/gradle/java.gradle"
 
-apply plugin: 'org.unbroken-dome.test-sets'
-
-testSets {
-  latestDepTest
-}
+addTestSuite('latestDepTest')
 
 dependencies {
   compileOnly group: 'com.twilio.sdk', name: 'twilio', version: '0.0.1'

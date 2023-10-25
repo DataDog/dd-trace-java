@@ -5,13 +5,15 @@ import datadog.trace.api.cache.DDCaches;
 import datadog.trace.api.normalize.SQLNormalizer;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import java.util.function.Function;
+import java.util.function.ToIntFunction;
 
 public final class DBQueryInfo {
 
-  private static final int MAX_SQL_LENGTH_TO_CACHE = 4096;
+  private static final int COMBINED_SQL_LIMIT = 2 * 1024 * 1024; // characters
 
+  private static final ToIntFunction<DBQueryInfo> SQL_WEIGHER = DBQueryInfo::weight;
   private static final DDCache<String, DBQueryInfo> CACHED_PREPARED_STATEMENTS =
-      DDCaches.newFixedSizeCache(512);
+      DDCaches.newFixedSizeWeightedCache(512, SQL_WEIGHER, COMBINED_SQL_LIMIT);
   private static final Function<String, DBQueryInfo> NORMALIZE = DBQueryInfo::new;
 
   public static DBQueryInfo ofStatement(String sql) {
@@ -19,11 +21,7 @@ public final class DBQueryInfo {
   }
 
   public static DBQueryInfo ofPreparedStatement(String sql) {
-    if (sql.length() > MAX_SQL_LENGTH_TO_CACHE) {
-      return NORMALIZE.apply(sql);
-    } else {
-      return CACHED_PREPARED_STATEMENTS.computeIfAbsent(sql, NORMALIZE);
-    }
+    return CACHED_PREPARED_STATEMENTS.computeIfAbsent(sql, NORMALIZE);
   }
 
   private final UTF8BytesString operation;
@@ -42,21 +40,48 @@ public final class DBQueryInfo {
     return sql;
   }
 
+  int weight() {
+    return sql.length();
+  }
+
   public static CharSequence extractOperation(CharSequence sql) {
     if (null == sql) {
       return null;
     }
     int start = 0;
+    boolean insideComment = false;
     for (int i = 0; i < sql.length(); ++i) {
-      if (Character.isAlphabetic(sql.charAt(i))) {
+      char c = sql.charAt(i);
+      if (c == '/' && i + 1 < sql.length() && sql.charAt(i + 1) == '*') {
+        insideComment = true;
+        i++;
+        continue;
+      }
+      if (c == '*' && i + 1 < sql.length() && sql.charAt(i + 1) == '/') {
+        insideComment = false;
+        i++;
+        continue;
+      }
+      if (!insideComment && Character.isAlphabetic(c)) {
         start = i;
         break;
       }
     }
+
     int firstWhitespace = -1;
     for (int i = start; i < sql.length(); ++i) {
       char c = sql.charAt(i);
-      if (Character.isWhitespace(c)) {
+      if (c == '/' && i + 1 < sql.length() && sql.charAt(i + 1) == '*') {
+        insideComment = true;
+        i++;
+        continue;
+      }
+      if (c == '*' && i + 1 < sql.length() && sql.charAt(i + 1) == '/') {
+        insideComment = false;
+        i++;
+        continue;
+      }
+      if (!insideComment && Character.isWhitespace(c)) {
         firstWhitespace = i;
         break;
       }

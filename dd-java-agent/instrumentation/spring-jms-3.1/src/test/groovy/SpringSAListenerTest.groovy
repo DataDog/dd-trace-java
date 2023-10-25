@@ -68,7 +68,7 @@ class SpringSAListenerTest extends AgentTestRunner {
         tags {
           "$Tags.COMPONENT" "jms"
           "$Tags.SPAN_KIND" Tags.SPAN_KIND_PRODUCER
-          defaultTags()
+          defaultTagsNoPeerService()
         }
       }
     }
@@ -90,7 +90,7 @@ class SpringSAListenerTest extends AgentTestRunner {
           if ("$InstrumentationTags.RECORD_QUEUE_TIME_MS") {
             "$InstrumentationTags.RECORD_QUEUE_TIME_MS" {it >= 0 }
           }
-          defaultTags(true)
+          defaultTagsNoPeerService(true)
         }
       }
     }

@@ -6,9 +6,11 @@ import com.datadog.iast.model.Vulnerability
 import com.datadog.iast.model.VulnerabilityType
 import datadog.trace.api.gateway.RequestContext
 import datadog.trace.api.gateway.RequestContextSlot
+import datadog.trace.api.iast.VulnerabilityMarks
 import datadog.trace.api.iast.sink.PathTraversalModule
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 
+import static com.datadog.iast.model.Range.NOT_MARKED
 import static com.datadog.iast.taint.TaintUtils.addFromTaintFormat
 import static com.datadog.iast.taint.TaintUtils.fromTaintFormat
 import static com.datadog.iast.taint.TaintUtils.getStringFromTaintFormat
@@ -39,9 +41,9 @@ class PathTraversalModuleTest extends IastModuleImplTestBase {
     overheadController.consumeQuota(_, _) >> true
   }
 
-  void 'iast module detects path traversal with String path (#path)'(final String path, final String expected) {
+  void 'iast module detects path traversal with String path (#path)'(final String path, final int mark, final String expected) {
     setup:
-    final param = mapTainted(path)
+    final param = mapTainted(path, mark)
 
     when:
     module.onPathTraversal(param)
@@ -54,14 +56,16 @@ class PathTraversalModuleTest extends IastModuleImplTestBase {
     }
 
     where:
-    path         | expected
-    '/var'       | null
-    '/==>var<==' | "/==>var<=="
+    path         | mark                                   | expected
+    '/var'       | NOT_MARKED                             | null
+    '/==>var<==' | NOT_MARKED                             | "/==>var<=="
+    '/==>var<==' | VulnerabilityMarks.PATH_TRAVERSAL_MARK | null
+    '/==>var<==' | VulnerabilityMarks.SQL_INJECTION_MARK  | "/==>var<=="
   }
 
-  void 'iast module detects path traversal with URI (#path)'(final String path, final String expected) {
+  void 'iast module detects path traversal with URI (#path)'(final String path, final int mark, final String expected) {
     setup:
-    final param = mapTaintedURI(path)
+    final param = mapTaintedURI(path, mark)
 
     when:
     module.onPathTraversal(param)
@@ -74,15 +78,17 @@ class PathTraversalModuleTest extends IastModuleImplTestBase {
     }
 
     where:
-    path         | expected
-    '/var'       | null
-    '/==>var<==' | "/==>var<=="
+    path         | mark                                   | expected
+    '/var'       | NOT_MARKED                             | null
+    '/==>var<==' | NOT_MARKED                             | "/==>var<=="
+    '/==>var<==' | VulnerabilityMarks.PATH_TRAVERSAL_MARK | null
+    '/==>var<==' | VulnerabilityMarks.SQL_INJECTION_MARK  | "/==>var<=="
   }
 
-  void 'iast module detects path traversal with String (#parent, #child)'(final String first, final String rest, final String expected) {
+  void 'iast module detects path traversal with String (#first, #rest, #mark)'() {
     setup:
-    final parent = mapTainted(first)
-    final children = mapTainted(rest)
+    final parent = mapTainted(first, mark)
+    final children = mapTainted(rest, mark)
 
     when:
     module.onPathTraversal((String) parent, children)
@@ -95,18 +101,20 @@ class PathTraversalModuleTest extends IastModuleImplTestBase {
     }
 
     where:
-    first        | rest        | expected
-    '/var'       | 'log'       | null
-    null         | 'log'       | null
-    '/var'       | '==>log<==' | "/var${SP}==>log<=="
-    '/==>var<==' | '==>log<==' | "/==>var<==${SP}==>log<=="
-    '/==>var<==' | 'log'       | "/==>var<==${SP}log"
+    first        | rest        | mark                                   | expected
+    '/var'       | 'log'       | NOT_MARKED                             | null
+    null         | 'log'       | NOT_MARKED                             | null
+    '/var'       | '==>log<==' | NOT_MARKED                             | "/var${SP}==>log<=="
+    '/==>var<==' | '==>log<==' | NOT_MARKED                             | "/==>var<==${SP}==>log<=="
+    '/==>var<==' | 'log'       | NOT_MARKED                             | "/==>var<==${SP}log"
+    '/==>var<==' | '==>log<==' | VulnerabilityMarks.PATH_TRAVERSAL_MARK | null
+    '/==>var<==' | '==>log<==' | VulnerabilityMarks.SQL_INJECTION_MARK  | "/==>var<==${SP}==>log<=="
   }
 
-  void 'iast module detects path traversal with String (#first, #rest)'(final String first, final String[] rest, final String expected) {
+  void 'iast module detects path traversal with String (#first, #rest)'(final String first, final String[] rest, final int mark, final String expected) {
     setup:
-    final parent = mapTainted(first)
-    final children = mapTaintedArray(rest)
+    final parent = mapTainted(first, mark)
+    final children = mapTaintedArray(mark, rest)
 
     when:
     module.onPathTraversal(parent, children)
@@ -119,18 +127,20 @@ class PathTraversalModuleTest extends IastModuleImplTestBase {
     }
 
     where:
-    first        | rest                                        | expected
-    '/var'       | [] as String[]                              | null
-    '/var'       | ['log', 'log.log'] as String[]              | null
-    '/var'       | ['==>log<==', null, 'test.log'] as String[] | "/var${SP}==>log<==${SP}test.log"
-    '/var'       | ['==>log<==', 'test.log'] as String[]       | "/var${SP}==>log<==${SP}test.log"
-    '/==>var<==' | ['==>log<==', 'test.log'] as String[]       | "/==>var<==${SP}==>log<==${SP}test.log"
-    '/==>var<==' | ['==>log<==', '==>test<==.log'] as String[] | "/==>var<==${SP}==>log<==${SP}==>test<==.log"
+    first        | rest                                        | mark                                   | expected
+    '/var'       | [] as String[]                              | NOT_MARKED                             | null
+    '/var'       | ['log', 'log.log'] as String[]              | NOT_MARKED                             | null
+    '/var'       | ['==>log<==', null, 'test.log'] as String[] | NOT_MARKED                             | "/var${SP}==>log<==${SP}test.log"
+    '/var'       | ['==>log<==', 'test.log'] as String[]       | NOT_MARKED                             | "/var${SP}==>log<==${SP}test.log"
+    '/==>var<==' | ['==>log<==', 'test.log'] as String[]       | NOT_MARKED                             | "/==>var<==${SP}==>log<==${SP}test.log"
+    '/==>var<==' | ['==>log<==', '==>test<==.log'] as String[] | NOT_MARKED                             | "/==>var<==${SP}==>log<==${SP}==>test<==.log"
+    '/==>var<==' | ['==>log<==', '==>test<==.log'] as String[] | VulnerabilityMarks.PATH_TRAVERSAL_MARK | null
+    '/==>var<==' | ['==>log<==', '==>test<==.log'] as String[] | VulnerabilityMarks.SQL_INJECTION_MARK  | "/==>var<==${SP}==>log<==${SP}==>test<==.log"
   }
 
-  void 'iast module detects path traversal with File (#first, #rest)'(final File first, final String rest, final String expected) {
+  void 'iast module detects path traversal with File (#first, #rest)'(final File first, final String rest, final int mark, final String expected) {
     setup:
-    final children = mapTainted(rest)
+    final children = mapTainted(rest, mark)
 
     when:
     module.onPathTraversal((File) first, children)
@@ -143,25 +153,27 @@ class PathTraversalModuleTest extends IastModuleImplTestBase {
     }
 
     where:
-    first        | rest            | expected
-    null         | 'log'           | null
-    file('/var') | 'log'           | null
-    null         | '==>log<==.txt' | "==>log<==.txt"
-    file('/var') | '==>log<==.txt' | "${SP}var${SP}==>log<==.txt"
+    first        | rest            | mark                                   | expected
+    null         | 'log'           | NOT_MARKED                             | null
+    file('/var') | 'log'           | NOT_MARKED                             | null
+    null         | '==>log<==.txt' | NOT_MARKED                             | "==>log<==.txt"
+    file('/var') | '==>log<==.txt' | NOT_MARKED                             | "${SP}var${SP}==>log<==.txt"
+    file('/var') | '==>log<==.txt' | VulnerabilityMarks.PATH_TRAVERSAL_MARK | null
+    file('/var') | '==>log<==.txt' | VulnerabilityMarks.SQL_INJECTION_MARK  | "${SP}var${SP}==>log<==.txt"
   }
 
-  private String[] mapTaintedArray(final String... items) {
-    return items.collect(this.&mapTainted) as String[]
+  private String[] mapTaintedArray(final int mark, final String... items) {
+    return items.collect { item -> return mapTainted(item, mark) } as String[]
   }
 
-  private String mapTainted(final String value) {
-    final result = addFromTaintFormat(ctx.taintedObjects, value)
+  private String mapTainted(final String value, int mark) {
+    final result = addFromTaintFormat(ctx.taintedObjects, value, mark)
     objectHolder.add(result)
     return result
   }
 
-  private URI mapTaintedURI(final String s) {
-    final ranges = fromTaintFormat(s)
+  private URI mapTaintedURI(final String s, final int mark) {
+    final ranges = fromTaintFormat(s, mark)
     if (ranges == null || ranges.length == 0) {
       return new URI(s)
     }

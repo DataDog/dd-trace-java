@@ -29,6 +29,7 @@ public class RedisAPIInstrumentation extends Instrumenter.Tracing
   public Map<String, String> contextStore() {
     Map<String, String> contextStores = new HashMap<>();
     contextStores.put("io.vertx.redis.client.RedisAPI", packageName + ".ResponseHandlerWrapper");
+    contextStores.put("io.vertx.redis.client.RedisConnection", "io.vertx.core.net.SocketAddress");
     return contextStores;
   }
 

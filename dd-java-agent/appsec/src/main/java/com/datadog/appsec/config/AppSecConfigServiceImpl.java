@@ -8,6 +8,7 @@ import static datadog.remoteconfig.tuf.RemoteConfigRequest.ClientInfo.CAPABILITY
 import static datadog.remoteconfig.tuf.RemoteConfigRequest.ClientInfo.CAPABILITY_ASM_EXCLUSIONS;
 import static datadog.remoteconfig.tuf.RemoteConfigRequest.ClientInfo.CAPABILITY_ASM_IP_BLOCKING;
 import static datadog.remoteconfig.tuf.RemoteConfigRequest.ClientInfo.CAPABILITY_ASM_REQUEST_BLOCKING;
+import static datadog.remoteconfig.tuf.RemoteConfigRequest.ClientInfo.CAPABILITY_ASM_TRUSTED_IPS;
 import static datadog.remoteconfig.tuf.RemoteConfigRequest.ClientInfo.CAPABILITY_ASM_USER_BLOCKING;
 
 import com.datadog.appsec.AppSecSystem;
@@ -93,7 +94,8 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
             | CAPABILITY_ASM_REQUEST_BLOCKING
             | CAPABILITY_ASM_USER_BLOCKING
             | CAPABILITY_ASM_CUSTOM_RULES
-            | CAPABILITY_ASM_CUSTOM_BLOCKING_RESPONSE);
+            | CAPABILITY_ASM_CUSTOM_BLOCKING_RESPONSE
+            | CAPABILITY_ASM_TRUSTED_IPS);
   }
 
   private void subscribeRulesAndData() {
@@ -113,7 +115,7 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
                 "AppSec config given by remote config was pulled. Restoring default WAF config");
             newConfig = DEFAULT_WAF_CONFIG;
           }
-          this.currentAppSecConfig.ddConfig = newConfig;
+          this.currentAppSecConfig.setDdConfig(newConfig);
           // base rules can contain all rules/data/exclusions/etc
           this.currentAppSecConfig.dirtyStatus.markAllDirty();
         });
@@ -184,7 +186,7 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
       try {
         listener.onNewSubconfig(newConfig.get(key), reconfiguration);
       } catch (Exception rte) {
-        log.warn("Error updating configuration of app sec module listening on key " + key, rte);
+        log.warn("Error updating configuration of app sec module listening on key {}", key, rte);
       }
     }
   }
@@ -210,7 +212,7 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
       hasUserWafConfig = true;
     }
     this.currentAppSecConfig = new CurrentAppSecConfig();
-    this.currentAppSecConfig.ddConfig = wafConfig;
+    this.currentAppSecConfig.setDdConfig(wafConfig);
     this.lastConfig.put("waf", this.currentAppSecConfig);
     this.initialized = true;
   }
@@ -312,7 +314,7 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
   }
 
   private static int countRules(AppSecConfig config) {
-    return config.getRules().size();
+    return config.getNumberOfRules();
   }
 
   @Override
@@ -328,7 +330,8 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
             | CAPABILITY_ASM_REQUEST_BLOCKING
             | CAPABILITY_ASM_USER_BLOCKING
             | CAPABILITY_ASM_CUSTOM_RULES
-            | CAPABILITY_ASM_CUSTOM_BLOCKING_RESPONSE);
+            | CAPABILITY_ASM_CUSTOM_BLOCKING_RESPONSE
+            | CAPABILITY_ASM_TRUSTED_IPS);
     this.configurationPoller.removeListener(Product.ASM_DD);
     this.configurationPoller.removeListener(Product.ASM_DATA);
     this.configurationPoller.removeListener(Product.ASM);

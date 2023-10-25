@@ -1,0 +1,3 @@
+
+GET    /all                  v1.post.PostController.all(request:Request)
+GET    /:id                  v1.post.PostController.post(request:Request, id)

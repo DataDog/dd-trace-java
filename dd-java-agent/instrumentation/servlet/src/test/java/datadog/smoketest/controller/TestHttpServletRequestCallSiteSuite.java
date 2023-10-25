@@ -27,4 +27,20 @@ public class TestHttpServletRequestCallSiteSuite {
   public Cookie[] getCookies() {
     return request.getCookies();
   }
+
+  public String getQueryString() {
+    return request.getQueryString();
+  }
+
+  public String getRequestURI() {
+    return request.getRequestURI();
+  }
+
+  public String getPathInfo() {
+    return request.getPathInfo();
+  }
+
+  public String getPathTranslated() {
+    return request.getPathTranslated();
+  }
 }

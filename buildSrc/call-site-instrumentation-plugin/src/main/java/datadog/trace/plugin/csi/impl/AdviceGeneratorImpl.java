@@ -2,32 +2,23 @@ package datadog.trace.plugin.csi.impl;
 
 import static com.github.javaparser.ast.Modifier.Keyword.PUBLIC;
 import static datadog.trace.plugin.csi.impl.CallSiteFactory.typeResolver;
-import static datadog.trace.plugin.csi.util.CallSiteConstants.AUTO_SERVICE_CLASS;
-import static datadog.trace.plugin.csi.util.CallSiteConstants.CALL_SITE_ADVICE_CLASS;
+import static datadog.trace.plugin.csi.util.CallSiteConstants.AUTO_SERVICE_FQDN;
+import static datadog.trace.plugin.csi.util.CallSiteConstants.CALL_SITES_CLASS;
+import static datadog.trace.plugin.csi.util.CallSiteConstants.CALL_SITES_FQCN;
 import static datadog.trace.plugin.csi.util.CallSiteConstants.CALL_SITE_ADVICE_FQCN;
-import static datadog.trace.plugin.csi.util.CallSiteConstants.HANDLE_CLASS;
-import static datadog.trace.plugin.csi.util.CallSiteConstants.HAS_FLAGS_CLASS;
-import static datadog.trace.plugin.csi.util.CallSiteConstants.HAS_HELPERS_CLASS;
-import static datadog.trace.plugin.csi.util.CallSiteConstants.HAS_MIN_JAVA_VERSION_CLASS;
-import static datadog.trace.plugin.csi.util.CallSiteConstants.INVOKE_ADVICE_CLASS;
-import static datadog.trace.plugin.csi.util.CallSiteConstants.INVOKE_DYNAMIC_ADVICE_CLASS;
+import static datadog.trace.plugin.csi.util.CallSiteConstants.HANDLE_FQDN;
+import static datadog.trace.plugin.csi.util.CallSiteConstants.HAS_ENABLED_PROPERTY_CLASS;
 import static datadog.trace.plugin.csi.util.CallSiteConstants.METHOD_HANDLER_CLASS;
-import static datadog.trace.plugin.csi.util.CallSiteConstants.OPCODES_CLASS;
-import static datadog.trace.plugin.csi.util.CallSiteConstants.POINTCUT_FQCN;
-import static datadog.trace.plugin.csi.util.CallSiteConstants.POINTCUT_TYPE;
+import static datadog.trace.plugin.csi.util.CallSiteConstants.OPCODES_FQDN;
 import static datadog.trace.plugin.csi.util.CallSiteConstants.STACK_DUP_MODE_CLASS;
 import static datadog.trace.plugin.csi.util.CallSiteConstants.TYPE_RESOLVER;
-import static datadog.trace.plugin.csi.util.CallSiteUtils.capitalize;
-import static datadog.trace.plugin.csi.util.CallSiteUtils.classNameToType;
 import static datadog.trace.plugin.csi.util.CallSiteUtils.deleteFile;
+import static datadog.trace.plugin.csi.util.JavaParserUtils.getPrimaryType;
 import static datadog.trace.plugin.csi.util.JavaParserUtils.intLiteral;
-import static datadog.trace.plugin.csi.util.JavaParserUtils.singleStatementMethod;
-import static datadog.trace.plugin.csi.util.JavaParserUtils.stringLiteralMethod;
 
 import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.NodeList;
 import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
-import com.github.javaparser.ast.body.MethodDeclaration;
 import com.github.javaparser.ast.body.Parameter;
 import com.github.javaparser.ast.body.VariableDeclarator;
 import com.github.javaparser.ast.expr.ArrayCreationExpr;
@@ -36,14 +27,13 @@ import com.github.javaparser.ast.expr.BooleanLiteralExpr;
 import com.github.javaparser.ast.expr.ClassExpr;
 import com.github.javaparser.ast.expr.Expression;
 import com.github.javaparser.ast.expr.FieldAccessExpr;
-import com.github.javaparser.ast.expr.IntegerLiteralExpr;
+import com.github.javaparser.ast.expr.LambdaExpr;
 import com.github.javaparser.ast.expr.MethodCallExpr;
 import com.github.javaparser.ast.expr.NameExpr;
 import com.github.javaparser.ast.expr.NormalAnnotationExpr;
 import com.github.javaparser.ast.expr.NullLiteralExpr;
 import com.github.javaparser.ast.expr.ObjectCreationExpr;
 import com.github.javaparser.ast.expr.StringLiteralExpr;
-import com.github.javaparser.ast.expr.ThisExpr;
 import com.github.javaparser.ast.expr.TypeExpr;
 import com.github.javaparser.ast.expr.VariableDeclarationExpr;
 import com.github.javaparser.ast.stmt.BlockStmt;
@@ -61,12 +51,12 @@ import datadog.trace.plugin.csi.impl.CallSiteSpecification.AfterSpecification;
 import datadog.trace.plugin.csi.impl.CallSiteSpecification.AllArgsSpecification;
 import datadog.trace.plugin.csi.impl.CallSiteSpecification.AroundSpecification;
 import datadog.trace.plugin.csi.impl.CallSiteSpecification.BeforeSpecification;
+import datadog.trace.plugin.csi.impl.CallSiteSpecification.Enabled;
 import datadog.trace.plugin.csi.util.ErrorCode;
 import datadog.trace.plugin.csi.util.MethodType;
 import java.io.File;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Map;
 import java.util.stream.Collectors;
 import javax.annotation.Nonnull;
 import org.objectweb.asm.Type;
@@ -75,6 +65,7 @@ import org.objectweb.asm.Type;
  * Implementation of {@link AdviceGenerator} that uses Freemarker to build the Java files with the
  * {@link datadog.trace.agent.tooling.csi.CallSiteAdvice} implementation
  */
+@SuppressWarnings("OptionalGetWithoutIsPresent")
 public class AdviceGeneratorImpl implements AdviceGenerator {
 
   private final File targetFolder;
@@ -98,201 +89,159 @@ public class AdviceGeneratorImpl implements AdviceGenerator {
   @Override
   @Nonnull
   public CallSiteResult generate(@Nonnull final CallSiteSpecification spec) {
-    final CallSiteResult result = new CallSiteResult(spec);
+    final Type callSitesType =
+        Type.getType(String.format("L%ss;", spec.getClazz().getInternalName()));
+    final File callSitesFile = new File(targetFolder, callSitesType.getInternalName() + ".java");
+    final CallSiteResult result = new CallSiteResult(spec, callSitesFile);
     result.addContextProperty(TYPE_RESOLVER, typeResolver);
     try {
       spec.validate(result);
       if (result.isSuccess()) {
-        Map<String, List<AdviceSpecification>> advices = groupAdvicesByMethod(spec);
-        for (List<AdviceSpecification> list : advices.values()) {
-          final boolean unique = list.size() == 1;
-          for (int i = 0; i < list.size(); i++) {
-            final AdviceSpecification advice = list.get(i);
-            final String className =
-                String.format(
-                    "%s%s%s",
-                    spec.getClazz().getClassName(),
-                    capitalize(advice.getAdvice().getMethodName()),
-                    unique ? "" : i);
-            result.addAdvice(generateAdviceJavaFile(spec, advice, classNameToType(className)));
+        final CompilationUnit javaClass = buildJavaClass(spec, callSitesType, callSitesFile);
+        final ClassOrInterfaceDeclaration mainType = getPrimaryType(javaClass);
+        final BlockStmt acceptBody = new BlockStmt();
+        mainType
+            .addMethod("accept", PUBLIC)
+            .setType(void.class)
+            .setBody(acceptBody)
+            .addAnnotation(Override.class.getName())
+            .setParameters(
+                new NodeList<>(new Parameter().setName("container").setType("Container")));
+        if (spec.getEnabled() != null) {
+          addEnabledCheck(mainType, spec.getEnabled());
+        }
+        addHelpersInvocation(spec.getHelpers(), acceptBody);
+        for (final AdviceSpecification advice : spec.getAdvices()) {
+          try {
+            advice.parseSignature(pointcutParser);
+            advice.validate(result);
+            if (result.isSuccess()) {
+              addAdviceLambda(advice, acceptBody);
+            }
+          } catch (Throwable e) {
+            handleThrowable(result, e);
           }
         }
+        javaClass.getStorage().get().save();
       }
     } catch (Throwable e) {
       handleThrowable(result, e);
     }
-    return result;
-  }
-
-  private Map<String, List<AdviceSpecification>> groupAdvicesByMethod(
-      @Nonnull final CallSiteSpecification spec) {
-    return spec.getAdvices().stream()
-        .collect(Collectors.groupingBy(advice -> advice.getAdvice().getMethodName().toLowerCase()));
-  }
-
-  @SuppressWarnings("OptionalGetWithoutIsPresent")
-  private AdviceResult generateAdviceJavaFile(
-      @Nonnull final CallSiteSpecification callSite,
-      @Nonnull final AdviceSpecification spec,
-      @Nonnull final Type advice) {
-    final File javaFile = new File(targetFolder, advice.getInternalName() + ".java");
-    final AdviceResult result = new AdviceResult(spec, javaFile);
-    result.addContextProperty(TYPE_RESOLVER, typeResolver);
-    try {
-      spec.parseSignature(pointcutParser);
-      spec.validate(result);
-      if (!result.isSuccess()) {
-        deleteFile(javaFile);
-        return result;
-      }
-      final CompilationUnit javaClass = buildJavaClass(callSite, spec, advice, javaFile);
-      javaClass.getStorage().get().save();
-    } catch (Throwable e) {
-      deleteFile(javaFile);
-      handleThrowable(result, e);
+    if (!result.isSuccess()) {
+      deleteFile(callSitesFile);
     }
     return result;
   }
 
   private static CompilationUnit buildJavaClass(
-      final CallSiteSpecification callSite,
-      final AdviceSpecification spec,
-      final Type advice,
-      final File javaFile) {
+      final CallSiteSpecification spec, final Type type, final File javaFile) {
     final CompilationUnit javaClass = new CompilationUnit();
     javaClass.setStorage(javaFile.toPath());
-    final String packageName = getPackageName(advice);
+    final String packageName = getPackageName(spec.getClazz());
     if (packageName != null) {
-      javaClass.setPackageDeclaration(getPackageName(advice));
+      javaClass.setPackageDeclaration(getPackageName(spec.getClazz()));
     }
-    javaClass.addImport(OPCODES_CLASS);
-    javaClass.addImport(HANDLE_CLASS);
-    javaClass.addImport(CALL_SITE_ADVICE_FQCN);
-    javaClass.addImport(POINTCUT_FQCN);
-    javaClass.addImport(callSite.getSpi().getClassName());
-    final ClassOrInterfaceDeclaration type = adviceType(javaClass, advice);
-    autoService(callSite, type);
-    pointCut(spec, type);
-    advice(spec, type);
-    flags(spec, type);
-    helpers(callSite, type);
-    minJavaVersion(callSite, spec, type);
+    javaClass.addImport(OPCODES_FQDN);
+    javaClass.addImport(HANDLE_FQDN);
+    javaClass.addImport(CALL_SITES_FQCN);
+    javaClass.addImport(CALL_SITE_ADVICE_FQCN + ".*");
+    final ClassOrInterfaceDeclaration javaType = callSitesType(javaClass, spec, type);
+    addAutoServiceAnnotation(javaType, spec);
     return javaClass;
   }
 
-  private static ClassOrInterfaceDeclaration adviceType(
-      final CompilationUnit javaClass, final Type advice) {
+  private static ClassOrInterfaceDeclaration callSitesType(
+      final CompilationUnit javaClass, final CallSiteSpecification callSite, final Type advice) {
     final ClassOrInterfaceDeclaration type = new ClassOrInterfaceDeclaration();
     type.setModifier(PUBLIC, true);
     type.setName(getClassName(advice));
+    type.addImplementedType(CALL_SITES_CLASS);
+    if (!CALL_SITES_FQCN.equals(callSite.getSpi().getClassName())) {
+      javaClass.addImport(callSite.getSpi().getClassName());
+      type.addImplementedType(getClassName(callSite.getSpi(), false));
+    }
     javaClass.addType(type);
     return type;
   }
 
-  private static void autoService(
-      final CallSiteSpecification callSite, final ClassOrInterfaceDeclaration javaClass) {
+  private static void addAutoServiceAnnotation(
+      final ClassOrInterfaceDeclaration javaClass, final CallSiteSpecification callSite) {
     final NormalAnnotationExpr autoService = new NormalAnnotationExpr();
-    autoService.setName(AUTO_SERVICE_CLASS);
+    autoService.setName(AUTO_SERVICE_FQDN);
     autoService.addPair(
         "value",
         new ClassExpr(new ClassOrInterfaceType().setName(getClassName(callSite.getSpi(), false))));
-    final String spiClass = callSite.getSpi().getClassName();
     javaClass.addAnnotation(autoService);
-    if (!CALL_SITE_ADVICE_CLASS.equals(spiClass)) {
-      javaClass.addImplementedType(spiClass);
-    }
   }
 
-  private static void pointCut(
-      final AdviceSpecification spec, final ClassOrInterfaceDeclaration javaClass) {
-    final MethodType pointcut = spec.getPointcut();
-    javaClass.addImplementedType(POINTCUT_TYPE);
-    javaClass.addMember(singleStatementMethod("pointcut", POINTCUT_TYPE, new ThisExpr(), true));
-    javaClass.addMember(stringLiteralMethod("type", pointcut.getOwner().getInternalName(), true));
-    javaClass.addMember(stringLiteralMethod("method", pointcut.getMethodName(), true));
-    javaClass.addMember(
-        stringLiteralMethod("descriptor", pointcut.getMethodType().getDescriptor(), true));
-  }
-
-  private static void advice(
-      final AdviceSpecification spec, final ClassOrInterfaceDeclaration javaClass) {
-    javaClass.addImplementedType(CALL_SITE_ADVICE_CLASS);
-    final MethodDeclaration apply = javaClass.addMethod("apply", PUBLIC);
-    apply.addAnnotation(Override.class);
-    apply.setType(void.class);
+  private void addAdviceLambda(
+      @Nonnull final AdviceSpecification spec, @Nonnull final BlockStmt body) {
+    final MethodType pointCut = spec.getPointcut();
+    final BlockStmt adviceBody = new BlockStmt();
+    final Expression advice;
     if (spec.isInvokeDynamic()) {
-      invokeDynamicAdvice(javaClass, apply);
+      advice = invokeDynamicAdviceSignature(adviceBody);
     } else {
-      invokeAdvice(javaClass, apply);
+      advice = invokeAdviceSignature(adviceBody);
     }
-    final BlockStmt body = new BlockStmt();
-    apply.setBody(body);
     if (spec instanceof BeforeSpecification) {
-      writeStackOperations(spec, body);
-      writeAdviceMethodCall(spec, body);
-      writeOriginalMethodCall(spec, body);
+      writeStackOperations(spec, adviceBody);
+      writeAdviceMethodCall(spec, adviceBody);
+      writeOriginalMethodCall(spec, adviceBody);
     } else if (spec instanceof AfterSpecification) {
-      writeStackOperations(spec, body);
-      writeOriginalMethodCall(spec, body);
-      writeAdviceMethodCall(spec, body);
+      writeStackOperations(spec, adviceBody);
+      writeOriginalMethodCall(spec, adviceBody);
+      writeAdviceMethodCall(spec, adviceBody);
     } else {
-      writeAdviceMethodCall(spec, body);
+      writeAdviceMethodCall(spec, adviceBody);
     }
+    body.addStatement(
+        new MethodCallExpr()
+            .setScope(new NameExpr("container"))
+            .setName("addAdvice")
+            .setArguments(
+                new NodeList<>(
+                    new StringLiteralExpr(pointCut.getOwner().getInternalName()),
+                    new StringLiteralExpr(pointCut.getMethodName()),
+                    new StringLiteralExpr(pointCut.getMethodType().getDescriptor()),
+                    advice)));
   }
 
-  private static void flags(
-      final AdviceSpecification spec, final ClassOrInterfaceDeclaration javaClass) {
-    if (spec.isComputeMaxStack()) {
-      javaClass.addImplementedType(HAS_FLAGS_CLASS);
-      final MethodDeclaration flags = javaClass.addMethod("flags", PUBLIC);
-      flags.addAnnotation(Override.class);
-      flags.setType(int.class);
-      final BlockStmt body = new BlockStmt();
-      body.addStatement(new ReturnStmt(new NameExpr("COMPUTE_MAX_STACK")));
-      flags.setBody(body);
-    }
-  }
-
-  private static void helpers(
-      final CallSiteSpecification spec, final ClassOrInterfaceDeclaration javaClass) {
-    if (spec.getHelpers().length > 0) {
-      javaClass.addImplementedType(HAS_HELPERS_CLASS);
-      final MethodDeclaration helpers = javaClass.addMethod("helperClassNames", PUBLIC);
-      helpers.addAnnotation(Override.class);
-      helpers.setType(String[].class);
-      final BlockStmt body = new BlockStmt();
-      final List<Expression> helpersValues =
-          Arrays.stream(spec.getHelpers())
-              .map(helper -> new StringLiteralExpr(helper.getClassName()))
+  private static void addHelpersInvocation(final Type[] helpers, final BlockStmt body) {
+    if (helpers != null && helpers.length > 0) {
+      final List<Expression> helperTypes =
+          Arrays.stream(helpers)
+              .map(type -> new StringLiteralExpr(type.getClassName()))
               .collect(Collectors.toList());
       body.addStatement(
-          new ReturnStmt(
-              new ArrayCreationExpr()
-                  .setElementType(String.class)
-                  .setInitializer(
-                      new ArrayInitializerExpr().setValues(new NodeList<>(helpersValues)))));
-      helpers.setBody(body);
+          new MethodCallExpr()
+              .setScope(new NameExpr("container"))
+              .setName("addHelpers")
+              .setArguments(new NodeList<>(helperTypes)));
     }
   }
 
-  private static void minJavaVersion(
-      final CallSiteSpecification spec,
-      final AdviceSpecification advice,
-      final ClassOrInterfaceDeclaration javaClass) {
-    int minJavaVersion = spec.getMinJavaVersion();
-    if (advice.isInvokeDynamic()) {
-      minJavaVersion = Math.max(minJavaVersion, 9);
-    }
-    if (0 <= minJavaVersion) {
-      javaClass.addImplementedType(HAS_MIN_JAVA_VERSION_CLASS);
-      final MethodDeclaration flags = javaClass.addMethod("minJavaVersion", PUBLIC);
-      flags.addAnnotation(Override.class);
-      flags.setType(int.class);
-      final BlockStmt body = new BlockStmt();
-      body.addStatement(
-          new ReturnStmt(new IntegerLiteralExpr(Integer.toString(spec.getMinJavaVersion()))));
-      flags.setBody(body);
-    }
+  private static void addEnabledCheck(
+      final ClassOrInterfaceDeclaration type, final Enabled enabled) {
+    type.addImplementedType(HAS_ENABLED_PROPERTY_CLASS);
+
+    final MethodType method = enabled.getMethod();
+    final String ownerPackage = getPackageName(method.getOwner());
+    final String ownerClassName = getClassName(method.getOwner(), false);
+    final List<Expression> parameters =
+        enabled.getArguments().stream().map(StringLiteralExpr::new).collect(Collectors.toList());
+
+    final Expression enabledCheckExpression =
+        new MethodCallExpr()
+            .setScope(new NameExpr(ownerPackage + "." + ownerClassName))
+            .setName(method.getMethodName())
+            .setArguments(new NodeList<>(parameters));
+
+    type.addMethod("isEnabled", PUBLIC)
+        .setType(boolean.class)
+        .addAnnotation(Override.class)
+        .setBody(
+            new BlockStmt().addStatement(new ReturnStmt().setExpression(enabledCheckExpression)));
   }
 
   private static void writeStackOperations(final AdviceSpecification advice, final BlockStmt body) {
@@ -341,7 +290,11 @@ public class AdviceGeneratorImpl implements AdviceGenerator {
       }
       String mode = "COPY";
       if (allArgsSpec != null) {
-        mode = advice instanceof AfterSpecification ? "PREPEND_ARRAY" : "APPEND_ARRAY";
+        if (advice instanceof AfterSpecification) {
+          mode = advice.isConstructor() ? "PREPEND_ARRAY_CTOR" : "PREPEND_ARRAY";
+        } else {
+          mode = "APPEND_ARRAY";
+        }
       }
       dupMethod.addArgument(
           new FieldAccessExpr()
@@ -392,16 +345,30 @@ public class AdviceGeneratorImpl implements AdviceGenerator {
               .addArgument(new StringLiteralExpr(method.getMethodType().getDescriptor()))
               .addArgument(new BooleanLiteralExpr(false));
       body.addStatement(invokeStatic);
-      if (advice instanceof AfterSpecification && advice.isConstructor()) {
-        // constructors make a DUP before the <init> that we have to discard
-        final MethodCallExpr pop =
+    }
+    if (requiresCast(advice)) {
+      final MethodType pointcut = advice.getPointcut();
+      final Type expectedReturn =
+          pointcut.isConstructor() ? pointcut.getOwner() : pointcut.getMethodType().getReturnType();
+      if (!expectedReturn.equals(method.getMethodType().getReturnType())) {
+        body.addStatement(
             new MethodCallExpr()
                 .setScope(new NameExpr("handler"))
                 .setName("instruction")
-                .addArgument(opCode("POP"));
-        body.addAndGetStatement(pop);
+                .addArgument(opCode("CHECKCAST"))
+                .addArgument(new StringLiteralExpr(expectedReturn.getInternalName())));
       }
     }
+  }
+
+  private static boolean requiresCast(final AdviceSpecification advice) {
+    if (advice instanceof AroundSpecification) {
+      return true; // around always replaces the original method call
+    }
+    if (advice instanceof AfterSpecification) {
+      return !advice.isInvokeDynamic(); // dynamic invokes original method call returns CallSite
+    }
+    return false;
   }
 
   private static void writeOriginalMethodCall(
@@ -426,26 +393,30 @@ public class AdviceGeneratorImpl implements AdviceGenerator {
     body.addStatement(invoke);
   }
 
-  private static void invokeAdvice(
-      final ClassOrInterfaceDeclaration javaClass, final MethodDeclaration apply) {
-    javaClass.addImplementedType(INVOKE_ADVICE_CLASS);
-    apply.addParameter(METHOD_HANDLER_CLASS, "handler");
-    apply.addParameter(int.class, "opcode");
-    apply.addParameter(String.class, "owner");
-    apply.addParameter(String.class, "name");
-    apply.addParameter(String.class, "descriptor");
-    apply.addParameter(boolean.class, "isInterface");
+  private static Expression invokeAdviceSignature(final BlockStmt body) {
+    return new LambdaExpr(
+        new NodeList<>(
+            new Parameter().setName("handler").setType(METHOD_HANDLER_CLASS),
+            new Parameter().setName("opcode").setType(int.class),
+            new Parameter().setName("owner").setType(String.class),
+            new Parameter().setName("name").setType(String.class),
+            new Parameter().setName("descriptor").setType(String.class),
+            new Parameter().setName("isInterface").setType(boolean.class)),
+        body);
   }
 
-  private static void invokeDynamicAdvice(
-      final ClassOrInterfaceDeclaration javaClass, final MethodDeclaration apply) {
-    javaClass.addImplementedType(INVOKE_DYNAMIC_ADVICE_CLASS);
-    apply.addParameter(METHOD_HANDLER_CLASS, "handler");
-    apply.addParameter(String.class, "name");
-    apply.addParameter(String.class, "descriptor");
-    apply.addParameter(HANDLE_CLASS, "bootstrapMethodHandle");
-    apply.addParameter(
-        new Parameter().setVarArgs(true).setType(Object.class).setName("bootstrapMethodArguments"));
+  private static Expression invokeDynamicAdviceSignature(final BlockStmt body) {
+    return new LambdaExpr(
+        new NodeList<>(
+            new Parameter().setName("handler").setType(METHOD_HANDLER_CLASS),
+            new Parameter().setName("name").setType(String.class),
+            new Parameter().setName("descriptor").setType(String.class),
+            new Parameter().setName("bootstrapMethodHandle").setType(HANDLE_FQDN),
+            new Parameter()
+                .setVarArgs(true)
+                .setType(Object.class)
+                .setName("bootstrapMethodArguments")),
+        body);
   }
 
   private static Expression opCode(final String opCode) {

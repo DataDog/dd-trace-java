@@ -30,10 +30,25 @@ dependencies {
   // These two version sets are compatible together:
   testImplementation enforcedPlatform('org.springframework.boot:spring-boot-dependencies:2.3.5.RELEASE') {
     exclude group: 'net.bytebuddy', module: 'byte-buddy' // we don't want this shared dependency pinned
+    // exclude transitive Groovy and JUnit since they're too old
+    // and conflict with the ones that Spock uses
+    exclude group: 'org.codehaus.groovy'
+    exclude group: 'org.junit'
+    exclude group: 'org.junit.jupiter'
+    exclude group: 'org.junit.platform'
+    exclude group: 'org.junit.vintage'
   }
   testImplementation enforcedPlatform('org.springframework.cloud:spring-cloud-netflix-dependencies:2.2.6.RELEASE')
 
-  testImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-test'
+  testImplementation(group: 'org.springframework.boot', name: 'spring-boot-starter-test') {
+    // exclude transitive Groovy and JUnit since they're too old
+    // and conflict with the ones that Spock uses
+    exclude group: 'org.codehaus.groovy'
+    exclude group: 'org.junit'
+    exclude group: 'org.junit.jupiter'
+    exclude group: 'org.junit.platform'
+    exclude group: 'org.junit.vintage'
+  }
   testImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-web'
   testImplementation group: 'org.springframework.cloud', name: 'spring-cloud-starter-netflix-zuul'
   testImplementation group: 'com.fasterxml.jackson.core', name: 'jackson-databind'

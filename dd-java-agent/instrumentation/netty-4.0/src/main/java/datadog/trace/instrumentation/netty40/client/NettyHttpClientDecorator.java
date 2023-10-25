@@ -2,6 +2,7 @@ package datadog.trace.instrumentation.netty40.client;
 
 import static io.netty.handler.codec.http.HttpHeaders.Names.HOST;
 
+import datadog.trace.bootstrap.instrumentation.api.URIUtils;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator;
 import io.netty.handler.codec.http.HttpMethod;
@@ -44,11 +45,11 @@ public class NettyHttpClientDecorator extends HttpClientDecorator<HttpRequest, H
   @Override
   protected URI url(final HttpRequest request) throws URISyntaxException {
     if (request.getMethod().equals(HttpMethod.CONNECT)) {
-      return new URI(uriPrefix + request.getUri());
+      return URIUtils.safeParse(uriPrefix + request.getUri());
     }
-    final URI uri = new URI(request.getUri());
+    final URI uri = URIUtils.safeParse(request.getUri());
     if ((uri.getHost() == null || uri.getHost().equals("")) && request.headers().contains(HOST)) {
-      return new URI(uriPrefix + request.headers().get(HOST) + request.getUri());
+      return URIUtils.safeParse(uriPrefix + request.headers().get(HOST) + request.getUri());
     } else {
       return uri;
     }
@@ -57,5 +58,15 @@ public class NettyHttpClientDecorator extends HttpClientDecorator<HttpRequest, H
   @Override
   protected int status(final HttpResponse httpResponse) {
     return httpResponse.getStatus().code();
+  }
+
+  @Override
+  protected String getRequestHeader(HttpRequest request, String headerName) {
+    return request.headers().get(headerName);
+  }
+
+  @Override
+  protected String getResponseHeader(HttpResponse response, String headerName) {
+    return response.headers().get(headerName);
   }
 }

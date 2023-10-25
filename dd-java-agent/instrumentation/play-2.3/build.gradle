@@ -34,13 +34,7 @@ repositories {
 
 apply from: "$rootDir/gradle/test-with-scala.gradle"
 
-apply plugin: 'org.unbroken-dome.test-sets'
-
-testSets {
-  latestDepTest {
-    dirName = 'test'
-  }
-}
+addTestSuiteForDir('latestDepTest', 'test')
 
 dependencies {
   compileOnly group: 'com.typesafe.play', name: 'play_2.11', version: '2.3.9'

@@ -68,14 +68,14 @@ public class OpenJdkOngoingRecording implements OngoingRecording {
         case CPU:
           {
             // CPU execution profiling will take over these events
-            log.info("Disabling built-in CPU profiling events");
+            log.debug("Disabling built-in CPU profiling events");
             recording.disable("jdk.ExecutionSample");
             recording.disable("jdk.NativeMethodSample");
             break;
           }
         case WALL:
           {
-            log.info("Disabling built-in wall-time tracing events");
+            log.debug("Disabling built-in wall-time tracing events");
             recording.disable("jdk.JavaMonitorWait");
             recording.disable("jdk.ThreadPark");
             recording.disable("jdk.ThreadSleep");
@@ -84,7 +84,7 @@ public class OpenJdkOngoingRecording implements OngoingRecording {
         case ALLOCATION:
           {
             // allocation profiling will take over these events
-            log.info("Disabling built-in allocation profiling events");
+            log.debug("Disabling built-in allocation profiling events");
             recording.disable("jdk.ObjectAllocationOutsideTLAB");
             recording.disable("jdk.ObjectAllocationInNewTLAB");
             recording.disable("jdk.ObjectAllocationSample");
@@ -93,7 +93,7 @@ public class OpenJdkOngoingRecording implements OngoingRecording {
         case MEMLEAK:
           {
             // memleak profiling will take over these events
-            log.info("Disabling built-in memory leak profiling events");
+            log.debug("Disabling built-in memory leak profiling events");
             recording.disable("jdk.OldObjectSample");
             break;
           }

@@ -4,18 +4,23 @@ import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.agent.test.base.HttpServer
 import datadog.trace.agent.test.base.HttpServerTest
 import datadog.trace.api.DDSpanTypes
+import datadog.trace.api.DDTags
+import datadog.trace.api.iast.InstrumentationBridge
+import datadog.trace.api.iast.SourceTypes
+import datadog.trace.api.iast.propagation.PropagationModule
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.core.DDSpan
-import datadog.trace.instrumentation.servlet3.Servlet3Decorator
 import datadog.trace.instrumentation.springweb.SpringWebHttpServerDecorator
 import okhttp3.FormBody
+import okhttp3.Request
 import okhttp3.RequestBody
+import okhttp3.Response
 import org.springframework.boot.SpringApplication
 import org.springframework.boot.context.embedded.EmbeddedWebApplicationContext
 import org.springframework.context.ConfigurableApplicationContext
 import org.springframework.web.servlet.handler.HandlerInterceptorAdapter
 import org.springframework.web.servlet.view.RedirectView
-import spock.lang.Shared
+import test.SetupSpecHelper
 
 import javax.servlet.http.HttpServletRequest
 import javax.servlet.http.HttpServletResponse
@@ -37,51 +42,30 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
     return false
   }
 
-  @Shared
-  EmbeddedWebApplicationContext context
-
   Map<String, String> extraServerTags = [:]
 
   SpringApplication application() {
-    return new SpringApplication(AppConfig, SecurityConfig, AuthServerConfig, TestController)
+    new SpringApplication(AppConfig, SecurityConfig, AuthServerConfig, TestController)
   }
 
-  class SpringBootServer implements HttpServer {
-    def port = 0
-    final app = application()
+  def setupSpec() {
+    SetupSpecHelper.provideBlockResponseFunction()
+  }
 
-    @Override
-    void start() {
-      app.setDefaultProperties(["server.port": 0, "server.context-path": "/$servletContext"])
-      context = app.run() as EmbeddedWebApplicationContext
-      port = context.embeddedServletContainer.port
-      assert port > 0
-    }
-
-    @Override
-    void stop() {
-      context.close()
-    }
-
-    @Override
-    URI address() {
-      return new URI("http://localhost:$port/$servletContext/")
-    }
-
-    @Override
-    String toString() {
-      return this.class.name
-    }
+  @Override
+  protected void configurePreAgent() {
+    super.configurePreAgent()
+    injectSysConfig('dd.iast.enabled', 'true')
   }
 
   @Override
   HttpServer server() {
-    return new SpringBootServer()
+    new SpringBootServer(application(), servletContext)
   }
 
   @Override
   String component() {
-    return Servlet3Decorator.DECORATE.component()
+    'tomcat-server'
   }
 
   String getServletContext() {
@@ -96,6 +80,11 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
   @Override
   String expectedOperationName() {
     return "servlet.request"
+  }
+
+  @Override
+  protected boolean enabledFinishTimingChecks() {
+    true
   }
 
   @Override
@@ -114,7 +103,27 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
   }
 
   @Override
+  boolean testBodyMultipart() {
+    true
+  }
+
+  @Override
   boolean testBodyJson() {
+    true
+  }
+
+  @Override
+  boolean testBadUrl() {
+    false
+  }
+
+  @Override
+  boolean testBlocking() {
+    true
+  }
+
+  @Override
+  boolean testUserBlocking() {
     true
   }
 
@@ -151,14 +160,21 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
   int spanCount(ServerEndpoint endpoint) {
     if (endpoint == REDIRECT) {
       // Spring is generates a RenderView and ResponseSpan for REDIRECT
-      return super.spanCount(endpoint) + 1
+      super.spanCount(endpoint) + 1
+    } else if (endpoint == NOT_FOUND) {
+      super.spanCount(endpoint) + 2
+    } else {
+      super.spanCount(endpoint)
     }
-    return super.spanCount(endpoint)
   }
 
   @Override
   String testPathParam() {
     "/path/{id}/param"
+  }
+
+  private EmbeddedWebApplicationContext getContext() {
+    this.server.context
   }
 
   def "test character encoding of #testPassword"() {
@@ -229,6 +245,26 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
     span.getTag(IG_PATH_PARAMS_TAG) == [id: '123']
   }
 
+  void 'tainting on template var'() {
+    setup:
+    PropagationModule mod = Mock()
+    InstrumentationBridge.registerIastModule(mod)
+    Request request = this.request(PATH_PARAM, 'GET', null).build()
+
+    when:
+    Response response = client.newCall(request).execute()
+    response.code() == PATH_PARAM.status
+    response.close()
+    TEST_WRITER.waitForTraces(1)
+
+    then:
+    1 * mod.taint(_, SourceTypes.REQUEST_PATH_PARAMETER, 'id', '123')
+    0 * mod._
+
+    cleanup:
+    InstrumentationBridge.clearIastModules()
+  }
+
   def 'matrix var is pushed to IG'() {
     setup:
     def request = request(MATRIX_PARAM, 'GET', null)
@@ -243,6 +279,30 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
     response.code() == MATRIX_PARAM.status
     response.body().string() == MATRIX_PARAM.body
     span.getTag(IG_PATH_PARAMS_TAG) == [var:['a=x,y;a=z', [a:['x', 'y', 'z']]]]
+  }
+
+  void 'tainting on matrix var'() {
+    setup:
+    PropagationModule mod = Mock()
+    InstrumentationBridge.registerIastModule(mod)
+    Request request = this.request(MATRIX_PARAM, 'GET', null).build()
+
+    when:
+    Response response = client.newCall(request).execute()
+    response.code() == MATRIX_PARAM.status
+    response.close()
+    TEST_WRITER.waitForTraces(1)
+
+    then:
+    1 * mod.taint(_, SourceTypes.REQUEST_PATH_PARAMETER, 'var', 'a=x,y;a=z')
+    1 * mod.taint(_, SourceTypes.REQUEST_MATRIX_PARAMETER, 'var', 'a')
+    1 * mod.taint(_, SourceTypes.REQUEST_MATRIX_PARAMETER, 'var', 'x')
+    1 * mod.taint(_, SourceTypes.REQUEST_MATRIX_PARAMETER, 'var', 'y')
+    1 * mod.taint(_, SourceTypes.REQUEST_MATRIX_PARAMETER, 'var', 'z')
+    0 * mod._
+
+    cleanup:
+    InstrumentationBridge.clearIastModules()
   }
 
   def 'path is extract when preHandle fails'() {
@@ -344,6 +404,39 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
           errorTags(Exception, EXCEPTION.body)
         }
         defaultTags()
+      }
+    }
+  }
+
+
+  protected void trailingSpans(TraceAssert traceAssert, ServerEndpoint serverEndpoint) {
+    if (serverEndpoint == NOT_FOUND) {
+      traceAssert.with {
+        span {
+          spanType 'web'
+          serviceName expectedServiceName()
+          operationName 'servlet.forward'
+          resourceName 'GET /error'
+          tags {
+            "$Tags.COMPONENT" 'java-web-servlet-dispatcher'
+            "$Tags.HTTP_ROUTE" '/error'
+            'servlet.context' "/$servletContext"
+            'servlet.path' '/not-found'
+            "$DDTags.PATHWAY_HASH" String
+            defaultTags()
+          }
+        }
+        span {
+          spanType 'web'
+          serviceName expectedServiceName()
+          operationName 'spring.handler'
+          resourceName 'BasicErrorController.error'
+          tags {
+            "$Tags.COMPONENT" 'spring-web-controller'
+            "$Tags.SPAN_KIND" 'server'
+            defaultTags()
+          }
+        }
       }
     }
   }

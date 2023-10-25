@@ -2,9 +2,15 @@ package datadog.trace.instrumentation.java.lang
 
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.iast.InstrumentationBridge
+import datadog.trace.api.iast.propagation.CodecModule
+import datadog.trace.api.iast.propagation.PropagationModule
 import datadog.trace.api.iast.propagation.StringModule
 import foo.bar.TestStringSuite
+import groovy.transform.CompileDynamic
 
+import java.nio.charset.Charset
+
+@CompileDynamic
 class StringCallSiteTest extends AgentTestRunner {
 
   @Override
@@ -176,7 +182,118 @@ class StringCallSiteTest extends AgentTestRunner {
 
     then:
     result == 'hello'
-    1 * module.onStringConstructor(_,_)
+    1 * module.onStringConstructor(_, _)
     0 * _
+  }
+
+  void 'test get bytes'() {
+    given:
+    final module = Mock(CodecModule)
+    InstrumentationBridge.registerIastModule(module)
+
+    when:
+    final byte[] bytes = TestStringSuite.&"$method".call(args as Object[])
+
+    then:
+    bytes != null && bytes.length > 0
+    1 * module.onStringGetBytes(args[0] as String, charset, _ as byte[])
+
+    where:
+    method     | charset                         | args
+    'getBytes' | null                            | ['Hello']
+    'getBytes' | 'UTF-8'                         | ['Hello', charset]
+    'getBytes' | Charset.defaultCharset().name() | ['Hello', Charset.forName(charset)]
+  }
+
+  void 'test string constructor with byte array'() {
+    given:
+    final module = Mock(CodecModule)
+    InstrumentationBridge.registerIastModule(module)
+
+    when:
+    final result = TestStringSuite.&stringConstructor.call(args as Object[])
+
+    then:
+    result != null && !result.empty
+    1 * module.onStringFromBytes(args[0] as byte[], charset, _ as String)
+
+    where:
+    charset                         | args
+    null                            | ['Hello'.bytes]
+    'UTF-8'                         | ['Hello'.getBytes(charset), charset]
+    Charset.defaultCharset().name() | ['Hello'.getBytes(charset), Charset.forName(charset)]
+  }
+
+  void 'test string format'() {
+    given:
+    final module = Mock(StringModule)
+    InstrumentationBridge.registerIastModule(module)
+
+    when:
+    TestStringSuite.format(pattern, args == null ? null : args as Object[])
+
+    then:
+    1 * module.onStringFormat(pattern, args, _ as String)
+
+    where:
+    pattern | args
+    ''      | []
+    ''      | null
+    '%s'    | ['Hello']
+  }
+
+  void 'test string format with locale'() {
+    given:
+    final module = Mock(StringModule)
+    InstrumentationBridge.registerIastModule(module)
+
+    when:
+    TestStringSuite.format(Locale.getDefault(), pattern, args == null ? null : args as Object[])
+
+    then:
+    1 * module.onStringFormat(_, pattern, args, _ as String)
+
+    where:
+    locale              | pattern | args
+    null                | ''      | []
+    null                | ''      | null
+    null                | '%s'    | ['Hello']
+    Locale.getDefault() | '%s'    | ['Hello']
+  }
+
+  void 'test string toCharArray'() {
+    given:
+    final module = Mock(PropagationModule)
+    InstrumentationBridge.registerIastModule(module)
+    final string = 'test'
+
+    when:
+    final char[] result = TestStringSuite.toCharArray(string)
+
+    then:
+    result != null && result.length > 0
+    1 * module.taintObjectIfInputIsTaintedKeepingRanges(_ as char[], string)
+    0 * _
+  }
+
+  void 'test string split'() {
+    final module = Mock(StringModule)
+    InstrumentationBridge.registerIastModule(module)
+
+    when:
+    final String[] result = TestStringSuite.&split.call(args)
+
+    then:
+    result != null && result.length == expected.length
+    for (def i = 0; i < expected.length; i++) {
+      result[i] == expected[i]
+    }
+    1 * module.onSplit(args[0], _ as String[])
+    0 * _
+
+    where:
+    args                      | expected
+    ['test the test', ' ']    | ['test', 'the', 'test'] as String[]
+    ['test the test', ' ', 0] | ['test', 'the', 'test'] as String[]
   }
 }

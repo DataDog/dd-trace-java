@@ -1,5 +1,7 @@
 package datadog.trace.api;
 
+import java.util.Locale;
+
 /** Trace propagation styles for injecting and extracting trace propagation headers. */
 public enum TracePropagationStyle {
   // Datadog context propagation style
@@ -41,7 +43,7 @@ public enum TracePropagationStyle {
   public String toString() {
     String string = displayName;
     if (displayName == null) {
-      string = displayName = name().toLowerCase().replace('_', ' ');
+      string = displayName = name().toLowerCase(Locale.ROOT).replace('_', ' ');
     }
     return string;
   }

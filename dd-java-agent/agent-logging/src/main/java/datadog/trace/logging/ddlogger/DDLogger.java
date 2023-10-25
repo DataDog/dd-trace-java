@@ -2,7 +2,6 @@ package datadog.trace.logging.ddlogger;
 
 import datadog.trace.logging.LogLevel;
 import datadog.trace.logging.LoggerHelper;
-import datadog.trace.logging.LoggerHelperFactory;
 import org.slf4j.Logger;
 import org.slf4j.Marker;
 import org.slf4j.helpers.FormattingTuple;
@@ -14,9 +13,9 @@ public class DDLogger implements Logger {
   private final String name;
   private final LoggerHelper helper;
 
-  public DDLogger(LoggerHelperFactory helperFactory, String name) {
+  public DDLogger(LoggerHelper helper, String name) {
     this.name = name;
-    this.helper = helperFactory.loggerHelperForName(name);
+    this.helper = helper;
   }
 
   @Override

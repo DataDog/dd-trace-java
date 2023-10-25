@@ -3,7 +3,9 @@ package datadog.trace.core.propagation.ptags;
 import static datadog.trace.core.propagation.PropagationTags.HeaderType.DATADOG;
 import static datadog.trace.core.propagation.PropagationTags.HeaderType.W3C;
 import static datadog.trace.core.propagation.ptags.PTagsCodec.DECISION_MAKER_TAG;
+import static datadog.trace.core.propagation.ptags.PTagsCodec.TRACE_ID_TAG;
 
+import datadog.trace.api.internal.util.LongStringUtils;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.api.sampling.SamplingMechanism;
 import datadog.trace.core.propagation.PropagationTags;
@@ -43,7 +45,7 @@ public class PTagsFactory implements PropagationTags.Factory {
 
   @Override
   public final PropagationTags empty() {
-    return createValid(null, null);
+    return createValid(null, null, null);
   }
 
   @Override
@@ -51,12 +53,13 @@ public class PTagsFactory implements PropagationTags.Factory {
     return DEC_ENC_MAP.get(headerType).fromHeaderValue(this, value);
   }
 
-  PropagationTags createValid(List<TagElement> tagPairs, TagValue decisionMakerTagValue) {
-    return new PTags(this, tagPairs, decisionMakerTagValue);
+  PropagationTags createValid(
+      List<TagElement> tagPairs, TagValue decisionMakerTagValue, TagValue traceIdTagValue) {
+    return new PTags(this, tagPairs, decisionMakerTagValue, traceIdTagValue);
   }
 
   PropagationTags createInvalid(String error) {
-    return new PTagsWithError(this, error);
+    return PTags.withError(this, error);
   }
 
   static class PTags extends PropagationTags {
@@ -78,15 +81,29 @@ public class PTagsFactory implements PropagationTags.Factory {
     private volatile int samplingPriority;
     private volatile CharSequence origin;
     private volatile String[] headerCache = null;
+    /** The high-order 64 bits of the trace id. */
+    private volatile long traceIdHighOrderBits;
+    /**
+     * The zero-padded lower-case 16 character hexadecimal representation of the high-order 64 bits
+     * of the trace id, wrapped into a {@link TagValue}, <code>null</code> if not set.
+     */
+    private volatile TagValue traceIdHighOrderBitsHexTagValue;
 
-    public PTags(PTagsFactory factory, List<TagElement> tagPairs, TagValue decisionMakerTagValue) {
-      this(factory, tagPairs, decisionMakerTagValue, PrioritySampling.UNSET, null);
+    protected volatile String error;
+
+    public PTags(
+        PTagsFactory factory,
+        List<TagElement> tagPairs,
+        TagValue decisionMakerTagValue,
+        TagValue traceIdTagValue) {
+      this(factory, tagPairs, decisionMakerTagValue, traceIdTagValue, PrioritySampling.UNSET, null);
     }
 
     PTags(
         PTagsFactory factory,
         List<TagElement> tagPairs,
         TagValue decisionMakerTagValue,
+        TagValue traceIdTagValue,
         int samplingPriority,
         CharSequence origin) {
       assert tagPairs == null || tagPairs.size() % 2 == 0;
@@ -96,6 +113,20 @@ public class PTagsFactory implements PropagationTags.Factory {
       this.decisionMakerTagValue = decisionMakerTagValue;
       this.samplingPriority = samplingPriority;
       this.origin = origin;
+      if (traceIdTagValue != null) {
+        CharSequence traceIdHighOrderBitsHex = traceIdTagValue.forType(TagElement.Encoding.DATADOG);
+        this.traceIdHighOrderBits =
+            LongStringUtils.parseUnsignedLongHex(
+                traceIdHighOrderBitsHex, 0, traceIdHighOrderBitsHex.length(), true);
+      }
+      this.traceIdHighOrderBitsHexTagValue = traceIdTagValue;
+      this.error = null;
+    }
+
+    static PTags withError(PTagsFactory factory, String error) {
+      PTags pTags = new PTags(factory, null, null, null, PrioritySampling.UNSET, null);
+      pTags.error = error;
+      return pTags;
     }
 
     @Override
@@ -159,6 +190,23 @@ public class PTagsFactory implements PropagationTags.Factory {
     }
 
     @Override
+    public long getTraceIdHighOrderBits() {
+      return traceIdHighOrderBits;
+    }
+
+    public void updateTraceIdHighOrderBits(long highOrderBits) {
+      if (traceIdHighOrderBits != highOrderBits) {
+        traceIdHighOrderBits = highOrderBits;
+        traceIdHighOrderBitsHexTagValue =
+            highOrderBits == 0
+                ? null
+                : TagValue.from(LongStringUtils.toHexStringPadded(highOrderBits, 16));
+        clearCachedHeader(DATADOG);
+      }
+    }
+
+    @Override
+    @SuppressWarnings("StringEquality")
     @SuppressFBWarnings("ES_COMPARING_STRINGS_WITH_EQ")
     public String headerValue(HeaderType headerType) {
       String header = getCachedHeader(headerType);
@@ -230,9 +278,14 @@ public class PTagsFactory implements PropagationTags.Factory {
       if (size == -1) {
         size = PTagsCodec.calcXDatadogTagsSize(getTagPairs());
         size = PTagsCodec.calcXDatadogTagsSize(size, DECISION_MAKER_TAG, decisionMakerTagValue);
+        size = PTagsCodec.calcXDatadogTagsSize(size, TRACE_ID_TAG, traceIdHighOrderBitsHexTagValue);
         xDatadogTagsSize = size;
       }
       return size;
+    }
+
+    TagValue getTraceIdHighOrderBitsHexTagValue() {
+      return traceIdHighOrderBitsHexTagValue;
     }
 
     TagValue getDecisionMakerTagValue() {
@@ -240,21 +293,7 @@ public class PTagsFactory implements PropagationTags.Factory {
     }
 
     String getError() {
-      return null;
-    }
-  }
-
-  static final class PTagsWithError extends PTags {
-    final String error;
-
-    public PTagsWithError(PTagsFactory factory, String error) {
-      super(factory, null, null, PrioritySampling.UNSET, null);
-      this.error = error;
-    }
-
-    @Override
-    String getError() {
-      return error;
+      return this.error;
     }
   }
 }

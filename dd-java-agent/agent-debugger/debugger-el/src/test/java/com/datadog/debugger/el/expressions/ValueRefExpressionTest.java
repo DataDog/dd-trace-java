@@ -5,11 +5,11 @@ import static com.datadog.debugger.el.PrettyPrintVisitor.print;
 import static org.junit.jupiter.api.Assertions.*;
 
 import com.datadog.debugger.el.DSL;
+import com.datadog.debugger.el.EvaluationException;
 import com.datadog.debugger.el.RefResolverHelper;
 import com.datadog.debugger.el.Value;
 import datadog.trace.bootstrap.debugger.el.ValueReferenceResolver;
 import datadog.trace.bootstrap.debugger.el.ValueReferences;
-import datadog.trace.bootstrap.debugger.el.Values;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
@@ -42,9 +42,15 @@ class ValueRefExpressionTest {
     assertFalse(isEmpty.evaluate(ctx));
     assertEquals("isEmpty(b)", print(isEmpty));
 
-    assertTrue(isEmptyInvalid.evaluate(ctx));
-    assertFalse(and(isEmptyInvalid, isEmpty).evaluate(ctx));
-    assertTrue(or(isEmptyInvalid, isEmpty).evaluate(ctx));
+    RuntimeException runtimeException =
+        assertThrows(RuntimeException.class, () -> isEmptyInvalid.evaluate(ctx));
+    assertEquals("Cannot find symbol: x", runtimeException.getMessage());
+    runtimeException =
+        assertThrows(RuntimeException.class, () -> and(isEmptyInvalid, isEmpty).evaluate(ctx));
+    assertEquals("Cannot find symbol: x", runtimeException.getMessage());
+    runtimeException =
+        assertThrows(RuntimeException.class, () -> or(isEmptyInvalid, isEmpty).evaluate(ctx));
+    assertEquals("Cannot find symbol: x", runtimeException.getMessage());
     assertEquals("isEmpty(x)", print(isEmptyInvalid));
   }
 
@@ -69,8 +75,8 @@ class ValueRefExpressionTest {
     Map<String, Object> exts = new HashMap<>();
     exts.put(ValueReferences.RETURN_EXTENSION_NAME, returnVal);
     exts.put(ValueReferences.DURATION_EXTENSION_NAME, duration);
-    ValueReferenceResolver resolver = RefResolverHelper.createResolver(null, null, values);
-    resolver = resolver.withExtensions(exts);
+    ValueReferenceResolver resolver =
+        RefResolverHelper.createResolver(null, null, values).withExtensions(exts);
 
     ValueRefExpression expression = DSL.ref(ValueReferences.DURATION_REF);
     assertEquals(duration, expression.evaluate(resolver).getValue());
@@ -88,8 +94,30 @@ class ValueRefExpressionTest {
     assertEquals(
         (long) i, expression.evaluate(resolver).getValue()); // int value is widened to long
     assertEquals("i", print(expression));
-    expression = DSL.ref(ValueReferences.synthetic("invalid"));
-    assertEquals(Values.UNDEFINED_OBJECT, expression.evaluate(resolver).getValue());
-    assertEquals("@invalid", print(expression));
+    ValueRefExpression invalidExpression = ref(ValueReferences.synthetic("invalid"));
+    RuntimeException runtimeException =
+        assertThrows(RuntimeException.class, () -> invalidExpression.evaluate(resolver).getValue());
+    assertEquals("Cannot find synthetic var: invalid", runtimeException.getMessage());
+    assertEquals("@invalid", print(invalidExpression));
+  }
+
+  @Test
+  public void redacted() {
+    ValueRefExpression valueRef = new ValueRefExpression("password");
+    class StoreSecret {
+      String password;
+
+      public StoreSecret(String password) {
+        this.password = password;
+      }
+    }
+    StoreSecret instance = new StoreSecret("secret123");
+    EvaluationException evaluationException =
+        assertThrows(
+            EvaluationException.class,
+            () -> valueRef.evaluate(RefResolverHelper.createResolver(instance)));
+    assertEquals(
+        "Could not evaluate the expression because 'password' was redacted",
+        evaluationException.getMessage());
   }
 }

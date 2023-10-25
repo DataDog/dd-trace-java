@@ -2,6 +2,7 @@ import datadog.communication.ddagent.DDAgentFeaturesDiscovery
 import datadog.communication.ddagent.SharedCommunicationObjects
 import datadog.communication.http.OkHttpUtils
 import datadog.trace.api.Config
+import datadog.trace.api.TraceConfig
 import datadog.trace.api.time.ControllableTimeSource
 import datadog.trace.bootstrap.instrumentation.api.StatsPoint
 import datadog.trace.common.metrics.EventListener
@@ -44,8 +45,12 @@ class DataStreamsIntegrationTest extends DDSpecification {
 
     def timeSource = new ControllableTimeSource()
 
+    def traceConfig = Mock(TraceConfig) {
+      isDataStreamsEnabled() >> true
+    }
+
     when:
-    def dataStreams = new DefaultDataStreamsMonitoring(sink, sharedCommunicationObjects.featuresDiscovery, timeSource, Config.get().getEnv())
+    def dataStreams = new DefaultDataStreamsMonitoring(sink, sharedCommunicationObjects.featuresDiscovery, timeSource, { traceConfig }, Config.get())
     dataStreams.start()
     dataStreams.accept(new StatsPoint("testType", "testGroup", "testTopic", 1, 2, timeSource.currentTimeNanos, 0, 0))
     timeSource.advance(DEFAULT_BUCKET_DURATION_NANOS)

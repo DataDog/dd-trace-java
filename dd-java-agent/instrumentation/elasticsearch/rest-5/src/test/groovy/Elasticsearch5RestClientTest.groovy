@@ -98,21 +98,25 @@ abstract class Elasticsearch5RestClientTest extends VersionedNamingTestBase {
             "$Tags.HTTP_URL" "_cluster/health"
             "$Tags.HTTP_METHOD" "GET"
             "$Tags.DB_TYPE" "elasticsearch"
+            peerServiceFrom(Tags.PEER_HOSTNAME)
             defaultTags()
           }
         }
         span {
           serviceName service()
-          resourceName "GET _cluster/health"
+          resourceName "GET /_cluster/health"
           operationName SpanNaming.instance().namingSchema().client().operationForComponent("apache-httpasyncclient")
           spanType DDSpanTypes.HTTP_CLIENT
           childOf span(0)
           tags {
             "$Tags.COMPONENT" "apache-httpasyncclient"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
-            "$Tags.HTTP_URL" "_cluster/health"
+            "$Tags.PEER_HOSTNAME" httpTransportAddress.address
+            "$Tags.PEER_PORT" httpTransportAddress.port
+            "$Tags.HTTP_URL" "http://${httpTransportAddress.address}:${httpTransportAddress.port}/_cluster/health"
             "$Tags.HTTP_METHOD" "GET"
             "$Tags.HTTP_STATUS" 200
+            peerServiceFrom(Tags.PEER_HOSTNAME)
             defaultTags()
           }
         }
@@ -121,7 +125,7 @@ abstract class Elasticsearch5RestClientTest extends VersionedNamingTestBase {
   }
 }
 
-class Elasticsearch5RestClientV0ForkedTest extends Elasticsearch5RestClientTest {
+class Elasticsearch5RestClientV0Test extends Elasticsearch5RestClientTest {
 
   @Override
   int version() {
@@ -148,7 +152,7 @@ class Elasticsearch5RestClientV1ForkedTest extends Elasticsearch5RestClientTest 
 
   @Override
   String service() {
-    return Config.get().getServiceName() + "-elasticsearch"
+    return Config.get().getServiceName()
   }
 
   @Override

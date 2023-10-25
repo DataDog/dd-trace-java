@@ -1,7 +1,6 @@
 package datadog.trace.civisibility.source;
 
 import datadog.compiler.utils.CompilerUtils;
-import datadog.trace.api.civisibility.source.SourcePathResolver;
 import java.io.File;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;

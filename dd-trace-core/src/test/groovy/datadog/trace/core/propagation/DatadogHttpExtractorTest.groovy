@@ -1,8 +1,13 @@
 package datadog.trace.core.propagation
 
+import datadog.trace.api.Config
+import datadog.trace.api.DD128bTraceId
+import datadog.trace.api.DD64bTraceId
 import datadog.trace.api.DDSpanId
 import datadog.trace.api.DDTraceId
+import datadog.trace.api.DynamicConfig
 import datadog.trace.api.config.TracerConfig
+import datadog.trace.api.internal.util.LongStringUtils
 import datadog.trace.bootstrap.ActiveSubsystems
 import datadog.trace.bootstrap.instrumentation.api.TagContext
 import datadog.trace.api.sampling.PrioritySampling
@@ -11,6 +16,7 @@ import datadog.trace.test.util.DDSpecification
 
 import static datadog.trace.api.config.TracerConfig.PROPAGATION_EXTRACT_LOG_HEADER_NAMES_ENABLED
 import static datadog.trace.core.CoreTracer.TRACE_ID_MAX
+import static datadog.trace.core.propagation.DatadogHttpCodec.DATADOG_TAGS_KEY
 import static datadog.trace.core.propagation.DatadogHttpCodec.ORIGIN_KEY
 import static datadog.trace.core.propagation.DatadogHttpCodec.OT_BAGGAGE_PREFIX
 import static datadog.trace.core.propagation.DatadogHttpCodec.SAMPLING_PRIORITY_KEY
@@ -19,19 +25,20 @@ import static datadog.trace.core.propagation.DatadogHttpCodec.TRACE_ID_KEY
 
 class DatadogHttpExtractorTest extends DDSpecification {
 
+  private DynamicConfig dynamicConfig
   private HttpCodec.Extractor _extractor
 
   private HttpCodec.Extractor getExtractor() {
-    _extractor ?: (
-      _extractor = DatadogHttpCodec.newExtractor(
-      ["SOME_HEADER": "some-tag"],
-      ["SOME_CUSTOM_BAGGAGE_HEADER": "some-baggage", "SOME_CUSTOM_BAGGAGE_HEADER_2": "some-CaseSensitive-baggage"])
-      )
+    _extractor ?: (_extractor = DatadogHttpCodec.newExtractor(Config.get(), { dynamicConfig.captureTraceConfig() }))
   }
 
   boolean origAppSecActive
 
   void setup() {
+    dynamicConfig = DynamicConfig.create()
+      .setHeaderTags(["SOME_HEADER": "some-tag"])
+      .setBaggageMapping(["SOME_CUSTOM_BAGGAGE_HEADER": "some-baggage", "SOME_CUSTOM_BAGGAGE_HEADER_2": "some-CaseSensitive-baggage"])
+      .apply()
     origAppSecActive = ActiveSubsystems.APPSEC_ACTIVE
     ActiveSubsystems.APPSEC_ACTIVE = true
 
@@ -228,6 +235,40 @@ class DatadogHttpExtractorTest extends DDSpecification {
     ctx.customIpHeader == '8.8.8.8'
   }
 
+  def "extract http headers with 128-bit trace ID"() {
+    setup:
+    def headers = [
+      (TRACE_ID_KEY.toUpperCase())            : traceId.toString(),
+      (SPAN_ID_KEY.toUpperCase())             : "2",
+      (OT_BAGGAGE_PREFIX.toUpperCase() + "k1"): "v1",
+      (OT_BAGGAGE_PREFIX.toUpperCase() + "k2"): "v2",
+      SOME_HEADER                             : "my-interesting-info"
+    ] + additionalHeader
+
+    when:
+    final ExtractedContext context = extractor.extract(headers, ContextVisitors.stringValuesMap())
+
+    then:
+    context.traceId == expectedTraceId
+    context.spanId == DDSpanId.from("2")
+    context.baggage == ["k1": "v1",
+      "k2": "v2"]
+    context.tags == ["some-tag": "my-interesting-info"]
+
+    where:
+    hexId << [
+      "1",
+      "123456789abcdef0",
+      "123456789abcdef0123456789abcdef0",
+      "64184f2400000000123456789abcdef0",
+      "f" * 32
+    ]
+    traceId = DD128bTraceId.fromHex(hexId)
+    is128bTrace = traceId.toHighOrderLong() != 0
+    expectedTraceId = is128bTrace ? traceId : DD64bTraceId.from(traceId.toLong())
+    additionalHeader = is128bTrace ? [(DATADOG_TAGS_KEY.toUpperCase()) : '_dd.p.tid=' + LongStringUtils.toHexStringPadded(traceId.toHighOrderLong(), 16)] : [:]
+  }
+
   def "extract http headers with invalid non-numeric ID"() {
     setup:
     def headers = [
@@ -299,15 +340,15 @@ class DatadogHttpExtractorTest extends DDSpecification {
     }
 
     where:
-    traceId               | spanId                | expectedTraceId | expectedSpanId
-    "-1"                  | "1"                   | null            | null
-    "1"                   | "-1"                  | null            | null
-    "0"                   | "1"                   | null            | null
-    "1"                   | "0"                   | DDTraceId.ONE   | DDSpanId.ZERO
-    "$TRACE_ID_MAX"       | "1"                   | DDTraceId.MAX   | 1
-    "${TRACE_ID_MAX + 1}" | "1"                   | null            | null
-    "1"                   | "$TRACE_ID_MAX"       | DDTraceId.ONE   | DDSpanId.MAX
-    "1"                   | "${TRACE_ID_MAX + 1}" | null            | null
+    traceId               | spanId                | expectedTraceId  | expectedSpanId
+    "-1"                  | "1"                   | null             | null
+    "1"                   | "-1"                  | null             | null
+    "0"                   | "1"                   | null             | null
+    "1"                   | "0"                   | DD64bTraceId.ONE | DDSpanId.ZERO
+    "$TRACE_ID_MAX"       | "1"                   | DD64bTraceId.MAX | 1
+    "${TRACE_ID_MAX + 1}" | "1"                   | null             | null
+    "1"                   | "$TRACE_ID_MAX"       | DD64bTraceId.ONE | DDSpanId.MAX
+    "1"                   | "${TRACE_ID_MAX + 1}" | null             | null
   }
 
   def "extract http headers with end to end"() {
@@ -383,11 +424,13 @@ class DatadogHttpExtractorTest extends DDSpecification {
       (HttpCodec.USER_AGENT_KEY): 'some-user-agent',
       (HttpCodec.X_CLUSTER_CLIENT_IP_KEY): '1.1.1.1',
       (HttpCodec.X_REAL_IP_KEY): '2.2.2.2',
-      (HttpCodec.CLIENT_IP_KEY): '3.3.3.3',
+      (HttpCodec.X_CLIENT_IP_KEY): '3.3.3.3',
       (HttpCodec.TRUE_CLIENT_IP_KEY): '4.4.4.4',
-      (HttpCodec.VIA_KEY): '5.5.5.5',
-      (HttpCodec.FORWARDED_FOR_KEY): '6.6.6.6',
-      (HttpCodec.X_FORWARDED_KEY): '7.7.7.7'
+      (HttpCodec.FORWARDED_FOR_KEY): '5.5.5.5',
+      (HttpCodec.X_FORWARDED_KEY): '6.6.6.6',
+      (HttpCodec.FASTLY_CLIENT_IP_KEY): '7.7.7.7',
+      (HttpCodec.CF_CONNECTING_IP_KEY): '8.8.8.8',
+      (HttpCodec.CF_CONNECTING_IP_V6_KEY): '9.9.9.9',
     ]
 
     when:
@@ -397,10 +440,12 @@ class DatadogHttpExtractorTest extends DDSpecification {
     assert context.userAgent == 'some-user-agent'
     assert context.XClusterClientIp == '1.1.1.1'
     assert context.XRealIp == '2.2.2.2'
-    assert context.clientIp == '3.3.3.3'
+    assert context.XClientIp == '3.3.3.3'
     assert context.trueClientIp == '4.4.4.4'
-    assert context.via == '5.5.5.5'
-    assert context.forwardedFor == '6.6.6.6'
-    assert context.XForwarded == '7.7.7.7'
+    assert context.forwardedFor == '5.5.5.5'
+    assert context.XForwarded == '6.6.6.6'
+    assert context.fastlyClientIp == '7.7.7.7'
+    assert context.cfConnectingIp == '8.8.8.8'
+    assert context.cfConnectingIpv6 == '9.9.9.9'
   }
 }

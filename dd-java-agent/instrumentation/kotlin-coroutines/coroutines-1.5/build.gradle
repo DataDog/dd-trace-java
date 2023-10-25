@@ -19,13 +19,8 @@ muzzle {
 
 apply from: "$rootDir/gradle/java.gradle"
 apply from: "$rootDir/gradle/test-with-kotlin.gradle"
-apply plugin: 'org.unbroken-dome.test-sets'
 
-testSets {
-  latestDepTest {
-    dirName = 'test'
-  }
-}
+addTestSuiteForDir('latestDepTest', 'test')
 
 tasks.named("compileLatestDepTestGroovy").configure {
   classpath += files(compileLatestDepTestKotlin.destinationDirectory)
@@ -41,5 +36,5 @@ dependencies {
   testImplementation "org.jetbrains.kotlinx:kotlinx-coroutines-core-jvm:$coroutinesVersion"
   testImplementation testFixtures(project(':dd-java-agent:instrumentation:kotlin-coroutines'))
 
-  latestDepTestImplementation group: 'org.jetbrains.kotlinx', name: "kotlinx-coroutines-core", version: '1.+'
+  latestDepTestImplementation group: 'org.jetbrains.kotlinx', name: "kotlinx-coroutines-core", version: '1.6.+'
 }

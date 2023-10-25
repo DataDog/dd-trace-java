@@ -3,10 +3,7 @@ package datadog.trace.bootstrap;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.net.MalformedURLException;
-import java.net.URL;
 import java.nio.charset.StandardCharsets;
-import java.security.CodeSource;
 import java.util.Arrays;
 
 /** Entry point when running the agent as a sample application with -jar. */
@@ -119,13 +116,7 @@ public final class AgentJar {
   }
 
   private static Class<?> installAgentCLI() throws Exception {
-    CodeSource codeSource = thisClass.getProtectionDomain().getCodeSource();
-    if (codeSource == null || codeSource.getLocation() == null) {
-      throw new MalformedURLException("Could not get jar location from code source");
-    }
-
-    return (Class<?>)
-        agentClass.getMethod("installAgentCLI", URL.class).invoke(null, codeSource.getLocation());
+    return (Class<?>) agentClass.getMethod("installAgentCLI").invoke(null);
   }
 
   private static void printAgentVersion() {

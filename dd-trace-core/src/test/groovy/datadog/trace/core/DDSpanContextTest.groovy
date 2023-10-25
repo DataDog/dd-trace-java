@@ -3,6 +3,7 @@ package datadog.trace.core
 import datadog.trace.api.DDTags
 import datadog.trace.api.DDTraceId
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
+import datadog.trace.bootstrap.instrumentation.api.ErrorPriorities
 import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration
 import datadog.trace.common.writer.ListWriter
 import datadog.trace.core.propagation.ExtractedContext
@@ -43,7 +44,7 @@ class DDSpanContextTest extends DDCoreSpecification {
     when:
     context.setTag("some.tag", "asdf")
     context.setTag(name, null)
-    context.setErrorFlag(true)
+    context.setErrorFlag(true, ErrorPriorities.DEFAULT)
     span.finish()
 
     writer.waitForTraces(1)
@@ -180,8 +181,8 @@ class DDSpanContextTest extends DDCoreSpecification {
 
   def "set TraceSegment tags and data on correct span"() {
     setup:
-    def extracted = new ExtractedContext(DDTraceId.from(123), 456, SAMPLER_KEEP, "789", 0, [:], [:], null, tracer.getPropagationTagsFactory().empty())
-    .withRequestContextDataAppSec("dummy")
+    def extracted = new ExtractedContext(DDTraceId.from(123), 456, SAMPLER_KEEP, "789", tracer.getPropagationTagsFactory().empty())
+      .withRequestContextDataAppSec("dummy")
 
     def top = tracer.buildSpan("top").asChildOf((AgentSpan.Context) extracted).start()
     def topC = (DDSpanContext) top.context()
@@ -232,7 +233,7 @@ class DDSpanContextTest extends DDCoreSpecification {
     // single span sampling should not change the trace sampling priority
     context.getSamplingPriority() == UNSET
     // make sure the `_dd.p.dm` tag has not been set by single span sampling
-    context.getPropagationTags().createTagMap() == [:]
+    !context.getPropagationTags().createTagMap().containsKey("_dd.p.dm")
 
     where:
     rate | limit
@@ -285,6 +286,8 @@ class DDSpanContextTest extends DDCoreSpecification {
     sourceWithoutCommonTags.remove("_dd.agent_psr")
     sourceWithoutCommonTags.remove("_sample_rate")
     sourceWithoutCommonTags.remove("process_id")
+    sourceWithoutCommonTags.remove("_dd.trace_span_attribute_schema")
+    sourceWithoutCommonTags.remove(DDTags.PROFILING_ENABLED)
     if (removeThread) {
       sourceWithoutCommonTags.remove(DDTags.THREAD_ID)
       sourceWithoutCommonTags.remove(DDTags.THREAD_NAME)

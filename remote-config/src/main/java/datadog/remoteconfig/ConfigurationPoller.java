@@ -26,6 +26,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InterruptedIOException;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -200,6 +201,7 @@ public class ConfigurationPoller
 
       try {
         sendRequest(this::handleAgentResponse);
+      } catch (InterruptedIOException ignored) {
       } catch (IOException | RuntimeException ex) {
         ExceptionHelper.rateLimitedLogException(
             ratelimitedLogger,
@@ -253,6 +255,7 @@ public class ConfigurationPoller
     if (request == null) {
       throw new IOException("Endpoint has not been discovered yet");
     }
+    log.debug("Sending Remote configuration request: {}", request);
     Call call = this.httpClient.newCall(request);
     return call.execute();
   }

@@ -13,6 +13,7 @@ import datadog.trace.agent.test.naming.VersionedNamingTestBase
 import datadog.trace.api.Config
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.DDTags
+import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.core.DDSpan
 import java.time.Duration
@@ -389,10 +390,13 @@ abstract class CouchbaseClient31Test extends VersionedNamingTestBase {
           it.tag(DDTags.ERROR_TYPE, ex.class.name)
           it.tag(DDTags.ERROR_STACK, String)
         }
+        "$InstrumentationTags.COUCHBASE_SEED_NODES" { it =="localhost" || it == "127.0.0.1" }
+
         if (isLatestDepTest && extraTags != null) {
           tag('db.system','couchbase')
           addTags(extraTags)
         }
+        peerServiceFrom(InstrumentationTags.COUCHBASE_SEED_NODES)
         defaultTags()
       }
     }
@@ -416,7 +420,7 @@ abstract class CouchbaseClient31Test extends VersionedNamingTestBase {
   }
 }
 
-class CouchbaseClient31V0ForkedTest extends CouchbaseClient31Test {
+class CouchbaseClient31V0Test extends CouchbaseClient31Test {
   @Override
   int version() {
     return 0
@@ -441,7 +445,7 @@ class CouchbaseClient31V1ForkedTest extends CouchbaseClient31Test {
 
   @Override
   String service() {
-    return Config.get().getServiceName() + "-couchbase"
+    return Config.get().getServiceName()
   }
 
   @Override

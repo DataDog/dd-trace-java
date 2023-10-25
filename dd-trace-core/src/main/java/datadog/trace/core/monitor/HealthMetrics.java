@@ -27,7 +27,7 @@ public abstract class HealthMetrics implements AutoCloseable {
 
   public void onPublish(final List<DDSpan> trace, final int samplingPriority) {}
 
-  public void onFailedPublish(final int samplingPriority) {}
+  public void onFailedPublish(final int samplingPriority, final int spanCount) {}
 
   public void onPartialPublish(final int numberOfDroppedSpans) {}
 
@@ -37,11 +37,17 @@ public abstract class HealthMetrics implements AutoCloseable {
 
   public void onPartialFlush(final int sizeInBytes) {}
 
+  public void onSingleSpanSample() {}
+
+  public void onSingleSpanUnsampled() {}
+
   public void onSerialize(final int serializedSizeInBytes) {}
 
   public void onFailedSerialize(final List<DDSpan> trace, final Throwable optionalCause) {}
 
   public void onCreateSpan() {}
+
+  public void onFinishSpan() {}
 
   public void onCreateTrace() {}
 
@@ -49,15 +55,25 @@ public abstract class HealthMetrics implements AutoCloseable {
 
   public void onScopeCloseError(int scopeSource) {}
 
+  public void onCaptureContinuation() {}
+
   public void onCancelContinuation() {}
 
   public void onFinishContinuation() {}
+
+  public void onActivateScope() {}
+
+  public void onCloseScope() {}
+
+  public void onScopeStackOverflow() {}
 
   public void onSend(
       final int traceCount, final int sizeInBytes, final RemoteApi.Response response) {}
 
   public void onFailedSend(
       final int traceCount, final int sizeInBytes, final RemoteApi.Response response) {}
+
+  public void onLongRunningUpdate(final int dropped, final int write, final int expired) {}
 
   @Override
   public void close() {}

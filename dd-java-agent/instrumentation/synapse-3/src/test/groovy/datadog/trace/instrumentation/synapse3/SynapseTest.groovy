@@ -311,6 +311,7 @@ abstract class SynapseTest extends VersionedNamingTestBase {
   }
 }
 
+@Flaky("Occasionally times out when receiving traces")
 class SynapseV0ForkedTest extends SynapseTest implements TestingGenericHttpNamingConventions.ClientV0 {
 
 
@@ -320,6 +321,7 @@ class SynapseV0ForkedTest extends SynapseTest implements TestingGenericHttpNamin
   }
 }
 
+@Flaky("Occasionally times out when receiving traces")
 class SynapseV1ForkedTest extends SynapseTest implements TestingGenericHttpNamingConventions.ClientV1 {
 
   @Override

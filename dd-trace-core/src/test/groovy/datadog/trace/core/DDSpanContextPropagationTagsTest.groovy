@@ -23,8 +23,8 @@ class DDSpanContextPropagationTagsTest extends DDCoreSpecification {
     setup:
     tracer = tracerBuilder().writer(writer).build()
     def propagationTags = tracer.propagationTagsFactory.fromHeaderValue(PropagationTags.HeaderType.DATADOG, header)
-    def extracted = new ExtractedContext(DDTraceId.from(123), 456, priority, "789", 0, [:], [:], null, propagationTags)
-    .withRequestContextDataAppSec("dummy")
+    def extracted = new ExtractedContext(DDTraceId.from(123), 456, priority, "789", propagationTags)
+      .withRequestContextDataAppSec("dummy")
     def span = (DDSpan) tracer.buildSpan("top")
       .asChildOf((AgentSpan.Context) extracted)
       .start()
@@ -52,8 +52,8 @@ class DDSpanContextPropagationTagsTest extends DDCoreSpecification {
     setup:
     tracer = tracerBuilder().writer(writer).build()
     def propagationTags = tracer.propagationTagsFactory.fromHeaderValue(PropagationTags.HeaderType.DATADOG, header)
-    def extracted = new ExtractedContext(DDTraceId.from(123), 456, priority, "789", 0, [:], [:], null, propagationTags)
-    .withRequestContextDataAppSec("dummy")
+    def extracted = new ExtractedContext(DDTraceId.from(123), 456, priority, "789", propagationTags)
+      .withRequestContextDataAppSec("dummy")
     def rootSpan = (DDSpan) tracer.buildSpan("top")
       .asChildOf((AgentSpan.Context) extracted)
       .start()
@@ -82,8 +82,8 @@ class DDSpanContextPropagationTagsTest extends DDCoreSpecification {
     setup:
     tracer = tracerBuilder().writer(writer).build()
     def propagationTags = tracer.propagationTagsFactory.fromHeaderValue(PropagationTags.HeaderType.DATADOG, header)
-    def extracted = new ExtractedContext(DDTraceId.from(123), 456, priority, "789", 0, [:], [:], null, propagationTags)
-    .withRequestContextDataAppSec("dummy")
+    def extracted = new ExtractedContext(DDTraceId.from(123), 456, priority, "789", propagationTags)
+      .withRequestContextDataAppSec("dummy")
     def span = (DDSpan) tracer.buildSpan("top")
       .asChildOf((AgentSpan.Context) extracted)
       .start()
@@ -109,8 +109,8 @@ class DDSpanContextPropagationTagsTest extends DDCoreSpecification {
     setup:
     tracer = tracerBuilder().writer(writer).build()
     def propagationTags = tracer.propagationTagsFactory.fromHeaderValue(PropagationTags.HeaderType.DATADOG, header)
-    def extracted = new ExtractedContext(DDTraceId.from(123), 456, priority, "789", 0, [:], [:], null, propagationTags)
-    .withRequestContextDataAppSec("dummy")
+    def extracted = new ExtractedContext(DDTraceId.from(123), 456, priority, "789", propagationTags)
+      .withRequestContextDataAppSec("dummy")
     def rootSpan = (DDSpan) tracer.buildSpan("top")
       .asChildOf((AgentSpan.Context) extracted)
       .start()

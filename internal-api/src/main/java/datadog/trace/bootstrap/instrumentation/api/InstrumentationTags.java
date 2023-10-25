@@ -17,8 +17,28 @@ public class InstrumentationTags {
   public static final String TOMBSTONE = "tombstone";
   public static final String AWS_AGENT = "aws.agent";
   public static final String AWS_SERVICE = "aws.service";
+  public static final String TOP_LEVEL_AWS_SERVICE = "aws_service";
+  public static final String AWS_OPERATION = "aws.operation";
+  public static final String AWS_ENDPOINT = "aws.endpoint";
+  public static final String AWS_BUCKET_NAME = "aws.bucket.name";
+  public static final String BUCKET_NAME = "bucketname";
+  public static final String AWS_QUEUE_URL = "aws.queue.url";
+
+  public static final String AWS_QUEUE_NAME = "aws.queue.name";
+  public static final String QUEUE_NAME = "queuename";
+  public static final String AWS_TOPIC_NAME = "aws.topic.name";
+  public static final String TOPIC_NAME = "topicname";
+  public static final String AWS_STREAM_NAME = "aws.stream.name";
+  public static final String STREAM_NAME = "streamname";
+  public static final String AWS_TABLE_NAME = "aws.table.name";
+  public static final String TABLE_NAME = "tablename";
+  public static final String AWS_REQUEST_ID = "aws.requestId";
+  public static final String AWS_STORAGE_CLASS = "aws.storage.class";
+
   public static final String BUCKET = "bucket";
+  public static final String CASSANDRA_CONTACT_POINTS = "db.cassandra.contact.points";
   public static final String COUCHBASE_OPERATION_ID = "couchbase.operation_id";
+  public static final String COUCHBASE_SEED_NODES = "db.couchbase.seed.nodes";
   public static final String ELASTICSEARCH_REQUEST_INDICES = "elasticsearch.request.indices";
   public static final String ELASTICSEARCH_REQUEST_SEARCH_TYPES =
       "elasticsearch.request.search.types";
@@ -71,6 +91,7 @@ public class InstrumentationTags {
   public static final String EVENT = "event";
   public static final String MESSAGE = "message";
   public static final String HANDLER_TYPE = "handler.type";
+  public static final String KAFKA_BOOTSTRAP_SERVERS = "messaging.kafka.bootstrap.servers";
   public static final String QUARTZ_JOB_NAME = "quartz.job.name";
   public static final String QUARTZ_JOB_GROUP = "quartz.job.group";
   public static final String QUARTZ_TRIGGER_NAME = "quartz.trigger.name";
@@ -83,6 +104,11 @@ public class InstrumentationTags {
   public static final String TWILIO_SID = "twilio.sid";
   public static final String TWILIO_STATUS = "twilio.status";
   public static final String TWILIO_PARENT_SID = "twilio.parentSid";
+  public static final String DBM_TRACE_INJECTED = "_dd.dbm_trace_injected";
   public static final UTF8BytesString DD_MEASURED = UTF8BytesString.create("_dd.measured");
   public static final UTF8BytesString DD_TOP_LEVEL = UTF8BytesString.create("_dd.top_level");
+  public static final UTF8BytesString DD_PARTIAL_VERSION =
+      UTF8BytesString.create("_dd.partial_version");
+  public static final UTF8BytesString DD_WAS_LONG_RUNNING =
+      UTF8BytesString.create("_dd.was_long_running");
 }

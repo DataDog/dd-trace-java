@@ -1,0 +1,45 @@
+plugins {
+  id 'java-test-fixtures'
+}
+
+ext {
+  maxJavaVersionForTests = JavaVersion.VERSION_15
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+description = 'Spring Security Smoke Tests.'
+
+// The standard spring-boot plugin doesn't play nice with our project
+// so we'll build a fat jar instead
+jar {
+  manifest {
+    attributes('Main-Class': 'com.example.jwt.SecurityJwtDemoApplication')
+  }
+}
+
+dependencies {
+  implementation group: 'org.springframework.boot', name: 'spring-boot-starter-web', version: '2.7.2'
+  implementation group: 'org.springframework.boot', name: 'spring-boot-starter-security', version: '2.7.2'
+  implementation group: 'org.springframework.security.oauth', name: 'spring-security-oauth2', version: '2.5.2.RELEASE'
+  implementation group: 'org.springframework.security', name: 'spring-security-oauth2-resource-server', version: '5.8.2'
+  implementation group: 'org.springframework.security', name: 'spring-security-oauth2-jose', version: '5.8.2'
+
+
+  testImplementation project(':dd-smoke-tests')
+  implementation project(':dd-smoke-tests:iast-util')
+  testImplementation(testFixtures(project(":dd-smoke-tests:iast-util")))
+}
+
+
+tasks.withType(Test).configureEach {
+  jvmArgs "-Ddatadog.smoketest.springboot.shadowJar.path=${tasks.jar.archiveFile.get()}"
+}
+
+processResources {
+  doFirst {
+    def resourcesDir = sourceSets.main.output.resourcesDir
+    resourcesDir.mkdirs()
+    def contents = "projectInfo.project=$project.name"
+    new File(resourcesDir, "project-info.properties").text = contents
+  }
+}

@@ -1,29 +1,32 @@
 package com.datadog.debugger.probe;
 
 import static com.datadog.debugger.util.LogProbeTestHelper.parseTemplate;
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import org.junit.Assert;
+import datadog.trace.bootstrap.debugger.ProbeId;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
 public class LogProbeTest {
   private static final String LANGUAGE = "java";
-  private static final String PROBE_ID = "beae1807-f3b0-4ea8-a74f-826790c5e6f8";
+  private static final ProbeId PROBE_ID = new ProbeId("beae1807-f3b0-4ea8-a74f-826790c5e6f8", 0);
 
   @Test
   public void testCapture() {
     LogProbe.Builder builder = createLog(null);
     LogProbe snapshotProbe = builder.capture(1, 420, 255, 20).build();
-    Assert.assertEquals(1, snapshotProbe.getCapture().getMaxReferenceDepth());
-    Assert.assertEquals(420, snapshotProbe.getCapture().getMaxCollectionSize());
-    Assert.assertEquals(255, snapshotProbe.getCapture().getMaxLength());
+    Assertions.assertEquals(1, snapshotProbe.getCapture().getMaxReferenceDepth());
+    Assertions.assertEquals(420, snapshotProbe.getCapture().getMaxCollectionSize());
+    Assertions.assertEquals(255, snapshotProbe.getCapture().getMaxLength());
   }
 
   @Test
   public void testSampling() {
     LogProbe.Builder builder = createLog(null);
     LogProbe snapshotProbe = builder.sampling(0.25).build();
-    Assert.assertEquals(0.25, snapshotProbe.getSampling().getSnapshotsPerSecond(), 0.01);
+    Assertions.assertEquals(0.25, snapshotProbe.getSampling().getSnapshotsPerSecond(), 0.01);
   }
 
   @Test

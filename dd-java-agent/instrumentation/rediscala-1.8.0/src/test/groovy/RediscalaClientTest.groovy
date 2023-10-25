@@ -1,3 +1,5 @@
+import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_INSTANCE
+
 import akka.actor.ActorSystem
 import datadog.trace.agent.test.naming.VersionedNamingTestBase
 import datadog.trace.agent.test.utils.PortUtils
@@ -13,8 +15,6 @@ import scala.Option
 import scala.concurrent.Await
 import scala.concurrent.duration.Duration
 import spock.lang.Shared
-
-import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_INSTANCE
 
 abstract class RediscalaClientTest extends VersionedNamingTestBase {
 
@@ -87,11 +87,15 @@ abstract class RediscalaClientTest extends VersionedNamingTestBase {
           operationName operation()
           resourceName "Set"
           spanType DDSpanTypes.REDIS
-          topLevel true
+          measured true
           tags {
             "$Tags.COMPONENT" "redis-command"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
             "$Tags.DB_TYPE" "redis"
+            "$Tags.PEER_HOSTNAME" redisClient.host()
+            "$Tags.PEER_PORT" redisClient.port()
+            "db.redis.dbIndex" 0
+            peerServiceFrom(Tags.PEER_HOSTNAME)
             defaultTags()
           }
         }
@@ -124,6 +128,10 @@ abstract class RediscalaClientTest extends VersionedNamingTestBase {
             "$Tags.COMPONENT" "redis-command"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
             "$Tags.DB_TYPE" "redis"
+            "$Tags.PEER_HOSTNAME" redisClient.host()
+            "$Tags.PEER_PORT" redisClient.port()
+            "db.redis.dbIndex" 0
+            peerServiceFrom(Tags.PEER_HOSTNAME)
             defaultTags()
           }
         }
@@ -138,6 +146,10 @@ abstract class RediscalaClientTest extends VersionedNamingTestBase {
             "$Tags.COMPONENT" "redis-command"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
             "$Tags.DB_TYPE" "redis"
+            "$Tags.PEER_HOSTNAME" redisClient.host()
+            "$Tags.PEER_PORT" redisClient.port()
+            "db.redis.dbIndex" 0
+            peerServiceFrom(Tags.PEER_HOSTNAME)
             defaultTags()
           }
         }
@@ -146,7 +158,7 @@ abstract class RediscalaClientTest extends VersionedNamingTestBase {
   }
 }
 
-class RediscalaClientV0ForkedTest extends RediscalaClientTest {
+class RediscalaClientV0Test extends RediscalaClientTest {
 
   @Override
   int version() {
@@ -173,7 +185,7 @@ class RediscalaClientV1ForkedTest extends RediscalaClientTest {
 
   @Override
   String service() {
-    return Config.get().getServiceName() + "-redis"
+    return Config.get().getServiceName()
   }
 
   @Override

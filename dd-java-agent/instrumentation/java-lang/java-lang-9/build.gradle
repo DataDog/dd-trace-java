@@ -2,8 +2,11 @@ plugins {
   id 'idea'
 }
 
+ext {
+  minJavaVersionForTests = JavaVersion.VERSION_1_9
+}
+
 apply from: "$rootDir/gradle/java.gradle"
-apply plugin: 'org.unbroken-dome.test-sets'
 apply plugin: 'call-site-instrumentation'
 
 muzzle {
@@ -22,14 +25,10 @@ csi {
   javaVersion = JavaLanguageVersion.of(11)
 }
 
-testSets {
-  latestDepTest {
-    dirName = 'test'
-  }
-}
+addTestSuiteForDir('latestDepTest', 'test')
 
 dependencies {
-  testRuntimeClasspath project(':dd-java-agent:instrumentation:iast-instrumenter')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:iast-instrumenter')
 }
 
 project.tasks.withType(AbstractCompile).configureEach {

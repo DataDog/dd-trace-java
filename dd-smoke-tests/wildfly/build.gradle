@@ -44,7 +44,7 @@ def gradlewCommand = isWindows ? 'gradlew.bat' : 'gradlew'
 tasks.register('earBuild', Exec) {
   workingDir "$appDir"
   environment += ["GRADLE_OPTS": "-Dorg.gradle.jvmargs='-Xmx512M'"]
-  commandLine "$rootDir/${gradlewCommand}", "assemble", "--no-daemon", "--max-workers=4", "-PappBuildDir=$appBuildDir", "-PapiJar=${project(':dd-trace-api').tasks.jar.archivePath}"
+  commandLine "$rootDir/${gradlewCommand}", "assemble", "--no-daemon", "--max-workers=4", "-PappBuildDir=$appBuildDir", "-PapiJar=${project(':dd-trace-api').tasks.jar.archiveFile.get()}"
 
   outputs.cacheIf { true }
 
@@ -84,6 +84,7 @@ def wildflyDir="${buildDir}/${serverName}-${serverModule}-${serverVersion}"
 
 tasks.register("unzip", Copy) {
   dependsOn tasks.earBuild
+  mustRunAfter tasks.compileTestGroovy
   def zipFileNamePrefix = "servlet"
   def zipPath = project.configurations.serverFile.find {
     it.name.startsWith(zipFileNamePrefix)

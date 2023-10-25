@@ -9,11 +9,7 @@ muzzle {
 
 apply from: "$rootDir/gradle/java.gradle"
 
-apply plugin: 'org.unbroken-dome.test-sets'
-
-testSets {
-  latestDepTest
-}
+addTestSuite('latestDepTest')
 
 dependencies {
   compileOnly group: 'org.apache.kafka', name: 'kafka-streams', version: '0.11.0.0'
@@ -28,7 +24,6 @@ dependencies {
   testImplementation group: 'org.assertj', name: 'assertj-core', version: '2.9.+'
   testImplementation group: 'org.mockito', name: 'mockito-core', version: '2.19.0'
 
-
   // Include latest version of kafka itself along with latest version of client libs.
   // This seems to help with jar compatibility hell.
   latestDepTestImplementation group: 'org.apache.kafka', name: 'kafka_2.13', version: '2.+'
@@ -38,4 +33,9 @@ dependencies {
   latestDepTestImplementation group: 'org.springframework.kafka', name: 'spring-kafka', version: '2.7+'
   latestDepTestImplementation group: 'org.springframework.kafka', name: 'spring-kafka-test', version: '2.7+'
   latestDepTestImplementation group: 'org.assertj', name: 'assertj-core', version: '3.+'
+}
+
+configurations.testRuntimeClasspath {
+  // spock-core depends on assertj version that is not compatible with kafka-clients
+  resolutionStrategy.force 'org.assertj:assertj-core:2.9.1'
 }

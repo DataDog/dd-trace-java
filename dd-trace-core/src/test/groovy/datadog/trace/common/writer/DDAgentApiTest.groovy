@@ -2,26 +2,21 @@ package datadog.trace.common.writer
 
 import com.fasterxml.jackson.core.type.TypeReference
 import com.fasterxml.jackson.databind.ObjectMapper
+import datadog.communication.ddagent.DDAgentFeaturesDiscovery
+import datadog.communication.http.OkHttpUtils
 import datadog.communication.monitor.Monitoring
-import datadog.trace.api.DDSpanId
-import datadog.trace.api.DDTraceId
+import datadog.communication.serialization.ByteBufferConsumer
+import datadog.communication.serialization.FlushingBuffer
+import datadog.communication.serialization.msgpack.MsgPackWriter
 import datadog.trace.api.StatsDClient
-import datadog.trace.api.sampling.PrioritySampling
-import datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopPathwayContext
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
 import datadog.trace.common.sampling.RateByServiceTraceSampler
 import datadog.trace.common.writer.ddagent.DDAgentApi
-import datadog.communication.ddagent.DDAgentFeaturesDiscovery
-
 import datadog.trace.common.writer.ddagent.TraceMapperV0_4
 import datadog.trace.common.writer.ddagent.TraceMapperV0_5
 import datadog.trace.core.DDSpan
 import datadog.trace.core.DDSpanContext
-import datadog.communication.http.OkHttpUtils
 import datadog.trace.core.monitor.MonitoringImpl
-import datadog.communication.serialization.ByteBufferConsumer
-import datadog.communication.serialization.FlushingBuffer
-import datadog.communication.serialization.msgpack.MsgPackWriter
 import datadog.trace.core.propagation.PropagationTags
 import datadog.trace.core.test.DDCoreSpecification
 import okhttp3.HttpUrl
@@ -29,6 +24,7 @@ import okhttp3.OkHttpClient
 import org.msgpack.jackson.dataformat.MessagePackFactory
 import spock.lang.Shared
 import spock.lang.Timeout
+
 import java.nio.ByteBuffer
 import java.util.concurrent.RejectedExecutionException
 import java.util.concurrent.TimeUnit
@@ -96,9 +92,9 @@ class DDAgentApiTest extends DDCoreSpecification {
     def client = createAgentApi(agent.address.toString())[1]
     Payload payload = prepareTraces("v0.3/traces", [])
     expect:
-    def response = client.sendSerializedTraces(payload)
-    !response.success()
-    response.status() == 404
+    def clientResponse = client.sendSerializedTraces(payload)
+    !clientResponse.success()
+    clientResponse.status() == 404
     agent.getLastRequest().path == "/v0.3/traces"
 
     cleanup:
@@ -421,35 +417,5 @@ class DDAgentApiTest extends DDCoreSpecification {
     OkHttpClient client = OkHttpUtils.buildHttpClient(agentUrl, 1000)
     DDAgentFeaturesDiscovery discovery = new DDAgentFeaturesDiscovery(client, monitoring, agentUrl, true, true)
     return [discovery, new DDAgentApi(client, agentUrl, discovery, monitoring, false)]
-  }
-
-  DDSpan buildSpan(long timestamp, String tag, String value, PropagationTags propagationTags) {
-    def tracer = tracerBuilder().writer(new ListWriter()).build()
-    def context = new DDSpanContext(
-      DDTraceId.ONE,
-      1,
-      DDSpanId.ZERO,
-      null,
-      "fakeService",
-      "fakeOperation",
-      "fakeResource",
-      PrioritySampling.UNSET,
-      null,
-      [:],
-      false,
-      "fakeType",
-      0,
-      tracer.pendingTraceFactory.create(DDTraceId.ONE),
-      null,
-      null,
-      NoopPathwayContext.INSTANCE,
-      false,
-      propagationTags)
-
-    def span = DDSpan.create(timestamp, context)
-    span.setTag(tag, value)
-
-    tracer.close()
-    return span
   }
 }

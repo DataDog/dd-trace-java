@@ -3,6 +3,7 @@ package datadog.trace.core.propagation
 import datadog.trace.api.Config
 import datadog.trace.api.DDSpanId
 import datadog.trace.api.DDTraceId
+import datadog.trace.api.DynamicConfig
 import datadog.trace.bootstrap.instrumentation.api.TagContext
 import datadog.trace.bootstrap.instrumentation.api.ContextVisitors
 import datadog.trace.test.util.DDSpecification
@@ -22,7 +23,11 @@ class HttpExtractorTest extends DDSpecification {
     Config config = Mock(Config) {
       getTracePropagationStylesToExtract() >> styles
     }
-    HttpCodec.Extractor extractor = HttpCodec.createExtractor(config, ["SOME_HEADER": "some-tag"],[:])
+    DynamicConfig dynamicConfig = DynamicConfig.create()
+      .setHeaderTags(["SOME_HEADER": "some-tag"])
+      .setBaggageMapping([:])
+      .apply()
+    HttpCodec.Extractor extractor = HttpCodec.createExtractor(config, { dynamicConfig.captureTraceConfig() })
 
     final Map<String, String> actual = [:]
     if (datadogTraceId != null) {
@@ -52,7 +57,7 @@ class HttpExtractorTest extends DDSpecification {
       if (expectedTraceId == null) {
         assert context == null
       } else {
-        assert context.traceId == DDTraceId.from(expectedTraceId)
+        assert context.traceId.toLong() == DDTraceId.from(expectedTraceId).toLong()
         assert context.spanId == DDSpanId.from(expectedSpanId)
       }
     }

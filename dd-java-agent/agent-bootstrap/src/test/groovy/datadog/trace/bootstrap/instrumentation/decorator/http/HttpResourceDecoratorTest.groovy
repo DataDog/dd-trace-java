@@ -1,5 +1,6 @@
 package datadog.trace.bootstrap.instrumentation.decorator.http
 
+import datadog.trace.api.normalize.HttpResourceNames
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import datadog.trace.core.CoreTracer
@@ -12,21 +13,20 @@ import static datadog.trace.api.config.TracerConfig.TRACE_HTTP_SERVER_PATH_RESOU
 class HttpResourceDecoratorTest extends DDSpecification {
 
   @Shared
-  CoreTracer tracer
+  CoreTracer tracer = CoreTracer.builder().build()
 
   def setup() {
     injectSysConfig("http.server.route-based-naming", "false")
-
-    tracer = CoreTracer.builder().build()
+    HttpResourceNames.INSTANCE = null
   }
 
-  def cleanup() {
+  def cleanupSpec() {
     tracer.close()
   }
 
   def "test that resource name is not changed"() {
     given:
-    AgentSpan span = tracer.startSpan("test")
+    AgentSpan span = tracer.startSpan("test", "test")
 
     when:
     def scope = AgentTracer.activateSpan(span)
@@ -40,7 +40,7 @@ class HttpResourceDecoratorTest extends DDSpecification {
 
   def "still uses the simple normalizer by default"() {
     given:
-    AgentSpan span = tracer.startSpan("test")
+    AgentSpan span = tracer.startSpan("test", "test")
     String method = "GET"
     String path = "/asdf/1234"
 
@@ -55,7 +55,7 @@ class HttpResourceDecoratorTest extends DDSpecification {
     setup:
     injectSysConfig(TRACE_HTTP_SERVER_PATH_RESOURCE_NAME_MAPPING, "/asdf/*:/test")
 
-    AgentSpan span = tracer.startSpan("test")
+    AgentSpan span = tracer.startSpan("test", "test")
     String method = "GET"
     String path = "/asdf/1234"
 
@@ -70,7 +70,7 @@ class HttpResourceDecoratorTest extends DDSpecification {
     setup:
     injectSysConfig(TRACE_HTTP_SERVER_PATH_RESOURCE_NAME_MAPPING, "/asdf/*:/test")
 
-    AgentSpan span = tracer.startSpan("test")
+    AgentSpan span = tracer.startSpan("test", "test")
     String method = "GET"
     String path = "/unknown/1234"
 
@@ -86,7 +86,7 @@ class HttpResourceDecoratorTest extends DDSpecification {
     injectSysConfig(TRACE_HTTP_SERVER_PATH_RESOURCE_NAME_MAPPING, "/a/*:/test")
     injectSysConfig("trace.URLAsResourceNameRule.enabled", "false")
 
-    AgentSpan span = tracer.startSpan("test")
+    AgentSpan span = tracer.startSpan("test", "test")
     String method = "GET"
     String path = "/unknown/1234"
 
@@ -101,7 +101,7 @@ class HttpResourceDecoratorTest extends DDSpecification {
     setup:
     injectSysConfig(TRACE_HTTP_CLIENT_PATH_RESOURCE_NAME_MAPPING, "/a/*:/test")
 
-    AgentSpan span = tracer.startSpan("test")
+    AgentSpan span = tracer.startSpan("test", "test")
 
     when:
     decorator().withClientPath(span, "GET", "/a/foo")
@@ -114,7 +114,7 @@ class HttpResourceDecoratorTest extends DDSpecification {
     setup:
     injectSysConfig(TRACE_HTTP_CLIENT_PATH_RESOURCE_NAME_MAPPING, "/a/*:*")
 
-    AgentSpan span = tracer.startSpan("test")
+    AgentSpan span = tracer.startSpan("test", "test")
 
     when:
     decorator().withClientPath(span, "GET", "/a/foo")

@@ -18,6 +18,7 @@ package com.datadog.profiling.controller.ddprof;
 import com.datadog.profiling.controller.Controller;
 import com.datadog.profiling.controller.UnsupportedEnvironmentException;
 import com.datadog.profiling.ddprof.DatadogProfiler;
+import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import java.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -37,6 +38,10 @@ public final class DatadogProfilerController implements Controller {
    */
   public DatadogProfilerController() {
     this(DatadogProfiler.getInstance());
+  }
+
+  public DatadogProfilerController(ConfigProvider configProvider) {
+    this(DatadogProfiler.newInstance(configProvider));
   }
 
   DatadogProfilerController(DatadogProfiler datadogProfiler) {

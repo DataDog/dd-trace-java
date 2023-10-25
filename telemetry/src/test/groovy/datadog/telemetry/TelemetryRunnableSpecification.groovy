@@ -1,193 +1,337 @@
 package datadog.telemetry
 
-import datadog.trace.test.util.DDSpecification
-import okhttp3.Call
-import okhttp3.OkHttpClient
-import okhttp3.Protocol
-import okhttp3.Request
-import okhttp3.Response
-import okhttp3.ResponseBody
+import datadog.telemetry.metric.MetricPeriodicAction
+import datadog.trace.api.telemetry.MetricCollector
+import datadog.trace.api.time.TimeSource
+import spock.lang.Specification
 
-class TelemetryRunnableSpecification extends DDSpecification {
-  private static final Request REQUEST = new Request.Builder()
-  .url('https://example.com').build()
+import java.util.concurrent.CyclicBarrier
+import java.util.concurrent.TimeUnit
 
-  def okResponse() {
-    testResponse("msg", 202)
-  }
-  def badResponse() {
-    testResponse("msg", 500)
-  }
-  def notFoundResponse() {
-    testResponse("msg", 404)
-  }
+class TelemetryRunnableSpecification extends Specification {
 
-  def testResponse(String msg, int code) {
-    return new Response.Builder().request(REQUEST).protocol(Protocol.HTTP_1_0)
-      .body(ResponseBody.create(null, new byte[0]))
-      .message(msg).code(code).build()
+  static class TickSleeper implements TelemetryRunnable.ThreadSleeper {
+    CyclicBarrier sleeped = new CyclicBarrier(2)
+    CyclicBarrier go = new CyclicBarrier(2)
+    TelemetryRunnable.ThreadSleeper delegate
+
+    @Override
+    void sleep(long timeoutMs) {
+      delegate?.sleep(timeoutMs)
+      sleeped.await(10, TimeUnit.SECONDS)
+      go.await(10, TimeUnit.SECONDS)
+    }
   }
 
-  OkHttpClient okHttpClient = Mock()
-  TelemetryRunnable.ThreadSleeper sleeper = Mock()
-  TelemetryServiceImpl telemetryService = Mock()
-  TelemetryRunnable.TelemetryPeriodicAction periodicAction = Mock()
-  TelemetryRunnable runnable = new TelemetryRunnable(okHttpClient, telemetryService, [periodicAction], sleeper)
-  Thread t = new Thread(runnable)
+  Thread t = null
 
   void cleanup() {
-    if (t.isAlive()) {
+    if (t?.isAlive()) {
       t.interrupt()
       t.join()
     }
   }
 
-  void 'one loop run with one request'() {
+  void 'happy path'() {
     setup:
-    def queue = new ArrayDeque<>([REQUEST])
-    Call call = Mock()
+    TelemetryRunnable.ThreadSleeper sleeperMock = Mock()
+    TickSleeper sleeper = new TickSleeper(delegate: sleeperMock)
+    TimeSource timeSource = Mock()
+    TelemetryService telemetryService = Mock(TelemetryService)
+    MetricCollector<MetricCollector.Metric> metricCollector = Mock(MetricCollector)
+    MetricPeriodicAction metricAction = Stub(MetricPeriodicAction) {
+      collector() >> metricCollector
+    }
+    TelemetryRunnable.TelemetryPeriodicAction periodicAction = Mock(TelemetryRunnable.TelemetryPeriodicAction)
+    TelemetryRunnable runnable = new TelemetryRunnable(telemetryService, [metricAction, periodicAction], sleeper, timeSource)
+    t = new Thread(runnable)
+
+    when: 'initial iteration before the first sleep (metrics and heartbeat)'
+    t.start()
+    sleeper.sleeped.await(10, TimeUnit.SECONDS)
+
+    then:
+    1 * timeSource.getCurrentTimeMillis() >> 60 * 1000
+    _ * telemetryService.addConfiguration(_)
+
+    then:
+    1 * metricCollector.prepareMetrics()
+
+    then:
+    1 * metricCollector.drain() >> []
+    1 * periodicAction.doIteration(telemetryService)
+
+    then:
+    1 * telemetryService.sendIntervalRequests()
+    1 * timeSource.getCurrentTimeMillis() >> 60 * 1000 + 1
+    1 * sleeperMock.sleep(9999)
+    0 * _
+
+    when: 'second iteration (10 seconds, metrics)'
+    sleeper.go.await(10, TimeUnit.SECONDS)
+    sleeper.sleeped.await(10, TimeUnit.SECONDS)
+
+    then:
+    1 * timeSource.getCurrentTimeMillis() >> 70 * 1000
+
+    then:
+    1 * metricCollector.prepareMetrics()
+
+    then:
+    1 * timeSource.getCurrentTimeMillis() >> 70 * 1000 + 2
+    1 * sleeperMock.sleep(9998)
+    0 * _
+
+    when: 'third iteration (20 seconds, metrics)'
+    sleeper.go.await(10, TimeUnit.SECONDS)
+    sleeper.sleeped.await(10, TimeUnit.SECONDS)
+
+    then:
+    1 * timeSource.getCurrentTimeMillis() >> 80 * 1000
+
+    then:
+    1 * metricCollector.prepareMetrics()
+
+    then:
+    1 * timeSource.getCurrentTimeMillis() >> 80 * 1000 + 3
+    1 * sleeperMock.sleep(9997)
+    0 * _
+
+    when: 'fourth iteration (30 seconds, metrics)'
+    sleeper.go.await(10, TimeUnit.SECONDS)
+    sleeper.sleeped.await(10, TimeUnit.SECONDS)
+
+    then:
+    1 * timeSource.getCurrentTimeMillis() >> 90 * 1000
+
+    then:
+    1 * metricCollector.prepareMetrics()
+
+    then:
+    1 * timeSource.getCurrentTimeMillis() >> 90 * 1000 + 4
+    1 * sleeperMock.sleep(9996)
+    0 * _
+
+    when: 'fifth iteration (40 seconds, metrics)'
+    sleeper.go.await(10, TimeUnit.SECONDS)
+    sleeper.sleeped.await(10, TimeUnit.SECONDS)
+
+    then:
+    1 * timeSource.getCurrentTimeMillis() >> 100 * 1000
+
+    then:
+    1 * metricCollector.prepareMetrics()
+
+    then:
+    1 * timeSource.getCurrentTimeMillis() >> 100 * 1000 + 5
+    1 * sleeperMock.sleep(9995)
+    0 * _
+
+    when: 'sixth iteration (50 seconds, metrics)'
+    sleeper.go.await(10, TimeUnit.SECONDS)
+    sleeper.sleeped.await(10, TimeUnit.SECONDS)
+
+    then:
+    1 * timeSource.getCurrentTimeMillis() >> 110 * 1000
+
+    then:
+    1 * metricCollector.prepareMetrics()
+
+    then:
+    1 * timeSource.getCurrentTimeMillis() >> 110 * 1000 + 6
+    1 * sleeperMock.sleep(9994)
+    0 * _
+
+    when: 'seventh iteration (60 seconds, metrics, heartbeat)'
+    sleeper.go.await(10, TimeUnit.SECONDS)
+    sleeper.sleeped.await(10, TimeUnit.SECONDS)
+
+    then:
+    1 * timeSource.getCurrentTimeMillis() >> 120 * 1000
+
+    then:
+    1 * metricCollector.prepareMetrics()
+
+    then:
+    1 * metricCollector.drain() >> []
+    1 * periodicAction.doIteration(telemetryService)
+
+    then:
+    1 * telemetryService.sendIntervalRequests()
+    1 * timeSource.getCurrentTimeMillis() >> 120 * 1000 + 7
+    1 * sleeperMock.sleep(9993)
 
     when:
-    t.start()
+    t.interrupt()
     t.join()
 
+    // flush pending data before shutdown
     then:
-    1 * telemetryService.addConfiguration(_)
+    1 * metricCollector.prepareMetrics()
+    1 * metricCollector.drain() >> []
     1 * periodicAction.doIteration(telemetryService)
-    1 * telemetryService.addStartedRequest()
+    1 * telemetryService.sendIntervalRequests()
 
     then:
-    1 * periodicAction.doIteration(telemetryService)
-    1 * telemetryService.prepareRequests() >> queue
-    1 * okHttpClient.newCall(REQUEST) >> call
-    1 * call.execute() >> okResponse()
-    queue.size() == 0
-
-    then:
-    1 * telemetryService.getHeartbeatInterval() >> 10_000L
-    1 * sleeper.sleep(10_000L) >> { t.interrupt() }
-
-    then:
-    1 * telemetryService.appClosingRequest() >> REQUEST
-    1 * okHttpClient.newCall(REQUEST) >> call
-    1 * call.execute() >> okResponse()
+    1 * telemetryService.sendAppClosingRequest()
     0 * _
   }
 
-  void 'one loop run with two requests'() {
+  void 'scheduler skips metrics intervals'() {
     setup:
-    def request1 = new Request.Builder()
-      .url('https://example.com/1').build()
-    def request2 = new Request.Builder()
-      .url('https://example.com/2').build()
-    def request3 = new Request.Builder()
-      .url('https://example.com/3').build()
-    def queue = new ArrayDeque<>([request1, request2])
-    Call call1 = Mock()
-    Call call2 = Mock()
-    Call call3 = Mock()
+    TimeSource timeSource = Mock()
+    TickSleeper sleeper = Mock()
+    TelemetryRunnable.Scheduler scheduler = new TelemetryRunnable.Scheduler(timeSource, sleeper, 60 * 1000, 10 * 1000)
+
+    when: 'first iteration'
+    scheduler.init()
+
+    then: 'run everything'
+    timeSource.getCurrentTimeMillis() >> 0
+    scheduler.shouldRunMetrics()
+    scheduler.shouldRunHeartbeat()
+    0 * _
 
     when:
-    t.start()
-    t.join()
+    scheduler.sleepUntilNextIteration()
 
     then:
-    1 * telemetryService.addConfiguration(_)
-    1 * periodicAction.doIteration(telemetryService)
-    1 * telemetryService.addStartedRequest()
-
-    then:
-    1 * periodicAction.doIteration(telemetryService)
-    1 * telemetryService.prepareRequests() >> queue
-    1 * okHttpClient.newCall(request1) >> call1
-    1 * call1.execute() >> okResponse()
-    1 * okHttpClient.newCall(request2) >> call2
-    1 * call2.execute() >> okResponse()
-    queue.size() == 0
-
-    then:
-    1 * telemetryService.getHeartbeatInterval() >> 10_000L
-    1 * sleeper.sleep(10_000L) >> { t.interrupt() }
-
-    then:
-    1 * telemetryService.appClosingRequest() >> request3
-    1 * okHttpClient.newCall(request3) >> call3
-    1 * call3.execute() >> okResponse()
+    1 * timeSource.getCurrentTimeMillis() >> 1
+    1 * sleeper.sleep(10 * 1000 - 1)
+    1 * timeSource.getCurrentTimeMillis() >> 10 * 1000
     0 * _
+
+    when: 'one metrics interval is exceeded'
+    assert scheduler.shouldRunMetrics()
+    assert !scheduler.shouldRunHeartbeat()
+    scheduler.sleepUntilNextIteration()
+
+    then:
+    1 * timeSource.getCurrentTimeMillis() >> 20 * 1000 + 1
+    1 * sleeper.sleep(9999)
+    1 * timeSource.getCurrentTimeMillis() >> 30 * 1000
+    0 * _
+
+    when: 'two metrics interval are exceeded'
+    assert scheduler.shouldRunMetrics()
+    assert !scheduler.shouldRunHeartbeat()
+    scheduler.sleepUntilNextIteration()
+
+    then:
+    1 * timeSource.getCurrentTimeMillis() >> 50 * 1000 + 2
+    1 * sleeper.sleep(9998)
+    1 * timeSource.getCurrentTimeMillis() >> 60 * 1000
+    0 * _
+    scheduler.shouldRunMetrics()
+    scheduler.shouldRunHeartbeat()
   }
 
-  void 'endpoint not found'() {
+  void 'scheduler skips heartbeat intervals'() {
     setup:
-    def queue = new ArrayDeque<>([REQUEST, REQUEST])
-    Call call = Mock()
+    TimeSource timeSource = Mock()
+    TickSleeper sleeper = Mock()
+    TelemetryRunnable.Scheduler scheduler = new TelemetryRunnable.Scheduler(timeSource, sleeper, 60 * 1000, 10 * 1000)
+
+    when: 'first iteration'
+    scheduler.init()
+
+    then: 'run everything'
+    timeSource.getCurrentTimeMillis() >> 0
+    scheduler.shouldRunMetrics()
+    scheduler.shouldRunHeartbeat()
+    0 * _
 
     when:
-    t.start()
-    t.join()
+    scheduler.sleepUntilNextIteration()
 
     then:
-    1 * telemetryService.addConfiguration(_)
-    1 * periodicAction.doIteration(telemetryService)
-    1 * telemetryService.addStartedRequest()
-
-    then:
-    1 * periodicAction.doIteration(telemetryService)
-    1 * telemetryService.prepareRequests() >> queue
-    1 * okHttpClient.newCall(REQUEST) >> call
-    1 * call.execute() >> notFoundResponse()
-    queue.size() == 0
-
-    then:
-    1 * telemetryService.getHeartbeatInterval() >> 10_000L
-    1 * sleeper.sleep(10_000L) >> { t.interrupt() }
-
-    then:
-    1 * telemetryService.appClosingRequest() >> REQUEST
-    1 * okHttpClient.newCall(REQUEST) >> call
-    1 * call.execute() >> okResponse()
+    1 * timeSource.getCurrentTimeMillis() >> 1
+    1 * sleeper.sleep(10 * 1000 - 1)
+    1 * timeSource.getCurrentTimeMillis() >> 10 * 1000
     0 * _
+
+    when: 'heartbeat interval is exceeded'
+    assert scheduler.shouldRunMetrics()
+    assert !scheduler.shouldRunHeartbeat()
+    scheduler.sleepUntilNextIteration()
+
+    then:
+    1 * timeSource.getCurrentTimeMillis() >> 70 * 1000
+    0 * _
+    scheduler.shouldRunMetrics()
+    scheduler.shouldRunHeartbeat()
+
+    when: 'metrics interval has been adjusted'
+    scheduler.sleepUntilNextIteration()
+
+    then:
+    1 * timeSource.getCurrentTimeMillis() >> 70 * 1000 + 1
+    1 * sleeper.sleep(10 * 1000 - 1)
+    1 * timeSource.getCurrentTimeMillis() >> 80 * 1000
+    0 * _
+    scheduler.shouldRunMetrics()
+    !scheduler.shouldRunHeartbeat()
   }
 
-  void 'backoff time increases'() {
+  void 'scheduler with heartbeat #heartbeatSecs and metrics #metricsSecs'() {
     setup:
-    def queue = new ArrayDeque<>([REQUEST])
-    Call call = Mock()
+    TimeSourceAndSleeper timing = new TimeSourceAndSleeper()
+    TelemetryRunnable.Scheduler scheduler = new TelemetryRunnable.Scheduler(timing, timing, heartbeatSecs * 1000, metricsSecs * 1000)
+    def metricsRun = []
+    def heartbeatsRun = []
 
     when:
-    t.start()
-    t.join()
+    scheduler.init()
+
+    and:
+    iters.times {
+      metricsRun.add(scheduler.shouldRunMetrics())
+      heartbeatsRun.add(scheduler.shouldRunHeartbeat())
+      scheduler.sleepUntilNextIteration()
+    }
 
     then:
-    1 * telemetryService.addConfiguration(_)
-    1 * periodicAction.doIteration(telemetryService)
-    1 * telemetryService.addStartedRequest()
+    metricsRun.size() == iters
+    heartbeatsRun.size() == iters
+    metricsRun.count { it } == expectedMetrics
+    heartbeatsRun.count { it } == expectedHeartbeats
 
-    then:
-    1 * periodicAction.doIteration(telemetryService)
-    1 * telemetryService.prepareRequests() >> queue
+    where:
+    heartbeatSecs | metricsSecs | expectedHeartbeats | expectedMetrics | iters
+    1             | 1           | 10                 | 10              | 10
+    60            | 10          | 2                  | 12              | 12
+    10            | 60          | 12                 | 2               | 12
+    5             | 3           | 3                  | 4               | 6
+    3             | 5           | 4                  | 3               | 6
+  }
 
-    then:
-    1 * okHttpClient.newCall(REQUEST) >> call
-    1 * call.execute() >> badResponse()
-    queue.size() == 1
+  class TimeSourceAndSleeper implements TimeSource, TelemetryRunnable.ThreadSleeper {
 
-    then:
-    1 * sleeper.sleep(3_000)
+    private long currentTime = 0
 
-    then:
-    1 * periodicAction.doIteration(telemetryService)
-    1 * telemetryService.prepareRequests() >> queue
-    1 * okHttpClient.newCall(REQUEST) >> call
-    1 * call.execute() >> badResponse()
-    queue.size() == 1
+    @Override
+    void sleep(long timeoutMs) {
+      currentTime += timeoutMs
+    }
 
-    then:
-    1 * sleeper.sleep(9_000) >> { t.interrupt() }
+    @Override
+    long getCurrentTimeMillis() {
+      return currentTime
+    }
 
-    then:
-    1 * telemetryService.appClosingRequest() >> REQUEST
-    1 * okHttpClient.newCall(REQUEST) >> call
-    1 * call.execute() >> okResponse()
-    0 * _
+    @Override
+    long getNanoTicks() {
+      throw new RuntimeException("NOT IMPLEMENTED")
+    }
+
+    @Override
+    long getCurrentTimeMicros() {
+      throw new RuntimeException("NOT IMPLEMENTED")
+    }
+
+    @Override
+    long getCurrentTimeNanos() {
+      throw new RuntimeException("NOT IMPLEMENTED")
+    }
   }
 }

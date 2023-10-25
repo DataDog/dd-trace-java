@@ -111,22 +111,20 @@ public class ProfileUploaderTest {
     tags.put("baz", "123");
     tags.put("null", null);
     tags.put("empty", "");
+    tags.put("quoted", "\"quoted\"");
     TAGS = tags;
   }
 
   // We sort tags to have expected parameters to have expected result
   private static final Map<String, String> EXPECTED_TAGS =
-      ImmutableMap.of(
-          "baz",
-          "123",
-          "foo",
-          "bar",
-          DDTags.PID_TAG,
-          PidHelper.getPid(),
-          VersionInfo.PROFILER_VERSION_TAG,
-          VersionInfo.VERSION,
-          VersionInfo.LIBRARY_VERSION_TAG,
-          VersionInfo.VERSION);
+      new ImmutableMap.Builder<String, String>()
+          .put("baz", "123")
+          .put("foo", "bar")
+          .put("quoted", "quoted")
+          .put(DDTags.PID_TAG, PidHelper.getPid())
+          .put(VersionInfo.PROFILER_VERSION_TAG, VersionInfo.VERSION)
+          .put(VersionInfo.LIBRARY_VERSION_TAG, VersionInfo.VERSION)
+          .build();
 
   private static final int SEQUENCE_NUMBER = 123;
   private static final int PROFILE_START = 1000;

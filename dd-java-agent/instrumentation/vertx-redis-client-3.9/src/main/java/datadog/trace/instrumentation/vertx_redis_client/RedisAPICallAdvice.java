@@ -134,7 +134,6 @@ public class RedisAPICallAdvice {
         break;
       default:
     }
-
     /*
     Store the response handler in the context so that it can be retrieved in RedisAPIImplSendAdvice
     */

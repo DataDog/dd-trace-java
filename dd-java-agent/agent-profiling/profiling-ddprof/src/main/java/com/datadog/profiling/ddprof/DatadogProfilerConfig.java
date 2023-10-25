@@ -1,6 +1,7 @@
 package com.datadog.profiling.ddprof;
 
 import static datadog.trace.api.Platform.isJ9;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_ALLOCATION_ENABLED;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_CONTEXT_ATTRIBUTES;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_CONTEXT_ATTRIBUTES_SPAN_NAME_ENABLED;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_ALLOC_ENABLED;
@@ -14,12 +15,19 @@ import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILE
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_CSTACK;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_CSTACK_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_LIBPATH;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_LINE_NUMBERS;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_LINE_NUMBERS_DEFAULT;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_LIVEHEAP_CAPACITY;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_LIVEHEAP_CAPACITY_DEFAULT;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_LIVEHEAP_ENABLED;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_LIVEHEAP_ENABLED_DEFAULT;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_LIVEHEAP_INTERVAL;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_LIVEHEAP_TRACK_HEAPSIZE;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_LIVEHEAP_TRACK_HEAPSIZE_DEFAFULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_LOG_LEVEL;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_LOG_LEVEL_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_MEMLEAK_CAPACITY;
-import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_MEMLEAK_CAPACITY_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_MEMLEAK_ENABLED;
-import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_MEMLEAK_ENABLED_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_MEMLEAK_INTERVAL;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_SAFEMODE;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_SAFEMODE_DEFAULT;
@@ -32,11 +40,12 @@ import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILE
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_WALL_CONTEXT_FILTER;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_WALL_CONTEXT_FILTER_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_WALL_ENABLED;
-import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_WALL_ENABLED_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_WALL_INTERVAL;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_WALL_INTERVAL_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_QUEUEING_TIME_ENABLED;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_QUEUEING_TIME_ENABLED_DEFAULT;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_ULTRA_MINIMAL;
+import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_ENABLED;
 
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import java.lang.management.ManagementFactory;
@@ -96,10 +105,11 @@ public class DatadogProfilerConfig {
   }
 
   public static boolean isWallClockProfilerEnabled(ConfigProvider configProvider) {
-    return getBoolean(
-        configProvider,
-        PROFILING_DATADOG_PROFILER_WALL_ENABLED,
-        !isJ9() && PROFILING_DATADOG_PROFILER_WALL_ENABLED_DEFAULT);
+    boolean isUltraMinimal = getBoolean(configProvider, PROFILING_ULTRA_MINIMAL, false);
+    boolean isTracingEnabled = configProvider.getBoolean(TRACE_ENABLED, true);
+    boolean disableUnlessOptedIn = isUltraMinimal || !isTracingEnabled || isJ9();
+    boolean enabledByDefault = !disableUnlessOptedIn;
+    return getBoolean(configProvider, PROFILING_DATADOG_PROFILER_WALL_ENABLED, enabledByDefault);
   }
 
   public static int getWallInterval(ConfigProvider configProvider) {
@@ -128,10 +138,13 @@ public class DatadogProfilerConfig {
   }
 
   public static boolean isAllocationProfilingEnabled(ConfigProvider configProvider) {
-    return getBoolean(
-        configProvider,
-        PROFILING_DATADOG_PROFILER_ALLOC_ENABLED,
-        PROFILING_DATADOG_PROFILER_ALLOC_ENABLED_DEFAULT);
+    boolean userOptedIn =
+        getBoolean(configProvider, PROFILING_DATADOG_PROFILER_ALLOC_ENABLED, false);
+    // once DD allocation profiling is GA use the longstanding allocation flag to toggle it
+    if (PROFILING_DATADOG_PROFILER_ALLOC_ENABLED_DEFAULT) {
+      return getBoolean(configProvider, PROFILING_ALLOCATION_ENABLED, userOptedIn);
+    }
+    return userOptedIn;
   }
 
   public static boolean isAllocationProfilingEnabled() {
@@ -152,12 +165,20 @@ public class DatadogProfilerConfig {
   public static boolean isMemoryLeakProfilingEnabled(ConfigProvider configProvider) {
     return getBoolean(
         configProvider,
-        PROFILING_DATADOG_PROFILER_MEMLEAK_ENABLED,
-        PROFILING_DATADOG_PROFILER_MEMLEAK_ENABLED_DEFAULT);
+        PROFILING_DATADOG_PROFILER_LIVEHEAP_ENABLED,
+        PROFILING_DATADOG_PROFILER_LIVEHEAP_ENABLED_DEFAULT,
+        PROFILING_DATADOG_PROFILER_MEMLEAK_ENABLED);
   }
 
   public static boolean isMemoryLeakProfilingEnabled() {
     return isMemoryLeakProfilingEnabled(ConfigProvider.getInstance());
+  }
+
+  public static boolean isLiveHeapSizeTrackingEnabled(ConfigProvider configProvider) {
+    return getBoolean(
+        configProvider,
+        PROFILING_DATADOG_PROFILER_LIVEHEAP_TRACK_HEAPSIZE,
+        PROFILING_DATADOG_PROFILER_LIVEHEAP_TRACK_HEAPSIZE_DEFAFULT);
   }
 
   public static long getMemleakInterval(ConfigProvider configProvider) {
@@ -165,7 +186,10 @@ public class DatadogProfilerConfig {
     long memleakIntervalDefault =
         maxheap <= 0 ? 1024 * 1024 : maxheap / Math.max(1, getMemleakCapacity());
     return getLong(
-        configProvider, PROFILING_DATADOG_PROFILER_MEMLEAK_INTERVAL, memleakIntervalDefault);
+        configProvider,
+        PROFILING_DATADOG_PROFILER_LIVEHEAP_INTERVAL,
+        memleakIntervalDefault,
+        PROFILING_DATADOG_PROFILER_MEMLEAK_INTERVAL);
   }
 
   public static long getMemleakInterval() {
@@ -175,12 +199,14 @@ public class DatadogProfilerConfig {
   public static int getMemleakCapacity(ConfigProvider configProvider) {
     return clamp(
         0,
-        // see https://github.com/DataDog/java-profiler/blob/main/src/memleakTracer.h
+        // see
+        // https://github.com/DataDog/java-profiler/blob/main/ddprof-lib/src/main/cpp/livenessTracker.h#L54
         8192,
         getInteger(
             configProvider,
-            PROFILING_DATADOG_PROFILER_MEMLEAK_CAPACITY,
-            PROFILING_DATADOG_PROFILER_MEMLEAK_CAPACITY_DEFAULT));
+            PROFILING_DATADOG_PROFILER_LIVEHEAP_CAPACITY,
+            PROFILING_DATADOG_PROFILER_LIVEHEAP_CAPACITY_DEFAULT,
+            PROFILING_DATADOG_PROFILER_MEMLEAK_CAPACITY));
   }
 
   public static int getMemleakCapacity() {
@@ -218,6 +244,13 @@ public class DatadogProfilerConfig {
 
   public static String getCStack() {
     return getCStack(ConfigProvider.getInstance());
+  }
+
+  public static boolean omitLineNumbers(ConfigProvider configProvider) {
+    return !getBoolean(
+        configProvider,
+        PROFILING_DATADOG_PROFILER_LINE_NUMBERS,
+        PROFILING_DATADOG_PROFILER_LINE_NUMBERS_DEFAULT);
   }
 
   private static int clamp(int min, int max, int value) {
@@ -265,26 +298,29 @@ public class DatadogProfilerConfig {
   }
 
   public static boolean getBoolean(
-      ConfigProvider configProvider, String key, boolean defaultValue) {
+      ConfigProvider configProvider, String key, boolean defaultValue, String... aliases) {
     return configProvider.getBoolean(
-        key, configProvider.getBoolean(normalizeKey(key), defaultValue));
+        key, configProvider.getBoolean(normalizeKey(key), defaultValue), aliases);
   }
 
   public static boolean getBoolean(ConfigProvider configProvider, String key) {
     return configProvider.getBoolean(key, configProvider.getBoolean(normalizeKey(key), false));
   }
 
-  public static int getInteger(ConfigProvider configProvider, String key, int defaultValue) {
+  public static int getInteger(
+      ConfigProvider configProvider, String key, int defaultValue, String... aliases) {
     return configProvider.getInteger(
-        key, configProvider.getInteger(normalizeKey(key), defaultValue));
+        key, configProvider.getInteger(normalizeKey(key), defaultValue), aliases);
   }
 
   public static int getInteger(ConfigProvider configProvider, String key) {
     return configProvider.getInteger(key, configProvider.getInteger(normalizeKey(key), -1));
   }
 
-  public static long getLong(ConfigProvider configProvider, String key, long defaultValue) {
-    return configProvider.getLong(key, configProvider.getLong(normalizeKey(key), defaultValue));
+  public static long getLong(
+      ConfigProvider configProvider, String key, long defaultValue, String... aliases) {
+    return configProvider.getLong(
+        key, configProvider.getLong(normalizeKey(key), defaultValue), aliases);
   }
 
   public static long getLong(ConfigProvider configProvider, String key) {
