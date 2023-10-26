@@ -10,6 +10,9 @@ import spock.lang.Subject
 
 import java.security.InvalidParameterException
 
+import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND_SERVER
+import static datadog.trace.instrumentation.opentelemetry14.trace.OtelConventions.DEFAULT_OPERATION_NAME
+import static io.opentelemetry.api.trace.SpanKind.SERVER
 import static io.opentelemetry.api.trace.StatusCode.ERROR
 import static io.opentelemetry.api.trace.StatusCode.OK
 import static io.opentelemetry.api.trace.StatusCode.UNSET
@@ -41,12 +44,12 @@ class OpenTelemetry14Test extends AgentTestRunner {
       trace(2) {
         span {
           parent()
-          operationName "some-name"
+          operationName DEFAULT_OPERATION_NAME
           resourceName "some-name"
         }
         span {
           childOfPrevious()
-          operationName "other-name"
+          operationName DEFAULT_OPERATION_NAME
           resourceName "other-name"
         }
       }
@@ -69,11 +72,13 @@ class OpenTelemetry14Test extends AgentTestRunner {
       trace(2) {
         span {
           parent()
-          operationName "some-name"
+          operationName DEFAULT_OPERATION_NAME
+          resourceName "some-name"
         }
         span {
           childOfPrevious()
-          operationName "other-name"
+          operationName DEFAULT_OPERATION_NAME
+          resourceName "other-name"
         }
       }
     }
@@ -89,7 +94,6 @@ class OpenTelemetry14Test extends AgentTestRunner {
 
     TEST_WRITER.waitForTraces(1)
     def trace = TEST_WRITER.firstTrace()
-
 
     then:
     trace.size() == 1
@@ -114,13 +118,15 @@ class OpenTelemetry14Test extends AgentTestRunner {
       trace(1) {
         span {
           parent()
-          operationName "some-name"
+          operationName DEFAULT_OPERATION_NAME
+          resourceName"some-name"
         }
       }
       trace(1) {
         span {
           parent()
-          operationName "other-name"
+          operationName DEFAULT_OPERATION_NAME
+          resourceName"other-name"
         }
       }
     }
@@ -195,7 +201,7 @@ class OpenTelemetry14Test extends AgentTestRunner {
       trace(1) {
         span {
           parent()
-          operationName "some-name"
+          operationName DEFAULT_OPERATION_NAME
           if (tagSpan) {
             resourceName "other-resource"
           } else if (tagBuilder) {
@@ -280,7 +286,7 @@ class OpenTelemetry14Test extends AgentTestRunner {
     SpanKind.CONSUMER | Tags.SPAN_KIND_CONSUMER
     SpanKind.INTERNAL | "internal"
     SpanKind.PRODUCER | Tags.SPAN_KIND_PRODUCER
-    SpanKind.SERVER | Tags.SPAN_KIND_SERVER
+    SERVER | Tags.SPAN_KIND_SERVER
   }
 
   def "test span error status"() {
@@ -297,7 +303,7 @@ class OpenTelemetry14Test extends AgentTestRunner {
       trace(1) {
         span {
           parent()
-          operationName "some-name"
+          operationName DEFAULT_OPERATION_NAME
           resourceName "some-name"
           errored true
 
@@ -349,7 +355,7 @@ class OpenTelemetry14Test extends AgentTestRunner {
       trace(1) {
         span {
           parent()
-          operationName "some-name"
+          operationName DEFAULT_OPERATION_NAME
           resourceName "some-name"
           errored false
           tags {
@@ -390,7 +396,7 @@ class OpenTelemetry14Test extends AgentTestRunner {
       trace(1) {
         span {
           parent()
-          operationName "some-name"
+          operationName DEFAULT_OPERATION_NAME
           resourceName "some-name"
           errored false
           tags {
@@ -405,16 +411,18 @@ class OpenTelemetry14Test extends AgentTestRunner {
   def "test span name update"() {
     setup:
     def builder = tracer.spanBuilder("some-name")
-    def result = builder.startSpan()
+    def result = builder.setSpanKind(SERVER).startSpan()
 
     expect:
-    result.delegate.operationName == "some-name"
+    result.delegate.operationName == DEFAULT_OPERATION_NAME
+    result.delegate.resourceName == "some-name"
 
     when:
     result.updateName("other-name")
 
     then:
-    result.delegate.operationName == "other-name"
+    result.delegate.operationName == DEFAULT_OPERATION_NAME
+    result.delegate.resourceName == "other-name"
 
     when:
     result.end()
@@ -424,8 +432,9 @@ class OpenTelemetry14Test extends AgentTestRunner {
       trace(1) {
         span {
           parent()
-          operationName "other-name"
-          resourceName "some-name"
+          spanType SPAN_KIND_SERVER
+          operationName "server.request"
+          resourceName "other-name"
         }
       }
     }
@@ -449,7 +458,8 @@ class OpenTelemetry14Test extends AgentTestRunner {
       trace(1) {
         span {
           parent()
-          operationName "some-name"
+          operationName DEFAULT_OPERATION_NAME
+          resourceName"some-name"
           errored true
           tags {
             defaultTags()
