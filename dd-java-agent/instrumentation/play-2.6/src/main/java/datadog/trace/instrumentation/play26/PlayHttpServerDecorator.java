@@ -19,6 +19,7 @@ import java.util.concurrent.CompletionException;
 import play.api.mvc.Headers;
 import play.api.mvc.Request;
 import play.api.mvc.Result;
+import play.api.mvc.request.RemoteConnection;
 import play.api.routing.HandlerDef;
 import play.libs.typedmap.TypedKey;
 import play.routing.Router;
@@ -95,7 +96,12 @@ public class PlayHttpServerDecorator
 
   @Override
   protected String peerHostIP(final Request request) {
-    return request.remoteAddress();
+    RemoteConnection connection = request.connection();
+    if (connection instanceof RemoteConnectionWithRawAddress) {
+      return ((RemoteConnectionWithRawAddress) connection).rawRemoteAddressString();
+    } else {
+      return request.remoteAddress();
+    }
   }
 
   @Override
@@ -134,7 +140,7 @@ public class PlayHttpServerDecorator
         CharSequence path =
             PATH_CACHE.computeIfAbsent(
                 defOption.get().path(), p -> addMissingSlash(p, request.path()));
-        HTTP_RESOURCE_DECORATOR.withRoute(span, request.method(), path);
+        HTTP_RESOURCE_DECORATOR.withRoute(span, request.method(), path, true);
       }
     }
     return span;

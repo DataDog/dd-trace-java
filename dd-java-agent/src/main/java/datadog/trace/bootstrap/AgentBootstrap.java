@@ -121,7 +121,7 @@ public final class AgentBootstrap {
   private static boolean alreadyInitialized() {
     if (initialized) {
       System.out.println(
-          "Warning: dd-java-agent is being initialized more than once. Please, check that you are defining -javaagent:dd-java-agent.jar only once.");
+          "Warning: dd-java-agent is being initialized more than once. Please check that you are defining -javaagent:dd-java-agent.jar only once.");
       return true;
     }
     initialized = true;
@@ -129,7 +129,43 @@ public final class AgentBootstrap {
   }
 
   private static boolean isJdkTool() {
-    return System.getProperty("jdk.module.main", "").startsWith("jdk.");
+    String moduleMain = System.getProperty("jdk.module.main");
+    if (null != moduleMain && !moduleMain.isEmpty() && moduleMain.charAt(0) == 'j') {
+      switch (moduleMain) {
+        case "java.base": // keytool
+        case "java.corba":
+        case "java.desktop":
+        case "java.rmi":
+        case "java.scripting":
+        case "java.security.jgss":
+        case "jdk.aot":
+        case "jdk.compiler":
+        case "jdk.dev":
+        case "jdk.hotspot.agent":
+        case "jdk.httpserver":
+        case "jdk.jartool":
+        case "jdk.javadoc":
+        case "jdk.jcmd":
+        case "jdk.jconsole":
+        case "jdk.jdeps":
+        case "jdk.jdi":
+        case "jdk.jfr":
+        case "jdk.jlink":
+        case "jdk.jpackage":
+        case "jdk.jshell":
+        case "jdk.jstatd":
+        case "jdk.jvmstat.rmi":
+        case "jdk.pack":
+        case "jdk.pack200":
+        case "jdk.policytool":
+        case "jdk.rmic":
+        case "jdk.scripting.nashorn.shell":
+        case "jdk.xml.bind":
+        case "jdk.xml.ws":
+          return true;
+      }
+    }
+    return false;
   }
 
   // Reachable for testing

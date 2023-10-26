@@ -152,6 +152,8 @@ public final class ConfigDefaults {
   static final boolean DEFAULT_DEBUGGER_VERIFY_BYTECODE = true;
   static final boolean DEFAULT_DEBUGGER_INSTRUMENT_THE_WORLD = false;
   static final int DEFAULT_DEBUGGER_CAPTURE_TIMEOUT = 100; // milliseconds
+  static final boolean DEFAULT_DEBUGGER_SYMBOL_ENABLED = false;
+  static final int DEFAULT_DEBUGGER_SYMBOL_FLUSH_THRESHOLD = 100; // nb of classes
 
   static final boolean DEFAULT_TRACE_REPORT_HOSTNAME = false;
   static final String DEFAULT_TRACE_ANNOTATIONS = null;

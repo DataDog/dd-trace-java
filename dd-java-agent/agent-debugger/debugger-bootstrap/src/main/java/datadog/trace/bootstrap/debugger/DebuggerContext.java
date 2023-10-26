@@ -191,19 +191,9 @@ public class DebuggerContext {
    *
    * @return true if can proceed to capture data
    */
-  public static boolean isReadyToCapture(String... probeIds) {
-    // TODO provide overloaded version without string array
+  public static boolean isReadyToCapture(Class<?> callingClass, String... probeIds) {
     try {
-      if (probeIds == null || probeIds.length == 0) {
-        return false;
-      }
-      boolean result = false;
-      for (String probeId : probeIds) {
-        // if all probes are rate limited, we don't capture
-        result |= ProbeRateLimiter.tryProbe(probeId);
-      }
-      result = result && checkAndSetInProbe();
-      return result;
+      return checkAndSetInProbe();
     } catch (Exception ex) {
       LOGGER.debug("Error in isReadyToCapture: ", ex);
       return false;
