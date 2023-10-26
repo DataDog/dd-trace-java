@@ -5,6 +5,7 @@ import static java.util.Collections.singletonList;
 
 import java.util.ArrayList;
 import java.util.List;
+import javax.annotation.Nullable;
 
 public interface Ranged {
 
@@ -62,6 +63,7 @@ public interface Ranged {
   }
 
   /** Computes the intersection of the ranges or {@code null} if they do not intersect */
+  @Nullable
   default Ranged intersection(final Ranged range) {
     if (this.getStart() == range.getStart() && this.getLength() == range.getLength()) {
       return this;
@@ -84,7 +86,7 @@ public interface Ranged {
     }
   }
 
-  default boolean isBefore(final Ranged range) {
+  default boolean isBefore(@Nullable final Ranged range) {
     if (range == null) {
       return true;
     }

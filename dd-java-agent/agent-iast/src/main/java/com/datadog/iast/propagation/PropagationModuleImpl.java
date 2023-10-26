@@ -19,6 +19,7 @@ import datadog.trace.api.iast.propagation.PropagationModule;
 import java.util.function.Predicate;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import org.jetbrains.annotations.Contract;
 
 public class PropagationModuleImpl implements PropagationModule {
 
@@ -322,6 +323,7 @@ public class PropagationModuleImpl implements PropagationModule {
     return null;
   }
 
+  @Contract("null -> false")
   private static boolean canBeTainted(@Nullable final Object target) {
     if (target == null) {
       return false;
@@ -332,6 +334,7 @@ public class PropagationModuleImpl implements PropagationModule {
     return true;
   }
 
+  @Contract("null -> false")
   private static boolean canBeTainted(@Nullable final Object[] target) {
     if (target == null || target.length == 0) {
       return false;
@@ -462,8 +465,9 @@ public class PropagationModuleImpl implements PropagationModule {
   private static class LazyContext implements IastContext {
 
     private boolean fetched;
-    private IastRequestContext delegate;
+    @Nullable private IastRequestContext delegate;
 
+    @Nullable
     private IastRequestContext getDelegate() {
       if (!fetched) {
         fetched = true;
