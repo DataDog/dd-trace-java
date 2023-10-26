@@ -11,7 +11,6 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.api.Pair;
 import datadog.trace.bootstrap.InstrumentationContext;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -91,14 +90,14 @@ public final class KafkaConsumerInstrumentation extends Instrumenter.Tracing
         @Advice.Return(readOnly = false) Iterable<ConsumerRecord<?, ?>> iterable,
         @Advice.This ConsumerRecords records) {
       if (iterable != null) {
-        Pair<String, String> data =
-            KafkaConsumerInstrumentationHelper.extractGroupAndClusterId(
-                records,
-                InstrumentationContext.get(ConsumerRecords.class, KafkaConsumerInfo.class),
-                InstrumentationContext.get(Metadata.class, String.class));
+        KafkaConsumerInfo kafkaConsumerInfo =
+            InstrumentationContext.get(ConsumerRecords.class, KafkaConsumerInfo.class).get(records);
+        String group = KafkaConsumerInstrumentationHelper.extractGroup(kafkaConsumerInfo);
+        String clusterId =
+            KafkaConsumerInstrumentationHelper.extractClusterId(
+                kafkaConsumerInfo, InstrumentationContext.get(Metadata.class, String.class));
         iterable =
-            new TracingIterable(
-                iterable, KAFKA_CONSUME, CONSUMER_DECORATE, data.getLeft(), data.getRight());
+            new TracingIterable(iterable, KAFKA_CONSUME, CONSUMER_DECORATE, group, clusterId);
       }
     }
   }
@@ -110,14 +109,13 @@ public final class KafkaConsumerInstrumentation extends Instrumenter.Tracing
         @Advice.Return(readOnly = false) List<ConsumerRecord<?, ?>> iterable,
         @Advice.This ConsumerRecords records) {
       if (iterable != null) {
-        Pair<String, String> data =
-            KafkaConsumerInstrumentationHelper.extractGroupAndClusterId(
-                records,
-                InstrumentationContext.get(ConsumerRecords.class, KafkaConsumerInfo.class),
-                InstrumentationContext.get(Metadata.class, String.class));
-        iterable =
-            new TracingList(
-                iterable, KAFKA_CONSUME, CONSUMER_DECORATE, data.getLeft(), data.getRight());
+        KafkaConsumerInfo kafkaConsumerInfo =
+            InstrumentationContext.get(ConsumerRecords.class, KafkaConsumerInfo.class).get(records);
+        String group = KafkaConsumerInstrumentationHelper.extractGroup(kafkaConsumerInfo);
+        String clusterId =
+            KafkaConsumerInstrumentationHelper.extractClusterId(
+                kafkaConsumerInfo, InstrumentationContext.get(Metadata.class, String.class));
+        iterable = new TracingList(iterable, KAFKA_CONSUME, CONSUMER_DECORATE, group, clusterId);
       }
     }
   }
@@ -129,14 +127,14 @@ public final class KafkaConsumerInstrumentation extends Instrumenter.Tracing
         @Advice.Return(readOnly = false) Iterator<ConsumerRecord<?, ?>> iterator,
         @Advice.This ConsumerRecords records) {
       if (iterator != null) {
-        Pair<String, String> data =
-            KafkaConsumerInstrumentationHelper.extractGroupAndClusterId(
-                records,
-                InstrumentationContext.get(ConsumerRecords.class, KafkaConsumerInfo.class),
-                InstrumentationContext.get(Metadata.class, String.class));
+        KafkaConsumerInfo kafkaConsumerInfo =
+            InstrumentationContext.get(ConsumerRecords.class, KafkaConsumerInfo.class).get(records);
+        String group = KafkaConsumerInstrumentationHelper.extractGroup(kafkaConsumerInfo);
+        String clusterId =
+            KafkaConsumerInstrumentationHelper.extractClusterId(
+                kafkaConsumerInfo, InstrumentationContext.get(Metadata.class, String.class));
         iterator =
-            new TracingIterator(
-                iterator, KAFKA_CONSUME, CONSUMER_DECORATE, data.getLeft(), data.getRight());
+            new TracingIterator(iterator, KAFKA_CONSUME, CONSUMER_DECORATE, group, clusterId);
       }
     }
   }

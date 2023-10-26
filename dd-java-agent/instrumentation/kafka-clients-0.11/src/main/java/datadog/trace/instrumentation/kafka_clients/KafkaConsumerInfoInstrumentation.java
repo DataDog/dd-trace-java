@@ -10,6 +10,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.api.Config;
 import datadog.trace.bootstrap.InstrumentationContext;
 import java.util.HashMap;
 import java.util.Map;
@@ -86,19 +87,23 @@ public final class KafkaConsumerInfoInstrumentation extends Instrumenter.Tracing
         @Advice.FieldValue("metadata") Metadata metadata,
         @Advice.FieldValue("coordinator") ConsumerCoordinator coordinator,
         @Advice.Argument(0) ConsumerConfig consumerConfig) {
-      KafkaConsumerInfo.Builder metadataBuilder = new KafkaConsumerInfo.Builder();
-      metadataBuilder = metadataBuilder.clientMetadata(metadata);
-
       String consumerGroup = consumerConfig.getString(ConsumerConfig.GROUP_ID_CONFIG);
-      if (consumerGroup != null && !consumerGroup.isEmpty()) {
-        metadataBuilder = metadataBuilder.consumerGroup(consumerGroup);
+      String normalizedConsumerGroup =
+          consumerGroup != null && !consumerGroup.isEmpty() ? consumerGroup : null;
+      KafkaConsumerInfo kafkaConsumerInfo;
+      if (Config.get().isDataStreamsEnabled()) {
+        kafkaConsumerInfo = new KafkaConsumerInfo(normalizedConsumerGroup, metadata);
+      } else {
+        kafkaConsumerInfo = new KafkaConsumerInfo(normalizedConsumerGroup);
       }
 
-      KafkaConsumerInfo kafkaConsumerInfo = metadataBuilder.build();
-      InstrumentationContext.get(KafkaConsumer.class, KafkaConsumerInfo.class)
-          .put(consumer, kafkaConsumerInfo);
-      InstrumentationContext.get(ConsumerCoordinator.class, KafkaConsumerInfo.class)
-          .put(coordinator, kafkaConsumerInfo);
+      if (kafkaConsumerInfo.getConsumerGroup() != null
+          || kafkaConsumerInfo.getClientMetadata() != null) {
+        InstrumentationContext.get(KafkaConsumer.class, KafkaConsumerInfo.class)
+            .put(consumer, kafkaConsumerInfo);
+        InstrumentationContext.get(ConsumerCoordinator.class, KafkaConsumerInfo.class)
+            .put(coordinator, kafkaConsumerInfo);
+      }
     }
 
     public static void muzzleCheck(ConsumerRecord record) {

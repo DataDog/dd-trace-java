@@ -13,6 +13,11 @@ public class KafkaConsumerInfo {
     this.clientMetadata = clientMetadata;
   }
 
+  public KafkaConsumerInfo(String consumerGroup) {
+    this.consumerGroup = consumerGroup;
+    this.clientMetadata = null;
+  }
+
   @Nullable
   public String getConsumerGroup() {
     return consumerGroup;
@@ -21,27 +26,6 @@ public class KafkaConsumerInfo {
   @Nullable
   public Metadata getClientMetadata() {
     return clientMetadata;
-  }
-
-  public static class Builder {
-    private String consumerGroup;
-    private Metadata clientMetadata;
-
-    public Builder() {}
-
-    public Builder consumerGroup(String consumerGroup) {
-      this.consumerGroup = consumerGroup;
-      return this;
-    }
-
-    public Builder clientMetadata(Metadata clientMetadata) {
-      this.clientMetadata = clientMetadata;
-      return this;
-    }
-
-    public KafkaConsumerInfo build() {
-      return new KafkaConsumerInfo(consumerGroup, clientMetadata);
-    }
   }
 
   @Override

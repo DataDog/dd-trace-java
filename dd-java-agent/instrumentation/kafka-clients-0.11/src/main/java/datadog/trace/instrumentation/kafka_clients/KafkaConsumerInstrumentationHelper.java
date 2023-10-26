@@ -1,25 +1,25 @@
 package datadog.trace.instrumentation.kafka_clients;
 
-import datadog.trace.api.Pair;
+import datadog.trace.api.Config;
 import datadog.trace.bootstrap.ContextStore;
 import org.apache.kafka.clients.Metadata;
-import org.apache.kafka.clients.consumer.ConsumerRecords;
 
 public class KafkaConsumerInstrumentationHelper {
-  public static Pair<String, String> extractGroupAndClusterId(
-      ConsumerRecords records,
-      ContextStore<ConsumerRecords, KafkaConsumerInfo> consumerInfoContextStore,
-      ContextStore<Metadata, String> metadataContextStore) {
-    String group = null;
-    String clusterId = null;
-    KafkaConsumerInfo kafkaConsumerInfo = consumerInfoContextStore.get(records);
+  public static String extractGroup(KafkaConsumerInfo kafkaConsumerInfo) {
     if (kafkaConsumerInfo != null) {
-      group = kafkaConsumerInfo.getConsumerGroup();
+      return kafkaConsumerInfo.getConsumerGroup();
+    }
+    return null;
+  }
+
+  public static String extractClusterId(
+      KafkaConsumerInfo kafkaConsumerInfo, ContextStore<Metadata, String> metadataContextStore) {
+    if (Config.get().isDataStreamsEnabled() && kafkaConsumerInfo != null) {
       Metadata consumerMetadata = kafkaConsumerInfo.getClientMetadata();
       if (consumerMetadata != null) {
-        clusterId = metadataContextStore.get(consumerMetadata);
+        return metadataContextStore.get(consumerMetadata);
       }
     }
-    return Pair.of(group, clusterId);
+    return null;
   }
 }
