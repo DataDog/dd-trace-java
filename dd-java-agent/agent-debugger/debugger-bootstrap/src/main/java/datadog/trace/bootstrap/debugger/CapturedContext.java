@@ -329,7 +329,7 @@ public class CapturedContext implements ValueReferenceResolver {
     this.thisClassName = thisClassName;
     boolean shouldEvaluate = resolveEvaluateAt(probeImplementation, methodLocation);
     if (shouldEvaluate) {
-      probeImplementation.evaluate(this, status);
+      probeImplementation.evaluate(this, status, methodLocation);
     }
     return status;
   }
@@ -340,11 +340,7 @@ public class CapturedContext implements ValueReferenceResolver {
       // line probe, no evaluation of probe's evaluateAt
       return true;
     }
-    MethodLocation localEvaluateAt = probeImplementation.getEvaluateAt();
-    if (methodLocation == MethodLocation.ENTRY) {
-      return localEvaluateAt == MethodLocation.DEFAULT || localEvaluateAt == MethodLocation.ENTRY;
-    }
-    return localEvaluateAt == methodLocation;
+    return MethodLocation.isSame(methodLocation, probeImplementation.getEvaluateAt());
   }
 
   public Status getStatus(String probeId) {

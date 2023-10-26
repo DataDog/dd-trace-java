@@ -35,6 +35,7 @@ import com.datadog.debugger.util.MoshiSnapshotTestHelper;
 import com.datadog.debugger.util.SerializerWithLimits;
 import com.squareup.moshi.JsonAdapter;
 import datadog.trace.api.Config;
+import datadog.trace.api.sampling.Sampler;
 import datadog.trace.bootstrap.debugger.*;
 import datadog.trace.bootstrap.debugger.el.ValueReferences;
 import datadog.trace.bootstrap.debugger.util.Redaction;
@@ -1805,6 +1806,45 @@ public class CapturedSnapshotTest {
         snapshots.get(2).getEvaluationErrors().get(0).getMessage());
   }
 
+  @Test
+  public void samplingMethodProbe() throws IOException, URISyntaxException {
+    doSamplingTest(this::methodProbe, 1, 1);
+  }
+
+  @Test
+  public void samplingProbeCondition() throws IOException, URISyntaxException {
+    doSamplingTest(this::simpleConditionTest, 1, 1);
+  }
+
+  @Test
+  public void samplingDupMethodProbeCondition() throws IOException, URISyntaxException {
+    doSamplingTest(this::mergedProbesWithAdditionalProbeConditionTest, 2, 2);
+  }
+
+  @Test
+  public void samplingLineProbe() throws IOException, URISyntaxException {
+    doSamplingTest(this::singleLineProbe, 1, 1);
+  }
+
+  interface TestMethod {
+    void run() throws IOException, URISyntaxException;
+  }
+
+  private void doSamplingTest(TestMethod testRun, int expectedGlobalCount, int expectedProbeCount)
+      throws IOException, URISyntaxException {
+    MockSampler probeSampler = new MockSampler();
+    MockSampler globalSampler = new MockSampler();
+    ProbeRateLimiter.setSamplerSupplier(rate -> rate < 101 ? probeSampler : globalSampler);
+    ProbeRateLimiter.setGlobalSnapshotRate(1000);
+    try {
+      testRun.run();
+    } finally {
+      ProbeRateLimiter.setSamplerSupplier(null);
+    }
+    assertEquals(expectedGlobalCount, globalSampler.callCount);
+    assertEquals(expectedProbeCount, probeSampler.callCount);
+  }
+
   private DebuggerTransformerTest.TestSnapshotListener setupInstrumentTheWorldTransformer(
       String excludeFileName) {
     Config config = mock(Config.class);
@@ -2138,6 +2178,27 @@ public class CapturedSnapshotTest {
     @Override
     public void instrumentationResult(ProbeDefinition definition, InstrumentationResult result) {
       results.put(definition.getId(), result);
+    }
+  }
+
+  static class MockSampler implements Sampler {
+
+    int callCount;
+
+    @Override
+    public boolean sample() {
+      callCount++;
+      return true;
+    }
+
+    @Override
+    public boolean keep() {
+      return false;
+    }
+
+    @Override
+    public boolean drop() {
+      return false;
     }
   }
 
