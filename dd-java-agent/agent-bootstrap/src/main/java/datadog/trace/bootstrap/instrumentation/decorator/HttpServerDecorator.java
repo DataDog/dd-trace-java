@@ -250,7 +250,7 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
     }
 
     String inferredAddressStr = null;
-    if (clientIpResolverEnabled) {
+    if (clientIpResolverEnabled && context != null) {
       InetAddress inferredAddress = ClientIpAddressResolver.resolve(context, span);
       // the peer address should be used if:
       // 1. the headers yield nothing, regardless of whether it is public or not
@@ -268,6 +268,17 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
       if (inferredAddress != null) {
         inferredAddressStr = inferredAddress.getHostAddress();
         span.setTag(Tags.HTTP_CLIENT_IP, inferredAddressStr);
+      }
+    } else if (clientIpResolverEnabled && span.getLocalRootSpan() != span) {
+      // in this case context == null
+      // If there is no context we can't do anything but use the peer addr.
+      // Additionally, context == null arises on subspans for which the resolution
+      // likely already happened on the top span, so we don't need to do the resolution
+      // again. Instead, copy from the top span, should it exist
+      AgentSpan localRootSpan = span.getLocalRootSpan();
+      Object clientIp = localRootSpan.getTag(Tags.HTTP_CLIENT_IP);
+      if (clientIp != null) {
+        span.setTag(Tags.HTTP_CLIENT_IP, clientIp);
       }
     }
 

@@ -9,6 +9,7 @@ import static datadog.trace.instrumentation.play26.PlayHttpServerDecorator.PLAY_
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan.Context;
+import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities;
 import net.bytebuddy.asm.Advice;
 import play.api.mvc.Action;
 import play.api.mvc.Headers;
@@ -18,7 +19,9 @@ import scala.concurrent.Future;
 
 public class PlayAdvice {
   @Advice.OnMethodEnter(suppress = Throwable.class)
-  public static AgentScope onEnter(@Advice.Argument(value = 0, readOnly = false) Request req) {
+  public static AgentScope onEnter(
+      @Advice.Argument(value = 0, readOnly = false) Request req,
+      @Advice.Local("extractedContext") Context.Extracted extractedContext) {
     final AgentSpan span;
 
     // If we have already added a `play.request` span, then don't do it again
@@ -28,7 +31,7 @@ public class PlayAdvice {
 
     if (activeSpan() == null) {
       final Headers headers = req.headers();
-      final Context.Extracted extractedContext = DECORATE.extract(headers);
+      extractedContext = DECORATE.extract(headers);
       span = DECORATE.startSpan(headers, extractedContext);
     } else {
       // An upstream framework (e.g. akka-http, netty) has already started the span.
@@ -48,6 +51,7 @@ public class PlayAdvice {
   @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
   public static void stopTraceOnResponse(
       @Advice.Enter final AgentScope playControllerScope,
+      @Advice.Local("extractedContext") Context.Extracted extractedContext,
       @Advice.This final Object thisAction,
       @Advice.Thrown final Throwable throwable,
       @Advice.Argument(0) final Request req,
@@ -60,7 +64,7 @@ public class PlayAdvice {
     final AgentSpan playControllerSpan = playControllerScope.span();
 
     // Call onRequest on return after tags are populated.
-    DECORATE.onRequest(playControllerSpan, req, req, null);
+    DECORATE.onRequest(playControllerSpan, req, req, extractedContext);
 
     if (throwable == null) {
       responseFuture.onComplete(
@@ -76,8 +80,9 @@ public class PlayAdvice {
 
     final AgentSpan rootSpan = activeSpan();
     // set the resource name on the upstream akka/netty span if there is one
-    if (rootSpan != null) {
-      DECORATE.onRequest(rootSpan, req, req, null);
+    if (rootSpan != null && playControllerSpan.getResourceName() != null) {
+      rootSpan.setResourceName(
+          playControllerSpan.getResourceName(), ResourceNamePriorities.HTTP_PATH_NORMALIZER);
     }
   }
 }

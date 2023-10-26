@@ -251,24 +251,8 @@ public class HttpServletRequestCallSite {
     }
   }
 
-  @Source(SourceTypes.REQUEST_URI)
-  @CallSite.After("java.lang.String javax.servlet.http.HttpServletRequest.getRequestURI()")
-  public static String afterGetRequestURI(
-      @CallSite.This final HttpServletRequest self, @CallSite.Return final String retValue) {
-    if (null != retValue && !retValue.isEmpty()) {
-      final WebModule module = InstrumentationBridge.WEB;
-      if (module != null) {
-        try {
-          module.onGetRequestURI(retValue);
-        } catch (final Throwable e) {
-          module.onUnexpectedException("afterGetRequestURI threw", e);
-        }
-      }
-    }
-    return retValue;
-  }
-
   @Source(SourceTypes.REQUEST_PATH)
+  @CallSite.After("java.lang.String javax.servlet.http.HttpServletRequest.getRequestURI()")
   @CallSite.After("java.lang.String javax.servlet.http.HttpServletRequest.getPathInfo()")
   @CallSite.After("java.lang.String javax.servlet.http.HttpServletRequest.getPathTranslated()")
   public static String afterGetPathInfo(

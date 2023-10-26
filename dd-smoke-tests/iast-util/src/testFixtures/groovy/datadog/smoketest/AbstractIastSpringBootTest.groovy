@@ -805,7 +805,7 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
     then:
     hasTainted { tainted ->
       tainted.value == '/getrequesturi' &&
-        tainted.ranges[0].source.origin == 'http.request.uri'
+        tainted.ranges[0].source.origin == 'http.request.path'
     }
   }
 

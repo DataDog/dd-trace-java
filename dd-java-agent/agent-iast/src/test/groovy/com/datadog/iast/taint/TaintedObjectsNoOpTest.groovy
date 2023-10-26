@@ -13,10 +13,12 @@ class TaintedObjectsNoOpTest extends Specification {
 
     when:
     final taintedString = instance.taintInputString(toTaint, new Source(0 as byte, 'test', 'test'))
+    final taintedCharSequence = instance.taintInputCharSequence(toTaint, new Source(0 as byte, 'test', 'test'))
     final taintedObject = instance.taintInputObject(toTaint, new Source(0 as byte, 'test', 'test'))
 
     then:
     taintedString == null
+    taintedCharSequence == null
     taintedObject == null
     instance.get(toTaint) == null
     instance.estimatedSize == 0
