@@ -13,6 +13,7 @@ muzzle {
     module = "play_$scalaVersion"
     versions = "[$playVersion,)"
     assertInverse = true
+    javaVersion = 11
   }
   pass {
     name = 'play26Plus'
@@ -20,6 +21,7 @@ muzzle {
     module = 'play_2.12'
     versions = "[$playVersion,)"
     assertInverse = true
+    javaVersion = 11
   }
   pass {
     name = 'play26Plus'
@@ -27,6 +29,7 @@ muzzle {
     module = 'play_2.13'
     versions = "[$playVersion,)"
     assertInverse = true
+    javaVersion = 11
   }
 
   pass {
