@@ -127,6 +127,49 @@ class LambdaHandlerTest extends DDCoreSpecification {
     true     | null         | "1234"         | "5678"         | "2"             | "12345"      | false
   }
 
+  def "test end invocation success with error metadata"() {
+    given:
+    def server = httpServer {
+      handlers {
+        post("/lambda/end-invocation") {
+          response
+            .status(200)
+            .send()
+        }
+      }
+    }
+    LambdaHandler.setExtensionBaseUrl(server.address.toString())
+    DDSpan span = Mock(DDSpan) {
+      getTraceId() >> DDTraceId.from("1234")
+      getSpanId() >> DDSpanId.from("5678")
+      getSamplingPriority() >> 2
+      getTag("error.msg") >> "custom error message"
+      getTag("error.type") >> "java.lang.Throwable"
+      getTag("error.stack") >> "errorStack\n \ttest"
+    }
+
+    when:
+    def result = LambdaHandler.notifyEndInvocation(span, lambdaResult, boolValue)
+
+    then:
+    server.lastRequest.headers.get("x-datadog-invocation-error") == eHeaderValue
+    server.lastRequest.headers.get("x-datadog-invocation-error-msg") == eMsgHeaderValue
+    server.lastRequest.headers.get("x-datadog-invocation-error-type") == eTypeHeaderValue
+    server.lastRequest.headers.get("x-datadog-invocation-error-stack") == eStackHeaderValue
+    server.lastRequest.headers.get("x-datadog-trace-id") == tIdHeaderValue
+    server.lastRequest.headers.get("x-datadog-span-id") == sIdHeaderValue
+    server.lastRequest.headers.get("x-datadog-sampling-priority") == sPIdHeaderValue
+    result == expected
+
+    cleanup:
+    server.close()
+
+    where:
+    expected | eHeaderValue | eMsgHeaderValue        | eTypeHeaderValue      | eStackHeaderValue          | tIdHeaderValue | sIdHeaderValue | sPIdHeaderValue | lambdaResult | boolValue
+    true     | "true"       | "custom error message" | "java.lang.Throwable" | "ZXJyb3JTdGFjawogCXRlc3Q=" | "1234"         | "5678"         | "2"             | {}           | true
+    true     | null         | "custom error message" | "java.lang.Throwable" | "ZXJyb3JTdGFjawogCXRlc3Q=" | "1234"         | "5678"         | "2"             | "12345"      | false
+  }
+
   def "test end invocation failure"() {
     given:
     def server = httpServer {

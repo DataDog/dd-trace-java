@@ -125,7 +125,7 @@ public class LambdaHandler {
             .addHeader(DATADOG_META_LANG, "java")
             .post(body);
 
-    Object errorMessage = span.getTag("error.message");
+    Object errorMessage = span.getTag("error.msg");
     if (errorMessage != null) {
       builder.addHeader(DATADOG_INVOCATION_ERROR_MSG, errorMessage.toString());
     }
