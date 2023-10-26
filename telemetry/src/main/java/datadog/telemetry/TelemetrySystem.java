@@ -73,7 +73,7 @@ public class TelemetrySystem {
     TelemetryClient agentClient = TelemetryClient.buildAgentClient(sco.okHttpClient, sco.agentUrl);
     TelemetryClient intakeClient =
         TelemetryClient.buildIntakeClient(
-            config.getTelemetryIntakeUrl(),
+            config.getSite(),
             TimeUnit.SECONDS.toMillis(config.getAgentTimeout()),
             config.getApiKey());
     TelemetryService telemetryService =
