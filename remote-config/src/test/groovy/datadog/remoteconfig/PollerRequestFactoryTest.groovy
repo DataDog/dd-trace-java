@@ -1,5 +1,6 @@
 package datadog.remoteconfig
 
+import datadog.remoteconfig.state.ExtraServicesProvider
 import datadog.remoteconfig.tuf.RemoteConfigRequest
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.test.util.DDSpecification
@@ -30,5 +31,22 @@ class PollerRequestFactoryTest extends DDSpecification {
     request.client.tracerInfo.tags.contains("env:PROD")
     request.client.tracerInfo.tags.contains(Tags.GIT_REPOSITORY_URL + ":https://github.com/DataDog/dd-trace-java")
     request.client.tracerInfo.tags.contains(Tags.GIT_COMMIT_SHA + ":1234")
+  }
+
+  void 'remote config request extraservices'() {
+    given:
+    System.setProperty("dd.service", "Service Name")
+    System.setProperty("dd.env", "PROD")
+    System.setProperty("dd.tags", "version:1.0.0-SNAPSHOT")
+    rebuildConfig()
+    final extraService = 'fakeExtraService'
+    ExtraServicesProvider.maybeAddExtraService(extraService)
+    PollerRequestFactory factory = new PollerRequestFactory(Config.get(), TRACER_VERSION, CONTAINER_ID, INVALID_REMOTE_CONFIG_URL, null)
+
+    when:
+    RemoteConfigRequest request = factory.buildRemoteConfigRequest( Collections.singletonList("ASM"), null, null, 0)
+
+    then:
+    request.client.tracerInfo.extraServices.contains(extraService)
   }
 }

@@ -1,5 +1,7 @@
 package datadog.trace.core
 
+import datadog.remoteconfig.state.ExtraServicesProvider
+import datadog.trace.api.Config
 import datadog.trace.api.DDSpanId
 import datadog.trace.api.DDTags
 import datadog.trace.api.DDTraceId
@@ -460,5 +462,20 @@ class DDSpanTest extends DDCoreSpecification {
     span.setError(true, Byte.MAX_VALUE)
     then:
     span.isError()
+  }
+
+  void 'test ExtraServiceProvider is called when span is finished and added to trace'(){
+    setup:
+    def span = tracer.buildSpan("fakeOperation")
+      .withServiceName("fakeExtraService")
+      .withResourceName("fakeResource")
+      .withSpanType("fakeType")
+      .start()
+
+    when:
+    span.finish()
+
+    then:
+    ExtraServicesProvider.getExtraServices().contains("fakeExtraService")
   }
 }

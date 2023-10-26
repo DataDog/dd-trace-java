@@ -1,6 +1,7 @@
 package datadog.remoteconfig;
 
 import com.squareup.moshi.Moshi;
+import datadog.remoteconfig.state.ExtraServicesProvider;
 import datadog.remoteconfig.tuf.RemoteConfigRequest;
 import datadog.remoteconfig.tuf.RemoteConfigRequest.CachedTargetFile;
 import datadog.remoteconfig.tuf.RemoteConfigRequest.ClientInfo.ClientState;
@@ -116,6 +117,7 @@ public class PollerRequestFactory {
         this.tracerVersion,
         productNames,
         this.serviceName,
+        ExtraServicesProvider.getExtraServices(),
         this.env,
         this.ddVersion,
         buildRequestTags(),
