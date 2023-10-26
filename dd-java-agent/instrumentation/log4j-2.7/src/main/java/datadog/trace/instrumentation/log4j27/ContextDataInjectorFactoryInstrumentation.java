@@ -31,7 +31,9 @@ public class ContextDataInjectorFactoryInstrumentation extends Instrumenter.Trac
 
   @Override
   public String[] helperClassNames() {
-    return new String[] {packageName + ".SpanDecoratingContextDataInjector"};
+    return new String[] {
+      packageName + ".SpanDecoratingContextDataInjector", packageName + ".DebugHelper"
+    };
   }
 
   @Override
@@ -46,15 +48,19 @@ public class ContextDataInjectorFactoryInstrumentation extends Instrumenter.Trac
   }
 
   public static class CreateInjectorAdvice {
-    @Advice.OnMethodExit(suppress = Throwable.class)
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void onExit(
         @Advice.Return(typing = Assigner.Typing.DYNAMIC, readOnly = false)
-            ContextDataInjector injector) {
-      System.out.println(
-          "createInjector "
-              + injector
-              + " : "
-              + (injector == null ? "" : injector.getClass().getName()));
+            ContextDataInjector injector,
+        @Advice.Thrown final Throwable throwable) {
+      if (throwable != null) {
+        DebugHelper.debugLog("createInjector", throwable);
+        return;
+      }
+      DebugHelper.debugLog(
+          "createInjector {} : {}",
+          injector,
+          injector == null ? "" : injector.getClass().getName());
       injector = new SpanDecoratingContextDataInjector(injector);
     }
   }
