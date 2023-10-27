@@ -55,7 +55,7 @@ public class CookieImplInstrumentation extends Instrumenter.Iast
         @Advice.This final Cookie self, @Advice.Return final String result) {
       final PropagationModule module = InstrumentationBridge.PROPAGATION;
       if (module != null) {
-        module.taintIfInputIsTainted(SourceTypes.REQUEST_COOKIE_NAME, result, result, self);
+        module.taintIfTainted(result, self, SourceTypes.REQUEST_COOKIE_NAME, result);
       }
     }
   }
@@ -68,8 +68,7 @@ public class CookieImplInstrumentation extends Instrumenter.Iast
         @Advice.This final Cookie self, @Advice.Return final String result) {
       final PropagationModule module = InstrumentationBridge.PROPAGATION;
       if (module != null) {
-        module.taintIfInputIsTainted(
-            SourceTypes.REQUEST_COOKIE_VALUE, self.getName(), result, self);
+        module.taintIfTainted(result, self, SourceTypes.REQUEST_COOKIE_VALUE, self.getName());
       }
     }
   }

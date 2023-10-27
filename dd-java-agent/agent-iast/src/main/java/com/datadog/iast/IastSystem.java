@@ -23,7 +23,6 @@ import com.datadog.iast.sink.WeakRandomnessModuleImpl;
 import com.datadog.iast.sink.XContentTypeModuleImpl;
 import com.datadog.iast.sink.XPathInjectionModuleImpl;
 import com.datadog.iast.sink.XssModuleImpl;
-import com.datadog.iast.source.WebModuleImpl;
 import com.datadog.iast.telemetry.TelemetryRequestEndedHandler;
 import com.datadog.iast.telemetry.TelemetryRequestStartedHandler;
 import datadog.trace.api.Config;
@@ -90,7 +89,6 @@ public class IastSystem {
 
   private static Stream<IastModule> iastModules() {
     return Stream.of(
-        new WebModuleImpl(),
         new StringModuleImpl(),
         new FastCodecModule(),
         new SqlInjectionModuleImpl(),

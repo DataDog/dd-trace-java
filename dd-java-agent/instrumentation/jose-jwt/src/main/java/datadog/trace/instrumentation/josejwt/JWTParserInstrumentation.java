@@ -42,7 +42,7 @@ public class JWTParserInstrumentation extends Instrumenter.Iast
       if (module != null) {
         // TODO: We could represent this source more accurately, perhaps tracking the original
         // source, or using a special name.
-        module.taint(SourceTypes.REQUEST_HEADER_VALUE, null, json);
+        module.taint(json, SourceTypes.REQUEST_HEADER_VALUE);
       }
     }
   }

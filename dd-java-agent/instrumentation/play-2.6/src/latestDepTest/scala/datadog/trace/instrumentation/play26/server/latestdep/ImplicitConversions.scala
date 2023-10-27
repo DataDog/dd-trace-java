@@ -1,7 +1,5 @@
 package datadog.trace.instrumentation.play26.server.latestdep
 
-import scala.collection.Seq
-
 object ImplicitConversions {
   implicit class MapExtensions[A](m: Iterable[(String, A)]) {
     def toStringAsGroovy: String = {

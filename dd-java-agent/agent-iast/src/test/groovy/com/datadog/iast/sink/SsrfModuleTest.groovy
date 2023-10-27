@@ -6,6 +6,7 @@ import com.datadog.iast.model.Range
 import com.datadog.iast.model.Source
 import com.datadog.iast.model.Vulnerability
 import com.datadog.iast.model.VulnerabilityType
+import com.datadog.iast.taint.Ranges
 import datadog.trace.api.gateway.RequestContext
 import datadog.trace.api.gateway.RequestContextSlot
 import datadog.trace.api.iast.SourceTypes
@@ -82,6 +83,6 @@ class SsrfModuleTest extends IastModuleImplTestBase {
   }
 
   private void taint(final Object value) {
-    ctx.getTaintedObjects().taintInputObject(value, new Source(SourceTypes.REQUEST_PARAMETER_VALUE, 'name', value.toString()))
+    ctx.getTaintedObjects().taint(value, Ranges.forObject(new Source(SourceTypes.REQUEST_PARAMETER_VALUE, 'name', value.toString())))
   }
 }

@@ -69,7 +69,7 @@ public abstract class AbstractHttpServerRequestInstrumentation extends Instrumen
         final PropagationModule module = InstrumentationBridge.PROPAGATION;
         if (module != null) {
           try {
-            module.taintObject(SourceTypes.REQUEST_PARAMETER_VALUE, multiMap);
+            module.taint(multiMap, SourceTypes.REQUEST_PARAMETER_VALUE);
           } catch (final Throwable e) {
             module.onUnexpectedException("params threw", e);
           }
@@ -97,7 +97,7 @@ public abstract class AbstractHttpServerRequestInstrumentation extends Instrumen
         final PropagationModule module = InstrumentationBridge.PROPAGATION;
         if (module != null) {
           try {
-            module.taintObject(SourceTypes.REQUEST_PARAMETER_VALUE, multiMap);
+            module.taint(multiMap, SourceTypes.REQUEST_PARAMETER_VALUE);
           } catch (final Throwable e) {
             module.onUnexpectedException("formAttributes threw", e);
           }
@@ -114,7 +114,7 @@ public abstract class AbstractHttpServerRequestInstrumentation extends Instrumen
       final PropagationModule module = InstrumentationBridge.PROPAGATION;
       if (module != null) {
         try {
-          module.taintObject(SourceTypes.REQUEST_BODY, data);
+          module.taint(data, SourceTypes.REQUEST_BODY);
         } catch (final Throwable e) {
           module.onUnexpectedException("handleData threw", e);
         }

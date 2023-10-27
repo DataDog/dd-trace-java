@@ -10,6 +10,7 @@ import play.api.libs.json.{JsNull, JsValue, Json}
 import play.api.mvc._
 
 import scala.concurrent.{ExecutionContext, Future}
+import scala.xml.NodeSeq
 
 class PlayController(cc: ControllerComponents)(implicit ec: ExecutionContext) extends AbstractController(cc) {
   def success() = controller(ServerEndpoint.SUCCESS) { _ =>
@@ -79,6 +80,11 @@ class PlayController(cc: ControllerComponents)(implicit ec: ExecutionContext) ex
   def bodyJson = controller(ServerEndpoint.BODY_JSON) { request =>
     val body: JsValue = request.body.asJson.getOrElse(JsNull)
     Results.Ok(Json.stringify(body))
+  }
+
+  def bodyXml = controller(ServerEndpoint.BODY_XML) { request =>
+    val body : NodeSeq = request.body.asXml.getOrElse(NodeSeq.Empty)
+    Results.Ok(body.toString())
   }
 
   private def controller(endpoint: ServerEndpoint)(block: Request[AnyContent] => Result) : Action[AnyContent] = {

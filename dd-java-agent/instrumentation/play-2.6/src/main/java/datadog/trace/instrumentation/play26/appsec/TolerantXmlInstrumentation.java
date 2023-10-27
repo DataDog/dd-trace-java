@@ -6,22 +6,19 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import akka.util.ByteString;
-import com.fasterxml.jackson.databind.JsonNode;
 import com.google.auto.service.AutoService;
 import datadog.appsec.api.blocking.BlockingException;
-import datadog.trace.advice.RequiresRequestContext;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.muzzle.Reference;
-import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.instrumentation.play26.MuzzleReferences;
 import net.bytebuddy.asm.Advice;
 import play.mvc.Http;
 
-/** @see play.mvc.BodyParser.TolerantJson#parse(Http.RequestHeader, ByteString) */
+/** @see play.mvc.BodyParser.TolerantXml#parse(Http.RequestHeader, ByteString) */
 @AutoService(Instrumenter.class)
-public class TolerantJsonInstrumentation extends Instrumenter.AppSec
+public class TolerantXmlInstrumentation extends Instrumenter.AppSec
     implements Instrumenter.ForSingleType {
-  public TolerantJsonInstrumentation() {
+  public TolerantXmlInstrumentation() {
     super("play");
   }
 
@@ -37,7 +34,7 @@ public class TolerantJsonInstrumentation extends Instrumenter.AppSec
 
   @Override
   public String instrumentedType() {
-    return "play.mvc.BodyParser$TolerantJson";
+    return "play.mvc.BodyParser$TolerantXml";
   }
 
   @Override
@@ -54,19 +51,19 @@ public class TolerantJsonInstrumentation extends Instrumenter.AppSec
             .and(takesArguments(2))
             .and(takesArgument(0, named("play.mvc.Http$RequestHeader")))
             .and(takesArgument(1, named("akka.util.ByteString")))
-            .and(returns(named("com.fasterxml.jackson.databind.JsonNode"))),
-        TolerantJsonInstrumentation.class.getName() + "$ParseAdvice");
+            .and(returns(named("org.w3c.dom.Document"))),
+        TolerantXmlInstrumentation.class.getName() + "$ParseAdvice");
   }
 
-  @RequiresRequestContext(RequestContextSlot.APPSEC)
   static class ParseAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
-    static void after(@Advice.Return JsonNode ret, @Advice.Thrown(readOnly = false) Throwable t) {
+    static void after(
+        @Advice.Return org.w3c.dom.Document ret, @Advice.Thrown(readOnly = false) Throwable t) {
       if (t != null) {
         return;
       }
       try {
-        BodyParserHelpers.handleJsonNode(ret, "TolerantJson#parse");
+        BodyParserHelpers.handleXmlDocument(ret, "TolerantXml#parse");
       } catch (BlockingException be) {
         t = be;
       }

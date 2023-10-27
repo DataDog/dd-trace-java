@@ -27,7 +27,7 @@ class BufferInstrumentationTest extends AgentTestRunner {
     method.call(buffer)
 
     then:
-    1 * module.taintIfInputIsTainted(_, buffer)
+    1 * module.taintIfTainted(_, buffer)
 
     where:
     _ | method
@@ -46,7 +46,7 @@ class BufferInstrumentationTest extends AgentTestRunner {
     method.call(buffer, tainted)
 
     then:
-    1 * module.taintIfInputIsTainted(buffer, tainted)
+    1 * module.taintIfTainted(buffer, tainted)
 
     where:
     _ | method

@@ -10,7 +10,7 @@ public class TaintFutureHelper {
       Future<T> f, Object input, PropagationModule mod, ExecutionContext ec) {
     JFunction1<T, T> mapf =
         t -> {
-          mod.taintIfInputIsTainted(t, input);
+          mod.taintIfTainted(t, input);
           return t;
         };
     return f.map(mapf, ec);

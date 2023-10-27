@@ -11,6 +11,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesNoArguments;
 
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.muzzle.Reference;
+import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Source;
 import datadog.trace.api.iast.SourceTypes;
@@ -77,7 +78,7 @@ public abstract class AbstractHttpServerRequestInstrumentation extends Instrumen
       if (beforeParams != multiMap) {
         final PropagationModule module = InstrumentationBridge.PROPAGATION;
         if (module != null) {
-          module.taintObject(SourceTypes.REQUEST_PARAMETER_VALUE, multiMap);
+          module.taint(multiMap, SourceTypes.REQUEST_PARAMETER_VALUE);
         }
       }
     }
@@ -101,7 +102,7 @@ public abstract class AbstractHttpServerRequestInstrumentation extends Instrumen
       if (beforeAttributes != multiMap) {
         final PropagationModule module = InstrumentationBridge.PROPAGATION;
         if (module != null) {
-          module.taintObject(SourceTypes.REQUEST_PARAMETER_VALUE, multiMap);
+          module.taint(multiMap, SourceTypes.REQUEST_PARAMETER_VALUE);
         }
       }
     }
@@ -114,7 +115,7 @@ public abstract class AbstractHttpServerRequestInstrumentation extends Instrumen
     public static void onExit(@Advice.Return final Object multiMap) {
       final PropagationModule module = InstrumentationBridge.PROPAGATION;
       if (module != null) {
-        module.taintObject(SourceTypes.REQUEST_HEADER_VALUE, multiMap);
+        module.taint(multiMap, SourceTypes.REQUEST_HEADER_VALUE);
       }
     }
   }
@@ -126,7 +127,7 @@ public abstract class AbstractHttpServerRequestInstrumentation extends Instrumen
     public static void onExit(@Advice.Argument(0) final Object data) {
       final PropagationModule module = InstrumentationBridge.PROPAGATION;
       if (module != null) {
-        module.taintObject(SourceTypes.REQUEST_BODY, data);
+        module.taint(data, SourceTypes.REQUEST_BODY);
       }
     }
   }
@@ -137,8 +138,11 @@ public abstract class AbstractHttpServerRequestInstrumentation extends Instrumen
     @Source(SourceTypes.REQUEST_COOKIE_VALUE)
     public static void onExit(@Advice.Return final Set<Object> cookies) {
       final PropagationModule module = InstrumentationBridge.PROPAGATION;
-      if (module != null) {
-        module.taintObjects(SourceTypes.REQUEST_COOKIE_VALUE, cookies);
+      if (module != null && cookies != null && !cookies.isEmpty()) {
+        final IastContext ctx = IastContext.Provider.get();
+        for (final Object cookie : cookies) {
+          module.taint(ctx, cookie, SourceTypes.REQUEST_COOKIE_VALUE);
+        }
       }
     }
   }
@@ -150,7 +154,7 @@ public abstract class AbstractHttpServerRequestInstrumentation extends Instrumen
     public static void onExit(@Advice.Return final Object cookie) {
       final PropagationModule module = InstrumentationBridge.PROPAGATION;
       if (module != null) {
-        module.taintObject(SourceTypes.REQUEST_COOKIE_VALUE, cookie);
+        module.taint(cookie, SourceTypes.REQUEST_COOKIE_VALUE);
       }
     }
   }

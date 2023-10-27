@@ -69,10 +69,7 @@ public class PathMatcherInstrumentation extends Instrumenter.Iast
 
       if (value instanceof String) {
         module.taint(
-            reqCtx.getData(RequestContextSlot.IAST),
-            SourceTypes.REQUEST_PATH_PARAMETER,
-            null,
-            (String) value);
+            reqCtx.getData(RequestContextSlot.IAST), value, SourceTypes.REQUEST_PATH_PARAMETER);
       }
     }
   }

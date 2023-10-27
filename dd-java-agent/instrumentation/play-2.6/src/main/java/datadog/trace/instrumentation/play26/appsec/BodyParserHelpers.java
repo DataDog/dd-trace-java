@@ -20,12 +20,18 @@ import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.BiFunction;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.w3c.dom.Attr;
+import org.w3c.dom.Document;
+import org.w3c.dom.Element;
+import org.w3c.dom.NamedNodeMap;
+import org.w3c.dom.NodeList;
 import play.api.libs.json.JsArray;
 import play.api.libs.json.JsBoolean;
 import play.api.libs.json.JsNumber;
@@ -39,6 +45,10 @@ import scala.collection.Iterable;
 import scala.collection.Iterator;
 import scala.collection.Seq;
 import scala.compat.java8.JFunction1;
+import scala.xml.Elem;
+import scala.xml.Node;
+import scala.xml.NodeSeq;
+import scala.xml.Text;
 
 public class BodyParserHelpers {
 
@@ -54,6 +64,7 @@ public class BodyParserHelpers {
   private static JFunction1<MultipartFormData<?>, MultipartFormData<?>> HANDLE_MULTIPART_FORM_DATA =
       BodyParserHelpers::handleMultipartFormData;
   private static JFunction1<JsValue, JsValue> HANDLE_JSON = BodyParserHelpers::handleJson;
+  private static JFunction1<NodeSeq, NodeSeq> HANDLE_XML = BodyParserHelpers::handleXml;
 
   private BodyParserHelpers() {}
 
@@ -126,12 +137,38 @@ public class BodyParserHelpers {
     if (data == null) {
       return null;
     }
+    if (!isAppsecActiveForRequest()) {
+      // skip potentially expensive transformation
+      return data;
+    }
 
     try {
       Object conv = jsValueToJavaObject(data, MAX_RECURSION);
       handleArbitraryPostData(conv, "json");
     } catch (Exception e) {
       handleException(e, "Error handling result of json BodyParser");
+    }
+    return data;
+  }
+
+  public static Function1<NodeSeq, NodeSeq> getHandleXmlF() {
+    return HANDLE_XML;
+  }
+
+  private static NodeSeq handleXml(NodeSeq data) {
+    if (data == null) {
+      return null;
+    }
+    if (!isAppsecActiveForRequest()) {
+      // skip potentially expensive transformation
+      return data;
+    }
+
+    try {
+      Object conv = nodeSeqToJavaObject(data, MAX_RECURSION);
+      handleArbitraryPostData(conv, "xml");
+    } catch (Exception e) {
+      handleException(e, "Error handling result of xml BodyParser");
     }
     return data;
   }
@@ -188,6 +225,15 @@ public class BodyParserHelpers {
   public static void handleJsonNode(JsonNode n, String source) {
     Object o = jsNodeToJavaObject(n, MAX_RECURSION);
     handleArbitraryPostDataWithSpanError(o, source);
+  }
+
+  private static boolean isAppsecActiveForRequest() {
+    AgentSpan span = activeSpan();
+    RequestContext reqCtx;
+
+    return span != null
+        && (reqCtx = span.getRequestContext()) != null
+        && reqCtx.getData(RequestContextSlot.APPSEC) != null;
   }
 
   public static void handleArbitraryPostDataWithSpanError(Object o, String source) {
@@ -299,5 +345,106 @@ public class BodyParserHelpers {
     } else {
       return value.asText("");
     }
+  }
+
+  private static Object nodeSeqToJavaObject(NodeSeq nodeSeq, int maxRecursion) {
+    if (nodeSeq.length() == 0 || maxRecursion <= 0) {
+      return null;
+    }
+
+    List<Object> ret = new ArrayList<>(nodeSeq.length());
+    Iterator<Node> iterator = nodeSeq.iterator();
+    while (iterator.hasNext()) {
+      Node node = iterator.next();
+      ret.add(nodeToJavaObject(node, maxRecursion));
+    }
+    return ret;
+  }
+
+  // we don't preserve element names
+  private static Object nodeToJavaObject(Node node, int maxRecursion) {
+    if (node == null || maxRecursion <= 0) {
+      return null;
+    }
+
+    if (node instanceof Elem) {
+      scala.collection.immutable.Map<String, String> attributes = node.attributes().asAttrMap();
+
+      int size = node.child().size();
+      List<Object> childList = Collections.emptyList();
+      if (size > 0) {
+        childList = new ArrayList<>();
+        Iterator<Node> iterator = node.child().iterator();
+        while (iterator.hasNext()) {
+          Node childNode = iterator.next();
+          childList.add(nodeToJavaObject(childNode, maxRecursion - 1));
+        }
+      }
+
+      Map<String, Object> nodeRepr = new HashMap<>();
+      if (!attributes.isEmpty()) {
+        nodeRepr.put("attributes", tryConvertingScalaContainers(attributes, 1));
+      }
+      if (!childList.isEmpty()) {
+        nodeRepr.put("children", childList);
+      }
+      return nodeRepr;
+    } else if (node instanceof Text) {
+      return node.text().trim();
+    } else {
+      return null;
+    }
+  }
+
+  public static void handleXmlDocument(Document ret, String source) {
+    if (ret == null) {
+      return;
+    }
+
+    Element documentElement = ret.getDocumentElement();
+    Object obj = convertW3cNode(documentElement, MAX_RECURSION);
+
+    // pass wrapped in a list for consistency with NodeSeq (scala) variant
+    handleArbitraryPostDataWithSpanError(Collections.singletonList(obj), source);
+  }
+
+  private static Object convertW3cNode(org.w3c.dom.Node node, int maxRecursion) {
+    if (node == null || maxRecursion <= 0) {
+      return null;
+    }
+
+    if (node instanceof Element) {
+      Map<String, String> attributes = Collections.emptyMap();
+      if (node.hasAttributes()) {
+        attributes = new HashMap<>();
+        NamedNodeMap attrMap = node.getAttributes();
+        for (int i = 0; i < attrMap.getLength(); i++) {
+          org.w3c.dom.Attr item = (Attr) attrMap.item(i);
+          attributes.put(item.getName(), item.getValue());
+        }
+      }
+
+      List<Object> children = Collections.emptyList();
+      if (node.hasChildNodes()) {
+        NodeList childNodes = node.getChildNodes();
+        children = new ArrayList<>(childNodes.getLength());
+        for (int i = 0; i < childNodes.getLength(); i++) {
+          org.w3c.dom.Node item = childNodes.item(i);
+          children.add(convertW3cNode(item, maxRecursion - 1));
+        }
+      }
+
+      Map<String, Object> repr = new HashMap<>();
+      if (!attributes.isEmpty()) {
+        repr.put("attributes", attributes);
+      }
+      if (!children.isEmpty()) {
+        repr.put("children", children);
+      }
+      return repr;
+    } else if (node instanceof org.w3c.dom.Text) {
+      return node.getTextContent();
+    }
+    return null;
   }
 }

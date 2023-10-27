@@ -10,7 +10,7 @@ import datadog.trace.api.iast.VulnerabilityMarks
 import datadog.trace.api.iast.sink.PathTraversalModule
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 
-import static com.datadog.iast.model.Range.NOT_MARKED
+import static datadog.trace.api.iast.VulnerabilityMarks.NOT_MARKED
 import static com.datadog.iast.taint.TaintUtils.addFromTaintFormat
 import static com.datadog.iast.taint.TaintUtils.fromTaintFormat
 import static com.datadog.iast.taint.TaintUtils.getStringFromTaintFormat

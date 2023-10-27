@@ -6,13 +6,13 @@ import static datadog.trace.api.iast.telemetry.IastMetric.TAINTED_FLAT_MODE;
 
 import com.datadog.iast.IastRequestContext;
 import com.datadog.iast.model.Range;
-import com.datadog.iast.model.Source;
 import com.datadog.iast.taint.TaintedObject;
 import com.datadog.iast.taint.TaintedObjects;
 import datadog.trace.api.iast.telemetry.IastMetricCollector;
 import datadog.trace.api.iast.telemetry.Verbosity;
 import java.util.Iterator;
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 public class TaintedObjectsWithTelemetry implements TaintedObjects {
 
@@ -47,26 +47,6 @@ public class TaintedObjectsWithTelemetry implements TaintedObjects {
   }
 
   @Override
-  public TaintedObject taintInputString(
-      @Nonnull String obj, @Nonnull Source source, final int mark) {
-    final TaintedObject result = delegate.taintInputString(obj, source, mark);
-    if (debug) {
-      IastMetricCollector.add(EXECUTED_TAINTED, 1, ctx);
-    }
-    return result;
-  }
-
-  @Override
-  public TaintedObject taintInputCharSequence(
-      @Nonnull CharSequence obj, @Nonnull Source source, int mark) {
-    final TaintedObject result = delegate.taintInputCharSequence(obj, source, mark);
-    if (debug) {
-      IastMetricCollector.add(EXECUTED_TAINTED, 1, ctx);
-    }
-    return result;
-  }
-
-  @Override
   public TaintedObject taint(@Nonnull Object obj, @Nonnull Range[] ranges) {
     final TaintedObject result = delegate.taint(obj, ranges);
     if (debug) {
@@ -75,16 +55,7 @@ public class TaintedObjectsWithTelemetry implements TaintedObjects {
     return result;
   }
 
-  @Override
-  public TaintedObject taintInputObject(
-      @Nonnull Object obj, @Nonnull Source source, final int mark) {
-    final TaintedObject result = delegate.taintInputObject(obj, source, mark);
-    if (debug) {
-      IastMetricCollector.add(EXECUTED_TAINTED, 1, ctx);
-    }
-    return result;
-  }
-
+  @Nullable
   @Override
   public TaintedObject get(@Nonnull Object obj) {
     return delegate.get(obj);
@@ -102,6 +73,7 @@ public class TaintedObjectsWithTelemetry implements TaintedObjects {
     }
   }
 
+  @Nonnull
   @Override
   public Iterator<TaintedObject> iterator() {
     return delegate.iterator();

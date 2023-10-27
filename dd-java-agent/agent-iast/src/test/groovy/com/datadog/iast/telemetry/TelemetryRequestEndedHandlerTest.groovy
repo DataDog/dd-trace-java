@@ -3,6 +3,7 @@ package com.datadog.iast.telemetry
 import com.datadog.iast.IastRequestContext
 import com.datadog.iast.RequestEndedHandler
 import com.datadog.iast.model.Source
+import com.datadog.iast.taint.Ranges
 import com.datadog.iast.taint.TaintedObjects
 import com.datadog.iast.telemetry.taint.TaintedObjectsWithTelemetry
 import datadog.trace.api.gateway.RequestContextSlot
@@ -41,7 +42,7 @@ class TelemetryRequestEndedHandlerTest extends AbstractTelemetryCallbackTest {
     final handler = new TelemetryRequestEndedHandler(delegate)
     final toTaint = 'hello'
     final source = new Source(SourceTypes.REQUEST_PARAMETER_VALUE, 'name', 'value')
-    iastCtx.taintedObjects.taintInputString(toTaint, source)
+    iastCtx.taintedObjects.taint(toTaint, Ranges.forCharSequence(toTaint, source))
 
     when:
     handler.apply(reqCtx, span)

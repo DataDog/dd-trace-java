@@ -1,7 +1,9 @@
 package datadog.trace.instrumentation.pekkohttp.iast.helpers;
 
+import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.InstrumentationBridge;
-import datadog.trace.api.iast.source.WebModule;
+import datadog.trace.api.iast.SourceTypes;
+import datadog.trace.api.iast.propagation.PropagationModule;
 import scala.Tuple1;
 import scala.Tuple2;
 import scala.collection.Iterator;
@@ -17,19 +19,21 @@ public class TaintMultiMapFunction
   public Tuple1<Map<String, List<String>>> apply(Tuple1<Map<String, List<String>>> v1) {
     Map<String, List<String>> m = v1._1;
 
-    WebModule mod = InstrumentationBridge.WEB;
-    if (mod == null || m == null) {
+    PropagationModule mod = InstrumentationBridge.PROPAGATION;
+    if (mod == null || m == null || m.isEmpty()) {
       return v1;
     }
 
-    java.util.List<String> keysAsCollection = ScalaToJava.keySetAsCollection(m);
-    mod.onParameterNames(keysAsCollection);
-
+    final IastContext ctx = IastContext.Provider.get();
     Iterator<Tuple2<String, List<String>>> entriesIterator = m.iterator();
     while (entriesIterator.hasNext()) {
       Tuple2<String, List<String>> e = entriesIterator.next();
+      final String name = e._1();
+      mod.taint(ctx, name, SourceTypes.REQUEST_PARAMETER_NAME, name);
       List<String> values = e._2();
-      mod.onParameterValues(e._1(), ScalaToJava.listAsList(values));
+      for (final String value : ScalaToJava.listAsList(values)) {
+        mod.taint(ctx, value, SourceTypes.REQUEST_PARAMETER_VALUE, name);
+      }
     }
 
     return v1;

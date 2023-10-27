@@ -343,6 +343,12 @@ public class IastWebController {
     return String.format("Request.getRequestURI returns %s", pathInfo);
   }
 
+  @GetMapping("/getrequesturl")
+  String requestURL(HttpServletRequest request) {
+    StringBuffer requestURL = request.getRequestURL();
+    return String.format("Request.getRequestURL returns %s", requestURL);
+  }
+
   private void withProcess(final Operation<Process> op) {
     Process process = null;
     try {
