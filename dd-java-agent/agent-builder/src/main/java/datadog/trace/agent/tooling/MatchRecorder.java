@@ -4,6 +4,7 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.
 import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassNamed;
 
 import datadog.trace.agent.tooling.context.FieldBackedContextMatcher;
+import datadog.trace.api.metrics.InstrumentationMetrics;
 import java.util.BitSet;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
@@ -38,8 +39,12 @@ abstract class MatchRecorder {
         ClassLoader classLoader,
         Class<?> classBeingRedefined,
         BitSet matches) {
+      long ns = System.nanoTime();
       if (typeMatcher.matches(type)) {
+        InstrumentationMetrics.knownTypeHit(ns);
         matches.set(id);
+      } else {
+        InstrumentationMetrics.knownTypeMiss(ns);
       }
     }
   }
@@ -63,7 +68,21 @@ abstract class MatchRecorder {
         Class<?> classBeingRedefined,
         BitSet matches) {
       // check current state first in case a known-type already matched this instrumentation
-      if (!matches.get(id) && hintMatcher.matches(classLoader) && typeMatcher.matches(type)) {
+      if (!matches.get(id)) {
+        long ns = System.nanoTime();
+        if (!hintMatcher.matches(classLoader)) {
+          InstrumentationMetrics.classLoaderMiss(ns);
+          return;
+        } else {
+          InstrumentationMetrics.classLoaderHit(ns);
+        }
+        ns = System.nanoTime();
+        if (!typeMatcher.matches(type)) {
+          InstrumentationMetrics.typeHierarchyMiss(ns);
+          return;
+        } else {
+          InstrumentationMetrics.typeHierarchyHit(ns);
+        }
         matches.set(id);
       }
     }
@@ -87,9 +106,21 @@ abstract class MatchRecorder {
         ClassLoader classLoader,
         Class<?> classBeingRedefined,
         BitSet matches) {
-      if (activation.matches(classLoader) && contextMatcher.matches(type, classBeingRedefined)) {
-        matches.set(id);
+      long ns = System.nanoTime();
+      if (!activation.matches(classLoader)) {
+        InstrumentationMetrics.classLoaderMiss(ns);
+        return;
+      } else {
+        InstrumentationMetrics.classLoaderHit(ns);
       }
+      ns = System.nanoTime();
+      if (!contextMatcher.matches(type, classBeingRedefined)) {
+        InstrumentationMetrics.contextStoreMiss(ns);
+        return;
+      } else {
+        InstrumentationMetrics.contextStoreHit(ns);
+      }
+      matches.set(id);
     }
 
     @Override
@@ -114,8 +145,14 @@ abstract class MatchRecorder {
         ClassLoader classLoader,
         Class<?> classBeingRedefined,
         BitSet matches) {
-      if (matches.get(id) && !matcher.matches(type)) {
-        matches.clear(id);
+      if (matches.get(id)) {
+        long ns = System.nanoTime();
+        if (!matcher.matches(type)) {
+          InstrumentationMetrics.narrowTypeHit(ns);
+          matches.clear(id);
+        } else {
+          InstrumentationMetrics.narrowTypeMiss(ns);
+        }
       }
     }
   }
@@ -135,8 +172,14 @@ abstract class MatchRecorder {
         ClassLoader classLoader,
         Class<?> classBeingRedefined,
         BitSet matches) {
-      if (matches.get(id) && !matcher.matches(classLoader)) {
-        matches.clear(id);
+      if (matches.get(id)) {
+        long ns = System.nanoTime();
+        if (!matcher.matches(classLoader)) {
+          InstrumentationMetrics.narrowLocationHit(ns);
+          matches.clear(id);
+        } else {
+          InstrumentationMetrics.narrowLocationMiss(ns);
+        }
       }
     }
   }

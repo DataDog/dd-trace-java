@@ -9,6 +9,7 @@ import datadog.trace.agent.tooling.bytebuddy.outline.WithLocation;
 import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
+import datadog.trace.api.metrics.InstrumentationMetrics;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.util.ArrayList;
 import java.util.BitSet;
@@ -176,9 +177,11 @@ public final class Memoizer {
       return memo; // short-circuit circular references
     }
 
+    long ns = System.nanoTime();
     SharedTypeInfo<BitSet> sharedMemo = memos.find(name);
     if (null != sharedMemo) {
       if (namesAreUnique || name.startsWith("java.") || sameOrigin(type, sharedMemo)) {
+        InstrumentationMetrics.reuseTypeMemo(ns);
         return sharedMemo.get();
       }
     }
@@ -187,12 +190,14 @@ public final class Memoizer {
     boolean wasFullParsing = TypePoolFacade.disableFullDescriptions(); // only need outlines here
     try {
       TypeDescription.Generic superType = type.getSuperClass();
+      long localElapsed = System.nanoTime() - ns;
       if (null != superType && !"java.lang.Object".equals(superType.getTypeName())) {
         inherit(memoizeHierarchy(superType.asErasure(), localMemos), memo);
       }
       for (TypeDescription.Generic intf : type.getInterfaces()) {
         inherit(memoizeHierarchy(intf.asErasure(), localMemos), memo);
       }
+      ns = System.nanoTime() - localElapsed;
       for (AnnotationDescription ann : type.getDeclaredAnnotations()) {
         record(annotationMatcherIds, ann.getAnnotationType(), memo);
       }
@@ -219,6 +224,8 @@ public final class Memoizer {
         TypePoolFacade.enableFullDescriptions();
       }
     }
+
+    InstrumentationMetrics.buildTypeMemo(ns);
 
     // update no-match filter if there's no interesting matches and result is complete
     if (memo.nextSetBit(INTERNAL_MATCHERS) < 0 && !memo.get(isPartial.matcherId)) {

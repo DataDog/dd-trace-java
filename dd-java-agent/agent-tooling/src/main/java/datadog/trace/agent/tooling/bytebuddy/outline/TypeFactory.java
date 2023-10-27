@@ -11,6 +11,7 @@ import datadog.trace.agent.tooling.bytebuddy.TypeInfoCache.SharedTypeInfo;
 import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
+import datadog.trace.api.metrics.InstrumentationMetrics;
 import java.net.URL;
 import java.util.HashMap;
 import java.util.Map;
@@ -241,11 +242,18 @@ final class TypeFactory {
   private TypeDescription lookupType(
       LazyType request, TypeInfoCache<TypeDescription> types, TypeParser typeParser) {
     String name = request.name;
+    boolean isOutline = typeParser == outlineTypeParser;
+    long ns = System.nanoTime();
 
     // existing type description from same classloader?
     SharedTypeInfo<TypeDescription> sharedType = types.find(name);
     if (null != sharedType
         && (name.startsWith("java.") || sharedType.sameClassLoader(classLoader))) {
+      if (isOutline) {
+        InstrumentationMetrics.reuseTypeOutline(ns);
+      } else {
+        InstrumentationMetrics.reuseFullType(ns);
+      }
       return sharedType.get();
     }
 
@@ -253,6 +261,11 @@ final class TypeFactory {
 
     // existing type description from same class file?
     if (null != sharedType && sharedType.sameClassFile(classFile)) {
+      if (isOutline) {
+        InstrumentationMetrics.reuseTypeOutline(ns);
+      } else {
+        InstrumentationMetrics.reuseFullType(ns);
+      }
       return sharedType.get();
     }
 
@@ -264,6 +277,12 @@ final class TypeFactory {
       type = typeParser.parse(bytecode);
     } else if (fallBackToLoadClass) {
       type = loadType(name, typeParser);
+    }
+
+    if (isOutline) {
+      InstrumentationMetrics.buildTypeOutline(ns);
+    } else {
+      InstrumentationMetrics.buildFullType(ns);
     }
 
     // share result, whether we found it or not

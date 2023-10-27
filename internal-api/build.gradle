@@ -36,6 +36,7 @@ excludedClassesCoverage += [
   "datadog.trace.api.WithGlobalTracer.1",
   "datadog.trace.api.naming.**",
   "datadog.trace.api.gateway.RequestContext.Noop",
+  "datadog.trace.api.metrics.InstrumentationMetrics",
   // an enum
   "datadog.trace.api.sampling.AdaptiveSampler",
   "datadog.trace.api.sampling.ConstantSampler",

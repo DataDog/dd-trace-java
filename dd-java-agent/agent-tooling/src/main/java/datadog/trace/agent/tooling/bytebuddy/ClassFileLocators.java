@@ -7,6 +7,7 @@ import datadog.trace.agent.tooling.Utils;
 import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
+import datadog.trace.api.metrics.InstrumentationMetrics;
 import java.io.IOException;
 import java.io.InputStream;
 import java.lang.ref.WeakReference;
@@ -30,8 +31,15 @@ public final class ClassFileLocators {
         @Override
         public Resolution locate(String className) throws IOException {
           String resourceName = getResourceName(className);
+          long ns = System.nanoTime();
           Resolution resolution = loadClassResource(Utils.getBootstrapProxy(), resourceName);
-          return resolution != null ? resolution : new Resolution.Illegal(className);
+          if (resolution != null) {
+            InstrumentationMetrics.resolveClassFile(ns);
+            return resolution;
+          } else {
+            InstrumentationMetrics.missingClassFile(ns);
+            return new Resolution.Illegal(className);
+          }
         }
 
         @Override
@@ -59,10 +67,12 @@ public final class ClassFileLocators {
     @Override
     public Resolution locate(final String className) throws IOException {
       String resourceName = getResourceName(className);
+      long ns = System.nanoTime();
 
       // try bootstrap first
       Resolution resolution = loadClassResource(Utils.getBootstrapProxy(), resourceName);
       if (null != resolution) {
+        InstrumentationMetrics.resolveClassFile(ns);
         return resolution;
       }
 
@@ -76,6 +86,7 @@ public final class ClassFileLocators {
                   .contains(cl.getClass().getName())) {
             resolution = loadClassResource(cl, resourceName);
             if (null != resolution) {
+              InstrumentationMetrics.resolveClassFile(ns);
               return resolution;
             }
           }
@@ -84,6 +95,7 @@ public final class ClassFileLocators {
         LOCATING_CLASS.end();
       }
 
+      InstrumentationMetrics.missingClassFile(ns);
       return new Resolution.Illegal(className);
     }
 

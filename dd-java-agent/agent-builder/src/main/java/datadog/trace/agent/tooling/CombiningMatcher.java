@@ -1,5 +1,6 @@
 package datadog.trace.agent.tooling;
 
+import datadog.trace.api.metrics.InstrumentationMetrics;
 import java.security.ProtectionDomain;
 import java.util.BitSet;
 import java.util.List;
@@ -41,7 +42,13 @@ final class CombiningMatcher implements AgentBuilder.RawMatcher {
     BitSet ids = recordedMatches.get();
     ids.clear();
 
+    long ns = System.nanoTime();
     knownTypesIndex.apply(target.getName(), knownTypesMask, ids);
+    if (ids.isEmpty()) {
+      InstrumentationMetrics.knownTypeMiss(ns);
+    } else {
+      InstrumentationMetrics.knownTypeHit(ns);
+    }
 
     for (MatchRecorder matcher : matchers) {
       try {
@@ -52,6 +59,8 @@ final class CombiningMatcher implements AgentBuilder.RawMatcher {
         }
       }
     }
+
+    InstrumentationMetrics.matchType(ns);
 
     return !ids.isEmpty();
   }
