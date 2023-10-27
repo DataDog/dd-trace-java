@@ -22,6 +22,22 @@ import org.apache.http.client.methods.HttpUriRequest;
 public class ApacheHttpClientInstrumentation extends Instrumenter.Tracing
     implements Instrumenter.CanShortcutTypeMatching {
 
+  static final String[] MATCHING_TYPES =
+      new String[] {
+        "org.apache.http.impl.client.AbstractHttpClient",
+        "software.amazon.awssdk.http.apache.internal.impl.ApacheSdkHttpClient",
+        "org.apache.http.impl.client.AutoRetryHttpClient",
+        "org.apache.http.impl.client.CloseableHttpClient",
+        "org.apache.http.impl.client.ContentEncodingHttpClient",
+        "org.apache.http.impl.client.DecompressingHttpClient",
+        "org.apache.http.impl.client.DefaultHttpClient",
+        "org.apache.http.impl.client.InternalHttpClient",
+        "org.apache.http.impl.client.MinimalHttpClient",
+        "org.apache.http.impl.client.SystemDefaultHttpClient",
+        "com.netflix.http4.NFHttpClient",
+        "com.amazonaws.http.apache.client.impl.SdkHttpClient"
+      };
+
   public ApacheHttpClientInstrumentation() {
     super("httpclient", "apache-httpclient", "apache-http-client");
   }
@@ -33,20 +49,7 @@ public class ApacheHttpClientInstrumentation extends Instrumenter.Tracing
 
   @Override
   public String[] knownMatchingTypes() {
-    return new String[] {
-      "org.apache.http.impl.client.AbstractHttpClient",
-      "software.amazon.awssdk.http.apache.internal.impl.ApacheSdkHttpClient",
-      "org.apache.http.impl.client.AutoRetryHttpClient",
-      "org.apache.http.impl.client.CloseableHttpClient",
-      "org.apache.http.impl.client.ContentEncodingHttpClient",
-      "org.apache.http.impl.client.DecompressingHttpClient",
-      "org.apache.http.impl.client.DefaultHttpClient",
-      "org.apache.http.impl.client.InternalHttpClient",
-      "org.apache.http.impl.client.MinimalHttpClient",
-      "org.apache.http.impl.client.SystemDefaultHttpClient",
-      "com.netflix.http4.NFHttpClient",
-      "com.amazonaws.http.apache.client.impl.SdkHttpClient"
-    };
+    return MATCHING_TYPES;
   }
 
   @Override
