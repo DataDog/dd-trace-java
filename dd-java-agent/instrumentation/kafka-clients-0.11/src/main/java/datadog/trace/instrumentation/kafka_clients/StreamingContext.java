@@ -63,7 +63,7 @@ public class StreamingContext {
   }
 
   public static boolean empty() {
-    return topics.size() == 0;
+    return topics.isEmpty();
   }
 
   private static final Set<String> allSourceTopics = ConcurrentHashMap.newKeySet();
