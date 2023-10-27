@@ -252,8 +252,8 @@ public class KafkaStreamTaskInstrumentation extends Instrumenter.Tracing
         } else {
           if (StreamingContext.isSourceTopic(record.topic())) {
             AgentTracer.get()
-            .getDataStreamsMonitoring()
-            .setCheckpoint(span, sortedTags, record.timestamp);
+                .getDataStreamsMonitoring()
+                .setCheckpoint(span, sortedTags, record.timestamp);
 
             PathwayContext pathwayContext = span.context().getPathwayContext();
             pathwayContext.injectBinary(record, SR_GETTER_SETTER);
