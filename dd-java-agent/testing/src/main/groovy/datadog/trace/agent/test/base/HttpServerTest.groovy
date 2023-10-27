@@ -388,6 +388,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     BODY_URLENCODED("body-urlencoded?ignore=pair", 200, '[a:[x]]'),
     BODY_MULTIPART("body-multipart?ignore=pair", 200, '[a:[x]]'),
     BODY_JSON("body-json", 200, '{"a":"x"}'),
+    BODY_XML("body-xml", 200, '<foo attr="attr_value">mytext<bar/></foo>'),
     REDIRECT("redirect", 302, "/redirected"),
     FORWARDED("forwarded", 200, "1.2.3.4"),
     ERROR("error-status", 500, "controller error"), // "error" is a special path for some frameworks
@@ -2095,8 +2096,9 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
           [
             it.key,
             (it.value instanceof Iterable || it.value instanceof String[]) ? it.value : [it.value]
-          ]}
-      } else if (!(obj instanceof String)) {
+          ]
+        }
+      } else if (!(obj instanceof String) && !(obj instanceof List)) {
         obj = obj.properties
           .findAll { it.key != 'class' }
           .collectEntries { [it.key, it.value instanceof Iterable ? it.value : [it.value]] }
