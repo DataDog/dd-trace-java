@@ -31,12 +31,12 @@ public class TelemetryClient {
 
     String prefix = "";
     if (site.endsWith("datad0g.com")) {
-      prefix = "all-http-intake.logs";
+      prefix = "all-http-intake.logs.";
     } else if (site.endsWith("datadoghq.com")) {
-      prefix = "instrumentation-telemetry-intake";
+      prefix = "instrumentation-telemetry-intake.";
     }
 
-    String telemetryUrl = "https://" + prefix + "." + site + "/api/v2/apmtelemetry";
+    String telemetryUrl = "https://" + prefix + site + "/api/v2/apmtelemetry";
     HttpUrl url;
     try {
       url = HttpUrl.get(telemetryUrl);
