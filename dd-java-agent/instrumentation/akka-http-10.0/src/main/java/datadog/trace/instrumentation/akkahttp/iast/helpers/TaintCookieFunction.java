@@ -16,10 +16,13 @@ public class TaintCookieFunction
     HttpCookiePair httpCookiePair = v1._1();
 
     PropagationModule mod = InstrumentationBridge.PROPAGATION;
-    if (mod == null) {
+    if (mod == null || httpCookiePair == null) {
       return v1;
     }
-    mod.taint(SourceTypes.REQUEST_COOKIE_VALUE, httpCookiePair.name(), httpCookiePair.value());
+    final String name = httpCookiePair.name();
+    final String value = httpCookiePair.value();
+    mod.taint(name, SourceTypes.REQUEST_COOKIE_NAME, name);
+    mod.taint(value, SourceTypes.REQUEST_COOKIE_VALUE, name);
     return v1;
   }
 }

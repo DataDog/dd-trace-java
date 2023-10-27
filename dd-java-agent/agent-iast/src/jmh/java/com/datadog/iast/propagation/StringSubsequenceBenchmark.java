@@ -1,6 +1,6 @@
 package com.datadog.iast.propagation;
 
-import static com.datadog.iast.model.Range.NOT_MARKED;
+import static datadog.trace.api.iast.VulnerabilityMarks.NOT_MARKED;
 
 import com.datadog.iast.IastRequestContext;
 import com.datadog.iast.model.Range;

@@ -11,6 +11,7 @@ import datadog.trace.advice.RequiresRequestContext;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
+import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Source;
 import datadog.trace.api.iast.SourceTypes;
@@ -68,11 +69,8 @@ public class PathMatcherInstrumentation extends Instrumenter.Iast
       }
 
       if (value instanceof String) {
-        module.taint(
-            reqCtx.getData(RequestContextSlot.IAST),
-            SourceTypes.REQUEST_PATH_PARAMETER,
-            null,
-            (String) value);
+        final IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
+        module.taint(ctx, value, SourceTypes.REQUEST_PATH_PARAMETER);
       }
     }
   }

@@ -61,7 +61,7 @@ public class Json1ParserInstrumentation extends Instrumenter.Iast
       if (jsonParser != null && result != null) {
         final PropagationModule module = InstrumentationBridge.PROPAGATION;
         if (module != null) {
-          module.taintIfInputIsTainted(result, jsonParser);
+          module.taintIfTainted(result, jsonParser);
         }
       }
     }

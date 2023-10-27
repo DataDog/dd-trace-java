@@ -10,11 +10,13 @@ import static net.bytebuddy.matcher.ElementMatchers.takesNoArguments;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.bytebuddy.iast.TaintableVisitor;
 import datadog.trace.agent.tooling.muzzle.Reference;
+import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Propagation;
 import datadog.trace.api.iast.Taintable.Source;
 import datadog.trace.api.iast.propagation.PropagationModule;
 import java.util.Collection;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -73,10 +75,9 @@ public abstract class MultiMapInstrumentation extends Instrumenter.Iast {
         @Advice.Return final String result) {
       final PropagationModule propagation = InstrumentationBridge.PROPAGATION;
       if (propagation != null) {
-        final Source source = propagation.firstTaintedSource(self);
+        final Source source = propagation.findSource(self);
         if (source != null) {
-          propagation.taintIfInputIsTainted(
-              source.getOrigin(), name == null ? null : name.toString(), result, self);
+          propagation.taint(result, source.getOrigin(), name);
         }
       }
     }
@@ -90,11 +91,13 @@ public abstract class MultiMapInstrumentation extends Instrumenter.Iast {
         @Advice.Argument(0) final CharSequence name,
         @Advice.Return final Collection<String> result) {
       final PropagationModule propagation = InstrumentationBridge.PROPAGATION;
-      if (propagation != null) {
-        final Source source = propagation.firstTaintedSource(self);
+      if (propagation != null && result != null && !result.isEmpty()) {
+        final Source source = propagation.findSource(self);
         if (source != null) {
-          propagation.taintIfInputIsTainted(
-              source.getOrigin(), name == null ? null : name.toString(), result, self);
+          final IastContext ctx = IastContext.Provider.get();
+          for (final String value : result) {
+            propagation.taint(ctx, value, source.getOrigin(), name);
+          }
         }
       }
     }
@@ -107,10 +110,20 @@ public abstract class MultiMapInstrumentation extends Instrumenter.Iast {
         @Advice.This final Object self,
         @Advice.Return final List<Map.Entry<String, String>> result) {
       final PropagationModule propagation = InstrumentationBridge.PROPAGATION;
-      if (propagation != null) {
-        final Source source = propagation.firstTaintedSource(self);
+      if (propagation != null && result != null && !result.isEmpty()) {
+        final Source source = propagation.findSource(self);
         if (source != null) {
-          propagation.taintIfInputIsTainted(source.getOrigin(), result, self);
+          final IastContext ctx = IastContext.Provider.get();
+          final byte nameOrigin = namedSource(source.getOrigin());
+          final Set<String> keys = new HashSet<>();
+          for (final Map.Entry<String, String> entry : result) {
+            final String name = entry.getKey();
+            final String value = entry.getValue();
+            if (keys.add(name)) {
+              propagation.taint(ctx, name, nameOrigin);
+            }
+            propagation.taint(ctx, value, source.getOrigin(), name);
+          }
         }
       }
     }
@@ -122,10 +135,14 @@ public abstract class MultiMapInstrumentation extends Instrumenter.Iast {
     public static void afterNames(
         @Advice.This final Object self, @Advice.Return final Set<String> result) {
       final PropagationModule propagation = InstrumentationBridge.PROPAGATION;
-      if (propagation != null) {
-        final Source source = propagation.firstTaintedSource(self);
+      if (propagation != null && result != null && !result.isEmpty()) {
+        final Source source = propagation.findSource(self);
         if (source != null) {
-          propagation.taintIfInputIsTainted(namedSource(source.getOrigin()), result, self);
+          final IastContext ctx = IastContext.Provider.get();
+          final byte nameOrigin = namedSource(source.getOrigin());
+          for (final String name : result) {
+            propagation.taint(ctx, name, nameOrigin);
+          }
         }
       }
     }
