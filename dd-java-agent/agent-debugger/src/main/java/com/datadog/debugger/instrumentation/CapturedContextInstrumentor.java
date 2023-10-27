@@ -127,6 +127,8 @@ public class CapturedContextInstrumentor extends Instrumentor {
       }
       if (beforeLabel != null) {
         InsnList insnList = new InsnList();
+        ldc(insnList, Type.getObjectType(classNode.name));
+        // stack [class, array]
         pushProbesIds(insnList);
         // stack [array]
         invokeStatic(
@@ -134,6 +136,7 @@ public class CapturedContextInstrumentor extends Instrumentor {
             DEBUGGER_CONTEXT_TYPE,
             "isReadyToCapture",
             Type.BOOLEAN_TYPE,
+            CLASS_TYPE,
             STRING_ARRAY_TYPE);
         // stack [boolean]
         LabelNode targetNode = new LabelNode();
@@ -314,10 +317,17 @@ public class CapturedContextInstrumentor extends Instrumentor {
       methodNode.instructions.insert(methodEnterLabel, insnList);
       return;
     }
+    ldc(insnList, Type.getObjectType(classNode.name));
+    // stack [class]
     pushProbesIds(insnList);
-    // stack [array]
+    // stack [class, array]
     invokeStatic(
-        insnList, DEBUGGER_CONTEXT_TYPE, "isReadyToCapture", Type.BOOLEAN_TYPE, STRING_ARRAY_TYPE);
+        insnList,
+        DEBUGGER_CONTEXT_TYPE,
+        "isReadyToCapture",
+        Type.BOOLEAN_TYPE,
+        CLASS_TYPE,
+        STRING_ARRAY_TYPE);
     // stack [boolean]
     LabelNode targetNode = new LabelNode();
     LabelNode gotoNode = new LabelNode();

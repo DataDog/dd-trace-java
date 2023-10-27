@@ -21,13 +21,13 @@ class EscapeUtilsCallSiteTest extends AgentTestRunner {
 
     then:
     result == expected
-    1 * module.taintIfInputIsTaintedWithMarks(_ as String, args[0], VulnerabilityMarks.XSS_MARK)
+    1 * module.taintIfTainted(_ as String, args[0], false, VulnerabilityMarks.XSS_MARK)
     0 * _
 
     where:
-    method | args                                | expected
-    'htmlEscape' | ['Ø-This is a quote']               | '&Oslash;-This is a quote'
-    'htmlEscape' | ['Ø-This is a quote', 'ISO-8859-1'] | '&Oslash;-This is a quote'
+    method             | args                                                            | expected
+    'htmlEscape'       | ['Ø-This is a quote']                                           | '&Oslash;-This is a quote'
+    'htmlEscape'       | ['Ø-This is a quote', 'ISO-8859-1']                             | '&Oslash;-This is a quote'
     'javaScriptEscape' | ['<script>function a(){console.log("escape this < ")}<script>'] | '\\u003Cscript\\u003Efunction a(){console.log(\\"escape this \\u003C \\")}\\u003Cscript\\u003E'
   }
 
@@ -42,13 +42,12 @@ class EscapeUtilsCallSiteTest extends AgentTestRunner {
     then:
     def ex = thrown(Exception)
     assert ex.stackTrace[0].getClassName().startsWith('org.springframework')
-    0 * module.taintIfInputIsTaintedWithMarks(_)
     0 * _
 
     where:
-    method | args
-    'htmlEscape' | [null]
-    'htmlEscape' | [null, null]
+    method             | args
+    'htmlEscape'       | [null]
+    'htmlEscape'       | [null, null]
     'javaScriptEscape' | [null]
   }
 }

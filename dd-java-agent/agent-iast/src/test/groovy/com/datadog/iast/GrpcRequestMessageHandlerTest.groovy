@@ -62,7 +62,7 @@ class GrpcRequestMessageHandlerTest extends DDSpecification {
     handler.apply(ctx, target)
 
     then:
-    1 * propagation.taintDeeply(iastCtx, SourceTypes.GRPC_BODY, target, _ as Predicate<Class<?>>)
+    1 * propagation.taintDeeply(iastCtx, target, SourceTypes.GRPC_BODY, _ as Predicate<Class<?>>)
   }
 
   void 'the handler only takes into account protobuf v.#protobufVersion related messages'() {

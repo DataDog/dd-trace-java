@@ -2,6 +2,7 @@ package datadog.trace.instrumentation.servlet.request;
 
 import datadog.trace.agent.tooling.csi.CallSite;
 import datadog.trace.api.iast.IastCallSites;
+import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Sink;
 import datadog.trace.api.iast.Source;
@@ -9,7 +10,6 @@ import datadog.trace.api.iast.SourceTypes;
 import datadog.trace.api.iast.VulnerabilityTypes;
 import datadog.trace.api.iast.propagation.PropagationModule;
 import datadog.trace.api.iast.sink.UnvalidatedRedirectModule;
-import datadog.trace.api.iast.source.WebModule;
 import datadog.trace.util.stacktrace.StackUtils;
 import java.io.BufferedReader;
 import java.util.ArrayList;
@@ -33,7 +33,7 @@ public class ServletRequestCallSite {
     final PropagationModule module = InstrumentationBridge.PROPAGATION;
     if (module != null) {
       try {
-        module.taint(SourceTypes.REQUEST_PARAMETER_VALUE, name, value);
+        module.taint(value, SourceTypes.REQUEST_PARAMETER_VALUE, name);
       } catch (final Throwable e) {
         module.onUnexpectedException("afterGetParameter threw", e);
       }
@@ -48,8 +48,8 @@ public class ServletRequestCallSite {
       @CallSite.This final ServletRequest self,
       @CallSite.Return final Enumeration<String> enumeration)
       throws Throwable {
-    final WebModule module = InstrumentationBridge.WEB;
-    if (module == null) {
+    final PropagationModule module = InstrumentationBridge.PROPAGATION;
+    if (module == null || enumeration == null) {
       return enumeration;
     }
     try {
@@ -59,7 +59,10 @@ public class ServletRequestCallSite {
         parameterNames.add(paramName);
       }
       try {
-        module.onParameterNames(parameterNames);
+        final IastContext ctx = IastContext.Provider.get();
+        for (final String name : parameterNames) {
+          module.taint(ctx, name, SourceTypes.REQUEST_PARAMETER_NAME, name);
+        }
       } catch (final Throwable e) {
         module.onUnexpectedException("afterGetParameterNames threw", e);
       }
@@ -80,11 +83,14 @@ public class ServletRequestCallSite {
       @CallSite.This final ServletRequest self,
       @CallSite.Argument final String paramName,
       @CallSite.Return final String[] parameterValues) {
-    if (null != parameterValues) {
-      final WebModule module = InstrumentationBridge.WEB;
+    if (null != parameterValues && parameterValues.length > 0) {
+      final PropagationModule module = InstrumentationBridge.PROPAGATION;
       if (module != null) {
         try {
-          module.onParameterValues(paramName, parameterValues);
+          final IastContext ctx = IastContext.Provider.get();
+          for (final String value : parameterValues) {
+            module.taint(ctx, value, SourceTypes.REQUEST_PARAMETER_VALUE, paramName);
+          }
         } catch (final Throwable e) {
           module.onUnexpectedException("afterGetParameterValues threw", e);
         }
@@ -101,9 +107,9 @@ public class ServletRequestCallSite {
       @CallSite.This final ServletRequest self,
       @CallSite.Return final ServletInputStream inputStream) {
     final PropagationModule module = InstrumentationBridge.PROPAGATION;
-    if (module != null) {
+    if (module != null && inputStream != null) {
       try {
-        module.taintObject(SourceTypes.REQUEST_BODY, inputStream);
+        module.taint(inputStream, SourceTypes.REQUEST_BODY);
       } catch (final Throwable e) {
         module.onUnexpectedException("afterGetInputStream threw", e);
       }
@@ -118,9 +124,9 @@ public class ServletRequestCallSite {
       @CallSite.This final ServletRequest self,
       @CallSite.Return final BufferedReader bufferedReader) {
     final PropagationModule module = InstrumentationBridge.PROPAGATION;
-    if (module != null) {
+    if (module != null && bufferedReader != null) {
       try {
-        module.taintObject(SourceTypes.REQUEST_BODY, bufferedReader);
+        module.taint(bufferedReader, SourceTypes.REQUEST_BODY);
       } catch (final Throwable e) {
         module.onUnexpectedException("afterGetReader threw", e);
       }
@@ -135,7 +141,7 @@ public class ServletRequestCallSite {
       "javax.servlet.RequestDispatcher javax.servlet.ServletRequestWrapper.getRequestDispatcher(java.lang.String)")
   public static void beforeRequestDispatcher(@CallSite.Argument final String path) {
     final UnvalidatedRedirectModule module = InstrumentationBridge.UNVALIDATED_REDIRECT;
-    if (module != null) {
+    if (module != null && path != null) {
       try {
         module.onRedirect(path);
       } catch (final Throwable e) {

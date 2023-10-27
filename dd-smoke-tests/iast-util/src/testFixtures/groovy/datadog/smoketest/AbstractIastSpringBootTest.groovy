@@ -494,6 +494,21 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
     }
   }
 
+  void 'getRequestURL taints its output'() {
+    setup:
+    String url = "http://localhost:${httpPort}/getrequesturl"
+    def request = new Request.Builder().url(url).get().build()
+
+    when:
+    client.newCall(request).execute()
+
+    then:
+    hasTainted { tainted ->
+      tainted.value == url &&
+        tainted.ranges[0].source.origin == 'http.request.uri'
+    }
+  }
+
   void 'request header taint string'() {
     setup:
     String url = "http://localhost:${httpPort}/request_header/test"
@@ -805,7 +820,7 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
     then:
     hasTainted { tainted ->
       tainted.value == '/getrequesturi' &&
-        tainted.ranges[0].source.origin == 'http.request.uri'
+        tainted.ranges[0].source.origin == 'http.request.path'
     }
   }
 

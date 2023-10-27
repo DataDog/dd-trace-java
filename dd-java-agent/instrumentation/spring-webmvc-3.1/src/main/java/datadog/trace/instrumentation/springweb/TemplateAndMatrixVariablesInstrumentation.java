@@ -17,6 +17,7 @@ import datadog.trace.api.gateway.CallbackProvider;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
+import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Source;
 import datadog.trace.api.iast.SourceTypes;
@@ -181,7 +182,7 @@ public class TemplateAndMatrixVariablesInstrumentation extends Instrumenter.Defa
       }
 
       { // iast
-        Object iastRequestContext = reqCtx.getData(RequestContextSlot.IAST);
+        IastContext iastRequestContext = reqCtx.getData(RequestContextSlot.IAST);
         if (iastRequestContext != null) {
           PropagationModule module = InstrumentationBridge.PROPAGATION;
           if (module != null) {
@@ -193,7 +194,7 @@ public class TemplateAndMatrixVariablesInstrumentation extends Instrumenter.Defa
                   continue; // should not happen
                 }
                 module.taint(
-                    iastRequestContext, SourceTypes.REQUEST_PATH_PARAMETER, parameterName, value);
+                    iastRequestContext, value, SourceTypes.REQUEST_PATH_PARAMETER, parameterName);
               }
             }
 
@@ -211,18 +212,18 @@ public class TemplateAndMatrixVariablesInstrumentation extends Instrumenter.Defa
                   if (innerKey != null) {
                     module.taint(
                         iastRequestContext,
+                        innerKey,
                         SourceTypes.REQUEST_MATRIX_PARAMETER,
-                        parameterName,
-                        innerKey);
+                        parameterName);
                   }
                   Iterable<String> innerValues = ie.getValue();
                   if (innerValues != null) {
                     for (String iv : innerValues) {
                       module.taint(
                           iastRequestContext,
+                          iv,
                           SourceTypes.REQUEST_MATRIX_PARAMETER,
-                          parameterName,
-                          iv);
+                          parameterName);
                     }
                   }
                 }

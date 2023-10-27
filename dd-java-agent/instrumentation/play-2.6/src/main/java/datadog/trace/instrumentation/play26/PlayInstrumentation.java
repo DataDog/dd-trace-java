@@ -19,6 +19,11 @@ public final class PlayInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
+  public String muzzleDirective() {
+    return "play26Plus";
+  }
+
+  @Override
   public String hierarchyMarkerType() {
     return "play.api.mvc.Action";
   }
@@ -35,9 +40,10 @@ public final class PlayInstrumentation extends Instrumenter.Tracing
       packageName + ".PlayHeaders$Request",
       packageName + ".PlayHeaders$Result",
       packageName + ".PlayHttpServerDecorator",
+      packageName + ".RemoteConnectionWithRawAddress",
       packageName + ".RequestCompleteCallback",
       packageName + ".RequestURIDataAdapter",
-      packageName + ".HasPlayRequestSpan"
+      packageName + ".HasPlayRequestSpan",
     };
   }
 

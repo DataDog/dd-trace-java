@@ -21,9 +21,9 @@ public class HttpServletRequestInputStreamCallSite {
       @CallSite.This final HttpServletRequest self,
       @CallSite.Return final ServletInputStream inputStream) {
     final PropagationModule module = InstrumentationBridge.PROPAGATION;
-    if (module != null) {
+    if (module != null && inputStream != null) {
       try {
-        module.taintObject(SourceTypes.REQUEST_BODY, inputStream);
+        module.taint(inputStream, SourceTypes.REQUEST_BODY);
       } catch (final Throwable e) {
         module.onUnexpectedException("afterGetInputStream threw", e);
       }

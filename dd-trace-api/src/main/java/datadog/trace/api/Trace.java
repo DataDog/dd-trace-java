@@ -19,4 +19,7 @@ public @interface Trace {
 
   /** Set whether to measure a trace. By default traces are not measured. */
   boolean measured() default false;
+
+  /** Set whether to start a new trace. By default it continues the current trace. */
+  boolean noParent() default false;
 }

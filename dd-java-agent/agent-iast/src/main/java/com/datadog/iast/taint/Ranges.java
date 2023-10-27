@@ -1,7 +1,7 @@
 package com.datadog.iast.taint;
 
-import static com.datadog.iast.model.Range.NOT_MARKED;
 import static com.datadog.iast.taint.TaintedObject.MAX_RANGE_COUNT;
+import static datadog.trace.api.iast.VulnerabilityMarks.NOT_MARKED;
 
 import com.datadog.iast.model.Range;
 import com.datadog.iast.model.Source;
@@ -41,9 +41,18 @@ public final class Ranges {
 
   private Ranges() {}
 
-  public static Range[] forString(
-      final @Nonnull String obj, final @Nonnull Source source, final int mark) {
+  public static Range[] forCharSequence(
+      final @Nonnull CharSequence obj, final @Nonnull Source source) {
+    return forCharSequence(obj, source, NOT_MARKED);
+  }
+
+  public static Range[] forCharSequence(
+      final @Nonnull CharSequence obj, final @Nonnull Source source, final int mark) {
     return new Range[] {new Range(0, obj.length(), source, mark)};
+  }
+
+  public static Range[] forObject(final @Nonnull Source source) {
+    return forObject(source, NOT_MARKED);
   }
 
   public static Range[] forObject(final @Nonnull Source source, final int mark) {
@@ -175,6 +184,7 @@ public final class Ranges {
     return new int[] {start, end};
   }
 
+  @Nonnull
   public static Range highestPriorityRange(@Nonnull final Range[] ranges) {
     /*
      * This approach is better but not completely correct ideally the highest priority should use the following patterns:

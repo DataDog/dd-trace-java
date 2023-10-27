@@ -22,7 +22,7 @@ public class EncoderCallSite {
     final PropagationModule module = InstrumentationBridge.PROPAGATION;
     if (module != null) {
       try {
-        module.taintIfInputIsTaintedWithMarks(result, input, VulnerabilityMarks.XSS_MARK);
+        module.taintIfTainted(result, input, false, VulnerabilityMarks.XSS_MARK);
       } catch (final Throwable e) {
         module.onUnexpectedException("afterEncodeForHTML threw", e);
       }
@@ -38,7 +38,7 @@ public class EncoderCallSite {
     final PropagationModule module = InstrumentationBridge.PROPAGATION;
     if (module != null) {
       try {
-        module.taintIfInputIsTaintedWithMarks(result, input, VulnerabilityMarks.XSS_MARK);
+        module.taintIfTainted(result, input, false, VulnerabilityMarks.XSS_MARK);
       } catch (final Throwable e) {
         module.onUnexpectedException("afterCanonicalize1 threw", e);
       }
@@ -56,7 +56,7 @@ public class EncoderCallSite {
     final PropagationModule module = InstrumentationBridge.PROPAGATION;
     if (module != null) {
       try {
-        module.taintIfInputIsTaintedWithMarks(result, input, VulnerabilityMarks.XSS_MARK);
+        module.taintIfTainted(result, input, false, VulnerabilityMarks.XSS_MARK);
       } catch (final Throwable e) {
         module.onUnexpectedException("afterCanonicalize2 threw", e);
       }
@@ -75,7 +75,7 @@ public class EncoderCallSite {
     final PropagationModule module = InstrumentationBridge.PROPAGATION;
     if (module != null) {
       try {
-        module.taintIfInputIsTaintedWithMarks(result, input, VulnerabilityMarks.XSS_MARK);
+        module.taintIfTainted(result, input, false, VulnerabilityMarks.XSS_MARK);
       } catch (final Throwable e) {
         module.onUnexpectedException("afterCanonicalize3 threw", e);
       }
@@ -91,8 +91,7 @@ public class EncoderCallSite {
     final PropagationModule module = InstrumentationBridge.PROPAGATION;
     if (module != null) {
       try {
-        module.taintIfInputIsTaintedWithMarks(
-            result, input, VulnerabilityMarks.LDAP_INJECTION_MARK);
+        module.taintIfTainted(result, input, false, VulnerabilityMarks.LDAP_INJECTION_MARK);
       } catch (final Throwable e) {
         module.onUnexpectedException("afterEncodeForLDAP threw", e);
       }
@@ -110,8 +109,7 @@ public class EncoderCallSite {
     final PropagationModule module = InstrumentationBridge.PROPAGATION;
     if (module != null) {
       try {
-        module.taintIfInputIsTaintedWithMarks(
-            result, input, VulnerabilityMarks.COMMAND_INJECTION_MARK);
+        module.taintIfTainted(result, input, false, VulnerabilityMarks.COMMAND_INJECTION_MARK);
       } catch (final Throwable e) {
         module.onUnexpectedException("afterEncodeForOS threw", e);
       }
@@ -129,7 +127,7 @@ public class EncoderCallSite {
     final PropagationModule module = InstrumentationBridge.PROPAGATION;
     if (module != null) {
       try {
-        module.taintIfInputIsTaintedWithMarks(result, input, VulnerabilityMarks.SQL_INJECTION_MARK);
+        module.taintIfTainted(result, input, false, VulnerabilityMarks.SQL_INJECTION_MARK);
       } catch (final Throwable e) {
         module.onUnexpectedException("afterEncodeForSQL threw", e);
       }

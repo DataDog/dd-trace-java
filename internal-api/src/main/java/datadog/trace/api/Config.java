@@ -32,6 +32,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_CLOCK_SYNC_PERIOD;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CWS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CWS_TLS_REFRESH;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DATA_STREAMS_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_DB_CLIENT_HOST_SPLIT_BY_HOST;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DB_CLIENT_HOST_SPLIT_BY_INSTANCE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DB_CLIENT_HOST_SPLIT_BY_INSTANCE_TYPE_SUFFIX;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DB_DBM_PROPAGATION_MODE_MODE;
@@ -43,6 +44,8 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_INSTRUMENT_THE_W
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_MAX_PAYLOAD_SIZE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_METRICS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_POLL_INTERVAL;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_SYMBOL_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_SYMBOL_FLUSH_THRESHOLD;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_UPLOAD_BATCH_SIZE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_UPLOAD_FLUSH_INTERVAL;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_UPLOAD_TIMEOUT;
@@ -178,6 +181,11 @@ import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_MAX_PAYLOAD_SIZE;
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_METRICS_ENABLED;
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_POLL_INTERVAL;
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_PROBE_FILE_LOCATION;
+import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_REDACTED_IDENTIFIERS;
+import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_REDACTED_TYPES;
+import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_SYMBOL_ENABLED;
+import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_SYMBOL_FLUSH_THRESHOLD;
+import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_SYMBOL_INCLUDES;
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_UPLOAD_BATCH_SIZE;
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_UPLOAD_FLUSH_INTERVAL;
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_UPLOAD_TIMEOUT;
@@ -206,6 +214,9 @@ import static datadog.trace.api.config.GeneralConfig.RUNTIME_METRICS_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.SERVICE_NAME;
 import static datadog.trace.api.config.GeneralConfig.SITE;
 import static datadog.trace.api.config.GeneralConfig.STARTUP_LOGS_ENABLED;
+import static datadog.trace.api.config.GeneralConfig.STATSD_CLIENT_QUEUE_SIZE;
+import static datadog.trace.api.config.GeneralConfig.STATSD_CLIENT_SOCKET_BUFFER;
+import static datadog.trace.api.config.GeneralConfig.STATSD_CLIENT_SOCKET_TIMEOUT;
 import static datadog.trace.api.config.GeneralConfig.TAGS;
 import static datadog.trace.api.config.GeneralConfig.TELEMETRY_DEPENDENCY_COLLECTION_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.TELEMETRY_HEARTBEAT_INTERVAL;
@@ -284,6 +295,7 @@ import static datadog.trace.api.config.RemoteConfigConfig.REMOTE_CONFIG_POLL_INT
 import static datadog.trace.api.config.RemoteConfigConfig.REMOTE_CONFIG_TARGETS_KEY;
 import static datadog.trace.api.config.RemoteConfigConfig.REMOTE_CONFIG_TARGETS_KEY_ID;
 import static datadog.trace.api.config.RemoteConfigConfig.REMOTE_CONFIG_URL;
+import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_HOST;
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_INSTANCE;
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_INSTANCE_TYPE_SUFFIX;
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_DBM_PROPAGATION_MODE_MODE;
@@ -298,6 +310,7 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.GRPC_SERVER_TR
 import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_CLIENT_HOST_SPLIT_BY_DOMAIN;
 import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_CLIENT_TAG_HEADERS;
 import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_CLIENT_TAG_QUERY_STRING;
+import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_SERVER_DECODED_RESOURCE_PRESERVE_SPACES;
 import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_SERVER_RAW_QUERY_STRING;
 import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_SERVER_RAW_RESOURCE;
 import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_SERVER_ROUTE_BASED_NAMING;
@@ -533,6 +546,7 @@ public class Config {
   private final boolean httpServerTagQueryString;
   private final boolean httpServerRawQueryString;
   private final boolean httpServerRawResource;
+  private final boolean httpServerDecodedResourcePreserveSpaces;
   private final boolean httpServerRouteBasedNaming;
   private final Map<String, String> httpServerPathResourceNameMapping;
   private final Map<String, String> httpClientPathResourceNameMapping;
@@ -542,6 +556,7 @@ public class Config {
   private final boolean httpClientSplitByDomain;
   private final boolean dbClientSplitByInstance;
   private final boolean dbClientSplitByInstanceTypeSuffix;
+  private final boolean dbClientSplitByHost;
   private final Set<String> splitByTags;
   private final int scopeDepthLimit;
   private final boolean scopeStrictMode;
@@ -560,6 +575,10 @@ public class Config {
 
   private final String dogStatsDNamedPipe;
   private final int dogStatsDStartDelay;
+
+  private final Integer statsDClientQueueSize;
+  private final Integer statsDClientSocketBuffer;
+  private final Integer statsDClientSocketTimeout;
 
   private final boolean runtimeMetricsEnabled;
   private final boolean jmxFetchEnabled;
@@ -716,6 +735,11 @@ public class Config {
   private final boolean debuggerInstrumentTheWorld;
   private final String debuggerExcludeFiles;
   private final int debuggerCaptureTimeout;
+  private final String debuggerRedactedIdentifiers;
+  private final String debuggerRedactedTypes;
+  private final boolean debuggerSymbolEnabled;
+  private final String debuggerSymbolIncludes;
+  private final int debuggerSymbolFlushThreshold;
 
   private final boolean awsPropagationEnabled;
   private final boolean sqsPropagationEnabled;
@@ -1071,6 +1095,9 @@ public class Config {
 
     httpServerRawResource = configProvider.getBoolean(HTTP_SERVER_RAW_RESOURCE, false);
 
+    httpServerDecodedResourcePreserveSpaces =
+        configProvider.getBoolean(HTTP_SERVER_DECODED_RESOURCE_PRESERVE_SPACES, true);
+
     httpServerRouteBasedNaming =
         configProvider.getBoolean(
             HTTP_SERVER_ROUTE_BASED_NAMING, DEFAULT_HTTP_SERVER_ROUTE_BASED_NAMING);
@@ -1093,6 +1120,10 @@ public class Config {
         configProvider.getBoolean(
             DB_CLIENT_HOST_SPLIT_BY_INSTANCE_TYPE_SUFFIX,
             DEFAULT_DB_CLIENT_HOST_SPLIT_BY_INSTANCE_TYPE_SUFFIX);
+
+    dbClientSplitByHost =
+        configProvider.getBoolean(
+            DB_CLIENT_HOST_SPLIT_BY_HOST, DEFAULT_DB_CLIENT_HOST_SPLIT_BY_HOST);
 
     DBMPropagationMode =
         configProvider.getString(
@@ -1224,6 +1255,10 @@ public class Config {
     dogStatsDStartDelay =
         configProvider.getInteger(
             DOGSTATSD_START_DELAY, DEFAULT_DOGSTATSD_START_DELAY, JMX_FETCH_START_DELAY);
+
+    statsDClientQueueSize = configProvider.getInteger(STATSD_CLIENT_QUEUE_SIZE);
+    statsDClientSocketBuffer = configProvider.getInteger(STATSD_CLIENT_SOCKET_BUFFER);
+    statsDClientSocketTimeout = configProvider.getInteger(STATSD_CLIENT_SOCKET_TIMEOUT);
 
     runtimeMetricsEnabled = configProvider.getBoolean(RUNTIME_METRICS_ENABLED, true);
 
@@ -1647,6 +1682,14 @@ public class Config {
     debuggerExcludeFiles = configProvider.getString(DEBUGGER_EXCLUDE_FILES);
     debuggerCaptureTimeout =
         configProvider.getInteger(DEBUGGER_CAPTURE_TIMEOUT, DEFAULT_DEBUGGER_CAPTURE_TIMEOUT);
+    debuggerRedactedIdentifiers = configProvider.getString(DEBUGGER_REDACTED_IDENTIFIERS, null);
+    debuggerRedactedTypes = configProvider.getString(DEBUGGER_REDACTED_TYPES, null);
+    debuggerSymbolEnabled =
+        configProvider.getBoolean(DEBUGGER_SYMBOL_ENABLED, DEFAULT_DEBUGGER_SYMBOL_ENABLED);
+    debuggerSymbolIncludes = configProvider.getString(DEBUGGER_SYMBOL_INCLUDES, null);
+    debuggerSymbolFlushThreshold =
+        configProvider.getInteger(
+            DEBUGGER_SYMBOL_FLUSH_THRESHOLD, DEFAULT_DEBUGGER_SYMBOL_FLUSH_THRESHOLD);
 
     awsPropagationEnabled = isPropagationEnabled(true, "aws", "aws-sdk");
     sqsPropagationEnabled = isPropagationEnabled(true, "sqs");
@@ -1998,6 +2041,10 @@ public class Config {
     return httpServerRawResource;
   }
 
+  public boolean isHttpServerDecodedResourcePreserveSpaces() {
+    return httpServerDecodedResourcePreserveSpaces;
+  }
+
   public boolean isHttpServerRouteBasedNaming() {
     return httpServerRouteBasedNaming;
   }
@@ -2020,6 +2067,10 @@ public class Config {
 
   public boolean isDbClientSplitByInstanceTypeSuffix() {
     return dbClientSplitByInstanceTypeSuffix;
+  }
+
+  public boolean isDbClientSplitByHost() {
+    return dbClientSplitByHost;
   }
 
   public Set<String> getSplitByTags() {
@@ -2086,6 +2137,18 @@ public class Config {
 
   public int getDogStatsDStartDelay() {
     return dogStatsDStartDelay;
+  }
+
+  public Integer getStatsDClientQueueSize() {
+    return statsDClientQueueSize;
+  }
+
+  public Integer getStatsDClientSocketBuffer() {
+    return statsDClientSocketBuffer;
+  }
+
+  public Integer getStatsDClientSocketTimeout() {
+    return statsDClientSocketTimeout;
   }
 
   public boolean isRuntimeMetricsEnabled() {
@@ -2713,6 +2776,18 @@ public class Config {
     return debuggerCaptureTimeout;
   }
 
+  public boolean getDebuggerSymbolEnabled() {
+    return debuggerSymbolEnabled;
+  }
+
+  public String getDebuggerSymbolIncludes() {
+    return debuggerSymbolIncludes;
+  }
+
+  public int getDebuggerSymbolFlushThreshold() {
+    return debuggerSymbolFlushThreshold;
+  }
+
   public String getFinalDebuggerProbeUrl() {
     // by default poll from datadog agent
     return "http://" + agentHost + ":" + agentPort;
@@ -2723,8 +2798,20 @@ public class Config {
     return agentUrl + "/debugger/v1/input";
   }
 
+  public String getFinalDebuggerSymDBUrl() {
+    return agentUrl + "/symdb/v1/input";
+  }
+
   public String getDebuggerProbeFileLocation() {
     return debuggerProbeFileLocation;
+  }
+
+  public String getDebuggerRedactedIdentifiers() {
+    return debuggerRedactedIdentifiers;
+  }
+
+  public String getDebuggerRedactedTypes() {
+    return debuggerRedactedTypes;
   }
 
   public boolean isAwsPropagationEnabled() {
@@ -3679,6 +3766,8 @@ public class Config {
         + dbClientSplitByInstance
         + ", dbClientSplitByInstanceTypeSuffix="
         + dbClientSplitByInstanceTypeSuffix
+        + ", dbClientSplitByHost="
+        + dbClientSplitByHost
         + ", DBMPropagationMode="
         + DBMPropagationMode
         + ", splitByTags="
@@ -3888,7 +3977,7 @@ public class Config {
         + '\''
         + ", idGenerationStrategy="
         + idGenerationStrategy
-        + ", trace128bitTraceIdGenerationEnabled"
+        + ", trace128bitTraceIdGenerationEnabled="
         + trace128bitTraceIdGenerationEnabled
         + ", grpcIgnoredInboundMethods="
         + grpcIgnoredInboundMethods

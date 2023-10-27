@@ -16,6 +16,10 @@ public class TestHttpServletRequestCallSiteSuite {
     return request.getHeader(headerName);
   }
 
+  public StringBuffer getRequestURL() {
+    return request.getRequestURL();
+  }
+
   public Enumeration<?> getHeaders(final String headerName) {
     return request.getHeaders(headerName);
   }

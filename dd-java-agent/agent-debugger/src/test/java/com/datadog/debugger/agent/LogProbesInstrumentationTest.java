@@ -283,7 +283,7 @@ public class LogProbesInstrumentationTest {
         "this is log line with field={Cannot dereference to field: intValue}",
         snapshot.getMessage());
     assertEquals(1, snapshot.getEvaluationErrors().size());
-    assertEquals("intValue", snapshot.getEvaluationErrors().get(0).getExpr());
+    assertEquals("nullObject.intValue", snapshot.getEvaluationErrors().get(0).getExpr());
     assertEquals(
         "Cannot dereference to field: intValue",
         snapshot.getEvaluationErrors().get(0).getMessage());
@@ -488,6 +488,7 @@ public class LogProbesInstrumentationTest {
     when(config.isDebuggerClassFileDumpEnabled()).thenReturn(true);
     when(config.getFinalDebuggerSnapshotUrl())
         .thenReturn("http://localhost:8126/debugger/v1/input");
+    when(config.getFinalDebuggerSymDBUrl()).thenReturn("http://localhost:8126/symdb/v1/input");
     when(config.getDebuggerUploadBatchSize()).thenReturn(100);
     currentTransformer = new DebuggerTransformer(config, configuration);
     instr.addTransformer(currentTransformer);

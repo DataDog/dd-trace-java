@@ -24,16 +24,32 @@ class URICallSIteTest extends AgentTestRunner {
 
     then:
     uri.toString() == expected
-    1 * module.taintIfAnyInputIsTainted(_ as URI, args as Object[])
+    1 * module.taintIfAnyTainted(_ as URI, args as Object[])
 
     where:
-    method   | args                                                                          | expected
-    'uri'    | ['http://test.com/index?name=value#fragment']                                 | 'http://test.com/index?name=value#fragment'
-    'uri'    | ['http', 'user:password', 'test.com', 80, '/index', 'name=value', 'fragment'] | 'http://user:password@test.com:80/index?name=value#fragment'
-    'uri'    | ['http', 'user:password@test.com', '/index', 'name=value', 'fragment']        | 'http://user:password@test.com/index?name=value#fragment'
-    'uri'    | ['http', 'test.com', '/index', 'fragment']                                    | 'http://test.com/index#fragment'
-    'uri'    | ['http', '//test.com/index?name=value', 'fragment']                           | 'http://test.com/index?name=value#fragment'
-    'create' | ['http://test.com/index?name=value#fragment']                                 | 'http://test.com/index?name=value#fragment'
+    method | args                                                                          | expected
+    'uri'  | ['http://test.com/index?name=value#fragment']                                 | 'http://test.com/index?name=value#fragment'
+    'uri'  | ['http', 'user:password', 'test.com', 80, '/index', 'name=value', 'fragment'] | 'http://user:password@test.com:80/index?name=value#fragment'
+    'uri'  | ['http', 'user:password@test.com', '/index', 'name=value', 'fragment']        | 'http://user:password@test.com/index?name=value#fragment'
+    'uri'  | ['http', 'test.com', '/index', 'fragment']                                    | 'http://test.com/index#fragment'
+    'uri'  | ['http', '//test.com/index?name=value', 'fragment']                           | 'http://test.com/index?name=value#fragment'
+  }
+
+  void 'test uri create propagation'() {
+    given:
+    final module = Mock(PropagationModule)
+    InstrumentationBridge.registerIastModule(module)
+
+    when:
+    final uri = TestURICallSiteSuite.&"$method".call(args as Object[])
+
+    then:
+    uri.toString() == expected
+    1 * module.taintIfTainted(_ as URI, args[0])
+
+    where:
+    method   | args                                          | expected
+    'create' | ['http://test.com/index?name=value#fragment'] | 'http://test.com/index?name=value#fragment'
   }
 
   void 'test uri propagation'() {
@@ -45,7 +61,7 @@ class URICallSIteTest extends AgentTestRunner {
     TestURICallSiteSuite.&"$method".call(args as Object[])
 
     then:
-    1 * module.taintIfInputIsTainted(_, _ as URI)
+    1 * module.taintIfTainted(_, _ as URI)
 
     where:
     method          | args

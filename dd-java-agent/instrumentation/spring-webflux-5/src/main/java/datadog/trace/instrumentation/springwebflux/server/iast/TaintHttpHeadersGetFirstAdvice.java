@@ -18,6 +18,6 @@ class TaintHttpHeadersGetFirstAdvice {
     if (module == null || arg == null || value == null) {
       return;
     }
-    module.taint(SourceTypes.REQUEST_HEADER_VALUE, arg, value);
+    module.taint(value, SourceTypes.REQUEST_HEADER_VALUE, arg);
   }
 }

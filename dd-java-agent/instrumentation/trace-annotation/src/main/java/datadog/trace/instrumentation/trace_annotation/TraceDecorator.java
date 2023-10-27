@@ -46,6 +46,7 @@ public class TraceDecorator extends AsyncResultDecorator {
     CharSequence operationName = null;
     CharSequence resourceName = null;
     boolean measured = false;
+    boolean noParent = false;
 
     Trace traceAnnotation = method.getAnnotation(Trace.class);
     if (null != traceAnnotation) {
@@ -61,6 +62,12 @@ public class TraceDecorator extends AsyncResultDecorator {
       } catch (Throwable ignore) {
         // dd-trace-api < 1.10.0 on classpath
       }
+
+      try {
+        noParent = traceAnnotation.noParent();
+      } catch (Throwable ignore) {
+        // dd-trace-api < 1.22.0 on classpath
+      }
     }
 
     if (operationName == null || operationName.length() == 0) {
@@ -75,7 +82,11 @@ public class TraceDecorator extends AsyncResultDecorator {
       resourceName = DECORATE.spanNameForMethod(method);
     }
 
-    AgentSpan span = startSpan(INSTRUMENTATION_NAME, operationName);
+    AgentSpan span =
+        noParent
+            ? startSpan(INSTRUMENTATION_NAME, operationName, null)
+            : startSpan(INSTRUMENTATION_NAME, operationName);
+
     DECORATE.afterStart(span);
     span.setResourceName(resourceName);
 
