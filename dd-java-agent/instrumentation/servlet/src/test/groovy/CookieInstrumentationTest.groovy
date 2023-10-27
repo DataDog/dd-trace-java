@@ -1,9 +1,10 @@
-import datadog.smoketest.controller.CookieTestSuite
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.SourceTypes
 import datadog.trace.api.iast.propagation.PropagationModule
 import groovy.transform.CompileDynamic
+
+import javax.servlet.http.Cookie
 
 @CompileDynamic
 class CookieInstrumentationTest extends AgentTestRunner {
@@ -20,27 +21,27 @@ class CookieInstrumentationTest extends AgentTestRunner {
     setup:
     final iastModule = Mock(PropagationModule)
     InstrumentationBridge.registerIastModule(iastModule)
-    final cookieTestSuite = new CookieTestSuite(NAME, VALUE)
+    final cookie = new Cookie(NAME, VALUE)
 
     when:
-    final result = cookieTestSuite.getName()
+    final result = cookie.getName()
 
     then:
     result == NAME
-    1 * iastModule.taintIfTainted(NAME, cookieTestSuite.getCookie(), SourceTypes.REQUEST_COOKIE_NAME, NAME)
+    1 * iastModule.taintIfTainted(NAME, cookie, SourceTypes.REQUEST_COOKIE_NAME, NAME)
   }
 
   void 'test getValue'() {
     setup:
     final iastModule = Mock(PropagationModule)
     InstrumentationBridge.registerIastModule(iastModule)
-    final cookieTestSuite = new CookieTestSuite(NAME, VALUE)
+    final cookie = new Cookie(NAME, VALUE)
 
     when:
-    final result = cookieTestSuite.getValue()
+    final result = cookie.getValue()
 
     then:
     result == VALUE
-    1 * iastModule.taintIfTainted(VALUE, cookieTestSuite.getCookie(), SourceTypes.REQUEST_COOKIE_VALUE, NAME)
+    1 * iastModule.taintIfTainted(VALUE, cookie, SourceTypes.REQUEST_COOKIE_VALUE, NAME)
   }
 }
