@@ -7,7 +7,7 @@ import ddtest.client.sources.Hasher;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.File;
 import java.io.IOException;
-import java.io.StringReader;
+import java.io.Reader;
 import java.io.UnsupportedEncodingException;
 import java.net.HttpCookie;
 import java.net.HttpURLConnection;
@@ -360,8 +360,7 @@ public class IastWebController {
   }
 
   @PostMapping("/gson_json_parser_deserialization")
-  String gsonJsonParser(@RequestParam("json") String json) {
-    StringReader reader = new StringReader(json);
+  String gsonJsonParser(@RequestBody Reader reader) {
     JsonParser.parseReader(reader);
     return "Ok";
   }
