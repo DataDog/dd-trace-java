@@ -39,6 +39,7 @@ public class KafkaConsumerInfo {
 
   @Override
   public int hashCode() {
-    return Objects.hash(consumerGroup, clientMetadata);
+    return 31 * (null == consumerGroup ? 0 : consumerGroup.hashCode())
+        + (null == clientMetadata ? 0 : clientMetadata.hashCode());
   }
 }
