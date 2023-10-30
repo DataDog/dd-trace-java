@@ -44,8 +44,10 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
   public static final boolean INJECT_COMMENT =
       DBM_PROPAGATION_MODE.equals(DBM_PROPAGATION_MODE_FULL)
           || DBM_PROPAGATION_MODE.equals(DBM_PROPAGATION_MODE_STATIC);
-  public static final boolean INJECT_TRACE_CONTEXT =
+  private static final boolean INJECT_TRACE_CONTEXT =
       DBM_PROPAGATION_MODE.equals(DBM_PROPAGATION_MODE_FULL);
+
+  private boolean warnedAboutDBMPropagationMode = false; // to log a warning only once
 
   public static void logMissingQueryInfo(Statement statement) throws SQLException {
     if (log.isDebugEnabled()) {
@@ -227,5 +229,22 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
       span.setServiceName(namingEntry.getService());
     }
     span.setOperationName(namingEntry.getOperation());
+  }
+
+  public boolean shouldInjectTraceContext(DBInfo dbInfo) {
+    if (INJECT_TRACE_CONTEXT && dbInfo.getType().equals("oracle")
+        || dbInfo.getType().equals("sqlserver")) {
+      // Some DBs use the full text of the query including the comments as a cache key,
+      // so we want to avoid destroying the cache for those.
+      if (!warnedAboutDBMPropagationMode) {
+        log.warn(
+            "Using DBM_PROPAGATION_MODE in 'full' mode is not supported for {}. "
+                + "See https://docs.datadoghq.com/database_monitoring/connect_dbm_and_apm/ for more info.",
+            dbInfo.getType());
+        warnedAboutDBMPropagationMode = true;
+      }
+      return false;
+    }
+    return INJECT_TRACE_CONTEXT;
   }
 }

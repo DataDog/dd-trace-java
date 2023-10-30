@@ -9,7 +9,6 @@ import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.DB
 import static datadog.trace.instrumentation.jdbc.JDBCDecorator.DATABASE_QUERY;
 import static datadog.trace.instrumentation.jdbc.JDBCDecorator.DECORATE;
 import static datadog.trace.instrumentation.jdbc.JDBCDecorator.INJECT_COMMENT;
-import static datadog.trace.instrumentation.jdbc.JDBCDecorator.INJECT_TRACE_CONTEXT;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
@@ -29,7 +28,6 @@ import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
-import org.slf4j.LoggerFactory;
 
 @AutoService(Instrumenter.class)
 public final class StatementInstrumentation extends Instrumenter.Tracing
@@ -90,20 +88,8 @@ public final class StatementInstrumentation extends Instrumenter.Tracing
         if (span != null && INJECT_COMMENT) {
           String traceParent = null;
 
-          boolean doInjectTraceContext = INJECT_TRACE_CONTEXT;
-          if (INJECT_TRACE_CONTEXT && dbInfo.getType().equals("oracle")
-              || dbInfo.getType().equals("sqlserver")) {
-            // Some DBs use the full text of the query including the comments as a cache key,
-            // so we want to avoid destroying the cache for those.
-            LoggerFactory.getLogger(StatementInstrumentation.class)
-                .warn(
-                    "Using DBM_PROPAGATION_MODE in 'full' mode is not supported for {}. "
-                        + "See https://docs.datadoghq.com/database_monitoring/connect_dbm_and_apm/ for more info.",
-                    dbInfo.getType());
-            doInjectTraceContext = false;
-          }
-
-          if (doInjectTraceContext) {
+          boolean injectTraceContext = DECORATE.shouldInjectTraceContext(dbInfo);
+          if (injectTraceContext) {
             Integer priority = span.forceSamplingDecision();
             if (priority != null) {
               traceParent = DECORATE.traceParent(span, priority);
@@ -111,7 +97,7 @@ public final class StatementInstrumentation extends Instrumenter.Tracing
               span.setTag(DBM_TRACE_INJECTED, true);
             }
           }
-          sql = SQLCommenter.inject(sql, span.getServiceName(), traceParent, doInjectTraceContext);
+          sql = SQLCommenter.inject(sql, span.getServiceName(), traceParent, injectTraceContext);
         }
         DECORATE.onStatement(span, DBQueryInfo.ofStatement(copy));
         return activateSpan(span);
