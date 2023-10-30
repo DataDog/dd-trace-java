@@ -31,7 +31,7 @@ public final class KafkaConsumerInstrumentation extends Instrumenter.Tracing
 
   @Override
   public Map<String, String> contextStore() {
-    Map<String, String> contextStores = new HashMap<>();
+    Map<String, String> contextStores = new HashMap<>(2);
     contextStores.put("org.apache.kafka.clients.Metadata", "java.lang.String");
     contextStores.put(
         "org.apache.kafka.clients.consumer.ConsumerRecords", KafkaConsumerInfo.class.getName());

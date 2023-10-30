@@ -56,9 +56,7 @@ public final class KafkaConsumerInfoInstrumentation extends Instrumenter.Tracing
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".KafkaDecorator",
-      packageName + ".KafkaConsumerInfo",
-      packageName + ".KafkaConsumerInfo$Builder",
+      packageName + ".KafkaDecorator", packageName + ".KafkaConsumerInfo",
     };
   }
 
