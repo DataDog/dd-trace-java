@@ -157,6 +157,21 @@ abstract class CouchbaseClient32Test extends VersionedNamingTestBase {
       }
     }
   }
+  def "check query normalization"() {
+    when:
+    insertData(bucket,"InsertData","foo","bar")
+    then:
+    assertTraces(1) {
+      sortSpansByStart()
+      trace(2) {
+        assertCouchbaseCall(it, 'select * from `test-bucket` limit 1', [
+          'db.couchbase.retries'   : { Long },
+          'db.couchbase.service'   : 'query'
+        ])
+        assertCouchbaseDispatchCall(it, span(0))
+      }
+    }
+  }
 
   def "check query spans with parent"() {
     setup:

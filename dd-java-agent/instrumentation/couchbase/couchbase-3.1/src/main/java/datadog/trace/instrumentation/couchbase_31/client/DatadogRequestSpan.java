@@ -4,6 +4,7 @@ import com.couchbase.client.core.Core;
 import com.couchbase.client.core.cnc.RequestSpan;
 import com.couchbase.client.core.msg.RequestContext;
 import datadog.trace.api.DDTags;
+import datadog.trace.api.normalize.SQLNormalizer;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
@@ -64,7 +65,11 @@ public class DatadogRequestSpan implements RequestSpan, StatusSettable<Integer> 
     // TODO when `db.statement` is set here it will be intercepted by the TagInterceptor, so any
     //  sort of obfuscation should go in there, preferably as a lazy sort of Utf8String that does
     //  the actual work at the end
-    span.setTag(key, value);
+    if (key.equals("db.statement")) {
+      span.setTag(key, SQLNormalizer.normalize(value));
+    } else {
+      span.setTag(key, value);
+    }
   }
 
   // This method shows up in later versions
