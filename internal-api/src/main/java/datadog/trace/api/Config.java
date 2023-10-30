@@ -2285,8 +2285,8 @@ public class Config {
     return spanSamplingRulesFile;
   }
 
-  public boolean isProfilingEnabled() {
-    return instrumenterConfig.isProfilingEnabled();
+  public ProductActivation getProfilingActivation() {
+    return instrumenterConfig.getProfilingActivation();
   }
 
   public boolean isProfilingAgentless() {
@@ -3005,7 +3005,9 @@ public class Config {
     result.putAll(runtimeTags);
     result.put(LANGUAGE_TAG_KEY, LANGUAGE_TAG_VALUE);
     result.put(SCHEMA_VERSION_TAG_KEY, SpanNaming.instance().version());
-    result.put(PROFILING_ENABLED, isProfilingEnabled() ? 1 : 0);
+    result.put(
+        PROFILING_ENABLED,
+        getProfilingActivation().atLeast(ProductActivation.FULLY_ENABLED) ? 1 : 0);
 
     if (reportHostName) {
       final String hostName = getHostName();

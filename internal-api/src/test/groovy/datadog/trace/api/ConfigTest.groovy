@@ -295,7 +295,7 @@ class ConfigTest extends DDSpecification {
     config.isLongRunningTraceEnabled()
     config.getLongRunningTraceFlushInterval() == 250
 
-    config.profilingEnabled == true
+    config.profilingActivation == ProductActivation.FULLY_ENABLED
     config.profilingUrl == "new url"
     config.mergedProfilingTags == [b: "2", f: "6", (HOST_TAG): "test-host", (RUNTIME_ID_TAG): config.getRuntimeId(), (RUNTIME_VERSION_TAG): config.getRuntimeVersion(), (SERVICE_TAG): config.serviceName, (LANGUAGE_TAG_KEY): LANGUAGE_TAG_VALUE]
     config.profilingStartDelay == 1111
@@ -473,7 +473,7 @@ class ConfigTest extends DDSpecification {
     config.getLongRunningTraceFlushInterval() == 333
     config.traceRateLimit == 200
 
-    config.profilingEnabled == true
+    config.profilingActivation == ProductActivation.FULLY_ENABLED
     config.profilingUrl == "new url"
     config.mergedProfilingTags == [b: "2", f: "6", (HOST_TAG): "test-host", (RUNTIME_ID_TAG): config.getRuntimeId(), (RUNTIME_VERSION_TAG): config.getRuntimeVersion(), (SERVICE_TAG): config.serviceName, (LANGUAGE_TAG_KEY): LANGUAGE_TAG_VALUE]
     config.profilingStartDelay == 1111

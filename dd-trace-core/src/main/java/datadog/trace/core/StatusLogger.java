@@ -111,7 +111,7 @@ public final class StatusLogger extends JsonAdapter<Config>
     writer.name("logs_correlation_enabled");
     writer.value(config.isLogsInjectionEnabled());
     writer.name("profiling_enabled");
-    writer.value(config.isProfilingEnabled());
+    writer.value(config.getProfilingActivation().toString());
     writer.name("remote_config_enabled");
     writer.value(config.isRemoteConfigEnabled());
     writer.name("debugger_enabled");

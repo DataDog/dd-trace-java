@@ -8,7 +8,7 @@ package datadog.trace.api.config;
  */
 public final class ProfilingConfig {
   public static final String PROFILING_ENABLED = "profiling.enabled";
-  public static final boolean PROFILING_ENABLED_DEFAULT = false;
+  public static final String PROFILING_ENABLED_DEFAULT = "false";
   public static final String PROFILING_ALLOCATION_ENABLED = "profiling.allocation.enabled";
   public static final String PROFILING_HEAP_ENABLED = "profiling.heap.enabled";
   public static final boolean PROFILING_HEAP_ENABLED_DEFAULT = false;

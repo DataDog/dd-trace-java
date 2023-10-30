@@ -15,6 +15,7 @@ import com.datadog.profiling.controller.UnsupportedEnvironmentException;
 import com.datadog.profiling.uploader.ProfileUploader;
 import datadog.trace.api.Config;
 import datadog.trace.api.Platform;
+import datadog.trace.api.ProductActivation;
 import datadog.trace.api.config.ProfilingConfig;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import java.io.IOException;
@@ -102,7 +103,7 @@ public class ProfilingAgent {
         // early startup is disabled;
         return;
       }
-      if (!config.isProfilingEnabled()) {
+      if (!config.getProfilingActivation().atLeast(ProductActivation.ENABLED_LIGHTWEIGHT)) {
         log.debug("Profiling: disabled");
         return;
       }

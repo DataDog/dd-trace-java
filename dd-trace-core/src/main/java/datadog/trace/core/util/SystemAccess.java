@@ -1,6 +1,7 @@
 package datadog.trace.core.util;
 
 import datadog.trace.api.Config;
+import datadog.trace.api.ProductActivation;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -19,7 +20,8 @@ public final class SystemAccess {
 
   /** Enable JMX accesses */
   public static void enableJmx() {
-    if (!Config.get().isProfilingEnabled() && !Config.get().isHealthMetricsEnabled()) {
+    if (Config.get().getProfilingActivation() != ProductActivation.FULLY_ENABLED
+        && !Config.get().isHealthMetricsEnabled()) {
       log.debug("Will not enable JMX access. Profiling and metrics are both disabled.");
       return;
     }

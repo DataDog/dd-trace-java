@@ -88,7 +88,7 @@ public class InstrumenterConfig {
   private final boolean traceEnabled;
   private final boolean traceOtelEnabled;
   private final boolean logs128bTraceIdEnabled;
-  private final boolean profilingEnabled;
+  private final ProductActivation profilingActivation;
   private final boolean ciVisibilityEnabled;
   private final ProductActivation appSecActivation;
   private final ProductActivation iastActivation;
@@ -147,7 +147,9 @@ public class InstrumenterConfig {
             TRACE_128_BIT_TRACEID_LOGGING_ENABLED, DEFAULT_TRACE_128_BIT_TRACEID_LOGGING_ENABLED);
 
     if (!Platform.isNativeImageBuilder()) {
-      profilingEnabled = configProvider.getBoolean(PROFILING_ENABLED, PROFILING_ENABLED_DEFAULT);
+      profilingActivation =
+          ProductActivation.fromString(
+              configProvider.getString(PROFILING_ENABLED, PROFILING_ENABLED_DEFAULT));
       ciVisibilityEnabled =
           configProvider.getBoolean(CIVISIBILITY_ENABLED, DEFAULT_CIVISIBILITY_ENABLED);
       appSecActivation =
@@ -160,7 +162,7 @@ public class InstrumenterConfig {
       telemetryEnabled = configProvider.getBoolean(TELEMETRY_ENABLED, DEFAULT_TELEMETRY_ENABLED);
     } else {
       // disable these features in native-image
-      profilingEnabled = false;
+      profilingActivation = ProductActivation.FULLY_DISABLED;
       ciVisibilityEnabled = false;
       appSecActivation = ProductActivation.FULLY_DISABLED;
       iastActivation = ProductActivation.FULLY_DISABLED;
@@ -248,8 +250,8 @@ public class InstrumenterConfig {
     return logs128bTraceIdEnabled;
   }
 
-  public boolean isProfilingEnabled() {
-    return profilingEnabled;
+  public ProductActivation getProfilingActivation() {
+    return profilingActivation;
   }
 
   public boolean isCiVisibilityEnabled() {
@@ -431,8 +433,8 @@ public class InstrumenterConfig {
         + traceOtelEnabled
         + ", logs128bTraceIdEnabled="
         + logs128bTraceIdEnabled
-        + ", profilingEnabled="
-        + profilingEnabled
+        + ", profilingActivation="
+        + profilingActivation
         + ", ciVisibilityEnabled="
         + ciVisibilityEnabled
         + ", appSecActivation="

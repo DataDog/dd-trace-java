@@ -223,7 +223,7 @@ public class AgentInstaller {
     if (cfg.isTraceEnabled()) {
       enabledSystems.add(Instrumenter.TargetSystem.TRACING);
     }
-    if (cfg.isProfilingEnabled()) {
+    if (cfg.getProfilingActivation().atLeast(ProductActivation.ENABLED_INACTIVE)) {
       enabledSystems.add(Instrumenter.TargetSystem.PROFILING);
     }
     if (cfg.getAppSecActivation() != ProductActivation.FULLY_DISABLED) {

@@ -17,6 +17,7 @@ import static datadog.trace.util.Strings.toEnvVar;
 import datadog.trace.api.Config;
 import datadog.trace.api.EndpointCheckpointer;
 import datadog.trace.api.Platform;
+import datadog.trace.api.ProductActivation;
 import datadog.trace.api.StatsDClientManager;
 import datadog.trace.api.WithGlobalTracer;
 import datadog.trace.api.config.AppSecConfig;
@@ -853,7 +854,8 @@ public class Agent {
    * on JFR.
    */
   private static ProfilingContextIntegration createProfilingContextIntegration() {
-    if (Config.get().isProfilingEnabled() && !Platform.isWindows()) {
+    if (Config.get().getProfilingActivation().atLeast(ProductActivation.ENABLED_LIGHTWEIGHT)
+        && !Platform.isWindows()) {
       try {
         return (ProfilingContextIntegration)
             AGENT_CLASSLOADER
