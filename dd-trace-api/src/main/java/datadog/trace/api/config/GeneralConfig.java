@@ -70,7 +70,6 @@ public final class GeneralConfig {
       "telemetry.dependency-collection.enabled";
 
   public static final String TELEMETRY_DEBUG_REQUESTS_ENABLED = "telemetry.debug.requests.enabled";
-  public static final String TELEMETRY_INTAKE_URL = "telemetry.intake.url";
 
   private GeneralConfig() {}
 }

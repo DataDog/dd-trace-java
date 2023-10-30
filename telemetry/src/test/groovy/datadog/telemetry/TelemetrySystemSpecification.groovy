@@ -5,13 +5,14 @@ import datadog.communication.ddagent.SharedCommunicationObjects
 import datadog.communication.monitor.Monitoring
 import datadog.telemetry.dependency.DependencyService
 import datadog.telemetry.dependency.LocationsCollectingTransformer
+import datadog.trace.api.config.GeneralConfig
+import datadog.trace.test.util.DDSpecification
+import datadog.trace.util.Strings
 import okhttp3.HttpUrl
 import okhttp3.OkHttpClient
-import spock.lang.Specification
-
 import java.lang.instrument.Instrumentation
 
-class TelemetrySystemSpecification extends Specification {
+class TelemetrySystemSpecification extends DDSpecification {
   Instrumentation inst = Mock()
 
   void 'installs dependencies transformer'() {
@@ -42,6 +43,8 @@ class TelemetrySystemSpecification extends Specification {
 
   void 'start-stop telemetry system'() {
     setup:
+    injectEnvConfig(Strings.toEnvVar(GeneralConfig.SITE), "datad0g.com")
+    injectEnvConfig(Strings.toEnvVar(GeneralConfig.API_KEY), "api-key")
     def instrumentation = Mock(Instrumentation)
 
     when:

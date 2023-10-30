@@ -1,7 +1,6 @@
 package datadog.telemetry;
 
 import datadog.communication.http.OkHttpUtils;
-import datadog.trace.api.config.GeneralConfig;
 import java.io.IOException;
 import okhttp3.HttpUrl;
 import okhttp3.OkHttpClient;
@@ -24,27 +23,30 @@ public class TelemetryClient {
     return new TelemetryClient(okHttpClient, agentTelemetryUrl, null);
   }
 
-  public static TelemetryClient buildIntakeClient(
-      String telemetryIntakeUrl, long timeoutMillis, String apiKey) {
-    OkHttpClient intakeHttpClient = null;
-    HttpUrl intakeUrl = null;
-    if (telemetryIntakeUrl == null) {
-      log.warn("Cannot create Telemetry Intake client because Telemetry Intake URL unset.");
-      return null;
-    } else if (apiKey == null) {
+  public static TelemetryClient buildIntakeClient(String site, long timeoutMillis, String apiKey) {
+    if (apiKey == null) {
       log.warn("Cannot create Telemetry Intake because API_KEY unspecified.");
       return null;
-    } else {
-      try {
-        intakeUrl = HttpUrl.get(telemetryIntakeUrl);
-        intakeHttpClient = OkHttpUtils.buildHttpClient(intakeUrl, timeoutMillis);
-      } catch (IllegalArgumentException e) {
-        log.error(
-            "Can't create Telemetry Intake because of invalid URL {}",
-            GeneralConfig.TELEMETRY_INTAKE_URL);
-      }
     }
-    return new TelemetryClient(intakeHttpClient, intakeUrl, apiKey);
+
+    String prefix = "";
+    if (site.endsWith("datad0g.com")) {
+      prefix = "all-http-intake.logs.";
+    } else if (site.endsWith("datadoghq.com")) {
+      prefix = "instrumentation-telemetry-intake.";
+    }
+
+    String telemetryUrl = "https://" + prefix + site + "/api/v2/apmtelemetry";
+    HttpUrl url;
+    try {
+      url = HttpUrl.get(telemetryUrl);
+    } catch (IllegalArgumentException e) {
+      log.error("Can't create Telemetry URL for {}", telemetryUrl);
+      return null;
+    }
+
+    OkHttpClient httpClient = OkHttpUtils.buildHttpClient(url, timeoutMillis);
+    return new TelemetryClient(httpClient, url, apiKey);
   }
 
   private static final Logger log = LoggerFactory.getLogger(TelemetryClient.class);
