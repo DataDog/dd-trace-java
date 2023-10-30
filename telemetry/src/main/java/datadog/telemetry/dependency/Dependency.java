@@ -57,6 +57,24 @@ public final class Dependency {
     this.hash = hash;
   }
 
+  @Override
+  public String toString() {
+    return "Dependency{"
+        + "name='"
+        + name
+        + '\''
+        + ", version='"
+        + version
+        + '\''
+        + ", source='"
+        + source
+        + '\''
+        + ", hash='"
+        + hash
+        + '\''
+        + '}';
+  }
+
   public static List<Dependency> fromMavenPom(JarFile jar) {
     if (jar == null) {
       return Collections.emptyList();
