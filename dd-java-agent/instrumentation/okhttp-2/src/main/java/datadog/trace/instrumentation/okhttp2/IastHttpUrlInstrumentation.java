@@ -76,20 +76,20 @@ public class IastHttpUrlInstrumentation extends Instrumenter.Iast
         @Advice.Argument(0) final Object argument, @Advice.Return final Object result) {
       final PropagationModule module = InstrumentationBridge.PROPAGATION;
       if (module != null) {
-        module.taintIfInputIsTainted(result, argument);
+        module.taintIfTainted(result, argument);
       }
     }
   }
 
   public static class PropagationAdvice {
 
-    @Advice.OnMethodExit(suppress = Throwable.class, inline = false)
+    @Advice.OnMethodExit(suppress = Throwable.class)
     @Propagation
     public static void onPropagation(
         @Advice.This final Object self, @Advice.Return final Object result) {
       final PropagationModule module = InstrumentationBridge.PROPAGATION;
       if (module != null) {
-        module.taintIfInputIsTainted(result, self);
+        module.taintIfTainted(result, self);
       }
     }
   }

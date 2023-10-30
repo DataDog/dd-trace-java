@@ -2,6 +2,7 @@ package datadog.trace.instrumentation.servlet.request;
 
 import datadog.trace.agent.tooling.csi.CallSite;
 import datadog.trace.api.iast.IastCallSites;
+import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Sink;
 import datadog.trace.api.iast.Source;
@@ -9,7 +10,6 @@ import datadog.trace.api.iast.SourceTypes;
 import datadog.trace.api.iast.VulnerabilityTypes;
 import datadog.trace.api.iast.propagation.PropagationModule;
 import datadog.trace.api.iast.sink.UnvalidatedRedirectModule;
-import datadog.trace.api.iast.source.WebModule;
 import datadog.trace.util.stacktrace.StackUtils;
 import java.io.BufferedReader;
 import java.util.ArrayList;
@@ -34,7 +34,7 @@ public class HttpServletRequestCallSite {
     final PropagationModule module = InstrumentationBridge.PROPAGATION;
     if (module != null) {
       try {
-        module.taint(SourceTypes.REQUEST_HEADER_VALUE, name, value);
+        module.taint(value, SourceTypes.REQUEST_HEADER_VALUE, name);
       } catch (final Throwable e) {
         module.onUnexpectedException("afterGetHeader threw", e);
       }
@@ -55,7 +55,7 @@ public class HttpServletRequestCallSite {
     if (enumeration == null) {
       return null;
     }
-    final WebModule module = InstrumentationBridge.WEB;
+    final PropagationModule module = InstrumentationBridge.PROPAGATION;
     if (module == null) {
       return enumeration;
     }
@@ -66,7 +66,10 @@ public class HttpServletRequestCallSite {
         headerValues.add(headerValue);
       }
       try {
-        module.onHeaderValues(headerName, headerValues);
+        final IastContext ctx = IastContext.Provider.get();
+        for (final String value : headerValues) {
+          module.taint(ctx, value, SourceTypes.REQUEST_HEADER_VALUE, headerName);
+        }
       } catch (final Throwable e) {
         module.onUnexpectedException("afterGetHeaders threw", e);
       }
@@ -88,7 +91,7 @@ public class HttpServletRequestCallSite {
     if (enumeration == null) {
       return null;
     }
-    final WebModule module = InstrumentationBridge.WEB;
+    final PropagationModule module = InstrumentationBridge.PROPAGATION;
     if (module == null) {
       return enumeration;
     }
@@ -99,7 +102,10 @@ public class HttpServletRequestCallSite {
         headerNames.add(headerName);
       }
       try {
-        module.onHeaderNames(headerNames);
+        final IastContext ctx = IastContext.Provider.get();
+        for (final String name : headerNames) {
+          module.taint(ctx, name, SourceTypes.REQUEST_HEADER_NAME, name);
+        }
       } catch (final Throwable e) {
         module.onUnexpectedException("afterGetHeaderNames threw", e);
       }
@@ -120,7 +126,10 @@ public class HttpServletRequestCallSite {
       final PropagationModule module = InstrumentationBridge.PROPAGATION;
       if (module != null) {
         try {
-          module.taintObjects(SourceTypes.REQUEST_COOKIE_VALUE, cookies);
+          final IastContext ctx = IastContext.Provider.get();
+          for (final Cookie cookie : cookies) {
+            module.taint(ctx, cookie, SourceTypes.REQUEST_COOKIE_VALUE);
+          }
         } catch (final Throwable e) {
           module.onUnexpectedException("afterGetCookies threw", e);
         }
@@ -137,7 +146,7 @@ public class HttpServletRequestCallSite {
     final PropagationModule module = InstrumentationBridge.PROPAGATION;
     if (module != null) {
       try {
-        module.taint(SourceTypes.REQUEST_QUERY, null, queryString);
+        module.taint(queryString, SourceTypes.REQUEST_QUERY);
       } catch (final Throwable e) {
         module.onUnexpectedException("afterGetQueryString threw", e);
       }
@@ -157,7 +166,7 @@ public class HttpServletRequestCallSite {
     final PropagationModule module = InstrumentationBridge.PROPAGATION;
     if (module != null) {
       try {
-        module.taint(SourceTypes.REQUEST_PARAMETER_VALUE, name, value);
+        module.taint(value, SourceTypes.REQUEST_PARAMETER_VALUE, name);
       } catch (final Throwable e) {
         module.onUnexpectedException("afterGetParameter threw", e);
       }
@@ -173,8 +182,8 @@ public class HttpServletRequestCallSite {
       @CallSite.This final HttpServletRequest self,
       @CallSite.Return final Enumeration<String> enumeration)
       throws Throwable {
-    final WebModule module = InstrumentationBridge.WEB;
-    if (module == null) {
+    final PropagationModule module = InstrumentationBridge.PROPAGATION;
+    if (module == null || enumeration == null) {
       return enumeration;
     }
     try {
@@ -184,7 +193,10 @@ public class HttpServletRequestCallSite {
         parameterNames.add(paramName);
       }
       try {
-        module.onParameterNames(parameterNames);
+        final IastContext ctx = IastContext.Provider.get();
+        for (final String name : parameterNames) {
+          module.taint(ctx, name, SourceTypes.REQUEST_PARAMETER_NAME, name);
+        }
       } catch (final Throwable e) {
         module.onUnexpectedException("afterGetParameterNames threw", e);
       }
@@ -205,11 +217,14 @@ public class HttpServletRequestCallSite {
       @CallSite.This final HttpServletRequest self,
       @CallSite.Argument final String paramName,
       @CallSite.Return final String[] parameterValues) {
-    if (null != parameterValues) {
-      final WebModule module = InstrumentationBridge.WEB;
+    if (null != parameterValues && parameterValues.length > 0) {
+      final PropagationModule module = InstrumentationBridge.PROPAGATION;
       if (module != null) {
         try {
-          module.onParameterValues(paramName, parameterValues);
+          final IastContext ctx = IastContext.Provider.get();
+          for (final String value : parameterValues) {
+            module.taint(ctx, value, SourceTypes.REQUEST_PARAMETER_VALUE, paramName);
+          }
         } catch (final Throwable e) {
           module.onUnexpectedException("afterGetParameterValues threw", e);
         }
@@ -225,9 +240,9 @@ public class HttpServletRequestCallSite {
       @CallSite.This final HttpServletRequest self,
       @CallSite.Return final BufferedReader bufferedReader) {
     final PropagationModule module = InstrumentationBridge.PROPAGATION;
-    if (module != null) {
+    if (module != null && bufferedReader != null) {
       try {
-        module.taintObject(SourceTypes.REQUEST_BODY, bufferedReader);
+        module.taint(bufferedReader, SourceTypes.REQUEST_BODY);
       } catch (final Throwable e) {
         module.onUnexpectedException("afterGetReader threw", e);
       }
@@ -242,7 +257,7 @@ public class HttpServletRequestCallSite {
       "javax.servlet.RequestDispatcher javax.servlet.http.HttpServletRequestWrapper.getRequestDispatcher(java.lang.String)")
   public static void beforeRequestDispatcher(@CallSite.Argument final String path) {
     final UnvalidatedRedirectModule module = InstrumentationBridge.UNVALIDATED_REDIRECT;
-    if (module != null) {
+    if (module != null && path != null) {
       try {
         module.onRedirect(path);
       } catch (final Throwable e) {
@@ -252,16 +267,16 @@ public class HttpServletRequestCallSite {
   }
 
   @Source(SourceTypes.REQUEST_URI)
-  @CallSite.After("java.lang.String javax.servlet.http.HttpServletRequest.getRequestURI()")
-  public static String afterGetRequestURI(
-      @CallSite.This final HttpServletRequest self, @CallSite.Return final String retValue) {
-    if (null != retValue && !retValue.isEmpty()) {
-      final WebModule module = InstrumentationBridge.WEB;
+  @CallSite.After("java.lang.StringBuffer javax.servlet.http.HttpServletRequest.getRequestURL()")
+  public static StringBuffer afterGetRequestURL(
+      @CallSite.This final HttpServletRequest self, @CallSite.Return final StringBuffer retValue) {
+    if (null != retValue && retValue.length() > 0) {
+      final PropagationModule module = InstrumentationBridge.PROPAGATION;
       if (module != null) {
         try {
-          module.onGetRequestURI(retValue);
+          module.taint(retValue, SourceTypes.REQUEST_URI);
         } catch (final Throwable e) {
-          module.onUnexpectedException("afterGetRequestURI threw", e);
+          module.onUnexpectedException("afterGetRequestURL threw", e);
         }
       }
     }
@@ -269,15 +284,16 @@ public class HttpServletRequestCallSite {
   }
 
   @Source(SourceTypes.REQUEST_PATH)
+  @CallSite.After("java.lang.String javax.servlet.http.HttpServletRequest.getRequestURI()")
   @CallSite.After("java.lang.String javax.servlet.http.HttpServletRequest.getPathInfo()")
   @CallSite.After("java.lang.String javax.servlet.http.HttpServletRequest.getPathTranslated()")
-  public static String afterGetPathInfo(
+  public static String afterGetPath(
       @CallSite.This final HttpServletRequest self, @CallSite.Return final String retValue) {
     if (null != retValue && !retValue.isEmpty()) {
-      final WebModule module = InstrumentationBridge.WEB;
+      final PropagationModule module = InstrumentationBridge.PROPAGATION;
       if (module != null) {
         try {
-          module.onGetPathInfo(retValue);
+          module.taint(retValue, SourceTypes.REQUEST_PATH);
         } catch (final Throwable e) {
           module.onUnexpectedException("afterGetPathInfo threw", e);
         }

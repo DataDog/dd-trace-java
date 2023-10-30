@@ -43,7 +43,7 @@ class Json2FactoryInstrumentationTest extends AgentTestRunner {
 
     then:
     result != null
-    1 * propagationModule.taintIfInputIsTainted(_ as JsonParser, content)
+    1 * propagationModule.taintIfTainted(_ as JsonParser, content)
     0 * _
   }
 
@@ -59,7 +59,7 @@ class Json2FactoryInstrumentationTest extends AgentTestRunner {
 
     then:
     result != null
-    1 * propagationModule.taintIfInputIsTainted(_ as JsonParser, is)
+    1 * propagationModule.taintIfTainted(_ as JsonParser, is)
     2 * is.read(_, _, _)
     0 * _
   }
@@ -76,7 +76,7 @@ class Json2FactoryInstrumentationTest extends AgentTestRunner {
 
     then:
     result != null
-    1 * propagationModule.taintIfInputIsTainted(_ as JsonParser, reader)
+    1 * propagationModule.taintIfTainted(_ as JsonParser, reader)
     0 * _
   }
 
@@ -95,9 +95,9 @@ class Json2FactoryInstrumentationTest extends AgentTestRunner {
     then:
     parser != null
     json == [key: 'value']
-    1 * propagationModule.taintIfInputIsTainted(_ as JsonParser, url)
-    1 * propagationModule.taintIfInputIsTainted('key', _ as JsonParser)
-    1 * propagationModule.taintIfInputIsTainted('value', _ as JsonParser)
+    1 * propagationModule.taintIfTainted(_ as JsonParser, url)
+    1 * propagationModule.taintIfTainted('key', _ as JsonParser)
+    1 * propagationModule.taintIfTainted('value', _ as JsonParser)
     1 * ssrfModule.onURLConnection(url)
     0 * _
   }

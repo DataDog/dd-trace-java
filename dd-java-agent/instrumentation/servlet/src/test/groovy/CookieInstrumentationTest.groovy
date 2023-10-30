@@ -27,7 +27,7 @@ class CookieInstrumentationTest extends AgentTestRunner {
 
     then:
     result == NAME
-    1 * iastModule.taintIfInputIsTainted(SourceTypes.REQUEST_COOKIE_NAME, NAME, NAME, cookieTestSuite.getCookie())
+    1 * iastModule.taintIfTainted(NAME, cookieTestSuite.getCookie(), SourceTypes.REQUEST_COOKIE_NAME, NAME)
   }
 
   void 'test getValue'() {
@@ -41,6 +41,6 @@ class CookieInstrumentationTest extends AgentTestRunner {
 
     then:
     result == VALUE
-    1 * iastModule.taintIfInputIsTainted(SourceTypes.REQUEST_COOKIE_VALUE, NAME, VALUE, cookieTestSuite.getCookie())
+    1 * iastModule.taintIfTainted(VALUE, cookieTestSuite.getCookie(), SourceTypes.REQUEST_COOKIE_VALUE, NAME)
   }
 }

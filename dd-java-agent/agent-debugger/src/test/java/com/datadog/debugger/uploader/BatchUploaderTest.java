@@ -55,10 +55,9 @@ public class BatchUploaderTest {
     server.start();
     url = server.url(URL_PATH);
 
-    when(config.getFinalDebuggerSnapshotUrl()).thenReturn(server.url(URL_PATH).toString());
     when(config.getDebuggerUploadTimeout()).thenReturn((int) REQUEST_TIMEOUT.getSeconds());
 
-    uploader = new BatchUploader(config, ratelimitedLogger);
+    uploader = new BatchUploader(config, url.toString(), ratelimitedLogger);
   }
 
   @AfterEach
@@ -73,9 +72,7 @@ public class BatchUploaderTest {
 
   @Test
   void testOkHttpClientForcesCleartextConnspecWhenNotUsingTLS() {
-    when(config.getFinalDebuggerSnapshotUrl()).thenReturn("http://example.com");
-
-    uploader = new BatchUploader(config);
+    uploader = new BatchUploader(config, "http://example.com");
 
     final List<ConnectionSpec> connectionSpecs = uploader.getClient().connectionSpecs();
     assertEquals(connectionSpecs.size(), 1);
@@ -84,9 +81,7 @@ public class BatchUploaderTest {
 
   @Test
   void testOkHttpClientUsesDefaultConnspecsOverTLS() {
-    when(config.getFinalDebuggerSnapshotUrl()).thenReturn("https://example.com");
-
-    uploader = new BatchUploader(config);
+    uploader = new BatchUploader(config, "https://example.com");
 
     final List<ConnectionSpec> connectionSpecs = uploader.getClient().connectionSpecs();
     assertEquals(connectionSpecs.size(), 2);
@@ -163,7 +158,7 @@ public class BatchUploaderTest {
     // We need to make sure that initial requests that fill up the queue hang to the duration of the
     // test. So we specify insanely large timeout here.
     when(config.getDebuggerUploadTimeout()).thenReturn((int) FOREVER_REQUEST_TIMEOUT.getSeconds());
-    uploader = new BatchUploader(config);
+    uploader = new BatchUploader(config, url.toString());
 
     // We have to block all parallel requests to make sure queue is kept full
     for (int i = 0; i < BatchUploader.MAX_RUNNING_REQUESTS; i++) {
@@ -203,15 +198,15 @@ public class BatchUploaderTest {
 
   @Test
   public void testEmptyUrl() {
-    when(config.getFinalDebuggerSnapshotUrl()).thenReturn("");
-    Assertions.assertThrows(IllegalArgumentException.class, () -> new BatchUploader(config));
+    Assertions.assertThrows(IllegalArgumentException.class, () -> new BatchUploader(config, ""));
   }
 
   @Test
   public void testNoContainerId() throws InterruptedException {
     // we don't explicitly specify a container ID
     server.enqueue(new MockResponse().setResponseCode(200));
-    BatchUploader uploaderWithNoContainerId = new BatchUploader(config, ratelimitedLogger, null);
+    BatchUploader uploaderWithNoContainerId =
+        new BatchUploader(config, url.toString(), ratelimitedLogger, null);
 
     uploaderWithNoContainerId.upload(SNAPSHOT_BUFFER);
     uploaderWithNoContainerId.shutdown();
@@ -225,7 +220,7 @@ public class BatchUploaderTest {
     server.enqueue(new MockResponse().setResponseCode(200));
 
     BatchUploader uploaderWithContainerId =
-        new BatchUploader(config, ratelimitedLogger, "testContainerId");
+        new BatchUploader(config, url.toString(), ratelimitedLogger, "testContainerId");
     uploaderWithContainerId.upload(SNAPSHOT_BUFFER);
     uploaderWithContainerId.shutdown();
 
@@ -238,7 +233,7 @@ public class BatchUploaderTest {
     server.enqueue(new MockResponse().setResponseCode(200));
     when(config.getApiKey()).thenReturn(API_KEY_VALUE);
 
-    BatchUploader uploaderWithApiKey = new BatchUploader(config, ratelimitedLogger);
+    BatchUploader uploaderWithApiKey = new BatchUploader(config, url.toString(), ratelimitedLogger);
     uploaderWithApiKey.upload(SNAPSHOT_BUFFER);
     uploaderWithApiKey.shutdown();
 

@@ -24,7 +24,7 @@ public class EscapeUtilsCallSite {
       final PropagationModule module = InstrumentationBridge.PROPAGATION;
       if (module != null) {
         try {
-          module.taintIfInputIsTaintedWithMarks(result, input, VulnerabilityMarks.XSS_MARK);
+          module.taintIfTainted(result, input, false, VulnerabilityMarks.XSS_MARK);
         } catch (final Throwable e) {
           module.onUnexpectedException("afterEscape threw", e);
         }

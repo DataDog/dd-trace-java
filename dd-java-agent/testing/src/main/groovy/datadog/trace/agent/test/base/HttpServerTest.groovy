@@ -23,6 +23,7 @@ import datadog.trace.api.gateway.IGSpanInfo
 import datadog.trace.api.gateway.RequestContext
 import datadog.trace.api.gateway.RequestContextSlot
 import datadog.trace.api.http.StoredBodySupplier
+import datadog.trace.api.iast.IastContext
 import datadog.trace.api.normalize.SimpleHttpPathNormalizer
 import datadog.trace.bootstrap.blocking.BlockingActionHelper
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
@@ -104,7 +105,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
   }
 
   @CompileStatic
-  def setupSpec() {
+  void setupSpec() {
     // Register the Instrumentation Gateway callbacks
     def ss = get().getSubscriptionService(RequestContextSlot.APPSEC)
     def callbacks = new IGCallbacks()
@@ -388,6 +389,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     BODY_URLENCODED("body-urlencoded?ignore=pair", 200, '[a:[x]]'),
     BODY_MULTIPART("body-multipart?ignore=pair", 200, '[a:[x]]'),
     BODY_JSON("body-json", 200, '{"a":"x"}'),
+    BODY_XML("body-xml", 200, '<foo attr="attr_value">mytext<bar/></foo>'),
     REDIRECT("redirect", 302, "/redirected"),
     FORWARDED("forwarded", 200, "1.2.3.4"),
     ERROR("error-status", 500, "controller error"), // "error" is a special path for some frameworks
@@ -2095,8 +2097,9 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
           [
             it.key,
             (it.value instanceof Iterable || it.value instanceof String[]) ? it.value : [it.value]
-          ]}
-      } else if (!(obj instanceof String)) {
+          ]
+        }
+      } else if (!(obj instanceof String) && !(obj instanceof List)) {
         obj = obj.properties
           .findAll { it.key != 'class' }
           .collectEntries { [it.key, it.value instanceof Iterable ? it.value : [it.value]] }
@@ -2167,7 +2170,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
   }
 
   class IastIGCallbacks {
-    static class Context {
+    static class Context implements IastContext {
     }
 
     final Supplier<Flow<Context>> requestStartedCb =

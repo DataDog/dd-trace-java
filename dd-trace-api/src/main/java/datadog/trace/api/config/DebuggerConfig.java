@@ -25,6 +25,10 @@ public final class DebuggerConfig {
   public static final String DEBUGGER_REDACTED_IDENTIFIERS =
       "dynamic.instrumentation.redacted.identifiers";
   public static final String DEBUGGER_REDACTED_TYPES = "dynamic.instrumentation.redacted.types";
+  public static final String DEBUGGER_SYMBOL_ENABLED = "dynamic.instrumentation.symbol.enabled";
+  public static final String DEBUGGER_SYMBOL_INCLUDES = "dynamic.instrumentation.symbol.includes";
+  public static final String DEBUGGER_SYMBOL_FLUSH_THRESHOLD =
+      "dynamic.instrumentation.symbol.flush.threshold";
 
   private DebuggerConfig() {}
 }

@@ -1,5 +1,7 @@
 package com.datadog.iast.model;
 
+import static datadog.trace.api.iast.VulnerabilityMarks.NOT_MARKED;
+
 import com.datadog.iast.model.json.SourceIndex;
 import com.datadog.iast.util.Ranged;
 import java.util.Objects;
@@ -8,8 +10,6 @@ import javax.annotation.Nonnegative;
 import javax.annotation.Nonnull;
 
 public final class Range implements Ranged {
-
-  public static final int NOT_MARKED = 0;
 
   private final @Nonnegative int start;
   private final @Nonnegative int length;

@@ -23,15 +23,15 @@ class EscapeUtilsCallSiteTest extends AgentTestRunner {
 
     then:
     result == expected
-    1 * module.taintIfInputIsTaintedWithMarks(_ as String, args[0], VulnerabilityMarks.XSS_MARK)
+    1 * module.taintIfTainted(_ as String, args[0], false, VulnerabilityMarks.XSS_MARK)
     0 * _
 
     where:
-    method       | args                  | expected
-    'escapeHtml4Xml' | ['<htmlTag>"escape this < </htmlTag>'] | '&lt;htmlTag&gt;&quot;escape this &lt; &lt;/htmlTag&gt;'
-    'escapeHtml4' | ['<htmlTag>"escape this < </htmlTag>'] | '&lt;htmlTag&gt;&quot;escape this &lt; &lt;/htmlTag&gt;'
-    'escapeHtml5' | ['<htmlTag>"escape this < </htmlTag>'] | '&lt;htmlTag&gt;&quot;escape this &lt; &lt;/htmlTag&gt;'
-    'escapeHtml5Xml' | ['<htmlTag>"escape this < </htmlTag>'] | '&lt;htmlTag&gt;&quot;escape this &lt; &lt;/htmlTag&gt;'
+    method             | args                                                            | expected
+    'escapeHtml4Xml'   | ['<htmlTag>"escape this < </htmlTag>']                          | '&lt;htmlTag&gt;&quot;escape this &lt; &lt;/htmlTag&gt;'
+    'escapeHtml4'      | ['<htmlTag>"escape this < </htmlTag>']                          | '&lt;htmlTag&gt;&quot;escape this &lt; &lt;/htmlTag&gt;'
+    'escapeHtml5'      | ['<htmlTag>"escape this < </htmlTag>']                          | '&lt;htmlTag&gt;&quot;escape this &lt; &lt;/htmlTag&gt;'
+    'escapeHtml5Xml'   | ['<htmlTag>"escape this < </htmlTag>']                          | '&lt;htmlTag&gt;&quot;escape this &lt; &lt;/htmlTag&gt;'
     'escapeJavaScript' | ['<script>function a(){console.log("escape this < ")}<script>'] | '<script>function a(){console.log(\\"escape this < \\")}<script>'
   }
 
@@ -46,15 +46,14 @@ class EscapeUtilsCallSiteTest extends AgentTestRunner {
 
     then:
     notThrown(Exception)
-    0 * module.taintIfInputIsTaintedWithMarks(_)
     0 * _
 
     where:
-    method       | _
-    'escapeHtml4Xml' | _
-    'escapeHtml4' | _
-    'escapeHtml5' | _
-    'escapeHtml5Xml' | _
+    method             | _
+    'escapeHtml4Xml'   | _
+    'escapeHtml4'      | _
+    'escapeHtml5'      | _
+    'escapeHtml5Xml'   | _
     'escapeJavaScript' | _
   }
 }

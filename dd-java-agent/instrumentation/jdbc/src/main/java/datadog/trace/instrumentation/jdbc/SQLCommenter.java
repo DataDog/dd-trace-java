@@ -19,8 +19,8 @@ public class SQLCommenter {
   private static final char EQUALS = '=';
   private static final char COMMA = ',';
   private static final char QUOTE = '\'';
-  private static final String OPEN_COMMENT = "/*";
-  private static final String CLOSE_COMMENT = "*/ ";
+  private static final String OPEN_COMMENT = " /*";
+  private static final String CLOSE_COMMENT = "*/";
   private static final int INITIAL_CAPACITY = computeInitialCapacity();
 
   public static String inject(final String sql, final String dbService) {
@@ -44,26 +44,25 @@ public class SQLCommenter {
     final String version = config.getVersion();
     final int commentSize = capacity(traceParent, parentService, dbService, env, version);
     StringBuilder sb = new StringBuilder(sql.length() + commentSize);
+    sb.append(sql);
     sb.append(OPEN_COMMENT);
     toComment(sb, injectTrace, parentService, dbService, env, version, traceParent);
-    if (sb.length() == 2) {
+    if (sb.length() == OPEN_COMMENT.length() + sql.length()) {
       return sql;
     }
     sb.append(CLOSE_COMMENT);
-    sb.append(sql);
     return sb.toString();
   }
 
   private static boolean hasDDComment(String sql) {
-    // first check to see if sql starts with a comment
-    if (!(sql.startsWith("/*"))) {
+    // first check to see if sql ends with a comment
+    if (!(sql.endsWith("*/"))) {
       return false;
     }
     // else check to see if it's a DBM trace sql comment
-    int i = 2;
     boolean found = false;
-    if (sql.length() > 2) {
-      // check if the next word starts with one of the specified keys
+    int i = sql.lastIndexOf("/*") + 2;
+    if (i >= 2) {
       if (hasMatchingSubstring(sql, i, PARENT_SERVICE)) {
         found = true;
       } else if (hasMatchingSubstring(sql, i, DATABASE_SERVICE)) {

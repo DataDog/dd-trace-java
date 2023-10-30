@@ -7,7 +7,6 @@ import datadog.trace.api.config.TracerConfig
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.SourceTypes
 import datadog.trace.api.iast.propagation.PropagationModule
-import datadog.trace.api.iast.source.WebModule
 import groovy.transform.CompileDynamic
 
 @CompileDynamic
@@ -24,9 +23,7 @@ class TestGetParameterInstrumentation extends AgentTestRunner {
   }
 
   void 'test getParameter'() {
-    final webMod = Mock(WebModule)
     final propMod = Mock(PropagationModule)
-    InstrumentationBridge.registerIastModule(webMod)
     InstrumentationBridge.registerIastModule(propMod)
     final map = [param1: ['value1', 'value2'] as String[]]
     final servletRequest = Mock(clazz) {
@@ -40,19 +37,23 @@ class TestGetParameterInstrumentation extends AgentTestRunner {
     testSuite.getParameter('param1')
 
     then:
-    1 * propMod.taint(SourceTypes.REQUEST_PARAMETER_VALUE, 'param1', 'value1')
+    1 * propMod.taint('value1', SourceTypes.REQUEST_PARAMETER_VALUE, 'param1')
 
     when:
     testSuite.getParameterValues('param1')
 
     then:
-    1 * webMod.onParameterValues('param1', ['value1', 'value2'])
+    map['param1'].each { value ->
+      1 * propMod.taint(_, value, SourceTypes.REQUEST_PARAMETER_VALUE, 'param1')
+    }
 
     when:
     testSuite.getParameterNames()
 
     then:
-    1 * webMod.onParameterNames(['param1'])
+    map.keySet().each {param ->
+      1 * propMod.taint(_, param, SourceTypes.REQUEST_PARAMETER_NAME, param)
+    }
 
     where:
     testSuite                                     | clazz

@@ -6,11 +6,11 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Source;
 import datadog.trace.api.iast.SourceTypes;
 import datadog.trace.api.iast.propagation.PropagationModule;
-import datadog.trace.api.iast.source.WebModule;
 import java.util.List;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
@@ -45,12 +45,13 @@ public class InboundMessageContextInstrumentation extends Instrumenter.Iast
     @Source(SourceTypes.REQUEST_HEADER_VALUE)
     public static void onExit(@Advice.Return Map<String, List<String>> headers) {
       final PropagationModule prop = InstrumentationBridge.PROPAGATION;
-      final WebModule web = InstrumentationBridge.WEB;
-      if (prop != null && web != null) {
-        web.onHeaderNames(headers.keySet());
+      if (prop != null && headers != null && !headers.isEmpty()) {
+        final IastContext ctx = IastContext.Provider.get();
         for (Map.Entry<String, List<String>> entry : headers.entrySet()) {
+          final String name = entry.getKey();
+          prop.taint(ctx, name, SourceTypes.REQUEST_HEADER_NAME, name);
           for (String value : entry.getValue()) {
-            prop.taint(SourceTypes.REQUEST_HEADER_VALUE, entry.getKey(), value);
+            prop.taint(ctx, value, SourceTypes.REQUEST_HEADER_VALUE, name);
           }
         }
       }
@@ -62,9 +63,12 @@ public class InboundMessageContextInstrumentation extends Instrumenter.Iast
     @Source(SourceTypes.REQUEST_COOKIE_VALUE)
     public static void onExit(@Advice.Return Map<String, Object> cookies) {
       final PropagationModule module = InstrumentationBridge.PROPAGATION;
-      if (module != null) {
-        for (Object cookie : cookies.values()) {
-          module.taintObject(SourceTypes.REQUEST_COOKIE_VALUE, cookie);
+      if (module != null && cookies != null && !cookies.isEmpty()) {
+        final IastContext ctx = IastContext.Provider.get();
+        for (Map.Entry<String, Object> entry : cookies.entrySet()) {
+          final String name = entry.getKey();
+          module.taint(ctx, name, SourceTypes.REQUEST_COOKIE_NAME, name);
+          module.taint(ctx, entry.getValue(), SourceTypes.REQUEST_COOKIE_VALUE, name);
         }
       }
     }
