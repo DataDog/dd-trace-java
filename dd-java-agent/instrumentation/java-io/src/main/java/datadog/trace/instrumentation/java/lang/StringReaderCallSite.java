@@ -18,7 +18,7 @@ public class StringReaderCallSite {
       @CallSite.Return @Nonnull final StringReader result) {
     final PropagationModule propagationModule = InstrumentationBridge.PROPAGATION;
     if (propagationModule != null) {
-      propagationModule.taintIfInputIsTainted(result, params[0]);
+      propagationModule.taintIfTainted(result, params[0]);
     }
     return result;
   }
