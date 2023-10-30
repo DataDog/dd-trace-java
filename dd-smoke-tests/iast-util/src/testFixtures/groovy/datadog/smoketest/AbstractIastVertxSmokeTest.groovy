@@ -11,6 +11,8 @@ import spock.lang.IgnoreIf
 @CompileDynamic
 abstract class AbstractIastVertxSmokeTest extends AbstractIastServerSmokeTest {
 
+  private static final MediaType FORM = MediaType.get('application/x-www-form-urlencoded')
+
   void 'test header source'() {
     setup:
     final url = "http://localhost:${httpPort}/header"
@@ -40,6 +42,23 @@ abstract class AbstractIastVertxSmokeTest extends AbstractIastServerSmokeTest {
       tainted.value == 'headerValues' &&
         tainted.ranges[0].source.name == 'header' &&
         tainted.ranges[0].source.origin == 'http.request.header'
+    }
+  }
+
+  void 'test header names list source'() {
+    setup:
+    final url = "http://localhost:${httpPort}/headernames"
+    final request = new Request.Builder().url(url).header('header', 'headerValues').get().build()
+
+    when:
+    client.newCall(request).execute()
+
+    then:
+    hasTainted { tainted ->
+      tainted.value == 'header' &&
+        tainted.ranges[0].source.name == 'header' &&
+        tainted.ranges[0].source.value == 'header' &&
+        tainted.ranges[0].source.origin == 'http.request.header.name'
     }
   }
 
@@ -73,6 +92,28 @@ abstract class AbstractIastVertxSmokeTest extends AbstractIastServerSmokeTest {
         tainted.ranges[0].source.name == 'param' &&
         tainted.ranges[0].source.origin == 'http.request.parameter'
     }
+  }
+
+  void 'test parameter names list source'() {
+    setup:
+    final request = builder.call("http://localhost:${httpPort}/paramnames")
+    final name = params.split('=')[0]
+
+    when:
+    client.newCall(request).execute()
+
+    then:
+    hasTainted { tainted ->
+      tainted.value == name &&
+        tainted.ranges[0].source.name == name &&
+        tainted.ranges[0].source.value == name &&
+        tainted.ranges[0].source.origin == 'http.request.parameter.name'
+    }
+
+    where:
+    params            | builder
+    'postparam=value' | { String url -> new Request.Builder().url(url).post(RequestBody.create(FORM, params)).build() }
+    'getparam=value'  | { String url -> new Request.Builder().url("$url?$params").get().build() }
   }
 
   void 'test form source'() {

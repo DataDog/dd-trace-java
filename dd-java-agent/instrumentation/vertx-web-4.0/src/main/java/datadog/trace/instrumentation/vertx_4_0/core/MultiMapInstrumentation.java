@@ -120,7 +120,7 @@ public abstract class MultiMapInstrumentation extends Instrumenter.Iast {
             final String name = entry.getKey();
             final String value = entry.getValue();
             if (keys.add(name)) {
-              propagation.taint(ctx, name, nameOrigin);
+              propagation.taint(ctx, name, nameOrigin, name);
             }
             propagation.taint(ctx, value, source.getOrigin(), name);
           }
@@ -141,7 +141,7 @@ public abstract class MultiMapInstrumentation extends Instrumenter.Iast {
           final IastContext ctx = IastContext.Provider.get();
           final byte nameOrigin = namedSource(source.getOrigin());
           for (final String name : result) {
-            propagation.taint(ctx, name, nameOrigin);
+            propagation.taint(ctx, name, nameOrigin, name);
           }
         }
       }
