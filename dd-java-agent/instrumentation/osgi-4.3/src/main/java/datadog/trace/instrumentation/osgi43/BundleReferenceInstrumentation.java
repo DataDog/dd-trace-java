@@ -46,11 +46,7 @@ public final class BundleReferenceInstrumentation extends Instrumenter.Tracing
 
   @Override
   public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".BundleWiringHelper",
-      packageName + ".BundleWiringHelper$1",
-      packageName + ".BundleWiringHelper$2"
-    };
+    return new String[] {packageName + ".BundleWiringHelper"};
   }
 
   @Override

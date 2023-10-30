@@ -26,6 +26,7 @@ import static datadog.trace.api.config.ProfilingConfig.PROFILING_DIRECT_ALLOCATI
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DIRECT_ALLOCATION_ENABLED_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_ENABLED;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_ENABLED_DEFAULT;
+import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_URL_CONNECTION_CLASS_NAME;
 import static datadog.trace.api.config.TraceInstrumentationConfig.INTEGRATIONS_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.JDBC_CONNECTION_CLASS_NAME;
 import static datadog.trace.api.config.TraceInstrumentationConfig.JDBC_PREPARED_STATEMENT_CLASS_NAME;
@@ -101,6 +102,8 @@ public class InstrumenterConfig {
   private final String jdbcPreparedStatementClassName;
   private final String jdbcConnectionClassName;
 
+  private final String httpURLConnectionClassName;
+
   private final boolean directAllocationProfilingEnabled;
 
   private final List<String> excludedClasses;
@@ -173,6 +176,8 @@ public class InstrumenterConfig {
     jdbcPreparedStatementClassName =
         configProvider.getString(JDBC_PREPARED_STATEMENT_CLASS_NAME, "");
     jdbcConnectionClassName = configProvider.getString(JDBC_CONNECTION_CLASS_NAME, "");
+
+    httpURLConnectionClassName = configProvider.getString(HTTP_URL_CONNECTION_CLASS_NAME, "");
 
     directAllocationProfilingEnabled =
         configProvider.getBoolean(
@@ -285,6 +290,10 @@ public class InstrumenterConfig {
 
   public String getJdbcConnectionClassName() {
     return jdbcConnectionClassName;
+  }
+
+  public String getHttpURLConnectionClassName() {
+    return httpURLConnectionClassName;
   }
 
   public boolean isDirectAllocationProfilingEnabled() {
@@ -443,6 +452,9 @@ public class InstrumenterConfig {
         + '\''
         + ", jdbcConnectionClassName='"
         + jdbcConnectionClassName
+        + '\''
+        + ", httpURLConnectionClassName='"
+        + httpURLConnectionClassName
         + '\''
         + ", excludedClasses="
         + excludedClasses

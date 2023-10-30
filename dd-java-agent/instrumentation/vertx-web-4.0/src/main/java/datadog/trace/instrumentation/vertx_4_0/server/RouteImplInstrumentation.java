@@ -8,12 +8,16 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.iast.IastPostProcessorFactory;
 import datadog.trace.agent.tooling.muzzle.Reference;
 import java.util.Set;
+import net.bytebuddy.asm.Advice;
 
 @AutoService(Instrumenter.class)
 public class RouteImplInstrumentation extends Instrumenter.Default
-    implements Instrumenter.ForKnownTypes {
+    implements Instrumenter.ForKnownTypes, Instrumenter.WithPostProcessor {
+
+  private Advice.PostProcessor.Factory postProcessorFactory;
 
   public RouteImplInstrumentation() {
     super("vertx", "vertx-4.0");
@@ -26,8 +30,11 @@ public class RouteImplInstrumentation extends Instrumenter.Default
 
   @Override
   public boolean isApplicable(Set<TargetSystem> enabledSystems) {
-    return enabledSystems.contains(TargetSystem.APPSEC)
-        || enabledSystems.contains(TargetSystem.IAST);
+    if (enabledSystems.contains(TargetSystem.IAST)) {
+      postProcessorFactory = IastPostProcessorFactory.INSTANCE;
+      return true;
+    }
+    return enabledSystems.contains(TargetSystem.APPSEC);
   }
 
   @Override
@@ -68,5 +75,10 @@ public class RouteImplInstrumentation extends Instrumenter.Default
             .and(takesArgument(2, boolean.class))
             .and(returns(boolean.class)),
         packageName + ".RouteMatchesAdvice$BooleanReturnVariant");
+  }
+
+  @Override
+  public Advice.PostProcessor.Factory postProcessor() {
+    return postProcessorFactory;
   }
 }

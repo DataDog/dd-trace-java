@@ -4,6 +4,10 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSp
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_IN;
+import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_TAG;
+import static datadog.trace.core.datastreams.TagsProcessor.TOPIC_TAG;
+import static datadog.trace.core.datastreams.TagsProcessor.TYPE_TAG;
 import static datadog.trace.instrumentation.aws.v0.AwsSdkClientDecorator.AWS_LEGACY_TRACING;
 import static datadog.trace.instrumentation.aws.v0.AwsSdkClientDecorator.DECORATE;
 
@@ -15,7 +19,13 @@ import com.amazonaws.handlers.RequestHandler2;
 import datadog.trace.api.Config;
 import datadog.trace.api.TracePropagationStyle;
 import datadog.trace.bootstrap.ContextStore;
+import datadog.trace.bootstrap.instrumentation.api.AgentDataStreamsMonitoring;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import datadog.trace.bootstrap.instrumentation.api.PathwayContext;
+import java.util.Date;
+import java.util.LinkedHashMap;
+import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -72,15 +82,42 @@ public class TracingRequestHandler extends RequestHandler2 {
       DECORATE.beforeFinish(span);
       span.finish();
     }
+    AmazonWebServiceRequest originalRequest = request.getOriginalRequest();
+    GetterAccess requestAccess = GetterAccess.of(originalRequest);
     if (!AWS_LEGACY_TRACING && isPollingResponse(response.getAwsResponse())) {
       try {
         // store queueUrl inside response for SqsReceiveResultInstrumentation
-        AmazonWebServiceRequest originalRequest = request.getOriginalRequest();
         responseQueueStore.put(
-            response.getAwsResponse(),
-            RequestAccess.of(originalRequest).getQueueUrl(originalRequest));
+            response.getAwsResponse(), requestAccess.getQueueUrl(originalRequest));
       } catch (Throwable e) {
         log.debug("Unable to extract queueUrl from ReceiveMessageRequest", e);
+      }
+    }
+    if (span != null
+        && span.traceConfig().isDataStreamsEnabled()
+        && "AmazonKinesis".equals(request.getServiceName())
+        && "GetRecords".equals(requestAccess.getOperationNameFromType())) {
+      String streamArn = requestAccess.getStreamARN(originalRequest);
+      if (null != streamArn) {
+        List records =
+            GetterAccess.of(response.getAwsResponse()).getRecords(response.getAwsResponse());
+        if (null != records) {
+          LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>();
+          sortedTags.put(DIRECTION_TAG, DIRECTION_IN);
+          sortedTags.put(TOPIC_TAG, streamArn);
+          sortedTags.put(TYPE_TAG, "kinesis");
+          for (Object record : records) {
+            Date arrivalTime = GetterAccess.of(record).getApproximateArrivalTimestamp(record);
+            AgentDataStreamsMonitoring dataStreamsMonitoring =
+                AgentTracer.get().getDataStreamsMonitoring();
+            PathwayContext pathwayContext = dataStreamsMonitoring.newPathwayContext();
+            pathwayContext.setCheckpoint(
+                sortedTags, dataStreamsMonitoring::add, arrivalTime.getTime());
+            if (!span.context().getPathwayContext().isStarted()) {
+              span.context().mergePathwayContext(pathwayContext);
+            }
+          }
+        }
       }
     }
   }
@@ -90,7 +127,14 @@ public class TracingRequestHandler extends RequestHandler2 {
     final AgentSpan span = request.getHandlerContext(SPAN_CONTEXT_KEY);
     if (span != null) {
       request.addHandlerContext(SPAN_CONTEXT_KEY, null);
-      DECORATE.onError(span, e);
+      if (response != null) {
+        DECORATE.onResponse(span, response);
+        if (span.isError()) {
+          DECORATE.onError(span, e);
+        }
+      } else {
+        DECORATE.onError(span, e);
+      }
       DECORATE.beforeFinish(span);
       span.finish();
     }

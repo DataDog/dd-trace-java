@@ -47,6 +47,8 @@ excludedClassesCoverage += [
   "datadog.trace.bootstrap.instrumentation.api.java.lang.ProcessImplInstrumentationHelpers",
   "datadog.trace.bootstrap.instrumentation.api.Tags",
   "datadog.trace.bootstrap.instrumentation.api.CommonTagValues",
+  // Caused by empty 'default' interface method
+  "datadog.trace.bootstrap.instrumentation.api.AgentSpan.Context",
   "datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopAgentPropagation",
   "datadog.trace.bootstrap.instrumentation.api.AgentTracer",
   "datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopContext",

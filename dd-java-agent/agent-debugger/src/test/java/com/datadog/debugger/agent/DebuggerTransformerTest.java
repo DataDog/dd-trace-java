@@ -353,6 +353,7 @@ public class DebuggerTransformerTest {
     Config config = mock(Config.class);
     when(config.getFinalDebuggerSnapshotUrl())
         .thenReturn("http://localhost:8126/debugger/v1/input");
+    when(config.getFinalDebuggerSymDBUrl()).thenReturn("http://localhost:8126/symdb/v1/input");
     when(config.getDebuggerUploadBatchSize()).thenReturn(100);
     return config;
   }

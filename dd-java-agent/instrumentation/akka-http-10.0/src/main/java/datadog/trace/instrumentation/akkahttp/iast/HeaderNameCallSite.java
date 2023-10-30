@@ -26,7 +26,7 @@ public class HeaderNameCallSite {
       return result;
     }
     try {
-      module.taintIfInputIsTainted(SourceTypes.REQUEST_HEADER_NAME, result, result, header);
+      module.taintIfTainted(result, header, SourceTypes.REQUEST_HEADER_NAME, result);
     } catch (final Throwable e) {
       module.onUnexpectedException("onHeaderNames threw", e);
     }

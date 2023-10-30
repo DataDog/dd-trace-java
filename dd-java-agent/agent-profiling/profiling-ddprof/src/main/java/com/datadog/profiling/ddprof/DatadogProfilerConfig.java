@@ -3,6 +3,7 @@ package com.datadog.profiling.ddprof;
 import static datadog.trace.api.Platform.isJ9;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_ALLOCATION_ENABLED;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_CONTEXT_ATTRIBUTES;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_CONTEXT_ATTRIBUTES_RESOURCE_NAME_ENABLED;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_CONTEXT_ATTRIBUTES_SPAN_NAME_ENABLED;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_ALLOC_ENABLED;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_ALLOC_ENABLED_DEFAULT;
@@ -15,6 +16,8 @@ import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILE
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_CSTACK;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_CSTACK_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_LIBPATH;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_LINE_NUMBERS;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_LINE_NUMBERS_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_LIVEHEAP_CAPACITY;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_LIVEHEAP_CAPACITY_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_LIVEHEAP_ENABLED;
@@ -244,6 +247,13 @@ public class DatadogProfilerConfig {
     return getCStack(ConfigProvider.getInstance());
   }
 
+  public static boolean omitLineNumbers(ConfigProvider configProvider) {
+    return !getBoolean(
+        configProvider,
+        PROFILING_DATADOG_PROFILER_LINE_NUMBERS,
+        PROFILING_DATADOG_PROFILER_LINE_NUMBERS_DEFAULT);
+  }
+
   private static int clamp(int min, int max, int value) {
     return Math.max(min, Math.min(max, value));
   }
@@ -278,6 +288,10 @@ public class DatadogProfilerConfig {
 
   public static boolean isSpanNameContextAttributeEnabled(ConfigProvider configProvider) {
     return configProvider.getBoolean(PROFILING_CONTEXT_ATTRIBUTES_SPAN_NAME_ENABLED, true);
+  }
+
+  public static boolean isResourceNameContextAttributeEnabled(ConfigProvider configProvider) {
+    return configProvider.getBoolean(PROFILING_CONTEXT_ATTRIBUTES_RESOURCE_NAME_ENABLED, true);
   }
 
   public static String getString(ConfigProvider configProvider, String key, String defaultValue) {

@@ -16,7 +16,8 @@ public interface ProbeImplementation {
 
   String getStrTags();
 
-  void evaluate(CapturedContext context, CapturedContext.Status status);
+  void evaluate(
+      CapturedContext context, CapturedContext.Status status, MethodLocation methodLocation);
 
   void commit(
       CapturedContext entryContext,
@@ -84,7 +85,8 @@ public interface ProbeImplementation {
     }
 
     @Override
-    public void evaluate(CapturedContext context, CapturedContext.Status status) {}
+    public void evaluate(
+        CapturedContext context, CapturedContext.Status status, MethodLocation methodLocation) {}
 
     @Override
     public void commit(

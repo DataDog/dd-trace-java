@@ -1,6 +1,6 @@
 package server
 
-
+import datadog.trace.api.iast.IastContext
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.SourceTypes
 import datadog.trace.api.iast.propagation.PropagationModule
@@ -21,13 +21,13 @@ class IastSourceTest extends IastVertx34Server {
     final module = Mock(PropagationModule)
     InstrumentationBridge.registerIastModule(module)
     final url = "${address}/iast/propagation/cookies"
-    final request = new Request.Builder().url(url).build()
+    final request = new Request.Builder().url(url).addHeader('Cookie', 'cookie=test').build()
 
     when:
     client.newCall(request).execute()
 
     then:
-    1 * module.taintObjects(SourceTypes.REQUEST_COOKIE_VALUE, _)
+    (1.._) * module.taint(_ as IastContext, _, SourceTypes.REQUEST_COOKIE_VALUE)
   }
 
   void 'test that getCookie is instrumented'() {
@@ -35,13 +35,13 @@ class IastSourceTest extends IastVertx34Server {
     final module = Mock(PropagationModule)
     InstrumentationBridge.registerIastModule(module)
     final url = "${address}/iast/propagation/getcookie"
-    final request = new Request.Builder().url(url).build()
+    final request = new Request.Builder().url(url).addHeader('Cookie', 'cookie=test').build()
 
     when:
     client.newCall(request).execute()
 
     then:
-    1 * module.taintObject(SourceTypes.REQUEST_COOKIE_VALUE, _)
+    1 * module.taint(_, SourceTypes.REQUEST_COOKIE_VALUE)
   }
 
   void 'test that cookie getName is instrumented'() {
@@ -55,7 +55,7 @@ class IastSourceTest extends IastVertx34Server {
     client.newCall(request).execute()
 
     then:
-    1 * module.taintIfInputIsTainted(SourceTypes.REQUEST_COOKIE_NAME, 'cookieName', 'cookieName', _)
+    1 * module.taintIfTainted('cookieName', _, SourceTypes.REQUEST_COOKIE_NAME, 'cookieName')
   }
 
   void 'test that cookie getValue is instrumented'() {
@@ -69,8 +69,8 @@ class IastSourceTest extends IastVertx34Server {
     client.newCall(request).execute()
 
     then:
-    1 * module.taintIfInputIsTainted(SourceTypes.REQUEST_COOKIE_NAME, 'cookieName', 'cookieName', _)
-    1 * module.taintIfInputIsTainted(SourceTypes.REQUEST_COOKIE_VALUE, 'cookieName', 'cookieValue', _)
+    1 * module.taintIfTainted('cookieName', _, SourceTypes.REQUEST_COOKIE_NAME, 'cookieName')
+    1 * module.taintIfTainted('cookieValue', _, SourceTypes.REQUEST_COOKIE_VALUE, 'cookieName')
   }
 
   void 'test that headers() is instrumented'() {
@@ -84,7 +84,7 @@ class IastSourceTest extends IastVertx34Server {
     client.newCall(request).execute()
 
     then:
-    1 * module.taintObject(SourceTypes.REQUEST_HEADER_VALUE, _)
+    1 * module.taint(_, SourceTypes.REQUEST_HEADER_VALUE)
   }
 
   void 'test that params() is instrumented'() {
@@ -98,7 +98,7 @@ class IastSourceTest extends IastVertx34Server {
     client.newCall(request).execute()
 
     then:
-    1 * module.taintObject(SourceTypes.REQUEST_PARAMETER_VALUE, _)
+    1 * module.taint(_, SourceTypes.REQUEST_PARAMETER_VALUE)
   }
 
   void 'test that formAttributes() is instrumented'() {
@@ -113,9 +113,9 @@ class IastSourceTest extends IastVertx34Server {
     client.newCall(request).execute()
 
     then:
-    1 * module.taintObject(SourceTypes.REQUEST_PARAMETER_VALUE, _ as MultiMap) // once for formAttributes()
-    1 * module.taintObject(SourceTypes.REQUEST_PARAMETER_VALUE, _ as MultiMap) // once for params()
-    1 * module.taintIfInputIsTainted(SourceTypes.REQUEST_PARAMETER_VALUE, 'formAttribute', 'form', _ as MultiMap)
+    1 * module.taint(_ as MultiMap, SourceTypes.REQUEST_PARAMETER_VALUE) // once for formAttributes()
+    1 * module.taint(_ as MultiMap, SourceTypes.REQUEST_PARAMETER_VALUE) // once for params()
+    1 * module.taintIfTainted('form', _ as MultiMap, SourceTypes.REQUEST_PARAMETER_VALUE, 'formAttribute')
   }
 
   void 'test that handleData()/onData() is instrumented'() {
@@ -130,8 +130,8 @@ class IastSourceTest extends IastVertx34Server {
     client.newCall(request).execute()
 
     then:
-    1 * module.taintObject(SourceTypes.REQUEST_BODY, _ as Buffer)
-    1 * module.taintIfInputIsTainted('{ "my_key": "my_value" }', _ as Buffer)
+    1 * module.taint(_ as Buffer, SourceTypes.REQUEST_BODY)
+    1 * module.taintIfTainted('{ "my_key": "my_value" }', _ as Buffer)
   }
 
 

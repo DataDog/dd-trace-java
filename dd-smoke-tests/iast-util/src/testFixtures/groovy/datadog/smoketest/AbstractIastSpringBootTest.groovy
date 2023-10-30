@@ -2,6 +2,7 @@ package datadog.smoketest
 
 import okhttp3.FormBody
 import okhttp3.MediaType
+import okhttp3.MultipartBody
 import okhttp3.Request
 import okhttp3.RequestBody
 
@@ -81,6 +82,33 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
 
     checkLogPostExit()
     !logHasErrors
+  }
+
+  void 'Multipart Request parameters'(){
+    given:
+    String url = "http://localhost:${httpPort}/multipart"
+
+    RequestBody requestBody = new MultipartBody.Builder().setType(MultipartBody.FORM)
+      .addFormDataPart("theFile", "theFileName",
+      RequestBody.create(MediaType.parse("text/plain"), "FILE_CONTENT"))
+      .addFormDataPart("param1", "param1Value")
+      .build()
+
+    Request request = new Request.Builder()
+      .url(url)
+      .post(requestBody)
+      .build()
+    when:
+    final retValue = client.newCall(request).execute().body().string()
+
+    then:
+    retValue == "fileName: theFile"
+    hasTainted { tainted ->
+      tainted.value == 'theFile' &&
+        tainted.ranges[0].source.name == 'Content-Disposition' &&
+        tainted.ranges[0].source.origin == 'http.request.multipart.parameter'
+    }
+
   }
 
   void 'iast.enabled tag is present'() {
@@ -466,6 +494,21 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
     }
   }
 
+  void 'getRequestURL taints its output'() {
+    setup:
+    String url = "http://localhost:${httpPort}/getrequesturl"
+    def request = new Request.Builder().url(url).get().build()
+
+    when:
+    client.newCall(request).execute()
+
+    then:
+    hasTainted { tainted ->
+      tainted.value == url &&
+        tainted.ranges[0].source.origin == 'http.request.uri'
+    }
+  }
+
   void 'request header taint string'() {
     setup:
     String url = "http://localhost:${httpPort}/request_header/test"
@@ -764,6 +807,21 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
 
     then:
     hasVulnerabilityInLogs { vul -> vul.type == 'UNVALIDATED_REDIRECT' && vul.location.method == 'getViewfromTaintedString' }
+  }
+
+  void 'getRequestURI taints its output'() {
+    setup:
+    final url = "http://localhost:${httpPort}/getrequesturi"
+    final request = new Request.Builder().url(url).get().build()
+
+    when:
+    client.newCall(request).execute()
+
+    then:
+    hasTainted { tainted ->
+      tainted.value == '/getrequesturi' &&
+        tainted.ranges[0].source.origin == 'http.request.path'
+    }
   }
 
 }

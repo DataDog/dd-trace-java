@@ -23,17 +23,17 @@ class StringUtilCallSiteTest extends AgentTestRunner {
 
     then:
     result == expected
-    1 * module.taintIfInputIsTaintedWithMarks(_ as String, args[0], VulnerabilityMarks.XSS_MARK)
+    1 * module.taintIfTainted(_ as String, args[0], false, VulnerabilityMarks.XSS_MARK)
     0 * _
 
     where:
-    method       | args                  | expected
-    'HTMLEnc' | ['<htmlTag>"escape this < </htmlTag>'] | '&lt;htmlTag&gt;&quot;escape this &lt; &lt;/htmlTag&gt;'
-    'XMLEnc' | ['<xmlTag>"escape this < </xmlTag>'] | '&lt;xmlTag&gt;&quot;escape this &lt; &lt;/xmlTag&gt;'
-    'XHTMLEnc' | ['<htmlTag>"escape this < </htmlTag>'] | '&lt;htmlTag&gt;&quot;escape this &lt; &lt;/htmlTag&gt;'
-    'javaStringEnc' | ['<script>function a(){console.log("escape this < ")}<script>'] | '<script>function a(){console.log(\\"escape this < \\")}<script>'
+    method                | args                                                            | expected
+    'HTMLEnc'             | ['<htmlTag>"escape this < </htmlTag>']                          | '&lt;htmlTag&gt;&quot;escape this &lt; &lt;/htmlTag&gt;'
+    'XMLEnc'              | ['<xmlTag>"escape this < </xmlTag>']                            | '&lt;xmlTag&gt;&quot;escape this &lt; &lt;/xmlTag&gt;'
+    'XHTMLEnc'            | ['<htmlTag>"escape this < </htmlTag>']                          | '&lt;htmlTag&gt;&quot;escape this &lt; &lt;/htmlTag&gt;'
+    'javaStringEnc'       | ['<script>function a(){console.log("escape this < ")}<script>'] | '<script>function a(){console.log(\\"escape this < \\")}<script>'
     'javaScriptStringEnc' | ['<script>function a(){console.log("escape this < ")}<script>'] | '<script>function a(){console.log(\\"escape this < \\")}<script>'
-    'jsonStringEnc' | ['["a":{"b":2}]'] | '[\\"a\\":{\\"b\\":2}]'
+    'jsonStringEnc'       | ['["a":{"b":2}]']                                               | '[\\"a\\":{\\"b\\":2}]'
   }
 
   void 'test #method with null args'() {
@@ -47,16 +47,15 @@ class StringUtilCallSiteTest extends AgentTestRunner {
     then:
     def thrownException = thrown (Exception)
     assert  thrownException.stackTrace[0].getClassName().startsWith('freemarker')
-    0 * module.taintIfInputIsTaintedWithMarks(_)
     0 * _
 
     where:
-    method       | _
-    'HTMLEnc' | _
-    'XMLEnc' | _
-    'XHTMLEnc' | _
-    'javaStringEnc' | _
+    method                | ex
+    'HTMLEnc'             | _
+    'XMLEnc'              | _
+    'XHTMLEnc'            | _
+    'javaStringEnc'       | _
     'javaScriptStringEnc' | _
-    'jsonStringEnc' | _
+    'jsonStringEnc'       | _
   }
 }

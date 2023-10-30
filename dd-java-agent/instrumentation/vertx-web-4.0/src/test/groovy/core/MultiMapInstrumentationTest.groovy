@@ -36,8 +36,15 @@ class MultiMapInstrumentationTest extends AgentTestRunner {
     instance.get('key')
 
     then:
-    1 * module.firstTaintedSource(instance) >> { mockedSource(origin) }
-    1 * module.taintIfInputIsTainted(origin, 'key', 'value', instance)
+    1 * module.findSource(instance) >> { null }
+    0 * _
+
+    when:
+    instance.get('key')
+
+    then:
+    1 * module.findSource(instance) >> { mockedSource(origin) }
+    1 * module.taint('value', origin, 'key')
 
     where:
     instance << multiMaps()
@@ -54,8 +61,16 @@ class MultiMapInstrumentationTest extends AgentTestRunner {
     instance.getAll('key')
 
     then:
-    1 * module.firstTaintedSource(instance) >> { mockedSource(origin) }
-    1 * module.taintIfInputIsTainted(origin, 'key', ['value1', 'value2'], instance)
+    1 * module.findSource(instance) >> { null }
+    0 * _
+
+    when:
+    instance.getAll('key')
+
+    then:
+    1 * module.findSource(instance) >> { mockedSource(origin) }
+    1 * module.taint(_, 'value1', origin, 'key')
+    1 * module.taint(_, 'value2', origin, 'key')
 
     where:
     instance << multiMaps()
@@ -72,11 +87,15 @@ class MultiMapInstrumentationTest extends AgentTestRunner {
     instance.names()
 
     then:
-    1 * module.firstTaintedSource(instance) >> { mockedSource(origin) }
-    1 * module.taintIfInputIsTainted(namedSource(origin), _, instance) >> {
-      final names = it[1] as List<String>
-      assert names == ['key']
-    }
+    1 * module.findSource(instance) >> { null }
+    0 * _
+
+    when:
+    instance.names()
+
+    then:
+    1 * module.findSource(instance) >> { mockedSource(origin) }
+    1 * module.taint(_, 'key', namedSource(origin), 'key')
 
     where:
     instance << multiMaps()
@@ -95,8 +114,17 @@ class MultiMapInstrumentationTest extends AgentTestRunner {
     instance.entries()
 
     then:
-    1 * module.firstTaintedSource(instance) >> { mockedSource(origin) }
-    1 * module.taintIfInputIsTainted(origin, _, instance)
+    1 * module.findSource(instance) >> { null }
+    0 * _
+
+    when:
+    instance.entries()
+
+    then:
+    1 * module.findSource(instance) >> { mockedSource(origin) }
+    1 * module.taint(_, 'key', namedSource(origin), 'key')
+    1 * module.taint(_, 'value1', origin, 'key')
+    1 * module.taint(_, 'value2', origin, 'key')
 
     where:
     instance << multiMaps()

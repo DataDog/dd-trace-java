@@ -116,7 +116,9 @@ abstract class InstrumentTask extends DefaultTask {
       parameters.buildStartedTime.set(invocationDetails.buildStartedTime)
       parameters.pluginClassPath.setFrom(project.configurations.findByName('instrumentPluginClasspath') ?: [])
       parameters.plugins.set(extension.plugins)
-      parameters.instrumentingClassPath.setFrom(project.configurations.compileClasspath.findAll {
+      def matcher = instrumentTask.name =~ /instrument([A-Z].+)Java/
+      def cfgName = matcher.matches() ? "${matcher.group(1).uncapitalize()}CompileClasspath" : 'compileClasspath'
+      parameters.instrumentingClassPath.setFrom(project.configurations[cfgName].findAll {
         it.name != 'previous-compilation-data.bin' && !it.name.endsWith(".gz")
       } + sourceDirectory + (extension.additionalClasspath[instrumentTask.name] ?: [])*.get())
       parameters.sourceDirectory.set(sourceDirectory.asFile)

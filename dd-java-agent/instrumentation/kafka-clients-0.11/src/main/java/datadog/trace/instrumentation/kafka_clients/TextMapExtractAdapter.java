@@ -6,6 +6,7 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import java.nio.ByteBuffer;
+import java.util.Base64;
 import org.apache.kafka.common.header.Header;
 import org.apache.kafka.common.header.Headers;
 import org.slf4j.Logger;
@@ -20,10 +21,10 @@ public class TextMapExtractAdapter
   public static final TextMapExtractAdapter GETTER =
       new TextMapExtractAdapter(Config.get().isKafkaClientBase64DecodingEnabled());
 
-  private final Base64Decoder base64;
+  private final Base64.Decoder base64;
 
   public TextMapExtractAdapter(boolean base64DecodeHeaders) {
-    this.base64 = base64DecodeHeaders ? new Base64Decoder() : null;
+    this.base64 = base64DecodeHeaders ? Base64.getDecoder() : null;
   }
 
   @Override

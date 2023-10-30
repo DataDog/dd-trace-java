@@ -5,6 +5,7 @@ import com.datadog.iast.IastRequestContext
 import com.datadog.iast.model.Source
 import com.datadog.iast.model.Vulnerability
 import com.datadog.iast.model.VulnerabilityType
+import com.datadog.iast.taint.Ranges
 import datadog.trace.api.gateway.RequestContext
 import datadog.trace.api.gateway.RequestContextSlot
 import datadog.trace.api.iast.SourceTypes
@@ -12,7 +13,7 @@ import datadog.trace.api.iast.VulnerabilityMarks
 import datadog.trace.api.iast.sink.XssModule
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 
-import static com.datadog.iast.model.Range.NOT_MARKED
+import static datadog.trace.api.iast.VulnerabilityMarks.NOT_MARKED
 import static com.datadog.iast.taint.TaintUtils.addFromTaintFormat
 import static com.datadog.iast.taint.TaintUtils.taintFormat
 
@@ -65,7 +66,7 @@ class XssModuleTest extends IastModuleImplTestBase {
   void 'module detects char[] XSS'() {
     setup:
     if (tainted) {
-      ctx.taintedObjects.taintInputObject(buf, new Source(SourceTypes.NONE, '', ''), mark)
+      ctx.taintedObjects.taint(buf, Ranges.forObject(new Source(SourceTypes.NONE, '', ''), mark))
     }
 
     when:
