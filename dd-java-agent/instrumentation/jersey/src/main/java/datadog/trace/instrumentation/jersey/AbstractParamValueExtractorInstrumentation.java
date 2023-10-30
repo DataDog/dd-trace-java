@@ -44,7 +44,7 @@ public class AbstractParamValueExtractorInstrumentation extends Instrumenter.Ias
       if (result instanceof String) {
         final PropagationModule module = InstrumentationBridge.PROPAGATION;
         if (module != null) {
-          module.taint(ThreadLocalSourceType.get(), parameterName, (String) result);
+          module.taint(result, ThreadLocalSourceType.get(), parameterName);
         }
       }
     }

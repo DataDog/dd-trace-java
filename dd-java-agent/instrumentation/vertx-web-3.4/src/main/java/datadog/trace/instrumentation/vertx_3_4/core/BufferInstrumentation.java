@@ -64,7 +64,7 @@ public class BufferInstrumentation extends Instrumenter.Iast implements Instrume
       final PropagationModule module = InstrumentationBridge.PROPAGATION;
       if (module != null) {
         try {
-          module.taintIfInputIsTainted(result, self);
+          module.taintIfTainted(result, self);
         } catch (final Throwable e) {
           module.onUnexpectedException("toString threw", e);
         }
@@ -79,7 +79,7 @@ public class BufferInstrumentation extends Instrumenter.Iast implements Instrume
       final PropagationModule module = InstrumentationBridge.PROPAGATION;
       if (module != null) {
         try {
-          module.taintIfInputIsTainted(result, self);
+          module.taintIfTainted(result, self);
         } catch (final Throwable e) {
           module.onUnexpectedException("getByteBuf threw", e);
         }
@@ -95,7 +95,7 @@ public class BufferInstrumentation extends Instrumenter.Iast implements Instrume
       final PropagationModule module = InstrumentationBridge.PROPAGATION;
       if (module != null) {
         try {
-          module.taintIfInputIsTainted(result, buffer);
+          module.taintIfTainted(result, buffer);
         } catch (final Throwable e) {
           module.onUnexpectedException("appendBuffer threw", e);
         }

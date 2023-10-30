@@ -43,4 +43,11 @@ public class GlobalLogLevelSwitcher implements LogLevelSwitcher {
       delegate.restore();
     }
   }
+
+  @Override
+  public void reinitialize() {
+    if (delegate != null) {
+      delegate.reinitialize();
+    }
+  }
 }

@@ -2,7 +2,7 @@ package datadog.trace.instrumentation.akkahttp.appsec;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
-import static datadog.trace.instrumentation.akkahttp.iast.TraitMethodMatchers.isTraitMethod;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.ScalaTraitMatchers.isTraitMethod;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
 
 import akka.http.scaladsl.unmarshalling.PredefinedFromEntityUnmarshallers;
@@ -32,6 +32,7 @@ public class PredefinedFromEntityUnmarshallersInstrumentation extends Instrument
   public String[] helperClassNames() {
     return new String[] {
       packageName + ".UnmarshallerHelpers",
+      packageName + ".UnmarshallerHelpers$UnmarkStrictFormOngoingOnUnsupportedException",
       packageName + ".AkkaBlockResponseFunction",
       packageName + ".BlockingResponseHelper",
       packageName + ".ScalaListCollector",

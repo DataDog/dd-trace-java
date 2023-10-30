@@ -30,7 +30,7 @@ public final class LinkAtBuildTimeInstrumentation extends AbstractNativeImageIns
         @Advice.Argument(0) Class<?> declaringClass,
         @Advice.Return(readOnly = false) boolean linkAtBuildTime) {
       // skip AndroidPlatform from build-time linking because we're not building on Android
-      if ("okhttp3.internal.platform.AndroidPlatform".equals(declaringClass.getName())) {
+      if ("datadog.okhttp3.internal.platform.AndroidPlatform".equals(declaringClass.getName())) {
         linkAtBuildTime = false;
       }
     }

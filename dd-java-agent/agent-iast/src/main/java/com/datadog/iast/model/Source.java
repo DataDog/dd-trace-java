@@ -11,6 +11,10 @@ public final class Source implements Taintable.Source {
   private final String name;
   private final String value;
 
+  public Source(final byte origin, final CharSequence name, final CharSequence value) {
+    this(origin, name == null ? null : name.toString(), value == null ? null : value.toString());
+  }
+
   public Source(final byte origin, final String name, final String value) {
     this.origin = origin;
     this.name = name;

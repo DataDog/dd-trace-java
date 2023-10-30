@@ -12,22 +12,16 @@
         "JAVA_OPTS": "-javaagent:${TRACER} -Ddd.benchmark.enabled=true -Ddd.benchmark.output.dir=${OUTPUT_DIR}/tracing"
       }
     },
-    "profiling": {
-      "env": {
-        "VARIANT": "profiling",
-        "JAVA_OPTS": "-javaagent:${TRACER} -Ddd.benchmark.enabled=true -Ddd.benchmark.output.dir=${OUTPUT_DIR}/profiling -Ddd.profiling.enabled=true"
-      }
-    },
-    "appsec": {
-      "env": {
-        "VARIANT": "appsec",
-        "JAVA_OPTS": "-javaagent:${TRACER} -Ddd.benchmark.enabled=true -Ddd.benchmark.output.dir=${OUTPUT_DIR}/appsec -Ddd.appsec.enabled=true"
-      }
-    },
     "iast": {
       "env": {
         "VARIANT": "iast",
         "JAVA_OPTS": "-javaagent:${TRACER} -Ddd.benchmark.enabled=true -Ddd.benchmark.output.dir=${OUTPUT_DIR}/iast -Ddd.iast.enabled=true"
+      }
+    },
+    "iast_TELEMETRY_OFF": {
+      "env": {
+        "VARIANT": "iast_TELEMETRY_OFF",
+        "JAVA_OPTS": "-javaagent:${TRACER} -Ddd.benchmark.enabled=true -Ddd.benchmark.output.dir=${OUTPUT_DIR}/iast_TELEMETRY_OFF -Ddd.iast.enabled=true -Ddd.iast.telemetry.verbosity=OFF"
       }
     }
   }

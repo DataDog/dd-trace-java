@@ -4,15 +4,15 @@ import com.datadog.iast.model.VulnerabilityBatch;
 import com.datadog.iast.overhead.OverheadContext;
 import com.datadog.iast.taint.TaintedObjects;
 import datadog.trace.api.gateway.RequestContext;
-import datadog.trace.api.gateway.RequestContextSlot;
+import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.telemetry.IastMetricCollector;
 import datadog.trace.api.iast.telemetry.IastMetricCollector.HasMetricCollector;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import java.util.concurrent.atomic.AtomicBoolean;
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
-public class IastRequestContext implements HasMetricCollector {
+public class IastRequestContext implements IastContext, HasMetricCollector {
 
   private final VulnerabilityBatch vulnerabilityBatch;
   private final AtomicBoolean spanDataIsSet;
@@ -85,6 +85,7 @@ public class IastRequestContext implements HasMetricCollector {
     return overheadContext;
   }
 
+  @Nonnull
   public TaintedObjects getTaintedObjects() {
     return taintedObjects;
   }
@@ -97,22 +98,20 @@ public class IastRequestContext implements HasMetricCollector {
 
   @Nullable
   public static IastRequestContext get() {
-    return get(AgentTracer.activeSpan());
+    return asRequestContext(IastContext.Provider.get());
   }
 
   @Nullable
   public static IastRequestContext get(final AgentSpan span) {
-    if (span == null) {
-      return null;
-    }
-    return get(span.getRequestContext());
+    return asRequestContext(IastContext.Provider.get(span));
   }
 
   @Nullable
   public static IastRequestContext get(final RequestContext reqCtx) {
-    if (reqCtx == null) {
-      return null;
-    }
-    return reqCtx.getData(RequestContextSlot.IAST);
+    return asRequestContext(IastContext.Provider.get(reqCtx));
+  }
+
+  private static IastRequestContext asRequestContext(final IastContext ctx) {
+    return ctx instanceof IastRequestContext ? (IastRequestContext) ctx : null;
   }
 }

@@ -33,8 +33,8 @@ public final class HandlerChainFactoryInstrumentation extends Instrumenter.Traci
   public String[] helperClassNames() {
     return new String[] {
       packageName + ".AwsSdkClientDecorator",
-      packageName + ".RequestAccess",
-      packageName + ".RequestAccess$1",
+      packageName + ".GetterAccess",
+      packageName + ".GetterAccess$1",
       packageName + ".TracingRequestHandler",
       packageName + ".AwsNameCache",
     };

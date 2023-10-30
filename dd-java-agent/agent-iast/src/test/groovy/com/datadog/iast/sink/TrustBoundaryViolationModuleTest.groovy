@@ -5,11 +5,13 @@ import com.datadog.iast.IastRequestContext
 import com.datadog.iast.model.Source
 import com.datadog.iast.model.Vulnerability
 import com.datadog.iast.model.VulnerabilityType
+import com.datadog.iast.taint.Ranges
 import datadog.trace.api.gateway.RequestContext
 import datadog.trace.api.gateway.RequestContextSlot
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.SourceTypes
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
+import foo.bar.VisitableClass
 
 class TrustBoundaryViolationModuleTest extends IastModuleImplTestBase {
   private List<Object> objectHolder
@@ -35,11 +37,31 @@ class TrustBoundaryViolationModuleTest extends IastModuleImplTestBase {
     }
   }
 
+  void 'report TrustBoundary vulnerability without context'() {
+    when:
+    module.onSessionValue('test', null)
+
+    then:
+    1 * tracer.activeSpan() >> null
+    0 * overheadController.consumeQuota(_, _)
+    0 * reporter._
+  }
+
+  void 'report TrustBoundary vulnerability for null value'() {
+    when:
+    module.onSessionValue('test', null)
+
+    then:
+    1 * tracer.activeSpan() >> span
+    0 * overheadController.consumeQuota(_, _)
+    0 * reporter._
+  }
+
   void 'report TrustBoundary vulnerability for tainted name'() {
     given:
     Vulnerability savedVul
     final name = "name"
-    ctx.getTaintedObjects().taintInputString(name, new Source(SourceTypes.NONE, null, null))
+    ctx.getTaintedObjects().taint(name, Ranges.forCharSequence(name, new Source(SourceTypes.NONE, null, null)))
 
     when:
     module.onSessionValue(name, "value")
@@ -56,7 +78,7 @@ class TrustBoundaryViolationModuleTest extends IastModuleImplTestBase {
     Vulnerability savedVul
     final name = "name"
     final badValue = "theValue"
-    ctx.getTaintedObjects().taintInputString(badValue, new Source(SourceTypes.NONE, null, null))
+    ctx.getTaintedObjects().taint(badValue, Ranges.forCharSequence(badValue, new Source(SourceTypes.NONE, null, null)))
 
     when:
     module.onSessionValue(name, badValue)
@@ -74,7 +96,7 @@ class TrustBoundaryViolationModuleTest extends IastModuleImplTestBase {
     Vulnerability savedVul
     final name = "name"
     final badValue = "badValue"
-    ctx.getTaintedObjects().taintInputString(badValue, new Source(SourceTypes.NONE, null, null))
+    ctx.getTaintedObjects().taint(badValue, Ranges.forCharSequence(badValue, new Source(SourceTypes.NONE, null, null)))
     final values = ["A", "B", badValue]
 
     when:
@@ -92,7 +114,7 @@ class TrustBoundaryViolationModuleTest extends IastModuleImplTestBase {
     Vulnerability savedVul
     final name = "name"
     final badValue = "badValue"
-    ctx.getTaintedObjects().taintInputString(badValue, new Source(SourceTypes.NONE, null, null))
+    ctx.getTaintedObjects().taint(badValue, Ranges.forCharSequence(badValue, new Source(SourceTypes.NONE, null, null)))
     final values = new String[3]
     values[0] = "A"
     values[1] = "B"
@@ -113,7 +135,7 @@ class TrustBoundaryViolationModuleTest extends IastModuleImplTestBase {
     Vulnerability savedVul
     final name = "name"
     final badValue = "badValue"
-    ctx.getTaintedObjects().taintInputString(badValue, new Source(SourceTypes.NONE, null, null))
+    ctx.getTaintedObjects().taint(badValue, Ranges.forCharSequence(badValue, new Source(SourceTypes.NONE, null, null)))
     final values = new LinkedHashMap<String,String>()
     values.put("A", "A")
     values.put("B", "B")
@@ -129,6 +151,23 @@ class TrustBoundaryViolationModuleTest extends IastModuleImplTestBase {
     assertVulnerability(savedVul, badValue)
   }
 
+  void 'report TrustBoundary vulnerability for tainted value within custom class'() {
+    given:
+    Vulnerability savedVul
+    final name = "name"
+    final badValue = "badValue"
+    ctx.getTaintedObjects().taint(badValue, Ranges.forCharSequence(badValue, new Source(SourceTypes.NONE, null, null)))
+    final value = new VisitableClass(name: badValue)
+
+    when:
+    module.onSessionValue(name, value)
+
+    then:
+    1 * tracer.activeSpan() >> span
+    1 * overheadController.consumeQuota(_, _) >> true
+    1 * reporter.report(_, _ as Vulnerability) >> { savedVul = it[1] }
+    assertVulnerability(savedVul, badValue)
+  }
 
   private static void assertVulnerability(final Vulnerability vuln, String expectedValue) {
     assert vuln != null

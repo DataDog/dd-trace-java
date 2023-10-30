@@ -1,5 +1,7 @@
 package datadog.trace.api.normalize;
 
+import datadog.trace.api.Config;
+
 // public because this is used in the testing module but groovy accesses it through Class.forName
 // which is banned
 public final class SimpleHttpPathNormalizer extends HttpPathNormalizer {
@@ -11,6 +13,8 @@ public final class SimpleHttpPathNormalizer extends HttpPathNormalizer {
     if (null == path || path.isEmpty()) {
       return "/";
     }
+    final boolean preserveSpaces =
+        !encoded && Config.get().isHttpServerDecodedResourcePreserveSpaces();
     StringBuilder sb = null;
     int inEncoding = 0;
     for (int i = 0; i < path.length(); ) {
@@ -45,6 +49,9 @@ public final class SimpleHttpPathNormalizer extends HttpPathNormalizer {
             if (!numeric) {
               if (Character.isWhitespace(c)) {
                 sb = ensureStringBuilder(sb, path, j);
+                if (preserveSpaces && sb.length() > 0) {
+                  sb.append(c);
+                }
               } else if (sb != null) {
                 sb.append(c);
               }

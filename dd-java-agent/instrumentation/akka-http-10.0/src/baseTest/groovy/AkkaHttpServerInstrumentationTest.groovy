@@ -7,12 +7,15 @@ import okhttp3.HttpUrl
 import okhttp3.MultipartBody
 import okhttp3.Request
 import okhttp3.RequestBody
+import okhttp3.Response
 import spock.lang.Shared
 
 import java.util.concurrent.atomic.AtomicInteger
 
+import static datadog.trace.agent.test.base.HttpServerTest.IG_ASK_FOR_RESPONSE_HEADER_TAGS_HEADER
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_JSON
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_MULTIPART
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
 import static org.junit.Assume.assumeTrue
 
 abstract class AkkaHttpServerInstrumentationTest extends HttpServerTest<AkkaHttpTestWebServer> {
@@ -30,11 +33,6 @@ abstract class AkkaHttpServerInstrumentationTest extends HttpServerTest<AkkaHttp
   @Override
   boolean testExceptionBody() {
     false
-  }
-
-  @Override
-  boolean hasPeerInformation() {
-    return false
   }
 
   @Override
@@ -165,6 +163,9 @@ abstract class AkkaHttpServerInstrumentationTest extends HttpServerTest<AkkaHttp
       .method('POST', RequestBody.create(okhttp3.MediaType.get('application/json'), '{"a":"x"}\n'))
       .build()
     def response = client.newCall(request).execute()
+    if (isDataStreamsEnabled()) {
+      TEST_DATA_STREAMS_WRITER.waitForGroups(1)
+    }
 
     expect:
     response.body().charStream().text == '{"a":"x"}'
@@ -176,6 +177,29 @@ abstract class AkkaHttpServerInstrumentationTest extends HttpServerTest<AkkaHttp
     TEST_WRITER.get(0).any {
       it.getTag('request.body.converted') == '[a:[x]]'
     }
+  }
+
+  void 'content length and type are provided to IG on strict responses'() {
+    setup:
+    Request request = request(SUCCESS, 'GET', null)
+      .header(IG_EXTRA_SPAN_NAME_HEADER, 'ig-span')
+      .header(IG_ASK_FOR_RESPONSE_HEADER_TAGS_HEADER, 'true')
+      .build()
+    Response response = client.newCall(request).execute()
+    if (isDataStreamsEnabled()) {
+      TEST_DATA_STREAMS_WRITER.waitForGroups(1)
+    }
+
+    expect:
+    response.body().charStream().text == SUCCESS.body
+
+    when:
+    TEST_WRITER.waitForTraces(1)
+    def tags = TEST_WRITER.get(0).find { it.spanName == 'ig-span' }.tags
+
+    then:
+    tags['response.header.content-type'] != null
+    tags['response.header.content-length'] == SUCCESS.body.length() as String
   }
 }
 

@@ -136,6 +136,7 @@ public class DDSpanContext
   private final ProfilingContextIntegration profilingContextIntegration;
   private boolean injectBaggageAsTags;
   private volatile int encodedOperationName;
+  private volatile int encodedResourceName;
 
   public DDSpanContext(
       final DDTraceId traceId,
@@ -381,6 +382,11 @@ public class DDSpanContext
     return encodedOperationName;
   }
 
+  @Override
+  public int getEncodedResourceName() {
+    return encodedResourceName;
+  }
+
   public String getServiceName() {
     return serviceName;
   }
@@ -410,6 +416,7 @@ public class DDSpanContext
     if (priority >= this.resourceNamePriority) {
       this.resourceNamePriority = priority;
       this.resourceName = resourceName;
+      this.encodedResourceName = profilingContextIntegration.encode(resourceName);
     }
   }
 
@@ -633,6 +640,7 @@ public class DDSpanContext
     return pathwayContext;
   }
 
+  @Override
   public void mergePathwayContext(PathwayContext pathwayContext) {
     if (pathwayContext == null) {
       return;

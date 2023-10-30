@@ -2,10 +2,28 @@ plugins {
   id 'com.github.johnrengelman.shadow'
   id 'me.champeau.jmh'
   id 'java-test-fixtures'
+  id 'com.google.protobuf' version '0.8.18'
 }
 
 apply from: "$rootDir/gradle/java.gradle"
 apply from: "$rootDir/gradle/version.gradle"
+
+// First version with Mac M1 support
+def grpcVersion = '1.42.2'
+protobuf {
+  protoc {
+    // Download compiler rather than using locally installed version:
+    // First version with Mac M1 support
+    artifact = 'com.google.protobuf:protoc:3.17.3'
+  }
+  plugins {
+    // First version with aarch support
+    grpc { artifact = "io.grpc:protoc-gen-grpc-java:${grpcVersion}" }
+  }
+  generateProtoTasks {
+    all()*.plugins { grpc {} }
+  }
+}
 
 dependencies {
   api deps.slf4j
@@ -22,6 +40,9 @@ dependencies {
   testImplementation deps.bytebuddy
   testImplementation('org.skyscreamer:jsonassert:1.5.1')
   testImplementation('org.codehaus.groovy:groovy-yaml:3.0.17')
+
+  testImplementation group: 'io.grpc', name: 'grpc-core', version: grpcVersion
+  testImplementation group: 'io.grpc', name: 'grpc-protobuf', version: grpcVersion
 
   jmh project(':utils:test-utils')
   jmh project(':dd-trace-core')
@@ -74,4 +95,12 @@ jmh {
 pitest {
   targetClasses = ['com.datadog.iast.*']
   jvmArgs = ['-Ddd.iast.enabled=true']
+}
+
+sourceSets {
+  test {
+    java {
+      srcDirs += ["$buildDir/generated/source/proto/test/java"]
+    }
+  }
 }

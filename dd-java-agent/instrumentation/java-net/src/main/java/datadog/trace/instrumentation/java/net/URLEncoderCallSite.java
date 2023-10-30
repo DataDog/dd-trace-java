@@ -32,7 +32,7 @@ public class URLEncoderCallSite {
       final PropagationModule module = InstrumentationBridge.PROPAGATION;
       if (module != null) {
         try {
-          module.taintIfInputIsTaintedWithMarks(result, value, VulnerabilityMarks.XSS_MARK);
+          module.taintIfTainted(result, value, false, VulnerabilityMarks.XSS_MARK);
         } catch (final Throwable e) {
           module.onUnexpectedException("afterEncode threw", e);
         }

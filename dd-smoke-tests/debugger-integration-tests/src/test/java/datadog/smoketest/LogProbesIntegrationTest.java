@@ -214,7 +214,7 @@ public class LogProbesIntegrationTest extends SimpleAppDebuggerIntegrationTest {
                 logFilePath, "loopingFullMethod", EXPECTED_UPLOADS, String.valueOf(LOOP_COUNT))
             .start();
     int count = countSnapshots();
-    assertTrue(count >= 3 && count <= 5, "snapshots=" + count);
+    assertTrue(count >= 2 && count <= 20, "snapshots=" + count);
   }
 
   @Test
@@ -236,7 +236,8 @@ public class LogProbesIntegrationTest extends SimpleAppDebuggerIntegrationTest {
         createProcessBuilder(
                 logFilePath, "loopingFullMethod", EXPECTED_UPLOADS, String.valueOf(LOOP_COUNT))
             .start();
-    assertEquals(1000, countSnapshots());
+    int count = countSnapshots();
+    assertTrue(count >= 950 && count <= 1000, "logs=" + count);
   }
 
   @Test

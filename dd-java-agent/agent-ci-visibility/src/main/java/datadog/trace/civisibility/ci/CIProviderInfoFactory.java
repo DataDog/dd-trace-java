@@ -51,6 +51,9 @@ public class CIProviderInfoFactory {
       return new CodefreshInfo();
     } else if (System.getenv(TeamcityInfo.TEAMCITY) != null) {
       return new TeamcityInfo();
+    } else if (System.getenv(AwsCodePipelineInfo.AWS_CODEPIPELINE) != null
+        && System.getenv(AwsCodePipelineInfo.AWS_CODEPIPELINE).startsWith("codepipeline")) {
+      return new AwsCodePipelineInfo();
     } else {
       return new UnknownCIInfo(targetFolder, currentPath);
     }

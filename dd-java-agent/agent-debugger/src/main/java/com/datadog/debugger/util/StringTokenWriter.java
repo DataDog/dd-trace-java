@@ -155,6 +155,9 @@ public class StringTokenWriter implements SerializerWithLimits.TokenWriter {
       case FIELD_COUNT:
         sb.append(", ...");
         break;
+      case REDACTED:
+        sb.append("{redacted}");
+        break;
       default:
         throw new RuntimeException("Unsupported NotCapturedReason: " + reason);
     }

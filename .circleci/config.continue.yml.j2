@@ -635,7 +635,7 @@ jobs:
     <<: *tests
 
     docker:
-      - image: << pipeline.parameters.docker_image >>:<< parameters.testJvm >>
+      - image: << pipeline.parameters.docker_image >>:{{ docker_image_prefix }}<< parameters.testJvm >>
         environment:
           - CI_USE_TEST_AGENT=true
       - image: ghcr.io/datadog/dd-apm-test-agent/ddapm-test-agent:v1.11.0
@@ -676,7 +676,7 @@ jobs:
     resource_class: medium
 
     docker:
-      - image: << pipeline.parameters.docker_image >>:7
+      - image: << pipeline.parameters.docker_image >>:{{ docker_image_prefix }}8
       - image: datadog/agent:7.34.0
         environment:
           - DD_APM_ENABLED=true
@@ -687,7 +687,7 @@ jobs:
     <<: *defaults
     resource_class: medium
     docker:
-      - image: << pipeline.parameters.docker_image >>:7
+      - image: << pipeline.parameters.docker_image >>:{{ docker_image_prefix }}7
 
     steps:
       - setup_code

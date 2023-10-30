@@ -1,3 +1,4 @@
+import com.datadog.iast.taint.Ranges
 import com.datadog.iast.test.IastAgentTestRunner
 import com.datadog.iast.model.VulnerabilityBatch
 import datadog.trace.core.DDSpan
@@ -46,7 +47,7 @@ class IastJDBCTest extends IastAgentTestRunner {
     def valueRead
     DDSpan span = runUnderIastTrace {
       String taintedString = 'SELECT id FROM TEST LIMIT 1'
-      localTaintedObjects.taintInputString(taintedString, EMPTY_SOURCE)
+      localTaintedObjects.taint(taintedString, Ranges.forCharSequence(taintedString, EMPTY_SOURCE))
       Connection constWrapper = new IastInstrumentedConnection(conn: connection)
 
       constWrapper.prepareStatement(taintedString).withCloseable { stmt ->
@@ -99,7 +100,7 @@ class IastJDBCTest extends IastAgentTestRunner {
     def valueRead
     DDSpan span = runUnderIastTrace {
       String taintedString = 'SELECT id FROM TEST LIMIT 1'
-      localTaintedObjects.taintInputString(taintedString, EMPTY_SOURCE)
+      localTaintedObjects.taint(taintedString, Ranges.forCharSequence(taintedString, EMPTY_SOURCE))
 
       connection.createStatement().withCloseable { stmt ->
         Statement stmtWrapper = new IastInstrumentedStatement(stmt: stmt)

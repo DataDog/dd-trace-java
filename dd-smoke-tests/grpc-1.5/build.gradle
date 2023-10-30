@@ -1,0 +1,52 @@
+import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
+
+plugins {
+  id 'application'
+  id 'java'
+  id 'java-test-fixtures'
+  id 'com.google.protobuf' version '0.9.4'
+  id 'com.github.johnrengelman.shadow'
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+
+repositories {
+  // Use Maven Central for resolving dependencies.
+  mavenCentral()
+}
+
+def grpcVersion = '1.58.0'
+def protobufVersion = '3.24.0'
+def protocVersion = protobufVersion
+def mainClassName = 'datadog.smoketest.grpc.App'
+
+dependencies {
+  implementation "io.grpc:grpc-all:${grpcVersion}"
+
+  testImplementation project(':dd-smoke-tests')
+  testImplementation(testFixtures(project(":dd-smoke-tests:iast-util")))
+}
+
+application {
+  mainClass.set(mainClassName)
+}
+
+protobuf {
+  protoc { artifact = "com.google.protobuf:protoc:${protocVersion}" }
+  plugins {
+    grpc { artifact = "io.grpc:protoc-gen-grpc-java:${grpcVersion}" }
+  }
+  generateProtoTasks {
+    all()*.plugins { grpc {} }
+  }
+}
+
+tasks.withType(ShadowJar).configureEach {
+  archiveClassifier.set("fat")
+  mergeServiceFiles()
+}
+
+tasks.withType(Test).configureEach {
+  dependsOn "shadowJar"
+  jvmArgs "-Ddatadog.smoketest.grpc.jar.path=${tasks.shadowJar.archiveFile.get()}"
+}

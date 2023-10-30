@@ -12,6 +12,7 @@ import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Paths;
 import java.security.Principal;
+import java.util.Arrays;
 import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.ThreadLocalRandom;
@@ -39,6 +40,7 @@ import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.ModelAndView;
 import org.springframework.web.servlet.view.RedirectView;
 import org.springframework.web.servlet.view.UrlBasedViewResolver;
@@ -316,11 +318,35 @@ public class IastWebController {
     return "ok";
   }
 
+  @PostMapping("/multipart")
+  public String handleFileUpload(
+      @RequestParam("theFile") MultipartFile file, @RequestParam("param1") String param1) {
+    String fileContent = "NO_FILE";
+    try {
+      fileContent = Arrays.toString(file.getBytes());
+      file.getOriginalFilename();
+    } catch (IOException e) {
+    }
+    return "fileName: " + file.getName();
+  }
+
   @GetMapping(value = "/xcontenttypeoptionsecure", produces = "text/html")
   public String xContentTypeOptionsSecure(HttpServletResponse response) {
     response.addHeader("X-Content-Type-Options", "nosniff");
     response.setStatus(HttpStatus.OK.value());
     return "ok";
+  }
+
+  @GetMapping("/getrequesturi")
+  String pathInfo(HttpServletRequest request) {
+    String pathInfo = request.getRequestURI();
+    return String.format("Request.getRequestURI returns %s", pathInfo);
+  }
+
+  @GetMapping("/getrequesturl")
+  String requestURL(HttpServletRequest request) {
+    StringBuffer requestURL = request.getRequestURL();
+    return String.format("Request.getRequestURL returns %s", requestURL);
   }
 
   private void withProcess(final Operation<Process> op) {

@@ -12,7 +12,6 @@ import datadog.trace.api.iast.sink.WeakCipherModule
 import datadog.trace.api.iast.sink.WeakHashModule
 import datadog.trace.api.iast.sink.WeakRandomnessModule
 import datadog.trace.api.iast.sink.XPathInjectionModule
-import datadog.trace.api.iast.source.WebModule
 import datadog.trace.test.util.DDSpecification
 
 class InstrumentationBridgeTest extends DDSpecification {
@@ -20,7 +19,6 @@ class InstrumentationBridgeTest extends DDSpecification {
   private final static BRIDGE_MODULES = [
     WeakCipherModule,
     WeakHashModule,
-    WebModule,
     StringModule,
     CodecModule,
     SqlInjectionModule,

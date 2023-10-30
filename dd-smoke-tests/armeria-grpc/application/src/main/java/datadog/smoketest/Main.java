@@ -17,6 +17,7 @@ public class Main {
     GrpcService grpcService =
         GrpcService.builder()
             .addService(new HelloServiceImpl())
+            .addService(new IastServiceImpl())
             .addService(ProtoReflectionService.newInstance())
             .supportedSerializationFormats(GrpcSerializationFormats.values())
             .enableUnframedRequests(true)

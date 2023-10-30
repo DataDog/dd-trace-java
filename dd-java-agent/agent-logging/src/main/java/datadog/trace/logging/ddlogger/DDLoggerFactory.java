@@ -75,4 +75,9 @@ public class DDLoggerFactory implements ILoggerFactory, LogLevelSwitcher {
     }
     return factory;
   }
+
+  @Override
+  public void reinitialize() {
+    helperFactory = null;
+  }
 }

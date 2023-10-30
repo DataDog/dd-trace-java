@@ -95,8 +95,8 @@ public interface Ranged {
     return offset < 0;
   }
 
-  static Ranged build(int start, int end) {
-    return new RangedImpl(start, end);
+  static Ranged build(int start, int length) {
+    return new RangedImpl(start, length);
   }
 
   class RangedImpl implements Ranged {
