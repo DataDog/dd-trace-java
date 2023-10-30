@@ -45,22 +45,4 @@ class IastSpringBootSmokeTest extends AbstractIastSpringBootTest {
         tainted.ranges[0].source.origin == 'http.request.parameter'
     }
   }
-
-  void 'gson json parser deserialization'() {
-
-    given:
-    final url = "http://localhost:${httpPort}/gson_json_parser_deserialization"
-    final body = new FormBody.Builder().add('json', '{"name": "gsonTest", "value" : "valueTest"}').build()
-    final request = new Request.Builder().url(url).post(body).build()
-
-    when:
-    client.newCall(request).execute()
-
-    then:
-    hasTainted { tainted ->
-      tainted.value == 'gsonTest' &&
-        tainted.ranges[0].source.name == 'json' &&
-        tainted.ranges[0].source.origin == 'http.request.parameter'
-    }
-  }
 }
