@@ -117,12 +117,7 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
     return info.getHost();
   }
 
-  public AgentSpan onConnection(
-      final AgentSpan span,
-      final Connection connection,
-      ContextStore<Connection, DBInfo> contextStore) {
-
-    final DBInfo dbInfo = parseDBInfo(connection, contextStore);
+  public AgentSpan onConnection(final AgentSpan span, DBInfo dbInfo) {
     if (dbInfo != null) {
       processDatabaseType(span, dbInfo.getType());
     }

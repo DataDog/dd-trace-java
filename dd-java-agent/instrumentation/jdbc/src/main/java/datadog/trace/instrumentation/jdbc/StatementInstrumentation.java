@@ -29,6 +29,7 @@ import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
+import org.slf4j.LoggerFactory;
 
 @AutoService(Instrumenter.class)
 public final class StatementInstrumentation extends Instrumenter.Tracing
@@ -81,12 +82,28 @@ public final class StatementInstrumentation extends Instrumenter.Tracing
         final Connection connection = statement.getConnection();
         final AgentSpan span = startSpan(DATABASE_QUERY);
         DECORATE.afterStart(span);
-        DECORATE.onConnection(
-            span, connection, InstrumentationContext.get(Connection.class, DBInfo.class));
+        final DBInfo dbInfo =
+            JDBCDecorator.parseDBInfo(
+                connection, InstrumentationContext.get(Connection.class, DBInfo.class));
+        DECORATE.onConnection(span, dbInfo);
         final String copy = sql;
         if (span != null && INJECT_COMMENT) {
           String traceParent = null;
-          if (INJECT_TRACE_CONTEXT) {
+
+          boolean doInjectTraceContext = INJECT_TRACE_CONTEXT;
+          if (INJECT_TRACE_CONTEXT && dbInfo.getType().equals("oracle")
+              || dbInfo.getType().equals("sqlserver")) {
+            // Some DBs use the full text of the query including the comments as a cache key,
+            // so we want to avoid destroying the cache for those.
+            LoggerFactory.getLogger(StatementInstrumentation.class)
+                .warn(
+                    "Using DBM_PROPAGATION_MODE in 'full' mode is not supported for {}. "
+                        + "See https://docs.datadoghq.com/database_monitoring/connect_dbm_and_apm/ for more info.",
+                    dbInfo.getType());
+            doInjectTraceContext = false;
+          }
+
+          if (doInjectTraceContext) {
             Integer priority = span.forceSamplingDecision();
             if (priority != null) {
               traceParent = DECORATE.traceParent(span, priority);
@@ -94,7 +111,7 @@ public final class StatementInstrumentation extends Instrumenter.Tracing
               span.setTag(DBM_TRACE_INJECTED, true);
             }
           }
-          sql = SQLCommenter.inject(sql, span.getServiceName(), traceParent, INJECT_TRACE_CONTEXT);
+          sql = SQLCommenter.inject(sql, span.getServiceName(), traceParent, doInjectTraceContext);
         }
         DECORATE.onStatement(span, DBQueryInfo.ofStatement(copy));
         return activateSpan(span);
