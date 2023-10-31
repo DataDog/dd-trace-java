@@ -869,6 +869,40 @@ public class CapturedSnapshotTest {
   }
 
   @Test
+  public void lineProbeCondition() throws IOException, URISyntaxException {
+    final String CLASS_NAME = "CapturedSnapshot08";
+    LogProbe logProbe =
+        createProbeBuilder(PROBE_ID, CLASS_NAME, "doit", "int (java.lang.String)", "34")
+            .when(
+                new ProbeCondition(
+                    DSL.when(
+                        DSL.and(
+                            // this is always true
+                            DSL.and(
+                                // this reference is resolved directly from the snapshot
+                                DSL.eq(DSL.ref("fld"), DSL.value(11)),
+                                // this reference chain needs to use reflection
+                                DSL.eq(
+                                    DSL.getMember(
+                                        DSL.getMember(
+                                            DSL.getMember(DSL.ref("typed"), "fld"), "fld"),
+                                        "msg"),
+                                    DSL.value("hello"))),
+                            DSL.eq(DSL.ref("arg"), DSL.value("5")))),
+                    "(fld == 11 && typed.fld.fld.msg == \"hello\") && arg == '5'"))
+            .build();
+    DebuggerTransformerTest.TestSnapshotListener listener = installProbes(CLASS_NAME, logProbe);
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    for (int i = 0; i < 100; i++) {
+      int result = Reflect.on(testClass).call("main", String.valueOf(i)).get();
+      assertTrue((i == 2 && result == 2) || result == 3);
+    }
+    assertEquals(1, listener.snapshots.size());
+    assertCaptureArgs(
+        listener.snapshots.get(0).getCaptures().getLines().get(34), "arg", "java.lang.String", "5");
+  }
+
+  @Test
   public void staticFieldCondition() throws IOException, URISyntaxException {
     final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot19";
     LogProbe logProbe =
@@ -1807,23 +1841,29 @@ public class CapturedSnapshotTest {
   }
 
   @Test
-  public void samplingMethodProbe() throws IOException, URISyntaxException {
+  public void ensureCallingSamplingMethodProbe() throws IOException, URISyntaxException {
     doSamplingTest(this::methodProbe, 1, 1);
   }
 
   @Test
-  public void samplingProbeCondition() throws IOException, URISyntaxException {
+  public void ensureCallingSamplingProbeCondition() throws IOException, URISyntaxException {
     doSamplingTest(this::simpleConditionTest, 1, 1);
   }
 
   @Test
-  public void samplingDupMethodProbeCondition() throws IOException, URISyntaxException {
+  public void ensureCallingSamplingDupMethodProbeCondition()
+      throws IOException, URISyntaxException {
     doSamplingTest(this::mergedProbesWithAdditionalProbeConditionTest, 2, 2);
   }
 
   @Test
-  public void samplingLineProbe() throws IOException, URISyntaxException {
+  public void ensureCallingSamplingLineProbe() throws IOException, URISyntaxException {
     doSamplingTest(this::singleLineProbe, 1, 1);
+  }
+
+  @Test
+  public void ensureCallingSamplingLineProbeCondition() throws IOException, URISyntaxException {
+    doSamplingTest(this::lineProbeCondition, 1, 1);
   }
 
   interface TestMethod {
