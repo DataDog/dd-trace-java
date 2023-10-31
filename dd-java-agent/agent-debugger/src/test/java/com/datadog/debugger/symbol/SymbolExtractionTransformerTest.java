@@ -688,7 +688,6 @@ class SymbolExtractionTransformerTest {
   @Test
   public void symbolExtraction13() throws IOException, URISyntaxException {
     final String CLASS_NAME = SYMBOL_PACKAGE + "SymbolExtraction13";
-    final String SOURCE_FILE = SYMBOL_PACKAGE_DIR + "SymbolExtraction13.java";
     SymbolSinkMock symbolSinkMock = new SymbolSinkMock(config);
     SymbolExtractionTransformer transformer =
         new SymbolExtractionTransformer(symbolSinkMock, config);
@@ -729,12 +728,27 @@ class SymbolExtractionTransformerTest {
         Object.class.getTypeName(),
         asList("java.lang.annotation.Annotation"),
         null);
+    Symbol strField = classScope.getSymbols().get(1);
+    assertLangSpecifics(
+        strField.getLanguageSpecifics(),
+        asList("public", "static", "volatile"),
+        null,
+        null,
+        null,
+        null);
+    Symbol doubleField = classScope.getSymbols().get(2);
+    assertLangSpecifics(
+        doubleField.getLanguageSpecifics(),
+        asList("protected", "final", "transient"),
+        null,
+        null,
+        null,
+        null);
   }
 
   @Test
   public void symbolExtraction14() throws IOException, URISyntaxException {
     final String CLASS_NAME = SYMBOL_PACKAGE + "SymbolExtraction14";
-    final String SOURCE_FILE = SYMBOL_PACKAGE_DIR + "SymbolExtraction14.java";
     SymbolSinkMock symbolSinkMock = new SymbolSinkMock(config);
     SymbolExtractionTransformer transformer =
         new SymbolExtractionTransformer(symbolSinkMock, config);
