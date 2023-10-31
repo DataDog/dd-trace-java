@@ -47,7 +47,7 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
   private static final boolean INJECT_TRACE_CONTEXT =
       DBM_PROPAGATION_MODE.equals(DBM_PROPAGATION_MODE_FULL);
 
-  private boolean warnedAboutDBMPropagationMode = false; // to log a warning only once
+  private volatile boolean warnedAboutDBMPropagationMode = false; // to log a warning only once
 
   public static void logMissingQueryInfo(Statement statement) throws SQLException {
     if (log.isDebugEnabled()) {
@@ -232,8 +232,8 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
   }
 
   public boolean shouldInjectTraceContext(DBInfo dbInfo) {
-    if (INJECT_TRACE_CONTEXT && dbInfo.getType().equals("oracle")
-        || dbInfo.getType().equals("sqlserver")) {
+    if (INJECT_TRACE_CONTEXT
+        && (dbInfo.getType().equals("oracle") || dbInfo.getType().equals("sqlserver"))) {
       // Some DBs use the full text of the query including the comments as a cache key,
       // so we want to avoid destroying the cache for those.
       if (!warnedAboutDBMPropagationMode) {
