@@ -9,6 +9,7 @@ public class StatsPoint implements InboxItem {
   private final long timestampNanos;
   private final long pathwayLatencyNano;
   private final long edgeLatencyNano;
+  private final long payloadSizeBytes;
 
   public StatsPoint(
       List<String> edgeTags,
@@ -16,13 +17,15 @@ public class StatsPoint implements InboxItem {
       long parentHash,
       long timestampNanos,
       long pathwayLatencyNano,
-      long edgeLatencyNano) {
+      long edgeLatencyNano,
+      long payloadSizeBytes) {
     this.edgeTags = edgeTags;
     this.hash = hash;
     this.parentHash = parentHash;
     this.timestampNanos = timestampNanos;
     this.pathwayLatencyNano = pathwayLatencyNano;
     this.edgeLatencyNano = edgeLatencyNano;
+    this.payloadSizeBytes = payloadSizeBytes;
   }
 
   public List<String> getEdgeTags() {
@@ -49,6 +52,10 @@ public class StatsPoint implements InboxItem {
     return edgeLatencyNano;
   }
 
+  public long getPayloadSizeBytes() {
+    return payloadSizeBytes;
+  }
+
   @Override
   public String toString() {
     return "StatsPoint{"
@@ -65,6 +72,8 @@ public class StatsPoint implements InboxItem {
         + pathwayLatencyNano
         + ", edgeLatencyNano="
         + edgeLatencyNano
+        + ", payloadSizeBytes="
+        + payloadSizeBytes
         + '}';
   }
 }

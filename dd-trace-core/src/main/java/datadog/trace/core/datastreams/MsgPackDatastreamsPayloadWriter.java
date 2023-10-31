@@ -23,6 +23,7 @@ public class MsgPackDatastreamsPayloadWriter implements DatastreamsPayloadWriter
   private static final byte[] DURATION = "Duration".getBytes(ISO_8859_1);
   private static final byte[] PATHWAY_LATENCY = "PathwayLatency".getBytes(ISO_8859_1);
   private static final byte[] EDGE_LATENCY = "EdgeLatency".getBytes(ISO_8859_1);
+  private static final byte[] PAYLOAD_SIZE = "PayloadSize".getBytes(ISO_8859_1);
   private static final byte[] SERVICE = "Service".getBytes(ISO_8859_1);
   private static final byte[] EDGE_TAGS = "EdgeTags".getBytes(ISO_8859_1);
   private static final byte[] BACKLOGS = "Backlogs".getBytes(ISO_8859_1);
@@ -118,7 +119,7 @@ public class MsgPackDatastreamsPayloadWriter implements DatastreamsPayloadWriter
     for (StatsGroup group : groups) {
       boolean firstNode = group.getEdgeTags().isEmpty();
 
-      packer.startMap(firstNode ? 4 : 5);
+      packer.startMap(firstNode ? 5 : 6);
 
       /* 1 */
       packer.writeUTF8(PATHWAY_LATENCY);
@@ -129,15 +130,19 @@ public class MsgPackDatastreamsPayloadWriter implements DatastreamsPayloadWriter
       packer.writeBinary(group.getEdgeLatency().serialize());
 
       /* 3 */
+      packer.writeUTF8(PAYLOAD_SIZE);
+      packer.writeBinary(group.getPayloadSize().serialize());
+
+      /* 4 */
       packer.writeUTF8(HASH);
       packer.writeUnsignedLong(group.getHash());
 
-      /* 4 */
+      /* 5 */
       packer.writeUTF8(PARENT_HASH);
       packer.writeUnsignedLong(group.getParentHash());
 
       if (!firstNode) {
-        /* 5 */
+        /* 6 */
         packer.writeUTF8(EDGE_TAGS);
         packer.startArray(group.getEdgeTags().size());
         for (String tag : group.getEdgeTags()) {

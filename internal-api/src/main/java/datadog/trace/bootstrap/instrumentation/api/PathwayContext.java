@@ -16,6 +16,12 @@ public interface PathwayContext {
   void setCheckpoint(
       LinkedHashMap<String, String> sortedTags,
       Consumer<StatsPoint> pointConsumer,
+      long defaultTimestamp,
+      long payloadSizeBytes);
+
+  void setCheckpoint(
+      LinkedHashMap<String, String> sortedTags,
+      Consumer<StatsPoint> pointConsumer,
       long defaultTimestamp);
 
   // The input tags should be sorted.
