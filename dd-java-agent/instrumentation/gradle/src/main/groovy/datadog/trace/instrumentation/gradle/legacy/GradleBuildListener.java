@@ -1,4 +1,4 @@
-package datadog.trace.instrumentation.gradle;
+package datadog.trace.instrumentation.gradle.legacy;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.civisibility.InstrumentationBridge;
@@ -46,7 +46,7 @@ public class GradleBuildListener extends BuildAdapter {
     String startCommand = GradleUtils.recreateStartCommand(settings.getStartParameter());
     String gradleVersion = gradle.getGradleVersion();
     buildEventsHandler.onTestSessionStart(
-        gradle, projectName, projectRoot, startCommand, "gradle", gradleVersion);
+        gradle, projectName, projectRoot, startCommand, "gradle", gradleVersion, null);
   }
 
   @Override

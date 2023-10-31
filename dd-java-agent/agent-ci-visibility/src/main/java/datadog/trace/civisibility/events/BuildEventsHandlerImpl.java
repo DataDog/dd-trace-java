@@ -40,9 +40,19 @@ public class BuildEventsHandlerImpl<T> implements BuildEventsHandler<T> {
       final Path projectRoot,
       final String startCommand,
       final String buildSystemName,
-      final String buildSystemVersion) {
+      final String buildSystemVersion,
+      Map<String, Object> additionalTags) {
     DDBuildSystemSession testSession =
         sessionFactory.startSession(projectName, projectRoot, startCommand, buildSystemName, null);
+
+    if (additionalTags != null) {
+      for (Map.Entry<String, Object> e : additionalTags.entrySet()) {
+        String tag = e.getKey();
+        Object value = e.getValue();
+        testSession.setTag(tag, value);
+      }
+    }
+
     testSession.setTag(Tags.TEST_TOOLCHAIN, buildSystemName + ":" + buildSystemVersion);
     inProgressTestSessions.put(sessionKey, testSession);
   }
@@ -138,5 +148,10 @@ public class BuildEventsHandlerImpl<T> implements BuildEventsHandler<T> {
     DDBuildSystemSession testSession = getTestSession(sessionKey);
     JvmInfo jvmInfo = jvmInfoFactory.getJvmInfo(jvmExecutablePath);
     return testSession.getModuleExecutionSettings(jvmInfo);
+  }
+
+  @Override
+  public ModuleInfo getModuleInfo(T sessionKey, String moduleName) {
+    return getTestModule(sessionKey, moduleName).getModuleInfo();
   }
 }

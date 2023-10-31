@@ -14,7 +14,8 @@ public interface BuildEventsHandler<T> {
       Path projectRoot,
       String startCommand,
       String buildSystemName,
-      String buildSystemVersion);
+      String buildSystemVersion,
+      Map<String, Object> additionalTags);
 
   void onTestSessionFail(T sessionKey, Throwable throwable);
 
@@ -33,6 +34,8 @@ public interface BuildEventsHandler<T> {
   void onTestModuleFinish(T sessionKey, String moduleName);
 
   ModuleExecutionSettings getModuleExecutionSettings(T sessionKey, Path jvmExecutablePath);
+
+  ModuleInfo getModuleInfo(T sessionKey, String moduleName);
 
   interface Factory {
     <U> BuildEventsHandler<U> create();

@@ -1,4 +1,4 @@
-package datadog.trace.instrumentation.gradle
+package datadog.trace.instrumentation.gradle.legacy
 
 import org.gradle.StartParameter
 import org.gradle.api.Project

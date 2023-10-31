@@ -1,11 +1,15 @@
 package datadog.smoketest
 
+import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.ObjectMapper
 import datadog.trace.agent.test.server.http.TestHttpServer
 import datadog.trace.api.config.CiVisibilityConfig
 import datadog.trace.api.config.GeneralConfig
 import datadog.trace.test.util.MultipartRequestParser
 import datadog.trace.util.Strings
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.Response
 import org.gradle.internal.impldep.org.apache.commons.io.FileUtils
 import org.gradle.testkit.runner.BuildResult
 import org.gradle.testkit.runner.GradleRunner
@@ -40,6 +44,22 @@ import static org.hamcrest.Matchers.not
 
 @Unroll
 class GradleDaemonSmokeTest extends Specification {
+
+  private static final String LATEST_GRADLE_VERSION = getLatestGradleVersion()
+
+  private static String getLatestGradleVersion() {
+    OkHttpClient client = new OkHttpClient()
+    Request request = new Request.Builder().url("https://services.gradle.org/versions/current").build()
+    try (Response response = client.newCall(request).execute()) {
+      if (!response.successful) {
+        return GradleVersion.current().version
+      }
+      def responseBody = response.body().string()
+      ObjectMapper mapper = new ObjectMapper()
+      JsonNode root = mapper.readTree(responseBody)
+      return root.get("version").asText()
+    }
+  }
 
   private static final String TEST_SERVICE_NAME = "test-gradle-service"
   private static final String TEST_ENVIRONMENT_NAME = "integration-test"
@@ -98,14 +118,14 @@ class GradleDaemonSmokeTest extends Specification {
 
       prefix("/api/v2/ci/tests/skippable") {
         response.status(200).send('{ "data": [{' +
-          '  "id": "d230520a0561ee2f",' +
-          '  "type": "test",' +
-          '  "attributes": {' +
-          '    "configurations": {},' +
-          '    "name": "test_to_skip_with_itr",' +
-          '    "suite": "datadog.smoke.TestSucceed"' +
-          '  }' +
-          '}] }')
+        '  "id": "d230520a0561ee2f",' +
+        '  "type": "test",' +
+        '  "attributes": {' +
+        '    "configurations": {},' +
+        '    "name": "test_to_skip_with_itr",' +
+        '    "suite": "datadog.smoke.TestSucceed"' +
+        '  }' +
+        '}] }')
       }
     }
   }
@@ -124,18 +144,53 @@ class GradleDaemonSmokeTest extends Specification {
     receivedCoverages.clear()
   }
 
-  def "Successful build emits session and module spans: Gradle v#gradleVersion #gradleProject"() {
+  def "Successful build emits session and module spans: Gradle v#gradleVersion (project: #gradleProject, configCache: #configurationCache)"() {
     given:
     givenGradleVersionIsCompatibleWithCurrentJvm(gradleVersion)
     givenGradleProjectFiles("datadog/smoketest/$gradleProject/")
     ensureDependenciesDownloaded(gradleVersion)
 
     when:
-    BuildResult buildResult = runGradleTests(gradleVersion)
+    BuildResult buildResult = runGradleTests(gradleVersion, true, configurationCache)
 
     then:
     assertBuildSuccessful(buildResult)
+    assertSuccessfulBuildEventsAndCoverages(sessionResourceName, gradleVersion)
 
+    if (configurationCache) {
+      // if configuration cache is enabled, run the build one more time
+      // to verify that building with existing configuration cache entry works
+      when:
+      BuildResult buildResultWithConfigCacheEntry = runGradleTests(gradleVersion, true, configurationCache)
+
+      then:
+      assertBuildSuccessful(buildResultWithConfigCacheEntry)
+      assertSuccessfulBuildEventsAndCoverages(sessionResourceName, gradleVersion)
+    }
+
+    where:
+    gradleVersion         | gradleProject   | sessionResourceName                   | configurationCache
+    "4.0"                 | "success"       | "gradle-instrumentation-test-project" | false
+    "5.0"                 | "success"       | "gradle-instrumentation-test-project" | false
+    "6.0"                 | "success"       | "gradle-instrumentation-test-project" | false
+    "7.6.3"               | "success"       | "gradle-instrumentation-test-project" | false
+    "8.2.1"               | "success"       | "gradle-instrumentation-test-project" | false
+    // in Gradle 8.3+ instrumentations we populate the resource name of the session spans differently:
+    // in legacy instrumentation session span is created after session evaluation
+    // while in the current one it is created when the build starts.
+    // At this point project name is not available yet, so we use build path instead.
+    // This has a few advantages:
+    // - session duration is more accurate (since settings evaluation time is included);
+    // - it is easier to distinguish buildSrc or plugin builds from the main project builds;
+    // - configuration cache is supported ("settings evaluated" event is not fired if it is enabled).
+    "8.3"                 | "success"       | ":"                                   | false
+    "8.3"                 | "success"       | ":"                                   | true
+    LATEST_GRADLE_VERSION | "success"       | ":"                                   | false
+    LATEST_GRADLE_VERSION | "successJunit5" | ":"                                   | false
+    LATEST_GRADLE_VERSION | "success"       | ":"                                   | true
+  }
+
+  private assertSuccessfulBuildEventsAndCoverages(String sessionResourceName, String gradleVersion) {
     def events = waitForEvents(5)
     assert events.size() == 5
 
@@ -145,7 +200,7 @@ class GradleDaemonSmokeTest extends Specification {
     verifyAll(sessionEndEvent) {
       verifyAll(content) {
         name == "gradle.test_session"
-        resource == "gradle-instrumentation-test-project" // project name
+        resource == sessionResourceName
         verifyAll(metrics) {
           process_id > 0 // only applied to root spans
           it["test.itr.tests_skipping.count"] == 1
@@ -275,18 +330,6 @@ class GradleDaemonSmokeTest extends Specification {
         ]
       ]
     ]
-
-    where:
-    gradleVersion | gradleProject
-    "4.0" | "success"
-    "5.0" | "success"
-    "6.0" | "success"
-    "7.0" | "success"
-    "7.6.1" | "success"
-    "8.0.2" | "success"
-    "8.1.1" | "success"
-    "8.3" | "success"
-    "8.3" | "successJunit5"
   }
 
   // this is a separate test case since older Gradle versions need to declare dependencies differently
@@ -463,7 +506,7 @@ class GradleDaemonSmokeTest extends Specification {
     verifyAll(sessionEndEvent) {
       verifyAll(content) {
         name == "gradle.test_session"
-        resource == "gradle-instrumentation-test-project" // project name
+        resource == sessionResourceName
         verifyAll(metrics) {
           process_id > 0 // only applied to root spans
         }
@@ -594,8 +637,22 @@ class GradleDaemonSmokeTest extends Specification {
     }
 
     where:
-    //
-    gradleVersion << ["4.0", "5.0", "6.0", "7.0", "7.6.1", "8.0.2", "8.1.1", "8.3"]
+    gradleVersion         | sessionResourceName
+    "4.0"                 | "gradle-instrumentation-test-project"
+    "5.0"                 | "gradle-instrumentation-test-project"
+    "6.0"                 | "gradle-instrumentation-test-project"
+    "7.6.3"               | "gradle-instrumentation-test-project"
+    "8.2.1"               | "gradle-instrumentation-test-project"
+    // in Gradle 8.3+ instrumentations we populate the resource name of the session spans differently:
+    // in legacy instrumentation session span is created after session evaluation
+    // while in the current one it is created when the build starts.
+    // At this point project name is not available yet, so we use build path instead.
+    // This has a few advantages:
+    // - session duration is more accurate (since settings evaluation time is included);
+    // - it is easier to distinguish buildSrc or plugin builds from the main project builds;
+    // - configuration cache is supported (if it is enabled, "settings evaluated" event is not fired).
+    "8.3"                 | ":"
+    LATEST_GRADLE_VERSION | ":"
   }
 
   def "Failed build emits session and module spans: Gradle v#gradleVersion"() {
@@ -627,7 +684,7 @@ class GradleDaemonSmokeTest extends Specification {
     verifyAll(sessionEndEvent) {
       verifyAll(content) {
         name == "gradle.test_session"
-        resource == "gradle-instrumentation-test-project" // project name
+        resource == sessionResourceName
         verifyAll(metrics) {
           process_id > 0 // only applied to root spans
         }
@@ -699,7 +756,22 @@ class GradleDaemonSmokeTest extends Specification {
     }
 
     where:
-    gradleVersion << ["4.0", "5.0", "6.0", "7.0", "7.6.1", "8.0.2", "8.1.1", "8.3"]
+    gradleVersion         | sessionResourceName
+    "4.0"                 | "gradle-instrumentation-test-project"
+    "5.0"                 | "gradle-instrumentation-test-project"
+    "6.0"                 | "gradle-instrumentation-test-project"
+    "7.6.3"               | "gradle-instrumentation-test-project"
+    "8.2.1"               | "gradle-instrumentation-test-project"
+    // in Gradle 8.3+ instrumentations we populate the resource name of the session spans differently:
+    // in legacy instrumentation session span is created after session evaluation
+    // while in the current one it is created when the build starts.
+    // At this point project name is not available yet, so we use build path instead.
+    // This has a few advantages:
+    // - session duration is more accurate (since settings evaluation time is included);
+    // - it is easier to distinguish buildSrc or plugin builds from the main project builds;
+    // - configuration cache is supported (if it is enabled, "settings evaluated" event is not fired).
+    "8.3"                 | ":"
+    LATEST_GRADLE_VERSION | ":"
   }
 
   def "Build without tests emits session and module spans: Gradle v#gradleVersion"() {
@@ -723,7 +795,7 @@ class GradleDaemonSmokeTest extends Specification {
     verifyAll(sessionEndEvent) {
       verifyAll(content) {
         name == "gradle.test_session"
-        resource == "gradle-instrumentation-test-project" // project name
+        resource == sessionResourceName
         verifyAll(metrics) {
           process_id > 0 // only applied to root spans
         }
@@ -752,7 +824,22 @@ class GradleDaemonSmokeTest extends Specification {
     }
 
     where:
-    gradleVersion << ["4.0", "5.0", "6.0", "7.0", "7.6.1", "8.0.2", "8.1.1", "8.3"]
+    gradleVersion         | sessionResourceName
+    "4.0"                 | "gradle-instrumentation-test-project"
+    "5.0"                 | "gradle-instrumentation-test-project"
+    "6.0"                 | "gradle-instrumentation-test-project"
+    "7.6.3"               | "gradle-instrumentation-test-project"
+    "8.2.1"               | "gradle-instrumentation-test-project"
+    // in Gradle 8.3+ instrumentations we populate the resource name of the session spans differently:
+    // in legacy instrumentation session span is created after session evaluation
+    // while in the current one it is created when the build starts.
+    // At this point project name is not available yet, so we use build path instead.
+    // This has a few advantages:
+    // - session duration is more accurate (since settings evaluation time is included);
+    // - it is easier to distinguish buildSrc or plugin builds from the main project builds;
+    // - configuration cache is supported (if it is enabled, "settings evaluated" event is not fired).
+    "8.3"                 | ":"
+    LATEST_GRADLE_VERSION | ":"
   }
 
   def "Corrupted build emits session span: Gradle v#gradleVersion"() {
@@ -776,7 +863,7 @@ class GradleDaemonSmokeTest extends Specification {
     verifyAll(sessionEndEvent) {
       verifyAll(content) {
         name == "gradle.test_session"
-        resource == "gradle-instrumentation-test-project" // project name
+        resource == sessionResourceName
         verifyAll(metrics) {
           process_id > 0 // only applied to root spans
         }
@@ -789,7 +876,22 @@ class GradleDaemonSmokeTest extends Specification {
     }
 
     where:
-    gradleVersion << ["4.0", "5.0", "6.0", "7.0", "7.6.1", "8.0.2", "8.1.1", "8.3"]
+    gradleVersion         | sessionResourceName
+    "4.0"                 | "gradle-instrumentation-test-project"
+    "5.0"                 | "gradle-instrumentation-test-project"
+    "6.0"                 | "gradle-instrumentation-test-project"
+    "7.6.3"               | "gradle-instrumentation-test-project"
+    "8.2.1"               | "gradle-instrumentation-test-project"
+    // in Gradle 8.3+ instrumentations we populate the resource name of the session spans differently:
+    // in legacy instrumentation session span is created after session evaluation
+    // while in the current one it is created when the build starts.
+    // At this point project name is not available yet, so we use build path instead.
+    // This has a few advantages:
+    // - session duration is more accurate (since settings evaluation time is included);
+    // - it is easier to distinguish buildSrc or plugin builds from the main project builds;
+    // - configuration cache is supported (if it is enabled, "settings evaluated" event is not fired).
+    "8.3"                 | ":"
+    LATEST_GRADLE_VERSION | ":"
   }
 
   def "Successful build with module that has multiple forks: Gradle v#gradleVersion"() {
@@ -813,7 +915,7 @@ class GradleDaemonSmokeTest extends Specification {
     verifyAll(sessionEndEvent) {
       verifyAll(content) {
         name == "gradle.test_session"
-        resource == "gradle-instrumentation-test-project" // project name
+        resource == ":" // project name
         verifyAll(metrics) {
           process_id > 0 // only applied to root spans
           it["test.itr.tests_skipping.count"] == 0
@@ -987,7 +1089,7 @@ class GradleDaemonSmokeTest extends Specification {
     ])
 
     where:
-    gradleVersion << ["8.3"]
+    gradleVersion << [LATEST_GRADLE_VERSION]
   }
 
   private static boolean verifyTestFrameworks(it) {
@@ -1005,17 +1107,17 @@ class GradleDaemonSmokeTest extends Specification {
     Files.write(ddApiKeyPath, "dummy".getBytes())
 
     def gradleProperties =
-      "org.gradle.jvmargs=" +
-      "-javaagent:${agentShadowJar}=" +
-      "${Strings.propertyNameToSystemPropertyName(GeneralConfig.ENV)}=${TEST_ENVIRONMENT_NAME}," +
-      "${Strings.propertyNameToSystemPropertyName(GeneralConfig.SERVICE_NAME)}=${TEST_SERVICE_NAME}," +
-      "${Strings.propertyNameToSystemPropertyName(GeneralConfig.API_KEY_FILE)}=${ddApiKeyPath.toAbsolutePath().toString()}," +
-      "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_ENABLED)}=true," +
-      "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_AGENTLESS_ENABLED)}=true," +
-      "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_GIT_UPLOAD_ENABLED)}=false," +
-      "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_CIPROVIDER_INTEGRATION_ENABLED)}=false," +
-      "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_COVERAGE_SEGMENTS_ENABLED)}=true," +
-      "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_AGENTLESS_URL)}=${intakeServer.address.toString()}"
+    "org.gradle.jvmargs=" +
+    "-javaagent:${agentShadowJar}=" +
+    "${Strings.propertyNameToSystemPropertyName(GeneralConfig.ENV)}=${TEST_ENVIRONMENT_NAME}," +
+    "${Strings.propertyNameToSystemPropertyName(GeneralConfig.SERVICE_NAME)}=${TEST_SERVICE_NAME}," +
+    "${Strings.propertyNameToSystemPropertyName(GeneralConfig.API_KEY_FILE)}=${ddApiKeyPath.toAbsolutePath().toString()}," +
+    "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_ENABLED)}=true," +
+    "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_AGENTLESS_ENABLED)}=true," +
+    "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_GIT_UPLOAD_ENABLED)}=false," +
+    "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_CIPROVIDER_INTEGRATION_ENABLED)}=false," +
+    "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_COVERAGE_SEGMENTS_ENABLED)}=true," +
+    "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_AGENTLESS_URL)}=${intakeServer.address.toString()}"
 
     Files.write(testKitFolder.resolve("gradle.properties"), gradleProperties.getBytes())
   }
@@ -1026,21 +1128,21 @@ class GradleDaemonSmokeTest extends Specification {
     FileUtils.copyDirectory(projectResourcesPath.toFile(), projectFolder.toFile())
 
     Files.walkFileTree(projectFolder, new SimpleFileVisitor<Path>() {
-        @Override
-        FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
-          if (file.toString().endsWith(GRADLE_TEST_RESOURCE_EXTENSION)) {
-            def fileWithFixedExtension = Paths.get(file.toString().replace(GRADLE_TEST_RESOURCE_EXTENSION, GRADLE_REGULAR_EXTENSION))
-            Files.move(file, fileWithFixedExtension)
-          }
-          return FileVisitResult.CONTINUE
+      @Override
+      FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
+        if (file.toString().endsWith(GRADLE_TEST_RESOURCE_EXTENSION)) {
+          def fileWithFixedExtension = Paths.get(file.toString().replace(GRADLE_TEST_RESOURCE_EXTENSION, GRADLE_REGULAR_EXTENSION))
+          Files.move(file, fileWithFixedExtension)
         }
-      })
+        return FileVisitResult.CONTINUE
+      }
+    })
 
     // creating empty .git directory so that the tracer could detect projectFolder as repo root
     Files.createDirectory(projectFolder.resolve(".git"))
   }
 
-  private BuildResult runGradleTests(String gradleVersion, boolean successExpected = true) {
+  private BuildResult runGradleTests(String gradleVersion, boolean successExpected = true, boolean configurationCache = false) {
     def arguments = ["test", "--stacktrace"]
     if (gradleVersion > "5.6") {
       // fail on warnings is available starting from Gradle 5.6
@@ -1048,6 +1150,9 @@ class GradleDaemonSmokeTest extends Specification {
     } else if (gradleVersion > "4.5") {
       // warning mode available starting from Gradle 4.5
       arguments += ["--warning-mode", "all"]
+    }
+    if (configurationCache) {
+      arguments += ["--configuration-cache", "--rerun-tasks"]
     }
     BuildResult buildResult = runGradle(gradleVersion, arguments, successExpected)
     buildResult
@@ -1082,17 +1187,17 @@ class GradleDaemonSmokeTest extends Specification {
 
     } catch (Exception e) {
       println "${new Date()}: $specificationContext.currentIteration.displayName " +
-        "- Failed to install Gradle distribution, will proceed to run test kit hoping for the best: $e"
+      "- Failed to install Gradle distribution, will proceed to run test kit hoping for the best: $e"
     }
   }
 
   private runGradle(String gradleVersion, List<String> arguments, boolean successExpected) {
     GradleRunner gradleRunner = GradleRunner.create()
-      .withTestKitDir(testKitFolder.toFile())
-      .withProjectDir(projectFolder.toFile())
-      .withGradleVersion(gradleVersion)
-      .withArguments(arguments)
-      .forwardOutput()
+    .withTestKitDir(testKitFolder.toFile())
+    .withProjectDir(projectFolder.toFile())
+    .withGradleVersion(gradleVersion)
+    .withArguments(arguments)
+    .forwardOutput()
 
     println "${new Date()}: $specificationContext.currentIteration.displayName - Starting Gradle run"
     def buildResult = successExpected ? gradleRunner.build() : gradleRunner.buildAndFail()
@@ -1197,12 +1302,14 @@ class GradleDaemonSmokeTest extends Specification {
 
   void givenGradleVersionIsCompatibleWithCurrentJvm(String gradleVersion) {
     Assumptions.assumeTrue(isSupported(gradleVersion),
-      "Current JVM " + Jvm.current.javaVersion + " does not support Gradle version " + gradleVersion)
+    "Current JVM " + Jvm.current.javaVersion + " does not support Gradle version " + gradleVersion)
   }
 
   private static boolean isSupported(String gradleVersion) {
     // https://docs.gradle.org/current/userguide/compatibility.html
-    if (Jvm.current.java20Compatible) {
+    if (Jvm.current.java21Compatible) {
+      return gradleVersion >= "8.4"
+    } else if (Jvm.current.java20) {
       return gradleVersion >= "8.1"
     } else if (Jvm.current.java19) {
       return gradleVersion >= "7.6"
