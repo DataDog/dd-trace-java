@@ -149,22 +149,7 @@ abstract class CouchbaseClient32Test extends VersionedNamingTestBase {
     assertTraces(1) {
       sortSpansByStart()
       trace(2) {
-        assertCouchbaseCall(it, 'select * from `test-bucket` limit 1', [
-          'db.couchbase.retries'   : { Long },
-          'db.couchbase.service'   : 'query'
-        ])
-        assertCouchbaseDispatchCall(it, span(0))
-      }
-    }
-  }
-  def "check query normalization"() {
-    when:
-    insertData(bucket,"InsertData","foo","bar")
-    then:
-    assertTraces(1) {
-      sortSpansByStart()
-      trace(2) {
-        assertCouchbaseCall(it, 'select * from `test-bucket` limit 1', [
+        assertCouchbaseCall(it, 'select * from `test-bucket` limit ?', [
           'db.couchbase.retries'   : { Long },
           'db.couchbase.service'   : 'query'
         ])
@@ -176,7 +161,7 @@ abstract class CouchbaseClient32Test extends VersionedNamingTestBase {
   def "check query spans with parent"() {
     setup:
     def query = 'select * from `test-bucket` limit 1'
-
+    def normalizedQuery = 'select * from `test-bucket` limit ?'
     when:
     runUnderTrace('query.parent') {
       cluster.query(query)
@@ -187,7 +172,7 @@ abstract class CouchbaseClient32Test extends VersionedNamingTestBase {
       sortSpansByStart()
       trace(3) {
         basicSpan(it, 'query.parent')
-        assertCouchbaseCall(it, query, [
+        assertCouchbaseCall(it, normalizedQuery, [
           'db.couchbase.retries'   : { Long },
           'db.couchbase.service'   : 'query'
         ], span(0))
@@ -199,6 +184,7 @@ abstract class CouchbaseClient32Test extends VersionedNamingTestBase {
   def "check async query spans with parent and adhoc #adhoc"() {
     setup:
     def query = 'select count(1) from `test-bucket` where (`something` = "else") limit 1'
+    def normalizedQuery = 'select count(?) from `test-bucket` where (`something` = "else") limit ?'
     int count = 0
 
     when:
@@ -217,12 +203,12 @@ abstract class CouchbaseClient32Test extends VersionedNamingTestBase {
       sortSpansByStart()
       trace(adhoc ? 3 : 4) {
         basicSpan(it, 'async.parent')
-        assertCouchbaseCall(it, query, [
+        assertCouchbaseCall(it, normalizedQuery, [
           'db.couchbase.retries'   : { Long },
           'db.couchbase.service'   : 'query'
         ], span(0))
         if (!adhoc) {
-          assertCouchbaseCall(it, "PREPARE $query", [
+          assertCouchbaseCall(it, "PREPARE $normalizedQuery", [
             'db.couchbase.retries': { Long },
             'db.couchbase.service': 'query'
           ], span(1), true)
@@ -238,6 +224,7 @@ abstract class CouchbaseClient32Test extends VersionedNamingTestBase {
   def "check multiple async query spans with parent and adhoc false"() {
     setup:
     def query = 'select count(1) from `test-bucket` where (`something` = "wonderful") limit 1'
+    def normalizedQuery = 'select count(?) from `test-bucket` where (`something` = "wonderful") limit ?'
     int count1 = 0
     int count2 = 0
     def extraPrepare = isLatestDepTest
@@ -264,26 +251,26 @@ abstract class CouchbaseClient32Test extends VersionedNamingTestBase {
       sortSpansByStart()
       trace(extraPrepare ? 8 : 7) {
         basicSpan(it, 'async.multiple')
-        assertCouchbaseCall(it, query, [
+        assertCouchbaseCall(it, normalizedQuery, [
           'db.couchbase.retries'   : { Long },
           'db.couchbase.service'   : 'query'
         ], span(0))
-        assertCouchbaseCall(it, "PREPARE $query", [
+        assertCouchbaseCall(it, "PREPARE $normalizedQuery", [
           'db.couchbase.retries': { Long },
           'db.couchbase.service': 'query'
         ], span(1), true)
         assertCouchbaseDispatchCall(it, span(2))
-        assertCouchbaseCall(it, query, [
+        assertCouchbaseCall(it, normalizedQuery, [
           'db.couchbase.retries'   : { Long },
           'db.couchbase.service'   : 'query'
         ], span(0))
         if (extraPrepare) {
-          assertCouchbaseCall(it, "PREPARE $query", [
+          assertCouchbaseCall(it, "PREPARE $normalizedQuery", [
             'db.couchbase.retries': { Long },
             'db.couchbase.service': 'query'
           ], span(4), true)
         }
-        assertCouchbaseCall(it, query, [
+        assertCouchbaseCall(it, normalizedQuery, [
           'db.couchbase.retries': { Long },
           'db.couchbase.service': 'query'
         ], span(4), true)
@@ -300,7 +287,7 @@ abstract class CouchbaseClient32Test extends VersionedNamingTestBase {
     when:
     runUnderTrace('query.failure') {
       try {
-        cluster.query('select * from `test-bucket` limeit 1')
+        cluster.query(query)
       } catch (ParsingFailureException expected) {
         ex = expected
       }
@@ -312,7 +299,7 @@ abstract class CouchbaseClient32Test extends VersionedNamingTestBase {
       sortSpansByStart()
       trace(3) {
         basicSpan(it, 'query.failure')
-        assertCouchbaseCall(it, query, [
+        assertCouchbaseCall(it, "select * from `test-bucket` limeit ?", [
           'db.couchbase.retries'   : { Long },
           'db.couchbase.service'   : 'query',
           'db.system'              : 'couchbase',
@@ -325,6 +312,7 @@ abstract class CouchbaseClient32Test extends VersionedNamingTestBase {
   def "check multiple async error query spans with parent and adhoc false"() {
     setup:
     def query = 'select count(1) from `test-bucket` where (`something` = "wonderful") limeit 1'
+    def normalizedQuery = 'select count(?) from `test-bucket` where (`something` = "wonderful") limeit ?'
     int count1 = 0
     int count2 = 0
     Throwable ex1 = null
@@ -362,20 +350,20 @@ abstract class CouchbaseClient32Test extends VersionedNamingTestBase {
       sortSpansByStart()
       trace(7) {
         basicSpan(it, 'async.failure')
-        assertCouchbaseCall(it, query, [
+        assertCouchbaseCall(it, normalizedQuery, [
           'db.couchbase.retries'   : { Long },
           'db.couchbase.service'   : 'query'
         ], span(0), false, ex1)
-        assertCouchbaseCall(it, "PREPARE $query", [
+        assertCouchbaseCall(it, "PREPARE $normalizedQuery", [
           'db.couchbase.retries': { Long },
           'db.couchbase.service': 'query'
         ], span(1), true, ex1)
         assertCouchbaseDispatchCall(it, span(2))
-        assertCouchbaseCall(it, query, [
+        assertCouchbaseCall(it, normalizedQuery, [
           'db.couchbase.retries'   : { Long },
           'db.couchbase.service'   : 'query'
         ], span(0), false, ex2)
-        assertCouchbaseCall(it, "PREPARE $query", [
+        assertCouchbaseCall(it, "PREPARE $normalizedQuery", [
           'db.couchbase.retries': { Long },
           'db.couchbase.service': 'query'
         ], span(4), true, ex2)

@@ -78,11 +78,7 @@ public class DatadogRequestSpan implements RequestSpan, StatusSettable<Integer> 
     // TODO when `db.statement` is set here it will be intercepted by the TagInterceptor, so any
     //  sort of obfuscation should go in there, preferably as a lazy sort of Utf8String that does
     //  the actual work at the end
-    if (key.equals("db.statement")) {
-      span.setTag(key, SQLNormalizer.normalize(value));
-    } else {
-      span.setTag(key, value);
-    }
+    span.setTag(key, key.equals("db.statement") ? SQLNormalizer.normalize(value) : value);
   }
 
   @Override
