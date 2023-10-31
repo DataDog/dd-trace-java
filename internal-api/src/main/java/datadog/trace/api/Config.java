@@ -46,6 +46,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_METRICS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_POLL_INTERVAL;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_SYMBOL_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_SYMBOL_FLUSH_THRESHOLD;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_SYMBOL_FORCE_UPLOAD;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_UPLOAD_BATCH_SIZE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_UPLOAD_FLUSH_INTERVAL;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_UPLOAD_TIMEOUT;
@@ -185,6 +186,7 @@ import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_REDACTED_IDENTIFI
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_REDACTED_TYPES;
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_SYMBOL_ENABLED;
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_SYMBOL_FLUSH_THRESHOLD;
+import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_SYMBOL_FORCE_UPLOAD;
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_SYMBOL_INCLUDES;
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_UPLOAD_BATCH_SIZE;
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_UPLOAD_FLUSH_INTERVAL;
@@ -738,6 +740,7 @@ public class Config {
   private final String debuggerRedactedIdentifiers;
   private final String debuggerRedactedTypes;
   private final boolean debuggerSymbolEnabled;
+  private final boolean debuggerSymbolForceUpload;
   private final String debuggerSymbolIncludes;
   private final int debuggerSymbolFlushThreshold;
 
@@ -1686,6 +1689,9 @@ public class Config {
     debuggerRedactedTypes = configProvider.getString(DEBUGGER_REDACTED_TYPES, null);
     debuggerSymbolEnabled =
         configProvider.getBoolean(DEBUGGER_SYMBOL_ENABLED, DEFAULT_DEBUGGER_SYMBOL_ENABLED);
+    debuggerSymbolForceUpload =
+        configProvider.getBoolean(
+            DEBUGGER_SYMBOL_FORCE_UPLOAD, DEFAULT_DEBUGGER_SYMBOL_FORCE_UPLOAD);
     debuggerSymbolIncludes = configProvider.getString(DEBUGGER_SYMBOL_INCLUDES, null);
     debuggerSymbolFlushThreshold =
         configProvider.getInteger(
@@ -2776,7 +2782,11 @@ public class Config {
     return debuggerCaptureTimeout;
   }
 
-  public boolean getDebuggerSymbolEnabled() {
+  public boolean isDebuggerSymbolEnabled() {
+    return debuggerSymbolEnabled;
+  }
+
+  public boolean isDebuggerSymbolForceUpload() {
     return debuggerSymbolEnabled;
   }
 
