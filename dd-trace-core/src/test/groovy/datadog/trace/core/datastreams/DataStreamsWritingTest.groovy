@@ -20,10 +20,9 @@ import spock.lang.AutoCleanup
 import spock.lang.Shared
 import spock.util.concurrent.PollingConditions
 
-import static datadog.trace.agent.test.server.http.TestHttpServer.httpServer
 import static DefaultDataStreamsMonitoring.DEFAULT_BUCKET_DURATION_NANOS
+import static datadog.trace.agent.test.server.http.TestHttpServer.httpServer
 import static java.util.concurrent.TimeUnit.SECONDS
-
 
 /**
  * This test class exists because a real integration test is not possible. see DataStreamsIntegrationTest
@@ -79,15 +78,15 @@ class DataStreamsWritingTest extends DDCoreSpecification {
     when:
     def dataStreams = new DefaultDataStreamsMonitoring(fakeConfig, sharedCommObjects, timeSource, { traceConfig })
     dataStreams.start()
-    dataStreams.add(new StatsPoint([], 9, 0, timeSource.currentTimeNanos, 0, 0))
-    dataStreams.add(new StatsPoint(["type:testType", "group:testGroup", "topic:testTopic"], 1, 2, timeSource.currentTimeNanos, 0, 0))
-    dataStreams.trackBacklog(new LinkedHashMap<>(["partition":"1", "topic":"testTopic", "type":"kafka_produce"]), 100)
-    dataStreams.trackBacklog(new LinkedHashMap<>(["partition":"1", "topic":"testTopic", "type":"kafka_produce"]), 130)
+    dataStreams.add(new StatsPoint([], 9, 0, timeSource.currentTimeNanos, 0, 0, 0))
+    dataStreams.add(new StatsPoint(["type:testType", "group:testGroup", "topic:testTopic"], 1, 2, timeSource.currentTimeNanos, 0, 0, 0))
+    dataStreams.trackBacklog(new LinkedHashMap<>(["partition": "1", "topic": "testTopic", "type": "kafka_produce"]), 100)
+    dataStreams.trackBacklog(new LinkedHashMap<>(["partition": "1", "topic": "testTopic", "type": "kafka_produce"]), 130)
     timeSource.advance(DEFAULT_BUCKET_DURATION_NANOS - 100l)
-    dataStreams.add(new StatsPoint(["type:testType", "group:testGroup", "topic:testTopic"], 1, 2, timeSource.currentTimeNanos, SECONDS.toNanos(10), SECONDS.toNanos(10)))
+    dataStreams.add(new StatsPoint(["type:testType", "group:testGroup", "topic:testTopic"], 1, 2, timeSource.currentTimeNanos, SECONDS.toNanos(10), SECONDS.toNanos(10), 10))
     timeSource.advance(DEFAULT_BUCKET_DURATION_NANOS)
-    dataStreams.add(new StatsPoint(["type:testType", "group:testGroup", "topic:testTopic"], 1, 2, timeSource.currentTimeNanos, SECONDS.toNanos(5), SECONDS.toNanos(5)))
-    dataStreams.add(new StatsPoint(["type:testType", "group:testGroup", "topic:testTopic2"], 3, 4, timeSource.currentTimeNanos, SECONDS.toNanos(2), 0))
+    dataStreams.add(new StatsPoint(["type:testType", "group:testGroup", "topic:testTopic"], 1, 2, timeSource.currentTimeNanos, SECONDS.toNanos(5), SECONDS.toNanos(5), 5))
+    dataStreams.add(new StatsPoint(["type:testType", "group:testGroup", "topic:testTopic2"], 3, 4, timeSource.currentTimeNanos, SECONDS.toNanos(2), 0, 2))
     timeSource.advance(DEFAULT_BUCKET_DURATION_NANOS)
     dataStreams.report()
 
@@ -132,14 +131,16 @@ class DataStreamsWritingTest extends DDCoreSpecification {
     assert unpacker.unpackString() == "Stats"
     assert unpacker.unpackArrayHeader() == 2 // 2 groups in first bucket
 
-    Set availableSizes = [4, 5] // we don't know the order the groups will be reported
+    Set availableSizes = [5, 6] // we don't know the order the groups will be reported
     2.times {
       int mapHeaderSize = unpacker.unpackMapHeader()
       assert availableSizes.remove(mapHeaderSize)
-      if (mapHeaderSize == 4) {  // empty topic group
+      if (mapHeaderSize == 5) {  // empty topic group
         assert unpacker.unpackString() == "PathwayLatency"
         unpacker.skipValue()
         assert unpacker.unpackString() == "EdgeLatency"
+        unpacker.skipValue()
+        assert unpacker.unpackString() == "PayloadSize"
         unpacker.skipValue()
         assert unpacker.unpackString() == "Hash"
         assert unpacker.unpackLong() == 9
@@ -149,6 +150,8 @@ class DataStreamsWritingTest extends DDCoreSpecification {
         assert unpacker.unpackString() == "PathwayLatency"
         unpacker.skipValue()
         assert unpacker.unpackString() == "EdgeLatency"
+        unpacker.skipValue()
+        assert unpacker.unpackString() == "PayloadSize"
         unpacker.skipValue()
         assert unpacker.unpackString() == "Hash"
         assert unpacker.unpackLong() == 1
@@ -185,10 +188,12 @@ class DataStreamsWritingTest extends DDCoreSpecification {
 
     Set<Long> availableHashes = [1L, 3L] // we don't know the order the groups will be reported
     2.times {
-      assert unpacker.unpackMapHeader() == 5
+      assert unpacker.unpackMapHeader() == 6
       assert unpacker.unpackString() == "PathwayLatency"
       unpacker.skipValue()
       assert unpacker.unpackString() == "EdgeLatency"
+      unpacker.skipValue()
+      assert unpacker.unpackString() == "PayloadSize"
       unpacker.skipValue()
       assert unpacker.unpackString() == "Hash"
       def hash = unpacker.unpackLong()
