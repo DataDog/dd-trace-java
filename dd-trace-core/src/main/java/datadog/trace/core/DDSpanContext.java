@@ -35,6 +35,8 @@ import java.util.TreeMap;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
+
+import jdk.jfr.Name;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -46,6 +48,7 @@ import org.slf4j.LoggerFactory;
  * across Span boundaries and (2) any Datadog fields that are needed to identify or contextualize
  * the associated Span instance
  */
+@Name("dd-context")
 public class DDSpanContext
     implements AgentSpan.Context, RequestContext, TraceSegment, ProfilerContext {
   private static final Logger log = LoggerFactory.getLogger(DDSpanContext.class);
@@ -137,6 +140,8 @@ public class DDSpanContext
   private boolean injectBaggageAsTags;
   private volatile int encodedOperationName;
   private volatile int encodedResourceName;
+
+  public static ProfilerContext.Access profilingContextAccess = Access.NOOP;
 
   public DDSpanContext(
       final DDTraceId traceId,
@@ -367,11 +372,13 @@ public class DDSpanContext
     return parentId;
   }
 
+  @Name("spanid")
   @Override
   public long getSpanId() {
     return spanId;
   }
 
+  @Name("rootspanid")
   @Override
   public long getRootSpanId() {
     return getRootSpanContextOrThis().spanId;
@@ -424,6 +431,7 @@ public class DDSpanContext
     return resourceName != null && resourceName.length() != 0;
   }
 
+  @Name("operation_name")
   public CharSequence getOperationName() {
     return operationName;
   }

@@ -112,6 +112,17 @@ public class ProfilingAgent {
         return;
       }
 
+      // initialize the JFR context; this needs to be done before JFR is initialized
+      try {
+        ProfilingAgent.class
+            .getClassLoader()
+            .loadClass("com.datadog.profiling.jfr.context.ContextIntegration")
+            .getMethod("initialize")
+            .invoke(null);
+      } catch (Throwable t) {
+        log.debug("Profiling context labeling via JFR not available. {}", t.getMessage());
+      }
+
       try {
         final Controller controller = ControllerFactory.createController(configProvider);
 

@@ -1,6 +1,25 @@
 package datadog.trace.bootstrap.instrumentation.api;
 
+import datadog.trace.api.profiling.ProfilingContext;
+
 public interface ProfilerContext {
+  interface Access {
+    Access NOOP = new Access() {
+      @Override
+      public void set(ProfilerContext ctx) {}
+
+      @Override
+      public void unset() {}
+
+      @Override
+      public String toString() {
+        return "NOOP";
+      }
+    };
+
+    void set(ProfilerContext ctx);
+    void unset();
+  }
 
   long getSpanId();
 
