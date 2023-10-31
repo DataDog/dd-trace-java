@@ -53,17 +53,24 @@ class SsrfModuleTest extends IastModuleImplTestBase {
     0 * reporter.report(_, _)
 
     when:
-    taint(url)
+    if (url != null) {
+      taint(url)
+    }
     module.onURLConnection(url)
 
     then: 'report is called when the url is tainted'
     tracer.activeSpan() >> span
-    1 * reporter.report(span, { Vulnerability vul -> vul.type == VulnerabilityType.SSRF })
+    if (url != null) {
+      1 * reporter.report(span, { Vulnerability vul -> vul.type == VulnerabilityType.SSRF })
+    } else {
+      0 * reporter.report(_, _)
+    }
 
     where:
     url                        | _
     new URL('http://test.com') | _
     'http://test.com'          | _
+    null                       | _
   }
 
   void 'If all ranges from tainted element have ssfr mark vulnerability is not reported'() {
@@ -73,7 +80,7 @@ class SsrfModuleTest extends IastModuleImplTestBase {
       new Range(0, 2, new Source(SourceTypes.REQUEST_HEADER_VALUE, 'name1', 'value'), VulnerabilityMarks.SSRF_MARK),
       new Range(4, 1, new Source(SourceTypes.REQUEST_PARAMETER_NAME, 'name2', 'value'), VulnerabilityMarks.SSRF_MARK)
     ]
-    ctx.getTaintedObjects().taint(value, ranges)
+    taintedObjects.taint(value, ranges)
 
     when:
     module.onURLConnection(value)
@@ -83,6 +90,6 @@ class SsrfModuleTest extends IastModuleImplTestBase {
   }
 
   private void taint(final Object value) {
-    ctx.getTaintedObjects().taint(value, Ranges.forObject(new Source(SourceTypes.REQUEST_PARAMETER_VALUE, 'name', value.toString())))
+    taintedObjects.taint(value, Ranges.forObject(new Source(SourceTypes.REQUEST_PARAMETER_VALUE, 'name', value.toString())))
   }
 }

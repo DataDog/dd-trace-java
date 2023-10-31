@@ -3,7 +3,6 @@ package com.datadog.iast.sink;
 import static com.datadog.iast.taint.Tainteds.canBeTainted;
 
 import com.datadog.iast.Dependencies;
-import com.datadog.iast.IastRequestContext;
 import com.datadog.iast.model.Evidence;
 import com.datadog.iast.model.Location;
 import com.datadog.iast.model.Range;
@@ -68,11 +67,7 @@ public class UnvalidatedRedirectModuleImpl extends SinkModuleBase
   private void checkUnvalidatedRedirect(
       @Nonnull final Object value, @Nullable final String clazz, @Nullable final String method) {
     final AgentSpan span = AgentTracer.activeSpan();
-    final IastRequestContext ctx = IastRequestContext.get(span);
-    if (ctx == null) {
-      return;
-    }
-    TaintedObject taintedObject = ctx.getTaintedObjects().get(value);
+    TaintedObject taintedObject = taintedObjects.get(value);
     if (taintedObject == null) {
       return;
     }

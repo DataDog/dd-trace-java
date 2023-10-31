@@ -10,7 +10,6 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Propagation;
 import datadog.trace.api.iast.Source;
@@ -84,8 +83,7 @@ public class UriInstrumentation extends Instrumenter.Iast implements Instrumente
         return;
       }
 
-      final IastContext ctx = IastContext.Provider.get();
-      if (!prop.isTainted(ctx, uri)) {
+      if (!prop.isTainted(uri)) {
         return;
       }
 
@@ -93,8 +91,8 @@ public class UriInstrumentation extends Instrumenter.Iast implements Instrumente
       while (iterator.hasNext()) {
         Tuple2<String, String> pair = iterator.next();
         final String name = pair._1(), value = pair._2();
-        prop.taint(ctx, name, SourceTypes.REQUEST_PARAMETER_NAME, name);
-        prop.taint(ctx, value, SourceTypes.REQUEST_PARAMETER_VALUE, name);
+        prop.taint(name, SourceTypes.REQUEST_PARAMETER_NAME, name);
+        prop.taint(value, SourceTypes.REQUEST_PARAMETER_VALUE, name);
       }
     }
   }

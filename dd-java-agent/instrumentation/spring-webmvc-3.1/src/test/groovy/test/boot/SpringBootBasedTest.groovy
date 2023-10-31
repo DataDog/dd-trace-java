@@ -5,7 +5,6 @@ import datadog.trace.agent.test.base.HttpServer
 import datadog.trace.agent.test.base.HttpServerTest
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.DDTags
-import datadog.trace.api.iast.IastContext
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.SourceTypes
 import datadog.trace.api.iast.propagation.PropagationModule
@@ -259,7 +258,7 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
     TEST_WRITER.waitForTraces(1)
 
     then:
-    1 * mod.taint(_ as IastContext, '123', SourceTypes.REQUEST_PATH_PARAMETER, 'id')
+    1 * mod.taint('123', SourceTypes.REQUEST_PATH_PARAMETER, 'id')
     0 * mod._
 
     cleanup:
@@ -295,11 +294,11 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
     TEST_WRITER.waitForTraces(1)
 
     then:
-    1 * mod.taint(_ as IastContext, 'a=x,y;a=z', SourceTypes.REQUEST_PATH_PARAMETER, 'var')
-    1 * mod.taint(_ as IastContext, 'a', SourceTypes.REQUEST_MATRIX_PARAMETER, 'var')
-    1 * mod.taint(_ as IastContext, 'x', SourceTypes.REQUEST_MATRIX_PARAMETER, 'var')
-    1 * mod.taint(_ as IastContext, 'y', SourceTypes.REQUEST_MATRIX_PARAMETER, 'var')
-    1 * mod.taint(_ as IastContext, 'z', SourceTypes.REQUEST_MATRIX_PARAMETER, 'var')
+    1 * mod.taint('a=x,y;a=z', SourceTypes.REQUEST_PATH_PARAMETER, 'var')
+    1 * mod.taint('a', SourceTypes.REQUEST_MATRIX_PARAMETER, 'var')
+    1 * mod.taint('x', SourceTypes.REQUEST_MATRIX_PARAMETER, 'var')
+    1 * mod.taint('y', SourceTypes.REQUEST_MATRIX_PARAMETER, 'var')
+    1 * mod.taint('z', SourceTypes.REQUEST_MATRIX_PARAMETER, 'var')
     0 * mod._
 
     cleanup:

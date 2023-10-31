@@ -62,7 +62,7 @@ class XPathInjectionModuleTest extends IastModuleImplTestBase {
 
 
   private String mapTainted(final String value, final int mark) {
-    final result = addFromTaintFormat(ctx.taintedObjects, value, mark)
+    final result = addFromTaintFormat(taintedObjects, value, mark)
     objectHolder.add(result)
     return result
   }

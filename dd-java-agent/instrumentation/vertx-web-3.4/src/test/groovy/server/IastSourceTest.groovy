@@ -1,6 +1,6 @@
 package server
 
-import datadog.trace.api.iast.IastContext
+
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.SourceTypes
 import datadog.trace.api.iast.propagation.PropagationModule
@@ -27,7 +27,7 @@ class IastSourceTest extends IastVertx34Server {
     client.newCall(request).execute()
 
     then:
-    (1.._) * module.taint(_ as IastContext, _, SourceTypes.REQUEST_COOKIE_VALUE)
+    (1.._) * module.taint(_, SourceTypes.REQUEST_COOKIE_VALUE)
   }
 
   void 'test that getCookie is instrumented'() {
@@ -41,7 +41,7 @@ class IastSourceTest extends IastVertx34Server {
     client.newCall(request).execute()
 
     then:
-    1 * module.taint(_, SourceTypes.REQUEST_COOKIE_VALUE)
+    (1.._) * module.taint(_, SourceTypes.REQUEST_COOKIE_VALUE)
   }
 
   void 'test that cookie getName is instrumented'() {

@@ -3,7 +3,6 @@ package com.datadog.iast.propagation;
 import static datadog.trace.api.iast.VulnerabilityMarks.NOT_MARKED;
 import static java.util.concurrent.TimeUnit.MICROSECONDS;
 
-import com.datadog.iast.IastRequestContext;
 import com.datadog.iast.model.Range;
 import datadog.trace.api.iast.InstrumentationBridge;
 import java.lang.invoke.MethodHandle;
@@ -48,20 +47,19 @@ public class StringConcatFactoryBatchBenchmark
 
   @Override
   protected StringConcatFactoryBatchBenchmark.Context initializeContext() {
-    final IastRequestContext context = new IastRequestContext();
     final String[] values = new String[stringCount];
     final double limit = taintedPct / 100D;
     for (int i = 0; i < stringCount; i++) {
       double current = i / (double) stringCount;
       final String value;
       if (current < limit) {
-        value = tainted(context, "Yep, tainted", new Range(3, 5, source(), NOT_MARKED));
+        value = tainted("Yep, tainted", new Range(3, 5, source(), NOT_MARKED));
       } else {
         value = notTainted("Nop, tainted");
       }
       values[i] = value;
     }
-    return new StringConcatFactoryBatchBenchmark.Context(context, values, stringCount);
+    return new StringConcatFactoryBatchBenchmark.Context(values, stringCount);
   }
 
   @Benchmark
@@ -88,7 +86,7 @@ public class StringConcatFactoryBatchBenchmark
     return result;
   }
 
-  protected static class Context extends AbstractBenchmark.BenchmarkContext {
+  protected static class Context implements AbstractBenchmark.BenchmarkContext {
 
     private final List<String> strings;
     private final String[] stringArray;
@@ -97,9 +95,7 @@ public class StringConcatFactoryBatchBenchmark
     private final Object[] constants;
     private final MethodHandle method;
 
-    protected Context(
-        final IastRequestContext iasContext, final String[] strings, final int paramCount) {
-      super(iasContext);
+    protected Context(final String[] strings, final int paramCount) {
       this.strings = Arrays.asList(strings);
       stringArray = strings;
       recipe = buildRecipe(paramCount);

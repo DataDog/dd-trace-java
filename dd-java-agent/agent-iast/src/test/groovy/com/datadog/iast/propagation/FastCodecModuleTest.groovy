@@ -11,7 +11,7 @@ class FastCodecModuleTest extends BaseCodecModuleTest {
 
   @Override
   protected CodecModule buildModule() {
-    return new FastCodecModule()
+    return new FastCodecModule(dependencies)
   }
 
   @Override

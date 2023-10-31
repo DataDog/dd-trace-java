@@ -4,7 +4,6 @@ import static com.datadog.iast.util.ObjectVisitor.State.CONTINUE;
 import static com.datadog.iast.util.ObjectVisitor.State.EXIT;
 
 import com.datadog.iast.Dependencies;
-import com.datadog.iast.IastRequestContext;
 import com.datadog.iast.Reporter;
 import com.datadog.iast.model.Evidence;
 import com.datadog.iast.model.Location;
@@ -17,6 +16,7 @@ import com.datadog.iast.overhead.OverheadController;
 import com.datadog.iast.taint.Ranges;
 import com.datadog.iast.taint.Ranges.RangesProvider;
 import com.datadog.iast.taint.TaintedObject;
+import com.datadog.iast.taint.TaintedObjects;
 import com.datadog.iast.util.ObjectVisitor;
 import com.datadog.iast.util.ObjectVisitor.State;
 import com.datadog.iast.util.ObjectVisitor.Visitor;
@@ -34,19 +34,18 @@ public abstract class SinkModuleBase {
   protected final OverheadController overheadController;
   protected final Reporter reporter;
   protected final StackWalker stackWalker;
+  protected final TaintedObjects taintedObjects;
 
   protected SinkModuleBase(@Nonnull final Dependencies dependencies) {
     overheadController = dependencies.getOverheadController();
     reporter = dependencies.getReporter();
     stackWalker = dependencies.getStackWalker();
+    taintedObjects = dependencies.getTaintedObjects();
   }
 
   protected final <E> @Nullable Evidence checkInjection(
-      @Nullable final AgentSpan span,
-      @Nonnull final IastRequestContext ctx,
-      @Nonnull final InjectionType type,
-      @Nonnull final E value) {
-    TaintedObject taintedObject = ctx.getTaintedObjects().get(value);
+      @Nullable final AgentSpan span, @Nonnull final InjectionType type, @Nonnull final E value) {
+    TaintedObject taintedObject = taintedObjects.get(value);
     if (taintedObject == null) {
       return null;
     }
@@ -63,11 +62,8 @@ public abstract class SinkModuleBase {
   }
 
   protected final <E> @Nullable Evidence checkInjectionDeeply(
-      @Nullable final AgentSpan span,
-      @Nonnull final IastRequestContext ctx,
-      @Nonnull final InjectionType type,
-      @Nonnull final E value) {
-    final InjectionVisitor visitor = new InjectionVisitor(span, ctx, type);
+      @Nullable final AgentSpan span, @Nonnull final InjectionType type, @Nonnull final E value) {
+    final InjectionVisitor visitor = new InjectionVisitor(span, type);
     ObjectVisitor.visit(value, visitor);
     return visitor.evidence;
   }
@@ -124,6 +120,7 @@ public abstract class SinkModuleBase {
     return result;
   }
 
+  @SafeVarargs
   protected final <E> @Nullable Evidence checkInjection(
       @Nullable final AgentSpan span,
       @Nonnull final InjectionType type,
@@ -197,21 +194,18 @@ public abstract class SinkModuleBase {
   private class InjectionVisitor implements Visitor {
 
     @Nullable private final AgentSpan span;
-    private final IastRequestContext ctx;
     private final InjectionType type;
     @Nullable private Evidence evidence;
 
-    private InjectionVisitor(
-        @Nullable final AgentSpan span, final IastRequestContext ctx, final InjectionType type) {
+    private InjectionVisitor(@Nullable final AgentSpan span, final InjectionType type) {
       this.span = span;
-      this.ctx = ctx;
       this.type = type;
     }
 
     @Nonnull
     @Override
     public State visit(@Nonnull final String path, @Nonnull final Object value) {
-      evidence = checkInjection(span, ctx, type, value);
+      evidence = checkInjection(span, type, value);
       return evidence != null ? EXIT : CONTINUE; // report first tainted value only
     }
   }

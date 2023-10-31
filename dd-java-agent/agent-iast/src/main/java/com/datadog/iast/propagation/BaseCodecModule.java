@@ -2,7 +2,7 @@ package com.datadog.iast.propagation;
 
 import static com.datadog.iast.taint.Tainteds.canBeTainted;
 
-import com.datadog.iast.IastRequestContext;
+import com.datadog.iast.Dependencies;
 import com.datadog.iast.model.Range;
 import com.datadog.iast.taint.TaintedObject;
 import com.datadog.iast.taint.TaintedObjects;
@@ -12,6 +12,12 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 public abstract class BaseCodecModule implements CodecModule {
+
+  private final TaintedObjects taintedObjects;
+
+  public BaseCodecModule(@Nonnull final Dependencies dependencies) {
+    this.taintedObjects = dependencies.getTaintedObjects();
+  }
 
   @Override
   public void onUrlDecode(
@@ -61,18 +67,13 @@ public abstract class BaseCodecModule implements CodecModule {
         result, value, tainted -> decodeBase64Ranges(value, result, tainted.getRanges()));
   }
 
-  private static void taintIfInputIsTainted(
+  private void taintIfInputIsTainted(
       final Object value, final Object input, final Function<TaintedObject, Range[]> mapper) {
-    final IastRequestContext ctx = IastRequestContext.get();
-    if (ctx == null) {
-      return;
-    }
-    final TaintedObjects to = ctx.getTaintedObjects();
-    final TaintedObject tainted = to.get(input);
+    final TaintedObject tainted = taintedObjects.get(input);
     if (hasRanges(tainted)) {
       final Range[] ranges = mapper.apply(tainted);
       if (hasRanges(ranges)) {
-        to.taint(value, ranges);
+        taintedObjects.taint(value, ranges);
       }
     }
   }

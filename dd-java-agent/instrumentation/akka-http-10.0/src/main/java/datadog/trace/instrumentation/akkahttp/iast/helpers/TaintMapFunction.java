@@ -1,6 +1,5 @@
 package datadog.trace.instrumentation.akkahttp.iast.helpers;
 
-import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.SourceTypes;
 import datadog.trace.api.iast.propagation.PropagationModule;
@@ -23,13 +22,12 @@ public class TaintMapFunction
       return v1;
     }
 
-    final IastContext ctx = IastContext.Provider.get();
     Iterator<Tuple2<String, String>> iterator = m.iterator();
     while (iterator.hasNext()) {
       Tuple2<String, String> e = iterator.next();
       final String name = e._1(), value = e._2();
-      prop.taint(ctx, name, SourceTypes.REQUEST_PARAMETER_NAME, name);
-      prop.taint(ctx, value, SourceTypes.REQUEST_PARAMETER_VALUE, name);
+      prop.taint(name, SourceTypes.REQUEST_PARAMETER_NAME, name);
+      prop.taint(value, SourceTypes.REQUEST_PARAMETER_VALUE, name);
     }
 
     return v1;

@@ -9,7 +9,6 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Source;
 import datadog.trace.api.iast.SourceTypes;
@@ -58,8 +57,7 @@ public class CookieHeaderInstrumentation extends Instrumenter.Iast
       if (prop == null || cookiePairs == null || cookiePairs.isEmpty()) {
         return;
       }
-      final IastContext ctx = IastContext.Provider.get();
-      if (!prop.isTainted(ctx, cookie)) {
+      if (!prop.isTainted(cookie)) {
         return;
       }
 
@@ -67,8 +65,8 @@ public class CookieHeaderInstrumentation extends Instrumenter.Iast
       while (iterator.hasNext()) {
         HttpCookiePair pair = iterator.next();
         final String name = pair.name(), value = pair.value();
-        prop.taint(ctx, name, SourceTypes.REQUEST_COOKIE_NAME, name);
-        prop.taint(ctx, value, SourceTypes.REQUEST_COOKIE_VALUE, name);
+        prop.taint(name, SourceTypes.REQUEST_COOKIE_NAME, name);
+        prop.taint(value, SourceTypes.REQUEST_COOKIE_VALUE, name);
       }
     }
   }

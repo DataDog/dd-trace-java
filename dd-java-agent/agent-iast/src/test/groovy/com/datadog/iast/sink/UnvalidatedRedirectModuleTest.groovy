@@ -65,7 +65,7 @@ class UnvalidatedRedirectModuleTest extends IastModuleImplTestBase {
 
   void 'iast module detects URI redirect (#value)'(final URI value, final String expected) {
     setup:
-    ctx.taintedObjects.taint(value, Ranges.forObject(new Source(SourceTypes.NONE, null, null)))
+    taintedObjects.taint(value, Ranges.forObject(new Source(SourceTypes.NONE, null, null)))
 
     when:
     module.onURIRedirect(value)
@@ -108,7 +108,7 @@ class UnvalidatedRedirectModuleTest extends IastModuleImplTestBase {
 
   void 'if onHeader receives a Location header call onRedirect'() {
     setup:
-    final urm = Spy(new UnvalidatedRedirectModuleImpl(dependencies))
+    final urm = Spy(module)
     InstrumentationBridge.registerIastModule(urm)
 
     when:
@@ -129,7 +129,7 @@ class UnvalidatedRedirectModuleTest extends IastModuleImplTestBase {
     def value = 'test01'
     def refererSource = new Source(SourceTypes.REQUEST_HEADER_VALUE, 'referer', 'value')
     Range[] ranges = [new Range(0, 2, refererSource, NOT_MARKED), new Range(4, 1, refererSource, NOT_MARKED)]
-    ctx.getTaintedObjects().taint(value, ranges)
+    taintedObjects.taint(value, ranges)
 
     when:
     module.onRedirect(value)
@@ -140,7 +140,7 @@ class UnvalidatedRedirectModuleTest extends IastModuleImplTestBase {
 
   void 'If not all ranges from tainted element have referer header as source, is an unvalidated redirect'(final String value, final Range[] ranges) {
     setup:
-    ctx.getTaintedObjects().taint(value, ranges)
+    taintedObjects.taint(value, ranges)
 
     when:
     module.onRedirect(value)
@@ -171,7 +171,7 @@ class UnvalidatedRedirectModuleTest extends IastModuleImplTestBase {
       new Range(0, 2, new Source(SourceTypes.REQUEST_HEADER_VALUE, 'referer', 'value'), VulnerabilityMarks.UNVALIDATED_REDIRECT_MARK),
       new Range(4, 1, new Source(SourceTypes.REQUEST_PARAMETER_NAME, 'referer', 'value'), VulnerabilityMarks.UNVALIDATED_REDIRECT_MARK)
     ]
-    ctx.getTaintedObjects().taint(value, ranges)
+    taintedObjects.taint(value, ranges)
 
     when:
     module.onRedirect(value)
@@ -182,7 +182,7 @@ class UnvalidatedRedirectModuleTest extends IastModuleImplTestBase {
 
 
   private String mapTainted(final String value) {
-    final result = addFromTaintFormat(ctx.taintedObjects, value, NOT_MARKED)
+    final result = addFromTaintFormat(taintedObjects, value, NOT_MARKED)
     objectHolder.add(result)
     return result
   }

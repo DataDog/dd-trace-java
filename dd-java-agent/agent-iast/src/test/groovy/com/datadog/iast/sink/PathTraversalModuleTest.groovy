@@ -167,7 +167,7 @@ class PathTraversalModuleTest extends IastModuleImplTestBase {
   }
 
   private String mapTainted(final String value, int mark) {
-    final result = addFromTaintFormat(ctx.taintedObjects, value, mark)
+    final result = addFromTaintFormat(taintedObjects, value, mark)
     objectHolder.add(result)
     return result
   }
@@ -178,7 +178,7 @@ class PathTraversalModuleTest extends IastModuleImplTestBase {
       return new URI(s)
     }
     final result = new URI(getStringFromTaintFormat(s))
-    ctx.taintedObjects.taint(result, ranges)
+    taintedObjects.taint(result, ranges)
     objectHolder.add(result)
     return result
   }

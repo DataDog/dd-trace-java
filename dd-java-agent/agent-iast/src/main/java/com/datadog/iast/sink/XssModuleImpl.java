@@ -4,7 +4,6 @@ import static com.datadog.iast.taint.Ranges.rangesProviderFor;
 import static com.datadog.iast.taint.Tainteds.canBeTainted;
 
 import com.datadog.iast.Dependencies;
-import com.datadog.iast.IastRequestContext;
 import com.datadog.iast.model.Evidence;
 import com.datadog.iast.model.Location;
 import com.datadog.iast.model.Range;
@@ -13,7 +12,6 @@ import com.datadog.iast.model.VulnerabilityType;
 import com.datadog.iast.overhead.Operations;
 import com.datadog.iast.taint.Ranges;
 import com.datadog.iast.taint.TaintedObject;
-import com.datadog.iast.taint.TaintedObjects;
 import datadog.trace.api.iast.sink.XssModule;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
@@ -32,11 +30,7 @@ public class XssModuleImpl extends SinkModuleBase implements XssModule {
       return;
     }
     final AgentSpan span = AgentTracer.activeSpan();
-    final IastRequestContext ctx = IastRequestContext.get(span);
-    if (ctx == null) {
-      return;
-    }
-    checkInjection(span, ctx, VulnerabilityType.XSS, s);
+    checkInjection(span, VulnerabilityType.XSS, s);
   }
 
   @Override
@@ -45,11 +39,7 @@ public class XssModuleImpl extends SinkModuleBase implements XssModule {
       return;
     }
     final AgentSpan span = AgentTracer.activeSpan();
-    final IastRequestContext ctx = IastRequestContext.get(span);
-    if (ctx == null) {
-      return;
-    }
-    TaintedObject taintedObject = ctx.getTaintedObjects().get(s);
+    TaintedObject taintedObject = taintedObjects.get(s);
     if (taintedObject == null) {
       return;
     }
@@ -76,11 +66,7 @@ public class XssModuleImpl extends SinkModuleBase implements XssModule {
       return;
     }
     final AgentSpan span = AgentTracer.activeSpan();
-    final IastRequestContext ctx = IastRequestContext.get(span);
-    if (ctx == null) {
-      return;
-    }
-    checkInjection(span, ctx, VulnerabilityType.XSS, array);
+    checkInjection(span, VulnerabilityType.XSS, array);
   }
 
   @Override
@@ -89,13 +75,11 @@ public class XssModuleImpl extends SinkModuleBase implements XssModule {
       return;
     }
     final AgentSpan span = AgentTracer.activeSpan();
-    final IastRequestContext ctx = IastRequestContext.get(span);
-    if (ctx == null) {
-      return;
-    }
-    final TaintedObjects to = ctx.getTaintedObjects();
     checkInjection(
-        span, VulnerabilityType.XSS, rangesProviderFor(to, format), rangesProviderFor(to, args));
+        span,
+        VulnerabilityType.XSS,
+        rangesProviderFor(taintedObjects, format),
+        rangesProviderFor(taintedObjects, args));
   }
 
   @Override
@@ -104,11 +88,7 @@ public class XssModuleImpl extends SinkModuleBase implements XssModule {
       return;
     }
     final AgentSpan span = AgentTracer.activeSpan();
-    final IastRequestContext ctx = IastRequestContext.get(span);
-    if (ctx == null) {
-      return;
-    }
-    TaintedObject taintedObject = ctx.getTaintedObjects().get(s);
+    TaintedObject taintedObject = taintedObjects.get(s);
     if (taintedObject == null) {
       return;
     }

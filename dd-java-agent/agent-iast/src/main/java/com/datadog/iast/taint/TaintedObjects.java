@@ -1,17 +1,12 @@
 package com.datadog.iast.taint;
 
-import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_MAX_CONCURRENT_REQUESTS;
 import static java.util.Collections.emptyIterator;
 
 import com.datadog.iast.IastSystem;
 import com.datadog.iast.model.Range;
 import com.datadog.iast.model.json.TaintedObjectEncoding;
-import datadog.trace.api.Config;
-import java.util.ArrayList;
 import java.util.Iterator;
-import java.util.List;
 import java.util.UUID;
-import java.util.concurrent.ArrayBlockingQueue;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.slf4j.Logger;
@@ -20,39 +15,29 @@ import org.slf4j.LoggerFactory;
 @SuppressWarnings("UnusedReturnValue")
 public interface TaintedObjects extends Iterable<TaintedObject> {
 
+  static TaintedObjects build(final int capacity) {
+    final TaintedObjectsImpl taintedObjects = new TaintedObjectsImpl(capacity);
+    return IastSystem.DEBUG ? new TaintedObjectsDebugAdapter(taintedObjects) : taintedObjects;
+  }
+
+  static TaintedObjects build() {
+    return build(TaintedMap.DEFAULT_CAPACITY);
+  }
+
   @Nullable
   TaintedObject taint(@Nonnull Object obj, @Nonnull Range[] ranges);
 
   @Nullable
   TaintedObject get(@Nonnull Object obj);
 
-  void release();
-
-  int count();
-
-  int getEstimatedSize();
-
-  boolean isFlat();
-
-  static TaintedObjects acquire() {
-    TaintedObjectsImpl taintedObjects = TaintedObjectsImpl.pool.poll();
-    if (taintedObjects == null) {
-      taintedObjects = new TaintedObjectsImpl();
-    }
-    return IastSystem.DEBUG ? new TaintedObjectsDebugAdapter(taintedObjects) : taintedObjects;
-  }
+  void clear();
 
   class TaintedObjectsImpl implements TaintedObjects {
 
-    private static final ArrayBlockingQueue<TaintedObjectsImpl> pool =
-        new ArrayBlockingQueue<>(
-            Math.max(
-                Config.get().getIastMaxConcurrentRequests(), DEFAULT_IAST_MAX_CONCURRENT_REQUESTS));
-
     private final TaintedMap map;
 
-    public TaintedObjectsImpl() {
-      this(new TaintedMap());
+    public TaintedObjectsImpl(final int capacity) {
+      this(new TaintedMap(capacity));
     }
 
     private TaintedObjectsImpl(final @Nonnull TaintedMap map) {
@@ -72,31 +57,15 @@ public interface TaintedObjects extends Iterable<TaintedObject> {
       return map.get(obj);
     }
 
-    @Override
-    public void release() {
-      map.clear();
-      pool.offer(this);
-    }
-
-    @Override
-    public int count() {
-      return map.count();
-    }
-
-    @Override
-    public int getEstimatedSize() {
-      return map.getEstimatedSize();
-    }
-
-    @Override
-    public boolean isFlat() {
-      return map.isFlat();
-    }
-
     @Nonnull
     @Override
     public Iterator<TaintedObject> iterator() {
       return map.iterator();
+    }
+
+    @Override
+    public void clear() {
+      map.clear();
     }
   }
 
@@ -127,34 +96,8 @@ public interface TaintedObjects extends Iterable<TaintedObject> {
     }
 
     @Override
-    public void release() {
-      if (IastSystem.DEBUG && LOGGER.isDebugEnabled()) {
-        try {
-          final List<TaintedObject> entries = new ArrayList<>();
-          for (final TaintedObject to : delegated.map) {
-            entries.add(to);
-          }
-          LOGGER.debug("release {}: map={}", id, TaintedObjectEncoding.toJson(entries));
-        } catch (final Throwable e) {
-          LOGGER.error("Failed to debug tainted objects release", e);
-        }
-      }
-      delegated.release();
-    }
-
-    @Override
-    public int count() {
-      return delegated.count();
-    }
-
-    @Override
-    public int getEstimatedSize() {
-      return delegated.getEstimatedSize();
-    }
-
-    @Override
-    public boolean isFlat() {
-      return delegated.isFlat();
+    public void clear() {
+      delegated.clear();
     }
 
     @Nonnull
@@ -191,27 +134,12 @@ public interface TaintedObjects extends Iterable<TaintedObject> {
     }
 
     @Override
-    public void release() {}
-
-    @Override
-    public boolean isFlat() {
-      return false;
-    }
-
-    @Override
-    public int count() {
-      return 0;
-    }
-
-    @Override
-    public int getEstimatedSize() {
-      return 0;
-    }
-
-    @Override
     @Nonnull
     public Iterator<TaintedObject> iterator() {
       return emptyIterator();
     }
+
+    @Override
+    public void clear() {}
   }
 }

@@ -30,7 +30,7 @@ class TaintedObjectsLogTest extends DDSpecification {
     given:
     IastSystem.DEBUG = true
     logger.setLevel(Level.ALL)
-    TaintedObjects taintedObjects = TaintedObjects.acquire()
+    final taintedObjects = TaintedObjects.build(1024) as TaintedObjects.TaintedObjectsDebugAdapter
     final value = "A"
 
     when:
@@ -46,37 +46,30 @@ class TaintedObjectsLogTest extends DDSpecification {
     then:
     noExceptionThrown()
     tainted != null
-  }
-
-  void "test TaintedObjects debug log on release"() {
-    given:
-    IastSystem.DEBUG = true
-    logger.level = Level.ALL
-    TaintedObjects taintedObjects = TaintedObjects.acquire()
-    final obj = 'A'
-    taintedObjects.taint(obj, Ranges.forCharSequence(obj, new Source(SourceTypes.NONE, null, null)))
 
     when:
-    taintedObjects.release()
+    final mockTainted = Mock(TaintedObject) {
+      get() >> { throw new Error('Boom!!!!') }
+    }
+    taintedObjects.logTainted(mockTainted)
 
     then:
     noExceptionThrown()
   }
 
-  void "test TaintedObjects api calls"() {
+  void "test TaintedObjects debug log on clear"() {
     given:
     IastSystem.DEBUG = true
     logger.level = Level.ALL
-    TaintedObjects taintedObjects = TaintedObjects.acquire()
+    TaintedObjects taintedObjects = TaintedObjects.build(1024)
     final obj = 'A'
-
-    when:
     taintedObjects.taint(obj, Ranges.forCharSequence(obj, new Source(SourceTypes.NONE, null, null)))
 
+    when:
+    taintedObjects.clear()
+
     then:
-    taintedObjects.size() == 1
-    taintedObjects.iterator().size() == 1
-    !taintedObjects.flat
+    noExceptionThrown()
   }
 }
 

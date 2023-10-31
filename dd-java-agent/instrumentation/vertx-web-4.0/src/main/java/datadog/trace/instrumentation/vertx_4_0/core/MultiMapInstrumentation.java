@@ -10,7 +10,6 @@ import static net.bytebuddy.matcher.ElementMatchers.takesNoArguments;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.bytebuddy.iast.TaintableVisitor;
 import datadog.trace.agent.tooling.muzzle.Reference;
-import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Propagation;
 import datadog.trace.api.iast.Taintable.Source;
@@ -94,9 +93,8 @@ public abstract class MultiMapInstrumentation extends Instrumenter.Iast {
       if (propagation != null && result != null && !result.isEmpty()) {
         final Source source = propagation.findSource(self);
         if (source != null) {
-          final IastContext ctx = IastContext.Provider.get();
           for (final String value : result) {
-            propagation.taint(ctx, value, source.getOrigin(), name);
+            propagation.taint(value, source.getOrigin(), name);
           }
         }
       }
@@ -113,16 +111,15 @@ public abstract class MultiMapInstrumentation extends Instrumenter.Iast {
       if (propagation != null && result != null && !result.isEmpty()) {
         final Source source = propagation.findSource(self);
         if (source != null) {
-          final IastContext ctx = IastContext.Provider.get();
           final byte nameOrigin = namedSource(source.getOrigin());
           final Set<String> keys = new HashSet<>();
           for (final Map.Entry<String, String> entry : result) {
             final String name = entry.getKey();
             final String value = entry.getValue();
             if (keys.add(name)) {
-              propagation.taint(ctx, name, nameOrigin, name);
+              propagation.taint(name, nameOrigin, name);
             }
-            propagation.taint(ctx, value, source.getOrigin(), name);
+            propagation.taint(value, source.getOrigin(), name);
           }
         }
       }
@@ -138,10 +135,9 @@ public abstract class MultiMapInstrumentation extends Instrumenter.Iast {
       if (propagation != null && result != null && !result.isEmpty()) {
         final Source source = propagation.findSource(self);
         if (source != null) {
-          final IastContext ctx = IastContext.Provider.get();
           final byte nameOrigin = namedSource(source.getOrigin());
           for (final String name : result) {
-            propagation.taint(ctx, name, nameOrigin, name);
+            propagation.taint(name, nameOrigin, name);
           }
         }
       }

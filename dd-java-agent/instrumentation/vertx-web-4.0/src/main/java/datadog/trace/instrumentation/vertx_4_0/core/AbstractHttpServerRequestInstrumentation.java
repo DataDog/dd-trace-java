@@ -11,7 +11,6 @@ import static net.bytebuddy.matcher.ElementMatchers.takesNoArguments;
 
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.muzzle.Reference;
-import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Source;
 import datadog.trace.api.iast.SourceTypes;
@@ -139,9 +138,8 @@ public abstract class AbstractHttpServerRequestInstrumentation extends Instrumen
     public static void onExit(@Advice.Return final Set<Object> cookies) {
       final PropagationModule module = InstrumentationBridge.PROPAGATION;
       if (module != null && cookies != null && !cookies.isEmpty()) {
-        final IastContext ctx = IastContext.Provider.get();
         for (final Object cookie : cookies) {
-          module.taint(ctx, cookie, SourceTypes.REQUEST_COOKIE_VALUE);
+          module.taint(cookie, SourceTypes.REQUEST_COOKIE_VALUE);
         }
       }
     }

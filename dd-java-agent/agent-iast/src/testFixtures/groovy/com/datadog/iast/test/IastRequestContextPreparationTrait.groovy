@@ -1,6 +1,5 @@
 package com.datadog.iast.test
 
-import com.datadog.iast.IastRequestContext
 import com.datadog.iast.IastSystem
 import com.datadog.iast.model.Range
 import com.datadog.iast.taint.TaintedObject
@@ -18,9 +17,9 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.get
 
 trait IastRequestContextPreparationTrait {
 
-  static void iastSystemSetup(Closure reqEndAction = null) {
+  void iastSystemSetup(Closure reqEndAction = null, TaintedObjects taintedObjects = null) {
     def ss = AgentTracer.get().getSubscriptionService(RequestContextSlot.IAST)
-    IastSystem.start(ss, new NoopOverheadController())
+    IastSystem.start(ss, new NoopOverheadController(), new TaintedObjectSaveStrongReference(delegate: taintedObjects))
 
     EventType<Supplier<Flow<Object>>> requestStarted = Events.get().requestStarted()
     EventType<BiFunction<RequestContext, IGSpanInfo, Flow<Void>>> requestEnded =
@@ -33,7 +32,7 @@ trait IastRequestContextPreparationTrait {
 
     // wrap the original IG callbacks
     ss.reset()
-    ss.registerCallback(requestStarted, new TaintedMapSaveStrongRefsRequestStarted(orig: origRequestStarted))
+    ss.registerCallback(requestStarted, origRequestStarted)
     if (reqEndAction != null) {
       ss.registerCallback(requestEnded, new TaintedMapSavingRequestEnded(
         original: origRequestEnded, beforeAction: reqEndAction))
@@ -45,48 +44,37 @@ trait IastRequestContextPreparationTrait {
     InstrumentationBridge.clearIastModules()
   }
 
-  static class TaintedMapSaveStrongRefsRequestStarted implements Supplier<Flow<Object>> {
-    Supplier<Flow<Object>> orig
+  static class TaintedObjectSaveStrongReference implements TaintedObjects {
+    @Delegate
+    TaintedObjects delegate
+
+    List<Object> objects = Collections.synchronizedList([])
 
     @Override
-    Flow<Object> get() {
-      IastRequestContext reqCtx = orig.get().result
-      def taintedObjectWrapper = new TaintedObjectSaveStrongReference(delegate: reqCtx.taintedObjects)
-      new Flow.ResultFlow(new IastRequestContext(taintedObjectWrapper))
+    TaintedObject taint(Object obj, Range[] ranges) {
+      objects << obj
+      final tainted = this.delegate.taint(obj, ranges)
+      logTaint obj
+      return tainted
     }
 
-    static class TaintedObjectSaveStrongReference implements TaintedObjects {
-      @Delegate
-      TaintedObjects delegate
+    private final static Logger LOGGER = LoggerFactory.getLogger("map tainted objects")
+    static {
+      ((ch.qos.logback.classic.Logger) LOGGER).level = ch.qos.logback.classic.Level.DEBUG
+    }
 
-      List<Object> objects = Collections.synchronizedList([])
-
-      @Override
-      TaintedObject taint(Object obj, Range[] ranges) {
-        objects << obj
-        final tainted = this.delegate.taint(obj, ranges)
-        logTaint obj
-        return tainted
+    private static void logTaint(Object o) {
+      def content
+      if (o.getClass().name.startsWith('java.')) {
+        content = o
+      } else {
+        content = '(value not shown)' // toString() may trigger tainting
       }
-
-      private final static Logger LOGGER = LoggerFactory.getLogger("map tainted objects")
-      static {
-        ((ch.qos.logback.classic.Logger) LOGGER).level = ch.qos.logback.classic.Level.DEBUG
-      }
-
-      private static void logTaint(Object o) {
-        def content
-        if (o.getClass().name.startsWith('java.')) {
-          content = o
-        } else {
-          content = '(value not shown)' // toString() may trigger tainting
-        }
-        // Some Scala classes will produce a "Malformed class name" when calling Class#getSimpleName in JDK 8,
-        // so be sure to call Class#getName instead.
-        // See https://github.com/scala/bug/issues/2034
-        LOGGER.debug("taint: {}[{}] {}",
-          o.getClass().getName(), Integer.toHexString(System.identityHashCode(o)), content)
-      }
+      // Some Scala classes will produce a "Malformed class name" when calling Class#getSimpleName in JDK 8,
+      // so be sure to call Class#getName instead.
+      // See https://github.com/scala/bug/issues/2034
+      LOGGER.debug("taint: {}[{}] {}",
+        o.getClass().getName(), Integer.toHexString(System.identityHashCode(o)), content)
     }
   }
 

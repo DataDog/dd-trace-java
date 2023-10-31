@@ -11,7 +11,6 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.bytebuddy.iast.TaintableVisitor;
 import datadog.trace.agent.tooling.muzzle.Reference;
-import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Source;
 import datadog.trace.api.iast.SourceTypes;
@@ -90,10 +89,9 @@ public class HeadersAdaptorInstrumentation extends Instrumenter.Iast
       final PropagationModule propagation = InstrumentationBridge.PROPAGATION;
       if (propagation != null && result != null && !result.isEmpty()) {
         if (propagation.isTainted(self)) {
-          final IastContext ctx = IastContext.Provider.get();
           final String headerName = name == null ? null : name.toString();
           for (final String value : result) {
-            propagation.taint(ctx, value, SourceTypes.REQUEST_HEADER_VALUE, headerName);
+            propagation.taint(value, SourceTypes.REQUEST_HEADER_VALUE, headerName);
           }
         }
       }
@@ -109,15 +107,14 @@ public class HeadersAdaptorInstrumentation extends Instrumenter.Iast
       final PropagationModule propagation = InstrumentationBridge.PROPAGATION;
       if (propagation != null && result != null && !result.isEmpty()) {
         if (propagation.isTainted(self)) {
-          final IastContext ctx = IastContext.Provider.get();
           final Set<String> names = new HashSet<>();
           for (Map.Entry<String, String> entry : result) {
             final String name = entry.getKey();
             final String value = entry.getValue();
             if (names.add(name)) {
-              propagation.taint(ctx, name, SourceTypes.REQUEST_HEADER_NAME, name);
+              propagation.taint(name, SourceTypes.REQUEST_HEADER_NAME, name);
             }
-            propagation.taint(ctx, value, SourceTypes.REQUEST_HEADER_VALUE, name);
+            propagation.taint(value, SourceTypes.REQUEST_HEADER_VALUE, name);
           }
         }
       }
@@ -132,9 +129,8 @@ public class HeadersAdaptorInstrumentation extends Instrumenter.Iast
       final PropagationModule propagation = InstrumentationBridge.PROPAGATION;
       if (propagation != null && result != null && !result.isEmpty()) {
         if (propagation.isTainted(self)) {
-          final IastContext ctx = IastContext.Provider.get();
           for (final String name : result) {
-            propagation.taint(ctx, name, SourceTypes.REQUEST_HEADER_NAME, name);
+            propagation.taint(name, SourceTypes.REQUEST_HEADER_NAME, name);
           }
         }
       }

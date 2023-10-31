@@ -1,18 +1,9 @@
 package com.datadog.iast.telemetry
 
-import com.datadog.iast.IastRequestContext
-import com.datadog.iast.RequestEndedHandler
-import com.datadog.iast.model.Source
-import com.datadog.iast.taint.Ranges
-import com.datadog.iast.taint.TaintedObjects
-import com.datadog.iast.telemetry.taint.TaintedObjectsWithTelemetry
-import datadog.trace.api.gateway.RequestContextSlot
-import datadog.trace.api.iast.InstrumentationBridge
+
 import datadog.trace.api.iast.SourceTypes
 import datadog.trace.api.iast.VulnerabilityTypes
 import datadog.trace.api.iast.telemetry.IastMetric
-import datadog.trace.api.iast.telemetry.IastMetricCollector
-import datadog.trace.api.iast.telemetry.Verbosity
 import groovy.transform.CompileDynamic
 import groovy.transform.ToString
 
@@ -22,48 +13,10 @@ import static datadog.trace.api.iast.telemetry.IastMetric.*
 @CompileDynamic
 class TelemetryRequestEndedHandlerTest extends AbstractTelemetryCallbackTest {
 
-  protected RequestEndedHandler delegate
-  protected IastRequestContext iastCtx
-  protected IastMetricCollector globalCollector
-
-  void setup() {
-    InstrumentationBridge.clearIastModules()
-    delegate = Spy(new RequestEndedHandler(dependencies))
-    final TaintedObjects to = TaintedObjectsWithTelemetry.build(Verbosity.DEBUG, TaintedObjects.acquire())
-    iastCtx = new IastRequestContext(to, new IastMetricCollector())
-    reqCtx.getData(RequestContextSlot.IAST) >> iastCtx
-    globalCollector = IastMetricCollector.get()
-    globalCollector.prepareMetrics()
-    globalCollector.drain()
-  }
-
-  void 'request ends propagates tainted map metrics'() {
-    given:
-    final handler = new TelemetryRequestEndedHandler(delegate)
-    final toTaint = 'hello'
-    final source = new Source(SourceTypes.REQUEST_PARAMETER_VALUE, 'name', 'value')
-    iastCtx.taintedObjects.taint(toTaint, Ranges.forCharSequence(toTaint, source))
-
-    when:
-    handler.apply(reqCtx, span)
-
-    then:
-    1 * delegate.apply(reqCtx, span)
-    1 * traceSegment.setTagTop('_dd.iast.telemetry.request.tainted', 1)
-
-    when:
-    globalCollector.prepareMetrics()
-    final drained = globalCollector.drain()
-
-    then:
-    drained.find { it.metric == REQUEST_TAINTED } != null
-    drained.find { it.metric == EXECUTED_TAINTED } != null
-  }
-
   void 'test telemetry with request scoped metric'() {
     given:
     final handler = new TelemetryRequestEndedHandler(delegate)
-    final metric = TAINTED_FLAT_MODE
+    final metric = EXECUTED_TAINTED
 
     when:
     iastCtx.metricCollector.addMetric(metric, (byte) -1, 1)
@@ -79,7 +32,7 @@ class TelemetryRequestEndedHandlerTest extends AbstractTelemetryCallbackTest {
 
     then:
     drained.size() == 1
-    drained[0].metric == TAINTED_FLAT_MODE
+    drained[0].metric == metric
     drained[0].type == 'count'
     drained[0].value.longValue() == 1
   }
@@ -109,18 +62,18 @@ class TelemetryRequestEndedHandlerTest extends AbstractTelemetryCallbackTest {
     }
 
     where:
-    metrics                                                                       | description
+    metrics                                                                | description
     [
-      metric(REQUEST_TAINTED, 123),
+      metric(EXECUTED_TAINTED, 123),
       metric(EXECUTED_SOURCE, SourceTypes.REQUEST_PARAMETER_VALUE, 2),
       metric(EXECUTED_SOURCE, SourceTypes.REQUEST_HEADER_VALUE, 4),
       metric(EXECUTED_SINK, VulnerabilityTypes.SQL_INJECTION, 1),
       metric(EXECUTED_SINK, VulnerabilityTypes.COMMAND_INJECTION, 2),
-    ]                                                                             | 'List of only request scoped metrics'
+    ]                                                                      | 'List of only request scoped metrics'
     [
-      metric(REQUEST_TAINTED, 123),
+      metric(EXECUTED_TAINTED, 123),
       metric(INSTRUMENTED_SOURCE, SourceTypes.REQUEST_PARAMETER_VALUE, 2),
-    ]                                                                             | 'Mix between global and request scoped metrics'
+    ]                                                                      | 'Mix between global and request scoped metrics'
   }
 
   private static String getSpanTagValue(final IastMetric metric, final Byte tagValue = null) {

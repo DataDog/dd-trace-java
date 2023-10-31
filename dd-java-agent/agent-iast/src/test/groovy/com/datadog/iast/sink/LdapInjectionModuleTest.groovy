@@ -41,9 +41,9 @@ class LdapInjectionModuleTest extends IastModuleImplTestBase {
 
   void 'iast module detect LDAP injection on search(#name, #filter, #args, #mark)'(final String name, final String filter, final List<Object> args, final int mark, final String expected) {
     setup:
-    final taintedName = addFromTaintFormat(ctx.taintedObjects, name, mark)
+    final taintedName = addFromTaintFormat(taintedObjects, name, mark)
     objectHolder.add(taintedName)
-    final taintedFilter = addFromTaintFormat(ctx.taintedObjects, filter, mark)
+    final taintedFilter = addFromTaintFormat(taintedObjects, filter, mark)
     objectHolder.add(taintedName)
     final mapedArgs = mapTaintedElement(args, mark).toArray(new Object[0]) as Object[]
 
@@ -87,7 +87,7 @@ class LdapInjectionModuleTest extends IastModuleImplTestBase {
   private List<Object> mapTaintedElement(final List<Object> element, final int mark) {
     element.collect {
       if (it instanceof String) {
-        final item = addFromTaintFormat(ctx.taintedObjects, it, mark)
+        final item = addFromTaintFormat(taintedObjects, it, mark)
         objectHolder.add(item)
         return item
       }

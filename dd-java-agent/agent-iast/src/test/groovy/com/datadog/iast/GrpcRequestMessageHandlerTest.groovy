@@ -18,16 +18,10 @@ import static com.datadog.iast.util.ObjectVisitor.State.CONTINUE
 class GrpcRequestMessageHandlerTest extends DDSpecification {
 
   private PropagationModule propagation
-  private IastRequestContext iastCtx
-  private RequestContext ctx
 
   void setup() {
     propagation = Mock(PropagationModule)
     InstrumentationBridge.registerIastModule(propagation)
-    iastCtx = Mock(IastRequestContext)
-    ctx = Mock(RequestContext) {
-      getData(RequestContextSlot.IAST) >> iastCtx
-    }
   }
 
   void 'the handler does nothing without propagation'() {
@@ -36,7 +30,7 @@ class GrpcRequestMessageHandlerTest extends DDSpecification {
     InstrumentationBridge.clearIastModules()
 
     when:
-    handler.apply(ctx, [:])
+    handler.apply(null, [:])
 
     then:
     0 * _
@@ -47,7 +41,7 @@ class GrpcRequestMessageHandlerTest extends DDSpecification {
     final handler = new GrpcRequestMessageHandler()
 
     when:
-    handler.apply(ctx, null)
+    handler.apply(null, null)
 
     then:
     0 * _
@@ -59,10 +53,10 @@ class GrpcRequestMessageHandlerTest extends DDSpecification {
     final handler = new GrpcRequestMessageHandler()
 
     when:
-    handler.apply(ctx, target)
+    handler.apply(null, target)
 
     then:
-    1 * propagation.taintDeeply(iastCtx, target, SourceTypes.GRPC_BODY, _ as Predicate<Class<?>>)
+    1 * propagation.taintDeeply(target, SourceTypes.GRPC_BODY, _ as Predicate<Class<?>>)
   }
 
   void 'the handler only takes into account protobuf v.#protobufVersion related messages'() {
@@ -73,7 +67,6 @@ class GrpcRequestMessageHandlerTest extends DDSpecification {
         return CONTINUE
       }
     }
-    final url = 'https://dd.datad0g.com/'
     final nonProtobufMessage = new VisitableClass(name: 'test')
     final filter = GrpcRequestMessageHandler::isProtobufArtifact
 

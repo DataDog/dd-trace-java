@@ -1,8 +1,5 @@
 package datadog.trace.instrumentation.springwebflux.server.iast;
 
-import datadog.trace.advice.RequiresRequestContext;
-import datadog.trace.api.gateway.RequestContextSlot;
-import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Source;
 import datadog.trace.api.iast.SourceTypes;
@@ -12,7 +9,6 @@ import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import org.springframework.util.MultiValueMap;
 
-@RequiresRequestContext(RequestContextSlot.IAST)
 class TaintQueryParamsAdvice {
 
   @SuppressWarnings("Duplicates")
@@ -24,12 +20,11 @@ class TaintQueryParamsAdvice {
       return;
     }
 
-    final IastContext ctx = IastContext.Provider.get();
     for (Map.Entry<String, List<String>> e : queryParams.entrySet()) {
       String name = e.getKey();
-      prop.taint(ctx, name, SourceTypes.REQUEST_PARAMETER_NAME, name);
+      prop.taint(name, SourceTypes.REQUEST_PARAMETER_NAME, name);
       for (String value : e.getValue()) {
-        prop.taint(ctx, value, SourceTypes.REQUEST_PARAMETER_VALUE, name);
+        prop.taint(value, SourceTypes.REQUEST_PARAMETER_VALUE, name);
       }
     }
   }

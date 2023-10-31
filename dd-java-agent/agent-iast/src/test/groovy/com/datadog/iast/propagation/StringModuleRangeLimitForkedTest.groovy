@@ -1,12 +1,8 @@
 package com.datadog.iast.propagation
 
 import com.datadog.iast.IastModuleImplTestBase
-import com.datadog.iast.IastRequestContext
 import datadog.trace.api.config.IastConfig
-import datadog.trace.api.gateway.RequestContext
-import datadog.trace.api.gateway.RequestContextSlot
 import datadog.trace.api.iast.propagation.StringModule
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 
 import static com.datadog.iast.taint.TaintUtils.*
 
@@ -16,28 +12,14 @@ class StringModuleRangeLimitForkedTest extends IastModuleImplTestBase {
 
   private List<Object> objectHolder
 
-  private AgentSpan span
-
-  private IastRequestContext ctx
-
-  private RequestContext reqCtx
-
-  def setup() {
+  void setup() {
     injectSysConfig(IastConfig.IAST_MAX_RANGE_COUNT, '2')
-
-    module = new StringModuleImpl()
+    module = new StringModuleImpl(dependencies)
     objectHolder = []
-    span = Mock(AgentSpan)
-    tracer.activeSpan() >> span
-    reqCtx = Mock(RequestContext)
-    span.getRequestContext() >> reqCtx
-    ctx = new IastRequestContext()
-    reqCtx.getData(RequestContextSlot.IAST) >> ctx
   }
 
   void 'onStringConcatFactory'() {
     given:
-    final taintedObjects = ctx.getTaintedObjects()
     args = args.collect { it ->
       final item = addFromTaintFormat(taintedObjects, it)
       objectHolder.add(item)
@@ -54,7 +36,7 @@ class StringModuleRangeLimitForkedTest extends IastModuleImplTestBase {
     module.onStringConcatFactory(result, args as String[], recipe, [] as Object[], recipeOffsets as int[])
 
     then:
-    final to = ctx.getTaintedObjects().get(result)
+    final to = taintedObjects.get(result)
     to != null
     to.get() == result
     taintFormat(to.get() as String, to.getRanges()) == expected
@@ -71,7 +53,6 @@ class StringModuleRangeLimitForkedTest extends IastModuleImplTestBase {
     objectHolder.add(expected)
 
     and:
-    final taintedObjects = ctx.getTaintedObjects()
     final fromTaintedDelimiter = addFromTaintFormat(taintedObjects, delimiter)
     objectHolder.add(fromTaintedDelimiter)
 
@@ -87,7 +68,7 @@ class StringModuleRangeLimitForkedTest extends IastModuleImplTestBase {
     module.onStringJoin(result, fromTaintedDelimiter, fromTaintedElements)
 
     then:
-    final to = ctx.getTaintedObjects().get(result)
+    final to = taintedObjects.get(result)
     to != null
     to.get() == result
     taintFormat(to.get() as String, to.getRanges()) == expected
@@ -103,7 +84,6 @@ class StringModuleRangeLimitForkedTest extends IastModuleImplTestBase {
 
   void 'onStringRepeat'() {
     given:
-    final taintedObjects = ctx.getTaintedObjects()
     self = addFromTaintFormat(taintedObjects, self)
     objectHolder.add(self)
 
@@ -115,7 +95,7 @@ class StringModuleRangeLimitForkedTest extends IastModuleImplTestBase {
     module.onStringRepeat(self, count, result)
 
     then:
-    final to = ctx.getTaintedObjects().get(result)
+    final to = taintedObjects.get(result)
     to != null
     to.get() == result
     taintFormat(to.get() as String, to.getRanges()) == expected
@@ -133,7 +113,7 @@ class StringModuleRangeLimitForkedTest extends IastModuleImplTestBase {
 
   void 'onStringFormat'() {
     given:
-    final to = ctx.getTaintedObjects()
+    final to = taintedObjects
     final format = addFromTaintFormat(to, formatTainted)
     final args = argsTainted.collect {
       final value = taint(to, it)
@@ -163,7 +143,7 @@ class StringModuleRangeLimitForkedTest extends IastModuleImplTestBase {
 
   void 'onStringFormat literals'() {
     given:
-    final to = ctx.getTaintedObjects()
+    final to = taintedObjects
     final args = argsTainted.collect {
       final value = taint(to, it)
       objectHolder.add(value)

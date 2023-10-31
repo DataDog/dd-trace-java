@@ -9,7 +9,6 @@ import datadog.trace.api.gateway.CallbackProvider;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
-import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.SourceTypes;
 import datadog.trace.api.iast.propagation.PropagationModule;
@@ -60,19 +59,15 @@ public class PathParameterPublishingHelper {
     }
 
     { // iast
-      IastContext iastRequestContext = requestContext.getData(RequestContextSlot.IAST);
-      if (iastRequestContext != null) {
-        PropagationModule module = InstrumentationBridge.PROPAGATION;
-        if (module != null) {
-          for (Map.Entry<String, String> e : params.entrySet()) {
-            String parameterName = e.getKey();
-            String value = e.getValue();
-            if (parameterName == null || value == null) {
-              continue; // should not happen
-            }
-            module.taint(
-                iastRequestContext, value, SourceTypes.REQUEST_PATH_PARAMETER, parameterName);
+      PropagationModule module = InstrumentationBridge.PROPAGATION;
+      if (module != null) {
+        for (Map.Entry<String, String> e : params.entrySet()) {
+          String parameterName = e.getKey();
+          String value = e.getValue();
+          if (parameterName == null || value == null) {
+            continue; // should not happen
           }
+          module.taint(value, SourceTypes.REQUEST_PATH_PARAMETER, parameterName);
         }
       }
     }

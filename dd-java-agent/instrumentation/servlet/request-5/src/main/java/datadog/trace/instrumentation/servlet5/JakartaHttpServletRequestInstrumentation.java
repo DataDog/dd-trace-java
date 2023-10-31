@@ -11,7 +11,6 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.iast.TaintableEnumeration;
-import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Sink;
 import datadog.trace.api.iast.Source;
@@ -171,9 +170,8 @@ public class JakartaHttpServletRequestInstrumentation extends Instrumenter.Iast
       if (module == null) {
         return;
       }
-      final IastContext ctx = IastContext.Provider.get();
       for (final String value : values) {
-        module.taint(ctx, value, SourceTypes.REQUEST_PARAMETER_VALUE, name);
+        module.taint(value, SourceTypes.REQUEST_PARAMETER_VALUE, name);
       }
     }
   }
@@ -189,14 +187,13 @@ public class JakartaHttpServletRequestInstrumentation extends Instrumenter.Iast
       if (module == null) {
         return;
       }
-      final IastContext ctx = IastContext.Provider.get();
       for (final Map.Entry<String, String[]> entry : parameters.entrySet()) {
         final String name = entry.getKey();
-        module.taint(ctx, name, SourceTypes.REQUEST_PARAMETER_NAME, name);
+        module.taint(name, SourceTypes.REQUEST_PARAMETER_NAME, name);
         final String[] values = entry.getValue();
         if (values != null) {
           for (final String value : entry.getValue()) {
-            module.taint(ctx, value, SourceTypes.REQUEST_PARAMETER_VALUE, name);
+            module.taint(value, SourceTypes.REQUEST_PARAMETER_VALUE, name);
           }
         }
       }
@@ -231,9 +228,8 @@ public class JakartaHttpServletRequestInstrumentation extends Instrumenter.Iast
       if (module == null) {
         return;
       }
-      final IastContext ctx = IastContext.Provider.get();
       for (final Cookie cookie : cookies) {
-        module.taint(ctx, cookie, SourceTypes.REQUEST_COOKIE_VALUE);
+        module.taint(cookie, SourceTypes.REQUEST_COOKIE_VALUE);
       }
     }
   }

@@ -4,7 +4,7 @@ import static com.datadog.iast.taint.Ranges.highestPriorityRange;
 import static com.datadog.iast.util.ObjectVisitor.State.CONTINUE;
 import static datadog.trace.api.iast.VulnerabilityMarks.NOT_MARKED;
 
-import com.datadog.iast.IastRequestContext;
+import com.datadog.iast.Dependencies;
 import com.datadog.iast.model.Range;
 import com.datadog.iast.model.Source;
 import com.datadog.iast.taint.Ranges;
@@ -13,7 +13,6 @@ import com.datadog.iast.taint.TaintedObjects;
 import com.datadog.iast.taint.Tainteds;
 import com.datadog.iast.util.ObjectVisitor;
 import datadog.trace.api.Config;
-import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.Taintable;
 import datadog.trace.api.iast.propagation.PropagationModule;
 import java.util.function.Predicate;
@@ -25,6 +24,12 @@ public class PropagationModuleImpl implements PropagationModule {
 
   /** Prevent copy of values bigger than this threshold */
   private static final int MAX_VALUE_LENGTH = Config.get().getIastTruncationMaxValueLength();
+
+  private final TaintedObjects taintedObjects;
+
+  public PropagationModuleImpl(@Nonnull final Dependencies dependencies) {
+    this.taintedObjects = dependencies.getTaintedObjects();
+  }
 
   @Override
   public void taint(@Nullable final Object target, final byte origin) {
@@ -46,35 +51,7 @@ public class PropagationModuleImpl implements PropagationModule {
     if (!canBeTainted(target)) {
       return;
     }
-    taint(LazyContext.build(), target, origin, name, value);
-  }
-
-  @Override
-  public void taint(
-      @Nullable final IastContext ctx, @Nullable final Object target, final byte origin) {
-    taint(ctx, target, origin, null);
-  }
-
-  @Override
-  public void taint(
-      @Nullable final IastContext ctx,
-      @Nullable final Object target,
-      final byte origin,
-      @Nullable final CharSequence name) {
-    taint(ctx, target, origin, name, sourceValue(target));
-  }
-
-  @Override
-  public void taint(
-      @Nullable final IastContext ctx,
-      @Nullable final Object target,
-      final byte origin,
-      @Nullable final CharSequence name,
-      @Nullable final CharSequence value) {
-    if (!canBeTainted(target)) {
-      return;
-    }
-    internalTaint(ctx, target, newSource(target, origin, name, value), NOT_MARKED);
+    internalTaint(target, newSource(target, origin, name, value), NOT_MARKED);
   }
 
   @Override
@@ -88,31 +65,16 @@ public class PropagationModuleImpl implements PropagationModule {
     if (!canBeTainted(target) || !canBeTainted(input)) {
       return;
     }
-    taintIfTainted(LazyContext.build(), target, input, keepRanges, mark);
-  }
-
-  @Override
-  public void taintIfTainted(
-      @Nullable final IastContext ctx,
-      @Nullable final Object target,
-      @Nullable final Object input) {
-    taintIfTainted(ctx, target, input, false, NOT_MARKED);
-  }
-
-  @Override
-  public void taintIfTainted(
-      @Nullable final IastContext ctx,
-      @Nullable final Object target,
-      @Nullable final Object input,
-      boolean keepRanges,
-      int mark) {
-    if (!canBeTainted(target) || !canBeTainted(input)) {
-      return;
-    }
     if (keepRanges) {
-      internalTaint(ctx, target, getRanges(ctx, input), mark);
+      final Range[] ranges = getRanges(input);
+      if (ranges != null) {
+        internalTaint(target, ranges, mark);
+      }
     } else {
-      internalTaint(ctx, target, highestPrioritySource(ctx, input), mark);
+      final Source source = highestPrioritySource(input);
+      if (source != null) {
+        internalTaint(target, source, mark);
+      }
     }
   }
 
@@ -141,41 +103,8 @@ public class PropagationModuleImpl implements PropagationModule {
     if (!canBeTainted(target) || !canBeTainted(input)) {
       return;
     }
-    taintIfTainted(LazyContext.build(), target, input, origin, name, value);
-  }
-
-  @Override
-  public void taintIfTainted(
-      @Nullable final IastContext ctx,
-      @Nullable final Object target,
-      @Nullable final Object input,
-      final byte origin) {
-    taintIfTainted(ctx, target, input, origin, null);
-  }
-
-  @Override
-  public void taintIfTainted(
-      @Nullable final IastContext ctx,
-      @Nullable final Object target,
-      @Nullable final Object input,
-      final byte origin,
-      @Nullable final CharSequence name) {
-    taintIfTainted(ctx, target, input, origin, name, sourceValue(target));
-  }
-
-  @Override
-  public void taintIfTainted(
-      @Nullable final IastContext ctx,
-      @Nullable final Object target,
-      @Nullable final Object input,
-      final byte origin,
-      @Nullable final CharSequence name,
-      @Nullable final CharSequence value) {
-    if (!canBeTainted(target) || !canBeTainted(input)) {
-      return;
-    }
-    if (isTainted(ctx, input)) {
-      internalTaint(ctx, target, newSource(target, origin, name, value), NOT_MARKED);
+    if (isTainted(input)) {
+      internalTaint(target, newSource(target, origin, name, value), NOT_MARKED);
     }
   }
 
@@ -193,36 +122,15 @@ public class PropagationModuleImpl implements PropagationModule {
     if (!canBeTainted(target) || !canBeTainted(inputs)) {
       return;
     }
-    taintIfAnyTainted(LazyContext.build(), target, inputs, keepRanges, mark);
-  }
-
-  @Override
-  public void taintIfAnyTainted(
-      @Nullable final IastContext ctx,
-      @Nullable final Object target,
-      @Nullable final Object[] inputs) {
-    taintIfAnyTainted(ctx, target, inputs, false, NOT_MARKED);
-  }
-
-  @Override
-  public void taintIfAnyTainted(
-      @Nullable final IastContext ctx,
-      @Nullable final Object target,
-      @Nullable final Object[] inputs,
-      final boolean keepRanges,
-      final int mark) {
-    if (!canBeTainted(target) || !canBeTainted(inputs)) {
-      return;
-    }
     if (keepRanges) {
-      final Range[] ranges = getRangesInArray(ctx, inputs);
+      final Range[] ranges = getRangesInArray(inputs);
       if (ranges != null) {
-        internalTaint(ctx, target, ranges, mark);
+        internalTaint(target, ranges, mark);
       }
     } else {
-      final Source source = highestPrioritySourceInArray(ctx, inputs);
+      final Source source = highestPrioritySourceInArray(inputs);
       if (source != null) {
-        internalTaint(ctx, target, source, mark);
+        internalTaint(target, source, mark);
       }
     }
   }
@@ -233,53 +141,25 @@ public class PropagationModuleImpl implements PropagationModule {
     if (!canBeTainted(target)) {
       return;
     }
-    taintDeeply(LazyContext.build(), target, origin, classFilter);
-  }
-
-  @Override
-  public void taintDeeply(
-      @Nullable final IastContext ctx,
-      @Nullable final Object target,
-      final byte origin,
-      final Predicate<Class<?>> classFilter) {
-    if (!canBeTainted(target)) {
-      return;
-    }
-    final TaintedObjects to = getTaintedObjects(ctx);
-    if (to == null) {
-      return;
-    }
     if (target instanceof CharSequence) {
-      internalTaint(ctx, target, newSource(target, origin, null, sourceValue(target)), NOT_MARKED);
+      internalTaint(target, newSource(target, origin, null, sourceValue(target)), NOT_MARKED);
     } else {
-      ObjectVisitor.visit(target, new TaintingVisitor(to, origin), classFilter);
+      ObjectVisitor.visit(target, new TaintingVisitor(taintedObjects, origin), classFilter);
     }
   }
 
   @Nullable
   @Override
   public Taintable.Source findSource(@Nullable final Object target) {
-    return target == null ? null : findSource(LazyContext.build(), target);
-  }
-
-  @Nullable
-  @Override
-  public Taintable.Source findSource(
-      @Nullable final IastContext ctx, @Nullable final Object target) {
     if (target == null) {
       return null;
     }
-    return highestPrioritySource(ctx, target);
+    return highestPrioritySource(target);
   }
 
   @Override
   public boolean isTainted(@Nullable final Object target) {
-    return target != null && isTainted(LazyContext.build(), target);
-  }
-
-  @Override
-  public boolean isTainted(@Nullable final IastContext ctx, @Nullable final Object target) {
-    return target != null && findSource(ctx, target) != null;
+    return target != null && findSource(target) != null;
   }
 
   /** Ensures that the reference is not kept strongly via the name or value properties */
@@ -340,21 +220,9 @@ public class PropagationModuleImpl implements PropagationModule {
   }
 
   @Nullable
-  private static TaintedObjects getTaintedObjects(final @Nullable IastContext ctx) {
-    IastRequestContext iastCtx = null;
-    if (ctx instanceof IastRequestContext) {
-      iastCtx = (IastRequestContext) ctx;
-    } else if (ctx instanceof LazyContext) {
-      iastCtx = ((LazyContext) ctx).getDelegate();
-    }
-    return iastCtx == null ? null : iastCtx.getTaintedObjects();
-  }
-
-  @Nullable
-  private static Range[] getRangesInArray(
-      final @Nullable IastContext ctx, final @Nonnull Object[] objects) {
+  private Range[] getRangesInArray(final @Nonnull Object[] objects) {
     for (final Object object : objects) {
-      final Range[] ranges = getRanges(ctx, object);
+      final Range[] ranges = getRanges(object);
       if (ranges != null) {
         return ranges;
       }
@@ -363,28 +231,23 @@ public class PropagationModuleImpl implements PropagationModule {
   }
 
   @Nullable
-  private static Range[] getRanges(final @Nullable IastContext ctx, final @Nonnull Object object) {
+  private Range[] getRanges(final @Nonnull Object object) {
     if (object instanceof Taintable) {
-      final Source source = highestPrioritySource(ctx, object);
+      final Source source = highestPrioritySource(object);
       if (source == null) {
         return null;
       } else {
         return new Range[] {new Range(0, Integer.MAX_VALUE, source, NOT_MARKED)};
       }
     }
-    final TaintedObjects to = getTaintedObjects(ctx);
-    if (to == null) {
-      return null;
-    }
-    final TaintedObject tainted = to.get(object);
+    final TaintedObject tainted = taintedObjects.get(object);
     return tainted == null ? null : tainted.getRanges();
   }
 
   @Nullable
-  private static Source highestPrioritySourceInArray(
-      final @Nullable IastContext ctx, final @Nonnull Object[] objects) {
+  private Source highestPrioritySourceInArray(final @Nonnull Object[] objects) {
     for (final Object object : objects) {
-      final Source source = highestPrioritySource(ctx, object);
+      final Source source = highestPrioritySource(object);
       if (source != null) {
         return source;
       }
@@ -393,55 +256,37 @@ public class PropagationModuleImpl implements PropagationModule {
   }
 
   @Nullable
-  private static Source highestPrioritySource(
-      final @Nullable IastContext ctx, final @Nonnull Object object) {
+  private Source highestPrioritySource(final @Nonnull Object object) {
     if (object instanceof Taintable) {
       return (Source) ((Taintable) object).$$DD$getSource();
     } else {
-      final Range[] ranges = getRanges(ctx, object);
+      final Range[] ranges = getRanges(object);
       return ranges != null && ranges.length > 0 ? highestPriorityRange(ranges).getSource() : null;
     }
   }
 
-  private static void internalTaint(
-      @Nullable final IastContext ctx,
-      @Nonnull final Object value,
-      @Nullable final Source source,
-      int mark) {
-    if (source == null) {
-      return;
-    }
+  private void internalTaint(@Nonnull final Object value, @Nonnull final Source source, int mark) {
     if (value instanceof Taintable) {
       ((Taintable) value).$$DD$setSource(source);
     } else {
-      final TaintedObjects to = getTaintedObjects(ctx);
-      if (to == null) {
-        return;
-      }
       if (value instanceof CharSequence) {
-        to.taint(value, Ranges.forCharSequence((CharSequence) value, source, mark));
+        taintedObjects.taint(value, Ranges.forCharSequence((CharSequence) value, source, mark));
       } else {
-        to.taint(value, Ranges.forObject(source, mark));
+        taintedObjects.taint(value, Ranges.forObject(source, mark));
       }
     }
   }
 
-  private static void internalTaint(
-      @Nullable final IastContext ctx,
-      @Nonnull final Object value,
-      @Nullable final Range[] ranges,
-      final int mark) {
+  private void internalTaint(
+      @Nonnull final Object value, @Nullable final Range[] ranges, final int mark) {
     if (ranges == null || ranges.length == 0) {
       return;
     }
     if (value instanceof Taintable) {
       ((Taintable) value).$$DD$setSource(ranges[0].getSource());
     } else {
-      final TaintedObjects to = getTaintedObjects(ctx);
-      if (to != null) {
-        final Range[] markedRanges = markRanges(ranges, mark);
-        to.taint(value, markedRanges);
-      }
+      final Range[] markedRanges = markRanges(ranges, mark);
+      taintedObjects.taint(value, markedRanges);
     }
   }
 
@@ -457,25 +302,6 @@ public class PropagationModuleImpl implements PropagationModule {
       result[i] = new Range(range.getStart(), range.getLength(), range.getSource(), newMark);
     }
     return result;
-  }
-
-  private static class LazyContext implements IastContext {
-
-    private boolean fetched;
-    @Nullable private IastRequestContext delegate;
-
-    @Nullable
-    private IastRequestContext getDelegate() {
-      if (!fetched) {
-        fetched = true;
-        delegate = IastRequestContext.get();
-      }
-      return delegate;
-    }
-
-    public static IastContext build() {
-      return new LazyContext();
-    }
   }
 
   private static class TaintingVisitor implements ObjectVisitor.Visitor {

@@ -53,7 +53,7 @@ class JakartaMultipartInstrumentationTest extends AgentTestRunner {
     part.getHeaders('headerName')
 
     then:
-    1 * module.taint(_, 'headerValue', SourceTypes.REQUEST_MULTIPART_PARAMETER, 'headerName')
+    1 * module.taint('headerValue', SourceTypes.REQUEST_MULTIPART_PARAMETER, 'headerName')
     0 * _
   }
 
@@ -67,7 +67,7 @@ class JakartaMultipartInstrumentationTest extends AgentTestRunner {
     part.getHeaderNames()
 
     then:
-    1 * module.taint(_, 'headerName', SourceTypes.REQUEST_MULTIPART_PARAMETER)
+    1 * module.taint('headerName', SourceTypes.REQUEST_MULTIPART_PARAMETER)
     0 * _
   }
 }

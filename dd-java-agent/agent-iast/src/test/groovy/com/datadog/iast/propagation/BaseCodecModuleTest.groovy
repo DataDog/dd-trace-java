@@ -1,12 +1,8 @@
 package com.datadog.iast.propagation
 
 import com.datadog.iast.IastModuleImplTestBase
-import com.datadog.iast.IastRequestContext
 import com.datadog.iast.taint.TaintedObject
-import datadog.trace.api.gateway.RequestContext
-import datadog.trace.api.gateway.RequestContextSlot
 import datadog.trace.api.iast.propagation.CodecModule
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import groovy.transform.CompileDynamic
 
 import static com.datadog.iast.taint.TaintUtils.addFromTaintFormat
@@ -16,15 +12,7 @@ abstract class BaseCodecModuleTest extends IastModuleImplTestBase {
 
   private CodecModule module
 
-  private IastRequestContext ctx
-
   def setup() {
-    final span = Mock(AgentSpan)
-    tracer.activeSpan() >> span
-    final reqCtx = Mock(RequestContext)
-    span.getRequestContext() >> reqCtx
-    ctx = new IastRequestContext()
-    reqCtx.getData(RequestContextSlot.IAST) >> ctx
     module = buildModule()
   }
 
@@ -49,25 +37,8 @@ abstract class BaseCodecModuleTest extends IastModuleImplTestBase {
     'onBase64Decode'    | ['test'.bytes, [] as byte[]]
   }
 
-  void '#method no context'() {
-    when:
-    module.&"$method".call(args.toArray())
-
-    then:
-    1 * tracer.activeSpan() >> null
-
-    where:
-    method              | args
-    'onUrlDecode'       | ['test', 'utf-8', 'decoded']
-    'onStringGetBytes'  | ['test', 'utf-8', 'test'.getBytes('utf-8')]
-    'onStringFromBytes' | ['test'.getBytes('utf-8'), 'utf-8', 'test']
-    'onBase64Encode'    | ['test'.bytes, 'dGVzdA=='.bytes]
-    'onBase64Decode'    | ['dGVzdA=='.bytes, 'test'.bytes]
-  }
-
   void 'onUrlDecode (#value, #encoding)'() {
     given:
-    final taintedObjects = ctx.getTaintedObjects()
     final parsed = addFromTaintFormat(taintedObjects, value)
     final boolean isTainted = parsed != value
     final result = encoding == null ? URLDecoder.decode(parsed) : URLDecoder.decode(parsed, encoding)
@@ -98,7 +69,6 @@ abstract class BaseCodecModuleTest extends IastModuleImplTestBase {
 
   void 'onStringGetBytes (#value, #charset)'() {
     given:
-    final taintedObjects = ctx.getTaintedObjects()
     final parsed = addFromTaintFormat(taintedObjects, value)
     final boolean isTainted = parsed != value
     final result = charset == null ? parsed.getBytes() : parsed.getBytes(charset)
@@ -131,12 +101,11 @@ abstract class BaseCodecModuleTest extends IastModuleImplTestBase {
 
   void 'onStringFromBytes (#value, #charset)'() {
     given:
-    final taintedObjects = ctx.getTaintedObjects()
     final parsed = addFromTaintFormat(taintedObjects, value)
     final boolean isTainted = parsed != value
     final bytes = charset == null ? parsed.getBytes() : parsed.getBytes(charset)
     if (isTainted) {
-      ctx.taintedObjects.taint(bytes, taintedObjects.get(parsed).ranges)
+      taintedObjects.taint(bytes, taintedObjects.get(parsed).ranges)
     }
     final result = charset == null ? new String(bytes) : new String(bytes, (String) charset)
 
@@ -168,12 +137,11 @@ abstract class BaseCodecModuleTest extends IastModuleImplTestBase {
 
   void 'onBase64Decode (#value)'() {
     given:
-    final taintedObjects = ctx.getTaintedObjects()
     final parsed = addFromTaintFormat(taintedObjects, value)
     final boolean isTainted = parsed != value
     final parsedBytes = Base64.getEncoder().encode(parsed.bytes)
     if (isTainted) {
-      ctx.taintedObjects.taint(parsedBytes, taintedObjects.get(parsed).ranges)
+      taintedObjects.taint(parsedBytes, taintedObjects.get(parsed).ranges)
     }
     final result = Base64.getDecoder().decode(parsedBytes)
 
@@ -205,12 +173,11 @@ abstract class BaseCodecModuleTest extends IastModuleImplTestBase {
 
   void 'onBase64Encode (#value)'() {
     given:
-    final taintedObjects = ctx.getTaintedObjects()
     final parsed = addFromTaintFormat(taintedObjects, value)
     final boolean isTainted = parsed != value
     final parsedBytes = parsed.bytes
     if (isTainted) {
-      ctx.taintedObjects.taint(parsedBytes, taintedObjects.get(parsed).ranges)
+      taintedObjects.taint(parsedBytes, taintedObjects.get(parsed).ranges)
     }
     final result = Base64.getEncoder().encode(parsedBytes)
 

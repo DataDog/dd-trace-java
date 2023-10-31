@@ -2,7 +2,6 @@ package com.datadog.iast.propagation;
 
 import static datadog.trace.api.iast.VulnerabilityMarks.NOT_MARKED;
 
-import com.datadog.iast.IastRequestContext;
 import com.datadog.iast.model.Range;
 import datadog.trace.instrumentation.java.lang.StringBuilderCallSite;
 import org.openjdk.jmh.annotations.Benchmark;
@@ -13,11 +12,9 @@ public class StringBuilderInitBenchmark
 
   @Override
   protected Context initializeContext() {
-    final IastRequestContext context = new IastRequestContext();
     final String notTainted = notTainted("I am not a tainted string");
-    final String tainted =
-        tainted(context, "I am a tainted string", new Range(3, 6, source(), NOT_MARKED));
-    return new Context(context, notTainted, tainted);
+    final String tainted = tainted("I am a tainted string", new Range(3, 6, source(), NOT_MARKED));
+    return new Context(notTainted, tainted);
   }
 
   @Benchmark
@@ -53,14 +50,12 @@ public class StringBuilderInitBenchmark
     return self;
   }
 
-  protected static class Context extends AbstractBenchmark.BenchmarkContext {
+  protected static class Context implements AbstractBenchmark.BenchmarkContext {
 
     private final String notTainted;
     private final String tainted;
 
-    protected Context(
-        final IastRequestContext context, final String notTainted, final String tainted) {
-      super(context);
+    protected Context(final String notTainted, final String tainted) {
       this.tainted = tainted;
       this.notTainted = notTainted;
     }

@@ -1,10 +1,5 @@
 package datadog.trace.instrumentation.springwebflux.server.iast;
 
-import datadog.trace.advice.ActiveRequestContext;
-import datadog.trace.advice.RequiresRequestContext;
-import datadog.trace.api.gateway.RequestContext;
-import datadog.trace.api.gateway.RequestContextSlot;
-import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Source;
 import datadog.trace.api.iast.SourceTypes;
@@ -14,22 +9,18 @@ import net.bytebuddy.asm.Advice;
 import org.springframework.web.reactive.HandlerMapping;
 import org.springframework.web.server.ServerWebExchange;
 
-@RequiresRequestContext(RequestContextSlot.IAST)
 public class HandleMatchAdvice {
 
   @SuppressWarnings("Duplicates")
   @Advice.OnMethodExit(suppress = Throwable.class)
   @Source(SourceTypes.REQUEST_PATH_PARAMETER)
-  public static void after(
-      @Advice.Argument(2) ServerWebExchange xchg, @ActiveRequestContext RequestContext reqCtx) {
+  public static void after(@Advice.Argument(2) ServerWebExchange xchg) {
 
     Object templateVars = xchg.getAttribute(HandlerMapping.URI_TEMPLATE_VARIABLES_ATTRIBUTE);
     Object matrixVars = xchg.getAttribute(HandlerMapping.MATRIX_VARIABLES_ATTRIBUTE);
     if (templateVars == null && matrixVars == null) {
       return;
     }
-
-    IastContext iastRequestContext = reqCtx.getData(RequestContextSlot.IAST);
 
     PropagationModule module = InstrumentationBridge.PROPAGATION;
     if (module != null) {
@@ -40,8 +31,7 @@ public class HandleMatchAdvice {
           if (parameterName == null || value == null) {
             continue; // should not happen
           }
-          module.taint(
-              iastRequestContext, value, SourceTypes.REQUEST_PATH_PARAMETER, parameterName);
+          module.taint(value, SourceTypes.REQUEST_PATH_PARAMETER, parameterName);
         }
       }
 
@@ -57,17 +47,12 @@ public class HandleMatchAdvice {
           for (Map.Entry<String, Iterable<String>> ie : value.entrySet()) {
             String innerKey = ie.getKey();
             if (innerKey != null) {
-              module.taint(
-                  iastRequestContext,
-                  innerKey,
-                  SourceTypes.REQUEST_MATRIX_PARAMETER,
-                  parameterName);
+              module.taint(innerKey, SourceTypes.REQUEST_MATRIX_PARAMETER, parameterName);
             }
             Iterable<String> innerValues = ie.getValue();
             if (innerValues != null) {
               for (String iv : innerValues) {
-                module.taint(
-                    iastRequestContext, iv, SourceTypes.REQUEST_MATRIX_PARAMETER, parameterName);
+                module.taint(iv, SourceTypes.REQUEST_MATRIX_PARAMETER, parameterName);
               }
             }
           }

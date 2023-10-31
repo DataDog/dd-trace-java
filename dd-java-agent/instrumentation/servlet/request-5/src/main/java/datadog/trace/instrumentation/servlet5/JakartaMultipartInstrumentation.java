@@ -7,7 +7,6 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Source;
 import datadog.trace.api.iast.SourceTypes;
@@ -87,9 +86,8 @@ public class JakartaMultipartInstrumentation extends Instrumenter.Iast
       }
       final PropagationModule module = InstrumentationBridge.PROPAGATION;
       if (module != null) {
-        final IastContext ctx = IastContext.Provider.get();
         for (final String value : headerValues) {
-          module.taint(ctx, value, SourceTypes.REQUEST_MULTIPART_PARAMETER, headerName);
+          module.taint(value, SourceTypes.REQUEST_MULTIPART_PARAMETER, headerName);
         }
       }
     }
@@ -104,9 +102,8 @@ public class JakartaMultipartInstrumentation extends Instrumenter.Iast
       }
       final PropagationModule module = InstrumentationBridge.PROPAGATION;
       if (module != null) {
-        final IastContext ctx = IastContext.Provider.get();
         for (final String name : headerNames) {
-          module.taint(ctx, name, SourceTypes.REQUEST_MULTIPART_PARAMETER);
+          module.taint(name, SourceTypes.REQUEST_MULTIPART_PARAMETER);
         }
       }
     }

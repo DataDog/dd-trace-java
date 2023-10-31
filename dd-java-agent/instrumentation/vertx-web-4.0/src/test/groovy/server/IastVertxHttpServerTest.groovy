@@ -2,6 +2,7 @@ package server
 
 import com.datadog.iast.test.IastSourcesTest
 import datadog.trace.agent.test.base.HttpServer
+import datadog.trace.api.iast.SourceTypes
 import io.vertx.core.DeploymentOptions
 import io.vertx.core.Vertx
 import io.vertx.core.http.HttpServerRequest
@@ -32,7 +33,15 @@ abstract class IastVertxHttpServerTest extends IastSourcesTest<IastVertxServer> 
 
     then:
     response.code() == 200
-    response.body().string() == 'OK'
+    final toc = finReqTaintedObjects
+    toc.hasTaintedObject {
+      value 'name'
+      range 0, 4, source(SourceTypes.REQUEST_BODY, null, null)
+    }
+    toc.hasTaintedObject {
+      value 'value'
+      range 0, 5, source(SourceTypes.REQUEST_BODY, null, null)
+    }
   }
 
   class IastVertxServer implements HttpServer {

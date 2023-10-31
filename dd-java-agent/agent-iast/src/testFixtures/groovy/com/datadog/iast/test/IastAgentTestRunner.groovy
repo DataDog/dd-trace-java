@@ -1,6 +1,6 @@
 package com.datadog.iast.test
 
-import com.datadog.iast.IastRequestContext
+
 import com.datadog.iast.model.Source
 import com.datadog.iast.taint.TaintedObjects
 import datadog.trace.agent.test.AgentTestRunner
@@ -14,6 +14,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import datadog.trace.bootstrap.instrumentation.api.TagContext
 import datadog.trace.core.DDSpan
+import spock.lang.Shared
 
 import java.util.function.Supplier
 
@@ -27,17 +28,25 @@ class IastAgentTestRunner extends AgentTestRunner implements IastRequestContextP
 
   protected Closure getRequestEndAction() { }
 
+  @Shared
+  private TaintedObjects taintedObjects
+
   void setupSpec() {
     TaintableVisitor.DEBUG = true
-    iastSystemSetup(requestEndAction)
+    taintedObjects = TaintedObjects.build()
+    iastSystemSetup(requestEndAction, taintedObjects)
   }
 
   void cleanupSpec() {
     iastSystemCleanup()
   }
 
+  void setup() {
+    taintedObjects.clear()
+  }
+
   protected TaintedObjects getLocalTaintedObjects() {
-    IastRequestContext.get().taintedObjects
+    taintedObjects
   }
 
   protected TaintedObjectCollection getLocalTaintedObjectCollection() {

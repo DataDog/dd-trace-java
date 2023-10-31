@@ -1,6 +1,5 @@
 package datadog.trace.agent.tooling.iast;
 
-import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.propagation.PropagationModule;
 import datadog.trace.util.stacktrace.StackUtils;
 import edu.umd.cs.findbugs.annotations.NonNull;
@@ -10,9 +9,6 @@ import javax.annotation.Nullable;
 public class TaintableEnumeration implements Enumeration<String> {
 
   private static final String CLASS_NAME = TaintableEnumeration.class.getName();
-
-  private volatile IastContext context;
-  private volatile boolean contextFetched;
 
   private final PropagationModule module;
 
@@ -57,19 +53,11 @@ public class TaintableEnumeration implements Enumeration<String> {
       throw e;
     }
     try {
-      module.taint(context(), next, origin, name(next));
+      module.taint(next, origin, name(next));
     } catch (final Throwable e) {
       module.onUnexpectedException("Failed to taint enumeration", e);
     }
     return next;
-  }
-
-  private IastContext context() {
-    if (!contextFetched) {
-      contextFetched = true;
-      context = IastContext.Provider.get();
-    }
-    return context;
   }
 
   private CharSequence name(final String value) {

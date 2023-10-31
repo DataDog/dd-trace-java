@@ -1,21 +1,13 @@
 package com.datadog.iast.propagation
 
 import com.datadog.iast.IastModuleImplTestBase
-import com.datadog.iast.IastRequestContext
-import datadog.trace.api.gateway.RequestContext
-import datadog.trace.api.gateway.RequestContextSlot
 import datadog.trace.api.iast.propagation.StringModule
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import groovy.transform.CompileDynamic
 import org.junit.jupiter.api.Assertions
 
 import java.text.SimpleDateFormat
 
-import static com.datadog.iast.taint.TaintUtils.addFromTaintFormat
-import static com.datadog.iast.taint.TaintUtils.fromTaintFormat
-import static com.datadog.iast.taint.TaintUtils.getStringFromTaintFormat
-import static com.datadog.iast.taint.TaintUtils.taint
-import static com.datadog.iast.taint.TaintUtils.taintFormat
+import static com.datadog.iast.taint.TaintUtils.*
 
 @CompileDynamic
 class StringModuleTest extends IastModuleImplTestBase {
@@ -24,21 +16,9 @@ class StringModuleTest extends IastModuleImplTestBase {
 
   private List<Object> objectHolder
 
-  private AgentSpan span
-
-  private IastRequestContext ctx
-
-  private RequestContext reqCtx
-
   def setup() {
-    module = new StringModuleImpl()
+    module = new StringModuleImpl(dependencies)
     objectHolder = []
-    span = Mock(AgentSpan)
-    tracer.activeSpan() >> span
-    reqCtx = Mock(RequestContext)
-    span.getRequestContext() >> reqCtx
-    ctx = new IastRequestContext()
-    reqCtx.getData(RequestContextSlot.IAST) >> ctx
   }
 
   void 'onStringBuilderAppend null or empty (#builder, #param)'() {
@@ -57,26 +37,8 @@ class StringModuleTest extends IastModuleImplTestBase {
     sb('')  | ''
   }
 
-  void 'onStringBuilderAppend without span (#builder, #param)'() {
-    given:
-    final result = builder?.append(param)
-
-    when:
-    module.onStringBuilderAppend(result, param)
-
-    then:
-    mockCalls * tracer.activeSpan() >> null
-    0 * _
-
-    where:
-    builder | param | mockCalls
-    sb('1') | null  | 0
-    sb('3') | '4'   | 1
-  }
-
   void 'onStringBuilderAppend (#builder, #param)'() {
     given:
-    final taintedObjects = ctx.getTaintedObjects()
     builder = addFromTaintFormat(taintedObjects, builder)
     objectHolder.add(builder)
     param = addFromTaintFormat(taintedObjects, param)
@@ -92,11 +54,7 @@ class StringModuleTest extends IastModuleImplTestBase {
     module.onStringBuilderAppend(builder, param)
 
     then:
-    mockCalls * tracer.activeSpan() >> span
-    mockCalls * span.getRequestContext() >> reqCtx
-    mockCalls * reqCtx.getData(RequestContextSlot.IAST) >> ctx
-    0 * _
-    def to = ctx.getTaintedObjects().get(builder)
+    def to = taintedObjects.get(builder)
     if (shouldBeTainted) {
       assert to != null
       assert to.get() as String == result
@@ -133,26 +91,9 @@ class StringModuleTest extends IastModuleImplTestBase {
     sb('')  | ''
   }
 
-  void 'onStringBuilderInit without span (#builder, #param)'() {
-    given:
-    final result = builder?.append(param)
-
-    when:
-    module.onStringBuilderInit(result, param)
-
-    then:
-    mockCalls * tracer.activeSpan() >> null
-    0 * _
-
-    where:
-    builder | param | mockCalls
-    sb()    | null  | 0
-    sb()    | '4'   | 1
-  }
 
   void 'onStringBuilderInit (#builder, #param)'() {
     given:
-    final taintedObjects = ctx.getTaintedObjects()
     builder = addFromTaintFormat(taintedObjects, builder)
     objectHolder.add(builder)
     param = addFromTaintFormat(taintedObjects, param)
@@ -168,11 +109,7 @@ class StringModuleTest extends IastModuleImplTestBase {
     module.onStringBuilderInit(builder, param)
 
     then:
-    mockCalls * tracer.activeSpan() >> span
-    mockCalls * span.getRequestContext() >> reqCtx
-    mockCalls * reqCtx.getData(RequestContextSlot.IAST) >> ctx
-    0 * _
-    def to = ctx.getTaintedObjects().get(builder)
+    def to = taintedObjects.get(builder)
     if (shouldBeTainted) {
       assert to != null
       assert to.get() as String == result
@@ -189,22 +126,8 @@ class StringModuleTest extends IastModuleImplTestBase {
     sb()    | 'a==>bcd<==e==>fgh<==i' | 1         | 'a==>bcd<==e==>fgh<==i'
   }
 
-  void 'onStringBuilderToString without span'() {
-    given:
-    def builder = sb('1')
-    final result = builder.toString()
-
-    when:
-    module.onStringBuilderToString(builder, result)
-
-    then:
-    1 * tracer.activeSpan() >> null
-    0 * _
-  }
-
   void 'onStringBuilderToString (#builder)'() {
     given:
-    final taintedObjects = ctx.getTaintedObjects()
     builder = addFromTaintFormat(taintedObjects, builder)
     objectHolder.add(builder)
 
@@ -218,11 +141,7 @@ class StringModuleTest extends IastModuleImplTestBase {
     module.onStringBuilderToString(builder, toString)
 
     then:
-    1 * tracer.activeSpan() >> span
-    1 * span.getRequestContext() >> reqCtx
-    1 * reqCtx.getData(RequestContextSlot.IAST) >> ctx
-    0 * _
-    def to = ctx.getTaintedObjects().get(builder)
+    def to = taintedObjects.get(builder)
     if (shouldBeTainted) {
       assert to != null
       assert to.get() as String == result
@@ -258,27 +177,8 @@ class StringModuleTest extends IastModuleImplTestBase {
     ['', '']     | '\u0001 \u0001' | null      | [0, -1, 1]
   }
 
-  void 'onStringConcatFactory without span (#args)'() {
-    given:
-    final result = args.inject('') { res, item -> res + item }
-
-    when:
-    module.onStringConcatFactory(result, args as String[], recipe, constants as Object[], recipeOffsets as int[])
-
-    then:
-    1 * tracer.activeSpan() >> null
-    0 * _
-
-    where:
-    args        | recipe          | constants | recipeOffsets
-    ['1', null] | '\u0001 \u0001' | null      | [0, -1, 1]
-    [null, '2'] | '\u0001 \u0001' | null      | [0, -1, 1]
-    ['3', '4']  | '\u0001 \u0001' | null      | [0, -1, 1]
-  }
-
   void 'onStringConcatFactory (#args, #recipe, #constants)'() {
     given:
-    final taintedObjects = ctx.getTaintedObjects()
     args = args.collect {
       final item = addFromTaintFormat(taintedObjects, it)
       objectHolder.add(item)
@@ -294,11 +194,7 @@ class StringModuleTest extends IastModuleImplTestBase {
     module.onStringConcatFactory(result, args as String[], recipe, constants as Object[], recipeOffsets as int[])
 
     then:
-    1 * tracer.activeSpan() >> span
-    1 * span.getRequestContext() >> reqCtx
-    1 * reqCtx.getData(RequestContextSlot.IAST) >> ctx
-    0 * _
-    def to = ctx.getTaintedObjects().get(result)
+    def to = taintedObjects.get(result)
     if (shouldBeTainted) {
       assert to != null
       assert to.get() == result
@@ -350,26 +246,8 @@ class StringModuleTest extends IastModuleImplTestBase {
     ""   | ""
   }
 
-  void 'onStringConcat without span (#left, #right)'() {
-    given:
-    final result = left + right
-
-    when:
-    module.onStringConcat(left, right, result)
-
-    then:
-    1 * tracer.activeSpan() >> null
-    0 * _
-
-    where:
-    left | right
-    "1"  | null
-    "3"  | "4"
-  }
-
   void 'onStringConcat (#left, #right)'() {
     given:
-    final taintedObjects = ctx.getTaintedObjects()
     left = addFromTaintFormat(taintedObjects, left)
     objectHolder.add(left)
     right = addFromTaintFormat(taintedObjects, right)
@@ -384,11 +262,7 @@ class StringModuleTest extends IastModuleImplTestBase {
     module.onStringConcat(left, right, expected)
 
     then:
-    1 * tracer.activeSpan() >> span
-    1 * span.getRequestContext() >> reqCtx
-    1 * reqCtx.getData(RequestContextSlot.IAST) >> ctx
-    0 * _
-    def to = ctx.getTaintedObjects().get(result)
+    def to = taintedObjects.get(result)
     if (shouldBeTainted) {
       assert to != null
       assert to.get() == result
@@ -424,27 +298,8 @@ class StringModuleTest extends IastModuleImplTestBase {
     "not_changed" | 0          | 11
   }
 
-  void 'onStringSubSequence without span (#self, #beginIndex, #endIndex)'() {
-    given:
-    final result = self?.substring(beginIndex, endIndex)
-
-    when:
-    module.onStringSubSequence(self, beginIndex, endIndex, result)
-
-    then:
-    mockCalls * tracer.activeSpan() >> null
-    0 * _
-
-    where:
-    self  | beginIndex | endIndex | mockCalls
-    ""    | 0          | 0        | 0
-    null  | 0          | 0        | 0
-    "123" | 1          | 2        | 1
-  }
-
   void 'onStringSubSequence (#self, #beginIndex, #endIndex)'() {
     given:
-    final taintedObjects = ctx.getTaintedObjects()
     self = addFromTaintFormat(taintedObjects, self)
     objectHolder.add(self)
 
@@ -458,11 +313,7 @@ class StringModuleTest extends IastModuleImplTestBase {
 
     then:
     assert result == getStringFromTaintFormat(self).substring(beginIndex, endIndex)
-    1 * tracer.activeSpan() >> span
-    1 * span.getRequestContext() >> reqCtx
-    1 * reqCtx.getData(RequestContextSlot.IAST) >> ctx
-    0 * _
-    def to = ctx.getTaintedObjects().get(result)
+    def to = taintedObjects.get(result)
     if (shouldBeTainted) {
       assert to != null
       assert to.get() == result
@@ -519,33 +370,6 @@ class StringModuleTest extends IastModuleImplTestBase {
     null      | null
   }
 
-  void 'onStringJoin without span (#delimiter, #elements)'(final CharSequence delimiter, final CharSequence[] elements, final int mockCalls) {
-    given:
-    final result = String.join(delimiter, elements)
-
-    when:
-    module.onStringJoin(result, delimiter, elements)
-
-    then:
-    mockCalls * tracer.activeSpan() >> null
-    0 * _
-
-    where:
-    delimiter              | elements                                             | mockCalls
-    ""                     | ["123", "456"]                                       | 1
-    "-"                    | ["123", "456"]                                       | 1
-    ""                     | []                                                   | 0
-    "-"                    | []                                                   | 0
-    ""                     | [new StringBuilder("123"), new StringBuilder("456")] | 1
-    "-"                    | [new StringBuilder("123"), new StringBuilder("456")] | 1
-    new StringBuilder()    | ["123", "456"]                                       | 1
-    new StringBuilder("-") | ["123", "456"]                                       | 1
-    new StringBuilder()    | []                                                   | 0
-    new StringBuilder("-") | []                                                   | 0
-    new StringBuilder("")  | [new StringBuilder("123"), new StringBuilder("456")] | 1
-    new StringBuilder("-") | [new StringBuilder("123"), new StringBuilder("456")] | 1
-  }
-
   void 'onStringJoin (#delimiter, #elements)'() {
     given:
     final result = getStringFromTaintFormat(expected)
@@ -553,7 +377,6 @@ class StringModuleTest extends IastModuleImplTestBase {
     final shouldBeTainted = fromTaintFormat(expected) != null
 
     and:
-    final taintedObjects = ctx.getTaintedObjects()
     final fromTaintedDelimiter = addFromTaintFormat(taintedObjects, delimiter)
     objectHolder.add(fromTaintedDelimiter)
 
@@ -570,8 +393,7 @@ class StringModuleTest extends IastModuleImplTestBase {
 
     then:
     assert result == String.join(fromTaintedDelimiter, fromTaintedElements)
-    1 * tracer.activeSpan() >> span
-    def to = ctx.getTaintedObjects().get(result)
+    def to = taintedObjects.get(result)
     if (shouldBeTainted) {
       assert to != null
       assert to.get() == result
@@ -619,27 +441,8 @@ class StringModuleTest extends IastModuleImplTestBase {
     "abc" | 1     | "abc"
   }
 
-  void 'onStringRepeat without span (#self, #count)'(final String self, final int count, final String expected, final int mockCalls) {
-    when:
-    module.onStringRepeat(self, count, expected)
-
-    then:
-    mockCalls * tracer.activeSpan() >> null
-    0 * _
-
-    where:
-    self  | count | expected | mockCalls
-    ""    | 0     | ""       | 0
-    null  | 0     | ""       | 0
-    ""    | 1     | ""       | 0
-    null  | 1     | ""       | 0
-    "abc" | 1     | 'abc'    | 0
-    "abc" | 2     | 'abcabc' | 1
-  }
-
   void 'onStringRepeat (#self, #count)'() {
     given:
-    final taintedObjects = ctx.getTaintedObjects()
     self = addFromTaintFormat(taintedObjects, self)
     objectHolder.add(self)
 
@@ -652,8 +455,7 @@ class StringModuleTest extends IastModuleImplTestBase {
     module.onStringRepeat(self, count, result)
 
     then:
-    1 * tracer.activeSpan() >> span
-    def to = ctx.getTaintedObjects().get(result)
+    def to = taintedObjects.get(result)
     if (shouldBeTainted) {
       assert to != null
       assert to.get() == result
@@ -682,7 +484,6 @@ class StringModuleTest extends IastModuleImplTestBase {
 
   void 'onStringToUpperCase calls IastRequestContext'() {
     given:
-    final taintedObjects = ctx.getTaintedObjects()
     def self = addFromTaintFormat(taintedObjects, testString)
     def result = self.toUpperCase()
 
@@ -692,7 +493,6 @@ class StringModuleTest extends IastModuleImplTestBase {
     def taintedObject = taintedObjects.get(result)
 
     then:
-    1 * tracer.activeSpan() >> span
     taintFormat(result, taintedObject.getRanges()) == expected
 
     where:
@@ -702,7 +502,6 @@ class StringModuleTest extends IastModuleImplTestBase {
 
   void 'test toUpperCase for not empty string cases'() {
     given:
-    final taintedObjects = ctx.getTaintedObjects()
     def self = addFromTaintFormat(taintedObjects, testString)
     def result = self.toUpperCase()
 
@@ -722,7 +521,6 @@ class StringModuleTest extends IastModuleImplTestBase {
 
   void 'test toUpperCase corner and pathologic cases'() {
     given:
-    final taintedObjects = ctx.getTaintedObjects()
     def self = addFromTaintFormat(taintedObjects, testString)
     def result = self.toUpperCase(new Locale(locale))
 
@@ -761,7 +559,6 @@ class StringModuleTest extends IastModuleImplTestBase {
 
   void 'test toLowerCase corner and pathologic cases'() {
     given:
-    final taintedObjects = ctx.getTaintedObjects()
     def self = addFromTaintFormat(taintedObjects, testString)
     def result = self.toLowerCase(new Locale(locale))
 
@@ -793,7 +590,6 @@ class StringModuleTest extends IastModuleImplTestBase {
 
   void 'test trim and make sure IastRequestContext is called'() {
     given:
-    final taintedObjects = ctx.getTaintedObjects()
     def self = addFromTaintFormat(taintedObjects, testString)
     def result = self.trim()
 
@@ -802,7 +598,6 @@ class StringModuleTest extends IastModuleImplTestBase {
     def taintedObject = taintedObjects.get(result)
 
     then:
-    1 * tracer.activeSpan() >> span
     taintFormat(result, taintedObject.getRanges()) == expected
 
     where:
@@ -812,7 +607,6 @@ class StringModuleTest extends IastModuleImplTestBase {
 
   void 'test trim for not empty string cases'() {
     given:
-    final taintedObjects = ctx.getTaintedObjects()
     def self = addFromTaintFormat(taintedObjects, testString)
     def result = self.trim()
 
@@ -846,7 +640,6 @@ class StringModuleTest extends IastModuleImplTestBase {
 
   void 'test trim for empty string cases'() {
     given:
-    final taintedObjects = ctx.getTaintedObjects()
     def self = addFromTaintFormat(taintedObjects, testString)
     def result = self.trim()
 
@@ -869,7 +662,7 @@ class StringModuleTest extends IastModuleImplTestBase {
 
   void 'onStringFormat fmt: #formatTainted args: #argsTainted'() {
     given:
-    final to = ctx.getTaintedObjects()
+    final to = taintedObjects
     final format = addFromTaintFormat(to, formatTainted)
     final args = argsTainted.collect {
       final value = taint(to, it)
@@ -910,7 +703,7 @@ class StringModuleTest extends IastModuleImplTestBase {
 
   void 'onStringFormat literals: #literals args: #argsTainted'() {
     given:
-    final to = ctx.getTaintedObjects()
+    final to = taintedObjects
     final args = argsTainted.collect {
       final value = taint(to, it)
       objectHolder.add(value)
@@ -938,7 +731,7 @@ class StringModuleTest extends IastModuleImplTestBase {
 
   void 'onSplit'() {
     given:
-    final to = ctx.getTaintedObjects()
+    final to = taintedObjects
     def self = addFromTaintFormat(to, testString)
     def result = self.split(regexp)
     assert expectedTaintedArray.length == result.length

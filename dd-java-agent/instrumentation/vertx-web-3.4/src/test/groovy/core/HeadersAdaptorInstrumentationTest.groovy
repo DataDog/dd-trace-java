@@ -56,8 +56,8 @@ class HeadersAdaptorInstrumentationTest extends AgentTestRunner {
 
     then:
     1 * module.isTainted(headers) >> { true }
-    1 * module.taint(_, 'value1', SourceTypes.REQUEST_HEADER_VALUE, 'key')
-    1 * module.taint(_, 'value2', SourceTypes.REQUEST_HEADER_VALUE, 'key')
+    1 * module.taint('value1', SourceTypes.REQUEST_HEADER_VALUE, 'key')
+    1 * module.taint('value2', SourceTypes.REQUEST_HEADER_VALUE, 'key')
 
     where:
     headers        | _
@@ -83,7 +83,7 @@ class HeadersAdaptorInstrumentationTest extends AgentTestRunner {
 
     then:
     1 * module.isTainted(headers) >> { true }
-    1 * module.taint(_, 'key', SourceTypes.REQUEST_HEADER_NAME, 'key')
+    1 * module.taint('key', SourceTypes.REQUEST_HEADER_NAME, 'key')
 
     where:
     headers        | _
@@ -112,10 +112,10 @@ class HeadersAdaptorInstrumentationTest extends AgentTestRunner {
     then:
     1 * module.isTainted(headers) >> { true }
     result.collect { it.key }.unique().each {
-      1 * module.taint(_, it, SourceTypes.REQUEST_HEADER_NAME, it)
+      1 * module.taint(it, SourceTypes.REQUEST_HEADER_NAME, it)
     }
     result.each {
-      1 * module.taint(_, it.value, SourceTypes.REQUEST_HEADER_VALUE, it.key)
+      1 * module.taint(it.value, SourceTypes.REQUEST_HEADER_VALUE, it.key)
     }
 
     where:

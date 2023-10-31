@@ -1,15 +1,12 @@
 package com.datadog.iast.sink
 
-
 import com.datadog.iast.IastModuleImplTestBase
 import com.datadog.iast.IastRequestContext
 import com.datadog.iast.model.Vulnerability
 import com.datadog.iast.model.VulnerabilityType
-import com.datadog.iast.taint.TaintedObjects
 import datadog.trace.api.gateway.RequestContext
 import datadog.trace.api.gateway.RequestContextSlot
 import datadog.trace.api.iast.InstrumentationBridge
-import datadog.trace.api.iast.telemetry.IastMetricCollector
 import datadog.trace.api.iast.util.Cookie
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 
@@ -100,8 +97,7 @@ class HttpResponseHeaderModuleTest extends IastModuleImplTestBase {
 
   void 'exercise IastRequestController'(){
     given:
-    final taintedObjects = Mock(TaintedObjects)
-    IastRequestContext ctx = new IastRequestContext(taintedObjects)
+    IastRequestContext ctx = new IastRequestContext()
 
     when:
     ctx.setxForwardedProto('https')
@@ -112,11 +108,9 @@ class HttpResponseHeaderModuleTest extends IastModuleImplTestBase {
 
   void 'exercise IastRequestContext'(){
     given:
-    final taintedObjects = Mock(TaintedObjects)
-    final iastMetricsCollector = Mock(IastMetricCollector)
+    IastRequestContext ctx = new IastRequestContext()
 
     when:
-    IastRequestContext ctx = new IastRequestContext(taintedObjects, iastMetricsCollector)
     ctx.setxForwardedProto('https')
     ctx.setContentType("text/html")
     ctx.setxContentTypeOptions('nosniff')

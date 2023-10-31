@@ -2,18 +2,13 @@ package com.datadog.iast.propagation;
 
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
 
-import com.datadog.iast.IastRequestContext;
 import com.datadog.iast.IastSystem;
 import com.datadog.iast.model.Range;
 import com.datadog.iast.model.Source;
-import datadog.trace.api.Config;
-import datadog.trace.api.ProductActivation;
+import com.datadog.iast.taint.TaintedObjects;
 import datadog.trace.api.gateway.InstrumentationGateway;
 import datadog.trace.api.gateway.RequestContextSlot;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
-import datadog.trace.bootstrap.instrumentation.api.TagContext;
 import datadog.trace.common.writer.Writer;
 import datadog.trace.core.CoreTracer;
 import datadog.trace.core.DDSpan;
@@ -27,7 +22,6 @@ import org.openjdk.jmh.annotations.OutputTimeUnit;
 import org.openjdk.jmh.annotations.Scope;
 import org.openjdk.jmh.annotations.Setup;
 import org.openjdk.jmh.annotations.State;
-import org.openjdk.jmh.annotations.TearDown;
 import org.openjdk.jmh.annotations.Warmup;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -42,14 +36,14 @@ public abstract class AbstractBenchmark<C extends AbstractBenchmark.BenchmarkCon
 
   private static final Logger LOG = LoggerFactory.getLogger(AbstractBenchmark.class);
 
-  private AgentSpan span;
-  private AgentScope scope;
+  protected TaintedObjects taintedObjects;
   protected C context;
 
   @Setup(Level.Trial)
   public void setup() {
-    final InstrumentationGateway gateway = new InstrumentationGateway();
-    IastSystem.start(gateway.getSubscriptionService(RequestContextSlot.IAST));
+    taintedObjects = TaintedObjects.build();
+    InstrumentationGateway gateway = new InstrumentationGateway();
+    IastSystem.start(gateway.getSubscriptionService(RequestContextSlot.IAST), null, taintedObjects);
     final CoreTracer tracer =
         CoreTracer.builder().instrumentationGateway(gateway).writer(new NoOpWriter()).build();
     AgentTracer.forceRegister(tracer);
@@ -57,26 +51,15 @@ public abstract class AbstractBenchmark<C extends AbstractBenchmark.BenchmarkCon
 
   @Setup(Level.Iteration)
   public void start() {
+    taintedObjects.clear();
     context = initializeContext();
-    final TagContext tagContext = new TagContext();
-    if (Config.get().getIastActivation() == ProductActivation.FULLY_ENABLED) {
-      tagContext.withRequestContextDataIast(context.getIastContext());
-    }
-    span = AgentTracer.startSpan("benchmark", tagContext);
-    scope = AgentTracer.activateSpan(span);
-  }
-
-  @TearDown(Level.Iteration)
-  public void stop() {
-    scope.close();
-    span.finish();
   }
 
   protected abstract C initializeContext();
 
-  protected <E> E tainted(final IastRequestContext context, final E value, final Range... ranges) {
+  protected <E> E tainted(final E value, final Range... ranges) {
     final E result = notTainted(value);
-    context.getTaintedObjects().taint(result, ranges);
+    taintedObjects.taint(result, ranges);
     return result;
   }
 
@@ -102,18 +85,7 @@ public abstract class AbstractBenchmark<C extends AbstractBenchmark.BenchmarkCon
     return hash;
   }
 
-  protected abstract static class BenchmarkContext {
-
-    private final IastRequestContext iastContext;
-
-    protected BenchmarkContext(final IastRequestContext iasContext) {
-      this.iastContext = iasContext;
-    }
-
-    public IastRequestContext getIastContext() {
-      return iastContext;
-    }
-  }
+  protected interface BenchmarkContext {}
 
   private static class NoOpWriter implements Writer {
 

@@ -6,7 +6,6 @@ import com.datadog.iast.RequestEndedHandler
 import com.datadog.iast.model.Vulnerability
 import com.datadog.iast.model.VulnerabilityType
 import datadog.trace.api.gateway.Flow
-import datadog.trace.api.gateway.IGSpanInfo
 import datadog.trace.api.gateway.RequestContext
 import datadog.trace.api.gateway.RequestContextSlot
 import datadog.trace.api.iast.InstrumentationBridge
@@ -15,96 +14,71 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 
 class HstsMissingHeaderModuleTest extends IastModuleImplTestBase {
 
-  private List<Object> objectHolder
+  private TraceSegment traceSegment
 
-  private IastRequestContext ctx
+  private RequestContext reqCtx
+
+  private IastRequestContext iastCtx
 
   private HstsMissingHeaderModuleImpl module
 
   private AgentSpan span
 
   def setup() {
-    InstrumentationBridge.clearIastModules()
-    module = new HstsMissingHeaderModuleImpl(dependencies)
-    InstrumentationBridge.registerIastModule(module)
-    objectHolder = []
-    ctx = new IastRequestContext()
-    final reqCtx = Mock(RequestContext) {
-      getData(RequestContextSlot.IAST) >> ctx
+    traceSegment = Mock(TraceSegment)
+    iastCtx = Spy(new IastRequestContext())
+    reqCtx = Mock(RequestContext) {
+      getData(RequestContextSlot.IAST) >> iastCtx
+      getTraceSegment() >> traceSegment
     }
     span = Mock(AgentSpan) {
       getSpanId() >> 123456
       getRequestContext() >> reqCtx
     }
+    tracer.activeSpan() >> span
+    InstrumentationBridge.clearIastModules()
+    module = new HstsMissingHeaderModuleImpl(dependencies)
+    InstrumentationBridge.registerIastModule(module)
   }
 
 
   void 'hsts vulnerability'() {
     given:
-    Vulnerability savedVul1
-    final iastCtx = Mock(IastRequestContext)
+    final handler = new RequestEndedHandler(dependencies)
     iastCtx.getxForwardedProto() >> 'https'
     iastCtx.getContentType() >> "text/html"
-    final handler = new RequestEndedHandler(dependencies)
-    final TraceSegment traceSegment = Mock(TraceSegment)
-    final reqCtx = Mock(RequestContext)
-    reqCtx.getTraceSegment() >> traceSegment
-    reqCtx.getData(RequestContextSlot.IAST) >> iastCtx
-    final tags = Mock(Map<String, Object>)
-    tags.get("http.url") >> "https://localhost/a"
-    tags.get("http.status_code") >> 200i
-    final spanInfo = Mock(IGSpanInfo)
-    spanInfo.getTags() >> tags
-    IastRequestContext.get(span) >> iastCtx
-
+    span.getTags() >> [
+      'http.url': 'https://localhost/a',
+      'http.status_code': 200i
+    ]
 
     when:
-    def flow = handler.apply(reqCtx, spanInfo)
+    def flow = handler.apply(reqCtx, span)
 
     then:
     flow.getAction() == Flow.Action.Noop.INSTANCE
     flow.getResult() == null
-    1 * reqCtx.getData(RequestContextSlot.IAST) >> iastCtx
-    1 * reqCtx.getTraceSegment() >> traceSegment
     1 * traceSegment.setTagTop("_dd.iast.enabled", 1)
-    1 * iastCtx.getTaintedObjects() >> null
     1 * overheadController.releaseRequest()
-    1 * spanInfo.getTags() >> tags
-    1 * tags.get('http.url') >> "https://localhost/a"
-    1 * tags.get('http.status_code') >> 200i
     1 * iastCtx.getStrictTransportSecurity()
-    1 * tracer.activeSpan() >> span
-    1 * iastCtx.getContentType() >> "text/html"
-    1 * reporter.report(_, _ as Vulnerability) >> {
-      savedVul1 = it[1]
-    }
-
-    with(savedVul1) {
-      type == VulnerabilityType.HSTS_HEADER_MISSING
-    }
+    1 * reporter.report(_, {
+      final vul = it as Vulnerability
+      assert vul.type == VulnerabilityType.HSTS_HEADER_MISSING
+    })
   }
-
 
   void 'no hsts vulnerability reported'() {
     given:
-    final iastCtx = Mock(IastRequestContext)
+    final handler = new RequestEndedHandler(dependencies)
     iastCtx.getxForwardedProto() >> 'https'
     iastCtx.getContentType() >> "text/html"
-    final handler = new RequestEndedHandler(dependencies)
-    final TraceSegment traceSegment = Mock(TraceSegment)
-    final reqCtx = Mock(RequestContext)
-    reqCtx.getTraceSegment() >> traceSegment
-    reqCtx.getData(RequestContextSlot.IAST) >> iastCtx
-    final tags = Mock(Map<String, Object>)
-    tags.get("http.url") >> url
-    tags.get("http.status_code") >> status
-    final spanInfo = Mock(IGSpanInfo)
-    spanInfo.getTags() >> tags
-    IastRequestContext.get(span) >> iastCtx
-
+    span.getTags() >> [
+      'http.url': url,
+      'http.status_code': status
+    ]
 
     when:
-    def flow = handler.apply(reqCtx, spanInfo)
+    def flow = handler.apply(reqCtx, span)
 
     then:
     flow.getAction() == Flow.Action.Noop.INSTANCE
@@ -112,13 +86,9 @@ class HstsMissingHeaderModuleTest extends IastModuleImplTestBase {
     1 * reqCtx.getData(RequestContextSlot.IAST) >> iastCtx
     1 * reqCtx.getTraceSegment() >> traceSegment
     1 * traceSegment.setTagTop("_dd.iast.enabled", 1)
-    1 * iastCtx.getTaintedObjects() >> null
     1 * overheadController.releaseRequest()
-    1 * spanInfo.getTags() >> tags
-    1 * tags.get('http.url') >> url
-    1 * tags.get('http.status_code') >> status
     1 * iastCtx.getStrictTransportSecurity()
-    0 * _
+    0 * reporter.report(_, _)
 
     where:
     url                   | status
@@ -143,7 +113,7 @@ class HstsMissingHeaderModuleTest extends IastModuleImplTestBase {
 
   void 'exception not thrown if igSpanInfo is null'(){
     when:
-    module.onRequestEnd(ctx, null)
+    module.onRequestEnd(iastCtx, null)
 
     then:
     noExceptionThrown()

@@ -1,6 +1,5 @@
 package server;
 
-import com.datadog.iast.IastRequestContext;
 import io.vertx.core.AbstractVerticle;
 import io.vertx.core.MultiMap;
 import io.vertx.core.Promise;
@@ -136,8 +135,7 @@ public class IastSourcesVerticle extends AbstractVerticle {
           final JsonObject payload = (JsonObject) message.body();
           final String name = payload.getString("name");
           try {
-            final boolean tainted = IastRequestContext.get().getTaintedObjects().get(name) != null;
-            message.reply(tainted ? "OK" : "NO_OK");
+            message.reply(name);
           } catch (Throwable e) {
             LOGGER.error("Failed to handle event bus message", e);
             message.reply("NO_OK");

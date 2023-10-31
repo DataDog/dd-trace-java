@@ -2,7 +2,6 @@ package com.datadog.iast.propagation;
 
 import static datadog.trace.api.iast.VulnerabilityMarks.NOT_MARKED;
 
-import com.datadog.iast.IastRequestContext;
 import com.datadog.iast.model.Range;
 import com.datadog.iast.model.Source;
 import datadog.trace.api.iast.InstrumentationBridge;
@@ -14,29 +13,23 @@ public class StringJoinBenchmark extends AbstractBenchmark<StringJoinBenchmark.C
   protected StringJoinBenchmark.Context initializeContext() {
     final String notTainted = new String("I am not a tainted string");
     final String notTaintedDelimiter = new String("-");
-    final IastRequestContext iastRequestContext = new IastRequestContext();
 
     final String tainted = new String("I am a tainted string");
-    iastRequestContext
-        .getTaintedObjects()
-        .taint(
-            tainted,
-            new Range[] {
-              new Range(0, tainted.length(), new Source((byte) 0, "key", "value"), NOT_MARKED)
-            });
+    taintedObjects.taint(
+        tainted,
+        new Range[] {
+          new Range(0, tainted.length(), new Source((byte) 0, "key", "value"), NOT_MARKED)
+        });
 
     final String taintedDelimiter = new String("-");
-    iastRequestContext
-        .getTaintedObjects()
-        .taint(
-            taintedDelimiter,
-            new Range[] {
-              new Range(
-                  0, taintedDelimiter.length(), new Source((byte) 1, "key", "value"), NOT_MARKED)
-            });
+    taintedObjects.taint(
+        taintedDelimiter,
+        new Range[] {
+          new Range(0, taintedDelimiter.length(), new Source((byte) 1, "key", "value"), NOT_MARKED)
+        });
 
     return new StringJoinBenchmark.Context(
-        iastRequestContext, notTainted, tainted, notTaintedDelimiter, taintedDelimiter);
+        notTainted, tainted, notTaintedDelimiter, taintedDelimiter);
   }
 
   @Benchmark
@@ -78,7 +71,7 @@ public class StringJoinBenchmark extends AbstractBenchmark<StringJoinBenchmark.C
     return result;
   }
 
-  protected static class Context extends AbstractBenchmark.BenchmarkContext {
+  protected static class Context implements AbstractBenchmark.BenchmarkContext {
 
     private final String notTainted;
     private final String tainted;
@@ -86,12 +79,10 @@ public class StringJoinBenchmark extends AbstractBenchmark<StringJoinBenchmark.C
     private final String noTaintedDelimiter;
 
     protected Context(
-        final IastRequestContext iasContext,
         final String notTainted,
         final String tainted,
         final String noTaintedDelimiter,
         final String taintedDelimiter) {
-      super(iasContext);
       this.notTainted = notTainted;
       this.tainted = tainted;
       this.noTaintedDelimiter = noTaintedDelimiter;

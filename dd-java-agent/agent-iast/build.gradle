@@ -93,7 +93,10 @@ ext {
     'com.datadog.iast.model.json.SourceTypeAdapter',
     'com.datadog.iast.model.json.VulnerabilityTypeAdapter',
   ]
-  excludedClassesBranchCoverage = []
+  excludedClassesBranchCoverage = [
+    // logger level related branches
+    'com.datadog.iast.taint.TaintedObjects.TaintedObjectsDebugAdapter'
+  ]
   excludedClassesInstructionCoverage = []
 }
 

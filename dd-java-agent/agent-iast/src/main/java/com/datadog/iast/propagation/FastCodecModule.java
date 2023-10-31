@@ -2,12 +2,17 @@ package com.datadog.iast.propagation;
 
 import static com.datadog.iast.taint.Ranges.highestPriorityRange;
 
+import com.datadog.iast.Dependencies;
 import com.datadog.iast.model.Range;
 import com.datadog.iast.taint.Ranges;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 public class FastCodecModule extends BaseCodecModule {
+
+  public FastCodecModule(@Nonnull final Dependencies dependencies) {
+    super(dependencies);
+  }
 
   @Override
   protected Range[] urlDecodeRanges(

@@ -2,6 +2,7 @@ package com.datadog.iast
 
 import com.datadog.iast.overhead.Operation
 import com.datadog.iast.overhead.OverheadController
+import com.datadog.iast.taint.TaintedObjects
 import datadog.trace.api.Config
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
@@ -24,12 +25,16 @@ class IastModuleImplTestBase extends DDSpecification {
   // TODO replace by mock an fix all mock assertions (0 * _ will usually fail)
   protected StackWalker stackWalker = StackWalkerFactory.INSTANCE
 
-  protected Dependencies dependencies = new Dependencies(Config.get(), reporter, overheadController, stackWalker)
+  protected TaintedObjects taintedObjects
+
+  protected Dependencies dependencies
 
   void setup() {
-    AgentTracer.forceRegister(tracer)
     overheadController.acquireRequest() >> true
     overheadController.consumeQuota(_ as Operation, _ as AgentSpan) >> true
+    taintedObjects = TaintedObjects.build(1024)
+    dependencies = new Dependencies(Config.get(), reporter, overheadController, stackWalker, taintedObjects)
+    AgentTracer.forceRegister(tracer)
   }
 
   void cleanup() {

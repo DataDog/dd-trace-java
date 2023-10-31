@@ -6,11 +6,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
-import datadog.trace.advice.ActiveRequestContext;
-import datadog.trace.advice.RequiresRequestContext;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.api.gateway.RequestContext;
-import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Source;
 import datadog.trace.api.iast.SourceTypes;
@@ -44,12 +40,10 @@ public class PathMatcherInstrumentation extends Instrumenter.Iast
         PathMatcherInstrumentation.class.getName() + "$PathMatcherAdvice");
   }
 
-  @RequiresRequestContext(RequestContextSlot.IAST)
   static class PathMatcherAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
     @Source(SourceTypes.REQUEST_PATH_PARAMETER)
-    static void onExit(
-        @Advice.Argument(1) Object extractions, @ActiveRequestContext RequestContext reqCtx) {
+    static void onExit(@Advice.Argument(1) Object extractions) {
       if (!(extractions instanceof scala.Tuple1)) {
         return;
       }
@@ -68,8 +62,7 @@ public class PathMatcherInstrumentation extends Instrumenter.Iast
       }
 
       if (value instanceof String) {
-        module.taint(
-            reqCtx.getData(RequestContextSlot.IAST), value, SourceTypes.REQUEST_PATH_PARAMETER);
+        module.taint(value, SourceTypes.REQUEST_PATH_PARAMETER);
       }
     }
   }

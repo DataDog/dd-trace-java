@@ -8,7 +8,6 @@ import datadog.trace.api.gateway.CallbackProvider;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
-import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Source;
 import datadog.trace.api.iast.SourceTypes;
@@ -113,49 +112,37 @@ public class HandleMatchAdvice {
     }
 
     { // iast
-      IastContext iastRequestContext = reqCtx.getData(RequestContextSlot.IAST);
-      if (iastRequestContext != null) {
-        PropagationModule module = InstrumentationBridge.PROPAGATION;
-        if (module != null) {
-          if (templateVars instanceof Map) {
-            for (Map.Entry<String, String> e : ((Map<String, String>) templateVars).entrySet()) {
-              String parameterName = e.getKey();
-              String value = e.getValue();
-              if (parameterName == null || value == null) {
-                continue; // should not happen
-              }
-              module.taint(
-                  iastRequestContext, value, SourceTypes.REQUEST_PATH_PARAMETER, parameterName);
+      PropagationModule module = InstrumentationBridge.PROPAGATION;
+      if (module != null) {
+        if (templateVars instanceof Map) {
+          for (Map.Entry<String, String> e : ((Map<String, String>) templateVars).entrySet()) {
+            String parameterName = e.getKey();
+            String value = e.getValue();
+            if (parameterName == null || value == null) {
+              continue; // should not happen
             }
+            module.taint(value, SourceTypes.REQUEST_PATH_PARAMETER, parameterName);
           }
+        }
 
-          if (matrixVars instanceof Map) {
-            for (Map.Entry<String, Map<String, Iterable<String>>> e :
-                ((Map<String, Map<String, Iterable<String>>>) matrixVars).entrySet()) {
-              String parameterName = e.getKey();
-              Map<String, Iterable<String>> value = e.getValue();
-              if (parameterName == null || value == null) {
-                continue;
+        if (matrixVars instanceof Map) {
+          for (Map.Entry<String, Map<String, Iterable<String>>> e :
+              ((Map<String, Map<String, Iterable<String>>>) matrixVars).entrySet()) {
+            String parameterName = e.getKey();
+            Map<String, Iterable<String>> value = e.getValue();
+            if (parameterName == null || value == null) {
+              continue;
+            }
+
+            for (Map.Entry<String, Iterable<String>> ie : value.entrySet()) {
+              String innerKey = ie.getKey();
+              if (innerKey != null) {
+                module.taint(innerKey, SourceTypes.REQUEST_MATRIX_PARAMETER, parameterName);
               }
-
-              for (Map.Entry<String, Iterable<String>> ie : value.entrySet()) {
-                String innerKey = ie.getKey();
-                if (innerKey != null) {
-                  module.taint(
-                      iastRequestContext,
-                      innerKey,
-                      SourceTypes.REQUEST_MATRIX_PARAMETER,
-                      parameterName);
-                }
-                Iterable<String> innerValues = ie.getValue();
-                if (innerValues != null) {
-                  for (String iv : innerValues) {
-                    module.taint(
-                        iastRequestContext,
-                        iv,
-                        SourceTypes.REQUEST_MATRIX_PARAMETER,
-                        parameterName);
-                  }
+              Iterable<String> innerValues = ie.getValue();
+              if (innerValues != null) {
+                for (String iv : innerValues) {
+                  module.taint(iv, SourceTypes.REQUEST_MATRIX_PARAMETER, parameterName);
                 }
               }
             }

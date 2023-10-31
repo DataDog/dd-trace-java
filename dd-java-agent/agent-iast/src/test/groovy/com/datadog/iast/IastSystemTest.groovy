@@ -1,13 +1,11 @@
 package com.datadog.iast
 
+import com.datadog.iast.telemetry.TelemetryRequestStartedHandler
+import com.datadog.iast.telemetry.TelemetryRequestEndedHandler
+import datadog.trace.api.gateway.*
 import datadog.trace.api.iast.InstrumentationBridge
+import datadog.trace.api.iast.telemetry.Verbosity
 import datadog.trace.api.internal.TraceSegment
-import datadog.trace.api.gateway.InstrumentationGateway
-import datadog.trace.api.gateway.RequestContextSlot
-import datadog.trace.api.gateway.RequestContext
-import datadog.trace.api.gateway.IGSpanInfo
-import datadog.trace.api.gateway.Events
-import datadog.trace.api.gateway.SubscriptionService
 import datadog.trace.test.util.DDSpecification
 
 class IastSystemTest extends DDSpecification {
@@ -22,9 +20,7 @@ class IastSystemTest extends DDSpecification {
     final ss = Spy(ig.getSubscriptionService(RequestContextSlot.IAST))
     final cbp = ig.getCallbackProvider(RequestContextSlot.IAST)
     final traceSegment = Mock(TraceSegment)
-    final iastContext = Mock(IastRequestContext) {
-      getTaintedObjects() >> null
-    }
+    final iastContext = Mock(IastRequestContext)
     final RequestContext reqCtx = Stub(RequestContext) {
       getTraceSegment() >> traceSegment
       getData(RequestContextSlot.IAST) >> iastContext
@@ -56,7 +52,6 @@ class IastSystemTest extends DDSpecification {
     endCallback.apply(reqCtx, igSpanInfo)
 
     then:
-    1 * iastContext.getTaintedObjects()
     1 * iastContext.getMetricCollector()
     1 * traceSegment.setTagTop('_dd.iast.enabled', 1)
     1 * iastContext.getxContentTypeOptions() >> 'nosniff'
@@ -76,5 +71,27 @@ class IastSystemTest extends DDSpecification {
 
     then:
     0 * _
+  }
+
+  void 'check telemetry start'() {
+    setup:
+    injectSysConfig('dd.iast.telemetry.verbosity', verbosity.name())
+    final ss = Mock(SubscriptionService)
+
+    when:
+    IastSystem.start(ss)
+
+    then:
+    1 * ss.registerCallback(Events.get().requestStarted(), {
+      final hasTelemetry = it instanceof TelemetryRequestStartedHandler
+      return hasTelemetry == (verbosity != Verbosity.OFF)
+    })
+    1 * ss.registerCallback(Events.get().requestEnded(), {
+      final hasTelemetry = it instanceof TelemetryRequestEndedHandler
+      return hasTelemetry == (verbosity != Verbosity.OFF)
+    })
+
+    where:
+    verbosity << Verbosity.values()
   }
 }

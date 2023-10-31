@@ -59,7 +59,7 @@ class JakartaHttpServletRequestInstrumentationTest extends AgentTestRunner {
     then:
     result == headers
     1 * mock.getHeaders('headers') >> Collections.enumeration(headers)
-    headers.each { 1 * iastModule.taint(_, it, SourceTypes.REQUEST_HEADER_VALUE, 'headers') }
+    headers.each { 1 * iastModule.taint(it, SourceTypes.REQUEST_HEADER_VALUE, 'headers') }
     0 * _
 
     where:
@@ -80,7 +80,7 @@ class JakartaHttpServletRequestInstrumentationTest extends AgentTestRunner {
     then:
     result == headers
     1 * mock.getHeaderNames() >> Collections.enumeration(headers)
-    headers.each { 1 * iastModule.taint(_, it, SourceTypes.REQUEST_HEADER_NAME, it) }
+    headers.each { 1 * iastModule.taint(it, SourceTypes.REQUEST_HEADER_NAME, it) }
     0 * _
 
     where:
@@ -121,7 +121,7 @@ class JakartaHttpServletRequestInstrumentationTest extends AgentTestRunner {
     then:
     result == values
     1 * mock.getParameterValues('parameter') >> { values as String[] }
-    values.each { 1 * iastModule.taint(_, it, SourceTypes.REQUEST_PARAMETER_VALUE, 'parameter') }
+    values.each { 1 * iastModule.taint(it, SourceTypes.REQUEST_PARAMETER_VALUE, 'parameter') }
     0 * _
 
     where:
@@ -143,9 +143,9 @@ class JakartaHttpServletRequestInstrumentationTest extends AgentTestRunner {
     result == parameters
     1 * mock.getParameterMap() >> parameters
     parameters.each { key, values ->
-      1 * iastModule.taint(_, key, SourceTypes.REQUEST_PARAMETER_NAME, key)
+      1 * iastModule.taint(key, SourceTypes.REQUEST_PARAMETER_NAME, key)
       values.each { value ->
-        1 * iastModule.taint(_, value, SourceTypes.REQUEST_PARAMETER_VALUE, key)
+        1 * iastModule.taint(value, SourceTypes.REQUEST_PARAMETER_VALUE, key)
       }
     }
     0 * _
@@ -169,7 +169,7 @@ class JakartaHttpServletRequestInstrumentationTest extends AgentTestRunner {
     then:
     result == parameters
     1 * mock.getParameterNames() >> Collections.enumeration(parameters)
-    parameters.each { 1 * iastModule.taint(_, it, SourceTypes.REQUEST_PARAMETER_NAME, it) }
+    parameters.each { 1 * iastModule.taint(it, SourceTypes.REQUEST_PARAMETER_NAME, it) }
     0 * _
 
     where:
@@ -190,7 +190,7 @@ class JakartaHttpServletRequestInstrumentationTest extends AgentTestRunner {
     then:
     result == cookies
     1 * mock.getCookies() >> cookies
-    cookies.each { 1 * iastModule.taint(_, it, SourceTypes.REQUEST_COOKIE_VALUE) }
+    cookies.each { 1 * iastModule.taint(it, SourceTypes.REQUEST_COOKIE_VALUE) }
     0 * _
 
     where:

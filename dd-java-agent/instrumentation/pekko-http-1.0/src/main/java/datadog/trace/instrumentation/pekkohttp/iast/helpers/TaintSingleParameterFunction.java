@@ -1,6 +1,5 @@
 package datadog.trace.instrumentation.pekkohttp.iast.helpers;
 
-import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.SourceTypes;
 import datadog.trace.api.iast.propagation.PropagationModule;
@@ -41,16 +40,15 @@ public class TaintSingleParameterFunction<Magnet>
     }
 
     if (value instanceof Iterable) {
-      final IastContext ctx = IastContext.Provider.get();
       Iterator<?> iterator = ((Iterable<?>) value).iterator();
       while (iterator.hasNext()) {
         Object o = iterator.next();
         if (o instanceof String) {
-          mod.taint(ctx, (String) o, SourceTypes.REQUEST_PARAMETER_VALUE, paramName);
+          mod.taint(o, SourceTypes.REQUEST_PARAMETER_VALUE, paramName);
         }
       }
     } else if (value instanceof String) {
-      mod.taint((String) value, SourceTypes.REQUEST_PARAMETER_VALUE, paramName);
+      mod.taint(value, SourceTypes.REQUEST_PARAMETER_VALUE, paramName);
     }
 
     return v1;

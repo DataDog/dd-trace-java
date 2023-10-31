@@ -4,7 +4,6 @@ import static com.datadog.iast.IastTag.ANALYZED;
 
 import com.datadog.iast.model.Vulnerability;
 import com.datadog.iast.model.VulnerabilityBatch;
-import com.datadog.iast.taint.TaintedObjects;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.gateway.RequestContext;
@@ -82,8 +81,7 @@ public class Reporter {
 
   private AgentSpan startNewSpan() {
     final AgentSpan.Context tagContext =
-        new TagContext()
-            .withRequestContextDataIast(new IastRequestContext(TaintedObjects.NoOp.INSTANCE));
+        new TagContext().withRequestContextDataIast(new IastRequestContext());
     final AgentSpan span =
         tracer()
             .startSpan("iast", VULNERABILITY_SPAN_NAME, tagContext)

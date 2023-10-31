@@ -6,7 +6,6 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Source;
 import datadog.trace.api.iast.SourceTypes;
@@ -43,12 +42,11 @@ public class AbstractFormProviderInstrumentation extends Instrumenter.Iast
       if (prop == null || result == null || result.isEmpty()) {
         return;
       }
-      final IastContext ctx = IastContext.Provider.get();
       for (Map.Entry<String, List<String>> entry : result.entrySet()) {
         final String name = entry.getKey();
-        prop.taint(ctx, name, SourceTypes.REQUEST_PARAMETER_NAME, name);
+        prop.taint(name, SourceTypes.REQUEST_PARAMETER_NAME, name);
         for (String value : entry.getValue()) {
-          prop.taint(ctx, value, SourceTypes.REQUEST_PARAMETER_VALUE, name);
+          prop.taint(value, SourceTypes.REQUEST_PARAMETER_VALUE, name);
         }
       }
     }

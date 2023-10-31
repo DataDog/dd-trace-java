@@ -11,7 +11,6 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Propagation;
 import datadog.trace.api.iast.Source;
@@ -71,7 +70,6 @@ public class HttpRequestInstrumentation extends Instrumenter.Iast
         return;
       }
 
-      final IastContext ctx = IastContext.Provider.get();
       Iterator<HttpHeader> iterator = headers.iterator();
       while (iterator.hasNext()) {
         HttpHeader h = iterator.next();
@@ -80,7 +78,7 @@ public class HttpRequestInstrumentation extends Instrumenter.Iast
         }
         // unfortunately, the call to h.value() is instrumented, but
         // because the call to taint() only happens after, the call is a noop
-        propagation.taint(ctx, h, SourceTypes.REQUEST_HEADER_VALUE, h.name(), h.value());
+        propagation.taint(h, SourceTypes.REQUEST_HEADER_VALUE, h.name(), h.value());
       }
     }
   }

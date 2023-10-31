@@ -1,7 +1,6 @@
 package com.datadog.iast.sink;
 
 import com.datadog.iast.Dependencies;
-import com.datadog.iast.IastRequestContext;
 import com.datadog.iast.model.Evidence;
 import com.datadog.iast.model.VulnerabilityType;
 import datadog.trace.api.iast.sink.SqlInjectionModule;
@@ -26,12 +25,7 @@ public class SqlInjectionModuleImpl extends SinkModuleBase implements SqlInjecti
       return;
     }
     final AgentSpan span = AgentTracer.activeSpan();
-    final IastRequestContext ctx = IastRequestContext.get(span);
-    if (ctx == null) {
-      return;
-    }
-    final Evidence evidence =
-        checkInjection(span, ctx, VulnerabilityType.SQL_INJECTION, queryString);
+    final Evidence evidence = checkInjection(span, VulnerabilityType.SQL_INJECTION, queryString);
     if (evidence != null && database != null) {
       evidence.getContext().put(DATABASE_PARAMETER, database);
     }

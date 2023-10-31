@@ -1,19 +1,14 @@
 package com.datadog.iast.propagation
 
 import com.datadog.iast.IastModuleImplTestBase
-import com.datadog.iast.IastRequestContext
 import com.datadog.iast.model.Range
 import com.datadog.iast.model.Source
 import com.datadog.iast.taint.Ranges
 import com.datadog.iast.taint.TaintedObject
 import datadog.trace.api.Config
-import datadog.trace.api.gateway.RequestContext
-import datadog.trace.api.gateway.RequestContextSlot
 import datadog.trace.api.iast.SourceTypes
 import datadog.trace.api.iast.Taintable
 import datadog.trace.api.iast.VulnerabilityMarks
-import datadog.trace.api.iast.propagation.PropagationModule
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import org.junit.Assume
 
 import static com.datadog.iast.taint.Ranges.highestPriorityRange
@@ -21,34 +16,17 @@ import static datadog.trace.api.iast.VulnerabilityMarks.NOT_MARKED
 
 class PropagationModuleTest extends IastModuleImplTestBase {
 
-  private PropagationModule module
-
-  private IastRequestContext ctx
+  private PropagationModuleImpl module
 
   void setup() {
-    module = new PropagationModuleImpl()
-    ctx = new IastRequestContext()
-    final reqCtx = Mock(RequestContext) {
-      getData(RequestContextSlot.IAST) >> ctx
-    }
-    final span = Mock(AgentSpan) {
-      getRequestContext() >> reqCtx
-    }
-    tracer.activeSpan() >> span
+    module = new PropagationModuleImpl(dependencies)
   }
 
   void '#method(#args) not taintable'() {
-    when: 'there is no context by default'
+    when:
     module.&"$method".call(args.toArray())
 
-    then: 'no mock calls should happen'
-    0 * _
-
-    when: 'there is a context'
-    args.add(0, ctx)
-    module.&"$method".call(args.toArray())
-
-    then: 'no mock calls should happen'
+    then:
     0 * _
 
     where:
@@ -80,36 +58,6 @@ class PropagationModuleTest extends IastModuleImplTestBase {
     ]
     'findSource'        | [null]
     'isTainted'         | [null]
-  }
-
-  void '#method without span'() {
-    when:
-    module.&"$method".call(args.toArray())
-
-    then:
-    1 * tracer.activeSpan() >> null
-    0 * _
-
-    where:
-    method              | args
-    'taint'             | ['test', SourceTypes.REQUEST_PARAMETER_VALUE]
-    'taint'             | ['test', SourceTypes.REQUEST_PARAMETER_VALUE, 'name']
-    'taint'             | ['test', SourceTypes.REQUEST_PARAMETER_VALUE, 'name', 'value']
-    'taintIfTainted'    | ['test', 'test']
-    'taintIfTainted'    | ['test', 'test', false, NOT_MARKED]
-    'taintIfTainted'    | ['test', 'test', SourceTypes.REQUEST_PARAMETER_VALUE]
-    'taintIfTainted'    | ['test', 'test', SourceTypes.REQUEST_PARAMETER_VALUE, 'name']
-    'taintIfTainted'    | ['test', 'test', SourceTypes.REQUEST_PARAMETER_VALUE, 'name', 'value']
-    'taintIfAnyTainted' | ['test', ['test']]
-    'taintDeeply'       | [
-      'test',
-      SourceTypes.REQUEST_PARAMETER_VALUE,
-      {
-        true
-      }
-    ]
-    'findSource'        | ['test']
-    'isTainted'         | ['test']
   }
 
   void 'test taint'() {
@@ -359,12 +307,10 @@ class PropagationModuleTest extends IastModuleImplTestBase {
     module.taintDeeply(target, SourceTypes.GRPC_BODY, { true })
 
     then:
-    final taintedObjects = ctx.taintedObjects
     target.keySet().each { key ->
       assert taintedObjects.get(key) != null
     }
     assert taintedObjects.get(target['Hello']) != null
-    assert taintedObjects.size() == 3 // two keys and one string value
   }
 
   void 'test taint deeply char sequence'() {
@@ -375,8 +321,6 @@ class PropagationModuleTest extends IastModuleImplTestBase {
     module.taintDeeply(target, SourceTypes.GRPC_BODY, { true })
 
     then:
-    final taintedObjects = ctx.taintedObjects
-    assert taintedObjects.size() == 1
     final tainted = taintedObjects.get(target)
     assert tainted != null
     final source = tainted.ranges[0].source
@@ -422,7 +366,7 @@ class PropagationModuleTest extends IastModuleImplTestBase {
     module.taint(target, SourceTypes.REQUEST_PARAMETER_VALUE)
 
     then:
-    final tainted = ctx.getTaintedObjects().get(target)
+    final tainted = taintedObjects.get(target)
     tainted != null
     final sourceValue  = tainted.ranges.first().source.value
     sourceValue.length() <= target.length()
@@ -442,7 +386,7 @@ class PropagationModuleTest extends IastModuleImplTestBase {
     module.taint(name, SourceTypes.REQUEST_PARAMETER_NAME, name)
 
     then:
-    final tainted = ctx.getTaintedObjects().get(name)
+    final tainted = taintedObjects.get(name)
     final taintedName = tainted.ranges[0].source.name
     assert !taintedName.is(name) : 'Weak value should not be retained by the source name'
   }
@@ -473,16 +417,16 @@ class PropagationModuleTest extends IastModuleImplTestBase {
       final source = (target as Taintable).$$DD$getSource() as Source
       return source == null ? null : new TaintedObject(target, Ranges.forObject(source), null)
     }
-    return ctx.getTaintedObjects().get(target)
+    return taintedObjects.get(target)
   }
 
   private TaintedObject taintObject(final Object target, Source source, int mark = NOT_MARKED) {
     if (target instanceof Taintable) {
       target.$$DD$setSource(source)
     } else if (target instanceof CharSequence) {
-      ctx.getTaintedObjects().taint(target, Ranges.forCharSequence(target, source, mark))
+      taintedObjects.taint(target, Ranges.forCharSequence(target, source, mark))
     } else {
-      ctx.getTaintedObjects().taint(target, Ranges.forObject(source, mark))
+      taintedObjects.taint(target, Ranges.forObject(source, mark))
     }
     return getTaintedObject(target)
   }
@@ -491,7 +435,7 @@ class PropagationModuleTest extends IastModuleImplTestBase {
     if (target instanceof Taintable) {
       target.$$DD$setSource(ranges[0].getSource())
     } else {
-      ctx.getTaintedObjects().taint(target, ranges)
+      taintedObjects.taint(target, ranges)
     }
     return getTaintedObject(target)
   }

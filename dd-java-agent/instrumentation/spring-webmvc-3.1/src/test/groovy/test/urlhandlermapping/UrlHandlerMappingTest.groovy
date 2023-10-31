@@ -4,7 +4,6 @@ import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.agent.test.base.HttpServer
 import datadog.trace.agent.test.base.HttpServerTest
 import datadog.trace.api.DDSpanTypes
-import datadog.trace.api.iast.IastContext
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.SourceTypes
 import datadog.trace.api.iast.propagation.PropagationModule
@@ -203,7 +202,7 @@ class UrlHandlerMappingTest extends HttpServerTest<ConfigurableApplicationContex
     TEST_WRITER.waitForTraces(1)
 
     then:
-    1 * mod.taint(_ as IastContext, '123', SourceTypes.REQUEST_PATH_PARAMETER, 'id')
+    1 * mod.taint('123', SourceTypes.REQUEST_PATH_PARAMETER, 'id')
     0 * mod._
 
     cleanup:

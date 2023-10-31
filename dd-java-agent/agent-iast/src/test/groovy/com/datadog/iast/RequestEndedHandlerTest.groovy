@@ -1,6 +1,7 @@
 package com.datadog.iast
 
 import com.datadog.iast.overhead.OverheadController
+import com.datadog.iast.taint.TaintedObjects
 import datadog.trace.api.Config
 import datadog.trace.api.gateway.Flow
 import datadog.trace.api.gateway.IGSpanInfo
@@ -24,8 +25,9 @@ class RequestEndedHandlerTest extends DDSpecification {
     final OverheadController overheadController = Mock(OverheadController)
     final iastCtx = Mock(IastRequestContext)
     final StackWalker stackWalker = Mock(StackWalker)
+    final TaintedObjects taintedObjects = Mock(TaintedObjects)
     final dependencies = new Dependencies(
-      Config.get(), new Reporter(), overheadController, stackWalker
+      Config.get(), new Reporter(), overheadController, stackWalker, taintedObjects
       )
     final handler = new RequestEndedHandler(dependencies)
     final TraceSegment traceSegment = Mock(TraceSegment)
@@ -43,7 +45,6 @@ class RequestEndedHandlerTest extends DDSpecification {
     1 * reqCtx.getData(RequestContextSlot.IAST) >> iastCtx
     1 * reqCtx.getTraceSegment() >> traceSegment
     1 * traceSegment.setTagTop("_dd.iast.enabled", 1)
-    1 * iastCtx.getTaintedObjects() >> null
     1 * overheadController.releaseRequest()
     0 * _
   }
@@ -52,8 +53,9 @@ class RequestEndedHandlerTest extends DDSpecification {
     given:
     final OverheadController overheadController = Mock(OverheadController)
     final StackWalker stackWalker = Mock(StackWalker)
+    final TaintedObjects taintedObjects = Mock(TaintedObjects)
     final dependencies = new Dependencies(
-      Config.get(), new Reporter(), overheadController, stackWalker
+      Config.get(), new Reporter(), overheadController, stackWalker, taintedObjects
       )
     final handler = new RequestEndedHandler(dependencies)
     final TraceSegment traceSegment = Mock(TraceSegment)

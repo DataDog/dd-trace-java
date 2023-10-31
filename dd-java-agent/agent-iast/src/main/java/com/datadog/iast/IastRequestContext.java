@@ -2,21 +2,18 @@ package com.datadog.iast;
 
 import com.datadog.iast.model.VulnerabilityBatch;
 import com.datadog.iast.overhead.OverheadContext;
-import com.datadog.iast.taint.TaintedObjects;
 import datadog.trace.api.gateway.RequestContext;
-import datadog.trace.api.iast.IastContext;
+import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.iast.telemetry.IastMetricCollector;
 import datadog.trace.api.iast.telemetry.IastMetricCollector.HasMetricCollector;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.util.concurrent.atomic.AtomicBoolean;
-import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
-public class IastRequestContext implements IastContext, HasMetricCollector {
+public class IastRequestContext implements HasMetricCollector {
 
   private final VulnerabilityBatch vulnerabilityBatch;
   private final AtomicBoolean spanDataIsSet;
-  private final TaintedObjects taintedObjects;
   private final OverheadContext overheadContext;
   @Nullable private final IastMetricCollector collector;
   @Nullable private volatile String strictTransportSecurity;
@@ -25,19 +22,13 @@ public class IastRequestContext implements IastContext, HasMetricCollector {
   @Nullable private volatile String contentType;
 
   public IastRequestContext() {
-    this(TaintedObjects.acquire(), null);
+    this(null);
   }
 
-  public IastRequestContext(final TaintedObjects taintedObjects) {
-    this(taintedObjects, null);
-  }
-
-  public IastRequestContext(
-      final TaintedObjects taintedObjects, @Nullable final IastMetricCollector collector) {
+  public IastRequestContext(@Nullable final IastMetricCollector collector) {
     this.vulnerabilityBatch = new VulnerabilityBatch();
     this.spanDataIsSet = new AtomicBoolean(false);
     this.overheadContext = new OverheadContext();
-    this.taintedObjects = taintedObjects;
     this.collector = collector;
   }
 
@@ -89,11 +80,6 @@ public class IastRequestContext implements IastContext, HasMetricCollector {
     return overheadContext;
   }
 
-  @Nonnull
-  public TaintedObjects getTaintedObjects() {
-    return taintedObjects;
-  }
-
   @Override
   @Nullable
   public IastMetricCollector getMetricCollector() {
@@ -101,22 +87,18 @@ public class IastRequestContext implements IastContext, HasMetricCollector {
   }
 
   @Nullable
-  public static IastRequestContext get() {
-    return asRequestContext(IastContext.Provider.get());
-  }
-
-  @Nullable
   public static IastRequestContext get(final AgentSpan span) {
-    return asRequestContext(IastContext.Provider.get(span));
+    if (span == null) {
+      return null;
+    }
+    return get(span.getRequestContext());
   }
 
   @Nullable
   public static IastRequestContext get(final RequestContext reqCtx) {
-    return asRequestContext(IastContext.Provider.get(reqCtx));
-  }
-
-  @Nullable
-  private static IastRequestContext asRequestContext(final IastContext ctx) {
-    return ctx instanceof IastRequestContext ? (IastRequestContext) ctx : null;
+    if (reqCtx == null) {
+      return null;
+    }
+    return reqCtx.getData(RequestContextSlot.IAST);
   }
 }

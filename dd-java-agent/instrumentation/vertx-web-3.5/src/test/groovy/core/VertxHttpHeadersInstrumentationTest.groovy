@@ -49,8 +49,8 @@ class VertxHttpHeadersInstrumentationTest extends AgentTestRunner {
 
     then:
     1 * module.isTainted(headers) >> { true }
-    1 * module.taint(_, 'value1', SourceTypes.REQUEST_HEADER_VALUE, 'key')
-    1 * module.taint(_, 'value2', SourceTypes.REQUEST_HEADER_VALUE, 'key')
+    1 * module.taint('value1', SourceTypes.REQUEST_HEADER_VALUE, 'key')
+    1 * module.taint('value2', SourceTypes.REQUEST_HEADER_VALUE, 'key')
   }
 
   void 'test that names() is instrumented'() {
@@ -72,7 +72,7 @@ class VertxHttpHeadersInstrumentationTest extends AgentTestRunner {
 
     then:
     1 * module.isTainted(headers) >> { true }
-    1 * module.taint(_, 'key', SourceTypes.REQUEST_HEADER_NAME, 'key')
+    1 * module.taint('key', SourceTypes.REQUEST_HEADER_NAME, 'key')
   }
 
   void 'test that entries() is instrumented'() {
@@ -95,10 +95,10 @@ class VertxHttpHeadersInstrumentationTest extends AgentTestRunner {
     then:
     module.isTainted(headers) >> { true }
     result.collect { it.key }.unique().each {
-      (1.._) * module.taint(_, it, SourceTypes.REQUEST_HEADER_NAME, it) // entries relies on names() on some impls
+      (1.._) * module.taint(it, SourceTypes.REQUEST_HEADER_NAME, it) // entries relies on names() on some impls
     }
     result.each {
-      1 * module.taint(_, it.value, SourceTypes.REQUEST_HEADER_VALUE, it.key)
+      1 * module.taint(it.value, SourceTypes.REQUEST_HEADER_VALUE, it.key)
     }
   }
 
@@ -107,6 +107,6 @@ class VertxHttpHeadersInstrumentationTest extends AgentTestRunner {
   }
 
   private static void addAll(final List<Map<String, String>> list, final MultiMap headers) {
-    list.each { addAll(it, headers)  }
+    list.each { addAll(it, headers) }
   }
 }

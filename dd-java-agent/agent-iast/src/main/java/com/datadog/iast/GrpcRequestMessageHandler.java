@@ -2,7 +2,6 @@ package com.datadog.iast;
 
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.RequestContext;
-import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.SourceTypes;
 import datadog.trace.api.iast.propagation.PropagationModule;
@@ -29,9 +28,7 @@ public class GrpcRequestMessageHandler implements BiFunction<RequestContext, Obj
   public Flow<Void> apply(final RequestContext ctx, final Object o) {
     final PropagationModule module = InstrumentationBridge.PROPAGATION;
     if (module != null && o != null) {
-      final IastContext iastCtx = IastContext.Provider.get(ctx);
-      module.taintDeeply(
-          iastCtx, o, SourceTypes.GRPC_BODY, GrpcRequestMessageHandler::isProtobufArtifact);
+      module.taintDeeply(o, SourceTypes.GRPC_BODY, GrpcRequestMessageHandler::isProtobufArtifact);
     }
     return Flow.ResultFlow.empty();
   }

@@ -1,8 +1,5 @@
 package datadog.trace.instrumentation.springwebflux.server.iast;
 
-import datadog.trace.advice.RequiresRequestContext;
-import datadog.trace.api.gateway.RequestContextSlot;
-import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Source;
 import datadog.trace.api.iast.SourceTypes;
@@ -12,7 +9,6 @@ import net.bytebuddy.asm.Advice;
 import org.springframework.http.HttpHeaders;
 
 /** @see HttpHeaders#toSingleValueMap() */
-@RequiresRequestContext(RequestContextSlot.IAST)
 class TaintHttpHeadersToSingleValueMapAdvice {
   @Advice.OnMethodExit(suppress = Throwable.class)
   @Source(SourceTypes.REQUEST_HEADER_VALUE)
@@ -22,12 +18,11 @@ class TaintHttpHeadersToSingleValueMapAdvice {
       return;
     }
 
-    final IastContext ctx = IastContext.Provider.get();
     for (Map.Entry<String, String> e : values.entrySet()) {
       final String name = e.getKey();
       final String value = e.getValue();
-      module.taint(ctx, name, SourceTypes.REQUEST_HEADER_NAME, name);
-      module.taint(ctx, value, SourceTypes.REQUEST_HEADER_VALUE, name);
+      module.taint(name, SourceTypes.REQUEST_HEADER_NAME, name);
+      module.taint(value, SourceTypes.REQUEST_HEADER_VALUE, name);
     }
   }
 }

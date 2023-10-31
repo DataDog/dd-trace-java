@@ -2,7 +2,6 @@ package com.datadog.iast.propagation;
 
 import static datadog.trace.api.iast.VulnerabilityMarks.NOT_MARKED;
 
-import com.datadog.iast.IastRequestContext;
 import com.datadog.iast.model.Range;
 import datadog.trace.instrumentation.java.lang.StringBuilderCallSite;
 import org.openjdk.jmh.annotations.Benchmark;
@@ -13,18 +12,15 @@ public class StringBuilderAppendBenchmark
 
   @Override
   protected Context initializeContext() {
-    final IastRequestContext context = new IastRequestContext();
     final String notTainted = notTainted("I am not a tainted string");
-    final String tainted =
-        tainted(context, "I am a tainted string", new Range(5, 6, source(), NOT_MARKED));
+    final String tainted = tainted("I am a tainted string", new Range(5, 6, source(), NOT_MARKED));
     final StringBuilder notTaintedBuilder =
         notTainted(new StringBuilder("I am not a tainted string builder"));
     final StringBuilder taintedBuilder =
         tainted(
-            context,
             new StringBuilder("I am a tainted string builder"),
             new Range(5, 6, source(), NOT_MARKED));
-    return new Context(context, notTainted, tainted, notTaintedBuilder, taintedBuilder);
+    return new Context(notTainted, tainted, notTaintedBuilder, taintedBuilder);
   }
 
   @Benchmark
@@ -78,7 +74,7 @@ public class StringBuilderAppendBenchmark
     return self;
   }
 
-  protected static class Context extends AbstractBenchmark.BenchmarkContext {
+  protected static class Context implements AbstractBenchmark.BenchmarkContext {
 
     private final String notTainted;
     private final String tainted;
@@ -88,12 +84,10 @@ public class StringBuilderAppendBenchmark
     private final StringBuilder taintedBuilder;
 
     protected Context(
-        final IastRequestContext context,
         final String notTainted,
         final String tainted,
         final StringBuilder notTaintedBuilder,
         final StringBuilder taintedBuilder) {
-      super(context);
       this.tainted = tainted;
       this.notTainted = notTainted;
       this.notTaintedBuilder = notTaintedBuilder;

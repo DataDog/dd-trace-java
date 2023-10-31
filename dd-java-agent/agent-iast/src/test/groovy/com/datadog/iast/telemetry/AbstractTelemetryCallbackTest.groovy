@@ -1,29 +1,40 @@
 package com.datadog.iast.telemetry
 
 
-import com.datadog.iast.Dependencies
 import com.datadog.iast.IastModuleImplTestBase
-import datadog.trace.api.Config
+import com.datadog.iast.IastRequestContext
+import com.datadog.iast.RequestEndedHandler
 import datadog.trace.api.gateway.RequestContext
+import datadog.trace.api.gateway.RequestContextSlot
+import datadog.trace.api.iast.InstrumentationBridge
+import datadog.trace.api.iast.telemetry.IastMetricCollector
 import datadog.trace.api.internal.TraceSegment
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 
 abstract class AbstractTelemetryCallbackTest extends IastModuleImplTestBase {
 
-  protected AgentSpan span
   protected TraceSegment traceSegment
-  protected Dependencies dependencies
+  protected RequestEndedHandler delegate
+  protected AgentSpan span
   protected RequestContext reqCtx
+  protected IastRequestContext iastCtx
+  protected IastMetricCollector globalCollector
 
   void setup() {
-    dependencies = new Dependencies(
-      Config.get(), reporter, overheadController, stackWalker
-      )
-    traceSegment = Mock(TraceSegment)
-    reqCtx = Mock(RequestContext)
-    reqCtx.getTraceSegment() >> traceSegment
-    span = Mock(AgentSpan)
-    span.getRequestContext() >> reqCtx
-    tracer.activeSpan() >> span
+    InstrumentationBridge.clearIastModules()
+    delegate = Spy(new RequestEndedHandler(dependencies))
+    traceSegment = Mock(TraceSegment) {
+    }
+    iastCtx = new IastRequestContext(new IastMetricCollector())
+    reqCtx = Mock(RequestContext) {
+      getData(RequestContextSlot.IAST) >> iastCtx
+      getTraceSegment() >> traceSegment
+    }
+    span = Mock(AgentSpan) {
+      getRequestContext() >> reqCtx
+    }
+    globalCollector = IastMetricCollector.get()
+    globalCollector.prepareMetrics()
+    globalCollector.drain()
   }
 }

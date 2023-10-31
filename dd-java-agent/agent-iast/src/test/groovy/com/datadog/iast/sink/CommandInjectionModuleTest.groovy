@@ -11,9 +11,9 @@ import datadog.trace.api.iast.sink.CommandInjectionModule
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import groovy.transform.CompileDynamic
 
-import static datadog.trace.api.iast.VulnerabilityMarks.NOT_MARKED
 import static com.datadog.iast.taint.TaintUtils.addFromTaintFormat
 import static com.datadog.iast.taint.TaintUtils.taintFormat
+import static datadog.trace.api.iast.VulnerabilityMarks.NOT_MARKED
 
 @CompileDynamic
 class CommandInjectionModuleTest extends IastModuleImplTestBase {
@@ -143,7 +143,7 @@ class CommandInjectionModuleTest extends IastModuleImplTestBase {
 
   private List<String> mapTaintedArray(final List<String> array, final int mark) {
     return array.collect {
-      final item = addFromTaintFormat(ctx.taintedObjects, it, mark)
+      final item = addFromTaintFormat(taintedObjects, it, mark)
       objectHolder.add(item)
       return item
     }

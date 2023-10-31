@@ -3,7 +3,6 @@ package com.datadog.iast.propagation;
 import static datadog.trace.api.iast.VulnerabilityMarks.NOT_MARKED;
 import static java.util.concurrent.TimeUnit.MICROSECONDS;
 
-import com.datadog.iast.IastRequestContext;
 import com.datadog.iast.model.Range;
 import datadog.trace.instrumentation.java.lang.StringBuilderCallSite;
 import java.util.ArrayList;
@@ -27,22 +26,20 @@ public class StringBuilderBatchBenchmark
 
   @Override
   protected StringBuilderBatchBenchmark.Context initializeContext() {
-    final IastRequestContext context = new IastRequestContext();
     final List<String> values = new ArrayList<>(stringCount);
     final double limit = taintedPct / 100D;
     for (int i = 0; i < stringCount; i++) {
       double current = i / (double) stringCount;
       final String value;
       if (current < limit) {
-        value =
-            tainted(context, UUID.randomUUID().toString(), new Range(3, 6, source(), NOT_MARKED));
+        value = tainted(UUID.randomUUID().toString(), new Range(3, 6, source(), NOT_MARKED));
       } else {
         value = notTainted(UUID.randomUUID().toString());
       }
       values.add(value);
     }
     Collections.shuffle(values);
-    return new StringBuilderBatchBenchmark.Context(context, values);
+    return new StringBuilderBatchBenchmark.Context(values);
   }
 
   @Benchmark
@@ -81,12 +78,11 @@ public class StringBuilderBatchBenchmark
     return result;
   }
 
-  protected static class Context extends AbstractBenchmark.BenchmarkContext {
+  protected static class Context implements AbstractBenchmark.BenchmarkContext {
 
     private final List<String> strings;
 
-    protected Context(final IastRequestContext context, final List<String> strings) {
-      super(context);
+    protected Context(final List<String> strings) {
       this.strings = strings;
     }
   }

@@ -7,7 +7,7 @@ import static com.datadog.iast.taint.Ranges.rangesProviderFor;
 import static com.datadog.iast.taint.Tainteds.canBeTainted;
 import static com.datadog.iast.taint.Tainteds.getTainted;
 
-import com.datadog.iast.IastRequestContext;
+import com.datadog.iast.Dependencies;
 import com.datadog.iast.model.Range;
 import com.datadog.iast.taint.Ranges;
 import com.datadog.iast.taint.Ranges.RangeList;
@@ -39,6 +39,12 @@ public class StringModuleImpl implements StringModule {
 
   private static final int NULL_STR_LENGTH = "null".length();
 
+  private TaintedObjects taintedObjects;
+
+  public StringModuleImpl(@Nonnull final Dependencies dependencies) {
+    this.taintedObjects = dependencies.getTaintedObjects();
+  }
+
   @SuppressWarnings("NullAway") // NullAway fails with taintedLeft and taintedRight checks
   @Override
   public void onStringConcat(
@@ -49,11 +55,6 @@ public class StringModuleImpl implements StringModule {
     if (!canBeTainted(left) && !canBeTainted(right)) {
       return;
     }
-    final IastRequestContext ctx = IastRequestContext.get();
-    if (ctx == null) {
-      return;
-    }
-    final TaintedObjects taintedObjects = ctx.getTaintedObjects();
     final TaintedObject taintedLeft = getTainted(taintedObjects, left);
     final TaintedObject taintedRight = getTainted(taintedObjects, right);
     if (taintedLeft == null && taintedRight == null) {
@@ -77,11 +78,6 @@ public class StringModuleImpl implements StringModule {
     if (!canBeTainted(param)) {
       return;
     }
-    final IastRequestContext ctx = IastRequestContext.get();
-    if (ctx == null) {
-      return;
-    }
-    final TaintedObjects taintedObjects = ctx.getTaintedObjects();
     final TaintedObject paramTainted = taintedObjects.get(param);
     if (paramTainted == null) {
       return;
@@ -95,11 +91,6 @@ public class StringModuleImpl implements StringModule {
     if (!canBeTainted(builder) || !canBeTainted(param)) {
       return;
     }
-    final IastRequestContext ctx = IastRequestContext.get();
-    if (ctx == null) {
-      return;
-    }
-    final TaintedObjects taintedObjects = ctx.getTaintedObjects();
     final TaintedObject paramTainted = taintedObjects.get(param);
     if (paramTainted == null) {
       return;
@@ -125,11 +116,6 @@ public class StringModuleImpl implements StringModule {
     if (!canBeTainted(builder) || !canBeTainted(result)) {
       return;
     }
-    final IastRequestContext ctx = IastRequestContext.get();
-    if (ctx == null) {
-      return;
-    }
-    final TaintedObjects taintedObjects = ctx.getTaintedObjects();
     final TaintedObject to = taintedObjects.get(builder);
     if (to == null) {
       return;
@@ -147,12 +133,6 @@ public class StringModuleImpl implements StringModule {
     if (!canBeTainted(result) || !canBeTainted(args)) {
       return;
     }
-    final IastRequestContext ctx = IastRequestContext.get();
-    if (ctx == null) {
-      return;
-    }
-
-    final TaintedObjects taintedObjects = ctx.getTaintedObjects();
     final Map<Integer, Range[]> sourceRanges = new HashMap<>();
     long rangeCount = 0;
     for (int i = 0; i < args.length; i++) {
@@ -194,11 +174,6 @@ public class StringModuleImpl implements StringModule {
     if (self == result || !canBeTainted(result)) {
       return;
     }
-    final IastRequestContext ctx = IastRequestContext.get();
-    if (ctx == null) {
-      return;
-    }
-    final TaintedObjects taintedObjects = ctx.getTaintedObjects();
     final TaintedObject selfTainted = taintedObjects.get(self);
     if (selfTainted == null) {
       return;
@@ -219,11 +194,6 @@ public class StringModuleImpl implements StringModule {
     if (!canBeTainted(result)) {
       return;
     }
-    final IastRequestContext ctx = IastRequestContext.get();
-    if (ctx == null) {
-      return;
-    }
-    final TaintedObjects taintedObjects = ctx.getTaintedObjects();
     // String.join may internally call StringJoiner, if StringJoiner did the job don't do it twice
     if (getTainted(taintedObjects, result) != null) {
       return;
@@ -267,11 +237,6 @@ public class StringModuleImpl implements StringModule {
     if (!canBeTainted(self) || !canBeTainted(result) || self == result) {
       return;
     }
-    final IastRequestContext ctx = IastRequestContext.get();
-    if (ctx == null) {
-      return;
-    }
-    final TaintedObjects taintedObjects = ctx.getTaintedObjects();
     final Range[] selfRanges = getRanges(taintedObjects.get(self));
     if (selfRanges.length == 0) {
       return;
@@ -309,11 +274,6 @@ public class StringModuleImpl implements StringModule {
     if (self == result) {
       return;
     }
-    final IastRequestContext ctx = IastRequestContext.get();
-    if (ctx == null) {
-      return;
-    }
-    final TaintedObjects taintedObjects = ctx.getTaintedObjects();
     final TaintedObject taintedSelf = taintedObjects.get(self);
     if (taintedSelf == null) {
       return;
@@ -382,11 +342,6 @@ public class StringModuleImpl implements StringModule {
     if (self == result) {
       return;
     }
-    final IastRequestContext ctx = IastRequestContext.get();
-    if (ctx == null) {
-      return;
-    }
-    final TaintedObjects taintedObjects = ctx.getTaintedObjects();
     final TaintedObject taintedSelf = taintedObjects.get(self);
     if (taintedSelf == null) {
       return;
@@ -416,11 +371,6 @@ public class StringModuleImpl implements StringModule {
     if (!canBeTainted(self)) {
       return;
     }
-    final IastRequestContext ctx = IastRequestContext.get();
-    if (ctx == null) {
-      return;
-    }
-    final TaintedObjects taintedObjects = ctx.getTaintedObjects();
     final Range[] selfRanges = getRanges(taintedObjects.get(self));
     if (selfRanges.length == 0) {
       return;
@@ -443,15 +393,11 @@ public class StringModuleImpl implements StringModule {
     if (!canBeTainted(result)) {
       return;
     }
-    final IastRequestContext ctx = IastRequestContext.get();
-    if (ctx == null) {
-      return;
-    }
-    final TaintedObjects to = ctx.getTaintedObjects();
-    final RangesProvider<Object> paramRangesProvider = rangesProviderFor(to, parameters);
+    final RangesProvider<Object> paramRangesProvider =
+        rangesProviderFor(taintedObjects, parameters);
     int rangeCount = paramRangesProvider.rangeCount();
     final Deque<Range> formatRanges = new LinkedList<>();
-    final TaintedObject formatTainted = to.get(format);
+    final TaintedObject formatTainted = taintedObjects.get(format);
     if (formatTainted != null) {
       rangeCount += formatTainted.getRanges().length;
       formatRanges.addAll(Arrays.asList(formatTainted.getRanges()));
@@ -494,7 +440,7 @@ public class StringModuleImpl implements StringModule {
     addFormatTaintedRanges(
         END, offset, formatRanges, finalRanges); // add remaining ranges from the format
     if (!finalRanges.isEmpty()) {
-      to.taint(result, finalRanges.toArray());
+      taintedObjects.taint(result, finalRanges.toArray());
     }
   }
 
@@ -506,12 +452,8 @@ public class StringModuleImpl implements StringModule {
     if (!canBeTainted(result)) {
       return;
     }
-    final IastRequestContext ctx = IastRequestContext.get();
-    if (ctx == null) {
-      return;
-    }
-    final TaintedObjects to = ctx.getTaintedObjects();
-    final RangesProvider<Object> paramRangesProvider = rangesProviderFor(to, parameters);
+    final RangesProvider<Object> paramRangesProvider =
+        rangesProviderFor(taintedObjects, parameters);
     if (paramRangesProvider.rangeCount() == 0) {
       return;
     }
@@ -533,7 +475,7 @@ public class StringModuleImpl implements StringModule {
       }
     }
     if (!finalRanges.isEmpty()) {
-      to.taint(result, finalRanges.toArray());
+      taintedObjects.taint(result, finalRanges.toArray());
     }
   }
 
@@ -546,18 +488,13 @@ public class StringModuleImpl implements StringModule {
     if (result.length == 1 && result[0] == self) {
       return;
     }
-    final IastRequestContext ctx = IastRequestContext.get();
-    if (ctx == null) {
-      return;
-    }
-    final TaintedObjects to = ctx.getTaintedObjects();
-    TaintedObject taintedString = to.get(self);
+    TaintedObject taintedString = taintedObjects.get(self);
     if (taintedString == null) {
       return;
     }
     Range priorityRange = highestPriorityRange(taintedString.getRanges());
     for (String s : result) {
-      to.taint(s, new Range[] {Ranges.copyWithPosition(priorityRange, 0, s.length())});
+      taintedObjects.taint(s, new Range[] {Ranges.copyWithPosition(priorityRange, 0, s.length())});
     }
   }
 

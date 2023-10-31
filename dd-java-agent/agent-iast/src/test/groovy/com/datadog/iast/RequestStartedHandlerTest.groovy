@@ -1,6 +1,7 @@
 package com.datadog.iast
 
 import com.datadog.iast.overhead.OverheadController
+import com.datadog.iast.taint.TaintedObjects
 import datadog.trace.api.Config
 import datadog.trace.api.gateway.Flow
 import datadog.trace.test.util.DDSpecification
@@ -14,8 +15,9 @@ class RequestStartedHandlerTest extends DDSpecification {
     given:
     final OverheadController overheadController = Mock(OverheadController)
     final StackWalker stackWalker = Mock(StackWalker)
+    final TaintedObjects taintedObjects = Mock(TaintedObjects)
     final dependencies = new Dependencies(
-      Config.get(), new Reporter(), overheadController, stackWalker
+      Config.get(), new Reporter(), overheadController, stackWalker, taintedObjects
       )
     def handler = new RequestStartedHandler(dependencies)
 
@@ -33,8 +35,9 @@ class RequestStartedHandlerTest extends DDSpecification {
     given:
     final OverheadController overheadController = Mock(OverheadController)
     final StackWalker stackWalker = Mock(StackWalker)
+    final TaintedObjects taintedObjects = Mock(TaintedObjects)
     final dependencies = new Dependencies(
-      Config.get(), new Reporter(), overheadController, stackWalker
+      Config.get(), new Reporter(), overheadController, stackWalker, taintedObjects
       )
     def handler = new RequestStartedHandler(dependencies)
 

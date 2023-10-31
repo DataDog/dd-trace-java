@@ -23,6 +23,7 @@ import com.datadog.iast.sink.WeakRandomnessModuleImpl;
 import com.datadog.iast.sink.XContentTypeModuleImpl;
 import com.datadog.iast.sink.XPathInjectionModuleImpl;
 import com.datadog.iast.sink.XssModuleImpl;
+import com.datadog.iast.taint.TaintedObjects;
 import com.datadog.iast.telemetry.TelemetryRequestEndedHandler;
 import com.datadog.iast.telemetry.TelemetryRequestStartedHandler;
 import datadog.trace.api.Config;
@@ -52,11 +53,13 @@ public class IastSystem {
   public static boolean DEBUG = false;
 
   public static void start(final SubscriptionService ss) {
-    start(ss, null);
+    start(ss, null, null);
   }
 
   public static void start(
-      final SubscriptionService ss, @Nullable OverheadController overheadController) {
+      final SubscriptionService ss,
+      @Nullable OverheadController overheadController,
+      @Nullable TaintedObjects taintedObjects) {
     final Config config = Config.get();
     if (config.getIastActivation() != ProductActivation.FULLY_ENABLED) {
       LOGGER.debug("IAST is disabled");
@@ -65,11 +68,15 @@ public class IastSystem {
     DEBUG = config.isIastDebugEnabled();
     LOGGER.debug("IAST is starting: debug={}", DEBUG);
     final Reporter reporter = new Reporter(config, AgentTaskScheduler.INSTANCE);
+    if (taintedObjects == null) {
+      taintedObjects = TaintedObjects.build();
+    }
     if (overheadController == null) {
       overheadController = OverheadController.build(config, AgentTaskScheduler.INSTANCE);
     }
     final Dependencies dependencies =
-        new Dependencies(config, reporter, overheadController, StackWalkerFactory.INSTANCE);
+        new Dependencies(
+            config, reporter, overheadController, StackWalkerFactory.INSTANCE, taintedObjects);
     final boolean addTelemetry = config.getIastTelemetryVerbosity() != Verbosity.OFF;
     iastModules(dependencies).forEach(InstrumentationBridge::registerIastModule);
     registerRequestStartedCallback(ss, addTelemetry, dependencies);
@@ -81,15 +88,15 @@ public class IastSystem {
 
   private static Stream<IastModule> iastModules(final Dependencies dependencies) {
     return Stream.of(
-        new StringModuleImpl(),
-        new FastCodecModule(),
+        new StringModuleImpl(dependencies),
+        new FastCodecModule(dependencies),
         new SqlInjectionModuleImpl(dependencies),
         new PathTraversalModuleImpl(dependencies),
         new CommandInjectionModuleImpl(dependencies),
         new WeakCipherModuleImpl(dependencies),
         new WeakHashModuleImpl(dependencies),
         new LdapInjectionModuleImpl(dependencies),
-        new PropagationModuleImpl(),
+        new PropagationModuleImpl(dependencies),
         new HttpResponseHeaderModuleImpl(dependencies),
         new HstsMissingHeaderModuleImpl(dependencies),
         new InsecureCookieModuleImpl(),
