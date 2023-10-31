@@ -288,6 +288,9 @@
 2 org.springframework.expression.*
 2 org.springframework.format.*
 2 org.springframework.http.*
+# Need for IAST: Spring gson support
+0 org.springframework.http.converter.json.AbstractJsonHttpMessageConverter
+0 org.springframework.http.converter.json.GsonHttpMessageConverter
 # Need for IAST: we instrument these classes
 0 org.springframework.http.HttpHeaders
 0 org.springframework.http.ReadOnlyHttpHeaders
@@ -330,6 +333,8 @@
 0 org.springframework.web.servlet.*
 # Need for IAST so propagation of tainted objects is complete in spring 2.7.5
 0 org.springframework.util.StreamUtils$NonClosingInputStream
+# Need for IAST so propagation
+0 org.springframework.util.StreamUtils
 # Included for IAST Spring mvc unvalidated redirect and xss vulnerability
 0 org.springframework.web.method.support.HandlerMethodReturnValueHandlerComposite
 2 org.xml.*
