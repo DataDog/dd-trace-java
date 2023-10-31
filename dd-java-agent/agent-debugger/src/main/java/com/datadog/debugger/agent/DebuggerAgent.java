@@ -92,7 +92,7 @@ public class DebuggerAgent {
     } else {
       log.debug("No configuration poller available from SharedCommunicationObjects");
     }
-    if (config.getDebuggerSymbolEnabled()) {
+    if (config.isDebuggerSymbolEnabled() || config.isDebuggerSymbolForceUpload()) {
       instrumentation.addTransformer(
           new SymbolExtractionTransformer(debuggerSink.getSymbolSink(), config));
     }
