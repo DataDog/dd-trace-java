@@ -1,16 +1,26 @@
 package datadog.trace.instrumentation.googlepubsub;
 
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.get;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_IN;
+import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_TAG;
+import static datadog.trace.core.datastreams.TagsProcessor.GROUP_TAG;
+import static datadog.trace.core.datastreams.TagsProcessor.TYPE_TAG;
+
 import com.google.pubsub.v1.PubsubMessage;
-import datadog.trace.api.Config;
 import datadog.trace.api.Functions;
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
 import datadog.trace.api.naming.SpanNaming;
+import datadog.trace.bootstrap.instrumentation.api.AgentDataStreamsMonitoring;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
+import datadog.trace.bootstrap.instrumentation.api.PathwayContext;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.MessagingClientDecorator;
+import java.util.LinkedHashMap;
 
 public class PubSubDecorator extends MessagingClientDecorator {
   private static final String PUBSUB = "google-pubsub";
@@ -30,17 +40,20 @@ public class PubSubDecorator extends MessagingClientDecorator {
   private static final Functions.Prefix PRODUCER_PREFIX = new Functions.Prefix("Produce Topic ");
   private static final DDCache<CharSequence, CharSequence> CONSUMER_RESOURCE_NAME_CACHE =
       DDCaches.newFixedSizeCache(32);
-  private static final Functions.Prefix CONSUMER_PREFIX = new Functions.Prefix("Consume Topic ");
-
-  private static final String LOCAL_SERVICE_NAME = Config.get().getServiceName();
+  private static final Functions.Prefix CONSUMER_PREFIX =
+      new Functions.Prefix("Consume Subscription ");
 
   public static final PubSubDecorator PRODUCER_DECORATE =
       new PubSubDecorator(
-          Tags.SPAN_KIND_PRODUCER, InternalSpanTypes.MESSAGE_PRODUCER, LOCAL_SERVICE_NAME);
+          Tags.SPAN_KIND_PRODUCER,
+          InternalSpanTypes.MESSAGE_PRODUCER,
+          SpanNaming.instance().namingSchema().messaging().outboundService(PUBSUB, true));
 
   public static final PubSubDecorator CONSUMER_DECORATE =
       new PubSubDecorator(
-          Tags.SPAN_KIND_CONSUMER, InternalSpanTypes.MESSAGE_CONSUMER, LOCAL_SERVICE_NAME);
+          Tags.SPAN_KIND_CONSUMER,
+          InternalSpanTypes.MESSAGE_CONSUMER,
+          SpanNaming.instance().namingSchema().messaging().inboundService(PUBSUB, true));
 
   protected PubSubDecorator(String spanKind, CharSequence spanType, String serviceName) {
     this.spanKind = spanKind;
@@ -73,15 +86,32 @@ public class PubSubDecorator extends MessagingClientDecorator {
     return spanKind;
   }
 
-  public void onConsume(final AgentSpan span, final PubsubMessage record, final String topic) {
-    if (record != null) {
-      span.setResourceName(CONSUMER_RESOURCE_NAME_CACHE.computeIfAbsent(topic, CONSUMER_PREFIX));
+  public AgentSpan onConsume(final PubsubMessage message, final String subscription) {
+    final AgentSpan.Context spanContext =
+        propagate().extract(message, TextMapExtractAdapter.GETTER);
+    final AgentSpan span = startSpan(PUBSUB_CONSUME, spanContext);
+    final AgentDataStreamsMonitoring dataStreamsMonitoring = get().getDataStreamsMonitoring();
+    final PathwayContext pathwayContext = dataStreamsMonitoring.newPathwayContext();
+
+    // FIXME?: in the pubsub model, the receiver only knows the subscription and not the topic name.
+    // We might know this by calling an admin API but for the moment let's avoid extra overhead
+
+    final LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>(3);
+    sortedTags.put(DIRECTION_TAG, DIRECTION_IN);
+    sortedTags.put(GROUP_TAG, subscription);
+    sortedTags.put(TYPE_TAG, "google-pubsub");
+    // TODO: should we calculate the arrival time (now - publish_time) and use it?
+    pathwayContext.setCheckpoint(sortedTags, dataStreamsMonitoring::add);
+    if (!span.context().getPathwayContext().isStarted()) {
+      span.context().mergePathwayContext(pathwayContext);
     }
+    afterStart(span);
+    span.setResourceName(
+        CONSUMER_RESOURCE_NAME_CACHE.computeIfAbsent(subscription, CONSUMER_PREFIX));
+    return span;
   }
 
   public void onProduce(final AgentSpan span, final PubsubMessage record, final String topic) {
-    if (record != null) {
-      span.setResourceName(PRODUCER_RESOURCE_NAME_CACHE.computeIfAbsent(topic, PRODUCER_PREFIX));
-    }
+    span.setResourceName(PRODUCER_RESOURCE_NAME_CACHE.computeIfAbsent(topic, PRODUCER_PREFIX));
   }
 }

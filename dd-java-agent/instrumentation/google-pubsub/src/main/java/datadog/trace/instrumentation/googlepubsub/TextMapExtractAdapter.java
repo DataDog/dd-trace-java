@@ -13,10 +13,9 @@ public class TextMapExtractAdapter
   @Override
   public void forEachKey(PubsubMessage carrier, AgentPropagation.KeyClassifier classifier) {
     for (Map.Entry<String, String> kv : carrier.getAttributesMap().entrySet()) {
-      String key = kv.getKey();
       String value = kv.getValue();
       if (null != value) {
-        if (!classifier.accept(key, value)) {
+        if (!classifier.accept(kv.getKey(), value)) {
           return;
         }
       }
@@ -26,10 +25,9 @@ public class TextMapExtractAdapter
   @Override
   public void forEachKey(PubsubMessage carrier, AgentPropagation.BinaryKeyClassifier classifier) {
     for (Map.Entry<String, String> kv : carrier.getAttributesMap().entrySet()) {
-      String key = kv.getKey();
       String value = kv.getValue();
       if (null != value) {
-        if (!classifier.accept(key, value.getBytes())) {
+        if (!classifier.accept(kv.getKey(), value.getBytes())) {
           return;
         }
       }

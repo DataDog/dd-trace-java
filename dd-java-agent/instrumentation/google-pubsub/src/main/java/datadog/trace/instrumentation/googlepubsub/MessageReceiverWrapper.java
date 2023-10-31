@@ -1,20 +1,15 @@
 package datadog.trace.instrumentation.googlepubsub;
 
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.*;
-import static datadog.trace.core.datastreams.TagsProcessor.*;
-import static datadog.trace.instrumentation.googlepubsub.MessageReceiverDecorator.DECORATE;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
+import static datadog.trace.instrumentation.googlepubsub.PubSubDecorator.CONSUMER_DECORATE;
 
 import com.google.cloud.pubsub.v1.AckReplyConsumer;
 import com.google.cloud.pubsub.v1.MessageReceiver;
 import com.google.pubsub.v1.PubsubMessage;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
-import datadog.trace.bootstrap.instrumentation.api.PathwayContext;
-import java.util.LinkedHashMap;
 
 public final class MessageReceiverWrapper implements MessageReceiver {
-
   private final String subscription;
   private final MessageReceiver delegate;
 
@@ -25,29 +20,12 @@ public final class MessageReceiverWrapper implements MessageReceiver {
 
   @Override
   public void receiveMessage(PubsubMessage message, AckReplyConsumer consumer) {
-    final AgentSpan.Context spanContext =
-        propagate().extract(message, TextMapExtractAdapter.GETTER);
-    AgentSpan span = AgentTracer.startSpan("pubsub", spanContext);
-    PathwayContext pathwayContext =
-        propagate().extractBinaryPathwayContext(message, TextMapExtractAdapter.GETTER);
-    span.mergePathwayContext(pathwayContext);
-
-    LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>();
-    sortedTags.put(DIRECTION_TAG, DIRECTION_IN);
-    sortedTags.put(GROUP_TAG, this.subscription);
-    sortedTags.put(TYPE_TAG, "google-pubsub");
-    AgentTracer.get().setDataStreamCheckpoint(span, sortedTags);
-
-    DECORATE.afterStart(span);
-
-    AgentScope agentScope = activateSpan(span);
-
-    try {
+    final AgentSpan span = CONSUMER_DECORATE.onConsume(message, subscription);
+    try (final AgentScope scope = activateSpan(span)) {
       this.delegate.receiveMessage(message, consumer);
     } finally {
-      agentScope.close();
+      CONSUMER_DECORATE.beforeFinish(span);
       span.finish();
-      closePrevious(true);
     }
   }
 }

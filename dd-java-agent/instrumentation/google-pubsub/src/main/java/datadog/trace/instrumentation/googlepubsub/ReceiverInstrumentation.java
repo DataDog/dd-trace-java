@@ -25,7 +25,6 @@ public class ReceiverInstrumentation extends Instrumenter.Tracing
       packageName + ".TextMapInjectAdapter",
       packageName + ".TextMapExtractAdapter",
       packageName + ".MessageReceiverWrapper",
-      packageName + ".MessageReceiverDecorator",
     };
   }
 
@@ -47,7 +46,7 @@ public class ReceiverInstrumentation extends Instrumenter.Tracing
   public static final class Wrap {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void before(
-        @Advice.Argument(value = 0, readOnly = true) String subscription,
+        @Advice.Argument(value = 0) final String subscription,
         @Advice.Argument(value = 1, readOnly = false) MessageReceiver receiver) {
       receiver = new MessageReceiverWrapper(subscription, receiver);
     }

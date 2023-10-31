@@ -1,15 +1,13 @@
-apply from: "$rootDir/gradle/java.gradle"
-apply plugin: 'idea'
-
-dependencies {
-  compileOnly group: 'com.google.cloud', name: 'google-cloud-pubsub', version: '1.123.5'
-}
-
 muzzle {
   pass {
     group = "com.google.cloud"
     module = "google-cloud-pubsub"
-    version = "[1.123.5,)"
+    version = "[1.116.0,)"
     assertInverse = true
   }
+}
+apply from: "$rootDir/gradle/java.gradle"
+
+dependencies {
+  compileOnly group: 'com.google.cloud', name: 'google-cloud-pubsub', version: '1.116.0'
 }

@@ -1,8 +1,13 @@
 package datadog.trace.instrumentation.googlepubsub;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.*;
-import static datadog.trace.core.datastreams.TagsProcessor.*;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_OUT;
+import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_TAG;
+import static datadog.trace.core.datastreams.TagsProcessor.TOPIC_TAG;
+import static datadog.trace.core.datastreams.TagsProcessor.TYPE_TAG;
 import static datadog.trace.instrumentation.googlepubsub.PubSubDecorator.PRODUCER_DECORATE;
 import static datadog.trace.instrumentation.googlepubsub.PubSubDecorator.PUBSUB_PRODUCE;
 import static datadog.trace.instrumentation.googlepubsub.TextMapInjectAdapter.SETTER;
@@ -39,7 +44,6 @@ public final class PublisherInstrumentation extends Instrumenter.Tracing
 
   @Override
   public void adviceTransformations(AdviceTransformation transformation) {
-
     transformation.applyAdvice(isMethod().and(named("publish")), getClass().getName() + "$Wrap");
   }
 
@@ -48,20 +52,19 @@ public final class PublisherInstrumentation extends Instrumenter.Tracing
     public static AgentScope before(
         @Advice.Argument(value = 0, readOnly = false) PubsubMessage msg,
         @Advice.This Publisher publisher) {
-      final AgentSpan parent = activeSpan();
       final AgentSpan span = startSpan(PUBSUB_PRODUCE);
 
       PRODUCER_DECORATE.afterStart(span);
       PRODUCER_DECORATE.onProduce(span, msg, publisher.getTopicNameString());
 
-      LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>();
+      LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>(3);
       sortedTags.put(DIRECTION_TAG, DIRECTION_OUT);
       sortedTags.put(TOPIC_TAG, publisher.getTopicNameString());
       sortedTags.put(TYPE_TAG, "google-pubsub");
 
       PubsubMessage.Builder builder = msg.toBuilder();
       propagate().inject(span, builder, SETTER);
-      propagate().injectBinaryPathwayContext(span, builder, SETTER, sortedTags);
+      propagate().injectPathwayContext(span, builder, SETTER, sortedTags);
       msg = builder.build();
 
       return activateSpan(span);
@@ -70,9 +73,9 @@ public final class PublisherInstrumentation extends Instrumenter.Tracing
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void stopSpan(
         @Advice.Enter final AgentScope scope, @Advice.Thrown final Throwable throwable) {
-
       PRODUCER_DECORATE.onError(scope, throwable);
       PRODUCER_DECORATE.beforeFinish(scope);
+      scope.span().finish();
       scope.close();
     }
   }
