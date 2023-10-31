@@ -30,6 +30,7 @@ import com.datadog.profiling.controller.openjdk.events.AvailableProcessorCoresEv
 import datadog.trace.api.Platform;
 import datadog.trace.api.config.ProfilingConfig;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
+import datadog.trace.bootstrap.instrumentation.jfr.exceptions.ExceptionProfiling;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.IOException;
 import java.time.Duration;
@@ -181,6 +182,10 @@ public final class OpenJdkController implements Controller {
     }
 
     this.recordingSettings = Collections.unmodifiableMap(recordingSettings);
+
+    if (isEventEnabled(this.recordingSettings, "datadog.ExceptionSample")) {
+      ExceptionProfiling.getInstance().start();
+    }
 
     // Register periodic events
     AvailableProcessorCoresEvent.register();

@@ -13,6 +13,7 @@ dependencies {
   api deps.okhttp
   api group: 'com.squareup.moshi', name: 'moshi', version: versions.moshi
   implementation group: 'com.datadoghq', name: 'java-dogstatsd-client', version: "${versions.dogstatsd}"
+  implementation group: 'org.lz4', name: 'lz4-java', version: '1.7.1'
 
   testImplementation project(':utils:test-utils')
   testImplementation deps.junit5

@@ -64,6 +64,7 @@ public final class VMRuntimeInstrumentation extends AbstractNativeImageInstrumen
         }
       }
 
+      System.out.println("===> Activating Datadog");
       datadog.trace.agent.tooling.nativeimage.TracerActivation.activate();
     }
   }

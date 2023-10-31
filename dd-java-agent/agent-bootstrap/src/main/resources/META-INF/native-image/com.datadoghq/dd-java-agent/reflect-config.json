@@ -101,5 +101,9 @@
     "fields": [
       {"name": "consumerIndex", "allowUnsafeAccess": true}
     ]
+  },
+  {
+    "name" : "com.datadog.profiling.agent.ProfilingAgent",
+    "allPublicMethods" : true
   }
 ]

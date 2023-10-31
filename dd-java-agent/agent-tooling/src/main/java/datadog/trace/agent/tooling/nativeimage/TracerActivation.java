@@ -1,6 +1,7 @@
 package datadog.trace.agent.tooling.nativeimage;
 
 import datadog.communication.ddagent.SharedCommunicationObjects;
+import datadog.trace.agent.tooling.ProfilerInstaller;
 import datadog.trace.agent.tooling.TracerInstaller;
 import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
 import org.slf4j.Logger;
@@ -12,6 +13,8 @@ public final class TracerActivation {
 
   public static void activate() {
     try {
+      System.out.println("===> TracerActivation");
+      ProfilerInstaller.installProfiler();
       TracerInstaller.installGlobalTracer(
           new SharedCommunicationObjects(), ProfilingContextIntegration.NoOp.INSTANCE);
     } catch (Throwable e) {

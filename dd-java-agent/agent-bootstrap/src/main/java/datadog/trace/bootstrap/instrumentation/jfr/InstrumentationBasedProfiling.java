@@ -1,5 +1,7 @@
 package datadog.trace.bootstrap.instrumentation.jfr;
 
+import datadog.trace.api.Platform;
+
 public final class InstrumentationBasedProfiling {
   private static volatile boolean isJFRReady;
 
@@ -8,6 +10,6 @@ public final class InstrumentationBasedProfiling {
   }
 
   public static boolean isJFRReady() {
-    return isJFRReady;
+    return isJFRReady && !Platform.isNativeImageBuilder();
   }
 }

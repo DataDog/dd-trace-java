@@ -106,6 +106,9 @@ public class AdaptiveSampler implements Sampler {
 
   private final ConfigListener listener;
 
+  private final Duration windowDuration;
+  private final AgentTaskScheduler taskScheduler;
+
   /**
    * Create a new sampler instance
    *
@@ -122,7 +125,8 @@ public class AdaptiveSampler implements Sampler {
       final int averageLookback,
       final int budgetLookback,
       final @Nullable ConfigListener listener,
-      final AgentTaskScheduler taskScheduler) {
+      final AgentTaskScheduler taskScheduler,
+      boolean startSampler) {
 
     if (averageLookback < 1) {
       throw new IllegalArgumentException("'averageLookback' argument must be at least 1");
@@ -141,12 +145,12 @@ public class AdaptiveSampler implements Sampler {
       listener.onWindowRoll(0, 0, samplesBudget, totalCountRunningAverage, probability);
     }
 
-    taskScheduler.weakScheduleAtFixedRate(
-        RollWindowTask.INSTANCE,
-        this,
-        windowDuration.toNanos(),
-        windowDuration.toNanos(),
-        TimeUnit.NANOSECONDS);
+    this.windowDuration = windowDuration;
+    this.taskScheduler = taskScheduler;
+
+    if (startSampler) {
+      start();
+    }
   }
 
   /**
@@ -161,12 +165,14 @@ public class AdaptiveSampler implements Sampler {
       final Duration windowDuration,
       final int samplesPerWindow,
       final int averageLookback,
-      final int budgetLookback) {
-    this(windowDuration, samplesPerWindow, averageLookback, budgetLookback, null);
+      final int budgetLookback,
+      boolean startSampler) {
+    this(windowDuration, samplesPerWindow, averageLookback, budgetLookback, null, AgentTaskScheduler.INSTANCE, startSampler);
   }
 
   /**
    * Create a new sampler instance with automatic window roll.
+   * The instance is automatically started.
    *
    * @param windowDuration the sampling window duration
    * @param samplesPerWindow the maximum number of samples in the sampling window
@@ -186,7 +192,17 @@ public class AdaptiveSampler implements Sampler {
         averageLookback,
         budgetLookback,
         listener,
-        AgentTaskScheduler.INSTANCE);
+        AgentTaskScheduler.INSTANCE,
+        true);
+  }
+
+  public void start() {
+    taskScheduler.weakScheduleAtFixedRate(
+        RollWindowTask.INSTANCE,
+        this,
+        windowDuration.toNanos(),
+        windowDuration.toNanos(),
+        TimeUnit.NANOSECONDS);
   }
 
   @Override

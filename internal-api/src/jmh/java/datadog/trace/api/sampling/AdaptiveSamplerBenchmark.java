@@ -44,7 +44,9 @@ public class AdaptiveSamplerBenchmark {
             Duration.of(durationWindowMillis, ChronoUnit.MILLIS),
             samplesPerWindow,
             averageLookback,
-            BUDGET_LOOKBACK);
+            BUDGET_LOOKBACK,
+            true
+        );
   }
 
   @Threads(4)

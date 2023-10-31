@@ -160,7 +160,8 @@ public class InstrumenterConfig {
       telemetryEnabled = configProvider.getBoolean(TELEMETRY_ENABLED, DEFAULT_TELEMETRY_ENABLED);
     } else {
       // disable these features in native-image
-      profilingEnabled = false;
+      profilingEnabled = configProvider.getBoolean(PROFILING_ENABLED, PROFILING_ENABLED_DEFAULT);
+      System.out.println("===> profiling enabled: " + profilingEnabled);
       ciVisibilityEnabled = false;
       appSecActivation = ProductActivation.FULLY_DISABLED;
       iastActivation = ProductActivation.FULLY_DISABLED;

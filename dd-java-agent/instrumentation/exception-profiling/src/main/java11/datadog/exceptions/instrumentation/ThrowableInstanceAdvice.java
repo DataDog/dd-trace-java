@@ -31,16 +31,16 @@ public class ThrowableInstanceAdvice {
     }
     try {
       /*
+       * We may get into a situation when this is called before exception sampling is active.
+       */
+      if (!InstrumentationBasedProfiling.isJFRReady()) {
+        return;
+      }
+      /*
        * Exclude internal agent threads from exception profiling.
        */
       if (Config.get().isProfilingExcludeAgentThreads()
           && AGENT_THREAD_GROUP.equals(Thread.currentThread().getThreadGroup())) {
-        return;
-      }
-      /*
-       * We may get into a situation when this is called before exception sampling is active.
-       */
-      if (!InstrumentationBasedProfiling.isJFRReady()) {
         return;
       }
       /*
