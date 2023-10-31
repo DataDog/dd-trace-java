@@ -9,6 +9,7 @@ import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
+import static net.bytebuddy.matcher.ElementMatchers.takesNoArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -45,7 +46,8 @@ public class JsonReaderInstrumentation extends Instrumenter.Iast
         isMethod()
             .and(isPublic())
             .and(returns(String.class))
-            .and(namedOneOf("nextName", "nextString")),
+            .and(namedOneOf("nextName", "nextString"))
+            .and(takesNoArguments()),
         getClass().getName() + "$MethodAdvice");
   }
 
