@@ -1,5 +1,6 @@
 package datadog.communication.profiler;
 
+import datadog.trace.api.Platform;
 import datadog.trace.api.profiling.ProfilingSnapshot;
 import net.jpountz.lz4.LZ4Factory;
 import net.jpountz.lz4.LZ4FrameOutputStream;
@@ -22,10 +23,10 @@ import java.util.zip.GZIPOutputStream;
  * A specialized {@linkplain RequestBody} subclass performing on-the fly compression of the uploaded
  * data.
  */
-final class CompressingRequestBody<T extends ProfilingSnapshot.RecordingStream> extends RequestBody {
+final class CompressingRequestBody extends RequestBody {
 
-  private static final LZ4Factory LZ4_FACTORY = LZ4Factory.fastestJavaInstance();
-  private static final XXHashFactory XXHASH_FACTORY = XXHashFactory.fastestJavaInstance();
+  private static final LZ4Factory LZ4_FACTORY = Platform.isNativeImage() ? null : LZ4Factory.fastestJavaInstance();
+  private static final XXHashFactory XXHASH_FACTORY = Platform.isNativeImage() ? null : XXHashFactory.fastestJavaInstance();
 
   static final class MissingInputException extends IOException {
     public MissingInputException(String message) {
@@ -35,8 +36,8 @@ final class CompressingRequestBody<T extends ProfilingSnapshot.RecordingStream> 
 
   /** A simple functional supplier throwing an {@linkplain IOException} */
   @FunctionalInterface
-  interface InputStreamSupplier<T extends ProfilingSnapshot.RecordingStream> {
-    T get() throws IOException;
+  interface InputStreamSupplier {
+    ProfilingSnapshot.RecordingStream get() throws IOException;
   }
 
   /** A simple functional mapper allowing to throw {@linkplain IOException} */
@@ -78,7 +79,7 @@ final class CompressingRequestBody<T extends ProfilingSnapshot.RecordingStream> 
   private static final int ZIP_MAGIC[] = new int[] {80, 75, 3, 4};
   private static final int GZ_MAGIC[] = new int[] {31, 139};
 
-  private final InputStreamSupplier<T> inputStreamSupplier;
+  private final InputStreamSupplier inputStreamSupplier;
   private final OutputStreamMappingFunction outputStreamMapper;
   private final RetryPolicy retryPolicy;
   private final RetryBackoff retryBackoff;
@@ -159,7 +160,7 @@ final class CompressingRequestBody<T extends ProfilingSnapshot.RecordingStream> 
        * should use the OkHttpClient callback to get notified about failed requests and handle the retries
        * at the request level.
        */
-      try (T recordingInputStream = inputStreamSupplier.get()) {
+      try (ProfilingSnapshot.RecordingStream recordingInputStream = inputStreamSupplier.get()) {
         if (recordingInputStream.isEmpty()) {
           // The recording stream appears to be empty.
           // Simply fail the request - there is 0% chance that it suddenly becomes non-empty.
@@ -324,6 +325,7 @@ final class CompressingRequestBody<T extends ProfilingSnapshot.RecordingStream> 
       @Nonnull CompressionType compressionType) {
     // currently only gzip and off are supported
     // this needs to be updated once more compression types are added
+    compressionType = (Platform.isNativeImage() && compressionType != CompressionType.OFF ? CompressionType.GZIP : compressionType);
     switch (compressionType) {
       case GZIP:
         {

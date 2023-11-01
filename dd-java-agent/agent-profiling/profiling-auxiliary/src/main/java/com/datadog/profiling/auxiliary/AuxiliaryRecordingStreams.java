@@ -1,12 +1,13 @@
 package com.datadog.profiling.auxiliary;
 
-import com.datadog.profiling.controller.RecordingData;
-import com.datadog.profiling.controller.RecordingInputStream;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.SequenceInputStream;
 import java.util.Enumeration;
+
+import datadog.trace.api.profiling.ProfilingSnapshot.RecordingStream;
+import datadog.trace.api.profiling.RecordingData;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -42,7 +43,7 @@ final class AuxiliaryRecordingStreams implements Enumeration<InputStream> {
   public InputStream nextElement() {
     try {
       if (position == -1) {
-        RecordingInputStream is = mainData.getStream();
+        RecordingStream is = mainData.getStream();
         isMainDataEmpty = is.isEmpty();
         return is;
       }

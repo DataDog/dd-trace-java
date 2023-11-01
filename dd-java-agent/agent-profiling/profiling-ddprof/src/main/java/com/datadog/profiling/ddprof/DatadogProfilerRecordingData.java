@@ -1,7 +1,7 @@
 package com.datadog.profiling.ddprof;
 
-import com.datadog.profiling.controller.RecordingData;
-import com.datadog.profiling.controller.RecordingInputStream;
+import datadog.trace.api.profiling.ProfilingSnapshot.RecordingStream;
+import datadog.trace.api.profiling.RecordingData;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -18,8 +18,8 @@ final class DatadogProfilerRecordingData extends RecordingData {
 
   @Nonnull
   @Override
-  public RecordingInputStream getStream() throws IOException {
-    return new RecordingInputStream(Files.newInputStream(recordingFile));
+  public RecordingStream getStream() throws IOException {
+    return new RecordingStream(Files.newInputStream(recordingFile));
   }
 
   @Override

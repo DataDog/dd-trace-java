@@ -103,7 +103,7 @@
     ]
   },
   {
-    "name" : "com.datadog.profiling.agent.ProfilingAgent",
-    "allPublicMethods" : true
+    "name": "net.jpountz.lz4.LZ4JavaSafeCompressor",
+    "allPublicConstructors": true
   }
 ]

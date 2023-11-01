@@ -6,12 +6,12 @@ apply from: "$rootDir/gradle/java.gradle"
 
 dependencies {
   api deps.slf4j
+  api project(':communication')
   api project(':internal-api')
 
   implementation project(path: ':dd-java-agent:agent-profiling:profiling-ddprof', configuration: 'shadow')
   api project(':dd-java-agent:agent-profiling:profiling-auxiliary')
   api project(':dd-java-agent:agent-profiling:profiling-auxiliary-ddprof')
-  api project(':dd-java-agent:agent-profiling:profiling-uploader')
   api project(':dd-java-agent:agent-profiling:profiling-controller')
   api project(':dd-java-agent:agent-profiling:profiling-controller-ddprof')
   api project(':dd-java-agent:agent-profiling:profiling-controller-openjdk')

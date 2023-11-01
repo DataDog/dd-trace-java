@@ -2,9 +2,11 @@ package com.datadog.profiling.controller.ddprof;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-import com.datadog.profiling.controller.RecordingData;
 import com.datadog.profiling.controller.UnsupportedEnvironmentException;
 import com.datadog.profiling.ddprof.DatadogProfiler;
+
+import datadog.trace.api.profiling.RecordingData;
+
 import java.time.Instant;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;

@@ -6,16 +6,15 @@ import static datadog.trace.util.AgentThreadFactory.AGENT_THREAD_GROUP;
 
 import com.datadog.profiling.controller.ConfigurationException;
 import com.datadog.profiling.controller.Controller;
-import com.datadog.profiling.controller.ControllerFactory;
 import com.datadog.profiling.controller.ProfilingSystem;
-import com.datadog.profiling.controller.RecordingData;
-import com.datadog.profiling.controller.RecordingDataListener;
-import com.datadog.profiling.controller.RecordingType;
 import com.datadog.profiling.controller.UnsupportedEnvironmentException;
-import com.datadog.profiling.uploader.ProfileUploader;
+import datadog.communication.profiler.ProfileUploader;
 import datadog.trace.api.Config;
 import datadog.trace.api.Platform;
 import datadog.trace.api.config.ProfilingConfig;
+import datadog.trace.api.profiling.RecordingData;
+import datadog.trace.api.profiling.RecordingDataListener;
+import datadog.trace.api.profiling.RecordingType;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import java.io.IOException;
 import java.lang.ref.WeakReference;
@@ -156,9 +155,11 @@ public class ProfilingAgent {
           // The JVM is already shutting down.
         }
       } catch (final UnsupportedEnvironmentException e) {
+        e.printStackTrace(System.out);
         log.warn(e.getMessage());
         log.debug("", e);
       } catch (final ConfigurationException e) {
+        e.printStackTrace(System.out);
         log.warn("Failed to initialize profiling agent! {}", e.getMessage());
         log.debug("Failed to initialize profiling agent!", e);
       }

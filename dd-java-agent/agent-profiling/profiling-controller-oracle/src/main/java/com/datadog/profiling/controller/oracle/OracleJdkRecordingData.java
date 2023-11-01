@@ -15,8 +15,8 @@
  */
 package com.datadog.profiling.controller.oracle;
 
-import com.datadog.profiling.controller.RecordingData;
-import com.datadog.profiling.controller.RecordingInputStream;
+import datadog.trace.api.profiling.RecordingData;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.time.Instant;
@@ -46,8 +46,8 @@ public class OracleJdkRecordingData extends RecordingData {
 
   @Override
   @Nonnull
-  public RecordingInputStream getStream() throws IOException {
-    return new RecordingInputStream(new JfrRecordingStream());
+  public RecordingStream getStream() throws IOException {
+    return new RecordingStream(new JfrRecordingStream());
   }
 
   @Override

@@ -5,8 +5,9 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.datadog.profiling.controller.RecordingData;
 import java.time.Instant;
+
+import datadog.trace.api.profiling.RecordingData;
 import jdk.jfr.Recording;
 import jdk.jfr.RecordingState;
 import org.junit.jupiter.api.BeforeEach;

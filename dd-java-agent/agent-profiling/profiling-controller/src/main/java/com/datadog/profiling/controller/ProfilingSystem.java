@@ -18,6 +18,9 @@ package com.datadog.profiling.controller;
 import static datadog.trace.util.AgentThreadFactory.AgentThread.PROFILER_RECORDING_SCHEDULER;
 
 import datadog.trace.api.profiling.ProfilingSnapshot;
+import datadog.trace.api.profiling.RecordingData;
+import datadog.trace.api.profiling.RecordingDataListener;
+import datadog.trace.api.profiling.RecordingType;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import datadog.trace.util.AgentTaskScheduler;
 import java.time.Duration;
@@ -142,9 +145,10 @@ public final class ProfilingSystem {
     try {
       final Instant now = Instant.now();
       recording = controller.createRecording(RECORDING_NAME);
+      snapshotRecording = createSnapshotRecording(now);
       scheduler.scheduleAtFixedRate(
           SnapshotRecording::snapshot,
-          snapshotRecording = createSnapshotRecording(now),
+          snapshotRecording,
           uploadPeriod.toMillis(),
           uploadPeriod.toMillis(),
           TimeUnit.MILLISECONDS);
@@ -257,8 +261,10 @@ public final class ProfilingSystem {
           lastSnapshot = Instant.now();
         }
       } catch (final Exception e) {
+        e.printStackTrace(System.out);
         log.error("Exception in profiling thread, continuing", e);
       } catch (final Throwable t) {
+        t.printStackTrace(System.out);
         /*
         Try to continue even after fatal exception. It seems to be useful to attempt to store profile when this happens.
         For example JVM maybe out of heap and throwing OutOfMemoryError - we probably still would want to continue and

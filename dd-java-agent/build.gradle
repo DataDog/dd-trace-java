@@ -219,6 +219,7 @@ dependencies {
   // force a controlled version of ASM that is used by Debugger while pulled transitively by jnr
   sharedShadowInclude deps.asm
   sharedShadowInclude deps.asmcommons
+  sharedShadowInclude deps.lz4
   sharedShadowInclude project(':communication'), {
     transitive = false
     // do not bring along slf4j and dependent subprojects

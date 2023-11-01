@@ -35,7 +35,8 @@ final class CachedData {
     autoservice   : "1.0-rc7",
     ddprof        : "0.82.0",
     asm           : "9.6",
-    cafe_crypto   : "0.1.0"
+    cafe_crypto   : "0.1.0",
+    lz4           : "1.7.1"
   ]
 
   static deps = [
@@ -61,6 +62,7 @@ final class CachedData {
       "cafe.cryptography:ed25519-elisabeth:${versions.cafe_crypto}",
       "cafe.cryptography:curve25519-elisabeth:${versions.cafe_crypto}"
     ],
+    lz4                  : "org.lz4:lz4-java:${versions.lz4}",
 
     // Testing
 

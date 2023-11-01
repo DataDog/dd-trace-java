@@ -55,9 +55,12 @@ public final class NativeImageGeneratorRunnerInstrumentation
               + "META-INF/native-image/com.datadoghq/dd-java-agent/reflect-config.json";
       args[oldLength++] =
           "-H:ClassInitialization="
-              + "com.datadog.profiling.agent.ProfilingAgent:build_time,"
+              + "com.datadog.profiling.controller.openjdk.events.AvailableProcessorCoresEvent:build_time,"
+              + "com.datadog.profiling.controller.openjdk.events.ProfilerSettingEvent:build_time,"
+              + "com.datadog.profiling.controller.openjdk.OpenJdkController:build_time,"
               + "datadog.trace.api.Config:rerun,"
               + "datadog.trace.api.Platform:rerun,"
+              + "datadog.trace.api.Platform$Captured:build_time,"
               + "datadog.trace.api.env.CapturedEnvironment:build_time,"
               + "datadog.trace.api.ConfigDefaults:build_time,"
               + "datadog.trace.api.InstrumenterConfig:build_time,"
@@ -85,6 +88,7 @@ public final class NativeImageGeneratorRunnerInstrumentation
               + "datadog.trace.logging.LoggingSettingsDescription:build_time,"
               + "datadog.trace.logging.simplelogger.SLCompatFactory:build_time,"
               + "datadog.trace.util.CollectionUtils:build_time,"
+              + "datadog.trace.util.AgentTaskScheduler:rerun,"
               + "datadog.slf4j.impl.StaticLoggerBinder:build_time,"
               + "datadog.slf4j.LoggerFactory:build_time,"
               + "com.blogspot.mydailyjava.weaklockfree.WeakConcurrentMap:build_time,"

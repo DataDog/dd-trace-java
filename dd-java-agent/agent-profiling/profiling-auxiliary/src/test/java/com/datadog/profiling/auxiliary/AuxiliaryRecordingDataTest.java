@@ -32,8 +32,8 @@ class AuxiliaryRecordingDataTest {
 
     @Nonnull
     @Override
-    public RecordingInputStream getStream() throws IOException {
-      return new RecordingInputStream(new ByteArrayInputStream(testData));
+    public RecordingStream getStream() throws IOException {
+      return new RecordingStream(new ByteArrayInputStream(testData));
     }
 
     @Override

@@ -16,6 +16,7 @@
 package com.datadog.profiling.controller;
 
 import datadog.trace.api.profiling.ProfilingSnapshot;
+import datadog.trace.api.profiling.ProfilingSnapshot.RecordingStream;
 import java.io.IOException;
 import java.time.Instant;
 import javax.annotation.Nonnull;
@@ -37,7 +38,7 @@ public abstract class RecordingData implements ProfilingSnapshot {
    * @throws IOException if the stream to return is empty or another IO-related problem occurred.
    */
   @Nonnull
-  public abstract RecordingInputStream getStream() throws IOException;
+  public abstract RecordingStream getStream() throws IOException;
 
   /**
    * Releases the resources associated with the recording, for example the underlying file.

@@ -1,7 +1,8 @@
 package com.datadog.profiling.auxiliary;
 
-import com.datadog.profiling.controller.RecordingData;
-import com.datadog.profiling.controller.RecordingInputStream;
+import datadog.trace.api.profiling.ProfilingSnapshot;
+import datadog.trace.api.profiling.RecordingData;
+
 import java.io.IOException;
 import java.time.Instant;
 import javax.annotation.Nonnull;
@@ -31,8 +32,8 @@ public final class AuxiliaryRecordingData extends RecordingData {
 
   @Nonnull
   @Override
-  public RecordingInputStream getStream() throws IOException {
-    return new RecordingInputStream(
+  public RecordingStream getStream() throws IOException {
+    return new ProfilingSnapshot.RecordingStream(
         new AuxiliaryRecordingStreams(mainData, secondaryData).asSequenceInputStream());
   }
 

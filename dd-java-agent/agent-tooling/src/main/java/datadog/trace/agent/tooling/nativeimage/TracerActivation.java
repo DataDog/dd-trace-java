@@ -13,7 +13,6 @@ public final class TracerActivation {
 
   public static void activate() {
     try {
-      System.out.println("===> TracerActivation");
       ProfilerInstaller.installProfiler();
       TracerInstaller.installGlobalTracer(
           new SharedCommunicationObjects(), ProfilingContextIntegration.NoOp.INSTANCE);

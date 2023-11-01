@@ -26,6 +26,15 @@ public final class OracleJdkController implements Controller {
   private final Map<String, String> eventSettings;
   private final JfrMBeanHelper helper;
 
+  public static OracleJdkController instance(ConfigProvider configProvider) {
+    try {
+      return new OracleJdkController(configProvider);
+    } catch (ConfigurationException e) {
+      log.debug("Unable to create OracleJdkController", e);
+      return null;
+    }
+  }
+
   /**
    * Main constructor for Oracle JDK profiling controller.
    *

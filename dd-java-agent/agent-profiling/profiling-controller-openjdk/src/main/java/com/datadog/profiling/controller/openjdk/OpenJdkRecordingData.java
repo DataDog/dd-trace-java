@@ -15,11 +15,11 @@
  */
 package com.datadog.profiling.controller.openjdk;
 
-import com.datadog.profiling.controller.RecordingData;
-import com.datadog.profiling.controller.RecordingInputStream;
 import java.io.IOException;
 import java.time.Instant;
 import javax.annotation.Nonnull;
+
+import datadog.trace.api.profiling.RecordingData;
 import jdk.jfr.Recording;
 
 /** Implementation for profiling recordings. */
@@ -39,8 +39,8 @@ public class OpenJdkRecordingData extends RecordingData {
 
   @Override
   @Nonnull
-  public RecordingInputStream getStream() throws IOException {
-    return new RecordingInputStream(recording.getStream(start, end));
+  public RecordingStream getStream() throws IOException {
+    return new RecordingStream(recording.getStream(start, end));
   }
 
   @Override
