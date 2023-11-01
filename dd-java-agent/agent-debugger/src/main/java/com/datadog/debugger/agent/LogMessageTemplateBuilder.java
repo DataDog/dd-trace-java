@@ -3,11 +3,13 @@ package com.datadog.debugger.agent;
 import static com.datadog.debugger.util.ValueScriptHelper.serializeValue;
 
 import com.datadog.debugger.el.EvaluationException;
+import com.datadog.debugger.el.RedactedException;
 import com.datadog.debugger.el.Value;
 import com.datadog.debugger.el.ValueScript;
 import com.datadog.debugger.probe.LogProbe;
 import datadog.trace.bootstrap.debugger.CapturedContext;
 import datadog.trace.bootstrap.debugger.EvaluationError;
+import datadog.trace.bootstrap.debugger.util.Redaction;
 import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -49,7 +51,9 @@ public class LogMessageTemplateBuilder {
             LOGGER.debug("Evaluation error: ", ex);
             status.addError(new EvaluationError(ex.getExpr(), ex.getMessage()));
             status.setLogTemplateErrors(true);
-            sb.append("{").append(ex.getMessage()).append("}");
+            String msg =
+                ex instanceof RedactedException ? Redaction.REDACTED_VALUE : ex.getMessage();
+            sb.append("{").append(msg).append("}");
           }
         }
       }
