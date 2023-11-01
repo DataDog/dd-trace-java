@@ -27,7 +27,7 @@ class TraceSamplingRulesTest extends DDCoreSpecification {
 
     rules.rules[0].service == "usersvc"
     rules.rules[0].name == "healthcheck"
-    rules.rules[0].resource == null    
+    rules.rules[0].resource == null
     rules.rules[0].sampleRate == 0.0d
 
     rules.rules[1].service == "service-name"
@@ -44,7 +44,7 @@ class TraceSamplingRulesTest extends DDCoreSpecification {
     rules.rules[3].name == null
     rules.rules[3].resource == "resource-name"
     rules.rules[3].sampleRate == 1d
-    
+
     rules.rules[4].service == null
     rules.rules[4].name == null
     rules.rules[4].resource == null
