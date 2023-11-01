@@ -434,6 +434,19 @@ class PropagationModuleTest extends IastModuleImplTestBase {
     stringBuilder((0..Config.get().getIastTruncationMaxValueLength() * 2).join('')) | _
   }
 
+  void 'test that source names should not make a strong reference over the value'() {
+    given:
+    final name = 'name'
+
+    when:
+    module.taint(name, SourceTypes.REQUEST_PARAMETER_NAME, name)
+
+    then:
+    final tainted = ctx.getTaintedObjects().get(name)
+    final taintedName = tainted.ranges[0].source.name
+    assert !taintedName.is(name) : 'Weak value should not be retained by the source name'
+  }
+
   private List<Tuple<Object>> taintIfSuite() {
     return [
       Tuple.tuple(string('string'), string('string')),
@@ -531,7 +544,8 @@ class PropagationModuleTest extends IastModuleImplTestBase {
         assert (range.marks & mark) > 0
       }
       final source = range.source
-      assert !source.value.is(originalValue): 'Weak value should not be retained by the source'
+      assert !source.name.is(originalValue): 'Weak value should not be retained by the source name'
+      assert !source.value.is(originalValue): 'Weak value should not be retained by the source value'
 
       final expectedSource = expected.source
       assert source.origin == expectedSource.origin
