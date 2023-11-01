@@ -3,16 +3,9 @@ package com.datadog.iast.test
 import com.datadog.iast.IastRequestContext
 import com.datadog.iast.IastSystem
 import com.datadog.iast.model.Range
-import com.datadog.iast.model.Source
 import com.datadog.iast.taint.TaintedObject
 import com.datadog.iast.taint.TaintedObjects
-import datadog.trace.api.gateway.CallbackProvider
-import datadog.trace.api.gateway.EventType
-import datadog.trace.api.gateway.Events
-import datadog.trace.api.gateway.Flow
-import datadog.trace.api.gateway.IGSpanInfo
-import datadog.trace.api.gateway.RequestContext
-import datadog.trace.api.gateway.RequestContextSlot
+import datadog.trace.api.gateway.*
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import org.slf4j.Logger
@@ -68,22 +61,12 @@ trait IastRequestContextPreparationTrait {
 
       List<Object> objects = Collections.synchronizedList([])
 
-      TaintedObject taintInputString(String obj, Source source, int mark) {
-        objects << obj
-        this.delegate.taintInputString(obj, source, mark)
-        logTaint obj
-      }
-
-      TaintedObject taintInputObject(Object obj, Source source, int mark) {
-        objects << obj
-        this.delegate.taintInputObject(obj, source, mark)
-        logTaint obj
-      }
-
+      @Override
       TaintedObject taint(Object obj, Range[] ranges) {
         objects << obj
-        this.delegate.taintInputString(obj, ranges)
+        final tainted = this.delegate.taint(obj, ranges)
         logTaint obj
+        return tainted
       }
 
       private final static Logger LOGGER = LoggerFactory.getLogger("map tainted objects")

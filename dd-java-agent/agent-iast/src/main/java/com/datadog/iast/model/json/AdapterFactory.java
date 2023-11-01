@@ -83,6 +83,8 @@ class AdapterFactory implements JsonAdapter.Factory {
       return new EvidenceAdapter(moshi);
     } else if (VulnerabilityType.class.equals(rawType)) {
       return new VulnerabilityTypeAdapter();
+    } else if (TruncatedVulnerabilities.class.equals(rawType)) {
+      return new TruncatedVulnerabilitiesAdapter(moshi);
     }
     return null;
   }

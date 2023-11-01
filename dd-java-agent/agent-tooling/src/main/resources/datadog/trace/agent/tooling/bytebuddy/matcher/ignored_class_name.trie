@@ -284,8 +284,6 @@
 2 org.springframework.expression.*
 2 org.springframework.format.*
 2 org.springframework.http.*
-# Need for IAST: calls ServletRequest methods instrumented at callsite
-0 org.springframework.http.server.ServletServerHttpRequest
 # Need for IAST: we instrument these classes
 0 org.springframework.http.HttpHeaders
 0 org.springframework.http.ReadOnlyHttpHeaders
@@ -321,14 +319,11 @@
 2 org.springframework.validation.*
 2 org.springframework.web.*
 0 org.springframework.web.context.request.async.*
-0 org.springframework.web.context.request.*
 0 org.springframework.web.context.support.AbstractRefreshableWebApplicationContext
 0 org.springframework.web.context.support.GenericWebApplicationContext
 0 org.springframework.web.context.support.XmlWebApplicationContext
 0 org.springframework.web.reactive.*
 0 org.springframework.web.servlet.*
-# Included for IAST
-0 org.springframework.web.util.WebUtils
 # Need for IAST so propagation of tainted objects is complete in spring 2.7.5
 0 org.springframework.util.StreamUtils$NonClosingInputStream
 # Included for IAST Spring mvc unvalidated redirect and xss vulnerability

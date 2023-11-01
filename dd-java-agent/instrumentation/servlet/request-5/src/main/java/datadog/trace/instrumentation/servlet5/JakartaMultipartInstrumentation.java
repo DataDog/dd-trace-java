@@ -7,12 +7,12 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Source;
 import datadog.trace.api.iast.SourceTypes;
-import datadog.trace.api.iast.source.WebModule;
+import datadog.trace.api.iast.propagation.PropagationModule;
 import java.util.Collection;
-import java.util.Collections;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
@@ -55,9 +55,9 @@ public class JakartaMultipartInstrumentation extends Instrumenter.Iast
     @Advice.OnMethodExit(suppress = Throwable.class)
     @Source(SourceTypes.REQUEST_MULTIPART_PARAMETER)
     public static String onExit(@Advice.Return final String name) {
-      final WebModule module = InstrumentationBridge.WEB;
+      final PropagationModule module = InstrumentationBridge.PROPAGATION;
       if (module != null) {
-        module.onMultipartValues("Content-Disposition", Collections.singleton(name));
+        module.taint(name, SourceTypes.REQUEST_MULTIPART_PARAMETER, "Content-Disposition");
       }
       return name;
     }
@@ -68,9 +68,9 @@ public class JakartaMultipartInstrumentation extends Instrumenter.Iast
     @Source(SourceTypes.REQUEST_MULTIPART_PARAMETER)
     public static String onExit(
         @Advice.Return final String value, @Advice.Argument(0) final String name) {
-      final WebModule module = InstrumentationBridge.WEB;
+      final PropagationModule module = InstrumentationBridge.PROPAGATION;
       if (module != null) {
-        module.onMultipartValues(name, Collections.singleton(value));
+        module.taint(value, SourceTypes.REQUEST_MULTIPART_PARAMETER, name);
       }
       return value;
     }
@@ -82,12 +82,15 @@ public class JakartaMultipartInstrumentation extends Instrumenter.Iast
     public static void onExit(
         @Advice.Argument(0) final String headerName,
         @Advice.Return Collection<String> headerValues) {
-      if (null == headerValues) {
+      if (null == headerValues || headerValues.isEmpty()) {
         return;
       }
-      final WebModule module = InstrumentationBridge.WEB;
+      final PropagationModule module = InstrumentationBridge.PROPAGATION;
       if (module != null) {
-        module.onMultipartValues(headerName, headerValues);
+        final IastContext ctx = IastContext.Provider.get();
+        for (final String value : headerValues) {
+          module.taint(ctx, value, SourceTypes.REQUEST_MULTIPART_PARAMETER, headerName);
+        }
       }
     }
   }
@@ -96,12 +99,15 @@ public class JakartaMultipartInstrumentation extends Instrumenter.Iast
     @Advice.OnMethodExit(suppress = Throwable.class)
     @Source(SourceTypes.REQUEST_MULTIPART_PARAMETER)
     public static void onExit(@Advice.Return final Collection<String> headerNames) {
-      if (null == headerNames) {
+      if (null == headerNames || headerNames.isEmpty()) {
         return;
       }
-      final WebModule module = InstrumentationBridge.WEB;
+      final PropagationModule module = InstrumentationBridge.PROPAGATION;
       if (module != null) {
-        module.onMultipartNames(headerNames);
+        final IastContext ctx = IastContext.Provider.get();
+        for (final String name : headerNames) {
+          module.taint(ctx, name, SourceTypes.REQUEST_MULTIPART_PARAMETER);
+        }
       }
     }
   }

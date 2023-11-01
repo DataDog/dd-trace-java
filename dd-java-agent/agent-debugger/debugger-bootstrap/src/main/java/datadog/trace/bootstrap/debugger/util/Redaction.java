@@ -13,7 +13,7 @@ import java.util.regex.Pattern;
 public class Redaction {
   // Need to be a unique instance (new String) for reference equality (==) and
   // avoid internalization (intern) by the JVM because it's a string constant
-  public static final String REDACTED_VALUE = new String("REDACTED".toCharArray());
+  public static final String REDACTED_VALUE = new String("redacted".toCharArray());
 
   private static final Pattern COMMA_PATTERN = Pattern.compile(",");
   private static final List<String> PREDEFINED_KEYWORDS =

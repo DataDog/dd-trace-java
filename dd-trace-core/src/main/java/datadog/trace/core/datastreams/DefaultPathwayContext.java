@@ -95,7 +95,7 @@ public class DefaultPathwayContext implements PathwayContext {
   @Override
   public void setCheckpoint(
       LinkedHashMap<String, String> sortedTags, Consumer<StatsPoint> pointConsumer) {
-    setCheckpoint(sortedTags, pointConsumer, 0);
+    setCheckpoint(sortedTags, pointConsumer, 0, 0);
   }
 
   @Override
@@ -103,6 +103,15 @@ public class DefaultPathwayContext implements PathwayContext {
       LinkedHashMap<String, String> sortedTags,
       Consumer<StatsPoint> pointConsumer,
       long defaultTimestamp) {
+    setCheckpoint(sortedTags, pointConsumer, defaultTimestamp, 0);
+  }
+
+  @Override
+  public void setCheckpoint(
+      LinkedHashMap<String, String> sortedTags,
+      Consumer<StatsPoint> pointConsumer,
+      long defaultTimestamp,
+      long payloadSizeBytes) {
     long startNanos = timeSource.getCurrentTimeNanos();
     long nanoTicks = timeSource.getNanoTicks();
     lock.lock();
@@ -167,7 +176,8 @@ public class DefaultPathwayContext implements PathwayContext {
               hash,
               timeSource.getCurrentTimeNanos(),
               pathwayLatencyNano,
-              edgeLatencyNano);
+              edgeLatencyNano,
+              payloadSizeBytes);
       edgeStartNanoTicks = nanoTicks;
       hash = newHash;
 

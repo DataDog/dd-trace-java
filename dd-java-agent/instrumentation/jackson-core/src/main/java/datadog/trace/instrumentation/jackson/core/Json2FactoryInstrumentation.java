@@ -52,7 +52,7 @@ public class Json2FactoryInstrumentation extends Instrumenter.Iast
       if (input != null) {
         final PropagationModule propagation = InstrumentationBridge.PROPAGATION;
         if (propagation != null) {
-          propagation.taintIfInputIsTainted(parser, input);
+          propagation.taintIfTainted(parser, input);
         }
         if (input instanceof URL) {
           final SsrfModule ssrf = InstrumentationBridge.SSRF;

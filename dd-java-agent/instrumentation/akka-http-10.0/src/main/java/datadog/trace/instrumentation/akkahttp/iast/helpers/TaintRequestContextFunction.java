@@ -16,10 +16,10 @@ public class TaintRequestContextFunction
     RequestContext reqCtx = v1._1();
 
     PropagationModule mod = InstrumentationBridge.PROPAGATION;
-    if (mod == null) {
+    if (mod == null || reqCtx == null) {
       return v1;
     }
-    mod.taintObject(SourceTypes.REQUEST_BODY, reqCtx);
+    mod.taint(reqCtx, SourceTypes.REQUEST_BODY);
 
     return v1;
   }

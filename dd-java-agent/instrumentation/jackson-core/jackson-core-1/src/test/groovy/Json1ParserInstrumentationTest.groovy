@@ -25,7 +25,7 @@ class Json1ParserInstrumentationTest extends AgentTestRunner {
 
     then:
     result == 'key1'
-    1 * propagationModule.taintIfInputIsTainted('key1', jsonParser)
+    1 * propagationModule.taintIfTainted('key1', jsonParser)
     0 * _
 
     where:
@@ -46,7 +46,7 @@ class Json1ParserInstrumentationTest extends AgentTestRunner {
 
     then:
     result == 'key1'
-    1 * propagationModule.taintIfInputIsTainted('key1', jsonParser)
+    1 * propagationModule.taintIfTainted('key1', jsonParser)
     0 * _
 
     where:
@@ -67,7 +67,7 @@ class Json1ParserInstrumentationTest extends AgentTestRunner {
 
     then:
     result == 'value1'
-    1 * propagationModule.taintIfInputIsTainted('value1', jsonParser)
+    1 * propagationModule.taintIfTainted('value1', jsonParser)
     0 * _
 
     where:

@@ -9,6 +9,7 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
 import org.objectweb.asm.Opcodes;
@@ -20,6 +21,7 @@ import org.objectweb.asm.tree.FieldNode;
 import org.objectweb.asm.tree.InsnList;
 import org.objectweb.asm.tree.InsnNode;
 import org.objectweb.asm.tree.LdcInsnNode;
+import org.objectweb.asm.tree.LocalVariableNode;
 import org.objectweb.asm.tree.MethodInsnNode;
 import org.objectweb.asm.tree.TypeInsnNode;
 
@@ -200,6 +202,43 @@ public class ASMHelper {
         return "getFieldValue";
       default:
         throw new IllegalArgumentException("Unsupported type sort:" + sort);
+    }
+  }
+
+  public static List<LocalVariableNode> sortLocalVariables(List<LocalVariableNode> localVariables) {
+    List<LocalVariableNode> sortedLocalVars = new ArrayList<>(localVariables);
+    sortedLocalVars.sort(Comparator.comparingInt(o -> o.index));
+    return sortedLocalVars;
+  }
+
+  public static LocalVariableNode[] createLocalVarNodes(List<LocalVariableNode> sortedLocalVars) {
+    int maxIndex = sortedLocalVars.get(sortedLocalVars.size() - 1).index;
+    LocalVariableNode[] localVars = new LocalVariableNode[maxIndex + 1];
+    for (LocalVariableNode localVariableNode : sortedLocalVars) {
+      localVars[localVariableNode.index] = localVariableNode;
+    }
+    return localVars;
+  }
+
+  public static void adjustLocalVarsBasedOnArgs(
+      boolean isStatic,
+      LocalVariableNode[] localVars,
+      org.objectweb.asm.Type[] argTypes,
+      List<LocalVariableNode> sortedLocalVars) {
+    // assume that first local variables matches method arguments
+    // as stated into the JVM spec:
+    // https://docs.oracle.com/javase/specs/jvms/se8/html/jvms-2.html#jvms-2.6.1
+    // so we reassigned local var in arg slots if they are empty
+    if (argTypes.length < localVars.length) {
+      int slot = isStatic ? 0 : 1;
+      int localVarTableIdx = slot;
+      for (org.objectweb.asm.Type t : argTypes) {
+        if (localVars[slot] == null && localVarTableIdx < sortedLocalVars.size()) {
+          localVars[slot] = sortedLocalVars.get(localVarTableIdx);
+        }
+        slot += t.getSize();
+        localVarTableIdx++;
+      }
     }
   }
 
