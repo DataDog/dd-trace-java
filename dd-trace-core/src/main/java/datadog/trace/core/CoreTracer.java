@@ -69,6 +69,7 @@ import datadog.trace.common.writer.ddintake.DDIntakeTraceInterceptor;
 import datadog.trace.core.datastreams.DataStreamContextInjector;
 import datadog.trace.core.datastreams.DataStreamsMonitoring;
 import datadog.trace.core.datastreams.DefaultDataStreamsMonitoring;
+import datadog.trace.core.flare.TracerFlarePoller;
 import datadog.trace.core.histogram.Histograms;
 import datadog.trace.core.monitor.HealthMetrics;
 import datadog.trace.core.monitor.MonitoringImpl;
@@ -140,6 +141,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   private volatile long lastSyncTicks;
   /** Nanosecond offset to counter clock drift */
   private volatile long counterDrift;
+
+  private final TracerFlarePoller tracerFlarePoller;
 
   private final TracingConfigPoller tracingConfigPoller;
 
@@ -266,6 +269,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     private DataStreamsMonitoring dataStreamsMonitoring;
     private ProfilingContextIntegration profilingContextIntegration =
         ProfilingContextIntegration.NoOp.INSTANCE;
+    private boolean pollForTracerFlareRequests;
     private boolean pollForTracingConfiguration;
     private boolean injectBaggageAsTags;
 
@@ -386,6 +390,11 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       return this;
     }
 
+    public CoreTracerBuilder pollForTracerFlareRequests() {
+      this.pollForTracerFlareRequests = true;
+      return this;
+    }
+
     public CoreTracerBuilder pollForTracingConfiguration() {
       this.pollForTracingConfiguration = true;
       return this;
@@ -454,6 +463,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
           timeSource,
           dataStreamsMonitoring,
           profilingContextIntegration,
+          pollForTracerFlareRequests,
           pollForTracingConfiguration,
           injectBaggageAsTags);
     }
@@ -484,6 +494,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       final TimeSource timeSource,
       final DataStreamsMonitoring dataStreamsMonitoring,
       final ProfilingContextIntegration profilingContextIntegration,
+      final boolean pollForTracerFlareRequests,
       final boolean pollForTracingConfiguration,
       final boolean injectBaggageAsTags) {
 
@@ -570,6 +581,11 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     }
     sharedCommunicationObjects.monitoring = monitoring;
     sharedCommunicationObjects.createRemaining(config);
+
+    tracerFlarePoller = new TracerFlarePoller(dynamicConfig);
+    if (pollForTracerFlareRequests) {
+      tracerFlarePoller.start(config, sharedCommunicationObjects);
+    }
 
     tracingConfigPoller = new TracingConfigPoller(dynamicConfig);
     if (pollForTracingConfiguration) {
@@ -1048,6 +1064,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     metricsAggregator.close();
     dataStreamsMonitoring.close();
     externalAgentLauncher.close();
+    tracerFlarePoller.stop();
   }
 
   @Override
