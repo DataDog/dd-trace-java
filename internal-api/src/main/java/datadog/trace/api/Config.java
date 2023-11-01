@@ -46,6 +46,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_METRICS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_POLL_INTERVAL;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_SYMBOL_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_SYMBOL_FLUSH_THRESHOLD;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_SYMBOL_FORCE_UPLOAD;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_UPLOAD_BATCH_SIZE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_UPLOAD_FLUSH_INTERVAL;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_UPLOAD_TIMEOUT;
@@ -93,6 +94,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_SERVLET_ROOT_CONTEXT_SERV
 import static datadog.trace.api.ConfigDefaults.DEFAULT_SITE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_STARTUP_LOGS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TELEMETRY_DEPENDENCY_COLLECTION_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_TELEMETRY_EXTENDED_HEARTBEAT_INTERVAL;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TELEMETRY_HEARTBEAT_INTERVAL;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TELEMETRY_METRICS_INTERVAL;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_128_BIT_TRACEID_GENERATION_ENABLED;
@@ -185,6 +187,7 @@ import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_REDACTED_IDENTIFI
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_REDACTED_TYPES;
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_SYMBOL_ENABLED;
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_SYMBOL_FLUSH_THRESHOLD;
+import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_SYMBOL_FORCE_UPLOAD;
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_SYMBOL_INCLUDES;
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_UPLOAD_BATCH_SIZE;
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_UPLOAD_FLUSH_INTERVAL;
@@ -219,6 +222,7 @@ import static datadog.trace.api.config.GeneralConfig.STATSD_CLIENT_SOCKET_BUFFER
 import static datadog.trace.api.config.GeneralConfig.STATSD_CLIENT_SOCKET_TIMEOUT;
 import static datadog.trace.api.config.GeneralConfig.TAGS;
 import static datadog.trace.api.config.GeneralConfig.TELEMETRY_DEPENDENCY_COLLECTION_ENABLED;
+import static datadog.trace.api.config.GeneralConfig.TELEMETRY_EXTENDED_HEARTBEAT_INTERVAL;
 import static datadog.trace.api.config.GeneralConfig.TELEMETRY_HEARTBEAT_INTERVAL;
 import static datadog.trace.api.config.GeneralConfig.TELEMETRY_METRICS_INTERVAL;
 import static datadog.trace.api.config.GeneralConfig.TRACER_METRICS_BUFFERING_ENABLED;
@@ -738,6 +742,7 @@ public class Config {
   private final String debuggerRedactedIdentifiers;
   private final String debuggerRedactedTypes;
   private final boolean debuggerSymbolEnabled;
+  private final boolean debuggerSymbolForceUpload;
   private final String debuggerSymbolIncludes;
   private final int debuggerSymbolFlushThreshold;
 
@@ -808,8 +813,10 @@ public class Config {
   private final boolean iastDeduplicationEnabled;
 
   private final float telemetryHeartbeatInterval;
+  private final long telemetryExtendedHeartbeatInterval;
   private final float telemetryMetricsInterval;
   private final boolean isTelemetryDependencyServiceEnabled;
+  private final boolean telemetryMetricsEnabled;
 
   private final boolean azureAppServices;
   private final String traceAgentPath;
@@ -832,6 +839,8 @@ public class Config {
   private final boolean jaxRsExceptionAsErrorsEnabled;
 
   private final float traceFlushIntervalSeconds;
+
+  private final boolean telemetryDebugRequestsEnabled;
 
   // Read order: System Properties -> Env Variables, [-> properties file], [-> default value]
   private Config() {
@@ -1436,6 +1445,10 @@ public class Config {
     }
     telemetryHeartbeatInterval = telemetryInterval;
 
+    telemetryExtendedHeartbeatInterval =
+        configProvider.getLong(
+            TELEMETRY_EXTENDED_HEARTBEAT_INTERVAL, DEFAULT_TELEMETRY_EXTENDED_HEARTBEAT_INTERVAL);
+
     telemetryInterval =
         configProvider.getFloat(TELEMETRY_METRICS_INTERVAL, DEFAULT_TELEMETRY_METRICS_INTERVAL);
     if (telemetryInterval < 0.1 || telemetryInterval > 3600) {
@@ -1445,6 +1458,9 @@ public class Config {
       telemetryInterval = DEFAULT_TELEMETRY_METRICS_INTERVAL;
     }
     telemetryMetricsInterval = telemetryInterval;
+
+    telemetryMetricsEnabled =
+        configProvider.getBoolean(GeneralConfig.TELEMETRY_METRICS_ENABLED, true);
 
     isTelemetryDependencyServiceEnabled =
         configProvider.getBoolean(
@@ -1686,6 +1702,9 @@ public class Config {
     debuggerRedactedTypes = configProvider.getString(DEBUGGER_REDACTED_TYPES, null);
     debuggerSymbolEnabled =
         configProvider.getBoolean(DEBUGGER_SYMBOL_ENABLED, DEFAULT_DEBUGGER_SYMBOL_ENABLED);
+    debuggerSymbolForceUpload =
+        configProvider.getBoolean(
+            DEBUGGER_SYMBOL_FORCE_UPLOAD, DEFAULT_DEBUGGER_SYMBOL_FORCE_UPLOAD);
     debuggerSymbolIncludes = configProvider.getString(DEBUGGER_SYMBOL_INCLUDES, null);
     debuggerSymbolFlushThreshold =
         configProvider.getInteger(
@@ -1830,6 +1849,11 @@ public class Config {
           "Attempt to start in Agentless mode without API key. "
               + "Please ensure that either an API key is configured, or the tracer is set up to work with the Agent");
     }
+
+    this.telemetryDebugRequestsEnabled =
+        configProvider.getBoolean(
+            GeneralConfig.TELEMETRY_DEBUG_REQUESTS_ENABLED,
+            ConfigDefaults.DEFAULT_TELEMETRY_DEBUG_REQUESTS_ENABLED);
 
     log.debug("New instance: {}", this);
   }
@@ -2418,12 +2442,20 @@ public class Config {
     return telemetryHeartbeatInterval;
   }
 
+  public long getTelemetryExtendedHeartbeatInterval() {
+    return telemetryExtendedHeartbeatInterval;
+  }
+
   public float getTelemetryMetricsInterval() {
     return telemetryMetricsInterval;
   }
 
   public boolean isTelemetryDependencyServiceEnabled() {
     return isTelemetryDependencyServiceEnabled;
+  }
+
+  public boolean isTelemetryMetricsEnabled() {
+    return telemetryMetricsEnabled;
   }
 
   public boolean isClientIpEnabled() {
@@ -2776,7 +2808,11 @@ public class Config {
     return debuggerCaptureTimeout;
   }
 
-  public boolean getDebuggerSymbolEnabled() {
+  public boolean isDebuggerSymbolEnabled() {
+    return debuggerSymbolEnabled;
+  }
+
+  public boolean isDebuggerSymbolForceUpload() {
     return debuggerSymbolEnabled;
   }
 
@@ -3437,6 +3473,10 @@ public class Config {
     return Config.get().isTraceAnalyticsIntegrationEnabled(integrationNames, defaultEnabled);
   }
 
+  public boolean isTelemetryDebugRequestsEnabled() {
+    return telemetryDebugRequestsEnabled;
+  }
+
   private <T> Set<T> getSettingsSetFromEnvironment(
       String name, Function<String, T> mapper, boolean splitOnWS) {
     final String value = configProvider.getString(name, "");
@@ -3609,7 +3649,7 @@ public class Config {
   private static String getEnv(String name) {
     String value = System.getenv(name);
     if (value != null) {
-      ConfigCollector.get().put(name, value);
+      ConfigCollector.get().put(name, value, ConfigOrigin.ENV);
     }
     return value;
   }
@@ -3632,7 +3672,7 @@ public class Config {
   private static String getProp(String name, String def) {
     String value = System.getProperty(name, def);
     if (value != null) {
-      ConfigCollector.get().put(name, value);
+      ConfigCollector.get().put(name, value, ConfigOrigin.JVM_PROP);
     }
     return value;
   }
@@ -4036,6 +4076,10 @@ public class Config {
         + removeIntegrationServiceNamesEnabled
         + ", spanAttributeSchemaVersion="
         + spanAttributeSchemaVersion
+        + ", telemetryDebugRequestsEnabled="
+        + telemetryDebugRequestsEnabled
+        + ", telemetryMetricsEnabled="
+        + telemetryMetricsEnabled
         + '}';
   }
 }

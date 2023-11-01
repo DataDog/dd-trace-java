@@ -8,6 +8,7 @@ import io.vertx.core.http.HttpMethod;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.RoutingContext;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Optional;
 import java.util.Vector;
 
@@ -27,6 +28,13 @@ public enum IastHandler implements Handler<RoutingContext> {
       rc.response().end("Received " + value.get("header"));
     }
   },
+  HEADER_NAMES("/headernames") {
+    @Override
+    public void handle(final RoutingContext rc) {
+      final Collection<String> names = rc.request().headers().names();
+      rc.response().end("Received " + String.join(",", names));
+    }
+  },
   PARAM("/param") {
     @Override
     public void handle(final RoutingContext rc) {
@@ -39,6 +47,13 @@ public enum IastHandler implements Handler<RoutingContext> {
     public void handle(final RoutingContext rc) {
       final MultiMap value = rc.request().params();
       rc.response().end("Received " + value.get("param"));
+    }
+  },
+  PARAM_NAMES("/paramnames") {
+    @Override
+    public void handle(final RoutingContext rc) {
+      final Collection<String> names = rc.request().params().names();
+      rc.response().end("Received " + String.join(",", names));
     }
   },
   FORM_ATTRIBUTE("/form_attribute") {
