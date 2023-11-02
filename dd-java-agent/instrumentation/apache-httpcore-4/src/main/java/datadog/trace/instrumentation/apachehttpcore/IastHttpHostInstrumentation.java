@@ -27,7 +27,11 @@ public class IastHttpHostInstrumentation extends Instrumenter.Iast
   @Override
   public void adviceTransformations(AdviceTransformation transformation) {
     transformation.applyAdvice(
-        isConstructor().and(takesArguments(3)).and(takesArgument(0, String.class)),
+        isConstructor()
+            .and(takesArguments(3))
+            .and(takesArgument(0, String.class))
+            .and(takesArgument(1, int.class))
+            .and(takesArgument(2, String.class)),
         IastHttpHostInstrumentation.class.getName() + "$CtorAdvice");
   }
 
