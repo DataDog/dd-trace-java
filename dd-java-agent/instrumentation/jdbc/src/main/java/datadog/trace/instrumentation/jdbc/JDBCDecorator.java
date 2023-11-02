@@ -232,10 +232,7 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
   }
 
   public boolean shouldInjectTraceContext(DBInfo dbInfo) {
-    if (INJECT_TRACE_CONTEXT
-        && (dbInfo.getType().equals("oracle") || dbInfo.getType().equals("sqlserver"))) {
-      // Some DBs use the full text of the query including the comments as a cache key,
-      // so we want to avoid destroying the cache for those.
+    if (INJECT_TRACE_CONTEXT && !dbInfo.getFullPropagationSupport()) {
       if (!warnedAboutDBMPropagationMode) {
         log.warn(
             "Using DBM_PROPAGATION_MODE in 'full' mode is not supported for {}. "
