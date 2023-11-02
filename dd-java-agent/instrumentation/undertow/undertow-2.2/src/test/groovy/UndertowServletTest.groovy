@@ -57,7 +57,6 @@ class UndertowServletTest extends HttpServerTest<Undertow> {
 
       DeploymentManager manager = container.addDeployment(builder)
       manager.deploy()
-      System.out.println(">>> builder.getContextPath(): " + builder.getContextPath())
       root.addPrefixPath(builder.getContextPath(), manager.start())
 
       undertowServer = Undertow.builder()

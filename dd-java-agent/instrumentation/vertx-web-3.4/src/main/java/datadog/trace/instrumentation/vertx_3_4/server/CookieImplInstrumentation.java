@@ -51,35 +51,27 @@ public class CookieImplInstrumentation extends Instrumenter.Iast
   }
 
   public static class GetNameAdvice {
-    @Advice.OnMethodExit
+    @Advice.OnMethodExit(suppress = Throwable.class)
     @Source(SourceTypes.REQUEST_COOKIE_NAME)
     public static void afterGetName(
         @Advice.This final Cookie self, @Advice.Return final String result) {
       final PropagationModule module = InstrumentationBridge.PROPAGATION;
       if (module != null) {
-        try {
-          module.taintIfTainted(result, self, SourceTypes.REQUEST_COOKIE_NAME, result);
-        } catch (final Throwable e) {
-          module.onUnexpectedException("getName threw", e);
-        }
+        module.taintIfTainted(result, self, SourceTypes.REQUEST_COOKIE_NAME, result);
       }
     }
   }
 
   public static class GetValueAdvice {
 
-    @Advice.OnMethodExit
+    @Advice.OnMethodExit(suppress = Throwable.class)
     @Source(SourceTypes.REQUEST_COOKIE_VALUE)
     public static void afterGetValue(
         @Advice.This final Cookie self, @Advice.Return final String result) {
       final PropagationModule module = InstrumentationBridge.PROPAGATION;
       if (module != null) {
-        try {
-          // TODO calling self.getName() actually taints the name of the cookie
-          module.taintIfTainted(result, self, SourceTypes.REQUEST_COOKIE_VALUE, self.getName());
-        } catch (final Throwable e) {
-          module.onUnexpectedException("getValue threw", e);
-        }
+        // TODO calling self.getName() actually taints the name of the cookie
+        module.taintIfTainted(result, self, SourceTypes.REQUEST_COOKIE_VALUE, self.getName());
       }
     }
   }

@@ -1,48 +1,31 @@
 package datadog.smoketest.controller;
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.util.Enumeration;
-import javax.servlet.RequestDispatcher;
-import javax.servlet.ServletInputStream;
 import javax.servlet.http.HttpServletRequest;
 
-public class JavaxHttpServletRequestTestSuite
-    implements ServletRequestTestSuite<HttpServletRequest> {
-  HttpServletRequest request;
+public class JavaxHttpServletRequestTestSuite implements ServletRequestTestSuite {
+  private final HttpServletRequest request;
 
-  @Override
-  public void init(HttpServletRequest request) {
+  public JavaxHttpServletRequestTestSuite(final HttpServletRequest request) {
     this.request = request;
   }
 
   @Override
-  public String getParameter(String paramName) {
-    return request.getParameter(paramName);
+  public String getRequestURI() {
+    return request.getRequestURI();
   }
 
   @Override
-  public String[] getParameterValues(String paramName) {
-    return request.getParameterValues(paramName);
+  public String getPathInfo() {
+    return request.getPathInfo();
   }
 
   @Override
-  public Enumeration getParameterNames() {
-    return request.getParameterNames();
+  public String getPathTranslated() {
+    return request.getPathTranslated();
   }
 
   @Override
-  public ServletInputStream getInputStream() throws IOException {
-    return request.getInputStream();
-  }
-
-  @Override
-  public BufferedReader getReader() throws IOException {
-    return request.getReader();
-  }
-
-  @Override
-  public RequestDispatcher getRequestDispatcher(String path) {
-    return request.getRequestDispatcher(path);
+  public StringBuffer getRequestURL() {
+    return request.getRequestURL();
   }
 }
