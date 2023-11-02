@@ -7,7 +7,7 @@ public enum MethodLocation {
 
   public static boolean isSame(MethodLocation methodLocation, MethodLocation evaluateAt) {
     if (methodLocation == MethodLocation.DEFAULT) {
-      // line probe always assume we are the right location
+      // line probe, no evaluation of probe's evaluateAt
       return true;
     }
     if (methodLocation == MethodLocation.ENTRY) {
