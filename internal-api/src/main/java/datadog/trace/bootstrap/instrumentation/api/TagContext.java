@@ -1,8 +1,11 @@
 package datadog.trace.bootstrap.instrumentation.api;
 
+import static datadog.trace.api.TracePropagationStyle.NONE;
+
 import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.TraceConfig;
+import datadog.trace.api.TracePropagationStyle;
 import datadog.trace.api.sampling.PrioritySampling;
 import java.util.Collections;
 import java.util.Map;
@@ -25,13 +28,14 @@ public class TagContext implements AgentSpan.Context.Extracted {
   private final Map<String, String> baggage;
   private final int samplingPriority;
   private final TraceConfig traceConfig;
+  private final TracePropagationStyle propagationStyle;
 
   public TagContext() {
     this(null, null);
   }
 
   public TagContext(final String origin, final Map<String, String> tags) {
-    this(origin, tags, null, null, PrioritySampling.UNSET, null);
+    this(origin, tags, null, null, PrioritySampling.UNSET, null, NONE);
   }
 
   public TagContext(
@@ -40,17 +44,23 @@ public class TagContext implements AgentSpan.Context.Extracted {
       final HttpHeaders httpHeaders,
       final Map<String, String> baggage,
       final int samplingPriority,
-      final TraceConfig traceConfig) {
+      final TraceConfig traceConfig,
+      final TracePropagationStyle propagationStyle) {
     this.origin = origin;
     this.tags = tags;
     this.httpHeaders = httpHeaders == null ? EMPTY_HTTP_HEADERS : httpHeaders;
     this.baggage = baggage == null ? Collections.emptyMap() : baggage;
     this.samplingPriority = samplingPriority;
     this.traceConfig = traceConfig;
+    this.propagationStyle = propagationStyle;
   }
 
   public TraceConfig getTraceConfig() {
     return traceConfig;
+  }
+
+  public TracePropagationStyle getPropagationStyle() {
+    return this.propagationStyle;
   }
 
   public final CharSequence getOrigin() {

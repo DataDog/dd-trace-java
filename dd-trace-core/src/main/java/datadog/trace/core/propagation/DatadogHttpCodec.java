@@ -1,5 +1,6 @@
 package datadog.trace.core.propagation;
 
+import static datadog.trace.api.TracePropagationStyle.DATADOG;
 import static datadog.trace.core.propagation.HttpCodec.firstHeaderValue;
 import static datadog.trace.core.propagation.XRayHttpCodec.XRayContextInterpreter.handleXRayTraceHeader;
 import static datadog.trace.core.propagation.XRayHttpCodec.X_AMZN_TRACE_ID;
@@ -12,6 +13,7 @@ import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.TraceConfig;
+import datadog.trace.api.TracePropagationStyle;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.TagContext;
 import datadog.trace.core.DDSpanContext;
@@ -107,6 +109,11 @@ class DatadogHttpCodec {
       super(config);
       isAwsPropagationEnabled = config.isAwsPropagationEnabled();
       datadogTagsFactory = PropagationTags.factory(config);
+    }
+
+    @Override
+    public TracePropagationStyle style() {
+      return DATADOG;
     }
 
     @Override

@@ -10,6 +10,7 @@ import datadog.trace.instrumentation.opentracing31.OTTracer
 import datadog.trace.instrumentation.opentracing31.TypeConverter
 import spock.lang.Shared
 
+import static datadog.trace.api.TracePropagationStyle.NONE
 import static datadog.trace.api.sampling.PrioritySampling.*
 import static datadog.trace.api.sampling.SamplingMechanism.*
 import datadog.trace.context.TraceScope
@@ -45,7 +46,7 @@ class OpenTracing31Test extends AgentTestRunner {
         .withTag("boolean", true)
     }
     if (addReference) {
-      def ctx = new ExtractedContext(DDTraceId.ONE, 2, SAMPLER_DROP, null, PropagationTags.factory().empty())
+      def ctx = new ExtractedContext(DDTraceId.ONE, 2, SAMPLER_DROP, null, PropagationTags.factory().empty(), NONE)
       builder.addReference(addReference, tracer.tracer.converter.toSpanContext(ctx))
     }
     def result = builder.start()

@@ -21,6 +21,7 @@ import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.Functions;
 import datadog.trace.api.TraceConfig;
+import datadog.trace.api.TracePropagationStyle;
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
 import datadog.trace.api.sampling.PrioritySampling;
@@ -58,7 +59,7 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
   protected static final boolean LOG_EXTRACT_HEADER_NAMES = Config.get().isLogExtractHeaderNames();
   private static final DDCache<String, String> CACHE = DDCaches.newFixedSizeCache(64);
 
-  protected String toLowerCase(String key) {
+  protected static String toLowerCase(String key) {
     return CACHE.computeIfAbsent(key, Functions.LowerCase.INSTANCE);
   }
 
@@ -68,9 +69,12 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
     this.clientIpWithoutAppSec = config.isClientIpEnabled();
   }
 
-  public interface Factory {
-    ContextInterpreter create();
-  }
+  /**
+   * Gets the propagation style handled by the context interpreter.
+   *
+   * @return The propagation style handled.
+   */
+  public abstract TracePropagationStyle style();
 
   protected final boolean handledForwarding(String key, String value) {
     if (value == null || !collectIpHeaders) {
@@ -241,7 +245,8 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
                 tags,
                 httpHeaders,
                 propagationTags,
-                traceConfig);
+                traceConfig,
+                style());
         return context;
       } else if (origin != null
           || !tags.isEmpty()
@@ -254,7 +259,8 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
             httpHeaders,
             baggage,
             samplingPriorityOrDefault(traceId, samplingPriority),
-            traceConfig);
+            traceConfig,
+            style());
       }
     }
     return null;
@@ -283,5 +289,9 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
     return samplingPriority == PrioritySampling.UNSET || DDTraceId.ZERO.equals(traceId)
         ? defaultSamplingPriority()
         : samplingPriority;
+  }
+
+  public interface Factory {
+    ContextInterpreter create();
   }
 }

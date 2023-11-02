@@ -1,5 +1,6 @@
 package datadog.trace.core.propagation;
 
+import static datadog.trace.api.TracePropagationStyle.TRACECONTEXT;
 import static datadog.trace.api.sampling.PrioritySampling.SAMPLER_DROP;
 import static datadog.trace.api.sampling.PrioritySampling.SAMPLER_KEEP;
 import static datadog.trace.core.propagation.HttpCodec.firstHeaderValue;
@@ -12,6 +13,7 @@ import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.TraceConfig;
+import datadog.trace.api.TracePropagationStyle;
 import datadog.trace.api.internal.util.LongStringUtils;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.api.sampling.SamplingMechanism;
@@ -108,6 +110,11 @@ class W3CHttpCodec {
     private W3CContextInterpreter(Config config) {
       super(config);
       datadogTagsFactory = PropagationTags.factory(config);
+    }
+
+    @Override
+    public TracePropagationStyle style() {
+      return TRACECONTEXT;
     }
 
     @Override

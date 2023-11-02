@@ -114,6 +114,7 @@ import static datadog.trace.api.config.TracerConfig.SPAN_TAGS
 import static datadog.trace.api.config.TracerConfig.SPLIT_BY_TAGS
 import static datadog.trace.api.config.TracerConfig.TRACE_AGENT_PORT
 import static datadog.trace.api.config.TracerConfig.TRACE_AGENT_URL
+import static datadog.trace.api.config.TracerConfig.TRACE_PROPAGATION_EXTRACT_FIRST
 import static datadog.trace.api.config.TracerConfig.TRACE_RATE_LIMIT
 import static datadog.trace.api.config.TracerConfig.TRACE_REPORT_HOSTNAME
 import static datadog.trace.api.config.TracerConfig.TRACE_RESOLVER_ENABLED
@@ -145,6 +146,7 @@ class ConfigTest extends DDSpecification {
   private static final DD_JMX_TAGS_ENV = "DD_TRACE_JMX_TAGS"
   private static final DD_PROPAGATION_STYLE_EXTRACT = "DD_PROPAGATION_STYLE_EXTRACT"
   private static final DD_PROPAGATION_STYLE_INJECT = "DD_PROPAGATION_STYLE_INJECT"
+  private static final DD_TRACE_PROPAGATION_EXTRACT_FIRST = "DD_TRACE_PROPAGATION_EXTRACT_FIRST"
   private static final DD_JMXFETCH_METRICS_CONFIGS_ENV = "DD_JMXFETCH_METRICS_CONFIGS"
   private static final DD_TRACE_AGENT_PORT_ENV = "DD_TRACE_AGENT_PORT"
   private static final DD_AGENT_PORT_LEGACY_ENV = "DD_AGENT_PORT"
@@ -191,6 +193,7 @@ class ConfigTest extends DDSpecification {
     prop.setProperty(RUNTIME_CONTEXT_FIELD_INJECTION, "false")
     prop.setProperty(PROPAGATION_STYLE_EXTRACT, "Datadog, B3")
     prop.setProperty(PROPAGATION_STYLE_INJECT, "B3, Datadog")
+    prop.setProperty(TRACE_PROPAGATION_EXTRACT_FIRST, "false")
     prop.setProperty(JMX_FETCH_ENABLED, "false")
     prop.setProperty(JMX_FETCH_METRICS_CONFIGS, "/foo.yaml,/bar.yaml")
     prop.setProperty(JMX_FETCH_CHECK_PERIOD, "100")
@@ -279,6 +282,7 @@ class ConfigTest extends DDSpecification {
     config.propagationStylesToInject.toList() == [PropagationStyle.B3, PropagationStyle.DATADOG]
     config.tracePropagationStylesToExtract.toList() == [DATADOG, B3SINGLE, B3MULTI]
     config.tracePropagationStylesToInject.toList() == [B3SINGLE, B3MULTI, DATADOG]
+    config.tracePropagationExtractFirst == false
     config.jmxFetchEnabled == false
     config.jmxFetchMetricsConfigs == ["/foo.yaml", "/bar.yaml"]
     config.jmxFetchCheckPeriod == 100
@@ -368,6 +372,7 @@ class ConfigTest extends DDSpecification {
     System.setProperty(PREFIX + RUNTIME_CONTEXT_FIELD_INJECTION, "false")
     System.setProperty(PREFIX + PROPAGATION_STYLE_EXTRACT, "Datadog, B3")
     System.setProperty(PREFIX + PROPAGATION_STYLE_INJECT, "B3, Datadog")
+    System.setProperty(PREFIX + TRACE_PROPAGATION_EXTRACT_FIRST, "false")
     System.setProperty(PREFIX + JMX_FETCH_ENABLED, "false")
     System.setProperty(PREFIX + JMX_FETCH_METRICS_CONFIGS, "/foo.yaml,/bar.yaml")
     System.setProperty(PREFIX + JMX_FETCH_CHECK_PERIOD, "100")
@@ -456,6 +461,7 @@ class ConfigTest extends DDSpecification {
     config.propagationStylesToInject.toList() == [PropagationStyle.B3, PropagationStyle.DATADOG]
     config.tracePropagationStylesToExtract.toList() == [DATADOG, B3SINGLE, B3MULTI]
     config.tracePropagationStylesToInject.toList() == [B3SINGLE, B3MULTI, DATADOG]
+    config.tracePropagationExtractFirst == false
     config.jmxFetchEnabled == false
     config.jmxFetchMetricsConfigs == ["/foo.yaml", "/bar.yaml"]
     config.jmxFetchCheckPeriod == 100
@@ -522,6 +528,7 @@ class ConfigTest extends DDSpecification {
     environmentVariables.set(DD_PRIORITIZATION_TYPE_ENV, "EnsureTrace")
     environmentVariables.set(DD_PROPAGATION_STYLE_EXTRACT, "B3 Datadog")
     environmentVariables.set(DD_PROPAGATION_STYLE_INJECT, "Datadog B3")
+    environmentVariables.set(DD_TRACE_PROPAGATION_EXTRACT_FIRST, "false")
     environmentVariables.set(DD_JMXFETCH_METRICS_CONFIGS_ENV, "some/file")
     environmentVariables.set(DD_TRACE_REPORT_HOSTNAME, "true")
     environmentVariables.set(DD_TRACE_X_DATADOG_TAGS_MAX_LENGTH, "42")
@@ -540,6 +547,7 @@ class ConfigTest extends DDSpecification {
     config.propagationStylesToInject.toList() == [PropagationStyle.DATADOG, PropagationStyle.B3]
     config.tracePropagationStylesToExtract.toList() == [B3SINGLE, B3MULTI, DATADOG]
     config.tracePropagationStylesToInject.toList() == [DATADOG, B3SINGLE, B3MULTI]
+    config.tracePropagationExtractFirst == false
     config.jmxFetchMetricsConfigs == ["some/file"]
     config.reportHostName == true
     config.xDatadogTagsMaxLength == 42

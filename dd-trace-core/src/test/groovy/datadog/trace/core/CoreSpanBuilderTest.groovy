@@ -25,6 +25,7 @@ import static datadog.trace.api.DDTags.PID_TAG
 import static datadog.trace.api.DDTags.RUNTIME_ID_TAG
 import static datadog.trace.api.DDTags.THREAD_ID
 import static datadog.trace.api.DDTags.THREAD_NAME
+import static datadog.trace.api.TracePropagationStyle.DATADOG
 import static java.util.concurrent.TimeUnit.MILLISECONDS
 
 class CoreSpanBuilderTest extends DDCoreSpecification {
@@ -335,9 +336,9 @@ class CoreSpanBuilderTest extends DDCoreSpecification {
     span.context().propagationTags.headerValue(PropagationTags.HeaderType.DATADOG) == extractedContext.propagationTags.headerValue(PropagationTags.HeaderType.DATADOG)
 
     where:
-    extractedContext                                                                                                                                                                                                                | _
-    new ExtractedContext(DDTraceId.ONE, 2, PrioritySampling.SAMPLER_DROP, null, 0, [:], [:], null, PropagationTags.factory().fromHeaderValue(PropagationTags.HeaderType.DATADOG, "_dd.p.dm=934086a686-4,_dd.p.anytag=value"), null) | _
-    new ExtractedContext(DDTraceId.from(3), 4, PrioritySampling.SAMPLER_KEEP, "some-origin", 0, ["asdf": "qwer"], [(ORIGIN_KEY): "some-origin", "zxcv": "1234"], null, PropagationTags.factory().empty(), null)                     | _
+    extractedContext                                                                                                                                                                                                                         | _
+    new ExtractedContext(DDTraceId.ONE, 2, PrioritySampling.SAMPLER_DROP, null, 0, [:], [:], null, PropagationTags.factory().fromHeaderValue(PropagationTags.HeaderType.DATADOG, "_dd.p.dm=934086a686-4,_dd.p.anytag=value"), null, DATADOG) | _
+    new ExtractedContext(DDTraceId.from(3), 4, PrioritySampling.SAMPLER_KEEP, "some-origin", 0, ["asdf": "qwer"], [(ORIGIN_KEY): "some-origin", "zxcv": "1234"], null, PropagationTags.factory().empty(), null, DATADOG)                     | _
   }
 
   def "TagContext should populate default span details"() {

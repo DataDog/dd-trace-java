@@ -104,6 +104,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_AGENT_V05_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_ANALYTICS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_HTTP_RESOURCE_REMOVE_TRAILING_SLASH;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_LONG_RUNNING_FLUSH_INTERVAL;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_PROPAGATION_EXTRACT_FIRST;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_PROPAGATION_STYLE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_RATE_LIMIT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_REPORT_HOSTNAME;
@@ -391,6 +392,7 @@ import static datadog.trace.api.config.TracerConfig.TRACE_HTTP_SERVER_PATH_RESOU
 import static datadog.trace.api.config.TracerConfig.TRACE_PEER_SERVICE_COMPONENT_OVERRIDES;
 import static datadog.trace.api.config.TracerConfig.TRACE_PEER_SERVICE_DEFAULTS_ENABLED;
 import static datadog.trace.api.config.TracerConfig.TRACE_PEER_SERVICE_MAPPING;
+import static datadog.trace.api.config.TracerConfig.TRACE_PROPAGATION_EXTRACT_FIRST;
 import static datadog.trace.api.config.TracerConfig.TRACE_PROPAGATION_STYLE;
 import static datadog.trace.api.config.TracerConfig.TRACE_PROPAGATION_STYLE_EXTRACT;
 import static datadog.trace.api.config.TracerConfig.TRACE_PROPAGATION_STYLE_INJECT;
@@ -576,6 +578,7 @@ public class Config {
   private final boolean tracePropagationStyleB3PaddingEnabled;
   private final Set<TracePropagationStyle> tracePropagationStylesToExtract;
   private final Set<TracePropagationStyle> tracePropagationStylesToInject;
+  private final boolean tracePropagationExtractFirst;
   private final int clockSyncPeriod;
   private final boolean logsInjectionEnabled;
 
@@ -1250,6 +1253,10 @@ public class Config {
       propagationStylesToInject =
           deprecatedInject.isEmpty() ? DEFAULT_PROPAGATION_STYLE : deprecatedInject;
     }
+
+    tracePropagationExtractFirst =
+        configProvider.getBoolean(
+            TRACE_PROPAGATION_EXTRACT_FIRST, DEFAULT_TRACE_PROPAGATION_EXTRACT_FIRST);
 
     clockSyncPeriod = configProvider.getInteger(CLOCK_SYNC_PERIOD, DEFAULT_CLOCK_SYNC_PERIOD);
 
@@ -2146,6 +2153,10 @@ public class Config {
 
   public Set<TracePropagationStyle> getTracePropagationStylesToInject() {
     return tracePropagationStylesToInject;
+  }
+
+  public boolean isTracePropagationExtractFirst() {
+    return tracePropagationExtractFirst;
   }
 
   public int getClockSyncPeriod() {
@@ -3825,6 +3836,8 @@ public class Config {
         + tracePropagationStylesToExtract
         + ", tracePropagationStylesToInject="
         + tracePropagationStylesToInject
+        + ", tracePropagationExtractFirst="
+        + tracePropagationExtractFirst
         + ", clockSyncPeriod="
         + clockSyncPeriod
         + ", jmxFetchEnabled="

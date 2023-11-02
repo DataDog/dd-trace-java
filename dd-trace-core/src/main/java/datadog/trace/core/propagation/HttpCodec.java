@@ -1,5 +1,7 @@
 package datadog.trace.core.propagation;
 
+import static datadog.trace.api.TracePropagationStyle.TRACECONTEXT;
+
 import datadog.trace.api.Config;
 import datadog.trace.api.TraceConfig;
 import datadog.trace.api.TracePropagationStyle;
@@ -46,7 +48,17 @@ public class HttpCodec {
         final DDSpanContext context, final C carrier, final AgentPropagation.Setter<C> setter);
   }
 
+  /** This interface defines propagated context extractor. */
   public interface Extractor {
+    /**
+     * Extracts a propagated context from the given carrier using the provided getter.
+     *
+     * @param carrier The carrier containing the propagated context.
+     * @param getter The getter used to extract data from the carrier.
+     * @param <C> The type of the carrier.
+     * @return {@code null} for failed context extraction, a {@link TagContext} instance for partial
+     *     context extraction or an {@link ExtractedContext} for complete context extraction.
+     */
     <C> TagContext extract(final C carrier, final AgentPropagation.ContextVisitor<C> getter);
   }
 
@@ -136,7 +148,7 @@ public class HttpCodec {
           break;
       }
     }
-    return new CompoundExtractor(extractors);
+    return new CompoundExtractor(extractors, config.isTracePropagationExtractFirst());
   }
 
   public static class CompoundInjector implements Injector {
@@ -159,27 +171,58 @@ public class HttpCodec {
 
   public static class CompoundExtractor implements Extractor {
     private final List<Extractor> extractors;
+    private final boolean extractFirst;
 
-    public CompoundExtractor(final List<Extractor> extractors) {
+    public CompoundExtractor(final List<Extractor> extractors, boolean extractFirst) {
       this.extractors = extractors;
+      this.extractFirst = extractFirst;
     }
 
     @Override
     public <C> TagContext extract(
         final C carrier, final AgentPropagation.ContextVisitor<C> getter) {
-      TagContext context = null;
+      ExtractedContext context = null;
+      TagContext partialContext = null;
 
-      for (final Extractor extractor : extractors) {
-        context = extractor.extract(carrier, getter);
-        // Use incomplete TagContext only as last resort
-        if (context instanceof ExtractedContext) {
-          log.debug("Extract complete context {}", context);
-          return context;
+      for (final Extractor extractor : this.extractors) {
+        TagContext extracted = extractor.extract(carrier, getter);
+        // Check if context is valid
+        if (extracted instanceof ExtractedContext) {
+          // If no prior valid context, store it as first valid context
+          if (context == null) {
+            context = (ExtractedContext) extracted;
+            // Stop extraction if only extracting first valid context and drop everything else
+            if (this.extractFirst) {
+              break;
+            }
+          }
+          // If another valid context is extracted
+          else {
+            boolean comingFromTraceContext = extracted.getPropagationStyle() == TRACECONTEXT;
+            boolean traceIdMatches = context.getTraceId().equals(extracted.getTraceId());
+            if (comingFromTraceContext && traceIdMatches) {
+              // Propagate newly extracted W3C tracestate to first valid context
+              // TODO
+              //              context.
+            }
+          }
+        }
+        // Check if context is at least partial to keep it as first valid partial context found
+        else if (extracted != null && partialContext == null) {
+          partialContext = extracted;
         }
       }
 
-      log.debug("Extract incomplete context {}", context);
-      return context;
+      if (context != null) {
+        log.debug("Extract complete context {}", context);
+        return context;
+      } else if (partialContext != null) {
+        log.debug("Extract incomplete context {}", partialContext);
+        return partialContext;
+      } else {
+        log.debug("Extract no context");
+        return null;
+      }
     }
   }
 
