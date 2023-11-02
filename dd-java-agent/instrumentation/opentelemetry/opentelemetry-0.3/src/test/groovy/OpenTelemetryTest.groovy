@@ -1,4 +1,5 @@
 import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.api.DDSpanId
 import datadog.trace.api.DDTags
 import datadog.trace.api.DDTraceId
 import datadog.trace.api.interceptor.MutableSpan
@@ -270,13 +271,24 @@ class OpenTelemetryTest extends AgentTestRunner {
     httpPropagator.inject(context, textMap, new TextMapSetter())
 
     then:
+    def expectedTraceparent = "00-${span.delegate.traceId.toHexStringPadded(32)}" +
+      "-${DDSpanId.toHexStringPadded(span.delegate.spanId)}" +
+      "-" + (propagatedPriority > 0 ? "01" : "00")
+    def expectedTracestate = "dd=s:${propagatedPriority}"
+    def expectedDatadogTags = null
+    if (propagatedMechanism != UNKNOWN) {
+      expectedDatadogTags = "_dd.p.dm=-" + propagatedMechanism
+      expectedTracestate+= ";t.dm:-" + propagatedMechanism
+    }
     def expectedTextMap = [
       "x-datadog-trace-id"         : "$span.delegate.traceId",
       "x-datadog-parent-id"        : "$span.delegate.spanId",
       "x-datadog-sampling-priority": propagatedPriority.toString(),
+      "traceparent"                : expectedTraceparent,
+      "tracestate"                 : expectedTracestate,
     ]
-    if (propagatedMechanism != UNKNOWN) {
-      expectedTextMap.put("x-datadog-tags", "_dd.p.dm=-" + propagatedMechanism)
+    if (expectedDatadogTags != null) {
+      expectedTextMap.put("x-datadog-tags", expectedDatadogTags)
     }
     textMap == expectedTextMap
 

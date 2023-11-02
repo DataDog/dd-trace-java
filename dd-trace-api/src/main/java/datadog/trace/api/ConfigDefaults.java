@@ -1,8 +1,12 @@
 package datadog.trace.api;
 
-import java.util.Arrays;
+import static datadog.trace.api.TracePropagationStyle.DATADOG;
+import static datadog.trace.api.TracePropagationStyle.TRACECONTEXT;
+import static java.util.Arrays.asList;
+
 import java.util.BitSet;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.Set;
 
 public final class ConfigDefaults {
@@ -64,6 +68,10 @@ public final class ConfigDefaults {
   static final int DEFAULT_SCOPE_ITERATION_KEEP_ALIVE = 30; // in seconds
   static final int DEFAULT_PARTIAL_FLUSH_MIN_SPANS = 1000;
   static final boolean DEFAULT_PROPAGATION_EXTRACT_LOG_HEADER_NAMES_ENABLED = false;
+  static final Set<TracePropagationStyle> DEFAULT_TRACE_PROPAGATION_STYLE =
+      new LinkedHashSet<>(asList(DATADOG, TRACECONTEXT));
+  static final Set<PropagationStyle> DEFAULT_PROPAGATION_STYLE =
+      new LinkedHashSet<>(asList(PropagationStyle.DATADOG));
   static final boolean DEFAULT_JMX_FETCH_ENABLED = true;
   static final boolean DEFAULT_TRACE_AGENT_V05_ENABLED = false;
 
@@ -96,7 +104,7 @@ public final class ConfigDefaults {
   public static final int DEFAULT_IAST_VULNERABILITIES_PER_REQUEST = 2;
   public static final int DEFAULT_IAST_REQUEST_SAMPLING = 33;
   static final Set<String> DEFAULT_IAST_WEAK_HASH_ALGORITHMS =
-      new HashSet<>(Arrays.asList("SHA1", "SHA-1", "MD2", "MD5", "RIPEMD128", "MD4"));
+      new HashSet<>(asList("SHA1", "SHA-1", "MD2", "MD5", "RIPEMD128", "MD4"));
   static final String DEFAULT_IAST_WEAK_CIPHER_ALGORITHMS =
       "^(?:PBEWITH(?:HMACSHA(?:2(?:24ANDAES_(?:128|256)|56ANDAES_(?:128|256))|384ANDAES_(?:128|256)|512ANDAES_(?:128|256)|1ANDAES_(?:128|256))|SHA1AND(?:RC(?:2_(?:128|40)|4_(?:128|40))|DESEDE)|MD5AND(?:TRIPLEDES|DES))|DES(?:EDE(?:WRAP)?)?|BLOWFISH|ARCFOUR|RC2).*$";
   static final boolean DEFAULT_IAST_REDACTION_ENABLED = true;

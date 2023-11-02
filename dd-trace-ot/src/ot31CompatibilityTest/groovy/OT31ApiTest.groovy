@@ -1,4 +1,5 @@
 import datadog.opentracing.DDTracer
+import datadog.trace.api.DDSpanId
 import datadog.trace.api.DDTraceId
 import datadog.trace.api.internal.util.LongStringUtils
 import io.opentracing.util.ThreadLocalScopeManager
@@ -108,17 +109,27 @@ class OT31ApiTest extends DDSpecification {
     tracer.inject(context, Format.Builtin.TEXT_MAP, adapter)
 
     then:
+    def traceId = span.delegate.context.traceId as DDTraceId
+    def spanId = span.delegate.context.spanId
+    def expectedTraceparent = "00-${traceId.toHexStringPadded(32)}" +
+      "-${DDSpanId.toHexStringPadded(spanId)}" +
+      "-" + (propagatedPriority > 0 ? "01" : "00")
+    def expectedTracestate = "dd=s:${propagatedPriority}"
+    def effectiveSamplingMechanism = contextPriority == UNSET ? AGENT_RATE : samplingMechanism
+    if (propagatedPriority > 0) {
+      expectedTracestate+= ";t.dm:-" + effectiveSamplingMechanism
+    }
     def expectedTextMap = [
       "x-datadog-trace-id"         : context.toTraceId(),
       "x-datadog-parent-id"        : context.toSpanId(),
       "x-datadog-sampling-priority": propagatedPriority.toString(),
+      "traceparent"                : expectedTraceparent,
+      "tracestate"                 : expectedTracestate,
     ]
     def datadogTags = []
     if (propagatedPriority > 0) {
-      def effectiveSamplingMechanism = contextPriority == UNSET ? AGENT_RATE : samplingMechanism
       datadogTags << "_dd.p.dm=-$effectiveSamplingMechanism"
     }
-    def traceId = span.delegate.context.traceId as DDTraceId
     if (traceId.toHighOrderLong() != 0) {
       datadogTags << "_dd.p.tid=" + LongStringUtils.toHexStringPadded(traceId.toHighOrderLong(), 16)
     }
