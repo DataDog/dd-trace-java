@@ -82,7 +82,7 @@ abstract class DDCoreSpecification extends DDSpecification {
       ProfilingContextIntegration.NoOp.INSTANCE,
       true)
 
-    def span = DDSpan.create("test", timestamp, context)
+    def span = DDSpan.create("test", timestamp, context, null)
     for (Map.Entry<String, Object> e : tags.entrySet()) {
       span.setTag(e.key, e.value)
     }
