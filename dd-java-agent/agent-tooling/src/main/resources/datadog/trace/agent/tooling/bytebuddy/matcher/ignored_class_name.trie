@@ -192,6 +192,9 @@
 0 com.google.common.base.internal.Finalizer
 0 com.google.common.util.concurrent.*
 2 com.google.gson.*
+# Need for IAST: we instrument this class
+0 com.google.gson.Gson
+0 com.google.gson.stream.JsonReader
 2 com.google.inject.*
 # We instrument Runnable there
 0 com.google.inject.internal.AbstractBindingProcessor$*
