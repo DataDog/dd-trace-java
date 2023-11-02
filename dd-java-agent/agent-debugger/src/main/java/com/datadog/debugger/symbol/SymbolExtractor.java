@@ -43,8 +43,12 @@ public class SymbolExtractor {
         int localVarBaseSlot = extractArgs(method, methodSymbols, methodLineInfo.start);
         extractScopesFromVariables(
             sourceFile, method, methodLineInfo.lineMap, varScopes, localVarBaseSlot);
+        ScopeType methodScopeType = ScopeType.METHOD;
+        if (method.name.startsWith("lambda$")) {
+          methodScopeType = ScopeType.CLOSURE;
+        }
         Scope methodScope =
-            Scope.builder(ScopeType.METHOD, sourceFile, methodLineInfo.start, methodLineInfo.end)
+            Scope.builder(methodScopeType, sourceFile, methodLineInfo.start, methodLineInfo.end)
                 .name(method.name)
                 .scopes(varScopes)
                 .symbols(methodSymbols)

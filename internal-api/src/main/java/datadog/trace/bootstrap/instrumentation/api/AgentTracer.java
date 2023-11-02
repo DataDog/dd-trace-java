@@ -1020,7 +1020,10 @@ public class AgentTracer {
 
     @Override
     public void setCheckpoint(
-        AgentSpan span, LinkedHashMap<String, String> sortedTags, long defaultTimestamp) {}
+        AgentSpan span,
+        LinkedHashMap<String, String> sortedTags,
+        long defaultTimestamp,
+        long payloadSizeBytes) {}
 
     @Override
     public PathwayContext newPathwayContext() {
@@ -1051,6 +1054,13 @@ public class AgentTracer {
     public long getHash() {
       return 0L;
     }
+
+    @Override
+    public void setCheckpoint(
+        LinkedHashMap<String, String> sortedTags,
+        Consumer<StatsPoint> pointConsumer,
+        long defaultTimestamp,
+        long payloadSizeBytes) {}
 
     @Override
     public void setCheckpoint(

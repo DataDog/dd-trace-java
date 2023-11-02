@@ -53,18 +53,14 @@ public class IastRoutingContextImplInstrumentation extends Instrumenter.Iast
   }
 
   public static class CookiesAdvice {
-    @Advice.OnMethodExit
+    @Advice.OnMethodExit(suppress = Throwable.class)
     @Source(SourceTypes.REQUEST_COOKIE_VALUE)
     public static void onCookies(@Advice.Return final Set<Object> cookies) {
       final PropagationModule module = InstrumentationBridge.PROPAGATION;
       if (module != null && cookies != null && !cookies.isEmpty()) {
-        try {
-          final IastContext ctx = IastContext.Provider.get();
-          for (final Object cookie : cookies) {
-            module.taint(ctx, cookie, SourceTypes.REQUEST_COOKIE_VALUE);
-          }
-        } catch (final Throwable e) {
-          module.onUnexpectedException("cookies threw", e);
+        final IastContext ctx = IastContext.Provider.get();
+        for (final Object cookie : cookies) {
+          module.taint(ctx, cookie, SourceTypes.REQUEST_COOKIE_VALUE);
         }
       }
     }

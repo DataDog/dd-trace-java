@@ -107,7 +107,19 @@ public class TracingListener implements EngineExecutionListener {
   }
 
   private void testMethodExecutionStarted(TestDescriptor testDescriptor, MethodSource testSource) {
-    String testSuitName = testSource.getClassName();
+    TestDescriptor suiteDescriptor = getSuiteDescriptor(testDescriptor);
+
+    Class<?> testClass;
+    String testSuiteName;
+    if (suiteDescriptor != null) {
+      testClass = JUnitPlatformUtils.getJavaClass(suiteDescriptor);
+      testSuiteName =
+          testClass != null ? testClass.getName() : suiteDescriptor.getLegacyReportingName();
+    } else {
+      testClass = JUnitPlatformUtils.getTestClass(testSource);
+      testSuiteName = testSource.getClassName();
+    }
+
     String displayName = testDescriptor.getDisplayName();
     String testName = testSource.getMethodName();
 
@@ -115,12 +127,11 @@ public class TracingListener implements EngineExecutionListener {
     List<String> tags =
         testDescriptor.getTags().stream().map(TestTag::getName).collect(Collectors.toList());
 
-    Class<?> testClass = JUnitPlatformUtils.getTestClass(testSource);
     Method testMethod = JUnitPlatformUtils.getTestMethod(testSource);
     String testMethodName = testSource.getMethodName();
 
     TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestStart(
-        testSuitName,
+        testSuiteName,
         testName,
         null,
         testFramework,
@@ -144,8 +155,19 @@ public class TracingListener implements EngineExecutionListener {
       TestDescriptor testDescriptor,
       TestExecutionResult testExecutionResult,
       MethodSource testSource) {
-    String testSuiteName = testSource.getClassName();
-    Class<?> testClass = JUnitPlatformUtils.getTestClass(testSource);
+    TestDescriptor suiteDescriptor = getSuiteDescriptor(testDescriptor);
+
+    Class<?> testClass;
+    String testSuiteName;
+    if (suiteDescriptor != null) {
+      testClass = JUnitPlatformUtils.getJavaClass(suiteDescriptor);
+      testSuiteName =
+          testClass != null ? testClass.getName() : suiteDescriptor.getLegacyReportingName();
+    } else {
+      testClass = JUnitPlatformUtils.getTestClass(testSource);
+      testSuiteName = testSource.getClassName();
+    }
+
     String displayName = testDescriptor.getDisplayName();
     String testName = testSource.getMethodName();
     String testParameters = JUnitPlatformUtils.getParameters(testSource, displayName);
@@ -203,18 +225,29 @@ public class TracingListener implements EngineExecutionListener {
   }
 
   private void testMethodExecutionSkipped(
-      final TestDescriptor testDescriptor, final MethodSource methodSource, final String reason) {
-    String testSuiteName = methodSource.getClassName();
-    String displayName = testDescriptor.getDisplayName();
-    String testName = methodSource.getMethodName();
+      final TestDescriptor testDescriptor, final MethodSource testSource, final String reason) {
+    TestDescriptor suiteDescriptor = getSuiteDescriptor(testDescriptor);
 
-    String testParameters = JUnitPlatformUtils.getParameters(methodSource, displayName);
+    Class<?> testClass;
+    String testSuiteName;
+    if (suiteDescriptor != null) {
+      testClass = JUnitPlatformUtils.getJavaClass(suiteDescriptor);
+      testSuiteName =
+          testClass != null ? testClass.getName() : suiteDescriptor.getLegacyReportingName();
+    } else {
+      testClass = JUnitPlatformUtils.getTestClass(testSource);
+      testSuiteName = testSource.getClassName();
+    }
+
+    String displayName = testDescriptor.getDisplayName();
+    String testName = testSource.getMethodName();
+
+    String testParameters = JUnitPlatformUtils.getParameters(testSource, displayName);
     List<String> tags =
         testDescriptor.getTags().stream().map(TestTag::getName).collect(Collectors.toList());
 
-    Class<?> testClass = JUnitPlatformUtils.getTestClass(methodSource);
-    Method testMethod = JUnitPlatformUtils.getTestMethod(methodSource);
-    String testMethodName = methodSource.getMethodName();
+    Method testMethod = JUnitPlatformUtils.getTestMethod(testSource);
+    String testMethodName = testSource.getMethodName();
 
     TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestIgnore(
         testSuiteName,
@@ -228,5 +261,12 @@ public class TracingListener implements EngineExecutionListener {
         testMethodName,
         testMethod,
         reason);
+  }
+
+  private static TestDescriptor getSuiteDescriptor(TestDescriptor testDescriptor) {
+    while (testDescriptor != null && !JUnitPlatformUtils.isSuite(testDescriptor)) {
+      testDescriptor = testDescriptor.getParent().orElse(null);
+    }
+    return testDescriptor;
   }
 }

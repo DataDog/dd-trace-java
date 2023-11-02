@@ -1,38 +1,27 @@
 package datadog.telemetry;
 
-import datadog.telemetry.api.ConfigChange;
+import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
 import datadog.telemetry.api.DistributionSeries;
 import datadog.telemetry.api.Integration;
 import datadog.telemetry.api.LogMessage;
 import datadog.telemetry.api.Metric;
 import datadog.telemetry.api.RequestType;
 import datadog.telemetry.dependency.Dependency;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
+import datadog.trace.api.ConfigSetting;
 import java.util.Map;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
-import javax.annotation.Nullable;
-import okhttp3.HttpUrl;
-import okhttp3.OkHttpClient;
-import okhttp3.Request;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class TelemetryService {
+
   private static final Logger log = LoggerFactory.getLogger(TelemetryService.class);
-  private static final String API_ENDPOINT = "telemetry/proxy/api/v2/apmtelemetry";
 
-  private static final int MAX_ELEMENTS_PER_REQUEST = 100;
+  private static final long DEFAULT_MESSAGE_BYTES_SOFT_LIMIT = Math.round(5 * 1024 * 1024 * 0.75);
 
-  // https://github.com/DataDog/instrumentation-telemetry-api-docs/blob/main/GeneratedDocumentation/ApiDocs/v2/producing-telemetry.md#when-to-use-it-1
-  private static final int MAX_DEPENDENCIES_PER_REQUEST = 2000;
-
-  private final HttpClient httpClient;
-  private final int maxElementsPerReq;
-  private final int maxDepsPerReq;
-  private final BlockingQueue<ConfigChange> configurations = new LinkedBlockingQueue<>();
+  private final TelemetryRouter telemetryRouter;
+  private final BlockingQueue<ConfigSetting> configurations = new LinkedBlockingQueue<>();
   private final BlockingQueue<Integration> integrations = new LinkedBlockingQueue<>();
   private final BlockingQueue<Dependency> dependencies = new LinkedBlockingQueue<>();
   private final BlockingQueue<Metric> metrics =
@@ -43,9 +32,13 @@ public class TelemetryService {
   private final BlockingQueue<DistributionSeries> distributionSeries =
       new LinkedBlockingQueue<>(1024);
 
-  private final HttpUrl httpUrl;
+  private final ExtendedHeartbeatData extendedHeartbeatData = new ExtendedHeartbeatData();
+  private final EventSource.Queued eventSource =
+      new EventSource.Queued(
+          configurations, integrations, dependencies, metrics, distributionSeries, logMessages);
 
-  private boolean sentAppStarted;
+  private final long messageBytesSoftLimit;
+  private final boolean debug;
 
   /*
    * Keep track of Open Tracing and Open Telemetry integrations activation as they are mutually exclusive.
@@ -53,32 +46,32 @@ public class TelemetryService {
   private boolean openTracingIntegrationEnabled;
   private boolean openTelemetryIntegrationEnabled;
 
-  public TelemetryService(final OkHttpClient okHttpClient, final HttpUrl httpUrl) {
-    this(new HttpClient(okHttpClient), httpUrl);
-  }
-
-  public TelemetryService(final HttpClient httpClient, final HttpUrl httpUrl) {
-    this(httpClient, MAX_ELEMENTS_PER_REQUEST, MAX_DEPENDENCIES_PER_REQUEST, httpUrl);
+  public static TelemetryService build(
+      DDAgentFeaturesDiscovery ddAgentFeaturesDiscovery,
+      TelemetryClient agentClient,
+      TelemetryClient intakeClient,
+      boolean debug) {
+    TelemetryRouter telemetryRouter =
+        new TelemetryRouter(ddAgentFeaturesDiscovery, agentClient, intakeClient);
+    return new TelemetryService(telemetryRouter, DEFAULT_MESSAGE_BYTES_SOFT_LIMIT, debug);
   }
 
   // For testing purposes
   TelemetryService(
-      final HttpClient httpClient,
-      final int maxElementsPerReq,
-      final int maxDepsPerReq,
-      final HttpUrl agentUrl) {
-    this.httpClient = httpClient;
-    this.sentAppStarted = false;
+      final TelemetryRouter telemetryRouter,
+      final long messageBytesSoftLimit,
+      final boolean debug) {
+    this.telemetryRouter = telemetryRouter;
     this.openTracingIntegrationEnabled = false;
     this.openTelemetryIntegrationEnabled = false;
-    this.maxElementsPerReq = maxElementsPerReq;
-    this.maxDepsPerReq = maxDepsPerReq;
-    this.httpUrl = agentUrl.newBuilder().addPathSegments(API_ENDPOINT).build();
+    this.messageBytesSoftLimit = messageBytesSoftLimit;
+    this.debug = debug;
   }
 
-  public boolean addConfiguration(Map<String, Object> configuration) {
-    for (Map.Entry<String, Object> entry : configuration.entrySet()) {
-      if (!this.configurations.offer(new ConfigChange(entry.getKey(), entry.getValue()))) {
+  public boolean addConfiguration(Map<String, ConfigSetting> configuration) {
+    for (ConfigSetting cs : configuration.values()) {
+      extendedHeartbeatData.pushConfigSetting(cs);
+      if (!this.configurations.offer(cs)) {
         return false;
       }
     }
@@ -86,17 +79,21 @@ public class TelemetryService {
   }
 
   public boolean addDependency(Dependency dependency) {
+    extendedHeartbeatData.pushDependency(dependency);
     return this.dependencies.offer(dependency);
   }
 
   public boolean addIntegration(Integration integration) {
-    if ("opentelemetry-1".equals(integration.name) && integration.enabled) {
-      this.openTelemetryIntegrationEnabled = true;
-      warnAboutExclusiveIntegrations();
-    } else if ("opentracing".equals(integration.name) && integration.enabled) {
-      this.openTracingIntegrationEnabled = true;
+    if ("opentelemetry-1".equals(integration.name)) {
+      openTelemetryIntegrationEnabled = integration.enabled;
+    }
+    if ("opentracing".equals(integration.name)) {
+      openTracingIntegrationEnabled = integration.enabled;
+    }
+    if (openTelemetryIntegrationEnabled && openTracingIntegrationEnabled) {
       warnAboutExclusiveIntegrations();
     }
+    extendedHeartbeatData.pushIntegration(integration);
     return this.integrations.offer(integration);
   }
 
@@ -114,260 +111,131 @@ public class TelemetryService {
     return this.distributionSeries.offer(series);
   }
 
-  public void sendAppClosingRequest() {
-    RequestBuilder rb = new RequestBuilder(RequestType.APP_CLOSING, httpUrl);
-    rb.writeHeader();
-    rb.writeFooter();
-    Request request = rb.request();
-    httpClient.sendRequest(request);
-  }
-
-  public void sendIntervalRequests() {
-    final State state =
-        new State(
-            configurations, integrations, dependencies, metrics, distributionSeries, logMessages);
-    if (!sentAppStarted) {
-      RequestBuilder rb = new RequestBuilder(RequestType.APP_STARTED, httpUrl);
-      rb.writeHeader();
-      rb.writeConfigChangeEvent(state.configurations.getOrNull());
-      rb.writeIntegrationsEvent(state.integrations.get(maxElementsPerReq));
-      rb.writeDependenciesLoadedEvent(state.dependencies.get(maxElementsPerReq));
-      rb.writeFooter();
-      HttpClient.Result result = httpClient.sendRequest(rb.request());
-
-      if (result != HttpClient.Result.SUCCESS) {
-        // Do not send other telemetry messages unless app-started has been sent successfully.
-        state.rollback();
-        return;
-      }
-      sentAppStarted = true;
-      state.commit();
-      state.rollback();
-      // When app-started is sent, we do not send more messages until the next interval.
-      return;
-    }
-
-    {
-      RequestBuilder rb = new RequestBuilder(RequestType.APP_HEARTBEAT, httpUrl);
-      rb.writeHeader();
-      rb.writeFooter();
-      if (httpClient.sendRequest(rb.request()) == HttpClient.Result.NOT_FOUND) {
-        state.rollback();
-        return;
-      }
-    }
-
-    while (!state.configurations.isEmpty()) {
-      RequestBuilder rb = new RequestBuilder(RequestType.APP_CLIENT_CONFIGURATION_CHANGE, httpUrl);
-      rb.writeHeader();
-      rb.writeConfigChangeEvent(state.configurations.get(maxElementsPerReq));
-      rb.writeFooter();
-      HttpClient.Result result = httpClient.sendRequest(rb.request());
-      if (result == HttpClient.Result.SUCCESS) {
-        state.commit();
-      } else if (result == HttpClient.Result.NOT_FOUND) {
-        state.rollback();
-        return;
-      } else {
-        state.configurations.rollback();
-        break;
-      }
-    }
-
-    while (!state.integrations.isEmpty()) {
-      RequestBuilder rb = new RequestBuilder(RequestType.APP_INTEGRATIONS_CHANGE, httpUrl);
-      rb.writeHeader();
-      rb.writeIntegrationsEvent(state.integrations.get(maxElementsPerReq));
-      rb.writeFooter();
-      HttpClient.Result result = httpClient.sendRequest(rb.request());
-      if (result == HttpClient.Result.SUCCESS) {
-        state.commit();
-      } else if (result == HttpClient.Result.NOT_FOUND) {
-        state.rollback();
-        return;
-      } else {
-        state.integrations.rollback();
-        break;
-      }
-    }
-
-    while (!state.dependencies.isEmpty()) {
-      RequestBuilder rb = new RequestBuilder(RequestType.APP_DEPENDENCIES_LOADED, httpUrl);
-      rb.writeHeader();
-      rb.writeDependenciesLoadedEvent(state.dependencies.get(maxDepsPerReq));
-      rb.writeFooter();
-      HttpClient.Result result = httpClient.sendRequest(rb.request());
-      if (result == HttpClient.Result.SUCCESS) {
-        state.commit();
-      } else if (result == HttpClient.Result.NOT_FOUND) {
-        state.rollback();
-        return;
-      } else {
-        state.dependencies.rollback();
-        break;
-      }
-    }
-
-    while (!state.metrics.isEmpty()) {
-      RequestBuilder rb = new RequestBuilder(RequestType.GENERATE_METRICS, httpUrl);
-      rb.writeHeader();
-      rb.writeMetrics(state.metrics.get(maxElementsPerReq));
-      rb.writeFooter();
-      HttpClient.Result result = httpClient.sendRequest(rb.request());
-      if (result == HttpClient.Result.SUCCESS) {
-        state.commit();
-      } else if (result == HttpClient.Result.NOT_FOUND) {
-        state.rollback();
-        return;
-      } else {
-        state.metrics.rollback();
-        break;
-      }
-    }
-
-    while (!state.distributionSeries.isEmpty()) {
-      RequestBuilder rb = new RequestBuilder(RequestType.DISTRIBUTIONS, httpUrl);
-      rb.writeHeader();
-      rb.writeDistributionsEvent(state.distributionSeries.get(maxElementsPerReq));
-      rb.writeFooter();
-      HttpClient.Result result = httpClient.sendRequest(rb.request());
-      if (result == HttpClient.Result.SUCCESS) {
-        state.commit();
-      } else if (result == HttpClient.Result.NOT_FOUND) {
-        state.rollback();
-        return;
-      } else {
-        state.distributionSeries.rollback();
-        break;
-      }
-    }
-
-    while (!state.logMessages.isEmpty()) {
-
-      RequestBuilder rb = new RequestBuilder(RequestType.LOGS, httpUrl);
-      rb.writeHeader();
-      rb.writeLogsEvent(state.logMessages.get(maxElementsPerReq));
-      rb.writeFooter();
-      HttpClient.Result result = httpClient.sendRequest(rb.request());
-
-      if (result == HttpClient.Result.SUCCESS) {
-        state.commit();
-      } else if (result == HttpClient.Result.NOT_FOUND) {
-        state.rollback();
-        return;
-      } else {
-        state.logMessages.rollback();
-        break;
-      }
+  public void sendAppClosingEvent() {
+    TelemetryRequest telemetryRequest =
+        new TelemetryRequest(
+            this.eventSource,
+            EventSink.NOOP,
+            messageBytesSoftLimit,
+            RequestType.APP_CLOSING,
+            debug);
+    if (telemetryRouter.sendRequest(telemetryRequest) != TelemetryClient.Result.SUCCESS) {
+      log.warn("Couldn't send app-closing event!");
     }
   }
 
-  private void warnAboutExclusiveIntegrations() {
-    if (this.openTelemetryIntegrationEnabled && this.openTracingIntegrationEnabled) {
-      log.warn(
-          "Both Open Tracing and Open Telemetry integrations are enabled but mutually exclusive. Tracing performance can be degraded.");
+  // keeps track of unsent events from the previous attempt
+  private BufferedEvents bufferedEvents;
+
+  /** @return true - if an app-started event has been successfully sent, false - otherwise */
+  public boolean sendAppStartedEvent() {
+    EventSource eventSource;
+    EventSink eventSink;
+    if (bufferedEvents == null) {
+      eventSource = this.eventSource;
+    } else {
+      log.debug(
+          "Sending buffered telemetry events that couldn't have been sent on previous attempt");
+      eventSource = bufferedEvents;
     }
+    // use a buffer as a sink, so we can retry on the next attempt in case of a request failure
+    bufferedEvents = new BufferedEvents();
+    eventSink = bufferedEvents;
+
+    log.debug("Preparing app-started request");
+    TelemetryRequest request =
+        new TelemetryRequest(
+            eventSource, eventSink, messageBytesSoftLimit, RequestType.APP_STARTED, debug);
+    request.writeProducts();
+    request.writeConfigurations();
+    if (telemetryRouter.sendRequest(request) == TelemetryClient.Result.SUCCESS) {
+      // discard already sent buffered event on the successful attempt
+      bufferedEvents = null;
+      return true;
+    }
+    return false;
   }
 
-  private static class StateList<T> {
-    private final BlockingQueue<T> queue;
-    private List<T> batch;
-    private int consumed;
-
-    public StateList(final BlockingQueue<T> queue) {
-      this.queue = queue;
-      final int size = queue.size();
-      this.batch = new ArrayList<>(size);
-      queue.drainTo(this.batch);
-      this.consumed = 0;
+  /**
+   * @return true - only part of data has been sent because of the request size limit false - all
+   *     data has been sent, or it has failed sending a request
+   */
+  public boolean sendTelemetryEvents() {
+    EventSource eventSource;
+    EventSink eventSink;
+    if (bufferedEvents == null) {
+      log.debug("Sending telemetry events");
+      eventSource = this.eventSource;
+      // use a buffer as a sink, so we can retry on the next attempt in case of a request failure
+      bufferedEvents = new BufferedEvents();
+      eventSink = bufferedEvents;
+    } else {
+      log.debug(
+          "Sending buffered telemetry events that couldn't have been sent on previous attempt");
+      eventSource = bufferedEvents;
+      eventSink = EventSink.NOOP; // TODO collect metrics for unsent events
+    }
+    TelemetryRequest request;
+    boolean isMoreDataAvailable = false;
+    if (eventSource.isEmpty()) {
+      log.debug("Preparing app-heartbeat request");
+      request =
+          new TelemetryRequest(
+              eventSource, eventSink, messageBytesSoftLimit, RequestType.APP_HEARTBEAT, debug);
+    } else {
+      log.debug("Preparing message-batch request");
+      request =
+          new TelemetryRequest(
+              eventSource, eventSink, messageBytesSoftLimit, RequestType.MESSAGE_BATCH, debug);
+      request.writeHeartbeat();
+      request.writeConfigurations();
+      request.writeIntegrations();
+      request.writeDependencies();
+      request.writeMetrics();
+      request.writeDistributions();
+      request.writeLogs();
+      isMoreDataAvailable = !this.eventSource.isEmpty();
     }
 
-    public boolean isEmpty() {
-      return consumed >= batch.size();
-    }
-
-    @Nullable
-    public List<T> getOrNull() {
-      final List<T> result = get();
-      if (result.isEmpty()) {
-        return null;
+    TelemetryClient.Result result = telemetryRouter.sendRequest(request);
+    if (result == TelemetryClient.Result.SUCCESS) {
+      log.debug("Telemetry request has been sent successfully.");
+      bufferedEvents = null;
+      return isMoreDataAvailable;
+    } else {
+      log.debug("Telemetry request has failed: {}", result);
+      if (eventSource == bufferedEvents) {
+        // TODO report metrics for discarded events
+        bufferedEvents = null;
       }
-      return result;
     }
-
-    public List<T> get() {
-      return get(batch.size());
-    }
-
-    public List<T> get(final int maxSize) {
-      if (consumed >= batch.size()) {
-        return Collections.emptyList();
-      }
-      final int toIndex = Math.min(batch.size(), consumed + maxSize);
-      final List<T> result = batch.subList(consumed, toIndex);
-      consumed += result.size();
-      return result;
-    }
-
-    public void commit() {
-      if (consumed >= batch.size()) {
-        batch = Collections.emptyList();
-      } else {
-        batch = batch.subList(consumed, batch.size());
-      }
-      consumed = 0;
-    }
-
-    public void rollback() {
-      for (final T element : batch) {
-        // Ignore result, if the queue is full, we'll just lose data.
-        // TODO: Emit a metric when data is lost.
-        queue.offer(element);
-      }
-      batch = Collections.emptyList();
-      consumed = 0;
-    }
+    return false;
   }
 
-  private static class State {
-    private final StateList<ConfigChange> configurations;
-    private final StateList<Integration> integrations;
-    private final StateList<Dependency> dependencies;
-    private final StateList<Metric> metrics;
-    private final StateList<DistributionSeries> distributionSeries;
-    private final StateList<LogMessage> logMessages;
+  /** @return true - if extended heartbeat request sent successfully, otherwise false */
+  public boolean sendExtendedHeartbeat() {
+    log.debug("Preparing message-batch request");
+    EventSource extendedHeartbeatDataSnapshot = extendedHeartbeatData.snapshot();
+    TelemetryRequest request =
+        new TelemetryRequest(
+            extendedHeartbeatDataSnapshot,
+            EventSink.NOOP,
+            messageBytesSoftLimit,
+            RequestType.APP_EXTENDED_HEARTBEAT,
+            debug);
+    request.writeConfigurations();
+    request.writeDependencies();
+    request.writeIntegrations();
 
-    public State(
-        BlockingQueue<ConfigChange> configurations,
-        BlockingQueue<Integration> integrations,
-        BlockingQueue<Dependency> dependencies,
-        BlockingQueue<Metric> metrics,
-        BlockingQueue<DistributionSeries> distributionSeries,
-        BlockingQueue<LogMessage> logMessages) {
-      this.configurations = new StateList<>(configurations);
-      this.integrations = new StateList<>(integrations);
-      this.dependencies = new StateList<>(dependencies);
-      this.metrics = new StateList<>(metrics);
-      this.distributionSeries = new StateList<>(distributionSeries);
-      this.logMessages = new StateList<>(logMessages);
+    TelemetryClient.Result result = telemetryRouter.sendRequest(request);
+    if (!extendedHeartbeatDataSnapshot.isEmpty()) {
+      log.warn("Telemetry Extended Heartbeat data does NOT fit in one request.");
     }
+    return result == TelemetryClient.Result.SUCCESS;
+  }
 
-    public void rollback() {
-      this.configurations.rollback();
-      this.integrations.rollback();
-      this.dependencies.rollback();
-      this.metrics.rollback();
-      this.distributionSeries.rollback();
-      this.logMessages.rollback();
-    }
-
-    public void commit() {
-      this.configurations.commit();
-      this.integrations.commit();
-      this.dependencies.commit();
-      this.metrics.commit();
-      this.distributionSeries.commit();
-      this.logMessages.commit();
-    }
+  void warnAboutExclusiveIntegrations() {
+    log.warn(
+        "Both OpenTracing and OpenTelemetry integrations are enabled but mutually exclusive. Tracing performance can be degraded.");
   }
 }

@@ -363,4 +363,30 @@ final class ConfigConverter {
       }
     }
   }
+
+  public static String renderIntegerRange(BitSet bitset) {
+    StringBuilder sb = new StringBuilder();
+    int start = 0;
+    while (true) {
+      start = bitset.nextSetBit(start);
+      if (start < 0) {
+        break;
+      }
+      int end = bitset.nextClearBit(start);
+      if (sb.length() > 0) {
+        sb.append(',');
+      }
+      if (start < end - 1) {
+        // interval
+        sb.append(start);
+        sb.append('-');
+        sb.append(end);
+      } else {
+        // single value
+        sb.append(start);
+      }
+      start = end;
+    }
+    return sb.toString();
+  }
 }
