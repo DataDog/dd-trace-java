@@ -66,15 +66,20 @@ class SparkConfAllowList {
               "spark.databricks.clusterUsageTags.sparkVersion",
               "spark.databricks.clusterUsageTags.workerEnvironmentId",
               "spark.databricks.env",
+              "spark.databricks.job.parentRunId",
               "spark.databricks.job.type",
               "spark.databricks.sparkContextId",
+              "spark.databricks.workload.name",
               "spark.job.description",
               "spark.jobGroup.id",
               "spark.sql.execution.id",
+              "sql.streaming.queryId",
+              "streaming.sql.batchId",
               "user"));
 
   public static boolean canCaptureApplicationParameter(String parameterName) {
-    return allowedApplicationParams.contains(parameterName);
+    return allowedApplicationParams.contains(parameterName)
+        || allowedJobParams.contains(parameterName);
   }
 
   public static boolean canCaptureJobParameter(String parameterName) {

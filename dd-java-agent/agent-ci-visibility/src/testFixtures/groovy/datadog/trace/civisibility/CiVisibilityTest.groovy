@@ -2,26 +2,26 @@ package datadog.trace.civisibility
 
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.agent.test.asserts.TraceAssert
-import datadog.trace.civisibility.coverage.NoopCoverageProbeStore
 import datadog.trace.api.Config
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.DDTags
 import datadog.trace.api.civisibility.InstrumentationBridge
 import datadog.trace.api.civisibility.config.ModuleExecutionSettings
 import datadog.trace.api.civisibility.config.SkippableTest
-import datadog.trace.api.civisibility.source.SourcePathResolver
 import datadog.trace.api.config.CiVisibilityConfig
 import datadog.trace.api.config.GeneralConfig
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.civisibility.codeowners.Codeowners
 import datadog.trace.civisibility.config.JvmInfoFactory
 import datadog.trace.civisibility.config.ModuleExecutionSettingsFactory
+import datadog.trace.civisibility.coverage.NoopCoverageProbeStore
 import datadog.trace.civisibility.decorator.TestDecorator
 import datadog.trace.civisibility.decorator.TestDecoratorImpl
 import datadog.trace.civisibility.events.BuildEventsHandlerImpl
 import datadog.trace.civisibility.events.TestEventsHandlerImpl
 import datadog.trace.civisibility.ipc.SignalServer
 import datadog.trace.civisibility.source.MethodLinesResolver
+import datadog.trace.civisibility.source.SourcePathResolver
 import datadog.trace.civisibility.source.index.RepoIndexBuilder
 import datadog.trace.core.DDSpan
 import datadog.trace.util.Strings
@@ -30,6 +30,7 @@ import spock.lang.Unroll
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
+import java.util.regex.Pattern
 
 @Unroll
 abstract class CiVisibilityTest extends AgentTestRunner {
@@ -43,10 +44,12 @@ abstract class CiVisibilityTest extends AgentTestRunner {
   static final int DUMMY_TEST_METHOD_START = 12
   static final int DUMMY_TEST_METHOD_END = 18
   static final Collection<String> DUMMY_CODE_OWNERS = ["owner1", "owner2"]
+  static final Pattern ANY_MESSAGE = Pattern.compile(".*")
 
   private static Path agentKeyFile
 
   private static final List<SkippableTest> skippableTests = new ArrayList<>()
+  private static volatile boolean itrEnabled = false
 
   def setupSpec() {
     def currentPath = Paths.get("").toAbsolutePath()
@@ -65,19 +68,45 @@ abstract class CiVisibilityTest extends AgentTestRunner {
     def moduleExecutionSettingsFactory = Stub(ModuleExecutionSettingsFactory)
     moduleExecutionSettingsFactory.create(_, _) >> {
       Map<String, String> properties = [
-        (CiVisibilityConfig.CIVISIBILITY_ITR_ENABLED) : String.valueOf(!skippableTests.isEmpty())
+        (CiVisibilityConfig.CIVISIBILITY_ITR_ENABLED): String.valueOf(itrEnabled)
       ]
-      return new ModuleExecutionSettings(properties, Collections.singletonMap(dummyModule, skippableTests))
+      return new ModuleExecutionSettings(false, itrEnabled, properties, Collections.singletonMap(dummyModule, skippableTests), Collections.emptyList())
     }
 
-    DDTestSessionImpl.SessionImplFactory sessionFactory = (String projectName, Path projectRoot, String component, Long startTime) -> {
+    def coverageProbeStoreFactory = new NoopCoverageProbeStore.NoopCoverageProbeStoreFactory()
+    DDTestFrameworkSession.Factory testFrameworkSessionFactory = (String projectName, Path projectRoot, String component, Long startTime) -> {
+      def ciTags = [(DUMMY_CI_TAG): DUMMY_CI_TAG_VALUE]
+      TestDecorator testDecorator = new TestDecoratorImpl(component, ciTags)
+      return new DDTestFrameworkSessionImpl(
+      projectName,
+      startTime,
+      Config.get(),
+      testDecorator,
+      sourcePathResolver,
+      codeowners,
+      methodLinesResolver,
+      coverageProbeStoreFactory,
+      moduleExecutionSettingsFactory,
+      )
+    }
+
+    InstrumentationBridge.registerTestEventsHandlerFactory {
+      component, path ->
+      DDTestFrameworkSession testSession = testFrameworkSessionFactory.startSession(dummyModule, path, component, null)
+      DDTestFrameworkModule testModule = testSession.testModuleStart(dummyModule, null)
+      new TestEventsHandlerImpl(testSession, testModule)
+    }
+
+    DDBuildSystemSession.Factory buildSystemSessionFactory = (String projectName, Path projectRoot, String startCommand, String component, Long startTime) -> {
       def ciTags = [(DUMMY_CI_TAG): DUMMY_CI_TAG_VALUE]
       TestDecorator testDecorator = new TestDecoratorImpl(component, ciTags)
       TestModuleRegistry testModuleRegistry = new TestModuleRegistry()
       SignalServer signalServer = new SignalServer()
       RepoIndexBuilder repoIndexBuilder = Stub(RepoIndexBuilder)
-      return new DDTestSessionParent(
+      return new DDBuildSystemSessionImpl(
       projectName,
+      rootPath.toString(),
+      startCommand,
       startTime,
       Config.get(),
       testModuleRegistry,
@@ -86,32 +115,28 @@ abstract class CiVisibilityTest extends AgentTestRunner {
       codeowners,
       methodLinesResolver,
       moduleExecutionSettingsFactory,
+      coverageProbeStoreFactory,
       signalServer,
       repoIndexBuilder
       )
     }
 
-    InstrumentationBridge.registerTestEventsHandlerFactory {
-      component, path ->
-      DDTestSessionImpl testSession = sessionFactory.startSession(dummyModule, path, component, null)
-      DDTestModuleImpl testModule = testSession.testModuleStart(dummyModule, null)
-      new TestEventsHandlerImpl(testSession, testModule)
-    }
-
     InstrumentationBridge.registerBuildEventsHandlerFactory {
-      decorator -> new BuildEventsHandlerImpl<>(sessionFactory, new JvmInfoFactory())
+      decorator -> new BuildEventsHandlerImpl<>(buildSystemSessionFactory, new JvmInfoFactory())
     }
 
-    InstrumentationBridge.registerCoverageProbeStoreFactory(new NoopCoverageProbeStore.NoopCoverageProbeStoreFactory())
+    InstrumentationBridge.registerCoverageProbeStoreRegistry(coverageProbeStoreFactory)
   }
 
   @Override
   void setup() {
     skippableTests.clear()
+    itrEnabled = false
   }
 
   def givenSkippableTests(List<SkippableTest> tests) {
     skippableTests.addAll(tests)
+    itrEnabled = true
   }
 
   @Override
@@ -137,7 +162,8 @@ abstract class CiVisibilityTest extends AgentTestRunner {
   final String resource = null,
   final String testCommand = null,
   final String testToolchain = null,
-  final Throwable exception = null) {
+  final Throwable exception = null,
+  final boolean verifyExceptionMessage = true) {
     def testFramework = expectedTestFramework()
     def testFrameworkVersion = expectedTestFrameworkVersion()
 
@@ -157,6 +183,9 @@ abstract class CiVisibilityTest extends AgentTestRunner {
         "$Tags.TEST_TYPE" TestDecorator.TEST_TYPE
         if (testCommand) {
           "$Tags.TEST_COMMAND" testCommand
+        } else {
+          // the default command for sessions that run without build system instrumentation
+          "$Tags.TEST_COMMAND" dummyModule
         }
         if (testToolchain) {
           "$Tags.TEST_TOOLCHAIN" testToolchain
@@ -171,7 +200,11 @@ abstract class CiVisibilityTest extends AgentTestRunner {
         }
 
         if (exception) {
-          errorTags(exception.class, exception.message)
+          if (verifyExceptionMessage) {
+            errorTags(exception.class, exception.message)
+          } else {
+            errorTags(exception.class, ANY_MESSAGE)
+          }
         }
 
         "$DUMMY_CI_TAG" DUMMY_CI_TAG_VALUE
@@ -199,7 +232,8 @@ abstract class CiVisibilityTest extends AgentTestRunner {
   final String testStatus,
   final Map<String, Object> testTags = null,
   final Throwable exception = null,
-  final String resource = null) {
+  final String resource = null,
+  final boolean verifyExceptionMessage = true) {
     def testFramework = expectedTestFramework()
     def testFrameworkVersion = expectedTestFrameworkVersion()
 
@@ -228,7 +262,11 @@ abstract class CiVisibilityTest extends AgentTestRunner {
         }
 
         if (exception) {
-          errorTags(exception.class, exception.message)
+          if (verifyExceptionMessage) {
+            errorTags(exception.class, exception.message)
+          } else {
+            errorTags(exception.class, ANY_MESSAGE)
+          }
         }
 
         "$DUMMY_CI_TAG" DUMMY_CI_TAG_VALUE
@@ -329,7 +367,7 @@ abstract class CiVisibilityTest extends AgentTestRunner {
     return testSuiteId
   }
 
-  void testSpan(final TraceAssert trace,
+  long testSpan(final TraceAssert trace,
   final int index,
   final Long testSessionId,
   final Long testModuleId,
@@ -342,11 +380,15 @@ abstract class CiVisibilityTest extends AgentTestRunner {
   final Throwable exception = null,
   final boolean emptyDuration = false,
   final Collection<String> categories = null,
-  final boolean sourceFilePresent = true) {
+  final boolean sourceFilePresent = true,
+  final boolean sourceMethodPresent = true) {
     def testFramework = expectedTestFramework()
     def testFrameworkVersion = expectedTestFrameworkVersion()
 
+    def testId
     trace.span(index) {
+      testId = span.getSpanId()
+
       parent()
       operationName expectedOperationPrefix() + ".test"
       resourceName "$testSuite.$testName"
@@ -376,10 +418,13 @@ abstract class CiVisibilityTest extends AgentTestRunner {
 
         if (sourceFilePresent) {
           "$Tags.TEST_SOURCE_FILE" DUMMY_SOURCE_PATH
+          "$Tags.TEST_CODEOWNERS" Strings.toJson(DUMMY_CODE_OWNERS)
+        }
+
+        if (sourceMethodPresent) {
           "$Tags.TEST_SOURCE_METHOD" testMethod
           "$Tags.TEST_SOURCE_START" DUMMY_TEST_METHOD_START
           "$Tags.TEST_SOURCE_END" DUMMY_TEST_METHOD_END
-          "$Tags.TEST_CODEOWNERS" Strings.toJson(DUMMY_CODE_OWNERS)
         }
 
         if (exception) {
@@ -404,6 +449,7 @@ abstract class CiVisibilityTest extends AgentTestRunner {
         defaultTags()
       }
     }
+    return testId
   }
 
   String component = component()

@@ -5,6 +5,7 @@ import static com.datadog.debugger.el.PrettyPrintVisitor.print;
 import static org.junit.jupiter.api.Assertions.*;
 
 import com.datadog.debugger.el.DSL;
+import com.datadog.debugger.el.EvaluationException;
 import com.datadog.debugger.el.RefResolverHelper;
 import com.datadog.debugger.el.Value;
 import datadog.trace.bootstrap.debugger.el.ValueReferenceResolver;
@@ -98,5 +99,25 @@ class ValueRefExpressionTest {
         assertThrows(RuntimeException.class, () -> invalidExpression.evaluate(resolver).getValue());
     assertEquals("Cannot find synthetic var: invalid", runtimeException.getMessage());
     assertEquals("@invalid", print(invalidExpression));
+  }
+
+  @Test
+  public void redacted() {
+    ValueRefExpression valueRef = new ValueRefExpression("password");
+    class StoreSecret {
+      String password;
+
+      public StoreSecret(String password) {
+        this.password = password;
+      }
+    }
+    StoreSecret instance = new StoreSecret("secret123");
+    EvaluationException evaluationException =
+        assertThrows(
+            EvaluationException.class,
+            () -> valueRef.evaluate(RefResolverHelper.createResolver(instance)));
+    assertEquals(
+        "Could not evaluate the expression because 'password' was redacted",
+        evaluationException.getMessage());
   }
 }

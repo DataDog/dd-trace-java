@@ -1,5 +1,6 @@
 package org.glassfish.jersey.client;
 
+import datadog.trace.api.Config;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.instrumentation.jaxrs.ClientTracingFilter;
 import javax.ws.rs.ProcessingException;
@@ -30,8 +31,12 @@ public final class WrappingResponseCallback implements ResponseCallback {
     final Object prop = request.getProperty(ClientTracingFilter.SPAN_PROPERTY_NAME);
     if (prop instanceof AgentSpan) {
       final AgentSpan span = (AgentSpan) prop;
-      span.setError(true);
       span.addThrowable(error);
+
+      @SuppressWarnings("deprecation")
+      final boolean isJaxRsExceptionAsErrorEnabled = Config.get().isJaxRsExceptionAsErrorEnabled();
+      span.setError(isJaxRsExceptionAsErrorEnabled);
+
       span.finish();
     }
   }

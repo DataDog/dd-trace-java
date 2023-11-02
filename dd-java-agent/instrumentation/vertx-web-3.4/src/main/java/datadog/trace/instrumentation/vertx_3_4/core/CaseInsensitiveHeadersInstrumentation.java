@@ -13,11 +13,13 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.bytebuddy.iast.TaintableVisitor;
 import datadog.trace.agent.tooling.muzzle.Reference;
+import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Source;
 import datadog.trace.api.iast.SourceTypes;
 import datadog.trace.api.iast.propagation.PropagationModule;
 import java.util.Collection;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -73,71 +75,74 @@ public class CaseInsensitiveHeadersInstrumentation extends Instrumenter.Iast
   }
 
   public static class GetAdvice {
-    @Advice.OnMethodExit
-    @Source(SourceTypes.REQUEST_PARAMETER_VALUE_STRING)
+    @Advice.OnMethodExit(suppress = Throwable.class)
+    @Source(SourceTypes.REQUEST_PARAMETER_VALUE)
     public static void afterGet(
         @Advice.This final Object self,
         @Advice.Argument(0) final String name,
         @Advice.Return final String result) {
       final PropagationModule propagation = InstrumentationBridge.PROPAGATION;
       if (propagation != null) {
-        try {
-          propagation.taintIfInputIsTainted(
-              SourceTypes.REQUEST_PARAMETER_VALUE, name, result, self);
-        } catch (final Throwable e) {
-          propagation.onUnexpectedException("get threw", e);
-        }
+        propagation.taintIfTainted(result, self, SourceTypes.REQUEST_PARAMETER_VALUE, name);
       }
     }
   }
 
   public static class GetAllAdvice {
-    @Advice.OnMethodExit
-    @Source(SourceTypes.REQUEST_PARAMETER_VALUE_STRING)
+    @Advice.OnMethodExit(suppress = Throwable.class)
+    @Source(SourceTypes.REQUEST_PARAMETER_VALUE)
     public static void afterGetAll(
         @Advice.This final Object self,
         @Advice.Argument(0) final String name,
         @Advice.Return final Collection<String> result) {
       final PropagationModule propagation = InstrumentationBridge.PROPAGATION;
-      if (propagation != null) {
-        try {
-          propagation.taintIfInputIsTainted(
-              SourceTypes.REQUEST_PARAMETER_VALUE, name, result, self);
-        } catch (final Throwable e) {
-          propagation.onUnexpectedException("getAll threw", e);
+      if (propagation != null && result != null && !result.isEmpty()) {
+        if (propagation.isTainted(self)) {
+          final IastContext ctx = IastContext.Provider.get();
+          for (final String value : result) {
+            propagation.taint(ctx, value, SourceTypes.REQUEST_PARAMETER_VALUE, name);
+          }
         }
       }
     }
   }
 
   public static class EntriesAdvice {
-    @Advice.OnMethodExit
-    @Source(SourceTypes.REQUEST_PARAMETER_VALUE_STRING)
+    @Advice.OnMethodExit(suppress = Throwable.class)
+    @Source(SourceTypes.REQUEST_PARAMETER_VALUE)
     public static void afterEntries(
         @Advice.This final Object self,
         @Advice.Return final List<Map.Entry<String, String>> result) {
       final PropagationModule propagation = InstrumentationBridge.PROPAGATION;
-      if (propagation != null) {
-        try {
-          propagation.taintIfInputIsTainted(SourceTypes.REQUEST_PARAMETER_VALUE, result, self);
-        } catch (final Throwable e) {
-          propagation.onUnexpectedException("entries threw", e);
+      if (propagation != null && result != null && !result.isEmpty()) {
+        if (propagation.isTainted(self)) {
+          final IastContext ctx = IastContext.Provider.get();
+          final Set<String> names = new HashSet<>();
+          for (final Map.Entry<String, String> entry : result) {
+            final String name = entry.getKey();
+            final String value = entry.getValue();
+            if (names.add(name)) {
+              propagation.taint(ctx, name, SourceTypes.REQUEST_PARAMETER_NAME, name);
+            }
+            propagation.taint(ctx, value, SourceTypes.REQUEST_PARAMETER_VALUE, name);
+          }
         }
       }
     }
   }
 
   public static class NamesAdvice {
-    @Advice.OnMethodExit
-    @Source(SourceTypes.REQUEST_PARAMETER_NAME_STRING)
+    @Advice.OnMethodExit(suppress = Throwable.class)
+    @Source(SourceTypes.REQUEST_PARAMETER_NAME)
     public static void afterNames(
         @Advice.This final Object self, @Advice.Return final Set<String> result) {
       final PropagationModule propagation = InstrumentationBridge.PROPAGATION;
-      if (propagation != null) {
-        try {
-          propagation.taintIfInputIsTainted(SourceTypes.REQUEST_PARAMETER_NAME, result, self);
-        } catch (final Throwable e) {
-          propagation.onUnexpectedException("names threw", e);
+      if (propagation != null && result != null && !result.isEmpty()) {
+        if (propagation.isTainted(self)) {
+          final IastContext ctx = IastContext.Provider.get();
+          for (final String name : result) {
+            propagation.taint(ctx, name, SourceTypes.REQUEST_PARAMETER_NAME, name);
+          }
         }
       }
     }

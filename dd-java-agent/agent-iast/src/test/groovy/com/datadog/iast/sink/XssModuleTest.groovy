@@ -5,6 +5,7 @@ import com.datadog.iast.IastRequestContext
 import com.datadog.iast.model.Source
 import com.datadog.iast.model.Vulnerability
 import com.datadog.iast.model.VulnerabilityType
+import com.datadog.iast.taint.Ranges
 import datadog.trace.api.gateway.RequestContext
 import datadog.trace.api.gateway.RequestContextSlot
 import datadog.trace.api.iast.SourceTypes
@@ -12,7 +13,7 @@ import datadog.trace.api.iast.VulnerabilityMarks
 import datadog.trace.api.iast.sink.XssModule
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 
-import static com.datadog.iast.model.Range.NOT_MARKED
+import static datadog.trace.api.iast.VulnerabilityMarks.NOT_MARKED
 import static com.datadog.iast.taint.TaintUtils.addFromTaintFormat
 import static com.datadog.iast.taint.TaintUtils.taintFormat
 
@@ -25,7 +26,7 @@ class XssModuleTest extends IastModuleImplTestBase {
   private IastRequestContext ctx
 
   def setup() {
-    module = registerDependencies(new XssModuleImpl())
+    module = new XssModuleImpl(dependencies)
     objectHolder = []
     ctx = new IastRequestContext()
     final reqCtx = Mock(RequestContext) {
@@ -65,7 +66,7 @@ class XssModuleTest extends IastModuleImplTestBase {
   void 'module detects char[] XSS'() {
     setup:
     if (tainted) {
-      ctx.taintedObjects.taintInputObject(buf, new Source(SourceTypes.NONE, '', ''), mark)
+      ctx.taintedObjects.taint(buf, Ranges.forObject(new Source(SourceTypes.NONE, '', ''), mark))
     }
 
     when:
@@ -117,6 +118,54 @@ class XssModuleTest extends IastModuleImplTestBase {
     '/==>var<==' | ['==>a<==', '==>b<=='] | NOT_MARKED                            | "/==>var<== ==>a<== ==>b<=="
     '/==>var<==' | ['a', 'b']             | VulnerabilityMarks.XSS_MARK           | null
     '/==>var<==' | ['a', 'b']             | VulnerabilityMarks.SQL_INJECTION_MARK | "/==>var<== a b"
+  }
+
+  void 'module detects Charsequence XSS with file and line'() {
+    setup:
+    final param = mapTainted(s, mark)
+
+    when:
+    module.onXss(param as CharSequence, file as String, line as int)
+
+    then:
+    if (expected != null) {
+      1 * reporter.report(_, _) >> { args -> assertEvidence(args[1] as Vulnerability, expected) }
+    } else {
+      0 * reporter.report(_, _)
+    }
+
+    where:
+    s     | file | line        | mark                                  | expected
+    null    | 'test' | 3      | NOT_MARKED                            | null
+    '/var'    | 'test' | 3    | NOT_MARKED                            | null
+    '/==>var<=='| 'test' | 3  | NOT_MARKED                            | "/==>var<=="
+    '/==>var<=='| 'test' | 3  | VulnerabilityMarks.XSS_MARK           | null
+    '/==>var<=='| 'test' | 3  | VulnerabilityMarks.SQL_INJECTION_MARK | "/==>var<=="
+    '/==>var<=='| null | 3  | VulnerabilityMarks.SQL_INJECTION_MARK | null
+  }
+
+  void 'iast module detects String xss with class and method (#value)'() {
+    setup:
+    final param = mapTainted(value, mark)
+    final clazz = "class"
+    final method = "method"
+
+    when:
+    module.onXss(param, clazz, method)
+
+    then:
+    if (expected != null) {
+      1 * reporter.report(_, _) >> { args -> assertEvidence(args[1] as Vulnerability, expected) }
+    } else {
+      0 * reporter.report(_, _)
+    }
+
+    where:
+    value        | mark| expected
+    null         | NOT_MARKED| null
+    '/var'       | NOT_MARKED| null
+    '/==>var<==' | VulnerabilityMarks.XSS_MARK| null
+    '/==>var<==' | VulnerabilityMarks.SQL_INJECTION_MARK| "/==>var<=="
   }
 
 

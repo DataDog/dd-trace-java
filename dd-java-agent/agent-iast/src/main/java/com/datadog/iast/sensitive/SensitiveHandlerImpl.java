@@ -45,6 +45,7 @@ public class SensitiveHandlerImpl implements SensitiveHandler {
     tokenizers.put(VulnerabilityType.COMMAND_INJECTION, CommandRegexpTokenizer::new);
     tokenizers.put(VulnerabilityType.SSRF, UrlRegexpTokenizer::new);
     tokenizers.put(VulnerabilityType.UNVALIDATED_REDIRECT, UrlRegexpTokenizer::new);
+    tokenizers.put(VulnerabilityType.XSS, TaintedRangeBasedTokenizer::new);
   }
 
   @Override
@@ -75,7 +76,7 @@ public class SensitiveHandlerImpl implements SensitiveHandler {
     return supplier.tokenizerFor(evidence);
   }
 
-  private int computeLength(final String value) {
+  private int computeLength(@Nullable final String value) {
     if (value == null || value.isEmpty()) {
       return 0;
     }

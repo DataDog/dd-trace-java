@@ -8,7 +8,7 @@ import net.bytebuddy.asm.Advice;
 
 class RouteMatchesAdvice {
   @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
-  @Source(SourceTypes.REQUEST_PATH_PARAMETER_STRING)
+  @Source(SourceTypes.REQUEST_PATH_PARAMETER)
   static void after(
       @Advice.Return int ret,
       @Advice.Argument(0) final RoutingContext ctx,
@@ -27,7 +27,7 @@ class RouteMatchesAdvice {
 
   static class BooleanReturnVariant {
     @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
-    @Source(SourceTypes.REQUEST_PATH_PARAMETER_STRING)
+    @Source(SourceTypes.REQUEST_PATH_PARAMETER)
     static void after(
         @Advice.Return boolean ret,
         @Advice.Argument(0) final RoutingContext ctx,

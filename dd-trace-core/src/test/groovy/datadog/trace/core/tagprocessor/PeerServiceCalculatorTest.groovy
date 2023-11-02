@@ -1,12 +1,12 @@
 package datadog.trace.core.tagprocessor
 
+import datadog.trace.api.Config
 import datadog.trace.api.DDTags
 import datadog.trace.api.config.TracerConfig
 import datadog.trace.api.naming.v0.NamingSchemaV0
 import datadog.trace.api.naming.v1.NamingSchemaV1
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.test.util.DDSpecification
-import spock.lang.Ignore
 
 class PeerServiceCalculatorTest extends DDSpecification {
   def "schema v0 : peer service is not calculated by default"() {
@@ -54,7 +54,7 @@ class PeerServiceCalculatorTest extends DDSpecification {
   def "schema v0: should calculate defaults if enabled"() {
     setup:
     injectSysConfig(TracerConfig.TRACE_PEER_SERVICE_DEFAULTS_ENABLED, "true")
-    def calculator = new PeerServiceCalculator(new NamingSchemaV1().peerService(), Collections.emptyMap())
+    def calculator = new PeerServiceCalculator(new NamingSchemaV0().peerService(), Collections.emptyMap())
     when:
     def calculated = calculator.processTags(["span.kind": "client", "peer.hostname": "test"])
     then:
@@ -79,13 +79,12 @@ class PeerServiceCalculatorTest extends DDSpecification {
     "server"   | false
   }
 
-  @Ignore("https://github.com/DataDog/dd-trace-java/pull/5213")
   def "should apply peer service mappings if configured"() {
     setup:
     injectSysConfig(TracerConfig.TRACE_PEER_SERVICE_MAPPING, "service1:best_service,userService:my_service")
     injectSysConfig(TracerConfig.TRACE_PEER_SERVICE_DEFAULTS_ENABLED, "true")
 
-    def calculator = new PeerServiceCalculator()
+    def calculator = new PeerServiceCalculator(new NamingSchemaV0().peerService(), Config.get().getPeerServiceMapping())
 
     when:
     def calculated = calculator.processTags(tags)
@@ -99,5 +98,25 @@ class PeerServiceCalculatorTest extends DDSpecification {
     ["peer.service": "userService"]                                         | "my_service"        | "userService"
     ["peer.hostname": "test", "span.kind": "client"]                        | "test"              | null
     ["peer.hostname": "service1", "span.kind": "producer"]                  | "best_service"      | "service1"
+  }
+
+  def "should override peer service values if configured"() {
+    setup:
+    injectSysConfig(TracerConfig.TRACE_PEER_SERVICE_COMPONENT_OVERRIDES, "java-couchbase:couchbase")
+    injectSysConfig(TracerConfig.TRACE_PEER_SERVICE_DEFAULTS_ENABLED, "true")
+
+    def calculator = new PeerServiceCalculator(new NamingSchemaV0().peerService(), Config.get().getPeerServiceComponentOverrides())
+
+    when:
+    def calculated = calculator.processTags(tags)
+
+    then:
+    assert calculated.get(Tags.PEER_SERVICE) == expected
+    assert calculated.get(DDTags.PEER_SERVICE_SOURCE) == source
+
+    where:
+    tags                                                                                   | expected       | source
+    ["component": "java-couchbase", "span.kind": "client"]                                 | "couchbase"    | "_component_override"
+    ["peer.hostname": "host1", "span.kind": "client", "component" : "my-http-client"]      | "host1"        | "peer.hostname"
   }
 }

@@ -60,6 +60,7 @@ public class ConfigurationUpdaterTest {
   void setUp() {
     lenient().when(tracerConfig.getFinalDebuggerSnapshotUrl()).thenReturn("http://localhost");
     lenient().when(tracerConfig.getDebuggerUploadBatchSize()).thenReturn(100);
+    lenient().when(tracerConfig.getFinalDebuggerSymDBUrl()).thenReturn("http://localhost");
 
     debuggerSinkWithMockStatusSink = new DebuggerSink(tracerConfig, probeStatusSink);
   }
@@ -376,7 +377,7 @@ public class ConfigurationUpdaterTest {
     ConfigurationUpdater configurationUpdater =
         new ConfigurationUpdater(
             inst,
-            (tracerConfig, configuration, listener) -> {
+            (tracerConfig, configuration, listener, debuggerSink) -> {
               assertEquals(expectedDefinitions.get(), configuration.getDefinitions().size());
               return transformer;
             },
@@ -698,7 +699,8 @@ public class ConfigurationUpdaterTest {
   private DebuggerTransformer createTransformer(
       Config tracerConfig,
       Configuration configuration,
-      DebuggerTransformer.InstrumentationListener listener) {
+      DebuggerTransformer.InstrumentationListener listener,
+      DebuggerSink debuggerSink) {
     return transformer;
   }
 }

@@ -5,12 +5,14 @@ import com.datadog.debugger.agent.Generated;
 import com.datadog.debugger.agent.LogMessageTemplateBuilder;
 import com.datadog.debugger.el.EvaluationException;
 import com.datadog.debugger.el.ProbeCondition;
+import com.datadog.debugger.instrumentation.CapturedContextInstrumentor;
 import com.datadog.debugger.instrumentation.DiagnosticMessage;
-import com.datadog.debugger.instrumentation.SpanDecorationInstrumentor;
+import com.datadog.debugger.instrumentation.InstrumentationResult;
 import com.datadog.debugger.sink.Snapshot;
 import datadog.trace.api.Pair;
 import datadog.trace.bootstrap.debugger.CapturedContext;
 import datadog.trace.bootstrap.debugger.EvaluationError;
+import datadog.trace.bootstrap.debugger.Limits;
 import datadog.trace.bootstrap.debugger.MethodLocation;
 import datadog.trace.bootstrap.debugger.ProbeId;
 import datadog.trace.bootstrap.debugger.ProbeImplementation;
@@ -131,18 +133,20 @@ public class SpanDecorationProbe extends ProbeDefinition {
   }
 
   @Override
-  public void instrument(
+  public InstrumentationResult.Status instrument(
       ClassLoader classLoader,
       ClassNode classNode,
       MethodNode methodNode,
       List<DiagnosticMessage> diagnostics,
       List<String> probeIds) {
-    new SpanDecorationInstrumentor(this, classLoader, classNode, methodNode, diagnostics, probeIds)
+    return new CapturedContextInstrumentor(
+            this, classLoader, classNode, methodNode, diagnostics, probeIds, false, Limits.DEFAULT)
         .instrument();
   }
 
   @Override
-  public void evaluate(CapturedContext context, CapturedContext.Status status) {
+  public void evaluate(
+      CapturedContext context, CapturedContext.Status status, MethodLocation methodLocation) {
     for (Decoration decoration : decorations) {
       if (decoration.when != null) {
         try {

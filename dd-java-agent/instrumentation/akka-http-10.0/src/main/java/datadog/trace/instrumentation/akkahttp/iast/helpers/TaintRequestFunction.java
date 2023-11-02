@@ -3,7 +3,6 @@ package datadog.trace.instrumentation.akkahttp.iast.helpers;
 import akka.http.scaladsl.model.HttpRequest;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.SourceTypes;
-import datadog.trace.api.iast.Taintable;
 import datadog.trace.api.iast.propagation.PropagationModule;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import scala.Tuple1;
@@ -18,10 +17,10 @@ public class TaintRequestFunction implements JFunction1<Tuple1<HttpRequest>, Tup
     HttpRequest httpRequest = v1._1();
 
     PropagationModule mod = InstrumentationBridge.PROPAGATION;
-    if (mod == null || !((Object) httpRequest instanceof Taintable)) {
+    if (mod == null || httpRequest == null) {
       return v1;
     }
-    mod.taintObject(SourceTypes.REQUEST_BODY, httpRequest);
+    mod.taint(httpRequest, SourceTypes.REQUEST_BODY);
 
     return v1;
   }

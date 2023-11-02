@@ -11,6 +11,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_SERIALVERSIONUID_FIELD_IN
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TELEMETRY_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_128_BIT_TRACEID_LOGGING_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_ANNOTATIONS;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_ANNOTATION_ASYNC;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_EXECUTORS_ALL;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_METHODS;
@@ -25,6 +26,7 @@ import static datadog.trace.api.config.ProfilingConfig.PROFILING_DIRECT_ALLOCATI
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DIRECT_ALLOCATION_ENABLED_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_ENABLED;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_ENABLED_DEFAULT;
+import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_URL_CONNECTION_CLASS_NAME;
 import static datadog.trace.api.config.TraceInstrumentationConfig.INTEGRATIONS_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.JDBC_CONNECTION_CLASS_NAME;
 import static datadog.trace.api.config.TraceInstrumentationConfig.JDBC_PREPARED_STATEMENT_CLASS_NAME;
@@ -35,10 +37,12 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.RESOLVER_CACHE
 import static datadog.trace.api.config.TraceInstrumentationConfig.RESOLVER_NAMES_ARE_UNIQUE;
 import static datadog.trace.api.config.TraceInstrumentationConfig.RESOLVER_RESET_INTERVAL;
 import static datadog.trace.api.config.TraceInstrumentationConfig.RESOLVER_USE_LOADCLASS;
+import static datadog.trace.api.config.TraceInstrumentationConfig.RESOLVER_USE_URL_CACHES;
 import static datadog.trace.api.config.TraceInstrumentationConfig.RUNTIME_CONTEXT_FIELD_INJECTION;
 import static datadog.trace.api.config.TraceInstrumentationConfig.SERIALVERSIONUID_FIELD_INJECTION;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_128_BIT_TRACEID_LOGGING_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_ANNOTATIONS;
+import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_ANNOTATION_ASYNC;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_CLASSES_EXCLUDE;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_CLASSES_EXCLUDE_FILE;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_CLASSLOADERS_EXCLUDE;
@@ -61,6 +65,21 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+/**
+ * This config is needed before instrumentation is applied
+ *
+ * <p>For example anything that changes what advice is applied, or what classes are instrumented
+ *
+ * <p>This config will be baked into native-images at build time, because instrumentation is also
+ * baked in at that point
+ *
+ * <p>Config that is accessed from inside advice, for example during application runtime after the
+ * advice has been applied, shouldn't be in {@link InstrumenterConfig} (it really should just be
+ * config that must be there ahead of instrumentation)
+ *
+ * @see DynamicConfig for configuration that can be dynamically updated via remote-config
+ * @see Config for other configurations
+ */
 public class InstrumenterConfig {
   private final ConfigProvider configProvider;
 
@@ -83,6 +102,8 @@ public class InstrumenterConfig {
   private final String jdbcPreparedStatementClassName;
   private final String jdbcConnectionClassName;
 
+  private final String httpURLConnectionClassName;
+
   private final boolean directAllocationProfilingEnabled;
 
   private final List<String> excludedClasses;
@@ -94,12 +115,14 @@ public class InstrumenterConfig {
   private final String resolverCacheDir;
   private final boolean resolverNamesAreUnique;
   private final boolean resolverUseLoadClass;
+  private final Boolean resolverUseUrlCaches;
   private final int resolverResetInterval;
 
   private final boolean runtimeContextFieldInjection;
   private final boolean serialVersionUIDFieldInjection;
 
   private final String traceAnnotations;
+  private final boolean traceAnnotationAsync;
   private final Map<String, Set<String>> traceMethods;
   private final Map<String, Set<String>> measureMethods;
 
@@ -154,6 +177,8 @@ public class InstrumenterConfig {
         configProvider.getString(JDBC_PREPARED_STATEMENT_CLASS_NAME, "");
     jdbcConnectionClassName = configProvider.getString(JDBC_CONNECTION_CLASS_NAME, "");
 
+    httpURLConnectionClassName = configProvider.getString(HTTP_URL_CONNECTION_CLASS_NAME, "");
+
     directAllocationProfilingEnabled =
         configProvider.getBoolean(
             PROFILING_DIRECT_ALLOCATION_ENABLED, PROFILING_DIRECT_ALLOCATION_ENABLED_DEFAULT);
@@ -169,6 +194,7 @@ public class InstrumenterConfig {
     resolverCacheDir = configProvider.getString(RESOLVER_CACHE_DIR);
     resolverNamesAreUnique = configProvider.getBoolean(RESOLVER_NAMES_ARE_UNIQUE, false);
     resolverUseLoadClass = configProvider.getBoolean(RESOLVER_USE_LOADCLASS, true);
+    resolverUseUrlCaches = configProvider.getBoolean(RESOLVER_USE_URL_CACHES);
     resolverResetInterval =
         Platform.isNativeImageBuilder()
             ? 0
@@ -182,6 +208,8 @@ public class InstrumenterConfig {
             SERIALVERSIONUID_FIELD_INJECTION, DEFAULT_SERIALVERSIONUID_FIELD_INJECTION);
 
     traceAnnotations = configProvider.getString(TRACE_ANNOTATIONS, DEFAULT_TRACE_ANNOTATIONS);
+    traceAnnotationAsync =
+        configProvider.getBoolean(TRACE_ANNOTATION_ASYNC, DEFAULT_TRACE_ANNOTATION_ASYNC);
     traceMethods =
         MethodFilterConfigParser.parse(
             configProvider.getString(TRACE_METHODS, DEFAULT_TRACE_METHODS));
@@ -264,6 +292,10 @@ public class InstrumenterConfig {
     return jdbcConnectionClassName;
   }
 
+  public String getHttpURLConnectionClassName() {
+    return httpURLConnectionClassName;
+  }
+
   public boolean isDirectAllocationProfilingEnabled() {
     return directAllocationProfilingEnabled;
   }
@@ -320,6 +352,10 @@ public class InstrumenterConfig {
     return resolverUseLoadClass;
   }
 
+  public Boolean isResolverUseUrlCaches() {
+    return resolverUseUrlCaches;
+  }
+
   public int getResolverResetInterval() {
     return resolverResetInterval;
   }
@@ -334,6 +370,15 @@ public class InstrumenterConfig {
 
   public String getTraceAnnotations() {
     return traceAnnotations;
+  }
+
+  /**
+   * Check whether asynchronous result types are supported with @Trace annotation.
+   *
+   * @return {@code true} if supported, {@code false} otherwise.
+   */
+  public boolean isTraceAnnotationAsync() {
+    return traceAnnotationAsync;
   }
 
   public Map<String, Set<String>> getTraceMethods() {
@@ -408,6 +453,9 @@ public class InstrumenterConfig {
         + ", jdbcConnectionClassName='"
         + jdbcConnectionClassName
         + '\''
+        + ", httpURLConnectionClassName='"
+        + httpURLConnectionClassName
+        + '\''
         + ", excludedClasses="
         + excludedClasses
         + ", excludedClassesFile="
@@ -424,6 +472,8 @@ public class InstrumenterConfig {
         + resolverNamesAreUnique
         + ", resolverUseLoadClass="
         + resolverUseLoadClass
+        + ", resolverUseUrlCaches="
+        + resolverUseUrlCaches
         + ", resolverResetInterval="
         + resolverResetInterval
         + ", runtimeContextFieldInjection="
@@ -433,6 +483,8 @@ public class InstrumenterConfig {
         + ", traceAnnotations='"
         + traceAnnotations
         + '\''
+        + ", traceAnnotationAsync="
+        + traceAnnotationAsync
         + ", traceMethods='"
         + traceMethods
         + '\''

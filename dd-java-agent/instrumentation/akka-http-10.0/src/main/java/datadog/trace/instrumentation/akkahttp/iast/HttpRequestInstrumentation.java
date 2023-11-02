@@ -13,11 +13,11 @@ import akka.http.scaladsl.model.HttpHeader;
 import akka.http.scaladsl.model.HttpRequest;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Propagation;
 import datadog.trace.api.iast.Source;
 import datadog.trace.api.iast.SourceTypes;
-import datadog.trace.api.iast.Taintable;
 import datadog.trace.api.iast.propagation.PropagationModule;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import net.bytebuddy.asm.Advice;
@@ -59,7 +59,7 @@ public class HttpRequestInstrumentation extends Instrumenter.Iast
   @SuppressFBWarnings("BC_IMPOSSIBLE_INSTANCEOF")
   static class RequestHeadersAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
-    @Source(SourceTypes.REQUEST_HEADER_VALUE_STRING)
+    @Source(SourceTypes.REQUEST_HEADER_VALUE)
     static void onExit(
         @Advice.This HttpRequest thiz, @Advice.Return(readOnly = false) Seq<HttpHeader> headers) {
       PropagationModule propagation = InstrumentationBridge.PROPAGATION;
@@ -67,27 +67,20 @@ public class HttpRequestInstrumentation extends Instrumenter.Iast
         return;
       }
 
-      if (!((Object) thiz instanceof Taintable)) {
-        return;
-      }
-      if (!((Taintable) (Object) thiz).$DD$isTainted()) {
+      if (!propagation.isTainted(thiz)) {
         return;
       }
 
+      final IastContext ctx = IastContext.Provider.get();
       Iterator<HttpHeader> iterator = headers.iterator();
       while (iterator.hasNext()) {
         HttpHeader h = iterator.next();
-        if (!(h instanceof Taintable)) {
-          continue;
-        }
-
-        Taintable t = (Taintable) h;
-        if (t.$DD$isTainted()) {
+        if (propagation.isTainted(h)) {
           continue;
         }
         // unfortunately, the call to h.value() is instrumented, but
         // because the call to taint() only happens after, the call is a noop
-        propagation.taint(SourceTypes.REQUEST_HEADER_VALUE, h.name(), h.value(), t);
+        propagation.taint(ctx, h, SourceTypes.REQUEST_HEADER_VALUE, h.name(), h.value());
       }
     }
   }
@@ -103,13 +96,11 @@ public class HttpRequestInstrumentation extends Instrumenter.Iast
         return;
       }
 
-      if (entity instanceof Taintable) {
-        if (((Taintable) entity).$DD$isTainted()) {
-          return;
-        }
+      if (propagation.isTainted(entity)) {
+        return;
       }
 
-      propagation.taintIfInputIsTainted(entity, thiz);
+      propagation.taintIfTainted(entity, thiz);
     }
   }
 }

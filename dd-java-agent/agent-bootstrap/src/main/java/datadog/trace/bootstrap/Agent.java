@@ -150,7 +150,13 @@ public class Agent {
     createAgentClassloader(agentJarURL);
 
     if (Platform.isNativeImageBuilder()) {
+      // these default services are not used during native-image builds
+      jmxFetchEnabled = false;
+      remoteConfigEnabled = false;
+      telemetryEnabled = false;
+      // apply trace instrumentation, but skip starting other services
       startDatadogAgent(inst);
+      StaticEventLogger.end("Agent.start");
       return;
     }
 
@@ -334,6 +340,9 @@ public class Agent {
 
     if (profilingEnabled) {
       shutdownProfilingAgent(sync);
+    }
+    if (telemetryEnabled) {
+      stopTelemetry();
     }
   }
 
@@ -640,7 +649,7 @@ public class Agent {
   private static synchronized void initializeJmxSystemAccessProvider(
       final ClassLoader classLoader) {
     if (log.isDebugEnabled()) {
-      log.debug("Initializing JMX system access provider for " + classLoader.toString());
+      log.debug("Initializing JMX system access provider for {}", classLoader);
     }
     try {
       final Class<?> tracerInstallerClass =
@@ -781,6 +790,21 @@ public class Agent {
     StaticEventLogger.end("Telemetry");
   }
 
+  private static void stopTelemetry() {
+    if (AGENT_CLASSLOADER == null) {
+      return;
+    }
+
+    try {
+      final Class<?> telemetrySystem =
+          AGENT_CLASSLOADER.loadClass("datadog.telemetry.TelemetrySystem");
+      final Method stopTelemetry = telemetrySystem.getMethod("stop");
+      stopTelemetry.invoke(null);
+    } catch (final Throwable ex) {
+      log.error("Error encountered while stopping telemetry", ex);
+    }
+  }
+
   private static void initializeCrashUploader() {
     if (Platform.isJ9()) {
       // TODO currently crash tracking is supported only for HotSpot based JVMs
@@ -846,6 +870,11 @@ public class Agent {
   private static void startProfilingAgent(final boolean isStartingFirst) {
     StaticEventLogger.begin("ProfilingAgent");
 
+    if (isAwsLambdaRuntime()) {
+      log.info("Profiling not supported in AWS Lambda runtimes");
+      return;
+    }
+
     final ClassLoader contextLoader = Thread.currentThread().getContextClassLoader();
     try {
       Thread.currentThread().setContextClassLoader(AGENT_CLASSLOADER);
@@ -909,6 +938,11 @@ public class Agent {
     }
 
     StaticEventLogger.end("ProfilingAgent");
+  }
+
+  private static boolean isAwsLambdaRuntime() {
+    String val = System.getenv("AWS_LAMBDA_FUNCTION_NAME");
+    return val != null && !val.isEmpty();
   }
 
   private static ScopeListener createScopeListener(String className) throws Throwable {
@@ -1036,7 +1070,7 @@ public class Agent {
     }
   }
 
-  /** @see datadog.trace.api.ProductActivationConfig#fromString(String) */
+  /** @see datadog.trace.api.ProductActivation#fromString(String) */
   private static boolean isAppSecFullyDisabled() {
     // must be kept in sync with logic from Config!
     final String featureEnabledSysprop = AgentFeature.APPSEC.systemProp;

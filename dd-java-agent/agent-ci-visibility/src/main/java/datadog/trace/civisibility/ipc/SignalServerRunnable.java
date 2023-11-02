@@ -9,6 +9,7 @@ import java.nio.channels.SocketChannel;
 import java.util.EnumMap;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -16,7 +17,7 @@ import org.slf4j.LoggerFactory;
 class SignalServerRunnable implements Runnable {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(SignalServerRunnable.class);
-
+  private static final long SELECT_TIMEOUT = TimeUnit.SECONDS.toMillis(5);
   private static final Map<SignalType, Function<ByteBuffer, Signal>> DESERIALIZERS =
       new EnumMap<>(SignalType.class);
 
@@ -51,7 +52,7 @@ class SignalServerRunnable implements Runnable {
   }
 
   private void processSelectableKeys() throws IOException {
-    selector.select();
+    selector.select(SELECT_TIMEOUT);
 
     Iterator<SelectionKey> keyIterator = selector.selectedKeys().iterator();
     while (keyIterator.hasNext()) {

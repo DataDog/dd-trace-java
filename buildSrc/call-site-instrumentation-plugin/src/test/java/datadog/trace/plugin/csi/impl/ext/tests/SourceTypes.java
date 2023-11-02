@@ -2,5 +2,7 @@ package datadog.trace.plugin.csi.impl.ext.tests;
 
 public class SourceTypes {
 
-  public static final String REQUEST_HEADER_NAME_STRING = "http.request.header.name";
+  public static final byte REQUEST_HEADER_NAME = 3;
+
+  public static final byte REQUEST_BODY = 127;
 }

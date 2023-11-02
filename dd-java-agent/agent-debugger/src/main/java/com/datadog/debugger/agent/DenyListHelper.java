@@ -1,6 +1,7 @@
 package com.datadog.debugger.agent;
 
 import datadog.trace.bootstrap.debugger.DebuggerContext;
+import datadog.trace.bootstrap.debugger.util.Redaction;
 import datadog.trace.util.ClassNameTrie;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -21,6 +22,8 @@ public class DenyListHelper implements DebuggerContext.ClassFilter {
   public DenyListHelper(Configuration.FilterList denyList) {
     Collection<String> packages = new ArrayList<>(DENIED_PACKAGES);
     Collection<String> classes = new ArrayList<>(DENIED_CLASSES);
+    packages.addAll(Redaction.getRedactedPackages());
+    classes.addAll(Redaction.getRedactedClasses());
     if (denyList != null) {
       packages.addAll(denyList.getPackagePrefixes());
       classes.addAll(denyList.getClasses());

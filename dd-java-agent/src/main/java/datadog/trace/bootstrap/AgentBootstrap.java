@@ -55,10 +55,7 @@ public final class AgentBootstrap {
   }
 
   public static void agentmain(final String agentArgs, final Instrumentation inst) {
-    if (checkAndLogIfInitializedTwice(System.out)) {
-      return;
-    }
-    if (checkAndLogIfLessThanJava8()) {
+    if (alreadyInitialized() || lessThanJava8() || isJdkTool()) {
       return;
     }
 
@@ -95,12 +92,12 @@ public final class AgentBootstrap {
     return false;
   }
 
-  private static boolean checkAndLogIfLessThanJava8() {
-    return checkAndLogIfLessThanJava8(System.getProperty("java.version"), System.out);
+  private static boolean lessThanJava8() {
+    return lessThanJava8(System.getProperty("java.version"), System.out);
   }
 
   // Reachable for testing
-  static boolean checkAndLogIfLessThanJava8(String version, PrintStream output) {
+  static boolean lessThanJava8(String version, PrintStream output) {
     if (parseJavaMajorVersion(version) < 8) {
       String agentVersion = "This version"; // If we can't find the agent version
       try {
@@ -121,13 +118,53 @@ public final class AgentBootstrap {
     return false;
   }
 
-  static boolean checkAndLogIfInitializedTwice(final PrintStream output) {
+  private static boolean alreadyInitialized() {
     if (initialized) {
-      output.println(
-          "Warning: dd-java-agent is being initialized more than once. Please, check that you are defining -javaagent:dd-java-agent.jar only once.");
+      System.out.println(
+          "Warning: dd-java-agent is being initialized more than once. Please check that you are defining -javaagent:dd-java-agent.jar only once.");
       return true;
     }
     initialized = true;
+    return false;
+  }
+
+  private static boolean isJdkTool() {
+    String moduleMain = System.getProperty("jdk.module.main");
+    if (null != moduleMain && !moduleMain.isEmpty() && moduleMain.charAt(0) == 'j') {
+      switch (moduleMain) {
+        case "java.base": // keytool
+        case "java.corba":
+        case "java.desktop":
+        case "java.rmi":
+        case "java.scripting":
+        case "java.security.jgss":
+        case "jdk.aot":
+        case "jdk.compiler":
+        case "jdk.dev":
+        case "jdk.hotspot.agent":
+        case "jdk.httpserver":
+        case "jdk.jartool":
+        case "jdk.javadoc":
+        case "jdk.jcmd":
+        case "jdk.jconsole":
+        case "jdk.jdeps":
+        case "jdk.jdi":
+        case "jdk.jfr":
+        case "jdk.jlink":
+        case "jdk.jpackage":
+        case "jdk.jshell":
+        case "jdk.jstatd":
+        case "jdk.jvmstat.rmi":
+        case "jdk.pack":
+        case "jdk.pack200":
+        case "jdk.policytool":
+        case "jdk.rmic":
+        case "jdk.scripting.nashorn.shell":
+        case "jdk.xml.bind":
+        case "jdk.xml.ws":
+          return true;
+      }
+    }
     return false;
   }
 
@@ -158,7 +195,7 @@ public final class AgentBootstrap {
   }
 
   public static void main(final String[] args) {
-    if (checkAndLogIfLessThanJava8()) {
+    if (lessThanJava8()) {
       return;
     }
     AgentJar.main(args);

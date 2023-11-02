@@ -7,6 +7,7 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOn
 import static net.bytebuddy.matcher.ElementMatchers.not;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
+import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -41,9 +42,14 @@ public final class JakartaHttpServletResponseInstrumentation extends Instrumente
 
   @Override
   public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(named("addCookie"), getClass().getName() + "$AddCookieAdvice");
     transformation.applyAdvice(
-        namedOneOf("setHeader", "addHeader"), getClass().getName() + "$AddHeaderAdvice");
+        named("addCookie")
+            .and(takesArguments(1))
+            .and(takesArgument(0, named("jakarta.servlet.http.Cookie"))),
+        getClass().getName() + "$AddCookieAdvice");
+    transformation.applyAdvice(
+        namedOneOf("setHeader", "addHeader").and(takesArguments(String.class, String.class)),
+        getClass().getName() + "$AddHeaderAdvice");
     transformation.applyAdvice(
         namedOneOf("encodeRedirectURL", "encodeURL")
             .and(takesArgument(0, String.class))
@@ -76,7 +82,7 @@ public final class JakartaHttpServletResponseInstrumentation extends Instrumente
     @Sink(VulnerabilityTypes.RESPONSE_HEADER)
     public static void onEnter(
         @Advice.Argument(0) final String name, @Advice.Argument(1) String value) {
-      if (null != value && value.length() > 0) {
+      if (null != value && !value.isEmpty()) {
         HttpResponseHeaderModule mod = InstrumentationBridge.RESPONSE_HEADER_MODULE;
         if (mod != null) {
           mod.onHeader(name, value);
@@ -91,7 +97,7 @@ public final class JakartaHttpServletResponseInstrumentation extends Instrumente
     public static void onEnter(@Advice.Argument(0) final String location) {
       final UnvalidatedRedirectModule module = InstrumentationBridge.UNVALIDATED_REDIRECT;
       if (module != null) {
-        if (null != location && location.length() > 0) {
+        if (null != location && !location.isEmpty()) {
           module.onRedirect(location);
         }
       }
@@ -103,8 +109,8 @@ public final class JakartaHttpServletResponseInstrumentation extends Instrumente
     public static void onExit(@Advice.Argument(0) final String url, @Advice.Return String encoded) {
       final PropagationModule module = InstrumentationBridge.PROPAGATION;
       if (module != null) {
-        if (null != url && url.length() > 0 && null != encoded && encoded.length() > 0) {
-          module.taintIfInputIsTainted(encoded, url);
+        if (null != url && !url.isEmpty() && null != encoded && !encoded.isEmpty()) {
+          module.taintIfTainted(encoded, url);
         }
       }
     }

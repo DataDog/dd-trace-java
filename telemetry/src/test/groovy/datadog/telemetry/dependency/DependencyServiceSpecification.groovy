@@ -74,6 +74,22 @@ class DependencyServiceSpecification extends DepSpecification {
     assertThat(set.first().version, is('4.12'))
   }
 
+  void 'convertToURI works with a spaced URL'() {
+    when:
+    URI uri = depService.convertToURI(new URL("file:/C:/Program Files/IBM/WebSphere/AppServer_1/plugins/com.ibm.cds_2.1.0.jar"))
+
+    then:
+    uri.path == "/C:/Program Files/IBM/WebSphere/AppServer_1/plugins/com.ibm.cds_2.1.0.jar"
+  }
+
+  void 'convertToURI works with a nested URL'() {
+    when:
+    URI uri = depService.convertToURI(new URL("jar:file:/Users/test/spring-petclinic.jar!/BOOT-INF/classes!/"))
+
+    then:
+    uri.schemeSpecificPart == "file:/Users/test/spring-petclinic.jar!/BOOT-INF/classes!/"
+  }
+
   void 'build dependency set from a fat jar'() {
     when:
     File budgetappJar = getJar('budgetapp.jar')

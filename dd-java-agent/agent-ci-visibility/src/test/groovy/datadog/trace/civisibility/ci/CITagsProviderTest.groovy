@@ -7,6 +7,7 @@ import datadog.trace.api.git.UserSuppliedGitInfoBuilder
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.civisibility.git.CILocalGitInfoBuilder
 import datadog.trace.civisibility.git.CIProviderGitInfoBuilder
+import datadog.trace.civisibility.git.tree.GitClient
 import org.junit.Rule
 import org.junit.contrib.java.lang.system.EnvironmentVariables
 import org.junit.contrib.java.lang.system.RestoreSystemProperties
@@ -167,10 +168,13 @@ abstract class CITagsProviderTest extends Specification {
   }
 
   CITagsProvider ciTagsProvider() {
+    GitClient.Factory gitClientFactory = Stub(GitClient.Factory)
+    gitClientFactory.create(_) >> Stub(GitClient)
+
     GitInfoProvider gitInfoProvider = new GitInfoProvider()
     gitInfoProvider.registerGitInfoBuilder(new UserSuppliedGitInfoBuilder())
     gitInfoProvider.registerGitInfoBuilder(new CIProviderGitInfoBuilder())
-    gitInfoProvider.registerGitInfoBuilder(new CILocalGitInfoBuilder(GIT_FOLDER_FOR_TESTS))
+    gitInfoProvider.registerGitInfoBuilder(new CILocalGitInfoBuilder(gitClientFactory, GIT_FOLDER_FOR_TESTS))
     return new CITagsProvider(gitInfoProvider)
   }
 

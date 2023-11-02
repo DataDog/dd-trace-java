@@ -54,8 +54,9 @@ public class ServerHandleInstrumentation extends Instrumenter.Tracing
     @Advice.OnMethodEnter(suppress = Throwable.class)
     static AgentScope onEnter(
         @Advice.Argument(0) AbstractHttpConnection connection,
+        @Advice.Local("request") Request req,
         @Advice.Local("agentSpan") AgentSpan span) {
-      Request req = connection.getRequest();
+      req = connection.getRequest();
 
       // see comments in HandleRequestAdvice for jetty-9
       Object dispatchSpan;
@@ -75,6 +76,7 @@ public class ServerHandleInstrumentation extends Instrumenter.Tracing
     public static void onExit(
         @Advice.Enter final AgentScope scope,
         @Advice.Local("agentSpan") AgentSpan span,
+        @Advice.Local("request") Request req,
         @Advice.Thrown Throwable t) {
       if (scope == null) {
         return;
@@ -83,9 +85,16 @@ public class ServerHandleInstrumentation extends Instrumenter.Tracing
       if (t != null) {
         DECORATE.onError(span, t);
       }
-      DECORATE.beforeFinish(span);
-      span.finish();
+      if (!req.getAsyncContinuation().isAsyncStarted()) {
+        // finish will be handled by the async listener
+        DECORATE.beforeFinish(span);
+        span.finish();
+      }
       scope.close();
+
+      synchronized (req) {
+        req.removeAttribute(DD_DISPATCH_SPAN_ATTRIBUTE);
+      }
     }
   }
 }

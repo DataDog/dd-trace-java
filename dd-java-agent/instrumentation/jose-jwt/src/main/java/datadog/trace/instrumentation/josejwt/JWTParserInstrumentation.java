@@ -35,14 +35,14 @@ public class JWTParserInstrumentation extends Instrumenter.Iast
   public static class InstrumenterAdvice {
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    @Source(SourceTypes.REQUEST_HEADER_VALUE_STRING)
+    @Source(SourceTypes.REQUEST_HEADER_VALUE)
     public static void onEnter(@Advice.Argument(0) String json) {
       final PropagationModule module = InstrumentationBridge.PROPAGATION;
 
       if (module != null) {
         // TODO: We could represent this source more accurately, perhaps tracking the original
         // source, or using a special name.
-        module.taint(SourceTypes.REQUEST_HEADER_VALUE, null, json);
+        module.taint(json, SourceTypes.REQUEST_HEADER_VALUE);
       }
     }
   }

@@ -2,7 +2,7 @@ import java.time.Duration
 import java.time.temporal.ChronoUnit
 
 def isTestingInstrumentation(Project project) {
-  return ["junit-4.10", "junit-5.3", "testng-6.4", "testng-7.5"].contains(project.name)
+  return ["junit-4.10", "junit-5.3", "testng-6", "testng-7", "cucumber", "munit", "spock", "karate"].contains(project.name)
 }
 
 def forkedTestLimit = gradle.sharedServices.registerIfAbsent("forkedTestLimit", BuildService) {

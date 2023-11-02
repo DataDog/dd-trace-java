@@ -2,6 +2,7 @@ package datadog.smoketest
 
 import okhttp3.FormBody
 import okhttp3.MediaType
+import okhttp3.MultipartBody
 import okhttp3.Request
 import okhttp3.RequestBody
 
@@ -83,6 +84,33 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
     !logHasErrors
   }
 
+  void 'Multipart Request parameters'(){
+    given:
+    String url = "http://localhost:${httpPort}/multipart"
+
+    RequestBody requestBody = new MultipartBody.Builder().setType(MultipartBody.FORM)
+      .addFormDataPart("theFile", "theFileName",
+      RequestBody.create(MediaType.parse("text/plain"), "FILE_CONTENT"))
+      .addFormDataPart("param1", "param1Value")
+      .build()
+
+    Request request = new Request.Builder()
+      .url(url)
+      .post(requestBody)
+      .build()
+    when:
+    final retValue = client.newCall(request).execute().body().string()
+
+    then:
+    retValue == "fileName: theFile"
+    hasTainted { tainted ->
+      tainted.value == 'theFile' &&
+        tainted.ranges[0].source.name == 'Content-Disposition' &&
+        tainted.ranges[0].source.origin == 'http.request.multipart.parameter'
+    }
+
+  }
+
   void 'iast.enabled tag is present'() {
     setup:
     String url = "http://localhost:${httpPort}/greeting"
@@ -110,6 +138,37 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
     }
   }
 
+  void 'weak cipher vulnerability is present when calling key generator'() {
+    setup:
+    String url = "http://localhost:${httpPort}/weak_key_generator"
+    def request = new Request.Builder().url(url).get().build()
+
+    when:
+    client.newCall(request).execute()
+
+    then:
+    hasVulnerability { vul ->
+      vul.type == 'WEAK_CIPHER' &&
+        vul.evidence.value == 'DES'
+    }
+  }
+
+  void 'weak cipher vulnerability is present when calling key generator with provider'() {
+    setup:
+    String url = "http://localhost:${httpPort}/weak_key_generator_with_provider"
+    def request = new Request.Builder().url(url).get().build()
+
+    when:
+    client.newCall(request).execute()
+
+    then:
+    hasVulnerability { vul ->
+      vul.type == 'WEAK_CIPHER' &&
+        vul.evidence.value == 'DES'
+    }
+  }
+
+
   void 'insecure cookie vulnerability is present'() {
     setup:
     String url = "http://localhost:${httpPort}/insecure_cookie"
@@ -126,6 +185,48 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
         vul.evidence.value == 'user-id'
     }
   }
+
+  void 'hsts header missing vulnerability is present'() {
+    setup:
+    String url = "http://localhost:${httpPort}/hstsmissing"
+    def request = new Request.Builder().url(url).header("X-Forwarded-Proto", "https").get().build()
+
+    when:
+    def response = client.newCall(request).execute()
+
+    then:
+    response.isSuccessful()
+    hasVulnerability { vul ->
+      vul.type == 'HSTS_HEADER_MISSING'
+    }
+  }
+
+  void 'X content type options missing header vulnerability is present'() {
+    setup:
+    String url = "http://localhost:${httpPort}/xcontenttypeoptionsmissing"
+    def request = new Request.Builder().url(url).get().build()
+    when:
+    def response = client.newCall(request).execute()
+    then:
+    response.isSuccessful()
+    hasVulnerability { vul ->
+      vul.type == 'XCONTENTTYPE_HEADER_MISSING'
+    }
+  }
+
+  void 'X content type options missing header vulnerability is absent'() {
+    setup:
+    String url = "http://localhost:${httpPort}/xcontenttypeoptionsecure"
+    def request = new Request.Builder().url(url).get().build()
+    when:
+    def response = client.newCall(request).execute()
+    then:
+    response.isSuccessful()
+    noVulnerability { vul ->
+      vul.type == 'XCONTENTTYPE_HEADER_MISSING'
+    }
+  }
+
 
   void 'no HttpOnly cookie vulnerability is present'() {
     setup:
@@ -288,16 +389,36 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
     hasVulnerability { vul -> vul.type == 'TRUST_BOUNDARY_VIOLATION' }
   }
 
-  void 'xss is present when write String'() {
+  void 'xss is present'() {
     setup:
-    final url = "http://localhost:${httpPort}/xss/write?string=test"
+    final url = "http://localhost:${httpPort}/xss/${method}?string=${param}"
     final request = new Request.Builder().url(url).get().build()
 
     when:
     client.newCall(request).execute()
 
     then:
-    hasVulnerability { vul -> vul.type == 'XSS' && vul.location.method == 'xssWrite' }
+    hasVulnerability { vul -> vul.type == 'XSS' && vul.location.method == method }
+
+    where:
+    method     | param
+    'write'    | 'test'
+    'write2'   | 'test'
+    'write3'   | 'test'
+    'write4'   | 'test'
+    'print'    | 'test'
+    'print2'   | 'test'
+    'println'  | 'test'
+    'println2' | 'test'
+    'printf'   | 'Formatted%20like%3A%20%251%24s%20and%20%252%24s.'
+    'printf2'  | 'test'
+    'printf3'  | 'Formatted%20like%3A%20%251%24s%20and%20%252%24s.'
+    'printf4'  | 'test'
+    'format'   | 'Formatted%20like%3A%20%251%24s%20and%20%252%24s.'
+    'format2'  | 'test'
+    'format3'  | 'Formatted%20like%3A%20%251%24s%20and%20%252%24s.'
+    'format4'  | 'test'
+    'responseBody' | 'test'
   }
 
   void 'trust boundary violation with cookie propagation'() {
@@ -370,6 +491,21 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
       tainted.value == 'binding' &&
         tainted.ranges[0].source.name == 'value' &&
         tainted.ranges[0].source.origin == 'http.request.parameter'
+    }
+  }
+
+  void 'getRequestURL taints its output'() {
+    setup:
+    String url = "http://localhost:${httpPort}/getrequesturl"
+    def request = new Request.Builder().url(url).get().build()
+
+    when:
+    client.newCall(request).execute()
+
+    then:
+    hasTainted { tainted ->
+      tainted.value == url &&
+        tainted.ranges[0].source.origin == 'http.request.uri'
     }
   }
 
@@ -671,6 +807,21 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
 
     then:
     hasVulnerabilityInLogs { vul -> vul.type == 'UNVALIDATED_REDIRECT' && vul.location.method == 'getViewfromTaintedString' }
+  }
+
+  void 'getRequestURI taints its output'() {
+    setup:
+    final url = "http://localhost:${httpPort}/getrequesturi"
+    final request = new Request.Builder().url(url).get().build()
+
+    when:
+    client.newCall(request).execute()
+
+    then:
+    hasTainted { tainted ->
+      tainted.value == '/getrequesturi' &&
+        tainted.ranges[0].source.origin == 'http.request.path'
+    }
   }
 
 }

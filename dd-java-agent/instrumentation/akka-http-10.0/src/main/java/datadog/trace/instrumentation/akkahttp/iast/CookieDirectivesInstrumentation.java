@@ -55,7 +55,7 @@ public class CookieDirectivesInstrumentation extends Instrumenter.Iast
 
   static class TaintCookieAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
-    @Source(SourceTypes.REQUEST_COOKIE_VALUE_STRING)
+    @Source(SourceTypes.REQUEST_COOKIE_VALUE)
     static void after(@Advice.Return(readOnly = false) Directive directive) {
       directive = directive.tmap(TaintCookieFunction.INSTANCE, Tupler$.MODULE$.forTuple(null));
     }
@@ -63,7 +63,7 @@ public class CookieDirectivesInstrumentation extends Instrumenter.Iast
 
   static class TaintOptionalCookieAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
-    @Source(SourceTypes.REQUEST_COOKIE_VALUE_STRING)
+    @Source(SourceTypes.REQUEST_COOKIE_VALUE)
     static void after(@Advice.Return(readOnly = false) Directive directive) {
       directive =
           directive.tmap(TaintOptionalCookieFunction.INSTANCE, Tupler$.MODULE$.forTuple(null));

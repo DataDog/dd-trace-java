@@ -14,6 +14,8 @@ public class PeerServiceNamingV1 implements NamingSchema.ForPeerService {
       initPrecursorsByComponent();
   private static final String[] DEFAULT_PRECURSORS = {Tags.DB_INSTANCE, Tags.PEER_HOSTNAME};
 
+  private final Map<String, String> overridesByComponent;
+
   private static Map<Object, String[]> initPrecursorsByComponent() {
     final Map<Object, String[]> ret = new HashMap<>(7);
     // messaging
@@ -32,12 +34,17 @@ public class PeerServiceNamingV1 implements NamingSchema.ForPeerService {
     // rpc
     final String[] rpcPrecursors = {Tags.RPC_SERVICE, Tags.PEER_HOSTNAME};
     ret.put("grpc-client", rpcPrecursors);
+    ret.put("armeria-grpc-client", rpcPrecursors);
     ret.put("rmi-client", rpcPrecursors);
 
     // for aws sdk we calculate eagerly to avoid doing too much complex lookups
     // this will avoid calculating defaults
     ret.put("java-aws-sdk", new String[] {});
     return ret;
+  }
+
+  public PeerServiceNamingV1(@Nonnull final Map<String, String> overridesByComponent) {
+    this.overridesByComponent = overridesByComponent;
   }
 
   @Override
@@ -48,12 +55,18 @@ public class PeerServiceNamingV1 implements NamingSchema.ForPeerService {
   private void resolve(@Nonnull final Map<String, Object> unsafeTags) {
     final Object component = unsafeTags.get(Tags.COMPONENT);
     // avoid issues with UTF8ByteString or others
-    if (resolveBy(
-        unsafeTags,
-        SPECIFIC_PRECURSORS_BY_COMPONENT.get(component == null ? null : component.toString()))) {
+    final String componentString = component == null ? null : component.toString();
+    final String override = overridesByComponent.get(componentString);
+    // check if value can be overridden
+    if (override != null) {
+      set(unsafeTags, override, "_component_override");
       return;
     }
-    // fallback to default lookup
+    // otherwise try to lookup by component specific precursor
+    if (resolveBy(unsafeTags, SPECIFIC_PRECURSORS_BY_COMPONENT.get(componentString))) {
+      return;
+    }
+    // finally fallback to default lookup
     resolveBy(unsafeTags, DEFAULT_PRECURSORS);
   }
 
@@ -73,11 +86,15 @@ public class PeerServiceNamingV1 implements NamingSchema.ForPeerService {
       }
     }
     // if something matched now set the value and the source
+    set(unsafeTags, value, source);
+    return true;
+  }
+
+  private void set(@Nonnull final Map<String, Object> unsafeTags, Object value, String source) {
     if (value != null) {
       unsafeTags.put(Tags.PEER_SERVICE, value);
       unsafeTags.put(DDTags.PEER_SERVICE_SOURCE, source);
     }
-    return true;
   }
 
   @Nonnull

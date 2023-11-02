@@ -1,8 +1,3 @@
-buildscript {
-  dependencies {
-    classpath 'org.jsonschema2pojo:jsonschema2pojo-gradle-plugin:1.1.1'
-  }
-}
 plugins {
   id "com.github.johnrengelman.shadow"
   id "me.champeau.jmh"
@@ -11,18 +6,14 @@ plugins {
 
 apply from: "$rootDir/gradle/java.gradle"
 apply from: "$rootDir/gradle/version.gradle"
-apply plugin: 'jsonschema2pojo'
 
 dependencies {
   api deps.slf4j
   implementation project(':internal-api')
   implementation project(':communication')
   implementation project(':telemetry')
-  implementation group: 'io.sqreen', name: 'libsqreen', version: '7.1.0'
+  implementation group: 'io.sqreen', name: 'libsqreen', version: '8.0.0'
   implementation group: 'com.squareup.moshi', name: 'moshi', version: versions.moshi
-
-  annotationProcessor deps.autoserviceProcessor
-  compileOnly deps.autoserviceAnnotation
 
   testImplementation deps.bytebuddy
   testImplementation project(':utils:test-utils')
@@ -59,35 +50,6 @@ jmhJar {
   exclude 'org/slf4j/impl/**/*'
 }
 
-jsonSchema2Pojo {
-  source = files("$projectDir/src/main/schemas")
-  targetPackage = 'com.datadog.appsec.report'
-  includeAdditionalProperties = false
-  includeGeneratedAnnotation = false
-  generateBuilders = true
-  useInnerClassBuilders = true
-  usePrimitives = false
-  annotationStyle = 'moshi1'
-  //  customAnnotator = 'org.jsonschema2pojo.NoopAnnotator'
-
-  // Whether to use the 'title' property of the schema to decide the class name (if not
-  // set to true, the filename and property names are used).
-  useTitleAsClassname = true
-  sourceType = 'jsonschema'
-
-
-  dateType = "java.time.LocalDate"
-  dateTimeType = "java.time.Instant"
-  timeType = "java.time.LocalDate"
-
-  //  formatTypeMapping = []
-  //  toStringExcludes = ["someProperty"]
-
-  targetVersion = "1.8"
-}
-
-packageSources.dependsOn 'generateJsonSchema2Pojo'
-sourcesJar.dependsOn 'generateJsonSchema2Pojo'
 
 task runSampleApp(type: GradleBuild, dependsOn: ':dd-java-agent:shadowJar') {
   description = "Run AppSec sample app with instrumentation"
@@ -117,13 +79,13 @@ ext {
   excludedClassesCoverage = [
     'com.datadog.appsec.config.MergedAsmData.InvalidAsmDataException',
     'com.datadog.appsec.powerwaf.LibSqreenInitialization',
-    'com.datadog.appsec.report.raw.events.*',
-    'com.datadog.appsec.report.AppSecEventWrapper',
+    'com.datadog.appsec.report.*',
     'com.datadog.appsec.config.AppSecConfigServiceImpl.SubscribeFleetServiceRunnable.1',
     'com.datadog.appsec.util.StandardizedLogging',
     'com.datadog.appsec.util.AbortStartupException',
     'com.datadog.appsec.config.AppSecConfig.AppSecConfigV1',
     'com.datadog.appsec.config.AppSecConfig.AppSecConfigV2',
+    'com.datadog.appsec.config.AppSecConfig.NumberJsonAdapter',
     'com.datadog.appsec.event.ReplaceableEventProducerService',
   ]
   excludedClassesBranchCoverage = [

@@ -43,7 +43,6 @@ dependencies {
     exclude group: 'com.datadoghq', module: 'agent-logging'
   }
   api group: 'com.blogspot.mydailyjava', name: 'weak-lock-free', version: '0.17'
-  api group: 'com.googlecode.concurrentlinkedhashmap', name: 'concurrentlinkedhashmap-lru', version: '1.4.2'
   api deps.bytebuddy
   api deps.bytebuddyagent
   implementation group: 'net.java.dev.jna', name: 'jna', version: '5.8.0'

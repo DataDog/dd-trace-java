@@ -36,16 +36,18 @@ public class JSONObjectUtilsInstrumentation extends Instrumenter.Iast
   public static class InstrumenterAdvice {
 
     @Advice.OnMethodExit(suppress = Throwable.class)
-    @Source(SourceTypes.REQUEST_HEADER_VALUE_STRING)
+    @Source(SourceTypes.REQUEST_HEADER_VALUE)
     public static void onEnter(@Advice.Return Map<String, Object> map) {
       final PropagationModule module = InstrumentationBridge.PROPAGATION;
 
       if (module != null) {
-        for (Map.Entry entry : map.entrySet()) {
-          if (entry.getValue() instanceof String) {
+        for (Map.Entry<String, Object> entry : map.entrySet()) {
+          final String name = entry.getKey();
+          final Object value = entry.getValue();
+          if (value instanceof String) {
             // TODO: We could represent this source more accurately, perhaps tracking the original
             // source, or using a special name.
-            module.taint(SourceTypes.REQUEST_HEADER_VALUE, null, (String) entry.getValue());
+            module.taint(value, SourceTypes.REQUEST_HEADER_VALUE, name);
           }
         }
       }

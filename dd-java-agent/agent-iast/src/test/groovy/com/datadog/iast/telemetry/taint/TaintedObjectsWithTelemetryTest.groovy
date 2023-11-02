@@ -2,13 +2,11 @@ package com.datadog.iast.telemetry.taint
 
 import com.datadog.iast.IastRequestContext
 import com.datadog.iast.model.Range
-import com.datadog.iast.model.Source
 import com.datadog.iast.taint.Ranges
 import com.datadog.iast.taint.TaintedObject
 import com.datadog.iast.taint.TaintedObjects
 import datadog.trace.api.gateway.RequestContext
 import datadog.trace.api.gateway.RequestContextSlot
-import datadog.trace.api.iast.SourceTypes
 import datadog.trace.api.iast.telemetry.IastMetric
 import datadog.trace.api.iast.telemetry.IastMetricCollector
 import datadog.trace.api.iast.telemetry.Verbosity
@@ -60,7 +58,7 @@ class TaintedObjectsWithTelemetryTest extends DDSpecification {
 
     then:
     if (IastMetric.REQUEST_TAINTED.isEnabled(verbosity)) {
-      1 * mockCollector.addMetric(IastMetric.REQUEST_TAINTED, null, tainteds.size())
+      1 * mockCollector.addMetric(IastMetric.REQUEST_TAINTED, _, tainteds.size())
     } else {
       0 * mockCollector.addMetric
     }
@@ -74,13 +72,11 @@ class TaintedObjectsWithTelemetryTest extends DDSpecification {
     final taintedObjects = TaintedObjectsWithTelemetry.build(verbosity, Mock(TaintedObjects))
 
     when:
-    taintedObjects.taintInputString('test', new Source(SourceTypes.REQUEST_PARAMETER_VALUE, 'name', 'value'))
-    taintedObjects.taintInputObject(new Date(), new Source(SourceTypes.REQUEST_HEADER_VALUE, 'name', 'value'))
     taintedObjects.taint('test', new Range[0])
 
     then:
     if (IastMetric.EXECUTED_TAINTED.isEnabled(verbosity)) {
-      3 * mockCollector.addMetric(IastMetric.EXECUTED_TAINTED, null, 1) // two calls with one element
+      1 * mockCollector.addMetric(IastMetric.EXECUTED_TAINTED, _, 1)
     } else {
       0 * mockCollector.addMetric
     }
@@ -100,7 +96,7 @@ class TaintedObjectsWithTelemetryTest extends DDSpecification {
 
     then:
     if (IastMetric.TAINTED_FLAT_MODE.isEnabled(verbosity) && taintedObjects.isFlat()) {
-      1 * mockCollector.addMetric(IastMetric.TAINTED_FLAT_MODE, null, _)
+      1 * mockCollector.addMetric(IastMetric.TAINTED_FLAT_MODE, _, _)
     } else {
       0 * mockCollector.addMetric
     }

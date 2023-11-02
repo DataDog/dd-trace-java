@@ -11,13 +11,12 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 import akka.http.scaladsl.model.Uri;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Propagation;
 import datadog.trace.api.iast.Source;
 import datadog.trace.api.iast.SourceTypes;
 import datadog.trace.api.iast.propagation.PropagationModule;
-import datadog.trace.api.iast.source.WebModule;
-import java.util.Collections;
 import net.bytebuddy.asm.Advice;
 import scala.Tuple2;
 import scala.collection.Iterator;
@@ -70,7 +69,7 @@ public class UriInstrumentation extends Instrumenter.Iast implements Instrumente
       if (mod == null || ret.isEmpty()) {
         return;
       }
-      mod.taintIfInputIsTainted(ret.get(), uri);
+      mod.taintIfTainted(ret.get(), uri);
     }
   }
 
@@ -78,11 +77,10 @@ public class UriInstrumentation extends Instrumenter.Iast implements Instrumente
     // bind uri to a variable of type Object so that this advice can also
     // be used from FromDataInstrumentaton
     @Advice.OnMethodExit(suppress = Throwable.class)
-    @Source(SourceTypes.REQUEST_PARAMETER_VALUE_STRING)
+    @Source(SourceTypes.REQUEST_PARAMETER_VALUE)
     static void after(@Advice.This /*Uri*/ Object uri, @Advice.Return Uri.Query ret) {
-      WebModule web = InstrumentationBridge.WEB;
       PropagationModule prop = InstrumentationBridge.PROPAGATION;
-      if (prop == null || web == null || ret.isEmpty()) {
+      if (prop == null || ret.isEmpty()) {
         return;
       }
 
@@ -90,11 +88,13 @@ public class UriInstrumentation extends Instrumenter.Iast implements Instrumente
         return;
       }
 
+      final IastContext ctx = IastContext.Provider.get();
       Iterator<Tuple2<String, String>> iterator = ret.iterator();
       while (iterator.hasNext()) {
         Tuple2<String, String> pair = iterator.next();
-        web.onParameterNames(Collections.singleton(pair._1()));
-        prop.taint(SourceTypes.REQUEST_PARAMETER_VALUE, pair._1(), pair._2());
+        final String name = pair._1(), value = pair._2();
+        prop.taint(ctx, name, SourceTypes.REQUEST_PARAMETER_NAME, name);
+        prop.taint(ctx, value, SourceTypes.REQUEST_PARAMETER_VALUE, name);
       }
     }
   }

@@ -1,13 +1,10 @@
 package com.datadog.iast.taint;
 
-import static com.datadog.iast.model.Range.NOT_MARKED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_MAX_CONCURRENT_REQUESTS;
 import static java.util.Collections.emptyIterator;
 
-import com.datadog.iast.IastRequestContext;
 import com.datadog.iast.IastSystem;
 import com.datadog.iast.model.Range;
-import com.datadog.iast.model.Source;
 import com.datadog.iast.model.json.TaintedObjectEncoding;
 import datadog.trace.api.Config;
 import java.util.ArrayList;
@@ -16,17 +13,17 @@ import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.ArrayBlockingQueue;
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+@SuppressWarnings("UnusedReturnValue")
 public interface TaintedObjects extends Iterable<TaintedObject> {
 
-  TaintedObject taintInputString(@Nonnull String obj, @Nonnull Source source, int mark);
-
-  TaintedObject taintInputObject(@Nonnull Object obj, @Nonnull Source source, int mark);
-
+  @Nullable
   TaintedObject taint(@Nonnull Object obj, @Nonnull Range[] ranges);
 
+  @Nullable
   TaintedObject get(@Nonnull Object obj);
 
   void release();
@@ -37,36 +34,12 @@ public interface TaintedObjects extends Iterable<TaintedObject> {
 
   boolean isFlat();
 
-  default TaintedObject taintInputString(@Nonnull String obj, @Nonnull Source source) {
-    return taintInputString(obj, source, NOT_MARKED);
-  }
-
-  default TaintedObject taintInputObject(@Nonnull Object obj, @Nonnull Source source) {
-    return taintInputObject(obj, source, NOT_MARKED);
-  }
-
   static TaintedObjects acquire() {
     TaintedObjectsImpl taintedObjects = TaintedObjectsImpl.pool.poll();
     if (taintedObjects == null) {
       taintedObjects = new TaintedObjectsImpl();
     }
     return IastSystem.DEBUG ? new TaintedObjectsDebugAdapter(taintedObjects) : taintedObjects;
-  }
-
-  static TaintedObjects activeTaintedObjects(boolean lazy) {
-    if (lazy) {
-      return new LazyTaintedObjects();
-    } else {
-      final IastRequestContext ctx = IastRequestContext.get();
-      if (ctx != null) {
-        return ctx.getTaintedObjects();
-      }
-      return null;
-    }
-  }
-
-  static TaintedObjects activeTaintedObjects() {
-    return activeTaintedObjects(false);
   }
 
   class TaintedObjectsImpl implements TaintedObjects {
@@ -87,30 +60,13 @@ public interface TaintedObjects extends Iterable<TaintedObject> {
     }
 
     @Override
-    public TaintedObject taintInputString(
-        final @Nonnull String obj, final @Nonnull Source source, final int mark) {
-      final TaintedObject tainted =
-          new TaintedObject(obj, Ranges.forString(obj, source, mark), map.getReferenceQueue());
-      map.put(tainted);
-      return tainted;
-    }
-
-    @Override
-    public TaintedObject taintInputObject(
-        @Nonnull Object obj, @Nonnull Source source, final int mark) {
-      final TaintedObject tainted =
-          new TaintedObject(obj, Ranges.forObject(source, mark), map.getReferenceQueue());
-      map.put(tainted);
-      return tainted;
-    }
-
-    @Override
     public TaintedObject taint(final @Nonnull Object obj, final @Nonnull Range[] ranges) {
       final TaintedObject tainted = new TaintedObject(obj, ranges, map.getReferenceQueue());
       map.put(tainted);
       return tainted;
     }
 
+    @Nullable
     @Override
     public TaintedObject get(final @Nonnull Object obj) {
       return map.get(obj);
@@ -137,13 +93,14 @@ public interface TaintedObjects extends Iterable<TaintedObject> {
       return map.isFlat();
     }
 
+    @Nonnull
     @Override
     public Iterator<TaintedObject> iterator() {
       return map.iterator();
     }
   }
 
-  class TaintedObjectsDebugAdapter implements TaintedObjects {
+  final class TaintedObjectsDebugAdapter implements TaintedObjects {
     static final Logger LOGGER = LoggerFactory.getLogger(TaintedObjects.class);
 
     private final TaintedObjectsImpl delegated;
@@ -155,22 +112,7 @@ public interface TaintedObjects extends Iterable<TaintedObject> {
       LOGGER.debug("new: id={}", id);
     }
 
-    @Override
-    public TaintedObject taintInputString(
-        final @Nonnull String obj, final @Nonnull Source source, final int mark) {
-      final TaintedObject tainted = delegated.taintInputString(obj, source, mark);
-      logTainted(tainted);
-      return tainted;
-    }
-
-    @Override
-    public TaintedObject taintInputObject(
-        @Nonnull Object obj, @Nonnull Source source, final int mark) {
-      final TaintedObject tainted = delegated.taintInputObject(obj, source, mark);
-      logTainted(tainted);
-      return tainted;
-    }
-
+    @Nullable
     @Override
     public TaintedObject taint(final @Nonnull Object obj, final @Nonnull Range[] ranges) {
       final TaintedObject tainted = delegated.taint(obj, ranges);
@@ -178,6 +120,7 @@ public interface TaintedObjects extends Iterable<TaintedObject> {
       return tainted;
     }
 
+    @Nullable
     @Override
     public TaintedObject get(final @Nonnull Object obj) {
       return delegated.get(obj);
@@ -214,6 +157,7 @@ public interface TaintedObjects extends Iterable<TaintedObject> {
       return delegated.isFlat();
     }
 
+    @Nonnull
     @Override
     public Iterator<TaintedObject> iterator() {
       return delegated.iterator();
@@ -230,74 +174,44 @@ public interface TaintedObjects extends Iterable<TaintedObject> {
     }
   }
 
-  class LazyTaintedObjects implements TaintedObjects {
-    private boolean fetched = false;
-    private TaintedObjects taintedObjects;
+  final class NoOp implements TaintedObjects {
 
-    @Override
-    public TaintedObject taintInputString(
-        @Nonnull final String obj, @Nonnull final Source source, final int mark) {
-      final TaintedObjects to = getTaintedObjects();
-      return to == null ? null : to.taintInputString(obj, source, mark);
-    }
+    public static final TaintedObjects INSTANCE = new NoOp();
 
-    @Override
-    public TaintedObject taintInputObject(
-        @Nonnull final Object obj, @Nonnull final Source source, final int mark) {
-      final TaintedObjects to = getTaintedObjects();
-      return to == null ? null : to.taintInputObject(obj, source, mark);
-    }
-
+    @Nullable
     @Override
     public TaintedObject taint(@Nonnull final Object obj, @Nonnull final Range[] ranges) {
-      final TaintedObjects to = getTaintedObjects();
-      return to == null ? null : to.taint(obj, ranges);
+      return null;
     }
 
+    @Nullable
     @Override
     public TaintedObject get(@Nonnull final Object obj) {
-      final TaintedObjects to = getTaintedObjects();
-      return to == null ? null : to.get(obj);
+      return null;
     }
 
     @Override
-    public void release() {
-      final TaintedObjects to = getTaintedObjects();
-      if (to != null) {
-        to.release();
-      }
-    }
-
-    @Override
-    public Iterator<TaintedObject> iterator() {
-      final TaintedObjects to = getTaintedObjects();
-      return to != null ? to.iterator() : emptyIterator();
-    }
-
-    @Override
-    public int getEstimatedSize() {
-      final TaintedObjects to = getTaintedObjects();
-      return to != null ? to.getEstimatedSize() : 0;
-    }
+    public void release() {}
 
     @Override
     public boolean isFlat() {
-      final TaintedObjects to = getTaintedObjects();
-      return to != null && to.isFlat();
+      return false;
     }
 
     @Override
     public int count() {
-      final TaintedObjects to = getTaintedObjects();
-      return to != null ? to.count() : 0;
+      return 0;
     }
 
-    private TaintedObjects getTaintedObjects() {
-      if (!fetched) {
-        fetched = true;
-        taintedObjects = activeTaintedObjects();
-      }
-      return taintedObjects;
+    @Override
+    public int getEstimatedSize() {
+      return 0;
+    }
+
+    @Override
+    @Nonnull
+    public Iterator<TaintedObject> iterator() {
+      return emptyIterator();
     }
   }
 }

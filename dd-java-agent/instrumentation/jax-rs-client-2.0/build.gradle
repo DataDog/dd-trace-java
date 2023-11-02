@@ -8,6 +8,7 @@ muzzle {
     // We want to support the dropwizard clients too.
     group = 'io.dropwizard'
     module = 'dropwizard-client'
+    skipVersions = ['3.0.2', '4.0.2']
     versions = "[0.8.0,4)" // dropwizard-client 4+ uses jakarta
     assertInverse = true
   }

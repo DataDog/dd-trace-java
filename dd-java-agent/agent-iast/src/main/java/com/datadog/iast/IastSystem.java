@@ -1,11 +1,11 @@
 package com.datadog.iast;
 
-import com.datadog.iast.HasDependencies.Dependencies;
 import com.datadog.iast.overhead.OverheadController;
 import com.datadog.iast.propagation.FastCodecModule;
 import com.datadog.iast.propagation.PropagationModuleImpl;
 import com.datadog.iast.propagation.StringModuleImpl;
 import com.datadog.iast.sink.CommandInjectionModuleImpl;
+import com.datadog.iast.sink.HstsMissingHeaderModuleImpl;
 import com.datadog.iast.sink.HttpResponseHeaderModuleImpl;
 import com.datadog.iast.sink.InsecureCookieModuleImpl;
 import com.datadog.iast.sink.LdapInjectionModuleImpl;
@@ -19,13 +19,14 @@ import com.datadog.iast.sink.UnvalidatedRedirectModuleImpl;
 import com.datadog.iast.sink.WeakCipherModuleImpl;
 import com.datadog.iast.sink.WeakHashModuleImpl;
 import com.datadog.iast.sink.WeakRandomnessModuleImpl;
+import com.datadog.iast.sink.XContentTypeModuleImpl;
 import com.datadog.iast.sink.XPathInjectionModuleImpl;
 import com.datadog.iast.sink.XssModuleImpl;
-import com.datadog.iast.source.WebModuleImpl;
 import com.datadog.iast.telemetry.TelemetryRequestEndedHandler;
 import com.datadog.iast.telemetry.TelemetryRequestStartedHandler;
 import datadog.trace.api.Config;
 import datadog.trace.api.ProductActivation;
+import datadog.trace.api.function.TriConsumer;
 import datadog.trace.api.gateway.EventType;
 import datadog.trace.api.gateway.Events;
 import datadog.trace.api.gateway.Flow;
@@ -38,9 +39,9 @@ import datadog.trace.api.iast.telemetry.Verbosity;
 import datadog.trace.util.AgentTaskScheduler;
 import datadog.trace.util.stacktrace.StackWalkerFactory;
 import java.util.function.BiFunction;
-import java.util.function.Consumer;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
+import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -53,7 +54,8 @@ public class IastSystem {
     start(ss, null);
   }
 
-  public static void start(final SubscriptionService ss, OverheadController overheadController) {
+  public static void start(
+      final SubscriptionService ss, @Nullable OverheadController overheadController) {
     final Config config = Config.get();
     if (config.getIastActivation() != ProductActivation.FULLY_ENABLED) {
       LOGGER.debug("IAST is disabled");
@@ -68,43 +70,37 @@ public class IastSystem {
     final Dependencies dependencies =
         new Dependencies(config, reporter, overheadController, StackWalkerFactory.INSTANCE);
     final boolean addTelemetry = config.getIastTelemetryVerbosity() != Verbosity.OFF;
-    iastModules().forEach(registerModule(dependencies));
+    iastModules(dependencies).forEach(InstrumentationBridge::registerIastModule);
     registerRequestStartedCallback(ss, addTelemetry, dependencies);
     registerRequestEndedCallback(ss, addTelemetry, dependencies);
+    registerHeadersCallback(ss);
+    registerGrpcServerRequestMessageCallback(ss);
     LOGGER.debug("IAST started");
   }
 
-  private static Consumer<IastModule> registerModule(final Dependencies dependencies) {
-    return module -> {
-      if (module instanceof HasDependencies) {
-        ((HasDependencies) module).registerDependencies(dependencies);
-      }
-      InstrumentationBridge.registerIastModule(module);
-    };
-  }
-
-  private static Stream<IastModule> iastModules() {
+  private static Stream<IastModule> iastModules(final Dependencies dependencies) {
     return Stream.of(
-        new WebModuleImpl(),
         new StringModuleImpl(),
         new FastCodecModule(),
-        new SqlInjectionModuleImpl(),
-        new PathTraversalModuleImpl(),
-        new CommandInjectionModuleImpl(),
-        new WeakCipherModuleImpl(),
-        new WeakHashModuleImpl(),
-        new LdapInjectionModuleImpl(),
+        new SqlInjectionModuleImpl(dependencies),
+        new PathTraversalModuleImpl(dependencies),
+        new CommandInjectionModuleImpl(dependencies),
+        new WeakCipherModuleImpl(dependencies),
+        new WeakHashModuleImpl(dependencies),
+        new LdapInjectionModuleImpl(dependencies),
         new PropagationModuleImpl(),
-        new HttpResponseHeaderModuleImpl(),
+        new HttpResponseHeaderModuleImpl(dependencies),
+        new HstsMissingHeaderModuleImpl(dependencies),
         new InsecureCookieModuleImpl(),
         new NoHttpOnlyCookieModuleImpl(),
+        new XContentTypeModuleImpl(dependencies),
         new NoSameSiteCookieModuleImpl(),
-        new SsrfModuleImpl(),
-        new UnvalidatedRedirectModuleImpl(),
-        new WeakRandomnessModuleImpl(),
-        new XPathInjectionModuleImpl(),
-        new TrustBoundaryViolationModuleImpl(),
-        new XssModuleImpl());
+        new SsrfModuleImpl(dependencies),
+        new UnvalidatedRedirectModuleImpl(dependencies),
+        new WeakRandomnessModuleImpl(dependencies),
+        new XPathInjectionModuleImpl(dependencies),
+        new TrustBoundaryViolationModuleImpl(dependencies),
+        new XssModuleImpl(dependencies));
   }
 
   private static void registerRequestStartedCallback(
@@ -123,5 +119,16 @@ public class IastSystem {
         Events.get().requestEnded();
     final RequestEndedHandler handler = new RequestEndedHandler(dependencies);
     ss.registerCallback(event, addTelemetry ? new TelemetryRequestEndedHandler(handler) : handler);
+  }
+
+  private static void registerHeadersCallback(final SubscriptionService ss) {
+    final EventType<TriConsumer<RequestContext, String, String>> event =
+        Events.get().requestHeader();
+    final TriConsumer<RequestContext, String, String> handler = new RequestHeaderHandler();
+    ss.registerCallback(event, handler);
+  }
+
+  private static void registerGrpcServerRequestMessageCallback(final SubscriptionService ss) {
+    ss.registerCallback(Events.get().grpcServerRequestMessage(), new GrpcRequestMessageHandler());
   }
 }

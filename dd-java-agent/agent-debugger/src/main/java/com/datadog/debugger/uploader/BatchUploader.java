@@ -18,10 +18,10 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import okhttp3.Call;
 import okhttp3.Callback;
-import okhttp3.ConnectionPool;
 import okhttp3.Dispatcher;
 import okhttp3.HttpUrl;
 import okhttp3.MediaType;
+import okhttp3.MultipartBody;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.RequestBody;
@@ -32,13 +32,37 @@ import org.slf4j.LoggerFactory;
 
 /** Handles batching logic of upload requests sent to the intake */
 public class BatchUploader {
+  public static class MultiPartContent {
+    private final byte[] content;
+    private final String partName;
+    private final String fileName;
+
+    public MultiPartContent(byte[] content, String partName, String fileName) {
+      this.content = content;
+      this.partName = partName;
+      this.fileName = fileName;
+    }
+
+    public byte[] getContent() {
+      return content;
+    }
+
+    public String getPartName() {
+      return partName;
+    }
+
+    public String getFileName() {
+      return fileName;
+    }
+  }
+
   private static final Logger log = LoggerFactory.getLogger(BatchUploader.class);
   private static final int MINUTES_BETWEEN_ERROR_LOG = 5;
   private static final MediaType APPLICATION_JSON = MediaType.parse("application/json");
-  private static final String HEADER_DD_API_KEY = "DD-API-KEY";
   private static final String HEADER_DD_CONTAINER_ID = "Datadog-Container-ID";
   private final String containerId;
 
+  static final String HEADER_DD_API_KEY = "DD-API-KEY";
   static final int MAX_RUNNING_REQUESTS = 10;
   static final int MAX_ENQUEUED_REQUESTS = 20;
   static final int TERMINATION_TIMEOUT = 5;
@@ -54,23 +78,23 @@ public class BatchUploader {
 
   private final Phaser inflightRequests = new Phaser(1);
 
-  public BatchUploader(Config config) {
-    this(config, new RatelimitedLogger(log, MINUTES_BETWEEN_ERROR_LOG, TimeUnit.MINUTES));
+  public BatchUploader(Config config, String endpoint) {
+    this(config, endpoint, new RatelimitedLogger(log, MINUTES_BETWEEN_ERROR_LOG, TimeUnit.MINUTES));
   }
 
-  BatchUploader(Config config, RatelimitedLogger ratelimitedLogger) {
-    this(config, ratelimitedLogger, ContainerInfo.get().containerId);
+  BatchUploader(Config config, String endpoint, RatelimitedLogger ratelimitedLogger) {
+    this(config, endpoint, ratelimitedLogger, ContainerInfo.get().containerId);
   }
 
   // Visible for testing
-  BatchUploader(Config config, RatelimitedLogger ratelimitedLogger, String containerId) {
+  BatchUploader(
+      Config config, String endpoint, RatelimitedLogger ratelimitedLogger, String containerId) {
     instrumentTheWorld = config.isDebuggerInstrumentTheWorld();
-    String url = config.getFinalDebuggerSnapshotUrl();
-    if (url == null || url.length() == 0) {
-      throw new IllegalArgumentException("Snapshot url is empty");
+    if (endpoint == null || endpoint.length() == 0) {
+      throw new IllegalArgumentException("Endpoint url is empty");
     }
-    urlBase = HttpUrl.get(url);
-    log.debug("Started SnapshotUploader with target url {}", urlBase);
+    urlBase = HttpUrl.get(endpoint);
+    log.debug("Started BatchUploader with target url {}", urlBase);
     apiKey = config.getApiKey();
     this.ratelimitedLogger = ratelimitedLogger;
     responseCallback = new ResponseCallback(ratelimitedLogger, inflightRequests);
@@ -84,10 +108,6 @@ public class BatchUploader {
             new SynchronousQueue<>(),
             new AgentThreadFactory(DEBUGGER_HTTP_DISPATCHER));
     this.containerId = containerId;
-    // Reusing connections causes non daemon threads to be created which causes agent to prevent app
-    // from exiting. See https://github.com/square/okhttp/issues/4029 for some details.
-    ConnectionPool connectionPool = new ConnectionPool(MAX_RUNNING_REQUESTS, 1, TimeUnit.SECONDS);
-
     Duration requestTimeout = Duration.ofSeconds(config.getDebuggerUploadTimeout());
     client =
         OkHttpUtils.buildHttpClient(
@@ -110,21 +130,41 @@ public class BatchUploader {
   }
 
   public void upload(byte[] batch, String tags) {
+    doUpload(() -> makeUploadRequest(batch, tags));
+  }
+
+  public void uploadAsMultipart(String tags, MultiPartContent... parts) {
+    doUpload(() -> makeMultipartUploadRequest(tags, parts));
+  }
+
+  private void makeMultipartUploadRequest(String tags, MultiPartContent[] parts) {
+    int contentLength = 0;
+    MultipartBody.Builder builder = new MultipartBody.Builder().setType(MultipartBody.FORM);
+    for (MultiPartContent part : parts) {
+      RequestBody fileBody = RequestBody.create(APPLICATION_JSON, part.content);
+      contentLength += part.content.length;
+      builder.addFormDataPart(part.partName, part.fileName, fileBody);
+    }
+    MultipartBody body = builder.build();
+    buildAndSendRequest(body, contentLength, tags);
+  }
+
+  private void doUpload(Runnable makeRequest) {
     if (instrumentTheWorld) {
       // no upload in Instrument-The-World mode
       return;
     }
     try {
       if (canEnqueueMoreRequests()) {
-        makeUploadRequest(batch, tags);
+        makeRequest.run();
         debuggerMetrics.count("batch.uploaded", 1);
       } else {
         debuggerMetrics.count("request.queue.full", 1);
         ratelimitedLogger.warn("Cannot upload batch data: too many enqueued requests!");
       }
-    } catch (final IllegalStateException | IOException e) {
+    } catch (Exception ex) {
       debuggerMetrics.count("batch.upload.error", 1);
-      ratelimitedLogger.warn("Problem uploading batch!", e);
+      ratelimitedLogger.warn("Problem uploading batch!", ex);
     }
   }
 
@@ -136,11 +176,15 @@ public class BatchUploader {
     return client;
   }
 
-  private void makeUploadRequest(byte[] json, String tags) throws IOException {
+  private void makeUploadRequest(byte[] json, String tags) {
+    int contentLength = json.length;
     // use RequestBody.create(MediaType, byte[]) to avoid changing Content-Type to
     // "Content-Type: application/json; charset=UTF-8" which is not recognized
-    int contentLength = json.length;
     RequestBody body = RequestBody.create(APPLICATION_JSON, json);
+    buildAndSendRequest(body, contentLength, tags);
+  }
+
+  private void buildAndSendRequest(RequestBody body, int contentLength, String tags) {
     debuggerMetrics.histogram("batch.uploader.request.size", contentLength);
     if (log.isDebugEnabled()) {
       log.debug("Uploading batch data size={} bytes", contentLength);

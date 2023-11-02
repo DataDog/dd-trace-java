@@ -82,7 +82,7 @@ class JakartaHttpServletResponseInstrumentationTest extends AgentTestRunner {
     final response = new DummyResponse()
 
     when:
-    response.addCookie(null)
+    response.addCookie((Cookie) null)
 
     then:
     0 * _
@@ -108,7 +108,7 @@ class JakartaHttpServletResponseInstrumentationTest extends AgentTestRunner {
     final response = new DummyResponse()
 
     when:
-    response.addHeader(null, null)
+    response.addHeader((String) null, null)
 
     then:
     noExceptionThrown()
@@ -135,7 +135,7 @@ class JakartaHttpServletResponseInstrumentationTest extends AgentTestRunner {
     final response = new DummyResponse()
 
     when:
-    response.setHeader(null, null)
+    response.setHeader((String) null, null)
 
     then:
     noExceptionThrown()
@@ -206,13 +206,13 @@ class JakartaHttpServletResponseInstrumentationTest extends AgentTestRunner {
     final module = Mock(PropagationModule)
     InstrumentationBridge.registerIastModule(module)
     final response = new DummyResponse()
+    final url = 'http://dummy.url.com'
 
     when:
-    response.encodeRedirectURL("http://dummy.url.com")
+    final result = response.encodeRedirectURL(url)
 
     then:
-    noExceptionThrown()
-    1 * module.taintIfInputIsTainted(_, "http://dummy.url.com")
+    1 * module.taintIfTainted(_, url) >> { args -> assert args[0] == result }
     0 * _
   }
 
@@ -221,13 +221,38 @@ class JakartaHttpServletResponseInstrumentationTest extends AgentTestRunner {
     final module = Mock(PropagationModule)
     InstrumentationBridge.registerIastModule(module)
     final response = new DummyResponse()
+    final url = 'http://dummy.url.com'
 
     when:
-    response.encodeURL("http://dummy.url.com")
+    final result = response.encodeURL(url)
 
     then:
-    noExceptionThrown()
-    1 * module.taintIfInputIsTainted(_, "http://dummy.url.com")
+    1 * module.taintIfTainted(_, url) >> { args -> assert args[0] == result }
+    0 * _
+  }
+
+  void 'test instrumentation with unknown types'() {
+    setup:
+    final module = Mock(HttpResponseHeaderModule)
+    InstrumentationBridge.registerIastModule(module)
+    final response = new DummyResponse()
+
+    when:
+    response.addCookie(new DummyResponse.CustomCookie())
+
+    then:
+    0 * _
+
+    when:
+    response.addHeader(new DummyResponse.CustomHeaderName(), "value")
+
+    then:
+    0 * _
+
+    when:
+    response.setHeader(new DummyResponse.CustomHeaderName(), "value")
+
+    then:
     0 * _
   }
 }

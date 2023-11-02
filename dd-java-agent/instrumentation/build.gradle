@@ -14,6 +14,7 @@ plugins {
 }
 apply from: "$rootDir/gradle/java.gradle"
 
+
 tasks.register("latestDepTest")
 
 Project parent_project = project
@@ -120,8 +121,23 @@ dependencies {
   implementation project(':dd-java-agent:agent-builder')
 }
 
+if (project.gradle.startParameter.taskNames.any {it.endsWith("generateMuzzleReport")}) {
+  apply plugin: 'muzzle'
+  task("muzzleInstrumentationReport") {
+    dependsOn(project.getAllTasks(true).values().flatten().findAll { it.name.endsWith("generateMuzzleReport") })
+    finalizedBy(tasks.named('mergeMuzzleReports'))
+  }
+}
+
+
 tasks.named('shadowJar').configure {
   duplicatesStrategy = DuplicatesStrategy.FAIL
+  dependencies {
+    // the tracer is now in a separate shadow jar
+    exclude(project(":dd-trace-core"))
+    exclude(dependency('com.datadoghq:sketches-java'))
+    exclude(dependency('com.google.re2j:re2j'))
+  }
   dependencies deps.excludeShared
 }
 

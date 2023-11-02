@@ -61,7 +61,7 @@ public final class SQLNormalizer {
           }
         } else if (sequenceStart < sequenceEnd) {
           if (isQuoted(utf8, sequenceStart, sequenceEnd)
-              || isNumericLiteralPrefix(utf8[sequenceStart])
+              || isNumericLiteralPrefix(utf8, sequenceStart)
               || isHexLiteralPrefix(utf8, sequenceStart, sequenceEnd)) {
             int length = sequenceEnd - sequenceStart;
             System.arraycopy(utf8, end, utf8, sequenceStart + 1, outputLength - end);
@@ -90,8 +90,10 @@ public final class SQLNormalizer {
     return (utf8[start] | ' ') == 'x' && start + 1 < end && utf8[start + 1] == '\'';
   }
 
-  private static boolean isNumericLiteralPrefix(byte symbol) {
-    return NUMERIC_LITERAL_PREFIX.get(symbol & 0xFF);
+  private static boolean isNumericLiteralPrefix(byte[] utf8, int start) {
+    return NUMERIC_LITERAL_PREFIX.get(utf8[start] & 0xFF)
+        // preserve single line comment (--) prefixes
+        && !(utf8[start + 1] == '-' && utf8[start] == '-');
   }
 
   private static boolean isSplitter(byte symbol) {

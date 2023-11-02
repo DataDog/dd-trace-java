@@ -1,8 +1,12 @@
 package datadog.trace.civisibility.git.tree;
 
 import datadog.trace.api.Config;
+import datadog.trace.api.git.GitInfo;
+import datadog.trace.api.git.GitInfoProvider;
 import datadog.trace.civisibility.utils.FileUtils;
+import datadog.trace.civisibility.utils.ShellCommandExecutor;
 import datadog.trace.util.AgentThreadFactory;
+import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -23,15 +27,24 @@ public class GitDataUploaderImpl implements GitDataUploader {
   private final Config config;
   private final GitDataApi gitDataApi;
   private final GitClient gitClient;
+  private final GitInfoProvider gitInfoProvider;
+  private final String repoRoot;
   private final String remoteName;
   private final Thread uploadFinishedShutdownHook;
   private volatile CompletableFuture<Void> callback;
 
   public GitDataUploaderImpl(
-      Config config, GitDataApi gitDataApi, GitClient gitClient, String remoteName) {
+      Config config,
+      GitDataApi gitDataApi,
+      GitClient gitClient,
+      GitInfoProvider gitInfoProvider,
+      String repoRoot,
+      String remoteName) {
     this.config = config;
     this.gitDataApi = gitDataApi;
     this.gitClient = gitClient;
+    this.gitInfoProvider = gitInfoProvider;
+    this.repoRoot = repoRoot;
     this.remoteName = remoteName;
 
     // maven has a way of calling System.exit() when the build is done.
@@ -69,10 +82,11 @@ public class GitDataUploaderImpl implements GitDataUploader {
   private void uploadGitData() {
     try {
       if (config.isCiVisibilityGitUnshallowEnabled() && gitClient.isShallow()) {
-        gitClient.unshallow();
+        unshallowRepository();
       }
 
-      String remoteUrl = gitClient.getRemoteUrl(remoteName);
+      GitInfo gitInfo = gitInfoProvider.getGitInfo(repoRoot);
+      String remoteUrl = gitInfo.getRepositoryURL();
       List<String> latestCommits = gitClient.getLatestCommits();
       if (latestCommits.isEmpty()) {
         LOGGER.debug("No commits in the last month");
@@ -122,6 +136,27 @@ public class GitDataUploaderImpl implements GitDataUploader {
       callback.completeExceptionally(e);
     } finally {
       Runtime.getRuntime().removeShutdownHook(uploadFinishedShutdownHook);
+    }
+  }
+
+  private void unshallowRepository() throws IOException, TimeoutException, InterruptedException {
+    try {
+      gitClient.unshallow(GitClient.HEAD);
+      return;
+    } catch (ShellCommandExecutor.ShellCommandFailedException e) {
+      LOGGER.debug(
+          "Could not unshallow using HEAD - assuming HEAD points to a local commit that does not exist in the remote repo",
+          e);
+    }
+
+    try {
+      String upstreamBranch = gitClient.getUpstreamBranchSha();
+      gitClient.unshallow(upstreamBranch);
+    } catch (ShellCommandExecutor.ShellCommandFailedException e) {
+      LOGGER.debug(
+          "Could not unshallow using upstream branch - assuming currently checked out local branch does not track any remote branch",
+          e);
+      gitClient.unshallow(null);
     }
   }
 

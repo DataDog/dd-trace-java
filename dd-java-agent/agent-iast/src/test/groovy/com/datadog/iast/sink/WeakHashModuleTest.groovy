@@ -12,7 +12,7 @@ class WeakHashModuleTest extends IastModuleImplTestBase {
   private WeakHashModule module
 
   def setup() {
-    module = registerDependencies(new WeakHashModuleImpl())
+    module = new WeakHashModuleImpl(dependencies)
   }
 
   void 'iast module vulnerable hash algorithm'(final String algorithm){
@@ -26,6 +26,7 @@ class WeakHashModuleTest extends IastModuleImplTestBase {
     then:
     1 * tracer.activeSpan() >> span
     1 * span.getSpanId() >> spanId
+    1 * span.getServiceName()
     1 * overheadController.consumeQuota(_, _) >> true
     1 * reporter.report(_, _) >> { args ->
       Vulnerability vuln = args[1] as Vulnerability

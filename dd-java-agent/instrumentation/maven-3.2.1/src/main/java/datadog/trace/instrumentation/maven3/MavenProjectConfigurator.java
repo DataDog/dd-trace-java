@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.maven3;
 
 import datadog.trace.api.Config;
+import datadog.trace.api.civisibility.config.ModuleExecutionSettings;
 import datadog.trace.bootstrap.DatadogClassLoader;
 import datadog.trace.util.Strings;
 import java.io.File;
@@ -17,12 +18,8 @@ import org.apache.maven.model.PluginExecution;
 import org.apache.maven.plugin.MojoExecution;
 import org.apache.maven.project.MavenProject;
 import org.codehaus.plexus.util.xml.Xpp3Dom;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 class MavenProjectConfigurator {
-
-  private static final Logger LOGGER = LoggerFactory.getLogger(MavenProjectConfigurator.class);
 
   static final MavenProjectConfigurator INSTANCE = new MavenProjectConfigurator();
 
@@ -32,13 +29,8 @@ class MavenProjectConfigurator {
   private static final String DATADOG_GROUP_ID = "com.datadoghq";
   private static final String DATADOG_JAVAC_PLUGIN_ARTIFACT_ID = "dd-javac-plugin";
   private static final String DATADOG_JAVAC_PLUGIN_CLIENT_ARTIFACT_ID = "dd-javac-plugin-client";
-  private static final String LOMBOK_GROUP_ID = "org.projectlombok";
-  private static final String LOMBOK_ARTIFACT_ID = "lombok";
   private static final String JAVAC_COMPILER_ID = "javac";
   private static final String DATADOG_COMPILER_PLUGIN_ID = "DatadogCompilerPlugin";
-
-  private static final ComparableVersion ANNOTATION_PROCESSOR_PATHS_SUPPORTED_VERSION =
-      new ComparableVersion("3.5");
 
   private static final ComparableVersion LATE_SUBSTITUTION_SUPPORTED_VERSION =
       new ComparableVersion("2.17");
@@ -54,27 +46,14 @@ class MavenProjectConfigurator {
       return;
     }
 
-    Plugin plugin = mojoExecution.getPlugin();
-    String pluginVersion = plugin.getVersion();
-    ComparableVersion pluginVersionParsed =
-        new ComparableVersion(pluginVersion != null ? pluginVersion : "");
-
-    String projectWideArgLine;
-    if (pluginVersionParsed.compareTo(LATE_SUBSTITUTION_SUPPORTED_VERSION) >= 0) {
-      // include project-wide argLine
-      // (it might be modified by other plugins earlier in the build cycle, e.g. by Jacoco)
-      projectWideArgLine = "@{argLine} ";
-    } else {
-      projectWideArgLine = "${argLine} ";
-    }
-    StringBuilder modifiedArgLine = new StringBuilder(projectWideArgLine);
-
+    StringBuilder modifiedArgLine = new StringBuilder();
     // propagate to child process all "dd." system properties available in current process
     for (Map.Entry<String, String> e : propagatedSystemProperties.entrySet()) {
       modifiedArgLine.append("-D").append(e.getKey()).append('=').append(e.getValue()).append(" ");
     }
 
-    Integer ciVisibilityDebugPort = Config.get().getCiVisibilityDebugPort();
+    Config config = Config.get();
+    Integer ciVisibilityDebugPort = config.getCiVisibilityDebugPort();
     if (ciVisibilityDebugPort != null) {
       modifiedArgLine
           .append("-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=")
@@ -82,22 +61,47 @@ class MavenProjectConfigurator {
           .append(" ");
     }
 
-    File agentJar = Config.get().getCiVisibilityAgentJarFile();
+    String additionalArgs = config.getCiVisibilityAdditionalChildProcessJvmArgs();
+    if (additionalArgs != null) {
+      modifiedArgLine.append(additionalArgs).append(" ");
+    }
+
+    File agentJar = config.getCiVisibilityAgentJarFile();
     modifiedArgLine.append("-javaagent:").append(agentJar.toPath());
 
+    Plugin plugin = mojoExecution.getPlugin();
     Map<String, PluginExecution> pluginExecutions = plugin.getExecutionsAsMap();
     PluginExecution pluginExecution = pluginExecutions.get(mojoExecution.getExecutionId());
     Xpp3Dom executionConfiguration = (Xpp3Dom) pluginExecution.getConfiguration();
 
     String argLine = MavenUtils.getConfigurationValue(executionConfiguration, "argLine");
-    if (argLine != null) {
-      modifiedArgLine.append(" ").append(argLine);
-    }
+    boolean projectWideArgLineNeeded = argLine == null || !argLine.contains("{argLine}");
+
+    String finalArgLine =
+        (projectWideArgLineNeeded ? getReferenceToProjectWideArgLine(plugin) + " " : "")
+            + (argLine != null ? argLine + " " : "")
+            +
+            // -javaagent that injects the tracer
+            // has to be the last one,
+            // since if there are other agents
+            // we want to be able to instrument their code
+            // (namely Jacoco's)
+            modifiedArgLine;
 
     Xpp3Dom updatedExecutionConfiguration =
-        MavenUtils.setConfigurationValue(
-            modifiedArgLine.toString(), executionConfiguration, "argLine");
+        MavenUtils.setConfigurationValue(finalArgLine, executionConfiguration, "argLine");
     pluginExecution.setConfiguration(updatedExecutionConfiguration);
+  }
+
+  private static String getReferenceToProjectWideArgLine(Plugin plugin) {
+    String pluginVersion = plugin.getVersion();
+    ComparableVersion pluginVersionParsed =
+        new ComparableVersion(pluginVersion != null ? pluginVersion : "");
+    if (pluginVersionParsed.compareTo(LATE_SUBSTITUTION_SUPPORTED_VERSION) >= 0) {
+      return "@{argLine} ";
+    } else {
+      return "${argLine} ";
+    }
   }
 
   void configureCompilerPlugin(MavenProject project, String compilerPluginVersion) {
@@ -129,17 +133,10 @@ class MavenProjectConfigurator {
       List<Dependency> projectDependencies = project.getDependencies();
       addOrUpdate(projectDependencies, javacPluginClientDependency);
 
-      ComparableVersion mavenPluginVersion =
-          new ComparableVersion(
-              compilerPlugin.getVersion() != null ? compilerPlugin.getVersion() : "");
-
-      if (mavenPluginVersion.compareTo(ANNOTATION_PROCESSOR_PATHS_SUPPORTED_VERSION) >= 0) {
-        String lombokVersion = getLombokVersion(projectDependencies);
-        if (lombokVersion != null) {
-          configuration =
-              addAnnotationProcessorPath(
-                  configuration, LOMBOK_GROUP_ID, LOMBOK_ARTIFACT_ID, lombokVersion);
-        }
+      // if <annotationProcessorPaths> section is present,
+      // we have to add the plugin in there,
+      // otherwise it's best to add it as a regular dependency
+      if (configuration != null && configuration.getChild("annotationProcessorPaths") != null) {
         configuration =
             addAnnotationProcessorPath(
                 configuration,
@@ -184,16 +181,6 @@ class MavenProjectConfigurator {
       }
     }
     projectDependencies.add(dependency);
-  }
-
-  private String getLombokVersion(List<Dependency> dependencies) {
-    for (Dependency dependency : dependencies) {
-      if (LOMBOK_GROUP_ID.equals(dependency.getGroupId())
-          && LOMBOK_ARTIFACT_ID.equals(dependency.getArtifactId())) {
-        return dependency.getVersion();
-      }
-    }
-    return null;
   }
 
   private static Xpp3Dom addCompilerArg(Xpp3Dom configuration, String argValue) {
@@ -245,32 +232,63 @@ class MavenProjectConfigurator {
     return configuration;
   }
 
-  void configureJacoco(MavenProject project) {
+  void configureJacoco(
+      MavenTestExecution testExecution, ModuleExecutionSettings moduleExecutionSettings) {
+    MavenProject project = testExecution.getProject();
+    excludeDatadogClassLoaderFromJacocoInstrumentation(project);
+
+    if (!moduleExecutionSettings.isCodeCoverageEnabled() || testExecution.isRunsWithJacoco()) {
+      return;
+    }
+
+    configureJacocoPlugin(project, moduleExecutionSettings);
+  }
+
+  private static void excludeDatadogClassLoaderFromJacocoInstrumentation(MavenProject project) {
+    String datadogClassLoaderName = DatadogClassLoader.class.getName();
+
     Properties projectProperties = project.getProperties();
-
     String currentValue = projectProperties.getProperty(JACOCO_EXCL_CLASS_LOADERS_PROPERTY);
-    String updatedValue =
-        Strings.isNotBlank(currentValue)
-            ? currentValue + ":" + DatadogClassLoader.class.getName()
-            : DatadogClassLoader.class.getName();
-
-    projectProperties.setProperty(JACOCO_EXCL_CLASS_LOADERS_PROPERTY, updatedValue);
-
-    String jacocoPluginVersion = Config.get().getCiVisibilityJacocoPluginVersion();
-    if (jacocoPluginVersion != null) {
-      configureJacocoPlugin(project, jacocoPluginVersion);
+    if (Strings.isNotBlank(currentValue)) {
+      if (!currentValue.contains(datadogClassLoaderName)) {
+        projectProperties.setProperty(
+            JACOCO_EXCL_CLASS_LOADERS_PROPERTY, currentValue + ":" + datadogClassLoaderName);
+      }
+    } else {
+      projectProperties.setProperty(JACOCO_EXCL_CLASS_LOADERS_PROPERTY, datadogClassLoaderName);
     }
   }
 
-  private static void configureJacocoPlugin(MavenProject project, String jacocoPluginVersion) {
-    if (project.getPlugin("org.jacoco:jacoco-maven-plugin") != null) {
-      return; // jacoco is already configured for this project
+  private static void configureJacocoPlugin(
+      MavenProject project, ModuleExecutionSettings moduleExecutionSettings) {
+    Plugin jacocoPlugin = getJacocoPlugin(project);
+    for (PluginExecution execution : jacocoPlugin.getExecutions()) {
+      if (execution.getGoals().contains("prepare-agent")) {
+        // prepare-agent goal is already configured
+        return;
+      }
     }
+
+    PluginExecution prepareAgentExecution = new PluginExecution();
+    prepareAgentExecution.addGoal("prepare-agent");
+    jacocoPlugin.addExecution(prepareAgentExecution);
+
+    configureJacocoInstrumentedPackages(
+        prepareAgentExecution, moduleExecutionSettings.getCoverageEnabledPackages());
+  }
+
+  private static Plugin getJacocoPlugin(MavenProject project) {
+    Plugin existingPlugin = project.getPlugin("org.jacoco:jacoco-maven-plugin");
+    if (existingPlugin != null) {
+      return existingPlugin;
+    }
+
+    Config config = Config.get();
 
     Plugin jacocoPlugin = new Plugin();
     jacocoPlugin.setGroupId("org.jacoco");
     jacocoPlugin.setArtifactId("jacoco-maven-plugin");
-    jacocoPlugin.setVersion(jacocoPluginVersion);
+    jacocoPlugin.setVersion(config.getCiVisibilityJacocoPluginVersion());
 
     // a little trick to avoid triggering
     // Maven Enforcer Plugin's "Require Plugin Versions" rule:
@@ -282,51 +300,27 @@ class MavenProjectConfigurator {
     InputLocation versionLocation = new InputLocation(0, 0, versionSource);
     jacocoPlugin.setLocation("version", versionLocation);
 
-    PluginExecution execution = new PluginExecution();
-    execution.addGoal("prepare-agent");
-    jacocoPlugin.addExecution(execution);
-
-    List<String> instrumentedPackages = Config.get().getCiVisibilityJacocoPluginIncludes();
-    if (instrumentedPackages != null && !instrumentedPackages.isEmpty()) {
-      configureJacocoInstrumentedPackages(execution, instrumentedPackages);
-    } else {
-      List<String> excludedPackages = Config.get().getCiVisibilityJacocoPluginExcludes();
-      if (excludedPackages != null && !excludedPackages.isEmpty()) {
-        configureExcludedPackages(execution, excludedPackages);
-      }
-    }
-
     Build build = project.getBuild();
     build.addPlugin(jacocoPlugin);
+
+    return jacocoPlugin;
   }
 
   private static void configureJacocoInstrumentedPackages(
       PluginExecution execution, List<String> instrumentedPackages) {
     Xpp3Dom includes = new Xpp3Dom("includes");
     for (String instrumentedPackage : instrumentedPackages) {
-      Xpp3Dom include = new Xpp3Dom("include");
-      include.setValue(instrumentedPackage);
-      includes.addChild(include);
+      if (Strings.isNotBlank(instrumentedPackage)) {
+        Xpp3Dom include = new Xpp3Dom("include");
+        include.setValue(instrumentedPackage);
+        includes.addChild(include);
+      }
     }
 
-    Xpp3Dom configuration = new Xpp3Dom("configuration");
-    configuration.addChild(includes);
-
-    execution.setConfiguration(configuration);
-  }
-
-  private static void configureExcludedPackages(
-      PluginExecution execution, List<String> excludedPackages) {
-    Xpp3Dom excludes = new Xpp3Dom("excludes");
-    for (String excludedPackage : excludedPackages) {
-      Xpp3Dom exclude = new Xpp3Dom("exclude");
-      exclude.setValue(excludedPackage);
-      excludes.addChild(exclude);
+    if (includes.getChildCount() > 0) {
+      Xpp3Dom configuration = new Xpp3Dom("configuration");
+      configuration.addChild(includes);
+      execution.setConfiguration(configuration);
     }
-
-    Xpp3Dom configuration = new Xpp3Dom("configuration");
-    configuration.addChild(excludes);
-
-    execution.setConfiguration(configuration);
   }
 }

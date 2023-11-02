@@ -62,6 +62,45 @@ class WeakCipherTest extends AgentTestRunner {
     1 * module.onCipherAlgorithm(_)
   }
 
+  // Key Generator
+  def "test weak cipher instrumentation"() {
+    setup:
+    WeakCipherModule module = Mock(WeakCipherModule)
+    InstrumentationBridge.registerIastModule(module)
+
+    when:
+    new TestSuite().getKeyGeneratorInstance("DES")
+
+    then:
+    1 * module.onCipherAlgorithm(_)
+  }
+
+  def "test weak cipher instrumentation with provider"() {
+    setup:
+    WeakCipherModule module = Mock(WeakCipherModule)
+    InstrumentationBridge.registerIastModule(module)
+    final provider = providerFor('DES')
+
+    when:
+    new TestSuite().getKeyGeneratorInstance("DES", provider)
+
+    then:
+    1 * module.onCipherAlgorithm(_)
+  }
+
+  def "test weak cipher instrumentation with provider string"() {
+    setup:
+    WeakCipherModule module = Mock(WeakCipherModule)
+    InstrumentationBridge.registerIastModule(module)
+    final provider = providerFor('DES')
+
+    when:
+    new TestSuite().getKeyGeneratorInstance('DES', provider.getName())
+
+    then:
+    1 * module.onCipherAlgorithm(_)
+  }
+
   def "weak cipher instrumentation with null argument"() {
     setup:
     WeakCipherModule module = Mock(WeakCipherModule)

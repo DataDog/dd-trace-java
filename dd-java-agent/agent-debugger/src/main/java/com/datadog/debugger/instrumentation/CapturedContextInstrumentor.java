@@ -78,17 +78,21 @@ public class CapturedContextInstrumentor extends Instrumentor {
   }
 
   @Override
-  public void instrument() {
+  public InstrumentationResult.Status instrument() {
     if (isLineProbe) {
       fillLineMap();
-      addLineCaptures(lineMap);
-    } else {
-      instrumentMethodEnter();
-      instrumentTryCatchHandlers();
-      processInstructions();
-      addFinallyHandler(returnHandlerLabel);
+      if (!addLineCaptures(lineMap)) {
+        return InstrumentationResult.Status.ERROR;
+      }
+      installFinallyBlocks();
+      return InstrumentationResult.Status.INSTALLED;
     }
+    instrumentMethodEnter();
+    instrumentTryCatchHandlers();
+    processInstructions();
+    addFinallyHandler(returnHandlerLabel);
     installFinallyBlocks();
+    return InstrumentationResult.Status.INSTALLED;
   }
 
   private void installFinallyBlocks() {
@@ -99,15 +103,15 @@ public class CapturedContextInstrumentor extends Instrumentor {
     }
   }
 
-  private void addLineCaptures(LineMap lineMap) {
+  private boolean addLineCaptures(LineMap lineMap) {
     Where.SourceLine[] targetLines = definition.getWhere().getSourceLines();
     if (targetLines == null) {
-      // no line capture to perform
-      return;
+      reportError("Missing line(s) in probe definition.");
+      return false;
     }
     if (lineMap.isEmpty()) {
       reportError("Missing line debug information.");
-      return;
+      return false;
     }
     for (Where.SourceLine sourceLine : targetLines) {
       int from = sourceLine.getFrom();
@@ -123,6 +127,8 @@ public class CapturedContextInstrumentor extends Instrumentor {
       }
       if (beforeLabel != null) {
         InsnList insnList = new InsnList();
+        ldc(insnList, Type.getObjectType(classNode.name));
+        // stack [class, array]
         pushProbesIds(insnList);
         // stack [array]
         invokeStatic(
@@ -130,6 +136,7 @@ public class CapturedContextInstrumentor extends Instrumentor {
             DEBUGGER_CONTEXT_TYPE,
             "isReadyToCapture",
             Type.BOOLEAN_TYPE,
+            CLASS_TYPE,
             STRING_ARRAY_TYPE);
         // stack [boolean]
         LabelNode targetNode = new LabelNode();
@@ -167,6 +174,7 @@ public class CapturedContextInstrumentor extends Instrumentor {
         methodNode.instructions.insert(afterLabel, insnList);
       }
     }
+    return true;
   }
 
   @Override
@@ -309,10 +317,17 @@ public class CapturedContextInstrumentor extends Instrumentor {
       methodNode.instructions.insert(methodEnterLabel, insnList);
       return;
     }
+    ldc(insnList, Type.getObjectType(classNode.name));
+    // stack [class]
     pushProbesIds(insnList);
-    // stack [array]
+    // stack [class, array]
     invokeStatic(
-        insnList, DEBUGGER_CONTEXT_TYPE, "isReadyToCapture", Type.BOOLEAN_TYPE, STRING_ARRAY_TYPE);
+        insnList,
+        DEBUGGER_CONTEXT_TYPE,
+        "isReadyToCapture",
+        Type.BOOLEAN_TYPE,
+        CLASS_TYPE,
+        STRING_ARRAY_TYPE);
     // stack [boolean]
     LabelNode targetNode = new LabelNode();
     LabelNode gotoNode = new LabelNode();

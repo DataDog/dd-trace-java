@@ -76,7 +76,7 @@ public class MarshallingDirectivesInstrumentation extends Instrumenter.Iast
 
   static class TaintUnmarshallerInputOldScalaAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    @Source(SourceTypes.REQUEST_BODY_STRING)
+    @Source(SourceTypes.REQUEST_BODY)
     static void before(@Advice.Argument(readOnly = false, value = 1) Unmarshaller unmarshaller) {
       PropagationModule mod = InstrumentationBridge.PROPAGATION;
       if (mod != null) {
@@ -87,7 +87,7 @@ public class MarshallingDirectivesInstrumentation extends Instrumenter.Iast
 
   static class TaintUnmarshallerInputNewScalaAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    @Source(SourceTypes.REQUEST_BODY_STRING)
+    @Source(SourceTypes.REQUEST_BODY)
     static void before(@Advice.Argument(readOnly = false, value = 0) Unmarshaller unmarshaller) {
       PropagationModule mod = InstrumentationBridge.PROPAGATION;
       if (mod != null) {

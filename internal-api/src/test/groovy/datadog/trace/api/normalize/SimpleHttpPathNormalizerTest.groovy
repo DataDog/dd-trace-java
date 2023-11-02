@@ -31,6 +31,14 @@ class SimpleHttpPathNormalizerTest extends DDSpecification {
     "\t/:userId"     | "/:userId"
   }
 
+  def 'does not suppress whitespace in non-initial position of decoded strings'() {
+    String input = ' /a b/'
+    String output = simplePathNormalizer.normalize(input, false)
+
+    expect:
+    output == '/a b/'
+  }
+
   def "should replace all digits"() {
     when:
     def norm = simplePathNormalizer.normalize(input) as String

@@ -3,7 +3,7 @@ package datadog.trace.civisibility.coverage;
 import datadog.trace.api.civisibility.coverage.CoverageProbeStore;
 import datadog.trace.api.civisibility.coverage.TestReport;
 import datadog.trace.api.civisibility.coverage.TestReportFileEntry;
-import datadog.trace.api.civisibility.source.SourcePathResolver;
+import datadog.trace.civisibility.source.SourcePathResolver;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -56,7 +56,7 @@ public class SegmentlessTestProbes implements CoverageProbeStore {
     return testReport;
   }
 
-  public static class SegmentlessTestProbesFactory implements Factory {
+  public static class SegmentlessTestProbesFactory implements CoverageProbeStoreFactory {
 
     @Override
     public void setTotalProbeCount(String className, int totalProbeCount) {

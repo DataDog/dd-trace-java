@@ -5,13 +5,19 @@ import datadog.trace.api.iast.SourceTypes;
 import datadog.trace.api.iast.Taintable;
 import java.util.Objects;
 import java.util.StringJoiner;
+import javax.annotation.Nullable;
 
 public final class Source implements Taintable.Source {
   private final @SourceTypeString byte origin;
-  private final String name;
-  private final String value;
+  @Nullable private final String name;
+  @Nullable private final String value;
 
-  public Source(final byte origin, final String name, final String value) {
+  public Source(
+      final byte origin, @Nullable final CharSequence name, @Nullable final CharSequence value) {
+    this(origin, name == null ? null : name.toString(), value == null ? null : value.toString());
+  }
+
+  public Source(final byte origin, @Nullable final String name, @Nullable final String value) {
     this.origin = origin;
     this.name = name;
     this.value = value;
@@ -23,11 +29,13 @@ public final class Source implements Taintable.Source {
   }
 
   @Override
+  @Nullable
   public String getName() {
     return name;
   }
 
   @Override
+  @Nullable
   public String getValue() {
     return value;
   }

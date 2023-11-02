@@ -8,12 +8,12 @@ import net.bytebuddy.asm.Advice;
 
 public class AbstractStringReaderAdvice {
   @Advice.OnMethodExit(suppress = Throwable.class)
-  @Source(SourceTypes.REQUEST_PARAMETER_VALUE_STRING)
-  public static void onExit(@Advice.Return(readOnly = true) Object result) {
+  @Source(SourceTypes.REQUEST_PARAMETER_VALUE)
+  public static void onExit(@Advice.Return Object result) {
     if (result instanceof String) {
       final PropagationModule module = InstrumentationBridge.PROPAGATION;
       if (module != null) {
-        module.taint(SourceTypes.REQUEST_PARAMETER_VALUE, null, (String) result);
+        module.taint(result, SourceTypes.REQUEST_PARAMETER_VALUE);
       }
     }
   }

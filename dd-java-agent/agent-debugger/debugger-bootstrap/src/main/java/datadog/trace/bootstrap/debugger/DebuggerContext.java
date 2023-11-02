@@ -4,6 +4,7 @@ import datadog.trace.api.Config;
 import datadog.trace.bootstrap.debugger.util.TimeoutChecker;
 import java.time.Duration;
 import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
 import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -190,19 +191,9 @@ public class DebuggerContext {
    *
    * @return true if can proceed to capture data
    */
-  public static boolean isReadyToCapture(String... probeIds) {
-    // TODO provide overloaded version without string array
+  public static boolean isReadyToCapture(Class<?> callingClass, String... probeIds) {
     try {
-      if (probeIds == null || probeIds.length == 0) {
-        return false;
-      }
-      boolean result = false;
-      for (String probeId : probeIds) {
-        // if all probes are rate limited, we don't capture
-        result |= ProbeRateLimiter.tryProbe(probeId);
-      }
-      result = result && checkAndSetInProbe();
-      return result;
+      return checkAndSetInProbe();
     } catch (Exception ex) {
       LOGGER.debug("Error in isReadyToCapture: ", ex);
       return false;
@@ -269,6 +260,7 @@ public class DebuggerContext {
   public static void evalContextAndCommit(
       CapturedContext context, Class<?> callingClass, int line, String... probeIds) {
     try {
+      List<ProbeImplementation> probeImplementations = new ArrayList<>();
       for (String probeId : probeIds) {
         ProbeImplementation probeImplementation = resolveProbe(probeId, callingClass);
         if (probeImplementation == null) {
@@ -276,6 +268,9 @@ public class DebuggerContext {
         }
         context.evaluate(
             probeId, probeImplementation, callingClass.getTypeName(), -1, MethodLocation.DEFAULT);
+        probeImplementations.add(probeImplementation);
+      }
+      for (ProbeImplementation probeImplementation : probeImplementations) {
         probeImplementation.commit(context, line);
       }
     } catch (Exception ex) {

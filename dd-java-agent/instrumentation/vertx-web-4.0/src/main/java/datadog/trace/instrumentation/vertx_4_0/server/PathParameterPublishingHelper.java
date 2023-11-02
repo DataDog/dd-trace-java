@@ -9,6 +9,7 @@ import datadog.trace.api.gateway.CallbackProvider;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
+import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.SourceTypes;
 import datadog.trace.api.iast.propagation.PropagationModule;
@@ -47,9 +48,11 @@ public class PathParameterPublishingHelper {
           } else {
             Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
             brf.tryCommitBlockingResponse(
-                rba.getStatusCode(), rba.getBlockingContentType(), rba.getExtraHeaders());
+                requestContext.getTraceSegment(),
+                rba.getStatusCode(),
+                rba.getBlockingContentType(),
+                rba.getExtraHeaders());
 
-            requestContext.getTraceSegment().effectivelyBlocked();
             return new BlockingException("Blocked request (for route/matches)");
           }
         }
@@ -57,7 +60,7 @@ public class PathParameterPublishingHelper {
     }
 
     { // iast
-      Object iastRequestContext = requestContext.getData(RequestContextSlot.IAST);
+      IastContext iastRequestContext = requestContext.getData(RequestContextSlot.IAST);
       if (iastRequestContext != null) {
         PropagationModule module = InstrumentationBridge.PROPAGATION;
         if (module != null) {
@@ -68,7 +71,7 @@ public class PathParameterPublishingHelper {
               continue; // should not happen
             }
             module.taint(
-                iastRequestContext, SourceTypes.REQUEST_PATH_PARAMETER, parameterName, value);
+                iastRequestContext, value, SourceTypes.REQUEST_PATH_PARAMETER, parameterName);
           }
         }
       }

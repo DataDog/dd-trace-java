@@ -1,5 +1,6 @@
 package com.datadog.debugger.uploader;
 
+import static com.datadog.debugger.uploader.BatchUploader.HEADER_DD_API_KEY;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -13,10 +14,8 @@ import datadog.trace.api.Config;
 import datadog.trace.relocate.api.RatelimitedLogger;
 import java.io.IOException;
 import java.net.ConnectException;
-import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import okhttp3.ConnectionSpec;
@@ -41,6 +40,7 @@ public class BatchUploaderTest {
   private final Duration REQUEST_TIMEOUT = Duration.ofSeconds(10);
   private final Duration REQUEST_IO_OPERATION_TIMEOUT = Duration.ofSeconds(5);
   private final Duration FOREVER_REQUEST_TIMEOUT = Duration.ofSeconds(1000);
+  private static final String API_KEY_VALUE = "testkey";
 
   @Mock private Config config;
   @Mock private RatelimitedLogger ratelimitedLogger;
@@ -55,10 +55,9 @@ public class BatchUploaderTest {
     server.start();
     url = server.url(URL_PATH);
 
-    when(config.getFinalDebuggerSnapshotUrl()).thenReturn(server.url(URL_PATH).toString());
     when(config.getDebuggerUploadTimeout()).thenReturn((int) REQUEST_TIMEOUT.getSeconds());
 
-    uploader = new BatchUploader(config, ratelimitedLogger);
+    uploader = new BatchUploader(config, url.toString(), ratelimitedLogger);
   }
 
   @AfterEach
@@ -73,9 +72,7 @@ public class BatchUploaderTest {
 
   @Test
   void testOkHttpClientForcesCleartextConnspecWhenNotUsingTLS() {
-    when(config.getFinalDebuggerSnapshotUrl()).thenReturn("http://example.com");
-
-    uploader = new BatchUploader(config);
+    uploader = new BatchUploader(config, "http://example.com");
 
     final List<ConnectionSpec> connectionSpecs = uploader.getClient().connectionSpecs();
     assertEquals(connectionSpecs.size(), 1);
@@ -84,9 +81,7 @@ public class BatchUploaderTest {
 
   @Test
   void testOkHttpClientUsesDefaultConnspecsOverTLS() {
-    when(config.getFinalDebuggerSnapshotUrl()).thenReturn("https://example.com");
-
-    uploader = new BatchUploader(config);
+    uploader = new BatchUploader(config, "https://example.com");
 
     final List<ConnectionSpec> connectionSpecs = uploader.getClient().connectionSpecs();
     assertEquals(connectionSpecs.size(), 2);
@@ -163,7 +158,7 @@ public class BatchUploaderTest {
     // We need to make sure that initial requests that fill up the queue hang to the duration of the
     // test. So we specify insanely large timeout here.
     when(config.getDebuggerUploadTimeout()).thenReturn((int) FOREVER_REQUEST_TIMEOUT.getSeconds());
-    uploader = new BatchUploader(config);
+    uploader = new BatchUploader(config, url.toString());
 
     // We have to block all parallel requests to make sure queue is kept full
     for (int i = 0; i < BatchUploader.MAX_RUNNING_REQUESTS; i++) {
@@ -178,13 +173,11 @@ public class BatchUploaderTest {
       uploader.upload(SNAPSHOT_BUFFER);
     }
 
-    final List<ByteBuffer> hangingRequests = new ArrayList<>();
     // We schedule one additional request to check case when request would be rejected immediately
     // rather than added to the queue.
     for (int i = 0; i < BatchUploader.MAX_ENQUEUED_REQUESTS + 1; i++) {
       uploader.upload(SNAPSHOT_BUFFER);
     }
-
     // Make sure all expected requests happened
     for (int i = 0; i < BatchUploader.MAX_RUNNING_REQUESTS; i++) {
       assertNotNull(server.takeRequest(5, TimeUnit.SECONDS));
@@ -205,15 +198,15 @@ public class BatchUploaderTest {
 
   @Test
   public void testEmptyUrl() {
-    when(config.getFinalDebuggerSnapshotUrl()).thenReturn("");
-    Assertions.assertThrows(IllegalArgumentException.class, () -> new BatchUploader(config));
+    Assertions.assertThrows(IllegalArgumentException.class, () -> new BatchUploader(config, ""));
   }
 
   @Test
   public void testNoContainerId() throws InterruptedException {
     // we don't explicitly specify a container ID
     server.enqueue(new MockResponse().setResponseCode(200));
-    BatchUploader uploaderWithNoContainerId = new BatchUploader(config, ratelimitedLogger, null);
+    BatchUploader uploaderWithNoContainerId =
+        new BatchUploader(config, url.toString(), ratelimitedLogger, null);
 
     uploaderWithNoContainerId.upload(SNAPSHOT_BUFFER);
     uploaderWithNoContainerId.shutdown();
@@ -227,11 +220,24 @@ public class BatchUploaderTest {
     server.enqueue(new MockResponse().setResponseCode(200));
 
     BatchUploader uploaderWithContainerId =
-        new BatchUploader(config, ratelimitedLogger, "testContainerId");
+        new BatchUploader(config, url.toString(), ratelimitedLogger, "testContainerId");
     uploaderWithContainerId.upload(SNAPSHOT_BUFFER);
     uploaderWithContainerId.shutdown();
 
     RecordedRequest request = server.takeRequest(100, TimeUnit.MILLISECONDS);
     assertEquals("testContainerId", request.getHeader("Datadog-Container-ID"));
+  }
+
+  @Test
+  public void testApiKey() throws InterruptedException {
+    server.enqueue(new MockResponse().setResponseCode(200));
+    when(config.getApiKey()).thenReturn(API_KEY_VALUE);
+
+    BatchUploader uploaderWithApiKey = new BatchUploader(config, url.toString(), ratelimitedLogger);
+    uploaderWithApiKey.upload(SNAPSHOT_BUFFER);
+    uploaderWithApiKey.shutdown();
+
+    RecordedRequest request = server.takeRequest(100, TimeUnit.MILLISECONDS);
+    assertEquals(API_KEY_VALUE, request.getHeader(HEADER_DD_API_KEY));
   }
 }

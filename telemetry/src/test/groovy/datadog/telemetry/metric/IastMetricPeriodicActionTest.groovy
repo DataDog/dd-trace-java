@@ -33,7 +33,8 @@ class IastMetricPeriodicActionTest extends Specification {
     final action = new IastMetricPeriodicAction()
     final service = Mock(TelemetryService)
     final iastMetric = IastMetric.INSTRUMENTED_SOURCE
-    final tag = SourceTypes.REQUEST_PARAMETER_VALUE_STRING
+    final tag = SourceTypes.REQUEST_PARAMETER_VALUE
+    final tagString = SourceTypes.REQUEST_PARAMETER_VALUE_STRING
     final value = 23
 
     when:
@@ -42,7 +43,7 @@ class IastMetricPeriodicActionTest extends Specification {
     action.doIteration(service)
 
     then:
-    1 * service.addMetric({ matches(it, iastMetric, value, ["${iastMetric.tag.name}:${tag}"]) })
+    1 * service.addMetric({ matches(it, iastMetric, value, ["${iastMetric.tag.name}:${tagString}"]) })
     0 * _
   }
 

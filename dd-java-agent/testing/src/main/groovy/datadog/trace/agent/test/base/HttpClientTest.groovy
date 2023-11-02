@@ -87,6 +87,10 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
           .addHeader('x-datadog-test-response-header', 'baz')
           .send(msg)
       }
+      prefix("/timeout") {
+        Thread.sleep(10_000)
+        throw new IllegalStateException("Should never happen")
+      }
     }
   }
 

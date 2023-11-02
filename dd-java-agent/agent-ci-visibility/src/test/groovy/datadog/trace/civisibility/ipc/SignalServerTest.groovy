@@ -9,7 +9,9 @@ class SignalServerTest extends Specification {
   def "test message send and receive"() {
     given:
     def signalProcessed = new AtomicBoolean(false)
-    def signal = new ModuleExecutionResult(123, 456, true, true, 1, "junit", "4.13.2")
+    def signal = new ModuleExecutionResult(123, 456, true, true, 1, Collections.singletonList(new TestFramework("junit", "4.13.2")), new byte[] {
+      1, 2, 3
+    })
     def server = new SignalServer()
     def received = new ArrayList()
 
@@ -38,8 +40,10 @@ class SignalServerTest extends Specification {
 
   def "test multiple messages send and receive"() {
     given:
-    def signalA = new ModuleExecutionResult(123, 456, false, false, 0, "junit", "4.13.2")
-    def signalB = new ModuleExecutionResult(234, 567, true, true, 1, "junit", "4.13.2")
+    def signalA = new ModuleExecutionResult(123, 456, false, false, 0, Collections.singletonList(new TestFramework("junit", "4.13.2")), new byte[] {
+      1, 2, 3
+    })
+    def signalB = new ModuleExecutionResult(234, 567, true, true, 1, Collections.singletonList(new TestFramework("junit", "4.13.2")), null)
     def server = new SignalServer()
     def received = new ArrayList()
 
@@ -67,8 +71,10 @@ class SignalServerTest extends Specification {
 
   def "test multiple clients send and receive"() {
     given:
-    def signalA = new ModuleExecutionResult(123, 456, true, false, 1, "junit", "4.13.2")
-    def signalB = new ModuleExecutionResult(234, 567, false, true, 0, "junit", "4.13.2")
+    def signalA = new ModuleExecutionResult(123, 456, true, false, 1, Collections.singletonList(new TestFramework("junit", "4.13.2")), new byte[] {
+      1, 2, 3
+    })
+    def signalB = new ModuleExecutionResult(234, 567, false, true, 0, Collections.singletonList(new TestFramework("junit", "4.13.2")), null)
     def server = new SignalServer()
     def received = new ArrayList()
 
@@ -115,7 +121,9 @@ class SignalServerTest extends Specification {
     when:
     def address = server.getAddress()
     try (def client = new SignalClient(address, clientTimeoutMillis)) {
-      client.send(new ModuleExecutionResult(123, 456, false, false, 0, "junit", "4.13.2"))
+      client.send(new ModuleExecutionResult(123, 456, false, false, 0, Collections.singletonList(new TestFramework("junit", "4.13.2")), new byte[] {
+        1, 2, 3
+      }))
     }
 
     then:
@@ -127,7 +135,9 @@ class SignalServerTest extends Specification {
 
   def "test error response receipt"() {
     given:
-    def signal = new ModuleExecutionResult(123, 456, true, true, 1, "junit", "4.13.2")
+    def signal = new ModuleExecutionResult(123, 456, true, true, 1, Collections.singletonList(new TestFramework("junit", "4.13.2")), new byte[] {
+      1, 2, 3
+    })
     def server = new SignalServer()
 
     def errorResponse = new ErrorResponse("An error occurred while processing the signal")

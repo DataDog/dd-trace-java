@@ -89,6 +89,11 @@ class UrlHandlerMappingTest extends HttpServerTest<ConfigurableApplicationContex
   }
 
   @Override
+  protected boolean enabledFinishTimingChecks() {
+    true
+  }
+
+  @Override
   boolean testException() {
     // generates extra trace for the error handling invocation
     false
@@ -202,7 +207,7 @@ class UrlHandlerMappingTest extends HttpServerTest<ConfigurableApplicationContex
     TEST_WRITER.waitForTraces(1)
 
     then:
-    1 * mod.taint(_, SourceTypes.REQUEST_PATH_PARAMETER, 'id', '123')
+    1 * mod.taint(_, '123', SourceTypes.REQUEST_PATH_PARAMETER, 'id')
     0 * mod._
 
     cleanup:

@@ -4,6 +4,7 @@ import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecora
 
 import datadog.appsec.api.blocking.BlockingContentType;
 import datadog.trace.api.gateway.Flow;
+import datadog.trace.api.internal.TraceSegment;
 import datadog.trace.bootstrap.blocking.BlockingActionHelper;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
@@ -35,6 +36,7 @@ import org.slf4j.LoggerFactory;
 public class GrizzlyHttpBlockingHelper {
   private static final Logger log = LoggerFactory.getLogger(GrizzlyHttpBlockingHelper.class);
 
+  /** @see HttpServerFilter#encodeHttpPacket(FilterChainContext, HttpPacket) */
   private static final MethodHandle ENCODE_HTTP_PACKET;
 
   private static final CompletionHandler CLOSE_COMPLETION_HANDLER = new CloseCompletionHandler();
@@ -134,7 +136,8 @@ public class GrizzlyHttpBlockingHelper {
       String acceptHeader,
       int statusCode,
       BlockingContentType templateType,
-      Map<String, String> extraHeaders) {
+      Map<String, String> extraHeaders,
+      TraceSegment segment) {
     if (ENCODE_HTTP_PACKET == null) {
       return false;
     }
@@ -171,6 +174,7 @@ public class GrizzlyHttpBlockingHelper {
 
     Buffer buff;
     try {
+      segment.effectivelyBlocked(); // last opportunity before HttpServerFilterAdvice runs
       buff = (Buffer) ENCODE_HTTP_PACKET.invoke(httpServerFilter, ctx, httpContent);
     } catch (Throwable e) {
       log.error("Failure serializing http response for blocking", e);

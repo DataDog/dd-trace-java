@@ -211,27 +211,25 @@ public class BlockingActionHelper {
   }
 
   private static byte[] readDefaultTemplate(String ext) {
-    InputStream is =
+    try (InputStream is =
         getSystemClassLoader()
-            .getResourceAsStream("datadog/trace/bootstrap/blocking/template." + ext);
-    if (is == null) {
-      log.error("Could not open default {} template", ext);
-      return new byte[] {'e', 'r', 'r', 'o', 'r'};
-    }
+            .getResourceAsStream("datadog/trace/bootstrap/blocking/template." + ext)) {
+      if (is == null) {
+        log.error("Could not open default {} template", ext);
+        return new byte[] {'e', 'r', 'r', 'o', 'r'};
+      }
 
-    ByteArrayOutputStream baos = new ByteArrayOutputStream();
-    byte[] b = new byte[8192];
-    int read;
-    try {
+      ByteArrayOutputStream baos = new ByteArrayOutputStream();
+      byte[] b = new byte[8192];
+      int read;
       while ((read = is.read(b)) != -1) {
         baos.write(b, 0, read);
       }
+      return baos.toByteArray();
     } catch (IOException e) {
       log.error("Could not read default {} template", ext, e);
       return new byte[] {'e', 'r', 'r', 'o', 'r'};
     }
-
-    return baos.toByteArray();
   }
 
   private static byte[] readIntoByteArray(File f) {

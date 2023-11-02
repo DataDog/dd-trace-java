@@ -28,11 +28,14 @@ public class SqsDecorator extends MessagingClientDecorator {
   private final CharSequence spanType;
   private final String serviceName;
 
-  private static final String LOCAL_SERVICE_NAME =
-      SQS_LEGACY_TRACING ? "sqs" : Config.get().getServiceName();
-
   public static final SqsDecorator CONSUMER_DECORATE =
-      new SqsDecorator(SPAN_KIND_CONSUMER, MESSAGE_CONSUMER, LOCAL_SERVICE_NAME);
+      new SqsDecorator(
+          SPAN_KIND_CONSUMER,
+          MESSAGE_CONSUMER,
+          SpanNaming.instance()
+              .namingSchema()
+              .messaging()
+              .inboundService("sqs", SQS_LEGACY_TRACING));
 
   public static final SqsDecorator BROKER_DECORATE =
       new SqsDecorator(

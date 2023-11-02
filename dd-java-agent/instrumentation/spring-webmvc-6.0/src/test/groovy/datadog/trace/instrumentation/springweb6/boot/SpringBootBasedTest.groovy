@@ -5,6 +5,7 @@ import datadog.trace.agent.test.base.HttpServer
 import datadog.trace.agent.test.base.HttpServerTest
 import datadog.trace.api.ConfigDefaults
 import datadog.trace.api.DDSpanTypes
+import datadog.trace.api.iast.IastContext
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.SourceTypes
 import datadog.trace.api.iast.propagation.PropagationModule
@@ -111,6 +112,11 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
   @Override
   String expectedOperationName() {
     return "servlet.request"
+  }
+
+  @Override
+  protected boolean enabledFinishTimingChecks() {
+    true
   }
 
   @Override
@@ -269,7 +275,7 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
 
     then:
     // spring-security filter causes uri matching to happen twice
-    2 * mod.taint(_, SourceTypes.REQUEST_PATH_PARAMETER, 'id', '123')
+    2 * mod.taint(_, '123', SourceTypes.REQUEST_PATH_PARAMETER, 'id')
     0 * mod._
 
     cleanup:
@@ -308,11 +314,11 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
 
     then:
     // spring-security filter (AuthorizationFilter.java:95) causes uri matching to happen twice
-    2 * mod.taint(_, SourceTypes.REQUEST_PATH_PARAMETER, 'var', 'a=x,y') // this version of spring removes ;a=z
-    2 * mod.taint(_, SourceTypes.REQUEST_MATRIX_PARAMETER, 'var', 'a')
-    2 * mod.taint(_, SourceTypes.REQUEST_MATRIX_PARAMETER, 'var', 'x')
-    2 * mod.taint(_, SourceTypes.REQUEST_MATRIX_PARAMETER, 'var', 'y')
-    2 * mod.taint(_, SourceTypes.REQUEST_MATRIX_PARAMETER, 'var', 'z')
+    2 * mod.taint(_ as IastContext, 'a=x,y', SourceTypes.REQUEST_PATH_PARAMETER, 'var') // this version of spring removes ;a=z
+    2 * mod.taint(_ as IastContext, 'a', SourceTypes.REQUEST_MATRIX_PARAMETER, 'var')
+    2 * mod.taint(_ as IastContext, 'x', SourceTypes.REQUEST_MATRIX_PARAMETER, 'var')
+    2 * mod.taint(_ as IastContext, 'y', SourceTypes.REQUEST_MATRIX_PARAMETER, 'var')
+    2 * mod.taint(_ as IastContext, 'z', SourceTypes.REQUEST_MATRIX_PARAMETER, 'var')
     0 * mod._
 
     cleanup:

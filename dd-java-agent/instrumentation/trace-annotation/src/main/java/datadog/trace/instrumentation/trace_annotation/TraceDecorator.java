@@ -6,15 +6,17 @@ import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.api.Trace;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
-import datadog.trace.bootstrap.instrumentation.decorator.BaseDecorator;
+import datadog.trace.bootstrap.instrumentation.decorator.AsyncResultDecorator;
 import java.lang.reflect.Method;
 
-public class TraceDecorator extends BaseDecorator {
+public class TraceDecorator extends AsyncResultDecorator {
   public static TraceDecorator DECORATE = new TraceDecorator();
   private static final String INSTRUMENTATION_NAME = "trace-annotation";
 
-  private static final boolean useLegacyOperationName =
+  private static final boolean USE_LEGACY_OPERATION_NAME =
       InstrumenterConfig.get().isLegacyInstrumentationEnabled(true, "trace.annotations");
+
+  private static final boolean ASYNC_SUPPORT = InstrumenterConfig.get().isTraceAnnotationAsync();
 
   private static final CharSequence TRACE = UTF8BytesString.create("trace");
 
@@ -37,13 +39,14 @@ public class TraceDecorator extends BaseDecorator {
   }
 
   public boolean useLegacyOperationName() {
-    return useLegacyOperationName;
+    return USE_LEGACY_OPERATION_NAME;
   }
 
   public AgentSpan startMethodSpan(Method method) {
     CharSequence operationName = null;
     CharSequence resourceName = null;
     boolean measured = false;
+    boolean noParent = false;
 
     Trace traceAnnotation = method.getAnnotation(Trace.class);
     if (null != traceAnnotation) {
@@ -59,6 +62,12 @@ public class TraceDecorator extends BaseDecorator {
       } catch (Throwable ignore) {
         // dd-trace-api < 1.10.0 on classpath
       }
+
+      try {
+        noParent = traceAnnotation.noParent();
+      } catch (Throwable ignore) {
+        // dd-trace-api < 1.22.0 on classpath
+      }
     }
 
     if (operationName == null || operationName.length() == 0) {
@@ -73,7 +82,11 @@ public class TraceDecorator extends BaseDecorator {
       resourceName = DECORATE.spanNameForMethod(method);
     }
 
-    AgentSpan span = startSpan(INSTRUMENTATION_NAME, operationName);
+    AgentSpan span =
+        noParent
+            ? startSpan(INSTRUMENTATION_NAME, operationName, null)
+            : startSpan(INSTRUMENTATION_NAME, operationName);
+
     DECORATE.afterStart(span);
     span.setResourceName(resourceName);
 
@@ -82,5 +95,15 @@ public class TraceDecorator extends BaseDecorator {
     }
 
     return span;
+  }
+
+  @Override
+  public Object wrapAsyncResultOrFinishSpan(Object result, AgentSpan span) {
+    if (ASYNC_SUPPORT) {
+      return super.wrapAsyncResultOrFinishSpan(result, span);
+    } else {
+      span.finish();
+      return result;
+    }
   }
 }

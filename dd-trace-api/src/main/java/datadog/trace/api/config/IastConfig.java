@@ -16,6 +16,9 @@ public final class IastConfig {
   public static final String IAST_REDACTION_ENABLED = "iast.redaction.enabled";
   public static final String IAST_REDACTION_NAME_PATTERN = "iast.redaction.name.pattern";
   public static final String IAST_REDACTION_VALUE_PATTERN = "iast.redaction.value.pattern";
+  public static final String IAST_MAX_RANGE_COUNT = "iast.max-range-count";
+
+  public static final String IAST_TRUNCATION_MAX_VALUE_LENGTH = "iast.trunctation.max.value.length";
 
   private IastConfig() {}
 }

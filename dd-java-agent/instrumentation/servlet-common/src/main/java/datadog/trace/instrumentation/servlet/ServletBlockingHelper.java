@@ -2,6 +2,7 @@ package datadog.trace.instrumentation.servlet;
 
 import datadog.appsec.api.blocking.BlockingContentType;
 import datadog.trace.api.gateway.Flow;
+import datadog.trace.api.internal.TraceSegment;
 import datadog.trace.bootstrap.blocking.BlockingActionHelper;
 import java.io.IOException;
 import java.io.OutputStream;
@@ -16,6 +17,7 @@ public class ServletBlockingHelper {
   private static final Logger log = LoggerFactory.getLogger(ServletBlockingHelper.class);
 
   public static void commitBlockingResponse(
+      TraceSegment segment,
       HttpServletRequest httpServletRequest,
       HttpServletResponse resp,
       int statusCode_,
@@ -43,6 +45,9 @@ public class ServletBlockingHelper {
     } else {
       template = EMPTY_BYTE_ARRAY;
     }
+
+    segment.effectivelyBlocked();
+
     try {
       OutputStream os = resp.getOutputStream();
       os.write(template);
@@ -53,11 +58,13 @@ public class ServletBlockingHelper {
   }
 
   public static void commitBlockingResponse(
+      TraceSegment segment,
       HttpServletRequest httpServletRequest,
       HttpServletResponse resp,
       Flow.Action.RequestBlockingAction rba) {
 
     commitBlockingResponse(
+        segment,
         httpServletRequest,
         resp,
         rba.getStatusCode(),

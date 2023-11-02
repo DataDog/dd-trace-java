@@ -229,7 +229,7 @@ class IastWebFluxTest extends IastRequestTestRunner {
     (respBody =~ "URI: http://[^/]+/iast/shr\\?var1=foo").find()
     (respBody =~ "Path: /iast/shr").find()
     respBody.contains 'Query params: [var1 (tainted):[foo (tainted)]]'
-    respBody.contains 'Cookies: [var2:[var2 -> bar (tainted)]]'
+    respBody.contains 'Cookies: [var2 (tainted):[var2 (tainted) -> bar (tainted)]]'
     (respBody =~ "User-Agent: okhttp/[\\d.]+ \\(tainted\\)").find()
 
     when:
@@ -244,11 +244,10 @@ class IastWebFluxTest extends IastRequestTestRunner {
       value 'foo'
       range 0, 3, source(SourceTypes.REQUEST_PARAMETER_VALUE, 'var1', 'foo')
     }
-    // WebModule is not tainting cookie names
-    //    toc.hasTaintedObject {
-    //      value 'var2'
-    //      range 0, 4, source(SourceTypes.REQUEST_COOKIE_NAME, 'var2', null)
-    //    }
+    toc.hasTaintedObject {
+      value 'var2'
+      range 0, 4, source(SourceTypes.REQUEST_COOKIE_NAME, 'var2', 'var2')
+    }
     toc.hasTaintedObject {
       value 'bar'
       range 0, 3, source(SourceTypes.REQUEST_COOKIE_VALUE, 'var2',  'bar')

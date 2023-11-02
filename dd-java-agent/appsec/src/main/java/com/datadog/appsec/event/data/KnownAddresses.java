@@ -45,6 +45,8 @@ public interface KnownAddresses {
   /** status code of HTTP response */
   Address<String> RESPONSE_STATUS = new Address<>("server.response.status");
 
+  Address<Object> RESPONSE_BODY_OBJECT = new Address<>("server.response.body");
+
   /** First chars of HTTP response body */
   Address<String> RESPONSE_BODY_RAW = new Address<>("server.response.body.raw");
 
@@ -98,6 +100,8 @@ public interface KnownAddresses {
 
   Address<String> USER_ID = new Address<>("usr.id");
 
+  Address<Map<String, Object>> WAF_CONTEXT_PROCESSOR = new Address<>("waf.context.processor");
+
   static Address<?> forName(String name) {
     switch (name) {
       case "server.request.body":
@@ -124,6 +128,8 @@ public interface KnownAddresses {
         return REQUEST_TRANSPORT;
       case "server.response.status":
         return RESPONSE_STATUS;
+      case "server.response.body":
+        return RESPONSE_BODY_OBJECT;
       case "server.response.body.raw":
         return RESPONSE_BODY_RAW;
       case "server.response.headers.no_cookies":
@@ -144,6 +150,8 @@ public interface KnownAddresses {
         return GRPC_SERVER_REQUEST_METADATA;
       case "usr.id":
         return USER_ID;
+      case "waf.context.processor":
+        return WAF_CONTEXT_PROCESSOR;
       default:
         return null;
     }

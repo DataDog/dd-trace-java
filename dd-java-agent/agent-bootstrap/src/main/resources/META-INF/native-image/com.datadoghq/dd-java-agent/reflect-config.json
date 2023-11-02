@@ -30,6 +30,12 @@
     ]
   },
   {
+    "name" : "java.util.concurrent.ConcurrentHashMap",
+    "methods": [
+      {"name": "<init>", "parameterTypes": []}
+    ]
+  },
+  {
     "name" : "datadog.trace.agent.common.sampling.SpanSamplingRules$RuleAdapter",
     "methods": [
       {"name": "fromJson"}
@@ -82,6 +88,18 @@
     "fields": [
       {"name": "consumerIndex", "allowUnsafeAccess": true},
       {"name": "blocked", "allowUnsafeAccess": true}
+    ]
+  },
+  {
+    "name" : "org.jctools.queues.SpscArrayQueueProducerIndexFields",
+    "fields": [
+      {"name": "producerIndex", "allowUnsafeAccess": true}
+    ]
+  },
+  {
+    "name" : "org.jctools.queues.SpscArrayQueueConsumerIndexField",
+    "fields": [
+      {"name": "consumerIndex", "allowUnsafeAccess": true}
     ]
   }
 ]

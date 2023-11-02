@@ -46,8 +46,10 @@ class RoutingContextJsonAdvice {
       }
       Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
       blockResponseFunction.tryCommitBlockingResponse(
-          rba.getStatusCode(), rba.getBlockingContentType(), rba.getExtraHeaders());
-      reqCtx.getTraceSegment().effectivelyBlocked();
+          reqCtx.getTraceSegment(),
+          rba.getStatusCode(),
+          rba.getBlockingContentType(),
+          rba.getExtraHeaders());
       if (throwable == null) {
         throwable = new BlockingException("Blocked request (for RoutingContextImpl/getBodyAsJson)");
       }

@@ -23,6 +23,7 @@ import datadog.trace.api.gateway.IGSpanInfo
 import datadog.trace.api.gateway.RequestContext
 import datadog.trace.api.gateway.RequestContextSlot
 import datadog.trace.api.http.StoredBodySupplier
+import datadog.trace.api.iast.IastContext
 import datadog.trace.api.normalize.SimpleHttpPathNormalizer
 import datadog.trace.bootstrap.blocking.BlockingActionHelper
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
@@ -104,7 +105,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
   }
 
   @CompileStatic
-  def setupSpec() {
+  void setupSpec() {
     // Register the Instrumentation Gateway callbacks
     def ss = get().getSubscriptionService(RequestContextSlot.APPSEC)
     def callbacks = new IGCallbacks()
@@ -362,6 +363,10 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     true
   }
 
+  boolean testResponseHeadersMapping() {
+    true // bug in liberty-20
+  }
+
   @Override
   int version() {
     return 0
@@ -384,6 +389,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     BODY_URLENCODED("body-urlencoded?ignore=pair", 200, '[a:[x]]'),
     BODY_MULTIPART("body-multipart?ignore=pair", 200, '[a:[x]]'),
     BODY_JSON("body-json", 200, '{"a":"x"}'),
+    BODY_XML("body-xml", 200, '<foo attr="attr_value">mytext<bar/></foo>'),
     REDIRECT("redirect", 302, "/redirected"),
     FORWARDED("forwarded", 200, "1.2.3.4"),
     ERROR("error-status", 500, "controller error"), // "error" is a special path for some frameworks
@@ -685,6 +691,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
   @Flaky(value = "https://github.com/DataDog/dd-trace-java/issues/4690", suites = ["MuleHttpServerForkedTest"])
   def "test QUERY_ENCODED_BOTH with response header x-ig-response-header tag mapping"() {
     setup:
+    assumeTrue(testResponseHeadersMapping())
     def endpoint = QUERY_ENCODED_BOTH
     def method = 'GET'
     def body = null
@@ -1627,7 +1634,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
 
   def 'test blocking of request for request body variant #variant'() {
     setup:
-    assumeTrue(testUserBlocking())
+    assumeTrue(testBlocking())
     assumeTrue(executeTest)
 
     def request = request(
@@ -1718,8 +1725,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
           if (blockResponseFunction == null) {
             throw new UnsupportedOperationException("Do not know how to commit blocking response for this server")
           }
-          reqCtx.getTraceSegment().effectivelyBlocked()
-          blockResponseFunction.tryCommitBlockingResponse(statusCode, type, extraHeaders)
+          blockResponseFunction.tryCommitBlockingResponse(reqCtx.traceSegment, statusCode, type, extraHeaders)
         }
       }
     Blocking.blockingService = bs
@@ -1939,6 +1945,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
   static final String IG_PARAMETERS_BLOCK_HEADER = "x-block-parameters"
   static final String IG_BODY_END_BLOCK_HEADER = "x-block-body-end"
   static final String IG_BODY_CONVERTED_HEADER = "x-block-body-converted"
+  static final String IG_ASK_FOR_RESPONSE_HEADER_TAGS_HEADER = "x-include-response-headers-in-tags"
   static final String IG_PEER_ADDRESS = "ig-peer-address"
   static final String IG_PEER_PORT = "ig-peer-port"
   static final String IG_RESPONSE_STATUS = "ig-response-status"
@@ -1960,6 +1967,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
       String responseBlock
       boolean bodyEndBlock
       boolean bodyConvertedBlock
+      boolean responseHeadersInTags
     }
 
     static final String stringOrEmpty(String string) {
@@ -2009,6 +2017,9 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
       }
       if (IG_BODY_CONVERTED_HEADER.equalsIgnoreCase(key)) {
         context.bodyConvertedBlock = true
+      }
+      if (IG_ASK_FOR_RESPONSE_HEADER_TAGS_HEADER.equalsIgnoreCase(key)) {
+        context.responseHeadersInTags = true
       }
     } as TriConsumer<RequestContext, String, String>
 
@@ -2086,8 +2097,9 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
           [
             it.key,
             (it.value instanceof Iterable || it.value instanceof String[]) ? it.value : [it.value]
-          ]}
-      } else if (!(obj instanceof String)) {
+          ]
+        }
+      } else if (!(obj instanceof String) && !(obj instanceof List)) {
         obj = obj.properties
           .findAll { it.key != 'class' }
           .collectEntries { [it.key, it.value instanceof Iterable ? it.value : [it.value]] }
@@ -2113,6 +2125,9 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     final TriConsumer<RequestContext, String, String> responseHeaderCb =
     { RequestContext rqCtxt, String key, String value ->
       Context context = rqCtxt.getData(RequestContextSlot.APPSEC)
+      if (context.responseHeadersInTags) {
+        context.tags["response.header.${key.toLowerCase()}"] = value
+      }
       if (IG_RESPONSE_HEADER.equalsIgnoreCase(key)) {
         context.igResponseHeaderValue = stringOrEmpty(context.igResponseHeaderValue) + value
       }
@@ -2155,7 +2170,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
   }
 
   class IastIGCallbacks {
-    static class Context {
+    static class Context implements IastContext {
     }
 
     final Supplier<Flow<Context>> requestStartedCb =

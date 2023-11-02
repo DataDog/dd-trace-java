@@ -3,6 +3,7 @@ ext {
   minJavaVersionForTests = JavaVersion.VERSION_11
   // Zulu has backported profiling support
   forceJdk = ['ZULU8']
+  excludeJdk = ['SEMERU11', 'SEMERU17']
   // By default tests with be compiled for `minJavaVersionForTests` version,
   // but in this case we would like to avoid this since we would like to run with ZULU8
   skipSettingTestJavaVersion = true
@@ -16,6 +17,9 @@ apply plugin: 'idea'
 dependencies {
   api deps.slf4j
   api project(':internal-api')
+  api(project(':dd-java-agent:agent-bootstrap')) {
+    exclude group: 'com.datadoghq', module: 'agent-logging'
+  }
   api project(':dd-java-agent:agent-profiling:profiling-auxiliary')
   api project(':dd-java-agent:agent-profiling:profiling-controller')
   api project(':dd-java-agent:agent-profiling:profiling-controller-jfr')

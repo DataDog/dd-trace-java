@@ -46,5 +46,8 @@ public interface StringModule extends IastModule {
       @Nonnull Object[] params,
       @Nonnull String result);
 
+  void onStringFormat(
+      @Nonnull Iterable<String> literals, @Nonnull Object[] params, @Nonnull String result);
+
   void onSplit(final @Nonnull String self, final @Nonnull String[] result);
 }

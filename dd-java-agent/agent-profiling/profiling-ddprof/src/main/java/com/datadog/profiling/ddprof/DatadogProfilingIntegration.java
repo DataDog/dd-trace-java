@@ -1,7 +1,7 @@
 package com.datadog.profiling.ddprof;
 
-import datadog.trace.api.experimental.ProfilingContextSetter;
-import datadog.trace.api.experimental.ProfilingScope;
+import datadog.trace.api.profiling.ProfilingContextAttribute;
+import datadog.trace.api.profiling.ProfilingScope;
 import datadog.trace.bootstrap.instrumentation.api.ProfilerContext;
 import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
 
@@ -13,6 +13,7 @@ public class DatadogProfilingIntegration implements ProfilingContextIntegration 
 
   private static final DatadogProfiler DDPROF = DatadogProfiler.getInstance();
   private static final int SPAN_NAME_INDEX = DDPROF.operationNameOffset();
+  private static final int RESOURCE_NAME_INDEX = DDPROF.resourceNameOffset();
   private static final boolean WALLCLOCK_ENABLED =
       DatadogProfilerConfig.isWallClockProfilerEnabled();
 
@@ -42,22 +43,14 @@ public class DatadogProfilingIntegration implements ProfilingContextIntegration 
   public void setContext(ProfilerContext profilerContext) {
     DDPROF.setSpanContext(profilerContext.getSpanId(), profilerContext.getRootSpanId());
     DDPROF.setContextValue(SPAN_NAME_INDEX, profilerContext.getEncodedOperationName());
+    DDPROF.setContextValue(RESOURCE_NAME_INDEX, profilerContext.getEncodedResourceName());
   }
 
   @Override
   public void clearContext() {
     DDPROF.clearSpanContext();
     DDPROF.clearContextValue(SPAN_NAME_INDEX);
-  }
-
-  @Override
-  public void setContextValue(String attribute, String value) {
-    DDPROF.setContextValue(attribute, value);
-  }
-
-  @Override
-  public void clearContextValue(String attribute) {
-    DDPROF.clearContextValue(attribute);
+    DDPROF.clearContextValue(RESOURCE_NAME_INDEX);
   }
 
   @Override
@@ -66,7 +59,7 @@ public class DatadogProfilingIntegration implements ProfilingContextIntegration 
   }
 
   @Override
-  public ProfilingContextSetter createContextSetter(String attribute) {
+  public ProfilingContextAttribute createContextAttribute(String attribute) {
     return new DatadogProfilerContextSetter(attribute, DDPROF);
   }
 

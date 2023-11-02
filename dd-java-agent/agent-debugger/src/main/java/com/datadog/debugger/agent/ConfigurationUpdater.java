@@ -40,7 +40,8 @@ public class ConfigurationUpdater
     DebuggerTransformer supply(
         Config tracerConfig,
         Configuration configuration,
-        DebuggerTransformer.InstrumentationListener listener);
+        DebuggerTransformer.InstrumentationListener listener,
+        DebuggerSink debuggerSink);
   }
 
   private static final Logger LOGGER = LoggerFactory.getLogger(ConfigurationUpdater.class);
@@ -103,12 +104,13 @@ public class ConfigurationUpdater
     ConfigurationComparer changes =
         new ConfigurationComparer(currentConfiguration, newConfiguration, instrumentationResults);
     currentConfiguration = newConfiguration;
+    if (changes.hasRateLimitRelatedChanged()) {
+      // apply rate limit config first to avoid racing with execution/instrumentation of log probes
+      applyRateLimiter(changes);
+    }
     if (changes.hasProbeRelatedChanges()) {
       LOGGER.info("Applying new probe configuration, changes: {}", changes);
       handleProbesChanges(changes);
-    }
-    if (changes.hasRateLimitRelatedChanged()) {
-      applyRateLimiter(changes);
     }
   }
 
@@ -175,13 +177,16 @@ public class ConfigurationUpdater
     // install new probe definitions
     currentTransformer =
         transformerSupplier.supply(
-            Config.get(), currentConfiguration, this::recordInstrumentationProgress);
+            Config.get(), currentConfiguration, this::recordInstrumentationProgress, sink);
     instrumentation.addTransformer(currentTransformer, true);
     LOGGER.debug("New transformer installed");
   }
 
   private void recordInstrumentationProgress(
       ProbeDefinition definition, InstrumentationResult instrumentationResult) {
+    if (instrumentationResult.isError()) {
+      return;
+    }
     instrumentationResults.put(definition.getId(), instrumentationResult);
     if (instrumentationResult.isInstalled()) {
       sink.addInstalled(definition.getProbeId());
@@ -241,10 +246,6 @@ public class ConfigurationUpdater
   }
 
   private void applyRateLimiter(ConfigurationComparer changes) {
-    Collection<LogProbe> probes = currentConfiguration.getLogProbes();
-    if (probes == null) {
-      return;
-    }
     // ensure rate is up-to-date for all new probes
     for (ProbeDefinition addedDefinitions : changes.getAddedDefinitions()) {
       if (addedDefinitions instanceof LogProbe) {

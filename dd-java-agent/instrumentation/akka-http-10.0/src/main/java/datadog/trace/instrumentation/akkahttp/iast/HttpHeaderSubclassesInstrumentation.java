@@ -14,7 +14,6 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Propagation;
-import datadog.trace.api.iast.Taintable;
 import datadog.trace.api.iast.propagation.PropagationModule;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
@@ -59,11 +58,11 @@ public class HttpHeaderSubclassesInstrumentation extends Instrumenter.Iast
     static void onExit(@Advice.This HttpHeader h, @Advice.Return String retVal) {
 
       PropagationModule propagation = InstrumentationBridge.PROPAGATION;
-      if (propagation == null || !(h instanceof Taintable)) {
+      if (propagation == null) {
         return;
       }
 
-      propagation.taintIfInputIsTainted(retVal, h);
+      propagation.taintIfTainted(retVal, h);
     }
   }
 }

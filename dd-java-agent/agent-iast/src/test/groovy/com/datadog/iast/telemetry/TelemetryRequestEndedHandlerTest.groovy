@@ -3,9 +3,11 @@ package com.datadog.iast.telemetry
 import com.datadog.iast.IastRequestContext
 import com.datadog.iast.RequestEndedHandler
 import com.datadog.iast.model.Source
+import com.datadog.iast.taint.Ranges
 import com.datadog.iast.taint.TaintedObjects
 import com.datadog.iast.telemetry.taint.TaintedObjectsWithTelemetry
 import datadog.trace.api.gateway.RequestContextSlot
+import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.SourceTypes
 import datadog.trace.api.iast.VulnerabilityTypes
 import datadog.trace.api.iast.telemetry.IastMetric
@@ -25,6 +27,7 @@ class TelemetryRequestEndedHandlerTest extends AbstractTelemetryCallbackTest {
   protected IastMetricCollector globalCollector
 
   void setup() {
+    InstrumentationBridge.clearIastModules()
     delegate = Spy(new RequestEndedHandler(dependencies))
     final TaintedObjects to = TaintedObjectsWithTelemetry.build(Verbosity.DEBUG, TaintedObjects.acquire())
     iastCtx = new IastRequestContext(to, new IastMetricCollector())
@@ -39,7 +42,7 @@ class TelemetryRequestEndedHandlerTest extends AbstractTelemetryCallbackTest {
     final handler = new TelemetryRequestEndedHandler(delegate)
     final toTaint = 'hello'
     final source = new Source(SourceTypes.REQUEST_PARAMETER_VALUE, 'name', 'value')
-    iastCtx.taintedObjects.taintInputString(toTaint, source)
+    iastCtx.taintedObjects.taint(toTaint, Ranges.forCharSequence(toTaint, source))
 
     when:
     handler.apply(reqCtx, span)
@@ -61,15 +64,14 @@ class TelemetryRequestEndedHandlerTest extends AbstractTelemetryCallbackTest {
     given:
     final handler = new TelemetryRequestEndedHandler(delegate)
     final metric = TAINTED_FLAT_MODE
-    final tagValue = null
 
     when:
-    iastCtx.metricCollector.addMetric(metric, tagValue, 1)
+    iastCtx.metricCollector.addMetric(metric, (byte) -1, 1)
     handler.apply(reqCtx, span)
 
     then:
     1 * delegate.apply(reqCtx, span)
-    1 * traceSegment.setTagTop(String.format(TRACE_METRIC_PATTERN, getSpanTagValue(metric, tagValue)), 1)
+    1 * traceSegment.setTagTop(String.format(TRACE_METRIC_PATTERN, getSpanTagValue(metric)), 1)
 
     when:
     globalCollector.prepareMetrics()
@@ -109,32 +111,36 @@ class TelemetryRequestEndedHandlerTest extends AbstractTelemetryCallbackTest {
     where:
     metrics                                                                       | description
     [
-      metric(REQUEST_TAINTED, null, 123),
-      metric(EXECUTED_SOURCE, SourceTypes.REQUEST_PARAMETER_VALUE_STRING, 2),
-      metric(EXECUTED_SOURCE, SourceTypes.REQUEST_HEADER_VALUE_STRING, 4),
+      metric(REQUEST_TAINTED, 123),
+      metric(EXECUTED_SOURCE, SourceTypes.REQUEST_PARAMETER_VALUE, 2),
+      metric(EXECUTED_SOURCE, SourceTypes.REQUEST_HEADER_VALUE, 4),
       metric(EXECUTED_SINK, VulnerabilityTypes.SQL_INJECTION, 1),
       metric(EXECUTED_SINK, VulnerabilityTypes.COMMAND_INJECTION, 2),
     ]                                                                             | 'List of only request scoped metrics'
     [
-      metric(REQUEST_TAINTED, null, 123),
-      metric(INSTRUMENTED_SOURCE, SourceTypes.REQUEST_PARAMETER_VALUE_STRING, 2),
+      metric(REQUEST_TAINTED, 123),
+      metric(INSTRUMENTED_SOURCE, SourceTypes.REQUEST_PARAMETER_VALUE, 2),
     ]                                                                             | 'Mix between global and request scoped metrics'
   }
 
-  private static String getSpanTagValue(final IastMetric metric, final String tagValue) {
+  private static String getSpanTagValue(final IastMetric metric, final Byte tagValue = null) {
     return metric.getTag() == null
       ? metric.getName()
-      : String.format("%s.%s", metric.getName(), tagValue.toLowerCase().replaceAll("\\.", "_"))
+      : String.format("%s.%s", metric.getName(), metric.tag.toString(tagValue).toLowerCase().replaceAll("\\.", "_"))
   }
 
-  private static Data metric(final IastMetric metric, final String tagValue, final int value) {
+  private static Data metric(final IastMetric metric, final byte tagValue, final int value) {
     return new Data(metric: metric, tagValue: tagValue, value: value)
+  }
+
+  private static Data metric(final IastMetric metric, final int value) {
+    return new Data(metric: metric, tagValue: (byte) -1, value: value)
   }
 
   @ToString
   private static class Data {
     IastMetric metric
-    String tagValue
+    byte tagValue
     int value
   }
 }

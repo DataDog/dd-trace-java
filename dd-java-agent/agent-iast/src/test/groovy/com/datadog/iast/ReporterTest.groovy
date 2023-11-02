@@ -52,10 +52,10 @@ class ReporterTest extends DDSpecification {
     span.getSpanId() >> spanId
 
     final v = new Vulnerability(
-      VulnerabilityType.WEAK_HASH,
-      Location.forSpanAndStack(spanId, new StackTraceElement("foo", "foo", "foo", 1)),
-      new Evidence("MD5")
-      )
+    VulnerabilityType.WEAK_HASH,
+    Location.forSpanAndStack(span, new StackTraceElement("foo", "foo", "foo", 1)),
+    new Evidence("MD5")
+    )
 
     when:
     reporter.report(span, v)
@@ -97,15 +97,15 @@ class ReporterTest extends DDSpecification {
     span.getSpanId() >> spanId
 
     final v1 = new Vulnerability(
-      VulnerabilityType.WEAK_HASH,
-      Location.forSpanAndStack(spanId, new StackTraceElement("foo", "foo", "foo", 1)),
-      new Evidence("MD5")
-      )
+    VulnerabilityType.WEAK_HASH,
+    Location.forSpanAndStack(span, new StackTraceElement("foo", "foo", "foo", 1)),
+    new Evidence("MD5")
+    )
     final v2 = new Vulnerability(
-      VulnerabilityType.WEAK_HASH,
-      Location.forSpanAndStack(spanId, new StackTraceElement("foo", "foo", "foo", 2)),
-      new Evidence("MD4")
-      )
+    VulnerabilityType.WEAK_HASH,
+    Location.forSpanAndStack(span, new StackTraceElement("foo", "foo", "foo", 2)),
+    new Evidence("MD4")
+    )
 
     when:
     reporter.report(span, v1)
@@ -148,32 +148,76 @@ class ReporterTest extends DDSpecification {
     final tracerAPI = Mock(TracerAPI)
     AgentTracer.forceRegister(tracerAPI)
     final spanId = 12345L
+    final serviceName = 'service-name'
     final span = Mock(AgentSpan)
     final scope = Mock(AgentScope)
     final ctx = new IastRequestContext()
     final reqCtx = Stub(RequestContext)
     reqCtx.getData(RequestContextSlot.IAST) >> ctx
     final reporter = new Reporter()
-    final v = new Vulnerability(
-      VulnerabilityType.WEAK_HASH,
-      Location.forSpanAndStack(0, new StackTraceElement("foo", "foo", "foo", 1)),
-      new Evidence("MD5")
-      )
+    final hash = v.getHash()
 
     when:
     reporter.report(null, v)
-    v.getLocation().getSpanId() == spanId
 
     then:
     noExceptionThrown()
     1 * tracerAPI.startSpan('iast', 'vulnerability', _ as AgentSpan.Context) >> span
     1 * tracerAPI.activateSpan(span, ScopeSource.MANUAL) >> scope
-    1 * span.getSpanId() >> spanId
     1 * span.getRequestContext() >> reqCtx
     1 * span.setSpanType(InternalSpanTypes.VULNERABILITY) >> span
     1 * span.setTag(ANALYZED.key(), ANALYZED.value())
+    1 * span.getServiceName() >> serviceName
+    1 * span.getSpanId() >> spanId
     1 * span.finish()
     1 * scope.close()
+    0 * _
+
+    when:
+    def newSpanId = null
+    def newServiceName = null
+    if(v.getType() instanceof VulnerabilityType.HeaderVulnerabilityType){
+      newServiceName = v.getLocation().getServiceName()
+    }else{
+      newSpanId =  v.getLocation().getSpanId()
+    }
+    def newHash = v.getHash()
+
+    then:
+    if(v.getType() instanceof VulnerabilityType.HeaderVulnerabilityType){
+      assert newServiceName == serviceName
+      assert newHash != hash
+    }else{
+      assert newSpanId == spanId
+      assert newHash == hash
+    }
+
+    where:
+    v | _
+    defaultVulnerability() | _
+    cookieVulnerability() | _
+    headerVulnerability() | _
+  }
+
+  void 'no spans are create if duplicates are reported'() {
+    given:
+    final tracerAPI = Mock(TracerAPI)
+    AgentTracer.forceRegister(tracerAPI)
+    final ctx = new IastRequestContext()
+    final reqCtx = Stub(RequestContext)
+    reqCtx.getData(RequestContextSlot.IAST) >> ctx
+    final reporter = new Reporter((vul) -> true)
+    final v = new Vulnerability(
+    VulnerabilityType.WEAK_HASH,
+    Location.forSpanAndStack(null, new StackTraceElement("foo", "foo", "foo", 1)),
+    new Evidence("MD5")
+    )
+
+    when:
+    reporter.report(null, v)
+
+    then:
+    noExceptionThrown()
     0 * _
   }
 
@@ -184,10 +228,10 @@ class ReporterTest extends DDSpecification {
     span.getRequestContext() >> null
     span.getSpanId() >> 12345L
     final v = new Vulnerability(
-      VulnerabilityType.WEAK_HASH,
-      Location.forSpanAndStack(0, new StackTraceElement("foo", "foo", "foo", 1)),
-      new Evidence("MD5")
-      )
+    VulnerabilityType.WEAK_HASH,
+    Location.forSpanAndStack(null, new StackTraceElement("foo", "foo", "foo", 1)),
+    new Evidence("MD5")
+    )
 
     when:
     reporter.report(span, v)
@@ -208,10 +252,10 @@ class ReporterTest extends DDSpecification {
     span.getRequestContext() >> reqCtx
     span.getSpanId() >> spanId
     final v = new Vulnerability(
-      VulnerabilityType.WEAK_HASH,
-      Location.forSpanAndStack(spanId, new StackTraceElement("foo", "foo", "foo", 1)),
-      new Evidence("MD5")
-      )
+    VulnerabilityType.WEAK_HASH,
+    Location.forSpanAndStack(span, new StackTraceElement("foo", "foo", "foo", 1)),
+    new Evidence("MD5")
+    )
 
     when:
     reporter.report(span, v)
@@ -225,16 +269,20 @@ class ReporterTest extends DDSpecification {
 
   void 'Vulnerabilities with same type and location are equals'() {
     given:
+    final span1 = Mock(AgentSpan)
+    span1.getSpanId() >> 123456
     final vulnerability1 = new Vulnerability(
-      VulnerabilityType.WEAK_HASH,
-      Location.forSpanAndStack(123456, new StackTraceElement("foo", "foo", "foo", 1)),
-      new Evidence("GOOD")
-      )
+    VulnerabilityType.WEAK_HASH,
+    Location.forSpanAndStack(span1, new StackTraceElement("foo", "foo", "foo", 1)),
+    new Evidence("GOOD")
+    )
+    final span2 = Mock(AgentSpan)
+    span1.getSpanId() >> 7890
     final vulnerability2 = new Vulnerability(
-      VulnerabilityType.WEAK_HASH,
-      Location.forSpanAndStack(7890, new StackTraceElement("foo", "foo", "foo", 1)),
-      new Evidence("BAD")
-      )
+    VulnerabilityType.WEAK_HASH,
+    Location.forSpanAndStack(span2, new StackTraceElement("foo", "foo", "foo", 1)),
+    new Evidence("BAD")
+    )
 
     expect:
     vulnerability1 == vulnerability2
@@ -242,16 +290,20 @@ class ReporterTest extends DDSpecification {
 
   void 'Vulnerabilities with same type and different location are not equals'() {
     given:
+    final span1 = Mock(AgentSpan)
+    span1.getSpanId() >> 123456
     final vulnerability1 = new Vulnerability(
-      VulnerabilityType.WEAK_HASH,
-      Location.forSpanAndStack(123456, new StackTraceElement("foo", "foo", "foo", 1)),
-      new Evidence("GOOD")
-      )
+    VulnerabilityType.WEAK_HASH,
+    Location.forSpanAndStack(span1, new StackTraceElement("foo", "foo", "foo", 1)),
+    new Evidence("GOOD")
+    )
+    final span2 = Mock(AgentSpan)
+    span1.getSpanId() >> 7890
     final vulnerability2 = new Vulnerability(
-      VulnerabilityType.WEAK_HASH,
-      Location.forSpanAndStack(7890, new StackTraceElement("foo", "foo", "foo", 2)),
-      new Evidence("BAD")
-      )
+    VulnerabilityType.WEAK_HASH,
+    Location.forSpanAndStack(span2, new StackTraceElement("foo", "foo", "foo", 2)),
+    new Evidence("BAD")
+    )
 
     expect:
     vulnerability1 != vulnerability2
@@ -264,10 +316,10 @@ class ReporterTest extends DDSpecification {
     final batch = new VulnerabilityBatch()
     final span = spanWithBatch(batch)
     final vulnerability = new Vulnerability(
-      VulnerabilityType.WEAK_HASH,
-      Location.forSpanAndStack(span.spanId, new StackTraceElement("foo", "foo", "foo", 1)),
-      new Evidence("GOOD")
-      )
+    VulnerabilityType.WEAK_HASH,
+    Location.forSpanAndStack(span, new StackTraceElement("foo", "foo", "foo", 1)),
+    new Evidence("GOOD")
+    )
 
     when: 'first time a vulnerability is reported'
     reporter.report(span, vulnerability)
@@ -289,10 +341,10 @@ class ReporterTest extends DDSpecification {
     final batch = new VulnerabilityBatch()
     final span = spanWithBatch(batch)
     final vulnerability = new Vulnerability(
-      VulnerabilityType.WEAK_HASH,
-      Location.forSpanAndStack(span.spanId, new StackTraceElement("foo", "foo", "foo", 1)),
-      new Evidence("GOOD")
-      )
+    VulnerabilityType.WEAK_HASH,
+    Location.forSpanAndStack(span, new StackTraceElement("foo", "foo", "foo", 1)),
+    new Evidence("GOOD")
+    )
 
     when: 'first time a vulnerability is reported'
     reporter.report(span, vulnerability)
@@ -316,10 +368,10 @@ class ReporterTest extends DDSpecification {
     final span = spanWithBatch(batch)
     final vulnerabilityBuilder = { int index ->
       new Vulnerability(
-        VulnerabilityType.WEAK_HASH,
-        Location.forSpanAndStack(span.spanId, new StackTraceElement(index.toString(), index.toString(), index.toString(), index)),
-        new Evidence("GOOD")
-        )
+      VulnerabilityType.WEAK_HASH,
+      Location.forSpanAndStack(span, new StackTraceElement(index.toString(), index.toString(), index.toString(), index)),
+      new Evidence("GOOD")
+      )
     }
 
     when: 'the deduplication cache is filled for the first time'
@@ -356,10 +408,10 @@ class ReporterTest extends DDSpecification {
     final span = spanWithBatch(batch)
     final vulnerabilityBuilder = { int index ->
       new Vulnerability(
-        VulnerabilityType.WEAK_HASH,
-        Location.forSpanAndStack(span.spanId, new StackTraceElement(index.toString(), index.toString(), index.toString(), index)),
-        new Evidence("GOOD")
-        )
+      VulnerabilityType.WEAK_HASH,
+      Location.forSpanAndStack(span, new StackTraceElement(index.toString(), index.toString(), index.toString(), index)),
+      new Evidence("GOOD")
+      )
     }
 
     when: 'a few duplicates are reported in a concurrent scenario'
@@ -400,5 +452,26 @@ class ReporterTest extends DDSpecification {
     span.getRequestContext() >> reqCtx
     span.getSpanId() >> spanId
     return span
+  }
+
+  private Vulnerability defaultVulnerability(){
+    return new Vulnerability(
+    VulnerabilityType.WEAK_HASH,
+    Location.forSpanAndStack(null, new StackTraceElement("foo", "foo", "foo", 1)),
+    new Evidence("MD5")
+    )
+  }
+
+  private Vulnerability cookieVulnerability(){
+    return new Vulnerability(
+    VulnerabilityType.INSECURE_COOKIE,
+    Location.forSpanAndStack(null, new StackTraceElement("foo", "foo", "foo", 1)),
+    new Evidence("cookie-name")
+    )
+  }
+
+  private Vulnerability headerVulnerability(){
+    return new Vulnerability(
+    VulnerabilityType.XCONTENTTYPE_HEADER_MISSING, Location.forSpan(null), null)
   }
 }

@@ -8,6 +8,8 @@ import okhttp3.OkHttpClient
 import spock.lang.Shared
 import spock.lang.Subject
 
+import java.lang.management.ManagementFactory
+import java.lang.management.RuntimeMXBean
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
 
@@ -16,8 +18,12 @@ abstract class WithHttpServer<SERVER> extends VersionedNamingTestBase {
   @Shared
   @Subject
   HttpServer server
+
+  @Lazy
+  private static int timeoutValue = debugging ? 1500 : 15
+
   @Shared
-  OkHttpClient client = OkHttpUtils.client(15, 15, TimeUnit.SECONDS)
+  OkHttpClient client = OkHttpUtils.client(timeoutValue, timeoutValue, TimeUnit.SECONDS)
 
   @Shared
   URI address = null
@@ -92,5 +98,16 @@ abstract class WithHttpServer<SERVER> extends VersionedNamingTestBase {
 
   void stopServer(SERVER server) {
     throw new UnsupportedOperationException()
+  }
+
+  private static boolean isDebugging() {
+    RuntimeMXBean runtimeMXBean = ManagementFactory.runtimeMXBean
+    List<String> inputArguments = runtimeMXBean.inputArguments
+    for (String arg : inputArguments) {
+      if (arg.contains("-agentlib:jdwp")) {
+        return true
+      }
+    }
+    false
   }
 }

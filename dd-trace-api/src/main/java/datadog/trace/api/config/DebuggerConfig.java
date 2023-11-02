@@ -22,6 +22,13 @@ public final class DebuggerConfig {
       "dynamic.instrumentation.instrument.the.world";
   public static final String DEBUGGER_EXCLUDE_FILES = "dynamic.instrumentation.exclude.files";
   public static final String DEBUGGER_CAPTURE_TIMEOUT = "dynamic.instrumentation.capture.timeout";
+  public static final String DEBUGGER_REDACTED_IDENTIFIERS =
+      "dynamic.instrumentation.redacted.identifiers";
+  public static final String DEBUGGER_REDACTED_TYPES = "dynamic.instrumentation.redacted.types";
+  public static final String DEBUGGER_SYMBOL_ENABLED = "symbol.database.upload.enabled";
+  public static final String DEBUGGER_SYMBOL_FORCE_UPLOAD = "internal.force.symbol.database.upload";
+  public static final String DEBUGGER_SYMBOL_INCLUDES = "symbol.database.includes";
+  public static final String DEBUGGER_SYMBOL_FLUSH_THRESHOLD = "symbol.database.flush.threshold";
 
   private DebuggerConfig() {}
 }

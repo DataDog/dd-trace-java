@@ -12,13 +12,11 @@ import akka.http.scaladsl.model.headers.Cookie;
 import akka.http.scaladsl.model.headers.HttpCookiePair;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Source;
 import datadog.trace.api.iast.SourceTypes;
 import datadog.trace.api.iast.propagation.PropagationModule;
-import datadog.trace.api.iast.source.WebModule;
-import java.util.ArrayList;
-import java.util.List;
 import net.bytebuddy.asm.Advice;
 import scala.collection.Iterator;
 import scala.collection.immutable.Seq;
@@ -53,26 +51,25 @@ public class CookieHeaderInstrumentation extends Instrumenter.Iast
 
   static class TaintAllCookiesAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
-    @Source(SourceTypes.REQUEST_COOKIE_VALUE_STRING)
+    @Source(SourceTypes.REQUEST_COOKIE_VALUE)
     static void after(
         @Advice.This HttpHeader cookie, @Advice.Return Seq<HttpCookiePair> cookiePairs) {
-      WebModule mod = InstrumentationBridge.WEB;
       PropagationModule prop = InstrumentationBridge.PROPAGATION;
-      if (mod == null || prop == null || cookiePairs == null || cookiePairs.isEmpty()) {
+      if (prop == null || cookiePairs == null || cookiePairs.isEmpty()) {
         return;
       }
       if (!prop.isTainted(cookie)) {
         return;
       }
 
+      final IastContext ctx = IastContext.Provider.get();
       Iterator<HttpCookiePair> iterator = cookiePairs.iterator();
-      List<String> cookieNames = new ArrayList<>();
       while (iterator.hasNext()) {
         HttpCookiePair pair = iterator.next();
-        cookieNames.add(pair.name());
-        prop.taint(SourceTypes.REQUEST_COOKIE_VALUE, pair.name(), pair.value());
+        final String name = pair.name(), value = pair.value();
+        prop.taint(ctx, name, SourceTypes.REQUEST_COOKIE_NAME, name);
+        prop.taint(ctx, value, SourceTypes.REQUEST_COOKIE_VALUE, name);
       }
-      mod.onCookieNames(cookieNames);
     }
   }
 }

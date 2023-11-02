@@ -1,7 +1,9 @@
 package datadog.trace.instrumentation.junit5;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.nameStartsWith;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
+import static net.bytebuddy.matcher.ElementMatchers.not;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
@@ -10,11 +12,13 @@ import datadog.trace.api.Config;
 import datadog.trace.api.civisibility.InstrumentationBridge;
 import datadog.trace.api.civisibility.config.SkippableTest;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+import java.util.Collection;
 import java.util.Set;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 import org.junit.platform.engine.TestDescriptor;
+import org.junit.platform.engine.TestTag;
 import org.junit.platform.engine.support.hierarchical.Node;
 import org.junit.platform.engine.support.hierarchical.SameThreadHierarchicalTestExecutorService;
 
@@ -23,7 +27,7 @@ public class JUnit5ItrInstrumentation extends Instrumenter.CiVisibility
     implements Instrumenter.ForTypeHierarchy {
 
   public JUnit5ItrInstrumentation() {
-    super("junit", "junit-5");
+    super("ci-visibility", "junit-5");
   }
 
   @Override
@@ -39,16 +43,17 @@ public class JUnit5ItrInstrumentation extends Instrumenter.CiVisibility
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return implementsInterface(named(hierarchyMarkerType()))
-        .and(implementsInterface(named("org.junit.platform.engine.TestDescriptor")));
+        .and(implementsInterface(named("org.junit.platform.engine.TestDescriptor")))
+        // Cucumber has a dedicated instrumentation
+        .and(not(nameStartsWith("io.cucumber")))
+        // Spock has a dedicated instrumentation
+        .and(not(nameStartsWith("org.spockframework")));
   }
 
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".JUnitPlatformUtils",
-      packageName + ".JUnitPlatformUtils$Cucumber",
-      packageName + ".JUnitPlatformUtils$Spock",
-      packageName + ".TestEventsHandlerHolder",
+      packageName + ".JUnitPlatformUtils", packageName + ".TestEventsHandlerHolder",
     };
   }
 
@@ -60,8 +65,7 @@ public class JUnit5ItrInstrumentation extends Instrumenter.CiVisibility
   }
 
   /**
-   * !!!!!!!!!!!!!!!! IMPORTANT !!!!!!!!!!!!!!!! Do not use or refer to {@code
-   * datadog.trace.instrumentation.junit5.JunitPlatformLauncherUtils} or any classes from {@code
+   * !!!!!!!!!!!!!!!! IMPORTANT !!!!!!!!!!!!!!!! Do not use or refer to any classes from {@code
    * org.junit.platform.launcher} package in here: in some Gradle projects this package is not
    * available in CL where this instrumentation is injected
    */
@@ -82,6 +86,13 @@ public class JUnit5ItrInstrumentation extends Instrumenter.CiVisibility
         // should only happen in integration tests
         // because we cannot avoid instrumenting ourselves
         return;
+      }
+
+      Collection<TestTag> tags = testDescriptor.getTags();
+      for (TestTag tag : tags) {
+        if (InstrumentationBridge.ITR_UNSKIPPABLE_TAG.equals(tag.getName())) {
+          return;
+        }
       }
 
       SkippableTest test = JUnitPlatformUtils.toSkippableTest(testDescriptor);

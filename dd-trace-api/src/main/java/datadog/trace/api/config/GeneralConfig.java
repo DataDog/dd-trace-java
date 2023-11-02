@@ -39,6 +39,10 @@ public final class GeneralConfig {
   public static final String DOGSTATSD_ARGS = "dogstatsd.args";
   public static final String DOGSTATSD_NAMED_PIPE = "dogstatsd.pipe.name";
 
+  public static final String STATSD_CLIENT_QUEUE_SIZE = "statsd.client.queue.size";
+  public static final String STATSD_CLIENT_SOCKET_BUFFER = "statsd.client.socket.buffer";
+  public static final String STATSD_CLIENT_SOCKET_TIMEOUT = "statsd.client.socket.timeout";
+
   public static final String RUNTIME_METRICS_ENABLED = "runtime.metrics.enabled";
   public static final String RUNTIME_ID_ENABLED = "runtime-id.enabled";
 
@@ -62,9 +66,14 @@ public final class GeneralConfig {
 
   public static final String TELEMETRY_ENABLED = "instrumentation.telemetry.enabled";
   public static final String TELEMETRY_HEARTBEAT_INTERVAL = "telemetry.heartbeat.interval";
+  public static final String TELEMETRY_EXTENDED_HEARTBEAT_INTERVAL =
+      "telemetry.extended.heartbeat.interval";
   public static final String TELEMETRY_METRICS_INTERVAL = "telemetry.metrics.interval";
+  public static final String TELEMETRY_METRICS_ENABLED = "telemetry.metrics.enabled";
   public static final String TELEMETRY_DEPENDENCY_COLLECTION_ENABLED =
       "telemetry.dependency-collection.enabled";
+
+  public static final String TELEMETRY_DEBUG_REQUESTS_ENABLED = "telemetry.debug.requests.enabled";
 
   private GeneralConfig() {}
 }

@@ -14,16 +14,6 @@ class LocationsCollectingTransformerSpecification extends DepSpecification {
 
   LocationsCollectingTransformer transformer = new LocationsCollectingTransformer(depService)
 
-  void 'no dependency for agent jar'() {
-    when:
-    transformer.transform(null, null, null, getClass().getProtectionDomain(), null)
-
-    then:
-    depService.resolveOneDependency()
-    def dependencies = depService.drainDeterminedDependencies()
-    dependencies.isEmpty()
-  }
-
   void 'no dependency if null protection domain'() {
     when:
     transformer.transform(null, null, null, null, null)

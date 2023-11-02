@@ -9,6 +9,7 @@ import datadog.trace.api.gateway.Events
 import datadog.trace.api.gateway.Flow
 import datadog.trace.api.gateway.RequestContext
 import datadog.trace.api.gateway.RequestContextSlot
+import datadog.trace.api.internal.TraceSegment
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter
 import datadog.trace.instrumentation.servlet5.ServletBlockingHelper
@@ -40,11 +41,11 @@ class SetupSpecHelper {
     INSTANCE
 
     @Override
-    boolean tryCommitBlockingResponse(int statusCode, BlockingContentType templateType, Map<String, String> extraHeaders) {
+    boolean tryCommitBlockingResponse(TraceSegment segment, int statusCode, BlockingContentType templateType, Map<String, String> extraHeaders) {
       ServletRequestAttributes attributes = RequestContextHolder.requestAttributes
       if (attributes) {
         ServletBlockingHelper
-          .commitBlockingResponse(attributes.request, attributes.response, statusCode, templateType, extraHeaders)
+          .commitBlockingResponse(segment, attributes.request, attributes.response, statusCode, templateType, extraHeaders)
       }
       true
     }

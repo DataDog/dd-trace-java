@@ -14,13 +14,23 @@ class ModuleExecutionResultTest extends Specification {
     then:
     deserialized == signal
 
+
+
     where:
     signal << [
-      new ModuleExecutionResult(12345, 67890, false, false, 0, null, null),
-      new ModuleExecutionResult(12345, 67890, true, false, 1, "junit", "4.13.2"),
-      new ModuleExecutionResult(12345, 67890, false, true, 2, null, "4.13.2"),
-      new ModuleExecutionResult(12345, 67890, false, false, 3, "junit", null),
-      new ModuleExecutionResult(12345, 67890, true, true, Integer.MAX_VALUE, "junit", "4.13.2")
+      new ModuleExecutionResult(12345, 67890, false, false, 0, Collections.emptyList(), null),
+      new ModuleExecutionResult(12345, 67890, true, false, 1, Collections.singletonList(new TestFramework("junit", "4.13.2")), new byte[] {
+        1, 2, 3
+      }),
+      new ModuleExecutionResult(12345, 67890, false, true, 2, Arrays.asList(new TestFramework("junit", "4.13.2"), new TestFramework("junit", "5.9.2")), new byte[] {
+        1, 2, 3
+      }),
+      new ModuleExecutionResult(12345, 67890, false, false, 3, Arrays.asList(new TestFramework("junit", null), new TestFramework("junit", "5.9.2")), new byte[] {
+        1, 2, 3
+      }),
+      new ModuleExecutionResult(12345, 67890, true, true, Integer.MAX_VALUE, Arrays.asList(new TestFramework("junit", "4.13.2"), new TestFramework(null, "5.9.2")), new byte[] {
+        1, 2, 3
+      })
     ]
   }
 

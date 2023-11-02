@@ -143,7 +143,7 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
     }
     AgentPropagation.ContextVisitor<REQUEST_CARRIER> getter = getter();
     if (null != carrier && null != getter) {
-      tracer().setDataStreamCheckpoint(span, SERVER_PATHWAY_EDGE_TAGS, 0);
+      tracer().getDataStreamsMonitoring().setCheckpoint(span, SERVER_PATHWAY_EDGE_TAGS, 0, 0);
     }
     return span;
   }
@@ -250,7 +250,7 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
     }
 
     String inferredAddressStr = null;
-    if (clientIpResolverEnabled) {
+    if (clientIpResolverEnabled && context != null) {
       InetAddress inferredAddress = ClientIpAddressResolver.resolve(context, span);
       // the peer address should be used if:
       // 1. the headers yield nothing, regardless of whether it is public or not
@@ -268,6 +268,17 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
       if (inferredAddress != null) {
         inferredAddressStr = inferredAddress.getHostAddress();
         span.setTag(Tags.HTTP_CLIENT_IP, inferredAddressStr);
+      }
+    } else if (clientIpResolverEnabled && span.getLocalRootSpan() != span) {
+      // in this case context == null
+      // If there is no context we can't do anything but use the peer addr.
+      // Additionally, context == null arises on subspans for which the resolution
+      // likely already happened on the top span, so we don't need to do the resolution
+      // again. Instead, copy from the top span, should it exist
+      AgentSpan localRootSpan = span.getLocalRootSpan();
+      Object clientIp = localRootSpan.getTag(Tags.HTTP_CLIENT_IP);
+      if (clientIp != null) {
+        span.setTag(Tags.HTTP_CLIENT_IP, clientIp);
       }
     }
 
@@ -401,20 +412,22 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
   }
 
   private Flow<Void> callIGCallbackRequestHeaders(AgentSpan span, REQUEST_CARRIER carrier) {
-    CallbackProvider cbp = tracer().getCallbackProvider(RequestContextSlot.APPSEC);
+    CallbackProvider cbp = tracer().getUniversalCallbackProvider();
     RequestContext requestContext = span.getRequestContext();
     AgentPropagation.ContextVisitor<REQUEST_CARRIER> getter = getter();
-    if (requestContext == null || cbp == null || getter == null) {
+    if (requestContext == null || getter == null) {
       return Flow.ResultFlow.empty();
     }
-    IGKeyClassifier igKeyClassifier =
-        IGKeyClassifier.create(
-            requestContext,
-            cbp.getCallback(EVENTS.requestHeader()),
-            cbp.getCallback(EVENTS.requestHeaderDone()));
-    if (null != igKeyClassifier) {
-      getter.forEachKey(carrier, igKeyClassifier);
-      return igKeyClassifier.done();
+    if (cbp != null) {
+      IGKeyClassifier igKeyClassifier =
+          IGKeyClassifier.create(
+              requestContext,
+              cbp.getCallback(EVENTS.requestHeader()),
+              cbp.getCallback(EVENTS.requestHeaderDone()));
+      if (null != igKeyClassifier) {
+        getter.forEachKey(carrier, igKeyClassifier);
+        return igKeyClassifier.done();
+      }
     }
     return Flow.ResultFlow.empty();
   }

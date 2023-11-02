@@ -18,7 +18,7 @@ abstract class AppSecHttpServerTest<SERVER> extends WithHttpServer<SERVER> {
   }
 
   def setupSpec() {
-    SubscriptionService ss = AgentTracer.TracerAPI.get().getSubscriptionService(RequestContextSlot.APPSEC)
+    SubscriptionService ss = AgentTracer.get().getSubscriptionService(RequestContextSlot.APPSEC)
     def sco = new SharedCommunicationObjects()
     def config = Config.get()
     sco.createRemaining(config)

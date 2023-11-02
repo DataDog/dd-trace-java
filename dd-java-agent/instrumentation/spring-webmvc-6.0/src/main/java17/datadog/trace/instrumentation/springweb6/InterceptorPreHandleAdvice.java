@@ -8,6 +8,7 @@ import datadog.trace.api.gateway.CallbackProvider;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
+import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Source;
 import datadog.trace.api.iast.SourceTypes;
@@ -25,7 +26,7 @@ public class InterceptorPreHandleAdvice {
 
   @SuppressWarnings("Duplicates")
   @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
-  @Source(SourceTypes.REQUEST_PATH_PARAMETER_STRING)
+  @Source(SourceTypes.REQUEST_PATH_PARAMETER)
   public static void after(
       @Advice.Argument(0) final HttpServletRequest req,
       @Advice.Thrown(readOnly = false) Throwable t) {
@@ -66,9 +67,11 @@ public class InterceptorPreHandleAdvice {
             BlockResponseFunction brf = reqCtx.getBlockResponseFunction();
             if (brf != null) {
               brf.tryCommitBlockingResponse(
-                  rba.getStatusCode(), rba.getBlockingContentType(), rba.getExtraHeaders());
+                  reqCtx.getTraceSegment(),
+                  rba.getStatusCode(),
+                  rba.getBlockingContentType(),
+                  rba.getExtraHeaders());
             }
-            reqCtx.getTraceSegment().effectivelyBlocked();
             t =
                 new BlockingException(
                     "Blocked request (for UriTemplateVariablesHandlerInterceptor/preHandle)");
@@ -78,7 +81,7 @@ public class InterceptorPreHandleAdvice {
     }
 
     { // iast
-      Object iastRequestContext = reqCtx.getData(RequestContextSlot.IAST);
+      IastContext iastRequestContext = reqCtx.getData(RequestContextSlot.IAST);
       if (iastRequestContext != null) {
         PropagationModule module = InstrumentationBridge.PROPAGATION;
         if (module != null) {
@@ -89,7 +92,7 @@ public class InterceptorPreHandleAdvice {
               continue; // should not happen
             }
             module.taint(
-                iastRequestContext, SourceTypes.REQUEST_PATH_PARAMETER, parameterName, value);
+                iastRequestContext, value, SourceTypes.REQUEST_PATH_PARAMETER, parameterName);
           }
         }
       }

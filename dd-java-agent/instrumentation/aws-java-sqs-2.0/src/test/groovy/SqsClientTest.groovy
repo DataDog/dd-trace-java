@@ -1,28 +1,32 @@
-import datadog.trace.api.DDTags
-import datadog.trace.core.datastreams.StatsGroup
-import spock.lang.IgnoreIf
-
 import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
+import static java.nio.charset.StandardCharsets.UTF_8
 
 import com.amazon.sqs.javamessaging.ProviderConfiguration
 import com.amazon.sqs.javamessaging.SQSConnectionFactory
 import datadog.trace.agent.test.naming.VersionedNamingTestBase
 import datadog.trace.agent.test.utils.TraceUtils
 import datadog.trace.api.Config
+import datadog.trace.api.DDTags
 import datadog.trace.api.DDSpanId
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.config.GeneralConfig
 import datadog.trace.api.naming.SpanNaming
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
+import datadog.trace.core.datastreams.StatsGroup
+import datadog.trace.instrumentation.aws.v2.sqs.TracingList
 import org.elasticmq.rest.sqs.SQSRestServerBuilder
 import software.amazon.awssdk.auth.credentials.AnonymousCredentialsProvider
+import software.amazon.awssdk.core.SdkBytes
 import software.amazon.awssdk.core.SdkSystemSetting
 import software.amazon.awssdk.regions.Region
 import software.amazon.awssdk.services.sqs.SqsClient
 import software.amazon.awssdk.services.sqs.model.CreateQueueRequest
 import software.amazon.awssdk.services.sqs.model.ReceiveMessageRequest
 import software.amazon.awssdk.services.sqs.model.SendMessageRequest
+import software.amazon.awssdk.services.sqs.model.Message
+import software.amazon.awssdk.services.sqs.model.MessageAttributeValue
+import spock.lang.IgnoreIf
 import spock.lang.Shared
 
 import javax.jms.Session
@@ -183,6 +187,92 @@ abstract class SqsClientTest extends VersionedNamingTestBase {
   }
 
   @IgnoreIf({instance.isDataStreamsEnabled()})
+  def "trace details propagated via embedded SQS message attribute (string)"() {
+    setup:
+    TEST_WRITER.clear()
+
+    when:
+    def message = Message.builder().messageAttributes(['_datadog': MessageAttributeValue.builder().dataType('String').stringValue(
+      "{\"x-datadog-trace-id\": \"4948377316357291421\", \"x-datadog-parent-id\": \"6746998015037429512\", \"x-datadog-sampling-priority\": \"1\"}"
+      ).build()]).build()
+    def messages = new TracingList([message],
+    "http://localhost:${address.port}/000000000000/somequeue",
+    "00000000-0000-0000-0000-000000000000")
+
+    messages.forEach {/* consume to create message spans */ }
+
+    then:
+    assertTraces(1) {
+      trace(1) {
+        span {
+          serviceName expectedService("Sqs", "ReceiveMessage")
+          operationName expectedOperation("Sqs", "ReceiveMessage")
+          resourceName "Sqs.ReceiveMessage"
+          spanType DDSpanTypes.MESSAGE_CONSUMER
+          errored false
+          measured true
+          traceId(4948377316357291421 as BigInteger)
+          parentSpanId(6746998015037429512 as BigInteger)
+          tags {
+            "$Tags.COMPONENT" "java-aws-sdk"
+            "$Tags.SPAN_KIND" Tags.SPAN_KIND_CONSUMER
+            "aws.service" "Sqs"
+            "aws_service" "Sqs"
+            "aws.operation" "ReceiveMessage"
+            "aws.agent" "java-aws-sdk"
+            "aws.queue.url" "http://localhost:${address.port}/000000000000/somequeue"
+            "aws.requestId" "00000000-0000-0000-0000-000000000000"
+            defaultTags(true)
+          }
+        }
+      }
+    }
+  }
+
+  @IgnoreIf({instance.isDataStreamsEnabled()})
+  def "trace details propagated via embedded SQS message attribute (binary)"() {
+    setup:
+    TEST_WRITER.clear()
+
+    when:
+    def message = Message.builder().messageAttributes(['_datadog': MessageAttributeValue.builder().dataType('Binary').binaryValue(SdkBytes.fromByteBuffer(
+      UTF_8.encode('eyJ4LWRhdGFkb2ctdHJhY2UtaWQiOiI0OTQ4Mzc3MzE2MzU3MjkxNDIxIiwieC1kYXRhZG9nLXBhcmVudC1pZCI6IjY3NDY5OTgwMTUwMzc0Mjk1MTIiLCJ4LWRhdGFkb2ctc2FtcGxpbmctcHJpb3JpdHkiOiIxIn0=')
+      )).build()]).build()
+    def messages = new TracingList([message],
+    "http://localhost:${address.port}/000000000000/somequeue",
+    "00000000-0000-0000-0000-000000000000")
+
+    messages.forEach {/* consume to create message spans */ }
+
+    then:
+    assertTraces(1) {
+      trace(1) {
+        span {
+          serviceName expectedService("Sqs", "ReceiveMessage")
+          operationName expectedOperation("Sqs", "ReceiveMessage")
+          resourceName "Sqs.ReceiveMessage"
+          spanType DDSpanTypes.MESSAGE_CONSUMER
+          errored false
+          measured true
+          traceId(4948377316357291421 as BigInteger)
+          parentSpanId(6746998015037429512 as BigInteger)
+          tags {
+            "$Tags.COMPONENT" "java-aws-sdk"
+            "$Tags.SPAN_KIND" Tags.SPAN_KIND_CONSUMER
+            "aws.service" "Sqs"
+            "aws_service" "Sqs"
+            "aws.operation" "ReceiveMessage"
+            "aws.agent" "java-aws-sdk"
+            "aws.queue.url" "http://localhost:${address.port}/000000000000/somequeue"
+            "aws.requestId" "00000000-0000-0000-0000-000000000000"
+            defaultTags(true)
+          }
+        }
+      }
+    }
+  }
+
+  @IgnoreIf({instance.isDataStreamsEnabled()})
   def "trace details propagated from SQS to JMS"() {
     setup:
     def client = SqsClient.builder()
@@ -311,7 +401,7 @@ abstract class SqsClientTest extends VersionedNamingTestBase {
       }
       trace(1) {
         span {
-          serviceName SpanNaming.instance().namingSchema().messaging().inboundService(Config.get().getServiceName(), "jms")
+          serviceName SpanNaming.instance().namingSchema().messaging().inboundService("jms", Config.get().isLegacyTracingEnabled(true, "jms")) ?: Config.get().getServiceName()
           operationName SpanNaming.instance().namingSchema().messaging().inboundOperation("jms")
           resourceName "Consumed from Queue somequeue"
           spanType DDSpanTypes.MESSAGE_CONSUMER
@@ -386,13 +476,6 @@ class SqsClientV1ForkedTest extends SqsClientTest {
 }
 
 class SqsClientV0DataStreamsTest extends SqsClientTest {
-
-  @Override
-  protected void configurePreAgent() {
-    super.configurePreAgent()
-    injectSysConfig("dd.data.streams.enabled", "true")
-  }
-
   @Override
   String expectedOperation(String awsService, String awsOperation) {
     "aws.http"

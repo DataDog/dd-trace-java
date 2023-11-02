@@ -731,7 +731,7 @@ class JFRBasedProfilingIntegrationTest {
             "-Ddd.profiling.experimental.queueing.time.threshold.millis=0",
             "-Ddd.profiling.experimental.jmethodid_cache.enabled=" + jmethodIdCacheEnabled,
             "-Ddatadog.slf4j.simpleLogger.defaultLogLevel=debug",
-            "-Ddd.profiling.experimental.context.attributes=foo,bar",
+            "-Ddd.profiling.context.attributes=foo,bar",
             "-Dorg.slf4j.simpleLogger.defaultLogLevel=debug",
             "-XX:+IgnoreUnrecognizedVMOptions",
             "-XX:+UnlockCommercialFeatures",
