@@ -96,8 +96,7 @@ class Json2FactoryInstrumentationTest extends AgentTestRunner {
     parser != null
     json == [key: 'value']
     1 * propagationModule.taintIfTainted(_ as JsonParser, url)
-    1 * propagationModule.taintIfTainted('key', _ as JsonParser)
-    1 * propagationModule.taintIfTainted('value', _ as JsonParser)
+    1 * propagationModule.findSource(_ as JsonParser) >> null
     1 * ssrfModule.onURLConnection(url)
     0 * _
   }
