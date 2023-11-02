@@ -18,11 +18,11 @@ public class IastRequestContext implements IastContext, HasMetricCollector {
   private final AtomicBoolean spanDataIsSet;
   private final TaintedObjects taintedObjects;
   private final OverheadContext overheadContext;
-  private final IastMetricCollector collector;
-  private volatile String strictTransportSecurity;
-  private volatile String xContentTypeOptions;
-  private volatile String xForwardedProto;
-  private volatile String contentType;
+  @Nullable private final IastMetricCollector collector;
+  @Nullable private volatile String strictTransportSecurity;
+  @Nullable private volatile String xContentTypeOptions;
+  @Nullable private volatile String xForwardedProto;
+  @Nullable private volatile String contentType;
 
   public IastRequestContext() {
     this(TaintedObjects.acquire(), null);
@@ -33,7 +33,7 @@ public class IastRequestContext implements IastContext, HasMetricCollector {
   }
 
   public IastRequestContext(
-      final TaintedObjects taintedObjects, final IastMetricCollector collector) {
+      final TaintedObjects taintedObjects, @Nullable final IastMetricCollector collector) {
     this.vulnerabilityBatch = new VulnerabilityBatch();
     this.spanDataIsSet = new AtomicBoolean(false);
     this.overheadContext = new OverheadContext();
@@ -45,6 +45,7 @@ public class IastRequestContext implements IastContext, HasMetricCollector {
     return vulnerabilityBatch;
   }
 
+  @Nullable
   public String getStrictTransportSecurity() {
     return strictTransportSecurity;
   }
@@ -53,6 +54,7 @@ public class IastRequestContext implements IastContext, HasMetricCollector {
     this.strictTransportSecurity = strictTransportSecurity;
   }
 
+  @Nullable
   public String getxContentTypeOptions() {
     return xContentTypeOptions;
   }
@@ -61,6 +63,7 @@ public class IastRequestContext implements IastContext, HasMetricCollector {
     this.xContentTypeOptions = xContentTypeOptions;
   }
 
+  @Nullable
   public String getxForwardedProto() {
     return xForwardedProto;
   }
@@ -69,6 +72,7 @@ public class IastRequestContext implements IastContext, HasMetricCollector {
     this.xForwardedProto = xForwardedProto;
   }
 
+  @Nullable
   public String getContentType() {
     return contentType;
   }
@@ -111,6 +115,7 @@ public class IastRequestContext implements IastContext, HasMetricCollector {
     return asRequestContext(IastContext.Provider.get(reqCtx));
   }
 
+  @Nullable
   private static IastRequestContext asRequestContext(final IastContext ctx) {
     return ctx instanceof IastRequestContext ? (IastRequestContext) ctx : null;
   }

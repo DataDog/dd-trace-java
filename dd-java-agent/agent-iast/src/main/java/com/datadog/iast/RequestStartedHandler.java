@@ -1,6 +1,5 @@
 package com.datadog.iast;
 
-import com.datadog.iast.HasDependencies.Dependencies;
 import com.datadog.iast.overhead.OverheadController;
 import datadog.trace.api.gateway.Flow;
 import java.util.function.Supplier;

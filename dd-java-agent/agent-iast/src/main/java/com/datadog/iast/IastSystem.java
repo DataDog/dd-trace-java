@@ -1,6 +1,5 @@
 package com.datadog.iast;
 
-import com.datadog.iast.HasDependencies.Dependencies;
 import com.datadog.iast.overhead.OverheadController;
 import com.datadog.iast.propagation.FastCodecModule;
 import com.datadog.iast.propagation.PropagationModuleImpl;
@@ -40,9 +39,9 @@ import datadog.trace.api.iast.telemetry.Verbosity;
 import datadog.trace.util.AgentTaskScheduler;
 import datadog.trace.util.stacktrace.StackWalkerFactory;
 import java.util.function.BiFunction;
-import java.util.function.Consumer;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
+import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -55,7 +54,8 @@ public class IastSystem {
     start(ss, null);
   }
 
-  public static void start(final SubscriptionService ss, OverheadController overheadController) {
+  public static void start(
+      final SubscriptionService ss, @Nullable OverheadController overheadController) {
     final Config config = Config.get();
     if (config.getIastActivation() != ProductActivation.FULLY_ENABLED) {
       LOGGER.debug("IAST is disabled");
@@ -70,7 +70,7 @@ public class IastSystem {
     final Dependencies dependencies =
         new Dependencies(config, reporter, overheadController, StackWalkerFactory.INSTANCE);
     final boolean addTelemetry = config.getIastTelemetryVerbosity() != Verbosity.OFF;
-    iastModules().forEach(registerModule(dependencies));
+    iastModules(dependencies).forEach(InstrumentationBridge::registerIastModule);
     registerRequestStartedCallback(ss, addTelemetry, dependencies);
     registerRequestEndedCallback(ss, addTelemetry, dependencies);
     registerHeadersCallback(ss);
@@ -78,38 +78,29 @@ public class IastSystem {
     LOGGER.debug("IAST started");
   }
 
-  private static Consumer<IastModule> registerModule(final Dependencies dependencies) {
-    return module -> {
-      if (module instanceof HasDependencies) {
-        ((HasDependencies) module).registerDependencies(dependencies);
-      }
-      InstrumentationBridge.registerIastModule(module);
-    };
-  }
-
-  private static Stream<IastModule> iastModules() {
+  private static Stream<IastModule> iastModules(final Dependencies dependencies) {
     return Stream.of(
         new StringModuleImpl(),
         new FastCodecModule(),
-        new SqlInjectionModuleImpl(),
-        new PathTraversalModuleImpl(),
-        new CommandInjectionModuleImpl(),
-        new WeakCipherModuleImpl(),
-        new WeakHashModuleImpl(),
-        new LdapInjectionModuleImpl(),
+        new SqlInjectionModuleImpl(dependencies),
+        new PathTraversalModuleImpl(dependencies),
+        new CommandInjectionModuleImpl(dependencies),
+        new WeakCipherModuleImpl(dependencies),
+        new WeakHashModuleImpl(dependencies),
+        new LdapInjectionModuleImpl(dependencies),
         new PropagationModuleImpl(),
-        new HttpResponseHeaderModuleImpl(),
-        new HstsMissingHeaderModuleImpl(),
+        new HttpResponseHeaderModuleImpl(dependencies),
+        new HstsMissingHeaderModuleImpl(dependencies),
         new InsecureCookieModuleImpl(),
         new NoHttpOnlyCookieModuleImpl(),
-        new XContentTypeModuleImpl(),
+        new XContentTypeModuleImpl(dependencies),
         new NoSameSiteCookieModuleImpl(),
-        new SsrfModuleImpl(),
-        new UnvalidatedRedirectModuleImpl(),
-        new WeakRandomnessModuleImpl(),
-        new XPathInjectionModuleImpl(),
-        new TrustBoundaryViolationModuleImpl(),
-        new XssModuleImpl());
+        new SsrfModuleImpl(dependencies),
+        new UnvalidatedRedirectModuleImpl(dependencies),
+        new WeakRandomnessModuleImpl(dependencies),
+        new XPathInjectionModuleImpl(dependencies),
+        new TrustBoundaryViolationModuleImpl(dependencies),
+        new XssModuleImpl(dependencies));
   }
 
   private static void registerRequestStartedCallback(

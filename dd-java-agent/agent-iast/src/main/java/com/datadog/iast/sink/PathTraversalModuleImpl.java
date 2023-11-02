@@ -4,6 +4,7 @@ import static com.datadog.iast.taint.Ranges.rangesProviderFor;
 import static com.datadog.iast.taint.Tainteds.canBeTainted;
 import static java.util.Arrays.asList;
 
+import com.datadog.iast.Dependencies;
 import com.datadog.iast.IastRequestContext;
 import com.datadog.iast.model.VulnerabilityType;
 import com.datadog.iast.taint.TaintedObjects;
@@ -19,6 +20,10 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 public class PathTraversalModuleImpl extends SinkModuleBase implements PathTraversalModule {
+
+  public PathTraversalModuleImpl(final Dependencies dependencies) {
+    super(dependencies);
+  }
 
   @Override
   public void onPathTraversal(final @Nullable String path) {

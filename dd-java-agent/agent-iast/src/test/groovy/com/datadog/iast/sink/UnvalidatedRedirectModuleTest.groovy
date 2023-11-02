@@ -28,7 +28,7 @@ class UnvalidatedRedirectModuleTest extends IastModuleImplTestBase {
   private IastRequestContext ctx
 
   def setup() {
-    module = registerDependencies(new UnvalidatedRedirectModuleImpl())
+    module = new UnvalidatedRedirectModuleImpl(dependencies)
     objectHolder = []
     ctx = new IastRequestContext()
     final reqCtx = Mock(RequestContext) {
@@ -108,7 +108,7 @@ class UnvalidatedRedirectModuleTest extends IastModuleImplTestBase {
 
   void 'if onHeader receives a Location header call onRedirect'() {
     setup:
-    final urm = Spy(UnvalidatedRedirectModuleImpl)
+    final urm = Spy(new UnvalidatedRedirectModuleImpl(dependencies))
     InstrumentationBridge.registerIastModule(urm)
 
     when:

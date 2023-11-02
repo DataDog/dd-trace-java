@@ -5,8 +5,10 @@ import static java.util.Collections.emptyList;
 import datadog.trace.api.iast.util.Cookie;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.NoSuchElementException;
 import java.util.StringTokenizer;
+import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -44,6 +46,7 @@ public class CookieSecurityParser {
     }
   }
 
+  @Nullable
   private static Cookie parseInternal(final String header) {
     String cookieName;
     boolean httpOnly = false;
@@ -111,7 +114,7 @@ public class CookieSecurityParser {
   }
 
   private static int guessCookieVersion(String header) {
-    header = header.toLowerCase();
+    header = header.toLowerCase(Locale.ROOT);
     if (header.contains("expires=")) {
       // only netscape cookie using 'expires'
       return 0;
