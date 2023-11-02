@@ -282,6 +282,7 @@ abstract class CouchbaseClient32Test extends VersionedNamingTestBase {
   def "check error query spans with parent"() {
     setup:
     def query = 'select * from `test-bucket` limeit 1'
+    def normalizedQuery = "select * from `test-bucket` limeit ?"
     Throwable ex = null
 
     when:
@@ -299,7 +300,7 @@ abstract class CouchbaseClient32Test extends VersionedNamingTestBase {
       sortSpansByStart()
       trace(3) {
         basicSpan(it, 'query.failure')
-        assertCouchbaseCall(it, "select * from `test-bucket` limeit ?", [
+        assertCouchbaseCall(it, normalizedQuery, [
           'db.couchbase.retries'   : { Long },
           'db.couchbase.service'   : 'query',
           'db.system'              : 'couchbase',
