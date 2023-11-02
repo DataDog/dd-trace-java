@@ -42,7 +42,8 @@
 1 io.opentelemetry.javaagent.*
 1 java.*
 # allow exception profiling instrumentation
-0 java.lang.Throwable
+0 java.lang.Exception
+0 java.lang.Error
 # allow ProcessImpl instrumentation
 0 java.lang.ProcessImpl
 0 java.net.http.*
