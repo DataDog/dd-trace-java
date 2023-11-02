@@ -148,7 +148,7 @@ public class CapturedSnapshotTest {
   public void singleLineProbe() throws IOException, URISyntaxException {
     final String CLASS_NAME = "CapturedSnapshot01";
     DebuggerTransformerTest.TestSnapshotListener listener =
-        installSingleProbe(CLASS_NAME, "main", "int (java.lang.String)", "8");
+        installSingleProbeAtExit(CLASS_NAME, "main", "int (java.lang.String)", "8");
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.on(testClass).call("main", "1").get();
     assertEquals(3, result);
@@ -1582,7 +1582,7 @@ public class CapturedSnapshotTest {
   public void beforeForLoopLineProbe() throws IOException, URISyntaxException {
     final String CLASS_NAME = "CapturedSnapshot02";
     DebuggerTransformerTest.TestSnapshotListener listener =
-        installSingleProbe(CLASS_NAME, null, null, "46");
+        installSingleProbeAtExit(CLASS_NAME, null, null, "46");
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.on(testClass).call("main", "synchronizedBlock").get();
     assertEquals(76, result);
@@ -1597,10 +1597,12 @@ public class CapturedSnapshotTest {
     LogProbe probe1 =
         createProbeBuilder(PROBE_ID1, CLASS_NAME, null, null, "39")
             .template(LOG_TEMPLATE, parseTemplate(LOG_TEMPLATE))
+            .evaluateAt(MethodLocation.EXIT)
             .build();
     LogProbe probe2 =
         createProbeBuilder(PROBE_ID2, CLASS_NAME, null, null, "39")
             .template(LOG_TEMPLATE, parseTemplate(LOG_TEMPLATE))
+            .evaluateAt(MethodLocation.EXIT)
             .build();
     DebuggerTransformerTest.TestSnapshotListener listener =
         installProbes(CLASS_NAME, probe1, probe2);
@@ -1910,6 +1912,12 @@ public class CapturedSnapshotTest {
     return installProbes(typeName, logProbes);
   }
 
+  private DebuggerTransformerTest.TestSnapshotListener installSingleProbeAtExit(
+      String typeName, String methodName, String signature, String... lines) {
+    LogProbe logProbes = createProbeAtExit(PROBE_ID, typeName, methodName, signature, lines);
+    return installProbes(typeName, logProbes);
+  }
+
   private DebuggerTransformerTest.TestSnapshotListener installProbes(
       String expectedClassName, Configuration configuration) {
     Config config = mock(Config.class);
@@ -2169,6 +2177,13 @@ public class CapturedSnapshotTest {
     return createProbeBuilder(id, typeName, methodName, signature, lines).build();
   }
 
+  private static LogProbe createProbeAtExit(
+      ProbeId id, String typeName, String methodName, String signature, String... lines) {
+    return createProbeBuilder(id, typeName, methodName, signature, lines)
+        .evaluateAt(MethodLocation.EXIT)
+        .build();
+  }
+
   private static LogProbe.Builder createProbeBuilder(
       ProbeId id, String typeName, String methodName, String signature, String... lines) {
     return LogProbe.builder()
@@ -2186,6 +2201,7 @@ public class CapturedSnapshotTest {
         .probeId(id)
         .captureSnapshot(true)
         .where(null, null, null, line, sourceFile)
+        .evaluateAt(MethodLocation.EXIT)
         .build();
   }
 
