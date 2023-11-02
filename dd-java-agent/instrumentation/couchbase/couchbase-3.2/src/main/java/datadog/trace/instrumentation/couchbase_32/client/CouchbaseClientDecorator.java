@@ -2,10 +2,14 @@ package datadog.trace.instrumentation.couchbase_32.client;
 
 import static datadog.trace.bootstrap.instrumentation.api.Tags.DB_TYPE;
 
+import datadog.trace.api.cache.DDCache;
+import datadog.trace.api.cache.DDCaches;
 import datadog.trace.api.naming.SpanNaming;
+import datadog.trace.api.normalize.SQLNormalizer;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.DBTypeProcessingDatabaseClientDecorator;
+import java.util.function.Function;
 
 class CouchbaseClientDecorator extends DBTypeProcessingDatabaseClientDecorator {
   private static final String DB_TYPE = "couchbase";
@@ -15,6 +19,10 @@ class CouchbaseClientDecorator extends DBTypeProcessingDatabaseClientDecorator {
       UTF8BytesString.create(SpanNaming.instance().namingSchema().database().operation(DB_TYPE));
   public static final CharSequence COUCHBASE_CLIENT = UTF8BytesString.create("couchbase-client");
   public static final CouchbaseClientDecorator DECORATE = new CouchbaseClientDecorator();
+
+  private static final Function<String, UTF8BytesString> NORMALIZE = SQLNormalizer::normalize;
+  private static final DDCache<String, UTF8BytesString> CACHED_STATEMENTS =
+      DDCaches.newFixedSizeCache(512);
 
   @Override
   protected String[] instrumentationNames() {
@@ -54,5 +62,9 @@ class CouchbaseClientDecorator extends DBTypeProcessingDatabaseClientDecorator {
   @Override
   protected String dbHostname(Object o) {
     return null;
+  }
+
+  protected static UTF8BytesString normalizedQuery(String sql) {
+    return CACHED_STATEMENTS.computeIfAbsent(sql, NORMALIZE);
   }
 }
