@@ -1,5 +1,6 @@
 package datadog.smoketest.springboot.controller;
 
+import com.google.gson.Gson;
 import datadog.smoketest.springboot.TestBean;
 import ddtest.client.sources.Hasher;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
@@ -347,6 +348,13 @@ public class IastWebController {
   String requestURL(HttpServletRequest request) {
     StringBuffer requestURL = request.getRequestURL();
     return String.format("Request.getRequestURL returns %s", requestURL);
+  }
+
+  @PostMapping("/gson_deserialization")
+  String gson(@RequestParam("json") String json) {
+    Gson gson = new Gson();
+    TestBean testBean = gson.fromJson(json, TestBean.class);
+    return "Test bean -> name: " + testBean.getName() + ", value: " + testBean.getValue();
   }
 
   private void withProcess(final Operation<Process> op) {

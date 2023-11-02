@@ -75,6 +75,8 @@
 1 com.github.benmanes.caffeine.*
 1 com.github.jknack.handlebars.*
 1 com.google.*
+#Need for gson propagation
+2 com.google.gson.Gson
 1 com.googlecode.*
 1 com.hazelcast.*
 1 com.hdivsecurity.*

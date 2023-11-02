@@ -76,7 +76,7 @@ public class SensitiveHandlerImpl implements SensitiveHandler {
     return supplier.tokenizerFor(evidence);
   }
 
-  private int computeLength(final String value) {
+  private int computeLength(@Nullable final String value) {
     if (value == null || value.isEmpty()) {
       return 0;
     }

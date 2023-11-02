@@ -39,14 +39,14 @@ public class HttpServerRequestInstrumentation extends AbstractHttpServerRequestI
 
   public static class HeadersAdvice {
 
-    @Advice.OnMethodEnter
+    @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void onEnter(
         @Advice.Local("beforeHeaders") Object beforeHeaders,
         @Advice.FieldValue("headers") final Object headers) {
       beforeHeaders = headers;
     }
 
-    @Advice.OnMethodExit()
+    @Advice.OnMethodExit(suppress = Throwable.class)
     @Source(SourceTypes.REQUEST_HEADER_VALUE)
     public static void onExit(
         @Advice.Local("beforeHeaders") final Object beforeHeaders,
@@ -55,11 +55,7 @@ public class HttpServerRequestInstrumentation extends AbstractHttpServerRequestI
       if (beforeHeaders != multiMap) {
         final PropagationModule module = InstrumentationBridge.PROPAGATION;
         if (module != null) {
-          try {
-            module.taint(multiMap, SourceTypes.REQUEST_HEADER_VALUE);
-          } catch (final Throwable e) {
-            module.onUnexpectedException("headers threw", e);
-          }
+          module.taint(multiMap, SourceTypes.REQUEST_HEADER_VALUE);
         }
       }
     }

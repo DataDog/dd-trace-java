@@ -9,8 +9,10 @@ import javax.annotation.Nullable;
 /** */
 public interface RangedDeque<E extends Ranged> {
 
+  @Nullable
   E poll();
 
+  @Nullable
   E peek();
 
   void addFirst(@Nonnull E item);
@@ -31,8 +33,9 @@ public interface RangedDeque<E extends Ranged> {
 
     private final Deque<E> head = new LinkedList<>();
 
-    protected E next;
+    @Nullable protected E next;
 
+    @Nullable
     @Override
     public final E poll() {
       final E result = next;
@@ -40,6 +43,7 @@ public interface RangedDeque<E extends Ranged> {
       return result;
     }
 
+    @Nullable
     @Override
     public final E peek() {
       return next;
@@ -58,15 +62,18 @@ public interface RangedDeque<E extends Ranged> {
       return next == null;
     }
 
+    @Nullable
     protected final E fetchNext() {
       return head.isEmpty() ? internalPoll() : head.poll();
     }
 
+    @Nullable
     protected abstract E internalPoll();
   }
 
   class EmptyRangedDequeue<E extends Ranged> extends BaseRangedDequeue<E> {
 
+    @Nullable
     @Override
     protected E internalPoll() {
       return null;
@@ -82,6 +89,7 @@ public interface RangedDeque<E extends Ranged> {
       next = fetchNext();
     }
 
+    @Nullable
     @Override
     protected Ranged internalPoll() {
       return tokenizer.next() ? tokenizer.current() : null;
@@ -99,6 +107,7 @@ public interface RangedDeque<E extends Ranged> {
       next = fetchNext();
     }
 
+    @Nullable
     @Override
     protected E internalPoll() {
       return index >= array.length ? null : array[index++];

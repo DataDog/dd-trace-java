@@ -102,7 +102,8 @@ abstract class AbstractSmokeTest extends ProcessManager {
     "-Ddd.profiling.ddprof.enabled=true",
     "-Ddd.profiling.ddprof.alloc.enabled=true",
     "-Ddatadog.slf4j.simpleLogger.defaultLogLevel=${logLevel()}",
-    "-Dorg.slf4j.simpleLogger.defaultLogLevel=${logLevel()}"
+    "-Dorg.slf4j.simpleLogger.defaultLogLevel=${logLevel()}",
+    "-Ddd.site="
   ]
 
   @Shared

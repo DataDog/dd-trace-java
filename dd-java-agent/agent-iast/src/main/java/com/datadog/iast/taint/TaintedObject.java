@@ -14,7 +14,7 @@ public class TaintedObject extends WeakReference<Object> {
   public static final int MAX_RANGE_COUNT = Config.get().getIastMaxRangeCount();
 
   final int positiveHashCode;
-  TaintedObject next;
+  @Nullable TaintedObject next;
   private Range[] ranges;
 
   public TaintedObject(

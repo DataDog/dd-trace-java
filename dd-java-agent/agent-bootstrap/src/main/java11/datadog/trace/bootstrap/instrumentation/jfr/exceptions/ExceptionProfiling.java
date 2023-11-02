@@ -46,13 +46,13 @@ public final class ExceptionProfiling {
     sampler.start();
   }
 
-  public ExceptionSampleEvent process(final Throwable t, final int stackDepth) {
+  public ExceptionSampleEvent process(final Throwable t) {
     // always record the exception in histogram
     final boolean firstHit = histogram.record(t);
 
     final boolean sampled = sampler.sample();
     if (firstHit || sampled) {
-      return new ExceptionSampleEvent(t, stackDepth, sampled, firstHit);
+      return new ExceptionSampleEvent(t, sampled, firstHit);
     }
     return null;
   }

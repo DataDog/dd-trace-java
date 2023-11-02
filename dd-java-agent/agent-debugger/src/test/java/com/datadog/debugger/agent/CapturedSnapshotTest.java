@@ -4,7 +4,10 @@ import static com.datadog.debugger.util.LogProbeTestHelper.parseTemplate;
 import static com.datadog.debugger.util.MoshiSnapshotHelper.DEPTH_REASON;
 import static com.datadog.debugger.util.MoshiSnapshotHelper.FIELD_COUNT_REASON;
 import static com.datadog.debugger.util.MoshiSnapshotHelper.NOT_CAPTURED_REASON;
+import static com.datadog.debugger.util.MoshiSnapshotHelper.REDACTED_IDENT_REASON;
+import static com.datadog.debugger.util.MoshiSnapshotHelper.REDACTED_TYPE_REASON;
 import static com.datadog.debugger.util.TestHelper.setFieldInConfig;
+import static datadog.trace.bootstrap.debugger.util.Redaction.REDACTED_VALUE;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -1627,17 +1630,23 @@ public class CapturedSnapshotTest {
     Assertions.assertEquals(42, result);
     Snapshot snapshot = assertOneSnapshot(listener);
     assertEquals(
-        "arg=secret123 secret={Could not evaluate the expression because 'secret' was redacted} password={Could not evaluate the expression because 'this.password' was redacted} fromMap={Could not evaluate the expression because 'strMap[\"password\"]' was redacted}",
+        "arg=secret123 secret={"
+            + REDACTED_VALUE
+            + "} password={"
+            + REDACTED_VALUE
+            + "} fromMap={"
+            + REDACTED_VALUE
+            + "}",
         snapshot.getMessage());
     CapturedContext.CapturedValue secretLocalVar =
         snapshot.getCaptures().getReturn().getLocals().get("secret");
     CapturedContext.CapturedValue secretValued =
         VALUE_ADAPTER.fromJson(secretLocalVar.getStrValue());
-    assertEquals("redacted", secretValued.getNotCapturedReason());
+    assertEquals(REDACTED_IDENT_REASON, secretValued.getNotCapturedReason());
     Map<String, CapturedContext.CapturedValue> thisFields =
         getFields(snapshot.getCaptures().getReturn().getArguments().get("this"));
     CapturedContext.CapturedValue passwordField = thisFields.get("password");
-    assertEquals("redacted", passwordField.getNotCapturedReason());
+    assertEquals(REDACTED_IDENT_REASON, passwordField.getNotCapturedReason());
     Map<String, String> strMap = (Map<String, String>) thisFields.get("strMap").getValue();
     assertNull(strMap.get("password"));
   }
@@ -1737,12 +1746,20 @@ public class CapturedSnapshotTest {
     Assertions.assertEquals(42, result);
     Snapshot snapshot = assertOneSnapshot(listener);
     assertEquals(
-        "arg=secret123 credentials={Could not evaluate the expression because 'creds' was redacted} user={Could not evaluate the expression because 'this.creds' was redacted} code={Could not evaluate the expression because 'creds' was redacted} dave={Could not evaluate the expression because 'credMap[\"dave\"]' was redacted}",
+        "arg=secret123 credentials={"
+            + REDACTED_VALUE
+            + "} user={"
+            + REDACTED_VALUE
+            + "} code={"
+            + REDACTED_VALUE
+            + "} dave={"
+            + REDACTED_VALUE
+            + "}",
         snapshot.getMessage());
     Map<String, CapturedContext.CapturedValue> thisFields =
         getFields(snapshot.getCaptures().getReturn().getArguments().get("this"));
     CapturedContext.CapturedValue credsField = thisFields.get("creds");
-    assertEquals("redacted", credsField.getNotCapturedReason());
+    assertEquals(REDACTED_TYPE_REASON, credsField.getNotCapturedReason());
     Map<String, String> credMap = (Map<String, String>) thisFields.get("credMap").getValue();
     assertNull(credMap.get("dave"));
   }
