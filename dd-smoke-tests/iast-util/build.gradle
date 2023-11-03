@@ -10,4 +10,5 @@ dependencies {
   api project(':dd-smoke-tests')
   compileOnly group: 'org.springframework.boot', name: 'spring-boot-starter-web', version: '1.5.18.RELEASE'
   compileOnly group: 'com.google.code.gson', name: 'gson', version: '2.10'
+  compileOnly group: 'org.apache.httpcomponents', name: 'httpclient', version: '4.0'
 }

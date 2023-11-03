@@ -68,5 +68,6 @@ class URICallSIteTest extends AgentTestRunner {
     'normalize'     | [new URI('http://test.com/index?name=value#fragment')]
     'toString'      | [new URI('http://test.com/index?name=value#fragment')]
     'toASCIIString' | [new URI('http://test.com/index?name=value#fragment')]
+    'getHost' | [new URI('http://test.com/index?name=value#fragment')]
   }
 }

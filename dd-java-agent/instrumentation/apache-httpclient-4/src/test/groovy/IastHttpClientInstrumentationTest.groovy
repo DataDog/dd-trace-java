@@ -2,15 +2,12 @@
 
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.iast.InstrumentationBridge
-import datadog.trace.api.iast.propagation.PropagationModule
 import datadog.trace.api.iast.sink.SsrfModule
 import org.apache.http.HttpHost
-import org.apache.http.client.HttpClient
-import org.apache.http.client.ResponseHandler
+import org.apache.http.client.methods.HttpGet
 import org.apache.http.impl.client.BasicResponseHandler
 import org.apache.http.impl.client.DefaultHttpClient
 import org.apache.http.protocol.BasicHttpContext
-import org.apache.http.protocol.HttpContext
 import spock.lang.AutoCleanup
 import spock.lang.Shared
 
@@ -57,8 +54,8 @@ class IastHttpClientInstrumentationTest extends AgentTestRunner {
     new DefaultHttpClient() | [getHttpHost(server), getHttpUriRequest(server), new BasicResponseHandler(), new BasicHttpContext()]
   }
 
-  private static HttpUriRequest getHttpUriRequest(final server){
-    return new HttpUriRequest("test", new URI(server.address.toString()))
+  private static org.apache.http.client.methods.HttpUriRequest getHttpUriRequest(final server){
+    return new HttpGet(server.address.toString())
   }
 
   private static HttpHost getHttpHost(final server){

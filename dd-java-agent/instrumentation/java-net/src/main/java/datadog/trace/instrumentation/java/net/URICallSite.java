@@ -54,6 +54,7 @@ public class URICallSite {
 
   @CallSite.After("java.lang.String java.net.URI.toString()")
   @CallSite.After("java.lang.String java.net.URI.toASCIIString()")
+  @CallSite.After("java.lang.String java.net.URI.getHost()")
   public static String afterToString(
       @CallSite.This final URI url, @CallSite.Return final String result) {
     final PropagationModule module = InstrumentationBridge.PROPAGATION;

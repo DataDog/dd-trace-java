@@ -105,4 +105,11 @@ public class TestURICallSiteSuite {
     LOGGER.debug("After toAsciiString {}", result);
     return result;
   }
+
+  public static String getHost(final URI uri) {
+    LOGGER.debug("Before getHost {}", uri);
+    final String result = uri.getHost();
+    LOGGER.debug("After getHost {}", result);
+    return result;
+  }
 }
