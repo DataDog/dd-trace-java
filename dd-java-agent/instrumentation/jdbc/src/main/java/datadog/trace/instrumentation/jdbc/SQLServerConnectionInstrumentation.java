@@ -25,11 +25,14 @@ import java.util.Map;
 import net.bytebuddy.asm.Advice;
 
 @AutoService(Instrumenter.class)
-public class DBMCompatibleConnectionInstrumentation extends AbstractConnectionInstrumentation
+public class SQLServerConnectionInstrumentation extends AbstractConnectionInstrumentation
     implements Instrumenter.ForKnownTypes, Instrumenter.ForConfiguredType {
 
-  /** Instrumentation class for connections for Database Monitoring supported DBs * */
-  public DBMCompatibleConnectionInstrumentation() {
+  /**
+   * Instrumentation class for connections for SQL Server, which is a Database Monitoring supported
+   * DB *
+   */
+  public SQLServerConnectionInstrumentation() {
     super("jdbc", "dbm");
   }
 
@@ -37,43 +40,11 @@ public class DBMCompatibleConnectionInstrumentation extends AbstractConnectionIn
   // db types for the Database Monitoring product
   static final String[] CONCRETE_TYPES = {
     "com.microsoft.sqlserver.jdbc.SQLServerConnection",
-    // should cover mysql
-    "com.mysql.jdbc.Connection",
-    "com.mysql.jdbc.jdbc1.Connection",
-    "com.mysql.jdbc.jdbc2.Connection",
-    "com.mysql.jdbc.ConnectionImpl",
-    "com.mysql.jdbc.JDBC4Connection",
-    "com.mysql.cj.jdbc.ConnectionImpl",
-    // should cover Oracle
-    "oracle.jdbc.driver.PhysicalConnection",
-    // complete
-    "org.mariadb.jdbc.MySQLConnection",
-    // MariaDB Connector/J v2.x
-    "org.mariadb.jdbc.MariaDbConnection",
-    // MariaDB Connector/J v3.x
-    "org.mariadb.jdbc.Connection",
-    // postgresql seems to be complete
-    "org.postgresql.jdbc.PgConnection",
-    "org.postgresql.jdbc1.Connection",
-    "org.postgresql.jdbc1.Jdbc1Connection",
-    "org.postgresql.jdbc2.Connection",
-    "org.postgresql.jdbc2.Jdbc2Connection",
-    "org.postgresql.jdbc3.Jdbc3Connection",
-    "org.postgresql.jdbc3g.Jdbc3gConnection",
-    "org.postgresql.jdbc4.Jdbc4Connection",
-    "postgresql.Connection",
-    // EDB version of postgresql
-    "com.edb.jdbc.PgConnection",
     // jtds (for SQL Server and Sybase)
     "net.sourceforge.jtds.jdbc.ConnectionJDBC2", // 1.2
     "net.sourceforge.jtds.jdbc.JtdsConnection", // 1.3
-    // aws-mysql-jdbc
-    "software.aws.rds.jdbc.mysql.shading.com.mysql.cj.jdbc.ConnectionImpl",
-    // IBM Informix
-    "com.informix.jdbc.IfmxConnection",
   };
-
-  private static final String locationMode = "prepend";
+  private static final String locationMode = "append";
 
   @Override
   public String[] helperClassNames() {
@@ -100,7 +71,7 @@ public class DBMCompatibleConnectionInstrumentation extends AbstractConnectionIn
             .and(takesArgument(0, String.class))
             // Also include CallableStatement, which is a subtype of PreparedStatement
             .and(returns(hasInterface(named("java.sql.PreparedStatement")))),
-        DBMCompatibleConnectionInstrumentation.class.getName() + "$ConnectionAdvice");
+        SQLServerConnectionInstrumentation.class.getName() + "$ConnectionAdvice");
   }
 
   @Override
@@ -132,11 +103,8 @@ public class DBMCompatibleConnectionInstrumentation extends AbstractConnectionIn
       return sql;
     }
 
-    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void addDBInfo(
-        @Advice.This Connection connection,
-        @Advice.Enter final String inputSql,
-        @Advice.Return final PreparedStatement statement) {
+        Connection connection, final String inputSql, final PreparedStatement statement) {
       if (null == inputSql) {
         return;
       }
