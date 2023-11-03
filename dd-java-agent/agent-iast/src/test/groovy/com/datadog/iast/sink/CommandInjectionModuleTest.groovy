@@ -27,7 +27,7 @@ class CommandInjectionModuleTest extends IastModuleImplTestBase {
   private AgentSpan span
 
   def setup() {
-    module = registerDependencies(new CommandInjectionModuleImpl())
+    module = new CommandInjectionModuleImpl(dependencies)
     objectHolder = []
     ctx = new IastRequestContext()
     final reqCtx = Mock(RequestContext) {

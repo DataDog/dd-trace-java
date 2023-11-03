@@ -25,13 +25,13 @@ class HttpResponseHeaderModuleTest extends IastModuleImplTestBase {
 
   def setup() {
     InstrumentationBridge.clearIastModules()
-    module = registerDependencies(new HttpResponseHeaderModuleImpl())
+    module = new HttpResponseHeaderModuleImpl(dependencies)
     InstrumentationBridge.registerIastModule(module)
     InstrumentationBridge.registerIastModule(new InsecureCookieModuleImpl())
     InstrumentationBridge.registerIastModule(new NoHttpOnlyCookieModuleImpl())
     InstrumentationBridge.registerIastModule(new NoSameSiteCookieModuleImpl())
-    InstrumentationBridge.registerIastModule(new HstsMissingHeaderModuleImpl())
-    InstrumentationBridge.registerIastModule(new UnvalidatedRedirectModuleImpl())
+    InstrumentationBridge.registerIastModule(new HstsMissingHeaderModuleImpl(dependencies))
+    InstrumentationBridge.registerIastModule(new UnvalidatedRedirectModuleImpl(dependencies))
     objectHolder = []
     ctx = new IastRequestContext()
     final reqCtx = Mock(RequestContext) {

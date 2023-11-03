@@ -1,5 +1,6 @@
 package datadog.trace.core;
 
+import static datadog.trace.api.DDTags.SPAN_LINKS;
 import static datadog.trace.api.cache.RadixTreeCache.HTTP_STATUSES;
 import static datadog.trace.bootstrap.instrumentation.api.ErrorPriorities.UNSET;
 
@@ -16,6 +17,7 @@ import datadog.trace.api.internal.TraceSegment;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.api.sampling.SamplingMechanism;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpanLink;
 import datadog.trace.bootstrap.instrumentation.api.PathwayContext;
 import datadog.trace.bootstrap.instrumentation.api.ProfilerContext;
 import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
@@ -30,6 +32,7 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.concurrent.ConcurrentHashMap;
@@ -134,7 +137,7 @@ public class DDSpanContext
   private volatile BlockResponseFunction blockResponseFunction;
 
   private final ProfilingContextIntegration profilingContextIntegration;
-  private boolean injectBaggageAsTags;
+  private final boolean injectBaggageAsTags;
   private volatile int encodedOperationName;
   private volatile int encodedResourceName;
 
@@ -777,8 +780,17 @@ public class DDSpanContext
     }
   }
 
-  public void processTagsAndBaggage(final MetadataConsumer consumer, int longRunningVersion) {
+  public void processTagsAndBaggage(
+      final MetadataConsumer consumer, int longRunningVersion, List<AgentSpanLink> links) {
     synchronized (unsafeTags) {
+      // Tags
+      Map<String, Object> tags =
+          TagsPostProcessorFactory.instance().processTagsWithContext(unsafeTags, this);
+      String linksTag = DDSpanLink.toTag(links);
+      if (linksTag != null) {
+        tags.put(SPAN_LINKS, linksTag);
+      }
+      // Baggage
       Map<String, String> baggageItemsWithPropagationTags;
       if (injectBaggageAsTags) {
         baggageItemsWithPropagationTags = new HashMap<>(baggageItems);
@@ -786,11 +798,12 @@ public class DDSpanContext
       } else {
         baggageItemsWithPropagationTags = propagationTags.createTagMap();
       }
+
       consumer.accept(
           new Metadata(
               threadId,
               threadName,
-              TagsPostProcessorFactory.instance().processTagsWithContext(unsafeTags, this),
+              tags,
               baggageItemsWithPropagationTags,
               samplingPriority != PrioritySampling.UNSET ? samplingPriority : getSamplingPriority(),
               measured,

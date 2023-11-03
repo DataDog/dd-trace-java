@@ -39,6 +39,7 @@ public class StringModuleImpl implements StringModule {
 
   private static final int NULL_STR_LENGTH = "null".length();
 
+  @SuppressWarnings("NullAway") // NullAway fails with taintedLeft and taintedRight checks
   @Override
   public void onStringConcat(
       @Nonnull final String left, @Nullable final String right, @Nonnull final String result) {
@@ -170,7 +171,7 @@ public class StringModuleImpl implements StringModule {
     int offset = 0, rangeIndex = 0;
     for (int item : recipeOffsets) {
       if (item < 0) {
-        offset += (-item);
+        offset += -item;
       } else {
         final String argument = args[item];
         final Range[] ranges = sourceRanges.get(item);
@@ -214,7 +215,7 @@ public class StringModuleImpl implements StringModule {
 
   @Override
   public void onStringJoin(
-      @Nullable String result, @Nonnull CharSequence delimiter, @Nonnull CharSequence... elements) {
+      @Nullable String result, @Nonnull CharSequence delimiter, @Nonnull CharSequence[] elements) {
     if (!canBeTainted(result)) {
       return;
     }
@@ -262,7 +263,7 @@ public class StringModuleImpl implements StringModule {
 
   @Override
   @SuppressFBWarnings("ES_COMPARING_PARAMETER_STRING_WITH_EQ")
-  public void onStringRepeat(String self, int count, String result) {
+  public void onStringRepeat(@Nonnull String self, int count, @Nonnull String result) {
     if (!canBeTainted(self) || !canBeTainted(result) || self == result) {
       return;
     }
@@ -368,7 +369,7 @@ public class StringModuleImpl implements StringModule {
     return rangeIndex + count;
   }
 
-  private static Range[] getRanges(final TaintedObject taintedObject) {
+  private static Range[] getRanges(@Nullable final TaintedObject taintedObject) {
     return taintedObject == null ? EMPTY : taintedObject.getRanges();
   }
 
@@ -572,11 +573,11 @@ public class StringModuleImpl implements StringModule {
    * @param finalRanges result with all ranges
    */
   private void addParameterTaintedRanges(
-      final Range placeholderRange,
+      @Nullable final Range placeholderRange,
       final Object param,
       final String formatted,
       final int offset,
-      final Range[] ranges,
+      @Nullable final Range[] ranges,
       /* out */ final RangeList finalRanges) {
     if (ranges != null && ranges.length > 0) {
       // only shift ranges if they are character sequences of the same length, otherwise taint the
@@ -602,6 +603,7 @@ public class StringModuleImpl implements StringModule {
    * @param finalRanges result with all ranges
    * @return tainted range of the placeholder or {@code null} if not tainted
    */
+  @Nullable
   private Range addFormatTaintedRanges(
       final Ranged placeholderPos,
       final int offset,

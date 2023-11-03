@@ -2,22 +2,24 @@ package com.datadog.iast.sensitive;
 
 import com.datadog.iast.model.Evidence;
 import com.datadog.iast.model.Range;
+import com.datadog.iast.taint.Ranges;
 import com.datadog.iast.util.Ranged;
 import java.util.NoSuchElementException;
+import javax.annotation.Nullable;
 
 public class TaintedRangeBasedTokenizer implements SensitiveHandler.Tokenizer {
 
   private final String value;
   private final Range[] ranges;
 
-  private Ranged current;
+  @Nullable private Ranged current;
 
   private int rangesIndex;
 
   private int pos;
 
   public TaintedRangeBasedTokenizer(final Evidence evidence) {
-    this.ranges = evidence.getRanges();
+    this.ranges = evidence.getRanges() == null ? Ranges.EMPTY : evidence.getRanges();
     this.value = evidence.getValue();
     rangesIndex = 0;
     pos = 0; // current value position
@@ -37,6 +39,7 @@ public class TaintedRangeBasedTokenizer implements SensitiveHandler.Tokenizer {
     return current;
   }
 
+  @Nullable
   private Ranged buildNext() {
     for (; rangesIndex < ranges.length; rangesIndex++) {
       Range range = ranges[rangesIndex];
