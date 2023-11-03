@@ -60,6 +60,8 @@ public final class StatementInstrumentation extends Instrumenter.Tracing
     };
   }
 
+  private static final String locationMode = "prepend";
+
   @Override
   public void adviceTransformations(AdviceTransformation transformation) {
     transformation.applyAdvice(
@@ -94,7 +96,9 @@ public final class StatementInstrumentation extends Instrumenter.Tracing
               span.setTag(DBM_TRACE_INJECTED, true);
             }
           }
-          sql = SQLCommenter.inject(sql, span.getServiceName(), traceParent, INJECT_TRACE_CONTEXT);
+          sql =
+              SQLCommenter.inject(
+                  sql, span.getServiceName(), traceParent, INJECT_TRACE_CONTEXT, locationMode);
         }
         DECORATE.onStatement(span, DBQueryInfo.ofStatement(copy));
         return activateSpan(span);
