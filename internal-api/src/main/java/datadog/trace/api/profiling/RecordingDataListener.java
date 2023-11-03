@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.datadog.profiling.controller;
+package datadog.trace.api.profiling;
 
 /** Listener for getting notified when new recording data is becoming available. */
 public interface RecordingDataListener {
