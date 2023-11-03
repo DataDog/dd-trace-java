@@ -13,9 +13,9 @@ public class ExtraServicesProvider {
 
   private static final int MAX_EXTRA_SERVICE = 64;
 
-  private static boolean limitReachedLogged = false;
-
   private static final ConcurrentHashMap<String, String> extraServices = new ConcurrentHashMap<>();
+
+  static boolean limitReachedLogged = false;
 
   public static void maybeAddExtraService(final String serviceName) {
     if (serviceName == null) {

@@ -61,8 +61,10 @@ class ExtraServicesProviderTest extends Specification {
 
   void 'Extra service can not exceed 64 elements'(){
     given:
+    assert !limitReachedLogged
     (0..64).each {maybeAddExtraService('testService'+it)}
     assert  getExtraServices().length == 64
+    assert limitReachedLogged
 
     when:
     maybeAddExtraService('testService')
@@ -70,7 +72,6 @@ class ExtraServicesProviderTest extends Specification {
     then:
     getExtraServices().length == 64
   }
-
 
   void 'test getExtraServices returns null if there are not extra services'(){
     when:
