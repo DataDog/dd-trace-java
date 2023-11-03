@@ -1,6 +1,7 @@
 package datadog.trace.bootstrap.instrumentation.api;
 
 import static datadog.trace.api.ConfigDefaults.DEFAULT_ASYNC_PROPAGATING;
+import static java.util.Collections.emptyList;
 
 import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTraceId;
@@ -25,6 +26,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan.Context;
 import java.nio.ByteBuffer;
 import java.util.Collections;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
 
@@ -915,12 +917,17 @@ public class AgentTracer {
 
     @Override
     public Iterable<Map.Entry<String, String>> baggageItems() {
-      return Collections.emptyList();
+      return emptyList();
     }
 
     @Override
     public PathwayContext getPathwayContext() {
       return NoopPathwayContext.INSTANCE;
+    }
+
+    @Override
+    public List<AgentSpanLink> getTerminatedContextLinks() {
+      return emptyList();
     }
 
     @Override

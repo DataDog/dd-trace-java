@@ -8,6 +8,7 @@ import datadog.trace.api.TracePropagationStyle;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.TagContext;
 import datadog.trace.core.DDSpanContext;
+import datadog.trace.core.DDSpanLink;
 import java.io.UnsupportedEncodingException;
 import java.net.URLDecoder;
 import java.net.URLEncoder;
@@ -198,12 +199,17 @@ public class HttpCodec {
           }
           // If another valid context is extracted
           else {
-            boolean comingFromTraceContext = extracted.getPropagationStyle() == TRACECONTEXT;
             boolean traceIdMatches = context.getTraceId().equals(extracted.getTraceId());
-            if (comingFromTraceContext && traceIdMatches) {
-              // Propagate newly extracted W3C tracestate to first valid context
-              // TODO
-              //              context.
+            if (traceIdMatches) {
+              boolean comingFromTraceContext = extracted.getPropagationStyle() == TRACECONTEXT;
+              if (comingFromTraceContext) {
+                // Propagate newly extracted W3C tracestate to first valid context
+                // TODO
+              }
+            } else {
+              // Terminate extracted context and add it as span link
+              context.addTerminatedContextLink(DDSpanLink.from((ExtractedContext) extracted));
+              // TODO Note: Other vendor tracestate will be lost here
             }
           }
         }
