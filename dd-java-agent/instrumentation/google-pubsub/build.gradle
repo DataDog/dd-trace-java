@@ -2,19 +2,22 @@ muzzle {
   pass {
     group = "com.google.cloud"
     module = "google-cloud-pubsub"
-    version = "[1.116.0,)"
-    assertInverse = true
+    versions = "[1.116.0,)"
+    excludeDependency "com.google.guava:listenablefuture:9999.0-empty-to-avoid-conflict-with-guava"
   }
 }
 apply from: "$rootDir/gradle/java.gradle"
 
 addTestSuiteForDir('latestDepTest', 'test')
+addTestSuiteExtendingForDir('latestDepForkedTest', 'latestDepTest', 'test')
+
 
 dependencies {
   compileOnly group: 'com.google.cloud', name: 'google-cloud-pubsub', version: '1.116.0'
   testImplementation "org.testcontainers:gcloud:${versions.testcontainers}"
   testImplementation group: 'com.google.cloud', name: 'google-cloud-pubsub', version: '1.116.0'
   testImplementation project(":dd-java-agent:instrumentation:grpc-1.5")
+  testImplementation project(":dd-java-agent:instrumentation:guava-10")
   latestDepTestImplementation group: 'com.google.cloud', name: 'google-cloud-pubsub', version: '+'
 }
 

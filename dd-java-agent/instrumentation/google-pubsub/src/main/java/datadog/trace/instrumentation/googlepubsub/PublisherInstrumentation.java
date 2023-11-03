@@ -4,10 +4,6 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
-import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_OUT;
-import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_TAG;
-import static datadog.trace.core.datastreams.TagsProcessor.TOPIC_TAG;
-import static datadog.trace.core.datastreams.TagsProcessor.TYPE_TAG;
 import static datadog.trace.instrumentation.googlepubsub.PubSubDecorator.PRODUCER_DECORATE;
 import static datadog.trace.instrumentation.googlepubsub.PubSubDecorator.PUBSUB_PRODUCE;
 import static datadog.trace.instrumentation.googlepubsub.TextMapInjectAdapter.SETTER;
@@ -19,7 +15,6 @@ import com.google.pubsub.v1.PubsubMessage;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import java.util.LinkedHashMap;
 import net.bytebuddy.asm.Advice;
 
 @AutoService(Instrumenter.class)
@@ -36,6 +31,7 @@ public final class PublisherInstrumentation extends Instrumenter.Tracing
       packageName + ".PubSubDecorator",
       packageName + ".PubSubDecorator$RegexExtractor",
       packageName + ".TextMapInjectAdapter",
+      packageName + ".TextMapExtractAdapter",
     };
   }
 
@@ -59,16 +55,9 @@ public final class PublisherInstrumentation extends Instrumenter.Tracing
       PRODUCER_DECORATE.afterStart(span);
       PRODUCER_DECORATE.onProduce(span, msg, publisher.getTopicNameString());
 
-      LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>(3);
-      sortedTags.put(DIRECTION_TAG, DIRECTION_OUT);
-      sortedTags.put(TOPIC_TAG, publisher.getTopicNameString());
-      sortedTags.put(TYPE_TAG, "google-pubsub");
-
       PubsubMessage.Builder builder = msg.toBuilder();
       propagate().inject(span, builder, SETTER);
-      propagate().injectPathwayContext(span, builder, SETTER, sortedTags);
       msg = builder.build();
-
       return activateSpan(span);
     }
 

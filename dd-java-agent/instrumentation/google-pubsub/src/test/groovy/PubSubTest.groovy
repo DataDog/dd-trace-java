@@ -25,8 +25,9 @@ import datadog.trace.agent.test.utils.TraceUtils
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.DDTags
 import datadog.trace.api.config.GeneralConfig
+import datadog.trace.api.config.TraceInstrumentationConfig
 import datadog.trace.bootstrap.instrumentation.api.Tags
-import datadog.trace.core.datastreams.StatsGroup
+import datadog.trace.core.DDSpan
 import datadog.trace.instrumentation.grpc.client.GrpcClientDecorator
 import io.grpc.ManagedChannel
 import io.grpc.ManagedChannelBuilder
@@ -36,6 +37,10 @@ import spock.lang.Shared
 
 import java.nio.charset.StandardCharsets
 import java.util.concurrent.CountDownLatch
+import java.util.function.Function
+import java.util.function.ToDoubleFunction
+import java.util.function.ToIntFunction
+import java.util.function.ToLongFunction
 
 abstract class PubSubTest extends VersionedNamingTestBase {
   private static final String PROJECT_ID = "dd-trace-java"
@@ -65,8 +70,13 @@ abstract class PubSubTest extends VersionedNamingTestBase {
     null
   }
 
-  boolean shadowGrpcSpans() {
+  @Override
+  boolean useStrictTraceWrites() {
     false
+  }
+
+  boolean shadowGrpcSpans() {
+    true
   }
 
   abstract String operationForConsumer()
@@ -126,6 +136,9 @@ abstract class PubSubTest extends VersionedNamingTestBase {
     super.configurePreAgent()
     injectSysConfig(GeneralConfig.SERVICE_NAME, "A-service")
     injectSysConfig(GeneralConfig.DATA_STREAMS_ENABLED, isDataStreamsEnabled().toString())
+    if (!shadowGrpcSpans()) {
+      injectSysConfig(TraceInstrumentationConfig.GOOGLE_PUBSUB_IGNORED_GRPC_METHODS, "")
+    }
   }
 
   def "trace is propagated between producer and consumer"() {
@@ -152,14 +165,15 @@ abstract class PubSubTest extends VersionedNamingTestBase {
     // wait for messages to be consumed
     latch.await()
 
-    if (isDataStreamsEnabled()) {
-      TEST_DATA_STREAMS_WRITER.waitForGroups(2)
-    }
-
     then:
     def sendSpan
-    assertTraces(4) {
-      trace(4) {
+    assertTraces(shadowGrpcSpans() ? 2 : 4, [
+      compare            : { List<DDSpan> o1, List<DDSpan> o2 ->
+        // trace will never be empty
+        o1[0].localRootSpan.getTag(Tags.SPAN_KIND) <=> o2[0].localRootSpan.getTag(Tags.SPAN_KIND)
+      },
+    ] as Comparator) {
+      trace(shadowGrpcSpans() ? 2 : 4) {
         sortSpansByStart()
         basicSpan(it, "parent")
         span {
@@ -179,8 +193,21 @@ abstract class PubSubTest extends VersionedNamingTestBase {
             defaultTagsNoPeerService()
           }
         }
-        grpcSpans(it)
+        // Publish
+        if (!shadowGrpcSpans()) {
+          grpcSpans(it)
+        }
         sendSpan = span(1)
+      }
+      if (!shadowGrpcSpans()) {
+        // Acknowledge
+        trace(2) {
+          grpcSpans(it, "A-service", true)
+        }
+        // ModifyAckDeadline
+        trace(2) {
+          grpcSpans(it, "A-service", true)
+        }
       }
       trace(1) {
         span {
@@ -200,30 +227,6 @@ abstract class PubSubTest extends VersionedNamingTestBase {
             defaultTags(true)
           }
         }
-      }
-      // ModifyAckDeadline
-      trace(2) {
-        grpcSpans(it, "A-service", true)
-      }
-      // Acknowledge
-      trace(2) {
-        grpcSpans(it, "A-service", true)
-      }
-    }
-
-    and:
-    if (isDataStreamsEnabled()) {
-      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 && it.edgeTags.contains("type:google-pubsub")}
-
-      verifyAll(first) {
-        edgeTags == ["direction:out", "topic:test-topic", "type:google-pubsub"]
-        edgeTags.size() == 3
-      }
-
-      StatsGroup second = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == first.hash }
-      verifyAll(second) {
-        edgeTags == ["direction:in", "group:my-subscription", "type:google-pubsub"]
-        edgeTags.size() == 3
       }
     }
 
@@ -323,19 +326,14 @@ class PubSubNamingV1ForkedTest extends PubSubTest {
   }
 }
 
-class PubSubDataStreamEnabledForkedTest extends PubSubNamingV0Test {
+class PubSubLogGrpcSpansForkedTest extends PubSubNamingV0Test {
   @Override
-  protected boolean isDataStreamsEnabled() {
-    true
+  boolean shadowGrpcSpans() {
+    false
   }
 }
 
-class PubSubHideGrpcSpansForkedTest extends PubSubNamingV0Test {
-  @Override
-  boolean shadowGrpcSpans() {
-    true
-  }
-
+class PubSubMessageReceiverWithAckResponseTest extends PubSubNamingV0Test {
   @Override
   Object createMessageReceiver(CountDownLatch latch) {
     new MessageReceiverWithAckResponse() {

@@ -90,7 +90,7 @@ abstract class DDSpecification extends Specification {
 
   void setupSpec() {
     assert !configModificationFailed: "Config class modification failed.  Ensure all test classes extend DDSpecification"
-    //     assert System.getenv().findAll { it.key.startsWith("DD_") }.isEmpty()
+    assert System.getenv().findAll { it.key.startsWith("DD_") }.isEmpty()
     assert systemPropertiesExceptAllowed().findAll { it.key.toString().startsWith("dd.") }.isEmpty()
 
     if (getDDThreads().isEmpty()) {
@@ -106,7 +106,7 @@ abstract class DDSpecification extends Specification {
   void cleanupSpec() {
     restoreProperties()
 
-    //     assert System.getenv().findAll { it.key.startsWith("DD_") }.isEmpty()
+    assert System.getenv().findAll { it.key.startsWith("DD_") }.isEmpty()
     assert systemPropertiesExceptAllowed().findAll { it.key.toString().startsWith("dd.") }.isEmpty()
 
     if (isConfigInstanceModifiable) {
@@ -129,7 +129,7 @@ abstract class DDSpecification extends Specification {
   void setup() {
     restoreProperties()
 
-    //     assert System.getenv().findAll { it.key.startsWith("DD_") }.isEmpty()
+    assert System.getenv().findAll { it.key.startsWith("DD_") }.isEmpty()
     assert systemPropertiesExceptAllowed().findAll { it.key.toString().startsWith("dd.") }.isEmpty()
 
     if (isConfigInstanceModifiable) {
@@ -140,7 +140,7 @@ abstract class DDSpecification extends Specification {
   void cleanup() {
     restoreProperties()
 
-    //     assert System.getenv().findAll { it.key.startsWith("DD_") }.isEmpty()
+    assert System.getenv().findAll { it.key.startsWith("DD_") }.isEmpty()
     assert systemPropertiesExceptAllowed().findAll { it.key.toString().startsWith("dd.") }.isEmpty()
 
     if (isConfigInstanceModifiable) {
