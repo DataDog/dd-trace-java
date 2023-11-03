@@ -24,6 +24,7 @@ public class KarateTracingHook implements RuntimeHook {
 
   private static final String FRAMEWORK_NAME = "karate";
   private static final String FRAMEWORK_VERSION = FileUtils.KARATE_VERSION;
+  private static final String KARATE_STEP_SPAN_NAME = "karate.step";
 
   @Override
   public boolean beforeFeature(FeatureRuntime fr) {
@@ -138,7 +139,7 @@ public class KarateTracingHook implements RuntimeHook {
     if (skipTracking(step)) {
       return true;
     }
-    AgentSpan span = AgentTracer.startSpan("karate", "karate.step");
+    AgentSpan span = AgentTracer.startSpan("karate", KARATE_STEP_SPAN_NAME);
     AgentScope scope = AgentTracer.activateSpan(span);
     String stepName = step.getPrefix() + " " + step.getText();
     span.setResourceName(stepName);
@@ -180,10 +181,10 @@ public class KarateTracingHook implements RuntimeHook {
   }
 
   private static boolean skipTracking(Step step) {
-    // do not track steps that do not belong to a tracked scenario
+    // do not track steps that are not children of a tracked scenario or another tracked step
     AgentSpan activeSpan = AgentTracer.activeSpan();
     return activeSpan == null
-        || activeSpan.getSpanType() == null
-        || !Tags.SPAN_KIND_TEST.contentEquals(activeSpan.getSpanType());
+        || (!KARATE_STEP_SPAN_NAME.contentEquals(activeSpan.getSpanName())
+            && !Tags.SPAN_KIND_TEST.contentEquals(activeSpan.getSpanType()));
   }
 }

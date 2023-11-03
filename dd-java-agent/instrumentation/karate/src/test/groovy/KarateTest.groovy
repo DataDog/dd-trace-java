@@ -53,7 +53,7 @@ class KarateTest extends CiVisibilityTest {
 
   def "test scenarios with setup generate spans"() {
     given:
-    Assumptions.assumeTrue(FileUtils.KARATE_VERSION >= "1.3.0","Current Karate version is ${FileUtils.KARATE_VERSION}, while @setup tags are supported starting with 1.3.0")
+    Assumptions.assumeTrue(isSetupTagSupported(FileUtils.KARATE_VERSION),"Current Karate version is ${FileUtils.KARATE_VERSION}, while @setup tags are supported starting with 1.3.0")
 
     when:
     runTests(TestWithSetupKarate)
@@ -333,5 +333,9 @@ class KarateTest extends CiVisibilityTest {
   boolean isSkippingSupported(String frameworkVersion) {
     // earlier Karate version contain a bug that does not allow skipping scenarios
     frameworkVersion >= "1.2.0"
+  }
+
+  boolean isSetupTagSupported(String frameworkVersion) {
+    frameworkVersion >= "1.3.0"
   }
 }
