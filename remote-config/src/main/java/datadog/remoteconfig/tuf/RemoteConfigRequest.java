@@ -207,6 +207,10 @@ public class RemoteConfigRequest {
       public String getServiceVersion() {
         return this.serviceVersion;
       }
+
+      public List<String> getTags() {
+        return tags;
+      }
     }
 
     private static class AgentInfo {
