@@ -1,13 +1,8 @@
 package com.datadog.iast.taint
 
 import com.datadog.iast.model.Range
-import datadog.trace.test.util.CircularBuffer
 import datadog.trace.test.util.DDSpecification
-import datadog.trace.test.util.GCUtils
 
-import java.lang.ref.Reference
-import java.lang.ref.ReferenceQueue
-import java.lang.ref.WeakReference
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
 
@@ -17,7 +12,7 @@ class TaintedMapTest extends DDSpecification {
     given:
     def map = new TaintedMap()
     final o = new Object()
-    final to = new TaintedObject(o, [] as Range[], map.getReferenceQueue())
+    final to = new TaintedObject(o, [] as Range[])
 
     expect:
     map.size() == 0
@@ -56,106 +51,46 @@ class TaintedMapTest extends DDSpecification {
   def 'last put always exists'() {
     given:
     int capacity = 256
-    def map = new TaintedMap(capacity, new ReferenceQueue<>())
+    def map = new TaintedMap(capacity)
     int nTotalObjects = capacity * 10
 
     expect:
     (1..nTotalObjects).each { i ->
       final o = new Object()
-      final to = new TaintedObject(o, [] as Range[], map.getReferenceQueue())
+      final to = new TaintedObject(o, [] as Range[])
       map.put(to)
       assert map.get(o) == to
     }
   }
 
-  def 'do not fail on extraneous reference'() {
-    given:
-    int capacity = 256
-    def queue = new MockReferenceQueue()
-    def map = new TaintedMap(capacity, queue)
-    def gen = new ObjectGen(capacity)
-
-    when: 'extraneous reference in enqueued'
-    queue.free(new WeakReference<Object>(new Object()))
-
-    and: 'purge is triggered'
-    gen.genObjects(1, ObjectGen.TRIGGERS_PURGE).each { o ->
-      final to = new TaintedObject(o, [] as Range[], map.getReferenceQueue())
-      queue.hold(o, to)
-      map.put(to)
-    }
-
-    then:
-    map.size() == 1
-    map.count() == 1
-  }
-
-  def 'do not fail on double free'() {
-    given:
-    int capacity = 256
-    def queue = new MockReferenceQueue()
-    def map = new TaintedMap(capacity, queue)
-    def gen = new ObjectGen(capacity)
-
-    when: 'reference to non-present object in enqueued'
-    queue.free(new TaintedObject(new Object(), new Range[0] as Range[], queue))
-
-    and: 'purge is triggered'
-    gen.genObjects(1, ObjectGen.TRIGGERS_PURGE).each { o ->
-      final to = new TaintedObject(o, [] as Range[], map.getReferenceQueue())
-      queue.hold(o, to)
-      map.put(to)
-    }
-
-    then:
-    map.size() == 1
-    map.count() == 1
-  }
-
-  def 'do not fail on double free with previous data'() {
-    given:
-    int capacity = 256
-    def queue = new MockReferenceQueue()
-    def map = new TaintedMap(capacity, queue)
-    def gen = new ObjectGen(capacity)
-    def bucket = gen.genBucket(2, ObjectGen.TRIGGERS_PURGE)
-
-    when:
-    queue.free(new TaintedObject(bucket[0], new Range[0] as Range[], queue))
-    final to = new TaintedObject(bucket[1], [] as Range[], map.getReferenceQueue())
-    map.put(to)
-
-    then:
-    map.size() == 1
-    map.count() == 1
-  }
-
   def 'garbage-collected entries are purged'() {
     given:
     int capacity = 128
-    def queue = new MockReferenceQueue()
-    def map = new TaintedMap(capacity, queue)
+    final objectBuffer = Collections.newSetFromMap(new IdentityHashMap<Object, ?>(capacity))
+    def map = new MockTaintedMap(capacity, objectBuffer)
 
     int iters = 16
     int nObjectsPerIter = (int) (capacity / 2) - 1
     def gen = new ObjectGen(capacity)
-    def objectBuffer = new CircularBuffer<Object>(iters)
 
     when:
     (1..iters).each {
-      // Insert objects that do not trigger purge
-      gen.genObjects(nObjectsPerIter, ObjectGen.DOES_NOT_TRIGGER_PURGE).each { o ->
-        final to = new TaintedObject(o, [] as Range[], map.getReferenceQueue())
-        queue.hold(o, to)
+      // Insert objects to be purged
+      final toPurge = gen.genObjects(nObjectsPerIter).each { o ->
+        objectBuffer.add(o)
+        def to = new TaintedObject(o, [] as Range[])
         map.put(to)
       }
-      // Clear previous objects
-      queue.clear()
-      // Trigger purge
-      final o = gen.genObjects(1, ObjectGen.TRIGGERS_PURGE)[0]
-      final to = new TaintedObject(o, [] as Range[], map.getReferenceQueue())
+      objectBuffer.removeAll(toPurge)
+
+      // Insert surviving object
+      final o = gen.genObjects(1)[0]
       objectBuffer.add(o)
+      final to = new TaintedObject(o, [] as Range[])
       map.put(to)
+
+      // Trigger purge
+      map.purge()
     }
 
     then:
@@ -175,8 +110,7 @@ class TaintedMapTest extends DDSpecification {
   def 'multi-threaded with no collisions, no GC'() {
     given:
     int capacity = 128
-    def queue = new MockReferenceQueue()
-    def map = new TaintedMap(capacity, queue)
+    def map = new TaintedMap(capacity)
 
     and:
     int nThreads = 16
@@ -184,7 +118,7 @@ class TaintedMapTest extends DDSpecification {
     def gen = new ObjectGen(capacity)
     def executorService = Executors.newFixedThreadPool(nThreads)
     def latch = new CountDownLatch(nThreads)
-    def buckets = gen.genBuckets(nThreads, nObjectsPerThread, ObjectGen.DOES_NOT_TRIGGER_PURGE)
+    def buckets = gen.genBuckets(nThreads, nObjectsPerThread)
 
     when: 'puts from different threads to different buckets'
     def futures = (0..nThreads - 1).collect { thread ->
@@ -193,7 +127,7 @@ class TaintedMapTest extends DDSpecification {
         latch.countDown()
         latch.await()
         buckets[thread].each { o ->
-          final to = new TaintedObject(o, [] as Range[], map.getReferenceQueue())
+          final to = new TaintedObject(o, [] as Range[])
           map.put(to)
         }
       } as Runnable)
@@ -220,8 +154,7 @@ class TaintedMapTest extends DDSpecification {
   def 'clear is thread-safe (does not throw)'() {
     given:
     int capacity = 128
-    def queue = new MockReferenceQueue()
-    def map = new TaintedMap(capacity, queue)
+    def map = new TaintedMap(capacity)
 
     and:
     int nThreads = 16
@@ -234,9 +167,7 @@ class TaintedMapTest extends DDSpecification {
       // Each thread has multiple objects for each bucket
       def objects = gen.genBuckets(capacity, 32).flatten()
       def taintedObjects = objects.collect { o ->
-        final to = new TaintedObject(o, [] as Range[], map.getReferenceQueue())
-        queue.hold(o, to)
-        return to
+        return new TaintedObject(o, [] as Range[])
       }
       Collections.shuffle(taintedObjects)
 
@@ -266,75 +197,48 @@ class TaintedMapTest extends DDSpecification {
   }
 
   void 'ensure stale objects are properly removed'() {
-    given: 'a map that gets not updated by the GC'
-    final queue = new ReferenceQueue()
-    final map = new TaintedMap(1)
-    final objects = (1..10).collect { "Item$it".toString() }
+    given:
+    final objects = Collections.newSetFromMap(new IdentityHashMap<String, ?>())
+    final map = new MockTaintedMap(1, objects) // same bucket
+    (1..10).each {objects.add("Item$it".toString()) }
 
-    when: 'adding objects with strong references'
-    objects.each { map.put(new TaintedObject(it, [] as Range[], queue)) }
+    when:
+    objects.each { map.put(new TaintedObject(it, [] as Range[])) }
 
-    then: 'objects are present'
+    then:
     map.size() == objects.size()
 
-    when: 'GCing some elements'
-    objects.remove(objects.size() >> 1)
-    objects.remove(objects.size() - 1)
-    objects.remove(0)
-    GCUtils.awaitGC()
-    map.purge()
+    when:
+    objects.removeAll { it.toString().replaceAll('[^0-9]', '').toInteger() % 2 == 1 }
 
     then: 'all objects remain'
-    map.size() == objects.size() + 3
+    map.size() == 10
 
-    when: 'adding a new element'
+    when:
     final last = 'My newly created object'
     objects.add(last)
-    map.put(new TaintedObject(last, [] as Range[], queue))
+    map.put(new TaintedObject(last, [] as Range[]))
 
-    then: 'GCed elements are removed'
+    then:
     map.size() == objects.size()
   }
 
-  private static class MockReferenceQueue extends ReferenceQueue<Object> {
-    private List<Reference<?>> queue = new ArrayList()
-    private Map<Object, Reference<?>> objects = new HashMap<>()
+  private static class MockTaintedMap extends TaintedMap {
 
-    void hold(Object referent, Reference<?> reference) {
-      objects.put(referent, reference)
+    private final Set<Object> alive
+
+    MockTaintedMap(Set<Object> alive) {
+      this(DEFAULT_CAPACITY, alive)
     }
 
-    void free(Reference<?> ref) {
-      def referent = ref.get()
-      ref.clear()
-      queue.push(ref)
-      if (referent != null) {
-        objects.remove(referent)
-      }
-    }
-
-    void clear() {
-      objects.values().toList().each {
-        free(it)
-      }
+    MockTaintedMap(int capacity, Set<Object> alive) {
+      super(capacity)
+      this.alive = alive
     }
 
     @Override
-    Reference<?> poll() {
-      if (queue.isEmpty()) {
-        return null
-      }
-      return queue.pop()
-    }
-
-    @Override
-    Reference<?> remove() throws InterruptedException {
-      throw new UnsupportedOperationException("NOT IMPLEMENTED")
-    }
-
-    @Override
-    Reference<?> remove(long timeout) throws IllegalArgumentException, InterruptedException {
-      throw new UnsupportedOperationException("NOT IMPLEMENTED")
+    protected boolean isAlive(TaintedObject to) {
+      return to.get() != null && alive.contains(to.get())
     }
   }
 }

@@ -48,7 +48,7 @@ public class TaintedMapPutsBenchmark {
     for (int i = 0; i < INITIAL_OP_COUNT; i++) {
       final Object k = new Object();
       initialObjectList.add(k);
-      map.put(new TaintedObject(k, EMPTY_RANGES, map.getReferenceQueue()));
+      map.put(new TaintedObject(k, EMPTY_RANGES));
     }
   }
 
@@ -58,7 +58,7 @@ public class TaintedMapPutsBenchmark {
     for (int i = 0; i < OP_COUNT; i++) {
       final Object k = new Object();
       objectBuffer.add(k);
-      bh.consume(new TaintedObject(k, EMPTY_RANGES, map.getReferenceQueue()));
+      bh.consume(new TaintedObject(k, EMPTY_RANGES));
     }
   }
 
@@ -68,7 +68,7 @@ public class TaintedMapPutsBenchmark {
     for (int i = 0; i < OP_COUNT; i++) {
       final Object k = new Object();
       objectBuffer.add(k);
-      map.put(new TaintedObject(k, EMPTY_RANGES, map.getReferenceQueue()));
+      map.put(new TaintedObject(k, EMPTY_RANGES));
     }
   }
 }

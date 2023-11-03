@@ -43,12 +43,12 @@ public class TaintedMapGetsBenchmark {
     for (int i = 0; i < INITIAL_OP_COUNT; i++) {
       final Object k = new Object();
       initialObjectList.add(k);
-      map.put(new TaintedObject(k, new Range[0], map.getReferenceQueue()));
+      map.put(new TaintedObject(k, new Range[0]));
     }
     for (int i = 0; i < OP_COUNT; i++) {
       final Object k = new Object();
       objectList.add(k);
-      map.put(new TaintedObject(k, new Range[0], map.getReferenceQueue()));
+      map.put(new TaintedObject(k, new Range[0]));
     }
   }
 

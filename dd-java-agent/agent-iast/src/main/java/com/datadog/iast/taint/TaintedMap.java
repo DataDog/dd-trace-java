@@ -1,8 +1,6 @@
 package com.datadog.iast.taint;
 
 import com.datadog.iast.util.NonBlockingSemaphore;
-import java.lang.ref.Reference;
-import java.lang.ref.ReferenceQueue;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
@@ -33,16 +31,10 @@ import javax.annotation.Nullable;
  * <p>This implementation works reasonably well under high concurrency, but it will lose some writes
  * in that case.
  */
-public final class TaintedMap implements Iterable<TaintedObject> {
+public class TaintedMap implements Iterable<TaintedObject> {
 
   /** Default capacity. It MUST be a power of 2. */
   public static final int DEFAULT_CAPACITY = 1 << 20;
-
-  /** Periodicity of table purges, as number of put operations. It MUST be a power of two. */
-  static final int PURGE_COUNT = 1 << 6;
-
-  /** Bitmask for fast modulo with PURGE_COUNT. */
-  static final int PURGE_MASK = PURGE_COUNT - 1;
 
   /** Bitmask to convert hashes to positive integers. */
   static final int POSITIVE_MASK = Integer.MAX_VALUE;
@@ -55,33 +47,19 @@ public final class TaintedMap implements Iterable<TaintedObject> {
   /** Flag to ensure we do not run multiple purges concurrently. */
   private final NonBlockingSemaphore purge = NonBlockingSemaphore.withPermitCount(1);
 
-  /** Reference queue for garbage-collected entries. */
-  private ReferenceQueue<Object> referenceQueue;
-
   /** Default constructor. Uses {@link #DEFAULT_CAPACITY} */
   public TaintedMap() {
     this(DEFAULT_CAPACITY);
   }
 
   /**
-   * Create a new hash map with the given capacity.
-   *
-   * @param capacity Capacity of the internal array. It must be a power of 2.
-   */
-  public TaintedMap(final int capacity) {
-    this(capacity, new ReferenceQueue<>());
-  }
-
-  /**
    * Create a new hash map with the given capacity a purge queue.
    *
    * @param capacity Capacity of the internal array. It must be a power of 2.
-   * @param queue Reference queue. Only for tests.
    */
-  TaintedMap(final int capacity, final ReferenceQueue<Object> queue) {
+  TaintedMap(final int capacity) {
     table = new TaintedObject[capacity];
     lengthMask = table.length - 1;
-    this.referenceQueue = queue;
   }
 
   /**
@@ -126,9 +104,6 @@ public final class TaintedMap implements Iterable<TaintedObject> {
       }
       cur.next = entry;
     }
-    if ((entry.positiveHashCode & PURGE_MASK) == 0) {
-      purge();
-    }
   }
 
   /** Gets the head of the bucket removing intermediate GC'ed objects */
@@ -147,15 +122,6 @@ public final class TaintedMap implements Iterable<TaintedObject> {
     return next;
   }
 
-  /** Gets the first reachable reference that has not been GC'ed */
-  @Nullable
-  private TaintedObject firstAliveReference(@Nullable TaintedObject item) {
-    while (item != null && item.get() == null) {
-      item = item.next;
-    }
-    return item;
-  }
-
   /**
    * Purge entries that have been garbage collected. Only one concurrent call to this method is
    * allowed, further concurrent calls will be ignored.
@@ -167,16 +133,14 @@ public final class TaintedMap implements Iterable<TaintedObject> {
     }
 
     try {
-      // Remove GC'd entries.
-      Reference<?> ref;
-      while ((ref = referenceQueue.poll()) != null) {
-        // This would be an extremely rare bug, and maybe it should produce a health metric or
-        // warning.
-        if (!(ref instanceof TaintedObject)) {
-          continue;
+      for (int index = 0; index < table.length; index++) {
+        TaintedObject cur = head(index);
+        if (cur != null) {
+          TaintedObject next;
+          while ((next = next(cur)) != null) {
+            cur = next;
+          }
         }
-        final TaintedObject entry = (TaintedObject) ref;
-        remove(entry);
       }
     } finally {
       // Reset purging flag.
@@ -184,44 +148,22 @@ public final class TaintedMap implements Iterable<TaintedObject> {
     }
   }
 
-  /**
-   * Removes a {@link TaintedObject} from the hash table. This method will lose puts in concurrent
-   * scenarios.
-   *
-   * @param entry Tainted object.
-   * @return Number of removed elements.
-   */
-  private int remove(final TaintedObject entry) {
-    // A remove might be lost when it is concurrent to puts. When a remove is lost under
-    // concurrency,
-    // this method will still return 1. Lost removals can be still catch during the iteration over
-    // buckets in a put operation.
-    final int index = index(entry.positiveHashCode);
-    TaintedObject cur = table[index];
-    if (cur == entry) {
-      table[index] = cur.next;
-      return 1;
-    }
-    if (cur == null) {
-      return 0;
-    }
-    for (TaintedObject prev = cur.next; cur != null && prev != null; prev = cur, cur = cur.next) {
-      if (cur == entry) {
-        prev.next = cur.next;
-        return 1;
-      }
-    }
-    // If we reach this point, the entry was already removed or put was lost.
-    return 0;
-  }
-
   public void clear() {
     Arrays.fill(table, null);
-    referenceQueue = new ReferenceQueue<>();
   }
 
-  public ReferenceQueue<Object> getReferenceQueue() {
-    return referenceQueue;
+  /** Gets the first reachable reference that has not been GC'ed */
+  @Nullable
+  private TaintedObject firstAliveReference(@Nullable TaintedObject item) {
+    while (item != null && !isAlive(item)) {
+      item = item.next;
+    }
+    return item;
+  }
+
+  /** Overriden only for testing references that are garbage collected */
+  protected boolean isAlive(final TaintedObject to) {
+    return to.get() != null;
   }
 
   private int indexObject(final Object obj) {

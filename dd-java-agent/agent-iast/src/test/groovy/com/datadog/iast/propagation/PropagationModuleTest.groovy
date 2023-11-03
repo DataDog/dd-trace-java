@@ -415,7 +415,7 @@ class PropagationModuleTest extends IastModuleImplTestBase {
   private TaintedObject getTaintedObject(final Object target) {
     if (target instanceof Taintable) {
       final source = (target as Taintable).$$DD$getSource() as Source
-      return source == null ? null : new TaintedObject(target, Ranges.forObject(source), null)
+      return source == null ? null : new TaintedObject(target, Ranges.forObject(source))
     }
     return taintedObjects.get(target)
   }

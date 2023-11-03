@@ -46,7 +46,7 @@ public interface TaintedObjects extends Iterable<TaintedObject> {
 
     @Override
     public TaintedObject taint(final @Nonnull Object obj, final @Nonnull Range[] ranges) {
-      final TaintedObject tainted = new TaintedObject(obj, ranges, map.getReferenceQueue());
+      final TaintedObject tainted = new TaintedObject(obj, ranges);
       map.put(tainted);
       return tainted;
     }
