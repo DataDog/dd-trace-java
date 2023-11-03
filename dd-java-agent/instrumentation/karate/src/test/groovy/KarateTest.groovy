@@ -13,6 +13,7 @@ import org.example.TestFailedKarate
 import org.example.TestParameterizedKarate
 import org.example.TestSucceedKarate
 import org.example.TestUnskippableKarate
+import org.example.TestWithSetupKarate
 import org.junit.jupiter.api.Assumptions
 import org.junit.jupiter.engine.JupiterTestEngine
 import org.junit.platform.engine.DiscoverySelector
@@ -46,6 +47,34 @@ class KarateTest extends CiVisibilityTest {
       trace(2, true) {
         long testId = testSpan(it, 1, testSessionId, testModuleId, testSuiteId, "[org/example/test_succeed] test succeed", "second scenario", null, CIConstants.TEST_PASS, null, null, false, ['foo'], false, false)
         karateStepSpan(it, 0, testId, "* print 'second'", 9, 9)
+      }
+    })
+  }
+
+  def "test scenarios with setup generate spans"() {
+    given:
+    Assumptions.assumeTrue(FileUtils.KARATE_VERSION >= "1.3.0","Current Karate version is ${FileUtils.KARATE_VERSION}, while @setup tags are supported starting with 1.3.0")
+
+    when:
+    runTests(TestWithSetupKarate)
+
+    then:
+    ListWriterAssert.assertTraces(TEST_WRITER, 3, false, SORT_TRACES_BY_DESC_SIZE_THEN_BY_NAMES, {
+      long testSessionId
+      long testModuleId
+      long testSuiteId
+      trace(3, true) {
+        testSessionId = testSessionSpan(it, 1, CIConstants.TEST_PASS)
+        testModuleId = testModuleSpan(it, 0, testSessionId, CIConstants.TEST_PASS)
+        testSuiteId = testSuiteSpan(it, 2, testSessionId, testModuleId, "[org/example/test_with_setup] test with setup", CIConstants.TEST_PASS, null, null, false, [], false)
+      }
+      trace(2, true) {
+        long testId = testSpan(it, 1, testSessionId, testModuleId, testSuiteId, "[org/example/test_with_setup] test with setup", "first scenario", null, CIConstants.TEST_PASS, [(Tags.TEST_PARAMETERS): '{"foo":"bar"}'], null, false, ['withSetup'], false, false)
+        karateStepSpan(it, 0, testId, "* print foo", 15, 15)
+      }
+      trace(2, true) {
+        long testId = testSpan(it, 1, testSessionId, testModuleId, testSuiteId, "[org/example/test_with_setup] test with setup", "second scenario", null, CIConstants.TEST_PASS, [(Tags.TEST_PARAMETERS): '{"foo":"bar"}'], null, false, ['withSetupOnce'], false, false)
+        karateStepSpan(it, 0, testId, "* print foo", 21, 21)
       }
     })
   }

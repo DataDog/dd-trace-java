@@ -20,7 +20,6 @@ import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import java.util.Collection;
 
-// FIXME nikita: do not trace Karate tests in JUnit 4 / JUnit 5 instrumentations
 public class KarateTracingHook implements RuntimeHook {
 
   private static final String FRAMEWORK_NAME = "karate";
@@ -28,6 +27,9 @@ public class KarateTracingHook implements RuntimeHook {
 
   @Override
   public boolean beforeFeature(FeatureRuntime fr) {
+    if (skipTracking(fr)) {
+      return true;
+    }
     Feature feature = KarateUtils.getFeature(fr);
     Suite suite = fr.suite;
     TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSuiteStart(
@@ -42,6 +44,9 @@ public class KarateTracingHook implements RuntimeHook {
 
   @Override
   public void afterFeature(FeatureRuntime fr) {
+    if (skipTracking(fr)) {
+      return;
+    }
     String featureName = KarateUtils.getFeature(fr).getNameForReport();
     FeatureResult result = fr.result;
     if (result.isFailed()) {
@@ -55,6 +60,9 @@ public class KarateTracingHook implements RuntimeHook {
 
   @Override
   public boolean beforeScenario(ScenarioRuntime sr) {
+    if (skipTracking(sr)) {
+      return true;
+    }
     Scenario scenario = sr.scenario;
     Feature feature = scenario.getFeature();
 
@@ -70,7 +78,7 @@ public class KarateTracingHook implements RuntimeHook {
         TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestIgnore(
             featureName,
             scenarioName,
-            scenario.getRefId(),
+            sr,
             FRAMEWORK_NAME,
             FRAMEWORK_VERSION,
             parameters,
@@ -86,7 +94,7 @@ public class KarateTracingHook implements RuntimeHook {
     TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestStart(
         featureName,
         scenarioName,
-        scenario.getRefId(),
+        sr,
         FRAMEWORK_NAME,
         FRAMEWORK_VERSION,
         parameters,
@@ -99,6 +107,9 @@ public class KarateTracingHook implements RuntimeHook {
 
   @Override
   public void afterScenario(ScenarioRuntime sr) {
+    if (skipTracking(sr)) {
+      return;
+    }
     Scenario scenario = sr.scenario;
     Feature feature = scenario.getFeature();
 
@@ -111,24 +122,22 @@ public class KarateTracingHook implements RuntimeHook {
           featureName,
           null,
           scenarioName,
-          scenario.getRefId(),
+          sr,
           KarateUtils.getParameters(scenario),
           result.getError());
     } else if (result.getStepResults().isEmpty()) {
       TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSkip(
-          featureName,
-          null,
-          scenarioName,
-          scenario.getRefId(),
-          KarateUtils.getParameters(scenario),
-          null);
+          featureName, null, scenarioName, sr, KarateUtils.getParameters(scenario), null);
     }
     TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestFinish(
-        featureName, null, scenarioName, scenario.getRefId(), KarateUtils.getParameters(scenario));
+        featureName, null, scenarioName, sr, KarateUtils.getParameters(scenario));
   }
 
   @Override
   public boolean beforeStep(Step step, ScenarioRuntime sr) {
+    if (skipTracking(step)) {
+      return true;
+    }
     AgentSpan span = AgentTracer.startSpan("karate", "karate.step");
     AgentScope scope = AgentTracer.activateSpan(span);
     String stepName = step.getPrefix() + " " + step.getText();
@@ -143,6 +152,10 @@ public class KarateTracingHook implements RuntimeHook {
 
   @Override
   public void afterStep(StepResult result, ScenarioRuntime sr) {
+    if (skipTracking(result.getStep())) {
+      return;
+    }
+
     AgentSpan span = AgentTracer.activeSpan();
     if (span == null) {
       return;
@@ -154,5 +167,23 @@ public class KarateTracingHook implements RuntimeHook {
     }
 
     span.finish();
+  }
+
+  private static boolean skipTracking(FeatureRuntime fr) {
+    // do not track nested feature calls
+    return !fr.caller.isNone();
+  }
+
+  private static boolean skipTracking(ScenarioRuntime sr) {
+    // do not track nested scenario calls and setup scenarios
+    return !sr.caller.isNone() || sr.tags.getTagKeys().contains("setup");
+  }
+
+  private static boolean skipTracking(Step step) {
+    // do not track steps that do not belong to a tracked scenario
+    AgentSpan activeSpan = AgentTracer.activeSpan();
+    return activeSpan == null
+        || activeSpan.getSpanType() == null
+        || !Tags.SPAN_KIND_TEST.contentEquals(activeSpan.getSpanType());
   }
 }
