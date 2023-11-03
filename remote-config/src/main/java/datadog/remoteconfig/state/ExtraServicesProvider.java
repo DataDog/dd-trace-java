@@ -1,6 +1,7 @@
 package datadog.remoteconfig.state;
 
 import datadog.trace.api.Config;
+import java.util.Locale;
 import java.util.concurrent.ConcurrentHashMap;
 import javax.annotation.Nullable;
 import org.slf4j.Logger;
@@ -12,6 +13,8 @@ public class ExtraServicesProvider {
 
   private static final int MAX_EXTRA_SERVICE = 64;
 
+  private static boolean limitReachedLogged = false;
+
   private static final ConcurrentHashMap<String, String> extraServices = new ConcurrentHashMap<>();
 
   public static void maybeAddExtraService(final String serviceName) {
@@ -19,14 +22,17 @@ public class ExtraServicesProvider {
       return;
     }
     if (extraServices.size() >= MAX_EXTRA_SERVICE) {
-      log.debug(
-          "extra service limit({}) reached: service {} can't be added",
-          MAX_EXTRA_SERVICE,
-          serviceName);
+      if (!limitReachedLogged) {
+        log.debug(
+            "extra service limit({}) reached: service {} can't be added",
+            MAX_EXTRA_SERVICE,
+            serviceName);
+        limitReachedLogged = true;
+      }
       return;
     }
     if (!Config.get().getServiceName().equalsIgnoreCase(serviceName)) {
-      extraServices.put(serviceName.toLowerCase(), serviceName);
+      extraServices.put(serviceName.toLowerCase(Locale.ROOT), serviceName);
     }
   }
 
