@@ -67,6 +67,20 @@ public abstract class PropagationTags {
   public abstract void updateTraceIdHighOrderBits(long highOrderBits);
 
   /**
+   * Gets the parent span identifier to propagate as tag.
+   *
+   * @return The parent span identifiers (hexadecimal encoded, {@code null} if undefined).
+   */
+  public abstract CharSequence getParentSpanId();
+
+  /**
+   * Updates the parent span identifier to propagate as tag.
+   *
+   * @param parentSpanId The parent span identifier (as an unsigned long, {@code 0} to unset).
+   */
+  public abstract void updateParentSpanId(long parentSpanId);
+
+  /**
    * Constructs a header value that includes valid propagated _dd.p.* tags and possibly a new
    * sampling decision tag _dd.p.dm based on the current state. Returns null if the value length
    * exceeds a configured limit or empty.

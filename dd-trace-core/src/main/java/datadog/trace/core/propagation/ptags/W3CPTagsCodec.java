@@ -205,10 +205,12 @@ public class W3CPTagsCodec extends PTagsCodec {
   @Override
   protected int appendPrefix(StringBuilder sb, PTags ptags) {
     sb.append("dd=");
+    // Append sampling priority (s)
     if (ptags.getSamplingPriority() != PrioritySampling.UNSET) {
       sb.append("s:");
       sb.append(ptags.getSamplingPriority());
     }
+    // Append origin (o)
     CharSequence origin = ptags.getOrigin();
     if (origin != null) {
       if (sb.length() > EMPTY_SIZE) {
@@ -220,6 +222,15 @@ public class W3CPTagsCodec extends PTagsCodec {
       } else {
         sb.append(origin);
       }
+    }
+    // Append parent span (p)
+    CharSequence parentSpanId = ptags.getParentSpanId();
+    if (parentSpanId != null) {
+      if (sb.length() > EMPTY_SIZE) {
+        sb.append(';');
+      }
+      sb.append("p:");
+      sb.append(parentSpanId);
     }
     return sb.length();
   }

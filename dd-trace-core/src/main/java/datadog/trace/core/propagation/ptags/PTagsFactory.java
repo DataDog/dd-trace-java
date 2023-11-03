@@ -5,6 +5,7 @@ import static datadog.trace.core.propagation.PropagationTags.HeaderType.W3C;
 import static datadog.trace.core.propagation.ptags.PTagsCodec.DECISION_MAKER_TAG;
 import static datadog.trace.core.propagation.ptags.PTagsCodec.TRACE_ID_TAG;
 
+import datadog.trace.api.DDSpanId;
 import datadog.trace.api.internal.util.LongStringUtils;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.api.sampling.SamplingMechanism;
@@ -88,6 +89,10 @@ public class PTagsFactory implements PropagationTags.Factory {
      * of the trace id, wrapped into a {@link TagValue}, <code>null</code> if not set.
      */
     private volatile TagValue traceIdHighOrderBitsHexTagValue;
+    /** The parent span identifier (as an unsigned long, {@code 0}) if not set) */
+    private volatile long parentSpanId;
+    /** The parent span identifier (hexadecimal encoded, {@code null} if not set) */
+    private CharSequence parentSpanIdValue;
 
     protected volatile String error;
 
@@ -202,6 +207,20 @@ public class PTagsFactory implements PropagationTags.Factory {
                 ? null
                 : TagValue.from(LongStringUtils.toHexStringPadded(highOrderBits, 16));
         clearCachedHeader(DATADOG);
+      }
+    }
+
+    @Override
+    public CharSequence getParentSpanId() {
+      return this.parentSpanIdValue;
+    }
+
+    @Override
+    public void updateParentSpanId(long parentSpanId) {
+      if (this.parentSpanId != parentSpanId) {
+        this.parentSpanId = parentSpanId;
+        this.parentSpanIdValue = parentSpanId == 0 ? null : DDSpanId.toHexString(parentSpanId);
+        clearCachedHeader(W3C);
       }
     }
 

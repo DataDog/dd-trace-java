@@ -63,6 +63,13 @@ class W3CHttpCodec {
     @Override
     public <C> void inject(
         final DDSpanContext context, final C carrier, final AgentPropagation.Setter<C> setter) {
+      injectTraceParent(context, carrier, setter);
+      injectTraceState(context, carrier, setter);
+      injectBaggage(context, carrier, setter);
+    }
+
+    private <C> void injectTraceParent(
+        DDSpanContext context, C carrier, AgentPropagation.Setter<C> setter) {
       StringBuilder sb = new StringBuilder(TRACE_PARENT_LENGTH);
       sb.append("00-");
       sb.append(context.getTraceId().toHexString());
@@ -70,11 +77,20 @@ class W3CHttpCodec {
       sb.append(DDSpanId.toHexStringPadded(context.getSpanId()));
       sb.append(context.getSamplingPriority() > 0 ? "-01" : "-00");
       setter.set(carrier, TRACE_PARENT_KEY, sb.toString());
-      String tracestate = context.getPropagationTags().headerValue(PropagationTags.HeaderType.W3C);
+    }
+
+    private <C> void injectTraceState(
+        DDSpanContext context, C carrier, AgentPropagation.Setter<C> setter) {
+      PropagationTags propagationTags = context.getPropagationTags();
+      propagationTags.updateParentSpanId(context.getSpanId());
+      String tracestate = propagationTags.headerValue(PropagationTags.HeaderType.W3C);
       if (tracestate != null && !tracestate.isEmpty()) {
         setter.set(carrier, TRACE_STATE_KEY, tracestate);
       }
+    }
 
+    private <C> void injectBaggage(
+        DDSpanContext context, C carrier, AgentPropagation.Setter<C> setter) {
       long e2eStart = context.getEndToEndStartTime();
       if (e2eStart > 0) {
         setter.set(carrier, E2E_START_KEY, Long.toString(NANOSECONDS.toMillis(e2eStart)));
