@@ -148,7 +148,7 @@ public class CapturedSnapshotTest {
   public void singleLineProbe() throws IOException, URISyntaxException {
     final String CLASS_NAME = "CapturedSnapshot01";
     DebuggerTransformerTest.TestSnapshotListener listener =
-        installSingleProbe(CLASS_NAME, "main", "int (java.lang.String)", "8");
+        installSingleProbeAtExit(CLASS_NAME, "main", "int (java.lang.String)", "8");
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.on(testClass).call("main", "1").get();
     assertEquals(3, result);
@@ -872,6 +872,40 @@ public class CapturedSnapshotTest {
   }
 
   @Test
+  public void lineProbeCondition() throws IOException, URISyntaxException {
+    final String CLASS_NAME = "CapturedSnapshot08";
+    LogProbe logProbe =
+        createProbeBuilder(PROBE_ID, CLASS_NAME, "doit", "int (java.lang.String)", "34")
+            .when(
+                new ProbeCondition(
+                    DSL.when(
+                        DSL.and(
+                            // this is always true
+                            DSL.and(
+                                // this reference is resolved directly from the snapshot
+                                DSL.eq(DSL.ref("fld"), DSL.value(11)),
+                                // this reference chain needs to use reflection
+                                DSL.eq(
+                                    DSL.getMember(
+                                        DSL.getMember(
+                                            DSL.getMember(DSL.ref("typed"), "fld"), "fld"),
+                                        "msg"),
+                                    DSL.value("hello"))),
+                            DSL.eq(DSL.ref("arg"), DSL.value("5")))),
+                    "(fld == 11 && typed.fld.fld.msg == \"hello\") && arg == '5'"))
+            .build();
+    DebuggerTransformerTest.TestSnapshotListener listener = installProbes(CLASS_NAME, logProbe);
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    for (int i = 0; i < 100; i++) {
+      int result = Reflect.on(testClass).call("main", String.valueOf(i)).get();
+      assertTrue((i == 2 && result == 2) || result == 3);
+    }
+    assertEquals(1, listener.snapshots.size());
+    assertCaptureArgs(
+        listener.snapshots.get(0).getCaptures().getLines().get(34), "arg", "java.lang.String", "5");
+  }
+
+  @Test
   public void staticFieldCondition() throws IOException, URISyntaxException {
     final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot19";
     LogProbe logProbe =
@@ -1582,7 +1616,7 @@ public class CapturedSnapshotTest {
   public void beforeForLoopLineProbe() throws IOException, URISyntaxException {
     final String CLASS_NAME = "CapturedSnapshot02";
     DebuggerTransformerTest.TestSnapshotListener listener =
-        installSingleProbe(CLASS_NAME, null, null, "46");
+        installSingleProbeAtExit(CLASS_NAME, null, null, "46");
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.on(testClass).call("main", "synchronizedBlock").get();
     assertEquals(76, result);
@@ -1597,10 +1631,12 @@ public class CapturedSnapshotTest {
     LogProbe probe1 =
         createProbeBuilder(PROBE_ID1, CLASS_NAME, null, null, "39")
             .template(LOG_TEMPLATE, parseTemplate(LOG_TEMPLATE))
+            .evaluateAt(MethodLocation.EXIT)
             .build();
     LogProbe probe2 =
         createProbeBuilder(PROBE_ID2, CLASS_NAME, null, null, "39")
             .template(LOG_TEMPLATE, parseTemplate(LOG_TEMPLATE))
+            .evaluateAt(MethodLocation.EXIT)
             .build();
     DebuggerTransformerTest.TestSnapshotListener listener =
         installProbes(CLASS_NAME, probe1, probe2);
@@ -1824,23 +1860,29 @@ public class CapturedSnapshotTest {
   }
 
   @Test
-  public void samplingMethodProbe() throws IOException, URISyntaxException {
+  public void ensureCallingSamplingMethodProbe() throws IOException, URISyntaxException {
     doSamplingTest(this::methodProbe, 1, 1);
   }
 
   @Test
-  public void samplingProbeCondition() throws IOException, URISyntaxException {
+  public void ensureCallingSamplingProbeCondition() throws IOException, URISyntaxException {
     doSamplingTest(this::simpleConditionTest, 1, 1);
   }
 
   @Test
-  public void samplingDupMethodProbeCondition() throws IOException, URISyntaxException {
+  public void ensureCallingSamplingDupMethodProbeCondition()
+      throws IOException, URISyntaxException {
     doSamplingTest(this::mergedProbesWithAdditionalProbeConditionTest, 2, 2);
   }
 
   @Test
-  public void samplingLineProbe() throws IOException, URISyntaxException {
+  public void ensureCallingSamplingLineProbe() throws IOException, URISyntaxException {
     doSamplingTest(this::singleLineProbe, 1, 1);
+  }
+
+  @Test
+  public void ensureCallingSamplingLineProbeCondition() throws IOException, URISyntaxException {
+    doSamplingTest(this::lineProbeCondition, 1, 1);
   }
 
   interface TestMethod {
@@ -1907,6 +1949,12 @@ public class CapturedSnapshotTest {
   private DebuggerTransformerTest.TestSnapshotListener installSingleProbe(
       String typeName, String methodName, String signature, String... lines) {
     LogProbe logProbes = createProbe(PROBE_ID, typeName, methodName, signature, lines);
+    return installProbes(typeName, logProbes);
+  }
+
+  private DebuggerTransformerTest.TestSnapshotListener installSingleProbeAtExit(
+      String typeName, String methodName, String signature, String... lines) {
+    LogProbe logProbes = createProbeAtExit(PROBE_ID, typeName, methodName, signature, lines);
     return installProbes(typeName, logProbes);
   }
 
@@ -2169,6 +2217,13 @@ public class CapturedSnapshotTest {
     return createProbeBuilder(id, typeName, methodName, signature, lines).build();
   }
 
+  private static LogProbe createProbeAtExit(
+      ProbeId id, String typeName, String methodName, String signature, String... lines) {
+    return createProbeBuilder(id, typeName, methodName, signature, lines)
+        .evaluateAt(MethodLocation.EXIT)
+        .build();
+  }
+
   private static LogProbe.Builder createProbeBuilder(
       ProbeId id, String typeName, String methodName, String signature, String... lines) {
     return LogProbe.builder()
@@ -2186,6 +2241,7 @@ public class CapturedSnapshotTest {
         .probeId(id)
         .captureSnapshot(true)
         .where(null, null, null, line, sourceFile)
+        .evaluateAt(MethodLocation.EXIT)
         .build();
   }
 
