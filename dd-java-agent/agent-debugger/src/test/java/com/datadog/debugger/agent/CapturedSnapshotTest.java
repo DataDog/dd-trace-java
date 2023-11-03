@@ -1146,7 +1146,7 @@ public class CapturedSnapshotTest {
     int result = Reflect.on(testClass).call("main", "f").get();
     assertEquals(42, result);
     Snapshot snapshot = assertOneSnapshot(listener);
-    assertCaptureFieldCount(snapshot.getCaptures().getEntry(), 5);
+    assertCaptureFieldCount(snapshot.getCaptures().getEntry(), 7); // +2 for correlation ids
     assertCaptureFields(snapshot.getCaptures().getEntry(), "intValue", "int", "24");
     assertCaptureFields(snapshot.getCaptures().getEntry(), "doubleValue", "double", "3.14");
     assertCaptureFields(
@@ -1158,7 +1158,7 @@ public class CapturedSnapshotTest {
         Arrays.asList("foo", "bar"));
     assertCaptureFields(
         snapshot.getCaptures().getEntry(), "strMap", "java.util.HashMap", Collections.emptyMap());
-    assertCaptureFieldCount(snapshot.getCaptures().getReturn(), 5);
+    assertCaptureFieldCount(snapshot.getCaptures().getReturn(), 7); // +2 for correlation ids
     assertCaptureFields(snapshot.getCaptures().getReturn(), "intValue", "int", "48");
     assertCaptureFields(snapshot.getCaptures().getReturn(), "doubleValue", "double", "3.14");
     assertCaptureFields(snapshot.getCaptures().getReturn(), "strValue", "java.lang.String", "done");
@@ -1188,11 +1188,11 @@ public class CapturedSnapshotTest {
     assertEquals(42, result);
     Snapshot snapshot = assertOneSnapshot(listener);
     // Only Declared fields in the current class are captured, not inherited fields
-    assertCaptureFieldCount(snapshot.getCaptures().getEntry(), 5);
+    assertCaptureFieldCount(snapshot.getCaptures().getEntry(), 7); // +2 for correlation ids
     assertCaptureFields(
         snapshot.getCaptures().getEntry(), "strValue", "java.lang.String", "foobar");
     assertCaptureFields(snapshot.getCaptures().getEntry(), "intValue", "int", "24");
-    assertCaptureFieldCount(snapshot.getCaptures().getReturn(), 5);
+    assertCaptureFieldCount(snapshot.getCaptures().getReturn(), 7); // +2 for correlation ids
     assertCaptureFields(
         snapshot.getCaptures().getReturn(), "strValue", "java.lang.String", "barfoo");
     assertCaptureFields(snapshot.getCaptures().getEntry(), "intValue", "int", "24");
