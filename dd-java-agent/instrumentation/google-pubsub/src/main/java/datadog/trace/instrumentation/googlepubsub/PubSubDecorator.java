@@ -21,8 +21,30 @@ import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.MessagingClientDecorator;
 import java.util.LinkedHashMap;
+import java.util.function.Function;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class PubSubDecorator extends MessagingClientDecorator {
+  private static class RegexExtractor implements Function<CharSequence, CharSequence> {
+    private final Pattern pattern;
+    private final int group;
+
+    public RegexExtractor(final String regex, final int group) {
+      pattern = Pattern.compile(regex);
+      this.group = group;
+    }
+
+    @Override
+    public CharSequence apply(CharSequence input) {
+      final Matcher matcher = pattern.matcher(input);
+      if (matcher.matches() && group <= matcher.groupCount()) {
+        return matcher.group(group);
+      }
+      return input;
+    }
+  }
+
   private static final String PUBSUB = "google-pubsub";
   public static final CharSequence JAVA_PUBSUB = UTF8BytesString.create("java-google-pubsub");
   public static final CharSequence PUBSUB_CONSUME =
@@ -31,17 +53,16 @@ public class PubSubDecorator extends MessagingClientDecorator {
   public static final CharSequence PUBSUB_PRODUCE =
       UTF8BytesString.create(
           SpanNaming.instance().namingSchema().messaging().outboundOperation(PUBSUB));
-  private final String spanKind;
-  private final CharSequence spanType;
-  private final String serviceName;
 
   private static final DDCache<CharSequence, CharSequence> PRODUCER_RESOURCE_NAME_CACHE =
       DDCaches.newFixedSizeCache(32);
-  private static final Functions.Prefix PRODUCER_PREFIX = new Functions.Prefix("Produce Topic ");
+  private static final Functions.Prefix PRODUCER_PREFIX =
+      new Functions.Prefix("Produce Topic ", new RegexExtractor("^projects/(.+)/topics/(.+)$", 2));
   private static final DDCache<CharSequence, CharSequence> CONSUMER_RESOURCE_NAME_CACHE =
       DDCaches.newFixedSizeCache(32);
   private static final Functions.Prefix CONSUMER_PREFIX =
-      new Functions.Prefix("Consume Subscription ");
+      new Functions.Prefix(
+          "Consume Subscription ", new RegexExtractor("^projects/(.+)/subscriptions/(.+)$", 2));
 
   public static final PubSubDecorator PRODUCER_DECORATE =
       new PubSubDecorator(
@@ -54,6 +75,10 @@ public class PubSubDecorator extends MessagingClientDecorator {
           Tags.SPAN_KIND_CONSUMER,
           InternalSpanTypes.MESSAGE_CONSUMER,
           SpanNaming.instance().namingSchema().messaging().inboundService(PUBSUB, true));
+
+  private final String spanKind;
+  private final CharSequence spanType;
+  private final String serviceName;
 
   protected PubSubDecorator(String spanKind, CharSequence spanType, String serviceName) {
     this.spanKind = spanKind;

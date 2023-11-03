@@ -22,6 +22,7 @@ public final class ReceiverWithAckInstrumentation extends Instrumenter.Tracing
   public String[] helperClassNames() {
     return new String[] {
       packageName + ".PubSubDecorator",
+      packageName + ".PubSubDecorator$RegexExtractor",
       packageName + ".TextMapInjectAdapter",
       packageName + ".TextMapExtractAdapter",
       packageName + ".MessageReceiverWithAckResponseWrapper",

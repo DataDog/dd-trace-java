@@ -188,6 +188,7 @@
 2 com.github.mustachejava.*
 2 com.google.api.*
 0 com.google.api.client.http.HttpRequest
+0 com.google.api.gax.*
 0 com.google.cloud.pubsub.*
 2 com.google.cloud.*
 2 com.google.common.*

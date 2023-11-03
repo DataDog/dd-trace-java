@@ -1,6 +1,5 @@
 package datadog.trace.instrumentation.googlepubsub;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.nameEndsWith;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
@@ -22,6 +21,7 @@ public class ReceiverInstrumentation extends Instrumenter.Tracing
   public String[] helperClassNames() {
     return new String[] {
       packageName + ".PubSubDecorator",
+      packageName + ".PubSubDecorator$RegexExtractor",
       packageName + ".TextMapInjectAdapter",
       packageName + ".TextMapExtractAdapter",
       packageName + ".MessageReceiverWrapper",
@@ -39,7 +39,7 @@ public class ReceiverInstrumentation extends Instrumenter.Tracing
         isMethod()
             .and(named("newBuilder"))
             .and(takesArgument(0, String.class))
-            .and(takesArgument(1, nameEndsWith("MessageReceiver"))),
+            .and(takesArgument(1, named("com.google.cloud.pubsub.v1.MessageReceiver"))),
         getClass().getName() + "$Wrap");
   }
 

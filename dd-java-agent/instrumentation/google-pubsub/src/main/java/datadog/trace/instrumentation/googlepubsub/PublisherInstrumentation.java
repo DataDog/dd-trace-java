@@ -33,7 +33,9 @@ public final class PublisherInstrumentation extends Instrumenter.Tracing
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".PubSubDecorator", packageName + ".TextMapInjectAdapter",
+      packageName + ".PubSubDecorator",
+      packageName + ".PubSubDecorator$RegexExtractor",
+      packageName + ".TextMapInjectAdapter",
     };
   }
 
