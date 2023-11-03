@@ -1870,6 +1870,11 @@ public class CapturedSnapshotTest {
   }
 
   @Test
+  public void ensureCallingSamplingProbeConditionError() throws IOException, URISyntaxException {
+    doSamplingTest(this::nullCondition, 1, 1);
+  }
+
+  @Test
   public void ensureCallingSamplingDupMethodProbeCondition()
       throws IOException, URISyntaxException {
     doSamplingTest(this::mergedProbesWithAdditionalProbeConditionTest, 2, 2);
