@@ -23,7 +23,7 @@ public class W3CPTagsCodec extends PTagsCodec {
   private static final char KEY_VALUE_SEPARATOR = ':';
   private static final int MIN_ALLOWED_CHAR = 32;
   private static final int MAX_ALLOWED_CHAR = 126;
-  private static final int MAX_LIST_MEMBER_COUNT = 32;
+  private static final int MAX_MEMBER_COUNT = 32;
 
   @Override
   PropagationTags fromHeaderValue(PTagsFactory tagsFactory, String value) {
@@ -46,7 +46,7 @@ public class W3CPTagsCodec extends PTagsCodec {
     int memberIndex = 0;
     int ddMemberIndex = -1;
     while (memberStart < len) {
-      if (memberIndex == MAX_LIST_MEMBER_COUNT) {
+      if (memberIndex == MAX_MEMBER_COUNT) {
         // TODO should we return one with an error?
         // TODO should we try to pick up the `dd` member anyway?
         return tagsFactory.empty();
@@ -634,19 +634,22 @@ public class W3CPTagsCodec extends PTagsCodec {
       return size;
     }
     int ddMemberStart = (ptags instanceof W3CPTags) ? ((W3CPTags) ptags).ddMemberStart : -1;
-    int remainingListMemberAllowed = size == 0 ? MAX_LIST_MEMBER_COUNT : MAX_LIST_MEMBER_COUNT - 1;
+    int remainingMemberAllowed = size == 0 ? MAX_MEMBER_COUNT : MAX_MEMBER_COUNT - 1;
     int len = original.length();
     int memberStart = findNextMember(original, 0);
     while (memberStart < len) {
+      // Look for member end position
       int memberEnd = original.indexOf(MEMBER_SEPARATOR, memberStart);
       if (memberEnd < 0) {
         memberEnd = len;
       }
+      // Try to define Datadog member start if not already found
       if (ddMemberStart == -1) {
         if (original.startsWith(DATADOG_MEMBER_KEY, memberStart)) {
           ddMemberStart = memberStart;
         }
       }
+      // Skip Datadog member (already added with prefix and tags)
       if (memberStart != ddMemberStart) {
         if (sb.length() > 0) {
           sb.append(MEMBER_SEPARATOR);
@@ -655,9 +658,10 @@ public class W3CPTagsCodec extends PTagsCodec {
         int end = stripTrailingOWC(original, memberStart, memberEnd);
         sb.append(original, memberStart, end);
         size += (end - memberStart);
+        remainingMemberAllowed--;
       }
-      remainingListMemberAllowed--;
-      if (remainingListMemberAllowed == 0) {
+      // Check if remaining members are allowed
+      if (remainingMemberAllowed == 0) {
         memberStart = len;
       } else {
         memberStart = findNextMember(original, memberEnd + 1);

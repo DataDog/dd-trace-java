@@ -145,7 +145,7 @@ class W3CPropagationTagsTest extends DDCoreSpecification {
     valueChar << (' '..'ÿ') - ((' '..'~') - [',', '='])
   }
 
-  def "validate tracestate header number of members #memberCount"() {
+  def "validate tracestate header number of members #memberCount without Datadog member"() {
     setup:
     def config = Mock(Config)
     config.getxDatadogTagsMaxLength() >> 512
@@ -157,6 +157,29 @@ class W3CPropagationTagsTest extends DDCoreSpecification {
 
     then:
     if (memberCount <= 32) {
+      assert headerPT.headerValue(HeaderType.W3C) == header
+    } else {
+      assert headerPT.headerValue(HeaderType.W3C) == null
+    }
+    // we're not using any dd members in the tests
+    headerPT.createTagMap() == [:]
+
+    where:
+    memberCount << (1..37) // some arbitrary number larger than 32
+  }
+
+  def "validate tracestate header number of members #memberCount with Datadog member"() {
+    setup:
+    def config = Mock(Config)
+    config.getxDatadogTagsMaxLength() >> 512
+    def propagationTagsFactory = PropagationTags.factory(config)
+    def header = 'dd=s:1,'+(1..memberCount).collect { "k$it=v$it" }.join(',')
+
+    when:
+    def headerPT = propagationTagsFactory.fromHeaderValue(HeaderType.W3C, header)
+
+    then:
+    if (memberCount + 1 <= 32) {
       assert headerPT.headerValue(HeaderType.W3C) == header
     } else {
       assert headerPT.headerValue(HeaderType.W3C) == null
