@@ -674,7 +674,6 @@ public class W3CPTagsCodec extends PTagsCodec {
     private final int ddMemberStart;
     private final int ddMemberValueEnd;
     private final int maxUnknownSize;
-    private String error;
 
     public W3CPTags(
         PTagsFactory factory,
@@ -694,15 +693,6 @@ public class W3CPTagsCodec extends PTagsCodec {
       this.ddMemberStart = ddMemberStart;
       this.ddMemberValueEnd = ddMemberValueEnd;
       this.maxUnknownSize = maxUnknownSize;
-      this.error = null;
-    }
-
-    @Override
-    String getError() {
-      if (this.error != null) {
-        return this.error;
-      }
-      return super.getError();
     }
 
     @Override

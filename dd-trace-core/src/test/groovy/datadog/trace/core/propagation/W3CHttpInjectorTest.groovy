@@ -47,15 +47,17 @@ class W3CHttpInjectorTest extends DDCoreSpecification {
       null,
       NoopPathwayContext.INSTANCE,
       false,
-      PropagationTags.factory().fromHeaderValue(PropagationTags.HeaderType.DATADOG, "_dd.p.usr=123"))
+      PropagationTags.factory().fromHeaderValue(PropagationTags.HeaderType.DATADOG, tracestate ? "_dd.p.usr=123" : ""))
     final Map<String, String> carrier = [:]
     Map<String, String> expected = [
       (TRACE_PARENT_KEY)        : buildTraceParent(traceId, spanId, samplingPriority),
       (OT_BAGGAGE_PREFIX + "k1"): "v1",
       (OT_BAGGAGE_PREFIX + "k2"): "v2",
       "SOME_CUSTOM_HEADER"      : "some-value",
-      (TRACE_STATE_KEY)         : tracestate
     ]
+    if (tracestate) {
+      expected.put(TRACE_STATE_KEY, tracestate)
+    }
 
     when:
     injector.inject(mockedContext, carrier, MapSetter.INSTANCE)
@@ -68,11 +70,11 @@ class W3CHttpInjectorTest extends DDCoreSpecification {
 
     where:
     traceId               | spanId                | samplingPriority | origin   | tracestate
-    "1"                   | "2"                   | UNSET            | null     | "dd=p:2;t.usr:123"
-    "1"                   | "2"                   | SAMPLER_KEEP     | "saipan" | "dd=s:1;o:saipan;p:2;t.usr:123"
-    "$TRACE_ID_MAX"       | "${TRACE_ID_MAX - 1}" | UNSET            | "saipan" | "dd=o:saipan;p:fffffffffffffffe;t.usr:123"
-    "${TRACE_ID_MAX - 1}" | "$TRACE_ID_MAX"       | SAMPLER_KEEP     | null     | "dd=s:1;p:ffffffffffffffff;t.usr:123"
-    "${TRACE_ID_MAX - 1}" | "$TRACE_ID_MAX"       | SAMPLER_DROP     | null     | "dd=s:0;p:ffffffffffffffff;t.usr:123"
+    "1"                   | "2"                   | UNSET            | null     | null
+    "1"                   | "2"                   | SAMPLER_KEEP     | "saipan" | "dd=s:1;o:saipan;t.usr:123"
+    "$TRACE_ID_MAX"       | "${TRACE_ID_MAX - 1}" | UNSET            | "saipan" | "dd=o:saipan;t.usr:123"
+    "${TRACE_ID_MAX - 1}" | "$TRACE_ID_MAX"       | SAMPLER_KEEP     | null     | "dd=s:1;t.usr:123"
+    "${TRACE_ID_MAX - 1}" | "$TRACE_ID_MAX"       | SAMPLER_DROP     | null     | "dd=s:0;t.usr:123"
   }
 
   def "inject http headers with end-to-end"() {
@@ -111,7 +113,7 @@ class W3CHttpInjectorTest extends DDCoreSpecification {
     then:
     carrier == [
       (TRACE_PARENT_KEY): buildTraceParent('1', '2', UNSET),
-      (TRACE_STATE_KEY): "dd=o:fakeOrigin;p:2;t.dm:-4;t.anytag:value",
+      (TRACE_STATE_KEY): "dd=o:fakeOrigin;t.dm:-4;t.anytag:value",
       (OT_BAGGAGE_PREFIX + "t0"): "${(long) (mockedContext.endToEndStartTime / 1000000L)}",
       (OT_BAGGAGE_PREFIX + "k1"): "v1",
       (OT_BAGGAGE_PREFIX + "k2"): "v2",
@@ -157,7 +159,7 @@ class W3CHttpInjectorTest extends DDCoreSpecification {
     then:
     carrier == [
       (TRACE_PARENT_KEY): buildTraceParent('1', '2', USER_KEEP),
-      (TRACE_STATE_KEY): "dd=s:2;o:fakeOrigin;p:2;t.dm:-4",
+      (TRACE_STATE_KEY): "dd=s:2;o:fakeOrigin;t.dm:-4",
       (OT_BAGGAGE_PREFIX + "k1"): "v1",
       (OT_BAGGAGE_PREFIX + "k2"): "v2",
     ]
