@@ -105,6 +105,7 @@ public final class ConfigDefaults {
   static final String DEFAULT_IAST_REDACTION_VALUE_PATTERN =
       "(?:bearer\\s+[a-z0-9\\._\\-]+|glpat-[\\w\\-]{20}|gh[opsu]_[0-9a-zA-Z]{36}|ey[I-L][\\w=\\-]+\\.ey[I-L][\\w=\\-]+(?:\\.[\\w.+/=\\-]+)?|(?:[\\-]{5}BEGIN[a-z\\s]+PRIVATE\\sKEY[\\-]{5}[^\\-]+[\\-]{5}END[a-z\\s]+PRIVATE\\sKEY[\\-]{5}|ssh-rsa\\s*[a-z0-9/\\.+]{100,}))";
   public static final int DEFAULT_IAST_MAX_RANGE_COUNT = 10;
+  static final boolean DEFAULT_IAST_STACKTRACE_LEAK_SUPPRESS = false;
 
   static final int DEFAULT_IAST_TRUNCATION_MAX_VALUE_LENGTH = 250;
   public static final boolean DEFAULT_IAST_DEDUPLICATION_ENABLED = true;
@@ -177,6 +178,8 @@ public final class ConfigDefaults {
 
   static final boolean DEFAULT_TELEMETRY_ENABLED = true;
   static final int DEFAULT_TELEMETRY_HEARTBEAT_INTERVAL = 60; // in seconds
+  static final int DEFAULT_TELEMETRY_EXTENDED_HEARTBEAT_INTERVAL =
+      24 * 60 * 60; // 24 hours in seconds
   static final int DEFAULT_TELEMETRY_METRICS_INTERVAL = 10; // in seconds
   static final boolean DEFAULT_TELEMETRY_DEPENDENCY_COLLECTION_ENABLED = true;
 
@@ -197,8 +200,8 @@ public final class ConfigDefaults {
   static final boolean DEFAULT_ELASTICSEARCH_BODY_AND_PARAMS_ENABLED = false;
 
   static final boolean DEFAULT_SPARK_TASK_HISTOGRAM_ENABLED = true;
-
   static final boolean DEFAULT_JAX_RS_EXCEPTION_AS_ERROR_ENABLED = true;
+  static final boolean DEFAULT_TELEMETRY_DEBUG_REQUESTS_ENABLED = false;
 
   private ConfigDefaults() {}
 }

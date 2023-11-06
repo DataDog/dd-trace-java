@@ -1,5 +1,6 @@
 package com.datadog.iast.sink;
 
+import com.datadog.iast.Dependencies;
 import com.datadog.iast.IastRequestContext;
 import com.datadog.iast.model.Location;
 import com.datadog.iast.model.Vulnerability;
@@ -17,6 +18,10 @@ import org.slf4j.LoggerFactory;
 
 public class XContentTypeModuleImpl extends SinkModuleBase implements XContentTypeModule {
   private static final Logger LOGGER = LoggerFactory.getLogger(XContentTypeModuleImpl.class);
+
+  public XContentTypeModuleImpl(final Dependencies dependencies) {
+    super(dependencies);
+  }
 
   @Override
   public void onRequestEnd(final Object iastRequestContextObject, final IGSpanInfo igSpanInfo) {

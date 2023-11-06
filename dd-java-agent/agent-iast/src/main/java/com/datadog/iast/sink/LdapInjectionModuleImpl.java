@@ -3,6 +3,7 @@ package com.datadog.iast.sink;
 import static com.datadog.iast.taint.Ranges.rangesProviderFor;
 import static com.datadog.iast.taint.Tainteds.canBeTainted;
 
+import com.datadog.iast.Dependencies;
 import com.datadog.iast.IastRequestContext;
 import com.datadog.iast.model.VulnerabilityType;
 import com.datadog.iast.taint.TaintedObjects;
@@ -13,6 +14,10 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 public class LdapInjectionModuleImpl extends SinkModuleBase implements LdapInjectionModule {
+
+  public LdapInjectionModuleImpl(final Dependencies dependencies) {
+    super(dependencies);
+  }
 
   @SuppressWarnings("unchecked")
   @Override

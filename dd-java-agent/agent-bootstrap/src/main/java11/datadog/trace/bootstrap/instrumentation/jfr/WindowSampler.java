@@ -13,8 +13,12 @@ public class WindowSampler<E extends Event> {
 
   protected WindowSampler(
       Duration windowDuration, int samplesPerWindow, int lookback, Class<E> eventType) {
-    sampler = new AdaptiveSampler(windowDuration, samplesPerWindow, lookback, 16);
+    sampler = new AdaptiveSampler(windowDuration, samplesPerWindow, lookback, 16, false);
     sampleType = EventType.getEventType(eventType);
+  }
+
+  public void start() {
+    sampler.start();
   }
 
   public boolean sample() {

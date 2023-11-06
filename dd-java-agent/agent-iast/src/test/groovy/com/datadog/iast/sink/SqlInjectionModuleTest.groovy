@@ -24,7 +24,7 @@ class SqlInjectionModuleTest extends IastModuleImplTestBase {
   private IastRequestContext ctx
 
   def setup() {
-    module = registerDependencies(new SqlInjectionModuleImpl())
+    module = new SqlInjectionModuleImpl(dependencies)
     objectHolder = []
     ctx = new IastRequestContext()
     final reqCtx = Mock(RequestContext) {

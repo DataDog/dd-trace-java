@@ -27,7 +27,7 @@ class LdapInjectionModuleTest extends IastModuleImplTestBase {
   private AgentSpan span
 
   def setup() {
-    module = registerDependencies(new LdapInjectionModuleImpl())
+    module = new LdapInjectionModuleImpl(dependencies)
     objectHolder = []
     ctx = new IastRequestContext()
     final reqCtx = Mock(RequestContext) {

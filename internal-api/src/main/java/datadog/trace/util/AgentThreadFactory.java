@@ -104,7 +104,7 @@ public final class AgentThreadFactory implements ThreadFactory {
           @Override
           public void uncaughtException(final Thread thread, final Throwable e) {
             LoggerFactory.getLogger(runnable.getClass())
-                .error("Uncaught exception in {}", agentThread.threadName, e);
+                .error("Uncaught exception {} in {}", e, agentThread.threadName, e);
           }
         });
     return thread;

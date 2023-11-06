@@ -25,7 +25,7 @@ class TrustBoundaryViolationModuleTest extends IastModuleImplTestBase {
 
   def setup() {
     InstrumentationBridge.clearIastModules()
-    module = registerDependencies(new TrustBoundaryViolationModuleImpl())
+    module = new TrustBoundaryViolationModuleImpl(dependencies)
     objectHolder = []
     ctx = new IastRequestContext()
     final reqCtx = Mock(RequestContext) {
