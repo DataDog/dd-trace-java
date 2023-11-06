@@ -1191,19 +1191,26 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     }
 
     private DDSpan buildSpan() {
-      if (parent instanceof TagContext) {
-        List<AgentSpanLink> terminatedContextLinks =
-            ((TagContext) parent).getTerminatedContextLinks();
-        if (!terminatedContextLinks.isEmpty()) {
-          links.addAll(terminatedContextLinks);
-        }
-      }
+      addTerminatedContextAsLinks();
       DDSpan span = DDSpan.create(instrumentationName, timestampMicro, buildSpanContext(), links);
       if (span.isLocalRootSpan()) {
         EndpointTracker tracker = tracer.onRootSpanStarted(span);
         span.setEndpointTracker(tracker);
       }
       return span;
+    }
+
+    private void addTerminatedContextAsLinks() {
+      if (this.parent instanceof TagContext) {
+        List<AgentSpanLink> terminatedContextLinks =
+            ((TagContext) this.parent).getTerminatedContextLinks();
+        if (!terminatedContextLinks.isEmpty()) {
+          if (this.links == null) {
+            this.links = new ArrayList<>();
+          }
+          this.links.addAll(terminatedContextLinks);
+        }
+      }
     }
 
     @Override
