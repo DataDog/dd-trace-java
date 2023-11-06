@@ -18,6 +18,7 @@ public class CapturedSnapshot19 {
     protected static double doubleValue = 3.14;
     private static Object obj1;
     private static long[] longValues = new long[] {1, 2, 3, 4};
+    private static String[] strValues = new String[] {"foo", "bar"};
 
     public Base(Object obj1) {
       this.obj1 = obj1;
