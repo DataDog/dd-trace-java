@@ -13,6 +13,7 @@ import static datadog.trace.instrumentation.kafka_clients.KafkaDecorator.BROKER_
 import static datadog.trace.instrumentation.kafka_clients.KafkaDecorator.KAFKA_DELIVER;
 import static datadog.trace.instrumentation.kafka_clients.KafkaDecorator.TIME_IN_QUEUE_ENABLED;
 import static datadog.trace.instrumentation.kafka_clients.TextMapExtractAdapter.GETTER;
+import static datadog.trace.instrumentation.kafka_clients.Utils.computePayloadSizeBytes;
 import static datadog.trace.instrumentation.kafka_clients.TextMapInjectAdapter.SETTER;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
@@ -95,13 +96,13 @@ public class TracingIterator implements Iterator<ConsumerRecord<?, ?>> {
           if (StreamingContext.empty()) {
             AgentTracer.get()
                 .getDataStreamsMonitoring()
-                .setCheckpoint(span, sortedTags, val.timestamp());
+                .setCheckpoint(span, sortedTags, val.timestamp(), computePayloadSizeBytes(val));
           } else {
             // when we're in a streaming context we want to consume only from source topics
             if (StreamingContext.isSourceTopic(val.topic())) {
               AgentTracer.get()
                   .getDataStreamsMonitoring()
-                  .setCheckpoint(span, sortedTags, val.timestamp());
+                  .setCheckpoint(span, sortedTags, val.timestamp(), computePayloadSizeBytes(val));
               // We have to inject the context to headers here,
               // since the data received from the source may leave the topology on
               // some other instance of the application, breaking the context propagation

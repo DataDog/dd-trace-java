@@ -13,11 +13,9 @@ public class DatadogProfilingIntegration implements ProfilingContextIntegration 
 
   private static final DatadogProfiler DDPROF = DatadogProfiler.getInstance();
   private static final int SPAN_NAME_INDEX = DDPROF.operationNameOffset();
+  private static final int RESOURCE_NAME_INDEX = DDPROF.resourceNameOffset();
   private static final boolean WALLCLOCK_ENABLED =
       DatadogProfilerConfig.isWallClockProfilerEnabled();
-
-  private static final boolean QUEUEING_TIME_ENABLED =
-      WALLCLOCK_ENABLED && DatadogProfilerConfig.isQueueingTimeEnabled();
 
   @Override
   public void onAttach() {
@@ -39,15 +37,33 @@ public class DatadogProfilingIntegration implements ProfilingContextIntegration 
   }
 
   @Override
+  public int encodeOperationName(CharSequence constant) {
+    if (SPAN_NAME_INDEX >= 0) {
+      return DDPROF.encode(constant);
+    }
+    return 0;
+  }
+
+  @Override
+  public int encodeResourceName(CharSequence constant) {
+    if (RESOURCE_NAME_INDEX >= 0) {
+      return DDPROF.encode(constant);
+    }
+    return 0;
+  }
+
+  @Override
   public void setContext(ProfilerContext profilerContext) {
     DDPROF.setSpanContext(profilerContext.getSpanId(), profilerContext.getRootSpanId());
     DDPROF.setContextValue(SPAN_NAME_INDEX, profilerContext.getEncodedOperationName());
+    DDPROF.setContextValue(RESOURCE_NAME_INDEX, profilerContext.getEncodedResourceName());
   }
 
   @Override
   public void clearContext() {
     DDPROF.clearSpanContext();
     DDPROF.clearContextValue(SPAN_NAME_INDEX);
+    DDPROF.clearContextValue(RESOURCE_NAME_INDEX);
   }
 
   @Override
@@ -64,12 +80,4 @@ public class DatadogProfilingIntegration implements ProfilingContextIntegration 
   public ProfilingScope newScope() {
     return new DatadogProfilingScope(DDPROF);
   }
-
-  @Override
-  public boolean isQueuingTimeEnabled() {
-    return QUEUEING_TIME_ENABLED;
-  }
-
-  @Override
-  public void recordQueueingTime(long duration) {}
 }

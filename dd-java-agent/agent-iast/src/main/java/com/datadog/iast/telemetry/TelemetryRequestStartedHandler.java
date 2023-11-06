@@ -1,6 +1,6 @@
 package com.datadog.iast.telemetry;
 
-import com.datadog.iast.HasDependencies.Dependencies;
+import com.datadog.iast.Dependencies;
 import com.datadog.iast.IastRequestContext;
 import com.datadog.iast.RequestStartedHandler;
 import com.datadog.iast.taint.TaintedObjects;

@@ -36,6 +36,7 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
     assert point.parentHash == 0
     assert point.pathwayLatencyNano == 0
     assert point.edgeLatencyNano == 0
+    assert point.payloadSizeBytes == 0
   }
 
   def "First Set checkpoint starts the context."() {
@@ -76,6 +77,27 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
       hash != 0
       pathwayLatencyNano == 25
       edgeLatencyNano == 25
+    }
+  }
+
+  def "Checkpoint with payload size"() {
+    given:
+    def timeSource = new ControllableTimeSource()
+    def context = new DefaultPathwayContext(timeSource, wellKnownTags)
+
+    when:
+    timeSource.advance(25)
+    context.setCheckpoint(
+      new LinkedHashMap<>(["group": "group", "topic": "topic", "type": "kafka"]), pointConsumer, 0, 72)
+
+    then:
+    context.isStarted()
+    pointConsumer.points.size() == 1
+    with(pointConsumer.points[0]) {
+      edgeTags == ["group:group", "topic:topic", "type:kafka"]
+      edgeTags.size() == 3
+      hash != 0
+      payloadSizeBytes == 72
     }
   }
 

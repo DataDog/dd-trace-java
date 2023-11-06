@@ -7,16 +7,19 @@ import static com.datadog.debugger.instrumentation.ASMHelper.sortLocalVariables;
 import com.datadog.debugger.instrumentation.ASMHelper;
 import datadog.trace.util.Strings;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.Label;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.Type;
 import org.objectweb.asm.tree.AbstractInsnNode;
+import org.objectweb.asm.tree.AnnotationNode;
 import org.objectweb.asm.tree.ClassNode;
 import org.objectweb.asm.tree.FieldNode;
 import org.objectweb.asm.tree.LabelNode;
@@ -35,40 +38,27 @@ public class SymbolExtractor {
   private static Scope extractScopes(ClassNode classNode, String jarName) {
     try {
       String sourceFile = extractSourceFile(classNode);
-      List<Scope> methodScopes = new ArrayList<>();
-      for (MethodNode method : classNode.methods) {
-        MethodLineInfo methodLineInfo = extractMethodLineInfo(method);
-        List<Scope> varScopes = new ArrayList<>();
-        List<Symbol> methodSymbols = new ArrayList<>();
-        int localVarBaseSlot = extractArgs(method, methodSymbols, methodLineInfo.start);
-        extractScopesFromVariables(
-            sourceFile, method, methodLineInfo.lineMap, varScopes, localVarBaseSlot);
-        Scope methodScope =
-            Scope.builder(ScopeType.METHOD, sourceFile, methodLineInfo.start, methodLineInfo.end)
-                .name(method.name)
-                .scopes(varScopes)
-                .symbols(methodSymbols)
-                .build();
-        methodScopes.add(methodScope);
-      }
+      List<Scope> methodScopes = extractMethods(classNode, sourceFile);
       int classStartLine = Integer.MAX_VALUE;
       int classEndLine = 0;
       for (Scope scope : methodScopes) {
         classStartLine = Math.min(classStartLine, scope.getStartLine());
         classEndLine = Math.max(classEndLine, scope.getEndLine());
       }
-      List<Symbol> fields = new ArrayList<>();
-      for (FieldNode fieldNode : classNode.fields) {
-        SymbolType symbolType =
-            ASMHelper.isStaticField(fieldNode) ? SymbolType.STATIC_FIELD : SymbolType.FIELD;
-        fields.add(
-            new Symbol(symbolType, fieldNode.name, 0, Type.getType(fieldNode.desc).getClassName()));
-      }
+      List<Symbol> fields = extractFields(classNode);
+      LanguageSpecifics classSpecifics =
+          new LanguageSpecifics.Builder()
+              .addModifiers(extractClassModifiers(classNode.access))
+              .addInterfaces(extractInterfaces(classNode))
+              .addAnnotations(extractAnnotations(classNode.visibleAnnotations))
+              .superClass(Strings.getClassName(classNode.superName))
+              .build();
       Scope classScope =
           Scope.builder(ScopeType.CLASS, sourceFile, classStartLine, classEndLine)
               .name(Strings.getClassName(classNode.name))
               .scopes(methodScopes)
               .symbols(fields)
+              .languageSpecifics(classSpecifics)
               .build();
       return Scope.builder(ScopeType.JAR, jarName, 0, 0)
           .name(jarName)
@@ -78,6 +68,214 @@ public class SymbolExtractor {
       LoggerFactory.getLogger(SymbolExtractor.class).info("", ex);
       return null;
     }
+  }
+
+  private static Collection<String> extractInterfaces(ClassNode classNode) {
+    if (classNode.interfaces.isEmpty()) {
+      return Collections.emptyList();
+    }
+    return classNode.interfaces.stream().map(Strings::getClassName).collect(Collectors.toList());
+  }
+
+  private static List<Symbol> extractFields(ClassNode classNode) {
+    List<Symbol> fields = new ArrayList<>();
+    for (FieldNode fieldNode : classNode.fields) {
+      SymbolType symbolType =
+          ASMHelper.isStaticField(fieldNode) ? SymbolType.STATIC_FIELD : SymbolType.FIELD;
+      LanguageSpecifics fieldSpecifics =
+          new LanguageSpecifics.Builder()
+              .addModifiers(extractFieldModifiers(fieldNode.access))
+              .addAnnotations(extractAnnotations(fieldNode.visibleAnnotations))
+              .build();
+      fields.add(
+          new Symbol(
+              symbolType,
+              fieldNode.name,
+              0,
+              Type.getType(fieldNode.desc).getClassName(),
+              fieldSpecifics));
+    }
+    return fields;
+  }
+
+  private static List<Scope> extractMethods(ClassNode classNode, String sourceFile) {
+    List<Scope> methodScopes = new ArrayList<>();
+    for (MethodNode method : classNode.methods) {
+      MethodLineInfo methodLineInfo = extractMethodLineInfo(method);
+      List<Scope> varScopes = new ArrayList<>();
+      List<Symbol> methodSymbols = new ArrayList<>();
+      int localVarBaseSlot = extractArgs(method, methodSymbols, methodLineInfo.start);
+      extractScopesFromVariables(
+          sourceFile, method, methodLineInfo.lineMap, varScopes, localVarBaseSlot);
+      ScopeType methodScopeType = ScopeType.METHOD;
+      if (method.name.startsWith("lambda$")) {
+        methodScopeType = ScopeType.CLOSURE;
+      }
+      LanguageSpecifics methodSpecifics =
+          new LanguageSpecifics.Builder()
+              .addModifiers(extractMethodModifiers(classNode, method, method.access))
+              .addAnnotations(extractAnnotations(method.visibleAnnotations))
+              .returnType(Type.getType(method.desc).getReturnType().getClassName())
+              .build();
+      Scope methodScope =
+          Scope.builder(methodScopeType, sourceFile, methodLineInfo.start, methodLineInfo.end)
+              .name(method.name)
+              .scopes(varScopes)
+              .symbols(methodSymbols)
+              .languageSpecifics(methodSpecifics)
+              .build();
+      methodScopes.add(methodScope);
+    }
+    return methodScopes;
+  }
+
+  private static Collection<String> extractClassModifiers(int access) {
+    List<String> results = new ArrayList<>();
+    for (int remaining = access, bit; remaining != 0; remaining -= bit) {
+      bit = Integer.lowestOneBit(remaining);
+      switch (bit) {
+        case Opcodes.ACC_PUBLIC:
+          results.add("public");
+          break;
+        case Opcodes.ACC_PRIVATE:
+          results.add("private");
+          break;
+        case Opcodes.ACC_PROTECTED:
+          results.add("protected");
+          break;
+        case Opcodes.ACC_STATIC:
+          results.add("static");
+          break;
+        case Opcodes.ACC_FINAL:
+          results.add("final");
+          break;
+        case Opcodes.ACC_SUPER:
+          break; // not interesting
+        case Opcodes.ACC_INTERFACE:
+          results.add("interface");
+          break;
+        case Opcodes.ACC_ABSTRACT:
+          results.add("abstract");
+          break;
+        case Opcodes.ACC_SYNTHETIC:
+          results.add("synthetic");
+          break;
+        case Opcodes.ACC_ANNOTATION:
+          results.add("annotation");
+          break;
+        case Opcodes.ACC_ENUM:
+          results.add("enum");
+          break;
+        default:
+          throw new IllegalArgumentException("Invalid access modifiers: " + bit);
+      }
+    }
+    return results;
+  }
+
+  private static Collection<String> extractMethodModifiers(
+      ClassNode classNode, MethodNode methodNode, int access) {
+    List<String> results = new ArrayList<>();
+    for (int remaining = access, bit; remaining != 0; remaining -= bit) {
+      bit = Integer.lowestOneBit(remaining);
+      switch (bit) {
+        case Opcodes.ACC_PUBLIC:
+          results.add("public");
+          break;
+        case Opcodes.ACC_PRIVATE:
+          results.add("private");
+          break;
+        case Opcodes.ACC_PROTECTED:
+          results.add("protected");
+          break;
+        case Opcodes.ACC_STATIC:
+          results.add("static");
+          break;
+        case Opcodes.ACC_FINAL:
+          results.add("final");
+          break;
+        case Opcodes.ACC_SYNCHRONIZED:
+          results.add("synchronized");
+          break;
+        case Opcodes.ACC_BRIDGE:
+          results.add("(bridge)");
+          break;
+        case Opcodes.ACC_VARARGS:
+          results.add("(varargs)");
+          break;
+        case Opcodes.ACC_NATIVE:
+          results.add("native");
+          break;
+        case Opcodes.ACC_ABSTRACT:
+          results.add("abstract");
+          break;
+        case Opcodes.ACC_STRICT:
+          results.add("strictfp");
+          break;
+        case Opcodes.ACC_SYNTHETIC:
+          results.add("synthetic");
+          break;
+        default:
+          throw new IllegalArgumentException("Invalid access modifiers: " + bit);
+      }
+    }
+    // if class is an interface && method as code this is a default method
+    if ((classNode.access & Opcodes.ACC_INTERFACE) > 0 && methodNode.instructions.size() > 0) {
+      results.add("default");
+    }
+    return results;
+  }
+
+  private static Collection<String> extractFieldModifiers(int access) {
+    List<String> results = new ArrayList<>();
+    for (int remaining = access, bit; remaining != 0; remaining -= bit) {
+      bit = Integer.lowestOneBit(remaining);
+      switch (bit) {
+        case Opcodes.ACC_PUBLIC:
+          results.add("public");
+          break;
+        case Opcodes.ACC_PRIVATE:
+          results.add("private");
+          break;
+        case Opcodes.ACC_PROTECTED:
+          results.add("protected");
+          break;
+        case Opcodes.ACC_STATIC:
+          results.add("static");
+          break;
+        case Opcodes.ACC_FINAL:
+          results.add("final");
+          break;
+        case Opcodes.ACC_VOLATILE:
+          results.add("volatile");
+          break;
+        case Opcodes.ACC_TRANSIENT:
+          results.add("transient");
+          break;
+        case Opcodes.ACC_SYNTHETIC:
+          results.add("synthetic");
+          break;
+        case Opcodes.ACC_ENUM:
+          results.add("enum");
+          break;
+        default:
+          throw new IllegalArgumentException("Invalid access modifiers: " + bit);
+      }
+    }
+    return results;
+  }
+
+  private static Collection<String> extractAnnotations(List<AnnotationNode> annotationNodes) {
+    if (annotationNodes == null || annotationNodes.isEmpty()) {
+      return Collections.emptyList();
+    }
+    List<String> results = new ArrayList<>();
+    for (AnnotationNode annotationNode : annotationNodes) {
+      StringBuilder sb = new StringBuilder("@");
+      sb.append(Type.getType(annotationNode.desc).getClassName());
+      results.add(sb.toString());
+    }
+    return results;
   }
 
   private static String extractSourceFile(ClassNode classNode) {
@@ -107,7 +305,7 @@ public class SymbolExtractor {
       }
       String argName = localVarsBySlot[slot] != null ? localVarsBySlot[slot].name : "p" + slot;
       methodSymbols.add(
-          new Symbol(SymbolType.ARG, argName, methodStartLine, argType.getClassName()));
+          new Symbol(SymbolType.ARG, argName, methodStartLine, argType.getClassName(), null));
       slot += argType.getSize();
     }
     return slot;
@@ -145,7 +343,8 @@ public class SymbolExtractor {
         int line = monotonicLineMap.get(var.start.getLabel());
         minLine = Math.min(line, minLine);
         varSymbols.add(
-            new Symbol(SymbolType.LOCAL, var.name, line, Type.getType(var.desc).getClassName()));
+            new Symbol(
+                SymbolType.LOCAL, var.name, line, Type.getType(var.desc).getClassName(), null));
       }
       int endLine = monotonicLineMap.get(entry.getKey().getLabel());
       Scope varScope =

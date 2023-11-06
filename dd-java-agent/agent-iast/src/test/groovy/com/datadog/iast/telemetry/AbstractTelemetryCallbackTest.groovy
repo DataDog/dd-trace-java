@@ -1,7 +1,7 @@
 package com.datadog.iast.telemetry
 
 
-import com.datadog.iast.HasDependencies.Dependencies
+import com.datadog.iast.Dependencies
 import com.datadog.iast.IastModuleImplTestBase
 import datadog.trace.api.Config
 import datadog.trace.api.gateway.RequestContext

@@ -78,9 +78,9 @@ public class ProbeRateLimiter {
     }
     if (rate < 1) {
       int intRate = (int) Math.round(rate * 10);
-      return new AdaptiveSampler(TEN_SECONDS_WINDOW, intRate, 180, 16);
+      return new AdaptiveSampler(TEN_SECONDS_WINDOW, intRate, 180, 16, true);
     }
-    return new AdaptiveSampler(ONE_SECOND_WINDOW, (int) Math.round(rate), 180, 16);
+    return new AdaptiveSampler(ONE_SECOND_WINDOW, (int) Math.round(rate), 180, 16, true);
   }
 
   private static class RateLimitInfo {

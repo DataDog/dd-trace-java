@@ -13,6 +13,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.util.AgentTaskScheduler;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
+import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -24,9 +25,9 @@ public interface OverheadController {
 
   int releaseRequest();
 
-  boolean hasQuota(final Operation operation, final AgentSpan span);
+  boolean hasQuota(final Operation operation, @Nullable final AgentSpan span);
 
-  boolean consumeQuota(final Operation operation, final AgentSpan span);
+  boolean consumeQuota(final Operation operation, @Nullable final AgentSpan span);
 
   static OverheadController build(final Config config, final AgentTaskScheduler scheduler) {
     final OverheadControllerImpl result = new OverheadControllerImpl(config, scheduler);
@@ -68,7 +69,7 @@ public interface OverheadController {
     }
 
     @Override
-    public boolean hasQuota(final Operation operation, final AgentSpan span) {
+    public boolean hasQuota(final Operation operation, @Nullable final AgentSpan span) {
       final boolean result = delegate.hasQuota(operation, span);
       if (LOGGER.isDebugEnabled()) {
         LOGGER.debug(
@@ -82,7 +83,7 @@ public interface OverheadController {
     }
 
     @Override
-    public boolean consumeQuota(final Operation operation, final AgentSpan span) {
+    public boolean consumeQuota(final Operation operation, @Nullable final AgentSpan span) {
       final boolean result = delegate.consumeQuota(operation, span);
       if (LOGGER.isDebugEnabled()) {
         LOGGER.debug(
@@ -103,7 +104,7 @@ public interface OverheadController {
       }
     }
 
-    private int getAvailableQuote(final AgentSpan span) {
+    private int getAvailableQuote(@Nullable final AgentSpan span) {
       final OverheadContext context = delegate.getContext(span);
       return context == null ? -1 : context.getAvailableQuota();
     }
@@ -149,16 +150,17 @@ public interface OverheadController {
     }
 
     @Override
-    public boolean hasQuota(final Operation operation, final AgentSpan span) {
+    public boolean hasQuota(final Operation operation, @Nullable final AgentSpan span) {
       return operation.hasQuota(getContext(span));
     }
 
     @Override
-    public boolean consumeQuota(final Operation operation, final AgentSpan span) {
+    public boolean consumeQuota(final Operation operation, @Nullable final AgentSpan span) {
       return operation.consumeQuota(getContext(span));
     }
 
-    public OverheadContext getContext(final AgentSpan span) {
+    @Nullable
+    public OverheadContext getContext(@Nullable final AgentSpan span) {
       final RequestContext requestContext = span != null ? span.getRequestContext() : null;
       if (requestContext != null) {
         IastRequestContext iastRequestContext = requestContext.getData(RequestContextSlot.IAST);

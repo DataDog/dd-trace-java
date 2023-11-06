@@ -5,6 +5,9 @@ import datadog.remoteconfig.tuf.RemoteConfigRequest;
 import datadog.remoteconfig.tuf.RemoteConfigRequest.CachedTargetFile;
 import datadog.remoteconfig.tuf.RemoteConfigRequest.ClientInfo.ClientState;
 import datadog.trace.api.Config;
+import datadog.trace.api.git.GitInfo;
+import datadog.trace.api.git.GitInfoProvider;
+import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.util.TagsHelper;
 import java.util.Arrays;
 import java.util.Collection;
@@ -126,6 +129,15 @@ public class PollerRequestFactory {
         Config.get().getGlobalTags().entrySet().stream()
             .map(entry -> entry.getKey() + ":" + entry.getValue())
             .collect(Collectors.toList());
+    GitInfo gitInfo = GitInfoProvider.INSTANCE.getGitInfo();
+    String repositoryURL = gitInfo.getRepositoryURL();
+    if (repositoryURL != null) {
+      tags.add(Tags.GIT_REPOSITORY_URL + ":" + repositoryURL);
+    }
+    String sha = gitInfo.getCommit().getSha();
+    if (sha != null) {
+      tags.add(Tags.GIT_COMMIT_SHA + ":" + sha);
+    }
     tags.addAll(
         Arrays.asList(
             "env:" + this.env,

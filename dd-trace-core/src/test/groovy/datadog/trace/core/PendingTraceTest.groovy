@@ -41,7 +41,8 @@ class PendingTraceTest extends PendingTraceTestBase {
       null,
       AgentTracer.NoopPathwayContext.INSTANCE,
       false,
-      PropagationTags.factory().empty()))
+      PropagationTags.factory().empty()),
+      null)
   }
 
   @Timeout(value = 60, unit = TimeUnit.SECONDS)

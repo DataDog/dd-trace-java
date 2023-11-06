@@ -95,7 +95,7 @@ class MultiMapInstrumentationTest extends AgentTestRunner {
 
     then:
     1 * module.findSource(instance) >> { mockedSource(origin) }
-    1 * module.taint(_, 'key', namedSource(origin))
+    1 * module.taint(_, 'key', namedSource(origin), 'key')
 
     where:
     instance << multiMaps()
@@ -122,7 +122,7 @@ class MultiMapInstrumentationTest extends AgentTestRunner {
 
     then:
     1 * module.findSource(instance) >> { mockedSource(origin) }
-    1 * module.taint(_, 'key', namedSource(origin))
+    1 * module.taint(_, 'key', namedSource(origin), 'key')
     1 * module.taint(_, 'value1', origin, 'key')
     1 * module.taint(_, 'value2', origin, 'key')
 

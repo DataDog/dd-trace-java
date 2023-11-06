@@ -67,7 +67,7 @@ public class HeadersAdaptorInstrumentation extends Instrumenter.Iast
   }
 
   public static class GetAdvice {
-    @Advice.OnMethodExit
+    @Advice.OnMethodExit(suppress = Throwable.class)
     @Source(SourceTypes.REQUEST_HEADER_VALUE)
     public static void afterGet(
         @Advice.This final Object self,
@@ -75,17 +75,13 @@ public class HeadersAdaptorInstrumentation extends Instrumenter.Iast
         @Advice.Return final String result) {
       final PropagationModule propagation = InstrumentationBridge.PROPAGATION;
       if (propagation != null) {
-        try {
-          propagation.taintIfTainted(result, self, SourceTypes.REQUEST_HEADER_VALUE, name);
-        } catch (final Throwable e) {
-          propagation.onUnexpectedException("get threw", e);
-        }
+        propagation.taintIfTainted(result, self, SourceTypes.REQUEST_HEADER_VALUE, name);
       }
     }
   }
 
   public static class GetAllAdvice {
-    @Advice.OnMethodExit
+    @Advice.OnMethodExit(suppress = Throwable.class)
     @Source(SourceTypes.REQUEST_HEADER_VALUE)
     public static void afterGetAll(
         @Advice.This final Object self,
@@ -93,65 +89,53 @@ public class HeadersAdaptorInstrumentation extends Instrumenter.Iast
         @Advice.Return final Collection<String> result) {
       final PropagationModule propagation = InstrumentationBridge.PROPAGATION;
       if (propagation != null && result != null && !result.isEmpty()) {
-        try {
-          if (propagation.isTainted(self)) {
-            final IastContext ctx = IastContext.Provider.get();
-            final String headerName = name == null ? null : name.toString();
-            for (final String value : result) {
-              propagation.taint(ctx, value, SourceTypes.REQUEST_HEADER_VALUE, headerName);
-            }
+        if (propagation.isTainted(self)) {
+          final IastContext ctx = IastContext.Provider.get();
+          final String headerName = name == null ? null : name.toString();
+          for (final String value : result) {
+            propagation.taint(ctx, value, SourceTypes.REQUEST_HEADER_VALUE, headerName);
           }
-        } catch (final Throwable e) {
-          propagation.onUnexpectedException("getAll threw", e);
         }
       }
     }
   }
 
   public static class EntriesAdvice {
-    @Advice.OnMethodExit
+    @Advice.OnMethodExit(suppress = Throwable.class)
     @Source(SourceTypes.REQUEST_HEADER_VALUE)
     public static void afterEntries(
         @Advice.This final Object self,
         @Advice.Return final List<Map.Entry<String, String>> result) {
       final PropagationModule propagation = InstrumentationBridge.PROPAGATION;
       if (propagation != null && result != null && !result.isEmpty()) {
-        try {
-          if (propagation.isTainted(self)) {
-            final IastContext ctx = IastContext.Provider.get();
-            final Set<String> names = new HashSet<>();
-            for (Map.Entry<String, String> entry : result) {
-              final String name = entry.getKey();
-              final String value = entry.getValue();
-              if (names.add(name)) {
-                propagation.taint(ctx, name, SourceTypes.REQUEST_HEADER_NAME, name);
-              }
-              propagation.taint(ctx, value, SourceTypes.REQUEST_HEADER_VALUE, name);
+        if (propagation.isTainted(self)) {
+          final IastContext ctx = IastContext.Provider.get();
+          final Set<String> names = new HashSet<>();
+          for (Map.Entry<String, String> entry : result) {
+            final String name = entry.getKey();
+            final String value = entry.getValue();
+            if (names.add(name)) {
+              propagation.taint(ctx, name, SourceTypes.REQUEST_HEADER_NAME, name);
             }
+            propagation.taint(ctx, value, SourceTypes.REQUEST_HEADER_VALUE, name);
           }
-        } catch (final Throwable e) {
-          propagation.onUnexpectedException("entries threw", e);
         }
       }
     }
   }
 
   public static class NamesAdvice {
-    @Advice.OnMethodExit
+    @Advice.OnMethodExit(suppress = Throwable.class)
     @Source(SourceTypes.REQUEST_HEADER_NAME)
     public static void afterNames(
         @Advice.This final Object self, @Advice.Return final Set<String> result) {
       final PropagationModule propagation = InstrumentationBridge.PROPAGATION;
       if (propagation != null && result != null && !result.isEmpty()) {
-        try {
-          if (propagation.isTainted(self)) {
-            final IastContext ctx = IastContext.Provider.get();
-            for (final String name : result) {
-              propagation.taint(ctx, name, SourceTypes.REQUEST_HEADER_NAME, name);
-            }
+        if (propagation.isTainted(self)) {
+          final IastContext ctx = IastContext.Provider.get();
+          for (final String name : result) {
+            propagation.taint(ctx, name, SourceTypes.REQUEST_HEADER_NAME, name);
           }
-        } catch (final Throwable e) {
-          propagation.onUnexpectedException("names threw", e);
         }
       }
     }
