@@ -8,6 +8,7 @@ import datadog.trace.api.config.CiVisibilityConfig;
 import datadog.trace.bootstrap.DatadogClassLoader;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.util.Strings;
+import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.File;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -63,6 +64,7 @@ public abstract class CiVisibilityService
     return moduleExecutionSettings.getCoverageEnabledPackages();
   }
 
+  @SuppressForbidden
   public Collection<String> getTracerJvmArgs(String taskPath, Path jvmExecutable) {
     List<String> jvmArgs = new ArrayList<>();
 
