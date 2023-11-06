@@ -189,9 +189,10 @@ public class HttpCodec {
         TagContext extracted = extractor.extract(carrier, getter);
         // Check if context is valid
         if (extracted instanceof ExtractedContext) {
+          ExtractedContext extractedContext = (ExtractedContext) extracted;
           // If no prior valid context, store it as first valid context
           if (context == null) {
-            context = (ExtractedContext) extracted;
+            context = extractedContext;
             // Stop extraction if only extracting first valid context and drop everything else
             if (this.extractFirst) {
               break;
@@ -204,7 +205,9 @@ public class HttpCodec {
               boolean comingFromTraceContext = extracted.getPropagationStyle() == TRACECONTEXT;
               if (comingFromTraceContext) {
                 // Propagate newly extracted W3C tracestate to first valid context
-                // TODO
+                String extractedTracestate =
+                    extractedContext.getPropagationTags().getW3CTracestate();
+                context.getPropagationTags().updateW3CTracestate(extractedTracestate);
               }
             } else {
               // Terminate extracted context and add it as span link
