@@ -223,15 +223,6 @@ public class W3CPTagsCodec extends PTagsCodec {
         sb.append(origin);
       }
     }
-    // Append parent span (p)
-    CharSequence parentSpanId = ptags.getParentSpanId();
-    if (parentSpanId != null) {
-      if (sb.length() > EMPTY_SIZE) {
-        sb.append(';');
-      }
-      sb.append("p:");
-      sb.append(parentSpanId);
-    }
     return sb.length();
   }
 

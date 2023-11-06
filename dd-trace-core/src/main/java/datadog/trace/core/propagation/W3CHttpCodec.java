@@ -82,7 +82,6 @@ class W3CHttpCodec {
     private <C> void injectTraceState(
         DDSpanContext context, C carrier, AgentPropagation.Setter<C> setter) {
       PropagationTags propagationTags = context.getPropagationTags();
-      propagationTags.updateParentSpanId(context.getSpanId());
       String tracestate = propagationTags.headerValue(PropagationTags.HeaderType.W3C);
       if (tracestate != null && !tracestate.isEmpty()) {
         setter.set(carrier, TRACE_STATE_KEY, tracestate);
