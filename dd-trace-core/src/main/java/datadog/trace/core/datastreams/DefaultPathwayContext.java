@@ -224,19 +224,6 @@ public class DefaultPathwayContext implements PathwayContext {
   }
 
   @Override
-  public <C> void injectBinary(C carrier, BinarySetter<C> setter) {
-    try {
-      byte[] encodedContext = encode();
-      if (encodedContext != null) {
-        log.debug("Injecting pathway context {}", this);
-        setter.set(carrier, PathwayContext.PROPAGATION_KEY_BASE64, encodedContext);
-      }
-    } catch (IOException e) {
-      log.debug("Unable to set encode pathway context", e);
-    }
-  }
-
-  @Override
   public String toString() {
     lock.lock();
     try {

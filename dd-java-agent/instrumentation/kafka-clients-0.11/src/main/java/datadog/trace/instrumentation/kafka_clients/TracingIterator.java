@@ -100,15 +100,18 @@ public class TracingIterator implements Iterator<ConsumerRecord<?, ?>> {
           } else {
             // when we're in a streaming context we want to consume only from source topics
             if (StreamingContext.isSourceTopic(val.topic())) {
-              AgentTracer.get()
-                  .getDataStreamsMonitoring()
-                  .setCheckpoint(span, sortedTags, val.timestamp(), computePayloadSizeBytes(val));
               // We have to inject the context to headers here,
               // since the data received from the source may leave the topology on
               // some other instance of the application, breaking the context propagation
               // for DSM users
-              PathwayContext pathwayContext = span.context().getPathwayContext();
-              pathwayContext.injectBinary(val.headers(), SETTER);
+              propagate()
+                  .injectPathwayContext(
+                    span, 
+                    val.headers(), 
+                    SETTER, 
+                    sortedTags,
+                    val.timestamp(), 
+                    computePayloadSizeBytes(val));
             }
           }
         } else {

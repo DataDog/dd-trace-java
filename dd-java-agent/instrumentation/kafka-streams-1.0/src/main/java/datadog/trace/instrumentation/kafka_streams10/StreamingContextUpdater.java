@@ -1,4 +1,4 @@
-package datadog.trace.instrumentation.kafka_streams;
+package datadog.trace.instrumentation.kafka_streams10;
 
 import datadog.trace.instrumentation.kafka_clients.StreamingContext;
 import java.util.Map;

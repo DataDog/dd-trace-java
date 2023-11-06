@@ -1,4 +1,4 @@
-package datadog.trace.instrumentation.kafka_streams;
+package datadog.trace.instrumentation.kafka_streams10;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
@@ -20,7 +20,6 @@ public class InternalTopologyBuilderInstrumentation extends Instrumenter.Tracing
 
   @Override
   public String instrumentedType() {
-    // this class exists only in kstreams 1.0.0+
     return "org.apache.kafka.streams.processor.internals.InternalTopologyBuilder";
   }
 

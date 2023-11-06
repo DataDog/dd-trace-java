@@ -867,6 +867,10 @@ public class AgentTracer {
         AgentSpan span, C carrier, Setter<C> setter, LinkedHashMap<String, String> sortedTags) {}
 
     @Override
+    public <C> void injectPathwayContext(
+        AgentSpan span, C carrier, Setter<C> setter, LinkedHashMap<String, String> sortedTags, long defaultTimestamp, long payloadSizeBytes) {}
+
+    @Override
     public <C> Context.Extracted extract(final C carrier, final ContextVisitor<C> getter) {
       return NoopContext.INSTANCE;
     }
@@ -1085,9 +1089,6 @@ public class AgentTracer {
     public String strEncode() {
       return null;
     }
-
-    @Override
-    public <C> void injectBinary(C carrier, BinarySetter<C> setter) {}
   }
 
   public static class NoopAgentHistogram implements AgentHistogram {

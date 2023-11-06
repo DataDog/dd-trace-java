@@ -255,12 +255,14 @@ public class KafkaStreamTaskInstrumentation extends Instrumenter.Tracing
                 span, sortedTags, record.timestamp, computePayloadSizeBytes(record.value));
         } else {
           if (StreamingContext.isSourceTopic(record.topic())) {
-            AgentTracer.get()
-                .getDataStreamsMonitoring()
-                .setCheckpoint(span, sortedTags, record.timestamp, computePayloadSizeBytes(record.value));
-
-            PathwayContext pathwayContext = span.context().getPathwayContext();
-            pathwayContext.injectBinary(record, SR_GETTER_SETTER);
+            propagate()
+                .injectPathwayContext(
+                    span,
+                    record,
+                    SR_GETTER_SETTER,
+                    sortedTags,
+                    record.timestamp,
+                    computePayloadSizeBytes(record.value));
           }
         }
       } else {
@@ -340,12 +342,14 @@ public class KafkaStreamTaskInstrumentation extends Instrumenter.Tracing
               .setCheckpoint(span, sortedTags, record.timestamp(), payloadSize);
         } else {
           if (StreamingContext.isSourceTopic(record.topic())) {
-            AgentTracer.get()
-                .getDataStreamsMonitoring()
-                .setCheckpoint(span, sortedTags, record.timestamp(), payloadSize);
-
-            PathwayContext pathwayContext = span.context().getPathwayContext();
-            pathwayContext.injectBinary(record, PR_GETTER_SETTER);
+            propagate()
+                .injectPathwayContext(
+                    span,
+                    record,
+                    PR_GETTER_SETTER,
+                    sortedTags,
+                    record.timestamp(),
+                    payloadSize);
           }
         }
       } else {
