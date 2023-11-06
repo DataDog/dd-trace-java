@@ -19,7 +19,7 @@ public class Scope {
   private final String name;
 
   @Json(name = "language_specifics")
-  private final List<Object> languageSpecifics;
+  private final LanguageSpecifics languageSpecifics;
 
   private final List<Symbol> symbols;
   private final List<Scope> scopes;
@@ -30,7 +30,7 @@ public class Scope {
       int startLine,
       int endLine,
       String name,
-      List<Object> languageSpecifics,
+      LanguageSpecifics languageSpecifics,
       List<Symbol> symbols,
       List<Scope> scopes) {
     this.scopeType = scopeType;
@@ -63,7 +63,7 @@ public class Scope {
     return name;
   }
 
-  public List<Object> getLanguageSpecifics() {
+  public LanguageSpecifics getLanguageSpecifics() {
     return languageSpecifics;
   }
 
@@ -110,7 +110,7 @@ public class Scope {
     private final int startLine;
     private final int endLine;
     private String name;
-    private List<Object> languageSpecifics;
+    private LanguageSpecifics languageSpecifics;
     private List<Symbol> symbols;
     private List<Scope> scopes;
 
@@ -126,7 +126,7 @@ public class Scope {
       return this;
     }
 
-    public Builder languageSpecifics(List<Object> languageSpecifics) {
+    public Builder languageSpecifics(LanguageSpecifics languageSpecifics) {
       this.languageSpecifics = languageSpecifics;
       return this;
     }

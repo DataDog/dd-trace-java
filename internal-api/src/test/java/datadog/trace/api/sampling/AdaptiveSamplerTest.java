@@ -261,7 +261,7 @@ class AdaptiveSamplerTest {
   @Test
   public void testKeep() {
     final AdaptiveSampler sampler =
-        new AdaptiveSampler(WINDOW_DURATION, 1, 1, 1, null, taskScheduler);
+        new AdaptiveSampler(WINDOW_DURATION, 1, 1, 1, null, taskScheduler, true);
     long tests = sampler.testCount();
     long samples = sampler.sampleCount();
     assertTrue(sampler.keep());
@@ -272,7 +272,7 @@ class AdaptiveSamplerTest {
   @Test
   public void testDrop() {
     final AdaptiveSampler sampler =
-        new AdaptiveSampler(WINDOW_DURATION, 1, 1, 1, null, taskScheduler);
+        new AdaptiveSampler(WINDOW_DURATION, 1, 1, 1, null, taskScheduler, true);
     long tests = sampler.testCount();
     long samples = sampler.sampleCount();
     assertFalse(sampler.drop());
@@ -344,7 +344,8 @@ class AdaptiveSamplerTest {
                   }
               }
             },
-            taskScheduler);
+            taskScheduler,
+            true);
     sampler.keep();
     sampler.drop();
     rollWindow();
@@ -383,7 +384,8 @@ class AdaptiveSamplerTest {
             AVERAGE_LOOKBACK,
             BUDGET_LOOKBACK,
             null,
-            taskScheduler);
+            taskScheduler,
+            true);
 
     // simulate event generation and sampling for the given number of sampling windows
     final long expectedSamples = WINDOWS * SAMPLES_PER_WINDOW;
@@ -544,7 +546,8 @@ class AdaptiveSamplerTest {
             AVERAGE_LOOKBACK,
             BUDGET_LOOKBACK,
             null,
-            taskScheduler);
+            taskScheduler,
+            true);
     final CyclicBarrier startBarrier = new CyclicBarrier(threadCount);
     final CyclicBarrier endBarrier = new CyclicBarrier(threadCount, this::rollWindow);
     final Mean[] means = new Mean[threadCount];

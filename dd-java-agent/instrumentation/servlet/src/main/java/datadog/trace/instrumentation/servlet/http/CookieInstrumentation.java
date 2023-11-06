@@ -48,7 +48,7 @@ public class CookieInstrumentation extends Instrumenter.Iast implements Instrume
       final PropagationModule module = InstrumentationBridge.PROPAGATION;
       if (module != null) {
         try {
-          module.taintIfInputIsTainted(SourceTypes.REQUEST_COOKIE_NAME, result, result, self);
+          module.taintIfTainted(result, self, SourceTypes.REQUEST_COOKIE_NAME, result);
         } catch (final Throwable e) {
           module.onUnexpectedException("afterGetName threw", e);
         }
@@ -67,7 +67,7 @@ public class CookieInstrumentation extends Instrumenter.Iast implements Instrume
       final PropagationModule module = InstrumentationBridge.PROPAGATION;
       if (module != null) {
         try {
-          module.taintIfInputIsTainted(SourceTypes.REQUEST_COOKIE_VALUE, name, result, self);
+          module.taintIfTainted(result, self, SourceTypes.REQUEST_COOKIE_VALUE, name);
         } catch (final Throwable e) {
           module.onUnexpectedException("getValue threw", e);
         }

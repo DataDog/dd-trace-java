@@ -49,7 +49,7 @@ public class TokenBufferInstrumentation extends Instrumenter.Iast
         @Advice.This TokenBuffer tokenBuffer, @Advice.Return JsonParser parser) {
       final PropagationModule module = InstrumentationBridge.PROPAGATION;
       if (module != null) {
-        module.taintIfInputIsTainted(parser, tokenBuffer);
+        module.taintIfTainted(parser, tokenBuffer);
       }
     }
   }

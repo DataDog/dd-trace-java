@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.resteasy;
 
+import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Source;
 import datadog.trace.api.iast.SourceTypes;
@@ -16,14 +17,15 @@ public class CookieParamInjectorAdvice {
       final PropagationModule module = InstrumentationBridge.PROPAGATION;
       if (module != null) {
         if (result instanceof Collection) {
-          Collection collection = (Collection) result;
+          Collection<?> collection = (Collection<?>) result;
+          final IastContext ctx = IastContext.Provider.get();
           for (Object o : collection) {
             if (o instanceof String) {
-              module.taint(SourceTypes.REQUEST_COOKIE_VALUE, paramName, (String) o);
+              module.taint(ctx, o, SourceTypes.REQUEST_COOKIE_VALUE, paramName);
             }
           }
         } else {
-          module.taint(SourceTypes.REQUEST_COOKIE_VALUE, paramName, (String) result);
+          module.taint(result, SourceTypes.REQUEST_COOKIE_VALUE, paramName);
         }
       }
     }

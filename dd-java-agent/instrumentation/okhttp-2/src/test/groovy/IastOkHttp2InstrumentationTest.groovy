@@ -62,12 +62,12 @@ class IastOkHttp2InstrumentationTest extends AgentTestRunner {
 
   private void mockPropagation() {
     final propagation = Mock(PropagationModule) {
-      taintIfAnyInputIsTainted(_, _) >> {
+      taintIfAnyTainted(_, _) >> {
         if ((it[1] as List).any { input -> tainteds.containsKey(input) }) {
           tainteds.put(it[0], null)
         }
       }
-      taintIfInputIsTainted(_, _) >> {
+      taintIfTainted(_, _) >> {
         if (tainteds.containsKey(it[1])) {
           tainteds.put(it[0], null)
         }

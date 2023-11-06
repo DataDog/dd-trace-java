@@ -10,7 +10,7 @@ import datadog.trace.api.iast.VulnerabilityMarks
 import datadog.trace.api.iast.sink.SqlInjectionModule
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 
-import static com.datadog.iast.model.Range.NOT_MARKED
+import static datadog.trace.api.iast.VulnerabilityMarks.NOT_MARKED
 import static com.datadog.iast.taint.TaintUtils.addFromTaintFormat
 import static com.datadog.iast.taint.TaintUtils.taintFormat
 import static datadog.trace.api.iast.sink.SqlInjectionModule.DATABASE_PARAMETER
@@ -24,7 +24,7 @@ class SqlInjectionModuleTest extends IastModuleImplTestBase {
   private IastRequestContext ctx
 
   def setup() {
-    module = registerDependencies(new SqlInjectionModuleImpl())
+    module = new SqlInjectionModuleImpl(dependencies)
     objectHolder = []
     ctx = new IastRequestContext()
     final reqCtx = Mock(RequestContext) {

@@ -10,11 +10,20 @@ public class Symbol {
   private final int line;
   private final String type;
 
-  public Symbol(SymbolType symbolType, String name, int line, String type) {
+  @Json(name = "language_specifics")
+  private final LanguageSpecifics languageSpecifics;
+
+  public Symbol(
+      SymbolType symbolType,
+      String name,
+      int line,
+      String type,
+      LanguageSpecifics languageSpecifics) {
     this.symbolType = symbolType;
     this.name = name;
     this.line = line;
     this.type = type;
+    this.languageSpecifics = languageSpecifics;
   }
 
   public SymbolType getSymbolType() {
@@ -33,6 +42,10 @@ public class Symbol {
     return type;
   }
 
+  public LanguageSpecifics getLanguageSpecifics() {
+    return languageSpecifics;
+  }
+
   @Override
   public String toString() {
     return "Symbol{"
@@ -46,6 +59,8 @@ public class Symbol {
         + ", type='"
         + type
         + '\''
+        + ", languageSpecifics="
+        + languageSpecifics
         + '}';
   }
 }

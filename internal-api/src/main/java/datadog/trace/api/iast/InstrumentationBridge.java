@@ -13,6 +13,7 @@ import datadog.trace.api.iast.sink.NoSameSiteCookieModule;
 import datadog.trace.api.iast.sink.PathTraversalModule;
 import datadog.trace.api.iast.sink.SqlInjectionModule;
 import datadog.trace.api.iast.sink.SsrfModule;
+import datadog.trace.api.iast.sink.StacktraceLeakModule;
 import datadog.trace.api.iast.sink.TrustBoundaryViolationModule;
 import datadog.trace.api.iast.sink.UnvalidatedRedirectModule;
 import datadog.trace.api.iast.sink.WeakCipherModule;
@@ -21,14 +22,12 @@ import datadog.trace.api.iast.sink.WeakRandomnessModule;
 import datadog.trace.api.iast.sink.XContentTypeModule;
 import datadog.trace.api.iast.sink.XPathInjectionModule;
 import datadog.trace.api.iast.sink.XssModule;
-import datadog.trace.api.iast.source.WebModule;
 
 /** Bridge between instrumentations and {@link IastModule} instances. */
 public abstract class InstrumentationBridge {
 
   public static volatile StringModule STRING;
   public static volatile CodecModule CODEC;
-  public static volatile WebModule WEB;
   public static volatile SqlInjectionModule SQL_INJECTION;
   public static volatile PathTraversalModule PATH_TRAVERSAL;
   public static volatile CommandInjectionModule COMMAND_INJECTION;
@@ -53,6 +52,8 @@ public abstract class InstrumentationBridge {
 
   public static volatile XssModule XSS;
 
+  public static volatile StacktraceLeakModule STACKTRACE_LEAK_MODULE;
+
   private InstrumentationBridge() {}
 
   public static void registerIastModule(final IastModule module) {
@@ -60,8 +61,6 @@ public abstract class InstrumentationBridge {
       STRING = (StringModule) module;
     } else if (module instanceof CodecModule) {
       CODEC = (CodecModule) module;
-    } else if (module instanceof WebModule) {
-      WEB = (WebModule) module;
     } else if (module instanceof SqlInjectionModule) {
       SQL_INJECTION = (SqlInjectionModule) module;
     } else if (module instanceof PathTraversalModule) {
@@ -100,21 +99,21 @@ public abstract class InstrumentationBridge {
       TRUST_BOUNDARY_VIOLATION = (TrustBoundaryViolationModule) module;
     } else if (module instanceof XssModule) {
       XSS = (XssModule) module;
+    } else if (module instanceof StacktraceLeakModule) {
+      STACKTRACE_LEAK_MODULE = (StacktraceLeakModule) module;
     } else {
       throw new UnsupportedOperationException("Module not yet supported: " + module);
     }
   }
 
   /** Mainly used for testing modules */
+  @SuppressWarnings("unchecked")
   public static <E extends IastModule> E getIastModule(final Class<E> type) {
     if (type == StringModule.class) {
       return (E) STRING;
     }
     if (type == CodecModule.class) {
       return (E) CODEC;
-    }
-    if (type == WebModule.class) {
-      return (E) WEB;
     }
     if (type == SqlInjectionModule.class) {
       return (E) SQL_INJECTION;
@@ -173,6 +172,9 @@ public abstract class InstrumentationBridge {
     if (type == XssModule.class) {
       return (E) XSS;
     }
+    if (type == StacktraceLeakModule.class) {
+      return (E) STACKTRACE_LEAK_MODULE;
+    }
     throw new UnsupportedOperationException("Module not yet supported: " + type);
   }
 
@@ -180,7 +182,6 @@ public abstract class InstrumentationBridge {
   public static void clearIastModules() {
     STRING = null;
     CODEC = null;
-    WEB = null;
     SQL_INJECTION = null;
     PATH_TRAVERSAL = null;
     COMMAND_INJECTION = null;
@@ -200,5 +201,6 @@ public abstract class InstrumentationBridge {
     XPATH_INJECTION = null;
     TRUST_BOUNDARY_VIOLATION = null;
     XSS = null;
+    STACKTRACE_LEAK_MODULE = null;
   }
 }

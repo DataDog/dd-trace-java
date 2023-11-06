@@ -67,7 +67,7 @@ class IastOkHttp3InstrumentationTest extends AgentTestRunner {
 
   private void mockPropagation() {
     final propagation = Mock(PropagationModule) {
-      taintIfInputIsTainted(_, _) >> {
+      taintIfTainted(_, _) >> {
         if (tainteds.containsKey(it[1])) {
           tainteds.put(it[0], null)
         }

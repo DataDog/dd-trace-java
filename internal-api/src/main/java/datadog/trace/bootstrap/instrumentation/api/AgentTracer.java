@@ -519,7 +519,7 @@ public class AgentTracer {
   public static final class NoopAgentSpan implements AgentSpan {
     public static final NoopAgentSpan INSTANCE = new NoopAgentSpan();
 
-    protected NoopAgentSpan() {}
+    private NoopAgentSpan() {}
 
     @Override
     public DDTraceId getTraceId() {
@@ -806,6 +806,9 @@ public class AgentTracer {
     public TraceConfig traceConfig() {
       return NoopTraceConfig.INSTANCE;
     }
+
+    @Override
+    public void addLink(AgentSpanLink link) {}
   }
 
   public static final class NoopAgentScope implements AgentScope {
@@ -1020,7 +1023,10 @@ public class AgentTracer {
 
     @Override
     public void setCheckpoint(
-        AgentSpan span, LinkedHashMap<String, String> sortedTags, long defaultTimestamp) {}
+        AgentSpan span,
+        LinkedHashMap<String, String> sortedTags,
+        long defaultTimestamp,
+        long payloadSizeBytes) {}
 
     @Override
     public PathwayContext newPathwayContext() {
@@ -1051,6 +1057,13 @@ public class AgentTracer {
     public long getHash() {
       return 0L;
     }
+
+    @Override
+    public void setCheckpoint(
+        LinkedHashMap<String, String> sortedTags,
+        Consumer<StatsPoint> pointConsumer,
+        long defaultTimestamp,
+        long payloadSizeBytes) {}
 
     @Override
     public void setCheckpoint(

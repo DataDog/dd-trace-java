@@ -264,15 +264,24 @@ class DDSpanContextTest extends DDCoreSpecification {
       .start()
 
     then: "encoded operation name matches operation name"
-    1 * profilingContextIntegration.encode("fakeOperation") >> 1
+    1 * profilingContextIntegration.encodeOperationName("fakeOperation") >> 1
+    1 * profilingContextIntegration.encodeResourceName("fakeResource") >> -1
     span.context.encodedOperationName == 1
+    span.context.encodedResourceName == -1
 
     when:
     span.setOperationName("newOperationName")
 
     then:
-    1 * profilingContextIntegration.encode("newOperationName") >> 2
+    1 * profilingContextIntegration.encodeOperationName("newOperationName") >> 2
     span.context.encodedOperationName == 2
+
+    when:
+    span.setResourceName("newResourceName")
+
+    then:
+    1 * profilingContextIntegration.encodeResourceName("newResourceName") >> -2
+    span.context.encodedResourceName == -2
   }
 
   private static String dataTag(String tag) {

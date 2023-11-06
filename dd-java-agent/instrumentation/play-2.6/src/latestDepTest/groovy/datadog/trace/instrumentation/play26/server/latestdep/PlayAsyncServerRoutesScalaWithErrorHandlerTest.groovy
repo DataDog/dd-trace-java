@@ -74,11 +74,6 @@ class PlayAsyncServerRoutesScalaWithErrorHandlerTest extends PlayServerWithError
     }
   }
 
-  @Override
-  Map<String, Serializable> expectedExtraServerTags(HttpServerTest.ServerEndpoint endpoint) {
-    [(Tags.HTTP_ROUTE): routeFor(endpoint)]
-  }
-
   // we set Tags.HTTP_ROUTE with a routes file; override method for this
   @Override
   void handlerSpan(TraceAssert trace, HttpServerTest.ServerEndpoint endpoint = SUCCESS) {
@@ -92,7 +87,7 @@ class PlayAsyncServerRoutesScalaWithErrorHandlerTest extends PlayServerWithError
       tags {
         "$Tags.COMPONENT" PlayHttpServerDecorator.DECORATE.component()
         "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
-        "$Tags.PEER_HOST_IPV4" { it == (endpoint == FORWARDED ? endpoint.body : "127.0.0.1") }
+        "$Tags.PEER_HOST_IPV4" '127.0.0.1'
         "$Tags.HTTP_CLIENT_IP" { it == (endpoint == FORWARDED ? endpoint.body : "127.0.0.1") }
         "$Tags.HTTP_URL" String
         "$Tags.HTTP_HOSTNAME" address.host

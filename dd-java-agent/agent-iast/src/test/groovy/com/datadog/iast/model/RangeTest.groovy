@@ -35,7 +35,7 @@ class RangeTest extends DDSpecification {
   def 'shift zero'() {
     given:
     final source = new Source(SourceTypes.NONE, null, null)
-    final orig = new Range(0, 1, source, Range.NOT_MARKED)
+    final orig = new Range(0, 1, source, VulnerabilityMarks.NOT_MARKED)
 
     when:
     final result = orig.shift(0)

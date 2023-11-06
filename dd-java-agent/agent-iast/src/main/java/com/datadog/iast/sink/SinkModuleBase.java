@@ -3,7 +3,7 @@ package com.datadog.iast.sink;
 import static com.datadog.iast.util.ObjectVisitor.State.CONTINUE;
 import static com.datadog.iast.util.ObjectVisitor.State.EXIT;
 
-import com.datadog.iast.HasDependencies;
+import com.datadog.iast.Dependencies;
 import com.datadog.iast.IastRequestContext;
 import com.datadog.iast.Reporter;
 import com.datadog.iast.model.Evidence;
@@ -29,14 +29,13 @@ import javax.annotation.Nullable;
 
 /** Base class with utility methods for with sinks */
 @SuppressWarnings({"UnusedReturnValue", "SameParameterValue"})
-public abstract class SinkModuleBase implements HasDependencies {
+public abstract class SinkModuleBase {
 
-  protected OverheadController overheadController;
-  protected Reporter reporter;
-  protected StackWalker stackWalker;
+  protected final OverheadController overheadController;
+  protected final Reporter reporter;
+  protected final StackWalker stackWalker;
 
-  @Override
-  public void registerDependencies(@Nonnull final Dependencies dependencies) {
+  protected SinkModuleBase(@Nonnull final Dependencies dependencies) {
     overheadController = dependencies.getOverheadController();
     reporter = dependencies.getReporter();
     stackWalker = dependencies.getStackWalker();
@@ -89,6 +88,9 @@ public abstract class SinkModuleBase implements HasDependencies {
     if (rangeProvider.size() == 1) {
       // only one item and has ranges
       final E item = rangeProvider.value(0);
+      if (item == null) {
+        return null; // should never happen
+      }
       evidence = item.toString();
       targetRanges = rangeProvider.ranges(item);
     } else {
@@ -177,10 +179,6 @@ public abstract class SinkModuleBase implements HasDependencies {
     return stackWalker.walk(SinkModuleBase::findValidPackageForVulnerability);
   }
 
-  protected String getServiceName(final AgentSpan span) {
-    return span != null ? span.getServiceName() : null;
-  }
-
   static StackTraceElement findValidPackageForVulnerability(
       @Nonnull final Stream<StackTraceElement> stream) {
     final StackTraceElement[] first = new StackTraceElement[1];
@@ -198,13 +196,13 @@ public abstract class SinkModuleBase implements HasDependencies {
 
   private class InjectionVisitor implements Visitor {
 
-    private final AgentSpan span;
+    @Nullable private final AgentSpan span;
     private final IastRequestContext ctx;
     private final InjectionType type;
-    private Evidence evidence;
+    @Nullable private Evidence evidence;
 
     private InjectionVisitor(
-        final AgentSpan span, final IastRequestContext ctx, final InjectionType type) {
+        @Nullable final AgentSpan span, final IastRequestContext ctx, final InjectionType type) {
       this.span = span;
       this.ctx = ctx;
       this.type = type;

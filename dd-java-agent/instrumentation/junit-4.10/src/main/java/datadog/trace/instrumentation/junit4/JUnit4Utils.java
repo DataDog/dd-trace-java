@@ -293,6 +293,9 @@ public abstract class JUnit4Utils {
 
   public static boolean isSuiteContainingChildren(final Description description) {
     Class<?> testClass = description.getTestClass();
+    if (testClass == null) {
+      return false;
+    }
     for (Method method : testClass.getMethods()) {
       if (method.getAnnotation(Test.class) != null) {
         return true;

@@ -327,24 +327,12 @@ public class CapturedContext implements ValueReferenceResolver {
           ValueReferences.DURATION_EXTENSION_NAME, duration / 1_000_000.0); // convert to ms
     }
     this.thisClassName = thisClassName;
-    boolean shouldEvaluate = resolveEvaluateAt(probeImplementation, methodLocation);
+    boolean shouldEvaluate =
+        MethodLocation.isSame(methodLocation, probeImplementation.getEvaluateAt());
     if (shouldEvaluate) {
-      probeImplementation.evaluate(this, status);
+      probeImplementation.evaluate(this, status, methodLocation);
     }
     return status;
-  }
-
-  private static boolean resolveEvaluateAt(
-      ProbeImplementation probeImplementation, MethodLocation methodLocation) {
-    if (methodLocation == MethodLocation.DEFAULT) {
-      // line probe, no evaluation of probe's evaluateAt
-      return true;
-    }
-    MethodLocation localEvaluateAt = probeImplementation.getEvaluateAt();
-    if (methodLocation == MethodLocation.ENTRY) {
-      return localEvaluateAt == MethodLocation.DEFAULT || localEvaluateAt == MethodLocation.ENTRY;
-    }
-    return localEvaluateAt == methodLocation;
   }
 
   public Status getStatus(String probeId) {

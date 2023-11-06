@@ -29,7 +29,10 @@ public class StatsBucket {
       hashToGroup.put(statsPoint.getHash(), statsGroup);
     }
 
-    statsGroup.add(statsPoint.getPathwayLatencyNano(), statsPoint.getEdgeLatencyNano());
+    statsGroup.add(
+        statsPoint.getPathwayLatencyNano(),
+        statsPoint.getEdgeLatencyNano(),
+        statsPoint.getPayloadSizeBytes());
   }
 
   public void addBacklog(Backlog backlog) {

@@ -30,7 +30,7 @@ public final class CorrelationAccess {
     MethodHandle traceIdHandle = null;
     MethodHandle spanIdHandle = null;
     // ignore correlations if tracer is not enabled
-    if (ConfigProvider.getInstance().getBoolean(TraceInstrumentationConfig.TRACE_ENABLED, false)) {
+    if (ConfigProvider.getInstance().getBoolean(TraceInstrumentationConfig.TRACE_ENABLED, true)) {
       try {
         Class<?> clz =
             ClassLoader.getSystemClassLoader().loadClass(CORRELATION_IDENTIFIER_CLASSNAME);

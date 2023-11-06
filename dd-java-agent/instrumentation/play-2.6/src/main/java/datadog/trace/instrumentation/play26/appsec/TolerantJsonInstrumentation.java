@@ -9,8 +9,10 @@ import akka.util.ByteString;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.google.auto.service.AutoService;
 import datadog.appsec.api.blocking.BlockingException;
+import datadog.trace.advice.RequiresRequestContext;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.muzzle.Reference;
+import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.instrumentation.play26.MuzzleReferences;
 import net.bytebuddy.asm.Advice;
 import play.mvc.Http;
@@ -56,6 +58,7 @@ public class TolerantJsonInstrumentation extends Instrumenter.AppSec
         TolerantJsonInstrumentation.class.getName() + "$ParseAdvice");
   }
 
+  @RequiresRequestContext(RequestContextSlot.APPSEC)
   static class ParseAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
     static void after(@Advice.Return JsonNode ret, @Advice.Thrown(readOnly = false) Throwable t) {

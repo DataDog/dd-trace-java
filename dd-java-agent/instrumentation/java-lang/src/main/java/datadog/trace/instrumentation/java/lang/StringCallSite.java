@@ -1,5 +1,7 @@
 package datadog.trace.instrumentation.java.lang;
 
+import static datadog.trace.api.iast.VulnerabilityMarks.NOT_MARKED;
+
 import datadog.trace.agent.tooling.csi.CallSite;
 import datadog.trace.api.iast.IastCallSites;
 import datadog.trace.api.iast.InstrumentationBridge;
@@ -327,7 +329,7 @@ public class StringCallSite {
     final PropagationModule module = InstrumentationBridge.PROPAGATION;
     if (module != null) {
       try {
-        module.taintObjectIfInputIsTaintedKeepingRanges(result, self);
+        module.taintIfTainted(result, self, true, NOT_MARKED);
       } catch (final Throwable e) {
         module.onUnexpectedException("afterToCharArray threw", e);
       }

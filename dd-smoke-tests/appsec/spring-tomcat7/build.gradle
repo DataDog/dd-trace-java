@@ -1,0 +1,33 @@
+plugins {
+  id "com.github.johnrengelman.shadow"
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+description = 'Spring Tomcat7 Smoke Tests.'
+
+jar {
+  manifest {
+    attributes('Main-Class': 'datadog.smoketest.appsec.springtomcat7.Main')
+  }
+}
+
+dependencies {
+  implementation group: 'org.apache.tomcat.embed', name: 'tomcat-embed-jasper', version: '7.0.47'
+  implementation group: 'org.apache.tomcat.embed', name: 'tomcat-embed-core', version: '7.0.47'
+  implementation group: 'org.apache.tomcat', name: 'tomcat-juli', version: '7.0.47'
+  implementation group: 'org.springframework', name: 'spring-webmvc', version: '4.0.0.RELEASE'
+
+  testImplementation project(':dd-smoke-tests:appsec')
+}
+
+tasks.withType(Test).configureEach {
+  dependsOn "shadowJar"
+
+  jvmArgs "-Ddatadog.smoketest.appsec.springtomcat7.shadowJar.path=${tasks.shadowJar.archiveFile.get()}"
+}
+
+task testRuntimeActivation(type: Test) {
+  jvmArgs '-Dsmoke_test.appsec.enabled=inactive',
+    "-Ddatadog.smoketest.appsec.springtomcat7.shadowJar.path=${tasks.shadowJar.archiveFile.get()}"
+}
+tasks['check'].dependsOn(testRuntimeActivation)

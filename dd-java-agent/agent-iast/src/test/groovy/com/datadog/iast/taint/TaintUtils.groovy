@@ -4,7 +4,7 @@ import com.datadog.iast.model.Range
 import com.datadog.iast.model.Source
 import datadog.trace.api.iast.SourceTypes
 
-import static com.datadog.iast.model.Range.NOT_MARKED
+import static datadog.trace.api.iast.VulnerabilityMarks.NOT_MARKED
 
 class TaintUtils {
 
@@ -76,7 +76,7 @@ class TaintUtils {
     if (value instanceof String) {
       return addFromTaintFormat(tos, value as String)
     }
-    tos.taintInputObject(value, new Source(SourceTypes.NONE, null, null))
+    tos.taint(value, Ranges.forObject(new Source(SourceTypes.NONE, null, null)))
     return value
   }
 

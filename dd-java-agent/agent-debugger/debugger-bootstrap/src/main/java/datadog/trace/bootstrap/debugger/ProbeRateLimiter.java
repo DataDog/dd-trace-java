@@ -7,6 +7,7 @@ import java.time.Duration;
 import java.time.temporal.ChronoUnit;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.function.DoubleFunction;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -23,6 +24,7 @@ public class ProbeRateLimiter {
       new ConcurrentHashMap<>();
   private static Sampler GLOBAL_SNAPSHOT_SAMPLER = createSampler(DEFAULT_GLOBAL_SNAPSHOT_RATE);
   private static Sampler GLOBAL_LOG_SAMPLER = createSampler(DEFAULT_GLOBAL_LOG_RATE);
+  private static DoubleFunction<Sampler> samplerSupplier = ProbeRateLimiter::createSampler;
 
   public static boolean tryProbe(String probeId) {
     RateLimitInfo rateLimitInfo =
@@ -37,19 +39,19 @@ public class ProbeRateLimiter {
 
   private static RateLimitInfo getDefaultRateLimitInfo(String probeId) {
     LOGGER.debug("Setting sampling with default snapshot rate for probeId={}", probeId);
-    return new RateLimitInfo(createSampler(DEFAULT_SNAPSHOT_RATE), true);
+    return new RateLimitInfo(samplerSupplier.apply(DEFAULT_SNAPSHOT_RATE), true);
   }
 
   public static void setRate(String probeId, double rate, boolean isCaptureSnapshot) {
-    PROBE_SAMPLERS.put(probeId, new RateLimitInfo(createSampler(rate), isCaptureSnapshot));
+    PROBE_SAMPLERS.put(probeId, new RateLimitInfo(samplerSupplier.apply(rate), isCaptureSnapshot));
   }
 
   public static void setGlobalSnapshotRate(double rate) {
-    GLOBAL_SNAPSHOT_SAMPLER = createSampler(rate);
+    GLOBAL_SNAPSHOT_SAMPLER = samplerSupplier.apply(rate);
   }
 
   public static void setGlobalLogRate(double rate) {
-    GLOBAL_LOG_SAMPLER = createSampler(rate);
+    GLOBAL_LOG_SAMPLER = samplerSupplier.apply(rate);
   }
 
   public static void resetRate(String probeId) {
@@ -65,15 +67,20 @@ public class ProbeRateLimiter {
     resetGlobalRate();
   }
 
+  public static void setSamplerSupplier(DoubleFunction<Sampler> samplerSupplier) {
+    ProbeRateLimiter.samplerSupplier =
+        samplerSupplier != null ? samplerSupplier : ProbeRateLimiter::createSampler;
+  }
+
   private static Sampler createSampler(double rate) {
     if (rate < 0) {
       return new ConstantSampler(true);
     }
     if (rate < 1) {
       int intRate = (int) Math.round(rate * 10);
-      return new AdaptiveSampler(TEN_SECONDS_WINDOW, intRate, 180, 16);
+      return new AdaptiveSampler(TEN_SECONDS_WINDOW, intRate, 180, 16, true);
     }
-    return new AdaptiveSampler(ONE_SECOND_WINDOW, (int) Math.round(rate), 180, 16);
+    return new AdaptiveSampler(ONE_SECOND_WINDOW, (int) Math.round(rate), 180, 16, true);
   }
 
   private static class RateLimitInfo {

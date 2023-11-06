@@ -8,8 +8,11 @@ import datadog.trace.api.DDTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.instrumentation.play26.PlayHttpServerDecorator
 import groovy.transform.CompileStatic
+import okhttp3.MediaType
+import okhttp3.RequestBody
 import play.server.Server
 
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_XML
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.CUSTOM_EXCEPTION
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.FORWARDED
@@ -125,8 +128,8 @@ class PlayServerTest extends HttpServerTest<Server> {
       tags {
         "$Tags.COMPONENT" PlayHttpServerDecorator.DECORATE.component()
         "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
-        "$Tags.PEER_HOST_IPV4" { it == (endpoint == FORWARDED ? endpoint.body : "127.0.0.1") }
-        "$Tags.HTTP_CLIENT_IP" { it == (endpoint == FORWARDED ? endpoint.body : "127.0.0.1") }
+        "$Tags.PEER_HOST_IPV4" '127.0.0.1'
+        "$Tags.HTTP_CLIENT_IP" { it == (endpoint == FORWARDED ? endpoint.body : '127.0.0.1') }
         "$Tags.HTTP_URL" String
         "$Tags.HTTP_HOSTNAME" address.host
         "$Tags.HTTP_METHOD" String
@@ -140,6 +143,31 @@ class PlayServerTest extends HttpServerTest<Server> {
         }
         defaultTags()
       }
+    }
+  }
+
+  def 'test instrumentation gateway xml request body'() {
+    setup:
+    def request = request(
+      BODY_XML, 'POST',
+      RequestBody.create(MediaType.get('text/xml'), '<foo attr="attr_value">mytext<bar></bar></foo>'))
+      .build()
+    def response = client.newCall(request).execute()
+    if (isDataStreamsEnabled()) {
+      TEST_DATA_STREAMS_WRITER.waitForGroups(1)
+    }
+    String body = response.body().charStream().text
+
+
+    expect:
+    body == BODY_XML.body || body == '<?xml version="1.0" encoding="UTF-8"?><foo attr="attr_value">mytext<bar/></foo>'
+
+    when:
+    TEST_WRITER.waitForTraces(1)
+
+    then:
+    TEST_WRITER.get(0).any {
+      it.getTag('request.body.converted') == '[[children:[mytext, [:]], attributes:[attr:attr_value]]]'
     }
   }
 }
