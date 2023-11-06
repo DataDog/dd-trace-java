@@ -456,8 +456,8 @@ class JUnit4Test extends CiVisibilityTest {
     })
 
     where:
-    testTags_0 = [(Tags.TEST_PARAMETERS): '{"metadata":{"test_name":"parameterized_test_succeed[0]"}}']
-    testTags_1 = [(Tags.TEST_PARAMETERS): '{"metadata":{"test_name":"parameterized_test_succeed[1]"}}']
+    testTags_0 = [(Tags.TEST_PARAMETERS): '{"metadata":{"test_name":"parameterized_test_succeed[str1]"}}']
+    testTags_1 = [(Tags.TEST_PARAMETERS): '{"metadata":{"test_name":"parameterized_test_succeed[\\"str2\\"]"}}']
   }
 
   def "test ITR skipping"() {
@@ -529,11 +529,11 @@ class JUnit4Test extends CiVisibilityTest {
 
     where:
     testTags_0 = [
-      (Tags.TEST_PARAMETERS): '{"metadata":{"test_name":"parameterized_test_succeed[0]"}}',
+      (Tags.TEST_PARAMETERS): '{"metadata":{"test_name":"parameterized_test_succeed[str1]"}}',
       (Tags.TEST_SKIP_REASON): "Skipped by Datadog Intelligent Test Runner",
       (Tags.TEST_SKIPPED_BY_ITR): true
     ]
-    testTags_1 = [(Tags.TEST_PARAMETERS): '{"metadata":{"test_name":"parameterized_test_succeed[1]"}}']
+    testTags_1 = [(Tags.TEST_PARAMETERS): '{"metadata":{"test_name":"parameterized_test_succeed[\\"str2\\"]"}}']
   }
 
   def "test ITR unskippable"() {

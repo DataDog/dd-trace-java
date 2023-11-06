@@ -33,6 +33,7 @@ import datadog.trace.bootstrap.debugger.DebuggerContext;
 import datadog.trace.bootstrap.debugger.MethodLocation;
 import datadog.trace.bootstrap.debugger.ProbeId;
 import datadog.trace.bootstrap.debugger.ProbeImplementation;
+import datadog.trace.bootstrap.debugger.util.Redaction;
 import datadog.trace.core.CoreTracer;
 import java.io.IOException;
 import java.net.URISyntaxException;
@@ -41,6 +42,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import org.joor.Reflect;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -58,6 +60,13 @@ public class SpanDecorationProbeInstrumentationTest extends ProbeInstrumentation
     CoreTracer tracer = CoreTracer.builder().build();
     TracerInstaller.forceInstallGlobalTracer(tracer);
     tracer.addTraceInterceptor(traceInterceptor);
+  }
+
+  @Override
+  @AfterEach
+  public void after() {
+    super.after();
+    Redaction.clearUserDefinedTypes();
   }
 
   @Test
@@ -360,6 +369,92 @@ public class SpanDecorationProbeInstrumentationTest extends ProbeInstrumentation
         snapshot.getEvaluationErrors().get(2).getMessage());
   }
 
+  @Test
+  public void typeRedaction() throws IOException, URISyntaxException {
+    final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot28";
+    Config config = mock(Config.class);
+    when(config.getDebuggerRedactedTypes())
+        .thenReturn("com.datadog.debugger.CapturedSnapshot28$Creds");
+    Redaction.addUserDefinedTypes(config);
+    SpanDecorationProbe.Decoration decoration1 = createDecoration("tag1", "{creds}");
+    SpanDecorationProbe.Decoration decoration2 = createDecoration("tag2", "{this.creds}");
+    SpanDecorationProbe.Decoration decoration3 = createDecoration("tag3", "{credMap['dave']}");
+    List<SpanDecorationProbe.Decoration> decorations =
+        Arrays.asList(decoration1, decoration2, decoration3);
+    installSingleSpanDecoration(
+        CLASS_NAME, ACTIVE, decorations, "process", "int (java.lang.String)");
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    int result = Reflect.on(testClass).call("main", "secret123").get();
+    assertEquals(42, result);
+    MutableSpan span = traceInterceptor.getFirstSpan();
+    assertFalse(span.getTags().containsKey("tag1"));
+    assertEquals(PROBE_ID.getId(), span.getTags().get("_dd.di.tag1.probe_id"));
+    assertEquals(
+        "Could not evaluate the expression because 'creds' was redacted",
+        span.getTags().get("_dd.di.tag1.evaluation_error"));
+    assertFalse(span.getTags().containsKey("tag2"));
+    assertEquals(PROBE_ID.getId(), span.getTags().get("_dd.di.tag2.probe_id"));
+    assertEquals(
+        "Could not evaluate the expression because 'this.creds' was redacted",
+        span.getTags().get("_dd.di.tag2.evaluation_error"));
+    assertFalse(span.getTags().containsKey("tag3"));
+    assertEquals(PROBE_ID.getId(), span.getTags().get("_dd.di.tag3.probe_id"));
+    assertEquals(
+        "Could not evaluate the expression because 'credMap[\"dave\"]' was redacted",
+        span.getTags().get("_dd.di.tag3.evaluation_error"));
+  }
+
+  @Test
+  public void typeRedactionConditions() throws IOException, URISyntaxException {
+    final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot28";
+    Config config = mock(Config.class);
+    when(config.getDebuggerRedactedTypes())
+        .thenReturn("com.datadog.debugger.CapturedSnapshot28$Creds");
+    Redaction.addUserDefinedTypes(config);
+    SpanDecorationProbe.Decoration decoration1 =
+        createDecoration(
+            DSL.contains(
+                DSL.getMember(DSL.getMember(DSL.ref("this"), "creds"), "secretCode"),
+                new StringValue("123")),
+            "contains(this.creds.secretCode, '123')",
+            "tag1",
+            "foo");
+    SpanDecorationProbe.Decoration decoration2 =
+        createDecoration(
+            DSL.eq(DSL.getMember(DSL.ref("creds"), "secretCode"), DSL.value("123")),
+            "creds.secretCode == '123'",
+            "tag2",
+            "foo");
+    SpanDecorationProbe.Decoration decoration3 =
+        createDecoration(
+            DSL.eq(DSL.index(DSL.ref("credMap"), DSL.value("dave")), DSL.value("123")),
+            "credMap['dave'] == '123'",
+            "tag3",
+            "foo");
+    List<SpanDecorationProbe.Decoration> decorations =
+        Arrays.asList(decoration1, decoration2, decoration3);
+    installSingleSpanDecoration(
+        CLASS_NAME, ACTIVE, decorations, "process", "int (java.lang.String)");
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    int result = Reflect.on(testClass).call("main", "secret123").get();
+    assertEquals(42, result);
+    assertFalse(traceInterceptor.getFirstSpan().getTags().containsKey("tag1"));
+    assertFalse(traceInterceptor.getFirstSpan().getTags().containsKey("tag2"));
+    assertFalse(traceInterceptor.getFirstSpan().getTags().containsKey("tag3"));
+    assertEquals(1, mockSink.getSnapshots().size());
+    Snapshot snapshot = mockSink.getSnapshots().get(0);
+    assertEquals(3, snapshot.getEvaluationErrors().size());
+    assertEquals(
+        "Could not evaluate the expression because 'this.creds' was redacted",
+        snapshot.getEvaluationErrors().get(0).getMessage());
+    assertEquals(
+        "Could not evaluate the expression because 'creds' was redacted",
+        snapshot.getEvaluationErrors().get(1).getMessage());
+    assertEquals(
+        "Could not evaluate the expression because 'credMap[\"dave\"]' was redacted",
+        snapshot.getEvaluationErrors().get(2).getMessage());
+  }
+
   private SpanDecorationProbe.Decoration createDecoration(String tagName, String valueDsl) {
     List<SpanDecorationProbe.Tag> tags =
         Arrays.asList(
@@ -489,6 +584,7 @@ public class SpanDecorationProbeInstrumentationTest extends ProbeInstrumentation
     when(config.isDebuggerClassFileDumpEnabled()).thenReturn(true);
     when(config.getFinalDebuggerSnapshotUrl())
         .thenReturn("http://localhost:8126/debugger/v1/input");
+    when(config.getFinalDebuggerSymDBUrl()).thenReturn("http://localhost:8126/symdb/v1/input");
     probeStatusSink = mock(ProbeStatusSink.class);
     currentTransformer =
         new DebuggerTransformer(

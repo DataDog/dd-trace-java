@@ -46,4 +46,8 @@ public class MoshiHelper {
     ParameterizedType type = Types.newParameterizedType(Map.class, String.class, Object.class);
     return new Moshi.Builder().build().adapter(type);
   }
+
+  public static Moshi createMoshiSymbol() {
+    return new Moshi.Builder().build();
+  }
 }

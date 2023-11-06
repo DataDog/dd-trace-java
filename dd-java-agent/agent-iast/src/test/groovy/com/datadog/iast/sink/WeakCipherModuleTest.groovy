@@ -12,7 +12,7 @@ class WeakCipherModuleTest extends IastModuleImplTestBase {
   private WeakCipherModule module
 
   def setup() {
-    module = registerDependencies(new WeakCipherModuleImpl())
+    module = new WeakCipherModuleImpl(dependencies)
   }
 
   void 'iast module vulnerable cipher algorithm'(final String algorithm){

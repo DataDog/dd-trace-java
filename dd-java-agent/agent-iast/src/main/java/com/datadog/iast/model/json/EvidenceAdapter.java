@@ -31,8 +31,12 @@ import java.util.Queue;
 import java.util.stream.Collectors;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class EvidenceAdapter extends FormattingAdapter<Evidence> {
+
+  private static final Logger log = LoggerFactory.getLogger(EvidenceAdapter.class);
 
   private final JsonAdapter<Source> sourceAdapter;
   private final JsonAdapter<Evidence> defaultAdapter;
@@ -59,15 +63,23 @@ public class EvidenceAdapter extends FormattingAdapter<Evidence> {
   }
 
   private String substring(final String value, final Ranged range) {
-    final int end = Math.min(range.getStart() + range.getLength(), value.length());
+    int end = Math.min(range.getStart() + range.getLength(), value.length());
+    if (end < 0) {
+      log.debug("Invalid negative end parameter for substring. Value: {} Range: {}", value, range);
+      end = value.length();
+    }
     return value.substring(range.getStart(), end);
   }
 
   private class DefaultEvidenceAdapter extends FormattingAdapter<Evidence> {
 
     @Override
-    public void toJson(@Nonnull final JsonWriter writer, final @Nonnull Evidence evidence)
+    public void toJson(@Nonnull final JsonWriter writer, final @Nullable Evidence evidence)
         throws IOException {
+      if (evidence == null) {
+        writer.nullValue();
+        return;
+      }
       writer.beginObject();
       if (evidence.getRanges() == null || evidence.getRanges().length == 0) {
         writer.name("value");
@@ -124,8 +136,12 @@ public class EvidenceAdapter extends FormattingAdapter<Evidence> {
   private class RedactedEvidenceAdapter extends FormattingAdapter<Evidence> {
 
     @Override
-    public void toJson(@Nonnull final JsonWriter writer, @Nonnull final Evidence evidence)
+    public void toJson(@Nonnull final JsonWriter writer, @Nullable final Evidence evidence)
         throws IOException {
+      if (evidence == null) {
+        writer.nullValue();
+        return;
+      }
       final Context ctx = Context.get();
       final Vulnerability vulnerability = ctx.vulnerability;
       if (vulnerability == null) {
@@ -155,7 +171,10 @@ public class EvidenceAdapter extends FormattingAdapter<Evidence> {
       writer.beginArray();
       for (final Iterator<ValuePart> it = new ValuePartIterator(ctx, value, tainted, sensitive);
           it.hasNext(); ) {
-        it.next().write(ctx, writer);
+        final ValuePart next = it.next();
+        if (next != null) {
+          next.write(ctx, writer);
+        }
       }
       writer.endArray();
     }
@@ -197,6 +216,7 @@ public class EvidenceAdapter extends FormattingAdapter<Evidence> {
       return !next.isEmpty() || index < value.length();
     }
 
+    @Nullable
     @Override
     public ValuePart next() {
       if (!hasNext()) {
@@ -229,6 +249,7 @@ public class EvidenceAdapter extends FormattingAdapter<Evidence> {
       return next.poll();
     }
 
+    @Nullable
     private Ranged handleTaintedValue(
         @Nonnull final Range nextTainted, @Nullable Ranged nextSensitive) {
       final RedactionContext redactionCtx = ctx.getRedaction(nextTainted.getSource());
@@ -282,6 +303,7 @@ public class EvidenceAdapter extends FormattingAdapter<Evidence> {
      * Removes the tainted range from the sensitive one and returns whatever is before and enqueues
      * the rest
      */
+    @Nullable
     private Ranged removeTaintedRange(final Ranged sensitive, final Range tainted) {
       final List<Ranged> disjointRanges = sensitive.remove(tainted);
       Ranged result = null;
@@ -295,6 +317,7 @@ public class EvidenceAdapter extends FormattingAdapter<Evidence> {
       return result;
     }
 
+    @Nullable
     private ValuePart nextStringValuePart(final int end) {
       if (index < end) {
         final String chunk = value.substring(index, end);
@@ -317,9 +340,10 @@ public class EvidenceAdapter extends FormattingAdapter<Evidence> {
   }
 
   static class StringValuePart implements ValuePart {
-    private final String value;
 
-    private StringValuePart(final String value) {
+    @Nullable private final String value;
+
+    private StringValuePart(@Nullable final String value) {
       this.value = value;
     }
 
@@ -435,11 +459,13 @@ public class EvidenceAdapter extends FormattingAdapter<Evidence> {
           valueParts.add(new TaintedValuePart(adapter, source, chunk, false));
         } else {
           final int length = chunk.length();
-          final int matching = source.getValue().indexOf(chunk);
+          final String sourceValue = source.getValue();
+          final String redactedValue = ctx.getRedactedValue();
+          final int matching = (sourceValue == null) ? -1 : sourceValue.indexOf(chunk);
           final String pattern;
-          if (matching >= 0) {
+          if (matching >= 0 && redactedValue != null) {
             // if matches append the matching part from the redacted value
-            pattern = ctx.getRedactedValue().substring(matching, matching + length);
+            pattern = redactedValue.substring(matching, matching + length);
           } else {
             // otherwise redact the string
             pattern = SensitiveHandler.get().redactString(chunk);

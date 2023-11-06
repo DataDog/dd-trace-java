@@ -8,6 +8,7 @@ import datadog.trace.api.gateway.CallbackProvider;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
+import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Source;
 import datadog.trace.api.iast.SourceTypes;
@@ -80,7 +81,7 @@ public class InterceptorPreHandleAdvice {
     }
 
     { // iast
-      Object iastRequestContext = reqCtx.getData(RequestContextSlot.IAST);
+      IastContext iastRequestContext = reqCtx.getData(RequestContextSlot.IAST);
       if (iastRequestContext != null) {
         PropagationModule module = InstrumentationBridge.PROPAGATION;
         if (module != null) {
@@ -91,7 +92,7 @@ public class InterceptorPreHandleAdvice {
               continue; // should not happen
             }
             module.taint(
-                iastRequestContext, SourceTypes.REQUEST_PATH_PARAMETER, parameterName, value);
+                iastRequestContext, value, SourceTypes.REQUEST_PATH_PARAMETER, parameterName);
           }
         }
       }

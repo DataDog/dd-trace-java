@@ -3,6 +3,7 @@ package com.datadog.iast.sink;
 import static com.datadog.iast.util.HttpHeader.Values.SET_COOKIE;
 import static java.util.Collections.singletonList;
 
+import com.datadog.iast.Dependencies;
 import com.datadog.iast.IastRequestContext;
 import com.datadog.iast.model.Evidence;
 import com.datadog.iast.model.Location;
@@ -26,6 +27,10 @@ import javax.annotation.Nonnull;
 
 public class HttpResponseHeaderModuleImpl extends SinkModuleBase
     implements HttpResponseHeaderModule {
+
+  public HttpResponseHeaderModuleImpl(final Dependencies dependencies) {
+    super(dependencies);
+  }
 
   @Override
   public void onHeader(@Nonnull final String name, final String value) {

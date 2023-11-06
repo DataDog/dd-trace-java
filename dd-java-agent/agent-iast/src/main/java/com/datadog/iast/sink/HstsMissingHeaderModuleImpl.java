@@ -1,5 +1,6 @@
 package com.datadog.iast.sink;
 
+import com.datadog.iast.Dependencies;
 import com.datadog.iast.IastRequestContext;
 import com.datadog.iast.model.Location;
 import com.datadog.iast.model.Vulnerability;
@@ -22,6 +23,10 @@ public class HstsMissingHeaderModuleImpl extends SinkModuleBase implements HstsM
       Pattern.compile("max-age=(\\d+)", Pattern.CASE_INSENSITIVE);
 
   private static final Logger LOGGER = LoggerFactory.getLogger(HstsMissingHeaderModuleImpl.class);
+
+  public HstsMissingHeaderModuleImpl(final Dependencies dependencies) {
+    super(dependencies);
+  }
 
   @Override
   public void onRequestEnd(final Object iastRequestContextObject, final IGSpanInfo igSpanInfo) {
@@ -70,7 +75,7 @@ public class HstsMissingHeaderModuleImpl extends SinkModuleBase implements HstsM
     if (urlString == null) {
       return false;
     }
-    if (urlString.toLowerCase().startsWith("https://")) {
+    if (urlString.toLowerCase(Locale.ROOT).startsWith("https://")) {
       return true;
     }
     if (forwardedFor == null) {

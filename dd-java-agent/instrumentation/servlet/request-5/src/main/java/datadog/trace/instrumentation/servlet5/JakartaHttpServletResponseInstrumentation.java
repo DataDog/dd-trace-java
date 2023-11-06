@@ -82,7 +82,7 @@ public final class JakartaHttpServletResponseInstrumentation extends Instrumente
     @Sink(VulnerabilityTypes.RESPONSE_HEADER)
     public static void onEnter(
         @Advice.Argument(0) final String name, @Advice.Argument(1) String value) {
-      if (null != value && value.length() > 0) {
+      if (null != value && !value.isEmpty()) {
         HttpResponseHeaderModule mod = InstrumentationBridge.RESPONSE_HEADER_MODULE;
         if (mod != null) {
           mod.onHeader(name, value);
@@ -97,7 +97,7 @@ public final class JakartaHttpServletResponseInstrumentation extends Instrumente
     public static void onEnter(@Advice.Argument(0) final String location) {
       final UnvalidatedRedirectModule module = InstrumentationBridge.UNVALIDATED_REDIRECT;
       if (module != null) {
-        if (null != location && location.length() > 0) {
+        if (null != location && !location.isEmpty()) {
           module.onRedirect(location);
         }
       }
@@ -109,8 +109,8 @@ public final class JakartaHttpServletResponseInstrumentation extends Instrumente
     public static void onExit(@Advice.Argument(0) final String url, @Advice.Return String encoded) {
       final PropagationModule module = InstrumentationBridge.PROPAGATION;
       if (module != null) {
-        if (null != url && url.length() > 0 && null != encoded && encoded.length() > 0) {
-          module.taintIfInputIsTainted(encoded, url);
+        if (null != url && !url.isEmpty() && null != encoded && !encoded.isEmpty()) {
+          module.taintIfTainted(encoded, url);
         }
       }
     }

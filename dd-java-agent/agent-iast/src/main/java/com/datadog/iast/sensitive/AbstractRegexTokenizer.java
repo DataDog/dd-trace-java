@@ -4,11 +4,12 @@ import com.datadog.iast.util.Ranged;
 import java.util.NoSuchElementException;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import javax.annotation.Nullable;
 
 public abstract class AbstractRegexTokenizer implements SensitiveHandler.Tokenizer {
 
   protected final Matcher matcher;
-  private Ranged current;
+  @Nullable private Ranged current;
 
   protected AbstractRegexTokenizer(final Pattern pattern, final String evidence) {
     matcher = pattern.matcher(evidence);

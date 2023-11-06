@@ -30,10 +30,9 @@ public class GetMemberExpression implements ValueExpression<Value<?>> {
     } catch (RuntimeException ex) {
       throw new EvaluationException(ex.getMessage(), PrettyPrintVisitor.print(this), ex);
     }
-    if (member == Redaction.REDACTED_VALUE) {
-      String expr = PrettyPrintVisitor.print(this);
-      throw new EvaluationException(
-          "Could not evaluate the expression because '" + expr + "' was redacted", expr);
+    if (member == Redaction.REDACTED_VALUE
+        || (member != null && Redaction.isRedactedType(member.getClass().getTypeName()))) {
+      ExpressionHelper.throwRedactedException(this);
     }
     return Value.of(member);
   }

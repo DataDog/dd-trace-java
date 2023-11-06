@@ -53,7 +53,7 @@ public class RequestContextInstrumentation extends Instrumenter.Iast
         return;
       }
 
-      propagation.taintIfInputIsTainted(request, requestContext);
+      propagation.taintIfTainted(request, requestContext);
     }
   }
 }

@@ -37,7 +37,7 @@ public final class ResourcesFeatureInstrumentation extends AbstractNativeImageIn
         "dd-trace-api.version",
         "trace/dd-trace-core.version",
         "shared/dogstatsd/version.properties",
-        "shared/okhttp3/internal/publicsuffix/publicsuffixes.gz"
+        "shared/datadog/okhttp3/internal/publicsuffix/publicsuffixes.gz"
       };
 
       for (String original : tracerResources) {

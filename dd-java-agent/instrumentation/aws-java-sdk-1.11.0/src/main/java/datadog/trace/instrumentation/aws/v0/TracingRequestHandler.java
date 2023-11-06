@@ -127,7 +127,14 @@ public class TracingRequestHandler extends RequestHandler2 {
     final AgentSpan span = request.getHandlerContext(SPAN_CONTEXT_KEY);
     if (span != null) {
       request.addHandlerContext(SPAN_CONTEXT_KEY, null);
-      DECORATE.onError(span, e);
+      if (response != null) {
+        DECORATE.onResponse(span, response);
+        if (span.isError()) {
+          DECORATE.onError(span, e);
+        }
+      } else {
+        DECORATE.onError(span, e);
+      }
       DECORATE.beforeFinish(span);
       span.finish();
     }

@@ -50,7 +50,8 @@ public class SerializerWithLimits {
     MAX_DEPTH,
     FIELD_COUNT,
     TIMEOUT,
-    REDACTED
+    REDACTED_IDENT,
+    REDACTED_TYPE
   }
 
   public interface TokenWriter {
@@ -120,8 +121,14 @@ public class SerializerWithLimits {
       throw new IllegalArgumentException("Type is required for serialization");
     }
     tokenWriter.prologue(value, type);
+    NotCapturedReason reason = null;
     if (value == REDACTED_VALUE) {
-      tokenWriter.notCaptured(NotCapturedReason.REDACTED);
+      reason = NotCapturedReason.REDACTED_IDENT;
+    } else if (Redaction.isRedactedType(type)) {
+      reason = NotCapturedReason.REDACTED_TYPE;
+    }
+    if (reason != null) {
+      tokenWriter.notCaptured(reason);
       tokenWriter.epilogue(value);
       return;
     }

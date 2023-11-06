@@ -1,0 +1,45 @@
+plugins {
+  id 'java-test-fixtures'
+}
+
+// Support for 2.13 added in 3.2.0 https://issues.apache.org/jira/browse/SPARK-25075
+def sparkVersion = '3.2.0'
+def scalaVersion = '2.13'
+
+muzzle {
+  pass {
+    group = "org.apache.spark"
+    module = "spark-sql_$scalaVersion"
+    versions = "[$sparkVersion,)"
+    assertInverse = true
+  }
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+
+addTestSuiteForDir('latestDepTest', 'test')
+
+ext {
+  // Hadoop does not behave correctly with OpenJ9 https://issues.apache.org/jira/browse/HADOOP-18174
+  // Hadoop 3.3.1 (used by spark 3.2) does not support IBM java https://issues.apache.org/jira/browse/HADOOP-17971
+  excludeJdk = ['SEMERU8', 'SEMERU11', 'IBM8']
+
+  // Spark does not support Java > 11 until 3.3.0 https://issues.apache.org/jira/browse/SPARK-33772
+  maxJavaVersionForTests = JavaVersion.VERSION_11
+}
+
+dependencies {
+  implementation project(':dd-java-agent:instrumentation:spark')
+
+  compileOnly group: 'org.apache.spark', name: "spark-core_$scalaVersion", version: "$sparkVersion"
+  compileOnly group: 'org.apache.spark', name: "spark-sql_$scalaVersion", version: "$sparkVersion"
+
+  testImplementation(testFixtures(project(":dd-java-agent:instrumentation:spark")))
+  testImplementation group: 'org.apache.spark', name: "spark-core_$scalaVersion", version: "$sparkVersion"
+  testImplementation group: 'org.apache.spark', name: "spark-sql_$scalaVersion", version: "$sparkVersion"
+  testImplementation group: 'org.apache.spark', name: "spark-yarn_$scalaVersion", version: "$sparkVersion"
+
+  latestDepTestImplementation group: 'org.apache.spark', name: "spark-core_$scalaVersion", version: '+'
+  latestDepTestImplementation group: 'org.apache.spark', name: "spark-sql_$scalaVersion", version: '+'
+  latestDepTestImplementation group: 'org.apache.spark', name: "spark-yarn_$scalaVersion", version: '+'
+}

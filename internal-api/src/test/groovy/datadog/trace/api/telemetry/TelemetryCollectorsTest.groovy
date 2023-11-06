@@ -1,6 +1,8 @@
 package datadog.trace.api.telemetry
 
 import datadog.trace.api.ConfigCollector
+import datadog.trace.api.ConfigOrigin
+import datadog.trace.api.ConfigSetting
 import datadog.trace.api.IntegrationsCollector
 import datadog.trace.api.LogCollector
 import datadog.trace.api.metrics.SpanMetricRegistryImpl
@@ -36,12 +38,17 @@ class TelemetryCollectorsTest extends DDSpecification {
     ConfigCollector.get().collect()
 
     when:
-    ConfigCollector.get().put('key1', 'value1')
-    ConfigCollector.get().put('key2', 'value2')
-    ConfigCollector.get().put('key1', 'replaced')
+    ConfigCollector.get().put('key1', 'value1', ConfigOrigin.DEFAULT)
+    ConfigCollector.get().put('key2', 'value2', ConfigOrigin.ENV)
+    ConfigCollector.get().put('key1', 'replaced', ConfigOrigin.REMOTE)
+    ConfigCollector.get().put('key3', 'value3', ConfigOrigin.JVM_PROP)
 
     then:
-    ConfigCollector.get().collect() == [key1: 'replaced', key2: 'value2']
+    ConfigCollector.get().collect().values().toSet() == [
+      new ConfigSetting('key1', 'replaced', ConfigOrigin.REMOTE),
+      new ConfigSetting('key2', 'value2', ConfigOrigin.ENV),
+      new ConfigSetting('key3', 'value3', ConfigOrigin.JVM_PROP)
+    ] as Set
   }
 
   def "no metrics - drain empty list"() {
@@ -184,10 +191,10 @@ class TelemetryCollectorsTest extends DDSpecification {
     ConfigCollector.get().collect()
 
     when:
-    ConfigCollector.get().put('DD_API_KEY', 'sensitive data')
+    ConfigCollector.get().put('DD_API_KEY', 'sensitive data', ConfigOrigin.ENV)
 
     then:
-    ConfigCollector.get().collect().get('DD_API_KEY') == '<hidden>'
+    ConfigCollector.get().collect().get('DD_API_KEY').value == '<hidden>'
   }
 
   def "update-drain span core metrics"() {

@@ -258,11 +258,6 @@ public class ConfigurationUpdater
                 : getDefaultRateLimitPerProbe(probe),
             probe.isCaptureSnapshot());
       }
-      if (addedDefinitions instanceof SpanDecorationProbe) {
-        // Span decoration probes use the same instrumentation as log probes, but we don't want
-        // to sample here.
-        ProbeRateLimiter.setRate(addedDefinitions.getId(), -1, false);
-      }
     }
     // remove rate for all removed probes
     for (ProbeDefinition removedDefinition : changes.getRemovedDefinitions()) {

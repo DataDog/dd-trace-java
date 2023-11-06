@@ -12,4 +12,7 @@ public interface LogLevelSwitcher {
 
   /** Restore the LogLevel to the original setting. */
   void restore();
+
+  /** Re-execute logging settings initialization */
+  void reinitialize();
 }

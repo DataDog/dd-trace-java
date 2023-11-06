@@ -138,7 +138,6 @@ public class TracerDebuggerIntegrationTest extends BaseIntegrationTest {
   @Override
   protected ProcessBuilder createProcessBuilder(Path logFilePath, String... params) {
     List<String> commandParams = getDebuggerCommandParams();
-    commandParams.add("-Ddd.trace.enabled=true");
     commandParams.add(
         "-Ddd.trace.methods=datadog.smoketest.debugger.controller.WebController[processWithArg]");
     return ProcessBuilderHelper.createProcessBuilder(

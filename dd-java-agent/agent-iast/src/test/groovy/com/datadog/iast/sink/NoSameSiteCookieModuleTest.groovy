@@ -24,7 +24,7 @@ class NoSameSiteCookieModuleTest extends IastModuleImplTestBase {
 
   def setup() {
     InstrumentationBridge.clearIastModules()
-    module = registerDependencies(new HttpResponseHeaderModuleImpl())
+    module = new HttpResponseHeaderModuleImpl(dependencies)
     InstrumentationBridge.registerIastModule(new NoSameSiteCookieModuleImpl())
     objectHolder = []
     ctx = new IastRequestContext()

@@ -164,6 +164,7 @@ public class WriterFactory {
       TrackType trackType) {
     if (featuresDiscovery.supportsEvpProxy() && !config.isCiVisibilityAgentlessEnabled()) {
       return DDEvpProxyApi.builder()
+          .httpClient(commObjects.okHttpClient)
           .agentUrl(commObjects.agentUrl)
           .evpProxyEndpoint(featuresDiscovery.getEvpProxyEndpoint())
           .trackType(trackType)

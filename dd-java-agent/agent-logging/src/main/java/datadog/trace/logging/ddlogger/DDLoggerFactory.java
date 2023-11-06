@@ -83,6 +83,11 @@ public class DDLoggerFactory implements ILoggerFactory, LogLevelSwitcher {
     return factory;
   }
 
+  @Override
+  public void reinitialize() {
+    helperFactory = null;
+  }
+
   // DDLoggerFactory can be called at very early stage, before Config loaded
   // So to get property/env we use this custom fucntion
   private boolean getLogCollectionEnabled(boolean defaultValue) {

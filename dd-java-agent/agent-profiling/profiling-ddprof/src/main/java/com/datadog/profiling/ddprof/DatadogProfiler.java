@@ -16,6 +16,7 @@ import static com.datadog.profiling.ddprof.DatadogProfilerConfig.isAllocationPro
 import static com.datadog.profiling.ddprof.DatadogProfilerConfig.isCpuProfilerEnabled;
 import static com.datadog.profiling.ddprof.DatadogProfilerConfig.isLiveHeapSizeTrackingEnabled;
 import static com.datadog.profiling.ddprof.DatadogProfilerConfig.isMemoryLeakProfilingEnabled;
+import static com.datadog.profiling.ddprof.DatadogProfilerConfig.isResourceNameContextAttributeEnabled;
 import static com.datadog.profiling.ddprof.DatadogProfilerConfig.isSpanNameContextAttributeEnabled;
 import static com.datadog.profiling.ddprof.DatadogProfilerConfig.isWallClockProfilerEnabled;
 import static com.datadog.profiling.ddprof.DatadogProfilerConfig.omitLineNumbers;
@@ -58,6 +59,7 @@ public final class DatadogProfiler {
   private static final int[] EMPTY = new int[0];
 
   private static final String OPERATION = "_dd.trace.operation";
+  private static final String RESOURCE = "_dd.trace.resource";
 
   private static final int MAX_NUM_ENDPOINTS = 8192;
 
@@ -172,6 +174,9 @@ public final class DatadogProfiler {
     this.orderedContextAttributes = new ArrayList<>(contextAttributes);
     if (isSpanNameContextAttributeEnabled(configProvider)) {
       orderedContextAttributes.add(OPERATION);
+    }
+    if (isResourceNameContextAttributeEnabled(configProvider)) {
+      orderedContextAttributes.add(RESOURCE);
     }
     this.contextSetter = new ContextSetter(profiler, orderedContextAttributes);
     this.queueTimeThreshold =
@@ -365,6 +370,10 @@ public final class DatadogProfiler {
 
   public int operationNameOffset() {
     return offsetOf(OPERATION);
+  }
+
+  public int resourceNameOffset() {
+    return offsetOf(RESOURCE);
   }
 
   public int offsetOf(String attribute) {

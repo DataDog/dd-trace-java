@@ -68,7 +68,6 @@ excludedClassesCoverage += [
   "datadog.trace.bootstrap.instrumentation.api.StatsPoint",
   "datadog.trace.bootstrap.instrumentation.api.ScopeSource",
   "datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes",
-  "datadog.trace.bootstrap.instrumentation.api.SpanLink",
   "datadog.trace.bootstrap.instrumentation.api.TagContext",
   "datadog.trace.bootstrap.instrumentation.api.TagContext.HttpHeaders",
   "datadog.trace.bootstrap.instrumentation.api.ForwardedTagContext",

@@ -2,7 +2,6 @@ package datadog.trace.core;
 
 import static datadog.communication.monitor.DDAgentStatsDClientManager.statsDClientManager;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_ASYNC_PROPAGATING;
-import static datadog.trace.api.DDTags.SPAN_LINKS;
 import static datadog.trace.common.metrics.MetricsAggregatorFactory.createMetricsAggregator;
 import static datadog.trace.util.AgentThreadFactory.AGENT_THREAD_GROUP;
 import static datadog.trace.util.CollectionUtils.tryMakeImmutableMap;
@@ -1192,7 +1191,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     }
 
     private DDSpan buildSpan() {
-      DDSpan span = DDSpan.create(instrumentationName, timestampMicro, buildSpanContext());
+      DDSpan span = DDSpan.create(instrumentationName, timestampMicro, buildSpanContext(), links);
       if (span.isLocalRootSpan()) {
         EndpointTracker tracker = tracer.onRootSpanStarted(span);
         span.setEndpointTracker(tracker);
@@ -1298,10 +1297,12 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
     @Override
     public AgentTracer.SpanBuilder withLink(AgentSpanLink link) {
-      if (this.links == null) {
-        this.links = new ArrayList<>();
+      if (link != null) {
+        if (this.links == null) {
+          this.links = new ArrayList<>();
+        }
+        this.links.add(link);
       }
-      this.links.add(link);
       return this;
     }
 
@@ -1455,8 +1456,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
           (null == tags ? 0 : tags.size())
               + defaultSpanTags.size()
               + (null == coreTags ? 0 : coreTags.size())
-              + (null == rootSpanTags ? 0 : rootSpanTags.size())
-              + (null == links ? 0 : 1);
+              + (null == rootSpanTags ? 0 : rootSpanTags.size());
 
       if (builderRequestContextDataAppSec != null) {
         requestContextDataAppSec = builderRequestContextDataAppSec;
@@ -1501,9 +1501,6 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       context.setAllTags(tags);
       context.setAllTags(coreTags);
       context.setAllTags(rootSpanTags);
-      if (links != null) {
-        context.setTag(SPAN_LINKS, DDSpanLink.toTag(links));
-      }
       return context;
     }
   }
