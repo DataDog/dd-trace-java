@@ -202,6 +202,7 @@ public final class AgentBootstrap {
     AgentJar.main(args);
   }
 
+  @SuppressForbidden
   private static synchronized URL installAgentJar(final Instrumentation inst)
       throws IOException, URISyntaxException {
     // First try Code Source
