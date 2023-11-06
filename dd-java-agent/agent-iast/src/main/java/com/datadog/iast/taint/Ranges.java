@@ -85,7 +85,7 @@ public final class Ranges {
 
   public static Range[] mergeRanges(
       final int offset, @Nonnull final Range[] rangesLeft, @Nonnull final Range[] rangesRight) {
-    final long nRanges = rangesLeft.length + rangesRight.length;
+    final long nRanges = rangesLeft.length + (long) rangesRight.length;
     final Range[] ranges = newArray(nRanges);
     int remaining = ranges.length;
     if (rangesLeft.length > 0) {
@@ -123,6 +123,7 @@ public final class Ranges {
     return new ListProvider<>(items, to);
   }
 
+  @Nullable
   public static Range[] forSubstring(int offset, int length, final @Nonnull Range[] ranges) {
 
     int[] includedRangesInterval = getIncludedRangesInterval(offset, length, ranges);
@@ -214,14 +215,16 @@ public final class Ranges {
 
     int size();
 
+    @Nullable
     E value(final int index);
 
+    @Nullable
     Range[] ranges(final E value);
   }
 
   private abstract static class IterableProvider<E, LIST> implements RangesProvider<E> {
     private final LIST items;
-    private final Map<E, Range[]> ranges;
+    @Nullable private final Map<E, Range[]> ranges;
     private final int rangeCount;
 
     private IterableProvider(@Nonnull final LIST items, @Nonnull final TaintedObjects to) {
@@ -252,11 +255,13 @@ public final class Ranges {
       return rangeCount;
     }
 
+    @Nullable
     @Override
     public E value(final int index) {
       return item(items, index);
     }
 
+    @Nullable
     @Override
     public Range[] ranges(final E value) {
       return ranges == null ? null : ranges.get(value);
@@ -269,12 +274,13 @@ public final class Ranges {
 
     protected abstract int size(@Nonnull final LIST items);
 
+    @Nullable
     protected abstract E item(@Nonnull final LIST items, final int index);
   }
 
   private static class SingleProvider<E> implements RangesProvider<E> {
     private final E value;
-    private final TaintedObject tainted;
+    @Nullable private final TaintedObject tainted;
 
     private SingleProvider(@Nonnull final E value, @Nonnull final TaintedObjects to) {
       this.value = value;
@@ -291,11 +297,13 @@ public final class Ranges {
       return 1;
     }
 
+    @Nullable
     @Override
     public E value(int index) {
       return index == 0 ? value : null;
     }
 
+    @Nullable
     @Override
     public Range[] ranges(E value) {
       return value == this.value && tainted != null ? tainted.getRanges() : null;
@@ -313,6 +321,7 @@ public final class Ranges {
       return items.length;
     }
 
+    @Nullable
     @Override
     protected E item(@Nonnull final E[] items, final int index) {
       return items[index];
@@ -330,13 +339,15 @@ public final class Ranges {
       return items.size();
     }
 
+    @Nullable
     @Override
     protected E item(@Nonnull final List<E> items, final int index) {
       return items.get(index);
     }
   }
 
-  public static Range[] getNotMarkedRanges(final Range[] ranges, final int mark) {
+  @Nullable
+  public static Range[] getNotMarkedRanges(@Nullable final Range[] ranges, final int mark) {
     if (ranges == null) {
       return null;
     }

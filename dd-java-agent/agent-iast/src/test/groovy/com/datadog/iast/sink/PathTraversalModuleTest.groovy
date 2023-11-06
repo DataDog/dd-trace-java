@@ -27,7 +27,7 @@ class PathTraversalModuleTest extends IastModuleImplTestBase {
   private IastRequestContext ctx
 
   def setup() {
-    module = registerDependencies(new PathTraversalModuleImpl())
+    module = new PathTraversalModuleImpl(dependencies)
     objectHolder = []
     ctx = new IastRequestContext()
     final reqCtx = Mock(RequestContext) {

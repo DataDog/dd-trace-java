@@ -23,7 +23,7 @@ class XPathInjectionModuleTest extends IastModuleImplTestBase {
   private IastRequestContext ctx
 
   def setup() {
-    module = registerDependencies(new XPathInjectionModuleImpl())
+    module = new XPathInjectionModuleImpl(dependencies)
     objectHolder = []
     ctx = new IastRequestContext()
     final reqCtx = Mock(RequestContext) {

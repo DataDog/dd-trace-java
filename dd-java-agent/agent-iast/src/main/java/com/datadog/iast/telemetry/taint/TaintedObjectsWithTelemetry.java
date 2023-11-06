@@ -31,7 +31,7 @@ public class TaintedObjectsWithTelemetry implements TaintedObjects {
 
   private final TaintedObjects delegate;
   private final boolean debug;
-  private IastRequestContext ctx;
+  @Nullable private IastRequestContext ctx;
 
   protected TaintedObjectsWithTelemetry(final boolean debug, final TaintedObjects delegate) {
     this.delegate = delegate;
@@ -46,6 +46,7 @@ public class TaintedObjectsWithTelemetry implements TaintedObjects {
     this.ctx = ctx;
   }
 
+  @Nullable
   @Override
   public TaintedObject taint(@Nonnull Object obj, @Nonnull Range[] ranges) {
     final TaintedObject result = delegate.taint(obj, ranges);

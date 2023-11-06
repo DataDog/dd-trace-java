@@ -66,7 +66,8 @@ public class SourceAdapter extends FormattingAdapter<Source> {
       }
     }
 
-    private void toRedactedJson(final JsonWriter writer, final Source source, final String value)
+    private void toRedactedJson(
+        final JsonWriter writer, final Source source, @Nullable final String value)
         throws IOException {
       writer.beginObject();
       writer.name("origin");

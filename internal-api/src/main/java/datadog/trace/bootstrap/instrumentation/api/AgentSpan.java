@@ -136,6 +136,8 @@ public interface AgentSpan extends MutableSpan, IGSpanInfo {
 
   TraceConfig traceConfig();
 
+  void addLink(AgentSpanLink link);
+
   interface Context {
     /**
      * Gets the TraceId of the span's trace.

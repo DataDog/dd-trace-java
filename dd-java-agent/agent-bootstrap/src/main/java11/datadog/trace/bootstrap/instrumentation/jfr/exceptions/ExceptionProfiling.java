@@ -42,6 +42,10 @@ public final class ExceptionProfiling {
     this.recordExceptionMessage = recordExceptionMessage;
   }
 
+  public void start() {
+    sampler.start();
+  }
+
   public ExceptionSampleEvent process(final Throwable t) {
     // always record the exception in histogram
     final boolean firstHit = histogram.record(t);

@@ -3,7 +3,6 @@ package com.datadog.iast;
 import static com.datadog.iast.IastTag.ANALYZED;
 import static com.datadog.iast.IastTag.SKIPPED;
 
-import com.datadog.iast.HasDependencies.Dependencies;
 import com.datadog.iast.overhead.OverheadController;
 import com.datadog.iast.taint.TaintedObjects;
 import datadog.trace.api.gateway.Flow;
