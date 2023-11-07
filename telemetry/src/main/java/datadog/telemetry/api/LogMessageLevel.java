@@ -1,27 +1,23 @@
 package datadog.telemetry.api;
 
+import javax.annotation.Nullable;
+
 public enum LogMessageLevel {
-  ERROR("ERROR"),
-  WARN("WARN"),
-  DEBUG("DEBUG");
+  ERROR,
+  WARN,
+  DEBUG;
 
-  private final String value;
-
-  LogMessageLevel(String value) {
-    this.value = value;
-  }
-
-  public static LogMessageLevel fromValue(String text) {
-    for (LogMessageLevel b : LogMessageLevel.values()) {
-      if (String.valueOf(b.value).equals(text)) {
-        return b;
-      }
+  @Nullable
+  public static LogMessageLevel fromString(String value) {
+    switch (value) {
+      case "ERROR":
+        return ERROR;
+      case "WARN":
+        return WARN;
+      case "DEBUG":
+        return DEBUG;
+      default:
+        return null;
     }
-    throw new IllegalArgumentException("Unexpected value '" + text + "'");
-  }
-
-  @Override
-  public String toString() {
-    return value;
   }
 }
