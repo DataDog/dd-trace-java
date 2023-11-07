@@ -53,6 +53,11 @@ public class DatadogProfilingIntegration implements ProfilingContextIntegration 
   }
 
   @Override
+  public String name() {
+    return "ddprof";
+  }
+
+  @Override
   public void setContext(ProfilerContext profilerContext) {
     DDPROF.setSpanContext(profilerContext.getSpanId(), profilerContext.getRootSpanId());
     DDPROF.setContextValue(SPAN_NAME_INDEX, profilerContext.getEncodedOperationName());
