@@ -63,4 +63,9 @@ public class GradleBuildListenerInstrumentation extends Instrumenter.CiVisibilit
       gradle.addBuildListener(new GradleBuildListener());
     }
   }
+
+  @Override
+  public String muzzleDirective() {
+    return "skipMuzzle";
+  }
 }
