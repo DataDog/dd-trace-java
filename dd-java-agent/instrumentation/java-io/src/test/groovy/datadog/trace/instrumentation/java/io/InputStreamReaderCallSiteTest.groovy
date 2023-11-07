@@ -3,7 +3,6 @@ package datadog.trace.instrumentation.java.io
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.propagation.PropagationModule
 import foo.bar.TestInputStreamReaderSuite
-import foo.bar.TestStringReaderSuite
 
 import java.nio.charset.Charset
 
