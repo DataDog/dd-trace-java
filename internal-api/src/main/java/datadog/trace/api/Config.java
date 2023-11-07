@@ -276,6 +276,7 @@ import static datadog.trace.api.config.ProfilingConfig.PROFILING_API_KEY_VERY_OL
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_ENABLED;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DIRECT_ALLOCATION_SAMPLE_LIMIT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DIRECT_ALLOCATION_SAMPLE_LIMIT_DEFAULT;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_ENABLED_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_EXCEPTION_HISTOGRAM_MAX_COLLECTION_SIZE;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_EXCEPTION_HISTOGRAM_MAX_COLLECTION_SIZE_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_EXCEPTION_HISTOGRAM_TOP_ITEMS;
@@ -641,6 +642,7 @@ public class Config {
   private final String spanSamplingRules;
   private final String spanSamplingRulesFile;
 
+  private final boolean profilingEnabled;
   private final boolean profilingAgentless;
   private final boolean isDatadogProfilerEnabled;
   @Deprecated private final String profilingUrl;
@@ -1371,6 +1373,8 @@ public class Config {
     spanSamplingRules = configProvider.getString(SPAN_SAMPLING_RULES);
     spanSamplingRulesFile = configProvider.getString(SPAN_SAMPLING_RULES_FILE);
 
+    profilingEnabled =
+        configProvider.getBoolean(ProfilingConfig.PROFILING_ENABLED, PROFILING_ENABLED_DEFAULT);
     profilingAgentless =
         configProvider.getBoolean(PROFILING_AGENTLESS, PROFILING_AGENTLESS_DEFAULT);
     isDatadogProfilerEnabled =
@@ -2376,7 +2380,14 @@ public class Config {
   }
 
   public boolean isProfilingEnabled() {
-    return instrumenterConfig.isProfilingEnabled();
+    // This 'complicated' condition is here in order to support the graalvm native image
+    // The 'InstrumenterConfig' will be captured at the time of building the native image
+    // The 'Config' class will be reinitialized at runtime - the idea is to be be able to disable
+    // profiling
+    // even if the support was built-in. The other way around, building native image without
+    // profiling support
+    // and then enabling it at runtime, sadly, does not work and is not supposed to work.
+    return profilingEnabled && instrumenterConfig.isProfilingEnabled();
   }
 
   public boolean isProfilingTimelineEventsEnabled() {

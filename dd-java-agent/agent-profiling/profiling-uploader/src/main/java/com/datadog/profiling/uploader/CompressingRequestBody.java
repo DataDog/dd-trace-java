@@ -1,5 +1,6 @@
 package com.datadog.profiling.uploader;
 
+import datadog.trace.api.Platform;
 import datadog.trace.api.profiling.RecordingInputStream;
 import java.io.BufferedOutputStream;
 import java.io.IOException;
@@ -23,8 +24,11 @@ import okio.Source;
  */
 final class CompressingRequestBody extends RequestBody {
 
-  private static final LZ4Factory LZ4_FACTORY = LZ4Factory.fastestJavaInstance();
-  private static final XXHashFactory XXHASH_FACTORY = XXHashFactory.fastestJavaInstance();
+  // LZ4 is not available in native image
+  private static final LZ4Factory LZ4_FACTORY =
+      Platform.isNativeImage() ? null : LZ4Factory.fastestJavaInstance();
+  private static final XXHashFactory XXHASH_FACTORY =
+      Platform.isNativeImage() ? null : XXHashFactory.fastestJavaInstance();
 
   static final class MissingInputException extends IOException {
     public MissingInputException(String message) {
@@ -323,6 +327,10 @@ final class CompressingRequestBody extends RequestBody {
       @Nonnull CompressionType compressionType) {
     // currently only gzip and off are supported
     // this needs to be updated once more compression types are added
+    compressionType =
+        (Platform.isNativeImage() && compressionType != CompressionType.OFF
+            ? CompressionType.GZIP
+            : compressionType);
     switch (compressionType) {
       case GZIP:
         {

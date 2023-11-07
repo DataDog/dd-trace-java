@@ -13,13 +13,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.datadog.profiling.controller;
+package com.datadog.profiling.agent;
 
+import com.datadog.profiling.controller.ConfigurationException;
+import com.datadog.profiling.controller.Controller;
+import com.datadog.profiling.controller.UnsupportedEnvironmentException;
+import com.datadog.profiling.controller.ddprof.DatadogProfilerController;
+import com.datadog.profiling.controller.openjdk.OpenJdkController;
+import com.datadog.profiling.controller.oracle.OracleJdkController;
 import datadog.trace.api.Config;
 import datadog.trace.api.Platform;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.lang.reflect.InvocationTargetException;
+import java.util.function.Function;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -27,24 +34,31 @@ import org.slf4j.LoggerFactory;
 public final class ControllerFactory {
   private static final Logger log = LoggerFactory.getLogger(ControllerFactory.class);
 
-  private static enum Implementation {
+  private enum Implementation {
     NONE(),
-    ORACLE("com.datadog.profiling.controller.oracle.OracleJdkController"),
-    OPENJDK("com.datadog.profiling.controller.openjdk.OpenJdkController"),
-    ASYNC("com.datadog.profiling.controller.ddprof.DatadogProfilerController");
+    ORACLE(OracleJdkController::instance, OracleJdkController.class.getName()),
+    OPENJDK(OpenJdkController::instance, OpenJdkController.class.getName()),
+    ASYNC(DatadogProfilerController::instance, DatadogProfilerController.class.getName());
 
+    private final Function<ConfigProvider, Controller> instantiator;
     private final String className;
 
     Implementation() {
-      this.className = null;
+      this.instantiator = null;
+      this.className = "<none>";
     }
 
-    Implementation(String className) {
+    Implementation(Function<ConfigProvider, Controller> instantiator, String className) {
+      this.instantiator = instantiator;
       this.className = className;
     }
 
     String className() {
       return className;
+    }
+
+    Controller instance(ConfigProvider configProvider) {
+      return instantiator.apply(configProvider);
     }
   }
 
@@ -58,7 +72,7 @@ public final class ControllerFactory {
    */
   @SuppressForbidden
   public static Controller createController(final ConfigProvider configProvider)
-      throws UnsupportedEnvironmentException, ConfigurationException {
+      throws UnsupportedEnvironmentException {
     Implementation impl = Implementation.NONE;
     boolean isOracleJDK8 = Platform.isOracleJDK8();
     boolean isDatadogProfilerEnabled = Config.get().isDatadogProfilerEnabled();
@@ -103,22 +117,13 @@ public final class ControllerFactory {
       throw new UnsupportedEnvironmentException(getFixProposalMessage());
     }
 
-    try {
-      log.debug("Trying to load {}", impl.className());
-      return Class.forName(impl.className())
-          .asSubclass(Controller.class)
-          .getDeclaredConstructor(ConfigProvider.class)
-          .newInstance(configProvider);
-    } catch (final ClassNotFoundException
-        | NoSuchMethodException
-        | InstantiationException
-        | IllegalAccessException
-        | InvocationTargetException e) {
-      if (e.getCause() != null && e.getCause() instanceof ConfigurationException) {
-        throw (ConfigurationException) e.getCause();
-      }
-      throw new UnsupportedEnvironmentException(getFixProposalMessage(), e);
+    Controller instance = impl.instance(configProvider);
+    if (instance instanceof Controller.MisconfiguredController) {
+      throw new UnsupportedEnvironmentException(
+          "Failed to configure controller " + impl.className,
+          ((Controller.MisconfiguredController) instance).exception);
     }
+    return instance;
   }
 
   private static String getFixProposalMessage() {

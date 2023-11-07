@@ -1,12 +1,10 @@
-package com.datadog.profiling.controller;
+package com.datadog.profiling.agent;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.condition.JRE.JAVA_8;
 
+import com.datadog.profiling.controller.UnsupportedEnvironmentException;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.condition.EnabledOnJre;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -18,14 +16,15 @@ public class ControllerFactoryTest {
   @Mock private ConfigProvider configProvider;
 
   @Test
-  @EnabledOnJre({JAVA_8})
-  public void testCreateControllerJava8() {
-    final UnsupportedEnvironmentException unsupportedEnvironmentException =
-        assertThrows(
-            UnsupportedEnvironmentException.class,
-            () -> {
-              ControllerFactory.createController(configProvider);
-            });
+  public void testCreateControllerSanity() {
+    UnsupportedEnvironmentException unsupportedEnvironmentException = null;
+    try {
+      ControllerFactory.createController(configProvider);
+      // successfully created controller, return
+      return;
+    } catch (UnsupportedEnvironmentException e) {
+      unsupportedEnvironmentException = e;
+    }
     final String javaVendor = System.getProperty("java.vendor");
     final String javaRuntimeName = System.getProperty("java.runtime.name");
     final String javaVersion = System.getProperty("java.version");

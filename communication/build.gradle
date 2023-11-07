@@ -11,6 +11,7 @@ dependencies {
 
   api deps.okio
   api deps.okhttp
+  api deps.lz4
   api group: 'com.squareup.moshi', name: 'moshi', version: versions.moshi
   implementation group: 'com.datadoghq', name: 'java-dogstatsd-client', version: "${versions.dogstatsd}"
 

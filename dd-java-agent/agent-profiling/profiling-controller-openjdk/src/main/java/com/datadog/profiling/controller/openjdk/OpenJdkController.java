@@ -58,6 +58,15 @@ public final class OpenJdkController implements Controller {
 
   private final Map<String, String> recordingSettings;
 
+  public static Controller instance(ConfigProvider configProvider) {
+    try {
+      return new OpenJdkController(configProvider);
+    } catch (ConfigurationException | ClassNotFoundException e) {
+      log.debug("Unable to create OpenJDK controller", e);
+      return new MisconfiguredController(e);
+    }
+  }
+
   /**
    * Main constructor for OpenJDK profiling controller.
    *
