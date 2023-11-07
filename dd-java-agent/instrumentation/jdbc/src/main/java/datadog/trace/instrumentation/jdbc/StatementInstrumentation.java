@@ -57,7 +57,6 @@ public final class StatementInstrumentation extends Instrumenter.Tracing
   public String[] helperClassNames() {
     return new String[] {
       packageName + ".JDBCDecorator",
-      packageName + ".JDBCDecorator$CommentLocationMode",
       packageName + ".SQLCommenter",
     };
   }

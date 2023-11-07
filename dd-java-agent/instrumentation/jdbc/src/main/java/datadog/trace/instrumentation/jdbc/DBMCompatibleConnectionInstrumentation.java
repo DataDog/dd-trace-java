@@ -80,7 +80,6 @@ public class DBMCompatibleConnectionInstrumentation extends AbstractConnectionIn
   public String[] helperClassNames() {
     return new String[] {
       packageName + ".JDBCDecorator",
-      packageName + ".JDBCDecorator$CommentLocationMode",
       packageName + ".SQLCommenter",
     };
   }
