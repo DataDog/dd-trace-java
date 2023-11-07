@@ -96,6 +96,7 @@ shadowJar {
     exclude(dependency('io.opentracing:'))
     exclude(dependency('io.opentracing.contrib:'))
     exclude(dependency('org.slf4j:'))
+    exclude(dependency('org.lz4:'))
   }
 
   relocate('com.', 'ddtrot.com.') {
@@ -123,6 +124,9 @@ shadowJar {
     exclude('datadog.trace.api.profiling.*')
     exclude('datadog.trace.api.sampling.*')
     exclude('datadog.trace.context.*')
+    exclude('datadog.communication.profiler')
+    exclude('datadog.communication.profiler.*')
+    exclude('datadog.communication.profiler.util.*')
   }
 
   duplicatesStrategy = DuplicatesStrategy.FAIL
