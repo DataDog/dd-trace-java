@@ -64,7 +64,7 @@ public class DDEvpProxyApi extends RemoteApi {
       return this;
     }
 
-    DDEvpProxyApiBuilder httpClient(final OkHttpClient httpClient) {
+    public DDEvpProxyApiBuilder httpClient(final OkHttpClient httpClient) {
       this.httpClient = httpClient;
       return this;
     }

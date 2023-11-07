@@ -21,6 +21,14 @@ public interface ProfilingContextIntegration extends Profiling {
     return 0;
   }
 
+  default int encodeOperationName(CharSequence constant) {
+    return 0;
+  }
+
+  default int encodeResourceName(CharSequence constant) {
+    return 0;
+  }
+
   final class NoOp implements ProfilingContextIntegration {
 
     public static final ProfilingContextIntegration INSTANCE =
