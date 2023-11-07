@@ -33,7 +33,6 @@ configurations {
 
 shadowJar {
   dependencies deps.excludeShared
-  relocate 'okhttp3', 'datadog.okhttp3'
 }
 
 jar {
