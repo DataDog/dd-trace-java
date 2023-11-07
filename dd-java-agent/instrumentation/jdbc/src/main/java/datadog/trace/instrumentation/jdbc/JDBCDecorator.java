@@ -47,6 +47,11 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
   public static final boolean INJECT_TRACE_CONTEXT =
       DBM_PROPAGATION_MODE.equals(DBM_PROPAGATION_MODE_FULL);
 
+  public enum CommentLocationMode {
+    APPEND,
+    PREPEND
+  }
+
   public static void logMissingQueryInfo(Statement statement) throws SQLException {
     if (log.isDebugEnabled()) {
       log.debug(

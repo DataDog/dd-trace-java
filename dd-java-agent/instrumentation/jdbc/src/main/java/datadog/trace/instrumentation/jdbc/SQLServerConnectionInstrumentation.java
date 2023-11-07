@@ -3,6 +3,7 @@ package datadog.trace.instrumentation.jdbc;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.hasInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.nameStartsWith;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
+import static datadog.trace.instrumentation.jdbc.JDBCDecorator.CommentLocationMode.APPEND;
 import static datadog.trace.instrumentation.jdbc.JDBCDecorator.DECORATE;
 import static datadog.trace.instrumentation.jdbc.JDBCDecorator.INJECT_COMMENT;
 import static datadog.trace.instrumentation.jdbc.JDBCDecorator.logQueryInfoInjection;
@@ -44,12 +45,14 @@ public class SQLServerConnectionInstrumentation extends AbstractConnectionInstru
     "net.sourceforge.jtds.jdbc.ConnectionJDBC2", // 1.2
     "net.sourceforge.jtds.jdbc.JtdsConnection", // 1.3
   };
-  private static final String locationMode = "append";
+
+  // append mode will prepend the SQL comment to the raw sql query
+  private static final JDBCDecorator.CommentLocationMode locationMode = APPEND;
 
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".JDBCDecorator", packageName + ".SQLCommenter",
+        packageName + ".JDBCDecorator", packageName + ".JDBCDecorator$CommentLocationMode", packageName + ".SQLCommenter",
     };
   }
 

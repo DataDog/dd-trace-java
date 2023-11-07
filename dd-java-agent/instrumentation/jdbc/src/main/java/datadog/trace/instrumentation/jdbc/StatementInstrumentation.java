@@ -6,6 +6,7 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.DBM_TRACE_INJECTED;
+import static datadog.trace.instrumentation.jdbc.JDBCDecorator.CommentLocationMode.PREPEND;
 import static datadog.trace.instrumentation.jdbc.JDBCDecorator.DATABASE_QUERY;
 import static datadog.trace.instrumentation.jdbc.JDBCDecorator.DECORATE;
 import static datadog.trace.instrumentation.jdbc.JDBCDecorator.INJECT_COMMENT;
@@ -56,12 +57,12 @@ public final class StatementInstrumentation extends Instrumenter.Tracing
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".JDBCDecorator", packageName + ".SQLCommenter",
+        packageName + ".JDBCDecorator", packageName + ".JDBCDecorator$CommentLocationMode", packageName + ".SQLCommenter",
     };
   }
 
-  private static final String locationMode = "prepend";
-
+  // prepend mode will prepend the SQL comment to the raw sql query
+  private static final JDBCDecorator.CommentLocationMode locationMode = PREPEND;
   @Override
   public void adviceTransformations(AdviceTransformation transformation) {
     transformation.applyAdvice(

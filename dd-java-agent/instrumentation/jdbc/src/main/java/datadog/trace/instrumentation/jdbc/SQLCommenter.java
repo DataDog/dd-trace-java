@@ -6,6 +6,9 @@ import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import static datadog.trace.instrumentation.jdbc.JDBCDecorator.CommentLocationMode.PREPEND;
+import static datadog.trace.instrumentation.jdbc.JDBCDecorator.CommentLocationMode.APPEND;
+
 
 public class SQLCommenter {
 
@@ -19,15 +22,12 @@ public class SQLCommenter {
   private static final char EQUALS = '=';
   private static final char COMMA = ',';
   private static final char QUOTE = '\'';
-  private static final String OPEN_COMMENT_APPEND = " /*";
+  private static final char SPACE = ' ';
   private static final String OPEN_COMMENT = "/*";
-  private static final String CLOSE_COMMENT = "*/ ";
-  private static final String CLOSE_COMMENT_APPEND = "*/";
+  private static final String CLOSE_COMMENT = "*/";
   private static final int INITIAL_CAPACITY = computeInitialCapacity();
-  private static final String PREPEND = "prepend";
-  private static final String APPEND = "append";
 
-  public static String inject(final String sql, final String dbService, String locationMode) {
+  public static String inject(final String sql, final String dbService, final JDBCDecorator.CommentLocationMode locationMode) {
     return inject(sql, dbService, null, false, locationMode);
   }
 
@@ -36,7 +36,7 @@ public class SQLCommenter {
       final String dbService,
       final String traceParent,
       final boolean injectTrace,
-      final String locationMode) {
+      final JDBCDecorator.CommentLocationMode locationMode) {
     if (sql == null || sql.isEmpty()) {
       return sql;
     }
@@ -49,38 +49,38 @@ public class SQLCommenter {
     final String version = config.getVersion();
     final int commentSize = capacity(traceParent, parentService, dbService, env, version);
     StringBuilder sb = new StringBuilder(sql.length() + commentSize);
-    if (locationMode.equals(APPEND)) {
+    boolean commentAdded = false;
+    if (locationMode == APPEND) {
       sb.append(sql);
-      sb.append(OPEN_COMMENT_APPEND);
-      toComment(sb, injectTrace, parentService, dbService, env, version, traceParent);
-      if (sb.length() == OPEN_COMMENT_APPEND.length() + sql.length()) {
-        return sql;
-      }
-      sb.append(CLOSE_COMMENT_APPEND);
-      return sb.toString();
+      sb.append(SPACE);
+      sb.append(OPEN_COMMENT);
+      commentAdded = toComment(sb, injectTrace, parentService, dbService, env, version, traceParent);
+      sb.append(CLOSE_COMMENT);
+    } else {
+      sb.append(OPEN_COMMENT);
+      commentAdded = toComment(sb, injectTrace, parentService, dbService, env, version, traceParent);
+      sb.append(CLOSE_COMMENT);
+      sb.append(SPACE);
+      sb.append(sql);
     }
-    sb.append(OPEN_COMMENT);
-    toComment(sb, injectTrace, parentService, dbService, env, version, traceParent);
-    if (sb.length() == 2) {
+    if (!commentAdded) {
       return sql;
     }
-    sb.append(CLOSE_COMMENT);
-    sb.append(sql);
     return sb.toString();
   }
 
-  private static boolean hasDDComment(String sql, final String locationMode) {
+  private static boolean hasDDComment(String sql, final JDBCDecorator.CommentLocationMode locationMode) {
     // first check to see if sql ends with a comment
-    if ((!(sql.endsWith("*/")) && locationMode.equals(APPEND))
-        || ((!(sql.startsWith("/*"))) && locationMode.equals(PREPEND))) {
+    if ((!(sql.endsWith(CLOSE_COMMENT)) && locationMode == APPEND)
+        || ((!(sql.startsWith(OPEN_COMMENT))) && locationMode == PREPEND)) {
       return false;
     }
     // else check to see if it's a DBM trace sql comment
     int startIdx = 2;
-    if (locationMode.equals(APPEND)) {
-      startIdx = sql.lastIndexOf("/*") + 2;
+    if (locationMode == APPEND) {
+      startIdx = sql.lastIndexOf(OPEN_COMMENT) + 2;
     }
-    int startComment = locationMode.equals(APPEND) ? startIdx : sql.length();
+    int startComment = locationMode == APPEND ? startIdx : sql.length();
     boolean found = false;
     if (startComment > 2) {
       if (hasMatchingSubstring(sql, startIdx, PARENT_SERVICE)) {
@@ -117,7 +117,7 @@ public class SQLCommenter {
     return val;
   }
 
-  protected static void toComment(
+  protected static boolean toComment(
       StringBuilder sb,
       final boolean injectTrace,
       final String parentService,
@@ -133,6 +133,7 @@ public class SQLCommenter {
     if (injectTrace) {
       append(sb, TRACEPARENT, traceparent, sb.length() > emptySize);
     }
+    return sb.length() > emptySize;
   }
 
   private static void append(StringBuilder sb, String key, String value, boolean prependComma) {
