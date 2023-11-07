@@ -26,8 +26,11 @@ addTestSuiteForDir('latestDepTest', 'test')
 
 dependencies {
   compileOnly group: 'org.apache.httpcomponents', name: 'httpclient', version: '4.0'
-
   testImplementation group: 'org.apache.httpcomponents', name: 'httpclient', version: '4.0'
-
+  testImplementation group:  'org.springframework.boot', name: 'spring-boot-starter-web', version: '2.7.15'
+  testImplementation(testFixtures(project(':dd-java-agent:agent-iast')))
+  testRuntimeOnly project(':dd-java-agent:instrumentation:iast-instrumenter')
   latestDepTestImplementation group: 'org.apache.httpcomponents', name: 'httpclient', version: '+'
 }
+
+final httpClient4Versions = ['4.0', '4.1', '4.2', '4.3', '4.4', '4.5'] as List<String>
