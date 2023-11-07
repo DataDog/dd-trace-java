@@ -1,6 +1,5 @@
 package datadog.trace.bootstrap.instrumentation.api;
 
-import datadog.trace.bootstrap.instrumentation.api.AgentPropagation.BinarySetter;
 import java.io.IOException;
 import java.util.LinkedHashMap;
 import java.util.function.Consumer;

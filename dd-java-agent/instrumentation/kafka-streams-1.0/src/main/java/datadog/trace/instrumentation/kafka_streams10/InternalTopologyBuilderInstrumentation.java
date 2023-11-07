@@ -27,7 +27,7 @@ public class InternalTopologyBuilderInstrumentation extends Instrumenter.Tracing
   public String[] helperClassNames() {
     return new String[] {
       packageName + ".StreamingContextUpdater",
-      "datadog.trace.instrumentation.kafka_clients.StreamingContext"
+      "datadog.trace.instrumentation.kafka_common.StreamingContext"
     };
   }
 

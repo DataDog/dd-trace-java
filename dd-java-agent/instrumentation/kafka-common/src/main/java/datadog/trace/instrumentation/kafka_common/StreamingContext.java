@@ -1,4 +1,4 @@
-package datadog.trace.instrumentation.kafka_clients;
+package datadog.trace.instrumentation.kafka_common;
 
 import java.util.Objects;
 import java.util.Set;
@@ -14,6 +14,8 @@ public class StreamingContext {
   // each topic may be up to 256bytes in size, which results in:
   // 2 * 3 * 500 * 256 = 750KB in the worst case.
   private static final Integer MAX_TOPICS_PER_TYPE = 500;
+
+  public static final StreamingContext STREAMING_CONTEXT = new StreamingContext();
 
   private static void addAllLimit(Set<String> from, Set<String> to) {
     for (String item : from) {

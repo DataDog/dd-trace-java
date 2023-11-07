@@ -12,10 +12,15 @@ public interface AgentPropagation {
 
   // The input tags should be sorted.
   <C> void injectPathwayContext(
-    AgentSpan span, C carrier, Setter<C> setter, LinkedHashMap<String, String> sortedTags);
-  
+      AgentSpan span, C carrier, Setter<C> setter, LinkedHashMap<String, String> sortedTags);
+
   <C> void injectPathwayContext(
-    AgentSpan span, C carrier, Setter<C> setter, LinkedHashMap<String, String> sortedTags, long defaultTimestamp, long payloadSizeBytes);
+      AgentSpan span,
+      C carrier,
+      Setter<C> setter,
+      LinkedHashMap<String, String> sortedTags,
+      long defaultTimestamp,
+      long payloadSizeBytes);
 
   interface Setter<C> {
     void set(C carrier, String key, String value);

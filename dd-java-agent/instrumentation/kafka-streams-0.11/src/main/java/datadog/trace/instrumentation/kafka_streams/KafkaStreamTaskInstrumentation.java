@@ -9,7 +9,8 @@ import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_TAG;
 import static datadog.trace.core.datastreams.TagsProcessor.GROUP_TAG;
 import static datadog.trace.core.datastreams.TagsProcessor.TOPIC_TAG;
 import static datadog.trace.core.datastreams.TagsProcessor.TYPE_TAG;
-import static datadog.trace.instrumentation.kafka_clients.Utils.computePayloadSizeBytes;
+import static datadog.trace.instrumentation.kafka_common.StreamingContext.STREAMING_CONTEXT;
+import static datadog.trace.instrumentation.kafka_common.Utils.computePayloadSizeBytes;
 import static datadog.trace.instrumentation.kafka_streams.KafkaStreamsDecorator.BROKER_DECORATE;
 import static datadog.trace.instrumentation.kafka_streams.KafkaStreamsDecorator.CONSUMER_DECORATE;
 import static datadog.trace.instrumentation.kafka_streams.KafkaStreamsDecorator.KAFKA_CONSUME;
@@ -32,8 +33,6 @@ import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
-import datadog.trace.bootstrap.instrumentation.api.PathwayContext;
-import datadog.trace.instrumentation.kafka_clients.StreamingContext;
 import datadog.trace.instrumentation.kafka_clients.TracingIterableDelegator;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -63,8 +62,8 @@ public class KafkaStreamTaskInstrumentation extends Instrumenter.Tracing
   public String[] helperClassNames() {
     return new String[] {
       "datadog.trace.instrumentation.kafka_clients.TracingIterableDelegator",
-      "datadog.trace.instrumentation.kafka_clients.Utils",
-      "datadog.trace.instrumentation.kafka_clients.StreamingContext",
+      "datadog.trace.instrumentation.kafka_common.Utils",
+      "datadog.trace.instrumentation.kafka_common.StreamingContext",
       packageName + ".KafkaStreamsDecorator",
       packageName + ".ProcessorRecordContextVisitor",
       packageName + ".StampedRecordContextVisitor",
@@ -248,13 +247,13 @@ public class KafkaStreamTaskInstrumentation extends Instrumenter.Tracing
         sortedTags.put(TOPIC_TAG, record.topic());
         sortedTags.put(TYPE_TAG, "kafka");
 
-        if (StreamingContext.empty()) {
+        if (STREAMING_CONTEXT.empty()) {
           AgentTracer.get()
               .getDataStreamsMonitoring()
               .setCheckpoint(
-                span, sortedTags, record.timestamp, computePayloadSizeBytes(record.value));
+                  span, sortedTags, record.timestamp, computePayloadSizeBytes(record.value));
         } else {
-          if (StreamingContext.isSourceTopic(record.topic())) {
+          if (STREAMING_CONTEXT.isSourceTopic(record.topic())) {
             propagate()
                 .injectPathwayContext(
                     span,
@@ -336,20 +335,15 @@ public class KafkaStreamTaskInstrumentation extends Instrumenter.Tracing
           payloadSize = metadata.serializedKeySize() + metadata.serializedValueSize();
         }
 
-        if (StreamingContext.empty()) {
+        if (STREAMING_CONTEXT.empty()) {
           AgentTracer.get()
               .getDataStreamsMonitoring()
               .setCheckpoint(span, sortedTags, record.timestamp(), payloadSize);
         } else {
-          if (StreamingContext.isSourceTopic(record.topic())) {
+          if (STREAMING_CONTEXT.isSourceTopic(record.topic())) {
             propagate()
                 .injectPathwayContext(
-                    span,
-                    record,
-                    PR_GETTER_SETTER,
-                    sortedTags,
-                    record.timestamp(),
-                    payloadSize);
+                    span, record, PR_GETTER_SETTER, sortedTags, record.timestamp(), payloadSize);
           }
         }
       } else {

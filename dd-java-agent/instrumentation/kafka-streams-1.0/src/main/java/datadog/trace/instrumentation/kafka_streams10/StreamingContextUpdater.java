@@ -1,6 +1,6 @@
 package datadog.trace.instrumentation.kafka_streams10;
 
-import datadog.trace.instrumentation.kafka_clients.StreamingContext;
+import datadog.trace.instrumentation.kafka_common.StreamingContext;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;

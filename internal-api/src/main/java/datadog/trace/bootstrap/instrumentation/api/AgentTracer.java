@@ -21,7 +21,6 @@ import datadog.trace.api.internal.TraceSegment;
 import datadog.trace.api.profiling.Timer;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.api.scopemanager.ScopeListener;
-import datadog.trace.bootstrap.instrumentation.api.AgentPropagation.BinarySetter;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan.Context;
 import java.nio.ByteBuffer;
 import java.util.Collections;
@@ -868,7 +867,12 @@ public class AgentTracer {
 
     @Override
     public <C> void injectPathwayContext(
-        AgentSpan span, C carrier, Setter<C> setter, LinkedHashMap<String, String> sortedTags, long defaultTimestamp, long payloadSizeBytes) {}
+        AgentSpan span,
+        C carrier,
+        Setter<C> setter,
+        LinkedHashMap<String, String> sortedTags,
+        long defaultTimestamp,
+        long payloadSizeBytes) {}
 
     @Override
     public <C> Context.Extracted extract(final C carrier, final ContextVisitor<C> getter) {

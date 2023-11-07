@@ -20,13 +20,12 @@ public class DataStreamContextInjector {
   }
 
   public <C> void injectPathwayContext(
-    AgentSpan span,
-    C carrier,
-    AgentPropagation.Setter<C> setter,
-    LinkedHashMap<String, String> sortedTags
-    ) {
-      injectPathwayContext(span, carrier, setter, sortedTags, 0, 0);
-    }
+      AgentSpan span,
+      C carrier,
+      AgentPropagation.Setter<C> setter,
+      LinkedHashMap<String, String> sortedTags) {
+    injectPathwayContext(span, carrier, setter, sortedTags, 0, 0);
+  }
 
   public <C> void injectPathwayContext(
       AgentSpan span,
@@ -34,15 +33,15 @@ public class DataStreamContextInjector {
       AgentPropagation.Setter<C> setter,
       LinkedHashMap<String, String> sortedTags,
       long defaultTimestamp,
-      long payloadSizeBytes
-      ) {
+      long payloadSizeBytes) {
     PathwayContext pathwayContext = span.context().getPathwayContext();
 
     if (pathwayContext == null
         || (span.traceConfig() != null && !span.traceConfig().isDataStreamsEnabled())) {
       return;
     }
-    pathwayContext.setCheckpoint(sortedTags, dataStreamsMonitoring::add, defaultTimestamp, payloadSizeBytes);
+    pathwayContext.setCheckpoint(
+        sortedTags, dataStreamsMonitoring::add, defaultTimestamp, payloadSizeBytes);
 
     boolean injected =
         setter instanceof AgentPropagation.BinarySetter

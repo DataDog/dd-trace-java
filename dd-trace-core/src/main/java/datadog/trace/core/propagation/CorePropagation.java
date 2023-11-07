@@ -73,8 +73,14 @@ public class CorePropagation implements AgentPropagation {
 
   @Override
   public <C> void injectPathwayContext(
-      AgentSpan span, C carrier, Setter<C> setter, LinkedHashMap<String, String> sortedTags, long defaultTimestamp, long payloadSizeBytes) {
-    this.dataStreamContextInjector.injectPathwayContext(span, carrier, setter, sortedTags, defaultTimestamp, payloadSizeBytes);
+      AgentSpan span,
+      C carrier,
+      Setter<C> setter,
+      LinkedHashMap<String, String> sortedTags,
+      long defaultTimestamp,
+      long payloadSizeBytes) {
+    this.dataStreamContextInjector.injectPathwayContext(
+        span, carrier, setter, sortedTags, defaultTimestamp, payloadSizeBytes);
   }
 
   @Override
