@@ -2,6 +2,8 @@ apply from: "$rootDir/gradle/java.gradle"
 
 dependencies {
   api deps.groovy
+  api deps.guava
+  api deps.okhttp
   api deps.spock
 
   api deps.bytebuddy

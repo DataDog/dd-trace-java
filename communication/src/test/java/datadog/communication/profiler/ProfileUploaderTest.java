@@ -33,7 +33,6 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.withSettings;
 
-import com.datadog.profiling.testing.ProfilingTestUtils;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableMap;
@@ -47,6 +46,7 @@ import datadog.trace.api.profiling.RecordingInputStream;
 import datadog.trace.api.profiling.RecordingType;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import datadog.trace.relocate.api.IOLogger;
+import datadog.trace.test.util.TagParsingUtils;
 import datadog.trace.util.PidHelper;
 import delight.fileupload.FileUpload;
 import java.io.BufferedInputStream;
@@ -223,8 +223,7 @@ public class ProfileUploaderTest {
     expectedTags.put("snapshot", kind.name().toLowerCase());
     assertEquals(
         expectedTags,
-        ProfilingTestUtils.parseTags(
-            Arrays.asList(event.get("tags_profiler").asText().split(","))));
+        TagParsingUtils.parseTags(Arrays.asList(event.get("tags_profiler").asText().split(","))));
   }
 
   @ParameterizedTest
@@ -276,8 +275,7 @@ public class ProfileUploaderTest {
     expectedTags.put("snapshot", kind.name().toLowerCase());
     assertEquals(
         expectedTags,
-        ProfilingTestUtils.parseTags(
-            Arrays.asList(event.get("tags_profiler").asText().split(","))));
+        TagParsingUtils.parseTags(Arrays.asList(event.get("tags_profiler").asText().split(","))));
   }
 
   @Test

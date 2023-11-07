@@ -9,13 +9,13 @@ import static org.openjdk.jmc.common.item.Attribute.attr;
 import static org.openjdk.jmc.common.unit.UnitLookup.NUMBER;
 import static org.openjdk.jmc.common.unit.UnitLookup.PLAIN_TEXT;
 
-import com.datadog.profiling.testing.ProfilingTestUtils;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Multimap;
 import datadog.trace.api.Pair;
 import datadog.trace.api.Platform;
 import datadog.trace.api.config.ProfilingConfig;
+import datadog.trace.test.util.TagParsingUtils;
 import delight.fileupload.FileUpload;
 import java.io.ByteArrayInputStream;
 import java.io.File;
@@ -248,8 +248,7 @@ class JFRBasedProfilingIntegrationTest {
           delta + "ms outside tolerance of upload period");
 
       final Map<String, String> requestTags =
-          ProfilingTestUtils.parseTags(
-              Arrays.asList(event.get("tags_profiler").asText().split(",")));
+          TagParsingUtils.parseTags(Arrays.asList(event.get("tags_profiler").asText().split(",")));
       assertEquals("smoke-test-java-app", requestTags.get("service"));
       assertEquals("jvm", requestTags.get("language"));
       assertNotNull(requestTags.get("runtime-id"));

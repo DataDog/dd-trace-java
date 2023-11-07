@@ -24,11 +24,13 @@ dependencies {
   implementation 'org.xerial.snappy:snappy-java:1.1.8.4'
 
   testImplementation project(':dd-smoke-tests')
-  testImplementation project(':dd-java-agent:agent-profiling:profiling-testing')
+  testImplementation project(':utils:test-utils')
   testImplementation deps.junit5
   testImplementation deps.mockito
   testImplementation deps.jmc
-  testImplementation(group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: '2.9.10')
+  testImplementation group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: '2.9.10'
+  testImplementation group: 'com.squareup.okhttp3', name: 'mockwebserver', version: versions.okhttp_legacy
+  testImplementation group: 'org.javadelight', name: 'delight-fileupload', version: '0.0.5'
 }
 
 tasks.withType(Test).configureEach {
