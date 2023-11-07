@@ -58,7 +58,7 @@ class LogFilteringTest extends DDSpecification {
       logMessage.getMessage() == 'Debug message'
       String[] stackTraceLines = logMessage.stackTrace.split("\r\n")
 
-      stackTraceLines[0] == "java.lang.Exception"
+      stackTraceLines[0] == "java.lang.Exception: Exception Message"
       ExceptionHelper.isDataDogOrJava(stackTraceLines[1])
       ExceptionHelper.isDataDogOrJava(stackTraceLines[2])
       ExceptionHelper.isDataDogOrJava(stackTraceLines[3])

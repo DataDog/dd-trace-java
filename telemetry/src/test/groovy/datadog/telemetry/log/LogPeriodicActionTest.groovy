@@ -38,4 +38,22 @@ class LogPeriodicActionTest extends DDSpecification {
     } )
     0 * _._
   }
+
+  void 'push exception (without stacktrace) into the telemetry service'() {
+    setup:
+    try {
+      ExceptionHelper.throwExceptionFromDatadogCodeWithoutStacktrace(null)
+    } catch (Exception e) {
+      LogCollector.get().addLogMessage(LogMessageLevel.ERROR.toString(), "test", e)
+    }
+
+    when:
+    periodicAction.doIteration(telemetryService)
+
+    then:
+    1 * telemetryService.addLogMessage( { LogMessage logMessage ->
+      logMessage.getMessage() == 'test'
+    } )
+    0 * _._
+  }
 }

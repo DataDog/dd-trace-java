@@ -47,7 +47,7 @@ public class LogPeriodicAction implements TelemetryRunnable.TelemetryPeriodicAct
       if (msg == null || msg.isEmpty()) {
         stackTrace.append(UNKNOWN);
       } else {
-        stackTrace.append(t.getMessage());
+        stackTrace.append(msg);
       }
     }
     stackTrace.append(RET);
@@ -62,12 +62,14 @@ public class LogPeriodicAction implements TelemetryRunnable.TelemetryPeriodicAct
   }
 
   private boolean isDataDogCode(Throwable t) {
-    String firstStackElementClassName = t.getStackTrace()[0].getClassName();
-
-    if (firstStackElementClassName.isEmpty()) {
-      firstStackElementClassName = UNKNOWN;
+    StackTraceElement[] stackTrace = t.getStackTrace();
+    if (stackTrace.length == 0) {
+      return false;
     }
-    return firstStackElementClassName.startsWith("datadog.")
-        || firstStackElementClassName.startsWith("com.datadog.");
+    String cn = stackTrace[0].getClassName();
+    if (cn.isEmpty()) {
+      return false;
+    }
+    return cn.startsWith("datadog.") || cn.startsWith("com.datadog.");
   }
 }
