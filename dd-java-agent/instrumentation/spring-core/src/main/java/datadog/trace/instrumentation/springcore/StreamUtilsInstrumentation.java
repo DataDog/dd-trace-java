@@ -1,6 +1,5 @@
 package datadog.trace.instrumentation.springcore;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
@@ -11,31 +10,29 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Propagation;
 import datadog.trace.api.iast.propagation.PropagationModule;
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.Charset;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.matcher.ElementMatcher;
+import org.springframework.util.StreamUtils;
 
 @AutoService(Instrumenter.class)
 public final class StreamUtilsInstrumentation extends Instrumenter.Iast
     implements Instrumenter.ForSingleType {
 
   private static final String INSTRUMENTED_CLASS = "org.springframework.util.StreamUtils";
+  private static final String INSTRUMENTED_METHOD = "copyToString";
 
   public StreamUtilsInstrumentation() {
     super("spring-core");
   }
 
   @Override
-  public ElementMatcher<ClassLoader> classLoaderMatcher() {
-    return hasClassNamed(INSTRUMENTED_CLASS);
-  }
-
-  @Override
   public void adviceTransformations(AdviceTransformation transformation) {
     transformation.applyAdvice(
         isMethod()
-            .and(named("copyToString"))
+            .and(named(INSTRUMENTED_METHOD))
             .and(takesArguments(2))
             .and(takesArgument(0, InputStream.class))
             .and(takesArgument(1, Charset.class)),
@@ -57,6 +54,11 @@ public final class StreamUtilsInstrumentation extends Instrumenter.Iast
       if (in != null && string != null && !string.isEmpty()) {
         module.taintIfTainted(string, in);
       }
+    }
+
+    private static void muzzleCheck() throws IOException {
+      StreamUtils.copyToString(
+          new ByteArrayInputStream("test".getBytes()), Charset.defaultCharset());
     }
   }
 }
