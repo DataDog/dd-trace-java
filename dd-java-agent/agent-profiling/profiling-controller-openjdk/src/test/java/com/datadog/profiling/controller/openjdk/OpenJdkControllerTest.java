@@ -6,8 +6,8 @@ import static datadog.trace.api.config.ProfilingConfig.PROFILING_HEAP_ENABLED;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_TEMPLATE_OVERRIDE_FILE;
 import static org.junit.jupiter.api.Assertions.*;
 
-import com.datadog.profiling.controller.RecordingData;
 import com.datadog.profiling.controller.jfr.JfpUtilsTest;
+import datadog.trace.api.profiling.RecordingData;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import java.util.Properties;
 import jdk.jfr.Recording;
