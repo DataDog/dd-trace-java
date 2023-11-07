@@ -1234,11 +1234,12 @@ public class CapturedSnapshotTest {
     Snapshot snapshot = assertOneSnapshot(listener);
     Map<String, CapturedContext.CapturedValue> staticFields =
         snapshot.getCaptures().getReturn().getStaticFields();
-    assertEquals(6, staticFields.size());
+    assertEquals(7, staticFields.size());
     assertEquals("barfoo", getValue(staticFields.get("strValue")));
     assertEquals("48", getValue(staticFields.get("intValue")));
     assertEquals("6.28", getValue(staticFields.get("doubleValue")));
     assertEquals("[1, 2, 3, 4]", getValue(staticFields.get("longValues")));
+    assertEquals("[foo, bar]", getValue(staticFields.get("strValues")));
   }
 
   @Test

@@ -1,8 +1,8 @@
 package com.datadog.profiling.ddprof;
 
 import com.datadog.profiling.controller.OngoingRecording;
-import com.datadog.profiling.controller.RecordingData;
 import datadog.trace.api.profiling.ProfilingSnapshot;
+import datadog.trace.api.profiling.RecordingData;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;

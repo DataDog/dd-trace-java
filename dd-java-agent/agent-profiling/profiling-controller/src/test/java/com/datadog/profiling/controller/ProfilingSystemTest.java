@@ -15,7 +15,7 @@
  */
 package com.datadog.profiling.controller;
 
-import static com.datadog.profiling.controller.RecordingType.CONTINUOUS;
+import static datadog.trace.api.profiling.RecordingType.CONTINUOUS;
 import static datadog.trace.util.AgentThreadFactory.AgentThread.PROFILER_RECORDING_SCHEDULER;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.awaitility.Awaitility.await;
@@ -36,6 +36,8 @@ import static org.mockito.Mockito.when;
 import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.Appender;
+import datadog.trace.api.profiling.RecordingData;
+import datadog.trace.api.profiling.RecordingDataListener;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import datadog.trace.util.AgentTaskScheduler;
 import java.time.Duration;
