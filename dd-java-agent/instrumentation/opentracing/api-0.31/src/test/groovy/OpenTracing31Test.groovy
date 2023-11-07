@@ -278,14 +278,26 @@ class OpenTracing31Test extends AgentTestRunner {
     tracer.inject(context, Format.Builtin.TEXT_MAP, adapter)
 
     then:
+    def expectedTraceparent = "00-${context.delegate.traceId.toHexStringPadded(32)}" +
+      "-${DDSpanId.toHexStringPadded(context.delegate.spanId)}" +
+      "-" + (propagatedPriority > 0 ? "01" : "00")
+    def expectedTracestate = "dd=s:${propagatedPriority}"
+    def expectedDatadogTags = null
+    if (propagatedPriority > 0) {
+      def effectiveSamplingMechanism = contextPriority == UNSET ? AGENT_RATE : samplingMechanism
+      expectedDatadogTags = "_dd.p.dm=-" + effectiveSamplingMechanism
+      expectedTracestate+= ";t.dm:-" + effectiveSamplingMechanism
+    }
+
     def expectedTextMap = [
       "x-datadog-trace-id"         : "$context.delegate.traceId",
       "x-datadog-parent-id"        : "$context.delegate.spanId",
       "x-datadog-sampling-priority": propagatedPriority.toString(),
+      "traceparent"                : expectedTraceparent,
+      "tracestate"                 : expectedTracestate,
     ]
-    if (propagatedPriority > 0) {
-      def effectiveSamplingMechanism = contextPriority == UNSET ? AGENT_RATE : samplingMechanism
-      expectedTextMap.put("x-datadog-tags", "_dd.p.dm=-" + effectiveSamplingMechanism)
+    if (expectedDatadogTags != null) {
+      expectedTextMap.put("x-datadog-tags", expectedDatadogTags)
     }
     textMap == expectedTextMap
 

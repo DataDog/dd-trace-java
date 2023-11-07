@@ -25,6 +25,7 @@ import static datadog.trace.api.TracePropagationStyle.B3MULTI
 import static datadog.trace.api.TracePropagationStyle.B3SINGLE
 import static datadog.trace.api.TracePropagationStyle.DATADOG
 import static datadog.trace.api.TracePropagationStyle.HAYSTACK
+import static datadog.trace.api.TracePropagationStyle.TRACECONTEXT
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_AGENTLESS_ENABLED
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_ENABLED
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_CLASSFILE_DUMP_ENABLED
@@ -624,8 +625,8 @@ class ConfigTest extends DDSpecification {
     config.splitByTags == [].toSet()
     config.propagationStylesToExtract.toList() == [PropagationStyle.DATADOG]
     config.propagationStylesToInject.toList() == [PropagationStyle.DATADOG]
-    config.tracePropagationStylesToExtract.toList() == [DATADOG]
-    config.tracePropagationStylesToInject.toList() == [DATADOG]
+    config.tracePropagationStylesToExtract.toList() == [DATADOG, TRACECONTEXT]
+    config.tracePropagationStylesToInject.toList() == [DATADOG, TRACECONTEXT]
     config.longRunningTraceEnabled == false
   }
 
@@ -2200,7 +2201,7 @@ class ConfigTest extends DDSpecification {
     return bs
   }
 
-  def "check trace propagation style overrides for "() {
+  def "check trace propagation style overrides for"() {
     setup:
     if (pse) {
       environmentVariables.set('DD_PROPAGATION_STYLE_EXTRACT', pse.toString())
@@ -2228,21 +2229,21 @@ class ConfigTest extends DDSpecification {
 
     where:
     // spotless:off
-    pse                      | psi                      | tps      | tpse               | tpsi    | ePSE                       | ePSI                       | eTPSE               | eTPSI
-    PropagationStyle.DATADOG | PropagationStyle.B3      | null     | null               | null    | [PropagationStyle.DATADOG] | [PropagationStyle.B3]      | [DATADOG]           | [B3SINGLE, B3MULTI]
-    PropagationStyle.B3      | PropagationStyle.DATADOG | null     | null               | null    | [PropagationStyle.B3]      | [PropagationStyle.DATADOG] | [B3SINGLE, B3MULTI] | [DATADOG]
-    PropagationStyle.B3      | PropagationStyle.DATADOG | HAYSTACK | null               | null    | [PropagationStyle.B3]      | [PropagationStyle.DATADOG] | [HAYSTACK]          | [HAYSTACK]
-    PropagationStyle.B3      | PropagationStyle.DATADOG | HAYSTACK | B3SINGLE           | null    | [PropagationStyle.B3]      | [PropagationStyle.DATADOG] | [B3SINGLE]          | [HAYSTACK]
-    PropagationStyle.B3      | PropagationStyle.DATADOG | HAYSTACK | null               | B3MULTI | [PropagationStyle.B3]      | [PropagationStyle.DATADOG] | [HAYSTACK]          | [B3MULTI]
-    PropagationStyle.B3      | PropagationStyle.DATADOG | HAYSTACK | B3SINGLE           | B3MULTI | [PropagationStyle.B3]      | [PropagationStyle.DATADOG] | [B3SINGLE]          | [B3MULTI]
-    PropagationStyle.B3      | PropagationStyle.DATADOG | null     | B3SINGLE           | B3MULTI | [PropagationStyle.B3]      | [PropagationStyle.DATADOG] | [B3SINGLE]          | [B3MULTI]
-    null                     | null                     | HAYSTACK | null               | null    | [PropagationStyle.DATADOG] | [PropagationStyle.DATADOG] | [HAYSTACK]          | [HAYSTACK]
-    null                     | null                     | HAYSTACK | B3SINGLE           | B3MULTI | [PropagationStyle.DATADOG] | [PropagationStyle.DATADOG] | [B3SINGLE]          | [B3MULTI]
-    null                     | null                     | null     | B3SINGLE           | B3MULTI | [PropagationStyle.DATADOG] | [PropagationStyle.DATADOG] | [B3SINGLE]          | [B3MULTI]
-    null                     | null                     | null     | null               | null    | [PropagationStyle.DATADOG] | [PropagationStyle.DATADOG] | [DATADOG]           | [DATADOG]
-    null                     | null                     | null     | null               | null    | [PropagationStyle.DATADOG] | [PropagationStyle.DATADOG] | [DATADOG]           | [DATADOG]
-    null                     | null                     | null     | "b3 single header" | null    | [PropagationStyle.DATADOG] | [PropagationStyle.DATADOG] | [B3SINGLE]          | [DATADOG]
-    null                     | null                     | null     | "b3"               | null    | [PropagationStyle.DATADOG] | [PropagationStyle.DATADOG] | [B3MULTI]           | [DATADOG]
+    pse                      | psi                      | tps      | tpse               | tpsi    | ePSE                       | ePSI                       | eTPSE                   | eTPSI
+    PropagationStyle.DATADOG | PropagationStyle.B3      | null     | null               | null    | [PropagationStyle.DATADOG] | [PropagationStyle.B3]      | [DATADOG]               | [B3SINGLE, B3MULTI]
+    PropagationStyle.B3      | PropagationStyle.DATADOG | null     | null               | null    | [PropagationStyle.B3]      | [PropagationStyle.DATADOG] | [B3SINGLE, B3MULTI]     | [DATADOG]
+    PropagationStyle.B3      | PropagationStyle.DATADOG | HAYSTACK | null               | null    | [PropagationStyle.B3]      | [PropagationStyle.DATADOG] | [HAYSTACK]              | [HAYSTACK]
+    PropagationStyle.B3      | PropagationStyle.DATADOG | HAYSTACK | B3SINGLE           | null    | [PropagationStyle.B3]      | [PropagationStyle.DATADOG] | [B3SINGLE]              | [HAYSTACK]
+    PropagationStyle.B3      | PropagationStyle.DATADOG | HAYSTACK | null               | B3MULTI | [PropagationStyle.B3]      | [PropagationStyle.DATADOG] | [HAYSTACK]              | [B3MULTI]
+    PropagationStyle.B3      | PropagationStyle.DATADOG | HAYSTACK | B3SINGLE           | B3MULTI | [PropagationStyle.B3]      | [PropagationStyle.DATADOG] | [B3SINGLE]              | [B3MULTI]
+    PropagationStyle.B3      | PropagationStyle.DATADOG | null     | B3SINGLE           | B3MULTI | [PropagationStyle.B3]      | [PropagationStyle.DATADOG] | [B3SINGLE]              | [B3MULTI]
+    null                     | null                     | HAYSTACK | null               | null    | [PropagationStyle.DATADOG] | [PropagationStyle.DATADOG] | [HAYSTACK]              | [HAYSTACK]
+    null                     | null                     | HAYSTACK | B3SINGLE           | B3MULTI | [PropagationStyle.DATADOG] | [PropagationStyle.DATADOG] | [B3SINGLE]              | [B3MULTI]
+    null                     | null                     | null     | B3SINGLE           | B3MULTI | [PropagationStyle.DATADOG] | [PropagationStyle.DATADOG] | [B3SINGLE]              | [B3MULTI]
+    null                     | null                     | null     | null               | null    | [PropagationStyle.DATADOG] | [PropagationStyle.DATADOG] | [DATADOG, TRACECONTEXT] | [DATADOG, TRACECONTEXT]
+    null                     | null                     | null     | null               | null    | [PropagationStyle.DATADOG] | [PropagationStyle.DATADOG] | [DATADOG, TRACECONTEXT] | [DATADOG, TRACECONTEXT]
+    null                     | null                     | null     | "b3 single header" | null    | [PropagationStyle.DATADOG] | [PropagationStyle.DATADOG] | [B3SINGLE]              | [DATADOG, TRACECONTEXT]
+    null                     | null                     | null     | "b3"               | null    | [PropagationStyle.DATADOG] | [PropagationStyle.DATADOG] | [B3MULTI]               | [DATADOG, TRACECONTEXT]
     // spotless:on
   }
 
@@ -2347,7 +2348,7 @@ class ConfigTest extends DDSpecification {
     "450"         | 450
   }
 
-  def "partial flush and min spans interaction #"() {
+  def "partial flush and min spans interaction"() {
     when:
     def prop = new Properties()
     if (configuredPartialEnabled != null) {
