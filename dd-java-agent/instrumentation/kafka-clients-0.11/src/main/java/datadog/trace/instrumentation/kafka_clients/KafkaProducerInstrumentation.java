@@ -51,7 +51,7 @@ public final class KafkaProducerInstrumentation extends Instrumenter.Tracing
       packageName + ".KafkaDecorator",
       packageName + ".TextMapInjectAdapter",
       packageName + ".KafkaProducerCallback",
-      packageName + ".StreamingContext",
+      "datadog.trace.instrumentation.kafka_common.StreamingContext",
     };
   }
 

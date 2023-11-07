@@ -48,8 +48,6 @@ public final class KafkaConsumerInstrumentation extends Instrumenter.Tracing
       packageName + ".TracingIterator",
       packageName + ".TracingList",
       packageName + ".TracingListIterator",
-      packageName + ".Base64Decoder",
-      packageName + ".StreamingContext",
       packageName + ".TextMapInjectAdapter",
       "datadog.trace.instrumentation.kafka_common.Utils",
       "datadog.trace.instrumentation.kafka_common.StreamingContext",

@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.kafka_streams10;
 
-import datadog.trace.instrumentation.kafka_common.StreamingContext;
+import static datadog.trace.instrumentation.kafka_common.StreamingContext.STREAMING_CONTEXT;
+
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -19,6 +20,7 @@ public class StreamingContextUpdater {
       }
     }
 
-    StreamingContext.registerTopics(topology.sourceTopics(), topology.sinkTopics(), internalTopics);
+    STREAMING_CONTEXT.registerTopics(
+        topology.sourceTopics(), topology.sinkTopics(), internalTopics);
   }
 }

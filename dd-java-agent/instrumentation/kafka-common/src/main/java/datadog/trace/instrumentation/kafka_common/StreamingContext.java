@@ -17,7 +17,7 @@ public class StreamingContext {
 
   public static final StreamingContext STREAMING_CONTEXT = new StreamingContext();
 
-  private static void addAllLimit(Set<String> from, Set<String> to) {
+  private void addAllLimit(Set<String> from, Set<String> to) {
     for (String item : from) {
       if (to.size() > StreamingContext.MAX_TOPICS_PER_TYPE) {
         return;
@@ -26,7 +26,7 @@ public class StreamingContext {
     }
   }
 
-  public static void registerTopics(
+  public void registerTopics(
       Set<String> sourceTopics, Set<String> sinkTopics, Set<String> internalTopics) {
     addAllLimit(sourceTopics, allSourceTopics);
     addAllLimit(sinkTopics, allSinkTopics);
@@ -56,23 +56,23 @@ public class StreamingContext {
     topics = newTopics;
   }
 
-  public static boolean isSinkTopic(final String topic) {
+  public boolean isSinkTopic(final String topic) {
     return Objects.equals(topics.getOrDefault(topic, UNKNOWN_TOPIC), SINK_TOPIC);
   }
 
-  public static boolean isSourceTopic(final String topic) {
+  public boolean isSourceTopic(final String topic) {
     return Objects.equals(topics.getOrDefault(topic, UNKNOWN_TOPIC), SOURCE_TOPIC);
   }
 
-  public static boolean empty() {
+  public boolean empty() {
     return topics.isEmpty();
   }
 
-  private static final Set<String> allSourceTopics = ConcurrentHashMap.newKeySet();
+  private final Set<String> allSourceTopics = ConcurrentHashMap.newKeySet();
 
-  private static final Set<String> allSinkTopics = ConcurrentHashMap.newKeySet();
+  private final Set<String> allSinkTopics = ConcurrentHashMap.newKeySet();
 
-  private static final Set<String> allInternalTopics = ConcurrentHashMap.newKeySet();
+  private final Set<String> allInternalTopics = ConcurrentHashMap.newKeySet();
 
-  private static ConcurrentHashMap<String, Integer> topics = new ConcurrentHashMap<>();
+  private ConcurrentHashMap<String, Integer> topics = new ConcurrentHashMap<>();
 }
