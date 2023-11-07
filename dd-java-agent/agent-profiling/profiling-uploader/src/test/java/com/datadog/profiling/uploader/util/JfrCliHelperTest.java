@@ -9,8 +9,8 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.withSettings;
 
-import com.datadog.profiling.controller.RecordingData;
-import com.datadog.profiling.controller.RecordingInputStream;
+import datadog.trace.api.profiling.RecordingData;
+import datadog.trace.api.profiling.RecordingInputStream;
 import datadog.trace.relocate.api.IOLogger;
 import java.io.BufferedInputStream;
 import java.io.ByteArrayInputStream;

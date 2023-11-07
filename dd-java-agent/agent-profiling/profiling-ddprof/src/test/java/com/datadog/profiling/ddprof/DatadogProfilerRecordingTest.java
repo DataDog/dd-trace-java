@@ -2,7 +2,7 @@ package com.datadog.profiling.ddprof;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-import com.datadog.profiling.controller.RecordingData;
+import datadog.trace.api.profiling.RecordingData;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import java.io.InputStream;
 import java.nio.file.Files;
