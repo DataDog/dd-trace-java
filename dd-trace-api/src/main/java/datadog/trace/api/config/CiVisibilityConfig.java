@@ -58,6 +58,7 @@ public final class CiVisibilityConfig {
       "civisibility.repo.index.sharing.enabled";
   public static final String CIVISIBILITY_MODULE_EXECUTION_SETTINGS_CACHE_SIZE =
       "civisibility.module.execution.settings.cache.size";
+  public static final String CIVISIBILITY_JVM_INFO_CACHE_SIZE = "civisibility.jvm.info.cache.size";
   public static final String CIVISIBILITY_COVERAGE_SEGMENTS_ENABLED =
       "civisibility.coverage.segments.enabled";
 
