@@ -1,7 +1,7 @@
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.instrumentation.jdbc.SQLCommenter
-import static datadog.trace.instrumentation.jdbc.JDBCDecorator.CommentLocationMode.PREPEND;
-import static datadog.trace.instrumentation.jdbc.JDBCDecorator.CommentLocationMode.APPEND;
+import static datadog.trace.instrumentation.jdbc.JDBCDecorator.CommentLocationMode.PREPEND
+import static datadog.trace.instrumentation.jdbc.JDBCDecorator.CommentLocationMode.APPEND
 
 class SQLCommenterTest extends AgentTestRunner {
 

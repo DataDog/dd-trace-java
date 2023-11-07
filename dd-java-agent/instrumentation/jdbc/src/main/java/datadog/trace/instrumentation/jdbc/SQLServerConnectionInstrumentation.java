@@ -3,7 +3,6 @@ package datadog.trace.instrumentation.jdbc;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.hasInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.nameStartsWith;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-import static datadog.trace.instrumentation.jdbc.JDBCDecorator.CommentLocationMode.APPEND;
 import static datadog.trace.instrumentation.jdbc.JDBCDecorator.DECORATE;
 import static datadog.trace.instrumentation.jdbc.JDBCDecorator.INJECT_COMMENT;
 import static datadog.trace.instrumentation.jdbc.JDBCDecorator.logQueryInfoInjection;
@@ -47,12 +46,12 @@ public class SQLServerConnectionInstrumentation extends AbstractConnectionInstru
   };
 
   // append mode will prepend the SQL comment to the raw sql query
-  private static final JDBCDecorator.CommentLocationMode locationMode = APPEND;
+  private static final boolean appendComment = true;
 
   @Override
   public String[] helperClassNames() {
     return new String[] {
-        packageName + ".JDBCDecorator", packageName + ".JDBCDecorator$CommentLocationMode", packageName + ".SQLCommenter",
+      packageName + ".JDBCDecorator", packageName + ".SQLCommenter",
     };
   }
 
@@ -100,7 +99,7 @@ public class SQLServerConnectionInstrumentation extends AbstractConnectionInstru
         final DBInfo dbInfo =
             JDBCDecorator.parseDBInfo(
                 connection, InstrumentationContext.get(Connection.class, DBInfo.class));
-        sql = SQLCommenter.inject(sql, DECORATE.getDbService(dbInfo), locationMode);
+        sql = SQLCommenter.inject(sql, DECORATE.getDbService(dbInfo), appendComment);
         return inputSql;
       }
       return sql;

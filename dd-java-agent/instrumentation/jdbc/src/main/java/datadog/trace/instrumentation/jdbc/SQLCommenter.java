@@ -6,9 +6,6 @@ import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import static datadog.trace.instrumentation.jdbc.JDBCDecorator.CommentLocationMode.PREPEND;
-import static datadog.trace.instrumentation.jdbc.JDBCDecorator.CommentLocationMode.APPEND;
-
 
 public class SQLCommenter {
 
@@ -27,8 +24,9 @@ public class SQLCommenter {
   private static final String CLOSE_COMMENT = "*/";
   private static final int INITIAL_CAPACITY = computeInitialCapacity();
 
-  public static String inject(final String sql, final String dbService, final JDBCDecorator.CommentLocationMode locationMode) {
-    return inject(sql, dbService, null, false, locationMode);
+  public static String inject(
+      final String sql, final String dbService, final boolean appendComment) {
+    return inject(sql, dbService, null, false, appendComment);
   }
 
   public static String inject(
@@ -36,11 +34,11 @@ public class SQLCommenter {
       final String dbService,
       final String traceParent,
       final boolean injectTrace,
-      final JDBCDecorator.CommentLocationMode locationMode) {
+      final boolean appendComment) {
     if (sql == null || sql.isEmpty()) {
       return sql;
     }
-    if (hasDDComment(sql, locationMode)) {
+    if (hasDDComment(sql, appendComment)) {
       return sql;
     }
     final Config config = Config.get();
@@ -50,15 +48,17 @@ public class SQLCommenter {
     final int commentSize = capacity(traceParent, parentService, dbService, env, version);
     StringBuilder sb = new StringBuilder(sql.length() + commentSize);
     boolean commentAdded = false;
-    if (locationMode == APPEND) {
+    if (appendComment) {
       sb.append(sql);
       sb.append(SPACE);
       sb.append(OPEN_COMMENT);
-      commentAdded = toComment(sb, injectTrace, parentService, dbService, env, version, traceParent);
+      commentAdded =
+          toComment(sb, injectTrace, parentService, dbService, env, version, traceParent);
       sb.append(CLOSE_COMMENT);
     } else {
       sb.append(OPEN_COMMENT);
-      commentAdded = toComment(sb, injectTrace, parentService, dbService, env, version, traceParent);
+      commentAdded =
+          toComment(sb, injectTrace, parentService, dbService, env, version, traceParent);
       sb.append(CLOSE_COMMENT);
       sb.append(SPACE);
       sb.append(sql);
@@ -69,18 +69,18 @@ public class SQLCommenter {
     return sb.toString();
   }
 
-  private static boolean hasDDComment(String sql, final JDBCDecorator.CommentLocationMode locationMode) {
+  private static boolean hasDDComment(String sql, final boolean appendComment) {
     // first check to see if sql ends with a comment
-    if ((!(sql.endsWith(CLOSE_COMMENT)) && locationMode == APPEND)
-        || ((!(sql.startsWith(OPEN_COMMENT))) && locationMode == PREPEND)) {
+    if ((!(sql.endsWith(CLOSE_COMMENT)) && appendComment)
+        || ((!(sql.startsWith(OPEN_COMMENT))) && !appendComment)) {
       return false;
     }
     // else check to see if it's a DBM trace sql comment
     int startIdx = 2;
-    if (locationMode == APPEND) {
+    if (appendComment) {
       startIdx = sql.lastIndexOf(OPEN_COMMENT) + 2;
     }
-    int startComment = locationMode == APPEND ? startIdx : sql.length();
+    int startComment = appendComment ? startIdx : sql.length();
     boolean found = false;
     if (startComment > 2) {
       if (hasMatchingSubstring(sql, startIdx, PARENT_SERVICE)) {
