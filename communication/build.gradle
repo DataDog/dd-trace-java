@@ -22,6 +22,7 @@ dependencies {
   testImplementation deps.mockito
   testImplementation group: 'com.squareup.okhttp3', name: 'mockwebserver', version: versions.okhttp_legacy
   testImplementation group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: '2.9.10'
+  testImplementation group: 'javax.servlet', name: 'javax.servlet-api', version: '4.0.1'
   testImplementation group: 'org.javadelight', name: 'delight-fileupload', version: '0.0.5'
   testImplementation group: 'org.msgpack', name: 'msgpack-core', version: '0.8.20'
   testImplementation group: 'org.msgpack', name: 'jackson-dataformat-msgpack', version: '0.8.20'
