@@ -13,11 +13,16 @@ dependencies {
   api deps.okhttp
   api group: 'com.squareup.moshi', name: 'moshi', version: versions.moshi
   implementation group: 'com.datadoghq', name: 'java-dogstatsd-client', version: "${versions.dogstatsd}"
+  implementation group: 'org.lz4', name: 'lz4-java', version: '1.7.1'
 
   testImplementation project(':utils:test-utils')
+  testImplementation project(':dd-java-agent:agent-profiling:profiling-testing')
   testImplementation deps.junit5
   testImplementation deps.truth
   testImplementation deps.bytebuddy
+  testImplementation deps.mockito
+  testImplementation group: 'com.squareup.okhttp3', name: 'mockwebserver', version: versions.okhttp_legacy
+  testImplementation(group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: '2.9.10')
   testImplementation group: 'org.msgpack', name: 'msgpack-core', version: '0.8.20'
   testImplementation group: 'org.msgpack', name: 'jackson-dataformat-msgpack', version: '0.8.20'
 }
@@ -38,6 +43,16 @@ ext {
     'datadog.communication.monitor.DDAgentStatsDConnection',
     'datadog.communication.monitor.DDAgentStatsDConnection.*',
     'datadog.communication.monitor.LoggingStatsDClient',
+    // The byte counting input/output stream are delegating most of their methods so it does not make sense to force the coverage there
+    'datadog.communication.profiler.ByteCountingInputStream',
+    'datadog.communication.profiler.ByteCountingOutputStream',
+    // A call-back inner class holds few enough instructions to make not testing with different log levels to breach the jacoco limits
+    'datadog.communication.profiler.ProfileUploader.1',
+    // This class has coverage 0.5 which is below the required 0.6 but it is a simple class writing data to JSON
+    'datadog.communication.profiler.ProfileUploader.RecordingDataAdapter',
+    // When running on Java 8 without `jfr`, no code is executed
+    'datadog.communication.profiler.util.JfrCliHelper',
+    'datadog.communication.profiler.util.JfrCliHelper.Event'
   ]
   excludedClassesBranchCoverage = ['datadog.communication.ddagent.TracerVersion',]
   excludedClassesInstructionCoverage = [

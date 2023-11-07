@@ -1,4 +1,4 @@
-package com.datadog.profiling.uploader.util;
+package datadog.communication.profiler.util;
 
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;

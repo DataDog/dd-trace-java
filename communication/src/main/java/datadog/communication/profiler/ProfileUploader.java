@@ -13,16 +13,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.datadog.profiling.uploader;
+package datadog.communication.profiler;
 
 import static datadog.trace.util.AgentThreadFactory.AgentThread.PROFILER_HTTP_DISPATCHER;
 
-import com.datadog.profiling.uploader.util.JfrCliHelper;
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.JsonReader;
 import com.squareup.moshi.JsonWriter;
 import datadog.common.version.VersionInfo;
 import datadog.communication.http.OkHttpUtils;
+import datadog.communication.profiler.util.JfrCliHelper;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.git.GitInfo;
@@ -353,7 +353,7 @@ public final class ProfileUploader {
   }
 
   @SuppressFBWarnings("DCN_NULLPOINTER_EXCEPTION")
-  private IOLogger.Response getLoggerResponse(final okhttp3.Response response) {
+  private IOLogger.Response getLoggerResponse(final Response response) {
     if (response != null) {
       try {
         final ResponseBody body = response.body();

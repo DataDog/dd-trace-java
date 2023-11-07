@@ -1,4 +1,4 @@
-package com.datadog.profiling.uploader;
+package datadog.communication.profiler;
 
 import datadog.trace.api.profiling.RecordingInputStream;
 import java.io.BufferedOutputStream;
@@ -321,8 +321,6 @@ final class CompressingRequestBody extends RequestBody {
 
   private static OutputStreamMappingFunction getOutputStreamMapper(
       @Nonnull CompressionType compressionType) {
-    // currently only gzip and off are supported
-    // this needs to be updated once more compression types are added
     switch (compressionType) {
       case GZIP:
         {

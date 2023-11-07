@@ -1,4 +1,4 @@
-package com.datadog.profiling.uploader.util;
+package datadog.communication.profiler.util;
 
 import static datadog.trace.util.AgentThreadFactory.AgentThread.PROFILER_HTTP_DISPATCHER;
 

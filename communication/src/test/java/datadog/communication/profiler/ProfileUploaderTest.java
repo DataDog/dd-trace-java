@@ -13,10 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.datadog.profiling.uploader;
+package datadog.communication.profiler;
 
-import static com.datadog.profiling.uploader.ProfileUploader.V4_PROFILE_END_PARAM;
-import static com.datadog.profiling.uploader.ProfileUploader.V4_PROFILE_START_PARAM;
+import static datadog.communication.profiler.ProfileUploader.V4_PROFILE_END_PARAM;
+import static datadog.communication.profiler.ProfileUploader.V4_PROFILE_START_PARAM;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;

@@ -1,4 +1,4 @@
-package com.datadog.profiling.uploader;
+package datadog.communication.profiler;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 

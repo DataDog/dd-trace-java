@@ -1,4 +1,4 @@
-package com.datadog.profiling.uploader;
+package datadog.communication.profiler;
 
 import java.io.IOException;
 import java.io.InputStream;

@@ -1,4 +1,4 @@
-package com.datadog.profiling.uploader;
+package datadog.communication.profiler;
 
 import java.util.Locale;
 import org.slf4j.Logger;
