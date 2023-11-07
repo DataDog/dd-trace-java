@@ -21,9 +21,6 @@ import org.springframework.util.StreamUtils;
 public final class StreamUtilsInstrumentation extends Instrumenter.Iast
     implements Instrumenter.ForSingleType {
 
-  private static final String INSTRUMENTED_CLASS = "org.springframework.util.StreamUtils";
-  private static final String INSTRUMENTED_METHOD = "copyToString";
-
   public StreamUtilsInstrumentation() {
     super("spring-core");
   }
@@ -32,7 +29,7 @@ public final class StreamUtilsInstrumentation extends Instrumenter.Iast
   public void adviceTransformations(AdviceTransformation transformation) {
     transformation.applyAdvice(
         isMethod()
-            .and(named(INSTRUMENTED_METHOD))
+            .and(named("copyToString"))
             .and(takesArguments(2))
             .and(takesArgument(0, InputStream.class))
             .and(takesArgument(1, Charset.class)),
@@ -41,7 +38,7 @@ public final class StreamUtilsInstrumentation extends Instrumenter.Iast
 
   @Override
   public String instrumentedType() {
-    return INSTRUMENTED_CLASS;
+    return "org.springframework.util.StreamUtils";
   }
 
   public static class SpringAdvice {
