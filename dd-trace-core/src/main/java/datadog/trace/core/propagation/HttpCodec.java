@@ -3,6 +3,9 @@ package datadog.trace.core.propagation;
 import static datadog.trace.api.TracePropagationStyle.TRACECONTEXT;
 
 import datadog.trace.api.Config;
+import datadog.trace.api.DD128bTraceId;
+import datadog.trace.api.DD64bTraceId;
+import datadog.trace.api.DDTraceId;
 import datadog.trace.api.TraceConfig;
 import datadog.trace.api.TracePropagationStyle;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
@@ -200,8 +203,7 @@ public class HttpCodec {
           }
           // If another valid context is extracted
           else {
-            boolean traceIdMatches = context.getTraceId().equals(extracted.getTraceId());
-            if (traceIdMatches) {
+            if (traceIdMatch(context.getTraceId(), extractedContext.getTraceId())) {
               boolean comingFromTraceContext = extracted.getPropagationStyle() == TRACECONTEXT;
               if (comingFromTraceContext) {
                 // Propagate newly extracted W3C tracestate to first valid context
@@ -232,6 +234,23 @@ public class HttpCodec {
         log.debug("Extract no context");
         return null;
       }
+    }
+  }
+
+  /**
+   * Checks if trace identifier matches, even if they are not encoded using the same size (64-bit vs
+   * 128-bit).
+   *
+   * @param a A trace identifier to check.
+   * @param b Another trace identifier to check.
+   * @return {@code true} if the trace identifiers matches, {@code false} otherwise.
+   */
+  private static boolean traceIdMatch(DDTraceId a, DDTraceId b) {
+    if (a instanceof DD128bTraceId && b instanceof DD128bTraceId
+        || a instanceof DD64bTraceId && b instanceof DD64bTraceId) {
+      return a.equals(b);
+    } else {
+      return a.toLong() == b.toLong();
     }
   }
 
