@@ -1,5 +1,6 @@
-package datadog.trace.instrumentation.springweb;
+package datadog.trace.instrumentation.springcore;
 
+import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
@@ -13,13 +14,21 @@ import datadog.trace.api.iast.propagation.PropagationModule;
 import java.io.InputStream;
 import java.nio.charset.Charset;
 import net.bytebuddy.asm.Advice;
+import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
 public final class StreamUtilsInstrumentation extends Instrumenter.Iast
     implements Instrumenter.ForSingleType {
 
+  private static final String INSTRUMENTED_CLASS = "org.springframework.util.StreamUtils";
+
   public StreamUtilsInstrumentation() {
-    super("spring-web");
+    super("spring-core");
+  }
+
+  @Override
+  public ElementMatcher<ClassLoader> classLoaderMatcher() {
+    return hasClassNamed(INSTRUMENTED_CLASS);
   }
 
   @Override
@@ -35,7 +44,7 @@ public final class StreamUtilsInstrumentation extends Instrumenter.Iast
 
   @Override
   public String instrumentedType() {
-    return "org.springframework.util.StreamUtils";
+    return INSTRUMENTED_CLASS;
   }
 
   public static class SpringAdvice {
