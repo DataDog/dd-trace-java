@@ -60,6 +60,7 @@ class TagsAssert {
     assertedTags.add(DDTags.PID_TAG)
     assertedTags.add(DDTags.SCHEMA_VERSION_TAG_KEY)
     assertedTags.add(DDTags.PROFILING_ENABLED)
+    assertedTags.add(DDTags.PROFILING_CONTEXT_ENGINE)
     assertedTags.add(DDTags.BASE_SERVICE)
 
     assert tags["thread.name"] != null
