@@ -11,7 +11,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.PriorityQueue;
 import java.util.function.Supplier;
-import java.util.stream.Collectors;
 
 public class SnapshotPruner {
   private static final String NOT_CAPTURED_REASON = "notCapturedReason";
@@ -32,8 +31,7 @@ public class SnapshotPruner {
       return snapshot;
     }
     SnapshotPruner snapshotPruner = new SnapshotPruner(snapshot);
-    Collection<Node> leaves = snapshotPruner.getLeaves();
-    leaves = leaves.stream().filter(node -> node.level >= minLevel).collect(Collectors.toList());
+    Collection<Node> leaves = snapshotPruner.getLeaves(minLevel);
     PriorityQueue<Node> sortedLeaves =
         new PriorityQueue<>(
             Comparator.comparing((Node n) -> n.notCapturedDepth)
@@ -79,11 +77,11 @@ public class SnapshotPruner {
     return sb.toString();
   }
 
-  private Collection<Node> getLeaves() {
+  private Collection<Node> getLeaves(int minLevel) {
     if (root == null) {
       return Collections.emptyList();
     }
-    return root.getLeaves();
+    return root.getLeaves(minLevel);
   }
 
   private SnapshotPruner(String snapshot) {
@@ -224,13 +222,13 @@ public class SnapshotPruner {
       this.level = level;
     }
 
-    public Collection<Node> getLeaves() {
-      if (children.isEmpty()) {
+    public Collection<Node> getLeaves(int minLevel) {
+      if (children.isEmpty() && level >= minLevel) {
         return Collections.singleton(this);
       }
       Collection<Node> results = new ArrayList<>();
       for (int i = children.size() - 1; i >= 0; i--) {
-        results.addAll(children.get(i).getLeaves());
+        results.addAll(children.get(i).getLeaves(minLevel));
       }
       return results;
     }
