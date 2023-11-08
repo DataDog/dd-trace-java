@@ -41,6 +41,7 @@ class DataStreamsWritingTest extends DDCoreSpecification {
     }
   }
 
+  @SuppressWarnings('PropertyName')
   def DEFAULT_BUCKET_DURATION_NANOS = Config.get().getDataStreamsBucketDurationNanoseconds()
 
   def setup() {
