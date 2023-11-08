@@ -1,7 +1,6 @@
 package com.datadog.iast.test
 
 import com.datadog.iast.IastRequestContext
-import com.datadog.iast.model.Vulnerability
 import com.datadog.iast.taint.TaintedObjects
 import datadog.trace.agent.test.base.WithHttpServer
 import datadog.trace.agent.tooling.bytebuddy.iast.TaintableVisitor
@@ -15,12 +14,11 @@ import java.util.concurrent.TimeUnit
 abstract class IastHttpServerTest<SERVER> extends WithHttpServer<SERVER> implements IastRequestContextPreparationTrait {
 
   private static final LinkedBlockingQueue<TaintedObjectCollection> TAINTED_OBJECTS = new LinkedBlockingQueue<>()
-  private static final List<Vulnerability> VULNERABILITIES = new ArrayList<>()
 
   @CompileStatic
   void configurePreAgent() {
-    injectSysConfig('dd.iast.enabled', 'true')
     super.configurePreAgent()
+    injectSysConfig('dd.iast.enabled', 'true')
   }
 
   protected Closure getRequestEndAction() {
@@ -30,7 +28,6 @@ abstract class IastHttpServerTest<SERVER> extends WithHttpServer<SERVER> impleme
       if (iastRequestContext) {
         TaintedObjects taintedObjects = iastRequestContext.getTaintedObjects()
         TAINTED_OBJECTS.offer(new TaintedObjectCollection(taintedObjects))
-        // VULNERABILITIES.addAll(iastRequestContext.getVulnerabilityBatch().getVulnerabilities())
       }
     }
   }
@@ -49,10 +46,6 @@ abstract class IastHttpServerTest<SERVER> extends WithHttpServer<SERVER> impleme
 
   protected TaintedObjectCollection getFinReqTaintedObjects() {
     TAINTED_OBJECTS.poll(15, TimeUnit.SECONDS)
-  }
-
-  protected List<Vulnerability> getVulnerabilities() {
-    VULNERABILITIES
   }
 
   int version() {

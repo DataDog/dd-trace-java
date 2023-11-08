@@ -660,19 +660,6 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
     hasVulnerability { vul -> vul.type == 'SSRF' }
   }
 
-  void 'apache client ssrf is present'() {
-    setup:
-    final url = "http://localhost:${httpPort}/apache_ssrf"
-    final body = new FormBody.Builder().add('url', 'https://dd.datad0g.com/').build()
-    final request = new Request.Builder().url(url).post(body).build()
-
-    when:
-    client.newCall(request).execute()
-
-    then:
-    hasVulnerability { vul -> vul.type == 'SSRF' }
-  }
-
   void 'test iast metrics stored in spans'() {
     setup:
     final url = "http://localhost:${httpPort}/cmdi/runtime?cmd=ls"

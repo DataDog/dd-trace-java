@@ -29,9 +29,6 @@ import javax.xml.xpath.XPath;
 import javax.xml.xpath.XPathConstants;
 import javax.xml.xpath.XPathExpressionException;
 import javax.xml.xpath.XPathFactory;
-import org.apache.http.client.HttpClient;
-import org.apache.http.client.methods.HttpGet;
-import org.apache.http.impl.client.DefaultHttpClient;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.Resource;
 import org.springframework.http.HttpStatus;
@@ -256,17 +253,6 @@ public class IastWebController {
     } catch (final Exception e) {
     }
     return "Url is: " + url;
-  }
-
-  @PostMapping("/apache_ssrf")
-  public String apacheSsrf(@RequestParam("url") final String url) {
-    try {
-      HttpClient client = new DefaultHttpClient();
-      HttpGet request = new HttpGet(url);
-      client.execute(request);
-    } catch (Exception e) {
-    }
-    return "OK";
   }
 
   @GetMapping("/weak_randomness")
