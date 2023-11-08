@@ -64,8 +64,11 @@ public class DatadogRequestSpan implements RequestSpan, StatusSettable<Integer> 
     // TODO when `db.statement` is set here it will be intercepted by the TagInterceptor, so any
     //  sort of obfuscation should go in there, preferably as a lazy sort of Utf8String that does
     //  the actual work at the end
-    span.setTag(
-        key, "db.statement".equals(key) ? CouchbaseClientDecorator.normalizedQuery(value) : value);
+    if ("db.statement".equals(key)) {
+      span.setTag(key, CouchbaseClientDecorator.normalizedQuery(value));
+    } else {
+      span.setTag(key, value);
+    }
   }
 
   // This method shows up in later versions
