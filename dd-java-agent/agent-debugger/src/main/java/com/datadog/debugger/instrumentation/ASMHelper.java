@@ -166,7 +166,9 @@ public class ASMHelper {
     String methodName = getReflectiveMethodName(sort);
     // stack: [target_object, string]
     org.objectweb.asm.Type returnType =
-        sort == org.objectweb.asm.Type.OBJECT ? Types.OBJECT_TYPE : fieldType.getMainType();
+        sort == org.objectweb.asm.Type.OBJECT || sort == org.objectweb.asm.Type.ARRAY
+            ? Types.OBJECT_TYPE
+            : fieldType.getMainType();
     invokeStatic(
         insnList,
         REFLECTIVE_FIELD_VALUE_RESOLVER_TYPE,
@@ -174,7 +176,7 @@ public class ASMHelper {
         returnType,
         targetType,
         Types.STRING_TYPE);
-    if (sort == org.objectweb.asm.Type.OBJECT) {
+    if (sort == org.objectweb.asm.Type.OBJECT || sort == org.objectweb.asm.Type.ARRAY) {
       insnList.add(new TypeInsnNode(Opcodes.CHECKCAST, fieldType.getMainType().getInternalName()));
     }
     // stack: [field_value]
@@ -199,6 +201,7 @@ public class ASMHelper {
       case org.objectweb.asm.Type.BOOLEAN:
         return "getFieldValueAsBoolean";
       case org.objectweb.asm.Type.OBJECT:
+      case org.objectweb.asm.Type.ARRAY:
         return "getFieldValue";
       default:
         throw new IllegalArgumentException("Unsupported type sort:" + sort);

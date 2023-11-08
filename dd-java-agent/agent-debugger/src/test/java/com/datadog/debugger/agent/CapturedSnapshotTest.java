@@ -1234,10 +1234,12 @@ public class CapturedSnapshotTest {
     Snapshot snapshot = assertOneSnapshot(listener);
     Map<String, CapturedContext.CapturedValue> staticFields =
         snapshot.getCaptures().getReturn().getStaticFields();
-    assertEquals(5, staticFields.size());
+    assertEquals(7, staticFields.size());
     assertEquals("barfoo", getValue(staticFields.get("strValue")));
     assertEquals("48", getValue(staticFields.get("intValue")));
     assertEquals("6.28", getValue(staticFields.get("doubleValue")));
+    assertEquals("[1, 2, 3, 4]", getValue(staticFields.get("longValues")));
+    assertEquals("[foo, bar]", getValue(staticFields.get("strValues")));
   }
 
   @Test
@@ -2140,11 +2142,46 @@ public class CapturedSnapshotTest {
         Assertions.fail("NotCapturedReason: " + valued.getNotCapturedReason());
       }
       Object obj = valued.getValue();
+      if (obj != null && obj.getClass().isArray()) {
+        if (obj.getClass().getComponentType().isPrimitive()) {
+          return primitiveArrayToString(obj);
+        }
+        return Arrays.toString((Object[]) obj);
+      }
       return obj != null ? String.valueOf(obj) : null;
     } catch (IOException e) {
       e.printStackTrace();
       return null;
     }
+  }
+
+  private static String primitiveArrayToString(Object obj) {
+    Class<?> componentType = obj.getClass().getComponentType();
+    if (componentType == long.class) {
+      return Arrays.toString((long[]) obj);
+    }
+    if (componentType == int.class) {
+      return Arrays.toString((int[]) obj);
+    }
+    if (componentType == short.class) {
+      return Arrays.toString((short[]) obj);
+    }
+    if (componentType == char.class) {
+      return Arrays.toString((char[]) obj);
+    }
+    if (componentType == byte.class) {
+      return Arrays.toString((byte[]) obj);
+    }
+    if (componentType == boolean.class) {
+      return Arrays.toString((boolean[]) obj);
+    }
+    if (componentType == float.class) {
+      return Arrays.toString((float[]) obj);
+    }
+    if (componentType == double.class) {
+      return Arrays.toString((double[]) obj);
+    }
+    return null;
   }
 
   public static Map<String, CapturedContext.CapturedValue> getFields(
