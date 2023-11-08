@@ -263,7 +263,7 @@ class W3CHttpCodec {
      */
     @Override
     protected TagContext build() {
-      // If there is neither a traceparent or a tracestate header, then ignore this
+      // If there is neither a traceparent nor a tracestate header, then ignore this
       if (traceparentHeader == null && tracestateHeader == null) {
         onlyTagContext();
       }

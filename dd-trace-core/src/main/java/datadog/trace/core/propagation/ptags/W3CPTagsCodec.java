@@ -251,7 +251,6 @@ public class W3CPTagsCodec extends PTagsCodec {
       size = 0;
     }
     // Append all other non-Datadog list-members
-    // TODO we need to ensure that there are only 32 segments including our own :(
     int newSize = cleanUpAndAppendSuffix(sb, ptags, size);
     if (newSize != size) {
       // We don't care about the total size in bytes here, but only the fact that we added something
