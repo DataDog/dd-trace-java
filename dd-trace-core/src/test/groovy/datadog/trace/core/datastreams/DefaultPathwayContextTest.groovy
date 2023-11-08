@@ -1,6 +1,7 @@
 package datadog.trace.core.datastreams
 
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery
+import datadog.trace.api.Config
 import datadog.trace.api.DDTraceId
 import datadog.trace.api.TraceConfig
 import datadog.trace.api.WellKnownTags
@@ -14,14 +15,16 @@ import datadog.trace.core.propagation.ExtractedContext
 import datadog.trace.core.propagation.HttpCodec
 import datadog.trace.core.test.DDCoreSpecification
 
+import java.util.concurrent.TimeUnit
 import java.util.function.Consumer
 
 import static datadog.trace.api.config.GeneralConfig.PRIMARY_TAG
-import static datadog.trace.core.datastreams.DefaultDataStreamsMonitoring.DEFAULT_BUCKET_DURATION_NANOS
 import static java.util.concurrent.TimeUnit.MILLISECONDS
 
 class DefaultPathwayContextTest extends DDCoreSpecification {
   def wellKnownTags = new WellKnownTags("runtimeid", "hostname", "testing", "service", "version", "java")
+
+  def DEFAULT_BUCKET_DURATION_NANOS = MILLISECONDS.toNanos(Math.round(Config.get().getDataStreamsBucketDurationSeconds() * 1000))
 
   def pointConsumer = new Consumer<StatsPoint>() {
     List<StatsPoint> points = []

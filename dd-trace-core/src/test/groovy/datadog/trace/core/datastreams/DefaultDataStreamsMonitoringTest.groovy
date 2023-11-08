@@ -1,6 +1,7 @@
 package datadog.trace.core.datastreams
 
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery
+import datadog.trace.api.Config
 import datadog.trace.api.TraceConfig
 import datadog.trace.api.WellKnownTags
 import datadog.trace.api.experimental.DataStreamsContextCarrier
@@ -14,12 +15,13 @@ import spock.util.concurrent.PollingConditions
 
 import java.util.concurrent.TimeUnit
 
-import static DefaultDataStreamsMonitoring.DEFAULT_BUCKET_DURATION_NANOS
 import static DefaultDataStreamsMonitoring.FEATURE_CHECK_INTERVAL_NANOS
 import static java.util.concurrent.TimeUnit.SECONDS
 
 class DefaultDataStreamsMonitoringTest extends DDCoreSpecification {
   def wellKnownTags = new WellKnownTags("runtimeid", "hostname", "testing", "service", "version", "java")
+
+  def DEFAULT_BUCKET_DURATION_NANOS = TimeUnit.MILLISECONDS.toNanos(Math.round(Config.get().getDataStreamsBucketDurationSeconds() * 1000))
 
   def "No payloads written if data streams not supported or not enabled"() {
     given:

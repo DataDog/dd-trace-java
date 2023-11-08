@@ -20,7 +20,8 @@ import spock.lang.AutoCleanup
 import spock.lang.Shared
 import spock.util.concurrent.PollingConditions
 
-import static DefaultDataStreamsMonitoring.DEFAULT_BUCKET_DURATION_NANOS
+import java.util.concurrent.TimeUnit
+
 import static datadog.trace.agent.test.server.http.TestHttpServer.httpServer
 import static java.util.concurrent.TimeUnit.SECONDS
 
@@ -41,6 +42,8 @@ class DataStreamsWritingTest extends DDCoreSpecification {
       }
     }
   }
+
+  def DEFAULT_BUCKET_DURATION_NANOS = TimeUnit.MILLISECONDS.toNanos(Math.round(Config.get().getDataStreamsBucketDurationSeconds() * 1000))
 
   def setup() {
     requestBodies = []

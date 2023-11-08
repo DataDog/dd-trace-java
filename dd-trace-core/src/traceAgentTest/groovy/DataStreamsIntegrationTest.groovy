@@ -17,7 +17,6 @@ import spock.util.concurrent.PollingConditions
 import java.util.concurrent.CopyOnWriteArrayList
 
 import static datadog.trace.common.metrics.EventListener.EventType.OK
-import static datadog.trace.core.datastreams.DefaultDataStreamsMonitoring.DEFAULT_BUCKET_DURATION_NANOS
 
 @Requires({
   "true" == System.getenv("CI")
