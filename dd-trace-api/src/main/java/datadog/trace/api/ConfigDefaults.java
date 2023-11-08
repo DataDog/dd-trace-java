@@ -79,6 +79,8 @@ public final class ConfigDefaults {
 
   static final int DEFAULT_CLOCK_SYNC_PERIOD = 30; // seconds
 
+  static final boolean DEFAULT_TRACE_PROPAGATION_EXTRACT_FIRST = false;
+
   static final boolean DEFAULT_JMX_FETCH_MULTIPLE_RUNTIME_SERVICES_ENABLED = false;
   static final int DEFAULT_JMX_FETCH_MULTIPLE_RUNTIME_SERVICES_LIMIT = 10;
 

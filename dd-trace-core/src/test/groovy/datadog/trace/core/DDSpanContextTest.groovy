@@ -9,6 +9,7 @@ import datadog.trace.common.writer.ListWriter
 import datadog.trace.core.propagation.ExtractedContext
 import datadog.trace.core.test.DDCoreSpecification
 
+import static datadog.trace.api.TracePropagationStyle.DATADOG
 import static datadog.trace.api.sampling.PrioritySampling.*
 import static datadog.trace.api.sampling.SamplingMechanism.*
 import static datadog.trace.core.DDSpanContext.SPAN_SAMPLING_MECHANISM_TAG
@@ -181,7 +182,7 @@ class DDSpanContextTest extends DDCoreSpecification {
 
   def "set TraceSegment tags and data on correct span"() {
     setup:
-    def extracted = new ExtractedContext(DDTraceId.from(123), 456, SAMPLER_KEEP, "789", tracer.getPropagationTagsFactory().empty())
+    def extracted = new ExtractedContext(DDTraceId.from(123), 456, SAMPLER_KEEP, "789", tracer.getPropagationTagsFactory().empty(), DATADOG)
       .withRequestContextDataAppSec("dummy")
 
     def top = tracer.buildSpan("top").asChildOf((AgentSpan.Context) extracted).start()

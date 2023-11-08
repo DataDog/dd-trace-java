@@ -23,6 +23,7 @@ import spock.lang.Shared
 import spock.lang.Subject
 
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
+import static datadog.trace.api.TracePropagationStyle.NONE
 import static datadog.trace.api.sampling.PrioritySampling.SAMPLER_DROP
 import static datadog.trace.api.sampling.PrioritySampling.SAMPLER_KEEP
 import static datadog.trace.api.sampling.PrioritySampling.UNSET
@@ -50,7 +51,7 @@ class OpenTracing32Test extends AgentTestRunner {
         .withTag("boolean", true)
     }
     if (addReference) {
-      def ctx = new ExtractedContext(DDTraceId.ONE, 2, SAMPLER_DROP, null, PropagationTags.factory().empty())
+      def ctx = new ExtractedContext(DDTraceId.ONE, 2, SAMPLER_DROP, null, PropagationTags.factory().empty(), NONE)
       builder.addReference(addReference, tracer.tracer.converter.toSpanContext(ctx))
     }
     def result = builder.start()

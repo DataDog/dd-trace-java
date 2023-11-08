@@ -1,11 +1,17 @@
 package datadog.trace.core.propagation;
 
+import static datadog.trace.api.TracePropagationStyle.TRACECONTEXT;
+
 import datadog.trace.api.Config;
+import datadog.trace.api.DD128bTraceId;
+import datadog.trace.api.DD64bTraceId;
+import datadog.trace.api.DDTraceId;
 import datadog.trace.api.TraceConfig;
 import datadog.trace.api.TracePropagationStyle;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.TagContext;
 import datadog.trace.core.DDSpanContext;
+import datadog.trace.core.DDSpanLink;
 import java.io.UnsupportedEncodingException;
 import java.net.URLDecoder;
 import java.net.URLEncoder;
@@ -46,7 +52,17 @@ public class HttpCodec {
         final DDSpanContext context, final C carrier, final AgentPropagation.Setter<C> setter);
   }
 
+  /** This interface defines propagated context extractor. */
   public interface Extractor {
+    /**
+     * Extracts a propagated context from the given carrier using the provided getter.
+     *
+     * @param carrier The carrier containing the propagated context.
+     * @param getter The getter used to extract data from the carrier.
+     * @param <C> The type of the carrier.
+     * @return {@code null} for failed context extraction, a {@link TagContext} instance for partial
+     *     context extraction or an {@link ExtractedContext} for complete context extraction.
+     */
     <C> TagContext extract(final C carrier, final AgentPropagation.ContextVisitor<C> getter);
   }
 
@@ -136,7 +152,7 @@ public class HttpCodec {
           break;
       }
     }
-    return new CompoundExtractor(extractors);
+    return new CompoundExtractor(extractors, config.isTracePropagationExtractFirst());
   }
 
   public static class CompoundInjector implements Injector {
@@ -159,27 +175,82 @@ public class HttpCodec {
 
   public static class CompoundExtractor implements Extractor {
     private final List<Extractor> extractors;
+    private final boolean extractFirst;
 
-    public CompoundExtractor(final List<Extractor> extractors) {
+    public CompoundExtractor(final List<Extractor> extractors, boolean extractFirst) {
       this.extractors = extractors;
+      this.extractFirst = extractFirst;
     }
 
     @Override
     public <C> TagContext extract(
         final C carrier, final AgentPropagation.ContextVisitor<C> getter) {
-      TagContext context = null;
+      ExtractedContext context = null;
+      TagContext partialContext = null;
 
-      for (final Extractor extractor : extractors) {
-        context = extractor.extract(carrier, getter);
-        // Use incomplete TagContext only as last resort
-        if (context instanceof ExtractedContext) {
-          log.debug("Extract complete context {}", context);
-          return context;
+      for (final Extractor extractor : this.extractors) {
+        TagContext extracted = extractor.extract(carrier, getter);
+        // Check if context is valid
+        if (extracted instanceof ExtractedContext) {
+          ExtractedContext extractedContext = (ExtractedContext) extracted;
+          // If no prior valid context, store it as first valid context
+          if (context == null) {
+            context = extractedContext;
+            // Stop extraction if only extracting first valid context and drop everything else
+            if (this.extractFirst) {
+              break;
+            }
+          }
+          // If another valid context is extracted
+          else {
+            if (traceIdMatch(context.getTraceId(), extractedContext.getTraceId())) {
+              boolean comingFromTraceContext = extracted.getPropagationStyle() == TRACECONTEXT;
+              if (comingFromTraceContext) {
+                // Propagate newly extracted W3C tracestate to first valid context
+                String extractedTracestate =
+                    extractedContext.getPropagationTags().getW3CTracestate();
+                context.getPropagationTags().updateW3CTracestate(extractedTracestate);
+              }
+            } else {
+              // Terminate extracted context and add it as span link
+              context.addTerminatedContextLink(DDSpanLink.from((ExtractedContext) extracted));
+              // TODO Note: Other vendor tracestate will be lost here
+            }
+          }
+        }
+        // Check if context is at least partial to keep it as first valid partial context found
+        else if (extracted != null && partialContext == null) {
+          partialContext = extracted;
         }
       }
 
-      log.debug("Extract incomplete context {}", context);
-      return context;
+      if (context != null) {
+        log.debug("Extract complete context {}", context);
+        return context;
+      } else if (partialContext != null) {
+        log.debug("Extract incomplete context {}", partialContext);
+        return partialContext;
+      } else {
+        log.debug("Extract no context");
+        return null;
+      }
+    }
+  }
+
+  /**
+   * Checks if trace identifier matches, even if they are not encoded using the same size (64-bit vs
+   * 128-bit).
+   *
+   * @param a A trace identifier to check.
+   * @param b Another trace identifier to check.
+   * @return {@code true} if the trace identifiers matches, {@code false} otherwise.
+   */
+  private static boolean traceIdMatch(DDTraceId a, DDTraceId b) {
+    if (a instanceof DD128bTraceId && b instanceof DD128bTraceId
+        || a instanceof DD64bTraceId && b instanceof DD64bTraceId) {
+      return a.equals(b);
+    } else {
+      return a.toLong() == b.toLong();
     }
   }
 

@@ -67,6 +67,22 @@ public abstract class PropagationTags {
   public abstract void updateTraceIdHighOrderBits(long highOrderBits);
 
   /**
+   * Gets the original <a href="https://www.w3.org/TR/trace-context/#tracestate-header">W3C
+   * tracestate header</a> value.
+   *
+   * @return The original W3C tracestate header value.
+   */
+  public abstract String getW3CTracestate();
+
+  /**
+   * Stores the original <a href="https://www.w3.org/TR/trace-context/#tracestate-header">W3C
+   * tracestate header</a> value.
+   *
+   * @param tracestate The original W3C tracestate header value.
+   */
+  public abstract void updateW3CTracestate(String tracestate);
+
+  /**
    * Constructs a header value that includes valid propagated _dd.p.* tags and possibly a new
    * sampling decision tag _dd.p.dm based on the current state. Returns null if the value length
    * exceeds a configured limit or empty.
