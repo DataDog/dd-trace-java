@@ -4,7 +4,7 @@ import static com.datadog.debugger.probe.LogProbe.Capture.toLimits;
 
 import com.datadog.debugger.agent.DebuggerAgent;
 import com.datadog.debugger.agent.Generated;
-import com.datadog.debugger.agent.LogMessageTemplateBuilder;
+import com.datadog.debugger.agent.StringTemplateBuilder;
 import com.datadog.debugger.el.EvaluationException;
 import com.datadog.debugger.el.ProbeCondition;
 import com.datadog.debugger.el.ValueScript;
@@ -41,6 +41,8 @@ import org.slf4j.LoggerFactory;
 /** Stores definition of a log probe */
 public class LogProbe extends ProbeDefinition {
   private static final Logger LOGGER = LoggerFactory.getLogger(LogProbe.class);
+  private static final Limits LIMITS = new Limits(1, 3, 8192, 5);
+  private static final int LOG_MSG_LIMIT = 8192;
 
   /** Stores part of a templated message either a str or an expression */
   public static class Segment {
@@ -386,8 +388,15 @@ public class LogProbe extends ProbeDefinition {
       sample(logStatus, methodLocation);
     }
     if (logStatus.isSampled() && logStatus.getCondition()) {
-      LogMessageTemplateBuilder logMessageBuilder = new LogMessageTemplateBuilder(segments);
-      logStatus.setMessage(logMessageBuilder.evaluate(context, logStatus));
+      StringTemplateBuilder logMessageBuilder = new StringTemplateBuilder(segments, LIMITS);
+      String msg = logMessageBuilder.evaluate(context, logStatus);
+      if (msg != null && msg.length() > LOG_MSG_LIMIT) {
+        StringBuilder sb = new StringBuilder(LOG_MSG_LIMIT + 3);
+        sb.append(msg, 0, LOG_MSG_LIMIT);
+        sb.append("...");
+        msg = sb.toString();
+      }
+      logStatus.setMessage(msg);
     }
   }
 
