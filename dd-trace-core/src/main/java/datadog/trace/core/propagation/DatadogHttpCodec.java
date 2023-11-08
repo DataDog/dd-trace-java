@@ -17,6 +17,7 @@ import datadog.trace.api.TracePropagationStyle;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.TagContext;
 import datadog.trace.core.DDSpanContext;
+import datadog.trace.core.propagation.PropagationTags.HeaderType;
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.function.Supplier;
@@ -77,8 +78,7 @@ class DatadogHttpCodec {
       }
 
       // inject x-datadog-tags
-      String datadogTags =
-          context.getPropagationTags().headerValue(PropagationTags.HeaderType.DATADOG);
+      String datadogTags = context.getPropagationTags().headerValue(HeaderType.DATADOG);
       if (datadogTags != null) {
         setter.set(carrier, DATADOG_TAGS_KEY, datadogTags);
       }
@@ -103,12 +103,10 @@ class DatadogHttpCodec {
     private static final int IGNORE = -1;
 
     private final boolean isAwsPropagationEnabled;
-    private final PropagationTags.Factory datadogTagsFactory;
 
     private DatadogContextInterpreter(Config config) {
       super(config);
       isAwsPropagationEnabled = config.isAwsPropagationEnabled();
-      datadogTagsFactory = PropagationTags.factory(config);
     }
 
     @Override
@@ -187,8 +185,7 @@ class DatadogHttpCodec {
                 endToEndStartTime = extractEndToEndStartTime(firstHeaderValue(value));
                 break;
               case DD_TAGS:
-                propagationTags =
-                    datadogTagsFactory.fromHeaderValue(PropagationTags.HeaderType.DATADOG, value);
+                propagationTags = propagationTagsFactory.fromHeaderValue(HeaderType.DATADOG, value);
                 break;
               case OT_BAGGAGE:
                 {

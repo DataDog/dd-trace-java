@@ -48,6 +48,7 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
   protected long endToEndStartTime;
   protected boolean valid;
   protected boolean fullContext;
+  protected final PropagationTags.Factory propagationTagsFactory;
   protected PropagationTags propagationTags;
 
   private TagContext.HttpHeaders httpHeaders;
@@ -67,6 +68,7 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
     this.customIpHeaderName = config.getTraceClientIpHeader();
     this.clientIpResolutionEnabled = config.isTraceClientIpResolverEnabled();
     this.clientIpWithoutAppSec = config.isClientIpEnabled();
+    this.propagationTagsFactory = PropagationTags.factory(config);
   }
 
   /**
@@ -233,21 +235,21 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
   protected TagContext build() {
     if (valid) {
       if (fullContext && !DDTraceId.ZERO.equals(traceId)) {
-        final ExtractedContext context;
-        context =
-            new ExtractedContext(
-                traceId,
-                spanId,
-                samplingPriorityOrDefault(traceId, samplingPriority),
-                origin,
-                endToEndStartTime,
-                baggage,
-                tags,
-                httpHeaders,
-                propagationTags,
-                traceConfig,
-                style());
-        return context;
+        if (propagationTags == null) {
+          propagationTags = propagationTagsFactory.empty();
+        }
+        return new ExtractedContext(
+            traceId,
+            spanId,
+            samplingPriorityOrDefault(traceId, samplingPriority),
+            origin,
+            endToEndStartTime,
+            baggage,
+            tags,
+            httpHeaders,
+            propagationTags,
+            traceConfig,
+            style());
       } else if (origin != null
           || !tags.isEmpty()
           || httpHeaders != null
