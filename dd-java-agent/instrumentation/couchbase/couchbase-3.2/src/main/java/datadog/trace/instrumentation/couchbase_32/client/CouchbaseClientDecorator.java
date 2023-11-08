@@ -10,6 +10,7 @@ import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.DBTypeProcessingDatabaseClientDecorator;
 import java.util.function.Function;
+import java.util.function.ToIntFunction;
 
 class CouchbaseClientDecorator extends DBTypeProcessingDatabaseClientDecorator {
   private static final String DB_TYPE = "couchbase";
@@ -21,8 +22,11 @@ class CouchbaseClientDecorator extends DBTypeProcessingDatabaseClientDecorator {
   public static final CouchbaseClientDecorator DECORATE = new CouchbaseClientDecorator();
 
   private static final Function<String, UTF8BytesString> NORMALIZE = SQLNormalizer::normalize;
+  private static final int COMBINED_STATEMENT_LIMIT = 2 * 1024 * 1024; // characters
+
+  private static final ToIntFunction<UTF8BytesString> STATEMENT_WEIGHER = UTF8BytesString::length;
   private static final DDCache<String, UTF8BytesString> CACHED_STATEMENTS =
-      DDCaches.newFixedSizeCache(512);
+      DDCaches.newFixedSizeWeightedCache(512, STATEMENT_WEIGHER, COMBINED_STATEMENT_LIMIT);
 
   @Override
   protected String[] instrumentationNames() {
