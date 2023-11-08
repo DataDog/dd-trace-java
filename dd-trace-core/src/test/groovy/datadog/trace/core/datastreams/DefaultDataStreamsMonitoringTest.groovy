@@ -21,7 +21,7 @@ import static java.util.concurrent.TimeUnit.SECONDS
 class DefaultDataStreamsMonitoringTest extends DDCoreSpecification {
   def wellKnownTags = new WellKnownTags("runtimeid", "hostname", "testing", "service", "version", "java")
 
-  def DEFAULT_BUCKET_DURATION_NANOS = TimeUnit.MILLISECONDS.toNanos(Math.round(Config.get().getDataStreamsBucketDurationSeconds() * 1000))
+  def DEFAULT_BUCKET_DURATION_NANOS = Config.get().getDataStreamsBucketDurationNanoseconds()
 
   def "No payloads written if data streams not supported or not enabled"() {
     given:

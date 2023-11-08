@@ -454,6 +454,7 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.SortedSet;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -2984,6 +2985,12 @@ public class Config {
 
   public float getDataStreamsBucketDurationSeconds() {
     return dataStreamsBucketDurationSeconds;
+  }
+
+  public long getDataStreamsBucketDurationNanoseconds() {
+    // Rounds to the nearest millisecond before converting to nanos
+    int milliseconds = Math.round(dataStreamsBucketDurationSeconds * 1000);
+    return TimeUnit.MILLISECONDS.toNanos(milliseconds);
   }
 
   public String getTraceAgentPath() {
