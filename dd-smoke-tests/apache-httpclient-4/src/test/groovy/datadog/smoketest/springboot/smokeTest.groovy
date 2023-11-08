@@ -4,7 +4,6 @@ import datadog.smoketest.AbstractIastServerSmokeTest
 import okhttp3.FormBody
 import okhttp3.Request
 
-import static datadog.smoketest.springboot.SsrfController.ExecuteMethod.*
 import static datadog.trace.api.config.IastConfig.IAST_DEBUG_ENABLED
 import static datadog.trace.api.config.IastConfig.IAST_DETECTION_MODE
 import static datadog.trace.api.config.IastConfig.IAST_ENABLED
@@ -36,7 +35,7 @@ class smokeTest extends AbstractIastServerSmokeTest {
   void 'ssrf is present'() {
     setup:
     final url = "http://localhost:${httpPort}/ssrf/execute"
-    final body = new FormBody.Builder().add('url', 'https://dd.datad0g.com/').add('method', executeMethod.name()).build()
+    final body = new FormBody.Builder().add('url', 'https://dd.datad0g.com/').add('client', suite.clientImplementation).add('method', suite.executedMethod).build()
     final request = new Request.Builder().url(url).post(body).build()
 
     when:
@@ -44,17 +43,36 @@ class smokeTest extends AbstractIastServerSmokeTest {
 
     then:
     response.successful
-    hasVulnerability { vul -> vul.type == 'SSRF' && vul.location.path == 'datadog.smoketest.springboot.SsrfController' && vul.location.line == line }
+    hasVulnerability { vul -> vul.type == 'SSRF' && vul.location.path == 'datadog.smoketest.springboot.SsrfController' && vul.location.line == suite.expectedLine}
 
     where:
-    executeMethod | line
-    REQUEST | 39
-    REQUEST_CONTEXT | 42
-    HOST_REQUEST | 45
-    REQUEST_HANDLER | 48
-    REQUEST_HANDLER_CONTEXT | 51
-    HOST_REQUEST_HANDLER | 54
-    HOST_REQUEST_HANDLER_CONTEXT | 57
-    HOST_REQUEST_CONTEXT | 60
+    suite << createTestSuite()
+  }
+
+  private Iterable<TestSuite> createTestSuite() {
+    final result = []
+    for (SsrfController.Client client : SsrfController.Client.values()) {
+      for (SsrfController.ExecuteMethod method : SsrfController.ExecuteMethod.values()) {
+        result.add(new TestSuite(
+          description: "ssrf is present for ${client} client and ${method} method",
+          executedMethod: method.name(),
+          clientImplementation: client.name(),
+          expectedLine: method.expectedLine
+          ))
+      }
+    }
+    return result as Iterable<TestSuite>
+  }
+
+  private static class TestSuite {
+    String description
+    String executedMethod
+    String clientImplementation
+    Integer expectedLine
+
+    @Override
+    String toString() {
+      return "IAST apache httpclient 4 test suite: ${description}"
+    }
   }
 }
