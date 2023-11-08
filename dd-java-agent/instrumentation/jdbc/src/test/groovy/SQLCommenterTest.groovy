@@ -14,7 +14,11 @@ class SQLCommenterTest extends AgentTestRunner {
     if (injectTrace) {
       sqlWithComment = SQLCommenter.inject(query, dbService, traceParent, true, appendComment)
     } else {
-      sqlWithComment = SQLCommenter.inject(query, dbService, appendComment)
+      if (appendComment) {
+        sqlWithComment = SQLCommenter.append(query, dbService)
+      } else {
+        sqlWithComment = SQLCommenter.prepend(query, dbService)
+      }
     }
 
     sqlWithComment == expected

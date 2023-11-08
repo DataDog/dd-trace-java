@@ -24,9 +24,12 @@ public class SQLCommenter {
   private static final String CLOSE_COMMENT = "*/";
   private static final int INITIAL_CAPACITY = computeInitialCapacity();
 
-  public static String inject(
-      final String sql, final String dbService, final boolean appendComment) {
-    return inject(sql, dbService, null, false, appendComment);
+  public static String append(final String sql, final String dbService) {
+    return inject(sql, dbService, null, false, true);
+  }
+
+  public static String prepend(final String sql, final String dbService) {
+    return inject(sql, dbService, null, false, false);
   }
 
   public static String inject(

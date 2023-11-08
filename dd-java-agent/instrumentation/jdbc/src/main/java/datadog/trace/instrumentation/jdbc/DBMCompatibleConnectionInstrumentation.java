@@ -73,9 +73,6 @@ public class DBMCompatibleConnectionInstrumentation extends AbstractConnectionIn
     "com.informix.jdbc.IfmxConnection",
   };
 
-  // prepend mode will prepend the SQL comment to the raw sql query
-  private static final boolean appendComment = false;
-
   @Override
   public String[] helperClassNames() {
     return new String[] {
@@ -127,7 +124,7 @@ public class DBMCompatibleConnectionInstrumentation extends AbstractConnectionIn
         final DBInfo dbInfo =
             JDBCDecorator.parseDBInfo(
                 connection, InstrumentationContext.get(Connection.class, DBInfo.class));
-        sql = SQLCommenter.inject(sql, DECORATE.getDbService(dbInfo), appendComment);
+        sql = SQLCommenter.prepend(sql, DECORATE.getDbService(dbInfo));
         return inputSql;
       }
       return sql;

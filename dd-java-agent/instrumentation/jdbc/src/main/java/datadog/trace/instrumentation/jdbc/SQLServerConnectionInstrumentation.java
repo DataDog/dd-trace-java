@@ -45,9 +45,6 @@ public class SQLServerConnectionInstrumentation extends AbstractConnectionInstru
     "net.sourceforge.jtds.jdbc.JtdsConnection", // 1.3
   };
 
-  // append mode will prepend the SQL comment to the raw sql query
-  private static final boolean appendComment = true;
-
   @Override
   public String[] helperClassNames() {
     return new String[] {
@@ -99,7 +96,7 @@ public class SQLServerConnectionInstrumentation extends AbstractConnectionInstru
         final DBInfo dbInfo =
             JDBCDecorator.parseDBInfo(
                 connection, InstrumentationContext.get(Connection.class, DBInfo.class));
-        sql = SQLCommenter.inject(sql, DECORATE.getDbService(dbInfo), appendComment);
+        sql = SQLCommenter.append(sql, DECORATE.getDbService(dbInfo));
         return inputSql;
       }
       return sql;
