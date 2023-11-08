@@ -1,11 +1,9 @@
 package datadog.trace.instrumentation.kafka_streams;
 
 import static datadog.trace.instrumentation.kafka_streams.KafkaStreamsDecorator.KAFKA_PRODUCED_KEY;
+import static datadog.trace.instrumentation.kafka_streams.ProcessorRecordContextHeadersAccess.HEADERS_METHOD;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
-import java.lang.invoke.MethodHandle;
-import java.lang.invoke.MethodHandles;
-import java.lang.invoke.MethodType;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import org.apache.kafka.common.header.Header;
@@ -16,30 +14,11 @@ import org.slf4j.LoggerFactory;
 
 public class ProcessorRecordContextVisitor
     implements AgentPropagation.ContextVisitor<ProcessorRecordContext>,
-        AgentPropagation.BinaryContextVisitor<ProcessorRecordContext>,
-        AgentPropagation.BinarySetter<ProcessorRecordContext> {
+        AgentPropagation.BinaryContextVisitor<ProcessorRecordContext> {
 
   private static final Logger log = LoggerFactory.getLogger(ProcessorRecordContextVisitor.class);
 
-  // Using a method handle here to avoid forking the instrumentation for versions 2.7+
-  private static final MethodHandle HEADERS_METHOD;
-
-  static {
-    MethodHandle method;
-    try {
-      method =
-          MethodHandles.publicLookup()
-              .findVirtual(
-                  ProcessorRecordContext.class, "headers", MethodType.methodType(Headers.class));
-    } catch (Throwable e) {
-      log.debug("Exception loading MethodHandle", e);
-      method = null;
-    }
-    HEADERS_METHOD = method;
-  }
-
-  public static final ProcessorRecordContextVisitor PR_GETTER_SETTER =
-      new ProcessorRecordContextVisitor();
+  public static final ProcessorRecordContextVisitor PR_GETTER = new ProcessorRecordContextVisitor();
 
   @Override
   public void forEachKey(
@@ -102,23 +81,5 @@ public class ProcessorRecordContextVisitor
       log.debug("Unable to get kafka produced time", e);
     }
     return 0;
-  }
-
-  @Override
-  public void set(ProcessorRecordContext carrier, String key, String value) {
-    set(carrier, key, value.getBytes(StandardCharsets.UTF_8));
-  }
-
-  @Override
-  public void set(ProcessorRecordContext carrier, String key, byte[] value) {
-    if (HEADERS_METHOD == null) {
-      return;
-    }
-    try {
-      Headers headers = (Headers) HEADERS_METHOD.invokeExact(carrier);
-      headers.remove(key).add(key, value);
-    } catch (Throwable e) {
-      log.debug("Unable to set value", e);
-    }
   }
 }

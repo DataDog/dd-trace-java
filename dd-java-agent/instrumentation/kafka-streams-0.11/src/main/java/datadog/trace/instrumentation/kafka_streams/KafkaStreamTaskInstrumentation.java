@@ -16,8 +16,10 @@ import static datadog.trace.instrumentation.kafka_streams.KafkaStreamsDecorator.
 import static datadog.trace.instrumentation.kafka_streams.KafkaStreamsDecorator.KAFKA_CONSUME;
 import static datadog.trace.instrumentation.kafka_streams.KafkaStreamsDecorator.KAFKA_DELIVER;
 import static datadog.trace.instrumentation.kafka_streams.KafkaStreamsDecorator.TIME_IN_QUEUE_ENABLED;
-import static datadog.trace.instrumentation.kafka_streams.ProcessorRecordContextVisitor.PR_GETTER_SETTER;
-import static datadog.trace.instrumentation.kafka_streams.StampedRecordContextVisitor.SR_GETTER_SETTER;
+import static datadog.trace.instrumentation.kafka_streams.ProcessorRecordContextSetter.PR_SETTER;
+import static datadog.trace.instrumentation.kafka_streams.ProcessorRecordContextVisitor.PR_GETTER;
+import static datadog.trace.instrumentation.kafka_streams.StampedRecordContextSetter.SR_SETTER;
+import static datadog.trace.instrumentation.kafka_streams.StampedRecordContextVisitor.SR_GETTER;
 import static java.util.Collections.singletonMap;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
@@ -66,7 +68,9 @@ public class KafkaStreamTaskInstrumentation extends Instrumenter.Tracing
       "datadog.trace.instrumentation.kafka_common.StreamingContext",
       packageName + ".KafkaStreamsDecorator",
       packageName + ".ProcessorRecordContextVisitor",
+      packageName + ".ProcessorRecordContextSetter",
       packageName + ".StampedRecordContextVisitor",
+      packageName + ".StampedRecordContextSetter",
       packageName + ".StreamTaskContext",
     };
   }
@@ -221,8 +225,8 @@ public class KafkaStreamTaskInstrumentation extends Instrumenter.Tracing
       StreamTaskContext streamTaskContext =
           InstrumentationContext.get(StreamTask.class, StreamTaskContext.class).get(task);
       if (!Config.get().isKafkaClientPropagationDisabledForTopic(record.topic())) {
-        final AgentSpan.Context extractedContext = propagate().extract(record, SR_GETTER_SETTER);
-        long timeInQueueStart = SR_GETTER_SETTER.extractTimeInQueueStart(record);
+        final AgentSpan.Context extractedContext = propagate().extract(record, SR_GETTER);
+        long timeInQueueStart = SR_GETTER.extractTimeInQueueStart(record);
         if (timeInQueueStart == 0 || !TIME_IN_QUEUE_ENABLED) {
           span = startSpan(KAFKA_CONSUME, extractedContext);
         } else {
@@ -258,7 +262,7 @@ public class KafkaStreamTaskInstrumentation extends Instrumenter.Tracing
                 .injectPathwayContext(
                     span,
                     record,
-                    SR_GETTER_SETTER,
+                    SR_SETTER,
                     sortedTags,
                     record.timestamp,
                     computePayloadSizeBytes(record.value));
@@ -300,8 +304,8 @@ public class KafkaStreamTaskInstrumentation extends Instrumenter.Tracing
       StreamTaskContext streamTaskContext =
           InstrumentationContext.get(StreamTask.class, StreamTaskContext.class).get(task);
       if (!Config.get().isKafkaClientPropagationDisabledForTopic(record.topic())) {
-        final AgentSpan.Context extractedContext = propagate().extract(record, PR_GETTER_SETTER);
-        long timeInQueueStart = PR_GETTER_SETTER.extractTimeInQueueStart(record);
+        final AgentSpan.Context extractedContext = propagate().extract(record, PR_GETTER);
+        long timeInQueueStart = PR_GETTER.extractTimeInQueueStart(record);
         if (timeInQueueStart == 0 || !TIME_IN_QUEUE_ENABLED) {
           span = startSpan(KAFKA_CONSUME, extractedContext);
         } else {
@@ -343,7 +347,7 @@ public class KafkaStreamTaskInstrumentation extends Instrumenter.Tracing
           if (STREAMING_CONTEXT.isSourceTopic(record.topic())) {
             propagate()
                 .injectPathwayContext(
-                    span, record, PR_GETTER_SETTER, sortedTags, record.timestamp(), payloadSize);
+                    span, record, PR_SETTER, sortedTags, record.timestamp(), payloadSize);
           }
         }
       } else {

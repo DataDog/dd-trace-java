@@ -6,20 +6,17 @@ import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import org.apache.kafka.common.header.Header;
-import org.apache.kafka.common.header.Headers;
 import org.apache.kafka.streams.processor.internals.StampedRecord;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class StampedRecordContextVisitor
     implements AgentPropagation.ContextVisitor<StampedRecord>,
-        AgentPropagation.BinaryContextVisitor<StampedRecord>,
-        AgentPropagation.BinarySetter<StampedRecord> {
+        AgentPropagation.BinaryContextVisitor<StampedRecord> {
 
   private static final Logger log = LoggerFactory.getLogger(StampedRecordContextVisitor.class);
 
-  public static final StampedRecordContextVisitor SR_GETTER_SETTER =
-      new StampedRecordContextVisitor();
+  public static final StampedRecordContextVisitor SR_GETTER = new StampedRecordContextVisitor();
 
   @Override
   public void forEachKey(StampedRecord carrier, AgentPropagation.KeyClassifier classifier) {
@@ -60,18 +57,5 @@ public class StampedRecordContextVisitor
       log.debug("Unable to get kafka produced time", e);
     }
     return 0;
-  }
-
-  @Override
-  public void set(StampedRecord carrier, String key, String value) {
-    set(carrier, key, value.getBytes(StandardCharsets.UTF_8));
-  }
-
-  @Override
-  public void set(StampedRecord carrier, String key, byte[] value) {
-    Headers headers = carrier.value.headers();
-    if (headers != null) {
-      headers.remove(key).add(key, value);
-    }
   }
 }
