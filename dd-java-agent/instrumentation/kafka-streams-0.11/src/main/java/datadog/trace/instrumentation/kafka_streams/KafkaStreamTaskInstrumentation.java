@@ -67,6 +67,7 @@ public class KafkaStreamTaskInstrumentation extends Instrumenter.Tracing
       "datadog.trace.instrumentation.kafka_common.Utils",
       "datadog.trace.instrumentation.kafka_common.StreamingContext",
       packageName + ".KafkaStreamsDecorator",
+      packageName + ".ProcessorRecordContextHeadersAccess",
       packageName + ".ProcessorRecordContextVisitor",
       packageName + ".ProcessorRecordContextSetter",
       packageName + ".StampedRecordContextVisitor",
