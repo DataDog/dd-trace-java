@@ -24,7 +24,7 @@ class InsecureCookieModuleTest extends IastModuleImplTestBase {
 
   def setup() {
     InstrumentationBridge.clearIastModules()
-    module = registerDependencies(new HttpResponseHeaderModuleImpl())
+    module = new HttpResponseHeaderModuleImpl(dependencies)
     InstrumentationBridge.registerIastModule(new InsecureCookieModuleImpl())
     objectHolder = []
     ctx = new IastRequestContext()

@@ -1,4 +1,4 @@
-package com.datadog.profiling.controller;
+package datadog.trace.api.profiling;
 
 import static org.junit.jupiter.api.Assertions.*;
 

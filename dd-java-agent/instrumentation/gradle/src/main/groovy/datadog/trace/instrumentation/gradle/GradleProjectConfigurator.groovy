@@ -75,7 +75,9 @@ class GradleProjectConfigurator {
 
     jvmArgs.add("-javaagent:" + config.ciVisibilityAgentJarFile.toPath())
 
-    task.jvmArgs(jvmArgs)
+    // be sure to use setJvmArgs() and not jvmArgs()
+    // as the latter will add the arguments rather than replacing them
+    task.setJvmArgs(jvmArgs)
   }
 
   private static final Pattern PROJECT_PROPERTY_REFERENCE = Pattern.compile("\\\$\\{([^}]+)\\}")

@@ -1,6 +1,7 @@
 package com.datadog.profiling.controller;
 
 import datadog.trace.api.profiling.ProfilingSnapshot;
+import datadog.trace.api.profiling.RecordingData;
 import java.io.Closeable;
 import java.time.Instant;
 import javax.annotation.Nonnull;

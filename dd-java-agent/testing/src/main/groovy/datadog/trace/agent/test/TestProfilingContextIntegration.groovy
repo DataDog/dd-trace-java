@@ -33,15 +33,6 @@ class TestProfilingContextIntegration implements ProfilingContextIntegration {
   }
 
   @Override
-  boolean isQueuingTimeEnabled() {
-    return true
-  }
-
-  @Override
-  void recordQueueingTime(long duration) {
-  }
-
-  @Override
   ProfilingContextAttribute createContextAttribute(String attribute) {
     return ProfilingContextAttribute.NoOp.INSTANCE
   }

@@ -25,7 +25,7 @@ class SsrfModuleTest extends IastModuleImplTestBase {
   private AgentSpan span
 
   def setup() {
-    module = registerDependencies(new SsrfModuleImpl())
+    module = new SsrfModuleImpl(dependencies)
     objectHolder = []
     ctx = new IastRequestContext()
     final reqCtx = Mock(RequestContext) {

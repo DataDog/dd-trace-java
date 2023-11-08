@@ -26,10 +26,10 @@ public class EvpProxyApi implements BackendApi {
   private final OkHttpClient httpClient;
 
   public EvpProxyApi(
-      HttpUrl evpProxyUrl, long timeoutMillis, HttpRetryPolicy.Factory retryPolicyFactory) {
+      HttpUrl evpProxyUrl, HttpRetryPolicy.Factory retryPolicyFactory, OkHttpClient httpClient) {
     this.evpProxyUrl = evpProxyUrl.resolve(String.format("api/%s/", API_VERSION));
     this.retryPolicyFactory = retryPolicyFactory;
-    httpClient = OkHttpUtils.buildHttpClient(evpProxyUrl, timeoutMillis);
+    this.httpClient = httpClient;
   }
 
   @Override

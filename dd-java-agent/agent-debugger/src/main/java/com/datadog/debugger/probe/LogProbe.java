@@ -381,8 +381,8 @@ public class LogProbe extends ProbeDefinition {
           new EvaluationError(
               "uncaught exception", throwable.getType() + ": " + throwable.getMessage()));
     }
-    if (hasCondition() && logStatus.getCondition()) {
-      // sample if probe has condition and condition is true
+    if (hasCondition() && (logStatus.getCondition() || logStatus.hasConditionErrors())) {
+      // sample if probe has condition and condition is true or has error
       sample(logStatus, methodLocation);
     }
     if (logStatus.isSampled() && logStatus.getCondition()) {

@@ -223,7 +223,7 @@ public final class TaintedMap implements Iterable<TaintedObject> {
     if (cur == null) {
       return 0;
     }
-    for (TaintedObject prev = cur.next; cur != null; prev = cur, cur = cur.next) {
+    for (TaintedObject prev = cur.next; cur != null && prev != null; prev = cur, cur = cur.next) {
       if (cur == entry) {
         prev.next = cur.next;
         return 1;
@@ -259,7 +259,7 @@ public final class TaintedMap implements Iterable<TaintedObject> {
   private Iterator<TaintedObject> iterator(final int start, final int stop) {
     return new Iterator<TaintedObject>() {
       int currentIndex = start;
-      TaintedObject currentSubPos;
+      @Nullable TaintedObject currentSubPos;
 
       @Override
       public boolean hasNext() {
@@ -294,6 +294,8 @@ public final class TaintedMap implements Iterable<TaintedObject> {
     };
   }
 
+  @Nonnull
+  @Override
   public Iterator<TaintedObject> iterator() {
     return iterator(0, table.length);
   }

@@ -66,6 +66,7 @@ public interface TaintedObjects extends Iterable<TaintedObject> {
       return tainted;
     }
 
+    @Nullable
     @Override
     public TaintedObject get(final @Nonnull Object obj) {
       return map.get(obj);

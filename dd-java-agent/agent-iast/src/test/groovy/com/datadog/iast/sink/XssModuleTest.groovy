@@ -26,7 +26,7 @@ class XssModuleTest extends IastModuleImplTestBase {
   private IastRequestContext ctx
 
   def setup() {
-    module = registerDependencies(new XssModuleImpl())
+    module = new XssModuleImpl(dependencies)
     objectHolder = []
     ctx = new IastRequestContext()
     final reqCtx = Mock(RequestContext) {

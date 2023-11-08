@@ -291,7 +291,7 @@ public class DatadogProfilerConfig {
   }
 
   public static boolean isResourceNameContextAttributeEnabled(ConfigProvider configProvider) {
-    return configProvider.getBoolean(PROFILING_CONTEXT_ATTRIBUTES_RESOURCE_NAME_ENABLED, true);
+    return configProvider.getBoolean(PROFILING_CONTEXT_ATTRIBUTES_RESOURCE_NAME_ENABLED, false);
   }
 
   public static String getString(ConfigProvider configProvider, String key, String defaultValue) {

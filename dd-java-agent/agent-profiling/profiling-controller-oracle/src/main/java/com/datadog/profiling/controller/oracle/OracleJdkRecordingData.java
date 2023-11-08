@@ -15,8 +15,8 @@
  */
 package com.datadog.profiling.controller.oracle;
 
-import com.datadog.profiling.controller.RecordingData;
-import com.datadog.profiling.controller.RecordingInputStream;
+import datadog.trace.api.profiling.RecordingData;
+import datadog.trace.api.profiling.RecordingInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.time.Instant;

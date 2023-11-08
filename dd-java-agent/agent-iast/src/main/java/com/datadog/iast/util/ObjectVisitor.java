@@ -15,6 +15,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.function.Predicate;
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -25,7 +26,7 @@ public class ObjectVisitor {
 
   private static final int MAX_VISITED_OBJECTS = 1000;
   private static final int MAX_DEPTH = 10;
-  private static final Method TRY_SET_ACCESSIBLE;
+  @Nullable private static final Method TRY_SET_ACCESSIBLE;
 
   static {
     TRY_SET_ACCESSIBLE = fetchTrySetAccessibleMethod();
@@ -210,6 +211,7 @@ public class ObjectVisitor {
     return true;
   }
 
+  @Nullable
   private static Method fetchTrySetAccessibleMethod() {
     Method method = null;
     if (Platform.isJavaVersionAtLeast(9)) {

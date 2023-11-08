@@ -1,5 +1,6 @@
 package com.datadog.iast.sink;
 
+import com.datadog.iast.Dependencies;
 import com.datadog.iast.IastRequestContext;
 import com.datadog.iast.model.Evidence;
 import com.datadog.iast.model.VulnerabilityType;
@@ -9,6 +10,10 @@ import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import javax.annotation.Nullable;
 
 public class SqlInjectionModuleImpl extends SinkModuleBase implements SqlInjectionModule {
+
+  public SqlInjectionModuleImpl(final Dependencies dependencies) {
+    super(dependencies);
+  }
 
   @Override
   public void onJdbcQuery(@Nullable final String queryString) {
