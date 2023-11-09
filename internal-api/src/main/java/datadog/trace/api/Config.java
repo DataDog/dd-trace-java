@@ -477,7 +477,6 @@ import org.slf4j.LoggerFactory;
  * @see InstrumenterConfig for pre-instrumentation configurations
  * @see DynamicConfig for configuration that can be dynamically updated via remote-config
  */
-@Deprecated
 public class Config {
 
   private static final Logger log = LoggerFactory.getLogger(Config.class);
