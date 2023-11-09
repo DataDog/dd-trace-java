@@ -255,7 +255,7 @@ public class RabbitDecorator extends MessagingClientDecorator {
               span,
               sortedTags,
               produceMillis,
-              (body != null ? body.length : 0) + computeHeadersSizeBytes(headers));
+              () -> ((body != null ? body.length : 0) + computeHeadersSizeBytes(headers)));
     }
 
     CONSUMER_DECORATE.afterStart(span);

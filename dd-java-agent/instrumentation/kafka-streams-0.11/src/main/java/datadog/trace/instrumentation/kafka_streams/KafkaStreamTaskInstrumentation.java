@@ -248,7 +248,7 @@ public class KafkaStreamTaskInstrumentation extends Instrumenter.Tracing
         AgentTracer.get()
             .getDataStreamsMonitoring()
             .setCheckpoint(
-                span, sortedTags, record.timestamp, computePayloadSizeBytes(record.value));
+                span, sortedTags, record.timestamp, () -> computePayloadSizeBytes(record.value));
       } else {
         span = startSpan(KAFKA_CONSUME, null);
       }
@@ -312,17 +312,22 @@ public class KafkaStreamTaskInstrumentation extends Instrumenter.Tracing
         sortedTags.put(TOPIC_TAG, record.topic());
         sortedTags.put(TYPE_TAG, "kafka");
 
-        long payloadSize = 0;
-        // we have to go through Object to get the RecordMetadata here because the class of `record`
-        // only implements it after 2.7 (and this class is only used if v >= 2.7)
-        if ((Object) record instanceof RecordMetadata) { // should always be true
-          RecordMetadata metadata = (RecordMetadata) (Object) record;
-          payloadSize = metadata.serializedKeySize() + metadata.serializedValueSize();
-        }
-
         AgentTracer.get()
             .getDataStreamsMonitoring()
-            .setCheckpoint(span, sortedTags, record.timestamp(), payloadSize);
+            .setCheckpoint(
+                span,
+                sortedTags,
+                record.timestamp(),
+                () -> {
+                  // we have to go through Object to get the RecordMetadata here because the class
+                  // of `record` only implements it after 2.7 (and this Advice is only used if v >=
+                  // 2.7)
+                  if ((Object) record instanceof RecordMetadata) { // should always be true
+                    RecordMetadata metadata = (RecordMetadata) (Object) record;
+                    return metadata.serializedKeySize() + metadata.serializedValueSize();
+                  }
+                  return 0;
+                });
       } else {
         span = startSpan(KAFKA_CONSUME, null);
       }

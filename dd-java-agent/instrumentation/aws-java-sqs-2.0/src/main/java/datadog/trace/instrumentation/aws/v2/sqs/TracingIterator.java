@@ -97,7 +97,7 @@ public class TracingIterator<L extends Iterator<Message>> implements Iterator<Me
         sortedTags.put(TYPE_TAG, "sqs");
         AgentTracer.get()
             .getDataStreamsMonitoring()
-            .setCheckpoint(span, sortedTags, 0, computePayloadSizeBytes(message));
+            .setCheckpoint(span, sortedTags, 0, () -> computePayloadSizeBytes(message));
 
         CONSUMER_DECORATE.afterStart(span);
         CONSUMER_DECORATE.onConsume(span, queueUrl, requestId);

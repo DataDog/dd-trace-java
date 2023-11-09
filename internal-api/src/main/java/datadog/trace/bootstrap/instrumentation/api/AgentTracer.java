@@ -27,6 +27,7 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.function.Consumer;
+import java.util.function.LongSupplier;
 
 public class AgentTracer {
   private static final String DEFAULT_INSTRUMENTATION_NAME = "datadog";
@@ -1026,7 +1027,7 @@ public class AgentTracer {
         AgentSpan span,
         LinkedHashMap<String, String> sortedTags,
         long defaultTimestamp,
-        long payloadSizeBytes) {}
+        LongSupplier payloadSizeBytes) {}
 
     @Override
     public PathwayContext newPathwayContext() {
