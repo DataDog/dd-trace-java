@@ -5,9 +5,9 @@ import com.datastax.oss.driver.api.core.cql.ResultSet;
 import com.datastax.oss.driver.api.core.metadata.Node;
 import com.datastax.oss.driver.api.core.servererrors.CoordinatorException;
 import com.datastax.oss.driver.api.core.session.Session;
-import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
+import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.api.normalize.SQLNormalizer;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
@@ -16,7 +16,6 @@ import datadog.trace.bootstrap.instrumentation.decorator.DBTypeProcessingDatabas
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.util.Objects;
-import java.util.function.Function;
 import java.util.function.ToIntFunction;
 
 public class CassandraClientDecorator extends DBTypeProcessingDatabaseClientDecorator<Session> {
