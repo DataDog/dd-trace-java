@@ -41,6 +41,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.TimeUnit;
+import java.util.function.LongSupplier;
 import java.util.function.Supplier;
 import org.jctools.queues.MpscBlockingConsumerArrayQueue;
 import org.slf4j.Logger;
@@ -208,10 +209,11 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
       AgentSpan span,
       LinkedHashMap<String, String> sortedTags,
       long defaultTimestamp,
-      long payloadSizeBytes) {
+      LongSupplier payloadSizeBytes) {
     PathwayContext pathwayContext = span.context().getPathwayContext();
     if (pathwayContext != null) {
-      pathwayContext.setCheckpoint(sortedTags, this::add, defaultTimestamp, payloadSizeBytes);
+      pathwayContext.setCheckpoint(
+          sortedTags, this::add, defaultTimestamp, payloadSizeBytes.getAsLong());
       if (pathwayContext.getHash() != 0) {
         span.setTag(PATHWAY_HASH, Long.toUnsignedString(pathwayContext.getHash()));
       }
@@ -237,7 +239,7 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
     sortedTags.put(TOPIC_TAG, source);
     sortedTags.put(TYPE_TAG, type);
 
-    setCheckpoint(span, sortedTags, 0, 0);
+    setCheckpoint(span, sortedTags, 0, () -> 0);
   }
 
   @Override

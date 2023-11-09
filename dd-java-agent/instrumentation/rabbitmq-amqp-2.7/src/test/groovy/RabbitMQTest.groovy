@@ -178,6 +178,7 @@ abstract class RabbitMQTestBase extends VersionedNamingTestBase {
       verifyAll(second) {
         edgeTags == ["direction:in", "topic:" + queueName, "type:rabbitmq"]
         edgeTags.size() == 3
+        !payloadSize.isEmpty()
       }
     }
 

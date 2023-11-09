@@ -93,7 +93,7 @@ public class TracingIterator implements Iterator<ConsumerRecord<?, ?>> {
 
           AgentTracer.get()
               .getDataStreamsMonitoring()
-              .setCheckpoint(span, sortedTags, val.timestamp(), computePayloadSizeBytes(val));
+              .setCheckpoint(span, sortedTags, val.timestamp(), () -> computePayloadSizeBytes(val));
         } else {
           span = startSpan(operationName, null);
         }

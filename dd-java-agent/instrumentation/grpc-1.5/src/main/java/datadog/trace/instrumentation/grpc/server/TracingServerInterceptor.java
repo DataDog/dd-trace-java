@@ -69,7 +69,7 @@ public class TracingServerInterceptor implements ServerInterceptor {
 
     AgentTracer.get()
         .getDataStreamsMonitoring()
-        .setCheckpoint(span, SERVER_PATHWAY_EDGE_TAGS, 0, 0);
+        .setCheckpoint(span, SERVER_PATHWAY_EDGE_TAGS, 0, () -> 0);
 
     RequestContext reqContext = span.getRequestContext();
     if (reqContext != null) {
