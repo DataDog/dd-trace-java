@@ -245,10 +245,11 @@ public class KafkaStreamTaskInstrumentation extends Instrumenter.Tracing
         }
         sortedTags.put(TOPIC_TAG, record.topic());
         sortedTags.put(TYPE_TAG, "kafka");
+        final long payloadSize =
+            span.traceConfig().isDataStreamsEnabled() ? computePayloadSizeBytes(record.value) : 0;
         AgentTracer.get()
             .getDataStreamsMonitoring()
-            .setCheckpoint(
-                span, sortedTags, record.timestamp, computePayloadSizeBytes(record.value));
+            .setCheckpoint(span, sortedTags, record.timestamp, payloadSize);
       } else {
         span = startSpan(KAFKA_CONSUME, null);
       }
