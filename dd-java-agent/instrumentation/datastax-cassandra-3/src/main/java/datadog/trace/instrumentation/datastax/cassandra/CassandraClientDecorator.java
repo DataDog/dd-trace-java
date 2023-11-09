@@ -27,14 +27,15 @@ public class CassandraClientDecorator extends DBTypeProcessingDatabaseClientDeco
   private static final int COMBINED_STATEMENT_LIMIT = 2 * 1024 * 1024; // characters
   private static final ToIntFunction<UTF8BytesString> STATEMENT_WEIGHER = UTF8BytesString::length;
   private static final DDCache<CharSequence, UTF8BytesString> CACHED_STATEMENTS =
-  DDCaches.newFixedSizeWeightedCache(512, STATEMENT_WEIGHER, COMBINED_STATEMENT_LIMIT);
+      DDCaches.newFixedSizeWeightedCache(512, STATEMENT_WEIGHER, COMBINED_STATEMENT_LIMIT);
 
   protected static UTF8BytesString normalizedQuery(CharSequence sql) {
     return CACHED_STATEMENTS.computeIfAbsent(sql, SQLNormalizer::normalizeCharSequence);
   }
+
   @Override
   protected String[] instrumentationNames() {
-    return new String[] {"cassandra"};
+    return new String[]{"cassandra"};
   }
 
   @Override
