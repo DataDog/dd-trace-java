@@ -160,7 +160,7 @@ public class IastApacheHttpClientInstrumentation extends Instrumenter.Iast
       if (request instanceof HttpUriRequest) {
         IastHelperMethods.doMethodEnter((HttpUriRequest) request);
       } else {
-        IastHelperMethods.doMethodEnter(host);
+        IastHelperMethods.doMethodEnter(host, request);
       }
     }
 
