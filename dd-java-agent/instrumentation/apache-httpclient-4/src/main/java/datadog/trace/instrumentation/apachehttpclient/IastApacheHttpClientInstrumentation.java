@@ -8,16 +8,14 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Sink;
 import datadog.trace.api.iast.VulnerabilityTypes;
-import datadog.trace.api.iast.sink.SsrfModule;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 import org.apache.http.HttpHost;
-import org.apache.http.client.HttpClient;
-import org.apache.http.impl.client.DefaultHttpClient;
+import org.apache.http.HttpRequest;
+import org.apache.http.client.methods.HttpUriRequest;
 
 @AutoService(Instrumenter.class)
 public class IastApacheHttpClientInstrumentation extends Instrumenter.Iast
@@ -61,7 +59,57 @@ public class IastApacheHttpClientInstrumentation extends Instrumenter.Iast
   }
 
   @Override
+  public String[] helperClassNames() {
+    return new String[] {packageName + ".IastHelperMethods"};
+  }
+
+  @Override
   public void adviceTransformations(AdviceTransformation transformation) {
+    // There are 8 execute(...) methods.  Depending on the version, they may or may not delegate to
+    // eachother. Thus, all methods need to be instrumented.  Because of argument position and type,
+    // some methods can share the same advice class.  The call depth tracking ensures only 1 call to
+    // Ssrf module
+
+    transformation.applyAdvice(
+        isMethod()
+            .and(named("execute"))
+            .and(takesArguments(1))
+            .and(takesArgument(0, named("org.apache.http.client.methods.HttpUriRequest"))),
+        IastApacheHttpClientInstrumentation.class.getName() + "$UriRequestAdvice");
+
+    transformation.applyAdvice(
+        isMethod()
+            .and(named("execute"))
+            .and(takesArguments(2))
+            .and(takesArgument(0, named("org.apache.http.client.methods.HttpUriRequest")))
+            .and(takesArgument(1, named("org.apache.http.protocol.HttpContext"))),
+        IastApacheHttpClientInstrumentation.class.getName() + "$UriRequestAdvice");
+
+    transformation.applyAdvice(
+        isMethod()
+            .and(named("execute"))
+            .and(takesArguments(2))
+            .and(takesArgument(0, named("org.apache.http.client.methods.HttpUriRequest")))
+            .and(takesArgument(1, named("org.apache.http.client.ResponseHandler"))),
+        IastApacheHttpClientInstrumentation.class.getName() + "$UriRequestAdvice");
+
+    transformation.applyAdvice(
+        isMethod()
+            .and(named("execute"))
+            .and(takesArguments(3))
+            .and(takesArgument(0, named("org.apache.http.client.methods.HttpUriRequest")))
+            .and(takesArgument(1, named("org.apache.http.client.ResponseHandler")))
+            .and(takesArgument(2, named("org.apache.http.protocol.HttpContext"))),
+        IastApacheHttpClientInstrumentation.class.getName() + "$UriRequestAdvice");
+
+    transformation.applyAdvice(
+        isMethod()
+            .and(named("execute"))
+            .and(takesArguments(2))
+            .and(takesArgument(0, named("org.apache.http.HttpHost")))
+            .and(takesArgument(1, named("org.apache.http.HttpRequest"))),
+        IastApacheHttpClientInstrumentation.class.getName() + "$RequestAdvice");
+
     transformation.applyAdvice(
         isMethod()
             .and(named("execute"))
@@ -69,21 +117,56 @@ public class IastApacheHttpClientInstrumentation extends Instrumenter.Iast
             .and(takesArgument(0, named("org.apache.http.HttpHost")))
             .and(takesArgument(1, named("org.apache.http.HttpRequest")))
             .and(takesArgument(2, named("org.apache.http.protocol.HttpContext"))),
-        IastApacheHttpClientInstrumentation.class.getName() + "$ExecuteAdvice");
+        IastApacheHttpClientInstrumentation.class.getName() + "$RequestAdvice");
+
+    transformation.applyAdvice(
+        isMethod()
+            .and(named("execute"))
+            .and(takesArguments(3))
+            .and(takesArgument(0, named("org.apache.http.HttpHost")))
+            .and(takesArgument(1, named("org.apache.http.HttpRequest")))
+            .and(takesArgument(2, named("org.apache.http.client.ResponseHandler"))),
+        IastApacheHttpClientInstrumentation.class.getName() + "$RequestAdvice");
+
+    transformation.applyAdvice(
+        isMethod()
+            .and(named("execute"))
+            .and(takesArguments(4))
+            .and(takesArgument(0, named("org.apache.http.HttpHost")))
+            .and(takesArgument(1, named("org.apache.http.HttpRequest")))
+            .and(takesArgument(2, named("org.apache.http.client.ResponseHandler")))
+            .and(takesArgument(3, named("org.apache.http.protocol.HttpContext"))),
+        IastApacheHttpClientInstrumentation.class.getName() + "$RequestAdvice");
   }
 
-  public static class ExecuteAdvice {
+  public static class UriRequestAdvice {
+    @Sink(VulnerabilityTypes.SSRF)
+    @Advice.OnMethodEnter(suppress = Throwable.class)
+    public static void methodEnter(@Advice.Argument(0) final HttpUriRequest request) {
+      IastHelperMethods.doMethodEnter(request);
+    }
+
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+    public static void methodExit() {
+      IastHelperMethods.doMethodExit();
+    }
+  }
+
+  public static class RequestAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     @Sink(VulnerabilityTypes.SSRF)
-    public static void methodEnter(@Advice.Argument(0) final HttpHost host) {
-      final SsrfModule module = InstrumentationBridge.SSRF;
-      if (module != null) {
-        module.onURLConnection(host);
+    public static void methodEnter(
+        @Advice.Argument(0) final HttpHost host, @Advice.Argument(1) final HttpRequest request) {
+      if (request instanceof HttpUriRequest) {
+        IastHelperMethods.doMethodEnter((HttpUriRequest) request);
+      } else {
+        IastHelperMethods.doMethodEnter(host);
       }
     }
 
-    private static void muzzleCheck() {
-      HttpClient client = new DefaultHttpClient();
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+    public static void methodExit() {
+      IastHelperMethods.doMethodExit();
     }
   }
 }

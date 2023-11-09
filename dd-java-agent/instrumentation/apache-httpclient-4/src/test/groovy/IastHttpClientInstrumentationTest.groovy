@@ -1,5 +1,3 @@
-
-
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.sink.SsrfModule
@@ -40,7 +38,7 @@ class IastHttpClientInstrumentationTest extends AgentTestRunner {
     httpClient.execute(*args)
 
     then:
-    1 * ssrf.onURLConnection(_ as HttpHost)
+    1 * ssrf.onURLConnection(_)
 
     where:
     httpClient | args
