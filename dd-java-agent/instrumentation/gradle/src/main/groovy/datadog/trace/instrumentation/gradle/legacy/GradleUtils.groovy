@@ -68,9 +68,12 @@ abstract class GradleUtils {
     def sourceSets = project.sourceSets
     Collection<File> allOutputClassesDirs = new HashSet<>()
     for (String sourceSetName : sourceSetNames) {
-      def sourceSet = sourceSets.getByName(sourceSetName)
-      def sourceSetOutput = sourceSet.output
+      def sourceSet = sourceSets.findByName(sourceSetName)
+      if (sourceSet == null) {
+        continue
+      }
 
+      def sourceSetOutput = sourceSet.output
       if (sourceSetOutput.hasProperty('classesDirs')) {
         def outputClassesDirs = sourceSetOutput.classesDirs
         allOutputClassesDirs.addAll(outputClassesDirs.files)
