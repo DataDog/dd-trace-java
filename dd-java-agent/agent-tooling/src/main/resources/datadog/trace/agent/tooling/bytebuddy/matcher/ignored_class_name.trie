@@ -333,7 +333,7 @@
 0 org.springframework.web.servlet.*
 # Need for IAST so propagation of tainted objects is complete in spring 2.7.5
 0 org.springframework.util.StreamUtils$NonClosingInputStream
-# Need for IAST so propagation
+# Need for IAST gson propagation
 0 org.springframework.util.StreamUtils
 # Included for IAST Spring mvc unvalidated redirect and xss vulnerability
 0 org.springframework.web.method.support.HandlerMethodReturnValueHandlerComposite
