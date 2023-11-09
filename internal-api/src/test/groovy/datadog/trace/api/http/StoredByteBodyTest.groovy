@@ -26,7 +26,7 @@ class StoredByteBodyTest extends Specification {
     1 * startCb.apply(requestContext, storedByteBody)
 
     when:
-    storedByteBody.appendData([(int)'a']* 127 as byte[], 0, 127)
+    storedByteBody.appendData([(int) 'a'] * 127 as byte[], 0, 127)
     def flow = storedByteBody.maybeNotify()
 
     then:
@@ -46,7 +46,7 @@ class StoredByteBodyTest extends Specification {
 
     when:
     // last byte ignored
-    storedByteBody.appendData([(int)'a']* 128 * 1024 as byte[], 0, 128 * 1024)
+    storedByteBody.appendData([(int) 'a'] * 128 * 1024 as byte[], 0, 128 * 1024)
     // ignored
     storedByteBody.appendData(0)
     // ignored
@@ -203,11 +203,27 @@ class StoredByteBodyTest extends Specification {
     StoredByteBody.ByteBufferWriteCallback mockCb = Mock()
 
     when:
-    storedByteBody.appendData([(int)'a']* 128 * 1024 as byte[], 0, 128 * 1024)
+    storedByteBody.appendData([(int) 'a'] * 128 * 1024 as byte[], 0, 128 * 1024)
     storedByteBody.get() // force commit
     storedByteBody.appendData(mockCb, 1)
 
     then:
     0 * mockCb._(*_)
+  }
+
+  void 'does not fail on double commit'() {
+    given:
+    final charset = Charset.defaultCharset()
+    final body = (1..100).collect {'hello world'}.join().getBytes(charset)
+    storedByteBody = new StoredByteBody(requestContext, startCb, endCb, charset, 0)
+    storedByteBody.appendData(body, 0, body.length)
+    storedByteBody.maybeNotify()
+
+    when:
+    storedByteBody.appendData(body, 0, body.length)
+    storedByteBody.maybeNotify()
+
+    then:
+    noExceptionThrown()
   }
 }
