@@ -1,6 +1,8 @@
 package datadog.remoteconfig.state;
 
 import datadog.trace.api.Config;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Locale;
 import java.util.concurrent.ConcurrentHashMap;
 import javax.annotation.Nullable;
@@ -37,8 +39,8 @@ public class ExtraServicesProvider {
   }
 
   @Nullable
-  public static String[] getExtraServices() {
-    return extraServices.isEmpty() ? null : extraServices.values().toArray(new String[0]);
+  public static List<String> getExtraServices() {
+    return extraServices.isEmpty() ? null : new ArrayList<>(extraServices.values());
   }
 
   public static void clear() {

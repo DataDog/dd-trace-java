@@ -16,7 +16,7 @@ public class RemoteConfigRequest {
       String tracerVersion,
       Collection<String> productNames,
       String serviceName,
-      String[] extraServices,
+      List<String> extraServices,
       String serviceEnv,
       String serviceVersion,
       List<String> tags,
@@ -177,7 +177,7 @@ public class RemoteConfigRequest {
       private final String serviceName;
 
       @Json(name = "extra_services")
-      private final String[] extraServices;
+      private final List<String> extraServices;
 
       @Json(name = "env")
       private final String serviceEnv;
@@ -189,7 +189,7 @@ public class RemoteConfigRequest {
           String runtimeId,
           String tracerVersion,
           String serviceName,
-          String[] extraServices,
+          List<String> extraServices,
           String serviceEnv,
           String serviceVersion,
           List<String> tags) {
@@ -206,7 +206,7 @@ public class RemoteConfigRequest {
         return this.serviceName;
       }
 
-      public String[] getExtraServices() {
+      public List<String> getExtraServices() {
         return extraServices;
       }
 
