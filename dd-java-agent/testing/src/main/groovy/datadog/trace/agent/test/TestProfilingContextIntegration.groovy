@@ -33,6 +33,11 @@ class TestProfilingContextIntegration implements ProfilingContextIntegration {
   }
 
   @Override
+  String name() {
+    return "test"
+  }
+
+  @Override
   ProfilingContextAttribute createContextAttribute(String attribute) {
     return ProfilingContextAttribute.NoOp.INSTANCE
   }

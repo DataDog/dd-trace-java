@@ -19,23 +19,29 @@ public class SQLCommenter {
   private static final char EQUALS = '=';
   private static final char COMMA = ',';
   private static final char QUOTE = '\'';
-  private static final String OPEN_COMMENT = " /*";
+  private static final char SPACE = ' ';
+  private static final String OPEN_COMMENT = "/*";
   private static final String CLOSE_COMMENT = "*/";
   private static final int INITIAL_CAPACITY = computeInitialCapacity();
 
-  public static String inject(final String sql, final String dbService) {
-    return inject(sql, dbService, null, false);
+  public static String append(final String sql, final String dbService) {
+    return inject(sql, dbService, null, false, true);
+  }
+
+  public static String prepend(final String sql, final String dbService) {
+    return inject(sql, dbService, null, false, false);
   }
 
   public static String inject(
       final String sql,
       final String dbService,
       final String traceParent,
-      final boolean injectTrace) {
+      final boolean injectTrace,
+      final boolean appendComment) {
     if (sql == null || sql.isEmpty()) {
       return sql;
     }
-    if (hasDDComment(sql)) {
+    if (hasDDComment(sql, appendComment)) {
       return sql;
     }
     final Config config = Config.get();
@@ -44,34 +50,51 @@ public class SQLCommenter {
     final String version = config.getVersion();
     final int commentSize = capacity(traceParent, parentService, dbService, env, version);
     StringBuilder sb = new StringBuilder(sql.length() + commentSize);
-    sb.append(sql);
-    sb.append(OPEN_COMMENT);
-    toComment(sb, injectTrace, parentService, dbService, env, version, traceParent);
-    if (sb.length() == OPEN_COMMENT.length() + sql.length()) {
+    boolean commentAdded = false;
+    if (appendComment) {
+      sb.append(sql);
+      sb.append(SPACE);
+      sb.append(OPEN_COMMENT);
+      commentAdded =
+          toComment(sb, injectTrace, parentService, dbService, env, version, traceParent);
+      sb.append(CLOSE_COMMENT);
+    } else {
+      sb.append(OPEN_COMMENT);
+      commentAdded =
+          toComment(sb, injectTrace, parentService, dbService, env, version, traceParent);
+      sb.append(CLOSE_COMMENT);
+      sb.append(SPACE);
+      sb.append(sql);
+    }
+    if (!commentAdded) {
       return sql;
     }
-    sb.append(CLOSE_COMMENT);
     return sb.toString();
   }
 
-  private static boolean hasDDComment(String sql) {
+  private static boolean hasDDComment(String sql, final boolean appendComment) {
     // first check to see if sql ends with a comment
-    if (!(sql.endsWith("*/"))) {
+    if ((!(sql.endsWith(CLOSE_COMMENT)) && appendComment)
+        || ((!(sql.startsWith(OPEN_COMMENT))) && !appendComment)) {
       return false;
     }
     // else check to see if it's a DBM trace sql comment
+    int startIdx = 2;
+    if (appendComment) {
+      startIdx = sql.lastIndexOf(OPEN_COMMENT) + 2;
+    }
+    int startComment = appendComment ? startIdx : sql.length();
     boolean found = false;
-    int i = sql.lastIndexOf("/*") + 2;
-    if (i >= 2) {
-      if (hasMatchingSubstring(sql, i, PARENT_SERVICE)) {
+    if (startComment > 2) {
+      if (hasMatchingSubstring(sql, startIdx, PARENT_SERVICE)) {
         found = true;
-      } else if (hasMatchingSubstring(sql, i, DATABASE_SERVICE)) {
+      } else if (hasMatchingSubstring(sql, startIdx, DATABASE_SERVICE)) {
         found = true;
-      } else if (hasMatchingSubstring(sql, i, DD_ENV)) {
+      } else if (hasMatchingSubstring(sql, startIdx, DD_ENV)) {
         found = true;
-      } else if (hasMatchingSubstring(sql, i, DD_VERSION)) {
+      } else if (hasMatchingSubstring(sql, startIdx, DD_VERSION)) {
         found = true;
-      } else if (hasMatchingSubstring(sql, i, TRACEPARENT)) {
+      } else if (hasMatchingSubstring(sql, startIdx, TRACEPARENT)) {
         found = true;
       }
     }
@@ -97,7 +120,7 @@ public class SQLCommenter {
     return val;
   }
 
-  protected static void toComment(
+  protected static boolean toComment(
       StringBuilder sb,
       final boolean injectTrace,
       final String parentService,
@@ -113,6 +136,7 @@ public class SQLCommenter {
     if (injectTrace) {
       append(sb, TRACEPARENT, traceparent, sb.length() > emptySize);
     }
+    return sb.length() > emptySize;
   }
 
   private static void append(StringBuilder sb, String key, String value, boolean prependComma) {
