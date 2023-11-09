@@ -93,10 +93,12 @@ public class TracingIterator implements Iterator<ConsumerRecord<?, ?>> {
           sortedTags.put(TOPIC_TAG, val.topic());
           sortedTags.put(TYPE_TAG, "kafka");
 
+          final long payloadSize =
+              span.traceConfig().isDataStreamsEnabled() ? computePayloadSizeBytes(val) : 0;
           if (STREAMING_CONTEXT.empty()) {
             AgentTracer.get()
                 .getDataStreamsMonitoring()
-                .setCheckpoint(span, sortedTags, val.timestamp(), computePayloadSizeBytes(val));
+                .setCheckpoint(span, sortedTags, val.timestamp(), payloadSize);
           } else {
             // when we're in a streaming context we want to consume only from source topics
             if (STREAMING_CONTEXT.isSourceTopic(val.topic())) {
@@ -106,12 +108,7 @@ public class TracingIterator implements Iterator<ConsumerRecord<?, ?>> {
               // for DSM users
               propagate()
                   .injectPathwayContext(
-                      span,
-                      val.headers(),
-                      SETTER,
-                      sortedTags,
-                      val.timestamp(),
-                      computePayloadSizeBytes(val));
+                      span, val.headers(), SETTER, sortedTags, val.timestamp(), payloadSize);
             }
           }
         } else {
