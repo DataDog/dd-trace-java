@@ -11,6 +11,7 @@ import com.datadog.debugger.el.values.StringValue;
 import com.datadog.debugger.probe.LogProbe;
 import datadog.trace.bootstrap.debugger.CapturedContext;
 import datadog.trace.bootstrap.debugger.EvaluationError;
+import datadog.trace.bootstrap.debugger.Limits;
 import java.lang.management.ManagementFactory;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -23,12 +24,13 @@ import org.junit.jupiter.api.condition.DisabledIf;
 import org.junit.jupiter.api.condition.EnabledOnJre;
 import org.junit.jupiter.api.condition.JRE;
 
-class LogMessageTemplateBuilderTest {
+class StringTemplateBuilderTest {
+  private static final Limits LIMITS = new Limits(1, 3, 255, 5);
 
   @Test
   public void emptyProbe() {
     LogProbe probe = LogProbe.builder().build();
-    LogMessageTemplateBuilder summaryBuilder = new LogMessageTemplateBuilder(probe.getSegments());
+    StringTemplateBuilder summaryBuilder = new StringTemplateBuilder(probe.getSegments(), LIMITS);
     String message = summaryBuilder.evaluate(new CapturedContext(), new LogProbe.LogStatus(probe));
     assertNull(message);
   }
@@ -36,7 +38,7 @@ class LogMessageTemplateBuilderTest {
   @Test
   public void emptyTemplate() {
     LogProbe probe = createLogProbe("");
-    LogMessageTemplateBuilder summaryBuilder = new LogMessageTemplateBuilder(probe.getSegments());
+    StringTemplateBuilder summaryBuilder = new StringTemplateBuilder(probe.getSegments(), LIMITS);
     String message = summaryBuilder.evaluate(new CapturedContext(), new LogProbe.LogStatus(probe));
     assertEquals("", message);
   }
@@ -44,7 +46,7 @@ class LogMessageTemplateBuilderTest {
   @Test
   public void onlyStringTemplate() {
     LogProbe probe = createLogProbe("this is a simple string");
-    LogMessageTemplateBuilder summaryBuilder = new LogMessageTemplateBuilder(probe.getSegments());
+    StringTemplateBuilder summaryBuilder = new StringTemplateBuilder(probe.getSegments(), LIMITS);
     String message = summaryBuilder.evaluate(new CapturedContext(), new LogProbe.LogStatus(probe));
     assertEquals("this is a simple string", message);
   }
@@ -52,7 +54,7 @@ class LogMessageTemplateBuilderTest {
   @Test
   public void undefinedArgTemplate() {
     LogProbe probe = createLogProbe("{arg}");
-    LogMessageTemplateBuilder summaryBuilder = new LogMessageTemplateBuilder(probe.getSegments());
+    StringTemplateBuilder summaryBuilder = new StringTemplateBuilder(probe.getSegments(), LIMITS);
     String message = summaryBuilder.evaluate(new CapturedContext(), new LogProbe.LogStatus(probe));
     assertEquals("{Cannot find symbol: arg}", message);
   }
@@ -60,7 +62,7 @@ class LogMessageTemplateBuilderTest {
   @Test
   public void argTemplate() {
     LogProbe probe = createLogProbe("{arg}");
-    LogMessageTemplateBuilder summaryBuilder = new LogMessageTemplateBuilder(probe.getSegments());
+    StringTemplateBuilder summaryBuilder = new StringTemplateBuilder(probe.getSegments(), LIMITS);
     CapturedContext capturedContext = new CapturedContext();
     capturedContext.addArguments(
         new CapturedContext.CapturedValue[] {
@@ -78,7 +80,7 @@ class LogMessageTemplateBuilderTest {
             new ValueScript(
                 DSL.bool(DSL.contains(DSL.ref("arg"), new StringValue("o"))), "{arg}")));
     LogProbe probe = LogProbe.builder().template("{contains(arg, 'o')}", segments).build();
-    LogMessageTemplateBuilder summaryBuilder = new LogMessageTemplateBuilder(probe.getSegments());
+    StringTemplateBuilder summaryBuilder = new StringTemplateBuilder(probe.getSegments(), LIMITS);
     CapturedContext capturedContext = new CapturedContext();
     capturedContext.addArguments(
         new CapturedContext.CapturedValue[] {
@@ -91,14 +93,14 @@ class LogMessageTemplateBuilderTest {
   @Test
   public void argMultipleInFlightTemplate() {
     LogProbe probe = createLogProbe("{arg}");
-    LogMessageTemplateBuilder summaryBuilder = new LogMessageTemplateBuilder(probe.getSegments());
+    StringTemplateBuilder summaryBuilder = new StringTemplateBuilder(probe.getSegments(), LIMITS);
     CapturedContext capturedContext = new CapturedContext();
     capturedContext.addArguments(
         new CapturedContext.CapturedValue[] {
           CapturedContext.CapturedValue.of("arg", String.class.getTypeName(), "foo")
         });
     String message = summaryBuilder.evaluate(capturedContext, new LogProbe.LogStatus(probe));
-    LogMessageTemplateBuilder summaryBuilder2 = new LogMessageTemplateBuilder(probe.getSegments());
+    StringTemplateBuilder summaryBuilder2 = new StringTemplateBuilder(probe.getSegments(), LIMITS);
     CapturedContext capturedContext2 = new CapturedContext();
     capturedContext2.addArguments(
         new CapturedContext.CapturedValue[] {
@@ -112,7 +114,7 @@ class LogMessageTemplateBuilderTest {
   @Test
   public void argNullTemplate() {
     LogProbe probe = createLogProbe("{nullObject}");
-    LogMessageTemplateBuilder summaryBuilder = new LogMessageTemplateBuilder(probe.getSegments());
+    StringTemplateBuilder summaryBuilder = new StringTemplateBuilder(probe.getSegments(), LIMITS);
     CapturedContext capturedContext = new CapturedContext();
     capturedContext.addArguments(
         new CapturedContext.CapturedValue[] {
@@ -125,7 +127,7 @@ class LogMessageTemplateBuilderTest {
   @Test
   public void argArrayTemplate() {
     LogProbe probe = createLogProbe("{primArray} {strArray}");
-    LogMessageTemplateBuilder summaryBuilder = new LogMessageTemplateBuilder(probe.getSegments());
+    StringTemplateBuilder summaryBuilder = new StringTemplateBuilder(probe.getSegments(), LIMITS);
     CapturedContext capturedContext = new CapturedContext();
     capturedContext.addArguments(
         new CapturedContext.CapturedValue[] {
@@ -145,7 +147,7 @@ class LogMessageTemplateBuilderTest {
   @Test
   public void argCollectionTemplate() {
     LogProbe probe = createLogProbe("{strList} {strSet}");
-    LogMessageTemplateBuilder summaryBuilder = new LogMessageTemplateBuilder(probe.getSegments());
+    StringTemplateBuilder summaryBuilder = new StringTemplateBuilder(probe.getSegments(), LIMITS);
     CapturedContext capturedContext = new CapturedContext();
     capturedContext.addArguments(
         new CapturedContext.CapturedValue[] {
@@ -171,7 +173,7 @@ class LogMessageTemplateBuilderTest {
   @Test
   public void argMapTemplate() {
     LogProbe probe = createLogProbe("{strMap}");
-    LogMessageTemplateBuilder summaryBuilder = new LogMessageTemplateBuilder(probe.getSegments());
+    StringTemplateBuilder summaryBuilder = new StringTemplateBuilder(probe.getSegments(), LIMITS);
     CapturedContext capturedContext = new CapturedContext();
     Map<String, String> map = new LinkedHashMap<>();
     for (int i = 0; i < 10; i++) {
@@ -199,7 +201,7 @@ class LogMessageTemplateBuilderTest {
   @Test
   public void argComplexObjectTemplate() {
     LogProbe probe = createLogProbe("{obj}");
-    LogMessageTemplateBuilder summaryBuilder = new LogMessageTemplateBuilder(probe.getSegments());
+    StringTemplateBuilder summaryBuilder = new StringTemplateBuilder(probe.getSegments(), LIMITS);
     CapturedContext capturedContext = new CapturedContext();
     capturedContext.addArguments(
         new CapturedContext.CapturedValue[] {
@@ -212,7 +214,7 @@ class LogMessageTemplateBuilderTest {
   @Test
   public void argComplexObjectArrayTemplate() {
     LogProbe probe = createLogProbe("{array}");
-    LogMessageTemplateBuilder summaryBuilder = new LogMessageTemplateBuilder(probe.getSegments());
+    StringTemplateBuilder summaryBuilder = new StringTemplateBuilder(probe.getSegments(), LIMITS);
     CapturedContext capturedContext = new CapturedContext();
     capturedContext.addArguments(
         new CapturedContext.CapturedValue[] {
@@ -228,7 +230,7 @@ class LogMessageTemplateBuilderTest {
   @DisabledIf("datadog.trace.api.Platform#isJ9")
   public void argInaccessibleFieldTemplate() {
     LogProbe probe = createLogProbe("{obj}");
-    LogMessageTemplateBuilder summaryBuilder = new LogMessageTemplateBuilder(probe.getSegments());
+    StringTemplateBuilder summaryBuilder = new StringTemplateBuilder(probe.getSegments(), LIMITS);
     CapturedContext capturedContext = new CapturedContext();
     capturedContext.addArguments(
         new CapturedContext.CapturedValue[] {
