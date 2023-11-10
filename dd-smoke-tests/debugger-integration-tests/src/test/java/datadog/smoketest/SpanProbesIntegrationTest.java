@@ -71,5 +71,6 @@ public class SpanProbesIntegrationTest extends SimpleAppDebuggerIntegrationTest 
           }
           return received.get() && error.get();
         });
+    processRequests();
   }
 }
