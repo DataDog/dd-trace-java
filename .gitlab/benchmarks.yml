@@ -39,7 +39,7 @@ benchmarks:
   timeout: 1h
   image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/benchmarking-platform:java-dsm-kafka
   script:
-    - git clone --branch java/kafka-dsm-overhead https://github.com/DataDog/benchmarking-platform.git platform && cd platform
+    - git clone --branch java/kafka-dsm-overhead https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.ddbuild.io/DataDog/benchmarking-platform.git platform && cd platform
     - ./steps/run-benchmarks.sh
   artifacts:
     name: "artifacts"
