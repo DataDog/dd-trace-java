@@ -114,11 +114,10 @@ class OT31ApiTest extends DDSpecification {
     def expectedTraceparent = "00-${traceId.toHexStringPadded(32)}" +
       "-${DDSpanId.toHexStringPadded(spanId)}" +
       "-" + (propagatedPriority > 0 ? "01" : "00")
-    def expectedTracestate = "dd=s:${propagatedPriority}"
     def effectiveSamplingMechanism = contextPriority == UNSET ? AGENT_RATE : samplingMechanism
-    if (propagatedPriority > 0) {
-      expectedTracestate+= ";t.dm:-" + effectiveSamplingMechanism
-    }
+    def expectedTracestate = "dd=s:${propagatedPriority}" +
+      (propagatedPriority > 0 ? ";t.dm:-" + effectiveSamplingMechanism : "") +
+      ";t.tid:${traceId.toHexStringPadded(32).substring(0, 16)}"
     def expectedTextMap = [
       "x-datadog-trace-id"         : context.toTraceId(),
       "x-datadog-parent-id"        : context.toSpanId(),
