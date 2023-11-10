@@ -101,7 +101,12 @@ public class PollerRequestFactory {
       Collection<CachedTargetFile> cachedTargetFiles,
       long capabilities) {
     RemoteConfigRequest rcRequest =
-        buildRemoteConfigRequest(productNames, clientState, cachedTargetFiles, capabilities);
+        buildRemoteConfigRequest(
+            productNames,
+            clientState,
+            cachedTargetFiles,
+            capabilities,
+            ExtraServicesProvider.get());
     return moshi.adapter(RemoteConfigRequest.class).toJson(rcRequest);
   }
 
@@ -110,14 +115,15 @@ public class PollerRequestFactory {
       Collection<String> productNames,
       ClientState clientState,
       Collection<CachedTargetFile> cachedTargetFiles,
-      long capabilities) {
+      long capabilities,
+      ExtraServicesProvider extraServicesProvider) {
     return RemoteConfigRequest.newRequest(
         this.clientId,
         this.runtimeId,
         this.tracerVersion,
         productNames,
         this.serviceName,
-        ExtraServicesProvider.getExtraServices(),
+        extraServicesProvider.getExtraServices(),
         this.env,
         this.ddVersion,
         buildRequestTags(),

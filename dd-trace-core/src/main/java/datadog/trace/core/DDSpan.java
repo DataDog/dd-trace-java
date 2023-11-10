@@ -150,7 +150,7 @@ public class DDSpan
   private void finishAndAddToTrace(final long durationNano) {
     // ensure a min duration of 1
     if (DURATION_NANO_UPDATER.compareAndSet(this, 0, Math.max(1, durationNano))) {
-      ExtraServicesProvider.maybeAddExtraService(this.getServiceName());
+      ExtraServicesProvider.get().maybeAddExtraService(this.getServiceName());
       setLongRunningVersion(-this.longRunningVersion);
       this.metrics.onSpanFinished();
       PendingTrace.PublishState publishState = context.getTrace().onPublish(this);

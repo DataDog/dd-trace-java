@@ -7,51 +7,54 @@ import static datadog.remoteconfig.state.ExtraServicesProvider.*
 
 class ExtraServicesProviderTest extends Specification {
 
-  def setup(){
-    clear()
-  }
 
   void 'test add extra service'(){
     given:
+    final provider = new ExtraServicesProvider()
     final service = 'testService'
 
     when:
-    maybeAddExtraService(service)
+    provider.maybeAddExtraService(service)
 
     then:
-    getExtraServices()[0] == service
+    provider.getExtraServices()[0] == service
   }
 
   void 'test add null extra service'(){
+    given:
+    final provider = new ExtraServicesProvider()
+
     when:
-    maybeAddExtraService(null)
+    provider.maybeAddExtraService(null)
 
     then:
-    getExtraServices() == null
+    provider.getExtraServices() == null
   }
 
   void 'Extra service is not added if it is the default one'(){
     given:
+    final provider = new ExtraServicesProvider()
     final global = Config.get().getServiceName()
 
     when:
-    maybeAddExtraService(global)
+    provider.maybeAddExtraService(global)
 
     then:
     global != null
-    getExtraServices() == null
+    provider.getExtraServices() == null
   }
 
   void 'Extra service is not added if already exist'(){
     given:
-    maybeAddExtraService('testService')
-    assert  getExtraServices().length == 1
+    final provider = new ExtraServicesProvider()
+    provider.maybeAddExtraService('testService')
+    assert  provider.getExtraServices().size() == 1
 
     when:
-    maybeAddExtraService(service)
+    provider.maybeAddExtraService(service)
 
     then:
-    getExtraServices().length == 1
+    provider.getExtraServices().size() == 1
 
     where:
     service | _
@@ -61,21 +64,25 @@ class ExtraServicesProviderTest extends Specification {
 
   void 'Extra service can not exceed 64 elements'(){
     given:
-    assert !limitReachedLogged
-    (0..64).each {maybeAddExtraService('testService'+it)}
-    assert  getExtraServices().length == 64
-    assert limitReachedLogged
+    final provider = new ExtraServicesProvider()
+    assert !provider.limitReachedLogged
+    (0..64).each {provider.maybeAddExtraService('testService'+it)}
+    assert  provider.getExtraServices().size() == 64
+    assert provider.limitReachedLogged
 
     when:
-    maybeAddExtraService('testService')
+    provider.maybeAddExtraService('testService')
 
     then:
-    getExtraServices().length == 64
+    provider.getExtraServices().size() == 64
   }
 
-  void 'test getExtraServices returns null if there are not extra services'(){
+  void 'test getExtraServices returns null if there are no extra services'(){
+    given:
+    final provider = new ExtraServicesProvider()
+
     when:
-    def result = getExtraServices()
+    def result = provider.getExtraServices()
 
     then:
     result == null

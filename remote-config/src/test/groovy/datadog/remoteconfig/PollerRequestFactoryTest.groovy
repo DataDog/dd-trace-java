@@ -22,7 +22,7 @@ class PollerRequestFactoryTest extends DDSpecification {
     PollerRequestFactory factory = new PollerRequestFactory(Config.get(), TRACER_VERSION, CONTAINER_ID, INVALID_REMOTE_CONFIG_URL, null)
 
     when:
-    RemoteConfigRequest request = factory.buildRemoteConfigRequest( Collections.singletonList("ASM"), null, null, 0)
+    RemoteConfigRequest request = factory.buildRemoteConfigRequest( Collections.singletonList("ASM"), null, null, 0, ExtraServicesProvider.get())
 
     then:
     request.client.tracerInfo.serviceName == "service_name"
@@ -33,18 +33,19 @@ class PollerRequestFactoryTest extends DDSpecification {
     request.client.tracerInfo.tags.contains(Tags.GIT_COMMIT_SHA + ":1234")
   }
 
-  void 'remote config request extraservices'() {
+  void 'remote config request extraServices'() {
     given:
     System.setProperty("dd.service", "Service Name")
     System.setProperty("dd.env", "PROD")
     System.setProperty("dd.tags", "version:1.0.0-SNAPSHOT")
     rebuildConfig()
     final extraService = 'fakeExtraService'
-    ExtraServicesProvider.maybeAddExtraService(extraService)
+    ExtraServicesProvider extraServicesProvider = new ExtraServicesProvider()
+    extraServicesProvider.maybeAddExtraService(extraService)
     PollerRequestFactory factory = new PollerRequestFactory(Config.get(), TRACER_VERSION, CONTAINER_ID, INVALID_REMOTE_CONFIG_URL, null)
 
     when:
-    RemoteConfigRequest request = factory.buildRemoteConfigRequest( Collections.singletonList("ASM"), null, null, 0)
+    RemoteConfigRequest request = factory.buildRemoteConfigRequest( Collections.singletonList("ASM"), null, null, 0, extraServicesProvider)
 
     then:
     request.client.tracerInfo.extraServices.contains(extraService)

@@ -476,6 +476,6 @@ class DDSpanTest extends DDCoreSpecification {
     span.finish()
 
     then:
-    ExtraServicesProvider.getExtraServices().contains("fakeExtraService")
+    ExtraServicesProvider.get().getExtraServices().contains("fakeExtraService")
   }
 }
