@@ -1,7 +1,5 @@
 package datadog.trace.core
 
-import datadog.remoteconfig.state.ExtraServicesProvider
-import datadog.trace.api.Config
 import datadog.trace.api.DDSpanId
 import datadog.trace.api.DDTags
 import datadog.trace.api.DDTraceId
@@ -476,6 +474,6 @@ class DDSpanTest extends DDCoreSpecification {
     span.finish()
 
     then:
-    ExtraServicesProvider.getExtraServices().contains("fakeExtraService")
+    tracer.extraServicesProvider.getExtraServices().contains("fakeExtraService")
   }
 }

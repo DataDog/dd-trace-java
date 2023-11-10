@@ -2,6 +2,7 @@ package datadog.trace.common.writer
 
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery
 import datadog.communication.ddagent.SharedCommunicationObjects
+import datadog.remoteconfig.state.ExtraServicesProvider
 import datadog.trace.api.Config
 import datadog.trace.api.StatsDClient
 import datadog.trace.common.sampling.Sampler
@@ -28,7 +29,7 @@ class WriterFactoryTest extends DDSpecification {
     def agentFeaturesDiscovery = Mock(DDAgentFeaturesDiscovery)
     agentFeaturesDiscovery.getEvpProxyEndpoint() >> DDAgentFeaturesDiscovery.V2_EVP_PROXY_ENDPOINT
 
-    def sharedComm = new SharedCommunicationObjects()
+    def sharedComm = new SharedCommunicationObjects(new ExtraServicesProvider())
     sharedComm.setFeaturesDiscovery(agentFeaturesDiscovery)
     sharedComm.createRemaining(config)
 

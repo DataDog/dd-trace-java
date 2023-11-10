@@ -16,6 +16,7 @@ import com.datadog.debugger.util.RemoteConfigHelper;
 import datadog.common.container.ContainerInfo;
 import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.remoteconfig.ConfigurationPoller;
+import datadog.remoteconfig.state.ExtraServicesProvider;
 import datadog.trace.api.Config;
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -80,7 +81,7 @@ public class DebuggerAgentTest {
     setFieldInConfig(Config.get(), "debuggerEnabled", false);
     URL probeDefinitionUrl = DebuggerAgentTest.class.getResource("/test_probe.json");
     System.setProperty("dd.dynamic.instrumentation.config-file", probeDefinitionUrl.getFile());
-    DebuggerAgent.run(inst, new SharedCommunicationObjects());
+    DebuggerAgent.run(inst, new SharedCommunicationObjects(new ExtraServicesProvider()));
     verify(inst, never()).addTransformer(any(), eq(true));
     System.clearProperty("dd.dynamic.instrumentation.config-file");
   }
@@ -112,7 +113,8 @@ public class DebuggerAgentTest {
     } catch (IOException e) {
       e.printStackTrace();
     }
-    SharedCommunicationObjects sharedCommunicationObjects = new SharedCommunicationObjects();
+    SharedCommunicationObjects sharedCommunicationObjects =
+        new SharedCommunicationObjects(new ExtraServicesProvider());
     DebuggerAgent.run(inst, sharedCommunicationObjects);
     ConfigurationPoller configurationPoller =
         (ConfigurationPoller) sharedCommunicationObjects.configurationPoller(Config.get());
@@ -136,7 +138,7 @@ public class DebuggerAgentTest {
     setFieldInConfig(Config.get(), "debuggerMaxPayloadSize", 1024L);
     String infoContent = "{\"endpoints\": [\"v0.4/traces\"]}";
     server.enqueue(new MockResponse().setResponseCode(200).setBody(infoContent));
-    DebuggerAgent.run(inst, new SharedCommunicationObjects());
+    DebuggerAgent.run(inst, new SharedCommunicationObjects(new ExtraServicesProvider()));
     verify(inst, never()).addTransformer(any(), eq(true));
   }
 
@@ -156,7 +158,7 @@ public class DebuggerAgentTest {
     server.enqueue(new MockResponse().setResponseCode(200).setBody(infoContent));
     // sometimes this test fails because getAllLoadedClasses returns null
     assumeTrue(inst.getAllLoadedClasses() != null);
-    DebuggerAgent.run(inst, new SharedCommunicationObjects());
+    DebuggerAgent.run(inst, new SharedCommunicationObjects(new ExtraServicesProvider()));
     verify(inst, atLeastOnce()).addTransformer(any(), eq(true));
   }
 }

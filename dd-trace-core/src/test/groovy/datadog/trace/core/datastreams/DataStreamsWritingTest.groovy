@@ -3,6 +3,7 @@ package datadog.trace.core.datastreams
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery
 import datadog.communication.ddagent.SharedCommunicationObjects
 import datadog.communication.http.OkHttpUtils
+import datadog.remoteconfig.state.ExtraServicesProvider
 import datadog.trace.api.Config
 import datadog.trace.api.TraceConfig
 import datadog.trace.api.WellKnownTags
@@ -64,7 +65,7 @@ class DataStreamsWritingTest extends DDCoreSpecification {
       getPrimaryTag() >> "region-1"
     }
 
-    def sharedCommObjects = new SharedCommunicationObjects()
+    def sharedCommObjects = new SharedCommunicationObjects(new ExtraServicesProvider())
     sharedCommObjects.featuresDiscovery = features
     sharedCommObjects.okHttpClient = testOkhttpClient
     sharedCommObjects.createRemaining(fakeConfig)

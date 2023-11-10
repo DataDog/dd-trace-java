@@ -1,6 +1,7 @@
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery
 import datadog.communication.ddagent.SharedCommunicationObjects
 import datadog.communication.http.OkHttpUtils
+import datadog.remoteconfig.state.ExtraServicesProvider
 import datadog.trace.api.Config
 import datadog.trace.api.TraceConfig
 import datadog.trace.api.time.ControllableTimeSource
@@ -29,7 +30,7 @@ class DataStreamsIntegrationTest extends DDSpecification {
     given:
     def conditions = new PollingConditions(timeout: 1)
 
-    def sharedCommunicationObjects = new SharedCommunicationObjects()
+    def sharedCommunicationObjects = new SharedCommunicationObjects(new ExtraServicesProvider())
     sharedCommunicationObjects.createRemaining(Config.get())
 
     OkHttpSink sink = new OkHttpSink(

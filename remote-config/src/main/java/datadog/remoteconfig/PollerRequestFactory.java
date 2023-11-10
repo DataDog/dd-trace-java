@@ -1,7 +1,6 @@
 package datadog.remoteconfig;
 
 import com.squareup.moshi.Moshi;
-import datadog.remoteconfig.state.ExtraServicesProvider;
 import datadog.remoteconfig.tuf.RemoteConfigRequest;
 import datadog.remoteconfig.tuf.RemoteConfigRequest.CachedTargetFile;
 import datadog.remoteconfig.tuf.RemoteConfigRequest.ClientInfo.ClientState;
@@ -77,14 +76,15 @@ public class PollerRequestFactory {
       Collection<String> productNames,
       ClientState clientState,
       Collection<CachedTargetFile> cachedTargetFiles,
-      long capabilities) {
+      long capabilities,
+      List<String> extraServices) {
     Request.Builder requestBuilder = new Request.Builder().url(this.url).get();
     MediaType applicationJson = MediaType.parse("application/json");
     RequestBody requestBody =
         RequestBody.create(
             applicationJson,
             buildRemoteConfigRequestJson(
-                productNames, clientState, cachedTargetFiles, capabilities));
+                productNames, clientState, cachedTargetFiles, capabilities, extraServices));
     requestBuilder.post(requestBody);
     if (this.apiKey != null) {
       requestBuilder.addHeader(HEADER_DD_API_KEY, this.apiKey);
@@ -99,9 +99,11 @@ public class PollerRequestFactory {
       Collection<String> productNames,
       ClientState clientState,
       Collection<CachedTargetFile> cachedTargetFiles,
-      long capabilities) {
+      long capabilities,
+      List<String> extraServices) {
     RemoteConfigRequest rcRequest =
-        buildRemoteConfigRequest(productNames, clientState, cachedTargetFiles, capabilities);
+        buildRemoteConfigRequest(
+            productNames, clientState, cachedTargetFiles, capabilities, extraServices);
     return moshi.adapter(RemoteConfigRequest.class).toJson(rcRequest);
   }
 
@@ -110,14 +112,15 @@ public class PollerRequestFactory {
       Collection<String> productNames,
       ClientState clientState,
       Collection<CachedTargetFile> cachedTargetFiles,
-      long capabilities) {
+      long capabilities,
+      List<String> extraServices) {
     return RemoteConfigRequest.newRequest(
         this.clientId,
         this.runtimeId,
         this.tracerVersion,
         productNames,
         this.serviceName,
-        ExtraServicesProvider.getExtraServices(),
+        extraServices,
         this.env,
         this.ddVersion,
         buildRequestTags(),
