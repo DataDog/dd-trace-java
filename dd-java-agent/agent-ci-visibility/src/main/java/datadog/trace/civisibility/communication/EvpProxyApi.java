@@ -20,6 +20,7 @@ public class EvpProxyApi implements BackendApi {
   private static final String API_VERSION = "v2";
   private static final String X_DATADOG_EVP_SUBDOMAIN_HEADER = "X-Datadog-EVP-Subdomain";
   private static final String X_DATADOG_TRACE_ID_HEADER = "x-datadog-trace-id";
+  private static final String X_DATADOG_PARENT_ID_HEADER = "x-datadog-parent-id";
   private static final String API_SUBDOMAIN = "api";
 
   private final String traceId;
@@ -48,6 +49,7 @@ public class EvpProxyApi implements BackendApi {
             .url(url)
             .addHeader(X_DATADOG_EVP_SUBDOMAIN_HEADER, API_SUBDOMAIN)
             .addHeader(X_DATADOG_TRACE_ID_HEADER, traceId)
+            .addHeader(X_DATADOG_PARENT_ID_HEADER, traceId)
             .post(requestBody)
             .build();
 

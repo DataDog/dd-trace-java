@@ -21,6 +21,7 @@ public class IntakeApi implements BackendApi {
   private static final String API_VERSION = "v2";
   private static final String DD_API_KEY_HEADER = "dd-api-key";
   private static final String X_DATADOG_TRACE_ID_HEADER = "x-datadog-trace-id";
+  private static final String X_DATADOG_PARENT_ID_HEADER = "x-datadog-parent-id";
 
   private final String apiKey;
   private final String traceId;
@@ -58,7 +59,8 @@ public class IntakeApi implements BackendApi {
             .url(url)
             .post(requestBody)
             .addHeader(DD_API_KEY_HEADER, apiKey)
-            .addHeader(X_DATADOG_TRACE_ID_HEADER, traceId);
+            .addHeader(X_DATADOG_TRACE_ID_HEADER, traceId)
+            .addHeader(X_DATADOG_PARENT_ID_HEADER, traceId);
 
     Request request = requestBuilder.build();
     HttpRetryPolicy retryPolicy = retryPolicyFactory.create();
