@@ -10,6 +10,7 @@ import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.DBTypeProcessingDatabaseClientDecorator;
 
 public class CassandraClientDecorator extends DBTypeProcessingDatabaseClientDecorator<Session> {
+  private static final Object IGNORE_THIS;
   private static final String DB_TYPE = "cassandra";
   private static final String SERVICE_NAME =
       SpanNaming.instance().namingSchema().database().service(DB_TYPE);
