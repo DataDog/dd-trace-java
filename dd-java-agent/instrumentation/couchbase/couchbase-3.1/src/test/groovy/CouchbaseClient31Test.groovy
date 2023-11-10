@@ -139,7 +139,7 @@ abstract class CouchbaseClient31Test extends VersionedNamingTestBase {
         assertCouchbaseCall(it, "cb.query", [
           'db.couchbase.retries'   : { Long },
           'db.couchbase.service'   : 'query',
-        ], 'select * from `test-bucket` limit 1')
+        ], 'select * from `test-bucket` limit ?')
         assertCouchbaseDispatchCall(it, span(0))
       }
     }
@@ -148,6 +148,7 @@ abstract class CouchbaseClient31Test extends VersionedNamingTestBase {
   def "check query spans with parent"() {
     setup:
     def query = 'select * from `test-bucket` limit 1'
+    def normalizedQuery = 'select * from `test-bucket` limit ?'
 
     when:
     runUnderTrace('query.parent') {
@@ -163,7 +164,7 @@ abstract class CouchbaseClient31Test extends VersionedNamingTestBase {
         assertCouchbaseCall(it, "cb.query", [
           'db.couchbase.retries'   : { Long },
           'db.couchbase.service'   : 'query',
-        ], query, span(0), false)
+        ], normalizedQuery, span(0), false)
         assertCouchbaseDispatchCall(it, span(1))
       }
     }
@@ -171,6 +172,7 @@ abstract class CouchbaseClient31Test extends VersionedNamingTestBase {
 
   def "check query spans with parent and adhoc #adhoc"() {
     def query = 'select count(1) from `test-bucket` where (`something` = "else") limit 1'
+    def normalizedQuery = 'select count(?) from `test-bucket` where (`something` = "else") limit ?'
     int count = 0
 
     when:
@@ -192,12 +194,12 @@ abstract class CouchbaseClient31Test extends VersionedNamingTestBase {
         assertCouchbaseCall(it, "cb.query", [
           'db.couchbase.retries'   : { Long },
           'db.couchbase.service'   : 'query',
-        ], query, span(0), false)
+        ], normalizedQuery, span(0), false)
         if (!adhoc) {
           assertCouchbaseCall(it, "prepare", [
             'db.couchbase.retries'   : { Long },
             'db.couchbase.service'   : 'query',
-          ], "PREPARE $query", span(1), true)
+          ], "PREPARE $normalizedQuery", span(1), true)
         }
         assertCouchbaseDispatchCall(it, span(adhoc ? 1 : 2))
       }
@@ -209,6 +211,7 @@ abstract class CouchbaseClient31Test extends VersionedNamingTestBase {
 
   def "check multiple query spans with parent and adhoc false"() {
     def query = 'select count(1) from `test-bucket` where (`something` = "wonderful") limit 1'
+    def normalizedQuery = 'select count(?) from `test-bucket` where (`something` = "wonderful") limit ?'
     int count1 = 0
     int count2 = 0
 
@@ -237,20 +240,20 @@ abstract class CouchbaseClient31Test extends VersionedNamingTestBase {
         assertCouchbaseCall(it, "cb.query", [
           'db.couchbase.retries'   : { Long },
           'db.couchbase.service'   : 'query',
-        ], query, span(0), false)
+        ], normalizedQuery, span(0), false)
         assertCouchbaseCall(it, "prepare", [
           'db.couchbase.retries'   : { Long },
           'db.couchbase.service'   : 'query',
-        ], "PREPARE $query", span(1), true)
+        ], "PREPARE $normalizedQuery", span(1), true)
         assertCouchbaseDispatchCall(it, span(2))
         assertCouchbaseCall(it, "cb.query", [
           'db.couchbase.retries'   : { Long },
           'db.couchbase.service'   : 'query',
-        ], query, span(0), false)
+        ], normalizedQuery, span(0), false)
         assertCouchbaseCall(it, "execute", [
           'db.couchbase.retries'   : { Long },
           'db.couchbase.service'   : 'query',
-        ], query, span(4), true)
+        ], normalizedQuery, span(4), true)
         assertCouchbaseDispatchCall(it, span(5))
       }
     }
@@ -259,6 +262,7 @@ abstract class CouchbaseClient31Test extends VersionedNamingTestBase {
   def "check error query spans with parent"() {
     setup:
     def query = 'select * from `test-bucket` limeit 1'
+    def normalizedQuery = 'select * from `test-bucket` limeit ?'
     Throwable ex = null
 
     when:
@@ -280,7 +284,7 @@ abstract class CouchbaseClient31Test extends VersionedNamingTestBase {
         assertCouchbaseCall(it, "cb.query", [
           'db.couchbase.retries'   : { Long },
           'db.couchbase.service'   : 'query',
-        ], query, span(0), false, ex)
+        ], normalizedQuery, span(0), false, ex)
         assertCouchbaseDispatchCall(it, span(1))
       }
     }
@@ -288,6 +292,7 @@ abstract class CouchbaseClient31Test extends VersionedNamingTestBase {
 
   def "check multiple error query spans with parent and adhoc false"() {
     def query = 'select count(1) from `test-bucket` where (`something` = "wonderful") limeit 1'
+    def normalizedQuery = 'select count(?) from `test-bucket` where (`something` = "wonderful") limeit ?'
     int count1 = 0
     int count2 = 0
     Throwable ex1 = null
@@ -332,7 +337,7 @@ abstract class CouchbaseClient31Test extends VersionedNamingTestBase {
         assertCouchbaseCall(it, "prepare", [
           'db.couchbase.retries'   : { Long },
           'db.couchbase.service'   : 'query',
-        ], "PREPARE $query", span(1), true, ex1)
+        ], "PREPARE $normalizedQuery", span(1), true, ex1)
         assertCouchbaseDispatchCall(it, span(2))
         assertCouchbaseCall(it, "cb.query", [
           'db.couchbase.retries'   : { Long },
@@ -341,7 +346,7 @@ abstract class CouchbaseClient31Test extends VersionedNamingTestBase {
         assertCouchbaseCall(it, "prepare", [
           'db.couchbase.retries'   : { Long },
           'db.couchbase.service'   : 'query',
-        ], "PREPARE $query", span(4), true, ex2)
+        ], "PREPARE $normalizedQuery", span(4), true, ex2)
         assertCouchbaseDispatchCall(it, span(5))
       }
     }

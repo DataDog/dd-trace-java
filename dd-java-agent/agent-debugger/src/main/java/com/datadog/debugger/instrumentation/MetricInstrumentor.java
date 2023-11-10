@@ -11,6 +11,8 @@ import static com.datadog.debugger.instrumentation.ASMHelper.isStaticField;
 import static com.datadog.debugger.instrumentation.ASMHelper.ldc;
 import static com.datadog.debugger.instrumentation.Types.*;
 import static datadog.trace.util.Strings.getClassName;
+import static org.objectweb.asm.Type.DOUBLE_TYPE;
+import static org.objectweb.asm.Type.LONG_TYPE;
 
 import com.datadog.debugger.el.InvalidValueException;
 import com.datadog.debugger.el.Visitor;
@@ -46,6 +48,7 @@ import com.datadog.debugger.el.values.ObjectValue;
 import com.datadog.debugger.el.values.StringValue;
 import com.datadog.debugger.probe.MetricProbe;
 import com.datadog.debugger.probe.Where;
+import datadog.trace.bootstrap.debugger.MethodLocation;
 import datadog.trace.bootstrap.debugger.el.ValueReferences;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
@@ -141,6 +144,7 @@ public class MetricInstrumentor extends Instrumentor {
     int size = 1;
     int storeOpCode = 0;
     int loadOpCode = 0;
+    Type returnType = null;
     switch (node.getOpcode()) {
       case Opcodes.RET:
       case Opcodes.RETURN:
@@ -149,29 +153,35 @@ public class MetricInstrumentor extends Instrumentor {
         storeOpCode = Opcodes.LSTORE;
         loadOpCode = Opcodes.LLOAD;
         size = 2;
+        returnType = Type.LONG_TYPE;
         break;
       case Opcodes.DRETURN:
         storeOpCode = Opcodes.DSTORE;
         loadOpCode = Opcodes.DLOAD;
         size = 2;
+        returnType = Type.DOUBLE_TYPE;
         break;
       case Opcodes.IRETURN:
         storeOpCode = Opcodes.ISTORE;
         loadOpCode = Opcodes.ILOAD;
+        returnType = Type.INT_TYPE;
         break;
       case Opcodes.FRETURN:
         storeOpCode = Opcodes.FSTORE;
         loadOpCode = Opcodes.FLOAD;
+        returnType = Type.FLOAT_TYPE;
         break;
       case Opcodes.ARETURN:
         storeOpCode = Opcodes.ASTORE;
         loadOpCode = Opcodes.ALOAD;
+        returnType = OBJECT_TYPE;
         break;
       default:
         throw new UnsupportedOperationException("Unsupported opcode: " + node.getOpcode());
     }
-    InsnList insnList = wrapTryCatch(callMetric(metricProbe));
     int tmpIdx = newVar(size);
+    InsnList insnList =
+        wrapTryCatch(callMetric(metricProbe, new ReturnContext(tmpIdx, loadOpCode, returnType)));
     // store return value from the stack to local before wrapped call
     insnList.insert(new VarInsnNode(storeOpCode, tmpIdx));
     // restore return value to the stack after wrapped call
@@ -179,7 +189,7 @@ public class MetricInstrumentor extends Instrumentor {
     return insnList;
   }
 
-  private InsnList callCount(MetricProbe metricProbe) {
+  private InsnList callCount(MetricProbe metricProbe, ReturnContext returnContext) {
     if (metricProbe.getValue() == null) {
       InsnList insnList = new InsnList();
       // consider the metric as an increment counter one
@@ -203,16 +213,20 @@ public class MetricInstrumentor extends Instrumentor {
       // stack []
       return insnList;
     }
-    return internalCallMetric(metricProbe);
+    return internalCallMetric(metricProbe, returnContext);
   }
 
-  private InsnList internalCallMetric(MetricProbe metricProbe) {
+  private InsnList internalCallMetric(MetricProbe metricProbe, ReturnContext returnContext) {
     InsnList insnList = new InsnList();
     InsnList nullBranch = new InsnList();
     VisitorResult result;
     Type resultType;
     try {
-      result = metricProbe.getValue().getExpr().accept(new MetricValueVisitor(this, nullBranch));
+      result =
+          metricProbe
+              .getValue()
+              .getExpr()
+              .accept(new MetricValueVisitor(this, nullBranch, returnContext));
     } catch (InvalidValueException | UnsupportedOperationException ex) {
       reportError(ex.getMessage());
       return EMPTY_INSN_LIST;
@@ -271,16 +285,20 @@ public class MetricInstrumentor extends Instrumentor {
   }
 
   private InsnList callMetric(MetricProbe metricProbe) {
+    return callMetric(metricProbe, null);
+  }
+
+  private InsnList callMetric(MetricProbe metricProbe, ReturnContext returnContext) {
     switch (metricProbe.getKind()) {
       case COUNT:
-        return callCount(metricProbe);
+        return callCount(metricProbe, returnContext);
       case GAUGE:
       case HISTOGRAM:
       case DISTRIBUTION:
         if (metricProbe.getValue() == null) {
           return EMPTY_INSN_LIST;
         }
-        return internalCallMetric(metricProbe);
+        return internalCallMetric(metricProbe, returnContext);
       default:
         reportError(String.format("Unknown metric kind: %s", metricProbe.getKind()));
     }
@@ -332,10 +350,13 @@ public class MetricInstrumentor extends Instrumentor {
   private static class MetricValueVisitor implements Visitor<VisitorResult> {
     private final MetricInstrumentor instrumentor;
     private final InsnList nullBranch;
+    private final ReturnContext returnContext;
 
-    public MetricValueVisitor(MetricInstrumentor instrumentor, InsnList nullBranch) {
+    public MetricValueVisitor(
+        MetricInstrumentor instrumentor, InsnList nullBranch, ReturnContext returnContext) {
       this.instrumentor = instrumentor;
       this.nullBranch = nullBranch;
+      this.returnContext = returnContext;
     }
 
     @Override
@@ -463,7 +484,11 @@ public class MetricInstrumentor extends Instrumentor {
         insnList.add(new VarInsnNode(Opcodes.ALOAD, 0));
         // stack [this]
       } else {
-        currentType = tryRetrieve(name, insnList);
+        if (name.startsWith(ValueReferences.SYNTHETIC_PREFIX)) {
+          currentType = tryRetrieveSynthetic(name, insnList);
+        } else {
+          currentType = tryRetrieve(name, insnList);
+        }
         if (currentType == null) {
           throw new InvalidValueException("Cannot resolve symbol " + name);
         }
@@ -726,6 +751,59 @@ public class MetricInstrumentor extends Instrumentor {
         throw new InvalidValueException(message);
       }
       return returnType;
+    }
+
+    private ASMHelper.Type tryRetrieveSynthetic(String name, InsnList insnList) {
+      if (name.equals(ValueReferences.RETURN_REF)) {
+        if (instrumentor.metricProbe.getEvaluateAt() != MethodLocation.EXIT) {
+          return null;
+        }
+        if (returnContext == null) {
+          return null;
+        }
+        VarInsnNode varInsnNode =
+            new VarInsnNode(returnContext.opLoad, returnContext.returnLocalVarIdx);
+        insnList.add(varInsnNode);
+        // stack [return_value]
+        return new ASMHelper.Type(returnContext.type);
+      }
+      if (name.equals(ValueReferences.DURATION_REF)) {
+        if (instrumentor.metricProbe.getEvaluateAt() != MethodLocation.EXIT) {
+          return null;
+        }
+        // call System.nanoTime at the beginning of the method
+        int var = instrumentor.newVar(LONG_TYPE);
+        InsnList nanoTimeList = new InsnList();
+        invokeStatic(nanoTimeList, Type.getType(System.class), "nanoTime", LONG_TYPE);
+        nanoTimeList.add(new VarInsnNode(Opcodes.LSTORE, var));
+        instrumentor.methodNode.instructions.insert(instrumentor.methodEnterLabel, nanoTimeList);
+        // diff nanoTime before calling metric
+        invokeStatic(insnList, Type.getType(System.class), "nanoTime", LONG_TYPE);
+        // stack [long]
+        insnList.add(new VarInsnNode(Opcodes.LLOAD, var));
+        // stack [long, long]
+        insnList.add(new InsnNode(Opcodes.LSUB));
+        // stack [long]
+        insnList.add(new InsnNode(Opcodes.L2D));
+        insnList.add(new LdcInsnNode(1_000_000D));
+        // stack [long, double]
+        insnList.add(new InsnNode(Opcodes.DDIV));
+        // stack [double]
+        return new ASMHelper.Type(DOUBLE_TYPE);
+      }
+      return null;
+    }
+  }
+
+  private static class ReturnContext {
+    private final int returnLocalVarIdx;
+    private final int opLoad;
+    private final Type type;
+
+    public ReturnContext(int returnLocalVarIdx, int opLoad, Type type) {
+      this.returnLocalVarIdx = returnLocalVarIdx;
+      this.opLoad = opLoad;
+      this.type = type;
     }
   }
 }
