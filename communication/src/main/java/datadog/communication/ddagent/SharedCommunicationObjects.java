@@ -7,7 +7,6 @@ import datadog.common.socket.SocketUtils;
 import datadog.communication.http.OkHttpUtils;
 import datadog.communication.monitor.Monitoring;
 import datadog.remoteconfig.ConfigurationPoller;
-import datadog.remoteconfig.state.ExtraServicesProvider;
 import datadog.trace.api.Config;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
@@ -24,12 +23,6 @@ public class SharedCommunicationObjects {
   public Monitoring monitoring;
   private DDAgentFeaturesDiscovery featuresDiscovery;
   private ConfigurationPoller configurationPoller;
-
-  private final ExtraServicesProvider extraServicesProvider;
-
-  public SharedCommunicationObjects(final ExtraServicesProvider extraServicesProvider) {
-    this.extraServicesProvider = extraServicesProvider;
-  }
 
   public void createRemaining(Config config) {
     if (monitoring == null) {
@@ -76,12 +69,7 @@ public class SharedCommunicationObjects {
       configUrlSupplier = new RetryConfigUrlSupplier(this, config);
     }
     return new ConfigurationPoller(
-        config,
-        TRACER_VERSION,
-        containerId,
-        configUrlSupplier,
-        okHttpClient,
-        extraServicesProvider);
+        config, TRACER_VERSION, containerId, configUrlSupplier, okHttpClient);
   }
 
   // for testing

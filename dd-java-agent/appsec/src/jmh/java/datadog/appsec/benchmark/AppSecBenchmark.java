@@ -8,7 +8,6 @@ import com.datadog.appsec.AppSecSystem;
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
 import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.communication.monitor.Monitoring;
-import datadog.remoteconfig.state.ExtraServicesProvider;
 import datadog.trace.api.gateway.BlockResponseFunction;
 import datadog.trace.api.gateway.CallbackProvider;
 import datadog.trace.api.gateway.Flow;
@@ -68,8 +67,7 @@ public class AppSecBenchmark {
     gw = new InstrumentationGateway();
     cbp = gw.getCallbackProvider(RequestContextSlot.APPSEC);
     ss = gw.getSubscriptionService(RequestContextSlot.APPSEC);
-    SharedCommunicationObjects sharedCommunicationObjects =
-        new SharedCommunicationObjects(new ExtraServicesProvider());
+    SharedCommunicationObjects sharedCommunicationObjects = new SharedCommunicationObjects();
     sharedCommunicationObjects.monitoring = Monitoring.DISABLED;
     sharedCommunicationObjects.okHttpClient = new StubOkHttpClient();
     sharedCommunicationObjects.setFeaturesDiscovery(

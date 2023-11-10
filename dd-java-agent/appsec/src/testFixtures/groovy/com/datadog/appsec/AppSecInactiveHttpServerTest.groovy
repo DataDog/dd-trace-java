@@ -2,7 +2,6 @@ package com.datadog.appsec
 
 import datadog.communication.ddagent.SharedCommunicationObjects
 import datadog.communication.monitor.Monitoring
-import datadog.remoteconfig.state.ExtraServicesProvider
 import datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint
 import datadog.trace.agent.test.base.WithHttpServer
 import datadog.trace.api.Config
@@ -33,7 +32,7 @@ abstract class AppSecInactiveHttpServerTest extends WithHttpServer {
 
   void setupSpec() {
     SubscriptionService ss = AgentTracer.get().getSubscriptionService(RequestContextSlot.APPSEC)
-    def sco = new SharedCommunicationObjects(new ExtraServicesProvider())
+    def sco = new SharedCommunicationObjects()
     def config = Config.get()
     sco.createRemaining(config)
     assert sco.configurationPoller(config) == null

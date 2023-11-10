@@ -7,7 +7,6 @@ import cafe.cryptography.ed25519.Ed25519PublicKey;
 import cafe.cryptography.ed25519.Ed25519Signature;
 import com.squareup.moshi.Moshi;
 import datadog.remoteconfig.ConfigurationChangesListener.PollingRateHinter;
-import datadog.remoteconfig.state.ExtraServicesProvider;
 import datadog.remoteconfig.state.ParsedConfigKey;
 import datadog.remoteconfig.state.ProductListener;
 import datadog.remoteconfig.state.ProductState;
@@ -78,8 +77,6 @@ public class ConfigurationPoller
   private long capabilities;
   private Duration durationHint;
 
-  private final ExtraServicesProvider extraServicesProvider;
-
   // Initialization of these is delayed until the remote config URL is available.
   // See #initialize().
   private Moshi moshi;
@@ -92,15 +89,13 @@ public class ConfigurationPoller
       String tracerVersion,
       String containerId,
       Supplier<String> urlSupplier,
-      OkHttpClient client,
-      ExtraServicesProvider extraServicesProvider) {
+      OkHttpClient client) {
     this(
         config,
         tracerVersion,
         containerId,
         urlSupplier,
         client,
-        extraServicesProvider,
         new AgentTaskScheduler(AgentThreadFactory.AgentThread.REMOTE_CONFIG));
   }
 
@@ -111,12 +106,10 @@ public class ConfigurationPoller
       String containerId,
       Supplier<String> urlSupplier,
       OkHttpClient httpClient,
-      ExtraServicesProvider extraServicesProvider,
       AgentTaskScheduler taskScheduler) {
     this.config = config;
     this.tracerVersion = tracerVersion;
     this.containerId = containerId;
-    this.extraServicesProvider = extraServicesProvider;
     this.urlSupplier = urlSupplier;
     this.keyId = config.getRemoteConfigTargetsKeyId();
     String keyStr = config.getRemoteConfigTargetsKey();
@@ -258,8 +251,7 @@ public class ConfigurationPoller
             getSubscribedProductNames(),
             this.nextClientState,
             getCachedTargetFiles(),
-            capabilities,
-            this.extraServicesProvider.getExtraServices());
+            capabilities);
     if (request == null) {
       throw new IOException("Endpoint has not been discovered yet");
     }

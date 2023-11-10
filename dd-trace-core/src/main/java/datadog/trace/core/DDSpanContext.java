@@ -643,10 +643,6 @@ public class DDSpanContext
     return pathwayContext;
   }
 
-  public void maybeAddExtraService(final String serviceName) {
-    trace.getTracer().getExtraServicesProvider().maybeAddExtraService(serviceName);
-  }
-
   @Override
   public void mergePathwayContext(PathwayContext pathwayContext) {
     if (pathwayContext == null) {

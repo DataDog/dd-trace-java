@@ -361,12 +361,9 @@ public class Agent {
 
   /** Used by AgentCLI to send sample traces from the command-line. */
   public static void startDatadogTracer() throws Exception {
-    Class<?> espClass =
-        AGENT_CLASSLOADER.loadClass("datadog.remoteconfig.state.ExtraServicesProvider");
-    Object esp = espClass.getConstructor().newInstance();
     Class<?> scoClass =
         AGENT_CLASSLOADER.loadClass("datadog.communication.ddagent.SharedCommunicationObjects");
-    installDatadogTracer(scoClass, scoClass.getConstructor(espClass).newInstance(esp));
+    installDatadogTracer(scoClass, scoClass.getConstructor().newInstance());
     startJmx(); // send runtime metrics along with the traces
   }
 
@@ -456,14 +453,10 @@ public class Agent {
     public void execute() {
       Object sco;
       Class<?> scoClass;
-      Object esp;
-      Class<?> espClass;
       try {
-        espClass = AGENT_CLASSLOADER.loadClass("datadog.remoteconfig.state.ExtraServicesProvider");
-        esp = espClass.getConstructor().newInstance();
         scoClass =
             AGENT_CLASSLOADER.loadClass("datadog.communication.ddagent.SharedCommunicationObjects");
-        sco = scoClass.getConstructor(espClass).newInstance(esp);
+        sco = scoClass.getConstructor().newInstance();
       } catch (ClassNotFoundException
           | NoSuchMethodException
           | InstantiationException

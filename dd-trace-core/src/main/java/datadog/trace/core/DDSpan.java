@@ -9,6 +9,7 @@ import static java.util.concurrent.TimeUnit.MICROSECONDS;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
 
+import datadog.remoteconfig.state.ExtraServicesProvider;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTags;
@@ -149,7 +150,7 @@ public class DDSpan
   private void finishAndAddToTrace(final long durationNano) {
     // ensure a min duration of 1
     if (DURATION_NANO_UPDATER.compareAndSet(this, 0, Math.max(1, durationNano))) {
-      this.context.maybeAddExtraService(this.getServiceName());
+      ExtraServicesProvider.maybeAddExtraService(this.getServiceName());
       setLongRunningVersion(-this.longRunningVersion);
       this.metrics.onSpanFinished();
       PendingTrace.PublishState publishState = context.getTrace().onPublish(this);

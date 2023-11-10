@@ -6,7 +6,6 @@ import com.squareup.moshi.Types
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery
 import datadog.communication.ddagent.SharedCommunicationObjects
 import datadog.communication.monitor.Monitoring
-import datadog.remoteconfig.state.ExtraServicesProvider
 import datadog.trace.agent.test.utils.PortUtils
 import datadog.trace.api.IdGenerationStrategy
 import datadog.trace.core.CoreTracer
@@ -50,7 +49,7 @@ class TracerConnectionReliabilityTest extends DDSpecification {
     // Build a tracer talking to the test agent (with the right port and traces endpoint)
     def properties = new Properties()
     properties.put("trace.agent.port", Integer.toString(agentContainerPort))
-    def sharedCommunicationObjects = new SharedCommunicationObjects(new ExtraServicesProvider())
+    def sharedCommunicationObjects = new SharedCommunicationObjects()
     sharedCommunicationObjects.agentUrl = HttpUrl.get("http://localhost:" + agentContainerPort)
     sharedCommunicationObjects.okHttpClient = client
     def fixedFeaturesDiscovery = new FixedTraceEndpointFeaturesDiscovery(sharedCommunicationObjects)

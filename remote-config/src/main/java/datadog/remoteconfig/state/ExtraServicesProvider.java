@@ -15,11 +15,11 @@ public class ExtraServicesProvider {
 
   private static final int MAX_EXTRA_SERVICE = 64;
 
-  private final ConcurrentHashMap<String, String> extraServices = new ConcurrentHashMap<>();
+  private static final ConcurrentHashMap<String, String> extraServices = new ConcurrentHashMap<>();
 
-  boolean limitReachedLogged = false;
+  static boolean limitReachedLogged = false;
 
-  public void maybeAddExtraService(final String serviceName) {
+  public static void maybeAddExtraService(final String serviceName) {
     if (serviceName == null) {
       return;
     }
@@ -39,11 +39,11 @@ public class ExtraServicesProvider {
   }
 
   @Nullable
-  public List<String> getExtraServices() {
+  public static List<String> getExtraServices() {
     return extraServices.isEmpty() ? null : new ArrayList<>(extraServices.values());
   }
 
-  public void clear() {
+  public static void clear() {
     extraServices.clear();
   }
 }

@@ -1,14 +1,13 @@
 package datadog.communication.ddagent
 
 import datadog.communication.monitor.Monitoring
-import datadog.remoteconfig.state.ExtraServicesProvider
 import datadog.trace.api.Config
 import datadog.trace.test.util.DDSpecification
 import okhttp3.HttpUrl
 import okhttp3.OkHttpClient
 
 class SharedCommunicationsObjectsSpecification extends DDSpecification {
-  SharedCommunicationObjects sco = new SharedCommunicationObjects(new ExtraServicesProvider())
+  SharedCommunicationObjects sco = new SharedCommunicationObjects()
 
   void 'nothing populated'() {
     given:

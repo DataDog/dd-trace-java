@@ -1,7 +1,6 @@
 package datadog.trace.agent.tooling.nativeimage;
 
 import datadog.communication.ddagent.SharedCommunicationObjects;
-import datadog.remoteconfig.state.ExtraServicesProvider;
 import datadog.trace.agent.tooling.TracerInstaller;
 import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
 import org.slf4j.Logger;
@@ -14,8 +13,7 @@ public final class TracerActivation {
   public static void activate() {
     try {
       TracerInstaller.installGlobalTracer(
-          new SharedCommunicationObjects(new ExtraServicesProvider()),
-          ProfilingContextIntegration.NoOp.INSTANCE);
+          new SharedCommunicationObjects(), ProfilingContextIntegration.NoOp.INSTANCE);
     } catch (Throwable e) {
       log.warn("Problem activating datadog tracer", e);
     }

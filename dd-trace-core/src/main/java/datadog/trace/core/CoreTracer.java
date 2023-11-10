@@ -16,7 +16,6 @@ import datadog.communication.ddagent.ExternalAgentLauncher;
 import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.communication.monitor.Monitoring;
 import datadog.communication.monitor.Recording;
-import datadog.remoteconfig.state.ExtraServicesProvider;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTraceId;
@@ -183,9 +182,6 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   private final boolean disableSamplingMechanismValidation;
   private final TimeSource timeSource;
   private final ProfilingContextIntegration profilingContextIntegration;
-
-  private final ExtraServicesProvider extraServicesProvider;
-
   private boolean injectBaggageAsTags;
 
   private Timer timer = Timer.NoOp.INSTANCE;
@@ -509,8 +505,6 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     this.initialConfig = config;
     this.initialSampler = sampler;
 
-    this.extraServicesProvider = new ExtraServicesProvider();
-
     this.dynamicConfig =
         DynamicConfig.create(ConfigSnapshot::new)
             .setDebugEnabled(config.isDebugEnabled())
@@ -572,7 +566,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     disableSamplingMechanismValidation = config.isSamplingMechanismValidationDisabled();
 
     if (sharedCommunicationObjects == null) {
-      sharedCommunicationObjects = new SharedCommunicationObjects(extraServicesProvider);
+      sharedCommunicationObjects = new SharedCommunicationObjects();
     }
     sharedCommunicationObjects.monitoring = monitoring;
     sharedCommunicationObjects.createRemaining(config);
@@ -871,10 +865,6 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   @Override
   public AgentDataStreamsMonitoring getDataStreamsMonitoring() {
     return dataStreamsMonitoring;
-  }
-
-  public ExtraServicesProvider getExtraServicesProvider() {
-    return extraServicesProvider;
   }
 
   @Override
