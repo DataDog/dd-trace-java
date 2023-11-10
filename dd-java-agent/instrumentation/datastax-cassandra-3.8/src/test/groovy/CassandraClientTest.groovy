@@ -134,11 +134,15 @@ abstract class CassandraClientTest extends VersionedNamingTestBase {
     "SELECT * FROM users where name = 'alice' ALLOW FILTERING"                                         | "async_test" | true
   }
 
+  String normalize(String statement){
+    return statement.replaceAll("alice", "?")
+  }
+
   def cassandraSpan(TraceAssert trace, String statement, String keyspace, boolean renameService, Object parentSpan = null, Throwable exception = null) {
     trace.span {
       serviceName renameService && keyspace ? keyspace : service()
       operationName operation()
-      resourceName statement
+      resourceName normalize(statement)
       spanType DDSpanTypes.CASSANDRA
       if (parentSpan == null) {
         parent()
