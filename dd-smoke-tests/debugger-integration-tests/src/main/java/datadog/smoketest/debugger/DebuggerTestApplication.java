@@ -35,10 +35,13 @@ class Main {
     System.out.println("Waiting for instrumentation...");
     waitForInstrumentation(LOG_FILENAME, Main.class.getName());
     System.out.println("Executing method: " + methodName);
-    method.accept(args.length > 2 ? args[2] : null);
-    System.out.println("Executed");
-    waitForUpload(LOG_FILENAME, expectedUploads);
-    System.out.println("Exiting...");
+    try {
+      method.accept(args.length > 2 ? args[2] : null);
+      System.out.println("Executed");
+    } finally {
+      waitForUpload(LOG_FILENAME, expectedUploads);
+      System.out.println("Exiting...");
+    }
   }
 
   private static void registerMethods() {
@@ -47,6 +50,7 @@ class Main {
     methodsByName.put("fullMethod", Main::runFullMethod);
     methodsByName.put("multiProbesFullMethod", Main::runFullMethod);
     methodsByName.put("loopingFullMethod", Main::runLoopingFullMethod);
+    methodsByName.put("exceptionMethod", Main::runExceptionMethod);
   }
 
   private static void emptyMethod(String arg) {}
@@ -74,6 +78,10 @@ class Main {
     }
   }
 
+  private static void runExceptionMethod(String s) {
+    exceptionMethod(s);
+  }
+
   private static String fullMethod(
       int argInt, String argStr, double argDouble, Map<String, String> argMap, String... argVar) {
     try {
@@ -90,6 +98,19 @@ class Main {
     } catch (Exception ex) {
       ex.printStackTrace();
       return null;
+    }
+  }
+
+  private static void exceptionMethod(String arg) {
+    if (arg.equals("uncaught")) {
+      throw new RuntimeException("oops uncaught!");
+    }
+    if (arg.equals("caught")) {
+      try {
+        throw new IllegalArgumentException("oops caught!");
+      } catch (IllegalArgumentException ex) {
+        ex.printStackTrace();
+      }
     }
   }
 }
