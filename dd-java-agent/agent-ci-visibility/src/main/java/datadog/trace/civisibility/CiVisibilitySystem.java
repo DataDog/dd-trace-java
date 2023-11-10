@@ -134,8 +134,6 @@ public class CiVisibilitySystem {
       CoverageProbeStoreFactory coverageProbeStoreFactory,
       GitClient.Factory gitClientFactory) {
     BackendApiFactory backendApiFactory = new BackendApiFactory(config, sco);
-    BackendApi backendApi = backendApiFactory.createBackendApi();
-
     return (String projectName,
         Path projectRoot,
         String startCommand,
@@ -165,6 +163,7 @@ public class CiVisibilitySystem {
       TestDecorator testDecorator = new TestDecoratorImpl(buildSystemName, ciTags);
       TestModuleRegistry testModuleRegistry = new TestModuleRegistry();
 
+      BackendApi backendApi = backendApiFactory.createBackendApi();
       GitDataUploader gitDataUploader =
           buildGitDataUploader(config, gitInfoProvider, gitClientFactory, backendApi, repoRoot);
       ModuleExecutionSettingsFactory moduleExecutionSettingsFactory =
@@ -228,8 +227,6 @@ public class CiVisibilitySystem {
       CoverageProbeStoreFactory coverageProbeStoreFactory,
       GitClient.Factory gitClientFactory) {
     BackendApiFactory backendApiFactory = new BackendApiFactory(config, sco);
-    BackendApi backendApi = backendApiFactory.createBackendApi();
-
     return (String projectName, Path projectRoot, String component, Long startTime) -> {
       CIProviderInfoFactory ciProviderInfoFactory = new CIProviderInfoFactory(config);
       CIProviderInfo ciProviderInfo = ciProviderInfoFactory.createCIProviderInfo(projectRoot);
@@ -275,6 +272,7 @@ public class CiVisibilitySystem {
       // either we are in the build system
       // or we are in the tests JVM and the build system is not instrumented
       if (parentProcessSessionId == null || parentProcessModuleId == null) {
+        BackendApi backendApi = backendApiFactory.createBackendApi();
         GitDataUploader gitDataUploader =
             buildGitDataUploader(config, gitInfoProvider, gitClientFactory, backendApi, repoRoot);
         RepoIndexProvider indexProvider = new RepoIndexBuilder(repoRoot, FileSystems.getDefault());
