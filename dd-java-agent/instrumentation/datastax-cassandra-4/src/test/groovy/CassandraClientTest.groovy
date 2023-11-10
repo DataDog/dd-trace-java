@@ -211,7 +211,7 @@ abstract class CassandraClientTest extends VersionedNamingTestBase {
   }
 
   String normalize(String statement){
-    return statement.replaceAll("alice", "?")
+    return statement.replaceAll("'alice'", "?")
   }
 
   def cassandraSpan(TraceAssert trace, String statement, String keyspace, boolean renameService, Object parentSpan = null, Throwable throwable = null) {
