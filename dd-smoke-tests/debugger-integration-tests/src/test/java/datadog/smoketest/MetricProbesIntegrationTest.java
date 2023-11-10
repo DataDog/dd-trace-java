@@ -1,11 +1,14 @@
 package datadog.smoketest;
 
 import static org.junit.Assert.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
+import com.datadog.debugger.agent.ProbeStatus;
 import com.datadog.debugger.el.DSL;
 import com.datadog.debugger.el.ValueScript;
 import com.datadog.debugger.probe.MetricProbe;
 import java.io.IOException;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -35,6 +38,26 @@ public class MetricProbesIntegrationTest extends SimpleAppDebuggerIntegrationTes
         MetricProbe.MetricKind.COUNT,
         new ValueScript(DSL.ref("argInt"), "argInt"),
         "dynamic.instrumentation.metric.probe.%s:42|c|#debugger.probeid:%s");
+  }
+
+  @Test
+  @DisplayName("testMethodMetricCountInvalidSymbol")
+  void testMethodMetricCountInvalidSymbol() throws Exception {
+    doMethodInvalidMetric(
+        "fullMethod_count",
+        MetricProbe.MetricKind.COUNT,
+        new ValueScript(DSL.ref("noarg"), "noarg"),
+        "Cannot resolve symbol noarg");
+  }
+
+  @Test
+  @DisplayName("testMethodMetricCountInvalidType")
+  void testMethodMetricCountInvalidType() throws Exception {
+    doMethodInvalidMetric(
+        "fullMethod_count",
+        MetricProbe.MetricKind.COUNT,
+        new ValueScript(DSL.ref("argStr"), "argStr"),
+        "Incompatible type for expression: java.lang.String with expected types: [long]");
   }
 
   @Test
@@ -85,6 +108,39 @@ public class MetricProbesIntegrationTest extends SimpleAppDebuggerIntegrationTes
     targetProcess = createProcessBuilder(logFilePath, METHOD_NAME, EXPECTED_UPLOADS).start();
     String msgExpected = String.format(expectedMsgFormat, metricName, PROBE_ID.getId());
     assertNotNull(retrieveStatsdMessage(msgExpected));
+  }
+
+  private void doMethodInvalidMetric(
+      String metricName, MetricProbe.MetricKind kind, ValueScript script, String expectedMsg)
+      throws Exception {
+    final String METHOD_NAME = "fullMethod";
+    final String EXPECTED_UPLOADS =
+        "-1"; // wait for TIMEOUT_S for letting the Probe Status to be sent (async)
+    MetricProbe metricProbe =
+        MetricProbe.builder()
+            .probeId(PROBE_ID)
+            .where(MAIN_CLASS_NAME, METHOD_NAME)
+            .kind(kind)
+            .metricName(metricName)
+            .valueScript(script)
+            .build();
+    setCurrentConfiguration(createMetricConfig(metricProbe));
+    targetProcess = createProcessBuilder(logFilePath, METHOD_NAME, EXPECTED_UPLOADS).start();
+    AtomicBoolean received = new AtomicBoolean();
+    AtomicBoolean error = new AtomicBoolean();
+    registerProbeStatusListener(
+        probeStatus -> {
+          if (probeStatus.getDiagnostics().getStatus() == ProbeStatus.Status.RECEIVED) {
+            received.set(true);
+          }
+          if (probeStatus.getDiagnostics().getStatus() == ProbeStatus.Status.ERROR) {
+            assertEquals(expectedMsg, probeStatus.getDiagnostics().getException().getMessage());
+            error.set(true);
+          }
+          return received.get() && error.get();
+        });
+    processRequests();
+    clearProbeStatusListener();
   }
 
   @Test
