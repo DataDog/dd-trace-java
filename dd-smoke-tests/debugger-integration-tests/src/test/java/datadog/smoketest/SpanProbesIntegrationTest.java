@@ -41,11 +41,16 @@ public class SpanProbesIntegrationTest extends SimpleAppDebuggerIntegrationTest 
     final String METHOD_NAME = "fullMethod";
     final String EXPECTED_UPLOADS = "3"; // 2 + 1 for letting the trace being sent (async)
     SpanProbe spanProbe =
-        SpanProbe.builder().probeId(PROBE_ID).where(MAIN_CLASS_NAME, 80, 89).build();
+        SpanProbe.builder()
+            .probeId(PROBE_ID)
+            // from line: System.out.println("fullMethod");
+            // to line: + String.join(",", argVar);
+            .where(MAIN_CLASS_NAME, 88, 97)
+            .build();
     setCurrentConfiguration(createSpanConfig(spanProbe));
     targetProcess = createProcessBuilder(logFilePath, METHOD_NAME, EXPECTED_UPLOADS).start();
     DecodedSpan decodedSpan = retrieveSpanRequest(DebuggerTracer.OPERATION_NAME);
-    assertEquals("Main.fullMethod:L80-89", decodedSpan.getResource());
+    assertEquals("Main.fullMethod:L88-97", decodedSpan.getResource());
   }
 
   @Test

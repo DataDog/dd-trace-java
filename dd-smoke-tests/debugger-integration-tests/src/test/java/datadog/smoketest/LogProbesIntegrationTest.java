@@ -321,6 +321,71 @@ public class LogProbesIntegrationTest extends SimpleAppDebuggerIntegrationTest {
     assertTrue(countSnapshots() < 120);
   }
 
+  @Test
+  @DisplayName("testUncaughtException")
+  void testUncaughtException() throws Exception {
+    final String EXPECTED_UPLOADS = "3";
+    final String METHOD_NAME = "exceptionMethod";
+    LogProbe probe =
+        LogProbe.builder()
+            .probeId(PROBE_ID)
+            .where(MAIN_CLASS_NAME, METHOD_NAME)
+            .evaluateAt(MethodLocation.EXIT)
+            .captureSnapshot(true)
+            .build();
+    setCurrentConfiguration(createConfig(probe));
+    targetProcess =
+        createProcessBuilder(logFilePath, METHOD_NAME, EXPECTED_UPLOADS, "uncaught").start();
+    RecordedRequest request = retrieveSnapshotRequest();
+    assertNotNull(request);
+    assertFalse(logHasErrors(logFilePath, it -> false));
+    String bodyStr = request.getBody().readUtf8();
+    JsonAdapter<List<JsonSnapshotSerializer.IntakeRequest>> adapter = createAdapterForSnapshot();
+    System.out.println(bodyStr);
+    JsonSnapshotSerializer.IntakeRequest intakeRequest = adapter.fromJson(bodyStr).get(0);
+    Snapshot snapshot = intakeRequest.getDebugger().getSnapshot();
+    assertEquals("123356536", snapshot.getProbe().getId());
+    CapturedContext.CapturedThrowable throwable = snapshot.getCaptures().getReturn().getThrowable();
+    assertEquals("oops uncaught!", throwable.getMessage());
+    assertTrue(throwable.getStacktrace().size() > 0);
+    assertEquals(
+        "datadog.smoketest.debugger.Main.exceptionMethod",
+        throwable.getStacktrace().get(0).getFunction());
+  }
+
+  @Test
+  @DisplayName("testCaughtException")
+  void testCaughtException() throws Exception {
+    final String EXPECTED_UPLOADS = "3";
+    final String METHOD_NAME = "exceptionMethod";
+    LogProbe probe =
+        LogProbe.builder()
+            .probeId(PROBE_ID)
+            .where(MAIN_CLASS_NAME, METHOD_NAME)
+            .evaluateAt(MethodLocation.EXIT)
+            .captureSnapshot(true)
+            .build();
+    setCurrentConfiguration(createConfig(probe));
+    targetProcess =
+        createProcessBuilder(logFilePath, METHOD_NAME, EXPECTED_UPLOADS, "caught").start();
+    RecordedRequest request = retrieveSnapshotRequest();
+    assertNotNull(request);
+    assertFalse(logHasErrors(logFilePath, it -> false));
+    String bodyStr = request.getBody().readUtf8();
+    JsonAdapter<List<JsonSnapshotSerializer.IntakeRequest>> adapter = createAdapterForSnapshot();
+    System.out.println(bodyStr);
+    JsonSnapshotSerializer.IntakeRequest intakeRequest = adapter.fromJson(bodyStr).get(0);
+    Snapshot snapshot = intakeRequest.getDebugger().getSnapshot();
+    assertEquals("123356536", snapshot.getProbe().getId());
+    assertEquals(1, snapshot.getCaptures().getCaughtExceptions().size());
+    CapturedContext.CapturedThrowable throwable =
+        snapshot.getCaptures().getCaughtExceptions().get(0);
+    assertEquals("oops caught!", throwable.getMessage());
+    assertEquals(
+        "datadog.smoketest.debugger.Main.exceptionMethod",
+        throwable.getStacktrace().get(0).getFunction());
+  }
+
   private int countSnapshots() throws Exception {
     int snapshotCount = 0;
     RecordedRequest request;
