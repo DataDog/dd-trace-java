@@ -31,7 +31,7 @@ benchmarks:
     KUBERNETES_SERVICE_ACCOUNT_OVERWRITE: dd-trace-java
     FF_USE_LEGACY_KUBERNETES_EXECUTION_STRATEGY: "true"
 
-dsm-kafka-benchmarks:
+.dsm-kafka-benchmarks:
   stage: benchmarks
   when: manual
   tags: ["runner:apm-k8s-same-cpu"]
@@ -49,3 +49,13 @@ dsm-kafka-benchmarks:
     expire_in: 3 months
   variables:
     FF_USE_LEGACY_KUBERNETES_EXECUTION_STRATEGY: "true"
+
+dsm-kafka-producer-benchmark:
+  extends: .benchmarks
+  variables:
+    BP_KAFKA_SCENARIO_DIR: producer-benchmark
+
+dsm-kafka-consumer-benchmark:
+  extends: .benchmarks
+  variables:
+    BP_KAFKA_SCENARIO_DIR: consumer-benchmark
