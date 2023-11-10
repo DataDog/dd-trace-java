@@ -51,11 +51,11 @@ benchmarks:
     FF_USE_LEGACY_KUBERNETES_EXECUTION_STRATEGY: "true"
 
 dsm-kafka-producer-benchmark:
-  extends: .benchmarks
+  extends: .dsm-kafka-benchmarks
   variables:
     BP_KAFKA_SCENARIO_DIR: producer-benchmark
 
 dsm-kafka-consumer-benchmark:
-  extends: .benchmarks
+  extends: .dsm-kafka-benchmarks
   variables:
     BP_KAFKA_SCENARIO_DIR: consumer-benchmark
