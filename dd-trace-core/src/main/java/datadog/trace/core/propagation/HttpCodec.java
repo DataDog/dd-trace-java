@@ -152,7 +152,14 @@ public class HttpCodec {
           break;
       }
     }
-    return new CompoundExtractor(extractors, config.isTracePropagationExtractFirst());
+    switch (extractors.size()) {
+      case 0:
+        return StubExtractor.INSTANCE;
+      case 1:
+        return extractors.get(0);
+      default:
+        return new CompoundExtractor(extractors, config.isTracePropagationExtractFirst());
+    }
   }
 
   public static class CompoundInjector implements Injector {
@@ -173,6 +180,15 @@ public class HttpCodec {
     }
   }
 
+  private static class StubExtractor implements Extractor {
+    private static final StubExtractor INSTANCE = new StubExtractor();
+
+    @Override
+    public <C> TagContext extract(C carrier, AgentPropagation.ContextVisitor<C> getter) {
+      return null;
+    }
+  }
+
   public static class CompoundExtractor implements Extractor {
     private final List<Extractor> extractors;
     private final boolean extractFirst;
@@ -187,9 +203,11 @@ public class HttpCodec {
         final C carrier, final AgentPropagation.ContextVisitor<C> getter) {
       ExtractedContext context = null;
       TagContext partialContext = null;
+      // Extract and cache all headers in advance
+      ExtractionCache<C> extractionCache = new ExtractionCache<>(carrier, getter);
 
       for (final Extractor extractor : this.extractors) {
-        TagContext extracted = extractor.extract(carrier, getter);
+        TagContext extracted = extractor.extract(extractionCache, extractionCache);
         // Check if context is valid
         if (extracted instanceof ExtractedContext) {
           ExtractedContext extractedContext = (ExtractedContext) extracted;
@@ -233,6 +251,33 @@ public class HttpCodec {
       } else {
         log.debug("Extract no context");
         return null;
+      }
+    }
+  }
+
+  private static class ExtractionCache<C>
+      implements AgentPropagation.KeyClassifier,
+          AgentPropagation.ContextVisitor<ExtractionCache<?>> {
+    /** Cached context key-values (even indexes are header names, odd indexes are header values). */
+    private final List<String> keysAndValues;
+
+    public ExtractionCache(C carrier, AgentPropagation.ContextVisitor<C> getter) {
+      this.keysAndValues = new ArrayList<>(32);
+      getter.forEachKey(carrier, this);
+    }
+
+    @Override
+    public boolean accept(String key, String value) {
+      this.keysAndValues.add(key);
+      this.keysAndValues.add(value);
+      return true;
+    }
+
+    @Override
+    public void forEachKey(ExtractionCache<?> carrier, AgentPropagation.KeyClassifier classifier) {
+      List<String> keysAndValues = carrier.keysAndValues;
+      for (int i = 0; i < keysAndValues.size(); i += 2) {
+        classifier.accept(keysAndValues.get(i), keysAndValues.get(i + 1));
       }
     }
   }
