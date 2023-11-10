@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.opentelemetry14.trace;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
+import static datadog.trace.instrumentation.opentelemetry14.trace.OtelConventions.applyConventions;
 import static io.opentelemetry.api.trace.StatusCode.ERROR;
 import static io.opentelemetry.api.trace.StatusCode.OK;
 import static io.opentelemetry.api.trace.StatusCode.UNSET;
@@ -106,7 +107,7 @@ public class OtelSpan implements Span {
   @Override
   public Span updateName(String name) {
     if (this.recording) {
-      this.delegate.setOperationName(name);
+      this.delegate.setResourceName(name);
     }
     return this;
   }
@@ -114,12 +115,14 @@ public class OtelSpan implements Span {
   @Override
   public void end() {
     this.recording = false;
+    applyConventions(this.delegate);
     this.delegate.finish();
   }
 
   @Override
   public void end(long timestamp, TimeUnit unit) {
     this.recording = false;
+    applyConventions(this.delegate);
     this.delegate.finish(unit.toMicros(timestamp));
   }
 
