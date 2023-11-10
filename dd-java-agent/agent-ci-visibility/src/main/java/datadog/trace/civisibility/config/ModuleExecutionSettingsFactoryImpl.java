@@ -31,6 +31,7 @@ public class ModuleExecutionSettingsFactoryImpl implements ModuleExecutionSettin
 
   private static final Logger LOGGER =
       LoggerFactory.getLogger(ModuleExecutionSettingsFactoryImpl.class);
+  private static final String TEST_CONFIGURATION_TAG_PREFIX = "test.configuration.";
 
   private final Config config;
   private final ConfigurationApi configurationApi;
@@ -87,11 +88,21 @@ public class ModuleExecutionSettingsFactoryImpl implements ModuleExecutionSettin
       String repositoryRoot, JvmInfo jvmInfo, @Nullable String moduleName) {
     GitInfo gitInfo = GitInfoProvider.INSTANCE.getGitInfo(repositoryRoot);
 
+    TracerEnvironment.Builder builder = TracerEnvironment.builder();
+    for (Map.Entry<String, String> e : config.getGlobalTags().entrySet()) {
+      String key = e.getKey();
+      if (key.startsWith(TEST_CONFIGURATION_TAG_PREFIX)) {
+        String configurationKey = key.substring(TEST_CONFIGURATION_TAG_PREFIX.length());
+        String configurationValue = e.getValue();
+        builder.customTag(configurationKey, configurationValue);
+      }
+    }
+
     /*
      * IMPORTANT: JVM and OS properties should match tags
      * set in datadog.trace.civisibility.decorator.TestDecorator
      */
-    return TracerEnvironment.builder()
+    return builder
         .service(config.getServiceName())
         .env(config.getEnv())
         .repositoryUrl(gitInfo.getRepositoryURL())
