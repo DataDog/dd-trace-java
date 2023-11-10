@@ -1,10 +1,10 @@
 package datadog.trace.instrumentation.opentelemetry14.trace;
 
+import static datadog.trace.instrumentation.opentelemetry14.trace.OtelConventions.toSpanType;
 import static datadog.trace.instrumentation.opentelemetry14.trace.OtelExtractedContext.extract;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
-import datadog.trace.bootstrap.instrumentation.api.Tags;
 import io.opentelemetry.api.common.AttributeKey;
 import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.trace.Span;
@@ -13,7 +13,6 @@ import io.opentelemetry.api.trace.SpanContext;
 import io.opentelemetry.api.trace.SpanKind;
 import io.opentelemetry.context.Context;
 import java.util.List;
-import java.util.Locale;
 import java.util.concurrent.TimeUnit;
 import javax.annotation.ParametersAreNonnullByDefault;
 
@@ -108,22 +107,6 @@ public class OtelSpanBuilder implements SpanBuilder {
   public SpanBuilder setSpanKind(SpanKind spanKind) {
     this.delegate.withSpanType(toSpanType(spanKind));
     return this;
-  }
-
-  private static String toSpanType(SpanKind spanKind) {
-    switch (spanKind) {
-      case CLIENT:
-        return Tags.SPAN_KIND_CLIENT;
-      case SERVER:
-        return Tags.SPAN_KIND_SERVER;
-      case PRODUCER:
-        return Tags.SPAN_KIND_PRODUCER;
-      case CONSUMER:
-        return Tags.SPAN_KIND_CONSUMER;
-      default:
-      case INTERNAL:
-        return spanKind.toString().toLowerCase(Locale.ROOT);
-    }
   }
 
   @Override

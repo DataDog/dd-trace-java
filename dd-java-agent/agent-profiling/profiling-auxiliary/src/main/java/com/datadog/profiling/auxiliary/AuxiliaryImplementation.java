@@ -1,8 +1,8 @@
 package com.datadog.profiling.auxiliary;
 
 import com.datadog.profiling.controller.OngoingRecording;
-import com.datadog.profiling.controller.RecordingData;
 import com.datadog.profiling.utils.ProfilingMode;
+import datadog.trace.api.profiling.RecordingData;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import java.util.Collections;
 import java.util.Set;
