@@ -1,6 +1,5 @@
 package datadog.trace.core
 
-import datadog.remoteconfig.state.ExtraServicesProvider
 import datadog.trace.api.DDSpanId
 import datadog.trace.api.DDTags
 import datadog.trace.api.DDTraceId
@@ -15,6 +14,7 @@ import datadog.trace.common.sampling.RateByServiceTraceSampler
 import datadog.trace.common.writer.ListWriter
 import datadog.trace.core.propagation.ExtractedContext
 import datadog.trace.core.test.DDCoreSpecification
+import datadog.trace.util.ExtraServicesProvider
 import spock.lang.Shared
 
 import java.util.concurrent.TimeUnit

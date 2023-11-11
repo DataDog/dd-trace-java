@@ -1,10 +1,10 @@
 package datadog.remoteconfig
 
-import datadog.remoteconfig.state.ExtraServicesProvider
 import datadog.remoteconfig.tuf.RemoteConfigRequest
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.test.util.DDSpecification
 import datadog.trace.api.Config
+import datadog.trace.util.ExtraServicesProvider
 
 class PollerRequestFactoryTest extends DDSpecification {
 

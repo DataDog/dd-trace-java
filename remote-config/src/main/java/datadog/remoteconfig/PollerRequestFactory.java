@@ -1,7 +1,6 @@
 package datadog.remoteconfig;
 
 import com.squareup.moshi.Moshi;
-import datadog.remoteconfig.state.ExtraServicesProvider;
 import datadog.remoteconfig.tuf.RemoteConfigRequest;
 import datadog.remoteconfig.tuf.RemoteConfigRequest.CachedTargetFile;
 import datadog.remoteconfig.tuf.RemoteConfigRequest.ClientInfo.ClientState;
@@ -9,6 +8,7 @@ import datadog.trace.api.Config;
 import datadog.trace.api.git.GitInfo;
 import datadog.trace.api.git.GitInfoProvider;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
+import datadog.trace.util.ExtraServicesProvider;
 import datadog.trace.util.TagsHelper;
 import java.util.Arrays;
 import java.util.Collection;

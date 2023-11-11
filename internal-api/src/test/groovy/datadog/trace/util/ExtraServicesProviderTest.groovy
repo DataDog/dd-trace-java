@@ -1,9 +1,7 @@
-package datadog.remoteconfig.state
+package datadog.trace.util
 
 import datadog.trace.api.Config
 import spock.lang.Specification
-
-import static datadog.remoteconfig.state.ExtraServicesProvider.*
 
 class ExtraServicesProviderTest extends Specification {
 

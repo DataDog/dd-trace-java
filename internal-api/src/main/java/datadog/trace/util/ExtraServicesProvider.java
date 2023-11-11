@@ -1,4 +1,4 @@
-package datadog.remoteconfig.state;
+package datadog.trace.util;
 
 import datadog.trace.api.Config;
 import java.util.ArrayList;
