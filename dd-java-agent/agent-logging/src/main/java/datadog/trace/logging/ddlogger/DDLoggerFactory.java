@@ -13,10 +13,9 @@ import org.slf4j.Marker;
 
 public class DDLoggerFactory implements ILoggerFactory, LogLevelSwitcher {
 
+  private static final boolean telemetryLogCollectionEnabled = getLogCollectionEnabled(false);
   private volatile LoggerHelperFactory helperFactory = null;
-
   private volatile LogLevel override = null;
-  private final boolean telemetryLogCollectionEnabled = getLogCollectionEnabled(false);
 
   public DDLoggerFactory() {}
 
@@ -62,7 +61,7 @@ public class DDLoggerFactory implements ILoggerFactory, LogLevelSwitcher {
   public Logger getLogger(String name) {
     LoggerHelper helper = getHelperFactory().loggerHelperForName(name);
     HelperWrapper helperWrapper = new HelperWrapper(helper);
-    if (Platform.isNativeImageBuilder() || !telemetryLogCollectionEnabled) {
+    if (!telemetryLogCollectionEnabled || Platform.isNativeImageBuilder()) {
       return new DDLogger(helperWrapper, name);
     } else {
       return new DDTelemetryLogger(helperWrapper, name);
@@ -89,8 +88,8 @@ public class DDLoggerFactory implements ILoggerFactory, LogLevelSwitcher {
   }
 
   // DDLoggerFactory can be called at very early stage, before Config loaded
-  // So to get property/env we use this custom fucntion
-  private boolean getLogCollectionEnabled(boolean defaultValue) {
+  // So to get property/env we use this custom function
+  private static boolean getLogCollectionEnabled(boolean defaultValue) {
     String value = System.getProperty("dd.telemetry.log-collection.enabled");
     if ("true".equalsIgnoreCase(value)) {
       return true;

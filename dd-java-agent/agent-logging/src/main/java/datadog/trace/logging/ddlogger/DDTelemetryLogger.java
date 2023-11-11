@@ -16,20 +16,15 @@ public class DDTelemetryLogger extends DDLogger {
   protected void alwaysLog(LogLevel level, Marker marker, String format, String msg, Throwable t) {
     super.alwaysLog(level, marker, format, msg, t);
     if (!Platform.isNativeImageBuilder()) {
-      sendToTelemetry(level, marker, format, msg, t);
-    }
-  }
-
-  private void sendToTelemetry(
-      LogLevel level, Marker marker, String format, String msg, Throwable t) {
-    // We report only messages with Throwable or explicitly marked with SEND_TELEMETRY
-    if (t != null || marker == LogCollector.SEND_TELEMETRY) {
-      // We are scrubbing all data from messages, and only send static (compile time)
-      // log messages, plus redacted stack traces.
-      if (format != null) {
-        LogCollector.get().addLogMessage(level.name(), format, t);
-      } else if (msg != null) {
-        LogCollector.get().addLogMessage(level.name(), msg, t);
+      // We report only messages with Throwable or explicitly marked with SEND_TELEMETRY
+      if (t != null || marker == LogCollector.SEND_TELEMETRY) {
+        // We are scrubbing all data from messages, and only send static (compile time)
+        // log messages, plus redacted stack traces.
+        if (format != null) {
+          LogCollector.get().addLogMessage(level.name(), format, t);
+        } else if (msg != null) {
+          LogCollector.get().addLogMessage(level.name(), msg, t);
+        }
       }
     }
   }

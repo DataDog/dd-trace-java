@@ -22,15 +22,15 @@ class DDTelemetryLoggerTest extends LogValidatingSpecification {
 
     then:
     collection.size() == 1
-    collection[0].message == 'debug message {}'
+    collection[0].message() == 'debug message {}'
 
     when:
-    logger.warn(LogCollector.SEND_TELEMETRY, "warming message {}", 42)
+    logger.warn(LogCollector.SEND_TELEMETRY, "warning message {}", 42)
     collection = LogCollector.get().drain()
 
     then:
     collection.size() == 1
-    collection[0].message == 'warming message {}'
+    collection[0].message() == 'warning message {}'
 
     when:
     logger.error(LogCollector.SEND_TELEMETRY, "plain error message")
@@ -38,7 +38,7 @@ class DDTelemetryLoggerTest extends LogValidatingSpecification {
 
     then:
     collection.size() == 1
-    collection[0].message == 'plain error message'
+    collection[0].message() == 'plain error message'
 
     when:
     logger.debug(LogCollector.SEND_TELEMETRY, null)

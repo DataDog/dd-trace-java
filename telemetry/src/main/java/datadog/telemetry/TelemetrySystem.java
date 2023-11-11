@@ -58,7 +58,7 @@ public class TelemetrySystem {
     }
     if (Config.get().isTelemetryLogCollectionEnabled()) {
       actions.add(new LogPeriodicAction());
-      log.debug("Telemetry Log Collection Enabled");
+      log.debug("Telemetry log collection enabled");
     }
 
     TelemetryRunnable telemetryRunnable = new TelemetryRunnable(telemetryService, actions);

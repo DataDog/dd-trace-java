@@ -8,7 +8,15 @@ import datadog.trace.api.LogCollector;
 import datadog.trace.util.stacktrace.StackUtils;
 
 public class LogPeriodicAction implements TelemetryRunnable.TelemetryPeriodicAction {
-  static final String[] PACKAGE_LIST = {"datadog.", "com.datadog.", "java.", "javax."};
+
+  /**
+   * The current list of packages passed in is small, but if it kept growing and this did become a
+   * performance issue then we could consider using ClassNameTrie instead (ie. use the builder to
+   * create the trie and store it as a constant in LogPeriodicAction to be passed in here and used
+   * as a filter)
+   */
+  static final String[] PACKAGE_LIST = {"datadog.", "com.datadog.", "java.", "javax.", "jakarta."};
+
   private static final String RET = "\r\n";
   private static final String UNKNOWN = "<unknown>";
 
@@ -17,7 +25,7 @@ public class LogPeriodicAction implements TelemetryRunnable.TelemetryPeriodicAct
     for (LogCollector.RawLogMessage rawLogMsg : LogCollector.get().drain()) {
 
       LogMessage logMessage =
-          new LogMessage().message(rawLogMsg.message).tracerTime(rawLogMsg.timestamp);
+          new LogMessage().message(rawLogMsg.message()).tracerTime(rawLogMsg.timestamp);
 
       if (rawLogMsg.logLevel != null) {
         logMessage.level(LogMessageLevel.fromString(rawLogMsg.logLevel));
@@ -31,7 +39,7 @@ public class LogPeriodicAction implements TelemetryRunnable.TelemetryPeriodicAct
     }
   }
 
-  private String renderStackTrace(Throwable t) {
+  private static String renderStackTrace(Throwable t) {
     StringBuilder stackTrace = new StringBuilder();
 
     String name = t.getClass().getCanonicalName();
@@ -54,16 +62,14 @@ public class LogPeriodicAction implements TelemetryRunnable.TelemetryPeriodicAct
 
     Throwable filtered = StackUtils.filterPackagesIn(t, PACKAGE_LIST);
     for (StackTraceElement stackTraceElement : filtered.getStackTrace()) {
-      stackTrace.append("  at ");
-      stackTrace.append(stackTraceElement.toString());
-      stackTrace.append(RET);
+      stackTrace.append("  at ").append(stackTraceElement).append(RET);
     }
     return stackTrace.toString();
   }
 
-  private boolean isDataDogCode(Throwable t) {
+  private static boolean isDataDogCode(Throwable t) {
     StackTraceElement[] stackTrace = t.getStackTrace();
-    if (stackTrace.length == 0) {
+    if (stackTrace == null || stackTrace.length == 0) {
       return false;
     }
     String cn = stackTrace[0].getClassName();

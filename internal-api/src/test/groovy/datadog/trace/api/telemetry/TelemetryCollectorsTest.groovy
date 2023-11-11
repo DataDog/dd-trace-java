@@ -284,7 +284,7 @@ class TelemetryCollectorsTest extends DDSpecification {
 
   boolean listContains(Collection<LogCollector.RawLogMessage> list, String logLevel, String message, Throwable t) {
     for (final def logMsg in list) {
-      if (logMsg.logLevel == logLevel && logMsg.message == message && logMsg.throwable == t) {
+      if (logMsg.logLevel == logLevel && logMsg.message() == message && logMsg.throwable == t) {
         return true
       }
     }

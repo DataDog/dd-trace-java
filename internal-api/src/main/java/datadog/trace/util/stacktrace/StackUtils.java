@@ -50,9 +50,9 @@ public abstract class StackUtils {
   }
 
   public static <E extends Throwable> E filterPackagesIn(
-      final E throwable, final String[] packages) {
+      final E exception, final String[] packages) {
     return filter(
-        throwable,
+        exception,
         ste -> {
           final String clazz = ste.getClassName();
           for (String p : packages) {
