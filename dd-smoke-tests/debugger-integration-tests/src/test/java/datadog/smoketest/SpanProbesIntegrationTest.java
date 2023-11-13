@@ -58,7 +58,12 @@ public class SpanProbesIntegrationTest extends SimpleAppDebuggerIntegrationTest 
   void testSingleLineSpan() throws Exception {
     final String METHOD_NAME = "fullMethod";
     final String EXPECTED_UPLOADS = "2"; // 2 probe statuses: RECEIVED + ERROR
-    SpanProbe spanProbe = SpanProbe.builder().probeId(PROBE_ID).where(MAIN_CLASS_NAME, 80).build();
+    SpanProbe spanProbe =
+        SpanProbe.builder()
+            .probeId(PROBE_ID)
+            // on line: System.out.println("fullMethod");
+            .where(MAIN_CLASS_NAME, 88)
+            .build();
     setCurrentConfiguration(createSpanConfig(spanProbe));
     targetProcess = createProcessBuilder(logFilePath, METHOD_NAME, EXPECTED_UPLOADS).start();
     AtomicBoolean received = new AtomicBoolean(false);
