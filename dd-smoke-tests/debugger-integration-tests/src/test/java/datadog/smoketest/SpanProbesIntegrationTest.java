@@ -11,6 +11,7 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.DisabledIf;
 
 public class SpanProbesIntegrationTest extends SimpleAppDebuggerIntegrationTest {
 
@@ -55,6 +56,7 @@ public class SpanProbesIntegrationTest extends SimpleAppDebuggerIntegrationTest 
 
   @Test
   @DisplayName("testSingleLineSpan")
+  @DisabledIf(value = "datadog.trace.api.Platform#isJ9", disabledReason = "Flaky on J9 JVMs")
   void testSingleLineSpan() throws Exception {
     final String METHOD_NAME = "fullMethod";
     final String EXPECTED_UPLOADS = "2"; // 2 probe statuses: RECEIVED + ERROR
