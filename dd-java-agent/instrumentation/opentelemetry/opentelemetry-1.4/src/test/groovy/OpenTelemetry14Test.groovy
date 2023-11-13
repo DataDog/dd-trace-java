@@ -44,13 +44,15 @@ class OpenTelemetry14Test extends AgentTestRunner {
       trace(2) {
         span {
           parent()
-          operationName DEFAULT_OPERATION_NAME
+          operationName "internal"
           resourceName "some-name"
+          spanType "internal"
         }
         span {
           childOfPrevious()
-          operationName DEFAULT_OPERATION_NAME
+          operationName "internal"
           resourceName "other-name"
+          spanType "internal"
         }
       }
     }
@@ -72,13 +74,15 @@ class OpenTelemetry14Test extends AgentTestRunner {
       trace(2) {
         span {
           parent()
-          operationName DEFAULT_OPERATION_NAME
+          operationName "internal"
           resourceName "some-name"
+          spanType "internal"
         }
         span {
           childOfPrevious()
-          operationName DEFAULT_OPERATION_NAME
+          operationName "internal"
           resourceName "other-name"
+          spanType "internal"
         }
       }
     }
@@ -118,15 +122,17 @@ class OpenTelemetry14Test extends AgentTestRunner {
       trace(1) {
         span {
           parent()
-          operationName DEFAULT_OPERATION_NAME
+          operationName "internal"
           resourceName"some-name"
+          spanType "internal"
         }
       }
       trace(1) {
         span {
           parent()
-          operationName DEFAULT_OPERATION_NAME
+          operationName "internal"
           resourceName"other-name"
+          spanType "internal"
         }
       }
     }
@@ -139,8 +145,6 @@ class OpenTelemetry14Test extends AgentTestRunner {
     anotherSpan.end()
 
     when:
-    // Adding link is not supported
-    builder.addLink(anotherSpan.getSpanContext())
     // Adding event is not supported
     def result = builder.startSpan()
     result.addEvent("some-event")
@@ -149,10 +153,13 @@ class OpenTelemetry14Test extends AgentTestRunner {
     then:
     assertTraces(2) {
       trace(1) {
-        span {}
+        span {
+          spanType "internal"}
       }
       trace(1) {
-        span {}
+        span {
+          spanType "internal"
+        }
       }
     }
   }
@@ -201,7 +208,8 @@ class OpenTelemetry14Test extends AgentTestRunner {
       trace(1) {
         span {
           parent()
-          operationName DEFAULT_OPERATION_NAME
+          operationName "internal"
+          spanType "internal"
           if (tagSpan) {
             resourceName "other-resource"
           } else if (tagBuilder) {
@@ -303,8 +311,9 @@ class OpenTelemetry14Test extends AgentTestRunner {
       trace(1) {
         span {
           parent()
-          operationName DEFAULT_OPERATION_NAME
+          operationName "internal"
           resourceName "some-name"
+          spanType "internal"
           errored true
 
           tags {
@@ -355,8 +364,9 @@ class OpenTelemetry14Test extends AgentTestRunner {
       trace(1) {
         span {
           parent()
-          operationName DEFAULT_OPERATION_NAME
+          operationName "internal"
           resourceName "some-name"
+          spanType "internal"
           errored false
           tags {
             defaultTags()
@@ -396,8 +406,9 @@ class OpenTelemetry14Test extends AgentTestRunner {
       trace(1) {
         span {
           parent()
-          operationName DEFAULT_OPERATION_NAME
+          operationName "internal"
           resourceName "some-name"
+          spanType "internal"
           errored false
           tags {
             defaultTags()
@@ -458,8 +469,9 @@ class OpenTelemetry14Test extends AgentTestRunner {
       trace(1) {
         span {
           parent()
-          operationName DEFAULT_OPERATION_NAME
+          operationName "internal"
           resourceName"some-name"
+          spanType "internal"
           errored true
           tags {
             defaultTags()
