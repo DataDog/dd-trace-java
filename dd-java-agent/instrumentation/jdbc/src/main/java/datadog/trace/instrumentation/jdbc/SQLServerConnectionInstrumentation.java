@@ -33,7 +33,7 @@ public class SQLServerConnectionInstrumentation extends AbstractConnectionInstru
    * DB *
    */
   public SQLServerConnectionInstrumentation() {
-    super("jdbc", "dbm");
+    super("jdbc", "dbm-sqlserver");
   }
 
   // Classes to cover all currently supported
