@@ -9,6 +9,7 @@ import static utils.InstrumentationTestHelper.compileAndLoadClass;
 
 import com.datadog.debugger.sink.SymbolSink;
 import datadog.trace.api.Config;
+import datadog.trace.api.Platform;
 import java.io.IOException;
 import java.lang.instrument.Instrumentation;
 import java.net.URISyntaxException;
@@ -55,6 +56,10 @@ class SymbolExtractionTransformerTest {
 
   @Test
   public void symbolExtraction01() throws IOException, URISyntaxException {
+    if (Platform.isJ9()) {
+      // Skip for IBM JVM
+      return;
+    }
     final String CLASS_NAME = SYMBOL_PACKAGE + "SymbolExtraction01";
     final String SOURCE_FILE = SYMBOL_PACKAGE_DIR + "SymbolExtraction01.java";
     SymbolSinkMock symbolSinkMock = new SymbolSinkMock(config);
@@ -120,6 +125,10 @@ class SymbolExtractionTransformerTest {
 
   @Test
   public void symbolExtraction02() throws IOException, URISyntaxException {
+    if (Platform.isJ9()) {
+      // Skip for IBM JVM
+      return;
+    }
     final String CLASS_NAME = SYMBOL_PACKAGE + "SymbolExtraction02";
     final String SOURCE_FILE = SYMBOL_PACKAGE_DIR + "SymbolExtraction02.java";
     SymbolSinkMock symbolSinkMock = new SymbolSinkMock(config);
@@ -147,6 +156,10 @@ class SymbolExtractionTransformerTest {
 
   @Test
   public void symbolExtraction03() throws IOException, URISyntaxException {
+    if (Platform.isJ9()) {
+      // Skip for IBM JVM
+      return;
+    }
     final String CLASS_NAME = SYMBOL_PACKAGE + "SymbolExtraction03";
     final String SOURCE_FILE = SYMBOL_PACKAGE_DIR + "SymbolExtraction03.java";
     SymbolSinkMock symbolSinkMock = new SymbolSinkMock(config);
@@ -214,6 +227,10 @@ class SymbolExtractionTransformerTest {
 
   @Test
   public void symbolExtraction04() throws IOException, URISyntaxException {
+    if (Platform.isJ9()) {
+      // Skip for IBM JVM
+      return;
+    }
     final String CLASS_NAME = SYMBOL_PACKAGE + "SymbolExtraction04";
     final String SOURCE_FILE = SYMBOL_PACKAGE_DIR + "SymbolExtraction04.java";
     SymbolSinkMock symbolSinkMock = new SymbolSinkMock(config);
@@ -285,6 +302,10 @@ class SymbolExtractionTransformerTest {
 
   @Test
   public void symbolExtraction05() throws IOException, URISyntaxException {
+    if (Platform.isJ9()) {
+      // Skip for IBM JVM
+      return;
+    }
     final String CLASS_NAME = SYMBOL_PACKAGE + "SymbolExtraction05";
     final String SOURCE_FILE = SYMBOL_PACKAGE_DIR + "SymbolExtraction05.java";
     SymbolSinkMock symbolSinkMock = new SymbolSinkMock(config);
@@ -330,6 +351,10 @@ class SymbolExtractionTransformerTest {
 
   @Test
   public void symbolExtraction06() throws IOException, URISyntaxException {
+    if (Platform.isJ9()) {
+      // Skip for IBM JVM
+      return;
+    }
     final String CLASS_NAME = SYMBOL_PACKAGE + "SymbolExtraction06";
     final String SOURCE_FILE = SYMBOL_PACKAGE_DIR + "SymbolExtraction06.java";
     SymbolSinkMock symbolSinkMock = new SymbolSinkMock(config);
@@ -375,6 +400,10 @@ class SymbolExtractionTransformerTest {
 
   @Test
   public void symbolExtraction07() throws IOException, URISyntaxException {
+    if (Platform.isJ9()) {
+      // Skip for IBM JVM
+      return;
+    }
     final String CLASS_NAME = SYMBOL_PACKAGE + "SymbolExtraction07";
     final String SOURCE_FILE = SYMBOL_PACKAGE_DIR + "SymbolExtraction07.java";
     SymbolSinkMock symbolSinkMock = new SymbolSinkMock(config);
@@ -406,6 +435,10 @@ class SymbolExtractionTransformerTest {
 
   @Test
   public void symbolExtraction08() throws IOException, URISyntaxException {
+    if (Platform.isJ9()) {
+      // Skip for IBM JVM
+      return;
+    }
     final String CLASS_NAME = SYMBOL_PACKAGE + "SymbolExtraction08";
     final String SOURCE_FILE = SYMBOL_PACKAGE_DIR + "SymbolExtraction08.java";
     SymbolSinkMock symbolSinkMock = new SymbolSinkMock(config);
@@ -439,6 +472,10 @@ class SymbolExtractionTransformerTest {
 
   @Test
   public void symbolExtraction09() throws IOException, URISyntaxException {
+    if (Platform.isJ9()) {
+      // Skip for IBM JVM
+      return;
+    }
     final String CLASS_NAME = SYMBOL_PACKAGE + "SymbolExtraction09";
     final String SOURCE_FILE = SYMBOL_PACKAGE_DIR + "SymbolExtraction09.java";
     SymbolSinkMock symbolSinkMock = new SymbolSinkMock(config);
@@ -530,6 +567,10 @@ class SymbolExtractionTransformerTest {
 
   @Test
   public void symbolExtraction10() throws IOException, URISyntaxException {
+    if (Platform.isJ9()) {
+      // Skip for IBM JVM
+      return;
+    }
     final String CLASS_NAME = SYMBOL_PACKAGE + "SymbolExtraction10";
     final String SOURCE_FILE = SYMBOL_PACKAGE_DIR + "SymbolExtraction10.java";
     when(config.getDebuggerSymbolFlushThreshold()).thenReturn(2);
@@ -581,6 +622,10 @@ class SymbolExtractionTransformerTest {
 
   @Test
   public void symbolExtraction11() throws IOException, URISyntaxException {
+    if (Platform.isJ9()) {
+      // Skip for IBM JVM
+      return;
+    }
     final String CLASS_NAME = SYMBOL_PACKAGE + "SymbolExtraction11";
     final String SOURCE_FILE = SYMBOL_PACKAGE_DIR + "SymbolExtraction11.java";
     SymbolSinkMock symbolSinkMock = new SymbolSinkMock(config);
@@ -614,6 +659,10 @@ class SymbolExtractionTransformerTest {
 
   @Test
   public void symbolExtraction12() throws IOException, URISyntaxException {
+    if (Platform.isJ9()) {
+      // Skip for IBM JVM
+      return;
+    }
     final String CLASS_NAME = SYMBOL_PACKAGE + "SymbolExtraction12";
     final String SOURCE_FILE = SYMBOL_PACKAGE_DIR + "SymbolExtraction12.java";
     SymbolSinkMock symbolSinkMock = new SymbolSinkMock(config);
@@ -687,6 +736,10 @@ class SymbolExtractionTransformerTest {
 
   @Test
   public void symbolExtraction13() throws IOException, URISyntaxException {
+    if (Platform.isJ9()) {
+      // Skip for IBM JVM
+      return;
+    }
     final String CLASS_NAME = SYMBOL_PACKAGE + "SymbolExtraction13";
     SymbolSinkMock symbolSinkMock = new SymbolSinkMock(config);
     SymbolExtractionTransformer transformer =
@@ -748,6 +801,10 @@ class SymbolExtractionTransformerTest {
 
   @Test
   public void symbolExtraction14() throws IOException, URISyntaxException {
+    if (Platform.isJ9()) {
+      // Skip for IBM JVM
+      return;
+    }
     final String CLASS_NAME = SYMBOL_PACKAGE + "SymbolExtraction14";
     SymbolSinkMock symbolSinkMock = new SymbolSinkMock(config);
     SymbolExtractionTransformer transformer =

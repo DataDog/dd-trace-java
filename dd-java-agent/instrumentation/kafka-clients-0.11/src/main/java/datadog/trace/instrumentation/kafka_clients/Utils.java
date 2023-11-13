@@ -6,7 +6,7 @@ import org.apache.kafka.common.header.Header;
 import org.apache.kafka.common.header.Headers;
 
 public final class Utils {
-  private Utils() {} // prevent instanciation
+  private Utils() {} // prevent instantiation
 
   // this method is used in kafka-clients and kafka-streams instrumentations
   public static long computePayloadSizeBytes(ConsumerRecord<?, ?> val) {
