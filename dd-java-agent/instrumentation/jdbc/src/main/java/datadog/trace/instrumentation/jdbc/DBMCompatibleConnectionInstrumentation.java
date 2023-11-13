@@ -36,7 +36,6 @@ public class DBMCompatibleConnectionInstrumentation extends AbstractConnectionIn
   // Classes to cover all currently supported
   // db types for the Database Monitoring product
   static final String[] CONCRETE_TYPES = {
-    "com.microsoft.sqlserver.jdbc.SQLServerConnection",
     // should cover mysql
     "com.mysql.jdbc.Connection",
     "com.mysql.jdbc.jdbc1.Connection",
@@ -64,13 +63,8 @@ public class DBMCompatibleConnectionInstrumentation extends AbstractConnectionIn
     "postgresql.Connection",
     // EDB version of postgresql
     "com.edb.jdbc.PgConnection",
-    // jtds (for SQL Server and Sybase)
-    "net.sourceforge.jtds.jdbc.ConnectionJDBC2", // 1.2
-    "net.sourceforge.jtds.jdbc.JtdsConnection", // 1.3
     // aws-mysql-jdbc
     "software.aws.rds.jdbc.mysql.shading.com.mysql.cj.jdbc.ConnectionImpl",
-    // IBM Informix
-    "com.informix.jdbc.IfmxConnection",
   };
 
   @Override
