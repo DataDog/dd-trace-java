@@ -33,17 +33,19 @@ public class BackendApiFactory {
             "Agentless mode is enabled and api key is not set. Please set application key");
       }
       long timeoutMillis = config.getCiVisibilityBackendApiTimeoutMillis();
-      return new IntakeApi(site, apiKey, timeoutMillis, retryPolicyFactory);
+      String traceId = config.getIdGenerationStrategy().generateTraceId().toString();
+      return new IntakeApi(site, apiKey, traceId, timeoutMillis, retryPolicyFactory);
     }
 
     DDAgentFeaturesDiscovery featuresDiscovery =
         sharedCommunicationObjects.featuresDiscovery(config);
     featuresDiscovery.discoverIfOutdated();
     if (featuresDiscovery.supportsEvpProxy()) {
+      String traceId = config.getIdGenerationStrategy().generateTraceId().toString();
       String evpProxyEndpoint = featuresDiscovery.getEvpProxyEndpoint();
       HttpUrl evpProxyUrl = sharedCommunicationObjects.agentUrl.resolve(evpProxyEndpoint);
       return new EvpProxyApi(
-          evpProxyUrl, retryPolicyFactory, sharedCommunicationObjects.okHttpClient);
+          traceId, evpProxyUrl, retryPolicyFactory, sharedCommunicationObjects.okHttpClient);
     }
 
     log.warn(

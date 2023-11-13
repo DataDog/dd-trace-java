@@ -1,5 +1,6 @@
 package datadog.trace.civisibility.config;
 
+import datadog.communication.ddagent.TracerVersion;
 import datadog.trace.api.Config;
 import datadog.trace.api.civisibility.config.Configurations;
 import datadog.trace.api.civisibility.config.ModuleExecutionSettings;
@@ -166,6 +167,11 @@ public class ModuleExecutionSettingsFactoryImpl implements ModuleExecutionSettin
         Strings.propertyNameToSystemPropertyName(
             CiVisibilityConfig.CIVISIBILITY_BUILD_INSTRUMENTATION_ENABLED),
         Boolean.toString(false));
+
+    propagatedSystemProperties.put(
+        Strings.propertyNameToSystemPropertyName(
+            CiVisibilityConfig.CIVISIBILITY_INJECTED_TRACER_VERSION),
+        TracerVersion.TRACER_VERSION);
 
     return propagatedSystemProperties;
   }

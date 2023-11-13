@@ -99,7 +99,7 @@ subprojects { Project subProj ->
 
       onlyIf { !project.rootProject.hasProperty("skipInstTests") }
 
-      if (subTask.name == 'latestDepTest') {
+      if (subTask.name in ['latestDepTest', 'latestDepForkedTest']) {
         subTask.jvmArgs '-Dtest.dd.latestDepTest=true'
       }
     }
