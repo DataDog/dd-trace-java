@@ -49,6 +49,8 @@ dependencies {
 
   // needed for kinesis:
   testImplementation group: 'com.fasterxml.jackson.dataformat', name: 'jackson-dataformat-cbor', version: versions.jackson
+  testImplementation group: 'org.json', name: 'json', version: '20231013'
+
 
   test_before_1_11_106Implementation(group: 'com.amazonaws', name: 'aws-java-sdk-s3') {
     version {
