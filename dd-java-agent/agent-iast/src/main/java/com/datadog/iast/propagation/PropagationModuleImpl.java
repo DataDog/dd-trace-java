@@ -74,7 +74,7 @@ public class PropagationModuleImpl implements PropagationModule {
     if (!canBeTainted(target)) {
       return;
     }
-    internalTaint(ctx, target, new Source(origin, name, sourceValue(target, value)), NOT_MARKED);
+    internalTaint(ctx, target, newSource(target, origin, name, value), NOT_MARKED);
   }
 
   @Override
@@ -175,7 +175,7 @@ public class PropagationModuleImpl implements PropagationModule {
       return;
     }
     if (isTainted(ctx, input)) {
-      internalTaint(ctx, target, new Source(origin, name, sourceValue(target, value)), NOT_MARKED);
+      internalTaint(ctx, target, newSource(target, origin, name, value), NOT_MARKED);
     }
   }
 
@@ -250,7 +250,7 @@ public class PropagationModuleImpl implements PropagationModule {
       return;
     }
     if (target instanceof CharSequence) {
-      internalTaint(ctx, target, new Source(origin, null, sourceValue(target)), NOT_MARKED);
+      internalTaint(ctx, target, newSource(target, origin, null, sourceValue(target)), NOT_MARKED);
     } else {
       ObjectVisitor.visit(target, new TaintingVisitor(to, origin), classFilter);
     }
@@ -282,19 +282,16 @@ public class PropagationModuleImpl implements PropagationModule {
     return target != null && findSource(ctx, target) != null;
   }
 
-  /**
-   * Compares origin and value to check if they are the same reference in order to prevent retaining
-   * references
-   *
-   * @see #sourceValue(Object)
-   */
-  @Nullable
-  private static CharSequence sourceValue(
-      @Nullable final Object origin, @Nullable final CharSequence value) {
-    if (value != null && origin == value) {
-      return sourceValue(value);
-    }
-    return value;
+  /** Ensures that the reference is not kept strongly via the name or value properties */
+  private static Source newSource(
+      @Nonnull final Object reference,
+      final byte origin,
+      @Nullable final CharSequence name,
+      @Nullable final CharSequence value) {
+    return new Source(
+        origin,
+        reference == name ? sourceValue(name) : name,
+        reference == value ? sourceValue(value) : value);
   }
 
   /**
@@ -497,7 +494,7 @@ public class PropagationModuleImpl implements PropagationModule {
       if (value instanceof CharSequence) {
         final CharSequence charSequence = (CharSequence) value;
         if (canBeTainted(charSequence)) {
-          final Source source = new Source(origin, path, sourceValue(value));
+          final Source source = newSource(value, origin, path, charSequence);
           taintedObjects.taint(
               charSequence, Ranges.forCharSequence(charSequence, source, NOT_MARKED));
         }

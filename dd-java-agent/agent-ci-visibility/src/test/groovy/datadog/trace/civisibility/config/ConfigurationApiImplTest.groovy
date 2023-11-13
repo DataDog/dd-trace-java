@@ -2,12 +2,14 @@ package datadog.trace.civisibility.config
 
 import com.squareup.moshi.Moshi
 import datadog.communication.http.HttpRetryPolicy
+import datadog.communication.http.OkHttpUtils
 import datadog.trace.agent.test.server.http.TestHttpServer
 import datadog.trace.api.civisibility.config.Configurations
 import datadog.trace.api.civisibility.config.SkippableTest
 import datadog.trace.civisibility.communication.BackendApi
 import datadog.trace.civisibility.communication.EvpProxyApi
 import okhttp3.HttpUrl
+import okhttp3.OkHttpClient
 import spock.lang.AutoCleanup
 import spock.lang.Shared
 import spock.lang.Specification
@@ -135,7 +137,8 @@ class ConfigurationApiImplTest extends Specification {
   private BackendApi givenEvpProxy() {
     HttpUrl proxyUrl = HttpUrl.get(intakeServer.address)
     HttpRetryPolicy.Factory retryPolicyFactory = new HttpRetryPolicy.Factory(5, 100, 2.0)
-    return new EvpProxyApi(proxyUrl, REQUEST_TIMEOUT_MILLIS, retryPolicyFactory)
+    OkHttpClient client = OkHttpUtils.buildHttpClient(proxyUrl, REQUEST_TIMEOUT_MILLIS)
+    return new EvpProxyApi(proxyUrl, retryPolicyFactory, client)
   }
 
   private static TracerEnvironment givenTracerEnvironment() {

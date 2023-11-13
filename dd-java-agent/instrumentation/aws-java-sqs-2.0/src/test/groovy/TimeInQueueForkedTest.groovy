@@ -302,7 +302,7 @@ class TimeInQueueForkedTest extends AgentTestRunner {
         "aws.operation" "SendMessageBatch"
         "aws.agent" "java-aws-sdk"
         "aws.queue.url" "http://localhost:${address.port}/000000000000/somequeue"
-        "aws.requestId" "00000000-0000-0000-0000-000000000000"
+        "aws.requestId" { it.trim() == "00000000-0000-0000-0000-000000000000" } // the test server seem messing with request id and insert \n
         defaultTags()
       }
     }
@@ -325,7 +325,7 @@ class TimeInQueueForkedTest extends AgentTestRunner {
         "aws.operation" "ReceiveMessage"
         "aws.agent" "java-aws-sdk"
         "aws.queue.url" "http://localhost:${address.port}/000000000000/somequeue"
-        "aws.requestId" "00000000-0000-0000-0000-000000000000"
+        "aws.requestId" { it.trim() == "00000000-0000-0000-0000-000000000000" } // the test server seem messing with request id and insert \n
         defaultTags(parent.resourceName as String == "Sqs.SendMessageBatch")
       }
     }
@@ -344,7 +344,7 @@ class TimeInQueueForkedTest extends AgentTestRunner {
         "$Tags.COMPONENT" "java-aws-sdk"
         "$Tags.SPAN_KIND" Tags.SPAN_KIND_BROKER
         "aws.queue.url" "http://localhost:${address.port}/000000000000/somequeue"
-        "aws.requestId" "00000000-0000-0000-0000-000000000000"
+        "aws.requestId" { it.trim() == "00000000-0000-0000-0000-000000000000" } // the test server seem messing with request id and insert \n
         defaultTags(true)
       }
     }

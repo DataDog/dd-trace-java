@@ -74,6 +74,8 @@ public class CiVisibilitySystem {
       return;
     }
 
+    sco.createRemaining(config);
+
     GitClient.Factory gitClientFactory = buildGitClientFactory(config);
     CoverageProbeStoreFactory coverageProbeStoreFactory = buildTestProbesFactory(config);
 

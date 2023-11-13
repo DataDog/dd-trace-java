@@ -23,7 +23,6 @@ public class BackendApiFactory {
   }
 
   public @Nullable BackendApi createBackendApi() {
-    long timeoutMillis = config.getCiVisibilityBackendApiTimeoutMillis();
     HttpRetryPolicy.Factory retryPolicyFactory = new HttpRetryPolicy.Factory(5, 100, 2.0);
 
     if (config.isCiVisibilityAgentlessEnabled()) {
@@ -33,15 +32,18 @@ public class BackendApiFactory {
         throw new FatalAgentMisconfigurationError(
             "Agentless mode is enabled and api key is not set. Please set application key");
       }
+      long timeoutMillis = config.getCiVisibilityBackendApiTimeoutMillis();
       return new IntakeApi(site, apiKey, timeoutMillis, retryPolicyFactory);
     }
 
     DDAgentFeaturesDiscovery featuresDiscovery =
         sharedCommunicationObjects.featuresDiscovery(config);
+    featuresDiscovery.discoverIfOutdated();
     if (featuresDiscovery.supportsEvpProxy()) {
       String evpProxyEndpoint = featuresDiscovery.getEvpProxyEndpoint();
       HttpUrl evpProxyUrl = sharedCommunicationObjects.agentUrl.resolve(evpProxyEndpoint);
-      return new EvpProxyApi(evpProxyUrl, timeoutMillis, retryPolicyFactory);
+      return new EvpProxyApi(
+          evpProxyUrl, retryPolicyFactory, sharedCommunicationObjects.okHttpClient);
     }
 
     log.warn(

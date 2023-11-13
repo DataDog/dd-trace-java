@@ -1,11 +1,10 @@
-package com.datadog.profiling.controller;
+package datadog.trace.api.profiling;
 
 import java.io.BufferedInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 
-/** A wrapper stream implementation for the recording data. */
-public final class RecordingInputStream extends BufferedInputStream {
+public class RecordingInputStream extends BufferedInputStream {
   public RecordingInputStream(InputStream in) {
     super(in);
   }

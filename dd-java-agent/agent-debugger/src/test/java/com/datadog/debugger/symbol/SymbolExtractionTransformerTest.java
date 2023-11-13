@@ -1,12 +1,15 @@
 package com.datadog.debugger.symbol;
 
+import static java.util.Arrays.asList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.mockito.Mockito.when;
 import static utils.InstrumentationTestHelper.compileAndLoadClass;
 
 import com.datadog.debugger.sink.SymbolSink;
 import datadog.trace.api.Config;
+import datadog.trace.api.Platform;
 import java.io.IOException;
 import java.lang.instrument.Instrumentation;
 import java.net.URISyntaxException;
@@ -53,6 +56,10 @@ class SymbolExtractionTransformerTest {
 
   @Test
   public void symbolExtraction01() throws IOException, URISyntaxException {
+    if (Platform.isJ9()) {
+      // Skip for IBM JVM
+      return;
+    }
     final String CLASS_NAME = SYMBOL_PACKAGE + "SymbolExtraction01";
     final String SOURCE_FILE = SYMBOL_PACKAGE_DIR + "SymbolExtraction01.java";
     SymbolSinkMock symbolSinkMock = new SymbolSinkMock(config);
@@ -118,6 +125,10 @@ class SymbolExtractionTransformerTest {
 
   @Test
   public void symbolExtraction02() throws IOException, URISyntaxException {
+    if (Platform.isJ9()) {
+      // Skip for IBM JVM
+      return;
+    }
     final String CLASS_NAME = SYMBOL_PACKAGE + "SymbolExtraction02";
     final String SOURCE_FILE = SYMBOL_PACKAGE_DIR + "SymbolExtraction02.java";
     SymbolSinkMock symbolSinkMock = new SymbolSinkMock(config);
@@ -145,6 +156,10 @@ class SymbolExtractionTransformerTest {
 
   @Test
   public void symbolExtraction03() throws IOException, URISyntaxException {
+    if (Platform.isJ9()) {
+      // Skip for IBM JVM
+      return;
+    }
     final String CLASS_NAME = SYMBOL_PACKAGE + "SymbolExtraction03";
     final String SOURCE_FILE = SYMBOL_PACKAGE_DIR + "SymbolExtraction03.java";
     SymbolSinkMock symbolSinkMock = new SymbolSinkMock(config);
@@ -212,6 +227,10 @@ class SymbolExtractionTransformerTest {
 
   @Test
   public void symbolExtraction04() throws IOException, URISyntaxException {
+    if (Platform.isJ9()) {
+      // Skip for IBM JVM
+      return;
+    }
     final String CLASS_NAME = SYMBOL_PACKAGE + "SymbolExtraction04";
     final String SOURCE_FILE = SYMBOL_PACKAGE_DIR + "SymbolExtraction04.java";
     SymbolSinkMock symbolSinkMock = new SymbolSinkMock(config);
@@ -283,6 +302,10 @@ class SymbolExtractionTransformerTest {
 
   @Test
   public void symbolExtraction05() throws IOException, URISyntaxException {
+    if (Platform.isJ9()) {
+      // Skip for IBM JVM
+      return;
+    }
     final String CLASS_NAME = SYMBOL_PACKAGE + "SymbolExtraction05";
     final String SOURCE_FILE = SYMBOL_PACKAGE_DIR + "SymbolExtraction05.java";
     SymbolSinkMock symbolSinkMock = new SymbolSinkMock(config);
@@ -328,6 +351,10 @@ class SymbolExtractionTransformerTest {
 
   @Test
   public void symbolExtraction06() throws IOException, URISyntaxException {
+    if (Platform.isJ9()) {
+      // Skip for IBM JVM
+      return;
+    }
     final String CLASS_NAME = SYMBOL_PACKAGE + "SymbolExtraction06";
     final String SOURCE_FILE = SYMBOL_PACKAGE_DIR + "SymbolExtraction06.java";
     SymbolSinkMock symbolSinkMock = new SymbolSinkMock(config);
@@ -373,6 +400,10 @@ class SymbolExtractionTransformerTest {
 
   @Test
   public void symbolExtraction07() throws IOException, URISyntaxException {
+    if (Platform.isJ9()) {
+      // Skip for IBM JVM
+      return;
+    }
     final String CLASS_NAME = SYMBOL_PACKAGE + "SymbolExtraction07";
     final String SOURCE_FILE = SYMBOL_PACKAGE_DIR + "SymbolExtraction07.java";
     SymbolSinkMock symbolSinkMock = new SymbolSinkMock(config);
@@ -404,6 +435,10 @@ class SymbolExtractionTransformerTest {
 
   @Test
   public void symbolExtraction08() throws IOException, URISyntaxException {
+    if (Platform.isJ9()) {
+      // Skip for IBM JVM
+      return;
+    }
     final String CLASS_NAME = SYMBOL_PACKAGE + "SymbolExtraction08";
     final String SOURCE_FILE = SYMBOL_PACKAGE_DIR + "SymbolExtraction08.java";
     SymbolSinkMock symbolSinkMock = new SymbolSinkMock(config);
@@ -437,6 +472,10 @@ class SymbolExtractionTransformerTest {
 
   @Test
   public void symbolExtraction09() throws IOException, URISyntaxException {
+    if (Platform.isJ9()) {
+      // Skip for IBM JVM
+      return;
+    }
     final String CLASS_NAME = SYMBOL_PACKAGE + "SymbolExtraction09";
     final String SOURCE_FILE = SYMBOL_PACKAGE_DIR + "SymbolExtraction09.java";
     SymbolSinkMock symbolSinkMock = new SymbolSinkMock(config);
@@ -528,6 +567,10 @@ class SymbolExtractionTransformerTest {
 
   @Test
   public void symbolExtraction10() throws IOException, URISyntaxException {
+    if (Platform.isJ9()) {
+      // Skip for IBM JVM
+      return;
+    }
     final String CLASS_NAME = SYMBOL_PACKAGE + "SymbolExtraction10";
     final String SOURCE_FILE = SYMBOL_PACKAGE_DIR + "SymbolExtraction10.java";
     when(config.getDebuggerSymbolFlushThreshold()).thenReturn(2);
@@ -579,6 +622,10 @@ class SymbolExtractionTransformerTest {
 
   @Test
   public void symbolExtraction11() throws IOException, URISyntaxException {
+    if (Platform.isJ9()) {
+      // Skip for IBM JVM
+      return;
+    }
     final String CLASS_NAME = SYMBOL_PACKAGE + "SymbolExtraction11";
     final String SOURCE_FILE = SYMBOL_PACKAGE_DIR + "SymbolExtraction11.java";
     SymbolSinkMock symbolSinkMock = new SymbolSinkMock(config);
@@ -612,6 +659,10 @@ class SymbolExtractionTransformerTest {
 
   @Test
   public void symbolExtraction12() throws IOException, URISyntaxException {
+    if (Platform.isJ9()) {
+      // Skip for IBM JVM
+      return;
+    }
     final String CLASS_NAME = SYMBOL_PACKAGE + "SymbolExtraction12";
     final String SOURCE_FILE = SYMBOL_PACKAGE_DIR + "SymbolExtraction12.java";
     SymbolSinkMock symbolSinkMock = new SymbolSinkMock(config);
@@ -681,6 +732,186 @@ class SymbolExtractionTransformerTest {
         "x",
         Integer.class.getTypeName(),
         11);
+  }
+
+  @Test
+  public void symbolExtraction13() throws IOException, URISyntaxException {
+    if (Platform.isJ9()) {
+      // Skip for IBM JVM
+      return;
+    }
+    final String CLASS_NAME = SYMBOL_PACKAGE + "SymbolExtraction13";
+    SymbolSinkMock symbolSinkMock = new SymbolSinkMock(config);
+    SymbolExtractionTransformer transformer =
+        new SymbolExtractionTransformer(symbolSinkMock, config);
+    instr.addTransformer(transformer);
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    Reflect.on(testClass).call("main", "1").get();
+    Scope classScope = symbolSinkMock.jarScopes.get(0).getScopes().get(0);
+    assertLangSpecifics(
+        classScope.getLanguageSpecifics(),
+        asList("public"),
+        asList(
+            "@com.datadog.debugger.symbol.MyAnnotation", "@com.datadog.debugger.symbol.MyMarker"),
+        Object.class.getTypeName(),
+        null,
+        null);
+    Scope mainMethodScope = classScope.getScopes().get(1);
+    assertLangSpecifics(
+        mainMethodScope.getLanguageSpecifics(),
+        asList("public", "static"),
+        asList("@com.datadog.debugger.symbol.MyAnnotation"),
+        null,
+        null,
+        Integer.TYPE.getTypeName());
+    assertEquals(3, classScope.getSymbols().size());
+    Symbol intField = classScope.getSymbols().get(0);
+    assertLangSpecifics(
+        intField.getLanguageSpecifics(),
+        asList("private"),
+        asList("@com.datadog.debugger.symbol.MyAnnotation"),
+        null,
+        null,
+        null);
+    Scope myAnnotationClassScope = symbolSinkMock.jarScopes.get(1).getScopes().get(0);
+    assertLangSpecifics(
+        myAnnotationClassScope.getLanguageSpecifics(),
+        asList("interface", "abstract", "annotation"),
+        asList("@java.lang.annotation.Target", "@java.lang.annotation.Retention"),
+        Object.class.getTypeName(),
+        asList("java.lang.annotation.Annotation"),
+        null);
+    Symbol strField = classScope.getSymbols().get(1);
+    assertLangSpecifics(
+        strField.getLanguageSpecifics(),
+        asList("public", "static", "volatile"),
+        null,
+        null,
+        null,
+        null);
+    Symbol doubleField = classScope.getSymbols().get(2);
+    assertLangSpecifics(
+        doubleField.getLanguageSpecifics(),
+        asList("protected", "final", "transient"),
+        null,
+        null,
+        null,
+        null);
+  }
+
+  @Test
+  public void symbolExtraction14() throws IOException, URISyntaxException {
+    if (Platform.isJ9()) {
+      // Skip for IBM JVM
+      return;
+    }
+    final String CLASS_NAME = SYMBOL_PACKAGE + "SymbolExtraction14";
+    SymbolSinkMock symbolSinkMock = new SymbolSinkMock(config);
+    SymbolExtractionTransformer transformer =
+        new SymbolExtractionTransformer(symbolSinkMock, config);
+    instr.addTransformer(transformer);
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    Reflect.on(testClass).call("main", "1").get();
+    Scope classScope = symbolSinkMock.jarScopes.get(0).getScopes().get(0);
+    assertLangSpecifics(
+        classScope.getLanguageSpecifics(),
+        asList("public", "abstract"),
+        null,
+        Object.class.getTypeName(),
+        asList("com.datadog.debugger.symbol.I1", "com.datadog.debugger.symbol.I2"),
+        null);
+    assertEquals(4, classScope.getScopes().size());
+    Scope m1MethodScope = classScope.getScopes().get(2);
+    assertLangSpecifics(
+        m1MethodScope.getLanguageSpecifics(),
+        asList("protected", "abstract"),
+        null,
+        null,
+        null,
+        Void.TYPE.getTypeName());
+    Scope m2MethodScope = classScope.getScopes().get(3);
+    assertLangSpecifics(
+        m2MethodScope.getLanguageSpecifics(),
+        asList("private", "final", "synchronized", "(varargs)", "strictfp"),
+        null,
+        null,
+        null,
+        String.class.getTypeName());
+    Scope i1ClassScope = symbolSinkMock.jarScopes.get(1).getScopes().get(0);
+    assertLangSpecifics(
+        i1ClassScope.getLanguageSpecifics(),
+        asList("interface", "abstract"),
+        null,
+        Object.class.getTypeName(),
+        null,
+        null);
+    Scope m3MethodScope = i1ClassScope.getScopes().get(0);
+    assertLangSpecifics(
+        m3MethodScope.getLanguageSpecifics(),
+        asList("public", "default"),
+        null,
+        null,
+        null,
+        Void.TYPE.getTypeName());
+    Scope myEnumClassScope = symbolSinkMock.jarScopes.get(3).getScopes().get(0);
+    assertLangSpecifics(
+        myEnumClassScope.getLanguageSpecifics(),
+        asList("final", "enum"),
+        null,
+        Enum.class.getTypeName(),
+        null,
+        null);
+    assertEquals(4, myEnumClassScope.getSymbols().size());
+    Symbol oneField = myEnumClassScope.getSymbols().get(0);
+    assertLangSpecifics(
+        oneField.getLanguageSpecifics(),
+        asList("public", "static", "final", "enum"),
+        null,
+        null,
+        null,
+        null);
+    Symbol valuesField = myEnumClassScope.getSymbols().get(3);
+    assertLangSpecifics(
+        valuesField.getLanguageSpecifics(),
+        asList("private", "static", "final", "synthetic"),
+        null,
+        null,
+        null,
+        null);
+  }
+
+  private void assertLangSpecifics(
+      LanguageSpecifics languageSpecifics,
+      List<String> expectedModifiers,
+      List<String> expectedAnnotations,
+      String expectedSuperClass,
+      List<String> expectedInterfaces,
+      String expectedReturnType) {
+    if (expectedModifiers == null) {
+      assertNull(languageSpecifics.getAccessModifiers());
+    } else {
+      assertEquals(expectedModifiers, languageSpecifics.getAccessModifiers());
+    }
+    if (expectedAnnotations == null) {
+      assertNull(languageSpecifics.getAnnotations());
+    } else {
+      assertEquals(expectedAnnotations, languageSpecifics.getAnnotations());
+    }
+    if (expectedSuperClass == null) {
+      assertNull(languageSpecifics.getSuperClass());
+    } else {
+      assertEquals(expectedSuperClass, languageSpecifics.getSuperClass());
+    }
+    if (expectedInterfaces == null) {
+      assertNull(languageSpecifics.getInterfaces());
+    } else {
+      assertEquals(expectedInterfaces, languageSpecifics.getInterfaces());
+    }
+    if (expectedReturnType == null) {
+      assertNull(languageSpecifics.getReturnType());
+    } else {
+      assertEquals(expectedReturnType, languageSpecifics.getReturnType());
+    }
   }
 
   private static void assertScope(

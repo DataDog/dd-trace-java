@@ -13,6 +13,8 @@ import spock.lang.Subject
 
 import javax.annotation.Nullable
 
+import static datadog.trace.instrumentation.opentelemetry14.trace.OtelConventions.DEFAULT_OPERATION_NAME
+
 abstract class AbstractPropagatorTest extends AgentTestRunner {
   @Subject
   def tracer = GlobalOpenTelemetry.get().tracerProvider.get("propagator" + Math.random()) // TODO FIX LATER
@@ -86,7 +88,8 @@ abstract class AbstractPropagatorTest extends AgentTestRunner {
     assertTraces(1) {
       trace(1) {
         span {
-          operationName "some-name"
+          operationName DEFAULT_OPERATION_NAME
+          resourceName "some-name"
           traceDDId(DD128bTraceId.fromHex(traceId))
           parentSpanId(DDSpanId.fromHex(spanId).toLong() as BigInteger)
         }

@@ -17,9 +17,6 @@ public class DatadogProfilingIntegration implements ProfilingContextIntegration 
   private static final boolean WALLCLOCK_ENABLED =
       DatadogProfilerConfig.isWallClockProfilerEnabled();
 
-  private static final boolean QUEUEING_TIME_ENABLED =
-      WALLCLOCK_ENABLED && DatadogProfilerConfig.isQueueingTimeEnabled();
-
   @Override
   public void onAttach() {
     if (WALLCLOCK_ENABLED) {
@@ -37,6 +34,27 @@ public class DatadogProfilingIntegration implements ProfilingContextIntegration 
   @Override
   public int encode(CharSequence constant) {
     return DDPROF.encode(constant);
+  }
+
+  @Override
+  public int encodeOperationName(CharSequence constant) {
+    if (SPAN_NAME_INDEX >= 0) {
+      return DDPROF.encode(constant);
+    }
+    return 0;
+  }
+
+  @Override
+  public int encodeResourceName(CharSequence constant) {
+    if (RESOURCE_NAME_INDEX >= 0) {
+      return DDPROF.encode(constant);
+    }
+    return 0;
+  }
+
+  @Override
+  public String name() {
+    return "ddprof";
   }
 
   @Override
@@ -67,12 +85,4 @@ public class DatadogProfilingIntegration implements ProfilingContextIntegration 
   public ProfilingScope newScope() {
     return new DatadogProfilingScope(DDPROF);
   }
-
-  @Override
-  public boolean isQueuingTimeEnabled() {
-    return QUEUEING_TIME_ENABLED;
-  }
-
-  @Override
-  public void recordQueueingTime(long duration) {}
 }

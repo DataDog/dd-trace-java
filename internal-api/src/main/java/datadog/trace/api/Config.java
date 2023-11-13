@@ -68,6 +68,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_DEBUG_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_REDACTION_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_REDACTION_NAME_PATTERN;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_REDACTION_VALUE_PATTERN;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_STACKTRACE_LEAK_SUPPRESS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_TRUNCATION_MAX_VALUE_LENGTH;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_WEAK_CIPHER_ALGORITHMS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_WEAK_HASH_ALGORITHMS;
@@ -240,6 +241,7 @@ import static datadog.trace.api.config.IastConfig.IAST_DETECTION_MODE;
 import static datadog.trace.api.config.IastConfig.IAST_REDACTION_ENABLED;
 import static datadog.trace.api.config.IastConfig.IAST_REDACTION_NAME_PATTERN;
 import static datadog.trace.api.config.IastConfig.IAST_REDACTION_VALUE_PATTERN;
+import static datadog.trace.api.config.IastConfig.IAST_STACKTRACE_LEAK_SUPPRESS;
 import static datadog.trace.api.config.IastConfig.IAST_TELEMETRY_VERBOSITY;
 import static datadog.trace.api.config.IastConfig.IAST_TRUNCATION_MAX_VALUE_LENGTH;
 import static datadog.trace.api.config.IastConfig.IAST_WEAK_CIPHER_ALGORITHMS;
@@ -479,7 +481,6 @@ import org.slf4j.LoggerFactory;
  * @see InstrumenterConfig for pre-instrumentation configurations
  * @see DynamicConfig for configuration that can be dynamically updated via remote-config
  */
-@Deprecated
 public class Config {
 
   private static final Logger log = LoggerFactory.getLogger(Config.class);
@@ -682,6 +683,7 @@ public class Config {
   private final String iastRedactionValuePattern;
   private final int iastMaxRangeCount;
   private final int iastTruncationMaxValueLength;
+  private final boolean iastStacktraceLeakSuppress;
 
   private final boolean ciVisibilityTraceSanitationEnabled;
   private final boolean ciVisibilityAgentlessEnabled;
@@ -1536,6 +1538,9 @@ public class Config {
         configProvider.getInteger(
             IAST_TRUNCATION_MAX_VALUE_LENGTH, DEFAULT_IAST_TRUNCATION_MAX_VALUE_LENGTH);
     iastMaxRangeCount = iastDetectionMode.getIastMaxRangeCount(configProvider);
+    iastStacktraceLeakSuppress =
+        configProvider.getBoolean(
+            IAST_STACKTRACE_LEAK_SUPPRESS, DEFAULT_IAST_STACKTRACE_LEAK_SUPPRESS);
 
     ciVisibilityTraceSanitationEnabled =
         configProvider.getBoolean(CIVISIBILITY_TRACE_SANITATION_ENABLED, true);
@@ -2569,6 +2574,10 @@ public class Config {
 
   public int getIastMaxRangeCount() {
     return iastMaxRangeCount;
+  }
+
+  public boolean isIastStacktraceLeakSuppress() {
+    return iastStacktraceLeakSuppress;
   }
 
   public boolean isCiVisibilityEnabled() {

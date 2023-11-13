@@ -17,13 +17,19 @@ public interface ProfilingContextIntegration extends Profiling {
 
   void setContext(long rootSpanId, long spanId);
 
-  boolean isQueuingTimeEnabled();
-
-  void recordQueueingTime(long duration);
-
   default int encode(CharSequence constant) {
     return 0;
   }
+
+  default int encodeOperationName(CharSequence constant) {
+    return 0;
+  }
+
+  default int encodeResourceName(CharSequence constant) {
+    return 0;
+  }
+
+  String name();
 
   final class NoOp implements ProfilingContextIntegration {
 
@@ -56,11 +62,8 @@ public interface ProfilingContextIntegration extends Profiling {
     public void setContext(long rootSpanId, long spanId) {}
 
     @Override
-    public boolean isQueuingTimeEnabled() {
-      return false;
+    public String name() {
+      return "none";
     }
-
-    @Override
-    public void recordQueueingTime(long duration) {}
   }
 }
