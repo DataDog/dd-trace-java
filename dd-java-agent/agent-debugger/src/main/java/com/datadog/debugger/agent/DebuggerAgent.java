@@ -4,7 +4,8 @@ import static datadog.trace.util.AgentThreadFactory.AGENT_THREAD_GROUP;
 
 import com.datadog.debugger.sink.DebuggerSink;
 import com.datadog.debugger.sink.Sink;
-import com.datadog.debugger.symbol.SymbolExtractionTransformer;
+import com.datadog.debugger.symbol.SymDBEnablement;
+import com.datadog.debugger.symbol.SymbolAggregator;
 import com.datadog.debugger.uploader.BatchUploader;
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
 import datadog.communication.ddagent.SharedCommunicationObjects;
@@ -33,6 +34,7 @@ public class DebuggerAgent {
   private static Sink sink;
   private static String agentVersion;
   private static JsonSnapshotSerializer snapshotSerializer;
+  private static SymDBEnablement symDBEnablement;
 
   public static synchronized void run(
       Instrumentation instrumentation, SharedCommunicationObjects sco) {
@@ -77,7 +79,18 @@ public class DebuggerAgent {
     }
     configurationPoller = sco.configurationPoller(config);
     if (configurationPoller != null) {
-      subscribeConfigurationPoller(config, configurationUpdater);
+      if (config.isDebuggerSymbolEnabled()) {
+        symDBEnablement =
+            new SymDBEnablement(
+                instrumentation,
+                config,
+                new SymbolAggregator(
+                    debuggerSink.getSymbolSink(), config.getDebuggerSymbolFlushThreshold()));
+        if (config.isDebuggerSymbolForceUpload()) {
+          symDBEnablement.startSymbolExtraction();
+        }
+      }
+      subscribeConfigurationPoller(config, configurationUpdater, symDBEnablement);
       try {
         /*
         Note: shutdown hooks are tricky because JVM holds reference for them forever preventing
@@ -91,10 +104,6 @@ public class DebuggerAgent {
       }
     } else {
       log.debug("No configuration poller available from SharedCommunicationObjects");
-    }
-    if (config.isDebuggerSymbolEnabled() && config.isDebuggerSymbolForceUpload()) {
-      instrumentation.addTransformer(
-          new SymbolExtractionTransformer(debuggerSink.getSymbolSink(), config));
     }
   }
 
@@ -128,9 +137,13 @@ public class DebuggerAgent {
   }
 
   private static void subscribeConfigurationPoller(
-      Config config, ConfigurationUpdater configurationUpdater) {
+      Config config, ConfigurationUpdater configurationUpdater, SymDBEnablement symDBEnablement) {
     configurationPoller.addListener(
         Product.LIVE_DEBUGGING, new DebuggerProductChangesListener(config, configurationUpdater));
+    if (symDBEnablement != null && !config.isDebuggerSymbolForceUpload()) {
+      log.debug("Subscribing to Symbol DB...");
+      configurationPoller.addListener(Product.LIVE_DEBUGGING_SYMBOL_DB, symDBEnablement);
+    }
   }
 
   static ClassFileTransformer setupInstrumentTheWorldTransformer(
