@@ -20,15 +20,23 @@ public class IntakeApi implements BackendApi {
 
   private static final String API_VERSION = "v2";
   private static final String DD_API_KEY_HEADER = "dd-api-key";
+  private static final String X_DATADOG_TRACE_ID_HEADER = "x-datadog-trace-id";
+  private static final String X_DATADOG_PARENT_ID_HEADER = "x-datadog-parent-id";
 
   private final String apiKey;
+  private final String traceId;
   private final HttpRetryPolicy.Factory retryPolicyFactory;
   private final HttpUrl hostUrl;
   private final OkHttpClient httpClient;
 
   public IntakeApi(
-      String site, String apiKey, long timeoutMillis, HttpRetryPolicy.Factory retryPolicyFactory) {
+      String site,
+      String apiKey,
+      String traceId,
+      long timeoutMillis,
+      HttpRetryPolicy.Factory retryPolicyFactory) {
     this.apiKey = apiKey;
+    this.traceId = traceId;
     this.retryPolicyFactory = retryPolicyFactory;
 
     final String ciVisibilityAgentlessUrlStr = Config.get().getCiVisibilityAgentlessUrl();
@@ -47,7 +55,12 @@ public class IntakeApi implements BackendApi {
       throws IOException {
     HttpUrl url = hostUrl.resolve(uri);
     Request.Builder requestBuilder =
-        new Request.Builder().url(url).post(requestBody).addHeader(DD_API_KEY_HEADER, apiKey);
+        new Request.Builder()
+            .url(url)
+            .post(requestBody)
+            .addHeader(DD_API_KEY_HEADER, apiKey)
+            .addHeader(X_DATADOG_TRACE_ID_HEADER, traceId)
+            .addHeader(X_DATADOG_PARENT_ID_HEADER, traceId);
 
     Request request = requestBuilder.build();
     HttpRetryPolicy retryPolicy = retryPolicyFactory.create();
