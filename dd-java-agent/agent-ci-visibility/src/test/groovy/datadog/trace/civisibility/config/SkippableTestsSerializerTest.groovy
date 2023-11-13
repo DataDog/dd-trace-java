@@ -22,6 +22,8 @@ class SkippableTestsSerializerTest extends Specification {
     tests << [
       // single test
       [["suite", "name", null]],
+      [["suite", "𝕄 add user properties 𝕎 addUserProperties()", null]],
+      // non-ASCII characters
       [["suite", "name", "parameters"]],
       [["suite", "name", "{\"metadata\":{\"test_name\":\"test display name with #a #b #c\"}}"]],
       // multiple tests

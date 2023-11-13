@@ -48,6 +48,7 @@ public class ServerAppDebuggerIntegrationTest extends BaseIntegrationTest {
     controlServer = new MockWebServer();
     // controlServer.setDispatcher(new ControlDispatcher());
     controlServer.start();
+    LOG.info("ControlServer on {}", controlServer.getPort());
     controlUrl = controlServer.url(CONTROL_URL);
     startApp();
     appUrl = waitForAppStartedAndGetUrl();

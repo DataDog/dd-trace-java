@@ -394,7 +394,7 @@ abstract class SqsClientTest extends VersionedNamingTestBase {
             "aws.operation" "DeleteMessage"
             "aws.agent" "java-aws-sdk"
             "aws.queue.url" "http://localhost:${address.port}/000000000000/somequeue"
-            "aws.requestId" "00000000-0000-0000-0000-000000000000"
+            "aws.requestId" { it.trim() == "00000000-0000-0000-0000-000000000000" } // the test server seem messing with request id and insert \n
             defaultTags()
           }
         }
