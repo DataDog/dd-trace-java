@@ -12,17 +12,16 @@ import play.mvc.*;
 
 public abstract class AbstractFilter extends Filter {
   private final HttpExecutionContext ec;
-  private final String operationName;
+  private final String spanName;
   private final boolean wrap;
 
-  public AbstractFilter(String operationName, Materializer mat, HttpExecutionContext ec) {
-    this(operationName, false, mat, ec);
+  public AbstractFilter(String spanName, Materializer mat, HttpExecutionContext ec) {
+    this(spanName, false, mat, ec);
   }
 
-  public AbstractFilter(
-      String operationName, boolean wrap, Materializer mat, HttpExecutionContext ec) {
+  public AbstractFilter(String spanName, boolean wrap, Materializer mat, HttpExecutionContext ec) {
     super(mat);
-    this.operationName = operationName;
+    this.spanName = spanName;
     this.wrap = wrap;
     this.ec = ec;
   }
@@ -32,14 +31,14 @@ public abstract class AbstractFilter extends Filter {
       Function<Http.RequestHeader, CompletionStage<Result>> nextFilter,
       Http.RequestHeader requestHeader) {
     final Tracer tracer = GlobalOpenTelemetry.getTracer("play-test");
-    final Span startedSpan = wrap ? tracer.spanBuilder(operationName).startSpan() : null;
+    final Span startedSpan = wrap ? tracer.spanBuilder(spanName).startSpan() : null;
     Scope outerScope = wrap ? startedSpan.makeCurrent() : null;
     try {
       return nextFilter
           .apply(requestHeader)
           .thenApplyAsync(
               result -> {
-                Span span = wrap ? startedSpan : tracer.spanBuilder(operationName).startSpan();
+                Span span = wrap ? startedSpan : tracer.spanBuilder(spanName).startSpan();
                 try (Scope innerScope = span.makeCurrent()) {
                   // Yes this does no real work
                   return result;

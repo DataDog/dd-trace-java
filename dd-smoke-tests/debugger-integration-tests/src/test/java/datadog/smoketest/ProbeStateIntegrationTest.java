@@ -140,5 +140,6 @@ public class ProbeStateIntegrationTest extends ServerAppDebuggerIntegrationTest 
           }
           return received.get() && error.get();
         });
+    processRequests();
   }
 }

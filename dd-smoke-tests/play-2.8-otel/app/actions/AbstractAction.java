@@ -9,16 +9,16 @@ import play.mvc.*;
 
 public abstract class AbstractAction extends Action.Simple {
 
-  private final String operationName;
+  private final String spanName;
 
-  protected AbstractAction(String operationName) {
-    this.operationName = operationName;
+  protected AbstractAction(String spanName) {
+    this.spanName = spanName;
   }
 
   @Override
   public CompletionStage<Result> call(Http.Request req) {
     Tracer tracer = GlobalOpenTelemetry.getTracer("play-test");
-    Span span = tracer.spanBuilder(operationName).startSpan();
+    Span span = tracer.spanBuilder(spanName).startSpan();
     Scope scope = span.makeCurrent();
     try {
       return delegate.call(req);
