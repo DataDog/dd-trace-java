@@ -1,6 +1,7 @@
 package datadog.trace.civisibility;
 
 import datadog.communication.ddagent.SharedCommunicationObjects;
+import datadog.communication.ddagent.TracerVersion;
 import datadog.trace.api.Config;
 import datadog.trace.api.civisibility.CIVisibility;
 import datadog.trace.api.civisibility.InstrumentationBridge;
@@ -52,6 +53,7 @@ import datadog.trace.civisibility.source.index.RepoIndexFetcher;
 import datadog.trace.civisibility.source.index.RepoIndexProvider;
 import datadog.trace.civisibility.source.index.RepoIndexSourcePathResolver;
 import datadog.trace.util.Strings;
+import datadog.trace.util.throwable.FatalAgentMisconfigurationError;
 import java.net.InetSocketAddress;
 import java.nio.file.FileSystems;
 import java.nio.file.Path;
@@ -72,6 +74,17 @@ public class CiVisibilitySystem {
     if (!config.isCiVisibilityEnabled()) {
       LOGGER.debug("CI Visibility is disabled");
       return;
+    }
+
+    String injectedTracerVersion = config.getCiVisibilityInjectedTracerVersion();
+    if (injectedTracerVersion != null
+        && !injectedTracerVersion.equals(TracerVersion.TRACER_VERSION)) {
+      throw new FatalAgentMisconfigurationError(
+          "Running JVM with tracer version "
+              + TracerVersion.TRACER_VERSION
+              + " however parent process attempted to inject "
+              + injectedTracerVersion
+              + ". Do not inject the tracer into the forked JVMs manually, or ensure the manually injected version is the same as the one injected automatically");
     }
 
     sco.createRemaining(config);

@@ -60,6 +60,8 @@ public final class CiVisibilityConfig {
       "civisibility.module.execution.settings.cache.size";
   public static final String CIVISIBILITY_COVERAGE_SEGMENTS_ENABLED =
       "civisibility.coverage.segments.enabled";
+  public static final String CIVISIBILITY_INJECTED_TRACER_VERSION =
+      "civisibility.injected.tracer.version";
 
   private CiVisibilityConfig() {}
 }

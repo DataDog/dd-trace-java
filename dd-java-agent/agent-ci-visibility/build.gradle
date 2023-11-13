@@ -73,6 +73,7 @@ excludedClassesCoverage += [
   "datadog.trace.civisibility.source.index.RepoIndexBuilder.RepoIndexingFileVisitor",
   "datadog.trace.civisibility.source.index.RepoIndexFetcher",
   "datadog.trace.civisibility.source.index.RepoIndexSourcePathResolver",
+  "datadog.trace.civisibility.source.Utils",
   "datadog.trace.civisibility.utils.ShellCommandExecutor",
   "datadog.trace.civisibility.utils.ShellCommandExecutor.OutputParser",
   "datadog.trace.civisibility.utils.SpanUtils"
