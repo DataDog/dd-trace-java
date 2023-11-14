@@ -16,7 +16,6 @@ import com.datadog.debugger.el.DSL;
 import com.datadog.debugger.el.ProbeCondition;
 import com.datadog.debugger.el.expressions.BooleanExpression;
 import com.datadog.debugger.probe.SpanDecorationProbe;
-import datadog.trace.api.Platform;
 import datadog.trace.bootstrap.debugger.EvaluationError;
 import datadog.trace.test.agent.decoder.DecodedSpan;
 import java.nio.file.Path;
@@ -26,6 +25,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.DisabledIf;
 
 public class SpanDecorationProbesIntegrationTests extends ServerAppDebuggerIntegrationTest {
 
@@ -39,11 +39,10 @@ public class SpanDecorationProbesIntegrationTests extends ServerAppDebuggerInteg
 
   @Test
   @DisplayName("testMethodSimpleTagNoCondition")
+  @DisabledIf(
+      value = "datadog.trace.api.Platform#isJ9",
+      disabledReason = "we cannot get local variable debug info")
   void testMethodSimpleTagNoCondition() throws Exception {
-    if (Platform.isJ9()) {
-      // skip for J9/OpenJ9 as we cannot get local variable debug info.
-      return;
-    }
     SpanDecorationProbe spanDecorationProbe =
         SpanDecorationProbe.builder()
             .probeId(PROBE_ID)
@@ -70,11 +69,10 @@ public class SpanDecorationProbesIntegrationTests extends ServerAppDebuggerInteg
 
   @Test
   @DisplayName("testMethodMultiTagsMultiConditions")
+  @DisabledIf(
+      value = "datadog.trace.api.Platform#isJ9",
+      disabledReason = "we cannot get local variable debug info")
   void testMethodMultiTagsMultiConditions() throws Exception {
-    if (Platform.isJ9()) {
-      // skip for J9/OpenJ9 as we cannot get local variable debug info.
-      return;
-    }
     List<SpanDecorationProbe.Decoration> decorations =
         Arrays.asList(
             createDecoration(
@@ -242,6 +240,7 @@ public class SpanDecorationProbesIntegrationTests extends ServerAppDebuggerInteg
 
   @Test
   @DisplayName("testSamplingSpanDecoration")
+  @DisabledIf(value = "datadog.trace.api.Platform#isJ9", disabledReason = "Flaky on J9 JVMs")
   void testSamplingSpanDecoration() throws Exception {
     SpanDecorationProbe spanDecorationProbe =
         SpanDecorationProbe.builder()

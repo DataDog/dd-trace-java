@@ -1,5 +1,6 @@
 package datadog.trace.api.civisibility.config;
 
+import java.util.Map;
 import java.util.Objects;
 
 public final class Configurations {
@@ -11,6 +12,7 @@ public final class Configurations {
   private final String runtimeVendor;
   private final String runtimeArchitecture;
   private final String testBundle;
+  private final Map<String, String> custom;
 
   public Configurations(
       String osPlatform,
@@ -20,7 +22,8 @@ public final class Configurations {
       String runtimeVersion,
       String runtimeVendor,
       String runtimeArchitecture,
-      String testBundle) {
+      String testBundle,
+      Map<String, String> custom) {
     this.osPlatform = osPlatform;
     this.osArchitecture = osArchitecture;
     this.osVersion = osVersion;
@@ -29,6 +32,7 @@ public final class Configurations {
     this.runtimeVendor = runtimeVendor;
     this.runtimeArchitecture = runtimeArchitecture;
     this.testBundle = testBundle;
+    this.custom = custom;
   }
 
   public String getOsPlatform() {
@@ -63,6 +67,10 @@ public final class Configurations {
     return testBundle;
   }
 
+  public Map<String, String> getCustom() {
+    return custom;
+  }
+
   @Override
   public boolean equals(Object o) {
     if (this == o) {
@@ -79,7 +87,8 @@ public final class Configurations {
         && Objects.equals(runtimeVersion, that.runtimeVersion)
         && Objects.equals(runtimeVendor, that.runtimeVendor)
         && Objects.equals(runtimeArchitecture, that.runtimeArchitecture)
-        && Objects.equals(testBundle, that.testBundle);
+        && Objects.equals(testBundle, that.testBundle)
+        && Objects.equals(custom, that.custom);
   }
 
   @Override
@@ -92,6 +101,7 @@ public final class Configurations {
         runtimeVersion,
         runtimeVendor,
         runtimeArchitecture,
-        testBundle);
+        testBundle,
+        custom);
   }
 }

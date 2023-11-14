@@ -32,6 +32,7 @@ import java.util.Set;
 import okhttp3.mockwebserver.RecordedRequest;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.DisabledIf;
 
 public class LogProbesIntegrationTest extends SimpleAppDebuggerIntegrationTest {
   @Test
@@ -237,12 +238,14 @@ public class LogProbesIntegrationTest extends SimpleAppDebuggerIntegrationTest {
 
   @Test
   @DisplayName("testSamplingSnapshotDefault")
+  @DisabledIf(value = "datadog.trace.api.Platform#isJ9", disabledReason = "Flaky on J9 JVMs")
   void testSamplingSnapshotDefault() throws Exception {
     doSamplingSnapshot(null, MethodLocation.EXIT);
   }
 
   @Test
   @DisplayName("testSamplingSnapshotDefaultWithConditionAtEntry")
+  @DisabledIf(value = "datadog.trace.api.Platform#isJ9", disabledReason = "Flaky on J9 JVMs")
   void testSamplingSnapshotDefaultWithConditionAtEntry() throws Exception {
     doSamplingSnapshot(
         new ProbeCondition(DSL.when(DSL.eq(value(1), value(1))), "1 == 1"), MethodLocation.ENTRY);
@@ -250,6 +253,7 @@ public class LogProbesIntegrationTest extends SimpleAppDebuggerIntegrationTest {
 
   @Test
   @DisplayName("testSamplingSnapshotDefaultWithConditionAtExit")
+  @DisabledIf(value = "datadog.trace.api.Platform#isJ9", disabledReason = "Flaky on J9 JVMs")
   void testSamplingSnapshotDefaultWithConditionAtExit() throws Exception {
     doSamplingSnapshot(
         new ProbeCondition(DSL.when(DSL.eq(value(1), value(1))), "1 == 1"), MethodLocation.EXIT);
@@ -278,6 +282,7 @@ public class LogProbesIntegrationTest extends SimpleAppDebuggerIntegrationTest {
 
   @Test
   @DisplayName("testSamplingLogDefault")
+  @DisabledIf(value = "datadog.trace.api.Platform#isJ9", disabledReason = "Flaky on J9 JVMs")
   void testSamplingLogDefault() throws Exception {
     batchSize = 100;
     final int LOOP_COUNT = 1000;
@@ -301,6 +306,7 @@ public class LogProbesIntegrationTest extends SimpleAppDebuggerIntegrationTest {
 
   @Test
   @DisplayName("testSamplingLogCustom")
+  @DisabledIf(value = "datadog.trace.api.Platform#isJ9", disabledReason = "Flaky on J9 JVMs")
   void testSamplingLogCustom() throws Exception {
     final int LOOP_COUNT = 1000;
     final String LOG_TEMPLATE = "log line {argInt} {argStr} {argDouble} {argMap} {argVar}";

@@ -12,7 +12,7 @@ import spock.lang.Subject
 import static datadog.trace.bootstrap.instrumentation.api.ScopeSource.MANUAL
 import static datadog.trace.instrumentation.opentelemetry14.context.OtelContext.DATADOG_CONTEXT_ROOT_SPAN_KEY
 import static datadog.trace.instrumentation.opentelemetry14.context.OtelContext.OTEL_CONTEXT_SPAN_KEY
-import static datadog.trace.instrumentation.opentelemetry14.trace.OtelConventions.DEFAULT_OPERATION_NAME
+import static datadog.trace.instrumentation.opentelemetry14.trace.OtelConventions.SPAN_KIND_INTERNAL
 
 class ContextTest extends AgentTestRunner {
   @Subject
@@ -189,7 +189,7 @@ class ContextTest extends AgentTestRunner {
     def activeSpan = TEST_TRACER.activeSpan()
 
     then:
-    activeSpan.operationName == DEFAULT_OPERATION_NAME
+    activeSpan.operationName == SPAN_KIND_INTERNAL
     activeSpan.resourceName == "some-name"
     DDSpanId.toHexStringPadded(activeSpan.spanId) == otelParentSpan.getSpanContext().spanId
 
@@ -207,7 +207,7 @@ class ContextTest extends AgentTestRunner {
     activeSpan = TEST_TRACER.activeSpan()
 
     then:
-    activeSpan.operationName == DEFAULT_OPERATION_NAME
+    activeSpan.operationName == SPAN_KIND_INTERNAL
     activeSpan.resourceName == "another-name"
     DDSpanId.toHexStringPadded(activeSpan.spanId) == otelGrandChildSpan.getSpanContext().spanId
 
@@ -224,8 +224,9 @@ class ContextTest extends AgentTestRunner {
       trace(3) {
         span {
           parent()
-          operationName DEFAULT_OPERATION_NAME
+          operationName "internal"
           resourceName "some-name"
+          spanType "internal"
         }
         span {
           childOfPrevious()
@@ -233,8 +234,9 @@ class ContextTest extends AgentTestRunner {
         }
         span {
           childOfPrevious()
-          operationName DEFAULT_OPERATION_NAME
+          operationName "internal"
           resourceName "another-name"
+          spanType "internal"
         }
       }
     }
