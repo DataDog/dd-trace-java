@@ -1,4 +1,4 @@
-package datadog.trace.instrumentation.gradle
+package datadog.trace.instrumentation.gradle.legacy
 
 import datadog.trace.api.Config
 import datadog.trace.api.civisibility.config.ModuleExecutionSettings
@@ -39,9 +39,9 @@ class GradleProjectConfigurator {
 
   private static final Logger log = LoggerFactory.getLogger(GradleProjectConfigurator.class)
 
-  /**
+  /*
    * Each Groovy Closure in here is a separate class.
-   * When adding or removing a closure, be sure to update {@link datadog.trace.instrumentation.gradle.GradleBuildListenerInstrumentation#helperClassNames()}
+   * When adding or removing a closure, be sure to update {@link GradleBuildListenerInstrumentation#helperClassNames()}
    */
 
   public static final GradleProjectConfigurator INSTANCE = new GradleProjectConfigurator()

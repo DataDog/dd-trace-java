@@ -62,6 +62,7 @@ public class Tags {
   public static final String TEST_COMMAND = "test.command";
   public static final String TEST_TOOLCHAIN = "test.toolchain";
   public static final String TEST_EXECUTION = "test.execution";
+  public static final String TEST_GRADLE_NESTED_BUILD = "test.gradle.nested_build";
 
   public static final String TEST_SESSION_ID = "test_session_id";
   public static final String TEST_MODULE_ID = "test_module_id";
