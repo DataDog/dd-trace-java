@@ -27,7 +27,10 @@ import net.bytebuddy.asm.Advice;
 public class DBMCompatibleConnectionInstrumentation extends AbstractConnectionInstrumentation
     implements Instrumenter.ForKnownTypes {
 
-  /** Instrumentation class for connections for Database Monitoring supported DBs * */
+  /**
+   * Instrumentation class for connections for SQL Server, which is a Database Monitoring supported
+   * DB *
+   */
   public DBMCompatibleConnectionInstrumentation() {
     super("jdbc", "dbm");
   }
@@ -35,21 +38,10 @@ public class DBMCompatibleConnectionInstrumentation extends AbstractConnectionIn
   // Classes to cover all currently supported
   // db types for the Database Monitoring product
   static final String[] CONCRETE_TYPES = {
-    // should cover mysql
-    "com.mysql.jdbc.Connection",
-    "com.mysql.jdbc.jdbc1.Connection",
-    "com.mysql.jdbc.jdbc2.Connection",
-    "com.mysql.jdbc.ConnectionImpl",
-    "com.mysql.jdbc.JDBC4Connection",
-    "com.mysql.cj.jdbc.ConnectionImpl",
-    // should cover Oracle
-    "oracle.jdbc.driver.PhysicalConnection",
-    // complete
-    "org.mariadb.jdbc.MySQLConnection",
-    // MariaDB Connector/J v2.x
-    "org.mariadb.jdbc.MariaDbConnection",
-    // MariaDB Connector/J v3.x
-    "org.mariadb.jdbc.Connection",
+    "com.microsoft.sqlserver.jdbc.SQLServerConnection",
+    // jtds (for SQL Server and Sybase)
+    "net.sourceforge.jtds.jdbc.ConnectionJDBC2", // 1.2
+    "net.sourceforge.jtds.jdbc.JtdsConnection", // 1.3
     // postgresql seems to be complete
     "org.postgresql.jdbc.PgConnection",
     "org.postgresql.jdbc1.Connection",
@@ -62,8 +54,8 @@ public class DBMCompatibleConnectionInstrumentation extends AbstractConnectionIn
     "postgresql.Connection",
     // EDB version of postgresql
     "com.edb.jdbc.PgConnection",
-    // aws-mysql-jdbc
-    "software.aws.rds.jdbc.mysql.shading.com.mysql.cj.jdbc.ConnectionImpl",
+    // should cover Oracle
+    "oracle.jdbc.driver.PhysicalConnection",
   };
 
   @Override
@@ -111,7 +103,7 @@ public class DBMCompatibleConnectionInstrumentation extends AbstractConnectionIn
         final DBInfo dbInfo =
             JDBCDecorator.parseDBInfo(
                 connection, InstrumentationContext.get(Connection.class, DBInfo.class));
-        sql = SQLCommenter.prepend(sql, DECORATE.getDbService(dbInfo));
+        sql = SQLCommenter.append(sql, DECORATE.getDbService(dbInfo));
         return inputSql;
       }
       return sql;
