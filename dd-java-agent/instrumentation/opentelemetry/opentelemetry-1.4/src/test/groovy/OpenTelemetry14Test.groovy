@@ -16,7 +16,7 @@ import spock.lang.Subject
 import java.security.InvalidParameterException
 
 import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND_SERVER
-import static datadog.trace.instrumentation.opentelemetry14.trace.OtelConventions.DEFAULT_OPERATION_NAME
+import static datadog.trace.instrumentation.opentelemetry14.trace.OtelConventions.SPAN_KIND_INTERNAL
 import static io.opentelemetry.api.trace.SpanKind.SERVER
 import static io.opentelemetry.api.trace.StatusCode.ERROR
 import static io.opentelemetry.api.trace.StatusCode.OK
@@ -159,7 +159,8 @@ class OpenTelemetry14Test extends AgentTestRunner {
     assertTraces(2) {
       trace(1) {
         span {
-          spanType "internal"}
+          spanType "internal"
+        }
       }
       trace(1) {
         span {
@@ -194,6 +195,7 @@ class OpenTelemetry14Test extends AgentTestRunner {
     assertTraces(1) {
       trace(1) {
         span {
+          spanType "internal"
           tags {
             defaultTags()
             tag("_dd.span_links", { JSONAssert.assertEquals(expectedLinksTag, it as String, true); return true })
@@ -227,6 +229,7 @@ class OpenTelemetry14Test extends AgentTestRunner {
     assertTraces(1) {
       trace(1) {
         span {
+          spanType "internal"
           tags {
             defaultTags()
             tag("_dd.span_links", { JSONAssert.assertEquals(expectedLinksTag, it as String, true); return true })
@@ -261,6 +264,7 @@ class OpenTelemetry14Test extends AgentTestRunner {
     assertTraces(1) {
       trace(1) {
         span {
+          spanType "internal"
           tags {
             defaultTags()
             tag("_dd.span_links", { JSONAssert.assertEquals(expectedLinksTag, it as String, true); return true })
@@ -301,6 +305,7 @@ class OpenTelemetry14Test extends AgentTestRunner {
     assertTraces(1) {
       trace(1) {
         span {
+          spanType "internal"
           tags {
             defaultTags()
             tag("_dd.span_links", { JSONAssert.assertEquals(expectedLinksTag, it as String, true); return true })
@@ -577,14 +582,14 @@ class OpenTelemetry14Test extends AgentTestRunner {
     def result = builder.setSpanKind(SERVER).startSpan()
 
     expect:
-    result.delegate.operationName == DEFAULT_OPERATION_NAME
+    result.delegate.operationName == SPAN_KIND_INTERNAL
     result.delegate.resourceName == "some-name"
 
     when:
     result.updateName("other-name")
 
     then:
-    result.delegate.operationName == DEFAULT_OPERATION_NAME
+    result.delegate.operationName == SPAN_KIND_INTERNAL
     result.delegate.resourceName == "other-name"
 
     when:
