@@ -224,8 +224,9 @@ class ContextTest extends AgentTestRunner {
       trace(3) {
         span {
           parent()
-          operationName DEFAULT_OPERATION_NAME
+          operationName "internal"
           resourceName "some-name"
+          spanType "internal"
         }
         span {
           childOfPrevious()
@@ -233,8 +234,9 @@ class ContextTest extends AgentTestRunner {
         }
         span {
           childOfPrevious()
-          operationName DEFAULT_OPERATION_NAME
+          operationName "internal"
           resourceName "another-name"
+          spanType "internal"
         }
       }
     }
