@@ -3,15 +3,20 @@ import datadog.trace.api.DDTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import io.opentelemetry.api.GlobalOpenTelemetry
 import io.opentelemetry.api.common.AttributeKey
+import io.opentelemetry.api.common.Attributes
+import io.opentelemetry.api.trace.SpanContext
 import io.opentelemetry.api.trace.SpanKind
+import io.opentelemetry.api.trace.TraceFlags
+import io.opentelemetry.api.trace.TraceState
 import io.opentelemetry.context.Context
 import io.opentelemetry.context.ThreadLocalContextStorage
+import org.skyscreamer.jsonassert.JSONAssert
 import spock.lang.Subject
 
 import java.security.InvalidParameterException
 
 import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND_SERVER
-import static datadog.trace.instrumentation.opentelemetry14.trace.OtelConventions.DEFAULT_OPERATION_NAME
+import static datadog.trace.instrumentation.opentelemetry14.trace.OtelConventions.SPAN_KIND_INTERNAL
 import static io.opentelemetry.api.trace.SpanKind.SERVER
 import static io.opentelemetry.api.trace.StatusCode.ERROR
 import static io.opentelemetry.api.trace.StatusCode.OK
@@ -154,7 +159,8 @@ class OpenTelemetry14Test extends AgentTestRunner {
     assertTraces(2) {
       trace(1) {
         span {
-          spanType "internal"}
+          spanType "internal"
+        }
       }
       trace(1) {
         span {
@@ -162,6 +168,157 @@ class OpenTelemetry14Test extends AgentTestRunner {
         }
       }
     }
+  }
+
+  def "test simple span links"() {
+    setup:
+    def traceId = "1234567890abcdef1234567890abcdef" as String
+    def spanId = "fedcba0987654321" as String
+    def traceState = TraceState.builder().put("string-key", "string-value").build()
+
+    def expectedLinksTag = """
+    [
+      { traceId: "${traceId}",
+        spanId: "${spanId}",
+        traceFlags: 1,
+        traceState: "string-key=string-value"}
+    ]"""
+
+    when:
+    def span1 =tracer.spanBuilder("some-name")
+      .addLink(SpanContext.getInvalid())  // Should not be added
+      .addLink(SpanContext.create(traceId, spanId, TraceFlags.getSampled(), traceState))
+      .startSpan()
+    span1.end()
+
+    then:
+    assertTraces(1) {
+      trace(1) {
+        span {
+          spanType "internal"
+          tags {
+            defaultTags()
+            tag("_dd.span_links", { JSONAssert.assertEquals(expectedLinksTag, it as String, true); return true })
+          }
+        }
+      }
+    }
+  }
+
+  def "test multiple span links"() {
+    setup:
+    def spanBuilder = tracer.spanBuilder("some-name")
+
+    when:
+    def links = []
+    0..9.each {
+      def traceId = "1234567890abcdef1234567890abcde$it" as String
+      def spanId = "fedcba098765432$it" as String
+      def traceState = TraceState.builder().put('string-key', 'string-value'+it).build()
+      links << """{ traceId: "${traceId}",
+        spanId: "${spanId}",
+        traceFlags: 1,
+        traceState: "string-key=string-value$it"}"""
+      spanBuilder.addLink(SpanContext.create(traceId, spanId, TraceFlags.getSampled(), traceState))
+    }
+    def expectedLinksTag = "[${links.join(',')}]" as String
+
+    spanBuilder.startSpan().end()
+
+    then:
+    assertTraces(1) {
+      trace(1) {
+        span {
+          spanType "internal"
+          tags {
+            defaultTags()
+            tag("_dd.span_links", { JSONAssert.assertEquals(expectedLinksTag, it as String, true); return true })
+          }
+        }
+      }
+    }
+  }
+
+  def "test span link attributes"() {
+    setup:
+    def traceId = "1234567890abcdef1234567890abcdef" as String
+    def spanId = "fedcba0987654321" as String
+    def traceState = TraceState.builder().put("string-key", "string-value").build()
+
+    def expectedLinksTag = """
+    [
+      { traceId: "${traceId}",
+        spanId: "${spanId}",
+        traceFlags: 1,
+        traceState: "string-key=string-value"
+        ${ expectedAttributes == null ? "" : ", attributes: " + expectedAttributes }}
+    ]"""
+
+    when:
+    def span1 =tracer.spanBuilder("some-name")
+      .addLink(SpanContext.create(traceId, spanId, TraceFlags.getSampled(), traceState), attributes)
+      .startSpan()
+    span1.end()
+
+    then:
+    assertTraces(1) {
+      trace(1) {
+        span {
+          spanType "internal"
+          tags {
+            defaultTags()
+            tag("_dd.span_links", { JSONAssert.assertEquals(expectedLinksTag, it as String, true); return true })
+          }
+        }
+      }
+    }
+
+    where:
+    attributes | expectedAttributes
+    Attributes.empty() | null
+    Attributes.builder().put("string-key", "string-value").put("long-key", 123456789L).put("double-key", 1234.5678D).put("boolean-key-true", true).put("boolean-key-false", false).build() | '{ string-key: "string-value", long-key: "123456789", double-key: "1234.5678", boolean-key-true: "true", boolean-key-false: "false" }'
+    Attributes.builder().put("string-key-array", "string-value1", "string-value2", "string-value3").put("long-key-array", 123456L, 1234567L, 12345678L).put("double-key-array", 1234.5D, 1234.56D, 1234.567D).put("boolean-key-array", true, false, true).build() | '{ string-key-array.0: "string-value1", string-key-array.1: "string-value2", string-key-array.2: "string-value3", long-key-array.0: "123456", long-key-array.1: "1234567", long-key-array.2: "12345678", double-key-array.0: "1234.5", double-key-array.1: "1234.56", double-key-array.2: "1234.567", boolean-key-array.0: "true", boolean-key-array.1: "false", boolean-key-array.2: "true" }'
+  }
+
+  def "test span links trace state"() {
+    setup:
+    def traceId = "1234567890abcdef1234567890abcdef" as String
+    def spanId = "fedcba0987654321" as String
+
+    def expectedTraceStateJson = expectedTraceState == null ? '' : ", traceState: \"$expectedTraceState\""
+    def expectedLinksTag = """
+    [
+      { traceId: "${traceId}",
+        spanId: "${spanId}",
+        traceFlags: 1
+        $expectedTraceStateJson
+      }
+    ]"""
+
+    when:
+    def span1 =tracer.spanBuilder("some-name")
+      .addLink(SpanContext.create(traceId, spanId, TraceFlags.getSampled(), traceState))
+      .startSpan()
+    span1.end()
+
+    then:
+    assertTraces(1) {
+      trace(1) {
+        span {
+          spanType "internal"
+          tags {
+            defaultTags()
+            tag("_dd.span_links", { JSONAssert.assertEquals(expectedLinksTag, it as String, true); return true })
+          }
+        }
+      }
+    }
+
+    where:
+    traceState                                                                                                                                 | expectedTraceState
+    TraceState.getDefault()                                                                                                                    | null
+    TraceState.builder().put("key", "value").build()                                                                                           | 'key=value'
+    TraceState.builder().put("key1", "value1").put("key2", "value2").put("key3", "value3").put("key4", "value4").put("key5", "value5").build() | 'key5=value5,key4=value4,key3=value3,key2=value2,key1=value1'
   }
 
   def "test span attributes"() {
@@ -425,14 +582,14 @@ class OpenTelemetry14Test extends AgentTestRunner {
     def result = builder.setSpanKind(SERVER).startSpan()
 
     expect:
-    result.delegate.operationName == DEFAULT_OPERATION_NAME
+    result.delegate.operationName == SPAN_KIND_INTERNAL
     result.delegate.resourceName == "some-name"
 
     when:
     result.updateName("other-name")
 
     then:
-    result.delegate.operationName == DEFAULT_OPERATION_NAME
+    result.delegate.operationName == SPAN_KIND_INTERNAL
     result.delegate.resourceName == "other-name"
 
     when:

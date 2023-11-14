@@ -1,12 +1,15 @@
-package datadog.trace.instrumentation.gradle;
+package datadog.trace.instrumentation.gradle.legacy;
 
+import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassNamed;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
+import static net.bytebuddy.matcher.ElementMatchers.not;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.api.Config;
 import java.util.Set;
 import net.bytebuddy.asm.Advice;
+import net.bytebuddy.matcher.ElementMatcher;
 import org.gradle.invocation.DefaultGradle;
 
 @AutoService(Instrumenter.class)
@@ -15,6 +18,12 @@ public class GradleBuildListenerInstrumentation extends Instrumenter.CiVisibilit
 
   public GradleBuildListenerInstrumentation() {
     super("gradle", "gradle-build-listener");
+  }
+
+  @Override
+  public ElementMatcher<ClassLoader> classLoaderMatcher() {
+    // Only instrument Gradle older than 8.3
+    return not(hasClassNamed("org.gradle.api.file.ConfigurableFilePermissions"));
   }
 
   @Override
@@ -53,5 +62,10 @@ public class GradleBuildListenerInstrumentation extends Instrumenter.CiVisibilit
     public static void afterConstructor(@Advice.This final DefaultGradle gradle) {
       gradle.addBuildListener(new GradleBuildListener());
     }
+  }
+
+  @Override
+  public String muzzleDirective() {
+    return "skipMuzzle";
   }
 }
