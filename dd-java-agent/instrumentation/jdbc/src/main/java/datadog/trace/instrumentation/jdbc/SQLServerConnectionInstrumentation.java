@@ -97,7 +97,9 @@ public class SQLServerConnectionInstrumentation extends AbstractConnectionInstru
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void addDBInfo(
-        Connection connection, final String inputSql, final PreparedStatement statement) {
+        @Advice.This Connection connection,
+        @Advice.Enter final String inputSql,
+        @Advice.Return final PreparedStatement statement) {
       if (null == inputSql) {
         return;
       }
