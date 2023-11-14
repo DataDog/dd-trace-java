@@ -158,11 +158,13 @@ import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_GIT_REMOT
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_GIT_UNSHALLOW_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_GIT_UPLOAD_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_GIT_UPLOAD_TIMEOUT_MILLIS;
+import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_INJECTED_TRACER_VERSION;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_ITR_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_JACOCO_GRADLE_SOURCE_SETS;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_JACOCO_PLUGIN_EXCLUDES;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_JACOCO_PLUGIN_INCLUDES;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_JACOCO_PLUGIN_VERSION;
+import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_JVM_INFO_CACHE_SIZE;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_MODULE_EXECUTION_SETTINGS_CACHE_SIZE;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_MODULE_ID;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_REPO_INDEX_SHARING_ENABLED;
@@ -720,7 +722,9 @@ public class Config {
   private final boolean ciVisibilityCiProviderIntegrationEnabled;
   private final boolean ciVisibilityRepoIndexSharingEnabled;
   private final int ciVisibilityModuleExecutionSettingsCacheSize;
+  private final int ciVisibilityJvmInfoCacheSize;
   private final boolean ciVisibilityCoverageSegmentsEnabled;
+  private final String ciVisibilityInjectedTracerVersion;
 
   private final boolean remoteConfigEnabled;
   private final boolean remoteConfigIntegrityCheckEnabled;
@@ -1653,8 +1657,11 @@ public class Config {
         configProvider.getBoolean(CIVISIBILITY_REPO_INDEX_SHARING_ENABLED, true);
     ciVisibilityModuleExecutionSettingsCacheSize =
         configProvider.getInteger(CIVISIBILITY_MODULE_EXECUTION_SETTINGS_CACHE_SIZE, 16);
+    ciVisibilityJvmInfoCacheSize = configProvider.getInteger(CIVISIBILITY_JVM_INFO_CACHE_SIZE, 8);
     ciVisibilityCoverageSegmentsEnabled =
         configProvider.getBoolean(CIVISIBILITY_COVERAGE_SEGMENTS_ENABLED, false);
+    ciVisibilityInjectedTracerVersion =
+        configProvider.getString(CIVISIBILITY_INJECTED_TRACER_VERSION);
 
     remoteConfigEnabled =
         configProvider.getBoolean(REMOTE_CONFIG_ENABLED, DEFAULT_REMOTE_CONFIG_ENABLED);
@@ -2737,8 +2744,16 @@ public class Config {
     return ciVisibilityModuleExecutionSettingsCacheSize;
   }
 
+  public int getCiVisibilityJvmInfoCacheSize() {
+    return ciVisibilityJvmInfoCacheSize;
+  }
+
   public boolean isCiVisibilityCoverageSegmentsEnabled() {
     return ciVisibilityCoverageSegmentsEnabled;
+  }
+
+  public String getCiVisibilityInjectedTracerVersion() {
+    return ciVisibilityInjectedTracerVersion;
   }
 
   public String getAppSecRulesFile() {

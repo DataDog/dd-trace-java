@@ -163,6 +163,8 @@
 1 nano.xml.*
 1 net.bytebuddy.*
 1 net.jcip.*
+# Weak randomness false positive in net.jodah.failsafe.RetryPolicyExecutor
+1 net.jodah.failsafe.*
 # Amusing weak randomness false positive in XXHashFactory
 1 net.jpountz.xxhash.*
 1 net.logstash.*
