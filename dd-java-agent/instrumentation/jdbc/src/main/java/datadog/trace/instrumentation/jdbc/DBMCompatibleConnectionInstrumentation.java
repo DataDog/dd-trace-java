@@ -11,7 +11,6 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
@@ -26,7 +25,7 @@ import net.bytebuddy.asm.Advice;
 
 @AutoService(Instrumenter.class)
 public class DBMCompatibleConnectionInstrumentation extends AbstractConnectionInstrumentation
-    implements Instrumenter.ForKnownTypes, Instrumenter.ForConfiguredType {
+    implements Instrumenter.ForKnownTypes {
 
   /** Instrumentation class for connections for Database Monitoring supported DBs * */
   public DBMCompatibleConnectionInstrumentation() {
@@ -77,12 +76,6 @@ public class DBMCompatibleConnectionInstrumentation extends AbstractConnectionIn
   @Override
   public String[] knownMatchingTypes() {
     return CONCRETE_TYPES;
-  }
-
-  @Override
-  public String configuredMatchingType() {
-    // this won't match any class unless the property is set
-    return InstrumenterConfig.get().getJdbcConnectionClassName();
   }
 
   @Override
