@@ -145,7 +145,7 @@ class W3CPropagationTagsTest extends DDCoreSpecification {
     valueChar << (' '..'ÿ') - ((' '..'~') - [',', '='])
   }
 
-  def "validate tracestate header number of members #memberCount"() {
+  def "validate tracestate header number of members #memberCount without Datadog member"() {
     setup:
     def config = Mock(Config)
     config.getxDatadogTagsMaxLength() >> 512
@@ -163,6 +163,57 @@ class W3CPropagationTagsTest extends DDCoreSpecification {
     }
     // we're not using any dd members in the tests
     headerPT.createTagMap() == [:]
+
+    where:
+    memberCount << (1..37) // some arbitrary number larger than 32
+  }
+
+  def "validate tracestate header number of members #memberCount with Datadog member"() {
+    setup:
+    def config = Mock(Config)
+    config.getxDatadogTagsMaxLength() >> 512
+    def propagationTagsFactory = PropagationTags.factory(config)
+    def header = 'dd=s:1,'+(1..memberCount).collect { "k$it=v$it" }.join(',')
+
+    when:
+    def headerPT = propagationTagsFactory.fromHeaderValue(HeaderType.W3C, header)
+
+    then:
+    if (memberCount + 1 <= 32) {
+      assert headerPT.headerValue(HeaderType.W3C) == header
+    } else {
+      assert headerPT.headerValue(HeaderType.W3C) == null
+    }
+    // we're not using any dd members in the tests
+    headerPT.createTagMap() == [:]
+
+    where:
+    memberCount << (1..37) // some arbitrary number larger than 32
+  }
+
+  def "validate tracestate header number of members #memberCount when propagating original tracestate"() {
+    setup:
+    def config = Mock(Config)
+    config.getxDatadogTagsMaxLength() >> 512
+    def propagationTagsFactory = PropagationTags.factory(config)
+    def header = (1..memberCount).collect { "k$it=v$it" }.join(',')
+    def expectedHeader = 'dd=t.dm:-4,' + (
+      memberCount > 32 ?
+      '' :
+      (1..Math.min(memberCount, 31)).collect { "k$it=v$it" }.join(','))
+
+    when:
+    def datadogHeaderPT = propagationTagsFactory.fromHeaderValue(HeaderType.DATADOG, '_dd.p.dm=-4')
+    def headerPT = propagationTagsFactory.fromHeaderValue(HeaderType.W3C, header)
+    datadogHeaderPT.updateW3CTracestate(headerPT.getW3CTracestate())
+
+    then:
+    if (memberCount <= 32) {
+      assert datadogHeaderPT.headerValue(HeaderType.W3C) == expectedHeader // 'dd=t.dm:-4,' + header
+    } else {
+      assert datadogHeaderPT.headerValue(HeaderType.W3C) == 'dd=t.dm:-4'
+    }
+    datadogHeaderPT.createTagMap() == ['_dd.p.dm':'-4']
 
     where:
     memberCount << (1..37) // some arbitrary number larger than 32
