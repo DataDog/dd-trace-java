@@ -1,5 +1,6 @@
 package datadog.trace.lambda;
 
+import static datadog.trace.api.TracePropagationStyle.DATADOG;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
 import com.squareup.moshi.JsonAdapter;
@@ -92,7 +93,12 @@ public class LambdaHandler {
               propagationTagsFactory.fromHeaderValue(
                   PropagationTags.HeaderType.DATADOG, response.headers().get(DATADOG_TAGS_KEY));
           return new ExtractedContext(
-              DDTraceId.from(traceID), DDSpanId.ZERO, samplingPriority, null, propagationTags);
+              DDTraceId.from(traceID),
+              DDSpanId.ZERO,
+              samplingPriority,
+              null,
+              propagationTags,
+              DATADOG);
         } else {
           log.debug(
               "could not find traceID or sampling priority in notifyStartInvocation, not injecting the context");

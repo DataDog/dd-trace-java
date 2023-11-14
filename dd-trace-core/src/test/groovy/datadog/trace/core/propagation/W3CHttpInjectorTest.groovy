@@ -50,10 +50,10 @@ class W3CHttpInjectorTest extends DDCoreSpecification {
       PropagationTags.factory().fromHeaderValue(PropagationTags.HeaderType.DATADOG, tracestate ? "_dd.p.usr=123" : ""))
     final Map<String, String> carrier = [:]
     Map<String, String> expected = [
-      (TRACE_PARENT_KEY): buildTraceParent(traceId, spanId, samplingPriority),
+      (TRACE_PARENT_KEY)        : buildTraceParent(traceId, spanId, samplingPriority),
       (OT_BAGGAGE_PREFIX + "k1"): "v1",
       (OT_BAGGAGE_PREFIX + "k2"): "v2",
-      "SOME_CUSTOM_HEADER": "some-value"
+      "SOME_CUSTOM_HEADER"      : "some-value",
     ]
     if (tracestate) {
       expected.put(TRACE_STATE_KEY, tracestate)
