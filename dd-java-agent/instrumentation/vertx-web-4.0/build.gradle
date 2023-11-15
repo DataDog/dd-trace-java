@@ -44,6 +44,6 @@ dependencies {
   testRuntimeOnly project(':dd-java-agent:instrumentation:jackson-core')
   testRuntimeOnly project(':dd-java-agent:instrumentation:netty-buffer-4')
 
-  latestDepTestImplementation group: 'io.vertx', name: 'vertx-web', version: '4.+'
-  latestDepTestImplementation group: 'io.vertx', name: 'vertx-web-client', version: '4.+'
+  latestDepTestImplementation group: 'io.vertx', name: 'vertx-web', version: '4.4.+'
+  latestDepTestImplementation group: 'io.vertx', name: 'vertx-web-client', version: '4.4.+'
 }
