@@ -6,11 +6,11 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.datadog.profiling.controller.OngoingRecording;
-import com.datadog.profiling.controller.RecordingData;
 import com.datadog.profiling.controller.UnsupportedEnvironmentException;
 import com.datadog.profiling.utils.ProfilingMode;
 import datadog.trace.api.config.ProfilingConfig;
 import datadog.trace.api.profiling.ProfilingScope;
+import datadog.trace.api.profiling.RecordingData;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -143,7 +143,7 @@ class DatadogProfilerTest {
     props.put(ProfilingConfig.PROFILING_DATADOG_PROFILER_WALL_ENABLED, Boolean.toString(wall));
     props.put(ProfilingConfig.PROFILING_DATADOG_PROFILER_ALLOC_ENABLED, Boolean.toString(alloc));
     props.put(
-        ProfilingConfig.PROFILING_DATADOG_PROFILER_MEMLEAK_ENABLED, Boolean.toString(memleak));
+        ProfilingConfig.PROFILING_DATADOG_PROFILER_LIVEHEAP_ENABLED, Boolean.toString(memleak));
     return ConfigProvider.withPropertiesOverride(props);
   }
 }

@@ -1,5 +1,7 @@
 package datadog.trace.core.propagation;
 
+import static datadog.trace.api.TracePropagationStyle.B3MULTI;
+import static datadog.trace.api.TracePropagationStyle.B3SINGLE;
 import static datadog.trace.core.propagation.HttpCodec.firstHeaderValue;
 
 import datadog.trace.api.Config;
@@ -7,6 +9,7 @@ import datadog.trace.api.DD128bTraceId;
 import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.TraceConfig;
+import datadog.trace.api.TracePropagationStyle;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.core.DDSpanContext;
@@ -161,7 +164,7 @@ class B3HttpCodec {
     final List<HttpCodec.Extractor> extractors = new ArrayList<>(2);
     extractors.add(newSingleExtractor(config, traceConfigSupplier));
     extractors.add(newMultiExtractor(config, traceConfigSupplier));
-    return new HttpCodec.CompoundExtractor(extractors);
+    return new HttpCodec.CompoundExtractor(extractors, config.isTracePropagationExtractFirst());
   }
 
   public static HttpCodec.Extractor newMultiExtractor(
@@ -210,6 +213,11 @@ class B3HttpCodec {
   private static final class B3MultiContextInterpreter extends B3BaseContextInterpreter {
     private B3MultiContextInterpreter(Config config) {
       super(config);
+    }
+
+    @Override
+    public TracePropagationStyle style() {
+      return B3MULTI;
     }
 
     @Override
@@ -265,6 +273,11 @@ class B3HttpCodec {
   private static final class B3SingleContextInterpreter extends B3BaseContextInterpreter {
     public B3SingleContextInterpreter(Config config) {
       super(config);
+    }
+
+    @Override
+    public TracePropagationStyle style() {
+      return B3SINGLE;
     }
 
     @Override

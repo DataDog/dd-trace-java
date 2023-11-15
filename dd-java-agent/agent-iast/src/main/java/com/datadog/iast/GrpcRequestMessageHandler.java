@@ -6,6 +6,8 @@ import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.SourceTypes;
 import datadog.trace.api.iast.propagation.PropagationModule;
+import datadog.trace.api.iast.telemetry.IastMetric;
+import datadog.trace.api.iast.telemetry.IastMetricCollector;
 import java.util.function.BiFunction;
 import javax.annotation.Nonnull;
 
@@ -30,8 +32,12 @@ public class GrpcRequestMessageHandler implements BiFunction<RequestContext, Obj
     final PropagationModule module = InstrumentationBridge.PROPAGATION;
     if (module != null && o != null) {
       final IastContext iastCtx = IastContext.Provider.get(ctx);
-      module.taintDeeply(
-          iastCtx, o, SourceTypes.GRPC_BODY, GrpcRequestMessageHandler::isProtobufArtifact);
+      final byte source = SourceTypes.GRPC_BODY;
+      final int tainted =
+          module.taintDeeply(iastCtx, o, source, GrpcRequestMessageHandler::isProtobufArtifact);
+      if (tainted > 0) {
+        IastMetricCollector.add(IastMetric.EXECUTED_SOURCE, source, tainted, iastCtx);
+      }
     }
     return Flow.ResultFlow.empty();
   }

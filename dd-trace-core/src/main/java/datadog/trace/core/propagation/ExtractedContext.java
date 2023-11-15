@@ -2,6 +2,7 @@ package datadog.trace.core.propagation;
 
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.TraceConfig;
+import datadog.trace.api.TracePropagationStyle;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.bootstrap.instrumentation.api.TagContext;
 import java.util.Map;
@@ -20,8 +21,20 @@ public class ExtractedContext extends TagContext {
       final long spanId,
       final int samplingPriority,
       final CharSequence origin,
-      final PropagationTags propagationTags) {
-    this(traceId, spanId, samplingPriority, origin, 0, null, null, null, propagationTags, null);
+      final PropagationTags propagationTags,
+      final TracePropagationStyle propagationStyle) {
+    this(
+        traceId,
+        spanId,
+        samplingPriority,
+        origin,
+        0,
+        null,
+        null,
+        null,
+        propagationTags,
+        null,
+        propagationStyle);
   }
 
   public ExtractedContext(
@@ -34,8 +47,9 @@ public class ExtractedContext extends TagContext {
       final Map<String, String> tags,
       final HttpHeaders httpHeaders,
       final PropagationTags propagationTags,
-      final TraceConfig traceConfig) {
-    super(origin, tags, httpHeaders, baggage, samplingPriority, traceConfig);
+      final TraceConfig traceConfig,
+      final TracePropagationStyle propagationStyle) {
+    super(origin, tags, httpHeaders, baggage, samplingPriority, traceConfig, propagationStyle);
     this.traceId = traceId;
     this.spanId = spanId;
     this.endToEndStartTime = endToEndStartTime;

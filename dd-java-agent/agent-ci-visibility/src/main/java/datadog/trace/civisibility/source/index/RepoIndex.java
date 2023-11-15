@@ -50,7 +50,7 @@ public class RepoIndex {
 
   @Nullable
   public String getSourcePath(@Nonnull Class<?> c) {
-    String topLevelClassName = stripNestedClassNames(c.getName());
+    String topLevelClassName = Utils.stripNestedClassNames(c.getName());
     SourceType sourceType = detectSourceType(c);
     String extension = sourceType.getExtension();
     String classNameWithExtension = topLevelClassName + extension;
@@ -107,15 +107,6 @@ public class RepoIndex {
     return SourceType.JAVA;
   }
 
-  private String stripNestedClassNames(String className) {
-    int innerClassNameIdx = className.indexOf('$');
-    if (innerClassNameIdx >= 0) {
-      return className.substring(0, innerClassNameIdx);
-    } else {
-      return className;
-    }
-  }
-
   /**
    * Names of package-private classes do not have to correspond to the names of their source code
    * files. For such classes filename is extracted from SourceFile attribute that is available in
@@ -126,6 +117,10 @@ public class RepoIndex {
       SourceFileAttributeVisitor sourceFileAttributeVisitor = new SourceFileAttributeVisitor();
 
       try (InputStream classStream = Utils.getClassStream(c)) {
+        if (classStream == null) {
+          log.debug("Could not get input stream for class {}", c.getName());
+          return null;
+        }
         ClassReader classReader = new ClassReader(classStream);
         classReader.accept(
             sourceFileAttributeVisitor, ClassReader.SKIP_CODE | ClassReader.SKIP_FRAMES);

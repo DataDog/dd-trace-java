@@ -42,6 +42,10 @@ excludedClassesCoverage += [
   "datadog.trace.api.EndpointCheckpointerHolder",
   "datadog.trace.api.iast.IastAdvice.Kind",
   "datadog.trace.api.UserEventTrackingMode",
+  // This is almost fully abstract class so nothing to test
+  'datadog.trace.api.profiling.RecordingData',
+  // A plain enum
+  'datadog.trace.api.profiling.RecordingType',
   "datadog.trace.bootstrap.ActiveSubsystems",
   "datadog.trace.bootstrap.config.provider.ConfigProvider.Singleton",
   "datadog.trace.bootstrap.instrumentation.api.java.lang.ProcessImplInstrumentationHelpers",

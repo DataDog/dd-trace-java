@@ -26,10 +26,10 @@ public abstract class SkippableTestsSerializer {
       String name = test.getName();
       String parameters = test.getParameters();
 
-      length += suite.length();
-      length += name.length();
+      length += suite.getBytes(CHARSET).length;
+      length += name.getBytes(CHARSET).length;
       if (parameters != null) {
-        length += parameters.length();
+        length += parameters.getBytes(CHARSET).length;
       }
     }
 
@@ -41,14 +41,18 @@ public abstract class SkippableTestsSerializer {
       String name = test.getName();
       String parameters = test.getParameters();
 
-      buffer.putInt(suite.length());
-      buffer.put(suite.getBytes(CHARSET));
-      buffer.putInt(name.length());
-      buffer.put(name.getBytes(CHARSET));
+      byte[] suiteBytes = suite.getBytes(CHARSET);
+      buffer.putInt(suiteBytes.length);
+      buffer.put(suiteBytes);
+
+      byte[] nameBytes = name.getBytes(CHARSET);
+      buffer.putInt(nameBytes.length);
+      buffer.put(nameBytes);
 
       if (parameters != null) {
-        buffer.putInt(parameters.length());
-        buffer.put(parameters.getBytes(CHARSET));
+        byte[] parametersBytes = parameters.getBytes(CHARSET);
+        buffer.putInt(parametersBytes.length);
+        buffer.put(parametersBytes);
       } else {
         buffer.putInt(-1);
       }

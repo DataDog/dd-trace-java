@@ -81,6 +81,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_PERF_METRICS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PRIORITY_SAMPLING_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PRIORITY_SAMPLING_FORCE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PROPAGATION_EXTRACT_LOG_HEADER_NAMES_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_PROPAGATION_STYLE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_REMOTE_CONFIG_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_REMOTE_CONFIG_INTEGRITY_CHECK_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_REMOTE_CONFIG_MAX_PAYLOAD_SIZE;
@@ -105,6 +106,8 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_AGENT_V05_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_ANALYTICS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_HTTP_RESOURCE_REMOVE_TRAILING_SLASH;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_LONG_RUNNING_FLUSH_INTERVAL;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_PROPAGATION_EXTRACT_FIRST;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_PROPAGATION_STYLE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_RATE_LIMIT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_REPORT_HOSTNAME;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_RESOLVER_ENABLED;
@@ -156,11 +159,13 @@ import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_GIT_REMOT
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_GIT_UNSHALLOW_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_GIT_UPLOAD_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_GIT_UPLOAD_TIMEOUT_MILLIS;
+import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_INJECTED_TRACER_VERSION;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_ITR_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_JACOCO_GRADLE_SOURCE_SETS;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_JACOCO_PLUGIN_EXCLUDES;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_JACOCO_PLUGIN_INCLUDES;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_JACOCO_PLUGIN_VERSION;
+import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_JVM_INFO_CACHE_SIZE;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_MODULE_EXECUTION_SETTINGS_CACHE_SIZE;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_MODULE_ID;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_REPO_INDEX_SHARING_ENABLED;
@@ -310,6 +315,7 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.DB_DBM_PROPAGA
 import static datadog.trace.api.config.TraceInstrumentationConfig.ELASTICSEARCH_BODY_AND_PARAMS_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.ELASTICSEARCH_BODY_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.ELASTICSEARCH_PARAMS_ENABLED;
+import static datadog.trace.api.config.TraceInstrumentationConfig.GOOGLE_PUBSUB_IGNORED_GRPC_METHODS;
 import static datadog.trace.api.config.TraceInstrumentationConfig.GRPC_CLIENT_ERROR_STATUSES;
 import static datadog.trace.api.config.TraceInstrumentationConfig.GRPC_IGNORED_INBOUND_METHODS;
 import static datadog.trace.api.config.TraceInstrumentationConfig.GRPC_IGNORED_OUTBOUND_METHODS;
@@ -393,6 +399,7 @@ import static datadog.trace.api.config.TracerConfig.TRACE_HTTP_SERVER_PATH_RESOU
 import static datadog.trace.api.config.TracerConfig.TRACE_PEER_SERVICE_COMPONENT_OVERRIDES;
 import static datadog.trace.api.config.TracerConfig.TRACE_PEER_SERVICE_DEFAULTS_ENABLED;
 import static datadog.trace.api.config.TracerConfig.TRACE_PEER_SERVICE_MAPPING;
+import static datadog.trace.api.config.TracerConfig.TRACE_PROPAGATION_EXTRACT_FIRST;
 import static datadog.trace.api.config.TracerConfig.TRACE_PROPAGATION_STYLE;
 import static datadog.trace.api.config.TracerConfig.TRACE_PROPAGATION_STYLE_EXTRACT;
 import static datadog.trace.api.config.TracerConfig.TRACE_PROPAGATION_STYLE_INJECT;
@@ -479,7 +486,6 @@ import org.slf4j.LoggerFactory;
  * @see InstrumenterConfig for pre-instrumentation configurations
  * @see DynamicConfig for configuration that can be dynamically updated via remote-config
  */
-@Deprecated
 public class Config {
 
   private static final Logger log = LoggerFactory.getLogger(Config.class);
@@ -578,6 +584,7 @@ public class Config {
   private final boolean tracePropagationStyleB3PaddingEnabled;
   private final Set<TracePropagationStyle> tracePropagationStylesToExtract;
   private final Set<TracePropagationStyle> tracePropagationStylesToInject;
+  private final boolean tracePropagationExtractFirst;
   private final int clockSyncPeriod;
   private final boolean logsInjectionEnabled;
 
@@ -718,7 +725,9 @@ public class Config {
   private final boolean ciVisibilityCiProviderIntegrationEnabled;
   private final boolean ciVisibilityRepoIndexSharingEnabled;
   private final int ciVisibilityModuleExecutionSettingsCacheSize;
+  private final int ciVisibilityJvmInfoCacheSize;
   private final boolean ciVisibilityCoverageSegmentsEnabled;
+  private final String ciVisibilityInjectedTracerVersion;
 
   private final boolean remoteConfigEnabled;
   private final boolean remoteConfigIntegrityCheckEnabled;
@@ -1245,20 +1254,19 @@ public class Config {
       }
       // Now we can check if we should pick the default injection/extraction
       tracePropagationStylesToExtract =
-          extract.isEmpty() ? Collections.singleton(TracePropagationStyle.DATADOG) : extract;
-      tracePropagationStylesToInject =
-          inject.isEmpty() ? Collections.singleton(TracePropagationStyle.DATADOG) : inject;
+          extract.isEmpty() ? DEFAULT_TRACE_PROPAGATION_STYLE : extract;
+      tracePropagationStylesToInject = inject.isEmpty() ? DEFAULT_TRACE_PROPAGATION_STYLE : inject;
       // These setting are here for backwards compatibility until they can be removed in a major
       // release of the tracer
       propagationStylesToExtract =
-          deprecatedExtract.isEmpty()
-              ? Collections.singleton(PropagationStyle.DATADOG)
-              : deprecatedExtract;
+          deprecatedExtract.isEmpty() ? DEFAULT_PROPAGATION_STYLE : deprecatedExtract;
       propagationStylesToInject =
-          deprecatedInject.isEmpty()
-              ? Collections.singleton(PropagationStyle.DATADOG)
-              : deprecatedInject;
+          deprecatedInject.isEmpty() ? DEFAULT_PROPAGATION_STYLE : deprecatedInject;
     }
+
+    tracePropagationExtractFirst =
+        configProvider.getBoolean(
+            TRACE_PROPAGATION_EXTRACT_FIRST, DEFAULT_TRACE_PROPAGATION_EXTRACT_FIRST);
 
     clockSyncPeriod = configProvider.getInteger(CLOCK_SYNC_PERIOD, DEFAULT_CLOCK_SYNC_PERIOD);
 
@@ -1657,8 +1665,11 @@ public class Config {
         configProvider.getBoolean(CIVISIBILITY_REPO_INDEX_SHARING_ENABLED, true);
     ciVisibilityModuleExecutionSettingsCacheSize =
         configProvider.getInteger(CIVISIBILITY_MODULE_EXECUTION_SETTINGS_CACHE_SIZE, 16);
+    ciVisibilityJvmInfoCacheSize = configProvider.getInteger(CIVISIBILITY_JVM_INFO_CACHE_SIZE, 8);
     ciVisibilityCoverageSegmentsEnabled =
         configProvider.getBoolean(CIVISIBILITY_COVERAGE_SEGMENTS_ENABLED, false);
+    ciVisibilityInjectedTracerVersion =
+        configProvider.getString(CIVISIBILITY_INJECTED_TRACER_VERSION);
 
     remoteConfigEnabled =
         configProvider.getBoolean(REMOTE_CONFIG_ENABLED, DEFAULT_REMOTE_CONFIG_ENABLED);
@@ -1752,8 +1763,23 @@ public class Config {
 
     grpcIgnoredInboundMethods =
         tryMakeImmutableSet(configProvider.getList(GRPC_IGNORED_INBOUND_METHODS));
-    grpcIgnoredOutboundMethods =
-        tryMakeImmutableSet(configProvider.getList(GRPC_IGNORED_OUTBOUND_METHODS));
+    final List<String> tmpGrpcIgnoredOutboundMethods = new ArrayList<>();
+    tmpGrpcIgnoredOutboundMethods.addAll(configProvider.getList(GRPC_IGNORED_OUTBOUND_METHODS));
+    // When tracing shadowing will be possible we can instrument the stubs to silent tracing
+    // starting from interception points
+    if (InstrumenterConfig.get()
+        .isIntegrationEnabled(Collections.singleton("google-pubsub"), true)) {
+      tmpGrpcIgnoredOutboundMethods.addAll(
+          configProvider.getList(
+              GOOGLE_PUBSUB_IGNORED_GRPC_METHODS,
+              Arrays.asList(
+                  "google.pubsub.v1.Subscriber/ModifyAckDeadline",
+                  "google.pubsub.v1.Subscriber/Acknowledge",
+                  "google.pubsub.v1.Subscriber/Pull",
+                  "google.pubsub.v1.Subscriber/StreamingPull",
+                  "google.pubsub.v1.Publisher/Publish")));
+    }
+    grpcIgnoredOutboundMethods = tryMakeImmutableSet(tmpGrpcIgnoredOutboundMethods);
     grpcServerTrimPackageResource =
         configProvider.getBoolean(GRPC_SERVER_TRIM_PACKAGE_RESOURCE, false);
     grpcServerErrorStatuses =
@@ -2162,6 +2188,10 @@ public class Config {
 
   public Set<TracePropagationStyle> getTracePropagationStylesToInject() {
     return tracePropagationStylesToInject;
+  }
+
+  public boolean isTracePropagationExtractFirst() {
+    return tracePropagationExtractFirst;
   }
 
   public int getClockSyncPeriod() {
@@ -2741,8 +2771,16 @@ public class Config {
     return ciVisibilityModuleExecutionSettingsCacheSize;
   }
 
+  public int getCiVisibilityJvmInfoCacheSize() {
+    return ciVisibilityJvmInfoCacheSize;
+  }
+
   public boolean isCiVisibilityCoverageSegmentsEnabled() {
     return ciVisibilityCoverageSegmentsEnabled;
+  }
+
+  public String getCiVisibilityInjectedTracerVersion() {
+    return ciVisibilityInjectedTracerVersion;
   }
 
   public String getAppSecRulesFile() {
@@ -3849,6 +3887,8 @@ public class Config {
         + tracePropagationStylesToExtract
         + ", tracePropagationStylesToInject="
         + tracePropagationStylesToInject
+        + ", tracePropagationExtractFirst="
+        + tracePropagationExtractFirst
         + ", clockSyncPeriod="
         + clockSyncPeriod
         + ", jmxFetchEnabled="

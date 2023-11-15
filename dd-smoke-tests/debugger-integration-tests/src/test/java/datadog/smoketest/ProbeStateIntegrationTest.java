@@ -12,10 +12,12 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.DisabledIf;
 
 public class ProbeStateIntegrationTest extends ServerAppDebuggerIntegrationTest {
   @Test
   @DisplayName("testAddRemoveProbes")
+  @DisabledIf(value = "datadog.trace.api.Platform#isJ9", disabledReason = "Flaky on J9 JVMs")
   void testAddRemoveProbes() throws Exception {
     LogProbe logProbe =
         LogProbe.builder().probeId(PROBE_ID).where(TEST_APP_CLASS_NAME, FULL_METHOD_NAME).build();
@@ -37,6 +39,7 @@ public class ProbeStateIntegrationTest extends ServerAppDebuggerIntegrationTest 
 
   @Test
   @DisplayName("testDisableEnableProbes")
+  @DisabledIf(value = "datadog.trace.api.Platform#isJ9", disabledReason = "Flaky on J9 JVMs")
   void testDisableEnableProbes() throws Exception {
     LogProbe logProbe =
         LogProbe.builder().probeId(PROBE_ID).where(TEST_APP_CLASS_NAME, FULL_METHOD_NAME).build();
@@ -58,6 +61,7 @@ public class ProbeStateIntegrationTest extends ServerAppDebuggerIntegrationTest 
 
   @Test
   @DisplayName("testDisableEnableProbesUsingDenyList")
+  @DisabledIf(value = "datadog.trace.api.Platform#isJ9", disabledReason = "Flaky on J9 JVMs")
   void testDisableEnableProbesUsingDenyList() throws Exception {
     LogProbe logProbe =
         LogProbe.builder().probeId(PROBE_ID).where(TEST_APP_CLASS_NAME, FULL_METHOD_NAME).build();
@@ -88,6 +92,7 @@ public class ProbeStateIntegrationTest extends ServerAppDebuggerIntegrationTest 
 
   @Test
   @DisplayName("testDisableEnableProbesUsingAllowList")
+  @DisabledIf(value = "datadog.trace.api.Platform#isJ9", disabledReason = "Flaky on J9 JVMs")
   void testDisableEnableProbesUsingAllowList() throws Exception {
     LogProbe logProbe =
         LogProbe.builder().probeId(PROBE_ID).where(TEST_APP_CLASS_NAME, FULL_METHOD_NAME).build();
@@ -140,5 +145,6 @@ public class ProbeStateIntegrationTest extends ServerAppDebuggerIntegrationTest 
           }
           return received.get() && error.get();
         });
+    processRequests();
   }
 }

@@ -72,6 +72,17 @@ class RepoIndexSourcePathResolverTest extends Specification {
     sourcePathResolver.getSourcePath(PackagePrivateClass) == expectedSourcePath
   }
 
+  def "test source path resolution for class nested into package-private class"() {
+    setup:
+    def expectedSourcePath = givenSourceFile(RepoIndexSourcePathResolverTest, repoRoot + "/src")
+
+    when:
+    def sourcePathResolver = new RepoIndexSourcePathResolver(repoRoot, packageResolver, fileSystem)
+
+    then:
+    sourcePathResolver.getSourcePath(PackagePrivateClass.NestedIntoPackagePrivateClass) == expectedSourcePath
+  }
+
   def "test source path resolution for non-java class whose file name is different from class name"() {
     setup:
     def expectedSourcePath = givenSourceFile(RepoIndexSourcePathResolverTest, repoRoot + "/src")
@@ -173,6 +184,7 @@ class RepoIndexSourcePathResolverTest extends Specification {
 
 @PackageScope
 class PackagePrivateClass {
+  class NestedIntoPackagePrivateClass {}
 }
 
 class PublicClassWhoseNameDoesNotCorrespondToFileName {

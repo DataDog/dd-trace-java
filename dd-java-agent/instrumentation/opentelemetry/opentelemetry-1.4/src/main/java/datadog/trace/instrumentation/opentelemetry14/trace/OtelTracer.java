@@ -1,5 +1,7 @@
 package datadog.trace.instrumentation.opentelemetry14.trace;
 
+import static datadog.trace.instrumentation.opentelemetry14.trace.OtelConventions.SPAN_KIND_INTERNAL;
+
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import io.opentelemetry.api.trace.SpanBuilder;
 import io.opentelemetry.api.trace.Tracer;
@@ -19,7 +21,7 @@ class OtelTracer implements Tracer {
   @Override
   public SpanBuilder spanBuilder(String spanName) {
     AgentTracer.SpanBuilder delegate =
-        this.tracer.buildSpan(INSTRUMENTATION_NAME, spanName).withResourceName(spanName);
+        this.tracer.buildSpan(INSTRUMENTATION_NAME, SPAN_KIND_INTERNAL).withResourceName(spanName);
     return new OtelSpanBuilder(delegate);
   }
 }
