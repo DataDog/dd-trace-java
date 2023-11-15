@@ -1,25 +1,26 @@
 package com.datadog.iast.model;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import javax.annotation.Nullable;
 
 public final class Location {
 
-  private final String path;
+  @Nullable private final String path;
 
   private final int line;
 
-  private final String method;
+  @Nullable private final String method;
 
-  private Long spanId;
+  @Nullable private Long spanId;
 
-  private transient String serviceName;
+  @Nullable private transient String serviceName;
 
   private Location(
-      final Long spanId,
-      final String path,
+      @Nullable final Long spanId,
+      @Nullable final String path,
       final int line,
-      final String method,
-      final String serviceName) {
+      @Nullable final String method,
+      @Nullable final String serviceName) {
     this.spanId = spanId;
     this.path = path;
     this.line = line;
@@ -27,7 +28,8 @@ public final class Location {
     this.serviceName = serviceName;
   }
 
-  public static Location forSpanAndStack(final AgentSpan span, final StackTraceElement stack) {
+  public static Location forSpanAndStack(
+      @Nullable final AgentSpan span, final StackTraceElement stack) {
     return new Location(
         spanId(span),
         stack.getClassName(),
@@ -54,6 +56,7 @@ public final class Location {
     return spanId == null ? 0 : spanId;
   }
 
+  @Nullable
   public String getPath() {
     return path;
   }
@@ -62,26 +65,30 @@ public final class Location {
     return line;
   }
 
+  @Nullable
   public String getMethod() {
     return method;
   }
 
+  @Nullable
   public String getServiceName() {
     return serviceName;
   }
 
-  public void updateSpan(final AgentSpan span) {
+  public void updateSpan(@Nullable final AgentSpan span) {
     if (span != null) {
       this.spanId = span.getSpanId();
       this.serviceName = span.getServiceName();
     }
   }
 
-  private static Long spanId(AgentSpan span) {
+  @Nullable
+  private static Long spanId(@Nullable AgentSpan span) {
     return span != null ? span.getSpanId() : null;
   }
 
-  private static String serviceName(AgentSpan span) {
+  @Nullable
+  private static String serviceName(@Nullable AgentSpan span) {
     return span != null ? span.getServiceName() : null;
   }
 }

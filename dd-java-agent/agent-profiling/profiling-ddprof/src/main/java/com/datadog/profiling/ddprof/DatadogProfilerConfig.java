@@ -3,6 +3,7 @@ package com.datadog.profiling.ddprof;
 import static datadog.trace.api.Platform.isJ9;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_ALLOCATION_ENABLED;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_CONTEXT_ATTRIBUTES;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_CONTEXT_ATTRIBUTES_RESOURCE_NAME_ENABLED;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_CONTEXT_ATTRIBUTES_SPAN_NAME_ENABLED;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_ALLOC_ENABLED;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_ALLOC_ENABLED_DEFAULT;
@@ -287,6 +288,10 @@ public class DatadogProfilerConfig {
 
   public static boolean isSpanNameContextAttributeEnabled(ConfigProvider configProvider) {
     return configProvider.getBoolean(PROFILING_CONTEXT_ATTRIBUTES_SPAN_NAME_ENABLED, true);
+  }
+
+  public static boolean isResourceNameContextAttributeEnabled(ConfigProvider configProvider) {
+    return configProvider.getBoolean(PROFILING_CONTEXT_ATTRIBUTES_RESOURCE_NAME_ENABLED, false);
   }
 
   public static String getString(ConfigProvider configProvider, String key, String defaultValue) {

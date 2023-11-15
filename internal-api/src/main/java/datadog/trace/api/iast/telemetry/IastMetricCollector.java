@@ -79,7 +79,7 @@ public class IastMetricCollector implements MetricCollector<IastMetricCollector.
 
   public static void add(
       @Nonnull final IastMetric metric, final int value, @Nullable final Object ctx) {
-    add(metric, (byte) -1, value, null);
+    add(metric, (byte) -1, value, ctx);
   }
 
   /** Prefer using {@link #add(IastMetric, byte, int, Object)} if possible */

@@ -24,8 +24,8 @@ class TypeConverterTest extends AgentTestRunner {
 
   def "should avoid extra allocation for a span wrapper"() {
     def context = createTestSpanContext()
-    def span1 = new DDSpan("test", 0, context)
-    def span2 = new DDSpan("test", 0, context)
+    def span1 = new DDSpan("test", 0, context, null)
+    def span2 = new DDSpan("test", 0, context, null)
     expect:
     // return the same wrapper for the same span
     typeConverter.toSpan(span1) is typeConverter.toSpan(span1)
@@ -52,8 +52,8 @@ class TypeConverterTest extends AgentTestRunner {
   def "should avoid extra allocation for a scope wrapper"() {
     def scopeManager = new ContinuableScopeManager(0, false, true)
     def context = createTestSpanContext()
-    def span1 = new DDSpan("test", 0, context)
-    def span2 = new DDSpan("test", 0, context)
+    def span1 = new DDSpan("test", 0, context, null)
+    def span2 = new DDSpan("test", 0, context, null)
     def scope1 = scopeManager.activate(span1, ScopeSource.MANUAL)
     def scope2 = scopeManager.activate(span2, ScopeSource.MANUAL)
     expect:

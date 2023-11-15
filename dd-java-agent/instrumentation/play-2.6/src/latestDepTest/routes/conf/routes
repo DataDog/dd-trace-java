@@ -14,3 +14,4 @@ POST /created                       datadog.trace.instrumentation.play26.server.
 POST /body-urlencoded               datadog.trace.instrumentation.play26.server.latestdep.PlayController.bodyUrlencoded()
 POST /body-multipart                datadog.trace.instrumentation.play26.server.latestdep.PlayController.bodyMultipart()
 POST /body-json                     datadog.trace.instrumentation.play26.server.latestdep.PlayController.bodyJson()
+POST /body-xml                      datadog.trace.instrumentation.play26.server.latestdep.PlayController.bodyXml()

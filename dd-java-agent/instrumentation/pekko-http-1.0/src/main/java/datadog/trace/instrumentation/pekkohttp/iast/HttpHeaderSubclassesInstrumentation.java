@@ -62,7 +62,7 @@ public class HttpHeaderSubclassesInstrumentation extends Instrumenter.Iast
         return;
       }
 
-      propagation.taintIfInputIsTainted(retVal, h);
+      propagation.taintIfTainted(retVal, h);
     }
   }
 }

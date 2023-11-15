@@ -27,7 +27,7 @@ class VertxHttpHeadersInstrumentationTest extends AgentTestRunner {
     headers.get('key')
 
     then:
-    1 * module.taintIfInputIsTainted(SourceTypes.REQUEST_HEADER_VALUE, 'key', 'value', headers)
+    1 * module.taintIfTainted('value', headers, SourceTypes.REQUEST_HEADER_VALUE, 'key')
   }
 
   void 'test that getAll() is instrumented'() {
@@ -41,7 +41,16 @@ class VertxHttpHeadersInstrumentationTest extends AgentTestRunner {
     headers.getAll('key')
 
     then:
-    1 * module.taintIfInputIsTainted(SourceTypes.REQUEST_HEADER_VALUE, 'key', ['value1', 'value2'], headers)
+    1 * module.isTainted(headers) >> { false }
+    0 * _
+
+    when:
+    headers.getAll('key')
+
+    then:
+    1 * module.isTainted(headers) >> { true }
+    1 * module.taint(_, 'value1', SourceTypes.REQUEST_HEADER_VALUE, 'key')
+    1 * module.taint(_, 'value2', SourceTypes.REQUEST_HEADER_VALUE, 'key')
   }
 
   void 'test that names() is instrumented'() {
@@ -55,7 +64,15 @@ class VertxHttpHeadersInstrumentationTest extends AgentTestRunner {
     headers.names()
 
     then:
-    1 * module.taintIfInputIsTainted(SourceTypes.REQUEST_HEADER_NAME, ['key'] as Set<String>, headers)
+    1 * module.isTainted(headers) >> { false }
+    0 * _
+
+    when:
+    headers.names()
+
+    then:
+    1 * module.isTainted(headers) >> { true }
+    1 * module.taint(_, 'key', SourceTypes.REQUEST_HEADER_NAME, 'key')
   }
 
   void 'test that entries() is instrumented'() {
@@ -66,10 +83,23 @@ class VertxHttpHeadersInstrumentationTest extends AgentTestRunner {
     addAll([[key: 'value1'], [key: 'value2']], headers)
 
     when:
+    final result = headers.entries()
+
+    then:
+    module.isTainted(headers) >> { false }
+    0 * _
+
+    when:
     headers.entries()
 
     then:
-    1 * module.taintIfInputIsTainted(SourceTypes.REQUEST_HEADER_VALUE, _ as List<Map.Entry<String, String>>, headers)
+    module.isTainted(headers) >> { true }
+    result.collect { it.key }.unique().each {
+      (1.._) * module.taint(_, it, SourceTypes.REQUEST_HEADER_NAME, it) // entries relies on names() on some impls
+    }
+    result.each {
+      1 * module.taint(_, it.value, SourceTypes.REQUEST_HEADER_VALUE, it.key)
+    }
   }
 
   private static void addAll(final Map<String, String> map, final MultiMap headers) {

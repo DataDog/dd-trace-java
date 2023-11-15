@@ -114,8 +114,10 @@ public final class ProfilingConfig {
   public static final String PROFILING_DATADOG_PROFILER_CSTACK = "profiling.ddprof.cstack";
   public static final String PROFILING_DATADOG_PROFILER_CSTACK_DEFAULT = "fp";
   public static final String PROFILING_DATADOG_PROFILER_SAFEMODE = "profiling.ddprof.safemode";
-  public static final int PROFILING_DATADOG_PROFILER_SAFEMODE_DEFAULT =
-      12; // POP_METHOD|UNWIND_NATIVE
+
+  private static final int POP_METHOD = 4;
+  private static final int LAST_JAVA_PC = 16;
+  public static final int PROFILING_DATADOG_PROFILER_SAFEMODE_DEFAULT = POP_METHOD | LAST_JAVA_PC;
 
   public static final String PROFILING_DATADOG_PROFILER_LINE_NUMBERS =
       "profiling.ddprof.linenumbers";
@@ -169,6 +171,9 @@ public final class ProfilingConfig {
 
   public static final String PROFILING_CONTEXT_ATTRIBUTES_SPAN_NAME_ENABLED =
       "profiling.context.attributes.span.name.enabled";
+
+  public static final String PROFILING_CONTEXT_ATTRIBUTES_RESOURCE_NAME_ENABLED =
+      "profiling.context.attributes.resource.name.enabled";
 
   public static final String PROFILING_QUEUEING_TIME_ENABLED =
       "profiling.experimental.queueing.time.enabled";

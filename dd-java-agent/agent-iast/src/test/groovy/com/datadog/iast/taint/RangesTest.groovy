@@ -8,7 +8,7 @@ import datadog.trace.api.iast.SourceTypes
 import datadog.trace.api.iast.VulnerabilityMarks
 import datadog.trace.test.util.DDSpecification
 
-import static com.datadog.iast.model.Range.NOT_MARKED
+import static datadog.trace.api.iast.VulnerabilityMarks.NOT_MARKED
 import static com.datadog.iast.taint.Ranges.mergeRanges
 import static com.datadog.iast.taint.Ranges.rangesProviderFor
 import static datadog.trace.api.iast.SourceTypes.REQUEST_HEADER_NAME

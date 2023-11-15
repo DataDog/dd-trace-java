@@ -2,7 +2,7 @@ package com.datadog.debugger.sink;
 
 import com.datadog.debugger.agent.DebuggerAgent;
 import com.datadog.debugger.util.ExceptionHelper;
-import com.datadog.debugger.util.SnapshotSlicer;
+import com.datadog.debugger.util.SnapshotPruner;
 import datadog.trace.api.Config;
 import datadog.trace.relocate.api.RatelimitedLogger;
 import datadog.trace.util.TagsHelper;
@@ -64,20 +64,13 @@ public class SnapshotSink {
 
   String serializeSnapshot(String serviceName, Snapshot snapshot) {
     String str = DebuggerAgent.getSnapshotSerializer().serializeSnapshot(serviceName, snapshot);
-    int currentMaxDepth = snapshot.getMaxDepth();
-    while (str.length() > MAX_SNAPSHOT_SIZE && currentMaxDepth >= 0) {
+    String prunedStr = SnapshotPruner.prune(str, MAX_SNAPSHOT_SIZE, 4);
+    if (prunedStr.length() != str.length()) {
       LOGGER.debug(
-          "serializing snapshot breached 1MB limit: {}, reducing depth level {} -> {}",
+          "serializing snapshot breached 1MB limit, reducing size from {} -> {}",
           str.length(),
-          currentMaxDepth,
-          currentMaxDepth - 1);
-      currentMaxDepth -= 1;
-      str = SnapshotSlicer.slice(currentMaxDepth, str);
+          prunedStr.length());
     }
-    if (str.length() > MAX_SNAPSHOT_SIZE) {
-      ratelimitedLogger.warn(
-          "Snapshot is too large even after reducing depth to 0: {}", str.length());
-    }
-    return str;
+    return prunedStr;
   }
 }

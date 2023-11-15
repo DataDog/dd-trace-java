@@ -44,7 +44,8 @@ public class MoshiSnapshotHelper {
   public static final String COLLECTION_SIZE_REASON = "collectionSize";
   public static final String TIMEOUT_REASON = "timeout";
   public static final String DEPTH_REASON = "depth";
-  public static final String REDACTED_REASON = "redacted";
+  public static final String REDACTED_IDENT_REASON = "redactedIdent";
+  public static final String REDACTED_TYPE_REASON = "redactedType";
   public static final String TYPE = "type";
   public static final String VALUE = "value";
   public static final String FIELDS = "fields";
@@ -462,10 +463,16 @@ public class MoshiSnapshotHelper {
               jsonWriter.value(TIMEOUT_REASON);
               break;
             }
-          case REDACTED:
+          case REDACTED_IDENT:
             {
               jsonWriter.name(NOT_CAPTURED_REASON);
-              jsonWriter.value(REDACTED_REASON);
+              jsonWriter.value(REDACTED_IDENT_REASON);
+              break;
+            }
+          case REDACTED_TYPE:
+            {
+              jsonWriter.name(NOT_CAPTURED_REASON);
+              jsonWriter.value(REDACTED_TYPE_REASON);
               break;
             }
           default:

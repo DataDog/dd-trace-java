@@ -6,11 +6,11 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Source;
 import datadog.trace.api.iast.SourceTypes;
 import datadog.trace.api.iast.propagation.PropagationModule;
-import datadog.trace.api.iast.source.WebModule;
 import java.util.List;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
@@ -39,14 +39,16 @@ public class AbstractFormProviderInstrumentation extends Instrumenter.Iast
     @Advice.OnMethodExit(suppress = Throwable.class)
     @Source(SourceTypes.REQUEST_PARAMETER_VALUE)
     public static void onExit(@Advice.Return Map<String, List<String>> result) {
-      final WebModule module = InstrumentationBridge.WEB;
       final PropagationModule prop = InstrumentationBridge.PROPAGATION;
-      if (module != null && prop != null) {
-        module.onParameterNames(result.keySet());
-        for (Map.Entry<String, List<String>> entry : result.entrySet()) {
-          for (String value : entry.getValue()) {
-            prop.taint(SourceTypes.REQUEST_PARAMETER_VALUE, entry.getKey(), value);
-          }
+      if (prop == null || result == null || result.isEmpty()) {
+        return;
+      }
+      final IastContext ctx = IastContext.Provider.get();
+      for (Map.Entry<String, List<String>> entry : result.entrySet()) {
+        final String name = entry.getKey();
+        prop.taint(ctx, name, SourceTypes.REQUEST_PARAMETER_NAME, name);
+        for (String value : entry.getValue()) {
+          prop.taint(ctx, value, SourceTypes.REQUEST_PARAMETER_VALUE, name);
         }
       }
     }

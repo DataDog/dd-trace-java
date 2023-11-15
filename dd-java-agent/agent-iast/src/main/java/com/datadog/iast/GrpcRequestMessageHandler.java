@@ -2,10 +2,12 @@ package com.datadog.iast;
 
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.RequestContext;
-import datadog.trace.api.gateway.RequestContextSlot;
+import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.SourceTypes;
 import datadog.trace.api.iast.propagation.PropagationModule;
+import datadog.trace.api.iast.telemetry.IastMetric;
+import datadog.trace.api.iast.telemetry.IastMetricCollector;
 import java.util.function.BiFunction;
 import javax.annotation.Nonnull;
 
@@ -29,9 +31,13 @@ public class GrpcRequestMessageHandler implements BiFunction<RequestContext, Obj
   public Flow<Void> apply(final RequestContext ctx, final Object o) {
     final PropagationModule module = InstrumentationBridge.PROPAGATION;
     if (module != null && o != null) {
-      final IastRequestContext iastCtx = ctx.getData(RequestContextSlot.IAST);
-      module.taintDeeply(
-          iastCtx, SourceTypes.GRPC_BODY, o, GrpcRequestMessageHandler::isProtobufArtifact);
+      final IastContext iastCtx = IastContext.Provider.get(ctx);
+      final byte source = SourceTypes.GRPC_BODY;
+      final int tainted =
+          module.taintDeeply(iastCtx, o, source, GrpcRequestMessageHandler::isProtobufArtifact);
+      if (tainted > 0) {
+        IastMetricCollector.add(IastMetric.EXECUTED_SOURCE, source, tainted, iastCtx);
+      }
     }
     return Flow.ResultFlow.empty();
   }

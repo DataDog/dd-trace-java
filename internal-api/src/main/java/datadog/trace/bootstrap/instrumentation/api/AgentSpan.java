@@ -6,6 +6,7 @@ import datadog.trace.api.gateway.IGSpanInfo;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.interceptor.MutableSpan;
 import datadog.trace.api.sampling.PrioritySampling;
+import java.util.List;
 import java.util.Map;
 
 public interface AgentSpan extends MutableSpan, IGSpanInfo {
@@ -136,6 +137,8 @@ public interface AgentSpan extends MutableSpan, IGSpanInfo {
 
   TraceConfig traceConfig();
 
+  void addLink(AgentSpanLink link);
+
   interface Context {
     /**
      * Gets the TraceId of the span's trace.
@@ -176,6 +179,13 @@ public interface AgentSpan extends MutableSpan, IGSpanInfo {
     default void mergePathwayContext(PathwayContext pathwayContext) {}
 
     interface Extracted extends Context {
+      /**
+       * Gets the span links related to the other terminated context.
+       *
+       * @return The span links to other extracted contexts found but terminated.
+       */
+      List<AgentSpanLink> getTerminatedContextLinks();
+
       String getForwarded();
 
       String getFastlyClientIp();

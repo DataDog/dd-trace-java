@@ -2,7 +2,7 @@ package com.datadog.debugger.probe;
 
 import com.datadog.debugger.agent.DebuggerAgent;
 import com.datadog.debugger.agent.Generated;
-import com.datadog.debugger.agent.LogMessageTemplateBuilder;
+import com.datadog.debugger.agent.StringTemplateBuilder;
 import com.datadog.debugger.el.EvaluationException;
 import com.datadog.debugger.el.ProbeCondition;
 import com.datadog.debugger.instrumentation.CapturedContextInstrumentor;
@@ -33,6 +33,7 @@ public class SpanDecorationProbe extends ProbeDefinition {
   private static final Logger LOGGER = LoggerFactory.getLogger(SpanDecorationProbe.class);
   private static final String PROBEID_DD_TAGS_FORMAT = "_dd.di.%s.probe_id";
   private static final String EVALERROR_DD_TAGS_FORMAT = "_dd.di.%s.evaluation_error";
+  private static final Limits LIMITS = new Limits(1, 3, 255, 5);
 
   public enum TargetSpan {
     ACTIVE,
@@ -166,7 +167,7 @@ public class SpanDecorationProbe extends ProbeDefinition {
       SpanDecorationStatus spanStatus = (SpanDecorationStatus) status;
       for (Tag tag : decoration.tags) {
         String tagName = sanitize(tag.name);
-        LogMessageTemplateBuilder builder = new LogMessageTemplateBuilder(tag.value.getSegments());
+        StringTemplateBuilder builder = new StringTemplateBuilder(tag.value.getSegments(), LIMITS);
         LogProbe.LogStatus logStatus = new LogProbe.LogStatus(this);
         String tagValue = builder.evaluate(context, logStatus);
         if (logStatus.hasLogTemplateErrors()) {

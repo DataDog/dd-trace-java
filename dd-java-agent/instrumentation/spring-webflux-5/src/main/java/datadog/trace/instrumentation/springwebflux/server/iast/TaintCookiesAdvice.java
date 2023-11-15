@@ -2,6 +2,7 @@ package datadog.trace.instrumentation.springwebflux.server.iast;
 
 import datadog.trace.advice.RequiresRequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
+import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.SourceTypes;
 import datadog.trace.api.iast.propagation.PropagationModule;
@@ -16,13 +17,17 @@ class TaintCookiesAdvice {
   @Advice.OnMethodExit(suppress = Throwable.class)
   public static void after(@Advice.Return MultiValueMap<String, HttpCookie> cookies) {
     PropagationModule module = InstrumentationBridge.PROPAGATION;
-    if (module == null) {
+    if (module == null || cookies.isEmpty()) {
       return;
     }
 
+    final IastContext ctx = IastContext.Provider.get();
     for (List<HttpCookie> cookieList : cookies.values()) {
       for (HttpCookie cookie : cookieList) {
-        module.taint(SourceTypes.REQUEST_COOKIE_VALUE, cookie.getName(), cookie.getValue());
+        final String name = cookie.getName();
+        final String value = cookie.getValue();
+        module.taint(ctx, name, SourceTypes.REQUEST_COOKIE_NAME, name);
+        module.taint(ctx, value, SourceTypes.REQUEST_COOKIE_VALUE, name);
       }
     }
   }

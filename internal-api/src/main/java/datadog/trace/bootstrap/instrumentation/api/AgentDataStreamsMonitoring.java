@@ -15,9 +15,14 @@ public interface AgentDataStreamsMonitoring extends DataStreamsCheckpointer {
    *     checkpoint in the chain. Zero should be passed if we can't extract the timestamp from the
    *     message / payload itself (for instance: produce operations; http produce / consume etc).
    *     Value will be ignored for checkpoints happening not at the start of the pipeline.
+   * @param payloadSizeBytes size of the message (body + headers) in bytes. Zero should be passed if
+   *     the size cannot be evaluated.
    */
   void setCheckpoint(
-      AgentSpan span, LinkedHashMap<String, String> sortedTags, long defaultTimestamp);
+      AgentSpan span,
+      LinkedHashMap<String, String> sortedTags,
+      long defaultTimestamp,
+      long payloadSizeBytes);
 
   PathwayContext newPathwayContext();
 

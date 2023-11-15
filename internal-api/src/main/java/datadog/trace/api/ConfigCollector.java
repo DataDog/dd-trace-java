@@ -1,10 +1,7 @@
 package datadog.trace.api;
 
-import java.util.Arrays;
 import java.util.Collections;
-import java.util.HashSet;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 
@@ -14,32 +11,32 @@ import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
  * consumers. So this is based on a ConcurrentHashMap to deal with it.
  */
 public class ConfigCollector {
-
-  private static final Set<String> CONFIG_FILTER_LIST =
-      new HashSet<>(
-          Arrays.asList("DD_API_KEY", "dd.api-key", "dd.profiling.api-key", "dd.profiling.apikey"));
-
   private static final ConfigCollector INSTANCE = new ConfigCollector();
 
   private static final AtomicReferenceFieldUpdater<ConfigCollector, Map> COLLECTED_UPDATER =
       AtomicReferenceFieldUpdater.newUpdater(ConfigCollector.class, Map.class, "collected");
 
-  private volatile Map<String, Object> collected = new ConcurrentHashMap<>();
+  private volatile Map<String, ConfigSetting> collected = new ConcurrentHashMap<>();
 
   public static ConfigCollector get() {
     return INSTANCE;
   }
 
-  public void put(String key, Object value) {
-    collected.put(key, filterConfigEntry(key, value));
+  public void put(String key, Object value, ConfigOrigin origin) {
+    ConfigSetting setting = new ConfigSetting(key, value, origin);
+    collected.put(key, setting);
   }
 
-  public void putAll(Map<String, Object> keysAndValues) {
+  public void putAll(Map<String, Object> keysAndValues, ConfigOrigin origin) {
     // attempt merge+replace to avoid collector seeing partial update
-    Map<String, Object> merged = new ConcurrentHashMap<>(keysAndValues);
-    merged.replaceAll(ConfigCollector::filterConfigEntry);
+    Map<String, ConfigSetting> merged =
+        new ConcurrentHashMap<>(keysAndValues.size() + collected.size());
+    for (Map.Entry<String, Object> entry : keysAndValues.entrySet()) {
+      ConfigSetting setting = new ConfigSetting(entry.getKey(), entry.getValue(), origin);
+      merged.put(entry.getKey(), setting);
+    }
     while (true) {
-      Map<String, Object> current = collected;
+      Map<String, ConfigSetting> current = collected;
       current.forEach(merged::putIfAbsent);
       if (COLLECTED_UPDATER.compareAndSet(this, current, merged)) {
         break; // success
@@ -50,15 +47,11 @@ public class ConfigCollector {
   }
 
   @SuppressWarnings("unchecked")
-  public Map<String, Object> collect() {
+  public Map<String, ConfigSetting> collect() {
     if (!collected.isEmpty()) {
       return COLLECTED_UPDATER.getAndSet(this, new ConcurrentHashMap<>());
     } else {
       return Collections.emptyMap();
     }
-  }
-
-  private static Object filterConfigEntry(String key, Object value) {
-    return CONFIG_FILTER_LIST.contains(key) ? "<hidden>" : value;
   }
 }

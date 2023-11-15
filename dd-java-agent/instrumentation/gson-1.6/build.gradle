@@ -1,0 +1,23 @@
+muzzle {
+  pass {
+    group = 'com.google.code.gson'
+    module = 'gson'
+    versions = '[1.6, ]'
+    skipVersions = ['1.7'] //only has html
+    assertInverse = true
+  }
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+
+addTestSuiteForDir('latestDepTest', 'test')
+
+dependencies {
+  compileOnly group: 'com.google.code.gson', name: 'gson', version: '1.6'
+
+  testImplementation group: 'com.google.code.gson', name: 'gson', version: '1.6'
+
+  testRuntimeOnly project(':dd-java-agent:instrumentation:iast-instrumenter')
+
+  latestDepTestImplementation group: 'com.google.code.gson', name: 'gson', version: '+'
+}

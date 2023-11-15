@@ -12,7 +12,7 @@ class WeakHashModuleTest extends IastModuleImplTestBase {
   private WeakHashModule module
 
   def setup() {
-    module = registerDependencies(new WeakHashModuleImpl())
+    module = new WeakHashModuleImpl(dependencies)
   }
 
   void 'iast module vulnerable hash algorithm'(final String algorithm){

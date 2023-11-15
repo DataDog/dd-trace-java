@@ -3,6 +3,7 @@ package com.datadog.iast.sink;
 import static com.datadog.iast.taint.Ranges.rangesProviderFor;
 import static com.datadog.iast.taint.Tainteds.canBeTainted;
 
+import com.datadog.iast.Dependencies;
 import com.datadog.iast.IastRequestContext;
 import com.datadog.iast.model.VulnerabilityType;
 import com.datadog.iast.taint.TaintedObjects;
@@ -14,6 +15,10 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 public class CommandInjectionModuleImpl extends SinkModuleBase implements CommandInjectionModule {
+
+  public CommandInjectionModuleImpl(final Dependencies dependencies) {
+    super(dependencies);
+  }
 
   @Override
   public void onRuntimeExec(@Nullable final String... cmdArray) {

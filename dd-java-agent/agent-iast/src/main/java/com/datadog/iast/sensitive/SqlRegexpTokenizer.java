@@ -120,10 +120,6 @@ public class SqlRegexpTokenizer extends AbstractRegexTokenizer {
       return ANSI;
     }
 
-    public static Dialect current() {
-      return ANSI;
-    }
-
     public Pattern buildPattern() {
       return pattern.get();
     }

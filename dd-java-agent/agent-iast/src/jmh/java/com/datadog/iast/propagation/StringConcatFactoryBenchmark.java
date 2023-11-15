@@ -1,5 +1,7 @@
 package com.datadog.iast.propagation;
 
+import static datadog.trace.api.iast.VulnerabilityMarks.NOT_MARKED;
+
 import com.datadog.iast.IastRequestContext;
 import com.datadog.iast.model.Range;
 import datadog.trace.api.iast.InstrumentationBridge;
@@ -13,8 +15,7 @@ public class StringConcatFactoryBenchmark
   protected StringConcatFactoryBenchmark.Context initializeContext() {
     final IastRequestContext context = new IastRequestContext();
     final String notTainted = notTainted("Nop, tainted");
-    final String tainted =
-        tainted(context, "Yep, tainted", new Range(3, 5, source(), Range.NOT_MARKED));
+    final String tainted = tainted(context, "Yep, tainted", new Range(3, 5, source(), NOT_MARKED));
     return new StringConcatFactoryBenchmark.Context(context, notTainted, tainted);
   }
 

@@ -15,6 +15,7 @@ import play.api.routing.sird._
 
 import java.util.concurrent.ExecutorService
 import scala.concurrent.{ExecutionContext, Future}
+import scala.xml.NodeSeq
 
 object PlayRoutersScala {
 
@@ -147,6 +148,13 @@ object PlayRoutersScala {
         controller(BODY_JSON) {
           val body: JsValue = request.body.asJson.getOrElse(JsNull)
           Results.Ok(Json.stringify(body))
+        }
+      }
+
+      case POST(p"/body-xml") => defaultActionBuilder.async(parser) { request =>
+        controller(BODY_XML) {
+          val body: NodeSeq = request.body.asXml.getOrElse(NodeSeq.Empty)
+          Results.Ok(body.toString())
         }
       }
     }

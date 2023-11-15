@@ -9,6 +9,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.muzzle.Reference;
+import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Sink;
 import datadog.trace.api.iast.Source;
@@ -52,14 +53,15 @@ public class IastRoutingContextImplInstrumentation extends Instrumenter.Iast
   }
 
   public static class CookiesAdvice {
-    @Advice.OnMethodExit
+    @Advice.OnMethodExit(suppress = Throwable.class)
     @Source(SourceTypes.REQUEST_COOKIE_VALUE)
     public static void onCookies(@Advice.Return final Set<Object> cookies) {
       final PropagationModule module = InstrumentationBridge.PROPAGATION;
-      try {
-        module.taintObjects(SourceTypes.REQUEST_COOKIE_VALUE, cookies);
-      } catch (final Throwable e) {
-        module.onUnexpectedException("cookies threw", e);
+      if (module != null && cookies != null && !cookies.isEmpty()) {
+        final IastContext ctx = IastContext.Provider.get();
+        for (final Object cookie : cookies) {
+          module.taint(ctx, cookie, SourceTypes.REQUEST_COOKIE_VALUE);
+        }
       }
     }
   }
@@ -70,7 +72,7 @@ public class IastRoutingContextImplInstrumentation extends Instrumenter.Iast
     public static void onGetCookie(@Advice.Return final Object cookie) {
       final PropagationModule module = InstrumentationBridge.PROPAGATION;
       if (module != null) {
-        module.taintObject(SourceTypes.REQUEST_COOKIE_VALUE, cookie);
+        module.taint(cookie, SourceTypes.REQUEST_COOKIE_VALUE);
       }
     }
   }

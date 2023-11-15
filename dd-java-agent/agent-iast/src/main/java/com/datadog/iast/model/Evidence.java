@@ -17,6 +17,8 @@ public final class Evidence {
   private final transient @Nonnull Context context = new Evidence.Context(4);
 
   /** For deserialization in tests via moshi */
+  @Deprecated
+  @SuppressWarnings({"NullAway", "DataFlowIssue", "unused"})
   private Evidence() {
     this(null, null);
   }
@@ -25,15 +27,17 @@ public final class Evidence {
     this(value, null);
   }
 
-  public Evidence(final String value, final Range[] ranges) {
+  public Evidence(@Nonnull final String value, @Nullable final Range[] ranges) {
     this.value = value;
     this.ranges = ranges;
   }
 
+  @Nonnull
   public String getValue() {
     return value;
   }
 
+  @Nullable
   public Range[] getRanges() {
     return ranges;
   }
@@ -76,6 +80,7 @@ public final class Evidence {
       return true;
     }
 
+    @Nullable
     @SuppressWarnings("unchecked")
     public <E> E get(@Nonnull final String key) {
       return (E) context.get(key);

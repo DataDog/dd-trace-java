@@ -11,7 +11,7 @@ import org.junit.runners.Parameterized;
 @RunWith(Parameterized.class)
 public class TestParameterized {
 
-  @Parameterized.Parameters
+  @Parameterized.Parameters(name = "{1}")
   public static Collection<Object[]> data() {
     return Arrays.asList(
         new Object[][] {{new ParamObject(), "str1", 0}, {new ParamObject(), "\"str2\"", 1}});

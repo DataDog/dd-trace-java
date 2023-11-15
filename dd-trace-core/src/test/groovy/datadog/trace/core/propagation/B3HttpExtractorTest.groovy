@@ -293,7 +293,8 @@ class B3HttpExtractorTest extends DDSpecification {
     TagContext context = extractor.extract(headers, ContextVisitors.stringValuesMap())
 
     then:
-    context == null
+    !(context instanceof ExtractedContext)
+    context.getTags() == ["some-tag": "my-interesting-info"]
   }
 
   def "extract http headers with out of range span ID"() {
@@ -304,12 +305,12 @@ class B3HttpExtractorTest extends DDSpecification {
       SOME_HEADER                 : "my-interesting-info",
     ]
 
-
     when:
     TagContext context = extractor.extract(headers, ContextVisitors.stringValuesMap())
 
     then:
-    context == null
+    !(context instanceof ExtractedContext)
+    context.getTags() == ["some-tag": "my-interesting-info"]
   }
 
   def "extract ids while retaining the original string"() {

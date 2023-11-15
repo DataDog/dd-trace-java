@@ -17,6 +17,7 @@ import play.api.mvc.PlayBodyParsers;
 import play.core.Execution;
 import scala.collection.Seq;
 import scala.collection.immutable.Map;
+import scala.xml.NodeSeq;
 
 /** @see play.api.mvc.PlayBodyParsers$class#tolerantFormUrlEncoded(PlayBodyParsers, int) */
 @AutoService(Instrumenter.class)
@@ -81,6 +82,10 @@ public class PlayBodyParsersInstrumentation extends Instrumenter.AppSec
         isTraitMethod(TRAIT_NAME, "tolerantJson", is(int.class).or(is(long.class)))
             .and(returns(named("play.api.mvc.BodyParser"))),
         PlayBodyParsersInstrumentation.class.getName() + "$JsonAdvice");
+    transformation.applyAdvice(
+        isTraitMethod(TRAIT_NAME, "tolerantXml", is(int.class).or(is(long.class)))
+            .and(returns(named("play.api.mvc.BodyParser"))),
+        PlayBodyParsersInstrumentation.class.getName() + "$XmlAdvice");
   }
 
   static class UrlEncodedAdvice {
@@ -132,6 +137,15 @@ public class PlayBodyParsersInstrumentation extends Instrumenter.AppSec
 
       parser =
           parser.map(BodyParserHelpers.getHandleJsonF(), Execution.Implicits$.MODULE$.trampoline());
+    }
+  }
+
+  static class XmlAdvice {
+    @Advice.OnMethodExit(suppress = Throwable.class)
+    static void after(@Advice.Return(readOnly = false) BodyParser<NodeSeq> parser) {
+
+      parser =
+          parser.map(BodyParserHelpers.getHandleXmlF(), Execution.Implicits$.MODULE$.trampoline());
     }
   }
 }

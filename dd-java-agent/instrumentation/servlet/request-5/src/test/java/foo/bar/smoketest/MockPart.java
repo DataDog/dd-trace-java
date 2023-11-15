@@ -3,16 +3,25 @@ package foo.bar.smoketest;
 import jakarta.servlet.http.Part;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.Arrays;
 import java.util.Collection;
-import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
 
 public class MockPart implements Part {
-  String name;
-  String headerValue;
+  private final String name;
 
-  public MockPart(String name, String headerValue) {
+  private final Map<String, Collection<String>> headers;
+
+  public MockPart(final String name, final Map<String, Collection<String>> headers) {
     this.name = name;
-    this.headerValue = headerValue;
+    this.headers = headers;
+  }
+
+  public MockPart(final String name, final String headerName, final String... headerValue) {
+    this.name = name;
+    this.headers = new HashMap<>();
+    this.headers.put(headerName, Arrays.asList(headerValue));
   }
 
   @Override
@@ -48,16 +57,17 @@ public class MockPart implements Part {
 
   @Override
   public String getHeader(String name) {
-    return headerValue;
+    final Collection<String> values = this.headers.get(name);
+    return values == null || values.isEmpty() ? null : values.iterator().next();
   }
 
   @Override
   public Collection<String> getHeaders(String name) {
-    return Collections.singleton(headerValue);
+    return headers.get(name);
   }
 
   @Override
   public Collection<String> getHeaderNames() {
-    return Collections.singleton(name);
+    return this.headers.keySet();
   }
 }

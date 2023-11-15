@@ -13,6 +13,7 @@ import static datadog.trace.instrumentation.kafka_clients.KafkaDecorator.BROKER_
 import static datadog.trace.instrumentation.kafka_clients.KafkaDecorator.KAFKA_DELIVER;
 import static datadog.trace.instrumentation.kafka_clients.KafkaDecorator.TIME_IN_QUEUE_ENABLED;
 import static datadog.trace.instrumentation.kafka_clients.TextMapExtractAdapter.GETTER;
+import static datadog.trace.instrumentation.kafka_clients.Utils.computePayloadSizeBytes;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
 import datadog.trace.api.Config;
@@ -89,10 +90,11 @@ public class TracingIterator implements Iterator<ConsumerRecord<?, ?>> {
           sortedTags.put(GROUP_TAG, group);
           sortedTags.put(TOPIC_TAG, val.topic());
           sortedTags.put(TYPE_TAG, "kafka");
-
+          final long payloadSize =
+              span.traceConfig().isDataStreamsEnabled() ? computePayloadSizeBytes(val) : 0;
           AgentTracer.get()
               .getDataStreamsMonitoring()
-              .setCheckpoint(span, sortedTags, val.timestamp());
+              .setCheckpoint(span, sortedTags, val.timestamp(), payloadSize);
         } else {
           span = startSpan(operationName, null);
         }
