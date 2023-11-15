@@ -28,7 +28,6 @@ class MultipartInstrumentationTest extends AgentTestRunner {
     })
 
     then:
-    1 * module.taint(null, null, SourceTypes.REQUEST_MULTIPART_PARAMETER, 'Content-Disposition: form-data')
     1 * module.taint(null, 'file', SourceTypes.REQUEST_MULTIPART_PARAMETER, 'name')
     1 * module.taint(null, _, SourceTypes.REQUEST_MULTIPART_PARAMETER, 'filename')
     0 * _
