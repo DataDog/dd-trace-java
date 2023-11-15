@@ -17,8 +17,8 @@ abstract class IastHttpServerTest<SERVER> extends WithHttpServer<SERVER> impleme
 
   @CompileStatic
   void configurePreAgent() {
-    super.configurePreAgent()
     injectSysConfig('dd.iast.enabled', 'true')
+    super.configurePreAgent()
   }
 
   protected Closure getRequestEndAction() {
