@@ -38,6 +38,8 @@ dd-java-agent/agent-iast/              @DataDog/asm-java
 dd-java-agent/instrumentation/*iast*   @DataDog/asm-java
 dd-java-agent/instrumentation/*appsec* @DataDog/asm-java
 dd-java-agent/instrumentation/json/    @DataDog/asm-java
+dd-smoke-tests/iast-util/              @DataDog/asm-java
+dd-java-agent/instrumentation/commons-fileupload/    @DataDog/asm-java
 **/appsec/                             @DataDog/asm-java
 **/iast/                               @DataDog/asm-java
 **/Iast*.java                          @DataDog/asm-java
