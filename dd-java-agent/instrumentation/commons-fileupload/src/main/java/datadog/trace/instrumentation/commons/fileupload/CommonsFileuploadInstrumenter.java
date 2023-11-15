@@ -55,9 +55,10 @@ public class CommonsFileuploadInstrumenter extends Instrumenter.Iast
         if (module != null) {
           final IastContext ctx = IastContext.Provider.get();
           for (final Map.Entry<String, String> entry : map.entrySet()) {
-            module.taint(
-                ctx, entry.getValue(), SourceTypes.REQUEST_MULTIPART_PARAMETER, entry.getKey());
-          }
+            if (entry.getValue() != null) {
+              module.taint(
+                  ctx, entry.getValue(), SourceTypes.REQUEST_MULTIPART_PARAMETER, entry.getKey());
+            }
         }
       }
       return map;
