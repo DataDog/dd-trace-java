@@ -202,7 +202,6 @@ public final class AgentBootstrap {
     AgentJar.main(args);
   }
 
-  @SuppressForbidden
   private static synchronized URL installAgentJar(final Instrumentation inst)
       throws IOException, URISyntaxException {
     // First try Code Source
@@ -292,6 +291,7 @@ public final class AgentBootstrap {
     return javaagentFile;
   }
 
+  @SuppressForbidden
   private static File getAgentFileUsingClassLoaderLookup() throws URISyntaxException {
     File javaagentFile;
     URL thisClassUrl;
