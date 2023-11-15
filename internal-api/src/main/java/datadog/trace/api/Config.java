@@ -313,6 +313,7 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.DB_DBM_PROPAGA
 import static datadog.trace.api.config.TraceInstrumentationConfig.ELASTICSEARCH_BODY_AND_PARAMS_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.ELASTICSEARCH_BODY_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.ELASTICSEARCH_PARAMS_ENABLED;
+import static datadog.trace.api.config.TraceInstrumentationConfig.GOOGLE_PUBSUB_IGNORED_GRPC_METHODS;
 import static datadog.trace.api.config.TraceInstrumentationConfig.GRPC_CLIENT_ERROR_STATUSES;
 import static datadog.trace.api.config.TraceInstrumentationConfig.GRPC_IGNORED_INBOUND_METHODS;
 import static datadog.trace.api.config.TraceInstrumentationConfig.GRPC_IGNORED_OUTBOUND_METHODS;
@@ -1755,8 +1756,23 @@ public class Config {
 
     grpcIgnoredInboundMethods =
         tryMakeImmutableSet(configProvider.getList(GRPC_IGNORED_INBOUND_METHODS));
-    grpcIgnoredOutboundMethods =
-        tryMakeImmutableSet(configProvider.getList(GRPC_IGNORED_OUTBOUND_METHODS));
+    final List<String> tmpGrpcIgnoredOutboundMethods = new ArrayList<>();
+    tmpGrpcIgnoredOutboundMethods.addAll(configProvider.getList(GRPC_IGNORED_OUTBOUND_METHODS));
+    // When tracing shadowing will be possible we can instrument the stubs to silent tracing
+    // starting from interception points
+    if (InstrumenterConfig.get()
+        .isIntegrationEnabled(Collections.singleton("google-pubsub"), true)) {
+      tmpGrpcIgnoredOutboundMethods.addAll(
+          configProvider.getList(
+              GOOGLE_PUBSUB_IGNORED_GRPC_METHODS,
+              Arrays.asList(
+                  "google.pubsub.v1.Subscriber/ModifyAckDeadline",
+                  "google.pubsub.v1.Subscriber/Acknowledge",
+                  "google.pubsub.v1.Subscriber/Pull",
+                  "google.pubsub.v1.Subscriber/StreamingPull",
+                  "google.pubsub.v1.Publisher/Publish")));
+    }
+    grpcIgnoredOutboundMethods = tryMakeImmutableSet(tmpGrpcIgnoredOutboundMethods);
     grpcServerTrimPackageResource =
         configProvider.getBoolean(GRPC_SERVER_TRIM_PACKAGE_RESOURCE, false);
     grpcServerErrorStatuses =
