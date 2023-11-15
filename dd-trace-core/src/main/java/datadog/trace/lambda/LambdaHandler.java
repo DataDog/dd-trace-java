@@ -5,12 +5,14 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Moshi;
 import datadog.trace.api.DDSpanId;
+import datadog.trace.api.DDTags;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.core.propagation.ExtractedContext;
 import datadog.trace.core.propagation.PropagationTags;
 import java.io.ByteArrayInputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import okhttp3.MediaType;
 import okhttp3.OkHttpClient;
@@ -125,19 +127,21 @@ public class LambdaHandler {
             .addHeader(DATADOG_META_LANG, "java")
             .post(body);
 
-    Object errorMessage = span.getTag("error.msg");
+    Object errorMessage = span.getTag(DDTags.ERROR_MSG);
     if (errorMessage != null) {
       builder.addHeader(DATADOG_INVOCATION_ERROR_MSG, errorMessage.toString());
     }
 
-    Object errorType = span.getTag("error.type");
+    Object errorType = span.getTag(DDTags.ERROR_TYPE);
     if (errorType != null) {
       builder.addHeader(DATADOG_INVOCATION_ERROR_TYPE, errorType.toString());
     }
 
-    Object errorStack = span.getTag("error.stack");
+    Object errorStack = span.getTag(DDTags.ERROR_STACK);
     if (errorStack != null) {
-      String encodedErrStack = Base64.getEncoder().encodeToString(errorStack.toString().getBytes());
+      String encodedErrStack =
+          Base64.getEncoder()
+              .encodeToString(errorStack.toString().getBytes(StandardCharsets.UTF_8));
       builder.addHeader(DATADOG_INVOCATION_ERROR_STACK, encodedErrStack);
     }
 
