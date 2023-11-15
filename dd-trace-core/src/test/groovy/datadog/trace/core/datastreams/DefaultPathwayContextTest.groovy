@@ -16,6 +16,7 @@ import datadog.trace.core.test.DDCoreSpecification
 
 import java.util.function.Consumer
 
+import static datadog.trace.api.TracePropagationStyle.DATADOG
 import static datadog.trace.api.config.GeneralConfig.PRIMARY_TAG
 import static datadog.trace.core.datastreams.DefaultDataStreamsMonitoring.DEFAULT_BUCKET_DURATION_NANOS
 import static java.util.concurrent.TimeUnit.MILLISECONDS
@@ -717,7 +718,7 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
 
     @Override
     <C> TagContext extract(C carrier, AgentPropagation.ContextVisitor<C> getter) {
-      return new ExtractedContext(DDTraceId.ONE, 1, 0, null, 0, null, null, null, null, traceConfig )
+      return new ExtractedContext(DDTraceId.ONE, 1, 0, null, 0, null, null, null, null, traceConfig, DATADOG)
     }
   }
 

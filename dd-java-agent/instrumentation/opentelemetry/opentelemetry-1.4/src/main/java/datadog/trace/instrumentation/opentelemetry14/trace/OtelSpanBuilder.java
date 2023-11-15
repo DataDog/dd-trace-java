@@ -45,13 +45,17 @@ public class OtelSpanBuilder implements SpanBuilder {
 
   @Override
   public SpanBuilder addLink(SpanContext spanContext) {
-    // Not supported
+    if (spanContext.isValid()) {
+      this.delegate.withLink(new OtelSpanLink(spanContext));
+    }
     return this;
   }
 
   @Override
   public SpanBuilder addLink(SpanContext spanContext, Attributes attributes) {
-    // Not supported
+    if (spanContext.isValid()) {
+      this.delegate.withLink(new OtelSpanLink(spanContext, attributes));
+    }
     return this;
   }
 

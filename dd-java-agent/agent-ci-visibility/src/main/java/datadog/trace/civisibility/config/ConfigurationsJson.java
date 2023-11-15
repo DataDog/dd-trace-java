@@ -4,6 +4,7 @@ import com.squareup.moshi.FromJson;
 import com.squareup.moshi.Json;
 import com.squareup.moshi.ToJson;
 import datadog.trace.api.civisibility.config.Configurations;
+import java.util.Map;
 
 public final class ConfigurationsJson {
   @Json(name = "os.platform")
@@ -33,6 +34,9 @@ public final class ConfigurationsJson {
   @Json(name = "test.bundle")
   private final String testBundle;
 
+  @Json(name = "custom")
+  private final Map<String, String> custom;
+
   public ConfigurationsJson(
       String osPlatform,
       String osArchitecture,
@@ -41,7 +45,8 @@ public final class ConfigurationsJson {
       String runtimeVersion,
       String runtimeVendor,
       String runtimeArchitecture,
-      String testBundle) {
+      String testBundle,
+      Map<String, String> custom) {
     this.osPlatform = osPlatform;
     osArch = osArchitecture;
     this.osArchitecture = osArchitecture;
@@ -51,6 +56,7 @@ public final class ConfigurationsJson {
     this.runtimeVendor = runtimeVendor;
     this.runtimeArchitecture = runtimeArchitecture;
     this.testBundle = testBundle;
+    this.custom = custom;
   }
 
   public static final class ConfigurationsJsonAdapter {
@@ -64,7 +70,8 @@ public final class ConfigurationsJson {
           configurationsJson.runtimeVersion,
           configurationsJson.runtimeVendor,
           configurationsJson.runtimeArchitecture,
-          configurationsJson.testBundle);
+          configurationsJson.testBundle,
+          configurationsJson.custom);
     }
 
     @ToJson
@@ -77,7 +84,8 @@ public final class ConfigurationsJson {
           configurations.getRuntimeVersion(),
           configurations.getRuntimeVendor(),
           configurations.getRuntimeArchitecture(),
-          configurations.getTestBundle());
+          configurations.getTestBundle(),
+          configurations.getCustom());
     }
   }
 }

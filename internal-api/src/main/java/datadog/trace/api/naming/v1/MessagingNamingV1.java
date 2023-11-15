@@ -10,6 +10,8 @@ public class MessagingNamingV1 implements NamingSchema.ForMessaging {
       case "sns":
       case "sqs":
         return "aws." + messagingSystem;
+      case "google-pubsub":
+        return "gcp.pubsub";
       default:
         return messagingSystem;
     }
