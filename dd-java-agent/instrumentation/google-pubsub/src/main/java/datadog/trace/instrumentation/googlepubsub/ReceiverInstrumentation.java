@@ -18,11 +18,6 @@ public class ReceiverInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  protected boolean defaultEnabled() {
-    return false;
-  }
-
-  @Override
   public String[] helperClassNames() {
     return new String[] {
       packageName + ".PubSubDecorator",
