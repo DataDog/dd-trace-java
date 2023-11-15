@@ -13,7 +13,8 @@ import org.slf4j.Marker;
 
 public class DDLoggerFactory implements ILoggerFactory, LogLevelSwitcher {
 
-  private static final boolean telemetryLogCollectionEnabled = getLogCollectionEnabled(false);
+  private final boolean telemetryLogCollectionEnabled = getLogCollectionEnabled(false);
+
   private volatile LoggerHelperFactory helperFactory = null;
   private volatile LogLevel override = null;
 
