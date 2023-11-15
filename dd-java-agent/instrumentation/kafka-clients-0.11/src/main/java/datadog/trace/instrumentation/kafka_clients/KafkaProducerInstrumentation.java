@@ -15,13 +15,16 @@ import static datadog.trace.instrumentation.kafka_clients.KafkaDecorator.TIME_IN
 import static datadog.trace.instrumentation.kafka_clients.TextMapInjectAdapter.SETTER;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
+import static net.bytebuddy.matcher.ElementMatchers.isStatic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.api.Config;
+import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import java.util.LinkedHashMap;
 import net.bytebuddy.asm.Advice;
@@ -29,6 +32,7 @@ import org.apache.kafka.clients.ApiVersions;
 import org.apache.kafka.clients.producer.Callback;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
+import org.apache.kafka.common.record.AbstractRecords;
 import org.apache.kafka.common.record.RecordBatch;
 
 @AutoService(Instrumenter.class)
@@ -62,6 +66,10 @@ public final class KafkaProducerInstrumentation extends Instrumenter.Tracing
             .and(takesArgument(0, named("org.apache.kafka.clients.producer.ProducerRecord")))
             .and(takesArgument(1, named("org.apache.kafka.clients.producer.Callback"))),
         KafkaProducerInstrumentation.class.getName() + "$ProducerAdvice");
+
+    transformation.applyAdvice(
+        isMethod().and(isPublic()).and(isStatic()).and(named("estimateSizeInBytesUpperBound")),
+        KafkaProducerInstrumentation.class.getName() + "$EstimateSizeAdvice");
   }
 
   public static class ProducerAdvice {
@@ -82,6 +90,8 @@ public final class KafkaProducerInstrumentation extends Instrumenter.Tracing
       if (record.value() == null) {
         span.setTag(InstrumentationTags.TOMBSTONE, true);
       }
+      // save the topic for EstimateSizeAdvice to read it.
+      span.setBaggageItem("kafka.topic", record.topic());
 
       // Do not inject headers for batch versions below 2
       // This is how similar check is being done in Kafka client itself:
@@ -93,13 +103,9 @@ public final class KafkaProducerInstrumentation extends Instrumenter.Tracing
       if (apiVersions.maxUsableProduceMagic() >= RecordBatch.MAGIC_VALUE_V2
           && Config.get().isKafkaClientPropagationEnabled()
           && !Config.get().isKafkaClientPropagationDisabledForTopic(record.topic())) {
-        LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>();
-        sortedTags.put(DIRECTION_TAG, DIRECTION_OUT);
-        sortedTags.put(TOPIC_TAG, record.topic());
-        sortedTags.put(TYPE_TAG, "kafka");
         try {
           propagate().inject(span, record.headers(), SETTER);
-          propagate().injectPathwayContext(span, record.headers(), SETTER, sortedTags);
+          propagate().injectPathwayContext(span, record.headers(), SETTER);
         } catch (final IllegalStateException e) {
           // headers must be read-only from reused record. try again with new one.
           record =
@@ -112,7 +118,7 @@ public final class KafkaProducerInstrumentation extends Instrumenter.Tracing
                   record.headers());
 
           propagate().inject(span, record.headers(), SETTER);
-          propagate().injectPathwayContext(span, record.headers(), SETTER, sortedTags);
+          propagate().injectPathwayContext(span, record.headers(), SETTER);
         }
         if (TIME_IN_QUEUE_ENABLED) {
           SETTER.injectTimeInQueue(record.headers());
@@ -128,6 +134,37 @@ public final class KafkaProducerInstrumentation extends Instrumenter.Tracing
       PRODUCER_DECORATE.onError(scope, throwable);
       PRODUCER_DECORATE.beforeFinish(scope);
       scope.close();
+    }
+  }
+
+  public static class EstimateSizeAdvice {
+
+    /**
+     * Instrumentation for the method AbstractRecords.estimateSizeInBytesUpperBound that is called
+     * as part of sending a kafka payload. This gives us an estimate of the payload size "for free",
+     * that we send as a metric.
+     */
+    @Advice.OnMethodExit(suppress = Throwable.class)
+    public static void onExit(@Advice.Return int estimatedPayloadSize) {
+      // prevent multiple calls
+      final int callDepth = CallDepthThreadLocalMap.incrementCallDepth(AbstractRecords.class);
+      if (callDepth > 0) return;
+
+      final AgentSpan encompassingSpan = activeSpan();
+      if (encompassingSpan == null) return;
+
+      String topic = encompassingSpan.getBaggageItem("kafka.topic");
+      // if not available, the call is not coming from where we expect it.
+      if (topic == null) return;
+
+      LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>();
+      sortedTags.put(DIRECTION_TAG, DIRECTION_OUT);
+      sortedTags.put(TOPIC_TAG, topic);
+      sortedTags.put(TYPE_TAG, "kafka");
+
+      AgentTracer.get()
+          .getDataStreamsMonitoring()
+          .setCheckpoint(encompassingSpan, sortedTags, 0, estimatedPayloadSize);
     }
   }
 }

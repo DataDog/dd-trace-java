@@ -25,13 +25,28 @@ public class DataStreamContextInjector {
       AgentPropagation.Setter<C> setter,
       LinkedHashMap<String, String> sortedTags) {
     PathwayContext pathwayContext = span.context().getPathwayContext();
-
-    if (pathwayContext == null
-        || (span.traceConfig() != null && !span.traceConfig().isDataStreamsEnabled())) {
-      return;
+    if (shouldInject(pathwayContext, span)) {
+      pathwayContext.setCheckpoint(sortedTags, dataStreamsMonitoring::add);
+      doInject(pathwayContext, span, carrier, setter);
     }
-    pathwayContext.setCheckpoint(sortedTags, dataStreamsMonitoring::add);
+  }
 
+  public <C> void injectPathwayContext(
+      AgentSpan span, C carrier, AgentPropagation.Setter<C> setter) {
+    PathwayContext pathwayContext = span.context().getPathwayContext();
+    if (shouldInject(pathwayContext, span)) {
+      // Checkpoint is not set here. Should be done manually later one.
+      doInject(pathwayContext, span, carrier, setter);
+    }
+  }
+
+  private boolean shouldInject(PathwayContext pathwayContext, AgentSpan span) {
+    return !(pathwayContext == null
+        || (span.traceConfig() != null && !span.traceConfig().isDataStreamsEnabled()));
+  }
+
+  private static <C> void doInject(
+      PathwayContext pathwayContext, AgentSpan span, C carrier, AgentPropagation.Setter<C> setter) {
     boolean injected =
         setter instanceof AgentPropagation.BinarySetter
             ? injectBinaryPathwayContext(
