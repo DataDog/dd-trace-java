@@ -40,6 +40,10 @@ public final class SQLNormalizer {
     }
   }
 
+  public static UTF8BytesString normalizeCharSequence(CharSequence sql) {
+    return normalize(sql.toString());
+  }
+
   public static UTF8BytesString normalize(String sql) {
     byte[] utf8 = sql.getBytes(UTF_8);
     try {

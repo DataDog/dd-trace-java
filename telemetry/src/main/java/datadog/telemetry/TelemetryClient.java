@@ -25,7 +25,7 @@ public class TelemetryClient {
 
   public static TelemetryClient buildIntakeClient(String site, long timeoutMillis, String apiKey) {
     if (apiKey == null) {
-      log.warn("Cannot create Telemetry Intake because API_KEY unspecified.");
+      log.debug("Cannot create Telemetry Intake because DD_API_KEY unspecified.");
       return null;
     }
 

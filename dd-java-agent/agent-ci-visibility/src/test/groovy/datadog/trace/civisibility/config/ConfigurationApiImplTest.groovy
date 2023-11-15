@@ -47,7 +47,10 @@ class ConfigurationApiImplTest extends Specification {
                 "runtime.name"        : "runtimeName",
                 "runtime.version"     : "runtimeVersion",
                 "runtime.vendor"      : "vendor",
-                "runtime.architecture": "amd64"
+                "runtime.architecture": "amd64",
+                "custom": [
+                  "customTag": "customValue"
+                ]
               ]
             ]
           ]
@@ -80,7 +83,10 @@ class ConfigurationApiImplTest extends Specification {
                 "runtime.name"        : "runtimeName",
                 "runtime.version"     : "runtimeVersion",
                 "runtime.vendor"      : "vendor",
-                "runtime.architecture": "amd64"
+                "runtime.architecture": "amd64",
+                "custom": [
+                  "customTag": "customValue"
+                ]
               ]
             ]
           ]
@@ -89,9 +95,9 @@ class ConfigurationApiImplTest extends Specification {
         if (expectedRequest) {
           response.status(200).send('{ "data": [' +
             '{ "id": "49968354e2091cdb", "type": "test", "attributes": ' +
-            '{ "configurations": { "test.bundle": "testBundle-a" }, "suite": "suite-a", "name": "name-a", "parameters": "parameters-a" } },' +
+            '{ "configurations": { "test.bundle": "testBundle-a", "custom": { "customTag": "customValue" } }, "suite": "suite-a", "name": "name-a", "parameters": "parameters-a" } },' +
             '{ "id": "49968354e2091cdc", "type": "test", "attributes": ' +
-            '   { "configurations": { "test.bundle": "testBundle-b" }, "suite": "suite-b", "name": "name-b", "parameters": "parameters-b" } }' +
+            '   { "configurations": { "test.bundle": "testBundle-b", "custom": { "customTag": "customValue" } }, "suite": "suite-b", "name": "name-b", "parameters": "parameters-b" } }' +
             '] }')
         } else {
           response.status(400).send()
@@ -127,18 +133,19 @@ class ConfigurationApiImplTest extends Specification {
     skippableTests == [
       new SkippableTest("suite-a", "name-a", "parameters-a",
       new Configurations(null, null, null, null, null,
-      null, null, "testBundle-a")),
+      null, null, "testBundle-a", Collections.singletonMap("customTag", "customValue"))),
       new SkippableTest("suite-b", "name-b", "parameters-b",
       new Configurations(null, null, null, null, null,
-      null, null, "testBundle-b"))
+      null, null, "testBundle-b", Collections.singletonMap("customTag", "customValue")))
     ]
   }
 
   private BackendApi givenEvpProxy() {
+    String traceId = "a-trace-id"
     HttpUrl proxyUrl = HttpUrl.get(intakeServer.address)
     HttpRetryPolicy.Factory retryPolicyFactory = new HttpRetryPolicy.Factory(5, 100, 2.0)
     OkHttpClient client = OkHttpUtils.buildHttpClient(proxyUrl, REQUEST_TIMEOUT_MILLIS)
-    return new EvpProxyApi(proxyUrl, retryPolicyFactory, client)
+    return new EvpProxyApi(traceId, proxyUrl, retryPolicyFactory, client)
   }
 
   private static TracerEnvironment givenTracerEnvironment() {
@@ -155,6 +162,7 @@ class ConfigurationApiImplTest extends Specification {
     .runtimeVersion("runtimeVersion")
     .runtimeVendor("vendor")
     .runtimeArchitecture("amd64")
+    .customTag("customTag", "customValue")
     .build()
   }
 }

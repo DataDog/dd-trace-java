@@ -7,7 +7,6 @@ import spock.lang.Subject
 
 import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND_CLIENT
 import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND_SERVER
-import static datadog.trace.instrumentation.opentelemetry14.trace.OtelConventions.DEFAULT_OPERATION_NAME
 import static datadog.trace.instrumentation.opentelemetry14.trace.OtelConventions.toSpanType
 import static io.opentelemetry.api.trace.SpanKind.CLIENT
 import static io.opentelemetry.api.trace.SpanKind.CONSUMER
@@ -29,9 +28,7 @@ class OpenTelemetry14ConventionsTest extends AgentTestRunner {
   def "test span name conventions"() {
     when:
     def builder = tracer.spanBuilder("some-name")
-    if (kind != null) {
-      builder.setSpanKind(kind)
-    }
+      .setSpanKind(kind)
     attributes.forEach { key, value -> builder.setAttribute(key, value) }
     builder.startSpan()
       .end()
@@ -41,9 +38,7 @@ class OpenTelemetry14ConventionsTest extends AgentTestRunner {
       trace(1) {
         span {
           parent()
-          if (kind != null) {
-            spanType toSpanType(kind)
-          }
+          spanType toSpanType(kind == null ? INTERNAL : kind)
           operationName "$expectedOperationName"
           resourceName "some-name"
         }
@@ -53,7 +48,7 @@ class OpenTelemetry14ConventionsTest extends AgentTestRunner {
     where:
     kind     | attributes                                                                     | expectedOperationName
     // Fallback behavior
-    null     | [:]                                                                            | DEFAULT_OPERATION_NAME
+    null     | [:]                                                                            | "internal"
     // Internal spans
     INTERNAL | [:]                                                                            | "internal"
     // Server spans
@@ -133,7 +128,8 @@ class OpenTelemetry14ConventionsTest extends AgentTestRunner {
       trace(1) {
         span {
           parent()
-          operationName "$DEFAULT_OPERATION_NAME"
+          operationName "internal"
+          spanType "internal"
           tags {
             defaultTags()
             if (value != null) {

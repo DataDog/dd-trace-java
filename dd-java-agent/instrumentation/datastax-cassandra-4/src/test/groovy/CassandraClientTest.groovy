@@ -210,11 +210,15 @@ abstract class CassandraClientTest extends VersionedNamingTestBase {
       .withConfigLoader(configLoader)
   }
 
+  String normalize(String statement){
+    return statement.replaceAll("'alice'", "?")
+  }
+
   def cassandraSpan(TraceAssert trace, String statement, String keyspace, boolean renameService, Object parentSpan = null, Throwable throwable = null) {
     trace.span {
       serviceName renameService && keyspace ? keyspace : service()
       operationName operation()
-      resourceName statement
+      resourceName normalize(statement)
       spanType DDSpanTypes.CASSANDRA
       if (parentSpan == null) {
         parent()
