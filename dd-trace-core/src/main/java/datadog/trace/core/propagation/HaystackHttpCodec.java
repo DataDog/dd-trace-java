@@ -1,5 +1,6 @@
 package datadog.trace.core.propagation;
 
+import static datadog.trace.api.TracePropagationStyle.HAYSTACK;
 import static datadog.trace.core.propagation.HttpCodec.firstHeaderValue;
 
 import datadog.trace.api.Config;
@@ -7,6 +8,7 @@ import datadog.trace.api.DD64bTraceId;
 import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.TraceConfig;
+import datadog.trace.api.TracePropagationStyle;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.core.DDSpanContext;
@@ -137,6 +139,11 @@ class HaystackHttpCodec {
 
     private HaystackContextInterpreter(Config config) {
       super(config);
+    }
+
+    @Override
+    public TracePropagationStyle style() {
+      return HAYSTACK;
     }
 
     @Override

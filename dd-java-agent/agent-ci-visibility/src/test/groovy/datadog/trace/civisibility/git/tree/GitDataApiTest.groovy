@@ -114,10 +114,11 @@ class GitDataApiTest extends Specification {
   }
 
   private BackendApi givenEvpProxy() {
+    String traceId = "a-trace-id"
     HttpUrl proxyUrl = HttpUrl.get(intakeServer.address)
     HttpRetryPolicy.Factory retryPolicyFactory = new HttpRetryPolicy.Factory(5, 100, 2.0)
     OkHttpClient client = OkHttpUtils.buildHttpClient(proxyUrl, REQUEST_TIMEOUT_MILLIS)
-    return new EvpProxyApi(proxyUrl, retryPolicyFactory, client)
+    return new EvpProxyApi(traceId, proxyUrl, retryPolicyFactory, client)
   }
 
   private Path givenPackFile() {

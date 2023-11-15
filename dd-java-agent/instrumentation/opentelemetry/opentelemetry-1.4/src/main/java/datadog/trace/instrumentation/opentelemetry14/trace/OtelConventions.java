@@ -19,16 +19,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public final class OtelConventions {
-  /** The Datadog span default operation name. */
-  public static final String DEFAULT_OPERATION_NAME = "otel_unknown";
-
+  static final String SPAN_KIND_INTERNAL = "internal";
   private static final Logger LOGGER = LoggerFactory.getLogger(OtelConventions.class);
   private static final String OPERATION_NAME_SPECIFIC_ATTRIBUTE = "operation.name";
   private static final String SERVICE_NAME_SPECIFIC_ATTRIBUTE = "service.name";
   private static final String RESOURCE_NAME_SPECIFIC_ATTRIBUTE = "resource.name";
   private static final String SPAN_TYPE_SPECIFIC_ATTRIBUTES = "span.type";
   private static final String ANALYTICS_EVENT_SPECIFIC_ATTRIBUTES = "analytics.event";
-  private static final String SPAN_KIND_INTERNAL = "internal";
 
   private OtelConventions() {}
 
@@ -193,11 +190,7 @@ public final class OtelConventions {
           : networkProtocolName + ".client.request";
     }
     // Fallback if no convention match
-    if (span.getSpanType() != null) {
-      return spanKind.name();
-    } else {
-      return DEFAULT_OPERATION_NAME;
-    }
+    return spanKind.name();
   }
 
   @Nullable
