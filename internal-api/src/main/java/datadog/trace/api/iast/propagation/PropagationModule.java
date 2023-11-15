@@ -150,15 +150,16 @@ public interface PropagationModule extends IastModule {
       int mark);
 
   /** @see #taintDeeply(IastContext, Object, byte, Predicate) */
-  void taintDeeply(@Nullable Object target, byte origin, Predicate<Class<?>> classFilter);
+  int taintDeeply(@Nullable Object target, byte origin, Predicate<Class<?>> classFilter);
 
   /**
    * Visit the graph of the object and taints all the string properties found using a source with
    * the selected origin and no name.
    *
    * @param classFilter filter for types that should be included in the visiting process
+   * @return number of tainted elements
    */
-  void taintDeeply(
+  int taintDeeply(
       @Nullable IastContext ctx,
       @Nullable Object target,
       byte origin,
