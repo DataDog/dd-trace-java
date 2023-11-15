@@ -20,6 +20,7 @@ public class HttpServerResponseTracingHandler extends ChannelOutboundHandlerAdap
   @Override
   public void write(final ChannelHandlerContext ctx, final Object msg, final ChannelPromise prm) {
     final AgentSpan span = ctx.channel().attr(SPAN_ATTRIBUTE_KEY).get();
+
     if (span == null || !(msg instanceof HttpResponse)) {
       ctx.write(msg, prm);
       return;
@@ -36,7 +37,8 @@ public class HttpServerResponseTracingHandler extends ChannelOutboundHandlerAdap
         span.finish(); // Finish the span manually since finishSpanOnClose was false
         throw throwable;
       }
-      if (response.status() != HttpResponseStatus.CONTINUE) {
+      if (response.status() != HttpResponseStatus.CONTINUE
+          && response.status() != HttpResponseStatus.SWITCHING_PROTOCOLS) {
         DECORATE.onResponse(span, response);
         DECORATE.beforeFinish(span);
         span.finish(); // Finish the span manually since finishSpanOnClose was false
