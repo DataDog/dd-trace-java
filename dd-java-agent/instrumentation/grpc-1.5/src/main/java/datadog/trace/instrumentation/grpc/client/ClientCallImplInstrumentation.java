@@ -16,10 +16,13 @@ import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import io.grpc.ClientCall;
+import io.grpc.Grpc;
 import io.grpc.Metadata;
 import io.grpc.MethodDescriptor;
 import io.grpc.Status;
 import io.grpc.StatusException;
+import java.net.InetSocketAddress;
+import java.net.SocketAddress;
 import java.util.Collections;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
@@ -156,6 +159,11 @@ public final class ClientCallImplInstrumentation extends Instrumenter.Tracing
         @Advice.This ClientCall<?, ?> call, @Advice.Argument(1) Throwable cause) {
       AgentSpan span = InstrumentationContext.get(ClientCall.class, AgentSpan.class).remove(call);
       if (null != span) {
+        final SocketAddress socketAddress =
+            call.getAttributes().get(Grpc.TRANSPORT_ATTR_REMOTE_ADDR);
+        if (socketAddress instanceof InetSocketAddress) {
+          DECORATE.onPeerConnection(span, (InetSocketAddress) socketAddress);
+        }
         if (cause instanceof StatusException) {
           DECORATE.onClose(span, ((StatusException) cause).getStatus());
         }
@@ -170,6 +178,11 @@ public final class ClientCallImplInstrumentation extends Instrumenter.Tracing
         @Advice.This ClientCall<?, ?> call, @Advice.Argument(1) Status status) {
       AgentSpan span = InstrumentationContext.get(ClientCall.class, AgentSpan.class).remove(call);
       if (null != span) {
+        final SocketAddress socketAddress =
+            call.getAttributes().get(Grpc.TRANSPORT_ATTR_REMOTE_ADDR);
+        if (socketAddress instanceof InetSocketAddress) {
+          DECORATE.onPeerConnection(span, (InetSocketAddress) socketAddress);
+        }
         DECORATE.onClose(span, status);
         span.finish();
       }
