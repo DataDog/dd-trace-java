@@ -188,6 +188,9 @@
 2 com.github.mustachejava.*
 2 com.google.api.*
 0 com.google.api.client.http.HttpRequest
+0 com.google.api.gax.grpc.*
+0 com.google.api.gax.retrying.*
+0 com.google.cloud.pubsub.v1.*
 2 com.google.cloud.*
 2 com.google.common.*
 0 com.google.common.base.internal.Finalizer
