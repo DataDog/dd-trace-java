@@ -333,7 +333,7 @@ abstract class CouchbaseClient31Test extends VersionedNamingTestBase {
         assertCouchbaseCall(it, "cb.query", [
           'db.couchbase.retries'   : { Long },
           'db.couchbase.service'   : 'query',
-        ], query, span(0), false, ex1)
+        ], normalizedQuery, span(0), false, ex1)
         assertCouchbaseCall(it, "prepare", [
           'db.couchbase.retries'   : { Long },
           'db.couchbase.service'   : 'query',
@@ -342,7 +342,7 @@ abstract class CouchbaseClient31Test extends VersionedNamingTestBase {
         assertCouchbaseCall(it, "cb.query", [
           'db.couchbase.retries'   : { Long },
           'db.couchbase.service'   : 'query',
-        ], query, span(0), false, ex2)
+        ], normalizedQuery, span(0), false, ex2)
         assertCouchbaseCall(it, "prepare", [
           'db.couchbase.retries'   : { Long },
           'db.couchbase.service'   : 'query',
