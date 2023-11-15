@@ -35,7 +35,7 @@ public class DataStreamContextInjector {
       AgentSpan span, C carrier, AgentPropagation.Setter<C> setter) {
     PathwayContext pathwayContext = span.context().getPathwayContext();
     if (shouldInject(pathwayContext, span)) {
-      // Checkpoint is not set here. Should be done manually later one.
+      // Checkpoint is not set here. Should be done manually later on.
       doInject(pathwayContext, span, carrier, setter);
     }
   }
