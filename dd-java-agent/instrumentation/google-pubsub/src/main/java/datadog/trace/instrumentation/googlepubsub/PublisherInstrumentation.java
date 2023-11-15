@@ -4,22 +4,29 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.RUNNABLE;
 import static datadog.trace.instrumentation.googlepubsub.PubSubDecorator.PRODUCER_DECORATE;
 import static datadog.trace.instrumentation.googlepubsub.PubSubDecorator.PUBSUB_PRODUCE;
 import static datadog.trace.instrumentation.googlepubsub.TextMapInjectAdapter.SETTER;
+import static java.util.Collections.singletonList;
+import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 
 import com.google.auto.service.AutoService;
 import com.google.cloud.pubsub.v1.Publisher;
 import com.google.pubsub.v1.PubsubMessage;
+import datadog.trace.agent.tooling.ExcludeFilterProvider;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter;
+import java.util.Collection;
+import java.util.Map;
 import net.bytebuddy.asm.Advice;
 
 @AutoService(Instrumenter.class)
 public final class PublisherInstrumentation extends Instrumenter.Tracing
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, ExcludeFilterProvider {
 
   public PublisherInstrumentation() {
     super("google-pubsub");
@@ -33,6 +40,11 @@ public final class PublisherInstrumentation extends Instrumenter.Tracing
       packageName + ".TextMapInjectAdapter",
       packageName + ".TextMapExtractAdapter",
     };
+  }
+
+  @Override
+  public Map<ExcludeFilter.ExcludeType, ? extends Collection<String>> excludedClasses() {
+    return singletonMap(RUNNABLE, singletonList("com.google.api.gax.rpc.Watchdog"));
   }
 
   @Override
