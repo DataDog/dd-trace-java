@@ -213,9 +213,8 @@ public final class AgentBootstrap {
         final File ddJavaAgentJarPath = new File(ddJavaAgentJarURL.toURI());
 
         if (!ddJavaAgentJarPath.isDirectory()) {
-          checkJarManifestMainClassIsThis(ddJavaAgentJarURL);
-          inst.appendToBootstrapClassLoaderSearch(new JarFile(ddJavaAgentJarPath));
-          return ddJavaAgentJarURL;
+          return appendAgentToBootstrapClassLoaderSearch(
+              inst, ddJavaAgentJarURL, ddJavaAgentJarPath);
         }
       }
     }
@@ -224,37 +223,26 @@ public final class AgentBootstrap {
     File javaagentFile = getAgentFileFromJavaagentArg(inst);
     if (javaagentFile != null) {
       URL ddJavaAgentJarURL = javaagentFile.toURI().toURL();
-      checkJarManifestMainClassIsThis(ddJavaAgentJarURL);
-      inst.appendToBootstrapClassLoaderSearch(new JarFile(javaagentFile));
-      return ddJavaAgentJarURL;
+      return appendAgentToBootstrapClassLoaderSearch(inst, ddJavaAgentJarURL, javaagentFile);
     }
 
     System.out.println(
         "Could not get agent jar from -javaagent arg, using ClassLoader#getResource");
-    URL thisClassUrl;
-    String thisClassResourceName = thisClass.getName().replace('.', '/') + ".class";
-    ClassLoader classLoader = thisClass.getClassLoader();
-    if (classLoader == null) {
-      thisClassUrl = ClassLoader.getSystemResource(thisClassResourceName);
-    } else {
-      thisClassUrl = classLoader.getResource(thisClassResourceName);
-    }
-
-    if (thisClassUrl == null) {
-      throw new IllegalStateException(
-          "Could not locate agent bootstrap class resource, not installing tracing agent");
-    }
-
-    javaagentFile = new File(new URI(thisClassUrl.getFile().split("!")[0]));
+    javaagentFile = getAgentFileUsingClassLoaderLookup();
     if (!javaagentFile.isDirectory()) {
       URL ddJavaAgentJarURL = javaagentFile.toURI().toURL();
-      checkJarManifestMainClassIsThis(ddJavaAgentJarURL);
-      inst.appendToBootstrapClassLoaderSearch(new JarFile(javaagentFile));
-      return ddJavaAgentJarURL;
+      return appendAgentToBootstrapClassLoaderSearch(inst, ddJavaAgentJarURL, javaagentFile);
     }
 
     throw new IllegalStateException(
         "Could not determine agent jar location, not installing tracing agent");
+  }
+
+  private static URL appendAgentToBootstrapClassLoaderSearch(
+      Instrumentation inst, URL ddJavaAgentJarURL, File javaagentFile) throws IOException {
+    checkJarManifestMainClassIsThis(ddJavaAgentJarURL);
+    inst.appendToBootstrapClassLoaderSearch(new JarFile(javaagentFile));
+    return ddJavaAgentJarURL;
   }
 
   private static File getAgentFileFromJavaagentArg(Instrumentation inst) throws IOException {
@@ -301,6 +289,26 @@ public final class AgentBootstrap {
               + javaagentFile);
       return null;
     }
+    return javaagentFile;
+  }
+
+  private static File getAgentFileUsingClassLoaderLookup() throws URISyntaxException {
+    File javaagentFile;
+    URL thisClassUrl;
+    String thisClassResourceName = thisClass.getName().replace('.', '/') + ".class";
+    ClassLoader classLoader = thisClass.getClassLoader();
+    if (classLoader == null) {
+      thisClassUrl = ClassLoader.getSystemResource(thisClassResourceName);
+    } else {
+      thisClassUrl = classLoader.getResource(thisClassResourceName);
+    }
+
+    if (thisClassUrl == null) {
+      throw new IllegalStateException(
+          "Could not locate agent bootstrap class resource, not installing tracing agent");
+    }
+
+    javaagentFile = new File(new URI(thisClassUrl.getFile().split("!")[0]));
     return javaagentFile;
   }
 
