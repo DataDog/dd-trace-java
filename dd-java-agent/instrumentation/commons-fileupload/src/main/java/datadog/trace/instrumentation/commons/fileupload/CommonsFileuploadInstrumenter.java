@@ -59,6 +59,7 @@ public class CommonsFileuploadInstrumenter extends Instrumenter.Iast
               module.taint(
                   ctx, entry.getValue(), SourceTypes.REQUEST_MULTIPART_PARAMETER, entry.getKey());
             }
+          }
         }
       }
       return map;
