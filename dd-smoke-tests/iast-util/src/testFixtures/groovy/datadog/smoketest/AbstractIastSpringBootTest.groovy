@@ -111,6 +111,34 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
 
   }
 
+  void 'Multipart Request original file name'(){
+    given:
+    String url = "http://localhost:${httpPort}/multipart"
+
+    RequestBody requestBody = new MultipartBody.Builder().setType(MultipartBody.FORM)
+      .addFormDataPart("theFile", "theFileName",
+      RequestBody.create(MediaType.parse("text/plain"), "FILE_CONTENT"))
+      .addFormDataPart("param1", "param1Value")
+      .build()
+
+    Request request = new Request.Builder()
+      .url(url)
+      .post(requestBody)
+      .build()
+    when:
+    final retValue = client.newCall(request).execute().body().string()
+
+    then:
+    retValue == "fileName: theFile"
+    hasTainted { tainted ->
+      tainted.value == 'theFileName' &&
+        tainted.ranges[0].source.name == 'filename' &&
+        tainted.ranges[0].source.origin == 'http.request.multipart.parameter'
+    }
+
+  }
+
+
   void 'iast.enabled tag is present'() {
     setup:
     String url = "http://localhost:${httpPort}/greeting"
