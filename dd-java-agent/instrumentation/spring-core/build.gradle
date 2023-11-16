@@ -1,0 +1,19 @@
+muzzle {
+  pass {
+    group = 'org.springframework'
+    module = 'spring-core'
+    versions = '[3.2.2.RELEASE,]'
+    assertInverse = true
+  }
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+
+addTestSuiteForDir('latestDepTest', 'test')
+
+dependencies {
+  compileOnly group: 'org.springframework', name: 'spring-beans', version: '3.2.2.RELEASE'
+  testImplementation group: 'org.springframework', name: 'spring-beans', version: '3.2.2.RELEASE'
+  testRuntimeOnly project(':dd-java-agent:instrumentation:iast-instrumenter')
+  latestDepTestImplementation group: 'org.unbescape', name: 'unbescape', version: '+'
+}
