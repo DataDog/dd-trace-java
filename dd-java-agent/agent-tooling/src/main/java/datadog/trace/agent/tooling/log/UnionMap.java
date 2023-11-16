@@ -1,7 +1,9 @@
 package datadog.trace.agent.tooling.log;
 
+import java.io.Serializable;
 import java.util.AbstractMap;
 import java.util.AbstractSet;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
@@ -11,7 +13,7 @@ import java.util.Set;
  * New entries are put in the primary map while old entries are deleted from both, as appropriate.
  * Lazy deduplication occurs once: before iterating over entries/values, or when combining sizes.
  */
-public final class UnionMap<K, V> extends AbstractMap<K, V> {
+public final class UnionMap<K, V> extends AbstractMap<K, V> implements Serializable {
   private final Map<K, V> primaryMap;
   private final Map<K, V> secondaryMap;
   private transient Set<Map.Entry<K, V>> entrySet;
@@ -144,5 +146,9 @@ public final class UnionMap<K, V> extends AbstractMap<K, V> {
           };
     }
     return entrySet;
+  }
+
+  public Object writeReplace() {
+    return new HashMap<>(this); // serialize de-duplicated copy
   }
 }
