@@ -151,7 +151,7 @@ public final class DatadogProfiler {
                   ProfilingConfig.PROFILING_DATADOG_PROFILER_SCRATCH,
                   ProfilingConfig.PROFILING_DATADOG_PROFILER_SCRATCH_DEFAULT));
     } catch (IOException e) {
-      throw new UnsupportedOperationException("Unable to instantiate datadog profiler");
+      throw new UnsupportedOperationException("Unable to instantiate datadog profiler", e);
     }
     if (profiler == null) {
       throw new UnsupportedEnvironmentException("Unable to instantiate datadog profiler");

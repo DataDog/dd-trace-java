@@ -21,7 +21,7 @@ java {
 
 tasks.withType(AbstractCompile).configureEach {
   // ensure no APIs beyond JDK8 are used
-  options.compilerArgs.addAll(['--release', '8'])
+  options.release = 8
 }
 
 // First version with Mac M1 support

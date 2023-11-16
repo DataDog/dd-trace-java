@@ -5,7 +5,7 @@ public class LogMessage {
   private LogMessageLevel level;
   private String tags;
   private String stackTrace;
-  private Integer tracerTime;
+  private Long tracerTime;
 
   public String getMessage() {
     return message;
@@ -43,11 +43,11 @@ public class LogMessage {
     return this;
   }
 
-  public Integer getTracerTime() {
+  public Long getTracerTime() {
     return tracerTime;
   }
 
-  public LogMessage tracerTime(Integer tracerTime) {
+  public LogMessage tracerTime(Long tracerTime) {
     this.tracerTime = tracerTime;
     return this;
   }
