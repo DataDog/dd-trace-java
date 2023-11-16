@@ -15,7 +15,12 @@ public final class ReceiverWithAckInstrumentation extends Instrumenter.Tracing
     implements Instrumenter.ForSingleType {
 
   public ReceiverWithAckInstrumentation() {
-    super("google-pubsub");
+    super("google-pubsub", "google-pubsub-receiver");
+  }
+
+  @Override
+  protected boolean defaultEnabled() {
+    return false;
   }
 
   @Override

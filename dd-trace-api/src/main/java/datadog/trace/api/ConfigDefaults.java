@@ -192,6 +192,7 @@ public final class ConfigDefaults {
       24 * 60 * 60; // 24 hours in seconds
   static final int DEFAULT_TELEMETRY_METRICS_INTERVAL = 10; // in seconds
   static final boolean DEFAULT_TELEMETRY_DEPENDENCY_COLLECTION_ENABLED = true;
+  static final boolean DEFAULT_TELEMETRY_LOG_COLLECTION_ENABLED = false;
 
   static final boolean DEFAULT_TRACE_128_BIT_TRACEID_GENERATION_ENABLED = true;
   static final boolean DEFAULT_TRACE_128_BIT_TRACEID_LOGGING_ENABLED = false;
