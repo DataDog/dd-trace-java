@@ -226,7 +226,6 @@ class ContextTest extends AgentTestRunner {
           parent()
           operationName "internal"
           resourceName "some-name"
-          spanType "internal"
         }
         span {
           childOfPrevious()
@@ -236,7 +235,6 @@ class ContextTest extends AgentTestRunner {
           childOfPrevious()
           operationName "internal"
           resourceName "another-name"
-          spanType "internal"
         }
       }
     }

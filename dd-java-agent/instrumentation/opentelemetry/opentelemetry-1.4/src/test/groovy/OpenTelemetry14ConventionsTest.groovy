@@ -5,9 +5,9 @@ import io.opentelemetry.context.Context
 import io.opentelemetry.context.ThreadLocalContextStorage
 import spock.lang.Subject
 
-import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND_CLIENT
-import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND_SERVER
-import static datadog.trace.instrumentation.opentelemetry14.trace.OtelConventions.toSpanType
+import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND
+import static datadog.trace.instrumentation.opentelemetry14.trace.OtelConventions.SPAN_KIND_INTERNAL
+import static datadog.trace.instrumentation.opentelemetry14.trace.OtelConventions.toSpanKindTagValue
 import static io.opentelemetry.api.trace.SpanKind.CLIENT
 import static io.opentelemetry.api.trace.SpanKind.CONSUMER
 import static io.opentelemetry.api.trace.SpanKind.INTERNAL
@@ -38,9 +38,15 @@ class OpenTelemetry14ConventionsTest extends AgentTestRunner {
       trace(1) {
         span {
           parent()
-          spanType toSpanType(kind == null ? INTERNAL : kind)
           operationName "$expectedOperationName"
           resourceName "some-name"
+          tags {
+            defaultTags()
+            "$SPAN_KIND" "${toSpanKindTagValue(kind == null ? INTERNAL : kind)}"
+            attributes.forEach { key, value->
+              tag(key, value)
+            }
+          }
         }
       }
     }
@@ -91,28 +97,26 @@ class OpenTelemetry14ConventionsTest extends AgentTestRunner {
     tracer.spanBuilder("some-name")
       .setAttribute("service.name", "my-service")
       .setAttribute("resource.name", "/my-resource")
-      .setAttribute("span.type", "$type")
+      .setAttribute("span.type", "http")
       .startSpan()
       .end()
-
 
     then:
     assertTraces(1) {
       trace(1) {
         span {
           parent()
-          spanType "$type"
-          operationName "$expectedOperationName"
+          operationName "internal"
           resourceName "/my-resource"
           serviceName "my-service"
+          spanType "http"
+          tags {
+            defaultTags()
+            "$SPAN_KIND" "$SPAN_KIND_INTERNAL"
+          }
         }
       }
     }
-
-    where:
-    type             | expectedOperationName
-    SPAN_KIND_SERVER | "server.request"
-    SPAN_KIND_CLIENT | "client.request"
   }
 
   def "test span analytics.event specific tag"() {
@@ -129,9 +133,9 @@ class OpenTelemetry14ConventionsTest extends AgentTestRunner {
         span {
           parent()
           operationName "internal"
-          spanType "internal"
           tags {
             defaultTags()
+            "$SPAN_KIND" "$SPAN_KIND_INTERNAL"
             if (value != null) {
               "analytics.event" value
               "$DDTags.ANALYTICS_SAMPLE_RATE" expectedMetric

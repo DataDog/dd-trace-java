@@ -88,7 +88,6 @@ abstract class AbstractPropagatorTest extends AgentTestRunner {
         span {
           operationName "internal"
           resourceName "some-name"
-          spanType "internal"
           traceDDId(DD128bTraceId.fromHex(traceId))
           parentSpanId(DDSpanId.fromHex(spanId).toLong() as BigInteger)
         }
