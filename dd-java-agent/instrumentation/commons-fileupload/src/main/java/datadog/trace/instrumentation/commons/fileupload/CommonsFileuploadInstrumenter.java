@@ -20,7 +20,7 @@ import net.bytebuddy.asm.Advice;
 
 @AutoService(Instrumenter.class)
 public class CommonsFileuploadInstrumenter extends Instrumenter.Iast
-    implements Instrumenter.ForConfiguredTypes {
+    implements Instrumenter.ForKnownTypes {
 
   public CommonsFileuploadInstrumenter() {
     super("commons-fileupload");
@@ -38,12 +38,11 @@ public class CommonsFileuploadInstrumenter extends Instrumenter.Iast
   }
 
   @Override
-  public Collection<String> configuredMatchingTypes() {
-    return Arrays.asList(
-        new String[] {
+  public String[] knownMatchingTypes() {
+    return new String[] {
           "org.apache.commons.fileupload.ParameterParser",
           "org.apache.tomcat.util.http.fileupload.ParameterParser"
-        });
+    };
   }
 
   public static class ParseAdvice {
