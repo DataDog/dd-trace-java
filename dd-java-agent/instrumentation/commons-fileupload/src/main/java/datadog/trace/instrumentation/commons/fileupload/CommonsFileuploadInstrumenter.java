@@ -39,9 +39,9 @@ public class CommonsFileuploadInstrumenter extends Instrumenter.Iast
 
   @Override
   public String[] knownMatchingTypes() {
-    return new String[] {
-          "org.apache.commons.fileupload.ParameterParser",
-          "org.apache.tomcat.util.http.fileupload.ParameterParser"
+    return new String[]
+      "org.apache.commons.fileupload.ParameterParser",
+      "org.apache.tomcat.util.http.fileupload.ParameterParser"
     };
   }
 
