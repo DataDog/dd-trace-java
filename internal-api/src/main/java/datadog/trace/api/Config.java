@@ -2455,6 +2455,10 @@ public class Config {
         return false;
       }
     }
+    if (Platform.isGraalVM()) {
+      // let's be conservative about GraalVM and require opt-in from the users
+      return false;
+    }
     boolean result =
         Platform.isJ9()
             || !Platform.isJavaVersion(18) // missing AGCT fixes
