@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.opentelemetry14.trace;
 
-import static datadog.trace.instrumentation.opentelemetry14.trace.OtelConventions.toSpanType;
+import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND;
+import static datadog.trace.instrumentation.opentelemetry14.trace.OtelConventions.toSpanKindTagValue;
 import static datadog.trace.instrumentation.opentelemetry14.trace.OtelExtractedContext.extract;
 import static io.opentelemetry.api.trace.SpanKind.INTERNAL;
 
@@ -113,7 +114,7 @@ public class OtelSpanBuilder implements SpanBuilder {
   @Override
   public SpanBuilder setSpanKind(SpanKind spanKind) {
     if (spanKind != null) {
-      this.delegate.withSpanType(toSpanType(spanKind));
+      this.delegate.withTag(SPAN_KIND, toSpanKindTagValue(spanKind));
       this.spanKindSet = true;
     }
     return this;

@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.opentelemetry14.trace;
 
 import static datadog.trace.api.DDTags.ANALYTICS_SAMPLE_RATE;
+import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND_CLIENT;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND_CONSUMER;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND_PRODUCER;
@@ -13,6 +14,7 @@ import static io.opentelemetry.api.trace.SpanKind.SERVER;
 import static java.util.Locale.ROOT;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.Tags;
 import io.opentelemetry.api.trace.SpanKind;
 import javax.annotation.Nullable;
 import org.slf4j.Logger;
@@ -22,20 +24,17 @@ public final class OtelConventions {
   static final String SPAN_KIND_INTERNAL = "internal";
   private static final Logger LOGGER = LoggerFactory.getLogger(OtelConventions.class);
   private static final String OPERATION_NAME_SPECIFIC_ATTRIBUTE = "operation.name";
-  private static final String SERVICE_NAME_SPECIFIC_ATTRIBUTE = "service.name";
-  private static final String RESOURCE_NAME_SPECIFIC_ATTRIBUTE = "resource.name";
-  private static final String SPAN_TYPE_SPECIFIC_ATTRIBUTES = "span.type";
   private static final String ANALYTICS_EVENT_SPECIFIC_ATTRIBUTES = "analytics.event";
 
   private OtelConventions() {}
 
   /**
-   * Convert OpenTelemetry {@link SpanKind} to Datadog span type.
+   * Convert OpenTelemetry {@link SpanKind} to {@link Tags#SPAN_KIND} value.
    *
    * @param spanKind The OpenTelemetry span kind to convert.
-   * @return The related Datadog span type.
+   * @return The {@link Tags#SPAN_KIND} value.
    */
-  public static String toSpanType(SpanKind spanKind) {
+  public static String toSpanKindTagValue(SpanKind spanKind) {
     switch (spanKind) {
       case CLIENT:
         return SPAN_KIND_CLIENT;
@@ -53,16 +52,16 @@ public final class OtelConventions {
   }
 
   /**
-   * Convert Datadog span type to OpenTelemetry {@link SpanKind}.
+   * Convert {@link Tags#SPAN_KIND} value to OpenTelemetry {@link SpanKind}.
    *
-   * @param spanType The span type to convert.
+   * @param spanKind The {@link Tags#SPAN_KIND} value to convert.
    * @return The related OpenTelemetry {@link SpanKind}.
    */
-  public static SpanKind toSpanKind(String spanType) {
-    if (spanType == null) {
+  public static SpanKind toOtelSpanKind(String spanKind) {
+    if (spanKind == null) {
       return INTERNAL;
     }
-    switch (spanType) {
+    switch (spanKind) {
       case SPAN_KIND_CLIENT:
         return CLIENT;
       case SPAN_KIND_SERVER:
@@ -77,26 +76,17 @@ public final class OtelConventions {
   }
 
   public static void applyConventions(AgentSpan span) {
-    String serviceName = getStringAttribute(span, SERVICE_NAME_SPECIFIC_ATTRIBUTE);
-    if (serviceName != null) {
-      span.setServiceName(serviceName);
-    }
-    String resourceName = getStringAttribute(span, RESOURCE_NAME_SPECIFIC_ATTRIBUTE);
-    if (resourceName != null) {
-      span.setResourceName(resourceName);
-    }
-    String spanType = getStringAttribute(span, SPAN_TYPE_SPECIFIC_ATTRIBUTES);
-    if (spanType != null) {
-      span.setSpanType(spanType);
-    }
+    // The following attributes are already handled by tag interceptors:
+    // - service.name
+    // - resource.name
+    // - span.type
+    // TODO Remaining questions:
+    // - Do the attributes must be added has tag or intercepted?
+    // - Does operation name method blocked if operation.name is present?
     Boolean analyticsEvent = getBooleanAttribute(span, ANALYTICS_EVENT_SPECIFIC_ATTRIBUTES);
     if (analyticsEvent != null) {
       span.setMetric(ANALYTICS_SAMPLE_RATE, analyticsEvent ? 1 : 0);
     }
-    applyOperationName(span);
-  }
-
-  private static void applyOperationName(AgentSpan span) {
     String operationName = getStringAttribute(span, OPERATION_NAME_SPECIFIC_ATTRIBUTE);
     if (operationName == null) {
       operationName = computeOperationName(span);
@@ -105,7 +95,9 @@ public final class OtelConventions {
   }
 
   private static String computeOperationName(AgentSpan span) {
-    SpanKind spanKind = toSpanKind(span.getSpanType());
+    Object spanKingTag = span.getTag(SPAN_KIND);
+    SpanKind spanKind =
+        spanKingTag instanceof String ? toOtelSpanKind((String) spanKingTag) : INTERNAL;
     /*
      * HTTP convention: https://opentelemetry.io/docs/specs/otel/trace/semantic_conventions/http/
      */
