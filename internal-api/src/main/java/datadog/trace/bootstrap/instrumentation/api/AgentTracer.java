@@ -1029,6 +1029,9 @@ public class AgentTracer {
         long payloadSizeBytes) {}
 
     @Override
+    public void trackSchema(String queue, byte[] payload) {}
+
+    @Override
     public PathwayContext newPathwayContext() {
       return NoopPathwayContext.INSTANCE;
     }

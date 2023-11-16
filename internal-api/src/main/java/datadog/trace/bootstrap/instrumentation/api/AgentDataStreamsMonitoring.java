@@ -24,6 +24,8 @@ public interface AgentDataStreamsMonitoring extends DataStreamsCheckpointer {
       long defaultTimestamp,
       long payloadSizeBytes);
 
+  void trackSchema(String queue, byte[] payload);
+
   PathwayContext newPathwayContext();
 
   void add(StatsPoint statsPoint);

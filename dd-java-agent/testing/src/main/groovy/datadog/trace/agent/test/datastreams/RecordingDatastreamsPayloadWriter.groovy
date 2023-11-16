@@ -1,6 +1,7 @@
 package datadog.trace.agent.test.datastreams
 
 import datadog.trace.core.datastreams.DatastreamsPayloadWriter
+import datadog.trace.core.datastreams.Schema
 import datadog.trace.core.datastreams.StatsBucket
 import datadog.trace.core.datastreams.StatsGroup
 import groovy.util.logging.Slf4j
@@ -19,7 +20,7 @@ class RecordingDatastreamsPayloadWriter implements DatastreamsPayloadWriter {
   private final Set<String> backlogs = []
 
   @Override
-  synchronized void writePayload(Collection<StatsBucket> data) {
+  synchronized void writePayload(Collection<StatsBucket> data, Collection<Schema> schemas) {
     log.info("payload written - {}", data)
     this.@payloads.addAll(data)
     data.each { this.@groups.addAll(it.groups) }

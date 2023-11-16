@@ -31,6 +31,10 @@ public class MsgPackDatastreamsPayloadWriter implements DatastreamsPayloadWriter
   private static final byte[] PARENT_HASH = "ParentHash".getBytes(ISO_8859_1);
   private static final byte[] BACKLOG_VALUE = "Value".getBytes(ISO_8859_1);
   private static final byte[] BACKLOG_TAGS = "Tags".getBytes(ISO_8859_1);
+  private static final byte[] SCHEMAS = "Schemas".getBytes(ISO_8859_1);
+  private static final byte[] SCHEMA_HASH = "Hash".getBytes(ISO_8859_1);
+  private static final byte[] SCHEMA_DEFINITION = "Definition".getBytes(ISO_8859_1);
+  private static final byte[] SCHEMA_TOPIC = "Topic".getBytes(ISO_8859_1);
 
   private static final int INITIAL_CAPACITY = 512 * 1024;
 
@@ -56,8 +60,9 @@ public class MsgPackDatastreamsPayloadWriter implements DatastreamsPayloadWriter
   }
 
   @Override
-  public void writePayload(Collection<StatsBucket> data) {
-    writer.startMap(7);
+  public void writePayload(Collection<StatsBucket> data, Collection<Schema> schemas) {
+    boolean hasSchemas = !schemas.isEmpty();
+    writer.startMap(7 + (hasSchemas ? 1 : 0));
     /* 1 */
     writer.writeUTF8(ENV);
     writer.writeUTF8(wellKnownTags.getEnv());
@@ -108,6 +113,11 @@ public class MsgPackDatastreamsPayloadWriter implements DatastreamsPayloadWriter
       }
     }
 
+    if (hasSchemas) {
+      /* 8 */
+      writeSchemas(schemas, writer);
+    }
+
     buffer.mark();
     sink.accept(buffer.messageCount(), buffer.slice());
     buffer.reset();
@@ -149,6 +159,20 @@ public class MsgPackDatastreamsPayloadWriter implements DatastreamsPayloadWriter
           packer.writeString(tag, null);
         }
       }
+    }
+  }
+
+  private void writeSchemas(Collection<Schema> schemas, Writable packer) {
+    packer.writeUTF8(SCHEMAS);
+    packer.startArray(schemas.size());
+    for (Schema schema : schemas) {
+      packer.startMap(3);
+      packer.writeUTF8(SCHEMA_HASH);
+      packer.writeUnsignedLong(schema.getHash());
+      packer.writeUTF8(SCHEMA_DEFINITION);
+      packer.writeString(schema.getDefinition(), null);
+      packer.writeUTF8(SCHEMA_TOPIC);
+      packer.writeString(schema.getTopic(), null);
     }
   }
 

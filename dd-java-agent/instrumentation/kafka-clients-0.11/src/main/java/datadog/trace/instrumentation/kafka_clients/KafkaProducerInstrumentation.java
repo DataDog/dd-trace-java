@@ -7,6 +7,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_OUT;
 import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_TAG;
+import static datadog.trace.core.datastreams.TagsProcessor.SCHEMA_ID_TAG;
 import static datadog.trace.core.datastreams.TagsProcessor.TOPIC_TAG;
 import static datadog.trace.core.datastreams.TagsProcessor.TYPE_TAG;
 import static datadog.trace.instrumentation.kafka_clients.KafkaDecorator.KAFKA_PRODUCE;
@@ -14,6 +15,7 @@ import static datadog.trace.instrumentation.kafka_clients.KafkaDecorator.PRODUCE
 import static datadog.trace.instrumentation.kafka_clients.KafkaDecorator.TIME_IN_QUEUE_ENABLED;
 import static datadog.trace.instrumentation.kafka_clients.TextMapInjectAdapter.SETTER;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
+import static net.bytebuddy.matcher.ElementMatchers.isPrivate;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
@@ -22,7 +24,9 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
+import java.nio.ByteBuffer;
 import java.util.LinkedHashMap;
 import net.bytebuddy.asm.Advice;
 import org.apache.kafka.clients.ApiVersions;
@@ -30,6 +34,8 @@ import org.apache.kafka.clients.producer.Callback;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.record.RecordBatch;
+
+// import org.apache.kafka.common.serialization.ExtendedSerializer;
 
 @AutoService(Instrumenter.class)
 public final class KafkaProducerInstrumentation extends Instrumenter.Tracing
@@ -62,6 +68,13 @@ public final class KafkaProducerInstrumentation extends Instrumenter.Tracing
             .and(takesArgument(0, named("org.apache.kafka.clients.producer.ProducerRecord")))
             .and(takesArgument(1, named("org.apache.kafka.clients.producer.Callback"))),
         KafkaProducerInstrumentation.class.getName() + "$ProducerAdvice");
+    transformation.applyAdvice(
+        isMethod()
+            .and(isPrivate())
+            .and(named("partition"))
+            .and(takesArgument(0, named("org.apache.kafka.clients.producer.ProducerRecord")))
+            .and(takesArgument(2, byte[].class)),
+        KafkaProducerInstrumentation.class.getName() + "$PartitionAdvice");
   }
 
   public static class ProducerAdvice {
@@ -76,6 +89,7 @@ public final class KafkaProducerInstrumentation extends Instrumenter.Tracing
       final AgentSpan span = startSpan(KAFKA_PRODUCE);
       PRODUCER_DECORATE.afterStart(span);
       PRODUCER_DECORATE.onProduce(span, record, producerConfig);
+      System.out.println("ProducerAdvice: " + record.topic());
 
       callback = new KafkaProducerCallback(callback, parent, span);
 
@@ -93,13 +107,8 @@ public final class KafkaProducerInstrumentation extends Instrumenter.Tracing
       if (apiVersions.maxUsableProduceMagic() >= RecordBatch.MAGIC_VALUE_V2
           && Config.get().isKafkaClientPropagationEnabled()
           && !Config.get().isKafkaClientPropagationDisabledForTopic(record.topic())) {
-        LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>();
-        sortedTags.put(DIRECTION_TAG, DIRECTION_OUT);
-        sortedTags.put(TOPIC_TAG, record.topic());
-        sortedTags.put(TYPE_TAG, "kafka");
         try {
           propagate().inject(span, record.headers(), SETTER);
-          propagate().injectPathwayContext(span, record.headers(), SETTER, sortedTags);
         } catch (final IllegalStateException e) {
           // headers must be read-only from reused record. try again with new one.
           record =
@@ -112,7 +121,6 @@ public final class KafkaProducerInstrumentation extends Instrumenter.Tracing
                   record.headers());
 
           propagate().inject(span, record.headers(), SETTER);
-          propagate().injectPathwayContext(span, record.headers(), SETTER, sortedTags);
         }
         if (TIME_IN_QUEUE_ENABLED) {
           SETTER.injectTimeInQueue(record.headers());
@@ -128,6 +136,60 @@ public final class KafkaProducerInstrumentation extends Instrumenter.Tracing
       PRODUCER_DECORATE.onError(scope, throwable);
       PRODUCER_DECORATE.beforeFinish(scope);
       scope.close();
+    }
+  }
+
+  public static class PartitionAdvice {
+
+    @Advice.OnMethodEnter(suppress = Throwable.class)
+    public static AgentScope onEnter(
+        @Advice.FieldValue("apiVersions") final ApiVersions apiVersions,
+        // @Advice.FieldValue("valueSerializer") final ExtendedSerializer valueSerializer,
+        @Advice.Argument(value = 0, readOnly = false) ProducerRecord record,
+        @Advice.Argument(value = 2, readOnly = false) byte[] serializedValue) {
+      final AgentSpan span = activeSpan();
+
+      // Do not inject headers for batch versions below 2
+      // This is how similar check is being done in Kafka client itself:
+      // https://github.com/apache/kafka/blob/05fcfde8f69b0349216553f711fdfc3f0259c601/clients/src/main/java/org/apache/kafka/common/record/MemoryRecordsBuilder.java#L411-L412
+      // Also, do not inject headers if specified by JVM option or environment variable
+      // This can help in mixed client environments where clients < 0.11 that do not support
+      // headers attempt to read messages that were produced by clients > 0.11 and the magic
+      // value of the broker(s) is >= 2
+      if (apiVersions.maxUsableProduceMagic() >= RecordBatch.MAGIC_VALUE_V2
+          && Config.get().isKafkaClientPropagationEnabled()
+          && !Config.get().isKafkaClientPropagationDisabledForTopic(record.topic())) {
+        LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>();
+        sortedTags.put(DIRECTION_TAG, DIRECTION_OUT);
+        sortedTags.put(TOPIC_TAG, record.topic());
+        sortedTags.put(TYPE_TAG, "kafka");
+        if (serializedValue.length >= 5) {
+          ByteBuffer bytes = ByteBuffer.wrap(serializedValue);
+          if (bytes.get() == 0) {
+            String schemaID = String.valueOf(bytes.getInt());
+            sortedTags.put(SCHEMA_ID_TAG, schemaID);
+            System.out.println("SCHEMA_ID_TAG: " + schemaID);
+          }
+        }
+        try {
+          propagate().injectPathwayContext(span, record.headers(), SETTER, sortedTags);
+        } catch (final IllegalStateException e) {
+          // headers must be read-only from reused record. try again with new one.
+          record =
+              new ProducerRecord<>(
+                  record.topic(),
+                  record.partition(),
+                  record.timestamp(),
+                  record.key(),
+                  record.value(),
+                  record.headers());
+
+          propagate().injectPathwayContext(span, record.headers(), SETTER, sortedTags);
+        }
+      }
+
+      AgentTracer.get().getDataStreamsMonitoring().trackSchema(record.topic(), serializedValue);
+      return activateSpan(span);
     }
   }
 }

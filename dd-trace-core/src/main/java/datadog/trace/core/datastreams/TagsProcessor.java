@@ -25,6 +25,7 @@ public class TagsProcessor {
   private static final Function<String, String> TYPE_TAG_PREFIX = new StringPrefix("type:");
 
   public static final String DIRECTION_TAG = "direction";
+  public static final String SCHEMA_ID_TAG = "schema_id";
   // service centric direction - data flowing into the service
   public static final String DIRECTION_IN = "in";
   // service centric direction - data flowing out of the service

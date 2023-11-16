@@ -58,6 +58,7 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
       new StatsPoint(Collections.emptyList(), 0, 0, 0, 0, 0, 0);
 
   private final Map<Long, StatsBucket> timeToBucket = new HashMap<>();
+  private final Map<Long, Schema> schemas = new HashMap<>();
   private final BlockingQueue<InboxItem> inbox = new MpscBlockingConsumerArrayQueue<>(1024);
   private final DatastreamsPayloadWriter payloadWriter;
   private final DDAgentFeaturesDiscovery features;
@@ -219,6 +220,21 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
   }
 
   @Override
+  public void trackSchema(String queue, byte[] payload) {
+    if (payload == null || payload.length == 0) {
+      return;
+    }
+    System.out.println("the payload is :" + new String(payload));
+    String schema = JsonSchemaGenerator.generateJsonSchema(new String(payload));
+    if (schema == null) {
+      return;
+    }
+    long hash = schema.hashCode() & 0xFFFFFFFFL;
+    System.out.println("the hash is :" + hash + " the topic is :" + queue);
+    schemas.put(hash, new Schema(hash, schema, queue));
+  }
+
+  @Override
   public void setConsumeCheckpoint(String type, String source, DataStreamsContextCarrier carrier) {
     if (type == null || type.isEmpty() || source == null || source.isEmpty()) {
       log.warn("setConsumeCheckpoint should be called with non-empty type and source");
@@ -341,9 +357,10 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
       }
     }
 
+    System.out.println("flushing bucket" + String.valueOf(includedBuckets.size()));
     if (!includedBuckets.isEmpty()) {
       log.debug("Flushing {} buckets", includedBuckets.size());
-      payloadWriter.writePayload(includedBuckets);
+      payloadWriter.writePayload(includedBuckets, schemas.values());
     }
   }
 
