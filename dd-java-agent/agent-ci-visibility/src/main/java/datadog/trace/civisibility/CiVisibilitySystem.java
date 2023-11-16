@@ -227,7 +227,9 @@ public class CiVisibilitySystem {
       CIInfo ciInfo = ciProviderInfo.buildCIInfo();
       String repoRoot = ciInfo.getCiWorkspace();
       String moduleName =
-          (repoRoot != null) ? Paths.get(repoRoot).relativize(path).toString() : path.toString();
+          repoRoot != null && path.startsWith(repoRoot)
+              ? Paths.get(repoRoot).relativize(path).toString()
+              : config.getServiceName();
 
       DDTestFrameworkSession testSession =
           sessionFactory.startSession(moduleName, path, component, null);
