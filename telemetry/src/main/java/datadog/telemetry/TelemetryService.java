@@ -102,7 +102,6 @@ public class TelemetryService {
   }
 
   public boolean addLogMessage(LogMessage message) {
-    // TODO doesn't seem to be used
     return this.logMessages.offer(message);
   }
 
