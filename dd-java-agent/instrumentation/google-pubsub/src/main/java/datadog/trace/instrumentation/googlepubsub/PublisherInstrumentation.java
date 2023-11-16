@@ -29,7 +29,12 @@ public final class PublisherInstrumentation extends Instrumenter.Tracing
     implements Instrumenter.ForSingleType, ExcludeFilterProvider {
 
   public PublisherInstrumentation() {
-    super("google-pubsub");
+    super("google-pubsub", "google-pubsub-publisher");
+  }
+
+  @Override
+  protected boolean defaultEnabled() {
+    return false;
   }
 
   @Override
