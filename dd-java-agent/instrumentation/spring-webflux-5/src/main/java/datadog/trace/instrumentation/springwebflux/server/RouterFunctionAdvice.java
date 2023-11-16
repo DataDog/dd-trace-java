@@ -19,7 +19,10 @@ public class RouterFunctionAdvice {
       @Advice.Return(readOnly = false) Mono<HandlerFunction<?>> result,
       @Advice.Thrown final Throwable throwable) {
     if (throwable == null) {
-      result = result.doOnSuccessOrError(new RouteOnSuccessOrError(thiz, serverRequest));
+      final RouteOnSuccessOrError routeOnSuccessOrError =
+          new RouteOnSuccessOrError(thiz, serverRequest);
+      // doOnSuccessOrError is deprecated and no more existing
+      result = result.doOnSuccess(routeOnSuccessOrError).doOnError(routeOnSuccessOrError);
     }
   }
 }
