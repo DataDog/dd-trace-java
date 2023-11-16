@@ -131,6 +131,9 @@ public final class KafkaProducerInstrumentation extends Instrumenter.Tracing
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void stopSpan(
         @Advice.Enter final AgentScope scope, @Advice.Thrown final Throwable throwable) {
+      // reset depth count for EstimateSizeAdvice
+      CallDepthThreadLocalMap.reset(AbstractRecords.class);
+
       PRODUCER_DECORATE.onError(scope, throwable);
       PRODUCER_DECORATE.beforeFinish(scope);
       scope.close();
