@@ -6,6 +6,7 @@ import io.opentelemetry.context.ThreadLocalContextStorage
 import spock.lang.Subject
 
 import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND
+import static datadog.trace.instrumentation.opentelemetry14.trace.OtelConventions.OPERATION_NAME_SPECIFIC_ATTRIBUTE
 import static datadog.trace.instrumentation.opentelemetry14.trace.OtelConventions.SPAN_KIND_INTERNAL
 import static datadog.trace.instrumentation.opentelemetry14.trace.OtelConventions.toSpanKindTagValue
 import static io.opentelemetry.api.trace.SpanKind.CLIENT
@@ -43,8 +44,10 @@ class OpenTelemetry14ConventionsTest extends AgentTestRunner {
           tags {
             defaultTags()
             "$SPAN_KIND" "${toSpanKindTagValue(kind == null ? INTERNAL : kind)}"
-            attributes.forEach { key, value->
-              tag(key, value)
+            attributes.forEach { key, value ->
+              if (!OPERATION_NAME_SPECIFIC_ATTRIBUTE.equals(key)) {
+                tag(key, value)
+              }
             }
           }
         }
@@ -93,20 +96,31 @@ class OpenTelemetry14ConventionsTest extends AgentTestRunner {
   }
 
   def "test span specific tags"() {
+    setup:
+    def builder = tracer.spanBuilder("some-name")
+
     when:
-    tracer.spanBuilder("some-name")
-      .setAttribute("service.name", "my-service")
-      .setAttribute("resource.name", "/my-resource")
-      .setAttribute("span.type", "http")
-      .startSpan()
-      .end()
+    if (setInBuilder) {
+      builder.setAttribute("operation.name", "my-operation")
+        .setAttribute("service.name", "my-service")
+        .setAttribute("resource.name", "/my-resource")
+        .setAttribute("span.type", "http")
+    }
+    def result = builder.startSpan()
+    if (!setInBuilder) {
+      result.setAttribute("operation.name", "my-operation")
+        .setAttribute("service.name", "my-service")
+        .setAttribute("resource.name", "/my-resource")
+        .setAttribute("span.type", "http")
+    }
+    result.end()
 
     then:
     assertTraces(1) {
       trace(1) {
         span {
           parent()
-          operationName "internal"
+          operationName "my-operation"
           resourceName "/my-resource"
           serviceName "my-service"
           spanType "http"
@@ -117,15 +131,24 @@ class OpenTelemetry14ConventionsTest extends AgentTestRunner {
         }
       }
     }
+
+    where:
+    setInBuilder << [true, false]
   }
 
   def "test span analytics.event specific tag"() {
-    when:
-    tracer.spanBuilder("some-name")
-      .setAttribute("analytics.event", value)
-      .startSpan()
-      .end()
+    setup:
+    def builder = tracer.spanBuilder("some-name")
 
+    when:
+    if (setInBuilder) {
+      builder.setAttribute("analytics.event", value)
+    }
+    def result = builder.startSpan()
+    if (!setInBuilder) {
+      result.setAttribute("analytics.event", value)
+    }
+    result.end()
 
     then:
     assertTraces(1) {
@@ -137,7 +160,6 @@ class OpenTelemetry14ConventionsTest extends AgentTestRunner {
             defaultTags()
             "$SPAN_KIND" "$SPAN_KIND_INTERNAL"
             if (value != null) {
-              "analytics.event" value
               "$DDTags.ANALYTICS_SAMPLE_RATE" expectedMetric
             }
           }
@@ -146,17 +168,27 @@ class OpenTelemetry14ConventionsTest extends AgentTestRunner {
     }
 
     where:
-    value            | expectedMetric
-    true             | 1
-    Boolean.TRUE     | 1
-    false            | 0
-    Boolean.FALSE    | 0
-    null             | 0 // Not used
-    "true"           | 1
-    "false"          | 0
-    "TRUE"           | 1
-    "something-else" | 0
-    ""               | 0
+    setInBuilder | value            | expectedMetric
+    true         | true             | 1
+    true         | Boolean.TRUE     | 1
+    true         | false            | 0
+    true         | Boolean.FALSE    | 0
+    true         | null             | 0 // Not used
+    true         | "true"           | 1
+    true         | "false"          | 0
+    true         | "TRUE"           | 1
+    true         | "something-else" | 0
+    true         | ""               | 0
+    false        | true             | 1
+    false        | Boolean.TRUE     | 1
+    false        | false            | 0
+    false        | Boolean.FALSE    | 0
+    false        | null             | 0 // Not used
+    false        | "true"           | 1
+    false        | "false"          | 0
+    false        | "TRUE"           | 1
+    false        | "something-else" | 0
+    false        | ""               | 0
   }
 
   @Override
