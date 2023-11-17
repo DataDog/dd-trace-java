@@ -68,7 +68,7 @@ public class TaintedObjectsWithTelemetry implements TaintedObjects {
       if (delegate.isFlat()) {
         IastMetricCollector.add(TAINTED_FLAT_MODE, 1, ctx);
       }
-      IastMetricCollector.add(REQUEST_TAINTED, computeSize(), ctx);
+      IastMetricCollector.add(REQUEST_TAINTED, count(), ctx);
     } finally {
       delegate.release();
     }
@@ -86,17 +86,7 @@ public class TaintedObjectsWithTelemetry implements TaintedObjects {
   }
 
   @Override
-  public int getEstimatedSize() {
-    return delegate.getEstimatedSize();
-  }
-
-  @Override
   public boolean isFlat() {
     return delegate.isFlat();
-  }
-
-  private int computeSize() {
-    int size = getEstimatedSize();
-    return size > COUNT_THRESHOLD ? size : count();
   }
 }

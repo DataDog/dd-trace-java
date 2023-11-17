@@ -30,8 +30,6 @@ public interface TaintedObjects extends Iterable<TaintedObject> {
 
   int count();
 
-  int getEstimatedSize();
-
   boolean isFlat();
 
   static TaintedObjects acquire() {
@@ -52,7 +50,7 @@ public interface TaintedObjects extends Iterable<TaintedObject> {
     private final TaintedMap map;
 
     public TaintedObjectsImpl() {
-      this(new TaintedMap());
+      this(TaintedMap.build());
     }
 
     private TaintedObjectsImpl(final @Nonnull TaintedMap map) {
@@ -81,11 +79,6 @@ public interface TaintedObjects extends Iterable<TaintedObject> {
     @Override
     public int count() {
       return map.count();
-    }
-
-    @Override
-    public int getEstimatedSize() {
-      return map.getEstimatedSize();
     }
 
     @Override
@@ -148,11 +141,6 @@ public interface TaintedObjects extends Iterable<TaintedObject> {
     }
 
     @Override
-    public int getEstimatedSize() {
-      return delegated.getEstimatedSize();
-    }
-
-    @Override
     public boolean isFlat() {
       return delegated.isFlat();
     }
@@ -200,11 +188,6 @@ public interface TaintedObjects extends Iterable<TaintedObject> {
 
     @Override
     public int count() {
-      return 0;
-    }
-
-    @Override
-    public int getEstimatedSize() {
       return 0;
     }
 

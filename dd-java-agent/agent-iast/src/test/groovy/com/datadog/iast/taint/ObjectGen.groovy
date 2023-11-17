@@ -1,7 +1,7 @@
 package com.datadog.iast.taint
 
 import static TaintedMap.POSITIVE_MASK
-import static TaintedMap.PURGE_MASK
+import static com.datadog.iast.taint.TaintedMap.WithPurgeQueue.PURGE_MASK
 
 /**
  * Generate objects to test {@link TaintedMap}.
