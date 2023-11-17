@@ -72,8 +72,10 @@ public class CorePropagation implements AgentPropagation {
   }
 
   @Override
-  public <C> void injectPathwayContext(AgentSpan span, C carrier, Setter<C> setter) {
-    this.dataStreamContextInjector.injectPathwayContext(span, carrier, setter);
+  public <C> void injectPathwayContextWithoutSendingStats(
+      AgentSpan span, C carrier, Setter<C> setter, LinkedHashMap<String, String> sortedTags) {
+    this.dataStreamContextInjector.injectPathwayContextWithoutSendingStats(
+        span, carrier, setter, sortedTags);
   }
 
   @Override

@@ -25,11 +25,11 @@ import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
+import datadog.trace.bootstrap.instrumentation.api.StatsPoint;
 import java.util.LinkedHashMap;
 import net.bytebuddy.asm.Advice;
 import org.apache.kafka.clients.ApiVersions;
 import org.apache.kafka.clients.producer.Callback;
-import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.record.RecordBatch;
@@ -78,7 +78,6 @@ public final class KafkaProducerInstrumentation extends Instrumenter.Tracing
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope onEnter(
-        @Advice.This KafkaProducer producer,
         @Advice.FieldValue("apiVersions") final ApiVersions apiVersions,
         @Advice.FieldValue("producerConfig") ProducerConfig producerConfig,
         @Advice.Argument(value = 0, readOnly = false) ProducerRecord record,
@@ -93,8 +92,6 @@ public final class KafkaProducerInstrumentation extends Instrumenter.Tracing
       if (record.value() == null) {
         span.setTag(InstrumentationTags.TOMBSTONE, true);
       }
-      // save the topic for EstimateSizeAdvice to read it.
-      span.setBaggageItem("kafka.topic", record.topic());
 
       // Do not inject headers for batch versions below 2
       // This is how similar check is being done in Kafka client itself:
@@ -106,9 +103,14 @@ public final class KafkaProducerInstrumentation extends Instrumenter.Tracing
       if (apiVersions.maxUsableProduceMagic() >= RecordBatch.MAGIC_VALUE_V2
           && Config.get().isKafkaClientPropagationEnabled()
           && !Config.get().isKafkaClientPropagationDisabledForTopic(record.topic())) {
+        LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>();
+        sortedTags.put(DIRECTION_TAG, DIRECTION_OUT);
+        sortedTags.put(TOPIC_TAG, record.topic());
+        sortedTags.put(TYPE_TAG, "kafka");
         try {
           propagate().inject(span, record.headers(), SETTER);
-          propagate().injectPathwayContext(span, record.headers(), SETTER);
+          propagate()
+              .injectPathwayContextWithoutSendingStats(span, record.headers(), SETTER, sortedTags);
         } catch (final IllegalStateException e) {
           // headers must be read-only from reused record. try again with new one.
           record =
@@ -121,7 +123,8 @@ public final class KafkaProducerInstrumentation extends Instrumenter.Tracing
                   record.headers());
 
           propagate().inject(span, record.headers(), SETTER);
-          propagate().injectPathwayContext(span, record.headers(), SETTER);
+          propagate()
+              .injectPathwayContextWithoutSendingStats(span, record.headers(), SETTER, sortedTags);
         }
         if (TIME_IN_QUEUE_ENABLED) {
           SETTER.injectTimeInQueue(record.headers());
@@ -149,22 +152,21 @@ public final class KafkaProducerInstrumentation extends Instrumenter.Tracing
      */
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void onEnter(@Advice.Argument(value = 0) int estimatedPayloadSize) {
-      final AgentSpan encompassingSpan = activeSpan();
-      System.out.println("current span = " + encompassingSpan);
-      if (encompassingSpan == null) return;
-
-      String topic = encompassingSpan.getBaggageItem("kafka.topic");
-      // if not available, the call is not coming from where we expect it.
-      if (topic == null) return;
-
-      LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>();
-      sortedTags.put(DIRECTION_TAG, DIRECTION_OUT);
-      sortedTags.put(TOPIC_TAG, topic);
-      sortedTags.put(TYPE_TAG, "kafka");
-
-      AgentTracer.get()
-          .getDataStreamsMonitoring()
-          .setCheckpoint(encompassingSpan, sortedTags, 0, estimatedPayloadSize);
+      StatsPoint saved = activeSpan().context().getPathwayContext().getSavedStats();
+      if (saved != null) {
+        // create new stats including the payload size
+        StatsPoint updated =
+            new StatsPoint(
+                saved.getEdgeTags(),
+                saved.getHash(),
+                saved.getParentHash(),
+                saved.getTimestampNanos(),
+                saved.getPathwayLatencyNano(),
+                saved.getEdgeLatencyNano(),
+                estimatedPayloadSize);
+        // then send the point
+        AgentTracer.get().getDataStreamsMonitoring().add(updated);
+      }
     }
   }
 }

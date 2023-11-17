@@ -24,18 +24,28 @@ public class DataStreamContextInjector {
       C carrier,
       AgentPropagation.Setter<C> setter,
       LinkedHashMap<String, String> sortedTags) {
-    PathwayContext pathwayContext = span.context().getPathwayContext();
-    if (shouldInject(pathwayContext, span)) {
-      pathwayContext.setCheckpoint(sortedTags, dataStreamsMonitoring::add);
-      doInject(pathwayContext, span, carrier, setter);
-    }
+    injectPathwayContext(span, carrier, setter, sortedTags, true);
   }
 
-  public <C> void injectPathwayContext(
-      AgentSpan span, C carrier, AgentPropagation.Setter<C> setter) {
+  /** Same as injectPathwayContext, but the stats collected in the StatsPoint are not sent. */
+  public <C> void injectPathwayContextWithoutSendingStats(
+      AgentSpan span,
+      C carrier,
+      AgentPropagation.Setter<C> setter,
+      LinkedHashMap<String, String> sortedTags) {
+    injectPathwayContext(span, carrier, setter, sortedTags, false);
+  }
+
+  private <C> void injectPathwayContext(
+      AgentSpan span,
+      C carrier,
+      AgentPropagation.Setter<C> setter,
+      LinkedHashMap<String, String> sortedTags,
+      boolean sendCheckpoint) {
     PathwayContext pathwayContext = span.context().getPathwayContext();
     if (shouldInject(pathwayContext, span)) {
-      // Checkpoint is not set here. Should be done manually later on.
+      pathwayContext.setCheckpoint(
+          sortedTags, sendCheckpoint ? dataStreamsMonitoring::add : pathwayContext::saveStats);
       doInject(pathwayContext, span, carrier, setter);
     }
   }

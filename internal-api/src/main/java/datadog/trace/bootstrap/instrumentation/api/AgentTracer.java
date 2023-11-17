@@ -868,7 +868,8 @@ public class AgentTracer {
         AgentSpan span, C carrier, Setter<C> setter, LinkedHashMap<String, String> sortedTags) {}
 
     @Override
-    public <C> void injectPathwayContext(AgentSpan span, C carrier, Setter<C> setter) {}
+    public <C> void injectPathwayContextWithoutSendingStats(
+        AgentSpan span, C carrier, Setter<C> setter, LinkedHashMap<String, String> sortedTags) {}
 
     @Override
     public <C> Context.Extracted extract(final C carrier, final ContextVisitor<C> getter) {
@@ -1084,6 +1085,14 @@ public class AgentTracer {
     @Override
     public void setCheckpoint(
         LinkedHashMap<String, String> sortedTags, Consumer<StatsPoint> pointConsumer) {}
+
+    @Override
+    public void saveStats(StatsPoint point) {}
+
+    @Override
+    public StatsPoint getSavedStats() {
+      return null;
+    }
 
     @Override
     public byte[] encode() {

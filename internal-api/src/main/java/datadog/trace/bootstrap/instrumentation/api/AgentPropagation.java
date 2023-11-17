@@ -14,8 +14,8 @@ public interface AgentPropagation {
   <C> void injectPathwayContext(
       AgentSpan span, C carrier, Setter<C> setter, LinkedHashMap<String, String> sortedTags);
 
-  /** This method does not set a checkpoint */
-  <C> void injectPathwayContext(AgentSpan span, C carrier, Setter<C> setter);
+  <C> void injectPathwayContextWithoutSendingStats(
+      AgentSpan span, C carrier, Setter<C> setter, LinkedHashMap<String, String> sortedTags);
 
   interface Setter<C> {
     void set(C carrier, String key, String value);

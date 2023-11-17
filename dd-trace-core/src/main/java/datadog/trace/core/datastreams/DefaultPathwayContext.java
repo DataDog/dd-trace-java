@@ -44,6 +44,7 @@ public class DefaultPathwayContext implements PathwayContext {
   private long pathwayStartNanos;
   private long pathwayStartNanoTicks;
   private long edgeStartNanoTicks;
+  private StatsPoint savedStats;
   private long hash;
   private boolean started;
   // state variables used to memoize the pathway hash with
@@ -174,7 +175,7 @@ public class DefaultPathwayContext implements PathwayContext {
               allTags,
               newHash,
               hash,
-              timeSource.getCurrentTimeNanos(),
+              startNanos,
               pathwayLatencyNano,
               edgeLatencyNano,
               payloadSizeBytes);
@@ -186,6 +187,16 @@ public class DefaultPathwayContext implements PathwayContext {
     } finally {
       lock.unlock();
     }
+  }
+
+  @Override
+  public void saveStats(StatsPoint point) {
+    this.savedStats = point;
+  }
+
+  @Override
+  public StatsPoint getSavedStats() {
+    return this.savedStats;
   }
 
   @Override
