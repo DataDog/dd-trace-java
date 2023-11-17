@@ -13,8 +13,6 @@ import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Source;
 import datadog.trace.api.iast.SourceTypes;
 import datadog.trace.api.iast.propagation.PropagationModule;
-import java.util.Arrays;
-import java.util.Collection;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
 
