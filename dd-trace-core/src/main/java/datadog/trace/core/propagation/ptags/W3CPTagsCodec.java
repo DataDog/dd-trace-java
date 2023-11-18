@@ -16,12 +16,14 @@ public class W3CPTagsCodec extends PTagsCodec {
   private static final Logger log = LoggerFactory.getLogger(W3CPTagsCodec.class);
 
   private static final int MAX_HEADER_SIZE = 256;
-  private static final int EMPTY_SIZE = 3; // 'dd='
+  private static final String DATADOG_MEMBER_KEY = "dd=";
+  private static final int EMPTY_SIZE = DATADOG_MEMBER_KEY.length(); // 3
   private static final char MEMBER_SEPARATOR = ',';
   private static final char ELEMENT_SEPARATOR = ';';
   private static final char KEY_VALUE_SEPARATOR = ':';
   private static final int MIN_ALLOWED_CHAR = 32;
   private static final int MAX_ALLOWED_CHAR = 126;
+  private static final int MAX_MEMBER_COUNT = 32;
 
   @Override
   PropagationTags fromHeaderValue(PTagsFactory tagsFactory, String value) {
@@ -44,12 +46,12 @@ public class W3CPTagsCodec extends PTagsCodec {
     int memberIndex = 0;
     int ddMemberIndex = -1;
     while (memberStart < len) {
-      if (memberIndex == 32) {
+      if (memberIndex == MAX_MEMBER_COUNT) {
         // TODO should we return one with an error?
         // TODO should we try to pick up the `dd` member anyway?
         return tagsFactory.empty();
       }
-      if (ddMemberIndex == -1 && value.startsWith("dd=", memberStart)) {
+      if (ddMemberIndex == -1 && value.startsWith(DATADOG_MEMBER_KEY, memberStart)) {
         ddMemberStart = memberStart;
         ddMemberIndex = memberIndex;
       }
@@ -196,19 +198,25 @@ public class W3CPTagsCodec extends PTagsCodec {
       W3CPTags w3CPTags = (W3CPTags) pTags;
       size += w3CPTags.maxUnknownSize;
       if (w3CPTags.ddMemberStart != -1) {
-        size += (w3CPTags.original.length() - (w3CPTags.ddMemberValueEnd - w3CPTags.ddMemberStart));
+        size +=
+            (w3CPTags.tracestate.length() - (w3CPTags.ddMemberValueEnd - w3CPTags.ddMemberStart));
       }
+    } else if (pTags.tracestate != null) {
+      // We assume there is no Datadog list-member
+      size += pTags.tracestate.length();
     }
     return size;
   }
 
   @Override
   protected int appendPrefix(StringBuilder sb, PTags ptags) {
-    sb.append("dd=");
+    sb.append(DATADOG_MEMBER_KEY);
+    // Append sampling priority (s)
     if (ptags.getSamplingPriority() != PrioritySampling.UNSET) {
       sb.append("s:");
       sb.append(ptags.getSamplingPriority());
     }
+    // Append origin (o)
     CharSequence origin = ptags.getOrigin();
     if (origin != null) {
       if (sb.length() > EMPTY_SIZE) {
@@ -231,24 +239,24 @@ public class W3CPTagsCodec extends PTagsCodec {
 
   @Override
   protected int appendSuffix(StringBuilder sb, PTags ptags, int size) {
-    if (size >= MAX_HEADER_SIZE || !(ptags instanceof W3CPTags)) {
-      return size;
+    // If there is room for appending unknown from W3CPTags
+    if (size < MAX_HEADER_SIZE && ptags instanceof W3CPTags) {
+      W3CPTags w3cPTags = (W3CPTags) ptags;
+      size = cleanUpAndAppendUnknown(sb, w3cPTags, size);
     }
-    W3CPTags w3cPTags = (W3CPTags) ptags;
-    size = cleanUpAndAppendUnknown(sb, w3cPTags, size);
+    // Check empty Datadog list-member only tracestate
     if (size == EMPTY_SIZE) {
       // If we haven't written anything but the 'dd=', then reset the StringBuilder
       sb.setLength(0);
       size = 0;
     }
-    // TODO we need to ensure that there are only 32 segments including our own :(
-    int newSize = cleanUpAndAppendSuffix(sb, w3cPTags, size);
+    // Append all other non-Datadog list-members
+    int newSize = cleanUpAndAppendSuffix(sb, ptags, size);
     if (newSize != size) {
       // We don't care about the total size in bytes here, but only the fact that we added something
       // that should be returned
       size = Math.max(size, EMPTY_SIZE + 1);
     }
-
     return size;
   }
 
@@ -584,7 +592,7 @@ public class W3CPTagsCodec extends PTagsCodec {
         || w3CPTags.ddMemberStart >= w3CPTags.ddMemberValueEnd) {
       return size;
     }
-    String original = w3CPTags.original;
+    String original = w3CPTags.tracestate;
     int elementStart = w3CPTags.ddMemberStart + EMPTY_SIZE; // skip over 'dd='
     int okSize = size;
     while (elementStart < w3CPTags.ddMemberValueEnd && size < MAX_HEADER_SIZE) {
@@ -619,16 +627,29 @@ public class W3CPTagsCodec extends PTagsCodec {
     return size;
   }
 
-  private static int cleanUpAndAppendSuffix(StringBuilder sb, W3CPTags w3CPTags, int size) {
-    String original = w3CPTags.original;
+  private static int cleanUpAndAppendSuffix(StringBuilder sb, PTags ptags, int size) {
+    String original = ptags.tracestate;
+    if (original == null) {
+      return size;
+    }
+    int ddMemberStart = (ptags instanceof W3CPTags) ? ((W3CPTags) ptags).ddMemberStart : -1;
+    int remainingMemberAllowed = size == 0 ? MAX_MEMBER_COUNT : MAX_MEMBER_COUNT - 1;
     int len = original.length();
     int memberStart = findNextMember(original, 0);
     while (memberStart < len) {
+      // Look for member end position
       int memberEnd = original.indexOf(MEMBER_SEPARATOR, memberStart);
       if (memberEnd < 0) {
         memberEnd = len;
       }
-      if (memberStart != w3CPTags.ddMemberStart) {
+      // Try to define Datadog member start if not already found
+      if (ddMemberStart == -1) {
+        if (original.startsWith(DATADOG_MEMBER_KEY, memberStart)) {
+          ddMemberStart = memberStart;
+        }
+      }
+      // Skip Datadog member (already added with prefix and tags)
+      if (memberStart != ddMemberStart) {
         if (sb.length() > 0) {
           sb.append(MEMBER_SEPARATOR);
           size++;
@@ -636,8 +657,14 @@ public class W3CPTagsCodec extends PTagsCodec {
         int end = stripTrailingOWC(original, memberStart, memberEnd);
         sb.append(original, memberStart, end);
         size += (end - memberStart);
+        remainingMemberAllowed--;
       }
-      memberStart = findNextMember(original, memberEnd + 1);
+      // Check if remaining members are allowed
+      if (remainingMemberAllowed == 0) {
+        memberStart = len;
+      } else {
+        memberStart = findNextMember(original, memberEnd + 1);
+      }
     }
     return size;
   }
@@ -667,12 +694,20 @@ public class W3CPTagsCodec extends PTagsCodec {
   }
 
   private static class W3CPTags extends PTags {
-    private final String original;
+    /** The index of the first tracestate list-member position in {@link #tracestate}. */
     private final int firstMemberStart;
+    /**
+     * The index of the Datadog tracestate list-member (dd=) position in {@link #tracestate}, {@code
+     * -1 if Datadog list-member not found}.
+     */
     private final int ddMemberStart;
+    /**
+     * The index of the end Datadog tracestate list-member (dd=) in {@link #tracestate}, {@code -1
+     * if Datadog list-member not found}.
+     */
     private final int ddMemberValueEnd;
+
     private final int maxUnknownSize;
-    private String error;
 
     public W3CPTags(
         PTagsFactory factory,
@@ -687,20 +722,11 @@ public class W3CPTagsCodec extends PTagsCodec {
         int ddMemberValueEnd,
         int maxUnknownSize) {
       super(factory, tagPairs, decisionMakerTagValue, traceIdTagValue, samplingPriority, origin);
-      this.original = original;
+      this.tracestate = original;
       this.firstMemberStart = firstMemberStart;
       this.ddMemberStart = ddMemberStart;
       this.ddMemberValueEnd = ddMemberValueEnd;
       this.maxUnknownSize = maxUnknownSize;
-      this.error = null;
-    }
-
-    @Override
-    String getError() {
-      if (this.error != null) {
-        return this.error;
-      }
-      return super.getError();
     }
 
     @Override

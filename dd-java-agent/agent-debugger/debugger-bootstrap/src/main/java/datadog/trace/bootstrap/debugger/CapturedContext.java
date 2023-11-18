@@ -206,7 +206,7 @@ public class CapturedContext implements ValueReferenceResolver {
     if (locals == null) {
       locals = new HashMap<>();
     }
-    locals.put("@return", retValue); // special local name for the return value
+    locals.put(ValueReferences.RETURN_REF, retValue); // special local name for the return value
     extensions.put(ValueReferences.RETURN_EXTENSION_NAME, retValue);
   }
 
@@ -327,20 +327,12 @@ public class CapturedContext implements ValueReferenceResolver {
           ValueReferences.DURATION_EXTENSION_NAME, duration / 1_000_000.0); // convert to ms
     }
     this.thisClassName = thisClassName;
-    boolean shouldEvaluate = resolveEvaluateAt(probeImplementation, methodLocation);
+    boolean shouldEvaluate =
+        MethodLocation.isSame(methodLocation, probeImplementation.getEvaluateAt());
     if (shouldEvaluate) {
       probeImplementation.evaluate(this, status, methodLocation);
     }
     return status;
-  }
-
-  private static boolean resolveEvaluateAt(
-      ProbeImplementation probeImplementation, MethodLocation methodLocation) {
-    if (methodLocation == MethodLocation.DEFAULT) {
-      // line probe, no evaluation of probe's evaluateAt
-      return true;
-    }
-    return MethodLocation.isSame(methodLocation, probeImplementation.getEvaluateAt());
   }
 
   public Status getStatus(String probeId) {

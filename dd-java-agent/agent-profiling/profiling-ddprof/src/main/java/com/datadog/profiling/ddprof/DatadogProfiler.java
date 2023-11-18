@@ -28,12 +28,12 @@ import static datadog.trace.api.config.ProfilingConfig.PROFILING_QUEUEING_TIME_T
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_QUEUEING_TIME_THRESHOLD_MILLIS_DEFAULT;
 
 import com.datadog.profiling.controller.OngoingRecording;
-import com.datadog.profiling.controller.RecordingData;
 import com.datadog.profiling.controller.UnsupportedEnvironmentException;
 import com.datadog.profiling.utils.ProfilingMode;
 import com.datadoghq.profiler.ContextSetter;
 import com.datadoghq.profiler.JavaProfiler;
 import datadog.trace.api.config.ProfilingConfig;
+import datadog.trace.api.profiling.RecordingData;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -151,7 +151,7 @@ public final class DatadogProfiler {
                   ProfilingConfig.PROFILING_DATADOG_PROFILER_SCRATCH,
                   ProfilingConfig.PROFILING_DATADOG_PROFILER_SCRATCH_DEFAULT));
     } catch (IOException e) {
-      throw new UnsupportedOperationException("Unable to instantiate datadog profiler");
+      throw new UnsupportedOperationException("Unable to instantiate datadog profiler", e);
     }
     if (profiler == null) {
       throw new UnsupportedEnvironmentException("Unable to instantiate datadog profiler");

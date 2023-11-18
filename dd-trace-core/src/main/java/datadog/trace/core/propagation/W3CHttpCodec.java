@@ -1,8 +1,10 @@
 package datadog.trace.core.propagation;
 
+import static datadog.trace.api.TracePropagationStyle.TRACECONTEXT;
 import static datadog.trace.api.sampling.PrioritySampling.SAMPLER_DROP;
 import static datadog.trace.api.sampling.PrioritySampling.SAMPLER_KEEP;
 import static datadog.trace.core.propagation.HttpCodec.firstHeaderValue;
+import static datadog.trace.core.propagation.PropagationTags.HeaderType.W3C;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
 
@@ -12,6 +14,7 @@ import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.TraceConfig;
+import datadog.trace.api.TracePropagationStyle;
 import datadog.trace.api.internal.util.LongStringUtils;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.api.sampling.SamplingMechanism;
@@ -61,6 +64,13 @@ class W3CHttpCodec {
     @Override
     public <C> void inject(
         final DDSpanContext context, final C carrier, final AgentPropagation.Setter<C> setter) {
+      injectTraceParent(context, carrier, setter);
+      injectTraceState(context, carrier, setter);
+      injectBaggage(context, carrier, setter);
+    }
+
+    private <C> void injectTraceParent(
+        DDSpanContext context, C carrier, AgentPropagation.Setter<C> setter) {
       StringBuilder sb = new StringBuilder(TRACE_PARENT_LENGTH);
       sb.append("00-");
       sb.append(context.getTraceId().toHexString());
@@ -68,11 +78,19 @@ class W3CHttpCodec {
       sb.append(DDSpanId.toHexStringPadded(context.getSpanId()));
       sb.append(context.getSamplingPriority() > 0 ? "-01" : "-00");
       setter.set(carrier, TRACE_PARENT_KEY, sb.toString());
-      String tracestate = context.getPropagationTags().headerValue(PropagationTags.HeaderType.W3C);
+    }
+
+    private <C> void injectTraceState(
+        DDSpanContext context, C carrier, AgentPropagation.Setter<C> setter) {
+      PropagationTags propagationTags = context.getPropagationTags();
+      String tracestate = propagationTags.headerValue(W3C);
       if (tracestate != null && !tracestate.isEmpty()) {
         setter.set(carrier, TRACE_STATE_KEY, tracestate);
       }
+    }
 
+    private <C> void injectBaggage(
+        DDSpanContext context, C carrier, AgentPropagation.Setter<C> setter) {
       long e2eStart = context.getEndToEndStartTime();
       if (e2eStart > 0) {
         setter.set(carrier, E2E_START_KEY, Long.toString(NANOSECONDS.toMillis(e2eStart)));
@@ -99,15 +117,17 @@ class W3CHttpCodec {
     private static final int E2E_START = 3;
     private static final int IGNORE = -1;
 
-    private final PropagationTags.Factory datadogTagsFactory;
-
     // We need to delay handling of the tracestate header until after traceparent
     private String tracestateHeader = null;
     private String traceparentHeader = null;
 
     private W3CContextInterpreter(Config config) {
       super(config);
-      datadogTagsFactory = PropagationTags.factory(config);
+    }
+
+    @Override
+    public TracePropagationStyle style() {
+      return TRACECONTEXT;
     }
 
     @Override
@@ -241,7 +261,7 @@ class W3CHttpCodec {
      */
     @Override
     protected TagContext build() {
-      // If there is neither a traceparent or a tracestate header, then ignore this
+      // If there is neither a traceparent nor a tracestate header, then ignore this
       if (traceparentHeader == null && tracestateHeader == null) {
         onlyTagContext();
       }
@@ -252,8 +272,8 @@ class W3CHttpCodec {
                 "Found no traceparent header but tracestate header '" + tracestateHeader + "'");
           }
           // Now we know that we have at least a traceparent header
-          parseTraceParentHeader(traceparentHeader, this);
-          parseTraceStateHeader(tracestateHeader, this, datadogTagsFactory);
+          parseTraceParentHeader(traceparentHeader);
+          parseTraceStateHeader(tracestateHeader);
         } catch (RuntimeException e) {
           onlyTagContext();
           log.debug("Exception when building context", e);
@@ -262,7 +282,7 @@ class W3CHttpCodec {
       return super.build();
     }
 
-    static void parseTraceParentHeader(String tp, ContextInterpreter context) {
+    void parseTraceParentHeader(String tp) {
       int length = tp == null ? 0 : tp.length();
       if (length < TRACE_PARENT_LENGTH) {
         throw new IllegalStateException("The length of traceparent '" + tp + "' is too short");
@@ -279,9 +299,9 @@ class W3CHttpCodec {
             "Illegal all zero 64 bit trace id "
                 + tp.substring(TRACE_PARENT_TID_START, TRACE_PARENT_TID_END));
       }
-      context.traceId = traceId;
-      context.spanId = DDSpanId.fromHex(tp, TRACE_PARENT_SID_START, 16, true);
-      if (context.spanId == 0) {
+      this.traceId = traceId;
+      this.spanId = DDSpanId.fromHex(tp, TRACE_PARENT_SID_START, 16, true);
+      if (this.spanId == 0) {
         throw new IllegalStateException(
             "Illegal all zero span id "
                 + tp.substring(TRACE_PARENT_SID_START, TRACE_PARENT_SID_END));
@@ -291,35 +311,34 @@ class W3CHttpCodec {
       }
       long flags = LongStringUtils.parseUnsignedLongHex(tp, TRACE_PARENT_FLAGS_START, 2, true);
       if ((flags & TRACE_PARENT_FLAGS_SAMPLED) != 0) {
-        context.samplingPriority = SAMPLER_KEEP;
+        this.samplingPriority = SAMPLER_KEEP;
       } else {
-        context.samplingPriority = SAMPLER_DROP;
+        this.samplingPriority = SAMPLER_DROP;
       }
     }
 
-    static void parseTraceStateHeader(
-        String ts, ContextInterpreter context, PropagationTags.Factory factory) {
-      if (ts == null || ts.isEmpty()) {
-        context.propagationTags = factory.empty();
+    void parseTraceStateHeader(String tracestate) {
+      if (tracestate == null || tracestate.isEmpty()) {
+        this.propagationTags = this.propagationTagsFactory.empty();
       } else {
-        context.propagationTags = factory.fromHeaderValue(PropagationTags.HeaderType.W3C, ts);
+        this.propagationTags = this.propagationTagsFactory.fromHeaderValue(W3C, tracestate);
       }
-      int ptagsPriority = context.propagationTags.getSamplingPriority();
-      int contextPriority = context.samplingPriority;
+      int ptagsPriority = this.propagationTags.getSamplingPriority();
+      int contextPriority = this.samplingPriority;
       if ((contextPriority == SAMPLER_DROP && ptagsPriority > 0)
           || (contextPriority == SAMPLER_KEEP && ptagsPriority <= 0)
           || ptagsPriority == PrioritySampling.UNSET) {
         // Override Datadog sampling priority with W3C one
-        context.propagationTags.updateTraceSamplingPriority(
+        this.propagationTags.updateTraceSamplingPriority(
             contextPriority, SamplingMechanism.EXTERNAL_OVERRIDE);
       } else {
         // Use more detailed Datadog sampling priority in context
-        context.samplingPriority = ptagsPriority;
+        this.samplingPriority = ptagsPriority;
       }
       // Use the origin
-      context.origin = context.propagationTags.getOrigin();
+      this.origin = this.propagationTags.getOrigin();
       // Ensure TraceId high-order bits match
-      context.propagationTags.updateTraceIdHighOrderBits(context.traceId.toHighOrderLong());
+      this.propagationTags.updateTraceIdHighOrderBits(this.traceId.toHighOrderLong());
     }
 
     private static String trim(String input) {

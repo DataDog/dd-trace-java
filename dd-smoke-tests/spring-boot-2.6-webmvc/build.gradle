@@ -35,6 +35,7 @@ dependencies {
   implementation group: 'com.h2database', name: 'h2', version: '2.1.214'
   implementation group: 'jakarta.xml.bind', name: 'jakarta.xml.bind-api', version: '2.3.3'
   implementation group: 'com.sun.xml.bind', name: 'jaxb-ri', version: '2.3.3'
+  implementation group: 'com.google.code.gson', name: 'gson', version: '2.10'
 
 
   testImplementation project(':dd-smoke-tests')

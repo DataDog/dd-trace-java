@@ -1,6 +1,6 @@
 package com.datadog.profiling.uploader;
 
-import com.datadog.profiling.controller.RecordingInputStream;
+import datadog.trace.api.profiling.RecordingInputStream;
 import java.io.BufferedOutputStream;
 import java.io.IOException;
 import java.io.InputStream;

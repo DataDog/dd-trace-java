@@ -333,7 +333,7 @@ public class DDSpanContext
     // as fast as we can try to make this operation, we still might need to activate/deactivate
     // contexts at alarming rates in unpredictable async applications, so we'll try
     // to get away with doing this just once per span
-    this.encodedOperationName = profilingContextIntegration.encode(operationName);
+    this.encodedOperationName = profilingContextIntegration.encodeOperationName(operationName);
 
     setServiceName(serviceName);
     this.operationName = operationName;
@@ -419,7 +419,7 @@ public class DDSpanContext
     if (priority >= this.resourceNamePriority) {
       this.resourceNamePriority = priority;
       this.resourceName = resourceName;
-      this.encodedResourceName = profilingContextIntegration.encode(resourceName);
+      this.encodedResourceName = profilingContextIntegration.encodeResourceName(resourceName);
     }
   }
 
@@ -433,7 +433,7 @@ public class DDSpanContext
 
   public void setOperationName(final CharSequence operationName) {
     this.operationName = operationName;
-    this.encodedOperationName = profilingContextIntegration.encode(operationName);
+    this.encodedOperationName = profilingContextIntegration.encodeOperationName(operationName);
   }
 
   public boolean getErrorFlag() {

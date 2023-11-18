@@ -1,10 +1,16 @@
 package datadog.trace.bootstrap.instrumentation.api;
 
+import static datadog.trace.api.TracePropagationStyle.NONE;
+import static java.util.Collections.emptyList;
+
 import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.TraceConfig;
+import datadog.trace.api.TracePropagationStyle;
 import datadog.trace.api.sampling.PrioritySampling;
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -17,6 +23,7 @@ public class TagContext implements AgentSpan.Context.Extracted {
 
   private final CharSequence origin;
   private final Map<String, String> tags;
+  private List<AgentSpanLink> terminatedContextLinks;
   private Object requestContextDataAppSec;
   private Object requestContextDataIast;
   private Object ciVisibilityContextData;
@@ -25,13 +32,14 @@ public class TagContext implements AgentSpan.Context.Extracted {
   private final Map<String, String> baggage;
   private final int samplingPriority;
   private final TraceConfig traceConfig;
+  private final TracePropagationStyle propagationStyle;
 
   public TagContext() {
     this(null, null);
   }
 
   public TagContext(final String origin, final Map<String, String> tags) {
-    this(origin, tags, null, null, PrioritySampling.UNSET, null);
+    this(origin, tags, null, null, PrioritySampling.UNSET, null, NONE);
   }
 
   public TagContext(
@@ -40,21 +48,40 @@ public class TagContext implements AgentSpan.Context.Extracted {
       final HttpHeaders httpHeaders,
       final Map<String, String> baggage,
       final int samplingPriority,
-      final TraceConfig traceConfig) {
+      final TraceConfig traceConfig,
+      final TracePropagationStyle propagationStyle) {
     this.origin = origin;
     this.tags = tags;
+    this.terminatedContextLinks = null;
     this.httpHeaders = httpHeaders == null ? EMPTY_HTTP_HEADERS : httpHeaders;
     this.baggage = baggage == null ? Collections.emptyMap() : baggage;
     this.samplingPriority = samplingPriority;
     this.traceConfig = traceConfig;
+    this.propagationStyle = propagationStyle;
   }
 
   public TraceConfig getTraceConfig() {
     return traceConfig;
   }
 
+  public TracePropagationStyle getPropagationStyle() {
+    return this.propagationStyle;
+  }
+
   public final CharSequence getOrigin() {
     return origin;
+  }
+
+  @Override
+  public List<AgentSpanLink> getTerminatedContextLinks() {
+    return this.terminatedContextLinks == null ? emptyList() : this.terminatedContextLinks;
+  }
+
+  public void addTerminatedContextLink(AgentSpanLink link) {
+    if (this.terminatedContextLinks == null) {
+      this.terminatedContextLinks = new ArrayList<>();
+    }
+    this.terminatedContextLinks.add(link);
   }
 
   @Override

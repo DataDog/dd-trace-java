@@ -1,0 +1,13 @@
+
+apply from: "$rootDir/gradle/java.gradle"
+addTestSuiteForDir('latestDepTest', 'test')
+
+dependencies {
+  compileOnly group: 'org.apache.commons', name: 'commons-fileupload2', version: '2.0.0-M1'
+  testImplementation group: 'org.apache.commons', name: 'commons-fileupload2', version: '2.0.0-M1'
+  testImplementation group: 'org.apache.tomcat.embed', name: 'tomcat-embed-core', version: '7.0.0'
+
+
+  testRuntimeOnly project(':dd-java-agent:instrumentation:iast-instrumenter')
+  latestDepTestImplementation group: 'org.apache.commons', name: 'commons-fileupload2', version: '+'
+}

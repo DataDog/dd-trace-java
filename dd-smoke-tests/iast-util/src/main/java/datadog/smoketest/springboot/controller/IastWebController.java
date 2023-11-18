@@ -1,11 +1,13 @@
 package datadog.smoketest.springboot.controller;
 
 import com.google.gson.Gson;
+import com.google.gson.JsonParser;
 import datadog.smoketest.springboot.TestBean;
 import ddtest.client.sources.Hasher;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.File;
 import java.io.IOException;
+import java.io.StringReader;
 import java.io.UnsupportedEncodingException;
 import java.net.HttpCookie;
 import java.net.HttpURLConnection;
@@ -32,6 +34,7 @@ import javax.xml.xpath.XPathFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.Resource;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.MatrixVariable;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -355,6 +358,12 @@ public class IastWebController {
     Gson gson = new Gson();
     TestBean testBean = gson.fromJson(json, TestBean.class);
     return "Test bean -> name: " + testBean.getName() + ", value: " + testBean.getValue();
+  }
+
+  @PostMapping(value = "/gson_json_parser_deserialization", consumes = MediaType.TEXT_PLAIN_VALUE)
+  String gsonJsonParser(@RequestBody String json) {
+    JsonParser.parseReader(new StringReader(json));
+    return "Ok";
   }
 
   private void withProcess(final Operation<Process> op) {

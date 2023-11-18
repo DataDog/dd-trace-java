@@ -7,9 +7,14 @@ import datadog.trace.api.gateway.RequestContext;
 import java.nio.CharBuffer;
 import java.util.Arrays;
 import java.util.function.BiFunction;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** Analogous to {@link StoredByteBody}, but Java doesn't support generics with scalar types. */
 public class StoredCharBody implements StoredBodySupplier {
+
+  private static final Logger LOGGER = LoggerFactory.getLogger(StoredCharBody.class);
+
   private static final int MIN_BUFFER_SIZE = 128; // chars
   private static final int MAX_BUFFER_SIZE = 128 * 1024; // 256k (char == 2 bytes)
   private static final int GROW_FACTOR = 4;
@@ -53,33 +58,41 @@ public class StoredCharBody implements StoredBodySupplier {
   }
 
   public synchronized void appendData(char[] chars, int start, int end) {
-    int newDataLen = end - start;
-    if (newDataLen <= 0) {
-      return;
-    }
-    if (!maybeExtendStorage(newDataLen)) {
-      return;
-    }
+    try {
+      int newDataLen = end - start;
+      if (newDataLen <= 0) {
+        return;
+      }
+      if (!maybeExtendStorage(newDataLen)) {
+        return;
+      }
 
-    int lenToCopy = Math.min(newDataLen, capacityLeft());
-    System.arraycopy(chars, start, this.storedBody, this.storedBodyLen, lenToCopy);
+      int lenToCopy = Math.min(newDataLen, capacityLeft());
+      System.arraycopy(chars, start, this.storedBody, this.storedBodyLen, lenToCopy);
 
-    this.storedBodyLen += lenToCopy;
+      this.storedBodyLen += lenToCopy;
+    } catch (final Throwable e) {
+      LOGGER.debug("Error appending char array chunk", e);
+    }
     maybeNotifyStart();
   }
 
   public synchronized void appendData(CharBuffer buffer) {
-    int inputLen = buffer.remaining();
-    if (inputLen == 0) {
-      return;
-    }
-    if (!maybeExtendStorage(inputLen)) {
-      return;
-    }
-    int lenToCopy = Math.min(inputLen, capacityLeft());
+    try {
+      int inputLen = buffer.remaining();
+      if (inputLen == 0) {
+        return;
+      }
+      if (!maybeExtendStorage(inputLen)) {
+        return;
+      }
+      int lenToCopy = Math.min(inputLen, capacityLeft());
 
-    buffer.get(this.storedBody, this.storedBodyLen, lenToCopy);
-    this.storedBodyLen += lenToCopy;
+      buffer.get(this.storedBody, this.storedBodyLen, lenToCopy);
+      this.storedBodyLen += lenToCopy;
+    } catch (final Throwable e) {
+      LOGGER.debug("Error appending char buffer", e);
+    }
     maybeNotifyStart();
   }
 
@@ -100,16 +113,20 @@ public class StoredCharBody implements StoredBodySupplier {
   }
 
   public synchronized void appendData(String s) {
-    int newDataLen = s.length();
-    if (!maybeExtendStorage(newDataLen)) {
-      return;
+    try {
+      int newDataLen = s.length();
+      if (!maybeExtendStorage(newDataLen)) {
+        return;
+      }
+
+      int lenToCopy = Math.min(newDataLen, capacityLeft());
+      s.getChars(0, lenToCopy, this.storedBody, this.storedBodyLen);
+
+      this.storedBodyLen += lenToCopy;
+
+    } catch (final Throwable e) {
+      LOGGER.debug("Error appending string", e);
     }
-
-    int lenToCopy = Math.min(newDataLen, capacityLeft());
-    s.getChars(0, lenToCopy, this.storedBody, this.storedBodyLen);
-
-    this.storedBodyLen += lenToCopy;
-
     maybeNotifyStart();
   }
 
@@ -119,15 +136,19 @@ public class StoredCharBody implements StoredBodySupplier {
 
   /** @param utf16CodeUnit an int in the range 0-0xFFFF */
   public synchronized void appendData(int utf16CodeUnit) {
-    if (utf16CodeUnit < 0) {
-      return;
-    }
-    if (!maybeExtendStorage(1)) {
-      return;
-    }
-    this.storedBody[this.storedBodyLen] = (char) utf16CodeUnit;
-    this.storedBodyLen += 1;
+    try {
+      if (utf16CodeUnit < 0) {
+        return;
+      }
+      if (!maybeExtendStorage(1)) {
+        return;
+      }
+      this.storedBody[this.storedBodyLen] = (char) utf16CodeUnit;
+      this.storedBodyLen += 1;
 
+    } catch (final Throwable e) {
+      LOGGER.debug("Error appending code unit", e);
+    }
     maybeNotifyStart();
   }
 

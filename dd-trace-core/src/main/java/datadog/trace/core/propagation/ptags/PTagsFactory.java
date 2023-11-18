@@ -88,7 +88,15 @@ public class PTagsFactory implements PropagationTags.Factory {
      * of the trace id, wrapped into a {@link TagValue}, <code>null</code> if not set.
      */
     private volatile TagValue traceIdHighOrderBitsHexTagValue;
-
+    /**
+     * The original <a href="https://www.w3.org/TR/trace-context/#tracestate-header">W3C tracestate
+     * header</a> value.
+     */
+    protected volatile String tracestate;
+    /**
+     * The {@link PTagsFactory#PROPAGATION_ERROR_TAG_KEY propagation tag error} value, {@code null
+     * if no error while parsing header}.
+     */
     protected volatile String error;
 
     public PTags(
@@ -290,6 +298,16 @@ public class PTagsFactory implements PropagationTags.Factory {
 
     TagValue getDecisionMakerTagValue() {
       return decisionMakerTagValue;
+    }
+
+    @Override
+    public String getW3CTracestate() {
+      return this.tracestate;
+    }
+
+    @Override
+    public void updateW3CTracestate(String tracestate) {
+      this.tracestate = tracestate;
     }
 
     String getError() {
