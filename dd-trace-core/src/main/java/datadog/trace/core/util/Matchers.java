@@ -19,15 +19,15 @@ public final class Matchers {
     }
   }
 
-  public static final boolean matches(Matcher matcher, String str) {
+  public static boolean matches(Matcher matcher, String str) {
     return (matcher == null) || matcher.matches(str);
   }
 
-  public static final boolean matches(Matcher matcher, CharSequence charSeq) {
+  public static boolean matches(Matcher matcher, CharSequence charSeq) {
     return (matcher == null) || matcher.matches(charSeq);
   }
 
-  static final boolean isExact(String glob) {
+  static boolean isExact(String glob) {
     return (glob.indexOf('*') == -1) && (glob.indexOf('?') == -1);
   }
 
@@ -39,7 +39,7 @@ public final class Matchers {
     }
 
     @Override
-    public final boolean matches(String str) {
+    public boolean matches(String str) {
       return exact.equals(str);
     }
 
