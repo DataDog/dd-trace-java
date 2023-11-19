@@ -89,6 +89,7 @@ include ':utils:time-utils'
 include ':utils:version-utils'
 
 // smoke tests
+include ':dd-smoke-tests:agent-bootstrap'
 include ':dd-smoke-tests:armeria-grpc'
 include ':dd-smoke-tests:cli'
 include ':dd-smoke-tests:custom-systemloader'
