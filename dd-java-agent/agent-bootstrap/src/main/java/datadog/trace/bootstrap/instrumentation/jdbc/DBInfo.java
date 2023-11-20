@@ -6,6 +6,7 @@ public class DBInfo {
   public static DBInfo DEFAULT = new Builder().type("database").build();
   private final String type;
   private final String subtype;
+  private final boolean fullPropagationSupport;
   private final String url;
   private final String user;
   private final String instance;
@@ -16,6 +17,7 @@ public class DBInfo {
   DBInfo(
       String type,
       String subtype,
+      boolean fullPropagationSupport,
       String url,
       String user,
       String instance,
@@ -24,6 +26,7 @@ public class DBInfo {
       Integer port) {
     this.type = type;
     this.subtype = subtype;
+    this.fullPropagationSupport = fullPropagationSupport;
     this.url = url;
     this.user = user;
     this.instance = instance;
@@ -35,6 +38,9 @@ public class DBInfo {
   public static class Builder {
     private String type;
     private String subtype;
+    // most DBs do support full propagation (inserting trace ID in query comments), so we default to
+    // true. See https://docs.datadoghq.com/database_monitoring/connect_dbm_and_apm
+    private boolean fullPropagationSupport = true;
     private String url;
     private String user;
     private String instance;
@@ -47,6 +53,7 @@ public class DBInfo {
     Builder(
         String type,
         String subtype,
+        boolean fullPropagationSupport,
         String url,
         String user,
         String instance,
@@ -55,6 +62,7 @@ public class DBInfo {
         Integer port) {
       this.type = type;
       this.subtype = subtype;
+      this.fullPropagationSupport = fullPropagationSupport;
       this.url = url;
       this.user = user;
       this.instance = instance;
@@ -65,11 +73,19 @@ public class DBInfo {
 
     public Builder type(String type) {
       this.type = type;
+      // Those DBs use the full text of the query including the comments as a cache key,
+      // so we disable full propagation support for them to avoid destroying the cache.
+      if (type.equals("oracle") || type.equals("sqlserver")) this.fullPropagationSupport = false;
       return this;
     }
 
     public Builder subtype(String subtype) {
       this.subtype = subtype;
+      return this;
+    }
+
+    public Builder fullPropagationSupport(boolean fullPropagationSupport) {
+      this.fullPropagationSupport = fullPropagationSupport;
       return this;
     }
 
@@ -104,7 +120,7 @@ public class DBInfo {
     }
 
     public DBInfo build() {
-      return new DBInfo(type, subtype, url, user, instance, db, host, port);
+      return new DBInfo(type, subtype, fullPropagationSupport, url, user, instance, db, host, port);
     }
   }
 
@@ -114,6 +130,10 @@ public class DBInfo {
 
   public String getSubtype() {
     return subtype;
+  }
+
+  public boolean getFullPropagationSupport() {
+    return fullPropagationSupport;
   }
 
   public String getUrl() {
@@ -141,7 +161,7 @@ public class DBInfo {
   }
 
   public Builder toBuilder() {
-    return new Builder(type, subtype, url, user, instance, db, host, port);
+    return new Builder(type, subtype, fullPropagationSupport, url, user, instance, db, host, port);
   }
 
   @Override
@@ -151,6 +171,7 @@ public class DBInfo {
     DBInfo dbInfo = (DBInfo) o;
     return Objects.equals(type, dbInfo.type)
         && Objects.equals(subtype, dbInfo.subtype)
+        && fullPropagationSupport == dbInfo.fullPropagationSupport
         && Objects.equals(url, dbInfo.url)
         && Objects.equals(user, dbInfo.user)
         && Objects.equals(instance, dbInfo.instance)
@@ -161,6 +182,6 @@ public class DBInfo {
 
   @Override
   public int hashCode() {
-    return Objects.hash(type, subtype, url, user, instance, db, host, port);
+    return Objects.hash(type, subtype, fullPropagationSupport, url, user, instance, db, host, port);
   }
 }
