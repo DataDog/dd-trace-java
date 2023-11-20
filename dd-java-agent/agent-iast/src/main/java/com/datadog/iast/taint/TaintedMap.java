@@ -450,7 +450,7 @@ public interface TaintedMap extends Iterable<TaintedObject> {
 
   class Debug implements TaintedMap {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(TaintedMap.class);
+    static final Logger LOGGER = LoggerFactory.getLogger(TaintedMap.class);
 
     /** Interval to compute statistics in debug mode * */
     static final int COMPUTE_STATISTICS_INTERVAL = 1 << 17;

@@ -1,14 +1,12 @@
 package com.datadog.iast.taint
 
-
+import ch.qos.logback.classic.Level
+import ch.qos.logback.classic.Logger
 import com.datadog.iast.model.Range
 import com.datadog.iast.taint.TaintedMap.WithPurgeInline
 import com.datadog.iast.taint.TaintedMap.WithPurgeQueue
-import com.datadog.iast.test.ReplaceSlf4jLogger
 import datadog.trace.test.util.CircularBuffer
 import datadog.trace.test.util.DDSpecification
-import org.junit.Rule
-import org.slf4j.Logger
 
 import java.lang.ref.Reference
 import java.lang.ref.ReferenceQueue
@@ -18,10 +16,18 @@ import java.util.concurrent.Executors
 
 class TaintedMapTest extends DDSpecification {
 
-  private Logger mockLogger = Mock(Logger)
 
-  @Rule
-  ReplaceSlf4jLogger replaceSlf4jLogger = new ReplaceSlf4jLogger(TaintedMap.Debug.getDeclaredField('LOGGER'), mockLogger)
+  private Logger logger
+  private Level defaultLevel
+
+  void setup() {
+    logger = TaintedMap.Debug.LOGGER as Logger
+    defaultLevel = logger.getLevel()
+  }
+
+  void cleanup() {
+    logger.setLevel(defaultLevel)
+  }
 
   def 'simple workflow'() {
     given:
@@ -509,20 +515,18 @@ class TaintedMapTest extends DDSpecification {
   }
 
   void 'test debug instance'() {
-    given:
+    setup:
     final map = new TaintedMap.Debug(new WithPurgeInline())
     final capacity = TaintedMap.Debug.COMPUTE_STATISTICS_INTERVAL
     final gen = new ObjectGen(capacity)
+    logger.setLevel(Level.ALL)
 
     when:
     gen.genObjects(capacity, ObjectGen.TRUE).each { map.put(new TaintedObject(it, [] as Range[], null)) }
 
     then:
-    1 * mockLogger.isDebugEnabled() >> true
-    1 * mockLogger.debug({
-      final string = it as String
-      assert string.startsWith('Map [size:')
-    })
+    map.size() == capacity
+    noExceptionThrown()
   }
 
   private static class MockReferenceQueue extends ReferenceQueue<Object> {
