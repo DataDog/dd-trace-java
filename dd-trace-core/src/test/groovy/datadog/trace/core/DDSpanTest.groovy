@@ -14,7 +14,6 @@ import datadog.trace.common.sampling.RateByServiceTraceSampler
 import datadog.trace.common.writer.ListWriter
 import datadog.trace.core.propagation.ExtractedContext
 import datadog.trace.core.test.DDCoreSpecification
-import datadog.trace.util.ExtraServicesProvider
 import spock.lang.Shared
 
 import java.util.concurrent.TimeUnit
