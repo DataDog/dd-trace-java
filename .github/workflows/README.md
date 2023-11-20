@@ -6,7 +6,7 @@ This lists and describes the repository GitHub actions.
 
 ### add-assets-to-release [🔗](add-assets-to-release.yaml)
 
-_Trigger:_ When a release is published
+_Trigger:_ When a release is published.
 
 _Actions:_
 * Ensure the release name is properly formatted (using `x.y.z` format),
@@ -16,7 +16,7 @@ _Recovery:_ Download artifacts and upload them manually to the release.
 
 ### add-milestone-to-pull-requests [🔗](add-milestone-to-pull-requests.yaml)
 
-_Trigger:_ When a PR to `master` is closed
+_Trigger:_ When a PR to `master` is closed.
 
 _Action:_ Get the last (by name) opened milestone and affect it to the closed pull request.
 
@@ -24,7 +24,7 @@ _Recovery:_ Attach the milestone by hand to the PR.
 
 ### create-next-milestone [🔗](create-next-milestone.yaml)
 
-_Trigger:_ When closing a milestone
+_Trigger:_ When closing a milestone.
 
 _Action:_ Create a new milestone by incrementing minor version.
 
@@ -44,7 +44,7 @@ _Recovery:_ Manually trigger the action again on the relevant tag.
 
 ## increment-milestones-on-tag [🔗](increment-milestones-on-tag.yaml)
 
-_Trigger:_ When creating a tag
+_Trigger:_ When creating a tag.
 
 _Actions:_
 * Close the milestone related to the tag,
@@ -57,7 +57,7 @@ As there is no milestone for _patch_ releases, it won't close and create _patch_
 
 ## update-download-releases [🔗](update-download-releases.yaml)
 
-_Trigger:_ When a release is published
+_Trigger:_ When a release is published.
 
 _Action:_ Update the _download releases_ with the latest release artifact.
 
@@ -67,7 +67,7 @@ _Notes:_ _Download releases_ are special GitHub releases with fixed URL and tags
 
 ## update-issues-on-release [🔗](update-issues-on-release.yaml)
 
-_Trigger:_ When a release is published
+_Trigger:_ When a release is published.
 
 _Action:_
 * Find all issues related to the release by checking the related milestone,
@@ -78,15 +78,21 @@ _Recovery:_ Check at the milestone for the related issues and update them manual
 
 ## Code Quality and Security
 
+### comment-on-submodule-update [🔗](comment-on-submodule-update.yaml)
+
+_Trigger:_ When creating a PR commits to `master` or a `release/*` branch with a Git Submodule update.
+
+_Action:_ Notify the PR author through comments that about the Git Submodule update.
+
 ### codeql-analysis [🔗](codeql-analysis.yml)
 
-_Trigger:_ When pushing commits to `master` or any pull request to `master`
+_Trigger:_ When pushing commits to `master` or any pull request to `master`.
 
 _Action:_ Run GitHub CodeQL action and upload result to GitHub security tab.
 
 ### trivy-analysis [🔗](trivy-analysis.yml)
 
-_Trigger:_ When pushing commits to `master` or any pull request to `master`
+_Trigger:_ When pushing commits to `master` or any pull request to `master`.
 
 _Action:_ Run Trivy security scanner on built artifacts and upload result to GitHub security tab.
 
@@ -100,7 +106,7 @@ _Comment:_ To delete?
 
 ### lib-injection [🔗](lib-injection.yaml)
 
-_Trigger:_ When pushing commits to `master`, release branches or any PR targetting `master`, and when creating tags
+_Trigger:_ When pushing commits to `master`, release branches or any PR targetting `master`, and when creating tags.
 
 _Actions:_
 * Build and publish to GHCR a Docker image with the Java tracer agent,
@@ -108,13 +114,13 @@ _Actions:_
 
 ### lib-injection-manual-release [🔗](lib-injection-manual-release.yaml)
 
-_Trigger:_ When manually triggered
+_Trigger:_ When manually triggered.
 
 _Action:_ Build and publish to GHCR a Docker image with the given Java tracer version.
 
 ### lib-injection-prune-registry [🔗](lib-injection-prune-registry.yaml)
 
-_Trigger:_ Every week or manually
+_Trigger:_ Every week or manually.
 
 _Action:_ Clean up old lib-injection Docker images from GHCR.
 
