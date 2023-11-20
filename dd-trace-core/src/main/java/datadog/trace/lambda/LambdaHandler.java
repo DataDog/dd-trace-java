@@ -6,12 +6,15 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Moshi;
 import datadog.trace.api.DDSpanId;
+import datadog.trace.api.DDTags;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.core.propagation.ExtractedContext;
 import datadog.trace.core.propagation.PropagationTags;
 import java.io.ByteArrayInputStream;
+import java.nio.charset.StandardCharsets;
+import java.util.Base64;
 import okhttp3.MediaType;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
@@ -37,6 +40,9 @@ public class LambdaHandler {
   private static final String DATADOG_SPAN_ID = "x-datadog-span-id";
   private static final String DATADOG_SAMPLING_PRIORITY = "x-datadog-sampling-priority";
   private static final String DATADOG_INVOCATION_ERROR = "x-datadog-invocation-error";
+  private static final String DATADOG_INVOCATION_ERROR_MSG = "x-datadog-invocation-error-msg";
+  private static final String DATADOG_INVOCATION_ERROR_TYPE = "x-datadog-invocation-error-type";
+  private static final String DATADOG_INVOCATION_ERROR_STACK = "x-datadog-invocation-error-stack";
   private static final String DATADOG_TAGS_KEY = "x-datadog-tags";
 
   private static final String START_INVOCATION = "/lambda/start-invocation";
@@ -121,12 +127,30 @@ public class LambdaHandler {
     Request.Builder builder =
         new Request.Builder()
             .url(EXTENSION_BASE_URL + END_INVOCATION)
-            .addHeader(DATADOG_META_LANG, "java")
             .addHeader(DATADOG_TRACE_ID, span.getTraceId().toString())
             .addHeader(DATADOG_SPAN_ID, DDSpanId.toString(span.getSpanId()))
             .addHeader(DATADOG_SAMPLING_PRIORITY, span.getSamplingPriority().toString())
             .addHeader(DATADOG_META_LANG, "java")
             .post(body);
+
+    Object errorMessage = span.getTag(DDTags.ERROR_MSG);
+    if (errorMessage != null) {
+      builder.addHeader(DATADOG_INVOCATION_ERROR_MSG, errorMessage.toString());
+    }
+
+    Object errorType = span.getTag(DDTags.ERROR_TYPE);
+    if (errorType != null) {
+      builder.addHeader(DATADOG_INVOCATION_ERROR_TYPE, errorType.toString());
+    }
+
+    Object errorStack = span.getTag(DDTags.ERROR_STACK);
+    if (errorStack != null) {
+      String encodedErrStack =
+          Base64.getEncoder()
+              .encodeToString(errorStack.toString().getBytes(StandardCharsets.UTF_8));
+      builder.addHeader(DATADOG_INVOCATION_ERROR_STACK, encodedErrStack);
+    }
+
     if (isError) {
       builder.addHeader(DATADOG_INVOCATION_ERROR, "true");
     }
