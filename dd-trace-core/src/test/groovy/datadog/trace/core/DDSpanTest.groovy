@@ -462,19 +462,4 @@ class DDSpanTest extends DDCoreSpecification {
     then:
     span.isError()
   }
-
-  void 'test ExtraServiceProvider is called when span is finished and added to trace'(){
-    setup:
-    def span = tracer.buildSpan("fakeOperation")
-      .withServiceName("fakeExtraService")
-      .withResourceName("fakeResource")
-      .withSpanType("fakeType")
-      .start()
-
-    when:
-    span.finish()
-
-    then:
-    ExtraServicesProvider.get().getExtraServices().contains("fakeExtraService")
-  }
 }

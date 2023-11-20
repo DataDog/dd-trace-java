@@ -27,7 +27,6 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpanLink;
 import datadog.trace.bootstrap.instrumentation.api.AttachableWrapper;
 import datadog.trace.bootstrap.instrumentation.api.ErrorPriorities;
 import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities;
-import datadog.trace.util.ExtraServicesProvider;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.util.Collections;
@@ -150,7 +149,6 @@ public class DDSpan
   private void finishAndAddToTrace(final long durationNano) {
     // ensure a min duration of 1
     if (DURATION_NANO_UPDATER.compareAndSet(this, 0, Math.max(1, durationNano))) {
-      ExtraServicesProvider.get().maybeAddExtraService(this.getServiceName());
       setLongRunningVersion(-this.longRunningVersion);
       this.metrics.onSpanFinished();
       PendingTrace.PublishState publishState = context.getTrace().onPublish(this);

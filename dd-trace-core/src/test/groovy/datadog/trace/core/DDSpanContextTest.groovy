@@ -8,6 +8,7 @@ import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration
 import datadog.trace.common.writer.ListWriter
 import datadog.trace.core.propagation.ExtractedContext
 import datadog.trace.core.test.DDCoreSpecification
+import datadog.trace.util.ExtraServicesProvider
 
 import static datadog.trace.api.TracePropagationStyle.DATADOG
 import static datadog.trace.api.sampling.PrioritySampling.*
@@ -283,6 +284,21 @@ class DDSpanContextTest extends DDCoreSpecification {
     then:
     1 * profilingContextIntegration.encodeResourceName("newResourceName") >> -2
     span.context.encodedResourceName == -2
+  }
+
+  void 'test ExtraServiceProvider is called when span is finished and added to trace'(){
+    setup:
+    def span = tracer.buildSpan("fakeOperation")
+      .withServiceName("fakeExtraService")
+      .withResourceName("fakeResource")
+      .withSpanType("fakeType")
+      .start()
+
+    when:
+    span.finish()
+
+    then:
+    ExtraServicesProvider.get().getExtraServices().contains("fakeExtraService")
   }
 
   private static String dataTag(String tag) {
