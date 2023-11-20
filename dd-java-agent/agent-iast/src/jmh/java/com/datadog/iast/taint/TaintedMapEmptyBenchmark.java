@@ -3,8 +3,6 @@ package com.datadog.iast.taint;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
 
-import com.datadog.iast.taint.TaintedMap.WithPurgeInline;
-import com.datadog.iast.taint.TaintedMap.WithPurgeQueue;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
 import org.openjdk.jmh.annotations.Fork;
@@ -30,18 +28,12 @@ public class TaintedMapEmptyBenchmark {
 
   private static final int OP_COUNT = 1024;
   private TaintedMap map;
-
   private final Object anyObject = new Object();
 
   @Setup(Level.Iteration)
   public void setup(BenchmarkParams params) {
-    if (params.getBenchmark().endsWith("purgeQueue")) {
-      map = new WithPurgeQueue();
-    } else if (params.getBenchmark().endsWith("purgeInline")) {
-      map = new WithPurgeInline();
-    } else {
-      map = TaintedMap.NoOp.INSTANCE;
-    }
+    final boolean baseline = params.getBenchmark().endsWith("baseline");
+    map = baseline ? TaintedMap.NoOp.INSTANCE : new TaintedMap.TaintedMapImpl();
   }
 
   @Benchmark
@@ -54,15 +46,7 @@ public class TaintedMapEmptyBenchmark {
 
   @Benchmark
   @OperationsPerInvocation(OP_COUNT)
-  public void purgeQueue(final Blackhole bh) {
-    for (int i = 0; i < OP_COUNT; i++) {
-      bh.consume(map.get(anyObject));
-    }
-  }
-
-  @Benchmark
-  @OperationsPerInvocation(OP_COUNT)
-  public void purgeInline(final Blackhole bh) {
+  public void getFromEmptyMap(final Blackhole bh) {
     for (int i = 0; i < OP_COUNT; i++) {
       bh.consume(map.get(anyObject));
     }

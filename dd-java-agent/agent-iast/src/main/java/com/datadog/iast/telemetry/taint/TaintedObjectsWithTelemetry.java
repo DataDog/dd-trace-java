@@ -2,7 +2,6 @@ package com.datadog.iast.telemetry.taint;
 
 import static datadog.trace.api.iast.telemetry.IastMetric.EXECUTED_TAINTED;
 import static datadog.trace.api.iast.telemetry.IastMetric.REQUEST_TAINTED;
-import static datadog.trace.api.iast.telemetry.IastMetric.TAINTED_FLAT_MODE;
 
 import com.datadog.iast.IastRequestContext;
 import com.datadog.iast.model.Range;
@@ -15,11 +14,6 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 public class TaintedObjectsWithTelemetry implements TaintedObjects {
-
-  /**
-   * If the estimated size of the tainted objects is lower than this threshold we will count instead
-   */
-  private static final int COUNT_THRESHOLD = 1024;
 
   public static TaintedObjects build(
       final Verbosity verbosity, final TaintedObjects taintedObjects) {
@@ -65,9 +59,6 @@ public class TaintedObjectsWithTelemetry implements TaintedObjects {
   @Override
   public void release() {
     try {
-      if (delegate.isFlat()) {
-        IastMetricCollector.add(TAINTED_FLAT_MODE, 1, ctx);
-      }
       IastMetricCollector.add(REQUEST_TAINTED, count(), ctx);
     } finally {
       delegate.release();
@@ -83,10 +74,5 @@ public class TaintedObjectsWithTelemetry implements TaintedObjects {
   @Override
   public int count() {
     return delegate.count();
-  }
-
-  @Override
-  public boolean isFlat() {
-    return delegate.isFlat();
   }
 }

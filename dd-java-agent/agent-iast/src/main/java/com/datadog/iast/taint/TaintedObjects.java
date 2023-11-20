@@ -30,8 +30,6 @@ public interface TaintedObjects extends Iterable<TaintedObject> {
 
   int count();
 
-  boolean isFlat();
-
   static TaintedObjects acquire() {
     TaintedObjectsImpl taintedObjects = TaintedObjectsImpl.pool.poll();
     if (taintedObjects == null) {
@@ -59,7 +57,7 @@ public interface TaintedObjects extends Iterable<TaintedObject> {
 
     @Override
     public TaintedObject taint(final @Nonnull Object obj, final @Nonnull Range[] ranges) {
-      final TaintedObject tainted = new TaintedObject(obj, ranges, map.getReferenceQueue());
+      final TaintedObject tainted = new TaintedObject(obj, ranges);
       map.put(tainted);
       return tainted;
     }
@@ -79,11 +77,6 @@ public interface TaintedObjects extends Iterable<TaintedObject> {
     @Override
     public int count() {
       return map.count();
-    }
-
-    @Override
-    public boolean isFlat() {
-      return map.isFlat();
     }
 
     @Nonnull
@@ -140,11 +133,6 @@ public interface TaintedObjects extends Iterable<TaintedObject> {
       return delegated.count();
     }
 
-    @Override
-    public boolean isFlat() {
-      return delegated.isFlat();
-    }
-
     @Nonnull
     @Override
     public Iterator<TaintedObject> iterator() {
@@ -180,11 +168,6 @@ public interface TaintedObjects extends Iterable<TaintedObject> {
 
     @Override
     public void release() {}
-
-    @Override
-    public boolean isFlat() {
-      return false;
-    }
 
     @Override
     public int count() {

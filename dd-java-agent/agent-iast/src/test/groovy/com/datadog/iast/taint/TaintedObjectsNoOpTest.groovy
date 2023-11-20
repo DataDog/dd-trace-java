@@ -19,7 +19,6 @@ class TaintedObjectsNoOpTest extends Specification {
     instance.get(toTaint) == null
     instance.count() == 0
     instance.size() == 0
-    !instance.flat
     !instance.iterator().hasNext()
 
     when:
