@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.aws.v0;
 
+import com.amazonaws.AmazonWebServiceRequest;
 import com.amazonaws.Request;
 import datadog.trace.api.Functions;
 import datadog.trace.api.cache.DDCache;
@@ -25,17 +26,24 @@ public class AwsNameCache {
                   AMAZON_PATTERN.matcher(String.valueOf(serviceName)).replaceAll("").trim()));
 
   public static CharSequence spanName(final Request<?> awsRequest) {
+    return getFromCache(getQualifiedName(awsRequest).toString(), awsRequest.getServiceName());
+  }
+
+  public static CharSequence spanName(final AmazonWebServiceRequest request, String serviceName) {
+    return getFromCache(
+        CLASS_NAME_CACHE.getQualifiedName(request.getClass(), serviceName).toString(), serviceName);
+  }
+
+  private static CharSequence getFromCache(String cacheKey, String serviceName) {
     return CACHE.computeIfAbsent(
-        getQualifiedName(awsRequest).toString(),
+        cacheKey,
         key ->
             UTF8BytesString.create(
                 SpanNaming.instance()
                     .namingSchema()
                     .cloud()
                     .operationForRequest(
-                        "aws",
-                        AMAZON_PATTERN.matcher(awsRequest.getServiceName()).replaceAll("").trim(),
-                        key)));
+                        "aws", AMAZON_PATTERN.matcher(serviceName).replaceAll("").trim(), key)));
   }
 
   public static CharSequence getQualifiedName(final Request<?> awsRequest) {

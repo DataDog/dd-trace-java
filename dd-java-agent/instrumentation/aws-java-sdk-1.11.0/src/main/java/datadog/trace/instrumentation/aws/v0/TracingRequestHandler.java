@@ -19,6 +19,7 @@ import com.amazonaws.handlers.RequestHandler2;
 import datadog.trace.api.Config;
 import datadog.trace.api.TracePropagationStyle;
 import datadog.trace.bootstrap.ContextStore;
+import datadog.trace.bootstrap.FieldBackedContextStores;
 import datadog.trace.bootstrap.instrumentation.api.AgentDataStreamsMonitoring;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
@@ -45,6 +46,17 @@ public class TracingRequestHandler extends RequestHandler2 {
 
   @Override
   public AmazonWebServiceRequest beforeMarshalling(final AmazonWebServiceRequest request) {
+    if (isSqsSendRequest(request)) {
+      // for SQS, create the span now so that we can use it for DSM purposes in
+      // datadog.trace.instrumentation.aws.v1.sqs.SqsInterceptor. This forces us to hardcode the
+      // service name because we cannot access it programmatically here.
+      AgentSpan span = startSpan(AwsNameCache.spanName(request, "AmazonSQS"));
+      DECORATE.afterStart(span);
+      FieldBackedContextStores.getContextStore(
+              FieldBackedContextStores.getContextStoreId(
+                  AmazonWebServiceRequest.class.getName(), AgentSpan.class.getName()))
+          .put(request, span);
+    }
     return request;
   }
 
@@ -56,8 +68,18 @@ public class TracingRequestHandler extends RequestHandler2 {
       // so we can tell when receive call is complete without affecting the rest of the trace
       span = noopSpan();
     } else {
-      span = startSpan(AwsNameCache.spanName(request));
-      DECORATE.afterStart(span);
+      if (isSqsSendRequest(request.getOriginalRequest())) {
+        // for SQS, spans are created earlier, in beforeMarshalling just above.
+        span =
+            (AgentSpan)
+                FieldBackedContextStores.getContextStore(
+                        FieldBackedContextStores.getContextStoreId(
+                            AmazonWebServiceRequest.class.getName(), AgentSpan.class.getName()))
+                    .get(request.getOriginalRequest());
+      } else {
+        span = startSpan(AwsNameCache.spanName(request));
+        DECORATE.afterStart(span);
+      }
       DECORATE.onRequest(span, request);
       request.addHandlerContext(SPAN_CONTEXT_KEY, span);
       if (Config.get().isAwsPropagationEnabled()) {
@@ -138,6 +160,15 @@ public class TracingRequestHandler extends RequestHandler2 {
       DECORATE.beforeFinish(span);
       span.finish();
     }
+  }
+
+  private static boolean isSqsSendRequest(AmazonWebServiceRequest request) {
+    if (null != request) {
+      String reqType = request.getClass().getName();
+      return ("com.amazonaws.services.sqs.model.SendMessageRequest".equals(reqType)
+          || "com.amazonaws.services.sqs.model.SendMessageBatchRequest".equals(reqType));
+    }
+    return false;
   }
 
   private static boolean isPollingRequest(AmazonWebServiceRequest request) {
