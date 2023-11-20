@@ -1,10 +1,11 @@
 package datadog.trace.instrumentation.opentelemetry14.trace;
 
+import static datadog.trace.instrumentation.opentelemetry14.trace.OtelConventions.toSpanType;
 import static datadog.trace.instrumentation.opentelemetry14.trace.OtelExtractedContext.extract;
+import static io.opentelemetry.api.trace.SpanKind.INTERNAL;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
-import datadog.trace.bootstrap.instrumentation.api.Tags;
 import io.opentelemetry.api.common.AttributeKey;
 import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.trace.Span;
@@ -13,16 +14,17 @@ import io.opentelemetry.api.trace.SpanContext;
 import io.opentelemetry.api.trace.SpanKind;
 import io.opentelemetry.context.Context;
 import java.util.List;
-import java.util.Locale;
 import java.util.concurrent.TimeUnit;
 import javax.annotation.ParametersAreNonnullByDefault;
 
 @ParametersAreNonnullByDefault
 public class OtelSpanBuilder implements SpanBuilder {
   private final AgentTracer.SpanBuilder delegate;
+  private boolean spanKindSet;
 
   public OtelSpanBuilder(AgentTracer.SpanBuilder delegate) {
     this.delegate = delegate;
+    this.spanKindSet = false;
   }
 
   @Override
@@ -43,13 +45,17 @@ public class OtelSpanBuilder implements SpanBuilder {
 
   @Override
   public SpanBuilder addLink(SpanContext spanContext) {
-    // Not supported
+    if (spanContext.isValid()) {
+      this.delegate.withLink(new OtelSpanLink(spanContext));
+    }
     return this;
   }
 
   @Override
   public SpanBuilder addLink(SpanContext spanContext, Attributes attributes) {
-    // Not supported
+    if (spanContext.isValid()) {
+      this.delegate.withLink(new OtelSpanLink(spanContext, attributes));
+    }
     return this;
   }
 
@@ -106,24 +112,11 @@ public class OtelSpanBuilder implements SpanBuilder {
 
   @Override
   public SpanBuilder setSpanKind(SpanKind spanKind) {
-    this.delegate.withSpanType(toSpanType(spanKind));
-    return this;
-  }
-
-  private static String toSpanType(SpanKind spanKind) {
-    switch (spanKind) {
-      case CLIENT:
-        return Tags.SPAN_KIND_CLIENT;
-      case SERVER:
-        return Tags.SPAN_KIND_SERVER;
-      case PRODUCER:
-        return Tags.SPAN_KIND_PRODUCER;
-      case CONSUMER:
-        return Tags.SPAN_KIND_CONSUMER;
-      default:
-      case INTERNAL:
-        return spanKind.toString().toLowerCase(Locale.ROOT);
+    if (spanKind != null) {
+      this.delegate.withSpanType(toSpanType(spanKind));
+      this.spanKindSet = true;
     }
+    return this;
   }
 
   @Override
@@ -134,6 +127,10 @@ public class OtelSpanBuilder implements SpanBuilder {
 
   @Override
   public Span startSpan() {
+    // Ensure the span kind is set
+    if (!this.spanKindSet) {
+      setSpanKind(INTERNAL);
+    }
     AgentSpan delegate = this.delegate.start();
     return new OtelSpan(delegate);
   }

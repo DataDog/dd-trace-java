@@ -1,5 +1,6 @@
 package datadog.trace.logging.ddlogger;
 
+import datadog.trace.api.Platform;
 import datadog.trace.logging.LogLevel;
 import datadog.trace.logging.LogLevelSwitcher;
 import datadog.trace.logging.LoggerHelper;
@@ -12,8 +13,9 @@ import org.slf4j.Marker;
 
 public class DDLoggerFactory implements ILoggerFactory, LogLevelSwitcher {
 
-  private volatile LoggerHelperFactory helperFactory = null;
+  private final boolean telemetryLogCollectionEnabled = getLogCollectionEnabled(false);
 
+  private volatile LoggerHelperFactory helperFactory = null;
   private volatile LogLevel override = null;
 
   public DDLoggerFactory() {}
@@ -59,7 +61,12 @@ public class DDLoggerFactory implements ILoggerFactory, LogLevelSwitcher {
   @Override
   public Logger getLogger(String name) {
     LoggerHelper helper = getHelperFactory().loggerHelperForName(name);
-    return new DDLogger(new HelperWrapper(helper), name);
+    HelperWrapper helperWrapper = new HelperWrapper(helper);
+    if (!telemetryLogCollectionEnabled || Platform.isNativeImageBuilder()) {
+      return new DDLogger(helperWrapper, name);
+    } else {
+      return new DDTelemetryLogger(helperWrapper, name);
+    }
   }
 
   private LoggerHelperFactory getHelperFactory() {
@@ -79,5 +86,25 @@ public class DDLoggerFactory implements ILoggerFactory, LogLevelSwitcher {
   @Override
   public void reinitialize() {
     helperFactory = null;
+  }
+
+  // DDLoggerFactory can be called at very early stage, before Config loaded
+  // So to get property/env we use this custom function
+  private static boolean getLogCollectionEnabled(boolean defaultValue) {
+    String value = System.getProperty("dd.telemetry.log-collection.enabled");
+    if ("true".equalsIgnoreCase(value)) {
+      return true;
+    }
+    if ("false".equalsIgnoreCase(value)) {
+      return false;
+    }
+    value = System.getenv("DD_TELEMETRY_LOG_COLLECTION_ENABLED");
+    if ("true".equalsIgnoreCase(value)) {
+      return true;
+    }
+    if ("false".equalsIgnoreCase(value)) {
+      return false;
+    }
+    return defaultValue;
   }
 }

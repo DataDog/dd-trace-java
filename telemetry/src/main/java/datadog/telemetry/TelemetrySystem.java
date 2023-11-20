@@ -6,6 +6,7 @@ import datadog.telemetry.TelemetryRunnable.TelemetryPeriodicAction;
 import datadog.telemetry.dependency.DependencyPeriodicAction;
 import datadog.telemetry.dependency.DependencyService;
 import datadog.telemetry.integration.IntegrationPeriodicAction;
+import datadog.telemetry.log.LogPeriodicAction;
 import datadog.telemetry.metric.CoreMetricsPeriodicAction;
 import datadog.telemetry.metric.IastMetricPeriodicAction;
 import datadog.telemetry.metric.WafMetricPeriodicAction;
@@ -54,6 +55,10 @@ public class TelemetrySystem {
     }
     if (null != dependencyService) {
       actions.add(new DependencyPeriodicAction(dependencyService));
+    }
+    if (Config.get().isTelemetryLogCollectionEnabled()) {
+      actions.add(new LogPeriodicAction());
+      log.debug("Telemetry log collection enabled");
     }
 
     TelemetryRunnable telemetryRunnable = new TelemetryRunnable(telemetryService, actions);

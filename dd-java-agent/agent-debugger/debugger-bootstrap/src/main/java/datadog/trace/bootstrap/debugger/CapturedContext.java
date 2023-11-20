@@ -206,7 +206,7 @@ public class CapturedContext implements ValueReferenceResolver {
     if (locals == null) {
       locals = new HashMap<>();
     }
-    locals.put("@return", retValue); // special local name for the return value
+    locals.put(ValueReferences.RETURN_REF, retValue); // special local name for the return value
     extensions.put(ValueReferences.RETURN_EXTENSION_NAME, retValue);
   }
 

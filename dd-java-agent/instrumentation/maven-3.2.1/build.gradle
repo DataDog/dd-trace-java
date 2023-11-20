@@ -23,7 +23,7 @@ dependencies {
   testImplementation group: 'org.apache.maven.resolver', name: 'maven-resolver-transport-http', version: '1.0.3'
 
   latestDepTestImplementation group: 'org.apache.maven', name: 'maven-embedder', version: '+'
-  latestDepTestImplementation group: 'org.apache.maven.resolver', name: 'maven-resolver-connector-basic', version: '+'
-  latestDepTestImplementation group: 'org.apache.maven.resolver', name: 'maven-resolver-transport-http', version: '+'
+  latestDepTestImplementation group: 'org.apache.maven.resolver', name: 'maven-resolver-connector-basic', version: '1.+'
+  latestDepTestImplementation group: 'org.apache.maven.resolver', name: 'maven-resolver-transport-http', version: '1.+'
   latestDepTestImplementation group: 'org.fusesource.jansi', name: 'jansi', version: '+'
 }

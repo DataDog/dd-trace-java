@@ -59,6 +59,9 @@ public final class StatementInstrumentation extends Instrumenter.Tracing
     };
   }
 
+  // prepend mode will prepend the SQL comment to the raw sql query
+  private static final boolean appendComment = false;
+
   @Override
   public void adviceTransformations(AdviceTransformation transformation) {
     transformation.applyAdvice(
@@ -97,7 +100,9 @@ public final class StatementInstrumentation extends Instrumenter.Tracing
               span.setTag(DBM_TRACE_INJECTED, true);
             }
           }
-          sql = SQLCommenter.inject(sql, span.getServiceName(), traceParent, injectTraceContext);
+          sql =
+              SQLCommenter.inject(
+                  sql, span.getServiceName(), traceParent, injectTraceContext, appendComment);
         }
         DECORATE.onStatement(span, DBQueryInfo.ofStatement(copy));
         return activateSpan(span);

@@ -94,7 +94,7 @@ public class MavenLifecycleParticipant extends AbstractMavenLifecycleParticipant
     String startCommand = MavenUtils.getCommandLine(session);
     String mavenVersion = MavenUtils.getMavenVersion(session);
     buildEventsHandler.onTestSessionStart(
-        request, projectName, projectRoot, startCommand, "maven", mavenVersion);
+        request, projectName, projectRoot, startCommand, "maven", mavenVersion, null);
 
     if (!config.isCiVisibilityAutoConfigurationEnabled()) {
       return;
