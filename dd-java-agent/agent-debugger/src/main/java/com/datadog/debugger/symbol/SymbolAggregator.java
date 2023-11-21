@@ -1,5 +1,7 @@
 package com.datadog.debugger.symbol;
 
+import static com.datadog.debugger.symbol.JarScanner.trimPrefixes;
+
 import com.datadog.debugger.sink.SymbolSink;
 import datadog.trace.util.AgentTaskScheduler;
 import java.nio.file.Files;
@@ -10,12 +12,15 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class SymbolAggregator {
   private static final Logger LOGGER = LoggerFactory.getLogger(SymbolAggregator.class);
+  private static final String CLASS_SUFFIX = ".class";
 
   private final SymbolSink sink;
   private final int symbolFlushThreshold;
@@ -23,6 +28,7 @@ public class SymbolAggregator {
   private final AgentTaskScheduler.Scheduled<SymbolAggregator> scheduled;
   private final Object jarScopeLock = new Object();
   private int totalClasses;
+  private volatile Set<String> loadedClasses;
 
   public SymbolAggregator(SymbolSink sink, int symbolFlushThreshold) {
     this.sink = sink;
@@ -49,6 +55,15 @@ public class SymbolAggregator {
 
   public void parseClass(String className, byte[] classfileBuffer, String jarName) {
     if (className == null) {
+      return;
+    }
+    className = trimPrefixes(className);
+    if (className.endsWith(CLASS_SUFFIX)) {
+      className = className.substring(0, className.length() - CLASS_SUFFIX.length());
+    }
+    Set<String> localLoadedClasses = loadedClasses;
+    if (localLoadedClasses != null && !localLoadedClasses.add(className)) {
+      // class already loaded and symbol extracted
       return;
     }
     LOGGER.debug("Extracting Symbols from: {}, located in: {}", className, jarName);
@@ -94,5 +109,15 @@ public class SymbolAggregator {
         sink.addScope(scope);
       }
     }
+  }
+
+  void startLoadedClasses() {
+    // to avoid duplicate symbol extraction we keep track of loaded classes
+    // during the loaded class extraction phase
+    loadedClasses = ConcurrentHashMap.newKeySet();
+  }
+
+  void finishLoadedClasses() {
+    loadedClasses = null;
   }
 }

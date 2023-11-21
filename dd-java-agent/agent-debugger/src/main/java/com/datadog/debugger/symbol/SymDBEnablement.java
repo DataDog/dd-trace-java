@@ -112,11 +112,16 @@ public class SymDBEnablement implements ProductListener {
     }
     String includes = config.getDebuggerSymbolIncludes();
     AllowListHelper allowListHelper = new AllowListHelper(buildFilterList(includes));
-    symbolExtractionTransformer =
-        new SymbolExtractionTransformer(allowListHelper, symbolAggregator);
-    instrumentation.addTransformer(symbolExtractionTransformer, true);
-    extractSymbolForLoadedClasses(allowListHelper);
-    lastUploadTimestamp = System.currentTimeMillis();
+    symbolAggregator.startLoadedClasses();
+    try {
+      symbolExtractionTransformer =
+          new SymbolExtractionTransformer(allowListHelper, symbolAggregator);
+      instrumentation.addTransformer(symbolExtractionTransformer, true);
+      extractSymbolForLoadedClasses(allowListHelper);
+      lastUploadTimestamp = System.currentTimeMillis();
+    } finally {
+      symbolAggregator.finishLoadedClasses();
+    }
   }
 
   private void extractSymbolForLoadedClasses(AllowListHelper allowListHelper) {
