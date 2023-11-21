@@ -173,7 +173,7 @@ public final class ConfigDefaults {
   static final int DEFAULT_CWS_TLS_REFRESH = 5000;
 
   static final boolean DEFAULT_DATA_STREAMS_ENABLED = false;
-  public static final int DEFAULT_DATA_STREAMS_BUCKET_DURATION = 10; // seconds
+  static final int DEFAULT_DATA_STREAMS_BUCKET_DURATION = 10; // seconds
 
   static final int DEFAULT_RESOLVER_RESET_INTERVAL = 300; // seconds
 
