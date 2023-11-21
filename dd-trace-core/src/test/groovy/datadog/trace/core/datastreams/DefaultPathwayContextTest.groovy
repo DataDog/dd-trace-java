@@ -23,9 +23,7 @@ import static java.util.concurrent.TimeUnit.MILLISECONDS
 class DefaultPathwayContextTest extends DDCoreSpecification {
   def wellKnownTags = new WellKnownTags("runtimeid", "hostname", "testing", "service", "version", "java")
 
-  @SuppressWarnings('PropertyName')
-  def DEFAULT_BUCKET_DURATION_NANOS = Config.get().getDataStreamsBucketDurationNanoseconds()
-
+  static final DEFAULT_BUCKET_DURATION_NANOS = Config.get().getDataStreamsBucketDurationNanoseconds()
   def pointConsumer = new Consumer<StatsPoint>() {
     List<StatsPoint> points = []
 
