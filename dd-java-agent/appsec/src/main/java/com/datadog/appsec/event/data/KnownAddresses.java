@@ -108,6 +108,8 @@ public interface KnownAddresses {
 
   Address<Map<String, Object>> WAF_CONTEXT_PROCESSOR = new Address<>("waf.context.processor");
 
+  Address<Map<String, ?>> SERVER_GRAPHQL_ALL_RESOLVERS = new Address<>("server.graphql.all_resolvers");
+
   static Address<?> forName(String name) {
     switch (name) {
       case "server.request.body":
@@ -162,6 +164,8 @@ public interface KnownAddresses {
         return USER_ID;
       case "waf.context.processor":
         return WAF_CONTEXT_PROCESSOR;
+      case "server.graphql.all_resolvers":
+        return SERVER_GRAPHQL_ALL_RESOLVERS;
       default:
         return null;
     }

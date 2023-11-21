@@ -189,6 +189,17 @@ public final class Events<D> {
     return (EventType<BiFunction<RequestContext, Object, Flow<Void>>>) GRPC_SERVER_REQUEST_MESSAGE;
   }
 
+  static final int GRAPHQL_SERVER_REQUEST_MESSAGE_ID = 15;
+
+  @SuppressWarnings("rawtypes")
+  private static final EventType GRAPHQL_SERVER_REQUEST_MESSAGE =
+      new ET<>("graphql.server.request.message", GRAPHQL_SERVER_REQUEST_MESSAGE_ID);
+  /** Before resolver execution */
+  @SuppressWarnings("unchecked")
+  public EventType<BiFunction<RequestContext, Map<String, ?>, Flow<Void>>> graphqlServerRequestMessage() {
+    return (EventType<BiFunction<RequestContext, Map<String, ?>, Flow<Void>>>) GRAPHQL_SERVER_REQUEST_MESSAGE;
+  }
+
   static final int MAX_EVENTS = nextId.get();
 
   private static final class ET<T> extends EventType<T> {
