@@ -73,6 +73,8 @@ public class OpenTelemetryInstrumentation extends Instrumenter.Tracing
       packageName + ".trace.OtelSpanBuilder",
       packageName + ".trace.OtelSpanBuilder$1",
       packageName + ".trace.OtelSpanContext",
+      packageName + ".trace.OtelSpanLink",
+      packageName + ".trace.OtelSpanLink$1",
       packageName + ".trace.OtelTracer",
       packageName + ".trace.OtelTracerBuilder",
       packageName + ".trace.OtelTracerProvider",

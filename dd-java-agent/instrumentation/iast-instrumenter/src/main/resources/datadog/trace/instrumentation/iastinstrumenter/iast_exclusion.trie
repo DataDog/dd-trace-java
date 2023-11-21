@@ -163,6 +163,8 @@
 1 nano.xml.*
 1 net.bytebuddy.*
 1 net.jcip.*
+# Weak randomness false positive in net.jodah.failsafe.RetryPolicyExecutor
+1 net.jodah.failsafe.*
 # Amusing weak randomness false positive in XXHashFactory
 1 net.jpountz.xxhash.*
 1 net.logstash.*
@@ -274,6 +276,9 @@
 2 org.springframework.security.web.authentication.*
 2 org.springframework.web.context.request.*
 2 org.springframework.web.util.WebUtils
+# Need for Spring gson support
+2 org.springframework.http.converter.json.AbstractJsonHttpMessageConverter
+2 org.springframework.http.converter.json.GsonHttpMessageConverter
 # Need for ServletRequestCallSite.getInputStream()
 2 org.springframework.http.server.*
 1 org.sqlite.*

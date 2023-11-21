@@ -15,7 +15,7 @@ class JvmInfoFactoryTest extends Specification {
     def currentJvmExecutable = getCurrentJvmExecutable()
 
     when:
-    def jvmInfo = JvmInfoFactory.doGetJvmInfo(currentJvmExecutable)
+    def jvmInfo = JvmInfoFactoryImpl.doGetJvmInfo(currentJvmExecutable)
 
     then:
     jvmInfo == JvmInfo.CURRENT_JVM

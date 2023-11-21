@@ -18,10 +18,12 @@ import datadog.trace.civisibility.codeowners.Codeowners;
 import datadog.trace.civisibility.codeowners.CodeownersProvider;
 import datadog.trace.civisibility.communication.BackendApi;
 import datadog.trace.civisibility.communication.BackendApiFactory;
+import datadog.trace.civisibility.config.CachingJvmInfoFactory;
 import datadog.trace.civisibility.config.CachingModuleExecutionSettingsFactory;
 import datadog.trace.civisibility.config.ConfigurationApi;
 import datadog.trace.civisibility.config.ConfigurationApiImpl;
 import datadog.trace.civisibility.config.JvmInfoFactory;
+import datadog.trace.civisibility.config.JvmInfoFactoryImpl;
 import datadog.trace.civisibility.config.ModuleExecutionSettingsFactory;
 import datadog.trace.civisibility.config.ModuleExecutionSettingsFactoryImpl;
 import datadog.trace.civisibility.coverage.CoverageProbeStoreFactory;
@@ -132,10 +134,11 @@ public class CiVisibilitySystem {
     DDBuildSystemSession.Factory sessionFactory =
         buildSystemSessionFactory(
             config, sco, gitInfoProvider, coverageProbeStoreFactory, gitClientFactory);
+    JvmInfoFactory jvmInfoFactory = new CachingJvmInfoFactory(config, new JvmInfoFactoryImpl());
     return new BuildEventsHandler.Factory() {
       @Override
       public <U> BuildEventsHandler<U> create() {
-        return new BuildEventsHandlerImpl<>(sessionFactory, new JvmInfoFactory());
+        return new BuildEventsHandlerImpl<>(sessionFactory, jvmInfoFactory);
       }
     };
   }
@@ -224,7 +227,9 @@ public class CiVisibilitySystem {
       CIInfo ciInfo = ciProviderInfo.buildCIInfo();
       String repoRoot = ciInfo.getCiWorkspace();
       String moduleName =
-          (repoRoot != null) ? Paths.get(repoRoot).relativize(path).toString() : path.toString();
+          repoRoot != null && path.startsWith(repoRoot)
+              ? Paths.get(repoRoot).relativize(path).toString()
+              : config.getServiceName();
 
       DDTestFrameworkSession testSession =
           sessionFactory.startSession(moduleName, path, component, null);

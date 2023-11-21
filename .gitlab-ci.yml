@@ -43,7 +43,7 @@ cache: &default_cache
 
 .gradle_build: &gradle_build
   <<: *common
-  image: ghcr.io/datadog/dd-trace-java-docker-build:base
+  image: ghcr.io/datadog/dd-trace-java-docker-build:v23.10-base
   before_script:
     - export GRADLE_USER_HOME=`pwd`/.gradle
 
@@ -78,6 +78,12 @@ build_with_cache:
 
 package:
   extends: .package
+  when: on_success # this can't use 'needs: [build]', since build is not available in the scheduled pipeline
+  script:
+    - ../.gitlab/build_java_package.sh
+
+package-arm:
+  extends: .package-arm
   when: on_success # this can't use 'needs: [build]', since build is not available in the scheduled pipeline
   script:
     - ../.gitlab/build_java_package.sh

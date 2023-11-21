@@ -12,7 +12,7 @@ import datadog.trace.api.config.CiVisibilityConfig
 import datadog.trace.api.config.GeneralConfig
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.civisibility.codeowners.Codeowners
-import datadog.trace.civisibility.config.JvmInfoFactory
+import datadog.trace.civisibility.config.JvmInfoFactoryImpl
 import datadog.trace.civisibility.config.ModuleExecutionSettingsFactory
 import datadog.trace.civisibility.coverage.NoopCoverageProbeStore
 import datadog.trace.civisibility.decorator.TestDecorator
@@ -122,7 +122,7 @@ abstract class CiVisibilityTest extends AgentTestRunner {
     }
 
     InstrumentationBridge.registerBuildEventsHandlerFactory {
-      decorator -> new BuildEventsHandlerImpl<>(buildSystemSessionFactory, new JvmInfoFactory())
+      decorator -> new BuildEventsHandlerImpl<>(buildSystemSessionFactory, new JvmInfoFactoryImpl())
     }
 
     InstrumentationBridge.registerCoverageProbeStoreRegistry(coverageProbeStoreFactory)
