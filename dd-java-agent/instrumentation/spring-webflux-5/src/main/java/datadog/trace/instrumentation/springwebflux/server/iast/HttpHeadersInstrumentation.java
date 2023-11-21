@@ -31,5 +31,8 @@ public class HttpHeadersInstrumentation extends Instrumenter.Iast
     transformation.applyAdvice(
         isMethod().and(named("toSingleValueMap")).and(takesArguments(0)),
         packageName + ".TaintHttpHeadersToSingleValueMapAdvice");
+    transformation.applyAdvice(
+        isMethod().and(named("readOnlyHttpHeaders")).and(takesArguments(1)),
+        packageName + ".TaintReadOnlyHttpHeadersAdvice");
   }
 }
