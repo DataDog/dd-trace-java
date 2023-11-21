@@ -4,6 +4,7 @@ package datadog.remoteconfig;
 public enum Product {
   APM_TRACING,
   LIVE_DEBUGGING,
+  LIVE_DEBUGGING_SYMBOL_DB,
   ASM_DD,
   ASM,
   ASM_DATA,
