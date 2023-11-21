@@ -10,6 +10,7 @@ import datadog.remoteconfig.ConfigurationChangesListener;
 import datadog.remoteconfig.state.ParsedConfigKey;
 import datadog.remoteconfig.state.ProductListener;
 import datadog.trace.api.Config;
+import datadog.trace.util.AgentTaskScheduler;
 import datadog.trace.util.Strings;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -38,12 +39,15 @@ public class SymDBEnablement implements ProductListener {
   private static final Pattern COMMA_PATTERN = Pattern.compile(",");
   private static final JsonAdapter<SymDbRemoteConfigRecord> SYM_DB_JSON_ADAPTER =
       MoshiHelper.createMoshiConfig().adapter(SymDbRemoteConfigRecord.class);
+  private static final String SYM_DB_RC_KEY = "symDb";
+  private static final int READ_BUFFER_SIZE = 4096;
+  private static final int CLASSFILE_BUFFER_SIZE = 8192;
 
   private final Instrumentation instrumentation;
   private final Config config;
   private final SymbolAggregator symbolAggregator;
   private SymbolExtractionTransformer symbolExtractionTransformer;
-  private long lastUploadTimestamp;
+  private volatile long lastUploadTimestamp;
 
   public SymDBEnablement(
       Instrumentation instrumentation, Config config, SymbolAggregator symbolAggregator) {
@@ -58,22 +62,27 @@ public class SymDBEnablement implements ProductListener {
       byte[] content,
       ConfigurationChangesListener.PollingRateHinter pollingRateHinter)
       throws IOException {
-    if (configKey.getConfigId().equals("symDb")) {
+    if (configKey.getConfigId().equals(SYM_DB_RC_KEY)) {
       SymDbRemoteConfigRecord symDb = deserializeSymDb(content);
       if (symDb.isUploadSymbols()) {
-        startSymbolExtraction();
+        // can be long, make it async
+        AgentTaskScheduler.INSTANCE.execute(this::startSymbolExtraction);
       } else {
         stopSymbolExtraction();
       }
     } else {
-      throw new IOException("unsupported configuration id " + configKey.getConfigId());
+      LOGGER.debug("unsupported configuration id {}", configKey.getConfigId());
     }
   }
 
   @Override
   public void remove(
       ParsedConfigKey configKey, ConfigurationChangesListener.PollingRateHinter pollingRateHinter)
-      throws IOException {}
+      throws IOException {
+    if (configKey.getConfigId().equals(SYM_DB_RC_KEY)) {
+      stopSymbolExtraction();
+    }
+  }
 
   @Override
   public void commit(ConfigurationChangesListener.PollingRateHinter pollingRateHinter) {}
@@ -86,6 +95,10 @@ public class SymDBEnablement implements ProductListener {
   public void stopSymbolExtraction() {
     LOGGER.debug("Stopping symbol extraction.");
     instrumentation.removeTransformer(symbolExtractionTransformer);
+  }
+
+  long getLastUploadTimestamp() {
+    return lastUploadTimestamp;
   }
 
   public void startSymbolExtraction() {
@@ -107,7 +120,7 @@ public class SymDBEnablement implements ProductListener {
   }
 
   private void extractSymbolForLoadedClasses(AllowListHelper allowListHelper) {
-    Class<?>[] classesToExtract = null;
+    Class<?>[] classesToExtract;
     try {
       classesToExtract =
           Arrays.stream(instrumentation.getAllLoadedClasses())
@@ -119,8 +132,8 @@ public class SymDBEnablement implements ProductListener {
       return;
     }
     Set<String> alreadyScannedJars = new HashSet<>();
-    byte[] buffer = new byte[4096];
-    ByteArrayOutputStream baos = new ByteArrayOutputStream(8192);
+    byte[] buffer = new byte[READ_BUFFER_SIZE];
+    ByteArrayOutputStream baos = new ByteArrayOutputStream(CLASSFILE_BUFFER_SIZE);
     for (Class<?> clazz : classesToExtract) {
       Path jarPath;
       try {

@@ -43,14 +43,22 @@ class SymDBEnablementTest {
   }
 
   @Test
-  public void enableDisableSymDBThroughRC() throws IOException {
+  public void enableDisableSymDBThroughRC() throws Exception {
     SymDBEnablement symDBEnablement =
         new SymDBEnablement(instr, config, new SymbolAggregator(symbolSink, 1));
     symDBEnablement.accept(ParsedConfigKey.parse(CONFIG_KEY), UPlOAD_SYMBOL_TRUE, null);
+    int count = 0;
+    while (symDBEnablement.getLastUploadTimestamp() == 0) {
+      Thread.sleep(1);
+      if (count++ > 30 * 1000) {
+        throw new RuntimeException("Timeout waiting for symDBEnablement.getLastUploadTimestamp()");
+      }
+    }
     verify(instr).addTransformer(any(SymbolExtractionTransformer.class), eq(true));
 
     symDBEnablement.accept(ParsedConfigKey.parse(CONFIG_KEY), UPlOAD_SYMBOL_FALSE, null);
-    verify(instr).removeTransformer(any(SymbolExtractionTransformer.class));
+    symDBEnablement.remove(ParsedConfigKey.parse(CONFIG_KEY), null);
+    verify(instr, times(2)).removeTransformer(any(SymbolExtractionTransformer.class));
   }
 
   @Test
