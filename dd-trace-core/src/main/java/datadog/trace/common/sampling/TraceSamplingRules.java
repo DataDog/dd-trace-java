@@ -17,34 +17,46 @@ public class TraceSamplingRules {
   private static final Logger log = LoggerFactory.getLogger(TraceSamplingRules.class);
 
   public static final class Rule {
-    public static Rule create(String service, String name, double sampleRate) {
+    public static Rule create(String service, String name, String resource, double sampleRate) {
       if (sampleRate < 0 || sampleRate > 1.0) {
         logError(
-            service, name, Double.toString(sampleRate), "sample_rate must be between 0.0 and 1.0");
+            service,
+            name,
+            resource,
+            Double.toString(sampleRate),
+            "sample_rate must be between 0.0 and 1.0");
         return null;
       }
-      return new Rule(service, name, sampleRate);
+      return new Rule(service, name, resource, sampleRate);
     }
 
-    public static Rule create(String service, String name, String sample_rate) {
+    public static Rule create(String service, String name, String resource, String sample_rate) {
       if (sample_rate == null) {
-        logError(service, name, null, "missing mandatory sample_rate");
+        logError(service, name, resource, null, "missing mandatory sample_rate");
         return null;
       }
       try {
-        return create(service, name, Double.parseDouble(sample_rate));
+        return create(service, name, resource, Double.parseDouble(sample_rate));
       } catch (NumberFormatException ex) {
-        logError(service, name, sample_rate, "sample_rate must be a number between 0.0 and 1.0");
+        logError(
+            service,
+            name,
+            resource,
+            sample_rate,
+            "sample_rate must be a number between 0.0 and 1.0");
         return null;
       }
     }
 
-    private static void logError(String service, String name, String sample_rate, String error) {
+    private static void logError(
+        String service, String name, String resource, String sample_rate, String error) {
       log.error(
           "Skipping invalid Trace Sampling Rule: { \"service\": \""
               + service
               + "\", \"name\": \""
               + name
+              + "\", \"resource\": \""
+              + resource
               + "\", \"sample_rate\": "
               + sample_rate
               + " } - "
@@ -52,14 +64,15 @@ public class TraceSamplingRules {
     }
 
     private final String service;
-
     private final String name;
+    private final String resource;
 
     private final double sampleRate;
 
-    private Rule(String service, String name, double sampleRate) {
+    private Rule(String service, String name, String resource, double sampleRate) {
       this.service = service;
       this.name = name;
+      this.resource = resource;
       this.sampleRate = sampleRate;
     }
 
@@ -69,6 +82,10 @@ public class TraceSamplingRules {
 
     public String getName() {
       return name;
+    }
+
+    public String getResource() {
+      return resource;
     }
 
     public double getSampleRate() {
@@ -88,10 +105,11 @@ public class TraceSamplingRules {
   private static final class JsonRule {
     String service;
     String name;
+    String resource;
     String sample_rate;
 
     private Rule toRule() {
-      return Rule.create(service, name, sample_rate);
+      return Rule.create(service, name, resource, sample_rate);
     }
   }
 

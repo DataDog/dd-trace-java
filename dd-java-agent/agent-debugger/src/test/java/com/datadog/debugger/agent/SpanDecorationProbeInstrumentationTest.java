@@ -1,6 +1,7 @@
 package com.datadog.debugger.agent;
 
 import static com.datadog.debugger.el.DSL.eq;
+import static com.datadog.debugger.el.DSL.gt;
 import static com.datadog.debugger.el.DSL.ref;
 import static com.datadog.debugger.el.DSL.value;
 import static com.datadog.debugger.probe.SpanDecorationProbe.TargetSpan.ACTIVE;
@@ -11,6 +12,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static utils.InstrumentationTestHelper.compileAndLoadClass;
@@ -178,6 +180,34 @@ public class SpanDecorationProbeInstrumentationTest extends ProbeInstrumentation
     Snapshot snapshot = mockSink.getSnapshots().get(0);
     assertEquals(1, snapshot.getEvaluationErrors().size());
     assertEquals("Cannot find symbol: noarg", snapshot.getEvaluationErrors().get(0).getMessage());
+  }
+
+  @Test
+  public void methodActiveSpanSynthReturn() throws IOException, URISyntaxException {
+    final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot20";
+    SpanDecorationProbe.Decoration decoration =
+        createDecoration(gt(ref("@return"), value(0)), "@return > '0", "tag1", "{@return}");
+    installSingleSpanDecoration(
+        CLASS_NAME, ACTIVE, decoration, "process", "int (java.lang.String)");
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    int result = Reflect.on(testClass).call("main", "5").get();
+    assertEquals(84, result);
+    MutableSpan span = traceInterceptor.getFirstSpan();
+    assertEquals("84", span.getTags().get("tag1"));
+  }
+
+  @Test
+  public void methodActiveSpanSynthDuration() throws IOException, URISyntaxException {
+    final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot20";
+    SpanDecorationProbe.Decoration decoration =
+        createDecoration(gt(ref("@duration"), value(0)), "@return > '0", "tag1", "{@duration}");
+    installSingleSpanDecoration(
+        CLASS_NAME, ACTIVE, decoration, "process", "int (java.lang.String)");
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    int result = Reflect.on(testClass).call("main", "5").get();
+    assertEquals(84, result);
+    MutableSpan span = traceInterceptor.getFirstSpan();
+    assertTrue(Double.parseDouble((String) span.getTags().get("tag1")) > 0);
   }
 
   @Test

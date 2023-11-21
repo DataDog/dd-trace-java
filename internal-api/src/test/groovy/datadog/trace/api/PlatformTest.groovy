@@ -97,7 +97,7 @@ class PlatformTest extends DDSpecification {
 
   def "JVMRuntime is at least a bit resilient against weird version properties"() {
     when:
-    def runtime = new Platform.JvmRuntime(propVersion, rtVersion, propName, propVendor)
+    def runtime = new Platform.JvmRuntime(propVersion, rtVersion, propName, propVendor, null)
 
     then:
     runtime.version == version

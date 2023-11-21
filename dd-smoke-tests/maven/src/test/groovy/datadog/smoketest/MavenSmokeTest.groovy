@@ -1,5 +1,6 @@
 package datadog.smoketest
 
+
 import com.fasterxml.jackson.databind.ObjectMapper
 import datadog.trace.agent.test.server.http.TestHttpServer
 import datadog.trace.api.Config
@@ -7,14 +8,23 @@ import datadog.trace.api.config.CiVisibilityConfig
 import datadog.trace.api.config.GeneralConfig
 import datadog.trace.test.util.MultipartRequestParser
 import datadog.trace.util.Strings
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.Response
 import org.apache.maven.wrapper.MavenWrapperMain
 import org.msgpack.jackson.dataformat.MessagePackFactory
+import org.slf4j.Logger
+import org.slf4j.LoggerFactory
+import org.w3c.dom.Document
+import org.w3c.dom.NodeList
 import spock.lang.AutoCleanup
 import spock.lang.Shared
 import spock.lang.Specification
 import spock.lang.TempDir
 import spock.util.concurrent.PollingConditions
 
+import javax.xml.parsers.DocumentBuilder
+import javax.xml.parsers.DocumentBuilderFactory
 import java.nio.file.FileVisitResult
 import java.nio.file.Files
 import java.nio.file.Path
@@ -30,6 +40,35 @@ import static org.hamcrest.Matchers.emptyString
 import static org.hamcrest.Matchers.not
 
 class MavenSmokeTest extends Specification {
+
+  private static final Logger LOGGER = LoggerFactory.getLogger(MavenSmokeTest.class)
+
+  private static final String LATEST_MAVEN_VERSION = getLatestMavenVersion()
+
+  private static String getLatestMavenVersion() {
+    OkHttpClient client = new OkHttpClient()
+    Request request = new Request.Builder().url("https://repo.maven.apache.org/maven2/org/apache/maven/apache-maven/maven-metadata.xml").build()
+    try (Response response = client.newCall(request).execute()) {
+      if (response.successful) {
+        DocumentBuilderFactory dbFactory = DocumentBuilderFactory.newInstance()
+        DocumentBuilder dBuilder = dbFactory.newDocumentBuilder()
+        Document doc = dBuilder.parse(response.body().byteStream())
+        doc.getDocumentElement().normalize()
+
+        NodeList versionList = doc.getElementsByTagName("latest")
+        if (versionList.getLength() > 0) {
+          return versionList.item(0).getTextContent()
+        }
+      } else {
+        LOGGER.warn("Could not get latest maven version, response from repo.maven.apache.org is ${response.code()}: ${response.body().string()}")
+      }
+    } catch (Exception e) {
+      LOGGER.warn("Could not get latest maven version", e)
+    }
+    def hardcodedLatestVersion = "4.0.0-alpha-8"
+    LOGGER.warn("Will run the 'latest' tests with hard-coded version ${hardcodedLatestVersion}")
+    return hardcodedLatestVersion
+  }
 
   private static final String TEST_SERVICE_NAME = "test-maven-service"
   private static final String TEST_ENVIRONMENT_NAME = "integration-test"
@@ -80,14 +119,14 @@ class MavenSmokeTest extends Specification {
 
       prefix("/api/v2/ci/tests/skippable") {
         response.status(200).send('{ "data": [{' +
-          '  "id": "d230520a0561ee2f",' +
-          '  "type": "test",' +
-          '  "attributes": {' +
-          '    "configurations": {},' +
-          '    "name": "test_to_skip_with_itr",' +
-          '    "suite": "datadog.smoke.TestSucceed"' +
-          '  }' +
-          '}] }')
+        '  "id": "d230520a0561ee2f",' +
+        '  "type": "test",' +
+        '  "attributes": {' +
+        '    "configurations": {},' +
+        '    "name": "test_to_skip_with_itr",' +
+        '    "suite": "datadog.smoke.TestSucceed"' +
+        '  }' +
+        '}] }')
       }
     }
   }
@@ -112,7 +151,7 @@ class MavenSmokeTest extends Specification {
     verifyEventsAndCoverages(mavenVersion)
 
     where:
-    mavenVersion << ["3.2.1", "3.2.5", "3.3.9", "3.5.4", "3.6.3", "3.8.8", "3.9.4", "4.0.0-alpha-7"]
+    mavenVersion << ["3.2.1", "3.2.5", "3.3.9", "3.5.4", "3.6.3", "3.8.8", "3.9.5", LATEST_MAVEN_VERSION]
   }
 
   def "test maven run with jacoco and argLine, v#mavenVersion"() {
@@ -130,7 +169,7 @@ class MavenSmokeTest extends Specification {
     verifyEventsAndCoverages(mavenVersion)
 
     where:
-    mavenVersion << ["3.9.4"]
+    mavenVersion << ["3.9.5"]
   }
 
   private verifyEventsAndCoverages(String mavenVersion) {
@@ -302,20 +341,20 @@ class MavenSmokeTest extends Specification {
 
   private void copyFolder(Path src, Path dest) throws IOException {
     Files.walkFileTree(src, new SimpleFileVisitor<Path>() {
-        @Override
-        FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs)
-        throws IOException {
-          Files.createDirectories(dest.resolve(src.relativize(dir)))
-          return FileVisitResult.CONTINUE
-        }
+      @Override
+      FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs)
+      throws IOException {
+        Files.createDirectories(dest.resolve(src.relativize(dir)))
+        return FileVisitResult.CONTINUE
+      }
 
-        @Override
-        FileVisitResult visitFile(Path file, BasicFileAttributes attrs)
-        throws IOException {
-          Files.copy(file, dest.resolve(src.relativize(file)))
-          return FileVisitResult.CONTINUE
-        }
-      })
+      @Override
+      FileVisitResult visitFile(Path file, BasicFileAttributes attrs)
+      throws IOException {
+        Files.copy(file, dest.resolve(src.relativize(file)))
+        return FileVisitResult.CONTINUE
+      }
+    })
 
     // creating empty .git directory so that the tracer could detect projectFolder as repo root
     Files.createDirectory(projectHome.resolve(".git"))
@@ -401,16 +440,16 @@ class MavenSmokeTest extends Specification {
     if (runWithAgent) {
       def agentShadowJar = System.getProperty("datadog.smoketest.agent.shadowJar.path")
       def agentArgument = "-javaagent:${agentShadowJar}=" +
-        "${Strings.propertyNameToSystemPropertyName(GeneralConfig.ENV)}=${TEST_ENVIRONMENT_NAME}," +
-        "${Strings.propertyNameToSystemPropertyName(GeneralConfig.SERVICE_NAME)}=${TEST_SERVICE_NAME}," +
-        "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_ENABLED)}=true," +
-        "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_AGENTLESS_ENABLED)}=true," +
-        "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_CIPROVIDER_INTEGRATION_ENABLED)}=false," +
-        "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_SOURCE_DATA_ROOT_CHECK_ENABLED)}=false," +
-        "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_GIT_UPLOAD_ENABLED)}=false," +
-        "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_COVERAGE_SEGMENTS_ENABLED)}=true," +
-        "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_COMPILER_PLUGIN_VERSION)}=${JAVAC_PLUGIN_VERSION}," +
-        "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_AGENTLESS_URL)}=${intakeServer.address.toString()}"
+      "${Strings.propertyNameToSystemPropertyName(GeneralConfig.ENV)}=${TEST_ENVIRONMENT_NAME}," +
+      "${Strings.propertyNameToSystemPropertyName(GeneralConfig.SERVICE_NAME)}=${TEST_SERVICE_NAME}," +
+      "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_ENABLED)}=true," +
+      "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_AGENTLESS_ENABLED)}=true," +
+      "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_CIPROVIDER_INTEGRATION_ENABLED)}=false," +
+      "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_SOURCE_DATA_ROOT_CHECK_ENABLED)}=false," +
+      "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_GIT_UPLOAD_ENABLED)}=false," +
+      "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_COVERAGE_SEGMENTS_ENABLED)}=true," +
+      "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_COMPILER_PLUGIN_VERSION)}=${JAVAC_PLUGIN_VERSION}," +
+      "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_AGENTLESS_URL)}=${intakeServer.address.toString()}"
       arguments += agentArgument.toString()
     }
     return arguments
