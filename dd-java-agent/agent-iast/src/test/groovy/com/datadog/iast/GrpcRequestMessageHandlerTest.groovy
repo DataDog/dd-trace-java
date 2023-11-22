@@ -1,5 +1,6 @@
 package com.datadog.iast
 
+import com.datadog.iast.propagation.PropagationModuleImpl
 import com.datadog.iast.protobuf.Test2
 import com.datadog.iast.protobuf.Test3
 import com.datadog.iast.util.ObjectVisitor
@@ -8,6 +9,8 @@ import datadog.trace.api.gateway.RequestContextSlot
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.SourceTypes
 import datadog.trace.api.iast.propagation.PropagationModule
+import datadog.trace.api.iast.telemetry.IastMetric
+import datadog.trace.api.iast.telemetry.IastMetricCollector
 import datadog.trace.test.util.DDSpecification
 import foo.bar.VisitableClass
 
@@ -22,9 +25,9 @@ class GrpcRequestMessageHandlerTest extends DDSpecification {
   private RequestContext ctx
 
   void setup() {
-    propagation = Mock(PropagationModule)
+    propagation = Spy(new PropagationModuleImpl())
     InstrumentationBridge.registerIastModule(propagation)
-    iastCtx = Mock(IastRequestContext)
+    iastCtx = Spy(new IastRequestContext())
     ctx = Mock(RequestContext) {
       getData(RequestContextSlot.IAST) >> iastCtx
     }
@@ -73,7 +76,6 @@ class GrpcRequestMessageHandlerTest extends DDSpecification {
         return CONTINUE
       }
     }
-    final url = 'https://dd.datad0g.com/'
     final nonProtobufMessage = new VisitableClass(name: 'test')
     final filter = GrpcRequestMessageHandler::isProtobufArtifact
 
@@ -100,6 +102,24 @@ class GrpcRequestMessageHandlerTest extends DDSpecification {
     where:
     protobufVersion << ['2', '3']
     protobufMessage << [buildProto2Message(), buildProto3Message()]
+  }
+
+  void 'test that metrics are properly generated'() {
+    given:
+    final collector = Spy(new IastMetricCollector())
+    iastCtx.getMetricCollector() >> collector
+    final handler = new GrpcRequestMessageHandler()
+
+    when:
+    handler.apply(ctx, message)
+
+    then:
+    1 * collector.addMetric(IastMetric.EXECUTED_SOURCE, SourceTypes.GRPC_BODY, 6)
+
+    where:
+    message              | _
+    buildProto2Message() | _
+    buildProto3Message() | _
   }
 
   private static def buildProto2Message() {
