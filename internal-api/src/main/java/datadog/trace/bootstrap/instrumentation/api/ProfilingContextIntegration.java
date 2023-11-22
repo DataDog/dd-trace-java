@@ -1,5 +1,6 @@
 package datadog.trace.bootstrap.instrumentation.api;
 
+import datadog.trace.api.Stateful;
 import datadog.trace.api.profiling.Profiling;
 import datadog.trace.api.profiling.ProfilingContextAttribute;
 import datadog.trace.api.profiling.ProfilingScope;
@@ -12,6 +13,10 @@ public interface ProfilingContextIntegration extends Profiling {
   void onDetach();
 
   void setContext(ProfilerContext profilerContext);
+
+  default Stateful newScopeState(ProfilerContext profilerContext) {
+    return NoOpState.INSTANCE;
+  }
 
   void clearContext();
 
@@ -30,6 +35,14 @@ public interface ProfilingContextIntegration extends Profiling {
   }
 
   String name();
+
+  final class NoOpState implements Stateful {
+
+    static final NoOpState INSTANCE = new NoOpState();
+
+    @Override
+    public void close() {}
+  }
 
   final class NoOp implements ProfilingContextIntegration {
 
