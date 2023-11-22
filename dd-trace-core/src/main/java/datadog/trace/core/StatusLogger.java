@@ -122,6 +122,10 @@ public final class StatusLogger extends JsonAdapter<Config>
     writer.value(config.getAppSecRulesFile());
     writer.name("telemetry_enabled");
     writer.value(config.isTelemetryEnabled());
+    writer.name("telemetry_dependency_collection_enabled");
+    writer.value(config.isTelemetryDependencyServiceEnabled());
+    writer.name("telemetry_log_collection_enabled");
+    writer.value(config.isTelemetryLogCollectionEnabled());
     writer.name("dd_version");
     writer.value(config.getVersion());
     writer.name("health_checks_enabled");
@@ -146,6 +150,8 @@ public final class StatusLogger extends JsonAdapter<Config>
       writer.name("iast_enabled");
       writer.value(config.getIastActivation().toString());
     }
+    writer.name("data_streams_enabled");
+    writer.value(config.isDataStreamsEnabled());
     writer.endObject();
   }
 

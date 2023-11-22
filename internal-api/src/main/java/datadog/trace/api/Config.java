@@ -98,6 +98,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_STARTUP_LOGS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TELEMETRY_DEPENDENCY_COLLECTION_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TELEMETRY_EXTENDED_HEARTBEAT_INTERVAL;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TELEMETRY_HEARTBEAT_INTERVAL;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_TELEMETRY_LOG_COLLECTION_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TELEMETRY_METRICS_INTERVAL;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_128_BIT_TRACEID_GENERATION_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_AGENT_PORT;
@@ -230,6 +231,7 @@ import static datadog.trace.api.config.GeneralConfig.TAGS;
 import static datadog.trace.api.config.GeneralConfig.TELEMETRY_DEPENDENCY_COLLECTION_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.TELEMETRY_EXTENDED_HEARTBEAT_INTERVAL;
 import static datadog.trace.api.config.GeneralConfig.TELEMETRY_HEARTBEAT_INTERVAL;
+import static datadog.trace.api.config.GeneralConfig.TELEMETRY_LOG_COLLECTION_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.TELEMETRY_METRICS_INTERVAL;
 import static datadog.trace.api.config.GeneralConfig.TRACER_METRICS_BUFFERING_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.TRACER_METRICS_ENABLED;
@@ -313,6 +315,7 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.DB_DBM_PROPAGA
 import static datadog.trace.api.config.TraceInstrumentationConfig.ELASTICSEARCH_BODY_AND_PARAMS_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.ELASTICSEARCH_BODY_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.ELASTICSEARCH_PARAMS_ENABLED;
+import static datadog.trace.api.config.TraceInstrumentationConfig.GOOGLE_PUBSUB_IGNORED_GRPC_METHODS;
 import static datadog.trace.api.config.TraceInstrumentationConfig.GRPC_CLIENT_ERROR_STATUSES;
 import static datadog.trace.api.config.TraceInstrumentationConfig.GRPC_IGNORED_INBOUND_METHODS;
 import static datadog.trace.api.config.TraceInstrumentationConfig.GRPC_IGNORED_OUTBOUND_METHODS;
@@ -828,6 +831,7 @@ public class Config {
   private final float telemetryMetricsInterval;
   private final boolean isTelemetryDependencyServiceEnabled;
   private final boolean telemetryMetricsEnabled;
+  private final boolean isTelemetryLogCollectionEnabled;
 
   private final boolean azureAppServices;
   private final String traceAgentPath;
@@ -1477,6 +1481,10 @@ public class Config {
             TELEMETRY_DEPENDENCY_COLLECTION_ENABLED,
             DEFAULT_TELEMETRY_DEPENDENCY_COLLECTION_ENABLED);
 
+    isTelemetryLogCollectionEnabled =
+        configProvider.getBoolean(
+            TELEMETRY_LOG_COLLECTION_ENABLED, DEFAULT_TELEMETRY_LOG_COLLECTION_ENABLED);
+
     clientIpEnabled = configProvider.getBoolean(CLIENT_IP_ENABLED, DEFAULT_CLIENT_IP_ENABLED);
 
     appSecReportingInband =
@@ -1755,8 +1763,23 @@ public class Config {
 
     grpcIgnoredInboundMethods =
         tryMakeImmutableSet(configProvider.getList(GRPC_IGNORED_INBOUND_METHODS));
-    grpcIgnoredOutboundMethods =
-        tryMakeImmutableSet(configProvider.getList(GRPC_IGNORED_OUTBOUND_METHODS));
+    final List<String> tmpGrpcIgnoredOutboundMethods = new ArrayList<>();
+    tmpGrpcIgnoredOutboundMethods.addAll(configProvider.getList(GRPC_IGNORED_OUTBOUND_METHODS));
+    // When tracing shadowing will be possible we can instrument the stubs to silent tracing
+    // starting from interception points
+    if (InstrumenterConfig.get()
+        .isIntegrationEnabled(Collections.singleton("google-pubsub"), true)) {
+      tmpGrpcIgnoredOutboundMethods.addAll(
+          configProvider.getList(
+              GOOGLE_PUBSUB_IGNORED_GRPC_METHODS,
+              Arrays.asList(
+                  "google.pubsub.v1.Subscriber/ModifyAckDeadline",
+                  "google.pubsub.v1.Subscriber/Acknowledge",
+                  "google.pubsub.v1.Subscriber/Pull",
+                  "google.pubsub.v1.Subscriber/StreamingPull",
+                  "google.pubsub.v1.Publisher/Publish")));
+    }
+    grpcIgnoredOutboundMethods = tryMakeImmutableSet(tmpGrpcIgnoredOutboundMethods);
     grpcServerTrimPackageResource =
         configProvider.getBoolean(GRPC_SERVER_TRIM_PACKAGE_RESOURCE, false);
     grpcServerErrorStatuses =
@@ -2432,6 +2455,10 @@ public class Config {
         return false;
       }
     }
+    if (Platform.isGraalVM()) {
+      // let's be conservative about GraalVM and require opt-in from the users
+      return false;
+    }
     boolean result =
         Platform.isJ9()
             || !Platform.isJavaVersion(18) // missing AGCT fixes
@@ -2476,6 +2503,10 @@ public class Config {
 
   public boolean isTelemetryMetricsEnabled() {
     return telemetryMetricsEnabled;
+  }
+
+  public boolean isTelemetryLogCollectionEnabled() {
+    return isTelemetryLogCollectionEnabled;
   }
 
   public boolean isClientIpEnabled() {
@@ -2845,7 +2876,7 @@ public class Config {
   }
 
   public boolean isDebuggerSymbolForceUpload() {
-    return debuggerSymbolEnabled;
+    return debuggerSymbolForceUpload;
   }
 
   public String getDebuggerSymbolIncludes() {
