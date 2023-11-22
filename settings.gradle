@@ -146,6 +146,7 @@ include ':dd-smoke-tests:appsec:spring-tomcat7'
 include ':dd-smoke-tests:appsec:springboot'
 include ':dd-smoke-tests:appsec:springboot-grpc'
 include ':dd-smoke-tests:appsec:springboot-security'
+include ':dd-smoke-tests:appsec:springboot-jdbc-postgresql'
 include ':dd-smoke-tests:debugger-integration-tests'
 include ':dd-smoke-tests:iast-util'
 // TODO this fails too often with a jgit failure, so disable until fixed

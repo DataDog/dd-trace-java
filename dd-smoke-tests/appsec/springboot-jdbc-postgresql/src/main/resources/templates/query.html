@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="x-ua-compatible" content="ie=edge">
+    <title>Users</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/css/bootstrap.min.css" integrity="sha384-MCw98/SFnGE8fJT3GXwEOngsV7Zt27NXFoaoApmYm81iuXoPkFOJwJ8ERdknLPMO" crossorigin="anonymous">
+    <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.4.1/css/all.css" integrity="sha384-5sAR7xN1Nv6T6+dT2mhtzEpVJvfS3NScPQTrOxhwjIuvcA67KV2R5Jz6kr4abQsz" crossorigin="anonymous">
+</head>
+<body>
+
+<div class="container my-5">
+    <form method="post" th:action="@{/query}" style="display:flex">
+        <textarea name="sqlQuery" cols="40" rows="3" placeholder="SQL query" th:text="${sqlQuery}" style="display:inline-block; width: 100%"></textarea>
+        <input type="submit" value="Execute SQL" style="display:inline-block; width: 120px; margin-left: 10px">
+    </form>
+
+    <p th:text="${error}" style="color: red; margin-top: 15px"></p>
+
+    <table class="table table-striped table-responsive-md">
+        <thead>
+            <tr>
+                <th:block th:each="column : ${columns}">
+                    <th scope="col" th:text="${column}"></th>
+                </th:block>
+            </tr>
+        </thead>
+        <tbody>
+            <tr th:each="row : ${data}">
+                <th:block th:each="d : ${row}">
+                    <td th:text="${d}"></td>
+                </th:block>
+            </tr>
+        </tbody>
+    </table>
+</div>
+
+</body>
+</html>
