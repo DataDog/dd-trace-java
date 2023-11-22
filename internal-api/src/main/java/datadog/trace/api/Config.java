@@ -2876,7 +2876,7 @@ public class Config {
   }
 
   public boolean isDebuggerSymbolForceUpload() {
-    return debuggerSymbolEnabled;
+    return debuggerSymbolForceUpload;
   }
 
   public String getDebuggerSymbolIncludes() {

@@ -44,28 +44,27 @@ public class DebuggerProductChangesListener implements ProductListener {
         MoshiHelper.createMoshiConfig().adapter(SpanDecorationProbe.class);
 
     static Configuration deserializeConfiguration(byte[] content) throws IOException {
-      return CONFIGURATION_JSON_ADAPTER.fromJson(
-          Okio.buffer(Okio.source(new ByteArrayInputStream(content))));
+      return deserialize(CONFIGURATION_JSON_ADAPTER, content);
     }
 
     static MetricProbe deserializeMetricProbe(byte[] content) throws IOException {
-      return METRIC_PROBE_JSON_ADAPTER.fromJson(
-          Okio.buffer(Okio.source(new ByteArrayInputStream(content))));
+      return deserialize(METRIC_PROBE_JSON_ADAPTER, content);
     }
 
     static LogProbe deserializeLogProbe(byte[] content) throws IOException {
-      return LOG_PROBE_JSON_ADAPTER.fromJson(
-          Okio.buffer(Okio.source(new ByteArrayInputStream(content))));
+      return deserialize(LOG_PROBE_JSON_ADAPTER, content);
     }
 
     static SpanProbe deserializeSpanProbe(byte[] content) throws IOException {
-      return SPAN_PROBE_JSON_ADAPTER.fromJson(
-          Okio.buffer(Okio.source(new ByteArrayInputStream(content))));
+      return deserialize(SPAN_PROBE_JSON_ADAPTER, content);
     }
 
     static SpanDecorationProbe deserializeSpanDecorationProbe(byte[] content) throws IOException {
-      return SPAN_DECORATION_PROBE_JSON_ADAPTER.fromJson(
-          Okio.buffer(Okio.source(new ByteArrayInputStream(content))));
+      return deserialize(SPAN_DECORATION_PROBE_JSON_ADAPTER, content);
+    }
+
+    private static <T> T deserialize(JsonAdapter<T> adapter, byte[] content) throws IOException {
+      return adapter.fromJson(Okio.buffer(Okio.source(new ByteArrayInputStream(content))));
     }
   }
 
@@ -89,9 +88,7 @@ public class DebuggerProductChangesListener implements ProductListener {
       byte[] content,
       datadog.remoteconfig.ConfigurationChangesListener.PollingRateHinter pollingRateHinter)
       throws IOException {
-
     String configId = configKey.getConfigId();
-
     if (configId.startsWith("metricProbe_")) {
       MetricProbe metricProbe = Adapter.deserializeMetricProbe(content);
       configChunks.put(configId, (builder) -> builder.add(metricProbe));
