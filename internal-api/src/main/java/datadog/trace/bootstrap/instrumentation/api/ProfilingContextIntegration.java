@@ -6,11 +6,16 @@ import datadog.trace.api.profiling.ProfilingContextAttribute;
 import datadog.trace.api.profiling.ProfilingScope;
 
 public interface ProfilingContextIntegration extends Profiling {
+  /**
+   * invoked when the profiler is started, implementations must not initialise JFR before this is
+   * called.
+   */
+  default void onStart() {}
   /** Invoked when a trace first propagates to a thread */
   default void onAttach() {}
 
   /** Invoked when a thread exits */
-  default void onDetach() {};
+  default void onDetach() {}
 
   default Stateful newScopeState(ProfilerContext profilerContext) {
     return Stateful.DEFAULT;

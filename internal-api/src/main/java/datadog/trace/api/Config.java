@@ -422,6 +422,7 @@ import static datadog.trace.util.CollectionUtils.tryMakeImmutableSet;
 import static datadog.trace.util.Strings.propertyNameToEnvironmentVariableName;
 
 import datadog.trace.api.config.GeneralConfig;
+import datadog.trace.api.config.ProfilingConfig;
 import datadog.trace.api.config.TracerConfig;
 import datadog.trace.api.iast.IastDetectionMode;
 import datadog.trace.api.iast.telemetry.Verbosity;
@@ -495,6 +496,7 @@ public class Config {
   private final InstrumenterConfig instrumenterConfig;
 
   private final long startTimeMillis = System.currentTimeMillis();
+  private final boolean timelineEventsEnabled;
 
   /**
    * this is a random UUID that gets generated on JVM start up and is attached to every root span
@@ -1894,6 +1896,11 @@ public class Config {
             GeneralConfig.TELEMETRY_DEBUG_REQUESTS_ENABLED,
             ConfigDefaults.DEFAULT_TELEMETRY_DEBUG_REQUESTS_ENABLED);
 
+    timelineEventsEnabled =
+        configProvider.getBoolean(
+            ProfilingConfig.PROFILING_TIMELINE_EVENTS_ENABLED,
+            ProfilingConfig.PROFILING_TIMELINE_EVENTS_ENABLED_DEFAULT);
+
     log.debug("New instance: {}", this);
   }
 
@@ -2354,6 +2361,10 @@ public class Config {
 
   public boolean isProfilingEnabled() {
     return instrumenterConfig.isProfilingEnabled();
+  }
+
+  public boolean isProfilingTimelineEventsEnabled() {
+    return timelineEventsEnabled;
   }
 
   public boolean isProfilingAgentless() {

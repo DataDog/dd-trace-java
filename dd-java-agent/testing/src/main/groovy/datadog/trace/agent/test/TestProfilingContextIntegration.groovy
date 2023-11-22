@@ -2,7 +2,6 @@ package datadog.trace.agent.test
 
 import datadog.trace.api.profiling.ProfilingContextAttribute
 import datadog.trace.api.profiling.ProfilingScope
-import datadog.trace.bootstrap.instrumentation.api.ProfilerContext
 import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration
 
 import java.util.concurrent.atomic.AtomicInteger
