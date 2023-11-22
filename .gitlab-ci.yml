@@ -43,7 +43,7 @@ cache: &default_cache
 
 .gradle_build: &gradle_build
   <<: *common
-  image: ghcr.io/datadog/dd-trace-java-docker-build:base
+  image: ghcr.io/datadog/dd-trace-java-docker-build:v23.10-base
   before_script:
     - export GRADLE_USER_HOME=`pwd`/.gradle
 
