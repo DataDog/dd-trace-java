@@ -23,11 +23,11 @@ public class ConsumerDecorator extends BaseDecorator {
   private static final String MESSAGING_ID = "messaging.id";
   private static final String MESSAGING_SYSTEM = "messaging.system";
 
-  ConsumerDecorator(){}
+  ConsumerDecorator() {}
 
   @Override
   protected String[] instrumentationNames() {
-    return new String[]{"pulsar","pulsar-client"};
+    return new String[] {"pulsar", "pulsar-client"};
   }
 
   @Override
@@ -40,27 +40,27 @@ public class ConsumerDecorator extends BaseDecorator {
     return null;
   }
 
-  public static void startAndEnd(PulsarRequest pr,Throwable throwable, String brokerUrl) {
+  public static void startAndEnd(PulsarRequest pr, Throwable throwable, String brokerUrl) {
     if (log.isDebugEnabled()) {
       log.debug("into startAndEnd");
     }
     AgentScope extractScope = MessageStore.extract(pr.getMessage());
-    if (extractScope!= null){
+    if (extractScope != null) {
       return;
     }
     AgentSpan.Context parentContext = propagate().extract(pr, GETTER);
-    String topic  = pr.getMessage().getTopicName();
+    String topic = pr.getMessage().getTopicName();
     UTF8BytesString spanName = UTF8BytesString.create(topic + " receive");
-    final AgentSpan span = startSpan(spanName,parentContext);
+    final AgentSpan span = startSpan(spanName, parentContext);
     span.setResourceName(spanName);
-    span.setTag(TOPIC , pr.getMessage().getTopicName());
-    span.setTag("destination",pr.getDestination());
-    span.setTag("broker_url",brokerUrl);
-    span.setTag(MESSAGING_SYSTEM,LOCAL_SERVICE_NAME);
+    span.setTag(TOPIC, pr.getMessage().getTopicName());
+    span.setTag("destination", pr.getDestination());
+    span.setTag("broker_url", brokerUrl);
+    span.setTag(MESSAGING_SYSTEM, LOCAL_SERVICE_NAME);
     span.setSpanType(PULSAR_NAME);
-    span.setTag(MESSAGING_ID,pr.getMessage().getMessageId());
+    span.setTag(MESSAGING_ID, pr.getMessage().getMessageId());
     span.setServiceName(LOCAL_SERVICE_NAME);
-    if (throwable != null){
+    if (throwable != null) {
       span.setError(true);
       span.setErrorMessage(throwable.getMessage());
     }
@@ -73,10 +73,11 @@ public class ConsumerDecorator extends BaseDecorator {
     if (log.isDebugEnabled()) {
       log.debug("out startAndEnd");
     }
-    MessageStore.Inject(pr.getMessage(),scope);
+    MessageStore.Inject(pr.getMessage(), scope);
   }
 
-  public static CompletableFuture<Message<?>> wrap(CompletableFuture<Message<?>> future, String brokerUrl) {
+  public static CompletableFuture<Message<?>> wrap(
+      CompletableFuture<Message<?>> future, String brokerUrl) {
     if (log.isDebugEnabled()) {
       log.debug("into wrap");
     }
@@ -84,10 +85,10 @@ public class ConsumerDecorator extends BaseDecorator {
     future.whenComplete(
         (message, throwable) -> {
           // consumer 用来获取 url
-          if (message == null){
+          if (message == null) {
             return;
           }
-          startAndEnd(create(message) , throwable,brokerUrl);
+          startAndEnd(create(message), throwable, brokerUrl);
           runWithContext(
               () -> {
                 if (throwable != null) {
@@ -96,32 +97,28 @@ public class ConsumerDecorator extends BaseDecorator {
                   result.complete(message);
                 }
               });
-        }
-    );
+        });
     if (log.isDebugEnabled()) {
       log.debug("out wrap");
     }
     return result;
   }
 
-  public static CompletableFuture<Messages<?>> wrapBatch(CompletableFuture<Messages<?>> future, String brokerUrl) {
+  public static CompletableFuture<Messages<?>> wrapBatch(
+      CompletableFuture<Messages<?>> future, String brokerUrl) {
     CompletableFuture<Messages<?>> result = new CompletableFuture<>();
     future.whenComplete(
         (messages, throwable) -> {
-          if (messages == null){
+          if (messages == null) {
             return;
           }
-          Message message = null;
-          for (Message m: messages) {
-            if(m !=null) {
-              message = m;
-              break;
+
+          for (Message<?> m : messages) {
+            if (m != null) {
+              startAndEnd(create(m), throwable, brokerUrl);
             }
           }
 
-          if (message != null){
-            startAndEnd(create(message), throwable,brokerUrl);
-          }
           runWithContext(
               () -> {
                 if (throwable != null) {
@@ -135,7 +132,7 @@ public class ConsumerDecorator extends BaseDecorator {
     return result;
   }
 
-  private static void runWithContext( Runnable runnable) {
+  private static void runWithContext(Runnable runnable) {
     runnable.run();
     if (log.isDebugEnabled()) {
       log.debug("out runWithContext");

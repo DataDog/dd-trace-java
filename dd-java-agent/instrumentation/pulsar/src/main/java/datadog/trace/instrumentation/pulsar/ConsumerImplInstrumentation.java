@@ -126,7 +126,7 @@ public final class ConsumerImplInstrumentation extends Instrumenter.Tracing
       if (message == null) {
         return;
       }
-      
+
       startAndEnd(create(message), throwable, brokerUrl);
     }
   }

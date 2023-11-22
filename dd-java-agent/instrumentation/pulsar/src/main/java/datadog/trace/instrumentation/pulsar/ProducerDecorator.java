@@ -40,6 +40,7 @@ public class ProducerDecorator extends BaseDecorator {
     span.setTag("broker_url",request.getUrlData().getHost());
     span.setTag("broker_port",request.getUrlData().getPort());
     span.setTag(MESSAGING_PAYLOAD,request.getMessage().getData().length);
+    span.setTag("messaging.id",request.getMessage().getMessageId());
     // afterStart(span);
     span.setSpanType("queue");
     propagate().inject(span,request, SETTER);
