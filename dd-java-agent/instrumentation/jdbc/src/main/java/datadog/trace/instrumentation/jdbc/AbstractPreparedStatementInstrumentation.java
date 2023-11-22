@@ -1,6 +1,8 @@
 package datadog.trace.instrumentation.jdbc;
 
+import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.hasInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.nameStartsWith;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.jdbc.JDBCDecorator.DATABASE_QUERY;
@@ -8,6 +10,7 @@ import static datadog.trace.instrumentation.jdbc.JDBCDecorator.DECORATE;
 import static datadog.trace.instrumentation.jdbc.JDBCDecorator.logMissingQueryInfo;
 import static datadog.trace.instrumentation.jdbc.JDBCDecorator.logSQLException;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
+import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import datadog.trace.agent.tooling.Instrumenter;
@@ -18,6 +21,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.jdbc.DBInfo;
 import datadog.trace.bootstrap.instrumentation.jdbc.DBQueryInfo;
 import java.sql.Connection;
+import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.HashMap;
@@ -52,6 +56,13 @@ public abstract class AbstractPreparedStatementInstrumentation extends Instrumen
     transformation.applyAdvice(
         nameStartsWith("execute").and(takesArguments(0)).and(isPublic()),
         AbstractPreparedStatementInstrumentation.class.getName() + "$PreparedStatementAdvice");
+
+    transformation.applyAdvice(
+        nameStartsWith("executeQuery")
+            .and(takesArguments(0))
+            .and(isPublic())
+            .and(returns(hasInterface(named("java.sql.ResultSet")))),
+        AbstractPreparedStatementInstrumentation.class.getName() + "$PreparedStatementQueryAdvice");
   }
 
   public static class PreparedStatementAdvice {
@@ -97,6 +108,19 @@ public abstract class AbstractPreparedStatementInstrumentation extends Instrumen
       scope.close();
       scope.span().finish();
       CallDepthThreadLocalMap.reset(Statement.class);
+    }
+  }
+
+  public static class PreparedStatementQueryAdvice {
+
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+    public static void onQueryResult(
+        @Advice.Return final ResultSet result, @Advice.Thrown final Throwable throwable) {
+      try {
+        DECORATE.onResultSet(result);
+      } catch (SQLException e) {
+        logSQLException(e);
+      }
     }
   }
 }

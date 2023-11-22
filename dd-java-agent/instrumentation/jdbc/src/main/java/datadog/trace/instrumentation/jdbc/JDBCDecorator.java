@@ -16,9 +16,13 @@ import datadog.trace.bootstrap.instrumentation.jdbc.DBQueryInfo;
 import datadog.trace.bootstrap.instrumentation.jdbc.JDBCConnectionUrlParser;
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
+import java.sql.ResultSet;
+import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -243,5 +247,8 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
       return false;
     }
     return INJECT_TRACE_CONTEXT;
+  }
+
+  public void onResultSet(ResultSet rs) throws SQLException {
   }
 }
