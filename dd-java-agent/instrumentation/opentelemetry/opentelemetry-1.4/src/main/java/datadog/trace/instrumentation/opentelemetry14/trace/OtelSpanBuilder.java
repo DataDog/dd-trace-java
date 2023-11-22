@@ -1,8 +1,14 @@
 package datadog.trace.instrumentation.opentelemetry14.trace;
 
-import static datadog.trace.instrumentation.opentelemetry14.trace.OtelConventions.toSpanType;
+import static datadog.trace.api.DDTags.ANALYTICS_SAMPLE_RATE;
+import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND;
+import static datadog.trace.instrumentation.opentelemetry14.trace.OtelConventions.ANALYTICS_EVENT_SPECIFIC_ATTRIBUTES;
+import static datadog.trace.instrumentation.opentelemetry14.trace.OtelConventions.OPERATION_NAME_SPECIFIC_ATTRIBUTE;
+import static datadog.trace.instrumentation.opentelemetry14.trace.OtelConventions.toSpanKindTagValue;
 import static datadog.trace.instrumentation.opentelemetry14.trace.OtelExtractedContext.extract;
 import static io.opentelemetry.api.trace.SpanKind.INTERNAL;
+import static java.lang.Boolean.parseBoolean;
+import static java.util.Locale.ROOT;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
@@ -21,10 +27,23 @@ import javax.annotation.ParametersAreNonnullByDefault;
 public class OtelSpanBuilder implements SpanBuilder {
   private final AgentTracer.SpanBuilder delegate;
   private boolean spanKindSet;
+  /**
+   * Operation name overridden value by {@link OtelConventions#OPERATION_NAME_SPECIFIC_ATTRIBUTE}
+   * reserved attribute ({@code null} if not set).
+   */
+  private String overriddenOperationName;
+  /**
+   * Analytics sample rate metric value from {@link
+   * OtelConventions#ANALYTICS_EVENT_SPECIFIC_ATTRIBUTES} reserved attribute ({@code -1} if not
+   * set).
+   */
+  private int overriddenAnalyticsSampleRate;
 
   public OtelSpanBuilder(AgentTracer.SpanBuilder delegate) {
     this.delegate = delegate;
     this.spanKindSet = false;
+    this.overriddenOperationName = null;
+    this.overriddenAnalyticsSampleRate = -1;
   }
 
   @Override
@@ -61,6 +80,14 @@ public class OtelSpanBuilder implements SpanBuilder {
 
   @Override
   public SpanBuilder setAttribute(String key, String value) {
+    // Check reserved attributes
+    if (OPERATION_NAME_SPECIFIC_ATTRIBUTE.equals(key) && value != null) {
+      this.overriddenOperationName = value.toLowerCase(ROOT);
+      return this;
+    } else if (ANALYTICS_EVENT_SPECIFIC_ATTRIBUTES.equals(key) && value != null) {
+      this.overriddenAnalyticsSampleRate = parseBoolean(value) ? 1 : 0;
+      return this;
+    }
     // Store as object to prevent delegate to remove tag when value is empty
     this.delegate.withTag(key, (Object) value);
     return this;
@@ -80,6 +107,11 @@ public class OtelSpanBuilder implements SpanBuilder {
 
   @Override
   public SpanBuilder setAttribute(String key, boolean value) {
+    // Check reserved attributes
+    if (ANALYTICS_EVENT_SPECIFIC_ATTRIBUTES.equals(key)) {
+      this.overriddenAnalyticsSampleRate = value ? 1 : 0;
+      return this;
+    }
     this.delegate.withTag(key, value);
     return this;
   }
@@ -113,7 +145,7 @@ public class OtelSpanBuilder implements SpanBuilder {
   @Override
   public SpanBuilder setSpanKind(SpanKind spanKind) {
     if (spanKind != null) {
-      this.delegate.withSpanType(toSpanType(spanKind));
+      this.delegate.withTag(SPAN_KIND, toSpanKindTagValue(spanKind));
       this.spanKindSet = true;
     }
     return this;
@@ -132,6 +164,13 @@ public class OtelSpanBuilder implements SpanBuilder {
       setSpanKind(INTERNAL);
     }
     AgentSpan delegate = this.delegate.start();
+    // Apply overrides
+    if (this.overriddenOperationName != null) {
+      delegate.setOperationName(this.overriddenOperationName);
+    }
+    if (this.overriddenAnalyticsSampleRate != -1) {
+      delegate.setMetric(ANALYTICS_SAMPLE_RATE, this.overriddenAnalyticsSampleRate);
+    }
     return new OtelSpan(delegate);
   }
 }
