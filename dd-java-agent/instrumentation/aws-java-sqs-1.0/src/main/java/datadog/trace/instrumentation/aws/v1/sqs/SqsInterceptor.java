@@ -10,7 +10,6 @@ import static datadog.trace.core.datastreams.TagsProcessor.TYPE_TAG;
 import static datadog.trace.instrumentation.aws.v1.sqs.MessageAttributeInjector.SETTER;
 
 import com.amazonaws.AmazonWebServiceRequest;
-import com.amazonaws.handlers.HandlerContextKey;
 import com.amazonaws.handlers.RequestHandler2;
 import com.amazonaws.services.sqs.model.MessageAttributeValue;
 import com.amazonaws.services.sqs.model.ReceiveMessageRequest;
@@ -23,9 +22,6 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 public class SqsInterceptor extends RequestHandler2 {
-
-  public static final HandlerContextKey<AgentSpan> SPAN_CONTEXT_KEY =
-      new HandlerContextKey<>("DatadogSpan");
 
   public SqsInterceptor() {}
 
