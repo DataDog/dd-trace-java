@@ -285,7 +285,7 @@ public final class ContinuableScopeManager implements AgentScopeManager {
     if (span.context() instanceof ProfilerContext) {
       return profilingContextIntegration.newScopeState((ProfilerContext) span.context());
     }
-    return () -> {};
+    return Stateful.DEFAULT;
   }
 
   ScopeStack scopeStack() {

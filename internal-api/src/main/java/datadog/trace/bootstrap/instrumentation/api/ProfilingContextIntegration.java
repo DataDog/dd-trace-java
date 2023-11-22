@@ -15,7 +15,7 @@ public interface ProfilingContextIntegration extends Profiling {
   void setContext(ProfilerContext profilerContext);
 
   default Stateful newScopeState(ProfilerContext profilerContext) {
-    return NoOpState.INSTANCE;
+    return Stateful.DEFAULT;
   }
 
   void clearContext();
@@ -35,14 +35,6 @@ public interface ProfilingContextIntegration extends Profiling {
   }
 
   String name();
-
-  final class NoOpState implements Stateful {
-
-    static final NoOpState INSTANCE = new NoOpState();
-
-    @Override
-    public void close() {}
-  }
 
   final class NoOp implements ProfilingContextIntegration {
 

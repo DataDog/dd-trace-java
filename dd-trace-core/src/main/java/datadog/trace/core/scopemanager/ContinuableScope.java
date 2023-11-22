@@ -159,6 +159,7 @@ class ContinuableScope implements AgentScope, AttachableWrapper {
   }
 
   public final void afterActivated() {
+    scopeState.activate(span.context());
     for (final ScopeListener listener : scopeManager.scopeListeners) {
       try {
         listener.afterScopeActivated();

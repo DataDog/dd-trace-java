@@ -3,6 +3,7 @@ package datadog.trace.core.scopemanager
 import datadog.trace.agent.test.utils.ThreadUtils
 import datadog.trace.api.DDTraceId
 import datadog.trace.api.EndpointCheckpointer
+import datadog.trace.api.Stateful
 import datadog.trace.api.StatsDClient
 import datadog.trace.api.TraceConfig
 import datadog.trace.api.interceptor.MutableSpan
@@ -54,7 +55,13 @@ class ScopeManagerTest extends DDCoreSpecification {
   ProfilingContextIntegration profilingContext
 
   def setup() {
-    profilingContext = Mock(ProfilingContextIntegration)
+    profilingContext = Mock(ProfilingContextIntegration, {
+      _ * it.newScopeState(_) >> {
+        return Mock(Stateful, {
+          _ * it.close()
+        })
+      }
+    })
     rootSpanCheckpointer = Mock()
     writer = new ListWriter()
     statsDClient = Mock()
