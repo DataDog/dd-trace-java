@@ -48,10 +48,12 @@ final class TracingConfigPoller {
   }
 
   final class Updater implements ProductListener {
-    private final Moshi MOSHI = new Moshi.Builder().build();
+    private final JsonAdapter<ConfigOverrides> CONFIG_OVERRIDES_ADAPTER;
 
-    private final JsonAdapter<ConfigOverrides> CONFIG_OVERRIDES_ADAPTER =
-        MOSHI.adapter(ConfigOverrides.class);
+    {
+      Moshi MOSHI = new Moshi.Builder().build();
+      CONFIG_OVERRIDES_ADAPTER = MOSHI.adapter(ConfigOverrides.class);
+    }
 
     private boolean receivedOverrides = false;
 
