@@ -473,7 +473,7 @@ class SqsClientV0DataStreamsTest extends SqsClientTest {
 
   @Override
   String expectedService(String awsService, String awsOperation) {
-    if ("Sqs" == awsService) {
+    if ("SQS" == awsService) {
       return "sqs"
     }
     return "java-aws-sdk"
