@@ -27,6 +27,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
 import java.util.regex.Pattern;
@@ -48,6 +49,7 @@ public class SymDBEnablement implements ProductListener {
   private final SymbolAggregator symbolAggregator;
   private SymbolExtractionTransformer symbolExtractionTransformer;
   private volatile long lastUploadTimestamp;
+  private AtomicBoolean starting = new AtomicBoolean();
 
   public SymDBEnablement(
       Instrumentation instrumentation, Config config, SymbolAggregator symbolAggregator) {
@@ -102,21 +104,33 @@ public class SymDBEnablement implements ProductListener {
   }
 
   public void startSymbolExtraction() {
-    LOGGER.debug("Starting symbol extraction...");
-    if (lastUploadTimestamp > 0) {
-      LOGGER.debug(
-          "Last upload was on {}",
-          LocalDateTime.ofInstant(
-              Instant.ofEpochMilli(lastUploadTimestamp), ZoneId.systemDefault()));
+    if (!starting.compareAndSet(false, true)) {
       return;
     }
-    String includes = config.getDebuggerSymbolIncludes();
-    AllowListHelper allowListHelper = new AllowListHelper(buildFilterList(includes));
-    symbolExtractionTransformer =
-        new SymbolExtractionTransformer(allowListHelper, symbolAggregator);
-    instrumentation.addTransformer(symbolExtractionTransformer, true);
-    extractSymbolForLoadedClasses(allowListHelper);
-    lastUploadTimestamp = System.currentTimeMillis();
+    try {
+      LOGGER.debug("Starting symbol extraction...");
+      if (lastUploadTimestamp > 0) {
+        LOGGER.debug(
+            "Last upload was on {}",
+            LocalDateTime.ofInstant(
+                Instant.ofEpochMilli(lastUploadTimestamp), ZoneId.systemDefault()));
+        return;
+      }
+      String includes = config.getDebuggerSymbolIncludes();
+      AllowListHelper allowListHelper = new AllowListHelper(buildFilterList(includes));
+      symbolAggregator.loadedClassesProcessStarted();
+      try {
+        symbolExtractionTransformer =
+            new SymbolExtractionTransformer(allowListHelper, symbolAggregator);
+        instrumentation.addTransformer(symbolExtractionTransformer);
+        extractSymbolForLoadedClasses(allowListHelper);
+        lastUploadTimestamp = System.currentTimeMillis();
+      } finally {
+        symbolAggregator.loadedClassesProcessEnded();
+      }
+    } finally {
+      starting.set(false);
+    }
   }
 
   private void extractSymbolForLoadedClasses(AllowListHelper allowListHelper) {
