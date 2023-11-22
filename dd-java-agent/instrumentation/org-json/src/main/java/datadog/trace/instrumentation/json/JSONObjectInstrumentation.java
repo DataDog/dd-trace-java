@@ -61,7 +61,10 @@ public class JSONObjectInstrumentation extends Instrumenter.Iast
     @Advice.OnMethodExit(suppress = Throwable.class, inline = false)
     @Propagation
     public static void afterMethod(@Advice.This Object self, @Advice.Return final Object result) {
-      if (result instanceof Integer || result instanceof Long || result instanceof Double || result instanceof Boolean) {
+      if (result instanceof Integer
+          || result instanceof Long
+          || result instanceof Double
+          || result instanceof Boolean) {
         return;
       }
       final PropagationModule iastModule = InstrumentationBridge.PROPAGATION;
@@ -75,7 +78,10 @@ public class JSONObjectInstrumentation extends Instrumenter.Iast
     @Advice.OnMethodExit(suppress = Throwable.class)
     @Propagation
     public static void afterMethod(@Advice.This Object self, @Advice.Return final Object result) {
-      if (result instanceof Integer || result instanceof Long || result instanceof Double || result instanceof Boolean) {
+      if (result instanceof Integer
+          || result instanceof Long
+          || result instanceof Double
+          || result instanceof Boolean) {
         return;
       }
       final PropagationModule iastModule = InstrumentationBridge.PROPAGATION;
