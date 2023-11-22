@@ -1,5 +1,6 @@
 package datadog.trace.agent.tooling.log;
 
+import datadog.trace.api.Config;
 import datadog.trace.api.CorrelationIdentifier;
 import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTraceId;
@@ -8,6 +9,7 @@ import datadog.trace.api.TraceConfig;
 import datadog.trace.api.WithGlobalTracer;
 import datadog.trace.api.scopemanager.ExtendedScopeListener;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.TracerAPI;
+import datadog.trace.bootstrap.instrumentation.api.Tags;
 
 /**
  * A scope listener that receives the MDC/ThreadContext put and receive methods and update the trace
@@ -30,6 +32,19 @@ public abstract class LogContextScopeListener
       }
 
       add(CorrelationIdentifier.getSpanIdKey(), DDSpanId.toString(spanId));
+
+      String env = Config.get().getEnv();
+      if (null != env && !env.isEmpty()) {
+        add(Tags.DD_ENV, env);
+      }
+      String serviceName = Config.get().getServiceName();
+      if (null != serviceName && !serviceName.isEmpty()) {
+        add(Tags.DD_SERVICE, serviceName);
+      }
+      String version = Config.get().getVersion();
+      if (null != version && !version.isEmpty()) {
+        add(Tags.DD_VERSION, version);
+      }
     }
   }
 
@@ -37,6 +52,9 @@ public abstract class LogContextScopeListener
   public void afterScopeClosed() {
     remove(CorrelationIdentifier.getTraceIdKey());
     remove(CorrelationIdentifier.getSpanIdKey());
+    remove(Tags.DD_ENV);
+    remove(Tags.DD_SERVICE);
+    remove(Tags.DD_VERSION);
   }
 
   public abstract void add(String key, String value);

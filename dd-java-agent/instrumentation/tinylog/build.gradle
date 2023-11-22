@@ -1,0 +1,13 @@
+apply from: "$rootDir/gradle/java.gradle"
+
+muzzle {
+  pass {
+    group = 'org.tinylog'
+    module = 'tinylog-api'
+    versions = '[2.6.0,]'
+  }
+}
+
+dependencies {
+  compileOnly group: 'org.tinylog', name: 'tinylog-api', version: '2.6.0'
+}
