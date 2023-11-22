@@ -21,18 +21,6 @@ class TestProfilingContextIntegration implements ProfilingContextIntegration {
   }
 
   @Override
-  void setContext(ProfilerContext profilerContext) {
-  }
-
-  @Override
-  void clearContext() {
-  }
-
-  @Override
-  void setContext(long rootSpanId, long spanId) {
-  }
-
-  @Override
   String name() {
     return "test"
   }

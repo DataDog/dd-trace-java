@@ -158,8 +158,16 @@ class ContinuableScope implements AgentScope, AttachableWrapper {
     return super.toString() + "->" + span;
   }
 
+  public final void beforeActivated() {
+    try {
+      scopeState.activate(span.context());
+    } catch (Throwable e) {
+      ContinuableScopeManager.ratelimitedLog.warn(
+          "ScopeState {} threw exception in beforeActivated()", scopeState.getClass(), e);
+    }
+  }
+
   public final void afterActivated() {
-    scopeState.activate(span.context());
     for (final ScopeListener listener : scopeManager.scopeListeners) {
       try {
         listener.afterScopeActivated();

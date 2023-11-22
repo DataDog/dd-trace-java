@@ -7,20 +7,14 @@ import datadog.trace.api.profiling.ProfilingScope;
 
 public interface ProfilingContextIntegration extends Profiling {
   /** Invoked when a trace first propagates to a thread */
-  void onAttach();
+  default void onAttach() {}
 
   /** Invoked when a thread exits */
-  void onDetach();
-
-  void setContext(ProfilerContext profilerContext);
+  default void onDetach() {};
 
   default Stateful newScopeState(ProfilerContext profilerContext) {
     return Stateful.DEFAULT;
   }
-
-  void clearContext();
-
-  void setContext(long rootSpanId, long spanId);
 
   default int encode(CharSequence constant) {
     return 0;
@@ -56,15 +50,6 @@ public interface ProfilingContextIntegration extends Profiling {
 
     @Override
     public void onDetach() {}
-
-    @Override
-    public void setContext(ProfilerContext profilerContext) {}
-
-    @Override
-    public void clearContext() {}
-
-    @Override
-    public void setContext(long rootSpanId, long spanId) {}
 
     @Override
     public String name() {
