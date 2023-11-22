@@ -1146,6 +1146,11 @@ public class AgentTracer {
     }
 
     @Override
+    public boolean isTriageEnabled() {
+      return false;
+    }
+
+    @Override
     public boolean isRuntimeMetricsEnabled() {
       return false;
     }
