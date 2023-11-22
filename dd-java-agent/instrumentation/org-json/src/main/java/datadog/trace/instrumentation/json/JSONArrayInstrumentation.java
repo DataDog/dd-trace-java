@@ -59,6 +59,9 @@ public class JSONArrayInstrumentation extends Instrumenter.Iast
     @Advice.OnMethodExit(suppress = Throwable.class)
     @Propagation
     public static void afterMethod(@Advice.This Object self, @Advice.Return final Object result) {
+      if (result instanceof Integer || result instanceof Long || result instanceof Double || result instanceof Boolean) {
+        return;
+      }
       final PropagationModule iastModule = InstrumentationBridge.PROPAGATION;
       if (iastModule != null && result != null && result instanceof String) {
         iastModule.taintIfTainted(result, self);
@@ -70,6 +73,9 @@ public class JSONArrayInstrumentation extends Instrumenter.Iast
     @Advice.OnMethodExit(suppress = Throwable.class)
     @Propagation
     public static void afterMethod(@Advice.This Object self, @Advice.Return final Object result) {
+      if (result instanceof Integer || result instanceof Long || result instanceof Double || result instanceof Boolean) {
+        return;
+      }
       final PropagationModule iastModule = InstrumentationBridge.PROPAGATION;
       if (iastModule != null && result != null) {
         iastModule.taintIfTainted(result, self);
