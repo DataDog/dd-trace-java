@@ -111,13 +111,13 @@ public class SymbolAggregator {
     }
   }
 
-  void startLoadedClasses() {
+  void loadedClassesProcessStarted() {
     // to avoid duplicate symbol extraction we keep track of loaded classes
     // during the loaded class extraction phase
     loadedClasses = ConcurrentHashMap.newKeySet();
   }
 
-  void finishLoadedClasses() {
+  void loadedClassesProcessEnded() {
     loadedClasses = null;
   }
 }

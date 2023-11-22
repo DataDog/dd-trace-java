@@ -54,7 +54,7 @@ class SymDBEnablementTest {
         new SymDBEnablement(instr, config, new SymbolAggregator(symbolSink, 1));
     symDBEnablement.accept(ParsedConfigKey.parse(CONFIG_KEY), UPlOAD_SYMBOL_TRUE, null);
     waitForUpload(symDBEnablement);
-    verify(instr).addTransformer(any(SymbolExtractionTransformer.class), eq(true));
+    verify(instr).addTransformer(any(SymbolExtractionTransformer.class));
     symDBEnablement.accept(ParsedConfigKey.parse(CONFIG_KEY), UPlOAD_SYMBOL_FALSE, null);
     verify(instr).removeTransformer(any(SymbolExtractionTransformer.class));
   }
@@ -77,7 +77,7 @@ class SymDBEnablementTest {
     symDBEnablement.startSymbolExtraction();
     ArgumentCaptor<SymbolExtractionTransformer> captor =
         ArgumentCaptor.forClass(SymbolExtractionTransformer.class);
-    verify(instr).addTransformer(captor.capture(), eq(true));
+    verify(instr).addTransformer(captor.capture());
     SymbolExtractionTransformer transformer = captor.getValue();
     AllowListHelper allowListHelper = transformer.getAllowListHelper();
     assertTrue(allowListHelper.isAllowed("com.datadog.debugger.test.TestClass"));
@@ -98,7 +98,7 @@ class SymDBEnablementTest {
     SymbolAggregator symbolAggregator = mock(SymbolAggregator.class);
     SymDBEnablement symDBEnablement = new SymDBEnablement(instr, config, symbolAggregator);
     symDBEnablement.startSymbolExtraction();
-    verify(instr).addTransformer(any(SymbolExtractionTransformer.class), eq(true));
+    verify(instr).addTransformer(any(SymbolExtractionTransformer.class));
     ArgumentCaptor<String> captor = ArgumentCaptor.forClass(String.class);
     verify(symbolAggregator, times(2))
         .parseClass(captor.capture(), any(), eq(jarFileUrl.getFile()));
@@ -145,7 +145,7 @@ class SymDBEnablementTest {
               return new Class[] {testClass};
             });
     symDBEnablement.startSymbolExtraction();
-    verify(mockSymbolSink).addScope(any());
+    verify(mockSymbolSink, times(1)).addScope(any());
   }
 
   private void waitForUpload(SymDBEnablement symDBEnablement) throws InterruptedException {
