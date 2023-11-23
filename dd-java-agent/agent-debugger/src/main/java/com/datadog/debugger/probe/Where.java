@@ -164,10 +164,17 @@ public class Where {
     }
     String result = targetSignature;
     for (String className : classes) {
-      Pattern classNamePattern = Pattern.compile("L" + className + ";");
-      result = classNamePattern.matcher(result).replaceAll("L" + simplify(className) + ";");
+      Pattern classNamePattern = Pattern.compile("L" + escapeClassName(className) + ";");
+      result =
+          classNamePattern
+              .matcher(result)
+              .replaceAll("L" + escapeClassName(simplify(className)) + ";");
     }
     return result;
+  }
+
+  private static String escapeClassName(String className) {
+    return className.replace("$", "\\$");
   }
 
   private static String simplify(String fqnClass) {
