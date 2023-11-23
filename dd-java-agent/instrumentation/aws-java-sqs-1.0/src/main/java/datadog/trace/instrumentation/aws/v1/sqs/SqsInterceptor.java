@@ -16,14 +16,18 @@ import com.amazonaws.services.sqs.model.ReceiveMessageRequest;
 import com.amazonaws.services.sqs.model.SendMessageBatchRequest;
 import com.amazonaws.services.sqs.model.SendMessageBatchRequestEntry;
 import com.amazonaws.services.sqs.model.SendMessageRequest;
-import datadog.trace.bootstrap.FieldBackedContextStores;
+import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
 public class SqsInterceptor extends RequestHandler2 {
 
-  public SqsInterceptor() {}
+  private final ContextStore<AmazonWebServiceRequest, AgentSpan> contextStore;
+
+  public SqsInterceptor(ContextStore<AmazonWebServiceRequest, AgentSpan> contextStore) {
+    this.contextStore = contextStore;
+  }
 
   @Override
   public AmazonWebServiceRequest beforeMarshalling(AmazonWebServiceRequest request) {
@@ -40,12 +44,7 @@ public class SqsInterceptor extends RequestHandler2 {
 
       // retrieve the span that was created in
       // datadog.trace.instrumentation.aws.v0.TracingRequestHandler.beforeMarshalling
-      final AgentSpan span =
-          (AgentSpan)
-              FieldBackedContextStores.getContextStore(
-                      FieldBackedContextStores.getContextStoreId(
-                          AmazonWebServiceRequest.class.getName(), AgentSpan.class.getName()))
-                  .get(request);
+      final AgentSpan span = contextStore.get(request);
       // note: modifying message attributes has to be done before marshalling, otherwise the changes
       // are not reflected in the actual request (and the MD5 check on send will fail).
       Map<String, MessageAttributeValue> messageAttributes = smRequest.getMessageAttributes();
@@ -62,12 +61,7 @@ public class SqsInterceptor extends RequestHandler2 {
       sortedTags.put(TOPIC_TAG, urlFileName(queueUrl));
       sortedTags.put(TYPE_TAG, "sqs");
 
-      final AgentSpan span =
-          (AgentSpan)
-              FieldBackedContextStores.getContextStore(
-                      FieldBackedContextStores.getContextStoreId(
-                          AmazonWebServiceRequest.class.getName(), AgentSpan.class.getName()))
-                  .get(request);
+      final AgentSpan span = contextStore.get(request);
       for (SendMessageBatchRequestEntry entry : smbRequest.getEntries()) {
         Map<String, MessageAttributeValue> messageAttributes = entry.getMessageAttributes();
         propagate().injectPathwayContext(span, messageAttributes, SETTER, sortedTags);

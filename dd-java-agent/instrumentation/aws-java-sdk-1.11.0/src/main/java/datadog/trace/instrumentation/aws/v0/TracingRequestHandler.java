@@ -19,7 +19,6 @@ import com.amazonaws.handlers.RequestHandler2;
 import datadog.trace.api.Config;
 import datadog.trace.api.TracePropagationStyle;
 import datadog.trace.bootstrap.ContextStore;
-import datadog.trace.bootstrap.FieldBackedContextStores;
 import datadog.trace.bootstrap.instrumentation.api.AgentDataStreamsMonitoring;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
@@ -39,9 +38,13 @@ public class TracingRequestHandler extends RequestHandler2 {
   private static final Logger log = LoggerFactory.getLogger(TracingRequestHandler.class);
 
   private final ContextStore<Object, String> responseQueueStore;
+  private final ContextStore<AmazonWebServiceRequest, AgentSpan> requestSpanStore;
 
-  public TracingRequestHandler(ContextStore<Object, String> responseQueueStore) {
+  public TracingRequestHandler(
+      ContextStore<Object, String> responseQueueStore,
+      ContextStore<AmazonWebServiceRequest, AgentSpan> requestSpanStore) {
     this.responseQueueStore = responseQueueStore;
+    this.requestSpanStore = requestSpanStore;
   }
 
   @Override
@@ -52,10 +55,7 @@ public class TracingRequestHandler extends RequestHandler2 {
       // service name because we cannot access it programmatically here.
       AgentSpan span = startSpan(AwsNameCache.spanName(request, "AmazonSQS"));
       DECORATE.afterStart(span);
-      FieldBackedContextStores.getContextStore(
-              FieldBackedContextStores.getContextStoreId(
-                  AmazonWebServiceRequest.class.getName(), AgentSpan.class.getName()))
-          .put(request, span);
+      requestSpanStore.put(request, span);
     }
     return request;
   }
@@ -69,13 +69,8 @@ public class TracingRequestHandler extends RequestHandler2 {
       span = noopSpan();
     } else {
       if (isSqsSendRequest(request.getOriginalRequest())) {
-        // for SQS, spans are created earlier, in beforeMarshalling just above.
-        span =
-            (AgentSpan)
-                FieldBackedContextStores.getContextStore(
-                        FieldBackedContextStores.getContextStoreId(
-                            AmazonWebServiceRequest.class.getName(), AgentSpan.class.getName()))
-                    .get(request.getOriginalRequest());
+        // for SQS, spans are created earlier, in beforeMarshalling() just above.
+        span = requestSpanStore.get(request.getOriginalRequest());
       } else {
         span = startSpan(AwsNameCache.spanName(request));
         DECORATE.afterStart(span);
