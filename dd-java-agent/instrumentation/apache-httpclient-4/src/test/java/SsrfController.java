@@ -1,3 +1,4 @@
+import java.io.IOException;
 import org.apache.http.HttpHost;
 import org.apache.http.HttpRequest;
 import org.apache.http.client.HttpClient;
@@ -7,24 +8,15 @@ import org.apache.http.impl.client.BasicResponseHandler;
 import org.apache.http.impl.client.DefaultHttpClient;
 import org.apache.http.message.BasicHttpRequest;
 import org.apache.http.protocol.BasicHttpContext;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
 
-import java.io.IOException;
-
-@RestController
-@RequestMapping("/ssrf")
 public class SsrfController {
 
-  @PostMapping("/execute")
   public String apacheSsrf(
-      @RequestParam("url") final String url,
-      @RequestParam("client") final String client,
-      @RequestParam("method") final String method,
-      @RequestParam("requestType") final String requestType,
-      @RequestParam("scheme") final String scheme) {
+      final String url,
+      final String client,
+      final String method,
+      final String requestType,
+      final String scheme) {
     try {
       HttpClient httpClient = getHttpClient(Client.valueOf(client));
       execute(httpClient, url, ExecuteMethod.valueOf(method), requestType, scheme);
@@ -84,20 +76,20 @@ public class SsrfController {
       case DefaultHttpClient:
         return new DefaultHttpClient();
         /*
-      case AutoRetryHttpClient:
-        return new AutoRetryHttpClient();
-      case ContentEncodingHttpClient:
-        return new ContentEncodingHttpClient();
-      case DecompressingHttpClient:
-        return new DecompressingHttpClient();
-      case InternalHttpClient:
-        return HttpClientBuilder.create().build();
-      case MinimalHttpClient:
-        return HttpClients.createMinimal();
-      case SystemDefaultHttpClient:
-        return new SystemDefaultHttpClient();
+        case AutoRetryHttpClient:
+          return new AutoRetryHttpClient();
+        case ContentEncodingHttpClient:
+          return new ContentEncodingHttpClient();
+        case DecompressingHttpClient:
+          return new DecompressingHttpClient();
+        case InternalHttpClient:
+          return HttpClientBuilder.create().build();
+        case MinimalHttpClient:
+          return HttpClients.createMinimal();
+        case SystemDefaultHttpClient:
+          return new SystemDefaultHttpClient();
 
-         */
+           */
       default:
         throw new IllegalArgumentException("Unknown client: " + client);
     }

@@ -1,31 +1,35 @@
-import boot.AppConfig
-import boot.SpringBootServer
 import com.datadog.iast.test.IastHttpServerTest
 import datadog.trace.agent.test.base.HttpServer
 import okhttp3.FormBody
 import okhttp3.Request
-import org.springframework.boot.SpringApplication
-import org.springframework.context.ConfigurableApplicationContext
 
-class SpringBootBasedTest extends IastHttpServerTest<ConfigurableApplicationContext> {
+import static datadog.trace.agent.test.server.http.TestHttpServer.httpServer
 
-  SpringApplication application() {
-    new SpringApplication(AppConfig, SsrfController)
-  }
-
-  String getServletContext() {
-    return "context"
-  }
+class IastHttpClientIntegrationTest extends IastHttpServerTest<HttpServer> {
 
   @Override
   HttpServer server() {
-    new SpringBootServer(application(), servletContext)
+    final controller = new SsrfController()
+    return httpServer {
+      handlers {
+        prefix('/ssrf/execute') {
+          final msg = controller.apacheSsrf(
+            (String) request.getParameter('url'),
+            (String) request.getParameter('client'),
+            (String) request.getParameter('method'),
+            (String) request.getParameter('requestType'),
+            (String) request.getParameter('scheme')
+            )
+          response.status(200).send(msg)
+        }
+      }
+    }.asHttpServer()
   }
 
   void 'ssrf is present'() {
     setup:
-    def expected = 'http://dd.datad0g.com/test/'+suite.executedMethod
-    final url = address.toString() + '/ssrf/execute'
+    def expected = 'http://dd.datad0g.com/test/' + suite.executedMethod
+    final url = address.toString() + 'ssrf/execute'
     final body = new FormBody.Builder()
       .add('url', expected)
       .add('client', suite.clientImplementation)
@@ -34,7 +38,7 @@ class SpringBootBasedTest extends IastHttpServerTest<ConfigurableApplicationCont
       .add('scheme', suite.scheme)
       .build()
     final request = new Request.Builder().url(url).post(body).build()
-    if(suite.scheme == 'https') {
+    if (suite.scheme == 'https') {
       expected = expected.replace('http', 'https')
     }
 
@@ -46,17 +50,14 @@ class SpringBootBasedTest extends IastHttpServerTest<ConfigurableApplicationCont
 
     def to = getFinReqTaintedObjects()
     assert to != null
-/*
-
-    hasVulnerability {
-      vul ->
-        vul.type == 'SSRF'
-          && vul.location.path == 'datadog.smoketest.springboot.SsrfController'
-          && vul.evidence.valueParts[0].value == expected
-
-
-    }
-*/
+    /*
+     hasVulnerability {
+     vul ->
+     vul.type == 'SSRF'
+     && vul.location.path == 'datadog.smoketest.springboot.SsrfController'
+     && vul.evidence.valueParts[0].value == expected
+     }
+     */
 
 
     where:
@@ -84,7 +85,7 @@ class SpringBootBasedTest extends IastHttpServerTest<ConfigurableApplicationCont
       clientImplementation: client.name(),
       requestType: request.name(),
       scheme: scheme
-    )
+      )
   }
 
   private static class TestSuite {
@@ -99,5 +100,4 @@ class SpringBootBasedTest extends IastHttpServerTest<ConfigurableApplicationCont
       return "IAST apache httpclient 4 test suite: ${description}"
     }
   }
-
 }
