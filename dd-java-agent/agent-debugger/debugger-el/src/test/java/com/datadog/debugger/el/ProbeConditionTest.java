@@ -206,6 +206,19 @@ public class ProbeConditionTest {
     assertTrue(probeCondition.execute(ctx));
   }
 
+  @Test
+  void testBooleanOperation() throws Exception {
+    ProbeCondition probeCondition = load("/test_conditional_11.json");
+    Map<String, Object> fields = new HashMap<>();
+    fields.put("strField", "foobar");
+    fields.put("emptyStr", "");
+    fields.put("emptyList", new ArrayList<>());
+    fields.put("emptyMap", new HashMap<>());
+    fields.put("emptyArray", new Object[0]);
+    ValueReferenceResolver ctx = RefResolverHelper.createResolver(null, null, fields);
+    assertTrue(probeCondition.execute(ctx));
+  }
+
   private static ProbeCondition load(String resourcePath) throws IOException {
     InputStream input = ProbeConditionTest.class.getResourceAsStream(resourcePath);
     Moshi moshi =

@@ -830,6 +830,25 @@ public class CapturedSnapshotTest {
   }
 
   @Test
+  public void noUncaughtExceptionCondition() throws IOException, URISyntaxException {
+    final String CLASS_NAME = "CapturedSnapshot01";
+    final String LOG_TEMPLATE = "exception?: {isUndefined(@exception)}";
+    LogProbe probe =
+        createProbeBuilder(PROBE_ID, CLASS_NAME, "main", "int (String)")
+            .evaluateAt(MethodLocation.EXIT)
+            .when(
+                new ProbeCondition(
+                    DSL.when(DSL.isUndefined(DSL.ref("@exception"))), "isUndefined(@exception)"))
+            .template(LOG_TEMPLATE, parseTemplate(LOG_TEMPLATE))
+            .build();
+    DebuggerTransformerTest.TestSnapshotListener listener = installProbes(CLASS_NAME, probe);
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    int result = Reflect.on(testClass).call("main", "2").get();
+    assertEquals(2, result);
+    Snapshot snapshot = assertOneSnapshot(listener);
+  }
+
+  @Test
   public void rateLimitSnapshot() throws IOException, URISyntaxException {
     final String CLASS_NAME = "CapturedSnapshot01";
     LogProbe logProbes =
