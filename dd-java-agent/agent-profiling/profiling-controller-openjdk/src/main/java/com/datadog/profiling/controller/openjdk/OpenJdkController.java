@@ -56,6 +56,7 @@ public final class OpenJdkController implements Controller {
 
   private static final Logger log = LoggerFactory.getLogger(OpenJdkController.class);
 
+  private final ConfigProvider configProvider;
   private final Map<String, String> recordingSettings;
 
   public static Controller instance(ConfigProvider configProvider) {
@@ -79,6 +80,8 @@ public final class OpenJdkController implements Controller {
     // factory and can use it.
     Class.forName("jdk.jfr.Recording");
     Class.forName("jdk.jfr.FlightRecorder");
+
+    this.configProvider = configProvider;
 
     boolean ultraMinimal = configProvider.getBoolean(PROFILING_ULTRA_MINIMAL, false);
 
@@ -221,7 +224,7 @@ public final class OpenJdkController implements Controller {
   public OpenJdkOngoingRecording createRecording(final String recordingName)
       throws UnsupportedEnvironmentException {
     return new OpenJdkOngoingRecording(
-        recordingName, recordingSettings, getMaxSize(), RECORDING_MAX_AGE);
+        recordingName, recordingSettings, getMaxSize(), RECORDING_MAX_AGE, configProvider);
   }
 
   private static void disableEvent(

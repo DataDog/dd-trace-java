@@ -38,7 +38,8 @@ public final class AuxiliaryProfiler {
     this(ConfigProvider.getInstance());
   }
 
-  AuxiliaryProfiler(ConfigProvider configProvider) {
+  /** This constructor allows passing in a custom config provider for testing purposes */
+  public AuxiliaryProfiler(ConfigProvider configProvider) {
     String auxilliaryType =
         Platform.isLinux()
                 && configProvider.getBoolean(
