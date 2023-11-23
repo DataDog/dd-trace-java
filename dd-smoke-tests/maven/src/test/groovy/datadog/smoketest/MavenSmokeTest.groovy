@@ -26,7 +26,7 @@ import java.nio.file.attribute.BasicFileAttributes
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
 
-class MavenSmokeTest extends CiVisibilitySmokeTest {
+class MavenSmokeTest extends AbstractCiVisibilitySmokeTest {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(MavenSmokeTest.class)
 
