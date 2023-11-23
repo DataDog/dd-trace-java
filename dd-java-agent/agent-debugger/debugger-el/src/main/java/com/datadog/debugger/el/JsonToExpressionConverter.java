@@ -214,6 +214,15 @@ public class JsonToExpressionConverter {
           }
           return DSL.isEmpty(asValueExpression(reader));
         }
+      case "isUndefined":
+        {
+          JsonReader.Token token = reader.peek();
+          if (token == BEGIN_ARRAY) {
+            throw new UnsupportedOperationException(
+                "Operation 'isUndefined' expects exactly one value argument");
+          }
+          return DSL.isUndefined(asValueExpression(reader));
+        }
       case "startsWith":
         {
           return createStringPredicateExpression(reader, DSL::startsWith);

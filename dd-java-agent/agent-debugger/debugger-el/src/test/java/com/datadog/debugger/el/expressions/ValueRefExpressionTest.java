@@ -72,9 +72,11 @@ class ValueRefExpressionTest {
 
     long duration = TimeUnit.NANOSECONDS.convert(680, TimeUnit.MILLISECONDS);
     boolean returnVal = true;
+    Throwable exception = new RuntimeException("oops");
     Map<String, Object> exts = new HashMap<>();
     exts.put(ValueReferences.RETURN_EXTENSION_NAME, returnVal);
     exts.put(ValueReferences.DURATION_EXTENSION_NAME, duration);
+    exts.put(ValueReferences.EXCEPTION_EXTENSION_NAME, exception);
     ValueReferenceResolver resolver =
         RefResolverHelper.createResolver(null, null, values).withExtensions(exts);
 
@@ -84,6 +86,9 @@ class ValueRefExpressionTest {
     expression = DSL.ref(ValueReferences.RETURN_REF);
     assertEquals(returnVal, expression.evaluate(resolver).getValue());
     assertEquals("@return", print(expression));
+    expression = DSL.ref(ValueReferences.EXCEPTION_REF);
+    assertEquals(exception, expression.evaluate(resolver).getValue());
+    assertEquals("@exception", print(expression));
     expression = DSL.ref(limitArg);
     assertEquals(limit, expression.evaluate(resolver).getValue());
     assertEquals("limit", print(expression));
