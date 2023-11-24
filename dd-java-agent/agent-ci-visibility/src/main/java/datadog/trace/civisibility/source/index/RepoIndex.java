@@ -152,6 +152,17 @@ public class RepoIndex {
     }
   }
 
+  public String getResourcePath(String relativePath) {
+    int sourceRootIdx = trie.apply(relativePath);
+    if (sourceRootIdx < 0) {
+      log.debug("Could not find source root for resource {}", relativePath);
+      return null;
+    }
+
+    String sourceRoot = sourceRoots.get(sourceRootIdx);
+    return sourceRoot + File.separator + relativePath;
+  }
+
   private static final class SourceFileAttributeVisitor extends ClassVisitor {
     private String source;
 

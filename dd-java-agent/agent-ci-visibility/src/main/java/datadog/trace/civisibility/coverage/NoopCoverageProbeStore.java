@@ -12,6 +12,9 @@ public class NoopCoverageProbeStore implements CoverageProbeStore {
   public void record(Class<?> clazz, long classId, String className, int probeId) {}
 
   @Override
+  public void recordNonCodeResource(String absolutePath) {}
+
+  @Override
   public void report(Long testSessionId, Long testSuiteId, long spanId) {}
 
   @Nullable
