@@ -6,7 +6,10 @@ apply from: "$rootDir/gradle/java.gradle"
 
 excludedClassesCoverage += [
   // ControllerFactory gets better tested in actual controller implementations
-  'com.datadog.profiling.controller.ControllerFactory'
+  'com.datadog.profiling.agent.ControllerFactory',
+  'com.datadog.profiling.agent.ProfilingAgent',
+  'com.datadog.profiling.agent.ProfilingAgent$ShutdownHook',
+  'com.datadog.profiling.agent.ProfilingAgent$DataDumper'
 ]
 
 dependencies {
