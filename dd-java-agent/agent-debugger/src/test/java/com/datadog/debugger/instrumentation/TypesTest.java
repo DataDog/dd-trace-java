@@ -72,6 +72,14 @@ class TypesTest {
   }
 
   @Test
+  void testDescriptorFromSignatureInnerClassArgs() {
+    String expectedDesc = "(Ljava/util/Map$Entry;Ljava/util/Map$Entry;)V";
+    String signature = "void(java.util.Map$Entry, java.util.Map$Entry)";
+    String desc = Types.descriptorFromSignature(signature);
+    assertEquals(expectedDesc, desc);
+  }
+
+  @Test
   void testDescriptorFromSignatureInvalid() {
     assertThrows(IllegalArgumentException.class, () -> Types.descriptorFromSignature("()"));
     assertThrows(IllegalArgumentException.class, () -> Types.descriptorFromSignature("int"));
