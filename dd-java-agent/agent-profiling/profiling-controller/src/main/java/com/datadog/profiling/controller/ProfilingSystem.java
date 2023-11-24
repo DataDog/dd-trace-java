@@ -145,10 +145,9 @@ public final class ProfilingSystem {
     try {
       final Instant now = Instant.now();
       recording = controller.createRecording(RECORDING_NAME);
-      snapshotRecording = createSnapshotRecording(now);
       scheduler.scheduleAtFixedRate(
           SnapshotRecording::snapshot,
-          snapshotRecording,
+          snapshotRecording = createSnapshotRecording(now),
           uploadPeriod.toMillis(),
           uploadPeriod.toMillis(),
           TimeUnit.MILLISECONDS);
