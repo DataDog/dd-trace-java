@@ -32,7 +32,7 @@ public class DebuggerSink {
   private final SnapshotSink snapshotSink;
   private final SymbolSink symbolSink;
   private final DebuggerMetrics debuggerMetrics;
-  private final BatchUploader batchUploader;
+  private final BatchUploader snapshotUploader;
   private final String tags;
   private final int uploadFlushInterval;
 
@@ -40,22 +40,23 @@ public class DebuggerSink {
   private volatile AgentTaskScheduler.Scheduled<DebuggerSink> flushIntervalScheduled;
   private volatile long currentFlushInterval = INITIAL_FLUSH_INTERVAL;
 
-  public DebuggerSink(Config config) {
+  public DebuggerSink(Config config, String diagnosticsEndpoint) {
     this(
         config,
         new BatchUploader(config, config.getFinalDebuggerSnapshotUrl()),
         DebuggerMetrics.getInstance(config),
-        new ProbeStatusSink(config),
+        new ProbeStatusSink(config, diagnosticsEndpoint),
         new SnapshotSink(config),
         new SymbolSink(config));
   }
 
-  DebuggerSink(Config config, BatchUploader batchUploader) {
+  // Used only for tests
+  DebuggerSink(Config config, BatchUploader snapshotUploader) {
     this(
         config,
-        batchUploader,
+        snapshotUploader,
         DebuggerMetrics.getInstance(config),
-        new ProbeStatusSink(config),
+        new ProbeStatusSink(config, config.getFinalDebuggerSnapshotUrl()),
         new SnapshotSink(config),
         new SymbolSink(config));
   }
@@ -70,24 +71,24 @@ public class DebuggerSink {
         new SymbolSink(config));
   }
 
-  DebuggerSink(Config config, BatchUploader batchUploader, DebuggerMetrics debuggerMetrics) {
+  DebuggerSink(Config config, BatchUploader snapshotUploader, DebuggerMetrics debuggerMetrics) {
     this(
         config,
-        batchUploader,
+        snapshotUploader,
         debuggerMetrics,
-        new ProbeStatusSink(config),
+        new ProbeStatusSink(config, config.getFinalDebuggerSnapshotUrl()),
         new SnapshotSink(config),
         new SymbolSink(config));
   }
 
   public DebuggerSink(
       Config config,
-      BatchUploader batchUploader,
+      BatchUploader snapshotUploader,
       DebuggerMetrics debuggerMetrics,
       ProbeStatusSink probeStatusSink,
       SnapshotSink snapshotSink,
       SymbolSink symbolSink) {
-    this.batchUploader = batchUploader;
+    this.snapshotUploader = snapshotUploader;
     tags = getDefaultTagsMergedWithGlobalTags(config);
     this.debuggerMetrics = debuggerMetrics;
     this.probeStatusSink = probeStatusSink;
@@ -140,7 +141,7 @@ public class DebuggerSink {
   }
 
   public BatchUploader getSnapshotUploader() {
-    return batchUploader;
+    return snapshotUploader;
   }
 
   public SymbolSink getSymbolSink() {
@@ -171,23 +172,20 @@ public class DebuggerSink {
   // visible for testing
   void flush(DebuggerSink ignored) {
     symbolSink.flush();
-    List<String> diagnostics = probeStatusSink.getSerializedDiagnostics();
+    probeStatusSink.flush(tags);
     List<String> snapshots = snapshotSink.getSerializedSnapshots();
-    if (snapshots.size() + diagnostics.size() == 0) {
+    if (snapshots.isEmpty()) {
       return;
     }
     if (snapshots.size() > 0) {
       uploadPayloads(snapshots);
-    }
-    if (diagnostics.size() > 0) {
-      uploadPayloads(diagnostics);
     }
   }
 
   private void uploadPayloads(List<String> payloads) {
     List<byte[]> batches = IntakeBatchHelper.createBatches(payloads);
     for (byte[] batch : batches) {
-      batchUploader.upload(batch, tags);
+      snapshotUploader.upload(batch, tags);
     }
   }
 

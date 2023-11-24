@@ -23,19 +23,11 @@ public class SymbolSink {
   private static final int CAPACITY = 1024;
   private static final JsonAdapter<ServiceVersion> SERVICE_VERSION_ADAPTER =
       MoshiHelper.createMoshiSymbol().adapter(ServiceVersion.class);
-  private static final String EVENT_FORMAT =
-      "{%n"
-          + "\"ddsource\": \"dd_debugger\",%n"
-          + "\"service\": \"%s\",%n"
-          + "\"runtimeId\": \"%s\"%n"
-          + "}";
-
   private final String serviceName;
   private final String env;
   private final String version;
   private final BatchUploader symbolUploader;
   private final BlockingQueue<ServiceVersion> scopes = new ArrayBlockingQueue<>(CAPACITY);
-  private final BatchUploader.MultiPartContent event;
 
   public SymbolSink(Config config) {
     this(config, new BatchUploader(config, config.getFinalDebuggerSymDBUrl()));
@@ -46,10 +38,6 @@ public class SymbolSink {
     this.env = config.getEnv();
     this.version = config.getVersion();
     this.symbolUploader = symbolUploader;
-    byte[] eventContent =
-        String.format(EVENT_FORMAT, serviceName, config.getRuntimeId())
-            .getBytes(StandardCharsets.UTF_8);
-    this.event = new BatchUploader.MultiPartContent(eventContent, "event", "event.json");
   }
 
   public boolean addScope(Scope jarScope) {
@@ -74,7 +62,6 @@ public class SymbolSink {
             json.length());
         symbolUploader.uploadAsMultipart(
             "",
-            event,
             new BatchUploader.MultiPartContent(
                 json.getBytes(StandardCharsets.UTF_8), "file", "file.json"));
       } catch (Exception e) {

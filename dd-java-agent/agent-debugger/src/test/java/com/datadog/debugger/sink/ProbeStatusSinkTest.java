@@ -50,7 +50,7 @@ class ProbeStatusSinkTest {
     when(config.getDebuggerDiagnosticsInterval()).thenReturn(DIAGNOSTICS_INTERVAL);
     when(config.getDebuggerUploadBatchSize()).thenReturn(100);
     builder = new Builder(config);
-    probeStatusSink = new ProbeStatusSink(config);
+    probeStatusSink = new ProbeStatusSink(config, "http://localhost:8126/debugger/v1/input");
   }
 
   @Test

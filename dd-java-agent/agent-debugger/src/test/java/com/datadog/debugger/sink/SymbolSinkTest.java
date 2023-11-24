@@ -23,14 +23,8 @@ class SymbolSinkTest {
     SymbolSink symbolSink = new SymbolSink(config, symbolUploaderMock);
     symbolSink.addScope(Scope.builder(ScopeType.JAR, null, 0, 0).build());
     symbolSink.flush();
-    assertEquals(2, symbolUploaderMock.multiPartContents.size());
-    BatchUploader.MultiPartContent eventContent = symbolUploaderMock.multiPartContents.get(0);
-    assertEquals("event", eventContent.getPartName());
-    assertEquals("event.json", eventContent.getFileName());
-    String strEventContent = new String(eventContent.getContent());
-    assertTrue(strEventContent.contains("\"ddsource\": \"dd_debugger\""));
-    assertTrue(strEventContent.contains("\"service\": \"service1\""));
-    BatchUploader.MultiPartContent symbolContent = symbolUploaderMock.multiPartContents.get(1);
+    assertEquals(1, symbolUploaderMock.multiPartContents.size());
+    BatchUploader.MultiPartContent symbolContent = symbolUploaderMock.multiPartContents.get(0);
     assertEquals("file", symbolContent.getPartName());
     assertEquals("file.json", symbolContent.getFileName());
     assertEquals(

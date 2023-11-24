@@ -262,7 +262,7 @@ public class DebuggerTransformerTest {
             config,
             configuration,
             ((definition, result) -> lastResult.set(result)),
-            new DebuggerSink(config));
+            new DebuggerSink(config, config.getFinalDebuggerSnapshotUrl()));
     byte[] newClassBuffer =
         debuggerTransformer.transform(
             ClassLoader.getSystemClassLoader(),
@@ -289,7 +289,7 @@ public class DebuggerTransformerTest {
             config,
             configuration,
             ((definition, result) -> lastResult.set(result)),
-            new DebuggerSink(config));
+            new DebuggerSink(config, config.getFinalDebuggerSnapshotUrl()));
     byte[] newClassBuffer =
         debuggerTransformer.transform(
             ClassLoader.getSystemClassLoader(),

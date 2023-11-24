@@ -8,7 +8,9 @@ import datadog.communication.http.OkHttpUtils;
 import datadog.trace.api.Config;
 import datadog.trace.relocate.api.RatelimitedLogger;
 import datadog.trace.util.AgentThreadFactory;
+import datadog.trace.util.TagsHelper;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Phaser;
@@ -60,13 +62,18 @@ public class BatchUploader {
   private static final int MINUTES_BETWEEN_ERROR_LOG = 5;
   private static final MediaType APPLICATION_JSON = MediaType.parse("application/json");
   private static final String HEADER_DD_CONTAINER_ID = "Datadog-Container-ID";
-  private final String containerId;
-
+  private static final String EVENT_FORMAT =
+      "{%n"
+          + "\"ddsource\": \"dd_debugger\",%n"
+          + "\"service\": \"%s\",%n"
+          + "\"runtimeId\": \"%s\"%n"
+          + "}";
   static final String HEADER_DD_API_KEY = "DD-API-KEY";
   static final int MAX_RUNNING_REQUESTS = 10;
   static final int MAX_ENQUEUED_REQUESTS = 20;
   static final int TERMINATION_TIMEOUT = 5;
 
+  private final String containerId;
   private final ExecutorService okHttpExecutorService;
   private final OkHttpClient client;
   private final HttpUrl urlBase;
@@ -75,6 +82,7 @@ public class BatchUploader {
   private final DebuggerMetrics debuggerMetrics;
   private final boolean instrumentTheWorld;
   private final RatelimitedLogger ratelimitedLogger;
+  private final BatchUploader.MultiPartContent event;
 
   private final Phaser inflightRequests = new Phaser(1);
 
@@ -121,7 +129,11 @@ public class BatchUploader {
             null, /* proxyUsername */
             null, /* proxyPassword */
             requestTimeout.toMillis());
-
+    byte[] eventContent =
+        String.format(
+                EVENT_FORMAT, TagsHelper.sanitize(config.getServiceName()), config.getRuntimeId())
+            .getBytes(StandardCharsets.UTF_8);
+    this.event = new BatchUploader.MultiPartContent(eventContent, "event", "event.json");
     debuggerMetrics = DebuggerMetrics.getInstance(config);
   }
 
@@ -138,15 +150,19 @@ public class BatchUploader {
   }
 
   private void makeMultipartUploadRequest(String tags, MultiPartContent[] parts) {
-    int contentLength = 0;
     MultipartBody.Builder builder = new MultipartBody.Builder().setType(MultipartBody.FORM);
+    int contentLength = addPart(builder, event);
     for (MultiPartContent part : parts) {
-      RequestBody fileBody = RequestBody.create(APPLICATION_JSON, part.content);
-      contentLength += part.content.length;
-      builder.addFormDataPart(part.partName, part.fileName, fileBody);
+      contentLength += addPart(builder, part);
     }
     MultipartBody body = builder.build();
     buildAndSendRequest(body, contentLength, tags);
+  }
+
+  private int addPart(MultipartBody.Builder builder, MultiPartContent part) {
+    RequestBody fileBody = RequestBody.create(APPLICATION_JSON, part.content);
+    builder.addFormDataPart(part.partName, part.fileName, fileBody);
+    return part.content.length;
   }
 
   private void doUpload(Runnable makeRequest) {

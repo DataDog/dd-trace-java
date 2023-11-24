@@ -103,7 +103,11 @@ public class DebuggerTransformer implements ClassFileTransformer {
 
   // Used only for tests
   DebuggerTransformer(Config config, Configuration configuration) {
-    this(config, configuration, null, new DebuggerSink(config));
+    this(
+        config,
+        configuration,
+        null,
+        new DebuggerSink(config, config.getFinalDebuggerSnapshotUrl()));
   }
 
   private void readExcludeFiles(String commaSeparatedFileNames) {

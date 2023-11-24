@@ -59,6 +59,7 @@ class DDAgentFeaturesDiscoveryTest extends DDSpecification {
     features.state() == INFO_STATE
     features.getConfigEndpoint() == V7_CONFIG_ENDPOINT
     features.supportsDebugger()
+    features.supportsDebuggerDiagnostics()
     features.supportsEvpProxy()
     features.getVersion() == "0.99.0"
     !features.supportsLongRunning()
@@ -87,6 +88,7 @@ class DDAgentFeaturesDiscoveryTest extends DDSpecification {
     features.state() == INFO_STATE
     features.getConfigEndpoint() == V7_CONFIG_ENDPOINT
     features.supportsDebugger()
+    features.supportsDebuggerDiagnostics()
     features.supportsEvpProxy()
     features.getVersion() == "0.99.0"
     !features.supportsLongRunning()

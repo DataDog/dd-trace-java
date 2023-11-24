@@ -3,9 +3,11 @@ package com.datadog.debugger.sink;
 import com.datadog.debugger.agent.ProbeStatus;
 import com.datadog.debugger.agent.ProbeStatus.Builder;
 import com.datadog.debugger.agent.ProbeStatus.Status;
+import com.datadog.debugger.uploader.BatchUploader;
 import com.datadog.debugger.util.ExceptionHelper;
 import com.datadog.debugger.util.MoshiHelper;
 import com.squareup.moshi.JsonAdapter;
+import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.debugger.ProbeId;
 import java.time.Clock;
@@ -26,19 +28,35 @@ public class ProbeStatusSink {
   private static final JsonAdapter<ProbeStatus> PROBE_STATUS_ADAPTER =
       MoshiHelper.createMoshiProbeStatus().adapter(ProbeStatus.class);
 
+  private final BatchUploader diagnosticUploader;
   private final Builder messageBuilder;
   private final Map<String, TimedMessage> probeStatuses = new ConcurrentHashMap<>();
   private final ArrayBlockingQueue<ProbeStatus> queue;
   private final Duration interval;
   private final int batchSize;
   private final boolean isInstrumentTheWorld;
+  private final boolean useDebuggerTracker;
 
-  ProbeStatusSink(Config config) {
+  ProbeStatusSink(Config config, String diagnosticsEndpoint) {
+    this(
+        config,
+        new BatchUploader(config, diagnosticsEndpoint),
+        isUsingDebuggerTrack(diagnosticsEndpoint));
+  }
+
+  ProbeStatusSink(Config config, BatchUploader diagnosticUploader, boolean useDebuggerTracker) {
+    this.diagnosticUploader = diagnosticUploader;
+    this.useDebuggerTracker = useDebuggerTracker;
     this.messageBuilder = new Builder(config);
     this.interval = Duration.ofSeconds(config.getDebuggerDiagnosticsInterval());
     this.batchSize = config.getDebuggerUploadBatchSize();
     this.queue = new ArrayBlockingQueue<>(2 * this.batchSize);
     this.isInstrumentTheWorld = config.isDebuggerInstrumentTheWorld();
+  }
+
+  private static boolean isUsingDebuggerTrack(String endpoint) {
+    return endpoint != null
+        && endpoint.contains(DDAgentFeaturesDiscovery.DEBUGGER_DIAGNOSTICS_ENDPOINT);
   }
 
   public void addReceived(ProbeId probeId) {
@@ -61,7 +79,20 @@ public class ProbeStatusSink {
     addDiagnostics(messageBuilder.errorMessage(probeId, message));
   }
 
-  public List<String> getSerializedDiagnostics() {
+  public void flush(String tags) {
+    List<String> serializedDiagnostics = getSerializedDiagnostics();
+    List<byte[]> batches = IntakeBatchHelper.createBatches(serializedDiagnostics);
+    for (byte[] batch : batches) {
+      if (useDebuggerTracker) {
+        diagnosticUploader.uploadAsMultipart(
+            "", new BatchUploader.MultiPartContent(batch, "file", "file.json"));
+      } else {
+        diagnosticUploader.upload(batch, tags);
+      }
+    }
+  }
+
+  private List<String> getSerializedDiagnostics() {
     List<ProbeStatus> diagnostics = getDiagnostics();
     List<String> serializedDiagnostics = new ArrayList<>();
     for (ProbeStatus message : diagnostics) {

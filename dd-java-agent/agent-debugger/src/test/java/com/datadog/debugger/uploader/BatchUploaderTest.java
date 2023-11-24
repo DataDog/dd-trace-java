@@ -35,6 +35,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 /** Unit tests for the snapshot uploader. */
 @ExtendWith(MockitoExtension.class)
 public class BatchUploaderTest {
+  private static final MockResponse RESPONSE_200 = new MockResponse().setResponseCode(200);
   private static final String URL_PATH = "/lalala";
   public static final byte[] SNAPSHOT_BUFFER = "jsonBuffer".getBytes(StandardCharsets.UTF_8);
   private final Duration REQUEST_TIMEOUT = Duration.ofSeconds(10);
@@ -56,6 +57,8 @@ public class BatchUploaderTest {
     url = server.url(URL_PATH);
 
     when(config.getDebuggerUploadTimeout()).thenReturn((int) REQUEST_TIMEOUT.getSeconds());
+    when(config.getServiceName()).thenReturn("myservice");
+    when(config.getRuntimeId()).thenReturn("myruntimeid");
 
     uploader = new BatchUploader(config, url.toString(), ratelimitedLogger);
   }
@@ -137,7 +140,7 @@ public class BatchUploaderTest {
                   Duration.ofMillis(1000).toMillis(), TimeUnit.MILLISECONDS)
               .setResponseCode(200));
     }
-    server.enqueue(new MockResponse().setResponseCode(200));
+    server.enqueue(RESPONSE_200);
 
     for (int i = 0; i < BatchUploader.MAX_RUNNING_REQUESTS; i++) {
       uploader.upload(SNAPSHOT_BUFFER);
@@ -204,7 +207,7 @@ public class BatchUploaderTest {
   @Test
   public void testNoContainerId() throws InterruptedException {
     // we don't explicitly specify a container ID
-    server.enqueue(new MockResponse().setResponseCode(200));
+    server.enqueue(RESPONSE_200);
     BatchUploader uploaderWithNoContainerId =
         new BatchUploader(config, url.toString(), ratelimitedLogger, null);
 
@@ -217,7 +220,7 @@ public class BatchUploaderTest {
 
   @Test
   public void testContainerIdHeader() throws InterruptedException {
-    server.enqueue(new MockResponse().setResponseCode(200));
+    server.enqueue(RESPONSE_200);
 
     BatchUploader uploaderWithContainerId =
         new BatchUploader(config, url.toString(), ratelimitedLogger, "testContainerId");
@@ -230,7 +233,7 @@ public class BatchUploaderTest {
 
   @Test
   public void testApiKey() throws InterruptedException {
-    server.enqueue(new MockResponse().setResponseCode(200));
+    server.enqueue(RESPONSE_200);
     when(config.getApiKey()).thenReturn(API_KEY_VALUE);
 
     BatchUploader uploaderWithApiKey = new BatchUploader(config, url.toString(), ratelimitedLogger);
@@ -239,5 +242,29 @@ public class BatchUploaderTest {
 
     RecordedRequest request = server.takeRequest(100, TimeUnit.MILLISECONDS);
     assertEquals(API_KEY_VALUE, request.getHeader(HEADER_DD_API_KEY));
+  }
+
+  @Test
+  public void testUpload() throws InterruptedException {
+    server.enqueue(RESPONSE_200);
+    uploader.upload(SNAPSHOT_BUFFER);
+    RecordedRequest recordedRequest = server.takeRequest(5, TimeUnit.SECONDS);
+    assertNotNull(recordedRequest);
+    String strBody = recordedRequest.getBody().readUtf8();
+    assertEquals(new String(SNAPSHOT_BUFFER), strBody);
+  }
+
+  @Test
+  public void testUploadMultiPart() throws InterruptedException {
+    server.enqueue(RESPONSE_200);
+    uploader.uploadAsMultipart(
+        "", new BatchUploader.MultiPartContent(SNAPSHOT_BUFFER, "file", "file.json"));
+    RecordedRequest recordedRequest = server.takeRequest(5, TimeUnit.SECONDS);
+    assertNotNull(recordedRequest);
+    String strBody = recordedRequest.getBody().readUtf8();
+    assertTrue(strBody.contains("\"ddsource\": \"dd_debugger\","));
+    assertTrue(strBody.contains("\"service\": \"myservice\","));
+    assertTrue(strBody.contains("\"runtimeId\": \"myruntimeid\""));
+    assertTrue(strBody.contains(new String(SNAPSHOT_BUFFER)));
   }
 }

@@ -1978,7 +1978,8 @@ public class CapturedSnapshotTest {
         new DebuggerTransformerTest.TestSnapshotListener(config, mock(ProbeStatusSink.class));
     DebuggerAgentHelper.injectSink(listener);
     currentTransformer =
-        DebuggerAgent.setupInstrumentTheWorldTransformer(config, instr, listener, null);
+        DebuggerAgent.setupInstrumentTheWorldTransformer(
+            config, instr, new DebuggerSink(config, config.getFinalDebuggerSnapshotUrl()), null);
     DebuggerContext.initClassFilter(new DenyListHelper(null));
     return listener;
   }
