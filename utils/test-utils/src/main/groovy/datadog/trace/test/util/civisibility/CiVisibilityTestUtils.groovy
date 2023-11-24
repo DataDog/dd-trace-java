@@ -105,7 +105,7 @@ abstract class CiVisibilityTestUtils {
     }
   }
 
-  static final freemarker.template.Configuration FREEMARKER = new freemarker.template.Configuration(freemarker.template.Configuration.VERSION_2_3_31) { {
+  static final freemarker.template.Configuration FREEMARKER = new freemarker.template.Configuration(freemarker.template.Configuration.VERSION_2_3_30) { {
       setClassLoaderForTemplateLoading(CiVisibilityTestUtils.classLoader, "")
       setDefaultEncoding("UTF-8")
       setTemplateExceptionHandler(TemplateExceptionHandler.RETHROW_HANDLER)
