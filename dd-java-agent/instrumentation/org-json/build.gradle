@@ -1,0 +1,21 @@
+muzzle {
+  pass {
+    group = 'org.json'
+    module = 'json'
+    versions = '[20070829, ]'
+    assertInverse = true
+  }
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+
+addTestSuiteForDir('latestDepTest', 'test')
+
+dependencies {
+  compileOnly group: 'org.json', name: 'json', version: '20230227'
+  testImplementation group: 'org.json', name: 'json', version: '20230227'
+
+  testRuntimeOnly project(':dd-java-agent:instrumentation:iast-instrumenter')
+
+  latestDepTestImplementation group: 'org.json', name: 'json', version: '+'
+}
