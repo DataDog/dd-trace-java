@@ -1,5 +1,7 @@
 package datadog.trace.civisibility.ci;
 
+import static datadog.trace.api.git.GitUtils.filterSensitiveInfo;
+
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
@@ -87,7 +89,7 @@ public class CIInfo {
 
       ciEnvVars = new HashMap<>();
       for (String ciEnvVarKey : ciEnvVarKeysArray) {
-        final String envVarVal = System.getenv(ciEnvVarKey);
+        final String envVarVal = filterSensitiveInfo(System.getenv(ciEnvVarKey));
         if (envVarVal != null && !envVarVal.isEmpty()) {
           ciEnvVars.put(ciEnvVarKey, envVarVal);
         }
