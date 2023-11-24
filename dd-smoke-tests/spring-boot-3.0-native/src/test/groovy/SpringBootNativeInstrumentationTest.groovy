@@ -1,7 +1,22 @@
 import datadog.smoketest.AbstractServerSmokeTest
 import okhttp3.Request
 
+import java.nio.file.FileVisitResult
+import java.nio.file.Files
+import java.nio.file.Path
+import java.nio.file.Paths
+import java.nio.file.SimpleFileVisitor
+import java.nio.file.attribute.BasicFileAttributes
+import java.util.concurrent.atomic.AtomicInteger
+
 class SpringBootNativeInstrumentationTest extends AbstractServerSmokeTest {
+  static def testJfrDir
+
+  static {
+    testJfrDir = Files.createTempDirectory(Paths.get(System.getProperty('java.io.tmpdir')), 'dd-test-jfr')
+    testJfrDir.toFile().deleteOnExit()
+  }
+
   @Override
   ProcessBuilder createProcessBuilder() {
     String springNativeExecutable = System.getProperty('datadog.smoketest.spring.native.executable')
@@ -16,7 +31,11 @@ class SpringBootNativeInstrumentationTest extends AbstractServerSmokeTest {
       '-Ddd.span.sampling.rules=[]',
       // enable improved trace.annotation span names
       '-Ddd.trace.annotations.legacy.tracing.enabled=false',
-      "--server.port=${httpPort}"
+      "--server.port=${httpPort}",
+      '-Ddd.profiling.enabled=true',
+      '-Ddd.profiling.upload.period=1',
+      '-Ddd.profiling.start-force-first=true',
+      "-Ddd.profiling.debug.dump_path=${testJfrDir}"
     ])
     ProcessBuilder processBuilder = new ProcessBuilder(command)
     processBuilder.directory(new File(buildDirectory))
@@ -45,6 +64,13 @@ class SpringBootNativeInstrumentationTest extends AbstractServerSmokeTest {
     responseBodyStr.contains("Hello world")
     waitForTraceCount(1)
 
+    try {
+      // sanity test for profiler generating JFR files
+      countJfrs() > 0
+    } finally {
+      deleteDirectory(testJfrDir)
+    }
+
     when:
     checkLogPostExit {
       // Check that there are no ClassNotFound errors printed from bad reflect-config.json
@@ -56,5 +82,37 @@ class SpringBootNativeInstrumentationTest extends AbstractServerSmokeTest {
 
     then:
     !logHasErrors
+  }
+
+  static int countJfrs() {
+    AtomicInteger jfrCount = new AtomicInteger(0)
+    Files.walkFileTree(testJfrDir, new SimpleFileVisitor<Path>() {
+      @Override
+      FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) throws IOException {
+        return FileVisitResult.CONTINUE
+      }
+
+      @Override
+      FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
+        if (file.toString().endsWith(".jfr")) {
+          jfrCount.incrementAndGet()
+        }
+        return FileVisitResult.CONTINUE
+      }
+    })
+    return jfrCount.get()
+  }
+
+  static void deleteDirectory(Path directory) throws IOException {
+    if (Files.exists(directory)) {
+      Files.walk(directory)
+      .sorted(Comparator.reverseOrder())
+      .forEach(path -> {
+        try {
+          Files.delete(path)
+        } catch (IOException ignored) {
+        }
+      })
+    }
   }
 }
