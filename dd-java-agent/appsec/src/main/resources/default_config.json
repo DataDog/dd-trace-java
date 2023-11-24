@@ -7923,5 +7923,1132 @@
       ],
       "transformers": []
     }
+  ],
+  "processors": [
+    {
+      "id": "extract-content",
+      "generator": "extract_schema",
+      "conditions": [
+        {
+          "operator": "equals",
+          "parameters": {
+            "inputs": [
+              {
+                "address": "waf.context.processor",
+                "key_path": [
+                  "extract-schema"
+                ]
+              }
+            ],
+            "type": "boolean",
+            "value": true
+          }
+        }
+      ],
+      "parameters": {
+        "mappings": [
+          {
+            "inputs": [
+              {
+                "address": "server.request.body"
+              }
+            ],
+            "output": "_dd.appsec.s.req.body"
+          },
+          {
+            "inputs": [
+              {
+                "address": "server.request.cookies"
+              }
+            ],
+            "output": "_dd.appsec.s.req.cookies"
+          },
+          {
+            "inputs": [
+              {
+                "address": "server.request.query"
+              }
+            ],
+            "output": "_dd.appsec.s.req.query"
+          },
+          {
+            "inputs": [
+              {
+                "address": "server.request.path_params"
+              }
+            ],
+            "output": "_dd.appsec.s.req.params"
+          },
+          {
+            "inputs": [
+              {
+                "address": "server.response.body"
+              }
+            ],
+            "output": "_dd.appsec.s.res.body"
+          },
+          {
+            "inputs": [
+              {
+                "address": "graphql.server.all_resolvers"
+              }
+            ],
+            "output": "_dd.appsec.s.graphql.all_resolvers"
+          },
+          {
+            "inputs": [
+              {
+                "address": "graphql.server.resolver"
+              }
+            ],
+            "output": "_dd.appsec.s.graphql.resolver"
+          },
+          {
+            "inputs": [
+              {
+                "address": "server.database.result"
+              }
+            ],
+            "output": "_dd.appsec.s.db"
+          }
+        ],
+        "scanners": [
+          {
+            "tags": {
+              "category": "payment"
+            }
+          },
+          {
+            "tags": {
+              "category": "pii"
+            }
+          }
+        ]
+      },
+      "evaluate": false,
+      "output": true
+    },
+    {
+      "id": "extract-headers",
+      "generator": "extract_schema",
+      "conditions": [
+        {
+          "operator": "equals",
+          "parameters": {
+            "inputs": [
+              {
+                "address": "waf.context.processor",
+                "key_path": [
+                  "extract-schema"
+                ]
+              }
+            ],
+            "type": "boolean",
+            "value": true
+          }
+        }
+      ],
+      "parameters": {
+        "mappings": [
+          {
+            "inputs": [
+              {
+                "address": "server.request.headers.no_cookies"
+              }
+            ],
+            "output": "_dd.appsec.s.req.headers"
+          },
+          {
+            "inputs": [
+              {
+                "address": "server.response.headers.no_cookies"
+              }
+            ],
+            "output": "_dd.appsec.s.res.headers"
+          }
+        ],
+        "scanners": [
+          {
+            "tags": {
+              "category": "credentials"
+            }
+          },
+          {
+            "tags": {
+              "category": "pii"
+            }
+          }
+        ]
+      },
+      "evaluate": false,
+      "output": true
+    }
+  ],
+  "scanners": [
+    {
+      "id": "JU1sRk3mSzqSUJn6GrVn7g",
+      "name": "American Express Card Scanner (4+4+4+3 digits)",
+      "key": {
+        "operator": "match_regex",
+        "parameters": {
+          "regex": "card|cc|credit|debit|payment|amex|visa|mastercard|maestro|discover|jcb|diner|amex|visa|mastercard|maestro|discover|jcb|diner",
+          "options": {
+            "case_sensitive": false,
+            "min_length": 3
+          }
+        }
+      },
+      "value": {
+        "operator": "match_regex",
+        "parameters": {
+          "regex": "\\b3[47]\\d{2}(?:(?:\\s\\d{4}\\s\\d{4}\\s\\d{3})|(?:\\,\\d{4}\\,\\d{4}\\,\\d{3})|(?:-\\d{4}-\\d{4}-\\d{3})|(?:\\.\\d{4}\\.\\d{4}\\.\\d{3}))\\b",
+          "options": {
+            "case_sensitive": false,
+            "min_length": 16
+          }
+        }
+      },
+      "tags": {
+        "type": "card",
+        "card_type": "amex",
+        "category": "payment"
+      }
+    },
+    {
+      "id": "edmH513UTQWcRiQ9UnzHlw-mod",
+      "name": "American Express Card Scanner (4+6|5+5|6 digits)",
+      "key": {
+        "operator": "match_regex",
+        "parameters": {
+          "regex": "card|cc|credit|debit|payment|amex|visa|mastercard|maestro|discover|jcb|diner",
+          "options": {
+            "case_sensitive": false,
+            "min_length": 3
+          }
+        }
+      },
+      "value": {
+        "operator": "match_regex",
+        "parameters": {
+          "regex": "\\b3[47]\\d{2}(?:(?:\\s\\d{5,6}\\s\\d{5,6})|(?:\\.\\d{5,6}\\.\\d{5,6})|(?:-\\d{5,6}-\\d{5,6})|(?:,\\d{5,6},\\d{5,6}))\\b",
+          "options": {
+            "case_sensitive": false,
+            "min_length": 17
+          }
+        }
+      },
+      "tags": {
+        "type": "card",
+        "card_type": "amex",
+        "category": "payment"
+      }
+    },
+    {
+      "id": "e6K4h_7qTLaMiAbaNXoSZA",
+      "name": "American Express Card Scanner (8+7 digits)",
+      "key": {
+        "operator": "match_regex",
+        "parameters": {
+          "regex": "card|cc|credit|debit|payment|amex|visa|mastercard|maestro|discover|jcb|diner",
+          "options": {
+            "case_sensitive": false,
+            "min_length": 3
+          }
+        }
+      },
+      "value": {
+        "operator": "match_regex",
+        "parameters": {
+          "regex": "\\b3[47]\\d{6}(?:(?:\\s\\d{7})|(?:\\,\\d{7})|(?:-\\d{7})|(?:\\.\\d{7}))\\b",
+          "options": {
+            "case_sensitive": false,
+            "min_length": 16
+          }
+        }
+      },
+      "tags": {
+        "type": "card",
+        "card_type": "amex",
+        "category": "payment"
+      }
+    },
+    {
+      "id": "K2rZflWzRhGM9HiTc6whyQ",
+      "name": "American Express Card Scanner (1x15 digits)",
+      "key": {
+        "operator": "match_regex",
+        "parameters": {
+          "regex": "card|cc|credit|debit|payment|amex|visa|mastercard|maestro|discover|jcb|diner",
+          "options": {
+            "case_sensitive": false,
+            "min_length": 3
+          }
+        }
+      },
+      "value": {
+        "operator": "match_regex",
+        "parameters": {
+          "regex": "\\b3[47]\\d{13}\\b",
+          "options": {
+            "case_sensitive": false,
+            "min_length": 15
+          }
+        }
+      },
+      "tags": {
+        "type": "card",
+        "card_type": "amex",
+        "category": "payment"
+      }
+    },
+    {
+      "id": "9d7756e343cefa22a5c098e1092590f806eb5446",
+      "name": "Basic Authentication Scanner",
+      "key": {
+        "operator": "match_regex",
+        "parameters": {
+          "regex": "authorization|www-authenticate",
+          "options": {
+            "case_sensitive": false,
+            "min_length": 13
+          }
+        }
+      },
+      "value": {
+        "operator": "match_regex",
+        "parameters": {
+          "regex": "^basic\\s+[A-Za-z0-9+/=]+",
+          "options": {
+            "case_sensitive": false,
+            "min_length": 7
+          }
+        }
+      },
+      "tags": {
+        "type": "basic_auth",
+        "category": "credentials"
+      }
+    },
+    {
+      "id": "mZy8XjZLReC9smpERXWnnw",
+      "name": "Bearer Authentication Scanner",
+      "key": {
+        "operator": "match_regex",
+        "parameters": {
+          "regex": "authorization|www-authenticate",
+          "options": {
+            "case_sensitive": false,
+            "min_length": 13
+          }
+        }
+      },
+      "value": {
+        "operator": "match_regex",
+        "parameters": {
+          "regex": "^bearer\\s+[-a-z0-9._~+/]{4,}",
+          "options": {
+            "case_sensitive": false,
+            "min_length": 11
+          }
+        }
+      },
+      "tags": {
+        "type": "bearer_token",
+        "category": "credentials"
+      }
+    },
+    {
+      "id": "450239afc250a19799b6c03dc0e16fd6a4b2a1af",
+      "name": "Canadian Social Insurance Number Scanner",
+      "key": {
+        "operator": "match_regex",
+        "parameters": {
+          "regex": "social[\\s_]?(?:insurance(?:\\s+number)?)?|SIN|Canadian[\\s_]?(?:social[\\s_]?(?:insurance)?|insurance[\\s_]?number)?",
+          "options": {
+            "case_sensitive": false,
+            "min_length": 3
+          }
+        }
+      },
+      "value": {
+        "operator": "match_regex",
+        "parameters": {
+          "regex": "\\b\\d{3}-\\d{3}-\\d{3}\\b",
+          "options": {
+            "case_sensitive": false,
+            "min_length": 11
+          }
+        }
+      },
+      "tags": {
+        "type": "canadian_sin",
+        "category": "pii"
+      }
+    },
+    {
+      "id": "87a879ff33693b46c8a614d8211f5a2c289beca0",
+      "name": "Digest Authentication Scanner",
+      "key": {
+        "operator": "match_regex",
+        "parameters": {
+          "regex": "authorization|www-authenticate",
+          "options": {
+            "case_sensitive": false,
+            "min_length": 13
+          }
+        }
+      },
+      "value": {
+        "operator": "match_regex",
+        "parameters": {
+          "regex": "^digest\\s+",
+          "options": {
+            "case_sensitive": false,
+            "min_length": 7
+          }
+        }
+      },
+      "tags": {
+        "type": "digest_auth",
+        "category": "credentials"
+      }
+    },
+    {
+      "id": "qWumeP1GQUa_E4ffAnT-Yg",
+      "name": "American Express Card Scanner (1x14 digits)",
+      "key": {
+        "operator": "match_regex",
+        "parameters": {
+          "regex": "card|cc|credit|debit|payment|amex|visa|mastercard|maestro|discover|jcb|diner",
+          "options": {
+            "case_sensitive": false,
+            "min_length": 3
+          }
+        }
+      },
+      "value": {
+        "operator": "match_regex",
+        "parameters": {
+          "regex": "(?:30[0-59]\\d|3[689]\\d{2})(?:\\d{10})",
+          "options": {
+            "case_sensitive": false,
+            "min_length": 14
+          }
+        }
+      },
+      "tags": {
+        "type": "card",
+        "card_type": "diners",
+        "category": "payment"
+      }
+    },
+    {
+      "id": "NlTWWM5LS6W0GSqBLuvtRw",
+      "name": "Diners Card Scanner (4+4+4+2 digits)",
+      "key": {
+        "operator": "match_regex",
+        "parameters": {
+          "regex": "card|cc|credit|debit|payment|amex|visa|mastercard|maestro|discover|jcb|diner",
+          "options": {
+            "case_sensitive": false,
+            "min_length": 3
+          }
+        }
+      },
+      "value": {
+        "operator": "match_regex",
+        "parameters": {
+          "regex": "\\b(?:30[0-59]\\d|3[689]\\d{2})(?:(?:\\s\\d{4}\\s\\d{4}\\s\\d{2})|(?:\\,\\d{4}\\,\\d{4}\\,\\d{2})|(?:-\\d{4}-\\d{4}-\\d{2})|(?:\\.\\d{4}\\.\\d{4}\\.\\d{2}))\\b",
+          "options": {
+            "case_sensitive": false,
+            "min_length": 17
+          }
+        }
+      },
+      "tags": {
+        "type": "card",
+        "card_type": "diners",
+        "category": "payment"
+      }
+    },
+    {
+      "id": "Xr5VdbQSTXitYGGiTfxBpw",
+      "name": "Diners Card Scanner (4+6+4 digits)",
+      "key": {
+        "operator": "match_regex",
+        "parameters": {
+          "regex": "card|cc|credit|debit|payment|amex|visa|mastercard|maestro|discover|jcb|diner",
+          "options": {
+            "case_sensitive": false,
+            "min_length": 3
+          }
+        }
+      },
+      "value": {
+        "operator": "match_regex",
+        "parameters": {
+          "regex": "\\b(?:30[0-59]\\d|3[689]\\d{2})(?:(?:\\s\\d{6}\\s\\d{4})|(?:\\.\\d{6}\\.\\d{4})|(?:-\\d{6}-\\d{4})|(?:,\\d{6},\\d{4}))\\b",
+          "options": {
+            "case_sensitive": false,
+            "min_length": 16
+          }
+        }
+      },
+      "tags": {
+        "type": "card",
+        "card_type": "diners",
+        "category": "payment"
+      }
+    },
+    {
+      "id": "gAbunN_WQNytxu54DjcbAA-mod",
+      "name": "Diners Card Scanner (8+6 digits)",
+      "key": {
+        "operator": "match_regex",
+        "parameters": {
+          "regex": "card|cc|credit|debit|payment|amex|visa|mastercard|maestro|discover|jcb|diner",
+          "options": {
+            "case_sensitive": false,
+            "min_length": 3
+          }
+        }
+      },
+      "value": {
+        "operator": "match_regex",
+        "parameters": {
+          "regex": "\\b(?:30[0-59]\\d{5}|3[689]\\d{6})\\s?(?:(?:\\s\\d{6})|(?:\\,\\d{6})|(?:-\\d{6})|(?:\\.\\d{6}))\\b",
+          "options": {
+            "case_sensitive": false,
+            "min_length": 14
+          }
+        }
+      },
+      "tags": {
+        "type": "card",
+        "card_type": "diners",
+        "category": "payment"
+      }
+    },
+    {
+      "id": "9cs4qCfEQBeX17U7AepOvQ",
+      "name": "MasterCard Scanner (2x8 digits)",
+      "key": {
+        "operator": "match_regex",
+        "parameters": {
+          "regex": "card|cc|credit|debit|payment|amex|visa|mastercard|maestro|discover|jcb|diner",
+          "options": {
+            "case_sensitive": false,
+            "min_length": 3
+          }
+        }
+      },
+      "value": {
+        "operator": "match_regex",
+        "parameters": {
+          "regex": "\\b(?:6221(?:2[6-9]|[3-9][0-9])\\d{2}(?:,\\d{8}|\\s\\d{8}|-\\d{8}|\\.\\d{8})|6229(?:[01][0-9]|2[0-5])\\d{2}(?:,\\d{8}|\\s\\d{8}|-\\d{8}|\\.\\d{8})|(?:6011|65\\d{2}|64[4-9]\\d|622[2-8])\\d{4}(?:,\\d{8}|\\s\\d{8}|-\\d{8}|\\.\\d{8}))\\b",
+          "options": {
+            "case_sensitive": false,
+            "min_length": 16
+          }
+        }
+      },
+      "tags": {
+        "type": "card",
+        "card_type": "discover",
+        "category": "payment"
+      }
+    },
+    {
+      "id": "YBIDWJIvQWW_TFOyU0CGJg",
+      "name": "Discover Card Scanner (4x4 digits)",
+      "key": {
+        "operator": "match_regex",
+        "parameters": {
+          "regex": "card|cc|credit|debit|payment|amex|visa|mastercard|maestro|discover|jcb|diner",
+          "options": {
+            "case_sensitive": false,
+            "min_length": 3
+          }
+        }
+      },
+      "value": {
+        "operator": "match_regex",
+        "parameters": {
+          "regex": "\\b(?:(?:(?:6221(?:2[6-9]|[3-9][0-9])\\d{2}(?:,\\d{4}){2})|(?:6221\\s(?:2[6-9]|[3-9][0-9])\\d{2}(?:\\s\\d{4}){2})|(?:6221\\.(?:2[6-9]|[3-9][0-9])\\d{2}(?:\\.\\d{4}){2})|(?:6221-(?:2[6-9]|[3-9][0-9])\\d{2}(?:-\\d{4}){2}))|(?:(?:6229(?:[01][0-9]|2[0-5])\\d{2}(?:,\\d{4}){2})|(?:6229\\s(?:[01][0-9]|2[0-5])\\d{2}(?:\\s\\d{4}){2})|(?:6229\\.(?:[01][0-9]|2[0-5])\\d{2}(?:\\.\\d{4}){2})|(?:6229-(?:[01][0-9]|2[0-5])\\d{2}(?:-\\d{4}){2}))|(?:(?:6011|65\\d{2}|64[4-9]\\d|622[2-8])(?:(?:\\s\\d{4}){3}|(?:\\.\\d{4}){3}|(?:-\\d{4}){3}|(?:,\\d{4}){3})))\\b",
+          "options": {
+            "case_sensitive": false,
+            "min_length": 16
+          }
+        }
+      },
+      "tags": {
+        "type": "card",
+        "card_type": "discover",
+        "category": "payment"
+      }
+    },
+    {
+      "id": "12cpbjtVTMaMutFhh9sojQ",
+      "name": "Discover Card Scanner (1x16 digits)",
+      "key": {
+        "operator": "match_regex",
+        "parameters": {
+          "regex": "card|cc|credit|debit|payment|amex|visa|mastercard|maestro|discover|jcb|diner",
+          "options": {
+            "case_sensitive": false,
+            "min_length": 3
+          }
+        }
+      },
+      "value": {
+        "operator": "match_regex",
+        "parameters": {
+          "regex": "\\b(?:6221(?:2[6-9]|[3-9][0-9])\\d{10}|6229(?:[01][0-9]|2[0-5])\\d{10}|(?:6011|65\\d{2}|64[4-9]\\d|622[2-8])\\d{12})\\b",
+          "options": {
+            "case_sensitive": false,
+            "min_length": 16
+          }
+        }
+      },
+      "tags": {
+        "type": "card",
+        "card_type": "discover",
+        "category": "payment"
+      }
+    },
+    {
+      "id": "PuXiVTCkTHOtj0Yad1ppsw",
+      "name": "Standard E-mail Address",
+      "key": {
+        "operator": "match_regex",
+        "parameters": {
+          "regex": "mail|e[-\\s]?mail|address|sender|\\bto\\b|from|recipient",
+          "options": {
+            "case_sensitive": false,
+            "min_length": 2
+          }
+        }
+      },
+      "value": {
+        "operator": "match_regex",
+        "parameters": {
+          "regex": "\\b[\\w!#$%&'*+/=?`{|}~^-]+(?:\\.[\\w!#$%&'*+/=?`{|}~^-]+)*(%40|@)(?:[a-zA-Z0-9-]+\\.)+[a-zA-Z]{2,6}\\b",
+          "options": {
+            "case_sensitive": false,
+            "min_length": 5
+          }
+        }
+      },
+      "tags": {
+        "type": "email",
+        "category": "pii"
+      }
+    },
+    {
+      "id": "8VS2RKxzR8a_95L5fuwaXQ",
+      "name": "IBAN",
+      "key": {
+        "operator": "match_regex",
+        "parameters": {
+          "regex": "iban|account|sender|receiver",
+          "options": {
+            "case_sensitive": false,
+            "min_length": 3
+          }
+        }
+      },
+      "value": {
+        "operator": "match_regex",
+        "parameters": {
+          "regex": "\\b(?:NO\\d{2}(?:[ \\-]?\\d{4}){2}[ \\-]?\\d{3}|BE\\d{2}(?:[ \\-]?\\d{4}){3}|(?:DK|FO|FI|GL|SD)\\d{2}(?:[ \\-]?\\d{4}){3}[ \\-]?\\d{2}|NL\\d{2}[ \\-]?[A-Z]{4}(?:[ \\-]?\\d{4}){2}[ \\-]?\\d{2}|MK\\d{2}[ \\-]?\\d{3}[A-Z0-9](?:[ \\-]?[A-Z0-9]{4}){2}[ \\-]?[A-Z0-9]\\d{2}|SI\\d{17}|(?:AT|BA|EE|LT|XK)\\d{18}|(?:LU|KZ|EE|LT)\\d{5}[A-Z0-9]{13}|LV\\d{2}[A-Z]{4}[A-Z0-9]{13}|(?:LI|CH)\\d{2}[ \\-]?\\d{4}[ \\-]?\\d[A-Z0-9]{3}(?:[ \\-]?[A-Z0-9]{4}){2}[ \\-]?[A-Z0-9]|HR\\d{2}(?:[ \\-]?\\d{4}){4}[ \\-]?\\d|GE\\d{2}[ \\-]?[A-Z0-9]{2}\\d{2}\\d{14}|VA\\d{20}|BG\\d{2}[A-Z]{4}\\d{6}[A-Z0-9]{8}|BH\\d{2}[A-Z]{4}[A-Z0-9]{14}|GB\\d{2}[A-Z]{4}(?:[ \\-]?\\d{4}){3}[ \\-]?\\d{2}|IE\\d{2}[ \\-]?[A-Z0-9]{4}(?:[ \\-]?\\d{4}){3}[ \\-]?\\d{2}|(?:CR|DE|ME|RS)\\d{2}(?:[ \\-]?\\d{4}){4}[ \\-]?\\d{2}|(?:AE|TL|IL)\\d{2}(?:[ \\-]?\\d{4}){4}[ \\-]?\\d{3}|GI\\d{2}[ \\-]?[A-Z]{4}(?:[ \\-]?[A-Z0-9]{4}){3}[ \\-]?[A-Z0-9]{3}|IQ\\d{2}[ \\-]?[A-Z]{4}(?:[ \\-]?\\d{4}){3}[ \\-]?\\d{3}|MD\\d{2}(?:[ \\-]?[A-Z0-9]{4}){5}|SA\\d{2}[ \\-]?\\d{2}[A-Z0-9]{2}(?:[ \\-]?[A-Z0-9]{4}){4}|RO\\d{2}[ \\-]?[A-Z]{4}(?:[ \\-]?[A-Z0-9]{4}){4}|(?:PK|VG)\\d{2}[ \\-]?[A-Z0-9]{4}(?:[ \\-]?\\d{4}){4}|AD\\d{2}(?:[ \\-]?\\d{4}){2}(?:[ \\-]?[A-Z0-9]{4}){3}|(?:CZ|SK|ES|SE|TN)\\d{2}(?:[ \\-]?\\d{4}){5}|(?:LY|PT|ST)\\d{2}(?:[ \\-]?\\d{4}){5}[ \\-]?\\d|TR\\d{2}[ \\-]?\\d{4}[ \\-]?\\d[A-Z0-9]{3}(?:[ \\-]?[A-Z0-9]{4}){3}[ \\-]?[A-Z0-9]{2}|IS\\d{2}(?:[ \\-]?\\d{4}){5}[ \\-]?\\d{2}|(?:IT|SM)\\d{2}[ \\-]?[A-Z]\\d{3}[ \\-]?\\d{4}[ \\-]?\\d{3}[A-Z0-9](?:[ \\-]?[A-Z0-9]{4}){2}[ \\-]?[A-Z0-9]{3}|GR\\d{2}[ \\-]?\\d{4}[ \\-]?\\d{3}[A-Z0-9](?:[ \\-]?[A-Z0-9]{4}){3}[A-Z0-9]{3}|(?:FR|MC)\\d{2}(?:[ \\-]?\\d{4}){2}[ \\-]?\\d{2}[A-Z0-9]{2}(?:[ \\-]?[A-Z0-9]{4}){2}[ \\-]?[A-Z0-9]\\d{2}|MR\\d{2}(?:[ \\-]?\\d{4}){5}[ \\-]?\\d{3}|(?:SV|DO)\\d{2}[ \\-]?[A-Z]{4}(?:[ \\-]?\\d{4}){5}|BY\\d{2}[ \\-]?[A-Z]{4}[ \\-]?\\d{4}(?:[ \\-]?[A-Z0-9]{4}){4}|GT\\d{2}(?:[ \\-]?[A-Z0-9]{4}){6}|AZ\\d{2}[ \\-]?[A-Z0-9]{4}(?:[ \\-]?\\d{5}){4}|LB\\d{2}[ \\-]?\\d{4}(?:[ \\-]?[A-Z0-9]{5}){4}|(?:AL|CY)\\d{2}(?:[ \\-]?\\d{4}){2}(?:[ \\-]?[A-Z0-9]{4}){4}|(?:HU|PL)\\d{2}(?:[ \\-]?\\d{4}){6}|QA\\d{2}[ \\-]?[A-Z]{4}(?:[ \\-]?[A-Z0-9]{4}){5}[ \\-]?[A-Z0-9]|PS\\d{2}[ \\-]?[A-Z0-9]{4}(?:[ \\-]?\\d{4}){5}[ \\-]?\\d|UA\\d{2}[ \\-]?\\d{4}[ \\-]?\\d{2}[A-Z0-9]{2}(?:[ \\-]?[A-Z0-9]{4}){4}[ \\-]?[A-Z0-9]|BR\\d{2}(?:[ \\-]?\\d{4}){5}[ \\-]?\\d{3}[A-Z0-9][ \\-]?[A-Z0-9]|EG\\d{2}(?:[ \\-]?\\d{4}){6}\\d|MU\\d{2}[ \\-]?[A-Z]{4}(?:[ \\-]?\\d{4}){4}\\d{3}[A-Z][ \\-]?[A-Z]{2}|(?:KW|JO)\\d{2}[ \\-]?[A-Z]{4}(?:[ \\-]?[A-Z0-9]{4}){5}[ \\-]?[A-Z0-9]{2}|MT\\d{2}[ \\-]?[A-Z]{4}[ \\-]?\\d{4}[ \\-]?\\d[A-Z0-9]{3}(?:[ \\-]?[A-Z0-9]{3}){4}[ \\-]?[A-Z0-9]{3}|SC\\d{2}[ \\-]?[A-Z]{4}(?:[ \\-]?\\d{4}){5}[ \\-]?[A-Z]{3}|LC\\d{2}[ \\-]?[A-Z]{4}(?:[ \\-]?[A-Z0-9]{4}){6})\\b",
+          "options": {
+            "case_sensitive": false,
+            "min_length": 15
+          }
+        }
+      },
+      "tags": {
+        "type": "iban",
+        "category": "payment"
+      }
+    },
+    {
+      "id": "h6WJcecQTwqvN9KeEtwDvg",
+      "name": "JCB Card Scanner (1x16 digits)",
+      "key": {
+        "operator": "match_regex",
+        "parameters": {
+          "regex": "card|cc|credit|debit|payment|amex|visa|mastercard|maestro|discover|jcb|diner",
+          "options": {
+            "case_sensitive": false,
+            "min_length": 3
+          }
+        }
+      },
+      "value": {
+        "operator": "match_regex",
+        "parameters": {
+          "regex": "\\b35(?:2[89]|[3-9][0-9])(?:\\d{12})\\b",
+          "options": {
+            "case_sensitive": false,
+            "min_length": 16
+          }
+        }
+      },
+      "tags": {
+        "type": "card",
+        "card_type": "jcb",
+        "category": "payment"
+      }
+    },
+    {
+      "id": "gcEaMu_VSJ2-bGCEkgyC0w",
+      "name": "JCB Card Scanner (2x8 digits)",
+      "key": {
+        "operator": "match_regex",
+        "parameters": {
+          "regex": "card|cc|credit|debit|payment|amex|visa|mastercard|maestro|discover|jcb|diner",
+          "options": {
+            "case_sensitive": false,
+            "min_length": 3
+          }
+        }
+      },
+      "value": {
+        "operator": "match_regex",
+        "parameters": {
+          "regex": "\\b35(?:2[89]|[3-9][0-9])\\d{4}(?:(?:,\\d{8})|(?:-\\d{8})|(?:\\s\\d{8})|(?:\\.\\d{8}))\\b",
+          "options": {
+            "case_sensitive": false,
+            "min_length": 17
+          }
+        }
+      },
+      "tags": {
+        "type": "card",
+        "card_type": "jcb",
+        "category": "payment"
+      }
+    },
+    {
+      "id": "imTliuhXT5GAeRNhqChXQQ",
+      "name": "JCB Card Scanner (4x4 digits)",
+      "key": {
+        "operator": "match_regex",
+        "parameters": {
+          "regex": "card|cc|credit|debit|payment|amex|visa|mastercard|maestro|discover|jcb|diner",
+          "options": {
+            "case_sensitive": false,
+            "min_length": 3
+          }
+        }
+      },
+      "value": {
+        "operator": "match_regex",
+        "parameters": {
+          "regex": "\\b35(?:2[89]|[3-9][0-9])(?:(?:\\s\\d{4}){3}|(?:\\.\\d{4}){3}|(?:-\\d{4}){3}|(?:,\\d{4}){3})\\b",
+          "options": {
+            "case_sensitive": false,
+            "min_length": 16
+          }
+        }
+      },
+      "tags": {
+        "type": "card",
+        "card_type": "jcb",
+        "category": "payment"
+      }
+    },
+    {
+      "id": "9osY3xc9Q7ONAV0zw9Uz4A",
+      "name": "JSON Web Token",
+      "value": {
+        "operator": "match_regex",
+        "parameters": {
+          "regex": "\\bey[I-L][\\w=-]+\\.ey[I-L][\\w=-]+(\\.[\\w.+\\/=-]+)?\\b",
+          "options": {
+            "case_sensitive": false,
+            "min_length": 20
+          }
+        }
+      },
+      "tags": {
+        "type": "json_web_token",
+        "category": "credentials"
+      }
+    },
+    {
+      "id": "d1Q9D3YMRxuVKf6CZInJPw",
+      "name": "Maestro Card Scanner (1x16 digits)",
+      "key": {
+        "operator": "match_regex",
+        "parameters": {
+          "regex": "card|cc|credit|debit|payment|amex|visa|mastercard|maestro|discover|jcb|diner",
+          "options": {
+            "case_sensitive": false,
+            "min_length": 3
+          }
+        }
+      },
+      "value": {
+        "operator": "match_regex",
+        "parameters": {
+          "regex": "\\b(?:5[06-9]\\d{2}|6\\d{3})(?:\\d{12})\\b",
+          "options": {
+            "case_sensitive": false,
+            "min_length": 16
+          }
+        }
+      },
+      "tags": {
+        "type": "card",
+        "card_type": "maestro",
+        "category": "payment"
+      }
+    },
+    {
+      "id": "M3YIQKKjRVmoeQuM3pjzrw",
+      "name": "Maestro Card Scanner (2x8 digits)",
+      "key": {
+        "operator": "match_regex",
+        "parameters": {
+          "regex": "card|cc|credit|debit|payment|amex|visa|mastercard|maestro|discover|jcb|diner",
+          "options": {
+            "case_sensitive": false,
+            "min_length": 3
+          }
+        }
+      },
+      "value": {
+        "operator": "match_regex",
+        "parameters": {
+          "regex": "\\b(?:5[06-9]\\d{6}|6\\d{7})(?:\\s\\d{8}|\\.\\d{8}|-\\d{8}|,\\d{8})\\b",
+          "options": {
+            "case_sensitive": false,
+            "min_length": 17
+          }
+        }
+      },
+      "tags": {
+        "type": "card",
+        "card_type": "maestro",
+        "category": "payment"
+      }
+    },
+    {
+      "id": "hRxiQBlSSVKcjh5U7LZYLA",
+      "name": "Maestro Card Scanner (4x4 digits)",
+      "key": {
+        "operator": "match_regex",
+        "parameters": {
+          "regex": "card|cc|credit|debit|payment|amex|visa|mastercard|maestro|discover|jcb|diner",
+          "options": {
+            "case_sensitive": false,
+            "min_length": 3
+          }
+        }
+      },
+      "value": {
+        "operator": "match_regex",
+        "parameters": {
+          "regex": "\\b(?:5[06-9]\\d{2}|6\\d{3})(?:(?:\\s\\d{4}){3}|(?:\\.\\d{4}){3}|(?:-\\d{4}){3}|(?:,\\d{4}){3})\\b",
+          "options": {
+            "case_sensitive": false,
+            "min_length": 16
+          }
+        }
+      },
+      "tags": {
+        "type": "card",
+        "card_type": "maestro",
+        "category": "payment"
+      }
+    },
+    {
+      "id": "NwhIYNS4STqZys37WlaIKA",
+      "name": "MasterCard Scanner (2x8 digits)",
+      "key": {
+        "operator": "match_regex",
+        "parameters": {
+          "regex": "card|cc|credit|debit|payment|amex|visa|mastercard|maestro|discover|jcb|diner",
+          "options": {
+            "case_sensitive": false,
+            "min_length": 3
+          }
+        }
+      },
+      "value": {
+        "operator": "match_regex",
+        "parameters": {
+          "regex": "\\b(?:(?:5[1-5]\\d{2})|(?:222[1-9])|(?:22[3-9]\\d)|(?:2[3-6]\\d{2})|(?:27[0-1]\\d)|(?:2720))(?:(?:\\d{4}(?:(?:,\\d{8})|(?:-\\d{8})|(?:\\s\\d{8})|(?:\\.\\d{8}))))\\b",
+          "options": {
+            "case_sensitive": false,
+            "min_length": 16
+          }
+        }
+      },
+      "tags": {
+        "type": "card",
+        "card_type": "mastercard",
+        "category": "payment"
+      }
+    },
+    {
+      "id": "axxJkyjhRTOuhjwlsA35Vw",
+      "name": "MasterCard Scanner (4x4 digits)",
+      "key": {
+        "operator": "match_regex",
+        "parameters": {
+          "regex": "card|cc|credit|debit|payment|amex|visa|mastercard|maestro|discover|jcb|diner",
+          "options": {
+            "case_sensitive": false,
+            "min_length": 3
+          }
+        }
+      },
+      "value": {
+        "operator": "match_regex",
+        "parameters": {
+          "regex": "\\b(?:(?:5[1-5]\\d{2})|(?:222[1-9])|(?:22[3-9]\\d)|(?:2[3-6]\\d{2})|(?:27[0-1]\\d)|(?:2720))(?:(?:\\s\\d{4}){3}|(?:\\.\\d{4}){3}|(?:-\\d{4}){3}|(?:,\\d{4}){3})\\b",
+          "options": {
+            "case_sensitive": false,
+            "min_length": 16
+          }
+        }
+      },
+      "tags": {
+        "type": "card",
+        "card_type": "mastercard",
+        "category": "payment"
+      }
+    },
+    {
+      "id": "76EhmoK3TPqJcpM-fK0pLw",
+      "name": "MasterCard Scanner (1x16 digits)",
+      "key": {
+        "operator": "match_regex",
+        "parameters": {
+          "regex": "card|cc|credit|debit|payment|amex|visa|mastercard|maestro|discover|jcb|diner",
+          "options": {
+            "case_sensitive": false,
+            "min_length": 3
+          }
+        }
+      },
+      "value": {
+        "operator": "match_regex",
+        "parameters": {
+          "regex": "\\b(?:(?:5[1-5]\\d{2})|(?:222[1-9])|(?:22[3-9]\\d)|(?:2[3-6]\\d{2})|(?:27[0-1]\\d)|(?:2720))(?:\\d{12})\\b",
+          "options": {
+            "case_sensitive": false,
+            "min_length": 16
+          }
+        }
+      },
+      "tags": {
+        "type": "card",
+        "card_type": "mastercard",
+        "category": "payment"
+      }
+    },
+    {
+      "id": "de0899e0cbaaa812bb624cf04c912071012f616d-mod",
+      "name": "UK National Insurance Number Scanner",
+      "key": {
+        "operator": "match_regex",
+        "parameters": {
+          "regex": "nin|insurance",
+          "options": {
+            "case_sensitive": false,
+            "min_length": 3
+          }
+        }
+      },
+      "value": {
+        "operator": "match_regex",
+        "parameters": {
+          "regex": "\\b[A-Z]{2}[\\s-]?\\d{6}[\\s-]?[A-Z]?\\b",
+          "options": {
+            "case_sensitive": false,
+            "min_length": 8
+          }
+        }
+      },
+      "tags": {
+        "type": "uk_nin",
+        "category": "pii"
+      }
+    },
+    {
+      "id": "d962f7ddb3f55041e39195a60ff79d4814a7c331",
+      "name": "US Passport Scanner",
+      "key": {
+        "operator": "match_regex",
+        "parameters": {
+          "regex": "passport",
+          "options": {
+            "case_sensitive": false,
+            "min_length": 8
+          }
+        }
+      },
+      "value": {
+        "operator": "match_regex",
+        "parameters": {
+          "regex": "\\b[0-9A-Z]{9}\\b|\\b[0-9]{6}[A-Z][0-9]{2}\\b",
+          "options": {
+            "case_sensitive": false,
+            "min_length": 8
+          }
+        }
+      },
+      "tags": {
+        "type": "passport_number",
+        "category": "pii"
+      }
+    },
+    {
+      "id": "7771fc3b-b205-4b93-bcef-28608c5c1b54",
+      "name": "United States Social Security Number Scanner",
+      "key": {
+        "operator": "match_regex",
+        "parameters": {
+          "regex": "SSN|(?:(?:social)?[\\s_]?(?:security)?[\\s_]?(?:number)?)?",
+          "options": {
+            "case_sensitive": false,
+            "min_length": 3
+          }
+        }
+      },
+      "value": {
+        "operator": "match_regex",
+        "parameters": {
+          "regex": "\\b\\d{3}[-\\s\\.]{1}\\d{2}[-\\s\\.]{1}\\d{4}\\b",
+          "options": {
+            "case_sensitive": false,
+            "min_length": 11
+          }
+        }
+      },
+      "tags": {
+        "type": "us_ssn",
+        "category": "pii"
+      }
+    },
+    {
+      "id": "ac6d683cbac77f6e399a14990793dd8fd0fca333",
+      "name": "US Vehicle Identification Number Scanner",
+      "key": {
+        "operator": "match_regex",
+        "parameters": {
+          "regex": "vehicle[_\\s-]*identification[_\\s-]*number|vin",
+          "options": {
+            "case_sensitive": false,
+            "min_length": 3
+          }
+        }
+      },
+      "value": {
+        "operator": "match_regex",
+        "parameters": {
+          "regex": "\\b[A-HJ-NPR-Z0-9]{17}\\b",
+          "options": {
+            "case_sensitive": false,
+            "min_length": 17
+          }
+        }
+      },
+      "tags": {
+        "type": "vin",
+        "category": "pii"
+      }
+    },
+    {
+      "id": "wJIgOygRQhKkR69b_9XbRQ",
+      "name": "Visa Card Scanner (2x8 digits)",
+      "key": {
+        "operator": "match_regex",
+        "parameters": {
+          "regex": "card|cc|credit|debit|payment|amex|visa|mastercard|maestro|discover|jcb|diner",
+          "options": {
+            "case_sensitive": false,
+            "min_length": 3
+          }
+        }
+      },
+      "value": {
+        "operator": "match_regex",
+        "parameters": {
+          "regex": "\\b4\\d{3}(?:(?:\\d{4}(?:(?:,\\d{8})|(?:-\\d{8})|(?:\\s\\d{8})|(?:\\.\\d{8}))))\\b",
+          "options": {
+            "case_sensitive": false,
+            "min_length": 16
+          }
+        }
+      },
+      "tags": {
+        "type": "card",
+        "card_type": "visa",
+        "category": "payment"
+      }
+    },
+    {
+      "id": "0o71SJxXQNK7Q6gMbBesFQ",
+      "name": "Visa Card Scanner (4x4 digits)",
+      "key": {
+        "operator": "match_regex",
+        "parameters": {
+          "regex": "card|cc|credit|debit|payment|amex|visa|mastercard|maestro|discover|jcb|diner",
+          "options": {
+            "case_sensitive": false,
+            "min_length": 3
+          }
+        }
+      },
+      "value": {
+        "operator": "match_regex",
+        "parameters": {
+          "regex": "\\b4\\d{3}(?:(?:,\\d{4}){3}|(?:\\s\\d{4}){3}|(?:\\.\\d{4}){3}|(?:-\\d{4}){3})\\b",
+          "options": {
+            "case_sensitive": false,
+            "min_length": 16
+          }
+        }
+      },
+      "tags": {
+        "type": "card",
+        "card_type": "visa",
+        "category": "payment"
+      }
+    },
+    {
+      "id": "QrHD6AfgQm6z-j0wStxTvA",
+      "name": "Visa Card Scanner (1x15 & 1x16 & 1x19 digits)",
+      "key": {
+        "operator": "match_regex",
+        "parameters": {
+          "regex": "card|cc|credit|debit|payment|amex|visa|mastercard|maestro|discover|jcb|diner",
+          "options": {
+            "case_sensitive": false,
+            "min_length": 3
+          }
+        }
+      },
+      "value": {
+        "operator": "match_regex",
+        "parameters": {
+          "regex": "4[0-9]{12}(?:[0-9]{3})?",
+          "options": {
+            "case_sensitive": false,
+            "min_length": 13
+          }
+        }
+      },
+      "tags": {
+        "type": "card",
+        "card_type": "visa",
+        "category": "payment"
+      }
+    }
   ]
 }

@@ -72,6 +72,7 @@ public class GatewayBridge {
   private volatile DataSubscriberInfo pathParamsSubInfo;
   private volatile DataSubscriberInfo respDataSubInfo;
   private volatile DataSubscriberInfo grpcServerRequestMsgSubInfo;
+  private volatile DataSubscriberInfo databaseResultSubInfo;
 
   public GatewayBridge(
       SubscriptionService subscriptionService,
@@ -383,6 +384,32 @@ public class GatewayBridge {
             }
           }
         });
+
+    subscriptionService.registerCallback(
+        EVENTS.databaseResult(),
+        (ctx_, data) -> {
+          AppSecRequestContext ctx = ctx_.getData(RequestContextSlot.APPSEC);
+          if (ctx == null) {
+            return NoopFlow.INSTANCE;
+          }
+          while (true) {
+            DataSubscriberInfo subInfo = databaseResultSubInfo;
+            if (subInfo == null) {
+              subInfo = producerService.getDataSubscribers(KnownAddresses.DATABASE_RESULT);
+              databaseResultSubInfo = subInfo;
+            }
+            if (subInfo == null || subInfo.isEmpty()) {
+              return NoopFlow.INSTANCE;
+            }
+            // Object convObj = ObjectIntrospection.convert(data);
+            DataBundle bundle = new SingletonDataBundle<>(KnownAddresses.DATABASE_RESULT, data);
+            try {
+              return producerService.publishDataEvent(subInfo, ctx, bundle, false);
+            } catch (ExpiredSubscriberInfoException e) {
+              databaseResultSubInfo = null;
+            }
+          }
+        });
   }
 
   public void stop() {
@@ -558,6 +585,7 @@ public class GatewayBridge {
         MapDataBundle.of(
             KnownAddresses.RESPONSE_STATUS, String.valueOf(ctx.getResponseStatus()),
             KnownAddresses.RESPONSE_HEADERS_NO_COOKIES, ctx.getResponseHeaders(),
+            // KnownAddresses.DATABASE_RESULT, "credit-card",
             // Extract api schema on response stage
             KnownAddresses.WAF_CONTEXT_PROCESSOR,
                 Collections.singletonMap("extract-schema", extractSchema));

@@ -1,5 +1,6 @@
 package datadog.trace.api.gateway;
 
+import static datadog.trace.api.gateway.Events.DATABASE_RESULT_ID;
 import static datadog.trace.api.gateway.Events.GRPC_SERVER_REQUEST_MESSAGE_ID;
 import static datadog.trace.api.gateway.Events.MAX_EVENTS;
 import static datadog.trace.api.gateway.Events.REQUEST_BODY_CONVERTED_ID;
@@ -352,6 +353,21 @@ public class InstrumentationGateway {
                 try {
                   return ((BiFunction<RequestContext, Integer, Flow<Void>>) callback)
                       .apply(ctx, status);
+                } catch (Throwable t) {
+                  log.warn("Callback for {} threw.", eventType, t);
+                  return Flow.ResultFlow.empty();
+                }
+              }
+            };
+      case DATABASE_RESULT_ID:
+        return (C)
+            new BiFunction<RequestContext, Map<String, Map<String, Object>>, Flow<Void>>() {
+              @Override
+              public Flow<Void> apply(RequestContext ctx, Map<String, Map<String, Object>> data) {
+                try {
+                  return ((BiFunction<RequestContext, Map<String, Map<String, Object>>, Flow<Void>>)
+                          callback)
+                      .apply(ctx, data);
                 } catch (Throwable t) {
                   log.warn("Callback for {} threw.", eventType, t);
                   return Flow.ResultFlow.empty();

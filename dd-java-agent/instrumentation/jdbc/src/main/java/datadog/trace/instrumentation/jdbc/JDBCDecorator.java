@@ -1,12 +1,18 @@
 package datadog.trace.instrumentation.jdbc;
 
+import static datadog.trace.api.gateway.Events.EVENTS;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.DB_OPERATION;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.DDSpanId;
+import datadog.trace.api.gateway.CallbackProvider;
+import datadog.trace.api.gateway.Flow;
+import datadog.trace.api.gateway.RequestContext;
+import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
@@ -17,13 +23,12 @@ import datadog.trace.bootstrap.instrumentation.jdbc.JDBCConnectionUrlParser;
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
 import java.sql.ResultSet;
-import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.sql.Statement;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.BiFunction;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -249,6 +254,32 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
     return INJECT_TRACE_CONTEXT;
   }
 
-  public void onResultSet(ResultSet rs) throws SQLException {
+  public ResultSet onResultSet(ResultSet rs) throws SQLException {
+
+    return new ResultSetReadWrapper(
+        rs,
+        resultStructure -> {
+          CallbackProvider cbpAppsec =
+              AgentTracer.get().getCallbackProvider(RequestContextSlot.APPSEC);
+          if (cbpAppsec == null) {
+            return;
+          }
+
+          AgentSpan span = AgentTracer.activeSpan();
+          if (span == null) {
+            return;
+          }
+
+          RequestContext requestContext = span.getRequestContext();
+          if (requestContext == null) {
+            return;
+          }
+
+          BiFunction<RequestContext, Map<String, Map<String, Object>>, Flow<Void>> callback =
+              cbpAppsec.getCallback(EVENTS.databaseResult());
+          if (callback != null) {
+            callback.apply(requestContext, resultStructure);
+          }
+        });
   }
 }
