@@ -6,7 +6,6 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.captureSpa
 import static datadog.trace.instrumentation.vertx_redis_client_4.VertxRedisClientDecorator.DECORATE;
 
 import datadog.trace.api.Pair;
-import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
@@ -16,7 +15,6 @@ import io.vertx.core.Future;
 import io.vertx.core.Promise;
 import io.vertx.core.net.SocketAddress;
 import io.vertx.redis.client.Command;
-import io.vertx.redis.client.RedisAPI;
 import io.vertx.redis.client.RedisConnection;
 import io.vertx.redis.client.Request;
 import io.vertx.redis.client.Response;
@@ -74,13 +72,12 @@ public class RedisSendAdvice {
       }
     }
     if (clientScope != null) {
-      CallDepthThreadLocalMap.decrementCallDepth(RedisAPI.class);
       clientScope.close();
     }
   }
 
   // Limit ourselves to 4.x by using for the RedisStandaloneConnection class that was added in 4.x
   private static void muzzleCheck(RedisStandaloneConnection connection) {
-    connection.close(); // added in 4.x
+    connection.send(Request.cmd(Command.PING)); // added in 4.x
   }
 }

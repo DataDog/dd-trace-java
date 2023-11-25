@@ -5,6 +5,8 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import io.vertx.redis.client.Command;
+import io.vertx.redis.client.Request;
 import io.vertx.redis.client.impl.RedisStandaloneConnection;
 import net.bytebuddy.asm.Advice;
 
@@ -27,6 +29,6 @@ public class RedisConnectAdvice {
 
   // Limit ourselves to 4.x by using for the RedisStandaloneConnection class that was added in 4.x
   private static void muzzleCheck(RedisStandaloneConnection connection) {
-    connection.close(); // added in 4.x
+    connection.send(Request.cmd(Command.PING)); // added in 4.x
   }
 }
