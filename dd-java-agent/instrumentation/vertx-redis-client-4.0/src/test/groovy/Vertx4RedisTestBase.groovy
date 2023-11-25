@@ -5,6 +5,8 @@ import datadog.trace.agent.test.utils.PortUtils
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.core.DDSpan
+import io.vertx.core.AsyncResult
+import io.vertx.core.Handler
 import io.vertx.core.Promise
 import io.vertx.core.Vertx
 import io.vertx.core.VertxOptions
@@ -15,6 +17,10 @@ import io.vertx.redis.client.Response
 import redis.embedded.RedisServer
 import spock.lang.AutoCleanup
 import spock.lang.Shared
+
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
+import java.util.function.Function
 
 import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
@@ -79,10 +85,38 @@ abstract class Vertx4RedisTestBase extends VersionedNamingTestBase {
     TEST_WRITER.start()
   }
 
+  <T, R> R runWithHandler(final Handler<Handler<AsyncResult<T>>> redisCommand,
+  final Function<T, R> resultFunction = null) {
+    R result = null
+    CountDownLatch latch = new CountDownLatch(1)
+    redisCommand.handle({ ar ->
+      runUnderTrace("handler") {
+        if (resultFunction) {
+          result = resultFunction.apply(ar.result())
+        }
+      }
+      latch.countDown()
+    })
+    assert latch.await(10, TimeUnit.SECONDS)
+    result
+  }
+
+  <T, R> R runWithParentAndHandler(final Handler<Handler<AsyncResult<T>>> redisCommand,
+  final Function<T, R> resultFunction = null) {
+    R result = null
+    def parentSpan = runUnderTrace("parent") {
+      result = runWithHandler(redisCommand, resultFunction)
+      blockUntilChildSpansFinished(2)
+      activeSpan() as DDSpan
+    }
+    TEST_WRITER.waitUntilReported(parentSpan)
+    result
+  }
+
   void parentTraceWithCommandAndHandler(ListWriterAssert lw, String command) {
     lw.trace(3, true) {
       basicSpan(it, "handler", span(1))
-      basicSpan(it,"parent")
+      basicSpan(it, "parent")
       redisSpan(it, command, span(1)) // name is redis.query
     }
   }
@@ -111,5 +145,17 @@ abstract class Vertx4RedisTestBase extends VersionedNamingTestBase {
 
   String responseToString(Response r) {
     r.toString()
+  }
+
+  Integer responseToInteger(Response r) {
+    r.toInteger()
+  }
+
+  List<String> responseToStrings(Response r) {
+    r.iterator().collect { it.toString() }
+  }
+
+  <T> T identity(T t) {
+    return t
   }
 }

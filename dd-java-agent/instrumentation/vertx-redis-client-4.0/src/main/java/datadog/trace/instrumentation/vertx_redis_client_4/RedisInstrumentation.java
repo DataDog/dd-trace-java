@@ -34,7 +34,7 @@ public class RedisInstrumentation extends Instrumenter.Tracing
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".ResponseHandlerWrapper", packageName + ".VertxRedisClientDecorator",
+      packageName + ".ResponseHandler", packageName + ".VertxRedisClientDecorator",
     };
   }
 
@@ -56,8 +56,6 @@ public class RedisInstrumentation extends Instrumenter.Tracing
   public void adviceTransformations(AdviceTransformation transformation) {
     transformation.applyAdvice(
         isPublic()
-            //
-            // .and(isDeclaredBy(named("io.vertx.redis.client.impl.RedisStandaloneConnection")))
             .and(named("send"))
             .and(takesArguments(1))
             .and(takesArgument(0, named("io.vertx.redis.client.Request")))
