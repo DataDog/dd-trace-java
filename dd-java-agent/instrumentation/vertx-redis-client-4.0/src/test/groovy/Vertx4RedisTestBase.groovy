@@ -46,7 +46,6 @@ abstract class Vertx4RedisTestBase extends VersionedNamingTestBase {
   @Shared
   def vertx = Vertx.vertx(new VertxOptions())
 
-  @AutoCleanup
   @Shared
   Redis redis = null
 
@@ -155,7 +154,4 @@ abstract class Vertx4RedisTestBase extends VersionedNamingTestBase {
     r.iterator().collect { it.toString() }
   }
 
-  <T> T identity(T t) {
-    return t
-  }
 }
