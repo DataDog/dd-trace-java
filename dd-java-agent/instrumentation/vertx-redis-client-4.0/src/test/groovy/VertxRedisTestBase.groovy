@@ -26,7 +26,7 @@ import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 
-abstract class Vertx4RedisTestBase extends VersionedNamingTestBase {
+abstract class VertxRedisTestBase extends VersionedNamingTestBase {
 
   @Shared
   int port = PortUtils.randomOpenPort()

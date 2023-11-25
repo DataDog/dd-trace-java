@@ -7,7 +7,7 @@ import io.vertx.redis.client.Response
 
 import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 
-class Vertx4RedisForkedTest extends Vertx4RedisTestBase {
+class VertxRedisForkedTest extends VertxRedisTestBase {
 
   @Override
   int version() {
