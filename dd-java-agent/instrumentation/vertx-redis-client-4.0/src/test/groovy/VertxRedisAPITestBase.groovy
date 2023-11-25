@@ -1,4 +1,3 @@
-import datadog.trace.test.util.Flaky
 import io.vertx.core.AsyncResult
 import io.vertx.core.Handler
 import io.vertx.redis.client.RedisAPI
@@ -11,7 +10,7 @@ import java.util.concurrent.TimeUnit
 
 import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 
-abstract class Vertx4RedisAPITestBase extends Vertx4RedisTestBase {
+abstract class VertxRedisAPITestBase extends VertxRedisTestBase {
 
   @AutoCleanup
   @Shared
@@ -135,15 +134,13 @@ abstract class Vertx4RedisAPITestBase extends Vertx4RedisTestBase {
   }
 }
 
-@Flaky("all test cases are flaky https://github.com/DataDog/dd-trace-java/issues/3874")
-class Vertx4RedisAPIRedisForkedTest extends Vertx4RedisAPITestBase {
+class VertxRedisAPIRedisForkedTest extends VertxRedisAPITestBase {
   def setupSpec() {
     redisAPI = RedisAPI.api(redis)
   }
 }
 
-@Flaky("all test cases are flaky https://github.com/DataDog/dd-trace-java/issues/3874")
-class Vertx4RedisAPIRedisConnectionForkedTest extends Vertx4RedisAPITestBase {
+class VertxRedisAPIRedisConnectionForkedTest extends VertxRedisAPITestBase {
   def setupSpec() {
     def latch = new CountDownLatch(1)
     redis.connect({ar ->

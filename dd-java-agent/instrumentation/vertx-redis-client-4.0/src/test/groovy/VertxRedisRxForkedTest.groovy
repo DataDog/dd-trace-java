@@ -12,7 +12,7 @@ import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 
-class Vertx4RedisRxForkedTest extends Vertx4RedisTestBase {
+class VertxRedisRxForkedTest extends VertxRedisTestBase {
 
   @Shared
   @AutoCleanup
