@@ -11,9 +11,9 @@ import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import io.vertx.core.Future;
+import io.vertx.core.Promise;
 import io.vertx.core.net.SocketAddress;
 import io.vertx.redis.client.Command;
 import io.vertx.redis.client.RedisAPI;
@@ -28,7 +28,6 @@ public class RedisSendAdvice {
   @Advice.OnMethodEnter(suppress = Throwable.class)
   public static AgentScope beforeSend(@Advice.Argument(value = 0, readOnly = false) Request request)
       throws Throwable {
-    DECORATE.logging("Request", request);
     ContextStore<Request, Pair> ctxt = InstrumentationContext.get(Request.class, Pair.class);
     Pair<Boolean, AgentScope.Continuation> pair = ctxt.get(request);
     if (pair != null && pair.hasLeft() && pair.getLeft() != null && pair.getLeft()) {
@@ -40,14 +39,8 @@ public class RedisSendAdvice {
       request = (Request) ((RequestImpl) request).clone();
     }
     ctxt.put(request, Pair.of(Boolean.TRUE, null));
-    // If we had already wrapped the innermost handler in the RedisAPI call, then we should
-    // not wrap it again here. See comment in RedisAPICallAdvice
-    if (CallDepthThreadLocalMap.incrementCallDepth(RedisAPI.class) > 0) {
-      return AgentTracer.NoopAgentScope.INSTANCE;
-    }
 
     AgentSpan parentSpan = activeSpan();
-    DECORATE.logging("Parent span", parentSpan);
     AgentScope.Continuation parentContinuation =
         parentSpan == null ? null : captureSpan(parentSpan);
     ctxt.put(request, Pair.of(Boolean.TRUE, parentContinuation));
@@ -60,14 +53,15 @@ public class RedisSendAdvice {
   @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
   public static void afterSend(
       @Advice.Argument(value = 0, readOnly = false) Request request,
-      @Advice.Return Future<Response> responseFuture,
+      @Advice.Return(readOnly = false) Future<Response> responseFuture,
       @Advice.Enter final AgentScope clientScope,
       @Advice.This final Object thiz) {
     Pair<Boolean, AgentScope.Continuation> pair =
         InstrumentationContext.get(Request.class, Pair.class).get(request);
-    DECORATE.logging("Parent continuation", pair.getRight());
     if (clientScope != null) {
-      responseFuture.onComplete(new ResponseHandlerWrapper(clientScope.span(), pair.getRight()));
+      Promise<Response> promise = Promise.promise();
+      responseFuture.onComplete(new ResponseHandler(promise, clientScope, pair.getRight()));
+      responseFuture = promise.future();
     }
     if (thiz instanceof RedisConnection) {
       final SocketAddress socketAddress =

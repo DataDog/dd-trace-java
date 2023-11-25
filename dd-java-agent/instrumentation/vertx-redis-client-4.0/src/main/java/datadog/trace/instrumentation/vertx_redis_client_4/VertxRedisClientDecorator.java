@@ -2,7 +2,6 @@ package datadog.trace.instrumentation.vertx_redis_client_4;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 
-import datadog.trace.api.Config;
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
 import datadog.trace.api.naming.SpanNaming;
@@ -22,7 +21,7 @@ public class VertxRedisClientDecorator
   public static final VertxRedisClientDecorator DECORATE = new VertxRedisClientDecorator();
   private static final Logger log = LoggerFactory.getLogger(VertxRedisClientDecorator.class);
   private static final String SERVICE_NAME =
-      SpanNaming.instance().namingSchema().cache().service(Config.get().getServiceName(), "redis");
+      SpanNaming.instance().namingSchema().cache().service("redis");
   public static final CharSequence REDIS_COMMAND =
       UTF8BytesString.create(SpanNaming.instance().namingSchema().cache().operation("redis"));
 
@@ -72,12 +71,6 @@ public class VertxRedisClientDecorator
     return socketAddress.host();
   }
 
-  public AgentSpan startAndDecorateSpan(String command) {
-    UTF8BytesString upperCase =
-        commandCache.computeIfAbsent(command, key -> UTF8BytesString.create(key.toUpperCase()));
-    return innerStartAndDecorateSpan(upperCase);
-  }
-
   public AgentSpan startAndDecorateSpan(
       Command command, ContextStore<Command, UTF8BytesString> contextStore) {
     return innerStartAndDecorateSpan(contextStore.get(command));
@@ -88,9 +81,5 @@ public class VertxRedisClientDecorator
     DECORATE.afterStart(span);
     DECORATE.onStatement(span, command);
     return span;
-  }
-
-  public void logging(String message, Object object) {
-    log.info("AKSHAY:{}, {}", message, object);
   }
 }
