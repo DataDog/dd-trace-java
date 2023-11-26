@@ -12,7 +12,7 @@ public class ResponseHandler implements Handler<AsyncResult<Response>> {
   public final AgentScope clientScope;
   private final AgentScope.Continuation continuation;
 
-  private Promise<Response> promise;
+  private final Promise<Response> promise;
 
   public ResponseHandler(
       final Promise<Response> promise,
