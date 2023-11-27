@@ -15,15 +15,18 @@ import java.lang.instrument.Instrumentation
 class TelemetrySystemSpecification extends DDSpecification {
   Instrumentation inst = Mock()
 
+  TelemetrySystem telemetrySystem = new TelemetrySystem()
+
+  def cleanup() {
+    telemetrySystem?.shutdown()
+  }
+
   void 'installs dependencies transformer'() {
     when:
-    def depService = TelemetrySystem.createDependencyService(inst)
+    def depService = telemetrySystem.createDependencyService(inst)
 
     then:
     1 * inst.addTransformer(_ as LocationsCollectingTransformer)
-
-    cleanup:
-    depService.stop()
   }
 
   void 'create telemetry thread'() {
@@ -32,13 +35,10 @@ class TelemetrySystemSpecification extends DDSpecification {
     def depService = Mock(DependencyService)
 
     when:
-    def thread = TelemetrySystem.createTelemetryRunnable(telemetryService, depService, true)
+    def thread = telemetrySystem.createTelemetryRunnable(telemetryService, depService, true)
 
     then:
     thread != null
-
-    cleanup:
-    TelemetrySystem.stop()
   }
 
   void 'start-stop telemetry system'() {
@@ -48,18 +48,18 @@ class TelemetrySystemSpecification extends DDSpecification {
     def instrumentation = Mock(Instrumentation)
 
     when:
-    TelemetrySystem.startTelemetry(instrumentation, sharedCommunicationObjects())
+    telemetrySystem.start(instrumentation, sharedCommunicationObjects())
 
     then:
-    TelemetrySystem.TELEMETRY_THREAD != null
+    telemetrySystem.telemetryThread != null
 
     when:
-    TelemetrySystem.stop()
+    telemetrySystem.shutdown()
 
     then:
-    TelemetrySystem.TELEMETRY_THREAD == null ||
-      TelemetrySystem.TELEMETRY_THREAD.isInterrupted() ||
-      !TelemetrySystem.TELEMETRY_THREAD.isAlive()
+    telemetrySystem.telemetryThread == null ||
+      telemetrySystem.telemetryThread.isInterrupted() ||
+      !telemetrySystem.telemetryThread.isAlive()
   }
 
   private SharedCommunicationObjects sharedCommunicationObjects() {

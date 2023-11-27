@@ -9,7 +9,6 @@ import com.datadog.appsec.event.ReplaceableEventProducerService;
 import com.datadog.appsec.gateway.GatewayBridge;
 import com.datadog.appsec.gateway.RateLimiter;
 import com.datadog.appsec.powerwaf.PowerWAFModule;
-import com.datadog.appsec.util.AbortStartupException;
 import com.datadog.appsec.util.StandardizedLogging;
 import datadog.appsec.api.blocking.Blocking;
 import datadog.appsec.api.blocking.BlockingService;
@@ -19,10 +18,14 @@ import datadog.communication.monitor.Monitoring;
 import datadog.remoteconfig.ConfigurationPoller;
 import datadog.trace.api.Config;
 import datadog.trace.api.ProductActivation;
+import datadog.trace.api.Subsystem;
+import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.gateway.SubscriptionService;
 import datadog.trace.api.time.SystemTimeSource;
 import datadog.trace.bootstrap.ActiveSubsystems;
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.util.Strings;
+import java.lang.instrument.Instrumentation;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -33,7 +36,7 @@ import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class AppSecSystem {
+public class AppSecSystem implements Subsystem {
 
   private static final Logger log = LoggerFactory.getLogger(AppSecSystem.class);
   private static final AtomicBoolean STARTED = new AtomicBoolean();
@@ -42,25 +45,29 @@ public class AppSecSystem {
   private static ReplaceableEventProducerService REPLACEABLE_EVENT_PRODUCER; // testing
   private static Runnable RESET_SUBSCRIPTION_SERVICE;
 
-  public static void start(SubscriptionService gw, SharedCommunicationObjects sco) {
+  @Override
+  public void maybeStart(Instrumentation inst, Object sco) {
+    final Config config = Config.get();
+    final ProductActivation mode = config.getAppSecActivation();
+    if (mode == ProductActivation.FULLY_DISABLED) {
+      return;
+    }
+    if (mode == ProductActivation.ENABLED_INACTIVE && !config.isRemoteConfigEnabled()) {
+      return;
+    }
     try {
-      doStart(gw, sco);
-    } catch (AbortStartupException ase) {
-      throw ase;
-    } catch (RuntimeException | Error e) {
-      StandardizedLogging.appSecStartupError(log, e);
+      final SubscriptionService gw =
+          AgentTracer.get().getSubscriptionService(RequestContextSlot.APPSEC);
+      start(gw, (SharedCommunicationObjects) sco);
+    } catch (Throwable t) {
+      StandardizedLogging.appSecStartupError(log, t);
       setActive(false);
-      throw new AbortStartupException(e);
     }
   }
 
-  private static void doStart(SubscriptionService gw, SharedCommunicationObjects sco) {
+  private void start(final SubscriptionService gw, final SharedCommunicationObjects sco) {
     final Config config = Config.get();
     ProductActivation appSecEnabledConfig = config.getAppSecActivation();
-    if (appSecEnabledConfig == ProductActivation.FULLY_DISABLED) {
-      log.debug("AppSec: disabled");
-      return;
-    }
     log.debug("AppSec is starting ({})", appSecEnabledConfig);
 
     REPLACEABLE_EVENT_PRODUCER = new ReplaceableEventProducerService();

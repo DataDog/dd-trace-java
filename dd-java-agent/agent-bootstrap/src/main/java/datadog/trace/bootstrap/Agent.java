@@ -18,6 +18,7 @@ import datadog.trace.api.Config;
 import datadog.trace.api.EndpointCheckpointer;
 import datadog.trace.api.Platform;
 import datadog.trace.api.StatsDClientManager;
+import datadog.trace.api.Subsystem;
 import datadog.trace.api.WithGlobalTracer;
 import datadog.trace.api.config.AppSecConfig;
 import datadog.trace.api.config.CiVisibilityConfig;
@@ -142,6 +143,8 @@ public class Agent {
   private static boolean usmEnabled = false;
   private static boolean telemetryEnabled = true;
   private static boolean debuggerEnabled = false;
+
+  private static volatile Subsystem TELEMETRY_SUBSYSTEM = Subsystem.Noop.INSTANCE;
 
   public static void start(final Instrumentation inst, final URL agentJarURL, String agentArgs) {
     StaticEventLogger.begin("Agent");
@@ -341,9 +344,7 @@ public class Agent {
     if (profilingEnabled) {
       shutdownProfilingAgent(sync);
     }
-    if (telemetryEnabled) {
-      stopTelemetry();
-    }
+    TELEMETRY_SUBSYSTEM.shutdown();
   }
 
   public static synchronized Class<?> installAgentCLI() throws Exception {
@@ -466,16 +467,13 @@ public class Agent {
       }
 
       installDatadogTracer(scoClass, sco);
-      maybeStartAppSec(scoClass, sco);
+      maybeStartAppSec(sco);
       maybeStartIast(scoClass, sco);
       maybeStartCiVisibility(scoClass, sco);
       // start debugger before remote config to subscribe to it before starting to poll
       maybeStartDebugger(instrumentation, scoClass, sco);
       maybeStartRemoteConfig(scoClass, sco);
-
-      if (telemetryEnabled) {
-        startTelemetry(instrumentation, scoClass, sco);
-      }
+      maybeStartTelemetry(instrumentation, sco);
     }
   }
 
@@ -685,33 +683,13 @@ public class Agent {
     return (StatsDClientManager) statsDClientManagerMethod.invoke(null);
   }
 
-  private static void maybeStartAppSec(Class<?> scoClass, Object o) {
-    if (!(appSecEnabled || (remoteConfigEnabled && !appSecFullyDisabled))) {
-      return;
-    }
-
+  private static void maybeStartAppSec(final Object sco) {
     StaticEventLogger.begin("AppSec");
-
-    try {
-      SubscriptionService ss = AgentTracer.get().getSubscriptionService(RequestContextSlot.APPSEC);
-      startAppSec(ss, scoClass, o);
-    } catch (Exception e) {
-      log.error("Error starting AppSec System", e);
+    final Subsystem appsec = newSubsystem("com.datadog.appsec.AppSecSystem");
+    if (appsec != null) {
+      appsec.maybeStart(null, sco);
     }
-
     StaticEventLogger.end("AppSec");
-  }
-
-  private static void startAppSec(SubscriptionService ss, Class<?> scoClass, Object sco) {
-    try {
-      final Class<?> appSecSysClass =
-          AGENT_CLASSLOADER.loadClass("com.datadog.appsec.AppSecSystem");
-      final Method appSecInstallerMethod =
-          appSecSysClass.getMethod("start", SubscriptionService.class, scoClass);
-      appSecInstallerMethod.invoke(null, ss, sco);
-    } catch (final Throwable ex) {
-      log.warn("Not starting AppSec subsystem: {}", ex.getMessage());
-    }
   }
 
   private static boolean isSupportedAppSecArch() {
@@ -774,34 +752,25 @@ public class Agent {
     }
   }
 
-  private static void startTelemetry(Instrumentation inst, Class<?> scoClass, Object sco) {
+  private static void maybeStartTelemetry(final Instrumentation inst, final Object sco) {
     StaticEventLogger.begin("Telemetry");
-
-    try {
-      final Class<?> telemetrySystem =
-          AGENT_CLASSLOADER.loadClass("datadog.telemetry.TelemetrySystem");
-      final Method startTelemetry =
-          telemetrySystem.getMethod("startTelemetry", Instrumentation.class, scoClass);
-      startTelemetry.invoke(null, inst, sco);
-    } catch (final Throwable ex) {
-      log.warn("Unable start telemetry", ex);
-    }
-
-    StaticEventLogger.end("Telemetry");
-  }
-
-  private static void stopTelemetry() {
-    if (AGENT_CLASSLOADER == null) {
+    final String className = "datadog.telemetry.TelemetrySystem";
+    final Subsystem telemetry = newSubsystem(className);
+    if (telemetry == null) {
+      StaticEventLogger.end("Telemetry");
       return;
     }
 
+    telemetry.maybeStart(inst, sco);
+    StaticEventLogger.end("Telemetry");
+  }
+
+  private static Subsystem newSubsystem(final String className) {
     try {
-      final Class<?> telemetrySystem =
-          AGENT_CLASSLOADER.loadClass("datadog.telemetry.TelemetrySystem");
-      final Method stopTelemetry = telemetrySystem.getMethod("stop");
-      stopTelemetry.invoke(null);
+      return (Subsystem) AGENT_CLASSLOADER.loadClass(className).getConstructor().newInstance();
     } catch (final Throwable ex) {
-      log.error("Error encountered while stopping telemetry", ex);
+      log.warn("Unable to create {}", className, ex);
+      return null;
     }
   }
 

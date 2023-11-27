@@ -11,6 +11,7 @@ import datadog.telemetry.metric.CoreMetricsPeriodicAction;
 import datadog.telemetry.metric.IastMetricPeriodicAction;
 import datadog.telemetry.metric.WafMetricPeriodicAction;
 import datadog.trace.api.Config;
+import datadog.trace.api.Subsystem;
 import datadog.trace.api.iast.telemetry.Verbosity;
 import datadog.trace.util.AgentThreadFactory;
 import java.lang.instrument.Instrumentation;
@@ -20,15 +21,45 @@ import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class TelemetrySystem {
+public final class TelemetrySystem implements Subsystem {
 
   private static final long TELEMETRY_STOP_WAIT_MILLIS = 5000L;
   private static final Logger log = LoggerFactory.getLogger(TelemetrySystem.class);
 
-  private static volatile Thread TELEMETRY_THREAD;
-  private static volatile DependencyService DEPENDENCY_SERVICE;
+  private volatile Thread telemetryThread;
+  private volatile DependencyService dependencyService;
 
-  static DependencyService createDependencyService(Instrumentation instrumentation) {
+  @Override
+  public void maybeStart(final Instrumentation inst, final Object sco) {
+    try {
+      start(inst, (SharedCommunicationObjects) sco);
+    } catch (Throwable t) {
+      log.error("Error starting telemetry", t);
+    }
+  }
+
+  @Override
+  public void shutdown() {
+    DependencyService dependencyService = this.dependencyService;
+    if (dependencyService != null) {
+      dependencyService.stop();
+    }
+
+    Thread telemetryThread = this.telemetryThread;
+    if (telemetryThread != null) {
+      telemetryThread.interrupt();
+      try {
+        telemetryThread.join(TELEMETRY_STOP_WAIT_MILLIS);
+      } catch (InterruptedException e) {
+        log.warn("Telemetry thread join was interrupted");
+      }
+      if (telemetryThread.isAlive()) {
+        log.warn("Telemetry thread join was not completed");
+      }
+    }
+  }
+
+  DependencyService createDependencyService(Instrumentation instrumentation) {
     if (instrumentation != null && Config.get().isTelemetryDependencyServiceEnabled()) {
       DependencyService dependencyService = new DependencyService();
       dependencyService.installOn(instrumentation);
@@ -38,11 +69,11 @@ public class TelemetrySystem {
     return null;
   }
 
-  static Thread createTelemetryRunnable(
+  Thread createTelemetryRunnable(
       TelemetryService telemetryService,
       DependencyService dependencyService,
       boolean telemetryMetricsEnabled) {
-    DEPENDENCY_SERVICE = dependencyService;
+    this.dependencyService = dependencyService;
 
     List<TelemetryPeriodicAction> actions = new ArrayList<>();
     if (telemetryMetricsEnabled) {
@@ -66,9 +97,7 @@ public class TelemetrySystem {
         AgentThreadFactory.AgentThread.TELEMETRY, telemetryRunnable);
   }
 
-  /** Called by reflection (see Agent.startTelemetry) */
-  public static void startTelemetry(
-      Instrumentation instrumentation, SharedCommunicationObjects sco) {
+  void start(Instrumentation instrumentation, SharedCommunicationObjects sco) {
     Config config = Config.get();
     sco.createRemaining(config);
     DependencyService dependencyService = createDependencyService(instrumentation);
@@ -85,29 +114,8 @@ public class TelemetrySystem {
         TelemetryService.build(ddAgentFeaturesDiscovery, agentClient, intakeClient, debug);
 
     boolean telemetryMetricsEnabled = config.isTelemetryMetricsEnabled();
-    TELEMETRY_THREAD =
+    telemetryThread =
         createTelemetryRunnable(telemetryService, dependencyService, telemetryMetricsEnabled);
-    TELEMETRY_THREAD.start();
-  }
-
-  /** Called by reflection (see Agent.stopTelemetry) */
-  public static void stop() {
-    DependencyService dependencyService = DEPENDENCY_SERVICE;
-    if (dependencyService != null) {
-      dependencyService.stop();
-    }
-
-    Thread telemetryThread = TELEMETRY_THREAD;
-    if (telemetryThread != null) {
-      telemetryThread.interrupt();
-      try {
-        telemetryThread.join(TELEMETRY_STOP_WAIT_MILLIS);
-      } catch (InterruptedException e) {
-        log.warn("Telemetry thread join was interrupted");
-      }
-      if (telemetryThread.isAlive()) {
-        log.warn("Telemetry thread join was not completed");
-      }
-    }
+    telemetryThread.start();
   }
 }
