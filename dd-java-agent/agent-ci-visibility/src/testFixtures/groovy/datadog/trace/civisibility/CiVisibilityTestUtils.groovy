@@ -1,4 +1,4 @@
-package datadog.trace.test.util.civisibility
+package datadog.trace.civisibility
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.databind.SerializationFeature

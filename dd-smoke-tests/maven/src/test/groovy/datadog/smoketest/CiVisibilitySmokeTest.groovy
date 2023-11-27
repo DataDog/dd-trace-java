@@ -3,7 +3,7 @@ package datadog.smoketest
 import com.fasterxml.jackson.databind.ObjectMapper
 import datadog.trace.agent.test.server.http.TestHttpServer
 import datadog.trace.test.util.MultipartRequestParser
-import datadog.trace.test.util.civisibility.CiVisibilityTestUtils
+import datadog.trace.civisibility.CiVisibilityTestUtils
 import org.msgpack.jackson.dataformat.MessagePackFactory
 import spock.lang.AutoCleanup
 import spock.lang.Shared
