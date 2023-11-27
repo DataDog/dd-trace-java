@@ -39,8 +39,13 @@ public class TracingRequestHandler extends RequestHandler2 {
 
   private final ContextStore<Object, String> responseQueueStore;
 
-  public TracingRequestHandler(ContextStore<Object, String> responseQueueStore) {
+  private final ContextStore<AmazonWebServiceRequest, AgentSpan> requestSpanStore;
+
+  public TracingRequestHandler(
+      ContextStore<Object, String> responseQueueStore,
+      ContextStore<AmazonWebServiceRequest, AgentSpan> requestSpanStore) {
     this.responseQueueStore = responseQueueStore;
+    this.requestSpanStore = requestSpanStore;
   }
 
   @Override
@@ -50,25 +55,29 @@ public class TracingRequestHandler extends RequestHandler2 {
 
   @Override
   public void beforeRequest(final Request<?> request) {
-    final AgentSpan span;
-    if (!AWS_LEGACY_TRACING && isPollingRequest(request.getOriginalRequest())) {
-      // SQS messages spans are created by aws-java-sqs-1.0 - replace client scope with no-op,
-      // so we can tell when receive call is complete without affecting the rest of the trace
-      span = noopSpan();
-    } else {
-      span = startSpan(AwsNameCache.spanName(request));
+    AgentSpan span = requestSpanStore.remove(request.getOriginalRequest());
+    if (span != null) {
+      span.setOperationName(AwsNameCache.spanName(request));
       DECORATE.afterStart(span);
-      DECORATE.onRequest(span, request);
-      request.addHandlerContext(SPAN_CONTEXT_KEY, span);
-      if (Config.get().isAwsPropagationEnabled()) {
-        try {
-          propagate().inject(span, request, DECORATE, TracePropagationStyle.XRAY);
-        } catch (Throwable e) {
-          log.warn("Unable to inject trace header", e);
-        }
+    } else {
+      if (!AWS_LEGACY_TRACING && isPollingRequest(request.getOriginalRequest())) {
+        // SQS messages spans are created by aws-java-sqs-1.0 - replace client scope with no-op,
+        // so we can tell when receive call is complete without affecting the rest of the trace
+        span = noopSpan();
+      } else {
+        span = startSpan(AwsNameCache.spanName(request));
+        DECORATE.afterStart(span);
       }
     }
-
+    DECORATE.onRequest(span, request);
+    request.addHandlerContext(SPAN_CONTEXT_KEY, span);
+    if (Config.get().isAwsPropagationEnabled()) {
+      try {
+        propagate().inject(span, request, DECORATE, TracePropagationStyle.XRAY);
+      } catch (Throwable e) {
+        log.warn("Unable to inject trace header", e);
+      }
+    }
     // This scope will be closed by AwsHttpClientInstrumentation
     activateSpan(span);
   }

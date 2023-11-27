@@ -15,10 +15,12 @@ import datadog.trace.agent.test.utils.TraceUtils
 import datadog.trace.api.Config
 import datadog.trace.api.DDSpanId
 import datadog.trace.api.DDSpanTypes
+import datadog.trace.api.DDTags
 import datadog.trace.api.config.GeneralConfig
 import datadog.trace.api.naming.SpanNaming
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
+import datadog.trace.core.datastreams.StatsGroup
 import datadog.trace.instrumentation.aws.v1.sqs.TracingList
 import org.elasticmq.rest.sqs.SQSRestServerBuilder
 import spock.lang.Shared
@@ -37,6 +39,7 @@ abstract class SqsClientTest extends VersionedNamingTestBase {
     super.configurePreAgent()
     // Set a service name that gets sorted early with SORT_BY_NAMES
     injectSysConfig(GeneralConfig.SERVICE_NAME, "A-service")
+    injectSysConfig(GeneralConfig.DATA_STREAMS_ENABLED, isDataStreamsEnabled().toString())
   }
 
   @Shared
@@ -80,13 +83,16 @@ abstract class SqsClientTest extends VersionedNamingTestBase {
       .build()
     def queueUrl = client.createQueue('somequeue').queueUrl
     TEST_WRITER.clear()
+    TEST_DATA_STREAMS_WRITER.clear()
 
     when:
     TraceUtils.runUnderTrace('parent', {
       client.sendMessage(queueUrl, 'sometext')
     })
     def messages = client.receiveMessage(queueUrl).messages
-
+    if (isDataStreamsEnabled()) {
+      TEST_DATA_STREAMS_WRITER.waitForGroups(1)
+    }
     messages.forEach {/* consume to create message spans */ }
 
     then:
@@ -116,6 +122,9 @@ abstract class SqsClientTest extends VersionedNamingTestBase {
             "aws.operation" "SendMessageRequest"
             "aws.agent" "java-aws-sdk"
             "aws.queue.url" "http://localhost:${address.port}/000000000000/somequeue"
+            if ({ isDataStreamsEnabled() }) {
+              "$DDTags.PATHWAY_HASH" { String }
+            }
             defaultTags()
           }
         }
@@ -141,6 +150,15 @@ abstract class SqsClientTest extends VersionedNamingTestBase {
             defaultTags(true)
           }
         }
+      }
+    }
+    and:
+    if (isDataStreamsEnabled()) {
+      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
+
+      verifyAll(first) {
+        edgeTags == ["direction:out", "topic:somequeue", "type:sqs"]
+        edgeTags.size() == 3
       }
     }
 
@@ -245,6 +263,7 @@ abstract class SqsClientTest extends VersionedNamingTestBase {
     def consumer = session.createConsumer(queue)
 
     TEST_WRITER.clear()
+    TEST_DATA_STREAMS_WRITER.clear()
 
     when:
     connection.start()
@@ -253,6 +272,9 @@ abstract class SqsClientTest extends VersionedNamingTestBase {
     })
     def message = consumer.receive()
     consumer.receiveNoWait()
+    if (isDataStreamsEnabled()) {
+      TEST_DATA_STREAMS_WRITER.waitForGroups(1)
+    }
 
     then:
     def sendSpan
@@ -284,6 +306,9 @@ abstract class SqsClientTest extends VersionedNamingTestBase {
             "aws.operation" "SendMessageRequest"
             "aws.agent" "java-aws-sdk"
             "aws.queue.url" "http://localhost:${address.port}/000000000000/somequeue"
+            if ({ isDataStreamsEnabled() }) {
+              "$DDTags.PATHWAY_HASH" { String }
+            }
             defaultTags()
           }
         }
@@ -375,6 +400,15 @@ abstract class SqsClientTest extends VersionedNamingTestBase {
         }
       }
     }
+    and:
+    if (isDataStreamsEnabled()) {
+      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
+
+      verifyAll(first) {
+        edgeTags == ["direction:out", "topic:somequeue", "type:sqs"]
+        edgeTags.size() == 3
+      }
+    }
 
     def expectedTraceProperty = 'X-Amzn-Trace-Id'.toLowerCase(Locale.ENGLISH).replace('-', '__dash__')
     assert message.getStringProperty(expectedTraceProperty) =~
@@ -430,5 +464,12 @@ class SqsClientV1ForkedTest extends SqsClientTest {
   @Override
   int version() {
     1
+  }
+}
+
+class SqsClientDataStreamEnabledForkedTest extends SqsClientV0Test {
+  @Override
+  protected boolean isDataStreamsEnabled() {
+    true
   }
 }

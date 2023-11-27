@@ -1,4 +1,4 @@
-package datadog.trace.instrumentation.aws.v0;
+package datadog.trace.instrumentation.aws.v1.sqs;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
@@ -6,23 +6,16 @@ import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import com.amazonaws.handlers.RequestHandler2;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.api.Config;
 import datadog.trace.bootstrap.InstrumentationContext;
-import java.util.HashMap;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
 
-/**
- * This instrumentation might work with versions before 1.11.0, but this was the first version that
- * is tested. It could possibly be extended earlier.
- */
 @AutoService(Instrumenter.class)
-public final class HandlerChainFactoryInstrumentation extends Instrumenter.Tracing
+public final class HandlerChainFactoryInstrumentation extends AbstractSqsInstrumentation
     implements Instrumenter.ForSingleType {
-
-  public HandlerChainFactoryInstrumentation() {
-    super("aws-sdk");
-  }
 
   @Override
   public String instrumentedType() {
@@ -32,22 +25,15 @@ public final class HandlerChainFactoryInstrumentation extends Instrumenter.Traci
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".AwsSdkClientDecorator",
-      packageName + ".GetterAccess",
-      packageName + ".GetterAccess$1",
-      packageName + ".TracingRequestHandler",
-      packageName + ".AwsNameCache",
+      packageName + ".DsmRequestHandler", packageName + ".MessageAttributeInjector",
     };
   }
 
   @Override
   public Map<String, String> contextStore() {
-    final Map<String, String> ret = new HashMap<>(2);
-    ret.put("com.amazonaws.services.sqs.model.ReceiveMessageResult", "java.lang.String");
-    ret.put(
+    return Collections.singletonMap(
         "com.amazonaws.AmazonWebServiceRequest",
         "datadog.trace.bootstrap.instrumentation.api.AgentSpan");
-    return ret;
   }
 
   @Override
@@ -60,18 +46,18 @@ public final class HandlerChainFactoryInstrumentation extends Instrumenter.Traci
   public static class HandlerChainAdvice {
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void addHandler(@Advice.Return final List<RequestHandler2> handlers) {
-      for (final RequestHandler2 handler : handlers) {
-        if (handler instanceof TracingRequestHandler) {
-          return;
+      if (Config.get().isDataStreamsEnabled()) {
+        for (final RequestHandler2 handler : handlers) {
+          if (handler instanceof DsmRequestHandler) {
+            return;
+          }
         }
+        handlers.add(
+            new DsmRequestHandler(
+                InstrumentationContext.get(
+                    "com.amazonaws.AmazonWebServiceRequest",
+                    "datadog.trace.bootstrap.instrumentation.api.AgentSpan")));
       }
-      handlers.add(
-          new TracingRequestHandler(
-              InstrumentationContext.get(
-                  "com.amazonaws.services.sqs.model.ReceiveMessageResult", "java.lang.String"),
-              InstrumentationContext.get(
-                  "com.amazonaws.AmazonWebServiceRequest",
-                  "datadog.trace.bootstrap.instrumentation.api.AgentSpan")));
     }
   }
 }
