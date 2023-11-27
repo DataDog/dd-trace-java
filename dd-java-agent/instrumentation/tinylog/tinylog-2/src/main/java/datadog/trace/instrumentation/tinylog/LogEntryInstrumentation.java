@@ -32,12 +32,12 @@ public class LogEntryInstrumentation extends Instrumenter.Tracing
 
   @Override
   public String instrumentedType() {
-    return LogEntry.class.getName();
+    return "org.tinylog.core.LogEntry";
   }
 
   @Override
   public Map<String, String> contextStore() {
-    return singletonMap(LogEntry.class.getName(), AgentSpan.Context.class.getName());
+    return singletonMap("org.tinylog.core.LogEntry", AgentSpan.Context.class.getName());
   }
 
   @Override
@@ -68,7 +68,7 @@ public class LogEntryInstrumentation extends Instrumenter.Tracing
       }
 
       AgentSpan.Context context =
-          InstrumentationContext.get(LogEntry.class, AgentSpan.Context.class).remove(event);
+          InstrumentationContext.get(LogEntry.class, AgentSpan.Context.class).get(event);
 
       // TinyLoggingProviderInstrumentation only populates the context if injection is enabled
       // Impossible for context to be not null while injection is disabled
