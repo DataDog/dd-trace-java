@@ -27,18 +27,23 @@ import com.datadog.iast.telemetry.TelemetryRequestEndedHandler;
 import com.datadog.iast.telemetry.TelemetryRequestStartedHandler;
 import datadog.trace.api.Config;
 import datadog.trace.api.ProductActivation;
+import datadog.trace.api.Subsystem;
 import datadog.trace.api.function.TriConsumer;
 import datadog.trace.api.gateway.EventType;
 import datadog.trace.api.gateway.Events;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.IGSpanInfo;
 import datadog.trace.api.gateway.RequestContext;
+import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.gateway.SubscriptionService;
 import datadog.trace.api.iast.IastModule;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.telemetry.Verbosity;
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.util.AgentTaskScheduler;
 import datadog.trace.util.stacktrace.StackWalkerFactory;
+
+import java.lang.instrument.Instrumentation;
 import java.util.function.BiFunction;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
@@ -46,10 +51,24 @@ import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class IastSystem {
+public class IastSystem implements Subsystem {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(IastSystem.class);
   public static boolean DEBUG = false;
+
+  @Override
+  public void maybeStart(final Instrumentation inst, final Object sco) {
+    if (Config.get().getIastActivation() != ProductActivation.FULLY_ENABLED) {
+      LOGGER.debug("IAST is disabled");
+      return;
+    }
+    try {
+      final SubscriptionService ss = AgentTracer.get().getSubscriptionService(RequestContextSlot.IAST);
+      start(ss);
+    } catch (final Throwable t) {
+      LOGGER.error("Error starting IAST subsystem", t);
+    }
+  }
 
   public static void start(final SubscriptionService ss) {
     start(ss, null);
@@ -58,10 +77,6 @@ public class IastSystem {
   public static void start(
       final SubscriptionService ss, @Nullable OverheadController overheadController) {
     final Config config = Config.get();
-    if (config.getIastActivation() != ProductActivation.FULLY_ENABLED) {
-      LOGGER.debug("IAST is disabled");
-      return;
-    }
     DEBUG = config.isIastDebugEnabled();
     LOGGER.debug("IAST is starting: debug={}", DEBUG);
     final Reporter reporter = new Reporter(config, AgentTaskScheduler.INSTANCE);

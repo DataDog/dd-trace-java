@@ -8,12 +8,20 @@ import datadog.trace.api.gateway.RequestContext
 import datadog.trace.api.gateway.IGSpanInfo
 import datadog.trace.api.gateway.Events
 import datadog.trace.api.gateway.SubscriptionService
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import datadog.trace.test.util.DDSpecification
 
 class IastSystemTest extends DDSpecification {
 
+  def originalTracer = AgentTracer.get()
+
   def setup() {
     InstrumentationBridge.clearIastModules()
+  }
+
+  def cleanup() {
+    InstrumentationBridge.clearIastModules()
+    AgentTracer.forceRegister(originalTracer)
   }
 
   void 'start'() {
@@ -69,10 +77,12 @@ class IastSystemTest extends DDSpecification {
     setup:
     injectSysConfig('dd.iast.enabled', "false")
     rebuildConfig()
-    final ss = Mock(SubscriptionService)
+    final tracerMock = Mock(AgentTracer.TracerAPI)
+    AgentTracer.forceRegister(tracerMock)
+    def system = new IastSystem()
 
     when:
-    IastSystem.start(ss)
+    system.maybeStart(null, null)
 
     then:
     0 * _

@@ -65,7 +65,7 @@ public class AppSecSystem implements Subsystem {
     }
   }
 
-  private void start(final SubscriptionService gw, final SharedCommunicationObjects sco) {
+  static void start(final SubscriptionService gw, final SharedCommunicationObjects sco) {
     final Config config = Config.get();
     ProductActivation appSecEnabledConfig = config.getAppSecActivation();
     log.debug("AppSec is starting ({})", appSecEnabledConfig);

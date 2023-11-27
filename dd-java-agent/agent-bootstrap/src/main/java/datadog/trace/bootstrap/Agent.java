@@ -467,13 +467,13 @@ public class Agent {
       }
 
       installDatadogTracer(scoClass, sco);
-      maybeStartAppSec(sco);
-      maybeStartIast(scoClass, sco);
+      maybeStartSubsytem("AppSec", "com.datadog.appsec.AppSecSystem", instrumentation, sco);
+      maybeStartSubsytem("IAST", "com.datadog.iast.IastSystem", instrumentation, sco);
       maybeStartCiVisibility(scoClass, sco);
       // start debugger before remote config to subscribe to it before starting to poll
       maybeStartDebugger(instrumentation, scoClass, sco);
       maybeStartRemoteConfig(scoClass, sco);
-      maybeStartTelemetry(instrumentation, sco);
+      TELEMETRY_SUBSYSTEM = maybeStartSubsytem("Telemetry", "datadog.telemetry.TelemetrySystem", instrumentation, sco);
     }
   }
 
@@ -683,15 +683,6 @@ public class Agent {
     return (StatsDClientManager) statsDClientManagerMethod.invoke(null);
   }
 
-  private static void maybeStartAppSec(final Object sco) {
-    StaticEventLogger.begin("AppSec");
-    final Subsystem appsec = newSubsystem("com.datadog.appsec.AppSecSystem");
-    if (appsec != null) {
-      appsec.maybeStart(null, sco);
-    }
-    StaticEventLogger.end("AppSec");
-  }
-
   private static boolean isSupportedAppSecArch() {
     final String arch = System.getProperty("os.arch");
     if (Platform.isWindows()) {
@@ -707,31 +698,12 @@ public class Agent {
     return true;
   }
 
-  private static void maybeStartIast(Class<?> scoClass, Object o) {
-    if (iastEnabled) {
-
-      StaticEventLogger.begin("IAST");
-
-      try {
-        SubscriptionService ss = AgentTracer.get().getSubscriptionService(RequestContextSlot.IAST);
-        startIast(ss, scoClass, o);
-      } catch (Exception e) {
-        log.error("Error starting IAST subsystem", e);
-      }
-
-      StaticEventLogger.end("IAST");
-    }
-  }
-
-  private static void startIast(SubscriptionService ss, Class<?> scoClass, Object sco) {
-    try {
-      final Class<?> appSecSysClass = AGENT_CLASSLOADER.loadClass("com.datadog.iast.IastSystem");
-      final Method iastInstallerMethod =
-          appSecSysClass.getMethod("start", SubscriptionService.class);
-      iastInstallerMethod.invoke(null, ss);
-    } catch (final Throwable e) {
-      log.warn("Not starting IAST subsystem", e);
-    }
+  private static Subsystem maybeStartSubsytem(final String name, final String className, final Instrumentation inst, final Object sco) {
+    StaticEventLogger.begin(name);
+    final Subsystem subsystem = newSubsystem(className);
+    subsystem.maybeStart(inst, sco);
+    StaticEventLogger.end(name);
+    return subsystem;
   }
 
   private static void maybeStartCiVisibility(Class<?> scoClass, Object sco) {
@@ -752,25 +724,12 @@ public class Agent {
     }
   }
 
-  private static void maybeStartTelemetry(final Instrumentation inst, final Object sco) {
-    StaticEventLogger.begin("Telemetry");
-    final String className = "datadog.telemetry.TelemetrySystem";
-    final Subsystem telemetry = newSubsystem(className);
-    if (telemetry == null) {
-      StaticEventLogger.end("Telemetry");
-      return;
-    }
-
-    telemetry.maybeStart(inst, sco);
-    StaticEventLogger.end("Telemetry");
-  }
-
   private static Subsystem newSubsystem(final String className) {
     try {
       return (Subsystem) AGENT_CLASSLOADER.loadClass(className).getConstructor().newInstance();
     } catch (final Throwable ex) {
       log.warn("Unable to create {}", className, ex);
-      return null;
+      return Subsystem.Noop.INSTANCE;
     }
   }
 
