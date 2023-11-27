@@ -50,6 +50,8 @@ dependencies {
   implementation group: 'net.java.dev.jna', name: 'jna-platform', version: '5.8.0'
 
   api project(':dd-trace-core')
+  // Just for native-image's TracerActivation.
+  compileOnly project(':telemetry')
 
   implementation project(':dd-java-agent:agent-crashtracking')
 

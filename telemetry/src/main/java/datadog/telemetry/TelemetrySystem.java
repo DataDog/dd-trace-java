@@ -11,6 +11,7 @@ import datadog.telemetry.metric.CoreMetricsPeriodicAction;
 import datadog.telemetry.metric.IastMetricPeriodicAction;
 import datadog.telemetry.metric.WafMetricPeriodicAction;
 import datadog.trace.api.Config;
+import datadog.trace.api.Platform;
 import datadog.trace.api.iast.telemetry.Verbosity;
 import datadog.trace.util.AgentThreadFactory;
 import java.lang.instrument.Instrumentation;
@@ -28,14 +29,16 @@ public class TelemetrySystem {
   private static volatile Thread TELEMETRY_THREAD;
   private static volatile DependencyService DEPENDENCY_SERVICE;
 
-  static DependencyService createDependencyService(Instrumentation instrumentation) {
-    if (instrumentation != null && Config.get().isTelemetryDependencyServiceEnabled()) {
-      DependencyService dependencyService = new DependencyService();
-      dependencyService.installOn(instrumentation);
-      dependencyService.schedulePeriodicResolution();
-      return dependencyService;
+  static DependencyService createDependencyService(final Instrumentation instrumentation) {
+    if (Platform.isNativeImage()
+        || instrumentation == null
+        || !Config.get().isTelemetryDependencyServiceEnabled()) {
+      return null;
     }
-    return null;
+    final DependencyService dependencyService = new DependencyService();
+    dependencyService.installOn(instrumentation);
+    dependencyService.schedulePeriodicResolution();
+    return dependencyService;
   }
 
   static Thread createTelemetryRunnable(
@@ -47,13 +50,15 @@ public class TelemetrySystem {
     List<TelemetryPeriodicAction> actions = new ArrayList<>();
     if (telemetryMetricsEnabled) {
       actions.add(new CoreMetricsPeriodicAction());
-      actions.add(new IntegrationPeriodicAction());
+      if (!Platform.isNativeImage()) {
+        actions.add(new IntegrationPeriodicAction());
+      }
       actions.add(new WafMetricPeriodicAction());
       if (Verbosity.OFF != Config.get().getIastTelemetryVerbosity()) {
         actions.add(new IastMetricPeriodicAction());
       }
     }
-    if (null != dependencyService) {
+    if (null != dependencyService && !Platform.isNativeImage()) {
       actions.add(new DependencyPeriodicAction(dependencyService));
     }
     if (Config.get().isTelemetryLogCollectionEnabled()) {
