@@ -190,5 +190,8 @@ public final class ProfilingConfig {
   public static final String PROFILING_HEAP_HISTOGRAM_ENABLED = "profiling.heap.histogram.enabled";
   public static final boolean PROFILING_HEAP_HISTOGRAM_ENABLED_DEFAULT = false;
 
+  public static final String PROFILING_HEAP_HISTOGRAM_MODE = "profiling.heap.histogram.mode";
+  public static final String PROFILING_HEAP_HISTOGRAM_MODE_DEFAULT = "aftergc";
+
   private ProfilingConfig() {}
 }

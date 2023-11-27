@@ -36,6 +36,8 @@ public final class AgentThreadFactory implements ThreadFactory {
     FLEET_MANAGEMENT_POLLER("dd-fleet-management-poller"),
     REMOTE_CONFIG("dd-remote-config"),
 
+    TRACER_FLARE("dd-tracer-flare"),
+
     CWS_TLS("dd-cws-tls"),
 
     PROCESS_SUPERVISOR("dd-process-supervisor"),

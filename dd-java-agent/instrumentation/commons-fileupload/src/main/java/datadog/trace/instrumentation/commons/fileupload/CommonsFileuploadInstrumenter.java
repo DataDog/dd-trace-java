@@ -13,14 +13,12 @@ import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Source;
 import datadog.trace.api.iast.SourceTypes;
 import datadog.trace.api.iast.propagation.PropagationModule;
-import java.util.Arrays;
-import java.util.Collection;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
 
 @AutoService(Instrumenter.class)
 public class CommonsFileuploadInstrumenter extends Instrumenter.Iast
-    implements Instrumenter.ForConfiguredTypes {
+    implements Instrumenter.ForKnownTypes {
 
   public CommonsFileuploadInstrumenter() {
     super("commons-fileupload");
@@ -38,12 +36,11 @@ public class CommonsFileuploadInstrumenter extends Instrumenter.Iast
   }
 
   @Override
-  public Collection<String> configuredMatchingTypes() {
-    return Arrays.asList(
-        new String[] {
-          "org.apache.commons.fileupload.ParameterParser",
-          "org.apache.tomcat.util.http.fileupload.ParameterParser"
-        });
+  public String[] knownMatchingTypes() {
+    return new String[] {
+      "org.apache.commons.fileupload.ParameterParser",
+      "org.apache.tomcat.util.http.fileupload.ParameterParser"
+    };
   }
 
   public static class ParseAdvice {

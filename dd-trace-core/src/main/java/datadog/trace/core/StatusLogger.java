@@ -150,6 +150,8 @@ public final class StatusLogger extends JsonAdapter<Config>
       writer.name("iast_enabled");
       writer.value(config.getIastActivation().toString());
     }
+    writer.name("data_streams_enabled");
+    writer.value(config.isDataStreamsEnabled());
     writer.endObject();
   }
 

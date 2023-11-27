@@ -23,4 +23,10 @@ public class CompilerAidedSourcePathResolver implements SourcePathResolver {
       return null;
     }
   }
+
+  @Nullable
+  @Override
+  public String getResourcePath(String relativePath) {
+    return null;
+  }
 }
