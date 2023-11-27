@@ -21,6 +21,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import org.tinylog.core.LogEntry;
+import org.tinylog.core.TinylogLoggingProvider;
 
 @AutoService(Instrumenter.class)
 public class TinylogLoggingProviderInstrumentation extends Instrumenter.Tracing
@@ -31,12 +32,12 @@ public class TinylogLoggingProviderInstrumentation extends Instrumenter.Tracing
 
   @Override
   public String instrumentedType() {
-    return "org.tinylog.core.TinylogLoggingProvider";
+    return TinylogLoggingProvider.class.getName();
   }
 
   @Override
   public Map<String, String> contextStore() {
-    return singletonMap("org.tinylog.core.LogEntry", AgentSpan.Context.class.getName());
+    return singletonMap(LogEntry.class.getName(), AgentSpan.Context.class.getName());
   }
 
   @Override
