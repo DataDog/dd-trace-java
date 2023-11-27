@@ -1,19 +1,18 @@
 import datadog.trace.agent.test.asserts.ListWriterAssert
-import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.api.DDTags
 import datadog.trace.api.DisableTestTrace
 import datadog.trace.api.civisibility.CIConstants
 import datadog.trace.api.civisibility.config.SkippableTest
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.civisibility.CiVisibilityTest
+import datadog.trace.civisibility.MockCoverageProbeStore
 import datadog.trace.instrumentation.junit4.CucumberTracingListener
 import datadog.trace.instrumentation.junit4.TestEventsHandlerHolder
-import org.example.cucumber.TestFailedCucumber
+import io.cucumber.core.options.Constants
 import org.example.cucumber.TestSucceedCucumber
-import org.example.cucumber.TestSucceedCucumberUnskippable
-import org.example.cucumber.TestSucceedCucumberUnskippableSuite
-import org.example.cucumber.TestSucceedExamplesCucumber
 import org.junit.runner.JUnitCore
+
+import java.util.stream.Collectors
 
 @DisableTestTrace(reason = "avoid self-tracing")
 class CucumberTest extends CiVisibilityTest {
@@ -22,9 +21,11 @@ class CucumberTest extends CiVisibilityTest {
 
   def "test success generates spans"() {
     setup:
-    runTestClasses(TestSucceedCucumber)
+    runFeatures("org/example/cucumber/calculator/basic_arithmetic.feature")
 
     expect:
+    expectFeaturesCoverage("org/example/cucumber/calculator/basic_arithmetic.feature")
+
     ListWriterAssert.assertTraces(TEST_WRITER, 2, false, SORT_TRACES_BY_DESC_SIZE_THEN_BY_NAMES, {
       long testSessionId
       long testModuleId
@@ -43,9 +44,17 @@ class CucumberTest extends CiVisibilityTest {
 
   def "test scenario outline generates spans"() {
     setup:
-    runTestClasses(TestSucceedExamplesCucumber)
+    runFeatures("org/example/cucumber/calculator/basic_arithmetic_with_examples.feature")
 
     expect:
+    // each example is a separate test case
+    expectFeaturesCoverage(
+      "org/example/cucumber/calculator/basic_arithmetic_with_examples.feature",
+      "org/example/cucumber/calculator/basic_arithmetic_with_examples.feature",
+      "org/example/cucumber/calculator/basic_arithmetic_with_examples.feature",
+      "org/example/cucumber/calculator/basic_arithmetic_with_examples.feature"
+      )
+
     ListWriterAssert.assertTraces(TEST_WRITER, 5, false, SORT_TRACES_BY_DESC_SIZE_THEN_BY_NAMES, {
       long testSessionId
       long testModuleId
@@ -83,9 +92,11 @@ class CucumberTest extends CiVisibilityTest {
 
   def "test failure generates spans"() {
     setup:
-    runTestClasses(TestFailedCucumber)
+    runFeatures("org/example/cucumber/calculator/basic_arithmetic_failed.feature")
 
     expect:
+    expectFeaturesCoverage("org/example/cucumber/calculator/basic_arithmetic_failed.feature")
+
     ListWriterAssert.assertTraces(TEST_WRITER, 2, false, SORT_TRACES_BY_DESC_SIZE_THEN_BY_NAMES, {
       long testSessionId
       long testModuleId
@@ -108,8 +119,10 @@ class CucumberTest extends CiVisibilityTest {
   def "test ITR test skipping"() {
     setup:
     givenSkippableTests([new SkippableTest("Basic Arithmetic", "Addition", null, null),])
-    runTestClasses(TestSucceedCucumber)
 
+    runFeatures("org/example/cucumber/calculator/basic_arithmetic.feature")
+
+    expect:
     ListWriterAssert.assertTraces(TEST_WRITER, 2, false, SORT_TRACES_BY_DESC_SIZE_THEN_BY_NAMES, {
       long testSessionId
       long testModuleId
@@ -137,7 +150,11 @@ class CucumberTest extends CiVisibilityTest {
   def "test ITR test unskippable"() {
     setup:
     givenSkippableTests([new SkippableTest("Basic Arithmetic", "Addition", null, null),])
-    runTestClasses(TestSucceedCucumberUnskippable)
+
+    runFeatures("org/example/cucumber/calculator/basic_arithmetic_unskippable.feature")
+
+    expect:
+    expectFeaturesCoverage("org/example/cucumber/calculator/basic_arithmetic_unskippable.feature")
 
     ListWriterAssert.assertTraces(TEST_WRITER, 2, false, SORT_TRACES_BY_DESC_SIZE_THEN_BY_NAMES, {
       long testSessionId
@@ -164,7 +181,11 @@ class CucumberTest extends CiVisibilityTest {
   def "test ITR test unskippable suite"() {
     setup:
     givenSkippableTests([new SkippableTest("Basic Arithmetic", "Addition", null, null),])
-    runTestClasses(TestSucceedCucumberUnskippableSuite)
+
+    runFeatures("org/example/cucumber/calculator/basic_arithmetic_unskippable_suite.feature")
+
+    expect:
+    expectFeaturesCoverage("org/example/cucumber/calculator/basic_arithmetic_unskippable_suite.feature")
 
     ListWriterAssert.assertTraces(TEST_WRITER, 2, false, SORT_TRACES_BY_DESC_SIZE_THEN_BY_NAMES, {
       long testSessionId
@@ -188,38 +209,28 @@ class CucumberTest extends CiVisibilityTest {
     testTags = [(Tags.TEST_ITR_UNSKIPPABLE): true, (Tags.TEST_ITR_FORCED_RUN): true]
   }
 
-  private void runTestClasses(Class<?>... tests) {
+  private void runFeatures(String... classpathFeatures) {
+    System.setProperty(Constants.GLUE_PROPERTY_NAME, "org.example.cucumber.calculator")
+    System.setProperty(Constants.FILTER_TAGS_PROPERTY_NAME, "not @Disabled")
+    System.setProperty(Constants.FEATURES_PROPERTY_NAME, Arrays.asList(classpathFeatures).stream()
+    .map(f -> "classpath:" + f).
+    collect(Collectors.joining(",")))
+
     TestEventsHandlerHolder.start()
-    runner.run(tests)
+    runner.run(TestSucceedCucumber)
     TestEventsHandlerHolder.stop()
   }
 
-  Long testFeatureSpan(final TraceAssert trace,
-    final int index,
-    final Long testSessionId,
-    final Long testModuleId,
-    final String testSuite,
-    final String testStatus,
-    final Map<String, Object> testTags = null,
-    final Throwable exception = null,
-    final boolean emptyDuration = false,
-    final Collection<String> categories = null) {
-    return testSuiteSpan(trace, index, testSessionId, testModuleId, testSuite, testStatus, testTags, exception, emptyDuration, categories, false)
-  }
-
-  void testScenarioSpan(final TraceAssert trace,
-    final int index,
-    final Long testSessionId,
-    final Long testModuleId,
-    final Long testSuiteId,
-    final String testSuite,
-    final String testName,
-    final String testStatus,
-    final Map<String, Object> testTags = null,
-    final Throwable exception = null,
-    final boolean emptyDuration = false,
-    final Collection<String> categories = null) {
-    testSpan(trace, index, testSessionId, testModuleId, testSuiteId, testSuite, testName, null, testStatus, testTags, exception, emptyDuration, categories, false, false)
+  private static void expectFeaturesCoverage(String... classpathFeatures) {
+    def coveredResources = MockCoverageProbeStore.INSTANCE.getNonCodeResources()
+    if (coveredResources.size() != classpathFeatures.length) {
+      throw new AssertionError("Expected " + Arrays.asList(classpathFeatures) + " covered features, got " + coveredResources)
+    }
+    for (String feature : classpathFeatures) {
+      if (!coveredResources.contains(feature)) {
+        throw new AssertionError("Expected " + Arrays.asList(classpathFeatures) + " covered features, got " + coveredResources)
+      }
+    }
   }
 
   @Override

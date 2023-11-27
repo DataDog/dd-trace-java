@@ -39,4 +39,31 @@ class GitUtilsTest extends Specification {
     "1234567890123456789012345678901234ABCDEF" | true
     "1234567890123456789012345678901234ABCDEX" | false
   }
+
+  def "test sensitive info filtering in URL: #url"() {
+    when:
+    def result = GitUtils.filterSensitiveInfo(url)
+
+    then:
+    result == expectedResult
+
+    where:
+    url                                                       | expectedResult
+    null                                                      | null
+    ""                                                        | null
+    "http://host.com/path"                                    | "http://host.com/path"
+    "https://host.com/path"                                   | "https://host.com/path"
+    "ssh://host.com/path"                                     | "ssh://host.com/path"
+    "http://user@host.com/path"                               | "http://host.com/path"
+    "https://user@host.com/path"                              | "https://host.com/path"
+    "ssh://user@host.com/path"                                | "ssh://host.com/path"
+    "http://user:password@host.com/path"                      | "http://host.com/path"
+    "https://user:password@host.com/path"                     | "https://host.com/path"
+    "ssh://user:password@host.com/path"                       | "ssh://host.com/path"
+    "ssh://host.com:2222/path"                                | "ssh://host.com:2222/path"
+    "https://example.com/user/repo@version.git"               | "https://example.com/user/repo@version.git"
+    "https://user@example.com/user/repo@version.git"          | "https://example.com/user/repo@version.git"
+    "https://user:password@example.com/user/repo@version.git" | "https://example.com/user/repo@version.git"
+    "git@example.com:repo.git"                                | "git@example.com:repo.git"
+  }
 }
