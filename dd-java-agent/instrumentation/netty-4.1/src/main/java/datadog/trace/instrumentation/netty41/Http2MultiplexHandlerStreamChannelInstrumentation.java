@@ -35,11 +35,11 @@ public class Http2MultiplexHandlerStreamChannelInstrumentation extends Instrumen
   public static class PropagateContextAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void afterCreate(@Advice.This Channel self) {
-      if (self.parent() != null && !self.hasAttr(AttributeKeys.SPAN_ATTRIBUTE_KEY)) {
-        if (self.parent().hasAttr(AttributeKeys.SPAN_ATTRIBUTE_KEY)) {
-          self.attr(AttributeKeys.SPAN_ATTRIBUTE_KEY)
-              .set(self.parent().attr(AttributeKeys.SPAN_ATTRIBUTE_KEY).getAndRemove());
-        }
+      if (self.parent() != null
+          && self.parent().hasAttr(AttributeKeys.SPAN_ATTRIBUTE_KEY)
+          && !self.hasAttr(AttributeKeys.SPAN_ATTRIBUTE_KEY)) {
+        self.attr(AttributeKeys.SPAN_ATTRIBUTE_KEY)
+            .set(self.parent().attr(AttributeKeys.SPAN_ATTRIBUTE_KEY).getAndRemove());
       }
     }
   }
