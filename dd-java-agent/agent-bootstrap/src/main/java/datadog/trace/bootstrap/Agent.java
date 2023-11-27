@@ -32,12 +32,9 @@ import datadog.trace.api.config.RemoteConfigConfig;
 import datadog.trace.api.config.TraceInstrumentationConfig;
 import datadog.trace.api.config.TracerConfig;
 import datadog.trace.api.config.UsmConfig;
-import datadog.trace.api.gateway.RequestContextSlot;
-import datadog.trace.api.gateway.SubscriptionService;
 import datadog.trace.api.profiling.Timer;
 import datadog.trace.api.scopemanager.ScopeListener;
 import datadog.trace.bootstrap.benchmark.StaticEventLogger;
-import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.TracerAPI;
 import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
 import datadog.trace.bootstrap.instrumentation.jfr.InstrumentationBasedProfiling;
@@ -473,7 +470,9 @@ public class Agent {
       // start debugger before remote config to subscribe to it before starting to poll
       maybeStartDebugger(instrumentation, scoClass, sco);
       maybeStartRemoteConfig(scoClass, sco);
-      TELEMETRY_SUBSYSTEM = maybeStartSubsytem("Telemetry", "datadog.telemetry.TelemetrySystem", instrumentation, sco);
+      TELEMETRY_SUBSYSTEM =
+          maybeStartSubsytem(
+              "Telemetry", "datadog.telemetry.TelemetrySystem", instrumentation, sco);
     }
   }
 
@@ -698,7 +697,8 @@ public class Agent {
     return true;
   }
 
-  private static Subsystem maybeStartSubsytem(final String name, final String className, final Instrumentation inst, final Object sco) {
+  private static Subsystem maybeStartSubsytem(
+      final String name, final String className, final Instrumentation inst, final Object sco) {
     StaticEventLogger.begin(name);
     final Subsystem subsystem = newSubsystem(className);
     subsystem.maybeStart(inst, sco);

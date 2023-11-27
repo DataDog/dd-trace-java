@@ -42,7 +42,6 @@ import datadog.trace.api.iast.telemetry.Verbosity;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.util.AgentTaskScheduler;
 import datadog.trace.util.stacktrace.StackWalkerFactory;
-
 import java.lang.instrument.Instrumentation;
 import java.util.function.BiFunction;
 import java.util.function.Supplier;
@@ -63,7 +62,8 @@ public class IastSystem implements Subsystem {
       return;
     }
     try {
-      final SubscriptionService ss = AgentTracer.get().getSubscriptionService(RequestContextSlot.IAST);
+      final SubscriptionService ss =
+          AgentTracer.get().getSubscriptionService(RequestContextSlot.IAST);
       start(ss);
     } catch (final Throwable t) {
       LOGGER.error("Error starting IAST subsystem", t);
