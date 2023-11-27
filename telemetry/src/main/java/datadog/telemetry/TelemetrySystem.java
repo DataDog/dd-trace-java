@@ -11,6 +11,7 @@ import datadog.telemetry.metric.CoreMetricsPeriodicAction;
 import datadog.telemetry.metric.IastMetricPeriodicAction;
 import datadog.telemetry.metric.WafMetricPeriodicAction;
 import datadog.trace.api.Config;
+import datadog.trace.api.Platform;
 import datadog.trace.api.iast.telemetry.Verbosity;
 import datadog.trace.util.AgentThreadFactory;
 import java.lang.instrument.Instrumentation;
@@ -47,7 +48,9 @@ public class TelemetrySystem {
     List<TelemetryPeriodicAction> actions = new ArrayList<>();
     if (telemetryMetricsEnabled) {
       actions.add(new CoreMetricsPeriodicAction());
-      actions.add(new IntegrationPeriodicAction());
+      if (!Platform.isNativeImageBuilder()) {
+        actions.add(new IntegrationPeriodicAction());
+      }
       actions.add(new WafMetricPeriodicAction());
       if (Verbosity.OFF != Config.get().getIastTelemetryVerbosity()) {
         actions.add(new IastMetricPeriodicAction());

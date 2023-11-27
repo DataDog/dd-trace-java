@@ -140,7 +140,6 @@ public class Agent {
   private static boolean cwsEnabled = false;
   private static boolean ciVisibilityEnabled = false;
   private static boolean usmEnabled = false;
-  private static boolean telemetryEnabled = true;
   private static boolean debuggerEnabled = false;
 
   public static void start(final Instrumentation inst, final URL agentJarURL, String agentArgs) {
@@ -153,7 +152,6 @@ public class Agent {
       // these default services are not used during native-image builds
       jmxFetchEnabled = false;
       remoteConfigEnabled = false;
-      telemetryEnabled = false;
       // apply trace instrumentation, but skip starting other services
       startDatadogAgent(inst);
       StaticEventLogger.end("Agent.start");
@@ -211,7 +209,6 @@ public class Agent {
     appSecFullyDisabled = isAppSecFullyDisabled();
     remoteConfigEnabled = isFeatureEnabled(AgentFeature.REMOTE_CONFIG);
     cwsEnabled = isFeatureEnabled(AgentFeature.CWS);
-    telemetryEnabled = isFeatureEnabled(AgentFeature.TELEMETRY);
     debuggerEnabled = isFeatureEnabled(AgentFeature.DEBUGGER);
 
     if (profilingEnabled) {
@@ -341,7 +338,7 @@ public class Agent {
     if (profilingEnabled) {
       shutdownProfilingAgent(sync);
     }
-    if (telemetryEnabled) {
+    if (Config.get().isTelemetryEnabled()) {
       stopTelemetry();
     }
   }
@@ -472,10 +469,7 @@ public class Agent {
       // start debugger before remote config to subscribe to it before starting to poll
       maybeStartDebugger(instrumentation, scoClass, sco);
       maybeStartRemoteConfig(scoClass, sco);
-
-      if (telemetryEnabled) {
-        startTelemetry(instrumentation, scoClass, sco);
-      }
+      maybeStartTelemetry(instrumentation, scoClass, sco);
     }
   }
 
@@ -774,6 +768,13 @@ public class Agent {
     }
   }
 
+  private static void maybeStartTelemetry(Instrumentation inst, Class<?> scoClass, Object sco) {
+    if (!Config.get().isTelemetryEnabled()) {
+      return;
+    }
+    startTelemetry(inst, scoClass, sco);
+  }
+
   private static void startTelemetry(Instrumentation inst, Class<?> scoClass, Object sco) {
     StaticEventLogger.begin("Telemetry");
 
@@ -797,7 +798,7 @@ public class Agent {
 
     try {
       final Class<?> telemetrySystem =
-          AGENT_CLASSLOADER.loadClass("datadog.telemetry.TelemetrySystem");
+          Class.forName("datadog.telemetry.TelemetrySystem", true, AGENT_CLASSLOADER);
       final Method stopTelemetry = telemetrySystem.getMethod("stop");
       stopTelemetry.invoke(null);
     } catch (final Throwable ex) {

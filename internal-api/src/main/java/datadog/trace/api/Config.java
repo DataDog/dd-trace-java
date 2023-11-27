@@ -232,6 +232,7 @@ import static datadog.trace.api.config.GeneralConfig.STATSD_CLIENT_SOCKET_BUFFER
 import static datadog.trace.api.config.GeneralConfig.STATSD_CLIENT_SOCKET_TIMEOUT;
 import static datadog.trace.api.config.GeneralConfig.TAGS;
 import static datadog.trace.api.config.GeneralConfig.TELEMETRY_DEPENDENCY_COLLECTION_ENABLED;
+import static datadog.trace.api.config.GeneralConfig.TELEMETRY_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.TELEMETRY_EXTENDED_HEARTBEAT_INTERVAL;
 import static datadog.trace.api.config.GeneralConfig.TELEMETRY_HEARTBEAT_INTERVAL;
 import static datadog.trace.api.config.GeneralConfig.TELEMETRY_LOG_COLLECTION_ENABLED;
@@ -836,6 +837,7 @@ public class Config {
 
   private final boolean iastDeduplicationEnabled;
 
+  private final boolean telemetryEnabled;
   private final float telemetryHeartbeatInterval;
   private final long telemetryExtendedHeartbeatInterval;
   private final float telemetryMetricsInterval;
@@ -1459,6 +1461,19 @@ public class Config {
         configProvider.getBoolean(CRASH_TRACKING_AGENTLESS, CRASH_TRACKING_AGENTLESS_DEFAULT);
     crashTrackingTags = configProvider.getMergedMap(CRASH_TRACKING_TAGS);
 
+    final boolean telemetryEnabledAtBuildTime = instrumenterConfig.isTelemetryEnabledAtBuildTime();
+    final boolean telemetryEnabled =
+        configProvider.getBoolean(TELEMETRY_ENABLED, telemetryEnabledAtBuildTime);
+    // TODO: Add Native Image check for this condition (runtime)
+    if (telemetryEnabled && !telemetryEnabledAtBuildTime) {
+      log.warn(
+          "Telemetry was enabled with {}, but it was disabled at build time. Telemetry will not start.",
+          TELEMETRY_ENABLED);
+      this.telemetryEnabled = false;
+    } else {
+      this.telemetryEnabled = telemetryEnabled;
+    }
+
     float telemetryInterval =
         configProvider.getFloat(TELEMETRY_HEARTBEAT_INTERVAL, DEFAULT_TELEMETRY_HEARTBEAT_INTERVAL);
     if (telemetryInterval < 0.1 || telemetryInterval > 3600) {
@@ -1484,16 +1499,22 @@ public class Config {
     telemetryMetricsInterval = telemetryInterval;
 
     telemetryMetricsEnabled =
-        configProvider.getBoolean(GeneralConfig.TELEMETRY_METRICS_ENABLED, true);
+        Platform.isNativeImageBuilder()
+            ? false
+            : configProvider.getBoolean(GeneralConfig.TELEMETRY_METRICS_ENABLED, true);
 
     isTelemetryDependencyServiceEnabled =
-        configProvider.getBoolean(
-            TELEMETRY_DEPENDENCY_COLLECTION_ENABLED,
-            DEFAULT_TELEMETRY_DEPENDENCY_COLLECTION_ENABLED);
+        Platform.isNativeImageBuilder()
+            ? false
+            : configProvider.getBoolean(
+                TELEMETRY_DEPENDENCY_COLLECTION_ENABLED,
+                DEFAULT_TELEMETRY_DEPENDENCY_COLLECTION_ENABLED);
 
     isTelemetryLogCollectionEnabled =
-        configProvider.getBoolean(
-            TELEMETRY_LOG_COLLECTION_ENABLED, DEFAULT_TELEMETRY_LOG_COLLECTION_ENABLED);
+        Platform.isNativeImageBuilder()
+            ? false
+            : configProvider.getBoolean(
+                TELEMETRY_LOG_COLLECTION_ENABLED, DEFAULT_TELEMETRY_LOG_COLLECTION_ENABLED);
 
     clientIpEnabled = configProvider.getBoolean(CLIENT_IP_ENABLED, DEFAULT_CLIENT_IP_ENABLED);
 
@@ -2509,7 +2530,7 @@ public class Config {
   }
 
   public boolean isTelemetryEnabled() {
-    return instrumenterConfig.isTelemetryEnabled();
+    return telemetryEnabled;
   }
 
   public float getTelemetryHeartbeatInterval() {
