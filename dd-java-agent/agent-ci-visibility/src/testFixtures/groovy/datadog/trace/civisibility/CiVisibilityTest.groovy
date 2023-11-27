@@ -1,6 +1,7 @@
 package datadog.trace.civisibility
 
 import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.asserts.TagsAssert
 import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.api.Config
 import datadog.trace.api.DDSpanTypes
@@ -14,7 +15,6 @@ import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.civisibility.codeowners.Codeowners
 import datadog.trace.civisibility.config.JvmInfoFactoryImpl
 import datadog.trace.civisibility.config.ModuleExecutionSettingsFactory
-import datadog.trace.civisibility.coverage.NoopCoverageProbeStore
 import datadog.trace.civisibility.decorator.TestDecorator
 import datadog.trace.civisibility.decorator.TestDecoratorImpl
 import datadog.trace.civisibility.events.BuildEventsHandlerImpl
@@ -73,7 +73,7 @@ abstract class CiVisibilityTest extends AgentTestRunner {
       return new ModuleExecutionSettings(false, itrEnabled, properties, Collections.singletonMap(dummyModule, skippableTests), Collections.emptyList())
     }
 
-    def coverageProbeStoreFactory = new NoopCoverageProbeStore.NoopCoverageProbeStoreFactory()
+    def coverageProbeStoreFactory = new MockCoverageProbeStore.MockCoverageProbeStoreFactory()
     DDTestFrameworkSession.Factory testFrameworkSessionFactory = (String projectName, Path projectRoot, String component, Long startTime) -> {
       def ciTags = [(DUMMY_CI_TAG): DUMMY_CI_TAG_VALUE]
       TestDecorator testDecorator = new TestDecoratorImpl(component, ciTags)
@@ -132,6 +132,7 @@ abstract class CiVisibilityTest extends AgentTestRunner {
   void setup() {
     skippableTests.clear()
     itrEnabled = false
+    MockCoverageProbeStore.INSTANCE.resetNonCodeResources()
   }
 
   def givenSkippableTests(List<SkippableTest> tests) {
@@ -450,6 +451,34 @@ abstract class CiVisibilityTest extends AgentTestRunner {
       }
     }
     return testId
+  }
+
+  Long testFeatureSpan(final TraceAssert trace,
+  final int index,
+  final Long testSessionId,
+  final Long testModuleId,
+  final String testSuite,
+  final String testStatus,
+  final Map<String, Object> testTags = null,
+  final Throwable exception = null,
+  final boolean emptyDuration = false,
+  final Collection<String> categories = null) {
+    return testSuiteSpan(trace, index, testSessionId, testModuleId, testSuite, testStatus, testTags, exception, emptyDuration, categories, false)
+  }
+
+  Long testScenarioSpan(final TraceAssert trace,
+  final int index,
+  final Long testSessionId,
+  final Long testModuleId,
+  final Long testSuiteId,
+  final String testSuite,
+  final String testName,
+  final String testStatus,
+  final Map<String, Object> testTags = null,
+  final Throwable exception = null,
+  final boolean emptyDuration = false,
+  final Collection<String> categories = null) {
+    return testSpan(trace, index, testSessionId, testModuleId, testSuiteId, testSuite, testName, null, testStatus, testTags, exception, emptyDuration, categories, false, false)
   }
 
   String component = component()

@@ -1,5 +1,7 @@
 package com.datadog.debugger.probe;
 
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
 import com.datadog.debugger.util.MoshiHelper;
 import com.squareup.moshi.JsonAdapter;
 import java.io.IOException;
@@ -12,7 +14,7 @@ public class WhereTest {
     Where where =
         new Where(
             "java.lang.Object", "toString()", "java.lang.String ()", new String[] {"5-7"}, null);
-    Assertions.assertTrue(where.isSignatureMatching("java.lang.String ()"));
+    assertTrue(where.isSignatureMatching("java.lang.String ()"));
     String[] lines = where.getLines();
     Assertions.assertNotNull(lines);
     Assertions.assertEquals(1, lines.length);
@@ -28,7 +30,7 @@ public class WhereTest {
             "java.lang.String ()",
             new String[] {"12-25", "42-45"},
             null);
-    Assertions.assertTrue(where.isSignatureMatching("java.lang.String ()"));
+    assertTrue(where.isSignatureMatching("java.lang.String ()"));
     String[] lines = where.getLines();
     Assertions.assertNotNull(lines);
     Assertions.assertEquals(2, lines.length);
@@ -41,7 +43,7 @@ public class WhereTest {
     Where where =
         new Where(
             "java.lang.Object", "toString()", "java.lang.String ()", new String[] {"12"}, null);
-    Assertions.assertTrue(where.isSignatureMatching("java.lang.String ()"));
+    assertTrue(where.isSignatureMatching("java.lang.String ()"));
     String[] lines = where.getLines();
     Assertions.assertNotNull(lines);
     Assertions.assertEquals(1, lines.length);
@@ -57,7 +59,7 @@ public class WhereTest {
             "java.lang.String ()",
             (Where.SourceLine[]) null,
             null);
-    Assertions.assertTrue(where.isSignatureMatching("java.lang.String ()"));
+    assertTrue(where.isSignatureMatching("java.lang.String ()"));
     String[] lines = where.getLines();
     Assertions.assertNull(lines);
   }
@@ -78,18 +80,30 @@ public class WhereTest {
   @Test
   public void methodMatching() {
     Where where = new Where("String", "substring", "(int,int)", new String[0], null);
-    Assertions.assertTrue(where.isMethodMatching("substring", "(II)Ljava/lang/String;"));
+    assertTrue(where.isMethodMatching("substring", "(II)Ljava/lang/String;"));
     where = new Where("String", "replaceAll", "(String,String)", new String[0], null);
-    Assertions.assertTrue(
+    assertTrue(
         where.isMethodMatching(
             "replaceAll", "(Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;"));
     where = new Where("HashMap", "<init>", "(Map)", new String[0], null);
-    Assertions.assertTrue(where.isMethodMatching("<init>", "(Ljava/util/Map;)V"));
+    assertTrue(where.isMethodMatching("<init>", "(Ljava/util/Map;)V"));
     where = new Where("ArrayList", "removeIf", "(Predicate)", new String[0], null);
-    Assertions.assertTrue(where.isMethodMatching("removeIf", "(Ljava/util/function/Predicate;)Z"));
+    assertTrue(where.isMethodMatching("removeIf", "(Ljava/util/function/Predicate;)Z"));
     where = new Where("String", "concat", "", new String[0], null);
-    Assertions.assertTrue(where.isMethodMatching("concat", "String (String)"));
+    assertTrue(where.isMethodMatching("concat", "String (String)"));
     where = new Where("String", "concat", " \t", new String[0], null);
-    Assertions.assertTrue(where.isMethodMatching("concat", "String (String)"));
+    assertTrue(where.isMethodMatching("concat", "String (String)"));
+    where =
+        new Where(
+            "Inner",
+            "innerMethod",
+            "(com.datadog.debugger.probe.Outer$Inner)",
+            new String[0],
+            null);
+    assertTrue(
+        where.isMethodMatching("innerMethod", "(Lcom/datadog/debugger/probe/Outer$Inner;)V"));
+    where = new Where("Inner", "innerMethod", "(Outer$Inner)", new String[0], null);
+    assertTrue(
+        where.isMethodMatching("innerMethod", "(Lcom/datadog/debugger/probe/Outer$Inner;)V"));
   }
 }
