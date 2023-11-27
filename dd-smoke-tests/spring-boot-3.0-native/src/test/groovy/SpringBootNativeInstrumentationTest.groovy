@@ -44,5 +44,17 @@ class SpringBootNativeInstrumentationTest extends AbstractServerSmokeTest {
     responseBodyStr != null
     responseBodyStr.contains("Hello world")
     waitForTraceCount(1)
+
+    when:
+    checkLogPostExit {
+      // Check that there are no ClassNotFound errors printed from bad reflect-config.json
+      if (it.contains("ClassNotFoundException")) {
+        println "Found ClassNotFoundException in log: ${it}"
+        logHasErrors = true
+      }
+    }
+
+    then:
+    !logHasErrors
   }
 }
