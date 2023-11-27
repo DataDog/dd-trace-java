@@ -131,14 +131,9 @@ public class Agent {
 
   private static boolean jmxFetchEnabled = true;
   private static boolean profilingEnabled = false;
-  private static boolean appSecEnabled;
-  private static boolean appSecFullyDisabled;
   private static boolean remoteConfigEnabled = true;
-  private static boolean iastEnabled = false;
   private static boolean cwsEnabled = false;
   private static boolean ciVisibilityEnabled = false;
-  private static boolean usmEnabled = false;
-  private static boolean telemetryEnabled = true;
   private static boolean debuggerEnabled = false;
 
   private static volatile Subsystem TELEMETRY_SUBSYSTEM = Subsystem.Noop.INSTANCE;
@@ -153,7 +148,6 @@ public class Agent {
       // these default services are not used during native-image builds
       jmxFetchEnabled = false;
       remoteConfigEnabled = false;
-      telemetryEnabled = false;
       // apply trace instrumentation, but skip starting other services
       startDatadogAgent(inst);
       StaticEventLogger.end("Agent.start");
@@ -205,13 +199,8 @@ public class Agent {
 
     jmxFetchEnabled = isFeatureEnabled(AgentFeature.JMXFETCH);
     profilingEnabled = isFeatureEnabled(AgentFeature.PROFILING);
-    iastEnabled = isFeatureEnabled(AgentFeature.IAST);
-    usmEnabled = isFeatureEnabled(AgentFeature.USM);
-    appSecEnabled = isFeatureEnabled(AgentFeature.APPSEC);
-    appSecFullyDisabled = isAppSecFullyDisabled();
     remoteConfigEnabled = isFeatureEnabled(AgentFeature.REMOTE_CONFIG);
     cwsEnabled = isFeatureEnabled(AgentFeature.CWS);
-    telemetryEnabled = isFeatureEnabled(AgentFeature.TELEMETRY);
     debuggerEnabled = isFeatureEnabled(AgentFeature.DEBUGGER);
 
     if (profilingEnabled) {
@@ -470,9 +459,7 @@ public class Agent {
       // start debugger before remote config to subscribe to it before starting to poll
       maybeStartDebugger(instrumentation, scoClass, sco);
       maybeStartRemoteConfig(scoClass, sco);
-      TELEMETRY_SUBSYSTEM =
-          maybeStartSubsytem(
-              "Telemetry", "datadog.telemetry.TelemetrySystem", instrumentation, sco);
+      TELEMETRY_SUBSYSTEM = maybeStartSubsytem("Telemetry", "datadog.telemetry.TelemetrySystem", instrumentation, sco);
     }
   }
 
@@ -697,8 +684,7 @@ public class Agent {
     return true;
   }
 
-  private static Subsystem maybeStartSubsytem(
-      final String name, final String className, final Instrumentation inst, final Object sco) {
+  private static Subsystem maybeStartSubsytem(final String name, final String className, final Instrumentation inst, final Object sco) {
     StaticEventLogger.begin(name);
     final Subsystem subsystem = newSubsystem(className);
     subsystem.maybeStart(inst, sco);
@@ -996,23 +982,6 @@ public class Agent {
       // false unless it's explicitly set to "true"
       return Boolean.parseBoolean(featureEnabled) || "1".equals(featureEnabled);
     }
-  }
-
-  /** @see datadog.trace.api.ProductActivation#fromString(String) */
-  private static boolean isAppSecFullyDisabled() {
-    // must be kept in sync with logic from Config!
-    final String featureEnabledSysprop = AgentFeature.APPSEC.systemProp;
-    String settingValue = getNullIfEmpty(System.getProperty(featureEnabledSysprop));
-    if (settingValue == null) {
-      settingValue = getNullIfEmpty(ddGetEnv(featureEnabledSysprop));
-      settingValue = settingValue != null && settingValue.isEmpty() ? null : settingValue;
-    }
-
-    // defaults to inactive
-    return !(settingValue == null
-        || settingValue.equalsIgnoreCase("true")
-        || settingValue.equalsIgnoreCase("1")
-        || settingValue.equalsIgnoreCase("inactive"));
   }
 
   private static String getNullIfEmpty(final String value) {
