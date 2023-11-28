@@ -155,10 +155,7 @@ public class NettyChannelPipelineInstrumentation extends Instrumenter.Tracing
         } else if (handler instanceof HttpResponseDecoder) {
           toAdd = HttpClientResponseTracingHandler.INSTANCE;
         } else if (NettyHttp2Helper.isHttp2FrameCodec(handler)) {
-          final boolean isServer = NettyHttp2Helper.isServer(handler);
-          ChannelHandlerContext handlerContext = pipeline.context(handler);
-
-          if (isServer) {
+          if (NettyHttp2Helper.isServer(handler)) {
             toAdd = new HttpServerTracingHandler();
             toAdd2 = MaybeBlockResponseHandler.INSTANCE;
           } else {

@@ -13,7 +13,7 @@ import org.springframework.web.reactive.function.server.HandlerFunction;
 import org.springframework.web.reactive.function.server.RouterFunction;
 import org.springframework.web.reactive.function.server.ServerRequest;
 
-public class RouteOnSuccessOrError implements Consumer<Object> {
+public class RouteOnSuccessOrError implements Consumer<HandlerFunction<?>> {
 
   private static final Pattern SPECIAL_CHARACTERS_REGEX = Pattern.compile("[\\(\\)&|]");
   private static final Pattern SPACES_REGEX = Pattern.compile("[ \\t]+");
@@ -59,22 +59,22 @@ public class RouteOnSuccessOrError implements Consumer<Object> {
   }
 
   @Override
-  public void accept(Object o) {
-    if (o instanceof HandlerFunction) {
-      final HandlerFunction<?> handler = (HandlerFunction<?>) o;
-      final String predicateString = parsePredicateString();
-      if (predicateString != null) {
-        final AgentSpan span =
-            (AgentSpan) serverRequest.attributes().get(AdviceUtils.SPAN_ATTRIBUTE);
-        if (span != null) {
-          span.setTag("request.predicate", predicateString);
-        }
-        final AgentSpan parentSpan =
-            (AgentSpan) serverRequest.attributes().get(AdviceUtils.PARENT_SPAN_ATTRIBUTE);
-        if (parentSpan != null) {
-          HTTP_RESOURCE_DECORATOR.withRoute(
-              parentSpan, serverRequest.methodName(), parseRoute(predicateString));
-        }
+  public void accept(HandlerFunction<?> handlerFunction) {
+    if (handlerFunction == null) {
+      // in this case the route is added by instrumenting the method annotation. we stop here.
+      return;
+    }
+    final String predicateString = parsePredicateString();
+    if (predicateString != null) {
+      final AgentSpan span = (AgentSpan) serverRequest.attributes().get(AdviceUtils.SPAN_ATTRIBUTE);
+      if (span != null) {
+        span.setTag("request.predicate", predicateString);
+      }
+      final AgentSpan parentSpan =
+          (AgentSpan) serverRequest.attributes().get(AdviceUtils.PARENT_SPAN_ATTRIBUTE);
+      if (parentSpan != null) {
+        HTTP_RESOURCE_DECORATOR.withRoute(
+            parentSpan, serverRequest.methodName(), parseRoute(predicateString));
       }
     }
   }

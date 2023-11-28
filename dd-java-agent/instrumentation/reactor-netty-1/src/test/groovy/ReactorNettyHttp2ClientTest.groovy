@@ -11,7 +11,6 @@ import reactor.netty.http.server.HttpServer
 import spock.lang.Shared
 import spock.lang.Unroll
 
-@Unroll
 class ReactorNettyHttp2ClientTest extends AgentTestRunner {
   @Shared
   DisposableServer server = HttpServer.create()
@@ -31,6 +30,7 @@ class ReactorNettyHttp2ClientTest extends AgentTestRunner {
     server?.disposeNow()
   }
 
+  @Unroll
   def "test http2 client/server propagation"() {
     setup:
     HttpClient httpClient = HttpClient.create()
@@ -111,7 +111,7 @@ class ReactorNettyHttp2ClientTest extends AgentTestRunner {
             "$Tags.HTTP_HOSTNAME" { String }
             "$Tags.HTTP_URL" "http://localhost:${server.port()}/firstUrl"
             "$Tags.HTTP_METHOD" "GET"
-            "$Tags.HTTP_STATUS" { Integer } // FIXME: if http2 upgrade is used a 101 is recorded here which is wrong
+            "$Tags.HTTP_STATUS" 200
             "$Tags.HTTP_USER_AGENT" String
             defaultTags(true)
           }
@@ -133,7 +133,7 @@ class ReactorNettyHttp2ClientTest extends AgentTestRunner {
               "$Tags.HTTP_HOSTNAME" { String }
               "$Tags.HTTP_URL" "http://localhost:${server.port()}/"
               "$Tags.HTTP_METHOD" "GET"
-              "$Tags.HTTP_STATUS" { Integer } // FIXME: if http2 upgrade is used a 101 is recorded here which is wrong
+              "$Tags.HTTP_STATUS" 200
               "$Tags.HTTP_USER_AGENT" String
               defaultTags(true)
             }
