@@ -11,7 +11,7 @@ import java.util.Map;
 
 /** Manages dynamic configuration for a particular {@link Tracer} instance. */
 public final class DynamicConfig {
-  private volatile State currentState;
+  private volatile Snapshot currentSnapshot;
 
   private DynamicConfig() {}
 
@@ -21,11 +21,11 @@ public final class DynamicConfig {
 
   /** Captures a snapshot of the configuration at the start of a trace. */
   public TraceConfig captureTraceConfig() {
-    return currentState;
+    return currentSnapshot;
   }
 
   public Builder prepare() {
-    return new Builder(currentState);
+    return new Builder(currentSnapshot);
   }
 
   public final class Builder {
@@ -35,19 +35,19 @@ public final class DynamicConfig {
     List<? extends SpanSamplingRule> spanSamplingRules;
     List<? extends TraceSamplingRule> traceSamplingRules;
 
-    Builder(State state) {
-      if (null == state) {
+    Builder(Snapshot snapshot) {
+      if (null == snapshot) {
         this.serviceMapping = Collections.emptyMap();
         this.taggedHeaders = Collections.emptyMap();
         this.baggageMapping = Collections.emptyMap();
         this.spanSamplingRules = Collections.emptyList();
         this.traceSamplingRules = Collections.emptyList();
       } else {
-        this.serviceMapping = state.serviceMapping;
-        this.taggedHeaders = state.taggedHeaders;
-        this.baggageMapping = state.baggageMapping;
-        this.spanSamplingRules = state.spanSamplingRules;
-        this.traceSamplingRules = state.traceSamplingRules;
+        this.serviceMapping = snapshot.serviceMapping;
+        this.taggedHeaders = snapshot.taggedHeaders;
+        this.baggageMapping = snapshot.baggageMapping;
+        this.spanSamplingRules = snapshot.spanSamplingRules;
+        this.traceSamplingRules = snapshot.traceSamplingRules;
       }
     }
 
@@ -76,6 +76,12 @@ public final class DynamicConfig {
       return this;
     }
 
+    /** Overwrites the current configuration with a new snapshot. */
+    public DynamicConfig apply() {
+      DynamicConfig.this.currentSnapshot = new Snapshot(this);
+      return DynamicConfig.this;
+    }
+
     private Map<String, String> cleanMapping(
         Map<String, String> mapping, boolean lowerCaseKeys, boolean lowerCaseValues) {
       final Map<String, String> cleanedMapping = new HashMap<>(mapping.size() * 4 / 3);
@@ -92,23 +98,17 @@ public final class DynamicConfig {
       }
       return tryMakeImmutableMap(cleanedMapping);
     }
-
-    /** Overwrites the current configuration with a new snapshot. */
-    public DynamicConfig apply() {
-      DynamicConfig.this.currentState = new State(this);
-      return DynamicConfig.this;
-    }
   }
 
   /** Immutable snapshot of the configuration. */
-  static final class State implements TraceConfig {
+  static final class Snapshot implements TraceConfig {
     final Map<String, String> serviceMapping;
     final Map<String, String> taggedHeaders;
     final Map<String, String> baggageMapping;
     final List<? extends SpanSamplingRule> spanSamplingRules;
     final List<? extends TraceSamplingRule> traceSamplingRules;
 
-    State(Builder builder) {
+    Snapshot(Builder builder) {
       this.serviceMapping = builder.serviceMapping;
       this.taggedHeaders = builder.taggedHeaders;
       this.baggageMapping = builder.baggageMapping;

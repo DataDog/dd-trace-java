@@ -39,7 +39,7 @@ class CoreTracerTest extends DDCoreSpecification {
 
     then:
     tracer.serviceName != ""
-    tracer.sampler instanceof RateByServiceTraceSampler
+    tracer.initialSampler instanceof RateByServiceTraceSampler
     tracer.writer instanceof DDAgentWriter
     tracer.statsDClient != null && tracer.statsDClient != StatsDClient.NO_OP
 
@@ -126,7 +126,7 @@ class CoreTracerTest extends DDCoreSpecification {
     def tracer = tracerBuilder().build()
 
     then:
-    tracer.sampler instanceof AllSampler
+    tracer.initialSampler instanceof AllSampler
 
     cleanup:
     tracer.close()

@@ -149,7 +149,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   /** Writer is an charge of reporting traces and spans to the desired endpoint */
   final Writer writer;
   /** Sampler defines the sampling policy in order to reduce the number of traces for instance */
-  final Sampler sampler;
+  final Sampler initialSampler;
   /** Scope manager is in charge of managing the scopes from which spans are created */
   final AgentScopeManager scopeManager;
 
@@ -484,9 +484,30 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
     endpointCheckpointer = EndpointCheckpointerHolder.create();
     this.serviceName = serviceName;
+    // Get initial trace sampling rules from config
+    TraceSamplingRules traceSamplingRules =
+        config.getTraceSamplingRules() == null
+            ? TraceSamplingRules.EMPTY
+            : TraceSamplingRules.deserialize(config.getTraceSamplingRules());
+    // Get initial span sampling rules from config
+    String spanSamplingRulesJson = config.getSpanSamplingRules();
+    String spanSamplingRulesFile = config.getSpanSamplingRulesFile();
+    SpanSamplingRules spanSamplingRules = SpanSamplingRules.EMPTY;
+    if (spanSamplingRulesJson != null) {
+      spanSamplingRules = SpanSamplingRules.deserialize(spanSamplingRulesJson);
+    } else if (spanSamplingRulesFile != null) {
+      spanSamplingRules = SpanSamplingRules.deserializeFile(spanSamplingRulesFile);
+    }
+    // Build dynamic config instance
     this.dynamicConfig =
-        buildDynamicConfig(config, serviceNameMappings, taggedHeaders, baggageMapping);
-    this.sampler = sampler;
+        DynamicConfig.create()
+            .setServiceMapping(serviceNameMappings)
+            .setSpanSamplingRules(spanSamplingRules.getRules())
+            .setTraceSamplingRules(traceSamplingRules.getRules())
+            .setTaggedHeaders(taggedHeaders)
+            .setBaggageMapping(baggageMapping)
+            .apply();
+    this.initialSampler = sampler;
     this.injector = injector;
     if (extractor != null) {
       this.extractor = extractor;
@@ -623,35 +644,6 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
     propagationTagsFactory = PropagationTags.factory(config);
     this.profilingContextIntegration = profilingContextIntegration;
-  }
-
-  private static DynamicConfig buildDynamicConfig(
-      Config config,
-      Map<String, String> serviceNameMappings,
-      Map<String, String> taggedHeaders,
-      Map<String, String> baggageMapping) {
-    // Get initial trace sampling rules from config
-    TraceSamplingRules traceSamplingRules =
-        config.getTraceSamplingRules() == null
-            ? TraceSamplingRules.EMPTY
-            : TraceSamplingRules.deserialize(config.getTraceSamplingRules());
-    // Get initial span sampling rules from config
-    String spanSamplingRulesJson = config.getSpanSamplingRules();
-    String spanSamplingRulesFile = config.getSpanSamplingRulesFile();
-    SpanSamplingRules spanSamplingRules = SpanSamplingRules.EMPTY;
-    if (spanSamplingRulesJson != null) {
-      spanSamplingRules = SpanSamplingRules.deserialize(spanSamplingRulesJson);
-    } else if (spanSamplingRulesFile != null) {
-      spanSamplingRules = SpanSamplingRules.deserializeFile(spanSamplingRulesFile);
-    }
-    // Build dynamic config instance
-    return DynamicConfig.create()
-        .setServiceMapping(serviceNameMappings)
-        .setSpanSamplingRules(spanSamplingRules.getRules())
-        .setTraceSamplingRules(traceSamplingRules.getRules())
-        .setTaggedHeaders(taggedHeaders)
-        .setBaggageMapping(baggageMapping)
-        .apply();
   }
 
   @Override
@@ -933,7 +925,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
     DDSpan spanToSample = rootSpan == null ? writtenTrace.get(0) : rootSpan;
     spanToSample.forceKeep(forceKeep);
-    boolean published = forceKeep || sampler.sample(spanToSample);
+    boolean published = forceKeep || initialSampler.sample(spanToSample);
     if (published) {
       writer.write(writtenTrace);
     } else {
@@ -986,11 +978,11 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     // This check skips potential complex sampling priority logic when we know its redundant
     // Locks inside DDSpanContext ensure the correct behavior in the race case
 
-    if (sampler instanceof PrioritySampler
+    if (initialSampler instanceof PrioritySampler
         && rootSpan != null
         && rootSpan.context().getSamplingPriority() == PrioritySampling.UNSET) {
 
-      ((PrioritySampler) sampler).setSamplingPriority(rootSpan);
+      ((PrioritySampler) initialSampler).setSamplingPriority(rootSpan);
     }
   }
 
