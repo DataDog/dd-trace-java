@@ -10,19 +10,23 @@ public class NettyHttp2Helper {
   private static MethodHandle IS_SERVER_FIELD;
 
   static {
+    Class codecClass;
+    MethodHandle isServerField;
     try {
-      HTTP2_CODEC_CLS =
+      codecClass =
           Class.forName(
               "io.netty.handler.codec.http2.Http2StreamFrameToHttpObjectCodec",
               false,
               NettyHttp2Helper.class.getClassLoader());
-      Field f = HTTP2_CODEC_CLS.getDeclaredField("isServer");
+      Field f = codecClass.getDeclaredField("isServer");
       f.setAccessible(true);
-      IS_SERVER_FIELD = MethodHandles.lookup().unreflectGetter(f);
+      isServerField = MethodHandles.lookup().unreflectGetter(f);
     } catch (Throwable t) {
-      HTTP2_CODEC_CLS = null;
-      IS_SERVER_FIELD = null;
+      codecClass = null;
+      isServerField = null;
     }
+    HTTP2_CODEC_CLS = codecClass;
+    IS_SERVER_FIELD = isServerField;
   }
 
   public static boolean isHttp2FrameCodec(final ChannelHandler handler) {
