@@ -6,7 +6,10 @@ import static net.bytebuddy.matcher.ElementMatchers.not;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.api.Config;
 import datadog.trace.api.WithGlobalTracer;
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import datadog.trace.bootstrap.instrumentation.api.Tags;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.matcher.ElementMatcher;
 
@@ -47,7 +50,25 @@ public class ThreadContextInstrumentation extends Instrumenter.Tracing
   public static class ThreadContextAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void mdcClassInitialized() {
-      WithGlobalTracer.registerOrExecute(new ThreadContextUpdater());
+      ThreadContextUpdater tc = new ThreadContextUpdater();
+      if (!AgentTracer.traceConfig().isLogsInjectionEnabled()) {
+        return;
+      }
+
+      String serviceName = Config.get().getServiceName();
+      if (null != serviceName && !serviceName.isEmpty()) {
+        tc.add(Tags.DD_SERVICE, serviceName);
+      }
+      String env = Config.get().getEnv();
+      if (null != env && !env.isEmpty()) {
+        tc.add(Tags.DD_ENV, env);
+      }
+      String version = Config.get().getVersion();
+      if (null != version && !version.isEmpty()) {
+        tc.add(Tags.DD_VERSION, version);
+      }
+
+      WithGlobalTracer.registerOrExecute(tc);
     }
   }
 }
