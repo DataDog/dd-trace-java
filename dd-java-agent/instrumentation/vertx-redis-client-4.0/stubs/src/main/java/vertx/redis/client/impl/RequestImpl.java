@@ -28,6 +28,11 @@ public final class RequestImpl implements Request, Cloneable {
   }
 
   @Override
+  public Request arg(boolean arg) {
+    return null;
+  }
+
+  @Override
   public Request nullArg() {
     return null;
   }

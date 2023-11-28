@@ -29,6 +29,6 @@ dependencies {
   testImplementation group: 'io.vertx', name: 'vertx-rx-java2', version: '4.0.0'
   testImplementation group: 'com.github.kstyrc', name: 'embedded-redis', version: '0.6'
 
-  latestDepTestImplementation group: 'io.vertx', name: 'vertx-redis-client', version: '4.5.0'
-  latestDepTestImplementation group: 'io.vertx', name: 'vertx-rx-java2', version: '4.5.0'
+  latestDepTestImplementation group: 'io.vertx', name: 'vertx-redis-client', version: '4.+'
+  latestDepTestImplementation group: 'io.vertx', name: 'vertx-rx-java2', version: '4.+'
 }
