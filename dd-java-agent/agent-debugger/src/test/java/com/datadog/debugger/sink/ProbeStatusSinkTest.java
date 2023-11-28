@@ -86,6 +86,13 @@ class ProbeStatusSinkTest {
   }
 
   @Test
+  void addEmitting() {
+    probeStatusSink.addEmitting(PROBE_ID);
+    assertEquals(
+        Arrays.asList(builder.emittingMessage(PROBE_ID)), probeStatusSink.getDiagnostics());
+  }
+
+  @Test
   void addReceivedThenInstalled() {
     probeStatusSink.addReceived(PROBE_ID);
     probeStatusSink.addInstalled(PROBE_ID);

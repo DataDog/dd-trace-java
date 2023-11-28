@@ -139,7 +139,7 @@ public class SpanDecorationProbe extends ProbeDefinition {
       ClassNode classNode,
       MethodNode methodNode,
       List<DiagnosticMessage> diagnostics,
-      List<String> probeIds) {
+      List<ProbeId> probeIds) {
     return new CapturedContextInstrumentor(
             this, classLoader, classNode, methodNode, diagnostics, probeIds, false, Limits.DEFAULT)
         .instrument();
@@ -236,6 +236,7 @@ public class SpanDecorationProbe extends ProbeDefinition {
     for (Pair<String, String> tag : tagsToDecorate) {
       agentSpan.setTag(tag.getLeft(), tag.getRight());
     }
+    DebuggerAgent.getSink().getProbeStatusSink().addEmitting(probeId);
   }
 
   private void handleEvaluationErrors(SpanDecorationStatus status) {

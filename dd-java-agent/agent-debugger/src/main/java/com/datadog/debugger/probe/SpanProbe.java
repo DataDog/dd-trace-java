@@ -29,7 +29,7 @@ public class SpanProbe extends ProbeDefinition {
       ClassNode classNode,
       MethodNode methodNode,
       List<DiagnosticMessage> diagnostics,
-      List<String> probeIds) {
+      List<ProbeId> probeIds) {
     return new SpanInstrumentor(this, classLoader, classNode, methodNode, diagnostics, probeIds)
         .instrument();
   }

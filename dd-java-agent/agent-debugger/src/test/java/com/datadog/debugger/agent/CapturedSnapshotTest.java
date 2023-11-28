@@ -2051,7 +2051,8 @@ public class CapturedSnapshotTest {
         DebuggerAgent.setupInstrumentTheWorldTransformer(
             config,
             instr,
-            new DebuggerSink(config, config.getFinalDebuggerSnapshotUrl(), false),
+            new DebuggerSink(
+                config, new ProbeStatusSink(config, config.getFinalDebuggerSnapshotUrl(), false)),
             null);
     DebuggerContext.initClassFilter(new DenyListHelper(null));
     return listener;

@@ -16,6 +16,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.datadog.debugger.agent.JsonSnapshotSerializer;
+import com.datadog.debugger.agent.ProbeStatus;
 import com.datadog.debugger.el.DSL;
 import com.datadog.debugger.el.ProbeCondition;
 import com.datadog.debugger.probe.LogProbe;
@@ -26,9 +27,12 @@ import datadog.trace.bootstrap.debugger.CapturedContext;
 import datadog.trace.bootstrap.debugger.MethodLocation;
 import datadog.trace.bootstrap.debugger.ProbeId;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicBoolean;
 import okhttp3.mockwebserver.RecordedRequest;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -62,27 +66,27 @@ public class LogProbesIntegrationTest extends SimpleAppDebuggerIntegrationTest {
             .build();
     setCurrentConfiguration(createConfig(probe));
     targetProcess = createProcessBuilder(logFilePath, METHOD_NAME, EXPECTED_UPLOADS).start();
-    RecordedRequest request = retrieveSnapshotRequest();
-    assertNotNull(request);
-    assertFalse(logHasErrors(logFilePath, it -> false));
-    String bodyStr = request.getBody().readUtf8();
-    JsonAdapter<List<JsonSnapshotSerializer.IntakeRequest>> adapter = createAdapterForSnapshot();
-    System.out.println(bodyStr);
-    Snapshot snapshot = adapter.fromJson(bodyStr).get(0).getDebugger().getSnapshot();
-    assertEquals(PROBE_ID.getId(), snapshot.getProbe().getId());
-    assertFullMethodCaptureArgs(snapshot.getCaptures().getEntry());
-    assertEquals(0, snapshot.getCaptures().getEntry().getLocals().size());
-    assertNull(snapshot.getCaptures().getEntry().getThrowable());
-    assertNull(snapshot.getCaptures().getEntry().getFields());
-    assertFullMethodCaptureArgs(snapshot.getCaptures().getReturn());
-    assertCaptureReturnValue(
-        snapshot.getCaptures().getReturn(),
-        "java.lang.String",
-        "42, foobar, 3.42, {key1=val1, key2=val2, key3=val3}, var1,var2,var3");
-    assertNotNull(snapshot.getCaptures().getReturn().getLocals());
-    assertEquals(1, snapshot.getCaptures().getReturn().getLocals().size()); // @return
-    assertNull(snapshot.getCaptures().getReturn().getThrowable());
-    assertNull(snapshot.getCaptures().getReturn().getFields());
+    AtomicBoolean snapshotReceived = new AtomicBoolean();
+    registerSnapshotListener(
+        snapshot -> {
+          assertEquals(PROBE_ID.getId(), snapshot.getProbe().getId());
+          assertFullMethodCaptureArgs(snapshot.getCaptures().getEntry());
+          assertEquals(0, snapshot.getCaptures().getEntry().getLocals().size());
+          assertNull(snapshot.getCaptures().getEntry().getThrowable());
+          assertNull(snapshot.getCaptures().getEntry().getFields());
+          assertFullMethodCaptureArgs(snapshot.getCaptures().getReturn());
+          assertCaptureReturnValue(
+              snapshot.getCaptures().getReturn(),
+              "java.lang.String",
+              "42, foobar, 3.42, {key1=val1, key2=val2, key3=val3}, var1,var2,var3");
+          assertNotNull(snapshot.getCaptures().getReturn().getLocals());
+          assertEquals(1, snapshot.getCaptures().getReturn().getLocals().size()); // @return
+          assertNull(snapshot.getCaptures().getReturn().getThrowable());
+          assertNull(snapshot.getCaptures().getReturn().getFields());
+          snapshotReceived.set(true);
+        });
+    AtomicBoolean statusResult = registerCheckReceivedInstalledEmitting();
+    processRequests(() -> snapshotReceived.get() && statusResult.get());
   }
 
   @Test
@@ -101,15 +105,15 @@ public class LogProbesIntegrationTest extends SimpleAppDebuggerIntegrationTest {
             .build();
     setCurrentConfiguration(createConfig(probe));
     targetProcess = createProcessBuilder(logFilePath, METHOD_NAME, EXPECTED_UPLOADS).start();
-    RecordedRequest request = retrieveSnapshotRequest();
-    assertNotNull(request);
-    assertFalse(logHasErrors(logFilePath, it -> false));
-    String bodyStr = request.getBody().readUtf8();
-    JsonAdapter<List<JsonSnapshotSerializer.IntakeRequest>> adapter = createAdapterForSnapshot();
-    System.out.println(bodyStr);
-    Snapshot snapshot = adapter.fromJson(bodyStr).get(0).getDebugger().getSnapshot();
-    assertEquals(PROBE_ID.getId(), snapshot.getProbe().getId());
-    assertFullMethodCaptureArgs(snapshot.getCaptures().getEntry());
+    AtomicBoolean snapshotReceived = new AtomicBoolean();
+    registerSnapshotListener(
+        snapshot -> {
+          assertEquals(PROBE_ID.getId(), snapshot.getProbe().getId());
+          assertFullMethodCaptureArgs(snapshot.getCaptures().getEntry());
+          snapshotReceived.set(true);
+        });
+    AtomicBoolean statusResult = registerCheckReceivedInstalledEmitting();
+    processRequests(() -> snapshotReceived.get() && statusResult.get());
   }
 
   @Test
@@ -130,15 +134,15 @@ public class LogProbesIntegrationTest extends SimpleAppDebuggerIntegrationTest {
             .build();
     setCurrentConfiguration(createConfig(probe));
     targetProcess = createProcessBuilder(logFilePath, METHOD_NAME, EXPECTED_UPLOADS).start();
-    RecordedRequest request = retrieveSnapshotRequest();
-    assertNotNull(request);
-    assertFalse(logHasErrors(logFilePath, it -> false));
-    String bodyStr = request.getBody().readUtf8();
-    JsonAdapter<List<JsonSnapshotSerializer.IntakeRequest>> adapter = createAdapterForSnapshot();
-    System.out.println(bodyStr);
-    Snapshot snapshot = adapter.fromJson(bodyStr).get(0).getDebugger().getSnapshot();
-    assertEquals(PROBE_ID.getId(), snapshot.getProbe().getId());
-    assertFullMethodCaptureArgs(snapshot.getCaptures().getReturn());
+    AtomicBoolean snapshotReceived = new AtomicBoolean();
+    registerSnapshotListener(
+        snapshot -> {
+          assertEquals(PROBE_ID.getId(), snapshot.getProbe().getId());
+          assertFullMethodCaptureArgs(snapshot.getCaptures().getReturn());
+          snapshotReceived.set(true);
+        });
+    AtomicBoolean statusResult = registerCheckReceivedInstalledEmitting();
+    processRequests(() -> snapshotReceived.get() && statusResult.get());
   }
 
   @Test
@@ -156,16 +160,17 @@ public class LogProbesIntegrationTest extends SimpleAppDebuggerIntegrationTest {
             .build();
     setCurrentConfiguration(createConfig(probe));
     targetProcess = createProcessBuilder(logFilePath, METHOD_NAME, EXPECTED_UPLOADS).start();
-    RecordedRequest request = retrieveSnapshotRequest();
-    assertNotNull(request);
-    assertFalse(logHasErrors(logFilePath, it -> false));
-    String bodyStr = request.getBody().readUtf8();
-    JsonAdapter<List<JsonSnapshotSerializer.IntakeRequest>> adapter = createAdapterForSnapshot();
-    System.out.println(bodyStr);
-    Snapshot snapshot = adapter.fromJson(bodyStr).get(0).getDebugger().getSnapshot();
-    assertEquals(PROBE_ID.getId(), snapshot.getProbe().getId());
-    assertEquals(1, snapshot.getEvaluationErrors().size());
-    assertEquals("Cannot find symbol: noarg", snapshot.getEvaluationErrors().get(0).getMessage());
+    AtomicBoolean snapshotReceived = new AtomicBoolean();
+    registerSnapshotListener(
+        snapshot -> {
+          assertEquals(PROBE_ID.getId(), snapshot.getProbe().getId());
+          assertEquals(1, snapshot.getEvaluationErrors().size());
+          assertEquals(
+              "Cannot find symbol: noarg", snapshot.getEvaluationErrors().get(0).getMessage());
+          snapshotReceived.set(true);
+        });
+    AtomicBoolean statusResult = registerCheckReceivedInstalledEmitting();
+    processRequests(() -> snapshotReceived.get() && statusResult.get());
   }
 
   @Test
@@ -182,17 +187,22 @@ public class LogProbesIntegrationTest extends SimpleAppDebuggerIntegrationTest {
             .build();
     setCurrentConfiguration(createConfig(probe));
     targetProcess = createProcessBuilder(logFilePath, METHOD_NAME, EXPECTED_UPLOADS).start();
-    RecordedRequest request = retrieveSnapshotRequest();
-    assertNotNull(request);
-    assertFalse(logHasErrors(logFilePath, it -> false));
-    String bodyStr = request.getBody().readUtf8();
-    JsonAdapter<List<JsonSnapshotSerializer.IntakeRequest>> adapter = createAdapterForSnapshot();
-    System.out.println(bodyStr);
-    JsonSnapshotSerializer.IntakeRequest intakeRequest = adapter.fromJson(bodyStr).get(0);
-    assertEquals(PROBE_ID.getId(), intakeRequest.getDebugger().getSnapshot().getProbe().getId());
-    assertEquals(
-        "log line 42 foobar 3.42 {[key1=val1], [key2=val2], [key3=val3]} [var1, var2, var3]",
-        intakeRequest.getMessage());
+    AtomicBoolean snapshotReceived = new AtomicBoolean();
+    AtomicBoolean correctLogMessage = new AtomicBoolean();
+    registerIntakeRequestListener(
+        intakeRequest -> {
+          assertEquals(
+              "log line 42 foobar 3.42 {[key1=val1], [key2=val2], [key3=val3]} [var1, var2, var3]",
+              intakeRequest.getMessage());
+          correctLogMessage.set(true);
+        });
+    registerSnapshotListener(
+        snapshot -> {
+          assertEquals(PROBE_ID.getId(), snapshot.getProbe().getId());
+          snapshotReceived.set(true);
+        });
+    AtomicBoolean statusResult = registerCheckReceivedInstalledEmitting();
+    processRequests(() -> snapshotReceived.get() && correctLogMessage.get() && statusResult.get());
   }
 
   @Test
@@ -215,20 +225,25 @@ public class LogProbesIntegrationTest extends SimpleAppDebuggerIntegrationTest {
         createProcessBuilder(logFilePath, METHOD_NAME, String.valueOf(expectedSnapshotUploads))
             .start();
     Set<String> probeIds = new HashSet<>();
-    int snapshotCount = 0;
-    while (snapshotCount < NB_SNAPSHOTS) {
-      RecordedRequest request = retrieveSnapshotRequest();
-      assertNotNull(request);
-      String bodyStr = request.getBody().readUtf8();
-      JsonAdapter<List<JsonSnapshotSerializer.IntakeRequest>> adapter = createAdapterForSnapshot();
-      List<JsonSnapshotSerializer.IntakeRequest> intakeRequests = adapter.fromJson(bodyStr);
-      snapshotCount += intakeRequests.size();
-      System.out.println("received " + intakeRequests.size() + " snapshots");
-      for (JsonSnapshotSerializer.IntakeRequest intakeRequest : intakeRequests) {
-        Snapshot snapshot = intakeRequest.getDebugger().getSnapshot();
-        probeIds.add(snapshot.getProbe().getId());
-      }
-    }
+    AtomicBoolean allSnapshotReceived = new AtomicBoolean();
+    AtomicBoolean allStatusEmitting = new AtomicBoolean();
+    registerSnapshotListener(
+        snapshot -> {
+          probeIds.add(snapshot.getProbe().getId());
+          allSnapshotReceived.set(probeIds.size() == NB_SNAPSHOTS);
+        });
+    Map<String, ProbeStatus.Status> statuses = new HashMap<>();
+    registerProbeStatusListener(
+        probeStatus -> {
+          statuses.put(
+              probeStatus.getDiagnostics().getProbeId().getId(),
+              probeStatus.getDiagnostics().getStatus());
+          allStatusEmitting.set(
+              statuses.size() == NB_SNAPSHOTS
+                  && statuses.values().stream()
+                      .allMatch(status -> status == ProbeStatus.Status.EMITTING));
+        });
+    processRequests(() -> allSnapshotReceived.get() && allStatusEmitting.get());
     assertEquals(NB_SNAPSHOTS, probeIds.size());
     for (int i = 0; i < NB_SNAPSHOTS; i++) {
       assertTrue(probeIds.contains(String.valueOf(i)));

@@ -10,6 +10,7 @@ import com.datadog.debugger.probe.ProbeDefinition;
 import com.datadog.debugger.probe.SpanDecorationProbe;
 import com.datadog.debugger.probe.Where;
 import com.datadog.debugger.sink.DebuggerSink;
+import com.datadog.debugger.sink.ProbeStatusSink;
 import com.datadog.debugger.util.ExceptionHelper;
 import datadog.trace.agent.tooling.AgentStrategies;
 import datadog.trace.api.Config;
@@ -107,7 +108,8 @@ public class DebuggerTransformer implements ClassFileTransformer {
         config,
         configuration,
         null,
-        new DebuggerSink(config, config.getFinalDebuggerSnapshotUrl(), false));
+        new DebuggerSink(
+            config, new ProbeStatusSink(config, config.getFinalDebuggerSnapshotUrl(), false)));
   }
 
   private void readExcludeFiles(String commaSeparatedFileNames) {
@@ -515,8 +517,8 @@ public class DebuggerTransformer implements ClassFileTransformer {
           }
         }
         if (capturedContextProbes.size() > 0) {
-          List<String> probesIds =
-              capturedContextProbes.stream().map(ProbeDefinition::getId).collect(toList());
+          List<ProbeId> probesIds =
+              capturedContextProbes.stream().map(ProbeDefinition::getProbeId).collect(toList());
           ProbeDefinition referenceDefinition = selectReferenceDefinition(capturedContextProbes);
           List<DiagnosticMessage> probeDiagnostics =
               diagnostics.get(referenceDefinition.getProbeId());

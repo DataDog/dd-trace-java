@@ -7,6 +7,7 @@ import com.datadog.debugger.probe.ProbeDefinition;
 import com.datadog.debugger.probe.SpanDecorationProbe;
 import com.datadog.debugger.probe.SpanProbe;
 import com.datadog.debugger.sink.DebuggerSink;
+import com.datadog.debugger.sink.ProbeStatusSink;
 import com.datadog.debugger.util.ExceptionHelper;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.debugger.DebuggerContext;
@@ -69,7 +70,8 @@ public class ConfigurationUpdater
         instrumentation,
         transformerSupplier,
         config,
-        new DebuggerSink(config, config.getFinalDebuggerSnapshotUrl(), false),
+        new DebuggerSink(
+            config, new ProbeStatusSink(config, config.getFinalDebuggerSnapshotUrl(), false)),
         finder);
   }
 
@@ -240,7 +242,7 @@ public class ConfigurationUpdater
   @Override
   public ProbeImplementation resolve(String id, Class<?> callingClass) {
     ProbeDefinition definition = appliedDefinitions.get(id);
-    if (definition == null) {
+    if (definition == null && callingClass != null) {
       LOGGER.info(
           "Cannot resolve probe id={}, re-transforming calling class: {}",
           id,

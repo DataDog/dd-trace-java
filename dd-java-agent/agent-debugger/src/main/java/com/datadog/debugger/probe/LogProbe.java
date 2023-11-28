@@ -351,7 +351,7 @@ public class LogProbe extends ProbeDefinition {
       ClassNode classNode,
       MethodNode methodNode,
       List<DiagnosticMessage> diagnostics,
-      List<String> probeIds) {
+      List<ProbeId> probeIds) {
     return new CapturedContextInstrumentor(
             this,
             classLoader,

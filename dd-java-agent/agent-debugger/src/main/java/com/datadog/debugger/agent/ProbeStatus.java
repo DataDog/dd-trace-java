@@ -232,6 +232,7 @@ public class ProbeStatus {
   public enum Status {
     RECEIVED,
     INSTALLED,
+    EMITTING,
     BLOCKED,
     ERROR
   }
@@ -259,6 +260,13 @@ public class ProbeStatus {
           this.serviceName,
           "Installed probe " + probeId + ".",
           new Diagnostics(probeId, runtimeId, Status.INSTALLED, null));
+    }
+
+    public ProbeStatus emittingMessage(ProbeId probeId) {
+      return new ProbeStatus(
+          this.serviceName,
+          "Probe " + probeId + "is emitting.",
+          new Diagnostics(probeId, runtimeId, Status.EMITTING, null));
     }
 
     public ProbeStatus blockedMessage(ProbeId probeId) {

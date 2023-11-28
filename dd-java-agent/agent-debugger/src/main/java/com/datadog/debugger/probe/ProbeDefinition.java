@@ -31,6 +31,7 @@ public abstract class ProbeDefinition implements ProbeImplementation {
   protected final String language;
   protected final String id;
   protected final int version;
+  protected transient ProbeId probeId;
   protected final Tag[] tags;
   protected final Map<String, String> tagMap = new HashMap<>();
   protected final Where where;
@@ -47,6 +48,7 @@ public abstract class ProbeDefinition implements ProbeImplementation {
     this.language = language;
     this.id = probeId != null ? probeId.getId() : null;
     this.version = probeId != null ? probeId.getVersion() : 0;
+    this.probeId = probeId;
     this.tags = tags;
     initTagMap(tagMap, tags);
     this.where = where;
@@ -60,7 +62,10 @@ public abstract class ProbeDefinition implements ProbeImplementation {
 
   @Override
   public ProbeId getProbeId() {
-    return new ProbeId(id, version);
+    if (probeId == null) {
+      probeId = new ProbeId(id, version);
+    }
+    return probeId;
   }
 
   public String getLanguage() {
@@ -127,7 +132,7 @@ public abstract class ProbeDefinition implements ProbeImplementation {
       ClassNode classNode,
       MethodNode methodNode,
       List<DiagnosticMessage> diagnostics) {
-    return instrument(classLoader, classNode, methodNode, diagnostics, singletonList(getId()));
+    return instrument(classLoader, classNode, methodNode, diagnostics, singletonList(getProbeId()));
   }
 
   public abstract InstrumentationResult.Status instrument(
@@ -135,7 +140,7 @@ public abstract class ProbeDefinition implements ProbeImplementation {
       ClassNode classNode,
       MethodNode methodNode,
       List<DiagnosticMessage> diagnostics,
-      List<String> probeIds);
+      List<ProbeId> probeIds);
 
   @Override
   public ProbeLocation getLocation() {

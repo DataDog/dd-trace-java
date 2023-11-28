@@ -3,6 +3,7 @@ package com.datadog.debugger.agent;
 import static datadog.trace.util.AgentThreadFactory.AGENT_THREAD_GROUP;
 
 import com.datadog.debugger.sink.DebuggerSink;
+import com.datadog.debugger.sink.ProbeStatusSink;
 import com.datadog.debugger.symbol.SymDBEnablement;
 import com.datadog.debugger.symbol.SymbolAggregator;
 import com.datadog.debugger.uploader.BatchUploader;
@@ -65,12 +66,14 @@ public class DebuggerAgent {
             debuggerSink,
             classesToRetransformFinder);
     sink = debuggerSink;
-    StatsdMetricForwarder statsdMetricForwarder = new StatsdMetricForwarder(config);
+    StatsdMetricForwarder statsdMetricForwarder =
+        new StatsdMetricForwarder(config, configurationUpdater, probeStatusSink);
     DebuggerContext.init(configurationUpdater, statsdMetricForwarder);
     DebuggerContext.initClassFilter(new DenyListHelper(null)); // default hard coded deny list
     snapshotSerializer = new JsonSnapshotSerializer();
     DebuggerContext.initValueSerializer(snapshotSerializer);
-    DebuggerContext.initTracer(new DebuggerTracer());
+    DebuggerContext.initTracer(
+        new DebuggerTracer(configurationUpdater, debuggerSink.getProbeStatusSink()));
     if (config.isDebuggerInstrumentTheWorld()) {
       setupInstrumentTheWorldTransformer(
           config, instrumentation, debuggerSink, statsdMetricForwarder);

@@ -39,23 +39,23 @@ public class DebuggerContext {
   }
 
   public interface MetricForwarder {
-    void count(String name, long delta, String[] tags);
+    void count(String probeId, String name, long delta, String[] tags);
 
-    void gauge(String name, long value, String[] tags);
+    void gauge(String probeId, String name, long value, String[] tags);
 
-    void gauge(String name, double value, String[] tags);
+    void gauge(String probeId, String name, double value, String[] tags);
 
-    void histogram(String name, long value, String[] tags);
+    void histogram(String probeId, String name, long value, String[] tags);
 
-    void histogram(String name, double value, String[] tags);
+    void histogram(String probeId, String name, double value, String[] tags);
 
-    void distribution(String name, long value, String[] tags);
+    void distribution(String probeId, String name, long value, String[] tags);
 
-    void distribution(String name, double value, String[] tags);
+    void distribution(String probeId, String name, double value, String[] tags);
   }
 
   public interface Tracer {
-    DebuggerSpan createSpan(String resourceName, String[] tags);
+    DebuggerSpan createSpan(String probeId, String resourceName, String[] tags);
   }
 
   public interface ValueSerializer {
@@ -111,7 +111,8 @@ public class DebuggerContext {
   }
 
   /** Increments or updates the specified metric No-op if no implementation is available */
-  public static void metric(MetricKind kind, String name, long value, String[] tags) {
+  public static void metric(
+      String probeId, MetricKind kind, String name, long value, String[] tags) {
     try {
       MetricForwarder forwarder = metricForwarder;
       if (forwarder == null) {
@@ -119,16 +120,16 @@ public class DebuggerContext {
       }
       switch (kind) {
         case COUNT:
-          forwarder.count(name, value, tags);
+          forwarder.count(probeId, name, value, tags);
           break;
         case GAUGE:
-          forwarder.gauge(name, value, tags);
+          forwarder.gauge(probeId, name, value, tags);
           break;
         case HISTOGRAM:
-          forwarder.histogram(name, value, tags);
+          forwarder.histogram(probeId, name, value, tags);
           break;
         case DISTRIBUTION:
-          forwarder.distribution(name, value, tags);
+          forwarder.distribution(probeId, name, value, tags);
         default:
           throw new IllegalArgumentException("Unsupported metric kind: " + kind);
       }
@@ -138,7 +139,8 @@ public class DebuggerContext {
   }
 
   /** Updates the specified metric No-op if no implementation is available */
-  public static void metric(MetricKind kind, String name, double value, String[] tags) {
+  public static void metric(
+      String probeId, MetricKind kind, String name, double value, String[] tags) {
     try {
       MetricForwarder forwarder = metricForwarder;
       if (forwarder == null) {
@@ -146,13 +148,13 @@ public class DebuggerContext {
       }
       switch (kind) {
         case GAUGE:
-          forwarder.gauge(name, value, tags);
+          forwarder.gauge(probeId, name, value, tags);
           break;
         case HISTOGRAM:
-          forwarder.histogram(name, value, tags);
+          forwarder.histogram(probeId, name, value, tags);
           break;
         case DISTRIBUTION:
-          forwarder.distribution(name, value, tags);
+          forwarder.distribution(probeId, name, value, tags);
           break;
         default:
           throw new IllegalArgumentException("Unsupported metric kind: " + kind);
@@ -173,13 +175,13 @@ public class DebuggerContext {
   }
 
   /** Creates a span, returns null if no implementation available */
-  public static DebuggerSpan createSpan(String operationName, String[] tags) {
+  public static DebuggerSpan createSpan(String probeId, String operationName, String[] tags) {
     try {
       Tracer localTracer = tracer;
       if (localTracer == null) {
         return DebuggerSpan.NOOP_SPAN;
       }
-      return localTracer.createSpan(operationName, tags);
+      return localTracer.createSpan(probeId, operationName, tags);
     } catch (Exception ex) {
       LOGGER.debug("Error in createSpan: ", ex);
       return DebuggerSpan.NOOP_SPAN;

@@ -49,6 +49,7 @@ import com.datadog.debugger.el.values.StringValue;
 import com.datadog.debugger.probe.MetricProbe;
 import com.datadog.debugger.probe.Where;
 import datadog.trace.bootstrap.debugger.MethodLocation;
+import datadog.trace.bootstrap.debugger.ProbeId;
 import datadog.trace.bootstrap.debugger.el.ValueReferences;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
@@ -86,7 +87,7 @@ public class MetricInstrumentor extends Instrumentor {
       ClassNode classNode,
       MethodNode methodNode,
       List<DiagnosticMessage> diagnostics,
-      List<String> probeIds) {
+      List<ProbeId> probeIds) {
     super(metricProbe, classLoader, classNode, methodNode, diagnostics, probeIds);
     this.metricProbe = metricProbe;
   }
@@ -192,20 +193,23 @@ public class MetricInstrumentor extends Instrumentor {
   private InsnList callCount(MetricProbe metricProbe, ReturnContext returnContext) {
     if (metricProbe.getValue() == null) {
       InsnList insnList = new InsnList();
-      // consider the metric as an increment counter one
+      ldc(insnList, metricProbe.getId());
+      // stack [ProbeId]
       getStatic(insnList, METRICKIND_TYPE, metricProbe.getKind().name());
-      // stack [MetricKind]
+      // stack [string, MetricKind]
       insnList.add(new LdcInsnNode(metricProbe.getMetricName()));
-      // stack [MetricKind, string]
+      // stack [string, MetricKind, string]
+      // consider the metric as an increment counter one
       ldc(insnList, 1L);
-      // stack [MetricKind, string, long]
+      // stack [string, MetricKind, string, long]
       pushTags(insnList, addProbeIdWithTags(metricProbe.getId(), metricProbe.getTags()));
-      // stack [MetricKind, string, long, array]
+      // stack [string, MetricKind, string, long, array]
       invokeStatic(
           insnList,
           DEBUGGER_CONTEXT_TYPE,
           "metric",
           Type.VOID_TYPE,
+          STRING_TYPE,
           METRICKIND_TYPE,
           STRING_TYPE,
           Type.LONG_TYPE,
@@ -245,19 +249,22 @@ public class MetricInstrumentor extends Instrumentor {
       return EMPTY_INSN_LIST;
     }
     resultType = convertIfRequired(resultType, result.insnList);
+    ldc(insnList, metricProbe.getId());
+    // stack [string]
     getStatic(insnList, METRICKIND_TYPE, metricProbe.getKind().name());
-    // stack [MetricKind]
+    // stack [string, MetricKind]
     insnList.add(new LdcInsnNode(metricProbe.getMetricName()));
-    // stack [MetricKind, string]
+    // stack [string, MetricKind, string]
     insnList.add(result.insnList);
-    // stack [MetricKind, string, long|double]
+    // stack [string, MetricKind, string, long|double]
     pushTags(insnList, addProbeIdWithTags(metricProbe.getId(), metricProbe.getTags()));
-    // stack [MetricKind, string, long|double, array]
+    // stack [string, MetricKind, string, long|double, array]
     invokeStatic(
         insnList,
         DEBUGGER_CONTEXT_TYPE,
         "metric",
         Type.VOID_TYPE,
+        STRING_TYPE,
         METRICKIND_TYPE,
         STRING_TYPE,
         resultType,
@@ -744,6 +751,7 @@ public class MetricInstrumentor extends Instrumentor {
         nullBranch.add(new InsnNode(Opcodes.POP)); // target_object
         nullBranch.add(new InsnNode(Opcodes.POP)); // metric name
         nullBranch.add(new InsnNode(Opcodes.POP)); // metric kind
+        nullBranch.add(new InsnNode(Opcodes.POP)); // probeId
         nullBranch.add(gotoNode);
       } catch (Exception e) {
         String message = "Cannot resolve field " + fieldName;

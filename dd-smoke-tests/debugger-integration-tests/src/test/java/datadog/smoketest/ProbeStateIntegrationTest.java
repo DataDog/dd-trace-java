@@ -130,8 +130,8 @@ public class ProbeStateIntegrationTest extends ServerAppDebuggerIntegrationTest 
             .where(TEST_APP_CLASS_NAME, "unknownMethodName")
             .build();
     addProbe(logProbe);
-    AtomicBoolean received = new AtomicBoolean(false);
-    AtomicBoolean error = new AtomicBoolean(false);
+    AtomicBoolean received = new AtomicBoolean();
+    AtomicBoolean error = new AtomicBoolean();
     registerProbeStatusListener(
         probeStatus -> {
           if (probeStatus.getDiagnostics().getStatus() == ProbeStatus.Status.RECEIVED) {
@@ -143,8 +143,7 @@ public class ProbeStateIntegrationTest extends ServerAppDebuggerIntegrationTest 
                 probeStatus.getDiagnostics().getException().getMessage());
             error.set(true);
           }
-          return received.get() && error.get();
         });
-    processRequests();
+    processRequests(() -> received.get() && error.get());
   }
 }
