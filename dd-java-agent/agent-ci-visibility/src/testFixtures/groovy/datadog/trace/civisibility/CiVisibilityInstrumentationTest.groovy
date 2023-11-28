@@ -27,7 +27,6 @@ import datadog.trace.civisibility.writer.ddintake.CiTestCovMapperV2
 import datadog.trace.civisibility.writer.ddintake.CiTestCycleMapperV1
 import datadog.trace.common.writer.RemoteMapper
 import datadog.trace.core.DDSpan
-import datadog.trace.test.util.civisibility.CiVisibilityTestUtils
 import org.msgpack.jackson.dataformat.MessagePackFactory
 import spock.lang.Unroll
 
