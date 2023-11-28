@@ -48,33 +48,23 @@ public class TracingRequestHandler extends RequestHandler2 {
   }
 
   @Override
-  public AmazonWebServiceRequest beforeMarshalling(final AmazonWebServiceRequest request) {
-    if (isSqsSendRequest(request)) {
-      // for SQS, create the span now so that we can use it for DSM purposes in
-      // datadog.trace.instrumentation.aws.v1.sqs.SqsInterceptor. This forces us to hardcode the
-      // service name because we cannot access it programmatically here.
-      AgentSpan span = startSpan(AwsNameCache.spanName(request, "AmazonSQS"));
-      DECORATE.afterStart(span);
-      requestSpanStore.put(request, span);
-    }
-    return request;
-  }
-
-  @Override
   public void beforeRequest(final Request<?> request) {
-    final AgentSpan span;
+    AgentSpan span;
     if (!AWS_LEGACY_TRACING && isPollingRequest(request.getOriginalRequest())) {
       // SQS messages spans are created by aws-java-sqs-1.0 - replace client scope with no-op,
       // so we can tell when receive call is complete without affecting the rest of the trace
       span = noopSpan();
     } else {
-      if (isSqsSendRequest(request.getOriginalRequest())) {
-        // for SQS, spans are created earlier, in beforeMarshalling() just above.
-        span = requestSpanStore.get(request.getOriginalRequest());
+      span = requestSpanStore.remove(request.getOriginalRequest());
+      if (span != null) {
+        // we'll land here for SQS send requests, where we create the span in SqsInterceptor to
+        // inject DSM tags.
+        span.setOperationName(AwsNameCache.spanName(request));
       } else {
+        // this is the most common code path
         span = startSpan(AwsNameCache.spanName(request));
-        DECORATE.afterStart(span);
       }
+      DECORATE.afterStart(span);
       DECORATE.onRequest(span, request);
       request.addHandlerContext(SPAN_CONTEXT_KEY, span);
       if (Config.get().isAwsPropagationEnabled()) {
@@ -141,7 +131,12 @@ public class TracingRequestHandler extends RequestHandler2 {
 
   @Override
   public void afterError(final Request<?> request, final Response<?> response, final Exception e) {
-    final AgentSpan span = request.getHandlerContext(SPAN_CONTEXT_KEY);
+    AgentSpan span = request.getHandlerContext(SPAN_CONTEXT_KEY);
+    if (span == null) {
+      // also try getting the span from the context store, if the error happened early
+      span = requestSpanStore.remove(request.getOriginalRequest());
+    }
+
     if (span != null) {
       request.addHandlerContext(SPAN_CONTEXT_KEY, null);
       if (response != null) {
@@ -155,15 +150,6 @@ public class TracingRequestHandler extends RequestHandler2 {
       DECORATE.beforeFinish(span);
       span.finish();
     }
-  }
-
-  private static boolean isSqsSendRequest(AmazonWebServiceRequest request) {
-    if (null != request) {
-      String reqType = request.getClass().getName();
-      return ("com.amazonaws.services.sqs.model.SendMessageRequest".equals(reqType)
-          || "com.amazonaws.services.sqs.model.SendMessageBatchRequest".equals(reqType));
-    }
-    return false;
   }
 
   private static boolean isPollingRequest(AmazonWebServiceRequest request) {
