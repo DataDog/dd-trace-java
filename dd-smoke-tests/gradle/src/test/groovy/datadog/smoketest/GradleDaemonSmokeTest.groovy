@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import datadog.trace.api.Platform
 import datadog.trace.api.config.CiVisibilityConfig
 import datadog.trace.api.config.GeneralConfig
+import datadog.trace.civisibility.CiVisibilitySmokeTest
 import datadog.trace.util.Strings
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -34,7 +35,7 @@ import java.nio.file.SimpleFileVisitor
 import java.nio.file.attribute.BasicFileAttributes
 
 @Unroll
-class GradleDaemonSmokeTest extends AbstractCiVisibilitySmokeTest {
+class GradleDaemonSmokeTest extends CiVisibilitySmokeTest {
 
   private static final String LATEST_GRADLE_VERSION = getLatestGradleVersion()
 

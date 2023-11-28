@@ -1,9 +1,8 @@
-package datadog.smoketest
+package datadog.trace.civisibility
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import datadog.trace.agent.test.server.http.TestHttpServer
 import datadog.trace.test.util.MultipartRequestParser
-import datadog.trace.civisibility.CiVisibilityTestUtils
 import org.msgpack.jackson.dataformat.MessagePackFactory
 import spock.lang.AutoCleanup
 import spock.lang.Shared
@@ -14,7 +13,7 @@ import java.util.concurrent.ConcurrentLinkedQueue
 
 import static datadog.trace.agent.test.server.http.TestHttpServer.httpServer
 
-abstract class AbstractCiVisibilitySmokeTest extends Specification {
+abstract class CiVisibilitySmokeTest extends Specification {
 
   @Shared
   ObjectMapper msgPackMapper = new ObjectMapper(new MessagePackFactory())
