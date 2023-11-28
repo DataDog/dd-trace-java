@@ -35,7 +35,7 @@ public class ProbeStatusSink {
   private final Duration interval;
   private final int batchSize;
   private final boolean isInstrumentTheWorld;
-  private final boolean useDebuggerTracker;
+  private final boolean useDebuggerTrack;
 
   ProbeStatusSink(Config config, String diagnosticsEndpoint) {
     this(
@@ -44,9 +44,9 @@ public class ProbeStatusSink {
         isUsingDebuggerTrack(diagnosticsEndpoint));
   }
 
-  ProbeStatusSink(Config config, BatchUploader diagnosticUploader, boolean useDebuggerTracker) {
+  ProbeStatusSink(Config config, BatchUploader diagnosticUploader, boolean useDebuggerTrack) {
     this.diagnosticUploader = diagnosticUploader;
-    this.useDebuggerTracker = useDebuggerTracker;
+    this.useDebuggerTrack = useDebuggerTrack;
     this.messageBuilder = new Builder(config);
     this.interval = Duration.ofSeconds(config.getDebuggerDiagnosticsInterval());
     this.batchSize = config.getDebuggerUploadBatchSize();
@@ -83,9 +83,9 @@ public class ProbeStatusSink {
     List<String> serializedDiagnostics = getSerializedDiagnostics();
     List<byte[]> batches = IntakeBatchHelper.createBatches(serializedDiagnostics);
     for (byte[] batch : batches) {
-      if (useDebuggerTracker) {
+      if (useDebuggerTrack) {
         diagnosticUploader.uploadAsMultipart(
-            "", new BatchUploader.MultiPartContent(batch, "file", "file.json"));
+            "", new BatchUploader.MultiPartContent(batch, "event", "event.json"));
       } else {
         diagnosticUploader.upload(batch, tags);
       }

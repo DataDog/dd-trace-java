@@ -57,8 +57,6 @@ public class BatchUploaderTest {
     url = server.url(URL_PATH);
 
     when(config.getDebuggerUploadTimeout()).thenReturn((int) REQUEST_TIMEOUT.getSeconds());
-    when(config.getServiceName()).thenReturn("myservice");
-    when(config.getRuntimeId()).thenReturn("myruntimeid");
 
     uploader = new BatchUploader(config, url.toString(), ratelimitedLogger);
   }
@@ -262,9 +260,6 @@ public class BatchUploaderTest {
     RecordedRequest recordedRequest = server.takeRequest(5, TimeUnit.SECONDS);
     assertNotNull(recordedRequest);
     String strBody = recordedRequest.getBody().readUtf8();
-    assertTrue(strBody.contains("\"ddsource\": \"dd_debugger\","));
-    assertTrue(strBody.contains("\"service\": \"myservice\","));
-    assertTrue(strBody.contains("\"runtimeId\": \"myruntimeid\""));
     assertTrue(strBody.contains(new String(SNAPSHOT_BUFFER)));
   }
 }
