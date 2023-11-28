@@ -220,11 +220,11 @@ Suggested plugins and settings:
 
 To run tests on a different JVM than the one used for doing the build, you need two things:
 
-1) An environment variable pointing to the JVM to use on the form `JAVA_[JDKNAME]_HOME`, i.e. `JAVA_ZULU15_HOME`
+1) An environment variable pointing to the JVM to use on the form `JAVA_[JDKNAME]_HOME`, e.g. `JAVA_ZULU15_HOME`, `JAVA_GRAALVM17_HOME`
 
-2) A command line option to the gradle task on the form `-PtestJvm=[JDKNAME]`, i.e. `-PtestJvm=ZULU15`
+2) A command line option to the gradle task on the form `-PtestJvm=[JDKNAME]`, e.g. `-PtestJvm=ZULU15`, `-PtestJvm=GRAALVM17`
 
-Please note that the JDK name needs to end with the JDK version, i.e. `11`, `ZULU15`, `ORACLE8`, et.c.
+Please note that the JDK name needs to end with the JDK version, e.g. `11`, `ZULU15`, `ORACLE8`, `GRAALVM17`, etc.
 
 ## The APM Test Agent
 
