@@ -48,7 +48,11 @@ public class TagsProcessor {
   private static final Function<String, String> GROUP_TAG_PREFIX = new StringPrefix("group:");
   private static final Function<String, String> CONSUMER_GROUP_TAG_PREFIX =
       new StringPrefix("consumer_group:");
-
+  public static final String SUBSCRIPTION_TAG = "subscription";
+  private static final DDCache<String, String> SUBSCRIPTION_TAG_CACHE =
+      DDCaches.newFixedSizeCache(32);
+  private static final Function<String, String> SUBSCRIPTION_TAG_PREFIX =
+      new StringPrefix("subscription:");
   public static final String EXCHANGE_TAG = "exchange";
   private static final DDCache<String, String> EXCHANGE_TAG_CACHE = DDCaches.newFixedSizeCache(32);
   private static final Function<String, String> EXCHANGE_TAG_PREFIX = new StringPrefix("exchange:");
@@ -76,6 +80,7 @@ public class TagsProcessor {
     result.put(PARTITION_TAG, PARTITION_TAG_CACHE);
     result.put(GROUP_TAG, GROUP_TAG_CACHE);
     result.put(CONSUMER_GROUP_TAG, CONSUMER_GROUP_TAG_CACHE);
+    result.put(SUBSCRIPTION_TAG, SUBSCRIPTION_TAG_CACHE);
     result.put(EXCHANGE_TAG, EXCHANGE_TAG_CACHE);
     result.put(HAS_ROUTING_KEY_TAG, HAS_ROUTING_KEY_TAG_CACHE);
     result.put(KAFKA_CLUSTER_ID_TAG, KAFKA_CLUSTER_ID_TAG_CACHE);
@@ -90,6 +95,7 @@ public class TagsProcessor {
     result.put(PARTITION_TAG, PARTITION_TAG_PREFIX);
     result.put(GROUP_TAG, GROUP_TAG_PREFIX);
     result.put(CONSUMER_GROUP_TAG, CONSUMER_GROUP_TAG_PREFIX);
+    result.put(SUBSCRIPTION_TAG, SUBSCRIPTION_TAG_PREFIX);
     result.put(EXCHANGE_TAG, EXCHANGE_TAG_PREFIX);
     result.put(HAS_ROUTING_KEY_TAG, HAS_ROUTING_KEY_TAG_PREFIX);
     result.put(KAFKA_CLUSTER_ID_TAG, KAFKA_CLUSTER_ID_TAG_PREFIX);

@@ -2,6 +2,7 @@ package datadog.trace.lambda
 
 import datadog.trace.api.Config
 import datadog.trace.api.DDSpanId
+import datadog.trace.api.DDTags
 import datadog.trace.api.DDTraceId
 import datadog.trace.core.propagation.PropagationTags
 import datadog.trace.core.test.DDCoreSpecification
@@ -159,6 +160,40 @@ class LambdaHandlerTest extends DDCoreSpecification {
     expected | headerValue | lambdaResult | boolValue
     false    | "true"      | {}           | true
     false    | null        | "12345"      | false
+  }
+
+  def "test end invocation success with error metadata"() {
+    given:
+    def server = httpServer {
+      handlers {
+        post("/lambda/end-invocation") {
+          response
+            .status(200)
+            .send()
+        }
+      }
+    }
+    LambdaHandler.setExtensionBaseUrl(server.address.toString())
+    DDSpan span = Mock(DDSpan) {
+      getTraceId() >> DDTraceId.from("1234")
+      getSpanId() >> DDSpanId.from("5678")
+      getSamplingPriority() >> 2
+      getTag(DDTags.ERROR_MSG) >> "custom error message"
+      getTag(DDTags.ERROR_TYPE) >> "java.lang.Throwable"
+      getTag(DDTags.ERROR_STACK) >> "errorStack\n \ttest"
+    }
+
+    when:
+    LambdaHandler.notifyEndInvocation(span, {}, true)
+
+    then:
+    server.lastRequest.headers.get("x-datadog-invocation-error") == "true"
+    server.lastRequest.headers.get("x-datadog-invocation-error-msg") == "custom error message"
+    server.lastRequest.headers.get("x-datadog-invocation-error-type") == "java.lang.Throwable"
+    server.lastRequest.headers.get("x-datadog-invocation-error-stack") == "ZXJyb3JTdGFjawogCXRlc3Q="
+
+    cleanup:
+    server.close()
   }
 
   def "test moshi toJson SQSEvent"() {

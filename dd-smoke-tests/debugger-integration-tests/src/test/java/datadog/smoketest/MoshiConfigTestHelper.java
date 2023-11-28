@@ -85,7 +85,18 @@ public class MoshiConfigTestHelper {
 
     @Override
     public Void visit(BinaryExpression binaryExpression) {
-      throw new UnsupportedOperationException("binary expression");
+      try {
+        jsonWriter.beginObject();
+        binaryExpression.getOperator().accept(this);
+        jsonWriter.beginArray();
+        binaryExpression.getLeft().accept(this);
+        binaryExpression.getRight().accept(this);
+        jsonWriter.endArray();
+        jsonWriter.endObject();
+      } catch (IOException ex) {
+        LOGGER.debug("Cannot serialize: ", ex);
+      }
+      return null;
     }
 
     @Override
@@ -100,12 +111,14 @@ public class MoshiConfigTestHelper {
 
     @Override
     public Void visit(ComparisonExpression comparisonExpression) {
-      comparisonExpression.getOperator().accept(this);
       try {
+        jsonWriter.beginObject();
+        comparisonExpression.getOperator().accept(this);
         jsonWriter.beginArray();
         comparisonExpression.getLeft().accept(this);
         comparisonExpression.getRight().accept(this);
         jsonWriter.endArray();
+        jsonWriter.endObject();
       } catch (IOException ex) {
         LOGGER.debug("Cannot serialize: ", ex);
       }
@@ -169,7 +182,15 @@ public class MoshiConfigTestHelper {
 
     @Override
     public Void visit(LenExpression lenExpression) {
-      throw new UnsupportedOperationException("len expression");
+      try {
+        jsonWriter.beginObject();
+        jsonWriter.name("len");
+        lenExpression.getSource().accept(this);
+        jsonWriter.endObject();
+      } catch (IOException ex) {
+        LOGGER.debug("Cannot serialize: ", ex);
+      }
+      return null;
     }
 
     @Override
@@ -180,8 +201,8 @@ public class MoshiConfigTestHelper {
     @Override
     public Void visit(NotExpression notExpression) {
       try {
-        jsonWriter.name("not");
         jsonWriter.beginObject();
+        jsonWriter.name("not");
         notExpression.getPredicate().accept(this);
         jsonWriter.endObject();
       } catch (IOException ex) {
@@ -247,13 +268,7 @@ public class MoshiConfigTestHelper {
 
     @Override
     public Void visit(WhenExpression whenExpression) {
-      try {
-        jsonWriter.beginObject();
-        whenExpression.getExpression().accept(this);
-        jsonWriter.endObject();
-      } catch (IOException ex) {
-        LOGGER.debug("Cannot serialize: ", ex);
-      }
+      whenExpression.getExpression().accept(this);
       return null;
     }
 

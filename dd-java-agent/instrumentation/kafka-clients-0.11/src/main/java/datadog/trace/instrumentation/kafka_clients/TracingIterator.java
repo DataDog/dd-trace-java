@@ -97,10 +97,11 @@ public class TracingIterator implements Iterator<ConsumerRecord<?, ?>> {
           }
           sortedTags.put(TOPIC_TAG, val.topic());
           sortedTags.put(TYPE_TAG, "kafka");
-
+          final long payloadSize =
+              span.traceConfig().isDataStreamsEnabled() ? computePayloadSizeBytes(val) : 0;
           AgentTracer.get()
               .getDataStreamsMonitoring()
-              .setCheckpoint(span, sortedTags, val.timestamp(), computePayloadSizeBytes(val));
+              .setCheckpoint(span, sortedTags, val.timestamp(), payloadSize);
         } else {
           span = startSpan(operationName, null);
         }

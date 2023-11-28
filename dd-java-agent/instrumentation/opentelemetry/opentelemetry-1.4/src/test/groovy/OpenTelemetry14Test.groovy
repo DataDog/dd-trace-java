@@ -1,15 +1,30 @@
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.DDTags
-import datadog.trace.bootstrap.instrumentation.api.Tags
 import io.opentelemetry.api.GlobalOpenTelemetry
 import io.opentelemetry.api.common.AttributeKey
-import io.opentelemetry.api.trace.SpanKind
+import io.opentelemetry.api.common.Attributes
+import io.opentelemetry.api.trace.SpanContext
+import io.opentelemetry.api.trace.TraceFlags
+import io.opentelemetry.api.trace.TraceState
 import io.opentelemetry.context.Context
 import io.opentelemetry.context.ThreadLocalContextStorage
+import org.skyscreamer.jsonassert.JSONAssert
 import spock.lang.Subject
 
 import java.security.InvalidParameterException
 
+import static datadog.trace.api.DDTags.ERROR_MSG
+import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND
+import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND_CLIENT
+import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND_CONSUMER
+import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND_PRODUCER
+import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND_SERVER
+import static datadog.trace.instrumentation.opentelemetry14.trace.OtelConventions.SPAN_KIND_INTERNAL
+import static io.opentelemetry.api.trace.SpanKind.CLIENT
+import static io.opentelemetry.api.trace.SpanKind.CONSUMER
+import static io.opentelemetry.api.trace.SpanKind.INTERNAL
+import static io.opentelemetry.api.trace.SpanKind.PRODUCER
+import static io.opentelemetry.api.trace.SpanKind.SERVER
 import static io.opentelemetry.api.trace.StatusCode.ERROR
 import static io.opentelemetry.api.trace.StatusCode.OK
 import static io.opentelemetry.api.trace.StatusCode.UNSET
@@ -41,12 +56,12 @@ class OpenTelemetry14Test extends AgentTestRunner {
       trace(2) {
         span {
           parent()
-          operationName "some-name"
+          operationName "internal"
           resourceName "some-name"
         }
         span {
           childOfPrevious()
-          operationName "other-name"
+          operationName "internal"
           resourceName "other-name"
         }
       }
@@ -69,11 +84,13 @@ class OpenTelemetry14Test extends AgentTestRunner {
       trace(2) {
         span {
           parent()
-          operationName "some-name"
+          operationName "internal"
+          resourceName "some-name"
         }
         span {
           childOfPrevious()
-          operationName "other-name"
+          operationName "internal"
+          resourceName "other-name"
         }
       }
     }
@@ -89,7 +106,6 @@ class OpenTelemetry14Test extends AgentTestRunner {
 
     TEST_WRITER.waitForTraces(1)
     def trace = TEST_WRITER.firstTrace()
-
 
     then:
     trace.size() == 1
@@ -114,13 +130,15 @@ class OpenTelemetry14Test extends AgentTestRunner {
       trace(1) {
         span {
           parent()
-          operationName "some-name"
+          operationName "internal"
+          resourceName"some-name"
         }
       }
       trace(1) {
         span {
           parent()
-          operationName "other-name"
+          operationName "internal"
+          resourceName"other-name"
         }
       }
     }
@@ -133,8 +151,6 @@ class OpenTelemetry14Test extends AgentTestRunner {
     anotherSpan.end()
 
     when:
-    // Adding link is not supported
-    builder.addLink(anotherSpan.getSpanContext())
     // Adding event is not supported
     def result = builder.startSpan()
     result.addEvent("some-event")
@@ -149,6 +165,157 @@ class OpenTelemetry14Test extends AgentTestRunner {
         span {}
       }
     }
+  }
+
+  def "test simple span links"() {
+    setup:
+    def traceId = "1234567890abcdef1234567890abcdef" as String
+    def spanId = "fedcba0987654321" as String
+    def traceState = TraceState.builder().put("string-key", "string-value").build()
+
+    def expectedLinksTag = """
+    [
+      { traceId: "${traceId}",
+        spanId: "${spanId}",
+        traceFlags: 1,
+        traceState: "string-key=string-value"}
+    ]"""
+
+    when:
+    def span1 =tracer.spanBuilder("some-name")
+      .addLink(SpanContext.getInvalid())  // Should not be added
+      .addLink(SpanContext.create(traceId, spanId, TraceFlags.getSampled(), traceState))
+      .startSpan()
+    span1.end()
+
+    then:
+    assertTraces(1) {
+      trace(1) {
+        span {
+          tags {
+            defaultTags()
+            "$SPAN_KIND" "$SPAN_KIND_INTERNAL"
+            tag("_dd.span_links", { JSONAssert.assertEquals(expectedLinksTag, it as String, true); return true })
+          }
+        }
+      }
+    }
+  }
+
+  def "test multiple span links"() {
+    setup:
+    def spanBuilder = tracer.spanBuilder("some-name")
+
+    when:
+    def links = []
+    0..9.each {
+      def traceId = "1234567890abcdef1234567890abcde$it" as String
+      def spanId = "fedcba098765432$it" as String
+      def traceState = TraceState.builder().put('string-key', 'string-value'+it).build()
+      links << """{ traceId: "${traceId}",
+        spanId: "${spanId}",
+        traceFlags: 1,
+        traceState: "string-key=string-value$it"}"""
+      spanBuilder.addLink(SpanContext.create(traceId, spanId, TraceFlags.getSampled(), traceState))
+    }
+    def expectedLinksTag = "[${links.join(',')}]" as String
+
+    spanBuilder.startSpan().end()
+
+    then:
+    assertTraces(1) {
+      trace(1) {
+        span {
+          tags {
+            defaultTags()
+            "$SPAN_KIND" "$SPAN_KIND_INTERNAL"
+            tag("_dd.span_links", { JSONAssert.assertEquals(expectedLinksTag, it as String, true); return true })
+          }
+        }
+      }
+    }
+  }
+
+  def "test span link attributes"() {
+    setup:
+    def traceId = "1234567890abcdef1234567890abcdef" as String
+    def spanId = "fedcba0987654321" as String
+    def traceState = TraceState.builder().put("string-key", "string-value").build()
+
+    def expectedLinksTag = """
+    [
+      { traceId: "${traceId}",
+        spanId: "${spanId}",
+        traceFlags: 1,
+        traceState: "string-key=string-value"
+        ${ expectedAttributes == null ? "" : ", attributes: " + expectedAttributes }}
+    ]"""
+
+    when:
+    def span1 =tracer.spanBuilder("some-name")
+      .addLink(SpanContext.create(traceId, spanId, TraceFlags.getSampled(), traceState), attributes)
+      .startSpan()
+    span1.end()
+
+    then:
+    assertTraces(1) {
+      trace(1) {
+        span {
+          tags {
+            defaultTags()
+            "$SPAN_KIND" "$SPAN_KIND_INTERNAL"
+            tag("_dd.span_links", { JSONAssert.assertEquals(expectedLinksTag, it as String, true); return true })
+          }
+        }
+      }
+    }
+
+    where:
+    attributes | expectedAttributes
+    Attributes.empty() | null
+    Attributes.builder().put("string-key", "string-value").put("long-key", 123456789L).put("double-key", 1234.5678D).put("boolean-key-true", true).put("boolean-key-false", false).build() | '{ string-key: "string-value", long-key: "123456789", double-key: "1234.5678", boolean-key-true: "true", boolean-key-false: "false" }'
+    Attributes.builder().put("string-key-array", "string-value1", "string-value2", "string-value3").put("long-key-array", 123456L, 1234567L, 12345678L).put("double-key-array", 1234.5D, 1234.56D, 1234.567D).put("boolean-key-array", true, false, true).build() | '{ string-key-array.0: "string-value1", string-key-array.1: "string-value2", string-key-array.2: "string-value3", long-key-array.0: "123456", long-key-array.1: "1234567", long-key-array.2: "12345678", double-key-array.0: "1234.5", double-key-array.1: "1234.56", double-key-array.2: "1234.567", boolean-key-array.0: "true", boolean-key-array.1: "false", boolean-key-array.2: "true" }'
+  }
+
+  def "test span links trace state"() {
+    setup:
+    def traceId = "1234567890abcdef1234567890abcdef" as String
+    def spanId = "fedcba0987654321" as String
+
+    def expectedTraceStateJson = expectedTraceState == null ? '' : ", traceState: \"$expectedTraceState\""
+    def expectedLinksTag = """
+    [
+      { traceId: "${traceId}",
+        spanId: "${spanId}",
+        traceFlags: 1
+        $expectedTraceStateJson
+      }
+    ]"""
+
+    when:
+    def span1 =tracer.spanBuilder("some-name")
+      .addLink(SpanContext.create(traceId, spanId, TraceFlags.getSampled(), traceState))
+      .startSpan()
+    span1.end()
+
+    then:
+    assertTraces(1) {
+      trace(1) {
+        span {
+          tags {
+            defaultTags()
+            "$SPAN_KIND" "$SPAN_KIND_INTERNAL"
+            tag("_dd.span_links", { JSONAssert.assertEquals(expectedLinksTag, it as String, true); return true })
+          }
+        }
+      }
+    }
+
+    where:
+    traceState                                                                                                                                 | expectedTraceState
+    TraceState.getDefault()                                                                                                                    | null
+    TraceState.builder().put("key", "value").build()                                                                                           | 'key=value'
+    TraceState.builder().put("key1", "value1").put("key2", "value2").put("key3", "value3").put("key4", "value4").put("key5", "value5").build() | 'key5=value5,key4=value4,key3=value3,key2=value2,key1=value1'
   }
 
   def "test span attributes"() {
@@ -195,7 +362,7 @@ class OpenTelemetry14Test extends AgentTestRunner {
       trace(1) {
         span {
           parent()
-          operationName "some-name"
+          operationName "internal"
           if (tagSpan) {
             resourceName "other-resource"
           } else if (tagBuilder) {
@@ -205,6 +372,8 @@ class OpenTelemetry14Test extends AgentTestRunner {
           }
           errored false
           tags {
+            defaultTags()
+            "$SPAN_KIND" "$SPAN_KIND_INTERNAL"
             if (tagSpan) {
               "string" "b"
               "empty_string" ""
@@ -242,7 +411,6 @@ class OpenTelemetry14Test extends AgentTestRunner {
               "double-array.1" 4.56D
               "empty-array" ""
             }
-            defaultTags()
           }
         }
       }
@@ -258,9 +426,9 @@ class OpenTelemetry14Test extends AgentTestRunner {
 
   def "test span kinds"() {
     setup:
-    def builder = tracer.spanBuilder("some-name")
-    builder.setSpanKind(otelSpanKind)
-    def result = builder.startSpan()
+    def result = tracer.spanBuilder("some-name")
+      .setSpanKind(otelSpanKind)
+      .startSpan()
 
     when:
     result.end()
@@ -269,24 +437,26 @@ class OpenTelemetry14Test extends AgentTestRunner {
     assertTraces(1) {
       trace(1) {
         span {
-          spanType(tagSpanKind)
+          tags {
+            defaultTags()
+            "$SPAN_KIND" "$tagSpanKind"
+          }
         }
       }
     }
 
     where:
     otelSpanKind | tagSpanKind
-    SpanKind.CLIENT | Tags.SPAN_KIND_CLIENT
-    SpanKind.CONSUMER | Tags.SPAN_KIND_CONSUMER
-    SpanKind.INTERNAL | "internal"
-    SpanKind.PRODUCER | Tags.SPAN_KIND_PRODUCER
-    SpanKind.SERVER | Tags.SPAN_KIND_SERVER
+    INTERNAL     | SPAN_KIND_INTERNAL
+    SERVER       | SPAN_KIND_SERVER
+    CLIENT       | SPAN_KIND_CLIENT
+    PRODUCER     | SPAN_KIND_PRODUCER
+    CONSUMER     | SPAN_KIND_CONSUMER
   }
 
   def "test span error status"() {
     setup:
-    def builder = tracer.spanBuilder("some-name")
-    def result = builder.startSpan()
+    def result = tracer.spanBuilder("some-name").startSpan()
 
     when:
     result.setStatus(ERROR, "some-error")
@@ -297,13 +467,13 @@ class OpenTelemetry14Test extends AgentTestRunner {
       trace(1) {
         span {
           parent()
-          operationName "some-name"
+          operationName "internal"
           resourceName "some-name"
           errored true
-
           tags {
-            "$DDTags.ERROR_MSG" "some-error"
             defaultTags()
+            "$SPAN_KIND" "$SPAN_KIND_INTERNAL"
+            "$ERROR_MSG" "some-error"
           }
         }
       }
@@ -312,34 +482,35 @@ class OpenTelemetry14Test extends AgentTestRunner {
 
   def "test span status transition"() {
     setup:
-    def builder = tracer.spanBuilder("some-name")
-    def result = builder.startSpan()
+    def result = tracer.spanBuilder("some-name").startSpan()
+
+    when:
     result.setStatus(UNSET)
 
-    expect:
+    then:
     !result.delegate.isError()
-    result.delegate.getTag(DDTags.ERROR_MSG) == null
+    result.delegate.getTag(ERROR_MSG) == null
 
     when:
     result.setStatus(ERROR, "some error")
 
     then:
     result.delegate.isError()
-    result.delegate.getTag(DDTags.ERROR_MSG) == "some error"
+    result.delegate.getTag(ERROR_MSG) == "some error"
 
     when:
     result.setStatus(UNSET)
 
     then:
     result.delegate.isError()
-    result.delegate.getTag(DDTags.ERROR_MSG) == "some error"
+    result.delegate.getTag(ERROR_MSG) == "some error"
 
     when:
     result.setStatus(OK)
 
     then:
     !result.delegate.isError()
-    result.delegate.getTag(DDTags.ERROR_MSG) == null
+    result.delegate.getTag(ERROR_MSG) == null
 
     when:
     result.end()
@@ -349,11 +520,12 @@ class OpenTelemetry14Test extends AgentTestRunner {
       trace(1) {
         span {
           parent()
-          operationName "some-name"
+          operationName "internal"
           resourceName "some-name"
           errored false
           tags {
             defaultTags()
+            "$SPAN_KIND" "$SPAN_KIND_INTERNAL"
           }
         }
       }
@@ -362,13 +534,12 @@ class OpenTelemetry14Test extends AgentTestRunner {
 
   def "test span record exception"() {
     setup:
-    def builder = tracer.spanBuilder("some-name")
-    def result = builder.startSpan()
+    def result = tracer.spanBuilder("some-name").startSpan()
     def message = "input can't be null"
     def exception = new InvalidParameterException(message)
 
     expect:
-    result.delegate.getTag(DDTags.ERROR_MSG) == null
+    result.delegate.getTag(ERROR_MSG) == null
     result.delegate.getTag(DDTags.ERROR_TYPE) == null
     result.delegate.getTag(DDTags.ERROR_STACK) == null
     !result.delegate.isError()
@@ -377,7 +548,7 @@ class OpenTelemetry14Test extends AgentTestRunner {
     result.recordException(exception)
 
     then:
-    result.delegate.getTag(DDTags.ERROR_MSG) == message
+    result.delegate.getTag(ERROR_MSG) == message
     result.delegate.getTag(DDTags.ERROR_TYPE) == InvalidParameterException.name
     result.delegate.getTag(DDTags.ERROR_STACK) != null
     !result.delegate.isError()
@@ -390,11 +561,12 @@ class OpenTelemetry14Test extends AgentTestRunner {
       trace(1) {
         span {
           parent()
-          operationName "some-name"
+          operationName "internal"
           resourceName "some-name"
           errored false
           tags {
             defaultTags()
+            "$SPAN_KIND" "$SPAN_KIND_INTERNAL"
             errorTags(exception)
           }
         }
@@ -404,17 +576,20 @@ class OpenTelemetry14Test extends AgentTestRunner {
 
   def "test span name update"() {
     setup:
-    def builder = tracer.spanBuilder("some-name")
-    def result = builder.startSpan()
+    def result = tracer.spanBuilder("some-name")
+      .setSpanKind(SERVER)
+      .startSpan()
 
     expect:
-    result.delegate.operationName == "some-name"
+    result.delegate.operationName == SPAN_KIND_INTERNAL
+    result.delegate.resourceName == "some-name"
 
     when:
     result.updateName("other-name")
 
     then:
-    result.delegate.operationName == "other-name"
+    result.delegate.operationName == SPAN_KIND_INTERNAL
+    result.delegate.resourceName == "other-name"
 
     when:
     result.end()
@@ -424,8 +599,8 @@ class OpenTelemetry14Test extends AgentTestRunner {
       trace(1) {
         span {
           parent()
-          operationName "other-name"
-          resourceName "some-name"
+          operationName "server.request"
+          resourceName "other-name"
         }
       }
     }
@@ -433,8 +608,7 @@ class OpenTelemetry14Test extends AgentTestRunner {
 
   def "test span update after end"() {
     setup:
-    def builder = tracer.spanBuilder("some-name")
-    def result = builder.startSpan()
+    def result = tracer.spanBuilder("some-name").startSpan()
 
     when:
     result.setAttribute("string", "value")
@@ -449,10 +623,12 @@ class OpenTelemetry14Test extends AgentTestRunner {
       trace(1) {
         span {
           parent()
-          operationName "some-name"
+          operationName "internal"
+          resourceName"some-name"
           errored true
           tags {
             defaultTags()
+            "$SPAN_KIND" "$SPAN_KIND_INTERNAL"
             "string" "value"
           }
         }

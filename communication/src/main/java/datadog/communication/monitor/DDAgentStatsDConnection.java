@@ -115,7 +115,6 @@ final class DDAgentStatsDConnection implements StatsDClientErrorHandler {
         // when using UDS, set "entity-id" to "none" to avoid having the DogStatsD
         // server add origin tags (see https://github.com/DataDog/jmxfetch/pull/264)
         if (this.port == 0) {
-          clientBuilder.constantTags("dd.internal.card:none");
           clientBuilder.entityID("none");
         } else {
           clientBuilder.entityID(null);

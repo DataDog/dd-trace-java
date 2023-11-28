@@ -1,0 +1,44 @@
+package datadog.trace.instrumentation.json;
+
+import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
+import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
+
+import com.google.auto.service.AutoService;
+import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.api.iast.InstrumentationBridge;
+import datadog.trace.api.iast.Propagation;
+import datadog.trace.api.iast.propagation.PropagationModule;
+import net.bytebuddy.asm.Advice;
+
+@AutoService(Instrumenter.class)
+public class JSONCookieInstrumentation extends Instrumenter.Iast
+    implements Instrumenter.ForSingleType {
+
+  public JSONCookieInstrumentation() {
+    super("org-json");
+  }
+
+  @Override
+  public String instrumentedType() {
+    return "org.json.Cookie";
+  }
+
+  @Override
+  public void adviceTransformations(AdviceTransformation transformation) {
+    transformation.applyAdvice(
+        named("toJSONObject").and(takesArguments(String.class)),
+        getClass().getName() + "$toJSONObjectAdvice");
+  }
+
+  public static class toJSONObjectAdvice {
+    @Advice.OnMethodExit(suppress = Throwable.class)
+    @Propagation
+    public static void onExit(
+        @Advice.Return Object retValue, @Advice.Argument(0) final String input) {
+      final PropagationModule iastModule = InstrumentationBridge.PROPAGATION;
+      if (iastModule != null && input != null) {
+        iastModule.taintIfTainted(retValue, input);
+      }
+    }
+  }
+}

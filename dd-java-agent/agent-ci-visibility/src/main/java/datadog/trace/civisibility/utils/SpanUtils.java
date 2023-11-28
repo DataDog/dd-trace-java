@@ -85,4 +85,10 @@ public class SpanUtils {
         break;
     }
   }
+
+  public static void propagateTags(AgentSpan parentSpan, AgentSpan childSpan, String... tagNames) {
+    for (String tagName : tagNames) {
+      parentSpan.setTag(tagName, childSpan.getTag(tagName));
+    }
+  }
 }

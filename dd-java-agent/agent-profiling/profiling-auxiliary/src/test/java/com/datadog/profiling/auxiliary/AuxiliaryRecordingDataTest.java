@@ -2,9 +2,9 @@ package com.datadog.profiling.auxiliary;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-import com.datadog.profiling.controller.RecordingData;
-import com.datadog.profiling.controller.RecordingInputStream;
 import datadog.trace.api.profiling.ProfilingSnapshot;
+import datadog.trace.api.profiling.RecordingData;
+import datadog.trace.api.profiling.RecordingInputStream;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;

@@ -5,10 +5,12 @@ import datadog.trace.api.civisibility.coverage.TestReport;
 import datadog.trace.api.civisibility.coverage.TestReportFileEntry;
 import datadog.trace.civisibility.source.SourcePathResolver;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -19,17 +21,24 @@ public class SegmentlessTestProbes implements CoverageProbeStore {
 
   // Unbounded data structure that only exists within a single test span
   private final Set<Class<?>> coveredClasses;
+  private final Collection<String> nonCodeResources;
   private final SourcePathResolver sourcePathResolver;
   private volatile TestReport testReport;
 
   SegmentlessTestProbes(SourcePathResolver sourcePathResolver) {
     this.sourcePathResolver = sourcePathResolver;
     coveredClasses = ConcurrentHashMap.newKeySet();
+    nonCodeResources = new ConcurrentLinkedQueue<>();
   }
 
   @Override
   public void record(Class<?> clazz, long classId, String className, int probeId) {
     coveredClasses.add(clazz);
+  }
+
+  @Override
+  public void recordNonCodeResource(String absolutePath) {
+    nonCodeResources.add(absolutePath);
   }
 
   @Override
@@ -47,6 +56,20 @@ public class SegmentlessTestProbes implements CoverageProbeStore {
       TestReportFileEntry fileEntry = new TestReportFileEntry(sourcePath, Collections.emptyList());
       fileEntries.add(fileEntry);
     }
+
+    for (String nonCodeResource : nonCodeResources) {
+      String resourcePath = sourcePathResolver.getResourcePath(nonCodeResource);
+      if (resourcePath == null) {
+        log.debug(
+            "Skipping coverage reporting for {} because resource path could not be determined",
+            nonCodeResource);
+        continue;
+      }
+      TestReportFileEntry fileEntry =
+          new TestReportFileEntry(resourcePath, Collections.emptyList());
+      fileEntries.add(fileEntry);
+    }
+
     testReport = new TestReport(testSessionId, testSuiteId, spanId, fileEntries);
   }
 

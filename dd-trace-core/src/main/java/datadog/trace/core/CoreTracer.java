@@ -2,6 +2,7 @@ package datadog.trace.core;
 
 import static datadog.communication.monitor.DDAgentStatsDClientManager.statsDClientManager;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_ASYNC_PROPAGATING;
+import static datadog.trace.api.DDTags.PROFILING_CONTEXT_ENGINE;
 import static datadog.trace.common.metrics.MetricsAggregatorFactory.createMetricsAggregator;
 import static datadog.trace.util.AgentThreadFactory.AGENT_THREAD_GROUP;
 import static datadog.trace.util.CollectionUtils.tryMakeImmutableMap;
@@ -68,6 +69,7 @@ import datadog.trace.common.writer.ddintake.DDIntakeTraceInterceptor;
 import datadog.trace.core.datastreams.DataStreamContextInjector;
 import datadog.trace.core.datastreams.DataStreamsMonitoring;
 import datadog.trace.core.datastreams.DefaultDataStreamsMonitoring;
+import datadog.trace.core.flare.TracerFlarePoller;
 import datadog.trace.core.histogram.Histograms;
 import datadog.trace.core.monitor.HealthMetrics;
 import datadog.trace.core.monitor.MonitoringImpl;
@@ -139,6 +141,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   private volatile long lastSyncTicks;
   /** Nanosecond offset to counter clock drift */
   private volatile long counterDrift;
+
+  private final TracerFlarePoller tracerFlarePoller;
 
   private final TracingConfigPoller tracingConfigPoller;
 
@@ -265,6 +269,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     private DataStreamsMonitoring dataStreamsMonitoring;
     private ProfilingContextIntegration profilingContextIntegration =
         ProfilingContextIntegration.NoOp.INSTANCE;
+    private boolean pollForTracerFlareRequests;
     private boolean pollForTracingConfiguration;
     private boolean injectBaggageAsTags;
 
@@ -385,6 +390,11 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       return this;
     }
 
+    public CoreTracerBuilder pollForTracerFlareRequests() {
+      this.pollForTracerFlareRequests = true;
+      return this;
+    }
+
     public CoreTracerBuilder pollForTracingConfiguration() {
       this.pollForTracingConfiguration = true;
       return this;
@@ -453,6 +463,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
           timeSource,
           dataStreamsMonitoring,
           profilingContextIntegration,
+          pollForTracerFlareRequests,
           pollForTracingConfiguration,
           injectBaggageAsTags);
     }
@@ -483,6 +494,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       final TimeSource timeSource,
       final DataStreamsMonitoring dataStreamsMonitoring,
       final ProfilingContextIntegration profilingContextIntegration,
+      final boolean pollForTracerFlareRequests,
       final boolean pollForTracingConfiguration,
       final boolean injectBaggageAsTags) {
 
@@ -517,7 +529,6 @@ public class CoreTracer implements AgentTracer.TracerAPI {
             .apply();
 
     this.logs128bTraceIdEnabled = InstrumenterConfig.get().isLogs128bTraceIdEnabled();
-    this.localRootSpanTags = localRootSpanTags;
     this.defaultSpanTags = defaultSpanTags;
     this.partialFlushMinSpans = partialFlushMinSpans;
     this.idGenerationStrategy =
@@ -570,6 +581,11 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     }
     sharedCommunicationObjects.monitoring = monitoring;
     sharedCommunicationObjects.createRemaining(config);
+
+    tracerFlarePoller = new TracerFlarePoller(dynamicConfig);
+    if (pollForTracerFlareRequests) {
+      tracerFlarePoller.start(config, sharedCommunicationObjects);
+    }
 
     tracingConfigPoller = new TracingConfigPoller(dynamicConfig);
     if (pollForTracingConfiguration) {
@@ -668,6 +684,13 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     this.profilingContextIntegration = profilingContextIntegration;
     this.injectBaggageAsTags = injectBaggageAsTags;
     this.allowInferredServices = SpanNaming.instance().namingSchema().allowInferredServices();
+    if (profilingContextIntegration != ProfilingContextIntegration.NoOp.INSTANCE) {
+      Map<String, Object> tmp = new HashMap<>(localRootSpanTags);
+      tmp.put(PROFILING_CONTEXT_ENGINE, profilingContextIntegration.name());
+      this.localRootSpanTags = tryMakeImmutableMap(tmp);
+    } else {
+      this.localRootSpanTags = localRootSpanTags;
+    }
   }
 
   /** Used by AgentTestRunner to inject configuration into the test tracer. */
@@ -1041,6 +1064,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     metricsAggregator.close();
     dataStreamsMonitoring.close();
     externalAgentLauncher.close();
+    tracerFlarePoller.stop();
   }
 
   @Override
@@ -1191,12 +1215,26 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     }
 
     private DDSpan buildSpan() {
+      addTerminatedContextAsLinks();
       DDSpan span = DDSpan.create(instrumentationName, timestampMicro, buildSpanContext(), links);
       if (span.isLocalRootSpan()) {
         EndpointTracker tracker = tracer.onRootSpanStarted(span);
         span.setEndpointTracker(tracker);
       }
       return span;
+    }
+
+    private void addTerminatedContextAsLinks() {
+      if (this.parent instanceof TagContext) {
+        List<AgentSpanLink> terminatedContextLinks =
+            ((TagContext) this.parent).getTerminatedContextLinks();
+        if (!terminatedContextLinks.isEmpty()) {
+          if (this.links == null) {
+            this.links = new ArrayList<>();
+          }
+          this.links.addAll(terminatedContextLinks);
+        }
+      }
     }
 
     @Override

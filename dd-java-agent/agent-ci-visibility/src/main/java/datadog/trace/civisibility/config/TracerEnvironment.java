@@ -2,6 +2,8 @@ package datadog.trace.civisibility.config;
 
 import com.squareup.moshi.Json;
 import datadog.trace.api.civisibility.config.Configurations;
+import java.util.HashMap;
+import java.util.Map;
 
 public class TracerEnvironment {
 
@@ -52,6 +54,7 @@ public class TracerEnvironment {
     private String runtimeVendor;
     private String runtimeArchitecture;
     private String testBundle;
+    private final Map<String, String> customTags = new HashMap<>();
 
     public Builder service(String service) {
       this.service = service;
@@ -118,6 +121,11 @@ public class TracerEnvironment {
       return this;
     }
 
+    public Builder customTag(String key, String value) {
+      this.customTags.put(key, value);
+      return this;
+    }
+
     public TracerEnvironment build() {
       return new TracerEnvironment(
           service,
@@ -133,7 +141,8 @@ public class TracerEnvironment {
               runtimeVersion,
               runtimeVendor,
               runtimeArchitecture,
-              testBundle));
+              testBundle,
+              customTags));
     }
   }
 }

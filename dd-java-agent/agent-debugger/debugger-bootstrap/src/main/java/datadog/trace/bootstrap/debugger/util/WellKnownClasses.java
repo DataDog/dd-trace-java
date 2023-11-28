@@ -43,6 +43,18 @@ public class WellKnownClasses {
             "java.util.concurrent.atomic.AtomicLong"));
   }
 
+  private static Set<String> stringPrimitives =
+      new HashSet<>(
+          Arrays.asList(
+              "java.lang.Class",
+              "java.lang.String",
+              "java.time.Duration",
+              "java.time.Instant",
+              "java.time.LocalTime",
+              "java.time.LocalDate",
+              "java.time.LocalDateTime",
+              "java.util.UUID"));
+
   /**
    * @return true if type is a final class and toString implementation is well known and side effect
    *     free
@@ -84,5 +96,9 @@ public class WellKnownClasses {
       return true;
     }
     return false;
+  }
+
+  public static boolean isStringPrimitive(String type) {
+    return stringPrimitives.contains(type);
   }
 }

@@ -206,12 +206,13 @@ public class CapturedContext implements ValueReferenceResolver {
     if (locals == null) {
       locals = new HashMap<>();
     }
-    locals.put("@return", retValue); // special local name for the return value
+    locals.put(ValueReferences.RETURN_REF, retValue); // special local name for the return value
     extensions.put(ValueReferences.RETURN_EXTENSION_NAME, retValue);
   }
 
   public void addThrowable(Throwable t) {
-    this.throwable = new CapturedThrowable(t);
+    addThrowable(new CapturedThrowable(t));
+    extensions.put(ValueReferences.EXCEPTION_EXTENSION_NAME, t);
   }
 
   public void addThrowable(CapturedThrowable capturedThrowable) {

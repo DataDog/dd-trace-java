@@ -1,5 +1,6 @@
 package com.datadog.debugger.el.expressions;
 
+import com.datadog.debugger.el.EvaluationException;
 import com.datadog.debugger.el.Value;
 import com.datadog.debugger.el.Visitor;
 import datadog.trace.bootstrap.debugger.el.ValueReferenceResolver;
@@ -21,8 +22,12 @@ public final class IsUndefinedExpression implements BooleanExpression {
     if (valueExpression == null) {
       return Boolean.FALSE;
     }
-    Value<?> value = valueExpression.evaluate(valueRefResolver);
-    return value.isUndefined() ? Boolean.TRUE : Boolean.FALSE;
+    try {
+      Value<?> value = valueExpression.evaluate(valueRefResolver);
+      return value.isUndefined() ? Boolean.TRUE : Boolean.FALSE;
+    } catch (EvaluationException ex) {
+      return Boolean.TRUE;
+    }
   }
 
   @Override
