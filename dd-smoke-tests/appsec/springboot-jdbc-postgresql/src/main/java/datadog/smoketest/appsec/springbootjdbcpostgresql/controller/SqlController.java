@@ -1,4 +1,4 @@
-package appsec.smoketest.datadog.springbootjdbcpostgresql.controller;
+package datadog.smoketest.appsec.springbootjdbcpostgresql.controller;
 
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
@@ -20,12 +20,12 @@ public class SqlController {
 
   @Autowired private JdbcTemplate jdbcTemplate;
 
-  @GetMapping("/query")
+  @GetMapping("/**")
   public String index() {
     return "query";
   }
 
-  @PostMapping("/query")
+  @PostMapping("/**")
   public String executeQuery(Model model, @RequestParam String sqlQuery) {
     List<String> columnsNames = new ArrayList<>();
     List<List<Object>> data = new ArrayList<>();

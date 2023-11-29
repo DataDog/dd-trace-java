@@ -1,4 +1,4 @@
-package appsec.smoketest.datadog.springbootjdbcpostgresql.model;
+package datadog.smoketest.appsec.springbootjdbcpostgresql.model;
 
 public class Tutorial {
   private long id;

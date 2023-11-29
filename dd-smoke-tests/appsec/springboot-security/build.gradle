@@ -10,7 +10,7 @@ description = 'SpringBoot Smoke Tests.'
 // so we'll build a fat jar instead
 jar {
   manifest {
-    attributes('Main-Class': 'datadog.smoketest.appsec.springbootsecurity.SpringbootApplication')
+    attributes('Main-Class': 'datadog.smoketest.appsec.springbootsecurity.SpringbootSecurityApplication')
   }
 }
 

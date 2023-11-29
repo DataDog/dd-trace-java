@@ -1,6 +1,6 @@
-package appsec.smoketest.datadog.springbootjdbcpostgresql.repository;
+package datadog.smoketest.appsec.springbootjdbcpostgresql.repository;
 
-import appsec.smoketest.datadog.springbootjdbcpostgresql.model.Tutorial;
+import datadog.smoketest.appsec.springbootjdbcpostgresql.model.Tutorial;
 import java.util.List;
 
 public interface TutorialRepository {

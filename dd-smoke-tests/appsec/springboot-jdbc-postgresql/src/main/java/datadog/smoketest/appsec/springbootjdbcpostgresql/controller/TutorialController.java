@@ -1,7 +1,7 @@
-package appsec.smoketest.datadog.springbootjdbcpostgresql.controller;
+package datadog.smoketest.appsec.springbootjdbcpostgresql.controller;
 
-import appsec.smoketest.datadog.springbootjdbcpostgresql.model.Tutorial;
-import appsec.smoketest.datadog.springbootjdbcpostgresql.repository.TutorialRepository;
+import datadog.smoketest.appsec.springbootjdbcpostgresql.model.Tutorial;
+import datadog.smoketest.appsec.springbootjdbcpostgresql.repository.TutorialRepository;
 import java.util.ArrayList;
 import java.util.List;
 import org.springframework.beans.factory.annotation.Autowired;

@@ -11,7 +11,7 @@
 <body>
 
 <div class="container my-5">
-    <form method="post" th:action="@{/query}" style="display:flex">
+    <form method="post" style="display:flex">
         <textarea name="sqlQuery" cols="40" rows="3" placeholder="SQL query" th:text="${sqlQuery}" style="display:inline-block; width: 100%"></textarea>
         <input type="submit" value="Execute SQL" style="display:inline-block; width: 120px; margin-left: 10px">
     </form>

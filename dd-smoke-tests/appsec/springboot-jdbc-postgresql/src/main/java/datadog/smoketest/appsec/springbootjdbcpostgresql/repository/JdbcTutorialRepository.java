@@ -1,8 +1,7 @@
-package appsec.smoketest.datadog.springbootjdbcpostgresql.repository;
+package datadog.smoketest.appsec.springbootjdbcpostgresql.repository;
 
-import appsec.smoketest.datadog.springbootjdbcpostgresql.model.Tutorial;
+import datadog.smoketest.appsec.springbootjdbcpostgresql.model.Tutorial;
 import java.util.List;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.IncorrectResultSizeDataAccessException;
 import org.springframework.jdbc.core.BeanPropertyRowMapper;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -11,7 +10,11 @@ import org.springframework.stereotype.Repository;
 @Repository
 public class JdbcTutorialRepository implements TutorialRepository {
 
-  @Autowired private JdbcTemplate jdbcTemplate;
+  private final JdbcTemplate jdbcTemplate;
+
+  public JdbcTutorialRepository(JdbcTemplate jdbcTemplate) {
+    this.jdbcTemplate = jdbcTemplate;
+  }
 
   @Override
   public int save(Tutorial tutorial) {

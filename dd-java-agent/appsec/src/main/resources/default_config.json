@@ -8009,7 +8009,7 @@
                 "address": "server.database.result"
               }
             ],
-            "output": "_dd.appsec.s.db"
+            "output": "_dd.appsec.s.db.read"
           }
         ],
         "scanners": [
