@@ -9,5 +9,9 @@ public interface ProfilerContext {
 
   int getEncodedOperationName();
 
+  CharSequence getOperationName();
+
   int getEncodedResourceName();
+
+  CharSequence getResourceName();
 }

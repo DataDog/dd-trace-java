@@ -1,5 +1,6 @@
 package com.datadog.profiling.ddprof;
 
+import datadog.trace.api.Stateful;
 import datadog.trace.api.profiling.ProfilingContextAttribute;
 import datadog.trace.api.profiling.ProfilingScope;
 import datadog.trace.bootstrap.instrumentation.api.ProfilerContext;
@@ -17,6 +18,29 @@ public class DatadogProfilingIntegration implements ProfilingContextIntegration 
   private static final boolean WALLCLOCK_ENABLED =
       DatadogProfilerConfig.isWallClockProfilerEnabled();
 
+  private final Stateful contextManager =
+      new Stateful() {
+        @Override
+        public void close() {
+          // this implementation is stateless so nothing to do here
+        }
+
+        @Override
+        public void activate(Object context) {
+          if (context instanceof ProfilerContext) {
+            ProfilerContext profilerContext = (ProfilerContext) context;
+            DDPROF.setSpanContext(profilerContext.getSpanId(), profilerContext.getRootSpanId());
+            DDPROF.setContextValue(SPAN_NAME_INDEX, profilerContext.getEncodedOperationName());
+            DDPROF.setContextValue(RESOURCE_NAME_INDEX, profilerContext.getEncodedResourceName());
+          }
+        }
+      };
+
+  @Override
+  public Stateful newScopeState(ProfilerContext profilerContext) {
+    return contextManager;
+  }
+
   @Override
   public void onAttach() {
     if (WALLCLOCK_ENABLED) {
@@ -26,6 +50,7 @@ public class DatadogProfilingIntegration implements ProfilingContextIntegration 
 
   @Override
   public void onDetach() {
+    clearContext();
     if (WALLCLOCK_ENABLED) {
       DDPROF.removeThread();
     }
@@ -57,23 +82,10 @@ public class DatadogProfilingIntegration implements ProfilingContextIntegration 
     return "ddprof";
   }
 
-  @Override
-  public void setContext(ProfilerContext profilerContext) {
-    DDPROF.setSpanContext(profilerContext.getSpanId(), profilerContext.getRootSpanId());
-    DDPROF.setContextValue(SPAN_NAME_INDEX, profilerContext.getEncodedOperationName());
-    DDPROF.setContextValue(RESOURCE_NAME_INDEX, profilerContext.getEncodedResourceName());
-  }
-
-  @Override
   public void clearContext() {
     DDPROF.clearSpanContext();
     DDPROF.clearContextValue(SPAN_NAME_INDEX);
     DDPROF.clearContextValue(RESOURCE_NAME_INDEX);
-  }
-
-  @Override
-  public void setContext(long rootSpanId, long spanId) {
-    DDPROF.setSpanContext(spanId, rootSpanId);
   }
 
   @Override

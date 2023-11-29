@@ -853,15 +853,29 @@ public class Agent {
    * on JFR.
    */
   private static ProfilingContextIntegration createProfilingContextIntegration() {
-    if (Config.get().isProfilingEnabled() && !Platform.isWindows()) {
-      try {
-        return (ProfilingContextIntegration)
-            AGENT_CLASSLOADER
-                .loadClass("com.datadog.profiling.ddprof.DatadogProfilingIntegration")
-                .getDeclaredConstructor()
-                .newInstance();
-      } catch (Throwable t) {
-        log.debug("Profiling context labeling not available. {}", t.getMessage());
+    if (Config.get().isProfilingEnabled()) {
+      if (Config.get().isDatadogProfilerEnabled() && !Platform.isWindows()) {
+        try {
+          return (ProfilingContextIntegration)
+              AGENT_CLASSLOADER
+                  .loadClass("com.datadog.profiling.ddprof.DatadogProfilingIntegration")
+                  .getDeclaredConstructor()
+                  .newInstance();
+        } catch (Throwable t) {
+          log.debug("ddprof-based profiling context labeling not available. {}", t.getMessage());
+        }
+      }
+      if (Config.get().isProfilingTimelineEventsEnabled()) {
+        // important: note that this will not initialise JFR until onStart is called
+        try {
+          return (ProfilingContextIntegration)
+              AGENT_CLASSLOADER
+                  .loadClass("com.datadog.profiling.controller.openjdk.JFREventContextIntegration")
+                  .getDeclaredConstructor()
+                  .newInstance();
+        } catch (Throwable t) {
+          log.debug("JFR event-based profiling context labeling not available. {}", t.getMessage());
+        }
       }
     }
     return ProfilingContextIntegration.NoOp.INSTANCE;
@@ -922,6 +936,7 @@ public class Agent {
                                 .getDeclaredConstructor()
                                 .newInstance());
                   }
+                  tracer.getProfilingContext().onStart();
                 } catch (Throwable e) {
                   if (e instanceof InvocationTargetException) {
                     e = e.getCause();
