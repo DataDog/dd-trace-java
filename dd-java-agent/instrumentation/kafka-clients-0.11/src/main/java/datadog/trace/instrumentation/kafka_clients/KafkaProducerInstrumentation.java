@@ -14,6 +14,7 @@ import static datadog.trace.instrumentation.kafka_clients.KafkaDecorator.KAFKA_P
 import static datadog.trace.instrumentation.kafka_clients.KafkaDecorator.PRODUCER_DECORATE;
 import static datadog.trace.instrumentation.kafka_clients.KafkaDecorator.TIME_IN_QUEUE_ENABLED;
 import static datadog.trace.instrumentation.kafka_clients.TextMapInjectAdapter.SETTER;
+import static datadog.trace.instrumentation.kafka_common.StreamingContext.STREAMING_CONTEXT;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
@@ -56,6 +57,7 @@ public final class KafkaProducerInstrumentation extends Instrumenter.Tracing
       packageName + ".KafkaDecorator",
       packageName + ".TextMapInjectAdapter",
       packageName + ".KafkaProducerCallback",
+      "datadog.trace.instrumentation.kafka_common.StreamingContext",
     };
   }
 
@@ -117,7 +119,9 @@ public final class KafkaProducerInstrumentation extends Instrumenter.Tracing
         sortedTags.put(TYPE_TAG, "kafka");
         try {
           propagate().inject(span, record.headers(), SETTER);
-          propagate().injectPathwayContext(span, record.headers(), SETTER, sortedTags);
+          if (STREAMING_CONTEXT.empty() || STREAMING_CONTEXT.isSinkTopic(record.topic())) {
+            propagate().injectPathwayContext(span, record.headers(), SETTER, sortedTags);
+          }
         } catch (final IllegalStateException e) {
           // headers must be read-only from reused record. try again with new one.
           record =
@@ -130,7 +134,9 @@ public final class KafkaProducerInstrumentation extends Instrumenter.Tracing
                   record.headers());
 
           propagate().inject(span, record.headers(), SETTER);
-          propagate().injectPathwayContext(span, record.headers(), SETTER, sortedTags);
+          if (STREAMING_CONTEXT.empty() || STREAMING_CONTEXT.isSinkTopic(record.topic())) {
+            propagate().injectPathwayContext(span, record.headers(), SETTER, sortedTags);
+          }
         }
         if (TIME_IN_QUEUE_ENABLED) {
           SETTER.injectTimeInQueue(record.headers());

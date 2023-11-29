@@ -1,11 +1,9 @@
 package datadog.trace.instrumentation.kafka_streams;
 
 import static datadog.trace.instrumentation.kafka_streams.KafkaStreamsDecorator.KAFKA_PRODUCED_KEY;
+import static datadog.trace.instrumentation.kafka_streams.ProcessorRecordContextHeadersAccess.HEADERS_METHOD;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
-import java.lang.invoke.MethodHandle;
-import java.lang.invoke.MethodHandles;
-import java.lang.invoke.MethodType;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import org.apache.kafka.common.header.Header;
@@ -19,23 +17,6 @@ public class ProcessorRecordContextVisitor
         AgentPropagation.BinaryContextVisitor<ProcessorRecordContext> {
 
   private static final Logger log = LoggerFactory.getLogger(ProcessorRecordContextVisitor.class);
-
-  // Using a method handle here to avoid forking the instrumentation for versions 2.7+
-  private static final MethodHandle HEADERS_METHOD;
-
-  static {
-    MethodHandle method;
-    try {
-      method =
-          MethodHandles.publicLookup()
-              .findVirtual(
-                  ProcessorRecordContext.class, "headers", MethodType.methodType(Headers.class));
-    } catch (Throwable e) {
-      log.debug("Exception loading MethodHandle", e);
-      method = null;
-    }
-    HEADERS_METHOD = method;
-  }
 
   public static final ProcessorRecordContextVisitor PR_GETTER = new ProcessorRecordContextVisitor();
 

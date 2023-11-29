@@ -20,7 +20,9 @@ public interface Profiling {
    *
    * @return a profiling scope which can be closed to restore the current state.
    */
-  ProfilingScope newScope();
+  default ProfilingScope newScope() {
+    return ProfilingScope.NO_OP;
+  }
 
   /**
    * Creates a decorator for the attribute, which can be used to set and clear contexts slightly
@@ -29,20 +31,11 @@ public interface Profiling {
    * @param attribute the name of the attribute
    * @return a setter which can be used to set and clear profiling context
    */
-  ProfilingContextAttribute createContextAttribute(String attribute);
+  default ProfilingContextAttribute createContextAttribute(String attribute) {
+    return ProfilingContextAttribute.NoOp.INSTANCE;
+  }
 
   final class NoOp implements Profiling {
-
     public static final NoOp INSTANCE = new NoOp();
-
-    @Override
-    public ProfilingContextAttribute createContextAttribute(String attribute) {
-      return ProfilingContextAttribute.NoOp.INSTANCE;
-    }
-
-    @Override
-    public ProfilingScope newScope() {
-      return ProfilingScope.NO_OP;
-    }
   }
 }

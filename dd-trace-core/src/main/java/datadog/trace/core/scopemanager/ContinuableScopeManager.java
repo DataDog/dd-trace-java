@@ -7,12 +7,14 @@ import static java.util.concurrent.TimeUnit.NANOSECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
 import datadog.trace.api.Config;
+import datadog.trace.api.Stateful;
 import datadog.trace.api.scopemanager.ExtendedScopeListener;
 import datadog.trace.api.scopemanager.ScopeListener;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentScopeManager;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import datadog.trace.bootstrap.instrumentation.api.ProfilerContext;
 import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
 import datadog.trace.bootstrap.instrumentation.api.ScopeSource;
 import datadog.trace.bootstrap.instrumentation.api.ScopeState;
@@ -48,6 +50,7 @@ public final class ContinuableScopeManager implements AgentScopeManager {
   private final int depthLimit;
   private final boolean inheritAsyncPropagation;
   final HealthMetrics healthMetrics;
+  private final ProfilingContextIntegration profilingContextIntegration;
 
   /**
    * Constructor with NOOP Profiling and HealthMetrics implementations.
@@ -88,6 +91,7 @@ public final class ContinuableScopeManager implements AgentScopeManager {
     this.extendedScopeListeners = new CopyOnWriteArrayList<>();
     this.healthMetrics = healthMetrics;
     this.tlsScopeStack = new ScopeStackThreadLocal(profilingContextIntegration);
+    this.profilingContextIntegration = profilingContextIntegration;
   }
 
   @Override
@@ -141,7 +145,8 @@ public final class ContinuableScopeManager implements AgentScopeManager {
                 ? top.isAsyncPropagating()
                 : DEFAULT_ASYNC_PROPAGATING;
 
-    final ContinuableScope scope = new ContinuableScope(this, span, source, asyncPropagation);
+    final ContinuableScope scope =
+        new ContinuableScope(this, span, source, asyncPropagation, createScopeState(span));
     scopeStack.push(scope);
     healthMetrics.onActivateScope();
 
@@ -168,11 +173,12 @@ public final class ContinuableScopeManager implements AgentScopeManager {
       return top;
     }
 
+    Stateful scopeState = createScopeState(span);
     final ContinuableScope scope;
     if (continuation != null) {
-      scope = new ContinuingScope(this, span, source, true, continuation);
+      scope = new ContinuingScope(this, span, source, true, continuation, scopeState);
     } else {
-      scope = new ContinuableScope(this, span, source, true);
+      scope = new ContinuableScope(this, span, source, true, scopeState);
     }
     scopeStack.push(scope);
 
@@ -219,7 +225,8 @@ public final class ContinuableScopeManager implements AgentScopeManager {
             : DEFAULT_ASYNC_PROPAGATING;
 
     final ContinuableScope scope =
-        new ContinuableScope(this, span, ScopeSource.ITERATION.id(), asyncPropagation);
+        new ContinuableScope(
+            this, span, ScopeSource.ITERATION.id(), asyncPropagation, createScopeState(span));
 
     if (iterationKeepAlive > 0 && currentDepth == 0) {
       // no surrounding scope to aid cleanup, so use background task instead
@@ -269,6 +276,16 @@ public final class ContinuableScopeManager implements AgentScopeManager {
           activeSpan.context().getSpanId(),
           activeSpan.traceConfig());
     }
+  }
+
+  private Stateful createScopeState(AgentSpan span) {
+    // currently this just manages things the profiler has to do per scope, but could be expanded
+    // to encapsulate other scope lifecycle activities
+    // FIXME DDSpanContext is always a ProfilerContext anyway...
+    if (span.context() instanceof ProfilerContext) {
+      return profilingContextIntegration.newScopeState((ProfilerContext) span.context());
+    }
+    return Stateful.DEFAULT;
   }
 
   ScopeStack scopeStack() {

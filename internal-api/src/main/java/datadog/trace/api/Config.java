@@ -424,6 +424,7 @@ import static datadog.trace.util.CollectionUtils.tryMakeImmutableSet;
 import static datadog.trace.util.Strings.propertyNameToEnvironmentVariableName;
 
 import datadog.trace.api.config.GeneralConfig;
+import datadog.trace.api.config.ProfilingConfig;
 import datadog.trace.api.config.TracerConfig;
 import datadog.trace.api.iast.IastDetectionMode;
 import datadog.trace.api.iast.telemetry.Verbosity;
@@ -497,6 +498,7 @@ public class Config {
   private final InstrumenterConfig instrumenterConfig;
 
   private final long startTimeMillis = System.currentTimeMillis();
+  private final boolean timelineEventsEnabled;
 
   /**
    * this is a random UUID that gets generated on JVM start up and is attached to every root span
@@ -710,6 +712,7 @@ public class Config {
   private final String ciVisibilityCodeCoverageReportDumpDir;
   private final String ciVisibilityCompilerPluginVersion;
   private final String ciVisibilityJacocoPluginVersion;
+  private final boolean ciVisibilityJacocoPluginVersionProvided;
   private final List<String> ciVisibilityJacocoPluginIncludes;
   private final List<String> ciVisibilityJacocoPluginExcludes;
   private final String[] ciVisibilityJacocoPluginExcludedClassnames;
@@ -1620,6 +1623,8 @@ public class Config {
     ciVisibilityJacocoPluginVersion =
         configProvider.getString(
             CIVISIBILITY_JACOCO_PLUGIN_VERSION, DEFAULT_CIVISIBILITY_JACOCO_PLUGIN_VERSION);
+    ciVisibilityJacocoPluginVersionProvided =
+        configProvider.getString(CIVISIBILITY_JACOCO_PLUGIN_VERSION) != null;
     ciVisibilityJacocoPluginIncludes =
         Arrays.asList(
             COLON.split(configProvider.getString(CIVISIBILITY_JACOCO_PLUGIN_INCLUDES, ":")));
@@ -1899,6 +1904,11 @@ public class Config {
         configProvider.getBoolean(
             GeneralConfig.TELEMETRY_DEBUG_REQUESTS_ENABLED,
             ConfigDefaults.DEFAULT_TELEMETRY_DEBUG_REQUESTS_ENABLED);
+
+    timelineEventsEnabled =
+        configProvider.getBoolean(
+            ProfilingConfig.PROFILING_TIMELINE_EVENTS_ENABLED,
+            ProfilingConfig.PROFILING_TIMELINE_EVENTS_ENABLED_DEFAULT);
 
     log.debug("New instance: {}", this);
   }
@@ -2362,6 +2372,10 @@ public class Config {
     return instrumenterConfig.isProfilingEnabled();
   }
 
+  public boolean isProfilingTimelineEventsEnabled() {
+    return timelineEventsEnabled;
+  }
+
   public boolean isProfilingAgentless() {
     return profilingAgentless;
   }
@@ -2711,6 +2725,10 @@ public class Config {
 
   public String getCiVisibilityJacocoPluginVersion() {
     return ciVisibilityJacocoPluginVersion;
+  }
+
+  public boolean isCiVisibilityJacocoPluginVersionProvided() {
+    return ciVisibilityJacocoPluginVersionProvided;
   }
 
   public List<String> getCiVisibilityJacocoPluginIncludes() {
