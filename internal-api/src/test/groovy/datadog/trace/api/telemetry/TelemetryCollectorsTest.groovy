@@ -3,7 +3,6 @@ package datadog.trace.api.telemetry
 import datadog.trace.api.ConfigCollector
 import datadog.trace.api.ConfigOrigin
 import datadog.trace.api.ConfigSetting
-import datadog.trace.api.IntegrationsCollector
 import datadog.trace.api.LogCollector
 import datadog.trace.api.metrics.SpanMetricRegistryImpl
 import datadog.trace.test.util.DDSpecification
