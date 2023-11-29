@@ -10,7 +10,6 @@ import datadog.trace.civisibility.coverage.CoverageProbeStoreFactory;
 import datadog.trace.civisibility.coverage.CoverageUtils;
 import datadog.trace.civisibility.decorator.TestDecorator;
 import datadog.trace.civisibility.ipc.ModuleExecutionResult;
-import datadog.trace.civisibility.ipc.TestFramework;
 import datadog.trace.civisibility.source.MethodLinesResolver;
 import datadog.trace.civisibility.source.SourcePathResolver;
 import datadog.trace.civisibility.source.index.RepoIndexProvider;
@@ -141,10 +140,7 @@ public class DDBuildSystemModuleImpl extends DDTestModuleImpl implements DDBuild
       }
     }
 
-    for (TestFramework testFramework : result.getTestFrameworks()) {
-      SpanUtils.mergeTag(span, Tags.TEST_FRAMEWORK, testFramework.getName());
-      SpanUtils.mergeTag(span, Tags.TEST_FRAMEWORK_VERSION, testFramework.getVersion());
-    }
+    SpanUtils.mergeTestFrameworks(span, result.getTestFrameworks());
   }
 
   @Override
