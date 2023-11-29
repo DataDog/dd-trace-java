@@ -22,6 +22,8 @@ import javax.annotation.Nullable;
 
 public class ApplicationModuleImpl extends SinkModuleBase implements ApplicationModule {
 
+  private static final String ORG_SPRINGFRAMEWORK = "org.springframework";
+
   public ApplicationModuleImpl(final Dependencies dependencies) {
     super(dependencies);
   }
@@ -46,6 +48,27 @@ public class ApplicationModuleImpl extends SinkModuleBase implements Application
     checkSessionTimeOut(webXmlContent, span);
     checkDirectoryListingLeak(webXmlContent, span);
     checkAdminConsoleActive(webXmlContent, span);
+    checkDefaultHtmlEscapeInvalid(webXmlContent, span);
+  }
+
+  private void checkDefaultHtmlEscapeInvalid(String webXmlContent, AgentSpan span) {
+    boolean isSpring = isSpring(webXmlContent);
+    if (isSpring) {
+      int pos = webXmlContent.indexOf("defaultHtmlEscape");
+      String value = "false";
+      if (pos != -1) {
+        int start = webXmlContent.indexOf("<param-value>", pos) + "<param-value>".length();
+        value = webXmlContent.substring(start, webXmlContent.indexOf("</param-value>", start));
+      }
+      if (pos == -1 || !Boolean.parseBoolean(value)) {
+        reporter.report(
+            span,
+            new Vulnerability(
+                VulnerabilityType.DEFAULT_HTML_ESCAPE_INVALID,
+                Location.forSpanAndFileAndLine(span, "web.xml", -1),
+                new Evidence("defaultHtmlEscape tag should be set")));
+      }
+    }
   }
 
   private void checkAdminConsoleActive(String webXmlContent, AgentSpan span) {
@@ -214,6 +237,13 @@ public class ApplicationModuleImpl extends SinkModuleBase implements Application
         }
       }
     }
+  }
+
+  private boolean isSpring(final String web) {
+    return web != null
+        && web.contains(ORG_SPRINGFRAMEWORK + ".web.")
+        && (web.contains(ORG_SPRINGFRAMEWORK + ".web.context.ContextLoaderListener")
+            || web.contains(ORG_SPRINGFRAMEWORK + ".web.servlet.DispatcherServlet"));
   }
 
   private boolean isJsp(final String name) {
