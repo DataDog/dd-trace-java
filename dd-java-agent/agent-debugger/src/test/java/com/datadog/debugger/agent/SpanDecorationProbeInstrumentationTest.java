@@ -1,6 +1,7 @@
 package com.datadog.debugger.agent;
 
 import static com.datadog.debugger.el.DSL.eq;
+import static com.datadog.debugger.el.DSL.getMember;
 import static com.datadog.debugger.el.DSL.gt;
 import static com.datadog.debugger.el.DSL.ref;
 import static com.datadog.debugger.el.DSL.value;
@@ -200,7 +201,7 @@ public class SpanDecorationProbeInstrumentationTest extends ProbeInstrumentation
   public void methodActiveSpanSynthDuration() throws IOException, URISyntaxException {
     final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot20";
     SpanDecorationProbe.Decoration decoration =
-        createDecoration(gt(ref("@duration"), value(0)), "@return > '0", "tag1", "{@duration}");
+        createDecoration(gt(ref("@duration"), value(0)), "@return > 0", "tag1", "{@duration}");
     installSingleSpanDecoration(
         CLASS_NAME, ACTIVE, decoration, "process", "int (java.lang.String)");
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
@@ -211,10 +212,32 @@ public class SpanDecorationProbeInstrumentationTest extends ProbeInstrumentation
   }
 
   @Test
+  public void methodActiveSpanSynthException() throws IOException, URISyntaxException {
+    final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot20";
+    SpanDecorationProbe.Decoration decoration =
+        createDecoration(
+            eq(getMember(ref("@exception"), "detailMessage"), value("oops")),
+            "@exception.detailMessage == 'oops'",
+            "tag1",
+            "{@exception.detailMessage}");
+    installSingleSpanDecoration(
+        CLASS_NAME, ACTIVE, decoration, "processWithException", "int (java.lang.String)");
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    try {
+      Reflect.on(testClass).call("main", "exception").get();
+      Assertions.fail("should not reach this code");
+    } catch (RuntimeException ex) {
+      assertEquals("oops", ex.getCause().getCause().getMessage());
+    }
+    MutableSpan span = traceInterceptor.getFirstSpan();
+    assertEquals("oops", span.getTags().get("tag1"));
+  }
+
+  @Test
   public void lineActiveSpanSimpleTag() throws IOException, URISyntaxException {
     final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot20";
     SpanDecorationProbe.Decoration decoration = createDecoration("tag1", "{arg}");
-    installSingleSpanDecoration(CLASS_NAME, ACTIVE, decoration, "CapturedSnapshot20.java", 38);
+    installSingleSpanDecoration(CLASS_NAME, ACTIVE, decoration, "CapturedSnapshot20.java", 41);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.on(testClass).call("main", "1").get();
     assertEquals(84, result);
@@ -246,7 +269,7 @@ public class SpanDecorationProbeInstrumentationTest extends ProbeInstrumentation
     final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot20";
     SpanDecorationProbe.Decoration decoration =
         createDecoration(eq(ref("arg"), value("5")), "arg == '5'", "tag1", "{arg}");
-    installSingleSpanDecoration(CLASS_NAME, ACTIVE, decoration, "CapturedSnapshot20.java", 38);
+    installSingleSpanDecoration(CLASS_NAME, ACTIVE, decoration, "CapturedSnapshot20.java", 41);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     for (int i = 0; i < 10; i++) {
       int result = Reflect.on(testClass).call("main", String.valueOf(i)).get();
@@ -262,7 +285,7 @@ public class SpanDecorationProbeInstrumentationTest extends ProbeInstrumentation
     final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot20";
     SpanDecorationProbe.Decoration decoration =
         createDecoration(eq(ref("noarg"), value("5")), "arg == '5'", "tag1", "{arg}");
-    installSingleSpanDecoration(CLASS_NAME, ACTIVE, decoration, "CapturedSnapshot20.java", 38);
+    installSingleSpanDecoration(CLASS_NAME, ACTIVE, decoration, "CapturedSnapshot20.java", 41);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.on(testClass).call("main", "5").get();
     assertEquals(84, result);

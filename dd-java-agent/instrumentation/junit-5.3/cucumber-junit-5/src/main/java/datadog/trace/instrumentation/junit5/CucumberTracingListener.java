@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.junit5;
 
 import datadog.trace.api.Pair;
+import datadog.trace.api.civisibility.InstrumentationBridge;
 import java.util.List;
 import java.util.stream.Collectors;
 import org.junit.platform.engine.EngineExecutionListener;
@@ -120,6 +121,8 @@ public class CucumberTracingListener implements EngineExecutionListener {
         null,
         null,
         null);
+
+    InstrumentationBridge.currentCoverageProbeStoreRecordNonCode(classpathResourceName);
   }
 
   private void testCaseExecutionFinished(
