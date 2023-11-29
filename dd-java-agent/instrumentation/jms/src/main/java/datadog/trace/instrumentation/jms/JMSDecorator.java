@@ -36,20 +36,15 @@ public final class JMSDecorator extends MessagingClientDecorator {
           SpanNaming.instance().namingSchema().messaging().outboundOperation(JMS.toString()));
   public static final CharSequence JMS_DELIVER = UTF8BytesString.create("jms.deliver");
 
-  public static final boolean JMS_LEGACY_TRACING =
-      Config.get().isLegacyTracingEnabled(SpanNaming.instance().version() == 0, "jms");
+  public static final boolean JMS_LEGACY_TRACING = Config.get().isLegacyTracingEnabled(true, "jms");
 
   public static final boolean TIME_IN_QUEUE_ENABLED =
-      Config.get()
-          .isTimeInQueueEnabled(!JMS_LEGACY_TRACING && SpanNaming.instance().version() == 0, "jms");
+      Config.get().isTimeInQueueEnabled(!JMS_LEGACY_TRACING, "jms");
   public static final String JMS_PRODUCED_KEY = "x_datadog_jms_produced";
   public static final String JMS_BATCH_ID_KEY = "x_datadog_jms_batch_id";
 
   private static final Join QUEUE_JOINER = PrefixJoin.of("Queue ");
   private static final Join TOPIC_JOINER = PrefixJoin.of("Topic ");
-
-  private static final String LOCAL_SERVICE_NAME =
-      JMS_LEGACY_TRACING ? "jms" : Config.get().getServiceName();
 
   private final DDCache<CharSequence, CharSequence> resourceNameCache =
       DDCaches.newFixedSizeCache(32);
@@ -71,14 +66,20 @@ public final class JMSDecorator extends MessagingClientDecorator {
           "Produced for ",
           Tags.SPAN_KIND_PRODUCER,
           InternalSpanTypes.MESSAGE_PRODUCER,
-          LOCAL_SERVICE_NAME);
+          SpanNaming.instance()
+              .namingSchema()
+              .messaging()
+              .outboundService("jms", JMS_LEGACY_TRACING));
 
   public static final JMSDecorator CONSUMER_DECORATE =
       new JMSDecorator(
           "Consumed from ",
           Tags.SPAN_KIND_CONSUMER,
           InternalSpanTypes.MESSAGE_CONSUMER,
-          LOCAL_SERVICE_NAME);
+          SpanNaming.instance()
+              .namingSchema()
+              .messaging()
+              .inboundService("jms", JMS_LEGACY_TRACING));
 
   public static final JMSDecorator BROKER_DECORATE =
       new JMSDecorator(
@@ -147,6 +148,12 @@ public final class JMSDecorator extends MessagingClientDecorator {
     if (null != resourceName) {
       span.setResourceName(resourceName);
     }
+  }
+
+  public static boolean canInject(Message message) {
+    // JMS->SQS already stores the trace context in 'X-Amzn-Trace-Id' / 'AWSTraceHeader',
+    // so skip storing same context again to avoid SQS limit of 10 attributes per message.
+    return !message.getClass().getName().startsWith("com.amazon.sqs.javamessaging");
   }
 
   public void onTimeInQueue(AgentSpan span, CharSequence resourceName, String serviceName) {

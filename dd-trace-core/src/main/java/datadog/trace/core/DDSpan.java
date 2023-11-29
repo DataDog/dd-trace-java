@@ -14,19 +14,25 @@ import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.EndpointTracker;
+import datadog.trace.api.TraceConfig;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.RequestContext;
+import datadog.trace.api.metrics.SpanMetricRegistry;
+import datadog.trace.api.metrics.SpanMetrics;
 import datadog.trace.api.profiling.TransientProfilingContextHolder;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.api.sampling.SamplingMechanism;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpanLink;
 import datadog.trace.bootstrap.instrumentation.api.AttachableWrapper;
-import datadog.trace.bootstrap.instrumentation.api.PathwayContext;
+import datadog.trace.bootstrap.instrumentation.api.ErrorPriorities;
 import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import javax.annotation.Nonnull;
@@ -46,12 +52,19 @@ public class DDSpan
 
   public static final String CHECKPOINTED_TAG = "checkpointed";
 
-  static DDSpan create(final long timestampMicro, @Nonnull DDSpanContext context) {
-    final DDSpan span = new DDSpan(timestampMicro, context);
+  static DDSpan create(
+      final String instrumentationName,
+      final long timestampMicro,
+      @Nonnull DDSpanContext context,
+      final List<AgentSpanLink> links) {
+    final DDSpan span = new DDSpan(instrumentationName, timestampMicro, context, links);
     log.debug("Started span: {}", span);
     context.getTrace().registerSpan(span);
     return span;
   }
+
+  /** The metrics for this span instance. */
+  private final SpanMetrics metrics;
 
   /** The context attached to the span */
   private final DDSpanContext context;
@@ -91,13 +104,30 @@ public class DDSpan
   private volatile Flow.Action.RequestBlockingAction requestBlockingAction;
 
   /**
+   * Version of a span that can be set by the long running spans feature:
+   * <li>eq 0 -> span is not long running.
+   * <li>lt 0 -> finished span that had running versions previously written.
+   * <li>gt 0 -> long running span and its write version.
+   */
+  private volatile int longRunningVersion = 0;
+
+  private final List<AgentSpanLink> links;
+
+  /**
    * Spans should be constructed using the builder, not by calling the constructor directly.
    *
+   * @param instrumentationName instrumentation that creates the span
    * @param timestampMicro if greater than zero, use this time instead of the current time
    * @param context the context used for the span
    */
-  private DDSpan(final long timestampMicro, @Nonnull DDSpanContext context) {
+  private DDSpan(
+      @Nonnull String instrumentationName,
+      final long timestampMicro,
+      @Nonnull DDSpanContext context,
+      final List<AgentSpanLink> links) {
     this.context = context;
+    this.metrics = SpanMetricRegistry.getInstance().get(instrumentationName);
+    this.metrics.onSpanCreated();
 
     if (timestampMicro <= 0L) {
       // note: getting internal time from the trace implicitly 'touches' it
@@ -108,6 +138,8 @@ public class DDSpan
       externalClock = true;
       context.getTrace().touch(); // external clock: explicitly update lastReferenced
     }
+
+    this.links = links == null ? new CopyOnWriteArrayList<>() : new CopyOnWriteArrayList<>(links);
   }
 
   public boolean isFinished() {
@@ -117,6 +149,8 @@ public class DDSpan
   private void finishAndAddToTrace(final long durationNano) {
     // ensure a min duration of 1
     if (DURATION_NANO_UPDATER.compareAndSet(this, 0, Math.max(1, durationNano))) {
+      setLongRunningVersion(-this.longRunningVersion);
+      this.metrics.onSpanFinished();
       PendingTrace.PublishState publishState = context.getTrace().onPublish(this);
       log.debug("Finished span ({}): {}", publishState, this);
     } else {
@@ -125,7 +159,7 @@ public class DDSpan
   }
 
   @Override
-  public final void finish() {
+  public void finish() {
     if (!externalClock) {
       // no external clock was used, so we can rely on nano time
       finishAndAddToTrace(context.getTrace().getCurrentTimeNano() - startTimeNano);
@@ -135,7 +169,7 @@ public class DDSpan
   }
 
   @Override
-  public final void finish(final long stopTimeMicros) {
+  public void finish(final long stopTimeMicros) {
     long durationNano;
     if (!externalClock) {
       // first capture wall-clock offset from 'now' to external stop time
@@ -235,7 +269,12 @@ public class DDSpan
 
   @Override
   public DDSpan setError(final boolean error) {
-    context.setErrorFlag(error);
+    return setError(error, ErrorPriorities.DEFAULT);
+  }
+
+  @Override
+  public DDSpan setError(final boolean error, final byte priority) {
+    context.setErrorFlag(error, priority);
     return this;
   }
 
@@ -303,6 +342,11 @@ public class DDSpan
 
   @Override
   public DDSpan addThrowable(final Throwable error) {
+    return addThrowable(error, ErrorPriorities.DEFAULT);
+  }
+
+  @Override
+  public DDSpan addThrowable(Throwable error, byte errorPriority) {
     if (null != error) {
       String message = error.getMessage();
       if (!"broken pipe".equalsIgnoreCase(message)
@@ -312,7 +356,7 @@ public class DDSpan
         // which might happen because the application is overloaded
         // or warming up - capturing the stack trace and keeping
         // the trace may exacerbate existing problems.
-        setError(true);
+        setError(true, errorPriority);
         final StringWriter errorString = new StringWriter();
         error.printStackTrace(new PrintWriter(errorString));
         setTag(DDTags.ERROR_STACK, errorString.toString());
@@ -321,7 +365,6 @@ public class DDSpan
       setTag(DDTags.ERROR_MSG, message);
       setTag(DDTags.ERROR_TYPE, error.getClass().getName());
     }
-
     return this;
   }
 
@@ -339,15 +382,6 @@ public class DDSpan
   @Override
   public final DDSpan setTag(final String tag, final boolean value) {
     context.setTag(tag, value);
-    return this;
-  }
-
-  @Override
-  public AgentSpan setAttribute(String key, Object value) {
-    if (key == null || key.isEmpty() || value == null) {
-      return this;
-    }
-    this.context.setTag(key, value);
     return this;
   }
 
@@ -517,15 +551,13 @@ public class DDSpan
   }
 
   @Override
-  public void mergePathwayContext(PathwayContext pathwayContext) {
-    context.mergePathwayContext(pathwayContext);
-  }
-
-  @Override
   public Integer forceSamplingDecision() {
     PendingTrace trace = this.context.getTrace();
     DDSpan rootSpan = trace.getRootSpan();
-    trace.getTracer().setSamplingPriorityIfNecessary(rootSpan);
+    trace.setSamplingPriorityIfNecessary();
+    if (rootSpan == null) {
+      return null;
+    }
     return rootSpan.getSamplingPriority();
   }
 
@@ -664,7 +696,7 @@ public class DDSpan
 
   @Override
   public void processTagsAndBaggage(final MetadataConsumer consumer) {
-    context.processTagsAndBaggage(consumer);
+    context.processTagsAndBaggage(consumer, longRunningVersion, links);
   }
 
   @Override
@@ -747,7 +779,13 @@ public class DDSpan
 
   @Override
   public String toString() {
-    return context.toString() + ", duration_ns=" + durationNano + ", forceKeep=" + forceKeep;
+    return context.toString()
+        + ", duration_ns="
+        + durationNano
+        + ", forceKeep="
+        + forceKeep
+        + ", links="
+        + links;
   }
 
   @Override
@@ -758,5 +796,29 @@ public class DDSpan
   @Override
   public Object getWrapper() {
     return WRAPPER_FIELD_UPDATER.get(this);
+  }
+
+  public void setLongRunningVersion(int longRunningVersion) {
+    if (this.longRunningVersion < 0) {
+      return;
+    }
+    this.longRunningVersion = longRunningVersion;
+  }
+
+  @Override
+  public TraceConfig traceConfig() {
+    return context.getTrace().getTraceConfig();
+  }
+
+  @Override
+  public void addLink(AgentSpanLink link) {
+    if (link != null) {
+      this.links.add(link);
+    }
+  }
+
+  // to be accessible in Spock spies, which the field wouldn't otherwise be
+  public long getStartTimeNano() {
+    return startTimeNano;
   }
 }

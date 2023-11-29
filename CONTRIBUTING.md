@@ -3,6 +3,8 @@
 Pull requests for bug fixes are welcome, but before submitting new features or changes to current functionality [open an issue](https://github.com/DataDog/dd-trace-java/issues/new)
 and discuss your ideas or propose the changes you wish to make. After a resolution is reached a PR can be submitted for review.
 
+When opening a pull request, please open it as a [draft](https://github.blog/2019-02-14-introducing-draft-pull-requests/) to not auto assign reviewers before you feel the pull request is in a reviewable state.
+
 ## Requirements
 
 To build the full project:
@@ -170,6 +172,19 @@ There is a pre-commit hook setup to verify formatting before committing. It can 
 git config core.hooksPath .githooks
 ```
 
+## Git submodule setup
+
+Git does not automatically update submodules when switching branches.
+
+Add the following configuration setting or you will need to remember to add `--recurse-submodules` to `git checkout` when switching to old branches.
+
+```bash
+git config --local submodule.recurse true
+```
+
+This will keep the submodule in `dd-java-agent/agent-jmxfetch/integrations-core` up to date.
+
+
 ## Intellij IDEA
 
 Compiler settings:
@@ -185,8 +200,6 @@ Suggested plugins and settings:
   * With java use the following import layout (groovy should still use the default) to ensure consistency with google-java-format:
     ![import layout](https://user-images.githubusercontent.com/734411/43430811-28442636-94ae-11e8-86f1-f270ddcba023.png)
 * [Google Java Format](https://plugins.jetbrains.com/plugin/8527-google-java-format)
-* [Save Actions](https://plugins.jetbrains.com/plugin/7642-save-actions)
-  ![Recommended Settings](https://user-images.githubusercontent.com/35850765/124003079-838f4280-d9a4-11eb-9250-5c517631e362.png)
 
 ## Troubleshooting
 
@@ -212,3 +225,19 @@ To run tests on a different JVM than the one used for doing the build, you need 
 2) A command line option to the gradle task on the form `-PtestJvm=[JDKNAME]`, i.e. `-PtestJvm=ZULU15`
 
 Please note that the JDK name needs to end with the JDK version, i.e. `11`, `ZULU15`, `ORACLE8`, et.c.
+
+## The APM Test Agent
+
+The APM test agent emulates the APM endpoints of the Datadog Agent. The Test Agent container runs alongside Java tracer
+Instrumentation Tests in CI, handling all traces during test runs and performing a number of `Trace Checks`. Trace
+Check results are returned within the `Get APM Test Agent Trace Check Results` step for all instrumentation test jobs.
+
+For more information on Trace Checks, see:
+https://github.com/DataDog/dd-apm-test-agent#trace-invariant-checks
+
+The APM Test Agent also emits helpful logging, including logging received traces' headers, spans, errors encountered,
+ands information on trace checks being performed. Logs can be viewed in CircleCI within the Test-Agent container step
+for all instrumentation test suites, ie: `z_test_8_inst` job
+
+Read more about the APM Test Agent:
+https://github.com/datadog/dd-apm-test-agent#readme

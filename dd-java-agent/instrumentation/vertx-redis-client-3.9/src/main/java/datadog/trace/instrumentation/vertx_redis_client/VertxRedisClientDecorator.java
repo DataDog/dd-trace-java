@@ -2,7 +2,6 @@ package datadog.trace.instrumentation.vertx_redis_client;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 
-import datadog.trace.api.Config;
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
 import datadog.trace.api.naming.SpanNaming;
@@ -20,7 +19,7 @@ public class VertxRedisClientDecorator
   public static final VertxRedisClientDecorator DECORATE = new VertxRedisClientDecorator();
 
   private static final String SERVICE_NAME =
-      SpanNaming.instance().namingSchema().cache().service(Config.get().getServiceName(), "redis");
+      SpanNaming.instance().namingSchema().cache().service("redis");
   public static final CharSequence REDIS_COMMAND =
       UTF8BytesString.create(SpanNaming.instance().namingSchema().cache().operation("redis"));
 
@@ -69,9 +68,6 @@ public class VertxRedisClientDecorator
   protected String dbHostname(final SocketAddress socketAddress) {
     return socketAddress.host();
   }
-
-  @Override
-  protected void postProcessServiceAndOperationName(AgentSpan span, String dbType) {}
 
   public AgentSpan startAndDecorateSpan(String command) {
     UTF8BytesString upperCase =

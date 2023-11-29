@@ -1,7 +1,9 @@
 package com.datadog.iast.overhead;
 
-public interface Operation {
-  boolean hasQuota(final OverheadContext context);
+import javax.annotation.Nullable;
 
-  boolean consumeQuota(final OverheadContext context);
+public interface Operation {
+  boolean hasQuota(@Nullable final OverheadContext context);
+
+  boolean consumeQuota(@Nullable final OverheadContext context);
 }

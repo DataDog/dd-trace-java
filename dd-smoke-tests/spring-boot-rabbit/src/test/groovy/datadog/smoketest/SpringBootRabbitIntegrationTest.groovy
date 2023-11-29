@@ -82,9 +82,9 @@ class SpringBootRabbitIntegrationTest extends AbstractServerSmokeTest {
     ]
     if (processIndex == 0) {
       expected.add("[${service}:servlet.request:GET /roundtrip/{message}[${service}:spring.handler:WebController.roundtrip[${service}:amqp.command:basic.publish <default> -> otherqueue]]]")
-      expected.add("[rabbitmq:amqp.deliver:amqp.deliver queue[${service}:amqp.command:basic.deliver queue[${service}:amqp.consume:amqp.consume queue[${service}:trace.annotation:Receiver.receiveMessage]]]]")
+      expected.add("[rabbitmq:amqp.deliver:amqp.deliver queue[${service}:amqp.command:basic.deliver queue[${service}:amqp.consume:amqp.consume queue[${service}:spring.consume:Receiver.receiveMessage]]]]")
     } else {
-      expected.add("[rabbitmq:amqp.deliver:amqp.deliver otherqueue[${service}:amqp.command:basic.deliver otherqueue[${service}:amqp.consume:amqp.consume otherqueue[${service}:trace.annotation:Receiver.receiveMessage[${service}:amqp.command:basic.publish <default> -> queue]]]]]")
+      expected.add("[rabbitmq:amqp.deliver:amqp.deliver otherqueue[${service}:amqp.command:basic.deliver otherqueue[${service}:amqp.consume:amqp.consume otherqueue[${service}:spring.consume:Receiver.receiveMessage[${service}:amqp.command:basic.publish <default> -> queue]]]]]")
     }
     return expected
   }

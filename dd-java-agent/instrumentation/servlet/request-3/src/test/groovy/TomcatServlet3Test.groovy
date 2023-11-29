@@ -36,6 +36,11 @@ abstract class TomcatServlet3Test extends AbstractServlet3Test<Tomcat, Context> 
   @Shared
   TestAccessLogValve accessLogValue
 
+  @Override
+  boolean testBlockingOnResponse() {
+    true
+  }
+
   class TomcatServer implements HttpServer {
     def port = 0
     final Tomcat server
@@ -57,6 +62,7 @@ abstract class TomcatServlet3Test extends AbstractServlet3Test<Tomcat, Context> 
         applicationDir.deleteOnExit()
       }
       Context servletContext = server.addWebapp("/$context", applicationDir.getAbsolutePath())
+      servletContext.allowCasualMultipartParsing = true
       // Speed up startup by disabling jar scanning:
       servletContext.getJarScanner().setJarScanFilter(new JarScanFilter() {
           @Override
@@ -113,6 +119,14 @@ abstract class TomcatServlet3Test extends AbstractServlet3Test<Tomcat, Context> 
   @Override
   String component() {
     return "tomcat-server"
+  }
+
+  //@Ignore("https://github.com/DataDog/dd-trace-java/pull/5213")
+  @Override
+  boolean testBadUrl() {
+    // Tomcat seems to exit too early:
+    //   java.lang.IllegalArgumentException: Invalid character found in the request target. The valid characters are defined in RFC 7230 and RFC 3986
+    false
   }
 
   @Override
@@ -338,6 +352,16 @@ class TestAccessLogValve extends ValveBase implements AccessLog {
 class TomcatServlet3TestSync extends TomcatServlet3Test {
 
   @Override
+  boolean testBodyUrlencoded() {
+    true
+  }
+
+  @Override
+  boolean testBodyMultipart() {
+    true
+  }
+
+  @Override
   Class<Servlet> servlet() {
     TestServlet3.Sync
   }
@@ -364,6 +388,7 @@ class TomcatServlet3TestAsync extends TomcatServlet3Test {
     // The exception will just cause an async timeout
     false
   }
+
 }
 
 class TomcatServlet3AsyncV1ForkedTest extends TomcatServlet3TestAsync implements TestingGenericHttpNamingConventions.ServerV1 {

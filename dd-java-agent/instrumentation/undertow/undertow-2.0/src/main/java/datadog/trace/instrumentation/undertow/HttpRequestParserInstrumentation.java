@@ -35,6 +35,7 @@ public class HttpRequestParserInstrumentation extends Instrumenter.Tracing
       packageName + ".HttpServerExchangeURIDataAdapter",
       packageName + ".UndertowDecorator",
       packageName + ".UndertowBlockingHandler",
+      packageName + ".IgnoreSendAttribute",
       packageName + ".UndertowBlockResponseFunction",
       packageName + ".UndertowExtractAdapter",
       packageName + ".UndertowExtractAdapter$Request",
@@ -76,9 +77,9 @@ public class HttpRequestParserInstrumentation extends Instrumenter.Tracing
         } else {
           final AgentSpan.Context.Extracted extractedContext = DECORATE.extract(exchange);
           span = DECORATE.startSpan(exchange, extractedContext).setMeasured(true);
+          scope = activateSpan(span);
           DECORATE.afterStart(span);
           DECORATE.onRequest(span, exchange, exchange, extractedContext);
-          scope = activateSpan(span);
         }
         DECORATE.onError(span, throwable);
         // because we know that a http 400 will be thrown

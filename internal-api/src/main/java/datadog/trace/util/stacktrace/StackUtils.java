@@ -32,14 +32,35 @@ public abstract class StackUtils {
     return filterFirst(exception, AbstractStackWalker::isNotDatadogTraceStackElement);
   }
 
-  public static <E extends Throwable> E removeLast(final E exception) {
+  public static <E extends Throwable> E filterUntil(
+      final E exception, final Predicate<StackTraceElement> trace) {
     return update(
         exception,
         stack -> {
           final StackTraceElement[] source = exception.getStackTrace();
-          final StackTraceElement[] result = new StackTraceElement[source.length - 1];
-          System.arraycopy(source, 0, result, 0, result.length);
-          return result;
+          for (int i = 0; i < source.length; i++) {
+            if (trace.test(source[i])) {
+              final StackTraceElement[] result = new StackTraceElement[source.length - i - 1];
+              System.arraycopy(source, i + 1, result, 0, result.length);
+              return result;
+            }
+          }
+          return source;
+        });
+  }
+
+  public static <E extends Throwable> E filterPackagesIn(
+      final E exception, final String[] packages) {
+    return filter(
+        exception,
+        ste -> {
+          final String clazz = ste.getClassName();
+          for (String p : packages) {
+            if (clazz.startsWith(p)) {
+              return true;
+            }
+          }
+          return false;
         });
   }
 

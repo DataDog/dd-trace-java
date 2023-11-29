@@ -7,6 +7,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.api.iast.InstrumentationBridge;
+import datadog.trace.api.iast.Source;
 import datadog.trace.api.iast.SourceTypes;
 import datadog.trace.api.iast.propagation.PropagationModule;
 import net.bytebuddy.asm.Advice;
@@ -34,11 +35,14 @@ public class JWTParserInstrumentation extends Instrumenter.Iast
   public static class InstrumenterAdvice {
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
+    @Source(SourceTypes.REQUEST_HEADER_VALUE)
     public static void onEnter(@Advice.Argument(0) String json) {
       final PropagationModule module = InstrumentationBridge.PROPAGATION;
 
       if (module != null) {
-        module.taint(SourceTypes.REQUEST_HEADER_VALUE, json);
+        // TODO: We could represent this source more accurately, perhaps tracking the original
+        // source, or using a special name.
+        module.taint(json, SourceTypes.REQUEST_HEADER_VALUE);
       }
     }
   }

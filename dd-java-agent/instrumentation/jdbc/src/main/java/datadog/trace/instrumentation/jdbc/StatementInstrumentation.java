@@ -9,7 +9,6 @@ import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.DB
 import static datadog.trace.instrumentation.jdbc.JDBCDecorator.DATABASE_QUERY;
 import static datadog.trace.instrumentation.jdbc.JDBCDecorator.DECORATE;
 import static datadog.trace.instrumentation.jdbc.JDBCDecorator.INJECT_COMMENT;
-import static datadog.trace.instrumentation.jdbc.JDBCDecorator.INJECT_TRACE_CONTEXT;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
@@ -60,6 +59,9 @@ public final class StatementInstrumentation extends Instrumenter.Tracing
     };
   }
 
+  // prepend mode will prepend the SQL comment to the raw sql query
+  private static final boolean appendComment = false;
+
   @Override
   public void adviceTransformations(AdviceTransformation transformation) {
     transformation.applyAdvice(
@@ -81,12 +83,16 @@ public final class StatementInstrumentation extends Instrumenter.Tracing
         final Connection connection = statement.getConnection();
         final AgentSpan span = startSpan(DATABASE_QUERY);
         DECORATE.afterStart(span);
-        DECORATE.onConnection(
-            span, connection, InstrumentationContext.get(Connection.class, DBInfo.class));
+        final DBInfo dbInfo =
+            JDBCDecorator.parseDBInfo(
+                connection, InstrumentationContext.get(Connection.class, DBInfo.class));
+        DECORATE.onConnection(span, dbInfo);
         final String copy = sql;
         if (span != null && INJECT_COMMENT) {
           String traceParent = null;
-          if (INJECT_TRACE_CONTEXT) {
+
+          boolean injectTraceContext = DECORATE.shouldInjectTraceContext(dbInfo);
+          if (injectTraceContext) {
             Integer priority = span.forceSamplingDecision();
             if (priority != null) {
               traceParent = DECORATE.traceParent(span, priority);
@@ -94,7 +100,9 @@ public final class StatementInstrumentation extends Instrumenter.Tracing
               span.setTag(DBM_TRACE_INJECTED, true);
             }
           }
-          sql = SQLCommenter.inject(sql, span.getServiceName(), traceParent, INJECT_TRACE_CONTEXT);
+          sql =
+              SQLCommenter.inject(
+                  sql, span.getServiceName(), traceParent, injectTraceContext, appendComment);
         }
         DECORATE.onStatement(span, DBQueryInfo.ofStatement(copy));
         return activateSpan(span);

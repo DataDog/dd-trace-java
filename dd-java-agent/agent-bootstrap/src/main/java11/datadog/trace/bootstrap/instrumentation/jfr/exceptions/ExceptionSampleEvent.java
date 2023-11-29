@@ -18,10 +18,6 @@ public class ExceptionSampleEvent extends Event implements ContextualEvent {
   @Label("Exception message")
   private final String message;
 
-  /** JFR may truncate the stack trace - so store original length as well. */
-  @Label("Exception stackdepth")
-  private final int stackDepth;
-
   @Label("Sampled")
   private final boolean sampled;
 
@@ -43,7 +39,6 @@ public class ExceptionSampleEvent extends Event implements ContextualEvent {
      */
     this.type = e.getClass().getName();
     this.message = getMessage(e);
-    this.stackDepth = getStackDepth(e);
     this.sampled = sampled;
     this.firstOccurrence = firstOccurrence;
     captureContext();
@@ -58,15 +53,6 @@ public class ExceptionSampleEvent extends Event implements ContextualEvent {
       }
     }
     return null;
-  }
-
-  private static int getStackDepth(Throwable t) {
-    try {
-      return t.getStackTrace().length;
-    } catch (Throwable ignored) {
-      // be defensive about exceptions choking on a call to getStackTrace()
-    }
-    return 0;
   }
 
   @Override

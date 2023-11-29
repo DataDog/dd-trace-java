@@ -1,0 +1,23 @@
+muzzle {
+  pass {
+    group = 'org.unbescape'
+    module = 'unbescape'
+    versions = '[1.1.0.RELEASE,]'
+    assertInverse = true
+  }
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+apply plugin: 'call-site-instrumentation'
+
+addTestSuiteForDir('latestDepTest', 'test')
+
+dependencies {
+  compileOnly group: 'org.unbescape', name: 'unbescape', version: '1.1.0.RELEASE'
+
+  testImplementation group: 'org.unbescape', name: 'unbescape', version: '1.1.0.RELEASE'
+
+  testRuntimeOnly project(':dd-java-agent:instrumentation:iast-instrumenter')
+
+  latestDepTestImplementation group: 'org.unbescape', name: 'unbescape', version: '+'
+}

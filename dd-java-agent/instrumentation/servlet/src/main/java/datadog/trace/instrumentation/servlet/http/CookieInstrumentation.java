@@ -8,6 +8,7 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.bytebuddy.iast.TaintableVisitor;
 import datadog.trace.api.iast.InstrumentationBridge;
+import datadog.trace.api.iast.Source;
 import datadog.trace.api.iast.SourceTypes;
 import datadog.trace.api.iast.propagation.PropagationModule;
 import net.bytebuddy.asm.Advice;
@@ -41,12 +42,13 @@ public class CookieInstrumentation extends Instrumenter.Iast implements Instrume
 
   public static class GetNameAdvice {
     @Advice.OnMethodExit
+    @Source(SourceTypes.REQUEST_COOKIE_NAME)
     public static void afterGetName(
         @Advice.This final Object self, @Advice.Return final String result) {
       final PropagationModule module = InstrumentationBridge.PROPAGATION;
       if (module != null) {
         try {
-          module.taintIfInputIsTainted(SourceTypes.REQUEST_COOKIE_NAME, result, result, self);
+          module.taintIfTainted(result, self, SourceTypes.REQUEST_COOKIE_NAME, result);
         } catch (final Throwable e) {
           module.onUnexpectedException("afterGetName threw", e);
         }
@@ -57,6 +59,7 @@ public class CookieInstrumentation extends Instrumenter.Iast implements Instrume
   public static class GetValueAdvice {
 
     @Advice.OnMethodExit
+    @Source(SourceTypes.REQUEST_COOKIE_VALUE)
     public static void afterGetValue(
         @Advice.This final Object self,
         @Advice.FieldValue("name") final String name,
@@ -64,7 +67,7 @@ public class CookieInstrumentation extends Instrumenter.Iast implements Instrume
       final PropagationModule module = InstrumentationBridge.PROPAGATION;
       if (module != null) {
         try {
-          module.taintIfInputIsTainted(SourceTypes.REQUEST_COOKIE_VALUE, name, result, self);
+          module.taintIfTainted(result, self, SourceTypes.REQUEST_COOKIE_VALUE, name);
         } catch (final Throwable e) {
           module.onUnexpectedException("getValue threw", e);
         }

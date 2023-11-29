@@ -10,6 +10,7 @@ ext {
     'datadog.telemetry.dependency.LocationsCollectingTransformer',
     'datadog.telemetry.dependency.JbossVirtualFileHelper',
     'datadog.telemetry.RequestBuilder.NumberJsonAdapter',
+    'datadog.telemetry.RequestBuilderSupplier',
     'datadog.telemetry.TelemetrySystem',
     'datadog.telemetry.api.*',
   ]
@@ -28,6 +29,7 @@ dependencies {
 
   compileOnly project(':dd-java-agent:agent-tooling')
   testImplementation project(':dd-java-agent:agent-tooling')
+  testImplementation project(':dd-java-agent:agent-logging')
 
   compileOnly project(':communication')
   testImplementation project(':communication')

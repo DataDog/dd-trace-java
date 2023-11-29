@@ -1,6 +1,7 @@
-import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.agent.test.asserts.ListWriterAssert
 import datadog.trace.agent.test.asserts.TraceAssert
+import datadog.trace.agent.test.naming.VersionedNamingTestBase
+import datadog.trace.api.Config
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.Trace
 import datadog.trace.api.config.TraceInstrumentationConfig
@@ -25,7 +26,7 @@ import javax.jms.TopicSession
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.atomic.AtomicReference
 
-class JMS1Test extends AgentTestRunner {
+abstract class JMS1Test extends VersionedNamingTestBase {
   @Shared
   EmbeddedActiveMQBroker broker = new EmbeddedActiveMQBroker()
   @Shared
@@ -51,6 +52,10 @@ class JMS1Test extends AgentTestRunner {
   ActiveMQTextMessage message1 = session.createTextMessage(messageText1)
   ActiveMQTextMessage message2 = session.createTextMessage(messageText2)
   ActiveMQTextMessage message3 = session.createTextMessage(messageText3)
+
+  abstract String operationForProducer()
+
+  abstract String operationForConsumer()
 
   def setupSpec() {
     broker.start()
@@ -95,11 +100,11 @@ class JMS1Test extends AgentTestRunner {
     receivedMessage3.text == messageText3
     // only two consume traces will be finished at this point
     assertTraces(5) {
-      producerTrace(it, jmsResourceName)
-      producerTrace(it, jmsResourceName)
-      producerTrace(it, jmsResourceName)
-      consumerTrace(it, jmsResourceName, trace(0)[0])
-      consumerTrace(it, jmsResourceName, trace(1)[0])
+      producerTraceWithNaming(it, jmsResourceName)
+      producerTraceWithNaming(it, jmsResourceName)
+      producerTraceWithNaming(it, jmsResourceName)
+      consumerTraceWithNaming(it, jmsResourceName, trace(0)[0])
+      consumerTraceWithNaming(it, jmsResourceName, trace(1)[0])
     }
 
     when:
@@ -108,12 +113,12 @@ class JMS1Test extends AgentTestRunner {
     then:
     // now the last consume trace will also be finished
     assertTraces(6) {
-      producerTrace(it, jmsResourceName)
-      producerTrace(it, jmsResourceName)
-      producerTrace(it, jmsResourceName)
-      consumerTrace(it, jmsResourceName, trace(0)[0])
-      consumerTrace(it, jmsResourceName, trace(1)[0])
-      consumerTrace(it, jmsResourceName, trace(2)[0])
+      producerTraceWithNaming(it, jmsResourceName)
+      producerTraceWithNaming(it, jmsResourceName)
+      producerTraceWithNaming(it, jmsResourceName)
+      consumerTraceWithNaming(it, jmsResourceName, trace(0)[0])
+      consumerTraceWithNaming(it, jmsResourceName, trace(1)[0])
+      consumerTraceWithNaming(it, jmsResourceName, trace(2)[0])
     }
 
     cleanup:
@@ -142,8 +147,8 @@ class JMS1Test extends AgentTestRunner {
     expect:
     receivedMessage.text == messageText1
     assertTraces(2) {
-      producerTrace(it, jmsResourceName)
-      consumerTrace(it, jmsResourceName, trace(0)[0])
+      producerTraceWithNaming(it, jmsResourceName)
+      consumerTraceWithNaming(it, jmsResourceName, trace(0)[0])
     }
 
     where:
@@ -176,11 +181,11 @@ class JMS1Test extends AgentTestRunner {
     receivedMessage3.text == messageText3
     // only two consume traces will be finished at this point
     assertTraces(5) {
-      producerTrace(it, jmsResourceName)
-      producerTrace(it, jmsResourceName)
-      producerTrace(it, jmsResourceName)
-      consumerTrace(it, jmsResourceName, trace(0)[0])
-      consumerTrace(it, jmsResourceName, trace(1)[0])
+      producerTraceWithNaming(it, jmsResourceName)
+      producerTraceWithNaming(it, jmsResourceName)
+      producerTraceWithNaming(it, jmsResourceName)
+      consumerTraceWithNaming(it, jmsResourceName, trace(0)[0])
+      consumerTraceWithNaming(it, jmsResourceName, trace(1)[0])
     }
 
     when:
@@ -189,12 +194,12 @@ class JMS1Test extends AgentTestRunner {
     then:
     // now the last consume trace will also be finished
     assertTraces(6) {
-      producerTrace(it, jmsResourceName)
-      producerTrace(it, jmsResourceName)
-      producerTrace(it, jmsResourceName)
-      consumerTrace(it, jmsResourceName, trace(0)[0])
-      consumerTrace(it, jmsResourceName, trace(1)[0])
-      consumerTrace(it, jmsResourceName, trace(2)[0])
+      producerTraceWithNaming(it, jmsResourceName)
+      producerTraceWithNaming(it, jmsResourceName)
+      producerTraceWithNaming(it, jmsResourceName)
+      consumerTraceWithNaming(it, jmsResourceName, trace(0)[0])
+      consumerTraceWithNaming(it, jmsResourceName, trace(1)[0])
+      consumerTraceWithNaming(it, jmsResourceName, trace(2)[0])
     }
 
     cleanup:
@@ -233,11 +238,11 @@ class JMS1Test extends AgentTestRunner {
     receivedMessage3.text == messageText3
     // only two consume traces will be finished at this point
     assertTraces(5) {
-      producerTrace(it, jmsResourceName)
-      producerTrace(it, jmsResourceName)
-      producerTrace(it, jmsResourceName)
-      consumerTrace(it, jmsResourceName, trace(0)[0])
-      consumerTrace(it, jmsResourceName, trace(1)[0])
+      producerTraceWithNaming(it, jmsResourceName)
+      producerTraceWithNaming(it, jmsResourceName)
+      producerTraceWithNaming(it, jmsResourceName)
+      consumerTraceWithNaming(it, jmsResourceName, trace(0)[0])
+      consumerTraceWithNaming(it, jmsResourceName, trace(1)[0])
     }
 
     when:
@@ -246,12 +251,12 @@ class JMS1Test extends AgentTestRunner {
     then:
     // now the last consume trace will also be finished
     assertTraces(6) {
-      producerTrace(it, jmsResourceName)
-      producerTrace(it, jmsResourceName)
-      producerTrace(it, jmsResourceName)
-      consumerTrace(it, jmsResourceName, trace(0)[0])
-      consumerTrace(it, jmsResourceName, trace(1)[0])
-      consumerTrace(it, jmsResourceName, trace(2)[0])
+      producerTraceWithNaming(it, jmsResourceName)
+      producerTraceWithNaming(it, jmsResourceName)
+      producerTraceWithNaming(it, jmsResourceName)
+      consumerTraceWithNaming(it, jmsResourceName, trace(0)[0])
+      consumerTraceWithNaming(it, jmsResourceName, trace(1)[0])
+      consumerTraceWithNaming(it, jmsResourceName, trace(2)[0])
     }
 
     cleanup:
@@ -288,11 +293,11 @@ class JMS1Test extends AgentTestRunner {
     receivedMessage2.text == messageText2
     // two consume traces will be finished at this point
     assertTraces(5) {
-      producerTrace(it, jmsResourceName)
-      producerTrace(it, jmsResourceName)
-      producerTrace(it, jmsResourceName)
-      consumerTrace(it, jmsResourceName, trace(0)[0])
-      consumerTrace(it, jmsResourceName, trace(1)[0])
+      producerTraceWithNaming(it, jmsResourceName)
+      producerTraceWithNaming(it, jmsResourceName)
+      producerTraceWithNaming(it, jmsResourceName)
+      consumerTraceWithNaming(it, jmsResourceName, trace(0)[0])
+      consumerTraceWithNaming(it, jmsResourceName, trace(1)[0])
     }
 
     when:
@@ -307,14 +312,14 @@ class JMS1Test extends AgentTestRunner {
     receivedMessage3.text == messageText3
     // the two consume traces plus three more will be finished at this point
     assertTraces(8) {
-      producerTrace(it, jmsResourceName)
-      producerTrace(it, jmsResourceName)
-      producerTrace(it, jmsResourceName)
-      consumerTrace(it, jmsResourceName, trace(0)[0])
-      consumerTrace(it, jmsResourceName, trace(1)[0])
-      consumerTrace(it, jmsResourceName, trace(0)[0]) // redelivered message
-      consumerTrace(it, jmsResourceName, trace(1)[0]) // redelivered message
-      consumerTrace(it, jmsResourceName, trace(2)[0])
+      producerTraceWithNaming(it, jmsResourceName)
+      producerTraceWithNaming(it, jmsResourceName)
+      producerTraceWithNaming(it, jmsResourceName)
+      consumerTraceWithNaming(it, jmsResourceName, trace(0)[0])
+      consumerTraceWithNaming(it, jmsResourceName, trace(1)[0])
+      consumerTraceWithNaming(it, jmsResourceName, trace(0)[0]) // redelivered message
+      consumerTraceWithNaming(it, jmsResourceName, trace(1)[0]) // redelivered message
+      consumerTraceWithNaming(it, jmsResourceName, trace(2)[0])
     }
 
     cleanup:
@@ -350,8 +355,8 @@ class JMS1Test extends AgentTestRunner {
 
     expect:
     assertTraces(2) {
-      producerTrace(it, jmsResourceName)
-      consumerTrace(it, jmsResourceName, trace(0)[0])
+      producerTraceWithNaming(it, jmsResourceName)
+      consumerTraceWithNaming(it, jmsResourceName, trace(0)[0])
     }
     // This check needs to go after all traces have been accounted for
     messageRef.get().text == messageText1
@@ -378,7 +383,7 @@ class JMS1Test extends AgentTestRunner {
 
     expect:
     assertTraces(1) {
-      producerTrace(it, jmsResourceName)
+      producerTraceWithNaming(it, jmsResourceName)
     }
 
     cleanup:
@@ -462,13 +467,13 @@ class JMS1Test extends AgentTestRunner {
     // write properties in MessagePropertyTextMap when readOnlyProperties = true.
     // The consumer span will also not be linked to the parent.
     assertTraces(2) {
-      producerTrace(it, jmsResourceName)
+      producerTraceWithNaming(it, jmsResourceName)
       trace(1) {
         // Consumer trace
         span {
           parent()
-          serviceName "jms"
-          operationName "jms.consume"
+          serviceName service()
+          operationName operationForConsumer()
           resourceName "Consumed from $jmsResourceName"
           spanType DDSpanTypes.MESSAGE_CONSUMER
           errored false
@@ -477,7 +482,7 @@ class JMS1Test extends AgentTestRunner {
             "$Tags.COMPONENT" "jms"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CONSUMER
             "$InstrumentationTags.RECORD_QUEUE_TIME_MS" { it >= 0 }
-            defaultTags()
+            defaultTagsNoPeerService()
           }
         }
       }
@@ -510,8 +515,8 @@ class JMS1Test extends AgentTestRunner {
 
     expect:
     assertTraces(2) {
-      producerTrace(it, "Queue someQueue")
-      consumerTrace(it, "Queue someQueue", trace(0)[0], isTimeStampDisabled)
+      producerTraceWithNaming(it, "Queue someQueue")
+      consumerTraceWithNaming(it, "Queue someQueue", trace(0)[0], isTimeStampDisabled)
     }
 
     cleanup:
@@ -535,9 +540,9 @@ class JMS1Test extends AgentTestRunner {
     expect:
     receivedMessage.text == messageText1
     assertTraces(2) {
-      producerTrace(it, jmsResourceName)
+      producerTraceWithNaming(it, jmsResourceName)
       trace(2) {
-        consumerSpan(it, jmsResourceName, trace(0)[0])
+        consumerSpan(it, jmsResourceName, trace(0)[0], false, service(), operationForConsumer())
         span {
           operationName "do.stuff"
           childOf(trace(1)[0])
@@ -573,17 +578,17 @@ class JMS1Test extends AgentTestRunner {
     receivedMessage.text == messageText1
     if (expected) {
       assertTraces(2) {
-        producerTrace(it, jmsResourceName)
-        consumerTrace(it, jmsResourceName, trace(0)[0])
+        producerTraceWithNaming(it, jmsResourceName)
+        consumerTraceWithNaming(it, jmsResourceName, trace(0)[0])
       }
     } else {
       assertTraces(2) {
-        producerTrace(it, jmsResourceName)
+        producerTraceWithNaming(it, jmsResourceName)
         trace(1) {
           span {
             parentSpanId(0 as BigInteger)
-            serviceName "jms"
-            operationName "jms.consume"
+            serviceName service()
+            operationName operationForConsumer()
             resourceName "Consumed from $jmsResourceName"
             spanType DDSpanTypes.MESSAGE_CONSUMER
             errored false
@@ -591,7 +596,7 @@ class JMS1Test extends AgentTestRunner {
               "$Tags.COMPONENT" "jms"
               "$Tags.SPAN_KIND" Tags.SPAN_KIND_CONSUMER
               "$InstrumentationTags.RECORD_QUEUE_TIME_MS" { it >= 0 }
-              defaultTags()
+              defaultTagsNoPeerService()
             }
           }
         }
@@ -626,17 +631,17 @@ class JMS1Test extends AgentTestRunner {
     receivedMessage.text == messageText1
     if (expected) {
       assertTraces(2) {
-        producerTrace(it, jmsResourceName)
-        consumerTrace(it, jmsResourceName, trace(0)[0])
+        producerTraceWithNaming(it, jmsResourceName)
+        consumerTraceWithNaming(it, jmsResourceName, trace(0)[0])
       }
     } else {
       assertTraces(2) {
-        producerTrace(it, jmsResourceName)
+        producerTraceWithNaming(it, jmsResourceName)
         trace(1) {
           span {
             parentSpanId(0 as BigInteger)
-            serviceName "jms"
-            operationName "jms.consume"
+            serviceName service()
+            operationName operationForConsumer()
             resourceName "Consumed from $jmsResourceName"
             spanType DDSpanTypes.MESSAGE_CONSUMER
             errored false
@@ -644,7 +649,7 @@ class JMS1Test extends AgentTestRunner {
               "$Tags.COMPONENT" "jms"
               "$Tags.SPAN_KIND" Tags.SPAN_KIND_CONSUMER
               "$InstrumentationTags.RECORD_QUEUE_TIME_MS" { it >= 0 }
-              defaultTags()
+              defaultTagsNoPeerService()
             }
           }
         }
@@ -686,17 +691,17 @@ class JMS1Test extends AgentTestRunner {
     expect:
     if (expected) {
       assertTraces(2) {
-        producerTrace(it, jmsResourceName)
-        consumerTrace(it, jmsResourceName, trace(0)[0])
+        producerTraceWithNaming(it, jmsResourceName)
+        consumerTraceWithNaming(it, jmsResourceName, trace(0)[0])
       }
     } else {
       assertTraces(2) {
-        producerTrace(it, jmsResourceName)
+        producerTraceWithNaming(it, jmsResourceName)
         trace(1) {
           span {
             parentSpanId(0 as BigInteger)
-            serviceName "jms"
-            operationName "jms.consume"
+            serviceName service()
+            operationName operationForConsumer()
             resourceName "Consumed from $jmsResourceName"
             spanType DDSpanTypes.MESSAGE_CONSUMER
             errored false
@@ -704,7 +709,7 @@ class JMS1Test extends AgentTestRunner {
               "$Tags.COMPONENT" "jms"
               "$Tags.SPAN_KIND" Tags.SPAN_KIND_CONSUMER
               "$InstrumentationTags.RECORD_QUEUE_TIME_MS" { it >= 0 }
-              defaultTags()
+              defaultTagsNoPeerService()
             }
           }
         }
@@ -745,11 +750,11 @@ class JMS1Test extends AgentTestRunner {
     receivedMessage3.text == messageText3
     // only two consume traces will be finished at this point
     assertTraces(5) {
-      producerTrace(it, jmsResourceName)
-      producerTrace(it, jmsResourceName)
-      producerTrace(it, jmsResourceName)
-      consumerTrace(it, jmsResourceName, trace(0)[0])
-      consumerTrace(it, jmsResourceName, trace(1)[0])
+      producerTraceWithNaming(it, jmsResourceName)
+      producerTraceWithNaming(it, jmsResourceName)
+      producerTraceWithNaming(it, jmsResourceName)
+      consumerTraceWithNaming(it, jmsResourceName, trace(0)[0])
+      consumerTraceWithNaming(it, jmsResourceName, trace(1)[0])
     }
 
     when:
@@ -758,12 +763,12 @@ class JMS1Test extends AgentTestRunner {
     then:
     // now the last consume trace will also be finished
     assertTraces(6) {
-      producerTrace(it, jmsResourceName)
-      producerTrace(it, jmsResourceName)
-      producerTrace(it, jmsResourceName)
-      consumerTrace(it, jmsResourceName, trace(0)[0])
-      consumerTrace(it, jmsResourceName, trace(1)[0])
-      consumerTrace(it, jmsResourceName, trace(2)[0])
+      producerTraceWithNaming(it, jmsResourceName)
+      producerTraceWithNaming(it, jmsResourceName)
+      producerTraceWithNaming(it, jmsResourceName)
+      consumerTraceWithNaming(it, jmsResourceName, trace(0)[0])
+      consumerTraceWithNaming(it, jmsResourceName, trace(1)[0])
+      consumerTraceWithNaming(it, jmsResourceName, trace(2)[0])
     }
 
     cleanup:
@@ -796,11 +801,11 @@ class JMS1Test extends AgentTestRunner {
     receivedMessage3.text == messageText3
     // only two consume traces will be finished at this point
     assertTraces(5) {
-      producerTrace(it, jmsResourceName)
-      producerTrace(it, jmsResourceName)
-      producerTrace(it, jmsResourceName)
-      consumerTrace(it, jmsResourceName, trace(0)[0])
-      consumerTrace(it, jmsResourceName, trace(1)[0])
+      producerTraceWithNaming(it, jmsResourceName)
+      producerTraceWithNaming(it, jmsResourceName)
+      producerTraceWithNaming(it, jmsResourceName)
+      consumerTraceWithNaming(it, jmsResourceName, trace(0)[0])
+      consumerTraceWithNaming(it, jmsResourceName, trace(1)[0])
     }
 
     when:
@@ -809,12 +814,12 @@ class JMS1Test extends AgentTestRunner {
     then:
     // now the last consume trace will also be finished
     assertTraces(6) {
-      producerTrace(it, jmsResourceName)
-      producerTrace(it, jmsResourceName)
-      producerTrace(it, jmsResourceName)
-      consumerTrace(it, jmsResourceName, trace(0)[0])
-      consumerTrace(it, jmsResourceName, trace(1)[0])
-      consumerTrace(it, jmsResourceName, trace(2)[0])
+      producerTraceWithNaming(it, jmsResourceName)
+      producerTraceWithNaming(it, jmsResourceName)
+      producerTraceWithNaming(it, jmsResourceName)
+      consumerTraceWithNaming(it, jmsResourceName, trace(0)[0])
+      consumerTraceWithNaming(it, jmsResourceName, trace(1)[0])
+      consumerTraceWithNaming(it, jmsResourceName, trace(2)[0])
     }
 
     cleanup:
@@ -847,11 +852,11 @@ class JMS1Test extends AgentTestRunner {
     receivedMessage3.text == messageText3
     // only two consume traces will be finished at this point
     assertTraces(5) {
-      producerTrace(it, jmsResourceName)
-      producerTrace(it, jmsResourceName)
-      producerTrace(it, jmsResourceName)
-      consumerTrace(it, jmsResourceName, trace(0)[0])
-      consumerTrace(it, jmsResourceName, trace(1)[0])
+      producerTraceWithNaming(it, jmsResourceName)
+      producerTraceWithNaming(it, jmsResourceName)
+      producerTraceWithNaming(it, jmsResourceName)
+      consumerTraceWithNaming(it, jmsResourceName, trace(0)[0])
+      consumerTraceWithNaming(it, jmsResourceName, trace(1)[0])
     }
 
     when:
@@ -860,12 +865,12 @@ class JMS1Test extends AgentTestRunner {
     then:
     // now the last consume trace will also be finished
     assertTraces(6) {
-      producerTrace(it, jmsResourceName)
-      producerTrace(it, jmsResourceName)
-      producerTrace(it, jmsResourceName)
-      consumerTrace(it, jmsResourceName, trace(0)[0])
-      consumerTrace(it, jmsResourceName, trace(1)[0])
-      consumerTrace(it, jmsResourceName, trace(2)[0])
+      producerTraceWithNaming(it, jmsResourceName)
+      producerTraceWithNaming(it, jmsResourceName)
+      producerTraceWithNaming(it, jmsResourceName)
+      consumerTraceWithNaming(it, jmsResourceName, trace(0)[0])
+      consumerTraceWithNaming(it, jmsResourceName, trace(1)[0])
+      consumerTraceWithNaming(it, jmsResourceName, trace(2)[0])
     }
 
     cleanup:
@@ -877,16 +882,20 @@ class JMS1Test extends AgentTestRunner {
     topicSession.createTopic("someTopic") | "Topic someTopic"
   }
 
-  static producerTrace(ListWriterAssert writer, String jmsResourceName) {
+  def producerTraceWithNaming(ListWriterAssert writer, String jmsResourceName) {
+    producerTrace(writer, jmsResourceName, service(), operationForProducer())
+  }
+
+  static producerTrace(ListWriterAssert writer, String jmsResourceName, String producerService = "jms", String producerOperation = "jms.produce") {
     writer.trace(1) {
-      producerSpan(it, jmsResourceName)
+      producerSpan(it, jmsResourceName, producerService, producerOperation)
     }
   }
 
-  static producerSpan(TraceAssert traceAssert, String jmsResourceName) {
+  static producerSpan(TraceAssert traceAssert, String jmsResourceName, String producerService = "jms", String producerOperation = "jms.produce") {
     return traceAssert.span {
-      serviceName "jms"
-      operationName "jms.produce"
+      serviceName producerService
+      operationName producerOperation
       resourceName "Produced for $jmsResourceName"
       spanType DDSpanTypes.MESSAGE_PRODUCER
       errored false
@@ -896,21 +905,27 @@ class JMS1Test extends AgentTestRunner {
       tags {
         "$Tags.COMPONENT" "jms"
         "$Tags.SPAN_KIND" Tags.SPAN_KIND_PRODUCER
-        defaultTags()
+        defaultTagsNoPeerService()
       }
     }
   }
 
-  static consumerTrace(ListWriterAssert writer, String jmsResourceName, DDSpan parentSpan, boolean isTimestampDisabled = false) {
+  def consumerTraceWithNaming(ListWriterAssert writer, String jmsResourceName, DDSpan parentSpan, boolean isTimestampDisabled = false) {
+    consumerTrace(writer, jmsResourceName, parentSpan, isTimestampDisabled, service(), operationForConsumer())
+  }
+
+  static consumerTrace(ListWriterAssert writer, String jmsResourceName, DDSpan parentSpan, boolean isTimestampDisabled = false,
+    String consumerService = "jms", String consumerOperation = "jms.consume") {
     writer.trace(1) {
-      consumerSpan(it, jmsResourceName, parentSpan, isTimestampDisabled)
+      consumerSpan(it, jmsResourceName, parentSpan, isTimestampDisabled, consumerService, consumerOperation)
     }
   }
 
-  static consumerSpan(TraceAssert traceAssert, String jmsResourceName, DDSpan parentSpan, boolean isTimestampDisabled = false) {
+  static consumerSpan(TraceAssert traceAssert, String jmsResourceName, DDSpan parentSpan, boolean isTimestampDisabled = false,
+    String consumerService = "jms", String consumerOperation = "jms.consume") {
     return traceAssert.span {
-      serviceName "jms"
-      operationName "jms.consume"
+      serviceName consumerService
+      operationName consumerOperation
       resourceName "Consumed from $jmsResourceName"
       spanType DDSpanTypes.MESSAGE_CONSUMER
       errored false
@@ -923,7 +938,7 @@ class JMS1Test extends AgentTestRunner {
         if (!isTimestampDisabled) {
           "$InstrumentationTags.RECORD_QUEUE_TIME_MS" { it >= 0 }
         }
-        defaultTags(true)
+        defaultTagsNoPeerService(true)
       }
     }
   }
@@ -931,5 +946,61 @@ class JMS1Test extends AgentTestRunner {
   @Trace(operationName = "do.stuff")
   def doStuff() {
 
+  }
+}
+
+class JMS1V0Test extends JMS1Test {
+
+  @Override
+  int version() {
+    0
+  }
+
+  @Override
+  String service() {
+    "jms"
+  }
+
+  @Override
+  String operation() {
+    null
+  }
+
+  @Override
+  String operationForProducer() {
+    "jms.produce"
+  }
+
+  @Override
+  String operationForConsumer() {
+    "jms.consume"
+  }
+}
+
+class JMS1V1ForkedTest extends JMS1Test {
+
+  @Override
+  int version() {
+    1
+  }
+
+  @Override
+  String service() {
+    Config.get().getServiceName()
+  }
+
+  @Override
+  String operation() {
+    null
+  }
+
+  @Override
+  String operationForProducer() {
+    "jms.send"
+  }
+
+  @Override
+  String operationForConsumer() {
+    "jms.process"
   }
 }

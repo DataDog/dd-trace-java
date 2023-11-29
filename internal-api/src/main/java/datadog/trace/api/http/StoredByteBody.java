@@ -14,9 +14,13 @@ import java.nio.charset.CodingErrorAction;
 import java.nio.charset.StandardCharsets;
 import java.util.function.BiFunction;
 import javax.annotation.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** @see StoredCharBody */
 public class StoredByteBody implements StoredBodySupplier {
+
+  private static final Logger LOGGER = LoggerFactory.getLogger(StoredByteBody.class);
 
   static final Charset UTF_8 = StandardCharsets.UTF_8;
   static final Charset ISO_8859_1 = StandardCharsets.ISO_8859_1;
@@ -41,18 +45,21 @@ public class StoredByteBody implements StoredBodySupplier {
   }
 
   public synchronized void appendData(byte[] bytes, int start, int end) {
-    if (storedCharBody.isLimitReached()) {
-      return;
-    }
-    for (int i = start; i < end; ) {
-      if (!undecodedData.hasRemaining()) {
-        commit(false);
+    try {
+      if (storedCharBody.isLimitReached()) {
+        return;
       }
-      int write = Math.min(end - i, undecodedData.remaining());
-      undecodedData.put(bytes, i, write);
-      i += write;
+      for (int i = start; i < end; ) {
+        if (!undecodedData.hasRemaining()) {
+          commit(false);
+        }
+        int write = Math.min(end - i, undecodedData.remaining());
+        undecodedData.put(bytes, i, write);
+        i += write;
+      }
+    } catch (final Throwable e) {
+      LOGGER.debug("Failed to append byte array chunk", e);
     }
-
     storedCharBody.maybeNotifyStart();
   }
 
@@ -66,41 +73,48 @@ public class StoredByteBody implements StoredBodySupplier {
    * @param len the amount of data available to write
    */
   public synchronized void appendData(ByteBufferWriteCallback cb, int len) {
-    for (int i = 0; i < len; ) {
-      if (storedCharBody.isLimitReached()) {
-        return;
+    try {
+      for (int i = 0; i < len; ) {
+        if (storedCharBody.isLimitReached()) {
+          return;
+        }
+        if (!undecodedData.hasRemaining()) {
+          commit(false);
+        }
+        int left = len - i;
+        int remainingInUndecoded = undecodedData.remaining();
+        if (remainingInUndecoded > left) {
+          undecodedData.limit(left);
+          i += left;
+        } else {
+          i += remainingInUndecoded;
+        }
+        cb.put(undecodedData);
       }
-      if (!undecodedData.hasRemaining()) {
-        commit(false);
-      }
-      int left = len - i;
-      int remainingInUndecoded = undecodedData.remaining();
-      if (remainingInUndecoded > left) {
-        undecodedData.limit(left);
-        i += left;
-      } else {
-        i += remainingInUndecoded;
-      }
-      cb.put(undecodedData);
-    }
-    undecodedData.limit(undecodedData.capacity());
+      undecodedData.limit(undecodedData.capacity());
 
+    } catch (final Throwable e) {
+      LOGGER.debug("Failed to append byte buffer callback", e);
+    }
     storedCharBody.maybeNotifyStart();
   }
 
   public synchronized void appendData(int byteValue) {
-    if (storedCharBody.isLimitReached()) {
-      return;
-    }
-    if (byteValue < 0 || byteValue > 255) {
-      return;
-    }
+    try {
+      if (storedCharBody.isLimitReached()) {
+        return;
+      }
+      if (byteValue < 0 || byteValue > 255) {
+        return;
+      }
 
-    if (!undecodedData.hasRemaining()) {
-      commit(false);
+      if (!undecodedData.hasRemaining()) {
+        commit(false);
+      }
+      undecodedData.put((byte) byteValue);
+    } catch (final Throwable e) {
+      LOGGER.debug("Failed to append byte", e);
     }
-    undecodedData.put((byte) byteValue);
-
     storedCharBody.maybeNotifyStart();
   }
 
@@ -109,8 +123,23 @@ public class StoredByteBody implements StoredBodySupplier {
   }
 
   public Flow<Void> maybeNotify() {
-    commit(true);
+    try {
+      commit(true);
+    } catch (final Throwable e) {
+      LOGGER.debug("Failed to commit end of input", e);
+    }
     return storedCharBody.maybeNotify();
+  }
+
+  // may throw BlockingException. If used directly in advice, make use of @Advice.Throwable to
+  // propagate
+  public void maybeNotifyAndBlock() {
+    try {
+      commit(true);
+    } catch (final Throwable e) {
+      LOGGER.debug("Failed to commit end of input", e);
+    }
+    storedCharBody.maybeNotifyAndBlock();
   }
 
   @Override
@@ -130,6 +159,14 @@ public class StoredByteBody implements StoredBodySupplier {
 
     this.undecodedData.flip();
     CoderResult decode = charsetDecoder.decode(this.undecodedData, this.decodedData, endOfInput);
+    if (endOfInput) {
+      /**
+       * Ensure the decoder is at a proper state in case the original input stream is reset,
+       * otherwise we will face: java.lang.IllegalStateException: Current state = CODING_END, new
+       * state = CODING
+       */
+      charsetDecoder.reset();
+    }
 
     this.decodedData.flip();
     this.storedCharBody.appendData(this.decodedData);

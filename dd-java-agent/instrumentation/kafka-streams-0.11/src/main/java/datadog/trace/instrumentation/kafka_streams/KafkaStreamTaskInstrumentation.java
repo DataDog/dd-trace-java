@@ -9,6 +9,7 @@ import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_TAG;
 import static datadog.trace.core.datastreams.TagsProcessor.GROUP_TAG;
 import static datadog.trace.core.datastreams.TagsProcessor.TOPIC_TAG;
 import static datadog.trace.core.datastreams.TagsProcessor.TYPE_TAG;
+import static datadog.trace.instrumentation.kafka_clients.Utils.computePayloadSizeBytes;
 import static datadog.trace.instrumentation.kafka_streams.KafkaStreamsDecorator.BROKER_DECORATE;
 import static datadog.trace.instrumentation.kafka_streams.KafkaStreamsDecorator.CONSUMER_DECORATE;
 import static datadog.trace.instrumentation.kafka_streams.KafkaStreamsDecorator.KAFKA_CONSUME;
@@ -31,12 +32,12 @@ import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
-import datadog.trace.bootstrap.instrumentation.api.PathwayContext;
 import datadog.trace.instrumentation.kafka_clients.TracingIterableDelegator;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
+import org.apache.kafka.clients.producer.RecordMetadata;
 import org.apache.kafka.streams.StreamsConfig;
 import org.apache.kafka.streams.processor.internals.ProcessorNode;
 import org.apache.kafka.streams.processor.internals.ProcessorRecordContext;
@@ -60,6 +61,7 @@ public class KafkaStreamTaskInstrumentation extends Instrumenter.Tracing
   public String[] helperClassNames() {
     return new String[] {
       "datadog.trace.instrumentation.kafka_clients.TracingIterableDelegator",
+      "datadog.trace.instrumentation.kafka_clients.Utils",
       packageName + ".KafkaStreamsDecorator",
       packageName + ".ProcessorRecordContextVisitor",
       packageName + ".StampedRecordContextVisitor",
@@ -232,8 +234,6 @@ public class KafkaStreamTaskInstrumentation extends Instrumenter.Tracing
           // spans are written out together by TraceStructureWriter when running in strict mode
         }
 
-        PathwayContext pathwayContext = propagate().extractBinaryPathwayContext(record, SR_GETTER);
-        span.mergePathwayContext(pathwayContext);
         LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>();
         sortedTags.put(DIRECTION_TAG, DIRECTION_IN);
         if (streamTaskContext != null) {
@@ -245,7 +245,11 @@ public class KafkaStreamTaskInstrumentation extends Instrumenter.Tracing
         }
         sortedTags.put(TOPIC_TAG, record.topic());
         sortedTags.put(TYPE_TAG, "kafka");
-        AgentTracer.get().setDataStreamCheckpoint(span, sortedTags);
+        final long payloadSize =
+            span.traceConfig().isDataStreamsEnabled() ? computePayloadSizeBytes(record.value) : 0;
+        AgentTracer.get()
+            .getDataStreamsMonitoring()
+            .setCheckpoint(span, sortedTags, record.timestamp, payloadSize);
       } else {
         span = startSpan(KAFKA_CONSUME, null);
       }
@@ -297,8 +301,6 @@ public class KafkaStreamTaskInstrumentation extends Instrumenter.Tracing
           // spans are written out together by TraceStructureWriter when running in strict mode
         }
 
-        PathwayContext pathwayContext = propagate().extractBinaryPathwayContext(record, PR_GETTER);
-        span.mergePathwayContext(pathwayContext);
         LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>();
         sortedTags.put(DIRECTION_TAG, DIRECTION_IN);
         if (streamTaskContext != null) {
@@ -310,7 +312,18 @@ public class KafkaStreamTaskInstrumentation extends Instrumenter.Tracing
         }
         sortedTags.put(TOPIC_TAG, record.topic());
         sortedTags.put(TYPE_TAG, "kafka");
-        AgentTracer.get().setDataStreamCheckpoint(span, sortedTags);
+
+        long payloadSize = 0;
+        // we have to go through Object to get the RecordMetadata here because the class of `record`
+        // only implements it after 2.7 (and this class is only used if v >= 2.7)
+        if ((Object) record instanceof RecordMetadata) { // should always be true
+          RecordMetadata metadata = (RecordMetadata) (Object) record;
+          payloadSize = metadata.serializedKeySize() + metadata.serializedValueSize();
+        }
+
+        AgentTracer.get()
+            .getDataStreamsMonitoring()
+            .setCheckpoint(span, sortedTags, record.timestamp(), payloadSize);
       } else {
         span = startSpan(KAFKA_CONSUME, null);
       }

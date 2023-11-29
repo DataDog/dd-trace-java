@@ -19,6 +19,11 @@ class IastOkHttp3InstrumentationTest extends AgentTestRunner {
     injectSysConfig('dd.iast.enabled', 'true')
   }
 
+  @Override
+  protected boolean isTestAgentEnabled() {
+    return false
+  }
+
   @AutoCleanup
   @Shared
   def server = httpServer {
@@ -62,7 +67,7 @@ class IastOkHttp3InstrumentationTest extends AgentTestRunner {
 
   private void mockPropagation() {
     final propagation = Mock(PropagationModule) {
-      taintIfInputIsTainted(_, _) >> {
+      taintIfTainted(_, _) >> {
         if (tainteds.containsKey(it[1])) {
           tainteds.put(it[0], null)
         }

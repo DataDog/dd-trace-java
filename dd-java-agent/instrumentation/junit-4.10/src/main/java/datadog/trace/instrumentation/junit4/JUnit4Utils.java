@@ -1,11 +1,16 @@
 package datadog.trace.instrumentation.junit4;
 
+import datadog.trace.api.civisibility.config.SkippableTest;
 import datadog.trace.util.Strings;
 import java.lang.annotation.Annotation;
+import java.lang.invoke.MethodHandle;
+import java.lang.invoke.MethodHandles;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import javax.annotation.Nullable;
 import org.junit.Test;
@@ -13,6 +18,7 @@ import org.junit.experimental.categories.Category;
 import org.junit.runner.Description;
 import org.junit.runner.notification.RunListener;
 import org.junit.runner.notification.RunNotifier;
+import org.junit.runners.ParentRunner;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -25,48 +31,94 @@ public abstract class JUnit4Utils {
   // Regex for the final brackets with its content in the test name. E.g. test_name[0] --> [0]
   private static final Pattern testNameNormalizerRegex = Pattern.compile("\\[[^\\[]*\\]$");
 
-  public static List<RunListener> runListenersFromRunNotifier(final RunNotifier runNotifier) {
-    try {
+  private static final Pattern METHOD_AND_CLASS_NAME_PATTERN =
+      Pattern.compile("([\\s\\S]*)\\((.*)\\)");
 
+  private static final MethodHandle PARENT_RUNNER_DESCRIBE_CHILD;
+  private static final MethodHandle RUN_NOTIFIER_LISTENERS;
+  private static final MethodHandle INNER_SYNCHRONIZED_LISTENER;
+  private static final MethodHandle DESCRIPTION_UNIQUE_ID;
+
+  static {
+    MethodHandles.Lookup lookup = MethodHandles.lookup();
+    PARENT_RUNNER_DESCRIBE_CHILD = accessDescribeChildMethodInParentRunner(lookup);
+    RUN_NOTIFIER_LISTENERS = accessListenersFieldInRunNotifier(lookup);
+    INNER_SYNCHRONIZED_LISTENER = accessListenerFieldInSynchronizedListener(lookup);
+    DESCRIPTION_UNIQUE_ID = accessUniqueIdInDescription(lookup);
+  }
+
+  private static MethodHandle accessDescribeChildMethodInParentRunner(MethodHandles.Lookup lookup) {
+    try {
+      Method describeChild = ParentRunner.class.getDeclaredMethod("describeChild", Object.class);
+      describeChild.setAccessible(true);
+      return lookup.unreflect(describeChild);
+    } catch (Exception e) {
+      return null;
+    }
+  }
+
+  private static MethodHandle accessListenersFieldInRunNotifier(MethodHandles.Lookup lookup) {
+    try {
       Field listeners;
       try {
         // Since JUnit 4.12, the field is called "listeners"
-        listeners = runNotifier.getClass().getDeclaredField("listeners");
+        listeners = RunNotifier.class.getDeclaredField("listeners");
       } catch (final NoSuchFieldException e) {
         // Before JUnit 4.12, the field is called "fListeners"
-        listeners = runNotifier.getClass().getDeclaredField("fListeners");
+        listeners = RunNotifier.class.getDeclaredField("fListeners");
       }
 
       listeners.setAccessible(true);
-      return (List<RunListener>) listeners.get(runNotifier);
+      return lookup.unreflectGetter(listeners);
     } catch (final Throwable e) {
       log.debug("Could not get runListeners for JUnit4Advice", e);
       return null;
     }
   }
 
-  public static boolean isTracingListener(final RunListener listener) {
-    return listener instanceof TracingListener;
-  }
-
-  public static boolean isJUnitVintageListener(final RunListener listener) {
-    Class<? extends RunListener> listenerClass = listener.getClass();
-    String listenerClassName = listenerClass.getName();
-    return listenerClassName.startsWith("org.junit.vintage");
-  }
-
-  public static RunListener unwrapListener(final RunListener listener) {
-    if (SYNCHRONIZED_LISTENER.equals(listener.getClass().getName())) {
-      try {
-        // There is no public accessor to the inner listener.
-        final Field innerListener = listener.getClass().getDeclaredField("listener");
-        innerListener.setAccessible(true);
-        return (RunListener) innerListener.get(listener);
-      } catch (final Throwable e) {
-        log.debug("Could not get inner listener from SynchronizedRunListener", e);
-      }
+  private static MethodHandle accessListenerFieldInSynchronizedListener(
+      MethodHandles.Lookup lookup) {
+    ClassLoader classLoader = RunListener.class.getClassLoader();
+    MethodHandle handle = accessListenerFieldInSynchronizedListener(lookup, classLoader);
+    if (handle != null) {
+      return handle;
+    } else {
+      ClassLoader contextClassLoader = Thread.currentThread().getContextClassLoader();
+      return accessListenerFieldInSynchronizedListener(lookup, contextClassLoader);
     }
-    return listener;
+  }
+
+  private static MethodHandle accessListenerFieldInSynchronizedListener(
+      MethodHandles.Lookup lookup, ClassLoader classLoader) {
+    try {
+      Class<?> synchronizedListenerClass = classLoader.loadClass(SYNCHRONIZED_LISTENER);
+      final Field innerListenerField = synchronizedListenerClass.getDeclaredField("listener");
+      innerListenerField.setAccessible(true);
+      return lookup.unreflectGetter(innerListenerField);
+    } catch (Exception e) {
+      return null;
+    }
+  }
+
+  private static MethodHandle accessUniqueIdInDescription(MethodHandles.Lookup lookup) {
+    try {
+      final Field uniqueIdField = Description.class.getDeclaredField("fUniqueId");
+      uniqueIdField.setAccessible(true);
+      return lookup.unreflectGetter(uniqueIdField);
+    } catch (Throwable throwable) {
+      return null;
+    }
+  }
+
+  public static List<RunListener> runListenersFromRunNotifier(final RunNotifier runNotifier) {
+    try {
+      if (RUN_NOTIFIER_LISTENERS != null) {
+        return (List<RunListener>) RUN_NOTIFIER_LISTENERS.invoke(runNotifier);
+      }
+    } catch (final Throwable e) {
+      log.debug("Could not get runListeners for JUnit4Advice", e);
+    }
+    return null;
   }
 
   public static TracingListener toTracingListener(final RunListener listener) {
@@ -77,19 +129,16 @@ public abstract class JUnit4Utils {
     // Since JUnit 4.12, the RunListener are wrapped by a SynchronizedRunListener object.
     if (SYNCHRONIZED_LISTENER.equals(listener.getClass().getName())) {
       try {
-        // There is no public accessor to the inner listener.
-        final Field innerListenerField = listener.getClass().getDeclaredField("listener");
-        innerListenerField.setAccessible(true);
-
-        Object innerListener = innerListenerField.get(listener);
-        if (innerListener instanceof TracingListener) {
-          return (TracingListener) innerListener;
+        if (INNER_SYNCHRONIZED_LISTENER != null) {
+          Object innerListener = INNER_SYNCHRONIZED_LISTENER.invoke(listener);
+          if (innerListener instanceof TracingListener) {
+            return (TracingListener) innerListener;
+          }
         }
       } catch (final Throwable e) {
         log.debug("Could not get inner listener from SynchronizedRunListener", e);
       }
     }
-
     return null;
   }
 
@@ -211,7 +260,6 @@ public abstract class JUnit4Utils {
 
   public static List<String> getCategories(Class<?> testClass, @Nullable Method testMethod) {
     List<String> categories = new ArrayList<>();
-
     while (testClass != null) {
       Category categoryAnnotation = testClass.getAnnotation(Category.class);
       if (categoryAnnotation != null) {
@@ -243,6 +291,34 @@ public abstract class JUnit4Utils {
     return description.getTestClass() != null && !isTestCaseDescription(description);
   }
 
+  public static boolean isSuiteContainingChildren(final Description description) {
+    Class<?> testClass = description.getTestClass();
+    if (testClass == null) {
+      return false;
+    }
+    for (Method method : testClass.getMethods()) {
+      if (method.getAnnotation(Test.class) != null) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  public static Object getUniqueId(final Description description) {
+    try {
+      if (DESCRIPTION_UNIQUE_ID != null) {
+        return DESCRIPTION_UNIQUE_ID.invoke(description);
+      }
+    } catch (Throwable e) {
+      log.error("Could not get unique ID from descriptions: " + description, e);
+    }
+    return null;
+  }
+
+  public static String getSuiteName(final Class<?> testClass, final Description description) {
+    return testClass != null ? testClass.getName() : description.getClassName();
+  }
+
   public static List<Method> getTestMethods(final Class<?> testClass) {
     final List<Method> testMethods = new ArrayList<>();
 
@@ -253,5 +329,40 @@ public abstract class JUnit4Utils {
       }
     }
     return testMethods;
+  }
+
+  public static Description getDescription(ParentRunner<?> runner, Object child) {
+    try {
+      if (PARENT_RUNNER_DESCRIBE_CHILD != null) {
+        return (Description) PARENT_RUNNER_DESCRIBE_CHILD.invokeWithArguments(runner, child);
+      }
+    } catch (Throwable e) {
+      log.error("Could not describe child: " + child, e);
+    }
+    return null;
+  }
+
+  public static Description getSkippedDescription(Description description) {
+    Collection<Annotation> annotations = description.getAnnotations();
+    Annotation[] updatedAnnotations = new Annotation[annotations.size() + 1];
+    int idx = 0;
+    for (Annotation annotation : annotations) {
+      updatedAnnotations[idx++] = annotation;
+    }
+    updatedAnnotations[idx] = new SkippedByItr();
+
+    String displayName = description.getDisplayName();
+    Class<?> testClass = description.getTestClass();
+    Matcher matcher = METHOD_AND_CLASS_NAME_PATTERN.matcher(displayName);
+    String name = matcher.matches() ? matcher.group(1) : getTestName(description, null);
+    return Description.createTestDescription(testClass, name, updatedAnnotations);
+  }
+
+  public static SkippableTest toSkippableTest(Description description) {
+    Method testMethod = JUnit4Utils.getTestMethod(description);
+    String suite = description.getClassName();
+    String name = JUnit4Utils.getTestName(description, testMethod);
+    String parameters = JUnit4Utils.getParameters(description);
+    return new SkippableTest(suite, name, parameters, null);
   }
 }

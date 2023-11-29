@@ -9,13 +9,19 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
+import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.iast.IastPostProcessorFactory;
+import datadog.trace.api.gateway.BlockResponseFunction;
 import datadog.trace.api.gateway.CallbackProvider;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
+import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.InstrumentationBridge;
-import datadog.trace.api.iast.source.WebModule;
+import datadog.trace.api.iast.Source;
+import datadog.trace.api.iast.SourceTypes;
+import datadog.trace.api.iast.propagation.PropagationModule;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import java.util.Map;
@@ -28,7 +34,9 @@ import net.bytebuddy.matcher.ElementMatcher;
 /** Obtain template and matrix variables for AbstractUrlHandlerMapping */
 @AutoService(Instrumenter.class)
 public class TemplateVariablesUrlHandlerInstrumentation extends Instrumenter.Default
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.WithPostProcessor {
+
+  private Advice.PostProcessor.Factory postProcessorFactory;
 
   public TemplateVariablesUrlHandlerInstrumentation() {
     super("spring-web");
@@ -36,8 +44,11 @@ public class TemplateVariablesUrlHandlerInstrumentation extends Instrumenter.Def
 
   @Override
   public boolean isApplicable(Set<TargetSystem> enabledSystems) {
-    return enabledSystems.contains(TargetSystem.APPSEC)
-        || enabledSystems.contains(TargetSystem.IAST);
+    if (enabledSystems.contains(TargetSystem.IAST)) {
+      postProcessorFactory = IastPostProcessorFactory.INSTANCE;
+      return true;
+    }
+    return enabledSystems.contains(TargetSystem.APPSEC);
   }
 
   @Override
@@ -64,13 +75,24 @@ public class TemplateVariablesUrlHandlerInstrumentation extends Instrumenter.Def
         TemplateVariablesUrlHandlerInstrumentation.class.getName() + "$InterceptorPreHandleAdvice");
   }
 
+  @Override
+  public Advice.PostProcessor.Factory postProcessor() {
+    return postProcessorFactory;
+  }
+
   public static class InterceptorPreHandleAdvice {
     private static final String URI_TEMPLATE_VARIABLES_ATTRIBUTE =
         "org.springframework.web.servlet.HandlerMapping.uriTemplateVariables";
 
     @SuppressWarnings("Duplicates")
-    @Advice.OnMethodExit(suppress = Throwable.class)
-    public static void after(@Advice.Argument(0) final HttpServletRequest req) {
+    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+    @Source(SourceTypes.REQUEST_PATH_PARAMETER)
+    public static void after(
+        @Advice.Argument(0) final HttpServletRequest req,
+        @Advice.Thrown(readOnly = false) Throwable t) {
+      if (t != null) {
+        return;
+      }
       AgentSpan agentSpan = AgentTracer.activeSpan();
       if (agentSpan == null) {
         return;
@@ -98,15 +120,30 @@ public class TemplateVariablesUrlHandlerInstrumentation extends Instrumenter.Def
           BiFunction<RequestContext, Map<String, ?>, Flow<Void>> callback =
               cbp.getCallback(EVENTS.requestPathParams());
           if (callback != null) {
-            callback.apply(reqCtx, map);
+            Flow<Void> flow = callback.apply(reqCtx, map);
+            Flow.Action action = flow.getAction();
+            if (action instanceof Flow.Action.RequestBlockingAction) {
+              Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
+              BlockResponseFunction brf = reqCtx.getBlockResponseFunction();
+              if (brf != null) {
+                brf.tryCommitBlockingResponse(
+                    reqCtx.getTraceSegment(),
+                    rba.getStatusCode(),
+                    rba.getBlockingContentType(),
+                    rba.getExtraHeaders());
+              }
+              t =
+                  new BlockingException(
+                      "Blocked request (for UriTemplateVariablesHandlerInterceptor/preHandle)");
+            }
           }
         }
       }
 
       { // iast
-        Object iastRequestContext = reqCtx.getData(RequestContextSlot.IAST);
+        IastContext iastRequestContext = reqCtx.getData(RequestContextSlot.IAST);
         if (iastRequestContext != null) {
-          WebModule module = InstrumentationBridge.WEB;
+          PropagationModule module = InstrumentationBridge.PROPAGATION;
           if (module != null) {
             for (Map.Entry<String, String> e : map.entrySet()) {
               String parameterName = e.getKey();
@@ -114,7 +151,8 @@ public class TemplateVariablesUrlHandlerInstrumentation extends Instrumenter.Def
               if (parameterName == null || value == null) {
                 continue; // should not happen
               }
-              module.onRequestPathParameter(parameterName, value, iastRequestContext);
+              module.taint(
+                  iastRequestContext, value, SourceTypes.REQUEST_PATH_PARAMETER, parameterName);
             }
           }
         }

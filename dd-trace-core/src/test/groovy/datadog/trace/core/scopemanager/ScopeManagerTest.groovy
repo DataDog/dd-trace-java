@@ -4,6 +4,7 @@ import datadog.trace.agent.test.utils.ThreadUtils
 import datadog.trace.api.DDTraceId
 import datadog.trace.api.EndpointCheckpointer
 import datadog.trace.api.StatsDClient
+import datadog.trace.api.TraceConfig
 import datadog.trace.api.interceptor.MutableSpan
 import datadog.trace.api.interceptor.TraceInterceptor
 import datadog.trace.api.scopemanager.ExtendedScopeListener
@@ -553,8 +554,8 @@ class ScopeManagerTest extends DDCoreSpecification {
     1 * rootSpanCheckpointer.onRootSpanStarted(_)
     3 * profilingContext.setContext(_)
     1 * profilingContext.onAttach()
-    1 * profilingContext.encode("foo")
-    1 * profilingContext.encode("bar")
+    1 * profilingContext.encodeOperationName("foo")
+    1 * profilingContext.encodeOperationName("bar")
     _ * profilingContext._
     0 * _
 
@@ -595,7 +596,7 @@ class ScopeManagerTest extends DDCoreSpecification {
     1 * rootSpanCheckpointer.onRootSpanStarted(_)
     1 * profilingContext.onAttach()
     1 * profilingContext.setContext(_)
-    1 * profilingContext.encode("foo")
+    1 * profilingContext.encodeOperationName("foo")
     _ * profilingContext._
     0 * _
 
@@ -609,7 +610,7 @@ class ScopeManagerTest extends DDCoreSpecification {
     tracer.activeScope() == secondScope
     assertEvents([ACTIVATE, ACTIVATE])
     1 * profilingContext.setContext(_)
-    1 * profilingContext.encode("bar")
+    1 * profilingContext.encodeOperationName("bar")
     _ * profilingContext._
     0 * _
 
@@ -623,7 +624,7 @@ class ScopeManagerTest extends DDCoreSpecification {
     tracer.activeScope() == thirdScope
     assertEvents([ACTIVATE, ACTIVATE, ACTIVATE])
     1 * profilingContext.setContext(_)
-    1 * profilingContext.encode("quux")
+    1 * profilingContext.encodeOperationName("quux")
     _ * profilingContext._
     0 * _
 
@@ -708,7 +709,7 @@ class ScopeManagerTest extends DDCoreSpecification {
     tracer.activeScope() == thirdScope
     assertEvents([ACTIVATE, ACTIVATE])
     1 * profilingContext.setContext(_)
-    1 * profilingContext.encode("quux")
+    1 * profilingContext.encodeOperationName("quux")
     _ * profilingContext._
     0 * _
 
@@ -1131,7 +1132,7 @@ class EventCountingExtendedListener implements ExtendedScopeListener {
   }
 
   @Override
-  void afterScopeActivated(DDTraceId traceId, long localRootSpanId, long spanId) {
+  void afterScopeActivated(DDTraceId traceId, long localRootSpanId, long spanId, TraceConfig traceConfig) {
     synchronized (events) {
       events.add(ACTIVATE)
     }

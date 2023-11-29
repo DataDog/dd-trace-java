@@ -2,24 +2,31 @@ package datadog.trace.instrumentation.couchbase_31.client;
 
 import static datadog.trace.bootstrap.instrumentation.api.Tags.DB_TYPE;
 
-import datadog.trace.api.Config;
+import datadog.trace.api.cache.DDCache;
+import datadog.trace.api.cache.DDCaches;
 import datadog.trace.api.naming.SpanNaming;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.api.normalize.SQLNormalizer;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.DBTypeProcessingDatabaseClientDecorator;
+import java.util.function.Function;
+import java.util.function.ToIntFunction;
 
 class CouchbaseClientDecorator extends DBTypeProcessingDatabaseClientDecorator {
   private static final String DB_TYPE = "couchbase";
   private static final String SERVICE_NAME =
-      SpanNaming.instance()
-          .namingSchema()
-          .database()
-          .service(Config.get().getServiceName(), DB_TYPE);
+      SpanNaming.instance().namingSchema().database().service(DB_TYPE);
   public static final CharSequence OPERATION_NAME =
       UTF8BytesString.create(SpanNaming.instance().namingSchema().database().operation(DB_TYPE));
   public static final CharSequence COUCHBASE_CLIENT = UTF8BytesString.create("couchbase-client");
   public static final CouchbaseClientDecorator DECORATE = new CouchbaseClientDecorator();
+
+  private static final Function<String, UTF8BytesString> NORMALIZE = SQLNormalizer::normalize;
+  private static final int COMBINED_STATEMENT_LIMIT = 2 * 1024 * 1024; // characters
+
+  private static final ToIntFunction<UTF8BytesString> STATEMENT_WEIGHER = UTF8BytesString::length;
+  private static final DDCache<String, UTF8BytesString> CACHED_STATEMENTS =
+      DDCaches.newFixedSizeWeightedCache(512, STATEMENT_WEIGHER, COMBINED_STATEMENT_LIMIT);
 
   @Override
   protected String[] instrumentationNames() {
@@ -61,6 +68,7 @@ class CouchbaseClientDecorator extends DBTypeProcessingDatabaseClientDecorator {
     return null;
   }
 
-  @Override
-  protected void postProcessServiceAndOperationName(AgentSpan span, String dbType) {}
+  protected static UTF8BytesString normalizedQuery(String sql) {
+    return CACHED_STATEMENTS.computeIfAbsent(sql, NORMALIZE);
+  }
 }

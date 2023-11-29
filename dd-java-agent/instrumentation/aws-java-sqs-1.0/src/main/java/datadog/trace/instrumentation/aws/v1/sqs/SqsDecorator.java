@@ -20,20 +20,21 @@ public class SqsDecorator extends MessagingClientDecorator {
   public static final CharSequence SQS_DELIVER = UTF8BytesString.create("SQS.DeliverMessage");
   public static final CharSequence SQS_TIME_IN_QUEUE_OPERATION =
       SpanNaming.instance().namingSchema().messaging().timeInQueueOperation("sqs");
-  public static final boolean SQS_LEGACY_TRACING =
-      Config.get().isLegacyTracingEnabled(SpanNaming.instance().version() == 0, "sqs");
+  public static final boolean SQS_LEGACY_TRACING = Config.get().isLegacyTracingEnabled(true, "sqs");
   public static final boolean TIME_IN_QUEUE_ENABLED =
-      Config.get()
-          .isTimeInQueueEnabled(!SQS_LEGACY_TRACING && SpanNaming.instance().version() == 0, "sqs");
+      Config.get().isTimeInQueueEnabled(!SQS_LEGACY_TRACING, "sqs");
   private final String spanKind;
   private final CharSequence spanType;
   private final String serviceName;
 
-  private static final String LOCAL_SERVICE_NAME =
-      SQS_LEGACY_TRACING ? "sqs" : Config.get().getServiceName();
-
   public static final SqsDecorator CONSUMER_DECORATE =
-      new SqsDecorator(SPAN_KIND_CONSUMER, MESSAGE_CONSUMER, LOCAL_SERVICE_NAME);
+      new SqsDecorator(
+          SPAN_KIND_CONSUMER,
+          MESSAGE_CONSUMER,
+          SpanNaming.instance()
+              .namingSchema()
+              .messaging()
+              .inboundService("sqs", SQS_LEGACY_TRACING));
 
   public static final SqsDecorator BROKER_DECORATE =
       new SqsDecorator(
@@ -75,6 +76,7 @@ public class SqsDecorator extends MessagingClientDecorator {
   public void onConsume(final AgentSpan span, final String queueUrl) {
     span.setResourceName(SQS_RECEIVE);
     span.setTag("aws.service", "AmazonSQS");
+    span.setTag("aws_service", "sqs");
     span.setTag("aws.operation", "ReceiveMessageRequest");
     span.setTag("aws.agent", COMPONENT_NAME);
     span.setTag("aws.queue.url", queueUrl);

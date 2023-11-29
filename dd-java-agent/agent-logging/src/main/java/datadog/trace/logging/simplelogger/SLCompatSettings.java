@@ -15,6 +15,7 @@ import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Properties;
 
@@ -164,7 +165,7 @@ public class SLCompatSettings {
   }
 
   static PrintStream getPrintStream(String logFile) {
-    switch (logFile.toLowerCase()) {
+    switch (logFile.toLowerCase(Locale.ROOT)) {
       case "system.err":
         return System.err;
       case "system.out":

@@ -36,25 +36,24 @@ public class SpanInstrumentor extends Instrumentor {
   }
 
   @Override
-  public void instrument() {
+  public InstrumentationResult.Status instrument() {
     if (isLineProbe) {
       fillLineMap();
-      addRangeSpan(lineMap);
-    } else {
-      spanVar = newVar(DEBUGGER_SPAN_TYPE);
-      processInstructions();
-      LabelNode initSpanLabel = new LabelNode();
-      InsnList insnList = createSpan(initSpanLabel);
-      LabelNode endLabel = new LabelNode();
-      methodNode.instructions.insert(methodNode.instructions.getLast(), endLabel);
-
-      LabelNode handlerLabel = new LabelNode();
-      InsnList handler = createCatchHandler(handlerLabel);
-      methodNode.instructions.add(handler);
-      methodNode.tryCatchBlocks.add(
-          new TryCatchBlockNode(initSpanLabel, endLabel, handlerLabel, null));
-      methodNode.instructions.insert(methodEnterLabel, insnList);
+      return addRangeSpan(lineMap);
     }
+    spanVar = newVar(DEBUGGER_SPAN_TYPE);
+    processInstructions();
+    LabelNode initSpanLabel = new LabelNode();
+    InsnList insnList = createSpan(initSpanLabel);
+    LabelNode endLabel = new LabelNode();
+    methodNode.instructions.insert(methodNode.instructions.getLast(), endLabel);
+    LabelNode handlerLabel = new LabelNode();
+    InsnList handler = createCatchHandler(handlerLabel);
+    methodNode.instructions.add(handler);
+    methodNode.tryCatchBlocks.add(
+        new TryCatchBlockNode(initSpanLabel, endLabel, handlerLabel, null));
+    methodNode.instructions.insert(methodEnterLabel, insnList);
+    return InstrumentationResult.Status.INSTALLED;
   }
 
   private InsnList createCatchHandler(LabelNode handlerLabel) {
@@ -94,25 +93,29 @@ public class SpanInstrumentor extends Instrumentor {
     return insnList;
   }
 
-  private void addRangeSpan(LineMap lineMap) {
+  private InstrumentationResult.Status addRangeSpan(LineMap lineMap) {
     Where.SourceLine[] targetLines = definition.getWhere().getSourceLines();
     if (targetLines == null || targetLines.length == 0) {
-      // no line capture to perform
-      return;
+      reportError("Missing line(s) in probe definition.");
+      return InstrumentationResult.Status.ERROR;
     }
     if (lineMap.isEmpty()) {
       reportError("Missing line debug information.");
-      return;
+      return InstrumentationResult.Status.ERROR;
     }
     for (Where.SourceLine sourceLine : targetLines) {
       int from = sourceLine.getFrom();
       int till = sourceLine.getTill();
+      if (from == till) {
+        reportError("Single line span is not supported, you need to provide a range.");
+        return InstrumentationResult.Status.ERROR;
+      }
       LabelNode beforeLabel = lineMap.getLineLabel(from);
       LabelNode afterLabel = lineMap.getLineLabel(till);
       if (beforeLabel == null || afterLabel == null) {
         reportError(
             "No line info for " + (sourceLine.isSingleLine() ? "line " : "range ") + sourceLine);
-        return;
+        return InstrumentationResult.Status.ERROR;
       }
       spanVar = newVar(DEBUGGER_SPAN_TYPE);
       LabelNode initSpanLabel = new LabelNode();
@@ -127,6 +130,7 @@ public class SpanInstrumentor extends Instrumentor {
       debuggerSpanFinish(finishSpanInsnList);
       methodNode.instructions.insert(afterLabel, finishSpanInsnList);
     }
+    return InstrumentationResult.Status.INSTALLED;
   }
 
   @Override

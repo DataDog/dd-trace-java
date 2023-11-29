@@ -1,6 +1,7 @@
 package datadog.trace.plugin.csi.impl
 
 import datadog.trace.agent.tooling.csi.CallSite
+import datadog.trace.agent.tooling.csi.CallSites
 import datadog.trace.plugin.csi.HasErrors.Failure
 import datadog.trace.plugin.csi.util.ErrorCode
 import groovy.transform.CompileDynamic
@@ -22,7 +23,7 @@ import java.security.MessageDigest
 @CompileDynamic
 class AdviceSpecificationTest extends BaseCsiPluginTest {
 
-  @CallSite
+  @CallSite(spi = CallSites)
   class EmptyAdvice {}
 
   void 'test class generator error, call site without advices'() {
@@ -37,7 +38,7 @@ class AdviceSpecificationTest extends BaseCsiPluginTest {
     1 * context.addError(ErrorCode.CALL_SITE_SHOULD_HAVE_ADVICE_METHODS, _)
   }
 
-  @CallSite
+  @CallSite(spi = CallSites)
   class NonPublicStaticMethodAdvice {
     @CallSite.Before("void java.lang.Runnable.run()")
     private void advice(@CallSite.This final Runnable run) {}

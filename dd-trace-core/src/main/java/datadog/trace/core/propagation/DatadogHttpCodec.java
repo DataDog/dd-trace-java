@@ -1,5 +1,6 @@
 package datadog.trace.core.propagation;
 
+import static datadog.trace.api.TracePropagationStyle.DATADOG;
 import static datadog.trace.core.propagation.HttpCodec.firstHeaderValue;
 import static datadog.trace.core.propagation.XRayHttpCodec.XRayContextInterpreter.handleXRayTraceHeader;
 import static datadog.trace.core.propagation.XRayHttpCodec.X_AMZN_TRACE_ID;
@@ -12,9 +13,11 @@ import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.TraceConfig;
+import datadog.trace.api.TracePropagationStyle;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.TagContext;
 import datadog.trace.core.DDSpanContext;
+import datadog.trace.core.propagation.PropagationTags.HeaderType;
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.function.Supplier;
@@ -71,12 +74,11 @@ class DatadogHttpCodec {
       for (final Map.Entry<String, String> entry : context.baggageItems()) {
         String header = invertedBaggageMapping.get(entry.getKey());
         header = header != null ? header : OT_BAGGAGE_PREFIX + entry.getKey();
-        setter.set(carrier, header, HttpCodec.encode(entry.getValue()));
+        setter.set(carrier, header, HttpCodec.encodeBaggage(entry.getValue()));
       }
 
       // inject x-datadog-tags
-      String datadogTags =
-          context.getPropagationTags().headerValue(PropagationTags.HeaderType.DATADOG);
+      String datadogTags = context.getPropagationTags().headerValue(HeaderType.DATADOG);
       if (datadogTags != null) {
         setter.set(carrier, DATADOG_TAGS_KEY, datadogTags);
       }
@@ -101,12 +103,15 @@ class DatadogHttpCodec {
     private static final int IGNORE = -1;
 
     private final boolean isAwsPropagationEnabled;
-    private final PropagationTags.Factory datadogTagsFactory;
 
     private DatadogContextInterpreter(Config config) {
       super(config);
       isAwsPropagationEnabled = config.isAwsPropagationEnabled();
-      datadogTagsFactory = PropagationTags.factory(config);
+    }
+
+    @Override
+    public TracePropagationStyle style() {
+      return DATADOG;
     }
 
     @Override
@@ -180,8 +185,7 @@ class DatadogHttpCodec {
                 endToEndStartTime = extractEndToEndStartTime(firstHeaderValue(value));
                 break;
               case DD_TAGS:
-                propagationTags =
-                    datadogTagsFactory.fromHeaderValue(PropagationTags.HeaderType.DATADOG, value);
+                propagationTags = propagationTagsFactory.fromHeaderValue(HeaderType.DATADOG, value);
                 break;
               case OT_BAGGAGE:
                 {

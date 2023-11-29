@@ -16,7 +16,13 @@
 package com.datadog.profiling.controller.openjdk;
 
 import static com.datadog.profiling.controller.ProfilingSupport.*;
+import static com.datadog.profiling.controller.ProfilingSupport.isObjectCountParallelized;
 import static datadog.trace.api.Platform.isJavaVersionAtLeast;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_HEAP_HISTOGRAM_ENABLED;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_HEAP_HISTOGRAM_ENABLED_DEFAULT;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_HEAP_HISTOGRAM_MODE;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_HEAP_HISTOGRAM_MODE_DEFAULT;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_ULTRA_MINIMAL;
 
 import com.datadog.profiling.controller.ConfigurationException;
 import com.datadog.profiling.controller.Controller;
@@ -26,6 +32,7 @@ import com.datadog.profiling.controller.openjdk.events.AvailableProcessorCoresEv
 import datadog.trace.api.Platform;
 import datadog.trace.api.config.ProfilingConfig;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
+import datadog.trace.bootstrap.instrumentation.jfr.exceptions.ExceptionProfiling;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.IOException;
 import java.time.Duration;
@@ -64,10 +71,14 @@ public final class OpenJdkController implements Controller {
     Class.forName("jdk.jfr.Recording");
     Class.forName("jdk.jfr.FlightRecorder");
 
+    boolean ultraMinimal = configProvider.getBoolean(PROFILING_ULTRA_MINIMAL, false);
+
     Map<String, String> recordingSettings;
 
     try {
-      recordingSettings = JfpUtils.readNamedJfpResource(JfpUtils.DEFAULT_JFP);
+      recordingSettings =
+          JfpUtils.readNamedJfpResource(
+              ultraMinimal ? JfpUtils.SAFEPOINTS_JFP : JfpUtils.DEFAULT_JFP);
     } catch (final IOException e) {
       throw new ConfigurationException(e);
     }
@@ -92,6 +103,24 @@ public final class OpenJdkController implements Controller {
 
     if (!isFileWriteDurationCorrect()) {
       disableEvent(recordingSettings, "jdk.FileWrite", EXPENSIVE_ON_CURRENT_JVM);
+    }
+
+    if (configProvider.getBoolean(
+        PROFILING_HEAP_HISTOGRAM_ENABLED, PROFILING_HEAP_HISTOGRAM_ENABLED_DEFAULT)) {
+      if (!isObjectCountParallelized()) {
+        log.warn(
+            "enabling Datadog heap histogram on JVM without an efficient implementation of the jdk.ObjectCount event. "
+                + "This may increase p99 latency. Consider upgrading to JDK 17.0.9+ or 21+ to reduce latency impact.");
+      }
+      String mode =
+          configProvider.getString(
+              PROFILING_HEAP_HISTOGRAM_MODE, PROFILING_HEAP_HISTOGRAM_MODE_DEFAULT);
+      if ("periodic".equalsIgnoreCase(mode)) {
+        enableEvent(recordingSettings, "jdk.ObjectCount", "user enabled histogram heap collection");
+      } else {
+        enableEvent(
+            recordingSettings, "jdk.ObjectCountAfterGC", "user enabled histogram heap collection");
+      }
     }
 
     // Toggle settings from override file
@@ -163,6 +192,10 @@ public final class OpenJdkController implements Controller {
     }
 
     this.recordingSettings = Collections.unmodifiableMap(recordingSettings);
+
+    if (isEventEnabled(this.recordingSettings, "datadog.ExceptionSample")) {
+      ExceptionProfiling.getInstance().start();
+    }
 
     // Register periodic events
     AvailableProcessorCoresEvent.register();

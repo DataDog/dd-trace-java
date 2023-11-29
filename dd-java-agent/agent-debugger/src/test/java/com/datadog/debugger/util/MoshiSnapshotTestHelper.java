@@ -14,6 +14,7 @@ import static com.datadog.debugger.util.MoshiSnapshotHelper.LOCATION;
 import static com.datadog.debugger.util.MoshiSnapshotHelper.NOT_CAPTURED_REASON;
 import static com.datadog.debugger.util.MoshiSnapshotHelper.RETURN;
 import static com.datadog.debugger.util.MoshiSnapshotHelper.SIZE;
+import static com.datadog.debugger.util.MoshiSnapshotHelper.STATIC_FIELDS;
 import static com.datadog.debugger.util.MoshiSnapshotHelper.THROWABLE;
 import static com.datadog.debugger.util.MoshiSnapshotHelper.TRUNCATED;
 import static com.datadog.debugger.util.MoshiSnapshotHelper.TYPE;
@@ -151,6 +152,9 @@ public class MoshiSnapshotTestHelper {
           case LOCALS:
             capturedContext.addLocals(fromJsonCapturedValues(jsonReader));
             break;
+          case STATIC_FIELDS:
+            capturedContext.addStaticFields(fromJsonCapturedValues(jsonReader));
+            break;
           case THROWABLE:
             capturedContext.addThrowable(throwableAdapter.fromJson(jsonReader));
             break;
@@ -176,6 +180,11 @@ public class MoshiSnapshotTestHelper {
           case FIELDS:
             {
               capturedContext.addFields(fromJsonCapturedValues(jsonReader));
+              break;
+            }
+          case NOT_CAPTURED_REASON:
+            {
+              jsonReader.nextString();
               break;
             }
           default:
@@ -443,7 +452,7 @@ public class MoshiSnapshotTestHelper {
         case "java.lang.String":
           return strValue;
       }
-      return null;
+      return strValue;
     }
   }
 

@@ -1,4 +1,3 @@
-
 muzzle {
   pass {
     group = "software.amazon.awssdk"
@@ -11,7 +10,14 @@ muzzle {
 
 apply from: "$rootDir/gradle/java.gradle"
 
-addTestSuite('latestDepTest')
+addTestSuiteForDir('latestDepTest', 'test')
+// Broken: at some point S3 moved the bucket name to the hostname resulting in host not found somebucket.localhost on all S3 tests
+// addTestSuiteExtendingForDir('latestDepForkedTest', 'latestDepTest', 'test')
+
+addTestSuite('kinesisDsmTest')
+addTestSuiteExtendingForDir('kinesisDsmForkedTest', 'kinesisDsmTest', 'kinesisDsmTest')
+addTestSuiteForDir('latestKinesisDsmTest', 'kinesisDsmTest')
+addTestSuiteExtendingForDir('latestKinesisDsmForkedTest', 'latestKinesisDsmTest', 'kinesisDsmTest')
 
 def fixedSdkVersion = '2.20.33' // 2.20.34 is missing and breaks IDEA import
 
@@ -30,6 +36,15 @@ dependencies {
   testImplementation group: 'software.amazon.awssdk', name: 'sns', version: '2.2.0'
   testImplementation group: 'software.amazon.awssdk', name: 'dynamodb', version: '2.2.0'
   testImplementation group: 'software.amazon.awssdk', name: 'kinesis', version: '2.2.0'
+
+  testImplementation group: 'org.eclipse.jetty', name: 'jetty-server', version: '9.3.0.v20150612'
+  testImplementation group: 'org.eclipse.jetty.http2', name: 'http2-server', version: '9.3.0.v20150612'
+
+  // First version where dsm traced operations have required StreamARN parameter
+  kinesisDsmTestImplementation group: 'software.amazon.awssdk', name: 'apache-client', version: '2.18.40'
+  kinesisDsmTestImplementation group: 'software.amazon.awssdk', name: 'kinesis', version: '2.18.40'
+  latestKinesisDsmTestImplementation group: 'software.amazon.awssdk', name: 'apache-client', version: '+'
+  latestKinesisDsmTestImplementation group: 'software.amazon.awssdk', name: 'kinesis', version: '+'
 
   latestDepTestImplementation project(':dd-java-agent:instrumentation:apache-httpclient-4')
   latestDepTestImplementation project(':dd-java-agent:instrumentation:netty-4.1')

@@ -29,6 +29,7 @@ import com.datadog.debugger.el.expressions.WhenExpression;
 import com.datadog.debugger.el.values.BooleanValue;
 import com.datadog.debugger.el.values.ListValue;
 import com.datadog.debugger.el.values.MapValue;
+import com.datadog.debugger.el.values.NullValue;
 import com.datadog.debugger.el.values.NumericValue;
 import com.datadog.debugger.el.values.ObjectValue;
 import com.datadog.debugger.el.values.StringValue;
@@ -84,6 +85,17 @@ public class MoshiConfigTestHelper {
 
     @Override
     public Void visit(BinaryExpression binaryExpression) {
+      try {
+        jsonWriter.beginObject();
+        binaryExpression.getOperator().accept(this);
+        jsonWriter.beginArray();
+        binaryExpression.getLeft().accept(this);
+        binaryExpression.getRight().accept(this);
+        jsonWriter.endArray();
+        jsonWriter.endObject();
+      } catch (IOException ex) {
+        LOGGER.debug("Cannot serialize: ", ex);
+      }
       return null;
     }
 
@@ -99,12 +111,14 @@ public class MoshiConfigTestHelper {
 
     @Override
     public Void visit(ComparisonExpression comparisonExpression) {
-      comparisonExpression.getOperator().accept(this);
       try {
+        jsonWriter.beginObject();
+        comparisonExpression.getOperator().accept(this);
         jsonWriter.beginArray();
         comparisonExpression.getLeft().accept(this);
         comparisonExpression.getRight().accept(this);
         jsonWriter.endArray();
+        jsonWriter.endObject();
       } catch (IOException ex) {
         LOGGER.debug("Cannot serialize: ", ex);
       }
@@ -123,72 +137,88 @@ public class MoshiConfigTestHelper {
 
     @Override
     public Void visit(ContainsExpression containsExpression) {
-      return null;
+      throw new UnsupportedOperationException("contains expression");
     }
 
     @Override
     public Void visit(EndsWithExpression endsWithExpression) {
-      return null;
+      throw new UnsupportedOperationException("endsWith expression");
     }
 
     @Override
     public Void visit(FilterCollectionExpression filterCollectionExpression) {
-      return null;
+      throw new UnsupportedOperationException("filter expression");
     }
 
     @Override
     public Void visit(HasAllExpression hasAllExpression) {
-      return null;
+      throw new UnsupportedOperationException("hasAll expression");
     }
 
     @Override
     public Void visit(HasAnyExpression hasAnyExpression) {
-      return null;
+      throw new UnsupportedOperationException("hasAny expression");
     }
 
     @Override
     public Void visit(IfElseExpression ifElseExpression) {
-      return null;
+      throw new UnsupportedOperationException("ifElse expression");
     }
 
     @Override
     public Void visit(IfExpression ifExpression) {
-      return null;
+      throw new UnsupportedOperationException("if expression");
     }
 
     @Override
     public Void visit(IsEmptyExpression isEmptyExpression) {
-      return null;
+      throw new UnsupportedOperationException("isEmpty expression");
     }
 
     @Override
     public Void visit(IsUndefinedExpression isUndefinedExpression) {
-      return null;
+      throw new UnsupportedOperationException("isUndefined expression");
     }
 
     @Override
     public Void visit(LenExpression lenExpression) {
+      try {
+        jsonWriter.beginObject();
+        jsonWriter.name("len");
+        lenExpression.getSource().accept(this);
+        jsonWriter.endObject();
+      } catch (IOException ex) {
+        LOGGER.debug("Cannot serialize: ", ex);
+      }
       return null;
     }
 
     @Override
     public Void visit(MatchesExpression matchesExpression) {
-      return null;
+      throw new UnsupportedOperationException("matches expression");
     }
 
     @Override
     public Void visit(NotExpression notExpression) {
+      try {
+        jsonWriter.beginObject();
+        jsonWriter.name("not");
+        notExpression.getPredicate().accept(this);
+        jsonWriter.endObject();
+      } catch (IOException ex) {
+        LOGGER.debug("Cannot serialize: ", ex);
+      }
       return null;
     }
 
     @Override
     public Void visit(StartsWithExpression startsWithExpression) {
-      return null;
+      throw new UnsupportedOperationException("startsWith expression");
     }
 
     @Override
     public Void visit(SubStringExpression subStringExpression) {
-      return null;
+      throw new UnsupportedOperationException("subString expression");
     }
 
     @Override
@@ -206,19 +236,13 @@ public class MoshiConfigTestHelper {
 
     @Override
     public Void visit(GetMemberExpression getMemberExpression) {
-      return null;
-    }
-
-    @Override
-    public Void visit(IndexExpression indexExpression) {
-      return null;
-    }
-
-    @Override
-    public Void visit(WhenExpression whenExpression) {
       try {
         jsonWriter.beginObject();
-        whenExpression.getExpression().accept(this);
+        jsonWriter.name("getmember");
+        jsonWriter.beginArray();
+        getMemberExpression.getTarget().accept(this);
+        jsonWriter.value(getMemberExpression.getMemberName());
+        jsonWriter.endArray();
         jsonWriter.endObject();
       } catch (IOException ex) {
         LOGGER.debug("Cannot serialize: ", ex);
@@ -227,13 +251,35 @@ public class MoshiConfigTestHelper {
     }
 
     @Override
-    public Void visit(BooleanExpression booleanExpression) {
+    public Void visit(IndexExpression indexExpression) {
+      try {
+        jsonWriter.beginObject();
+        jsonWriter.name("index");
+        jsonWriter.beginArray();
+        indexExpression.getTarget().accept(this);
+        indexExpression.getKey().accept(this);
+        jsonWriter.endArray();
+        jsonWriter.endObject();
+      } catch (IOException ex) {
+        LOGGER.debug("Cannot serialize: ", ex);
+      }
       return null;
     }
 
     @Override
-    public Void visit(ObjectValue objectValue) {
+    public Void visit(WhenExpression whenExpression) {
+      whenExpression.getExpression().accept(this);
       return null;
+    }
+
+    @Override
+    public Void visit(BooleanExpression booleanExpression) {
+      throw new UnsupportedOperationException("boolean expression");
+    }
+
+    @Override
+    public Void visit(ObjectValue objectValue) {
+      throw new UnsupportedOperationException("objectValue");
     }
 
     @Override
@@ -248,22 +294,44 @@ public class MoshiConfigTestHelper {
 
     @Override
     public Void visit(NumericValue numericValue) {
+      try {
+        if (numericValue.getValue() instanceof Long) {
+          jsonWriter.value(numericValue.getValue().longValue());
+        } else if (numericValue.getValue() instanceof Double) {
+          jsonWriter.value(numericValue.getValue().doubleValue());
+        } else {
+          throw new UnsupportedOperationException(
+              "numeric value unsupported:" + numericValue.getValue().getClass());
+        }
+      } catch (IOException ex) {
+        LOGGER.debug("Cannot serialize: ", ex);
+      }
       return null;
     }
 
     @Override
     public Void visit(BooleanValue booleanValue) {
+      throw new UnsupportedOperationException("booleanValue");
+    }
+
+    @Override
+    public Void visit(NullValue nullValue) {
+      try {
+        jsonWriter.nullValue();
+      } catch (IOException ex) {
+        LOGGER.debug("Cannot serialize: ", ex);
+      }
       return null;
     }
 
     @Override
     public Void visit(ListValue listValue) {
-      return null;
+      throw new UnsupportedOperationException("listValue");
     }
 
     @Override
     public Void visit(MapValue mapValue) {
-      return null;
+      throw new UnsupportedOperationException("mapValue");
     }
   }
 }

@@ -98,6 +98,7 @@ public class TracerMapperMap {
     final DDTraceId traceId = DDTraceId.from(iter);
     final PendingTrace trace = tracer.createTrace(traceId);
     return DDSpan.create(
+        "benchmark",
         System.currentTimeMillis() * 1000,
         new DDSpanContext(
             traceId,
@@ -118,6 +119,7 @@ public class TracerMapperMap {
             null,
             NoopPathwayContext.INSTANCE,
             false,
-            null));
+            null),
+        null);
   }
 }

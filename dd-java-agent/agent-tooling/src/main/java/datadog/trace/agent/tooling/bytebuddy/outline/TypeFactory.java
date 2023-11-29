@@ -66,6 +66,9 @@ final class TypeFactory {
     }
   }
 
+  private static final boolean OUTLINING_ENABLED =
+      InstrumenterConfig.get().isResolverOutliningEnabled();
+
   private static final TypeParser outlineTypeParser = new OutlineTypeParser();
 
   private static final TypeParser fullTypeParser = new FullTypeParser();
@@ -86,7 +89,7 @@ final class TypeFactory {
 
   boolean installing = false;
 
-  boolean createOutlines = true;
+  boolean createOutlines = OUTLINING_ENABLED;
 
   ClassLoader originalClassLoader;
 
@@ -152,7 +155,7 @@ final class TypeFactory {
   /** Temporarily turn off full description parsing; returns {@code true} if it was enabled. */
   boolean disableFullDescriptions() {
     boolean wasEnabled = !createOutlines;
-    createOutlines = true;
+    createOutlines = OUTLINING_ENABLED;
     return wasEnabled;
   }
 
@@ -171,7 +174,7 @@ final class TypeFactory {
 
     targetName = null;
     targetBytecode = null;
-    createOutlines = true;
+    createOutlines = OUTLINING_ENABLED;
   }
 
   private void clearReferences() {
@@ -276,8 +279,8 @@ final class TypeFactory {
       Class<?> loadedType;
       if (BOOTSTRAP_LOADER == classLoader) {
         loadedType = Class.forName(name, false, BOOTSTRAP_LOADER);
-      } else if (classLoader.getClass().getName().startsWith("groovy.lang.GroovyClassLoader")) {
-        return null; // avoid due to https://issues.apache.org/jira/browse/GROOVY-9742
+      } else if (skipLoadClass(classLoader.getClass().getName())) {
+        return null; // avoid known problematic class-loaders
       } else {
         loadedType = classLoader.loadClass(name);
       }
@@ -291,6 +294,12 @@ final class TypeFactory {
     } finally {
       LOCATING_CLASS.end();
     }
+  }
+
+  private static boolean skipLoadClass(String loaderClassName) {
+    // avoid due to https://issues.apache.org/jira/browse/GROOVY-9742
+    return loaderClassName.startsWith("groovy.lang.GroovyClassLoader")
+        || loaderClassName.equals("org.apache.jasper.servlet.JasperLoader");
   }
 
   /** Type description that begins with a name and provides more details on-demand. */
@@ -369,7 +378,7 @@ final class TypeFactory {
         return doResolve(true);
       }
       // temporarily switch to generating (fast) outlines as that's all we need
-      createOutlines = true;
+      createOutlines = OUTLINING_ENABLED;
       try {
         return doResolve(true);
       } finally {

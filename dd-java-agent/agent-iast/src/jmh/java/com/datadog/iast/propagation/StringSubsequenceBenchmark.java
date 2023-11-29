@@ -1,5 +1,7 @@
 package com.datadog.iast.propagation;
 
+import static datadog.trace.api.iast.VulnerabilityMarks.NOT_MARKED;
+
 import com.datadog.iast.IastRequestContext;
 import com.datadog.iast.model.Range;
 import com.datadog.iast.model.Source;
@@ -25,14 +27,18 @@ public class StringSubsequenceBenchmark
         .getTaintedObjects()
         .taint(
             taintedLoseRange,
-            new Range[] {new Range(0, RANGE_SIZE, new Source((byte) 0, "key", "value"))});
+            new Range[] {
+              new Range(0, RANGE_SIZE, new Source((byte) 0, "key", "value"), NOT_MARKED)
+            });
 
     final String taintedModifyRange = new String(DEFAULT_STRING);
     iastRequestContext
         .getTaintedObjects()
         .taint(
             taintedModifyRange,
-            new Range[] {new Range(1, RANGE_SIZE, new Source((byte) 1, "key", "value"))});
+            new Range[] {
+              new Range(1, RANGE_SIZE, new Source((byte) 1, "key", "value"), NOT_MARKED)
+            });
 
     return new StringSubsequenceBenchmark.Context(
         iastRequestContext, notTainted, taintedLoseRange, taintedModifyRange);

@@ -21,6 +21,12 @@ final class NoOpStatsDClient implements StatsDClient {
   public void histogram(final String metricName, final double value, final String... tags) {}
 
   @Override
+  public void distribution(String metricName, long value, String... tags) {}
+
+  @Override
+  public void distribution(String metricName, double value, String... tags) {}
+
+  @Override
   public void serviceCheck(
       final String serviceCheckName,
       final String status,

@@ -28,7 +28,7 @@ public class TaintUnmarshaller<A, B> implements Unmarshaller<A, B> {
 
   @Override
   public Future<B> apply(A value, ExecutionContext ec, Materializer materializer) {
-    propagationModule.taint(SourceTypes.REQUEST_BODY, value);
+    propagationModule.taint(value, SourceTypes.REQUEST_BODY);
     return delegate.apply(value, ec, materializer);
   }
 

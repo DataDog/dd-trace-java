@@ -3,13 +3,16 @@ package datadog.trace.civisibility.ci;
 import static datadog.trace.api.git.GitUtils.filterSensitiveInfo;
 import static datadog.trace.api.git.GitUtils.normalizeBranch;
 import static datadog.trace.api.git.GitUtils.normalizeTag;
-import static datadog.trace.civisibility.utils.PathUtils.expandTilde;
+import static datadog.trace.civisibility.utils.FileUtils.expandTilde;
+import static datadog.trace.util.Strings.toJson;
 
-import datadog.trace.api.civisibility.ci.CIInfo;
-import datadog.trace.api.civisibility.ci.CIProviderInfo;
 import datadog.trace.api.git.CommitInfo;
 import datadog.trace.api.git.GitInfo;
 import datadog.trace.api.git.PersonInfo;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 
 class BuildkiteInfo implements CIProviderInfo {
 
@@ -29,6 +32,8 @@ class BuildkiteInfo implements CIProviderInfo {
   public static final String BUILDKITE_GIT_MESSAGE = "BUILDKITE_MESSAGE";
   public static final String BUILDKITE_GIT_AUTHOR_NAME = "BUILDKITE_BUILD_AUTHOR";
   public static final String BUILDKITE_GIT_AUTHOR_EMAIL = "BUILDKITE_BUILD_AUTHOR_EMAIL";
+  public static final String BUILDKITE_AGENT_ID = "BUILDKITE_AGENT_ID";
+  private static final String BUILDKITE_CI_NODE_LABEL_PREFIX = "BUILDKITE_AGENT_META_DATA_";
 
   @Override
   public GitInfo buildCIGitInfo() {
@@ -55,8 +60,24 @@ class BuildkiteInfo implements CIProviderInfo {
         .ciPipelineUrl(ciPipelineUrl)
         .ciJobUrl(String.format("%s#%s", ciPipelineUrl, System.getenv(BUILDKITE_JOB_ID)))
         .ciWorkspace(expandTilde(System.getenv(BUILDKITE_WORKSPACE_PATH)))
+        .ciNodeName(System.getenv(BUILDKITE_AGENT_ID))
+        .ciNodeLabels(buildCiNodeLabels())
         .ciEnvVars(BUILDKITE_PIPELINE_ID, BUILDKITE_JOB_ID)
         .build();
+  }
+
+  private String buildCiNodeLabels() {
+    List<String> labels = new ArrayList<>();
+    for (Map.Entry<String, String> e : System.getenv().entrySet()) {
+      String envVar = e.getKey();
+      if (envVar.startsWith(BUILDKITE_CI_NODE_LABEL_PREFIX)) {
+        String labelKey =
+            envVar.substring(BUILDKITE_CI_NODE_LABEL_PREFIX.length()).toLowerCase(Locale.ROOT);
+        String labelValue = e.getValue();
+        labels.add(labelKey + ':' + labelValue);
+      }
+    }
+    return !labels.isEmpty() ? toJson(labels) : null;
   }
 
   private PersonInfo buildGitCommitAuthor() {

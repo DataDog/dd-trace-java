@@ -229,7 +229,7 @@ abstract class MongoAsyncClientTest extends MongoBaseTest {
   }
 }
 
-class MongoAsyncClientV0ForkedTest extends MongoAsyncClientTest {
+class MongoAsyncClientV0Test extends MongoAsyncClientTest {
 
   @Override
   int version() {
@@ -244,6 +244,11 @@ class MongoAsyncClientV0ForkedTest extends MongoAsyncClientTest {
   @Override
   String operation() {
     return V0_OPERATION
+  }
+
+  @Override
+  String dbType() {
+    return V0_DB_TYPE
   }
 }
 
@@ -262,5 +267,10 @@ class MongoAsyncClientV1ForkedTest extends MongoAsyncClientTest {
   @Override
   String operation() {
     return V1_OPERATION
+  }
+
+  @Override
+  String dbType() {
+    return V1_DB_TYPE
   }
 }

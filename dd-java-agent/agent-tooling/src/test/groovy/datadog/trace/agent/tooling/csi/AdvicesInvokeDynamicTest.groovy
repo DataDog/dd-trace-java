@@ -1,7 +1,6 @@
 package datadog.trace.agent.tooling.csi
 
 import datadog.trace.agent.tooling.bytebuddy.csi.Advices
-import net.bytebuddy.description.type.TypeDescription
 import spock.lang.Requires
 
 @Requires({
@@ -9,21 +8,16 @@ import spock.lang.Requires
 })
 class AdvicesInvokeDynamicTest extends BaseCallSiteTest {
 
-  def 'test constant pool introspector with invoke dynamic'(final Pointcut pointcutMock,
-    final boolean emptyAdvices,
-    final boolean adviceFound) {
+  void 'test constant pool introspector with invoke dynamic'() {
     setup:
-    final target = StringPlusExample
-    final targetType = Mock(TypeDescription) {
-      getName() >> target.name
-    }
-    final advice = mockInvokeDynamicAdvice(pointcutMock)
-    final advices = Advices.fromCallSites(advice)
+    final clazz = loadClass(StringPlusExample)
+    final advice = Mock(InvokeDynamicAdvice)
+    final advices = Advices.fromCallSites([mockCallSites(advice, pointcutMock)])
     final introspector = Advices.AdviceIntrospector.ConstantPoolInstrospector.INSTANCE
 
     when:
-    final result = introspector.findAdvices(advices, targetType, StringPlusExample.classLoader)
-    final found = result.findAdvice(pointcutMock) != null
+    final result = introspector.findAdvices(advices, clazz)
+    final found = result.findAdvice(pointcutMock.type, pointcutMock.method, pointcutMock.descriptor) != null
 
     then:
     result.empty == emptyAdvices
@@ -35,21 +29,16 @@ class AdvicesInvokeDynamicTest extends BaseCallSiteTest {
     stringConcatFactoryPointcut() | false        | true
   }
 
-  def 'test constant pool introspector with invoke dynamic and constants'(final Pointcut pointcutMock,
-    final boolean emptyAdvices,
-    final boolean adviceFound) {
+  void 'test constant pool introspector with invoke dynamic and constants'() {
     setup:
-    final target = StringPlusConstantsExample
-    final targetType = Mock(TypeDescription) {
-      getName() >> target.name
-    }
-    final advice = mockInvokeDynamicAdvice(pointcutMock)
-    final advices = Advices.fromCallSites(advice)
+    final clazz = loadClass(StringPlusConstantsExample)
+    final advice = Mock(InvokeDynamicAdvice)
+    final advices = Advices.fromCallSites([mockCallSites(advice, pointcutMock)])
     final introspector = Advices.AdviceIntrospector.ConstantPoolInstrospector.INSTANCE
 
     when:
-    final result = introspector.findAdvices(advices, targetType, StringPlusConstantsExample.classLoader)
-    final found = result.findAdvice(pointcutMock) != null
+    final result = introspector.findAdvices(advices, clazz)
+    final found = result.findAdvice(pointcutMock.type, pointcutMock.method, pointcutMock.descriptor) != null
 
     then:
     result.empty == emptyAdvices
@@ -59,5 +48,9 @@ class AdvicesInvokeDynamicTest extends BaseCallSiteTest {
     pointcutMock                  | emptyAdvices | adviceFound
     stringConcatPointcut()        | true         | false
     stringConcatFactoryPointcut() | false        | true
+  }
+
+  private static byte[] loadClass(final Class<?> clazz) {
+    return clazz.getResourceAsStream("${clazz.simpleName}.class").bytes
   }
 }

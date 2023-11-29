@@ -9,6 +9,7 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.util.Iterator;
+import java.util.Locale;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import org.apache.axis2.context.MessageContext;
@@ -45,7 +46,7 @@ public final class SynapsePassthruInstrumentation extends Instrumenter.Tracing
       if (headers instanceof Map) {
         Iterator<Map.Entry<String, ?>> itr = ((Map) headers).entrySet().iterator();
         while (itr.hasNext()) {
-          if (itr.next().getKey().toLowerCase().startsWith("x-datadog")) {
+          if (itr.next().getKey().toLowerCase(Locale.ROOT).startsWith("x-datadog")) {
             itr.remove();
           }
         }

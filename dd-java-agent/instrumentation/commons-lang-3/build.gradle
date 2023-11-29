@@ -1,0 +1,23 @@
+muzzle {
+  pass {
+    group = 'org.apache.commons'
+    module = 'commons-lang3'
+    versions = '[3.5,]'
+    assertInverse = true
+  }
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+apply plugin: 'call-site-instrumentation'
+
+addTestSuiteForDir('latestDepTest', 'test')
+
+dependencies {
+  compileOnly group: 'org.apache.commons', name: 'commons-lang3', version: '3.5'
+
+  testImplementation group: 'org.apache.commons', name: 'commons-lang3', version: '3.5'
+
+  testRuntimeOnly project(':dd-java-agent:instrumentation:iast-instrumenter')
+
+  latestDepTestImplementation group: 'org.apache.commons', name: 'commons-lang3', version: '+'
+}

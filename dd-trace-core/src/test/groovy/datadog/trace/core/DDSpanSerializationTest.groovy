@@ -27,7 +27,7 @@ class DDSpanSerializationTest extends DDCoreSpecification {
     def traceId = DDTraceId.from(value)
     def spanId = DDSpanId.from(value)
     def context = createContext(spanType, tracer, traceId, spanId)
-    def span = DDSpan.create(0, context)
+    def span = DDSpan.create("test", 0, context, null)
     CaptureBuffer capture = new CaptureBuffer()
     def packer = new MsgPackWriter(new FlushingBuffer(1024, capture))
     packer.format(Collections.singletonList(span), new TraceMapperV0_4())
@@ -88,7 +88,7 @@ class DDSpanSerializationTest extends DDCoreSpecification {
     def traceId = DDTraceId.from(value)
     def spanId = DDSpanId.from(value)
     def context = createContext(spanType, tracer, traceId, spanId)
-    def span = DDSpan.create(0, context)
+    def span = DDSpan.create("test", 0, context, null)
     CaptureBuffer capture = new CaptureBuffer()
     def packer = new MsgPackWriter(new FlushingBuffer(1024, capture))
     def traceMapper = new TraceMapperV0_5()
@@ -170,9 +170,10 @@ class DDSpanSerializationTest extends DDCoreSpecification {
       null,
       NoopPathwayContext.INSTANCE,
       false,
-      null)
+      null,
+      injectBaggage)
     context.setAllTags(tags)
-    def span = DDSpan.create(0, context)
+    def span = DDSpan.create("test", 0, context, null)
     CaptureBuffer capture = new CaptureBuffer()
     def packer = new MsgPackWriter(new FlushingBuffer(1024, capture))
     packer.format(Collections.singletonList(span), new TraceMapperV0_4())
@@ -211,11 +212,15 @@ class DDSpanSerializationTest extends DDCoreSpecification {
     tracer.close()
 
     where:
-    baggage       | tags          | expected
-    [:]           | [:]           | [:]
-    [foo: "bbar"] | [:]           | [foo: "bbar"]
-    [foo: "bbar"] | [bar: "tfoo"] | [foo: "bbar", bar: "tfoo"]
-    [foo: "bbar"] | [foo: "tbar"] | [foo: "tbar"]
+    baggage       | tags          | expected                    | injectBaggage
+    [:]           | [:]           | [:]                         | true
+    [foo: "bbar"] | [:]           | [foo: "bbar"]               | true
+    [foo: "bbar"] | [bar: "tfoo"] | [foo: "bbar", bar: "tfoo"]  | true
+    [foo: "bbar"] | [foo: "tbar"] | [foo: "tbar"]               | true
+    [:]           | [:]           | [:]                         | false
+    [foo: "bbar"] | [:]           | [:]                         | false
+    [foo: "bbar"] | [bar: "tfoo"] | [bar: "tfoo"]               | false
+    [foo: "bbar"] | [foo: "tbar"] | [foo: "tbar"]               | false
   }
 
   def "serialize trace with baggage and tags correctly v0.5"() {
@@ -241,9 +246,10 @@ class DDSpanSerializationTest extends DDCoreSpecification {
       null,
       NoopPathwayContext.INSTANCE,
       false,
-      null)
+      null,
+      injectBaggage)
     context.setAllTags(tags)
-    def span = DDSpan.create(0, context)
+    def span = DDSpan.create("test", 0, context, null)
     CaptureBuffer capture = new CaptureBuffer()
     def packer = new MsgPackWriter(new FlushingBuffer(1024, capture))
     def mapper = new TraceMapperV0_5()
@@ -282,11 +288,15 @@ class DDSpanSerializationTest extends DDCoreSpecification {
     tracer.close()
 
     where:
-    baggage       | tags          | expected
-    [:]           | [:]           | [:]
-    [foo: "bbar"] | [:]           | [foo: "bbar"]
-    [foo: "bbar"] | [bar: "tfoo"] | [foo: "bbar", bar: "tfoo"]
-    [foo: "bbar"] | [foo: "tbar"] | [foo: "tbar"]
+    baggage       | tags          | expected                    | injectBaggage
+    [:]           | [:]           | [:]                         | true
+    [foo: "bbar"] | [:]           | [foo: "bbar"]               | true
+    [foo: "bbar"] | [bar: "tfoo"] | [foo: "bbar", bar: "tfoo"]  | true
+    [foo: "bbar"] | [foo: "tbar"] | [foo: "tbar"]               | true
+    [:]           | [:]           | [:]                         | false
+    [foo: "bbar"] | [:]           | [:]                         | false
+    [foo: "bbar"] | [bar: "tfoo"] | [bar: "tfoo"]               | false
+    [foo: "bbar"] | [foo: "tbar"] | [foo: "tbar"]               | false
   }
 
   def "serialize trace with flat map tag v0.4"() {
@@ -317,7 +327,7 @@ class DDSpanSerializationTest extends DDCoreSpecification {
       'sub1': 'v1',
       'sub2': 'v2'
     ])
-    def span = DDSpan.create(0, context)
+    def span = DDSpan.create("test", 0, context, null)
 
     CaptureBuffer capture = new CaptureBuffer()
     def packer = new MsgPackWriter(new FlushingBuffer(1024, capture))
@@ -387,7 +397,7 @@ class DDSpanSerializationTest extends DDCoreSpecification {
       'sub1': 'v1',
       'sub2': 'v2'
     ])
-    def span = DDSpan.create(0, context)
+    def span = DDSpan.create("test", 0, context, null)
 
     CaptureBuffer capture = new CaptureBuffer()
     def packer = new MsgPackWriter(new FlushingBuffer(1024, capture))

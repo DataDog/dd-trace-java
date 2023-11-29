@@ -13,6 +13,8 @@ import akka.http.scaladsl.unmarshalling.Unmarshaller;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.api.iast.InstrumentationBridge;
+import datadog.trace.api.iast.Source;
+import datadog.trace.api.iast.SourceTypes;
 import datadog.trace.api.iast.propagation.PropagationModule;
 import datadog.trace.instrumentation.akkahttp.iast.helpers.TaintUnmarshaller;
 import net.bytebuddy.asm.Advice;
@@ -74,6 +76,7 @@ public class MarshallingDirectivesInstrumentation extends Instrumenter.Iast
 
   static class TaintUnmarshallerInputOldScalaAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
+    @Source(SourceTypes.REQUEST_BODY)
     static void before(@Advice.Argument(readOnly = false, value = 1) Unmarshaller unmarshaller) {
       PropagationModule mod = InstrumentationBridge.PROPAGATION;
       if (mod != null) {
@@ -84,6 +87,7 @@ public class MarshallingDirectivesInstrumentation extends Instrumenter.Iast
 
   static class TaintUnmarshallerInputNewScalaAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
+    @Source(SourceTypes.REQUEST_BODY)
     static void before(@Advice.Argument(readOnly = false, value = 0) Unmarshaller unmarshaller) {
       PropagationModule mod = InstrumentationBridge.PROPAGATION;
       if (mod != null) {

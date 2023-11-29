@@ -1,3 +1,5 @@
+import spock.lang.Ignore
+
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_INSTANCE
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
@@ -34,7 +36,7 @@ abstract class RedissonClientTest extends VersionedNamingTestBase {
   Config config = new Config()
 
   @Shared
-  SingleServerConfig singleServerConfig = config.useSingleServer().setAddress("127.0.0.1:${port}")
+  SingleServerConfig singleServerConfig = config.useSingleServer().setAddress("localhost:${port}")
 
   @Shared
   RedissonClient redissonClient
@@ -146,6 +148,7 @@ abstract class RedissonClientTest extends VersionedNamingTestBase {
             "$Tags.PEER_HOSTNAME" "localhost"
             "$Tags.PEER_HOST_IPV4" "127.0.0.1"
             "$Tags.PEER_PORT" port
+            peerServiceFrom(Tags.PEER_HOSTNAME)
             defaultTags()
           }
         }
@@ -341,13 +344,14 @@ abstract class RedissonClientTest extends VersionedNamingTestBase {
         "$Tags.PEER_HOSTNAME" "localhost"
         "$Tags.PEER_HOST_IPV4" "127.0.0.1"
         "$Tags.PEER_PORT" port
+        peerServiceFrom(Tags.PEER_HOSTNAME)
         defaultTags()
       }
     }
   }
 }
 
-class RedissonClientV0ForkedTest extends RedissonClientTest {
+class RedissonClientV0Test extends RedissonClientTest {
 
   @Override
   int version() {
@@ -365,6 +369,7 @@ class RedissonClientV0ForkedTest extends RedissonClientTest {
   }
 }
 
+@Ignore("https://github.com/DataDog/dd-trace-java/pull/5213")
 class RedissonClientV1ForkedTest extends RedissonClientTest {
 
   @Override

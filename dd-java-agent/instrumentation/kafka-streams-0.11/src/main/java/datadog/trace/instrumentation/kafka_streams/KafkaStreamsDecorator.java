@@ -27,11 +27,9 @@ public class KafkaStreamsDecorator extends MessagingClientDecorator {
   public static final CharSequence KAFKA_DELIVER = UTF8BytesString.create("kafka.deliver");
 
   public static final boolean KAFKA_LEGACY_TRACING =
-      Config.get().isLegacyTracingEnabled(SpanNaming.instance().version() == 0, KAFKA);
+      Config.get().isLegacyTracingEnabled(true, KAFKA);
   public static final boolean TIME_IN_QUEUE_ENABLED =
-      Config.get()
-          .isTimeInQueueEnabled(
-              !KAFKA_LEGACY_TRACING && SpanNaming.instance().version() == 0, KAFKA);
+      Config.get().isTimeInQueueEnabled(!KAFKA_LEGACY_TRACING, KAFKA);
   public static final String KAFKA_PRODUCED_KEY = "x_datadog_kafka_produced";
 
   private final String spanKind;
@@ -42,12 +40,14 @@ public class KafkaStreamsDecorator extends MessagingClientDecorator {
       DDCaches.newFixedSizeCache(32);
   private static final Functions.Prefix PREFIX = new Functions.Prefix("Consume Topic ");
 
-  private static final String LOCAL_SERVICE_NAME =
-      KAFKA_LEGACY_TRACING ? "kafka" : Config.get().getServiceName();
-
   public static final KafkaStreamsDecorator CONSUMER_DECORATE =
       new KafkaStreamsDecorator(
-          Tags.SPAN_KIND_CONSUMER, InternalSpanTypes.MESSAGE_CONSUMER, LOCAL_SERVICE_NAME);
+          Tags.SPAN_KIND_CONSUMER,
+          InternalSpanTypes.MESSAGE_CONSUMER,
+          SpanNaming.instance()
+              .namingSchema()
+              .messaging()
+              .inboundService(KAFKA, KAFKA_LEGACY_TRACING));
 
   public static final KafkaStreamsDecorator BROKER_DECORATE =
       new KafkaStreamsDecorator(

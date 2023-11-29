@@ -341,6 +341,7 @@ abstract class HazelcastTest extends VersionedNamingTestBase {
         "hazelcast.operation" matcher.group("operation")
         "hazelcast.service" "hz:impl:${matcher.group("service")}Service"
         "hazelcast.instance" client.name
+        peerServiceFrom("hazelcast.instance")
         defaultTags()
       }
     }

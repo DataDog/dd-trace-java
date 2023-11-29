@@ -7,9 +7,12 @@ import static datadog.trace.core.datastreams.TagsProcessor.TYPE_TAG;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.GenericClassValue;
+import datadog.trace.api.cache.DDCache;
+import datadog.trace.api.cache.DDCaches;
 import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
+import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.ClientDecorator;
 import io.grpc.MethodDescriptor;
@@ -50,6 +53,8 @@ public class GrpcClientDecorator extends ClientDecorator {
               return UTF8BytesString.create(input.getName());
             }
           });
+
+  private static final DDCache<String, String> RPC_SERVICE_CACHE = DDCaches.newFixedSizeCache(64);
 
   public UTF8BytesString requestMessageType(MethodDescriptor<?, ?> method) {
     return messageType(method.getRequestMarshaller());
@@ -93,7 +98,12 @@ public class GrpcClientDecorator extends ClientDecorator {
     AgentSpan span =
         startSpan(OPERATION_NAME)
             .setTag("request.type", requestMessageType(method))
-            .setTag("response.type", responseMessageType(method));
+            .setTag("response.type", responseMessageType(method))
+            // method.getServiceName() may not be available on some grpc versions
+            .setTag(
+                Tags.RPC_SERVICE,
+                RPC_SERVICE_CACHE.computeIfAbsent(
+                    method.getFullMethodName(), MethodDescriptor::extractFullServiceName));
     span.setResourceName(method.getFullMethodName());
     return afterStart(span);
   }

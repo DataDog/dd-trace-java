@@ -130,6 +130,7 @@ abstract class Lettuce5AsyncClientTest extends VersionedNamingTestBase {
             "$Tags.PEER_PORT" port
             "$Tags.DB_TYPE" "redis"
             "db.redis.dbIndex" 0
+            peerServiceFrom(Tags.PEER_HOSTNAME)
             defaultTags()
           }
         }
@@ -170,6 +171,7 @@ abstract class Lettuce5AsyncClientTest extends VersionedNamingTestBase {
             "$Tags.DB_TYPE" "redis"
             "db.redis.dbIndex" 0
             errorTags CompletionException, String
+            peerServiceFrom(Tags.PEER_HOSTNAME)
             defaultTags()
           }
         }
@@ -200,6 +202,7 @@ abstract class Lettuce5AsyncClientTest extends VersionedNamingTestBase {
             "$Tags.PEER_PORT" port
             "$Tags.DB_TYPE" "redis"
             "db.redis.dbIndex" 0
+            peerServiceFrom(Tags.PEER_HOSTNAME)
             defaultTags()
           }
         }
@@ -241,6 +244,7 @@ abstract class Lettuce5AsyncClientTest extends VersionedNamingTestBase {
             "$Tags.PEER_PORT" port
             "$Tags.DB_TYPE" "redis"
             "db.redis.dbIndex" 0
+            peerServiceFrom(Tags.PEER_HOSTNAME)
             defaultTags()
           }
         }
@@ -296,6 +300,7 @@ abstract class Lettuce5AsyncClientTest extends VersionedNamingTestBase {
             "$Tags.PEER_PORT" port
             "$Tags.DB_TYPE" "redis"
             "db.redis.dbIndex" 0
+            peerServiceFrom(Tags.PEER_HOSTNAME)
             defaultTags()
           }
         }
@@ -337,6 +342,7 @@ abstract class Lettuce5AsyncClientTest extends VersionedNamingTestBase {
             "$Tags.PEER_PORT" port
             "$Tags.DB_TYPE" "redis"
             "db.redis.dbIndex" 0
+            peerServiceFrom(Tags.PEER_HOSTNAME)
             defaultTags()
           }
         }
@@ -397,6 +403,7 @@ abstract class Lettuce5AsyncClientTest extends VersionedNamingTestBase {
             "$Tags.PEER_PORT" port
             "$Tags.DB_TYPE" "redis"
             "db.redis.dbIndex" 0
+            peerServiceFrom(Tags.PEER_HOSTNAME)
             defaultTags()
           }
         }
@@ -416,6 +423,7 @@ abstract class Lettuce5AsyncClientTest extends VersionedNamingTestBase {
             "$Tags.PEER_PORT" port
             "$Tags.DB_TYPE" "redis"
             "db.redis.dbIndex" 0
+            peerServiceFrom(Tags.PEER_HOSTNAME)
             defaultTags()
           }
         }
@@ -465,6 +473,7 @@ abstract class Lettuce5AsyncClientTest extends VersionedNamingTestBase {
             "$Tags.DB_TYPE" "redis"
             "db.redis.dbIndex" 0
             errorTags(IllegalStateException, "TestException")
+            peerServiceFrom(Tags.PEER_HOSTNAME)
             defaultTags()
           }
         }
@@ -508,6 +517,7 @@ abstract class Lettuce5AsyncClientTest extends VersionedNamingTestBase {
             "$Tags.DB_TYPE" "redis"
             "db.redis.dbIndex" 0
             "db.command.cancelled" true
+            peerServiceFrom(Tags.PEER_HOSTNAME)
             defaultTags()
           }
         }
@@ -536,6 +546,7 @@ abstract class Lettuce5AsyncClientTest extends VersionedNamingTestBase {
             "$Tags.PEER_PORT" port
             "$Tags.DB_TYPE" "redis"
             "db.redis.dbIndex" 0
+            peerServiceFrom(Tags.PEER_HOSTNAME)
             defaultTags()
           }
         }
@@ -565,6 +576,7 @@ abstract class Lettuce5AsyncClientTest extends VersionedNamingTestBase {
             "$Tags.PEER_PORT" port
             "$Tags.DB_TYPE" "redis"
             "db.redis.dbIndex" 0
+            peerServiceFrom(Tags.PEER_HOSTNAME)
             defaultTags()
           }
         }
@@ -573,7 +585,7 @@ abstract class Lettuce5AsyncClientTest extends VersionedNamingTestBase {
   }
 }
 
-class Lettuce5SyncClientV0ForkedTest extends Lettuce5AsyncClientTest {
+class Lettuce5SyncClientV0Test extends Lettuce5AsyncClientTest {
 
   @Override
   int version() {
@@ -606,5 +618,31 @@ class Lettuce5SyncClientV1ForkedTest extends Lettuce5AsyncClientTest {
   @Override
   String operation() {
     return "redis.command"
+  }
+}
+
+
+class Lettuce5AsyncProfilingForkedTest extends Lettuce5AsyncClientTest {
+
+  @Override
+  protected void configurePreAgent() {
+
+    super.configurePreAgent()
+    injectSysConfig('dd.profiling.enabled', 'true')
+  }
+
+  @Override
+  int version() {
+    return 2
+  }
+
+  @Override
+  String service() {
+    return "redis"
+  }
+
+  @Override
+  String operation() {
+    return "redis.query"
   }
 }

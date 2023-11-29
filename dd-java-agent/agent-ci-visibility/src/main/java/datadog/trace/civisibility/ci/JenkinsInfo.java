@@ -4,14 +4,16 @@ import static datadog.trace.api.git.GitUtils.filterSensitiveInfo;
 import static datadog.trace.api.git.GitUtils.isTagReference;
 import static datadog.trace.api.git.GitUtils.normalizeBranch;
 import static datadog.trace.api.git.GitUtils.normalizeTag;
-import static datadog.trace.civisibility.utils.PathUtils.expandTilde;
+import static datadog.trace.civisibility.utils.FileUtils.expandTilde;
 
-import datadog.trace.api.civisibility.ci.CIInfo;
-import datadog.trace.api.civisibility.ci.CIProviderInfo;
 import datadog.trace.api.git.CommitInfo;
 import datadog.trace.api.git.GitInfo;
+import datadog.trace.util.Strings;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 @SuppressForbidden
@@ -31,6 +33,8 @@ class JenkinsInfo implements CIProviderInfo {
   public static final String JENKINS_GIT_COMMIT = "GIT_COMMIT";
   public static final String JENKINS_GIT_BRANCH = "GIT_BRANCH";
   public static final String JENKINS_DD_CUSTOM_TRACE_ID = "DD_CUSTOM_TRACE_ID";
+  public static final String JENKINS_NODE_NAME = "NODE_NAME";
+  public static final String JENKINS_NODE_LABELS = "NODE_LABELS";
 
   @Override
   public GitInfo buildCIGitInfo() {
@@ -52,8 +56,19 @@ class JenkinsInfo implements CIProviderInfo {
         .ciPipelineNumber(System.getenv(JENKINS_PIPELINE_NUMBER))
         .ciPipelineUrl(System.getenv(JENKINS_PIPELINE_URL))
         .ciWorkspace(expandTilde(System.getenv(JENKINS_WORKSPACE_PATH)))
+        .ciNodeName(System.getenv(JENKINS_NODE_NAME))
+        .ciNodeLabels(buildCiNodeLabels())
         .ciEnvVars(JENKINS_DD_CUSTOM_TRACE_ID)
         .build();
+  }
+
+  private String buildCiNodeLabels() {
+    String labels = System.getenv(JENKINS_NODE_LABELS);
+    if (labels == null || labels.isEmpty()) {
+      return labels;
+    }
+    List<String> labelsList = Arrays.asList(labels.split(" "));
+    return Strings.toJson(labelsList);
   }
 
   private String buildGitRepositoryUrl() {
@@ -104,7 +119,7 @@ class JenkinsInfo implements CIProviderInfo {
     final Map<String, String> configurations = new HashMap<>();
     final String[] jobNameParts = jobNameNoBranch.split("/");
     if (jobNameParts.length > 1 && jobNameParts[1].contains("=")) {
-      final String configsStr = jobNameParts[1].toLowerCase().trim();
+      final String configsStr = jobNameParts[1].toLowerCase(Locale.ROOT).trim();
       final String[] configsKeyValue = configsStr.split(",");
       for (final String configKeyValue : configsKeyValue) {
         final String[] keyValue = configKeyValue.trim().split("=");

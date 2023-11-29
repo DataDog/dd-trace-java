@@ -8,7 +8,13 @@ import static datadog.trace.api.sampling.PrioritySampling.USER_DROP;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_METHOD;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_STATUS;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_URL;
-import static datadog.trace.core.taginterceptor.RuleFlags.Feature.*;
+import static datadog.trace.core.taginterceptor.RuleFlags.Feature.FORCE_MANUAL_DROP;
+import static datadog.trace.core.taginterceptor.RuleFlags.Feature.PEER_SERVICE;
+import static datadog.trace.core.taginterceptor.RuleFlags.Feature.RESOURCE_NAME;
+import static datadog.trace.core.taginterceptor.RuleFlags.Feature.SERVICE_NAME;
+import static datadog.trace.core.taginterceptor.RuleFlags.Feature.STATUS_404;
+import static datadog.trace.core.taginterceptor.RuleFlags.Feature.STATUS_404_DECORATOR;
+import static datadog.trace.core.taginterceptor.RuleFlags.Feature.URL_AS_RESOURCE_NAME;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.ConfigDefaults;
@@ -18,12 +24,17 @@ import datadog.trace.api.config.GeneralConfig;
 import datadog.trace.api.env.CapturedEnvironment;
 import datadog.trace.api.normalize.HttpResourceNames;
 import datadog.trace.api.sampling.SamplingMechanism;
+import datadog.trace.bootstrap.instrumentation.api.ErrorPriorities;
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
+import datadog.trace.bootstrap.instrumentation.api.URIUtils;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.core.DDSpanContext;
+import java.net.URI;
 import java.util.Set;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 public class TagInterceptor {
 
@@ -74,6 +85,8 @@ public class TagInterceptor {
       case "service":
         return interceptServiceName(SERVICE_NAME, span, value);
       case Tags.PEER_SERVICE:
+        // we still need to intercept and add this tag when the user manually set
+        span.setTag(DDTags.PEER_SERVICE_SOURCE, Tags.PEER_SERVICE);
         return interceptServiceName(PEER_SERVICE, span, value);
       case DDTags.MANUAL_KEEP:
         if (asBoolean(value)) {
@@ -110,20 +123,40 @@ public class TagInterceptor {
   private boolean interceptUrlResourceAsNameRule(DDSpanContext span, String tag, Object value) {
     if (shouldSetUrlResourceAsName) {
       if (HTTP_METHOD.equals(tag)) {
-        if (span.getTags().containsValue(HTTP_URL)) {
-          Pair<CharSequence, Byte> normalized =
-              HttpResourceNames.computeForServer(
-                  value.toString(), span.getTags().get(HTTP_URL).toString(), false);
-          span.setResourceName(normalized.getLeft(), normalized.getRight());
+        final Object url = span.unsafeGetTag(HTTP_URL);
+        if (url != null) {
+          setResourceFromUrl(span, value.toString(), url);
         }
       } else if (HTTP_URL.equals(tag)) {
-        Pair<CharSequence, Byte> normalized =
-            HttpResourceNames.computeForServer(
-                (CharSequence) span.getTags().get(HTTP_METHOD), value.toString(), false);
-        span.setResourceName(normalized.getLeft(), normalized.getRight());
+        final Object method = span.unsafeGetTag(HTTP_METHOD);
+        setResourceFromUrl(span, method != null ? method.toString() : null, value);
       }
     }
     return false;
+  }
+
+  private static void setResourceFromUrl(
+      @Nonnull final DDSpanContext span, @Nullable final String method, @Nonnull final Object url) {
+    final String path;
+    if (url instanceof URIUtils.LazyUrl) {
+      path = ((URIUtils.LazyUrl) url).path();
+    } else {
+      URI uri = URIUtils.safeParse(url.toString());
+      path = uri == null ? null : uri.getPath();
+    }
+    if (path != null) {
+      final boolean isClient = Tags.SPAN_KIND_CLIENT.equals(span.unsafeGetTag(Tags.SPAN_KIND));
+      Pair<CharSequence, Byte> normalized =
+          isClient
+              ? HttpResourceNames.computeForClient(method, path, false)
+              : HttpResourceNames.computeForServer(method, path, false);
+      if (normalized.hasLeft()) {
+        span.setResourceName(normalized.getLeft(), normalized.getRight());
+      }
+    } else {
+      span.setResourceName(
+          HttpResourceNames.DEFAULT_RESOURCE_NAME, ResourceNamePriorities.HTTP_PATH_NORMALIZER);
+    }
   }
 
   private boolean intercept(DDSpanContext span, String tag, Object value) {
@@ -160,7 +193,7 @@ public class TagInterceptor {
   }
 
   private boolean interceptError(DDSpanContext span, Object value) {
-    span.setErrorFlag(asBoolean(value));
+    span.setErrorFlag(asBoolean(value), ErrorPriorities.DEFAULT);
     return true;
   }
 

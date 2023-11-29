@@ -9,6 +9,7 @@ dependencies {
   implementation project(':utils:socket-utils')
   implementation project(':utils:version-utils')
 
+  api deps.okio
   api deps.okhttp
   api group: 'com.squareup.moshi', name: 'moshi', version: versions.moshi
   implementation group: 'com.datadoghq', name: 'java-dogstatsd-client', version: "${versions.dogstatsd}"
@@ -26,12 +27,14 @@ ext {
   minimumInstructionCoverage = 0.8
   excludedClassesCoverage = [
     'datadog.communication.ddagent.ExternalAgentLauncher',
+    'datadog.communication.ddagent.ExternalAgentLauncher.NamedPipeHealthCheck',
     'datadog.communication.ddagent.SharedCommunicationObjects.FixedConfigUrlSupplier',
     'datadog.communication.ddagent.SharedCommunicationObjects.RetryConfigUrlSupplier',
     'datadog.communication.http.OkHttpUtils',
     'datadog.communication.http.OkHttpUtils.1',
     'datadog.communication.http.OkHttpUtils.ByteBufferRequestBody',
     'datadog.communication.http.OkHttpUtils.GZipByteBufferRequestBody',
+    'datadog.communication.http.OkHttpUtils.JsonRequestBody',
     'datadog.communication.monitor.DDAgentStatsDConnection',
     'datadog.communication.monitor.DDAgentStatsDConnection.*',
     'datadog.communication.monitor.LoggingStatsDClient',

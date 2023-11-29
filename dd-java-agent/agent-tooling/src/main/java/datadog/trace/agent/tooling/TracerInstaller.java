@@ -21,6 +21,8 @@ public class TracerInstaller {
             CoreTracer.builder()
                 .sharedCommunicationObjects(sharedCommunicationObjects)
                 .profilingContextIntegration(profilingContextIntegration)
+                .pollForTracerFlareRequests()
+                .pollForTracingConfiguration()
                 .build());
       } else {
         log.debug("GlobalTracer already registered.");

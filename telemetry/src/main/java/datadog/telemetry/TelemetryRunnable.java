@@ -1,50 +1,57 @@
 package datadog.telemetry;
 
+import datadog.telemetry.metric.MetricPeriodicAction;
 import datadog.trace.api.Config;
 import datadog.trace.api.ConfigCollector;
-import datadog.trace.api.WafMetricCollector;
-import java.io.IOException;
+import datadog.trace.api.ConfigSetting;
+import datadog.trace.api.time.SystemTimeSource;
+import datadog.trace.api.time.TimeSource;
 import java.util.List;
-import java.util.Queue;
-import okhttp3.OkHttpClient;
-import okhttp3.Request;
-import okhttp3.Response;
+import java.util.Map;
+import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class TelemetryRunnable implements Runnable {
-  private static final double BACKOFF_INITIAL = 3.0d;
-  private static final double BACKOFF_BASE = 3.0d;
-  private static final double BACKOFF_MAX_EXPONENT = 3.0d;
 
   private static final Logger log = LoggerFactory.getLogger(TelemetryRunnable.class);
+  private static final int MAX_APP_STARTED_RETRIES = 3;
+  private static final int MAX_CONSECUTIVE_REQUESTS = 3;
 
-  private final OkHttpClient okHttpClient;
   private final TelemetryService telemetryService;
   private final List<TelemetryPeriodicAction> actions;
-  private final ThreadSleeper sleeper;
-
-  private int consecutiveFailures;
-
-  private long collectMetricsTimestamp;
+  private final List<MetricPeriodicAction> actionsAtMetricsInterval;
+  private final Scheduler scheduler;
+  private boolean startupEventSent;
 
   public TelemetryRunnable(
-      OkHttpClient okHttpClient,
-      TelemetryService telemetryService,
-      List<TelemetryPeriodicAction> actions) {
-    this(okHttpClient, telemetryService, actions, new ThreadSleeperImpl());
+      final TelemetryService telemetryService, final List<TelemetryPeriodicAction> actions) {
+    this(telemetryService, actions, new ThreadSleeperImpl(), SystemTimeSource.INSTANCE);
   }
 
   TelemetryRunnable(
-      OkHttpClient okHttpClient,
-      TelemetryService telemetryService,
-      List<TelemetryPeriodicAction> actions,
-      ThreadSleeper sleeper) {
-    this.okHttpClient = okHttpClient;
+      final TelemetryService telemetryService,
+      final List<TelemetryPeriodicAction> actions,
+      final ThreadSleeper sleeper,
+      final TimeSource timeSource) {
     this.telemetryService = telemetryService;
     this.actions = actions;
-    this.sleeper = sleeper;
-    this.collectMetricsTimestamp = 0;
+    this.actionsAtMetricsInterval = findMetricPeriodicActions(actions);
+    this.scheduler =
+        new Scheduler(
+            timeSource,
+            sleeper,
+            (long) (Config.get().getTelemetryHeartbeatInterval() * 1000),
+            (long) (Config.get().getTelemetryMetricsInterval() * 1000),
+            Config.get().getTelemetryExtendedHeartbeatInterval() * 1000);
+  }
+
+  private List<MetricPeriodicAction> findMetricPeriodicActions(
+      final List<TelemetryPeriodicAction> actions) {
+    return actions.stream()
+        .filter(MetricPeriodicAction.class::isInstance)
+        .map(it -> (MetricPeriodicAction) it)
+        .collect(Collectors.toList());
   }
 
   @Override
@@ -52,117 +59,108 @@ public class TelemetryRunnable implements Runnable {
     // Ensure that Config has been initialized, so ConfigCollector can collect all settings first.
     Config.get();
 
-    log.debug("Adding APP_STARTED telemetry event");
-    this.telemetryService.addConfiguration(ConfigCollector.get());
-    for (TelemetryPeriodicAction action : this.actions) {
-      action.doIteration(this.telemetryService);
-    }
+    collectConfigChanges();
 
-    this.telemetryService.addStartedRequest();
+    scheduler.init();
 
     while (!Thread.interrupted()) {
       try {
-        boolean success = mainLoopIteration();
-        if (success) {
-          successWait();
-        } else {
-          failureWait();
+        if (!startupEventSent) {
+          startupEventSent = sendAppStartedEvent();
         }
+        if (startupEventSent) {
+          mainLoopIteration();
+        } else {
+          // wait until next heartbeat interval before reattempting startup event
+          scheduler.shouldRunHeartbeat();
+        }
+        scheduler.sleepUntilNextIteration();
       } catch (InterruptedException e) {
         log.debug("Interrupted; finishing telemetry thread");
         Thread.currentThread().interrupt();
       }
     }
 
-    log.debug("Sending APP_CLOSING telemetry event");
-    sendRequest(this.telemetryService.appClosingRequest());
-    log.debug("Telemetry thread finishing");
+    flushPendingTelemetryData();
+    telemetryService.sendAppClosingEvent();
+    log.debug("Telemetry thread finished");
   }
 
-  private boolean mainLoopIteration() throws InterruptedException {
+  /**
+   * Attempts to send an app-started event.
+   *
+   * @return `true` - if attempt was successful and `false` otherwise
+   */
+  private boolean sendAppStartedEvent() {
+    int attempt = 0;
+    while (!Thread.interrupted()
+        && attempt < MAX_APP_STARTED_RETRIES
+        && !telemetryService.sendAppStartedEvent()) {
+      attempt += 1;
+      log.debug(
+          "Couldn't send an app-started event on {} attempt out of {}.",
+          attempt,
+          MAX_APP_STARTED_RETRIES);
+    }
+    return Thread.interrupted() || attempt < MAX_APP_STARTED_RETRIES;
+  }
+
+  private void mainLoopIteration() throws InterruptedException {
+    collectConfigChanges();
 
     // Collect request metrics every N seconds (default 10s)
-    long currentTime = System.currentTimeMillis();
-    if (currentTime - collectMetricsTimestamp > Config.get().getTelemetryMetricsInterval()) {
-      collectMetricsTimestamp = currentTime;
-      WafMetricCollector.get().prepareRequestMetrics();
-    }
-
-    for (TelemetryPeriodicAction action : this.actions) {
-      action.doIteration(this.telemetryService);
-    }
-
-    Queue<Request> queue = telemetryService.prepareRequests();
-    Request request;
-    while ((request = queue.peek()) != null) {
-      final SendResult result = sendRequest(request);
-      if (result == SendResult.DROP) {
-        // If we need to drop, clear the queue and return as if it was success.
-        // We will not retry if the telemetry endpoint is disabled.
-        queue.clear();
-        return true;
-      } else if (result == SendResult.FAILURE) {
-        return false;
+    if (scheduler.shouldRunMetrics()) {
+      for (MetricPeriodicAction action : actionsAtMetricsInterval) {
+        action.collector().prepareMetrics();
       }
-      // remove request from queue, in case of success submitting
-      // we are the only consumer, so this is guaranteed to be the same we peeked
-      queue.poll();
-    }
-    return true;
-  }
-
-  private void successWait() {
-    consecutiveFailures = 0;
-    final int waitMs =
-        Math.min(telemetryService.getMetricsInterval(), telemetryService.getHeartbeatInterval());
-    // Find which interval is less - more often collect data
-    sleeper.sleep(waitMs);
-  }
-
-  private void failureWait() {
-    consecutiveFailures++;
-    double waitSeconds =
-        BACKOFF_INITIAL
-            * Math.pow(
-                BACKOFF_BASE, Math.min((double) consecutiveFailures - 1, BACKOFF_MAX_EXPONENT));
-    log.debug(
-        "Last attempt to send telemetry failed; will retry in {} seconds (num failures: {})",
-        waitSeconds,
-        consecutiveFailures);
-    sleeper.sleep((long) (waitSeconds * 1000L));
-  }
-
-  private SendResult sendRequest(Request request) {
-    try (Response response = okHttpClient.newCall(request).execute()) {
-      if (response.code() == 404) {
-        log.debug("Telemetry endpoint is disabled, dropping message");
-        return SendResult.DROP;
-      }
-      if (response.code() != 202) {
-        log.debug(
-            "Telemetry Intake Service responded with: {} {} ", response.code(), response.message());
-        return SendResult.FAILURE;
-      }
-    } catch (IOException e) {
-      log.debug("IOException on HTTP request to Telemetry Intake Service: {}", e.toString());
-      return SendResult.FAILURE;
     }
 
-    log.debug("Telemetry message sent successfully");
-    return SendResult.SUCCESS;
+    if (scheduler.shouldRunHeartbeat()) {
+      for (final TelemetryPeriodicAction action : this.actions) {
+        action.doIteration(this.telemetryService);
+      }
+      for (int i = 0; i < MAX_CONSECUTIVE_REQUESTS; i++) {
+        if (!telemetryService.sendTelemetryEvents()) {
+          // stop if there is no more data to be sent, or it failed to send a request
+          break;
+        }
+      }
+    }
+
+    if (scheduler.shouldRunExtendedHeartbeat()) {
+      if (telemetryService.sendExtendedHeartbeat()) {
+        // advance next extended-heartbeat only if request was successful, otherwise reattempt it
+        // next heartbeat interval
+        scheduler.scheduleNextExtendedHeartbeat();
+      }
+    }
   }
 
-  enum SendResult {
-    SUCCESS,
-    FAILURE,
-    DROP
+  private void collectConfigChanges() {
+    Map<String, ConfigSetting> collectedConfig = ConfigCollector.get().collect();
+    if (!collectedConfig.isEmpty()) {
+      telemetryService.addConfiguration(collectedConfig);
+    }
+  }
+
+  private void flushPendingTelemetryData() {
+    collectConfigChanges();
+
+    for (MetricPeriodicAction action : actionsAtMetricsInterval) {
+      action.collector().prepareMetrics();
+    }
+
+    for (final TelemetryPeriodicAction action : actions) {
+      action.doIteration(telemetryService);
+    }
+    telemetryService.sendTelemetryEvents();
   }
 
   interface ThreadSleeper {
     void sleep(long timeoutMs);
   }
 
-  private static class ThreadSleeperImpl implements ThreadSleeper {
+  static class ThreadSleeperImpl implements ThreadSleeper {
     @Override
     public void sleep(long timeoutMs) {
       try {
@@ -175,5 +173,94 @@ public class TelemetryRunnable implements Runnable {
 
   public interface TelemetryPeriodicAction {
     void doIteration(TelemetryService service);
+  }
+
+  static class Scheduler {
+    private final TimeSource timeSource;
+    private final ThreadSleeper sleeper;
+    private final long heartbeatIntervalMs;
+    private final long extendedHeartbeatIntervalMs;
+    private final long metricsIntervalMs;
+    private long nextHeartbeatIntervalMs;
+    private long nextExtendedHeartbeatIntervalMs;
+    private long nextMetricsIntervalMs;
+    private long currentTime;
+
+    public Scheduler(
+        final TimeSource timeSource,
+        final ThreadSleeper sleeper,
+        final long heartbeatIntervalMs,
+        final long metricsIntervalMs,
+        final long extendedHeartbeatIntervalMs) {
+      this.timeSource = timeSource;
+      this.sleeper = sleeper;
+      this.heartbeatIntervalMs = heartbeatIntervalMs;
+      this.metricsIntervalMs = metricsIntervalMs;
+      this.extendedHeartbeatIntervalMs = extendedHeartbeatIntervalMs;
+      nextHeartbeatIntervalMs = 0;
+      nextMetricsIntervalMs = 0;
+      nextExtendedHeartbeatIntervalMs = 0;
+      currentTime = 0;
+    }
+
+    public void init() {
+      final long currentTime = timeSource.getCurrentTimeMillis();
+      this.currentTime = currentTime;
+      nextMetricsIntervalMs = currentTime;
+      nextHeartbeatIntervalMs = currentTime;
+      scheduleNextExtendedHeartbeat();
+    }
+
+    public boolean shouldRunMetrics() {
+      if (currentTime >= nextMetricsIntervalMs) {
+        nextMetricsIntervalMs += metricsIntervalMs;
+        return true;
+      }
+      return false;
+    }
+
+    public boolean shouldRunHeartbeat() {
+      if (currentTime >= nextHeartbeatIntervalMs) {
+        nextHeartbeatIntervalMs += heartbeatIntervalMs;
+        return true;
+      }
+      return false;
+    }
+
+    public boolean shouldRunExtendedHeartbeat() {
+      return currentTime >= nextExtendedHeartbeatIntervalMs;
+    }
+
+    public void scheduleNextExtendedHeartbeat() {
+      // schedule very first extended-heartbeat only after interval elapses
+      nextExtendedHeartbeatIntervalMs = currentTime + extendedHeartbeatIntervalMs;
+    }
+
+    public void sleepUntilNextIteration() {
+      currentTime = timeSource.getCurrentTimeMillis();
+
+      if (currentTime >= nextHeartbeatIntervalMs) {
+        // We are probably under high load or, more likely (?) slow network and the time to send
+        // telemetry has overrun the interval. In this case, we reset metrics and heartbeat interval
+        // to trigger them immediately.
+        nextMetricsIntervalMs = currentTime;
+        nextHeartbeatIntervalMs = currentTime;
+        log.debug(
+            "Time to run telemetry actions exceeded the interval, triggering the next iteration immediately");
+        return;
+      }
+
+      while (currentTime >= nextMetricsIntervalMs) {
+        // If metric collection exceeded the interval, something went really wrong. Either there's a
+        // very short interval (not default), or metric collection is taking abnormally long. We
+        // skip intervals in this case.
+        nextMetricsIntervalMs += metricsIntervalMs;
+      }
+
+      long nextIntervalMs = Math.min(nextMetricsIntervalMs, nextHeartbeatIntervalMs);
+      final long waitMs = nextIntervalMs - currentTime;
+      sleeper.sleep(waitMs);
+      currentTime = timeSource.getCurrentTimeMillis();
+    }
   }
 }

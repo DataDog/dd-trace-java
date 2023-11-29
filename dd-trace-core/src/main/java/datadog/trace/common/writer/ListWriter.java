@@ -1,6 +1,8 @@
 package datadog.trace.common.writer;
 
 import datadog.trace.core.DDSpan;
+import datadog.trace.core.MetadataConsumer;
+import datadog.trace.core.tagprocessor.PeerServiceCalculator;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -27,6 +29,8 @@ public class ListWriter extends CopyOnWriteArrayList<List<DDSpan>> implements Wr
   private final List<CountDownLatch> latches = new ArrayList<>();
   private final AtomicInteger traceCount = new AtomicInteger();
   private final TraceStructureWriter structureWriter = new TraceStructureWriter(true);
+
+  private final PeerServiceCalculator peerServiceCalculator = new PeerServiceCalculator();
   private Filter filter = ACCEPT_ALL;
 
   public List<DDSpan> firstTrace() {
@@ -38,7 +42,11 @@ public class ListWriter extends CopyOnWriteArrayList<List<DDSpan>> implements Wr
     if (!filter.accept(trace)) {
       return;
     }
-
+    for (DDSpan span : trace) {
+      // This is needed to properly do all delayed processing to make this writer even
+      // remotely realistic so the test actually test something
+      span.processTagsAndBaggage(MetadataConsumer.NO_OP);
+    }
     traceCount.incrementAndGet();
     synchronized (latches) {
       add(trace);

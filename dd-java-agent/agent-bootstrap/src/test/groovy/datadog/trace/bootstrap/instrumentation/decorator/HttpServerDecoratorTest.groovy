@@ -13,14 +13,17 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.TracerAPI
 import datadog.trace.bootstrap.instrumentation.api.ContextVisitors
+import datadog.trace.bootstrap.instrumentation.api.ErrorPriorities
 import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter
 import datadog.trace.bootstrap.instrumentation.api.URIDefaultDataAdapter
+import datadog.trace.core.datastreams.DataStreamsMonitoring
 
 import java.util.function.Function
 import java.util.function.Supplier
 
+import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_SERVER_DECODED_RESOURCE_PRESERVE_SPACES
 import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_SERVER_RAW_QUERY_STRING
 import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_SERVER_RAW_RESOURCE
 import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_SERVER_TAG_QUERY_STRING
@@ -35,6 +38,7 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
   void setup() {
     origAppSecActive = ActiveSubsystems.APPSEC_ACTIVE
     ActiveSubsystems.APPSEC_ACTIVE = true
+    errorPriority = ErrorPriorities.HTTP_SERVER_DECORATOR
   }
 
   void cleanup() {
@@ -53,13 +57,14 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
       1 * this.span.setTag(Tags.HTTP_METHOD, "test-method")
       1 * this.span.setTag(DDTags.HTTP_QUERY, _)
       1 * this.span.setTag(DDTags.HTTP_FRAGMENT, _)
-      1 * this.span.setTag(Tags.HTTP_URL, url)
+      1 * this.span.setTag(Tags.HTTP_URL, {it.toString() == url})
       1 * this.span.setTag(Tags.HTTP_HOSTNAME, req.url.host)
       2 * this.span.getRequestContext()
       1 * this.span.setResourceName({ it as String == req.method.toUpperCase() + " " + req.path }, ResourceNamePriorities.HTTP_PATH_NORMALIZER)
     } else {
       1 * this.span.getRequestContext()
     }
+    _ * this.span.getLocalRootSpan() >> this.span
     0 * _
 
     where:
@@ -82,7 +87,7 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
 
     then:
     if (expectedUrl) {
-      1 * this.span.setTag(Tags.HTTP_URL, expectedUrl)
+      1 * this.span.setTag(Tags.HTTP_URL, {it.toString() == expectedUrl})
       2 * this.span.getRequestContext()
     }
     if (expectedUrl && tagQueryString) {
@@ -99,6 +104,7 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
       1 * this.span.setResourceName({ it as String == expectedPath })
     }
     1 * this.span.setTag(Tags.HTTP_METHOD, null)
+    _ * this.span.getLocalRootSpan() >> this.span
     0 * _
 
     where:
@@ -131,23 +137,39 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
     decorator.onRequest(this.span, null, req, null)
 
     then:
-    1 * this.span.setTag(Tags.HTTP_URL, expectedUrl)
+    1 * this.span.setTag(Tags.HTTP_URL, {it.toString() == expectedUrl})
     1 * this.span.setTag(Tags.HTTP_HOSTNAME, req.url.host)
     1 * this.span.setTag(DDTags.HTTP_QUERY, expectedQuery)
     1 * this.span.setTag(DDTags.HTTP_FRAGMENT, null)
     2 * this.span.getRequestContext()
     1 * this.span.setResourceName({ it as String == expectedResource }, ResourceNamePriorities.HTTP_PATH_NORMALIZER)
     1 * this.span.setTag(Tags.HTTP_METHOD, null)
+    _ * this.span.getLocalRootSpan() >> this.span
     0 * _
 
     where:
     rawQuery | rawResource | url                             | expectedUrl           | expectedQuery | expectedResource
-    false    | false       | "http://host/p%20ath?query%3F?" | "http://host/p ath"   | "query??"     | "/path"
+    false    | false       | "http://host/p%20ath?query%3F?" | "http://host/p ath"   | "query??"     | "/p ath"
     false    | true        | "http://host/p%20ath?query%3F?" | "http://host/p%20ath" | "query??"     | "/p%20ath"
-    true     | false       | "http://host/p%20ath?query%3F?" | "http://host/p ath"   | "query%3F?"   | "/path"
+    true     | false       | "http://host/p%20ath?query%3F?" | "http://host/p ath"   | "query%3F?"   | "/p ath"
     true     | true        | "http://host/p%20ath?query%3F?" | "http://host/p%20ath" | "query%3F?"   | "/p%20ath"
 
     req = [url: url == null ? null : new URI(url)]
+  }
+
+  void 'url handling without space preservation'() {
+    setup:
+    injectSysConfig(HTTP_SERVER_RAW_RESOURCE, 'false')
+    injectSysConfig(HTTP_SERVER_DECODED_RESOURCE_PRESERVE_SPACES, 'false')
+    def decorator = newDecorator()
+
+    when:
+    decorator.onRequest(this.span, null, [url: new URI('http://host/p%20ath')], null)
+
+    then:
+    1 * this.span.setResourceName({ it as String == '/path' }, ResourceNamePriorities.HTTP_PATH_NORMALIZER)
+    _ * this.span.getLocalRootSpan() >> this.span
+    _ * _
   }
 
   def "test onConnection"() {
@@ -266,6 +288,7 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
     when:
     decorator.onRequest(this.span, [peerIp: '4.4.4.4'], null, ctx)
 
+    _ * this.span.getLocalRootSpan() >> this.span
     then:
     2 * ctx.getXForwardedFor() >> '2.3.4.5'
     1 * this.span.setTag(Tags.HTTP_CLIENT_IP, '2.3.4.5')
@@ -301,9 +324,7 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
     then:
     if (status) {
       1 * this.span.setHttpStatusCode(status)
-    }
-    if (error) {
-      1 * this.span.setError(true)
+      1 * this.span.setError(error, ErrorPriorities.HTTP_SERVER_DECORATOR)
     }
     if (status == 404) {
       1 * this.span.setResourceName({ it as String == "404" }, ResourceNamePriorities.HTTP_404)
@@ -311,6 +332,7 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
     if (resp) {
       1 * this.span.getRequestContext()
     }
+    _ * span.getTag('error.type')
     0 * _
 
     where:
@@ -417,15 +439,18 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
     def mSpan = Mock(AgentSpan) {
       getRequestContext() >> reqCtxt
     }
+
     def mTracer = Mock(TracerAPI) {
-      startSpan(_, _) >> mSpan
+      startSpan(_, _, _) >> mSpan
       getCallbackProvider(RequestContextSlot.APPSEC) >> cbpAppSec
       getCallbackProvider(RequestContextSlot.IAST) >> CallbackProvider.CallbackProviderNoop.INSTANCE
+      getUniversalCallbackProvider() >> cbpAppSec // no iast callbacks, so this is equivalent
+      getDataStreamsMonitoring() >> Mock(DataStreamsMonitoring)
     }
     def decorator = newDecorator(mTracer)
 
     when:
-    decorator.startSpan(headers, null)
+    decorator.startSpan("test", headers, null)
 
     then:
     1 * mSpan.setMeasured(true) >> mSpan

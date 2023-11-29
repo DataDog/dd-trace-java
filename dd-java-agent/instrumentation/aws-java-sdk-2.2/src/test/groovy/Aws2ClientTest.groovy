@@ -121,6 +121,7 @@ abstract class Aws2ClientTest extends VersionedNamingTestBase {
           measured true
           parent()
           tags {
+            def checkPeerService = false
             "$Tags.COMPONENT" "java-aws-sdk"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
             "$Tags.PEER_HOSTNAME" "localhost"
@@ -129,26 +130,44 @@ abstract class Aws2ClientTest extends VersionedNamingTestBase {
             "$Tags.HTTP_METHOD" "$method"
             "$Tags.HTTP_STATUS" 200
             "aws.service" "$service"
+            "aws_service" "$service"
             "aws.operation" "${operation}"
             "aws.agent" "java-aws-sdk"
             "aws.requestId" "$requestId"
             if (service == "S3") {
               "aws.bucket.name" "somebucket"
+              "bucketname" "somebucket"
               if (operation == "PutObject") {
                 "aws.storage.class" "GLACIER"
               }
+              peerServiceFrom("aws.bucket.name")
+              checkPeerService = true
             } else if (service == "Sqs" && operation == "CreateQueue") {
               "aws.queue.name" "somequeue"
+              "queuename" "somequeue"
+              peerServiceFrom("aws.queue.name")
+              checkPeerService = true
             } else if (service == "Sqs" && operation == "SendMessage") {
               "aws.queue.url" "someurl"
+              peerServiceFrom("aws.queue.url")
+              checkPeerService = true
             } else if (service == "Sns" && operation == "Publish") {
               "aws.topic.name" "some-topic"
+              "topicname" "some-topic"
+              peerServiceFrom("aws.topic.name")
+              checkPeerService = true
             } else if (service == "DynamoDb") {
               "aws.table.name" "sometable"
+              "tablename" "sometable"
+              peerServiceFrom("aws.table.name")
+              checkPeerService = true
             } else if (service == "Kinesis") {
               "aws.stream.name" "somestream"
+              "streamname" "somestream"
+              peerServiceFrom("aws.stream.name")
+              checkPeerService = true
             }
-            defaultTags()
+            defaultTags(false, checkPeerService)
           }
         }
       }
@@ -243,23 +262,42 @@ abstract class Aws2ClientTest extends VersionedNamingTestBase {
             "$Tags.HTTP_METHOD" "$method"
             "$Tags.HTTP_STATUS" 200
             "aws.service" "$service"
+            "aws_service" "$service"
             "aws.operation" "${operation}"
             "aws.agent" "java-aws-sdk"
             "aws.requestId" "$requestId"
+            def checkPeerService = false
             if (service == "S3") {
               "aws.bucket.name" "somebucket"
+              "bucketname" "somebucket"
+              peerServiceFrom("aws.bucket.name")
+              checkPeerService = true
             } else if (service == "Sqs" && operation == "CreateQueue") {
               "aws.queue.name" "somequeue"
+              "queuename" "somequeue"
+              peerServiceFrom("aws.queue.name")
+              checkPeerService = true
             } else if (service == "Sqs" && operation == "SendMessage") {
               "aws.queue.url" "someurl"
+              peerServiceFrom("aws.queue.url")
+              checkPeerService = true
             } else if (service == "Sns" && operation == "Publish") {
               "aws.topic.name" "some-topic"
+              "topicname" "some-topic"
+              peerServiceFrom("aws.topic.name")
+              checkPeerService = true
             } else if (service == "DynamoDb") {
               "aws.table.name" "sometable"
+              "tablename" "sometable"
+              peerServiceFrom("aws.table.name")
+              checkPeerService = true
             } else if (service == "Kinesis") {
               "aws.stream.name" "somestream"
+              "streamname" "somestream"
+              peerServiceFrom("aws.stream.name")
+              checkPeerService = true
             }
-            defaultTags()
+            defaultTags(false, checkPeerService)
           }
         }
       }
@@ -352,10 +390,13 @@ abstract class Aws2ClientTest extends VersionedNamingTestBase {
             "$Tags.HTTP_URL" "$server.address/somebucket/somekey"
             "$Tags.HTTP_METHOD" "GET"
             "aws.service" "S3"
+            "aws_service" "S3"
             "aws.operation" "GetObject"
             "aws.agent" "java-aws-sdk"
             "aws.bucket.name" "somebucket"
+            "bucketname" "somebucket"
             errorTags SdkClientException, "Unable to execute HTTP request: Read timed out"
+            peerServiceFrom("aws.bucket.name")
             defaultTags()
           }
         }
@@ -367,7 +408,7 @@ abstract class Aws2ClientTest extends VersionedNamingTestBase {
   }
 }
 
-class Aws2ClientV0Test extends Aws2ClientTest {
+class Aws2ClientV0ForkedTest extends Aws2ClientTest {
 
   @Override
   String expectedOperation(String awsService, String awsOperation) {

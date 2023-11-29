@@ -12,8 +12,10 @@ import java.util.regex.Pattern;
 public class SqlRegexpTokenizer extends AbstractRegexTokenizer {
 
   private static final String STRING_LITERAL = "'(?:''|[^'])*'";
-  private static final String ORACLE_ESCAPED_LITERAL = "q'\\S.*\\S'";
-  private static final String POSTGRESQL_ESCAPED_LITERAL = "\\$([^$]*)\\$.*?\\$\\1\\$";
+  private static final String ORACLE_ESCAPED_LITERAL =
+      "q'<.*?>'|q'\\(.*?\\)'|q'\\{.*?\\}'|q'\\[.*?\\]'|q'(?<ESCAPE>.).*?\\k<ESCAPE>'";
+  private static final String POSTGRESQL_ESCAPED_LITERAL =
+      "\\$(?<ESCAPE>[^$]*?)\\$.*?\\$\\k<ESCAPE>\\$";
   private static final String MYSQL_STRING_LITERAL = "\"(?:\\\"|[^\"])*\"|'(?:\\'|[^'])*'";
   private static final String LINE_COMMENT = "--.*$";
   private static final String BLOCK_COMMENT = "/\\*[\\s\\S]*\\*/";
@@ -93,6 +95,7 @@ public class SqlRegexpTokenizer extends AbstractRegexTokenizer {
         "mysql"::equalsIgnoreCase,
         () -> buildPattern(NUMERIC_LITERAL, MYSQL_STRING_LITERAL, LINE_COMMENT, BLOCK_COMMENT)),
     MARIADB("mariadb"::equalsIgnoreCase, MYSQL::buildPattern),
+    SQLITE("sqlite"::equalsIgnoreCase, MYSQL::buildPattern),
     ANSI(
         dialect -> true,
         () -> buildPattern(NUMERIC_LITERAL, STRING_LITERAL, LINE_COMMENT, BLOCK_COMMENT));
@@ -114,10 +117,6 @@ public class SqlRegexpTokenizer extends AbstractRegexTokenizer {
           }
         }
       }
-      return ANSI;
-    }
-
-    public static Dialect current() {
       return ANSI;
     }
 

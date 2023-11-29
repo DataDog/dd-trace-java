@@ -62,6 +62,16 @@ public class SpringWebfluxHttpClientDecorator
     return httpResponse.statusCode().value();
   }
 
+  @Override
+  protected String getRequestHeader(ClientRequest request, String headerName) {
+    return request.headers().getFirst(headerName);
+  }
+
+  @Override
+  protected String getResponseHeader(ClientResponse response, String headerName) {
+    return response.headers().asHttpHeaders().getFirst(headerName);
+  }
+
   private static MethodHandle findRawStatusCode() {
     try {
       return MethodHandles.publicLookup()

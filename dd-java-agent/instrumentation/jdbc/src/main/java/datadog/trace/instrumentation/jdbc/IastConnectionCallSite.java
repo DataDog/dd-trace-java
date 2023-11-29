@@ -1,9 +1,9 @@
 package datadog.trace.instrumentation.jdbc;
 
 import datadog.trace.agent.tooling.csi.CallSite;
-import datadog.trace.api.iast.IastAdvice;
-import datadog.trace.api.iast.IastAdvice.Sink;
+import datadog.trace.api.iast.IastCallSites;
 import datadog.trace.api.iast.InstrumentationBridge;
+import datadog.trace.api.iast.Sink;
 import datadog.trace.api.iast.VulnerabilityTypes;
 import datadog.trace.api.iast.sink.SqlInjectionModule;
 import datadog.trace.bootstrap.instrumentation.jdbc.DBInfo;
@@ -11,7 +11,7 @@ import java.sql.Connection;
 
 @Sink(VulnerabilityTypes.SQL_INJECTION)
 @CallSite(
-    spi = IastAdvice.class,
+    spi = IastCallSites.class,
     helpers = {JDBCDecorator.class})
 public class IastConnectionCallSite {
 

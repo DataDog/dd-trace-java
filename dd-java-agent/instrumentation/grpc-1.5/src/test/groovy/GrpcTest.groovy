@@ -22,6 +22,8 @@ import io.grpc.Status
 import io.grpc.StatusRuntimeException
 import io.grpc.inprocess.InProcessChannelBuilder
 import io.grpc.inprocess.InProcessServerBuilder
+import io.grpc.netty.NettyChannelBuilder
+import io.grpc.netty.NettyServerBuilder
 import io.grpc.stub.StreamObserver
 import spock.lang.Shared
 
@@ -112,11 +114,12 @@ abstract class GrpcTest extends VersionedNamingTestBase {
           }
         }
       }
-    def builder = InProcessServerBuilder.forName(getClass().name).addService(greeter).executor(executor)
+    def builder = NettyServerBuilder.forPort(0).addService(greeter).executor(executor)
     (0..extraBuildCalls).each { builder.build() }
     Server server = builder.build().start()
 
-    ManagedChannel channel = InProcessChannelBuilder.forName(getClass().name).build()
+
+    ManagedChannel channel = NettyChannelBuilder.forAddress("localhost", server.getPort()).usePlaintext().build()
     GreeterGrpc.GreeterBlockingStub client = GreeterGrpc.newBlockingStub(channel)
 
     when:
@@ -145,12 +148,17 @@ abstract class GrpcTest extends VersionedNamingTestBase {
           tags {
             "$Tags.COMPONENT" "grpc-client"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
+            "$Tags.RPC_SERVICE" "example.Greeter"
+            "$Tags.PEER_HOSTNAME" "localhost"
+            "$Tags.PEER_HOST_IPV4" "127.0.0.1"
+            "$Tags.PEER_PORT" server.port
             "status.code" "OK"
             "request.type" "example.Helloworld\$Request"
             "response.type" "example.Helloworld\$Response"
             if ({ isDataStreamsEnabled() }) {
               "$DDTags.PATHWAY_HASH" { String }
             }
+            peerServiceFrom(Tags.RPC_SERVICE)
             defaultTags()
           }
         }
@@ -165,7 +173,7 @@ abstract class GrpcTest extends VersionedNamingTestBase {
             "$Tags.COMPONENT" "grpc-client"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
             "message.type" "example.Helloworld\$Response"
-            defaultTags()
+            defaultTagsNoPeerService()
           }
         }
       }
@@ -283,6 +291,7 @@ abstract class GrpcTest extends VersionedNamingTestBase {
           tags {
             "$Tags.COMPONENT" "grpc-client"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
+            "$Tags.RPC_SERVICE" "example.Greeter"
             "status.code" "${status.code.name()}"
             "status.description" description
             "request.type" "example.Helloworld\$Request"
@@ -290,6 +299,7 @@ abstract class GrpcTest extends VersionedNamingTestBase {
             if ({ isDataStreamsEnabled() }) {
               "$DDTags.PATHWAY_HASH" { String }
             }
+            peerServiceFrom(Tags.RPC_SERVICE)
             defaultTags()
           }
         }
@@ -358,9 +368,9 @@ abstract class GrpcTest extends VersionedNamingTestBase {
           throw error
         }
       }
-    Server server = InProcessServerBuilder.forName(getClass().name).addService(greeter).directExecutor().build().start()
+    Server server = NettyServerBuilder.forPort(0).addService(greeter).directExecutor().build().start()
 
-    ManagedChannel channel = InProcessChannelBuilder.forName(getClass().name).build()
+    ManagedChannel channel = NettyChannelBuilder.forAddress("localhost", server.getPort()).usePlaintext().build()
     GreeterGrpc.GreeterBlockingStub client = GreeterGrpc.newBlockingStub(channel)
 
     when:
@@ -383,12 +393,17 @@ abstract class GrpcTest extends VersionedNamingTestBase {
           tags {
             "$Tags.COMPONENT" "grpc-client"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
+            "$Tags.RPC_SERVICE" "example.Greeter"
+            "$Tags.PEER_HOSTNAME" "localhost"
+            "$Tags.PEER_HOST_IPV4" "127.0.0.1"
+            "$Tags.PEER_PORT" server.port
             "status.code" "UNKNOWN"
             "request.type" "example.Helloworld\$Request"
             "response.type" "example.Helloworld\$Response"
             if ({ isDataStreamsEnabled() }) {
               "$DDTags.PATHWAY_HASH" { String }
             }
+            peerServiceFrom(Tags.RPC_SERVICE)
             defaultTags()
           }
         }
@@ -570,12 +585,14 @@ abstract class GrpcTest extends VersionedNamingTestBase {
           tags {
             "$Tags.COMPONENT" "grpc-client"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
+            "$Tags.RPC_SERVICE" "example.Greeter"
             "status.code" "OK"
             "request.type" "example.Helloworld\$Request"
             "response.type" "example.Helloworld\$Response"
             if ({ isDataStreamsEnabled() }) {
               "$DDTags.PATHWAY_HASH" { String }
             }
+            peerServiceFrom(Tags.RPC_SERVICE)
             defaultTags()
           }
         }
@@ -590,7 +607,7 @@ abstract class GrpcTest extends VersionedNamingTestBase {
             "$Tags.COMPONENT" "grpc-client"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
             "message.type" "example.Helloworld\$Response"
-            defaultTags()
+            defaultTagsNoPeerService()
           }
         }
       }
@@ -611,12 +628,6 @@ abstract class GrpcTest extends VersionedNamingTestBase {
 }
 
 abstract class GrpcDataStreamsEnabledForkedTest extends GrpcTest {
-  @Override
-  protected void configurePreAgent() {
-    super.configurePreAgent()
-    injectSysConfig("dd.data.streams.enabled", "true")
-  }
-
   @Override
   protected boolean isDataStreamsEnabled() {
     return true
@@ -660,12 +671,6 @@ class GrpcDataStreamsEnabledV1ForkedTest extends GrpcDataStreamsEnabledForkedTes
 }
 
 class GrpcDataStreamsDisabledForkedTest extends GrpcTest {
-  @Override
-  protected void configurePreAgent() {
-    super.configurePreAgent()
-    injectSysConfig("dd.data.streams.enabled", "false")
-  }
-
   @Override
   protected boolean isDataStreamsEnabled() {
     return false

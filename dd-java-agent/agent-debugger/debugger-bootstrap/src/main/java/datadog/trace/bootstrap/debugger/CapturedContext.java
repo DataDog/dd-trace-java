@@ -1,9 +1,12 @@
 package datadog.trace.bootstrap.debugger;
 
+import static datadog.trace.bootstrap.debugger.util.Redaction.REDACTED_VALUE;
+
 import datadog.trace.bootstrap.debugger.el.ReflectiveFieldValueResolver;
 import datadog.trace.bootstrap.debugger.el.ValueReferenceResolver;
 import datadog.trace.bootstrap.debugger.el.ValueReferences;
 import datadog.trace.bootstrap.debugger.el.Values;
+import datadog.trace.bootstrap.debugger.util.Redaction;
 import datadog.trace.bootstrap.debugger.util.TimeoutChecker;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -23,6 +26,7 @@ public class CapturedContext implements ValueReferenceResolver {
   private Map<String, CapturedValue> arguments;
   private Map<String, CapturedValue> locals;
   private CapturedThrowable throwable;
+  private Map<String, CapturedValue> staticFields;
   private Map<String, CapturedValue> fields;
   private Limits limits = Limits.DEFAULT;
   private String thisClassName;
@@ -72,6 +76,7 @@ public class CapturedContext implements ValueReferenceResolver {
     for (Status status : statusByProbeId.values()) {
       result |= status.isCapturing();
     }
+    result = result && DebuggerContext.checkAndSetInProbe();
     return result;
   }
 
@@ -103,6 +108,9 @@ public class CapturedContext implements ValueReferenceResolver {
   public Object getMember(Object target, String memberName) {
     if (target == Values.UNDEFINED_OBJECT) {
       return target;
+    }
+    if (Redaction.isRedactedKeyword(memberName)) {
+      return REDACTED_VALUE;
     }
     if (target instanceof CapturedValue) {
       Map<String, CapturedValue> fields = ((CapturedValue) target).fields;
@@ -149,6 +157,12 @@ public class CapturedContext implements ValueReferenceResolver {
     if (fields != null && !fields.isEmpty()) {
       result = fields.get(name);
     }
+    if (result != null) {
+      return result;
+    }
+    if (staticFields != null && !staticFields.isEmpty()) {
+      result = staticFields.get(name);
+    }
     return result != null ? result : Values.UNDEFINED_OBJECT;
   }
 
@@ -192,7 +206,7 @@ public class CapturedContext implements ValueReferenceResolver {
     if (locals == null) {
       locals = new HashMap<>();
     }
-    locals.put("@return", retValue); // special local name for the return value
+    locals.put(ValueReferences.RETURN_REF, retValue); // special local name for the return value
     extensions.put(ValueReferences.RETURN_EXTENSION_NAME, retValue);
   }
 
@@ -202,6 +216,18 @@ public class CapturedContext implements ValueReferenceResolver {
 
   public void addThrowable(CapturedThrowable capturedThrowable) {
     this.throwable = capturedThrowable;
+  }
+
+  public void addStaticFields(CapturedValue[] values) {
+    if (values == null) {
+      return;
+    }
+    if (staticFields == null) {
+      staticFields = new HashMap<>();
+    }
+    for (CapturedValue value : values) {
+      staticFields.put(value.name, value);
+    }
   }
 
   public void addFields(CapturedValue[] values) {
@@ -244,6 +270,10 @@ public class CapturedContext implements ValueReferenceResolver {
     return throwable;
   }
 
+  public Map<String, CapturedValue> getStaticFields() {
+    return staticFields;
+  }
+
   public Map<String, CapturedValue> getFields() {
     return fields;
   }
@@ -275,6 +305,9 @@ public class CapturedContext implements ValueReferenceResolver {
     if (locals != null) {
       locals.values().forEach(capturedValue -> capturedValue.freeze(timeoutChecker));
     }
+    if (staticFields != null) {
+      staticFields.values().forEach(capturedValue -> capturedValue.freeze(timeoutChecker));
+    }
     if (fields != null) {
       fields.values().forEach(capturedValue -> capturedValue.freeze(timeoutChecker));
     }
@@ -290,27 +323,16 @@ public class CapturedContext implements ValueReferenceResolver {
         statusByProbeId.computeIfAbsent(probeId, key -> probeImplementation.createStatus());
     if (methodLocation == MethodLocation.EXIT) {
       duration = System.nanoTime() - startTimestamp;
-      addExtension(ValueReferences.DURATION_EXTENSION_NAME, duration);
+      addExtension(
+          ValueReferences.DURATION_EXTENSION_NAME, duration / 1_000_000.0); // convert to ms
     }
     this.thisClassName = thisClassName;
-    boolean shouldEvaluate = resolveEvaluateAt(probeImplementation, methodLocation);
+    boolean shouldEvaluate =
+        MethodLocation.isSame(methodLocation, probeImplementation.getEvaluateAt());
     if (shouldEvaluate) {
-      probeImplementation.evaluate(this, status);
+      probeImplementation.evaluate(this, status, methodLocation);
     }
     return status;
-  }
-
-  private static boolean resolveEvaluateAt(
-      ProbeImplementation probeImplementation, MethodLocation methodLocation) {
-    if (methodLocation == MethodLocation.DEFAULT) {
-      // line probe, no evaluation of probe's evaluateAt
-      return true;
-    }
-    MethodLocation localEvaluateAt = probeImplementation.getEvaluateAt();
-    if (methodLocation == MethodLocation.ENTRY) {
-      return localEvaluateAt == MethodLocation.DEFAULT || localEvaluateAt == MethodLocation.ENTRY;
-    }
-    return localEvaluateAt == methodLocation;
   }
 
   public Status getStatus(String probeId) {
@@ -509,6 +531,9 @@ public class CapturedContext implements ValueReferenceResolver {
 
     private static CapturedValue build(
         String name, String declaredType, Object value, Limits limits, String notCapturedReason) {
+      if (Redaction.isRedactedKeyword(name)) {
+        value = REDACTED_VALUE;
+      }
       CapturedValue val =
           new CapturedValue(
               name, declaredType, value, limits, Collections.emptyMap(), notCapturedReason);

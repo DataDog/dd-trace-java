@@ -10,10 +10,14 @@ package datadog.trace.api.config;
  * <p>If using dd-java-agent, these keys represent settings that should be configured via system
  * properties, environment variables, or config properties file. See online documentation for
  * details.
+ *
+ * @see TraceInstrumentationConfig for instrumentation specific configuration
  */
 public final class TracerConfig {
   public static final String ID_GENERATION_STRATEGY = "id.generation.strategy";
   public static final String WRITER_TYPE = "writer.type";
+  public static final String WRITER_BAGGAGE_INJECT = "writer.baggage.inject";
+
   public static final String PRIORITIZATION_TYPE = "prioritization.type";
   public static final String TRACE_AGENT_URL = "trace.agent.url";
   public static final String AGENT_HOST = "agent.host";
@@ -69,6 +73,7 @@ public final class TracerConfig {
   public static final String SCOPE_INHERIT_ASYNC_PROPAGATION =
       "trace.scope.inherit.async.propagation";
   public static final String SCOPE_ITERATION_KEEP_ALIVE = "trace.scope.iteration.keep.alive";
+  public static final String PARTIAL_FLUSH_ENABLED = "trace.partial.flush.enabled";
   public static final String PARTIAL_FLUSH_MIN_SPANS = "trace.partial.flush.min.spans";
   public static final String TRACE_STRICT_WRITES_ENABLED = "trace.strict.writes.enabled";
   public static final String PROPAGATION_EXTRACT_LOG_HEADER_NAMES_ENABLED =
@@ -79,6 +84,7 @@ public final class TracerConfig {
   public static final String TRACE_PROPAGATION_STYLE = "trace.propagation.style";
   public static final String TRACE_PROPAGATION_STYLE_EXTRACT = "trace.propagation.style.extract";
   public static final String TRACE_PROPAGATION_STYLE_INJECT = "trace.propagation.style.inject";
+  public static final String TRACE_PROPAGATION_EXTRACT_FIRST = "trace.propagation.extract.first";
 
   public static final String ENABLE_TRACE_AGENT_V05 = "trace.agent.v0.5.enabled";
 
@@ -105,6 +111,23 @@ public final class TracerConfig {
   public static final String CLOCK_SYNC_PERIOD = "trace.clock.sync.period";
 
   public static final String TRACE_SPAN_ATTRIBUTE_SCHEMA = "trace.span.attribute.schema";
+
+  public static final String TRACE_LONG_RUNNING_ENABLED = "trace.experimental.long-running.enabled";
+
+  public static final String TRACE_LONG_RUNNING_FLUSH_INTERVAL =
+      "trace.experimental.long-running.flush.interval";
+  public static final String TRACE_PEER_SERVICE_DEFAULTS_ENABLED =
+      "trace.peer.service.defaults.enabled";
+
+  public static final String TRACE_PEER_SERVICE_COMPONENT_OVERRIDES =
+      "trace.peer.service.component.overrides";
+
+  public static final String TRACE_REMOVE_INTEGRATION_SERVICE_NAMES_ENABLED =
+      "trace.remove.integration-service-names.enabled";
+
+  public static final String TRACE_PEER_SERVICE_MAPPING = "trace.peer.service.mapping";
+
+  public static final String TRACE_FLUSH_INTERVAL = "trace.flush.interval";
 
   private TracerConfig() {}
 }

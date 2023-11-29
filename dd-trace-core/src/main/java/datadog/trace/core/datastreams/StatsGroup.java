@@ -1,6 +1,6 @@
 package datadog.trace.core.datastreams;
 
-import com.datadoghq.sketch.ddsketch.DDSketch;
+import datadog.trace.core.histogram.Histogram;
 import datadog.trace.core.histogram.Histograms;
 import java.util.List;
 
@@ -10,8 +10,9 @@ public class StatsGroup {
   private final List<String> edgeTags;
   private final long hash;
   private final long parentHash;
-  private final DDSketch pathwayLatency;
-  private final DDSketch edgeLatency;
+  private final Histogram pathwayLatency;
+  private final Histogram edgeLatency;
+  private final Histogram payloadSize;
 
   public StatsGroup(List<String> edgeTags, long hash, long parentHash) {
     this.edgeTags = edgeTags;
@@ -19,11 +20,15 @@ public class StatsGroup {
     this.parentHash = parentHash;
     pathwayLatency = Histograms.newHistogram();
     edgeLatency = Histograms.newHistogram();
+    payloadSize = Histograms.newHistogram();
   }
 
-  public void add(long pathwayLatencyNano, long edgeLatencyNano) {
+  public void add(long pathwayLatencyNano, long edgeLatencyNano, long payloadSizeBytes) {
     pathwayLatency.accept(((double) pathwayLatencyNano) / NANOSECONDS_TO_SECOND);
     edgeLatency.accept(((double) edgeLatencyNano) / NANOSECONDS_TO_SECOND);
+    // payload size is set to zero when we cannot compute it
+    // in that case, it's probably better to have an empty histogram than filling it with zeros
+    if (payloadSizeBytes != 0) payloadSize.accept((double) payloadSizeBytes);
   }
 
   public List<String> getEdgeTags() {
@@ -38,12 +43,16 @@ public class StatsGroup {
     return parentHash;
   }
 
-  public DDSketch getPathwayLatency() {
+  public Histogram getPathwayLatency() {
     return pathwayLatency;
   }
 
-  public DDSketch getEdgeLatency() {
+  public Histogram getEdgeLatency() {
     return edgeLatency;
+  }
+
+  public Histogram getPayloadSize() {
+    return payloadSize;
   }
 
   @Override

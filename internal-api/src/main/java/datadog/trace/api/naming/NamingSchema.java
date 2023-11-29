@@ -1,5 +1,6 @@
 package datadog.trace.api.naming;
 
+import java.util.Map;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
@@ -46,6 +47,20 @@ public interface NamingSchema {
    */
   ForServer server();
 
+  /**
+   * Policy for peer service tags calculation
+   *
+   * @return
+   */
+  ForPeerService peerService();
+
+  /**
+   * If true, the schema allows having service names != DD_SERVICE
+   *
+   * @return
+   */
+  boolean allowInferredServices();
+
   interface ForCache {
     /**
      * Calculate the operation name for a cache span.
@@ -59,12 +74,10 @@ public interface NamingSchema {
     /**
      * Calculate the service name for a cache span.
      *
-     * @param ddService the configured service name as set by the user.
      * @param cacheSystem the caching system (e.g. redis, memcached,..)
      * @return the service name
      */
-    @Nonnull
-    String service(@Nonnull String ddService, @Nonnull String cacheSystem);
+    String service(@Nonnull String cacheSystem);
   }
 
   interface ForClient {
@@ -109,7 +122,6 @@ public interface NamingSchema {
      *     return a default value
      * @return the service name for this span
      */
-    @Nonnull
     String serviceForRequest(@Nonnull String provider, @Nullable String cloudService);
 
     /**
@@ -124,6 +136,14 @@ public interface NamingSchema {
 
   interface ForDatabase {
     /**
+     * Normalize the cache name from the raw parsed one.
+     *
+     * @param rawName the raw name
+     * @return the normalized one
+     */
+    String normalizedName(@Nonnull String rawName);
+
+    /**
      * Calculate the operation name for a database span.
      *
      * @param databaseType the database type (e.g. postgres, elasticsearch,..)
@@ -135,12 +155,10 @@ public interface NamingSchema {
     /**
      * Calculate the service name for a database span.
      *
-     * @param ddService the configured service name as set by the user.
      * @param databaseType the database type (e.g. postgres, elasticsearch,..)
      * @return the service name
      */
-    @Nonnull
-    String service(@Nonnull String ddService, @Nonnull String databaseType);
+    String service(@Nonnull String databaseType);
   }
 
   interface ForMessaging {
@@ -156,12 +174,11 @@ public interface NamingSchema {
     /**
      * Calculate the service name for a messaging producer span.
      *
-     * @param ddService the configured service name as set by the user.
      * @param messagingSystem the messaging system (e.g. jms, kafka, amqp,..)
+     * @param useLegacyTracing if true legacy tracing service naming will be applied if compatible
      * @return the service name
      */
-    @Nonnull
-    String inboundService(@Nonnull String ddService, @Nonnull String messagingSystem);
+    String inboundService(@Nonnull String messagingSystem, boolean useLegacyTracing);
 
     /**
      * Calculate the operation name for a messaging producer span.
@@ -175,12 +192,11 @@ public interface NamingSchema {
     /**
      * Calculate the service name for a messaging producer span.
      *
-     * @param ddService the configured service name as set by the user.
      * @param messagingSystem the messaging system (e.g. jms, kafka, amqp,..)
+     * @param useLegacyTracing if true legacy tracing service naming will be applied if compatible
      * @return the service name
      */
-    @Nonnull
-    String outboundService(@Nonnull String ddService, @Nonnull String messagingSystem);
+    String outboundService(@Nonnull String messagingSystem, boolean useLegacyTracing);
 
     /**
      * Calculate the service name for a messaging time in queue synthetic span.
@@ -199,6 +215,24 @@ public interface NamingSchema {
      */
     @Nonnull
     String timeInQueueOperation(@Nonnull String messagingSystem);
+  }
+
+  interface ForPeerService {
+    /**
+     * Whenever the schema supports peer service calculation
+     *
+     * @return
+     */
+    boolean supports();
+
+    /**
+     * Calculate the tags to be added to a span to represent the peer service
+     *
+     * @param unsafeTags the span tags. Map che be mutated
+     * @return the input tags
+     */
+    @Nonnull
+    Map<String, Object> tags(@Nonnull Map<String, Object> unsafeTags);
   }
 
   interface ForServer {

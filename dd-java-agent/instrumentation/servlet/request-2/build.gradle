@@ -11,6 +11,12 @@ muzzle {
     module = 'javax.servlet-api'
     versions = "[3.0,)"
   }
+  pass{
+    name = 'servlet-common'
+    group = "javax.servlet"
+    module = 'javax.servlet-api'
+    versions = "[2.0,)"
+  }
   pass {
     name = 'servlet-2.x-and-3.0.x' // for Servlet2RequestBodyInstrumentation
     group = "javax.servlet"

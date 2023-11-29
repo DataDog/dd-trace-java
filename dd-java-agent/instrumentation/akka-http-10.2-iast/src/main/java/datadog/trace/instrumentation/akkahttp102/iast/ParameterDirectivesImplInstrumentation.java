@@ -13,6 +13,8 @@ import akka.http.scaladsl.server.util.Tupler$;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.muzzle.Reference;
+import datadog.trace.api.iast.Source;
+import datadog.trace.api.iast.SourceTypes;
 import datadog.trace.instrumentation.akkahttp102.iast.helpers.TaintParametersFunction;
 import net.bytebuddy.asm.Advice;
 
@@ -67,6 +69,7 @@ public class ParameterDirectivesImplInstrumentation extends Instrumenter.Iast
 
   static class FilterAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
+    @Source(SourceTypes.REQUEST_PARAMETER_VALUE)
     static void after(
         @Advice.Argument(0) String paramName,
         @Advice.Return(readOnly = false) Directive /*<Tuple1<?>>*/ retval) {
@@ -81,6 +84,7 @@ public class ParameterDirectivesImplInstrumentation extends Instrumenter.Iast
 
   static class RepeatedFilterAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
+    @Source(SourceTypes.REQUEST_PARAMETER_VALUE)
     static void after(
         @Advice.Argument(0) String paramName,
         @Advice.Return(readOnly = false) Directive /*<Tuple1<Iterable<?>>>*/ retval) {

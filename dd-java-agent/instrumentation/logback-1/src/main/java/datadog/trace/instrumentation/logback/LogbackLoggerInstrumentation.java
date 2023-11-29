@@ -7,6 +7,7 @@ package datadog.trace.instrumentation.logback;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.traceConfig;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
@@ -16,7 +17,6 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 import ch.qos.logback.classic.spi.ILoggingEvent;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.util.Map;
@@ -28,11 +28,6 @@ public class LogbackLoggerInstrumentation extends Instrumenter.Tracing
 
   public LogbackLoggerInstrumentation() {
     super("logback");
-  }
-
-  @Override
-  protected boolean defaultEnabled() {
-    return InstrumenterConfig.get().isLogsInjectionEnabled();
   }
 
   @Override
@@ -62,7 +57,7 @@ public class LogbackLoggerInstrumentation extends Instrumenter.Tracing
     public static void onEnter(@Advice.Argument(0) ILoggingEvent event) {
       AgentSpan span = activeSpan();
 
-      if (span != null) {
+      if (span != null && traceConfig(span).isLogsInjectionEnabled()) {
         InstrumentationContext.get(ILoggingEvent.class, AgentSpan.Context.class)
             .put(event, span.context());
       }

@@ -3,10 +3,8 @@ package datadog.trace.civisibility.ci;
 import static datadog.trace.api.git.GitUtils.filterSensitiveInfo;
 import static datadog.trace.api.git.GitUtils.normalizeBranch;
 import static datadog.trace.api.git.GitUtils.normalizeTag;
-import static datadog.trace.civisibility.utils.PathUtils.expandTilde;
+import static datadog.trace.civisibility.utils.FileUtils.expandTilde;
 
-import datadog.trace.api.civisibility.ci.CIInfo;
-import datadog.trace.api.civisibility.ci.CIProviderInfo;
 import datadog.trace.api.git.CommitInfo;
 import datadog.trace.api.git.GitInfo;
 import datadog.trace.api.git.GitUtils;
@@ -36,6 +34,8 @@ class GitLabInfo implements CIProviderInfo {
   public static final String GITLAB_GIT_COMMIT_MESSAGE = "CI_COMMIT_MESSAGE";
   public static final String GITLAB_GIT_COMMIT_AUTHOR = "CI_COMMIT_AUTHOR";
   public static final String GITLAB_GIT_COMMIT_TIMESTAMP = "CI_COMMIT_TIMESTAMP";
+  public static final String GITLAB_CI_RUNNER_ID = "CI_RUNNER_ID";
+  public static final String GITLAB_CI_RUNNER_TAGS = "CI_RUNNER_TAGS";
 
   @Override
   public GitInfo buildCIGitInfo() {
@@ -57,22 +57,15 @@ class GitLabInfo implements CIProviderInfo {
         .ciPipelineId(System.getenv(GITLAB_PIPELINE_ID))
         .ciPipelineName(System.getenv(GITLAB_PIPELINE_NAME))
         .ciPipelineNumber(System.getenv(GITLAB_PIPELINE_NUMBER))
-        .ciPipelineUrl(buildPipelineUrl())
+        .ciPipelineUrl(System.getenv(GITLAB_PIPELINE_URL))
         .ciStageName(System.getenv(GITLAB_STAGE_NAME))
         .ciJobName(System.getenv(GITLAB_JOB_NAME))
         .ciJobUrl(System.getenv(GITLAB_JOB_URL))
         .ciWorkspace(expandTilde(System.getenv(GITLAB_WORKSPACE_PATH)))
+        .ciNodeName(System.getenv(GITLAB_CI_RUNNER_ID))
+        .ciNodeLabels(System.getenv(GITLAB_CI_RUNNER_TAGS))
         .ciEnvVars(GITLAB_PROJECT_URL, GITLAB_PIPELINE_ID, GITLAB_JOB_ID)
         .build();
-  }
-
-  private String buildPipelineUrl() {
-    final String pipelineUrl = System.getenv(GITLAB_PIPELINE_URL);
-    if (pipelineUrl == null || pipelineUrl.isEmpty()) {
-      return null;
-    }
-
-    return pipelineUrl.replace("/-/pipelines/", "/pipelines/");
   }
 
   private PersonInfo buildGitCommitAuthor() {

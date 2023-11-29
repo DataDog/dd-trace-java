@@ -1,5 +1,6 @@
 package com.datadog.iast.propagation;
 
+import static datadog.trace.api.iast.VulnerabilityMarks.NOT_MARKED;
 import static java.util.concurrent.TimeUnit.MICROSECONDS;
 
 import com.datadog.iast.IastRequestContext;
@@ -54,7 +55,7 @@ public class StringConcatFactoryBatchBenchmark
       double current = i / (double) stringCount;
       final String value;
       if (current < limit) {
-        value = tainted(context, "Yep, tainted", new Range(3, 5, source()));
+        value = tainted(context, "Yep, tainted", new Range(3, 5, source(), NOT_MARKED));
       } else {
         value = notTainted("Nop, tainted");
       }

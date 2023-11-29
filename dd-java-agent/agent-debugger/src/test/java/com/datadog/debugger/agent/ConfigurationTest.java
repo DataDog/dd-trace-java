@@ -10,7 +10,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.datadog.debugger.el.DSL;
 import com.datadog.debugger.el.ProbeCondition;
-import com.datadog.debugger.el.ValueScript;
 import com.datadog.debugger.probe.LogProbe;
 import com.datadog.debugger.probe.MetricProbe;
 import com.datadog.debugger.probe.ProbeDefinition;
@@ -92,8 +91,15 @@ public class ConfigurationTest {
     assertEquals(
         "uuid", spanDecorationProbes.get(0).getDecorations().get(0).getTags().get(0).getName());
     assertEquals(
-        "uuid",
-        spanDecorationProbes.get(0).getDecorations().get(0).getTags().get(0).getValue().getDsl());
+        "uuid={uuid}",
+        spanDecorationProbes
+            .get(0)
+            .getDecorations()
+            .get(0)
+            .getTags()
+            .get(0)
+            .getValue()
+            .getTemplate());
     assertEquals(
         SpanDecorationProbe.TargetSpan.ACTIVE, spanDecorationProbes.get(1).getTargetSpan());
     assertNull(spanDecorationProbes.get(1).getDecorations().get(0).getWhen());
@@ -114,13 +120,15 @@ public class ConfigurationTest {
     ArrayList<LogProbe> logProbes = new ArrayList<>(config.getLogProbes());
     assertEquals(1, logProbes.size());
     LogProbe logProbe0 = logProbes.get(0);
-    assertEquals(6, logProbe0.getSegments().size());
+    assertEquals(8, logProbe0.getSegments().size());
     assertEquals("this is a log line customized! uuid=", logProbe0.getSegments().get(0).getStr());
     assertEquals("uuid", logProbe0.getSegments().get(1).getExpr());
     assertEquals(" result=", logProbe0.getSegments().get(2).getStr());
     assertEquals("result", logProbe0.getSegments().get(3).getExpr());
     assertEquals(" garbageStart=", logProbe0.getSegments().get(4).getStr());
     assertEquals("garbageStart", logProbe0.getSegments().get(5).getExpr());
+    assertEquals(" contain=", logProbe0.getSegments().get(6).getStr());
+    assertEquals("contains(arg, 'foo')", logProbe0.getSegments().get(7).getExpr());
   }
 
   @Test
@@ -246,7 +254,7 @@ public class ConfigurationTest {
         "arg1 == 'foo'", spanDecoration1.getDecorations().get(0).getWhen().getDslExpression());
     assertEquals("id", spanDecoration1.getDecorations().get(0).getTags().get(0).getName());
     assertEquals(
-        "id", spanDecoration1.getDecorations().get(0).getTags().get(0).getValue().getDsl());
+        "{id}", spanDecoration1.getDecorations().get(0).getTags().get(0).getValue().getTemplate());
   }
 
   private Configuration createConfig1() {
@@ -261,7 +269,9 @@ public class ConfigurationTest {
         new SpanDecorationProbe.Decoration(
             new ProbeCondition(
                 DSL.when(DSL.eq(DSL.ref("arg1"), DSL.value("foo"))), "arg1 == 'foo'"),
-            Arrays.asList(new SpanDecorationProbe.Tag("id", new ValueScript(DSL.ref("id"), "id"))));
+            Arrays.asList(
+                new SpanDecorationProbe.Tag(
+                    "id", new SpanDecorationProbe.TagValue("{id}", parseTemplate("{id}")))));
     SpanDecorationProbe spanDecoration1 =
         createDecorationSpan(
             "decorateSpan1",
@@ -304,8 +314,10 @@ public class ConfigurationTest {
         new SpanDecorationProbe.Decoration(
             new ProbeCondition(DSL.when(DSL.eq(DSL.ref("arg"), DSL.value("foo"))), "arg == 'foo'"),
             Arrays.asList(
-                new SpanDecorationProbe.Tag("tag1", new ValueScript(DSL.ref("arg1"), "arg1")),
-                new SpanDecorationProbe.Tag("tag2", new ValueScript(DSL.ref("arg2"), "arg2"))));
+                new SpanDecorationProbe.Tag(
+                    "tag1", new SpanDecorationProbe.TagValue("{arg1}", parseTemplate("{arg1}"))),
+                new SpanDecorationProbe.Tag(
+                    "tag2", new SpanDecorationProbe.TagValue("{arg2}", parseTemplate("{arg2}")))));
     SpanDecorationProbe spanDecoration2 =
         createDecorationSpan(
             "span2",

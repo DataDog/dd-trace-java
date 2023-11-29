@@ -12,7 +12,7 @@ class WeakCipherModuleTest extends IastModuleImplTestBase {
   private WeakCipherModule module
 
   def setup() {
-    module = registerDependencies(new WeakCipherModuleImpl())
+    module = new WeakCipherModuleImpl(dependencies)
   }
 
   void 'iast module vulnerable cipher algorithm'(final String algorithm){
@@ -26,6 +26,7 @@ class WeakCipherModuleTest extends IastModuleImplTestBase {
     then:
     1 * tracer.activeSpan() >> span
     1 * span.getSpanId() >> spanId
+    1 * span.getServiceName()
     1 * overheadController.consumeQuota(_, _) >> true
     1 * reporter.report(_, _) >> { args ->
       Vulnerability vuln = args[1] as Vulnerability

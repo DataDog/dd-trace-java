@@ -3,7 +3,6 @@ import com.sun.enterprise.v3.services.impl.GrizzlyProxy
 import com.sun.enterprise.v3.services.impl.GrizzlyService
 import datadog.trace.agent.test.base.HttpServer
 import datadog.trace.agent.test.base.HttpServerTest
-import datadog.trace.instrumentation.servlet3.Servlet3Decorator
 import org.glassfish.embeddable.BootstrapProperties
 import org.glassfish.embeddable.Deployer
 import org.glassfish.embeddable.GlassFish
@@ -85,7 +84,7 @@ class GlassFishServerTest extends HttpServerTest<GlassFish> {
 
   @Override
   String component() {
-    return Servlet3Decorator.DECORATE.component()
+    "java-web-servlet"
   }
 
   @Override
@@ -111,6 +110,29 @@ class GlassFishServerTest extends HttpServerTest<GlassFish> {
   @Override
   boolean testBodyUrlencoded() {
     true
+  }
+
+  @Override
+  boolean testRequestBody() {
+    true
+  }
+
+  @Override
+  boolean testRequestBodyISVariant() {
+    true
+  }
+
+  @Override
+  boolean testBlocking() {
+    // TODO: the servlet instrumentation has no blocking request function yet
+    // Relying on grizzly or grizzly-filterchain instrumentations doesn't work
+    // for different reasons: the version of grizzly-http is too old for
+    // glassfish 4 and for glassfish 5 the span is created after the servlet span.
+    // The grizzly instrumentation doesn't work for a different reason: the blocking
+    // exception throw on parseRequestParameters is gobbled inside
+    // org.glassfish.grizzly.http.server.Request#parseRequestParameters and never
+    // propagates.
+    false
   }
 
   @Override

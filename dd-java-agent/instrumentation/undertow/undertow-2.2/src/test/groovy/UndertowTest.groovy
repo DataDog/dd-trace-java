@@ -26,7 +26,7 @@ class UndertowTest extends HttpServerTest<Undertow> {
       undertowServer = Undertow.builder()
         .addHttpListener(port, "localhost")
         .setServerOption(UndertowOptions.DECODE_URL, true)
-        .setHandler(Handlers.path()
+        .setHandler(Handlers.httpContinueRead(Handlers.path()
         .addExactPath(SUCCESS.getPath()) { exchange ->
           controller(SUCCESS) {
             exchange.getResponseSender().send(SUCCESS.body)
@@ -119,7 +119,7 @@ class UndertowTest extends HttpServerTest<Undertow> {
             }
           }
         }
-        ).build()
+        )).build()
     }
 
     @Override
@@ -156,6 +156,11 @@ class UndertowTest extends HttpServerTest<Undertow> {
   }
 
   @Override
+  protected boolean enabledFinishTimingChecks() {
+    true
+  }
+
+  @Override
   boolean testExceptionBody() {
     false
   }
@@ -163,6 +168,14 @@ class UndertowTest extends HttpServerTest<Undertow> {
   @Override
   boolean hasExtraErrorInformation() {
     true
+  }
+
+  @Override
+  boolean testRequestBody() {
+    // no low-level method to get Reader
+    // see io.undertow.servlet.spec.HttpServletRequestImpl
+    // getReader is implemented in terms of exchange.getInputStream()
+    false
   }
 
   @Override
@@ -177,6 +190,11 @@ class UndertowTest extends HttpServerTest<Undertow> {
 
   @Override
   boolean testBlocking() {
+    true
+  }
+
+  @Override
+  boolean testBlockingOnResponse() {
     true
   }
 

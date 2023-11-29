@@ -1,8 +1,8 @@
 package datadog.trace.agent.test
 
 import datadog.trace.agent.tooling.Instrumenter
-import datadog.trace.agent.tooling.bytebuddy.DDCachingPoolStrategy
 import datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers
+import datadog.trace.agent.tooling.bytebuddy.outline.TypePoolFacade
 import datadog.trace.test.util.DDSpecification
 import spock.lang.Shared
 
@@ -11,7 +11,7 @@ import java.lang.instrument.Instrumentation
 
 class DefaultInstrumenterForkedTest extends DDSpecification {
   static {
-    DDCachingPoolStrategy.registerAsSupplier()
+    TypePoolFacade.registerAsSupplier()
     DDElementMatchers.registerAsSupplier()
   }
 

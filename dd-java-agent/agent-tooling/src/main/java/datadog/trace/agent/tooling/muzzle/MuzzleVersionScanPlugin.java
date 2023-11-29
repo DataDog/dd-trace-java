@@ -44,7 +44,7 @@ public class MuzzleVersionScanPlugin {
       final List<Reference.Mismatch> mismatches =
           muzzle.getMismatchedReferenceSources(testApplicationLoader);
 
-      ClassLoaderMatchers.reset();
+      ClassLoaderMatchers.resetState();
 
       final boolean classLoaderMatch =
           instrumenter.classLoaderMatcher().matches(testApplicationLoader);
@@ -162,6 +162,15 @@ public class MuzzleVersionScanPlugin {
                 + " is not a default instrumenter. No refs to print.");
       }
     }
+  }
+
+  public static Set<String> listInstrumentationNames(
+      final ClassLoader instrumentationLoader, String directive) throws Exception {
+    final Set<String> ret = new HashSet<>();
+    for (final Instrumenter.Default instrumenter : toBeTested(instrumentationLoader, directive)) {
+      ret.add(instrumenter.name());
+    }
+    return ret;
   }
 
   private static String prettyPrint(final String prefix, final Reference ref) {

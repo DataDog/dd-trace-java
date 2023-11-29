@@ -5,6 +5,12 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 public class CloudNamingV0 implements NamingSchema.ForCloud {
+  private final boolean allowInferredServices;
+
+  public CloudNamingV0(boolean allowInferredServices) {
+    this.allowInferredServices = allowInferredServices;
+  }
+
   @Nonnull
   @Override
   public String operationForRequest(
@@ -15,10 +21,13 @@ public class CloudNamingV0 implements NamingSchema.ForCloud {
     return "aws.http";
   }
 
-  @Nonnull
   @Override
   public String serviceForRequest(
       @Nonnull final String provider, @Nullable final String cloudService) {
+    if (!allowInferredServices) {
+      return null;
+    }
+
     // we only manage aws. Future switch for other cloud providers will be needed in the future
     if (cloudService == null) {
       return "java-aws-sdk";

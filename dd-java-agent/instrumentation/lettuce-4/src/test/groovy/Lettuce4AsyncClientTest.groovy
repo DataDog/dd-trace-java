@@ -126,6 +126,7 @@ abstract class Lettuce4AsyncClientTest extends VersionedNamingTestBase {
             "$Tags.PEER_PORT" port
             "$Tags.DB_TYPE" "redis"
             "db.redis.dbIndex" 0
+            peerServiceFrom(Tags.PEER_HOSTNAME)
             defaultTags()
           }
         }
@@ -165,6 +166,7 @@ abstract class Lettuce4AsyncClientTest extends VersionedNamingTestBase {
             "$Tags.DB_TYPE" "redis"
             "db.redis.dbIndex" 0
             errorTags RedisConnectionException, String
+            peerServiceFrom(Tags.PEER_HOSTNAME)
             defaultTags()
           }
         }
@@ -195,6 +197,7 @@ abstract class Lettuce4AsyncClientTest extends VersionedNamingTestBase {
             "$Tags.PEER_PORT" port
             "$Tags.DB_TYPE" "redis"
             "db.redis.dbIndex" 0
+            peerServiceFrom(Tags.PEER_HOSTNAME)
             defaultTags()
           }
         }
@@ -236,6 +239,7 @@ abstract class Lettuce4AsyncClientTest extends VersionedNamingTestBase {
             "$Tags.PEER_PORT" port
             "$Tags.DB_TYPE" "redis"
             "db.redis.dbIndex" 0
+            peerServiceFrom(Tags.PEER_HOSTNAME)
             defaultTags()
           }
         }
@@ -291,6 +295,7 @@ abstract class Lettuce4AsyncClientTest extends VersionedNamingTestBase {
             "$Tags.PEER_PORT" port
             "$Tags.DB_TYPE" "redis"
             "db.redis.dbIndex" 0
+            peerServiceFrom(Tags.PEER_HOSTNAME)
             defaultTags()
           }
         }
@@ -332,6 +337,7 @@ abstract class Lettuce4AsyncClientTest extends VersionedNamingTestBase {
             "$Tags.PEER_PORT" port
             "$Tags.DB_TYPE" "redis"
             "db.redis.dbIndex" 0
+            peerServiceFrom(Tags.PEER_HOSTNAME)
             defaultTags()
           }
         }
@@ -392,6 +398,7 @@ abstract class Lettuce4AsyncClientTest extends VersionedNamingTestBase {
             "$Tags.PEER_PORT" port
             "$Tags.DB_TYPE" "redis"
             "db.redis.dbIndex" 0
+            peerServiceFrom(Tags.PEER_HOSTNAME)
             defaultTags()
           }
         }
@@ -411,6 +418,7 @@ abstract class Lettuce4AsyncClientTest extends VersionedNamingTestBase {
             "$Tags.PEER_PORT" port
             "$Tags.DB_TYPE" "redis"
             "db.redis.dbIndex" 0
+            peerServiceFrom(Tags.PEER_HOSTNAME)
             defaultTags()
           }
         }
@@ -460,6 +468,7 @@ abstract class Lettuce4AsyncClientTest extends VersionedNamingTestBase {
             "$Tags.DB_TYPE" "redis"
             "db.redis.dbIndex" 0
             errorTags(IllegalStateException, "TestException")
+            peerServiceFrom(Tags.PEER_HOSTNAME)
             defaultTags()
           }
         }
@@ -503,6 +512,7 @@ abstract class Lettuce4AsyncClientTest extends VersionedNamingTestBase {
             "$Tags.DB_TYPE" "redis"
             "db.redis.dbIndex" 0
             "db.command.cancelled" true
+            peerServiceFrom(Tags.PEER_HOSTNAME)
             defaultTags()
           }
         }
@@ -531,6 +541,7 @@ abstract class Lettuce4AsyncClientTest extends VersionedNamingTestBase {
             "$Tags.PEER_PORT" port
             "$Tags.DB_TYPE" "redis"
             "db.redis.dbIndex" 0
+            peerServiceFrom(Tags.PEER_HOSTNAME)
             defaultTags()
           }
         }
@@ -560,6 +571,7 @@ abstract class Lettuce4AsyncClientTest extends VersionedNamingTestBase {
             "$Tags.PEER_PORT" port
             "$Tags.DB_TYPE" "redis"
             "db.redis.dbIndex" 0
+            peerServiceFrom(Tags.PEER_HOSTNAME)
             defaultTags()
           }
         }
@@ -568,7 +580,7 @@ abstract class Lettuce4AsyncClientTest extends VersionedNamingTestBase {
   }
 }
 
-class Lettuce4AsyncClientV0ForkedTest extends Lettuce4AsyncClientTest {
+class Lettuce4AsyncClientV0Test extends Lettuce4AsyncClientTest {
 
   @Override
   int version() {

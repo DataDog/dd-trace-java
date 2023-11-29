@@ -68,7 +68,7 @@ class HttpServerTest extends AgentTestRunner {
 
     then:
     clientResponse.code() == 404
-    clientResponse.body().string().contains("<title>Error 404 </title>")
+    clientResponse.body().string().contains("<title>Error 404")
 
     cleanup:
     server.stop()

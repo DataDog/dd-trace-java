@@ -1,28 +1,31 @@
 package datadog.trace.api.civisibility.events;
 
-import datadog.trace.api.civisibility.decorator.TestDecorator;
+import datadog.trace.api.civisibility.config.ModuleExecutionSettings;
+import java.io.File;
+import java.nio.file.Path;
+import java.util.Collection;
 import java.util.Map;
+import javax.annotation.Nullable;
 
 public interface BuildEventsHandler<T> {
   void onTestSessionStart(
       T sessionKey,
-      TestDecorator sessionDecorator,
       String projectName,
+      Path projectRoot,
       String startCommand,
       String buildSystemName,
-      String buildSystemVersion);
-
-  void onTestFrameworkDetected(T sessionKey, String frameworkName, String frameworkVersion);
+      String buildSystemVersion,
+      Map<String, Object> additionalTags);
 
   void onTestSessionFail(T sessionKey, Throwable throwable);
 
   void onTestSessionFinish(T sessionKey);
 
-  ModuleAndSessionId onTestModuleStart(
-      T sessionKey, String moduleName, String startCommand, Map<String, Object> additionalTags);
-
-  void onModuleTestFrameworkDetected(
-      T sessionKey, String moduleName, String frameworkName, String frameworkVersion);
+  ModuleInfo onTestModuleStart(
+      T sessionKey,
+      String moduleName,
+      Collection<File> outputClassesDirs,
+      @Nullable Map<String, Object> additionalTags);
 
   void onTestModuleSkip(T sessionKey, String moduleName, String reason);
 
@@ -30,17 +33,26 @@ public interface BuildEventsHandler<T> {
 
   void onTestModuleFinish(T sessionKey, String moduleName);
 
+  ModuleExecutionSettings getModuleExecutionSettings(T sessionKey, Path jvmExecutablePath);
+
+  ModuleInfo getModuleInfo(T sessionKey, String moduleName);
+
   interface Factory {
     <U> BuildEventsHandler<U> create();
   }
 
-  final class ModuleAndSessionId {
+  final class ModuleInfo {
     public final long moduleId;
     public final long sessionId;
+    public final String signalServerHost;
+    public final int signalServerPort;
 
-    public ModuleAndSessionId(long moduleId, long sessionId) {
+    public ModuleInfo(
+        long moduleId, long sessionId, String signalServerHost, int signalServerPort) {
       this.moduleId = moduleId;
       this.sessionId = sessionId;
+      this.signalServerHost = signalServerHost;
+      this.signalServerPort = signalServerPort;
     }
   }
 }

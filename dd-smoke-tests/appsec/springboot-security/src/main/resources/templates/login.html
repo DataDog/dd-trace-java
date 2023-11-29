@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Spring Security Example</title>
+</head>
+<body>
+    <h1>Login form</h1>
+    <div th:if="${param.error}" style="color:red">
+        ERROR: Invalid username and password.
+    </div>
+    <div th:if="${param.logout}">
+        ERROR: You have been logged out.
+    </div>
+    <form th:action="@{/login}" method="post">
+        <div><label> User Name : <input type="text" name="username"/> </label></div>
+        <div><label> Password: <input type="password" name="password"/> </label></div>
+        <br/>
+        <div><input type="submit" value="Sign In"/></div>
+    </form>
+    <br/>
+    <div>If you don't have account, you can <a th:href="@{/signup}">signup</a></div>
+</body>
+</html>

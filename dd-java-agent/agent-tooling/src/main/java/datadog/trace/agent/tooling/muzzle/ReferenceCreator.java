@@ -377,19 +377,20 @@ public class ReferenceCreator extends ClassVisitor {
     }
 
     @Override
-    public void visitTypeInsn(final int opcode, final String type) {
-      if (ignoreReference(type)) {
+    public void visitTypeInsn(final int opcode, final String stype) {
+      Type type = underlyingType(Type.getObjectType(stype));
+
+      if (ignoreReference(type.getInternalName())) {
         return;
       }
 
       addReference(
-          new Reference.Builder(type)
+          new Reference.Builder(type.getInternalName())
               .withSource(refSourceClassName, currentLineNumber)
               .withFlag(
-                  computeMinimumClassAccess(
-                      refSourceTypeInternalName, Type.getObjectType(type).getInternalName()))
+                  computeMinimumClassAccess(refSourceTypeInternalName, type.getInternalName()))
               .build());
-      super.visitTypeInsn(opcode, type);
+      super.visitTypeInsn(opcode, stype);
     }
 
     @Override

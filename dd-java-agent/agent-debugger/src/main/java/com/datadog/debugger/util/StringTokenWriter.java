@@ -1,5 +1,8 @@
 package com.datadog.debugger.util;
 
+import static com.datadog.debugger.util.MoshiSnapshotHelper.REDACTED_IDENT_REASON;
+import static com.datadog.debugger.util.MoshiSnapshotHelper.REDACTED_TYPE_REASON;
+
 import com.datadog.debugger.el.Value;
 import datadog.trace.bootstrap.debugger.EvaluationError;
 import java.lang.reflect.Field;
@@ -109,7 +112,7 @@ public class StringTokenWriter implements SerializerWithLimits.TokenWriter {
   }
 
   @Override
-  public void mapEpilogue(Map<?, ?> map, boolean isComplete) {
+  public void mapEpilogue(boolean isComplete, int size) {
     sb.append(isComplete ? "}" : ", ...}");
     inCollection = false;
   }
@@ -155,8 +158,19 @@ public class StringTokenWriter implements SerializerWithLimits.TokenWriter {
       case FIELD_COUNT:
         sb.append(", ...");
         break;
+      case REDACTED_IDENT:
+        sb.append("{").append(REDACTED_IDENT_REASON).append("}");
+        break;
+      case REDACTED_TYPE:
+        sb.append("{").append(REDACTED_TYPE_REASON).append("}");
+        break;
       default:
         throw new RuntimeException("Unsupported NotCapturedReason: " + reason);
     }
+  }
+
+  @Override
+  public void notCaptured(String reason) throws Exception {
+    sb.append("(Error: ").append(reason).append(")");
   }
 }

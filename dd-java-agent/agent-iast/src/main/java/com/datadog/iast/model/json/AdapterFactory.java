@@ -30,25 +30,26 @@ import javax.annotation.Nullable;
 class AdapterFactory implements JsonAdapter.Factory {
 
   static class Context {
+
     private static final ThreadLocal<Context> CONTEXT_THREAD_LOCAL =
         ThreadLocal.withInitial(Context::new);
 
     final List<Source> sources;
     final Map<Source, Integer> sourceIndexMap;
-    final Map<Source, Boolean> redactedSources;
-    Vulnerability vulnerability;
+    final Map<Source, RedactionContext> sourceContext;
+    @Nullable Vulnerability vulnerability;
 
     public Context() {
       sources = new ArrayList<>();
       sourceIndexMap = new HashMap<>();
-      redactedSources = new HashMap<>();
+      sourceContext = new HashMap<>();
     }
 
     public static Context get() {
       return CONTEXT_THREAD_LOCAL.get();
     }
 
-    public static void set(final Context context) {
+    public static void set(@Nonnull final Context context) {
       CONTEXT_THREAD_LOCAL.set(context);
     }
 
@@ -56,12 +57,8 @@ class AdapterFactory implements JsonAdapter.Factory {
       CONTEXT_THREAD_LOCAL.remove();
     }
 
-    public boolean shouldRedact(final Source source) {
-      return redactedSources.computeIfAbsent(source, SensitiveHandler.get()::isSensitive);
-    }
-
-    public void markAsRedacted(final Source source) {
-      redactedSources.put(source, true);
+    public RedactionContext getRedaction(final Source source) {
+      return sourceContext.computeIfAbsent(source, RedactionContext::new);
     }
   }
 
@@ -76,7 +73,7 @@ class AdapterFactory implements JsonAdapter.Factory {
       if (hasSourceIndexAnnotation(annotations)) {
         return new SourceIndexAdapter();
       } else {
-        return new SourceAdapter(this, moshi);
+        return new SourceAdapter();
       }
     } else if (VulnerabilityBatch.class.equals(rawType)) {
       return new VulnerabilityBatchAdapter(moshi);
@@ -86,6 +83,8 @@ class AdapterFactory implements JsonAdapter.Factory {
       return new EvidenceAdapter(moshi);
     } else if (VulnerabilityType.class.equals(rawType)) {
       return new VulnerabilityTypeAdapter();
+    } else if (TruncatedVulnerabilities.class.equals(rawType)) {
+      return new TruncatedVulnerabilitiesAdapter(moshi);
     }
     return null;
   }
@@ -167,12 +166,55 @@ class AdapterFactory implements JsonAdapter.Factory {
     @Override
     public void toJson(@Nonnull final JsonWriter writer, @Nullable final Vulnerability value)
         throws IOException {
+      if (value == null) {
+        return;
+      }
       final Context ctx = Context.get();
       ctx.vulnerability = value;
       try {
         adapter.toJson(writer, value);
       } finally {
         ctx.vulnerability = null;
+      }
+    }
+  }
+
+  public static class RedactionContext {
+    private final Source source;
+    private final boolean sensitive;
+    private boolean sensitiveRanges;
+    @Nullable private String redactedValue;
+
+    public RedactionContext(final Source source) {
+      this.source = source;
+      final SensitiveHandler handler = SensitiveHandler.get();
+      this.sensitive = handler.isSensitive(source);
+      if (this.sensitive) {
+        this.redactedValue = handler.redactSource(source);
+      }
+    }
+
+    public Source getSource() {
+      return source;
+    }
+
+    public boolean isSensitive() {
+      return sensitive;
+    }
+
+    public boolean shouldRedact() {
+      return sensitive || sensitiveRanges;
+    }
+
+    @Nullable
+    public String getRedactedValue() {
+      return redactedValue;
+    }
+
+    public void markWithSensitiveRanges() {
+      sensitiveRanges = true;
+      if (redactedValue == null) {
+        redactedValue = SensitiveHandler.get().redactSource(source);
       }
     }
   }

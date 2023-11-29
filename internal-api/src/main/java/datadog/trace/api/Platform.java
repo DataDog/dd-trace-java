@@ -4,6 +4,7 @@ import java.lang.management.GarbageCollectorMXBean;
 import java.lang.management.ManagementFactory;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 
 public final class Platform {
 
@@ -25,7 +26,7 @@ public final class Platform {
     static GC current() {
       for (GarbageCollectorMXBean mxBean : ManagementFactory.getGarbageCollectorMXBeans()) {
         if (mxBean.isValid()) {
-          String name = mxBean.getName().toLowerCase();
+          String name = mxBean.getName().toLowerCase(Locale.ROOT);
           for (GC gc : GC.values()) {
             if (gc != UNKNOWN && name.startsWith(gc.identifierPrefix)) {
               return gc;
@@ -185,6 +186,7 @@ public final class Platform {
 
     public final String vendor;
     public final String version;
+    public final String vendorVersion;
     public final String patches;
 
     public JvmRuntime() {
@@ -192,15 +194,17 @@ public final class Platform {
           System.getProperty("java.version"),
           System.getProperty("java.runtime.version"),
           System.getProperty("java.runtime.name"),
-          System.getProperty("java.vm.vendor"));
+          System.getProperty("java.vm.vendor"),
+          System.getProperty("java.vendor.version"));
     }
 
     // Only visible for testing
-    JvmRuntime(String javaVer, String rtVer, String name, String vendor) {
+    JvmRuntime(String javaVer, String rtVer, String name, String vendor, String vendorVersion) {
       this.name = name == null ? "" : name;
       this.vendor = vendor == null ? "" : vendor;
       javaVer = javaVer == null ? "" : javaVer;
       this.version = javaVer;
+      this.vendorVersion = vendorVersion == null ? "" : vendorVersion;
       rtVer = javaVer.isEmpty() || rtVer == null ? javaVer : rtVer;
       int patchStart = javaVer.length() + 1;
       this.patches = (patchStart >= rtVer.length()) ? "" : rtVer.substring(javaVer.length() + 1);
@@ -279,17 +283,17 @@ public final class Platform {
   }
 
   public static boolean isLinux() {
-    return System.getProperty("os.name").toLowerCase().contains("linux");
+    return System.getProperty("os.name").toLowerCase(Locale.ROOT).contains("linux");
   }
 
   public static boolean isWindows() {
     // https://mkyong.com/java/how-to-detect-os-in-java-systemgetpropertyosname/
-    final String os = System.getProperty("os.name").toLowerCase();
+    final String os = System.getProperty("os.name").toLowerCase(Locale.ROOT);
     return os.contains("win");
   }
 
   public static boolean isMac() {
-    final String os = System.getProperty("os.name").toLowerCase();
+    final String os = System.getProperty("os.name").toLowerCase(Locale.ROOT);
     return os.contains("mac");
   }
 
@@ -301,6 +305,10 @@ public final class Platform {
 
   public static boolean isJ9() {
     return System.getProperty("java.vm.name").contains("J9");
+  }
+
+  public static boolean isGraalVM() {
+    return RUNTIME.vendorVersion.toLowerCase().contains("graalvm");
   }
 
   public static String getLangVersion() {

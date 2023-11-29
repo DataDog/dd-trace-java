@@ -82,7 +82,7 @@ class Elasticsearch2NodeClientTest extends AgentTestRunner {
             "$Tags.DB_TYPE" "elasticsearch"
             "elasticsearch.action" "ClusterHealthAction"
             "elasticsearch.request" "ClusterHealthRequest"
-            defaultTags()
+            defaultTagsNoPeerService()
           }
         }
       }
@@ -113,7 +113,7 @@ class Elasticsearch2NodeClientTest extends AgentTestRunner {
             "elasticsearch.request" "GetRequest"
             "elasticsearch.request.indices" indexName
             errorTags IndexNotFoundException, "no such index"
-            defaultTags()
+            defaultTagsNoPeerService()
           }
         }
       }
@@ -178,7 +178,7 @@ class Elasticsearch2NodeClientTest extends AgentTestRunner {
             "elasticsearch.action" "CreateIndexAction"
             "elasticsearch.request" "CreateIndexRequest"
             "elasticsearch.request.indices" indexName
-            defaultTags()
+            defaultTagsNoPeerService()
           }
         }
       }
@@ -194,7 +194,7 @@ class Elasticsearch2NodeClientTest extends AgentTestRunner {
             "$Tags.DB_TYPE" "elasticsearch"
             "elasticsearch.action" "ClusterHealthAction"
             "elasticsearch.request" "ClusterHealthRequest"
-            defaultTags()
+            defaultTagsNoPeerService()
           }
         }
       }
@@ -214,7 +214,7 @@ class Elasticsearch2NodeClientTest extends AgentTestRunner {
             "elasticsearch.type" indexType
             "elasticsearch.id" "1"
             "elasticsearch.version"(-1)
-            defaultTags()
+            defaultTagsNoPeerService()
           }
         }
       }
@@ -232,7 +232,7 @@ class Elasticsearch2NodeClientTest extends AgentTestRunner {
             "elasticsearch.request" "IndexRequest"
             "elasticsearch.request.indices" indexName
             "elasticsearch.request.write.type" indexType
-            defaultTags()
+            defaultTagsNoPeerService()
           }
         }
       }
@@ -249,7 +249,7 @@ class Elasticsearch2NodeClientTest extends AgentTestRunner {
             "elasticsearch.action" "PutMappingAction"
             "elasticsearch.request" "PutMappingRequest"
             "elasticsearch.request.indices" indexName
-            defaultTags()
+            defaultTagsNoPeerService()
           }
         }
       }
@@ -269,7 +269,7 @@ class Elasticsearch2NodeClientTest extends AgentTestRunner {
             "elasticsearch.type" indexType
             "elasticsearch.id" "1"
             "elasticsearch.version" 1
-            defaultTags()
+            defaultTagsNoPeerService()
           }
         }
       }

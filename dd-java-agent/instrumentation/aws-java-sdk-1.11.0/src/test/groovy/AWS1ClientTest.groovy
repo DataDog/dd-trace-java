@@ -39,6 +39,7 @@ import datadog.trace.api.Config
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.test.util.Flaky
+import org.json.XML
 import spock.lang.AutoCleanup
 import spock.lang.Shared
 
@@ -61,12 +62,23 @@ abstract class AWS1ClientTest extends VersionedNamingTestBase {
   def credentialsProvider = new AWSStaticCredentialsProvider(new AnonymousAWSCredentials())
   @Shared
   def responseBody = new AtomicReference<String>()
+  @Shared
+  def jsonPointer = new AtomicReference<String>()
+
   @AutoCleanup
   @Shared
   def server = httpServer {
     handlers {
       all {
-        response.status(200).send(responseBody.get())
+        def body = responseBody.get()
+        if (request.headers.get("Content-Type")?.contains("json")) {
+          def json = XML.toJSONObject(body)
+          if (jsonPointer.get() != null) {
+            json = json.query(jsonPointer.get())
+          }
+          body = json.toString()
+        }
+        response.status(200).send(body)
       }
     }
   }
@@ -131,6 +143,7 @@ abstract class AWS1ClientTest extends VersionedNamingTestBase {
   def "send #operation request with mocked response"() {
     setup:
     responseBody.set(body)
+    jsonPointer.set(jsonPointerStr)
 
     when:
     def response = call.call(client)
@@ -161,13 +174,19 @@ abstract class AWS1ClientTest extends VersionedNamingTestBase {
             "$Tags.PEER_PORT" server.address.port
             "$Tags.PEER_HOSTNAME" "localhost"
             "aws.service" { it.contains(service) }
+            "aws_service" { it.contains(service.toLowerCase()) }
             "aws.endpoint" "$server.address"
             "aws.operation" "${operation}Request"
             "aws.agent" "java-aws-sdk"
             for (def addedTag : additionalTags) {
               "$addedTag.key" "$addedTag.value"
             }
-            defaultTags()
+            if (peerService == null) {
+              defaultTagsNoPeerService()
+            } else {
+              peerServiceFrom(peerService)
+              defaultTags()
+            }
           }
         }
       }
@@ -175,18 +194,22 @@ abstract class AWS1ClientTest extends VersionedNamingTestBase {
     server.lastRequest.headers.get("x-datadog-trace-id") == null
     server.lastRequest.headers.get("x-datadog-parent-id") == null
 
+    cleanup:
+    jsonPointer.set(null)
+
     where:
-    service      | operation           | method  | path                  | client                                                                                                                                             | call                                                                            | additionalTags                    | body
-    "S3"         | "CreateBucket"      |  "PUT"  | "/testbucket/"        | AmazonS3ClientBuilder.standard().withPathStyleAccessEnabled(true).withEndpointConfiguration(endpoint).withCredentials(credentialsProvider).build() | { c -> c.createBucket("testbucket") }                                 | ["aws.bucket.name": "testbucket"] | ""
-    "S3"         | "GetObject"         |  "GET"  | "/someBucket/someKey" | AmazonS3ClientBuilder.standard().withPathStyleAccessEnabled(true).withEndpointConfiguration(endpoint).withCredentials(credentialsProvider).build() | { c -> c.getObject("someBucket", "someKey") }                         | ["aws.bucket.name": "someBucket"] | ""
-    "DynamoDBv2" | "CreateTable"       |  "POST" | "/"                   | AmazonDynamoDBClientBuilder.standard().withEndpointConfiguration(endpoint).withCredentials(credentialsProvider).build()                            | { c -> c.createTable(new CreateTableRequest("sometable", null)) }               | ["aws.table.name": "sometable"]   | ""
-    "Kinesis"    | "DeleteStream"      |  "POST" | "/"                   | AmazonKinesisClientBuilder.standard().withEndpointConfiguration(endpoint).withCredentials(credentialsProvider).build()                             | { c -> c.deleteStream(new DeleteStreamRequest().withStreamName("somestream")) } | ["aws.stream.name": "somestream"] | ""
-    "SQS"        | "CreateQueue"       |  "POST" | "/"                   | AmazonSQSClientBuilder.standard().withEndpointConfiguration(endpoint).withCredentials(credentialsProvider).build()                                 | { c -> c.createQueue(new CreateQueueRequest("somequeue")) }                     | ["aws.queue.name": "somequeue"]   | """
+    service      | operation           | method  | path                  | client                                                                                                                                             | call                                                                            | additionalTags                                                | body              | peerService         | jsonPointerStr
+    "S3"         | "CreateBucket"      |  "PUT"  | "/testbucket/"        | AmazonS3ClientBuilder.standard().withPathStyleAccessEnabled(true).withEndpointConfiguration(endpoint).withCredentials(credentialsProvider).build() | { c -> c.createBucket("testbucket") }                                           | ["aws.bucket.name": "testbucket", "bucketname": "testbucket"] | ""                | "aws.bucket.name"   | null
+    "S3"         | "GetObject"         |  "GET"  | "/someBucket/someKey" | AmazonS3ClientBuilder.standard().withPathStyleAccessEnabled(true).withEndpointConfiguration(endpoint).withCredentials(credentialsProvider).build() | { c -> c.getObject("someBucket", "someKey") }                                   | ["aws.bucket.name": "someBucket", "bucketname": "someBucket"] | ""                | "aws.bucket.name"   | null
+    "DynamoDBv2" | "CreateTable"       |  "POST" | "/"                   | AmazonDynamoDBClientBuilder.standard().withEndpointConfiguration(endpoint).withCredentials(credentialsProvider).build()                            | { c -> c.createTable(new CreateTableRequest("sometable", null)) }               | ["aws.table.name": "sometable", "tablename": "sometable"]   | ""                  | "aws.table.name"    | null
+    "Kinesis"    | "DeleteStream"      |  "POST" | "/"                   | AmazonKinesisClientBuilder.standard().withEndpointConfiguration(endpoint).withCredentials(credentialsProvider).build()                             | { c -> c.deleteStream(new DeleteStreamRequest().withStreamName("somestream")) } | ["aws.stream.name": "somestream", "streamname": "somestream"] | ""                | "aws.stream.name"   | null
+    "SQS"        | "CreateQueue"       |  "POST" | "/"                   | AmazonSQSClientBuilder.standard().withEndpointConfiguration(endpoint).withCredentials(credentialsProvider).build()                                 | { c -> c.createQueue(new CreateQueueRequest("somequeue")) }                     | ["aws.queue.name": "somequeue", "queuename": "somequeue"]   | """
+
         <CreateQueueResponse>
             <CreateQueueResult><QueueUrl>https://queue.amazonaws.com/123456789012/MyQueue</QueueUrl></CreateQueueResult>
             <ResponseMetadata><RequestId>7a62c49f-347e-4fc4-9331-6e8e7a96aa73</RequestId></ResponseMetadata>
         </CreateQueueResponse>
-      """
+      """  | "aws.queue.name" | "/CreateQueueResponse/CreateQueueResult"
     "SQS"        | "SendMessage"       | "POST" | "/someurl"            | AmazonSQSClientBuilder.standard().withEndpointConfiguration(endpoint).withCredentials(credentialsProvider).build()                                 | { c -> c.sendMessage(new SendMessageRequest("someurl", "")) }                   | ["aws.queue.url": "someurl"]      | """
         <SendMessageResponse>
             <SendMessageResult>
@@ -196,29 +219,29 @@ abstract class AWS1ClientTest extends VersionedNamingTestBase {
             </SendMessageResult>
             <ResponseMetadata><RequestId>27daac76-34dd-47df-bd01-1f6e873584a0</RequestId></ResponseMetadata>
         </SendMessageResponse>
-      """
-    "SNS"        | "Publish"           | "POST" | "/"                   | AmazonSNSClientBuilder.standard().withEndpointConfiguration(endpoint).withCredentials(credentialsProvider).build()                                 | { c -> c.publish(new PublishRequest("arn:aws:sns::123:some-topic", "")) }       | ["aws.topic.name": "some-topic"]  | """
+      """  | "aws.queue.url" | "/SendMessageResponse/SendMessageResult"
+    "SNS"        | "Publish"           | "POST" | "/"                   | AmazonSNSClientBuilder.standard().withEndpointConfiguration(endpoint).withCredentials(credentialsProvider).build()                                 | { c -> c.publish(new PublishRequest("arn:aws:sns::123:some-topic", "")) }       | ["aws.topic.name": "some-topic", "topicname": "some-topic"]  | """
         <PublishResponse xmlns="https://sns.amazonaws.com/doc/2010-03-31/">
             <PublishResult>
                 <MessageId>567910cd-659e-55d4-8ccb-5aaf14679dc0</MessageId>
             </PublishResult>
             <ResponseMetadata><RequestId>d74b8436-ae13-5ab4-a9ff-ce54dfea72a0</RequestId></ResponseMetadata>
         </PublishResponse>
-      """
+    """      | "aws.topic.name" | "/PublishResponse/PublishResult"
     "EC2"        | "AllocateAddress"   |  "POST" | "/"                   | AmazonEC2ClientBuilder.standard().withEndpointConfiguration(endpoint).withCredentials(credentialsProvider).build()                                 | { c -> c.allocateAddress() }                                          | [:]                               | """
         <AllocateAddressResponse xmlns="http://ec2.amazonaws.com/doc/2016-11-15/">
-           <requestId>59dbff89-35bd-4eac-99ed-be587EXAMPLE</requestId>
-           <publicIp>192.0.2.1</publicIp>
-           <domain>standard</domain>
+          <requestId>59dbff89-35bd-4eac-99ed-be587EXAMPLE</requestId>
+          <publicIp>192.0.2.1</publicIp>
+          <domain>standard</domain>
         </AllocateAddressResponse>
-      """
+    """   | null | "/AllocateAddressResponse"
     "RDS"        | "DeleteOptionGroup" |  "POST" | "/"                   | AmazonRDSClientBuilder.standard().withEndpointConfiguration(endpoint).withCredentials(credentialsProvider).build()                                 | { c -> c.deleteOptionGroup(new DeleteOptionGroupRequest()) }          | [:]                               | """
         <DeleteOptionGroupResponse xmlns="http://rds.amazonaws.com/doc/2014-09-01/">
           <ResponseMetadata>
             <RequestId>0ac9cda2-bbf4-11d3-f92b-31fa5e8dbc99</RequestId>
           </ResponseMetadata>
         </DeleteOptionGroupResponse>
-      """
+      """    | null | null
   }
 
   def "send #operation request to closed port"() {
@@ -249,6 +272,7 @@ abstract class AWS1ClientTest extends VersionedNamingTestBase {
             "$Tags.PEER_HOSTNAME" "localhost"
             "$Tags.PEER_PORT" 61
             "aws.service" { it.contains(service) }
+            "aws_service" { it.contains(service.toLowerCase()) }
             "aws.endpoint" "http://localhost:${UNUSABLE_PORT}"
             "aws.operation" "${operation}Request"
             "aws.agent" "java-aws-sdk"
@@ -264,7 +288,7 @@ abstract class AWS1ClientTest extends VersionedNamingTestBase {
 
     where:
     service | operation   | method | url                  | call                                                    | additionalTags                    | body | client
-    "S3" | "GetObject" | "GET" | "someBucket/someKey" | { c -> c.getObject("someBucket", "someKey") } | ["aws.bucket.name": "someBucket"] | "" | new AmazonS3Client(CREDENTIALS_PROVIDER_CHAIN, new ClientConfiguration().withRetryPolicy(PredefinedRetryPolicies.getDefaultRetryPolicyWithCustomMaxRetries(0))).withEndpoint("http://localhost:${UNUSABLE_PORT}")
+    "S3" | "GetObject" | "GET" | "someBucket/someKey" | { c -> c.getObject("someBucket", "someKey") } | ["aws.bucket.name": "someBucket", "bucketname": "someBucket"] | "" | new AmazonS3Client(CREDENTIALS_PROVIDER_CHAIN, new ClientConfiguration().withRetryPolicy(PredefinedRetryPolicies.getDefaultRetryPolicyWithCustomMaxRetries(0))).withEndpoint("http://localhost:${UNUSABLE_PORT}")
   }
 
   def "naughty request handler doesn't break the trace"() {
@@ -300,10 +324,12 @@ abstract class AWS1ClientTest extends VersionedNamingTestBase {
             "$Tags.HTTP_METHOD" "HEAD"
             "$Tags.PEER_HOSTNAME" "s3.amazonaws.com"
             "aws.service" "Amazon S3"
+            "aws_service" "s3"
             "aws.endpoint" "https://s3.amazonaws.com"
             "aws.operation" "HeadBucketRequest"
             "aws.agent" "java-aws-sdk"
             "aws.bucket.name" "someBucket"
+            "bucketname" "someBucket"
             errorTags RuntimeException, "bad handler"
             defaultTags()
           }
@@ -351,10 +377,12 @@ abstract class AWS1ClientTest extends VersionedNamingTestBase {
             "$Tags.PEER_PORT" server.address.port
             "$Tags.PEER_HOSTNAME" "localhost"
             "aws.service" "Amazon S3"
+            "aws_service" "s3"
             "aws.endpoint" "$server.address"
             "aws.operation" "GetObjectRequest"
             "aws.agent" "java-aws-sdk"
             "aws.bucket.name" "someBucket"
+            "bucketname" "someBucket"
             try {
               errorTags AmazonClientException, ~/Unable to execute HTTP request/
             } catch (AssertionError e) {

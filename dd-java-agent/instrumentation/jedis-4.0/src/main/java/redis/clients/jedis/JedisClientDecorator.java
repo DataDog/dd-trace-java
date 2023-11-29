@@ -1,8 +1,6 @@
 package redis.clients.jedis;
 
-import datadog.trace.api.Config;
 import datadog.trace.api.naming.SpanNaming;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.DBTypeProcessingDatabaseClientDecorator;
@@ -14,7 +12,7 @@ public class JedisClientDecorator extends DBTypeProcessingDatabaseClientDecorato
   public static final CharSequence OPERATION_NAME =
       UTF8BytesString.create(SpanNaming.instance().namingSchema().cache().operation(REDIS));
   private static final String SERVICE_NAME =
-      SpanNaming.instance().namingSchema().cache().service(Config.get().getServiceName(), REDIS);
+      SpanNaming.instance().namingSchema().cache().service(REDIS);
   private static final CharSequence COMPONENT_NAME = UTF8BytesString.create("redis-command");
 
   @Override
@@ -57,7 +55,4 @@ public class JedisClientDecorator extends DBTypeProcessingDatabaseClientDecorato
     // getHostAndPort is protected hence the decorator sits in the same package
     return connection.getHostAndPort().getHost();
   }
-
-  @Override
-  protected void postProcessServiceAndOperationName(AgentSpan span, String dbType) {}
 }

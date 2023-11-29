@@ -17,8 +17,6 @@ package com.datadog.profiling.uploader;
 
 import static datadog.trace.util.AgentThreadFactory.AgentThread.PROFILER_HTTP_DISPATCHER;
 
-import com.datadog.profiling.controller.RecordingData;
-import com.datadog.profiling.controller.RecordingType;
 import com.datadog.profiling.uploader.util.JfrCliHelper;
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.JsonReader;
@@ -29,6 +27,8 @@ import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.git.GitInfo;
 import datadog.trace.api.git.GitInfoProvider;
+import datadog.trace.api.profiling.RecordingData;
+import datadog.trace.api.profiling.RecordingType;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.relocate.api.IOLogger;
@@ -41,6 +41,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
@@ -464,7 +465,7 @@ public final class ProfileUploader {
       writer.value(V4_ATTACHMENT_FILENAME);
       writer.endArray();
       writer.name(V4_PROFILE_TAGS_PARAM);
-      writer.value(tags + ",snapshot:" + recordingData.getKind().name().toLowerCase());
+      writer.value(tags + ",snapshot:" + recordingData.getKind().name().toLowerCase(Locale.ROOT));
       writer.name(V4_PROFILE_START_PARAM);
       writer.value(recordingData.getStart().toString());
       writer.name(V4_PROFILE_END_PARAM);

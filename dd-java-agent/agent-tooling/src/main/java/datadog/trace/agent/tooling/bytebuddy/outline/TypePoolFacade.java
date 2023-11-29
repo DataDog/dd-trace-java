@@ -5,6 +5,8 @@ import static datadog.trace.agent.tooling.bytebuddy.outline.TypeFactory.findType
 import static datadog.trace.agent.tooling.bytebuddy.outline.TypeFactory.typeFactory;
 
 import datadog.trace.agent.tooling.bytebuddy.SharedTypePools;
+import datadog.trace.agent.tooling.bytebuddy.memoize.Memoizer;
+import datadog.trace.api.InstrumenterConfig;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.pool.TypePool;
 
@@ -19,6 +21,7 @@ public final class TypePoolFacade implements TypePool, SharedTypePools.Supplier 
 
   @Override
   public TypePool typePool(ClassLoader classLoader) {
+    switchContext(classLoader);
     return INSTANCE;
   }
 
@@ -63,6 +66,9 @@ public final class TypePoolFacade implements TypePool, SharedTypePools.Supplier 
 
   @Override
   public void clear() {
+    if (InstrumenterConfig.get().isResolverMemoizingEnabled()) {
+      Memoizer.clear();
+    }
     TypeFactory.clear();
   }
 

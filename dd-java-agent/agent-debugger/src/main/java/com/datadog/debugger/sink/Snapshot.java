@@ -26,12 +26,13 @@ public class Snapshot {
   private final ProbeImplementation probe;
   private final String language;
   private final transient CapturedThread thread;
-  private String traceId; // trace_id
-  private String spanId; // span_id
+  private transient String traceId;
+  private transient String spanId;
   private List<EvaluationError> evaluationErrors;
   private transient String message;
+  private final transient int maxDepth;
 
-  public Snapshot(java.lang.Thread thread, ProbeImplementation probeImplementation) {
+  public Snapshot(java.lang.Thread thread, ProbeImplementation probeImplementation, int maxDepth) {
     this.id = UUID.randomUUID().toString();
     this.version = VERSION;
     this.timestamp = System.currentTimeMillis();
@@ -39,6 +40,7 @@ public class Snapshot {
     this.language = LANGUAGE;
     this.thread = new CapturedThread(thread);
     this.probe = probeImplementation;
+    this.maxDepth = maxDepth;
   }
 
   public Snapshot(
@@ -52,7 +54,8 @@ public class Snapshot {
       String language,
       Snapshot.CapturedThread thread,
       String traceId,
-      String spanId) {
+      String spanId,
+      int maxDepth) {
     this.id = id;
     this.version = version;
     this.timestamp = timestamp;
@@ -64,6 +67,7 @@ public class Snapshot {
     this.thread = thread;
     this.traceId = traceId;
     this.spanId = spanId;
+    this.maxDepth = maxDepth;
   }
 
   public void setEntry(CapturedContext context) {
@@ -157,6 +161,10 @@ public class Snapshot {
     return message;
   }
 
+  public int getMaxDepth() {
+    return maxDepth;
+  }
+
   public void recordStackTrace(int offset) {
     stack.clear();
     int cntr = 0;
@@ -166,6 +174,14 @@ public class Snapshot {
       }
       stack.add(CapturedStackFrame.from(ste));
     }
+  }
+
+  public void setTraceId(String traceId) {
+    this.traceId = traceId;
+  }
+
+  public void setSpanId(String spanId) {
+    this.spanId = spanId;
   }
 
   public enum Kind {

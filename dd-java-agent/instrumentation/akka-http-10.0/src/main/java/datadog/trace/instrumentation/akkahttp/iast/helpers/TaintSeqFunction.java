@@ -1,7 +1,9 @@
 package datadog.trace.instrumentation.akkahttp.iast.helpers;
 
+import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.InstrumentationBridge;
-import datadog.trace.api.iast.source.WebModule;
+import datadog.trace.api.iast.SourceTypes;
+import datadog.trace.api.iast.propagation.PropagationModule;
 import java.util.Collections;
 import java.util.IdentityHashMap;
 import java.util.Set;
@@ -20,21 +22,22 @@ public class TaintSeqFunction
   public Tuple1<Seq<Tuple2<String, String>>> apply(Tuple1<Seq<Tuple2<String, String>>> v1) {
     Seq<Tuple2<String, String>> seq = v1._1;
 
-    WebModule mod = InstrumentationBridge.WEB;
-    if (mod == null || seq == null) {
+    PropagationModule prop = InstrumentationBridge.PROPAGATION;
+    if (prop == null || seq == null || seq.isEmpty()) {
       return v1;
     }
 
+    final IastContext ctx = IastContext.Provider.get();
     Iterator<Tuple2<String, String>> iterator = seq.iterator();
-    Set<String> seenKeys = Collections.newSetFromMap(new IdentityHashMap<String, Boolean>());
+    Set<String> seenKeys = Collections.newSetFromMap(new IdentityHashMap<>());
     while (iterator.hasNext()) {
       Tuple2<String, String> t = iterator.next();
       String name = t._1();
       String value = t._2();
       if (seenKeys.add(name)) {
-        mod.onParameterNames(Collections.singleton(name));
+        prop.taint(ctx, name, SourceTypes.REQUEST_PARAMETER_NAME, name);
       }
-      mod.onParameterValue(name, value);
+      prop.taint(ctx, value, SourceTypes.REQUEST_PARAMETER_VALUE, name);
     }
 
     return v1;

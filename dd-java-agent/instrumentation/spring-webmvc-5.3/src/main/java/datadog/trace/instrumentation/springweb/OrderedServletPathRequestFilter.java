@@ -21,8 +21,7 @@ public class OrderedServletPathRequestFilter extends DelegatingFilterProxy imple
 
     public BeanDefinition() {
       super(OrderedServletPathRequestFilter.class);
-      BeanDefinitionRepairer.register(OrderedServletPathRequestFilter.class);
-      setBeanClassName(OrderedServletPathRequestFilter.class.getName());
+      // don't call setBeanClassName as it overwrites 'beanClass'
       setScope(SCOPE_SINGLETON);
       setLazyInit(true);
     }

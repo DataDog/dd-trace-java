@@ -12,6 +12,7 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.bytebuddy.iast.TaintableVisitor;
 import datadog.trace.agent.tooling.muzzle.Reference;
 import datadog.trace.api.iast.InstrumentationBridge;
+import datadog.trace.api.iast.Propagation;
 import datadog.trace.api.iast.propagation.PropagationModule;
 import net.bytebuddy.asm.Advice;
 
@@ -57,31 +58,34 @@ public class BufferInstrumentation extends Instrumenter.Iast implements Instrume
 
   public static class ToStringAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
+    @Propagation
     public static void get(@Advice.This final Object self, @Advice.Return final String result) {
       final PropagationModule module = InstrumentationBridge.PROPAGATION;
       if (module != null) {
-        module.taintIfInputIsTainted(result, self);
+        module.taintIfTainted(result, self);
       }
     }
   }
 
   public static class GetByteBuffAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
+    @Propagation
     public static void get(@Advice.This final Object self, @Advice.Return final Object result) {
       final PropagationModule module = InstrumentationBridge.PROPAGATION;
       if (module != null) {
-        module.taintIfInputIsTainted(result, self);
+        module.taintIfTainted(result, self);
       }
     }
   }
 
   public static class AppendBufferAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
+    @Propagation
     public static void get(
         @Advice.Argument(0) final Object buffer, @Advice.Return final Object result) {
       final PropagationModule module = InstrumentationBridge.PROPAGATION;
       if (module != null) {
-        module.taintIfInputIsTainted(result, buffer);
+        module.taintIfTainted(result, buffer);
       }
     }
   }

@@ -2,6 +2,8 @@ import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.propagation.PropagationModule
 import org.codehaus.jackson.JsonFactory
+import org.codehaus.jackson.JsonParser
+import org.codehaus.jackson.JsonToken
 
 class Json1ParserInstrumentationTest extends AgentTestRunner {
 
@@ -16,14 +18,15 @@ class Json1ParserInstrumentationTest extends AgentTestRunner {
     setup:
     final propagationModule = Mock(PropagationModule)
     InstrumentationBridge.registerIastModule(propagationModule)
+    skipUntil(jsonParser, JsonToken.FIELD_NAME)
 
     when:
-    jsonParser.getCurrentName()
+    final result = jsonParser.getCurrentName()
 
     then:
-    1 * propagationModule.taintIfInputIsTainted(_, jsonParser)
+    result == 'key1'
+    1 * propagationModule.taintIfTainted('key1', jsonParser)
     0 * _
-
 
     where:
     jsonParser << [
@@ -36,14 +39,15 @@ class Json1ParserInstrumentationTest extends AgentTestRunner {
     setup:
     final propagationModule = Mock(PropagationModule)
     InstrumentationBridge.registerIastModule(propagationModule)
+    skipUntil(jsonParser, JsonToken.FIELD_NAME)
 
     when:
-    jsonParser.nextToken()
     final result = jsonParser.getText()
 
     then:
-    result == '{'
-    1 * propagationModule.taintIfInputIsTainted('{', jsonParser)
+    result == 'key1'
+    1 * propagationModule.taintIfTainted('key1', jsonParser)
+    0 * _
 
     where:
     jsonParser << [
@@ -56,12 +60,14 @@ class Json1ParserInstrumentationTest extends AgentTestRunner {
     setup:
     final propagationModule = Mock(PropagationModule)
     InstrumentationBridge.registerIastModule(propagationModule)
+    skipUntil(jsonParser, JsonToken.FIELD_NAME)
 
     when:
-    jsonParser.nextTextValue()
+    final result = jsonParser.nextTextValue()
 
     then:
-    1 * propagationModule.taintIfInputIsTainted(null, jsonParser)
+    result == 'value1'
+    1 * propagationModule.taintIfTainted('value1', jsonParser)
     0 * _
 
     where:
@@ -69,5 +75,14 @@ class Json1ParserInstrumentationTest extends AgentTestRunner {
       new JsonFactory().createJsonParser(JSON_STRING),
       new JsonFactory().createJsonParser(new ByteArrayInputStream(JSON_STRING.getBytes()))
     ]
+  }
+
+  private void skipUntil(final JsonParser parser, final JsonToken token) {
+    JsonToken current
+    while ((current = parser.nextToken()) != null) {
+      if (current == token) {
+        break
+      }
+    }
   }
 }

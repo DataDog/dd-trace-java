@@ -1,14 +1,15 @@
 package com.datadog.debugger.instrumentation;
 
+import static com.datadog.debugger.instrumentation.ASMHelper.adjustLocalVarsBasedOnArgs;
+import static com.datadog.debugger.instrumentation.ASMHelper.createLocalVarNodes;
 import static com.datadog.debugger.instrumentation.ASMHelper.ldc;
+import static com.datadog.debugger.instrumentation.ASMHelper.sortLocalVariables;
 import static com.datadog.debugger.instrumentation.Types.STRING_TYPE;
 
 import com.datadog.debugger.instrumentation.DiagnosticMessage.Kind;
 import com.datadog.debugger.probe.ProbeDefinition;
 import com.datadog.debugger.probe.Where;
-import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Comparator;
 import java.util.List;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.Type;
@@ -69,33 +70,16 @@ public abstract class Instrumentor {
     localVarsBySlot = extractLocalVariables(argTypes);
   }
 
-  public abstract void instrument();
+  public abstract InstrumentationResult.Status instrument();
 
   private LocalVariableNode[] extractLocalVariables(Type[] argTypes) {
     if (methodNode.localVariables == null || methodNode.localVariables.isEmpty()) {
       return new LocalVariableNode[0];
     }
-    List<LocalVariableNode> sortedLocalVars = new ArrayList<>(methodNode.localVariables);
-    sortedLocalVars.sort(Comparator.comparingInt(o -> o.index));
-    int maxIndex = sortedLocalVars.get(sortedLocalVars.size() - 1).index;
-    LocalVariableNode[] localVars = new LocalVariableNode[maxIndex + 1];
+    List<LocalVariableNode> sortedLocalVars = sortLocalVariables(methodNode.localVariables);
+    LocalVariableNode[] localVars = createLocalVarNodes(sortedLocalVars);
+    adjustLocalVarsBasedOnArgs(isStatic, localVars, argTypes, sortedLocalVars);
     localVarBaseOffset = sortedLocalVars.get(0).index;
-    for (LocalVariableNode localVariableNode : sortedLocalVars) {
-      localVars[localVariableNode.index] = localVariableNode;
-    }
-    // assume that first local variables matches method arguments
-    // as stated into the JVM spec:
-    // https://docs.oracle.com/javase/specs/jvms/se8/html/jvms-2.html#jvms-2.6.1
-    // so we reassigned local var in arg slots if they are empty
-    int slot = isStatic ? 0 : 1;
-    int localVarTableIdx = slot;
-    for (Type t : argTypes) {
-      if (localVars[slot] == null) {
-        localVars[slot] = sortedLocalVars.get(localVarTableIdx);
-      }
-      slot += t.getSize();
-      localVarTableIdx++;
-    }
     return localVars;
   }
 

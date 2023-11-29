@@ -15,7 +15,6 @@ import spock.lang.Shared
 
 import java.nio.file.Files
 import java.nio.file.Paths
-import java.util.concurrent.CountDownLatch
 
 import static datadog.communication.ddagent.DDAgentFeaturesDiscovery.V01_DATASTREAMS_ENDPOINT
 import static datadog.communication.ddagent.DDAgentFeaturesDiscovery.V6_METRICS_ENDPOINT
@@ -37,6 +36,8 @@ class DDAgentFeaturesDiscoveryTest extends DDSpecification {
   static final String INFO_WITHOUT_METRICS_STATE = Strings.sha256(INFO_WITHOUT_METRICS_RESPONSE)
   static final String INFO_WITHOUT_DATA_STREAMS_RESPONSE = loadJsonFile("agent-info-without-data-streams.json")
   static final String INFO_WITHOUT_DATA_STREAMS_STATE = Strings.sha256(INFO_WITHOUT_DATA_STREAMS_RESPONSE)
+  static final String INFO_WITH_LONG_RUNNING_SPANS = loadJsonFile("agent-info-with-long-running-spans.json")
+  static final String INFO_WITH_TELEMETRY_PROXY_RESPONSE = loadJsonFile("agent-info-with-telemetry-proxy.json")
   static final String PROBE_STATE = "probestate"
 
   def "test parse /info response"() {
@@ -60,6 +61,8 @@ class DDAgentFeaturesDiscoveryTest extends DDSpecification {
     features.supportsDebugger()
     features.supportsEvpProxy()
     features.getVersion() == "0.99.0"
+    !features.supportsLongRunning()
+    !features.supportsTelemetryProxy()
     0 * _
   }
 
@@ -86,6 +89,8 @@ class DDAgentFeaturesDiscoveryTest extends DDSpecification {
     features.supportsDebugger()
     features.supportsEvpProxy()
     features.getVersion() == "0.99.0"
+    !features.supportsLongRunning()
+    !features.supportsTelemetryProxy()
     0 * _
   }
 
@@ -127,6 +132,20 @@ class DDAgentFeaturesDiscoveryTest extends DDSpecification {
     0 * _
   }
 
+  def "test parse /info response with long running spans available"() {
+    setup:
+    OkHttpClient client = Mock(OkHttpClient)
+    DDAgentFeaturesDiscovery features = new DDAgentFeaturesDiscovery(client, monitoring, agentUrl, true, true)
+
+    when: "/info available"
+    features.discover()
+
+    then:
+    1 * client.newCall(_) >> { Request request -> infoResponse(request, INFO_WITH_LONG_RUNNING_SPANS) }
+    features.supportsLongRunning()
+    0 * _
+  }
+
   def "test fallback when /info not found"() {
     setup:
     OkHttpClient client = Mock(OkHttpClient)
@@ -145,6 +164,7 @@ class DDAgentFeaturesDiscoveryTest extends DDSpecification {
     !features.supportsMetrics()
     features.getTraceEndpoint() == "v0.5/traces"
     !features.supportsDropping()
+    !features.supportsLongRunning()
     features.state() == PROBE_STATE
     0 * _
   }
@@ -165,6 +185,7 @@ class DDAgentFeaturesDiscoveryTest extends DDSpecification {
     !features.supportsMetrics()
     features.getTraceEndpoint() == "v0.5/traces"
     !features.supportsDropping()
+    !features.supportsLongRunning()
     features.state() == PROBE_STATE
     0 * _
   }
@@ -230,6 +251,7 @@ class DDAgentFeaturesDiscoveryTest extends DDSpecification {
     features.getMetricsEndpoint() == null
     !features.supportsMetrics()
     features.getTraceEndpoint() == "v0.3/traces"
+    !features.supportsLongRunning()
     !features.supportsDropping()
     features.state() == PROBE_STATE
     0 * _
@@ -364,17 +386,22 @@ class DDAgentFeaturesDiscoveryTest extends DDSpecification {
     // but we don't permit dropping anyway
     !(features as DroppingPolicy).active()
     features.state() == INFO_WITHOUT_METRICS_STATE
+    !features.supportsTelemetryProxy()
     0 * _
   }
 
-  def countingNotFound(Request request, CountDownLatch latch) {
-    latch.countDown()
-    return notFound(request)
-  }
+  def "test parse /info response with telemetry proxy"() {
+    setup:
+    OkHttpClient client = Mock(OkHttpClient)
+    DDAgentFeaturesDiscovery features = new DDAgentFeaturesDiscovery(client, monitoring, agentUrl, true, true)
 
-  def countingInfoResponse(Request request, String json, CountDownLatch latch) {
-    latch.countDown()
-    return infoResponse(request, json)
+    when: "/info available"
+    features.discover()
+
+    then:
+    1 * client.newCall(_) >> { Request request -> infoResponse(request, INFO_WITH_TELEMETRY_PROXY_RESPONSE) }
+    features.supportsTelemetryProxy()
+    0 * _
   }
 
   def infoResponse(Request request, String json) {

@@ -36,13 +36,22 @@ public final class AgentThreadFactory implements ThreadFactory {
     FLEET_MANAGEMENT_POLLER("dd-fleet-management-poller"),
     REMOTE_CONFIG("dd-remote-config"),
 
+    TRACER_FLARE("dd-tracer-flare"),
+
     CWS_TLS("dd-cws-tls"),
 
     PROCESS_SUPERVISOR("dd-process-supervisor"),
 
     DATA_STREAMS_MONITORING("dd-data-streams-monitor"),
 
-    DEBUGGER_HTTP_DISPATCHER("dd-debugger-upload-http-dispatcher");
+    DEBUGGER_HTTP_DISPATCHER("dd-debugger-upload-http-dispatcher"),
+
+    CI_SHELL_COMMAND("dd-ci-shell-command"),
+    CI_GIT_DATA_UPLOADER("dd-ci-git-data-uploader"),
+    CI_GIT_DATA_SHUTDOWN_HOOK("dd-ci-git-data-shutdown-hook"),
+    CI_TEST_EVENTS_SHUTDOWN_HOOK("dd-ci-test-events-shutdown-hook"),
+    CI_PROJECT_CONFIGURATOR("dd-ci-project-configurator"),
+    CI_SIGNAL_SERVER("dd-ci-signal-server");
 
     public final String threadName;
 
@@ -74,15 +83,30 @@ public final class AgentThreadFactory implements ThreadFactory {
    * @param runnable work to run on the new thread.
    */
   public static Thread newAgentThread(final AgentThread agentThread, final Runnable runnable) {
-    final Thread thread = new Thread(AGENT_THREAD_GROUP, runnable, agentThread.threadName);
-    thread.setDaemon(true);
+    return newAgentThread(agentThread, null, runnable, true);
+  }
+
+  public static Thread newAgentThread(
+      final AgentThread agentThread, final Runnable runnable, boolean daemon) {
+    return newAgentThread(agentThread, null, runnable, daemon);
+  }
+
+  public static Thread newAgentThread(
+      final AgentThread agentThread,
+      final String nameSuffix,
+      final Runnable runnable,
+      boolean daemon) {
+    final String threadName =
+        nameSuffix != null ? agentThread.threadName + nameSuffix : agentThread.threadName;
+    final Thread thread = new Thread(AGENT_THREAD_GROUP, runnable, threadName);
+    thread.setDaemon(daemon);
     thread.setContextClassLoader(null);
     thread.setUncaughtExceptionHandler(
         new Thread.UncaughtExceptionHandler() {
           @Override
           public void uncaughtException(final Thread thread, final Throwable e) {
             LoggerFactory.getLogger(runnable.getClass())
-                .error("Uncaught exception in {}", agentThread.threadName, e);
+                .error("Uncaught exception {} in {}", e, agentThread.threadName, e);
           }
         });
     return thread;

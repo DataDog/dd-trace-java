@@ -6,6 +6,8 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.api.iast.Sink;
+import datadog.trace.api.iast.VulnerabilityTypes;
 import net.bytebuddy.asm.Advice;
 import okhttp3.Interceptor;
 import okhttp3.OkHttpClient;
@@ -39,6 +41,7 @@ public class IastOkHttp3Instrumentation extends Instrumenter.Iast
 
   public static class OkHttp3ClientAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
+    @Sink(VulnerabilityTypes.SSRF)
     public static void addIastInterceptor(@Advice.Argument(0) final OkHttpClient.Builder builder) {
       for (final Interceptor interceptor : builder.interceptors()) {
         if (interceptor instanceof IastInterceptor) {

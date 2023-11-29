@@ -95,6 +95,7 @@ abstract class RediscalaClientTest extends VersionedNamingTestBase {
             "$Tags.PEER_HOSTNAME" redisClient.host()
             "$Tags.PEER_PORT" redisClient.port()
             "db.redis.dbIndex" 0
+            peerServiceFrom(Tags.PEER_HOSTNAME)
             defaultTags()
           }
         }
@@ -130,6 +131,7 @@ abstract class RediscalaClientTest extends VersionedNamingTestBase {
             "$Tags.PEER_HOSTNAME" redisClient.host()
             "$Tags.PEER_PORT" redisClient.port()
             "db.redis.dbIndex" 0
+            peerServiceFrom(Tags.PEER_HOSTNAME)
             defaultTags()
           }
         }
@@ -147,6 +149,7 @@ abstract class RediscalaClientTest extends VersionedNamingTestBase {
             "$Tags.PEER_HOSTNAME" redisClient.host()
             "$Tags.PEER_PORT" redisClient.port()
             "db.redis.dbIndex" 0
+            peerServiceFrom(Tags.PEER_HOSTNAME)
             defaultTags()
           }
         }
@@ -155,7 +158,7 @@ abstract class RediscalaClientTest extends VersionedNamingTestBase {
   }
 }
 
-class RediscalaClientV0ForkedTest extends RediscalaClientTest {
+class RediscalaClientV0Test extends RediscalaClientTest {
 
   @Override
   int version() {

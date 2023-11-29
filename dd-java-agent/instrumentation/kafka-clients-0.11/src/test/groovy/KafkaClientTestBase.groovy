@@ -5,6 +5,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 
 import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.agent.test.naming.VersionedNamingTestBase
+import datadog.trace.api.Config
 import datadog.trace.api.DDTags
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
@@ -49,7 +50,6 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
     super.configurePreAgent()
 
     injectSysConfig("dd.kafka.e2e.duration.enabled", "true")
-    injectSysConfig("dd.data.streams.enabled", "true")
   }
 
   public static final LinkedHashMap<String, String> PRODUCER_PATHWAY_EDGE_TAGS
@@ -898,6 +898,7 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
         if ({isDataStreamsEnabled()}) {
           "$DDTags.PATHWAY_HASH" { String }
         }
+        peerServiceFrom(InstrumentationTags.KAFKA_BOOTSTRAP_SERVERS)
         defaultTags()
       }
     }
@@ -1096,8 +1097,8 @@ class KafkaClientLegacyTracingV1ForkedTest extends KafkaClientLegacyTracingForke
   }
 
   @Override
-  String serviceForTimeInQueue() {
-    "kafka-queue"
+  String service() {
+    return Config.get().getServiceName()
   }
 }
 
@@ -1107,7 +1108,6 @@ class KafkaClientDataStreamsDisabledForkedTest extends KafkaClientTestBase {
     super.configurePreAgent()
     injectSysConfig("dd.service", "KafkaClientDataStreamsDisabledForkedTest")
     injectSysConfig("dd.kafka.legacy.tracing.enabled", "true")
-    injectSysConfig("dd.data.streams.enabled", "false")
   }
 
   @Override

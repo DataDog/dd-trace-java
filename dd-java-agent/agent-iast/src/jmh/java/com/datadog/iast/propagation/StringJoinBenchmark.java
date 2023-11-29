@@ -1,5 +1,7 @@
 package com.datadog.iast.propagation;
 
+import static datadog.trace.api.iast.VulnerabilityMarks.NOT_MARKED;
+
 import com.datadog.iast.IastRequestContext;
 import com.datadog.iast.model.Range;
 import com.datadog.iast.model.Source;
@@ -19,7 +21,9 @@ public class StringJoinBenchmark extends AbstractBenchmark<StringJoinBenchmark.C
         .getTaintedObjects()
         .taint(
             tainted,
-            new Range[] {new Range(0, tainted.length(), new Source((byte) 0, "key", "value"))});
+            new Range[] {
+              new Range(0, tainted.length(), new Source((byte) 0, "key", "value"), NOT_MARKED)
+            });
 
     final String taintedDelimiter = new String("-");
     iastRequestContext
@@ -27,7 +31,8 @@ public class StringJoinBenchmark extends AbstractBenchmark<StringJoinBenchmark.C
         .taint(
             taintedDelimiter,
             new Range[] {
-              new Range(0, taintedDelimiter.length(), new Source((byte) 1, "key", "value"))
+              new Range(
+                  0, taintedDelimiter.length(), new Source((byte) 1, "key", "value"), NOT_MARKED)
             });
 
     return new StringJoinBenchmark.Context(

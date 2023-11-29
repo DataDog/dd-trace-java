@@ -1,10 +1,12 @@
 package datadog.trace.bootstrap.instrumentation.api;
 
 import datadog.trace.api.DDTraceId;
+import datadog.trace.api.TraceConfig;
 import datadog.trace.api.gateway.IGSpanInfo;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.interceptor.MutableSpan;
 import datadog.trace.api.sampling.PrioritySampling;
+import java.util.List;
 import java.util.Map;
 
 public interface AgentSpan extends MutableSpan, IGSpanInfo {
@@ -32,18 +34,6 @@ public interface AgentSpan extends MutableSpan, IGSpanInfo {
   @Override
   AgentSpan setTag(String key, Number value);
 
-  /**
-   * Set a span attribute.
-   *
-   * <p>Existing attributes with the same name will be replaced. Setting a {@code null} value will
-   * do nothing.
-   *
-   * @param key The span attribute key.
-   * @param value The span attribute value.
-   * @return The span instance.
-   */
-  AgentSpan setAttribute(String key, Object value);
-
   @Override
   AgentSpan setMetric(CharSequence key, int value);
 
@@ -61,11 +51,15 @@ public interface AgentSpan extends MutableSpan, IGSpanInfo {
   @Override
   AgentSpan setError(boolean error);
 
+  AgentSpan setError(boolean error, byte priority);
+
   AgentSpan setMeasured(boolean measured);
 
   AgentSpan setErrorMessage(String errorMessage);
 
   AgentSpan addThrowable(Throwable throwable);
+
+  AgentSpan addThrowable(Throwable throwable, byte errorPriority);
 
   @Override
   AgentSpan getLocalRootSpan();
@@ -139,9 +133,11 @@ public interface AgentSpan extends MutableSpan, IGSpanInfo {
   /** RequestContext for the Instrumentation Gateway */
   RequestContext getRequestContext();
 
-  void mergePathwayContext(PathwayContext pathwayContext);
-
   Integer forceSamplingDecision();
+
+  TraceConfig traceConfig();
+
+  void addLink(AgentSpanLink link);
 
   interface Context {
     /**
@@ -180,7 +176,16 @@ public interface AgentSpan extends MutableSpan, IGSpanInfo {
 
     PathwayContext getPathwayContext();
 
+    default void mergePathwayContext(PathwayContext pathwayContext) {}
+
     interface Extracted extends Context {
+      /**
+       * Gets the span links related to the other terminated context.
+       *
+       * @return The span links to other extracted contexts found but terminated.
+       */
+      List<AgentSpanLink> getTerminatedContextLinks();
+
       String getForwarded();
 
       String getFastlyClientIp();

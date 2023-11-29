@@ -30,16 +30,24 @@ public class SharedCommunicationObjects {
     }
     if (agentUrl == null) {
       agentUrl = HttpUrl.parse(config.getAgentUrl());
+      if (agentUrl == null) {
+        throw new IllegalArgumentException("Bad agent URL: " + config.getAgentUrl());
+      }
     }
     if (okHttpClient == null) {
       String unixDomainSocket = SocketUtils.discoverApmSocket(config);
       String namedPipe = config.getAgentNamedPipe();
       okHttpClient =
           OkHttpUtils.buildHttpClient(
-              agentUrl,
-              unixDomainSocket,
-              namedPipe,
-              TimeUnit.SECONDS.toMillis(config.getAgentTimeout()));
+              agentUrl, unixDomainSocket, namedPipe, getHttpClientTimeout(config));
+    }
+  }
+
+  private static long getHttpClientTimeout(Config config) {
+    if (!config.isCiVisibilityEnabled() || !config.isCiVisibilityAgentlessEnabled()) {
+      return TimeUnit.SECONDS.toMillis(config.getAgentTimeout());
+    } else {
+      return config.getCiVisibilityBackendApiTimeoutMillis();
     }
   }
 

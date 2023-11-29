@@ -3,6 +3,7 @@ package datadog.trace.instrumentation.java.lang
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.propagation.CodecModule
+import datadog.trace.api.iast.propagation.PropagationModule
 import datadog.trace.api.iast.propagation.StringModule
 import foo.bar.TestStringSuite
 import groovy.transform.CompileDynamic
@@ -221,5 +222,78 @@ class StringCallSiteTest extends AgentTestRunner {
     null                            | ['Hello'.bytes]
     'UTF-8'                         | ['Hello'.getBytes(charset), charset]
     Charset.defaultCharset().name() | ['Hello'.getBytes(charset), Charset.forName(charset)]
+  }
+
+  void 'test string format'() {
+    given:
+    final module = Mock(StringModule)
+    InstrumentationBridge.registerIastModule(module)
+
+    when:
+    TestStringSuite.format(pattern, args == null ? null : args as Object[])
+
+    then:
+    1 * module.onStringFormat(pattern, args, _ as String)
+
+    where:
+    pattern | args
+    ''      | []
+    ''      | null
+    '%s'    | ['Hello']
+  }
+
+  void 'test string format with locale'() {
+    given:
+    final module = Mock(StringModule)
+    InstrumentationBridge.registerIastModule(module)
+
+    when:
+    TestStringSuite.format(Locale.getDefault(), pattern, args == null ? null : args as Object[])
+
+    then:
+    1 * module.onStringFormat(_, pattern, args, _ as String)
+
+    where:
+    locale              | pattern | args
+    null                | ''      | []
+    null                | ''      | null
+    null                | '%s'    | ['Hello']
+    Locale.getDefault() | '%s'    | ['Hello']
+  }
+
+  void 'test string toCharArray'() {
+    given:
+    final module = Mock(PropagationModule)
+    InstrumentationBridge.registerIastModule(module)
+    final string = 'test'
+
+    when:
+    final char[] result = TestStringSuite.toCharArray(string)
+
+    then:
+    result != null && result.length > 0
+    1 * module.taintObjectIfInputIsTaintedKeepingRanges(_ as char[], string)
+    0 * _
+  }
+
+  void 'test string split'() {
+    final module = Mock(StringModule)
+    InstrumentationBridge.registerIastModule(module)
+
+    when:
+    final String[] result = TestStringSuite.&split.call(args)
+
+    then:
+    result != null && result.length == expected.length
+    for (def i = 0; i < expected.length; i++) {
+      result[i] == expected[i]
+    }
+    1 * module.onSplit(args[0], _ as String[])
+    0 * _
+
+    where:
+    args                      | expected
+    ['test the test', ' ']    | ['test', 'the', 'test'] as String[]
+    ['test the test', ' ', 0] | ['test', 'the', 'test'] as String[]
   }
 }

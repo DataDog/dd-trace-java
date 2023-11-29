@@ -14,21 +14,26 @@ import static com.datadog.profiling.ddprof.DatadogProfilerConfig.getWallContextF
 import static com.datadog.profiling.ddprof.DatadogProfilerConfig.getWallInterval;
 import static com.datadog.profiling.ddprof.DatadogProfilerConfig.isAllocationProfilingEnabled;
 import static com.datadog.profiling.ddprof.DatadogProfilerConfig.isCpuProfilerEnabled;
+import static com.datadog.profiling.ddprof.DatadogProfilerConfig.isLiveHeapSizeTrackingEnabled;
 import static com.datadog.profiling.ddprof.DatadogProfilerConfig.isMemoryLeakProfilingEnabled;
+import static com.datadog.profiling.ddprof.DatadogProfilerConfig.isResourceNameContextAttributeEnabled;
 import static com.datadog.profiling.ddprof.DatadogProfilerConfig.isSpanNameContextAttributeEnabled;
 import static com.datadog.profiling.ddprof.DatadogProfilerConfig.isWallClockProfilerEnabled;
+import static com.datadog.profiling.ddprof.DatadogProfilerConfig.omitLineNumbers;
 import static com.datadog.profiling.utils.ProfilingMode.ALLOCATION;
 import static com.datadog.profiling.utils.ProfilingMode.CPU;
 import static com.datadog.profiling.utils.ProfilingMode.MEMLEAK;
 import static com.datadog.profiling.utils.ProfilingMode.WALL;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_QUEUEING_TIME_THRESHOLD_MILLIS;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_QUEUEING_TIME_THRESHOLD_MILLIS_DEFAULT;
 
 import com.datadog.profiling.controller.OngoingRecording;
-import com.datadog.profiling.controller.RecordingData;
 import com.datadog.profiling.controller.UnsupportedEnvironmentException;
 import com.datadog.profiling.utils.ProfilingMode;
 import com.datadoghq.profiler.ContextSetter;
 import com.datadoghq.profiler.JavaProfiler;
 import datadog.trace.api.config.ProfilingConfig;
+import datadog.trace.api.profiling.RecordingData;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -54,6 +59,9 @@ public final class DatadogProfiler {
   private static final int[] EMPTY = new int[0];
 
   private static final String OPERATION = "_dd.trace.operation";
+  private static final String RESOURCE = "_dd.trace.resource";
+
+  private static final int MAX_NUM_ENDPOINTS = 8192;
 
   private static final class Singleton {
     private static final DatadogProfiler INSTANCE = newInstance();
@@ -113,6 +121,8 @@ public final class DatadogProfiler {
 
   private final List<String> orderedContextAttributes;
 
+  private final long queueTimeThreshold;
+
   private DatadogProfiler() throws UnsupportedEnvironmentException {
     this(ConfigProvider.getInstance());
   }
@@ -122,6 +132,7 @@ public final class DatadogProfiler {
     this.profiler = null;
     this.contextSetter = null;
     this.orderedContextAttributes = null;
+    this.queueTimeThreshold = Long.MAX_VALUE;
   }
 
   private DatadogProfiler(ConfigProvider configProvider) throws UnsupportedEnvironmentException {
@@ -135,11 +146,12 @@ public final class DatadogProfiler {
     try {
       profiler =
           JavaProfiler.getInstance(
+              configProvider.getString(ProfilingConfig.PROFILING_DATADOG_PROFILER_LIBPATH),
               configProvider.getString(
                   ProfilingConfig.PROFILING_DATADOG_PROFILER_SCRATCH,
                   ProfilingConfig.PROFILING_DATADOG_PROFILER_SCRATCH_DEFAULT));
     } catch (IOException e) {
-      throw new UnsupportedOperationException("Unable to instantiate datadog profiler");
+      throw new UnsupportedOperationException("Unable to instantiate datadog profiler", e);
     }
     if (profiler == null) {
       throw new UnsupportedEnvironmentException("Unable to instantiate datadog profiler");
@@ -163,7 +175,14 @@ public final class DatadogProfiler {
     if (isSpanNameContextAttributeEnabled(configProvider)) {
       orderedContextAttributes.add(OPERATION);
     }
+    if (isResourceNameContextAttributeEnabled(configProvider)) {
+      orderedContextAttributes.add(RESOURCE);
+    }
     this.contextSetter = new ContextSetter(profiler, orderedContextAttributes);
+    this.queueTimeThreshold =
+        configProvider.getLong(
+            PROFILING_QUEUEING_TIME_THRESHOLD_MILLIS,
+            PROFILING_QUEUEING_TIME_THRESHOLD_MILLIS_DEFAULT);
     try {
       // sanity test - force load Datadog profiler to catch it not being available early
       profiler.execute("status");
@@ -292,6 +311,9 @@ public final class DatadogProfiler {
     cmd.append(",cstack=").append(getCStack(configProvider));
     cmd.append(",safemode=").append(getSafeMode(configProvider));
     cmd.append(",attributes=").append(String.join(";", orderedContextAttributes));
+    if (omitLineNumbers(configProvider)) {
+      cmd.append(",linenumbers=f");
+    }
     if (profilingModes.contains(CPU)) {
       // cpu profiling is enabled.
       String schedulingEvent = getSchedulingEvent(configProvider);
@@ -327,7 +349,7 @@ public final class DatadogProfiler {
         cmd.append('a');
       }
       if (profilingModes.contains(MEMLEAK)) {
-        cmd.append('l');
+        cmd.append(isLiveHeapSizeTrackingEnabled(configProvider) ? 'L' : 'l');
       }
     }
     String cmdString = cmd.toString();
@@ -335,8 +357,23 @@ public final class DatadogProfiler {
     return cmdString;
   }
 
+  public void recordTraceRoot(long rootSpanId, String endpoint) {
+    if (profiler != null) {
+      if (!profiler.recordTraceRoot(rootSpanId, endpoint, MAX_NUM_ENDPOINTS)) {
+        log.debug(
+            "Endpoint event not written because more than {} distinct endpoints have been encountered."
+                + " This avoids excessive memory overhead.",
+            MAX_NUM_ENDPOINTS);
+      }
+    }
+  }
+
   public int operationNameOffset() {
     return offsetOf(OPERATION);
+  }
+
+  public int resourceNameOffset() {
+    return offsetOf(RESOURCE);
   }
 
   public int offsetOf(String attribute) {
@@ -411,5 +448,24 @@ public final class DatadogProfiler {
       return contextSetter.snapshotTags();
     }
     return EMPTY;
+  }
+
+  public void recordSetting(String name, String value) {
+    if (profiler != null) {
+      profiler.recordSetting(name, value);
+    }
+  }
+
+  public void recordSetting(String name, String value, String unit) {
+    if (profiler != null) {
+      profiler.recordSetting(name, value, unit);
+    }
+  }
+
+  public QueueTimeTracker newQueueTimeTracker() {
+    if (profiler != null) {
+      return new QueueTimeTracker(profiler, queueTimeThreshold);
+    }
+    return null;
   }
 }

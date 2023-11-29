@@ -81,7 +81,7 @@ class XRayHttpInjectorTest extends DDCoreSpecification {
       'X-Amzn-Trace-Id' : "Root=1-00000000-00000000${traceId.padLeft(16, '0')};Parent=${spanId.padLeft(16, '0')}"
     ]
     DynamicConfig dynamicConfig = DynamicConfig.create()
-      .setTaggedHeaders([:])
+      .setHeaderTags([:])
       .setBaggageMapping([:])
       .apply()
     HttpCodec.Extractor extractor = XRayHttpCodec.newExtractor(Config.get(), { dynamicConfig.captureTraceConfig() })

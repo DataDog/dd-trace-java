@@ -13,6 +13,7 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.bytebuddy.iast.TaintableVisitor;
 import datadog.trace.agent.tooling.muzzle.Reference;
 import datadog.trace.api.iast.InstrumentationBridge;
+import datadog.trace.api.iast.Propagation;
 import datadog.trace.api.iast.propagation.PropagationModule;
 import net.bytebuddy.asm.Advice;
 
@@ -58,11 +59,12 @@ public class BufferInstrumentation extends Instrumenter.Iast implements Instrume
 
   public static class ToStringAdvice {
     @Advice.OnMethodExit
+    @Propagation
     public static void get(@Advice.This final Object self, @Advice.Return final String result) {
       final PropagationModule module = InstrumentationBridge.PROPAGATION;
       if (module != null) {
         try {
-          module.taintIfInputIsTainted(result, self);
+          module.taintIfTainted(result, self);
         } catch (final Throwable e) {
           module.onUnexpectedException("toString threw", e);
         }
@@ -72,11 +74,12 @@ public class BufferInstrumentation extends Instrumenter.Iast implements Instrume
 
   public static class GetByteBuffAdvice {
     @Advice.OnMethodExit
+    @Propagation
     public static void get(@Advice.This final Object self, @Advice.Return final Object result) {
       final PropagationModule module = InstrumentationBridge.PROPAGATION;
       if (module != null) {
         try {
-          module.taintIfInputIsTainted(result, self);
+          module.taintIfTainted(result, self);
         } catch (final Throwable e) {
           module.onUnexpectedException("getByteBuf threw", e);
         }
@@ -86,12 +89,13 @@ public class BufferInstrumentation extends Instrumenter.Iast implements Instrume
 
   public static class AppendBufferAdvice {
     @Advice.OnMethodExit
+    @Propagation
     public static void get(
         @Advice.Argument(0) final Object buffer, @Advice.Return final Object result) {
       final PropagationModule module = InstrumentationBridge.PROPAGATION;
       if (module != null) {
         try {
-          module.taintIfInputIsTainted(result, buffer);
+          module.taintIfTainted(result, buffer);
         } catch (final Throwable e) {
           module.onUnexpectedException("appendBuffer threw", e);
         }

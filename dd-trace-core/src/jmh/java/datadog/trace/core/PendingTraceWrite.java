@@ -40,6 +40,7 @@ public class PendingTraceWrite {
     trace = tracer.createTrace(traceId);
     root =
         DDSpan.create(
+            "benchmark",
             System.currentTimeMillis() * 1000,
             new DDSpanContext(
                 traceId,
@@ -60,9 +61,11 @@ public class PendingTraceWrite {
                 null,
                 NoopPathwayContext.INSTANCE,
                 false,
-                null));
+                null),
+            null);
     span =
         DDSpan.create(
+            "benchmark",
             System.currentTimeMillis() * 1000,
             new DDSpanContext(
                 traceId,
@@ -83,7 +86,8 @@ public class PendingTraceWrite {
                 null,
                 NoopPathwayContext.INSTANCE,
                 false,
-                null));
+                null),
+            null);
   }
 
   @Threads(4)

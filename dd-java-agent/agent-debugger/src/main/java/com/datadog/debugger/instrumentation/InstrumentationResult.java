@@ -1,7 +1,11 @@
 package com.datadog.debugger.instrumentation;
 
+import com.datadog.debugger.probe.ProbeDefinition;
+import datadog.trace.bootstrap.debugger.ProbeId;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import org.objectweb.asm.tree.ClassNode;
 import org.objectweb.asm.tree.MethodNode;
 
@@ -14,7 +18,7 @@ public class InstrumentationResult {
   }
 
   private final Status status;
-  private final List<DiagnosticMessage> diagnostics;
+  private final Map<ProbeId, List<DiagnosticMessage>> diagnostics;
   private String typeName;
   private String methodName;
 
@@ -23,35 +27,37 @@ public class InstrumentationResult {
       return new InstrumentationResult(Status.BLOCKED, null, className, null);
     }
 
-    public static InstrumentationResult blocked(String className, DiagnosticMessage... messages) {
-      return new InstrumentationResult(Status.BLOCKED, Arrays.asList(messages), className, null);
-    }
-
-    public static InstrumentationResult installed(
-        ClassNode classNode, MethodNode methodNode, List<DiagnosticMessage> diagnostics) {
-      return new InstrumentationResult(Status.INSTALLED, diagnostics, classNode, methodNode);
-    }
-
-    public static InstrumentationResult error(
-        ClassNode classNode, MethodNode methodNode, List<DiagnosticMessage> diagnostics) {
-      return new InstrumentationResult(Status.ERROR, diagnostics, classNode, methodNode);
+    public static InstrumentationResult blocked(
+        String className, List<ProbeDefinition> definitions, DiagnosticMessage... messages) {
+      Map<ProbeId, List<DiagnosticMessage>> diagnostics = new HashMap<>();
+      definitions.forEach(
+          probeDefinition ->
+              diagnostics.put(probeDefinition.getProbeId(), Arrays.asList(messages)));
+      return new InstrumentationResult(Status.BLOCKED, diagnostics, className, null);
     }
   }
 
   public InstrumentationResult(
       Status status,
-      List<DiagnosticMessage> diagnostics,
+      Map<ProbeId, List<DiagnosticMessage>> diagnostics,
       ClassNode classNode,
       MethodNode methodNode) {
     this(status, diagnostics, classNode.name.replace('/', '.'), methodNode.name);
   }
 
   public InstrumentationResult(
-      Status status, List<DiagnosticMessage> diagnostics, String className, String methodName) {
+      Status status,
+      Map<ProbeId, List<DiagnosticMessage>> diagnostics,
+      String className,
+      String methodName) {
     this.status = status;
     this.diagnostics = diagnostics;
     this.typeName = className;
     this.methodName = methodName;
+  }
+
+  public boolean isError() {
+    return status == Status.ERROR;
   }
 
   public boolean isBlocked() {
@@ -62,7 +68,7 @@ public class InstrumentationResult {
     return status == Status.INSTALLED;
   }
 
-  public List<DiagnosticMessage> getDiagnostics() {
+  public Map<ProbeId, List<DiagnosticMessage>> getDiagnostics() {
     return diagnostics;
   }
 

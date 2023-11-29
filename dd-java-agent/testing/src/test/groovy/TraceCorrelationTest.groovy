@@ -8,7 +8,7 @@ class TraceCorrelationTest extends AgentTestRunner {
 
   def "access trace correlation only under trace"() {
     when:
-    def span = TEST_TRACER.startSpan("myspan")
+    def span = TEST_TRACER.startSpan("test", "myspan")
     def scope = TEST_TRACER.activateSpan(span)
 
     then:

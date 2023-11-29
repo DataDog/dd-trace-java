@@ -6,6 +6,8 @@ import akka.http.scaladsl.server.Directive;
 import akka.http.scaladsl.server.util.Tupler$;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.api.iast.Source;
+import datadog.trace.api.iast.SourceTypes;
 import datadog.trace.instrumentation.akkahttp.iast.helpers.TaintCookieFunction;
 import datadog.trace.instrumentation.akkahttp.iast.helpers.TaintOptionalCookieFunction;
 import net.bytebuddy.asm.Advice;
@@ -53,6 +55,7 @@ public class CookieDirectivesInstrumentation extends Instrumenter.Iast
 
   static class TaintCookieAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
+    @Source(SourceTypes.REQUEST_COOKIE_VALUE)
     static void after(@Advice.Return(readOnly = false) Directive directive) {
       directive = directive.tmap(TaintCookieFunction.INSTANCE, Tupler$.MODULE$.forTuple(null));
     }
@@ -60,6 +63,7 @@ public class CookieDirectivesInstrumentation extends Instrumenter.Iast
 
   static class TaintOptionalCookieAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
+    @Source(SourceTypes.REQUEST_COOKIE_VALUE)
     static void after(@Advice.Return(readOnly = false) Directive directive) {
       directive =
           directive.tmap(TaintOptionalCookieFunction.INSTANCE, Tupler$.MODULE$.forTuple(null));

@@ -11,10 +11,7 @@ import net.bytebuddy.asm.Advice;
 
 public class ThrowableInstanceAdvice {
   @Advice.OnMethodExit(suppress = Throwable.class)
-  public static void onExit(@Advice.This final Throwable t) {
-    if (t.getClass().getName().endsWith(".ResourceLeakDetector$TraceRecord")) {
-      return;
-    }
+  public static void onExit(@Advice.This final Object t) {
     /*
      * This instrumentation handler is sensitive to any throwables thrown from its body -
      * it will go into infinite loop of trying to handle the new throwable instance and generating
@@ -29,6 +26,12 @@ public class ThrowableInstanceAdvice {
     }
     try {
       /*
+       * We may get into a situation when this is called before exception sampling is active.
+       */
+      if (!InstrumentationBasedProfiling.isJFRReady()) {
+        return;
+      }
+      /*
        * Exclude internal agent threads from exception profiling.
        */
       if (Config.get().isProfilingExcludeAgentThreads()
@@ -36,16 +39,10 @@ public class ThrowableInstanceAdvice {
         return;
       }
       /*
-       * We may get into a situation when this is called before exception sampling is active.
-       */
-      if (!InstrumentationBasedProfiling.isJFRReady()) {
-        return;
-      }
-      /*
        * JFR will assign the stacktrace depending on the place where the event is committed.
        * Therefore we need to commit the event here, right in the 'Exception' constructor
        */
-      final ExceptionSampleEvent event = ExceptionProfiling.getInstance().process(t);
+      final ExceptionSampleEvent event = ExceptionProfiling.getInstance().process((Throwable) t);
       if (event != null && event.shouldCommit()) {
         event.commit();
       }

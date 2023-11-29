@@ -38,4 +38,14 @@ public class JaxRsClientDecorator
   protected int status(final ClientResponseContext httpResponse) {
     return httpResponse.getStatus();
   }
+
+  @Override
+  protected String getRequestHeader(ClientRequestContext request, String headerName) {
+    return request.getHeaderString(headerName);
+  }
+
+  @Override
+  protected String getResponseHeader(ClientResponseContext response, String headerName) {
+    return response.getHeaderString(headerName);
+  }
 }

@@ -1,10 +1,15 @@
 package datadog.trace.core
 
-
+import datadog.communication.ddagent.DDAgentFeaturesDiscovery
+import datadog.communication.ddagent.SharedCommunicationObjects
+import datadog.communication.monitor.Monitoring
+import datadog.remoteconfig.ConfigurationPoller
+import datadog.remoteconfig.Product
+import datadog.remoteconfig.state.ParsedConfigKey
+import datadog.remoteconfig.state.ProductListener
 import datadog.trace.api.Config
 import datadog.trace.api.StatsDClient
 import datadog.trace.api.sampling.PrioritySampling
-import datadog.trace.bootstrap.instrumentation.api.AgentPropagation
 import datadog.trace.common.sampling.AllSampler
 import datadog.trace.common.sampling.PrioritySampler
 import datadog.trace.common.sampling.RateByServiceTraceSampler
@@ -13,10 +18,14 @@ import datadog.trace.api.sampling.SamplingMechanism
 import datadog.trace.common.writer.DDAgentWriter
 import datadog.trace.common.writer.ListWriter
 import datadog.trace.common.writer.LoggingWriter
-import datadog.trace.core.propagation.DatadogHttpCodec
+import datadog.trace.core.datastreams.DataStreamContextExtractor
 import datadog.trace.core.propagation.HttpCodec
 import datadog.trace.core.test.DDCoreSpecification
+import okhttp3.HttpUrl
+import okhttp3.OkHttpClient
 import spock.lang.Timeout
+
+import java.nio.charset.StandardCharsets
 
 import static datadog.trace.api.config.GeneralConfig.ENV
 import static datadog.trace.api.config.GeneralConfig.HEALTH_METRICS_ENABLED
@@ -43,8 +52,8 @@ class CoreTracerTest extends DDCoreSpecification {
     tracer.writer instanceof DDAgentWriter
     tracer.statsDClient != null && tracer.statsDClient != StatsDClient.NO_OP
 
-    tracer.injector instanceof HttpCodec.CompoundInjector
-    tracer.extractor instanceof HttpCodec.CompoundExtractor
+    tracer.propagate().injector instanceof HttpCodec.CompoundInjector
+    tracer.propagate().extractor instanceof DataStreamContextExtractor
 
     cleanup:
     tracer.close()
@@ -168,13 +177,10 @@ class CoreTracerTest extends DDCoreSpecification {
 
     when:
     def tracer = tracerBuilder().build()
-    // Datadog extractor gets placed first
-    def taggedHeaders = tracer.extractor.extractors[0].traceConfigSupplier.get().taggedHeaders
 
     then:
     tracer.defaultSpanTags == map
     tracer.captureTraceConfig().serviceMapping == map
-    taggedHeaders == map
 
     cleanup:
     tracer.close()
@@ -191,21 +197,17 @@ class CoreTracerTest extends DDCoreSpecification {
 
     when:
     def tracer = tracerBuilder().build()
-    // Datadog extractor gets placed first
-    def baggageMapping = tracer.extractor.extractors[0].traceConfigSupplier.get().baggageMapping
-    def invertedBaggageMapping = tracer.injector.injectors[0].invertedBaggageMapping
 
     then:
-    baggageMapping == map
-    invertedBaggageMapping == invertedMap
+    tracer.captureTraceConfig().baggageMapping == map
 
     cleanup:
     tracer.close()
 
     where:
-    mapString               | map              | invertedMap
-    "a:one, a:two, a:three" | [a: "three"]     | [three: "a"]
-    "a:b,c:d,e:"            | [a: "b", c: "d"] | [b: "a", d: "c"]
+    mapString               | map
+    "a:one, a:two, a:three" | [a: "three"]
+    "a:b,c:d,e:"            | [a: "b", c: "d"]
   }
 
   def "verify overriding host"() {
@@ -320,86 +322,104 @@ class CoreTracerTest extends DDCoreSpecification {
     tracer.close()
   }
 
-  def "span priority set when injecting"() {
-    given:
-    injectSysConfig("writer.type", "LoggingWriter")
-    def tracer = tracerBuilder().build()
-    def setter = Mock(AgentPropagation.Setter)
-    def carrier = new Object()
+  def "verify configuration polling"() {
+    setup:
+    def key = ParsedConfigKey.parse("datadog/2/APM_TRACING/config_overrides/config")
+    def poller = Mock(ConfigurationPoller)
+    def sco = new SharedCommunicationObjects(
+      okHttpClient: Mock(OkHttpClient),
+      monitoring: Mock(Monitoring),
+      agentUrl: HttpUrl.get('https://example.com'),
+      featuresDiscovery: Mock(DDAgentFeaturesDiscovery),
+      configurationPoller: poller
+      )
+
+    def updater
 
     when:
-    def root = tracer.buildSpan("operation").start()
-    def child = tracer.buildSpan('my_child').asChildOf(root).start()
-    tracer.inject(child.context(), carrier, setter)
+    def tracer = CoreTracer.builder()
+      .sharedCommunicationObjects(sco)
+      .pollForTracingConfiguration()
+      .build()
 
     then:
-    root.getSamplingPriority() == PrioritySampling.SAMPLER_KEEP
-    child.getSamplingPriority() == root.getSamplingPriority()
-    1 * setter.set(carrier, DatadogHttpCodec.SAMPLING_PRIORITY_KEY, String.valueOf(PrioritySampling.SAMPLER_KEEP))
+    1 * poller.addListener(Product.APM_TRACING, _ as ProductListener) >> {
+      updater = it[1] // capture config updater for further testing
+    }
+    and:
+    tracer.captureTraceConfig().serviceMapping == [:]
+    tracer.captureTraceConfig().requestHeaderTags == [:]
+    tracer.captureTraceConfig().responseHeaderTags == [:]
+    tracer.captureTraceConfig().traceSampleRate == null
+
+    when:
+    updater.accept(key, '''
+      {
+        "lib_config":
+        {
+          "tracing_service_mapping":
+          [{
+             "from_key": "foobar",
+             "to_name": "bar"
+          }, {
+             "from_key": "snafu",
+             "to_name": "foo"
+          }]
+          ,
+          "tracing_header_tags":
+          [{
+             "header": "Cookie",
+             "tag_name": ""
+          }, {
+             "header": "Referer",
+             "tag_name": "http.referer"
+          }, {
+             "header": "  Some.Header  ",
+             "tag_name": ""
+          }, {
+             "header": "C!!!ont_____ent----tYp!/!e",
+             "tag_name": ""
+          }, {
+             "header": "this.header",
+             "tag_name": "whatever.the.user.wants.this.header"
+          }]
+          ,
+          "tracing_sampling_rate": 0.5
+        }
+      }
+      '''.getBytes(StandardCharsets.UTF_8), null)
+    updater.commit()
+
+    then:
+    tracer.captureTraceConfig().serviceMapping == ['foobar':'bar', 'snafu':'foo']
+    tracer.captureTraceConfig().requestHeaderTags == [
+      'cookie':'http.request.headers.cookie',
+      'referer':'http.referer',
+      'some.header':'http.request.headers.some_header',
+      'c!!!ont_____ent----typ!/!e':'http.request.headers.c___ont_____ent----typ_/_e',
+      'this.header':'whatever.the.user.wants.this.header'
+    ]
+    tracer.captureTraceConfig().responseHeaderTags == [
+      'cookie':'http.response.headers.cookie',
+      'referer':'http.referer',
+      'some.header':'http.response.headers.some_header',
+      'c!!!ont_____ent----typ!/!e':'http.response.headers.c___ont_____ent----typ_/_e',
+      'this.header':'whatever.the.user.wants.this.header'
+    ]
+    tracer.captureTraceConfig().traceSampleRate == 0.5
+
+    when:
+    updater.remove(key, null)
+    updater.commit()
+
+    then:
+    tracer.captureTraceConfig().serviceMapping == [:]
+    tracer.captureTraceConfig().requestHeaderTags == [:]
+    tracer.captureTraceConfig().responseHeaderTags == [:]
+    tracer.captureTraceConfig().traceSampleRate == null
 
     cleanup:
-    child.finish()
-    root.finish()
-    tracer.close()
-  }
-
-  def "span priority only set after first injection"() {
-    given:
-    def sampler = new ControllableSampler()
-    def tracer = tracerBuilder().writer(new LoggingWriter()).sampler(sampler).build()
-    def setter = Mock(AgentPropagation.Setter)
-    def carrier = new Object()
-
-    when:
-    def root = tracer.buildSpan("operation").start()
-    def child = tracer.buildSpan('my_child').asChildOf(root).start()
-    tracer.inject(child.context(), carrier, setter)
-
-    then:
-    root.getSamplingPriority() == PrioritySampling.SAMPLER_KEEP
-    child.getSamplingPriority() == root.getSamplingPriority()
-    1 * setter.set(carrier, DatadogHttpCodec.SAMPLING_PRIORITY_KEY, String.valueOf(PrioritySampling.SAMPLER_KEEP))
-
-    when:
-    sampler.nextSamplingPriority = PrioritySampling.SAMPLER_DROP
-    def child2 = tracer.buildSpan('my_child2').asChildOf(root).start()
-    tracer.inject(child2.context(), carrier, setter)
-
-    then:
-    root.getSamplingPriority() == PrioritySampling.SAMPLER_KEEP
-    child.getSamplingPriority() == root.getSamplingPriority()
-    child2.getSamplingPriority() == root.getSamplingPriority()
-    1 * setter.set(carrier, DatadogHttpCodec.SAMPLING_PRIORITY_KEY, String.valueOf(PrioritySampling.SAMPLER_KEEP))
-
-    cleanup:
-    child.finish()
-    child2.finish()
-    root.finish()
-    tracer.close()
-  }
-
-  def "injection doesn't override set priority"() {
-    given:
-    def sampler = new ControllableSampler()
-    def tracer = tracerBuilder().writer(new LoggingWriter()).sampler(sampler).build()
-    def setter = Mock(AgentPropagation.Setter)
-    def carrier = new Object()
-
-    when:
-    def root = tracer.buildSpan("operation").start()
-    def child = tracer.buildSpan('my_child').asChildOf(root).start()
-    child.setSamplingPriority(PrioritySampling.USER_DROP)
-    tracer.inject(child.context(), carrier, setter)
-
-    then:
-    root.getSamplingPriority() == PrioritySampling.USER_DROP
-    child.getSamplingPriority() == root.getSamplingPriority()
-    1 * setter.set(carrier, DatadogHttpCodec.SAMPLING_PRIORITY_KEY, String.valueOf(PrioritySampling.USER_DROP))
-
-    cleanup:
-    child.finish()
-    root.finish()
-    tracer.close()
+    tracer?.close()
   }
 }
 

@@ -32,7 +32,7 @@ abstract class RedissonClientTest extends VersionedNamingTestBase {
   Config config = new Config()
 
   @Shared
-  SingleServerConfig singleServerConfig = config.useSingleServer().setAddress("redis://127.0.0.1:${port}")
+  SingleServerConfig singleServerConfig = config.useSingleServer().setAddress("redis://localhost:${port}")
 
   @Shared
   RedissonClient redissonClient
@@ -140,6 +140,7 @@ abstract class RedissonClientTest extends VersionedNamingTestBase {
             "$Tags.PEER_HOSTNAME" "localhost"
             "$Tags.PEER_HOST_IPV4" "127.0.0.1"
             "$Tags.PEER_PORT" port
+            peerServiceFrom(Tags.PEER_HOSTNAME)
             defaultTags()
           }
         }
@@ -335,13 +336,14 @@ abstract class RedissonClientTest extends VersionedNamingTestBase {
         "$Tags.PEER_HOSTNAME" "localhost"
         "$Tags.PEER_HOST_IPV4" "127.0.0.1"
         "$Tags.PEER_PORT" port
+        peerServiceFrom(Tags.PEER_HOSTNAME)
         defaultTags()
       }
     }
   }
 }
 
-class RedissonClientV0ForkedTest extends RedissonClientTest {
+class RedissonClientV0Test extends RedissonClientTest {
 
   @Override
   int version() {

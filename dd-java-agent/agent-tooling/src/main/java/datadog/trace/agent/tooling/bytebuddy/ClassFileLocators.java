@@ -62,27 +62,29 @@ public final class ClassFileLocators {
 
       // try bootstrap first
       Resolution resolution = loadClassResource(Utils.getBootstrapProxy(), resourceName);
-      ClassLoader cl = get();
-
-      // now go up the classloader hierarchy
-      if (null == resolution && null != cl) {
-        LOCATING_CLASS.begin();
-        try {
-          do {
-            if (NO_CLASSLOADER_EXCLUDES
-                || !InstrumenterConfig.get()
-                    .getExcludedClassLoaders()
-                    .contains(cl.getClass().getName())) {
-              resolution = loadClassResource(cl, resourceName);
-            }
-            cl = cl.getParent();
-          } while (null == resolution && null != cl);
-        } finally {
-          LOCATING_CLASS.end();
-        }
+      if (null != resolution) {
+        return resolution;
       }
 
-      return resolution != null ? resolution : new Resolution.Illegal(className);
+      LOCATING_CLASS.begin();
+      try {
+        // now go up the classloader hierarchy
+        for (ClassLoader cl = get(); null != cl; cl = cl.getParent()) {
+          if (NO_CLASSLOADER_EXCLUDES
+              || !InstrumenterConfig.get()
+                  .getExcludedClassLoaders()
+                  .contains(cl.getClass().getName())) {
+            resolution = loadClassResource(cl, resourceName);
+            if (null != resolution) {
+              return resolution;
+            }
+          }
+        }
+      } finally {
+        LOCATING_CLASS.end();
+      }
+
+      return new Resolution.Illegal(className);
     }
 
     @Override
@@ -99,6 +101,8 @@ public final class ClassFileLocators {
   private ClassFileLocators() {}
 
   public static final class LazyResolution implements Resolution {
+    private static final Boolean USE_URL_CACHES = InstrumenterConfig.get().isResolverUseUrlCaches();
+
     private final URL url;
     private byte[] bytecode;
 
@@ -120,7 +124,9 @@ public final class ClassFileLocators {
       if (null == bytecode) {
         try {
           URLConnection uc = url.openConnection();
-          uc.setUseCaches(false);
+          if (null != USE_URL_CACHES) {
+            uc.setUseCaches(USE_URL_CACHES);
+          }
           try (InputStream in = uc.getInputStream()) {
             bytecode = StreamDrainer.DEFAULT.drain(in);
           }

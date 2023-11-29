@@ -2,7 +2,17 @@ import java.time.Duration
 import java.time.temporal.ChronoUnit
 
 def isTestingInstrumentation(Project project) {
-  return ["junit-4.10", "junit-5.3", "testng-6.4", "testng-7.5"].contains(project.name)
+  return [
+    "junit-4.10",
+    "cucumber-junit-4",
+    "munit-junit-4",
+    "junit-5.3",
+    "cucumber-junit-5",
+    "spock-junit-5",
+    "testng-6",
+    "testng-7",
+    "karate"
+  ].contains(project.name)
 }
 
 def forkedTestLimit = gradle.sharedServices.registerIfAbsent("forkedTestLimit", BuildService) {
@@ -65,6 +75,20 @@ tasks.withType(Test).configureEach {
   }
 
   timeout = testTimeoutDuration
+
+  check.dependsOn it
+}
+
+Task allTestsTask = tasks.maybeCreate('allTests')
+Task allLatestDepTestsTask = tasks.maybeCreate('allLatestDepTests')
+project.afterEvaluate {
+  tasks.withType(Test).each {
+    if (it.name.containsIgnoreCase('latest')) {
+      allLatestDepTestsTask.dependsOn it
+    } else if (it.name != 'traceAgentTest') {
+      allTestsTask.dependsOn it
+    }
+  }
 }
 
 // Setup flaky tests jobs. Done in afterEvaluate so that it applies to latestDepTest.

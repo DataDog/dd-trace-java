@@ -7,6 +7,7 @@ import datadog.trace.api.gateway.RequestContextSlot
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopPathwayContext
+import datadog.trace.bootstrap.instrumentation.api.ErrorPriorities
 import datadog.trace.bootstrap.instrumentation.api.TagContext
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString
 import datadog.trace.common.sampling.RateByServiceTraceSampler
@@ -17,6 +18,7 @@ import spock.lang.Shared
 
 import java.util.concurrent.TimeUnit
 
+import static datadog.trace.api.TracePropagationStyle.DATADOG
 import static datadog.trace.api.sampling.PrioritySampling.UNSET
 import static datadog.trace.api.sampling.SamplingMechanism.SPAN_SAMPLING_RATE
 import static datadog.trace.core.DDSpanContext.SPAN_SAMPLING_MAX_PER_SECOND_TAG
@@ -146,7 +148,7 @@ class DDSpanTest extends DDCoreSpecification {
     then:
     finish
     span.context().trace.pendingReferenceCount == 1
-    span.context().trace.finishedSpans.isEmpty()
+    span.context().trace.spans.isEmpty()
     writer.isEmpty()
 
     and: "duration is recorded as negative to allow publishing"
@@ -165,7 +167,7 @@ class DDSpanTest extends DDCoreSpecification {
     then: "have no effect"
     !finish
     span.context().trace.pendingReferenceCount == 1
-    span.context().trace.finishedSpans.isEmpty()
+    span.context().trace.spans.isEmpty()
     writer.isEmpty()
 
     when:
@@ -271,9 +273,9 @@ class DDSpanTest extends DDCoreSpecification {
     child.@origin == null // Access field directly instead of getter.
 
     where:
-    extractedContext                                                                                                                           | _
-    new TagContext("some-origin", [:])                                                                                                         | _
-    new ExtractedContext(DDTraceId.ONE, 2, PrioritySampling.SAMPLER_DROP, "some-origin", 0, [:], [:], null, propagationTagsFactory.empty()) | _
+    extractedContext                                                                                                              | _
+    new TagContext("some-origin", [:])                                                                                            | _
+    new ExtractedContext(DDTraceId.ONE, 2, PrioritySampling.SAMPLER_DROP, "some-origin", propagationTagsFactory.empty(), DATADOG) | _
   }
 
   def "isRootSpan() in and not in the context of distributed tracing"() {
@@ -290,9 +292,9 @@ class DDSpanTest extends DDCoreSpecification {
     root.finish()
 
     where:
-    extractedContext                                                                                                                        | isTraceRootSpan
-    null                                                                                                                                    | true
-    new ExtractedContext(DDTraceId.from(123), 456, PrioritySampling.SAMPLER_KEEP, "789", 0, [:], [:], null, propagationTagsFactory.empty()) | false
+    extractedContext                                                                                                              | isTraceRootSpan
+    null                                                                                                                          | true
+    new ExtractedContext(DDTraceId.from(123), 456, PrioritySampling.SAMPLER_KEEP, "789", propagationTagsFactory.empty(), DATADOG) | false
   }
 
   def "getApplicationRootSpan() in and not in the context of distributed tracing"() {
@@ -312,9 +314,9 @@ class DDSpanTest extends DDCoreSpecification {
     root.finish()
 
     where:
-    extractedContext                                                                                                                          | isTraceRootSpan
-    null                                                                                                                                      | true
-    new ExtractedContext(DDTraceId.from(123), 456, PrioritySampling.SAMPLER_KEEP, "789", 0, [:], [:], null, propagationTagsFactory.empty()) | false
+    extractedContext                                                                                                              | isTraceRootSpan
+    null                                                                                                                          | true
+    new ExtractedContext(DDTraceId.from(123), 456, PrioritySampling.SAMPLER_KEEP, "789", propagationTagsFactory.empty(), DATADOG) | false
   }
 
   def 'publishing of root span closes the request context data'() {
@@ -430,5 +432,33 @@ class DDSpanTest extends DDCoreSpecification {
     1.0  | 10
     0.5  | 100
     0.25 | Integer.MAX_VALUE
+  }
+
+  def "error priorities should be respected"() {
+    setup:
+    def span = tracer.buildSpan("testSpan").start() as DDSpan
+
+    expect:
+    !span.isError()
+
+    when:
+    span.setError(true)
+    then:
+    span.isError()
+
+    when:
+    span.setError(false)
+    then:
+    !span.isError()
+
+    when:
+    span.setError(true, ErrorPriorities.HTTP_SERVER_DECORATOR)
+    then:
+    !span.isError()
+
+    when:
+    span.setError(true, Byte.MAX_VALUE)
+    then:
+    span.isError()
   }
 }

@@ -1,8 +1,7 @@
 package com.datadog.profiling.ddprof;
 
-import datadog.trace.api.experimental.ProfilingContextSetter;
-
-public class DatadogProfilerContextSetter implements ProfilingContextSetter {
+public class DatadogProfilerContextSetter
+    implements datadog.trace.api.profiling.ProfilingContextAttribute {
 
   private final int offset;
   private final DatadogProfiler profiler;
@@ -12,12 +11,10 @@ public class DatadogProfilerContextSetter implements ProfilingContextSetter {
     this.profiler = profiler;
   }
 
-  @Override
   public void set(CharSequence value) {
     profiler.setContextValue(offset, value);
   }
 
-  @Override
   public void clear() {
     profiler.clearContextValue(offset);
   }

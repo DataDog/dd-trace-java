@@ -15,7 +15,9 @@ public final class GeneralConfig {
 
   public static final String CONFIGURATION_FILE = "trace.config";
   public static final String API_KEY = "api-key";
+  public static final String APPLICATION_KEY = "application-key";
   public static final String API_KEY_FILE = "api-key-file";
+  public static final String APPLICATION_KEY_FILE = "application-key-file";
   public static final String SITE = "site";
 
   public static final String SERVICE_NAME = "service.name";
@@ -26,12 +28,20 @@ public final class GeneralConfig {
   @Deprecated // Use dd.tags instead
   public static final String GLOBAL_TAGS = "trace.global.tags";
 
+  public static final String TRACE_DEBUG = "trace.debug";
+
+  public static final String STARTUP_LOGS_ENABLED = "trace.startup.logs";
+
   public static final String DOGSTATSD_START_DELAY = "dogstatsd.start-delay";
   public static final String DOGSTATSD_HOST = "dogstatsd.host";
   public static final String DOGSTATSD_PORT = "dogstatsd.port";
   public static final String DOGSTATSD_PATH = "dogstatsd.path";
   public static final String DOGSTATSD_ARGS = "dogstatsd.args";
   public static final String DOGSTATSD_NAMED_PIPE = "dogstatsd.pipe.name";
+
+  public static final String STATSD_CLIENT_QUEUE_SIZE = "statsd.client.queue.size";
+  public static final String STATSD_CLIENT_SOCKET_BUFFER = "statsd.client.socket.buffer";
+  public static final String STATSD_CLIENT_SOCKET_TIMEOUT = "statsd.client.socket.timeout";
 
   public static final String RUNTIME_METRICS_ENABLED = "runtime.metrics.enabled";
   public static final String RUNTIME_ID_ENABLED = "runtime-id.enabled";
@@ -56,9 +66,15 @@ public final class GeneralConfig {
 
   public static final String TELEMETRY_ENABLED = "instrumentation.telemetry.enabled";
   public static final String TELEMETRY_HEARTBEAT_INTERVAL = "telemetry.heartbeat.interval";
+  public static final String TELEMETRY_EXTENDED_HEARTBEAT_INTERVAL =
+      "telemetry.extended.heartbeat.interval";
   public static final String TELEMETRY_METRICS_INTERVAL = "telemetry.metrics.interval";
+  public static final String TELEMETRY_METRICS_ENABLED = "telemetry.metrics.enabled";
   public static final String TELEMETRY_DEPENDENCY_COLLECTION_ENABLED =
       "telemetry.dependency-collection.enabled";
+  public static final String TELEMETRY_LOG_COLLECTION_ENABLED = "telemetry.log-collection.enabled";
+
+  public static final String TELEMETRY_DEBUG_REQUESTS_ENABLED = "telemetry.debug.requests.enabled";
 
   private GeneralConfig() {}
 }

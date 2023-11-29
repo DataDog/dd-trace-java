@@ -1,55 +1,70 @@
 package datadog.trace.civisibility.events;
 
-import datadog.trace.api.Config;
-import datadog.trace.api.civisibility.DDTestModule;
-import datadog.trace.api.civisibility.DDTestSession;
-import datadog.trace.api.civisibility.decorator.TestDecorator;
+import datadog.trace.api.civisibility.CIConstants;
+import datadog.trace.api.civisibility.config.ModuleExecutionSettings;
 import datadog.trace.api.civisibility.events.BuildEventsHandler;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
-import datadog.trace.civisibility.DDTestModuleImpl;
-import datadog.trace.civisibility.DDTestSessionImpl;
+import datadog.trace.civisibility.DDBuildSystemModule;
+import datadog.trace.civisibility.DDBuildSystemSession;
+import datadog.trace.civisibility.config.JvmInfo;
+import datadog.trace.civisibility.config.JvmInfoFactory;
+import java.io.File;
+import java.nio.file.Path;
+import java.util.Collection;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import javax.annotation.Nullable;
 
 public class BuildEventsHandlerImpl<T> implements BuildEventsHandler<T> {
 
-  private final ConcurrentMap<T, DDTestSession> inProgressTestSessions = new ConcurrentHashMap<>();
-
-  private final ConcurrentMap<TestModuleDescriptor<T>, DDTestModule> inProgressTestModules =
+  private final ConcurrentMap<T, DDBuildSystemSession> inProgressTestSessions =
       new ConcurrentHashMap<>();
+
+  private final ConcurrentMap<TestModuleDescriptor<T>, DDBuildSystemModule> inProgressTestModules =
+      new ConcurrentHashMap<>();
+
+  private final DDBuildSystemSession.Factory sessionFactory;
+  private final JvmInfoFactory jvmInfoFactory;
+
+  public BuildEventsHandlerImpl(
+      DDBuildSystemSession.Factory sessionFactory, JvmInfoFactory jvmInfoFactory) {
+    this.sessionFactory = sessionFactory;
+    this.jvmInfoFactory = jvmInfoFactory;
+  }
 
   @Override
   public void onTestSessionStart(
       final T sessionKey,
-      final TestDecorator sessionDecorator,
       final String projectName,
+      final Path projectRoot,
       final String startCommand,
       final String buildSystemName,
-      final String buildSystemVersion) {
-    DDTestSession testSession =
-        new DDTestSessionImpl(projectName, null, Config.get(), sessionDecorator, null, null, null);
-    testSession.setTag(Tags.TEST_COMMAND, startCommand);
+      final String buildSystemVersion,
+      Map<String, Object> additionalTags) {
+    DDBuildSystemSession testSession =
+        sessionFactory.startSession(projectName, projectRoot, startCommand, buildSystemName, null);
+
+    if (additionalTags != null) {
+      for (Map.Entry<String, Object> e : additionalTags.entrySet()) {
+        String tag = e.getKey();
+        Object value = e.getValue();
+        testSession.setTag(tag, value);
+      }
+    }
+
     testSession.setTag(Tags.TEST_TOOLCHAIN, buildSystemName + ":" + buildSystemVersion);
     inProgressTestSessions.put(sessionKey, testSession);
   }
 
   @Override
-  public void onTestFrameworkDetected(
-      final T sessionKey, final String frameworkName, final String frameworkVersion) {
-    DDTestSession testSession = getTestSession(sessionKey);
-    testSession.setTag(Tags.TEST_FRAMEWORK, frameworkName);
-    testSession.setTag(Tags.TEST_FRAMEWORK_VERSION, frameworkVersion);
-  }
-
-  @Override
   public void onTestSessionFail(final T sessionKey, final Throwable throwable) {
-    DDTestSession testSession = getTestSession(sessionKey);
+    DDBuildSystemSession testSession = getTestSession(sessionKey);
     testSession.setErrorInfo(throwable);
   }
 
-  private DDTestSession getTestSession(T sessionKey) {
-    DDTestSession testSession = inProgressTestSessions.get(sessionKey);
+  private DDBuildSystemSession getTestSession(T sessionKey) {
+    DDBuildSystemSession testSession = inProgressTestSessions.get(sessionKey);
     if (testSession == null) {
       throw new IllegalStateException("Could not find session span for key: " + sessionKey);
     }
@@ -58,20 +73,21 @@ public class BuildEventsHandlerImpl<T> implements BuildEventsHandler<T> {
 
   @Override
   public void onTestSessionFinish(final T sessionKey) {
-    DDTestSession testSession = inProgressTestSessions.remove(sessionKey);
+    DDBuildSystemSession testSession = inProgressTestSessions.remove(sessionKey);
     testSession.end(null);
   }
 
   @Override
-  public ModuleAndSessionId onTestModuleStart(
+  public ModuleInfo onTestModuleStart(
       final T sessionKey,
       final String moduleName,
-      String startCommand,
-      Map<String, Object> additionalTags) {
+      Collection<File> outputClassesDirs,
+      @Nullable Map<String, Object> additionalTags) {
 
-    DDTestSession testSession = inProgressTestSessions.get(sessionKey);
-    DDTestModule testModule = testSession.testModuleStart(moduleName, null);
-    testModule.setTag(Tags.TEST_COMMAND, startCommand);
+    DDBuildSystemSession testSession = inProgressTestSessions.get(sessionKey);
+    DDBuildSystemModule testModule =
+        testSession.testModuleStart(moduleName, null, outputClassesDirs);
+    testModule.setTag(Tags.TEST_STATUS, CIConstants.TEST_PASS);
 
     if (additionalTags != null) {
       for (Map.Entry<String, Object> e : additionalTags.entrySet()) {
@@ -85,37 +101,26 @@ public class BuildEventsHandlerImpl<T> implements BuildEventsHandler<T> {
         new TestModuleDescriptor<>(sessionKey, moduleName);
     inProgressTestModules.put(testModuleDescriptor, testModule);
 
-    return ((DDTestModuleImpl) testModule).getModuleAndSessionId();
-  }
-
-  @Override
-  public void onModuleTestFrameworkDetected(
-      final T sessionKey,
-      final String moduleName,
-      final String frameworkName,
-      final String frameworkVersion) {
-    DDTestModule testModule = getTestModule(sessionKey, moduleName);
-    testModule.setTag(Tags.TEST_FRAMEWORK, frameworkName);
-    testModule.setTag(Tags.TEST_FRAMEWORK_VERSION, frameworkVersion);
+    return testModule.getModuleInfo();
   }
 
   @Override
   public void onTestModuleSkip(final T sessionKey, final String moduleName, final String reason) {
-    DDTestModule testModule = getTestModule(sessionKey, moduleName);
+    DDBuildSystemModule testModule = getTestModule(sessionKey, moduleName);
     testModule.setSkipReason(reason);
   }
 
   @Override
   public void onTestModuleFail(
       final T sessionKey, final String moduleName, final Throwable throwable) {
-    DDTestModule testModule = getTestModule(sessionKey, moduleName);
+    DDBuildSystemModule testModule = getTestModule(sessionKey, moduleName);
     testModule.setErrorInfo(throwable);
   }
 
-  private DDTestModule getTestModule(final T sessionKey, final String moduleName) {
+  private DDBuildSystemModule getTestModule(final T sessionKey, final String moduleName) {
     TestModuleDescriptor<T> testModuleDescriptor =
         new TestModuleDescriptor<>(sessionKey, moduleName);
-    DDTestModule testModule = inProgressTestModules.get(testModuleDescriptor);
+    DDBuildSystemModule testModule = inProgressTestModules.get(testModuleDescriptor);
     if (testModule == null) {
       throw new IllegalStateException(
           "Could not find module for session key " + sessionKey + " and module name " + moduleName);
@@ -127,7 +132,7 @@ public class BuildEventsHandlerImpl<T> implements BuildEventsHandler<T> {
   public void onTestModuleFinish(T sessionKey, String moduleName) {
     TestModuleDescriptor<T> testModuleDescriptor =
         new TestModuleDescriptor<>(sessionKey, moduleName);
-    DDTestModule testModule = inProgressTestModules.remove(testModuleDescriptor);
+    DDBuildSystemModule testModule = inProgressTestModules.remove(testModuleDescriptor);
     if (testModule == null) {
       throw new IllegalStateException(
           "Could not find module span for session key "
@@ -136,5 +141,17 @@ public class BuildEventsHandlerImpl<T> implements BuildEventsHandler<T> {
               + moduleName);
     }
     testModule.end(null);
+  }
+
+  @Override
+  public ModuleExecutionSettings getModuleExecutionSettings(T sessionKey, Path jvmExecutablePath) {
+    DDBuildSystemSession testSession = getTestSession(sessionKey);
+    JvmInfo jvmInfo = jvmInfoFactory.getJvmInfo(jvmExecutablePath);
+    return testSession.getModuleExecutionSettings(jvmInfo);
+  }
+
+  @Override
+  public ModuleInfo getModuleInfo(T sessionKey, String moduleName) {
+    return getTestModule(sessionKey, moduleName).getModuleInfo();
   }
 }

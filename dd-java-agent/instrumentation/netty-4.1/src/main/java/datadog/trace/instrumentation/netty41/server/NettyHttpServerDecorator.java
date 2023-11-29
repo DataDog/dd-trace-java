@@ -2,6 +2,7 @@ package datadog.trace.instrumentation.netty41.server;
 
 import datadog.appsec.api.blocking.BlockingContentType;
 import datadog.trace.api.gateway.BlockResponseFunction;
+import datadog.trace.api.internal.TraceSegment;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.ContextVisitors;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
@@ -101,6 +102,11 @@ public class NettyHttpServerDecorator
   }
 
   @Override
+  protected boolean isAppSecOnResponseSeparate() {
+    return true;
+  }
+
+  @Override
   protected BlockResponseFunction createBlockResponseFunction(
       HttpRequest httpRequest, Channel channel) {
     return new NettyBlockResponseFunction(channel.pipeline(), httpRequest);
@@ -118,7 +124,10 @@ public class NettyHttpServerDecorator
 
     @Override
     public boolean tryCommitBlockingResponse(
-        int statusCode, BlockingContentType templateType, Map<String, String> extraHeaders) {
+        TraceSegment segment,
+        int statusCode,
+        BlockingContentType templateType,
+        Map<String, String> extraHeaders) {
       ChannelHandler handlerBefore = pipeline.get(HttpServerTracingHandler.class);
       if (handlerBefore == null) {
         handlerBefore = pipeline.get(HttpServerRequestTracingHandler.class);
@@ -134,7 +143,7 @@ public class NettyHttpServerDecorator
             .addAfter(
                 pipeline.context(handlerBefore).name(),
                 "blocking_handler",
-                new BlockingResponseHandler(statusCode, templateType, extraHeaders))
+                new BlockingResponseHandler(segment, statusCode, templateType, extraHeaders))
             .addBefore(
                 "blocking_handler", "before_blocking_handler", new ChannelInboundHandlerAdapter());
       } catch (RuntimeException rte) {

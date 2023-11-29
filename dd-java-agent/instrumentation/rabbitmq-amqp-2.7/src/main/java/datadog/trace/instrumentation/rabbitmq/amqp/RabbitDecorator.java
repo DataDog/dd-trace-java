@@ -24,7 +24,6 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.ContextVisitors;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
-import datadog.trace.bootstrap.instrumentation.api.PathwayContext;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.MessagingClientDecorator;
@@ -47,27 +46,35 @@ public class RabbitDecorator extends MessagingClientDecorator {
   public static final CharSequence RABBITMQ_AMQP = UTF8BytesString.create("rabbitmq-amqp");
 
   public static final boolean RABBITMQ_LEGACY_TRACING =
-      Config.get()
-          .isLegacyTracingEnabled(SpanNaming.instance().version() == 0, "rabbit", "rabbitmq");
+      Config.get().isLegacyTracingEnabled(true, "rabbit", "rabbitmq");
 
   public static final boolean TIME_IN_QUEUE_ENABLED =
-      Config.get()
-          .isTimeInQueueEnabled(
-              !RABBITMQ_LEGACY_TRACING && SpanNaming.instance().version() == 0,
-              "rabbit",
-              "rabbitmq");
+      Config.get().isTimeInQueueEnabled(!RABBITMQ_LEGACY_TRACING, "rabbit", "rabbitmq");
 
-  private static final String LOCAL_SERVICE_NAME =
-      RABBITMQ_LEGACY_TRACING ? "rabbitmq" : Config.get().getServiceName();
   public static final RabbitDecorator CLIENT_DECORATE =
       new RabbitDecorator(
-          Tags.SPAN_KIND_CLIENT, InternalSpanTypes.MESSAGE_CLIENT, LOCAL_SERVICE_NAME);
+          Tags.SPAN_KIND_CLIENT,
+          InternalSpanTypes.MESSAGE_CLIENT,
+          SpanNaming.instance()
+              .namingSchema()
+              .messaging()
+              .outboundService("rabbitmq", RABBITMQ_LEGACY_TRACING));
   public static final RabbitDecorator PRODUCER_DECORATE =
       new RabbitDecorator(
-          Tags.SPAN_KIND_PRODUCER, InternalSpanTypes.MESSAGE_PRODUCER, LOCAL_SERVICE_NAME);
+          Tags.SPAN_KIND_PRODUCER,
+          InternalSpanTypes.MESSAGE_PRODUCER,
+          SpanNaming.instance()
+              .namingSchema()
+              .messaging()
+              .outboundService("rabbitmq", RABBITMQ_LEGACY_TRACING));
   public static final RabbitDecorator CONSUMER_DECORATE =
       new RabbitDecorator(
-          Tags.SPAN_KIND_CONSUMER, InternalSpanTypes.MESSAGE_CONSUMER, LOCAL_SERVICE_NAME);
+          Tags.SPAN_KIND_CONSUMER,
+          InternalSpanTypes.MESSAGE_CONSUMER,
+          SpanNaming.instance()
+              .namingSchema()
+              .messaging()
+              .inboundService("rabbitmq", RABBITMQ_LEGACY_TRACING));
   public static final RabbitDecorator BROKER_DECORATE =
       new RabbitDecorator(
           Tags.SPAN_KIND_BROKER,
@@ -223,27 +230,28 @@ public class RabbitDecorator extends MessagingClientDecorator {
     }
     final AgentSpan span = startSpan(OPERATION_AMQP_INBOUND, parentContext, spanStartMicros);
 
-    if (null != headers) {
-      PathwayContext pathwayContext =
-          propagate().extractPathwayContext(headers, ContextVisitors.objectValuesMap());
-      span.mergePathwayContext(pathwayContext);
-      LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>();
-      sortedTags.put(DIRECTION_TAG, DIRECTION_IN);
-      sortedTags.put(TOPIC_TAG, queue);
-      sortedTags.put(TYPE_TAG, "rabbitmq");
-      AgentTracer.get().setDataStreamCheckpoint(span, sortedTags);
-    }
-
     if (null != body) {
       span.setTag("message.size", body.length);
     }
     // TODO - do we still need both?
+    long produceMillis = 0;
     if (null != properties && null != properties.getTimestamp()) {
       // this will be set if the sender sets the timestamp,
       // or if a plugin is installed on the rabbitmq broker
-      long produceMillis = properties.getTimestamp().getTime();
+      produceMillis = properties.getTimestamp().getTime();
       span.setTag(RECORD_QUEUE_TIME_MS, Math.max(0L, spanStartMillis - produceMillis));
     }
+
+    if (null != headers) {
+      LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>();
+      sortedTags.put(DIRECTION_TAG, DIRECTION_IN);
+      sortedTags.put(TOPIC_TAG, queue);
+      sortedTags.put(TYPE_TAG, "rabbitmq");
+      AgentTracer.get()
+          .getDataStreamsMonitoring()
+          .setCheckpoint(span, sortedTags, produceMillis, 0);
+    }
+
     CONSUMER_DECORATE.afterStart(span);
     AgentScope scope = activateSpan(span);
     if (null != queueSpan) {

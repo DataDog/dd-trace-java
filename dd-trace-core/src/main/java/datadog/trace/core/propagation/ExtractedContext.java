@@ -1,6 +1,9 @@
 package datadog.trace.core.propagation;
 
 import datadog.trace.api.DDTraceId;
+import datadog.trace.api.TraceConfig;
+import datadog.trace.api.TracePropagationStyle;
+import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.bootstrap.instrumentation.api.TagContext;
 import java.util.Map;
 
@@ -18,12 +21,35 @@ public class ExtractedContext extends TagContext {
       final long spanId,
       final int samplingPriority,
       final CharSequence origin,
+      final PropagationTags propagationTags,
+      final TracePropagationStyle propagationStyle) {
+    this(
+        traceId,
+        spanId,
+        samplingPriority,
+        origin,
+        0,
+        null,
+        null,
+        null,
+        propagationTags,
+        null,
+        propagationStyle);
+  }
+
+  public ExtractedContext(
+      final DDTraceId traceId,
+      final long spanId,
+      final int samplingPriority,
+      final CharSequence origin,
       final long endToEndStartTime,
       final Map<String, String> baggage,
       final Map<String, String> tags,
       final HttpHeaders httpHeaders,
-      final PropagationTags propagationTags) {
-    super(origin, tags, httpHeaders, baggage, samplingPriority);
+      final PropagationTags propagationTags,
+      final TraceConfig traceConfig,
+      final TracePropagationStyle propagationStyle) {
+    super(origin, tags, httpHeaders, baggage, samplingPriority, traceConfig, propagationStyle);
     this.traceId = traceId;
     this.spanId = spanId;
     this.endToEndStartTime = endToEndStartTime;
@@ -46,5 +72,32 @@ public class ExtractedContext extends TagContext {
 
   public PropagationTags getPropagationTags() {
     return propagationTags;
+  }
+
+  @Override
+  public String toString() {
+    StringBuilder builder = new StringBuilder("ExtractedContext{");
+    if (traceId != null) {
+      builder.append("traceId=").append(traceId).append(", ");
+    }
+    if (spanId != 0) {
+      builder.append("endToEndStartTime=").append(spanId).append(", ");
+    }
+    if (endToEndStartTime != 0) {
+      builder.append("spanId=").append(spanId).append(", ");
+    }
+    if (getOrigin() != null) {
+      builder.append("origin=").append(getOrigin()).append(", ");
+    }
+    if (getTags() != null) {
+      builder.append("tags=").append(getTags()).append(", ");
+    }
+    if (getBaggage() != null) {
+      builder.append("baggage=").append(getBaggage()).append(", ");
+    }
+    if (getSamplingPriority() != PrioritySampling.UNSET) {
+      builder.append("samplingPriority=").append(getSamplingPriority()).append(", ");
+    }
+    return builder.append('}').toString();
   }
 }

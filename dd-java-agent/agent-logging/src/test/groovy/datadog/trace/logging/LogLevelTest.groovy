@@ -1,6 +1,5 @@
-package datadog.trace.bootstrap
+package datadog.trace.logging
 
-import datadog.trace.logging.LogLevel
 import spock.lang.Specification
 
 class LogLevelTest extends Specification {

@@ -11,7 +11,9 @@ import static net.bytebuddy.matcher.ElementMatchers.takesNoArguments;
 
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.muzzle.Reference;
+import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.InstrumentationBridge;
+import datadog.trace.api.iast.Source;
 import datadog.trace.api.iast.SourceTypes;
 import datadog.trace.api.iast.propagation.PropagationModule;
 import java.util.Set;
@@ -68,6 +70,7 @@ public abstract class AbstractHttpServerRequestInstrumentation extends Instrumen
     }
 
     @Advice.OnMethodExit(suppress = Throwable.class)
+    @Source(SourceTypes.REQUEST_PARAMETER_VALUE)
     public static void onExit(
         @Advice.Local("beforeParams") final Object beforeParams,
         @Advice.Return final Object multiMap) {
@@ -75,7 +78,7 @@ public abstract class AbstractHttpServerRequestInstrumentation extends Instrumen
       if (beforeParams != multiMap) {
         final PropagationModule module = InstrumentationBridge.PROPAGATION;
         if (module != null) {
-          module.taint(SourceTypes.REQUEST_PARAMETER_VALUE, multiMap);
+          module.taint(multiMap, SourceTypes.REQUEST_PARAMETER_VALUE);
         }
       }
     }
@@ -91,6 +94,7 @@ public abstract class AbstractHttpServerRequestInstrumentation extends Instrumen
     }
 
     @Advice.OnMethodExit(suppress = Throwable.class)
+    @Source(SourceTypes.REQUEST_PARAMETER_VALUE)
     public static void onExit(
         @Advice.Local("beforeAttributes") final Object beforeAttributes,
         @Advice.Return final Object multiMap) {
@@ -98,7 +102,7 @@ public abstract class AbstractHttpServerRequestInstrumentation extends Instrumen
       if (beforeAttributes != multiMap) {
         final PropagationModule module = InstrumentationBridge.PROPAGATION;
         if (module != null) {
-          module.taint(SourceTypes.REQUEST_PARAMETER_VALUE, multiMap);
+          module.taint(multiMap, SourceTypes.REQUEST_PARAMETER_VALUE);
         }
       }
     }
@@ -107,10 +111,11 @@ public abstract class AbstractHttpServerRequestInstrumentation extends Instrumen
   public static class HeadersAdvice {
 
     @Advice.OnMethodExit(suppress = Throwable.class)
+    @Source(SourceTypes.REQUEST_HEADER_VALUE)
     public static void onExit(@Advice.Return final Object multiMap) {
       final PropagationModule module = InstrumentationBridge.PROPAGATION;
       if (module != null) {
-        module.taint(SourceTypes.REQUEST_HEADER_VALUE, multiMap);
+        module.taint(multiMap, SourceTypes.REQUEST_HEADER_VALUE);
       }
     }
   }
@@ -118,10 +123,11 @@ public abstract class AbstractHttpServerRequestInstrumentation extends Instrumen
   public static class DataAdvice {
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
+    @Source(SourceTypes.REQUEST_BODY)
     public static void onExit(@Advice.Argument(0) final Object data) {
       final PropagationModule module = InstrumentationBridge.PROPAGATION;
       if (module != null) {
-        module.taint(SourceTypes.REQUEST_BODY, data);
+        module.taint(data, SourceTypes.REQUEST_BODY);
       }
     }
   }
@@ -129,10 +135,14 @@ public abstract class AbstractHttpServerRequestInstrumentation extends Instrumen
   public static class CookiesAdvice {
 
     @Advice.OnMethodExit(suppress = Throwable.class)
+    @Source(SourceTypes.REQUEST_COOKIE_VALUE)
     public static void onExit(@Advice.Return final Set<Object> cookies) {
       final PropagationModule module = InstrumentationBridge.PROPAGATION;
-      if (module != null) {
-        module.taint(SourceTypes.REQUEST_COOKIE_VALUE, cookies);
+      if (module != null && cookies != null && !cookies.isEmpty()) {
+        final IastContext ctx = IastContext.Provider.get();
+        for (final Object cookie : cookies) {
+          module.taint(ctx, cookie, SourceTypes.REQUEST_COOKIE_VALUE);
+        }
       }
     }
   }
@@ -140,10 +150,11 @@ public abstract class AbstractHttpServerRequestInstrumentation extends Instrumen
   public static class GetCookieAdvice {
 
     @Advice.OnMethodExit(suppress = Throwable.class)
+    @Source(SourceTypes.REQUEST_COOKIE_VALUE)
     public static void onExit(@Advice.Return final Object cookie) {
       final PropagationModule module = InstrumentationBridge.PROPAGATION;
       if (module != null) {
-        module.taint(SourceTypes.REQUEST_COOKIE_VALUE, cookie);
+        module.taint(cookie, SourceTypes.REQUEST_COOKIE_VALUE);
       }
     }
   }

@@ -1,6 +1,5 @@
 package datadog.trace.api.naming.v1;
 
-import datadog.trace.api.Config;
 import datadog.trace.api.naming.NamingSchema;
 import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.util.Strings;
@@ -37,11 +36,10 @@ public class CloudNamingV1 implements NamingSchema.ForCloud {
     }
   }
 
-  @Nonnull
   @Override
   public String serviceForRequest(
       @Nonnull final String provider, @Nullable final String cloudService) {
-    return Config.get().getServiceName(); // always use DD_SERVICE
+    return null;
   }
 
   @Nonnull

@@ -2,6 +2,7 @@ package datadog.trace.instrumentation.junit4;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.extendsClass;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
+import static net.bytebuddy.matcher.ElementMatchers.not;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
@@ -11,6 +12,7 @@ import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 import org.junit.rules.RuleChain;
+import org.junit.runner.Runner;
 import org.junit.runner.notification.RunListener;
 import org.junit.runner.notification.RunNotifier;
 
@@ -19,7 +21,7 @@ public class JUnit4Instrumentation extends Instrumenter.CiVisibility
     implements Instrumenter.ForTypeHierarchy {
 
   public JUnit4Instrumentation() {
-    super("junit", "junit-4");
+    super("ci-visibility", "junit-4");
   }
 
   @Override
@@ -29,12 +31,24 @@ public class JUnit4Instrumentation extends Instrumenter.CiVisibility
 
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return extendsClass(named(hierarchyMarkerType()));
+    return extendsClass(named(hierarchyMarkerType()))
+        // do not instrument our internal runner
+        // that is used to run instrumentation integration tests
+        .and(not(extendsClass(named("datadog.trace.agent.test.SpockRunner"))))
+        // do not instrument Karate JUnit 4 runner
+        // since Karate has a dedicated instrumentation
+        .and(not(extendsClass(named("com.intuit.karate.junit4.Karate"))));
   }
 
   @Override
   public String[] helperClassNames() {
-    return new String[] {packageName + ".TracingListener", packageName + ".JUnit4Utils"};
+    return new String[] {
+      packageName + ".TestEventsHandlerHolder",
+      packageName + ".SkippedByItr",
+      packageName + ".JUnit4Utils",
+      packageName + ".TracingListener",
+      packageName + ".JUnit4TracingListener",
+    };
   }
 
   @Override
@@ -46,7 +60,17 @@ public class JUnit4Instrumentation extends Instrumenter.CiVisibility
 
   public static class JUnit4Advice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static void addTracingListener(@Advice.Argument(0) final RunNotifier runNotifier) {
+    public static void addTracingListener(
+        @Advice.This final Runner runner, @Advice.Argument(0) final RunNotifier runNotifier) {
+      String runnerClassName = runner.getClass().getName();
+      if ("datadog.trace.agent.test.SpockRunner".equals(runnerClassName)
+          || "com.intuit.karate.junit4.Karate".equals(runnerClassName)) {
+        // checking class names in hierarchyMatcher alone is not enough:
+        // for example, Karate calls #run method of its super class,
+        // that was transformed
+        return;
+      }
+
       // No public accessor to get already installed listeners.
       // The installed RunListeners list are obtained using reflection.
       final List<RunListener> runListeners = JUnit4Utils.runListenersFromRunNotifier(runNotifier);
@@ -55,20 +79,14 @@ public class JUnit4Instrumentation extends Instrumenter.CiVisibility
       }
 
       for (final RunListener listener : runListeners) {
-        RunListener unwrappedListener = JUnit4Utils.unwrapListener(listener);
-        // prevents installing TracingListener multiple times
-        if (JUnit4Utils.isTracingListener(unwrappedListener)) {
-          return;
-        }
-        // prevents installing TracingListener if we're running in JUnit 5 vintage compatibility
-        // mode
-        // (in that case JUnit 5 instrumentation will install its own TracingListener)
-        if (JUnit4Utils.isJUnitVintageListener(unwrappedListener)) {
+        RunListener tracingListener = JUnit4Utils.toTracingListener(listener);
+        if (tracingListener != null) {
+          // prevents installing TracingListener multiple times
           return;
         }
       }
 
-      final TracingListener tracingListener = new TracingListener();
+      final TracingListener tracingListener = new JUnit4TracingListener();
       runNotifier.addListener(tracingListener);
     }
 

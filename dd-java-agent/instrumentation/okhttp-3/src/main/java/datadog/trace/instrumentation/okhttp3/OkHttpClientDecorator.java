@@ -42,4 +42,14 @@ public class OkHttpClientDecorator extends HttpClientDecorator<Request, Response
   protected int status(final Response httpResponse) {
     return httpResponse.code();
   }
+
+  @Override
+  protected String getRequestHeader(Request request, String headerName) {
+    return request.header(headerName);
+  }
+
+  @Override
+  protected String getResponseHeader(Response response, String headerName) {
+    return response.header(headerName);
+  }
 }

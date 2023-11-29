@@ -1,4 +1,5 @@
 import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.utils.TraceUtils
 import datadog.trace.api.Trace
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import dd.test.trace.annotation.SayTracedHello
@@ -377,6 +378,127 @@ class TraceAnnotationsTest extends AgentTestRunner {
       trace(1) {
         span {
           resourceName "TracedSuperClass.testTracedSuperMethod"
+          operationName "trace.annotation"
+          parent()
+          errored false
+          tags {
+            "$Tags.COMPONENT" "trace"
+            defaultTags()
+          }
+        }
+      }
+    }
+  }
+
+  def "test measured attribute"() {
+    setup:
+    TraceUtils.runUnderTrace("parent", () -> {
+      SayTracedHello.sayHello()
+      SayTracedHello.sayHelloMeasured()
+      SayTracedHello.sayHello()
+    })
+
+    expect:
+    assertTraces(1) {
+      trace(4) {
+        span {
+          hasServiceName()
+          resourceName "parent"
+          operationName "parent"
+          parent()
+          errored false
+          tags {
+            defaultTags()
+          }
+        }
+        span {
+          serviceName "test"
+          resourceName "SayTracedHello.sayHello"
+          operationName "trace.annotation"
+          childOf(span(0))
+          errored false
+          measured false
+          tags {
+            "$Tags.COMPONENT" "trace"
+            defaultTags()
+          }
+        }
+        span {
+          serviceName "test"
+          resourceName "SayTracedHello.sayHelloMeasured"
+          operationName "trace.annotation"
+          childOf(span(0))
+          errored false
+          measured true
+          tags {
+            "$Tags.COMPONENT" "trace"
+            defaultTags()
+          }
+        }
+        span {
+          serviceName "test"
+          resourceName "SayTracedHello.sayHello"
+          operationName "trace.annotation"
+          childOf(span(0))
+          errored false
+          measured false
+          tags {
+            "$Tags.COMPONENT" "trace"
+            defaultTags()
+          }
+        }
+      }
+    }
+  }
+
+  def "test noParent attribute"() {
+    setup:
+    TraceUtils.runUnderTrace("parent", () -> {
+      SayTracedHello.sayHello()
+      SayTracedHello.sayHelloNoParent()
+      SayTracedHello.sayHello()
+    })
+
+    expect:
+    assertTraces(2) {
+      trace(3) {
+        span {
+          hasServiceName()
+          resourceName "parent"
+          operationName "parent"
+          parent()
+          errored false
+          tags {
+            defaultTags()
+          }
+        }
+        span {
+          serviceName "test"
+          resourceName "SayTracedHello.sayHello"
+          operationName "trace.annotation"
+          childOf(span(0))
+          errored false
+          tags {
+            "$Tags.COMPONENT" "trace"
+            defaultTags()
+          }
+        }
+        span {
+          serviceName "test"
+          resourceName "SayTracedHello.sayHello"
+          operationName "trace.annotation"
+          childOf(span(0))
+          errored false
+          tags {
+            "$Tags.COMPONENT" "trace"
+            defaultTags()
+          }
+        }
+      }
+      trace(1) {
+        span {
+          serviceName "test"
+          resourceName "SayTracedHello.sayHelloNoParent"
           operationName "trace.annotation"
           parent()
           errored false

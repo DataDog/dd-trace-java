@@ -9,6 +9,7 @@ import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.clients.consumer.KafkaConsumer
 import org.apache.kafka.clients.producer.KafkaProducer
 import org.apache.kafka.clients.producer.Producer
+import org.apache.kafka.clients.producer.ProducerConfig
 import org.apache.kafka.clients.producer.ProducerRecord
 import org.apache.kafka.common.TopicPartition
 import org.apache.kafka.common.serialization.StringSerializer
@@ -57,7 +58,6 @@ class KafkaClientTest extends AgentTestRunner {
     super.configurePreAgent()
 
     injectSysConfig("dd.kafka.e2e.duration.enabled", "true")
-    injectSysConfig("dd.data.streams.enabled", "true")
   }
 
   def "test kafka produce and consume"() {
@@ -133,6 +133,8 @@ class KafkaClientTest extends AgentTestRunner {
             if ({ isDataStreamsEnabled() }) {
               "$DDTags.PATHWAY_HASH" { String }
             }
+            "$InstrumentationTags.KAFKA_BOOTSTRAP_SERVERS" producerProps.get(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG)
+            peerServiceFrom(InstrumentationTags.KAFKA_BOOTSTRAP_SERVERS)
             defaultTags()
           }
         }
@@ -262,6 +264,8 @@ class KafkaClientTest extends AgentTestRunner {
             if ({ isDataStreamsEnabled()}) {
               "$DDTags.PATHWAY_HASH" { String }
             }
+            "$InstrumentationTags.KAFKA_BOOTSTRAP_SERVERS" producerProps.get(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG)
+            peerServiceFrom(InstrumentationTags.KAFKA_BOOTSTRAP_SERVERS)
             defaultTags()
           }
         }
@@ -384,6 +388,8 @@ class KafkaClientTest extends AgentTestRunner {
             if ({ isDataStreamsEnabled()}) {
               "$DDTags.PATHWAY_HASH" { String }
             }
+            "$InstrumentationTags.KAFKA_BOOTSTRAP_SERVERS" producerProps.get(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG)
+            peerServiceFrom(InstrumentationTags.KAFKA_BOOTSTRAP_SERVERS)
             defaultTags()
           }
         }
@@ -473,6 +479,8 @@ class KafkaClientTest extends AgentTestRunner {
             if ({ isDataStreamsEnabled()}) {
               "$DDTags.PATHWAY_HASH" { String }
             }
+            "$InstrumentationTags.KAFKA_BOOTSTRAP_SERVERS" producerProps.get(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG)
+            peerServiceFrom(InstrumentationTags.KAFKA_BOOTSTRAP_SERVERS)
             defaultTags(true)
           }
         }
@@ -564,6 +572,8 @@ class KafkaClientTest extends AgentTestRunner {
             if ({ isDataStreamsEnabled()}) {
               "$DDTags.PATHWAY_HASH" { String }
             }
+            "$InstrumentationTags.KAFKA_BOOTSTRAP_SERVERS" producerProps.get(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG)
+            peerServiceFrom(InstrumentationTags.KAFKA_BOOTSTRAP_SERVERS)
             defaultTags(true)
           }
         }
@@ -583,6 +593,8 @@ class KafkaClientTest extends AgentTestRunner {
             if ({ isDataStreamsEnabled()}) {
               "$DDTags.PATHWAY_HASH" { String }
             }
+            "$InstrumentationTags.KAFKA_BOOTSTRAP_SERVERS" producerProps.get(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG)
+            peerServiceFrom(InstrumentationTags.KAFKA_BOOTSTRAP_SERVERS)
             defaultTags(true)
           }
         }
@@ -602,6 +614,8 @@ class KafkaClientTest extends AgentTestRunner {
             if ({ isDataStreamsEnabled()}) {
               "$DDTags.PATHWAY_HASH" { String }
             }
+            "$InstrumentationTags.KAFKA_BOOTSTRAP_SERVERS" producerProps.get(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG)
+            peerServiceFrom(InstrumentationTags.KAFKA_BOOTSTRAP_SERVERS)
             defaultTags(true)
           }
         }
@@ -829,6 +843,8 @@ class KafkaClientTest extends AgentTestRunner {
             if ({ isDataStreamsEnabled()}) {
               "$DDTags.PATHWAY_HASH" { String }
             }
+            "$InstrumentationTags.KAFKA_BOOTSTRAP_SERVERS" producerProps.get(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG)
+            peerServiceFrom(InstrumentationTags.KAFKA_BOOTSTRAP_SERVERS)
             defaultTags()
           }
         }
@@ -846,6 +862,8 @@ class KafkaClientTest extends AgentTestRunner {
             if ({ isDataStreamsEnabled()}) {
               "$DDTags.PATHWAY_HASH" { String }
             }
+            "$InstrumentationTags.KAFKA_BOOTSTRAP_SERVERS" producerProps.get(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG)
+            peerServiceFrom(InstrumentationTags.KAFKA_BOOTSTRAP_SERVERS)
             defaultTags()
           }
         }
@@ -863,6 +881,8 @@ class KafkaClientTest extends AgentTestRunner {
             if ({ isDataStreamsEnabled()}) {
               "$DDTags.PATHWAY_HASH" { String }
             }
+            "$InstrumentationTags.KAFKA_BOOTSTRAP_SERVERS" producerProps.get(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG)
+            peerServiceFrom(InstrumentationTags.KAFKA_BOOTSTRAP_SERVERS)
             defaultTags()
           }
         }

@@ -3,6 +3,7 @@ package datadog.trace.bootstrap.config.provider;
 import static datadog.trace.api.config.GeneralConfig.CONFIGURATION_FILE;
 
 import datadog.trace.api.ConfigCollector;
+import datadog.trace.api.ConfigOrigin;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -64,6 +65,9 @@ public final class ConfigProvider {
         log.debug("failed to parse {} for {}, defaulting to {}", value, key, defaultValue);
       }
     }
+    if (collectConfig) {
+      ConfigCollector.get().put(key, String.valueOf(defaultValue), ConfigOrigin.DEFAULT);
+    }
     return defaultValue;
   }
 
@@ -71,8 +75,14 @@ public final class ConfigProvider {
     for (ConfigProvider.Source source : sources) {
       String value = source.get(key, aliases);
       if (value != null) {
+        if (collectConfig) {
+          ConfigCollector.get().put(key, value, source.origin());
+        }
         return value;
       }
+    }
+    if (collectConfig && defaultValue != null) {
+      ConfigCollector.get().put(key, defaultValue, ConfigOrigin.DEFAULT);
     }
     return defaultValue;
   }
@@ -85,8 +95,14 @@ public final class ConfigProvider {
     for (ConfigProvider.Source source : sources) {
       String value = source.get(key, aliases);
       if (value != null && !value.trim().isEmpty()) {
+        if (collectConfig) {
+          ConfigCollector.get().put(key, value, source.origin());
+        }
         return value;
       }
+    }
+    if (collectConfig && defaultValue != null) {
+      ConfigCollector.get().put(key, defaultValue, ConfigOrigin.DEFAULT);
     }
     return defaultValue;
   }
@@ -103,8 +119,14 @@ public final class ConfigProvider {
 
       String value = source.get(key, aliases);
       if (value != null) {
+        if (collectConfig) {
+          ConfigCollector.get().put(key, value, source.origin());
+        }
         return value;
       }
+    }
+    if (collectConfig && defaultValue != null) {
+      ConfigCollector.get().put(key, defaultValue, ConfigOrigin.DEFAULT);
     }
     return defaultValue;
   }
@@ -168,18 +190,21 @@ public final class ConfigProvider {
 
   private <T> T get(String key, T defaultValue, Class<T> type, String... aliases) {
     for (ConfigProvider.Source source : sources) {
-      T value;
       try {
-        value = ConfigConverter.valueOf(source.get(key, aliases), type);
-      } catch (NumberFormatException ex) {
-        continue;
-      }
-      if (value != null) {
-        if (collectConfig) {
-          ConfigCollector.get().put(key, value);
+        String sourceValue = source.get(key, aliases);
+        T value = ConfigConverter.valueOf(sourceValue, type);
+        if (value != null) {
+          if (collectConfig) {
+            ConfigCollector.get().put(key, sourceValue, source.origin());
+          }
+          return value;
         }
-        return value;
+      } catch (NumberFormatException ex) {
+        // continue
       }
+    }
+    if (collectConfig && defaultValue != null) {
+      ConfigCollector.get().put(key, defaultValue, ConfigOrigin.DEFAULT);
     }
     return defaultValue;
   }
@@ -188,9 +213,25 @@ public final class ConfigProvider {
     return ConfigConverter.parseList(getString(key));
   }
 
+  public List<String> getList(String key, List<String> defaultValue) {
+    String list = getString(key);
+    if (null == list) {
+      if (collectConfig && defaultValue != null) {
+        ConfigCollector.get().put(key, String.join(",", defaultValue), ConfigOrigin.DEFAULT);
+      }
+      return defaultValue;
+    } else {
+      return ConfigConverter.parseList(getString(key));
+    }
+  }
+
   public Set<String> getSet(String key, Set<String> defaultValue) {
     String list = getString(key);
     if (null == list) {
+      if (collectConfig && defaultValue != null) {
+        String defaultValueStr = String.join(",", defaultValue);
+        ConfigCollector.get().put(key, defaultValueStr, ConfigOrigin.DEFAULT);
+      }
       return defaultValue;
     } else {
       return new HashSet(ConfigConverter.parseList(getString(key)));
@@ -203,33 +244,46 @@ public final class ConfigProvider {
 
   public Map<String, String> getMergedMap(String key) {
     Map<String, String> merged = new HashMap<>();
+    ConfigOrigin origin = ConfigOrigin.DEFAULT;
     // System properties take precedence over env
     // prior art:
     // https://docs.spring.io/spring-boot/docs/1.5.6.RELEASE/reference/html/boot-features-external-config.html
     // We reverse iterate to allow overrides
     for (int i = sources.length - 1; 0 <= i; i--) {
       String value = sources[i].get(key);
-      merged.putAll(ConfigConverter.parseMap(value, key));
+      Map<String, String> parsedMap = ConfigConverter.parseMap(value, key);
+      if (!parsedMap.isEmpty()) {
+        origin = sources[i].origin();
+      }
+      merged.putAll(parsedMap);
     }
+    collectMapSetting(key, merged, origin);
     return merged;
   }
 
   public Map<String, String> getOrderedMap(String key) {
-    LinkedHashMap<String, String> map = new LinkedHashMap<>();
+    LinkedHashMap<String, String> merged = new LinkedHashMap<>();
+    ConfigOrigin origin = ConfigOrigin.DEFAULT;
     // System properties take precedence over env
     // prior art:
     // https://docs.spring.io/spring-boot/docs/1.5.6.RELEASE/reference/html/boot-features-external-config.html
     // We reverse iterate to allow overrides
     for (int i = sources.length - 1; 0 <= i; i--) {
       String value = sources[i].get(key);
-      map.putAll(ConfigConverter.parseOrderedMap(value, key));
+      Map<String, String> parsedMap = ConfigConverter.parseOrderedMap(value, key);
+      if (!parsedMap.isEmpty()) {
+        origin = sources[i].origin();
+      }
+      merged.putAll(parsedMap);
     }
-    return map;
+    collectMapSetting(key, merged, origin);
+    return merged;
   }
 
   public Map<String, String> getMergedMapWithOptionalMappings(
       String defaultPrefix, boolean lowercaseKeys, String... keys) {
     Map<String, String> merged = new HashMap<>();
+    ConfigOrigin origin = ConfigOrigin.DEFAULT;
     // System properties take precedence over env
     // prior art:
     // https://docs.spring.io/spring-boot/docs/1.5.6.RELEASE/reference/html/boot-features-external-config.html
@@ -237,9 +291,14 @@ public final class ConfigProvider {
     for (String key : keys) {
       for (int i = sources.length - 1; 0 <= i; i--) {
         String value = sources[i].get(key);
-        merged.putAll(
-            ConfigConverter.parseMapWithOptionalMappings(value, key, defaultPrefix, lowercaseKeys));
+        Map<String, String> parsedMap =
+            ConfigConverter.parseMapWithOptionalMappings(value, key, defaultPrefix, lowercaseKeys);
+        if (!parsedMap.isEmpty()) {
+          origin = sources[i].origin();
+        }
+        merged.putAll(parsedMap);
       }
+      collectMapSetting(key, merged, origin);
     }
     return merged;
   }
@@ -247,11 +306,17 @@ public final class ConfigProvider {
   public BitSet getIntegerRange(final String key, final BitSet defaultValue) {
     final String value = getString(key);
     try {
-      return value == null ? defaultValue : ConfigConverter.parseIntegerRangeSet(value, key);
+      if (value != null) {
+        return ConfigConverter.parseIntegerRangeSet(value, key);
+      }
     } catch (final NumberFormatException e) {
-      log.warn("Invalid configuration for " + key, e);
-      return defaultValue;
+      log.warn("Invalid configuration for {}", key, e);
     }
+    if (collectConfig) {
+      String defaultValueStr = ConfigConverter.renderIntegerRange(defaultValue);
+      ConfigCollector.get().put(key, defaultValueStr, ConfigOrigin.DEFAULT);
+    }
+    return defaultValue;
   }
 
   public boolean isEnabled(
@@ -342,6 +407,22 @@ public final class ConfigProvider {
     }
   }
 
+  private void collectMapSetting(String key, Map<String, String> merged, ConfigOrigin origin) {
+    if (!collectConfig || merged.isEmpty()) {
+      return;
+    }
+    StringBuilder mergedValue = new StringBuilder();
+    for (Map.Entry<String, String> entry : merged.entrySet()) {
+      if (mergedValue.length() > 0) {
+        mergedValue.append(',');
+      }
+      mergedValue.append(entry.getKey());
+      mergedValue.append(':');
+      mergedValue.append(entry.getValue());
+    }
+    ConfigCollector.get().put(key, mergedValue.toString(), origin);
+  }
+
   /**
    * Loads the optional configuration properties file into the global {@link Properties} object.
    *
@@ -400,5 +481,7 @@ public final class ConfigProvider {
     }
 
     protected abstract String get(String key);
+
+    public abstract ConfigOrigin origin();
   }
 }

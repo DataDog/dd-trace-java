@@ -19,7 +19,7 @@ import net.bytebuddy.matcher.ElementMatcher;
 public class WebApplicationContextInstrumentation extends Instrumenter.Tracing
     implements Instrumenter.ForTypeHierarchy {
   public WebApplicationContextInstrumentation() {
-    super("spring-web");
+    super("spring-web", "spring-path-filter");
   }
 
   @Override
@@ -38,7 +38,6 @@ public class WebApplicationContextInstrumentation extends Instrumenter.Tracing
     return new String[] {
       packageName + ".SpringWebHttpServerDecorator",
       packageName + ".ServletRequestURIAdapter",
-      "datadog.trace.instrumentation.springweb.BeanDefinitionRepairer",
       packageName + ".HandlerMappingResourceNameFilter",
       packageName + ".HandlerMappingResourceNameFilter$BeanDefinition",
       packageName + ".PathMatchingHttpServletRequestWrapper",

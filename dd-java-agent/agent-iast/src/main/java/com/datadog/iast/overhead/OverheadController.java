@@ -12,7 +12,8 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.util.AgentTaskScheduler;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
+import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -24,9 +25,9 @@ public interface OverheadController {
 
   int releaseRequest();
 
-  boolean hasQuota(final Operation operation, final AgentSpan span);
+  boolean hasQuota(final Operation operation, @Nullable final AgentSpan span);
 
-  boolean consumeQuota(final Operation operation, final AgentSpan span);
+  boolean consumeQuota(final Operation operation, @Nullable final AgentSpan span);
 
   static OverheadController build(final Config config, final AgentTaskScheduler scheduler) {
     final OverheadControllerImpl result = new OverheadControllerImpl(config, scheduler);
@@ -68,7 +69,7 @@ public interface OverheadController {
     }
 
     @Override
-    public boolean hasQuota(final Operation operation, final AgentSpan span) {
+    public boolean hasQuota(final Operation operation, @Nullable final AgentSpan span) {
       final boolean result = delegate.hasQuota(operation, span);
       if (LOGGER.isDebugEnabled()) {
         LOGGER.debug(
@@ -82,7 +83,7 @@ public interface OverheadController {
     }
 
     @Override
-    public boolean consumeQuota(final Operation operation, final AgentSpan span) {
+    public boolean consumeQuota(final Operation operation, @Nullable final AgentSpan span) {
       final boolean result = delegate.consumeQuota(operation, span);
       if (LOGGER.isDebugEnabled()) {
         LOGGER.debug(
@@ -103,7 +104,7 @@ public interface OverheadController {
       }
     }
 
-    private int getAvailableQuote(final AgentSpan span) {
+    private int getAvailableQuote(@Nullable final AgentSpan span) {
       final OverheadContext context = delegate.getContext(span);
       return context == null ? -1 : context.getAvailableQuota();
     }
@@ -117,13 +118,14 @@ public interface OverheadController {
 
     final NonBlockingSemaphore availableRequests;
 
-    final AtomicInteger executedRequests = new AtomicInteger(0);
+    final AtomicLong cumulativeCounter;
 
     final OverheadContext globalContext = new OverheadContext();
 
     public OverheadControllerImpl(final Config config, final AgentTaskScheduler taskScheduler) {
       sampling = computeSamplingParameter(config.getIastRequestSampling());
       availableRequests = maxConcurrentRequests(config.getIastMaxConcurrentRequests());
+      cumulativeCounter = new AtomicLong(sampling);
       if (taskScheduler != null) {
         taskScheduler.scheduleAtFixedRate(
             this::reset, 2 * RESET_PERIOD_SECONDS, RESET_PERIOD_SECONDS, TimeUnit.SECONDS);
@@ -132,11 +134,14 @@ public interface OverheadController {
 
     @Override
     public boolean acquireRequest() {
-      if (executedRequests.incrementAndGet() % sampling != 0) {
-        // Skipped by sampling
-        return false;
+      long prevValue = cumulativeCounter.getAndAdd(sampling);
+      long newValue = prevValue + sampling;
+      if (newValue / 100 == prevValue / 100 + 1) {
+        // Sample request
+        return availableRequests.acquire();
       }
-      return availableRequests.acquire();
+      // Skipped by sampling
+      return false;
     }
 
     @Override
@@ -145,16 +150,17 @@ public interface OverheadController {
     }
 
     @Override
-    public boolean hasQuota(final Operation operation, final AgentSpan span) {
+    public boolean hasQuota(final Operation operation, @Nullable final AgentSpan span) {
       return operation.hasQuota(getContext(span));
     }
 
     @Override
-    public boolean consumeQuota(final Operation operation, final AgentSpan span) {
+    public boolean consumeQuota(final Operation operation, @Nullable final AgentSpan span) {
       return operation.consumeQuota(getContext(span));
     }
 
-    public OverheadContext getContext(final AgentSpan span) {
+    @Nullable
+    public OverheadContext getContext(@Nullable final AgentSpan span) {
       final RequestContext requestContext = span != null ? span.getRequestContext() : null;
       if (requestContext != null) {
         IastRequestContext iastRequestContext = requestContext.getData(RequestContextSlot.IAST);
@@ -165,14 +171,14 @@ public interface OverheadController {
 
     static int computeSamplingParameter(final float pct) {
       if (pct >= 100) {
-        return 1;
+        return 100;
       }
       if (pct <= 0) {
         // We don't support disabling IAST by setting it, so we set it to 100%.
         // TODO: We probably want a warning here.
-        return 1;
+        return 100;
       }
-      return Math.round(100 / pct);
+      return (int) pct;
     }
 
     static NonBlockingSemaphore maxConcurrentRequests(final int max) {

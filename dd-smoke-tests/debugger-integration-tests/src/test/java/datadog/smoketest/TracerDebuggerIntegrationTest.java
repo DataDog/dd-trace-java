@@ -1,8 +1,9 @@
 package datadog.smoketest;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
+import static com.datadog.debugger.util.LogProbeTestHelper.parseTemplate;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.datadog.debugger.agent.JsonSnapshotSerializer;
@@ -10,6 +11,7 @@ import com.datadog.debugger.probe.LogProbe;
 import com.datadog.debugger.sink.Snapshot;
 import com.squareup.moshi.JsonAdapter;
 import datadog.trace.agent.test.utils.PortUtils;
+import datadog.trace.bootstrap.debugger.MethodLocation;
 import datadog.trace.bootstrap.debugger.ProbeId;
 import datadog.trace.util.TagsHelper;
 import java.io.IOException;
@@ -55,7 +57,29 @@ public class TracerDebuggerIntegrationTest extends BaseIntegrationTest {
             .build();
     JsonSnapshotSerializer.IntakeRequest request = doTestTracer(logProbe);
     Snapshot snapshot = request.getDebugger().getSnapshot();
-    assertEquals("123356536", snapshot.getProbe().getId());
+    assertEquals(PROBE_ID.getId(), snapshot.getProbe().getId());
+    assertTrue(Pattern.matches("[0-9a-f]+", request.getTraceId()));
+    assertTrue(Pattern.matches("\\d+", request.getSpanId()));
+    assertFalse(
+        logHasErrors(logFilePath, it -> it.contains("TypePool$Resolution$NoSuchTypeException")));
+  }
+
+  @Test
+  @DisplayName("testTracerDynamicLog")
+  void testTracerDynamicLog() throws Exception {
+    LogProbe logProbe =
+        LogProbe.builder()
+            .probeId(PROBE_ID)
+            .where(
+                "org.springframework.web.servlet.DispatcherServlet",
+                "doService",
+                "(HttpServletRequest, HttpServletResponse)")
+            .captureSnapshot(false)
+            .evaluateAt(MethodLocation.EXIT)
+            .build();
+    JsonSnapshotSerializer.IntakeRequest request = doTestTracer(logProbe);
+    Snapshot snapshot = request.getDebugger().getSnapshot();
+    assertEquals(PROBE_ID.getId(), snapshot.getProbe().getId());
     assertTrue(Pattern.matches("[0-9a-f]+", request.getTraceId()));
     assertTrue(Pattern.matches("\\d+", request.getSpanId()));
     assertFalse(
@@ -73,8 +97,47 @@ public class TracerDebuggerIntegrationTest extends BaseIntegrationTest {
             .build();
     JsonSnapshotSerializer.IntakeRequest request = doTestTracer(logProbe);
     Snapshot snapshot = request.getDebugger().getSnapshot();
-    assertEquals("123356536", snapshot.getProbe().getId());
+    assertEquals(PROBE_ID.getId(), snapshot.getProbe().getId());
     assertEquals(42, snapshot.getCaptures().getEntry().getArguments().get("argInt").getValue());
+    assertTrue(Pattern.matches("[0-9a-f]+", request.getTraceId()));
+    assertTrue(Pattern.matches("\\d+", request.getSpanId()));
+  }
+
+  @Test
+  @DisplayName("testTracerLineSnapshotProbe")
+  void testTracerLineSnapshotProbe() throws Exception {
+    LogProbe logProbe =
+        LogProbe.builder()
+            .probeId(PROBE_ID)
+            // on line: System.out.println(argInt);
+            .where("WebController.java", 15)
+            .captureSnapshot(true)
+            .build();
+    JsonSnapshotSerializer.IntakeRequest request = doTestTracer(logProbe);
+    Snapshot snapshot = request.getDebugger().getSnapshot();
+    assertEquals(PROBE_ID.getId(), snapshot.getProbe().getId());
+    assertEquals(
+        42, snapshot.getCaptures().getLines().get(15).getArguments().get("argInt").getValue());
+    assertTrue(Pattern.matches("[0-9a-f]+", request.getTraceId()));
+    assertTrue(Pattern.matches("\\d+", request.getSpanId()));
+  }
+
+  @Test
+  @DisplayName("testTracerLineDynamicLogProbe")
+  void testTracerLineDynamicLogProbe() throws Exception {
+    final String LOG_TEMPLATE = "processWithArg {argInt}";
+    LogProbe logProbe =
+        LogProbe.builder()
+            .probeId(PROBE_ID)
+            .template(LOG_TEMPLATE, parseTemplate(LOG_TEMPLATE))
+            // on line: System.out.println(argInt);
+            .where("WebController.java", 15)
+            .captureSnapshot(false)
+            .build();
+    JsonSnapshotSerializer.IntakeRequest request = doTestTracer(logProbe);
+    Snapshot snapshot = request.getDebugger().getSnapshot();
+    assertEquals(PROBE_ID.getId(), snapshot.getProbe().getId());
+    assertEquals("processWithArg 42", request.getMessage());
     assertTrue(Pattern.matches("[0-9a-f]+", request.getTraceId()));
     assertTrue(Pattern.matches("\\d+", request.getSpanId()));
   }
@@ -115,7 +178,6 @@ public class TracerDebuggerIntegrationTest extends BaseIntegrationTest {
   @Override
   protected ProcessBuilder createProcessBuilder(Path logFilePath, String... params) {
     List<String> commandParams = getDebuggerCommandParams();
-    commandParams.add("-Ddd.trace.enabled=true");
     commandParams.add(
         "-Ddd.trace.methods=datadog.smoketest.debugger.controller.WebController[processWithArg]");
     return ProcessBuilderHelper.createProcessBuilder(

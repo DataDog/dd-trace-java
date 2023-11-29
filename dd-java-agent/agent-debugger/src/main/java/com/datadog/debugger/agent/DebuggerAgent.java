@@ -4,6 +4,8 @@ import static datadog.trace.util.AgentThreadFactory.AGENT_THREAD_GROUP;
 
 import com.datadog.debugger.sink.DebuggerSink;
 import com.datadog.debugger.sink.Sink;
+import com.datadog.debugger.symbol.SymDBEnablement;
+import com.datadog.debugger.symbol.SymbolAggregator;
 import com.datadog.debugger.uploader.BatchUploader;
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
 import datadog.communication.ddagent.SharedCommunicationObjects;
@@ -12,6 +14,7 @@ import datadog.remoteconfig.Product;
 import datadog.remoteconfig.SizeCheckedInputStream;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.debugger.DebuggerContext;
+import datadog.trace.bootstrap.debugger.util.Redaction;
 import java.io.ByteArrayOutputStream;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -21,36 +24,33 @@ import java.lang.instrument.Instrumentation;
 import java.lang.ref.WeakReference;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.Objects;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Debugger agent implementation */
 public class DebuggerAgent {
-  private static final Logger log = LoggerFactory.getLogger(DebuggerAgent.class);
+  private static final Logger LOGGER = LoggerFactory.getLogger(DebuggerAgent.class);
   private static ConfigurationPoller configurationPoller;
   private static Sink sink;
   private static String agentVersion;
   private static JsonSnapshotSerializer snapshotSerializer;
+  private static SymDBEnablement symDBEnablement;
 
   public static synchronized void run(
       Instrumentation instrumentation, SharedCommunicationObjects sco) {
     Config config = Config.get();
     if (!config.isDebuggerEnabled()) {
-      log.info("Debugger agent disabled");
+      LOGGER.info("Debugger agent disabled");
       return;
     }
-    log.info("Starting Dynamic Instrumentation");
+    LOGGER.info("Starting Dynamic Instrumentation");
     ClassesToRetransformFinder classesToRetransformFinder = new ClassesToRetransformFinder();
     setupSourceFileTracking(instrumentation, classesToRetransformFinder);
-    String finalDebuggerSnapshotUrl = config.getFinalDebuggerSnapshotUrl();
-    String agentUrl = config.getAgentUrl();
-    boolean isSnapshotUploadThroughAgent = Objects.equals(finalDebuggerSnapshotUrl, agentUrl);
-
+    Redaction.addUserDefinedKeywords(config);
+    Redaction.addUserDefinedTypes(config);
     DDAgentFeaturesDiscovery ddAgentFeaturesDiscovery = sco.featuresDiscovery(config);
     ddAgentFeaturesDiscovery.discoverIfOutdated();
     agentVersion = ddAgentFeaturesDiscovery.getVersion();
-
     DebuggerSink debuggerSink = new DebuggerSink(config);
     debuggerSink.start();
     ConfigurationUpdater configurationUpdater =
@@ -68,21 +68,29 @@ public class DebuggerAgent {
     DebuggerContext.initValueSerializer(snapshotSerializer);
     DebuggerContext.initTracer(new DebuggerTracer());
     if (config.isDebuggerInstrumentTheWorld()) {
-      setupInstrumentTheWorldTransformer(config, instrumentation, sink, statsdMetricForwarder);
+      setupInstrumentTheWorldTransformer(
+          config, instrumentation, debuggerSink, statsdMetricForwarder);
     }
-
     String probeFileLocation = config.getDebuggerProbeFileLocation();
-
     if (probeFileLocation != null) {
       Path probeFilePath = Paths.get(probeFileLocation);
       loadFromFile(probeFilePath, configurationUpdater, config.getDebuggerMaxPayloadSize());
       return;
     }
-
     configurationPoller = sco.configurationPoller(config);
     if (configurationPoller != null) {
-      subscribeConfigurationPoller(config, configurationUpdater);
-
+      if (config.isDebuggerSymbolEnabled()) {
+        symDBEnablement =
+            new SymDBEnablement(
+                instrumentation,
+                config,
+                new SymbolAggregator(
+                    debuggerSink.getSymbolSink(), config.getDebuggerSymbolFlushThreshold()));
+        if (config.isDebuggerSymbolForceUpload()) {
+          symDBEnablement.startSymbolExtraction();
+        }
+      }
+      subscribeConfigurationPoller(config, configurationUpdater, symDBEnablement);
       try {
         /*
         Note: shutdown hooks are tricky because JVM holds reference for them forever preventing
@@ -95,7 +103,7 @@ public class DebuggerAgent {
         // The JVM is already shutting down.
       }
     } else {
-      log.debug("No configuration poller available from SharedCommunicationObjects");
+      LOGGER.debug("No configuration poller available from SharedCommunicationObjects");
     }
   }
 
@@ -106,7 +114,7 @@ public class DebuggerAgent {
 
   private static void loadFromFile(
       Path probeFilePath, ConfigurationUpdater configurationUpdater, long maxPayloadSize) {
-    log.debug("try to load from file...");
+    LOGGER.debug("try to load from file...");
     try (InputStream inputStream =
         new SizeCheckedInputStream(new FileInputStream(probeFilePath.toFile()), maxPayloadSize)) {
       byte[] buffer = new byte[4096];
@@ -121,27 +129,32 @@ public class DebuggerAgent {
       Configuration configuration =
           DebuggerProductChangesListener.Adapter.deserializeConfiguration(
               outputStream.toByteArray());
-      log.debug("Probe definitions loaded from file {}", probeFilePath);
+      LOGGER.debug("Probe definitions loaded from file {}", probeFilePath);
       configurationUpdater.accept(configuration);
     } catch (IOException ex) {
-      log.error("Unable to load config file {}: {}", probeFilePath, ex);
+      LOGGER.error("Unable to load config file {}: {}", probeFilePath, ex);
     }
   }
 
   private static void subscribeConfigurationPoller(
-      Config config, ConfigurationUpdater configurationUpdater) {
+      Config config, ConfigurationUpdater configurationUpdater, SymDBEnablement symDBEnablement) {
+    LOGGER.debug("Subscribing to Live Debugging...");
     configurationPoller.addListener(
         Product.LIVE_DEBUGGING, new DebuggerProductChangesListener(config, configurationUpdater));
+    if (symDBEnablement != null && !config.isDebuggerSymbolForceUpload()) {
+      LOGGER.debug("Subscribing to Symbol DB...");
+      configurationPoller.addListener(Product.LIVE_DEBUGGING_SYMBOL_DB, symDBEnablement);
+    }
   }
 
   static ClassFileTransformer setupInstrumentTheWorldTransformer(
       Config config,
       Instrumentation instrumentation,
-      Sink sink,
+      DebuggerSink debuggerSink,
       StatsdMetricForwarder statsdMetricForwarder) {
-    log.info("install Instrument-The-World transformer");
+    LOGGER.info("install Instrument-The-World transformer");
     DebuggerTransformer transformer =
-        createTransformer(config, Configuration.builder().build(), null);
+        createTransformer(config, Configuration.builder().build(), null, debuggerSink);
     DebuggerContext.init(transformer::instrumentTheWorldResolver, statsdMetricForwarder);
     instrumentation.addTransformer(transformer);
     return transformer;
@@ -158,8 +171,9 @@ public class DebuggerAgent {
   private static DebuggerTransformer createTransformer(
       Config config,
       Configuration configuration,
-      DebuggerTransformer.InstrumentationListener listener) {
-    return new DebuggerTransformer(config, configuration, listener);
+      DebuggerTransformer.InstrumentationListener listener,
+      DebuggerSink debuggerSink) {
+    return new DebuggerTransformer(config, configuration, listener, debuggerSink);
   }
 
   static void stop() {
@@ -203,7 +217,7 @@ public class DebuggerAgent {
         try {
           poller.stop();
         } catch (Exception ex) {
-          log.warn("failed to shutdown ProbesPoller: ", ex);
+          LOGGER.warn("failed to shutdown ProbesPoller: ", ex);
         }
       }
 
@@ -212,7 +226,7 @@ public class DebuggerAgent {
         try {
           uploader.shutdown();
         } catch (Exception ex) {
-          log.warn("Failed to shutdown SnapshotUploader", ex);
+          LOGGER.warn("Failed to shutdown SnapshotUploader", ex);
         }
       }
     }

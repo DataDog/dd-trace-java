@@ -30,6 +30,7 @@ public class EventTracker {
       return;
     }
 
+    segment.setTagTop("_dd.appsec.events.users.login.success.sdk", true);
     segment.setTagTop("appsec.events.users.login.success.track", true);
     segment.setTagTop("usr.id", userId);
     segment.setTagTop(DDTags.MANUAL_KEEP, true);
@@ -61,6 +62,7 @@ public class EventTracker {
       return;
     }
 
+    segment.setTagTop("_dd.appsec.events.users.login.failure.sdk", true);
     segment.setTagTop("appsec.events.users.login.failure.track", true);
     segment.setTagTop("appsec.events.users.login.failure.usr.id", userId);
     segment.setTagTop("appsec.events.users.login.failure.usr.exists", exists);
@@ -92,6 +94,7 @@ public class EventTracker {
       return;
     }
 
+    segment.setTagTop("_dd.appsec.events." + eventName + ".sdk", true);
     segment.setTagTop("appsec.events." + eventName + ".track", true, true);
     segment.setTagTop(DDTags.MANUAL_KEEP, true);
 

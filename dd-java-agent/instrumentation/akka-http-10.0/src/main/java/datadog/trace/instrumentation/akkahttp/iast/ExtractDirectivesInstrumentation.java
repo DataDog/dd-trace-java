@@ -11,6 +11,8 @@ import akka.http.scaladsl.server.directives.BasicDirectives$;
 import akka.http.scaladsl.server.util.Tupler$;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.api.iast.Source;
+import datadog.trace.api.iast.SourceTypes;
 import datadog.trace.instrumentation.akkahttp.iast.helpers.TaintRequestContextFunction;
 import datadog.trace.instrumentation.akkahttp.iast.helpers.TaintRequestFunction;
 import datadog.trace.instrumentation.akkahttp.iast.helpers.TaintUriFunction;
@@ -70,6 +72,7 @@ public class ExtractDirectivesInstrumentation extends Instrumenter.Iast
 
   static class TaintUriDirectiveAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
+    @Source(SourceTypes.REQUEST_QUERY)
     static void after(@Advice.Return(readOnly = false) Directive directive) {
       directive = directive.tmap(TaintUriFunction.INSTANCE, Tupler$.MODULE$.forTuple(null));
     }
@@ -77,6 +80,7 @@ public class ExtractDirectivesInstrumentation extends Instrumenter.Iast
 
   static class TaintRequestDirectiveAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
+    @Source(SourceTypes.REQUEST_BODY)
     static void after(@Advice.Return(readOnly = false) Directive directive) {
       directive = directive.tmap(TaintRequestFunction.INSTANCE, Tupler$.MODULE$.forTuple(null));
     }
@@ -84,6 +88,7 @@ public class ExtractDirectivesInstrumentation extends Instrumenter.Iast
 
   static class TaintRequestContextDirectiveAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
+    @Source(SourceTypes.REQUEST_BODY)
     static void after(@Advice.Return(readOnly = false) Directive directive) {
       directive =
           directive.tmap(TaintRequestContextFunction.INSTANCE, Tupler$.MODULE$.forTuple(null));

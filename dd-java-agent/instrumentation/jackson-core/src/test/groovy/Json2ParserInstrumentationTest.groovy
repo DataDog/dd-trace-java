@@ -1,4 +1,6 @@
 import com.fasterxml.jackson.core.JsonFactory
+import com.fasterxml.jackson.core.JsonParser
+import com.fasterxml.jackson.core.JsonToken
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.propagation.PropagationModule
@@ -18,12 +20,14 @@ class Json2ParserInstrumentationTest extends AgentTestRunner {
     setup:
     final propagationModule = Mock(PropagationModule)
     InstrumentationBridge.registerIastModule(propagationModule)
+    skipUntil(jsonParser, JsonToken.FIELD_NAME)
 
     when:
-    jsonParser.currentName()
+    final result = jsonParser.currentName()
 
     then:
-    1 * propagationModule.taintIfInputIsTainted( _ , jsonParser)
+    result == 'key1'
+    1 * propagationModule.taintIfTainted('key1', jsonParser)
     0 * _
 
     where:
@@ -37,12 +41,14 @@ class Json2ParserInstrumentationTest extends AgentTestRunner {
     setup:
     final propagationModule = Mock(PropagationModule)
     InstrumentationBridge.registerIastModule(propagationModule)
+    skipUntil(jsonParser, JsonToken.FIELD_NAME)
 
     when:
-    jsonParser.getCurrentName()
+    final result = jsonParser.getCurrentName()
 
     then:
-    1 * propagationModule.taintIfInputIsTainted(_, jsonParser)
+    result == 'key1'
+    1 * propagationModule.taintIfTainted('key1', jsonParser)
     0 * _
 
     where:
@@ -56,15 +62,14 @@ class Json2ParserInstrumentationTest extends AgentTestRunner {
     setup:
     final propagationModule = Mock(PropagationModule)
     InstrumentationBridge.registerIastModule(propagationModule)
+    skipUntil(jsonParser, JsonToken.FIELD_NAME)
 
     when:
-    jsonParser.nextToken()
-    System.out.println(jsonParser)
     final result = jsonParser.getText()
 
     then:
-    result == '{'
-    1 * propagationModule.taintIfInputIsTainted('{', jsonParser)
+    result == 'key1'
+    1 * propagationModule.taintIfTainted('key1', jsonParser)
     0 * _
 
     where:
@@ -78,12 +83,14 @@ class Json2ParserInstrumentationTest extends AgentTestRunner {
     setup:
     final propagationModule = Mock(PropagationModule)
     InstrumentationBridge.registerIastModule(propagationModule)
+    skipUntil(jsonParser, JsonToken.VALUE_STRING)
 
     when:
-    jsonParser.getValueAsString()
+    final result = jsonParser.getValueAsString()
 
     then:
-    1 * propagationModule.taintIfInputIsTainted(_, jsonParser)
+    result == 'value1'
+    1 * propagationModule.taintIfTainted('value1', jsonParser)
     0 * _
 
     where:
@@ -97,12 +104,14 @@ class Json2ParserInstrumentationTest extends AgentTestRunner {
     setup:
     final propagationModule = Mock(PropagationModule)
     InstrumentationBridge.registerIastModule(propagationModule)
+    skipUntil(jsonParser, JsonToken.START_OBJECT)
 
     when:
-    jsonParser.nextFieldName()
+    final result = jsonParser.nextFieldName()
 
     then:
-    1 * propagationModule.taintIfInputIsTainted(_, jsonParser)
+    result == 'key1'
+    1 * propagationModule.taintIfTainted('key1', jsonParser)
     0 * _
 
     where:
@@ -116,12 +125,14 @@ class Json2ParserInstrumentationTest extends AgentTestRunner {
     setup:
     final propagationModule = Mock(PropagationModule)
     InstrumentationBridge.registerIastModule(propagationModule)
+    skipUntil(jsonParser, JsonToken.FIELD_NAME)
 
     when:
-    jsonParser.nextTextValue()
+    final result = jsonParser.nextTextValue()
 
     then:
-    1 * propagationModule.taintIfInputIsTainted(_, jsonParser)
+    result == 'value1'
+    1 * propagationModule.taintIfTainted('value1', jsonParser)
     0 * _
 
     where:
@@ -129,5 +140,14 @@ class Json2ParserInstrumentationTest extends AgentTestRunner {
       new JsonFactory().createParser(JSON_STRING),
       new JsonFactory().createParser(new ByteArrayInputStream(JSON_STRING.getBytes()))
     ]
+  }
+
+  private void skipUntil(final JsonParser parser, final JsonToken token) {
+    JsonToken current
+    while ((current = parser.nextToken()) != null) {
+      if (current == token) {
+        break
+      }
+    }
   }
 }

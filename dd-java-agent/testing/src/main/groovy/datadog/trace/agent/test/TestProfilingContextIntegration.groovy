@@ -1,7 +1,7 @@
 package datadog.trace.agent.test
 
-import datadog.trace.api.experimental.ProfilingContextSetter
-import datadog.trace.api.experimental.ProfilingScope
+import datadog.trace.api.profiling.ProfilingContextAttribute
+import datadog.trace.api.profiling.ProfilingScope
 import datadog.trace.bootstrap.instrumentation.api.ProfilerContext
 import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration
 
@@ -33,17 +33,13 @@ class TestProfilingContextIntegration implements ProfilingContextIntegration {
   }
 
   @Override
-  boolean isQueuingTimeEnabled() {
-    return true
+  String name() {
+    return "test"
   }
 
   @Override
-  void recordQueueingTime(long duration) {
-  }
-
-  @Override
-  ProfilingContextSetter createContextSetter(String attribute) {
-    return ProfilingContextSetter.NoOp.INSTANCE
+  ProfilingContextAttribute createContextAttribute(String attribute) {
+    return ProfilingContextAttribute.NoOp.INSTANCE
   }
 
   @Override

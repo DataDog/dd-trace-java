@@ -397,6 +397,7 @@ abstract class HazelcastTest extends VersionedNamingTestBase {
         "hazelcast.service" matcher.group("service")
         "hazelcast.instance" client.name
         "hazelcast.correlationId" Long
+        peerServiceFrom("hazelcast.instance")
         defaultTags()
       }
     }

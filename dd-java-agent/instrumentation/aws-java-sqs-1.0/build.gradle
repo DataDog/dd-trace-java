@@ -12,6 +12,7 @@ muzzle {
 apply from: "$rootDir/gradle/java.gradle"
 
 addTestSuiteForDir('latestDepTest', 'test')
+addTestSuiteExtendingForDir('latestDepForkedTest', 'latestDepTest', 'test')
 
 dependencies {
   compileOnly group: 'com.amazonaws', name: 'aws-java-sdk-sqs', version: '1.11.0'
@@ -23,7 +24,7 @@ dependencies {
   testImplementation project(':dd-java-agent:instrumentation:jms')
 
   // SQS<->JMS testing:
-  testImplementation group: 'org.elasticmq', name: 'elasticmq-rest-sqs_2.13', version: '1.2.3'
+  testImplementation group: 'org.elasticmq', name: 'elasticmq-rest-sqs_2.13', version: '1.4.7'
   testImplementation group: 'com.amazonaws', name: 'amazon-sqs-java-messaging-lib', version: '1.0.8'
 
   latestDepTestImplementation group: 'com.amazonaws', name: 'aws-java-sdk-sqs', version: '+'

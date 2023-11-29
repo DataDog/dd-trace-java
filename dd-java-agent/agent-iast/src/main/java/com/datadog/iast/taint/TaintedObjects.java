@@ -1,33 +1,36 @@
 package com.datadog.iast.taint;
 
 import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_MAX_CONCURRENT_REQUESTS;
+import static java.util.Collections.emptyIterator;
 
 import com.datadog.iast.IastSystem;
 import com.datadog.iast.model.Range;
-import com.datadog.iast.model.Source;
 import com.datadog.iast.model.json.TaintedObjectEncoding;
 import datadog.trace.api.Config;
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.ArrayBlockingQueue;
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public interface TaintedObjects {
+@SuppressWarnings("UnusedReturnValue")
+public interface TaintedObjects extends Iterable<TaintedObject> {
 
-  TaintedObject taintInputString(@Nonnull String obj, @Nonnull Source source);
-
-  TaintedObject taintInputObject(@Nonnull Object obj, @Nonnull Source source);
-
+  @Nullable
   TaintedObject taint(@Nonnull Object obj, @Nonnull Range[] ranges);
 
+  @Nullable
   TaintedObject get(@Nonnull Object obj);
 
   void release();
 
-  long getEstimatedSize();
+  int count();
+
+  int getEstimatedSize();
 
   boolean isFlat();
 
@@ -49,27 +52,11 @@ public interface TaintedObjects {
     private final TaintedMap map;
 
     public TaintedObjectsImpl() {
-      this(new DefaultTaintedMap());
+      this(new TaintedMap());
     }
 
     private TaintedObjectsImpl(final @Nonnull TaintedMap map) {
       this.map = map;
-    }
-
-    @Override
-    public TaintedObject taintInputString(final @Nonnull String obj, final @Nonnull Source source) {
-      final TaintedObject tainted =
-          new TaintedObject(obj, Ranges.forString(obj, source), map.getReferenceQueue());
-      map.put(tainted);
-      return tainted;
-    }
-
-    @Override
-    public TaintedObject taintInputObject(@Nonnull Object obj, @Nonnull Source source) {
-      final TaintedObject tainted =
-          new TaintedObject(obj, Ranges.forObject(source), map.getReferenceQueue());
-      map.put(tainted);
-      return tainted;
     }
 
     @Override
@@ -79,18 +66,25 @@ public interface TaintedObjects {
       return tainted;
     }
 
+    @Nullable
     @Override
     public TaintedObject get(final @Nonnull Object obj) {
       return map.get(obj);
     }
 
+    @Override
     public void release() {
       map.clear();
       pool.offer(this);
     }
 
     @Override
-    public long getEstimatedSize() {
+    public int count() {
+      return map.count();
+    }
+
+    @Override
+    public int getEstimatedSize() {
       return map.getEstimatedSize();
     }
 
@@ -98,9 +92,15 @@ public interface TaintedObjects {
     public boolean isFlat() {
       return map.isFlat();
     }
+
+    @Nonnull
+    @Override
+    public Iterator<TaintedObject> iterator() {
+      return map.iterator();
+    }
   }
 
-  class TaintedObjectsDebugAdapter implements TaintedObjects {
+  final class TaintedObjectsDebugAdapter implements TaintedObjects {
     static final Logger LOGGER = LoggerFactory.getLogger(TaintedObjects.class);
 
     private final TaintedObjectsImpl delegated;
@@ -112,20 +112,7 @@ public interface TaintedObjects {
       LOGGER.debug("new: id={}", id);
     }
 
-    @Override
-    public TaintedObject taintInputString(final @Nonnull String obj, final @Nonnull Source source) {
-      final TaintedObject tainted = delegated.taintInputString(obj, source);
-      logTainted(tainted);
-      return tainted;
-    }
-
-    @Override
-    public TaintedObject taintInputObject(@Nonnull Object obj, @Nonnull Source source) {
-      final TaintedObject tainted = delegated.taintInputObject(obj, source);
-      logTainted(tainted);
-      return tainted;
-    }
-
+    @Nullable
     @Override
     public TaintedObject taint(final @Nonnull Object obj, final @Nonnull Range[] ranges) {
       final TaintedObject tainted = delegated.taint(obj, ranges);
@@ -133,6 +120,7 @@ public interface TaintedObjects {
       return tainted;
     }
 
+    @Nullable
     @Override
     public TaintedObject get(final @Nonnull Object obj) {
       return delegated.get(obj);
@@ -155,13 +143,24 @@ public interface TaintedObjects {
     }
 
     @Override
-    public long getEstimatedSize() {
+    public int count() {
+      return delegated.count();
+    }
+
+    @Override
+    public int getEstimatedSize() {
       return delegated.getEstimatedSize();
     }
 
     @Override
     public boolean isFlat() {
       return delegated.isFlat();
+    }
+
+    @Nonnull
+    @Override
+    public Iterator<TaintedObject> iterator() {
+      return delegated.iterator();
     }
 
     private void logTainted(final TaintedObject tainted) {
@@ -172,6 +171,47 @@ public interface TaintedObjects {
           LOGGER.error("Failed to debug new tainted object", e);
         }
       }
+    }
+  }
+
+  final class NoOp implements TaintedObjects {
+
+    public static final TaintedObjects INSTANCE = new NoOp();
+
+    @Nullable
+    @Override
+    public TaintedObject taint(@Nonnull final Object obj, @Nonnull final Range[] ranges) {
+      return null;
+    }
+
+    @Nullable
+    @Override
+    public TaintedObject get(@Nonnull final Object obj) {
+      return null;
+    }
+
+    @Override
+    public void release() {}
+
+    @Override
+    public boolean isFlat() {
+      return false;
+    }
+
+    @Override
+    public int count() {
+      return 0;
+    }
+
+    @Override
+    public int getEstimatedSize() {
+      return 0;
+    }
+
+    @Override
+    @Nonnull
+    public Iterator<TaintedObject> iterator() {
+      return emptyIterator();
     }
   }
 }

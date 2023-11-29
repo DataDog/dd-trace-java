@@ -2,7 +2,6 @@ package datadog.trace.logging.ddlogger;
 
 import datadog.trace.logging.LogLevel;
 import datadog.trace.logging.LoggerHelper;
-import datadog.trace.logging.LoggerHelperFactory;
 import org.slf4j.Logger;
 import org.slf4j.Marker;
 import org.slf4j.helpers.FormattingTuple;
@@ -14,9 +13,9 @@ public class DDLogger implements Logger {
   private final String name;
   private final LoggerHelper helper;
 
-  public DDLogger(LoggerHelperFactory helperFactory, String name) {
+  public DDLogger(LoggerHelper helper, String name) {
     this.name = name;
-    this.helper = helperFactory.loggerHelperForName(name);
+    this.helper = helper;
   }
 
   @Override
@@ -330,7 +329,7 @@ public class DDLogger implements Logger {
     }
 
     FormattingTuple tuple = MessageFormatter.format(format, arg);
-    alwaysLog(level, marker, tuple.getMessage(), tuple.getThrowable());
+    alwaysLog(level, marker, format, tuple.getMessage(), tuple.getThrowable());
   }
 
   public void formatLog(LogLevel level, Marker marker, String format, Object arg1, Object arg2) {
@@ -339,7 +338,7 @@ public class DDLogger implements Logger {
     }
 
     FormattingTuple tuple = MessageFormatter.format(format, arg1, arg2);
-    alwaysLog(level, marker, tuple.getMessage(), tuple.getThrowable());
+    alwaysLog(level, marker, format, tuple.getMessage(), tuple.getThrowable());
   }
 
   public void formatLog(LogLevel level, Marker marker, String format, Object... arguments) {
@@ -348,17 +347,17 @@ public class DDLogger implements Logger {
     }
 
     FormattingTuple tuple = MessageFormatter.arrayFormat(format, arguments);
-    alwaysLog(level, marker, tuple.getMessage(), tuple.getThrowable());
+    alwaysLog(level, marker, format, tuple.getMessage(), tuple.getThrowable());
   }
 
   private void log(LogLevel level, Marker marker, String msg, Throwable t) {
     if (!helper.enabled(level, marker)) {
       return;
     }
-    alwaysLog(level, marker, msg, t);
+    alwaysLog(level, marker, null, msg, t);
   }
 
-  private void alwaysLog(LogLevel level, Marker marker, String msg, Throwable t) {
+  protected void alwaysLog(LogLevel level, Marker marker, String format, String msg, Throwable t) {
     helper.log(level, marker, msg, t);
   }
 }

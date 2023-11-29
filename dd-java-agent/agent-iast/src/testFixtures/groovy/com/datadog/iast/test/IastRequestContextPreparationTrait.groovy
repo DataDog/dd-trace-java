@@ -3,18 +3,9 @@ package com.datadog.iast.test
 import com.datadog.iast.IastRequestContext
 import com.datadog.iast.IastSystem
 import com.datadog.iast.model.Range
-import com.datadog.iast.model.Source
-import com.datadog.iast.taint.TaintedMap
 import com.datadog.iast.taint.TaintedObject
 import com.datadog.iast.taint.TaintedObjects
-import com.datadog.iast.telemetry.NoOpTelemetry
-import datadog.trace.api.gateway.CallbackProvider
-import datadog.trace.api.gateway.EventType
-import datadog.trace.api.gateway.Events
-import datadog.trace.api.gateway.Flow
-import datadog.trace.api.gateway.IGSpanInfo
-import datadog.trace.api.gateway.RequestContext
-import datadog.trace.api.gateway.RequestContextSlot
+import datadog.trace.api.gateway.*
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import org.slf4j.Logger
@@ -29,7 +20,7 @@ trait IastRequestContextPreparationTrait {
 
   static void iastSystemSetup(Closure reqEndAction = null) {
     def ss = AgentTracer.get().getSubscriptionService(RequestContextSlot.IAST)
-    IastSystem.start(ss, new NoopOverheadController(), new NoOpTelemetry())
+    IastSystem.start(ss, new NoopOverheadController())
 
     EventType<Supplier<Flow<Object>>> requestStarted = Events.get().requestStarted()
     EventType<BiFunction<RequestContext, IGSpanInfo, Flow<Void>>> requestEnded =
@@ -70,32 +61,19 @@ trait IastRequestContextPreparationTrait {
 
       List<Object> objects = Collections.synchronizedList([])
 
-      TaintedMap getTaintedMap() {
-        delegate.map
-      }
-
-      TaintedObject taintInputString(String obj, Source source) {
-        objects << obj
-        this.delegate.taintInputString(obj, source)
-        logTaint obj
-      }
-
-      TaintedObject taintInputObject(Object obj, Source source) {
-        objects << obj
-        this.delegate.taintInputObject(obj, source)
-        logTaint obj
-      }
-
+      @Override
       TaintedObject taint(Object obj, Range[] ranges) {
         objects << obj
-        this.delegate.taintInputString(obj, ranges)
+        final tainted = this.delegate.taint(obj, ranges)
         logTaint obj
+        return tainted
       }
 
       private final static Logger LOGGER = LoggerFactory.getLogger("map tainted objects")
       static {
-        ((ch.qos.logback.classic.Logger)LOGGER).level = ch.qos.logback.classic.Level.DEBUG
+        ((ch.qos.logback.classic.Logger) LOGGER).level = ch.qos.logback.classic.Level.DEBUG
       }
+
       private static void logTaint(Object o) {
         def content
         if (o.getClass().name.startsWith('java.')) {
@@ -103,8 +81,11 @@ trait IastRequestContextPreparationTrait {
         } else {
           content = '(value not shown)' // toString() may trigger tainting
         }
+        // Some Scala classes will produce a "Malformed class name" when calling Class#getSimpleName in JDK 8,
+        // so be sure to call Class#getName instead.
+        // See https://github.com/scala/bug/issues/2034
         LOGGER.debug("taint: {}[{}] {}",
-          o.getClass().simpleName, Integer.toHexString(System.identityHashCode(o)), content)
+          o.getClass().getName(), Integer.toHexString(System.identityHashCode(o)), content)
       }
     }
   }

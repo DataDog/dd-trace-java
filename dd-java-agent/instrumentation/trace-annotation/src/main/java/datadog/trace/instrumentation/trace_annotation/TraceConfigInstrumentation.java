@@ -16,17 +16,12 @@ import static net.bytebuddy.matcher.ElementMatchers.not;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.api.InstrumenterConfig;
-import datadog.trace.bootstrap.instrumentation.traceannotation.TraceAnnotationConfigParser;
-import datadog.trace.util.Strings;
-import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.util.Collections;
 import java.util.Map;
 import java.util.Set;
 import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * TraceConfig Instrumentation does not extend Default.
@@ -40,43 +35,10 @@ import org.slf4j.LoggerFactory;
 @AutoService(Instrumenter.class)
 public class TraceConfigInstrumentation implements Instrumenter {
 
-  private static final Logger log = LoggerFactory.getLogger(TraceConfigInstrumentation.class);
-
   private final Map<String, Set<String>> classMethodsToTrace;
 
-  private static Map<String, Set<String>> logWarn(
-      String message, int start, int end, String configString) {
-    String part = configString.substring(start, end).trim();
-    log.warn(
-        "Invalid trace method config {} in part '{}'. Must match 'package.Class$Name[method1,method2];?' or 'package.Class$Name[*];?'. Config string: '{}'",
-        message,
-        part,
-        configString);
-    return Collections.emptyMap();
-  }
-
-  private static boolean hasIllegalCharacters(String string) {
-    for (int i = 0; i < string.length(); i++) {
-      char c = string.charAt(i);
-      if (c == '*' || c == '[' || c == ']' || c == ',') {
-        return true;
-      }
-    }
-    return false;
-  }
-
-  private static boolean isIllegalClassName(String string) {
-    return hasIllegalCharacters(string);
-  }
-
-  private static boolean isIllegalMethodName(String string) {
-    return !string.equals("*") && hasIllegalCharacters(string);
-  }
-
-  @SuppressForbidden
   public TraceConfigInstrumentation() {
-    final String configString = Strings.trim(InstrumenterConfig.get().getTraceMethods());
-    classMethodsToTrace = TraceAnnotationConfigParser.parse(configString);
+    classMethodsToTrace = InstrumenterConfig.get().getTraceMethods();
   }
 
   @Override

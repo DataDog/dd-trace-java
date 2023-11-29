@@ -1,13 +1,13 @@
 package datadog.trace.instrumentation.jetty9;
 
 import datadog.trace.bootstrap.instrumentation.api.URIRawDataAdapter;
-import javax.servlet.http.HttpServletRequest;
+import org.eclipse.jetty.server.Request;
 
-final class RequestURIDataAdapter extends URIRawDataAdapter {
+public final class RequestURIDataAdapter extends URIRawDataAdapter {
 
-  private final HttpServletRequest request;
+  private final Request request;
 
-  RequestURIDataAdapter(HttpServletRequest request) {
+  public RequestURIDataAdapter(Request request) {
     this.request = request;
   }
 

@@ -1,47 +1,47 @@
-version: 1.0
+version: 1.1
 suite:
   - type: 'SOURCES'
     description: 'Source with sensitive name "$1"'
     parameters:
       $1:
-        - password
-        - passwd
-        - pwd
-        - pass
-        - pass_phrase
-        - passPhrase
-        - secret
-        - api_key
-        - apikey
-        - secret_key
-        - secretKey
         - access_key_id
         - accessKeyId
-        - secret_access_key
-        - secretAccessKey
+        - apikey
+        - api_key
+        - apiToken
+        - api_token
+        - auth
+        - authentication
+        - authorization
+        - consumerId
+        - consumer_id
+        - consumerKey
+        - consumer_key
+        - consumerSecret
+        - consumer_secret
+        - expirationToken
+        - expiration_token
+        - pass
+        - passwd
+        - password
+        - passPhrase
+        - pass_phrase
         - private_key
         - privateKey
-        - public_key
         - publicKey
-        - token
-        - api_token
-        - apiToken
-        - expiration_token
-        - expirationToken
-        - refresh_token
+        - public_key
+        - pwd
         - refreshToken
-        - consumer_id
-        - consumerId
-        - consumer_key
-        - consumerKey
-        - consumer_secret
-        - consumerSecret
+        - refresh_token
+        - secret
+        - secretAccessKey
+        - secret_access_key
+        - secretKey
+        - secret_key
         - sign
         - signature
         - signed
-        - auth
-        - authorization
-        - authentication
+        - token
     input: >
       [
         { "origin": "http.request.parameter", "name": "$1", "value": "table" }
@@ -193,7 +193,7 @@ suite:
     expected: >
       {
         "sources": [
-          { "origin": "http.request.parameter", "name": "secret", "redacted": true }
+          { "origin": "http.request.parameter", "name": "secret", "redacted": true, "pattern": "abcde" }
         ],
         "vulnerabilities": [
           {
@@ -201,14 +201,14 @@ suite:
             "evidence": {
               "valueParts": [
                 { "value": "select * from " },
-                { "source": 0, "redacted": true }
+                { "source": 0, "redacted": true, "pattern": "abcde"}
               ]
             }
           }
         ]
       }
   - type: 'VULNERABILITIES'
-    description: 'Query with string literal $1'
+    description: 'Query with single quoted string literal $1'
     parameters:
       $1:
         - john
@@ -248,11 +248,44 @@ suite:
         ]
       }
   - type: 'VULNERABILITIES'
-    description: '$1 query with string literal $2'
+    description: 'Query with single quoted string literal and null source'
+    input: >
+      [
+        {
+          "type": "SQL_INJECTION",
+          "evidence": {
+            "value": "select * from users where username = 'user'",
+            "ranges": [
+              { "start" : 38, "length" : 4, "source": { "origin": "http.request.body" } }
+            ]
+          }
+        }
+      ]
+    expected: >
+      {
+        "sources": [
+          { "origin": "http.request.body" }
+        ],
+        "vulnerabilities": [
+          {
+            "type": "SQL_INJECTION",
+            "evidence": {
+              "valueParts": [
+                { "value": "select * from users where username = '" },
+                { "redacted": true, "source": 0, "pattern": "****" },
+                { "value": "'" }
+              ]
+            }
+          }
+        ]
+      }
+  - type: 'VULNERABILITIES'
+    description: '$1 query with double quoted string literal $2'
     parameters:
       $1:
         - MYSQL
         - MARIADB
+        - SQLITE
       $2:
         - john
         - username with 🌉 surrogate
@@ -332,6 +365,7 @@ suite:
       $1:
         - MYSQL
         - MARIADB
+        - SQLITE
     context: >
       { "DATABASE": "$1" }
     input: >
@@ -367,7 +401,54 @@ suite:
         ]
       }
   - type: 'VULNERABILITIES'
-    description: '$1 query with escaped string literal'
+    description: '$1 query with arbitrary escaped string literal'
+    parameters:
+      $1:
+        - ORACLE
+      $2:
+        - '%'
+        - '$'
+        - 'Z'
+    context: >
+      { "DATABASE": "$1" }
+    input: >
+      [
+        {
+          "type": "SQL_INJECTION",
+          "evidence": {
+            "value": "select * from users where username = q'$2I'm an escaped string$2' and common_name = 'doe' or last_name = q'$2I'm another escaped string$2'",
+            "ranges": [
+              { "start" : 14, "length" : 5, "source": { "origin": "http.request.parameter", "name": "table", "value": "users" } }
+            ]
+          }
+        }
+      ]
+    expected: >
+      {
+        "sources": [
+          { "origin": "http.request.parameter", "name": "table", "value": "users" }
+        ],
+        "vulnerabilities": [
+          {
+            "type": "SQL_INJECTION",
+            "evidence": {
+              "valueParts": [
+                { "value": "select * from " },
+                { "source": 0, "value": "users" },
+                { "value": " where username = q'$2" },
+                { "redacted": true },
+                { "value": "$2' and common_name = '" },
+                { "redacted": true },
+                { "value": "' or last_name = q'$2" },
+                { "redacted": true },
+                { "value": "$2'" }
+              ]
+            }
+          }
+        ]
+      }
+  - type: 'VULNERABILITIES'
+    description: '$1 query with matched escaped string literal (< and >)'
     parameters:
       $1:
         - ORACLE
@@ -378,7 +459,7 @@ suite:
         {
           "type": "SQL_INJECTION",
           "evidence": {
-            "value": "select * from users where username = q'<I'm an escaped string>'",
+            "value": "select * from users where username = q'<I'm an escaped string>' and common_name = 'doe' or last_name = q'!I'm another escaped string!'",
             "ranges": [
               { "start" : 14, "length" : 5, "source": { "origin": "http.request.parameter", "name": "table", "value": "users" } }
             ]
@@ -399,7 +480,11 @@ suite:
                 { "source": 0, "value": "users" },
                 { "value": " where username = q'<" },
                 { "redacted": true },
-                { "value": ">'" }
+                { "value": ">' and common_name = '" },
+                { "redacted": true },
+                { "value": "' or last_name = q'!" },
+                { "redacted": true },
+                { "value": "!'" }
               ]
             }
           }
@@ -420,7 +505,7 @@ suite:
         {
           "type": "SQL_INJECTION",
           "evidence": {
-            "value": "select * from users where username = $2I'm an escaped string$2",
+            "value": "select * from users where username = $2I'm an escaped string$2 and common_name = 'doe' or last_name = $TEST$I'm another escaped string$$$TEST$",
             "ranges": [
               { "start" : 14, "length" : 5, "source": { "origin": "http.request.parameter", "name": "table", "value": "users" } }
             ]
@@ -441,7 +526,11 @@ suite:
                 { "source": 0, "value": "users" },
                 { "value": " where username = $2" },
                 { "redacted": true },
-                { "value": "$2" }
+                { "value": "$2 and common_name = '" },
+                { "redacted": true },
+                { "value": "' or last_name = $TEST$" },
+                { "redacted": true },
+                { "value": "$TEST$" }
               ]
             }
           }
@@ -580,7 +669,7 @@ suite:
     expected: >
       {
         "sources": [
-          { "origin": "http.request.parameter", "name": "username", "redacted": true }
+          { "origin": "http.request.parameter", "name": "username", "redacted": true, "pattern": "abcd" }
         ],
         "vulnerabilities": [
           {
@@ -588,7 +677,7 @@ suite:
             "evidence": {
               "valueParts": [
                 { "value": "select * from users where username = '" },
-                { "source": 0, "redacted": true },
+                { "source": 0, "redacted": true, "pattern": "abcd" },
                 { "value": "'" }
               ]
             }
@@ -612,7 +701,7 @@ suite:
     expected: >
       {
         "sources": [
-          { "origin": "http.request.parameter", "name": "user_id", "redacted": true }
+          { "origin": "http.request.parameter", "name": "user_id", "redacted": true, "pattern": "abc" }
         ],
         "vulnerabilities": [
           {
@@ -620,7 +709,7 @@ suite:
             "evidence": {
               "valueParts": [
                 { "value": "select * from users where user_id = " },
-                { "source": 0, "redacted": true }
+                { "source": 0, "redacted": true, "pattern": "abc" }
               ]
             }
           }
@@ -643,7 +732,7 @@ suite:
     expected: >
       {
         "sources": [
-          { "origin": "http.request.parameter", "name": "password", "redacted": true }
+          { "origin": "http.request.parameter", "name": "password", "redacted": true, "pattern": "abcde" }
         ],
         "vulnerabilities": [
           {
@@ -651,7 +740,7 @@ suite:
             "evidence": {
               "valueParts": [
                 { "value": "select * from users where password = '" },
-                { "source": 0, "redacted": true },
+                { "source": 0, "redacted": true, "pattern": "abcde" },
                 { "value": "'" }
               ]
             }
@@ -675,7 +764,7 @@ suite:
     expected: >
       {
         "sources": [
-          { "origin": "http.request.parameter", "name": "password", "redacted": true }
+          { "origin": "http.request.parameter", "name": "password", "redacted": true, "pattern": "abcde" }
         ],
         "vulnerabilities": [
           {
@@ -683,7 +772,7 @@ suite:
             "evidence": {
               "valueParts": [
                 { "value": "select * from users where password = '" },
-                { "source": 0, "redacted": true },
+                { "source": 0, "redacted": true, "pattern": "abcde" },
                 { "redacted": true },
                 { "value": "'" }
               ]
@@ -708,7 +797,7 @@ suite:
     expected: >
       {
         "sources": [
-          { "origin": "http.request.parameter", "name": "first_name", "redacted": true }
+          { "origin": "http.request.parameter", "name": "first_name", "redacted": true, "pattern": "abcd" }
         ],
         "vulnerabilities": [
           {
@@ -716,7 +805,7 @@ suite:
             "evidence": {
               "valueParts": [
                 { "value": "select * from users where username = '" },
-                { "source": 0, "redacted": true },
+                { "source": 0, "redacted": true, "pattern": "abcd" },
                 { "redacted": true },
                 { "value": "'" }
               ]
@@ -741,7 +830,7 @@ suite:
     expected: >
       {
         "sources": [
-          { "origin": "http.request.parameter", "name": "last_name", "redacted": true }
+          { "origin": "http.request.parameter", "name": "last_name", "redacted": true, "pattern": "abc" }
         ],
         "vulnerabilities": [
           {
@@ -750,7 +839,7 @@ suite:
               "valueParts": [
                 { "value": "select * from users where username = '" },
                 { "redacted": true },
-                { "source": 0, "redacted": true },
+                { "source": 0, "redacted": true, "pattern": "abc" },
                 { "redacted": true },
                 { "value": "'" }
               ]
@@ -775,7 +864,7 @@ suite:
     expected: >
       {
         "sources": [
-          { "origin": "http.request.parameter", "name": "clause", "redacted": true }
+          { "origin": "http.request.parameter", "name": "clause", "redacted": true, "pattern": "abcdefghijklmnopq" }
         ],
         "vulnerabilities": [
           {
@@ -783,7 +872,9 @@ suite:
             "evidence": {
               "valueParts": [
                 { "value": "select * from users where " },
-                { "source": 0, "redacted": true }
+                { "source": 0, "value": "username = '" },
+                { "source": 0, "redacted": true, "pattern": "mnop" },
+                { "source": 0, "value": "'" }
               ]
             }
           }
@@ -806,7 +897,7 @@ suite:
     expected: >
       {
         "sources": [
-          { "origin": "http.request.parameter", "name": "clause", "redacted": true }
+          { "origin": "http.request.parameter", "name": "clause", "redacted": true, "pattern": "abcdefghijklmnop" }
         ],
         "vulnerabilities": [
           {
@@ -814,7 +905,8 @@ suite:
             "evidence": {
               "valueParts": [
                 { "value": "select * from users where " },
-                { "source": 0, "redacted": true },
+                { "source": 0, "value": "username = '" },
+                { "source": 0, "redacted": true, "pattern": "mnop" },
                 { "redacted": true },
                 { "value": "'" }
               ]
@@ -841,9 +933,9 @@ suite:
     expected: >
       {
         "sources": [
-          { "origin": "http.request.parameter", "name": "first_name", "redacted": true },
-          { "origin": "http.request.parameter", "name": "last_name", "redacted": true },
-          { "origin": "http.request.parameter", "name": "password", "redacted": true }
+          { "origin": "http.request.parameter", "name": "first_name", "redacted": true, "pattern": "abcd" },
+          { "origin": "http.request.parameter", "name": "last_name", "redacted": true, "pattern": "abc" },
+          { "origin": "http.request.parameter", "name": "password", "redacted": true, "pattern": "abcdefghijkl" }
         ],
         "vulnerabilities": [
           {
@@ -851,11 +943,11 @@ suite:
             "evidence": {
               "valueParts": [
                 { "value": "select id as \"super user id\"\n\tfrom users\n\twhere username = '" },
-                { "source": 0, "redacted": true },
+                { "source": 0, "redacted": true, "pattern": "abcd" },
                 { "redacted": true },
-                { "source": 1, "redacted": true },
+                { "source": 1, "redacted": true, "pattern": "abc" },
                 { "value": "' and password LIKE '" },
-                { "source": 2, "redacted": true },
+                { "source": 2, "redacted": true, "pattern": "abcdefghijkl" },
                 { "redacted": true },
                 { "value": "' and user_id_123 > " },
                 { "redacted": true } 
@@ -864,6 +956,82 @@ suite:
           }
         ]
       }
+
+  - type: 'VULNERABILITIES'
+    description: 'Query with tainted range in two LIKEs with not tainted % char'
+    input: >
+      [
+        {
+          "type": "SQL_INJECTION",
+          "evidence": {
+            "value": "select * from table where name LIKE '%searchparam%' OR description LIKE '%searchparam%'",
+            "ranges": [
+              { "start": 38, "length": 11, "source": { "origin": "http.request.parameter", "name": "query", "value": "searchparam" } },
+              { "start": 74, "length": 11, "source": { "origin": "http.request.parameter", "name": "query", "value": "searchparam" } }
+            ]
+          }
+        }
+      ]
+    expected: >
+      {
+        "sources": [
+          { "origin": "http.request.parameter", "name": "query", "redacted": true, "pattern": "abcdefghijk" }
+        ],
+        "vulnerabilities": [
+          {
+            "type": "SQL_INJECTION",
+            "evidence": {
+              "valueParts": [
+                { "value": "select * from table where name LIKE '" },
+                { "redacted": true },
+                { "source": 0, "redacted": true, "pattern": "abcdefghijk" },
+                { "redacted": true },
+                { "value": "' OR description LIKE '" },
+                { "redacted": true },
+                { "source": 0, "redacted": true, "pattern": "abcdefghijk" },
+                { "redacted": true },
+                { "value": "'" }
+              ]
+            }
+          }
+        ]
+      }
+
+  - type: 'VULNERABILITIES'
+    description: 'Full query tainted'
+    input: >
+      [
+        {
+          "type": "SQL_INJECTION",
+          "evidence": {
+            "value": "select * from table where name LIKE '%searchparam%' OR description LIKE '%searchparam%'",
+            "ranges": [
+              { "start": 0, "length": 87, "source": { "origin": "http.request.parameter", "name": "query", "value": "select * from table where name LIKE '%searchparam%' OR description LIKE '%searchparam%'" } }
+            ]
+          }
+        }
+      ]
+    expected: >
+      {
+        "sources": [
+          { "origin": "http.request.parameter", "name": "query", "redacted": true, "pattern": "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdefghijklmnopqrstuvwxy" }
+        ],
+        "vulnerabilities": [
+          {
+            "type": "SQL_INJECTION",
+            "evidence": {
+              "valueParts": [
+                { "source": 0, "value": "select * from table where name LIKE '" },
+                { "source": 0, "redacted": true, "pattern": "LMNOPQRSTUVWX" },
+                { "source": 0, "value": "' OR description LIKE '" },
+                { "source": 0, "redacted": true, "pattern": "LMNOPQRSTUVWX" },
+                { "source": 0, "value": "'" }
+              ]
+            }
+          }
+        ]
+      }
+
   - type: 'VULNERABILITIES'
     description: 'Ldap with literal and filter $1'
     parameters:
@@ -920,6 +1088,9 @@ suite:
       ]
     expected: >
       {
+        "sources": [
+          { "origin": "http.request.parameter", "name": "oid", "value": "2.4.6.8.10" }
+        ],
         "vulnerabilities": [
           {
             "type": "LDAP_INJECTION",
@@ -954,7 +1125,7 @@ suite:
     expected: >
       {
         "sources": [
-          { "origin": "http.request.parameter", "name": "cn", "redacted": true }
+          { "origin": "http.request.parameter", "name": "cn", "redacted": true, "pattern": "abcdefghijk" }
         ],
         "vulnerabilities": [
           {
@@ -962,15 +1133,15 @@ suite:
             "evidence": {
               "valueParts": [
                 { "value": "(cn=" },
-                { "source": 0, "redacted": true },
+                { "source": 0, "redacted": true, "pattern": "abcdefghijk" },
                 { "value": ")\n(!(cn=" },
                 { "redacted": true },
                 { "value": "))\n(&(objectClass=" },
                 { "redacted": true },
                 { "value": ")(|(sn=" },
-                { "source": 0, "redacted": true },
+                { "source": 0, "redacted": true, "pattern": "fghijk" },
                 { "value": ")(cn=" },
-                { "source": 0, "redacted": true },
+                { "source": 0, "redacted": true, "pattern": "abcdef" },
                 { "redacted": true },
                 { "value": ")))\n(o=" },
                 { "redacted": true },
@@ -997,7 +1168,7 @@ suite:
     expected: >
       {
         "sources": [
-          { "origin": "http.request.parameter", "name": "file", "redacted": true }
+          { "origin": "http.request.parameter", "name": "file", "redacted": true, "pattern": "abcdefghijk" }
         ],
         "vulnerabilities": [
           {
@@ -1009,7 +1180,7 @@ suite:
                 { "value": ")\n(cn=" },
                 { "redacted": true },
                 { "value": ")\n(filename=" },
-                { "source": 0, "redacted": true },
+                { "source": 0, "redacted": true, "pattern": "abcdefghijk" },
                 { "value": ")\n(bin=" },
                 { "redacted": true },
                 { "value": ")\n(sn=" },
@@ -1070,16 +1241,16 @@ suite:
     expected: >
       {
         "sources": [
-          { "origin": "http.request.parameter", "name": "file", "redacted": true }
+          { "origin": "http.request.parameter", "name": "file", "redacted": true, "pattern": "abcdefgh" }
         ],
         "vulnerabilities": [
           {
             "type": "COMMAND_INJECTION",
             "evidence": {
               "valueParts": [
-                { "value": "cat" },
+                { "value": "cat " },
                 { "redacted": true },
-                { "source": 0, "redacted": true}
+                { "source": 0, "redacted": true, "pattern": "abcdefgh" }
               ]
             }
           }
@@ -1106,27 +1277,65 @@ suite:
     expected: >
       {
         "sources": [
-          { "origin": "http.request.parameter", "name": "file", "redacted": true }
+          { "origin": "http.request.parameter", "name": "file", "redacted": true, "pattern": "abcdefgh" }
         ],
         "vulnerabilities": [
           {
             "type": "COMMAND_INJECTION",
             "evidence": {
               "valueParts": [
-                { "value": "$1 cat" },
+                { "value": "$1 cat " },
                 { "redacted": true },
-                { "source": 0, "redacted": true}
+                { "source": 0, "redacted": true, "pattern": "abcdefgh"}
               ]
             }
           }
         ]
       }
   - type: 'VULNERABILITIES'
-    description: 'SSRF without authority or query params'
+    description: 'Command injection does not redact ranges with only whitespaces'
     input: >
       [
         {
-          "type": "SSRF",
+          "type": "COMMAND_INJECTION",
+          "evidence": {
+            "value": "ls -lah",
+            "ranges": [
+              { "start" : 0, "length" : 2, "source": { "origin": "http.request.parameter", "name": "command", "value": "ls" } },
+              { "start" : 3, "length" : 4, "source": { "origin": "http.request.parameter", "name": "argument", "value": "-lah" } }
+            ]
+          }
+        }
+      ]
+    expected: >
+      {
+        "sources": [
+          { "origin": "http.request.parameter", "name": "command", "value": "ls" },
+          { "origin": "http.request.parameter", "name": "argument", "redacted": true, "pattern": "abcd" }
+        ],
+        "vulnerabilities": [
+          {
+            "type": "COMMAND_INJECTION",
+            "evidence": {
+              "valueParts": [
+                { "source": 0, "value": "ls" },
+                { "value": " " },
+                { "source": 1, "redacted": true, "pattern": "abcd"}
+              ]
+            }
+          }
+        ]
+      }
+  - type: 'VULNERABILITIES'
+    description: '$1 without authority or query params'
+    parameters:
+      $1:
+        - SSRF
+        - UNVALIDATED_REDIRECT
+    input: >
+      [
+        {
+          "type": "$1",
           "evidence": {
             "value": "http://datadoghq.com",
             "ranges": [
@@ -1142,7 +1351,7 @@ suite:
         ],
         "vulnerabilities": [
           {
-            "type": "SSRF",
+            "type": "$1",
             "evidence": {
               "valueParts": [
                 { "value": "http://" },
@@ -1153,20 +1362,23 @@ suite:
         ]
       }
   - type: 'VULNERABILITIES'
-    description: 'SSRF with authority $1'
+    description: '$1 with authority $2'
     parameters:
       $1:
-        - 'user'
-        - ':'
-        - 'user:'
-        - ':password'
-        - 'user:password'
+        - SSRF
+        - UNVALIDATED_REDIRECT
+      $2:
+        - "user"
+        - ":"
+        - "user:"
+        - ":password"
+        - "user:password"
     input: >
       [
         {
-          "type": "SSRF",
+          "type": "$1",
           "evidence": {
-            "value": "http://$1@datadoghq.com",
+            "value": "http://$2@datadoghq.com",
             "ranges": [
               { "start" : 0, "length" : 4, "source": { "origin": "http.request.parameter", "name": "protocol", "value": "http" } }
             ]
@@ -1180,7 +1392,7 @@ suite:
         ],
         "vulnerabilities": [
           {
-            "type": "SSRF",
+            "type": "$1",
             "evidence": {
               "valueParts": [
                 { "source": 0, "value": "http" },
@@ -1193,20 +1405,23 @@ suite:
         ]
       }
   - type: 'VULNERABILITIES'
-    description: 'SSRF with query parameters or fragment'
+    description: '$1 with query parameters or fragment'
     parameters:
       $1:
+        - SSRF
+        - UNVALIDATED_REDIRECT
+      $2:
         - '?'
         - '#'
     input: >
       [
         {
-          "type": "SSRF",
+          "type": "$1",
           "evidence": {
-            "value": "http://datadoghq.com$1first_name=john&last_name=doe",
+            "value": "http://datadoghq.com$2first_name=john&last_name=doe",
             "ranges": [
               { "start" : 7, "length" : 13, "source": { "origin": "http.request.parameter", "name": "host", "value": "datadoghq.com" } },
-              { "start" : 32, "length" : 4, "source": { "origin": "http.request.parameter", "name": "fist_name", "value": "john" } }
+              { "start" : 32, "length" : 4, "source": { "origin": "http.request.parameter", "name": "first_name", "value": "john" } }
             ]
           }
         }
@@ -1215,17 +1430,17 @@ suite:
       {
         "sources": [
           { "origin": "http.request.parameter", "name": "host", "value": "datadoghq.com" },
-          { "origin": "http.request.parameter", "name": "fist_name", "redacted": true }
+          { "origin": "http.request.parameter", "name": "first_name", "redacted": true, "pattern": "abcd" }
         ],
         "vulnerabilities": [
           {
-            "type": "SSRF",
+            "type": "$1",
             "evidence": {
               "valueParts": [
                 { "value": "http://" },
                 { "source": 0, "value": "datadoghq.com" },
-                { "value": "$1first_name=" },
-                { "source": 1, "redacted": true },
+                { "value": "$2first_name=" },
+                { "source": 1, "redacted": true, "pattern": "abcd" },
                 { "value": "&last_name=" },
                 { "redacted": true }
               ]
@@ -1234,11 +1449,15 @@ suite:
         ]
       }
   - type: 'VULNERABILITIES'
-    description: 'SSRF authority query and fragment'
+    description: '$1 authority query and fragment'
+    parameters:
+      $1:
+        - SSRF
+        - UNVALIDATED_REDIRECT
     input: >
       [
         {
-          "type": "SSRF",
+          "type": "$1",
           "evidence": {
             "value": "https://user:password@datadoghq.com:443/api/v1/test/123/?param1=pone&param2=ptwo#fragment1=fone&fragment2=ftwo",
             "ranges": [
@@ -1254,7 +1473,7 @@ suite:
         ],
         "vulnerabilities": [
           {
-            "type": "SSRF",
+            "type": "$1",
             "evidence": {
               "valueParts": [
                 { "value": "https://" },
@@ -1274,3 +1493,533 @@ suite:
           }
         ]
       }
+  - type: 'VULNERABILITIES'
+    description: 'Weak randomness should not be redacted'
+    input: >
+      [
+        { "type": "WEAK_RANDOMNESS", "evidence": { "value": "java.util.Math" } }
+      ]
+    expected: >
+      {
+        "vulnerabilities": [
+          { "type": "WEAK_RANDOMNESS", "evidence": { "value": "java.util.Math" } }
+        ]
+      }
+
+  - type: 'VULNERABILITIES'
+    description: 'Sensitive source should be redacted fully in the evidence (source matches)'
+    input: >
+      [
+        {
+          "type": "SQL_INJECTION",
+          "evidence": {
+            "value": "select * from users where username = 'john'",
+            "ranges": [
+              { "start" : 26, "length" : 17, "source": { "origin": "http.request.parameter", "name": "password", "value": "username = 'john'" } }
+            ]
+          }
+        }
+      ]
+    expected: >
+      {
+        "sources": [
+          { "origin": "http.request.parameter", "name": "password", "redacted": true, "pattern": "abcdefghijklmnopq" }
+        ],
+        "vulnerabilities": [
+          {
+            "type": "SQL_INJECTION",
+            "evidence": {
+              "valueParts": [
+                { "value": "select * from users where " },
+                { "source": 0, "redacted": true, "pattern": "abcdefghijklmnopq" }
+              ]
+            }
+          }
+        ]
+      }    
+
+  - type: 'VULNERABILITIES'
+    description: 'Sensitive sources should be redacted fully in the evidence (source does not match)'
+    input: >
+      [
+        {
+          "type": "SQL_INJECTION",
+          "evidence": {
+            "value": "select * from users where username = 'my user'",
+            "ranges": [
+              { "start" : 26, "length" : 20, "source": { "origin": "http.request.parameter", "name": "password", "value": "username = 'my%20user'" } }
+            ]
+          }
+        }
+      ]
+    expected: >
+      {
+        "sources": [
+          { "origin": "http.request.parameter", "name": "password", "redacted": true, "pattern": "abcdefghijklmnopqrstuv" }
+        ],
+        "vulnerabilities": [
+          {
+            "type": "SQL_INJECTION",
+            "evidence": {
+              "valueParts": [
+                { "value": "select * from users where " },
+                { "source": 0, "redacted": true, "pattern": "********************" }
+              ]
+            }
+          }
+        ]
+      }    
+
+  - type: 'VULNERABILITIES'
+    description: 'Sensitive tainted range (source matches)'
+    input: >
+      [
+        {
+          "type": "SQL_INJECTION",
+          "evidence": {
+            "value": "select * from users where username = 'john'",
+            "ranges": [
+              { "start" : 26, "length" : 17, "source": { "origin": "http.request.parameter", "name": "clause", "value": "username = 'john'" } }
+            ]
+          }
+        }
+      ]
+    expected: >
+      {
+        "sources": [
+          { "origin": "http.request.parameter", "name": "clause", "redacted": true, "pattern": "abcdefghijklmnopq" }
+        ],
+        "vulnerabilities": [
+          {
+            "type": "SQL_INJECTION",
+            "evidence": {
+              "valueParts": [
+                { "value": "select * from users where " },
+                { "source": 0, "value": "username = '" },
+                { "source": 0, "redacted": true, "pattern": "mnop" },
+                { "source": 0, "value": "'" }      
+              ]
+            }
+          }
+        ]
+      }      
+
+  - type: 'VULNERABILITIES'
+    description: 'Sensitive tainted range (source does not match)'
+    input: >
+      [
+        {
+          "type": "SQL_INJECTION",
+          "evidence": {
+            "value": "select * from users where username = 'my user'",
+            "ranges": [
+              { "start" : 26, "length" : 20, "source": { "origin": "http.request.parameter", "name": "clause", "value": "username = 'my%20user'" } }
+            ]
+          }
+        }
+      ]
+    expected: >
+      {
+        "sources": [
+          { "origin": "http.request.parameter", "name": "clause", "redacted": true, "pattern": "abcdefghijklmnopqrstuv" }
+        ],
+        "vulnerabilities": [
+          {
+            "type": "SQL_INJECTION",
+            "evidence": {
+              "valueParts": [
+                { "value": "select * from users where " },
+                { "source": 0, "value": "username = '" },
+                { "source": 0, "redacted": true, "pattern": "*******" },
+                { "source": 0, "value": "'" }
+              ]
+            }
+          }
+        ]
+      }   
+
+  - type: 'VULNERABILITIES'
+    description: 'SQLi exploited'
+    input: >
+      [
+        {
+          "type": "SQL_INJECTION",
+          "evidence": {
+            "value": "SELECT * FROM Users WHERE email = '' OR TRUE --' AND password = '81dc9bdb52d04dc20036dbd8313ed055' AND deletedAt IS NULL",
+            "ranges": [
+              { "start" : 35, "length" : 12, "source": { "origin": "http.request.parameter", "name": "email", "value": "' OR TRUE --" } }
+            ]
+          }
+        }
+      ]
+    expected: >
+      {
+        "sources": [
+          { "origin": "http.request.parameter", "name": "email", "value": "' OR TRUE --" }
+        ],
+        "vulnerabilities": [
+          {
+            "type": "SQL_INJECTION",
+            "evidence": {
+              "valueParts": [
+                { "value": "SELECT * FROM Users WHERE email = '" },
+                { "redacted": true },
+                { "source": 0, "value": "' OR TRUE --" },
+                { "redacted": true }
+              ]
+            }
+          }
+        ]
+      }
+  - type: 'VULNERABILITIES'
+    description: 'Consecutive ranges - at the beginning'
+    input: >
+      [
+        {
+          "type": "UNVALIDATED_REDIRECT",
+          "evidence": {
+            "value": "https://user:password@datadoghq.com:443/api/v1/test/123/?param1=pone&param2=ptwo#fragment1=fone&fragment2=ftwo",
+            "ranges": [
+              { "start" : 0, "length" : 4, "source": { "origin": "http.request.parameter", "name": "protocol", "value": "http" } },
+              { "start" : 4, "length" : 1, "source": { "origin": "http.request.parameter", "name": "secure", "value": "s" } },
+              { "start" : 22, "length" : 13, "source": { "origin": "http.request.parameter", "name": "host", "value": "datadoghq.com" } }
+            ]
+          }
+        }
+      ]
+    expected: >
+      {
+        "sources": [
+          { "origin": "http.request.parameter", "name": "protocol", "value": "http" },
+          { "origin": "http.request.parameter", "name": "secure", "value": "s" },
+          { "origin": "http.request.parameter", "name": "host", "value": "datadoghq.com" }
+        ],
+        "vulnerabilities": [
+          {
+            "type": "UNVALIDATED_REDIRECT",
+            "evidence": {
+              "valueParts": [
+                { "source": 0, "value": "http" },
+                { "source": 1, "value": "s" },
+                { "value": "://" },
+                { "redacted": true },
+                { "value": "@" },
+                { "source": 2, "value": "datadoghq.com" },
+                { "value": ":443/api/v1/test/123/?param1=" },
+                { "redacted": true },
+                { "value": "&param2=" },
+                { "redacted": true },
+                { "value": "#fragment1=" },
+                { "redacted": true },
+                { "value": "&fragment2=" },
+                { "redacted": true }
+              ]
+            }
+          }
+        ]
+      }
+
+  - type: 'VULNERABILITIES'
+    description: 'Tainted range based redaction '
+    input: >
+      [
+        {
+          "type": "XSS",
+          "evidence": {
+            "value": "this could be a super long text, so we need to reduce it before send it to the backend. This redaction strategy applies to XSS vulnerability but can be extended to future ones",
+            "ranges": [
+              { "start" : 123, "length" : 3, "source": { "origin": "http.request.parameter", "name": "type", "value": "XSS" } }
+            ]
+          }
+        }
+      ]
+    expected: >
+      {
+        "sources": [
+          { "origin": "http.request.parameter", "name": "type", "value": "XSS" }
+        ],
+        "vulnerabilities": [
+          {
+            "type": "XSS",
+            "evidence": {
+              "valueParts": [
+                { "redacted": true },
+                { "source": 0, "value": "XSS" },
+                { "redacted": true }
+              ]
+            }
+          }
+        ]
+      } 
+
+  - type: 'VULNERABILITIES'
+    description: 'Tainted range based redaction - with redactable source '
+    input: >
+      [
+        {
+          "type": "XSS",
+          "evidence": {
+            "value": "this could be a super long text, so we need to reduce it before send it to the backend. This redaction strategy applies to XSS vulnerability but can be extended to future ones",
+            "ranges": [
+              { "start" : 123, "length" : 3, "source": { "origin": "http.request.parameter", "name": "password", "value": "XSS" } }
+            ]
+          }
+        }
+      ]
+    expected: >
+      {
+        "sources": [
+          { "origin": "http.request.parameter", "name": "password", "redacted": true, "pattern": "abc" }
+        ],
+        "vulnerabilities": [
+          {
+            "type": "XSS",
+            "evidence": {
+              "valueParts": [
+                { "redacted": true },
+                { "source": 0, "redacted": true, "pattern": "abc"},
+                { "redacted": true }
+              ]
+            }
+          }
+        ]
+      } 
+
+
+  - type: 'VULNERABILITIES'
+    description: 'Tainted range based redaction - with null source '
+    input: >
+      [
+        {
+          "type": "XSS",
+          "evidence": {
+            "value": "this could be a super long text, so we need to reduce it before send it to the backend. This redaction strategy applies to XSS vulnerability but can be extended to future ones",
+            "ranges": [
+              { "start" : 123, "length" : 3, "source": { "origin": "http.request.body" } }
+            ]
+          }
+        }
+      ]
+    expected: >
+      {
+        "sources": [
+          { "origin": "http.request.body" }
+        ],
+        "vulnerabilities": [
+          {
+            "type": "XSS",
+            "evidence": {
+              "valueParts": [
+                { "redacted": true },
+                { "source": 0, "value": "XSS" },
+                { "redacted": true }
+              ]
+            }
+          }
+        ]
+      }
+
+  - type: 'VULNERABILITIES'
+    description: 'Tainted range based redaction - multiple ranges'
+    input: >
+      [
+        {
+          "type": "XSS",
+          "evidence": {
+            "value": "this could be a super long text, so we need to reduce it before send it to the backend. This redaction strategy applies to XSS vulnerability but can be extended to future ones",
+            "ranges": [
+              { "start" : 16, "length" : 10, "source": { "origin": "http.request.parameter", "name": "text", "value": "super long" }},
+              { "start" : 123, "length" : 3, "source": { "origin": "http.request.parameter", "name": "type", "value": "XSS" }}
+            ]
+          }
+        }
+      ]
+    expected: >
+      {
+        "sources": [
+          { "origin": "http.request.parameter", "name": "text", "value": "super long" },
+          { "origin": "http.request.parameter", "name": "type", "value": "XSS"}
+        ],
+        "vulnerabilities": [
+          {
+            "type": "XSS",
+            "evidence": {
+              "valueParts": [
+                { "redacted": true },
+                { "source": 0, "value": "super long" },
+                { "redacted": true },
+                {"source": 1, "value": "XSS"}, 
+                { "redacted": true }
+              ]
+            }
+          }
+        ]
+      } 
+
+  - type: 'VULNERABILITIES'
+    description: 'Tainted range based redaction - first range at the beginning '
+    input: >
+      [
+        {
+          "type": "XSS",
+          "evidence": {
+            "value": "this could be a super long text, so we need to reduce it before send it to the backend. This redaction strategy applies to XSS vulnerability but can be extended to future ones",
+            "ranges": [
+              { "start" : 0, "length" : 4, "source": { "origin": "http.request.parameter", "name": "text", "value": "this" }},
+              { "start" : 123, "length" : 3, "source": { "origin": "http.request.parameter", "name": "type", "value": "XSS" }}
+            ]
+          }
+        }
+      ]
+    expected: >
+      {
+        "sources": [
+          { "origin": "http.request.parameter", "name": "text", "value": "this" },
+          { "origin": "http.request.parameter", "name": "type", "value": "XSS"}
+        ],
+        "vulnerabilities": [
+          {
+            "type": "XSS",
+            "evidence": {
+              "valueParts": [
+                { "source": 0, "value": "this" },
+                { "redacted": true },
+                {"source": 1, "value": "XSS"}, 
+                { "redacted": true }
+              ]
+            }
+          }
+        ]
+      } 
+
+  - type: 'VULNERABILITIES'
+    description: 'Tainted range based redaction - last range at the end '
+    input: >
+      [
+        {
+          "type": "XSS",
+          "evidence": {
+            "value": "this could be a super long text, so we need to reduce it before send it to the backend. This redaction strategy applies to XSS",
+            "ranges": [
+              { "start" : 0, "length" : 4, "source": { "origin": "http.request.parameter", "name": "text", "value": "this" }},
+              { "start" : 123, "length" : 3, "source": { "origin": "http.request.parameter", "name": "type", "value": "XSS" }}
+            ]
+          }
+        }
+      ]
+    expected: >
+      {
+        "sources": [
+          { "origin": "http.request.parameter", "name": "text", "value": "this" },
+          { "origin": "http.request.parameter", "name": "type", "value": "XSS"}
+        ],
+        "vulnerabilities": [
+          {
+            "type": "XSS",
+            "evidence": {
+              "valueParts": [
+                { "source": 0, "value": "this" },
+                { "redacted": true },
+                {"source": 1, "value": "XSS"}
+              ]
+            }
+          }
+        ]
+      } 
+
+  - type: 'VULNERABILITIES'
+    description: 'Tainted range based redaction - whole text '
+    input: >
+      [
+        {
+          "type": "XSS",
+          "evidence": {
+            "value": "this could be a super long text, so we need to reduce it before send it to the backend. This redaction strategy applies to XSS",
+            "ranges": [
+              { "start" : 0, "length" : 126, "source": { "origin": "http.request.parameter", "name": "text", "value": "this could be a super long text, so we need to reduce it before send it to the backend. This redaction strategy applies to XSS" }}
+            ]
+          }
+        }
+      ]
+    expected: >
+      {
+        "sources": [
+          { "origin": "http.request.parameter", "name": "text", "value": "this could be a super long text, so we need to reduce it before send it to the backend. This redaction strategy applies to XSS"}
+        ],
+        "vulnerabilities": [
+          {
+            "type": "XSS",
+            "evidence": {
+              "valueParts": [
+                { "source": 0, "value": "this could be a super long text, so we need to reduce it before send it to the backend. This redaction strategy applies to XSS" }
+              ]
+            }
+          }
+        ]
+      } 
+
+  - type: 'VULNERABILITIES'
+    description: 'Redacted source that needs to be truncated'
+    input: >
+      [
+        {
+          "type": "SQL_INJECTION",
+          "evidence": {
+            "value": "select * from users where username = 'Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.Sed ut perspiciatis unde omnis iste natus error sit voluptatem ac'",
+            "ranges": [
+              { "start" : 26, "length" : 523, "source": { "origin": "http.request.parameter", "name": "clause", "value": "username = 'Lorem%20ipsum%20dolor%20sit%20amet,%20consectetur%20adipiscing%20elit,%20sed%20do%20eiusmod%20tempor%20incididunt%20ut%20labore%20et%20dolore%20magna%20aliqua.%20Ut%20enim%20ad%20minim%20veniam,%20quis%20nostrud%20exercitation%20ullamco%20laboris%20nisi%20ut%20aliquip%20ex%20ea%20commodo%20consequat.%20Duis%20aute%20irure%20dolor%20in%20reprehenderit%20in%20voluptate%20velit%20esse%20cillum%20dolore%20eu%20fugiat%20nulla%20pariatur.%20Excepteur%20sint%20occaecat%20cupidatat%20non%20proident,%20sunt%20in%20culpa%20qui%20officia%20deserunt%20mollit%20anim%20id%20est%20laborum.Sed%20ut%20perspiciatis%20unde%20omnis%20iste%20natus%20error%20sit%20voluptatem%20ac'" } }
+            ]
+          }
+        }
+      ]
+    expected: >
+      {
+        "sources": [
+          { "origin": "http.request.parameter", "name": "clause", "redacted": true, "pattern": "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789ab", "truncated": "right"}
+        ],
+        "vulnerabilities": [
+          {
+            "type": "SQL_INJECTION",
+            "evidence": {
+              "valueParts": [
+                { "value": "select * from users where " },
+                { "source": 0, "value": "username = '" },
+                { "source": 0, "redacted": true, "truncated": "right", "pattern": "**********************************************************************************************************************************************************************************************************************************************************" },
+                { "source": 0, "value": "'" }
+              ]
+            }
+          }
+        ]
+      } 
+
+  - type: 'VULNERABILITIES'
+    description: 'No redacted that needs to be truncated - whole text'
+    input: >
+      [
+        {
+          "type": "XSS",
+          "evidence": {
+            "value": "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.Sed ut perspiciatis unde omnis iste natus error sit voluptatem ac",
+            "ranges": [
+              { "start" : 0, "length" : 510, "source": { "origin": "http.request.parameter", "name": "text", "value": "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.Sed ut perspiciatis unde omnis iste natus error sit voluptatem ac" }}
+            ]
+          }
+        }
+      ]
+    expected: >
+      {
+        "sources": [
+          { "origin": "http.request.parameter", "name": "text", "truncated": "right", "value": "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure do"}
+        ],
+        "vulnerabilities": [
+          {
+            "type": "XSS",
+            "evidence": {
+              "valueParts": [
+                { "source": 0, "truncated": "right", "value": "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure do" }
+              ]
+            }
+          }
+        ]
+      }
+

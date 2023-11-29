@@ -11,6 +11,7 @@ import datadog.trace.bootstrap.debugger.Limits;
 import datadog.trace.bootstrap.debugger.ProbeImplementation;
 import datadog.trace.bootstrap.debugger.ProbeLocation;
 import datadog.trace.bootstrap.debugger.util.TimeoutChecker;
+import datadog.trace.bootstrap.debugger.util.WellKnownClasses;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.lang.annotation.Annotation;
@@ -36,12 +37,15 @@ public class MoshiSnapshotHelper {
   public static final String ARGUMENTS = "arguments";
   public static final String LOCALS = "locals";
   public static final String THROWABLE = "throwable";
+  public static final String STATIC_FIELDS = "staticFields";
   public static final String THIS = "this";
   public static final String NOT_CAPTURED_REASON = "notCapturedReason";
   public static final String FIELD_COUNT_REASON = "fieldCount";
   public static final String COLLECTION_SIZE_REASON = "collectionSize";
   public static final String TIMEOUT_REASON = "timeout";
   public static final String DEPTH_REASON = "depth";
+  public static final String REDACTED_IDENT_REASON = "redactedIdent";
+  public static final String REDACTED_TYPE_REASON = "redactedType";
   public static final String TYPE = "type";
   public static final String VALUE = "value";
   public static final String FIELDS = "fields";
@@ -149,23 +153,6 @@ public class MoshiSnapshotHelper {
       jsonWriter.beginObject();
       jsonWriter.name(ARGUMENTS);
       jsonWriter.beginObject();
-      if (capturedContext.getFields() != null && !capturedContext.getFields().isEmpty()) {
-        jsonWriter.name(THIS);
-        jsonWriter.beginObject();
-        jsonWriter.name(TYPE);
-        jsonWriter.value(capturedContext.getThisClassName());
-        jsonWriter.name(FIELDS);
-        jsonWriter.beginObject();
-        SerializationResult result =
-            toJsonCapturedValues(
-                jsonWriter,
-                capturedContext.getFields(),
-                capturedContext.getLimits(),
-                timeoutChecker);
-        jsonWriter.endObject(); // FIELDS
-        handleSerializationResult(jsonWriter, result);
-        jsonWriter.endObject(); // THIS
-      }
       SerializationResult resultArgs =
           toJsonCapturedValues(
               jsonWriter,
@@ -179,11 +166,18 @@ public class MoshiSnapshotHelper {
           toJsonCapturedValues(
               jsonWriter, capturedContext.getLocals(), capturedContext.getLimits(), timeoutChecker);
       jsonWriter.endObject(); // LOCALS
-      handleSerializationResult(jsonWriter, resultLocals, resultArgs);
+      jsonWriter.name(STATIC_FIELDS);
+      jsonWriter.beginObject();
+      SerializationResult resultStaticFields =
+          toJsonCapturedValues(
+              jsonWriter,
+              capturedContext.getStaticFields(),
+              capturedContext.getLimits(),
+              timeoutChecker);
+      jsonWriter.endObject();
+      handleSerializationResult(jsonWriter, resultLocals, resultArgs, resultStaticFields);
       jsonWriter.name(THROWABLE);
       throwableAdapter.toJson(jsonWriter, capturedContext.getThrowable());
-      // TODO add static fields
-      // jsonWriter.name("staticFields");
       jsonWriter.endObject();
     }
 
@@ -194,7 +188,7 @@ public class MoshiSnapshotHelper {
       for (SerializationResult result : results) {
         switch (result) {
           case OK:
-            return;
+            break;
           case FIELD_COUNT:
             {
               if (!fieldCountReported) {
@@ -402,14 +396,14 @@ public class MoshiSnapshotHelper {
       }
 
       @Override
-      public void mapEpilogue(Map<?, ?> map, boolean isComplete) throws Exception {
+      public void mapEpilogue(boolean isComplete, int size) throws Exception {
         jsonWriter.endArray();
         if (!isComplete) {
           jsonWriter.name(NOT_CAPTURED_REASON);
           jsonWriter.value(COLLECTION_SIZE_REASON);
         }
         jsonWriter.name(SIZE);
-        jsonWriter.value(String.valueOf(map.size()));
+        jsonWriter.value(String.valueOf(size));
       }
 
       @Override
@@ -425,6 +419,10 @@ public class MoshiSnapshotHelper {
 
       @Override
       public void handleFieldException(Exception ex, Field field) {
+        LOG.debug(
+            "Exception when extracting field={} exception={}",
+            field.getName(),
+            ExceptionHelper.foldExceptionStackTrace(ex));
         String fieldName = field.getName();
         try {
           jsonWriter.name(fieldName);
@@ -465,9 +463,27 @@ public class MoshiSnapshotHelper {
               jsonWriter.value(TIMEOUT_REASON);
               break;
             }
+          case REDACTED_IDENT:
+            {
+              jsonWriter.name(NOT_CAPTURED_REASON);
+              jsonWriter.value(REDACTED_IDENT_REASON);
+              break;
+            }
+          case REDACTED_TYPE:
+            {
+              jsonWriter.name(NOT_CAPTURED_REASON);
+              jsonWriter.value(REDACTED_TYPE_REASON);
+              break;
+            }
           default:
             throw new RuntimeException("Unsupported NotCapturedReason: " + reason);
         }
+      }
+
+      @Override
+      public void notCaptured(String reason) throws Exception {
+        jsonWriter.name(NOT_CAPTURED_REASON);
+        jsonWriter.value(reason);
       }
     }
   }

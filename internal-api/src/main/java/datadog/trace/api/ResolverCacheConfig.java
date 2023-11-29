@@ -3,21 +3,64 @@ package datadog.trace.api;
 /** Named presets to help configure various caches inside the type resolver/matcher. */
 public enum ResolverCacheConfig {
 
-  /** Pool sizes to fit large enterprise apps. */
+  /** Memoizing and outlining for large enterprise apps. */
   LARGE {
     @Override
-    public int outlinePoolSize() {
+    public int noMatchesSize() {
+      return 65536;
+    }
+
+    @Override
+    public int memoPoolSize() {
       return 4096;
     }
 
     @Override
-    public int typePoolSize() {
+    public int outlinePoolSize() {
       return 256;
+    }
+
+    @Override
+    public int typePoolSize() {
+      return 64;
     }
   },
 
-  /** Pool sizes to fit the average sized app. */
-  DEFAULT {
+  /** Memoizing and outlining for the average sized app. */
+  MEMOS {
+    @Override
+    public int noMatchesSize() {
+      return 16384;
+    }
+
+    @Override
+    public int memoPoolSize() {
+      return 2048;
+    }
+
+    @Override
+    public int outlinePoolSize() {
+      return 128;
+    }
+
+    @Override
+    public int typePoolSize() {
+      return 32;
+    }
+  },
+
+  /** Outlining only for the average sized app, no memoizing. */
+  NO_MEMOS {
+    @Override
+    public int noMatchesSize() {
+      return 0;
+    }
+
+    @Override
+    public int memoPoolSize() {
+      return 0;
+    }
+
     @Override
     public int outlinePoolSize() {
       return 256;
@@ -29,8 +72,18 @@ public enum ResolverCacheConfig {
     }
   },
 
-  /** Pool sizes to fit small microservice apps. */
+  /** Outlining only for small microservice apps. */
   SMALL {
+    @Override
+    public int noMatchesSize() {
+      return 0;
+    }
+
+    @Override
+    public int memoPoolSize() {
+      return 0;
+    }
+
     @Override
     public int outlinePoolSize() {
       return 32;
@@ -42,8 +95,18 @@ public enum ResolverCacheConfig {
     }
   },
 
-  /** The old {@code DDCachingPoolStrategy} behaviour. */
+  /** No outlining or memoizing. */
   LEGACY {
+    @Override
+    public int noMatchesSize() {
+      return 0;
+    }
+
+    @Override
+    public int memoPoolSize() {
+      return 0;
+    }
+
     @Override
     public int outlinePoolSize() {
       return 0;
@@ -54,6 +117,10 @@ public enum ResolverCacheConfig {
       return 64;
     }
   };
+
+  public abstract int noMatchesSize();
+
+  public abstract int memoPoolSize();
 
   public abstract int outlinePoolSize();
 

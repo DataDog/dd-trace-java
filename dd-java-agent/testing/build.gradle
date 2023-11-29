@@ -5,6 +5,13 @@ ext {
 
 apply from: "$rootDir/gradle/java.gradle"
 
+repositories {
+  ivy {
+    artifactPattern 'https://sqreen-ci-java.s3.amazonaws.com/jars/[organisation]/[artifact]-[revision](-[classifier]).[ext]'
+    ivyPattern 'https://sqreen-ci-java.s3.amazonaws.com/jars/[organisation]/[module]-[revision].xml'
+  }
+}
+
 minimumBranchCoverage = 0.5
 minimumInstructionCoverage = 0.5
 excludedClassesCoverage += [
@@ -12,6 +19,9 @@ excludedClassesCoverage += [
   'datadog.trace.agent.test.asserts.*Assert.*',
   'datadog.trace.agent.test.base.*',
   'datadog.trace.agent.test.log.*',
+  // Util class used in TestFrameworkTest
+  'datadog.trace.agent.test.civisibility.coverage.NoopCoverageProbeStore',
+  'datadog.trace.agent.test.civisibility.coverage.NoopCoverageProbeStore.NoopCoverageProbeStoreFactory',
   // Groovy generates unreachable lines see:
   // https://issues.apache.org/jira/browse/GROOVY-9610
   'datadog.trace.agent.test.AgentTestRunner',
@@ -26,7 +36,9 @@ excludedClassesCoverage += [
   'datadog.trace.agent.test.checkpoints.**',
   'datadog.trace.agent.test.datastreams.**',
   // profiling
-  'datadog.trace.agent.test.TestProfilingContextIntegration'
+  'datadog.trace.agent.test.TestProfilingContextIntegration',
+  'datadog.trace.agent.test.timer.TestTimer',
+  'datadog.trace.agent.test.timer.TestTimer.TestQueueTiming'
 ]
 
 dependencies {
@@ -49,6 +61,7 @@ dependencies {
   api deps.groovy
 
   implementation 'org.junit.platform:junit-platform-runner:1.9.0'
+  implementation project(':dd-java-agent:appsec')
 
   testImplementation project(':utils:test-utils')
   testImplementation project(':dd-java-agent:instrumentation:trace-annotation')

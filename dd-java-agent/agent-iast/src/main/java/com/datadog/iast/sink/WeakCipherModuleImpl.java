@@ -1,5 +1,6 @@
 package com.datadog.iast.sink;
 
+import com.datadog.iast.Dependencies;
 import com.datadog.iast.model.Evidence;
 import com.datadog.iast.model.VulnerabilityType;
 import com.datadog.iast.overhead.Operations;
@@ -14,9 +15,8 @@ public class WeakCipherModuleImpl extends SinkModuleBase implements WeakCipherMo
 
   private Config config;
 
-  @Override
-  public void registerDependencies(@Nonnull Dependencies dependencies) {
-    super.registerDependencies(dependencies);
+  public WeakCipherModuleImpl(final Dependencies dependencies) {
+    super(dependencies);
     config = dependencies.getConfig();
   }
 

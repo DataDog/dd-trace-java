@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html  lang="en" xmlns="http://www.w3.org/1999/xhtml" xmlns:th="https://www.thymeleaf.org"
+       xmlns:sec="https://www.thymeleaf.org/thymeleaf-extras-springsecurity6">
+<head>
+  <meta charset="UTF-8">
+  <title>Spring Security Example</title>
+</head>
+<body>
+  <h1>Welcome!</h1>
+
+  <div sec:authorize="isAnonymous()">You are not logged in, please <a th:href="@{/login}">login</a> or <a th:href="@{/signup}">signup</a></div>
+  <div sec:authorize="isAuthenticated()">
+    Logged in as <b><span th:remove="tag" sec:authentication="name"></span></b>
+    <form th:action="@{/logout}" method="post">
+      <br/>
+      <input type="submit" value="Logout"/>
+    </form>
+  </div>
+</body>
+</html>

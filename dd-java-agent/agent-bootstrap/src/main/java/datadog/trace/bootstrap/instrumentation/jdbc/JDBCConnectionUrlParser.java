@@ -13,6 +13,7 @@ import java.net.URLDecoder;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Properties;
 import java.util.function.Function;
@@ -143,7 +144,7 @@ public enum JDBCConnectionUrlParser {
     }
   },
 
-  POSTGRES("postgresql") {
+  POSTGRES("postgresql", "edb") {
     private static final String DEFAULT_HOST = "localhost";
     private static final int DEFAULT_PORT = 5432;
 
@@ -748,6 +749,21 @@ public enum JDBCConnectionUrlParser {
 
       return builder;
     }
+  },
+
+  REDSHIFT("redshift") {
+    @Override
+    DBInfo.Builder doParse(String jdbcUrl, DBInfo.Builder builder) {
+      builder = GENERIC_URL_LIKE.doParse(jdbcUrl, builder);
+      final DBInfo dbInfo = builder.build();
+      if (dbInfo.getHost() != null) {
+        int firstDotLoc = dbInfo.getHost().indexOf('.');
+        if (firstDotLoc > 0) {
+          builder.instance(dbInfo.getHost().substring(0, firstDotLoc));
+        }
+      }
+      return builder;
+    }
   };
 
   private static final Map<String, JDBCConnectionUrlParser> typeParsers = new HashMap<>();
@@ -782,7 +798,7 @@ public enum JDBCConnectionUrlParser {
       return DEFAULT;
     }
     // Make this easier and ignore case.
-    connectionUrl = connectionUrl.toLowerCase();
+    connectionUrl = connectionUrl.toLowerCase(Locale.ROOT);
 
     if (!connectionUrl.startsWith("jdbc:")) {
       return DEFAULT;
@@ -867,7 +883,7 @@ public enum JDBCConnectionUrlParser {
         try {
           builder.port(Integer.parseInt(portNumber));
         } catch (final NumberFormatException e) {
-          ExceptionLogger.LOGGER.debug("Error parsing portnumber property: " + portNumber, e);
+          ExceptionLogger.LOGGER.debug("Error parsing portnumber property: {}", portNumber, e);
         }
       }
 
@@ -876,7 +892,7 @@ public enum JDBCConnectionUrlParser {
         try {
           builder.port(Integer.parseInt(portNumber));
         } catch (final NumberFormatException e) {
-          ExceptionLogger.LOGGER.debug("Error parsing portNumber property: " + portNumber, e);
+          ExceptionLogger.LOGGER.debug("Error parsing portNumber property: {}", portNumber, e);
         }
       }
     }

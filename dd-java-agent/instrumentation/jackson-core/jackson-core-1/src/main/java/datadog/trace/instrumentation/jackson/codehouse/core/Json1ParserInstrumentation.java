@@ -13,6 +13,7 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers;
 import datadog.trace.api.iast.InstrumentationBridge;
+import datadog.trace.api.iast.Propagation;
 import datadog.trace.api.iast.propagation.PropagationModule;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.method.MethodDescription;
@@ -55,10 +56,13 @@ public class Json1ParserInstrumentation extends Instrumenter.Iast
   public static class JsonParserAdvice {
 
     @Advice.OnMethodExit(suppress = Throwable.class)
+    @Propagation
     public static void onExit(@Advice.This JsonParser jsonParser, @Advice.Return String result) {
-      final PropagationModule module = InstrumentationBridge.PROPAGATION;
-      if (module != null) {
-        module.taintIfInputIsTainted(result, jsonParser);
+      if (jsonParser != null && result != null) {
+        final PropagationModule module = InstrumentationBridge.PROPAGATION;
+        if (module != null) {
+          module.taintIfTainted(result, jsonParser);
+        }
       }
     }
   }

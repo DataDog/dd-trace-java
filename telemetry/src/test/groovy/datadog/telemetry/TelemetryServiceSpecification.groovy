@@ -1,271 +1,409 @@
 package datadog.telemetry
 
-import datadog.telemetry.api.AppDependenciesLoaded
-import datadog.telemetry.api.AppIntegrationsChange
-import datadog.telemetry.api.AppStarted
-import datadog.telemetry.api.Dependency
-import datadog.telemetry.api.DependencyType
-import datadog.telemetry.api.DistributionSeries
-import datadog.telemetry.api.Distributions
-import datadog.telemetry.api.GenerateMetrics
+import datadog.telemetry.dependency.Dependency
 import datadog.telemetry.api.Integration
+import datadog.telemetry.api.DistributionSeries
 import datadog.telemetry.api.LogMessage
 import datadog.telemetry.api.LogMessageLevel
-import datadog.telemetry.api.Logs
 import datadog.telemetry.api.Metric
 import datadog.telemetry.api.RequestType
-import datadog.trace.api.time.TimeSource
-import datadog.trace.test.util.DDSpecification
-import okhttp3.Request
+import datadog.trace.api.ConfigOrigin
+import datadog.trace.api.ConfigSetting
+import spock.lang.Specification
 
-import java.util.function.Supplier
+class TelemetryServiceSpecification extends Specification {
+  def confKeyValue = new ConfigSetting("confkey", "confvalue", ConfigOrigin.DEFAULT)
+  def configuration = [confkey: confKeyValue]
+  def integration = new Integration("integration", true)
+  def dependency = new Dependency("dependency", "1.0.0", "src", "hash")
+  def metric = new Metric().namespace("tracers").metric("metric").points([[1, 2]]).tags(["tag1", "tag2"])
+  def distribution = new DistributionSeries().namespace("tracers").metric("distro").points([1, 2, 3]).tags(["tag1", "tag2"]).common(false)
+  def logMessage = new LogMessage().message("log-message").tags("tag1:tag2").level(LogMessageLevel.DEBUG).stackTrace("stack-trace").tracerTime(32423)
 
-class TelemetryServiceSpecification extends DDSpecification {
-  private static final Request REQUEST = new Request.Builder()
-  .url('https://example.com').build()
+  def 'happy path without data'() {
+    setup:
+    TestTelemetryRouter testHttpClient = new TestTelemetryRouter()
+    TelemetryService telemetryService = new TelemetryService(testHttpClient, 10000, false)
 
-  TimeSource timeSource = Mock()
-  RequestBuilder requestBuilder = Mock {
-    build(_ as RequestType) >> REQUEST
-  }
-  Supplier<RequestBuilder> requestBuilderSupplier = new Supplier<RequestBuilder>() {
-    @Override
-    RequestBuilder get() {
-      return requestBuilder
-    }
-  }
-  TelemetryServiceImpl telemetryService =
-  new TelemetryServiceImpl(requestBuilderSupplier, timeSource, 1, 1)
+    when: 'first iteration'
+    testHttpClient.expectRequest(TelemetryClient.Result.SUCCESS)
+    telemetryService.sendAppStartedEvent()
 
-  void 'heartbeat interval every 1 sec'() {
-    // Time: 0 seconds - no packets yet
-    when:
-    def queue = telemetryService.prepareRequests()
+    then: 'app-started'
+    testHttpClient.assertRequestBody(RequestType.APP_STARTED).assertPayload().products()
+    testHttpClient.assertNoMoreRequests()
 
-    then:
-    1 * timeSource.getCurrentTimeMillis() >> 0
-    queue.isEmpty()
+    when: 'second iteration'
+    testHttpClient.expectRequest(TelemetryClient.Result.SUCCESS)
+    telemetryService.sendTelemetryEvents()
 
-    // Time +999ms : less that 1 second passed - still no packets
-    when:
-    queue = telemetryService.prepareRequests()
+    then: 'app-heartbeat only'
+    testHttpClient.assertRequestBody(RequestType.APP_HEARTBEAT)
+    testHttpClient.assertNoMoreRequests()
 
-    then:
-    1 * timeSource.getCurrentTimeMillis() >> 999
-    queue.isEmpty()
+    when: 'third iteration'
+    testHttpClient.expectRequest(TelemetryClient.Result.SUCCESS)
+    telemetryService.sendTelemetryEvents()
 
-    // Time +1001ms : more than 1 second passed - heart beat generated
-    when:
-    queue = telemetryService.prepareRequests()
-
-    then:
-    1 * timeSource.getCurrentTimeMillis() >> 1001
-    queue.size() == 1
-    queue.clear()
-
-    // Time +1001ms : more than 2 seconds passed - another heart beat generated
-    when:
-    queue = telemetryService.prepareRequests()
-
-    then:
-    1 * timeSource.getCurrentTimeMillis() >> 2002
-    queue.size() == 1
-
+    then: 'app-heartbeat only'
+    testHttpClient.assertRequestBody(RequestType.APP_HEARTBEAT)
+    testHttpClient.assertNoMoreRequests()
   }
 
-  void 'addStartedRequest adds app_started event'() {
-    when:
-    telemetryService.addStartedRequest()
+  def 'happy path with data'() {
+    setup:
+    TestTelemetryRouter testHttpClient = new TestTelemetryRouter()
+    TelemetryService telemetryService = new TelemetryService(testHttpClient, 10000, false)
 
-    then:
-    1 * requestBuilder.build(RequestType.APP_STARTED, { it.requestType.is(RequestType.APP_STARTED)}) >> REQUEST
-    telemetryService.queue.peek().is(REQUEST)
-  }
-
-  void 'appClosingRequests returns an app_closing event'() {
-    when:
-    Request req = telemetryService.appClosingRequest()
-
-    then:
-    1 * requestBuilder.build(RequestType.APP_CLOSING) >> REQUEST
-    req.is(REQUEST)
-  }
-
-  void 'added configuration pairs are reported in app_start'() {
-    when:
-    telemetryService.addConfiguration('my name': 'my value')
-    telemetryService.addStartedRequest()
-
-    then:
-    1 * requestBuilder.build(RequestType.APP_STARTED, { AppStarted p ->
-      p.requestType == RequestType.APP_STARTED &&
-        p.configuration.first().with {
-          return it.name == 'my name' && it.value == 'my value'
-        }
-    }) >> REQUEST
-    0 * requestBuilder._
-  }
-
-  void 'added dependencies are report in app_start'() {
-    when:
-    def dep = new Dependency(
-      hash: 'deadbeef', name: 'dep name', version: '1.2.3', type: DependencyType.SHARED_SYSTEM_LIBRARY)
-    telemetryService.addDependency(dep)
-    telemetryService.addStartedRequest()
-
-    then:
-    1 * requestBuilder.build(RequestType.APP_STARTED, { AppStarted p ->
-      p.requestType == RequestType.APP_STARTED &&
-        p.dependencies.first().with {
-          return it.name == 'dep name' && it.hash == 'deadbeef' &&
-            version == '1.2.3' && it.type.is(DependencyType.SHARED_SYSTEM_LIBRARY)
-        }
-    }) >> REQUEST
-    0 * requestBuilder._
-  }
-
-  void 'added dependencies are reported in app_dependencies_loaded'() {
-    when:
-    def dep = new Dependency(
-      hash: 'deadbeef', name: 'dep name', version: '1.2.3', type: DependencyType.SHARED_SYSTEM_LIBRARY)
-    telemetryService.addDependency(dep)
-    def queue = telemetryService.prepareRequests()
-
-    then:
-    1 * requestBuilder.build(RequestType.APP_DEPENDENCIES_LOADED, { AppDependenciesLoaded p ->
-      p.requestType == RequestType.APP_DEPENDENCIES_LOADED &&
-        p.dependencies.first().with {
-          return it.name == 'dep name' && it.hash == 'deadbeef' &&
-            version == '1.2.3' && it.type.is(DependencyType.SHARED_SYSTEM_LIBRARY)
-        }
-    }) >> REQUEST
-    queue.first().is(REQUEST)
-    0 * requestBuilder._
-  }
-
-  void 'added integration is reported in app_start'() {
-    def integration
-
-    when:
-    integration = new Integration(
-      autoEnabled: true, compatible: true, enabled: true, name: 'my integration', version: '1.2.3')
+    when: 'add data before first iteration'
+    telemetryService.addConfiguration(configuration)
     telemetryService.addIntegration(integration)
-    telemetryService.addStartedRequest()
-
-    then:
-    1 * requestBuilder.build(RequestType.APP_STARTED, { AppStarted p ->
-      p.requestType == RequestType.APP_STARTED &&
-        p.integrations.first().is(integration)
-    }) >> REQUEST
-    0 * requestBuilder._
-  }
-
-  void 'added integration is reported in app_integrations_change'() {
-    def integration
-
-    when:
-    integration = new Integration(
-      autoEnabled: true, compatible: true, enabled: true, name: 'my integration', version: '1.2.3')
-    telemetryService.addIntegration(integration)
-    def queue = telemetryService.prepareRequests()
-
-    then:
-    1 * requestBuilder.build(RequestType.APP_INTEGRATIONS_CHANGE, { AppIntegrationsChange p ->
-      p.requestType == RequestType.APP_INTEGRATIONS_CHANGE &&
-        p.integrations.first().is(integration)
-    }) >> REQUEST
-    queue.first().is(REQUEST)
-    0 * requestBuilder._
-  }
-
-  void 'added metrics are reported in generate_metrics'() {
-    def metric
-
-    when:
-    metric = new Metric(namespace: 'appsec', metric: 'my metric', tags: ['my tag'],
-    type: Metric.TypeEnum.GAUGE, points: [[0.1, 0.2], [0.2, 0.1]])
+    telemetryService.addDependency(dependency)
     telemetryService.addMetric(metric)
-    def queue = telemetryService.prepareRequests()
+    telemetryService.addDistributionSeries(distribution)
+    telemetryService.addLogMessage(logMessage)
+
+    and: 'send messages'
+    testHttpClient.expectRequest(TelemetryClient.Result.SUCCESS)
+    telemetryService.sendAppStartedEvent()
 
     then:
-    1 * requestBuilder.build(RequestType.GENERATE_METRICS, { GenerateMetrics p ->
-      p.requestType == RequestType.GENERATE_METRICS &&
-        p.namespace == 'tracers' &&  // top level namespace is "tracers" by default
-        p.requestType &&
-        p.series.first().is(metric)
-    }) >> REQUEST
-    queue.first().is(REQUEST)
-    0 * requestBuilder._
-  }
-
-  void 'added distribution series are reported in distributions'() {
-    def series
+    testHttpClient.assertRequestBody(RequestType.APP_STARTED).assertPayload()
+      .products()
+      .configuration([confKeyValue])
 
     when:
-    series = new DistributionSeries(namespace: 'appsec', metric: 'my metric', tags: ['my tag'], points: [[0.1, 0.2], [0.2, 0.1]])
-    telemetryService.addDistributionSeries(series)
-    def queue = telemetryService.prepareRequests()
+    testHttpClient.expectRequest(TelemetryClient.Result.SUCCESS)
+    telemetryService.sendTelemetryEvents()
 
     then:
-    1 * requestBuilder.build(RequestType.DISTRIBUTIONS, { Distributions p ->
-      p.requestType == RequestType.DISTRIBUTIONS &&
-        p.namespace == 'tracers' &&  // top level namespace is "tracers" by default
-        p.requestType &&
-        p.series.first().is(series)
-    }) >> REQUEST
-    queue.first().is(REQUEST)
-    0 * requestBuilder._
+    testHttpClient.assertRequestBody(RequestType.MESSAGE_BATCH)
+      .assertBatch(6)
+      .assertFirstMessage(RequestType.APP_HEARTBEAT).hasNoPayload()
+      // no configuration here as it has already been sent with the app-started event
+      .assertNextMessage(RequestType.APP_INTEGRATIONS_CHANGE).hasPayload().integrations([integration])
+      .assertNextMessage(RequestType.APP_DEPENDENCIES_LOADED).hasPayload().dependencies([dependency])
+      .assertNextMessage(RequestType.GENERATE_METRICS).hasPayload().namespace("tracers").metrics([metric])
+      .assertNextMessage(RequestType.DISTRIBUTIONS).hasPayload().namespace("tracers").distributionSeries([distribution])
+      .assertNextMessage(RequestType.LOGS).hasPayload().logs([logMessage])
+      .assertNoMoreMessages()
+    testHttpClient.assertNoMoreRequests()
+
+    when: 'second iteration heartbeat only'
+    testHttpClient.expectRequest(TelemetryClient.Result.SUCCESS)
+    telemetryService.sendTelemetryEvents()
+
+    then:
+    testHttpClient.assertRequestBody(RequestType.APP_HEARTBEAT).assertNoPayload()
+    testHttpClient.assertNoMoreRequests()
+
+    when: 'third iteration metrics data'
+    telemetryService.addMetric(metric)
+    testHttpClient.expectRequest(TelemetryClient.Result.SUCCESS)
+    telemetryService.sendTelemetryEvents()
+
+    then:
+    testHttpClient.assertRequestBody(RequestType.MESSAGE_BATCH)
+      .assertBatch(2)
+      .assertFirstMessage(RequestType.APP_HEARTBEAT).hasNoPayload()
+      .assertNextMessage(RequestType.GENERATE_METRICS).hasPayload().namespace("tracers").metrics([metric])
+      .assertNoMoreMessages()
+    testHttpClient.assertNoMoreRequests()
   }
 
-  void 'send #messages log messages in #requests requests'() {
-    def logMessage
-    def telemetry
+  def 'happy path with data after app-started'() {
+    setup:
+    TestTelemetryRouter testHttpClient = new TestTelemetryRouter()
+    TelemetryService telemetryService = new TelemetryService(testHttpClient, 10000, false)
 
-    when:
-    telemetry = new TelemetryServiceImpl(requestBuilderSupplier, timeSource, 1, 1, 10, 1)
-    logMessage = new LogMessage(message: 'hello world', level: LogMessageLevel.DEBUG)
-    for (int i=0; i<messages; i++) {
-      telemetry.addLogMessage(logMessage)
-    }
-    def queue = telemetry.prepareRequests()
+    when: 'send messages'
+    testHttpClient.expectRequest(TelemetryClient.Result.SUCCESS)
+    telemetryService.sendAppStartedEvent()
 
     then:
-    requests * requestBuilder.build(RequestType.LOGS, { Logs p ->
-      p.requestType == RequestType.LOGS &&
-        p.messages.first().is(logMessage)
-    }) >> REQUEST
-    queue.first().is(REQUEST)
-    0 * requestBuilder._
+    testHttpClient.assertRequestBody(RequestType.APP_STARTED).assertPayload().products()
+    testHttpClient.assertNoMoreRequests()
+
+    when: 'add data after first iteration'
+    telemetryService.addConfiguration(configuration)
+    telemetryService.addIntegration(integration)
+    telemetryService.addDependency(dependency)
+    telemetryService.addMetric(metric)
+    telemetryService.addDistributionSeries(distribution)
+    telemetryService.addLogMessage(logMessage)
+
+    and: 'send messages'
+    testHttpClient.expectRequest(TelemetryClient.Result.SUCCESS)
+    telemetryService.sendTelemetryEvents()
+
+    then:
+    testHttpClient.assertRequestBody(RequestType.MESSAGE_BATCH)
+      .assertBatch(7)
+      .assertFirstMessage(RequestType.APP_HEARTBEAT).hasNoPayload()
+      .assertNextMessage(RequestType.APP_CLIENT_CONFIGURATION_CHANGE).hasPayload().configuration([confKeyValue])
+      .assertNextMessage(RequestType.APP_INTEGRATIONS_CHANGE).hasPayload().integrations([integration])
+      .assertNextMessage(RequestType.APP_DEPENDENCIES_LOADED).hasPayload().dependencies([dependency])
+      .assertNextMessage(RequestType.GENERATE_METRICS).hasPayload().namespace("tracers").metrics([metric])
+      .assertNextMessage(RequestType.DISTRIBUTIONS).hasPayload().namespace("tracers").distributionSeries([distribution])
+      .assertNextMessage(RequestType.LOGS).hasPayload().logs([logMessage])
+      .assertNoMoreMessages()
+    testHttpClient.assertNoMoreRequests()
+  }
+
+  def 'do not discard data for app-started event until it has been successfully sent'() {
+    setup:
+    TestTelemetryRouter testHttpClient = new TestTelemetryRouter()
+    TelemetryService telemetryService = new TelemetryService(testHttpClient, 10000, false)
+    telemetryService.addConfiguration(configuration)
+
+    when: 'attempt with 404 error'
+    testHttpClient.expectRequest(TelemetryClient.Result.NOT_FOUND)
+    !telemetryService.sendAppStartedEvent()
+
+    then: 'app-started is attempted'
+    testHttpClient.assertRequestBody(RequestType.APP_STARTED).assertPayload().products().configuration([confKeyValue])
+    testHttpClient.assertNoMoreRequests()
+
+    when: 'attempt with 500 error'
+    testHttpClient.expectRequest(TelemetryClient.Result.FAILURE)
+    !telemetryService.sendAppStartedEvent()
+
+    then: 'app-started is attempted'
+    testHttpClient.assertRequestBody(RequestType.APP_STARTED).assertPayload().products().configuration([confKeyValue])
+    testHttpClient.assertNoMoreRequests()
+
+    when: 'attempt with unexpected FAILURE (not valid)'
+    testHttpClient.expectRequest(TelemetryClient.Result.FAILURE)
+    !telemetryService.sendAppStartedEvent()
+
+    then: 'app-started is attempted'
+    testHttpClient.assertRequestBody(RequestType.APP_STARTED).assertPayload().products().configuration([confKeyValue])
+    testHttpClient.assertNoMoreRequests()
+
+    when: 'attempt with success'
+    testHttpClient.expectRequest(TelemetryClient.Result.SUCCESS)
+    telemetryService.sendAppStartedEvent()
+
+    then: 'app-started is attempted'
+    testHttpClient.assertRequestBody(RequestType.APP_STARTED).assertPayload().products().configuration([confKeyValue])
+    testHttpClient.assertNoMoreRequests()
+  }
+
+  def 'resend data on successful attempt after a failure'() {
+    setup:
+    TestTelemetryRouter testHttpClient = new TestTelemetryRouter()
+    TelemetryService telemetryService = new TelemetryService(testHttpClient, 10000, false)
+
+    telemetryService.addConfiguration(configuration)
+    telemetryService.addIntegration(integration)
+    telemetryService.addDependency(dependency)
+    telemetryService.addMetric(metric)
+    telemetryService.addDistributionSeries(distribution)
+    telemetryService.addLogMessage(logMessage)
+
+    when: 'attempt with NOT_FOUND error'
+    testHttpClient.expectRequest(TelemetryClient.Result.NOT_FOUND)
+    !telemetryService.sendAppStartedEvent()
+
+    then: 'app-started attempted with config'
+    testHttpClient.assertRequestBody(RequestType.APP_STARTED).assertPayload().products().configuration([confKeyValue])
+    testHttpClient.assertNoMoreRequests()
+
+    when: 'successful app-started attempt'
+    testHttpClient.expectRequest(TelemetryClient.Result.SUCCESS)
+    telemetryService.sendAppStartedEvent()
+
+    then: 'attempt app-started  with SUCCESS'
+    testHttpClient.assertRequestBody(RequestType.APP_STARTED).assertPayload().products().configuration([confKeyValue])
+
+    when: 'successful batch attempt'
+    testHttpClient.expectRequest(TelemetryClient.Result.SUCCESS)
+    telemetryService.sendTelemetryEvents()
+
+    then: 'attempt batch with SUCCESS'
+    testHttpClient.assertRequestBody(RequestType.MESSAGE_BATCH)
+      .assertBatch(6)
+      .assertFirstMessage(RequestType.APP_HEARTBEAT).hasNoPayload()
+      // no configuration here as it has already been sent with the app-started event
+      .assertNextMessage(RequestType.APP_INTEGRATIONS_CHANGE).hasPayload().integrations([integration])
+      .assertNextMessage(RequestType.APP_DEPENDENCIES_LOADED).hasPayload().dependencies([dependency])
+      .assertNextMessage(RequestType.GENERATE_METRICS).hasPayload().namespace("tracers").metrics([metric])
+      .assertNextMessage(RequestType.DISTRIBUTIONS).hasPayload().namespace("tracers").distributionSeries([distribution])
+      .assertNextMessage(RequestType.LOGS).hasPayload().logs([logMessage])
+      .assertNoMoreMessages()
+    testHttpClient.assertNoMoreRequests()
+
+    when: 'attempt with NOT_FOUND error'
+    testHttpClient.expectRequest(TelemetryClient.Result.NOT_FOUND)
+    telemetryService.sendTelemetryEvents()
+
+    then: 'message-batch attempted with heartbeat'
+    testHttpClient.assertRequestBody(RequestType.APP_HEARTBEAT).assertNoPayload()
+    testHttpClient.assertNoMoreRequests()
+  }
+
+  def 'send closing event request'() {
+    setup:
+    TestTelemetryRouter testHttpClient = new TestTelemetryRouter()
+    TelemetryService telemetryService = new TelemetryService(testHttpClient, 10000, false)
+
+    when:
+    testHttpClient.expectRequest(TelemetryClient.Result.SUCCESS)
+    telemetryService.sendAppClosingEvent()
+
+    then:
+    testHttpClient.assertRequestBody(RequestType.APP_CLOSING)
+    testHttpClient.assertNoMoreRequests()
+  }
+
+  def 'report when both OTel and OT are enabled'() {
+    setup:
+    TestTelemetryRouter testHttpClient = new TestTelemetryRouter()
+    TelemetryService telemetryService = Spy(new TelemetryService(testHttpClient, 1000, false))
+    def otel = new Integration("opentelemetry-1", otelEnabled)
+    def ot = new Integration("opentracing", otEnabled)
+
+    when:
+    telemetryService.addIntegration(otel)
+
+    then:
+    0 * telemetryService.warnAboutExclusiveIntegrations()
+
+    when:
+    telemetryService.addIntegration(ot)
+
+    then:
+    warnining * telemetryService.warnAboutExclusiveIntegrations()
 
     where:
-    messages    | requests
-    10        | 1
-    11        | 2
-    100       | 10
+    otelEnabled | otEnabled | warnining
+    true        | true      | 1
+    true        | false     | 0
+    false       | true      | 0
+    false       | false     | 0
   }
 
-  void 'send max 10 dependencies per request'() {
-    def dep
-    def telemetry
+  def 'split telemetry requests if the size above the limit'() {
+    setup:
+    TestTelemetryRouter testHttpClient = new TestTelemetryRouter()
+    TelemetryService telemetryService = new TelemetryService(testHttpClient, 5000, false)
 
-    when:
-    telemetry = new TelemetryServiceImpl(requestBuilderSupplier, timeSource, 1, 1, 1, 10)
-    dep = new Dependency(name: 'dep')
-    for (int i=0; i<15; i++) {
-      telemetry.addDependency(dep)
-    }
-    def queue = telemetry.prepareRequests()
+    when: 'send a heartbeat request without telemetry data to measure body size to set stable request size limit'
+    testHttpClient.expectRequest(TelemetryClient.Result.SUCCESS)
+    telemetryService.sendTelemetryEvents()
+
+    then: 'get body size'
+    def bodySize = testHttpClient.assertRequestBody(RequestType.APP_HEARTBEAT).bodySize()
+    bodySize > 0
+
+    when: 'sending first part of data'
+    telemetryService = new TelemetryService(testHttpClient, bodySize + 500, false)
+
+    telemetryService.addConfiguration(configuration)
+    telemetryService.addIntegration(integration)
+    telemetryService.addDependency(dependency)
+    telemetryService.addMetric(metric)
+    telemetryService.addDistributionSeries(distribution)
+    telemetryService.addLogMessage(logMessage)
+
+    testHttpClient.expectRequest(TelemetryClient.Result.SUCCESS)
+    telemetryService.sendTelemetryEvents()
+
+    then: 'attempt with SUCCESS'
+    testHttpClient.assertRequestBody(RequestType.MESSAGE_BATCH)
+      .assertBatch(5)
+      .assertFirstMessage(RequestType.APP_HEARTBEAT).hasNoPayload()
+      .assertNextMessage(RequestType.APP_CLIENT_CONFIGURATION_CHANGE).hasPayload().configuration([confKeyValue])
+      .assertNextMessage(RequestType.APP_INTEGRATIONS_CHANGE).hasPayload().integrations([integration])
+      .assertNextMessage(RequestType.APP_DEPENDENCIES_LOADED).hasPayload().dependencies([dependency])
+      .assertNextMessage(RequestType.GENERATE_METRICS).hasPayload().namespace("tracers").metrics([metric])
+      // no more data fit this message is sent in the next message
+      .assertNoMoreMessages()
+
+    when: 'sending second part of data'
+    testHttpClient.expectRequest(TelemetryClient.Result.SUCCESS)
+    !telemetryService.sendTelemetryEvents()
 
     then:
-    1 * requestBuilder.build(RequestType.APP_DEPENDENCIES_LOADED, { AppDependenciesLoaded p ->
-      p.requestType == RequestType.APP_DEPENDENCIES_LOADED &&
-        p.dependencies.size() == 10
-    }) >> REQUEST
-    1 * requestBuilder.build(RequestType.APP_DEPENDENCIES_LOADED, { AppDependenciesLoaded p ->
-      p.requestType == RequestType.APP_DEPENDENCIES_LOADED &&
-        p.dependencies.size() == 5
-    }) >> REQUEST
-    queue.first().is(REQUEST)
-    0 * requestBuilder._
+    testHttpClient.assertRequestBody(RequestType.MESSAGE_BATCH)
+      .assertBatch(3)
+      .assertFirstMessage(RequestType.APP_HEARTBEAT).hasNoPayload()
+      .assertNextMessage(RequestType.DISTRIBUTIONS).hasPayload().namespace("tracers").distributionSeries([distribution])
+      .assertNextMessage(RequestType.LOGS).hasPayload().logs([logMessage])
+      .assertNoMoreMessages()
+    testHttpClient.assertNoMoreRequests()
+  }
+
+  def 'send all collected data with extended-heartbeat request every time'() {
+    setup:
+    TestTelemetryRouter testHttpClient = new TestTelemetryRouter()
+    TelemetryService telemetryService = new TelemetryService(testHttpClient, 10000, false)
+
+    telemetryService.addConfiguration(configuration)
+    telemetryService.addIntegration(integration)
+    telemetryService.addDependency(dependency)
+
+    when:
+    testHttpClient.expectRequest(TelemetryClient.Result.SUCCESS)
+    telemetryService.sendExtendedHeartbeat()
+
+    then:
+    testHttpClient.assertRequestBody(RequestType.APP_EXTENDED_HEARTBEAT)
+      .assertPayload()
+      .configuration([confKeyValue])
+      .integrations([integration])
+      .dependencies([dependency])
+    testHttpClient.assertNoMoreRequests()
+
+    when:
+    telemetryService.addConfiguration(configuration)
+    telemetryService.addIntegration(integration)
+    telemetryService.addDependency(dependency)
+
+    testHttpClient.expectRequest(TelemetryClient.Result.SUCCESS)
+    telemetryService.sendExtendedHeartbeat()
+
+    then:
+    testHttpClient.assertRequestBody(RequestType.APP_EXTENDED_HEARTBEAT)
+      .assertPayload()
+      .configuration([confKeyValue, confKeyValue])
+      .integrations([integration, integration])
+      .dependencies([dependency, dependency])
+    testHttpClient.assertNoMoreRequests()
+  }
+
+  def 'send extended-heartbeat request, even if data already has been sent or attempted as part of another telemetry events'() {
+    setup:
+    TestTelemetryRouter testHttpClient = new TestTelemetryRouter()
+    TelemetryService telemetryService = new TelemetryService(testHttpClient, 10000, false)
+
+    telemetryService.addConfiguration(configuration)
+    telemetryService.addIntegration(integration)
+    telemetryService.addDependency(dependency)
+
+    when:
+    testHttpClient.expectRequest(resultCode)
+    telemetryService.sendTelemetryEvents()
+
+    then:
+    testHttpClient.assertRequestBody(RequestType.MESSAGE_BATCH)
+
+    when:
+    testHttpClient.expectRequest(TelemetryClient.Result.SUCCESS)
+    telemetryService.sendExtendedHeartbeat()
+
+    then:
+    testHttpClient.assertRequestBody(RequestType.APP_EXTENDED_HEARTBEAT)
+      .assertPayload()
+      .configuration([confKeyValue])
+      .integrations([integration])
+      .dependencies([dependency])
+    testHttpClient.assertNoMoreRequests()
+
+    where:
+    resultCode                           | _
+    TelemetryClient.Result.SUCCESS   | _
+    TelemetryClient.Result.FAILURE   | _
+    TelemetryClient.Result.NOT_FOUND | _
   }
 }

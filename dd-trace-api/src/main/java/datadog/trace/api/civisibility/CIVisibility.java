@@ -1,14 +1,14 @@
 package datadog.trace.api.civisibility;
 
+import datadog.trace.api.civisibility.noop.NoOpDDTestSession;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import javax.annotation.Nullable;
 
 public class CIVisibility {
 
   private static volatile SessionFactory SESSION_FACTORY =
-      (projectName, component, startTime) -> {
-        throw new UnsupportedOperationException(
-            "session factory not registered, " + "please ensure CI Visibility feature is enabled");
-      };
+      (projectName, projectRoot, component, startTime) -> NoOpDDTestSession.INSTANCE;
 
   /**
    * This a hook for injecting SessionFactory implementation. It should only be used internally by
@@ -32,10 +32,17 @@ public class CIVisibility {
    */
   public static DDTestSession startSession(
       String projectName, String component, @Nullable Long startTime) {
-    return SESSION_FACTORY.startSession(projectName, component, startTime);
+    Path projectRoot = Paths.get("").toAbsolutePath();
+    return SESSION_FACTORY.startSession(projectName, projectRoot, component, startTime);
+  }
+
+  public static DDTestSession startSession(
+      String projectName, Path projectRoot, String component, @Nullable Long startTime) {
+    return SESSION_FACTORY.startSession(projectName, projectRoot, component, startTime);
   }
 
   public interface SessionFactory {
-    DDTestSession startSession(String projectName, String component, Long startTime);
+    DDTestSession startSession(
+        String projectName, Path projectRoot, String component, Long startTime);
   }
 }

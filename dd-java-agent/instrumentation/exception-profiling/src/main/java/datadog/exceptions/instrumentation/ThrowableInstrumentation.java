@@ -6,10 +6,10 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.api.Platform;
 
-/** Provides instrumentation of {@linkplain Throwable} constructor. */
+/** Provides instrumentation of {@linkplain Exception} and {@linkplain Error} constructors. */
 @AutoService(Instrumenter.class)
 public final class ThrowableInstrumentation extends Instrumenter.Profiling
-    implements Instrumenter.ForBootstrap, Instrumenter.ForSingleType {
+    implements Instrumenter.ForBootstrap, Instrumenter.ForKnownTypes {
 
   public ThrowableInstrumentation() {
     super("throwables");
@@ -21,12 +21,14 @@ public final class ThrowableInstrumentation extends Instrumenter.Profiling
   }
 
   @Override
-  public String instrumentedType() {
-    return "java.lang.Throwable";
+  public void adviceTransformations(AdviceTransformation transformation) {
+    transformation.applyAdvice(isConstructor(), packageName + ".ThrowableInstanceAdvice");
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(isConstructor(), packageName + ".ThrowableInstanceAdvice");
+  public String[] knownMatchingTypes() {
+    return new String[] {
+      "java.lang.Exception", "java.lang.Error", "kotlin.Exception", "kotlin.Error"
+    };
   }
 }
