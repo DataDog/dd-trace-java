@@ -1,5 +1,8 @@
-package datadog.trace.api
+package datadog.trace.api.telemetry
 
+import datadog.trace.api.ConfigOrigin
+import datadog.trace.api.ConfigSetting
+import datadog.trace.api.UserEventTrackingMode
 import datadog.trace.api.config.AppSecConfig
 import datadog.trace.api.config.CiVisibilityConfig
 import datadog.trace.api.config.GeneralConfig
@@ -118,5 +121,35 @@ class ConfigCollectorTest extends DDSpecification {
     TracerConfig.TRACE_PEER_SERVICE_MAPPING                    | _
     TracerConfig.TRACE_HTTP_SERVER_PATH_RESOURCE_NAME_MAPPING  | _
     TracerConfig.HEADER_TAGS                                   | _
+  }
+
+  def "put-get configurations"() {
+    setup:
+    ConfigCollector.get().collect()
+
+    when:
+    ConfigCollector.get().put('key1', 'value1', ConfigOrigin.DEFAULT)
+    ConfigCollector.get().put('key2', 'value2', ConfigOrigin.ENV)
+    ConfigCollector.get().put('key1', 'replaced', ConfigOrigin.REMOTE)
+    ConfigCollector.get().put('key3', 'value3', ConfigOrigin.JVM_PROP)
+
+    then:
+    ConfigCollector.get().collect().values().toSet() == [
+      new ConfigSetting('key1', 'replaced', ConfigOrigin.REMOTE),
+      new ConfigSetting('key2', 'value2', ConfigOrigin.ENV),
+      new ConfigSetting('key3', 'value3', ConfigOrigin.JVM_PROP)
+    ] as Set
+  }
+
+
+  def "hide pii configuration data"() {
+    setup:
+    ConfigCollector.get().collect()
+
+    when:
+    ConfigCollector.get().put('DD_API_KEY', 'sensitive data', ConfigOrigin.ENV)
+
+    then:
+    ConfigCollector.get().collect().get('DD_API_KEY').value == '<hidden>'
   }
 }
