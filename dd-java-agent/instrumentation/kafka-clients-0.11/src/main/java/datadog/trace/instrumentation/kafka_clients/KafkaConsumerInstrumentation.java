@@ -46,6 +46,8 @@ public final class KafkaConsumerInstrumentation extends Instrumenter.Tracing
   @Override
   public String[] helperClassNames() {
     return new String[] {
+      packageName + ".KafkaConsumerInfo",
+      packageName + ".KafkaConsumerInstrumentationHelper",
       packageName + ".KafkaDecorator",
       packageName + ".TextMapExtractAdapter",
       packageName + ".TracingIterableDelegator",
@@ -53,9 +55,6 @@ public final class KafkaConsumerInstrumentation extends Instrumenter.Tracing
       packageName + ".TracingIterator",
       packageName + ".TracingList",
       packageName + ".TracingListIterator",
-      packageName + ".KafkaConsumerInfo",
-      packageName + ".KafkaConsumerInstrumentationHelper",
-      packageName + ".Utils",
       packageName + ".TextMapInjectAdapter",
       "datadog.trace.instrumentation.kafka_common.Utils",
       "datadog.trace.instrumentation.kafka_common.StreamingContext",
