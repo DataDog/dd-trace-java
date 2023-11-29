@@ -21,6 +21,8 @@ public class SamplingMechanism {
   public static final byte REMOTE_USER_RATE = 6;
   /** Span Sampling Rate (single span sampled on account of a span sampling rule) */
   public static final byte SPAN_SAMPLING_RATE = 8;
+  /** Data Jobs */
+  public static final byte DATA_JOBS = 10;
   /** Force override sampling decision from external source, like W3C traceparent. */
   public static final byte EXTERNAL_OVERRIDE = Byte.MIN_VALUE;
 
