@@ -13,6 +13,7 @@ import java.util.Collections;
 import java.util.Enumeration;
 import java.util.List;
 import java.util.Properties;
+import java.util.StringJoiner;
 import java.util.jar.Attributes;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
@@ -263,5 +264,26 @@ public final class Dependency {
     }
 
     return null;
+  }
+
+  /** Used for serialization. Must be compatible with {@link #fromSimpleString(String)}. */
+  public String toSimpleString() {
+    final StringJoiner joiner = new StringJoiner("|");
+    joiner.add(name);
+    joiner.add(version);
+    joiner.add(hash == null ? "" : hash);
+    // Could contain `|` or whatever separator we have here, use last.
+    joiner.add(source);
+    return joiner.toString();
+  }
+
+  /** Used for deserialization. Must be compatible with {@link #toSimpleString()}. */
+  public static Dependency fromSimpleString(final String s) {
+    final String[] parts = s.split("\\|", 4);
+    if (parts.length != 4) {
+      log.debug("Invalid dependency string: {}", s);
+      return null;
+    }
+    return new Dependency(parts[0], parts[1], parts[3], parts[2].isEmpty() ? null : parts[2]);
   }
 }

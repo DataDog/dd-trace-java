@@ -1504,11 +1504,9 @@ public class Config {
             : configProvider.getBoolean(GeneralConfig.TELEMETRY_METRICS_ENABLED, true);
 
     isTelemetryDependencyServiceEnabled =
-        Platform.isNativeImageBuilder()
-            ? false
-            : configProvider.getBoolean(
-                TELEMETRY_DEPENDENCY_COLLECTION_ENABLED,
-                DEFAULT_TELEMETRY_DEPENDENCY_COLLECTION_ENABLED);
+        configProvider.getBoolean(
+            TELEMETRY_DEPENDENCY_COLLECTION_ENABLED,
+            DEFAULT_TELEMETRY_DEPENDENCY_COLLECTION_ENABLED);
 
     isTelemetryLogCollectionEnabled =
         Platform.isNativeImageBuilder()
