@@ -1,3 +1,5 @@
+import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_ANNOTATION_ASYNC
+
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.api.DDSpanTypes
@@ -11,8 +13,8 @@ import dd.trace.instrumentation.springwebflux.server.SpringWebFluxTestApplicatio
 import dd.trace.instrumentation.springwebflux.server.TestController
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.boot.test.context.TestConfiguration
+import org.springframework.boot.test.web.server.LocalServerPort
 import org.springframework.boot.web.embedded.netty.NettyReactiveWebServerFactory
-import org.springframework.boot.web.server.LocalServerPort
 import org.springframework.context.annotation.Bean
 import org.springframework.http.client.reactive.ReactorClientHttpConnector
 import org.springframework.web.reactive.function.BodyExtractors
@@ -20,18 +22,15 @@ import org.springframework.web.reactive.function.BodyInserters
 import org.springframework.web.reactive.function.client.WebClient
 import org.springframework.web.server.ResponseStatusException
 import reactor.core.publisher.Mono
+import reactor.netty.http.HttpProtocol
+import reactor.netty.http.client.HttpClient
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
-classes = [SpringWebFluxTestApplication, ForceNettyAutoConfiguration],
+classes = [SpringWebFluxTestApplication],
 properties = "server.http2.enabled=true")
-class SpringWebfluxTest extends AgentTestRunner {
-
-  @TestConfiguration
-  static class ForceNettyAutoConfiguration {
-    @Bean
-    NettyReactiveWebServerFactory nettyFactory() {
-      return new NettyReactiveWebServerFactory()
-    }
+class SpringWebfluxHttp11Test extends AgentTestRunner {
+  protected HttpClient buildClient() {
+    HttpClient.create().protocol(HttpProtocol.HTTP11)
   }
 
   static final String INNER_HANDLER_FUNCTION_CLASS_TAG_PREFIX = SpringWebFluxTestApplication.getName() + "\$"
@@ -40,7 +39,13 @@ class SpringWebfluxTest extends AgentTestRunner {
   @LocalServerPort
   int port
 
-  WebClient client = WebClient.builder().clientConnector (new ReactorClientHttpConnector()).build()
+  WebClient client = WebClient.builder().clientConnector (new ReactorClientHttpConnector(buildClient())).build()
+
+  @Override
+  protected void configurePreAgent() {
+    super.configurePreAgent()
+    injectSysConfig(TRACE_ANNOTATION_ASYNC, "true")
+  }
 
   def "Basic GET test #testName"() {
     setup:
@@ -504,22 +509,18 @@ class SpringWebfluxTest extends AgentTestRunner {
     assertTraces(4) {
       sortSpansByStart()
       // TODO: why order of spans is different in these traces?
-      def traceParent1, traceParent2, traceParent3
+      def traceParent1, traceParent2
 
       trace(2) {
-        traceParent1 = clientSpan(it, null, "http.request", "spring-webflux-client", "GET", URI.create(url), 307)
-        traceParent2 =  clientSpan(it, span(0), "netty.client.request", "netty-client", "GET", URI.create(url), 307)
-      }
-      trace(2) {
-        clientSpan(it, traceParent1, "http.request", "spring-webflux-client", "GET", URI.create(finalUrl))
-        traceParent3 =  clientSpan(it, span(0), "netty.client.request", "netty-client", "GET", URI.create(finalUrl))
+        clientSpan(it, null, "http.request", "spring-webflux-client", "GET", URI.create(url), 307)
+        traceParent1 = clientSpan(it, span(0), "netty.client.request", "netty-client", "GET", URI.create(url), 307)
       }
       trace(2) {
         span {
           resourceName "GET /double-greet-redirect"
           operationName "netty.request"
           spanType DDSpanTypes.HTTP_SERVER
-          childOf(traceParent2)
+          childOf(traceParent1)
           tags {
             "$Tags.COMPONENT" "netty"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
@@ -553,11 +554,15 @@ class SpringWebfluxTest extends AgentTestRunner {
         }
       }
       trace(2) {
+        clientSpan(it, null, "http.request", "spring-webflux-client", "GET", URI.create(finalUrl))
+        traceParent2 = clientSpan(it, span(0), "netty.client.request", "netty-client", "GET", URI.create(finalUrl))
+      }
+      trace(2) {
         span {
           resourceName "GET /double-greet"
           operationName "netty.request"
           spanType DDSpanTypes.HTTP_SERVER
-          traceParent3
+          childOf(traceParent2)
           tags {
             "$Tags.COMPONENT" "netty"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
@@ -725,5 +730,24 @@ class SpringWebfluxTest extends AgentTestRunner {
       }
     }
     return ret
+  }
+
+  @Override
+  boolean useStrictTraceWrites() {
+    false
+  }
+}
+
+class SpringWebfluxHttp2UpgradeTest extends SpringWebfluxHttp11Test {
+  @Override
+  protected HttpClient buildClient() {
+    HttpClient.create().protocol(HttpProtocol.HTTP11, HttpProtocol.H2C)
+  }
+}
+
+class SpringWebfluxHttp2PriorKnowledgeTest extends SpringWebfluxHttp11Test {
+  @Override
+  protected HttpClient buildClient() {
+    HttpClient.create().protocol(HttpProtocol.H2C)
   }
 }
