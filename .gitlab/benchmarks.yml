@@ -59,3 +59,4 @@ dsm-kafka-consumer-benchmark:
   extends: .dsm-kafka-benchmarks
   variables:
     BP_KAFKA_SCENARIO_DIR: consumer-benchmark
+
