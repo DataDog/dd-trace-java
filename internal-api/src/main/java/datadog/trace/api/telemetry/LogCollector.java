@@ -1,4 +1,4 @@
-package datadog.trace.api;
+package datadog.trace.api.telemetry;
 
 import java.util.ArrayList;
 import java.util.Collection;
