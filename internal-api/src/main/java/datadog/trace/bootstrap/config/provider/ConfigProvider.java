@@ -2,8 +2,8 @@ package datadog.trace.bootstrap.config.provider;
 
 import static datadog.trace.api.config.GeneralConfig.CONFIGURATION_FILE;
 
+import datadog.trace.api.ConfigCollector;
 import datadog.trace.api.ConfigOrigin;
-import datadog.trace.api.telemetry.ConfigCollector;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.File;
 import java.io.FileNotFoundException;

@@ -1,7 +1,5 @@
-package datadog.trace.api.telemetry;
+package datadog.trace.api;
 
-import datadog.trace.api.ConfigOrigin;
-import datadog.trace.api.ConfigSetting;
 import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;

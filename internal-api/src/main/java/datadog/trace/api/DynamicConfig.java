@@ -11,7 +11,6 @@ import static datadog.trace.api.config.TracerConfig.SERVICE_MAPPING;
 import static datadog.trace.api.config.TracerConfig.TRACE_SAMPLE_RATE;
 import static datadog.trace.util.CollectionUtils.tryMakeImmutableMap;
 
-import datadog.trace.api.telemetry.ConfigCollector;
 import datadog.trace.util.Strings;
 import java.util.Collection;
 import java.util.Collections;

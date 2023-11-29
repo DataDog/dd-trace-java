@@ -2,8 +2,8 @@ package datadog.telemetry;
 
 import datadog.telemetry.metric.MetricPeriodicAction;
 import datadog.trace.api.Config;
+import datadog.trace.api.ConfigCollector;
 import datadog.trace.api.ConfigSetting;
-import datadog.trace.api.telemetry.ConfigCollector;
 import datadog.trace.api.time.SystemTimeSource;
 import datadog.trace.api.time.TimeSource;
 import java.util.List;

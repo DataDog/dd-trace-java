@@ -1,8 +1,5 @@
-package datadog.trace.api.telemetry
+package datadog.trace.api
 
-import datadog.trace.api.ConfigOrigin
-import datadog.trace.api.ConfigSetting
-import datadog.trace.api.UserEventTrackingMode
 import datadog.trace.api.config.AppSecConfig
 import datadog.trace.api.config.CiVisibilityConfig
 import datadog.trace.api.config.GeneralConfig
