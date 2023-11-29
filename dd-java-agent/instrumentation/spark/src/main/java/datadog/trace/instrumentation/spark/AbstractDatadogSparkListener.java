@@ -252,7 +252,6 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
             .withStartTimestamp(queryStart.time() * 1000)
             .withTag("query_id", sqlExecutionId)
             .withTag("description", queryStart.description())
-            .withTag("details", queryStart.details())
             .withTag(DDTags.RESOURCE_NAME, queryStart.description());
 
     if (batchKey != null) {
@@ -400,7 +399,6 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
             .withTag("stage_id", stageId)
             .withTag("task_count", stageSubmitted.stageInfo().numTasks())
             .withTag("attempt_id", stageAttemptId)
-            .withTag("details", stageSubmitted.stageInfo().details())
             .withTag(DDTags.RESOURCE_NAME, stageSubmitted.stageInfo().name())
             .start();
 
