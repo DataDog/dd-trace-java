@@ -1,4 +1,4 @@
-package datadog.trace.instrumentation.kafka_clients;
+package datadog.trace.instrumentation.kafka_common;
 
 import java.nio.charset.StandardCharsets;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
