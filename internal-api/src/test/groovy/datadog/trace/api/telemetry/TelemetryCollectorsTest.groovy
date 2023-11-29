@@ -10,13 +10,13 @@ class TelemetryCollectorsTest extends DDSpecification {
 
   def "update-drain integrations"() {
     setup:
-    IntegrationsCollector.integrations.offer(
+    IntegrationsCollector.get().integrations.offer(
       new IntegrationsCollector.Integration(
       names: ['spring'],
       enabled: true
       )
       )
-    IntegrationsCollector.integrations.offer(
+    IntegrationsCollector.get().integrations.offer(
       new IntegrationsCollector.Integration(
       names: ['netty', 'jdbc'],
       enabled: false

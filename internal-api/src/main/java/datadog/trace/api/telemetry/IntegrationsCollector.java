@@ -8,20 +8,14 @@ import java.util.concurrent.LinkedBlockingQueue;
 
 public class IntegrationsCollector {
 
-  public static class Holder {
-    public static final IntegrationsCollector INSTANCE = new IntegrationsCollector();
-  }
+  private static final IntegrationsCollector INSTANCE = new IntegrationsCollector();
+  private final Queue<Integration> integrations = new LinkedBlockingQueue<>();
+
+  private IntegrationsCollector() {}
 
   public static IntegrationsCollector get() {
-    return Holder.INSTANCE;
+    return INSTANCE;
   }
-
-  protected static class Integration {
-    public Iterable<String> names;
-    public boolean enabled;
-  }
-
-  private static final Queue<Integration> integrations = new LinkedBlockingQueue<>();
 
   public synchronized void update(Iterable<String> names, boolean enabled) {
     Integration i = new Integration();
@@ -47,5 +41,10 @@ public class IntegrationsCollector {
     }
 
     return map;
+  }
+
+  private static class Integration {
+    public Iterable<String> names;
+    public boolean enabled;
   }
 }
