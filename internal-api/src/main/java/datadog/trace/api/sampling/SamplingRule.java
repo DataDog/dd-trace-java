@@ -57,12 +57,16 @@ public interface SamplingRule {
      * span of the trace will be evaluated to validate the rule. If {@link TargetSpan#ANY}, all
      * spans from the trace might be evaluated, and only one need to match to validate the rule.
      *
+     * <p>TODO: do we need this?
+     *
      * @return The span type the rule must be validated against.
      */
     TargetSpan getTargetSpan();
 
     /**
-     * This enumerate defines against which span of the trace must be validated the sampling rule.
+     * This enumerates defines against which span of the trace must be validated the sampling rule.
+     *
+     * <p>TODO: do we need this?
      */
     enum TargetSpan {
       ROOT,

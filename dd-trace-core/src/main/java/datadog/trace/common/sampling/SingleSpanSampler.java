@@ -69,6 +69,8 @@ public interface SingleSpanSampler {
         SamplingRule.SpanSamplingRule spanSamplingRule =
             new SamplingRule.SpanSamplingRule(
                 rule.getService(), rule.getName(), sampler, simpleRateLimiter);
+        // TODO: rule.getResource() is not used
+        // TODO check out original Doug's PR and the spec
         spanSamplingRules.add(spanSamplingRule);
       }
     }
