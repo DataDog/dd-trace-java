@@ -71,9 +71,6 @@ class ApplicationModuleTest extends IastModuleImplTestBase {
   }
 
   void 'in deep checkVulns methods test'(){
-
-
-
   }
 
 
