@@ -18,6 +18,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 
 public class ApplicationModuleImpl extends SinkModuleBase implements ApplicationModule {
@@ -139,16 +140,16 @@ public class ApplicationModuleImpl extends SinkModuleBase implements Application
     if (jspPaths.isEmpty()) {
       return;
     }
-    StringBuilder sb = new StringBuilder();
-    for (String jsp : jspPaths) {
-      sb.append(File.separatorChar).append(jsp).append('\n');
-    }
+    String result =
+        jspPaths.stream()
+            .map(s -> File.separatorChar + s)
+            .collect(Collectors.joining(System.lineSeparator()));
     reporter.report(
         span,
         new Vulnerability(
             VulnerabilityType.INSECURE_JSP_LAYOUT,
             Location.forSpanAndFileAndLine(span, "web.xml", -1),
-            new Evidence(sb.toString())));
+            new Evidence(result)));
   }
 
   @Nullable
