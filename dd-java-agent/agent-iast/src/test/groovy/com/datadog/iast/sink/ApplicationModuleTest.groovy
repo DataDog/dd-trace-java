@@ -2,21 +2,14 @@ package com.datadog.iast.sink
 
 import com.datadog.iast.IastModuleImplTestBase
 import com.datadog.iast.IastRequestContext
-import com.datadog.iast.model.Source
 import com.datadog.iast.model.Vulnerability
 import com.datadog.iast.model.VulnerabilityType
-import com.datadog.iast.taint.Ranges
 import datadog.trace.api.gateway.RequestContext
 import datadog.trace.api.gateway.RequestContextSlot
-import datadog.trace.api.iast.SourceTypes
-import datadog.trace.api.iast.VulnerabilityMarks
 import datadog.trace.api.iast.sink.ApplicationModule
-import datadog.trace.api.iast.sink.XssModule
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 
-import static com.datadog.iast.taint.TaintUtils.addFromTaintFormat
 import static com.datadog.iast.taint.TaintUtils.taintFormat
-import static datadog.trace.api.iast.VulnerabilityMarks.NOT_MARKED
 
 class ApplicationModuleTest extends IastModuleImplTestBase {
 
@@ -75,6 +68,12 @@ class ApplicationModuleTest extends IastModuleImplTestBase {
     'application/adminconsoleactive/insecure' | VulnerabilityType.ADMIN_CONSOLE_ACTIVE | 'Tomcat Manager Application'
     'application/defaulthtmlescapeinvalid/secure' | null | null
     'application/defaulthtmlescapeinvalid/insecure' | VulnerabilityType.DEFAULT_HTML_ESCAPE_INVALID | 'defaultHtmlEscape tag should be set'
+  }
+
+  void 'in deep checkVulns methods test'(){
+
+
+
   }
 
 
