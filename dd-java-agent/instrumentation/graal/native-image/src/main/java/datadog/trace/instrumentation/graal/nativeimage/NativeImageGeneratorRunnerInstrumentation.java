@@ -21,14 +21,6 @@ public final class NativeImageGeneratorRunnerInstrumentation
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      "datadog.trace.instrumentation.graal.nativeimage.DatadogFeature",
-      "datadog.trace.instrumentation.graal.nativeimage.TelemetryFeature"
-    };
-  }
-
-  @Override
   public void adviceTransformations(AdviceTransformation transformation) {
     transformation.applyAdvice(
         isMethod().and(named("main")),

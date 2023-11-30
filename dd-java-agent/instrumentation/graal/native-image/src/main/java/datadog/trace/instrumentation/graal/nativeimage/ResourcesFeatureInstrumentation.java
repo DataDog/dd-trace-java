@@ -23,6 +23,11 @@ public final class ResourcesFeatureInstrumentation extends AbstractNativeImageIn
   }
 
   @Override
+  public String[] helperClassNames() {
+    return new String[] {"datadog.trace.instrumentation.graal.nativeimage.TelemetryFeature"};
+  }
+
+  @Override
   public void adviceTransformations(AdviceTransformation transformation) {
     transformation.applyAdvice(
         isMethod().and(named("beforeAnalysis")),

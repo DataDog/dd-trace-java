@@ -16,11 +16,11 @@ import java.util.List;
 import java.util.Set;
 import org.graalvm.nativeimage.hosted.Feature;
 
-public final class TelemetryFeature implements Feature {
+public final class TelemetryFeature {
 
   private static final Set<URI> SEEN_URIS = new HashSet<>();
 
-  public static InputStream getDependenciesFileContent(final DuringAnalysisAccess access) {
+  public static InputStream getDependenciesFileContent(final Feature.DuringAnalysisAccess access) {
     final Set<Dependency> dependencies = new HashSet<>();
     final Set<ProtectionDomain> seen = new HashSet<>();
     for (final Class<?> clazz : access.reachableSubtypes(Object.class)) {
