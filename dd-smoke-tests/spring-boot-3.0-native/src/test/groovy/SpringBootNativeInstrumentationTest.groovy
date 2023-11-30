@@ -1,21 +1,19 @@
 import datadog.smoketest.AbstractServerSmokeTest
 import okhttp3.Request
+import spock.lang.Shared
+import spock.lang.TempDir
 
 import java.nio.file.FileVisitResult
 import java.nio.file.Files
 import java.nio.file.Path
-import java.nio.file.Paths
 import java.nio.file.SimpleFileVisitor
 import java.nio.file.attribute.BasicFileAttributes
 import java.util.concurrent.atomic.AtomicInteger
 
 class SpringBootNativeInstrumentationTest extends AbstractServerSmokeTest {
-  static def testJfrDir
-
-  static {
-    testJfrDir = Files.createTempDirectory(Paths.get(System.getProperty('java.io.tmpdir')), 'dd-test-jfr')
-    testJfrDir.toFile().deleteOnExit()
-  }
+  @Shared
+  @TempDir
+  def testJfrDir
 
   @Override
   ProcessBuilder createProcessBuilder() {
@@ -64,12 +62,8 @@ class SpringBootNativeInstrumentationTest extends AbstractServerSmokeTest {
     responseBodyStr.contains("Hello world")
     waitForTraceCount(1)
 
-    try {
-      // sanity test for profiler generating JFR files
-      countJfrs() > 0
-    } finally {
-      deleteDirectory(testJfrDir)
-    }
+    // sanity test for profiler generating JFR files
+    countJfrs() > 0
 
     when:
     checkLogPostExit {
@@ -84,35 +78,22 @@ class SpringBootNativeInstrumentationTest extends AbstractServerSmokeTest {
     !logHasErrors
   }
 
-  static int countJfrs() {
+  int countJfrs() {
     AtomicInteger jfrCount = new AtomicInteger(0)
     Files.walkFileTree(testJfrDir, new SimpleFileVisitor<Path>() {
-      @Override
-      FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) throws IOException {
-        return FileVisitResult.CONTINUE
-      }
-
-      @Override
-      FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
-        if (file.toString().endsWith(".jfr")) {
-          jfrCount.incrementAndGet()
+        @Override
+        FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) throws IOException {
+          return FileVisitResult.CONTINUE
         }
-        return FileVisitResult.CONTINUE
-      }
-    })
-    return jfrCount.get()
-  }
 
-  static void deleteDirectory(Path directory) throws IOException {
-    if (Files.exists(directory)) {
-      Files.walk(directory)
-      .sorted(Comparator.reverseOrder())
-      .forEach(path -> {
-        try {
-          Files.delete(path)
-        } catch (IOException ignored) {
+        @Override
+        FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
+          if (file.toString().endsWith(".jfr")) {
+            jfrCount.incrementAndGet()
+          }
+          return FileVisitResult.CONTINUE
         }
       })
-    }
+    return jfrCount.get()
   }
 }
