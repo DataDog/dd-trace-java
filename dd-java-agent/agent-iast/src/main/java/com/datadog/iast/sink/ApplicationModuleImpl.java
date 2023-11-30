@@ -242,7 +242,6 @@ public class ApplicationModuleImpl extends SinkModuleBase implements Application
 
   private boolean isSpring(final String web) {
     return web != null
-        && web.contains(ORG_SPRINGFRAMEWORK + ".web.")
         && (web.contains(ORG_SPRINGFRAMEWORK + ".web.context.ContextLoaderListener")
             || web.contains(ORG_SPRINGFRAMEWORK + ".web.servlet.DispatcherServlet"));
   }
