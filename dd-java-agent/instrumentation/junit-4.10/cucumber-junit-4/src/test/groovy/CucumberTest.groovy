@@ -24,13 +24,17 @@ class CucumberTest extends CiVisibilityInstrumentationTest {
     assertSpansData(testcaseName, expectedTracesCount)
 
     where:
-    testcaseName                         | features                                                                       | expectedTracesCount | skippedTests
-    "test-succeed"                       | ["org/example/cucumber/calculator/basic_arithmetic.feature"]                   | 2                   | []
-    "test-scenario-outline-${version()}" | ["org/example/cucumber/calculator/basic_arithmetic_with_examples.feature"]     | 5                   | []
-    "test-failure"                       | ["org/example/cucumber/calculator/basic_arithmetic_failed.feature"]            | 2                   | []
-    "test-itr-skipping"                  | ["org/example/cucumber/calculator/basic_arithmetic.feature"]                   | 2                   | [new SkippableTest("Basic Arithmetic", "Addition", null, null)]
-    "test-itr-unskippable"               | ["org/example/cucumber/calculator/basic_arithmetic_unskippable.feature"]       | 2                   | [new SkippableTest("Basic Arithmetic", "Addition", null, null)]
-    "test-itr-unskippable-suite"         | ["org/example/cucumber/calculator/basic_arithmetic_unskippable_suite.feature"] | 2                   | [new SkippableTest("Basic Arithmetic", "Addition", null, null)]
+    testcaseName                          | features                                                                                                                        | expectedTracesCount | skippedTests
+    "test-succeed"                        | ["org/example/cucumber/calculator/basic_arithmetic.feature"]                                                                    | 2                   | []
+    "test-scenario-outline-${version()}"  | ["org/example/cucumber/calculator/basic_arithmetic_with_examples.feature"]                                                      | 5                   | []
+    "test-failure"                        | ["org/example/cucumber/calculator/basic_arithmetic_failed.feature"]                                                             | 2                   | []
+    "test-itr-skipping"                   | ["org/example/cucumber/calculator/basic_arithmetic.feature"]                                                                    | 2                   | [new SkippableTest("Basic Arithmetic", "Addition", null, null)]
+    "test-itr-unskippable"                | ["org/example/cucumber/calculator/basic_arithmetic_unskippable.feature"]                                                        | 2                   | [new SkippableTest("Basic Arithmetic", "Addition", null, null)]
+    "test-itr-unskippable-suite"          | ["org/example/cucumber/calculator/basic_arithmetic_unskippable_suite.feature"]                                                  | 2                   | [new SkippableTest("Basic Arithmetic", "Addition", null, null)]
+    "test-multiple-features-${version()}" | [
+      "org/example/cucumber/calculator/basic_arithmetic.feature",
+      "org/example/cucumber/calculator/basic_arithmetic_failed.feature"
+    ] | 3                   | []
   }
 
   private String version() {

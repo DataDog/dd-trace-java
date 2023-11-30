@@ -121,12 +121,23 @@ public class ModuleExecutionSettingsFactoryImpl implements ModuleExecutionSettin
 
   private CiVisibilitySettings getCiVisibilitySettings(TracerEnvironment tracerEnvironment) {
     try {
-      return configurationApi.getSettings(tracerEnvironment);
+      CiVisibilitySettings settings = configurationApi.getSettings(tracerEnvironment);
+      if (settings.isGitUploadRequired()) {
+        LOGGER.info("Git data upload needs to finish before remote settings can be retrieved");
+        gitDataUploader
+            .startOrObserveGitDataUpload()
+            .get(config.getCiVisibilityGitUploadTimeoutMillis(), TimeUnit.MILLISECONDS);
+
+        return configurationApi.getSettings(tracerEnvironment);
+      } else {
+        return settings;
+      }
+
     } catch (Exception e) {
       LOGGER.warn(
           "Could not obtain CI Visibility settings, will default to disabled code coverage and tests skipping");
       LOGGER.debug("Error while obtaining CI Visibility settings", e);
-      return new CiVisibilitySettings(false, false);
+      return new CiVisibilitySettings(false, false, false);
     }
   }
 
@@ -135,8 +146,11 @@ public class ModuleExecutionSettingsFactoryImpl implements ModuleExecutionSettin
   }
 
   private boolean isCodeCoverageEnabled(CiVisibilitySettings ciVisibilitySettings) {
-    return ciVisibilitySettings.isCodeCoverageEnabled()
-        && config.isCiVisibilityCodeCoverageEnabled();
+    return config.isCiVisibilityCodeCoverageEnabled()
+        && (ciVisibilitySettings.isCodeCoverageEnabled() // coverage enabled via backend settings
+            || config
+                .isCiVisibilityJacocoPluginVersionProvided() // coverage enabled via tracer settings
+        );
   }
 
   private Map<String, String> getPropertiesPropagatedToChildProcess(

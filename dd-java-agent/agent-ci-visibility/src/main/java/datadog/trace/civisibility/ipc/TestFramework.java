@@ -2,7 +2,7 @@ package datadog.trace.civisibility.ipc;
 
 import java.util.Objects;
 
-public final class TestFramework {
+public final class TestFramework implements Comparable<TestFramework> {
   private final String name;
   private final String version;
 
@@ -34,5 +34,11 @@ public final class TestFramework {
   @Override
   public int hashCode() {
     return Objects.hash(name, version);
+  }
+
+  @Override
+  public int compareTo(TestFramework o) {
+    int nameComparison = name.compareTo(o.name);
+    return nameComparison != 0 ? nameComparison : version.compareTo(o.version);
   }
 }

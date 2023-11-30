@@ -185,6 +185,11 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
     }
 
     @Override
+    boolean isTriageEnabled() {
+      return true
+    }
+
+    @Override
     boolean isRuntimeMetricsEnabled() {
       return true
     }
