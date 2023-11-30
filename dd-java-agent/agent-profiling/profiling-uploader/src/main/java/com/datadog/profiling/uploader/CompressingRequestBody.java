@@ -24,7 +24,13 @@ import okio.Source;
  */
 final class CompressingRequestBody extends RequestBody {
 
-  // LZ4 is not available in native image
+  /*
+   * LZ4 is not available in native image.
+   * LZ4Factory is using reflection heavily and since we are shading the lz4 classes for the usage in profiler
+   * it seems to be impossible to configure the native-image generation such as to make the reflection work.
+   *
+   * For now, we are disabling the lz4 compression in native image.
+   */
   private static final LZ4Factory LZ4_FACTORY =
       Platform.isNativeImage() ? null : LZ4Factory.fastestJavaInstance();
   private static final XXHashFactory XXHASH_FACTORY =
