@@ -42,6 +42,7 @@ public final class CiVisibilityConfig {
   public static final String CIVISIBILITY_GIT_UPLOAD_ENABLED = "civisibility.git.upload.enabled";
   public static final String CIVISIBILITY_GIT_UNSHALLOW_ENABLED =
       "civisibility.git.unshallow.enabled";
+  public static final String CIVISIBILITY_GIT_UNSHALLOW_DEFER = "civisibility.git.unshallow.defer";
   public static final String CIVISIBILITY_GIT_UPLOAD_TIMEOUT_MILLIS =
       "civisibility.git.upload.timeout.millis";
   public static final String CIVISIBILITY_GIT_COMMAND_TIMEOUT_MILLIS =
