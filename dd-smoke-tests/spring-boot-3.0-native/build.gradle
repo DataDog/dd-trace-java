@@ -48,6 +48,8 @@ if (matcher.size() == 1 && Integer.parseInt(matcher[0][1]) >= 17) {
       exclude '.gradle/**'
     }).withPropertyName('application')
     .withPathSensitivity(PathSensitivity.RELATIVE)
+    inputs.file(project(':dd-trace-api').tasks.jar.archiveFile.get()).withPropertyName('apiJar')
+    inputs.file(project(':dd-java-agent').tasks.shadowJar.archiveFile.get()).withPropertyName('agentJar')
   }
 
   springNativeBuild {

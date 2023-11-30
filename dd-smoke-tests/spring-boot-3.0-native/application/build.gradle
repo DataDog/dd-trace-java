@@ -27,11 +27,15 @@ dependencies {
 }
 
 if (hasProperty('agentPath')) {
+  final agentPath = property('agentPath')
   graalvmNative {
     binaries {
       main {
-        buildArgs.add("-J-javaagent:${property('agentPath')}")
+        buildArgs.add("-J-javaagent:$agentPath")
       }
     }
+  }
+  tasks.named('nativeCompile') {
+    inputs.file(agentPath).withPropertyName('agentJar')
   }
 }
