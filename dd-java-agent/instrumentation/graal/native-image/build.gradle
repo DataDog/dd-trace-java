@@ -28,6 +28,7 @@ apply plugin: "idea"
 
 dependencies {
   compileOnly project(':dd-java-agent:agent-logging')
+  compileOnly project(':telemetry')
 
   main_java11CompileOnly group: 'org.graalvm.nativeimage', name: 'svm', version: '20.0.0'
 }

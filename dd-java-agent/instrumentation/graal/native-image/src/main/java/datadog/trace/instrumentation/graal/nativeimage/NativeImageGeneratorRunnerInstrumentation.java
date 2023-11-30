@@ -55,6 +55,8 @@ public final class NativeImageGeneratorRunnerInstrumentation
               + "META-INF/native-image/com.datadoghq/dd-java-agent/reflect-config.json";
       args[oldLength++] =
           "-H:ClassInitialization="
+              + "datadog.telemetry.dependency.Dependency:build_time,"
+              + "datadog.telemetry.dependency.DependencyResolver:build_time,"
               + "datadog.trace.api.Config:rerun,"
               + "datadog.trace.api.Platform:rerun,"
               + "datadog.trace.api.env.CapturedEnvironment:build_time,"

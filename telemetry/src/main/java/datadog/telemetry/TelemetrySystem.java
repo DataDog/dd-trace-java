@@ -3,6 +3,7 @@ package datadog.telemetry;
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
 import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.telemetry.TelemetryRunnable.TelemetryPeriodicAction;
+import datadog.telemetry.dependency.Dependency;
 import datadog.telemetry.dependency.DependencyPeriodicAction;
 import datadog.telemetry.dependency.DependencyService;
 import datadog.telemetry.integration.IntegrationPeriodicAction;
@@ -14,8 +15,16 @@ import datadog.trace.api.Config;
 import datadog.trace.api.Platform;
 import datadog.trace.api.iast.telemetry.Verbosity;
 import datadog.trace.util.AgentThreadFactory;
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.lang.instrument.Instrumentation;
+import java.net.URL;
+import java.net.URLConnection;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Enumeration;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
@@ -62,6 +71,9 @@ public class TelemetrySystem {
     if (Config.get().isTelemetryLogCollectionEnabled()) {
       actions.add(new LogPeriodicAction());
       log.debug("Telemetry log collection enabled");
+    }
+    if (Config.get().isTelemetryDependencyServiceEnabled()) {
+      addStaticDependencies(telemetryService);
     }
 
     TelemetryRunnable telemetryRunnable = new TelemetryRunnable(telemetryService, actions);
@@ -111,6 +123,34 @@ public class TelemetrySystem {
       if (telemetryThread.isAlive()) {
         log.warn("Telemetry thread join was not completed");
       }
+    }
+  }
+
+  /** Adds dependencies resolved statically. For native image. */
+  private static void addStaticDependencies(final TelemetryService telemetryService) {
+    try {
+      final Enumeration<URL> resources =
+          ClassLoader.getSystemClassLoader().getResources("dd-java-agent.dependencies");
+      while (resources.hasMoreElements()) {
+        final URL url = resources.nextElement();
+        log.debug("Dependency list found found: {}", url);
+        final URLConnection conn = url.openConnection();
+        try (final InputStream is = conn.getInputStream()) {
+          final BufferedReader reader =
+              new BufferedReader(new InputStreamReader(is, StandardCharsets.UTF_8));
+          String line = null;
+          while ((line = reader.readLine()) != null) {
+            Dependency dependency = Dependency.fromSimpleString(line);
+            if (dependency != null) {
+              telemetryService.addDependency(dependency);
+            }
+          }
+        } catch (IOException e) {
+          log.debug("Error adding dependencies from {}", url, e);
+        }
+      }
+    } catch (IOException e) {
+      log.debug("Error when adding static dependencies", e);
     }
   }
 }
