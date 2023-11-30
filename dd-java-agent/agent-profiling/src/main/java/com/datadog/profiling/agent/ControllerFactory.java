@@ -38,7 +38,7 @@ public final class ControllerFactory {
     NONE(),
     ORACLE(OracleJdkController::instance, OracleJdkController.class.getName()),
     OPENJDK(OpenJdkController::instance, OpenJdkController.class.getName()),
-    ASYNC(DatadogProfilerController::instance, DatadogProfilerController.class.getName());
+    DDPROF(DatadogProfilerController::instance, DatadogProfilerController.class.getName());
 
     private final Function<ConfigProvider, Controller> instantiator;
     private final String className;
@@ -101,7 +101,7 @@ public final class ControllerFactory {
               datadogProfilerClass
                   .getMethod("isAvailable")
                   .invoke(datadogProfilerClass.getMethod("getInstance").invoke(null))) {
-            impl = Implementation.ASYNC;
+            impl = Implementation.DDPROF;
           } else {
             log.debug("Failed to load Datadog profiler, it is not available");
           }
