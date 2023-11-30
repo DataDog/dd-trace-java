@@ -1,4 +1,4 @@
-package datadog.trace.instrumentation.tinylog;
+package datadog.trace.instrumentation.tinylog2;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static java.util.Collections.singletonMap;
