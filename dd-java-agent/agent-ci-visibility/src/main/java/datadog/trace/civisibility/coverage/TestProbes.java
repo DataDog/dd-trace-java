@@ -7,11 +7,14 @@ import datadog.trace.civisibility.source.SourcePathResolver;
 import datadog.trace.civisibility.source.Utils;
 import java.io.InputStream;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import javax.annotation.Nullable;
 import org.jacoco.core.analysis.Analyzer;
 import org.jacoco.core.data.ExecutionDataStore;
@@ -26,12 +29,14 @@ public class TestProbes implements CoverageProbeStore {
 
   // Unbounded data structure that only exists within a single test span
   private final Map<Class<?>, ExecutionDataAdapter> probeActivations;
+  private final Collection<String> nonCodeResources;
   private final SourcePathResolver sourcePathResolver;
   private volatile TestReport testReport;
 
   TestProbes(SourcePathResolver sourcePathResolver) {
     this.sourcePathResolver = sourcePathResolver;
     probeActivations = new ConcurrentHashMap<>();
+    nonCodeResources = new ConcurrentLinkedQueue<>();
   }
 
   @Override
@@ -39,6 +44,11 @@ public class TestProbes implements CoverageProbeStore {
     probeActivations
         .computeIfAbsent(clazz, (ignored) -> new ExecutionDataAdapter(classId, className))
         .record(probeId);
+  }
+
+  @Override
+  public void recordNonCodeResource(String absolutePath) {
+    nonCodeResources.add(absolutePath);
   }
 
   @Override
@@ -94,6 +104,19 @@ public class TestProbes implements CoverageProbeStore {
 
       List<TestReportFileEntry.Segment> compressedSegments = getCompressedSegments(segments);
       fileEntries.add(new TestReportFileEntry(sourcePath, compressedSegments));
+    }
+
+    for (String nonCodeResource : nonCodeResources) {
+      String resourcePath = sourcePathResolver.getResourcePath(nonCodeResource);
+      if (resourcePath == null) {
+        log.debug(
+            "Skipping coverage reporting for {} because resource path could not be determined",
+            nonCodeResource);
+        continue;
+      }
+      TestReportFileEntry fileEntry =
+          new TestReportFileEntry(resourcePath, Collections.emptyList());
+      fileEntries.add(fileEntry);
     }
 
     testReport = new TestReport(testSessionId, testSuiteId, spanId, fileEntries);

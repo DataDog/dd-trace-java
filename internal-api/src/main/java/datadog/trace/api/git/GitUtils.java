@@ -6,7 +6,6 @@ import static datadog.trace.api.git.RawParseUtils.nextLF;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.net.URI;
-import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
 import java.util.regex.Pattern;
 import java.util.zip.DataFormatException;
@@ -83,6 +82,8 @@ public class GitUtils {
     return ref;
   }
 
+  private static final Pattern SSH_PROTOCOL_AND_USER_INFO = Pattern.compile("^(ssh://).*?@");
+
   /**
    * Removes the user info of a certain URL. E.g: https://user:password@host.com/path ->
    * https://host.com/path
@@ -94,12 +95,15 @@ public class GitUtils {
     if (urlStr == null || urlStr.isEmpty()) {
       return null;
     }
-
     try {
-      final URI url = new URI(urlStr);
-      final String userInfo = url.getRawUserInfo();
-      return Pattern.compile(userInfo + "@", Pattern.LITERAL).matcher(urlStr).replaceAll("");
-    } catch (final URISyntaxException ex) {
+      if (urlStr.startsWith("http")) {
+        final URI url = new URI(urlStr);
+        final String userInfo = url.getRawUserInfo();
+        return Pattern.compile(userInfo + "@", Pattern.LITERAL).matcher(urlStr).replaceAll("");
+      } else {
+        return SSH_PROTOCOL_AND_USER_INFO.matcher(urlStr).replaceAll("$1");
+      }
+    } catch (final Exception ex) {
       return urlStr;
     }
   }

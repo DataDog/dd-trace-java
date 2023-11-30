@@ -41,6 +41,8 @@ class IsUndefinedExpressionTest {
         new IsUndefinedExpression(DSL.value(Values.UNDEFINED_OBJECT));
     assertTrue(expression.evaluate(resolver));
     assertEquals("isUndefined(UNDEFINED)", print(expression));
+    expression = new IsUndefinedExpression(DSL.ref("undefinedvar"));
+    assertTrue(expression.evaluate(resolver));
   }
 
   @Test

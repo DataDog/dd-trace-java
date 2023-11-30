@@ -11,7 +11,6 @@ import org.springframework.boot.SpringApplication
 import org.springframework.boot.web.servlet.context.ServletWebServerApplicationContext
 import org.springframework.context.ConfigurableApplicationContext
 import spock.lang.Shared
-import spock.lang.Stepwise
 
 import static datadog.trace.instrumentation.springsecurity5.TestEndpoint.LOGIN
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
@@ -20,8 +19,6 @@ import static datadog.trace.instrumentation.springsecurity5.TestEndpoint.UNKNOWN
 import static datadog.trace.instrumentation.springsecurity5.TestEndpoint.NOT_FOUND
 
 
-// Use Stepwise to ensure tests are running sequentially
-@Stepwise
 class SpringBootBasedTest extends AppSecHttpServerTest<ConfigurableApplicationContext> {
 
   @Shared
@@ -184,7 +181,8 @@ class SpringBootBasedTest extends AppSecHttpServerTest<ConfigurableApplicationCo
     !span.getTags().isEmpty()
     span.getTag("appsec.events.users.login.failure.track") == true
     span.getTag("_dd.appsec.events.users.login.failure.auto.mode") == 'EXTENDED'
-    span.getTag("appsec.events.users.login.failure.usr.exists") == true
+    // TODO: Ideally should be `false` but we have no reliable method to detect it it is just absent. See APPSEC-12765.
+    span.getTag("appsec.events.users.login.failure.usr.exists") == null
     span.getTag("appsec.events.users.login.failure.usr.id") == 'admin'
   }
 

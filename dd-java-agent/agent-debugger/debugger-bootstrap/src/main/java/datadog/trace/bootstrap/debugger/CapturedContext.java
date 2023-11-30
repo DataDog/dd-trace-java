@@ -211,7 +211,8 @@ public class CapturedContext implements ValueReferenceResolver {
   }
 
   public void addThrowable(Throwable t) {
-    this.throwable = new CapturedThrowable(t);
+    addThrowable(new CapturedThrowable(t));
+    extensions.put(ValueReferences.EXCEPTION_EXTENSION_NAME, t);
   }
 
   public void addThrowable(CapturedThrowable capturedThrowable) {

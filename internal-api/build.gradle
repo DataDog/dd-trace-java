@@ -128,6 +128,8 @@ excludedClassesCoverage += [
   // Interface with default method
   "datadog.trace.api.StatsDClientManager",
   "datadog.trace.api.iast.Taintable",
+  "datadog.trace.api.Stateful",
+  "datadog.trace.api.Stateful.1",
   // a stub
   "datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration",
   "datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration.NoOp",

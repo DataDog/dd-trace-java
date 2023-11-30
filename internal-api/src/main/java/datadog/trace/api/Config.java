@@ -23,6 +23,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_GIT_UPLOAD_E
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_GIT_UPLOAD_TIMEOUT_MILLIS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_JACOCO_PLUGIN_EXCLUDES;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_JACOCO_PLUGIN_VERSION;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_RESOURCE_FOLDER_NAMES;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_SIGNAL_SERVER_HOST;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_SIGNAL_SERVER_PORT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_SOURCE_DATA_ENABLED;
@@ -169,6 +170,7 @@ import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_JVM_INFO_
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_MODULE_EXECUTION_SETTINGS_CACHE_SIZE;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_MODULE_ID;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_REPO_INDEX_SHARING_ENABLED;
+import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_RESOURCE_FOLDER_NAMES;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_SESSION_ID;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_SIGNAL_SERVER_HOST;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_SIGNAL_SERVER_PORT;
@@ -422,6 +424,7 @@ import static datadog.trace.util.CollectionUtils.tryMakeImmutableSet;
 import static datadog.trace.util.Strings.propertyNameToEnvironmentVariableName;
 
 import datadog.trace.api.config.GeneralConfig;
+import datadog.trace.api.config.ProfilingConfig;
 import datadog.trace.api.config.TracerConfig;
 import datadog.trace.api.iast.IastDetectionMode;
 import datadog.trace.api.iast.telemetry.Verbosity;
@@ -495,6 +498,7 @@ public class Config {
   private final InstrumenterConfig instrumenterConfig;
 
   private final long startTimeMillis = System.currentTimeMillis();
+  private final boolean timelineEventsEnabled;
 
   /**
    * this is a random UUID that gets generated on JVM start up and is attached to every root span
@@ -708,6 +712,7 @@ public class Config {
   private final String ciVisibilityCodeCoverageReportDumpDir;
   private final String ciVisibilityCompilerPluginVersion;
   private final String ciVisibilityJacocoPluginVersion;
+  private final boolean ciVisibilityJacocoPluginVersionProvided;
   private final List<String> ciVisibilityJacocoPluginIncludes;
   private final List<String> ciVisibilityJacocoPluginExcludes;
   private final String[] ciVisibilityJacocoPluginExcludedClassnames;
@@ -728,6 +733,7 @@ public class Config {
   private final int ciVisibilityJvmInfoCacheSize;
   private final boolean ciVisibilityCoverageSegmentsEnabled;
   private final String ciVisibilityInjectedTracerVersion;
+  private final List<String> ciVisibilityResourceFolderNames;
 
   private final boolean remoteConfigEnabled;
   private final boolean remoteConfigIntegrityCheckEnabled;
@@ -1617,6 +1623,8 @@ public class Config {
     ciVisibilityJacocoPluginVersion =
         configProvider.getString(
             CIVISIBILITY_JACOCO_PLUGIN_VERSION, DEFAULT_CIVISIBILITY_JACOCO_PLUGIN_VERSION);
+    ciVisibilityJacocoPluginVersionProvided =
+        configProvider.getString(CIVISIBILITY_JACOCO_PLUGIN_VERSION) != null;
     ciVisibilityJacocoPluginIncludes =
         Arrays.asList(
             COLON.split(configProvider.getString(CIVISIBILITY_JACOCO_PLUGIN_INCLUDES, ":")));
@@ -1670,6 +1678,9 @@ public class Config {
         configProvider.getBoolean(CIVISIBILITY_COVERAGE_SEGMENTS_ENABLED, false);
     ciVisibilityInjectedTracerVersion =
         configProvider.getString(CIVISIBILITY_INJECTED_TRACER_VERSION);
+    ciVisibilityResourceFolderNames =
+        configProvider.getList(
+            CIVISIBILITY_RESOURCE_FOLDER_NAMES, DEFAULT_CIVISIBILITY_RESOURCE_FOLDER_NAMES);
 
     remoteConfigEnabled =
         configProvider.getBoolean(REMOTE_CONFIG_ENABLED, DEFAULT_REMOTE_CONFIG_ENABLED);
@@ -1893,6 +1904,11 @@ public class Config {
         configProvider.getBoolean(
             GeneralConfig.TELEMETRY_DEBUG_REQUESTS_ENABLED,
             ConfigDefaults.DEFAULT_TELEMETRY_DEBUG_REQUESTS_ENABLED);
+
+    timelineEventsEnabled =
+        configProvider.getBoolean(
+            ProfilingConfig.PROFILING_TIMELINE_EVENTS_ENABLED,
+            ProfilingConfig.PROFILING_TIMELINE_EVENTS_ENABLED_DEFAULT);
 
     log.debug("New instance: {}", this);
   }
@@ -2356,6 +2372,10 @@ public class Config {
     return instrumenterConfig.isProfilingEnabled();
   }
 
+  public boolean isProfilingTimelineEventsEnabled() {
+    return timelineEventsEnabled;
+  }
+
   public boolean isProfilingAgentless() {
     return profilingAgentless;
   }
@@ -2707,6 +2727,10 @@ public class Config {
     return ciVisibilityJacocoPluginVersion;
   }
 
+  public boolean isCiVisibilityJacocoPluginVersionProvided() {
+    return ciVisibilityJacocoPluginVersionProvided;
+  }
+
   public List<String> getCiVisibilityJacocoPluginIncludes() {
     return ciVisibilityJacocoPluginIncludes;
   }
@@ -2785,6 +2809,10 @@ public class Config {
 
   public String getCiVisibilityInjectedTracerVersion() {
     return ciVisibilityInjectedTracerVersion;
+  }
+
+  public List<String> getCiVisibilityResourceFolderNames() {
+    return ciVisibilityResourceFolderNames;
   }
 
   public String getAppSecRulesFile() {

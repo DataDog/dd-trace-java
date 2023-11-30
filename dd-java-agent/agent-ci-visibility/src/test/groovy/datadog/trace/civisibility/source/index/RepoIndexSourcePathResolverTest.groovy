@@ -11,6 +11,7 @@ import java.nio.file.Path
 class RepoIndexSourcePathResolverTest extends Specification {
 
   def packageResolver = Stub(PackageResolver)
+  def resourceResolver = Stub(ResourceResolver)
   def fileSystem = Jimfs.newFileSystem(Configuration.unix())
   def repoRoot = getRepoRoot()
 
@@ -19,7 +20,7 @@ class RepoIndexSourcePathResolverTest extends Specification {
     def expectedSourcePath = givenSourceFile(RepoIndexSourcePathResolverTest, repoRoot + "/src")
 
     when:
-    def sourcePathResolver = new RepoIndexSourcePathResolver(repoRoot, packageResolver, fileSystem)
+    def sourcePathResolver = new RepoIndexSourcePathResolver(repoRoot, packageResolver, resourceResolver, fileSystem)
 
     then:
     sourcePathResolver.getSourcePath(RepoIndexSourcePathResolverTest) == expectedSourcePath
@@ -30,7 +31,7 @@ class RepoIndexSourcePathResolverTest extends Specification {
     def expectedSourcePath = givenSourceFile(RepoIndexSourcePathResolverTest, repoRoot + "/src")
 
     when:
-    def sourcePathResolver = new RepoIndexSourcePathResolver(repoRoot, packageResolver, fileSystem)
+    def sourcePathResolver = new RepoIndexSourcePathResolver(repoRoot, packageResolver, resourceResolver, fileSystem)
 
     then:
     sourcePathResolver.getSourcePath(InnerClass) == expectedSourcePath
@@ -41,7 +42,7 @@ class RepoIndexSourcePathResolverTest extends Specification {
     def expectedSourcePath = givenSourceFile(RepoIndexSourcePathResolverTest, repoRoot + "/src")
 
     when:
-    def sourcePathResolver = new RepoIndexSourcePathResolver(repoRoot, packageResolver, fileSystem)
+    def sourcePathResolver = new RepoIndexSourcePathResolver(repoRoot, packageResolver, resourceResolver, fileSystem)
 
     then:
     sourcePathResolver.getSourcePath(InnerClass.NestedInnerClass) == expectedSourcePath
@@ -52,7 +53,7 @@ class RepoIndexSourcePathResolverTest extends Specification {
     def expectedSourcePath = givenSourceFile(RepoIndexSourcePathResolverTest, repoRoot + "/src")
 
     when:
-    def sourcePathResolver = new RepoIndexSourcePathResolver(repoRoot, packageResolver, fileSystem)
+    def sourcePathResolver = new RepoIndexSourcePathResolver(repoRoot, packageResolver, resourceResolver, fileSystem)
     def r = new Runnable() {
         void run() {}
       }
@@ -66,7 +67,7 @@ class RepoIndexSourcePathResolverTest extends Specification {
     def expectedSourcePath = givenSourceFile(RepoIndexSourcePathResolverTest, repoRoot + "/src")
 
     when:
-    def sourcePathResolver = new RepoIndexSourcePathResolver(repoRoot, packageResolver, fileSystem)
+    def sourcePathResolver = new RepoIndexSourcePathResolver(repoRoot, packageResolver, resourceResolver, fileSystem)
 
     then:
     sourcePathResolver.getSourcePath(PackagePrivateClass) == expectedSourcePath
@@ -77,7 +78,7 @@ class RepoIndexSourcePathResolverTest extends Specification {
     def expectedSourcePath = givenSourceFile(RepoIndexSourcePathResolverTest, repoRoot + "/src")
 
     when:
-    def sourcePathResolver = new RepoIndexSourcePathResolver(repoRoot, packageResolver, fileSystem)
+    def sourcePathResolver = new RepoIndexSourcePathResolver(repoRoot, packageResolver, resourceResolver, fileSystem)
 
     then:
     sourcePathResolver.getSourcePath(PackagePrivateClass.NestedIntoPackagePrivateClass) == expectedSourcePath
@@ -88,7 +89,7 @@ class RepoIndexSourcePathResolverTest extends Specification {
     def expectedSourcePath = givenSourceFile(RepoIndexSourcePathResolverTest, repoRoot + "/src")
 
     when:
-    def sourcePathResolver = new RepoIndexSourcePathResolver(repoRoot, packageResolver, fileSystem)
+    def sourcePathResolver = new RepoIndexSourcePathResolver(repoRoot, packageResolver, resourceResolver, fileSystem)
 
     then:
     sourcePathResolver.getSourcePath(PublicClassWhoseNameDoesNotCorrespondToFileName) == expectedSourcePath
@@ -98,7 +99,7 @@ class RepoIndexSourcePathResolverTest extends Specification {
     setup:
 
     when:
-    def sourcePathResolver = new RepoIndexSourcePathResolver(repoRoot, packageResolver, fileSystem)
+    def sourcePathResolver = new RepoIndexSourcePathResolver(repoRoot, packageResolver, resourceResolver, fileSystem)
 
     then:
     sourcePathResolver.getSourcePath(RepoIndexSourcePathResolver) == null
@@ -108,7 +109,7 @@ class RepoIndexSourcePathResolverTest extends Specification {
     setup:
 
     when:
-    def sourcePathResolver = new RepoIndexSourcePathResolver(repoRoot, packageResolver, fileSystem)
+    def sourcePathResolver = new RepoIndexSourcePathResolver(repoRoot, packageResolver, resourceResolver, fileSystem)
 
     then:
     sourcePathResolver.getSourcePath(PackagePrivateClass) == null
@@ -123,7 +124,7 @@ class RepoIndexSourcePathResolverTest extends Specification {
     Files.write(classPath, "STUB CLASS BODY".getBytes())
 
     when:
-    def sourcePathResolver = new RepoIndexSourcePathResolver(repoRoot, packageResolver, fileSystem)
+    def sourcePathResolver = new RepoIndexSourcePathResolver(repoRoot, packageResolver, resourceResolver, fileSystem)
 
     then:
     sourcePathResolver.getSourcePath(RepoIndexSourcePathResolverTest) == null
@@ -137,7 +138,7 @@ class RepoIndexSourcePathResolverTest extends Specification {
     givenRepoFile(fileSystem.getPath(repoRoot, "README.md"))
 
     when:
-    def sourcePathResolver = new RepoIndexSourcePathResolver(repoRoot, packageResolver, fileSystem)
+    def sourcePathResolver = new RepoIndexSourcePathResolver(repoRoot, packageResolver, resourceResolver, fileSystem)
 
     then:
     sourcePathResolver.getSourcePath(RepoIndexSourcePathResolverTest) == expectedSourcePathOne

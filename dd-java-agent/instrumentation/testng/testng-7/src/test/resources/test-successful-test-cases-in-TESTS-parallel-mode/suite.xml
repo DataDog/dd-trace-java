@@ -1,0 +1,22 @@
+<!DOCTYPE suite SYSTEM "https://testng.org/testng-1.0.dtd" >
+<suite name="API Test Suite" parallel="tests" configfailurepolicy="continue">
+  <test name="Test A">
+    <classes>
+      <class name="org.example.TestSucceedMultiple">
+        <methods>
+          <include name="test_succeed"/>
+        </methods>
+      </class>
+    </classes>
+  </test>
+
+  <test name="Test B">
+    <classes>
+      <class name="org.example.TestSucceedMultiple">
+        <methods>
+          <include name="test_succeed_another"/>
+        </methods>
+      </class>
+    </classes>
+  </test>
+</suite>

@@ -5,7 +5,7 @@ import static datadog.trace.bootstrap.instrumentation.decorator.http.HttpResourc
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import java.util.function.BiConsumer;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.regex.Pattern;
 import javax.annotation.Nonnull;
@@ -13,7 +13,7 @@ import org.springframework.web.reactive.function.server.HandlerFunction;
 import org.springframework.web.reactive.function.server.RouterFunction;
 import org.springframework.web.reactive.function.server.ServerRequest;
 
-public class RouteOnSuccessOrError implements BiConsumer<HandlerFunction<?>, Throwable> {
+public class RouteOnSuccessOrError implements Consumer<HandlerFunction<?>> {
 
   private static final Pattern SPECIAL_CHARACTERS_REGEX = Pattern.compile("[\\(\\)&|]");
   private static final Pattern SPACES_REGEX = Pattern.compile("[ \\t]+");
@@ -41,26 +41,6 @@ public class RouteOnSuccessOrError implements BiConsumer<HandlerFunction<?>, Thr
     this.serverRequest = serverRequest;
   }
 
-  @Override
-  public void accept(final HandlerFunction<?> handler, final Throwable throwable) {
-    if (handler != null) {
-      final String predicateString = parsePredicateString();
-      if (predicateString != null) {
-        final AgentSpan span =
-            (AgentSpan) serverRequest.attributes().get(AdviceUtils.SPAN_ATTRIBUTE);
-        if (span != null) {
-          span.setTag("request.predicate", predicateString);
-        }
-        final AgentSpan parentSpan =
-            (AgentSpan) serverRequest.attributes().get(AdviceUtils.PARENT_SPAN_ATTRIBUTE);
-        if (parentSpan != null) {
-          HTTP_RESOURCE_DECORATOR.withRoute(
-              parentSpan, serverRequest.methodName(), parseRoute(predicateString));
-        }
-      }
-    }
-  }
-
   private String parsePredicateString() {
     final String routerFunctionString = routerFunction.toString();
     // Router functions containing lambda predicates should not end up in span tags since they are
@@ -76,5 +56,26 @@ public class RouteOnSuccessOrError implements BiConsumer<HandlerFunction<?>, Thr
   @Nonnull
   private String parseRoute(@Nonnull String routerString) {
     return parsedRouteCache.computeIfAbsent(routerString, PATH_EXTRACTOR);
+  }
+
+  @Override
+  public void accept(HandlerFunction<?> handlerFunction) {
+    if (handlerFunction == null) {
+      // in this case the route is added by instrumenting the method annotation. we stop here.
+      return;
+    }
+    final String predicateString = parsePredicateString();
+    if (predicateString != null) {
+      final AgentSpan span = (AgentSpan) serverRequest.attributes().get(AdviceUtils.SPAN_ATTRIBUTE);
+      if (span != null) {
+        span.setTag("request.predicate", predicateString);
+      }
+      final AgentSpan parentSpan =
+          (AgentSpan) serverRequest.attributes().get(AdviceUtils.PARENT_SPAN_ATTRIBUTE);
+      if (parentSpan != null) {
+        HTTP_RESOURCE_DECORATOR.withRoute(
+            parentSpan, serverRequest.methodName(), parseRoute(predicateString));
+      }
+    }
   }
 }

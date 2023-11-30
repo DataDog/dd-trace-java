@@ -49,14 +49,20 @@ import datadog.trace.civisibility.source.ByteCodeMethodLinesResolver;
 import datadog.trace.civisibility.source.CompilerAidedMethodLinesResolver;
 import datadog.trace.civisibility.source.CompilerAidedSourcePathResolver;
 import datadog.trace.civisibility.source.MethodLinesResolver;
+import datadog.trace.civisibility.source.NoOpSourcePathResolver;
 import datadog.trace.civisibility.source.SourcePathResolver;
+import datadog.trace.civisibility.source.index.ConventionBasedResourceResolver;
+import datadog.trace.civisibility.source.index.PackageResolver;
+import datadog.trace.civisibility.source.index.PackageResolverImpl;
 import datadog.trace.civisibility.source.index.RepoIndexBuilder;
 import datadog.trace.civisibility.source.index.RepoIndexFetcher;
 import datadog.trace.civisibility.source.index.RepoIndexProvider;
 import datadog.trace.civisibility.source.index.RepoIndexSourcePathResolver;
+import datadog.trace.civisibility.source.index.ResourceResolver;
 import datadog.trace.util.Strings;
 import datadog.trace.util.throwable.FatalAgentMisconfigurationError;
 import java.net.InetSocketAddress;
+import java.nio.file.FileSystem;
 import java.nio.file.FileSystems;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -166,9 +172,15 @@ public class CiVisibilitySystem {
       CIInfo ciInfo = ciProviderInfo.buildCIInfo();
       String repoRoot = ciInfo.getCiWorkspace();
 
-      RepoIndexProvider indexProvider =
-          new RepoIndexBuilder(projectRoot.toString(), FileSystems.getDefault());
-      SourcePathResolver sourcePathResolver = getSourcePathResolver(repoRoot, indexProvider);
+      FileSystem fileSystem = FileSystems.getDefault();
+      PackageResolver packageResolver = new PackageResolverImpl(fileSystem);
+      ResourceResolver resourceResolver =
+          new ConventionBasedResourceResolver(
+              fileSystem, config.getCiVisibilityResourceFolderNames());
+      RepoIndexBuilder indexBuilder =
+          new RepoIndexBuilder(repoRoot, packageResolver, resourceResolver, fileSystem);
+
+      SourcePathResolver sourcePathResolver = getSourcePathResolver(repoRoot, indexBuilder);
       Codeowners codeowners = getCodeowners(repoRoot);
 
       MethodLinesResolver methodLinesResolver =
@@ -184,7 +196,7 @@ public class CiVisibilitySystem {
           buildGitDataUploader(config, gitInfoProvider, gitClientFactory, backendApi, repoRoot);
       ModuleExecutionSettingsFactory moduleExecutionSettingsFactory =
           buildModuleExecutionSettingsFactory(
-              config, backendApi, gitDataUploader, indexProvider, repoRoot);
+              config, backendApi, gitDataUploader, indexBuilder, repoRoot);
 
       String signalServerHost = config.getCiVisibilitySignalServerHost();
       int signalServerPort = config.getCiVisibilitySignalServerPort();
@@ -193,7 +205,6 @@ public class CiVisibilitySystem {
       // only start Git data upload in parent process
       gitDataUploader.startOrObserveGitDataUpload();
 
-      RepoIndexBuilder indexBuilder = new RepoIndexBuilder(repoRoot, FileSystems.getDefault());
       return new DDBuildSystemSessionImpl(
           projectName,
           repoRoot,
@@ -290,10 +301,17 @@ public class CiVisibilitySystem {
       // either we are in the build system
       // or we are in the tests JVM and the build system is not instrumented
       if (parentProcessSessionId == null || parentProcessModuleId == null) {
+        FileSystem fileSystem = FileSystems.getDefault();
+        PackageResolver packageResolver = new PackageResolverImpl(fileSystem);
+        ResourceResolver resourceResolver =
+            new ConventionBasedResourceResolver(
+                fileSystem, config.getCiVisibilityResourceFolderNames());
+        RepoIndexProvider indexProvider =
+            new RepoIndexBuilder(repoRoot, packageResolver, resourceResolver, fileSystem);
+
         BackendApi backendApi = backendApiFactory.createBackendApi();
         GitDataUploader gitDataUploader =
             buildGitDataUploader(config, gitInfoProvider, gitClientFactory, backendApi, repoRoot);
-        RepoIndexProvider indexProvider = new RepoIndexBuilder(repoRoot, FileSystems.getDefault());
         ModuleExecutionSettingsFactory moduleExecutionSettingsFactory =
             buildModuleExecutionSettingsFactory(
                 config, backendApi, gitDataUploader, indexProvider, repoRoot);
@@ -364,7 +382,14 @@ public class CiVisibilitySystem {
 
       Map<String, String> ciTags = new CITagsProvider().getCiTags(ciInfo);
       TestDecorator testDecorator = new TestDecoratorImpl(component, ciTags);
-      RepoIndexProvider indexProvider = new RepoIndexBuilder(repoRoot, FileSystems.getDefault());
+
+      FileSystem fileSystem = FileSystems.getDefault();
+      PackageResolver packageResolver = new PackageResolverImpl(fileSystem);
+      ResourceResolver resourceResolver =
+          new ConventionBasedResourceResolver(
+              fileSystem, config.getCiVisibilityResourceFolderNames());
+      RepoIndexProvider indexProvider =
+          new RepoIndexBuilder(repoRoot, packageResolver, resourceResolver, fileSystem);
       SourcePathResolver sourcePathResolver = getSourcePathResolver(repoRoot, indexProvider);
 
       return new DDTestSessionImpl(
@@ -436,7 +461,7 @@ public class CiVisibilitySystem {
       return new BestEffortSourcePathResolver(
           new CompilerAidedSourcePathResolver(repoRoot), indexSourcePathResolver);
     } else {
-      return clazz -> null;
+      return NoOpSourcePathResolver.INSTANCE;
     }
   }
 

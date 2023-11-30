@@ -6,6 +6,7 @@ import java.io.InputStream;
 import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.List;
+import java.util.ListIterator;
 import java.util.Optional;
 import java.util.Properties;
 import javax.annotation.Nullable;
@@ -53,7 +54,7 @@ public abstract class CucumberUtils {
       current = parent.get();
       UniqueId currentId = current.getUniqueId();
       if (isFeature(currentId)) {
-        featureName = current.getDisplayName();
+        featureName = currentId.getLastSegment().getValue() + ":" + current.getDisplayName();
         break;
 
       } else {
@@ -73,9 +74,21 @@ public abstract class CucumberUtils {
     return Pair.of(featureName, scenarioName.toString());
   }
 
-  public static boolean isFeature(UniqueId uniqueId) {
+  public static String getFeatureName(TestDescriptor testDescriptor) {
+    UniqueId uniqueId = testDescriptor.getUniqueId();
     List<UniqueId.Segment> segments = uniqueId.getSegments();
-    UniqueId.Segment lastSegment = segments.listIterator(segments.size()).previous();
+    ListIterator<UniqueId.Segment> it = segments.listIterator(segments.size());
+    while (it.hasPrevious()) {
+      UniqueId.Segment segment = it.previous();
+      if ("feature".equals(segment.getType())) {
+        return segment.getValue() + ":" + testDescriptor.getLegacyReportingName();
+      }
+    }
+    return testDescriptor.getLegacyReportingName();
+  }
+
+  public static boolean isFeature(UniqueId uniqueId) {
+    UniqueId.Segment lastSegment = uniqueId.getLastSegment();
     return "feature".equals(lastSegment.getType());
   }
 

@@ -9,13 +9,16 @@ import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_TAG;
 import static datadog.trace.core.datastreams.TagsProcessor.GROUP_TAG;
 import static datadog.trace.core.datastreams.TagsProcessor.TOPIC_TAG;
 import static datadog.trace.core.datastreams.TagsProcessor.TYPE_TAG;
-import static datadog.trace.instrumentation.kafka_clients.Utils.computePayloadSizeBytes;
+import static datadog.trace.instrumentation.kafka_common.StreamingContext.STREAMING_CONTEXT;
+import static datadog.trace.instrumentation.kafka_common.Utils.computePayloadSizeBytes;
 import static datadog.trace.instrumentation.kafka_streams.KafkaStreamsDecorator.BROKER_DECORATE;
 import static datadog.trace.instrumentation.kafka_streams.KafkaStreamsDecorator.CONSUMER_DECORATE;
 import static datadog.trace.instrumentation.kafka_streams.KafkaStreamsDecorator.KAFKA_CONSUME;
 import static datadog.trace.instrumentation.kafka_streams.KafkaStreamsDecorator.KAFKA_DELIVER;
 import static datadog.trace.instrumentation.kafka_streams.KafkaStreamsDecorator.TIME_IN_QUEUE_ENABLED;
+import static datadog.trace.instrumentation.kafka_streams.ProcessorRecordContextSetter.PR_SETTER;
 import static datadog.trace.instrumentation.kafka_streams.ProcessorRecordContextVisitor.PR_GETTER;
+import static datadog.trace.instrumentation.kafka_streams.StampedRecordContextSetter.SR_SETTER;
 import static datadog.trace.instrumentation.kafka_streams.StampedRecordContextVisitor.SR_GETTER;
 import static java.util.Collections.singletonMap;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
@@ -61,10 +64,14 @@ public class KafkaStreamTaskInstrumentation extends Instrumenter.Tracing
   public String[] helperClassNames() {
     return new String[] {
       "datadog.trace.instrumentation.kafka_clients.TracingIterableDelegator",
-      "datadog.trace.instrumentation.kafka_clients.Utils",
+      "datadog.trace.instrumentation.kafka_common.Utils",
+      "datadog.trace.instrumentation.kafka_common.StreamingContext",
       packageName + ".KafkaStreamsDecorator",
+      packageName + ".ProcessorRecordContextHeadersAccess",
       packageName + ".ProcessorRecordContextVisitor",
+      packageName + ".ProcessorRecordContextSetter",
       packageName + ".StampedRecordContextVisitor",
+      packageName + ".StampedRecordContextSetter",
       packageName + ".StreamTaskContext",
     };
   }
@@ -233,7 +240,6 @@ public class KafkaStreamTaskInstrumentation extends Instrumenter.Tracing
           // The queueSpan will be finished after inner span has been activated to ensure that
           // spans are written out together by TraceStructureWriter when running in strict mode
         }
-
         LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>();
         sortedTags.put(DIRECTION_TAG, DIRECTION_IN);
         if (streamTaskContext != null) {
@@ -245,11 +251,20 @@ public class KafkaStreamTaskInstrumentation extends Instrumenter.Tracing
         }
         sortedTags.put(TOPIC_TAG, record.topic());
         sortedTags.put(TYPE_TAG, "kafka");
+
         final long payloadSize =
             span.traceConfig().isDataStreamsEnabled() ? computePayloadSizeBytes(record.value) : 0;
-        AgentTracer.get()
-            .getDataStreamsMonitoring()
-            .setCheckpoint(span, sortedTags, record.timestamp, payloadSize);
+        if (STREAMING_CONTEXT.empty()) {
+          AgentTracer.get()
+              .getDataStreamsMonitoring()
+              .setCheckpoint(span, sortedTags, record.timestamp, payloadSize);
+        } else {
+          if (STREAMING_CONTEXT.isSourceTopic(record.topic())) {
+            propagate()
+                .injectPathwayContext(
+                    span, record, SR_SETTER, sortedTags, record.timestamp, payloadSize);
+          }
+        }
       } else {
         span = startSpan(KAFKA_CONSUME, null);
       }
@@ -321,9 +336,17 @@ public class KafkaStreamTaskInstrumentation extends Instrumenter.Tracing
           payloadSize = metadata.serializedKeySize() + metadata.serializedValueSize();
         }
 
-        AgentTracer.get()
-            .getDataStreamsMonitoring()
-            .setCheckpoint(span, sortedTags, record.timestamp(), payloadSize);
+        if (STREAMING_CONTEXT.empty()) {
+          AgentTracer.get()
+              .getDataStreamsMonitoring()
+              .setCheckpoint(span, sortedTags, record.timestamp(), payloadSize);
+        } else {
+          if (STREAMING_CONTEXT.isSourceTopic(record.topic())) {
+            propagate()
+                .injectPathwayContext(
+                    span, record, PR_SETTER, sortedTags, record.timestamp(), payloadSize);
+          }
+        }
       } else {
         span = startSpan(KAFKA_CONSUME, null);
       }
