@@ -1,4 +1,4 @@
-package datadog.trace.api;
+package datadog.trace.api.telemetry;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -13,20 +13,17 @@ import org.slf4j.Marker;
 import org.slf4j.MarkerFactory;
 
 public class LogCollector {
-  public static Marker SEND_TELEMETRY = MarkerFactory.getMarker("SEND_TELEMETRY");
+  public static final Marker SEND_TELEMETRY = MarkerFactory.getMarker("SEND_TELEMETRY");
   private static final int DEFAULT_MAX_CAPACITY = 1024;
+  private static final LogCollector INSTANCE = new LogCollector();
   private final Map<RawLogMessage, AtomicInteger> rawLogMessages;
   private final int maxCapacity;
 
-  private static class Holder {
-    private static final LogCollector INSTANCE = new LogCollector();
-  }
-
   public static LogCollector get() {
-    return Holder.INSTANCE;
+    return INSTANCE;
   }
 
-  LogCollector() {
+  private LogCollector() {
     this(DEFAULT_MAX_CAPACITY);
   }
 
