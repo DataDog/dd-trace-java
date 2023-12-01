@@ -7,6 +7,8 @@ public interface TraceConfig {
 
   boolean isDebugEnabled();
 
+  boolean isTriageEnabled();
+
   boolean isRuntimeMetricsEnabled();
 
   boolean isLogsInjectionEnabled();

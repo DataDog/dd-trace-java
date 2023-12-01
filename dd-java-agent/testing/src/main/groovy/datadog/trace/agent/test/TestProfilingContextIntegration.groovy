@@ -2,7 +2,6 @@ package datadog.trace.agent.test
 
 import datadog.trace.api.profiling.ProfilingContextAttribute
 import datadog.trace.api.profiling.ProfilingScope
-import datadog.trace.bootstrap.instrumentation.api.ProfilerContext
 import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration
 
 import java.util.concurrent.atomic.AtomicInteger
@@ -18,18 +17,6 @@ class TestProfilingContextIntegration implements ProfilingContextIntegration {
   @Override
   void onDetach() {
     detachments.incrementAndGet()
-  }
-
-  @Override
-  void setContext(ProfilerContext profilerContext) {
-  }
-
-  @Override
-  void clearContext() {
-  }
-
-  @Override
-  void setContext(long rootSpanId, long spanId) {
   }
 
   @Override

@@ -2,7 +2,7 @@ package datadog.telemetry.log
 
 import datadog.telemetry.TelemetryService
 import datadog.telemetry.api.LogMessage
-import datadog.trace.api.LogCollector
+import datadog.trace.api.telemetry.LogCollector
 import datadog.trace.test.util.DDSpecification
 import org.slf4j.Logger
 import datadog.slf4j.impl.StaticLoggerBinder

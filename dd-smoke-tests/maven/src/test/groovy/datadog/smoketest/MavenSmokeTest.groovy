@@ -4,6 +4,7 @@ package datadog.smoketest
 import datadog.trace.api.Config
 import datadog.trace.api.config.CiVisibilityConfig
 import datadog.trace.api.config.GeneralConfig
+import datadog.trace.civisibility.CiVisibilitySmokeTest
 import datadog.trace.util.Strings
 import okhttp3.OkHttpClient
 import okhttp3.Request
