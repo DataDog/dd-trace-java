@@ -12,10 +12,13 @@ import static datadog.trace.api.config.TracerConfig.SERVICE_MAPPING;
 import static datadog.trace.api.config.TracerConfig.TRACE_SAMPLE_RATE;
 import static datadog.trace.util.CollectionUtils.tryMakeImmutableMap;
 
+import datadog.trace.api.sampling.SamplingRule.SpanSamplingRule;
+import datadog.trace.api.sampling.SamplingRule.TraceSamplingRule;
 import datadog.trace.util.Strings;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.function.BiFunction;
@@ -93,6 +96,8 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
     Map<String, String> requestHeaderTags;
     Map<String, String> responseHeaderTags;
     Map<String, String> baggageMapping;
+    List<? extends SpanSamplingRule> spanSamplingRules;
+    List<? extends TraceSamplingRule> traceSamplingRules;
 
     Double traceSampleRate;
 
@@ -180,6 +185,16 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
 
     public Builder setTraceSampleRate(Double traceSampleRate) {
       this.traceSampleRate = traceSampleRate;
+      return this;
+    }
+
+    public Builder setSpanSamplingRules(List<? extends SpanSamplingRule> spanSamplingRules) {
+      this.spanSamplingRules = spanSamplingRules;
+      return this;
+    }
+
+    public Builder setTraceSamplingRules(List<? extends TraceSamplingRule> traceSamplingRules) {
+      this.traceSamplingRules = traceSamplingRules;
       return this;
     }
 
@@ -278,6 +293,8 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
     final Map<String, String> requestHeaderTags;
     final Map<String, String> responseHeaderTags;
     final Map<String, String> baggageMapping;
+    final List<? extends SpanSamplingRule> spanSamplingRules;
+    final List<? extends TraceSamplingRule> traceSamplingRules;
 
     final Double traceSampleRate;
 
@@ -295,6 +312,9 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
       this.baggageMapping = nullToEmpty(builder.baggageMapping);
 
       this.traceSampleRate = builder.traceSampleRate;
+
+      this.spanSamplingRules = builder.spanSamplingRules;
+      this.traceSamplingRules = builder.traceSamplingRules;
     }
 
     private static <K, V> Map<K, V> nullToEmpty(Map<K, V> mapping) {
@@ -349,6 +369,16 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
     @Override
     public Double getTraceSampleRate() {
       return traceSampleRate;
+    }
+
+    @Override
+    public List<? extends SpanSamplingRule> getSpanSamplingRules() {
+      return this.spanSamplingRules;
+    }
+
+    @Override
+    public List<? extends TraceSamplingRule> getTraceSamplingRules() {
+      return traceSamplingRules;
     }
   }
 }

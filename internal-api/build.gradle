@@ -39,6 +39,7 @@ excludedClassesCoverage += [
   // an enum
   "datadog.trace.api.sampling.AdaptiveSampler",
   "datadog.trace.api.sampling.ConstantSampler",
+  "datadog.trace.api.sampling.SamplingRule.TraceSamplingRule.TargetSpan",
   "datadog.trace.api.EndpointCheckpointerHolder",
   "datadog.trace.api.iast.IastAdvice.Kind",
   "datadog.trace.api.UserEventTrackingMode",
