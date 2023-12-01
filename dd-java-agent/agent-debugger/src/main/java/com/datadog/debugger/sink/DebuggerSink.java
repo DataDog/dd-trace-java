@@ -17,7 +17,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Collects data that needs to be sent to the backend: Snapshots, metrics and statuses */
-public class DebuggerSink implements Sink {
+public class DebuggerSink {
   private static final Logger log = LoggerFactory.getLogger(DebuggerSink.class);
   private static final double FREE_CAPACITY_LOWER_THRESHOLD = 0.25;
   private static final double FREE_CAPACITY_UPPER_THRESHOLD = 0.75;
@@ -147,7 +147,6 @@ public class DebuggerSink implements Sink {
     return symbolSink;
   }
 
-  @Override
   public void addSnapshot(Snapshot snapshot) {
     boolean added = snapshotSink.offer(snapshot);
     if (!added) {
@@ -260,7 +259,6 @@ public class DebuggerSink implements Sink {
   }
 
   /** Notifies the snapshot was skipped for one of the SkipCause reason */
-  @Override
   public void skipSnapshot(String probeId, DebuggerContext.SkipCause cause) {
     String causeTag;
     switch (cause) {

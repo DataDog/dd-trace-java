@@ -30,7 +30,6 @@ import com.datadog.debugger.el.values.StringValue;
 import com.datadog.debugger.instrumentation.InstrumentationResult;
 import com.datadog.debugger.probe.LogProbe;
 import com.datadog.debugger.probe.ProbeDefinition;
-import com.datadog.debugger.sink.DebuggerSink;
 import com.datadog.debugger.sink.ProbeStatusSink;
 import com.datadog.debugger.sink.Snapshot;
 import com.datadog.debugger.util.MoshiHelper;
@@ -1976,11 +1975,10 @@ public class CapturedSnapshotTest {
     when(config.getFinalDebuggerSymDBUrl()).thenReturn("http://localhost:8126/symdb/v1/input");
     when(config.getDebuggerUploadBatchSize()).thenReturn(100);
     DebuggerTransformerTest.TestSnapshotListener listener =
-        new DebuggerTransformerTest.TestSnapshotListener();
+        new DebuggerTransformerTest.TestSnapshotListener(config, mock(ProbeStatusSink.class));
     DebuggerAgentHelper.injectSink(listener);
     currentTransformer =
-        DebuggerAgent.setupInstrumentTheWorldTransformer(
-            config, instr, new DebuggerSink(config), null);
+        DebuggerAgent.setupInstrumentTheWorldTransformer(config, instr, listener, null);
     DebuggerContext.initClassFilter(new DenyListHelper(null));
     return listener;
   }
@@ -2030,15 +2028,11 @@ public class CapturedSnapshotTest {
     Collection<LogProbe> logProbes = configuration.getLogProbes();
     instrumentationListener = new MockInstrumentationListener();
     probeStatusSink = mock(ProbeStatusSink.class);
-    currentTransformer =
-        new DebuggerTransformer(
-            config,
-            configuration,
-            instrumentationListener,
-            new DebuggerSink(config, probeStatusSink));
-    instr.addTransformer(currentTransformer);
     DebuggerTransformerTest.TestSnapshotListener listener =
-        new DebuggerTransformerTest.TestSnapshotListener();
+        new DebuggerTransformerTest.TestSnapshotListener(config, probeStatusSink);
+    currentTransformer =
+        new DebuggerTransformer(config, configuration, instrumentationListener, listener);
+    instr.addTransformer(currentTransformer);
     DebuggerAgentHelper.injectSink(listener);
     DebuggerContext.init(
         (id, callingClass) -> resolver(id, callingClass, expectedClassName, logProbes), null);
