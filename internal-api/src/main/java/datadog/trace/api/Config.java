@@ -276,7 +276,6 @@ import static datadog.trace.api.config.ProfilingConfig.PROFILING_API_KEY_VERY_OL
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_ENABLED;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DIRECT_ALLOCATION_SAMPLE_LIMIT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DIRECT_ALLOCATION_SAMPLE_LIMIT_DEFAULT;
-import static datadog.trace.api.config.ProfilingConfig.PROFILING_ENABLED_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_EXCEPTION_HISTOGRAM_MAX_COLLECTION_SIZE;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_EXCEPTION_HISTOGRAM_MAX_COLLECTION_SIZE_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_EXCEPTION_HISTOGRAM_TOP_ITEMS;
@@ -1373,8 +1372,13 @@ public class Config {
     spanSamplingRules = configProvider.getString(SPAN_SAMPLING_RULES);
     spanSamplingRulesFile = configProvider.getString(SPAN_SAMPLING_RULES_FILE);
 
+    // For the native image 'instrumenterConfig.isProfilingEnabled()' value will be 'baked-in' based
+    // on whether
+    // the profiler was enabled at build time or not.
+    // Otherwise just do the standard config lookup by key.
     profilingEnabled =
-        configProvider.getBoolean(ProfilingConfig.PROFILING_ENABLED, PROFILING_ENABLED_DEFAULT);
+        configProvider.getBoolean(
+            ProfilingConfig.PROFILING_ENABLED, instrumenterConfig.isProfilingEnabled());
     profilingAgentless =
         configProvider.getBoolean(PROFILING_AGENTLESS, PROFILING_AGENTLESS_DEFAULT);
     isDatadogProfilerEnabled =

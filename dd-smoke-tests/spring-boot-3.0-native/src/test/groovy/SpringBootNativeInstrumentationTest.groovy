@@ -30,8 +30,6 @@ class SpringBootNativeInstrumentationTest extends AbstractServerSmokeTest {
       // enable improved trace.annotation span names
       '-Ddd.trace.annotations.legacy.tracing.enabled=false',
       "--server.port=${httpPort}",
-      // enable profiling feature
-      '-Ddd.profiling.enabled=true',
       '-Ddd.profiling.upload.period=1',
       '-Ddd.profiling.start-force-first=true',
       "-Ddd.profiling.debug.dump_path=${testJfrDir}"
