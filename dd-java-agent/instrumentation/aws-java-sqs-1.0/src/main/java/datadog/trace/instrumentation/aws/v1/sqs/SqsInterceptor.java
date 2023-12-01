@@ -51,11 +51,8 @@ public class SqsInterceptor extends RequestHandler2 {
       LinkedHashMap<String, String> sortedTags = getTags(queueUrl);
 
       final AgentSpan span = newSpan(request);
-      if (span.traceConfig()
-          .isDataStreamsEnabled()) { // avoid iterating on all entries if it's to noop on each
-        for (SendMessageBatchRequestEntry entry : smbRequest.getEntries()) {
-          propagate().injectPathwayContext(span, entry.getMessageAttributes(), SETTER, sortedTags);
-        }
+      for (SendMessageBatchRequestEntry entry : smbRequest.getEntries()) {
+        propagate().injectPathwayContext(span, entry.getMessageAttributes(), SETTER, sortedTags);
       }
     } else if (request instanceof ReceiveMessageRequest) {
       ReceiveMessageRequest rmRequest = (ReceiveMessageRequest) request;

@@ -6,6 +6,7 @@ import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import com.amazonaws.handlers.RequestHandler2;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.api.Config;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.util.Collections;
@@ -51,15 +52,17 @@ public final class SqsClientInstrumentation extends Instrumenter.Tracing
   public static class HandlerChainAdvice {
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void addHandler(@Advice.Return final List<RequestHandler2> handlers) {
-      for (RequestHandler2 interceptor : handlers) {
-        if (interceptor instanceof SqsInterceptor) {
-          return; // list already has our interceptor, return to builder
+      if (Config.get().isDataStreamsEnabled()) {
+        for (RequestHandler2 interceptor : handlers) {
+          if (interceptor instanceof SqsInterceptor) {
+            return; // list already has our interceptor, return to builder
+          }
         }
+        handlers.add(
+            new SqsInterceptor(
+                InstrumentationContext.get(
+                    "com.amazonaws.AmazonWebServiceRequest", AgentSpan.class.getName())));
       }
-      handlers.add(
-          new SqsInterceptor(
-              InstrumentationContext.get(
-                  "com.amazonaws.AmazonWebServiceRequest", AgentSpan.class.getName())));
     }
   }
 }

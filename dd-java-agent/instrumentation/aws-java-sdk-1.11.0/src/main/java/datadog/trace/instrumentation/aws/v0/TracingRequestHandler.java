@@ -57,8 +57,8 @@ public class TracingRequestHandler extends RequestHandler2 {
     } else {
       span = requestSpanStore.remove(request.getOriginalRequest());
       if (span != null) {
-        // we'll land here for SQS send requests, where we create the span in SqsInterceptor to
-        // inject DSM tags.
+        // we'll land here for SQS send requests when DSM is enabled. In that case, we create the
+        // span in SqsInterceptor to inject DSM tags.
         span.setOperationName(AwsNameCache.spanName(request));
       } else {
         // this is the most common code path
