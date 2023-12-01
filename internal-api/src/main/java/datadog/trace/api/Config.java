@@ -2384,13 +2384,14 @@ public class Config {
   }
 
   public boolean isProfilingEnabled() {
-    // This 'complicated' condition is here in order to support the graalvm native image
-    // The 'InstrumenterConfig' will be captured at the time of building the native image
-    // The 'Config' class will be reinitialized at runtime - the idea is to be be able to disable
-    // profiling
-    // even if the support was built-in. The other way around, building native image without
-    // profiling support
-    // and then enabling it at runtime, sadly, does not work and is not supposed to work.
+    if (Platform.isNativeImage()) {
+      if (!instrumenterConfig.isProfilingEnabled() && profilingEnabled) {
+        log.warn(
+            "Profiling was not enabled during the native image build. "
+                + "Please set DD_PROFILING_ENABLED=true in your native image build configuration if you want"
+                + "to use profiling.");
+      }
+    }
     return profilingEnabled && instrumenterConfig.isProfilingEnabled();
   }
 
