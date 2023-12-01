@@ -3,7 +3,6 @@ package datadog.trace.instrumentation.aws.v1.sqs;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 
-import com.amazonaws.AmazonWebServiceRequest;
 import com.amazonaws.handlers.RequestHandler2;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -46,7 +45,7 @@ public final class SqsClientInstrumentation extends Instrumenter.Tracing
   @Override
   public Map<String, String> contextStore() {
     return Collections.singletonMap(
-        AmazonWebServiceRequest.class.getName(), AgentSpan.class.getName());
+        "com.amazonaws.AmazonWebServiceRequest", AgentSpan.class.getName());
   }
 
   public static class HandlerChainAdvice {
@@ -59,7 +58,8 @@ public final class SqsClientInstrumentation extends Instrumenter.Tracing
       }
       handlers.add(
           new SqsInterceptor(
-              InstrumentationContext.get(AmazonWebServiceRequest.class, AgentSpan.class)));
+              InstrumentationContext.get(
+                  "com.amazonaws.AmazonWebServiceRequest", AgentSpan.class.getName())));
     }
   }
 }
