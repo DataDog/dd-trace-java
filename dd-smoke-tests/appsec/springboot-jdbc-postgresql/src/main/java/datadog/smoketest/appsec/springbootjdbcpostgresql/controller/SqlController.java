@@ -1,5 +1,6 @@
 package datadog.smoketest.appsec.springbootjdbcpostgresql.controller;
 
+import datadog.smoketest.appsec.springbootjdbcpostgresql.utils.SqlCommandParser;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
@@ -29,31 +30,52 @@ public class SqlController {
   public String executeQuery(Model model, @RequestParam String sqlQuery) {
     List<String> columnsNames = new ArrayList<>();
     List<List<Object>> data = new ArrayList<>();
+    String result = null;
     String error = null;
 
     try {
-      jdbcTemplate.query(
-          sqlQuery,
-          new ResultSetExtractor<Object>() {
-            @Override
-            public Object extractData(ResultSet rs) throws SQLException, DataAccessException {
-              ResultSetMetaData metaData = rs.getMetaData();
-              int columnsCount = metaData.getColumnCount();
-              for (int i = 1; i <= columnsCount; i++) {
-                columnsNames.add(metaData.getColumnName(i));
-              }
+      SqlCommandParser.Command command = SqlCommandParser.findCommand(sqlQuery);
 
-              while (rs.next()) {
-                List<Object> row = new ArrayList<>();
-                for (int i = 1; i <= columnsCount; i++) {
-                  row.add(rs.getObject(i));
+      switch (command) {
+        case SELECT:
+          jdbcTemplate.query(
+              sqlQuery,
+              new ResultSetExtractor<Object>() {
+                @Override
+                public Object extractData(ResultSet rs) throws SQLException, DataAccessException {
+                  ResultSetMetaData metaData = rs.getMetaData();
+                  int columnsCount = metaData.getColumnCount();
+                  for (int i = 1; i <= columnsCount; i++) {
+                    columnsNames.add(metaData.getColumnName(i));
+                  }
+
+                  while (rs.next()) {
+                    List<Object> row = new ArrayList<>();
+                    for (int i = 1; i <= columnsCount; i++) {
+                      row.add(rs.getObject(i));
+                    }
+                    data.add(row);
+                  }
+
+                  return null;
                 }
-                data.add(row);
-              }
+              });
+          break;
+        case UPDATE:
+          int updatedRows = jdbcTemplate.update(sqlQuery);
+          result = "Updated " + updatedRows + " row(s).";
+          break;
 
-              return null;
-            }
-          });
+        case INSERT:
+          int insertedRows = jdbcTemplate.update(sqlQuery);
+          result = "Inserted " + insertedRows + " row(s).";
+          break;
+
+        default:
+          jdbcTemplate.execute(sqlQuery);
+          result = "Executed sql query";
+      }
+
     } catch (Exception e) {
       error = e.getMessage();
     }
@@ -61,6 +83,7 @@ public class SqlController {
     model.addAttribute("columns", columnsNames);
     model.addAttribute("data", data);
     model.addAttribute("sqlQuery", sqlQuery);
+    model.addAttribute("result", result);
     model.addAttribute("error", error);
     return "query";
   }

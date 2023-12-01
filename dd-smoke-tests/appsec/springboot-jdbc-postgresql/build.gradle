@@ -16,12 +16,11 @@ jar {
 }
 
 dependencies {
-  implementation('org.springframework.boot:spring-boot-starter-jdbc:2.5.1') {
-    //exclude group:'com.zaxxer', module: 'HikariCP'
-  }
+  implementation 'org.springframework.boot:spring-boot-starter-jdbc:2.5.1'
   implementation 'org.springframework.boot:spring-boot-starter-web:2.5.1'
   implementation 'org.springframework.boot:spring-boot-starter-thymeleaf:2.5.1'
   runtimeOnly 'org.postgresql:postgresql:42.7.0'
+  implementation group: 'com.github.jsqlparser', name: 'jsqlparser', version: '4.7'
 
   testImplementation project(':dd-smoke-tests:appsec')
 }
