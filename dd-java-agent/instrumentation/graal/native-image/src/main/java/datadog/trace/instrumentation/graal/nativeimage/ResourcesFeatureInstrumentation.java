@@ -37,6 +37,7 @@ public final class ResourcesFeatureInstrumentation extends AbstractNativeImageIn
         "dd-trace-api.version",
         "trace/dd-trace-core.version",
         "shared/dogstatsd/version.properties",
+        "shared/version-utils.version",
         "shared/datadog/okhttp3/internal/publicsuffix/publicsuffixes.gz",
         "profiling/jfr/dd.jfp",
         "profiling/jfr/safepoints.jfp",
