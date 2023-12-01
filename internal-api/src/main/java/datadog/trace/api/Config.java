@@ -641,6 +641,7 @@ public class Config {
   private final String spanSamplingRules;
   private final String spanSamplingRulesFile;
 
+  private final boolean profilingEnabled;
   private final boolean profilingAgentless;
   private final boolean isDatadogProfilerEnabled;
   @Deprecated private final String profilingUrl;
@@ -1371,6 +1372,13 @@ public class Config {
     spanSamplingRules = configProvider.getString(SPAN_SAMPLING_RULES);
     spanSamplingRulesFile = configProvider.getString(SPAN_SAMPLING_RULES_FILE);
 
+    // For the native image 'instrumenterConfig.isProfilingEnabled()' value will be 'baked-in' based
+    // on whether
+    // the profiler was enabled at build time or not.
+    // Otherwise just do the standard config lookup by key.
+    profilingEnabled =
+        configProvider.getBoolean(
+            ProfilingConfig.PROFILING_ENABLED, instrumenterConfig.isProfilingEnabled());
     profilingAgentless =
         configProvider.getBoolean(PROFILING_AGENTLESS, PROFILING_AGENTLESS_DEFAULT);
     isDatadogProfilerEnabled =
@@ -2376,7 +2384,15 @@ public class Config {
   }
 
   public boolean isProfilingEnabled() {
-    return instrumenterConfig.isProfilingEnabled();
+    if (Platform.isNativeImage()) {
+      if (!instrumenterConfig.isProfilingEnabled() && profilingEnabled) {
+        log.warn(
+            "Profiling was not enabled during the native image build. "
+                + "Please set DD_PROFILING_ENABLED=true in your native image build configuration if you want"
+                + "to use profiling.");
+      }
+    }
+    return profilingEnabled && instrumenterConfig.isProfilingEnabled();
   }
 
   public boolean isProfilingTimelineEventsEnabled() {

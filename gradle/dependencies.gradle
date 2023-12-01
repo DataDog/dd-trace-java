@@ -35,7 +35,8 @@ final class CachedData {
     autoservice   : "1.0-rc7",
     ddprof        : "0.90.0",
     asm           : "9.6",
-    cafe_crypto   : "0.1.0"
+    cafe_crypto   : "0.1.0",
+    lz4           : "1.7.1"
   ]
 
   static deps = [
@@ -61,6 +62,7 @@ final class CachedData {
       "cafe.cryptography:ed25519-elisabeth:${versions.cafe_crypto}",
       "cafe.cryptography:curve25519-elisabeth:${versions.cafe_crypto}"
     ],
+    lz4                  : "org.lz4:lz4-java:${versions.lz4}",
 
     // Testing
 
@@ -110,6 +112,7 @@ final class CachedData {
       "com.github.jnr:jnr-unixsocket:${versions.jnr_unixsocket}",
       "com.squareup.moshi:moshi:${versions.moshi}",
       "org.jctools:jctools-core:${versions.jctools}",
+      "org.lz4:lz4-java:${versions.lz4}",
     ],
 
     // Inverse of "shared".  These exclude directives are part of shadowJar's DSL
@@ -137,6 +140,7 @@ final class CachedData {
       exclude(dependency('com.squareup.okhttp3:okhttp'))
       exclude(dependency('com.datadoghq.okio:okio'))
       exclude(dependency('com.squareup.okio:okio'))
+      exclude(dependency('org.lz4:lz4-java'))
 
       // dogstatsd and its transitives
       exclude(dependency('com.datadoghq:java-dogstatsd-client'))
