@@ -19,7 +19,7 @@ public final class IastConfig {
   public static final String IAST_STACKTRACE_LEAK_SUPPRESS = "iast.stacktrace-leak.suppress";
   public static final String IAST_MAX_RANGE_COUNT = "iast.max-range-count";
 
-  public static final String IAST_TRUNCATION_MAX_VALUE_LENGTH = "iast.trunctation.max.value.length";
+  public static final String IAST_TRUNCATION_MAX_VALUE_LENGTH = "iast.truncation.max.value.length";
 
   private IastConfig() {}
 }
