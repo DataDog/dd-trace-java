@@ -157,6 +157,7 @@ import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_COVERAGE_
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_DEBUG_PORT;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_GIT_COMMAND_TIMEOUT_MILLIS;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_GIT_REMOTE_NAME;
+import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_GIT_UNSHALLOW_DEFER;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_GIT_UNSHALLOW_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_GIT_UPLOAD_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_GIT_UPLOAD_TIMEOUT_MILLIS;
@@ -241,6 +242,7 @@ import static datadog.trace.api.config.GeneralConfig.TRACER_METRICS_IGNORED_RESO
 import static datadog.trace.api.config.GeneralConfig.TRACER_METRICS_MAX_AGGREGATES;
 import static datadog.trace.api.config.GeneralConfig.TRACER_METRICS_MAX_PENDING;
 import static datadog.trace.api.config.GeneralConfig.TRACE_DEBUG;
+import static datadog.trace.api.config.GeneralConfig.TRACE_TRIAGE;
 import static datadog.trace.api.config.GeneralConfig.VERSION;
 import static datadog.trace.api.config.IastConfig.IAST_DEBUG_ENABLED;
 import static datadog.trace.api.config.IastConfig.IAST_DETECTION_MODE;
@@ -720,6 +722,7 @@ public class Config {
   private final Integer ciVisibilityDebugPort;
   private final boolean ciVisibilityGitUploadEnabled;
   private final boolean ciVisibilityGitUnshallowEnabled;
+  private final boolean ciVisibilityGitUnshallowDefer;
   private final long ciVisibilityGitCommandTimeoutMillis;
   private final String ciVisibilityGitRemoteName;
   private final long ciVisibilityBackendApiTimeoutMillis;
@@ -806,6 +809,7 @@ public class Config {
   private final boolean traceAgentV05Enabled;
 
   private final boolean debugEnabled;
+  private final boolean triageEnabled;
   private final boolean startupLogsEnabled;
   private final String configFileStatus;
 
@@ -1646,6 +1650,8 @@ public class Config {
     ciVisibilityGitUnshallowEnabled =
         configProvider.getBoolean(
             CIVISIBILITY_GIT_UNSHALLOW_ENABLED, DEFAULT_CIVISIBILITY_GIT_UNSHALLOW_ENABLED);
+    ciVisibilityGitUnshallowDefer =
+        configProvider.getBoolean(CIVISIBILITY_GIT_UNSHALLOW_DEFER, true);
     ciVisibilityGitCommandTimeoutMillis =
         configProvider.getLong(
             CIVISIBILITY_GIT_COMMAND_TIMEOUT_MILLIS,
@@ -1820,6 +1826,7 @@ public class Config {
     servletAsyncTimeoutError = configProvider.getBoolean(SERVLET_ASYNC_TIMEOUT_ERROR, true);
 
     debugEnabled = configProvider.getBoolean(TRACE_DEBUG, false);
+    triageEnabled = configProvider.getBoolean(TRACE_TRIAGE, debugEnabled); // debug implies triage
 
     startupLogsEnabled =
         configProvider.getBoolean(STARTUP_LOGS_ENABLED, DEFAULT_STARTUP_LOGS_ENABLED);
@@ -2759,6 +2766,10 @@ public class Config {
     return ciVisibilityGitUnshallowEnabled;
   }
 
+  public boolean isCiVisibilityGitUnshallowDefer() {
+    return ciVisibilityGitUnshallowDefer;
+  }
+
   public long getCiVisibilityGitCommandTimeoutMillis() {
     return ciVisibilityGitCommandTimeoutMillis;
   }
@@ -3035,6 +3046,10 @@ public class Config {
 
   public boolean isDebugEnabled() {
     return debugEnabled;
+  }
+
+  public boolean isTriageEnabled() {
+    return triageEnabled;
   }
 
   public boolean isStartupLogsEnabled() {
@@ -4103,6 +4118,8 @@ public class Config {
         + traceAgentV05Enabled
         + ", debugEnabled="
         + debugEnabled
+        + ", triageEnabled="
+        + triageEnabled
         + ", startLogsEnabled="
         + startupLogsEnabled
         + ", configFile='"
