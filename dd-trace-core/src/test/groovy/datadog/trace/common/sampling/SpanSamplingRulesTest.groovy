@@ -1,5 +1,6 @@
 package datadog.trace.common.sampling
 
+import com.squareup.moshi.Moshi
 import datadog.trace.core.test.DDCoreSpecification
 
 import java.nio.file.Files
@@ -13,7 +14,7 @@ class SpanSamplingRulesTest extends DDCoreSpecification {
     return SpanSamplingRules.deserialize(jsonRules)
   }
 
-  def "Deserialize empty list of Span Sampling rules from JSON"() {
+  def "Deserialize empty list of Span Sampling Rules from JSON"() {
     when:
     def rules = deserializeRules('[]')
 
@@ -21,7 +22,7 @@ class SpanSamplingRulesTest extends DDCoreSpecification {
     rules.empty
   }
 
-  def "Deserialize Span Sampling rules from JSON"() {
+  def "Deserialize Span Sampling Rules from JSON"() {
     when:
     def rules = deserializeRules("""[
       {"service": "service-name", "name": "operation-name", "resource": "resource-name", "tags":
@@ -129,6 +130,28 @@ class SpanSamplingRulesTest extends DDCoreSpecification {
 
     where:
     jsonRules << ['[', '{"service": "usersvc",}', '']
+  }
+
+  def "Render JsonRule correctly when toString() is called"() {
+    when:
+    def jsonRule = new Moshi.Builder().build().adapter(SpanSamplingRules.JsonRule).fromJson(json)
+
+    then:
+    jsonRule.toString() == json
+
+    where:
+    json = '{"max_per_second":"10","name":"name","resource":"resource","sample_rate":"0.5","service":"service","tags":{"a":"b","foo":"bar"}}'
+  }
+
+  def "Keep only valid rules when invalid rules are present"() {
+    when:
+    def rules = SpanSamplingRules.deserialize("""[
+      {"service": "usersvc", "name": "healthcheck", "sample_rate": 0.5},
+      {"service": "usersvc", "name": "healthcheck2", "sample_rate": 200}
+    ]""")
+
+    then:
+    rules.rules.size() == 1
   }
 }
 

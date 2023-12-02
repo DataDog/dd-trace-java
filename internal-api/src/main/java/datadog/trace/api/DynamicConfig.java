@@ -373,7 +373,7 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
 
     @Override
     public List<? extends SpanSamplingRule> getSpanSamplingRules() {
-      return this.spanSamplingRules;
+      return spanSamplingRules;
     }
 
     @Override

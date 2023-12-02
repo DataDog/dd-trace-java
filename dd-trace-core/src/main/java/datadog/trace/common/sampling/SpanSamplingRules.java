@@ -29,7 +29,7 @@ public class SpanSamplingRules {
   private final List<Rule> rules;
 
   public SpanSamplingRules(List<Rule> rules) {
-    this.rules = rules;
+    this.rules = Collections.unmodifiableList(rules);
   }
 
   public static SpanSamplingRules deserialize(String json) {
@@ -47,9 +47,9 @@ public class SpanSamplingRules {
     try (JsonReader reader = JsonReader.of(Okio.buffer(Okio.source(new File(jsonFile))))) {
       result = filterOutNullRules(LIST_OF_RULES_ADAPTER.fromJson(reader));
     } catch (FileNotFoundException e) {
-      log.warn("Span sampling rules file {} doesn't exit", jsonFile);
+      log.warn("Span Sampling Rules file {} doesn't exist", jsonFile);
     } catch (IOException e) {
-      log.error("Couldn't read Span sampling rules file {}.", jsonFile, e);
+      log.error("Couldn't read Span Sampling Rules file {}.", jsonFile, e);
     } catch (Throwable ex) {
       log.error("Couldn't parse Span Sampling Rules from JSON file {}.", jsonFile, ex);
     }
@@ -73,11 +73,11 @@ public class SpanSamplingRules {
   }
 
   public List<Rule> getRules() {
-    return Collections.unmodifiableList(this.rules);
+    return rules;
   }
 
   public boolean isEmpty() {
-    return this.rules.isEmpty();
+    return rules.isEmpty();
   }
 
   public static final class Rule implements SamplingRule.SpanSamplingRule {
@@ -110,27 +110,13 @@ public class SpanSamplingRules {
      * @return A {@link Rule} if the {@link JsonRule} is valid, {@code null} otherwise.
      */
     public static Rule create(JsonRule jsonRule) {
-      // Validate service name
-      String service = jsonRule.service;
-      if (service == null || MATCH_ALL.equals(service)) {
-        service = MATCH_ALL;
-      }
-      // Validate operation name
-      String name = jsonRule.name;
-      if (name == null || MATCH_ALL.equals(name)) {
-        name = MATCH_ALL;
-      }
-      // Validate resource name
-      String resource = jsonRule.resource;
-      if (resource == null || MATCH_ALL.equals(resource)) {
-        resource = MATCH_ALL;
-      }
-      // Validate tags
+      String service = SamplingRule.normalizeGlob(jsonRule.service);
+      String name = SamplingRule.normalizeGlob(jsonRule.name);
+      String resource = SamplingRule.normalizeGlob(jsonRule.resource);
       Map<String, String> tags = jsonRule.tags;
       if (tags == null) {
         tags = Collections.emptyMap();
       }
-      // Validate sample_rate
       double sampleRate = 1D;
       if (jsonRule.sample_rate != null) {
         try {
@@ -197,6 +183,8 @@ public class SpanSamplingRules {
   }
 
   private static final class JsonRule {
+    private static final JsonAdapter<JsonRule> jsonAdapter = MOSHI.adapter(JsonRule.class);
+
     String service;
     String name;
     String resource;
@@ -206,22 +194,7 @@ public class SpanSamplingRules {
 
     @Override
     public String toString() {
-      StringBuilder tags = null;
-      if (this.tags != null) {
-        tags = new StringBuilder("{");
-        for (Map.Entry<String, String> entry : this.tags.entrySet()) {
-          tags.append("\"").append(entry.getKey()).append("\": ").append(entry.getValue());
-        }
-        tags.append("}");
-      }
-      return "{"
-          + (this.service == null ? "" : "\"service:\" " + this.service + ",")
-          + (this.name == null ? "" : "\"name:\" " + this.name + ",")
-          + (this.resource == null ? "" : "\"resource:\" " + this.resource + ",")
-          + (tags == null ? "" : "\"tags\": " + tags)
-          + (this.sample_rate == null ? "" : "\"sample_rate:\" " + this.sample_rate + ",")
-          + (this.max_per_second == null ? "" : "\"max_per_second:\" " + this.max_per_second + ",")
-          + "}";
+      return jsonAdapter.toJson(this);
     }
   }
 

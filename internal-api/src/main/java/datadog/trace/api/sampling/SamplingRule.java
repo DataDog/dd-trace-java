@@ -4,6 +4,10 @@ import java.util.Map;
 
 /** This interface describes the criteria for a sampling rule. */
 public interface SamplingRule {
+  static String normalizeGlob(String name) {
+    return name == null || MATCH_ALL.equals(name) ? MATCH_ALL : name;
+  }
+
   /** The "match all" glob pattern . */
   String MATCH_ALL = "*";
 
