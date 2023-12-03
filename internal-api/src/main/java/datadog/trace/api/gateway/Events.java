@@ -189,16 +189,27 @@ public final class Events<D> {
     return (EventType<BiFunction<RequestContext, Object, Flow<Void>>>) GRPC_SERVER_REQUEST_MESSAGE;
   }
 
-  static final int DATABASE_RESULT_ID = 15;
+  static final int DATABASE_READ_ID = 15;
 
-  private static final EventType DATABASE_RESULT =
-      new ET<>("server.database.result", DATABASE_RESULT_ID);
+  private static final EventType DATABASE_READ = new ET<>("server.database.read", DATABASE_READ_ID);
 
   @SuppressWarnings("unchecked")
   public EventType<BiFunction<RequestContext, Map<String, Map<String, Object>>, Flow<Void>>>
-      databaseResult() {
+      databaseRead() {
     return (EventType<BiFunction<RequestContext, Map<String, Map<String, Object>>, Flow<Void>>>)
-        DATABASE_RESULT;
+        DATABASE_READ;
+  }
+
+  static final int DATABASE_WRITE_ID = 16;
+
+  private static final EventType DATABASE_WRITE =
+      new ET<>("server.database.write", DATABASE_WRITE_ID);
+
+  @SuppressWarnings("unchecked")
+  public EventType<BiFunction<RequestContext, Map<String, Map<String, Object>>, Flow<Void>>>
+      databaseWrite() {
+    return (EventType<BiFunction<RequestContext, Map<String, Map<String, Object>>, Flow<Void>>>)
+        DATABASE_WRITE;
   }
 
   static final int MAX_EVENTS = nextId.get();

@@ -19,6 +19,8 @@ addTestSuiteForDir('latestDepTest', 'test')
 addTestSuiteExtendingForDir('latestDepJava11Test', 'latestDepTest', 'test')
 
 dependencies {
+  implementation group: 'com.github.jsqlparser', name: 'jsqlparser', version: '4.7'
+
   testImplementation(testFixtures(project(':dd-java-agent:agent-iast')))
 
   // jdbc unit testing

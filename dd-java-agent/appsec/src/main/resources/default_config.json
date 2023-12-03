@@ -8006,10 +8006,18 @@
           {
             "inputs": [
               {
-                "address": "server.database.result"
+                "address": "server.database.read"
               }
             ],
             "output": "_dd.appsec.s.db.read"
+          },
+          {
+            "inputs": [
+              {
+                "address": "server.database.write"
+              }
+            ],
+            "output": "_dd.appsec.s.db.write"
           }
         ],
         "scanners": [

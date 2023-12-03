@@ -4,11 +4,10 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.ha
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.nameStartsWith;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-import static datadog.trace.instrumentation.jdbc.JDBCDecorator.DECORATE;
-import static datadog.trace.instrumentation.jdbc.JDBCDecorator.logSQLException;
+import static datadog.trace.instrumentation.jdbc.DataDecorator.DECORATE;
+import static datadog.trace.instrumentation.jdbc.DataDecorator.logSQLException;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
-import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
@@ -20,13 +19,14 @@ import java.sql.Statement;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
+import net.sf.jsqlparser.JSQLParserException;
 
 @AutoService(Instrumenter.class)
-public class StatementAppSecInstrumentation extends Instrumenter.Tracing
-    implements Instrumenter.ForBootstrap, Instrumenter.ForTypeHierarchy {
+public class StatementAppSecInstrumentation extends Instrumenter.AppSec
+    implements Instrumenter.ForTypeHierarchy {
 
   public StatementAppSecInstrumentation() {
-    super("jdbc");
+    super("jdbc-appsec");
   }
 
   @Override
@@ -42,7 +42,11 @@ public class StatementAppSecInstrumentation extends Instrumenter.Tracing
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".JDBCDecorator", packageName + ".ResultSetReadWrapper",
+      packageName + ".JDBCDecorator",
+      packageName + ".ResultSetReadWrapper",
+      packageName + ".DataDecorator",
+      packageName + ".SqlDataExtractor",
+      packageName + ".SqlDataExtractor$ValueVisitor"
     };
   }
 
@@ -50,19 +54,23 @@ public class StatementAppSecInstrumentation extends Instrumenter.Tracing
   public void adviceTransformations(AdviceTransformation transformation) {
     transformation.applyAdvice(
         nameStartsWith("executeQuery")
-            .and(takesArgument(0, named("java.lang.String")))
+            .and(takesArguments(String.class))
             .and(returns(hasInterface(named("java.sql.ResultSet")))),
-        StatementAppSecInstrumentation.class.getName() + "$StatementAdvice");
+        StatementAppSecInstrumentation.class.getName() + "$StatementExecuteQueryAdvice");
+
+    transformation.applyAdvice(
+        nameStartsWith("executeUpdate").and(takesArguments(String.class).and(returns(int.class))),
+        StatementAppSecInstrumentation.class.getName() + "$StatementExecuteUpdateAdvice");
 
     transformation.applyAdvice(
         nameStartsWith("executeQuery")
             .and(takesArguments(0))
             .and(isPublic())
             .and(returns(hasInterface(named("java.sql.ResultSet")))),
-        StatementAppSecInstrumentation.class.getName() + "$PreparedStatementAdvice");
+        StatementAppSecInstrumentation.class.getName() + "$PreparedStatementExecuteQueryAdvice");
   }
 
-  public static class StatementAdvice {
+  public static class StatementExecuteQueryAdvice {
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static boolean onBeforeQuery(
@@ -82,7 +90,6 @@ public class StatementAppSecInstrumentation extends Instrumenter.Tracing
         @Advice.Argument(value = 0, readOnly = false) String sql,
         @Advice.Return(readOnly = false) ResultSet result,
         @Advice.Thrown final Throwable throwable) {
-
       if (!input || result == null) {
         return;
       }
@@ -97,7 +104,21 @@ public class StatementAppSecInstrumentation extends Instrumenter.Tracing
     }
   }
 
-  public static class PreparedStatementAdvice {
+  public static class StatementExecuteUpdateAdvice {
+    @Advice.OnMethodExit(onThrowable = Throwable.class)
+    public static void onQueryResult(
+        @Advice.Argument(value = 0, readOnly = false) String sql,
+        @Advice.Return(readOnly = false) int result,
+        @Advice.Thrown final Throwable throwable) {
+      try {
+        DECORATE.onUpdateResult(sql, result);
+      } catch (JSQLParserException e) {
+        logSQLException(e);
+      }
+    }
+  }
+
+  public static class PreparedStatementExecuteQueryAdvice {
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void onQueryResult(

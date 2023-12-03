@@ -72,7 +72,8 @@ public class GatewayBridge {
   private volatile DataSubscriberInfo pathParamsSubInfo;
   private volatile DataSubscriberInfo respDataSubInfo;
   private volatile DataSubscriberInfo grpcServerRequestMsgSubInfo;
-  private volatile DataSubscriberInfo databaseResultSubInfo;
+  private volatile DataSubscriberInfo databaseReadSubInfo;
+  private volatile DataSubscriberInfo databaseWriteSubInfo;
 
   public GatewayBridge(
       SubscriptionService subscriptionService,
@@ -386,27 +387,53 @@ public class GatewayBridge {
         });
 
     subscriptionService.registerCallback(
-        EVENTS.databaseResult(),
+        EVENTS.databaseRead(),
         (ctx_, data) -> {
           AppSecRequestContext ctx = ctx_.getData(RequestContextSlot.APPSEC);
           if (ctx == null) {
             return NoopFlow.INSTANCE;
           }
           while (true) {
-            DataSubscriberInfo subInfo = databaseResultSubInfo;
+            DataSubscriberInfo subInfo = databaseReadSubInfo;
             if (subInfo == null) {
-              subInfo = producerService.getDataSubscribers(KnownAddresses.DATABASE_RESULT);
-              databaseResultSubInfo = subInfo;
+              subInfo = producerService.getDataSubscribers(KnownAddresses.DATABASE_READ);
+              databaseReadSubInfo = subInfo;
             }
             if (subInfo == null || subInfo.isEmpty()) {
               return NoopFlow.INSTANCE;
             }
             // Object convObj = ObjectIntrospection.convert(data);
-            DataBundle bundle = new SingletonDataBundle<>(KnownAddresses.DATABASE_RESULT, data);
+            DataBundle bundle = new SingletonDataBundle<>(KnownAddresses.DATABASE_READ, data);
             try {
               return producerService.publishDataEvent(subInfo, ctx, bundle, false);
             } catch (ExpiredSubscriberInfoException e) {
-              databaseResultSubInfo = null;
+              databaseReadSubInfo = null;
+            }
+          }
+        });
+
+    subscriptionService.registerCallback(
+        EVENTS.databaseWrite(),
+        (ctx_, data) -> {
+          AppSecRequestContext ctx = ctx_.getData(RequestContextSlot.APPSEC);
+          if (ctx == null) {
+            return NoopFlow.INSTANCE;
+          }
+          while (true) {
+            DataSubscriberInfo subInfo = databaseWriteSubInfo;
+            if (subInfo == null) {
+              subInfo = producerService.getDataSubscribers(KnownAddresses.DATABASE_WRITE);
+              databaseWriteSubInfo = subInfo;
+            }
+            if (subInfo == null || subInfo.isEmpty()) {
+              return NoopFlow.INSTANCE;
+            }
+            // Object convObj = ObjectIntrospection.convert(data);
+            DataBundle bundle = new SingletonDataBundle<>(KnownAddresses.DATABASE_WRITE, data);
+            try {
+              return producerService.publishDataEvent(subInfo, ctx, bundle, false);
+            } catch (ExpiredSubscriberInfoException e) {
+              databaseWriteSubInfo = null;
             }
           }
         });

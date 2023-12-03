@@ -1,6 +1,6 @@
 package datadog.trace.api.gateway;
 
-import static datadog.trace.api.gateway.Events.DATABASE_RESULT_ID;
+import static datadog.trace.api.gateway.Events.DATABASE_READ_ID;
 import static datadog.trace.api.gateway.Events.GRPC_SERVER_REQUEST_MESSAGE_ID;
 import static datadog.trace.api.gateway.Events.MAX_EVENTS;
 import static datadog.trace.api.gateway.Events.REQUEST_BODY_CONVERTED_ID;
@@ -359,7 +359,7 @@ public class InstrumentationGateway {
                 }
               }
             };
-      case DATABASE_RESULT_ID:
+      case DATABASE_READ_ID:
         return (C)
             new BiFunction<RequestContext, Map<String, Map<String, Object>>, Flow<Void>>() {
               @Override
