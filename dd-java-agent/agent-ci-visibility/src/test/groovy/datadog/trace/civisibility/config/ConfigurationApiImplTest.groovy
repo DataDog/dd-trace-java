@@ -39,7 +39,6 @@ class ConfigurationApiImplTest extends Specification {
               "repository_url": "https://github.com/DataDog/foo",
               "branch"        : "prod",
               "sha"           : "d64185e45d1722ab3a53c45be47accae",
-              "test_level"    : "test",
               "configurations": [
                 "os.platform"         : "linux",
                 "os.architecture"     : "amd64",
@@ -58,7 +57,7 @@ class ConfigurationApiImplTest extends Specification {
         ]
 
         if (expectedRequest) {
-          response.status(200).send('{ "data": { "type": "ci_app_tracers_test_service_settings", "id": "uuid", "attributes": { "code_coverage": true, "tests_skipping": true, "require_git": true } } }')
+          response.status(200).send('{ "data": { "type": "ci_app_tracers_test_service_settings", "id": "uuid", "attributes": { "code_coverage": true, "tests_skipping": true } } }')
         } else {
           response.status(400).send()
         }
@@ -76,7 +75,6 @@ class ConfigurationApiImplTest extends Specification {
               "repository_url": "https://github.com/DataDog/foo",
               "branch"        : "prod",
               "sha"           : "d64185e45d1722ab3a53c45be47accae",
-              "test_level"    : "test",
               "configurations": [
                 "os.platform"         : "linux",
                 "os.architecture"     : "amd64",
@@ -120,7 +118,6 @@ class ConfigurationApiImplTest extends Specification {
     then:
     settings.codeCoverageEnabled
     settings.testsSkippingEnabled
-    settings.gitUploadRequired
   }
 
   def "test skippable tests request"() {

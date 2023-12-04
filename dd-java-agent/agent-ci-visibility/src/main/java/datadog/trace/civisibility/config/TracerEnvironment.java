@@ -15,10 +15,6 @@ public class TracerEnvironment {
 
   private final String branch;
   private final String sha;
-
-  @Json(name = "test_level")
-  private final String testLevel = "test";
-
   private final Configurations configurations;
 
   private TracerEnvironment(
