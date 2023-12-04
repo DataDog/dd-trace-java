@@ -29,16 +29,16 @@ public interface TraceConfig {
   Double getTraceSampleRate();
 
   /**
-   * Get the tracer sampler span sampling rules.
+   * Get the tracer sampler Span Sampling Rules.
    *
-   * @return The tracer sampler span sampling rules, or an empty collection if no rule is defined.
+   * @return The tracer sampler Span Sampling Rules, or an empty collection if no rule is defined.
    */
   List<? extends SpanSamplingRule> getSpanSamplingRules();
 
   /**
-   * Get the tracer sampler trace sampling rules.
+   * Get the tracer sampler Trace Sampling Rules.
    *
-   * @return The tracer sampler trace sampling rules, or an empty collection if no rule is defined.
+   * @return The tracer sampler Trace Sampling Rules, or an empty collection if no rule is defined.
    */
   List<? extends TraceSamplingRule> getTraceSamplingRules();
 }
