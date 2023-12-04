@@ -179,7 +179,7 @@ public class CiVisibilitySystem {
               fileSystem, config.getCiVisibilityResourceFolderNames());
       RepoIndexBuilder indexBuilder =
           new RepoIndexBuilder(
-              projectRoot.toString(), packageResolver, resourceResolver, fileSystem);
+              repoRoot, packageResolver, resourceResolver, fileSystem);
 
       SourcePathResolver sourcePathResolver = getSourcePathResolver(repoRoot, indexBuilder);
       Codeowners codeowners = getCodeowners(repoRoot);
