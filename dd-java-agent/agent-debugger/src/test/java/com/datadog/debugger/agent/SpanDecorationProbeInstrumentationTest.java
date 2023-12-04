@@ -643,7 +643,7 @@ public class SpanDecorationProbeInstrumentationTest extends ProbeInstrumentation
         new DebuggerTransformer(
             config, configuration, null, new DebuggerSink(config, probeStatusSink));
     instr.addTransformer(currentTransformer);
-    mockSink = new MockSink();
+    mockSink = new MockSink(config, probeStatusSink);
     DebuggerAgentHelper.injectSink(mockSink);
     DebuggerContext.init(
         (id, callingClass) -> resolver(id, callingClass, expectedClassName, configuration), null);
