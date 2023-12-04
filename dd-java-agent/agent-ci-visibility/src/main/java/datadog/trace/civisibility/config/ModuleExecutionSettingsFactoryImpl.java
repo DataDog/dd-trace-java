@@ -135,11 +135,8 @@ public class ModuleExecutionSettingsFactoryImpl implements ModuleExecutionSettin
   }
 
   private boolean isCodeCoverageEnabled(CiVisibilitySettings ciVisibilitySettings) {
-    return config.isCiVisibilityCodeCoverageEnabled()
-        && (ciVisibilitySettings.isCodeCoverageEnabled() // coverage enabled via backend settings
-            || config
-                .isCiVisibilityJacocoPluginVersionProvided() // coverage enabled via tracer settings
-        );
+    return ciVisibilitySettings.isCodeCoverageEnabled()
+        && config.isCiVisibilityCodeCoverageEnabled();
   }
 
   private Map<String, String> getPropertiesPropagatedToChildProcess(
