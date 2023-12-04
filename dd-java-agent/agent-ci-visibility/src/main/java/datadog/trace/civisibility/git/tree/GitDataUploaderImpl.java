@@ -81,11 +81,7 @@ public class GitDataUploaderImpl implements GitDataUploader {
 
   private void uploadGitData() {
     try {
-      LOGGER.info("Starting git data upload, {}", gitClient);
-
-      if (config.isCiVisibilityGitUnshallowEnabled()
-          && !config.isCiVisibilityGitUnshallowDefer()
-          && gitClient.isShallow()) {
+      if (config.isCiVisibilityGitUnshallowEnabled() && gitClient.isShallow()) {
         unshallowRepository();
       }
 
@@ -93,28 +89,12 @@ public class GitDataUploaderImpl implements GitDataUploader {
       String remoteUrl = gitInfo.getRepositoryURL();
       List<String> latestCommits = gitClient.getLatestCommits();
       if (latestCommits.isEmpty()) {
-        LOGGER.info("No commits in the last month, skipping git data upload");
+        LOGGER.debug("No commits in the last month");
         callback.complete(null);
         return;
       }
 
       Collection<String> commitsToSkip = gitDataApi.searchCommits(remoteUrl, latestCommits);
-      if (commitsToSkip.size() == latestCommits.size()) {
-        LOGGER.info(
-            "Backend already knows of the {} local commits, skipping git data upload",
-            latestCommits.size());
-        callback.complete(null);
-        return;
-      }
-
-      if (config.isCiVisibilityGitUnshallowEnabled()
-          && config.isCiVisibilityGitUnshallowDefer()
-          && gitClient.isShallow()) {
-        unshallowRepository();
-        latestCommits = gitClient.getLatestCommits();
-        commitsToSkip = gitDataApi.searchCommits(remoteUrl, latestCommits);
-      }
-
       Collection<String> commitsToInclude =
           new ArrayList<>(latestCommits.size() - commitsToSkip.size());
       for (String commit : latestCommits) {
@@ -125,7 +105,7 @@ public class GitDataUploaderImpl implements GitDataUploader {
 
       List<String> objectHashes = gitClient.getObjects(commitsToSkip, commitsToInclude);
       if (objectHashes.isEmpty()) {
-        LOGGER.info("No git objects to upload");
+        LOGGER.debug("No git objects to upload");
         callback.complete(null);
         return;
       }
@@ -148,7 +128,7 @@ public class GitDataUploaderImpl implements GitDataUploader {
         FileUtils.delete(packFilesDirectory);
       }
 
-      LOGGER.info("Git data upload finished");
+      LOGGER.info("Git data upload finished, {}", gitClient);
       callback.complete(null);
 
     } catch (Exception e) {
@@ -160,7 +140,6 @@ public class GitDataUploaderImpl implements GitDataUploader {
   }
 
   private void unshallowRepository() throws IOException, TimeoutException, InterruptedException {
-    long unshallowStart = System.currentTimeMillis();
     try {
       gitClient.unshallow(GitClient.HEAD);
       return;
@@ -179,7 +158,6 @@ public class GitDataUploaderImpl implements GitDataUploader {
           e);
       gitClient.unshallow(null);
     }
-    LOGGER.info("Repository unshallowing took {} ms", System.currentTimeMillis() - unshallowStart);
   }
 
   private void waitForUploadToFinish() {
