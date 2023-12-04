@@ -19,25 +19,21 @@ class CucumberTest extends CiVisibilityInstrumentationTest {
   def "test #testcaseName"() {
     setup:
     givenSkippableTests(skippedTests)
-    runFeatures(features, parallel)
+    runFeatures(features)
 
     expect:
     assertSpansData(testcaseName, expectedTracesCount)
 
     where:
-    testcaseName                                 | features                                                                                                                         | parallel | expectedTracesCount | skippedTests
-    "test-succeed"                               | ["org/example/cucumber/calculator/basic_arithmetic.feature"]                                                                     | false    | 2                   | []
-    "test-scenario-outline-${version()}"         | ["org/example/cucumber/calculator/basic_arithmetic_with_examples.feature"]                                                       | false    | 5                   | []
-    "test-skipped"                               | ["org/example/cucumber/calculator/basic_arithmetic_skipped.feature"]                                                             | false    | 3                   | []
-    "test-skipped-feature"                       | ["org/example/cucumber/calculator/basic_arithmetic_skipped_feature.feature"]                                                     | false    | 3                   | []
-    "test-skipped-scenario-outline-${version()}" | ["org/example/cucumber/calculator/basic_arithmetic_with_examples_skipped.feature"]                                               | false    | 5                   | []
-    "test-itr-skipping"                          | ["org/example/cucumber/calculator/basic_arithmetic.feature"]                                                                     | false    | 2                   | [new SkippableTest("Basic Arithmetic", "Addition", null, null)]
-    "test-itr-unskippable"                       | ["org/example/cucumber/calculator/basic_arithmetic_unskippable.feature"]                                                         | false    | 2                   | [new SkippableTest("Basic Arithmetic", "Addition", null, null)]
-    "test-itr-unskippable-suite"                 | ["org/example/cucumber/calculator/basic_arithmetic_unskippable_suite.feature"]                                                   | false    | 2                   | [new SkippableTest("Basic Arithmetic", "Addition", null, null)]
-    "test-parallel"                              | [
-      "org/example/cucumber/calculator/basic_arithmetic.feature",
-      "org/example/cucumber/calculator/basic_arithmetic_skipped.feature"
-    ] | true     | 4                   | []
+    testcaseName                                 | features                                                                           | expectedTracesCount | skippedTests
+    "test-succeed"                               | ["org/example/cucumber/calculator/basic_arithmetic.feature"]                       | 2                   | []
+    "test-scenario-outline-${version()}"         | ["org/example/cucumber/calculator/basic_arithmetic_with_examples.feature"]         | 5                   | []
+    "test-skipped"                               | ["org/example/cucumber/calculator/basic_arithmetic_skipped.feature"]               | 3                   | []
+    "test-skipped-feature"                       | ["org/example/cucumber/calculator/basic_arithmetic_skipped_feature.feature"]       | 3                   | []
+    "test-skipped-scenario-outline-${version()}" | ["org/example/cucumber/calculator/basic_arithmetic_with_examples_skipped.feature"] | 5                   | []
+    "test-itr-skipping"                          | ["org/example/cucumber/calculator/basic_arithmetic.feature"]                       | 2                   | [new SkippableTest("Basic Arithmetic", "Addition", null, null)]
+    "test-itr-unskippable"                       | ["org/example/cucumber/calculator/basic_arithmetic_unskippable.feature"]           | 2                   | [new SkippableTest("Basic Arithmetic", "Addition", null, null)]
+    "test-itr-unskippable-suite"                 | ["org/example/cucumber/calculator/basic_arithmetic_unskippable_suite.feature"]     | 2                   | [new SkippableTest("Basic Arithmetic", "Addition", null, null)]
   }
 
   private String version() {
@@ -45,7 +41,7 @@ class CucumberTest extends CiVisibilityInstrumentationTest {
     return version != null ? "latest" : "5.4.0" // older releases do not have package version populated
   }
 
-  protected void runFeatures(List<String> classpathFeatures, boolean parallel) {
+  protected void runFeatures(List<String> classpathFeatures) {
     TestEventsHandlerHolder.start()
 
     DiscoverySelector[] selectors = new DiscoverySelector[classpathFeatures.size()]
@@ -57,7 +53,6 @@ class CucumberTest extends CiVisibilityInstrumentationTest {
       .filters(EngineFilter.includeEngines("cucumber"))
       .configurationParameter(Constants.GLUE_PROPERTY_NAME, "org.example.cucumber.calculator")
       .configurationParameter(Constants.FILTER_TAGS_PROPERTY_NAME, "not @Disabled")
-      .configurationParameter(io.cucumber.junit.platform.engine.Constants.PARALLEL_EXECUTION_ENABLED_PROPERTY_NAME, "$parallel")
       .selectors(selectors)
       .build()
 
