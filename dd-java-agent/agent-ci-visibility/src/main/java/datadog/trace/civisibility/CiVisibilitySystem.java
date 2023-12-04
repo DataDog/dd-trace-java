@@ -178,7 +178,8 @@ public class CiVisibilitySystem {
           new ConventionBasedResourceResolver(
               fileSystem, config.getCiVisibilityResourceFolderNames());
       RepoIndexBuilder indexBuilder =
-          new RepoIndexBuilder(repoRoot, packageResolver, resourceResolver, fileSystem);
+          new RepoIndexBuilder(
+              projectRoot.toString(), packageResolver, resourceResolver, fileSystem);
 
       SourcePathResolver sourcePathResolver = getSourcePathResolver(repoRoot, indexBuilder);
       Codeowners codeowners = getCodeowners(repoRoot);

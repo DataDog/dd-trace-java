@@ -317,10 +317,6 @@ public final class Platform {
     return System.getProperty("java.vm.name").contains("J9");
   }
 
-  public static boolean isIbm8() {
-    return isJavaVersion(8) && RUNTIME.vendor.contains("IBM");
-  }
-
   public static boolean isGraalVM() {
     return RUNTIME.vendorVersion.toLowerCase().contains("graalvm");
   }

@@ -1,4 +1,0 @@
-rootProject.name = 'gradle-instrumentation-test-project'
-
-include ':submodule-a'
-include ':submodule-b'

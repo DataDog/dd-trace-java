@@ -21,7 +21,6 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
-import java.util.TreeSet;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.LongAdder;
 import javax.annotation.Nullable;
@@ -133,7 +132,7 @@ public class DDTestFrameworkModuleProxy implements DDTestFrameworkModule {
             coverageEnabled,
             itrEnabled,
             testsSkippedTotal,
-            new TreeSet<>(testFrameworks),
+            testFrameworks,
             coverageData);
 
     try (SignalClient signalClient = new SignalClient(signalServerAddress)) {
