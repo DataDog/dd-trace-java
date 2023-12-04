@@ -3,7 +3,6 @@ package com.datadog.debugger.agent;
 import static datadog.trace.util.AgentThreadFactory.AGENT_THREAD_GROUP;
 
 import com.datadog.debugger.sink.DebuggerSink;
-import com.datadog.debugger.sink.Sink;
 import com.datadog.debugger.symbol.SymDBEnablement;
 import com.datadog.debugger.symbol.SymbolAggregator;
 import com.datadog.debugger.uploader.BatchUploader;
@@ -31,7 +30,7 @@ import org.slf4j.LoggerFactory;
 public class DebuggerAgent {
   private static final Logger LOGGER = LoggerFactory.getLogger(DebuggerAgent.class);
   private static ConfigurationPoller configurationPoller;
-  private static Sink sink;
+  private static DebuggerSink sink;
   private static String agentVersion;
   private static JsonSnapshotSerializer snapshotSerializer;
   private static SymDBEnablement symDBEnablement;
@@ -164,7 +163,7 @@ public class DebuggerAgent {
     return agentVersion;
   }
 
-  public static Sink getSink() {
+  public static DebuggerSink getSink() {
     return sink;
   }
 
@@ -180,13 +179,13 @@ public class DebuggerAgent {
     if (configurationPoller != null) {
       configurationPoller.stop();
     }
-    if (sink != null && sink instanceof DebuggerSink) {
-      ((DebuggerSink) sink).stop();
+    if (sink != null) {
+      sink.stop();
     }
   }
 
   // Used only for tests
-  static void initSink(Sink sink) {
+  static void initSink(DebuggerSink sink) {
     DebuggerAgent.sink = sink;
   }
 

@@ -36,12 +36,12 @@ public interface SingleSpanSampler {
 
       if (spanSamplingRulesDefined) {
         SpanSamplingRules rules = SpanSamplingRules.deserialize(spanSamplingRules);
-        if (rules != null) {
+        if (!rules.isEmpty()) {
           return new RuleBasedSingleSpanSampler(rules);
         }
       } else if (spanSamplingRulesFileDefined) {
         SpanSamplingRules rules = SpanSamplingRules.deserializeFile(spanSamplingRulesFile);
-        if (rules != null) {
+        if (!rules.isEmpty()) {
           return new RuleBasedSingleSpanSampler(rules);
         }
       }
