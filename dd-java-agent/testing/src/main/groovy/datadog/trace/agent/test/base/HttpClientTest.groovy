@@ -1,24 +1,5 @@
 package datadog.trace.agent.test.base
 
-import datadog.trace.agent.test.asserts.TraceAssert
-import datadog.trace.agent.test.naming.VersionedNamingTestBase
-import datadog.trace.agent.test.server.http.HttpProxy
-import datadog.trace.api.DDSpanTypes
-import datadog.trace.api.DDTags
-import datadog.trace.api.config.TracerConfig
-import datadog.trace.bootstrap.instrumentation.api.Tags
-import datadog.trace.bootstrap.instrumentation.api.URIUtils
-import datadog.trace.core.DDSpan
-import datadog.trace.core.datastreams.StatsGroup
-import datadog.trace.test.util.Flaky
-import spock.lang.AutoCleanup
-import spock.lang.Requires
-import spock.lang.Shared
-import spock.lang.Unroll
-
-import java.util.concurrent.ExecutionException
-import java.util.concurrent.TimeUnit
-
 import static datadog.trace.agent.test.server.http.TestHttpServer.httpServer
 import static datadog.trace.agent.test.utils.PortUtils.UNUSABLE_PORT
 import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
@@ -30,6 +11,24 @@ import static datadog.trace.api.config.TracerConfig.REQUEST_HEADER_TAGS
 import static datadog.trace.api.config.TracerConfig.RESPONSE_HEADER_TAGS
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator.CLIENT_PATHWAY_EDGE_TAGS
 import static org.junit.Assume.assumeTrue
+
+import datadog.trace.agent.test.asserts.TraceAssert
+import datadog.trace.agent.test.naming.VersionedNamingTestBase
+import datadog.trace.agent.test.server.http.HttpProxy
+import datadog.trace.api.DDSpanTypes
+import datadog.trace.api.DDTags
+import datadog.trace.api.config.TracerConfig
+import datadog.trace.bootstrap.instrumentation.api.Tags
+import datadog.trace.bootstrap.instrumentation.api.URIUtils
+import datadog.trace.core.DDSpan
+import datadog.trace.core.datastreams.StatsGroup
+import datadog.trace.test.util.Flaky
+import java.util.concurrent.ExecutionException
+import java.util.concurrent.TimeUnit
+import spock.lang.AutoCleanup
+import spock.lang.Requires
+import spock.lang.Shared
+import spock.lang.Unroll
 
 @Unroll
 abstract class HttpClientTest extends VersionedNamingTestBase {
@@ -124,19 +123,19 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
   def setupSpec() {
     List<Proxy> proxyList = Collections.singletonList(new Proxy(Proxy.Type.HTTP, new InetSocketAddress(proxy.port)))
     proxySelector = new ProxySelector() {
-        @Override
-        List<Proxy> select(URI uri) {
-          if (uri.fragment == "proxy") {
-            return proxyList
-          }
-          return getDefault().select(uri)
+      @Override
+      List<Proxy> select(URI uri) {
+        if (uri.fragment == "proxy") {
+          return proxyList
         }
-
-        @Override
-        void connectFailed(URI uri, SocketAddress sa, IOException ioe) {
-          getDefault().connectFailed(uri, sa, ioe)
-        }
+        return getDefault().select(uri)
       }
+
+      @Override
+      void connectFailed(URI uri, SocketAddress sa, IOException ioe) {
+        getDefault().connectFailed(uri, sa, ioe)
+      }
+    }
   }
 
   /**
@@ -790,9 +789,11 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
     }
 
     where:
-    method | header                           | value | tags
-    'GET'  | 'X-Datadog-Test-Both-Header'     | 'foo' | [ 'both_header_tag': 'foo' ]
-    'GET'  | 'X-Datadog-Test-Request-Header'  | 'bar' | [ 'request_header_tag': 'bar' ]
+    method | header                          | value     | tags
+    'GET'  | 'X-Datadog-Test-Both-Header'    | 'foo'     | ['both_header_tag': 'foo']
+    'GET'  | 'X-Datadog-Test-Request-Header' | 'bar'     | ['request_header_tag': 'bar']
+    // https://www.rfc-editor.org/rfc/rfc9110.html#name-field-lines-and-combined-fi
+    'GET'  | 'X-Datadog-Test-Request-Header' | 'baz,qux' | ['request_header_tag': 'baz']
   }
 
   def "test response header #header tag mapping"() {
@@ -823,7 +824,7 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
 
     where:
     method | header                           | mapping               | tags
-    'GET'  | 'X-Datadog-Test-Response-Header' | 'response_header_tag' | [ 'response_header_tag': 'baz' ]
+    'GET'  | 'X-Datadog-Test-Response-Header' | 'response_header_tag' | ['response_header_tag': 'baz']
   }
 
   // parent span must be cast otherwise it breaks debugging classloading (junit loads it early)
