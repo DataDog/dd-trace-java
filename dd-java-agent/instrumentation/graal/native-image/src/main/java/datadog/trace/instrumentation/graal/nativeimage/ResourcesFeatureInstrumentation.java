@@ -29,15 +29,20 @@ public final class ResourcesFeatureInstrumentation extends AbstractNativeImageIn
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void onExit() {
       // the tracer jar is not listed on the image classpath, so manually inject its resources
-      // (drop inst/shared prefixes from embedded resources, so we can find them in native-image
+      // (drop trace/shared prefixes from embedded resources, so we can find them in native-image
       // as the final executable won't have our isolating class-loader to map these resources)
 
       String[] tracerResources = {
         "dd-java-agent.version",
         "dd-trace-api.version",
-        "inst/dd-trace-core.version",
+        "trace/dd-trace-core.version",
         "shared/dogstatsd/version.properties",
-        "shared/okhttp3/internal/publicsuffix/publicsuffixes.gz"
+        "shared/version-utils.version",
+        "shared/datadog/okhttp3/internal/publicsuffix/publicsuffixes.gz",
+        "profiling/jfr/dd.jfp",
+        "profiling/jfr/safepoints.jfp",
+        "profiling/jfr/overrides/comprehensive.jfp",
+        "profiling/jfr/overrides/minimal.jfp"
       };
 
       for (String original : tracerResources) {

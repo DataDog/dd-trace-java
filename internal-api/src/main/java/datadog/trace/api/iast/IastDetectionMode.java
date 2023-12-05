@@ -2,10 +2,12 @@ package datadog.trace.api.iast;
 
 import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_DEDUPLICATION_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_MAX_CONCURRENT_REQUESTS;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_MAX_RANGE_COUNT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_REQUEST_SAMPLING;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_VULNERABILITIES_PER_REQUEST;
 import static datadog.trace.api.config.IastConfig.IAST_DEDUPLICATION_ENABLED;
 import static datadog.trace.api.config.IastConfig.IAST_MAX_CONCURRENT_REQUESTS;
+import static datadog.trace.api.config.IastConfig.IAST_MAX_RANGE_COUNT;
 import static datadog.trace.api.config.IastConfig.IAST_REQUEST_SAMPLING;
 import static datadog.trace.api.config.IastConfig.IAST_VULNERABILITIES_PER_REQUEST;
 
@@ -33,6 +35,11 @@ public enum IastDetectionMode {
     public boolean isIastDeduplicationEnabled(@Nonnull final ConfigProvider config) {
       return false;
     }
+
+    @Override
+    public int getIastMaxRangeCount(@Nonnull final ConfigProvider config) {
+      return Integer.MAX_VALUE;
+    }
   },
 
   DEFAULT {
@@ -56,6 +63,11 @@ public enum IastDetectionMode {
     public boolean isIastDeduplicationEnabled(@Nonnull final ConfigProvider config) {
       return config.getBoolean(IAST_DEDUPLICATION_ENABLED, DEFAULT_IAST_DEDUPLICATION_ENABLED);
     }
+
+    @Override
+    public int getIastMaxRangeCount(@Nonnull final ConfigProvider config) {
+      return config.getInteger(IAST_MAX_RANGE_COUNT, DEFAULT_IAST_MAX_RANGE_COUNT);
+    }
   };
 
   public static final int UNLIMITED = Integer.MIN_VALUE;
@@ -67,4 +79,6 @@ public enum IastDetectionMode {
   public abstract float getIastRequestSampling(@Nonnull ConfigProvider config);
 
   public abstract boolean isIastDeduplicationEnabled(@Nonnull ConfigProvider config);
+
+  public abstract int getIastMaxRangeCount(@Nonnull ConfigProvider config);
 }

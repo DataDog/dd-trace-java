@@ -62,6 +62,7 @@ public class Tags {
   public static final String TEST_COMMAND = "test.command";
   public static final String TEST_TOOLCHAIN = "test.toolchain";
   public static final String TEST_EXECUTION = "test.execution";
+  public static final String TEST_GRADLE_NESTED_BUILD = "test.gradle.nested_build";
 
   public static final String TEST_SESSION_ID = "test_session_id";
   public static final String TEST_MODULE_ID = "test_module_id";
@@ -71,6 +72,8 @@ public class Tags {
   public static final String TEST_ITR_TESTS_SKIPPING_ENABLED = "test.itr.tests_skipping.enabled";
   public static final String TEST_ITR_TESTS_SKIPPING_TYPE = "test.itr.tests_skipping.type";
   public static final String TEST_ITR_TESTS_SKIPPING_COUNT = "test.itr.tests_skipping.count";
+  public static final String TEST_ITR_UNSKIPPABLE = "test.itr.unskippable";
+  public static final String TEST_ITR_FORCED_RUN = "test.itr.forced_run";
 
   public static final String CI_PROVIDER_NAME = "ci.provider.name";
   public static final String CI_PIPELINE_ID = "ci.pipeline.id";

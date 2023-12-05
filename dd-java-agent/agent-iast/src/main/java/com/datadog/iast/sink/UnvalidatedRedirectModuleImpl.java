@@ -2,6 +2,7 @@ package com.datadog.iast.sink;
 
 import static com.datadog.iast.taint.Tainteds.canBeTainted;
 
+import com.datadog.iast.Dependencies;
 import com.datadog.iast.IastRequestContext;
 import com.datadog.iast.model.Evidence;
 import com.datadog.iast.model.Location;
@@ -24,6 +25,10 @@ public class UnvalidatedRedirectModuleImpl extends SinkModuleBase
 
   private static final String LOCATION_HEADER = "Location";
   private static final String REFERER = "Referer";
+
+  public UnvalidatedRedirectModuleImpl(final Dependencies dependencies) {
+    super(dependencies);
+  }
 
   @Override
   public void onRedirect(final @Nullable String value) {
@@ -89,7 +94,7 @@ public class UnvalidatedRedirectModuleImpl extends SinkModuleBase
           span,
           new Vulnerability(
               VulnerabilityType.UNVALIDATED_REDIRECT,
-              Location.forSpanAndClassAndMethod(span.getSpanId(), clazz, method),
+              Location.forSpanAndClassAndMethod(span, clazz, method),
               evidence));
     } else {
       report(span, VulnerabilityType.UNVALIDATED_REDIRECT, evidence);

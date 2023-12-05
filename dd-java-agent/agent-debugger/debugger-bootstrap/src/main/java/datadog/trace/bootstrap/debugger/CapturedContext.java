@@ -1,9 +1,12 @@
 package datadog.trace.bootstrap.debugger;
 
+import static datadog.trace.bootstrap.debugger.util.Redaction.REDACTED_VALUE;
+
 import datadog.trace.bootstrap.debugger.el.ReflectiveFieldValueResolver;
 import datadog.trace.bootstrap.debugger.el.ValueReferenceResolver;
 import datadog.trace.bootstrap.debugger.el.ValueReferences;
 import datadog.trace.bootstrap.debugger.el.Values;
+import datadog.trace.bootstrap.debugger.util.Redaction;
 import datadog.trace.bootstrap.debugger.util.TimeoutChecker;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -106,6 +109,9 @@ public class CapturedContext implements ValueReferenceResolver {
     if (target == Values.UNDEFINED_OBJECT) {
       return target;
     }
+    if (Redaction.isRedactedKeyword(memberName)) {
+      return REDACTED_VALUE;
+    }
     if (target instanceof CapturedValue) {
       Map<String, CapturedValue> fields = ((CapturedValue) target).fields;
       if (fields.containsKey(memberName)) {
@@ -200,12 +206,13 @@ public class CapturedContext implements ValueReferenceResolver {
     if (locals == null) {
       locals = new HashMap<>();
     }
-    locals.put("@return", retValue); // special local name for the return value
+    locals.put(ValueReferences.RETURN_REF, retValue); // special local name for the return value
     extensions.put(ValueReferences.RETURN_EXTENSION_NAME, retValue);
   }
 
   public void addThrowable(Throwable t) {
-    this.throwable = new CapturedThrowable(t);
+    addThrowable(new CapturedThrowable(t));
+    extensions.put(ValueReferences.EXCEPTION_EXTENSION_NAME, t);
   }
 
   public void addThrowable(CapturedThrowable capturedThrowable) {
@@ -321,24 +328,12 @@ public class CapturedContext implements ValueReferenceResolver {
           ValueReferences.DURATION_EXTENSION_NAME, duration / 1_000_000.0); // convert to ms
     }
     this.thisClassName = thisClassName;
-    boolean shouldEvaluate = resolveEvaluateAt(probeImplementation, methodLocation);
+    boolean shouldEvaluate =
+        MethodLocation.isSame(methodLocation, probeImplementation.getEvaluateAt());
     if (shouldEvaluate) {
-      probeImplementation.evaluate(this, status);
+      probeImplementation.evaluate(this, status, methodLocation);
     }
     return status;
-  }
-
-  private static boolean resolveEvaluateAt(
-      ProbeImplementation probeImplementation, MethodLocation methodLocation) {
-    if (methodLocation == MethodLocation.DEFAULT) {
-      // line probe, no evaluation of probe's evaluateAt
-      return true;
-    }
-    MethodLocation localEvaluateAt = probeImplementation.getEvaluateAt();
-    if (methodLocation == MethodLocation.ENTRY) {
-      return localEvaluateAt == MethodLocation.DEFAULT || localEvaluateAt == MethodLocation.ENTRY;
-    }
-    return localEvaluateAt == methodLocation;
   }
 
   public Status getStatus(String probeId) {
@@ -537,6 +532,9 @@ public class CapturedContext implements ValueReferenceResolver {
 
     private static CapturedValue build(
         String name, String declaredType, Object value, Limits limits, String notCapturedReason) {
+      if (Redaction.isRedactedKeyword(name)) {
+        value = REDACTED_VALUE;
+      }
       CapturedValue val =
           new CapturedValue(
               name, declaredType, value, limits, Collections.emptyMap(), notCapturedReason);

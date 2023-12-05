@@ -1,13 +1,10 @@
 package com.datadog.iast.sink
 
-import com.datadog.iast.HasDependencies
 import com.datadog.iast.IastModuleImplTestBase
 import com.datadog.iast.IastRequestContext
 import com.datadog.iast.RequestEndedHandler
 import com.datadog.iast.model.Vulnerability
 import com.datadog.iast.model.VulnerabilityType
-import com.datadog.iast.overhead.OverheadController
-import datadog.trace.api.Config
 import datadog.trace.api.gateway.Flow
 import datadog.trace.api.gateway.IGSpanInfo
 import datadog.trace.api.gateway.RequestContext
@@ -15,7 +12,6 @@ import datadog.trace.api.gateway.RequestContextSlot
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.internal.TraceSegment
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
-import datadog.trace.util.stacktrace.StackWalker
 
 public class XContentTypeOptionsModuleTest extends IastModuleImplTestBase {
 
@@ -29,7 +25,7 @@ public class XContentTypeOptionsModuleTest extends IastModuleImplTestBase {
 
   def setup() {
     InstrumentationBridge.clearIastModules()
-    module = registerDependencies(new XContentTypeModuleImpl())
+    module = new XContentTypeModuleImpl(dependencies)
     InstrumentationBridge.registerIastModule(module)
     objectHolder = []
     ctx = new IastRequestContext()
@@ -46,13 +42,8 @@ public class XContentTypeOptionsModuleTest extends IastModuleImplTestBase {
   void 'x content options sniffing vulnerability'() {
     given:
     Vulnerability savedVul1
-    final OverheadController overheadController = Mock(OverheadController)
     final iastCtx = Mock(IastRequestContext)
     iastCtx.getContentType() >> "text/html"
-    final StackWalker stackWalker = Mock(StackWalker)
-    final dependencies = new HasDependencies.Dependencies(
-    Config.get(), reporter, overheadController, stackWalker
-    )
     final handler = new RequestEndedHandler(dependencies)
     final TraceSegment traceSegment = Mock(TraceSegment)
     final reqCtx = Mock(RequestContext)
@@ -93,15 +84,9 @@ public class XContentTypeOptionsModuleTest extends IastModuleImplTestBase {
 
   void 'no x content options sniffing reported'() {
     given:
-    Vulnerability savedVul1
-    final OverheadController overheadController = Mock(OverheadController)
     final iastCtx = Mock(IastRequestContext)
     iastCtx.getxForwardedProto() >> 'https'
     iastCtx.getContentType() >> "text/html"
-    final StackWalker stackWalker = Mock(StackWalker)
-    final dependencies = new HasDependencies.Dependencies(
-    Config.get(), reporter, overheadController, stackWalker
-    )
     final handler = new RequestEndedHandler(dependencies)
     final TraceSegment traceSegment = Mock(TraceSegment)
     final reqCtx = Mock(RequestContext)

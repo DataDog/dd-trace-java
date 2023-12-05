@@ -52,9 +52,10 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
   static final long DEFAULT_BUCKET_DURATION_NANOS = TimeUnit.SECONDS.toNanos(10);
   static final long FEATURE_CHECK_INTERVAL_NANOS = TimeUnit.MINUTES.toNanos(5);
 
-  private static final StatsPoint REPORT = new StatsPoint(Collections.emptyList(), 0, 0, 0, 0, 0);
+  private static final StatsPoint REPORT =
+      new StatsPoint(Collections.emptyList(), 0, 0, 0, 0, 0, 0);
   private static final StatsPoint POISON_PILL =
-      new StatsPoint(Collections.emptyList(), 0, 0, 0, 0, 0);
+      new StatsPoint(Collections.emptyList(), 0, 0, 0, 0, 0, 0);
 
   private final Map<Long, StatsBucket> timeToBucket = new HashMap<>();
   private final BlockingQueue<InboxItem> inbox = new MpscBlockingConsumerArrayQueue<>(1024);
@@ -204,10 +205,13 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
 
   @Override
   public void setCheckpoint(
-      AgentSpan span, LinkedHashMap<String, String> sortedTags, long defaultTimestamp) {
+      AgentSpan span,
+      LinkedHashMap<String, String> sortedTags,
+      long defaultTimestamp,
+      long payloadSizeBytes) {
     PathwayContext pathwayContext = span.context().getPathwayContext();
     if (pathwayContext != null) {
-      pathwayContext.setCheckpoint(sortedTags, this::add, defaultTimestamp);
+      pathwayContext.setCheckpoint(sortedTags, this::add, defaultTimestamp, payloadSizeBytes);
       if (pathwayContext.getHash() != 0) {
         span.setTag(PATHWAY_HASH, Long.toUnsignedString(pathwayContext.getHash()));
       }
@@ -233,7 +237,7 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
     sortedTags.put(TOPIC_TAG, source);
     sortedTags.put(TYPE_TAG, type);
 
-    setCheckpoint(span, sortedTags, 0);
+    setCheckpoint(span, sortedTags, 0, 0);
   }
 
   @Override
@@ -269,7 +273,6 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
       thread.join(THREAD_JOIN_TIMOUT_MS);
     } catch (InterruptedException ignored) {
     }
-    inbox.clear();
   }
 
   private class InboxProcessor implements Runnable {

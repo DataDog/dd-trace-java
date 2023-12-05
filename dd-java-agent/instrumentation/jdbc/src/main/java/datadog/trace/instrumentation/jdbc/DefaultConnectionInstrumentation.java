@@ -38,6 +38,8 @@ public class DefaultConnectionInstrumentation extends AbstractConnectionInstrume
     "oadd.org.apache.calcite.avatica.AvaticaConnection",
     // SAP HANA in-memory DB
     "com.sap.db.jdbc.ConnectionSapDB",
+    // IBM Informix
+    "com.informix.jdbc.IfmxConnection",
     // for testing purposes
     "test.TestConnection",
       // 达梦db

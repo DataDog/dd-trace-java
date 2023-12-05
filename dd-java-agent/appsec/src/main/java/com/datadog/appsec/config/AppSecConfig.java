@@ -1,16 +1,19 @@
 package com.datadog.appsec.config;
 
 import com.squareup.moshi.JsonAdapter;
+import com.squareup.moshi.JsonReader;
+import com.squareup.moshi.JsonWriter;
 import com.squareup.moshi.Moshi;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import javax.annotation.Nullable;
 
 public interface AppSecConfig {
 
-  Moshi MOSHI = new Moshi.Builder().build();
+  Moshi MOSHI = new Moshi.Builder().add(Double.class, new NumberJsonAdapter()).build();
   JsonAdapter<AppSecConfigV1> ADAPTER_V1 = MOSHI.adapter(AppSecConfigV1.class);
   JsonAdapter<AppSecConfigV2> ADAPTER_V2 = MOSHI.adapter(AppSecConfigV2.class);
 
@@ -119,6 +122,20 @@ public interface AppSecConfig {
       hash = 31 * hash + (version == null ? 0 : version.hashCode());
       hash = 31 * hash + (rawConfig == null ? 0 : rawConfig.hashCode());
       return hash;
+    }
+  }
+
+  class NumberJsonAdapter extends JsonAdapter<Number> {
+
+    @Nullable
+    @Override
+    public Number fromJson(JsonReader reader) throws IOException {
+      return reader.nextInt();
+    }
+
+    @Override
+    public void toJson(JsonWriter writer, @Nullable Number value) throws IOException {
+      writer.value(value);
     }
   }
 }

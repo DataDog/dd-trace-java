@@ -4,14 +4,15 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.GlobalIgnoresMatcher
 import static net.bytebuddy.matcher.ElementMatchers.isDefaultFinalizer;
 
 import datadog.trace.agent.tooling.bytebuddy.SharedTypePools;
+import datadog.trace.agent.tooling.bytebuddy.iast.TaintableRedefinitionStrategyListener;
 import datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers;
 import datadog.trace.agent.tooling.bytebuddy.memoize.MemoizedMatchers;
 import datadog.trace.agent.tooling.bytebuddy.outline.TypePoolFacade;
 import datadog.trace.agent.tooling.usm.UsmExtractorImpl;
 import datadog.trace.agent.tooling.usm.UsmMessageFactoryImpl;
 import datadog.trace.api.InstrumenterConfig;
-import datadog.trace.api.IntegrationsCollector;
 import datadog.trace.api.ProductActivation;
+import datadog.trace.api.telemetry.IntegrationsCollector;
 import datadog.trace.bootstrap.FieldBackedContextAccessor;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter;
 import datadog.trace.util.AgentTaskScheduler;
@@ -119,6 +120,7 @@ public class AgentInstaller {
             .with(AgentStrategies.transformerDecorator())
             .with(AgentBuilder.RedefinitionStrategy.RETRANSFORMATION)
             .with(AgentStrategies.rediscoveryStrategy())
+            .with(redefinitionStrategyListener(enabledSystems))
             .with(AgentStrategies.locationStrategy())
             .with(AgentStrategies.poolStrategy())
             .with(AgentBuilder.DescriptionStrategy.Default.POOL_ONLY)
@@ -135,6 +137,7 @@ public class AgentInstaller {
           agentBuilder
               .with(AgentBuilder.RedefinitionStrategy.RETRANSFORMATION)
               .with(AgentStrategies.rediscoveryStrategy())
+              .with(redefinitionStrategyListener(enabledSystems))
               .with(new RedefinitionLoggingListener())
               .with(new TransformLoggingListener());
     }
@@ -252,6 +255,15 @@ public class AgentInstaller {
       } else {
         System.setProperty(TypeDefinition.RAW_TYPES_PROPERTY, savedPropertyValue);
       }
+    }
+  }
+
+  private static AgentBuilder.RedefinitionStrategy.Listener redefinitionStrategyListener(
+      final Set<Instrumenter.TargetSystem> enabledSystems) {
+    if (enabledSystems.contains(Instrumenter.TargetSystem.IAST)) {
+      return TaintableRedefinitionStrategyListener.INSTANCE;
+    } else {
+      return AgentBuilder.RedefinitionStrategy.Listener.NoOp.INSTANCE;
     }
   }
 

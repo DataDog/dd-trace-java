@@ -13,7 +13,10 @@ import akka.stream.stage.AbstractInHandler;
 import akka.stream.stage.AbstractOutHandler;
 import akka.stream.stage.GraphStage;
 import akka.stream.stage.GraphStageLogic;
+import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.instrumentation.akkahttp.appsec.BlockingResponseHelper;
 import java.util.Queue;
 import java.util.concurrent.ArrayBlockingQueue;
 
@@ -54,6 +57,7 @@ public class DatadogServerRequestResponseFlowWrapper
         // close the span at the front of the queue when we receive the response
         // from the user code, since it will match up to the request for that span.
         final Queue<AgentScope> scopes = new ArrayBlockingQueue<>(pipeliningLimit);
+        boolean[] skipNextPull = new boolean[] {false};
 
         // This is where the request comes in from the server and TCP layer
         setHandler(
@@ -63,6 +67,23 @@ public class DatadogServerRequestResponseFlowWrapper
               public void onPush() throws Exception {
                 final HttpRequest request = grab(requestInlet);
                 final AgentScope scope = DatadogWrapperHelper.createSpan(request);
+                AgentSpan span = scope.span();
+                RequestContext requestContext = span.getRequestContext();
+                if (requestContext != null) {
+                  HttpResponse response =
+                      BlockingResponseHelper.maybeCreateBlockingResponse(span, request);
+                  if (response != null) {
+                    request.discardEntityBytes(materializer());
+                    skipNextPull[0] = true;
+                    requestContext.getTraceSegment().effectivelyBlocked();
+                    emit(responseOutlet, response);
+                    DatadogWrapperHelper.finishSpan(scope.span(), response);
+                    pull(requestInlet);
+                    scope.close();
+                    return;
+                  }
+                }
+
                 scopes.add(scope);
                 push(requestOutlet, request);
                 // Since we haven't instrumented the akka stream state machine, we can't rely
@@ -109,10 +130,18 @@ public class DatadogServerRequestResponseFlowWrapper
             new AbstractInHandler() {
               @Override
               public void onPush() throws Exception {
-                final HttpResponse response = grab(responseInlet);
+                HttpResponse response = grab(responseInlet);
                 final AgentScope scope = scopes.poll();
                 if (scope != null) {
-                  DatadogWrapperHelper.finishSpan(scope.span(), response);
+                  AgentSpan span = scope.span();
+                  HttpResponse newResponse =
+                      BlockingResponseHelper.handleFinishForWaf(span, response);
+                  if (newResponse != response) {
+                    span.getRequestContext().getTraceSegment().effectivelyBlocked();
+                    response.discardEntityBytes(materializer());
+                    response = newResponse;
+                  }
+                  DatadogWrapperHelper.finishSpan(span, response);
                   // Check if the active scope is still the scope from when the request came in,
                   // and close it. If it's not, then it will be cleaned up actor message
                   // processing instrumentation that drives this state machine
@@ -160,7 +189,17 @@ public class DatadogServerRequestResponseFlowWrapper
             new AbstractOutHandler() {
               @Override
               public void onPull() throws Exception {
-                pull(responseInlet);
+                if (isClosed(responseInlet)) {
+                  fail(responseOutlet, new RuntimeException("Failed earlier"));
+                }
+                // condition is needed when we emit() directly to the outlet
+                // The value was not pushed through the response inlet, so we need not
+                // request more data through the inlet
+                if (skipNextPull[0]) {
+                  skipNextPull[0] = false;
+                } else {
+                  pull(responseInlet);
+                }
               }
 
               @Override

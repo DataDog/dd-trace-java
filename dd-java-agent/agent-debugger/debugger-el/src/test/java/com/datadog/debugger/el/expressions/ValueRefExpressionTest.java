@@ -5,6 +5,7 @@ import static com.datadog.debugger.el.PrettyPrintVisitor.print;
 import static org.junit.jupiter.api.Assertions.*;
 
 import com.datadog.debugger.el.DSL;
+import com.datadog.debugger.el.EvaluationException;
 import com.datadog.debugger.el.RefResolverHelper;
 import com.datadog.debugger.el.Value;
 import datadog.trace.bootstrap.debugger.el.ValueReferenceResolver;
@@ -71,9 +72,11 @@ class ValueRefExpressionTest {
 
     long duration = TimeUnit.NANOSECONDS.convert(680, TimeUnit.MILLISECONDS);
     boolean returnVal = true;
+    Throwable exception = new RuntimeException("oops");
     Map<String, Object> exts = new HashMap<>();
     exts.put(ValueReferences.RETURN_EXTENSION_NAME, returnVal);
     exts.put(ValueReferences.DURATION_EXTENSION_NAME, duration);
+    exts.put(ValueReferences.EXCEPTION_EXTENSION_NAME, exception);
     ValueReferenceResolver resolver =
         RefResolverHelper.createResolver(null, null, values).withExtensions(exts);
 
@@ -83,6 +86,9 @@ class ValueRefExpressionTest {
     expression = DSL.ref(ValueReferences.RETURN_REF);
     assertEquals(returnVal, expression.evaluate(resolver).getValue());
     assertEquals("@return", print(expression));
+    expression = DSL.ref(ValueReferences.EXCEPTION_REF);
+    assertEquals(exception, expression.evaluate(resolver).getValue());
+    assertEquals("@exception", print(expression));
     expression = DSL.ref(limitArg);
     assertEquals(limit, expression.evaluate(resolver).getValue());
     assertEquals("limit", print(expression));
@@ -98,5 +104,25 @@ class ValueRefExpressionTest {
         assertThrows(RuntimeException.class, () -> invalidExpression.evaluate(resolver).getValue());
     assertEquals("Cannot find synthetic var: invalid", runtimeException.getMessage());
     assertEquals("@invalid", print(invalidExpression));
+  }
+
+  @Test
+  public void redacted() {
+    ValueRefExpression valueRef = new ValueRefExpression("password");
+    class StoreSecret {
+      String password;
+
+      public StoreSecret(String password) {
+        this.password = password;
+      }
+    }
+    StoreSecret instance = new StoreSecret("secret123");
+    EvaluationException evaluationException =
+        assertThrows(
+            EvaluationException.class,
+            () -> valueRef.evaluate(RefResolverHelper.createResolver(instance)));
+    assertEquals(
+        "Could not evaluate the expression because 'password' was redacted",
+        evaluationException.getMessage());
   }
 }

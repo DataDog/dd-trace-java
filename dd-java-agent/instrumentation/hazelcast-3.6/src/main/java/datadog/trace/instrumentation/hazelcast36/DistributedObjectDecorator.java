@@ -7,7 +7,6 @@ import static datadog.trace.instrumentation.hazelcast36.HazelcastConstants.HAZEL
 import static datadog.trace.instrumentation.hazelcast36.HazelcastConstants.INSTRUMENTATION_NAME;
 
 import com.hazelcast.core.DistributedObject;
-import datadog.trace.api.Config;
 import datadog.trace.api.Pair;
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
@@ -28,10 +27,7 @@ public class DistributedObjectDecorator extends ClientDecorator {
       DDCaches.newFixedSizeCache(64);
 
   private static final String SERVICE_NAME =
-      SpanNaming.instance()
-          .namingSchema()
-          .cache()
-          .service(Config.get().getServiceName(), INSTRUMENTATION_NAME);
+      SpanNaming.instance().namingSchema().cache().service(INSTRUMENTATION_NAME);
 
   private static final Function<Pair<String, String>, String> COMPUTE_QUALIFIED_NAME =
       // Uses inner class for predictable name for Instrumenter.Default.helperClassNames()

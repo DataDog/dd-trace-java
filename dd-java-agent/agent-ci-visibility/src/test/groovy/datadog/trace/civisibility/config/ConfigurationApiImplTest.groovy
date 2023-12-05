@@ -2,12 +2,14 @@ package datadog.trace.civisibility.config
 
 import com.squareup.moshi.Moshi
 import datadog.communication.http.HttpRetryPolicy
+import datadog.communication.http.OkHttpUtils
 import datadog.trace.agent.test.server.http.TestHttpServer
 import datadog.trace.api.civisibility.config.Configurations
 import datadog.trace.api.civisibility.config.SkippableTest
 import datadog.trace.civisibility.communication.BackendApi
 import datadog.trace.civisibility.communication.EvpProxyApi
 import okhttp3.HttpUrl
+import okhttp3.OkHttpClient
 import spock.lang.AutoCleanup
 import spock.lang.Shared
 import spock.lang.Specification
@@ -37,6 +39,7 @@ class ConfigurationApiImplTest extends Specification {
               "repository_url": "https://github.com/DataDog/foo",
               "branch"        : "prod",
               "sha"           : "d64185e45d1722ab3a53c45be47accae",
+              "test_level"    : "test",
               "configurations": [
                 "os.platform"         : "linux",
                 "os.architecture"     : "amd64",
@@ -45,14 +48,17 @@ class ConfigurationApiImplTest extends Specification {
                 "runtime.name"        : "runtimeName",
                 "runtime.version"     : "runtimeVersion",
                 "runtime.vendor"      : "vendor",
-                "runtime.architecture": "amd64"
+                "runtime.architecture": "amd64",
+                "custom": [
+                  "customTag": "customValue"
+                ]
               ]
             ]
           ]
         ]
 
         if (expectedRequest) {
-          response.status(200).send('{ "data": { "type": "ci_app_tracers_test_service_settings", "id": "uuid", "attributes": { "code_coverage": true, "tests_skipping": true } } }')
+          response.status(200).send('{ "data": { "type": "ci_app_tracers_test_service_settings", "id": "uuid", "attributes": { "code_coverage": true, "tests_skipping": true, "require_git": true } } }')
         } else {
           response.status(400).send()
         }
@@ -70,6 +76,7 @@ class ConfigurationApiImplTest extends Specification {
               "repository_url": "https://github.com/DataDog/foo",
               "branch"        : "prod",
               "sha"           : "d64185e45d1722ab3a53c45be47accae",
+              "test_level"    : "test",
               "configurations": [
                 "os.platform"         : "linux",
                 "os.architecture"     : "amd64",
@@ -78,7 +85,10 @@ class ConfigurationApiImplTest extends Specification {
                 "runtime.name"        : "runtimeName",
                 "runtime.version"     : "runtimeVersion",
                 "runtime.vendor"      : "vendor",
-                "runtime.architecture": "amd64"
+                "runtime.architecture": "amd64",
+                "custom": [
+                  "customTag": "customValue"
+                ]
               ]
             ]
           ]
@@ -87,9 +97,9 @@ class ConfigurationApiImplTest extends Specification {
         if (expectedRequest) {
           response.status(200).send('{ "data": [' +
             '{ "id": "49968354e2091cdb", "type": "test", "attributes": ' +
-            '{ "configurations": { "test.bundle": "testBundle-a" }, "suite": "suite-a", "name": "name-a", "parameters": "parameters-a" } },' +
+            '{ "configurations": { "test.bundle": "testBundle-a", "custom": { "customTag": "customValue" } }, "suite": "suite-a", "name": "name-a", "parameters": "parameters-a" } },' +
             '{ "id": "49968354e2091cdc", "type": "test", "attributes": ' +
-            '   { "configurations": { "test.bundle": "testBundle-b" }, "suite": "suite-b", "name": "name-b", "parameters": "parameters-b" } }' +
+            '   { "configurations": { "test.bundle": "testBundle-b", "custom": { "customTag": "customValue" } }, "suite": "suite-b", "name": "name-b", "parameters": "parameters-b" } }' +
             '] }')
         } else {
           response.status(400).send()
@@ -110,6 +120,7 @@ class ConfigurationApiImplTest extends Specification {
     then:
     settings.codeCoverageEnabled
     settings.testsSkippingEnabled
+    settings.gitUploadRequired
   }
 
   def "test skippable tests request"() {
@@ -125,17 +136,19 @@ class ConfigurationApiImplTest extends Specification {
     skippableTests == [
       new SkippableTest("suite-a", "name-a", "parameters-a",
       new Configurations(null, null, null, null, null,
-      null, null, "testBundle-a")),
+      null, null, "testBundle-a", Collections.singletonMap("customTag", "customValue"))),
       new SkippableTest("suite-b", "name-b", "parameters-b",
       new Configurations(null, null, null, null, null,
-      null, null, "testBundle-b"))
+      null, null, "testBundle-b", Collections.singletonMap("customTag", "customValue")))
     ]
   }
 
   private BackendApi givenEvpProxy() {
+    String traceId = "a-trace-id"
     HttpUrl proxyUrl = HttpUrl.get(intakeServer.address)
     HttpRetryPolicy.Factory retryPolicyFactory = new HttpRetryPolicy.Factory(5, 100, 2.0)
-    return new EvpProxyApi(proxyUrl, REQUEST_TIMEOUT_MILLIS, retryPolicyFactory)
+    OkHttpClient client = OkHttpUtils.buildHttpClient(proxyUrl, REQUEST_TIMEOUT_MILLIS)
+    return new EvpProxyApi(traceId, proxyUrl, retryPolicyFactory, client)
   }
 
   private static TracerEnvironment givenTracerEnvironment() {
@@ -152,6 +165,7 @@ class ConfigurationApiImplTest extends Specification {
     .runtimeVersion("runtimeVersion")
     .runtimeVendor("vendor")
     .runtimeArchitecture("amd64")
+    .customTag("customTag", "customValue")
     .build()
   }
 }

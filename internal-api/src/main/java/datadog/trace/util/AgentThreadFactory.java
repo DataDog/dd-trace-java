@@ -36,6 +36,8 @@ public final class AgentThreadFactory implements ThreadFactory {
     FLEET_MANAGEMENT_POLLER("dd-fleet-management-poller"),
     REMOTE_CONFIG("dd-remote-config"),
 
+    TRACER_FLARE("dd-tracer-flare"),
+
     CWS_TLS("dd-cws-tls"),
 
     PROCESS_SUPERVISOR("dd-process-supervisor"),
@@ -104,7 +106,7 @@ public final class AgentThreadFactory implements ThreadFactory {
           @Override
           public void uncaughtException(final Thread thread, final Throwable e) {
             LoggerFactory.getLogger(runnable.getClass())
-                .error("Uncaught exception in {}", agentThread.threadName, e);
+                .error("Uncaught exception {} in {}", e, agentThread.threadName, e);
           }
         });
     return thread;

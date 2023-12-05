@@ -3,6 +3,7 @@ package com.datadog.iast.sink;
 import static com.datadog.iast.taint.Ranges.rangesProviderFor;
 import static com.datadog.iast.taint.Tainteds.canBeTainted;
 
+import com.datadog.iast.Dependencies;
 import com.datadog.iast.IastRequestContext;
 import com.datadog.iast.model.Evidence;
 import com.datadog.iast.model.Location;
@@ -20,6 +21,10 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 public class XssModuleImpl extends SinkModuleBase implements XssModule {
+
+  public XssModuleImpl(final Dependencies dependencies) {
+    super(dependencies);
+  }
 
   @Override
   public void onXss(@Nonnull String s) {
@@ -61,7 +66,7 @@ public class XssModuleImpl extends SinkModuleBase implements XssModule {
         span,
         new Vulnerability(
             VulnerabilityType.XSS,
-            Location.forSpanAndClassAndMethod(span.getSpanId(), clazz, method),
+            Location.forSpanAndClassAndMethod(span, clazz, method),
             evidence));
   }
 
@@ -119,8 +124,6 @@ public class XssModuleImpl extends SinkModuleBase implements XssModule {
     reporter.report(
         span,
         new Vulnerability(
-            VulnerabilityType.XSS,
-            Location.forSpanAndFileAndLine(span.getSpanId(), file, line),
-            evidence));
+            VulnerabilityType.XSS, Location.forSpanAndFileAndLine(span, file, line), evidence));
   }
 }

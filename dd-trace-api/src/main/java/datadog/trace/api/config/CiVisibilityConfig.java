@@ -42,6 +42,7 @@ public final class CiVisibilityConfig {
   public static final String CIVISIBILITY_GIT_UPLOAD_ENABLED = "civisibility.git.upload.enabled";
   public static final String CIVISIBILITY_GIT_UNSHALLOW_ENABLED =
       "civisibility.git.unshallow.enabled";
+  public static final String CIVISIBILITY_GIT_UNSHALLOW_DEFER = "civisibility.git.unshallow.defer";
   public static final String CIVISIBILITY_GIT_UPLOAD_TIMEOUT_MILLIS =
       "civisibility.git.upload.timeout.millis";
   public static final String CIVISIBILITY_GIT_COMMAND_TIMEOUT_MILLIS =
@@ -58,8 +59,13 @@ public final class CiVisibilityConfig {
       "civisibility.repo.index.sharing.enabled";
   public static final String CIVISIBILITY_MODULE_EXECUTION_SETTINGS_CACHE_SIZE =
       "civisibility.module.execution.settings.cache.size";
+  public static final String CIVISIBILITY_JVM_INFO_CACHE_SIZE = "civisibility.jvm.info.cache.size";
   public static final String CIVISIBILITY_COVERAGE_SEGMENTS_ENABLED =
       "civisibility.coverage.segments.enabled";
+  public static final String CIVISIBILITY_INJECTED_TRACER_VERSION =
+      "civisibility.injected.tracer.version";
+  public static final String CIVISIBILITY_RESOURCE_FOLDER_NAMES =
+      "civisibility.resource.folder.names";
 
   private CiVisibilityConfig() {}
 }

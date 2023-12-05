@@ -1,5 +1,6 @@
 package datadog.trace.core.scopemanager;
 
+import datadog.trace.api.Stateful;
 import datadog.trace.api.scopemanager.ExtendedScopeListener;
 import datadog.trace.api.scopemanager.ScopeListener;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
@@ -25,15 +26,19 @@ class ContinuableScope implements AgentScope, AttachableWrapper {
   private static final AtomicReferenceFieldUpdater<ContinuableScope, Object> WRAPPER_FIELD_UPDATER =
       AtomicReferenceFieldUpdater.newUpdater(ContinuableScope.class, Object.class, "wrapper");
 
+  private final Stateful scopeState;
+
   ContinuableScope(
       final ContinuableScopeManager scopeManager,
       final AgentSpan span,
       final byte source,
-      final boolean isAsyncPropagating) {
+      final boolean isAsyncPropagating,
+      final Stateful scopeState) {
     this.scopeManager = scopeManager;
     this.span = span;
     this.flags = source;
     this.isAsyncPropagating = isAsyncPropagating;
+    this.scopeState = scopeState;
   }
 
   @Override
@@ -59,6 +64,7 @@ class ContinuableScope implements AgentScope, AttachableWrapper {
     if (!alive) {
       cleanup(scopeStack);
     }
+    scopeState.close();
   }
 
   void cleanup(final ScopeStack scopeStack) {
@@ -150,6 +156,15 @@ class ContinuableScope implements AgentScope, AttachableWrapper {
   @Override
   public final String toString() {
     return super.toString() + "->" + span;
+  }
+
+  public final void beforeActivated() {
+    try {
+      scopeState.activate(span.context());
+    } catch (Throwable e) {
+      ContinuableScopeManager.ratelimitedLog.warn(
+          "ScopeState {} threw exception in beforeActivated()", scopeState.getClass(), e);
+    }
   }
 
   public final void afterActivated() {

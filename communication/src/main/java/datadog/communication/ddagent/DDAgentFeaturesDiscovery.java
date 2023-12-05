@@ -47,6 +47,8 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
 
   public static final String DEBUGGER_ENDPOINT = "debugger/v1/input";
 
+  public static final String TELEMETRY_PROXY_ENDPOINT = "telemetry/proxy/";
+
   private static final long MIN_FEATURE_DISCOVERY_INTERVAL_MILLIS = 60 * 1000;
 
   private final OkHttpClient client;
@@ -58,6 +60,7 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
   private final boolean metricsEnabled;
   private final String[] dataStreamsEndpoints = {V01_DATASTREAMS_ENDPOINT};
   private final String[] evpProxyEndpoints = {V2_EVP_PROXY_ENDPOINT};
+  private final String[] telemetryProxyEndpoints = {TELEMETRY_PROXY_ENDPOINT};
 
   private volatile String traceEndpoint;
   private volatile String metricsEndpoint;
@@ -69,6 +72,7 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
   private volatile String debuggerEndpoint;
   private volatile String evpProxyEndpoint;
   private volatile String version;
+  private volatile String telemetryProxyEndpoint;
 
   private long lastTimeDiscovered;
 
@@ -100,6 +104,7 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
     evpProxyEndpoint = null;
     version = null;
     lastTimeDiscovered = 0;
+    telemetryProxyEndpoint = null;
   }
 
   /** Run feature discovery, unconditionally. */
@@ -162,14 +167,15 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
 
     if (log.isDebugEnabled()) {
       log.debug(
-          "discovered traceEndpoint={}, metricsEndpoint={}, supportsDropping={}, supportsLongRunning={}, dataStreamsEndpoint={}, configEndpoint={}, evpProxyEndpoint={}",
+          "discovered traceEndpoint={}, metricsEndpoint={}, supportsDropping={}, supportsLongRunning={}, dataStreamsEndpoint={}, configEndpoint={}, evpProxyEndpoint={}, telemetryProxyEndpoint={}",
           traceEndpoint,
           metricsEndpoint,
           supportsDropping,
           supportsLongRunning,
           dataStreamsEndpoint,
           configEndpoint,
-          evpProxyEndpoint);
+          evpProxyEndpoint,
+          telemetryProxyEndpoint);
     }
   }
 
@@ -247,6 +253,13 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
         }
       }
 
+      for (String endpoint : telemetryProxyEndpoints) {
+        if (endpoints.contains(endpoint) || endpoints.contains("/" + endpoint)) {
+          telemetryProxyEndpoint = endpoint;
+          break;
+        }
+      }
+
       supportsLongRunning = Boolean.TRUE.equals(map.getOrDefault("long_running_spans", false));
 
       if (metricsEnabled) {
@@ -272,6 +285,10 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
   private static void discoverStatsDPort(final Map<String, Object> info) {
     try {
       Map<String, ?> config = (Map<String, ?>) info.get("config");
+      if (config == null) {
+        log.debug("config missing from trace agent /info response");
+        return;
+      }
       final Object statsdPortObj = config.get("statsd_port");
       if (statsdPortObj == null) {
         log.debug("statsd_port missing from trace agent /info response");
@@ -279,8 +296,8 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
       }
       int statsdPort = ((Number) statsdPortObj).intValue();
       DDAgentStatsDClientManager.setDefaultStatsDPort(statsdPort);
-    } catch (Throwable ignore) {
-      log.debug("statsd_port missing from trace agent /info response", ignore);
+    } catch (Exception ex) {
+      log.debug("statsd_port missing from trace agent /info response", ex);
     }
   }
 
@@ -347,5 +364,9 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
   @Override
   public boolean active() {
     return supportsMetrics() && supportsDropping;
+  }
+
+  public boolean supportsTelemetryProxy() {
+    return telemetryProxyEndpoint != null;
   }
 }

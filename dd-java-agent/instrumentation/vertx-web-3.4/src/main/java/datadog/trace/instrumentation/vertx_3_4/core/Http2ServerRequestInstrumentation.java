@@ -45,7 +45,7 @@ public class Http2ServerRequestInstrumentation extends AbstractHttpServerRequest
       beforeHeaders = headersMap;
     }
 
-    @Advice.OnMethodExit
+    @Advice.OnMethodExit(suppress = Throwable.class)
     @Source(SourceTypes.REQUEST_HEADER_VALUE)
     public static void onExit(
         @Advice.Local("beforeHeaders") final Object beforeHeaders,
@@ -54,11 +54,7 @@ public class Http2ServerRequestInstrumentation extends AbstractHttpServerRequest
       if (beforeHeaders != multiMap) {
         final PropagationModule module = InstrumentationBridge.PROPAGATION;
         if (module != null) {
-          try {
-            module.taintObject(SourceTypes.REQUEST_HEADER_VALUE, multiMap);
-          } catch (final Throwable e) {
-            module.onUnexpectedException("headers threw", e);
-          }
+          module.taint(multiMap, SourceTypes.REQUEST_HEADER_VALUE);
         }
       }
     }

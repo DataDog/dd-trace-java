@@ -102,8 +102,7 @@ public class XssController {
   public void printf(final HttpServletRequest request, final HttpServletResponse response) {
     try {
       String format = request.getParameter("string");
-      String[] array = {"A", "B"};
-      response.getWriter().printf(format, array);
+      response.getWriter().printf(format, "A", "B");
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
@@ -114,8 +113,7 @@ public class XssController {
   public void printf2(final HttpServletRequest request, final HttpServletResponse response) {
     try {
       String format = "Formatted like: %1$s and %2$s.";
-      String[] array = {"A", request.getParameter("string")};
-      response.getWriter().printf(format, array);
+      response.getWriter().printf(format, "A", request.getParameter("string"));
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
@@ -126,8 +124,7 @@ public class XssController {
   public void printf3(final HttpServletRequest request, final HttpServletResponse response) {
     try {
       String format = request.getParameter("string");
-      String[] array = {"A", "B"};
-      response.getWriter().printf(Locale.getDefault(), format, array);
+      response.getWriter().printf(Locale.getDefault(), format, "A", "B");
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
@@ -138,8 +135,7 @@ public class XssController {
   public void printf4(final HttpServletRequest request, final HttpServletResponse response) {
     try {
       String format = "Formatted like: %1$s and %2$s.";
-      String[] array = {"A", request.getParameter("string")};
-      response.getWriter().printf(Locale.getDefault(), format, array);
+      response.getWriter().printf(Locale.getDefault(), format, "A", request.getParameter("string"));
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
@@ -150,8 +146,7 @@ public class XssController {
   public void format(final HttpServletRequest request, final HttpServletResponse response) {
     try {
       String format = request.getParameter("string");
-      String[] array = {"A", "B"};
-      response.getWriter().format(format, array);
+      response.getWriter().format(format, "A", "B");
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
@@ -162,8 +157,7 @@ public class XssController {
   public void format2(final HttpServletRequest request, final HttpServletResponse response) {
     try {
       String format = "Formatted like: %1$s and %2$s.";
-      String[] array = {"A", request.getParameter("string")};
-      response.getWriter().format(format, array);
+      response.getWriter().format(format, "A", request.getParameter("string"));
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
@@ -174,8 +168,7 @@ public class XssController {
   public void format3(final HttpServletRequest request, final HttpServletResponse response) {
     try {
       String format = request.getParameter("string");
-      String[] array = {"A", "B"};
-      response.getWriter().format(Locale.getDefault(), format, array);
+      response.getWriter().format(Locale.getDefault(), format, "A", "B");
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
@@ -186,8 +179,7 @@ public class XssController {
   public void format4(final HttpServletRequest request, final HttpServletResponse response) {
     try {
       String format = "Formatted like: %1$s and %2$s.";
-      String[] array = {"A", request.getParameter("string")};
-      response.getWriter().format(Locale.getDefault(), format, array);
+      response.getWriter().format(Locale.getDefault(), format, "A", request.getParameter("string"));
     } catch (IOException e) {
       throw new RuntimeException(e);
     }

@@ -1,5 +1,6 @@
 package com.datadog.profiling.ddprof;
 
+import datadog.trace.api.Stateful;
 import datadog.trace.api.profiling.ProfilingContextAttribute;
 import datadog.trace.api.profiling.ProfilingScope;
 import datadog.trace.bootstrap.instrumentation.api.ProfilerContext;
@@ -13,11 +14,32 @@ public class DatadogProfilingIntegration implements ProfilingContextIntegration 
 
   private static final DatadogProfiler DDPROF = DatadogProfiler.getInstance();
   private static final int SPAN_NAME_INDEX = DDPROF.operationNameOffset();
+  private static final int RESOURCE_NAME_INDEX = DDPROF.resourceNameOffset();
   private static final boolean WALLCLOCK_ENABLED =
       DatadogProfilerConfig.isWallClockProfilerEnabled();
 
-  private static final boolean QUEUEING_TIME_ENABLED =
-      WALLCLOCK_ENABLED && DatadogProfilerConfig.isQueueingTimeEnabled();
+  private final Stateful contextManager =
+      new Stateful() {
+        @Override
+        public void close() {
+          // this implementation is stateless so nothing to do here
+        }
+
+        @Override
+        public void activate(Object context) {
+          if (context instanceof ProfilerContext) {
+            ProfilerContext profilerContext = (ProfilerContext) context;
+            DDPROF.setSpanContext(profilerContext.getSpanId(), profilerContext.getRootSpanId());
+            DDPROF.setContextValue(SPAN_NAME_INDEX, profilerContext.getEncodedOperationName());
+            DDPROF.setContextValue(RESOURCE_NAME_INDEX, profilerContext.getEncodedResourceName());
+          }
+        }
+      };
+
+  @Override
+  public Stateful newScopeState(ProfilerContext profilerContext) {
+    return contextManager;
+  }
 
   @Override
   public void onAttach() {
@@ -28,6 +50,7 @@ public class DatadogProfilingIntegration implements ProfilingContextIntegration 
 
   @Override
   public void onDetach() {
+    clearContext();
     if (WALLCLOCK_ENABLED) {
       DDPROF.removeThread();
     }
@@ -39,20 +62,30 @@ public class DatadogProfilingIntegration implements ProfilingContextIntegration 
   }
 
   @Override
-  public void setContext(ProfilerContext profilerContext) {
-    DDPROF.setSpanContext(profilerContext.getSpanId(), profilerContext.getRootSpanId());
-    DDPROF.setContextValue(SPAN_NAME_INDEX, profilerContext.getEncodedOperationName());
+  public int encodeOperationName(CharSequence constant) {
+    if (SPAN_NAME_INDEX >= 0) {
+      return DDPROF.encode(constant);
+    }
+    return 0;
   }
 
   @Override
+  public int encodeResourceName(CharSequence constant) {
+    if (RESOURCE_NAME_INDEX >= 0) {
+      return DDPROF.encode(constant);
+    }
+    return 0;
+  }
+
+  @Override
+  public String name() {
+    return "ddprof";
+  }
+
   public void clearContext() {
     DDPROF.clearSpanContext();
     DDPROF.clearContextValue(SPAN_NAME_INDEX);
-  }
-
-  @Override
-  public void setContext(long rootSpanId, long spanId) {
-    DDPROF.setSpanContext(spanId, rootSpanId);
+    DDPROF.clearContextValue(RESOURCE_NAME_INDEX);
   }
 
   @Override
@@ -64,12 +97,4 @@ public class DatadogProfilingIntegration implements ProfilingContextIntegration 
   public ProfilingScope newScope() {
     return new DatadogProfilingScope(DDPROF);
   }
-
-  @Override
-  public boolean isQueuingTimeEnabled() {
-    return QUEUEING_TIME_ENABLED;
-  }
-
-  @Override
-  public void recordQueueingTime(long duration) {}
 }

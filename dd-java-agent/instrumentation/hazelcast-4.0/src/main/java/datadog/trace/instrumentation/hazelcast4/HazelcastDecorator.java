@@ -7,7 +7,6 @@ import static datadog.trace.instrumentation.hazelcast4.HazelcastConstants.HAZELC
 import static datadog.trace.instrumentation.hazelcast4.HazelcastConstants.HAZELCAST_SERVICE;
 import static datadog.trace.instrumentation.hazelcast4.HazelcastConstants.INSTRUMENTATION_NAME;
 
-import datadog.trace.api.Config;
 import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
@@ -19,10 +18,7 @@ import datadog.trace.util.Strings;
 public class HazelcastDecorator extends ClientDecorator {
 
   private static final String SERVICE_NAME =
-      SpanNaming.instance()
-          .namingSchema()
-          .cache()
-          .service(Config.get().getServiceName(), INSTRUMENTATION_NAME);
+      SpanNaming.instance().namingSchema().cache().service(INSTRUMENTATION_NAME);
 
   public static final HazelcastDecorator DECORATE = new HazelcastDecorator();
 

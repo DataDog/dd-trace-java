@@ -1,5 +1,6 @@
 package datadog.trace.core.propagation;
 
+import static datadog.trace.api.TracePropagationStyle.HAYSTACK;
 import static datadog.trace.core.propagation.HttpCodec.firstHeaderValue;
 
 import datadog.trace.api.Config;
@@ -7,6 +8,7 @@ import datadog.trace.api.DD64bTraceId;
 import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.TraceConfig;
+import datadog.trace.api.TracePropagationStyle;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.core.DDSpanContext;
@@ -99,7 +101,7 @@ class HaystackHttpCodec {
         for (final Map.Entry<String, String> entry : context.baggageItems()) {
           String header = invertedBaggageMapping.get(entry.getKey());
           header = header != null ? header : OT_BAGGAGE_PREFIX + entry.getKey();
-          setter.set(carrier, header, HttpCodec.encode(entry.getValue()));
+          setter.set(carrier, header, HttpCodec.encodeBaggage(entry.getValue()));
         }
         log.debug(
             "{} - Haystack parent context injected - {}", context.getTraceId(), injectedTraceId);
@@ -137,6 +139,11 @@ class HaystackHttpCodec {
 
     private HaystackContextInterpreter(Config config) {
       super(config);
+    }
+
+    @Override
+    public TracePropagationStyle style() {
+      return HAYSTACK;
     }
 
     @Override

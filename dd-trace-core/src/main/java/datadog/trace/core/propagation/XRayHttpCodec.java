@@ -1,6 +1,7 @@
 package datadog.trace.core.propagation;
 
 import static datadog.trace.api.DDTags.ORIGIN_KEY;
+import static datadog.trace.api.TracePropagationStyle.XRAY;
 import static datadog.trace.api.sampling.PrioritySampling.SAMPLER_DROP;
 import static datadog.trace.api.sampling.PrioritySampling.SAMPLER_KEEP;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
@@ -12,6 +13,7 @@ import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.TraceConfig;
+import datadog.trace.api.TracePropagationStyle;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.core.DDSpanContext;
@@ -134,6 +136,11 @@ class XRayHttpCodec {
 
     private XRayContextInterpreter(Config config) {
       super(config);
+    }
+
+    @Override
+    public TracePropagationStyle style() {
+      return XRAY;
     }
 
     @Override

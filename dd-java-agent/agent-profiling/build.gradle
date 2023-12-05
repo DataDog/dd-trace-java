@@ -4,6 +4,14 @@ plugins {
 
 apply from: "$rootDir/gradle/java.gradle"
 
+excludedClassesCoverage += [
+  // ControllerFactory gets better tested in actual controller implementations
+  'com.datadog.profiling.agent.ControllerFactory',
+  'com.datadog.profiling.agent.ProfilingAgent',
+  'com.datadog.profiling.agent.ProfilingAgent.ShutdownHook',
+  'com.datadog.profiling.agent.ProfilingAgent.DataDumper'
+]
+
 dependencies {
   api deps.slf4j
   api project(':internal-api')
@@ -16,6 +24,9 @@ dependencies {
   api project(':dd-java-agent:agent-profiling:profiling-controller-ddprof')
   api project(':dd-java-agent:agent-profiling:profiling-controller-openjdk')
   api project(':dd-java-agent:agent-profiling:profiling-controller-oracle')
+
+  testImplementation deps.junit5
+  testImplementation deps.mockito
 }
 
 Project parent_project = project

@@ -1,21 +1,15 @@
 package datadog.exceptions.instrumentation;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.declaresField;
-import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.api.Platform;
-import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.matcher.ElementMatcher;
 
-/** Provides instrumentation of {@linkplain Throwable} constructor. */
+/** Provides instrumentation of {@linkplain Exception} and {@linkplain Error} constructors. */
 @AutoService(Instrumenter.class)
 public final class ThrowableInstrumentation extends Instrumenter.Profiling
-    implements Instrumenter.ForBootstrap,
-        Instrumenter.ForSingleType,
-        Instrumenter.WithTypeStructure {
+    implements Instrumenter.ForBootstrap, Instrumenter.ForKnownTypes {
 
   public ThrowableInstrumentation() {
     super("throwables");
@@ -27,17 +21,14 @@ public final class ThrowableInstrumentation extends Instrumenter.Profiling
   }
 
   @Override
-  public String instrumentedType() {
-    return "java.lang.Throwable";
-  }
-
-  @Override
-  public ElementMatcher<TypeDescription> structureMatcher() {
-    return declaresField(named("stackTrace"));
-  }
-
-  @Override
   public void adviceTransformations(AdviceTransformation transformation) {
     transformation.applyAdvice(isConstructor(), packageName + ".ThrowableInstanceAdvice");
+  }
+
+  @Override
+  public String[] knownMatchingTypes() {
+    return new String[] {
+      "java.lang.Exception", "java.lang.Error", "kotlin.Exception", "kotlin.Error"
+    };
   }
 }

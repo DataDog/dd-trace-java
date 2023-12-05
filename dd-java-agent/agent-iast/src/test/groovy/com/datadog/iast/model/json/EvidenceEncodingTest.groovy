@@ -10,6 +10,8 @@ import datadog.trace.test.util.DDSpecification
 import org.skyscreamer.jsonassert.JSONAssert
 import spock.lang.Shared
 
+import static datadog.trace.api.iast.VulnerabilityMarks.NOT_MARKED
+
 class EvidenceEncodingTest extends DDSpecification {
 
   private static final List<Source> SOURCES_SUITE = (0..2).collect { new Source((byte) it, "name$it", "value$it") }
@@ -65,7 +67,7 @@ class EvidenceEncodingTest extends DDSpecification {
   }
 
   private static Range range(final int start, final int length, final Source source) {
-    return new Range(start, length, source, Range.NOT_MARKED)
+    return new Range(start, length, source, NOT_MARKED)
   }
 
   private static Source source(final int index) {

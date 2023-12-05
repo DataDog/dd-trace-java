@@ -53,16 +53,23 @@ public class KafkaDecorator extends MessagingClientDecorator {
       pc -> String.join(",", pc.getList(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG));
   private static final Functions.Prefix CONSUMER_PREFIX = new Functions.Prefix("Consume Topic ");
 
-  private static final String LOCAL_SERVICE_NAME =
-      KAFKA_LEGACY_TRACING ? "kafka" : Config.get().getServiceName();
-
   public static final KafkaDecorator PRODUCER_DECORATE =
       new KafkaDecorator(
-          Tags.SPAN_KIND_PRODUCER, InternalSpanTypes.MESSAGE_PRODUCER, LOCAL_SERVICE_NAME);
+          Tags.SPAN_KIND_PRODUCER,
+          InternalSpanTypes.MESSAGE_PRODUCER,
+          SpanNaming.instance()
+              .namingSchema()
+              .messaging()
+              .outboundService(KAFKA, KAFKA_LEGACY_TRACING));
 
   public static final KafkaDecorator CONSUMER_DECORATE =
       new KafkaDecorator(
-          Tags.SPAN_KIND_CONSUMER, InternalSpanTypes.MESSAGE_CONSUMER, LOCAL_SERVICE_NAME);
+          Tags.SPAN_KIND_CONSUMER,
+          InternalSpanTypes.MESSAGE_CONSUMER,
+          SpanNaming.instance()
+              .namingSchema()
+              .messaging()
+              .inboundService(KAFKA, KAFKA_LEGACY_TRACING));
 
   public static final KafkaDecorator BROKER_DECORATE =
       new KafkaDecorator(

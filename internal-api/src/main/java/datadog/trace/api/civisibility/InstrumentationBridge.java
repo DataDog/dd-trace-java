@@ -14,6 +14,7 @@ import java.nio.file.Path;
 public abstract class InstrumentationBridge {
 
   public static final String ITR_SKIP_REASON = "Skipped by Datadog Intelligent Test Runner";
+  public static final String ITR_UNSKIPPABLE_TAG = "datadog_itr_unskippable";
 
   private static volatile TestEventsHandler.Factory TEST_EVENTS_HANDLER_FACTORY;
   private static volatile BuildEventsHandler.Factory BUILD_EVENTS_HANDLER_FACTORY;
@@ -58,17 +59,28 @@ public abstract class InstrumentationBridge {
   /* This method is referenced by name in bytecode added in the jacoco module */
   public static void currentCoverageProbeStoreRecord(
       long classId, String className, Class<?> clazz, int probeId) {
-    AgentSpan span = activeSpan();
-    if (span == null) {
-      return;
-    }
-    RequestContext requestContext = span.getRequestContext();
-    if (requestContext == null) {
-      return;
-    }
-    CoverageProbeStore probes = requestContext.getData(RequestContextSlot.CI_VISIBILITY);
+    CoverageProbeStore probes = getCurrentCoverageProbeStore();
     if (probes != null) {
       probes.record(clazz, classId, className, probeId);
     }
+  }
+
+  public static void currentCoverageProbeStoreRecordNonCode(String absolutePath) {
+    CoverageProbeStore probes = getCurrentCoverageProbeStore();
+    if (probes != null) {
+      probes.recordNonCodeResource(absolutePath);
+    }
+  }
+
+  private static CoverageProbeStore getCurrentCoverageProbeStore() {
+    AgentSpan span = activeSpan();
+    if (span == null) {
+      return null;
+    }
+    RequestContext requestContext = span.getRequestContext();
+    if (requestContext == null) {
+      return null;
+    }
+    return requestContext.getData(RequestContextSlot.CI_VISIBILITY);
   }
 }

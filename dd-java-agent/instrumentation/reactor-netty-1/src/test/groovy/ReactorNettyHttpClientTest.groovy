@@ -8,6 +8,7 @@ import reactor.netty.ByteBufFlux
 import reactor.netty.ByteBufMono
 import reactor.netty.http.client.HttpClient
 import reactor.netty.http.client.HttpClientResponse
+import spock.lang.Shared
 
 import java.time.Duration
 import java.util.function.BiFunction
@@ -15,8 +16,9 @@ import java.util.function.BiFunction
 import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 
-class ReactorNettyHttpClientTest extends HttpClientTest implements TestingNettyHttpNamingConventions.ClientV0{
-  // Can't be @Shared otherwise field-injected classes get loaded too early.
+class ReactorNettyHttpClientTest extends HttpClientTest implements TestingNettyHttpNamingConventions.ClientV0 {
+
+  @Shared
   HttpClient httpClient = HttpClient.create()
   .followRedirect(true)
   .responseTimeout(Duration.ofMillis(READ_TIMEOUT_MS))
@@ -25,7 +27,11 @@ class ReactorNettyHttpClientTest extends HttpClientTest implements TestingNettyH
   @Override
   int doRequest(String method, URI uri, Map<String, String> headers, String body, Closure callback) {
     httpClient
-      .headers({ hdrs -> headers.each { hdrs.set(it.key, it.value) } })
+      .headers({ hdrs ->
+        headers.each {
+          hdrs.set(it.key, it.value)
+        }
+      })
       .request(HttpMethod.valueOf(method))
       .uri(uri)
       .send(ByteBufFlux.fromString(Flux.just(body)))
@@ -35,7 +41,11 @@ class ReactorNettyHttpClientTest extends HttpClientTest implements TestingNettyH
           Mono.just(httpClientResponse.status().code())
         }
       })
-      .doOnSuccess({ if (callback) { callback.run() } })
+      .doOnSuccess({
+        if (callback) {
+          callback.run()
+        }
+      })
       .block()
   }
 

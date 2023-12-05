@@ -3,25 +3,34 @@ package datadog.trace.instrumentation.datastax.cassandra;
 import com.datastax.driver.core.Host;
 import com.datastax.driver.core.ResultSet;
 import com.datastax.driver.core.Session;
-import datadog.trace.api.Config;
+import datadog.trace.api.cache.DDCache;
+import datadog.trace.api.cache.DDCaches;
 import datadog.trace.api.naming.SpanNaming;
+import datadog.trace.api.normalize.SQLNormalizer;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.DBTypeProcessingDatabaseClientDecorator;
+import java.util.function.ToIntFunction;
 
 public class CassandraClientDecorator extends DBTypeProcessingDatabaseClientDecorator<Session> {
   private static final String DB_TYPE = "cassandra";
   private static final String SERVICE_NAME =
-      SpanNaming.instance()
-          .namingSchema()
-          .database()
-          .service(Config.get().getServiceName(), DB_TYPE);
+      SpanNaming.instance().namingSchema().database().service(DB_TYPE);
   public static final CharSequence OPERATION_NAME =
       UTF8BytesString.create(SpanNaming.instance().namingSchema().database().operation(DB_TYPE));
   public static final CharSequence JAVA_CASSANDRA = UTF8BytesString.create("java-cassandra");
 
   public static final CassandraClientDecorator DECORATE = new CassandraClientDecorator();
+
+  private static final int COMBINED_STATEMENT_LIMIT = 2 * 1024 * 1024; // chars
+  private static final ToIntFunction<UTF8BytesString> STATEMENT_WEIGHER = UTF8BytesString::length;
+  private static final DDCache<CharSequence, UTF8BytesString> CACHED_STATEMENTS =
+      DDCaches.newFixedSizeWeightedCache(512, STATEMENT_WEIGHER, COMBINED_STATEMENT_LIMIT);
+
+  protected static UTF8BytesString normalizedQuery(CharSequence sql) {
+    return CACHED_STATEMENTS.computeIfAbsent(sql, SQLNormalizer::normalizeCharSequence);
+  }
 
   @Override
   protected String[] instrumentationNames() {
@@ -62,6 +71,11 @@ public class CassandraClientDecorator extends DBTypeProcessingDatabaseClientDeco
   protected String dbHostname(Session session) {
     // Getting hostname through session.getState() seems to be expensive
     return null;
+  }
+
+  public AgentSpan onStatement(final AgentSpan span, final CharSequence statement) {
+    span.setResourceName(normalizedQuery(statement));
+    return span;
   }
 
   public AgentSpan onResponse(final AgentSpan span, final ResultSet result) {

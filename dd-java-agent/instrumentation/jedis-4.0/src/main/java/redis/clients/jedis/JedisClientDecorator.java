@@ -14,7 +14,7 @@ public class JedisClientDecorator extends DBTypeProcessingDatabaseClientDecorato
   public static final CharSequence OPERATION_NAME =
       UTF8BytesString.create(SpanNaming.instance().namingSchema().cache().operation(REDIS));
   private static final String SERVICE_NAME =
-      SpanNaming.instance().namingSchema().cache().service(Config.get().getServiceName(), REDIS);
+      SpanNaming.instance().namingSchema().cache().service(REDIS);
   private static final CharSequence COMPONENT_NAME = UTF8BytesString.create("redis-command");
   public boolean RedisCommandRaw = Config.get().getRedisCommandArgs();
 

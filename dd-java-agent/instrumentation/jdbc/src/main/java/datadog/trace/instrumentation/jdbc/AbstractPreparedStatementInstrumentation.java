@@ -119,8 +119,10 @@ public abstract class AbstractPreparedStatementInstrumentation extends Instrumen
 
         final AgentSpan span = startSpan(DATABASE_QUERY);
         DECORATE.afterStart(span);
-        DECORATE.onConnection(
-            span, connection, InstrumentationContext.get(Connection.class, DBInfo.class));
+        DBInfo dbInfo =
+            JDBCDecorator.parseDBInfo(
+                connection, InstrumentationContext.get(Connection.class, DBInfo.class));
+        DECORATE.onConnection(span, dbInfo);
         DECORATE.onPreparedStatement(span, queryInfo);
         return activateSpan(span);
       } catch (SQLException e) {

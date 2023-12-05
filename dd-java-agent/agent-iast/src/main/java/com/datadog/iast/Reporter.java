@@ -30,7 +30,7 @@ public class Reporter {
     this(Config.get(), null);
   }
 
-  public Reporter(final Config config, final AgentTaskScheduler taskScheduler) {
+  public Reporter(final Config config, @Nullable final AgentTaskScheduler taskScheduler) {
     this(
         config.isIastDeduplicationEnabled()
             ? new HashBasedDeduplication(taskScheduler)
@@ -48,7 +48,7 @@ public class Reporter {
     if (span == null) {
       final AgentSpan newSpan = startNewSpan();
       try (final AgentScope autoClosed = tracer().activateSpan(newSpan, ScopeSource.MANUAL)) {
-        vulnerability.getLocation().updateSpan(newSpan.getSpanId());
+        vulnerability.updateSpan(newSpan);
         reportVulnerability(newSpan, vulnerability);
       } finally {
         newSpan.finish();
@@ -108,11 +108,11 @@ public class Reporter {
 
     private final Set<Long> hashes;
 
-    public HashBasedDeduplication(final AgentTaskScheduler taskScheduler) {
+    public HashBasedDeduplication(@Nullable final AgentTaskScheduler taskScheduler) {
       this(DEFAULT_MAX_SIZE, taskScheduler);
     }
 
-    HashBasedDeduplication(final int size, final AgentTaskScheduler taskScheduler) {
+    HashBasedDeduplication(final int size, @Nullable final AgentTaskScheduler taskScheduler) {
       maxSize = size;
       hashes = ConcurrentHashMap.newKeySet(size);
       if (taskScheduler != null) {

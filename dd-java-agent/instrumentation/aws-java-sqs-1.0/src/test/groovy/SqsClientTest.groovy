@@ -1,4 +1,5 @@
 import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
+import static java.nio.charset.StandardCharsets.UTF_8
 
 import com.amazon.sqs.javamessaging.ProviderConfiguration
 import com.amazon.sqs.javamessaging.SQSConnectionFactory
@@ -7,6 +8,8 @@ import com.amazonaws.auth.AWSStaticCredentialsProvider
 import com.amazonaws.auth.AnonymousAWSCredentials
 import com.amazonaws.client.builder.AwsClientBuilder
 import com.amazonaws.services.sqs.AmazonSQSClientBuilder
+import com.amazonaws.services.sqs.model.Message
+import com.amazonaws.services.sqs.model.MessageAttributeValue
 import datadog.trace.agent.test.naming.VersionedNamingTestBase
 import datadog.trace.agent.test.utils.TraceUtils
 import datadog.trace.api.Config
@@ -16,6 +19,7 @@ import datadog.trace.api.config.GeneralConfig
 import datadog.trace.api.naming.SpanNaming
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
+import datadog.trace.instrumentation.aws.v1.sqs.TracingList
 import org.elasticmq.rest.sqs.SQSRestServerBuilder
 import spock.lang.Shared
 
@@ -147,6 +151,86 @@ abstract class SqsClientTest extends VersionedNamingTestBase {
     client.shutdown()
   }
 
+  def "trace details propagated via embedded SQS message attribute (string)"() {
+    setup:
+    TEST_WRITER.clear()
+
+    when:
+    def message = new Message()
+    message.addMessageAttributesEntry('_datadog', new MessageAttributeValue().withDataType('String').withStringValue(
+      "{\"x-datadog-trace-id\": \"4948377316357291421\", \"x-datadog-parent-id\": \"6746998015037429512\", \"x-datadog-sampling-priority\": \"1\"}"
+      ))
+    def messages = new TracingList([message], "http://localhost:${address.port}/000000000000/somequeue")
+
+    messages.forEach {/* consume to create message spans */ }
+
+    then:
+    assertTraces(1) {
+      trace(1) {
+        span {
+          serviceName expectedService("SQS", "ReceiveMessage")
+          operationName expectedOperation("SQS", "ReceiveMessage")
+          resourceName "SQS.ReceiveMessage"
+          spanType DDSpanTypes.MESSAGE_CONSUMER
+          errored false
+          measured true
+          traceId(4948377316357291421 as BigInteger)
+          parentSpanId(6746998015037429512 as BigInteger)
+          tags {
+            "$Tags.COMPONENT" "java-aws-sdk"
+            "$Tags.SPAN_KIND" Tags.SPAN_KIND_CONSUMER
+            "aws.service" "AmazonSQS"
+            "aws_service" "sqs"
+            "aws.operation" "ReceiveMessageRequest"
+            "aws.agent" "java-aws-sdk"
+            "aws.queue.url" "http://localhost:${address.port}/000000000000/somequeue"
+            defaultTags(true)
+          }
+        }
+      }
+    }
+  }
+
+  def "trace details propagated via embedded SQS message attribute (binary)"() {
+    setup:
+    TEST_WRITER.clear()
+
+    when:
+    def message = new Message()
+    message.addMessageAttributesEntry('_datadog', new MessageAttributeValue().withDataType('Binary').withBinaryValue(
+      UTF_8.encode('eyJ4LWRhdGFkb2ctdHJhY2UtaWQiOiI0OTQ4Mzc3MzE2MzU3MjkxNDIxIiwieC1kYXRhZG9nLXBhcmVudC1pZCI6IjY3NDY5OTgwMTUwMzc0Mjk1MTIiLCJ4LWRhdGFkb2ctc2FtcGxpbmctcHJpb3JpdHkiOiIxIn0=')
+      ))
+    def messages = new TracingList([message], "http://localhost:${address.port}/000000000000/somequeue")
+
+    messages.forEach {/* consume to create message spans */ }
+
+    then:
+    assertTraces(1) {
+      trace(1) {
+        span {
+          serviceName expectedService("SQS", "ReceiveMessage")
+          operationName expectedOperation("SQS", "ReceiveMessage")
+          resourceName "SQS.ReceiveMessage"
+          spanType DDSpanTypes.MESSAGE_CONSUMER
+          errored false
+          measured true
+          traceId(4948377316357291421 as BigInteger)
+          parentSpanId(6746998015037429512 as BigInteger)
+          tags {
+            "$Tags.COMPONENT" "java-aws-sdk"
+            "$Tags.SPAN_KIND" Tags.SPAN_KIND_CONSUMER
+            "aws.service" "AmazonSQS"
+            "aws_service" "sqs"
+            "aws.operation" "ReceiveMessageRequest"
+            "aws.agent" "java-aws-sdk"
+            "aws.queue.url" "http://localhost:${address.port}/000000000000/somequeue"
+            defaultTags(true)
+          }
+        }
+      }
+    }
+  }
+
   def "trace details propagated from SQS to JMS"() {
     setup:
     def client = AmazonSQSClientBuilder.standard()
@@ -272,7 +356,7 @@ abstract class SqsClientTest extends VersionedNamingTestBase {
       }
       trace(1) {
         span {
-          serviceName SpanNaming.instance().namingSchema().messaging().inboundService(Config.get().getServiceName(), "jms")
+          serviceName SpanNaming.instance().namingSchema().messaging().inboundService("jms", Config.get().isLegacyTracingEnabled(true, "jms")) ?: Config.get().getServiceName()
           operationName SpanNaming.instance().namingSchema().messaging().inboundOperation("jms")
           resourceName "Consumed from Queue somequeue"
           spanType DDSpanTypes.MESSAGE_CONSUMER

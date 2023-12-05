@@ -175,6 +175,7 @@ public class NettyHttpServerDecorator
     public void exceptionCaught(ChannelHandlerContext ctx, ExceptionEvent e) throws Exception {
       if ((e.getCause() instanceof BlockingException)) {
         NettyBlockResponseFunction.log.info("Suppressing handling of BlockingException");
+        e.getFuture().setSuccess();
       } else {
         super.exceptionCaught(ctx, e);
       }

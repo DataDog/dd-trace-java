@@ -6,6 +6,7 @@ import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import javax.annotation.Nullable;
 
 public class HttpHeader {
 
@@ -19,6 +20,7 @@ public class HttpHeader {
     return this.name.equalsIgnoreCase(name);
   }
 
+  @Nullable
   public static HttpHeader from(final String name) {
     return Values.HEADERS.get(name.toLowerCase(Locale.ROOT));
   }
@@ -58,7 +60,7 @@ public class HttpHeader {
           }
         };
     public static final HttpHeader X_CONTENT_TYPE_OPTIONS =
-        new ContextAwareHeader("X-Content-Type") {
+        new ContextAwareHeader("X-Content-Type-Options") {
           @Override
           public void onHeader(final IastRequestContext ctx, final String value) {
             ctx.setxContentTypeOptions(value);

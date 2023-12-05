@@ -51,7 +51,7 @@ public class IastHttpMethodBaseInstrumentation extends Instrumenter.Iast
         @Advice.This final Object self, @Advice.Argument(0) final Object argument) {
       final PropagationModule module = InstrumentationBridge.PROPAGATION;
       if (module != null) {
-        module.taintIfInputIsTainted(self, argument);
+        module.taintIfTainted(self, argument);
       }
     }
   }

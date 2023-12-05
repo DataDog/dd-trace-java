@@ -1,8 +1,6 @@
 package datadog.smoketest;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.datadog.debugger.agent.JsonSnapshotSerializer;
 import com.datadog.debugger.agent.ProbeStatus;
@@ -14,9 +12,9 @@ import datadog.trace.bootstrap.debugger.ProbeId;
 import datadog.trace.util.TagsHelper;
 import java.io.EOFException;
 import java.io.IOException;
-import java.util.HashSet;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 import okhttp3.HttpUrl;
 import okhttp3.OkHttpClient;
@@ -50,6 +48,7 @@ public class ServerAppDebuggerIntegrationTest extends BaseIntegrationTest {
     controlServer = new MockWebServer();
     // controlServer.setDispatcher(new ControlDispatcher());
     controlServer.start();
+    LOG.info("ControlServer on {}", controlServer.getPort());
     controlUrl = controlServer.url(CONTROL_URL);
     startApp();
     appUrl = waitForAppStartedAndGetUrl();
@@ -95,8 +94,13 @@ public class ServerAppDebuggerIntegrationTest extends BaseIntegrationTest {
   }
 
   protected void execute(String appUrl, String methodName) throws IOException {
+    execute(appUrl, methodName, null);
+  }
+
+  protected void execute(String appUrl, String methodName, String arg) throws IOException {
     datadogAgentServer.enqueue(EMPTY_200_RESPONSE); // expect 1 snapshot
-    String url = String.format(appUrl + "/execute?methodname=%s", methodName);
+    String executeFormat = arg != null ? "/execute?methodname=%s&arg=%s" : "/execute?methodname=%s";
+    String url = String.format(appUrl + executeFormat, methodName, arg);
     sendRequest(url);
     LOG.info("Execution done");
   }
@@ -105,19 +109,29 @@ public class ServerAppDebuggerIntegrationTest extends BaseIntegrationTest {
     String url =
         String.format(
             appUrl + "/waitForInstrumentation?classname=%s", SERVER_DEBUGGER_TEST_APP_CLASS);
+    LOG.info("waitForInstrumentation with url={}", url);
     sendRequest(url);
-    // statuses could be received out of order
-    HashSet<ProbeStatus.Status> statuses = new HashSet<>();
-    statuses.add(retrieveProbeStatusRequest().getDiagnostics().getStatus());
-    statuses.add(retrieveProbeStatusRequest().getDiagnostics().getStatus());
-    assertTrue(statuses.contains(ProbeStatus.Status.RECEIVED));
-    assertTrue(statuses.contains(ProbeStatus.Status.INSTALLED));
+    AtomicBoolean received = new AtomicBoolean(false);
+    AtomicBoolean installed = new AtomicBoolean(false);
+    registerProbeStatusListener(
+        probeStatus -> {
+          if (probeStatus.getDiagnostics().getStatus() == ProbeStatus.Status.RECEIVED) {
+            received.set(true);
+          }
+          if (probeStatus.getDiagnostics().getStatus() == ProbeStatus.Status.INSTALLED) {
+            installed.set(true);
+          }
+          return received.get() && installed.get();
+        });
+    processRequests();
+    clearProbeStatusListener();
     LOG.info("instrumentation done");
   }
 
   protected void waitForAProbeStatus(ProbeStatus.Status status) throws Exception {
-    ProbeStatus.Status receivedStatus = retrieveProbeStatusRequest().getDiagnostics().getStatus();
-    assertEquals(receivedStatus, status);
+    registerProbeStatusListener(probeStatus -> probeStatus.getDiagnostics().getStatus() == status);
+    processRequests();
+    clearProbeStatusListener();
   }
 
   protected void waitForReTransformation(String appUrl) throws IOException {

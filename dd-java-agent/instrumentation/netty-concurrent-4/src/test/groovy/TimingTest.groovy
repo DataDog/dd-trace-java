@@ -1,5 +1,6 @@
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.agent.test.timer.TestTimer
+import datadog.trace.bootstrap.instrumentation.jfr.InstrumentationBasedProfiling
 import io.netty.util.concurrent.DefaultEventExecutorGroup
 
 import java.util.concurrent.TimeUnit
@@ -12,6 +13,7 @@ class TimingTest extends AgentTestRunner {
   protected void configurePreAgent() {
     injectSysConfig("dd.profiling.enabled", "true")
     injectSysConfig("dd.profiling.experimental.queueing.time.enabled", "true")
+    InstrumentationBasedProfiling.enableInstrumentationBasedProfiling()
     super.configurePreAgent()
   }
 

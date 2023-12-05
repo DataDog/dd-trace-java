@@ -11,6 +11,7 @@ import datadog.trace.bootstrap.debugger.Limits;
 import datadog.trace.bootstrap.debugger.ProbeImplementation;
 import datadog.trace.bootstrap.debugger.ProbeLocation;
 import datadog.trace.bootstrap.debugger.util.TimeoutChecker;
+import datadog.trace.bootstrap.debugger.util.WellKnownClasses;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.lang.annotation.Annotation;
@@ -43,6 +44,8 @@ public class MoshiSnapshotHelper {
   public static final String COLLECTION_SIZE_REASON = "collectionSize";
   public static final String TIMEOUT_REASON = "timeout";
   public static final String DEPTH_REASON = "depth";
+  public static final String REDACTED_IDENT_REASON = "redactedIdent";
+  public static final String REDACTED_TYPE_REASON = "redactedType";
   public static final String TYPE = "type";
   public static final String VALUE = "value";
   public static final String FIELDS = "fields";
@@ -458,6 +461,18 @@ public class MoshiSnapshotHelper {
             {
               jsonWriter.name(NOT_CAPTURED_REASON);
               jsonWriter.value(TIMEOUT_REASON);
+              break;
+            }
+          case REDACTED_IDENT:
+            {
+              jsonWriter.name(NOT_CAPTURED_REASON);
+              jsonWriter.value(REDACTED_IDENT_REASON);
+              break;
+            }
+          case REDACTED_TYPE:
+            {
+              jsonWriter.name(NOT_CAPTURED_REASON);
+              jsonWriter.value(REDACTED_TYPE_REASON);
               break;
             }
           default:

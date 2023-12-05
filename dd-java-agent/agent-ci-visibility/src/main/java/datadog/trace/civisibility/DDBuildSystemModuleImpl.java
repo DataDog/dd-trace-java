@@ -10,7 +10,6 @@ import datadog.trace.civisibility.coverage.CoverageProbeStoreFactory;
 import datadog.trace.civisibility.coverage.CoverageUtils;
 import datadog.trace.civisibility.decorator.TestDecorator;
 import datadog.trace.civisibility.ipc.ModuleExecutionResult;
-import datadog.trace.civisibility.ipc.TestFramework;
 import datadog.trace.civisibility.source.MethodLinesResolver;
 import datadog.trace.civisibility.source.SourcePathResolver;
 import datadog.trace.civisibility.source.index.RepoIndexProvider;
@@ -40,7 +39,7 @@ public class DDBuildSystemModuleImpl extends DDTestModuleImpl implements DDBuild
   private final Object coverageDataLock = new Object();
 
   @GuardedBy("coverageDataLock")
-  private final ExecutionDataStore coverageData = new ExecutionDataStore();
+  private ExecutionDataStore coverageData;
 
   public DDBuildSystemModuleImpl(
       AgentSpan.Context sessionSpanContext,
@@ -111,11 +110,9 @@ public class DDBuildSystemModuleImpl extends DDTestModuleImpl implements DDBuild
    * datadog.trace.util.AgentThreadFactory.AgentThread#CI_SIGNAL_SERVER} thread.
    *
    * @param result Module execution results received from a forked JVM.
-   * @param coverageData Coverage data received from a forked JVM.
    */
   @Override
-  public void onModuleExecutionResultReceived(
-      ModuleExecutionResult result, ExecutionDataStore coverageData) {
+  public void onModuleExecutionResultReceived(ModuleExecutionResult result) {
     if (result.isCoverageEnabled()) {
       codeCoverageEnabled = true;
     }
@@ -125,17 +122,25 @@ public class DDBuildSystemModuleImpl extends DDTestModuleImpl implements DDBuild
 
     testsSkipped.add(result.getTestsSkippedTotal());
 
+    // it is important that modules parse their own instances of ExecutionDataStore
+    // and not share them with the session:
+    // ExecutionData instances that reside inside the store are mutable,
+    // and modifying an ExecutionData in one module is going
+    // to be visible in another module
+    // (see internal implementation of org.jacoco.core.data.ExecutionDataStore.accept)
+    ExecutionDataStore coverageData = CoverageUtils.parse(result.getCoverageData());
     if (coverageData != null) {
       synchronized (coverageDataLock) {
-        // add module coverage data to session coverage data
-        coverageData.accept(this.coverageData);
+        if (this.coverageData == null) {
+          this.coverageData = coverageData;
+        } else {
+          // merge module coverage data from multiple VMs
+          coverageData.accept(this.coverageData);
+        }
       }
     }
 
-    for (TestFramework testFramework : result.getTestFrameworks()) {
-      SpanUtils.mergeTag(span, Tags.TEST_FRAMEWORK, testFramework.getName());
-      SpanUtils.mergeTag(span, Tags.TEST_FRAMEWORK_VERSION, testFramework.getVersion());
-    }
+    SpanUtils.mergeTestFrameworks(span, result.getTestFrameworks());
   }
 
   @Override
@@ -156,7 +161,7 @@ public class DDBuildSystemModuleImpl extends DDTestModuleImpl implements DDBuild
     }
 
     synchronized (coverageDataLock) {
-      if (!coverageData.getContents().isEmpty()) {
+      if (coverageData != null && !coverageData.getContents().isEmpty()) {
         processCoverageData(coverageData);
       }
     }
@@ -196,7 +201,9 @@ public class DDBuildSystemModuleImpl extends DDTestModuleImpl implements DDBuild
   private File getCoverageReportFolder() {
     String coverageReportDumpDir = config.getCiVisibilityCodeCoverageReportDumpDir();
     if (coverageReportDumpDir != null) {
-      return Paths.get(coverageReportDumpDir, "session-" + sessionId, moduleName).toFile();
+      return Paths.get(coverageReportDumpDir, "session-" + sessionId, moduleName)
+          .toAbsolutePath()
+          .toFile();
     } else {
       return null;
     }

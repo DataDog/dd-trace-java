@@ -8,15 +8,16 @@ import com.datadog.debugger.agent.ProbeStatus;
 import com.datadog.debugger.probe.LogProbe;
 import com.datadog.debugger.sink.Snapshot;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
-import org.junit.jupiter.api.Assertions;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.DisabledIf;
 
 public class ProbeStateIntegrationTest extends ServerAppDebuggerIntegrationTest {
   @Test
   @DisplayName("testAddRemoveProbes")
+  @DisabledIf(value = "datadog.trace.api.Platform#isJ9", disabledReason = "Flaky on J9 JVMs")
   void testAddRemoveProbes() throws Exception {
     LogProbe logProbe =
         LogProbe.builder().probeId(PROBE_ID).where(TEST_APP_CLASS_NAME, FULL_METHOD_NAME).build();
@@ -38,6 +39,7 @@ public class ProbeStateIntegrationTest extends ServerAppDebuggerIntegrationTest 
 
   @Test
   @DisplayName("testDisableEnableProbes")
+  @DisabledIf(value = "datadog.trace.api.Platform#isJ9", disabledReason = "Flaky on J9 JVMs")
   void testDisableEnableProbes() throws Exception {
     LogProbe logProbe =
         LogProbe.builder().probeId(PROBE_ID).where(TEST_APP_CLASS_NAME, FULL_METHOD_NAME).build();
@@ -59,6 +61,7 @@ public class ProbeStateIntegrationTest extends ServerAppDebuggerIntegrationTest 
 
   @Test
   @DisplayName("testDisableEnableProbesUsingDenyList")
+  @DisabledIf(value = "datadog.trace.api.Platform#isJ9", disabledReason = "Flaky on J9 JVMs")
   void testDisableEnableProbesUsingDenyList() throws Exception {
     LogProbe logProbe =
         LogProbe.builder().probeId(PROBE_ID).where(TEST_APP_CLASS_NAME, FULL_METHOD_NAME).build();
@@ -89,6 +92,7 @@ public class ProbeStateIntegrationTest extends ServerAppDebuggerIntegrationTest 
 
   @Test
   @DisplayName("testDisableEnableProbesUsingAllowList")
+  @DisabledIf(value = "datadog.trace.api.Platform#isJ9", disabledReason = "Flaky on J9 JVMs")
   void testDisableEnableProbesUsingAllowList() throws Exception {
     LogProbe logProbe =
         LogProbe.builder().probeId(PROBE_ID).where(TEST_APP_CLASS_NAME, FULL_METHOD_NAME).build();
@@ -126,15 +130,21 @@ public class ProbeStateIntegrationTest extends ServerAppDebuggerIntegrationTest 
             .where(TEST_APP_CLASS_NAME, "unknownMethodName")
             .build();
     addProbe(logProbe);
-    // statuses could be received out of order
-    HashMap<ProbeStatus.Status, ProbeStatus.Diagnostics> statuses = new HashMap<>();
-    ProbeStatus.Diagnostics diagnostics = retrieveProbeStatusRequest().getDiagnostics();
-    statuses.put(diagnostics.getStatus(), diagnostics);
-    diagnostics = retrieveProbeStatusRequest().getDiagnostics();
-    statuses.put(diagnostics.getStatus(), diagnostics);
-    Assertions.assertTrue(statuses.containsKey(ProbeStatus.Status.RECEIVED));
-    Assertions.assertEquals(
-        "Cannot find method datadog/smoketest/debugger/ServerDebuggerTestApplication::unknownMethodName",
-        statuses.get(ProbeStatus.Status.ERROR).getException().getMessage());
+    AtomicBoolean received = new AtomicBoolean(false);
+    AtomicBoolean error = new AtomicBoolean(false);
+    registerProbeStatusListener(
+        probeStatus -> {
+          if (probeStatus.getDiagnostics().getStatus() == ProbeStatus.Status.RECEIVED) {
+            received.set(true);
+          }
+          if (probeStatus.getDiagnostics().getStatus() == ProbeStatus.Status.ERROR) {
+            assertEquals(
+                "Cannot find method datadog/smoketest/debugger/ServerDebuggerTestApplication::unknownMethodName",
+                probeStatus.getDiagnostics().getException().getMessage());
+            error.set(true);
+          }
+          return received.get() && error.get();
+        });
+    processRequests();
   }
 }

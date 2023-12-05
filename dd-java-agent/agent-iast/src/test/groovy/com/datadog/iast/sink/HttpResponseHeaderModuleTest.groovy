@@ -25,13 +25,13 @@ class HttpResponseHeaderModuleTest extends IastModuleImplTestBase {
 
   def setup() {
     InstrumentationBridge.clearIastModules()
-    module = registerDependencies(new HttpResponseHeaderModuleImpl())
+    module = new HttpResponseHeaderModuleImpl(dependencies)
     InstrumentationBridge.registerIastModule(module)
     InstrumentationBridge.registerIastModule(new InsecureCookieModuleImpl())
     InstrumentationBridge.registerIastModule(new NoHttpOnlyCookieModuleImpl())
     InstrumentationBridge.registerIastModule(new NoSameSiteCookieModuleImpl())
-    InstrumentationBridge.registerIastModule(new HstsMissingHeaderModuleImpl())
-    InstrumentationBridge.registerIastModule(new UnvalidatedRedirectModuleImpl())
+    InstrumentationBridge.registerIastModule(new HstsMissingHeaderModuleImpl(dependencies))
+    InstrumentationBridge.registerIastModule(new UnvalidatedRedirectModuleImpl(dependencies))
     objectHolder = []
     ctx = new IastRequestContext()
     final reqCtx = Mock(RequestContext) {
@@ -58,6 +58,7 @@ class HttpResponseHeaderModuleTest extends IastModuleImplTestBase {
     then:
     1 * tracer.activeSpan() >> span
     1 * span.getSpanId()
+    1 * span.getServiceName()
     1 * overheadController.consumeQuota(_, _) >> true
     1 * reporter.report(_, _ as Vulnerability) >> { onReport.call(it[1] as Vulnerability) }
     1 * reporter.report(_, _ as Vulnerability) >> { onReport.call(it[1] as Vulnerability) }
@@ -92,7 +93,7 @@ class HttpResponseHeaderModuleTest extends IastModuleImplTestBase {
     module.onHeader("Strict-Transport-Security", "invalid max age")
 
     then:
-    3 * tracer.activeSpan()
+    4 * tracer.activeSpan()
     1 * overheadController.consumeQuota(_,_)
     0 * _
   }

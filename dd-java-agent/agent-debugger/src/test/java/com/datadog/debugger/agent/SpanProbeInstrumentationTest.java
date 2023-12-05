@@ -145,12 +145,13 @@ public class SpanProbeInstrumentationTest extends ProbeInstrumentationTest {
     when(config.isDebuggerVerifyByteCode()).thenReturn(true);
     when(config.getFinalDebuggerSnapshotUrl())
         .thenReturn("http://localhost:8126/debugger/v1/input");
+    when(config.getFinalDebuggerSymDBUrl()).thenReturn("http://localhost:8126/symdb/v1/input");
     probeStatusSink = mock(ProbeStatusSink.class);
     currentTransformer =
         new DebuggerTransformer(
             config, configuration, null, new DebuggerSink(config, probeStatusSink));
     instr.addTransformer(currentTransformer);
-    mockSink = new MockSink();
+    mockSink = new MockSink(config, probeStatusSink);
     DebuggerAgentHelper.injectSink(mockSink);
     DebuggerContext.init(null, null);
     DebuggerContext.initClassFilter(new DenyListHelper(null));

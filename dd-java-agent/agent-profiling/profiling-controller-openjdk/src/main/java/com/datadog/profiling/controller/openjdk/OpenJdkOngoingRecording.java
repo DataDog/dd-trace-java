@@ -3,10 +3,11 @@ package com.datadog.profiling.controller.openjdk;
 import com.datadog.profiling.auxiliary.AuxiliaryProfiler;
 import com.datadog.profiling.auxiliary.AuxiliaryRecordingData;
 import com.datadog.profiling.controller.OngoingRecording;
-import com.datadog.profiling.controller.RecordingData;
 import com.datadog.profiling.utils.ProfilingMode;
 import datadog.trace.api.profiling.ProfilingListenersRegistry;
 import datadog.trace.api.profiling.ProfilingSnapshot;
+import datadog.trace.api.profiling.RecordingData;
+import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Map;
@@ -28,13 +29,26 @@ public class OpenJdkOngoingRecording implements OngoingRecording {
 
   OpenJdkOngoingRecording(
       String recordingName, Map<String, String> settings, int maxSize, Duration maxAge) {
+    this(recordingName, settings, maxSize, maxAge, ConfigProvider.getInstance());
+  }
+
+  OpenJdkOngoingRecording(
+      String recordingName,
+      Map<String, String> settings,
+      int maxSize,
+      Duration maxAge,
+      ConfigProvider configProvider) {
     log.debug("Creating new recording: {}", recordingName);
     recording = new Recording();
     recording.setName(recordingName);
     recording.setSettings(settings);
     recording.setMaxSize(maxSize);
     recording.setMaxAge(maxAge);
-    this.auxiliaryProfiler = AuxiliaryProfiler.getInstance();
+    // for testing purposes we are supporting passing in a custom config provider
+    this.auxiliaryProfiler =
+        (configProvider == ConfigProvider.getInstance()
+            ? AuxiliaryProfiler.getInstance()
+            : new AuxiliaryProfiler(configProvider));
     if (auxiliaryProfiler.isEnabled()) {
       auxiliaryRecording = auxiliaryProfiler.start();
       if (auxiliaryRecording != null) {

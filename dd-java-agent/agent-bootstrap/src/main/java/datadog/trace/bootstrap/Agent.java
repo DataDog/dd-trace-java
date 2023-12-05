@@ -151,7 +151,13 @@ public class Agent {
     createAgentClassloader(agentJarURL);
 
     if (Platform.isNativeImageBuilder()) {
+      // these default services are not used during native-image builds
+      jmxFetchEnabled = false;
+      remoteConfigEnabled = false;
+      telemetryEnabled = false;
+      // apply trace instrumentation, but skip starting other services
       startDatadogAgent(inst);
+      StaticEventLogger.end("Agent.start");
       return;
     }
 
@@ -335,6 +341,9 @@ public class Agent {
 
     if (profilingEnabled) {
       shutdownProfilingAgent(sync);
+    }
+    if (telemetryEnabled) {
+      stopTelemetry();
     }
   }
 
@@ -784,6 +793,21 @@ public class Agent {
     StaticEventLogger.end("Telemetry");
   }
 
+  private static void stopTelemetry() {
+    if (AGENT_CLASSLOADER == null) {
+      return;
+    }
+
+    try {
+      final Class<?> telemetrySystem =
+          AGENT_CLASSLOADER.loadClass("datadog.telemetry.TelemetrySystem");
+      final Method stopTelemetry = telemetrySystem.getMethod("stop");
+      stopTelemetry.invoke(null);
+    } catch (final Throwable ex) {
+      log.error("Error encountered while stopping telemetry", ex);
+    }
+  }
+
   private static void initializeCrashUploader() {
     if (Platform.isJ9()) {
       // TODO currently crash tracking is supported only for HotSpot based JVMs
@@ -832,15 +856,29 @@ public class Agent {
    * on JFR.
    */
   private static ProfilingContextIntegration createProfilingContextIntegration() {
-    if (Config.get().isProfilingEnabled() && !Platform.isWindows()) {
-      try {
-        return (ProfilingContextIntegration)
-            AGENT_CLASSLOADER
-                .loadClass("com.datadog.profiling.ddprof.DatadogProfilingIntegration")
-                .getDeclaredConstructor()
-                .newInstance();
-      } catch (Throwable t) {
-        log.debug("Profiling context labeling not available. {}", t.getMessage());
+    if (Config.get().isProfilingEnabled()) {
+      if (Config.get().isDatadogProfilerEnabled() && !Platform.isWindows()) {
+        try {
+          return (ProfilingContextIntegration)
+              AGENT_CLASSLOADER
+                  .loadClass("com.datadog.profiling.ddprof.DatadogProfilingIntegration")
+                  .getDeclaredConstructor()
+                  .newInstance();
+        } catch (Throwable t) {
+          log.debug("ddprof-based profiling context labeling not available. {}", t.getMessage());
+        }
+      }
+      if (Config.get().isProfilingTimelineEventsEnabled()) {
+        // important: note that this will not initialise JFR until onStart is called
+        try {
+          return (ProfilingContextIntegration)
+              AGENT_CLASSLOADER
+                  .loadClass("com.datadog.profiling.controller.openjdk.JFREventContextIntegration")
+                  .getDeclaredConstructor()
+                  .newInstance();
+        } catch (Throwable t) {
+          log.debug("JFR event-based profiling context labeling not available. {}", t.getMessage());
+        }
       }
     }
     return ProfilingContextIntegration.NoOp.INSTANCE;
@@ -848,6 +886,11 @@ public class Agent {
 
   private static void startProfilingAgent(final boolean isStartingFirst) {
     StaticEventLogger.begin("ProfilingAgent");
+
+    if (isAwsLambdaRuntime()) {
+      log.info("Profiling not supported in AWS Lambda runtimes");
+      return;
+    }
 
     final ClassLoader contextLoader = Thread.currentThread().getContextClassLoader();
     try {
@@ -896,6 +939,7 @@ public class Agent {
                                 .getDeclaredConstructor()
                                 .newInstance());
                   }
+                  tracer.getProfilingContext().onStart();
                 } catch (Throwable e) {
                   if (e instanceof InvocationTargetException) {
                     e = e.getCause();
@@ -912,6 +956,11 @@ public class Agent {
     }
 
     StaticEventLogger.end("ProfilingAgent");
+  }
+
+  private static boolean isAwsLambdaRuntime() {
+    String val = System.getenv("AWS_LAMBDA_FUNCTION_NAME");
+    return val != null && !val.isEmpty();
   }
 
   private static ScopeListener createScopeListener(String className) throws Throwable {

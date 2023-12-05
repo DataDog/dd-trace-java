@@ -17,6 +17,9 @@ apply plugin: 'idea'
 dependencies {
   api deps.slf4j
   api project(':internal-api')
+  api(project(':dd-java-agent:agent-bootstrap')) {
+    exclude group: 'com.datadoghq', module: 'agent-logging'
+  }
   api project(':dd-java-agent:agent-profiling:profiling-auxiliary')
   api project(':dd-java-agent:agent-profiling:profiling-controller')
   api project(':dd-java-agent:agent-profiling:profiling-controller-jfr')
@@ -25,6 +28,7 @@ dependencies {
   testImplementation deps.mockito
   testImplementation group: 'org.hamcrest', name: 'hamcrest', version: '2.1'
   testImplementation files(project(':dd-java-agent:agent-profiling:profiling-controller-jfr').sourceSets.test.output)
+  testImplementation project(':dd-java-agent:agent-profiling')
 }
 
 /*

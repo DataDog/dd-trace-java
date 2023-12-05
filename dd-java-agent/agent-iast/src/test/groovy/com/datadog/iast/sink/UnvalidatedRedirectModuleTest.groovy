@@ -6,6 +6,7 @@ import com.datadog.iast.model.Range
 import com.datadog.iast.model.Source
 import com.datadog.iast.model.Vulnerability
 import com.datadog.iast.model.VulnerabilityType
+import com.datadog.iast.taint.Ranges
 import datadog.trace.api.gateway.RequestContext
 import datadog.trace.api.gateway.RequestContextSlot
 import datadog.trace.api.iast.InstrumentationBridge
@@ -14,7 +15,7 @@ import datadog.trace.api.iast.VulnerabilityMarks
 import datadog.trace.api.iast.sink.UnvalidatedRedirectModule
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 
-import static com.datadog.iast.model.Range.NOT_MARKED
+import static datadog.trace.api.iast.VulnerabilityMarks.NOT_MARKED
 import static com.datadog.iast.taint.TaintUtils.addFromTaintFormat
 import static com.datadog.iast.taint.TaintUtils.taintFormat
 
@@ -27,7 +28,7 @@ class UnvalidatedRedirectModuleTest extends IastModuleImplTestBase {
   private IastRequestContext ctx
 
   def setup() {
-    module = registerDependencies(new UnvalidatedRedirectModuleImpl())
+    module = new UnvalidatedRedirectModuleImpl(dependencies)
     objectHolder = []
     ctx = new IastRequestContext()
     final reqCtx = Mock(RequestContext) {
@@ -64,7 +65,7 @@ class UnvalidatedRedirectModuleTest extends IastModuleImplTestBase {
 
   void 'iast module detects URI redirect (#value)'(final URI value, final String expected) {
     setup:
-    ctx.taintedObjects.taintInputObject(value, new Source(SourceTypes.NONE, null, null))
+    ctx.taintedObjects.taint(value, Ranges.forObject(new Source(SourceTypes.NONE, null, null)))
 
     when:
     module.onURIRedirect(value)
@@ -107,7 +108,7 @@ class UnvalidatedRedirectModuleTest extends IastModuleImplTestBase {
 
   void 'if onHeader receives a Location header call onRedirect'() {
     setup:
-    final urm = Spy(UnvalidatedRedirectModuleImpl)
+    final urm = Spy(new UnvalidatedRedirectModuleImpl(dependencies))
     InstrumentationBridge.registerIastModule(urm)
 
     when:

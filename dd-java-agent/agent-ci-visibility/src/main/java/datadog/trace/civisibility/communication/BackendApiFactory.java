@@ -23,7 +23,6 @@ public class BackendApiFactory {
   }
 
   public @Nullable BackendApi createBackendApi() {
-    long timeoutMillis = config.getCiVisibilityBackendApiTimeoutMillis();
     HttpRetryPolicy.Factory retryPolicyFactory = new HttpRetryPolicy.Factory(5, 100, 2.0);
 
     if (config.isCiVisibilityAgentlessEnabled()) {
@@ -33,20 +32,20 @@ public class BackendApiFactory {
         throw new FatalAgentMisconfigurationError(
             "Agentless mode is enabled and api key is not set. Please set application key");
       }
-      String applicationKey = config.getApplicationKey();
-      if (applicationKey == null || applicationKey.isEmpty()) {
-        log.warn(
-            "Agentless mode is enabled and application key is not set. Some CI Visibility features will be unavailable");
-      }
-      return new IntakeApi(site, apiKey, applicationKey, timeoutMillis, retryPolicyFactory);
+      long timeoutMillis = config.getCiVisibilityBackendApiTimeoutMillis();
+      String traceId = config.getIdGenerationStrategy().generateTraceId().toString();
+      return new IntakeApi(site, apiKey, traceId, timeoutMillis, retryPolicyFactory);
     }
 
     DDAgentFeaturesDiscovery featuresDiscovery =
         sharedCommunicationObjects.featuresDiscovery(config);
+    featuresDiscovery.discoverIfOutdated();
     if (featuresDiscovery.supportsEvpProxy()) {
+      String traceId = config.getIdGenerationStrategy().generateTraceId().toString();
       String evpProxyEndpoint = featuresDiscovery.getEvpProxyEndpoint();
       HttpUrl evpProxyUrl = sharedCommunicationObjects.agentUrl.resolve(evpProxyEndpoint);
-      return new EvpProxyApi(evpProxyUrl, timeoutMillis, retryPolicyFactory);
+      return new EvpProxyApi(
+          traceId, evpProxyUrl, retryPolicyFactory, sharedCommunicationObjects.okHttpClient);
     }
 
     log.warn(

@@ -3,6 +3,7 @@ package datadog.trace.civisibility.events;
 import static datadog.trace.util.Strings.toJson;
 
 import datadog.trace.api.DisableTestTrace;
+import datadog.trace.api.civisibility.InstrumentationBridge;
 import datadog.trace.api.civisibility.config.SkippableTest;
 import datadog.trace.api.civisibility.events.TestEventsHandler;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
@@ -13,10 +14,10 @@ import datadog.trace.civisibility.DDTestSuiteImpl;
 import java.lang.reflect.Method;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import javax.annotation.Nullable;
+import org.objectweb.asm.Type;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -147,7 +148,7 @@ public class TestEventsHandlerImpl implements TestEventsHandler {
 
     TestSuiteDescriptor suiteDescriptor = new TestSuiteDescriptor(testSuiteName, testClass);
     DDTestSuiteImpl testSuite = inProgressTestSuites.get(suiteDescriptor);
-    DDTestImpl test = testSuite.testStart(testName, testMethodName, testMethod, null);
+    DDTestImpl test = testSuite.testStart(testName, testMethod, null);
 
     if (testFramework != null) {
       test.setTag(Tags.TEST_FRAMEWORK, testFramework);
@@ -158,9 +159,24 @@ public class TestEventsHandlerImpl implements TestEventsHandler {
     if (testParameters != null) {
       test.setTag(Tags.TEST_PARAMETERS, testParameters);
     }
+    if (testMethodName != null && testMethod != null) {
+      test.setTag(Tags.TEST_SOURCE_METHOD, testMethodName + Type.getMethodDescriptor(testMethod));
+    }
     if (categories != null && !categories.isEmpty()) {
       String json = toJson(Collections.singletonMap("category", toJson(categories)), true);
       test.setTag(Tags.TEST_TRAITS, json);
+
+      for (String category : categories) {
+        if (category.endsWith(InstrumentationBridge.ITR_UNSKIPPABLE_TAG)) {
+          test.setTag(Tags.TEST_ITR_UNSKIPPABLE, true);
+
+          SkippableTest thisTest = new SkippableTest(testSuiteName, testName, testParameters, null);
+          if (testModule.isSkippable(thisTest)) {
+            test.setTag(Tags.TEST_ITR_FORCED_RUN, true);
+          }
+          break;
+        }
+      }
     }
 
     TestDescriptor descriptor =
@@ -241,7 +257,7 @@ public class TestEventsHandlerImpl implements TestEventsHandler {
       final @Nullable String testFramework,
       final @Nullable String testFrameworkVersion,
       final @Nullable String testParameters,
-      final @Nullable List<String> categories,
+      final @Nullable Collection<String> categories,
       final @Nullable Class<?> testClass,
       final @Nullable String testMethodName,
       final @Nullable Method testMethod,

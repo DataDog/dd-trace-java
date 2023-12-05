@@ -17,7 +17,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Collects data that needs to be sent to the backend: Snapshots, metrics and statuses */
-public class DebuggerSink implements Sink {
+public class DebuggerSink {
   private static final Logger log = LoggerFactory.getLogger(DebuggerSink.class);
   private static final double FREE_CAPACITY_LOWER_THRESHOLD = 0.25;
   private static final double FREE_CAPACITY_UPPER_THRESHOLD = 0.75;
@@ -30,6 +30,7 @@ public class DebuggerSink implements Sink {
 
   private final ProbeStatusSink probeStatusSink;
   private final SnapshotSink snapshotSink;
+  private final SymbolSink symbolSink;
   private final DebuggerMetrics debuggerMetrics;
   private final BatchUploader batchUploader;
   private final String tags;
@@ -42,10 +43,11 @@ public class DebuggerSink implements Sink {
   public DebuggerSink(Config config) {
     this(
         config,
-        new BatchUploader(config),
+        new BatchUploader(config, config.getFinalDebuggerSnapshotUrl()),
         DebuggerMetrics.getInstance(config),
         new ProbeStatusSink(config),
-        new SnapshotSink(config));
+        new SnapshotSink(config),
+        new SymbolSink(config));
   }
 
   DebuggerSink(Config config, BatchUploader batchUploader) {
@@ -54,16 +56,18 @@ public class DebuggerSink implements Sink {
         batchUploader,
         DebuggerMetrics.getInstance(config),
         new ProbeStatusSink(config),
-        new SnapshotSink(config));
+        new SnapshotSink(config),
+        new SymbolSink(config));
   }
 
   public DebuggerSink(Config config, ProbeStatusSink probeStatusSink) {
     this(
         config,
-        new BatchUploader(config),
+        new BatchUploader(config, config.getFinalDebuggerSnapshotUrl()),
         DebuggerMetrics.getInstance(config),
         probeStatusSink,
-        new SnapshotSink(config));
+        new SnapshotSink(config),
+        new SymbolSink(config));
   }
 
   DebuggerSink(Config config, BatchUploader batchUploader, DebuggerMetrics debuggerMetrics) {
@@ -72,7 +76,8 @@ public class DebuggerSink implements Sink {
         batchUploader,
         debuggerMetrics,
         new ProbeStatusSink(config),
-        new SnapshotSink(config));
+        new SnapshotSink(config),
+        new SymbolSink(config));
   }
 
   public DebuggerSink(
@@ -80,12 +85,14 @@ public class DebuggerSink implements Sink {
       BatchUploader batchUploader,
       DebuggerMetrics debuggerMetrics,
       ProbeStatusSink probeStatusSink,
-      SnapshotSink snapshotSink) {
+      SnapshotSink snapshotSink,
+      SymbolSink symbolSink) {
     this.batchUploader = batchUploader;
     tags = getDefaultTagsMergedWithGlobalTags(config);
     this.debuggerMetrics = debuggerMetrics;
     this.probeStatusSink = probeStatusSink;
     this.snapshotSink = snapshotSink;
+    this.symbolSink = symbolSink;
     this.uploadFlushInterval = config.getDebuggerUploadFlushInterval();
   }
 
@@ -136,7 +143,10 @@ public class DebuggerSink implements Sink {
     return batchUploader;
   }
 
-  @Override
+  public SymbolSink getSymbolSink() {
+    return symbolSink;
+  }
+
   public void addSnapshot(Snapshot snapshot) {
     boolean added = snapshotSink.offer(snapshot);
     if (!added) {
@@ -160,15 +170,16 @@ public class DebuggerSink implements Sink {
 
   // visible for testing
   void flush(DebuggerSink ignored) {
+    symbolSink.flush();
     List<String> diagnostics = probeStatusSink.getSerializedDiagnostics();
     List<String> snapshots = snapshotSink.getSerializedSnapshots();
     if (snapshots.size() + diagnostics.size() == 0) {
       return;
     }
-    if (snapshots.size() >= 1) {
+    if (snapshots.size() > 0) {
       uploadPayloads(snapshots);
     }
-    if (diagnostics.size() >= 1) {
+    if (diagnostics.size() > 0) {
       uploadPayloads(diagnostics);
     }
   }
@@ -248,7 +259,6 @@ public class DebuggerSink implements Sink {
   }
 
   /** Notifies the snapshot was skipped for one of the SkipCause reason */
-  @Override
   public void skipSnapshot(String probeId, DebuggerContext.SkipCause cause) {
     String causeTag;
     switch (cause) {

@@ -24,7 +24,7 @@ class NoHttpCookieModuleTest extends IastModuleImplTestBase {
 
   def setup() {
     InstrumentationBridge.clearIastModules()
-    module = registerDependencies(new HttpResponseHeaderModuleImpl())
+    module = new HttpResponseHeaderModuleImpl(dependencies)
     InstrumentationBridge.registerIastModule(new NoHttpOnlyCookieModuleImpl())
     objectHolder = []
     ctx = new IastRequestContext()

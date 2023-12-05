@@ -1,6 +1,8 @@
 package com.datadog.debugger.agent;
 
 import static com.datadog.debugger.el.DSL.eq;
+import static com.datadog.debugger.el.DSL.getMember;
+import static com.datadog.debugger.el.DSL.gt;
 import static com.datadog.debugger.el.DSL.ref;
 import static com.datadog.debugger.el.DSL.value;
 import static com.datadog.debugger.probe.SpanDecorationProbe.TargetSpan.ACTIVE;
@@ -11,6 +13,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static utils.InstrumentationTestHelper.compileAndLoadClass;
@@ -18,6 +21,7 @@ import static utils.InstrumentationTestHelper.compileAndLoadClass;
 import com.datadog.debugger.el.DSL;
 import com.datadog.debugger.el.ProbeCondition;
 import com.datadog.debugger.el.expressions.BooleanExpression;
+import com.datadog.debugger.el.values.StringValue;
 import com.datadog.debugger.probe.LogProbe;
 import com.datadog.debugger.probe.SpanDecorationProbe;
 import com.datadog.debugger.sink.DebuggerSink;
@@ -32,6 +36,7 @@ import datadog.trace.bootstrap.debugger.DebuggerContext;
 import datadog.trace.bootstrap.debugger.MethodLocation;
 import datadog.trace.bootstrap.debugger.ProbeId;
 import datadog.trace.bootstrap.debugger.ProbeImplementation;
+import datadog.trace.bootstrap.debugger.util.Redaction;
 import datadog.trace.core.CoreTracer;
 import java.io.IOException;
 import java.net.URISyntaxException;
@@ -40,6 +45,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import org.joor.Reflect;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -57,6 +63,13 @@ public class SpanDecorationProbeInstrumentationTest extends ProbeInstrumentation
     CoreTracer tracer = CoreTracer.builder().build();
     TracerInstaller.forceInstallGlobalTracer(tracer);
     tracer.addTraceInterceptor(traceInterceptor);
+  }
+
+  @Override
+  @AfterEach
+  public void after() {
+    super.after();
+    Redaction.clearUserDefinedTypes();
   }
 
   @Test
@@ -171,10 +184,60 @@ public class SpanDecorationProbeInstrumentationTest extends ProbeInstrumentation
   }
 
   @Test
+  public void methodActiveSpanSynthReturn() throws IOException, URISyntaxException {
+    final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot20";
+    SpanDecorationProbe.Decoration decoration =
+        createDecoration(gt(ref("@return"), value(0)), "@return > '0", "tag1", "{@return}");
+    installSingleSpanDecoration(
+        CLASS_NAME, ACTIVE, decoration, "process", "int (java.lang.String)");
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    int result = Reflect.on(testClass).call("main", "5").get();
+    assertEquals(84, result);
+    MutableSpan span = traceInterceptor.getFirstSpan();
+    assertEquals("84", span.getTags().get("tag1"));
+  }
+
+  @Test
+  public void methodActiveSpanSynthDuration() throws IOException, URISyntaxException {
+    final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot20";
+    SpanDecorationProbe.Decoration decoration =
+        createDecoration(gt(ref("@duration"), value(0)), "@return > 0", "tag1", "{@duration}");
+    installSingleSpanDecoration(
+        CLASS_NAME, ACTIVE, decoration, "process", "int (java.lang.String)");
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    int result = Reflect.on(testClass).call("main", "5").get();
+    assertEquals(84, result);
+    MutableSpan span = traceInterceptor.getFirstSpan();
+    assertTrue(Double.parseDouble((String) span.getTags().get("tag1")) > 0);
+  }
+
+  @Test
+  public void methodActiveSpanSynthException() throws IOException, URISyntaxException {
+    final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot20";
+    SpanDecorationProbe.Decoration decoration =
+        createDecoration(
+            eq(getMember(ref("@exception"), "detailMessage"), value("oops")),
+            "@exception.detailMessage == 'oops'",
+            "tag1",
+            "{@exception.detailMessage}");
+    installSingleSpanDecoration(
+        CLASS_NAME, ACTIVE, decoration, "processWithException", "int (java.lang.String)");
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    try {
+      Reflect.on(testClass).call("main", "exception").get();
+      Assertions.fail("should not reach this code");
+    } catch (RuntimeException ex) {
+      assertEquals("oops", ex.getCause().getCause().getMessage());
+    }
+    MutableSpan span = traceInterceptor.getFirstSpan();
+    assertEquals("oops", span.getTags().get("tag1"));
+  }
+
+  @Test
   public void lineActiveSpanSimpleTag() throws IOException, URISyntaxException {
     final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot20";
     SpanDecorationProbe.Decoration decoration = createDecoration("tag1", "{arg}");
-    installSingleSpanDecoration(CLASS_NAME, ACTIVE, decoration, "CapturedSnapshot20.java", 38);
+    installSingleSpanDecoration(CLASS_NAME, ACTIVE, decoration, "CapturedSnapshot20.java", 41);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.on(testClass).call("main", "1").get();
     assertEquals(84, result);
@@ -206,7 +269,7 @@ public class SpanDecorationProbeInstrumentationTest extends ProbeInstrumentation
     final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot20";
     SpanDecorationProbe.Decoration decoration =
         createDecoration(eq(ref("arg"), value("5")), "arg == '5'", "tag1", "{arg}");
-    installSingleSpanDecoration(CLASS_NAME, ACTIVE, decoration, "CapturedSnapshot20.java", 38);
+    installSingleSpanDecoration(CLASS_NAME, ACTIVE, decoration, "CapturedSnapshot20.java", 41);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     for (int i = 0; i < 10; i++) {
       int result = Reflect.on(testClass).call("main", String.valueOf(i)).get();
@@ -222,7 +285,7 @@ public class SpanDecorationProbeInstrumentationTest extends ProbeInstrumentation
     final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot20";
     SpanDecorationProbe.Decoration decoration =
         createDecoration(eq(ref("noarg"), value("5")), "arg == '5'", "tag1", "{arg}");
-    installSingleSpanDecoration(CLASS_NAME, ACTIVE, decoration, "CapturedSnapshot20.java", 38);
+    installSingleSpanDecoration(CLASS_NAME, ACTIVE, decoration, "CapturedSnapshot20.java", 41);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.on(testClass).call("main", "5").get();
     assertEquals(84, result);
@@ -284,6 +347,165 @@ public class SpanDecorationProbeInstrumentationTest extends ProbeInstrumentation
     CapturedContext.CapturedValue intLocal =
         snapshots.get(0).getCaptures().getReturn().getLocals().get("intLocal");
     assertNotNull(intLocal);
+  }
+
+  @Test
+  public void keywordRedaction() throws IOException, URISyntaxException {
+    final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot28";
+    SpanDecorationProbe.Decoration decoration1 = createDecoration("tag1", "{password}");
+    SpanDecorationProbe.Decoration decoration2 = createDecoration("tag2", "{this.password}");
+    SpanDecorationProbe.Decoration decoration3 = createDecoration("tag3", "{strMap['password']}");
+    List<SpanDecorationProbe.Decoration> decorations =
+        Arrays.asList(decoration1, decoration2, decoration3);
+    installSingleSpanDecoration(
+        CLASS_NAME, ACTIVE, decorations, "process", "int (java.lang.String)");
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    int result = Reflect.on(testClass).call("main", "secret123").get();
+    assertEquals(42, result);
+    MutableSpan span = traceInterceptor.getFirstSpan();
+    assertFalse(span.getTags().containsKey("tag1"));
+    assertEquals(PROBE_ID.getId(), span.getTags().get("_dd.di.tag1.probe_id"));
+    assertEquals(
+        "Could not evaluate the expression because 'password' was redacted",
+        span.getTags().get("_dd.di.tag1.evaluation_error"));
+    assertFalse(span.getTags().containsKey("tag2"));
+    assertEquals(PROBE_ID.getId(), span.getTags().get("_dd.di.tag2.probe_id"));
+    assertEquals(
+        "Could not evaluate the expression because 'this.password' was redacted",
+        span.getTags().get("_dd.di.tag2.evaluation_error"));
+    assertFalse(span.getTags().containsKey("tag3"));
+    assertEquals(PROBE_ID.getId(), span.getTags().get("_dd.di.tag3.probe_id"));
+    assertEquals(
+        "Could not evaluate the expression because 'strMap[\"password\"]' was redacted",
+        span.getTags().get("_dd.di.tag3.evaluation_error"));
+  }
+
+  @Test
+  public void keywordRedactionConditions() throws IOException, URISyntaxException {
+    final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot28";
+    SpanDecorationProbe.Decoration decoration1 =
+        createDecoration(
+            DSL.contains(DSL.getMember(DSL.ref("this"), "password"), new StringValue("123")),
+            "contains(this.password, '123')",
+            "tag1",
+            "foo");
+    SpanDecorationProbe.Decoration decoration2 =
+        createDecoration(
+            DSL.eq(DSL.ref("password"), DSL.value("123")), "password == '123'", "tag2", "foo");
+    SpanDecorationProbe.Decoration decoration3 =
+        createDecoration(
+            DSL.eq(DSL.index(DSL.ref("strMap"), DSL.value("password")), DSL.value("123")),
+            "strMap['password'] == '123'",
+            "tag3",
+            "foo");
+    List<SpanDecorationProbe.Decoration> decorations =
+        Arrays.asList(decoration1, decoration2, decoration3);
+    installSingleSpanDecoration(
+        CLASS_NAME, ACTIVE, decorations, "process", "int (java.lang.String)");
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    int result = Reflect.on(testClass).call("main", "secret123").get();
+    assertEquals(42, result);
+    assertFalse(traceInterceptor.getFirstSpan().getTags().containsKey("tag1"));
+    assertFalse(traceInterceptor.getFirstSpan().getTags().containsKey("tag2"));
+    assertFalse(traceInterceptor.getFirstSpan().getTags().containsKey("tag3"));
+    assertEquals(1, mockSink.getSnapshots().size());
+    Snapshot snapshot = mockSink.getSnapshots().get(0);
+    assertEquals(3, snapshot.getEvaluationErrors().size());
+    assertEquals(
+        "Could not evaluate the expression because 'this.password' was redacted",
+        snapshot.getEvaluationErrors().get(0).getMessage());
+    assertEquals(
+        "Could not evaluate the expression because 'password' was redacted",
+        snapshot.getEvaluationErrors().get(1).getMessage());
+    assertEquals(
+        "Could not evaluate the expression because 'strMap[\"password\"]' was redacted",
+        snapshot.getEvaluationErrors().get(2).getMessage());
+  }
+
+  @Test
+  public void typeRedaction() throws IOException, URISyntaxException {
+    final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot28";
+    Config config = mock(Config.class);
+    when(config.getDebuggerRedactedTypes())
+        .thenReturn("com.datadog.debugger.CapturedSnapshot28$Creds");
+    Redaction.addUserDefinedTypes(config);
+    SpanDecorationProbe.Decoration decoration1 = createDecoration("tag1", "{creds}");
+    SpanDecorationProbe.Decoration decoration2 = createDecoration("tag2", "{this.creds}");
+    SpanDecorationProbe.Decoration decoration3 = createDecoration("tag3", "{credMap['dave']}");
+    List<SpanDecorationProbe.Decoration> decorations =
+        Arrays.asList(decoration1, decoration2, decoration3);
+    installSingleSpanDecoration(
+        CLASS_NAME, ACTIVE, decorations, "process", "int (java.lang.String)");
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    int result = Reflect.on(testClass).call("main", "secret123").get();
+    assertEquals(42, result);
+    MutableSpan span = traceInterceptor.getFirstSpan();
+    assertFalse(span.getTags().containsKey("tag1"));
+    assertEquals(PROBE_ID.getId(), span.getTags().get("_dd.di.tag1.probe_id"));
+    assertEquals(
+        "Could not evaluate the expression because 'creds' was redacted",
+        span.getTags().get("_dd.di.tag1.evaluation_error"));
+    assertFalse(span.getTags().containsKey("tag2"));
+    assertEquals(PROBE_ID.getId(), span.getTags().get("_dd.di.tag2.probe_id"));
+    assertEquals(
+        "Could not evaluate the expression because 'this.creds' was redacted",
+        span.getTags().get("_dd.di.tag2.evaluation_error"));
+    assertFalse(span.getTags().containsKey("tag3"));
+    assertEquals(PROBE_ID.getId(), span.getTags().get("_dd.di.tag3.probe_id"));
+    assertEquals(
+        "Could not evaluate the expression because 'credMap[\"dave\"]' was redacted",
+        span.getTags().get("_dd.di.tag3.evaluation_error"));
+  }
+
+  @Test
+  public void typeRedactionConditions() throws IOException, URISyntaxException {
+    final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot28";
+    Config config = mock(Config.class);
+    when(config.getDebuggerRedactedTypes())
+        .thenReturn("com.datadog.debugger.CapturedSnapshot28$Creds");
+    Redaction.addUserDefinedTypes(config);
+    SpanDecorationProbe.Decoration decoration1 =
+        createDecoration(
+            DSL.contains(
+                DSL.getMember(DSL.getMember(DSL.ref("this"), "creds"), "secretCode"),
+                new StringValue("123")),
+            "contains(this.creds.secretCode, '123')",
+            "tag1",
+            "foo");
+    SpanDecorationProbe.Decoration decoration2 =
+        createDecoration(
+            DSL.eq(DSL.getMember(DSL.ref("creds"), "secretCode"), DSL.value("123")),
+            "creds.secretCode == '123'",
+            "tag2",
+            "foo");
+    SpanDecorationProbe.Decoration decoration3 =
+        createDecoration(
+            DSL.eq(DSL.index(DSL.ref("credMap"), DSL.value("dave")), DSL.value("123")),
+            "credMap['dave'] == '123'",
+            "tag3",
+            "foo");
+    List<SpanDecorationProbe.Decoration> decorations =
+        Arrays.asList(decoration1, decoration2, decoration3);
+    installSingleSpanDecoration(
+        CLASS_NAME, ACTIVE, decorations, "process", "int (java.lang.String)");
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    int result = Reflect.on(testClass).call("main", "secret123").get();
+    assertEquals(42, result);
+    assertFalse(traceInterceptor.getFirstSpan().getTags().containsKey("tag1"));
+    assertFalse(traceInterceptor.getFirstSpan().getTags().containsKey("tag2"));
+    assertFalse(traceInterceptor.getFirstSpan().getTags().containsKey("tag3"));
+    assertEquals(1, mockSink.getSnapshots().size());
+    Snapshot snapshot = mockSink.getSnapshots().get(0);
+    assertEquals(3, snapshot.getEvaluationErrors().size());
+    assertEquals(
+        "Could not evaluate the expression because 'this.creds' was redacted",
+        snapshot.getEvaluationErrors().get(0).getMessage());
+    assertEquals(
+        "Could not evaluate the expression because 'creds' was redacted",
+        snapshot.getEvaluationErrors().get(1).getMessage());
+    assertEquals(
+        "Could not evaluate the expression because 'credMap[\"dave\"]' was redacted",
+        snapshot.getEvaluationErrors().get(2).getMessage());
   }
 
   private SpanDecorationProbe.Decoration createDecoration(String tagName, String valueDsl) {
@@ -415,12 +637,13 @@ public class SpanDecorationProbeInstrumentationTest extends ProbeInstrumentation
     when(config.isDebuggerClassFileDumpEnabled()).thenReturn(true);
     when(config.getFinalDebuggerSnapshotUrl())
         .thenReturn("http://localhost:8126/debugger/v1/input");
+    when(config.getFinalDebuggerSymDBUrl()).thenReturn("http://localhost:8126/symdb/v1/input");
     probeStatusSink = mock(ProbeStatusSink.class);
     currentTransformer =
         new DebuggerTransformer(
             config, configuration, null, new DebuggerSink(config, probeStatusSink));
     instr.addTransformer(currentTransformer);
-    mockSink = new MockSink();
+    mockSink = new MockSink(config, probeStatusSink);
     DebuggerAgentHelper.injectSink(mockSink);
     DebuggerContext.init(
         (id, callingClass) -> resolver(id, callingClass, expectedClassName, configuration), null);

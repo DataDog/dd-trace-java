@@ -2,22 +2,17 @@ package datadog.trace.instrumentation.junit4;
 
 import datadog.trace.api.civisibility.config.SkippableTest;
 import datadog.trace.util.Strings;
-import java.io.InputStream;
-import java.io.Serializable;
 import java.lang.annotation.Annotation;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
-import java.lang.invoke.MethodType;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
-import java.util.Properties;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import javax.annotation.Nullable;
-import junit.runner.Version;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.runner.Description;
@@ -39,14 +34,10 @@ public abstract class JUnit4Utils {
   private static final Pattern METHOD_AND_CLASS_NAME_PATTERN =
       Pattern.compile("([\\s\\S]*)\\((.*)\\)");
 
-  public static final String JUNIT_4_FRAMEWORK = "junit4";
-  private static final String JUNIT_VERSION = Version.id();
   private static final MethodHandle PARENT_RUNNER_DESCRIBE_CHILD;
   private static final MethodHandle RUN_NOTIFIER_LISTENERS;
   private static final MethodHandle INNER_SYNCHRONIZED_LISTENER;
   private static final MethodHandle DESCRIPTION_UNIQUE_ID;
-  private static final MethodHandle CREATE_DESCRIPTION_WITH_UNIQUE_ID;
-  public static final boolean NATIVE_SUITE_EVENTS_SUPPORTED;
 
   static {
     MethodHandles.Lookup lookup = MethodHandles.lookup();
@@ -54,18 +45,6 @@ public abstract class JUnit4Utils {
     RUN_NOTIFIER_LISTENERS = accessListenersFieldInRunNotifier(lookup);
     INNER_SYNCHRONIZED_LISTENER = accessListenerFieldInSynchronizedListener(lookup);
     DESCRIPTION_UNIQUE_ID = accessUniqueIdInDescription(lookup);
-    CREATE_DESCRIPTION_WITH_UNIQUE_ID = accessCreateDescriptionWithUniqueId(lookup);
-    NATIVE_SUITE_EVENTS_SUPPORTED = nativeSuiteEventsSupported();
-  }
-
-  /** JUnit 4 support test suite started/finished events in versions 4.13 and later */
-  private static boolean nativeSuiteEventsSupported() {
-    try {
-      RunListener.class.getDeclaredMethod("testSuiteStarted", Description.class);
-      return true;
-    } catch (NoSuchMethodException e) {
-      return false;
-    }
   }
 
   private static MethodHandle accessDescribeChildMethodInParentRunner(MethodHandles.Lookup lookup) {
@@ -131,17 +110,6 @@ public abstract class JUnit4Utils {
     }
   }
 
-  private static MethodHandle accessCreateDescriptionWithUniqueId(MethodHandles.Lookup lookup) {
-    try {
-      Method createDescription =
-          Description.class.getDeclaredMethod(
-              "createSuiteDescription", String.class, Serializable.class, Annotation[].class);
-      return lookup.unreflect(createDescription);
-    } catch (Throwable throwable) {
-      return null;
-    }
-  }
-
   public static List<RunListener> runListenersFromRunNotifier(final RunNotifier runNotifier) {
     try {
       if (RUN_NOTIFIER_LISTENERS != null) {
@@ -172,32 +140,6 @@ public abstract class JUnit4Utils {
       }
     }
     return null;
-  }
-
-  public static boolean isTracingListener(final RunListener listener) {
-    return listener instanceof TracingListener;
-  }
-
-  public static boolean isJUnitVintageListener(final RunListener listener) {
-    Class<? extends RunListener> listenerClass = listener.getClass();
-    String listenerClassName = listenerClass.getName();
-    return listenerClassName.startsWith("org.junit.vintage");
-  }
-
-  public static RunListener unwrapListener(final RunListener listener) {
-    if (SYNCHRONIZED_LISTENER.equals(listener.getClass().getName())) {
-      try {
-        if (INNER_SYNCHRONIZED_LISTENER != null) {
-          Object innerListener = INNER_SYNCHRONIZED_LISTENER.invoke(listener);
-          if (innerListener instanceof TracingListener) {
-            return (TracingListener) innerListener;
-          }
-        }
-      } catch (final Throwable e) {
-        log.debug("Could not get inner listener from SynchronizedRunListener", e);
-      }
-    }
-    return listener;
   }
 
   @Nullable
@@ -316,15 +258,7 @@ public abstract class JUnit4Utils {
     return "{\"metadata\":{\"test_name\":\"" + Strings.escapeToJson(methodName) + "\"}}";
   }
 
-  public static List<String> getCategories(
-      String testFramework,
-      Description description,
-      Class<?> testClass,
-      @Nullable Method testMethod) {
-    if (Munit.FRAMEWORK.equals(testFramework)) {
-      return Munit.getCategories(description);
-    }
-
+  public static List<String> getCategories(Class<?> testClass, @Nullable Method testMethod) {
     List<String> categories = new ArrayList<>();
     while (testClass != null) {
       Category categoryAnnotation = testClass.getAnnotation(Category.class);
@@ -359,29 +293,18 @@ public abstract class JUnit4Utils {
 
   public static boolean isSuiteContainingChildren(final Description description) {
     Class<?> testClass = description.getTestClass();
-    if (testClass != null) {
-      for (Description child : description.getChildren()) {
-        if (isTestCaseDescription(child)) {
-          return true;
-        }
-      }
-
-      // this is needed to handle parameterized tests,
-      // as they have an extra level of descriptions
-      // between the suite and the test cases
-      for (Method method : testClass.getMethods()) {
-        if (method.getAnnotation(Test.class) != null) {
-          return true;
-        }
+    if (testClass == null) {
+      return false;
+    }
+    for (Method method : testClass.getMethods()) {
+      if (method.getAnnotation(Test.class) != null) {
+        return true;
       }
     }
-
-    // check if this is a Cucumber feature
-    Object uniqueId = getUniqueId(description);
-    return uniqueId != null && uniqueId.toString().endsWith(".feature");
+    return false;
   }
 
-  private static Object getUniqueId(final Description description) {
+  public static Object getUniqueId(final Description description) {
     try {
       if (DESCRIPTION_UNIQUE_ID != null) {
         return DESCRIPTION_UNIQUE_ID.invoke(description);
@@ -408,10 +331,10 @@ public abstract class JUnit4Utils {
     return testMethods;
   }
 
-  public static Description getDescription(ParentRunner runner, Object child) {
+  public static Description getDescription(ParentRunner<?> runner, Object child) {
     try {
       if (PARENT_RUNNER_DESCRIBE_CHILD != null) {
-        return (Description) PARENT_RUNNER_DESCRIBE_CHILD.invoke(runner, child);
+        return (Description) PARENT_RUNNER_DESCRIBE_CHILD.invokeWithArguments(runner, child);
       }
     } catch (Throwable e) {
       log.error("Could not describe child: " + child, e);
@@ -429,30 +352,10 @@ public abstract class JUnit4Utils {
     updatedAnnotations[idx] = new SkippedByItr();
 
     String displayName = description.getDisplayName();
-
     Class<?> testClass = description.getTestClass();
-    if (testClass != null) {
-      Matcher matcher = METHOD_AND_CLASS_NAME_PATTERN.matcher(displayName);
-      String name = matcher.matches() ? matcher.group(1) : getTestName(description, null);
-      return Description.createTestDescription(testClass, name, updatedAnnotations);
-
-    } else {
-      // Cucumber
-      if (CREATE_DESCRIPTION_WITH_UNIQUE_ID != null) {
-        // Try to preserve unique ID
-        // since we use it to determine framework.
-        // The factory method that accepts unique ID
-        // is only available in JUnit 4.12+
-        try {
-          Object uniqueId = getUniqueId(description);
-          return (Description)
-              CREATE_DESCRIPTION_WITH_UNIQUE_ID.invoke(displayName, uniqueId, updatedAnnotations);
-        } catch (Throwable throwable) {
-          // ignored
-        }
-      }
-      return Description.createSuiteDescription(displayName, updatedAnnotations);
-    }
+    Matcher matcher = METHOD_AND_CLASS_NAME_PATTERN.matcher(displayName);
+    String name = matcher.matches() ? matcher.group(1) : getTestName(description, null);
+    return Description.createTestDescription(testClass, name, updatedAnnotations);
   }
 
   public static SkippableTest toSkippableTest(Description description) {
@@ -461,135 +364,5 @@ public abstract class JUnit4Utils {
     String name = JUnit4Utils.getTestName(description, testMethod);
     String parameters = JUnit4Utils.getParameters(description);
     return new SkippableTest(suite, name, parameters, null);
-  }
-
-  public static String getTestFramework(final Description description) {
-    Class<?> testClass = description.getTestClass();
-    while (testClass != null) {
-      if (testClass.getName().startsWith("munit.")) {
-        return Munit.FRAMEWORK;
-      }
-      testClass = testClass.getSuperclass();
-    }
-
-    Object uniqueId = JUnit4Utils.getUniqueId(description);
-    if (uniqueId != null && uniqueId.getClass().getName().startsWith("io.cucumber.")) {
-      return Cucumber.FRAMEWORK;
-    } else {
-      return JUNIT_4_FRAMEWORK;
-    }
-  }
-
-  public static String getTestFrameworkVersion(String testFramework, Description description) {
-    switch (testFramework) {
-      case Cucumber.FRAMEWORK:
-        return Cucumber.getVersion(description);
-      case Munit.FRAMEWORK:
-        return Munit.getFrameworkVersion(description);
-      default:
-        return JUNIT_VERSION;
-    }
-  }
-
-  public static final class Cucumber {
-    public static final String FRAMEWORK = "cucumber";
-    private static volatile String VERSION;
-
-    private static String getVersion(Description description) {
-      if (VERSION == null) {
-        String version = null;
-        Object cucumberId = JUnit4Utils.getUniqueId(description);
-        try (InputStream cucumberPropsStream =
-            cucumberId
-                .getClass()
-                .getClassLoader()
-                .getResourceAsStream("META-INF/maven/io.cucumber/cucumber-junit/pom.properties")) {
-          Properties cucumberProps = new Properties();
-          cucumberProps.load(cucumberPropsStream);
-          version = cucumberProps.getProperty("version");
-        } catch (Exception e) {
-          // fallback below
-        }
-        if (version != null) {
-          VERSION = version;
-        } else {
-          // Shouldn't happen normally.
-          // Put here as a guard against running the code above for every test case
-          // if version cannot be determined for whatever reason
-          VERSION = "unknown";
-        }
-      }
-      return VERSION;
-    }
-  }
-
-  public static final class Munit {
-
-    public static final String FRAMEWORK = "munit";
-    private static volatile String VERSION;
-    private static final Class<Annotation> MUNIT_TAG_ANNOTATION;
-    private static final MethodHandle MUNIT_TAG;
-
-    static {
-      /*
-       * Spock's classes are accessed via reflection and method handles
-       * since they are loaded by a different classloader in some envs
-       */
-      MethodHandles.Lookup lookup = MethodHandles.publicLookup();
-      MUNIT_TAG_ANNOTATION = accessMunitTagAnnotation();
-      MUNIT_TAG = accessMunitTag(lookup, MUNIT_TAG_ANNOTATION);
-    }
-
-    private static Class<Annotation> accessMunitTagAnnotation() {
-      try {
-        return (Class<Annotation>) ClassLoader.getSystemClassLoader().loadClass("munit.Tag");
-      } catch (Throwable e) {
-        return null;
-      }
-    }
-
-    private static MethodHandle accessMunitTag(
-        MethodHandles.Lookup lookup, Class<Annotation> munitTagAnnotation) {
-      if (munitTagAnnotation == null) {
-        return null;
-      }
-      try {
-        MethodType returnsString = MethodType.methodType(String.class);
-        return lookup.findVirtual(munitTagAnnotation, "value", returnsString);
-      } catch (Throwable e) {
-        return null;
-      }
-    }
-
-    public static String getFrameworkVersion(Description description) {
-      if (VERSION == null) {
-        Class<?> testClass = description.getTestClass();
-        while (testClass != null) {
-          if (testClass.getName().startsWith("munit.")) {
-            Package munitPackage = testClass.getPackage();
-            VERSION = munitPackage.getImplementationVersion();
-            break;
-          }
-          testClass = testClass.getSuperclass();
-        }
-      }
-      return VERSION;
-    }
-
-    private static List<String> getCategories(Description description) {
-      List<String> categories = new ArrayList<>();
-      try {
-        for (Annotation annotation : description.getAnnotations()) {
-          Class<? extends Annotation> annotationType = annotation.annotationType();
-          if ("munit.Tag".equals(annotationType.getName())) {
-            String category = (String) MUNIT_TAG.invoke(annotation);
-            categories.add(category);
-          }
-        }
-      } catch (Throwable e) {
-        // ignore
-      }
-      return categories;
-    }
   }
 }

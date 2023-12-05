@@ -467,7 +467,7 @@ class PendingTraceBufferTest extends DDSpecification {
       NoopPathwayContext.INSTANCE,
       false,
       PropagationTags.factory().empty())
-    return DDSpan.create("test", 0, context)
+    return DDSpan.create("test", 0, context, null)
   }
 
   static DDSpan newSpanOf(DDSpan parent) {
@@ -492,6 +492,6 @@ class PendingTraceBufferTest extends DDSpecification {
       NoopPathwayContext.INSTANCE,
       false,
       PropagationTags.factory().empty())
-    return DDSpan.create("test", 0, context)
+    return DDSpan.create("test", 0, context, null)
   }
 }

@@ -114,8 +114,15 @@ public final class ProfilingConfig {
   public static final String PROFILING_DATADOG_PROFILER_CSTACK = "profiling.ddprof.cstack";
   public static final String PROFILING_DATADOG_PROFILER_CSTACK_DEFAULT = "fp";
   public static final String PROFILING_DATADOG_PROFILER_SAFEMODE = "profiling.ddprof.safemode";
-  public static final int PROFILING_DATADOG_PROFILER_SAFEMODE_DEFAULT =
-      12; // POP_METHOD|UNWIND_NATIVE
+
+  private static final int POP_METHOD = 4;
+  private static final int LAST_JAVA_PC = 16;
+  public static final int PROFILING_DATADOG_PROFILER_SAFEMODE_DEFAULT = POP_METHOD | LAST_JAVA_PC;
+
+  public static final String PROFILING_DATADOG_PROFILER_LINE_NUMBERS =
+      "profiling.ddprof.linenumbers";
+
+  public static final boolean PROFILING_DATADOG_PROFILER_LINE_NUMBERS_DEFAULT = true;
 
   @Deprecated
   public static final String PROFILING_DATADOG_PROFILER_MEMLEAK_ENABLED =
@@ -165,6 +172,9 @@ public final class ProfilingConfig {
   public static final String PROFILING_CONTEXT_ATTRIBUTES_SPAN_NAME_ENABLED =
       "profiling.context.attributes.span.name.enabled";
 
+  public static final String PROFILING_CONTEXT_ATTRIBUTES_RESOURCE_NAME_ENABLED =
+      "profiling.context.attributes.resource.name.enabled";
+
   public static final String PROFILING_QUEUEING_TIME_ENABLED =
       "profiling.experimental.queueing.time.enabled";
 
@@ -176,6 +186,16 @@ public final class ProfilingConfig {
   public static final long PROFILING_QUEUEING_TIME_THRESHOLD_MILLIS_DEFAULT = 50;
 
   public static final String PROFILING_ULTRA_MINIMAL = "profiling.ultra.minimal";
+
+  public static final String PROFILING_HEAP_HISTOGRAM_ENABLED = "profiling.heap.histogram.enabled";
+  public static final boolean PROFILING_HEAP_HISTOGRAM_ENABLED_DEFAULT = false;
+
+  public static final String PROFILING_HEAP_HISTOGRAM_MODE = "profiling.heap.histogram.mode";
+  public static final String PROFILING_HEAP_HISTOGRAM_MODE_DEFAULT = "aftergc";
+
+  public static final String PROFILING_TIMELINE_EVENTS_ENABLED =
+      "profiling.timeline.events.enabled";
+  public static final boolean PROFILING_TIMELINE_EVENTS_ENABLED_DEFAULT = false;
 
   private ProfilingConfig() {}
 }

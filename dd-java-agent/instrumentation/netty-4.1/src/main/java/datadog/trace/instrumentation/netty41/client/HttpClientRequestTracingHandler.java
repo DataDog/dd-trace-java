@@ -72,8 +72,9 @@ public class HttpClientRequestTracingHandler extends ChannelOutboundHandlerAdapt
         }
       }
     }
-
-    ctx.channel().attr(CLIENT_PARENT_ATTRIBUTE_KEY).set(activeSpan());
+    if (ctx.channel().parent() == null) {
+      ctx.channel().attr(CLIENT_PARENT_ATTRIBUTE_KEY).set(activeSpan());
+    }
     boolean isSecure = SSL_HANDLER != null && ctx.pipeline().get(SSL_HANDLER) != null;
     NettyHttpClientDecorator decorate = isSecure ? DECORATE_SECURE : DECORATE;
 

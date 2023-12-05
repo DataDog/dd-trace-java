@@ -5,7 +5,7 @@ import static datadog.trace.bootstrap.instrumentation.api.Tags.DB_OPERATION;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.DDSpanId;
-
+import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
@@ -15,16 +15,13 @@ import datadog.trace.bootstrap.instrumentation.decorator.DatabaseClientDecorator
 import datadog.trace.bootstrap.instrumentation.jdbc.DBInfo;
 import datadog.trace.bootstrap.instrumentation.jdbc.DBQueryInfo;
 import datadog.trace.bootstrap.instrumentation.jdbc.JDBCConnectionUrlParser;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.*;
-
-import static datadog.trace.bootstrap.instrumentation.api.Tags.DB_OPERATION;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
 
@@ -38,7 +35,8 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
       UTF8BytesString.create("java-jdbc-statement");
   private static final UTF8BytesString JDBC_PREPARED_STATEMENT =
       UTF8BytesString.create("java-jdbc-prepared_statement");
-
+  private static final String DEFAULT_SERVICE_NAME =
+      SpanNaming.instance().namingSchema().database().service("jdbc");
   public static final String DBM_PROPAGATION_MODE_STATIC = "service";
   public static final String DBM_PROPAGATION_MODE_FULL = "full";
 
@@ -46,8 +44,10 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
   public static final boolean INJECT_COMMENT =
       DBM_PROPAGATION_MODE.equals(DBM_PROPAGATION_MODE_FULL)
           || DBM_PROPAGATION_MODE.equals(DBM_PROPAGATION_MODE_STATIC);
-  public static final boolean INJECT_TRACE_CONTEXT =
+  private static final boolean INJECT_TRACE_CONTEXT =
       DBM_PROPAGATION_MODE.equals(DBM_PROPAGATION_MODE_FULL);
+
+  private volatile boolean warnedAboutDBMPropagationMode = false; // to log a warning only once
 
   public static void logMissingQueryInfo(Statement statement) throws SQLException {
     if (log.isDebugEnabled()) {
@@ -82,7 +82,7 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
 
   @Override
   protected String service() {
-    return "jdbc"; // Overridden by onConnection
+    return DEFAULT_SERVICE_NAME; // Overridden by onConnection
   }
 
   @Override
@@ -119,12 +119,7 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
     return info.getHost();
   }
 
-  public AgentSpan onConnection(
-      final AgentSpan span,
-      final Connection connection,
-      ContextStore<Connection, DBInfo> contextStore) {
-
-    final DBInfo dbInfo = parseDBInfo(connection, contextStore);
+  public AgentSpan onConnection(final AgentSpan span, DBInfo dbInfo) {
     if (dbInfo != null) {
       processDatabaseType(span, dbInfo.getType());
     }
@@ -243,7 +238,23 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
   @Override
   protected void postProcessServiceAndOperationName(
       AgentSpan span, DatabaseClientDecorator.NamingEntry namingEntry) {
-    span.setServiceName(namingEntry.getService());
+    if (namingEntry.getService() != null) {
+      span.setServiceName(namingEntry.getService());
+    }
     span.setOperationName(namingEntry.getOperation());
+  }
+
+  public boolean shouldInjectTraceContext(DBInfo dbInfo) {
+    if (INJECT_TRACE_CONTEXT && !dbInfo.getFullPropagationSupport()) {
+      if (!warnedAboutDBMPropagationMode) {
+        log.warn(
+            "Using DBM_PROPAGATION_MODE in 'full' mode is not supported for {}. "
+                + "See https://docs.datadoghq.com/database_monitoring/connect_dbm_and_apm/ for more info.",
+            dbInfo.getType());
+        warnedAboutDBMPropagationMode = true;
+      }
+      return false;
+    }
+    return INJECT_TRACE_CONTEXT;
   }
 }

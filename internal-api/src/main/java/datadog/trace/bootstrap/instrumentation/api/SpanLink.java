@@ -1,22 +1,24 @@
 package datadog.trace.bootstrap.instrumentation.api;
 
+import static datadog.trace.bootstrap.instrumentation.api.SpanLinkAttributes.EMPTY;
+
 import datadog.trace.api.DDTraceId;
-import java.util.Collections;
-import java.util.Map;
 
 /** This class is a base implementation of {@link AgentSpanLink}. */
 public class SpanLink implements AgentSpanLink {
   private final DDTraceId traceId;
   private final long spanId;
+  private final byte traceFlags;
   private final String traceState;
-  private final Map<String, String> attributes;
+  private final Attributes attributes;
 
   protected SpanLink(
-      DDTraceId traceId, long spanId, String traceState, Map<String, String> attributes) {
+      DDTraceId traceId, long spanId, byte traceFlags, String traceState, Attributes attributes) {
     this.traceId = traceId;
     this.spanId = spanId;
+    this.traceFlags = traceFlags;
     this.traceState = traceState;
-    this.attributes = attributes == null ? Collections.emptyMap() : attributes;
+    this.attributes = attributes;
   }
 
   /**
@@ -27,7 +29,7 @@ public class SpanLink implements AgentSpanLink {
    * @return A span link to the given context.
    */
   public static SpanLink from(AgentSpan.Context context) {
-    return from(context, "", Collections.emptyMap());
+    return from(context, DEFAULT_FLAGS, "", EMPTY);
   }
 
   /**
@@ -35,13 +37,18 @@ public class SpanLink implements AgentSpanLink {
    * trace and span identifiers from the given instance.
    *
    * @param context The context of the span to get the link to.
+   * @param traceFlags The W3C formatted trace flags.
    * @param traceState The W3C formatted trace state.
    * @param attributes The link attributes.
    * @return A span link to the given context.
    */
   public static SpanLink from(
-      AgentSpan.Context context, String traceState, Map<String, String> attributes) {
-    return new SpanLink(context.getTraceId(), context.getSpanId(), traceState, attributes);
+      AgentSpan.Context context, byte traceFlags, String traceState, Attributes attributes) {
+    if (context.getSamplingPriority() > 0) {
+      traceFlags = (byte) (traceFlags | SAMPLED_FLAG);
+    }
+    return new SpanLink(
+        context.getTraceId(), context.getSpanId(), traceFlags, traceState, attributes);
   }
 
   @Override
@@ -55,12 +62,34 @@ public class SpanLink implements AgentSpanLink {
   }
 
   @Override
+  public byte traceFlags() {
+    return this.traceFlags;
+  }
+
+  @Override
   public String traceState() {
     return this.traceState;
   }
 
   @Override
-  public Map<String, String> attributes() {
+  public Attributes attributes() {
     return this.attributes;
+  }
+
+  @Override
+  public String toString() {
+    return "SpanLink{"
+        + "traceId="
+        + this.traceId
+        + ", spanId="
+        + this.spanId
+        + ", traceFlags="
+        + this.traceFlags
+        + ", traceState='"
+        + this.traceState
+        + '\''
+        + ", attributes="
+        + this.attributes
+        + '}';
   }
 }

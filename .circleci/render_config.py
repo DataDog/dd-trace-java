@@ -26,6 +26,9 @@ MASTER_ONLY_JDKS = {
     "semeru17",
     "ubuntu17",
 }
+# Version to use for all the base Docker images, see
+# https://github.com/DataDog/dd-trace-java-docker-build/pkgs/container/dd-trace-java-docker-build
+DOCKER_IMAGE_VERSION="v23.10"
 
 # Get labels from pull requests to override some defaults for jobs to run.
 # `run-tests: all` will run all tests.
@@ -70,6 +73,9 @@ if branch == "master" or branch.startswith("release/v") or "all" in labels:
 else:
     all_jdks = ALWAYS_ON_JDKS | (MASTER_ONLY_JDKS & labels)
 nocov_jdks = [j for j in all_jdks if j != "8"]
+# specific list for debugger project because J9-based JVM have issues with local vars
+# so need to test at least against one J9-based JVM
+all_debugger_jdks = all_jdks | {"semeru8"}
 
 # Is this a nightly or weekly build? These environment variables are set in
 # config.yml based on pipeline parameters.
@@ -82,8 +88,10 @@ vars = {
     "is_weekly": is_weekly,
     "is_regular": is_regular,
     "all_jdks": all_jdks,
+    "all_debugger_jdks": all_debugger_jdks,
     "nocov_jdks": nocov_jdks,
     "flaky": branch == "master" or "flaky" in labels or "all" in labels,
+    "docker_image_prefix": "" if is_nightly else f"{DOCKER_IMAGE_VERSION}-",
 }
 
 print(f"Variables for this build: {vars}")

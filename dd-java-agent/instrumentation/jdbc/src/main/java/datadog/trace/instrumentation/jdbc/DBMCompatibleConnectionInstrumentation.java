@@ -11,7 +11,6 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
@@ -26,7 +25,7 @@ import net.bytebuddy.asm.Advice;
 
 @AutoService(Instrumenter.class)
 public class DBMCompatibleConnectionInstrumentation extends AbstractConnectionInstrumentation
-    implements Instrumenter.ForKnownTypes, Instrumenter.ForConfiguredType {
+    implements Instrumenter.ForKnownTypes {
 
   /** Instrumentation class for connections for Database Monitoring supported DBs * */
   public DBMCompatibleConnectionInstrumentation() {
@@ -36,7 +35,6 @@ public class DBMCompatibleConnectionInstrumentation extends AbstractConnectionIn
   // Classes to cover all currently supported
   // db types for the Database Monitoring product
   static final String[] CONCRETE_TYPES = {
-    "com.microsoft.sqlserver.jdbc.SQLServerConnection",
     // should cover mysql
     "com.mysql.jdbc.Connection",
     "com.mysql.jdbc.jdbc1.Connection",
@@ -64,15 +62,12 @@ public class DBMCompatibleConnectionInstrumentation extends AbstractConnectionIn
     "postgresql.Connection",
     // EDB version of postgresql
     "com.edb.jdbc.PgConnection",
-    // jtds (for SQL Server and Sybase)
-    "net.sourceforge.jtds.jdbc.ConnectionJDBC2", // 1.2
-    "net.sourceforge.jtds.jdbc.JtdsConnection", // 1.3
     // aws-mysql-jdbc
     "software.aws.rds.jdbc.mysql.shading.com.mysql.cj.jdbc.ConnectionImpl",
     // IBM Informix
     "com.informix.jdbc.IfmxConnection",
-      // 达梦 DB
-      "dm.jdbc.driver.DmdbConnection"
+    // 达梦 DB
+    "dm.jdbc.driver.DmdbConnection"
   };
 
   @Override
@@ -85,12 +80,6 @@ public class DBMCompatibleConnectionInstrumentation extends AbstractConnectionIn
   @Override
   public String[] knownMatchingTypes() {
     return CONCRETE_TYPES;
-  }
-
-  @Override
-  public String configuredMatchingType() {
-    // this won't match any class unless the property is set
-    return InstrumenterConfig.get().getJdbcConnectionClassName();
   }
 
   @Override
@@ -126,7 +115,7 @@ public class DBMCompatibleConnectionInstrumentation extends AbstractConnectionIn
         final DBInfo dbInfo =
             JDBCDecorator.parseDBInfo(
                 connection, InstrumentationContext.get(Connection.class, DBInfo.class));
-        sql = SQLCommenter.inject(sql, DECORATE.getDbService(dbInfo));
+        sql = SQLCommenter.prepend(sql, DECORATE.getDbService(dbInfo));
         return inputSql;
       }
       return sql;

@@ -1,5 +1,7 @@
 package com.datadog.iast.overhead;
 
+import javax.annotation.Nullable;
+
 public class Operations {
 
   private Operations() {}
@@ -7,7 +9,7 @@ public class Operations {
   public static final Operation REPORT_VULNERABILITY =
       new Operation() {
         @Override
-        public boolean hasQuota(final OverheadContext context) {
+        public boolean hasQuota(@Nullable final OverheadContext context) {
           if (context == null) {
             return false;
           }
@@ -15,7 +17,7 @@ public class Operations {
         }
 
         @Override
-        public boolean consumeQuota(final OverheadContext context) {
+        public boolean consumeQuota(@Nullable final OverheadContext context) {
           if (context == null) {
             return false;
           }

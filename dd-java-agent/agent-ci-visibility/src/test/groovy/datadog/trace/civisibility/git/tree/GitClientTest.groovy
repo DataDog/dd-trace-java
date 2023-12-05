@@ -43,7 +43,19 @@ class GitClientTest extends Specification {
     shallow
   }
 
-  def "test unshallow"() {
+  def "test get upstream branch SHA"() {
+    given:
+    givenGitRepo("ci/git/shallow/git")
+
+    when:
+    def gitClient = givenGitClient()
+    def upstreamBranch = gitClient.getUpstreamBranchSha()
+
+    then:
+    upstreamBranch == "98b944cc44f18bfb78e3021de2999cdcda8efdf6"
+  }
+
+  def "test unshallow: #remoteSha"() {
     given:
     givenGitRepo("ci/git/shallow/git")
 
@@ -57,13 +69,16 @@ class GitClientTest extends Specification {
     commits.size() == 1
 
     when:
-    gitClient.unshallow()
+    gitClient.unshallow(remoteSha)
     shallow = gitClient.isShallow()
     commits = gitClient.getLatestCommits()
 
     then:
     !shallow
     commits.size() == 10
+
+    where:
+    remoteSha << [GitClient.HEAD, null]
   }
 
   def "test get git folder"() {

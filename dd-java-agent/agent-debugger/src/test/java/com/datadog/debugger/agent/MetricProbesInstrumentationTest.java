@@ -367,6 +367,63 @@ public class MetricProbesInstrumentationTest {
   }
 
   @Test
+  public void methodSyntheticReturnGaugeMetric() throws IOException, URISyntaxException {
+    final String CLASS_NAME = "CapturedSnapshot06";
+    String METRIC_NAME = "syn_gauge";
+    MetricProbe metricProbe =
+        createMetricBuilder(METRIC_ID, METRIC_NAME, GAUGE)
+            .where(CLASS_NAME, "f", "()")
+            .valueScript(new ValueScript(DSL.ref("@return"), "@return"))
+            .evaluateAt(MethodLocation.EXIT)
+            .build();
+    MetricForwarderListener listener = installMetricProbes(metricProbe);
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    int result = Reflect.on(testClass).call("main", "f").get();
+    Assertions.assertEquals(42, result);
+    Assertions.assertTrue(listener.gauges.containsKey(METRIC_NAME));
+    Assertions.assertEquals(42, listener.gauges.get(METRIC_NAME).longValue());
+    Assertions.assertArrayEquals(new String[] {METRIC_PROBEID_TAG}, listener.lastTags);
+  }
+
+  @Test
+  public void methodSyntheticReturnInvalidType() throws IOException, URISyntaxException {
+    final String CLASS_NAME = "CapturedSnapshot06";
+    final String INHERITED_CLASS_NAME = CLASS_NAME + "$Inherited";
+    String METRIC_NAME = "syn_gauge";
+    MetricProbe metricProbe =
+        createMetricBuilder(METRIC_ID, METRIC_NAME, GAUGE)
+            .where(INHERITED_CLASS_NAME, "<init>", "()")
+            .valueScript(new ValueScript(DSL.ref("@return"), "@return"))
+            .evaluateAt(MethodLocation.EXIT)
+            .build();
+    MetricForwarderListener listener = installMetricProbes(metricProbe);
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    int result = Reflect.on(testClass).call("main", "").get();
+    Assertions.assertEquals(42, result);
+    Assertions.assertFalse(listener.gauges.containsKey(METRIC_NAME));
+    verify(probeStatusSink).addError(eq(METRIC_ID), eq("Cannot resolve symbol @return"));
+  }
+
+  @Test
+  public void methodSyntheticDurationGaugeMetric() throws IOException, URISyntaxException {
+    final String CLASS_NAME = "CapturedSnapshot06";
+    String METRIC_NAME = "syn_gauge";
+    MetricProbe metricProbe =
+        createMetricBuilder(METRIC_ID, METRIC_NAME, GAUGE)
+            .where(CLASS_NAME, "f", "()")
+            .valueScript(new ValueScript(DSL.ref("@duration"), "@duration"))
+            .evaluateAt(MethodLocation.EXIT)
+            .build();
+    MetricForwarderListener listener = installMetricProbes(metricProbe);
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    int result = Reflect.on(testClass).call("main", "f").get();
+    Assertions.assertEquals(42, result);
+    Assertions.assertTrue(listener.doubleGauges.containsKey(METRIC_NAME));
+    Assertions.assertTrue(listener.doubleGauges.get(METRIC_NAME).doubleValue() > 0);
+    Assertions.assertArrayEquals(new String[] {METRIC_PROBEID_TAG}, listener.lastTags);
+  }
+
+  @Test
   public void lineArgumentRefValueCountMetric() throws IOException, URISyntaxException {
     final String CLASS_NAME = "CapturedSnapshot03";
     String METRIC_NAME = "argument_count";
@@ -1179,6 +1236,7 @@ public class MetricProbesInstrumentationTest {
     when(config.isDebuggerClassFileDumpEnabled()).thenReturn(true);
     when(config.getFinalDebuggerSnapshotUrl())
         .thenReturn("http://localhost:8126/debugger/v1/input");
+    when(config.getFinalDebuggerSymDBUrl()).thenReturn("http://localhost:8126/symdb/v1/input");
     probeStatusSink = mock(ProbeStatusSink.class);
     currentTransformer =
         new DebuggerTransformer(

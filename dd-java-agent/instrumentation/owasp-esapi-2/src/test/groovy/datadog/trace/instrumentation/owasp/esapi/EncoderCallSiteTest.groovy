@@ -25,7 +25,7 @@ class EncoderCallSiteTest extends AgentTestRunner {
     testSuite.&"$method".call(args)
 
     then:
-    1 * module.taintIfInputIsTaintedWithMarks(_, _, mark)
+    1 * module.taintIfTainted(_, _, false, mark)
     0 * module._
 
     where:

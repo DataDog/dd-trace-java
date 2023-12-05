@@ -6,6 +6,7 @@ import io.vertx.core.http.HttpServerOptions;
 import io.vertx.ext.web.Cookie;
 import io.vertx.ext.web.Router;
 import io.vertx.ext.web.handler.BodyHandler;
+import io.vertx.ext.web.handler.CookieHandler;
 import io.vertx.ext.web.impl.CookieImpl;
 
 public class IastSourceVerticle extends AbstractVerticle {
@@ -17,6 +18,7 @@ public class IastSourceVerticle extends AbstractVerticle {
     final int port = config().getInteger(CONFIG_HTTP_SERVER_PORT);
     Router router = Router.router(vertx);
     router.route().handler(BodyHandler.create());
+    router.route().handler(CookieHandler.create());
     router
         .route("/iast/propagation/cookies")
         .handler(

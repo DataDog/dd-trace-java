@@ -1,6 +1,7 @@
 package datadog.trace.agent.tooling.nativeimage;
 
 import datadog.communication.ddagent.SharedCommunicationObjects;
+import datadog.trace.agent.tooling.ProfilerInstaller;
 import datadog.trace.agent.tooling.TracerInstaller;
 import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
 import org.slf4j.Logger;
@@ -12,8 +13,10 @@ public final class TracerActivation {
 
   public static void activate() {
     try {
-      TracerInstaller.installGlobalTracer(
-          new SharedCommunicationObjects(), ProfilingContextIntegration.NoOp.INSTANCE);
+      // the JFR based profiling does not allow context propagation - use the noop integration
+      ProfilingContextIntegration contextIntegration = ProfilingContextIntegration.NoOp.INSTANCE;
+      TracerInstaller.installGlobalTracer(new SharedCommunicationObjects(), contextIntegration);
+      ProfilerInstaller.installProfiler();
     } catch (Throwable e) {
       log.warn("Problem activating datadog tracer", e);
     }

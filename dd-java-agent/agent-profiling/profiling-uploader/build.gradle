@@ -29,7 +29,7 @@ dependencies {
   implementation project(':dd-java-agent:agent-profiling:profiling-controller')
 
   implementation deps.okhttp
-  implementation group: 'org.lz4', name: 'lz4-java', version: '1.7.1'
+  implementation deps.lz4
 
   testImplementation deps.junit5
   testImplementation project(':dd-java-agent:agent-profiling:profiling-testing')

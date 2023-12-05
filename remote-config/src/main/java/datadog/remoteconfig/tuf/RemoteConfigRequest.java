@@ -61,6 +61,7 @@ public class RemoteConfigRequest {
     public static final long CAPABILITY_ASM_USER_BLOCKING = 1 << 7;
     public static final long CAPABILITY_ASM_CUSTOM_RULES = 1 << 8;
     public static final long CAPABILITY_ASM_CUSTOM_BLOCKING_RESPONSE = 1 << 9;
+    public static final long CAPABILITY_ASM_TRUSTED_IPS = 1 << 10;
 
     @Json(name = "state")
     private final ClientState clientState;
@@ -205,6 +206,10 @@ public class RemoteConfigRequest {
 
       public String getServiceVersion() {
         return this.serviceVersion;
+      }
+
+      public List<String> getTags() {
+        return tags;
       }
     }
 

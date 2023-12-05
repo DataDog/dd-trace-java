@@ -1,6 +1,7 @@
 package datadog.trace.bootstrap.instrumentation.api;
 
 import static datadog.trace.api.ConfigDefaults.DEFAULT_ASYNC_PROPAGATING;
+import static java.util.Collections.emptyList;
 
 import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTraceId;
@@ -20,11 +21,13 @@ import datadog.trace.api.internal.InternalTracer;
 import datadog.trace.api.internal.TraceSegment;
 import datadog.trace.api.profiling.Timer;
 import datadog.trace.api.sampling.PrioritySampling;
+import datadog.trace.api.sampling.SamplingRule;
 import datadog.trace.api.scopemanager.ScopeListener;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan.Context;
 import java.nio.ByteBuffer;
 import java.util.Collections;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
 
@@ -519,7 +522,7 @@ public class AgentTracer {
   public static final class NoopAgentSpan implements AgentSpan {
     public static final NoopAgentSpan INSTANCE = new NoopAgentSpan();
 
-    protected NoopAgentSpan() {}
+    private NoopAgentSpan() {}
 
     @Override
     public DDTraceId getTraceId() {
@@ -806,6 +809,9 @@ public class AgentTracer {
     public TraceConfig traceConfig() {
       return NoopTraceConfig.INSTANCE;
     }
+
+    @Override
+    public void addLink(AgentSpanLink link) {}
   }
 
   public static final class NoopAgentScope implements AgentScope {
@@ -863,6 +869,15 @@ public class AgentTracer {
         AgentSpan span, C carrier, Setter<C> setter, LinkedHashMap<String, String> sortedTags) {}
 
     @Override
+    public <C> void injectPathwayContext(
+        AgentSpan span,
+        C carrier,
+        Setter<C> setter,
+        LinkedHashMap<String, String> sortedTags,
+        long defaultTimestamp,
+        long payloadSizeBytes) {}
+
+    @Override
     public <C> Context.Extracted extract(final C carrier, final ContextVisitor<C> getter) {
       return NoopContext.INSTANCE;
     }
@@ -912,12 +927,17 @@ public class AgentTracer {
 
     @Override
     public Iterable<Map.Entry<String, String>> baggageItems() {
-      return Collections.emptyList();
+      return emptyList();
     }
 
     @Override
     public PathwayContext getPathwayContext() {
       return NoopPathwayContext.INSTANCE;
+    }
+
+    @Override
+    public List<AgentSpanLink> getTerminatedContextLinks() {
+      return emptyList();
     }
 
     @Override
@@ -1020,7 +1040,18 @@ public class AgentTracer {
 
     @Override
     public void setCheckpoint(
-        AgentSpan span, LinkedHashMap<String, String> sortedTags, long defaultTimestamp) {}
+        AgentSpan span,
+        LinkedHashMap<String, String> sortedTags,
+        long defaultTimestamp,
+        long payloadSizeBytes) {}
+
+    @Override
+    public PathwayContext newPathwayContext() {
+      return NoopPathwayContext.INSTANCE;
+    }
+
+    @Override
+    public void add(StatsPoint statsPoint) {}
 
     @Override
     public void setConsumeCheckpoint(
@@ -1043,6 +1074,13 @@ public class AgentTracer {
     public long getHash() {
       return 0L;
     }
+
+    @Override
+    public void setCheckpoint(
+        LinkedHashMap<String, String> sortedTags,
+        Consumer<StatsPoint> pointConsumer,
+        long defaultTimestamp,
+        long payloadSizeBytes) {}
 
     @Override
     public void setCheckpoint(
@@ -1118,6 +1156,11 @@ public class AgentTracer {
     }
 
     @Override
+    public boolean isTriageEnabled() {
+      return false;
+    }
+
+    @Override
     public boolean isRuntimeMetricsEnabled() {
       return false;
     }
@@ -1155,6 +1198,16 @@ public class AgentTracer {
     @Override
     public Double getTraceSampleRate() {
       return null;
+    }
+
+    @Override
+    public List<? extends SamplingRule.SpanSamplingRule> getSpanSamplingRules() {
+      return Collections.emptyList();
+    }
+
+    @Override
+    public List<? extends SamplingRule.TraceSamplingRule> getTraceSamplingRules() {
+      return Collections.emptyList();
     }
   }
 }

@@ -55,7 +55,7 @@ class CustomLogManagerTest extends Specification {
         "-Djava.util.logging.manager=jvmbootstraptest.MissingLogManager"
       ] as String[]
       , "" as String[]
-      , ["DD_API_KEY": API_KEY]
+      , ["DD_API_KEY": API_KEY, "DD_SITE": ""]
       , true) == 0
   }
 
@@ -87,7 +87,7 @@ class CustomLogManagerTest extends Specification {
         "-Ddd.app.customjmxbuilder=false"
       ] as String[]
       , "" as String[]
-      , ["JBOSS_HOME": "/", "DD_API_KEY": API_KEY]
+      , ["JBOSS_HOME": "/", "DD_API_KEY": API_KEY, "DD_SITE": ""]
       , true) == 0
   }
 

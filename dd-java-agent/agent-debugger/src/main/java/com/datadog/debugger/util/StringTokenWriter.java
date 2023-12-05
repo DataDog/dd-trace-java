@@ -1,5 +1,9 @@
 package com.datadog.debugger.util;
 
+import static com.datadog.debugger.util.MoshiSnapshotHelper.REDACTED_IDENT_REASON;
+import static com.datadog.debugger.util.MoshiSnapshotHelper.REDACTED_TYPE_REASON;
+import static com.datadog.debugger.util.MoshiSnapshotHelper.TIMEOUT_REASON;
+
 import com.datadog.debugger.el.Value;
 import datadog.trace.bootstrap.debugger.EvaluationError;
 import java.lang.reflect.Field;
@@ -149,11 +153,19 @@ public class StringTokenWriter implements SerializerWithLimits.TokenWriter {
   public void notCaptured(SerializerWithLimits.NotCapturedReason reason) {
     switch (reason) {
       case MAX_DEPTH:
-      case TIMEOUT:
         sb.append("...");
+        break;
+      case TIMEOUT:
+        sb.append("{").append(TIMEOUT_REASON).append("}");
         break;
       case FIELD_COUNT:
         sb.append(", ...");
+        break;
+      case REDACTED_IDENT:
+        sb.append("{").append(REDACTED_IDENT_REASON).append("}");
+        break;
+      case REDACTED_TYPE:
+        sb.append("{").append(REDACTED_TYPE_REASON).append("}");
         break;
       default:
         throw new RuntimeException("Unsupported NotCapturedReason: " + reason);

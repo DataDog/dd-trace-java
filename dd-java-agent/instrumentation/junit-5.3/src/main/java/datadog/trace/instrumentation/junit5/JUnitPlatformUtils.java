@@ -1,42 +1,30 @@
 package datadog.trace.instrumentation.junit5;
 
-import datadog.trace.api.Pair;
 import datadog.trace.api.civisibility.config.SkippableTest;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.util.Strings;
-import java.io.InputStream;
-import java.lang.annotation.Annotation;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
 import java.lang.reflect.Method;
-import java.util.ArrayDeque;
-import java.util.Deque;
 import java.util.List;
-import java.util.Optional;
-import java.util.Properties;
-import javax.annotation.Nullable;
 import org.junit.platform.commons.JUnitException;
-import org.junit.platform.commons.util.ClassLoaderUtils;
 import org.junit.platform.commons.util.ReflectionUtils;
 import org.junit.platform.engine.TestDescriptor;
-import org.junit.platform.engine.TestEngine;
 import org.junit.platform.engine.TestSource;
 import org.junit.platform.engine.UniqueId;
-import org.junit.platform.engine.support.descriptor.ClasspathResourceSource;
+import org.junit.platform.engine.support.descriptor.ClassSource;
 import org.junit.platform.engine.support.descriptor.MethodSource;
 
 /**
- * !!!!!!!!!!!!!!!! IMPORTANT !!!!!!!!!!!!!!!! Do not use or refer to {@code
- * datadog.trace.instrumentation.junit5.JunitPlatformLauncherUtils} or any classes from {@code
+ * !!!!!!!!!!!!!!!! IMPORTANT !!!!!!!!!!!!!!!! Do not use or refer to any classes from {@code
  * org.junit.platform.launcher} package in here: in some Gradle projects this package is not
  * available in CL where this instrumentation is injected.
  *
- * <p>Should you have to do something with those classes, do it in {@code
- * datadog.trace.instrumentation.junit5.JunitPlatformLauncherUtils}
+ * <p>Should you have to do something with those classes, do it in a dedicated utility class
  */
 public abstract class JUnitPlatformUtils {
 
@@ -127,41 +115,15 @@ public abstract class JUnitPlatformUtils {
     return "{\"metadata\":{\"test_name\":\"" + Strings.escapeToJson(displayName) + "\"}}";
   }
 
-  public static String getTestName(
-      String displayName, MethodSource methodSource, String testEngineId) {
-    return Spock.ENGINE_ID.equals(testEngineId) ? displayName : methodSource.getMethodName();
-  }
-
-  @Nullable
-  public static Method getTestMethod(MethodSource methodSource, String testEngineId) {
-    return Spock.ENGINE_ID.equals(testEngineId)
-        ? Spock.getSpockTestMethod(methodSource)
-        : getTestMethod(methodSource);
-  }
-
   public static SkippableTest toSkippableTest(TestDescriptor testDescriptor) {
     TestSource testSource = testDescriptor.getSource().orElse(null);
     if (testSource instanceof MethodSource) {
       MethodSource methodSource = (MethodSource) testSource;
       String testSuiteName = methodSource.getClassName();
       String displayName = testDescriptor.getDisplayName();
-      UniqueId uniqueId = testDescriptor.getUniqueId();
-      String testEngineId = uniqueId.getEngineId().orElse(null);
-      String testName = getTestName(displayName, methodSource, testEngineId);
-
+      String testName = methodSource.getMethodName();
       String testParameters = getParameters(methodSource, displayName);
-
       return new SkippableTest(testSuiteName, testName, testParameters, null);
-
-    } else if (testSource instanceof ClasspathResourceSource) {
-      ClasspathResourceSource classpathResourceSource = (ClasspathResourceSource) testSource;
-      String classpathResourceName = classpathResourceSource.getClasspathResourceName();
-
-      Pair<String, String> names =
-          Cucumber.getFeatureAndScenarioNames(testDescriptor, classpathResourceName);
-      String testSuiteName = names.getLeft();
-      String testName = names.getRight();
-      return new SkippableTest(testSuiteName, testName, null, null);
 
     } else {
       return null;
@@ -194,146 +156,26 @@ public abstract class JUnitPlatformUtils {
     return InternalSpanTypes.TEST.toString().equals(span.getSpanType());
   }
 
-  public static final class Spock {
-    public static final String ENGINE_ID = "spock";
+  public static Class<?> getJavaClass(TestDescriptor testDescriptor) {
+    TestSource testSource = testDescriptor.getSource().orElse(null);
+    if (testSource instanceof ClassSource) {
+      ClassSource classSource = (ClassSource) testSource;
+      return classSource.getJavaClass();
 
-    private static final Class<Annotation> SPOCK_FEATURE_METADATA;
+    } else if (testSource instanceof MethodSource) {
+      MethodSource methodSource = (MethodSource) testSource;
+      return getTestClass(methodSource);
 
-    private static final MethodHandle SPOCK_FEATURE_NAME;
-
-    static {
-      /*
-       * Spock's classes are accessed via reflection and method handles
-       * since they are loaded by a different classloader in some envs
-       */
-      MethodHandles.Lookup lookup = MethodHandles.publicLookup();
-      ClassLoader defaultClassLoader = ClassLoaderUtils.getDefaultClassLoader();
-      SPOCK_FEATURE_METADATA = accessSpockFeatureMetadata(defaultClassLoader);
-      SPOCK_FEATURE_NAME = accessSpockFeatureName(lookup, SPOCK_FEATURE_METADATA);
-    }
-
-    private static Class<Annotation> accessSpockFeatureMetadata(ClassLoader classLoader) {
-      try {
-        return (Class<Annotation>)
-            classLoader.loadClass("org.spockframework.runtime.model.FeatureMetadata");
-      } catch (Exception e) {
-        return null;
-      }
-    }
-
-    private static MethodHandle accessSpockFeatureName(
-        MethodHandles.Lookup lookup, Class<Annotation> spockFeatureMetadata) {
-      if (spockFeatureMetadata == null) {
-        return null;
-      }
-      try {
-        MethodType returnsString = MethodType.methodType(String.class);
-        return lookup.findVirtual(spockFeatureMetadata, "name", returnsString);
-      } catch (Exception e) {
-        return null;
-      }
-    }
-
-    public static Method getSpockTestMethod(MethodSource methodSource) {
-      String methodName = methodSource.getMethodName();
-      if (methodName == null) {
-        return null;
-      }
-
-      Class<?> testClass = getTestClass(methodSource);
-      if (testClass == null) {
-        return null;
-      }
-
-      if (SPOCK_FEATURE_METADATA == null || SPOCK_FEATURE_NAME == null) {
-        return null;
-      }
-
-      try {
-        for (Method declaredMethod : testClass.getDeclaredMethods()) {
-          Annotation featureMetadata = declaredMethod.getAnnotation(SPOCK_FEATURE_METADATA);
-          if (featureMetadata == null) {
-            continue;
-          }
-
-          String annotatedName = (String) SPOCK_FEATURE_NAME.invoke(featureMetadata);
-          if (methodName.equals(annotatedName)) {
-            return declaredMethod;
-          }
-        }
-
-      } catch (Throwable e) {
-        // ignore
-      }
-
+    } else {
       return null;
     }
   }
 
-  public static final class Cucumber {
-    public static final String ENGINE_ID = "cucumber";
-
-    public static @Nullable String getCucumberVersion(TestEngine cucumberEngine) {
-      try (InputStream cucumberPropsStream =
-          cucumberEngine
-              .getClass()
-              .getClassLoader()
-              .getResourceAsStream(
-                  "META-INF/maven/io.cucumber/cucumber-junit-platform-engine/pom.properties")) {
-        Properties cucumberProps = new Properties();
-        cucumberProps.load(cucumberPropsStream);
-        String version = cucumberProps.getProperty("version");
-        if (version != null) {
-          return version;
-        }
-      } catch (Exception e) {
-        // fallback below
-      }
-      // might return "DEVELOPMENT" even for releases
-      return cucumberEngine.getVersion().orElse(null);
-    }
-
-    public static Pair<String, String> getFeatureAndScenarioNames(
-        TestDescriptor testDescriptor, String fallbackFeatureName) {
-      String featureName = fallbackFeatureName;
-
-      Deque<TestDescriptor> scenarioDescriptors = new ArrayDeque<>();
-      scenarioDescriptors.push(testDescriptor);
-
-      TestDescriptor current = testDescriptor;
-      while (true) {
-        Optional<TestDescriptor> parent = current.getParent();
-        if (!parent.isPresent()) {
-          break;
-        }
-
-        current = parent.get();
-        UniqueId currentId = current.getUniqueId();
-        if (isFeature(currentId)) {
-          featureName = current.getDisplayName();
-          break;
-
-        } else {
-          scenarioDescriptors.push(current);
-        }
-      }
-
-      StringBuilder scenarioName = new StringBuilder();
-      while (!scenarioDescriptors.isEmpty()) {
-        TestDescriptor descriptor = scenarioDescriptors.pop();
-        scenarioName.append(descriptor.getDisplayName());
-        if (!scenarioDescriptors.isEmpty()) {
-          scenarioName.append('.');
-        }
-      }
-
-      return Pair.of(featureName, scenarioName.toString());
-    }
-
-    public static boolean isFeature(UniqueId uniqueId) {
-      List<UniqueId.Segment> segments = uniqueId.getSegments();
-      UniqueId.Segment lastSegment = segments.listIterator(segments.size()).previous();
-      return "feature".equals(lastSegment.getType());
-    }
+  public static boolean isSuite(TestDescriptor testDescriptor) {
+    UniqueId uniqueId = testDescriptor.getUniqueId();
+    List<UniqueId.Segment> segments = uniqueId.getSegments();
+    UniqueId.Segment lastSegment = segments.get(segments.size() - 1);
+    return "class".equals(lastSegment.getType()) // "regular" JUnit test class
+        || "nested-class".equals(lastSegment.getType()); // nested JUnit test class
   }
 }

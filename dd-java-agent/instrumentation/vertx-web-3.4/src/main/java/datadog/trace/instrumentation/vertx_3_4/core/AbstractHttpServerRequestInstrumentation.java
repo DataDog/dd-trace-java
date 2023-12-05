@@ -52,14 +52,14 @@ public abstract class AbstractHttpServerRequestInstrumentation extends Instrumen
 
   public static class ParamsAdvice {
 
-    @Advice.OnMethodEnter
+    @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void onEnter(
         @Advice.Local("beforeParams") Object beforeParams,
         @Advice.FieldValue("params") final Object params) {
       beforeParams = params;
     }
 
-    @Advice.OnMethodExit
+    @Advice.OnMethodExit(suppress = Throwable.class)
     @Source(SourceTypes.REQUEST_PARAMETER_VALUE)
     public static void onExit(
         @Advice.Local("beforeParams") final Object beforeParams,
@@ -68,11 +68,7 @@ public abstract class AbstractHttpServerRequestInstrumentation extends Instrumen
       if (beforeParams != multiMap) {
         final PropagationModule module = InstrumentationBridge.PROPAGATION;
         if (module != null) {
-          try {
-            module.taintObject(SourceTypes.REQUEST_PARAMETER_VALUE, multiMap);
-          } catch (final Throwable e) {
-            module.onUnexpectedException("params threw", e);
-          }
+          module.taint(multiMap, SourceTypes.REQUEST_PARAMETER_VALUE);
         }
       }
     }
@@ -80,14 +76,14 @@ public abstract class AbstractHttpServerRequestInstrumentation extends Instrumen
 
   public static class AttributesAdvice {
 
-    @Advice.OnMethodEnter
+    @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void onEnter(
         @Advice.Local("beforeAttributes") Object beforeAttributes,
         @Advice.FieldValue("attributes") final Object attributes) {
       beforeAttributes = attributes;
     }
 
-    @Advice.OnMethodExit
+    @Advice.OnMethodExit(suppress = Throwable.class)
     @Source(SourceTypes.REQUEST_PARAMETER_VALUE)
     public static void onExit(
         @Advice.Local("beforeAttributes") final Object beforeAttributes,
@@ -96,11 +92,7 @@ public abstract class AbstractHttpServerRequestInstrumentation extends Instrumen
       if (beforeAttributes != multiMap) {
         final PropagationModule module = InstrumentationBridge.PROPAGATION;
         if (module != null) {
-          try {
-            module.taintObject(SourceTypes.REQUEST_PARAMETER_VALUE, multiMap);
-          } catch (final Throwable e) {
-            module.onUnexpectedException("formAttributes threw", e);
-          }
+          module.taint(multiMap, SourceTypes.REQUEST_PARAMETER_VALUE);
         }
       }
     }
@@ -108,16 +100,12 @@ public abstract class AbstractHttpServerRequestInstrumentation extends Instrumen
 
   public static class DataAdvice {
 
-    @Advice.OnMethodEnter
+    @Advice.OnMethodEnter(suppress = Throwable.class)
     @Source(SourceTypes.REQUEST_BODY)
     public static void onExit(@Advice.Argument(0) final Object data) {
       final PropagationModule module = InstrumentationBridge.PROPAGATION;
       if (module != null) {
-        try {
-          module.taintObject(SourceTypes.REQUEST_BODY, data);
-        } catch (final Throwable e) {
-          module.onUnexpectedException("handleData threw", e);
-        }
+        module.taint(data, SourceTypes.REQUEST_BODY);
       }
     }
   }

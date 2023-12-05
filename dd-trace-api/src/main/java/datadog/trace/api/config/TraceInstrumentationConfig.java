@@ -40,6 +40,8 @@ public final class TraceInstrumentationConfig {
   public static final String HTTP_SERVER_TAG_QUERY_STRING = "http.server.tag.query-string";
   public static final String HTTP_SERVER_RAW_QUERY_STRING = "http.server.raw.query-string";
   public static final String HTTP_SERVER_RAW_RESOURCE = "http.server.raw.resource";
+  public static final String HTTP_SERVER_DECODED_RESOURCE_PRESERVE_SPACES =
+      "http.server.decoded.resource.preserve-spaces";
   public static final String HTTP_SERVER_ROUTE_BASED_NAMING = "http.server.route-based-naming";
   public static final String HTTP_CLIENT_TAG_QUERY_STRING = "http.client.tag.query-string";
   public static final String HTTP_CLIENT_TAG_HEADERS = "http.client.tag.headers";
@@ -47,6 +49,7 @@ public final class TraceInstrumentationConfig {
   public static final String DB_CLIENT_HOST_SPLIT_BY_INSTANCE = "trace.db.client.split-by-instance";
   public static final String DB_CLIENT_HOST_SPLIT_BY_INSTANCE_TYPE_SUFFIX =
       "trace.db.client.split-by-instance.type.suffix";
+  public static final String DB_CLIENT_HOST_SPLIT_BY_HOST = "trace.db.client.split-by-host";
 
   public static final String JDBC_PREPARED_STATEMENT_CLASS_NAME =
       "trace.jdbc.prepared.statement.class.name";
@@ -57,6 +60,10 @@ public final class TraceInstrumentationConfig {
   public static final String JDBC_SQL_OBFUSCATION  = "jdbc.sql.obfuscation";
   public static final String MONGO_OBFUSCATION  = "mongo.obfuscation";
   public static final String REDIS_COMMAND_ARGS  = "redis.command.args";
+
+  public static final String HTTP_URL_CONNECTION_CLASS_NAME =
+      "trace.http.url.connection.class.name";
+
   public static final String RUNTIME_CONTEXT_FIELD_INJECTION =
       "trace.runtime.context.field.injection";
   public static final String SERIALVERSIONUID_FIELD_INJECTION =
@@ -91,6 +98,9 @@ public final class TraceInstrumentationConfig {
 
   public static final String GRPC_IGNORED_INBOUND_METHODS = "trace.grpc.ignored.inbound.methods";
   public static final String GRPC_IGNORED_OUTBOUND_METHODS = "trace.grpc.ignored.outbound.methods";
+
+  public static final String GOOGLE_PUBSUB_IGNORED_GRPC_METHODS =
+      "trace.google-pubsub.ignored.grpc.methods";
   public static final String GRPC_SERVER_TRIM_PACKAGE_RESOURCE =
       "trace.grpc.server.trim-package-resource";
   public static final String GRPC_SERVER_ERROR_STATUSES = "grpc.server.error.statuses";

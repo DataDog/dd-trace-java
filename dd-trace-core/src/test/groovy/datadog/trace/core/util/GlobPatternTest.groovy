@@ -10,9 +10,13 @@ class GlobPatternTest extends DDSpecification {
 
     where:
     globPattern | expectedRegex
-    "*"         | null
+    "*"         | "^.*\$"
+    "?"         | "^.\$"
+    "??"        | "^..\$"
     "Foo*"      | "^Foo.*\$"
     "abc"       | "^abc\$"
     "?"         | "^.\$"
+    "F?o"       | "^F.o\$"
+    "Bar*"      | "^Bar.*\$"
   }
 }

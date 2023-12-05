@@ -110,8 +110,8 @@ public final class HttpServletResponseInstrumentation extends Instrumenter.Iast
     public static void onExit(@Advice.Argument(0) final String url, @Advice.Return String encoded) {
       final PropagationModule module = InstrumentationBridge.PROPAGATION;
       if (module != null) {
-        if (null != url && url.length() > 0 && null != encoded && encoded.length() > 0) {
-          module.taintIfInputIsTainted(encoded, url);
+        if (null != url && !url.isEmpty() && null != encoded && !encoded.isEmpty()) {
+          module.taintIfTainted(encoded, url);
         }
       }
     }

@@ -13,6 +13,9 @@ import static datadog.trace.instrumentation.kafka_clients.KafkaDecorator.BROKER_
 import static datadog.trace.instrumentation.kafka_clients.KafkaDecorator.KAFKA_DELIVER;
 import static datadog.trace.instrumentation.kafka_clients.KafkaDecorator.TIME_IN_QUEUE_ENABLED;
 import static datadog.trace.instrumentation.kafka_clients.TextMapExtractAdapter.GETTER;
+import static datadog.trace.instrumentation.kafka_clients.TextMapInjectAdapter.SETTER;
+import static datadog.trace.instrumentation.kafka_common.StreamingContext.STREAMING_CONTEXT;
+import static datadog.trace.instrumentation.kafka_common.Utils.computePayloadSizeBytes;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
 import datadog.trace.api.Config;
@@ -90,9 +93,24 @@ public class TracingIterator implements Iterator<ConsumerRecord<?, ?>> {
           sortedTags.put(TOPIC_TAG, val.topic());
           sortedTags.put(TYPE_TAG, "kafka");
 
-          AgentTracer.get()
-              .getDataStreamsMonitoring()
-              .setCheckpoint(span, sortedTags, val.timestamp());
+          final long payloadSize =
+              span.traceConfig().isDataStreamsEnabled() ? computePayloadSizeBytes(val) : 0;
+          if (STREAMING_CONTEXT.empty()) {
+            AgentTracer.get()
+                .getDataStreamsMonitoring()
+                .setCheckpoint(span, sortedTags, val.timestamp(), payloadSize);
+          } else {
+            // when we're in a streaming context we want to consume only from source topics
+            if (STREAMING_CONTEXT.isSourceTopic(val.topic())) {
+              // We have to inject the context to headers here,
+              // since the data received from the source may leave the topology on
+              // some other instance of the application, breaking the context propagation
+              // for DSM users
+              propagate()
+                  .injectPathwayContext(
+                      span, val.headers(), SETTER, sortedTags, val.timestamp(), payloadSize);
+            }
+          }
         } else {
           span = startSpan(operationName, null);
         }

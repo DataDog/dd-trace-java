@@ -8,4 +8,10 @@ public interface ProfilerContext {
   long getRootSpanId();
 
   int getEncodedOperationName();
+
+  CharSequence getOperationName();
+
+  int getEncodedResourceName();
+
+  CharSequence getResourceName();
 }

@@ -1,0 +1,29 @@
+name: Comment on Submodule Update
+
+on:
+  pull_request:
+    branches:
+        - 'master'
+        - 'release/**'
+    paths:
+      - 'dd-java-agent/agent-jmxfetch/integrations-core'
+
+jobs:
+  comment_on_submodule_update:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Post comment on submodule update
+        uses: actions/github-script@d556feaca394842dc55e4734bf3bb9f685482fa0 # 6.3.3
+        with:
+          github-token: ${{secrets.GITHUB_TOKEN}}
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: 'Hi! 👋 Looks like you updated a Git Submodule.\n' +
+                'If this was not intentional please make sure to:\n\n' +
+                '* Update the submodule to the latest commit on the master branch using the `git submodule update` command,\n' +
+                '* Check you [properly set up your environment for contributing](https://github.com/DataDog/dd-trace-java/blob/master/CONTRIBUTING.md#git-submodule-setup).'
+            })

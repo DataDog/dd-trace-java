@@ -11,7 +11,7 @@ import datadog.trace.api.iast.sink.LdapInjectionModule
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import groovy.transform.CompileDynamic
 
-import static com.datadog.iast.model.Range.NOT_MARKED
+import static datadog.trace.api.iast.VulnerabilityMarks.NOT_MARKED
 import static com.datadog.iast.taint.TaintUtils.addFromTaintFormat
 import static com.datadog.iast.taint.TaintUtils.taintFormat
 
@@ -27,7 +27,7 @@ class LdapInjectionModuleTest extends IastModuleImplTestBase {
   private AgentSpan span
 
   def setup() {
-    module = registerDependencies(new LdapInjectionModuleImpl())
+    module = new LdapInjectionModuleImpl(dependencies)
     objectHolder = []
     ctx = new IastRequestContext()
     final reqCtx = Mock(RequestContext) {
