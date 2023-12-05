@@ -177,17 +177,15 @@ public class CiVisibilitySystem {
       ResourceResolver resourceResolver =
           new ConventionBasedResourceResolver(
               fileSystem, config.getCiVisibilityResourceFolderNames());
-
-      // scanning only the project folder and not the entire repo to
-      // save time and to properly determine root packages for coverage instrumentation
-      // (when there are multiple projects in the repo, root package resolution cannot establish
-      // common roots)
-      String sourcePathResolutionRoot = projectRoot.toString();
       RepoIndexBuilder indexBuilder =
           new RepoIndexBuilder(
-              config, sourcePathResolutionRoot, packageResolver, resourceResolver, fileSystem);
-      SourcePathResolver sourcePathResolver =
-          getSourcePathResolver(sourcePathResolutionRoot, indexBuilder);
+              config,
+              repoRoot,
+              projectRoot.toString(),
+              packageResolver,
+              resourceResolver,
+              fileSystem);
+      SourcePathResolver sourcePathResolver = getSourcePathResolver(repoRoot, indexBuilder);
       Codeowners codeowners = getCodeowners(repoRoot);
 
       MethodLinesResolver methodLinesResolver =
@@ -314,7 +312,8 @@ public class CiVisibilitySystem {
             new ConventionBasedResourceResolver(
                 fileSystem, config.getCiVisibilityResourceFolderNames());
         RepoIndexProvider indexProvider =
-            new RepoIndexBuilder(config, repoRoot, packageResolver, resourceResolver, fileSystem);
+            new RepoIndexBuilder(
+                config, repoRoot, repoRoot, packageResolver, resourceResolver, fileSystem);
 
         BackendApi backendApi = backendApiFactory.createBackendApi();
         GitDataUploader gitDataUploader =
@@ -396,7 +395,8 @@ public class CiVisibilitySystem {
           new ConventionBasedResourceResolver(
               fileSystem, config.getCiVisibilityResourceFolderNames());
       RepoIndexProvider indexProvider =
-          new RepoIndexBuilder(config, repoRoot, packageResolver, resourceResolver, fileSystem);
+          new RepoIndexBuilder(
+              config, repoRoot, repoRoot, packageResolver, resourceResolver, fileSystem);
       SourcePathResolver sourcePathResolver = getSourcePathResolver(repoRoot, indexProvider);
 
       return new DDTestSessionImpl(
