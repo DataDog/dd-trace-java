@@ -27,7 +27,9 @@ import net.bytebuddy.asm.Advice;
 public class MySQLConnectionInstrumentation extends AbstractConnectionInstrumentation
     implements Instrumenter.ForKnownTypes {
 
-  /** Instrumentation class for connections for Database Monitoring supported DBs * */
+  /**
+   * Instrumentation class for connections for MySQL, which is a Database Monitoring supported DB *
+   */
   public MySQLConnectionInstrumentation() {
     super("jdbc", "dbm-mysql");
   }

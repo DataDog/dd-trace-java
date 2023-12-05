@@ -27,10 +27,7 @@ import net.bytebuddy.asm.Advice;
 public class DBMCompatibleConnectionInstrumentation extends AbstractConnectionInstrumentation
     implements Instrumenter.ForKnownTypes {
 
-  /**
-   * Instrumentation class for connections for SQL Server, which is a Database Monitoring supported
-   * DB *
-   */
+  /** Instrumentation class for connections for Database Monitoring supported DBs * */
   public DBMCompatibleConnectionInstrumentation() {
     super("jdbc", "dbm");
   }
