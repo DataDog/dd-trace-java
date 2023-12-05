@@ -1,0 +1,10 @@
+apply plugin: 'java'
+
+repositories {
+  mavenLocal()
+  mavenCentral()
+}
+
+dependencies {
+  testImplementation 'junit:junit:4.10'
+}

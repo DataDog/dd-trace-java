@@ -62,6 +62,8 @@ import datadog.trace.common.GitMetadataTraceInterceptor;
 import datadog.trace.common.metrics.MetricsAggregator;
 import datadog.trace.common.sampling.Sampler;
 import datadog.trace.common.sampling.SingleSpanSampler;
+import datadog.trace.common.sampling.SpanSamplingRules;
+import datadog.trace.common.sampling.TraceSamplingRules;
 import datadog.trace.common.writer.DDAgentWriter;
 import datadog.trace.common.writer.Writer;
 import datadog.trace.common.writer.WriterFactory;
@@ -69,6 +71,7 @@ import datadog.trace.common.writer.ddintake.DDIntakeTraceInterceptor;
 import datadog.trace.core.datastreams.DataStreamContextInjector;
 import datadog.trace.core.datastreams.DataStreamsMonitoring;
 import datadog.trace.core.datastreams.DefaultDataStreamsMonitoring;
+import datadog.trace.core.flare.TracerFlarePoller;
 import datadog.trace.core.histogram.Histograms;
 import datadog.trace.core.monitor.HealthMetrics;
 import datadog.trace.core.monitor.MonitoringImpl;
@@ -140,6 +143,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   private volatile long lastSyncTicks;
   /** Nanosecond offset to counter clock drift */
   private volatile long counterDrift;
+
+  private final TracerFlarePoller tracerFlarePoller;
 
   private final TracingConfigPoller tracingConfigPoller;
 
@@ -266,6 +271,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     private DataStreamsMonitoring dataStreamsMonitoring;
     private ProfilingContextIntegration profilingContextIntegration =
         ProfilingContextIntegration.NoOp.INSTANCE;
+    private boolean pollForTracerFlareRequests;
     private boolean pollForTracingConfiguration;
     private boolean injectBaggageAsTags;
 
@@ -386,6 +392,11 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       return this;
     }
 
+    public CoreTracerBuilder pollForTracerFlareRequests() {
+      this.pollForTracerFlareRequests = true;
+      return this;
+    }
+
     public CoreTracerBuilder pollForTracingConfiguration() {
       this.pollForTracingConfiguration = true;
       return this;
@@ -454,6 +465,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
           timeSource,
           dataStreamsMonitoring,
           profilingContextIntegration,
+          pollForTracerFlareRequests,
           pollForTracingConfiguration,
           injectBaggageAsTags);
     }
@@ -484,6 +496,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       final TimeSource timeSource,
       final DataStreamsMonitoring dataStreamsMonitoring,
       final ProfilingContextIntegration profilingContextIntegration,
+      final boolean pollForTracerFlareRequests,
       final boolean pollForTracingConfiguration,
       final boolean injectBaggageAsTags) {
 
@@ -505,9 +518,25 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     this.initialConfig = config;
     this.initialSampler = sampler;
 
+    // Get initial Trace Sampling Rules from config
+    TraceSamplingRules traceSamplingRules =
+        config.getTraceSamplingRules() == null
+            ? TraceSamplingRules.EMPTY
+            : TraceSamplingRules.deserialize(config.getTraceSamplingRules());
+    // Get initial Span Sampling Rules from config
+    String spanSamplingRulesJson = config.getSpanSamplingRules();
+    String spanSamplingRulesFile = config.getSpanSamplingRulesFile();
+    SpanSamplingRules spanSamplingRules = SpanSamplingRules.EMPTY;
+    if (spanSamplingRulesJson != null) {
+      spanSamplingRules = SpanSamplingRules.deserialize(spanSamplingRulesJson);
+    } else if (spanSamplingRulesFile != null) {
+      spanSamplingRules = SpanSamplingRules.deserializeFile(spanSamplingRulesFile);
+    }
+
     this.dynamicConfig =
         DynamicConfig.create(ConfigSnapshot::new)
             .setDebugEnabled(config.isDebugEnabled())
+            .setTriageEnabled(config.isTriageEnabled())
             .setRuntimeMetricsEnabled(config.isRuntimeMetricsEnabled())
             .setLogsInjectionEnabled(config.isLogsInjectionEnabled())
             .setDataStreamsEnabled(config.isDataStreamsEnabled())
@@ -515,6 +544,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
             .setHeaderTags(taggedHeaders)
             .setBaggageMapping(baggageMapping)
             .setTraceSampleRate(config.getTraceSampleRate())
+            .setSpanSamplingRules(spanSamplingRules.getRules())
+            .setTraceSamplingRules(traceSamplingRules.getRules())
             .apply();
 
     this.logs128bTraceIdEnabled = InstrumenterConfig.get().isLogs128bTraceIdEnabled();
@@ -570,6 +601,11 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     }
     sharedCommunicationObjects.monitoring = monitoring;
     sharedCommunicationObjects.createRemaining(config);
+
+    tracerFlarePoller = new TracerFlarePoller(dynamicConfig);
+    if (pollForTracerFlareRequests) {
+      tracerFlarePoller.start(config, sharedCommunicationObjects);
+    }
 
     tracingConfigPoller = new TracingConfigPoller(dynamicConfig);
     if (pollForTracingConfiguration) {
@@ -682,6 +718,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     dynamicConfig
         .initial()
         .setDebugEnabled(config.isDebugEnabled())
+        .setTriageEnabled(config.isTriageEnabled())
         .setRuntimeMetricsEnabled(config.isRuntimeMetricsEnabled())
         .setLogsInjectionEnabled(config.isLogsInjectionEnabled())
         .setDataStreamsEnabled(config.isDataStreamsEnabled())
@@ -1048,6 +1085,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     metricsAggregator.close();
     dataStreamsMonitoring.close();
     externalAgentLauncher.close();
+    tracerFlarePoller.stop();
   }
 
   @Override

@@ -58,6 +58,9 @@ public class CiTestCovMapperV2 implements RemoteMapper {
   public void map(List<? extends CoreSpan<?>> trace, Writable writable) {
     List<TestReport> testReports =
         trace.stream()
+            // only consider top-level spans (tests), since children spans
+            // share test reports with their parents
+            .filter(CoreSpan::isTopLevel)
             .map(CiTestCovMapperV2::getTestReport)
             .filter(Objects::nonNull)
             .filter(TestReport::isNotEmpty)

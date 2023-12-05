@@ -6,27 +6,32 @@ dependencies {
   testImplementation project(':dd-smoke-tests')
 }
 
-// Check 'testJvm' gradle command parameter to be at least GraalVM 17
 def testJvm = gradle.startParameter.projectProperties.getOrDefault('testJvm', '')
-def matcher = testJvm.toLowerCase(Locale.ROOT) =~ /graalvm([0-9]+)/
-if (matcher.size() == 1 && Integer.parseInt(matcher[0][1]) >= 17) {
+// In order to support GraalVM 21 we need at least Java 17 for Gradle
+def java17Home = System.getenv('JAVA_17_HOME')
+// Check 'testJvm' gradle command parameter to be at least GraalVM 17
+def matcher = testJvm?.toLowerCase(Locale.ROOT) =~ /graalvm([0-9]+)/
+def version = matcher?.size() == 1 ? Integer.parseInt(matcher[0][1]) : -1
+if (version >= 17) {
   // Retrieve GRAALVM_HOME from JVM environment variables
   def testJvmEnv = "JAVA_${testJvm}_HOME"
   def testJvmHome = System.getenv(testJvmEnv)
   if (!testJvmHome) {
     throw new GradleException("Unable to find launcher for Java '$testJvm'. Have you set '$testJvmEnv'?")
   }
+  def javaHome = version >= 21 ? java17Home : testJvmHome
   // Configure build directory for application
   def appDir = "$projectDir/application"
   def appBuildDir = "$buildDir/application"
   def isWindows = System.getProperty('os.name').toLowerCase().contains('win')
   def gradlewCommand = isWindows ? 'gradlew.bat' : 'gradlew'
+
   // Define the task that builds the project
   tasks.register('springNativeBuild', Exec) {
     workingDir "$appDir"
     environment += [
       'GRADLE_OPTS': "-Dorg.gradle.jvmargs='-Xmx512M'",
-      'JAVA_HOME': testJvmHome,
+      'JAVA_HOME': javaHome,
       'GRAALVM_HOME': testJvmHome,
       'DD_TRACE_METHODS' : 'datadog.smoketest.springboot.controller.WebController[sayHello]',
       'NATIVE_IMAGE_DEPRECATED_BUILDER_SANITATION' : 'true'
@@ -38,7 +43,8 @@ if (matcher.size() == 1 && Integer.parseInt(matcher[0][1]) >= 17) {
       '--max-workers=4',
       "-PappBuildDir=$appBuildDir",
       "-PapiJar=${project(':dd-trace-api').tasks.jar.archiveFile.get()}",
-      "-PagentPath=${project(':dd-java-agent').tasks.shadowJar.archiveFile.get()}"
+      "-PagentPath=${project(':dd-java-agent').tasks.shadowJar.archiveFile.get()}",
+      "-Pprofiler=true"
       )
     outputs.cacheIf { true }
     outputs.dir(appBuildDir)
@@ -48,6 +54,8 @@ if (matcher.size() == 1 && Integer.parseInt(matcher[0][1]) >= 17) {
       exclude '.gradle/**'
     }).withPropertyName('application')
     .withPathSensitivity(PathSensitivity.RELATIVE)
+    inputs.file(project(':dd-trace-api').tasks.jar.archiveFile.get()).withPropertyName('apiJar')
+    inputs.file(project(':dd-java-agent').tasks.shadowJar.archiveFile.get()).withPropertyName('agentJar')
   }
 
   springNativeBuild {
@@ -64,6 +72,7 @@ if (matcher.size() == 1 && Integer.parseInt(matcher[0][1]) >= 17) {
 
   tasks.withType(Test).configureEach {
     jvmArgs "-Ddatadog.smoketest.spring.native.executable=$appBuildDir/native/nativeCompile/native-3.0-smoketest"
+    jvmArgs "-Ddd.profiling.enabled=true"
   }
 } else {
   tasks.withType(Test).configureEach {

@@ -1,12 +1,16 @@
 package com.datadog.debugger.symbol;
 
 import static java.util.Arrays.asList;
+import static java.util.Collections.emptyList;
+import static java.util.Collections.singletonList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.mockito.Mockito.when;
 import static utils.InstrumentationTestHelper.compileAndLoadClass;
 
+import com.datadog.debugger.agent.AllowListHelper;
+import com.datadog.debugger.agent.Configuration;
 import com.datadog.debugger.sink.SymbolSink;
 import datadog.trace.api.Config;
 import java.io.IOException;
@@ -32,9 +36,7 @@ class SymbolExtractionTransformerTest {
   @BeforeEach
   public void setUp() {
     config = Mockito.mock(Config.class);
-    when(config.getDebuggerSymbolIncludes()).thenReturn(SYMBOL_PACKAGE);
     when(config.getFinalDebuggerSymDBUrl()).thenReturn("http://localhost:8126/symdb/v1/input");
-    when(config.getDebuggerSymbolFlushThreshold()).thenReturn(1);
   }
 
   @Test
@@ -44,7 +46,8 @@ class SymbolExtractionTransformerTest {
     final String CLASS_NAME = SYMBOL_PACKAGE + "SymbolExtraction01";
     SymbolSinkMock symbolSinkMock = new SymbolSinkMock(config);
     SymbolExtractionTransformer transformer =
-        new SymbolExtractionTransformer(symbolSinkMock, config);
+        new SymbolExtractionTransformer(
+            new AllowListHelper(null), new SymbolAggregator(symbolSinkMock, 1));
     instr.addTransformer(transformer);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     Reflect.on(testClass).call("main", "1").get();
@@ -60,8 +63,7 @@ class SymbolExtractionTransformerTest {
     final String CLASS_NAME = SYMBOL_PACKAGE + "SymbolExtraction01";
     final String SOURCE_FILE = SYMBOL_PACKAGE_DIR + "SymbolExtraction01.java";
     SymbolSinkMock symbolSinkMock = new SymbolSinkMock(config);
-    SymbolExtractionTransformer transformer =
-        new SymbolExtractionTransformer(symbolSinkMock, config);
+    SymbolExtractionTransformer transformer = createTransformer(symbolSinkMock);
     instr.addTransformer(transformer);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     Reflect.on(testClass).call("main", "1").get();
@@ -126,8 +128,7 @@ class SymbolExtractionTransformerTest {
     final String CLASS_NAME = SYMBOL_PACKAGE + "SymbolExtraction02";
     final String SOURCE_FILE = SYMBOL_PACKAGE_DIR + "SymbolExtraction02.java";
     SymbolSinkMock symbolSinkMock = new SymbolSinkMock(config);
-    SymbolExtractionTransformer transformer =
-        new SymbolExtractionTransformer(symbolSinkMock, config);
+    SymbolExtractionTransformer transformer = createTransformer(symbolSinkMock);
     instr.addTransformer(transformer);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     Reflect.on(testClass).call("main", "1").get();
@@ -154,8 +155,7 @@ class SymbolExtractionTransformerTest {
     final String CLASS_NAME = SYMBOL_PACKAGE + "SymbolExtraction03";
     final String SOURCE_FILE = SYMBOL_PACKAGE_DIR + "SymbolExtraction03.java";
     SymbolSinkMock symbolSinkMock = new SymbolSinkMock(config);
-    SymbolExtractionTransformer transformer =
-        new SymbolExtractionTransformer(symbolSinkMock, config);
+    SymbolExtractionTransformer transformer = createTransformer(symbolSinkMock);
     instr.addTransformer(transformer);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     Reflect.on(testClass).call("main", "1").get();
@@ -222,8 +222,7 @@ class SymbolExtractionTransformerTest {
     final String CLASS_NAME = SYMBOL_PACKAGE + "SymbolExtraction04";
     final String SOURCE_FILE = SYMBOL_PACKAGE_DIR + "SymbolExtraction04.java";
     SymbolSinkMock symbolSinkMock = new SymbolSinkMock(config);
-    SymbolExtractionTransformer transformer =
-        new SymbolExtractionTransformer(symbolSinkMock, config);
+    SymbolExtractionTransformer transformer = createTransformer(symbolSinkMock);
     instr.addTransformer(transformer);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     Reflect.on(testClass).call("main", "1").get();
@@ -294,8 +293,7 @@ class SymbolExtractionTransformerTest {
     final String CLASS_NAME = SYMBOL_PACKAGE + "SymbolExtraction05";
     final String SOURCE_FILE = SYMBOL_PACKAGE_DIR + "SymbolExtraction05.java";
     SymbolSinkMock symbolSinkMock = new SymbolSinkMock(config);
-    SymbolExtractionTransformer transformer =
-        new SymbolExtractionTransformer(symbolSinkMock, config);
+    SymbolExtractionTransformer transformer = createTransformer(symbolSinkMock);
     instr.addTransformer(transformer);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     Reflect.on(testClass).call("main", "1").get();
@@ -340,8 +338,7 @@ class SymbolExtractionTransformerTest {
     final String CLASS_NAME = SYMBOL_PACKAGE + "SymbolExtraction06";
     final String SOURCE_FILE = SYMBOL_PACKAGE_DIR + "SymbolExtraction06.java";
     SymbolSinkMock symbolSinkMock = new SymbolSinkMock(config);
-    SymbolExtractionTransformer transformer =
-        new SymbolExtractionTransformer(symbolSinkMock, config);
+    SymbolExtractionTransformer transformer = createTransformer(symbolSinkMock);
     instr.addTransformer(transformer);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     Reflect.on(testClass).call("main", "1").get();
@@ -386,8 +383,7 @@ class SymbolExtractionTransformerTest {
     final String CLASS_NAME = SYMBOL_PACKAGE + "SymbolExtraction07";
     final String SOURCE_FILE = SYMBOL_PACKAGE_DIR + "SymbolExtraction07.java";
     SymbolSinkMock symbolSinkMock = new SymbolSinkMock(config);
-    SymbolExtractionTransformer transformer =
-        new SymbolExtractionTransformer(symbolSinkMock, config);
+    SymbolExtractionTransformer transformer = createTransformer(symbolSinkMock);
     instr.addTransformer(transformer);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     Reflect.on(testClass).call("main", "1").get();
@@ -418,8 +414,7 @@ class SymbolExtractionTransformerTest {
     final String CLASS_NAME = SYMBOL_PACKAGE + "SymbolExtraction08";
     final String SOURCE_FILE = SYMBOL_PACKAGE_DIR + "SymbolExtraction08.java";
     SymbolSinkMock symbolSinkMock = new SymbolSinkMock(config);
-    SymbolExtractionTransformer transformer =
-        new SymbolExtractionTransformer(symbolSinkMock, config);
+    SymbolExtractionTransformer transformer = createTransformer(symbolSinkMock);
     instr.addTransformer(transformer);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     Reflect.on(testClass).call("main", "1").get();
@@ -452,8 +447,7 @@ class SymbolExtractionTransformerTest {
     final String CLASS_NAME = SYMBOL_PACKAGE + "SymbolExtraction09";
     final String SOURCE_FILE = SYMBOL_PACKAGE_DIR + "SymbolExtraction09.java";
     SymbolSinkMock symbolSinkMock = new SymbolSinkMock(config);
-    SymbolExtractionTransformer transformer =
-        new SymbolExtractionTransformer(symbolSinkMock, config);
+    SymbolExtractionTransformer transformer = createTransformer(symbolSinkMock);
     instr.addTransformer(transformer);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     Reflect.on(testClass).call("main", "1").get();
@@ -543,10 +537,8 @@ class SymbolExtractionTransformerTest {
   public void symbolExtraction10() throws IOException, URISyntaxException {
     final String CLASS_NAME = SYMBOL_PACKAGE + "SymbolExtraction10";
     final String SOURCE_FILE = SYMBOL_PACKAGE_DIR + "SymbolExtraction10.java";
-    when(config.getDebuggerSymbolFlushThreshold()).thenReturn(2);
     SymbolSinkMock symbolSinkMock = new SymbolSinkMock(config);
-    SymbolExtractionTransformer transformer =
-        new SymbolExtractionTransformer(symbolSinkMock, config);
+    SymbolExtractionTransformer transformer = createTransformer(symbolSinkMock, 2);
     instr.addTransformer(transformer);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     Reflect.on(testClass).call("main", "1").get();
@@ -596,8 +588,7 @@ class SymbolExtractionTransformerTest {
     final String CLASS_NAME = SYMBOL_PACKAGE + "SymbolExtraction11";
     final String SOURCE_FILE = SYMBOL_PACKAGE_DIR + "SymbolExtraction11.java";
     SymbolSinkMock symbolSinkMock = new SymbolSinkMock(config);
-    SymbolExtractionTransformer transformer =
-        new SymbolExtractionTransformer(symbolSinkMock, config);
+    SymbolExtractionTransformer transformer = createTransformer(symbolSinkMock);
     instr.addTransformer(transformer);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     Reflect.on(testClass).call("main", 1).get();
@@ -630,8 +621,7 @@ class SymbolExtractionTransformerTest {
     final String CLASS_NAME = SYMBOL_PACKAGE + "SymbolExtraction12";
     final String SOURCE_FILE = SYMBOL_PACKAGE_DIR + "SymbolExtraction12.java";
     SymbolSinkMock symbolSinkMock = new SymbolSinkMock(config);
-    SymbolExtractionTransformer transformer =
-        new SymbolExtractionTransformer(symbolSinkMock, config);
+    SymbolExtractionTransformer transformer = createTransformer(symbolSinkMock);
     instr.addTransformer(transformer);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     Reflect.on(testClass).call("main", 1).get();
@@ -703,8 +693,7 @@ class SymbolExtractionTransformerTest {
   public void symbolExtraction13() throws IOException, URISyntaxException {
     final String CLASS_NAME = SYMBOL_PACKAGE + "SymbolExtraction13";
     SymbolSinkMock symbolSinkMock = new SymbolSinkMock(config);
-    SymbolExtractionTransformer transformer =
-        new SymbolExtractionTransformer(symbolSinkMock, config);
+    SymbolExtractionTransformer transformer = createTransformer(symbolSinkMock);
     instr.addTransformer(transformer);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     Reflect.on(testClass).call("main", "1").get();
@@ -765,8 +754,7 @@ class SymbolExtractionTransformerTest {
   public void symbolExtraction14() throws IOException, URISyntaxException {
     final String CLASS_NAME = SYMBOL_PACKAGE + "SymbolExtraction14";
     SymbolSinkMock symbolSinkMock = new SymbolSinkMock(config);
-    SymbolExtractionTransformer transformer =
-        new SymbolExtractionTransformer(symbolSinkMock, config);
+    SymbolExtractionTransformer transformer = createTransformer(symbolSinkMock);
     instr.addTransformer(transformer);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     Reflect.on(testClass).call("main", "1").get();
@@ -896,6 +884,19 @@ class SymbolExtractionTransformerTest {
     assertEquals(name, symbol.getName());
     assertEquals(type, symbol.getType());
     assertEquals(line, symbol.getLine());
+  }
+
+  private SymbolExtractionTransformer createTransformer(SymbolSink symbolSink) {
+    return createTransformer(symbolSink, 1);
+  }
+
+  private SymbolExtractionTransformer createTransformer(
+      SymbolSink symbolSink, int symbolFlushThreshold) {
+    AllowListHelper allowListHelper =
+        new AllowListHelper(
+            new Configuration.FilterList(singletonList(SYMBOL_PACKAGE), emptyList()));
+    return new SymbolExtractionTransformer(
+        allowListHelper, new SymbolAggregator(symbolSink, symbolFlushThreshold));
   }
 
   static class SymbolSinkMock extends SymbolSink {

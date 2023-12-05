@@ -1,5 +1,6 @@
 package datadog.trace.civisibility.ci;
 
+import static datadog.trace.api.git.GitUtils.filterSensitiveInfo;
 import static datadog.trace.api.git.GitUtils.isTagReference;
 import static datadog.trace.api.git.GitUtils.normalizeBranch;
 import static datadog.trace.api.git.GitUtils.normalizeTag;
@@ -28,7 +29,8 @@ class GithubActionsInfo implements CIProviderInfo {
   @Override
   public GitInfo buildCIGitInfo() {
     return new GitInfo(
-        buildGitRepositoryUrl(System.getenv(GHACTIONS_URL), System.getenv(GHACTIONS_REPOSITORY)),
+        buildGitRepositoryUrl(
+            filterSensitiveInfo(System.getenv(GHACTIONS_URL)), System.getenv(GHACTIONS_REPOSITORY)),
         buildGitBranch(),
         buildGitTag(),
         new CommitInfo(System.getenv(GHACTIONS_SHA)));
@@ -38,13 +40,13 @@ class GithubActionsInfo implements CIProviderInfo {
   public CIInfo buildCIInfo() {
     final String pipelineUrl =
         buildPipelineUrl(
-            System.getenv(GHACTIONS_URL),
+            filterSensitiveInfo(System.getenv(GHACTIONS_URL)),
             System.getenv(GHACTIONS_REPOSITORY),
             System.getenv(GHACTIONS_PIPELINE_ID),
             System.getenv(GHACTIONS_PIPELINE_RETRY));
     final String jobUrl =
         buildJobUrl(
-            System.getenv(GHACTIONS_URL),
+            filterSensitiveInfo(System.getenv(GHACTIONS_URL)),
             System.getenv(GHACTIONS_REPOSITORY),
             System.getenv(GHACTIONS_SHA));
 

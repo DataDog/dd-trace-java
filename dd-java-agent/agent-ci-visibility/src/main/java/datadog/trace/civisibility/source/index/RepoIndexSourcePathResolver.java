@@ -20,9 +20,13 @@ public class RepoIndexSourcePathResolver implements SourcePathResolver {
   }
 
   RepoIndexSourcePathResolver(
-      String repoRoot, PackageResolver packageResolver, FileSystem fileSystem) {
+      String repoRoot,
+      PackageResolver packageResolver,
+      ResourceResolver resourceResolver,
+      FileSystem fileSystem) {
     this.repoRoot = repoRoot;
-    this.indexProvider = new RepoIndexBuilder(repoRoot, packageResolver, fileSystem);
+    this.indexProvider =
+        new RepoIndexBuilder(repoRoot, packageResolver, resourceResolver, fileSystem);
   }
 
   @Nullable
@@ -33,6 +37,12 @@ public class RepoIndexSourcePathResolver implements SourcePathResolver {
       return null; // fast exit to avoid expensive index building
     }
     return indexProvider.getIndex().getSourcePath(c);
+  }
+
+  @Nullable
+  @Override
+  public String getResourcePath(@Nullable String relativePath) {
+    return indexProvider.getIndex().getResourcePath(relativePath);
   }
 
   private boolean isLocatedInsideRepository(Class<?> c) {

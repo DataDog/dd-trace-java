@@ -9,7 +9,6 @@ import datadog.trace.bootstrap.instrumentation.decorator.AppSecUserEventDecorato
 import java.util.HashMap;
 import java.util.Map;
 import java.util.stream.Collectors;
-import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -40,18 +39,28 @@ public class SpringSecurityUserEventDecorator extends AppSecUserEventDecorator {
   }
 
   public void onLogin(Authentication authentication, Throwable throwable, Authentication result) {
+    if (authentication == null) {
+      return;
+    }
     UserEventTrackingMode mode = Config.get().getAppSecUserEventsTrackingMode();
+    if (mode == DISABLED) {
+      return;
+    }
+
+    // For now, exclude all OAuth events. See APPSEC-12547.
+    if (authentication.getClass().getName().contains("OAuth")) {
+      return;
+    }
 
     String userId = null;
-    Map<String, String> metadata = null;
 
-    if (mode == EXTENDED && authentication != null) {
+    if (mode == EXTENDED) {
       userId = authentication.getName();
     }
 
     if (mode != DISABLED) {
       if (throwable == null && result != null && result.isAuthenticated()) {
-
+        Map<String, String> metadata = null;
         Object principal = result.getPrincipal();
         if (principal instanceof User) {
           User user = (User) principal;
@@ -68,9 +77,18 @@ public class SpringSecurityUserEventDecorator extends AppSecUserEventDecorator {
         }
 
         onLoginSuccess(userId, metadata);
-      } else {
-        boolean userExists = throwable instanceof BadCredentialsException;
-        onLoginFailure(userId, null, userExists);
+      } else if (throwable != null) {
+        // On bad password, throwable would be
+        // org.springframework.security.authentication.BadCredentialsException,
+        // on user not found, throwable can be BadCredentials or
+        // org.springframework.security.core.userdetails.UsernameNotFoundException depending on the
+        // internal setting
+        // hideUserNotFoundExceptions (or a custom AuthenticationProvider implementation overriding
+        // this).
+        // This would be the ideal place to check whether the user exists or not, but we cannot do
+        // so reliably yet.
+        // See UsernameNotFoundExceptionInstrumentation for more details.
+        onLoginFailure(userId, null);
       }
     }
   }
