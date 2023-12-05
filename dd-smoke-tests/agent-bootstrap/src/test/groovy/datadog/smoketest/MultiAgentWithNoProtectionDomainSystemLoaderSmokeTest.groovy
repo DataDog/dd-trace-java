@@ -1,7 +1,13 @@
 package datadog.smoketest
 
+import datadog.trace.api.Platform
+import spock.lang.IgnoreIf
+
 import static java.util.concurrent.TimeUnit.SECONDS
 
+@IgnoreIf(reason = "Fails on IBM 8", value = {
+  Platform.isIbm8()
+})
 class MultiAgentWithNoProtectionDomainSystemLoaderSmokeTest extends AbstractSmokeTest {
   private static final int TIMEOUT_SECS = 30
 
