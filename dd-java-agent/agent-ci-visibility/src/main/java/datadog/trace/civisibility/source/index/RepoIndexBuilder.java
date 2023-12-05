@@ -1,5 +1,6 @@
 package datadog.trace.civisibility.source.index;
 
+import datadog.trace.api.Config;
 import datadog.trace.util.ClassNameTrie;
 import java.io.File;
 import java.io.IOException;
@@ -20,6 +21,7 @@ public class RepoIndexBuilder implements RepoIndexProvider {
 
   private static final Logger log = LoggerFactory.getLogger(RepoIndexBuilder.class);
 
+  private final Config config;
   private final String repoRoot;
   private final PackageResolver packageResolver;
   private final ResourceResolver resourceResolver;
@@ -29,10 +31,12 @@ public class RepoIndexBuilder implements RepoIndexProvider {
   private volatile RepoIndex index;
 
   public RepoIndexBuilder(
+      Config config,
       String repoRoot,
       PackageResolver packageResolver,
       ResourceResolver resourceResolver,
       FileSystem fileSystem) {
+    this.config = config;
     this.repoRoot = repoRoot;
     this.packageResolver = packageResolver;
     this.resourceResolver = resourceResolver;
@@ -60,7 +64,7 @@ public class RepoIndexBuilder implements RepoIndexProvider {
 
     Path repoRootPath = fileSystem.getPath(repoRoot);
     RepoIndexingFileVisitor repoIndexingFileVisitor =
-        new RepoIndexingFileVisitor(packageResolver, resourceResolver, repoRootPath);
+        new RepoIndexingFileVisitor(config, packageResolver, resourceResolver, repoRootPath);
 
     long startTime = System.currentTimeMillis();
     try {
@@ -100,13 +104,16 @@ public class RepoIndexBuilder implements RepoIndexProvider {
     private final Path repoRoot;
 
     private RepoIndexingFileVisitor(
-        PackageResolver packageResolver, ResourceResolver resourceResolver, Path repoRoot) {
+        Config config,
+        PackageResolver packageResolver,
+        ResourceResolver resourceResolver,
+        Path repoRoot) {
       this.packageResolver = packageResolver;
       this.resourceResolver = resourceResolver;
       this.repoRoot = repoRoot;
       trieBuilder = new ClassNameTrie.Builder();
       sourceRoots = new LinkedHashSet<>();
-      packageTree = new PackageTree();
+      packageTree = new PackageTree(config);
       indexingStats = new RepoIndexingStats();
     }
 
