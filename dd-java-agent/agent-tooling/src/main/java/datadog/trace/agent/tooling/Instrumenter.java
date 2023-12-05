@@ -85,20 +85,20 @@ public interface Instrumenter {
   }
 
   /** 
-   * Instrumentation that matches a series of types configured at runtime. This is
-   * used for last minute additions in the field such as testing a new JDBC driver
-   * that is not yet in the allowed list and to provide a workaround until the next release.
-   * The ForKnownTypes interface is more appropriate for general use.
+   * Instrumentation that matches a series of types configured at runtime. This is used for last
+   * minute additions in the field such as testing a new JDBC driver that is not yet in the allowed
+   * list and to provide a workaround until the next release. The ForKnownTypes interface is more
+   * appropriate for general use.
    */
   interface ForConfiguredTypes {
     Collection<String> configuredMatchingTypes();
   }
 
   /** 
-   * Instrumentation that matches an optional type configured at runtime. This is
-   * used for last minute additions in the field such as testing a new JDBC driver
-   * that is not yet in the allowed list and to provide a workaround until the next release.
-   * The ForKnownType interface is more appropriate for general use.
+   * Instrumentation that matches an optional type configured at runtime. This is used for last
+   * minute additions in the field such as testing a new JDBC driver that is not yet in the allowed
+   * list and to provide a workaround until the next release. The ForKnownType interface is more
+   * appropriate for general use.
    */
   interface ForConfiguredType extends ForConfiguredTypes {
     @Override
