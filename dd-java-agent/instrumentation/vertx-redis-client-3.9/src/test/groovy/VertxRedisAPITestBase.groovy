@@ -1,4 +1,3 @@
-import datadog.trace.test.util.Flaky
 import io.vertx.core.AsyncResult
 import io.vertx.core.Handler
 import io.vertx.redis.client.RedisAPI
@@ -135,14 +134,12 @@ abstract class VertxRedisAPITestBase extends VertxRedisTestBase {
   }
 }
 
-@Flaky("all test cases are flaky https://github.com/DataDog/dd-trace-java/issues/3874")
 class VertxRedisAPIRedisForkedTest extends VertxRedisAPITestBase {
   def setupSpec() {
     redisAPI = RedisAPI.api(redis)
   }
 }
 
-@Flaky("all test cases are flaky https://github.com/DataDog/dd-trace-java/issues/3874")
 class VertxRedisAPIRedisConnectionForkedTest extends VertxRedisAPITestBase {
   def setupSpec() {
     def latch = new CountDownLatch(1)
