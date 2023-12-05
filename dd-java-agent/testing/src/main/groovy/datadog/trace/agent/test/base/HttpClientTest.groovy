@@ -123,19 +123,19 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
   def setupSpec() {
     List<Proxy> proxyList = Collections.singletonList(new Proxy(Proxy.Type.HTTP, new InetSocketAddress(proxy.port)))
     proxySelector = new ProxySelector() {
-      @Override
-      List<Proxy> select(URI uri) {
-        if (uri.fragment == "proxy") {
-          return proxyList
+        @Override
+        List<Proxy> select(URI uri) {
+          if (uri.fragment == "proxy") {
+            return proxyList
+          }
+          return getDefault().select(uri)
         }
-        return getDefault().select(uri)
-      }
 
-      @Override
-      void connectFailed(URI uri, SocketAddress sa, IOException ioe) {
-        getDefault().connectFailed(uri, sa, ioe)
+        @Override
+        void connectFailed(URI uri, SocketAddress sa, IOException ioe) {
+          getDefault().connectFailed(uri, sa, ioe)
+        }
       }
-    }
   }
 
   /**
