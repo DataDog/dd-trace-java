@@ -1,5 +1,6 @@
 package datadog.trace.civisibility.source.index;
 
+import datadog.trace.api.Config;
 import java.nio.file.Path;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -18,10 +19,10 @@ import java.util.Map;
  * packages a/b, a/b/c, a/b/d, all of which contain classes, only a/b will be retained - a/b/c and
  * a/b/d will be discarded as redundant).
  *
- * <p>The length of the list is limited by {@link #MAX_CHILDREN_LEAVES}. If there are more packages
- * present than the limit, coarsening will happen (for instance, if there are packages a/b/c, a/b/d,
- * b/c/d, b/c/e/f and the limit is 2, the packages will be coarsened and a/b, b/c will be retained
- * as the result).
+ * <p>The limit on the length of the list is configurable. If there are more packages present than
+ * the limit, coarsening will happen (for instance, if there are packages a/b/c, a/b/d, b/c/d,
+ * b/c/e/f and the limit is 2, the packages will be coarsened and a/b, b/c will be retained as the
+ * result).
  *
  * <p>The intent is to be as specific as possible without exceeding the limit, so coarsening applies
  * first to the "longest" package names (not in terms of the actual string length, but in terms of
@@ -30,9 +31,13 @@ import java.util.Map;
  */
 public class PackageTree {
 
-  private static final int MAX_CHILDREN_LEAVES = 25;
-
   private final Node root = new Node(null, "");
+
+  private final int rootPackagesLimit;
+
+  public PackageTree(Config config) {
+    rootPackagesLimit = config.getCiVisibilityCoverageRootPackagesLimit();
+  }
 
   void add(Path packagePath) {
     if (packagePath.toString().isEmpty()) {
@@ -44,14 +49,14 @@ public class PackageTree {
   List<String> asList() {
     truncateIfNeeded(root);
 
-    List<String> childrenPackages = new ArrayList<>(MAX_CHILDREN_LEAVES);
+    List<String> childrenPackages = new ArrayList<>(rootPackagesLimit);
     for (Node child : root.children.values()) {
       child.stringify(childrenPackages, "");
     }
     return childrenPackages;
   }
 
-  private static void truncateIfNeeded(Node root) {
+  private void truncateIfNeeded(Node root) {
     Deque<List<Node>> nodesByDepth = new ArrayDeque<>();
 
     List<Node> current = Collections.singletonList(root);
@@ -73,7 +78,7 @@ public class PackageTree {
       nodes.sort(Comparator.comparingInt(node -> -node.leafChildren));
 
       for (Node node : nodes) {
-        if (root.leafChildren <= MAX_CHILDREN_LEAVES) {
+        if (root.leafChildren <= rootPackagesLimit) {
           // stop as soon as we have truncated enough, even if it's mid-level
           return;
         } else {
