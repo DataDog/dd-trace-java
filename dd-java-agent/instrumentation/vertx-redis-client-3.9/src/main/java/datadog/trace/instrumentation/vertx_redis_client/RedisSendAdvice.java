@@ -15,7 +15,6 @@ import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Handler;
 import io.vertx.core.net.SocketAddress;
-import io.vertx.redis.RedisClient;
 import io.vertx.redis.client.Command;
 import io.vertx.redis.client.Redis;
 import io.vertx.redis.client.RedisAPI;
@@ -65,9 +64,7 @@ public class RedisSendAdvice {
 
   @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
   public static void afterSend(
-      @Advice.Thrown final Throwable throwable,
-      @Advice.Enter final AgentScope clientScope,
-      @Advice.This final Object thiz) {
+      @Advice.Enter final AgentScope clientScope, @Advice.This final Object thiz) {
     if (thiz instanceof RedisConnection) {
       final SocketAddress socketAddress =
           InstrumentationContext.get(RedisConnection.class, SocketAddress.class)
@@ -86,7 +83,6 @@ public class RedisSendAdvice {
 
   // Only apply this advice for versions that we instrument 3.9.x
   private static void muzzleCheck() {
-    RedisClient.create(null); // removed in 4.0.x
     Redis.createClient(null, "somehost"); // added in 3.9.x
   }
 }
