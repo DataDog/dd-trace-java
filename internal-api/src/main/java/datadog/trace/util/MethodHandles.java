@@ -4,6 +4,7 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.lang.invoke.MethodHandle;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.util.Arrays;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -20,16 +21,26 @@ public class MethodHandles {
     this.classLoader = classLoader;
   }
 
-  @SuppressFBWarnings("REFLF_REFLECTION_MAY_INCREASE_ACCESSIBILITY_OF_FIELD")
   public MethodHandle privateFieldGetter(String className, String fieldName) {
     try {
       Class<?> clazz = classLoader.loadClass(className);
+      return privateFieldGetter(clazz, fieldName);
+
+    } catch (Throwable t) {
+      log.debug("Could not get private field {} getter from class {}", fieldName, className, t);
+      return null;
+    }
+  }
+
+  @SuppressFBWarnings("REFLF_REFLECTION_MAY_INCREASE_ACCESSIBILITY_OF_FIELD")
+  public MethodHandle privateFieldGetter(Class<?> clazz, String fieldName) {
+    try {
       Field field = clazz.getDeclaredField(fieldName);
       field.setAccessible(true);
       return lookup.unreflectGetter(field);
 
     } catch (Throwable t) {
-      log.debug("Could not get private field {} getter from class {}", fieldName, className, t);
+      log.debug("Could not get private field {} getter from class {}", fieldName, clazz, t);
       return null;
     }
   }
@@ -46,6 +57,23 @@ public class MethodHandles {
           "Could not get constructor accepting {} from class {}",
           Arrays.toString(parameterTypes),
           className,
+          t);
+      return null;
+    }
+  }
+
+  public MethodHandle method(Class<?> clazz, String methodName, Class<?>... parameterTypes) {
+    try {
+      Method method = clazz.getDeclaredMethod(methodName, parameterTypes);
+      method.setAccessible(true);
+      return lookup.unreflect(method);
+
+    } catch (Throwable t) {
+      log.debug(
+          "Could not get method {} accepting {} from class {}",
+          methodName,
+          Arrays.toString(parameterTypes),
+          clazz,
           t);
       return null;
     }
