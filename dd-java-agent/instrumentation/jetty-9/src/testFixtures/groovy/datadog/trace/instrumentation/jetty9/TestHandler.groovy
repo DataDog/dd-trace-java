@@ -14,7 +14,7 @@ import javax.servlet.http.HttpServletRequest
 import javax.servlet.http.HttpServletResponse
 
 class TestHandler extends AbstractHandler {
-  private static final TestHandler INSTANCE = new TestHandler()
+  static final TestHandler INSTANCE = new TestHandler()
   private static final MultipartConfigElement MULTIPART_CONFIG_ELEMENT = new MultipartConfigElement(System.getProperty('java.io.tmpdir'))
 
   final TestServlet3.Sync testServlet3 = new TestServlet3.Sync() {
