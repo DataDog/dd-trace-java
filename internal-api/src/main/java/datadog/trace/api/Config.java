@@ -153,6 +153,7 @@ import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_CODE_COVE
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_CODE_COVERAGE_REPORT_DUMP_DIR;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_COMPILER_PLUGIN_AUTO_CONFIGURATION_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_COMPILER_PLUGIN_VERSION;
+import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_COVERAGE_ROOT_PACKAGES_LIMIT;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_COVERAGE_SEGMENTS_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_DEBUG_PORT;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_GIT_COMMAND_TIMEOUT_MILLIS;
@@ -736,6 +737,7 @@ public class Config {
   private final int ciVisibilityModuleExecutionSettingsCacheSize;
   private final int ciVisibilityJvmInfoCacheSize;
   private final boolean ciVisibilityCoverageSegmentsEnabled;
+  private final int ciVisibilityCoverageRootPackagesLimit;
   private final String ciVisibilityInjectedTracerVersion;
   private final List<String> ciVisibilityResourceFolderNames;
 
@@ -1690,6 +1692,8 @@ public class Config {
     ciVisibilityJvmInfoCacheSize = configProvider.getInteger(CIVISIBILITY_JVM_INFO_CACHE_SIZE, 8);
     ciVisibilityCoverageSegmentsEnabled =
         configProvider.getBoolean(CIVISIBILITY_COVERAGE_SEGMENTS_ENABLED, false);
+    ciVisibilityCoverageRootPackagesLimit =
+        configProvider.getInteger(CIVISIBILITY_COVERAGE_ROOT_PACKAGES_LIMIT, 30);
     ciVisibilityInjectedTracerVersion =
         configProvider.getString(CIVISIBILITY_INJECTED_TRACER_VERSION);
     ciVisibilityResourceFolderNames =
@@ -2832,6 +2836,10 @@ public class Config {
 
   public boolean isCiVisibilityCoverageSegmentsEnabled() {
     return ciVisibilityCoverageSegmentsEnabled;
+  }
+
+  public int getCiVisibilityCoverageRootPackagesLimit() {
+    return ciVisibilityCoverageRootPackagesLimit;
   }
 
   public String getCiVisibilityInjectedTracerVersion() {
