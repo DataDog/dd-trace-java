@@ -2,7 +2,7 @@ muzzle {
   pass {
     group = 'io.vertx'
     module = 'vertx-redis-client'
-    versions = '[3.9.0,4)'
+    versions = '[3.9.0,)'
     assertInverse = true
   }
 }

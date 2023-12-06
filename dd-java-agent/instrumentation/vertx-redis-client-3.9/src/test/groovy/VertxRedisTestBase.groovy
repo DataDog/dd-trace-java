@@ -18,6 +18,7 @@ import io.vertx.redis.client.Command
 import io.vertx.redis.client.Redis
 import io.vertx.redis.client.Request
 import io.vertx.redis.client.Response
+import org.testcontainers.containers.wait.strategy.Wait
 import spock.lang.AutoCleanup
 import spock.lang.Shared
 
@@ -33,10 +34,11 @@ abstract class VertxRedisTestBase extends VersionedNamingTestBase {
   @AutoCleanup(value = "stop")
   @Shared
   def redisServer = new RedisContainer(RedisContainer.DEFAULT_IMAGE_NAME.withTag(RedisContainer.DEFAULT_TAG))
+  .waitingFor(Wait.forListeningPort())
 
   @Shared
   @AutoCleanup(quiet = true)
-  Redis redis = null
+  Redis redis
 
   @AutoCleanup
   @Shared
