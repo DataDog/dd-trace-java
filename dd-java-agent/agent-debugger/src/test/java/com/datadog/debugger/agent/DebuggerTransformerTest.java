@@ -14,7 +14,6 @@ import com.datadog.debugger.probe.SpanProbe;
 import com.datadog.debugger.probe.Where;
 import com.datadog.debugger.sink.DebuggerSink;
 import com.datadog.debugger.sink.ProbeStatusSink;
-import com.datadog.debugger.sink.Sink;
 import com.datadog.debugger.sink.Snapshot;
 import datadog.trace.api.Config;
 import datadog.trace.api.GlobalTracer;
@@ -66,10 +65,14 @@ public class DebuggerTransformerTest {
     HANDLED
   }
 
-  static class TestSnapshotListener implements Sink {
+  static class TestSnapshotListener extends DebuggerSink {
     boolean skipped;
     DebuggerContext.SkipCause cause;
     List<Snapshot> snapshots = new ArrayList<>();
+
+    public TestSnapshotListener(Config config, ProbeStatusSink probeStatusSink) {
+      super(config, probeStatusSink);
+    }
 
     @Override
     public void skipSnapshot(String probeId, DebuggerContext.SkipCause cause) {
@@ -304,8 +307,6 @@ public class DebuggerTransformerTest {
   @Test
   public void classGenerationFailed() {
     Config config = createConfig();
-    TestSnapshotListener listener = new TestSnapshotListener();
-    DebuggerAgentHelper.injectSink(listener);
     final String CLASS_NAME = DebuggerAgent.class.getTypeName();
     final String METHOD_NAME = "run";
     MockProbe mockProbe = MockProbe.builder(PROBE_ID).where(CLASS_NAME, METHOD_NAME).build();
@@ -321,12 +322,11 @@ public class DebuggerTransformerTest {
             .build();
     AtomicReference<InstrumentationResult> lastResult = new AtomicReference<>(null);
     ProbeStatusSink probeStatusSink = mock(ProbeStatusSink.class);
+    TestSnapshotListener listener = new TestSnapshotListener(config, probeStatusSink);
     DebuggerTransformer debuggerTransformer =
         new DebuggerTransformer(
-            config,
-            configuration,
-            ((definition, result) -> lastResult.set(result)),
-            new DebuggerSink(config, probeStatusSink));
+            config, configuration, ((definition, result) -> lastResult.set(result)), listener);
+    DebuggerAgentHelper.injectSink(listener);
     byte[] newClassBuffer =
         debuggerTransformer.transform(
             ClassLoader.getSystemClassLoader(),

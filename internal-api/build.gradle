@@ -39,6 +39,7 @@ excludedClassesCoverage += [
   // an enum
   "datadog.trace.api.sampling.AdaptiveSampler",
   "datadog.trace.api.sampling.ConstantSampler",
+  "datadog.trace.api.sampling.SamplingRule.TraceSamplingRule.TargetSpan",
   "datadog.trace.api.EndpointCheckpointerHolder",
   "datadog.trace.api.iast.IastAdvice.Kind",
   "datadog.trace.api.UserEventTrackingMode",
@@ -111,8 +112,6 @@ excludedClassesCoverage += [
   "datadog.trace.util.PidHelper",
   "datadog.trace.util.PidHelper.Fallback",
   "datadog.trace.util.ProcessUtils",
-  "datadog.trace.api.IntegrationsCollector.Holder",
-  "datadog.trace.api.MetricCollector.Holder",
   "datadog.trace.api.ConfigCollector",
   "datadog.trace.api.Config.HostNameHolder",
   "datadog.trace.api.Config.RuntimeIdHolder",
@@ -137,8 +136,7 @@ excludedClassesCoverage += [
   // POJO
   'datadog.trace.api.iast.util.Cookie',
   'datadog.trace.api.iast.util.Cookie.Builder',
-  'datadog.trace.api.LogCollector.RawLogMessage',
-  'datadog.trace.api.LogCollector.Holder',
+  'datadog.trace.api.telemetry.LogCollector.RawLogMessage',
   // stubs
   'datadog.trace.api.profiling.Timing.NoOp',
   'datadog.trace.api.profiling.Timer.NoOp',

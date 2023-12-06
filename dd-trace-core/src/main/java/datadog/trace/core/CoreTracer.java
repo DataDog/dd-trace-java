@@ -62,6 +62,8 @@ import datadog.trace.common.GitMetadataTraceInterceptor;
 import datadog.trace.common.metrics.MetricsAggregator;
 import datadog.trace.common.sampling.Sampler;
 import datadog.trace.common.sampling.SingleSpanSampler;
+import datadog.trace.common.sampling.SpanSamplingRules;
+import datadog.trace.common.sampling.TraceSamplingRules;
 import datadog.trace.common.writer.DDAgentWriter;
 import datadog.trace.common.writer.Writer;
 import datadog.trace.common.writer.WriterFactory;
@@ -516,9 +518,25 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     this.initialConfig = config;
     this.initialSampler = sampler;
 
+    // Get initial Trace Sampling Rules from config
+    TraceSamplingRules traceSamplingRules =
+        config.getTraceSamplingRules() == null
+            ? TraceSamplingRules.EMPTY
+            : TraceSamplingRules.deserialize(config.getTraceSamplingRules());
+    // Get initial Span Sampling Rules from config
+    String spanSamplingRulesJson = config.getSpanSamplingRules();
+    String spanSamplingRulesFile = config.getSpanSamplingRulesFile();
+    SpanSamplingRules spanSamplingRules = SpanSamplingRules.EMPTY;
+    if (spanSamplingRulesJson != null) {
+      spanSamplingRules = SpanSamplingRules.deserialize(spanSamplingRulesJson);
+    } else if (spanSamplingRulesFile != null) {
+      spanSamplingRules = SpanSamplingRules.deserializeFile(spanSamplingRulesFile);
+    }
+
     this.dynamicConfig =
         DynamicConfig.create(ConfigSnapshot::new)
             .setDebugEnabled(config.isDebugEnabled())
+            .setTriageEnabled(config.isTriageEnabled())
             .setRuntimeMetricsEnabled(config.isRuntimeMetricsEnabled())
             .setLogsInjectionEnabled(config.isLogsInjectionEnabled())
             .setDataStreamsEnabled(config.isDataStreamsEnabled())
@@ -526,6 +544,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
             .setHeaderTags(taggedHeaders)
             .setBaggageMapping(baggageMapping)
             .setTraceSampleRate(config.getTraceSampleRate())
+            .setSpanSamplingRules(spanSamplingRules.getRules())
+            .setTraceSamplingRules(traceSamplingRules.getRules())
             .apply();
 
     this.logs128bTraceIdEnabled = InstrumenterConfig.get().isLogs128bTraceIdEnabled();
@@ -698,6 +718,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     dynamicConfig
         .initial()
         .setDebugEnabled(config.isDebugEnabled())
+        .setTriageEnabled(config.isTriageEnabled())
         .setRuntimeMetricsEnabled(config.isRuntimeMetricsEnabled())
         .setLogsInjectionEnabled(config.isLogsInjectionEnabled())
         .setDataStreamsEnabled(config.isDataStreamsEnabled())

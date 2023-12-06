@@ -49,7 +49,6 @@ import org.slf4j.LoggerFactory;
 public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, EventListener {
   private static final Logger log = LoggerFactory.getLogger(DefaultDataStreamsMonitoring.class);
 
-  static final long DEFAULT_BUCKET_DURATION_NANOS = TimeUnit.SECONDS.toNanos(10);
   static final long FEATURE_CHECK_INTERVAL_NANOS = TimeUnit.MINUTES.toNanos(5);
 
   private static final StatsPoint REPORT =
@@ -106,7 +105,7 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
         config.getWellKnownTags(),
         new MsgPackDatastreamsPayloadWriter(
             sink, config.getWellKnownTags(), DDTraceCoreInfo.VERSION, config.getPrimaryTag()),
-        DEFAULT_BUCKET_DURATION_NANOS);
+        Config.get().getDataStreamsBucketDurationNanoseconds());
   }
 
   public DefaultDataStreamsMonitoring(

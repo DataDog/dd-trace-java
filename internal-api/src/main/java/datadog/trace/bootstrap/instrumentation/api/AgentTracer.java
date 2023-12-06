@@ -21,6 +21,7 @@ import datadog.trace.api.internal.InternalTracer;
 import datadog.trace.api.internal.TraceSegment;
 import datadog.trace.api.profiling.Timer;
 import datadog.trace.api.sampling.PrioritySampling;
+import datadog.trace.api.sampling.SamplingRule;
 import datadog.trace.api.scopemanager.ScopeListener;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan.Context;
 import java.nio.ByteBuffer;
@@ -1155,6 +1156,11 @@ public class AgentTracer {
     }
 
     @Override
+    public boolean isTriageEnabled() {
+      return false;
+    }
+
+    @Override
     public boolean isRuntimeMetricsEnabled() {
       return false;
     }
@@ -1192,6 +1198,16 @@ public class AgentTracer {
     @Override
     public Double getTraceSampleRate() {
       return null;
+    }
+
+    @Override
+    public List<? extends SamplingRule.SpanSamplingRule> getSpanSamplingRules() {
+      return Collections.emptyList();
+    }
+
+    @Override
+    public List<? extends SamplingRule.TraceSamplingRule> getTraceSamplingRules() {
+      return Collections.emptyList();
     }
   }
 }

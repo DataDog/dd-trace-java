@@ -8,6 +8,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import com.datadog.profiling.controller.OngoingRecording;
 import com.datadog.profiling.controller.UnsupportedEnvironmentException;
 import com.datadog.profiling.utils.ProfilingMode;
+import datadog.trace.api.Platform;
 import datadog.trace.api.config.ProfilingConfig;
 import datadog.trace.api.profiling.ProfilingScope;
 import datadog.trace.api.profiling.RecordingData;
@@ -20,6 +21,8 @@ import java.util.Properties;
 import java.util.UUID;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
+import org.junit.jupiter.api.Assumptions;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
@@ -31,6 +34,11 @@ import org.slf4j.LoggerFactory;
 
 class DatadogProfilerTest {
   private static final Logger log = LoggerFactory.getLogger(DatadogProfilerTest.class);
+
+  @BeforeEach
+  public void setup() {
+    Assumptions.assumeTrue(Platform.isLinux());
+  }
 
   @Test
   void test() throws Exception {
