@@ -28,6 +28,8 @@ final class GetterAccess {
       Pattern.compile("Request", Pattern.LITERAL);
 
   private final String operationName;
+  private final MethodHandle getKey;
+  private final MethodHandle getVersionId;
   private final MethodHandle getBucketName;
   private final MethodHandle getQueueUrl;
   private final MethodHandle getQueueName;
@@ -41,6 +43,8 @@ final class GetterAccess {
   private GetterAccess(final Class<?> objectType) {
     operationName =
         REQUEST_OPERATION_NAME_PATTERN.matcher(objectType.getSimpleName()).replaceAll("");
+    getKey = findStringGetter(objectType, "getKey");
+    getVersionId = findStringGetter(objectType, "getVersionId");
     getBucketName = findStringGetter(objectType, "getBucketName");
     getQueueUrl = findStringGetter(objectType, "getQueueUrl");
     getQueueName = findStringGetter(objectType, "getQueueName");
@@ -55,6 +59,14 @@ final class GetterAccess {
 
   String getOperationNameFromType() {
     return operationName;
+  }
+
+  String getKey(final Object object) {
+    return invokeForString(getKey, object);
+  }
+
+  String getVersionId(final Object object) {
+    return invokeForString(getVersionId, object);
   }
 
   String getBucketName(final Object object) {

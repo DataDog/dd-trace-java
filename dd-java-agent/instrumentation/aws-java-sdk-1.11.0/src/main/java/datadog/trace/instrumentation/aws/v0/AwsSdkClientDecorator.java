@@ -113,6 +113,14 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
     String bestPrecursor = null;
     String bestPeerService = null;
 
+    String key = access.getKey(originalRequest);
+    if (null != key) {
+      span.setTag(InstrumentationTags.AWS_OBJECT_KEY, key);
+    }
+    String versionId = access.getVersionId(originalRequest);
+    if (null != versionId) {
+      span.setTag(InstrumentationTags.AWS_OBJECT_VERSION_ID, versionId);
+    }
     String bucketName = access.getBucketName(originalRequest);
     if (null != bucketName) {
       span.setTag(InstrumentationTags.AWS_BUCKET_NAME, bucketName);
