@@ -1,3 +1,5 @@
+import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
+
 import io.vertx.core.AsyncResult
 import io.vertx.core.Handler
 import io.vertx.redis.client.RedisAPI
@@ -8,13 +10,17 @@ import spock.lang.Shared
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 
-import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
-
 abstract class VertxRedisAPITestBase extends VertxRedisTestBase {
 
-  @AutoCleanup
+  @AutoCleanup(quiet = true)
   @Shared
-  RedisAPI redisAPI = null
+  RedisAPI redisAPI
+
+  def setupSpec() {
+    redisAPI = createRedis()
+  }
+
+  abstract RedisAPI createRedis()
 
   def "dbsize (1 arg)"() {
     when:
@@ -135,17 +141,24 @@ abstract class VertxRedisAPITestBase extends VertxRedisTestBase {
 }
 
 class VertxRedisAPIRedisForkedTest extends VertxRedisAPITestBase {
-  def setupSpec() {
-    redisAPI = RedisAPI.api(redis)
+
+  @Override
+  RedisAPI createRedis() {
+    return RedisAPI.api(redis)
   }
 }
 
 class VertxRedisAPIRedisConnectionForkedTest extends VertxRedisAPITestBase {
-  def setupSpec() {
+  @Override
+  RedisAPI createRedis() {
     def latch = new CountDownLatch(1)
+    def ret
     redis.connect({ar ->
       try {
-        redisAPI = RedisAPI.api(ar.result())
+        if (!ar.succeeded()) {
+          ar.cause().printStackTrace(System.out)
+        }
+        ret  = RedisAPI.api(ar.result())
       } catch (Throwable t) {
         t.printStackTrace(System.out)
       } finally {
@@ -153,6 +166,6 @@ class VertxRedisAPIRedisConnectionForkedTest extends VertxRedisAPITestBase {
       }
     })
     latch.await(10, TimeUnit.SECONDS)
-    assert redisAPI
+    return ret
   }
 }
