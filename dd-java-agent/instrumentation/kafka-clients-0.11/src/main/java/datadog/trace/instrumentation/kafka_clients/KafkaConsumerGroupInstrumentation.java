@@ -47,7 +47,7 @@ public final class KafkaConsumerGroupInstrumentation extends Instrumenter.Tracin
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".KafkaDecorator",
+      packageName + ".KafkaDecorator", packageName + ".ConsumerContext",
     };
   }
 
@@ -76,12 +76,25 @@ public final class KafkaConsumerGroupInstrumentation extends Instrumenter.Tracin
         @Advice.FieldValue("coordinator") ConsumerCoordinator coordinator,
         @Advice.Argument(0) ConsumerConfig consumerConfig) {
       String consumerGroup = consumerConfig.getString(ConsumerConfig.GROUP_ID_CONFIG);
+      String bootstrapServers = consumerConfig.getString(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG);
+
+      ConsumerContext context =
+          InstrumentationContext.get(KafkaConsumer.class, ConsumerContext.class).get(consumer);
+      if (context == null) {
+        context = new ConsumerContext();
+      }
 
       if (consumerGroup != null && !consumerGroup.isEmpty()) {
-        InstrumentationContext.get(KafkaConsumer.class, String.class).put(consumer, consumerGroup);
+        context.setConsumerGroup(consumerGroup);
         InstrumentationContext.get(ConsumerCoordinator.class, String.class)
             .put(coordinator, consumerGroup);
       }
+
+      if (bootstrapServers != null && !bootstrapServers.isEmpty()) {
+        context.setBootstrapServers(bootstrapServers);
+      }
+
+      InstrumentationContext.get(KafkaConsumer.class, ConsumerContext.class).put(consumer, context);
     }
 
     public static void muzzleCheck(ConsumerRecord record) {
@@ -100,11 +113,12 @@ public final class KafkaConsumerGroupInstrumentation extends Instrumenter.Tracin
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void captureGroup(
         @Advice.This KafkaConsumer consumer, @Advice.Return ConsumerRecords records) {
-      String consumerGroup =
-          InstrumentationContext.get(KafkaConsumer.class, String.class).get(consumer);
+      ConsumerContext context =
+          InstrumentationContext.get(KafkaConsumer.class, ConsumerContext.class).get(consumer);
 
-      if (consumerGroup != null) {
-        InstrumentationContext.get(ConsumerRecords.class, String.class).put(records, consumerGroup);
+      if (context != null) {
+        InstrumentationContext.get(ConsumerRecords.class, ConsumerContext.class)
+            .put(records, context);
       }
     }
   }

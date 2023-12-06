@@ -49,6 +49,7 @@ public final class KafkaConsumerInstrumentation extends Instrumenter.Tracing
       packageName + ".TracingList",
       packageName + ".TracingListIterator",
       packageName + ".TextMapInjectAdapter",
+      packageName + ".ConsumerContext",
       "datadog.trace.instrumentation.kafka_common.Utils",
       "datadog.trace.instrumentation.kafka_common.StreamingContext",
     };
@@ -86,8 +87,9 @@ public final class KafkaConsumerInstrumentation extends Instrumenter.Tracing
         @Advice.Return(readOnly = false) Iterable<ConsumerRecord<?, ?>> iterable,
         @Advice.This ConsumerRecords records) {
       if (iterable != null) {
-        String group = InstrumentationContext.get(ConsumerRecords.class, String.class).get(records);
-        iterable = new TracingIterable(iterable, KAFKA_CONSUME, CONSUMER_DECORATE, group);
+        ConsumerContext context =
+            InstrumentationContext.get(ConsumerRecords.class, ConsumerContext.class).get(records);
+        iterable = new TracingIterable(iterable, KAFKA_CONSUME, CONSUMER_DECORATE, context);
       }
     }
   }
@@ -99,8 +101,9 @@ public final class KafkaConsumerInstrumentation extends Instrumenter.Tracing
         @Advice.Return(readOnly = false) List<ConsumerRecord<?, ?>> iterable,
         @Advice.This ConsumerRecords records) {
       if (iterable != null) {
-        String group = InstrumentationContext.get(ConsumerRecords.class, String.class).get(records);
-        iterable = new TracingList(iterable, KAFKA_CONSUME, CONSUMER_DECORATE, group);
+        ConsumerContext context =
+            InstrumentationContext.get(ConsumerRecords.class, ConsumerContext.class).get(records);
+        iterable = new TracingList(iterable, KAFKA_CONSUME, CONSUMER_DECORATE, context);
       }
     }
   }
@@ -112,8 +115,9 @@ public final class KafkaConsumerInstrumentation extends Instrumenter.Tracing
         @Advice.Return(readOnly = false) Iterator<ConsumerRecord<?, ?>> iterator,
         @Advice.This ConsumerRecords records) {
       if (iterator != null) {
-        String group = InstrumentationContext.get(ConsumerRecords.class, String.class).get(records);
-        iterator = new TracingIterator(iterator, KAFKA_CONSUME, CONSUMER_DECORATE, group);
+        ConsumerContext context =
+            InstrumentationContext.get(ConsumerRecords.class, ConsumerContext.class).get(records);
+        iterator = new TracingIterator(iterator, KAFKA_CONSUME, CONSUMER_DECORATE, context);
       }
     }
   }

@@ -154,6 +154,7 @@ class KafkaClientTest extends AgentTestRunner {
             "$InstrumentationTags.PARTITION" { it >= 0 }
             "$InstrumentationTags.OFFSET" 0
             "$InstrumentationTags.CONSUMER_GROUP" "sender"
+            "$InstrumentationTags.KAFKA_BOOTSTRAP_SERVERS" consumerProperties.get(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG)
             "$InstrumentationTags.RECORD_QUEUE_TIME_MS" { it >= 0 }
             // TODO - test with and without feature enabled once Config is easier to control
             "$InstrumentationTags.RECORD_END_TO_END_DURATION_MS" { it >= 0 }
@@ -285,6 +286,7 @@ class KafkaClientTest extends AgentTestRunner {
             "$InstrumentationTags.PARTITION" { it >= 0 }
             "$InstrumentationTags.OFFSET" 0
             "$InstrumentationTags.CONSUMER_GROUP" "sender"
+            "$InstrumentationTags.KAFKA_BOOTSTRAP_SERVERS" consumerProperties.get(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG)
             "$InstrumentationTags.RECORD_QUEUE_TIME_MS" { it >= 0 }
             // TODO - test with and without feature enabled once Config is easier to control
             "$InstrumentationTags.RECORD_END_TO_END_DURATION_MS" { it >= 0 }
@@ -409,6 +411,7 @@ class KafkaClientTest extends AgentTestRunner {
             "$InstrumentationTags.PARTITION" { it >= 0 }
             "$InstrumentationTags.OFFSET" 0
             "$InstrumentationTags.CONSUMER_GROUP" "sender"
+            "$InstrumentationTags.KAFKA_BOOTSTRAP_SERVERS" consumerProperties.get(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG)
             "$InstrumentationTags.RECORD_QUEUE_TIME_MS" { it >= 0 }
             "$InstrumentationTags.TOMBSTONE" true
             // TODO - test with and without feature enabled once Config is easier to control
@@ -500,6 +503,7 @@ class KafkaClientTest extends AgentTestRunner {
             "$InstrumentationTags.PARTITION" { it >= 0 }
             "$InstrumentationTags.OFFSET" 0
             "$InstrumentationTags.CONSUMER_GROUP" "sender"
+            "$InstrumentationTags.KAFKA_BOOTSTRAP_SERVERS" consumerProperties.get(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG)
             "$InstrumentationTags.RECORD_QUEUE_TIME_MS" { it >= 0 }
             // TODO - test with and without feature enabled once Config is easier to control
             "$InstrumentationTags.RECORD_END_TO_END_DURATION_MS" { it >= 0 }
@@ -636,6 +640,7 @@ class KafkaClientTest extends AgentTestRunner {
             "$InstrumentationTags.PARTITION" { it >= 0 }
             "$InstrumentationTags.OFFSET" 0
             "$InstrumentationTags.CONSUMER_GROUP" "sender"
+            "$InstrumentationTags.KAFKA_BOOTSTRAP_SERVERS" consumerProperties.get(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG)
             "$InstrumentationTags.RECORD_QUEUE_TIME_MS" { it >= 0 }
             "$InstrumentationTags.RECORD_END_TO_END_DURATION_MS" { it >= 0 }
             if ({ isDataStreamsEnabled()}) {
@@ -659,6 +664,7 @@ class KafkaClientTest extends AgentTestRunner {
             "$InstrumentationTags.PARTITION" { it >= 0 }
             "$InstrumentationTags.OFFSET" 1
             "$InstrumentationTags.CONSUMER_GROUP" "sender"
+            "$InstrumentationTags.KAFKA_BOOTSTRAP_SERVERS" consumerProperties.get(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG)
             "$InstrumentationTags.RECORD_QUEUE_TIME_MS" { it >= 0 }
             "$InstrumentationTags.RECORD_END_TO_END_DURATION_MS" { it >= 0 }
             if ({ isDataStreamsEnabled()}) {
@@ -682,6 +688,7 @@ class KafkaClientTest extends AgentTestRunner {
             "$InstrumentationTags.PARTITION" { it >= 0 }
             "$InstrumentationTags.OFFSET" 2
             "$InstrumentationTags.CONSUMER_GROUP" "sender"
+            "$InstrumentationTags.KAFKA_BOOTSTRAP_SERVERS" consumerProperties.get(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG)
             "$InstrumentationTags.RECORD_QUEUE_TIME_MS" { it >= 0 }
             "$InstrumentationTags.RECORD_END_TO_END_DURATION_MS" { it >= 0 }
             if ({ isDataStreamsEnabled()}) {
@@ -707,6 +714,7 @@ class KafkaClientTest extends AgentTestRunner {
             "$InstrumentationTags.PARTITION" { it >= 0 }
             "$InstrumentationTags.OFFSET" 2
             "$InstrumentationTags.CONSUMER_GROUP" "sender"
+            "$InstrumentationTags.KAFKA_BOOTSTRAP_SERVERS" consumerProperties.get(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG)
             "$InstrumentationTags.RECORD_QUEUE_TIME_MS" { it >= 0 }
             "$InstrumentationTags.RECORD_END_TO_END_DURATION_MS" { it >= 0 }
             if ({ isDataStreamsEnabled()}) {
@@ -730,6 +738,7 @@ class KafkaClientTest extends AgentTestRunner {
             "$InstrumentationTags.PARTITION" { it >= 0 }
             "$InstrumentationTags.OFFSET" 1
             "$InstrumentationTags.CONSUMER_GROUP" "sender"
+            "$InstrumentationTags.KAFKA_BOOTSTRAP_SERVERS" consumerProperties.get(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG)
             "$InstrumentationTags.RECORD_QUEUE_TIME_MS" { it >= 0 }
             "$InstrumentationTags.RECORD_END_TO_END_DURATION_MS" { it >= 0 }
             if ({ isDataStreamsEnabled()}) {
@@ -753,6 +762,7 @@ class KafkaClientTest extends AgentTestRunner {
             "$InstrumentationTags.PARTITION" { it >= 0 }
             "$InstrumentationTags.OFFSET" 0
             "$InstrumentationTags.CONSUMER_GROUP" "sender"
+            "$InstrumentationTags.KAFKA_BOOTSTRAP_SERVERS" consumerProperties.get(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG)
             "$InstrumentationTags.RECORD_QUEUE_TIME_MS" { it >= 0 }
             "$InstrumentationTags.RECORD_END_TO_END_DURATION_MS" { it >= 0 }
             if ({ isDataStreamsEnabled()}) {
@@ -900,6 +910,7 @@ class KafkaClientTest extends AgentTestRunner {
             "$InstrumentationTags.PARTITION" { it >= 0 }
             "$InstrumentationTags.OFFSET" 0
             "$InstrumentationTags.CONSUMER_GROUP" "sender"
+            "$InstrumentationTags.KAFKA_BOOTSTRAP_SERVERS" consumerProperties.get(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG)
             "$InstrumentationTags.RECORD_QUEUE_TIME_MS" { it >= 0 }
             "$InstrumentationTags.RECORD_END_TO_END_DURATION_MS" { it >= 0 }
             if ({ isDataStreamsEnabled()}) {
@@ -922,6 +933,7 @@ class KafkaClientTest extends AgentTestRunner {
             "$InstrumentationTags.PARTITION" { it >= 0 }
             "$InstrumentationTags.OFFSET" { it >= 0 && it < 2 }
             "$InstrumentationTags.CONSUMER_GROUP" "sender"
+            "$InstrumentationTags.KAFKA_BOOTSTRAP_SERVERS" consumerProperties.get(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG)
             "$InstrumentationTags.RECORD_QUEUE_TIME_MS" { it >= 0 }
             "$InstrumentationTags.RECORD_END_TO_END_DURATION_MS" { it >= 0 }
             if ({ isDataStreamsEnabled()}) {
@@ -944,6 +956,7 @@ class KafkaClientTest extends AgentTestRunner {
             "$InstrumentationTags.PARTITION" { it >= 0 }
             "$InstrumentationTags.OFFSET" { it >= 0 && it < 2 }
             "$InstrumentationTags.CONSUMER_GROUP" "sender"
+            "$InstrumentationTags.KAFKA_BOOTSTRAP_SERVERS" consumerProperties.get(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG)
             "$InstrumentationTags.RECORD_QUEUE_TIME_MS" { it >= 0 }
             "$InstrumentationTags.RECORD_END_TO_END_DURATION_MS" { it >= 0 }
             if ({ isDataStreamsEnabled()}) {

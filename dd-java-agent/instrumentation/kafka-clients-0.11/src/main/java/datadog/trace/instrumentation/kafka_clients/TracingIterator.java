@@ -36,17 +36,17 @@ public class TracingIterator implements Iterator<ConsumerRecord<?, ?>> {
   private final Iterator<ConsumerRecord<?, ?>> delegateIterator;
   private final CharSequence operationName;
   private final KafkaDecorator decorator;
-  private final String group;
+  private final ConsumerContext context;
 
   public TracingIterator(
       final Iterator<ConsumerRecord<?, ?>> delegateIterator,
       final CharSequence operationName,
       final KafkaDecorator decorator,
-      String group) {
+      final ConsumerContext context) {
     this.delegateIterator = delegateIterator;
     this.operationName = operationName;
     this.decorator = decorator;
-    this.group = group;
+    this.context = context;
   }
 
   @Override
@@ -89,7 +89,7 @@ public class TracingIterator implements Iterator<ConsumerRecord<?, ?>> {
 
           LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>();
           sortedTags.put(DIRECTION_TAG, DIRECTION_IN);
-          sortedTags.put(GROUP_TAG, group);
+          sortedTags.put(GROUP_TAG, context.getConsumerGroup());
           sortedTags.put(TOPIC_TAG, val.topic());
           sortedTags.put(TYPE_TAG, "kafka");
 
@@ -118,7 +118,7 @@ public class TracingIterator implements Iterator<ConsumerRecord<?, ?>> {
           span.setTag(InstrumentationTags.TOMBSTONE, true);
         }
         decorator.afterStart(span);
-        decorator.onConsume(span, val, group);
+        decorator.onConsume(span, val, context);
         activateNext(span);
         if (null != queueSpan) {
           queueSpan.finish();
