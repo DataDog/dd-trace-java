@@ -233,6 +233,26 @@ public class ConfigurationUpdater
   // /!\ This is called potentially by multiple threads from the instrumented code /!\
   @Override
   public ProbeImplementation resolve(String id, Class<?> callingClass) {
+    System.out.println("ConfigurationUpdater.resolve id=" + id);
+    final String exProbePrefix = "jvmtiExceptionProbe|";
+    if (id.startsWith(exProbePrefix)) {
+      String location = id.substring(exProbePrefix.length());
+      int idx = location.indexOf(":");
+      if (idx == -1) {
+        throw new IllegalArgumentException("Illegal encoding for location");
+      }
+      String sourceFileName = location.substring(0, idx);
+      int line = Integer.parseInt(location.substring(idx + 1));
+      LogProbe probe =
+          LogProbe.builder()
+              .probeId(id, 1)
+              .where(sourceFileName, line)
+              .template("jvmti exception probe", Collections.emptyList())
+              .captureSnapshot(true)
+              .build();
+      probe.buildLocation(null);
+      return probe;
+    }
     ProbeDefinition definition = appliedDefinitions.get(id);
     if (definition == null) {
       LOGGER.info(

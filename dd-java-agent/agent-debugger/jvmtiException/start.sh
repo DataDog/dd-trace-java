@@ -1,0 +1,1 @@
+java -agentpath:./agent.dylib -javaagent:./dd-java-agent-1.25.0-SNAPSHOT.jar -Ddd.dynamic.instrumentation.enabled=true -Ddatadog.slf4j.simpleLogger.log.com.datadog.debugger=debug -Ddatadog.slf4j.simpleLogger.log.datadog.trace.bootstrap.debugger=debug -Ddd.service=Main-jpempel Main

@@ -92,6 +92,7 @@ public class DebuggerContext {
   public static ProbeImplementation resolveProbe(String id, Class<?> callingClass) {
     ProbeResolver resolver = probeResolver;
     if (resolver == null) {
+      System.out.println("no resolver");
       return null;
     }
     return resolver.resolve(id, callingClass);
@@ -264,16 +265,23 @@ public class DebuggerContext {
       for (String probeId : probeIds) {
         ProbeImplementation probeImplementation = resolveProbe(probeId, callingClass);
         if (probeImplementation == null) {
+          System.out.println("no probe implementation");
           continue;
         }
+        System.out.println("before eval " + context);
         context.evaluate(
-            probeId, probeImplementation, callingClass.getTypeName(), -1, MethodLocation.DEFAULT);
+            probeId,
+            probeImplementation,
+            callingClass != null ? callingClass.getTypeName() : "noclass",
+            -1,
+            MethodLocation.DEFAULT);
         probeImplementations.add(probeImplementation);
       }
       for (ProbeImplementation probeImplementation : probeImplementations) {
         probeImplementation.commit(context, line);
       }
     } catch (Exception ex) {
+      ex.printStackTrace();
       LOGGER.debug("Error in evalContextAndCommit: ", ex);
     }
   }

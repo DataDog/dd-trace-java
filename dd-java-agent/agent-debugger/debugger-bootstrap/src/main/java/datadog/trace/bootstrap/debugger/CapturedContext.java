@@ -320,6 +320,7 @@ public class CapturedContext implements ValueReferenceResolver {
       String thisClassName,
       long startTimestamp,
       MethodLocation methodLocation) {
+    System.out.println("evaluate probeId=" + probeId);
     Status status =
         statusByProbeId.computeIfAbsent(probeId, key -> probeImplementation.createStatus());
     if (methodLocation == MethodLocation.EXIT) {
@@ -333,6 +334,7 @@ public class CapturedContext implements ValueReferenceResolver {
     if (shouldEvaluate) {
       probeImplementation.evaluate(this, status, methodLocation);
     }
+    System.out.println("evaluate status=" + status);
     return status;
   }
 

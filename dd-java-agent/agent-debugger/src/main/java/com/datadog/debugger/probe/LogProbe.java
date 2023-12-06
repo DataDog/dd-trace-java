@@ -370,7 +370,7 @@ public class LogProbe extends ProbeDefinition {
     if (!(status instanceof LogStatus)) {
       throw new IllegalStateException("Invalid status: " + status.getClass());
     }
-
+    System.out.println("LogProbe.evaluate");
     LogStatus logStatus = (LogStatus) status;
     if (!hasCondition()) {
       // sample when no condition associated
@@ -522,8 +522,10 @@ public class LogProbe extends ProbeDefinition {
 
   @Override
   public void commit(CapturedContext lineContext, int line) {
+    System.out.println("commit line");
     LogStatus status = (LogStatus) lineContext.getStatus(id);
     if (status == null) {
+      System.out.println("commit status null");
       return;
     }
     Sink sink = DebuggerAgent.getSink();
@@ -544,12 +546,14 @@ public class LogProbe extends ProbeDefinition {
       shouldCommit = true;
     }
     if (shouldCommit) {
+      System.out.println("commit snapshot");
       // freeze context just before commit because line probes have only one context
       Duration timeout = Duration.of(Config.get().getDebuggerCaptureTimeout(), ChronoUnit.MILLIS);
       lineContext.freeze(new TimeoutChecker(timeout));
       commitSnapshot(snapshot, sink);
       return;
     }
+    System.out.println("skip snapshot");
     sink.skipSnapshot(id, DebuggerContext.SkipCause.CONDITION);
   }
 
