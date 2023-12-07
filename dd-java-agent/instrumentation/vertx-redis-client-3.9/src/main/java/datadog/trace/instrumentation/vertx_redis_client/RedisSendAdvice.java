@@ -52,8 +52,8 @@ public class RedisSendAdvice {
       return AgentTracer.NoopAgentScope.INSTANCE;
     }
 
-    AgentSpan parentSan = activeSpan();
-    AgentScope.Continuation parentContinuation = null == parentSan ? null : captureSpan(parentSan);
+    AgentSpan parentSpan = activeSpan();
+    AgentScope.Continuation parentContinuation = null == parentSpan ? null : captureSpan(parentSpan);
     final AgentSpan clientSpan =
         DECORATE.startAndDecorateSpan(
             request.command(), InstrumentationContext.get(Command.class, UTF8BytesString.class));
