@@ -42,7 +42,7 @@ public final class TestFramework implements Comparable<TestFramework> {
     if (nameComparison != 0) {
       return nameComparison;
     }
-    if (version == o.version) {
+    if (version == null && o.version == null) {
       return 0;
     }
     if (version == null) {
