@@ -1,23 +1,20 @@
-
-apply from: "$rootDir/gradle/java.gradle"
-
 muzzle {
   pass {
     group = 'io.vertx'
     module = 'vertx-redis-client'
-    versions = '[3.9.0,4)'
+    versions = '[3.9.0,)'
     assertInverse = true
   }
 }
 
-addTestSuiteForDir('latestDepTest', 'test')
-addTestSuiteExtendingForDir('latestDepForkedTest', 'latestDepTest', 'test')
-
+apply from: "$rootDir/gradle/java.gradle"
 apply from: "$rootDir/gradle/configure_tests.gradle"
 
-latestDepTest {
-  finalizedBy 'latestDepForkedTest'
-}
+addTestSuiteForDir('latestDepTest', 'test')
+addTestSuiteExtendingForDir('latestDepForkedTest', 'latestDepTest', 'test')
+addTestSuiteForDir('redis4xTest', 'test')
+addTestSuiteExtendingForDir('redis4xForkedTest', 'redis4xTest', 'test')
+
 
 dependencies {
   compileOnly project(':dd-java-agent:instrumentation:vertx-redis-client-3.9:stubs')
@@ -27,8 +24,15 @@ dependencies {
   testImplementation project(':dd-java-agent:instrumentation:vertx-rx-3.5')
   testImplementation group: 'io.vertx', name: 'vertx-redis-client', version: '3.9.0'
   testImplementation group: 'io.vertx', name: 'vertx-rx-java2', version: '3.9.0'
-  testImplementation group: 'com.github.kstyrc', name: 'embedded-redis', version: '0.6'
+  testImplementation group: 'com.redis.testcontainers', name: 'testcontainers-redis', version: '1.6.2'
+  testImplementation deps.testcontainers
 
-  latestDepTestImplementation group: 'io.vertx', name: 'vertx-redis-client', version: '3.9+'
-  latestDepTestImplementation group: 'io.vertx', name: 'vertx-rx-java2', version: '3.9+'
+  redis4xTestImplementation group: 'io.vertx', name: 'vertx-redis-client', version: '4.0.0'
+  redis4xTestImplementation group: 'io.vertx', name: 'vertx-rx-java2', version: '4.0.0'
+  latestDepTestImplementation group: 'io.vertx', name: 'vertx-redis-client', version: '4.+'
+  latestDepTestImplementation group: 'io.vertx', name: 'vertx-rx-java2', version: '4.+'
+}
+
+tasks.withType(Test).configureEach {
+  usesService(testcontainersLimit)
 }
