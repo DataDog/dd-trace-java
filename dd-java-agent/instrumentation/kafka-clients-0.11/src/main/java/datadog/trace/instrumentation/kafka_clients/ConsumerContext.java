@@ -16,7 +16,7 @@ public class ConsumerContext {
   }
 
   public void setBootstrapServers(String bootstrapServers) {
-    this.consumerGroup = bootstrapServers;
+    this.bootstrapServers = bootstrapServers;
   }
 
   public String getBootstrapServers() {
