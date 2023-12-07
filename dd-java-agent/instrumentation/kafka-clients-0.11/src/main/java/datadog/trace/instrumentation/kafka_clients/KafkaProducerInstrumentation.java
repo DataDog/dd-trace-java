@@ -49,6 +49,7 @@ public final class KafkaProducerInstrumentation extends Instrumenter.Tracing
   public String[] helperClassNames() {
     return new String[] {
       packageName + ".KafkaDecorator",
+      packageName + ".ConsumerContext",
       packageName + ".TextMapInjectAdapter",
       packageName + ".KafkaProducerCallback",
       "datadog.trace.instrumentation.kafka_common.StreamingContext",
