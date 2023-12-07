@@ -11,7 +11,6 @@ import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Handler;
-import io.vertx.redis.RedisClient;
 import io.vertx.redis.client.Redis;
 import io.vertx.redis.client.RedisAPI;
 import io.vertx.redis.client.Response;
@@ -159,7 +158,6 @@ public class RedisAPICallAdvice {
 
   // Only apply this advice for versions that we instrument 3.9.x
   private static void muzzleCheck() {
-    RedisClient.create(null); // removed in 4.0.x
     Redis.createClient(null, "somehost"); // added in 3.9.x
   }
 }
