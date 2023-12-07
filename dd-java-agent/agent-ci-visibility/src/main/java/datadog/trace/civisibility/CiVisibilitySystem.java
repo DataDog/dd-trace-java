@@ -178,8 +178,13 @@ public class CiVisibilitySystem {
           new ConventionBasedResourceResolver(
               fileSystem, config.getCiVisibilityResourceFolderNames());
       RepoIndexBuilder indexBuilder =
-          new RepoIndexBuilder(repoRoot, packageResolver, resourceResolver, fileSystem);
-
+          new RepoIndexBuilder(
+              config,
+              repoRoot,
+              projectRoot.toString(),
+              packageResolver,
+              resourceResolver,
+              fileSystem);
       SourcePathResolver sourcePathResolver = getSourcePathResolver(repoRoot, indexBuilder);
       Codeowners codeowners = getCodeowners(repoRoot);
 
@@ -307,7 +312,8 @@ public class CiVisibilitySystem {
             new ConventionBasedResourceResolver(
                 fileSystem, config.getCiVisibilityResourceFolderNames());
         RepoIndexProvider indexProvider =
-            new RepoIndexBuilder(repoRoot, packageResolver, resourceResolver, fileSystem);
+            new RepoIndexBuilder(
+                config, repoRoot, repoRoot, packageResolver, resourceResolver, fileSystem);
 
         BackendApi backendApi = backendApiFactory.createBackendApi();
         GitDataUploader gitDataUploader =
@@ -389,7 +395,8 @@ public class CiVisibilitySystem {
           new ConventionBasedResourceResolver(
               fileSystem, config.getCiVisibilityResourceFolderNames());
       RepoIndexProvider indexProvider =
-          new RepoIndexBuilder(repoRoot, packageResolver, resourceResolver, fileSystem);
+          new RepoIndexBuilder(
+              config, repoRoot, repoRoot, packageResolver, resourceResolver, fileSystem);
       SourcePathResolver sourcePathResolver = getSourcePathResolver(repoRoot, indexProvider);
 
       return new DDTestSessionImpl(

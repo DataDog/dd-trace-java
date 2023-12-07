@@ -32,6 +32,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_CLIENT_IP_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CLOCK_SYNC_PERIOD;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CWS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CWS_TLS_REFRESH;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_DATA_STREAMS_BUCKET_DURATION;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DATA_STREAMS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DB_CLIENT_HOST_SPLIT_BY_HOST;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DB_CLIENT_HOST_SPLIT_BY_INSTANCE;
@@ -153,6 +154,7 @@ import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_CODE_COVE
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_CODE_COVERAGE_REPORT_DUMP_DIR;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_COMPILER_PLUGIN_AUTO_CONFIGURATION_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_COMPILER_PLUGIN_VERSION;
+import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_COVERAGE_ROOT_PACKAGES_LIMIT;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_COVERAGE_SEGMENTS_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_DEBUG_PORT;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_GIT_COMMAND_TIMEOUT_MILLIS;
@@ -208,6 +210,7 @@ import static datadog.trace.api.config.GeneralConfig.API_KEY_FILE;
 import static datadog.trace.api.config.GeneralConfig.APPLICATION_KEY;
 import static datadog.trace.api.config.GeneralConfig.APPLICATION_KEY_FILE;
 import static datadog.trace.api.config.GeneralConfig.AZURE_APP_SERVICES;
+import static datadog.trace.api.config.GeneralConfig.DATA_STREAMS_BUCKET_DURATION_SECONDS;
 import static datadog.trace.api.config.GeneralConfig.DATA_STREAMS_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.DOGSTATSD_ARGS;
 import static datadog.trace.api.config.GeneralConfig.DOGSTATSD_HOST;
@@ -466,6 +469,7 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.SortedSet;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -736,6 +740,7 @@ public class Config {
   private final int ciVisibilityModuleExecutionSettingsCacheSize;
   private final int ciVisibilityJvmInfoCacheSize;
   private final boolean ciVisibilityCoverageSegmentsEnabled;
+  private final int ciVisibilityCoverageRootPackagesLimit;
   private final String ciVisibilityInjectedTracerVersion;
   private final List<String> ciVisibilityResourceFolderNames;
 
@@ -830,6 +835,7 @@ public class Config {
   private final int cwsTlsRefresh;
 
   private final boolean dataStreamsEnabled;
+  private final float dataStreamsBucketDurationSeconds;
 
   private final Set<String> iastWeakHashAlgorithms;
 
@@ -1690,6 +1696,8 @@ public class Config {
     ciVisibilityJvmInfoCacheSize = configProvider.getInteger(CIVISIBILITY_JVM_INFO_CACHE_SIZE, 8);
     ciVisibilityCoverageSegmentsEnabled =
         configProvider.getBoolean(CIVISIBILITY_COVERAGE_SEGMENTS_ENABLED, false);
+    ciVisibilityCoverageRootPackagesLimit =
+        configProvider.getInteger(CIVISIBILITY_COVERAGE_ROOT_PACKAGES_LIMIT, 30);
     ciVisibilityInjectedTracerVersion =
         configProvider.getString(CIVISIBILITY_INJECTED_TRACER_VERSION);
     ciVisibilityResourceFolderNames =
@@ -1844,6 +1852,9 @@ public class Config {
 
     dataStreamsEnabled =
         configProvider.getBoolean(DATA_STREAMS_ENABLED, DEFAULT_DATA_STREAMS_ENABLED);
+    dataStreamsBucketDurationSeconds =
+        configProvider.getFloat(
+            DATA_STREAMS_BUCKET_DURATION_SECONDS, DEFAULT_DATA_STREAMS_BUCKET_DURATION);
 
     azureAppServices = configProvider.getBoolean(AZURE_APP_SERVICES, false);
     traceAgentPath = configProvider.getString(TRACE_AGENT_PATH);
@@ -2834,6 +2845,10 @@ public class Config {
     return ciVisibilityCoverageSegmentsEnabled;
   }
 
+  public int getCiVisibilityCoverageRootPackagesLimit() {
+    return ciVisibilityCoverageRootPackagesLimit;
+  }
+
   public String getCiVisibilityInjectedTracerVersion() {
     return ciVisibilityInjectedTracerVersion;
   }
@@ -3086,6 +3101,16 @@ public class Config {
 
   public boolean isDataStreamsEnabled() {
     return dataStreamsEnabled;
+  }
+
+  public float getDataStreamsBucketDurationSeconds() {
+    return dataStreamsBucketDurationSeconds;
+  }
+
+  public long getDataStreamsBucketDurationNanoseconds() {
+    // Rounds to the nearest millisecond before converting to nanos
+    int milliseconds = Math.round(dataStreamsBucketDurationSeconds * 1000);
+    return TimeUnit.MILLISECONDS.toNanos(milliseconds);
   }
 
   public String getTraceAgentPath() {

@@ -62,6 +62,8 @@ public final class CiVisibilityConfig {
   public static final String CIVISIBILITY_JVM_INFO_CACHE_SIZE = "civisibility.jvm.info.cache.size";
   public static final String CIVISIBILITY_COVERAGE_SEGMENTS_ENABLED =
       "civisibility.coverage.segments.enabled";
+  public static final String CIVISIBILITY_COVERAGE_ROOT_PACKAGES_LIMIT =
+      "civisibility.coverage.root.packages.limit";
   public static final String CIVISIBILITY_INJECTED_TRACER_VERSION =
       "civisibility.injected.tracer.version";
   public static final String CIVISIBILITY_RESOURCE_FOLDER_NAMES =

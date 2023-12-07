@@ -15,13 +15,16 @@ import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 class VertxRedisRxForkedTest extends VertxRedisTestBase {
 
   @Shared
-  @AutoCleanup
+  @AutoCleanup(quiet = true)
   RedisConnection redisConnection
 
   def setupSpec() {
     def latch = new CountDownLatch(1)
     redis.connect({ar ->
       try {
+        if (!ar.succeeded()) {
+          ar.cause().printStackTrace(System.out)
+        }
         redisConnection = new RedisConnection(ar.result())
       } catch (Throwable t) {
         t.printStackTrace(System.out)

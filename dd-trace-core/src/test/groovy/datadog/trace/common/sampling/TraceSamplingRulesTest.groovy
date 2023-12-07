@@ -1,5 +1,6 @@
 package datadog.trace.common.sampling
 
+import com.squareup.moshi.Moshi
 import datadog.trace.core.test.DDCoreSpecification
 
 import static datadog.trace.api.sampling.SamplingRule.MATCH_ALL
@@ -7,7 +8,7 @@ import static datadog.trace.api.sampling.SamplingRule.TraceSamplingRule.TargetSp
 
 class TraceSamplingRulesTest extends DDCoreSpecification {
 
-  def "Deserialize empty list of Trace Sampling rules from JSON"() {
+  def "Deserialize empty list of Trace Sampling Rules from JSON"() {
     when:
     def rules = TraceSamplingRules.deserialize("[]")
 
@@ -15,7 +16,7 @@ class TraceSamplingRulesTest extends DDCoreSpecification {
     rules.empty
   }
 
-  def "Deserialize Trace Sampling rules from JSON"() {
+  def "Deserialize Trace Sampling Rules from JSON"() {
     when:
     def rules = TraceSamplingRules.deserialize("""[
       {"service": "service-name", "name": "operation-name", "resource": "resource-name", "tags":
@@ -122,5 +123,27 @@ class TraceSamplingRulesTest extends DDCoreSpecification {
 
     where:
     jsonRules << ['[', '{"service": "usersvc",}', '']
+  }
+
+  def "Render JsonRule correctly when toString() is called"() {
+    when:
+    def jsonRule = new Moshi.Builder().build().adapter(TraceSamplingRules.JsonRule).fromJson(json)
+
+    then:
+    jsonRule.toString() == json
+
+    where:
+    json = '{"name":"name","resource":"resource","sample_rate":"0.5","service":"service","tags":{"a":"b","foo":"bar"},"target_span":"root"}'
+  }
+
+  def "Keep only valid rules when invalid rules are present"() {
+    when:
+    def rules = TraceSamplingRules.deserialize("""[
+      {"service": "usersvc", "name": "healthcheck", "sample_rate": 0.5},
+      {"service": "usersvc", "name": "healthcheck", "sample_rate": 200}
+    ]""")
+
+    then:
+    rules.rules.size() == 1
   }
 }
