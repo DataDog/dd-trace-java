@@ -1,6 +1,6 @@
 package datadog.trace.civisibility.config;
 
-import datadog.trace.api.civisibility.config.SkippableTest;
+import datadog.trace.api.civisibility.config.TestIdentifier;
 import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
@@ -8,20 +8,20 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 
-public abstract class SkippableTestsSerializer {
+public abstract class TestIdentifierSerializer {
 
   private static final Charset CHARSET = StandardCharsets.UTF_8;
 
-  public static ByteBuffer serialize(Collection<SkippableTest> skippableTests) {
-    if (skippableTests == null || skippableTests.isEmpty()) {
+  public static ByteBuffer serialize(Collection<TestIdentifier> testIdentifiers) {
+    if (testIdentifiers == null || testIdentifiers.isEmpty()) {
       return ByteBuffer.allocate(0);
     }
 
     int length =
-        Integer.BYTES // skippableTests.size()
+        Integer.BYTES // testIdentifiers.size()
             // suite, name, parameters length() for each test
-            + skippableTests.size() * 3 * Integer.BYTES;
-    for (SkippableTest test : skippableTests) {
+            + testIdentifiers.size() * 3 * Integer.BYTES;
+    for (TestIdentifier test : testIdentifiers) {
       String suite = test.getSuite();
       String name = test.getName();
       String parameters = test.getParameters();
@@ -34,9 +34,9 @@ public abstract class SkippableTestsSerializer {
     }
 
     ByteBuffer buffer = ByteBuffer.allocate(length);
-    buffer.putInt(skippableTests.size());
+    buffer.putInt(testIdentifiers.size());
 
-    for (SkippableTest test : skippableTests) {
+    for (TestIdentifier test : testIdentifiers) {
       String suite = test.getSuite();
       String name = test.getName();
       String parameters = test.getParameters();
@@ -62,13 +62,13 @@ public abstract class SkippableTestsSerializer {
     return buffer;
   }
 
-  public static Collection<SkippableTest> deserialize(ByteBuffer buffer) {
+  public static Collection<TestIdentifier> deserialize(ByteBuffer buffer) {
     if (buffer.remaining() == 0) {
       return Collections.emptyList();
     }
 
     int count = buffer.getInt();
-    Collection<SkippableTest> tests = new ArrayList<>(count * 4 / 3);
+    Collection<TestIdentifier> tests = new ArrayList<>(count * 4 / 3);
     while (count-- > 0) {
       int suiteLength = buffer.getInt();
       byte[] suiteBytes = new byte[suiteLength];
@@ -90,7 +90,7 @@ public abstract class SkippableTestsSerializer {
         parameters = null;
       }
 
-      tests.add(new SkippableTest(suite, name, parameters, null));
+      tests.add(new TestIdentifier(suite, name, parameters, null));
     }
     return tests;
   }

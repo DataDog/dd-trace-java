@@ -1,7 +1,7 @@
 package datadog.trace.instrumentation.testng
 
 
-import datadog.trace.api.civisibility.config.SkippableTest
+import datadog.trace.api.civisibility.config.TestIdentifier
 import datadog.trace.civisibility.CiVisibilityInstrumentationTest
 import org.example.TestError
 import org.example.TestFailed
@@ -69,14 +69,14 @@ abstract class TestNGTest extends CiVisibilityInstrumentationTest {
     "test-successful-test-cases-in-parallel"                                          | [TestSucceedMultiple]                              | 3                   | "methods"    | []
     "test-parameterized-test-cases-in-parallel"                                       | [TestParameterized]                                | 3                   | "methods"    | []
     "test-itr-skipping"                                                               | [TestFailedAndSucceed]                             | 4                   | null         | [
-      new SkippableTest("org.example.TestFailedAndSucceed", "test_another_succeed", null, null),
-      new SkippableTest("org.example.TestFailedAndSucceed", "test_failed", null, null)
+      new TestIdentifier("org.example.TestFailedAndSucceed", "test_another_succeed", null, null),
+      new TestIdentifier("org.example.TestFailedAndSucceed", "test_failed", null, null)
     ]
     "test-itr-skipping-parameterized"                                                 | [TestParameterized]                                | 3                   | null         | [
-      new SkippableTest("org.example.TestParameterized", "parameterized_test_succeed", '{"arguments":{"0":"hello","1":"true"}}', null)
+      new TestIdentifier("org.example.TestParameterized", "parameterized_test_succeed", '{"arguments":{"0":"hello","1":"true"}}', null)
     ]
-    "test-itr-skipping-factory-data-provider"                                         | [TestSucceedDataProvider]                          | 2                   | null         | [new SkippableTest("org.example.TestSucceedDataProvider", "testMethod", null, null)]
-    "test-itr-unskippable"                                                            | [TestSucceedUnskippable]                           | 2                   | null         | [new SkippableTest("org.example.TestSucceedUnskippable", "test_succeed", null, null)]
+    "test-itr-skipping-factory-data-provider"                                         | [TestSucceedDataProvider]                          | 2                   | null         | [new TestIdentifier("org.example.TestSucceedDataProvider", "testMethod", null, null)]
+    "test-itr-unskippable"                                                            | [TestSucceedUnskippable]                           | 2                   | null         | [new TestIdentifier("org.example.TestSucceedUnskippable", "test_succeed", null, null)]
     "test-itr-unskippable-not-skipped"                                                | [TestSucceedUnskippable]                           | 2                   | null         | []
     "test-successful-test-cases-in-TESTS-parallel-mode"                               | []                                                 | 3                   | "tests"      | []
     "test-successful-test-cases-in-TESTS-parallel-mode-not-all-test-methods-included" | []                                                 | 3                   | "tests"      | []

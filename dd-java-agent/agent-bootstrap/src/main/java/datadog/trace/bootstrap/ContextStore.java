@@ -23,6 +23,18 @@ public interface ContextStore<K, C> {
   }
 
   /**
+   * Factory interface to create context instances using context key instances
+   *
+   * @param <K> context key type
+   * @param <C> context value type
+   */
+  interface KeyAwareFactory<K, C> {
+
+    /** @return new context instance */
+    C create(K key);
+  }
+
+  /**
    * Get context given the key
    *
    * @param key the key to lookup
@@ -56,6 +68,16 @@ public interface ContextStore<K, C> {
    * @return old instance if it was present, or new instance
    */
   C putIfAbsent(K key, Factory<C> contextFactory);
+
+  /**
+   * Put new context instance if key is absent. Uses context factory to avoid creating objects if
+   * not needed.
+   *
+   * @param key key to use
+   * @param contextFactory factory instance to produce new context object
+   * @return old instance if it was present, or new instance
+   */
+  C computeIfAbsent(K key, KeyAwareFactory<K, C> contextFactory);
 
   /**
    * Removes the existing value for key and return it.

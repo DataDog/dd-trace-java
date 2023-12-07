@@ -5,7 +5,7 @@ import datadog.communication.http.HttpRetryPolicy
 import datadog.communication.http.OkHttpUtils
 import datadog.trace.agent.test.server.http.TestHttpServer
 import datadog.trace.api.civisibility.config.Configurations
-import datadog.trace.api.civisibility.config.SkippableTest
+import datadog.trace.api.civisibility.config.TestIdentifier
 import datadog.trace.civisibility.communication.BackendApi
 import datadog.trace.civisibility.communication.EvpProxyApi
 import okhttp3.HttpUrl
@@ -134,10 +134,10 @@ class ConfigurationApiImplTest extends Specification {
 
     then:
     skippableTests == [
-      new SkippableTest("suite-a", "name-a", "parameters-a",
+      new TestIdentifier("suite-a", "name-a", "parameters-a",
       new Configurations(null, null, null, null, null,
       null, null, "testBundle-a", Collections.singletonMap("customTag", "customValue"))),
-      new SkippableTest("suite-b", "name-b", "parameters-b",
+      new TestIdentifier("suite-b", "name-b", "parameters-b",
       new Configurations(null, null, null, null, null,
       null, null, "testBundle-b", Collections.singletonMap("customTag", "customValue")))
     ]

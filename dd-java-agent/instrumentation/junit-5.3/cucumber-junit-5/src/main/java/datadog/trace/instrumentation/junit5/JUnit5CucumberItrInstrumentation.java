@@ -9,7 +9,7 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.api.Config;
 import datadog.trace.api.civisibility.InstrumentationBridge;
-import datadog.trace.api.civisibility.config.SkippableTest;
+import datadog.trace.api.civisibility.config.TestIdentifier;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.Collection;
 import java.util.Set;
@@ -96,7 +96,7 @@ public class JUnit5CucumberItrInstrumentation extends Instrumenter.CiVisibility
         }
       }
 
-      SkippableTest test = CucumberUtils.toSkippableTest(testDescriptor);
+      TestIdentifier test = CucumberUtils.toTestIdentifier(testDescriptor);
       if (test != null && TestEventsHandlerHolder.TEST_EVENTS_HANDLER.skip(test)) {
         skipResult = Node.SkipResult.skip(InstrumentationBridge.ITR_SKIP_REASON);
       }

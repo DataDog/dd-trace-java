@@ -4,7 +4,7 @@ import datadog.communication.ddagent.TracerVersion;
 import datadog.trace.api.Config;
 import datadog.trace.api.civisibility.config.Configurations;
 import datadog.trace.api.civisibility.config.ModuleExecutionSettings;
-import datadog.trace.api.civisibility.config.SkippableTest;
+import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.config.CiVisibilityConfig;
 import datadog.trace.api.git.GitInfo;
 import datadog.trace.api.git.GitInfoProvider;
@@ -71,10 +71,15 @@ public class ModuleExecutionSettingsFactoryImpl implements ModuleExecutionSettin
         repositoryRoot,
         jvmInfo);
 
-    Map<String, List<SkippableTest>> skippableTestsByModulePath =
+    Map<String, List<TestIdentifier>> skippableTestsByModulePath =
         itrEnabled && repositoryRoot != null
             ? getSkippableTestsByModulePath(Paths.get(repositoryRoot), tracerEnvironment)
             : Collections.emptyMap();
+
+    Collection<TestIdentifier> flakyTests =
+        config.isCiVisibilityFlakyRetryEnabled()
+            ? getFlakyTests(tracerEnvironment)
+            : Collections.emptyList();
 
     List<String> coverageEnabledPackages = getCoverageEnabledPackages(codeCoverageEnabled);
     return new ModuleExecutionSettings(
@@ -82,6 +87,7 @@ public class ModuleExecutionSettingsFactoryImpl implements ModuleExecutionSettin
         itrEnabled,
         systemProperties,
         skippableTestsByModulePath,
+        flakyTests,
         coverageEnabledPackages);
   }
 
@@ -190,7 +196,7 @@ public class ModuleExecutionSettingsFactoryImpl implements ModuleExecutionSettin
     return propagatedSystemProperties;
   }
 
-  private Map<String, List<SkippableTest>> getSkippableTestsByModulePath(
+  private Map<String, List<TestIdentifier>> getSkippableTestsByModulePath(
       Path repositoryRoot, TracerEnvironment tracerEnvironment) {
     try {
       // ensure git data upload is finished before asking for tests
@@ -198,21 +204,12 @@ public class ModuleExecutionSettingsFactoryImpl implements ModuleExecutionSettin
           .startOrObserveGitDataUpload()
           .get(config.getCiVisibilityGitUploadTimeoutMillis(), TimeUnit.MILLISECONDS);
 
-      Collection<SkippableTest> skippableTests =
+      Collection<TestIdentifier> skippableTests =
           configurationApi.getSkippableTests(tracerEnvironment);
       LOGGER.info(
           "Received {} skippable tests in total for {}", skippableTests.size(), repositoryRoot);
 
-      Configurations configurations = tracerEnvironment.getConfigurations();
-      String configurationsBundle = configurations.getTestBundle();
-      String defaultBundle = configurationsBundle != null ? configurationsBundle : "";
-      return skippableTests.stream()
-          .collect(
-              Collectors.groupingBy(
-                  t ->
-                      t.getConfigurations() != null && t.getConfigurations().getTestBundle() != null
-                          ? t.getConfigurations().getTestBundle()
-                          : defaultBundle));
+      return groupTestsByModule(tracerEnvironment, skippableTests);
 
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
@@ -222,6 +219,33 @@ public class ModuleExecutionSettingsFactoryImpl implements ModuleExecutionSettin
     } catch (Exception e) {
       LOGGER.error("Could not obtain list of skippable tests, will proceed without skipping", e);
       return Collections.emptyMap();
+    }
+  }
+
+  private static Map<String, List<TestIdentifier>> groupTestsByModule(
+      TracerEnvironment tracerEnvironment, Collection<TestIdentifier> tests) {
+    Configurations configurations = tracerEnvironment.getConfigurations();
+    String configurationsBundle = configurations.getTestBundle();
+    String defaultBundle = configurationsBundle != null ? configurationsBundle : "";
+    return tests.stream()
+        .collect(
+            Collectors.groupingBy(
+                t ->
+                    t.getConfigurations() != null && t.getConfigurations().getTestBundle() != null
+                        ? t.getConfigurations().getTestBundle()
+                        : defaultBundle));
+  }
+
+  private Collection<TestIdentifier> getFlakyTests(TracerEnvironment tracerEnvironment) {
+    try {
+      Collection<TestIdentifier> flakyTests = configurationApi.getFlakyTests(tracerEnvironment);
+      LOGGER.info("Received {} flaky tests in total for {}", flakyTests.size(), repositoryRoot);
+      return flakyTests;
+
+    } catch (Exception e) {
+      LOGGER.error(
+          "Could not obtain list of flaky tests, flaky test retries will not be available", e);
+      return Collections.emptyList();
     }
   }
 
