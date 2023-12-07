@@ -12,6 +12,7 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.InstrumentationContext;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
@@ -32,8 +33,10 @@ public final class KafkaConsumerGroupInstrumentation extends Instrumenter.Tracin
   @Override
   public Map<String, String> contextStore() {
     Map<String, String> contextStores = new HashMap<>();
-    contextStores.put("org.apache.kafka.clients.consumer.KafkaConsumer", "java.lang.String");
-    contextStores.put("org.apache.kafka.clients.consumer.ConsumerRecords", "java.lang.String");
+    contextStores.put(
+        "org.apache.kafka.clients.consumer.KafkaConsumer", packageName + ".ConsumerContext");
+    contextStores.put(
+        "org.apache.kafka.clients.consumer.ConsumerRecords", packageName + ".ConsumerContext");
     contextStores.put(
         "org.apache.kafka.clients.consumer.internals.ConsumerCoordinator", "java.lang.String");
     return contextStores;
@@ -76,7 +79,8 @@ public final class KafkaConsumerGroupInstrumentation extends Instrumenter.Tracin
         @Advice.FieldValue("coordinator") ConsumerCoordinator coordinator,
         @Advice.Argument(0) ConsumerConfig consumerConfig) {
       String consumerGroup = consumerConfig.getString(ConsumerConfig.GROUP_ID_CONFIG);
-      String bootstrapServers = consumerConfig.getString(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG);
+      List<String> bootstrapServers =
+          consumerConfig.getList(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG);
 
       ConsumerContext context =
           InstrumentationContext.get(KafkaConsumer.class, ConsumerContext.class).get(consumer);
@@ -91,7 +95,7 @@ public final class KafkaConsumerGroupInstrumentation extends Instrumenter.Tracin
       }
 
       if (bootstrapServers != null && !bootstrapServers.isEmpty()) {
-        context.setBootstrapServers(bootstrapServers);
+        context.setBootstrapServers(String.join(",", bootstrapServers));
       }
 
       InstrumentationContext.get(KafkaConsumer.class, ConsumerContext.class).put(consumer, context);
