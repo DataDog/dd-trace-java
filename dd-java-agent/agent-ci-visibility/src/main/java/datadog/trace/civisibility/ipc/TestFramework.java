@@ -39,6 +39,18 @@ public final class TestFramework implements Comparable<TestFramework> {
   @Override
   public int compareTo(TestFramework o) {
     int nameComparison = name.compareTo(o.name);
-    return nameComparison != 0 ? nameComparison : version.compareTo(o.version);
+    if (nameComparison != 0) {
+      return nameComparison;
+    }
+    if (version == o.version) {
+      return 0;
+    }
+    if (version == null) {
+      return -1;
+    }
+    if (o.version == null) {
+      return 1;
+    }
+    return version.compareTo(o.version);
   }
 }
