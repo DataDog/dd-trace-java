@@ -88,7 +88,7 @@ public interface Instrumenter {
    * Instrumentation that matches a series of types configured at runtime. This is used for last
    * minute additions in the field such as testing a new JDBC driver that is not yet in the allowed
    * list and to provide a workaround until the next release. The ForKnownTypes interface is more
-   * appropriate for general use.
+   * appropriate when you know the series of types at build-time.
    */
   interface ForConfiguredTypes {
     Collection<String> configuredMatchingTypes();
