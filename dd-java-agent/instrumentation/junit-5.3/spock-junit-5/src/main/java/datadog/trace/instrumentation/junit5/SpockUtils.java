@@ -1,6 +1,6 @@
 package datadog.trace.instrumentation.junit5;
 
-import datadog.trace.api.civisibility.config.SkippableTest;
+import datadog.trace.api.civisibility.config.TestIdentifier;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.reflect.Method;
@@ -105,14 +105,14 @@ public class SpockUtils {
     return null;
   }
 
-  public static SkippableTest toSkippableTest(SpockNode spockNode) {
+  public static TestIdentifier toTestIdentifier(SpockNode spockNode) {
     TestSource testSource = spockNode.getSource().orElse(null);
     if (testSource instanceof MethodSource) {
       MethodSource methodSource = (MethodSource) testSource;
       String testSuiteName = methodSource.getClassName();
       String displayName = spockNode.getDisplayName();
       String testParameters = JUnitPlatformUtils.getParameters(methodSource, displayName);
-      return new SkippableTest(testSuiteName, displayName, testParameters, null);
+      return new TestIdentifier(testSuiteName, displayName, testParameters, null);
 
     } else {
       return null;

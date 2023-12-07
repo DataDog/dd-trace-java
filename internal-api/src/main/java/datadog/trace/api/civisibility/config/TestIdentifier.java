@@ -3,14 +3,14 @@ package datadog.trace.api.civisibility.config;
 import java.util.Objects;
 import javax.annotation.Nullable;
 
-public class SkippableTest {
+public class TestIdentifier {
 
   private final String suite;
   private final String name;
   private @Nullable final String parameters;
   private @Nullable final Configurations configurations;
 
-  public SkippableTest(
+  public TestIdentifier(
       String suite,
       String name,
       @Nullable String parameters,
@@ -47,7 +47,7 @@ public class SkippableTest {
     if (o == null || getClass() != o.getClass()) {
       return false;
     }
-    SkippableTest that = (SkippableTest) o;
+    TestIdentifier that = (TestIdentifier) o;
     return Objects.equals(suite, that.suite)
         && Objects.equals(name, that.name)
         && Objects.equals(parameters, that.parameters)

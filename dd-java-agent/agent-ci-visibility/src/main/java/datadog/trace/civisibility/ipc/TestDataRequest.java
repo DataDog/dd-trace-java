@@ -5,19 +5,25 @@ import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.Objects;
 
-public class SkippableTestsRequest implements Signal {
+public class TestDataRequest implements Signal {
 
+  private final TestDataType testDataType;
   private final String relativeModulePath;
   private final JvmInfo jvmInfo;
 
-  public SkippableTestsRequest(String relativeModulePath, JvmInfo jvmInfo) {
+  public TestDataRequest(TestDataType testDataType, String relativeModulePath, JvmInfo jvmInfo) {
+    this.testDataType = testDataType;
     this.relativeModulePath = relativeModulePath;
     this.jvmInfo = jvmInfo;
   }
 
   @Override
   public SignalType getType() {
-    return SignalType.SKIPPABLE_TESTS_REQUEST;
+    return SignalType.TEST_DATA_REQUEST;
+  }
+
+  public TestDataType getTestDataType() {
+    return testDataType;
   }
 
   public String getRelativeModulePath() {
@@ -31,7 +37,9 @@ public class SkippableTestsRequest implements Signal {
   @Override
   public String toString() {
     return "SkippableTestsRequest{"
-        + "relativeModulePath="
+        + "testDataType="
+        + testDataType
+        + ",relativeModulePath="
         + relativeModulePath
         + ", jvmInfo="
         + jvmInfo
@@ -46,18 +54,20 @@ public class SkippableTestsRequest implements Signal {
     if (o == null || getClass() != o.getClass()) {
       return false;
     }
-    SkippableTestsRequest that = (SkippableTestsRequest) o;
-    return Objects.equals(relativeModulePath, that.relativeModulePath)
+    TestDataRequest that = (TestDataRequest) o;
+    return testDataType == that.testDataType
+        && Objects.equals(relativeModulePath, that.relativeModulePath)
         && Objects.equals(jvmInfo, that.jvmInfo);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(relativeModulePath, jvmInfo);
+    return Objects.hash(testDataType, relativeModulePath, jvmInfo);
   }
 
   @Override
   public ByteBuffer serialize() {
+
     byte[] modulePathBytes =
         relativeModulePath != null ? relativeModulePath.getBytes(StandardCharsets.UTF_8) : null;
 
@@ -73,11 +83,13 @@ public class SkippableTestsRequest implements Signal {
 
     ByteBuffer buffer =
         ByteBuffer.allocate(
-            serializeStringLength(modulePathBytes)
+            1 // test data type ordinal
+                + serializeStringLength(modulePathBytes)
                 + serializeStringLength(jvmNameBytes)
                 + serializeStringLength(jvmVersionBytes)
                 + serializeStringLength(jvmVendorBytes));
 
+    buffer.put((byte) testDataType.ordinal());
     serializeString(buffer, modulePathBytes);
     serializeString(buffer, jvmNameBytes);
     serializeString(buffer, jvmVersionBytes);
@@ -100,13 +112,14 @@ public class SkippableTestsRequest implements Signal {
     }
   }
 
-  public static SkippableTestsRequest deserialize(ByteBuffer buffer) {
+  public static TestDataRequest deserialize(ByteBuffer buffer) {
+    TestDataType testDataType = TestDataType.byOrdinal(buffer.get());
     String relativeModulePath = deserializeString(buffer);
     String jvmName = deserializeString(buffer);
     String jvmVersion = deserializeString(buffer);
     String jvmVendor = deserializeString(buffer);
     JvmInfo jvmInfo = new JvmInfo(jvmName, jvmVersion, jvmVendor);
-    return new SkippableTestsRequest(relativeModulePath, jvmInfo);
+    return new TestDataRequest(testDataType, relativeModulePath, jvmInfo);
   }
 
   private static String deserializeString(ByteBuffer buffer) {

@@ -32,7 +32,6 @@ public class MethodHandles {
     }
   }
 
-  @SuppressFBWarnings("REFLF_REFLECTION_MAY_INCREASE_ACCESSIBILITY_OF_FIELD")
   public MethodHandle privateFieldGetter(Class<?> clazz, String fieldName) {
     try {
       Field field = clazz.getDeclaredField(fieldName);
@@ -40,7 +39,33 @@ public class MethodHandles {
       return lookup.unreflectGetter(field);
 
     } catch (Throwable t) {
-      log.debug("Could not get private field {} getter from class {}", fieldName, clazz, t);
+      log.debug(
+          "Could not get private field {} getter from class {}", fieldName, clazz.getName(), t);
+      return null;
+    }
+  }
+
+  @SuppressFBWarnings("REFLF_REFLECTION_MAY_INCREASE_ACCESSIBILITY_OF_FIELD")
+  public MethodHandle privateFieldSetter(String className, String fieldName) {
+    try {
+      Class<?> clazz = classLoader.loadClass(className);
+      return privateFieldSetter(clazz, fieldName);
+
+    } catch (Throwable t) {
+      log.debug("Could not get private field {} setter from class {}", fieldName, className, t);
+      return null;
+    }
+  }
+
+  public MethodHandle privateFieldSetter(Class<?> clazz, String fieldName) {
+    try {
+      Field field = clazz.getDeclaredField(fieldName);
+      field.setAccessible(true);
+      return lookup.unreflectSetter(field);
+
+    } catch (Throwable t) {
+      log.debug(
+          "Could not get private field {} setter from class {}", fieldName, clazz.getName(), t);
       return null;
     }
   }
@@ -48,6 +73,20 @@ public class MethodHandles {
   public MethodHandle constructor(String className, Class<?>... parameterTypes) {
     try {
       Class<?> clazz = classLoader.loadClass(className);
+      return constructor(clazz, parameterTypes);
+
+    } catch (Throwable t) {
+      log.debug(
+          "Could not get constructor accepting {} from class {}",
+          Arrays.toString(parameterTypes),
+          className,
+          t);
+      return null;
+    }
+  }
+
+  public MethodHandle constructor(Class<?> clazz, Class<?>... parameterTypes) {
+    try {
       Constructor<?> constructor = clazz.getDeclaredConstructor(parameterTypes);
       constructor.setAccessible(true);
       return lookup.unreflectConstructor(constructor);
@@ -55,6 +94,20 @@ public class MethodHandles {
     } catch (Throwable t) {
       log.debug(
           "Could not get constructor accepting {} from class {}",
+          Arrays.toString(parameterTypes),
+          clazz.getName(),
+          t);
+      return null;
+    }
+  }
+
+  public MethodHandle method(String className, String methodName, Class<?>... parameterTypes) {
+    try {
+      return method(classLoader.loadClass(className), methodName, parameterTypes);
+    } catch (Throwable t) {
+      log.debug(
+          "Could not get method named {} accepting {} from class {}",
+          methodName,
           Arrays.toString(parameterTypes),
           className,
           t);
