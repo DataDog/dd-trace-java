@@ -7,7 +7,7 @@ public class ProfilerInstaller {
   public static void installProfiler() {
     if (Config.get().isProfilingEnabled()) {
       try {
-        ProfilingAgent.run(true, null);
+        ProfilingAgent.run(true, null, null);
       } catch (Exception e) {
         throw new RuntimeException(e);
       }

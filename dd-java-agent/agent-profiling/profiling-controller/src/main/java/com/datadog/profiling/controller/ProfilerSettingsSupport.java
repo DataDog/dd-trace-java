@@ -23,6 +23,7 @@ public abstract class ProfilerSettingsSupport {
   protected static final String AUXILIARY_PROFILER_KEY = "Auxiliary Profiler";
   protected static final String PERF_EVENTS_PARANOID_KEY = "perf_events_paranoid";
   protected static final String NATIVE_STACKS_KEY = "Native Stacks";
+  protected static final String STACK_DEPTH_KEY = "Stack Depth";
 
   protected final int uploadPeriod;
   protected final int uploadTimeout;
@@ -39,6 +40,9 @@ public abstract class ProfilerSettingsSupport {
   protected final String auxiliaryProfiler;
   protected final String perfEventsParanoid;
   protected final boolean hasNativeStacks;
+
+  protected final int stackDepth;
+  protected volatile boolean hasJfrStackDepthApplied = false;
 
   protected ProfilerSettingsSupport(ConfigProvider configProvider) {
     uploadPeriod =
@@ -94,6 +98,11 @@ public abstract class ProfilerSettingsSupport {
                     configProvider.getString(
                         "profiling.async.cstack",
                         ProfilingConfig.PROFILING_DATADOG_PROFILER_CSTACK_DEFAULT)));
+    stackDepth =
+        configProvider.getInteger(
+            ProfilingConfig.PROFILING_STACKDEPTH,
+            ProfilingConfig.PROFILING_STACKDEPTH_DEFAULT,
+            ProfilingConfig.PROFILING_DATADOG_PROFILER_STACKDEPTH);
   }
 
   private static String getDefaultAuxiliaryProfiler() {
@@ -104,6 +113,10 @@ public abstract class ProfilerSettingsSupport {
 
   /** To be defined in controller specific way. Eg. one could emit JFR events. */
   public abstract void publish();
+
+  public void markJfrStackDepthApplied() {
+    hasJfrStackDepthApplied = true;
+  }
 
   private static String readPerfEventsParanoidSetting() {
     String value = "unknown";
