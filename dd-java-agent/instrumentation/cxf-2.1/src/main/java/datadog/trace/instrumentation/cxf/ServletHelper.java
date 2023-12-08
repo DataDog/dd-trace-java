@@ -35,7 +35,7 @@ public class ServletHelper {
       } catch (Throwable t) {
         if (JAVAX_ATTRIBUTE_ACCESSOR == null) {
           LOGGER.debug(
-              "Unable to lookup getAttribute for both javax and jakarta servlet request. The cxf-core instrumentation might not work as expected",
+              "Unable to lookup getAttribute for servlet request class. The cxf-core instrumentation might not work as expected",
               t);
         }
       }
