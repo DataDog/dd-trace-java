@@ -930,7 +930,7 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
 
   def consumerSpan(
     TraceAssert trace,
-    Map<String,?> config,
+    Map<String,Object> config,
     DDSpan parentSpan = null,
     Range offset = 0..0,
     boolean tombstone = false,
@@ -954,7 +954,7 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
         "$InstrumentationTags.PARTITION" { it >= 0 }
         "$InstrumentationTags.OFFSET" { offset.containsWithinBounds(it as int) }
         "$InstrumentationTags.CONSUMER_GROUP" "sender"
-        "$InstrumentationTags.KAFKA_BOOTSTRAP_SERVERS" consumerProperties.get(config.BOOTSTRAP_SERVERS_CONFIG)
+        "$InstrumentationTags.KAFKA_BOOTSTRAP_SERVERS" config.get(config.BOOTSTRAP_SERVERS_CONFIG)
         "$InstrumentationTags.RECORD_QUEUE_TIME_MS" { it >= 0 }
         "$InstrumentationTags.RECORD_END_TO_END_DURATION_MS" { it >= 0 }
         if (tombstone) {
