@@ -56,7 +56,6 @@ public class RedisSendAdvice {
     AgentSpan parentSpan = activeSpan();
 
     if (parentSpan != null && REDIS_COMMAND.equals(parentSpan.getOperationName())) {
-      // FIXME: this is not the best way to do it but in 4.5.0 there can be race conditions
       return null;
     }
 
