@@ -160,12 +160,12 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
       }
       if (hasQueueSpan()) {
         trace(2) {
-          consumerSpan(it, trace(1)[1])
+          consumerSpan(it, consumerProperties, trace(1)[1])
           queueSpan(it, trace(0)[2])
         }
       } else {
         trace(1) {
-          consumerSpan(it, trace(0)[2])
+          consumerSpan(it, consumerProperties, trace(0)[2])
         }
       }
     }
@@ -294,12 +294,12 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
       }
       if (hasQueueSpan()) {
         trace(2) {
-          consumerSpan(it, trace(1)[1])
+          consumerSpan(it, consumerProperties, trace(1)[1])
           queueSpan(it, trace(0)[2])
         }
       } else {
         trace(1) {
-          consumerSpan(it, trace(0)[2])
+          consumerSpan(it, consumerProperties, trace(0)[2])
         }
       }
     }
@@ -395,12 +395,12 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
       }
       if (hasQueueSpan()) {
         trace(2) {
-          consumerSpan(it, trace(1)[1], 0..0, true)
+          consumerSpan(it, consumerProperties, trace(1)[1], 0..0, true)
           queueSpan(it, trace(0)[0])
         }
       } else {
         trace(1) {
-          consumerSpan(it, trace(0)[0], 0..0, true)
+          consumerSpan(it, consumerProperties, trace(0)[0], 0..0, true)
         }
       }
     }
@@ -449,12 +449,12 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
       }
       if (hasQueueSpan()) {
         trace(2) {
-          consumerSpan(it, trace(1)[1])
+          consumerSpan(it, consumerProperties, trace(1)[1])
           queueSpan(it, trace(0)[0])
         }
       } else {
         trace(1) {
-          consumerSpan(it, trace(0)[0])
+          consumerSpan(it, consumerProperties, trace(0)[0])
         }
       }
     }
@@ -505,12 +505,12 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
       }
       if (hasQueueSpan()) {
         trace(2) {
-          consumerSpan(it, trace(1)[1])
+          consumerSpan(it, consumerProperties, trace(1)[1])
           queueSpan(it, trace(0)[0])
         }
       } else {
         trace(1) {
-          consumerSpan(it, trace(0)[0])
+          consumerSpan(it, consumerProperties, trace(0)[0])
         }
       }
     }
@@ -561,12 +561,12 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
       }
       if (hasQueueSpan()) {
         trace(2) {
-          consumerSpan(it, trace(1)[1])
+          consumerSpan(it, consumerProperties, trace(1)[1])
           queueSpan(it, trace(0)[0])
         }
       } else {
         trace(1) {
-          consumerSpan(it, trace(0)[0])
+          consumerSpan(it, consumerProperties, trace(0)[0])
         }
       }
     }
@@ -630,52 +630,52 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
       // iterating to the end of ListIterator:
       if (hasQueueSpan()) {
         trace(2) {
-          consumerSpan(it, trace(3)[1], 0..0)
+          consumerSpan(it, consumerProperties, trace(3)[1], 0..0)
           queueSpan(it, trace(0)[0])
         }
         trace(2) {
-          consumerSpan(it, trace(4)[1], 1..1)
+          consumerSpan(it, consumerProperties, trace(4)[1], 1..1)
           queueSpan(it, trace(1)[0])
         }
         trace(2) {
-          consumerSpan(it, trace(5)[1], 2..2)
+          consumerSpan(it, consumerProperties, trace(5)[1], 2..2)
           queueSpan(it, trace(2)[0])
         }
       } else {
         trace(1) {
-          consumerSpan(it, trace(0)[0], 0..0)
+          consumerSpan(it, consumerProperties, trace(0)[0], 0..0)
         }
         trace(1) {
-          consumerSpan(it, trace(1)[0], 1..1)
+          consumerSpan(it, consumerProperties, trace(1)[0], 1..1)
         }
         trace(1) {
-          consumerSpan(it, trace(2)[0], 2..2)
+          consumerSpan(it, consumerProperties, trace(2)[0], 2..2)
         }
       }
 
       // backwards iteration over ListIterator to the beginning
       if (hasQueueSpan()) {
         trace(2) {
-          consumerSpan(it, trace(6)[1], 2..2)
+          consumerSpan(it, consumerProperties, trace(6)[1], 2..2)
           queueSpan(it, trace(2)[0])
         }
         trace(2) {
-          consumerSpan(it, trace(7)[1], 1..1)
+          consumerSpan(it, consumerProperties, trace(7)[1], 1..1)
           queueSpan(it, trace(1)[0])
         }
         trace(2) {
-          consumerSpan(it, trace(8)[1], 0..0)
+          consumerSpan(it, consumerProperties, trace(8)[1], 0..0)
           queueSpan(it, trace(0)[0])
         }
       } else {
         trace(1) {
-          consumerSpan(it, trace(2)[0], 2..2)
+          consumerSpan(it, consumerProperties, trace(2)[0], 2..2)
         }
         trace(1) {
-          consumerSpan(it, trace(1)[0], 1..1)
+          consumerSpan(it, consumerProperties, trace(1)[0], 1..1)
         }
         trace(1) {
-          consumerSpan(it, trace(0)[0], 0..0)
+          consumerSpan(it, consumerProperties, trace(0)[0], 0..0)
         }
       }
     }
@@ -756,26 +756,26 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
 
       if (hasQueueSpan()) {
         trace(2) {
-          consumerSpan(it, trace(1)[1], 0..0)
+          consumerSpan(it, consumerProperties, trace(1)[1], 0..0)
           queueSpan(it, trace(0)[6])
         }
         trace(2) {
-          consumerSpan(it, trace(2)[1], 0..1)
+          consumerSpan(it, consumerProperties, trace(2)[1], 0..1)
           queueSpan(it, trace(0)[4])
         }
         trace(2) {
-          consumerSpan(it, trace(3)[1], 0..1)
+          consumerSpan(it, consumerProperties, trace(3)[1], 0..1)
           queueSpan(it, trace(0)[2])
         }
       } else {
         trace(1) {
-          consumerSpan(it, trace(0)[6], 0..0)
+          consumerSpan(it, consumerProperties, trace(0)[6], 0..0)
         }
         trace(1) {
-          consumerSpan(it, trace(0)[4], 0..1)
+          consumerSpan(it, consumerProperties, trace(0)[4], 0..1)
         }
         trace(1) {
-          consumerSpan(it, trace(0)[2], 0..1)
+          consumerSpan(it, consumerProperties, trace(0)[2], 0..1)
         }
       }
     }
@@ -930,6 +930,7 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
 
   def consumerSpan(
     TraceAssert trace,
+    Map<String,?> config,
     DDSpan parentSpan = null,
     Range offset = 0..0,
     boolean tombstone = false,
@@ -953,6 +954,7 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
         "$InstrumentationTags.PARTITION" { it >= 0 }
         "$InstrumentationTags.OFFSET" { offset.containsWithinBounds(it as int) }
         "$InstrumentationTags.CONSUMER_GROUP" "sender"
+        "$InstrumentationTags.KAFKA_BOOTSTRAP_SERVERS" consumerProperties.get(config.BOOTSTRAP_SERVERS_CONFIG)
         "$InstrumentationTags.RECORD_QUEUE_TIME_MS" { it >= 0 }
         "$InstrumentationTags.RECORD_END_TO_END_DURATION_MS" { it >= 0 }
         if (tombstone) {
