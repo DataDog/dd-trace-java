@@ -24,6 +24,7 @@ import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.api.sampling.SamplingRule;
 import datadog.trace.api.scopemanager.ScopeListener;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan.Context;
+import datadog.trace.context.TraceScope;
 import java.nio.ByteBuffer;
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -457,6 +458,11 @@ public class AgentTracer {
     @Override
     public boolean addTraceInterceptor(final TraceInterceptor traceInterceptor) {
       return false;
+    }
+
+    @Override
+    public TraceScope muteTracing() {
+      return NoopAgentScope.INSTANCE;
     }
 
     @Override

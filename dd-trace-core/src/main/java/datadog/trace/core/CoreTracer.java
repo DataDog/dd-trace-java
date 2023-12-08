@@ -70,6 +70,7 @@ import datadog.trace.common.writer.DDAgentWriter;
 import datadog.trace.common.writer.Writer;
 import datadog.trace.common.writer.WriterFactory;
 import datadog.trace.common.writer.ddintake.DDIntakeTraceInterceptor;
+import datadog.trace.context.TraceScope;
 import datadog.trace.core.datastreams.DataStreamContextInjector;
 import datadog.trace.core.datastreams.DataStreamsMonitoring;
 import datadog.trace.core.datastreams.DefaultDataStreamsMonitoring;
@@ -1035,6 +1036,11 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       }
       return false;
     }
+  }
+
+  @Override
+  public TraceScope muteTracing() {
+    return activateSpan(blackholeSpan());
   }
 
   @Override
