@@ -936,6 +936,10 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
     boolean tombstone = false,
     boolean distributedRootSpan = !hasQueueSpan()
   ) {
+    def servers = config.get(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG)
+    if (servers == null || servers == "") {
+      assert config.toMapString().isEmpty()
+    }
     trace.span {
       serviceName service()
       operationName operationForConsumer()
@@ -954,7 +958,7 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
         "$InstrumentationTags.PARTITION" { it >= 0 }
         "$InstrumentationTags.OFFSET" { offset.containsWithinBounds(it as int) }
         "$InstrumentationTags.CONSUMER_GROUP" "sender"
-        "$InstrumentationTags.KAFKA_BOOTSTRAP_SERVERS" config.get(config.BOOTSTRAP_SERVERS_CONFIG)
+        "$InstrumentationTags.KAFKA_BOOTSTRAP_SERVERS" config.get(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG)
         "$InstrumentationTags.RECORD_QUEUE_TIME_MS" { it >= 0 }
         "$InstrumentationTags.RECORD_END_TO_END_DURATION_MS" { it >= 0 }
         if (tombstone) {
