@@ -1261,6 +1261,9 @@ class ConfigurationPollerSpecification extends DDSpecification {
     then:
     1 * scheduler.scheduleAtFixedRate(_, poller, 0, DEFAULT_POLL_PERIOD, TimeUnit.MILLISECONDS) >> { task = it[0]; scheduled }
 
+    and:
+    poller.removeListener(Product.ASM_FEATURES)
+
     when:
     poller.addListener(Product.ASM_FEATURES,
       { SLURPER.parse(it) } as ConfigurationDeserializer,
@@ -1273,6 +1276,39 @@ class ConfigurationPollerSpecification extends DDSpecification {
     1 * listener.accept(
       _,
       { cfg -> cfg['asm']['enabled'] == true },
+      _ as ConfigurationChangesListener.PollingRateHinter)
+    0 * _._
+  }
+
+  void 'distribute config across multiple listeners for same subscriber'() {
+    ConfigurationChangesTypedListener listener1 = Mock()
+    ConfigurationChangesTypedListener listener2 = Mock()
+
+    when:
+    poller.addListener(Product.ASM_FEATURES,
+      { SLURPER.parse(it) } as ConfigurationDeserializer,
+      listener1)
+    poller.addListener(Product.ASM_FEATURES,
+      { SLURPER.parse(it) } as ConfigurationDeserializer,
+      listener2)
+    poller.start()
+
+    then:
+    1 * scheduler.scheduleAtFixedRate(_, poller, 0, DEFAULT_POLL_PERIOD, TimeUnit.MILLISECONDS) >> { task = it[0]; scheduled }
+
+    when:
+    task.run(poller)
+
+    then:
+    1 * okHttpClient.newCall(_ as Request) >> { request = it[0]; call }
+    1 * call.execute() >> { buildOKResponse(FEATURES_RESP_BODY) }
+    1 * listener1.accept(
+      _,
+      { cfg -> cfg['asm']['enabled'] == true },
+      _ as ConfigurationChangesListener.PollingRateHinter)
+    1 * listener2.accept(
+      _,
+      { cfg -> cfg['api_security']['request_sample_rate'] == 0.1 },
       _ as ConfigurationChangesListener.PollingRateHinter)
     0 * _._
   }
@@ -1523,7 +1559,7 @@ class ConfigurationPollerSpecification extends DDSpecification {
   target_files: [
     [
       path: 'datadog/2/ASM_FEATURES/asm_features_activation/config',
-      raw: Base64.encoder.encodeToString('{"asm":{"enabled":true}}'.getBytes('UTF-8'))
+      raw: Base64.encoder.encodeToString('{"asm":{"enabled":true},"api_security":{"request_sample_rate":0.1}}'.getBytes('UTF-8'))
     ]
   ],
   targets: signAndBase64EncodeTargets(
@@ -1536,9 +1572,9 @@ class ConfigurationPollerSpecification extends DDSpecification {
           v: 1
         ],
         hashes: [
-          sha256: '159658ab85be7207761a4111172b01558394bfc74a1fe1d314f2023f7c656db'
+          sha256: 'b01cb68f140fbfb7a2bb0ce39a473aa59c33664aca0c871cf07b8f4e09e3e360'
         ],
-        length : 24,
+        length : 67,
       ]
     ],
     version: 23337393

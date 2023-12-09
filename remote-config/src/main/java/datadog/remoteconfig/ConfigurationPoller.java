@@ -129,7 +129,9 @@ public class ConfigurationPoller
   }
 
   public synchronized <T> void addListener(Product product, ProductListener listener) {
-    this.productStates.put(product, new ProductState(product, listener));
+    ProductState productState =
+        this.productStates.computeIfAbsent(product, p -> new ProductState(product));
+    productState.addProductListener(listener);
   }
 
   public synchronized <T> void addListener(
