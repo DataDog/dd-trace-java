@@ -39,11 +39,7 @@ public class ResponseHandler implements Handler<AsyncResult<Response>> {
         if (continuation != null) {
           scope = continuation.activate();
         }
-        if (event.succeeded()) {
-          promise.complete(event.result());
-        } else {
-          promise.fail(event.cause());
-        }
+        promise.handle(event);
       } finally {
         // Deactivate parent continuation
         if (scope != null) {
