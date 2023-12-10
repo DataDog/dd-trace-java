@@ -53,6 +53,7 @@ public class JUnit5SpockItrInstrumentation extends Instrumenter.CiVisibility
   public String[] helperClassNames() {
     return new String[] {
       packageName + ".JUnitPlatformUtils",
+      packageName + ".TestIdentifierFactory",
       packageName + ".SpockUtils",
       packageName + ".TestEventsHandlerHolder",
     };
@@ -96,7 +97,7 @@ public class JUnit5SpockItrInstrumentation extends Instrumenter.CiVisibility
         }
       }
 
-      TestIdentifier test = SpockUtils.toTestIdentifier(spockNode);
+      TestIdentifier test = SpockUtils.toTestIdentifier(spockNode, true);
       if (test != null && TestEventsHandlerHolder.TEST_EVENTS_HANDLER.skip(test)) {
         skipResult = Node.SkipResult.skip(InstrumentationBridge.ITR_SKIP_REASON);
       }
