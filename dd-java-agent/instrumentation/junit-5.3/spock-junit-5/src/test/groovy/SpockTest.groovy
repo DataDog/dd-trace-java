@@ -2,6 +2,10 @@ import datadog.trace.api.DisableTestTrace
 import datadog.trace.api.civisibility.config.TestIdentifier
 import datadog.trace.civisibility.CiVisibilityInstrumentationTest
 import datadog.trace.instrumentation.junit5.TestEventsHandlerHolder
+import org.example.TestFailedParameterizedSpock
+import org.example.TestFailedSpock
+import org.example.TestFailedThenSucceedParameterizedSpock
+import org.example.TestFailedThenSucceedSpock
 import org.example.TestParameterizedSpock
 import org.example.TestSucceedSpock
 import org.example.TestSucceedSpockUnskippable
@@ -20,6 +24,19 @@ class SpockTest extends CiVisibilityInstrumentationTest {
 
   def "test #testcaseName"() {
     setup:
+    runTests(tests)
+
+    expect:
+    assertSpansData(testcaseName, expectedTracesCount)
+
+    where:
+    testcaseName                 | tests                    | expectedTracesCount
+    "test-succeed"               | [TestSucceedSpock]       | 2
+    "test-succeed-parameterized" | [TestParameterizedSpock] | 3
+  }
+
+  def "test ITR #testcaseName"() {
+    setup:
     givenSkippableTests(skippedTests)
     runTests(tests)
 
@@ -28,14 +45,34 @@ class SpockTest extends CiVisibilityInstrumentationTest {
 
     where:
     testcaseName                      | tests                              | expectedTracesCount | skippedTests
-    "test-succeed"                    | [TestSucceedSpock]                 | 2                   | []
-    "test-succeed-parameterized"      | [TestParameterizedSpock]           | 3                   | []
     "test-itr-skipping"               | [TestSucceedSpock]                 | 2                   | [new TestIdentifier("org.example.TestSucceedSpock", "test success", null, null)]
     "test-itr-skipping-parameterized" | [TestParameterizedSpock]           | 3                   | [
       new TestIdentifier("org.example.TestParameterizedSpock", "test add 1 and 2", '{"metadata":{"test_name":"test add 1 and 2"}}', null)
     ]
     "test-itr-unskippable"            | [TestSucceedSpockUnskippable]      | 2                   | [new TestIdentifier("org.example.TestSucceedSpockUnskippable", "test success", null, null)]
     "test-itr-unskippable-suite"      | [TestSucceedSpockUnskippableSuite] | 2                   | [new TestIdentifier("org.example.TestSucceedSpockUnskippableSuite", "test success", null, null)]
+  }
+
+  def "test flaky retries #testcaseName"() {
+    setup:
+    givenFlakyTests(retriedTests)
+
+    runTests(tests)
+
+    expect:
+    assertSpansData(testcaseName, expectedTracesCount)
+
+    where:
+    testcaseName                             | tests                                     | expectedTracesCount | retriedTests
+    "test-failed"                            | [TestFailedSpock]                         | 2                   | []
+    "test-retry-failed"                      | [TestFailedSpock]                         | 6                   | [new TestIdentifier("org.example.TestFailedSpock", "test failed", null, null)]
+    "test-failed-then-succeed"               | [TestFailedThenSucceedSpock]              | 5                   | [
+      new TestIdentifier("org.example.TestFailedThenSucceedSpock", "test failed then succeed", null, null)
+    ]
+    "test-retry-parameterized"               | [TestFailedParameterizedSpock]            | 3                   | [new TestIdentifier("org.example.TestFailedParameterizedSpock", "test add 4 and 4", null, null)]
+    "test-parameterized-failed-then-succeed" | [TestFailedThenSucceedParameterizedSpock] | 5                   | [
+      new TestIdentifier("org.example.TestFailedThenSucceedParameterizedSpock", "test add 1 and 2", null, null)
+    ]
   }
 
   private static void runTests(List<Class<?>> classes) {
