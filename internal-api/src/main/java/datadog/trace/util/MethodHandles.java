@@ -1,10 +1,11 @@
 package datadog.trace.util;
 
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.lang.invoke.MethodHandle;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.security.AccessController;
+import java.security.PrivilegedAction;
 import java.util.Arrays;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -22,112 +23,135 @@ public class MethodHandles {
   }
 
   public MethodHandle privateFieldGetter(String className, String fieldName) {
-    try {
-      Class<?> clazz = classLoader.loadClass(className);
-      return privateFieldGetter(clazz, fieldName);
-
-    } catch (Throwable t) {
-      log.debug("Could not get private field {} getter from class {}", fieldName, className, t);
-      return null;
-    }
+    Class<?> clazz = loadClass(className);
+    return clazz != null ? privateFieldGetter(clazz, fieldName) : null;
   }
 
   public MethodHandle privateFieldGetter(Class<?> clazz, String fieldName) {
-    try {
-      Field field = clazz.getDeclaredField(fieldName);
-      field.setAccessible(true);
-      return lookup.unreflectGetter(field);
+    return AccessController.doPrivileged(
+        (PrivilegedAction<MethodHandle>)
+            () -> {
+              try {
+                SecurityManager sm = System.getSecurityManager();
+                if (sm != null) {
+                  String packageName = clazz.getPackage().getName();
+                  sm.checkPackageAccess(packageName);
+                }
 
-    } catch (Throwable t) {
-      log.debug(
-          "Could not get private field {} getter from class {}", fieldName, clazz.getName(), t);
-      return null;
-    }
+                Field field = clazz.getDeclaredField(fieldName);
+                field.setAccessible(true);
+                return lookup.unreflectGetter(field);
+
+              } catch (Throwable t) {
+                log.debug(
+                    "Could not get private field {} getter from class {}",
+                    fieldName,
+                    clazz.getName(),
+                    t);
+                return null;
+              }
+            });
   }
 
-  @SuppressFBWarnings("REFLF_REFLECTION_MAY_INCREASE_ACCESSIBILITY_OF_FIELD")
   public MethodHandle privateFieldSetter(String className, String fieldName) {
-    try {
-      Class<?> clazz = classLoader.loadClass(className);
-      return privateFieldSetter(clazz, fieldName);
-
-    } catch (Throwable t) {
-      log.debug("Could not get private field {} setter from class {}", fieldName, className, t);
-      return null;
-    }
+    Class<?> clazz = loadClass(className);
+    return clazz != null ? privateFieldSetter(clazz, fieldName) : null;
   }
 
   public MethodHandle privateFieldSetter(Class<?> clazz, String fieldName) {
-    try {
-      Field field = clazz.getDeclaredField(fieldName);
-      field.setAccessible(true);
-      return lookup.unreflectSetter(field);
+    return AccessController.doPrivileged(
+        (PrivilegedAction<MethodHandle>)
+            () -> {
+              try {
+                SecurityManager sm = System.getSecurityManager();
+                if (sm != null) {
+                  String packageName = clazz.getPackage().getName();
+                  sm.checkPackageAccess(packageName);
+                }
 
-    } catch (Throwable t) {
-      log.debug(
-          "Could not get private field {} setter from class {}", fieldName, clazz.getName(), t);
-      return null;
-    }
+                Field field = clazz.getDeclaredField(fieldName);
+                field.setAccessible(true);
+                return lookup.unreflectSetter(field);
+
+              } catch (Throwable t) {
+                log.debug(
+                    "Could not get private field {} setter from class {}",
+                    fieldName,
+                    clazz.getName(),
+                    t);
+                return null;
+              }
+            });
   }
 
   public MethodHandle constructor(String className, Class<?>... parameterTypes) {
-    try {
-      Class<?> clazz = classLoader.loadClass(className);
-      return constructor(clazz, parameterTypes);
-
-    } catch (Throwable t) {
-      log.debug(
-          "Could not get constructor accepting {} from class {}",
-          Arrays.toString(parameterTypes),
-          className,
-          t);
-      return null;
-    }
+    Class<?> clazz = loadClass(className);
+    return clazz != null ? constructor(clazz, parameterTypes) : null;
   }
 
   public MethodHandle constructor(Class<?> clazz, Class<?>... parameterTypes) {
-    try {
-      Constructor<?> constructor = clazz.getDeclaredConstructor(parameterTypes);
-      constructor.setAccessible(true);
-      return lookup.unreflectConstructor(constructor);
+    return AccessController.doPrivileged(
+        (PrivilegedAction<MethodHandle>)
+            () -> {
+              try {
+                SecurityManager sm = System.getSecurityManager();
+                if (sm != null) {
+                  String packageName = clazz.getPackage().getName();
+                  sm.checkPackageAccess(packageName);
+                }
 
-    } catch (Throwable t) {
-      log.debug(
-          "Could not get constructor accepting {} from class {}",
-          Arrays.toString(parameterTypes),
-          clazz.getName(),
-          t);
-      return null;
-    }
+                Constructor<?> constructor = clazz.getDeclaredConstructor(parameterTypes);
+                constructor.setAccessible(true);
+                return lookup.unreflectConstructor(constructor);
+
+              } catch (Throwable t) {
+                log.debug(
+                    "Could not get constructor accepting {} from class {}",
+                    Arrays.toString(parameterTypes),
+                    clazz.getName(),
+                    t);
+                return null;
+              }
+            });
   }
 
   public MethodHandle method(String className, String methodName, Class<?>... parameterTypes) {
-    try {
-      return method(classLoader.loadClass(className), methodName, parameterTypes);
-    } catch (Throwable t) {
-      log.debug(
-          "Could not get method named {} accepting {} from class {}",
-          methodName,
-          Arrays.toString(parameterTypes),
-          className,
-          t);
-      return null;
-    }
+    Class<?> clazz = loadClass(className);
+    return clazz != null ? method(clazz, methodName, parameterTypes) : null;
   }
 
   public MethodHandle method(Class<?> clazz, String methodName, Class<?>... parameterTypes) {
-    try {
-      Method method = clazz.getDeclaredMethod(methodName, parameterTypes);
-      method.setAccessible(true);
-      return lookup.unreflect(method);
+    return AccessController.doPrivileged(
+        (PrivilegedAction<MethodHandle>)
+            () -> {
+              try {
+                SecurityManager sm = System.getSecurityManager();
+                if (sm != null) {
+                  String packageName = clazz.getPackage().getName();
+                  sm.checkPackageAccess(packageName);
+                }
 
+                Method method = clazz.getDeclaredMethod(methodName, parameterTypes);
+                method.setAccessible(true);
+                return lookup.unreflect(method);
+
+              } catch (Throwable t) {
+                log.debug(
+                    "Could not get method {} accepting {} from class {}",
+                    methodName,
+                    Arrays.toString(parameterTypes),
+                    clazz,
+                    t);
+                return null;
+              }
+            });
+  }
+
+  private Class<?> loadClass(String className) {
+    try {
+      return classLoader.loadClass(className);
     } catch (Throwable t) {
-      log.debug(
-          "Could not get method {} accepting {} from class {}",
-          methodName,
-          Arrays.toString(parameterTypes),
-          clazz,
-          t);
+      log.debug("Could not load class {}", className, t);
       return null;
     }
   }
