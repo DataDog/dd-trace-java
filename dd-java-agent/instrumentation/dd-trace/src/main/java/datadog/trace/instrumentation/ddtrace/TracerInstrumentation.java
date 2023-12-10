@@ -32,7 +32,6 @@ public class TracerInstrumentation extends Instrumenter.Tracing
   public void adviceTransformations(AdviceTransformation transformation) {
     transformation.applyAdvice(
         named("startSpan").and(isMethod()), packageName + ".StartSpanAdvice");
-        transformation.applyAdvice(
-            named("flush").and(isMethod()), packageName + ".FlushAdvice");
+    transformation.applyAdvice(named("flush").and(isMethod()), packageName + ".FlushAdvice");
   }
 }
