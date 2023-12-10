@@ -2,6 +2,7 @@ package datadog.trace.instrumentation.ddtrace;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
+import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -9,10 +10,10 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public class SpanInstrumentation extends Instrumenter.Tracing
+public class TracerInstrumentation extends Instrumenter.Tracing
     implements Instrumenter.ForTypeHierarchy {
 
-  public SpanInstrumentation(String instrumentationName) {
+  public TracerInstrumentation(String instrumentationName) {
     super("dd-trace");
   }
 
@@ -28,5 +29,10 @@ public class SpanInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {}
+  public void adviceTransformations(AdviceTransformation transformation) {
+    transformation.applyAdvice(
+        named("startSpan").and(isMethod()), packageName + ".StartSpanAdvice");
+        transformation.applyAdvice(
+            named("flush").and(isMethod()), packageName + ".FlushAdvice");
+  }
 }
