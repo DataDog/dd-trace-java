@@ -28,6 +28,7 @@ import datadog.trace.api.config.GeneralConfig
 import datadog.trace.api.config.TraceInstrumentationConfig
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.core.DDSpan
+import datadog.trace.core.datastreams.StatsGroup
 import datadog.trace.instrumentation.grpc.client.GrpcClientDecorator
 import io.grpc.ManagedChannel
 import io.grpc.ManagedChannelBuilder
@@ -157,6 +158,7 @@ abstract class PubSubTest extends VersionedNamingTestBase {
     .build()
     subscriber.startAsync().awaitRunning()
     TEST_WRITER.clear()
+    TEST_DATA_STREAMS_WRITER.clear()
 
     when:
     TraceUtils.runUnderTrace('parent', {
@@ -229,7 +231,26 @@ abstract class PubSubTest extends VersionedNamingTestBase {
         }
       }
     }
+    and:
+    if (isDataStreamsEnabled()) {
+      TEST_DATA_STREAMS_WRITER.waitForGroups(2)
 
+      StatsGroup sendStat = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0}
+      verifyAll (sendStat) {
+        edgeTags.containsAll(["direction:out" , "topic:test-topic", "type:google-pubsub"])
+        edgeTags.size() == 3
+      }
+      StatsGroup receiveStat = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == sendStat.hash}
+      verifyAll(receiveStat) {
+        edgeTags.containsAll(["direction:in" , "subscription:my-subscription", "type:google-pubsub"])
+        edgeTags.size() == 3
+        pathwayLatency.count == 1
+        pathwayLatency.minValue > 0.0
+        edgeLatency.count == 1
+        edgeLatency.minValue > 0.0
+        payloadSize.minValue > 0.0
+      }
+    }
     cleanup:
     publisher.shutdown()
     subscriber.stopAsync().awaitTerminated()
@@ -259,6 +280,9 @@ abstract class PubSubTest extends VersionedNamingTestBase {
         if ({ isDataStreamsEnabled() }) {
           "$DDTags.PATHWAY_HASH" { String }
         }
+        "$Tags.PEER_HOSTNAME" "localhost"
+        "$Tags.PEER_HOST_IPV4" "127.0.0.1"
+        "$Tags.PEER_PORT" { Integer }
         peerServiceFrom(Tags.RPC_SERVICE)
         defaultTags()
       }
@@ -343,5 +367,12 @@ class PubSubMessageReceiverWithAckResponseTest extends PubSubNamingV0Test {
         latch.countDown()
       }
     }
+  }
+}
+
+class PubSubDataStreamEnabledForkedTest extends PubSubNamingV0Test {
+  @Override
+  protected boolean isDataStreamsEnabled() {
+    return true
   }
 }

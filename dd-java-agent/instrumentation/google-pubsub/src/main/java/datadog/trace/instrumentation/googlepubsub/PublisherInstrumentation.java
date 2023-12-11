@@ -5,6 +5,10 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSp
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.RUNNABLE;
+import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_OUT;
+import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_TAG;
+import static datadog.trace.core.datastreams.TagsProcessor.TOPIC_TAG;
+import static datadog.trace.core.datastreams.TagsProcessor.TYPE_TAG;
 import static datadog.trace.instrumentation.googlepubsub.PubSubDecorator.PRODUCER_DECORATE;
 import static datadog.trace.instrumentation.googlepubsub.PubSubDecorator.PUBSUB_PRODUCE;
 import static datadog.trace.instrumentation.googlepubsub.TextMapInjectAdapter.SETTER;
@@ -21,6 +25,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter;
 import java.util.Collection;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
 
@@ -29,7 +34,7 @@ public final class PublisherInstrumentation extends Instrumenter.Tracing
     implements Instrumenter.ForSingleType, ExcludeFilterProvider {
 
   public PublisherInstrumentation() {
-    super("google-pubsub");
+    super("google-pubsub", "google-pubsub-publisher");
   }
 
   @Override
@@ -64,11 +69,18 @@ public final class PublisherInstrumentation extends Instrumenter.Tracing
         @Advice.This Publisher publisher) {
       final AgentSpan span = startSpan(PUBSUB_PRODUCE);
 
+      final CharSequence topicName = PRODUCER_DECORATE.extractTopic(publisher.getTopicNameString());
       PRODUCER_DECORATE.afterStart(span);
-      PRODUCER_DECORATE.onProduce(span, msg, publisher.getTopicNameString());
+      PRODUCER_DECORATE.onProduce(span, topicName);
+
+      LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>(3);
+      sortedTags.put(DIRECTION_TAG, DIRECTION_OUT);
+      sortedTags.put(TOPIC_TAG, topicName.toString());
+      sortedTags.put(TYPE_TAG, "google-pubsub");
 
       PubsubMessage.Builder builder = msg.toBuilder();
       propagate().inject(span, builder, SETTER);
+      propagate().injectPathwayContext(span, builder, SETTER, sortedTags);
       msg = builder.build();
       return activateSpan(span);
     }

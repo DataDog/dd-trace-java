@@ -20,6 +20,8 @@ import static com.datadog.profiling.controller.ProfilingSupport.isObjectCountPar
 import static datadog.trace.api.Platform.isJavaVersionAtLeast;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_HEAP_HISTOGRAM_ENABLED;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_HEAP_HISTOGRAM_ENABLED_DEFAULT;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_HEAP_HISTOGRAM_MODE;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_HEAP_HISTOGRAM_MODE_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_ULTRA_MINIMAL;
 
 import com.datadog.profiling.controller.ConfigurationException;
@@ -54,7 +56,17 @@ public final class OpenJdkController implements Controller {
 
   private static final Logger log = LoggerFactory.getLogger(OpenJdkController.class);
 
+  private final ConfigProvider configProvider;
   private final Map<String, String> recordingSettings;
+
+  public static Controller instance(ConfigProvider configProvider) {
+    try {
+      return new OpenJdkController(configProvider);
+    } catch (ConfigurationException | ClassNotFoundException e) {
+      log.debug("Unable to create OpenJDK controller", e);
+      return new MisconfiguredController(e);
+    }
+  }
 
   /**
    * Main constructor for OpenJDK profiling controller.
@@ -68,6 +80,8 @@ public final class OpenJdkController implements Controller {
     // factory and can use it.
     Class.forName("jdk.jfr.Recording");
     Class.forName("jdk.jfr.FlightRecorder");
+
+    this.configProvider = configProvider;
 
     boolean ultraMinimal = configProvider.getBoolean(PROFILING_ULTRA_MINIMAL, false);
 
@@ -110,7 +124,15 @@ public final class OpenJdkController implements Controller {
             "enabling Datadog heap histogram on JVM without an efficient implementation of the jdk.ObjectCount event. "
                 + "This may increase p99 latency. Consider upgrading to JDK 17.0.9+ or 21+ to reduce latency impact.");
       }
-      enableEvent(recordingSettings, "jdk.ObjectCount", "user enabled histogram heap collection");
+      String mode =
+          configProvider.getString(
+              PROFILING_HEAP_HISTOGRAM_MODE, PROFILING_HEAP_HISTOGRAM_MODE_DEFAULT);
+      if ("periodic".equalsIgnoreCase(mode)) {
+        enableEvent(recordingSettings, "jdk.ObjectCount", "user enabled histogram heap collection");
+      } else {
+        enableEvent(
+            recordingSettings, "jdk.ObjectCountAfterGC", "user enabled histogram heap collection");
+      }
     }
 
     // Toggle settings from override file
@@ -202,7 +224,7 @@ public final class OpenJdkController implements Controller {
   public OpenJdkOngoingRecording createRecording(final String recordingName)
       throws UnsupportedEnvironmentException {
     return new OpenJdkOngoingRecording(
-        recordingName, recordingSettings, getMaxSize(), RECORDING_MAX_AGE);
+        recordingName, recordingSettings, getMaxSize(), RECORDING_MAX_AGE, configProvider);
   }
 
   private static void disableEvent(

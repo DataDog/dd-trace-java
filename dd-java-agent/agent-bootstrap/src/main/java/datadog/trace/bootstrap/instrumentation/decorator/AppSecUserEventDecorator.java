@@ -6,11 +6,34 @@ import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.UserEventTrackingMode;
 import datadog.trace.api.internal.TraceSegment;
+import datadog.trace.bootstrap.ActiveSubsystems;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import java.util.Map;
 import javax.annotation.Nonnull;
 
 public class AppSecUserEventDecorator {
+
+  public boolean isEnabled() {
+    if (!ActiveSubsystems.APPSEC_ACTIVE) {
+      return false;
+    }
+    UserEventTrackingMode mode = Config.get().getAppSecUserEventsTrackingMode();
+    if (mode == DISABLED) {
+      return false;
+    }
+    return true;
+  }
+
+  public void onUserNotFound() {
+    if (!isEnabled()) {
+      return;
+    }
+    TraceSegment segment = getSegment();
+    if (segment == null) {
+      return;
+    }
+    segment.setTagTop("appsec.events.users.login.failure.usr.exists", false);
+  }
 
   public void onLoginSuccess(String userId, Map<String, String> metadata) {
     TraceSegment segment = getSegment();
@@ -24,7 +47,7 @@ public class AppSecUserEventDecorator {
     onEvent(segment, "users.login.success", metadata);
   }
 
-  public void onLoginFailure(String userId, Map<String, String> metadata, boolean userExists) {
+  public void onLoginFailure(String userId, Map<String, String> metadata) {
     TraceSegment segment = getSegment();
     if (segment == null) {
       return;
@@ -33,7 +56,7 @@ public class AppSecUserEventDecorator {
     if (userId != null) {
       segment.setTagTop("appsec.events.users.login.failure.usr.id", userId);
     }
-    segment.setTagTop("appsec.events.users.login.failure.usr.exists", userExists);
+
     onEvent(segment, "users.login.failure", metadata);
   }
 

@@ -14,6 +14,14 @@ public interface AgentPropagation {
   <C> void injectPathwayContext(
       AgentSpan span, C carrier, Setter<C> setter, LinkedHashMap<String, String> sortedTags);
 
+  <C> void injectPathwayContext(
+      AgentSpan span,
+      C carrier,
+      Setter<C> setter,
+      LinkedHashMap<String, String> sortedTags,
+      long defaultTimestamp,
+      long payloadSizeBytes);
+
   interface Setter<C> {
     void set(C carrier, String key, String value);
   }

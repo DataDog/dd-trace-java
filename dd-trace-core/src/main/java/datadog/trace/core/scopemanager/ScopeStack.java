@@ -1,7 +1,5 @@
 package datadog.trace.core.scopemanager;
 
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.ProfilerContext;
 import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
 import datadog.trace.bootstrap.instrumentation.api.ScopeSource;
 import java.util.ArrayDeque;
@@ -47,19 +45,18 @@ final class ScopeStack {
     } else if (changedTop) {
       top = curScope;
       if (curScope != null) {
+        curScope.beforeActivated();
         curScope.afterActivated();
       }
     }
     if (top == null) {
       onBecomeEmpty();
-    } else {
-      onTopChanged(top);
     }
   }
 
   /** Marks a new scope as current, pushing the previous onto the stack */
   void push(final ContinuableScope scope) {
-    onTopChanged(scope);
+    scope.beforeActivated();
     if (top != null) {
       stack.push(top);
     } else {
@@ -110,17 +107,6 @@ final class ScopeStack {
     top = null;
   }
 
-  private void onTopChanged(ContinuableScope top) {
-    AgentSpan.Context context = top.span.context();
-    if (context instanceof ProfilerContext) {
-      try {
-        profilingContextIntegration.setContext((ProfilerContext) context);
-      } catch (Throwable e) {
-        ContinuableScopeManager.ratelimitedLog.warn("Unexpected profiling exception", e);
-      }
-    }
-  }
-
   /** Notifies profiler that this thread has a context now */
   private void onBecomeNonEmpty() {
     try {
@@ -133,7 +119,6 @@ final class ScopeStack {
   /** Notifies profiler that this thread no longer has a context */
   private void onBecomeEmpty() {
     try {
-      profilingContextIntegration.clearContext();
       profilingContextIntegration.onDetach();
     } catch (Throwable e) {
       ContinuableScopeManager.ratelimitedLog.warn("Unexpected profiling exception", e);

@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.opentelemetry14.trace;
 
 import static datadog.trace.api.DDTags.ANALYTICS_SAMPLE_RATE;
+import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND_CLIENT;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND_CONSUMER;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND_PRODUCER;
@@ -10,9 +11,12 @@ import static io.opentelemetry.api.trace.SpanKind.CONSUMER;
 import static io.opentelemetry.api.trace.SpanKind.INTERNAL;
 import static io.opentelemetry.api.trace.SpanKind.PRODUCER;
 import static io.opentelemetry.api.trace.SpanKind.SERVER;
+import static java.lang.Boolean.parseBoolean;
 import static java.util.Locale.ROOT;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.Tags;
+import io.opentelemetry.api.common.AttributeKey;
 import io.opentelemetry.api.trace.SpanKind;
 import javax.annotation.Nullable;
 import org.slf4j.Logger;
@@ -20,22 +24,19 @@ import org.slf4j.LoggerFactory;
 
 public final class OtelConventions {
   static final String SPAN_KIND_INTERNAL = "internal";
+  static final String OPERATION_NAME_SPECIFIC_ATTRIBUTE = "operation.name";
+  static final String ANALYTICS_EVENT_SPECIFIC_ATTRIBUTES = "analytics.event";
   private static final Logger LOGGER = LoggerFactory.getLogger(OtelConventions.class);
-  private static final String OPERATION_NAME_SPECIFIC_ATTRIBUTE = "operation.name";
-  private static final String SERVICE_NAME_SPECIFIC_ATTRIBUTE = "service.name";
-  private static final String RESOURCE_NAME_SPECIFIC_ATTRIBUTE = "resource.name";
-  private static final String SPAN_TYPE_SPECIFIC_ATTRIBUTES = "span.type";
-  private static final String ANALYTICS_EVENT_SPECIFIC_ATTRIBUTES = "analytics.event";
 
   private OtelConventions() {}
 
   /**
-   * Convert OpenTelemetry {@link SpanKind} to Datadog span type.
+   * Convert OpenTelemetry {@link SpanKind} to {@link Tags#SPAN_KIND} value.
    *
    * @param spanKind The OpenTelemetry span kind to convert.
-   * @return The related Datadog span type.
+   * @return The {@link Tags#SPAN_KIND} value.
    */
-  public static String toSpanType(SpanKind spanKind) {
+  public static String toSpanKindTagValue(SpanKind spanKind) {
     switch (spanKind) {
       case CLIENT:
         return SPAN_KIND_CLIENT;
@@ -53,16 +54,16 @@ public final class OtelConventions {
   }
 
   /**
-   * Convert Datadog span type to OpenTelemetry {@link SpanKind}.
+   * Convert {@link Tags#SPAN_KIND} value to OpenTelemetry {@link SpanKind}.
    *
-   * @param spanType The span type to convert.
+   * @param spanKind The {@link Tags#SPAN_KIND} value to convert.
    * @return The related OpenTelemetry {@link SpanKind}.
    */
-  public static SpanKind toSpanKind(String spanType) {
-    if (spanType == null) {
+  public static SpanKind toOtelSpanKind(String spanKind) {
+    if (spanKind == null) {
       return INTERNAL;
     }
-    switch (spanType) {
+    switch (spanKind) {
       case SPAN_KIND_CLIENT:
         return CLIENT;
       case SPAN_KIND_SERVER:
@@ -76,36 +77,48 @@ public final class OtelConventions {
     }
   }
 
-  public static void applyConventions(AgentSpan span) {
-    String serviceName = getStringAttribute(span, SERVICE_NAME_SPECIFIC_ATTRIBUTE);
-    if (serviceName != null) {
-      span.setServiceName(serviceName);
+  /**
+   * Applies the reserved span attributes. Only OpenTelemetry specific span attributes are handled
+   * here, the default ones are handled by tag interceptor while setting span attributes.
+   *
+   * @param span The span to apply the attributes.
+   * @param key The attribute key.
+   * @param value The attribute value.
+   * @param <T> The attribute type.
+   * @return {@code true} if the attributes is a reserved attribute applied to the span, {@code
+   *     false} otherwise.
+   */
+  public static <T> boolean applyReservedAttribute(AgentSpan span, AttributeKey<T> key, T value) {
+    String name = key.getKey();
+    switch (key.getType()) {
+      case STRING:
+        if (OPERATION_NAME_SPECIFIC_ATTRIBUTE.equals(name) && value instanceof String) {
+          span.setOperationName(((String) value).toLowerCase(ROOT));
+          return true;
+        } else if (ANALYTICS_EVENT_SPECIFIC_ATTRIBUTES.equals(name) && value instanceof String) {
+          span.setMetric(ANALYTICS_SAMPLE_RATE, parseBoolean((String) value) ? 1 : 0);
+          return true;
+        }
+      case BOOLEAN:
+        if (ANALYTICS_EVENT_SPECIFIC_ATTRIBUTES.equals(name) && value instanceof Boolean) {
+          span.setMetric(ANALYTICS_SAMPLE_RATE, ((Boolean) value) ? 1 : 0);
+          return true;
+        }
     }
-    String resourceName = getStringAttribute(span, RESOURCE_NAME_SPECIFIC_ATTRIBUTE);
-    if (resourceName != null) {
-      span.setResourceName(resourceName);
-    }
-    String spanType = getStringAttribute(span, SPAN_TYPE_SPECIFIC_ATTRIBUTES);
-    if (spanType != null) {
-      span.setSpanType(spanType);
-    }
-    Boolean analyticsEvent = getBooleanAttribute(span, ANALYTICS_EVENT_SPECIFIC_ATTRIBUTES);
-    if (analyticsEvent != null) {
-      span.setMetric(ANALYTICS_SAMPLE_RATE, analyticsEvent ? 1 : 0);
-    }
-    applyOperationName(span);
+    return false;
   }
 
-  private static void applyOperationName(AgentSpan span) {
-    String operationName = getStringAttribute(span, OPERATION_NAME_SPECIFIC_ATTRIBUTE);
-    if (operationName == null) {
-      operationName = computeOperationName(span);
+  public static void applyNamingConvention(AgentSpan span) {
+    // Check if span operation name is unchanged from its default value
+    if (span.getOperationName() == SPAN_KIND_INTERNAL) {
+      span.setOperationName(computeOperationName(span).toLowerCase(ROOT));
     }
-    span.setOperationName(operationName.toLowerCase(ROOT));
   }
 
   private static String computeOperationName(AgentSpan span) {
-    SpanKind spanKind = toSpanKind(span.getSpanType());
+    Object spanKingTag = span.getTag(SPAN_KIND);
+    SpanKind spanKind =
+        spanKingTag instanceof String ? toOtelSpanKind((String) spanKingTag) : INTERNAL;
     /*
      * HTTP convention: https://opentelemetry.io/docs/specs/otel/trace/semantic_conventions/http/
      */
@@ -203,21 +216,5 @@ public final class OtelConventions {
       return key;
     }
     return (String) tag;
-  }
-
-  @Nullable
-  private static Boolean getBooleanAttribute(AgentSpan span, String key) {
-    Object tag = span.getTag(key);
-    if (tag == null) {
-      return null;
-    }
-    if (tag instanceof Boolean) {
-      return (Boolean) tag;
-    } else if (tag instanceof String) {
-      return Boolean.parseBoolean((String) tag);
-    } else {
-      LOGGER.debug("Span attributes {} is not a boolean", key);
-      return null;
-    }
   }
 }

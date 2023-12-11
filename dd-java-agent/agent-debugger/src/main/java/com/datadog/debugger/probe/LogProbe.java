@@ -11,7 +11,7 @@ import com.datadog.debugger.el.ValueScript;
 import com.datadog.debugger.instrumentation.CapturedContextInstrumentor;
 import com.datadog.debugger.instrumentation.DiagnosticMessage;
 import com.datadog.debugger.instrumentation.InstrumentationResult;
-import com.datadog.debugger.sink.Sink;
+import com.datadog.debugger.sink.DebuggerSink;
 import com.datadog.debugger.sink.Snapshot;
 import com.squareup.moshi.Json;
 import com.squareup.moshi.JsonAdapter;
@@ -457,7 +457,7 @@ public class LogProbe extends ProbeDefinition {
         spanId = exitContext.getSpanId();
         break;
     }
-    Sink sink = DebuggerAgent.getSink();
+    DebuggerSink sink = DebuggerAgent.getSink();
     boolean shouldCommit = false;
     int maxDepth = capture != null ? capture.maxReferenceDepth : -1;
     Snapshot snapshot = new Snapshot(Thread.currentThread(), this, maxDepth);
@@ -506,7 +506,7 @@ public class LogProbe extends ProbeDefinition {
     return (LogStatus) status;
   }
 
-  private void commitSnapshot(Snapshot snapshot, Sink sink) {
+  private void commitSnapshot(Snapshot snapshot, DebuggerSink sink) {
     /*
      * Record stack trace having the caller of this method as 'top' frame.
      * For this it is necessary to discard:
@@ -526,7 +526,7 @@ public class LogProbe extends ProbeDefinition {
     if (status == null) {
       return;
     }
-    Sink sink = DebuggerAgent.getSink();
+    DebuggerSink sink = DebuggerAgent.getSink();
     int maxDepth = capture != null ? capture.maxReferenceDepth : -1;
     Snapshot snapshot = new Snapshot(Thread.currentThread(), this, maxDepth);
     boolean shouldCommit = false;

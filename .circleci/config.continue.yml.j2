@@ -36,7 +36,7 @@ instrumentation_modules: &instrumentation_modules "dd-java-agent/instrumentation
 debugger_modules: &debugger_modules "dd-java-agent/agent-debugger|dd-java-agent/agent-bootstrap|dd-java-agent/agent-builder|internal-api|communication|dd-trace-core"
 profiling_modules: &profiling_modules "dd-java-agent/agent-profiling"
 
-default_system_tests_commit: &default_system_tests_commit 6998b307ce0e8d206ca6eb99045651dcc8bc853f
+default_system_tests_commit: &default_system_tests_commit ca7566bf7e66c0afdf29b0d3c07b2972e5869997
 
 parameters:
   nightly:
@@ -1194,6 +1194,15 @@ build_test_jobs: &build_test_jobs
       stage: smoke
       cacheType: smoke
       testJvm: "graalvm17"
+  
+  - tests:
+      requires:
+        - ok_to_test
+      name: test_graalvm21_smoke
+      gradleTarget: "stageMainDist :dd-smoke-test:spring-boot-3.0-native:test"
+      stage: smoke
+      cacheType: smoke
+      testJvm: "graalvm21"
 
   - tests:
       requires:
