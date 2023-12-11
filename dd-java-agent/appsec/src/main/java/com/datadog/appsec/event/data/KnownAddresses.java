@@ -98,6 +98,9 @@ public interface KnownAddresses {
   // XXX: Not really used yet, but it's a known address and we should not treat it as unknown.
   Address<Object> GRPC_SERVER_REQUEST_METADATA = new Address<>("grpc.server.request.metadata");
 
+  // XXX: Not really used yet, but it's a known address and we should not treat it as unknown.
+  Address<Object> GRAPHQL_SERVER_ALL_RESOLVERS = new Address<>("graphql.server.all_resolvers");
+
   Address<String> USER_ID = new Address<>("usr.id");
 
   Address<Map<String, Object>> WAF_CONTEXT_PROCESSOR = new Address<>("waf.context.processor");
@@ -148,6 +151,8 @@ public interface KnownAddresses {
         return GRPC_SERVER_REQUEST_MESSAGE;
       case "grpc.server.request.metadata":
         return GRPC_SERVER_REQUEST_METADATA;
+      case "graphql.server.all_resolvers":
+        return GRAPHQL_SERVER_ALL_RESOLVERS;
       case "usr.id":
         return USER_ID;
       case "waf.context.processor":
