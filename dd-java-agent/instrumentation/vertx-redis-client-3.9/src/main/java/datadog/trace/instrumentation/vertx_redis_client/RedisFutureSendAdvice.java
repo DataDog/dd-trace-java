@@ -14,11 +14,10 @@ import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
-import io.vertx.core.AsyncResult;
-import io.vertx.core.Handler;
+import io.vertx.core.Future;
+import io.vertx.core.Promise;
 import io.vertx.core.net.SocketAddress;
 import io.vertx.redis.client.Command;
-import io.vertx.redis.client.Redis;
 import io.vertx.redis.client.RedisAPI;
 import io.vertx.redis.client.RedisConnection;
 import io.vertx.redis.client.Request;
@@ -26,16 +25,12 @@ import io.vertx.redis.client.Response;
 import io.vertx.redis.client.impl.RequestImpl;
 import net.bytebuddy.asm.Advice;
 
-public class RedisSendAdvice {
+public class RedisFutureSendAdvice {
   @Advice.OnMethodEnter(suppress = Throwable.class)
   public static AgentScope beforeSend(
       @Advice.Argument(value = 0, readOnly = false) Request request,
-      @Advice.Argument(value = 1, readOnly = false) Handler<AsyncResult<Response>> handler)
+      @Advice.Local("ddParentContinuation") AgentScope.Continuation parentContinuation)
       throws Throwable {
-    if (null == handler || handler instanceof ResponseHandlerWrapper) {
-      return null;
-    }
-
     ContextStore<Request, Boolean> ctxt = InstrumentationContext.get(Request.class, Boolean.class);
     Boolean handled = ctxt.get(request);
     if (null != handled && handled) {
@@ -48,49 +43,54 @@ public class RedisSendAdvice {
     }
     ctxt.put(request, Boolean.TRUE);
 
+    AgentSpan parentSpan = activeSpan();
+
+    if (parentSpan != null && REDIS_COMMAND.equals(parentSpan.getOperationName())) {
+      // FIXME: this is not the best way to do it but in 4.5.0 there can be race conditions
+      return null;
+    }
+
+    parentContinuation = null == parentSpan ? captureSpan(noopSpan()) : captureSpan(parentSpan);
+
     // If we had already wrapped the innermost handler in the RedisAPI call, then we should
     // not wrap it again here. See comment in RedisAPICallAdvice
     if (CallDepthThreadLocalMap.incrementCallDepth(RedisAPI.class) > 0) {
       return AgentTracer.NoopAgentScope.INSTANCE;
     }
 
-    AgentSpan parentSpan = activeSpan();
-
-    if (parentSpan != null && REDIS_COMMAND.equals(parentSpan.getOperationName())) {
-      return null;
-    }
-
-    AgentScope.Continuation parentContinuation =
-        null == parentSpan ? captureSpan(noopSpan()) : captureSpan(parentSpan);
     final AgentSpan clientSpan =
         DECORATE.startAndDecorateSpan(
             request.command(), InstrumentationContext.get(Command.class, UTF8BytesString.class));
 
-    handler = new ResponseHandlerWrapper(handler, clientSpan, parentContinuation);
     return activateSpan(clientSpan, true);
   }
 
   @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
   public static void afterSend(
-      @Advice.Enter final AgentScope clientScope, @Advice.This final Object thiz) {
+      @Advice.Return(readOnly = false) Future<Response> responseFuture,
+      @Advice.Local("ddParentContinuation") AgentScope.Continuation parentContinuation,
+      @Advice.Enter final AgentScope clientScope,
+      @Advice.This final Object thiz) {
     if (thiz instanceof RedisConnection) {
       final SocketAddress socketAddress =
           InstrumentationContext.get(RedisConnection.class, SocketAddress.class)
               .get((RedisConnection) thiz);
       final AgentSpan span = clientScope != null ? clientScope.span() : activeSpan();
+
       if (socketAddress != null && span != null) {
-        DECORATE.onConnection(span, socketAddress);
-        DECORATE.setPeerPort(span, socketAddress.port());
+        final AgentSpan spanWithConnection =
+            clientScope == AgentTracer.NoopAgentScope.INSTANCE ? activeSpan() : span;
+        DECORATE.onConnection(spanWithConnection, socketAddress);
+        DECORATE.setPeerPort(spanWithConnection, socketAddress.port());
       }
     }
-    if (null != clientScope) {
+    if (clientScope != null) {
       CallDepthThreadLocalMap.decrementCallDepth(RedisAPI.class);
+      Promise<Response> promise = Promise.promise();
+      responseFuture.onComplete(
+          new ResponseHandler(promise, clientScope.span(), parentContinuation));
+      responseFuture = promise.future();
       clientScope.close();
     }
-  }
-
-  // Only apply this advice for versions that we instrument 3.9.x
-  private static void muzzleCheck() {
-    Redis.createClient(null, "somehost"); // added in 3.9.x
   }
 }
