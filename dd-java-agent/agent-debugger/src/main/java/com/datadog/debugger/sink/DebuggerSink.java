@@ -40,12 +40,12 @@ public class DebuggerSink {
   private volatile AgentTaskScheduler.Scheduled<DebuggerSink> flushIntervalScheduled;
   private volatile long currentFlushInterval = INITIAL_FLUSH_INTERVAL;
 
-  public DebuggerSink(Config config, String diagnosticsEndpoint) {
+  public DebuggerSink(Config config, String diagnosticsEndpoint, boolean useMultiPart) {
     this(
         config,
         new BatchUploader(config, config.getFinalDebuggerSnapshotUrl()),
         DebuggerMetrics.getInstance(config),
-        new ProbeStatusSink(config, diagnosticsEndpoint),
+        new ProbeStatusSink(config, diagnosticsEndpoint, useMultiPart),
         new SnapshotSink(config),
         new SymbolSink(config));
   }
@@ -56,7 +56,7 @@ public class DebuggerSink {
         config,
         snapshotUploader,
         DebuggerMetrics.getInstance(config),
-        new ProbeStatusSink(config, config.getFinalDebuggerSnapshotUrl()),
+        new ProbeStatusSink(config, config.getFinalDebuggerSnapshotUrl(), false),
         new SnapshotSink(config),
         new SymbolSink(config));
   }
@@ -76,7 +76,7 @@ public class DebuggerSink {
         config,
         snapshotUploader,
         debuggerMetrics,
-        new ProbeStatusSink(config, config.getFinalDebuggerSnapshotUrl()),
+        new ProbeStatusSink(config, config.getFinalDebuggerSnapshotUrl(), false),
         new SnapshotSink(config),
         new SymbolSink(config));
   }

@@ -107,7 +107,7 @@ public class DebuggerTransformer implements ClassFileTransformer {
         config,
         configuration,
         null,
-        new DebuggerSink(config, config.getFinalDebuggerSnapshotUrl()));
+        new DebuggerSink(config, config.getFinalDebuggerSnapshotUrl(), false));
   }
 
   private void readExcludeFiles(String commaSeparatedFileNames) {

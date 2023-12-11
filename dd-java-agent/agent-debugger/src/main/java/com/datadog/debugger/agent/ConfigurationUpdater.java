@@ -69,7 +69,7 @@ public class ConfigurationUpdater
         instrumentation,
         transformerSupplier,
         config,
-        new DebuggerSink(config, config.getFinalDebuggerSnapshotUrl()),
+        new DebuggerSink(config, config.getFinalDebuggerSnapshotUrl(), false),
         finder);
   }
 

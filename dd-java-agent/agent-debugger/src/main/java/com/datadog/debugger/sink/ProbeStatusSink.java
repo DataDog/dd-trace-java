@@ -7,7 +7,6 @@ import com.datadog.debugger.uploader.BatchUploader;
 import com.datadog.debugger.util.ExceptionHelper;
 import com.datadog.debugger.util.MoshiHelper;
 import com.squareup.moshi.JsonAdapter;
-import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.debugger.ProbeId;
 import java.time.Clock;
@@ -35,28 +34,20 @@ public class ProbeStatusSink {
   private final Duration interval;
   private final int batchSize;
   private final boolean isInstrumentTheWorld;
-  private final boolean useDebuggerTrack;
+  private final boolean useMultiPart;
 
-  ProbeStatusSink(Config config, String diagnosticsEndpoint) {
-    this(
-        config,
-        new BatchUploader(config, diagnosticsEndpoint),
-        isUsingDebuggerTrack(diagnosticsEndpoint));
+  ProbeStatusSink(Config config, String diagnosticsEndpoint, boolean useMultiPart) {
+    this(config, new BatchUploader(config, diagnosticsEndpoint), useMultiPart);
   }
 
-  ProbeStatusSink(Config config, BatchUploader diagnosticUploader, boolean useDebuggerTrack) {
+  ProbeStatusSink(Config config, BatchUploader diagnosticUploader, boolean useMultiPart) {
     this.diagnosticUploader = diagnosticUploader;
-    this.useDebuggerTrack = useDebuggerTrack;
+    this.useMultiPart = useMultiPart;
     this.messageBuilder = new Builder(config);
     this.interval = Duration.ofSeconds(config.getDebuggerDiagnosticsInterval());
     this.batchSize = config.getDebuggerUploadBatchSize();
     this.queue = new ArrayBlockingQueue<>(2 * this.batchSize);
     this.isInstrumentTheWorld = config.isDebuggerInstrumentTheWorld();
-  }
-
-  private static boolean isUsingDebuggerTrack(String endpoint) {
-    return endpoint != null
-        && endpoint.contains(DDAgentFeaturesDiscovery.DEBUGGER_DIAGNOSTICS_ENDPOINT);
   }
 
   public void addReceived(ProbeId probeId) {
@@ -83,9 +74,9 @@ public class ProbeStatusSink {
     List<String> serializedDiagnostics = getSerializedDiagnostics();
     List<byte[]> batches = IntakeBatchHelper.createBatches(serializedDiagnostics);
     for (byte[] batch : batches) {
-      if (useDebuggerTrack) {
+      if (useMultiPart) {
         diagnosticUploader.uploadAsMultipart(
-            "", new BatchUploader.MultiPartContent(batch, "event", "event.json"));
+            tags, new BatchUploader.MultiPartContent(batch, "event", "event.json"));
       } else {
         diagnosticUploader.upload(batch, tags);
       }

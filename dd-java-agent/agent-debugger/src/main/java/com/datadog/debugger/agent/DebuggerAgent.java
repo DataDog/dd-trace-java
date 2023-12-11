@@ -51,7 +51,9 @@ public class DebuggerAgent {
     ddAgentFeaturesDiscovery.discoverIfOutdated();
     agentVersion = ddAgentFeaturesDiscovery.getVersion();
     String diagnosticEndpoint = getDiagnosticEndpoint(config, ddAgentFeaturesDiscovery);
-    DebuggerSink debuggerSink = new DebuggerSink(config, diagnosticEndpoint);
+    DebuggerSink debuggerSink =
+        new DebuggerSink(
+            config, diagnosticEndpoint, ddAgentFeaturesDiscovery.supportsDebuggerDiagnostics());
     debuggerSink.start();
     ConfigurationUpdater configurationUpdater =
         new ConfigurationUpdater(
