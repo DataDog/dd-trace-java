@@ -23,10 +23,8 @@ import static org.junit.platform.engine.discovery.DiscoverySelectors.selectClass
 class SpockTest extends CiVisibilityInstrumentationTest {
 
   def "test #testcaseName"() {
-    setup:
     runTests(tests)
 
-    expect:
     assertSpansData(testcaseName, expectedTracesCount)
 
     where:
@@ -36,11 +34,9 @@ class SpockTest extends CiVisibilityInstrumentationTest {
   }
 
   def "test ITR #testcaseName"() {
-    setup:
     givenSkippableTests(skippedTests)
     runTests(tests)
 
-    expect:
     assertSpansData(testcaseName, expectedTracesCount)
 
     where:
@@ -54,12 +50,9 @@ class SpockTest extends CiVisibilityInstrumentationTest {
   }
 
   def "test flaky retries #testcaseName"() {
-    setup:
     givenFlakyTests(retriedTests)
-
     runTests(tests)
 
-    expect:
     assertSpansData(testcaseName, expectedTracesCount)
 
     where:

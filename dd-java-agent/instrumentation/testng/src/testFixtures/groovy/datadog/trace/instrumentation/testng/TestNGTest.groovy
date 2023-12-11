@@ -30,7 +30,6 @@ abstract class TestNGTest extends CiVisibilityInstrumentationTest {
   static testOutputDir = "build/tmp/test-output"
 
   def "test #testcaseName"() {
-    setup:
     givenSkippableTests(skippedTests)
 
     if (!tests.isEmpty()) {
@@ -43,7 +42,6 @@ abstract class TestNGTest extends CiVisibilityInstrumentationTest {
       runXmlSuites([xmlSuite], parallelMode)
     }
 
-    expect:
     assertSpansData(testcaseName, expectedTracesCount)
 
     where:

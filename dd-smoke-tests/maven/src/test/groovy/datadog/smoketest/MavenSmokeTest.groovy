@@ -46,17 +46,13 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
   Path projectHome
 
   def "test #projectName, v#mavenVersion"() {
-    given:
     givenWrapperPropertiesFile(mavenVersion)
     givenMavenProjectFiles(projectName)
     givenMavenDependenciesAreLoaded(projectName, mavenVersion)
 
-    when:
     def exitCode = whenRunningMavenBuild()
 
-    then:
-    exitCode == 0
-
+    assert exitCode == 0
     verifyEventsAndCoverages(projectName, "maven", mavenVersion, expectedEvents, expectedCoverages)
 
     where:

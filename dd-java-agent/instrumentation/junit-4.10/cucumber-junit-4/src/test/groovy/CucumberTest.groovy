@@ -15,12 +15,9 @@ class CucumberTest extends CiVisibilityInstrumentationTest {
   def runner = new JUnitCore()
 
   def "test #testcaseName"() {
-    setup:
     givenSkippableTests(skippedTests)
-
     runFeatures(features)
 
-    expect:
     assertSpansData(testcaseName, expectedTracesCount)
 
     where:

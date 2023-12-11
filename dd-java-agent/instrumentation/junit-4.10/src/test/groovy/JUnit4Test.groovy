@@ -30,11 +30,9 @@ class JUnit4Test extends CiVisibilityInstrumentationTest {
   def runner = new JUnitCore()
 
   def "test #testcaseName"() {
-    setup:
     givenSkippableTests(skippedTests)
     runTests(tests)
 
-    expect:
     assertSpansData(testcaseName, expectedTracesCount)
 
     where:

@@ -17,10 +17,8 @@ import static org.junit.platform.engine.discovery.DiscoverySelectors.selectClass
 class CucumberTest extends CiVisibilityInstrumentationTest {
 
   def "test #testcaseName"() {
-    setup:
     runFeatures(features, parallel)
 
-    expect:
     assertSpansData(testcaseName, expectedTracesCount)
 
     where:
@@ -37,11 +35,9 @@ class CucumberTest extends CiVisibilityInstrumentationTest {
   }
 
   def "test ITR #testcaseName"() {
-    setup:
     givenSkippableTests(skippedTests)
     runFeatures(features, false)
 
-    expect:
     assertSpansData(testcaseName, expectedTracesCount)
 
     where:
@@ -52,12 +48,9 @@ class CucumberTest extends CiVisibilityInstrumentationTest {
   }
 
   def "test flaky retries #testcaseName"() {
-    setup:
     givenFlakyTests(retriedTests)
-
     runFeatures(features, false)
 
-    expect:
     assertSpansData(testcaseName, expectedTracesCount)
 
     where:

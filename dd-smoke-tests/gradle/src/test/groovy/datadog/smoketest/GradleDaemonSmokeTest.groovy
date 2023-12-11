@@ -63,16 +63,13 @@ class GradleDaemonSmokeTest extends CiVisibilitySmokeTest {
   }
 
   def "test #projectName, v#gradleVersion, configCache: #configurationCache"() {
-    given:
     givenGradleVersionIsCompatibleWithCurrentJvm(gradleVersion)
     givenConfigurationCacheIsCompatibleWithCurrentPlatform(configurationCache)
     givenGradleProjectFiles(projectName)
     ensureDependenciesDownloaded(gradleVersion)
 
-    when:
     BuildResult buildResult = runGradleTests(gradleVersion, successExpected, configurationCache)
 
-    then:
     if (successExpected) {
       assertBuildSuccessful(buildResult)
     }
@@ -81,10 +78,8 @@ class GradleDaemonSmokeTest extends CiVisibilitySmokeTest {
     if (configurationCache) {
       // if configuration cache is enabled, run the build one more time
       // to verify that building with existing configuration cache entry works
-      when:
       BuildResult buildResultWithConfigCacheEntry = runGradleTests(gradleVersion, successExpected, configurationCache)
 
-      then:
       assertBuildSuccessful(buildResultWithConfigCacheEntry)
       verifyEventsAndCoverages(projectName, "gradle", gradleVersion, expectedTraces, expectedCoverages)
     }

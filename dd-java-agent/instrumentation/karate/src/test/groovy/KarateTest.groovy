@@ -21,14 +21,11 @@ import static org.junit.platform.engine.discovery.DiscoverySelectors.selectClass
 class KarateTest extends CiVisibilityInstrumentationTest {
 
   def "test #testcaseName"() {
-    setup:
     Assumptions.assumeTrue(assumption)
 
     givenSkippableTests(skippedTests)
-
     runTests(tests)
 
-    expect:
     assertSpansData(testcaseName, expectedTracesCount)
 
     where:

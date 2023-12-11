@@ -9,11 +9,13 @@ import com.jayway.jsonpath.ReadContext
 import com.jayway.jsonpath.WriteContext
 import freemarker.template.Template
 import freemarker.template.TemplateExceptionHandler
+import org.opentest4j.AssertionFailedError
 import org.skyscreamer.jsonassert.JSONAssert
 import org.skyscreamer.jsonassert.JSONCompareMode
 
 import java.nio.file.Files
 import java.nio.file.Paths
+import java.util.function.Function
 import java.util.regex.Pattern
 
 abstract class CiVisibilityTestUtils {
@@ -84,7 +86,7 @@ abstract class CiVisibilityTestUtils {
     try {
       JSONAssert.assertEquals(expectedEvents, actualEvents, JSONCompareMode.LENIENT)
     } catch (AssertionError e) {
-      throw new AssertionError("Error while comparing expected events $expectedEvents to actual events $actualEvents", e)
+      throw new AssertionFailedError("Received test events do not match expected ones", expectedEvents, actualEvents, e)
     }
 
     def expectedCoverages = getFreemarkerTemplate(baseTemplatesPath + "/coverages.ftl", replacementMap)
@@ -92,7 +94,7 @@ abstract class CiVisibilityTestUtils {
     try {
       JSONAssert.assertEquals(expectedCoverages, actualCoverages, JSONCompareMode.LENIENT)
     } catch (AssertionError e) {
-      throw new AssertionError("Error while comparing expected coverages $expectedCoverages to actual coverages $actualCoverages", e)
+      throw new AssertionFailedError("Received test coverages do not match expected ones", expectedCoverages, actualCoverages, e)
     }
   }
 

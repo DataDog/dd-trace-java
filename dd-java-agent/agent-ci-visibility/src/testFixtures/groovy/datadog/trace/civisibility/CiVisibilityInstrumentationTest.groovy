@@ -1,6 +1,7 @@
 package datadog.trace.civisibility
 
 import com.fasterxml.jackson.databind.ObjectMapper
+import com.fasterxml.jackson.databind.module.SimpleModule
 import datadog.communication.serialization.GrowableBuffer
 import datadog.communication.serialization.msgpack.MsgPackWriter
 import datadog.trace.agent.test.AgentTestRunner
@@ -198,7 +199,6 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
     //        CiVisibilityTestUtils.generateTemplates(baseTemplatesPath, events, coverages, additionalReplacements)
 
     CiVisibilityTestUtils.assertData(testcaseName, events, coverages, additionalReplacements)
-    return true
   }
 
   def getEventsAsJson(List<List<DDSpan>> traces) {
@@ -213,6 +213,11 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
     def buffer = new GrowableBuffer(8192)
     def writer = new MsgPackWriter(buffer)
     def msgPackMapper = new ObjectMapper(new MessagePackFactory())
+
+    def module = new SimpleModule("treemaps")
+    module.addAbstractTypeMapping(Map.class, TreeMap.class)
+    msgPackMapper.registerModule(module)
+
     def jsonSpans = []
     for (List<DDSpan> trace : traces) {
       for (DDSpan span : trace) {
@@ -227,7 +232,7 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
 
         byte[] bytes = new byte[slicedBuffer.remaining()]
         slicedBuffer.get(bytes)
-        jsonSpans += msgPackMapper.readValue(bytes, Map)
+        jsonSpans += msgPackMapper.readValue(bytes, TreeMap)
       }
     }
     return jsonSpans

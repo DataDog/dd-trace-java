@@ -74,7 +74,7 @@ abstract class CiVisibilitySmokeTest extends Specification {
     }
   }
 
-  protected verifyEventsAndCoverages(String projectName, String toolchain, String toolchainVersion, int expectedEventsCount, int expectedCoveragesCount) {
+  protected void verifyEventsAndCoverages(String projectName, String toolchain, String toolchainVersion, int expectedEventsCount, int expectedCoveragesCount) {
     def events = waitForEvents(expectedEventsCount)
     def coverages = waitForCoverages(expectedCoveragesCount)
 
@@ -85,7 +85,6 @@ abstract class CiVisibilitySmokeTest extends Specification {
     //        CiVisibilityTestUtils.generateTemplates(baseTemplatesPath, events, coverages, additionalReplacements)
 
     CiVisibilityTestUtils.assertData(projectName, events, coverages, additionalReplacements)
-    return true
   }
 
   protected List<Map<String, Object>> waitForEvents(int expectedEventsSize) {

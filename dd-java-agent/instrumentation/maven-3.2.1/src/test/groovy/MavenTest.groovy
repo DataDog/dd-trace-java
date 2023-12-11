@@ -29,14 +29,11 @@ class MavenTest extends CiVisibilityInstrumentationTest {
   }
 
   def "test #testcaseName"() {
-    given:
     String workingDirectory = projectFolder.toString()
 
-    when:
     def exitCode = new MavenCli().doMain(args.toArray(new String[0]), workingDirectory, null, null)
 
-    then:
-    exitCode == expectedExitCode
+    assert exitCode == expectedExitCode
     assertSpansData(testcaseName, expectedTracesCount)
 
     where:
