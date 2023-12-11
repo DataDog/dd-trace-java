@@ -1,348 +1,348 @@
 [ {
-  "type" : "span",
-  "version" : 1,
   "content" : {
-    "trace_id" : ${content_trace_id},
-    "span_id" : ${content_span_id},
-    "parent_id" : ${content_parent_id},
-    "service" : "worker.org.gradle.process.internal.worker.gradleworkermain",
-    "name" : "karate.step",
-    "resource" : "Given def p = 'a'",
-    "start" : ${content_start},
     "duration" : ${content_duration},
     "error" : 0,
+    "meta" : {
+      "component" : "karate",
+      "env" : "none",
+      "library_version" : ${content_meta_library_version},
+      "step.name" : "Given def p = 'a'"
+    },
     "metrics" : {
       "step.endLine" : 6,
       "step.startLine" : 6
     },
-    "meta" : {
-      "library_version" : ${content_meta_library_version},
-      "component" : "karate",
-      "step.name" : "Given def p = 'a'",
-      "env" : "none"
-    }
-  }
-}, {
-  "type" : "span",
-  "version" : 1,
-  "content" : {
-    "trace_id" : ${content_trace_id_2},
-    "span_id" : ${content_span_id_2},
-    "parent_id" : ${content_parent_id_2},
-    "service" : "worker.org.gradle.process.internal.worker.gradleworkermain",
     "name" : "karate.step",
-    "resource" : "Given def p = 'b'",
-    "start" : ${content_start_2},
+    "parent_id" : ${content_parent_id},
+    "resource" : "Given def p = 'a'",
+    "service" : "worker.org.gradle.process.internal.worker.gradleworkermain",
+    "span_id" : ${content_span_id},
+    "start" : ${content_start},
+    "trace_id" : ${content_trace_id}
+  },
+  "type" : "span",
+  "version" : 1
+}, {
+  "content" : {
     "duration" : ${content_duration_2},
     "error" : 0,
+    "meta" : {
+      "component" : "karate",
+      "env" : "none",
+      "library_version" : ${content_meta_library_version},
+      "step.name" : "Given def p = 'b'"
+    },
     "metrics" : {
       "step.endLine" : 6,
       "step.startLine" : 6
     },
-    "meta" : {
-      "library_version" : ${content_meta_library_version},
-      "component" : "karate",
-      "step.name" : "Given def p = 'b'",
-      "env" : "none"
-    }
-  }
-}, {
-  "type" : "span",
-  "version" : 1,
-  "content" : {
-    "trace_id" : ${content_trace_id},
-    "span_id" : ${content_span_id_3},
-    "parent_id" : ${content_parent_id},
-    "service" : "worker.org.gradle.process.internal.worker.gradleworkermain",
     "name" : "karate.step",
-    "resource" : "Then match response == value",
-    "start" : ${content_start_3},
+    "parent_id" : ${content_parent_id_2},
+    "resource" : "Given def p = 'b'",
+    "service" : "worker.org.gradle.process.internal.worker.gradleworkermain",
+    "span_id" : ${content_span_id_2},
+    "start" : ${content_start_2},
+    "trace_id" : ${content_trace_id_2}
+  },
+  "type" : "span",
+  "version" : 1
+}, {
+  "content" : {
     "duration" : ${content_duration_3},
     "error" : 0,
+    "meta" : {
+      "component" : "karate",
+      "env" : "none",
+      "library_version" : ${content_meta_library_version},
+      "step.name" : "Then match response == value"
+    },
     "metrics" : {
       "step.endLine" : 8,
       "step.startLine" : 8
     },
-    "meta" : {
-      "library_version" : ${content_meta_library_version},
-      "component" : "karate",
-      "step.name" : "Then match response == value",
-      "env" : "none"
-    }
-  }
-}, {
-  "type" : "span",
-  "version" : 1,
-  "content" : {
-    "trace_id" : ${content_trace_id_2},
-    "span_id" : ${content_span_id_4},
-    "parent_id" : ${content_parent_id_2},
-    "service" : "worker.org.gradle.process.internal.worker.gradleworkermain",
     "name" : "karate.step",
+    "parent_id" : ${content_parent_id},
     "resource" : "Then match response == value",
-    "start" : ${content_start_4},
+    "service" : "worker.org.gradle.process.internal.worker.gradleworkermain",
+    "span_id" : ${content_span_id_3},
+    "start" : ${content_start_3},
+    "trace_id" : ${content_trace_id}
+  },
+  "type" : "span",
+  "version" : 1
+}, {
+  "content" : {
     "duration" : ${content_duration_4},
     "error" : 0,
+    "meta" : {
+      "component" : "karate",
+      "env" : "none",
+      "library_version" : ${content_meta_library_version},
+      "step.name" : "Then match response == value"
+    },
     "metrics" : {
       "step.endLine" : 8,
       "step.startLine" : 8
     },
-    "meta" : {
-      "library_version" : ${content_meta_library_version},
-      "component" : "karate",
-      "step.name" : "Then match response == value",
-      "env" : "none"
-    }
-  }
-}, {
-  "type" : "span",
-  "version" : 1,
-  "content" : {
-    "trace_id" : ${content_trace_id},
-    "span_id" : ${content_span_id_5},
-    "parent_id" : ${content_parent_id},
-    "service" : "worker.org.gradle.process.internal.worker.gradleworkermain",
     "name" : "karate.step",
-    "resource" : "When def response = p + p",
-    "start" : ${content_start_5},
+    "parent_id" : ${content_parent_id_2},
+    "resource" : "Then match response == value",
+    "service" : "worker.org.gradle.process.internal.worker.gradleworkermain",
+    "span_id" : ${content_span_id_4},
+    "start" : ${content_start_4},
+    "trace_id" : ${content_trace_id_2}
+  },
+  "type" : "span",
+  "version" : 1
+}, {
+  "content" : {
     "duration" : ${content_duration_5},
     "error" : 0,
+    "meta" : {
+      "component" : "karate",
+      "env" : "none",
+      "library_version" : ${content_meta_library_version},
+      "step.name" : "When def response = p + p"
+    },
     "metrics" : {
       "step.endLine" : 7,
       "step.startLine" : 7
     },
-    "meta" : {
-      "library_version" : ${content_meta_library_version},
-      "component" : "karate",
-      "step.name" : "When def response = p + p",
-      "env" : "none"
-    }
-  }
-}, {
-  "type" : "span",
-  "version" : 1,
-  "content" : {
-    "trace_id" : ${content_trace_id_2},
-    "span_id" : ${content_span_id_6},
-    "parent_id" : ${content_parent_id_2},
-    "service" : "worker.org.gradle.process.internal.worker.gradleworkermain",
     "name" : "karate.step",
+    "parent_id" : ${content_parent_id},
     "resource" : "When def response = p + p",
-    "start" : ${content_start_6},
+    "service" : "worker.org.gradle.process.internal.worker.gradleworkermain",
+    "span_id" : ${content_span_id_5},
+    "start" : ${content_start_5},
+    "trace_id" : ${content_trace_id}
+  },
+  "type" : "span",
+  "version" : 1
+}, {
+  "content" : {
     "duration" : ${content_duration_6},
     "error" : 0,
+    "meta" : {
+      "component" : "karate",
+      "env" : "none",
+      "library_version" : ${content_meta_library_version},
+      "step.name" : "When def response = p + p"
+    },
     "metrics" : {
       "step.endLine" : 7,
       "step.startLine" : 7
     },
-    "meta" : {
-      "library_version" : ${content_meta_library_version},
-      "component" : "karate",
-      "step.name" : "When def response = p + p",
-      "env" : "none"
-    }
-  }
-}, {
-  "type" : "test_suite_end",
-  "version" : 1,
-  "content" : {
-    "test_session_id" : ${content_test_session_id},
-    "test_module_id" : ${content_test_module_id},
-    "test_suite_id" : ${content_test_suite_id},
+    "name" : "karate.step",
+    "parent_id" : ${content_parent_id_2},
+    "resource" : "When def response = p + p",
     "service" : "worker.org.gradle.process.internal.worker.gradleworkermain",
-    "name" : "karate.test_suite",
-    "resource" : "[org/example/test_parameterized] test parameterized",
-    "start" : ${content_start_7},
+    "span_id" : ${content_span_id_6},
+    "start" : ${content_start_6},
+    "trace_id" : ${content_trace_id_2}
+  },
+  "type" : "span",
+  "version" : 1
+}, {
+  "content" : {
     "duration" : ${content_duration_7},
     "error" : 0,
-    "metrics" : { },
     "meta" : {
-      "test.type" : "test",
+      "component" : "karate",
+      "dummy_ci_tag" : "dummy_ci_tag_value",
+      "env" : "none",
+      "library_version" : ${content_meta_library_version},
       "os.architecture" : ${content_meta_os_architecture},
-      "test.module" : "karate",
-      "test.status" : "pass",
+      "os.platform" : ${content_meta_os_platform},
+      "os.version" : ${content_meta_os_version},
       "runtime.name" : ${content_meta_runtime_name},
       "runtime.vendor" : ${content_meta_runtime_vendor},
-      "env" : "none",
-      "os.platform" : ${content_meta_os_platform},
-      "dummy_ci_tag" : "dummy_ci_tag_value",
-      "os.version" : ${content_meta_os_version},
-      "library_version" : ${content_meta_library_version},
-      "component" : "karate",
-      "span.kind" : "test_suite_end",
-      "test.suite" : "[org/example/test_parameterized] test parameterized",
       "runtime.version" : ${content_meta_runtime_version},
+      "span.kind" : "test_suite_end",
+      "test.framework" : "karate",
       "test.framework_version" : ${content_meta_test_framework_version},
-      "test.framework" : "karate"
-    }
-  }
-}, {
-  "type" : "test",
-  "version" : 2,
-  "content" : {
-    "trace_id" : ${content_trace_id},
-    "span_id" : ${content_parent_id},
-    "parent_id" : ${content_parent_id_3},
-    "test_session_id" : ${content_test_session_id},
-    "test_module_id" : ${content_test_module_id},
-    "test_suite_id" : ${content_test_suite_id},
+      "test.module" : "karate",
+      "test.status" : "pass",
+      "test.suite" : "[org/example/test_parameterized] test parameterized",
+      "test.type" : "test"
+    },
+    "metrics" : { },
+    "name" : "karate.test_suite",
+    "resource" : "[org/example/test_parameterized] test parameterized",
     "service" : "worker.org.gradle.process.internal.worker.gradleworkermain",
-    "name" : "karate.test",
-    "resource" : "[org/example/test_parameterized] test parameterized.first scenario as an outline",
-    "start" : ${content_start_8},
+    "start" : ${content_start_7},
+    "test_module_id" : ${content_test_module_id},
+    "test_session_id" : ${content_test_session_id},
+    "test_suite_id" : ${content_test_suite_id}
+  },
+  "type" : "test_suite_end",
+  "version" : 1
+}, {
+  "content" : {
     "duration" : ${content_duration_8},
     "error" : 0,
-    "metrics" : {
-      "process_id" : ${content_metrics_process_id},
-      "_dd.profiling.enabled" : 0,
-      "_dd.trace_span_attribute_schema" : 0
-    },
     "meta" : {
-      "os.architecture" : ${content_meta_os_architecture},
-      "test.module" : "karate",
-      "test.status" : "pass",
+      "_dd.profiling.ctx" : "test",
+      "component" : "karate",
+      "dummy_ci_tag" : "dummy_ci_tag_value",
+      "env" : "none",
       "language" : "jvm",
-      "runtime.name" : ${content_meta_runtime_name},
+      "library_version" : ${content_meta_library_version},
+      "os.architecture" : ${content_meta_os_architecture},
       "os.platform" : ${content_meta_os_platform},
       "os.version" : ${content_meta_os_version},
-      "library_version" : ${content_meta_library_version},
-      "test.name" : "first scenario as an outline",
-      "span.kind" : "test",
-      "test.suite" : "[org/example/test_parameterized] test parameterized",
-      "runtime.version" : ${content_meta_runtime_version},
       "runtime-id" : ${content_meta_runtime_id},
-      "test.type" : "test",
+      "runtime.name" : ${content_meta_runtime_name},
       "runtime.vendor" : ${content_meta_runtime_vendor},
-      "env" : "none",
-      "dummy_ci_tag" : "dummy_ci_tag_value",
-      "test.parameters" : "{\"param\":\"\\'a\\'\",\"value\":\"aa\"}",
-      "component" : "karate",
-      "_dd.profiling.ctx" : "test",
+      "runtime.version" : ${content_meta_runtime_version},
+      "span.kind" : "test",
+      "test.framework" : "karate",
       "test.framework_version" : ${content_meta_test_framework_version},
-      "test.framework" : "karate"
-    }
-  }
-}, {
-  "type" : "test",
-  "version" : 2,
-  "content" : {
-    "trace_id" : ${content_trace_id_2},
-    "span_id" : ${content_parent_id_2},
-    "parent_id" : ${content_parent_id_3},
-    "test_session_id" : ${content_test_session_id},
-    "test_module_id" : ${content_test_module_id},
-    "test_suite_id" : ${content_test_suite_id},
-    "service" : "worker.org.gradle.process.internal.worker.gradleworkermain",
+      "test.module" : "karate",
+      "test.name" : "first scenario as an outline",
+      "test.parameters" : "{\"param\":\"\\'a\\'\",\"value\":\"aa\"}",
+      "test.status" : "pass",
+      "test.suite" : "[org/example/test_parameterized] test parameterized",
+      "test.type" : "test"
+    },
+    "metrics" : {
+      "_dd.profiling.enabled" : 0,
+      "_dd.trace_span_attribute_schema" : 0,
+      "process_id" : ${content_metrics_process_id}
+    },
     "name" : "karate.test",
+    "parent_id" : ${content_parent_id_3},
     "resource" : "[org/example/test_parameterized] test parameterized.first scenario as an outline",
-    "start" : ${content_start_9},
+    "service" : "worker.org.gradle.process.internal.worker.gradleworkermain",
+    "span_id" : ${content_parent_id},
+    "start" : ${content_start_8},
+    "test_module_id" : ${content_test_module_id},
+    "test_session_id" : ${content_test_session_id},
+    "test_suite_id" : ${content_test_suite_id},
+    "trace_id" : ${content_trace_id}
+  },
+  "type" : "test",
+  "version" : 2
+}, {
+  "content" : {
     "duration" : ${content_duration_9},
     "error" : 0,
-    "metrics" : {
-      "process_id" : ${content_metrics_process_id},
-      "_dd.profiling.enabled" : 0,
-      "_dd.trace_span_attribute_schema" : 0
-    },
     "meta" : {
-      "os.architecture" : ${content_meta_os_architecture},
-      "test.module" : "karate",
-      "test.status" : "pass",
+      "_dd.profiling.ctx" : "test",
+      "component" : "karate",
+      "dummy_ci_tag" : "dummy_ci_tag_value",
+      "env" : "none",
       "language" : "jvm",
-      "runtime.name" : ${content_meta_runtime_name},
+      "library_version" : ${content_meta_library_version},
+      "os.architecture" : ${content_meta_os_architecture},
       "os.platform" : ${content_meta_os_platform},
       "os.version" : ${content_meta_os_version},
-      "library_version" : ${content_meta_library_version},
-      "test.name" : "first scenario as an outline",
-      "span.kind" : "test",
-      "test.suite" : "[org/example/test_parameterized] test parameterized",
-      "runtime.version" : ${content_meta_runtime_version},
       "runtime-id" : ${content_meta_runtime_id},
-      "test.type" : "test",
+      "runtime.name" : ${content_meta_runtime_name},
       "runtime.vendor" : ${content_meta_runtime_vendor},
-      "env" : "none",
-      "dummy_ci_tag" : "dummy_ci_tag_value",
-      "test.parameters" : "{\"param\":\"\\'b\\'\",\"value\":\"bb\"}",
-      "component" : "karate",
-      "_dd.profiling.ctx" : "test",
+      "runtime.version" : ${content_meta_runtime_version},
+      "span.kind" : "test",
+      "test.framework" : "karate",
       "test.framework_version" : ${content_meta_test_framework_version},
-      "test.framework" : "karate"
-    }
-  }
-}, {
-  "type" : "test_session_end",
-  "version" : 1,
-  "content" : {
-    "test_session_id" : ${content_test_session_id},
+      "test.module" : "karate",
+      "test.name" : "first scenario as an outline",
+      "test.parameters" : "{\"param\":\"\\'b\\'\",\"value\":\"bb\"}",
+      "test.status" : "pass",
+      "test.suite" : "[org/example/test_parameterized] test parameterized",
+      "test.type" : "test"
+    },
+    "metrics" : {
+      "_dd.profiling.enabled" : 0,
+      "_dd.trace_span_attribute_schema" : 0,
+      "process_id" : ${content_metrics_process_id}
+    },
+    "name" : "karate.test",
+    "parent_id" : ${content_parent_id_3},
+    "resource" : "[org/example/test_parameterized] test parameterized.first scenario as an outline",
     "service" : "worker.org.gradle.process.internal.worker.gradleworkermain",
-    "name" : "karate.test_session",
-    "resource" : "karate",
-    "start" : ${content_start_10},
+    "span_id" : ${content_parent_id_2},
+    "start" : ${content_start_9},
+    "test_module_id" : ${content_test_module_id},
+    "test_session_id" : ${content_test_session_id},
+    "test_suite_id" : ${content_test_suite_id},
+    "trace_id" : ${content_trace_id_2}
+  },
+  "type" : "test",
+  "version" : 2
+}, {
+  "content" : {
     "duration" : ${content_duration_10},
     "error" : 0,
-    "metrics" : {
-      "process_id" : ${content_metrics_process_id},
-      "test.itr.tests_skipping.count" : 0,
-      "_dd.profiling.enabled" : 0,
-      "_dd.trace_span_attribute_schema" : 0
-    },
     "meta" : {
-      "os.architecture" : ${content_meta_os_architecture},
-      "test.status" : "pass",
+      "_dd.profiling.ctx" : "test",
+      "component" : "karate",
+      "dummy_ci_tag" : "dummy_ci_tag_value",
+      "env" : "none",
       "language" : "jvm",
-      "runtime.name" : ${content_meta_runtime_name},
+      "library_version" : ${content_meta_library_version},
+      "os.architecture" : ${content_meta_os_architecture},
       "os.platform" : ${content_meta_os_platform},
       "os.version" : ${content_meta_os_version},
-      "library_version" : ${content_meta_library_version},
-      "span.kind" : "test_session_end",
-      "runtime.version" : ${content_meta_runtime_version},
       "runtime-id" : ${content_meta_runtime_id},
-      "test.itr.tests_skipping.enabled" : "true",
-      "test.type" : "test",
+      "runtime.name" : ${content_meta_runtime_name},
       "runtime.vendor" : ${content_meta_runtime_vendor},
-      "env" : "none",
-      "dummy_ci_tag" : "dummy_ci_tag_value",
-      "component" : "karate",
-      "_dd.profiling.ctx" : "test",
-      "test.itr.tests_skipping.type" : "test",
+      "runtime.version" : ${content_meta_runtime_version},
+      "span.kind" : "test_session_end",
       "test.command" : "karate",
+      "test.framework" : "karate",
       "test.framework_version" : ${content_meta_test_framework_version},
-      "test.framework" : "karate"
-    }
-  }
-}, {
-  "type" : "test_module_end",
-  "version" : 1,
-  "content" : {
-    "test_session_id" : ${content_test_session_id},
-    "test_module_id" : ${content_test_module_id},
-    "service" : "worker.org.gradle.process.internal.worker.gradleworkermain",
-    "name" : "karate.test_module",
+      "test.itr.tests_skipping.enabled" : "true",
+      "test.itr.tests_skipping.type" : "test",
+      "test.status" : "pass",
+      "test.type" : "test"
+    },
+    "metrics" : {
+      "_dd.profiling.enabled" : 0,
+      "_dd.trace_span_attribute_schema" : 0,
+      "process_id" : ${content_metrics_process_id},
+      "test.itr.tests_skipping.count" : 0
+    },
+    "name" : "karate.test_session",
     "resource" : "karate",
-    "start" : ${content_start_11},
+    "service" : "worker.org.gradle.process.internal.worker.gradleworkermain",
+    "start" : ${content_start_10},
+    "test_session_id" : ${content_test_session_id}
+  },
+  "type" : "test_session_end",
+  "version" : 1
+}, {
+  "content" : {
     "duration" : ${content_duration_11},
     "error" : 0,
+    "meta" : {
+      "component" : "karate",
+      "dummy_ci_tag" : "dummy_ci_tag_value",
+      "env" : "none",
+      "library_version" : ${content_meta_library_version},
+      "os.architecture" : ${content_meta_os_architecture},
+      "os.platform" : ${content_meta_os_platform},
+      "os.version" : ${content_meta_os_version},
+      "runtime.name" : ${content_meta_runtime_name},
+      "runtime.vendor" : ${content_meta_runtime_vendor},
+      "runtime.version" : ${content_meta_runtime_version},
+      "span.kind" : "test_module_end",
+      "test.framework" : "karate",
+      "test.framework_version" : ${content_meta_test_framework_version},
+      "test.itr.tests_skipping.enabled" : "true",
+      "test.itr.tests_skipping.type" : "test",
+      "test.module" : "karate",
+      "test.status" : "pass",
+      "test.type" : "test"
+    },
     "metrics" : {
       "test.itr.tests_skipping.count" : 0
     },
-    "meta" : {
-      "test.type" : "test",
-      "os.architecture" : ${content_meta_os_architecture},
-      "test.module" : "karate",
-      "test.status" : "pass",
-      "runtime.name" : ${content_meta_runtime_name},
-      "runtime.vendor" : ${content_meta_runtime_vendor},
-      "env" : "none",
-      "os.platform" : ${content_meta_os_platform},
-      "dummy_ci_tag" : "dummy_ci_tag_value",
-      "os.version" : ${content_meta_os_version},
-      "library_version" : ${content_meta_library_version},
-      "component" : "karate",
-      "span.kind" : "test_module_end",
-      "test.itr.tests_skipping.type" : "test",
-      "runtime.version" : ${content_meta_runtime_version},
-      "test.framework_version" : ${content_meta_test_framework_version},
-      "test.framework" : "karate",
-      "test.itr.tests_skipping.enabled" : "true"
-    }
-  }
+    "name" : "karate.test_module",
+    "resource" : "karate",
+    "service" : "worker.org.gradle.process.internal.worker.gradleworkermain",
+    "start" : ${content_start_11},
+    "test_module_id" : ${content_test_module_id},
+    "test_session_id" : ${content_test_session_id}
+  },
+  "type" : "test_module_end",
+  "version" : 1
 } ]
