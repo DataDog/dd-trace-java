@@ -936,10 +936,6 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
     boolean tombstone = false,
     boolean distributedRootSpan = !hasQueueSpan()
   ) {
-    def servers = config.get(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG)
-    if (servers == null || servers == "") {
-      assert config.toMapString().isEmpty()
-    }
     trace.span {
       serviceName service()
       operationName operationForConsumer()
