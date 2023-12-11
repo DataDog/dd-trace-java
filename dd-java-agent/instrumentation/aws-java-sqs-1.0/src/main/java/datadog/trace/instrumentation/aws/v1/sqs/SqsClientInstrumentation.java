@@ -8,7 +8,6 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.InstrumentationContext;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -46,7 +45,8 @@ public final class SqsClientInstrumentation extends Instrumenter.Tracing
   @Override
   public Map<String, String> contextStore() {
     return Collections.singletonMap(
-        "com.amazonaws.AmazonWebServiceRequest", AgentSpan.class.getName());
+        "com.amazonaws.AmazonWebServiceRequest",
+        "datadog.trace.bootstrap.instrumentation.api.AgentSpan");
   }
 
   public static class HandlerChainAdvice {
@@ -61,7 +61,8 @@ public final class SqsClientInstrumentation extends Instrumenter.Tracing
         handlers.add(
             new SqsInterceptor(
                 InstrumentationContext.get(
-                    "com.amazonaws.AmazonWebServiceRequest", AgentSpan.class.getName())));
+                    "com.amazonaws.AmazonWebServiceRequest",
+                    "datadog.trace.bootstrap.instrumentation.api.AgentSpan")));
       }
     }
   }

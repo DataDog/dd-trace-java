@@ -7,7 +7,6 @@ import com.amazonaws.handlers.RequestHandler2;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.InstrumentationContext;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.util.List;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
@@ -44,7 +43,9 @@ public final class HandlerChainFactoryInstrumentation extends Instrumenter.Traci
   public Map<String, String> contextStore() {
     Map<String, String> map = new java.util.HashMap<>();
     map.put("com.amazonaws.services.sqs.model.ReceiveMessageResult", "java.lang.String");
-    map.put("com.amazonaws.AmazonWebServiceRequest", AgentSpan.class.getName());
+    map.put(
+        "com.amazonaws.AmazonWebServiceRequest",
+        "datadog.trace.bootstrap.instrumentation.api.AgentSpan");
     return map;
   }
 
@@ -68,7 +69,8 @@ public final class HandlerChainFactoryInstrumentation extends Instrumenter.Traci
               InstrumentationContext.get(
                   "com.amazonaws.services.sqs.model.ReceiveMessageResult", "java.lang.String"),
               InstrumentationContext.get(
-                  "com.amazonaws.AmazonWebServiceRequest", AgentSpan.class.getName())));
+                  "com.amazonaws.AmazonWebServiceRequest",
+                  "datadog.trace.bootstrap.instrumentation.api.AgentSpan")));
     }
   }
 }
