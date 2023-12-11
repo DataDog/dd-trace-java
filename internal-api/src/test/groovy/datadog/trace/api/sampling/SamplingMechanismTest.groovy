@@ -79,6 +79,14 @@ class SamplingMechanismTest extends Specification {
     APPSEC            | userDropX    | false
     APPSEC            | userKeepX    | false
 
+    DATA_JOBS         | UNSET        | false
+    DATA_JOBS         | SAMPLER_DROP | false
+    DATA_JOBS         | SAMPLER_KEEP | false
+    DATA_JOBS         | USER_DROP    | false
+    DATA_JOBS         | USER_KEEP    | true
+    DATA_JOBS         | userDropX    | false
+    DATA_JOBS         | userKeepX    | false
+
     EXTERNAL_OVERRIDE | UNSET        | false
     EXTERNAL_OVERRIDE | SAMPLER_DROP | false
     EXTERNAL_OVERRIDE | SAMPLER_KEEP | false

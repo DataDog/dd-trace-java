@@ -4,6 +4,8 @@ import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.DDSpanId
 import datadog.trace.api.DDTraceId
 import datadog.trace.api.Platform
+import datadog.trace.api.sampling.PrioritySampling
+import datadog.trace.api.sampling.SamplingMechanism
 import datadog.trace.test.util.Flaky
 import org.apache.hadoop.yarn.api.records.FinalApplicationStatus
 import org.apache.hadoop.yarn.conf.YarnConfiguration
@@ -51,6 +53,8 @@ abstract class AbstractSparkTest extends AgentTestRunner {
           resourceName "spark.application"
           spanType "spark"
           errored false
+          assert span.context().getSamplingPriority() == PrioritySampling.USER_KEEP
+          assert span.context().getPropagationTags().createTagMap()["_dd.p.dm"] == (-SamplingMechanism.DATA_JOBS).toString()
           parent()
         }
         span {
@@ -254,6 +258,8 @@ abstract class AbstractSparkTest extends AgentTestRunner {
           spanType "spark"
           traceId 8944764253919609482G
           parentSpanId 15104224823446433673G
+          assert span.context().getSamplingPriority() == PrioritySampling.USER_KEEP
+          assert span.context().getPropagationTags().createTagMap()["_dd.p.dm"] == (-SamplingMechanism.DATA_JOBS).toString()
           assert span.tags["databricks_job_id"] == "1234"
           assert span.tags["databricks_job_run_id"] == "5678"
           assert span.tags["databricks_task_run_id"] == "9012"
@@ -275,6 +281,8 @@ abstract class AbstractSparkTest extends AgentTestRunner {
           spanType "spark"
           traceId 5240384461065211484G
           parentSpanId 14128229261586201946G
+          assert span.context().getSamplingPriority() == PrioritySampling.USER_KEEP
+          assert span.context().getPropagationTags().createTagMap()["_dd.p.dm"] == (-SamplingMechanism.DATA_JOBS).toString()
           assert span.tags["databricks_job_id"] == "3456"
           assert span.tags["databricks_job_run_id"] == "901"
           assert span.tags["databricks_task_run_id"] == "7890"
@@ -296,6 +304,8 @@ abstract class AbstractSparkTest extends AgentTestRunner {
           spanType "spark"
           traceId 2235374731114184741G
           parentSpanId 8956125882166502063G
+          assert span.context().getSamplingPriority() == PrioritySampling.USER_KEEP
+          assert span.context().getPropagationTags().createTagMap()["_dd.p.dm"] == (-SamplingMechanism.DATA_JOBS).toString()
           assert span.tags["databricks_job_id"] == "123"
           assert span.tags["databricks_job_run_id"] == "8765"
           assert span.tags["databricks_task_run_id"] == "456"
@@ -316,6 +326,8 @@ abstract class AbstractSparkTest extends AgentTestRunner {
           operationName "spark.job"
           spanType "spark"
           parent()
+          assert span.context().getSamplingPriority() == PrioritySampling.USER_KEEP
+          assert span.context().getPropagationTags().createTagMap()["_dd.p.dm"] == (-SamplingMechanism.DATA_JOBS).toString()
           assert span.tags["databricks_job_id"] == null
           assert span.tags["databricks_job_run_id"] == "8765"
           assert span.tags["databricks_task_run_id"] == null
@@ -429,6 +441,8 @@ abstract class AbstractSparkTest extends AgentTestRunner {
           spanType "spark"
           traceId 8944764253919609482G
           parentSpanId 15104224823446433673G
+          assert span.context().getSamplingPriority() == PrioritySampling.USER_KEEP
+          assert span.context().getPropagationTags().createTagMap()["_dd.p.dm"] == (-SamplingMechanism.DATA_JOBS).toString()
         }
         span {
           operationName "spark.job"
