@@ -31,6 +31,10 @@ dependencies {
 
   // to instrument the integration test
   testRuntimeOnly(project(':dd-java-agent:instrumentation:jetty-9'))
+  testRuntimeOnly(project(':dd-java-agent:instrumentation:apache-httpcore-4'))
+  testRuntimeOnly(project(':dd-java-agent:instrumentation:servlet'))
+  testRuntimeOnly(project(':dd-java-agent:instrumentation:java-net'))
+  testRuntimeOnly project(':dd-java-agent:instrumentation:iast-instrumenter')
 
   latestDepTestImplementation group: 'org.apache.httpcomponents', name: 'httpclient', version: '+'
 }

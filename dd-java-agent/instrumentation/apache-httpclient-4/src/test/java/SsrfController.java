@@ -75,34 +75,13 @@ public class SsrfController {
     switch (client) {
       case DefaultHttpClient:
         return new DefaultHttpClient();
-        /*
-        case AutoRetryHttpClient:
-          return new AutoRetryHttpClient();
-        case ContentEncodingHttpClient:
-          return new ContentEncodingHttpClient();
-        case DecompressingHttpClient:
-          return new DecompressingHttpClient();
-        case InternalHttpClient:
-          return HttpClientBuilder.create().build();
-        case MinimalHttpClient:
-          return HttpClients.createMinimal();
-        case SystemDefaultHttpClient:
-          return new SystemDefaultHttpClient();
-
-           */
       default:
         throw new IllegalArgumentException("Unknown client: " + client);
     }
   }
 
   public enum Client {
-    DefaultHttpClient,
-    AutoRetryHttpClient,
-    ContentEncodingHttpClient,
-    DecompressingHttpClient,
-    InternalHttpClient,
-    MinimalHttpClient,
-    SystemDefaultHttpClient
+    DefaultHttpClient
   }
 
   public enum Request {

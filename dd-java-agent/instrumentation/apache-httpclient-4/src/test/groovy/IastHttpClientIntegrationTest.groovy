@@ -1,6 +1,6 @@
+import com.datadog.iast.model.VulnerabilityType
 import com.datadog.iast.test.IastHttpServerTest
 import datadog.trace.agent.test.base.HttpServer
-import okhttp3.FormBody
 import okhttp3.Request
 
 import static datadog.trace.agent.test.server.http.TestHttpServer.httpServer
@@ -14,12 +14,12 @@ class IastHttpClientIntegrationTest extends IastHttpServerTest<HttpServer> {
       handlers {
         prefix('/ssrf/execute') {
           final msg = controller.apacheSsrf(
-            (String) request.getParameter('url'),
-            (String) request.getParameter('client'),
-            (String) request.getParameter('method'),
-            (String) request.getParameter('requestType'),
-            (String) request.getParameter('scheme')
-            )
+          (String) request.getParameter('url'),
+          (String) request.getParameter('client'),
+          (String) request.getParameter('method'),
+          (String) request.getParameter('requestType'),
+          (String) request.getParameter('scheme')
+          )
           response.status(200).send(msg)
         }
       }
@@ -29,18 +29,12 @@ class IastHttpClientIntegrationTest extends IastHttpServerTest<HttpServer> {
   void 'ssrf is present'() {
     setup:
     def expected = 'http://dd.datad0g.com/test/' + suite.executedMethod
-    final url = address.toString() + 'ssrf/execute'
-    final body = new FormBody.Builder()
-      .add('url', expected)
-      .add('client', suite.clientImplementation)
-      .add('method', suite.executedMethod)
-      .add('requestType', suite.requestType)
-      .add('scheme', suite.scheme)
-      .build()
-    final request = new Request.Builder().url(url).post(body).build()
     if (suite.scheme == 'https') {
       expected = expected.replace('http', 'https')
     }
+    final url = address.toString() + 'ssrf/execute' + '?url=' + expected + '&client=' + suite.clientImplementation + '&method=' + suite.executedMethod + '&requestType=' + suite.requestType + '&scheme=' + suite.scheme
+    final request = new Request.Builder().url(url).get().build()
+
 
     when:
     def response = client.newCall(request).execute()
@@ -50,14 +44,11 @@ class IastHttpClientIntegrationTest extends IastHttpServerTest<HttpServer> {
 
     def to = getFinReqTaintedObjects()
     assert to != null
-    /*
-     hasVulnerability {
-     vul ->
-     vul.type == 'SSRF'
-     && vul.location.path == 'datadog.smoketest.springboot.SsrfController'
-     && vul.evidence.valueParts[0].value == expected
-     }
-     */
+    hasVulnerability (
+    vul ->
+    vul.type == VulnerabilityType.SSRF
+    && vul.evidence.value == expected
+    )
 
 
     where:
@@ -80,12 +71,12 @@ class IastHttpClientIntegrationTest extends IastHttpServerTest<HttpServer> {
 
   private TestSuite createTestSuite(client, method, request, scheme) {
     return new TestSuite(
-      description: "ssrf is present for ${client} client and ${method} method with ${request} and ${scheme} scheme",
-      executedMethod: method.name(),
-      clientImplementation: client.name(),
-      requestType: request.name(),
-      scheme: scheme
-      )
+    description: "ssrf is present for ${client} client and ${method} method with ${request} and ${scheme} scheme",
+    executedMethod: method.name(),
+    clientImplementation: client.name(),
+    requestType: request.name(),
+    scheme: scheme
+    )
   }
 
   private static class TestSuite {
