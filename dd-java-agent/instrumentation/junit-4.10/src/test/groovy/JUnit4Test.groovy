@@ -17,6 +17,7 @@ import org.example.TestSkipped
 import org.example.TestSkippedClass
 import org.example.TestSucceed
 import org.example.TestSucceedAndSkipped
+import org.example.TestSucceedLegacy
 import org.example.TestSucceedSuite
 import org.example.TestSucceedUnskippable
 import org.example.TestSucceedUnskippableSuite
@@ -66,6 +67,7 @@ class JUnit4Test extends CiVisibilityInstrumentationTest {
     "test-itr-unskippable"                               | [TestSucceedUnskippable]             | 2                   | [new SkippableTest("org.example.TestSucceedUnskippable", "test_succeed", null, null)]
     "test-itr-unskippable-suite"                         | [TestSucceedUnskippableSuite]        | 2                   | [new SkippableTest("org.example.TestSucceedUnskippableSuite", "test_succeed", null, null)]
     "test-itr-unskippable-not-skipped"                   | [TestSucceedUnskippable]             | 2                   | []
+    "test-legacy"                                        | [TestSucceedLegacy]                  | 2                   | []
   }
 
   private void runTests(Collection<Class<?>> tests) {

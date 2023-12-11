@@ -400,6 +400,7 @@ abstract class GrpcTest extends VersionedNamingTestBase {
             "status.code" "UNKNOWN"
             "request.type" "example.Helloworld\$Request"
             "response.type" "example.Helloworld\$Response"
+            "status.description" { it == null || String}
             if ({ isDataStreamsEnabled() }) {
               "$DDTags.PATHWAY_HASH" { String }
             }

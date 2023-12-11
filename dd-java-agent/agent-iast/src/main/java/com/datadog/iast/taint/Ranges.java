@@ -59,6 +59,15 @@ public final class Ranges {
     return new Range[] {new Range(0, Integer.MAX_VALUE, source, mark)};
   }
 
+  @Nullable
+  public static Range findUnbound(@Nonnull final Range[] ranges) {
+    if (ranges.length != 1) {
+      return null;
+    }
+    final Range range = ranges[0];
+    return range.getStart() == 0 && range.getLength() == Integer.MAX_VALUE ? range : null;
+  }
+
   public static void copyShift(
       final @Nonnull Range[] src, final @Nonnull Range[] dst, final int dstPos, final int shift) {
     copyShift(src, dst, dstPos, shift, src.length);
