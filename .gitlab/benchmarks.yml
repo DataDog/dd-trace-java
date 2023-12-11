@@ -33,7 +33,14 @@ benchmarks:
 
 .dsm-kafka-benchmarks:
   stage: benchmarks
-  when: manual
+  rules:
+    - if: $CI_PIPELINE_SOURCE != "schedule"
+      changes:
+        paths:
+          - dd-java-agent/instrumentation/kafka*/**/*
+        compare_to: "master"
+      when: on_success
+    - when: manual
   tags: ["runner:apm-k8s-same-cpu"]
   interruptible: true
   timeout: 1h
