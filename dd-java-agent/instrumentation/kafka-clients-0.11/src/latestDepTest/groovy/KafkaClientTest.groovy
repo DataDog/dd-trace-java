@@ -133,7 +133,7 @@ class KafkaClientTest extends AgentTestRunner {
             if ({ isDataStreamsEnabled() }) {
               "$DDTags.PATHWAY_HASH" { String }
             }
-            "$InstrumentationTags.KAFKA_BOOTSTRAP_SERVERS"  producerProps.get(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG)
+            "$InstrumentationTags.KAFKA_BOOTSTRAP_SERVERS" producerProps.get(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG)
             peerServiceFrom(InstrumentationTags.KAFKA_BOOTSTRAP_SERVERS)
             defaultTags()
           }
