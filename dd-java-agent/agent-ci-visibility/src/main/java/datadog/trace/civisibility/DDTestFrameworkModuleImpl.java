@@ -18,6 +18,7 @@ import java.util.Collection;
 import java.util.HashSet;
 import java.util.concurrent.atomic.LongAdder;
 import java.util.function.Consumer;
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 /**
@@ -81,6 +82,7 @@ public class DDTestFrameworkModuleImpl extends DDTestModuleImpl implements DDTes
   }
 
   @Override
+  @Nonnull
   public TestRetryPolicy retryPolicy(TestIdentifier test) {
     return test != null && flakyTests.contains(test)
         ? new RetryIfFailed(config.getCiVisibilityFlakyRetryCount())

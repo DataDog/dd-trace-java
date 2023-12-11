@@ -5,6 +5,7 @@ import datadog.trace.api.civisibility.retry.TestRetryPolicy;
 import java.io.Closeable;
 import java.lang.reflect.Method;
 import java.util.Collection;
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 public interface TestEventsHandler extends Closeable {
@@ -73,6 +74,7 @@ public interface TestEventsHandler extends Closeable {
 
   boolean skip(TestIdentifier test);
 
+  @Nonnull
   TestRetryPolicy retryPolicy(TestIdentifier test);
 
   @Override
