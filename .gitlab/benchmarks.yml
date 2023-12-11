@@ -41,7 +41,7 @@ benchmarks:
         compare_to: "master"
       when: on_success
     - when: manual
-  tags: ["runner:apm-k8s-same-cpu"]
+  tags: ["runner:apm-k8s-tweaked-metal"]
   interruptible: true
   timeout: 1h
   image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/benchmarking-platform:java-dsm-kafka
