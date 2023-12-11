@@ -42,6 +42,7 @@ public class SamplingMechanism {
         return priority == USER_DROP || priority == USER_KEEP;
 
       case APPSEC:
+      case DATA_JOBS:
         return priority == PrioritySampling.USER_KEEP;
 
       case EXTERNAL_OVERRIDE:
