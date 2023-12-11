@@ -3,6 +3,7 @@ package datadog.trace.instrumentation.vertx_redis_client;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.captureSpan;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopSpan;
 import static datadog.trace.instrumentation.vertx_redis_client.VertxRedisClientDecorator.DECORATE;
 import static datadog.trace.instrumentation.vertx_redis_client.VertxRedisClientDecorator.REDIS_COMMAND;
 
@@ -42,12 +43,6 @@ public class RedisFutureSendAdvice {
     }
     ctxt.put(request, Boolean.TRUE);
 
-    // If we had already wrapped the innermost handler in the RedisAPI call, then we should
-    // not wrap it again here. See comment in RedisAPICallAdvice
-    if (CallDepthThreadLocalMap.incrementCallDepth(RedisAPI.class) > 0) {
-      return AgentTracer.NoopAgentScope.INSTANCE;
-    }
-
     AgentSpan parentSpan = activeSpan();
 
     if (parentSpan != null && REDIS_COMMAND.equals(parentSpan.getOperationName())) {
@@ -55,7 +50,14 @@ public class RedisFutureSendAdvice {
       return null;
     }
 
-    parentContinuation = null == parentSpan ? null : captureSpan(parentSpan);
+    parentContinuation = null == parentSpan ? captureSpan(noopSpan()) : captureSpan(parentSpan);
+
+    // If we had already wrapped the innermost handler in the RedisAPI call, then we should
+    // not wrap it again here. See comment in RedisAPICallAdvice
+    if (CallDepthThreadLocalMap.incrementCallDepth(RedisAPI.class) > 0) {
+      return AgentTracer.NoopAgentScope.INSTANCE;
+    }
+
     final AgentSpan clientSpan =
         DECORATE.startAndDecorateSpan(
             request.command(), InstrumentationContext.get(Command.class, UTF8BytesString.class));
