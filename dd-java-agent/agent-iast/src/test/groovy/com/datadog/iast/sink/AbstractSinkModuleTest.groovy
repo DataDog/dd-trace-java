@@ -1,13 +1,37 @@
 package com.datadog.iast.sink
 
 import com.datadog.iast.IastModuleImplTestBase
+import com.datadog.iast.IastRequestContext
+import com.datadog.iast.model.Source
+import com.datadog.iast.overhead.Operations
+import com.datadog.iast.propagation.PropagationModuleImpl
+import com.datadog.iast.taint.Ranges
+import datadog.trace.api.gateway.RequestContext
+import datadog.trace.api.gateway.RequestContextSlot
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 
-class AbstractSinkModuleTest  extends IastModuleImplTestBase {
+import static com.datadog.iast.model.VulnerabilityType.SSRF
+import static datadog.trace.api.iast.SourceTypes.REQUEST_PARAMETER_VALUE
+
+class AbstractSinkModuleTest extends IastModuleImplTestBase {
 
   final StackTraceElement ignoredPackageClassElement = element("org.springframework.Ignored")
   final StackTraceElement notIgnoredPackageClassElement = element("datadog.smoketest.NotIgnored")
   final StackTraceElement notInIastExclusionTrie = element("not.in.iast.exclusion.Class")
 
+  private IastRequestContext ctx
+  private AgentSpan span
+
+  void setup() {
+    ctx = new IastRequestContext()
+    final reqCtx = Mock(RequestContext) {
+      getData(RequestContextSlot.IAST) >> ctx
+    }
+    span = Mock(AgentSpan) {
+      getRequestContext() >> reqCtx
+    }
+    tracer.activeSpan() >> span
+  }
 
   void 'filter ignored package element from stack'() {
 
@@ -41,6 +65,37 @@ class AbstractSinkModuleTest  extends IastModuleImplTestBase {
     final StackTraceElement result = SinkModuleBase.findValidPackageForVulnerability(list.stream())
     then:
     result == expected
+  }
+
+  void 'test reporting evidence on objects'() {
+    given:
+    overheadController.consumeQuota(Operations.REPORT_VULNERABILITY, span) >> true
+    final sink = new SinkModuleBase(dependencies) {}
+    final propagation = new PropagationModuleImpl()
+    final input = new String(source.value)
+    ctx.getTaintedObjects().taint(input, Ranges.forCharSequence(input, source))
+
+    when:
+    propagation.taintIfTainted(toReport, input)
+    final evidence = sink.checkInjection(span, ctx, SSRF, toReport)
+
+    then:
+    evidence.ranges.length == 1
+    final range = evidence.ranges[0]
+    if (matches) {
+      final taintedEvidence = evidence.value.substring(range.start, range.start + range.length)
+      taintedEvidence == input
+    } else {
+      final taintedEvidence = evidence.value
+      taintedEvidence != input
+    }
+
+    where:
+    source                                                    | toReport                                  | matches
+    new Source(REQUEST_PARAMETER_VALUE, 'url', 'datadog.com') | new URL('https://datadog.com/index.html') | true
+    new Source(REQUEST_PARAMETER_VALUE, 'url', 'datadog.com') | new URI('https://datadog.com/index.html') | true
+    new Source(REQUEST_PARAMETER_VALUE, 'url', 'datadog.com') | new URI('https://dAtAdOg.com/index.html') | false
+    new Source(REQUEST_PARAMETER_VALUE, 'url', 'datadog.com') | new URI('https://dAtAdOg.com/index.html') | false
   }
 
   private StackTraceElement element(final String declaringClass) {
