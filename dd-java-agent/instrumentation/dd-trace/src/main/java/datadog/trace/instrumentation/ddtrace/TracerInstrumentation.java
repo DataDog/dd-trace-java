@@ -13,19 +13,19 @@ import net.bytebuddy.matcher.ElementMatcher;
 public class TracerInstrumentation extends Instrumenter.Tracing
     implements Instrumenter.ForTypeHierarchy {
 
-  public TracerInstrumentation(String instrumentationName) {
+  public TracerInstrumentation() {
     super("dd-trace");
   }
 
   @Override
   public String hierarchyMarkerType() {
-    return "datadog.trace.instrumentation.ddtrace.AgentTracer.TracerAPI";
+    return "datadog.trace.bootstrap.instrumentation.api.AgentTracer.TracerAPI";
+    // "datadog.trace.instrumentation.ddtrace.AgentTracer.TracerAPI";
   }
 
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return implementsInterface(
-        named("datadog.trace.instrumentation.ddtrace.AgentTracer.TracerAPI"));
+    return implementsInterface(named(hierarchyMarkerType()));
   }
 
   @Override
