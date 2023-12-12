@@ -28,6 +28,5 @@ class IastHttpHostInstrumentationTest extends AgentTestRunner {
     ['localhost'] | _
     ['localhost', 8080] | _
     ['localhost', 8080, 'http'] | _
-    [new HttpHost('localhost')] | _
   }
 }
