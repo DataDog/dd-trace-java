@@ -109,7 +109,7 @@ class TagsAssert {
   def errorTags(Class<Throwable> errorType, message) {
     tag("error.type", {
       try {
-        if (errorType.isAssignableFrom(Class.forName(it, false, errorType.getClass().getClassLoader()))) {
+        if (errorType.isAssignableFrom(Class.forName(it, false, getClass().getClassLoader()))) {
           return true
         }
       } catch (Throwable t) {

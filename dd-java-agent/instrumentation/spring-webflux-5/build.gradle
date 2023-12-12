@@ -48,6 +48,14 @@ muzzle {
     module = "spring-webflux"
     versions = "[5.1.1.RELEASE,6)"
   }
+  pass {
+    name = "webflux_6"
+    group = "org.springframework"
+    module = "spring-webflux"
+    versions = "[6,)"
+    javaVersion = "17"
+    extraDependency "io.projectreactor:reactor-core:3.6.0"
+  }
 }
 
 apply from: "$rootDir/gradle/java.gradle"

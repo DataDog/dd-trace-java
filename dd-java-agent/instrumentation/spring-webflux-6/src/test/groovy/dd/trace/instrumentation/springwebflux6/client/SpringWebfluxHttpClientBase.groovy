@@ -9,7 +9,7 @@ import datadog.trace.api.naming.SpanNaming
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.bootstrap.instrumentation.api.URIUtils
 import datadog.trace.instrumentation.netty41.client.NettyHttpClientDecorator
-import datadog.trace.instrumentation.springwebflux6.client.SpringWebfluxHttpClientDecorator
+import datadog.trace.instrumentation.springwebflux.client.SpringWebfluxHttpClientDecorator
 import org.springframework.http.HttpMethod
 import org.springframework.web.reactive.function.client.ClientRequest
 import org.springframework.web.reactive.function.client.ClientResponse
