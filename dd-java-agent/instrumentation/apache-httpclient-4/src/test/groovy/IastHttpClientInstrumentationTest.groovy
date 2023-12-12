@@ -44,7 +44,7 @@ class IastHttpClientInstrumentationTest extends AgentTestRunner {
     if(classExpected == URI){
       1 * ssrf.onURLConnection(_ as URI)
     } else {
-      1 * ssrf.onURLConnection(_ as String)
+      1 * ssrf.onURLConnection(_ as String, _ as String, _ as String)
     }
 
     where:
