@@ -9,9 +9,6 @@ import datadog.trace.api.gateway.IGSpanInfo
 import datadog.trace.api.gateway.RequestContext
 import groovy.json.JsonBuilder
 import groovy.transform.CompileStatic
-import groovy.transform.stc.ClosureParams
-import groovy.transform.stc.SimpleType
-import org.spockframework.runtime.SpockTimeoutError
 
 import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.TimeUnit
