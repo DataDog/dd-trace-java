@@ -100,7 +100,7 @@ class TaintedMapTest extends DDSpecification {
       // Clear previous objects
       queue.each {
         final referent = it.get()
-        it.enqueue()
+        it.clear()
         map.get(referent)
       }
       queue.clear()
@@ -223,7 +223,7 @@ class TaintedMapTest extends DDSpecification {
 
     when: 'purging the head with put'
     map.put(to[0])
-    to[0].enqueue()
+    to[0].clear()
     map.put(to[1])
 
     then:
@@ -233,7 +233,7 @@ class TaintedMapTest extends DDSpecification {
     when: 'purging an element in the middle with put'
     map.put(to[2])
     map.put(to[3])
-    to[2].enqueue()
+    to[2].clear()
     map.put(to[4])
 
     then:
@@ -241,7 +241,7 @@ class TaintedMapTest extends DDSpecification {
     map.count() == 3
 
     when: 'purging the tail with get'
-    to[4].enqueue()
+    to[4].clear()
     map.get('I am not in the map!!!')
 
     then:
