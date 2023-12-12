@@ -69,7 +69,7 @@ abstract class IastHttpServerTest<SERVER> extends WithHttpServer<SERVER> impleme
   }
 
   protected void hasVulnerability(final Closure<Boolean> matcher) {
-    List<Vulnerability> vulns = VULNERABILITIES.poll(1, TimeUnit.MILLISECONDS)
+    List<Vulnerability> vulns = VULNERABILITIES.poll(15, TimeUnit.SECONDS)
     if(vulns.find(matcher) == null){
       throw new AssertionError("No matching vulnerability found. Vulnerabilities found: ${new JsonBuilder(vulns).toPrettyString()}")
     }
