@@ -52,6 +52,7 @@ dependencies {
   testImplementation group: 'org.springframework', name: 'spring-test', version: '6.0.0'
 
   latestDepTestImplementation group: 'org.springframework', name: 'spring-webflux', version: '6.+'
+  latestDepTestImplementation group: 'org.springframework', name: 'spring-context', version: '6.+'
   latestDepTestImplementation group: 'io.projectreactor.netty', name: 'reactor-netty', version: '1.+'
   latestDepTestImplementation group: 'org.springframework', name: 'spring-test', version: '6.+'
 

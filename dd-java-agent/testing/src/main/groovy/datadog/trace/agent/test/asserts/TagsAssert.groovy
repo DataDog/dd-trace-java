@@ -107,7 +107,16 @@ class TagsAssert {
   }
 
   def errorTags(Class<Throwable> errorType, message) {
-    tag("error.type", errorType.name)
+    tag("error.type", {
+      try {
+        if (errorType.isAssignableFrom(Class.forName(it, false, errorType.getClass().getClassLoader()))) {
+          return true
+        }
+      } catch (Throwable t) {
+        // can happen
+      }
+      return it == errorType.getName()
+    })
     tag("error.stack", String)
 
     if (message != null) {
