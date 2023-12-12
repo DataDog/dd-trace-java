@@ -1,8 +1,8 @@
 package opentelemetry14.context.propagation
 
 import datadog.trace.agent.test.AgentTestRunner
-import datadog.trace.api.DD128bTraceId
 import datadog.trace.api.DDSpanId
+import datadog.trace.api.DDTraceId
 import io.opentelemetry.api.GlobalOpenTelemetry
 import io.opentelemetry.context.Context
 import io.opentelemetry.context.ThreadLocalContextStorage
@@ -12,6 +12,8 @@ import io.opentelemetry.context.propagation.TextMapSetter
 import spock.lang.Subject
 
 import javax.annotation.Nullable
+
+import static datadog.trace.api.sampling.PrioritySampling.SAMPLER_KEEP
 
 abstract class AbstractPropagatorTest extends AgentTestRunner {
   static int testInstance
@@ -57,13 +59,14 @@ abstract class AbstractPropagatorTest extends AgentTestRunner {
    * @param headers The injected headers.
    * @param traceId The continued trace identifier.
    * @param spanId The child span identifier.
-   * @param sampled Whether the child span is sampled.
+   * @param sampling The sampling decision.
    */
-  abstract void assertInjectedHeaders(Map<String, String> headers, String traceId, String spanId, boolean sampled)
+  abstract void assertInjectedHeaders(Map<String, String> headers, String traceId, String spanId, byte sampling)
 
   def "test context extraction and injection"() {
     setup:
     def propagator = propagator()
+    def expectedSampled = sampling == SAMPLER_KEEP
 
     when:
     def context = propagator.extract(Context.root(), headers, new TextMap())
@@ -90,17 +93,21 @@ abstract class AbstractPropagatorTest extends AgentTestRunner {
         span {
           operationName "internal"
           resourceName "some-name"
-          traceDDId(DD128bTraceId.fromHex(traceId))
+          traceDDId(expectedTraceId(traceId))
           parentSpanId(DDSpanId.fromHex(spanId).toLong() as BigInteger)
         }
       }
     }
-    spanSampled == sampled
-    assertInjectedHeaders(injectedHeaders, traceId, localSpanId, sampled)
+    spanSampled == expectedSampled
+    assertInjectedHeaders(injectedHeaders, traceId, localSpanId, sampling)
 
     where:
     values << values()
-    (headers, traceId, spanId, sampled) = values
+    (headers, traceId, spanId, sampling) = values
+  }
+
+  def expectedTraceId(String traceId) {
+    return DDTraceId.fromHex(traceId)
   }
 
   @Override

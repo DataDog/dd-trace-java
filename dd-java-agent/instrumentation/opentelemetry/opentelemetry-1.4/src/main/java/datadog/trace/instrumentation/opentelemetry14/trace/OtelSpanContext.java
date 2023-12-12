@@ -10,13 +10,16 @@ public class OtelSpanContext implements SpanContext {
   final AgentSpan.Context delegate;
   private final boolean sampled;
   private final boolean remote;
+  private final TraceState traceState;
   private String traceId;
   private String spanId;
 
-  public OtelSpanContext(AgentSpan.Context delegate, boolean sampled, boolean remote) {
+  public OtelSpanContext(
+      AgentSpan.Context delegate, boolean sampled, boolean remote, TraceState traceState) {
     this.delegate = delegate;
     this.sampled = sampled;
     this.remote = remote;
+    this.traceState = traceState;
   }
 
   public static SpanContext fromLocalSpan(AgentSpan span) {
@@ -24,7 +27,11 @@ public class OtelSpanContext implements SpanContext {
     AgentSpan localRootSpan = span.getLocalRootSpan();
     Integer samplingPriority = localRootSpan.getSamplingPriority();
     boolean sampled = samplingPriority != null && samplingPriority > 0;
-    return new OtelSpanContext(delegate, sampled, false);
+    return new OtelSpanContext(delegate, sampled, false, TraceState.getDefault());
+  }
+
+  public static SpanContext fromRemote(AgentSpan.Context extracted, TraceState traceState) {
+    return new OtelSpanContext(extracted, extracted.getSamplingPriority() > 0, true, traceState);
   }
 
   @Override
@@ -50,7 +57,7 @@ public class OtelSpanContext implements SpanContext {
 
   @Override
   public TraceState getTraceState() {
-    return TraceState.getDefault();
+    return this.traceState;
   }
 
   @Override
