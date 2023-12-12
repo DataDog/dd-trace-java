@@ -52,7 +52,8 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
 
   static final long FEATURE_CHECK_INTERVAL_NANOS = TimeUnit.MINUTES.toNanos(5);
 
-  private static final StatsPoint REPORT = new StatsPoint(Collections.emptyList(), 0, 0, 0, 0, 0, 0);
+  private static final StatsPoint REPORT =
+      new StatsPoint(Collections.emptyList(), 0, 0, 0, 0, 0, 0);
   private static final StatsPoint FLUSH = new StatsPoint(Collections.emptyList(), 0, 0, 0, 0, 0, 0);
   private static final StatsPoint POISON_PILL =
       new StatsPoint(Collections.emptyList(), 0, 0, 0, 0, 0, 0);
@@ -289,21 +290,15 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
 
           if (payload == REPORT) {
             checkDynamicConfig();
-
-            if (supportsDataStreams) {
-              flush(timeSource.getCurrentTimeNanos());
-            } else if (timeSource.getCurrentTimeNanos() >= nextFeatureCheck) {
+            flush(timeSource.getCurrentTimeNanos());
+            if (!supportsDataStreams && timeSource.getCurrentTimeNanos() >= nextFeatureCheck) {
               checkFeatures();
             }
           } else if (payload == POISON_PILL) {
-            if (supportsDataStreams) {
-              flush(Long.MAX_VALUE);
-            }
+            flush(Long.MAX_VALUE);
             break;
           } else if (payload == FLUSH) {
-            if (supportsDataStreams) {
-              flush(Long.MAX_VALUE);
-            }
+            flush(Long.MAX_VALUE);
           } else if (supportsDataStreams) {
             if (payload instanceof StatsPoint) {
               StatsPoint statsPoint = (StatsPoint) payload;
@@ -335,6 +330,9 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
   }
 
   private void flush(long timestampNanos) {
+    if (!supportsDataStreams) {
+      return;
+    }
     long currentBucket = currentBucket(timestampNanos);
 
     List<StatsBucket> includedBuckets = new ArrayList<>();
@@ -368,19 +366,19 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
   }
 
   @Override
-  public void flushAll() {
+  public void flush() {
     if (!thread.isAlive() || !supportsDataStreams || closed) {
       return;
     }
     int count = flushCounter.get();
     int loop = 1;
     boolean signaled = inbox.offer(FLUSH);
-    while (!signaled && supportsDataStreams && !closed) {
+    while (!signaled && supportsDataStreams && !closed && thread.isAlive()) {
       yieldOrSleep(loop++);
       signaled = inbox.offer(FLUSH);
     }
     int newCount = flushCounter.get();
-    while (count >= newCount && supportsDataStreams && !closed) {
+    while (count >= newCount && supportsDataStreams && !closed && thread.isAlive()) {
       yieldOrSleep(loop++);
       newCount = flushCounter.get();
     }

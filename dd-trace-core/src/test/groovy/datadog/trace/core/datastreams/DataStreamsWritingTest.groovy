@@ -133,9 +133,17 @@ class DataStreamsWritingTest extends DDCoreSpecification {
     when:
     def dataStreams = new DefaultDataStreamsMonitoring(fakeConfig, sharedCommObjects, timeSource, { traceConfig })
     dataStreams.start()
-    dataStreams.add(new StatsPoint([], 9, 0, timeSource.currentTimeNanos, 0, 0))
-    dataStreams.add(new StatsPoint(["type:testType", "group:testGroup", "topic:testTopic"], 1, 2, timeSource.currentTimeNanos, 0, 0))
-    dataStreams.flushAll()
+    dataStreams.flush()
+    dataStreams.flush()
+
+    then:
+    // flushing nothing
+    assert requestBodies.size() == 0
+
+    when:
+    dataStreams.add(new StatsPoint([], 9, 0, timeSource.currentTimeNanos, 0, 0, 0))
+    dataStreams.add(new StatsPoint(["type:testType", "group:testGroup", "topic:testTopic"], 1, 2, timeSource.currentTimeNanos, 0, 0, 0))
+    dataStreams.flush()
 
     then:
     assert requestBodies.size() == 1

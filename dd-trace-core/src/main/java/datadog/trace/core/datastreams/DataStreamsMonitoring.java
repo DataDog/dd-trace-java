@@ -38,5 +38,5 @@ public interface DataStreamsMonitoring extends AgentDataStreamsMonitoring, AutoC
   @Override
   void close();
 
-  void flushAll();
+  void flush();
 }
