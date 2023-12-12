@@ -135,6 +135,8 @@ public interface AgentSpan extends MutableSpan, IGSpanInfo {
 
   Integer forceSamplingDecision();
 
+  AgentSpan setSamplingPriority(final int newPriority, int samplingMechanism);
+
   TraceConfig traceConfig();
 
   void addLink(AgentSpanLink link);

@@ -30,3 +30,40 @@ benchmarks:
 
     KUBERNETES_SERVICE_ACCOUNT_OVERWRITE: dd-trace-java
     FF_USE_LEGACY_KUBERNETES_EXECUTION_STRATEGY: "true"
+
+.dsm-kafka-benchmarks:
+  stage: benchmarks
+  rules:
+    - if: $CI_PIPELINE_SOURCE != "schedule"
+      changes:
+        paths:
+          - dd-java-agent/instrumentation/kafka*/**/*
+        compare_to: "master"
+      when: on_success
+    - when: manual
+  tags: ["runner:apm-k8s-tweaked-metal"]
+  interruptible: true
+  timeout: 1h
+  image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/benchmarking-platform:java-dsm-kafka
+  script:
+    - git clone --branch java/kafka-dsm-overhead https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.ddbuild.io/DataDog/benchmarking-platform.git platform && cd platform
+    - ./steps/run-benchmarks.sh
+  artifacts:
+    name: "artifacts"
+    when: always
+    paths:
+      - platform/artifacts/
+    expire_in: 3 months
+  variables:
+    FF_USE_LEGACY_KUBERNETES_EXECUTION_STRATEGY: "true"
+
+dsm-kafka-producer-benchmark:
+  extends: .dsm-kafka-benchmarks
+  variables:
+    BP_KAFKA_SCENARIO_DIR: producer-benchmark
+
+dsm-kafka-consumer-benchmark:
+  extends: .dsm-kafka-benchmarks
+  variables:
+    BP_KAFKA_SCENARIO_DIR: consumer-benchmark
+
