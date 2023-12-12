@@ -3,9 +3,6 @@ package datadog.trace.instrumentation.springwebflux.client;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator;
-import java.lang.invoke.MethodHandle;
-import java.lang.invoke.MethodHandles;
-import java.lang.invoke.MethodType;
 import java.net.URI;
 import org.springframework.web.reactive.function.client.ClientRequest;
 import org.springframework.web.reactive.function.client.ClientResponse;
@@ -17,8 +14,6 @@ public class SpringWebfluxHttpClientDecorator
   public static final CharSequence CANCELLED = UTF8BytesString.create("cancelled");
   public static final CharSequence CANCELLED_MESSAGE =
       UTF8BytesString.create("The subscription was cancelled");
-
-  private static final MethodHandle RAW_STATUS_CODE = findRawStatusCode();
 
   public static final SpringWebfluxHttpClientDecorator DECORATE =
       new SpringWebfluxHttpClientDecorator();
@@ -52,13 +47,8 @@ public class SpringWebfluxHttpClientDecorator
 
   @Override
   protected int status(final ClientResponse httpResponse) {
-    if (null != RAW_STATUS_CODE) {
-      try {
-        return (int) RAW_STATUS_CODE.invokeExact(httpResponse);
-      } catch (Throwable ignored) {
-      }
-    }
-    return httpResponse.statusCode().value();
+    final Integer code = StatusCodes.STATUS_CODE_FUNCTION.apply(httpResponse);
+    return code != null ? code : 0;
   }
 
   @Override
@@ -69,14 +59,5 @@ public class SpringWebfluxHttpClientDecorator
   @Override
   protected String getResponseHeader(ClientResponse response, String headerName) {
     return response.headers().asHttpHeaders().getFirst(headerName);
-  }
-
-  private static MethodHandle findRawStatusCode() {
-    try {
-      return MethodHandles.publicLookup()
-          .findVirtual(ClientResponse.class, "rawStatusCode", MethodType.methodType(int.class));
-    } catch (IllegalAccessException | NoSuchMethodException e) {
-      return null;
-    }
   }
 }
