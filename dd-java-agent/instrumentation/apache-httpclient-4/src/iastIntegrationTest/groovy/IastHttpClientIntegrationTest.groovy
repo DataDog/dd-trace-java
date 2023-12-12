@@ -7,6 +7,13 @@ import static datadog.trace.agent.test.server.http.TestHttpServer.httpServer
 
 class IastHttpClientIntegrationTest extends IastHttpServerTest<HttpServer> {
 
+  static final CLIENTS = [
+    'org.apache.http.impl.client.AutoRetryHttpClient',
+    'org.apache.http.impl.client.ContentEncodingHttpClient',
+    'org.apache.http.impl.client.DefaultHttpClient',
+    'org.apache.http.impl.client.SystemDefaultHttpClient'
+  ]
+
   @Override
   HttpServer server() {
     final controller = new SsrfController()
@@ -15,7 +22,7 @@ class IastHttpClientIntegrationTest extends IastHttpServerTest<HttpServer> {
         prefix('/ssrf/execute') {
           final msg = controller.apacheSsrf(
           (String) request.getParameter('url'),
-          (String) request.getParameter('client'),
+          (String) request.getParameter('clientClassName'),
           (String) request.getParameter('method'),
           (String) request.getParameter('requestType'),
           (String) request.getParameter('scheme')
@@ -32,7 +39,7 @@ class IastHttpClientIntegrationTest extends IastHttpServerTest<HttpServer> {
     if (suite.scheme == 'https') {
       expected = expected.replace('http', 'https')
     }
-    final url = address.toString() + 'ssrf/execute' + '?url=' + expected + '&client=' + suite.clientImplementation + '&method=' + suite.executedMethod + '&requestType=' + suite.requestType + '&scheme=' + suite.scheme
+    final url = address.toString() + 'ssrf/execute' + '?url=' + expected + '&clientClassName=' + suite.clientImplementation + '&method=' + suite.executedMethod + '&requestType=' + suite.requestType + '&scheme=' + suite.scheme
     final request = new Request.Builder().url(url).get().build()
 
 
@@ -57,7 +64,7 @@ class IastHttpClientIntegrationTest extends IastHttpServerTest<HttpServer> {
 
   private Iterable<TestSuite> createTestSuite() {
     final result = []
-    for (SsrfController.Client client : SsrfController.Client.values()) {
+    for (String client : getAvailableClientsClassName()) {
       for (SsrfController.ExecuteMethod method : SsrfController.ExecuteMethod.values()) {
         if (method.name().startsWith('HOST')) {
           result.add(createTestSuite(client, method, SsrfController.Request.HttpRequest, 'http'))
@@ -73,10 +80,23 @@ class IastHttpClientIntegrationTest extends IastHttpServerTest<HttpServer> {
     return new TestSuite(
     description: "ssrf is present for ${client} client and ${method} method with ${request} and ${scheme} scheme",
     executedMethod: method.name(),
-    clientImplementation: client.name(),
+    clientImplementation: client,
     requestType: request.name(),
     scheme: scheme
     )
+  }
+
+  private String[] getAvailableClientsClassName() {
+    def availableClients = []
+    CLIENTS.each {
+      try {
+        Class.forName(it)
+        availableClients.add(it)
+      } catch (ClassNotFoundException e) {
+        // ignore
+      }
+    }
+    return availableClients
   }
 
   private static class TestSuite {

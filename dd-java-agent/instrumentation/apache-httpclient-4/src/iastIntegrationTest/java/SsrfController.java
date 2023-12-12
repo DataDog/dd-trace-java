@@ -5,7 +5,6 @@ import org.apache.http.client.HttpClient;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.methods.HttpUriRequest;
 import org.apache.http.impl.client.BasicResponseHandler;
-import org.apache.http.impl.client.DefaultHttpClient;
 import org.apache.http.message.BasicHttpRequest;
 import org.apache.http.protocol.BasicHttpContext;
 
@@ -13,12 +12,12 @@ public class SsrfController {
 
   public String apacheSsrf(
       final String url,
-      final String client,
+      final String clientClassName,
       final String method,
       final String requestType,
       final String scheme) {
     try {
-      HttpClient httpClient = getHttpClient(Client.valueOf(client));
+      HttpClient httpClient = getHttpClient(clientClassName);
       execute(httpClient, url, ExecuteMethod.valueOf(method), requestType, scheme);
     } catch (Exception e) {
     }
@@ -71,17 +70,14 @@ public class SsrfController {
     }
   }
 
-  private HttpClient getHttpClient(final Client client) {
-    switch (client) {
-      case DefaultHttpClient:
-        return new DefaultHttpClient();
-      default:
-        throw new IllegalArgumentException("Unknown client: " + client);
+  private HttpClient getHttpClient(final String clientClassName) {
+    try {
+      Class<?> clientClass = Class.forName(clientClassName);
+      clientClass.getDeclaredConstructor().setAccessible(true);
+      return (HttpClient) clientClass.getDeclaredConstructor().newInstance();
+    } catch (Exception e) {
+      throw new IllegalArgumentException("Unknown client class: " + clientClassName, e);
     }
-  }
-
-  public enum Client {
-    DefaultHttpClient
   }
 
   public enum Request {
