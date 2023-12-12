@@ -23,6 +23,7 @@ muzzle {
 apply from: "$rootDir/gradle/java.gradle"
 
 addTestSuiteForDir('latestDepTest', 'test')
+addTestSuite('iastIntegrationTest')
 
 dependencies {
   compileOnly group: 'org.apache.httpcomponents', name: 'httpclient', version: '4.0'
@@ -30,11 +31,13 @@ dependencies {
   testImplementation group: 'org.apache.httpcomponents', name: 'httpclient', version: '4.0'
 
   // to instrument the integration test
-  testRuntimeOnly(project(':dd-java-agent:instrumentation:jetty-9'))
-  testRuntimeOnly(project(':dd-java-agent:instrumentation:apache-httpcore-4'))
-  testRuntimeOnly(project(':dd-java-agent:instrumentation:servlet'))
-  testRuntimeOnly(project(':dd-java-agent:instrumentation:java-net'))
-  testRuntimeOnly project(':dd-java-agent:instrumentation:iast-instrumenter')
+  iastIntegrationTestImplementation(testFixtures(project(':dd-java-agent:agent-iast')))
+  iastIntegrationTestImplementation group: 'org.apache.httpcomponents', name: 'httpclient', version: '4.0'
+  iastIntegrationTestRuntimeOnly(project(':dd-java-agent:instrumentation:jetty-9'))
+  iastIntegrationTestRuntimeOnly(project(':dd-java-agent:instrumentation:apache-httpcore-4'))
+  iastIntegrationTestRuntimeOnly(project(':dd-java-agent:instrumentation:servlet'))
+  iastIntegrationTestRuntimeOnly(project(':dd-java-agent:instrumentation:java-net'))
+  iastIntegrationTestRuntimeOnly project(':dd-java-agent:instrumentation:iast-instrumenter')
 
   latestDepTestImplementation group: 'org.apache.httpcomponents', name: 'httpclient', version: '+'
 }
