@@ -106,10 +106,10 @@ public class DDSpanLink extends SpanLink {
     @ToJson
     SpanLinkJson toSpanLinkJson(AgentSpanLink link) {
       SpanLinkJson json = new SpanLinkJson();
-      json.traceId = link.traceId().toHexString();
-      json.spanId = DDSpanId.toHexString(link.spanId());
-      json.traceFlags = link.traceFlags() == 0 ? null : link.traceFlags();
-      json.traceState = link.traceState().isEmpty() ? null : link.traceState();
+      json.trace_id = link.traceId().toHexString();
+      json.span_id = DDSpanId.toHexString(link.spanId());
+      json.flags = link.traceFlags() == 0 ? null : link.traceFlags();
+      json.tracestate = link.traceState().isEmpty() ? null : link.traceState();
       if (!link.attributes().isEmpty()) {
         json.attributes = link.attributes().asMap();
       }
@@ -119,19 +119,19 @@ public class DDSpanLink extends SpanLink {
     @FromJson
     AgentSpanLink fromSpanLinkJson(SpanLinkJson json) {
       return new DDSpanLink(
-          DDTraceId.fromHex(json.traceId),
-          DDSpanId.fromHex(json.spanId),
-          json.traceFlags,
-          json.traceState,
+          DDTraceId.fromHex(json.trace_id),
+          DDSpanId.fromHex(json.span_id),
+          json.flags,
+          json.tracestate,
           SpanLinkAttributes.fromMap(json.attributes));
     }
   }
 
   private static class SpanLinkJson {
-    String traceId;
-    String spanId;
-    Byte traceFlags;
-    String traceState;
+    String trace_id;
+    String span_id;
+    Byte flags;
+    String tracestate;
     Map<String, String> attributes;
   }
 }
