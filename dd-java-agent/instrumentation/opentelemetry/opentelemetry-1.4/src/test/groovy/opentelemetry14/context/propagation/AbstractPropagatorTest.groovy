@@ -14,8 +14,10 @@ import spock.lang.Subject
 import javax.annotation.Nullable
 
 abstract class AbstractPropagatorTest extends AgentTestRunner {
+  static int testInstance
+
   @Subject
-  def tracer = GlobalOpenTelemetry.get().tracerProvider.get("propagator" + Math.random()) // TODO FIX LATER
+  def tracer = GlobalOpenTelemetry.get().tracerProvider.get("propagator" + testInstance++)
 
   @Override
   void configurePreAgent() {
