@@ -15,6 +15,7 @@ import java.io.StringWriter;
 import java.time.OffsetDateTime;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
@@ -110,6 +111,9 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
 
   /** Stage count of the spark job. Provide an implementation based on a specific scala version */
   protected abstract int getStageCount(SparkListenerJobStart jobStart);
+
+  /** Parent Ids of a Stage. Provide an implementation based on a specific scala version */
+  protected abstract int[] getStageParentIds(StageInfo info);
 
   @Override
   public synchronized void onApplicationStart(SparkListenerApplicationStart applicationStart) {
@@ -404,6 +408,8 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
             .asChildOf(jobSpan.context())
             .withStartTimestamp(submissionTimeMs * 1000)
             .withTag("stage_id", stageId)
+            .withTag(
+                "parent_stage_ids", Arrays.toString(getStageParentIds(stageSubmitted.stageInfo())))
             .withTag("task_count", stageSubmitted.stageInfo().numTasks())
             .withTag("attempt_id", stageAttemptId)
             .withTag("details", stageSubmitted.stageInfo().details())

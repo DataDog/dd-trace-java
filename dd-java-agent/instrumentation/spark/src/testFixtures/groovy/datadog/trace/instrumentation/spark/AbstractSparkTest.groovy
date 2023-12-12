@@ -69,6 +69,7 @@ abstract class AbstractSparkTest extends AgentTestRunner {
           resourceName "count at TestSparkComputation.java:19"
           spanType "spark"
           errored false
+          assert span.tags["parent_stage_ids"] == "[0]"
           childOf(span(1))
         }
         span {
@@ -76,6 +77,7 @@ abstract class AbstractSparkTest extends AgentTestRunner {
           resourceName "distinct at TestSparkComputation.java:19"
           spanType "spark"
           errored false
+          assert span.tags["parent_stage_ids"] == "[]"
           childOf(span(1))
         }
       }
