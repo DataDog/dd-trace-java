@@ -277,6 +277,14 @@ public abstract class MavenUtils {
     return current;
   }
 
+  public static String getUniqueModuleName(MavenProject project, MojoExecution mojoExecution) {
+    return project.getName()
+        + " "
+        + mojoExecution.getArtifactId()
+        + " "
+        + mojoExecution.getExecutionId();
+  }
+
   private static final MethodHandles METHOD_HANDLES =
       new MethodHandles(PlexusContainer.class.getClassLoader());
   private static final MethodHandle SESSION_FIELD =
