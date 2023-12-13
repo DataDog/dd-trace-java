@@ -8,7 +8,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.api.Config;
-import datadog.trace.api.civisibility.config.SkippableTest;
+import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.bootstrap.InstrumentationContext;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.Collections;
@@ -117,7 +117,7 @@ public class ScalatestItrInstrumentation extends Instrumenter.CiVisibility
       ) {
         return;
       }
-      SkippableTest test = new SkippableTest(suiteId, testName, null, null);
+      TestIdentifier test = new TestIdentifier(suiteId, testName, null, null);
       RunContext runContext =
           InstrumentationContext.get(Filter.class, RunContext.class).get(filter);
       if (runContext.skip(test, tags)) {

@@ -1,7 +1,7 @@
 package datadog.trace.instrumentation.scalatest;
 
 import datadog.trace.api.civisibility.InstrumentationBridge;
-import datadog.trace.api.civisibility.config.SkippableTest;
+import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.civisibility.events.TestEventsHandler;
 import java.nio.file.Paths;
 import java.util.ArrayList;
@@ -30,8 +30,8 @@ public class RunContext {
   private final int runStamp;
   private final TestEventsHandler eventHandler =
       InstrumentationBridge.createTestEventsHandler("scalatest", Paths.get("").toAbsolutePath());
-  private final java.util.Set<SkippableTest> skippedTests = ConcurrentHashMap.newKeySet();
-  private final java.util.Set<SkippableTest> unskippableTests = ConcurrentHashMap.newKeySet();
+  private final java.util.Set<TestIdentifier> skippedTests = ConcurrentHashMap.newKeySet();
+  private final java.util.Set<TestIdentifier> unTestIdentifiers = ConcurrentHashMap.newKeySet();
 
   public RunContext(int runStamp) {
     this.runStamp = runStamp;
@@ -45,12 +45,12 @@ public class RunContext {
     return eventHandler;
   }
 
-  public boolean skipped(SkippableTest test) {
+  public boolean skipped(TestIdentifier test) {
     return skippedTests.remove(test);
   }
 
-  public boolean unskippable(SkippableTest test) {
-    return unskippableTests.remove(test);
+  public boolean unskippable(TestIdentifier test) {
+    return unTestIdentifiers.remove(test);
   }
 
   public scala.collection.immutable.List<Tuple2<String, Boolean>> skip(
@@ -76,9 +76,9 @@ public class RunContext {
     }
 
     String testName = testNameAndSkipStatus._1();
-    SkippableTest test = new SkippableTest(suiteId, testName, null, null);
+    TestIdentifier test = new TestIdentifier(suiteId, testName, null, null);
     if (isUnskippable(test, tags)) {
-      unskippableTests.add(test);
+      unTestIdentifiers.add(test);
       return testNameAndSkipStatus;
 
     } else if (eventHandler.skip(test)) {
@@ -90,9 +90,9 @@ public class RunContext {
     }
   }
 
-  public boolean skip(SkippableTest test, Map<String, Set<String>> tags) {
+  public boolean skip(TestIdentifier test, Map<String, Set<String>> tags) {
     if (isUnskippable(test, tags)) {
-      unskippableTests.add(test);
+      unTestIdentifiers.add(test);
       return false;
     } else if (eventHandler.skip(test)) {
       skippedTests.add(test);
@@ -102,7 +102,7 @@ public class RunContext {
     }
   }
 
-  public boolean isUnskippable(SkippableTest test, Map<String, Set<String>> tags) {
+  public boolean isUnskippable(TestIdentifier test, Map<String, Set<String>> tags) {
     Option<Set<String>> testTagsOption = tags.get(test.getName());
     if (testTagsOption.isEmpty()) {
       return false;

@@ -1,4 +1,4 @@
-import datadog.trace.api.civisibility.config.SkippableTest
+import datadog.trace.api.civisibility.config.TestIdentifier
 import datadog.trace.civisibility.CiVisibilityInstrumentationTest
 import datadog.trace.instrumentation.scalatest.ScalatestUtils
 import org.example.TestFailed
@@ -43,8 +43,10 @@ class ScalatestTest extends CiVisibilityInstrumentationTest {
 
     where:
     testcaseName                       | tests                    | expectedTracesCount | skippedTests
-    "test-itr-skipping"                | [TestSucceed]            | 2                   | [new SkippableTest("org.example.TestSucceed", "Example.add adds two numbers", null, null)]
-    "test-itr-unskippable"             | [TestSucceedUnskippable] | 2                   | [new SkippableTest("org.example.TestSucceedUnskippable", "test should assert something", null, null)]
+    "test-itr-skipping"                | [TestSucceed]            | 2                   | [new TestIdentifier("org.example.TestSucceed", "Example.add adds two numbers", null, null)]
+    "test-itr-unskippable"             | [TestSucceedUnskippable] | 2                   | [
+      new TestIdentifier("org.example.TestSucceedUnskippable", "test should assert something", null, null)
+    ]
     "test-itr-unskippable-not-skipped" | [TestSucceedUnskippable] | 2                   | []
   }
 
