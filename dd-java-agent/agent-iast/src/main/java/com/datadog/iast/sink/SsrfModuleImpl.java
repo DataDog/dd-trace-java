@@ -35,9 +35,13 @@ public class SsrfModuleImpl extends SinkModuleBase implements SsrfModule {
     checkInjection(span, ctx, VulnerabilityType.SSRF, url);
   }
 
-  /*
-   * if the host or the uri are tainted, we report the url as tainted as well
-   * A new range is created covering all the value string in order to simplify the algorithm
+  /**
+   * if the host or the uri are tainted, we report the url as tainted as well a new range is created
+   * covering all the value string in order to simplify the algorithm
+   *
+   * @param value
+   * @param host
+   * @param uri
    */
   @Override
   public void onURLConnection(@Nullable String value, @Nullable Object host, @Nullable Object uri) {
