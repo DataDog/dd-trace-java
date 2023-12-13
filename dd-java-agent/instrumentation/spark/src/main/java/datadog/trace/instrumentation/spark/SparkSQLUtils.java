@@ -107,6 +107,25 @@ public class SparkSQLUtils {
       this.stageId = stageId;
       this.acc = acc;
     }
+
+    public void toJson(JsonGenerator generator, SQLMetricInfo metric) throws IOException {
+      if (acc.name().isDefined() && acc.value().isDefined()) {
+        String name = acc.name().get();
+        Long value = null;
+        try {
+          // As of spark 3.5, all SQL metrics are Long, safeguard if it changes in new versions
+          value = (Long) acc.value().get();
+        } catch (ClassCastException ignored) {
+        }
+
+        if (name != null && value != null) {
+          generator.writeStartObject();
+          generator.writeNumberField(name, value);
+          generator.writeStringField("type", metric.metricType());
+          generator.writeEndObject();
+        }
+      }
+    }
   }
 
   public static class SparkPlanInfoForStage {
@@ -162,22 +181,8 @@ public class SparkSQLUtils {
         for (SQLMetricInfo metric : metrics) {
           long accumulatorId = metric.accumulatorId();
           AccumulatorWithStage acc = accumulators.get(accumulatorId);
-
-          if (acc != null && acc.acc.name().isDefined() && acc.acc.value().isDefined()) {
-            String name = acc.acc.name().get();
-            Long value = null;
-            try {
-              // As of spark 3.5, all SQL metrics are Long, safeguard if it changes in new versions
-              value = (Long) acc.acc.value().get();
-            } catch (ClassCastException ignored) {
-            }
-
-            if (name != null && value != null) {
-              generator.writeStartObject();
-              generator.writeNumberField(name, value);
-              generator.writeStringField("type", metric.metricType());
-              generator.writeEndObject();
-            }
+          if (acc != null) {
+            acc.toJson(generator, metric);
           }
         }
         generator.writeEndArray();
