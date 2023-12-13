@@ -1,5 +1,5 @@
 import datadog.trace.api.DisableTestTrace
-import datadog.trace.api.civisibility.config.SkippableTest
+import datadog.trace.api.civisibility.config.TestIdentifier
 import datadog.trace.civisibility.CiVisibilityInstrumentationTest
 import datadog.trace.instrumentation.junit5.TestEventsHandlerHolder
 import io.cucumber.core.api.TypeRegistry
@@ -31,9 +31,9 @@ class CucumberTest extends CiVisibilityInstrumentationTest {
     "test-skipped"                               | ["org/example/cucumber/calculator/basic_arithmetic_skipped.feature"]                                                             | false    | 3                   | []
     "test-skipped-feature"                       | ["org/example/cucumber/calculator/basic_arithmetic_skipped_feature.feature"]                                                     | false    | 3                   | []
     "test-skipped-scenario-outline-${version()}" | ["org/example/cucumber/calculator/basic_arithmetic_with_examples_skipped.feature"]                                               | false    | 5                   | []
-    "test-itr-skipping"                          | ["org/example/cucumber/calculator/basic_arithmetic.feature"]                                                                     | false    | 2                   | [new SkippableTest("Basic Arithmetic", "Addition", null, null)]
-    "test-itr-unskippable"                       | ["org/example/cucumber/calculator/basic_arithmetic_unskippable.feature"]                                                         | false    | 2                   | [new SkippableTest("Basic Arithmetic", "Addition", null, null)]
-    "test-itr-unskippable-suite"                 | ["org/example/cucumber/calculator/basic_arithmetic_unskippable_suite.feature"]                                                   | false    | 2                   | [new SkippableTest("Basic Arithmetic", "Addition", null, null)]
+    "test-itr-skipping"                          | ["org/example/cucumber/calculator/basic_arithmetic.feature"]                                                                     | false    | 2                   | [new TestIdentifier("Basic Arithmetic", "Addition", null, null)]
+    "test-itr-unskippable"                       | ["org/example/cucumber/calculator/basic_arithmetic_unskippable.feature"]                                                         | false    | 2                   | [new TestIdentifier("Basic Arithmetic", "Addition", null, null)]
+    "test-itr-unskippable-suite"                 | ["org/example/cucumber/calculator/basic_arithmetic_unskippable_suite.feature"]                                                   | false    | 2                   | [new TestIdentifier("Basic Arithmetic", "Addition", null, null)]
     "test-parallel"                              | [
       "org/example/cucumber/calculator/basic_arithmetic.feature",
       "org/example/cucumber/calculator/basic_arithmetic_skipped.feature"

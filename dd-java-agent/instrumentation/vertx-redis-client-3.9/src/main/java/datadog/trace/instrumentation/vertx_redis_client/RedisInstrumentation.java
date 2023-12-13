@@ -1,12 +1,14 @@
 package datadog.trace.instrumentation.vertx_redis_client;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 import static net.bytebuddy.matcher.ElementMatchers.isDeclaredBy;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
+import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -33,7 +35,9 @@ public class RedisInstrumentation extends Instrumenter.Tracing
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".ResponseHandlerWrapper", packageName + ".VertxRedisClientDecorator",
+      packageName + ".ResponseHandlerWrapper",
+      packageName + ".ResponseHandler",
+      packageName + ".VertxRedisClientDecorator",
     };
   }
 
@@ -45,12 +49,14 @@ public class RedisInstrumentation extends Instrumenter.Tracing
       "io.vertx.redis.client.impl.RedisClusterClient",
       "io.vertx.redis.client.impl.RedisSentinelClient",
       "io.vertx.redis.client.impl.RedisConnectionImpl",
-      "io.vertx.redis.client.impl.RedisClusterConnection"
+      "io.vertx.redis.client.impl.RedisClusterConnection",
+      "io.vertx.redis.client.impl.RedisStandaloneConnection", // added in 4.x
     };
   }
 
   @Override
   public void adviceTransformations(AdviceTransformation transformation) {
+
     transformation.applyAdvice(
         isMethod()
             .and(isPublic())
@@ -60,16 +66,20 @@ public class RedisInstrumentation extends Instrumenter.Tracing
         packageName + ".RedisSendAdvice");
 
     transformation.applyAdvice(
-        isDeclaredBy(named("io.vertx.redis.client.impl.RedisConnectionImpl"))
+        isDeclaredBy(
+                namedOneOf(
+                    "io.vertx.redis.client.impl.RedisConnectionImpl",
+                    "io.vertx.redis.client.impl.RedisStandaloneConnection"))
             .and(isConstructor())
             .and(takesArgument(3, named("io.vertx.core.net.NetSocket"))),
         packageName + ".RedisConnectionConstructAdvice");
 
     transformation.applyAdvice(
-        isMethod()
-            .and(isPublic())
-            .and(named("connect"))
-            .and(returns(named("io.vertx.redis.client.Redis"))),
-        packageName + ".RedisConnectAdvice");
+        isPublic()
+            .and(named("send"))
+            .and(takesArguments(1))
+            .and(takesArgument(0, named("io.vertx.redis.client.Request")))
+            .and(returns(named("io.vertx.core.Future"))),
+        packageName + ".RedisFutureSendAdvice");
   }
 }

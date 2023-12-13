@@ -1,5 +1,5 @@
 import datadog.trace.api.DisableTestTrace
-import datadog.trace.api.civisibility.config.SkippableTest
+import datadog.trace.api.civisibility.config.TestIdentifier
 import datadog.trace.civisibility.CiVisibilityInstrumentationTest
 import datadog.trace.instrumentation.junit4.TestEventsHandlerHolder
 import junit.runner.Version
@@ -17,6 +17,7 @@ import org.example.TestSkipped
 import org.example.TestSkippedClass
 import org.example.TestSucceed
 import org.example.TestSucceedAndSkipped
+import org.example.TestSucceedLegacy
 import org.example.TestSucceedSuite
 import org.example.TestSucceedUnskippable
 import org.example.TestSucceedUnskippableSuite
@@ -57,15 +58,16 @@ class JUnit4Test extends CiVisibilityInstrumentationTest {
     "test-parameterized"                                 | [TestParameterized]                  | 3                   | []
     "test-suite-runner"                                  | [TestSucceedSuite]                   | 3                   | []
     "test-itr-skipping"                                  | [TestFailedAndSucceed]               | 4                   | [
-      new SkippableTest("org.example.TestFailedAndSucceed", "test_another_succeed", null, null),
-      new SkippableTest("org.example.TestFailedAndSucceed", "test_failed", null, null)
+      new TestIdentifier("org.example.TestFailedAndSucceed", "test_another_succeed", null, null),
+      new TestIdentifier("org.example.TestFailedAndSucceed", "test_failed", null, null)
     ]
     "test-itr-skipping-parameterized"                    | [TestParameterized]                  | 3                   | [
-      new SkippableTest("org.example.TestParameterized", "parameterized_test_succeed", '{"metadata":{"test_name":"parameterized_test_succeed[str1]"}}', null)
+      new TestIdentifier("org.example.TestParameterized", "parameterized_test_succeed", '{"metadata":{"test_name":"parameterized_test_succeed[str1]"}}', null)
     ]
-    "test-itr-unskippable"                               | [TestSucceedUnskippable]             | 2                   | [new SkippableTest("org.example.TestSucceedUnskippable", "test_succeed", null, null)]
-    "test-itr-unskippable-suite"                         | [TestSucceedUnskippableSuite]        | 2                   | [new SkippableTest("org.example.TestSucceedUnskippableSuite", "test_succeed", null, null)]
+    "test-itr-unskippable"                               | [TestSucceedUnskippable]             | 2                   | [new TestIdentifier("org.example.TestSucceedUnskippable", "test_succeed", null, null)]
+    "test-itr-unskippable-suite"                         | [TestSucceedUnskippableSuite]        | 2                   | [new TestIdentifier("org.example.TestSucceedUnskippableSuite", "test_succeed", null, null)]
     "test-itr-unskippable-not-skipped"                   | [TestSucceedUnskippable]             | 2                   | []
+    "test-legacy"                                        | [TestSucceedLegacy]                  | 2                   | []
   }
 
   private void runTests(Collection<Class<?>> tests) {

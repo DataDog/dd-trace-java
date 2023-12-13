@@ -175,10 +175,10 @@ class OpenTelemetry14Test extends AgentTestRunner {
 
     def expectedLinksTag = """
     [
-      { traceId: "${traceId}",
-        spanId: "${spanId}",
-        traceFlags: 1,
-        traceState: "string-key=string-value"}
+      { trace_id: "${traceId}",
+        span_id: "${spanId}",
+        flags: 1,
+        tracestate: "string-key=string-value"}
     ]"""
 
     when:
@@ -212,10 +212,10 @@ class OpenTelemetry14Test extends AgentTestRunner {
       def traceId = "1234567890abcdef1234567890abcde$it" as String
       def spanId = "fedcba098765432$it" as String
       def traceState = TraceState.builder().put('string-key', 'string-value'+it).build()
-      links << """{ traceId: "${traceId}",
-        spanId: "${spanId}",
-        traceFlags: 1,
-        traceState: "string-key=string-value$it"}"""
+      links << """{ trace_id: "${traceId}",
+        span_id: "${spanId}",
+        flags: 1,
+        tracestate: "string-key=string-value$it"}"""
       spanBuilder.addLink(SpanContext.create(traceId, spanId, TraceFlags.getSampled(), traceState))
     }
     def expectedLinksTag = "[${links.join(',')}]" as String
@@ -244,10 +244,10 @@ class OpenTelemetry14Test extends AgentTestRunner {
 
     def expectedLinksTag = """
     [
-      { traceId: "${traceId}",
-        spanId: "${spanId}",
-        traceFlags: 1,
-        traceState: "string-key=string-value"
+      { trace_id: "${traceId}",
+        span_id: "${spanId}",
+        flags: 1,
+        tracestate: "string-key=string-value"
         ${ expectedAttributes == null ? "" : ", attributes: " + expectedAttributes }}
     ]"""
 
@@ -282,12 +282,12 @@ class OpenTelemetry14Test extends AgentTestRunner {
     def traceId = "1234567890abcdef1234567890abcdef" as String
     def spanId = "fedcba0987654321" as String
 
-    def expectedTraceStateJson = expectedTraceState == null ? '' : ", traceState: \"$expectedTraceState\""
+    def expectedTraceStateJson = expectedTraceState == null ? '' : ", tracestate: \"$expectedTraceState\""
     def expectedLinksTag = """
     [
-      { traceId: "${traceId}",
-        spanId: "${spanId}",
-        traceFlags: 1
+      { trace_id: "${traceId}",
+        span_id: "${spanId}",
+        flags: 1
         $expectedTraceStateJson
       }
     ]"""

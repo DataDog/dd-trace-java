@@ -20,6 +20,7 @@ public class WebClientFilterInstrumentation extends Instrumenter.Tracing
   public String[] helperClassNames() {
     return new String[] {
       packageName + ".SpringWebfluxHttpClientDecorator",
+      packageName + ".StatusCodes",
       packageName + ".TraceWebClientSubscriber",
       packageName + ".WebClientTracingFilter",
       packageName + ".WebClientTracingFilter$MonoWebClientTrace",

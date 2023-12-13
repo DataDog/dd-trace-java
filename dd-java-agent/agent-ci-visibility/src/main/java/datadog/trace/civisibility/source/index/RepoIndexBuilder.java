@@ -23,6 +23,7 @@ public class RepoIndexBuilder implements RepoIndexProvider {
 
   private final Config config;
   private final String repoRoot;
+  private final String scanRoot;
   private final PackageResolver packageResolver;
   private final ResourceResolver resourceResolver;
   private final FileSystem fileSystem;
@@ -33,11 +34,13 @@ public class RepoIndexBuilder implements RepoIndexProvider {
   public RepoIndexBuilder(
       Config config,
       String repoRoot,
+      String scanRoot,
       PackageResolver packageResolver,
       ResourceResolver resourceResolver,
       FileSystem fileSystem) {
     this.config = config;
     this.repoRoot = repoRoot;
+    this.scanRoot = scanRoot;
     this.packageResolver = packageResolver;
     this.resourceResolver = resourceResolver;
     this.fileSystem = fileSystem;
@@ -57,24 +60,26 @@ public class RepoIndexBuilder implements RepoIndexProvider {
 
   private RepoIndex doGetIndex() {
     log.warn(
-        "Building index of source files in {}. "
+        "Building index of source files in {}, repo root is {}. "
             + "This operation can be slow, "
             + "please consider using Datadog Java compiler plugin to avoid indexing",
+        scanRoot,
         repoRoot);
 
-    Path repoRootPath = fileSystem.getPath(repoRoot);
+    Path repoRootPath = toRealPath(fileSystem.getPath(repoRoot));
+    Path scanRootPath = toRealPath(fileSystem.getPath(scanRoot));
     RepoIndexingFileVisitor repoIndexingFileVisitor =
         new RepoIndexingFileVisitor(config, packageResolver, resourceResolver, repoRootPath);
 
     long startTime = System.currentTimeMillis();
     try {
       Files.walkFileTree(
-          repoRootPath,
+          scanRootPath,
           EnumSet.of(FileVisitOption.FOLLOW_LINKS),
           Integer.MAX_VALUE,
           repoIndexingFileVisitor);
     } catch (Exception e) {
-      log.error("Failed to build index repo of {}", repoRoot, e);
+      log.error("Failed to build index of {}", scanRootPath, e);
     }
 
     long duration = System.currentTimeMillis() - startTime;
@@ -89,6 +94,15 @@ public class RepoIndexBuilder implements RepoIndexProvider {
         repoIndexingFileVisitor.sourceRoots.size(),
         index.getRootPackages());
     return index;
+  }
+
+  private Path toRealPath(Path path) {
+    try {
+      return path.toRealPath();
+    } catch (Exception e) {
+      log.error("Could not determine real path for {}", path, e);
+      return path;
+    }
   }
 
   private static final class RepoIndexingFileVisitor implements FileVisitor<Path> {

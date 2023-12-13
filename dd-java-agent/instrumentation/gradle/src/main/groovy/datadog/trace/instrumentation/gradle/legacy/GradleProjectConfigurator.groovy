@@ -2,6 +2,7 @@ package datadog.trace.instrumentation.gradle.legacy
 
 import datadog.trace.api.Config
 import datadog.trace.api.civisibility.config.ModuleExecutionSettings
+import datadog.trace.api.config.CiVisibilityConfig
 import datadog.trace.bootstrap.DatadogClassLoader
 import datadog.trace.util.Strings
 import org.gradle.api.Project
@@ -72,6 +73,9 @@ class GradleProjectConfigurator {
       def splitArgs = processedArgs.split(" ")
       jvmArgs.addAll(splitArgs)
     }
+
+    String taskPath = task.getPath()
+    jvmArgs.add("-D" + Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_MODULE_NAME) + '=' + taskPath)
 
     jvmArgs.add("-javaagent:" + config.ciVisibilityAgentJarFile.toPath())
 

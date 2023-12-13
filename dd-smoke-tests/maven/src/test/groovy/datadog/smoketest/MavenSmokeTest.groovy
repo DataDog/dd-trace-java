@@ -46,17 +46,13 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
   Path projectHome
 
   def "test #projectName, v#mavenVersion"() {
-    given:
     givenWrapperPropertiesFile(mavenVersion)
     givenMavenProjectFiles(projectName)
     givenMavenDependenciesAreLoaded(projectName, mavenVersion)
 
-    when:
     def exitCode = whenRunningMavenBuild()
 
-    then:
-    exitCode == 0
-
+    assert exitCode == 0
     verifyEventsAndCoverages(projectName, "maven", mavenVersion, expectedEvents, expectedCoverages)
 
     where:
@@ -67,7 +63,8 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
     "test_successful_maven_run"                         | "3.6.3"              | 5              | 1
     "test_successful_maven_run"                         | "3.8.8"              | 5              | 1
     "test_successful_maven_run"                         | "3.9.5"              | 5              | 1
-    "test_successful_maven_run"                         | LATEST_MAVEN_VERSION | 5              | 1
+    "test_successful_maven_run_surefire_3_0_0"          | "3.9.5"              | 5              | 1
+    "test_successful_maven_run_surefire_3_0_0"          | LATEST_MAVEN_VERSION | 5              | 1
     "test_successful_maven_run_with_jacoco_and_argline" | "3.9.5"              | 5              | 1
     "test_successful_maven_run_with_cucumber"           | "3.9.5"              | 7              | 1
   }
@@ -198,8 +195,15 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
       "-Dmaven.multiModuleProjectDirectory=${projectHome.toAbsolutePath()}".toString(),
     ]
     if (runWithAgent) {
+      if (System.getenv("DD_CIVISIBILITY_SMOKETEST_DEBUG_PARENT") != null) {
+        // for convenience when debugging locally
+        arguments += "-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=5005"
+      }
+
       def agentShadowJar = System.getProperty("datadog.smoketest.agent.shadowJar.path")
       def agentArgument = "-javaagent:${agentShadowJar}=" +
+        // for convenience when debugging locally
+        (System.getenv("DD_CIVISIBILITY_SMOKETEST_DEBUG_CHILD") != null ? "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_DEBUG_PORT)}=5055," : "") +
         "${Strings.propertyNameToSystemPropertyName(GeneralConfig.ENV)}=${TEST_ENVIRONMENT_NAME}," +
         "${Strings.propertyNameToSystemPropertyName(GeneralConfig.SERVICE_NAME)}=${TEST_SERVICE_NAME}," +
         "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_ENABLED)}=true," +
