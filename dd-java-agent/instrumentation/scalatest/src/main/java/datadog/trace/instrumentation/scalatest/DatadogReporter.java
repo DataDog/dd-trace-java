@@ -1,7 +1,7 @@
 package datadog.trace.instrumentation.scalatest;
 
 import datadog.trace.api.civisibility.InstrumentationBridge;
-import datadog.trace.api.civisibility.config.SkippableTest;
+import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.civisibility.events.TestEventsHandler;
 import java.lang.reflect.Method;
 import java.util.Collection;
@@ -124,7 +124,7 @@ public class DatadogReporter {
     Object testQualifier = null;
     String testParameters = null;
     Collection<String> categories;
-    if (context.unskippable(new SkippableTest(testSuiteName, testName, null, null))) {
+    if (context.unskippable(new TestIdentifier(testSuiteName, testName, null, null))) {
       categories = Collections.singletonList(InstrumentationBridge.ITR_UNSKIPPABLE_TAG);
     } else {
       categories = Collections.emptyList();
@@ -190,7 +190,7 @@ public class DatadogReporter {
     Method testMethod = null;
 
     String reason;
-    SkippableTest skippableTest = new SkippableTest(testSuiteName, testName, null, null);
+    TestIdentifier skippableTest = new TestIdentifier(testSuiteName, testName, null, null);
     if (context.skipped(skippableTest)) {
       reason = InstrumentationBridge.ITR_SKIP_REASON;
     } else {

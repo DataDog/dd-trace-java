@@ -1,5 +1,5 @@
 import datadog.trace.api.DisableTestTrace
-import datadog.trace.api.civisibility.config.SkippableTest
+import datadog.trace.api.civisibility.config.TestIdentifier
 import datadog.trace.civisibility.CiVisibilityInstrumentationTest
 import datadog.trace.instrumentation.junit5.TestEventsHandlerHolder
 import org.example.TestParameterizedSpock
@@ -30,12 +30,12 @@ class SpockTest extends CiVisibilityInstrumentationTest {
     testcaseName                      | tests                              | expectedTracesCount | skippedTests
     "test-succeed"                    | [TestSucceedSpock]                 | 2                   | []
     "test-succeed-parameterized"      | [TestParameterizedSpock]           | 3                   | []
-    "test-itr-skipping"               | [TestSucceedSpock]                 | 2                   | [new SkippableTest("org.example.TestSucceedSpock", "test success", null, null)]
+    "test-itr-skipping"               | [TestSucceedSpock]                 | 2                   | [new TestIdentifier("org.example.TestSucceedSpock", "test success", null, null)]
     "test-itr-skipping-parameterized" | [TestParameterizedSpock]           | 3                   | [
-      new SkippableTest("org.example.TestParameterizedSpock", "test add 1 and 2", '{"metadata":{"test_name":"test add 1 and 2"}}', null)
+      new TestIdentifier("org.example.TestParameterizedSpock", "test add 1 and 2", '{"metadata":{"test_name":"test add 1 and 2"}}', null)
     ]
-    "test-itr-unskippable"            | [TestSucceedSpockUnskippable]      | 2                   | [new SkippableTest("org.example.TestSucceedSpockUnskippable", "test success", null, null)]
-    "test-itr-unskippable-suite"      | [TestSucceedSpockUnskippableSuite] | 2                   | [new SkippableTest("org.example.TestSucceedSpockUnskippableSuite", "test success", null, null)]
+    "test-itr-unskippable"            | [TestSucceedSpockUnskippable]      | 2                   | [new TestIdentifier("org.example.TestSucceedSpockUnskippable", "test success", null, null)]
+    "test-itr-unskippable-suite"      | [TestSucceedSpockUnskippableSuite] | 2                   | [new TestIdentifier("org.example.TestSucceedSpockUnskippableSuite", "test success", null, null)]
   }
 
   private static void runTests(List<Class<?>> classes) {

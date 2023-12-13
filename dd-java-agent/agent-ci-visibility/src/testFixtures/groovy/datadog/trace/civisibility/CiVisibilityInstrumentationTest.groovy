@@ -7,7 +7,7 @@ import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.Config
 import datadog.trace.api.civisibility.InstrumentationBridge
 import datadog.trace.api.civisibility.config.ModuleExecutionSettings
-import datadog.trace.api.civisibility.config.SkippableTest
+import datadog.trace.api.civisibility.config.TestIdentifier
 import datadog.trace.api.config.CiVisibilityConfig
 import datadog.trace.api.config.GeneralConfig
 import datadog.trace.civisibility.codeowners.Codeowners
@@ -49,8 +49,10 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
 
   private static Path agentKeyFile
 
-  private static final List<SkippableTest> skippableTests = new ArrayList<>()
+  private static final List<TestIdentifier> skippableTests = new ArrayList<>()
+  private static final List<TestIdentifier> flakyTests = new ArrayList<>()
   private static volatile boolean itrEnabled = false
+  private static volatile boolean flakyRetryEnabled = false
 
   def setupSpec() {
     def currentPath = Paths.get("").toAbsolutePath()
@@ -72,9 +74,15 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
     def moduleExecutionSettingsFactory = Stub(ModuleExecutionSettingsFactory)
     moduleExecutionSettingsFactory.create(_ as JvmInfo, _ as String) >> {
       Map<String, String> properties = [
-        (CiVisibilityConfig.CIVISIBILITY_ITR_ENABLED): String.valueOf(itrEnabled)
+        (CiVisibilityConfig.CIVISIBILITY_ITR_ENABLED): String.valueOf(itrEnabled),
+        (CiVisibilityConfig.CIVISIBILITY_FLAKY_RETRY_ENABLED): String.valueOf(flakyRetryEnabled)
       ]
-      return new ModuleExecutionSettings(false, itrEnabled, properties, Collections.singletonMap(dummyModule, skippableTests), Collections.emptyList())
+      return new ModuleExecutionSettings(false,
+      itrEnabled,
+      properties,
+      Collections.singletonMap(dummyModule, skippableTests),
+      flakyTests,
+      Collections.emptyList())
     }
 
     def coverageProbeStoreFactory = new SegmentlessTestProbes.SegmentlessTestProbesFactory()
@@ -135,12 +143,19 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
   @Override
   void setup() {
     skippableTests.clear()
+    flakyTests.clear()
     itrEnabled = false
+    flakyRetryEnabled = false
   }
 
-  def givenSkippableTests(List<SkippableTest> tests) {
+  def givenSkippableTests(List<TestIdentifier> tests) {
     skippableTests.addAll(tests)
     itrEnabled = true
+  }
+
+  def givenFlakyTests(List<TestIdentifier> tests) {
+    flakyTests.addAll(tests)
+    flakyRetryEnabled = true
   }
 
   @Override
@@ -153,6 +168,8 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
     injectSysConfig(GeneralConfig.API_KEY_FILE, agentKeyFile.toString())
     injectSysConfig(CiVisibilityConfig.CIVISIBILITY_ENABLED, "true")
     injectSysConfig(CiVisibilityConfig.CIVISIBILITY_AGENTLESS_ENABLED, "true")
+    injectSysConfig(CiVisibilityConfig.CIVISIBILITY_ITR_ENABLED, "true")
+    injectSysConfig(CiVisibilityConfig.CIVISIBILITY_FLAKY_RETRY_ENABLED, "true")
   }
 
   def cleanupSpec() {

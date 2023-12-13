@@ -1,6 +1,7 @@
 package datadog.trace.api.civisibility.events;
 
-import datadog.trace.api.civisibility.config.SkippableTest;
+import datadog.trace.api.civisibility.config.TestIdentifier;
+import datadog.trace.api.civisibility.retry.TestRetryPolicy;
 import java.io.Closeable;
 import java.lang.reflect.Method;
 import java.nio.file.Path;
@@ -71,7 +72,9 @@ public interface TestEventsHandler extends Closeable {
       @Nullable Method testMethod,
       @Nullable String reason);
 
-  boolean skip(SkippableTest test);
+  boolean skip(TestIdentifier test);
+
+  TestRetryPolicy retryPolicy(TestIdentifier test);
 
   @Override
   void close();
