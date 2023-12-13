@@ -98,13 +98,13 @@ public class ApplicationModuleImpl extends SinkModuleBase implements Application
           reportAdminConsoleActive(span);
           break;
         case LISTINGS_PATTERN:
-          checkDirectoryListingLeak(webXmlContent.substring(matcher.start()), span);
+          checkDirectoryListingLeak(webXmlContent, matcher.start(), span);
           break;
         case SESSION_TIMEOUT_PATTERN:
-          checkSessionTimeOut(webXmlContent.substring(matcher.start()), span);
+          checkSessionTimeOut(webXmlContent, matcher.start(), span);
           break;
         case SECURITY_CONSTRAINT_PATTERN:
-          checkVerbTampering(webXmlContent.substring(matcher.start()), span);
+          checkVerbTampering(webXmlContent, matcher.start(), span);
           break;
       }
     }
@@ -141,9 +141,10 @@ public class ApplicationModuleImpl extends SinkModuleBase implements Application
             new Evidence("Tomcat Manager Application")));
   }
 
-  private void checkDirectoryListingLeak(final String webXmlContent, final AgentSpan span) {
-    int valueIndex = webXmlContent.indexOf("<param-value>");
-    int valueLast = webXmlContent.indexOf("</param-value>");
+  private void checkDirectoryListingLeak(
+      final String webXmlContent, int index, final AgentSpan span) {
+    int valueIndex = webXmlContent.indexOf("<param-value>", index);
+    int valueLast = webXmlContent.indexOf("</param-value>", valueIndex);
     String data = webXmlContent.substring(valueIndex, valueLast);
     if (data.trim().toLowerCase().contains("true")) {
       reporter.report(
@@ -155,8 +156,9 @@ public class ApplicationModuleImpl extends SinkModuleBase implements Application
     }
   }
 
-  private void checkSessionTimeOut(final String webXmlContent, final AgentSpan span) {
-    Clue clue = getFirstClue(webXmlContent, "<session-timeout>", "</session-timeout>");
+  private void checkSessionTimeOut(final String webXmlContent, int index, final AgentSpan span) {
+    Clue clue =
+        getFirstClue(webXmlContent.substring(index), "<session-timeout>", "</session-timeout>");
     String innerText = clue.getValue();
     if (innerText != null) {
       innerText = innerText.trim();
@@ -176,8 +178,10 @@ public class ApplicationModuleImpl extends SinkModuleBase implements Application
     }
   }
 
-  private void checkVerbTampering(final String webXmlContent, final AgentSpan span) {
-    Clue clue = getFirstClue(webXmlContent, "<security-constraint>", "</security-constraint>");
+  private void checkVerbTampering(final String webXmlContent, int index, final AgentSpan span) {
+    Clue clue =
+        getFirstClue(
+            webXmlContent.substring(index), "<security-constraint>", "</security-constraint>");
     if (clue.getValue() != null && !clue.getValue().contains("<http-method>")) {
       reporter.report(
           span,
@@ -214,7 +218,7 @@ public class ApplicationModuleImpl extends SinkModuleBase implements Application
         try {
           return new String(Files.readAllBytes(path), StandardCharsets.UTF_8);
         } catch (IOException e) {
-          e.printStackTrace();
+          // Nothing to do
         }
       }
     }
