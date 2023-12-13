@@ -1,0 +1,54 @@
+// Set properties before any plugins get loaded
+ext {
+  minJavaVersionForTests = JavaVersion.VERSION_1_8
+
+  // need access to jdk.jfr package
+  skipSettingCompilerRelease = true
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+apply plugin: 'idea'
+
+
+sourceSets {
+  "main_java11" {
+    java.srcDirs "${project.projectDir}/src/main/java11"
+  }
+}
+
+compileMain_java11Java.configure {
+  setJavaVersion(it, 11)
+  sourceCompatibility = JavaVersion.VERSION_1_9
+  targetCompatibility = JavaVersion.VERSION_1_9
+}
+
+dependencies {
+  api project(':dd-java-agent:agent-profiling:profiling-controller-jfr')
+  main_java11CompileOnly project(':dd-java-agent:agent-profiling:profiling-controller-jfr')
+
+  implementation deps.slf4j
+
+  testImplementation deps.mockito
+  testImplementation deps.junit5
+  testImplementation sourceSets.main_java11.output
+}
+
+excludedClassesCoverage += [
+  'com.datadog.profiling.controller.jfr.JPMSJFRAccess*',
+  // The tests will be run only on Java 8 so we exclude the coverage check to prevent failures for other Java versions
+  'com.datadog.profiling.controller.jfr.SimpleJFRAccess*'
+]
+
+jar {
+  from sourceSets.main_java11.output
+}
+
+forbiddenApisMain {
+  failOnMissingClasses = false
+}
+
+idea {
+  module {
+    jdkName = '11'
+  }
+}
