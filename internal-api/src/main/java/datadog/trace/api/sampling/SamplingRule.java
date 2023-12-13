@@ -51,28 +51,7 @@ public interface SamplingRule {
   double getSampleRate();
 
   /** This interface describes the criteria of a sampling rule that can match against a trace. */
-  interface TraceSamplingRule extends SamplingRule {
-    /**
-     * Gets the span type the rule must match against. If {@link TargetSpan#ROOT}, only the root
-     * span of the trace will be evaluated to validate the rule. If {@link TargetSpan#ANY}, all
-     * spans from the trace might be evaluated, and only one need to match to validate the rule.
-     *
-     * <p>TODO: do we need this?
-     *
-     * @return The span type the rule must be validated against.
-     */
-    TargetSpan getTargetSpan();
-
-    /**
-     * This enumerates defines against which span of the trace must be validated the sampling rule.
-     *
-     * <p>TODO: do we need this?
-     */
-    enum TargetSpan {
-      ROOT,
-      ANY
-    }
-  }
+  interface TraceSamplingRule extends SamplingRule {}
 
   /** This interface describes the criteria of a sampling rule that can match against a span. */
   interface SpanSamplingRule extends SamplingRule {

@@ -107,9 +107,6 @@ public abstract class SamplingRule {
   public static final class SpanSamplingRule extends SamplingRule {
     private final Matcher serviceMatcher;
     private final Matcher operationMatcher;
-    // TODO resourceMatcher
-    // TODO tagsMatcher
-
     private final SimpleRateLimiter rateLimiter;
 
     public SpanSamplingRule(
