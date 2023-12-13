@@ -114,7 +114,7 @@ class TagsAssert {
       try {
         // also accept type names which are sub-classes of the given error type
         return errorType.isAssignableFrom(
-            Class.forName(it as String, false, errorType.class.classLoader))
+          Class.forName(it as String, false, getClass().getClassLoader()))
       } catch (Throwable ignore) {
         return false
       }
