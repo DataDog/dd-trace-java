@@ -18,12 +18,47 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 
 public class ApplicationModuleImpl extends SinkModuleBase implements ApplicationModule {
 
-  private static final String ORG_SPRINGFRAMEWORK = "org.springframework";
+  private static final String CONTEXT_LOADER_LISTENER_PATTERN =
+      "org\\.springframework\\.web\\.context\\.ContextLoaderListener";
+
+  private static final String CONTEXT_LOADER_LISTENER_VALUE =
+      "org.springframework.web.context.ContextLoaderListener";
+
+  private static final String DISPATCHER_SERVLET_PATTERN =
+      "org\\.springframework\\.web\\.servlet\\.DispatcherServlet";
+
+  private static final String DISPATCHER_SERVLET_VALUE =
+      "org.springframework.web.servlet.DispatcherServlet";
+
+  private static final String DEFAULT_HTML_ESCAPE_PATTERN = "defaultHtmlEscape";
+
+  private static final String TOMCAT_MANAGER_APPLICATION_PATTERN = "Tomcat Manager Application";
+
+  private static final String LISTINGS_PATTERN = "<param-name>listings</param-name>";
+
+  private static final String SESSION_TIMEOUT_PATTERN = "<session-timeout>";
+
+  private static final String SECURITY_CONSTRAINT_PATTERN = "<security-constraint>";
+
+  private static final String REGEX =
+      String.join(
+          "|",
+          CONTEXT_LOADER_LISTENER_PATTERN,
+          DISPATCHER_SERVLET_PATTERN,
+          DEFAULT_HTML_ESCAPE_PATTERN,
+          TOMCAT_MANAGER_APPLICATION_PATTERN,
+          LISTINGS_PATTERN,
+          SESSION_TIMEOUT_PATTERN,
+          SECURITY_CONSTRAINT_PATTERN);
+
+  private static final Pattern PATTERN = Pattern.compile(REGEX);
 
   public ApplicationModuleImpl(final Dependencies dependencies) {
     super(dependencies);
@@ -45,80 +80,98 @@ public class ApplicationModuleImpl extends SinkModuleBase implements Application
       return;
     }
 
-    checkVerbTampering(webXmlContent, span);
-    checkSessionTimeOut(webXmlContent, span);
-    checkDirectoryListingLeak(webXmlContent, span);
-    checkAdminConsoleActive(webXmlContent, span);
-    checkDefaultHtmlEscapeInvalid(webXmlContent, span);
-  }
+    int defaultHtmlEscapeIndex = -1;
+    boolean isSpring = false;
 
-  private void checkDefaultHtmlEscapeInvalid(String webXmlContent, AgentSpan span) {
-    boolean isSpring = isSpring(webXmlContent);
-    if (isSpring) {
-      int pos = webXmlContent.indexOf("defaultHtmlEscape");
-      String value = "false";
-      if (pos != -1) {
-        int start = webXmlContent.indexOf("<param-value>", pos) + "<param-value>".length();
-        value = webXmlContent.substring(start, webXmlContent.indexOf("</param-value>", start));
+    Matcher matcher = PATTERN.matcher(webXmlContent);
+    while (matcher.find()) {
+      String match = matcher.group();
+      switch (match) {
+        case DISPATCHER_SERVLET_VALUE:
+        case CONTEXT_LOADER_LISTENER_VALUE:
+          isSpring = true;
+          break;
+        case DEFAULT_HTML_ESCAPE_PATTERN:
+          defaultHtmlEscapeIndex = matcher.start();
+          break;
+        case TOMCAT_MANAGER_APPLICATION_PATTERN:
+          reportAdminConsoleActive(span);
+          break;
+        case LISTINGS_PATTERN:
+          checkDirectoryListingLeak(webXmlContent.substring(matcher.start()), span);
+          break;
+        case SESSION_TIMEOUT_PATTERN:
+          checkSessionTimeOut(webXmlContent.substring(matcher.start()), span);
+          break;
+        case SECURITY_CONSTRAINT_PATTERN:
+          checkVerbTampering(webXmlContent.substring(matcher.start()), span);
+          break;
       }
-      if (pos == -1 || !Boolean.parseBoolean(value)) {
-        reporter.report(
-            span,
-            new Vulnerability(
-                VulnerabilityType.DEFAULT_HTML_ESCAPE_INVALID,
-                Location.forSpanAndFileAndLine(span, "web.xml", -1),
-                new Evidence("defaultHtmlEscape tag should be set")));
-      }
+    }
+
+    if (isSpring && defaultHtmlEscapeIndex != -1) {
+      checkDefaultHtmlEscapeInvalid(webXmlContent, span, defaultHtmlEscapeIndex);
     }
   }
 
-  private void checkAdminConsoleActive(String webXmlContent, AgentSpan span) {
-    if (webXmlContent != null && webXmlContent.contains("Tomcat Manager Application")) {
+  private void checkDefaultHtmlEscapeInvalid(
+      String webXmlContent, AgentSpan span, int defaultHtmlEscapeIndex) {
+    String value = "false";
+    if (defaultHtmlEscapeIndex != -1) {
+      int start =
+          webXmlContent.indexOf("<param-value>", defaultHtmlEscapeIndex) + "<param-value>".length();
+      value = webXmlContent.substring(start, webXmlContent.indexOf("</param-value>", start));
+    }
+    if (defaultHtmlEscapeIndex == -1 || !Boolean.parseBoolean(value)) {
       reporter.report(
           span,
           new Vulnerability(
-              VulnerabilityType.ADMIN_CONSOLE_ACTIVE,
+              VulnerabilityType.DEFAULT_HTML_ESCAPE_INVALID,
               Location.forSpanAndFileAndLine(span, "web.xml", -1),
-              new Evidence("Tomcat Manager Application")));
+              new Evidence("defaultHtmlEscape tag should be set")));
     }
   }
 
+  private void reportAdminConsoleActive(AgentSpan span) {
+    reporter.report(
+        span,
+        new Vulnerability(
+            VulnerabilityType.ADMIN_CONSOLE_ACTIVE,
+            Location.forSpanAndFileAndLine(span, "web.xml", -1),
+            new Evidence("Tomcat Manager Application")));
+  }
+
   private void checkDirectoryListingLeak(final String webXmlContent, final AgentSpan span) {
-    if (webXmlContent != null && webXmlContent.contains("<param-name>listings</param-name>")) {
-      int index = webXmlContent.indexOf("<param-name>listings</param-name>");
-      int valueIndex = webXmlContent.indexOf("<param-value>", index);
-      int valueLast = webXmlContent.indexOf("</param-value>", index);
-      String data = webXmlContent.substring(valueIndex, valueLast);
-      if (data.trim().toLowerCase().contains("true")) {
-        reporter.report(
-            span,
-            new Vulnerability(
-                VulnerabilityType.DIRECTORY_LISTING_LEAK,
-                Location.forSpanAndFileAndLine(span, "web.xml", -1),
-                new Evidence("Directory listings configured")));
-      }
+    int valueIndex = webXmlContent.indexOf("<param-value>");
+    int valueLast = webXmlContent.indexOf("</param-value>");
+    String data = webXmlContent.substring(valueIndex, valueLast);
+    if (data.trim().toLowerCase().contains("true")) {
+      reporter.report(
+          span,
+          new Vulnerability(
+              VulnerabilityType.DIRECTORY_LISTING_LEAK,
+              Location.forSpanAndFileAndLine(span, "web.xml", -1),
+              new Evidence("Directory listings configured")));
     }
   }
 
   private void checkSessionTimeOut(final String webXmlContent, final AgentSpan span) {
-    if (webXmlContent != null && webXmlContent.contains("session-timeout")) {
-      Clue clue = getFirstClue(webXmlContent, "<session-timeout>", "</session-timeout>");
-      String innerText = clue.getValue();
-      if (innerText != null) {
-        innerText = innerText.trim();
-        try {
-          int timeoutValue = Integer.parseInt(innerText);
-          if (timeoutValue > 30 || timeoutValue == -1) {
-            reporter.report(
-                span,
-                new Vulnerability(
-                    VulnerabilityType.SESSION_TIMEOUT,
-                    Location.forSpanAndFileAndLine(span, "web.xml", clue.getLine()),
-                    new Evidence("Found vulnerable timeout value: " + timeoutValue)));
-          }
-        } catch (NumberFormatException e) {
-          // Nothing to do
+    Clue clue = getFirstClue(webXmlContent, "<session-timeout>", "</session-timeout>");
+    String innerText = clue.getValue();
+    if (innerText != null) {
+      innerText = innerText.trim();
+      try {
+        int timeoutValue = Integer.parseInt(innerText);
+        if (timeoutValue > 30 || timeoutValue == -1) {
+          reporter.report(
+              span,
+              new Vulnerability(
+                  VulnerabilityType.SESSION_TIMEOUT,
+                  Location.forSpanAndFileAndLine(span, "web.xml", clue.getLine()),
+                  new Evidence("Found vulnerable timeout value: " + timeoutValue)));
         }
+      } catch (NumberFormatException e) {
+        // Nothing to do
       }
     }
   }
@@ -238,12 +291,6 @@ public class ApplicationModuleImpl extends SinkModuleBase implements Application
         }
       }
     }
-  }
-
-  private boolean isSpring(final String web) {
-    return web != null
-        && (web.contains(ORG_SPRINGFRAMEWORK + ".web.context.ContextLoaderListener")
-            || web.contains(ORG_SPRINGFRAMEWORK + ".web.servlet.DispatcherServlet"));
   }
 
   private boolean isJsp(final String name) {
