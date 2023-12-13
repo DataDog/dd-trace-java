@@ -1,0 +1,38 @@
+import com.github.jengelman.gradle.plugins.shadow.transformers.PropertiesFileTransformer
+
+plugins {
+  id "com.github.johnrengelman.shadow"
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+description = 'SpringBoot Smoke Tests.'
+
+// The standard spring-boot plugin doesn't play nice with our project
+// so we'll build a fat jar instead
+jar {
+  manifest {
+    attributes('Main-Class': 'datadog.smoketest.appsec.springbootjdbcpostgresql.SpringbootJdbcApplication')
+  }
+}
+
+dependencies {
+  implementation 'org.springframework.boot:spring-boot-starter-jdbc:2.5.1'
+  implementation 'org.springframework.boot:spring-boot-starter-web:2.5.1'
+  implementation 'org.springframework.boot:spring-boot-starter-thymeleaf:2.5.1'
+  runtimeOnly 'org.postgresql:postgresql:42.7.0'
+  implementation group: 'com.github.jsqlparser', name: 'jsqlparser', version: '4.7'
+
+  testImplementation project(':dd-smoke-tests:appsec')
+}
+
+tasks.withType(Test).configureEach {
+  dependsOn "shadowJar"
+
+  jvmArgs "-Ddatadog.smoketest.appsec.springbootjdbcpostgresql.shadowJar.path=${tasks.shadowJar.archiveFile.get()}"
+}
+
+task testRuntimeActivation(type: Test) {
+  jvmArgs '-Dsmoke_test.appsec.enabled=inactive',
+    "-Ddatadog.smoketest.appsec.springbootjdbcpostgresql.shadowJar.path=${tasks.shadowJar.archiveFile.get()}"
+}
+tasks['check'].dependsOn(testRuntimeActivation)

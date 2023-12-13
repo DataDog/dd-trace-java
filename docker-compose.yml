@@ -1,0 +1,55 @@
+version: '3.3'
+services:
+  db:
+    image: postgres:15.5-alpine
+    restart: always
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=testdb
+    ports:
+      - 5432:5432
+    volumes: 
+      - db:/var/lib/postgresql/data
+    volumes:
+        - ./dd-smoke-tests/appsec/springboot-jdbc-postgresql/init.sql:/docker-entrypoint-initdb.d/init.sql
+    # networks:
+    #   - web
+
+  datadog-agent:
+    container_name: datadog-agent
+    image: "gcr.io/datadoghq/agent:latest"
+    pid: host
+    environment:
+      - DD_API_KEY=${DD_API_KEY}
+      - DD_SITE=${DD_SITE}
+      - DD_APM_ENABLED=true
+      - DD_APM_NON_LOCAL_TRAFFIC=true
+    ports:
+      - '8126:8126'
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /proc/:/host/proc/:ro
+      - /sys/fs/cgroup:/host/sys/fs/cgroup:ro 
+    # networks:
+    #   - web 
+
+  springboot:
+    build: dd-smoke-tests/appsec/springboot-jdbc-postgresql/.
+    container_name: springboot
+    environment:
+      - DD_SERVICE=${DD_SERVICE}
+      - DD_ENV=${DD_ENV}
+      # - DD_VERSION=0.0.1
+      - DD_AGENT_HOST=datadog-agent
+      - DB_URL=postgresql://db:5432/testdb
+    ports:
+      - '0.0.0.0:8080:8080'
+    # networks:
+    #   - web 
+
+# volumes:
+#   db:
+#     driver: local
+# networks:
+#   web: {}
