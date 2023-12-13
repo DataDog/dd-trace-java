@@ -1,5 +1,7 @@
 package datadog.trace.instrumentation.maven3;
 
+import datadog.trace.util.MethodHandles;
+import java.lang.invoke.MethodHandle;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -13,6 +15,7 @@ import org.apache.maven.execution.MavenSession;
 import org.apache.maven.model.Plugin;
 import org.apache.maven.plugin.MojoExecution;
 import org.apache.maven.project.MavenProject;
+import org.codehaus.plexus.PlexusContainer;
 import org.codehaus.plexus.logging.Logger;
 import org.codehaus.plexus.util.xml.Xpp3Dom;
 
@@ -272,5 +275,23 @@ public abstract class MavenUtils {
       current = child;
     }
     return current;
+  }
+
+  private static final MethodHandles METHOD_HANDLES =
+      new MethodHandles(PlexusContainer.class.getClassLoader());
+  private static final MethodHandle SESSION_FIELD =
+      METHOD_HANDLES.privateFieldGetter(MavenSession.class, "session");
+  private static final MethodHandle CONTAINER_FIELD =
+      METHOD_HANDLES.privateFieldGetter(
+          "org.apache.maven.internal.impl.DefaultSession", "container");
+
+  public static PlexusContainer getContainer(MavenSession mavenSession) {
+    PlexusContainer container = mavenSession.getContainer();
+    if (container != null) {
+      return container;
+    }
+    Object /* org.apache.maven.internal.impl.DefaultSession */ session =
+        METHOD_HANDLES.invoke(SESSION_FIELD, mavenSession);
+    return METHOD_HANDLES.invoke(CONTAINER_FIELD, session);
   }
 }
