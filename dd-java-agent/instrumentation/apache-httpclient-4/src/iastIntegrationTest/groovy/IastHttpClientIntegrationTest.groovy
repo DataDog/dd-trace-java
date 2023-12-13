@@ -35,7 +35,7 @@ class IastHttpClientIntegrationTest extends IastHttpServerTest<HttpServer> {
 
   void 'ssrf is present'() {
     setup:
-    def expected = 'http://dd.datad0g.com/test/' + suite.executedMethod
+    def expected = 'http://inexistent/test/' + suite.executedMethod
     if (suite.scheme == 'https') {
       expected = expected.replace('http', 'https')
     }
@@ -48,7 +48,7 @@ class IastHttpClientIntegrationTest extends IastHttpServerTest<HttpServer> {
 
     then:
     response.successful
-
+    TEST_WRITER.waitForTraces(1)
     def to = getFinReqTaintedObjects()
     assert to != null
     hasVulnerability (
