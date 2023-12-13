@@ -50,12 +50,13 @@ public final class FieldBackedContextStore implements ContextStore<Object, Objec
   }
 
   @Override
-  public Object putIfAbsent(final Object key, final Factory<Object, Object> contextFactory) {
+  public Object putIfAbsent(final Object key, final Factory<Object> contextFactory) {
     return computeIfAbsent(key, contextFactory);
   }
 
   @Override
-  public Object computeIfAbsent(Object key, KeyAwareFactory<Object, Object> contextFactory) {
+  public Object computeIfAbsent(
+      Object key, KeyAwareFactory<? super Object, Object> contextFactory) {
     if (key instanceof FieldBackedContextAccessor) {
       final FieldBackedContextAccessor accessor = (FieldBackedContextAccessor) key;
       Object existingContext = accessor.$get$__datadogContext$(storeId);

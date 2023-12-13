@@ -16,12 +16,12 @@ public interface ContextStore<K, C> {
    *
    * @param <C> context type
    */
-  interface Factory<K, C> extends KeyAwareFactory<K, C> {
+  interface Factory<C> extends KeyAwareFactory<Object, C> {
 
     /** @return new context instance */
     C create();
 
-    default C create(K key) {
+    default C create(Object key) {
       return create();
     }
   }
@@ -71,7 +71,7 @@ public interface ContextStore<K, C> {
    * @param contextFactory factory instance to produce new context object
    * @return old instance if it was present, or new instance
    */
-  C putIfAbsent(K key, Factory<K, C> contextFactory);
+  C putIfAbsent(K key, Factory<C> contextFactory);
 
   /**
    * Put new context instance if key is absent. Uses context factory to avoid creating objects if
@@ -81,7 +81,7 @@ public interface ContextStore<K, C> {
    * @param contextFactory factory instance to produce new context object
    * @return old instance if it was present, or new instance
    */
-  C computeIfAbsent(K key, KeyAwareFactory<K, C> contextFactory);
+  C computeIfAbsent(K key, KeyAwareFactory<? super K, C> contextFactory);
 
   /**
    * Removes the existing value for key and return it.

@@ -54,12 +54,12 @@ final class WeakMapContextStore<K, V> implements ContextStore<K, V> {
   }
 
   @Override
-  public V putIfAbsent(final K key, final Factory<K, V> contextFactory) {
+  public V putIfAbsent(final K key, final Factory<V> contextFactory) {
     return computeIfAbsent(key, contextFactory);
   }
 
   @Override
-  public V computeIfAbsent(K key, KeyAwareFactory<K, V> contextFactory) {
+  public V computeIfAbsent(K key, KeyAwareFactory<? super K, V> contextFactory) {
     V existingContext = get(key);
     if (null == existingContext) {
       // This whole part with using synchronized is only because
