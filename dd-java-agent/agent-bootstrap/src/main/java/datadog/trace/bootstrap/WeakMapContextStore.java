@@ -54,8 +54,8 @@ final class WeakMapContextStore<K, V> implements ContextStore<K, V> {
   }
 
   @Override
-  public V putIfAbsent(final K key, final Factory<V> contextFactory) {
-    return computeIfAbsent(key, k -> contextFactory.create());
+  public V putIfAbsent(final K key, final Factory<K, V> contextFactory) {
+    return computeIfAbsent(key, contextFactory);
   }
 
   @Override

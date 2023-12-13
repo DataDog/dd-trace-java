@@ -50,8 +50,8 @@ public final class FieldBackedContextStore implements ContextStore<Object, Objec
   }
 
   @Override
-  public Object putIfAbsent(final Object key, final Factory<Object> contextFactory) {
-    return computeIfAbsent(key, k -> contextFactory.create());
+  public Object putIfAbsent(final Object key, final Factory<Object, Object> contextFactory) {
+    return computeIfAbsent(key, contextFactory);
   }
 
   @Override
