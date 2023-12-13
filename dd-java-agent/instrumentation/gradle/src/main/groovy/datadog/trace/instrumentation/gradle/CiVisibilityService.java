@@ -88,6 +88,8 @@ public abstract class CiVisibilityService
       jvmArgs.addAll(splitArgs);
     }
 
+    jvmArgs.add(arg(CiVisibilityConfig.CIVISIBILITY_MODULE_NAME, taskPath));
+
     jvmArgs.add("-javaagent:" + config.getCiVisibilityAgentJarFile().toPath());
 
     BuildEventsHandler.ModuleInfo moduleInfo =
