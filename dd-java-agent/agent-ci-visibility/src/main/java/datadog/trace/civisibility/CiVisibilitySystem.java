@@ -241,17 +241,33 @@ public class CiVisibilitySystem {
       CIProviderInfoFactory ciProviderInfoFactory = new CIProviderInfoFactory(config);
       CIProviderInfo ciProviderInfo = ciProviderInfoFactory.createCIProviderInfo(path);
       CIInfo ciInfo = ciProviderInfo.buildCIInfo();
-      String repoRoot = ciInfo.getCiWorkspace();
-      String moduleName =
-          repoRoot != null && path.startsWith(repoRoot)
-              ? Paths.get(repoRoot).relativize(path).toString()
-              : config.getServiceName();
 
+      String moduleName = getModuleName(config, path, ciInfo);
       DDTestFrameworkSession testSession =
           sessionFactory.startSession(moduleName, path, component, null);
       DDTestFrameworkModule testModule = testSession.testModuleStart(moduleName, null);
       return new TestEventsHandlerImpl(testSession, testModule);
     };
+  }
+
+  private static String getModuleName(Config config, Path path, CIInfo ciInfo) {
+    // if parent process is instrumented, it will provide build system's module name
+    String parentModuleName =
+        System.getProperty(
+            Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_MODULE_NAME));
+    if (parentModuleName != null) {
+      return parentModuleName;
+    }
+
+    String repoRoot = ciInfo.getCiWorkspace();
+    if (repoRoot != null
+        && path.startsWith(repoRoot)
+        // module name cannot be empty
+        && !path.toString().equals(repoRoot)) {
+      return Paths.get(repoRoot).relativize(path).toString();
+    }
+
+    return config.getServiceName();
   }
 
   private static DDTestFrameworkSession.Factory testFrameworkSessionFactory(

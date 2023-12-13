@@ -69,5 +69,7 @@ public final class CiVisibilityConfig {
   public static final String CIVISIBILITY_RESOURCE_FOLDER_NAMES =
       "civisibility.resource.folder.names";
 
+  public static final String CIVISIBILITY_MODULE_NAME = "civisibility.module.name";
+
   private CiVisibilityConfig() {}
 }

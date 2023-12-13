@@ -66,8 +66,8 @@ public class RepoIndexBuilder implements RepoIndexProvider {
         scanRoot,
         repoRoot);
 
-    Path repoRootPath = fileSystem.getPath(repoRoot);
-    Path scanRootPath = fileSystem.getPath(scanRoot);
+    Path repoRootPath = toRealPath(fileSystem.getPath(repoRoot));
+    Path scanRootPath = toRealPath(fileSystem.getPath(scanRoot));
     RepoIndexingFileVisitor repoIndexingFileVisitor =
         new RepoIndexingFileVisitor(config, packageResolver, resourceResolver, repoRootPath);
 
@@ -94,6 +94,15 @@ public class RepoIndexBuilder implements RepoIndexProvider {
         repoIndexingFileVisitor.sourceRoots.size(),
         index.getRootPackages());
     return index;
+  }
+
+  private Path toRealPath(Path path) {
+    try {
+      return path.toRealPath();
+    } catch (Exception e) {
+      log.error("Could not determine real path for {}", path, e);
+      return path;
+    }
   }
 
   private static final class RepoIndexingFileVisitor implements FileVisitor<Path> {
