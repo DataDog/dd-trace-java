@@ -67,7 +67,8 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
     "test_successful_maven_run"                         | "3.6.3"              | 5              | 1
     "test_successful_maven_run"                         | "3.8.8"              | 5              | 1
     "test_successful_maven_run"                         | "3.9.5"              | 5              | 1
-    "test_successful_maven_run"                         | LATEST_MAVEN_VERSION | 5              | 1
+    "test_successful_maven_run_surefire_3_0_0"          | "3.9.5"              | 5              | 1
+    "test_successful_maven_run_surefire_3_0_0"          | LATEST_MAVEN_VERSION | 5              | 1
     "test_successful_maven_run_with_jacoco_and_argline" | "3.9.5"              | 5              | 1
     "test_successful_maven_run_with_cucumber"           | "3.9.5"              | 7              | 1
   }
