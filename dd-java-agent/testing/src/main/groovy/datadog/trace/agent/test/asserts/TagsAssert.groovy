@@ -108,14 +108,16 @@ class TagsAssert {
 
   def errorTags(Class<Throwable> errorType, message) {
     tag("error.type", {
-      try {
-        if (errorType.isAssignableFrom(Class.forName(it, false, getClass().getClassLoader()))) {
-          return true
-        }
-      } catch (Throwable t) {
-        // can happen
+      if (it == errorType.name) {
+        return true
       }
-      return it == errorType.getName()
+      try {
+        // also accept type names which are sub-classes of the given error type
+        return errorType.isAssignableFrom(
+            Class.forName(it as String, false, errorType.class.classLoader))
+      } catch (Throwable ignore) {
+        return false
+      }
     })
     tag("error.stack", String)
 
