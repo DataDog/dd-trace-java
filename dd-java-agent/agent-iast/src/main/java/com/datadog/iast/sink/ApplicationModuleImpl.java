@@ -188,11 +188,11 @@ public class ApplicationModuleImpl extends SinkModuleBase implements Application
     }
   }
 
-  private void report(AgentSpan span, VulnerabilityType verbTampering, String value) {
+  private void report(AgentSpan span, VulnerabilityType type, String value) {
     reporter.report(
         span,
         new Vulnerability(
-            verbTampering, Location.forSpanAndFileAndLine(span, WEB_XML, -1), new Evidence(value)));
+            type, Location.forSpanAndFileAndLine(span, WEB_XML, -1), new Evidence(value)));
   }
 
   private void checkInsecureJSPLayout(String realPath, AgentSpan span) {
