@@ -52,7 +52,8 @@ public class RetryContextImpl implements RetryContext {
      * Rerunning a test with the ID that was executed previously will cause errors.
      */
     TestDescriptor retryDescriptor =
-        testDescriptor.withIdSuffix("retry-attempt", String.valueOf(++retryAttemptIdx));
+        testDescriptor.withIdSuffix(
+            RETRY_ATTEMPT_TEST_ID_SEGMENT, String.valueOf(++retryAttemptIdx));
     testTask.setTestDescriptor(retryDescriptor);
     testTask.setNode((Node<?>) retryDescriptor);
     testTask.getListener().dynamicTestRegistered(retryDescriptor);

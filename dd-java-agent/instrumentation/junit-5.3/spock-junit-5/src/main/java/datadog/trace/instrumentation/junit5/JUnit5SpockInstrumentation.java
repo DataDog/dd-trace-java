@@ -37,6 +37,7 @@ public class JUnit5SpockInstrumentation extends Instrumenter.CiVisibility
   public String[] helperClassNames() {
     return new String[] {
       packageName + ".JUnitPlatformUtils",
+      packageName + ".TestIdentifierFactory",
       packageName + ".SpockUtils",
       packageName + ".TestEventsHandlerHolder",
       packageName + ".SpockTracingListener",
