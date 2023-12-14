@@ -30,6 +30,7 @@ import com.datadog.debugger.el.values.StringValue;
 import com.datadog.debugger.instrumentation.InstrumentationResult;
 import com.datadog.debugger.probe.LogProbe;
 import com.datadog.debugger.probe.ProbeDefinition;
+import com.datadog.debugger.sink.DebuggerSink;
 import com.datadog.debugger.sink.ProbeStatusSink;
 import com.datadog.debugger.sink.Snapshot;
 import com.datadog.debugger.util.MoshiHelper;
@@ -1978,7 +1979,11 @@ public class CapturedSnapshotTest {
         new DebuggerTransformerTest.TestSnapshotListener(config, mock(ProbeStatusSink.class));
     DebuggerAgentHelper.injectSink(listener);
     currentTransformer =
-        DebuggerAgent.setupInstrumentTheWorldTransformer(config, instr, listener, null);
+        DebuggerAgent.setupInstrumentTheWorldTransformer(
+            config,
+            instr,
+            new DebuggerSink(config, config.getFinalDebuggerSnapshotUrl(), false),
+            null);
     DebuggerContext.initClassFilter(new DenyListHelper(null));
     return listener;
   }
