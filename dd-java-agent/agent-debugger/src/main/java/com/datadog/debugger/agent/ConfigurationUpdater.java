@@ -59,12 +59,18 @@ public class ConfigurationUpdater
 
   private Configuration currentConfiguration;
 
-  public ConfigurationUpdater(
+  // used only for tests
+  ConfigurationUpdater(
       Instrumentation instrumentation,
       TransformerSupplier transformerSupplier,
       Config config,
       ClassesToRetransformFinder finder) {
-    this(instrumentation, transformerSupplier, config, new DebuggerSink(config), finder);
+    this(
+        instrumentation,
+        transformerSupplier,
+        config,
+        new DebuggerSink(config, config.getFinalDebuggerSnapshotUrl(), false),
+        finder);
   }
 
   public ConfigurationUpdater(
