@@ -118,6 +118,8 @@ public class ApplicationModuleImpl extends SinkModuleBase implements Application
         case SECURITY_CONSTRAINT_START_TAG:
           checkVerbTampering(webXmlContent, matcher.start(), span);
           break;
+        default:
+          break;
       }
     }
 
