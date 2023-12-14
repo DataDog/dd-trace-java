@@ -11,6 +11,8 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 
 class ApplicationModuleTest extends IastModuleImplTestBase {
 
+  private static final int NO_LINE = -1
+
   private ApplicationModule module
 
   private IastRequestContext ctx
@@ -47,25 +49,33 @@ class ApplicationModuleTest extends IastModuleImplTestBase {
 
     then:
     if (expectedVulnType != null) {
-      1 * reporter.report(_, _) >> { assertEvidence(it[1], expectedVulnType, expectedEvidence) }
+      1 * reporter.report(_, _) >> { assertEvidence(it[1], expectedVulnType, expectedEvidence, line) }
     } else {
       0 * reporter._
     }
 
     where:
-    path | expectedVulnType | expectedEvidence
-    'application/insecurejsplayout/secure' | null | null
-    'application/insecurejsplayout/insecure' | VulnerabilityType.INSECURE_JSP_LAYOUT |  ['/nestedinsecure/insecure2.jsp', '/insecure.jsp'] as String []
-    'application/verbtampering/secure' | null | null
-    'application/verbtampering/insecure' | VulnerabilityType.VERB_TAMPERING | 'http-method not defined in web.xml'
-    'application/sessiontimeout/secure' | null | null
-    'application/sessiontimeout/insecure' | VulnerabilityType.SESSION_TIMEOUT | 'Found vulnerable timeout value: 80'
-    'application/directorylistingleak/secure' | null | null
-    'application/directorylistingleak/insecure' | VulnerabilityType.DIRECTORY_LISTING_LEAK | 'Directory listings configured'
-    'application/adminconsoleactive/secure' | null | null
-    'application/adminconsoleactive/insecure' | VulnerabilityType.ADMIN_CONSOLE_ACTIVE | 'Tomcat Manager Application'
-    'application/defaulthtmlescapeinvalid/secure' | null | null
-    'application/defaulthtmlescapeinvalid/insecure' | VulnerabilityType.DEFAULT_HTML_ESCAPE_INVALID | 'defaultHtmlEscape tag should be set'
+    path | expectedVulnType | expectedEvidence | line
+    'application/insecurejsplayout/secure' | null | null | _
+    'application/insecurejsplayout/insecure' | VulnerabilityType.INSECURE_JSP_LAYOUT |  [
+      '/nestedinsecure/insecure2.jsp',
+      '/nestedinsecure/nestedinsecure/insecure3.jsp' ,
+      '/insecure.jsp',
+      '/insecure.jspx'
+    ] as String [] | NO_LINE
+    'application/verbtampering/secure' | null | null | _
+    'application/verbtampering/insecure' | VulnerabilityType.VERB_TAMPERING | 'http-method not defined in web.xml' | 6
+    'application/sessiontimeout/secure' | null | null | _
+    'application/sessiontimeout/insecure' | VulnerabilityType.SESSION_TIMEOUT | 'Found vulnerable timeout value: 80' | 7
+    'application/directorylistingleak/secure' | null | null | _
+    'application/directorylistingleak/insecure' | VulnerabilityType.DIRECTORY_LISTING_LEAK | 'Directory listings configured' | 14
+    'application/adminconsoleactive/secure' | null | null | _
+    'application/adminconsoleactive/insecure' | VulnerabilityType.ADMIN_CONSOLE_ACTIVE | 'Tomcat Manager Application' | NO_LINE
+    'application/defaulthtmlescapeinvalid/secure' | null | null | _
+    'application/defaulthtmlescapeinvalid/secure_tag' | null | null | _
+    'application/defaulthtmlescapeinvalid/false_tag' | VulnerabilityType.DEFAULT_HTML_ESCAPE_INVALID | 'defaultHtmlEscape tag should be true' | 8
+    'application/defaulthtmlescapeinvalid/no_tag_1' | VulnerabilityType.DEFAULT_HTML_ESCAPE_INVALID | 'defaultHtmlEscape tag should be set' | NO_LINE
+    'application/defaulthtmlescapeinvalid/no_tag_2' | VulnerabilityType.DEFAULT_HTML_ESCAPE_INVALID | 'defaultHtmlEscape tag should be set' | NO_LINE
   }
 
   private static void assertVulnerability(final  vuln, final  expectedVulnType) {
@@ -74,7 +84,7 @@ class ApplicationModuleTest extends IastModuleImplTestBase {
     assert vuln.getLocation() != null
   }
 
-  private static void assertEvidence(final  vuln, final  expectedVulnType, final  expectedEvidence) {
+  private static void assertEvidence(final  vuln, final  expectedVulnType, final  expectedEvidence, final line) {
     assertVulnerability(vuln, expectedVulnType)
     final evidence = vuln.evidence
     assert evidence != null
@@ -85,5 +95,6 @@ class ApplicationModuleTest extends IastModuleImplTestBase {
     } else {
       assert evidence.value == expectedEvidence
     }
+    assert vuln.location.line == line
   }
 }

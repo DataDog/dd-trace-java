@@ -70,6 +70,8 @@ public class ApplicationModuleImpl extends SinkModuleBase implements Application
 
   private static final Pattern PATTERN = Pattern.compile(REGEX);
 
+  private static final int NO_LINE = -1;
+
   public ApplicationModuleImpl(final Dependencies dependencies) {
     super(dependencies);
   }
@@ -119,30 +121,37 @@ public class ApplicationModuleImpl extends SinkModuleBase implements Application
       }
     }
 
-    if (isSpring && defaultHtmlEscapeIndex != -1) {
+    if (isSpring) {
       checkDefaultHtmlEscapeInvalid(webXmlContent, span, defaultHtmlEscapeIndex);
     }
   }
 
   private void checkDefaultHtmlEscapeInvalid(
       String webXmlContent, AgentSpan span, int defaultHtmlEscapeIndex) {
-    String value = "false";
     if (defaultHtmlEscapeIndex != -1) {
       int start =
           webXmlContent.indexOf(PARAM_VALUE_START_TAG, defaultHtmlEscapeIndex)
               + PARAM_VALUE_START_TAG.length();
-      value = webXmlContent.substring(start, webXmlContent.indexOf(PARAM_VALUE_END_TAG, start));
-    }
-    if (defaultHtmlEscapeIndex == -1 || !Boolean.parseBoolean(value)) {
+      String value =
+          webXmlContent.substring(start, webXmlContent.indexOf(PARAM_VALUE_END_TAG, start));
+      if (!value.trim().toLowerCase().equals("true")) {
+        report(
+            span,
+            VulnerabilityType.DEFAULT_HTML_ESCAPE_INVALID,
+            "defaultHtmlEscape tag should be true",
+            getLine(webXmlContent, start));
+      }
+    } else {
       report(
           span,
           VulnerabilityType.DEFAULT_HTML_ESCAPE_INVALID,
-          "defaultHtmlEscape tag should be set");
+          "defaultHtmlEscape tag should be set",
+          NO_LINE);
     }
   }
 
   private void reportAdminConsoleActive(AgentSpan span) {
-    report(span, VulnerabilityType.ADMIN_CONSOLE_ACTIVE, "Tomcat Manager Application");
+    report(span, VulnerabilityType.ADMIN_CONSOLE_ACTIVE, "Tomcat Manager Application", NO_LINE);
   }
 
   private void checkDirectoryListingLeak(
@@ -152,7 +161,11 @@ public class ApplicationModuleImpl extends SinkModuleBase implements Application
     int valueLast = webXmlContent.indexOf(PARAM_VALUE_END_TAG, valueIndex);
     String data = webXmlContent.substring(valueIndex, valueLast);
     if (data.trim().toLowerCase().equals("true")) {
-      report(span, VulnerabilityType.DIRECTORY_LISTING_LEAK, "Directory listings configured");
+      report(
+          span,
+          VulnerabilityType.DIRECTORY_LISTING_LEAK,
+          "Directory listings configured",
+          getLine(webXmlContent, index));
     }
   }
 
@@ -169,7 +182,8 @@ public class ApplicationModuleImpl extends SinkModuleBase implements Application
         report(
             span,
             VulnerabilityType.SESSION_TIMEOUT,
-            "Found vulnerable timeout value: " + timeoutValue);
+            "Found vulnerable timeout value: " + timeoutValue,
+            getLine(webXmlContent, index));
       }
     } catch (NumberFormatException e) {
       // Nothing to do
@@ -184,15 +198,30 @@ public class ApplicationModuleImpl extends SinkModuleBase implements Application
                 webXmlContent.indexOf(SECURITY_CONSTRAINT_END_TAG, index))
             .trim();
     if (!innerText.contains("<http-method>")) {
-      report(span, VulnerabilityType.VERB_TAMPERING, "http-method not defined in web.xml");
+      report(
+          span,
+          VulnerabilityType.VERB_TAMPERING,
+          "http-method not defined in web.xml",
+          getLine(webXmlContent, index));
     }
   }
 
-  private void report(AgentSpan span, VulnerabilityType type, String value) {
+  private int getLine(String webXmlContent, int index) {
+    int line = 1;
+    int limit = Math.min(index, webXmlContent.length());
+    for (int i = limit; i > 0; i--) {
+      if (webXmlContent.charAt(i) == '\n') {
+        line++;
+      }
+    }
+    return line;
+  }
+
+  private void report(AgentSpan span, VulnerabilityType type, String value, int line) {
     reporter.report(
         span,
         new Vulnerability(
-            type, Location.forSpanAndFileAndLine(span, WEB_XML, -1), new Evidence(value)));
+            type, Location.forSpanAndFileAndLine(span, WEB_XML, line), new Evidence(value)));
   }
 
   private void checkInsecureJSPLayout(String realPath, AgentSpan span) {
