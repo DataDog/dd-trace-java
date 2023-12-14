@@ -50,7 +50,10 @@ public class DebuggerAgent {
     DDAgentFeaturesDiscovery ddAgentFeaturesDiscovery = sco.featuresDiscovery(config);
     ddAgentFeaturesDiscovery.discoverIfOutdated();
     agentVersion = ddAgentFeaturesDiscovery.getVersion();
-    DebuggerSink debuggerSink = new DebuggerSink(config);
+    String diagnosticEndpoint = getDiagnosticEndpoint(config, ddAgentFeaturesDiscovery);
+    DebuggerSink debuggerSink =
+        new DebuggerSink(
+            config, diagnosticEndpoint, ddAgentFeaturesDiscovery.supportsDebuggerDiagnostics());
     debuggerSink.start();
     ConfigurationUpdater configurationUpdater =
         new ConfigurationUpdater(
@@ -104,6 +107,14 @@ public class DebuggerAgent {
     } else {
       LOGGER.debug("No configuration poller available from SharedCommunicationObjects");
     }
+  }
+
+  private static String getDiagnosticEndpoint(
+      Config config, DDAgentFeaturesDiscovery ddAgentFeaturesDiscovery) {
+    if (ddAgentFeaturesDiscovery.supportsDebuggerDiagnostics()) {
+      return config.getAgentUrl() + "/" + DDAgentFeaturesDiscovery.DEBUGGER_DIAGNOSTICS_ENDPOINT;
+    }
+    return config.getFinalDebuggerSnapshotUrl();
   }
 
   private static void setupSourceFileTracking(
