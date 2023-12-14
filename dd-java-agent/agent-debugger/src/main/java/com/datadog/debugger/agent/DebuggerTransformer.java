@@ -368,7 +368,7 @@ public class DebuggerTransformer implements ClassFileTransformer {
     ClassReader classReader = new ClassReader(classFile);
     ClassNode classNode = new ClassNode();
     classReader.accept(
-        new CheckClassAdapter(Opcodes.ASM7, classNode, false) {}, ClassReader.SKIP_DEBUG);
+        new CheckClassAdapter(Opcodes.ASM9, classNode, false) {}, ClassReader.SKIP_DEBUG);
     List<MethodNode> methods = classNode.methods;
     for (MethodNode method : methods) {
       BasicVerifier verifier = new BasicVerifier();

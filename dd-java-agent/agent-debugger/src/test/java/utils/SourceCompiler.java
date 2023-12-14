@@ -17,7 +17,8 @@ public final class SourceCompiler {
     NONE
   }
 
-  public static Map<String, byte[]> compile(String className, String source, DebugInfo debug) {
+  public static Map<String, byte[]> compile(
+      String className, String source, DebugInfo debug, String version) {
     JavaCompiler jc = ToolProvider.getSystemJavaCompiler();
     if (jc == null) throw new RuntimeException("Compiler unavailable");
 
@@ -49,9 +50,9 @@ public final class SourceCompiler {
         }
     }
     options.add("-target");
-    options.add("8");
+    options.add(version);
     options.add("-source");
-    options.add("8");
+    options.add(version);
     options.add("-cp");
     options.add(System.getProperty("java.class.path"));
 
