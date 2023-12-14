@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.matches;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -71,6 +72,8 @@ public class DebuggerSinkTest {
     when(config.getEnv()).thenReturn("test");
     when(config.getVersion()).thenReturn("foo");
     when(config.getDebuggerUploadBatchSize()).thenReturn(1);
+    when(config.getFinalDebuggerSnapshotUrl())
+        .thenReturn("http://localhost:8126/debugger/v1/input");
     when(config.getFinalDebuggerSymDBUrl()).thenReturn("http://localhost:8126/symdb/v1/input");
 
     EXPECTED_SNAPSHOT_TAGS =
@@ -228,11 +231,38 @@ public class DebuggerSinkTest {
 
   @Test
   public void addDiagnostics() throws IOException {
-    DebuggerSink sink = new DebuggerSink(config, batchUploader);
+    BatchUploader diagnosticUploader = mock(BatchUploader.class);
+    DebuggerSink sink =
+        new DebuggerSink(config, new ProbeStatusSink(config, diagnosticUploader, false));
     sink.addReceived(new ProbeId("1", 2));
     sink.flush(sink);
-    verify(batchUploader).upload(payloadCaptor.capture(), matches(EXPECTED_SNAPSHOT_TAGS));
+    verify(diagnosticUploader).upload(payloadCaptor.capture(), matches(EXPECTED_SNAPSHOT_TAGS));
     String strPayload = new String(payloadCaptor.getValue(), StandardCharsets.UTF_8);
+    System.out.println(strPayload);
+    ParameterizedType type = Types.newParameterizedType(List.class, ProbeStatus.class);
+    JsonAdapter<List<ProbeStatus>> adapter = MoshiHelper.createMoshiProbeStatus().adapter(type);
+    List<ProbeStatus> statuses = adapter.fromJson(strPayload);
+    assertEquals(1, statuses.size());
+    ProbeStatus status = statuses.get(0);
+    assertEquals("dd_debugger", status.getDdSource());
+    assertEquals("Received probe ProbeId{id='1', version=2}.", status.getMessage());
+    assertEquals("service-name", status.getService());
+    assertEquals(ProbeStatus.Status.RECEIVED, status.getDiagnostics().getStatus());
+    assertEquals("1", status.getDiagnostics().getProbeId().getId());
+  }
+
+  @Test
+  public void addDiagnosticsDebuggerTrack() throws IOException {
+    BatchUploader diagnosticUploader = mock(BatchUploader.class);
+    DebuggerSink sink =
+        new DebuggerSink(config, new ProbeStatusSink(config, diagnosticUploader, true));
+    sink.addReceived(new ProbeId("1", 2));
+    sink.flush(sink);
+    ArgumentCaptor<BatchUploader.MultiPartContent> partCaptor =
+        ArgumentCaptor.forClass(BatchUploader.MultiPartContent.class);
+    verify(diagnosticUploader).uploadAsMultipart(anyString(), partCaptor.capture());
+    String strPayload =
+        new String(partCaptor.getAllValues().get(0).getContent(), StandardCharsets.UTF_8);
     System.out.println(strPayload);
     ParameterizedType type = Types.newParameterizedType(List.class, ProbeStatus.class);
     JsonAdapter<List<ProbeStatus>> adapter = MoshiHelper.createMoshiProbeStatus().adapter(type);
@@ -249,13 +279,37 @@ public class DebuggerSinkTest {
   @Test
   public void addMultipleDiagnostics() throws URISyntaxException, IOException {
     when(config.getDebuggerUploadBatchSize()).thenReturn(100);
-    DebuggerSink sink = new DebuggerSink(config, batchUploader);
+    BatchUploader diagnosticUploader = mock(BatchUploader.class);
+    DebuggerSink sink =
+        new DebuggerSink(config, new ProbeStatusSink(config, diagnosticUploader, false));
     for (String probeId : Arrays.asList("1", "2")) {
       sink.addReceived(new ProbeId(probeId, 1));
     }
     sink.flush(sink);
-    verify(batchUploader).upload(payloadCaptor.capture(), matches(EXPECTED_SNAPSHOT_TAGS));
+    verify(diagnosticUploader).upload(payloadCaptor.capture(), matches(EXPECTED_SNAPSHOT_TAGS));
     String strPayload = new String(payloadCaptor.getValue(), StandardCharsets.UTF_8);
+    System.out.println(strPayload);
+    ParameterizedType type = Types.newParameterizedType(List.class, ProbeStatus.class);
+    JsonAdapter<List<ProbeStatus>> adapter = MoshiHelper.createMoshiProbeStatus().adapter(type);
+    List<ProbeStatus> statuses = adapter.fromJson(strPayload);
+    assertEquals(2, statuses.size());
+  }
+
+  @Test
+  public void addMultipleDiagnosticsDebuggerTrack() throws URISyntaxException, IOException {
+    when(config.getDebuggerUploadBatchSize()).thenReturn(100);
+    BatchUploader diagnosticUploader = mock(BatchUploader.class);
+    DebuggerSink sink =
+        new DebuggerSink(config, new ProbeStatusSink(config, diagnosticUploader, true));
+    for (String probeId : Arrays.asList("1", "2")) {
+      sink.addReceived(new ProbeId(probeId, 1));
+    }
+    sink.flush(sink);
+    ArgumentCaptor<BatchUploader.MultiPartContent> partCaptor =
+        ArgumentCaptor.forClass(BatchUploader.MultiPartContent.class);
+    verify(diagnosticUploader).uploadAsMultipart(anyString(), partCaptor.capture());
+    String strPayload =
+        new String(partCaptor.getAllValues().get(0).getContent(), StandardCharsets.UTF_8);
     System.out.println(strPayload);
     ParameterizedType type = Types.newParameterizedType(List.class, ProbeStatus.class);
     JsonAdapter<List<ProbeStatus>> adapter = MoshiHelper.createMoshiProbeStatus().adapter(type);
@@ -266,7 +320,9 @@ public class DebuggerSinkTest {
   @Test
   public void splitDiagnosticsBatch() {
     when(config.getDebuggerUploadBatchSize()).thenReturn(100);
-    DebuggerSink sink = new DebuggerSink(config, batchUploader);
+    BatchUploader diagnosticUploader = mock(BatchUploader.class);
+    DebuggerSink sink =
+        new DebuggerSink(config, new ProbeStatusSink(config, diagnosticUploader, false));
     StringBuilder largeMessageBuilder = new StringBuilder(100_001);
     for (int i = 0; i < 100_000; i++) {
       largeMessageBuilder.append("f");
@@ -276,10 +332,32 @@ public class DebuggerSinkTest {
       sink.getProbeDiagnosticsSink().addError(new ProbeId(String.valueOf(i), i), largeMessage);
     }
     sink.flush(sink);
-    verify(batchUploader, times(2))
+    verify(diagnosticUploader, times(2))
         .upload(payloadCaptor.capture(), matches(EXPECTED_SNAPSHOT_TAGS));
     Assertions.assertTrue(payloadCaptor.getAllValues().get(0).length < MAX_PAYLOAD);
     Assertions.assertTrue(payloadCaptor.getAllValues().get(1).length < MAX_PAYLOAD);
+  }
+
+  @Test
+  public void splitDiagnosticsBatchDebuggerTrack() {
+    when(config.getDebuggerUploadBatchSize()).thenReturn(100);
+    BatchUploader diagnosticUploader = mock(BatchUploader.class);
+    DebuggerSink sink =
+        new DebuggerSink(config, new ProbeStatusSink(config, diagnosticUploader, true));
+    StringBuilder largeMessageBuilder = new StringBuilder(100_001);
+    for (int i = 0; i < 100_000; i++) {
+      largeMessageBuilder.append("f");
+    }
+    String largeMessage = largeMessageBuilder.toString();
+    for (int i = 0; i < 100; i++) {
+      sink.getProbeDiagnosticsSink().addError(new ProbeId(String.valueOf(i), i), largeMessage);
+    }
+    sink.flush(sink);
+    ArgumentCaptor<BatchUploader.MultiPartContent> partCaptor =
+        ArgumentCaptor.forClass(BatchUploader.MultiPartContent.class);
+    verify(diagnosticUploader, times(2)).uploadAsMultipart(anyString(), partCaptor.capture());
+    Assertions.assertTrue(partCaptor.getAllValues().get(0).getContent().length < MAX_PAYLOAD);
+    Assertions.assertTrue(partCaptor.getAllValues().get(1).getContent().length < MAX_PAYLOAD);
   }
 
   @Test
