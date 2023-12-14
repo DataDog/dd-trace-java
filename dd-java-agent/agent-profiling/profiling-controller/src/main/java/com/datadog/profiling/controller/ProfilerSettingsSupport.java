@@ -11,6 +11,20 @@ import java.nio.file.Paths;
 
 /** Capture the profiler config first and allow emitting the setting events per each recording. */
 public abstract class ProfilerSettingsSupport {
+  protected static final String JFR_IMPLEMENTATION_KEY = "JFR Implementation";
+  protected static final String UPLOAD_PERIOD_KEY = "Upload Period";
+  protected static final String UPLOAD_TIMEOUT_KEY = "Upload Timeout";
+  protected static final String UPLOAD_COMPRESSION_KEY = "Upload Compression";
+  protected static final String ALLOCATION_PROFILING_KEY = "Allocation Profiling";
+  protected static final String HEAP_PROFILING_KEY = "Heap Profiling";
+  protected static final String FORCE_START_FIRST_KEY = "Force Start-First";
+  protected static final String HOTSPOTS_KEY = "Hotspots";
+  protected static final String ENDPOINTS_KEY = "Endpoints";
+  protected static final String AUXILIARY_PROFILER_KEY = "Auxiliary Profiler";
+  protected static final String PERF_EVENTS_PARANOID_KEY = "perf_events_paranoid";
+  protected static final String NATIVE_STACKS_KEY = "Native Stacks";
+  protected static final String STACK_DEPTH_KEY = "Stack Depth";
+
   protected final int uploadPeriod;
   protected final int uploadTimeout;
   protected final String uploadCompression;
@@ -25,11 +39,12 @@ public abstract class ProfilerSettingsSupport {
   protected final boolean endpointsEnabled;
   protected final String auxiliaryProfiler;
   protected final String perfEventsParanoid;
-
   protected final boolean hasNativeStacks;
 
-  protected ProfilerSettingsSupport() {
-    ConfigProvider configProvider = ConfigProvider.getInstance();
+  protected final int stackDepth;
+  protected volatile boolean hasJfrStackDepthApplied = false;
+
+  protected ProfilerSettingsSupport(ConfigProvider configProvider) {
     uploadPeriod =
         configProvider.getInteger(
             ProfilingConfig.PROFILING_UPLOAD_PERIOD,
@@ -83,6 +98,11 @@ public abstract class ProfilerSettingsSupport {
                     configProvider.getString(
                         "profiling.async.cstack",
                         ProfilingConfig.PROFILING_DATADOG_PROFILER_CSTACK_DEFAULT)));
+    stackDepth =
+        configProvider.getInteger(
+            ProfilingConfig.PROFILING_STACKDEPTH,
+            ProfilingConfig.PROFILING_STACKDEPTH_DEFAULT,
+            ProfilingConfig.PROFILING_DATADOG_PROFILER_STACKDEPTH);
   }
 
   private static String getDefaultAuxiliaryProfiler() {
@@ -93,6 +113,10 @@ public abstract class ProfilerSettingsSupport {
 
   /** To be defined in controller specific way. Eg. one could emit JFR events. */
   public abstract void publish();
+
+  public void markJfrStackDepthApplied() {
+    hasJfrStackDepthApplied = true;
+  }
 
   private static String readPerfEventsParanoidSetting() {
     String value = "unknown";

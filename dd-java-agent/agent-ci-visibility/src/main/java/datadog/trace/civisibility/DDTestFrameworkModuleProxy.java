@@ -1,8 +1,9 @@
 package datadog.trace.civisibility;
 
 import datadog.trace.api.Config;
-import datadog.trace.api.civisibility.config.SkippableTest;
+import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.civisibility.coverage.CoverageDataSupplier;
+import datadog.trace.api.civisibility.retry.TestRetryPolicy;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.civisibility.codeowners.Codeowners;
@@ -11,13 +12,15 @@ import datadog.trace.civisibility.coverage.CoverageProbeStoreFactory;
 import datadog.trace.civisibility.decorator.TestDecorator;
 import datadog.trace.civisibility.ipc.ModuleExecutionResult;
 import datadog.trace.civisibility.ipc.SignalClient;
-import datadog.trace.civisibility.ipc.SkippableTestsRequest;
-import datadog.trace.civisibility.ipc.SkippableTestsResponse;
+import datadog.trace.civisibility.ipc.TestDataRequest;
+import datadog.trace.civisibility.ipc.TestDataResponse;
+import datadog.trace.civisibility.ipc.TestDataType;
 import datadog.trace.civisibility.ipc.TestFramework;
+import datadog.trace.civisibility.retry.NeverRetry;
+import datadog.trace.civisibility.retry.RetryIfFailed;
 import datadog.trace.civisibility.source.MethodLinesResolver;
 import datadog.trace.civisibility.source.SourcePathResolver;
 import java.net.InetSocketAddress;
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
@@ -49,7 +52,8 @@ public class DDTestFrameworkModuleProxy implements DDTestFrameworkModule {
   private final MethodLinesResolver methodLinesResolver;
   private final CoverageProbeStoreFactory coverageProbeStoreFactory;
   private final LongAdder testsSkipped = new LongAdder();
-  private final Collection<SkippableTest> skippableTests;
+  private final Collection<TestIdentifier> skippableTests;
+  private final Collection<TestIdentifier> flakyTests;
   private final Collection<TestFramework> testFrameworks = ConcurrentHashMap.newKeySet();
 
   public DDTestFrameworkModuleProxy(
@@ -76,41 +80,57 @@ public class DDTestFrameworkModuleProxy implements DDTestFrameworkModule {
     this.methodLinesResolver = methodLinesResolver;
     this.coverageProbeStoreFactory = coverageProbeStoreFactory;
     this.skippableTests = fetchSkippableTests(moduleName, signalServerAddress);
+    this.flakyTests = fetchFlakyTests(moduleName, signalServerAddress);
   }
 
-  private Collection<SkippableTest> fetchSkippableTests(
+  private Collection<TestIdentifier> fetchSkippableTests(
       String moduleName, InetSocketAddress signalServerAddress) {
-    if (!config.isCiVisibilityItrEnabled()) {
-      return Collections.emptyList();
-    }
+    return config.isCiVisibilityItrEnabled()
+        ? fetchTestData(TestDataType.SKIPPABLE, moduleName, signalServerAddress)
+        : Collections.emptyList();
+  }
 
-    SkippableTestsRequest request = new SkippableTestsRequest(moduleName, JvmInfo.CURRENT_JVM);
+  private Collection<TestIdentifier> fetchFlakyTests(
+      String moduleName, InetSocketAddress signalServerAddress) {
+    return config.isCiVisibilityFlakyRetryEnabled()
+        ? fetchTestData(TestDataType.FLAKY, moduleName, signalServerAddress)
+        : Collections.emptyList();
+  }
+
+  private Collection<TestIdentifier> fetchTestData(
+      TestDataType testDataType, String moduleName, InetSocketAddress signalServerAddress) {
+    TestDataRequest request = new TestDataRequest(testDataType, moduleName, JvmInfo.CURRENT_JVM);
     try (SignalClient signalClient = new SignalClient(signalServerAddress)) {
-      SkippableTestsResponse response = (SkippableTestsResponse) signalClient.send(request);
-      Collection<SkippableTest> moduleSkippableTests = response.getTests();
-      log.debug("Received {} skippable tests", moduleSkippableTests.size());
-      return moduleSkippableTests.size() > 100
-          ? new HashSet<>(moduleSkippableTests)
-          : new ArrayList<>(moduleSkippableTests);
+      TestDataResponse response = (TestDataResponse) signalClient.send(request);
+      Collection<TestIdentifier> testData = response.getTests();
+      log.debug("Received {} {} tests", testData.size(), testDataType);
+      return new HashSet<>(testData);
     } catch (Exception e) {
-      log.error("Error while requesting skippable tests", e);
+      log.error("Error while requesting {} test data", testDataType, e);
       return Collections.emptySet();
     }
   }
 
   @Override
-  public boolean isSkippable(SkippableTest test) {
+  public boolean isSkippable(TestIdentifier test) {
     return test != null && skippableTests.contains(test);
   }
 
   @Override
-  public boolean skip(SkippableTest test) {
+  public boolean skip(TestIdentifier test) {
     if (isSkippable(test)) {
       testsSkipped.increment();
       return true;
     } else {
       return false;
     }
+  }
+
+  @Override
+  public TestRetryPolicy retryPolicy(TestIdentifier test) {
+    return test != null && flakyTests.contains(test)
+        ? new RetryIfFailed(config.getCiVisibilityFlakyRetryCount())
+        : NeverRetry.INSTANCE;
   }
 
   @Override

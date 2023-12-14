@@ -21,7 +21,7 @@ import org.slf4j.LoggerFactory;
 public class OpenJdkOngoingRecording implements OngoingRecording {
   private static final Logger log = LoggerFactory.getLogger(OpenJdkOngoingRecording.class);
 
-  private static final JfrProfilerSettings CONFIG_MEMENTO = new JfrProfilerSettings();
+  private static final JfrProfilerSettings CONFIG_MEMENTO = JfrProfilerSettings.instance();
 
   private final Recording recording;
   private final OngoingRecording auxiliaryRecording;

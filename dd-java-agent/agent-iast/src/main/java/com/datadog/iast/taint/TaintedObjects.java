@@ -30,10 +30,6 @@ public interface TaintedObjects extends Iterable<TaintedObject> {
 
   int count();
 
-  int getEstimatedSize();
-
-  boolean isFlat();
-
   static TaintedObjects acquire() {
     TaintedObjectsImpl taintedObjects = TaintedObjectsImpl.pool.poll();
     if (taintedObjects == null) {
@@ -52,7 +48,7 @@ public interface TaintedObjects extends Iterable<TaintedObject> {
     private final TaintedMap map;
 
     public TaintedObjectsImpl() {
-      this(new TaintedMap());
+      this(TaintedMap.build());
     }
 
     private TaintedObjectsImpl(final @Nonnull TaintedMap map) {
@@ -61,7 +57,7 @@ public interface TaintedObjects extends Iterable<TaintedObject> {
 
     @Override
     public TaintedObject taint(final @Nonnull Object obj, final @Nonnull Range[] ranges) {
-      final TaintedObject tainted = new TaintedObject(obj, ranges, map.getReferenceQueue());
+      final TaintedObject tainted = new TaintedObject(obj, ranges);
       map.put(tainted);
       return tainted;
     }
@@ -81,16 +77,6 @@ public interface TaintedObjects extends Iterable<TaintedObject> {
     @Override
     public int count() {
       return map.count();
-    }
-
-    @Override
-    public int getEstimatedSize() {
-      return map.getEstimatedSize();
-    }
-
-    @Override
-    public boolean isFlat() {
-      return map.isFlat();
     }
 
     @Nonnull
@@ -147,16 +133,6 @@ public interface TaintedObjects extends Iterable<TaintedObject> {
       return delegated.count();
     }
 
-    @Override
-    public int getEstimatedSize() {
-      return delegated.getEstimatedSize();
-    }
-
-    @Override
-    public boolean isFlat() {
-      return delegated.isFlat();
-    }
-
     @Nonnull
     @Override
     public Iterator<TaintedObject> iterator() {
@@ -194,17 +170,7 @@ public interface TaintedObjects extends Iterable<TaintedObject> {
     public void release() {}
 
     @Override
-    public boolean isFlat() {
-      return false;
-    }
-
-    @Override
     public int count() {
-      return 0;
-    }
-
-    @Override
-    public int getEstimatedSize() {
       return 0;
     }
 

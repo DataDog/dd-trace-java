@@ -107,6 +107,7 @@
       "_dd.p.tid" : ${content_meta__dd_p_tid_3},
       "os.architecture" : ${content_meta_os_architecture},
       "test.source.file" : "src/test/java/datadog/smoke/TestSucceed.java",
+      "test.module" : "Maven Smoke Tests Project maven-surefire-plugin default-test",
       "test.status" : "pass",
       "ci.workspace_path" : ${content_meta_ci_workspace_path},
       "language" : "jvm",
@@ -146,13 +147,15 @@
       "process_id" : ${content_metrics_process_id_2},
       "_dd.profiling.enabled" : 0,
       "_dd.trace_span_attribute_schema" : 0,
-      "test.source.end" : 12
+      "test.source.end" : 12,
+      "test.source.start" : 9
     },
     "meta" : {
       "_dd.p.tid" : ${content_meta__dd_p_tid_4},
       "os.architecture" : ${content_meta_os_architecture},
       "test.source.file" : "src/test/java/datadog/smoke/TestSucceed.java",
       "test.source.method" : "test_succeed()V",
+      "test.module" : "Maven Smoke Tests Project maven-surefire-plugin default-test",
       "test.status" : "pass",
       "ci.workspace_path" : ${content_meta_ci_workspace_path},
       "language" : "jvm",
@@ -193,13 +196,15 @@
       "process_id" : ${content_metrics_process_id_2},
       "_dd.profiling.enabled" : 0,
       "_dd.trace_span_attribute_schema" : 0,
-      "test.source.end" : 17
+      "test.source.end" : 17,
+      "test.source.start" : 14
     },
     "meta" : {
       "_dd.p.tid" : ${content_meta__dd_p_tid_5},
       "os.architecture" : ${content_meta_os_architecture},
       "test.source.file" : "src/test/java/datadog/smoke/TestSucceed.java",
       "test.source.method" : "test_to_skip_with_itr()V",
+      "test.module" : "Maven Smoke Tests Project maven-surefire-plugin default-test",
       "test.status" : "skip",
       "ci.workspace_path" : ${content_meta_ci_workspace_path},
       "language" : "jvm",

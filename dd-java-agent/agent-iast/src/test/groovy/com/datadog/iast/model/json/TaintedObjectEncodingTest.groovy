@@ -8,8 +8,6 @@ import datadog.trace.api.iast.SourceTypes
 import datadog.trace.test.util.DDSpecification
 import org.skyscreamer.jsonassert.JSONAssert
 
-import java.lang.ref.ReferenceQueue
-
 import static datadog.trace.api.iast.VulnerabilityMarks.NOT_MARKED
 
 class TaintedObjectEncodingTest extends DDSpecification {
@@ -89,7 +87,6 @@ class TaintedObjectEncodingTest extends DDSpecification {
   private TaintedObject taintedObject(final String value, final byte sourceType, final String sourceName, final String sourceValue) {
     return new TaintedObject(
       value,
-      [new Range(0, value.length(), new Source(sourceType, sourceName, sourceValue), NOT_MARKED)] as Range[],
-      Mock(ReferenceQueue))
+      [new Range(0, value.length(), new Source(sourceType, sourceName, sourceValue), NOT_MARKED)] as Range[])
   }
 }

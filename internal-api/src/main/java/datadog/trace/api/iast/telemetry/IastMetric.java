@@ -21,8 +21,7 @@ public enum IastMetric {
   EXECUTED_SINK(
       "executed.sink", true, Scope.REQUEST, Tag.VULNERABILITY_TYPE, Verbosity.INFORMATION),
   EXECUTED_TAINTED("executed.tainted", true, Scope.REQUEST, Verbosity.DEBUG),
-  REQUEST_TAINTED("request.tainted", true, Scope.REQUEST, Verbosity.INFORMATION),
-  TAINTED_FLAT_MODE("tainted.flat.mode", false, Scope.REQUEST, Verbosity.INFORMATION);
+  REQUEST_TAINTED("request.tainted", true, Scope.REQUEST, Verbosity.INFORMATION);
 
   private static final int COUNT;
 

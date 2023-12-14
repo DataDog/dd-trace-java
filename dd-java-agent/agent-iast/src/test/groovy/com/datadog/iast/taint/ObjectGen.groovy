@@ -1,7 +1,6 @@
 package com.datadog.iast.taint
 
 import static TaintedMap.POSITIVE_MASK
-import static TaintedMap.PURGE_MASK
 
 /**
  * Generate objects to test {@link TaintedMap}.
@@ -86,7 +85,5 @@ class ObjectGen {
     return bucket
   }
 
-  static final Closure<Boolean> TRIGGERS_PURGE = { i -> (i & PURGE_MASK) == 0 }
-  static final Closure<Boolean> DOES_NOT_TRIGGER_PURGE = { i -> (i & PURGE_MASK) != 0 }
   static final Closure<Boolean> TRUE = { i -> true }
 }
