@@ -1,9 +1,11 @@
 package datadog.trace.agent.tooling.nativeimage;
 
+import com.datadog.profiling.controller.openjdk.JFREventContextIntegration;
 import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.trace.agent.tooling.ProfilerInstaller;
 import datadog.trace.agent.tooling.TracerInstaller;
 import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
+import datadog.trace.core.CoreTracer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -13,10 +15,20 @@ public final class TracerActivation {
 
   public static void activate() {
     try {
-      // the JFR based profiling does not allow context propagation - use the noop integration
-      ProfilingContextIntegration contextIntegration = ProfilingContextIntegration.NoOp.INSTANCE;
-      TracerInstaller.installGlobalTracer(new SharedCommunicationObjects(), contextIntegration);
-      ProfilerInstaller.installProfiler();
+      boolean withProfiler = ProfilerInstaller.installProfiler();
+      CoreTracer tracer =
+          TracerInstaller.installGlobalTracer(
+              new SharedCommunicationObjects(),
+              withProfiler
+                  ? new JFREventContextIntegration()
+                  : ProfilingContextIntegration.NoOp.INSTANCE);
+      // Need to start the profiling context integration explicitly
+      // When run as java agent this is done when the agent itself is started -
+      // for native image we need to run it ourselves
+      if (tracer != null) {
+        tracer.getProfilingContext().onStart();
+        log.debug("Profiling context started");
+      }
     } catch (Throwable e) {
       log.warn("Problem activating datadog tracer", e);
     }
