@@ -1059,6 +1059,11 @@ public class AgentTracer {
     public void add(StatsPoint statsPoint) {}
 
     @Override
+    public int shouldSampleSchema(String topic) {
+      return 0;
+    }
+
+    @Override
     public void setConsumeCheckpoint(
         String type, String source, DataStreamsContextCarrier carrier) {}
 

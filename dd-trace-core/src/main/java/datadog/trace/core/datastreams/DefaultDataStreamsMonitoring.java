@@ -71,6 +71,7 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
   private volatile boolean supportsDataStreams = false;
   private volatile boolean agentSupportsDataStreams = false;
   private volatile boolean configSupportsDataStreams = false;
+  private final HashMap<String, SchemaSampler> schemaSamplers;
 
   public DefaultDataStreamsMonitoring(
       Config config,
@@ -126,6 +127,7 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
 
     thread = newAgentThread(DATA_STREAMS_MONITORING, new InboxProcessor());
     sink.register(this);
+    schemaSamplers = new HashMap<>();
   }
 
   @Override
@@ -156,6 +158,16 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
     if (thread.isAlive()) {
       inbox.offer(statsPoint);
     }
+  }
+
+  @Override
+  public int shouldSampleSchema(String topic) {
+    SchemaSampler sampler = schemaSamplers.get(topic);
+    if (sampler == null) {
+      sampler = new SchemaSampler();
+      schemaSamplers.put(topic, sampler);
+    }
+    return sampler.shouldSample(timeSource.getCurrentTimeMillis());
   }
 
   @Override
