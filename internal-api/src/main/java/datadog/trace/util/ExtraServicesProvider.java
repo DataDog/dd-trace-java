@@ -30,7 +30,7 @@ public class ExtraServicesProvider {
   }
 
   public void maybeAddExtraService(final String serviceName) {
-    if (serviceName == null) {
+    if (serviceName == null || serviceName.isEmpty()) {
       return;
     }
     if (extraServices.size() >= MAX_EXTRA_SERVICE) {

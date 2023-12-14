@@ -18,15 +18,20 @@ class ExtraServicesProviderTest extends Specification {
     provider.getExtraServices()[0] == service
   }
 
-  void 'test add null extra service'(){
+  void 'test add invalid extra service'(){
     given:
     final provider = new ExtraServicesProvider()
 
     when:
-    provider.maybeAddExtraService(null)
+    provider.maybeAddExtraService(value)
 
     then:
     provider.getExtraServices() == null
+
+    where:
+    value | _
+    null | _
+    '' | _
   }
 
   void 'Extra service is not added if it is the default one'(){
