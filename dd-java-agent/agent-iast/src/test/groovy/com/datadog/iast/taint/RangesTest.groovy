@@ -73,7 +73,7 @@ class RangesTest extends DDSpecification {
 
   void 'test range provider'(final Object values, final List<TaintedObject> tainted, final int size, final int rangeCount) {
     setup:
-    final to = Mock(TaintedObjects)
+    final to = Stub(TaintedObjects)
     values.eachWithIndex { Object entry, int i ->
       to.get(entry) >> tainted.get(i)
     }
@@ -100,7 +100,7 @@ class RangesTest extends DDSpecification {
 
   void 'test empty range provider'() {
     setup:
-    final to = Mock(TaintedObjects)
+    final to = Stub(TaintedObjects)
     final provider = rangesProviderFor(to, items)
 
     when:

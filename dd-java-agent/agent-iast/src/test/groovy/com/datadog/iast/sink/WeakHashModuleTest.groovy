@@ -49,7 +49,7 @@ class WeakHashModuleTest extends IastModuleImplTestBase {
 
   void 'iast module secure hash algorithm'(){
     given:
-    final span = Mock(AgentSpan)
+    final span = Stub(AgentSpan)
     tracer.activeSpan() >> span
 
     when:
