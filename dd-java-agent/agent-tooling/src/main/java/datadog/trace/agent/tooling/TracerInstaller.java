@@ -12,7 +12,7 @@ import org.slf4j.LoggerFactory;
 public class TracerInstaller {
   private static final Logger log = LoggerFactory.getLogger(TracerInstaller.class);
   /** Register a global tracer if no global tracer is already registered. */
-  public static synchronized CoreTracer installGlobalTracer(
+  public static synchronized void installGlobalTracer(
       SharedCommunicationObjects sharedCommunicationObjects,
       ProfilingContextIntegration profilingContextIntegration) {
     if (Config.get().isTraceEnabled() || Config.get().isCiVisibilityEnabled()) {
@@ -25,15 +25,12 @@ public class TracerInstaller {
                 .pollForTracingConfiguration()
                 .build();
         installGlobalTracer(tracer);
-        return tracer;
       } else {
         log.debug("GlobalTracer already registered.");
-        return (CoreTracer) GlobalTracer.get();
       }
     } else {
       log.debug("Tracing is disabled, not installing GlobalTracer.");
     }
-    return null;
   }
 
   public static void installGlobalTracer(final CoreTracer tracer) {

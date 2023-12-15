@@ -5,7 +5,6 @@ import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.trace.agent.tooling.ProfilerInstaller;
 import datadog.trace.agent.tooling.TracerInstaller;
 import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
-import datadog.trace.core.CoreTracer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -16,19 +15,11 @@ public final class TracerActivation {
   public static void activate() {
     try {
       boolean withProfiler = ProfilerInstaller.installProfiler();
-      CoreTracer tracer =
-          TracerInstaller.installGlobalTracer(
-              new SharedCommunicationObjects(),
-              withProfiler
-                  ? new JFREventContextIntegration()
-                  : ProfilingContextIntegration.NoOp.INSTANCE);
-      // Need to start the profiling context integration explicitly
-      // When run as java agent this is done when the agent itself is started -
-      // for native image we need to run it ourselves
-      if (tracer != null) {
-        tracer.getProfilingContext().onStart();
-        log.debug("Profiling context started");
-      }
+      TracerInstaller.installGlobalTracer(
+          new SharedCommunicationObjects(),
+          withProfiler
+              ? new JFREventContextIntegration()
+              : ProfilingContextIntegration.NoOp.INSTANCE);
     } catch (Throwable e) {
       log.warn("Problem activating datadog tracer", e);
     }

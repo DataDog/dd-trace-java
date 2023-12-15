@@ -2,6 +2,7 @@ package com.datadog.profiling.controller.openjdk;
 
 import com.datadog.profiling.controller.openjdk.events.TimelineEvent;
 import com.datadog.profiling.utils.ExcludedVersions;
+import datadog.trace.api.Platform;
 import datadog.trace.api.Stateful;
 import datadog.trace.bootstrap.instrumentation.api.ProfilerContext;
 import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
@@ -12,7 +13,11 @@ public class JFREventContextIntegration implements ProfilingContextIntegration {
     ExcludedVersions.checkVersionExclusion();
   }
 
-  private volatile boolean isStarted = false;
+  // native image process will enable context integration immediately - the value will get
+  // 'baked-in' during image build time
+  // java agent process will enable context integration when the agent is started and onStart is
+  // called
+  private volatile boolean isStarted = !Platform.isNativeImageBuilder();
 
   @Override
   public void onStart() {
