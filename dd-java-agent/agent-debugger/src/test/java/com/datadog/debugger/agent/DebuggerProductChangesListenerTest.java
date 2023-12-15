@@ -3,6 +3,7 @@ package com.datadog.debugger.agent;
 import static com.datadog.debugger.util.LogProbeTestHelper.parseTemplate;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.mockito.Mockito.lenient;
 
 import com.datadog.debugger.probe.LogProbe;
@@ -193,15 +194,12 @@ public class DebuggerProductChangesListenerTest {
   }
 
   @Test
-  public void badConfigIDFailsToAccept() {
+  public void badConfigIDFailsToAccept() throws IOException {
     SimpleAcceptor acceptor = new SimpleAcceptor();
-
     DebuggerProductChangesListener listener =
         new DebuggerProductChangesListener(tracerConfig, acceptor);
-
-    Assertions.assertThrows(
-        IOException.class,
-        () -> listener.accept(createConfigKey("bad-config-id"), null, pollingHinter));
+    listener.accept(createConfigKey("bad-config-id"), null, pollingHinter);
+    assertNull(acceptor.configuration);
   }
 
   @Test
