@@ -22,4 +22,9 @@ public class TagContextExtractor implements HttpCodec.Extractor {
     getter.forEachKey(carrier, interpreter);
     return interpreter.build();
   }
+
+  @Override
+  public void cleanup() {
+    ctxInterpreter.remove();
+  }
 }
