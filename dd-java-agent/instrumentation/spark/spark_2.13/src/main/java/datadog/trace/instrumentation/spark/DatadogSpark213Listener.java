@@ -2,6 +2,7 @@ package datadog.trace.instrumentation.spark;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.List;
 import org.apache.spark.SparkConf;
 import org.apache.spark.scheduler.SparkListenerJobStart;
 import org.apache.spark.scheduler.StageInfo;
@@ -48,8 +49,8 @@ public class DatadogSpark213Listener extends AbstractDatadogSparkListener {
   }
 
   @Override
-  protected Collection<SQLMetricInfo> getPlanInfoMetrics(SparkPlanInfo info) {
-    return CollectionConverters.asJavaCollection(info.metrics());
+  protected List<SQLMetricInfo> getPlanInfoMetrics(SparkPlanInfo info) {
+    return CollectionConverters.asJava(info.metrics());
   }
 
   @Override

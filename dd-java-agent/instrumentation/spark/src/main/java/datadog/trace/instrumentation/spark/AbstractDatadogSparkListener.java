@@ -20,6 +20,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.UUID;
@@ -129,7 +130,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
   protected abstract Collection<SparkPlanInfo> getPlanInfoChildren(SparkPlanInfo info);
 
   /** Metrics of a SparkPlanInfo. Provide an implementation based on a specific scala version */
-  protected abstract Collection<SQLMetricInfo> getPlanInfoMetrics(SparkPlanInfo info);
+  protected abstract List<SQLMetricInfo> getPlanInfoMetrics(SparkPlanInfo info);
 
   /** Parent Ids of a Stage. Provide an implementation based on a specific scala version */
   protected abstract int[] getStageParentIds(StageInfo info);

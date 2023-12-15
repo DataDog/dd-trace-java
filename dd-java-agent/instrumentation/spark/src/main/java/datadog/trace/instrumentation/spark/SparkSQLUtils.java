@@ -9,6 +9,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -171,8 +172,12 @@ public class SparkSQLUtils {
         generator.writeEndObject();
       }
 
-      Collection<SQLMetricInfo> metrics =
-          AbstractDatadogSparkListener.listener.getPlanInfoMetrics(plan);
+      List<SQLMetricInfo> metrics = AbstractDatadogSparkListener.listener.getPlanInfoMetrics(plan);
+
+      // Scala list are immutable, copying to sort it
+      metrics = new ArrayList<>(metrics);
+      // Sorting to have a consistent order of metrics
+      metrics.sort(Comparator.comparing(SQLMetricInfo::name));
 
       // Writing final values of metrics
       if (metrics.size() > 0) {
