@@ -46,8 +46,9 @@ public final class NativeImageGeneratorRunnerInstrumentation
       }
 
       // !!! Important - if you add more args entries here, make sure to update the array copy below
-      // !!!
-      args = Arrays.copyOf(args, oldLength + 6);
+      args =
+          Arrays.copyOf(
+              args, oldLength + 5 + (InstrumenterConfig.get().isProfilingEnabled() ? 1 : 0));
 
       args[oldLength++] = "-H:+AddAllCharsets";
       args[oldLength++] = "-H:EnableURLProtocols=http";
@@ -100,7 +101,15 @@ public final class NativeImageGeneratorRunnerInstrumentation
               + "jnr.enxio.channels:run_time,"
               + "jnr.unixsocket:run_time";
       if (InstrumenterConfig.get().isProfilingEnabled()) {
-        args[oldLength++] = "-H:EnableMonitoringFeatures@user+api=jfr";
+        // Specific GraalVM versions have different flags for enabling JFR
+        // We don't want to drag in internal-api via Platform class, so we just read the system
+        // property directly
+        String version = (String) System.getProperties().get("java.specification.version");
+        if (version.startsWith("17")) {
+          args[oldLength++] = "-H:EnableMonitoringFeatures=jfr";
+        } else {
+          args[oldLength++] = "-H:EnableMonitoringFeatures@user+api=jfr";
+        }
       }
     }
   }
