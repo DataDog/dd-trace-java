@@ -1,5 +1,7 @@
 package datadog.trace.instrumentation.graphqljava;
 
+import static datadog.trace.api.gateway.Events.EVENTS;
+
 import datadog.trace.api.gateway.CallbackProvider;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.RequestContext;
@@ -17,12 +19,9 @@ import graphql.language.Field;
 import graphql.language.Selection;
 import graphql.language.StringValue;
 import graphql.language.Value;
-
 import java.util.HashMap;
 import java.util.Map;
 import java.util.function.BiFunction;
-
-import static datadog.trace.api.gateway.Events.EVENTS;
 
 public class GraphQLDecorator extends BaseDecorator {
   public static final GraphQLDecorator DECORATE = new GraphQLDecorator();
@@ -66,7 +65,8 @@ public class GraphQLDecorator extends BaseDecorator {
 
       Map<String, Map<String, String>> resolversArgs = new HashMap<>();
 
-      for (Selection<?> selection : context.getOperationDefinition().getSelectionSet().getSelections()) {
+      for (Selection<?> selection :
+          context.getOperationDefinition().getSelectionSet().getSelections()) {
         if (selection instanceof Field) {
           Field field = (Field) selection;
           String name = field.getName();
@@ -86,28 +86,22 @@ public class GraphQLDecorator extends BaseDecorator {
       }
 
       CallbackProvider cbp = tracer().getCallbackProvider(RequestContextSlot.APPSEC);
-      /*if (cbp == null || (ip == null && inferredClientIp == null && port == UNSET_PORT)) {
-        return Flow.ResultFlow.empty();
-      }*/
       RequestContext ctx = span.getRequestContext();
-      /*if (ctx == null) {
-        return Flow.ResultFlow.empty();
-      }*/
+      if (cbp == null || resolversArgs.isEmpty() || ctx == null) {
+        return null;
+      }
 
-      //if (inferredClientIp != null) {
-        BiFunction<RequestContext, Map<String, ?>, Flow<Void>> graphqlResolverCallback =
-                cbp.getCallback(EVENTS.graphqlServerRequestMessage());
-        if (graphqlResolverCallback != null) {
-          graphqlResolverCallback.apply(ctx, resolversArgs);
-        }
-      //}
+      BiFunction<RequestContext, Map<String, ?>, Flow<Void>> graphqlResolverCallback =
+          cbp.getCallback(EVENTS.graphqlServerRequestMessage());
+      if (graphqlResolverCallback == null) {
+        return null;
+      }
 
-
-//      Flow<Void> flow = callIGCallbackAddressAndPort(span, peerIp, peerPort, inferredAddressStr);
-//      if (flow.getAction() instanceof Flow.Action.RequestBlockingAction) {
-//        span.setRequestBlockingAction((Flow.Action.RequestBlockingAction) flow.getAction());
-//      }
-
+      Flow<Void> flow = graphqlResolverCallback.apply(ctx, resolversArgs);
+      if (flow.getAction() instanceof Flow.Action.RequestBlockingAction) {
+        // Blocking will be implemented in future PRs
+        // span.setRequestBlockingAction((Flow.Action.RequestBlockingAction) flow.getAction());
+      }
     }
 
     return span;

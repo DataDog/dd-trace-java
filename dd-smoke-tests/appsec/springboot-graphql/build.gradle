@@ -1,5 +1,5 @@
 plugins {
-	id "com.github.johnrengelman.shadow"
+  id "com.github.johnrengelman.shadow"
 }
 
 apply from: "$rootDir/gradle/java.gradle"
@@ -8,62 +8,32 @@ description = 'SpringBoot GraphQL Smoke Tests.'
 // The standard spring-boot plugin doesn't play nice with our project
 // so we'll build a fat jar instead
 jar {
-	manifest {
-		attributes('Main-Class': 'datadog.smoketest.appsec.springboot-graphql.SpringbootApplication')
-	}
+  manifest {
+    attributes('Main-Class': 'datadog.smoketest.appsec.springboot-graphql.SpringbootApplication')
+  }
 }
 
 // Use Java 17 to build application
 tasks.withType(JavaCompile) {
-	setJavaVersion(delegate, 17)
+  setJavaVersion(delegate, 17)
 }
 
 dependencies {
-	implementation group: 'org.springframework.boot', name: 'spring-boot-starter-web', version: '3.1.5'
-	implementation group: 'org.springframework.boot', name: 'spring-boot-starter-graphql', version: '3.1.5'
-	implementation(group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: '2.15.3')
+  implementation group: 'org.springframework.boot', name: 'spring-boot-starter-web', version: '3.1.5'
+  implementation group: 'org.springframework.boot', name: 'spring-boot-starter-graphql', version: '3.1.5'
+  implementation(group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: '2.15.3')
 
-	testImplementation project(':dd-smoke-tests:appsec')
+  testImplementation project(':dd-smoke-tests:appsec')
 }
 
 tasks.withType(Test).configureEach {
-	dependsOn "shadowJar"
+  dependsOn "shadowJar"
 
-	jvmArgs "-Ddatadog.smoketest.appsec.springboot.shadowJar.path=${tasks.shadowJar.archiveFile.get()}"
+  jvmArgs "-Ddatadog.smoketest.appsec.springboot.shadowJar.path=${tasks.shadowJar.archiveFile.get()}"
 }
 
 task testRuntimeActivation(type: Test) {
-	jvmArgs '-Dsmoke_test.appsec.enabled=inactive',
-			"-Ddatadog.smoketest.appsec.springboot.shadowJar.path=${tasks.shadowJar.archiveFile.get()}"
+  jvmArgs '-Dsmoke_test.appsec.enabled=inactive',
+    "-Ddatadog.smoketest.appsec.springboot.shadowJar.path=${tasks.shadowJar.archiveFile.get()}"
 }
 tasks['check'].dependsOn(testRuntimeActivation)
-
-
-//plugins {
-//	id 'java'
-//	id 'org.springframework.boot' version '3.1.5'
-//	id 'io.spring.dependency-management' version '1.1.3'
-//}
-//
-//group = 'datadog.smoketest.appsec.springboot-graphql'
-//version = '0.0.1-SNAPSHOT'
-//
-//java {
-//	sourceCompatibility = '17'
-//}
-//
-//repositories {
-//	mavenCentral()
-//}
-//
-//dependencies {
-//	implementation 'org.springframework.boot:spring-boot-starter-graphql'
-//	implementation 'org.springframework.boot:spring-boot-starter-web'
-//	testImplementation 'org.springframework.boot:spring-boot-starter-test'
-//	testImplementation 'org.springframework:spring-webflux'
-//	testImplementation 'org.springframework.graphql:spring-graphql-test'
-//}
-//
-//tasks.named('test') {
-//	useJUnitPlatform()
-//}

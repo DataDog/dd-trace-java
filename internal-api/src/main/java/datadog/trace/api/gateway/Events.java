@@ -196,8 +196,10 @@ public final class Events<D> {
       new ET<>("graphql.server.request.message", GRAPHQL_SERVER_REQUEST_MESSAGE_ID);
   /** Before resolver execution */
   @SuppressWarnings("unchecked")
-  public EventType<BiFunction<RequestContext, Map<String, ?>, Flow<Void>>> graphqlServerRequestMessage() {
-    return (EventType<BiFunction<RequestContext, Map<String, ?>, Flow<Void>>>) GRAPHQL_SERVER_REQUEST_MESSAGE;
+  public EventType<BiFunction<RequestContext, Map<String, ?>, Flow<Void>>>
+      graphqlServerRequestMessage() {
+    return (EventType<BiFunction<RequestContext, Map<String, ?>, Flow<Void>>>)
+        GRAPHQL_SERVER_REQUEST_MESSAGE;
   }
 
   static final int MAX_EVENTS = nextId.get();
