@@ -8,7 +8,15 @@ public class SimpleJFRAccess extends JFRAccess {
   public static class FactoryImpl implements JFRAccess.Factory {
     @Override
     public JFRAccess create(Instrumentation inst) {
-      return !Platform.isJ9() && Platform.isJavaVersion(8) ? new SimpleJFRAccess() : null;
+      if (Platform.isJavaVersion(8)) {
+        // if running on Java 8 return either SimpleJFRAccess or NOOP
+        // J9 and Oracle JDK 8 do not contain the required classes and methods to set the stackdepth
+        // programmatically
+        return !Platform.isJ9() && !Platform.isOracleJDK8()
+            ? new SimpleJFRAccess()
+            : JFRAccess.NOOP;
+      }
+      return null;
     }
   }
 
