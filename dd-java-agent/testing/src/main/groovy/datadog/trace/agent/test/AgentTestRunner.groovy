@@ -20,6 +20,7 @@ import datadog.trace.api.config.GeneralConfig
 import datadog.trace.api.config.TracerConfig
 import datadog.trace.api.gateway.RequestContext
 import datadog.trace.api.internal.TraceSegment
+import datadog.trace.api.sampling.SamplingRule
 import datadog.trace.api.time.SystemTimeSource
 import datadog.trace.bootstrap.ActiveSubsystems
 import datadog.trace.bootstrap.CallDepthThreadLocalMap
@@ -185,6 +186,11 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
     }
 
     @Override
+    boolean isTriageEnabled() {
+      return true
+    }
+
+    @Override
     boolean isRuntimeMetricsEnabled() {
       return true
     }
@@ -221,6 +227,16 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
 
     @Override
     Double getTraceSampleRate() {
+      return null
+    }
+
+    @Override
+    List<? extends SamplingRule.SpanSamplingRule> getSpanSamplingRules() {
+      return null
+    }
+
+    @Override
+    List<? extends SamplingRule.TraceSamplingRule> getTraceSamplingRules() {
       return null
     }
   }

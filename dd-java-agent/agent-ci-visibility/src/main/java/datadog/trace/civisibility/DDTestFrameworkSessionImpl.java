@@ -1,6 +1,9 @@
 package datadog.trace.civisibility;
 
 import datadog.trace.api.Config;
+import datadog.trace.api.DDTags;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.civisibility.codeowners.Codeowners;
 import datadog.trace.civisibility.config.ModuleExecutionSettingsFactory;
 import datadog.trace.civisibility.coverage.CoverageProbeStoreFactory;
@@ -56,6 +59,18 @@ public class DDTestFrameworkSessionImpl extends DDTestSessionImpl
         methodLinesResolver,
         coverageProbeStoreFactory,
         moduleExecutionSettingsFactory,
-        SpanUtils.propagateCiVisibilityTagsTo(span));
+        this::propagateModuleTags);
+  }
+
+  private void propagateModuleTags(AgentSpan moduleSpan) {
+    SpanUtils.propagateCiVisibilityTags(span, moduleSpan);
+    SpanUtils.propagateTags(
+        span,
+        moduleSpan,
+        Tags.TEST_CODE_COVERAGE_ENABLED,
+        Tags.TEST_ITR_TESTS_SKIPPING_ENABLED,
+        Tags.TEST_ITR_TESTS_SKIPPING_TYPE,
+        Tags.TEST_ITR_TESTS_SKIPPING_COUNT,
+        DDTags.CI_ITR_TESTS_SKIPPED);
   }
 }

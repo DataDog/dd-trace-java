@@ -3,7 +3,6 @@ package com.datadog.debugger.agent;
 import static datadog.trace.util.AgentThreadFactory.AGENT_THREAD_GROUP;
 
 import com.datadog.debugger.sink.DebuggerSink;
-import com.datadog.debugger.sink.Sink;
 import com.datadog.debugger.symbol.SymDBEnablement;
 import com.datadog.debugger.symbol.SymbolAggregator;
 import com.datadog.debugger.uploader.BatchUploader;
@@ -31,7 +30,7 @@ import org.slf4j.LoggerFactory;
 public class DebuggerAgent {
   private static final Logger LOGGER = LoggerFactory.getLogger(DebuggerAgent.class);
   private static ConfigurationPoller configurationPoller;
-  private static Sink sink;
+  private static DebuggerSink sink;
   private static String agentVersion;
   private static JsonSnapshotSerializer snapshotSerializer;
   private static SymDBEnablement symDBEnablement;
@@ -51,7 +50,12 @@ public class DebuggerAgent {
     DDAgentFeaturesDiscovery ddAgentFeaturesDiscovery = sco.featuresDiscovery(config);
     ddAgentFeaturesDiscovery.discoverIfOutdated();
     agentVersion = ddAgentFeaturesDiscovery.getVersion();
-    DebuggerSink debuggerSink = new DebuggerSink(config);
+    String diagnosticEndpoint = getDiagnosticEndpoint(config, ddAgentFeaturesDiscovery);
+    DebuggerSink debuggerSink =
+        new DebuggerSink(
+            config,
+            diagnosticEndpoint, /*ddAgentFeaturesDiscovery.supportsDebuggerDiagnostics()*/
+            false);
     debuggerSink.start();
     ConfigurationUpdater configurationUpdater =
         new ConfigurationUpdater(
@@ -105,6 +109,15 @@ public class DebuggerAgent {
     } else {
       LOGGER.debug("No configuration poller available from SharedCommunicationObjects");
     }
+  }
+
+  private static String getDiagnosticEndpoint(
+      Config config, DDAgentFeaturesDiscovery ddAgentFeaturesDiscovery) {
+    //    if (ddAgentFeaturesDiscovery.supportsDebuggerDiagnostics()) {
+    //      return config.getAgentUrl() + "/" +
+    // DDAgentFeaturesDiscovery.DEBUGGER_DIAGNOSTICS_ENDPOINT;
+    //    }
+    return config.getFinalDebuggerSnapshotUrl();
   }
 
   private static void setupSourceFileTracking(
@@ -164,7 +177,7 @@ public class DebuggerAgent {
     return agentVersion;
   }
 
-  public static Sink getSink() {
+  public static DebuggerSink getSink() {
     return sink;
   }
 
@@ -180,13 +193,13 @@ public class DebuggerAgent {
     if (configurationPoller != null) {
       configurationPoller.stop();
     }
-    if (sink != null && sink instanceof DebuggerSink) {
-      ((DebuggerSink) sink).stop();
+    if (sink != null) {
+      sink.stop();
     }
   }
 
   // Used only for tests
-  static void initSink(Sink sink) {
+  static void initSink(DebuggerSink sink) {
     DebuggerAgent.sink = sink;
   }
 

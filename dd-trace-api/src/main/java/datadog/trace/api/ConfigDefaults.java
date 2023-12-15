@@ -7,6 +7,7 @@ import static java.util.Arrays.asList;
 import java.util.BitSet;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Set;
 
 public final class ConfigDefaults {
@@ -141,6 +142,8 @@ public final class ConfigDefaults {
   static final String DEFAULT_CIVISIBILITY_GIT_REMOTE_NAME = "origin";
   static final String DEFAULT_CIVISIBILITY_SIGNAL_SERVER_HOST = "127.0.0.1";
   static final int DEFAULT_CIVISIBILITY_SIGNAL_SERVER_PORT = 0;
+  static final List<String> DEFAULT_CIVISIBILITY_RESOURCE_FOLDER_NAMES =
+      asList("/resources/", "/java/", "/groovy/", "/kotlin/", "/scala/");
 
   static final boolean DEFAULT_REMOTE_CONFIG_ENABLED = true;
   static final boolean DEFAULT_REMOTE_CONFIG_INTEGRITY_CHECK_ENABLED = false;
@@ -183,6 +186,7 @@ public final class ConfigDefaults {
   static final int DEFAULT_CWS_TLS_REFRESH = 5000;
 
   static final boolean DEFAULT_DATA_STREAMS_ENABLED = false;
+  static final int DEFAULT_DATA_STREAMS_BUCKET_DURATION = 10; // seconds
 
   static final int DEFAULT_RESOLVER_RESET_INTERVAL = 300; // seconds
 

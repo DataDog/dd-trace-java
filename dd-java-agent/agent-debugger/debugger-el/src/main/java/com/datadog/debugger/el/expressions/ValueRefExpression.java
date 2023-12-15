@@ -7,6 +7,7 @@ import com.datadog.debugger.el.Value;
 import com.datadog.debugger.el.Visitor;
 import datadog.trace.bootstrap.debugger.el.ValueReferenceResolver;
 import datadog.trace.bootstrap.debugger.util.Redaction;
+import datadog.trace.bootstrap.debugger.util.WellKnownClasses;
 import java.util.Objects;
 
 /** An expression taking a reference path and resolving to {@linkplain Value} */
@@ -25,9 +26,14 @@ public final class ValueRefExpression implements ValueExpression<Value<?>> {
     } catch (RuntimeException ex) {
       throw new EvaluationException(ex.getMessage(), PrettyPrintVisitor.print(this));
     }
-    if (symbol == Redaction.REDACTED_VALUE
-        || (symbol != null && Redaction.isRedactedType(symbol.getClass().getTypeName()))) {
-      ExpressionHelper.throwRedactedException(this);
+    if (symbol != null) {
+      String typeName = symbol.getClass().getTypeName();
+      if (WellKnownClasses.isStringPrimitive(typeName)) {
+        symbol = symbol.toString();
+      }
+      if (symbol == Redaction.REDACTED_VALUE || (Redaction.isRedactedType(typeName))) {
+        ExpressionHelper.throwRedactedException(this);
+      }
     }
     return Value.of(symbol);
   }

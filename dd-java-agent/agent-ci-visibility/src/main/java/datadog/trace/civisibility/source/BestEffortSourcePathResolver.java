@@ -22,4 +22,16 @@ public class BestEffortSourcePathResolver implements SourcePathResolver {
     }
     return null;
   }
+
+  @Nullable
+  @Override
+  public String getResourcePath(@Nullable String relativePath) {
+    for (SourcePathResolver delegate : delegates) {
+      String resourcePath = delegate.getResourcePath(relativePath);
+      if (resourcePath != null) {
+        return resourcePath;
+      }
+    }
+    return null;
+  }
 }

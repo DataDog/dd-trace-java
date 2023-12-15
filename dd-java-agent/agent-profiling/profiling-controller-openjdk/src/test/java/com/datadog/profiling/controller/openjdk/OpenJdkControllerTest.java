@@ -2,6 +2,9 @@ package com.datadog.profiling.controller.openjdk;
 
 import static com.datadog.profiling.controller.ProfilingSupport.*;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_ALLOCATION_ENABLED;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_AUXILIARY_TYPE;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_AUXILIARY_TYPE_DEFAULT;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_ENABLED;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_HEAP_ENABLED;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_TEMPLATE_OVERRIDE_FILE;
 import static org.junit.jupiter.api.Assertions.*;
@@ -23,8 +26,9 @@ public class OpenJdkControllerTest {
 
   @Test
   public void testCreateContinuousRecording() throws Exception {
-    Properties props = new Properties();
-    props.put(PROFILING_TEMPLATE_OVERRIDE_FILE, JfpUtilsTest.OVERRIDES);
+    Properties props = getConfigProperties();
+    props.put(PROFILING_DATADOG_PROFILER_ENABLED, "false");
+
     ConfigProvider configProvider = ConfigProvider.withPropertiesOverride(props);
 
     OpenJdkController controller = new OpenJdkController(configProvider);
@@ -39,7 +43,8 @@ public class OpenJdkControllerTest {
 
   @Test
   public void testHeapProfilerIsDisabledOnUnsupportedVersion() throws Exception {
-    Properties props = new Properties();
+    Properties props = getConfigProperties();
+
     ConfigProvider configProvider = ConfigProvider.withPropertiesOverride(props);
 
     OpenJdkController controller = new OpenJdkController(configProvider);
@@ -54,8 +59,9 @@ public class OpenJdkControllerTest {
 
   @Test
   public void testHeapProfilerIsStillOverriddenOnUnsupportedVersion() throws Exception {
-    Properties props = new Properties();
+    Properties props = getConfigProperties();
     props.put(PROFILING_TEMPLATE_OVERRIDE_FILE, JfpUtilsTest.OVERRIDES_OLD_OBJECT_SAMPLE);
+
     ConfigProvider configProvider = ConfigProvider.withPropertiesOverride(props);
 
     OpenJdkController controller = new OpenJdkController(configProvider);
@@ -71,8 +77,9 @@ public class OpenJdkControllerTest {
 
   @Test
   public void testHeapProfilerIsStillOverriddenThroughConfig() throws Exception {
-    Properties props = new Properties();
+    Properties props = getConfigProperties();
     props.put(PROFILING_HEAP_ENABLED, "true");
+
     ConfigProvider configProvider = ConfigProvider.withPropertiesOverride(props);
 
     OpenJdkController controller = new OpenJdkController(configProvider);
@@ -87,7 +94,8 @@ public class OpenJdkControllerTest {
 
   @Test
   public void testAllocationProfilerIsDisabledOnUnsupportedVersion() throws Exception {
-    Properties props = new Properties();
+    Properties props = getConfigProperties();
+
     ConfigProvider configProvider = ConfigProvider.withPropertiesOverride(props);
 
     OpenJdkController controller = new OpenJdkController(configProvider);
@@ -126,7 +134,7 @@ public class OpenJdkControllerTest {
 
   @Test
   public void testAllocationProfilerIsStillOverriddenOnUnsupportedVersion() throws Exception {
-    Properties props = new Properties();
+    Properties props = getConfigProperties();
     props.put(PROFILING_TEMPLATE_OVERRIDE_FILE, JfpUtilsTest.OVERRIDES_OBJECT_ALLOCATION);
     ConfigProvider configProvider = ConfigProvider.withPropertiesOverride(props);
 
@@ -149,8 +157,9 @@ public class OpenJdkControllerTest {
 
   @Test
   public void testAllocationProfilerIsStillOverriddenThroughConfig() throws Exception {
-    Properties props = new Properties();
+    Properties props = getConfigProperties();
     props.put(PROFILING_ALLOCATION_ENABLED, "true");
+
     ConfigProvider configProvider = ConfigProvider.withPropertiesOverride(props);
 
     OpenJdkController controller = new OpenJdkController(configProvider);
@@ -172,7 +181,8 @@ public class OpenJdkControllerTest {
   @Test
   public void testNativeProfilerIsDisabledOnUnsupportedVersion() throws Exception {
     Assumptions.assumeFalse(isNativeMethodSampleAvailable());
-    Properties props = new Properties();
+    Properties props = getConfigProperties();
+
     ConfigProvider configProvider = ConfigProvider.withPropertiesOverride(props);
 
     OpenJdkController controller = new OpenJdkController(configProvider);
@@ -186,8 +196,8 @@ public class OpenJdkControllerTest {
 
   @Test
   public void testNativeProfilerIsStillOverriddenOnUnsupportedVersion() throws Exception {
-    Properties props = new Properties();
-    props.put(PROFILING_TEMPLATE_OVERRIDE_FILE, JfpUtilsTest.OVERRIDES_NATIVE_METHOD_SAMPLE);
+    Properties props = getConfigProperties();
+
     ConfigProvider configProvider = ConfigProvider.withPropertiesOverride(props);
 
     OpenJdkController controller = new OpenJdkController(configProvider);
@@ -199,5 +209,13 @@ public class OpenJdkControllerTest {
             Boolean.parseBoolean(recording.getSettings().get("jdk.NativeMethodSample#enabled")));
       }
     }
+  }
+
+  private static Properties getConfigProperties() {
+    Properties props = new Properties();
+    // make sure the async profiler is not force-enabled
+    props.put(PROFILING_AUXILIARY_TYPE, PROFILING_AUXILIARY_TYPE_DEFAULT);
+    props.put(PROFILING_DATADOG_PROFILER_ENABLED, "false");
+    return props;
   }
 }

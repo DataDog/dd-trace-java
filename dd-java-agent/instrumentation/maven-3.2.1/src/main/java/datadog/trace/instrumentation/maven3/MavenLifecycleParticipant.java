@@ -166,7 +166,7 @@ public class MavenLifecycleParticipant extends AbstractMavenLifecycleParticipant
       MavenSession session, MavenProject project) {
     List<MavenTestExecution> testExecutions = new ArrayList<>();
     try {
-      PlexusContainer container = session.getContainer();
+      PlexusContainer container = MavenUtils.getContainer(session);
 
       MavenPluginManager mavenPluginManager = container.lookup(MavenPluginManager.class);
       BuildPluginManager buildPluginManager = container.lookup(BuildPluginManager.class);
@@ -292,7 +292,9 @@ public class MavenLifecycleParticipant extends AbstractMavenLifecycleParticipant
 
     for (MavenTestExecution testExecution : testExecutions) {
       MavenProjectConfigurator.INSTANCE.configureTracer(
-          testExecution.getExecution(), moduleExecutionSettings.getSystemProperties());
+          testExecution.getProject(),
+          testExecution.getExecution(),
+          moduleExecutionSettings.getSystemProperties());
       MavenProjectConfigurator.INSTANCE.configureJacoco(testExecution, moduleExecutionSettings);
     }
     return null;

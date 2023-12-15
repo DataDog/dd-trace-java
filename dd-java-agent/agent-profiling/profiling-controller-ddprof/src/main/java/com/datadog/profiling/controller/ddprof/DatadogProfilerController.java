@@ -31,6 +31,10 @@ public final class DatadogProfilerController implements Controller {
 
   private final DatadogProfiler datadogProfiler;
 
+  public static Controller instance(ConfigProvider configProvider) {
+    return new DatadogProfilerController(configProvider);
+  }
+
   /**
    * Main constructor for Async profiling controller.
    *

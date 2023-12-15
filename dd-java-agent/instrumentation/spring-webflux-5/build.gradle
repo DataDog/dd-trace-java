@@ -48,6 +48,14 @@ muzzle {
     module = "spring-webflux"
     versions = "[5.1.1.RELEASE,6)"
   }
+  pass {
+    name = "webflux_6"
+    group = "org.springframework"
+    module = "spring-webflux"
+    versions = "[6,)"
+    javaVersion = "17"
+    extraDependency "io.projectreactor:reactor-core:3.6.0"
+  }
 }
 
 apply from: "$rootDir/gradle/java.gradle"
@@ -76,6 +84,7 @@ dependencies {
   testImplementation project(':dd-java-agent:instrumentation:netty-4.1')
   testImplementation project(':dd-java-agent:instrumentation:netty-promise-4')
   testImplementation project(':dd-java-agent:instrumentation:reactor-core-3.1')
+  testImplementation project(':dd-java-agent:instrumentation:reactor-netty-1')
   testImplementation group: 'org.spockframework', name: 'spock-spring', version: '1.1-groovy-2.4'
 
   testImplementation group: 'org.springframework', name: 'spring-webflux', version: '5.0.0.RELEASE'

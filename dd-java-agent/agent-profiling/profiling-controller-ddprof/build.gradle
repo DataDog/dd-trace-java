@@ -30,6 +30,7 @@ dependencies {
   testImplementation deps.junit5
   testImplementation deps.mockito
   testImplementation group: 'org.hamcrest', name: 'hamcrest', version: '2.1'
+  testImplementation project(':dd-java-agent:agent-profiling')
 }
 
 /*

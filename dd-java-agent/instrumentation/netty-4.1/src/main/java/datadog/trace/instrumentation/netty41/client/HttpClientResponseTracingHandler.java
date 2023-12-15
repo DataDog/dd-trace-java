@@ -11,7 +11,9 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
+import io.netty.handler.codec.http.HttpHeaderNames;
 import io.netty.handler.codec.http.HttpResponse;
+import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.util.Attribute;
 
 @ChannelHandler.Sharable
@@ -26,13 +28,20 @@ public class HttpClientResponseTracingHandler extends ChannelInboundHandlerAdapt
     final AgentSpan parent = parentAttr.get();
     final AgentSpan span = ctx.channel().attr(SPAN_ATTRIBUTE_KEY).getAndSet(parent);
 
-    final boolean finishSpan = msg instanceof HttpResponse;
-
-    if (span != null && finishSpan) {
-      try (final AgentScope scope = activateSpan(span)) {
-        DECORATE.onResponse(span, (HttpResponse) msg);
-        DECORATE.beforeFinish(span);
-        span.finish();
+    if (span != null) {
+      final boolean finishSpan =
+          msg instanceof HttpResponse
+              && (!HttpResponseStatus.SWITCHING_PROTOCOLS.equals(((HttpResponse) msg).status())
+                  || "websocket"
+                      .equals(((HttpResponse) msg).headers().get(HttpHeaderNames.UPGRADE)));
+      if (finishSpan) {
+        try (final AgentScope scope = activateSpan(span)) {
+          DECORATE.onResponse(span, (HttpResponse) msg);
+          DECORATE.beforeFinish(span);
+          span.finish();
+        }
+      } else {
+        ctx.channel().attr(SPAN_ATTRIBUTE_KEY).set(span);
       }
     }
 

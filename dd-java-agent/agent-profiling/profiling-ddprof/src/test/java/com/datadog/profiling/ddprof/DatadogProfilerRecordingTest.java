@@ -2,6 +2,7 @@ package com.datadog.profiling.ddprof;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+import datadog.trace.api.Platform;
 import datadog.trace.api.profiling.RecordingData;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import java.io.InputStream;
@@ -22,6 +23,7 @@ class DatadogProfilerRecordingTest {
 
   @BeforeEach
   void setup() throws Exception {
+    Assume.assumeTrue(Platform.isLinux());
     profiler = DatadogProfiler.newInstance(ConfigProvider.getInstance());
     log.info(
         "Datadog Profiler: available={}, active={}", profiler.isAvailable(), profiler.isActive());

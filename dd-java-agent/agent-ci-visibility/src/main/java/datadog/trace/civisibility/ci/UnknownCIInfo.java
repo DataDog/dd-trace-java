@@ -4,6 +4,8 @@ import static datadog.trace.civisibility.utils.FileUtils.findParentPathBackwards
 
 import datadog.trace.api.git.GitInfo;
 import java.nio.file.Path;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * This class is the strategy to use when the CI provider used to execute the tests cannot be
@@ -20,6 +22,8 @@ import java.nio.file.Path;
  * and calculate the git information properly.
  */
 class UnknownCIInfo implements CIProviderInfo {
+
+  private static final Logger LOGGER = LoggerFactory.getLogger(UnknownCIInfo.class);
 
   public static final String UNKNOWN_PROVIDER_NAME = "unknown";
 
@@ -42,9 +46,15 @@ class UnknownCIInfo implements CIProviderInfo {
 
   @Override
   public CIInfo buildCIInfo() {
-    final Path workspace = findParentPathBackwards(getCurrentPath(), getTargetFolder(), true);
+    Path workspace = findParentPathBackwards(getCurrentPath(), getTargetFolder(), true);
     if (workspace == null) {
       return CIInfo.NOOP;
+    }
+
+    try {
+      workspace = workspace.toRealPath();
+    } catch (Exception e) {
+      LOGGER.debug("Could not get real path for workspace folder {}", workspace, e);
     }
 
     return CIInfo.builder().ciWorkspace(workspace.toAbsolutePath().toString()).build();

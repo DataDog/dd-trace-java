@@ -75,6 +75,7 @@ public class NettyChannelPipelineInstrumentation extends Instrumenter.Tracing
       packageName + ".server.HttpServerResponseTracingHandler",
       packageName + ".server.HttpServerTracingHandler",
       packageName + ".server.MaybeBlockResponseHandler",
+      packageName + ".NettyHttp2Helper",
     };
   }
 
@@ -153,6 +154,13 @@ public class NettyChannelPipelineInstrumentation extends Instrumenter.Tracing
           toAdd = HttpClientRequestTracingHandler.INSTANCE;
         } else if (handler instanceof HttpResponseDecoder) {
           toAdd = HttpClientResponseTracingHandler.INSTANCE;
+        } else if (NettyHttp2Helper.isHttp2FrameCodec(handler)) {
+          if (NettyHttp2Helper.isServer(handler)) {
+            toAdd = new HttpServerTracingHandler();
+            toAdd2 = MaybeBlockResponseHandler.INSTANCE;
+          } else {
+            toAdd = new HttpClientTracingHandler();
+          }
         }
         if (toAdd != null) {
           // Get the name so we can add immediately following

@@ -166,6 +166,9 @@ public class SymbolExtractor {
         case Opcodes.ACC_ENUM:
           results.add("enum");
           break;
+        case Opcodes.ACC_RECORD:
+          results.add("record");
+          break;
         case Opcodes.ACC_DEPRECATED:
           results.add("deprecated");
           break;

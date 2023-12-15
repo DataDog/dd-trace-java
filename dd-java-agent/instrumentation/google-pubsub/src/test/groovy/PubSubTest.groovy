@@ -135,7 +135,6 @@ abstract class PubSubTest extends VersionedNamingTestBase {
   @Override
   protected void configurePreAgent() {
     super.configurePreAgent()
-    injectSysConfig("integration.google-pubsub.enabled", "true")
     injectSysConfig(GeneralConfig.SERVICE_NAME, "A-service")
     injectSysConfig(GeneralConfig.DATA_STREAMS_ENABLED, isDataStreamsEnabled().toString())
     if (!shadowGrpcSpans()) {

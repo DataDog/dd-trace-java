@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.junit4;
 
+import datadog.trace.api.civisibility.InstrumentationBridge;
 import datadog.trace.util.MethodHandles;
 import datadog.trace.util.Strings;
 import io.cucumber.core.gherkin.Feature;
@@ -7,6 +8,7 @@ import io.cucumber.core.gherkin.Pickle;
 import io.cucumber.core.resource.ClassLoaders;
 import java.io.InputStream;
 import java.lang.invoke.MethodHandle;
+import java.net.URI;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -18,17 +20,21 @@ import org.junit.runner.Description;
 import org.junit.runner.notification.Failure;
 import org.junit.runner.notification.RunListener;
 import org.junit.runners.ParentRunner;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @RunListener.ThreadSafe
 public class CucumberTracingListener extends TracingListener {
 
+  private static final Logger LOGGER = LoggerFactory.getLogger(CucumberTracingListener.class);
+
+  private static final ClassLoader CUCUMBER_CLASS_LOADER = ClassLoaders.getDefaultClassLoader();
   public static final String FRAMEWORK_NAME = "cucumber";
   public static final String FRAMEWORK_VERSION = getVersion();
 
   private static String getVersion() {
-    ClassLoader cucumberClassLoader = ClassLoaders.getDefaultClassLoader();
     try (InputStream cucumberPropsStream =
-        cucumberClassLoader.getResourceAsStream(
+        CUCUMBER_CLASS_LOADER.getResourceAsStream(
             "META-INF/maven/io.cucumber/cucumber-junit/pom.properties")) {
       Properties cucumberProps = new Properties();
       cucumberProps.load(cucumberPropsStream);
@@ -42,11 +48,11 @@ public class CucumberTracingListener extends TracingListener {
     return "unknown";
   }
 
-  private static final MethodHandles REFLECTION =
-      new MethodHandles(ClassLoaders.getDefaultClassLoader());
+  private static final MethodHandles REFLECTION = new MethodHandles(CUCUMBER_CLASS_LOADER);
   private static final MethodHandle PICKLE_ID_CONSTRUCTOR =
       REFLECTION.constructor("io.cucumber.junit.PickleRunners$PickleId", Pickle.class);
-
+  private static final MethodHandle PICKLE_ID_URI_GETTER =
+      REFLECTION.privateFieldGetter("io.cucumber.junit.PickleRunners$PickleId", "uri");
   private static final MethodHandle FEATURE_GETTER =
       REFLECTION.privateFieldGetter("io.cucumber.junit.FeatureRunner", "feature");
 
@@ -65,7 +71,7 @@ public class CucumberTracingListener extends TracingListener {
   @Override
   public void testSuiteStarted(final Description description) {
     if (isFeature(description)) {
-      String testSuiteName = description.getClassName();
+      String testSuiteName = getTestSuiteNameForFeature(description);
       TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSuiteStart(
           testSuiteName, FRAMEWORK_NAME, FRAMEWORK_VERSION, null, Collections.emptyList(), false);
     }
@@ -74,14 +80,14 @@ public class CucumberTracingListener extends TracingListener {
   @Override
   public void testSuiteFinished(final Description description) {
     if (isFeature(description)) {
-      String testSuiteName = description.getClassName();
+      String testSuiteName = getTestSuiteNameForFeature(description);
       TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSuiteFinish(testSuiteName, null);
     }
   }
 
   @Override
   public void testStarted(final Description description) {
-    String testSuiteName = description.getClassName();
+    String testSuiteName = getTestSuiteNameForScenario(description);
     String testName = description.getMethodName();
     List<String> categories = getCategories(description);
 
@@ -96,11 +102,45 @@ public class CucumberTracingListener extends TracingListener {
         null,
         null,
         null);
+
+    recordFeatureFileCodeCoverage(description);
+  }
+
+  private static String getTestSuiteNameForFeature(Description featureDescription) {
+    Object uniqueId = JUnit4Utils.getUniqueId(featureDescription);
+    return (uniqueId != null ? uniqueId + ":" : "") + featureDescription.getClassName();
+  }
+
+  private static String getTestSuiteNameForScenario(Description scenarioDescription) {
+    URI featureUri = getFeatureUri(scenarioDescription);
+    return (featureUri != null ? featureUri + ":" : "") + scenarioDescription.getClassName();
+  }
+
+  private static URI getFeatureUri(Description scenarioDescription) {
+    try {
+      Object pickleId = JUnit4Utils.getUniqueId(scenarioDescription);
+      return REFLECTION.invoke(PICKLE_ID_URI_GETTER, pickleId);
+    } catch (Exception e) {
+      LOGGER.error(
+          "Could not retrieve unique ID from scenario description {}", scenarioDescription, e);
+      return null;
+    }
+  }
+
+  private static void recordFeatureFileCodeCoverage(Description scenarioDescription) {
+    try {
+      Object pickleId = JUnit4Utils.getUniqueId(scenarioDescription);
+      URI pickleUri = REFLECTION.invoke(PICKLE_ID_URI_GETTER, pickleId);
+      String featureRelativePath = pickleUri.getSchemeSpecificPart();
+      InstrumentationBridge.currentCoverageProbeStoreRecordNonCode(featureRelativePath);
+    } catch (Exception e) {
+      LOGGER.error("Could not record feature file coverage for {}", scenarioDescription, e);
+    }
   }
 
   @Override
   public void testFinished(final Description description) {
-    String testSuiteName = description.getClassName();
+    String testSuiteName = getTestSuiteNameForScenario(description);
     String testName = description.getMethodName();
     TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestFinish(
         testSuiteName, null, testName, null, null);
@@ -111,12 +151,12 @@ public class CucumberTracingListener extends TracingListener {
   public void testFailure(final Failure failure) {
     Description description = failure.getDescription();
     if (isFeature(description)) {
-      String testSuiteName = description.getClassName();
+      String testSuiteName = getTestSuiteNameForFeature(description);
       Throwable throwable = failure.getException();
       TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSuiteFailure(
           testSuiteName, null, throwable);
     } else {
-      String testSuiteName = description.getClassName();
+      String testSuiteName = getTestSuiteNameForScenario(description);
       String testName = description.getMethodName();
       Throwable throwable = failure.getException();
       TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestFailure(
@@ -136,10 +176,10 @@ public class CucumberTracingListener extends TracingListener {
 
     Description description = failure.getDescription();
     if (isFeature(description)) {
-      String testSuiteName = description.getClassName();
+      String testSuiteName = getTestSuiteNameForFeature(description);
       TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSuiteSkip(testSuiteName, null, reason);
     } else {
-      String testSuiteName = description.getClassName();
+      String testSuiteName = getTestSuiteNameForScenario(description);
       String testName = description.getMethodName();
       TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSkip(
           testSuiteName, null, testName, null, null, reason);
@@ -152,13 +192,13 @@ public class CucumberTracingListener extends TracingListener {
     String reason = ignore != null ? ignore.value() : null;
 
     if (isFeature(description)) {
-      String testSuiteName = description.getClassName();
+      String testSuiteName = getTestSuiteNameForFeature(description);
       TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSuiteStart(
           testSuiteName, FRAMEWORK_NAME, FRAMEWORK_VERSION, null, Collections.emptyList(), false);
       TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSuiteSkip(testSuiteName, null, reason);
       TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSuiteFinish(testSuiteName, null);
     } else {
-      String testSuiteName = description.getClassName();
+      String testSuiteName = getTestSuiteNameForScenario(description);
       String testName = description.getMethodName();
       List<String> categories = getCategories(description);
       TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestIgnore(

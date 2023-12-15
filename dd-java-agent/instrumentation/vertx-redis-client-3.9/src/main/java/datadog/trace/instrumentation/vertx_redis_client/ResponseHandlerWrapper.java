@@ -31,6 +31,7 @@ public class ResponseHandlerWrapper implements Handler<AsyncResult<Response>> {
        already set so the handler state must be tracked here to prevent double execution
     */
     if (!handled) {
+      handled = true;
       AgentScope scope = null;
       try {
         if (null != clientSpan) {
@@ -44,7 +45,6 @@ public class ResponseHandlerWrapper implements Handler<AsyncResult<Response>> {
         if (null != scope) {
           scope.close();
         }
-        handled = true;
       }
     }
   }

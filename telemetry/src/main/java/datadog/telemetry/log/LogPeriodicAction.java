@@ -4,7 +4,7 @@ import datadog.telemetry.TelemetryRunnable;
 import datadog.telemetry.TelemetryService;
 import datadog.telemetry.api.LogMessage;
 import datadog.telemetry.api.LogMessageLevel;
-import datadog.trace.api.LogCollector;
+import datadog.trace.api.telemetry.LogCollector;
 import datadog.trace.util.stacktrace.StackUtils;
 
 public class LogPeriodicAction implements TelemetryRunnable.TelemetryPeriodicAction {

@@ -3,6 +3,7 @@ package datadog.trace.instrumentation.spark;
 import java.util.ArrayList;
 import org.apache.spark.SparkConf;
 import org.apache.spark.scheduler.SparkListenerJobStart;
+import org.apache.spark.scheduler.StageInfo;
 
 /**
  * DatadogSparkListener compiled for Scala 2.12
@@ -35,5 +36,15 @@ public class DatadogSpark212Listener extends AbstractDatadogSparkListener {
   @Override
   protected int getStageCount(SparkListenerJobStart jobStart) {
     return jobStart.stageInfos().length();
+  }
+
+  @Override
+  protected int[] getStageParentIds(StageInfo info) {
+    int[] parentIds = new int[info.parentIds().length()];
+    for (int i = 0; i < parentIds.length; i++) {
+      parentIds[i] = (int) info.parentIds().apply(i);
+    }
+
+    return parentIds;
   }
 }
