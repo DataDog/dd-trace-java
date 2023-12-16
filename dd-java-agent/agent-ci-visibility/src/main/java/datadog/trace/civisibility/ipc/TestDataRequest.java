@@ -8,12 +8,12 @@ import java.util.Objects;
 public class TestDataRequest implements Signal {
 
   private final TestDataType testDataType;
-  private final String relativeModulePath;
+  private final String moduleName;
   private final JvmInfo jvmInfo;
 
-  public TestDataRequest(TestDataType testDataType, String relativeModulePath, JvmInfo jvmInfo) {
+  public TestDataRequest(TestDataType testDataType, String moduleName, JvmInfo jvmInfo) {
     this.testDataType = testDataType;
-    this.relativeModulePath = relativeModulePath;
+    this.moduleName = moduleName;
     this.jvmInfo = jvmInfo;
   }
 
@@ -26,8 +26,8 @@ public class TestDataRequest implements Signal {
     return testDataType;
   }
 
-  public String getRelativeModulePath() {
-    return relativeModulePath;
+  public String getModuleName() {
+    return moduleName;
   }
 
   public JvmInfo getJvmInfo() {
@@ -39,8 +39,8 @@ public class TestDataRequest implements Signal {
     return "SkippableTestsRequest{"
         + "testDataType="
         + testDataType
-        + ",relativeModulePath="
-        + relativeModulePath
+        + ",moduleName="
+        + moduleName
         + ", jvmInfo="
         + jvmInfo
         + '}';
@@ -56,20 +56,20 @@ public class TestDataRequest implements Signal {
     }
     TestDataRequest that = (TestDataRequest) o;
     return testDataType == that.testDataType
-        && Objects.equals(relativeModulePath, that.relativeModulePath)
+        && Objects.equals(moduleName, that.moduleName)
         && Objects.equals(jvmInfo, that.jvmInfo);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(testDataType, relativeModulePath, jvmInfo);
+    return Objects.hash(testDataType, moduleName, jvmInfo);
   }
 
   @Override
   public ByteBuffer serialize() {
 
     byte[] modulePathBytes =
-        relativeModulePath != null ? relativeModulePath.getBytes(StandardCharsets.UTF_8) : null;
+        moduleName != null ? moduleName.getBytes(StandardCharsets.UTF_8) : null;
 
     String jvmName = jvmInfo.getName();
     byte[] jvmNameBytes = jvmName != null ? jvmName.getBytes(StandardCharsets.UTF_8) : null;
@@ -114,12 +114,12 @@ public class TestDataRequest implements Signal {
 
   public static TestDataRequest deserialize(ByteBuffer buffer) {
     TestDataType testDataType = TestDataType.byOrdinal(buffer.get());
-    String relativeModulePath = deserializeString(buffer);
+    String moduleName = deserializeString(buffer);
     String jvmName = deserializeString(buffer);
     String jvmVersion = deserializeString(buffer);
     String jvmVendor = deserializeString(buffer);
     JvmInfo jvmInfo = new JvmInfo(jvmName, jvmVersion, jvmVendor);
-    return new TestDataRequest(testDataType, relativeModulePath, jvmInfo);
+    return new TestDataRequest(testDataType, moduleName, jvmInfo);
   }
 
   private static String deserializeString(ByteBuffer buffer) {
