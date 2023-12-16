@@ -1,5 +1,6 @@
 package datadog.trace.api.cache;
 
+import java.util.function.BiConsumer;
 import java.util.function.Function;
 
 public interface DDCache<K, V> {
@@ -14,4 +15,7 @@ public interface DDCache<K, V> {
 
   /** Clear the cache. */
   void clear();
+
+  /** Visits elements currently in the cache; for debugging/triage purposes. */
+  void visit(BiConsumer<K, V> consumer);
 }
