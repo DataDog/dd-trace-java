@@ -35,7 +35,6 @@ import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILE
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_SCHEDULING_EVENT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_SCHEDULING_EVENT_INTERVAL;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_STACKDEPTH;
-import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_STACKDEPTH_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_WALL_COLLAPSING;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_WALL_COLLAPSING_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_WALL_CONTEXT_FILTER;
@@ -45,6 +44,8 @@ import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILE
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_WALL_INTERVAL_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_QUEUEING_TIME_ENABLED;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_QUEUEING_TIME_ENABLED_DEFAULT;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_STACKDEPTH;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_STACKDEPTH_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_ULTRA_MINIMAL;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_ENABLED;
 
@@ -217,8 +218,9 @@ public class DatadogProfilerConfig {
   public static int getStackDepth(ConfigProvider configProvider) {
     return getInteger(
         configProvider,
-        PROFILING_DATADOG_PROFILER_STACKDEPTH,
-        PROFILING_DATADOG_PROFILER_STACKDEPTH_DEFAULT);
+        PROFILING_STACKDEPTH,
+        PROFILING_STACKDEPTH_DEFAULT,
+        PROFILING_DATADOG_PROFILER_STACKDEPTH);
   }
 
   public static int getStackDepth() {

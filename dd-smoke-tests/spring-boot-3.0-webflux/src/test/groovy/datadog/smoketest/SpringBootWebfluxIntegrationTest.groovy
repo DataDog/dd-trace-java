@@ -33,8 +33,8 @@ class SpringBootWebfluxIntegrationTest extends AbstractServerSmokeTest {
   @Override
   protected Set<String> expectedTraces() {
     return [
-      "\\[netty\\.request:GET /fruits/\\{name}\\[FruitRouter\\.lambda:FruitRouter\\.lambda]\\[repository\\.operation:FruitRepository\\.findByName\\[h2\\.query:.*",
-      "\\[netty\\.request:GET /fruits\\[FruitRouter\\.lambda:FruitRouter\\.lambda]\\[repository\\.operation:FruitRepository\\.findAll\\[h2.query:.*",
+      "\\[netty\\.request:GET /fruits/\\{name}\\[FruitRouter\\.lambda:FruitRouter\\.lambda\\[repository\\.operation:FruitRepository\\.findByName\\[h2\\.query:.*",
+      "\\[netty\\.request:GET /fruits\\[FruitRouter\\.lambda:FruitRouter\\.lambda\\[repository\\.operation:FruitRepository\\.findAll\\[h2.query:.*",
       Pattern.quote("[netty.request:GET /hello[WebController.hello:WebController.hello]]")
     ]
   }

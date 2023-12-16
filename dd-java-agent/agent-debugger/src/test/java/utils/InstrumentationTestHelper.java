@@ -30,15 +30,27 @@ public class InstrumentationTestHelper {
     return loadClass(className, classFileBuffers);
   }
 
-  public static Map<String, byte[]> compile(String className)
+  public static Class<?> compileAndLoadClass(String className, String version)
       throws IOException, URISyntaxException {
-    return compile(className, SourceCompiler.DebugInfo.ALL);
+    Map<String, byte[]> classFileBuffers = compile(className, version);
+    return loadClass(className, classFileBuffers);
   }
 
-  public static Map<String, byte[]> compile(String className, SourceCompiler.DebugInfo debugInfo)
+  public static Map<String, byte[]> compile(String className)
+      throws IOException, URISyntaxException {
+    return compile(className, SourceCompiler.DebugInfo.ALL, "8");
+  }
+
+  public static Map<String, byte[]> compile(String className, String version)
+      throws IOException, URISyntaxException {
+    return compile(className, SourceCompiler.DebugInfo.ALL, version);
+  }
+
+  public static Map<String, byte[]> compile(
+      String className, SourceCompiler.DebugInfo debugInfo, String version)
       throws IOException, URISyntaxException {
     String classSource = getFixtureContent("/" + className.replace('.', '/') + ".java");
-    return SourceCompiler.compile(className, classSource, debugInfo);
+    return SourceCompiler.compile(className, classSource, debugInfo, version);
   }
 
   public static Class<?> loadClass(String className, String classFileName) throws IOException {

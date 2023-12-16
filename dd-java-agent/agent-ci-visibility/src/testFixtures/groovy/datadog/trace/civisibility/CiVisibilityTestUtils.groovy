@@ -84,7 +84,7 @@ abstract class CiVisibilityTestUtils {
     try {
       JSONAssert.assertEquals(expectedEvents, actualEvents, JSONCompareMode.LENIENT)
     } catch (AssertionError e) {
-      throw new AssertionError("Error while comparing expected events $expectedEvents to actual events $actualEvents", e)
+      throw new org.opentest4j.AssertionFailedError("Events mismatch", expectedEvents, actualEvents, e)
     }
 
     def expectedCoverages = getFreemarkerTemplate(baseTemplatesPath + "/coverages.ftl", replacementMap)
@@ -92,7 +92,7 @@ abstract class CiVisibilityTestUtils {
     try {
       JSONAssert.assertEquals(expectedCoverages, actualCoverages, JSONCompareMode.LENIENT)
     } catch (AssertionError e) {
-      throw new AssertionError("Error while comparing expected coverages $expectedCoverages to actual coverages $actualCoverages", e)
+      throw new org.opentest4j.AssertionFailedError("Coverages mismatch", expectedCoverages, actualCoverages, e)
     }
   }
 

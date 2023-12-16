@@ -9,6 +9,7 @@ import com.datadog.iast.Reporter;
 import com.datadog.iast.model.Evidence;
 import com.datadog.iast.model.Location;
 import com.datadog.iast.model.Range;
+import com.datadog.iast.model.Source;
 import com.datadog.iast.model.Vulnerability;
 import com.datadog.iast.model.VulnerabilityType;
 import com.datadog.iast.model.VulnerabilityType.InjectionType;
@@ -57,7 +58,7 @@ public abstract class SinkModuleBase {
     if (!overheadController.consumeQuota(Operations.REPORT_VULNERABILITY, span)) {
       return null;
     }
-    final Evidence result = new Evidence(value.toString(), ranges);
+    final Evidence result = buildEvidence(value, ranges);
     report(span, type, result);
     return result;
   }
@@ -119,7 +120,7 @@ public abstract class SinkModuleBase {
       return null;
     }
 
-    final Evidence result = new Evidence(evidence, notMarkedRanges);
+    final Evidence result = buildEvidence(evidence, notMarkedRanges);
     report(span, type, result);
     return result;
   }
@@ -161,7 +162,7 @@ public abstract class SinkModuleBase {
     if (notMarkedRanges == null || notMarkedRanges.length == 0) {
       return null;
     }
-    final Evidence result = new Evidence(evidence.toString(), notMarkedRanges);
+    final Evidence result = buildEvidence(evidence, notMarkedRanges);
     report(span, type, result);
     return result;
   }
@@ -177,6 +178,24 @@ public abstract class SinkModuleBase {
 
   protected StackTraceElement getCurrentStackTrace() {
     return stackWalker.walk(SinkModuleBase::findValidPackageForVulnerability);
+  }
+
+  protected Evidence buildEvidence(final Object value, final Range[] ranges) {
+    final Range unbound = Ranges.findUnbound(ranges);
+    if (unbound != null) {
+      final Source source = unbound.getSource();
+      if (source != null && source.getValue() != null) {
+        final String sourceValue = source.getValue();
+        final String evidenceValue = value.toString();
+        final int start = evidenceValue.indexOf(sourceValue);
+        if (start >= 0) {
+          return new Evidence(
+              evidenceValue,
+              new Range[] {new Range(start, sourceValue.length(), source, unbound.getMarks())});
+        }
+      }
+    }
+    return new Evidence(value instanceof String ? (String) value : value.toString(), ranges);
   }
 
   static StackTraceElement findValidPackageForVulnerability(

@@ -70,6 +70,7 @@ public final class CiVisibilityConfig {
       "civisibility.resource.folder.names";
   public static final String CIVISIBILITY_FLAKY_RETRY_ENABLED = "civisibility.flaky.retry.enabled";
   public static final String CIVISIBILITY_FLAKY_RETRY_COUNT = "civisibility.flaky.retry.count";
+  public static final String CIVISIBILITY_MODULE_NAME = "civisibility.module.name";
 
   private CiVisibilityConfig() {}
 }

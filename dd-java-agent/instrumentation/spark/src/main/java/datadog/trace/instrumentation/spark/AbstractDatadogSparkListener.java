@@ -5,6 +5,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.DDTraceId;
+import datadog.trace.api.sampling.PrioritySampling;
+import datadog.trace.api.sampling.SamplingMechanism;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
@@ -13,6 +15,7 @@ import java.io.StringWriter;
 import java.time.OffsetDateTime;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
@@ -109,6 +112,9 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
   /** Stage count of the spark job. Provide an implementation based on a specific scala version */
   protected abstract int getStageCount(SparkListenerJobStart jobStart);
 
+  /** Parent Ids of a Stage. Provide an implementation based on a specific scala version */
+  protected abstract int[] getStageParentIds(StageInfo info);
+
   @Override
   public synchronized void onApplicationStart(SparkListenerApplicationStart applicationStart) {
     this.applicationStart = applicationStart;
@@ -135,6 +141,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
     captureApplicationParameters(builder);
 
     applicationSpan = builder.start();
+    setDataJobsSamplingPriority(applicationSpan);
     applicationSpan.setMeasured(true);
   }
 
@@ -203,6 +210,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
     }
 
     batchSpan = builder.start();
+    setDataJobsSamplingPriority(batchSpan);
     streamingBatchSpans.put(batchKey, batchSpan);
     return batchSpan;
   }
@@ -267,6 +275,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
     }
 
     AgentSpan sqlSpan = spanBuilder.start();
+    setDataJobsSamplingPriority(sqlSpan);
     sqlSpans.put(sqlExecutionId, sqlSpan);
     return sqlSpan;
   }
@@ -321,6 +330,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
     captureJobParameters(jobSpanBuilder, jobStart.properties());
 
     AgentSpan jobSpan = jobSpanBuilder.start();
+    setDataJobsSamplingPriority(jobSpan);
     jobSpan.setMeasured(true);
 
     for (int stageId : getSparkJobStageIds(jobStart)) {
@@ -398,12 +408,15 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
             .asChildOf(jobSpan.context())
             .withStartTimestamp(submissionTimeMs * 1000)
             .withTag("stage_id", stageId)
+            .withTag(
+                "parent_stage_ids", Arrays.toString(getStageParentIds(stageSubmitted.stageInfo())))
             .withTag("task_count", stageSubmitted.stageInfo().numTasks())
             .withTag("attempt_id", stageAttemptId)
             .withTag("details", stageSubmitted.stageInfo().details())
             .withTag(DDTags.RESOURCE_NAME, stageSubmitted.stageInfo().name())
             .start();
 
+    setDataJobsSamplingPriority(stageSpan);
     stageSpan.setMeasured(true);
 
     stageSpans.put(stageSpanKey(stageId, stageAttemptId), stageSpan);
@@ -551,6 +564,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
       taskSpan.setTag("count_towards_task_failures", reason.countTowardsTaskFailures());
     }
 
+    setDataJobsSamplingPriority(taskSpan);
     taskSpan.finish(taskEnd.taskInfo().finishTime() * 1000);
   }
 
@@ -751,6 +765,10 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
 
       batchSpan.finish();
     }
+  }
+
+  private void setDataJobsSamplingPriority(AgentSpan span) {
+    span.setSamplingPriority(PrioritySampling.USER_KEEP, SamplingMechanism.DATA_JOBS);
   }
 
   private AgentTracer.SpanBuilder buildSparkSpan(String spanName, Properties properties) {

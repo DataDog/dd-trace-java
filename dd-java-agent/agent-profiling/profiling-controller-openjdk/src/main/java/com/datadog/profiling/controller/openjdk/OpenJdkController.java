@@ -27,6 +27,7 @@ import static datadog.trace.api.config.ProfilingConfig.PROFILING_ULTRA_MINIMAL;
 import com.datadog.profiling.controller.ConfigurationException;
 import com.datadog.profiling.controller.Controller;
 import com.datadog.profiling.controller.UnsupportedEnvironmentException;
+import com.datadog.profiling.controller.jfr.JFRAccess;
 import com.datadog.profiling.controller.jfr.JfpUtils;
 import com.datadog.profiling.controller.openjdk.events.AvailableProcessorCoresEvent;
 import datadog.trace.api.Platform;
@@ -76,6 +77,13 @@ public final class OpenJdkController implements Controller {
   @SuppressForbidden
   public OpenJdkController(final ConfigProvider configProvider)
       throws ConfigurationException, ClassNotFoundException {
+    // configure the JFR stackdepth before we try to load any JFR classes
+    int requestedStackDepth = getConfiguredStackDepth(configProvider);
+    if (JFRAccess.instance().setStackDepth(requestedStackDepth)) {
+      // if we successfully set the stack depth, mark it as applied
+      // this will allow emitting the settings event with the current stack depth
+      JfrProfilerSettings.instance().markJfrStackDepthApplied();
+    }
     // Make sure we can load JFR classes before declaring that we have successfully created
     // factory and can use it.
     Class.forName("jdk.jfr.Recording");
@@ -245,5 +253,10 @@ public final class OpenJdkController implements Controller {
 
   private static boolean isEventEnabled(Map<String, String> recordingSettings, String event) {
     return Boolean.parseBoolean(recordingSettings.get(event + "#enabled"));
+  }
+
+  private int getConfiguredStackDepth(ConfigProvider configProvider) {
+    return configProvider.getInteger(
+        ProfilingConfig.PROFILING_STACKDEPTH, ProfilingConfig.PROFILING_STACKDEPTH_DEFAULT);
   }
 }

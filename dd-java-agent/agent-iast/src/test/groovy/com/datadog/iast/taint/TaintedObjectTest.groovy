@@ -1,14 +1,12 @@
 package com.datadog.iast.taint
 
+import com.datadog.iast.model.Range
 import com.datadog.iast.model.Source
 import datadog.trace.api.Config
 import spock.lang.Specification
-import com.datadog.iast.model.Range
 
-import java.lang.ref.ReferenceQueue
-
-import static datadog.trace.api.iast.VulnerabilityMarks.NOT_MARKED
 import static datadog.trace.api.iast.SourceTypes.REQUEST_HEADER_NAME
+import static datadog.trace.api.iast.VulnerabilityMarks.NOT_MARKED
 
 class TaintedObjectTest extends Specification {
 
@@ -19,7 +17,7 @@ class TaintedObjectTest extends Specification {
       .collect { index -> new Range(index, 1, new Source(REQUEST_HEADER_NAME, 'a', 'b'), NOT_MARKED) }
 
     when:
-    final tainted = new TaintedObject('test', ranges.toArray(new Range[0]), new ReferenceQueue<Object>())
+    final tainted = new TaintedObject('test', ranges.toArray(new Range[0]))
 
     then:
     ranges.size() > max

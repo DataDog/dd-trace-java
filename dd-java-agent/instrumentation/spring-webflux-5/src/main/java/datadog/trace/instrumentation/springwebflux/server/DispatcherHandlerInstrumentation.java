@@ -28,5 +28,10 @@ public final class DispatcherHandlerInstrumentation extends AbstractWebfluxInstr
             .and(takesArguments(1)),
         // Cannot reference class directly here because it would lead to class load failure on Java7
         packageName + ".DispatcherHandlerAdvice");
+    transformation.applyAdvice(
+        isMethod()
+            .and(named("handleResult"))
+            .and(takesArgument(0, named("org.springframework.web.server.ServerWebExchange"))),
+        packageName + ".HandleResultAdvice");
   }
 }
