@@ -1,10 +1,16 @@
 package com.datadog.iast.taint;
 
 import com.datadog.iast.IastSystem;
+import datadog.trace.api.Config;
+import datadog.trace.api.iast.telemetry.IastMetric;
+import datadog.trace.api.iast.telemetry.IastMetricCollector;
+import datadog.trace.api.iast.telemetry.Verbosity;
+import datadog.trace.util.AgentTaskScheduler;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -28,6 +34,7 @@ import org.slf4j.LoggerFactory;
  *   <li>Entries SHOULD be removed when key objects are garbage-collected.
  *   <li>All operations MUST NOT throw, even with concurrent access and modification.
  *   <li>Put operations MAY be lost under concurrent modification.
+ *   <li>Entries MUST NOT stay in the map forever
  * </ol>
  *
  * <p><i>Capacity</i> is fixed, so there is no rehashing.
@@ -43,8 +50,20 @@ public interface TaintedMap extends Iterable<TaintedObject> {
   /** Bitmask to convert hashes to positive integers. */
   int POSITIVE_MASK = Integer.MAX_VALUE;
 
+  /** Max allowed size for the linked list inside a bucket */
+  int DEFAULT_MAX_BUCKET_SIZE = 10;
+
+  /** Max age of entries contained in the map (worst case will be {@code 2 * maxAge}) */
+  int DEFAULT_MAX_AGE = 30;
+
+  TimeUnit DEFAULT_MAX_AGE_UNIT = TimeUnit.MINUTES;
+
   static TaintedMap build() {
-    final TaintedMapImpl map = new TaintedMapImpl();
+    return build(DEFAULT_CAPACITY);
+  }
+
+  static TaintedMap build(final int capacity) {
+    final TaintedMapImpl map = new TaintedMapImpl(capacity);
     return IastSystem.DEBUG ? new Debug(map) : map;
   }
 
@@ -57,12 +76,23 @@ public interface TaintedMap extends Iterable<TaintedObject> {
 
   void clear();
 
-  class TaintedMapImpl implements TaintedMap {
+  class TaintedMapImpl implements TaintedMap, Runnable {
 
     protected final TaintedObject[] table;
 
     /** Bitmask for fast modulo with table length. */
     protected final int lengthMask;
+
+    /** Max size of each bucket. */
+    protected final int maxBucketSize;
+
+    /**
+     * Flag for the current alive tainted objects (red/black style marking for max age calculation).
+     */
+    protected boolean generation;
+
+    /** Whether to collect the {@link IastMetric#TAINTED_FLAT_MODE} metric or not */
+    protected boolean collectFlatBucketMetric;
 
     /** Default constructor. Uses {@link #DEFAULT_CAPACITY}. */
     TaintedMapImpl() {
@@ -70,13 +100,32 @@ public interface TaintedMap extends Iterable<TaintedObject> {
     }
 
     /**
-     * Create a new hash map with the given capacity a purge queue.
+     * Creates a new hash map with the given capacity, a max bucket size of {@link
+     * #DEFAULT_MAX_BUCKET_SIZE}, a max age of {@link #DEFAULT_MAX_AGE} with {@link
+     * #DEFAULT_MAX_AGE_UNIT} units.
+     */
+    TaintedMapImpl(int capacity) {
+      this(capacity, DEFAULT_MAX_BUCKET_SIZE, DEFAULT_MAX_AGE, DEFAULT_MAX_AGE_UNIT);
+    }
+
+    /**
+     * Create a new hash map with the given capacity and purge schedule.
      *
      * @param capacity Capacity of the internal array. It must be a power of 2.
+     * @param maxBucketSize Max size for each bucket
+     * @param maxAge max time an entry can stay in the map (can take up to {@code 2 * maxAge} in the
+     *     worst case)
+     * @param maxAgeUnit unit for the max age
      */
-    TaintedMapImpl(final int capacity) {
+    TaintedMapImpl(
+        final int capacity, final int maxBucketSize, final int maxAge, final TimeUnit maxAgeUnit) {
       table = new TaintedObject[capacity];
       lengthMask = table.length - 1;
+      generation = true;
+      this.maxBucketSize = maxBucketSize;
+      final Verbosity verbosity = Config.get().getIastTelemetryVerbosity();
+      collectFlatBucketMetric = IastMetric.TAINTED_FLAT_MODE.isEnabled(verbosity);
+      AgentTaskScheduler.INSTANCE.weakScheduleAtFixedRate(this, maxAge, maxAge, maxAgeUnit);
     }
 
     /**
@@ -112,16 +161,27 @@ public interface TaintedMap extends Iterable<TaintedObject> {
       TaintedObject cur = head(index);
       if (cur == null) {
         table[index] = entry;
+        entry.generation = generation;
       } else {
+        int bucketSize = 1;
         TaintedObject next;
         while ((next = next(cur)) != null) {
           if (cur.positiveHashCode == entry.positiveHashCode && cur.get() == entry.get()) {
             // Duplicate, exit early.
             return;
           }
+          bucketSize++;
           cur = next;
         }
-        cur.next = entry;
+        if (bucketSize >= maxBucketSize) {
+          table[index] = entry;
+          if (collectFlatBucketMetric) {
+            IastMetricCollector.add(IastMetric.TAINTED_FLAT_MODE, 1);
+          }
+        } else {
+          cur.next = entry;
+        }
+        entry.generation = generation;
       }
     }
 
@@ -221,6 +281,26 @@ public interface TaintedMap extends Iterable<TaintedObject> {
       }
       return item;
     }
+
+    /** Runnable used to purge stale entries after max age */
+    @Override
+    public void run() {
+      for (int bucket = 0; bucket < table.length; bucket++) {
+        for (TaintedObject cur = head(bucket), prev = null; cur != null; cur = next(cur)) {
+          if (cur.generation != generation) { // entry added to the map in previous generation
+            if (prev == null) {
+              table[bucket] = cur.next;
+            } else {
+              prev.next = cur.next;
+              prev = cur;
+            }
+          } else {
+            prev = cur;
+          }
+        }
+      }
+      generation = !generation;
+    }
   }
 
   class Debug implements TaintedMap {
@@ -243,7 +323,7 @@ public interface TaintedMap extends Iterable<TaintedObject> {
       delegate.put(entry);
       final long putOps = puts.updateAndGet(current -> current == Long.MAX_VALUE ? 0 : current + 1);
       if (putOps % COMPUTE_STATISTICS_INTERVAL == 0 && LOGGER.isDebugEnabled()) {
-        computeStatistics();
+        AgentTaskScheduler.INSTANCE.execute(this::computeStatistics);
       }
     }
 
@@ -289,22 +369,16 @@ public interface TaintedMap extends Iterable<TaintedObject> {
       }
       Arrays.sort(chains);
       LOGGER.debug(
-          "Map [size:"
-              + delegate.table.length
-              + ", count:"
-              + count
-              + ", stale:"
-              + percentage(stale, count)
-              + "], Chains ["
-              + String.join(
-                  ", ",
-                  average(chains),
-                  percentile(chains, 50),
-                  percentile(chains, 75),
-                  percentile(chains, 90),
-                  percentile(chains, 99),
-                  percentile(chains, 100))
-              + "]");
+          "Map [size:{}, count:{}, stale:{}], Chains [{}, {}, {}, {}, {}, {}]",
+          delegate.table.length,
+          count,
+          percentage(stale, count),
+          average(chains),
+          percentile(chains, 50),
+          percentile(chains, 75),
+          percentile(chains, 90),
+          percentile(chains, 99),
+          percentile(chains, 100));
     }
 
     private static String percentage(final long actual, final long total) {

@@ -16,6 +16,9 @@ public class TaintedObject extends WeakReference<Object> {
   @Nullable TaintedObject next;
   private Range[] ranges;
 
+  /** generation of the tainted for max age purging purposes */
+  boolean generation;
+
   public TaintedObject(final @Nonnull Object obj, final @Nonnull Range[] ranges) {
     super(obj);
     this.positiveHashCode = System.identityHashCode(obj) & POSITIVE_MASK;

@@ -55,6 +55,7 @@ public interface TaintedObjects extends Iterable<TaintedObject> {
       this.map = map;
     }
 
+    @Nonnull
     @Override
     public TaintedObject taint(final @Nonnull Object obj, final @Nonnull Range[] ranges) {
       final TaintedObject tainted = new TaintedObject(obj, ranges);
