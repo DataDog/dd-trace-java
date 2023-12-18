@@ -69,8 +69,8 @@ class TypeConverterTest extends DDSpecification {
   }
 
   def createTestSpanContext() {
-    def tracer = Mock(CoreTracer)
-    def trace = Mock(PendingTrace)
+    def tracer = Stub(CoreTracer)
+    def trace = Stub(PendingTrace)
     trace.mapServiceName(_) >> { String serviceName -> serviceName }
     trace.getTracer() >> tracer
 

@@ -67,7 +67,7 @@ class TypeConverterTest extends AgentTestRunner {
   }
 
   def createTestSpanContext() {
-    def trace = Mock(PendingTrace)
+    def trace = Stub(PendingTrace)
     return new DDSpanContext(
       DDTraceId.ONE,
       1,
