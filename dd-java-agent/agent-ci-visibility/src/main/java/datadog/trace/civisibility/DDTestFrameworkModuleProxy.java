@@ -18,6 +18,7 @@ import datadog.trace.civisibility.retry.RetryIfFailed;
 import datadog.trace.civisibility.source.MethodLinesResolver;
 import datadog.trace.civisibility.source.SourcePathResolver;
 import java.util.Collection;
+import java.util.HashSet;
 import java.util.TreeSet;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.LongAdder;
@@ -74,8 +75,8 @@ public class DDTestFrameworkModuleProxy implements DDTestFrameworkModule {
     this.codeowners = codeowners;
     this.methodLinesResolver = methodLinesResolver;
     this.coverageProbeStoreFactory = coverageProbeStoreFactory;
-    this.skippableTests = executionSettings.getSkippableTests(moduleName);
-    this.flakyTests = executionSettings.getFlakyTests(moduleName);
+    this.skippableTests = new HashSet<>(executionSettings.getSkippableTests(moduleName));
+    this.flakyTests = new HashSet<>(executionSettings.getFlakyTests(moduleName));
   }
 
   @Override

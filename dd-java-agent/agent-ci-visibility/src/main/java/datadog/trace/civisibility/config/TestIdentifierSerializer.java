@@ -66,7 +66,7 @@ public abstract class TestIdentifierSerializer {
 
   public static Collection<TestIdentifier> deserialize(ByteBuffer buffer) {
     int count = buffer.getInt();
-    Collection<TestIdentifier> tests = new ArrayList<>(count * 4 / 3);
+    Collection<TestIdentifier> tests = new ArrayList<>(count);
     while (count-- > 0) {
       int suiteLength = buffer.getInt();
       byte[] suiteBytes = new byte[suiteLength];
