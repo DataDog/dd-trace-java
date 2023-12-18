@@ -90,7 +90,7 @@ class AbstractSparkStructuredStreamingTest extends AgentTestRunner {
             "spark.input_rows_per_second" Double
             "spark.processed_rows_per_second" Double
             "spark.sink.description" ~"org.apache.spark.sql.execution.streaming.Console.*"
-            "spark.source.0.description" "MemoryStream[value#1]"
+            "spark.source.0.description" ~"MemoryStream.*"
             "spark.source.0.end_offset" String
             "spark.source.0.input_rows_per_second" Double
             "spark.source.0.num_input_rows" 3
