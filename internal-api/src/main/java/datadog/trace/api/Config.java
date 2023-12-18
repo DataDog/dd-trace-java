@@ -382,6 +382,7 @@ import static datadog.trace.api.config.TracerConfig.PROPAGATION_STYLE_EXTRACT;
 import static datadog.trace.api.config.TracerConfig.PROPAGATION_STYLE_INJECT;
 import static datadog.trace.api.config.TracerConfig.PROXY_NO_PROXY;
 import static datadog.trace.api.config.TracerConfig.REQUEST_HEADER_TAGS;
+import static datadog.trace.api.config.TracerConfig.REQUEST_HEADER_TAGS_COMMA_ALLOWED;
 import static datadog.trace.api.config.TracerConfig.RESPONSE_HEADER_TAGS;
 import static datadog.trace.api.config.TracerConfig.SCOPE_DEPTH_LIMIT;
 import static datadog.trace.api.config.TracerConfig.SCOPE_INHERIT_ASYNC_PROPAGATION;
@@ -567,6 +568,7 @@ public class Config {
   private final Map<String, String> requestHeaderTags;
   private final Map<String, String> responseHeaderTags;
   private final Map<String, String> baggageMapping;
+  private final boolean requestHeaderTagsCommaAllowed;
   private final BitSet httpServerErrorStatuses;
   private final BitSet httpClientErrorStatuses;
   private final boolean httpServerTagQueryString;
@@ -1096,6 +1098,8 @@ public class Config {
           configProvider.getMergedMapWithOptionalMappings(
               "http.response.headers.", true, HEADER_TAGS, RESPONSE_HEADER_TAGS);
     }
+    requestHeaderTagsCommaAllowed =
+        configProvider.getBoolean(REQUEST_HEADER_TAGS_COMMA_ALLOWED, true);
 
     baggageMapping = configProvider.getMergedMap(BAGGAGE_MAPPING);
 
@@ -2115,6 +2119,10 @@ public class Config {
 
   public Map<String, String> getResponseHeaderTags() {
     return responseHeaderTags;
+  }
+
+  public boolean isRequestHeaderTagsCommaAllowed() {
+    return requestHeaderTagsCommaAllowed;
   }
 
   public Map<String, String> getBaggageMapping() {
