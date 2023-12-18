@@ -1,6 +1,8 @@
 package datadog.trace.api.cache;
 
+import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.BiConsumer;
 import java.util.function.Function;
 
 final class CHMCache<K, V> implements DDCache<K, V> {
@@ -30,5 +32,12 @@ final class CHMCache<K, V> implements DDCache<K, V> {
   @Override
   public void clear() {
     chm.clear();
+  }
+
+  @Override
+  public void visit(BiConsumer<K, V> consumer) {
+    for (Map.Entry<K, V> e : chm.entrySet()) {
+      consumer.accept(e.getKey(), e.getValue());
+    }
   }
 }

@@ -5,6 +5,7 @@ import static datadog.trace.api.cache.FixedSizeCache.rehash;
 
 import java.util.Arrays;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
+import java.util.function.BiConsumer;
 import java.util.function.Function;
 import java.util.function.ToIntFunction;
 
@@ -124,6 +125,15 @@ final class FixedSizeWeightedCache<K, V> implements DDCache<K, V> {
   public void clear() {
     Arrays.fill(elements, null);
     totalWeightEstimate = 0;
+  }
+
+  @Override
+  public void visit(BiConsumer<K, V> consumer) {
+    for (Weighed<K, V> e : elements) {
+      if (null != e) {
+        consumer.accept(e.key, e.value);
+      }
+    }
   }
 
   private V produceAndStoreValue(K key, Function<K, ? extends V> producer, int pos, int oldWeight) {
