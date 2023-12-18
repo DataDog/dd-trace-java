@@ -3,7 +3,6 @@ package datadog.trace.instrumentation.scalatest;
 import datadog.trace.api.civisibility.InstrumentationBridge;
 import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.civisibility.events.TestEventsHandler;
-import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -29,7 +28,7 @@ public class RunContext {
 
   private final int runStamp;
   private final TestEventsHandler eventHandler =
-      InstrumentationBridge.createTestEventsHandler("scalatest", Paths.get("").toAbsolutePath());
+      InstrumentationBridge.createTestEventsHandler("scalatest");
   private final java.util.Set<TestIdentifier> skippedTests = ConcurrentHashMap.newKeySet();
   private final java.util.Set<TestIdentifier> unTestIdentifiers = ConcurrentHashMap.newKeySet();
 

@@ -9,6 +9,9 @@ public class NoopCoverageProbeStore implements CoverageProbeStore {
   private static final CoverageProbeStore INSTANCE = new NoopCoverageProbeStore();
 
   @Override
+  public void record(Class<?> clazz) {}
+
+  @Override
   public void record(Class<?> clazz, long classId, int probeId) {}
 
   @Override

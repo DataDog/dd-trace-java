@@ -6,7 +6,6 @@ import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 
 public abstract class TestIdentifierSerializer {
 
@@ -14,7 +13,10 @@ public abstract class TestIdentifierSerializer {
 
   public static ByteBuffer serialize(Collection<TestIdentifier> testIdentifiers) {
     if (testIdentifiers == null || testIdentifiers.isEmpty()) {
-      return ByteBuffer.allocate(0);
+      ByteBuffer buffer = ByteBuffer.allocate(Integer.BYTES);
+      buffer.putInt(0);
+      buffer.flip();
+      return buffer;
     }
 
     int length =
@@ -63,10 +65,6 @@ public abstract class TestIdentifierSerializer {
   }
 
   public static Collection<TestIdentifier> deserialize(ByteBuffer buffer) {
-    if (buffer.remaining() == 0) {
-      return Collections.emptyList();
-    }
-
     int count = buffer.getInt();
     Collection<TestIdentifier> tests = new ArrayList<>(count * 4 / 3);
     while (count-- > 0) {

@@ -3,7 +3,6 @@ package datadog.trace.instrumentation.karate;
 import datadog.trace.api.civisibility.InstrumentationBridge;
 import datadog.trace.api.civisibility.events.TestEventsHandler;
 import datadog.trace.util.AgentThreadFactory;
-import java.nio.file.Paths;
 
 public abstract class TestEventsHandlerHolder {
 
@@ -20,8 +19,7 @@ public abstract class TestEventsHandlerHolder {
   }
 
   public static void start() {
-    TEST_EVENTS_HANDLER =
-        InstrumentationBridge.createTestEventsHandler("karate", Paths.get("").toAbsolutePath());
+    TEST_EVENTS_HANDLER = InstrumentationBridge.createTestEventsHandler("karate");
   }
 
   public static void stop() {

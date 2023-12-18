@@ -17,19 +17,4 @@ public interface SourcePathResolver {
    */
   @Nullable
   String getResourcePath(@Nullable String relativePath);
-
-  SourcePathResolver NO_OP =
-      new SourcePathResolver() {
-        @Nullable
-        @Override
-        public String getSourcePath(@Nonnull Class<?> c) {
-          return null;
-        }
-
-        @Nullable
-        @Override
-        public String getResourcePath(@Nullable String relativePath) {
-          return null;
-        }
-      };
 }
