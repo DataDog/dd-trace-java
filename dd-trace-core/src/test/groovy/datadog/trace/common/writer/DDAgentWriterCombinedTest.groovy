@@ -262,8 +262,8 @@ class DDAgentWriterCombinedTest extends DDCoreSpecification {
   }
 
   def createMinimalContext() {
-    def tracer = Mock(CoreTracer)
-    def trace = Mock(PendingTrace)
+    def tracer = Stub(CoreTracer)
+    def trace = Stub(PendingTrace)
     trace.mapServiceName(_) >> { String serviceName -> serviceName }
     trace.getTracer() >> tracer
     return new DDSpanContext(
@@ -413,7 +413,7 @@ class DDAgentWriterCombinedTest extends DDCoreSpecification {
     def healthMetrics = Mock(HealthMetrics)
     def minimalTrace = createMinimalTrace()
     def version = agentVersion
-    def discovery = Mock(DDAgentFeaturesDiscovery) {
+    def discovery = Stub(DDAgentFeaturesDiscovery) {
       it.getTraceEndpoint() >> version
     }
     def api = Mock(DDAgentApi) {

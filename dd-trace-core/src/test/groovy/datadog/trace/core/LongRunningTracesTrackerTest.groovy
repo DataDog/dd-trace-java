@@ -16,8 +16,8 @@ class LongRunningTracesTrackerTest extends DDSpecification {
   def sharedCommunicationObjects = Mock(SharedCommunicationObjects)
   DDAgentFeaturesDiscovery features = new DDAgentFeaturesDiscovery(null, Monitoring.DISABLED, null, false, false)
   LongRunningTracesTracker tracker
-  def tracer = Mock(CoreTracer)
-  def traceConfig = Mock(CoreTracer.ConfigSnapshot)
+  def tracer = Stub(CoreTracer)
+  def traceConfig = Stub(CoreTracer.ConfigSnapshot)
   PendingTraceBuffer.DelayingPendingTraceBuffer buffer
   PendingTrace.Factory factory = null
 

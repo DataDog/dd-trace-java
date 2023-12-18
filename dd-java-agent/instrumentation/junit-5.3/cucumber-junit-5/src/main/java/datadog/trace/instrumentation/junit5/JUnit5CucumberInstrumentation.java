@@ -36,6 +36,7 @@ public class JUnit5CucumberInstrumentation extends Instrumenter.CiVisibility
   @Override
   public String[] helperClassNames() {
     return new String[] {
+      packageName + ".TestIdentifierFactory",
       packageName + ".JUnitPlatformUtils",
       packageName + ".CucumberUtils",
       packageName + ".TestEventsHandlerHolder",
