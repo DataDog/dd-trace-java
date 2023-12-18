@@ -104,12 +104,12 @@ public interface KnownAddresses {
   // XXX: Not really used yet, but it's a known address and we should not treat it as unknown.
   Address<Object> GRAPHQL_SERVER_RESOLVER = new Address<>("graphql.server.resolver");
 
+  Address<Map<String, ?>> SERVER_GRAPHQL_ALL_RESOLVERS =
+      new Address<>("server.graphql.all_resolvers");
+
   Address<String> USER_ID = new Address<>("usr.id");
 
   Address<Map<String, Object>> WAF_CONTEXT_PROCESSOR = new Address<>("waf.context.processor");
-
-  Address<Map<String, ?>> SERVER_GRAPHQL_ALL_RESOLVERS =
-      new Address<>("server.graphql.all_resolvers");
 
   static Address<?> forName(String name) {
     switch (name) {
@@ -161,12 +161,12 @@ public interface KnownAddresses {
         return GRAPHQL_SERVER_ALL_RESOLVERS;
       case "graphql.server.resolver":
         return GRAPHQL_SERVER_RESOLVER;
+      case "server.graphql.all_resolvers":
+        return SERVER_GRAPHQL_ALL_RESOLVERS;
       case "usr.id":
         return USER_ID;
       case "waf.context.processor":
         return WAF_CONTEXT_PROCESSOR;
-      case "server.graphql.all_resolvers":
-        return SERVER_GRAPHQL_ALL_RESOLVERS;
       default:
         return null;
     }

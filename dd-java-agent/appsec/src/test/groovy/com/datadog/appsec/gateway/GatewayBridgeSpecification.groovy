@@ -78,6 +78,7 @@ class GatewayBridgeSpecification extends DDSpecification {
   TriConsumer<RequestContext, String, String> respHeaderCB
   Function<RequestContext, Flow<Void>> respHeadersDoneCB
   BiFunction<RequestContext, Object, Flow<Void>> grpcServerRequestMessageCB
+  BiFunction<RequestContext, Map<String, Object>, Flow<Void>> graphqlServerRequestMessageCB
 
   void setup() {
     callInitAndCaptureCBs()
@@ -409,6 +410,7 @@ class GatewayBridgeSpecification extends DDSpecification {
     1 * ig.registerCallback(EVENTS.responseHeader(), _) >> { respHeaderCB = it[1]; null }
     1 * ig.registerCallback(EVENTS.responseHeaderDone(), _) >> { respHeadersDoneCB = it[1]; null }
     1 * ig.registerCallback(EVENTS.grpcServerRequestMessage(), _) >> { grpcServerRequestMessageCB = it[1]; null }
+    1 * ig.registerCallback(EVENTS.graphqlServerRequestMessage(), _) >> { graphqlServerRequestMessageCB = it[1]; null }
     0 * ig.registerCallback(_, _)
 
     bridge.init()
