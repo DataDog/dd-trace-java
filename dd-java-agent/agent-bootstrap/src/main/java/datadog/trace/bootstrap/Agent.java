@@ -18,6 +18,7 @@ import datadog.trace.api.Config;
 import datadog.trace.api.EndpointCheckpointer;
 import datadog.trace.api.Platform;
 import datadog.trace.api.StatsDClientManager;
+import datadog.trace.api.Subsystem;
 import datadog.trace.api.WithGlobalTracer;
 import datadog.trace.api.config.AppSecConfig;
 import datadog.trace.api.config.CiVisibilityConfig;
@@ -31,12 +32,9 @@ import datadog.trace.api.config.RemoteConfigConfig;
 import datadog.trace.api.config.TraceInstrumentationConfig;
 import datadog.trace.api.config.TracerConfig;
 import datadog.trace.api.config.UsmConfig;
-import datadog.trace.api.gateway.RequestContextSlot;
-import datadog.trace.api.gateway.SubscriptionService;
 import datadog.trace.api.profiling.Timer;
 import datadog.trace.api.scopemanager.ScopeListener;
 import datadog.trace.bootstrap.benchmark.StaticEventLogger;
-import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.TracerAPI;
 import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
 import datadog.trace.bootstrap.instrumentation.jfr.InstrumentationBasedProfiling;
@@ -133,15 +131,12 @@ public class Agent {
 
   private static boolean jmxFetchEnabled = true;
   private static boolean profilingEnabled = false;
-  private static boolean appSecEnabled;
-  private static boolean appSecFullyDisabled;
   private static boolean remoteConfigEnabled = true;
-  private static boolean iastEnabled = false;
   private static boolean cwsEnabled = false;
   private static boolean ciVisibilityEnabled = false;
-  private static boolean usmEnabled = false;
-  private static boolean telemetryEnabled = true;
   private static boolean debuggerEnabled = false;
+
+  private static volatile Subsystem TELEMETRY_SUBSYSTEM = Subsystem.Noop.INSTANCE;
 
   public static void start(final Instrumentation inst, final URL agentJarURL, String agentArgs) {
     StaticEventLogger.begin("Agent");
@@ -153,7 +148,6 @@ public class Agent {
       // these default services are not used during native-image builds
       jmxFetchEnabled = false;
       remoteConfigEnabled = false;
-      telemetryEnabled = false;
       // apply trace instrumentation, but skip starting other services
       startDatadogAgent(inst);
       StaticEventLogger.end("Agent.start");
@@ -205,13 +199,8 @@ public class Agent {
 
     jmxFetchEnabled = isFeatureEnabled(AgentFeature.JMXFETCH);
     profilingEnabled = isFeatureEnabled(AgentFeature.PROFILING);
-    iastEnabled = isFeatureEnabled(AgentFeature.IAST);
-    usmEnabled = isFeatureEnabled(AgentFeature.USM);
-    appSecEnabled = isFeatureEnabled(AgentFeature.APPSEC);
-    appSecFullyDisabled = isAppSecFullyDisabled();
     remoteConfigEnabled = isFeatureEnabled(AgentFeature.REMOTE_CONFIG);
     cwsEnabled = isFeatureEnabled(AgentFeature.CWS);
-    telemetryEnabled = isFeatureEnabled(AgentFeature.TELEMETRY);
     debuggerEnabled = isFeatureEnabled(AgentFeature.DEBUGGER);
 
     if (profilingEnabled) {
@@ -341,9 +330,7 @@ public class Agent {
     if (profilingEnabled) {
       shutdownProfilingAgent(sync);
     }
-    if (telemetryEnabled) {
-      stopTelemetry();
-    }
+    TELEMETRY_SUBSYSTEM.shutdown();
   }
 
   public static synchronized Class<?> installAgentCLI() throws Exception {
@@ -466,16 +453,13 @@ public class Agent {
       }
 
       installDatadogTracer(scoClass, sco);
-      maybeStartAppSec(scoClass, sco);
-      maybeStartIast(scoClass, sco);
+      maybeStartSubsytem("AppSec", "com.datadog.appsec.AppSecSystem", instrumentation, sco);
+      maybeStartSubsytem("IAST", "com.datadog.iast.IastSystem", instrumentation, sco);
       maybeStartCiVisibility(scoClass, sco);
       // start debugger before remote config to subscribe to it before starting to poll
       maybeStartDebugger(instrumentation, scoClass, sco);
       maybeStartRemoteConfig(scoClass, sco);
-
-      if (telemetryEnabled) {
-        startTelemetry(instrumentation, scoClass, sco);
-      }
+      TELEMETRY_SUBSYSTEM = maybeStartSubsytem("Telemetry", "datadog.telemetry.TelemetrySystem", instrumentation, sco);
     }
   }
 
@@ -691,35 +675,6 @@ public class Agent {
     return (StatsDClientManager) statsDClientManagerMethod.invoke(null);
   }
 
-  private static void maybeStartAppSec(Class<?> scoClass, Object o) {
-    if (!(appSecEnabled || (remoteConfigEnabled && !appSecFullyDisabled))) {
-      return;
-    }
-
-    StaticEventLogger.begin("AppSec");
-
-    try {
-      SubscriptionService ss = AgentTracer.get().getSubscriptionService(RequestContextSlot.APPSEC);
-      startAppSec(ss, scoClass, o);
-    } catch (Exception e) {
-      log.error("Error starting AppSec System", e);
-    }
-
-    StaticEventLogger.end("AppSec");
-  }
-
-  private static void startAppSec(SubscriptionService ss, Class<?> scoClass, Object sco) {
-    try {
-      final Class<?> appSecSysClass =
-          AGENT_CLASSLOADER.loadClass("com.datadog.appsec.AppSecSystem");
-      final Method appSecInstallerMethod =
-          appSecSysClass.getMethod("start", SubscriptionService.class, scoClass);
-      appSecInstallerMethod.invoke(null, ss, sco);
-    } catch (final Throwable ex) {
-      log.warn("Not starting AppSec subsystem: {}", ex.getMessage());
-    }
-  }
-
   private static boolean isSupportedAppSecArch() {
     final String arch = System.getProperty("os.arch");
     if (Platform.isWindows()) {
@@ -735,31 +690,12 @@ public class Agent {
     return true;
   }
 
-  private static void maybeStartIast(Class<?> scoClass, Object o) {
-    if (iastEnabled) {
-
-      StaticEventLogger.begin("IAST");
-
-      try {
-        SubscriptionService ss = AgentTracer.get().getSubscriptionService(RequestContextSlot.IAST);
-        startIast(ss, scoClass, o);
-      } catch (Exception e) {
-        log.error("Error starting IAST subsystem", e);
-      }
-
-      StaticEventLogger.end("IAST");
-    }
-  }
-
-  private static void startIast(SubscriptionService ss, Class<?> scoClass, Object sco) {
-    try {
-      final Class<?> appSecSysClass = AGENT_CLASSLOADER.loadClass("com.datadog.iast.IastSystem");
-      final Method iastInstallerMethod =
-          appSecSysClass.getMethod("start", SubscriptionService.class);
-      iastInstallerMethod.invoke(null, ss);
-    } catch (final Throwable e) {
-      log.warn("Not starting IAST subsystem", e);
-    }
+  private static Subsystem maybeStartSubsytem(final String name, final String className, final Instrumentation inst, final Object sco) {
+    StaticEventLogger.begin(name);
+    final Subsystem subsystem = newSubsystem(className);
+    subsystem.maybeStart(inst, sco);
+    StaticEventLogger.end(name);
+    return subsystem;
   }
 
   private static void maybeStartCiVisibility(Class<?> scoClass, Object sco) {
@@ -780,34 +716,12 @@ public class Agent {
     }
   }
 
-  private static void startTelemetry(Instrumentation inst, Class<?> scoClass, Object sco) {
-    StaticEventLogger.begin("Telemetry");
-
+  private static Subsystem newSubsystem(final String className) {
     try {
-      final Class<?> telemetrySystem =
-          AGENT_CLASSLOADER.loadClass("datadog.telemetry.TelemetrySystem");
-      final Method startTelemetry =
-          telemetrySystem.getMethod("startTelemetry", Instrumentation.class, scoClass);
-      startTelemetry.invoke(null, inst, sco);
+      return (Subsystem) AGENT_CLASSLOADER.loadClass(className).getConstructor().newInstance();
     } catch (final Throwable ex) {
-      log.warn("Unable start telemetry", ex);
-    }
-
-    StaticEventLogger.end("Telemetry");
-  }
-
-  private static void stopTelemetry() {
-    if (AGENT_CLASSLOADER == null) {
-      return;
-    }
-
-    try {
-      final Class<?> telemetrySystem =
-          AGENT_CLASSLOADER.loadClass("datadog.telemetry.TelemetrySystem");
-      final Method stopTelemetry = telemetrySystem.getMethod("stop");
-      stopTelemetry.invoke(null);
-    } catch (final Throwable ex) {
-      log.error("Error encountered while stopping telemetry", ex);
+      log.warn("Unable to create {}", className, ex);
+      return Subsystem.Noop.INSTANCE;
     }
   }
 
@@ -1090,23 +1004,6 @@ public class Agent {
       // false unless it's explicitly set to "true"
       return Boolean.parseBoolean(featureEnabled) || "1".equals(featureEnabled);
     }
-  }
-
-  /** @see datadog.trace.api.ProductActivation#fromString(String) */
-  private static boolean isAppSecFullyDisabled() {
-    // must be kept in sync with logic from Config!
-    final String featureEnabledSysprop = AgentFeature.APPSEC.systemProp;
-    String settingValue = getNullIfEmpty(System.getProperty(featureEnabledSysprop));
-    if (settingValue == null) {
-      settingValue = getNullIfEmpty(ddGetEnv(featureEnabledSysprop));
-      settingValue = settingValue != null && settingValue.isEmpty() ? null : settingValue;
-    }
-
-    // defaults to inactive
-    return !(settingValue == null
-        || settingValue.equalsIgnoreCase("true")
-        || settingValue.equalsIgnoreCase("1")
-        || settingValue.equalsIgnoreCase("inactive"));
   }
 
   private static String getNullIfEmpty(final String value) {
