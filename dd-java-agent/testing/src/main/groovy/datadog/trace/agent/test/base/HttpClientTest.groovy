@@ -790,9 +790,11 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
     }
 
     where:
-    method | header                           | value | tags
-    'GET'  | 'X-Datadog-Test-Both-Header'     | 'foo' | [ 'both_header_tag': 'foo' ]
-    'GET'  | 'X-Datadog-Test-Request-Header'  | 'bar' | [ 'request_header_tag': 'bar' ]
+    method | header                           | value     | tags
+    'GET'  | 'X-Datadog-Test-Both-Header'     | 'foo'     | [ 'both_header_tag': 'foo' ]
+    'GET'  | 'X-Datadog-Test-Request-Header'  | 'bar'     | [ 'request_header_tag': 'bar' ]
+    'GET'  | 'X-Datadog-Test-Both-Header'     | 'bar,baz' | [ 'both_header_tag': 'bar,baz' ]
+    'GET'  | 'X-Datadog-Test-Request-Header'  | 'foo,bar' | [ 'request_header_tag': 'foo,bar' ]
   }
 
   def "test response header #header tag mapping"() {
