@@ -130,7 +130,7 @@ public class DDBuildSystemSessionImpl extends DDTestSessionImpl implements DDBui
 
   private SignalResponse onTestDataRequestReceived(TestDataRequest testDataRequest) {
     try {
-      String relativeModulePath = testDataRequest.getRelativeModulePath();
+      String moduleName = testDataRequest.getModuleName();
       JvmInfo jvmInfo = testDataRequest.getJvmInfo();
       ModuleExecutionSettings moduleExecutionSettings = getModuleExecutionSettings(jvmInfo);
 
@@ -138,10 +138,10 @@ public class DDBuildSystemSessionImpl extends DDTestSessionImpl implements DDBui
       TestDataType testDataType = testDataRequest.getTestDataType();
       switch (testDataType) {
         case SKIPPABLE:
-          tests = moduleExecutionSettings.getSkippableTests(relativeModulePath);
+          tests = moduleExecutionSettings.getSkippableTests(moduleName);
           break;
         case FLAKY:
-          tests = moduleExecutionSettings.getFlakyTests(relativeModulePath);
+          tests = moduleExecutionSettings.getFlakyTests(moduleName);
           break;
         default:
           throw new IllegalArgumentException(

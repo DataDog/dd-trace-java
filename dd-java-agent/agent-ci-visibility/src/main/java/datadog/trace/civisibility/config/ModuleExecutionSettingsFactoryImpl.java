@@ -71,9 +71,9 @@ public class ModuleExecutionSettingsFactoryImpl implements ModuleExecutionSettin
         repositoryRoot,
         jvmInfo);
 
-    Map<String, List<TestIdentifier>> skippableTestsByModulePath =
+    Map<String, List<TestIdentifier>> skippableTestsByModuleName =
         itrEnabled && repositoryRoot != null
-            ? getSkippableTestsByModulePath(Paths.get(repositoryRoot), tracerEnvironment)
+            ? getSkippableTestsByModuleName(Paths.get(repositoryRoot), tracerEnvironment)
             : Collections.emptyMap();
 
     Collection<TestIdentifier> flakyTests =
@@ -86,7 +86,7 @@ public class ModuleExecutionSettingsFactoryImpl implements ModuleExecutionSettin
         codeCoverageEnabled,
         itrEnabled,
         systemProperties,
-        skippableTestsByModulePath,
+        skippableTestsByModuleName,
         flakyTests,
         coverageEnabledPackages);
   }
@@ -196,7 +196,7 @@ public class ModuleExecutionSettingsFactoryImpl implements ModuleExecutionSettin
     return propagatedSystemProperties;
   }
 
-  private Map<String, List<TestIdentifier>> getSkippableTestsByModulePath(
+  private Map<String, List<TestIdentifier>> getSkippableTestsByModuleName(
       Path repositoryRoot, TracerEnvironment tracerEnvironment) {
     try {
       // ensure git data upload is finished before asking for tests

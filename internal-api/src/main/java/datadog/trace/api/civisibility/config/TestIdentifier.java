@@ -8,6 +8,15 @@ public class TestIdentifier {
   private final String suite;
   private final String name;
   private @Nullable final String parameters;
+  /**
+   * Configurations field is intentionally excluded from hashCode/equals: the backend does not
+   * return full configuration for a test case, but rather includes only those parts that were not
+   * specified in the client request (for instance, when requesting tests without specifying module
+   * name, each test in the response will have module name present in its config section). Moreover,
+   * in some edge cases the backend may choose to return empty configuration object instead of null.
+   * Therefore, reconstructing on the client side a configuration block that fully corresponds to
+   * the one returned by the backend is non-trivial.
+   */
   private @Nullable final Configurations configurations;
 
   public TestIdentifier(
@@ -50,13 +59,12 @@ public class TestIdentifier {
     TestIdentifier that = (TestIdentifier) o;
     return Objects.equals(suite, that.suite)
         && Objects.equals(name, that.name)
-        && Objects.equals(parameters, that.parameters)
-        && Objects.equals(configurations, that.configurations);
+        && Objects.equals(parameters, that.parameters);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(suite, name, parameters, configurations);
+    return Objects.hash(suite, name, parameters);
   }
 
   @Override

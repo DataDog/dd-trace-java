@@ -41,11 +41,11 @@ public class ModuleExecutionSettings {
     return systemProperties;
   }
 
-  public Collection<TestIdentifier> getSkippableTests(String relativeModulePath) {
-    return skippableTestsByModule.getOrDefault(relativeModulePath, Collections.emptyList());
+  public Collection<TestIdentifier> getSkippableTests(String moduleName) {
+    return skippableTestsByModule.getOrDefault(moduleName, Collections.emptyList());
   }
 
-  public Collection<TestIdentifier> getFlakyTests(String relativeModulePath) {
+  public Collection<TestIdentifier> getFlakyTests(String moduleName) {
     // backend does not store module info for flaky tests
     return flakyTests;
   }
