@@ -6,14 +6,16 @@ import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.core.propagation.PropagationTags;
 import datadog.trace.core.propagation.ptags.PTagsFactory.PTags;
 import datadog.trace.core.propagation.ptags.TagElement.Encoding;
+import datadog.trace.relocate.api.RatelimitedLogger;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 import java.util.function.IntPredicate;
-import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class W3CPTagsCodec extends PTagsCodec {
-  private static final Logger log = LoggerFactory.getLogger(W3CPTagsCodec.class);
+  private static final RatelimitedLogger log =
+      new RatelimitedLogger(LoggerFactory.getLogger(W3CPTagsCodec.class), 5, TimeUnit.MINUTES);
 
   private static final int MAX_HEADER_SIZE = 256;
   private static final String DATADOG_MEMBER_KEY = "dd=";
