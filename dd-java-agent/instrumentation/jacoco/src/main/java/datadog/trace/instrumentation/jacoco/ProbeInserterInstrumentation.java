@@ -151,16 +151,15 @@ public class ProbeInserterInstrumentation extends Instrumenter.CiVisibility
 
       MethodVisitorWrapper methodVisitor = MethodVisitorWrapper.wrap(mv);
 
-      methodVisitor.visitLdcInsn(classId);
-      methodVisitor.visitLdcInsn(className);
       methodVisitor.pushClass(className);
+      methodVisitor.visitLdcInsn(classId);
       methodVisitor.push(id);
 
       methodVisitor.visitMethodInsn(
           Opcodes.INVOKESTATIC,
           "datadog/trace/api/civisibility/InstrumentationBridge",
           "currentCoverageProbeStoreRecord",
-          "(JLjava/lang/String;Ljava/lang/Class;I)V",
+          "(Ljava/lang/Class;JI)V",
           false);
     }
   }

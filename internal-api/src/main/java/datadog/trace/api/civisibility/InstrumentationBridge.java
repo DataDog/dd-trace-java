@@ -16,6 +16,11 @@ public abstract class InstrumentationBridge {
   public static final String ITR_SKIP_REASON = "Skipped by Datadog Intelligent Test Runner";
   public static final String ITR_UNSKIPPABLE_TAG = "datadog_itr_unskippable";
 
+  /*
+   * While it is possible to use activeSpan() to get current coverage store, it adds a lot of overhead.
+   * This thread local is here as a shortcut for hot code paths.
+   */
+  private static final ThreadLocal<CoverageProbeStore> COVERAGE_PROBE_STORE = new ThreadLocal<>();
   private static volatile TestEventsHandler.Factory TEST_EVENTS_HANDLER_FACTORY;
   private static volatile BuildEventsHandler.Factory BUILD_EVENTS_HANDLER_FACTORY;
   private static volatile CoverageProbeStore.Registry COVERAGE_PROBE_STORE_REGISTRY;
@@ -56,12 +61,28 @@ public abstract class InstrumentationBridge {
     return COVERAGE_DATA_SUPPLIER != null ? COVERAGE_DATA_SUPPLIER.get() : null;
   }
 
+  public static void setThreadLocalCoverageProbeStore(CoverageProbeStore probes) {
+    COVERAGE_PROBE_STORE.set(probes);
+  }
+
+  public static void removeThreadLocalCoverageProbeStore() {
+    COVERAGE_PROBE_STORE.remove();
+  }
+
   /* This method is referenced by name in bytecode added in the jacoco module */
-  public static void currentCoverageProbeStoreRecord(
-      long classId, String className, Class<?> clazz, int probeId) {
-    CoverageProbeStore probes = getCurrentCoverageProbeStore();
+  public static void currentCoverageProbeStoreRecord(Class<?> clazz, long classId, int probeId) {
+    CoverageProbeStore probes = COVERAGE_PROBE_STORE.get();
     if (probes != null) {
-      probes.record(clazz, classId, className, probeId);
+      probes.record(clazz, classId, probeId);
+    } else {
+      // No thread-local coverage store means that the call is outside the scope of a test,
+      // or that the test started in a different thread.
+      // Fall back to trying to retrieve coverage store from active span
+      // (which could propagate from the thread that started the test to this thread)
+      probes = getCurrentCoverageProbeStore();
+      if (probes != null) {
+        probes.record(clazz, classId, probeId);
+      }
     }
   }
 

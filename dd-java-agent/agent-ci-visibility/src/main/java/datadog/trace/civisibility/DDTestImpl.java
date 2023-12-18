@@ -56,14 +56,15 @@ public class DDTestImpl implements DDTest {
     this.suiteId = suiteId;
     this.onSpanFinish = onSpanFinish;
 
+    CoverageProbeStore probeStore = coverageProbeStoreFactory.create(sourcePathResolver);
+    InstrumentationBridge.setThreadLocalCoverageProbeStore(probeStore);
+
     AgentTracer.SpanBuilder spanBuilder =
         AgentTracer.get()
             .buildSpan(testDecorator.component() + ".test")
             .ignoreActiveSpan()
             .asChildOf(null)
-            .withRequestContextData(
-                RequestContextSlot.CI_VISIBILITY,
-                coverageProbeStoreFactory.create(sourcePathResolver));
+            .withRequestContextData(RequestContextSlot.CI_VISIBILITY, probeStore);
 
     if (startTime != null) {
       spanBuilder = spanBuilder.withStartTimestamp(startTime);
@@ -178,6 +179,7 @@ public class DDTestImpl implements DDTest {
               + span);
     }
 
+    InstrumentationBridge.removeThreadLocalCoverageProbeStore();
     CoverageProbeStore probes = span.getRequestContext().getData(RequestContextSlot.CI_VISIBILITY);
     probes.report(sessionId, suiteId, span.getSpanId());
 

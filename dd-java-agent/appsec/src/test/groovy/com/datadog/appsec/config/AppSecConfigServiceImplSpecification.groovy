@@ -18,7 +18,7 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
 
   ConfigurationPoller poller = Mock()
   def config = Mock(Class.forName('datadog.trace.api.Config'))
-  AppSecModuleConfigurer.Reconfiguration reconf = Mock()
+  AppSecModuleConfigurer.Reconfiguration reconf = Stub()
   AppSecConfigServiceImpl appSecConfigService = new AppSecConfigServiceImpl(config, poller, reconf)
 
   void cleanup() {
@@ -81,7 +81,7 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
     setup:
     Path p = Files.createTempFile('appsec', '.json')
     p.toFile() << '{"version":"2.0", "rules": []}'
-    AppSecModuleConfigurer.SubconfigListener listener = Mock()
+    AppSecModuleConfigurer.SubconfigListener listener = Stub()
 
     when:
     appSecConfigService.init()
@@ -116,7 +116,7 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
   }
 
   void 'provides initial subconfiguration upon subscription'() {
-    AppSecModuleConfigurer.SubconfigListener listener = Mock()
+    AppSecModuleConfigurer.SubconfigListener listener = Stub()
 
     setup:
     appSecConfigService.init()

@@ -7,7 +7,7 @@ class LocationTest extends DDSpecification {
 
   void 'forStack'() {
     given:
-    final span = Mock(AgentSpan)
+    final span = Stub(AgentSpan)
     final spanId = 123456
     span.getSpanId() >> spanId
     final stack = new StackTraceElement("declaringClass", "methodName", "fileName", 42)
@@ -24,7 +24,7 @@ class LocationTest extends DDSpecification {
 
   void 'forSpanAndClassAndMethod'() {
     given:
-    final span = Mock(AgentSpan)
+    final span = Stub(AgentSpan)
     final spanId = 123456
     span.getSpanId() >> spanId
     final declaringClass = "declaringClass"

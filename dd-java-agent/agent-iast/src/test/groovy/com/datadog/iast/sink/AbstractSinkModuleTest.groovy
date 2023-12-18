@@ -24,10 +24,10 @@ class AbstractSinkModuleTest extends IastModuleImplTestBase {
 
   void setup() {
     ctx = new IastRequestContext()
-    final reqCtx = Mock(RequestContext) {
+    final reqCtx = Stub(RequestContext) {
       getData(RequestContextSlot.IAST) >> ctx
     }
-    span = Mock(AgentSpan) {
+    span = Stub(AgentSpan) {
       getRequestContext() >> reqCtx
     }
     tracer.activeSpan() >> span

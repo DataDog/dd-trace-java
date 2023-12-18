@@ -7,8 +7,9 @@ import datadog.trace.civisibility.source.SourcePathResolver;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.IdentityHashMap;
 import java.util.List;
-import java.util.Set;
+import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import javax.annotation.Nullable;
@@ -19,21 +20,33 @@ public class SegmentlessTestProbes implements CoverageProbeStore {
 
   private static final Logger log = LoggerFactory.getLogger(SegmentlessTestProbes.class);
 
-  // Unbounded data structure that only exists within a single test span
-  private final Set<Class<?>> coveredClasses;
+  // test starts and finishes in the same thread,
+  // and in this thread we do not need to synchronize access
+  private final Thread testThread = Thread.currentThread();
+  private volatile Class<?> lastCoveredClass;
+  private final Map<Class<?>, Class<?>> coveredClasses;
+  private final Map<Class<?>, Class<?>> concurrentCoveredClasses;
   private final Collection<String> nonCodeResources;
   private final SourcePathResolver sourcePathResolver;
   private volatile TestReport testReport;
 
   SegmentlessTestProbes(SourcePathResolver sourcePathResolver) {
     this.sourcePathResolver = sourcePathResolver;
-    coveredClasses = ConcurrentHashMap.newKeySet();
+    coveredClasses = new IdentityHashMap<>();
+    concurrentCoveredClasses = new ConcurrentHashMap<>();
     nonCodeResources = new ConcurrentLinkedQueue<>();
   }
 
   @Override
-  public void record(Class<?> clazz, long classId, String className, int probeId) {
-    coveredClasses.add(clazz);
+  public void record(Class<?> clazz, long classId, int probeId) {
+    if (clazz != lastCoveredClass) {
+      if (Thread.currentThread() == testThread) {
+        coveredClasses.put(lastCoveredClass, null);
+        lastCoveredClass = clazz;
+      } else {
+        concurrentCoveredClasses.put(clazz, clazz);
+      }
+    }
   }
 
   @Override
@@ -43,8 +56,15 @@ public class SegmentlessTestProbes implements CoverageProbeStore {
 
   @Override
   public void report(Long testSessionId, Long testSuiteId, long spanId) {
+    coveredClasses.put(lastCoveredClass, null);
+    coveredClasses.putAll(concurrentCoveredClasses);
+
     List<TestReportFileEntry> fileEntries = new ArrayList<>(coveredClasses.size());
-    for (Class<?> clazz : coveredClasses) {
+    for (Class<?> clazz : coveredClasses.keySet()) {
+      if (clazz == null) {
+        continue;
+      }
+
       String sourcePath = sourcePathResolver.getSourcePath(clazz);
       if (sourcePath == null) {
         log.debug(

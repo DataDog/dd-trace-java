@@ -34,7 +34,7 @@ class HttpResponseHeaderModuleTest extends IastModuleImplTestBase {
     InstrumentationBridge.registerIastModule(new UnvalidatedRedirectModuleImpl(dependencies))
     objectHolder = []
     ctx = new IastRequestContext()
-    final reqCtx = Mock(RequestContext) {
+    final reqCtx = Stub(RequestContext) {
       getData(RequestContextSlot.IAST) >> ctx
     }
     span = Mock(AgentSpan) {
@@ -100,7 +100,7 @@ class HttpResponseHeaderModuleTest extends IastModuleImplTestBase {
 
   void 'exercise IastRequestController'(){
     given:
-    final taintedObjects = Mock(TaintedObjects)
+    final taintedObjects = Stub(TaintedObjects)
     IastRequestContext ctx = new IastRequestContext(taintedObjects)
 
     when:
@@ -112,8 +112,8 @@ class HttpResponseHeaderModuleTest extends IastModuleImplTestBase {
 
   void 'exercise IastRequestContext'(){
     given:
-    final taintedObjects = Mock(TaintedObjects)
-    final iastMetricsCollector = Mock(IastMetricCollector)
+    final taintedObjects = Stub(TaintedObjects)
+    final iastMetricsCollector = Stub(IastMetricCollector)
 
     when:
     IastRequestContext ctx = new IastRequestContext(taintedObjects, iastMetricsCollector)

@@ -104,7 +104,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
         ]
       ]
     ]
-    AppSecModuleConfigurer.Reconfiguration reconf = Mock()
+    AppSecModuleConfigurer.Reconfiguration reconf = Stub()
     service.currentAppSecConfig.with {
       def dirtyStatus = userConfigs.addConfig(
         new AppSecUserConfig('b', [], actions, [], []))
@@ -728,7 +728,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
     AppSecEvent event
 
     when:
-    dataListener.onDataAvailable(Mock(ChangeableFlow), ctx, ATTACK_BUNDLE, false)
+    dataListener.onDataAvailable(Stub(ChangeableFlow), ctx, ATTACK_BUNDLE, false)
     ctx.closeAdditive()
 
     then:
@@ -760,7 +760,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
     when:
     def bundle = MapDataBundle.of(KnownAddresses.HEADERS_NO_COOKIES,
       new CaseInsensitiveMap<List<String>>(['user-agent': [password: 'Arachni/v0']]))
-    dataListener.onDataAvailable(Mock(ChangeableFlow), ctx, bundle, false)
+    dataListener.onDataAvailable(Stub(ChangeableFlow), ctx, bundle, false)
     ctx.closeAdditive()
 
     then:
@@ -787,7 +787,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
     when:
     def bundle = MapDataBundle.of(KnownAddresses.HEADERS_NO_COOKIES,
       new CaseInsensitiveMap<List<String>>(['user-agent': [password: 'Arachni/v0']]))
-    dataListener.onDataAvailable(Mock(ChangeableFlow), ctx, bundle, false)
+    dataListener.onDataAvailable(Stub(ChangeableFlow), ctx, bundle, false)
     ctx.closeAdditive()
 
     then:
@@ -813,7 +813,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
     AppSecEvent event
 
     when:
-    dataListener.onDataAvailable(Mock(ChangeableFlow), ctx, ATTACK_BUNDLE, false)
+    dataListener.onDataAvailable(Stub(ChangeableFlow), ctx, ATTACK_BUNDLE, false)
     ctx.closeAdditive()
 
     then:
@@ -898,7 +898,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
     when:
     cfgService.listeners['waf'].onNewSubconfig(defaultConfig['waf'], reconf)
     dataListener = pwafModule.dataSubscriptions.first()
-    dataListener.onDataAvailable(Mock(ChangeableFlow), ctx, ATTACK_BUNDLE, false)
+    dataListener.onDataAvailable(Stub(ChangeableFlow), ctx, ATTACK_BUNDLE, false)
     ctx.closeAdditive()
 
     then:
