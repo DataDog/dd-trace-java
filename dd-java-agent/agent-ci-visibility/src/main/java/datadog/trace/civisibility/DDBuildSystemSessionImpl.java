@@ -134,8 +134,11 @@ public class DDBuildSystemSessionImpl extends DDTestSessionImpl implements DDBui
       ModuleExecutionSettings settings = getModuleExecutionSettings(jvmInfo);
 
       String moduleName = request.getModuleName();
+      Collection<TestIdentifier> skippableTestsForModule = settings.getSkippableTests(moduleName);
       Map<String, Collection<TestIdentifier>> skippableTests =
-          Collections.singletonMap(moduleName, settings.getSkippableTests(moduleName));
+          !skippableTestsForModule.isEmpty()
+              ? Collections.singletonMap(moduleName, skippableTestsForModule)
+              : Collections.emptyMap();
       Collection<TestIdentifier> flakyTests = settings.getFlakyTests(moduleName);
       ModuleExecutionSettings moduleSettings =
           new ModuleExecutionSettings(
