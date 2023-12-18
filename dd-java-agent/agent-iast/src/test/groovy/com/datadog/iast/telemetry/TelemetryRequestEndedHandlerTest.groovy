@@ -63,7 +63,7 @@ class TelemetryRequestEndedHandlerTest extends AbstractTelemetryCallbackTest {
   void 'test telemetry with request scoped metric'() {
     given:
     final handler = new TelemetryRequestEndedHandler(delegate)
-    final metric = TAINTED_FLAT_MODE
+    final metric = REQUEST_TAINTED
 
     when:
     iastCtx.metricCollector.addMetric(metric, (byte) -1, 1)
@@ -79,7 +79,7 @@ class TelemetryRequestEndedHandlerTest extends AbstractTelemetryCallbackTest {
 
     then:
     drained.size() == 1
-    drained[0].metric == TAINTED_FLAT_MODE
+    drained[0].metric == REQUEST_TAINTED
     drained[0].type == 'count'
     drained[0].value.longValue() == 1
   }

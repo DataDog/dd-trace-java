@@ -3,7 +3,7 @@ package datadog.trace.civisibility;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.civisibility.config.ModuleExecutionSettings;
-import datadog.trace.api.civisibility.config.SkippableTest;
+import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.civisibility.codeowners.Codeowners;
 import datadog.trace.civisibility.config.JvmInfo;
@@ -18,8 +18,9 @@ import datadog.trace.civisibility.ipc.RepoIndexResponse;
 import datadog.trace.civisibility.ipc.SignalResponse;
 import datadog.trace.civisibility.ipc.SignalServer;
 import datadog.trace.civisibility.ipc.SignalType;
-import datadog.trace.civisibility.ipc.SkippableTestsRequest;
-import datadog.trace.civisibility.ipc.SkippableTestsResponse;
+import datadog.trace.civisibility.ipc.TestDataRequest;
+import datadog.trace.civisibility.ipc.TestDataResponse;
+import datadog.trace.civisibility.ipc.TestDataType;
 import datadog.trace.civisibility.source.MethodLinesResolver;
 import datadog.trace.civisibility.source.SourcePathResolver;
 import datadog.trace.civisibility.source.index.RepoIndex;
@@ -91,7 +92,7 @@ public class DDBuildSystemSessionImpl extends DDTestSessionImpl implements DDBui
     signalServer.registerSignalHandler(
         SignalType.REPO_INDEX_REQUEST, this::onRepoIndexRequestReceived);
     signalServer.registerSignalHandler(
-        SignalType.SKIPPABLE_TESTS_REQUEST, this::onSkippableTestsRequestReceived);
+        SignalType.TEST_DATA_REQUEST, this::onTestDataRequestReceived);
     signalServer.start();
 
     setTag(Tags.TEST_COMMAND, startCommand);
@@ -127,15 +128,27 @@ public class DDBuildSystemSessionImpl extends DDTestSessionImpl implements DDBui
     }
   }
 
-  private SignalResponse onSkippableTestsRequestReceived(
-      SkippableTestsRequest skippableTestsRequest) {
+  private SignalResponse onTestDataRequestReceived(TestDataRequest testDataRequest) {
     try {
-      String relativeModulePath = skippableTestsRequest.getRelativeModulePath();
-      JvmInfo jvmInfo = skippableTestsRequest.getJvmInfo();
+      String moduleName = testDataRequest.getModuleName();
+      JvmInfo jvmInfo = testDataRequest.getJvmInfo();
       ModuleExecutionSettings moduleExecutionSettings = getModuleExecutionSettings(jvmInfo);
-      Collection<SkippableTest> tests =
-          moduleExecutionSettings.getSkippableTests(relativeModulePath);
-      return new SkippableTestsResponse(tests);
+
+      Collection<TestIdentifier> tests;
+      TestDataType testDataType = testDataRequest.getTestDataType();
+      switch (testDataType) {
+        case SKIPPABLE:
+          tests = moduleExecutionSettings.getSkippableTests(moduleName);
+          break;
+        case FLAKY:
+          tests = moduleExecutionSettings.getFlakyTests(moduleName);
+          break;
+        default:
+          throw new IllegalArgumentException(
+              "Unexpected test data type requested: " + testDataType);
+      }
+
+      return new TestDataResponse(tests);
     } catch (Exception e) {
       return new ErrorResponse("Error while getting skippable tests: " + e.getMessage());
     }

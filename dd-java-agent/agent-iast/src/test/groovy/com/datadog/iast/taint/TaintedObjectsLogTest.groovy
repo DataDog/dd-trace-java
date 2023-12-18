@@ -76,7 +76,6 @@ class TaintedObjectsLogTest extends DDSpecification {
     then:
     taintedObjects.size() == 1
     taintedObjects.iterator().size() == 1
-    !taintedObjects.flat
   }
 }
 

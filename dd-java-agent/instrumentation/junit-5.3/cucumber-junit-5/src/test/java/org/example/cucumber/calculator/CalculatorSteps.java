@@ -14,9 +14,16 @@ public class CalculatorSteps {
 
   private Calculator calc;
 
+  private static int flakyCounter = 0;
+
   @Given("a calculator I just turned on")
   public void a_calculator_I_just_turned_on() {
     calc = new Calculator();
+  }
+
+  @Given("a flaky calculator I just turned on")
+  public void a_flaky_calculator_I_just_turned_on() {
+    calc = ++flakyCounter >= 3 ? new Calculator() : null;
   }
 
   @When("I add {int} and {int}")

@@ -157,6 +157,8 @@ import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_COMPILER_
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_COVERAGE_ROOT_PACKAGES_LIMIT;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_COVERAGE_SEGMENTS_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_DEBUG_PORT;
+import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_FLAKY_RETRY_COUNT;
+import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_FLAKY_RETRY_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_GIT_COMMAND_TIMEOUT_MILLIS;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_GIT_REMOTE_NAME;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_GIT_UNSHALLOW_DEFER;
@@ -380,6 +382,7 @@ import static datadog.trace.api.config.TracerConfig.PROPAGATION_STYLE_EXTRACT;
 import static datadog.trace.api.config.TracerConfig.PROPAGATION_STYLE_INJECT;
 import static datadog.trace.api.config.TracerConfig.PROXY_NO_PROXY;
 import static datadog.trace.api.config.TracerConfig.REQUEST_HEADER_TAGS;
+import static datadog.trace.api.config.TracerConfig.REQUEST_HEADER_TAGS_COMMA_ALLOWED;
 import static datadog.trace.api.config.TracerConfig.RESPONSE_HEADER_TAGS;
 import static datadog.trace.api.config.TracerConfig.SCOPE_DEPTH_LIMIT;
 import static datadog.trace.api.config.TracerConfig.SCOPE_INHERIT_ASYNC_PROPAGATION;
@@ -565,6 +568,7 @@ public class Config {
   private final Map<String, String> requestHeaderTags;
   private final Map<String, String> responseHeaderTags;
   private final Map<String, String> baggageMapping;
+  private final boolean requestHeaderTagsCommaAllowed;
   private final BitSet httpServerErrorStatuses;
   private final BitSet httpClientErrorStatuses;
   private final boolean httpServerTagQueryString;
@@ -743,6 +747,8 @@ public class Config {
   private final int ciVisibilityCoverageRootPackagesLimit;
   private final String ciVisibilityInjectedTracerVersion;
   private final List<String> ciVisibilityResourceFolderNames;
+  private final boolean ciVisibilityFlakyRetryEnabled;
+  private final int ciVisibilityFlakyRetryCount;
 
   private final boolean remoteConfigEnabled;
   private final boolean remoteConfigIntegrityCheckEnabled;
@@ -1092,6 +1098,8 @@ public class Config {
           configProvider.getMergedMapWithOptionalMappings(
               "http.response.headers.", true, HEADER_TAGS, RESPONSE_HEADER_TAGS);
     }
+    requestHeaderTagsCommaAllowed =
+        configProvider.getBoolean(REQUEST_HEADER_TAGS_COMMA_ALLOWED, true);
 
     baggageMapping = configProvider.getMergedMap(BAGGAGE_MAPPING);
 
@@ -1703,6 +1711,9 @@ public class Config {
     ciVisibilityResourceFolderNames =
         configProvider.getList(
             CIVISIBILITY_RESOURCE_FOLDER_NAMES, DEFAULT_CIVISIBILITY_RESOURCE_FOLDER_NAMES);
+    ciVisibilityFlakyRetryEnabled =
+        configProvider.getBoolean(CIVISIBILITY_FLAKY_RETRY_ENABLED, false);
+    ciVisibilityFlakyRetryCount = configProvider.getInteger(CIVISIBILITY_FLAKY_RETRY_COUNT, 5);
 
     remoteConfigEnabled =
         configProvider.getBoolean(REMOTE_CONFIG_ENABLED, DEFAULT_REMOTE_CONFIG_ENABLED);
@@ -2108,6 +2119,10 @@ public class Config {
 
   public Map<String, String> getResponseHeaderTags() {
     return responseHeaderTags;
+  }
+
+  public boolean isRequestHeaderTagsCommaAllowed() {
+    return requestHeaderTagsCommaAllowed;
   }
 
   public Map<String, String> getBaggageMapping() {
@@ -2855,6 +2870,14 @@ public class Config {
 
   public List<String> getCiVisibilityResourceFolderNames() {
     return ciVisibilityResourceFolderNames;
+  }
+
+  public boolean isCiVisibilityFlakyRetryEnabled() {
+    return ciVisibilityFlakyRetryEnabled;
+  }
+
+  public int getCiVisibilityFlakyRetryCount() {
+    return ciVisibilityFlakyRetryCount;
   }
 
   public String getAppSecRulesFile() {

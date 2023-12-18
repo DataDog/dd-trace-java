@@ -1,0 +1,15 @@
+V  [libjvm.so+0x6b7187]  vframeStreamForte::forte_next()+0x797
+V  [libjvm.so+0x6b79ad]  forte_fill_call_trace_given_top(JavaThread*, ASGCT_CallTrace*, int, frame) [clone .isra.22]+0x7bd
+V  [libjvm.so+0x6b8123]  AsyncGetCallTrace+0x193
+C  [libjavaProfiler586350205236920700.so+0x146c8]  Profiler::getJavaTraceAsync(void*, ASGCT_CallFrame*, int, StackContext*, bool*) [clone .isra.531]+0xd8
+C  [libjavaProfiler586350205236920700.so+0x1c18d]  Profiler::recordSample(void*, unsigned long long, int, int, Event*)+0xa2d
+C  [libjavaProfiler586350205236920700.so+0x1d128]  WallClock::sharedSignalHandler(int, siginfo_t*, void*)+0x148
+C  [redacted frame]
+V  [libjvm.so+0x85f9e9]  JfrStackTrace::record_safe(JavaThread*, int)+0x5a9
+V  [libjvm.so+0x861650]  JfrStackTraceRepository::record_for_leak_profiler(JavaThread*, int)+0x50
+V  [libjvm.so+0xb1ecba]  ObjectSampler::sample(HeapWordImpl**, unsigned long, JavaThread*)+0x10a
+V  [libjvm.so+0x81abee]  JfrAllocationTracer::JfrAllocationTracer(Klass const*, HeapWordImpl**, unsigned long, bool, JavaThread*)+0x5e
+V  [libjvm.so+0x3afa20]  AllocTracer::send_allocation_in_new_tlab(Klass*, HeapWordImpl**, unsigned long, unsigned long, JavaThread*)+0x30
+V  [libjvm.so+0xa8f8ed]  MemAllocator::allocate() const+0x13d
+V  [libjvm.so+0x7e443c]  InstanceKlass::allocate_objArray(int, int, JavaThread*)+0x13c
+V  [libjvm.so+0xbe1b59]  OptoRuntime::new_array_C(Klass*, int, JavaThread*)+0x129

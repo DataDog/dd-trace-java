@@ -51,7 +51,7 @@ public class MavenExecutionListener extends AbstractExecutionListener {
       MavenSession session = event.getSession();
       MavenExecutionRequest request = session.getRequest();
       MavenProject project = event.getProject();
-      String moduleName = getUniqueModuleName(project, mojoExecution);
+      String moduleName = MavenUtils.getUniqueModuleName(project, mojoExecution);
 
       mojoStarted(event);
       buildEventsHandler.onTestModuleSkip(request, moduleName, null);
@@ -66,7 +66,7 @@ public class MavenExecutionListener extends AbstractExecutionListener {
       MavenSession session = event.getSession();
       MavenExecutionRequest request = session.getRequest();
       MavenProject project = event.getProject();
-      String moduleName = getUniqueModuleName(project, mojoExecution);
+      String moduleName = MavenUtils.getUniqueModuleName(project, mojoExecution);
 
       String outputClassesDir = project.getBuild().getOutputDirectory();
       Collection<File> outputClassesDirs =
@@ -150,7 +150,7 @@ public class MavenExecutionListener extends AbstractExecutionListener {
       MavenSession session = event.getSession();
       MavenExecutionRequest request = session.getRequest();
       MavenProject project = event.getProject();
-      String moduleName = getUniqueModuleName(project, mojoExecution);
+      String moduleName = MavenUtils.getUniqueModuleName(project, mojoExecution);
       buildEventsHandler.onTestModuleFinish(request, moduleName);
 
       System.clearProperty(
@@ -167,7 +167,7 @@ public class MavenExecutionListener extends AbstractExecutionListener {
       MavenSession session = event.getSession();
       MavenExecutionRequest request = session.getRequest();
       MavenProject project = event.getProject();
-      String moduleName = getUniqueModuleName(project, mojoExecution);
+      String moduleName = MavenUtils.getUniqueModuleName(project, mojoExecution);
       Exception exception = event.getException();
       buildEventsHandler.onTestModuleFail(request, moduleName, exception);
       buildEventsHandler.onTestModuleFinish(request, moduleName);
@@ -177,13 +177,5 @@ public class MavenExecutionListener extends AbstractExecutionListener {
       System.clearProperty(
           Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_MODULE_ID));
     }
-  }
-
-  private static String getUniqueModuleName(MavenProject project, MojoExecution mojoExecution) {
-    return project.getName()
-        + " "
-        + mojoExecution.getArtifactId()
-        + " "
-        + mojoExecution.getExecutionId();
   }
 }

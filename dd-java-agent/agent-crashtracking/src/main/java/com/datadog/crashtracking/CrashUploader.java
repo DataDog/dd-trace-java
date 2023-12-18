@@ -28,6 +28,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Scanner;
+import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -49,7 +50,6 @@ public final class CrashUploader {
   private static final Logger log = LoggerFactory.getLogger(CrashUploader.class);
 
   // Header names and values
-  static final String JAVA_LANG = "java";
   static final String HEADER_DD_EVP_ORIGIN = "DD-EVP-ORIGIN";
   static final String JAVA_TRACING_LIBRARY = "dd-trace-java";
   static final String HEADER_DD_EVP_ORIGIN_VERSION = "DD-EVP-ORIGIN-VERSION";
@@ -144,7 +144,7 @@ public final class CrashUploader {
           writer.beginObject();
           writer.name("kind").value(extractErrorKind(message));
           writer.name("message").value(extractErrorMessage(message));
-          writer.name("stack").value(extractErrorStackTrace(message));
+          writer.name("stack").value(extractErrorStackTrace(message, false));
           writer.endObject();
           writer.endObject();
         }
@@ -154,22 +154,9 @@ public final class CrashUploader {
     }
   }
 
-  private static final Pattern errorKindPattern =
-      Pattern.compile(
-          String.join(
-              "",
-              "^",
-              "(",
-              "# A fatal error has been detected by the Java Runtime Environment:",
-              "|",
-              "# There is insufficient memory for the Java Runtime Environment to continue\\.",
-              ")",
-              "$"),
-          Pattern.DOTALL);
-
   // @VisibleForTesting
   static String extractErrorKind(String fileContent) {
-    Matcher matcher = errorMessagePattern.matcher(fileContent);
+    Matcher matcher = ERROR_MESSAGE_PATTERN.matcher(fileContent);
     if (!matcher.find()) {
       System.err.println("No match found for error.kind");
       return null;
@@ -181,7 +168,7 @@ public final class CrashUploader {
     return "NativeCrash";
   }
 
-  private static final Pattern errorMessagePattern =
+  private static final Pattern ERROR_MESSAGE_PATTERN =
       Pattern.compile(
           String.join(
               "",
@@ -201,7 +188,7 @@ public final class CrashUploader {
   // @VisibleForTesting
   @SuppressForbidden
   static String extractErrorMessage(String fileContent) {
-    Matcher matcher = errorMessagePattern.matcher(fileContent);
+    Matcher matcher = ERROR_MESSAGE_PATTERN.matcher(fileContent);
     if (!matcher.find()) {
       System.err.println("No match found for error.message");
       return null;
@@ -212,18 +199,12 @@ public final class CrashUploader {
                 !s.equals("# A fatal error has been detected by the Java Runtime Environment:")
                     && !s.equals(
                         "# There is insufficient memory for the Java Runtime Environment to continue."))
-        .map(s -> s.replaceFirst("^#\\s*", ""))
-        .map(s -> s.trim())
+        .map(s -> s.replaceFirst("^#\\s*", "").trim())
         .collect(Collectors.joining("\n"))
         .trim();
   }
 
-  private static final Pattern ERROR_STACK_TRACE_PATTERN =
-      Pattern.compile(
-          "(Native frames: \\(J=compiled Java code, j=interpreted, Vv=VM code, C=native code\\)\n)(.+)(\n\\s*$)",
-          Pattern.DOTALL | Pattern.MULTILINE);
-
-  private String extractErrorStackTrace(String fileContent) {
+  private String extractErrorStackTrace(String fileContent, boolean redact) {
     Scanner scanner = new Scanner(fileContent);
     StringBuilder stacktrace = new StringBuilder();
     boolean foundStart = false;
@@ -237,12 +218,21 @@ public final class CrashUploader {
         return stacktrace.toString();
       }
       if (foundStart) {
-        stacktrace.append(next).append('\n');
+        if (!redact || next.contains("libjvm.so") || next.contains("libjavaProfiler")) {
+          stacktrace.append(next);
+        } else {
+          stacktrace.append(next.charAt(0)).append("  [redacted frame]");
+        }
+        stacktrace.append('\n');
       } else {
         foundStart = next.startsWith("Native frames:");
       }
     }
     return "";
+  }
+
+  private String extractErrorStackTrace(String fileContent) {
+    return extractErrorStackTrace(fileContent, true);
   }
 
   void uploadToTelemetry(@Nonnull List<String> filesContent) throws IOException {
@@ -277,8 +267,9 @@ public final class CrashUploader {
         writer.name("request_type").value("logs");
         writer
             .name("runtime_id")
-            // randomly generated, https://xkcd.com/221/
-            .value("5e5b1180-2a0b-41a6-bed2-bc341d19f853");
+            // this is unknowable at this point because the process has crashed
+            // though we may be able to save it in the tmpdir
+            .value(UUID.randomUUID().toString());
         writer.name("tracer_time").value(Instant.now().getEpochSecond());
         writer.name("seq_id").value(1);
         writer.name("debug").value(true);
@@ -286,7 +277,7 @@ public final class CrashUploader {
         writer.beginArray();
         for (String message : filesContent) {
           writer.beginObject();
-          writer.name("message").value(message);
+          writer.name("message").value(extractErrorStackTrace(message));
           writer.name("level").value("ERROR");
           writer.endObject();
         }
@@ -294,7 +285,7 @@ public final class CrashUploader {
         writer.name("application");
         writer.beginObject();
         writer.name("env").value(config.getEnv());
-        writer.name("language_name").value(JAVA_LANG);
+        writer.name("language_name").value("jvm");
         writer.name("language_version").value(System.getProperty("java.version", "unknown"));
         writer.name("service_name").value(config.getServiceName());
         writer.name("service_version").value(config.getVersion());

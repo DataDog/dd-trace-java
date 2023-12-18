@@ -3,6 +3,7 @@ package com.datadog.debugger.sink;
 import com.datadog.debugger.agent.ProbeStatus;
 import com.datadog.debugger.agent.ProbeStatus.Builder;
 import com.datadog.debugger.agent.ProbeStatus.Status;
+import com.datadog.debugger.uploader.BatchUploader;
 import com.datadog.debugger.util.ExceptionHelper;
 import com.datadog.debugger.util.MoshiHelper;
 import com.squareup.moshi.JsonAdapter;
@@ -26,14 +27,22 @@ public class ProbeStatusSink {
   private static final JsonAdapter<ProbeStatus> PROBE_STATUS_ADAPTER =
       MoshiHelper.createMoshiProbeStatus().adapter(ProbeStatus.class);
 
+  private final BatchUploader diagnosticUploader;
   private final Builder messageBuilder;
   private final Map<String, TimedMessage> probeStatuses = new ConcurrentHashMap<>();
   private final ArrayBlockingQueue<ProbeStatus> queue;
   private final Duration interval;
   private final int batchSize;
   private final boolean isInstrumentTheWorld;
+  private final boolean useMultiPart;
 
-  ProbeStatusSink(Config config) {
+  ProbeStatusSink(Config config, String diagnosticsEndpoint, boolean useMultiPart) {
+    this(config, new BatchUploader(config, diagnosticsEndpoint), useMultiPart);
+  }
+
+  ProbeStatusSink(Config config, BatchUploader diagnosticUploader, boolean useMultiPart) {
+    this.diagnosticUploader = diagnosticUploader;
+    this.useMultiPart = useMultiPart;
     this.messageBuilder = new Builder(config);
     this.interval = Duration.ofSeconds(config.getDebuggerDiagnosticsInterval());
     this.batchSize = config.getDebuggerUploadBatchSize();
@@ -61,7 +70,20 @@ public class ProbeStatusSink {
     addDiagnostics(messageBuilder.errorMessage(probeId, message));
   }
 
-  public List<String> getSerializedDiagnostics() {
+  public void flush(String tags) {
+    List<String> serializedDiagnostics = getSerializedDiagnostics();
+    List<byte[]> batches = IntakeBatchHelper.createBatches(serializedDiagnostics);
+    for (byte[] batch : batches) {
+      if (useMultiPart) {
+        diagnosticUploader.uploadAsMultipart(
+            tags, new BatchUploader.MultiPartContent(batch, "event", "event.json"));
+      } else {
+        diagnosticUploader.upload(batch, tags);
+      }
+    }
+  }
+
+  private List<String> getSerializedDiagnostics() {
     List<ProbeStatus> diagnostics = getDiagnostics();
     List<String> serializedDiagnostics = new ArrayList<>();
     for (ProbeStatus message : diagnostics) {

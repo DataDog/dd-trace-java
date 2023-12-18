@@ -149,7 +149,7 @@ public class CrashUploaderTest {
     uploader = new CrashUploader(config);
     server.enqueue(new MockResponse().setResponseCode(200));
     List<String> filesContent = new ArrayList<>();
-    filesContent.add(CRASH);
+    filesContent.add(readFileAsString("sample-crash-for-telemetry.txt"));
     uploader.uploadToTelemetry(filesContent);
 
     final RecordedRequest recordedRequest = server.takeRequest(5, TimeUnit.SECONDS);
@@ -158,16 +158,18 @@ public class CrashUploaderTest {
     assertEquals(url, recordedRequest.getRequestUrl());
 
     final ObjectMapper mapper = new ObjectMapper();
-    final JsonNode event = mapper.readTree(new String(recordedRequest.getBody().readUtf8()));
+    final JsonNode event = mapper.readTree(recordedRequest.getBody().readUtf8());
 
     assertEquals(CrashUploader.TELEMETRY_API_VERSION, event.get("api_version").asText());
     assertEquals("logs", event.get("request_type").asText());
     // payload:
     assertEquals("ERROR", event.get("payload").get(0).get("level").asText());
-    assertEquals(CRASH, event.get("payload").get(0).get("message").asText());
+    assertEquals(
+        readFileAsString("redacted-stacktrace.txt"),
+        event.get("payload").get(0).get("message").asText());
     // application:
     assertEquals(ENV, event.get("application").get("env").asText());
-    assertEquals(CrashUploader.JAVA_LANG, event.get("application").get("language_name").asText());
+    assertEquals("jvm", event.get("application").get("language_name").asText());
     assertEquals(
         System.getProperty("java.version", "unknown"),
         event.get("application").get("language_version").asText());

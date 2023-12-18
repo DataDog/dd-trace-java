@@ -10,19 +10,22 @@ public class ModuleExecutionSettings {
   private final boolean codeCoverageEnabled;
   private final boolean itrEnabled;
   private final Map<String, String> systemProperties;
-  private final Map<String, List<SkippableTest>> skippableTestsByModule;
+  private final Map<String, List<TestIdentifier>> skippableTestsByModule;
+  private final Collection<TestIdentifier> flakyTests;
   private final List<String> coverageEnabledPackages;
 
   public ModuleExecutionSettings(
       boolean codeCoverageEnabled,
       boolean itrEnabled,
       Map<String, String> systemProperties,
-      Map<String, List<SkippableTest>> skippableTestsByModule,
+      Map<String, List<TestIdentifier>> skippableTestsByModule,
+      Collection<TestIdentifier> flakyTests,
       List<String> coverageEnabledPackages) {
     this.codeCoverageEnabled = codeCoverageEnabled;
     this.itrEnabled = itrEnabled;
     this.systemProperties = systemProperties;
     this.skippableTestsByModule = skippableTestsByModule;
+    this.flakyTests = flakyTests;
     this.coverageEnabledPackages = coverageEnabledPackages;
   }
 
@@ -38,8 +41,13 @@ public class ModuleExecutionSettings {
     return systemProperties;
   }
 
-  public Collection<SkippableTest> getSkippableTests(String relativeModulePath) {
-    return skippableTestsByModule.getOrDefault(relativeModulePath, Collections.emptyList());
+  public Collection<TestIdentifier> getSkippableTests(String moduleName) {
+    return skippableTestsByModule.getOrDefault(moduleName, Collections.emptyList());
+  }
+
+  public Collection<TestIdentifier> getFlakyTests(String moduleName) {
+    // backend does not store module info for flaky tests
+    return flakyTests;
   }
 
   public List<String> getCoverageEnabledPackages() {
