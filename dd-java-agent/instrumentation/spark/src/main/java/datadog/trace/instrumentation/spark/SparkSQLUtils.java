@@ -141,10 +141,9 @@ public class SparkSQLUtils {
     public String toJson(Map<Long, AccumulatorWithStage> accumulators) {
       // Using the jackson JSON lib used by spark
       // https://mvnrepository.com/artifact/org.apache.spark/spark-core_2.12/3.5.0
-      ByteArrayOutputStream baos = new ByteArrayOutputStream();
       ObjectMapper mapper =
           new ObjectMapper().configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
-      try {
+      try (ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
         JsonGenerator generator = mapper.getFactory().createGenerator(baos);
         this.toJson(generator, accumulators);
         generator.close();
@@ -194,7 +193,7 @@ public class SparkSQLUtils {
       }
 
       // Writing child nodes
-      if (children.size() > 0) {
+      if (!children.isEmpty()) {
         generator.writeFieldName("children");
         generator.writeStartArray();
         for (SparkPlanInfoForStage child : children) {

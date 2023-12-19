@@ -12,8 +12,9 @@ import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.PrintWriter;
 import java.io.StringWriter;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
+import java.lang.invoke.MethodHandle;
+import java.lang.invoke.MethodHandles;
+import java.lang.invoke.MethodType;
 import java.time.OffsetDateTime;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
@@ -55,6 +56,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
   public static volatile boolean finishTraceOnApplicationEnd = true;
 
   private final int MAX_COLLECTION_SIZE = 1000;
+  private final int MAX_ACCUMULATOR_SIZE = 10000;
   private final String RUNTIME_TAGS_PREFIX = "spark.datadog.tags.";
 
   private final SparkConf sparkConf;
@@ -89,7 +91,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
   // an active SQL query)
   // so capping the size of the collection storing them
   private final Map<Long, SparkSQLUtils.AccumulatorWithStage> accumulators =
-      new RemoveEldestHashMap<>(10000);
+      new RemoveEldestHashMap<>(MAX_ACCUMULATOR_SIZE);
 
   private final boolean isRunningOnDatabricks;
   private final String databricksClusterName;
@@ -636,27 +638,47 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
     updateAdaptiveSQLPlan(event);
   }
 
+  private static Class<?> adaptiveExecutionUpdateClass;
+  private static MethodHandle adaptiveExecutionIdMethod;
+  private static MethodHandle adaptiveSparkPlanMethod;
+  private static boolean adaptiveExecutionUpdateClassInitialized = false;
+
   @SuppressForbidden // Using reflection to avoid splitting the instrumentation once more
-  private synchronized void updateAdaptiveSQLPlan(SparkListenerEvent event) {
+  private void initAdaptiveExecutionUpdateClassIfNotInitialized() {
+    if (adaptiveExecutionUpdateClassInitialized) {
+      return;
+    }
+    adaptiveExecutionUpdateClassInitialized = true;
+
     try {
-      Class<?> adaptiveExecutionUpdateClass =
+      MethodHandles.Lookup lookup = MethodHandles.lookup();
+
+      adaptiveExecutionUpdateClass =
           Class.forName(
               "org.apache.spark.sql.execution.ui.SparkListenerSQLAdaptiveExecutionUpdate");
+      adaptiveExecutionIdMethod =
+          lookup.findVirtual(
+              adaptiveExecutionUpdateClass, "executionId", MethodType.methodType(long.class));
+      adaptiveSparkPlanMethod =
+          lookup.findVirtual(
+              adaptiveExecutionUpdateClass,
+              "sparkPlanInfo",
+              MethodType.methodType(SparkPlanInfo.class));
+    } catch (ClassNotFoundException | NoSuchMethodException | IllegalAccessException ignored) {
+    }
+  }
 
-      if (adaptiveExecutionUpdateClass.isInstance(event)) {
-        Method executionIdMethod = adaptiveExecutionUpdateClass.getDeclaredMethod("executionId");
-        Method sparkPlanInfoMethod =
-            adaptiveExecutionUpdateClass.getDeclaredMethod("sparkPlanInfo");
+  private synchronized void updateAdaptiveSQLPlan(SparkListenerEvent event) {
+    initAdaptiveExecutionUpdateClassIfNotInitialized();
 
-        long queryId = (long) executionIdMethod.invoke(event);
-        SparkPlanInfo sparkPlanInfo = (SparkPlanInfo) sparkPlanInfoMethod.invoke(event);
+    try {
+      if (adaptiveExecutionUpdateClass != null && adaptiveExecutionUpdateClass.isInstance(event)) {
+        long queryId = (long) adaptiveExecutionIdMethod.invoke(event);
+        SparkPlanInfo sparkPlanInfo = (SparkPlanInfo) adaptiveSparkPlanMethod.invoke(event);
 
         sqlPlans.put(queryId, sparkPlanInfo);
       }
-    } catch (ClassNotFoundException
-        | NoSuchMethodException
-        | IllegalAccessException
-        | InvocationTargetException ignored) {
+    } catch (Throwable ignored) {
     }
   }
 
