@@ -8,6 +8,7 @@ import com.datadog.iast.model.VulnerabilityType;
 import com.datadog.iast.overhead.Operations;
 import com.datadog.iast.taint.Ranges;
 import com.datadog.iast.taint.TaintedObject;
+import com.datadog.iast.util.HttpHeader;
 import datadog.trace.api.iast.SourceTypes;
 import datadog.trace.api.iast.sink.HeaderInjectionModule;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -20,14 +21,14 @@ import javax.annotation.Nullable;
 
 public class HeaderInjectionModuleImpl extends SinkModuleBase implements HeaderInjectionModule {
 
-  private static final Set<String> headerInjectionExclusions =
-      new HashSet<String>(
+  private static final Set<HttpHeader> headerInjectionExclusions =
+      new HashSet<HttpHeader>(
           Arrays.asList(
-              "Sec-WebSocket-Location".toUpperCase(),
-              "Sec-WebSocket-Accept".toUpperCase(),
-              "Upgrade".toUpperCase(),
-              "Connection".toUpperCase(),
-              "location".toUpperCase()));
+              HttpHeader.Values.SEC_WEBSOCKET_LOCATION,
+              HttpHeader.Values.SEC_WEBSOCKET_ACCEPT,
+              HttpHeader.Values.UPGRADE,
+              HttpHeader.Values.CONNECTION,
+              HttpHeader.Values.LOCATION));
 
   public HeaderInjectionModuleImpl(final Dependencies dependencies) {
     super(dependencies);
@@ -38,7 +39,11 @@ public class HeaderInjectionModuleImpl extends SinkModuleBase implements HeaderI
     if (null == value) {
       return;
     }
-    boolean headerInjectionExclusion = headerInjectionExclusions.contains(name.toUpperCase());
+    HttpHeader header = HttpHeader.from(name);
+    if (null == header) {
+      return;
+    }
+    boolean headerInjectionExclusion = headerInjectionExclusions.contains(header);
 
     if (!headerInjectionExclusion) {
       final AgentSpan span = AgentTracer.activeSpan();
@@ -59,7 +64,7 @@ public class HeaderInjectionModuleImpl extends SinkModuleBase implements HeaderI
         return;
       }
 
-      if ("Access-Control-Allow-Origin".equalsIgnoreCase(name)) {
+      if (header == HttpHeader.Values.ACCESS_CONTROL_ALLOW_ORIGIN) {
         boolean allRangesFromOrigin = true;
         for (Range range : ranges) {
           if (null != range.getSource().getName()
@@ -73,7 +78,7 @@ public class HeaderInjectionModuleImpl extends SinkModuleBase implements HeaderI
         }
       }
 
-      if ("Set-Cookie".equalsIgnoreCase(name)) {
+      if (header == HttpHeader.Values.SET_COOKIE) {
         boolean allRangesFromCookie = true;
         for (Range range : ranges) {
           if (null != range.getSource().getName()

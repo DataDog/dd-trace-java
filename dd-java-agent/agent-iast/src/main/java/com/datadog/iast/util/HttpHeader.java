@@ -66,8 +66,16 @@ public class HttpHeader {
             ctx.setxContentTypeOptions(value);
           }
         };
+
     public static final HttpHeader LOCATION = new HttpHeader("Location");
     public static final HttpHeader REFERER = new HttpHeader("Referer");
+    public static final HttpHeader SEC_WEBSOCKET_LOCATION =
+        new HttpHeader("Sec-WebSocket-Location");
+    public static final HttpHeader SEC_WEBSOCKET_ACCEPT = new HttpHeader("Sec-WebSocket-Accept");
+    public static final HttpHeader UPGRADE = new HttpHeader("Upgrade");
+    public static final HttpHeader CONNECTION = new HttpHeader("Connection");
+    public static final HttpHeader ACCESS_CONTROL_ALLOW_ORIGIN =
+        new HttpHeader("Access-Control-Allow-Origin");
 
     /** Faster lookup for headers */
     static final Map<String, HttpHeader> HEADERS;
