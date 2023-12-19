@@ -9,9 +9,7 @@ dependencies {
   implementation group: 'org.apache.maven.wrapper', name: 'maven-wrapper', version: '3.2.0'
 
   testImplementation project(':dd-smoke-tests')
-  testImplementation group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: '2.14.0'
-  testImplementation group: 'org.msgpack', name: 'jackson-dataformat-msgpack', version: '0.8.20'
-  testImplementation group: 'commons-fileupload', name: 'commons-fileupload', version: '1.5'
+  testImplementation testFixtures(project(':dd-java-agent:agent-ci-visibility'))
 }
 
 jar {

@@ -10,6 +10,8 @@ minimumBranchCoverage = 0.7
 minimumInstructionCoverage = 0.8
 
 excludedClassesCoverage += [
+  "datadog.trace.civisibility.CiVisibilityRepoServices",
+  "datadog.trace.civisibility.CiVisibilityServices",
   "datadog.trace.civisibility.CiVisibilitySystem",
   "datadog.trace.civisibility.CiVisibilitySystem.1",
   "datadog.trace.civisibility.DDBuildSystemModuleImpl",
@@ -39,7 +41,7 @@ excludedClassesCoverage += [
   "datadog.trace.civisibility.config.ConfigurationApiImpl.MultiEnvelopeDto",
   "datadog.trace.civisibility.config.ConfigurationApi.1",
   "datadog.trace.civisibility.config.ModuleExecutionSettingsFactoryImpl",
-  "datadog.trace.civisibility.config.SkippableTestsSerializer",
+  "datadog.trace.civisibility.config.TestIdentifierSerializer",
   "datadog.trace.civisibility.coverage.CoverageUtils",
   "datadog.trace.civisibility.coverage.CoverageUtils.RepoIndexFileLocator",
   "datadog.trace.civisibility.coverage.ExecutionDataAdapter",
@@ -50,6 +52,11 @@ excludedClassesCoverage += [
   "datadog.trace.civisibility.coverage.SourceAnalyzer",
   "datadog.trace.civisibility.coverage.TestProbes",
   "datadog.trace.civisibility.coverage.TestProbes.TestProbesFactory",
+  "datadog.trace.civisibility.coverage.instrumentation.CoverageUtils",
+  "datadog.trace.civisibility.coverage.instrumentation.CoverageClassTransformer",
+  "datadog.trace.civisibility.coverage.instrumentation.CoverageInstrumentationFilter",
+  "datadog.trace.civisibility.coverage.instrumentation.CoverageClassVisitor",
+  "datadog.trace.civisibility.coverage.instrumentation.CoverageMethodVisitor",
   "datadog.trace.civisibility.events.BuildEventsHandlerImpl",
   "datadog.trace.civisibility.events.TestEventsHandlerImpl",
   "datadog.trace.civisibility.events.TestDescriptor",
@@ -66,15 +73,22 @@ excludedClassesCoverage += [
   "datadog.trace.civisibility.ipc.SignalType",
   "datadog.trace.civisibility.ipc.SignalClient",
   "datadog.trace.civisibility.ipc.SignalClient.Factory",
-  "datadog.trace.civisibility.ipc.SkippableTestsResponse",
+  "datadog.trace.civisibility.ipc.ModuleSettingsResponse",
   "datadog.trace.civisibility.ipc.TestFramework",
-  "datadog.trace.civisibility.source.MethodLinesResolver.MethodLines",
+  "datadog.trace.civisibility.retry.NeverRetry",
+  "datadog.trace.civisibility.retry.RetryIfFailed",
+  "datadog.trace.civisibility.source.index.CachingRepoIndexBuilderFactory",
   "datadog.trace.civisibility.source.index.PackageTree.Node",
   "datadog.trace.civisibility.source.index.RepoIndex",
   "datadog.trace.civisibility.source.index.RepoIndexBuilder.RepoIndexingFileVisitor",
   "datadog.trace.civisibility.source.index.RepoIndexFetcher",
   "datadog.trace.civisibility.source.index.RepoIndexSourcePathResolver",
+  "datadog.trace.civisibility.source.BestEffortSourcePathResolver",
+  "datadog.trace.civisibility.source.MethodLinesResolver.MethodLines",
+  "datadog.trace.civisibility.source.NoOpSourcePathResolver",
+  "datadog.trace.civisibility.source.SourcePathResolver.1",
   "datadog.trace.civisibility.source.Utils",
+  "datadog.trace.civisibility.utils.ProcessHierarchyUtils",
   "datadog.trace.civisibility.utils.ShellCommandExecutor",
   "datadog.trace.civisibility.utils.ShellCommandExecutor.OutputParser",
   "datadog.trace.civisibility.utils.SpanUtils"
@@ -97,6 +111,12 @@ dependencies {
 
   testFixturesApi project(':dd-java-agent:testing')
   testFixturesApi project(':utils:test-utils')
+
+  testFixturesApi group: 'org.skyscreamer', name: 'jsonassert', version: '1.5.1'
+  testFixturesApi group: 'org.freemarker', name: 'freemarker', version: '2.3.30'
+  testFixturesApi group: 'com.jayway.jsonpath', name: 'json-path', version: '2.8.0'
+  testFixturesApi group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: '2.16.0'
+  testFixturesApi group: 'org.msgpack', name: 'jackson-dataformat-msgpack', version: '0.9.6'
 }
 
 shadowJar {

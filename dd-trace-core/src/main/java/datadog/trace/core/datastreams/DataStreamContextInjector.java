@@ -24,7 +24,18 @@ public class DataStreamContextInjector {
       C carrier,
       AgentPropagation.Setter<C> setter,
       LinkedHashMap<String, String> sortedTags) {
-    injectPathwayContext(span, carrier, setter, sortedTags, true);
+    injectPathwayContext(span, carrier, setter, sortedTags, 0, 0, true);
+  }
+
+  public <C> void injectPathwayContext(
+      AgentSpan span,
+      C carrier,
+      AgentPropagation.Setter<C> setter,
+      LinkedHashMap<String, String> sortedTags,
+      long defaultTimestamp,
+      long payloadSizeBytes) {
+    injectPathwayContext(
+        span, carrier, setter, sortedTags, defaultTimestamp, payloadSizeBytes, false);
   }
 
   /** Same as injectPathwayContext, but the stats collected in the StatsPoint are not sent. */
@@ -33,7 +44,7 @@ public class DataStreamContextInjector {
       C carrier,
       AgentPropagation.Setter<C> setter,
       LinkedHashMap<String, String> sortedTags) {
-    injectPathwayContext(span, carrier, setter, sortedTags, false);
+    injectPathwayContext(span, carrier, setter, sortedTags, 0, 0, false);
   }
 
   private <C> void injectPathwayContext(
@@ -41,6 +52,8 @@ public class DataStreamContextInjector {
       C carrier,
       AgentPropagation.Setter<C> setter,
       LinkedHashMap<String, String> sortedTags,
+      long defaultTimestamp,
+      long payloadSizeBytes,
       boolean sendCheckpoint) {
     PathwayContext pathwayContext = span.context().getPathwayContext();
     if (pathwayContext == null
@@ -48,7 +61,11 @@ public class DataStreamContextInjector {
       return;
     }
     pathwayContext.setCheckpoint(
-        sortedTags, sendCheckpoint ? dataStreamsMonitoring::add : pathwayContext::saveStats);
+        sortedTags,
+        sendCheckpoint ? dataStreamsMonitoring::add : pathwayContext::saveStats,
+        defaultTimestamp,
+        payloadSizeBytes);
+
     boolean injected =
         setter instanceof AgentPropagation.BinarySetter
             ? injectBinaryPathwayContext(

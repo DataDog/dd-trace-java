@@ -7,13 +7,16 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_IN;
 import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_TAG;
 import static datadog.trace.core.datastreams.TagsProcessor.GROUP_TAG;
+import static datadog.trace.core.datastreams.TagsProcessor.KAFKA_CLUSTER_ID_TAG;
 import static datadog.trace.core.datastreams.TagsProcessor.TOPIC_TAG;
 import static datadog.trace.core.datastreams.TagsProcessor.TYPE_TAG;
 import static datadog.trace.instrumentation.kafka_clients.KafkaDecorator.BROKER_DECORATE;
 import static datadog.trace.instrumentation.kafka_clients.KafkaDecorator.KAFKA_DELIVER;
 import static datadog.trace.instrumentation.kafka_clients.KafkaDecorator.TIME_IN_QUEUE_ENABLED;
 import static datadog.trace.instrumentation.kafka_clients.TextMapExtractAdapter.GETTER;
-import static datadog.trace.instrumentation.kafka_clients.Utils.computePayloadSizeBytes;
+import static datadog.trace.instrumentation.kafka_clients.TextMapInjectAdapter.SETTER;
+import static datadog.trace.instrumentation.kafka_common.StreamingContext.STREAMING_CONTEXT;
+import static datadog.trace.instrumentation.kafka_common.Utils.computePayloadSizeBytes;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
 import datadog.trace.api.Config;
@@ -35,16 +38,19 @@ public class TracingIterator implements Iterator<ConsumerRecord<?, ?>> {
   private final CharSequence operationName;
   private final KafkaDecorator decorator;
   private final String group;
+  private final String clusterId;
 
   public TracingIterator(
       final Iterator<ConsumerRecord<?, ?>> delegateIterator,
       final CharSequence operationName,
       final KafkaDecorator decorator,
-      String group) {
+      String group,
+      String clusterId) {
     this.delegateIterator = delegateIterator;
     this.operationName = operationName;
     this.decorator = decorator;
     this.group = group;
+    this.clusterId = clusterId;
   }
 
   @Override
@@ -88,13 +94,30 @@ public class TracingIterator implements Iterator<ConsumerRecord<?, ?>> {
           LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>();
           sortedTags.put(DIRECTION_TAG, DIRECTION_IN);
           sortedTags.put(GROUP_TAG, group);
+          if (clusterId != null) {
+            sortedTags.put(KAFKA_CLUSTER_ID_TAG, clusterId);
+          }
           sortedTags.put(TOPIC_TAG, val.topic());
           sortedTags.put(TYPE_TAG, "kafka");
+
           final long payloadSize =
               span.traceConfig().isDataStreamsEnabled() ? computePayloadSizeBytes(val) : 0;
-          AgentTracer.get()
-              .getDataStreamsMonitoring()
-              .setCheckpoint(span, sortedTags, val.timestamp(), payloadSize);
+          if (STREAMING_CONTEXT.empty()) {
+            AgentTracer.get()
+                .getDataStreamsMonitoring()
+                .setCheckpoint(span, sortedTags, val.timestamp(), payloadSize);
+          } else {
+            // when we're in a streaming context we want to consume only from source topics
+            if (STREAMING_CONTEXT.isSourceTopic(val.topic())) {
+              // We have to inject the context to headers here,
+              // since the data received from the source may leave the topology on
+              // some other instance of the application, breaking the context propagation
+              // for DSM users
+              propagate()
+                  .injectPathwayContext(
+                      span, val.headers(), SETTER, sortedTags, val.timestamp(), payloadSize);
+            }
+          }
         } else {
           span = startSpan(operationName, null);
         }

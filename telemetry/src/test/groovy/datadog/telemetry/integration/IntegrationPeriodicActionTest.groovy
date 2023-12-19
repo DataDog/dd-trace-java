@@ -2,7 +2,7 @@ package datadog.telemetry.integration
 
 import datadog.telemetry.TelemetryService
 import datadog.telemetry.api.Integration
-import datadog.trace.api.IntegrationsCollector
+import datadog.trace.api.telemetry.IntegrationsCollector
 import spock.lang.Specification
 
 class IntegrationPeriodicActionTest extends Specification {

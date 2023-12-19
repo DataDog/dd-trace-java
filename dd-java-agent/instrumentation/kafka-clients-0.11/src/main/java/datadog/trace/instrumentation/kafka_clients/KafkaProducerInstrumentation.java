@@ -7,12 +7,15 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_OUT;
 import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_TAG;
+import static datadog.trace.core.datastreams.TagsProcessor.KAFKA_CLUSTER_ID_TAG;
 import static datadog.trace.core.datastreams.TagsProcessor.TOPIC_TAG;
 import static datadog.trace.core.datastreams.TagsProcessor.TYPE_TAG;
 import static datadog.trace.instrumentation.kafka_clients.KafkaDecorator.KAFKA_PRODUCE;
 import static datadog.trace.instrumentation.kafka_clients.KafkaDecorator.PRODUCER_DECORATE;
 import static datadog.trace.instrumentation.kafka_clients.KafkaDecorator.TIME_IN_QUEUE_ENABLED;
 import static datadog.trace.instrumentation.kafka_clients.TextMapInjectAdapter.SETTER;
+import static datadog.trace.instrumentation.kafka_common.StreamingContext.STREAMING_CONTEXT;
+import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPrivate;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
@@ -21,17 +24,21 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.api.Config;
+import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import datadog.trace.bootstrap.instrumentation.api.StatsPoint;
 import java.util.LinkedHashMap;
+import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import org.apache.kafka.clients.ApiVersions;
+import org.apache.kafka.clients.Metadata;
 import org.apache.kafka.clients.producer.Callback;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
+import org.apache.kafka.clients.producer.internals.Sender;
 import org.apache.kafka.common.record.RecordBatch;
 
 @AutoService(Instrumenter.class)
@@ -53,7 +60,13 @@ public final class KafkaProducerInstrumentation extends Instrumenter.Tracing
       packageName + ".KafkaDecorator",
       packageName + ".TextMapInjectAdapter",
       packageName + ".KafkaProducerCallback",
+      "datadog.trace.instrumentation.kafka_common.StreamingContext",
     };
+  }
+
+  @Override
+  public Map<String, String> contextStore() {
+    return singletonMap("org.apache.kafka.clients.Metadata", "java.lang.String");
   }
 
   @Override
@@ -80,14 +93,18 @@ public final class KafkaProducerInstrumentation extends Instrumenter.Tracing
     public static AgentScope onEnter(
         @Advice.FieldValue("apiVersions") final ApiVersions apiVersions,
         @Advice.FieldValue("producerConfig") ProducerConfig producerConfig,
+        @Advice.FieldValue("sender") Sender sender,
+        @Advice.FieldValue("metadata") Metadata metadata,
         @Advice.Argument(value = 0, readOnly = false) ProducerRecord record,
         @Advice.Argument(value = 1, readOnly = false) Callback callback) {
+      String clusterId = InstrumentationContext.get(Metadata.class, String.class).get(metadata);
+
       final AgentSpan parent = activeSpan();
       final AgentSpan span = startSpan(KAFKA_PRODUCE);
       PRODUCER_DECORATE.afterStart(span);
       PRODUCER_DECORATE.onProduce(span, record, producerConfig);
 
-      callback = new KafkaProducerCallback(callback, parent, span);
+      callback = new KafkaProducerCallback(callback, parent, span, clusterId);
 
       if (record.value() == null) {
         span.setTag(InstrumentationTags.TOMBSTONE, true);
@@ -105,12 +122,18 @@ public final class KafkaProducerInstrumentation extends Instrumenter.Tracing
           && !Config.get().isKafkaClientPropagationDisabledForTopic(record.topic())) {
         LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>();
         sortedTags.put(DIRECTION_TAG, DIRECTION_OUT);
+        if (clusterId != null) {
+          sortedTags.put(KAFKA_CLUSTER_ID_TAG, clusterId);
+        }
         sortedTags.put(TOPIC_TAG, record.topic());
         sortedTags.put(TYPE_TAG, "kafka");
         try {
           propagate().inject(span, record.headers(), SETTER);
-          propagate()
-              .injectPathwayContextWithoutSendingStats(span, record.headers(), SETTER, sortedTags);
+          if (STREAMING_CONTEXT.empty() || STREAMING_CONTEXT.isSinkTopic(record.topic())) {
+            propagate()
+                .injectPathwayContextWithoutSendingStats(
+                    span, record.headers(), SETTER, sortedTags);
+          }
         } catch (final IllegalStateException e) {
           // headers must be read-only from reused record. try again with new one.
           record =
@@ -123,8 +146,11 @@ public final class KafkaProducerInstrumentation extends Instrumenter.Tracing
                   record.headers());
 
           propagate().inject(span, record.headers(), SETTER);
-          propagate()
-              .injectPathwayContextWithoutSendingStats(span, record.headers(), SETTER, sortedTags);
+          if (STREAMING_CONTEXT.empty() || STREAMING_CONTEXT.isSinkTopic(record.topic())) {
+            propagate()
+                .injectPathwayContextWithoutSendingStats(
+                    span, record.headers(), SETTER, sortedTags);
+          }
         }
         if (TIME_IN_QUEUE_ENABLED) {
           SETTER.injectTimeInQueue(record.headers());

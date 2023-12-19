@@ -34,14 +34,13 @@ public interface Sampler {
         final Map<String, String> serviceRules = config.getTraceSamplingServiceRules();
         final Map<String, String> operationRules = config.getTraceSamplingOperationRules();
         String traceSamplingRulesJson = config.getTraceSamplingRules();
-        TraceSamplingRules traceSamplingRules = null;
+        TraceSamplingRules traceSamplingRules = TraceSamplingRules.EMPTY;
         if (traceSamplingRulesJson != null) {
           traceSamplingRules = TraceSamplingRules.deserialize(traceSamplingRulesJson);
         }
         boolean serviceRulesDefined = serviceRules != null && !serviceRules.isEmpty();
         boolean operationRulesDefined = operationRules != null && !operationRules.isEmpty();
-        boolean jsonTraceSamplingRulesDefined =
-            traceSamplingRules != null && !traceSamplingRules.isEmpty();
+        boolean jsonTraceSamplingRulesDefined = !traceSamplingRules.isEmpty();
         if ((serviceRulesDefined || operationRulesDefined) && jsonTraceSamplingRulesDefined) {
           log.warn(
               "Both {} and/or {} as well as {} are defined. Only {} will be used for rule-based sampling",

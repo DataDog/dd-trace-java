@@ -1,8 +1,11 @@
 package datadog.trace.civisibility;
 
 import datadog.trace.api.Config;
+import datadog.trace.api.DDTags;
+import datadog.trace.api.civisibility.config.ModuleExecutionSettings;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.civisibility.codeowners.Codeowners;
-import datadog.trace.civisibility.config.ModuleExecutionSettingsFactory;
 import datadog.trace.civisibility.coverage.CoverageProbeStoreFactory;
 import datadog.trace.civisibility.decorator.TestDecorator;
 import datadog.trace.civisibility.source.MethodLinesResolver;
@@ -18,7 +21,7 @@ import javax.annotation.Nullable;
 public class DDTestFrameworkSessionImpl extends DDTestSessionImpl
     implements DDTestFrameworkSession {
 
-  private final ModuleExecutionSettingsFactory moduleExecutionSettingsFactory;
+  private final ModuleExecutionSettings moduleExecutionSettings;
 
   public DDTestFrameworkSessionImpl(
       String projectName,
@@ -29,7 +32,7 @@ public class DDTestFrameworkSessionImpl extends DDTestSessionImpl
       Codeowners codeowners,
       MethodLinesResolver methodLinesResolver,
       CoverageProbeStoreFactory coverageProbeStoreFactory,
-      ModuleExecutionSettingsFactory moduleExecutionSettingsFactory) {
+      ModuleExecutionSettings moduleExecutionSettings) {
     super(
         projectName,
         startTime,
@@ -39,7 +42,7 @@ public class DDTestFrameworkSessionImpl extends DDTestSessionImpl
         codeowners,
         methodLinesResolver,
         coverageProbeStoreFactory);
-    this.moduleExecutionSettingsFactory = moduleExecutionSettingsFactory;
+    this.moduleExecutionSettings = moduleExecutionSettings;
   }
 
   @Override
@@ -55,7 +58,19 @@ public class DDTestFrameworkSessionImpl extends DDTestSessionImpl
         codeowners,
         methodLinesResolver,
         coverageProbeStoreFactory,
-        moduleExecutionSettingsFactory,
-        SpanUtils.propagateCiVisibilityTagsTo(span));
+        moduleExecutionSettings,
+        this::propagateModuleTags);
+  }
+
+  private void propagateModuleTags(AgentSpan moduleSpan) {
+    SpanUtils.propagateCiVisibilityTags(span, moduleSpan);
+    SpanUtils.propagateTags(
+        span,
+        moduleSpan,
+        Tags.TEST_CODE_COVERAGE_ENABLED,
+        Tags.TEST_ITR_TESTS_SKIPPING_ENABLED,
+        Tags.TEST_ITR_TESTS_SKIPPING_TYPE,
+        Tags.TEST_ITR_TESTS_SKIPPING_COUNT,
+        DDTags.CI_ITR_TESTS_SKIPPED);
   }
 }

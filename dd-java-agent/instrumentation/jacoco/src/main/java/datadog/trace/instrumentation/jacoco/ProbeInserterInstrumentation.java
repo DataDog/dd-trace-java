@@ -33,7 +33,9 @@ public class ProbeInserterInstrumentation extends Instrumenter.CiVisibility
 
   @Override
   public boolean isApplicable(Set<TargetSystem> enabledSystems) {
-    return super.isApplicable(enabledSystems) && Config.get().isCiVisibilityCodeCoverageEnabled();
+    return super.isApplicable(enabledSystems)
+        && Config.get().isCiVisibilityCodeCoverageEnabled()
+        && Config.get().isCiVisibilityCoverageSegmentsEnabled();
   }
 
   @Override
@@ -138,7 +140,7 @@ public class ProbeInserterInstrumentation extends Instrumenter.CiVisibility
       classNameField.setAccessible(true);
       String className = (String) classNameField.get(arrayStrategy);
 
-      String[] excludedClassnames = Config.get().getCiVisibilityJacocoPluginExcludedClassnames();
+      String[] excludedClassnames = Config.get().getCiVisibilityCodeCoverageExcludedPackages();
       for (String excludedClassname : excludedClassnames) {
         if (className.startsWith(excludedClassname)) {
           return;
@@ -151,16 +153,15 @@ public class ProbeInserterInstrumentation extends Instrumenter.CiVisibility
 
       MethodVisitorWrapper methodVisitor = MethodVisitorWrapper.wrap(mv);
 
-      methodVisitor.visitLdcInsn(classId);
-      methodVisitor.visitLdcInsn(className);
       methodVisitor.pushClass(className);
+      methodVisitor.visitLdcInsn(classId);
       methodVisitor.push(id);
 
       methodVisitor.visitMethodInsn(
           Opcodes.INVOKESTATIC,
-          "datadog/trace/api/civisibility/InstrumentationBridge",
+          "datadog/trace/api/civisibility/coverage/CoverageBridge",
           "currentCoverageProbeStoreRecord",
-          "(JLjava/lang/String;Ljava/lang/Class;I)V",
+          "(Ljava/lang/Class;JI)V",
           false);
     }
   }

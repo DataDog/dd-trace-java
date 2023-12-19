@@ -96,11 +96,23 @@ public class MavenLifecycleParticipant extends AbstractMavenLifecycleParticipant
     buildEventsHandler.onTestSessionStart(
         request, projectName, projectRoot, startCommand, "maven", mavenVersion, null);
 
+    List<MavenProject> projects = session.getProjects();
+    for (MavenProject project : projects) {
+      Properties projectProperties = project.getProperties();
+      String projectArgLine = projectProperties.getProperty("argLine");
+      if (projectArgLine == null) {
+        // otherwise reference to "@{argLine}" that we add when configuring tracer
+        // might cause failure
+        // (test executions config is changed even if auto configuration is disabled:
+        // for passing module and sesion IDs to child JVM)
+        projectProperties.setProperty("argLine", "");
+      }
+    }
+
     if (!config.isCiVisibilityAutoConfigurationEnabled()) {
       return;
     }
 
-    List<MavenProject> projects = session.getProjects();
     ExecutorService projectConfigurationPool = createProjectConfigurationPool(projects.size());
     Map<Path, Collection<MavenTestExecution>> testExecutions =
         configureProjects(projectConfigurationPool, session, projects);
@@ -145,14 +157,6 @@ public class MavenLifecycleParticipant extends AbstractMavenLifecycleParticipant
 
   private Collection<MavenTestExecution> configureProject(
       MavenSession session, MavenProject project) {
-    Properties projectProperties = project.getProperties();
-    String projectArgLine = projectProperties.getProperty("argLine");
-    if (projectArgLine == null) {
-      // otherwise reference to "@{argLine}" that we add when configuring tracer
-      // might cause failure
-      projectProperties.setProperty("argLine", "");
-    }
-
     Config config = Config.get();
     if (config.isCiVisibilityCompilerPluginAutoConfigurationEnabled()) {
       String compilerPluginVersion = config.getCiVisibilityCompilerPluginVersion();
@@ -166,7 +170,7 @@ public class MavenLifecycleParticipant extends AbstractMavenLifecycleParticipant
       MavenSession session, MavenProject project) {
     List<MavenTestExecution> testExecutions = new ArrayList<>();
     try {
-      PlexusContainer container = session.getContainer();
+      PlexusContainer container = MavenUtils.getContainer(session);
 
       MavenPluginManager mavenPluginManager = container.lookup(MavenPluginManager.class);
       BuildPluginManager buildPluginManager = container.lookup(BuildPluginManager.class);
@@ -292,7 +296,9 @@ public class MavenLifecycleParticipant extends AbstractMavenLifecycleParticipant
 
     for (MavenTestExecution testExecution : testExecutions) {
       MavenProjectConfigurator.INSTANCE.configureTracer(
-          testExecution.getExecution(), moduleExecutionSettings.getSystemProperties());
+          testExecution.getProject(),
+          testExecution.getExecution(),
+          moduleExecutionSettings.getSystemProperties());
       MavenProjectConfigurator.INSTANCE.configureJacoco(testExecution, moduleExecutionSettings);
     }
     return null;

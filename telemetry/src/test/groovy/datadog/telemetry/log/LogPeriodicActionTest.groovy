@@ -3,7 +3,7 @@ package datadog.telemetry.log
 import datadog.telemetry.TelemetryService
 import datadog.telemetry.api.LogMessage
 import datadog.telemetry.api.LogMessageLevel
-import datadog.trace.api.LogCollector
+import datadog.trace.api.telemetry.LogCollector
 import datadog.trace.test.util.DDSpecification
 
 class LogPeriodicActionTest extends DDSpecification {

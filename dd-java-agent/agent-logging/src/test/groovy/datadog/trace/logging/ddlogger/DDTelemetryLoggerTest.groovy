@@ -1,6 +1,6 @@
 package datadog.trace.logging.ddlogger
 
-import datadog.trace.api.LogCollector
+import datadog.trace.api.telemetry.LogCollector
 import datadog.trace.logging.LogValidatingSpecification
 import datadog.trace.logging.simplelogger.SLCompatFactory
 import datadog.trace.logging.simplelogger.SLCompatSettings

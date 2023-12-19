@@ -8,12 +8,12 @@ import java.nio.file.Files;
 import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
 
-class PackageResolverImpl implements PackageResolver {
+public class PackageResolverImpl implements PackageResolver {
 
   private static final String PACKAGE_KEYWORD = "package";
   private final FileSystem fileSystem;
 
-  PackageResolverImpl(FileSystem fileSystem) {
+  public PackageResolverImpl(FileSystem fileSystem) {
     this.fileSystem = fileSystem;
   }
 

@@ -10,6 +10,7 @@ import datadog.trace.civisibility.codeowners.CodeownersImpl
 import datadog.trace.civisibility.coverage.NoopCoverageProbeStore
 import datadog.trace.civisibility.decorator.TestDecoratorImpl
 import datadog.trace.civisibility.source.MethodLinesResolver
+import datadog.trace.civisibility.source.NoOpSourcePathResolver
 import datadog.trace.civisibility.utils.SpanUtils
 import datadog.trace.common.writer.ListWriter
 import datadog.trace.core.CoreTracer
@@ -107,7 +108,6 @@ class DDTestImplTest extends DDSpecification {
 
     def config = Config.get()
     def testDecorator = new TestDecoratorImpl("component", [:])
-    def sourcePathResolver = { it -> null }
     def methodLinesResolver = { it -> MethodLinesResolver.MethodLines.EMPTY }
     def codeowners = CodeownersImpl.EMPTY
     def coverageProbeStoreFactory = new NoopCoverageProbeStore.NoopCoverageProbeStoreFactory()
@@ -123,7 +123,7 @@ class DDTestImplTest extends DDSpecification {
       null,
       config,
       testDecorator,
-      sourcePathResolver,
+      NoOpSourcePathResolver.INSTANCE,
       methodLinesResolver,
       codeowners,
       coverageProbeStoreFactory,

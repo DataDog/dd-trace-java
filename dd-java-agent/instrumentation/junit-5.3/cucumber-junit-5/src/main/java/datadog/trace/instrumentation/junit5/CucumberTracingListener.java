@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.junit5;
 
 import datadog.trace.api.Pair;
+import datadog.trace.api.civisibility.coverage.CoverageBridge;
 import java.util.List;
 import java.util.stream.Collectors;
 import org.junit.platform.engine.EngineExecutionListener;
@@ -9,6 +10,7 @@ import org.junit.platform.engine.TestEngine;
 import org.junit.platform.engine.TestExecutionResult;
 import org.junit.platform.engine.TestSource;
 import org.junit.platform.engine.TestTag;
+import org.junit.platform.engine.UniqueId;
 import org.junit.platform.engine.reporting.ReportEntry;
 import org.junit.platform.engine.support.descriptor.ClasspathResourceSource;
 
@@ -52,11 +54,12 @@ public class CucumberTracingListener implements EngineExecutionListener {
   }
 
   private void containerExecutionStarted(final TestDescriptor testDescriptor) {
-    if (!CucumberUtils.isFeature(testDescriptor.getUniqueId())) {
+    UniqueId uniqueId = testDescriptor.getUniqueId();
+    if (!CucumberUtils.isFeature(uniqueId)) {
       return;
     }
 
-    String testSuiteName = testDescriptor.getLegacyReportingName();
+    String testSuiteName = CucumberUtils.getFeatureName(testDescriptor);
     List<String> tags =
         testDescriptor.getTags().stream().map(TestTag::getName).collect(Collectors.toList());
     TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSuiteStart(
@@ -69,7 +72,7 @@ public class CucumberTracingListener implements EngineExecutionListener {
       return;
     }
 
-    String testSuiteName = testDescriptor.getLegacyReportingName();
+    String testSuiteName = CucumberUtils.getFeatureName(testDescriptor);
     Throwable throwable = testExecutionResult.getThrowable().orElse(null);
     if (throwable != null) {
       if (JUnitPlatformUtils.isAssumptionFailure(throwable)) {
@@ -120,6 +123,8 @@ public class CucumberTracingListener implements EngineExecutionListener {
         null,
         null,
         null);
+
+    CoverageBridge.currentCoverageProbeStoreRecordNonCode(classpathResourceName);
   }
 
   private void testCaseExecutionFinished(

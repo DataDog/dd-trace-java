@@ -77,6 +77,8 @@ import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.EnabledOnJre;
+import org.junit.jupiter.api.condition.JRE;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.ArgumentCaptor;
@@ -778,6 +780,40 @@ public class CapturedSnapshotTest {
   }
 
   @Test
+  public void uncaughtExceptionCondition() throws IOException, URISyntaxException {
+    final String CLASS_NAME = "CapturedSnapshot05";
+    final String LOG_TEMPLATE = "exception msg={@exception.detailMessage}";
+    LogProbe probe =
+        createProbeBuilder(PROBE_ID, CLASS_NAME, "triggerUncaughtException", "()")
+            .evaluateAt(MethodLocation.EXIT)
+            .when(
+                new ProbeCondition(
+                    DSL.when(
+                        DSL.eq(
+                            DSL.getMember(DSL.ref("@exception"), "detailMessage"),
+                            DSL.value("oops"))),
+                    "@exception.detailMessage == 'oops'"))
+            .template(LOG_TEMPLATE, parseTemplate(LOG_TEMPLATE))
+            .build();
+    DebuggerTransformerTest.TestSnapshotListener listener = installProbes(CLASS_NAME, probe);
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    try {
+      Reflect.on(testClass).call("main", "triggerUncaughtException").get();
+      Assertions.fail("should not reach this code");
+    } catch (ReflectException ex) {
+      assertEquals("oops", ex.getCause().getCause().getMessage());
+    }
+    Snapshot snapshot = assertOneSnapshot(listener);
+    assertEquals("exception msg=oops", snapshot.getMessage());
+    assertCaptureThrowable(
+        snapshot.getCaptures().getReturn(),
+        "java.lang.IllegalStateException",
+        "oops",
+        "CapturedSnapshot05.triggerUncaughtException",
+        7);
+  }
+
+  @Test
   public void caughtException() throws IOException, URISyntaxException {
     final String CLASS_NAME = "CapturedSnapshot05";
     DebuggerTransformerTest.TestSnapshotListener listener =
@@ -793,6 +829,25 @@ public class CapturedSnapshotTest {
         "oops",
         "CapturedSnapshot05.triggerCaughtException",
         12);
+  }
+
+  @Test
+  public void noUncaughtExceptionCondition() throws IOException, URISyntaxException {
+    final String CLASS_NAME = "CapturedSnapshot01";
+    final String LOG_TEMPLATE = "exception?: {isUndefined(@exception)}";
+    LogProbe probe =
+        createProbeBuilder(PROBE_ID, CLASS_NAME, "main", "int (String)")
+            .evaluateAt(MethodLocation.EXIT)
+            .when(
+                new ProbeCondition(
+                    DSL.when(DSL.isUndefined(DSL.ref("@exception"))), "isUndefined(@exception)"))
+            .template(LOG_TEMPLATE, parseTemplate(LOG_TEMPLATE))
+            .build();
+    DebuggerTransformerTest.TestSnapshotListener listener = installProbes(CLASS_NAME, probe);
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    int result = Reflect.on(testClass).call("main", "2").get();
+    assertEquals(2, result);
+    Snapshot snapshot = assertOneSnapshot(listener);
   }
 
   @Test
@@ -1358,7 +1413,7 @@ public class CapturedSnapshotTest {
     final String CLASS_NAME = "CapturedSnapshot03";
     DebuggerTransformerTest.TestSnapshotListener listener =
         installProbes(CLASS_NAME, createProbe(PROBE_ID, CLASS_NAME, "empty", null));
-    Map<String, byte[]> classFileBuffers = compile(CLASS_NAME, SourceCompiler.DebugInfo.NONE);
+    Map<String, byte[]> classFileBuffers = compile(CLASS_NAME, SourceCompiler.DebugInfo.NONE, "8");
     Class<?> testClass = loadClass(CLASS_NAME, classFileBuffers);
     int result = Reflect.on(testClass).call("main", "2").get();
     assertEquals(48, result);
@@ -1911,6 +1966,46 @@ public class CapturedSnapshotTest {
     assertEquals(expectedProbeCount, probeSampler.callCount);
   }
 
+  @Test
+  @EnabledOnJre({JRE.JAVA_17, JRE.JAVA_21})
+  public void record() throws IOException, URISyntaxException {
+    final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot29";
+    final String RECORD_NAME = "com.datadog.debugger.MyRecord1";
+    LogProbe probe1 = createProbeAtExit(PROBE_ID, RECORD_NAME, "age", null);
+    DebuggerTransformerTest.TestSnapshotListener listener = installProbes(RECORD_NAME, probe1);
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME, "17");
+    int result = Reflect.on(testClass).call("main", "1").get();
+    assertEquals(42, result);
+    Snapshot snapshot = assertOneSnapshot(listener);
+    assertCaptureReturnValue(snapshot.getCaptures().getReturn(), "int", "42");
+    assertCaptureFields(
+        snapshot.getCaptures().getReturn(), "firstName", String.class.getTypeName(), "john");
+    assertCaptureFields(
+        snapshot.getCaptures().getReturn(), "lastName", String.class.getTypeName(), "doe");
+    assertCaptureFields(
+        snapshot.getCaptures().getReturn(), "age", Integer.TYPE.getTypeName(), "42");
+  }
+
+  @Test
+  @EnabledOnJre({JRE.JAVA_17, JRE.JAVA_21})
+  public void lineRecord() throws IOException, URISyntaxException {
+    final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot29";
+    final String RECORD_NAME = "com.datadog.debugger.MyRecord2";
+    LogProbe probe1 = createProbe(PROBE_ID, RECORD_NAME, null, null, "29");
+    DebuggerTransformerTest.TestSnapshotListener listener = installProbes(RECORD_NAME, probe1);
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME, "17");
+    int result = Reflect.on(testClass).call("main", "1").get();
+    assertEquals(42, result);
+    Snapshot snapshot = assertOneSnapshot(listener);
+    CapturedContext capturedContext = snapshot.getCaptures().getLines().get(29);
+    assertCaptureArgs(capturedContext, "firstName", String.class.getTypeName(), "john");
+    assertCaptureArgs(capturedContext, "lastName", String.class.getTypeName(), "doe");
+    assertCaptureArgs(capturedContext, "age", Integer.TYPE.getTypeName(), "42");
+    assertCaptureFields(capturedContext, "firstName", String.class.getTypeName(), (String) null);
+    assertCaptureFields(capturedContext, "lastName", String.class.getTypeName(), (String) null);
+    assertCaptureFields(capturedContext, "age", Integer.TYPE.getTypeName(), "0");
+  }
+
   private DebuggerTransformerTest.TestSnapshotListener setupInstrumentTheWorldTransformer(
       String excludeFileName) {
     Config config = mock(Config.class);
@@ -1923,11 +2018,14 @@ public class CapturedSnapshotTest {
     when(config.getFinalDebuggerSymDBUrl()).thenReturn("http://localhost:8126/symdb/v1/input");
     when(config.getDebuggerUploadBatchSize()).thenReturn(100);
     DebuggerTransformerTest.TestSnapshotListener listener =
-        new DebuggerTransformerTest.TestSnapshotListener();
+        new DebuggerTransformerTest.TestSnapshotListener(config, mock(ProbeStatusSink.class));
     DebuggerAgentHelper.injectSink(listener);
     currentTransformer =
         DebuggerAgent.setupInstrumentTheWorldTransformer(
-            config, instr, new DebuggerSink(config), null);
+            config,
+            instr,
+            new DebuggerSink(config, config.getFinalDebuggerSnapshotUrl(), false),
+            null);
     DebuggerContext.initClassFilter(new DenyListHelper(null));
     return listener;
   }
@@ -1977,15 +2075,11 @@ public class CapturedSnapshotTest {
     Collection<LogProbe> logProbes = configuration.getLogProbes();
     instrumentationListener = new MockInstrumentationListener();
     probeStatusSink = mock(ProbeStatusSink.class);
-    currentTransformer =
-        new DebuggerTransformer(
-            config,
-            configuration,
-            instrumentationListener,
-            new DebuggerSink(config, probeStatusSink));
-    instr.addTransformer(currentTransformer);
     DebuggerTransformerTest.TestSnapshotListener listener =
-        new DebuggerTransformerTest.TestSnapshotListener();
+        new DebuggerTransformerTest.TestSnapshotListener(config, probeStatusSink);
+    currentTransformer =
+        new DebuggerTransformer(config, configuration, instrumentationListener, listener);
+    instr.addTransformer(currentTransformer);
     DebuggerAgentHelper.injectSink(listener);
     DebuggerContext.init(
         (id, callingClass) -> resolver(id, callingClass, expectedClassName, logProbes), null);

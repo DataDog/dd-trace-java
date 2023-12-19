@@ -70,31 +70,34 @@ class PendingTraceTest extends PendingTraceTestBase {
   }
   def "verify healthmetrics called"() {
     setup:
-    def tracer = Mock(CoreTracer)
-    def traceConfig = Mock(CoreTracer.ConfigSnapshot)
-    def buffer = Mock(PendingTraceBuffer)
+    def tracer = Stub(CoreTracer)
+    def traceConfig = Stub(CoreTracer.ConfigSnapshot)
+    def buffer = Stub(PendingTraceBuffer)
     def healthMetrics = Mock(HealthMetrics)
     tracer.captureTraceConfig() >> traceConfig
     traceConfig.getServiceMapping() >> [:]
     PendingTrace trace = new PendingTrace(tracer, DDTraceId.from(0), buffer, Mock(TimeSource), null, false, healthMetrics)
+
     when:
     rootSpan = createSimpleSpan(trace)
     trace.registerSpan(rootSpan)
+
     then:
     1 * healthMetrics.onCreateSpan()
 
     when:
     rootSpan.finish()
+
     then:
     1 * healthMetrics.onCreateTrace()
   }
 
   def "write when writeRunningSpans is disabled: only completed spans are written"() {
     setup:
-    def tracer = Mock(CoreTracer)
-    def traceConfig = Mock(CoreTracer.ConfigSnapshot)
-    def buffer = Mock(PendingTraceBuffer)
-    def healthMetrics = Mock(HealthMetrics)
+    def tracer = Stub(CoreTracer)
+    def traceConfig = Stub(CoreTracer.ConfigSnapshot)
+    def buffer = Stub(PendingTraceBuffer)
+    def healthMetrics = Stub(HealthMetrics)
     tracer.captureTraceConfig() >> traceConfig
     traceConfig.getServiceMapping() >> [:]
     PendingTrace trace = new PendingTrace(tracer, DDTraceId.from(0), buffer, Mock(TimeSource), null, false, healthMetrics)
@@ -126,10 +129,10 @@ class PendingTraceTest extends PendingTraceTestBase {
 
   def "write when writeRunningSpans is enabled: complete and running spans are written"() {
     setup:
-    def tracer = Mock(CoreTracer)
-    def traceConfig = Mock(CoreTracer.ConfigSnapshot)
-    def buffer = Mock(PendingTraceBuffer)
-    def healthMetrics = Mock(HealthMetrics)
+    def tracer = Stub(CoreTracer)
+    def traceConfig = Stub(CoreTracer.ConfigSnapshot)
+    def buffer = Stub(PendingTraceBuffer)
+    def healthMetrics = Stub(HealthMetrics)
     tracer.captureTraceConfig() >> traceConfig
     traceConfig.getServiceMapping() >> [:]
     PendingTrace trace = new PendingTrace(tracer, DDTraceId.from(0), buffer, Mock(TimeSource), null, false, healthMetrics)

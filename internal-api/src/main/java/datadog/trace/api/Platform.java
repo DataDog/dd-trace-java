@@ -7,6 +7,11 @@ import java.util.List;
 import java.util.Locale;
 
 public final class Platform {
+  // A helper class to capture whether the executable is a native image or not.
+  // This class needs to be iniatlized at build only during the AOT compilation and build.
+  private static class Captured {
+    public static final boolean isNativeImage = checkForNativeImageBuilder();
+  }
 
   public enum GC {
     SERIAL("marksweep"),
@@ -45,6 +50,7 @@ public final class Platform {
 
   private static final boolean HAS_JFR = checkForJfr();
   private static final boolean IS_NATIVE_IMAGE_BUILDER = checkForNativeImageBuilder();
+  private static final boolean IS_NATIVE_IMAGE = Captured.isNativeImage;
 
   public static GC activeGarbageCollector() {
     return GARBAGE_COLLECTOR;
@@ -56,6 +62,10 @@ public final class Platform {
 
   public static boolean isNativeImageBuilder() {
     return IS_NATIVE_IMAGE_BUILDER;
+  }
+
+  public static boolean isNativeImage() {
+    return IS_NATIVE_IMAGE;
   }
 
   private static boolean checkForJfr() {
@@ -305,6 +315,10 @@ public final class Platform {
 
   public static boolean isJ9() {
     return System.getProperty("java.vm.name").contains("J9");
+  }
+
+  public static boolean isIbm8() {
+    return isJavaVersion(8) && RUNTIME.vendor.contains("IBM");
   }
 
   public static boolean isGraalVM() {

@@ -1,7 +1,7 @@
 package datadog.trace.logging.ddlogger;
 
-import datadog.trace.api.LogCollector;
 import datadog.trace.api.Platform;
+import datadog.trace.api.telemetry.LogCollector;
 import datadog.trace.logging.LogLevel;
 import datadog.trace.logging.LoggerHelper;
 import org.slf4j.Marker;

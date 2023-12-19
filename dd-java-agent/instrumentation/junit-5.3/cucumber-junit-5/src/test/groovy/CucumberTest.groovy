@@ -1,315 +1,119 @@
-import datadog.trace.agent.test.asserts.ListWriterAssert
-import datadog.trace.agent.test.asserts.TraceAssert
-import datadog.trace.api.DDTags
 import datadog.trace.api.DisableTestTrace
-import datadog.trace.api.civisibility.CIConstants
-import datadog.trace.api.civisibility.config.SkippableTest
-import datadog.trace.bootstrap.instrumentation.api.Tags
-import datadog.trace.civisibility.CiVisibilityTest
+import datadog.trace.api.civisibility.config.TestIdentifier
+import datadog.trace.civisibility.CiVisibilityInstrumentationTest
 import datadog.trace.instrumentation.junit5.TestEventsHandlerHolder
 import io.cucumber.core.api.TypeRegistry
-import io.cucumber.junit.platform.engine.CucumberTestEngine
-import org.example.TestSkippedCucumber
-import org.example.TestSkippedExamplesCucumber
-import org.example.TestSkippedFeatureCucumber
-import org.example.TestSucceedCucumber
-import org.example.TestSucceedCucumberUnskippable
-import org.example.TestSucceedCucumberUnskippableSuite
-import org.example.TestSucceedExamplesCucumber
+import io.cucumber.core.options.Constants
 import org.junit.platform.engine.DiscoverySelector
-import org.junit.platform.launcher.core.LauncherConfig
+import org.junit.platform.launcher.EngineFilter
+import org.junit.platform.launcher.Launcher
+import org.junit.platform.launcher.LauncherDiscoveryRequest
 import org.junit.platform.launcher.core.LauncherDiscoveryRequestBuilder
 import org.junit.platform.launcher.core.LauncherFactory
-import org.junit.platform.suite.engine.SuiteTestEngine
 
-import static org.junit.platform.engine.discovery.DiscoverySelectors.selectClass
+import static org.junit.platform.engine.discovery.DiscoverySelectors.selectClasspathResource
 
 @DisableTestTrace(reason = "avoid self-tracing")
-class CucumberTest extends CiVisibilityTest {
+class CucumberTest extends CiVisibilityInstrumentationTest {
 
-  def "test success generates spans"() {
+  def "test #testcaseName"() {
     setup:
-    runTestClasses(TestSucceedCucumber)
+    runFeatures(features, parallel)
 
     expect:
-    ListWriterAssert.assertTraces(TEST_WRITER, 2, false, SORT_TRACES_BY_DESC_SIZE_THEN_BY_NAMES, {
-      long testSessionId
-      long testModuleId
-      long testSuiteId
-      trace(3, true) {
-        testSessionId = testSessionSpan(it, 1, CIConstants.TEST_PASS)
-        testModuleId = testModuleSpan(it, 0, testSessionId, CIConstants.TEST_PASS)
-        testSuiteId = testFeatureSpan(it, 2, testSessionId, testModuleId, "Basic Arithmetic", CIConstants.TEST_PASS)
-      }
-      trace(1) {
-        testScenarioSpan(it, 0, testSessionId, testModuleId, testSuiteId, "Basic Arithmetic", "Addition", CIConstants.TEST_PASS, null, null, false, ["foo"])
-      }
-    })
-  }
-
-  def "test scenario outline generates spans"() {
-    setup:
-    runTestClasses(TestSucceedExamplesCucumber)
-
-    expect:
-    ListWriterAssert.assertTraces(TEST_WRITER, 5, false, SORT_TRACES_BY_DESC_SIZE_THEN_BY_NAMES, {
-      long testSessionId
-      long testModuleId
-      long testSuiteId
-      trace(3, true) {
-        testSessionId = testSessionSpan(it, 1, CIConstants.TEST_PASS)
-        testModuleId = testModuleSpan(it, 0, testSessionId, CIConstants.TEST_PASS)
-        testSuiteId = testFeatureSpan(it, 2, testSessionId, testModuleId, "Basic Arithmetic With Examples", CIConstants.TEST_PASS)
-      }
-      trace(1) {
-        testScenarioSpan(it, 0, testSessionId, testModuleId, testSuiteId, "Basic Arithmetic With Examples", "Many additions.Double digits.Example" + getOutlineTestNameSuffix(2, 1), CIConstants.TEST_PASS, null, null, false, ["foo"])
-      }
-      trace(1) {
-        testScenarioSpan(it, 0, testSessionId, testModuleId, testSuiteId, "Basic Arithmetic With Examples", "Many additions.Double digits.Example" + getOutlineTestNameSuffix(2, 2), CIConstants.TEST_PASS, null, null, false, ["foo"])
-      }
-      trace(1) {
-        testScenarioSpan(it, 0, testSessionId, testModuleId, testSuiteId, "Basic Arithmetic With Examples", "Many additions.Single digits.Example" + getOutlineTestNameSuffix(1, 1), CIConstants.TEST_PASS, null, null, false, ["foo"])
-      }
-      trace(1) {
-        testScenarioSpan(it, 0, testSessionId, testModuleId, testSuiteId, "Basic Arithmetic With Examples", "Many additions.Single digits.Example" + getOutlineTestNameSuffix(1, 2), CIConstants.TEST_PASS, null, null, false, ["foo"])
-      }
-    })
-  }
-
-  /**
-   * Later Cucumber versions report different example execution names
-   */
-  private String getOutlineTestNameSuffix(int exampleIdx, int rowIdx) {
-    return expectedTestFrameworkVersion() > "7" ? " #${exampleIdx}.${rowIdx}" : " #${rowIdx}"
-  }
-
-  def "test skipped generates spans"() {
-    setup:
-    runTestClasses(TestSkippedCucumber)
-
-    expect:
-    ListWriterAssert.assertTraces(TEST_WRITER, 3, false, SORT_TRACES_BY_DESC_SIZE_THEN_BY_NAMES, {
-      long testSessionId
-      long testModuleId
-      long testSuiteId
-      trace(3, true) {
-        testSessionId = testSessionSpan(it, 1, CIConstants.TEST_PASS)
-        testModuleId = testModuleSpan(it, 0, testSessionId, CIConstants.TEST_PASS)
-        testSuiteId = testFeatureSpan(it, 2, testSessionId, testModuleId, "Basic Arithmetic", CIConstants.TEST_PASS)
-      }
-      trace(1) {
-        testScenarioSpan(it, 0, testSessionId, testModuleId, testSuiteId, "Basic Arithmetic", "Addition", CIConstants.TEST_SKIP, [(Tags.TEST_SKIP_REASON): "'cucumber.filter.tags=not ( @Disabled )' did not match this scenario"], null, false, ["foo", "Disabled"])
-      }
-      trace(1) {
-        testScenarioSpan(it, 0, testSessionId, testModuleId, testSuiteId, "Basic Arithmetic", "Subtraction", CIConstants.TEST_PASS, null, null, false, ["foo"])
-      }
-    })
-  }
-
-  def "test skipped feature generates spans"() {
-    setup:
-    runTestClasses(TestSkippedFeatureCucumber)
-
-    expect:
-    ListWriterAssert.assertTraces(TEST_WRITER, 3, false, SORT_TRACES_BY_DESC_SIZE_THEN_BY_NAMES, {
-      long testSessionId
-      long testModuleId
-      long testSuiteId
-      trace(3, true) {
-        testSessionId = testSessionSpan(it, 1, CIConstants.TEST_SKIP)
-        testModuleId = testModuleSpan(it, 0, testSessionId, CIConstants.TEST_SKIP)
-        testSuiteId = testFeatureSpan(it, 2, testSessionId, testModuleId, "Basic Arithmetic", CIConstants.TEST_SKIP)
-      }
-      trace(1) {
-        testScenarioSpan(it, 0, testSessionId, testModuleId, testSuiteId, "Basic Arithmetic", "Addition", CIConstants.TEST_SKIP, [(Tags.TEST_SKIP_REASON): "'cucumber.filter.tags=not ( @Disabled )' did not match this scenario"], null, false, ["foo", "Disabled"])
-      }
-      trace(1) {
-        testScenarioSpan(it, 0, testSessionId, testModuleId, testSuiteId, "Basic Arithmetic", "Subtraction", CIConstants.TEST_SKIP, [(Tags.TEST_SKIP_REASON): "'cucumber.filter.tags=not ( @Disabled )' did not match this scenario"], null, false, ["foo", "Disabled"])
-      }
-    })
-  }
-
-  def "test skipped scenario outline generates spans"() {
-    setup:
-    runTestClasses(TestSkippedExamplesCucumber)
-
-    expect:
-    ListWriterAssert.assertTraces(TEST_WRITER, 5, false, SORT_TRACES_BY_DESC_SIZE_THEN_BY_NAMES, {
-      long testSessionId
-      long testModuleId
-      long testSuiteId
-      trace(3, true) {
-        testSessionId = testSessionSpan(it, 1, CIConstants.TEST_SKIP)
-        testModuleId = testModuleSpan(it, 0, testSessionId, CIConstants.TEST_SKIP)
-        testSuiteId = testFeatureSpan(it, 2, testSessionId, testModuleId, "Basic Arithmetic With Examples", CIConstants.TEST_SKIP)
-      }
-      trace(1) {
-        testScenarioSpan(it, 0, testSessionId, testModuleId, testSuiteId, "Basic Arithmetic With Examples", "Many additions.Double digits.Example" + getOutlineTestNameSuffix(2, 1), CIConstants.TEST_SKIP, [(Tags.TEST_SKIP_REASON): "'cucumber.filter.tags=not ( @Disabled )' did not match this scenario"], null, false, ["foo", "Disabled"])
-      }
-      trace(1) {
-        testScenarioSpan(it, 0, testSessionId, testModuleId, testSuiteId, "Basic Arithmetic With Examples", "Many additions.Double digits.Example" + getOutlineTestNameSuffix(2, 2), CIConstants.TEST_SKIP, [(Tags.TEST_SKIP_REASON): "'cucumber.filter.tags=not ( @Disabled )' did not match this scenario"], null, false, ["foo", "Disabled"])
-      }
-      trace(1) {
-        testScenarioSpan(it, 0, testSessionId, testModuleId, testSuiteId, "Basic Arithmetic With Examples", "Many additions.Single digits.Example" + getOutlineTestNameSuffix(1, 1), CIConstants.TEST_SKIP, [(Tags.TEST_SKIP_REASON): "'cucumber.filter.tags=not ( @Disabled )' did not match this scenario"], null, false, ["foo", "Disabled"])
-      }
-      trace(1) {
-        testScenarioSpan(it, 0, testSessionId, testModuleId, testSuiteId, "Basic Arithmetic With Examples", "Many additions.Single digits.Example" + getOutlineTestNameSuffix(1, 2), CIConstants.TEST_SKIP, [(Tags.TEST_SKIP_REASON): "'cucumber.filter.tags=not ( @Disabled )' did not match this scenario"], null, false, ["foo", "Disabled"])
-      }
-    })
-  }
-
-  def "test ITR test skipping"() {
-    setup:
-    givenSkippableTests([new SkippableTest("Basic Arithmetic", "Addition", null, null),])
-    runTestClasses(TestSucceedCucumber)
-
-    ListWriterAssert.assertTraces(TEST_WRITER, 2, false, SORT_TRACES_BY_DESC_SIZE_THEN_BY_NAMES, {
-      long testSessionId
-      long testModuleId
-      long testSuiteId
-      trace(3, true) {
-        testSessionId = testSessionSpan(it, 1, CIConstants.TEST_SKIP)
-        testModuleId = testModuleSpan(it, 0, testSessionId, CIConstants.TEST_SKIP, [
-          (DDTags.CI_ITR_TESTS_SKIPPED): true,
-          (Tags.TEST_ITR_TESTS_SKIPPING_ENABLED): true,
-          (Tags.TEST_ITR_TESTS_SKIPPING_TYPE): "test",
-          (Tags.TEST_ITR_TESTS_SKIPPING_COUNT): 1,
-        ])
-        testSuiteId = testFeatureSpan(it, 2, testSessionId, testModuleId, "Basic Arithmetic", CIConstants.TEST_SKIP)
-      }
-      trace(1) {
-        testScenarioSpan(it, 0, testSessionId, testModuleId, testSuiteId, "Basic Arithmetic", "Addition", CIConstants.TEST_SKIP, testTags, null, false, ["foo"])
-      }
-    })
+    assertSpansData(testcaseName, expectedTracesCount)
 
     where:
-    testTags = [(Tags.TEST_SKIP_REASON): "Skipped by Datadog Intelligent Test Runner", (Tags.TEST_SKIPPED_BY_ITR): true]
+    testcaseName                                 | features                                                                                                                         | parallel | expectedTracesCount
+    "test-succeed"                               | ["org/example/cucumber/calculator/basic_arithmetic.feature"]                                                                     | false    | 2
+    "test-scenario-outline-${version()}"         | ["org/example/cucumber/calculator/basic_arithmetic_with_examples.feature"]                                                       | false    | 5
+    "test-skipped"                               | ["org/example/cucumber/calculator/basic_arithmetic_skipped.feature"]                                                             | false    | 3
+    "test-skipped-feature"                       | ["org/example/cucumber/calculator/basic_arithmetic_skipped_feature.feature"]                                                     | false    | 3
+    "test-skipped-scenario-outline-${version()}" | ["org/example/cucumber/calculator/basic_arithmetic_with_examples_skipped.feature"]                                               | false    | 5
+    "test-parallel"                              | [
+      "org/example/cucumber/calculator/basic_arithmetic.feature",
+      "org/example/cucumber/calculator/basic_arithmetic_skipped.feature"
+    ] | true     | 4
   }
 
-  def "test ITR test unskippable"() {
+  def "test ITR #testcaseName"() {
     setup:
-    givenSkippableTests([new SkippableTest("Basic Arithmetic", "Addition", null, null),])
-    runTestClasses(TestSucceedCucumberUnskippable)
+    givenSkippableTests(skippedTests)
+    runFeatures(features, false)
 
-    ListWriterAssert.assertTraces(TEST_WRITER, 2, false, SORT_TRACES_BY_DESC_SIZE_THEN_BY_NAMES, {
-      long testSessionId
-      long testModuleId
-      long testSuiteId
-      trace(3, true) {
-        testSessionId = testSessionSpan(it, 1, CIConstants.TEST_PASS)
-        testModuleId = testModuleSpan(it, 0, testSessionId, CIConstants.TEST_PASS, [
-          (Tags.TEST_ITR_TESTS_SKIPPING_ENABLED): true,
-          (Tags.TEST_ITR_TESTS_SKIPPING_TYPE): "test",
-          (Tags.TEST_ITR_TESTS_SKIPPING_COUNT): 0,
-        ])
-        testSuiteId = testFeatureSpan(it, 2, testSessionId, testModuleId, "Basic Arithmetic", CIConstants.TEST_PASS)
-      }
-      trace(1) {
-        testScenarioSpan(it, 0, testSessionId, testModuleId, testSuiteId, "Basic Arithmetic", "Addition", CIConstants.TEST_PASS, testTags, null, false, ["datadog_itr_unskippable"])
-      }
-    })
+    expect:
+    assertSpansData(testcaseName, expectedTracesCount)
 
     where:
-    testTags = [(Tags.TEST_ITR_UNSKIPPABLE): true, (Tags.TEST_ITR_FORCED_RUN): true]
+    testcaseName                 | features                                                                       | expectedTracesCount | skippedTests
+    "test-itr-skipping"          | ["org/example/cucumber/calculator/basic_arithmetic.feature"]                   | 2                   | [new TestIdentifier("Basic Arithmetic", "Addition", null, null)]
+    "test-itr-unskippable"       | ["org/example/cucumber/calculator/basic_arithmetic_unskippable.feature"]       | 2                   | [new TestIdentifier("Basic Arithmetic", "Addition", null, null)]
+    "test-itr-unskippable-suite" | ["org/example/cucumber/calculator/basic_arithmetic_unskippable_suite.feature"] | 2                   | [new TestIdentifier("Basic Arithmetic", "Addition", null, null)]
   }
 
-  def "test ITR test unskippable suite"() {
+  def "test flaky retries #testcaseName"() {
     setup:
-    givenSkippableTests([new SkippableTest("Basic Arithmetic", "Addition", null, null),])
-    runTestClasses(TestSucceedCucumberUnskippableSuite)
+    givenFlakyTests(retriedTests)
 
-    ListWriterAssert.assertTraces(TEST_WRITER, 2, false, SORT_TRACES_BY_DESC_SIZE_THEN_BY_NAMES, {
-      long testSessionId
-      long testModuleId
-      long testSuiteId
-      trace(3, true) {
-        testSessionId = testSessionSpan(it, 1, CIConstants.TEST_PASS)
-        testModuleId = testModuleSpan(it, 0, testSessionId, CIConstants.TEST_PASS, [
-          (Tags.TEST_ITR_TESTS_SKIPPING_ENABLED): true,
-          (Tags.TEST_ITR_TESTS_SKIPPING_TYPE): "test",
-          (Tags.TEST_ITR_TESTS_SKIPPING_COUNT): 0,
-        ])
-        testSuiteId = testFeatureSpan(it, 2, testSessionId, testModuleId, "Basic Arithmetic", CIConstants.TEST_PASS)
-      }
-      trace(1) {
-        testScenarioSpan(it, 0, testSessionId, testModuleId, testSuiteId, "Basic Arithmetic", "Addition", CIConstants.TEST_PASS, testTags, null, false, ["datadog_itr_unskippable"])
-      }
-    })
+    runFeatures(features, false)
+
+    expect:
+    assertSpansData(testcaseName, expectedTracesCount)
 
     where:
-    testTags = [(Tags.TEST_ITR_UNSKIPPABLE): true, (Tags.TEST_ITR_FORCED_RUN): true]
+    testcaseName                                | features                                                                          | expectedTracesCount | retriedTests
+    "test-failed"                               | ["org/example/cucumber/calculator/basic_arithmetic_failed.feature"]               | 2                   | []
+    "test-retry-failed"                         | ["org/example/cucumber/calculator/basic_arithmetic_failed.feature"]               | 5                   | [
+      new TestIdentifier("classpath:org/example/cucumber/calculator/basic_arithmetic_failed.feature:Basic Arithmetic", "Addition", null, null)
+    ]
+    "test-failed-then-succeed"                  | ["org/example/cucumber/calculator/basic_arithmetic_failed_then_succeed.feature"]  | 4                   | [
+      new TestIdentifier("classpath:org/example/cucumber/calculator/basic_arithmetic_failed_then_succeed.feature:Basic Arithmetic", "Addition", null, null)
+    ]
+    "test-failed-scenario-outline-${version()}" | ["org/example/cucumber/calculator/basic_arithmetic_with_failed_examples.feature"] | 2                   | [
+      new TestIdentifier("classpath:org/example/cucumber/calculator/basic_arithmetic_with_failed_examples.feature:Basic Arithmetic With Examples", "Many additions.Single digits.${parameterizedTestNameSuffix()}", null, null)
+    ]
   }
 
-  private static void runTestClasses(Class<?>... classes) {
+  private String parameterizedTestNameSuffix() {
+    // older releases report different example names
+    version() == "5.4.0" ? "Example #1" : "Example #1.1"
+  }
+
+  private String version() {
+    def version = TypeRegistry.package.getImplementationVersion()
+    return version != null ? "latest" : "5.4.0" // older releases do not have package version populated
+  }
+
+  protected void runFeatures(List<String> classpathFeatures, boolean parallel) {
     TestEventsHandlerHolder.start()
 
-    DiscoverySelector[] selectors = new DiscoverySelector[classes.length]
-    for (i in 0..<classes.length) {
-      selectors[i] = selectClass(classes[i])
+    DiscoverySelector[] selectors = new DiscoverySelector[classpathFeatures.size()]
+    for (i in 0..<classpathFeatures.size()) {
+      selectors[i] = selectClasspathResource(classpathFeatures[i])
     }
 
-    def launcherReq = LauncherDiscoveryRequestBuilder.request()
+    LauncherDiscoveryRequest request = LauncherDiscoveryRequestBuilder.request()
+      .filters(EngineFilter.includeEngines("cucumber"))
+      .configurationParameter(Constants.GLUE_PROPERTY_NAME, "org.example.cucumber.calculator")
+      .configurationParameter(Constants.FILTER_TAGS_PROPERTY_NAME, "not @Disabled")
+      .configurationParameter(io.cucumber.junit.platform.engine.Constants.PARALLEL_EXECUTION_ENABLED_PROPERTY_NAME, "$parallel")
       .selectors(selectors)
       .build()
 
-    def launcherConfig = LauncherConfig
-      .builder()
-      .enableTestEngineAutoRegistration(false)
-      .addTestEngines(new SuiteTestEngine(), new CucumberTestEngine())
-      .build()
-
-    def launcher = LauncherFactory.create(launcherConfig)
-    launcher.execute(launcherReq)
+    Launcher launcher = LauncherFactory.create()
+    launcher.execute(request)
 
     TestEventsHandlerHolder.stop()
   }
 
-  Long testFeatureSpan(final TraceAssert trace,
-    final int index,
-    final Long testSessionId,
-    final Long testModuleId,
-    final String testSuite,
-    final String testStatus,
-    final Map<String, Object> testTags = null,
-    final Throwable exception = null,
-    final boolean emptyDuration = false,
-    final Collection<String> categories = null) {
-    return testSuiteSpan(trace, index, testSessionId, testModuleId, testSuite, testStatus, testTags, exception, emptyDuration, categories, false)
-  }
-
-  void testScenarioSpan(final TraceAssert trace,
-    final int index,
-    final Long testSessionId,
-    final Long testModuleId,
-    final Long testSuiteId,
-    final String testSuite,
-    final String testName,
-    final String testStatus,
-    final Map<String, Object> testTags = null,
-    final Throwable exception = null,
-    final boolean emptyDuration = false,
-    final Collection<String> categories = null) {
-    testSpan(trace, index, testSessionId, testModuleId, testSuiteId, testSuite, testName, null, testStatus, testTags, exception, emptyDuration, categories, false, false)
-  }
-
   @Override
-  String expectedOperationPrefix() {
-    return "junit"
-  }
-
-  @Override
-  String expectedTestFramework() {
+  String instrumentedLibraryName() {
     return "cucumber"
   }
 
   @Override
-  String expectedTestFrameworkVersion() {
+  String instrumentedLibraryVersion() {
     def version = TypeRegistry.package.getImplementationVersion()
     return version != null ? version : "5.4.0" // older releases do not have package version populated
-  }
-
-  @Override
-  String component() {
-    return "junit"
   }
 }

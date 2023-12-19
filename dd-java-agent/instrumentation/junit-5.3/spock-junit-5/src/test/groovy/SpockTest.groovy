@@ -1,12 +1,11 @@
-import datadog.trace.agent.test.asserts.ListWriterAssert
-import datadog.trace.api.DDTags
 import datadog.trace.api.DisableTestTrace
-import datadog.trace.api.civisibility.CIConstants
-import datadog.trace.api.civisibility.InstrumentationBridge
-import datadog.trace.api.civisibility.config.SkippableTest
-import datadog.trace.bootstrap.instrumentation.api.Tags
-import datadog.trace.civisibility.CiVisibilityTest
+import datadog.trace.api.civisibility.config.TestIdentifier
+import datadog.trace.civisibility.CiVisibilityInstrumentationTest
 import datadog.trace.instrumentation.junit5.TestEventsHandlerHolder
+import org.example.TestFailedParameterizedSpock
+import org.example.TestFailedSpock
+import org.example.TestFailedThenSucceedParameterizedSpock
+import org.example.TestFailedThenSucceedSpock
 import org.example.TestParameterizedSpock
 import org.example.TestSucceedSpock
 import org.example.TestSucceedSpockUnskippable
@@ -21,186 +20,66 @@ import org.spockframework.util.SpockReleaseInfo
 import static org.junit.platform.engine.discovery.DiscoverySelectors.selectClass
 
 @DisableTestTrace(reason = "avoid self-tracing")
-class SpockTest extends CiVisibilityTest {
+class SpockTest extends CiVisibilityInstrumentationTest {
 
-  def "test success generate spans"() {
+  def "test #testcaseName"() {
     setup:
-    runTestClasses(TestSucceedSpock)
+    runTests(tests)
 
     expect:
-    ListWriterAssert.assertTraces(TEST_WRITER, 2, false, SORT_TRACES_BY_DESC_SIZE_THEN_BY_NAMES, {
-      long testSessionId
-      long testModuleId
-      long testSuiteId
-      trace(3, true) {
-        testSessionId = testSessionSpan(it, 1, CIConstants.TEST_PASS)
-        testModuleId = testModuleSpan(it, 0, testSessionId, CIConstants.TEST_PASS)
-        testSuiteId = testSuiteSpan(it, 2, testSessionId, testModuleId, "org.example.TestSucceedSpock", CIConstants.TEST_PASS)
-      }
-      trace(1) {
-        testSpan(it, 0, testSessionId, testModuleId, testSuiteId, "org.example.TestSucceedSpock", "test success", "test success()V", CIConstants.TEST_PASS)
-      }
-    })
-  }
-
-  def "test parameterized generate spans"() {
-    setup:
-    runTestClasses(TestParameterizedSpock)
-
-    expect:
-    ListWriterAssert.assertTraces(TEST_WRITER, 3, false, SORT_TRACES_BY_DESC_SIZE_THEN_BY_NAMES, {
-      long testSessionId
-      long testModuleId
-      long testSuiteId
-      trace(3, true) {
-        testSessionId = testSessionSpan(it, 1, CIConstants.TEST_PASS)
-        testModuleId = testModuleSpan(it, 0, testSessionId, CIConstants.TEST_PASS)
-        testSuiteId = testSuiteSpan(it, 2, testSessionId, testModuleId, "org.example.TestParameterizedSpock", CIConstants.TEST_PASS)
-      }
-      trace(1) {
-        testSpan(it, 0, testSessionId, testModuleId, testSuiteId, "org.example.TestParameterizedSpock", "test add 1 and 2", "test add #a and #b(Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;)V", CIConstants.TEST_PASS, testTags_0)
-      }
-      trace(1) {
-        testSpan(it, 0, testSessionId, testModuleId, testSuiteId, "org.example.TestParameterizedSpock", "test add 4 and 4", "test add #a and #b(Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;)V", CIConstants.TEST_PASS, testTags_1)
-      }
-    })
+    assertSpansData(testcaseName, expectedTracesCount)
 
     where:
-    testTags_0 = [(Tags.TEST_PARAMETERS): '{"metadata":{"test_name":"test add 1 and 2"}}']
-    testTags_1 = [(Tags.TEST_PARAMETERS): '{"metadata":{"test_name":"test add 4 and 4"}}']
+    testcaseName                 | tests                    | expectedTracesCount
+    "test-succeed"               | [TestSucceedSpock]       | 2
+    "test-succeed-parameterized" | [TestParameterizedSpock] | 3
   }
 
-  def "test ITR test skipping"() {
+  def "test ITR #testcaseName"() {
     setup:
-    givenSkippableTests([new SkippableTest("org.example.TestSucceedSpock", "test success", null, null),])
-    runTestClasses(TestSucceedSpock)
+    givenSkippableTests(skippedTests)
+    runTests(tests)
 
     expect:
-    ListWriterAssert.assertTraces(TEST_WRITER, 2, false, SORT_TRACES_BY_DESC_SIZE_THEN_BY_NAMES, {
-      long testSessionId
-      long testModuleId
-      long testSuiteId
-      trace(3, true) {
-        testSessionId = testSessionSpan(it, 1, CIConstants.TEST_SKIP)
-        testModuleId = testModuleSpan(it, 0, testSessionId, CIConstants.TEST_SKIP, [
-          (DDTags.CI_ITR_TESTS_SKIPPED): true,
-          (Tags.TEST_ITR_TESTS_SKIPPING_ENABLED): true,
-          (Tags.TEST_ITR_TESTS_SKIPPING_TYPE): "test",
-          (Tags.TEST_ITR_TESTS_SKIPPING_COUNT): 1,
-        ])
-        testSuiteId = testSuiteSpan(it, 2, testSessionId, testModuleId, "org.example.TestSucceedSpock", CIConstants.TEST_SKIP)
-      }
-      trace(1) {
-        testSpan(it, 0, testSessionId, testModuleId, testSuiteId, "org.example.TestSucceedSpock", "test success", "test success()V", CIConstants.TEST_SKIP, testTags)
-      }
-    })
+    assertSpansData(testcaseName, expectedTracesCount)
 
     where:
-    testTags = [(Tags.TEST_SKIP_REASON): "Skipped by Datadog Intelligent Test Runner", (Tags.TEST_SKIPPED_BY_ITR): true]
-  }
-
-  def "test ITR skipping for parameterized tests"() {
-    setup:
-    givenSkippableTests([
-      new SkippableTest("org.example.TestParameterizedSpock", "test add 1 and 2", testTags_0[Tags.TEST_PARAMETERS], null),
-    ])
-    runTestClasses(TestParameterizedSpock)
-
-    expect:
-    ListWriterAssert.assertTraces(TEST_WRITER, 3, false, SORT_TRACES_BY_DESC_SIZE_THEN_BY_NAMES, {
-      long testSessionId
-      long testModuleId
-      long testSuiteId
-      trace(3, true) {
-        testSessionId = testSessionSpan(it, 1, CIConstants.TEST_PASS)
-        testModuleId = testModuleSpan(it, 0, testSessionId, CIConstants.TEST_PASS, [
-          (DDTags.CI_ITR_TESTS_SKIPPED): true,
-          (Tags.TEST_ITR_TESTS_SKIPPING_ENABLED): true,
-          (Tags.TEST_ITR_TESTS_SKIPPING_TYPE): "test",
-          (Tags.TEST_ITR_TESTS_SKIPPING_COUNT): 1,
-        ])
-        testSuiteId = testSuiteSpan(it, 2, testSessionId, testModuleId, "org.example.TestParameterizedSpock", CIConstants.TEST_PASS)
-      }
-      trace(1) {
-        testSpan(it, 0, testSessionId, testModuleId, testSuiteId, "org.example.TestParameterizedSpock", "test add 1 and 2", "test add #a and #b(Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;)V", CIConstants.TEST_SKIP, testTags_0)
-      }
-      trace(1) {
-        testSpan(it, 0, testSessionId, testModuleId, testSuiteId, "org.example.TestParameterizedSpock", "test add 4 and 4", "test add #a and #b(Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;)V", CIConstants.TEST_PASS, testTags_1)
-      }
-    })
-
-    where:
-    testTags_0 = [
-      (Tags.TEST_PARAMETERS): '{"metadata":{"test_name":"test add 1 and 2"}}',
-      (Tags.TEST_SKIP_REASON): "Skipped by Datadog Intelligent Test Runner",
-      (Tags.TEST_SKIPPED_BY_ITR): true
+    testcaseName                      | tests                              | expectedTracesCount | skippedTests
+    "test-itr-skipping"               | [TestSucceedSpock]                 | 2                   | [new TestIdentifier("org.example.TestSucceedSpock", "test success", null, null)]
+    "test-itr-skipping-parameterized" | [TestParameterizedSpock]           | 3                   | [
+      new TestIdentifier("org.example.TestParameterizedSpock", "test add 1 and 2", '{"metadata":{"test_name":"test add 1 and 2"}}', null)
     ]
-    testTags_1 = [(Tags.TEST_PARAMETERS): '{"metadata":{"test_name":"test add 4 and 4"}}']
+    "test-itr-unskippable"            | [TestSucceedSpockUnskippable]      | 2                   | [new TestIdentifier("org.example.TestSucceedSpockUnskippable", "test success", null, null)]
+    "test-itr-unskippable-suite"      | [TestSucceedSpockUnskippableSuite] | 2                   | [new TestIdentifier("org.example.TestSucceedSpockUnskippableSuite", "test success", null, null)]
   }
 
-  def "test ITR unskippable"() {
+  def "test flaky retries #testcaseName"() {
     setup:
-    givenSkippableTests([new SkippableTest("org.example.TestSucceedSpockUnskippable", "test success", null, null),])
-    runTestClasses(TestSucceedSpockUnskippable)
+    givenFlakyTests(retriedTests)
+
+    runTests(tests)
 
     expect:
-    ListWriterAssert.assertTraces(TEST_WRITER, 2, false, SORT_TRACES_BY_DESC_SIZE_THEN_BY_NAMES, {
-      long testSessionId
-      long testModuleId
-      long testSuiteId
-      trace(3, true) {
-        testSessionId = testSessionSpan(it, 1, CIConstants.TEST_PASS)
-        testModuleId = testModuleSpan(it, 0, testSessionId, CIConstants.TEST_PASS, [
-          (Tags.TEST_ITR_TESTS_SKIPPING_ENABLED): true,
-          (Tags.TEST_ITR_TESTS_SKIPPING_TYPE): "test",
-          (Tags.TEST_ITR_TESTS_SKIPPING_COUNT): 0,
-        ])
-        testSuiteId = testSuiteSpan(it, 2, testSessionId, testModuleId, "org.example.TestSucceedSpockUnskippable", CIConstants.TEST_PASS)
-      }
-      trace(1) {
-        testSpan(it, 0, testSessionId, testModuleId, testSuiteId, "org.example.TestSucceedSpockUnskippable", "test success", "test success()V", CIConstants.TEST_PASS,
-          testTags, null, false, [InstrumentationBridge.ITR_UNSKIPPABLE_TAG])
-      }
-    })
+    assertSpansData(testcaseName, expectedTracesCount)
 
     where:
-    testTags = [(Tags.TEST_ITR_UNSKIPPABLE): true, (Tags.TEST_ITR_FORCED_RUN): true]
+    testcaseName                             | tests                                     | expectedTracesCount | retriedTests
+    "test-failed"                            | [TestFailedSpock]                         | 2                   | []
+    "test-retry-failed"                      | [TestFailedSpock]                         | 6                   | [new TestIdentifier("org.example.TestFailedSpock", "test failed", null, null)]
+    "test-failed-then-succeed"               | [TestFailedThenSucceedSpock]              | 5                   | [
+      new TestIdentifier("org.example.TestFailedThenSucceedSpock", "test failed then succeed", null, null)
+    ]
+    "test-retry-parameterized"               | [TestFailedParameterizedSpock]            | 3                   | [new TestIdentifier("org.example.TestFailedParameterizedSpock", "test add 4 and 4", null, null)]
+    "test-parameterized-failed-then-succeed" | [TestFailedThenSucceedParameterizedSpock] | 5                   | [
+      new TestIdentifier("org.example.TestFailedThenSucceedParameterizedSpock", "test add 1 and 2", null, null)
+    ]
   }
 
-  def "test ITR unskippable suite"() {
-    setup:
-    givenSkippableTests([new SkippableTest("org.example.TestSucceedSpockUnskippableSuite", "test success", null, null),])
-    runTestClasses(TestSucceedSpockUnskippableSuite)
-
-    expect:
-    ListWriterAssert.assertTraces(TEST_WRITER, 2, false, SORT_TRACES_BY_DESC_SIZE_THEN_BY_NAMES, {
-      long testSessionId
-      long testModuleId
-      long testSuiteId
-      trace(3, true) {
-        testSessionId = testSessionSpan(it, 1, CIConstants.TEST_PASS)
-        testModuleId = testModuleSpan(it, 0, testSessionId, CIConstants.TEST_PASS, [
-          (Tags.TEST_ITR_TESTS_SKIPPING_ENABLED): true,
-          (Tags.TEST_ITR_TESTS_SKIPPING_TYPE): "test",
-          (Tags.TEST_ITR_TESTS_SKIPPING_COUNT): 0,
-        ])
-        testSuiteId = testSuiteSpan(it, 2, testSessionId, testModuleId, "org.example.TestSucceedSpockUnskippableSuite", CIConstants.TEST_PASS)
-      }
-      trace(1) {
-        testSpan(it, 0, testSessionId, testModuleId, testSuiteId, "org.example.TestSucceedSpockUnskippableSuite", "test success", "test success()V", CIConstants.TEST_PASS,
-          testTags, null, false, [InstrumentationBridge.ITR_UNSKIPPABLE_TAG])
-      }
-    })
-
-    where:
-    testTags = [(Tags.TEST_ITR_UNSKIPPABLE): true, (Tags.TEST_ITR_FORCED_RUN): true]
-  }
-
-  private static void runTestClasses(Class<?>... classes) {
+  private static void runTests(List<Class<?>> classes) {
     TestEventsHandlerHolder.start()
 
-    DiscoverySelector[] selectors = new DiscoverySelector[classes.length]
-    for (i in 0..<classes.length) {
+    DiscoverySelector[] selectors = new DiscoverySelector[classes.size()]
+    for (i in 0..<classes.size()) {
       selectors[i] = selectClass(classes[i])
     }
 
@@ -221,22 +100,12 @@ class SpockTest extends CiVisibilityTest {
   }
 
   @Override
-  String expectedOperationPrefix() {
-    return "junit"
-  }
-
-  @Override
-  String expectedTestFramework() {
+  String instrumentedLibraryName() {
     return "spock"
   }
 
   @Override
-  String expectedTestFrameworkVersion() {
+  String instrumentedLibraryVersion() {
     return SpockReleaseInfo.version
-  }
-
-  @Override
-  String component() {
-    return "junit"
   }
 }

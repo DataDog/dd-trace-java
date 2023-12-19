@@ -145,9 +145,9 @@ public class InstrumenterConfig {
     logs128bTraceIdEnabled =
         configProvider.getBoolean(
             TRACE_128_BIT_TRACEID_LOGGING_ENABLED, DEFAULT_TRACE_128_BIT_TRACEID_LOGGING_ENABLED);
+    profilingEnabled = configProvider.getBoolean(PROFILING_ENABLED, PROFILING_ENABLED_DEFAULT);
 
     if (!Platform.isNativeImageBuilder()) {
-      profilingEnabled = configProvider.getBoolean(PROFILING_ENABLED, PROFILING_ENABLED_DEFAULT);
       ciVisibilityEnabled =
           configProvider.getBoolean(CIVISIBILITY_ENABLED, DEFAULT_CIVISIBILITY_ENABLED);
       appSecActivation =
@@ -160,7 +160,6 @@ public class InstrumenterConfig {
       telemetryEnabled = configProvider.getBoolean(TELEMETRY_ENABLED, DEFAULT_TELEMETRY_ENABLED);
     } else {
       // disable these features in native-image
-      profilingEnabled = false;
       ciVisibilityEnabled = false;
       appSecActivation = ProductActivation.FULLY_DISABLED;
       iastActivation = ProductActivation.FULLY_DISABLED;
