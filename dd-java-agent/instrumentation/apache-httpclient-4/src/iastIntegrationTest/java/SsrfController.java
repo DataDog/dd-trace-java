@@ -7,8 +7,12 @@ import org.apache.http.client.methods.HttpUriRequest;
 import org.apache.http.impl.client.BasicResponseHandler;
 import org.apache.http.message.BasicHttpRequest;
 import org.apache.http.protocol.BasicHttpContext;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class SsrfController {
+
+  private static final Logger logger = LoggerFactory.getLogger(SsrfController.class);
 
   public String apacheSsrf(
       final String url,
@@ -20,6 +24,8 @@ public class SsrfController {
       HttpClient httpClient = getHttpClient(clientClassName);
       execute(httpClient, url, ExecuteMethod.valueOf(method), requestType, scheme);
     } catch (Exception e) {
+      logger.error("Error executing request", e);
+      return "NO_OK";
     }
     return "OK";
   }
