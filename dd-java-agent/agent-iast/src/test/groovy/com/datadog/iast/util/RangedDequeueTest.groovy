@@ -54,7 +54,7 @@ class RangedDequeueTest extends Specification {
 
   void 'test array based deque'() {
     given:
-    final ranged = Mock(Ranged)
+    final ranged = Stub(Ranged)
     final array = [ranged] as Ranged[]
 
     when:

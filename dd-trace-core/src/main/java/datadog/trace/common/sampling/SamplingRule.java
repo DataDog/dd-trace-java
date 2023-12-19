@@ -4,6 +4,8 @@ import datadog.trace.core.CoreSpan;
 import datadog.trace.core.util.Matcher;
 import datadog.trace.core.util.Matchers;
 import datadog.trace.core.util.SimpleRateLimiter;
+import datadog.trace.core.util.TagsMatcher;
+import java.util.Map;
 import java.util.regex.Pattern;
 
 public abstract class SamplingRule {
@@ -78,30 +80,33 @@ public abstract class SamplingRule {
     private final Matcher serviceMatcher;
     private final Matcher operationMatcher;
     private final Matcher resourceMatcher;
+    private final TagsMatcher tagsMatcher;
 
     public TraceSamplingRule(
         final String serviceGlob,
         final String operationGlob,
         final String resourceGlob,
+        final Map<String, String> tags,
         final RateSampler sampler) {
       super(sampler);
       serviceMatcher = Matchers.compileGlob(serviceGlob);
       operationMatcher = Matchers.compileGlob(operationGlob);
       resourceMatcher = Matchers.compileGlob(resourceGlob);
+      tagsMatcher = TagsMatcher.create(tags);
     }
 
     @Override
     public <T extends CoreSpan<T>> boolean matches(T span) {
       return Matchers.matches(serviceMatcher, span.getServiceName())
           && Matchers.matches(operationMatcher, span.getOperationName())
-          && Matchers.matches(resourceMatcher, span.getResourceName());
+          && Matchers.matches(resourceMatcher, span.getResourceName())
+          && tagsMatcher.matches(span);
     }
   }
 
   public static final class SpanSamplingRule extends SamplingRule {
     private final Matcher serviceMatcher;
     private final Matcher operationMatcher;
-
     private final SimpleRateLimiter rateLimiter;
 
     public SpanSamplingRule(

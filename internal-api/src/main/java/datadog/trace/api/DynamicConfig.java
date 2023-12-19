@@ -84,6 +84,11 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
     reportConfigChange(initialSnapshot);
   }
 
+  @Override
+  public String toString() {
+    return currentSnapshot.toString();
+  }
+
   public final class Builder {
 
     boolean debugEnabled;
@@ -379,6 +384,36 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
     @Override
     public List<? extends TraceSamplingRule> getTraceSamplingRules() {
       return traceSamplingRules;
+    }
+
+    @Override
+    public String toString() {
+      return "DynamicConfig{"
+          + "debugEnabled="
+          + debugEnabled
+          + ", triageEnabled="
+          + triageEnabled
+          + ", runtimeMetricsEnabled="
+          + runtimeMetricsEnabled
+          + ", logsInjectionEnabled="
+          + logsInjectionEnabled
+          + ", dataStreamsEnabled="
+          + dataStreamsEnabled
+          + ", serviceMapping="
+          + serviceMapping
+          + ", requestHeaderTags="
+          + requestHeaderTags
+          + ", responseHeaderTags="
+          + responseHeaderTags
+          + ", baggageMapping="
+          + baggageMapping
+          + ", spanSamplingRules="
+          + spanSamplingRules
+          + ", traceSamplingRules="
+          + traceSamplingRules
+          + ", traceSampleRate="
+          + traceSampleRate
+          + '}';
     }
   }
 }

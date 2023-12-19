@@ -28,10 +28,10 @@ class NoHttpCookieModuleTest extends IastModuleImplTestBase {
     InstrumentationBridge.registerIastModule(new NoHttpOnlyCookieModuleImpl())
     objectHolder = []
     ctx = new IastRequestContext()
-    final reqCtx = Mock(RequestContext) {
+    final reqCtx = Stub(RequestContext) {
       getData(RequestContextSlot.IAST) >> ctx
     }
-    span = Mock(AgentSpan) {
+    span = Stub(AgentSpan) {
       getSpanId() >> 123456
       getRequestContext() >> reqCtx
     }

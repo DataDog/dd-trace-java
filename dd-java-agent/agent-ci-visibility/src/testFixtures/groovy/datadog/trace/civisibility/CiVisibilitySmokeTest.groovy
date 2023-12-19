@@ -98,7 +98,6 @@ abstract class CiVisibilitySmokeTest extends Specification {
     //    CiVisibilityTestUtils.generateTemplates(baseTemplatesPath, events, coverages, additionalReplacements)
 
     CiVisibilityTestUtils.assertData(projectName, events, coverages, additionalReplacements)
-    return true
   }
 
   protected List<Map<String, Object>> waitForEvents(int expectedEventsSize) {

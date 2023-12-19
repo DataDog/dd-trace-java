@@ -8,8 +8,6 @@ import datadog.trace.api.civisibility.retry.TestRetryPolicy;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.civisibility.codeowners.Codeowners;
-import datadog.trace.civisibility.config.JvmInfo;
-import datadog.trace.civisibility.config.ModuleExecutionSettingsFactory;
 import datadog.trace.civisibility.coverage.CoverageProbeStoreFactory;
 import datadog.trace.civisibility.decorator.TestDecorator;
 import datadog.trace.civisibility.retry.NeverRetry;
@@ -46,7 +44,7 @@ public class DDTestFrameworkModuleImpl extends DDTestModuleImpl implements DDTes
       Codeowners codeowners,
       MethodLinesResolver methodLinesResolver,
       CoverageProbeStoreFactory coverageProbeStoreFactory,
-      ModuleExecutionSettingsFactory moduleExecutionSettingsFactory,
+      ModuleExecutionSettings moduleExecutionSettings,
       Consumer<AgentSpan> onSpanFinish) {
     super(
         sessionSpanContext,
@@ -61,8 +59,6 @@ public class DDTestFrameworkModuleImpl extends DDTestModuleImpl implements DDTes
         coverageProbeStoreFactory,
         onSpanFinish);
 
-    ModuleExecutionSettings moduleExecutionSettings =
-        moduleExecutionSettingsFactory.create(JvmInfo.CURRENT_JVM, moduleName);
     codeCoverageEnabled = moduleExecutionSettings.isCodeCoverageEnabled();
     itrEnabled = moduleExecutionSettings.isItrEnabled();
     skippableTests = new HashSet<>(moduleExecutionSettings.getSkippableTests(moduleName));

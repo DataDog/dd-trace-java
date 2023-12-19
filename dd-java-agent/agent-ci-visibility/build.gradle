@@ -10,6 +10,8 @@ minimumBranchCoverage = 0.7
 minimumInstructionCoverage = 0.8
 
 excludedClassesCoverage += [
+  "datadog.trace.civisibility.CiVisibilityRepoServices",
+  "datadog.trace.civisibility.CiVisibilityServices",
   "datadog.trace.civisibility.CiVisibilitySystem",
   "datadog.trace.civisibility.CiVisibilitySystem.1",
   "datadog.trace.civisibility.DDBuildSystemModuleImpl",
@@ -50,6 +52,11 @@ excludedClassesCoverage += [
   "datadog.trace.civisibility.coverage.SourceAnalyzer",
   "datadog.trace.civisibility.coverage.TestProbes",
   "datadog.trace.civisibility.coverage.TestProbes.TestProbesFactory",
+  "datadog.trace.civisibility.coverage.instrumentation.CoverageUtils",
+  "datadog.trace.civisibility.coverage.instrumentation.CoverageClassTransformer",
+  "datadog.trace.civisibility.coverage.instrumentation.CoverageInstrumentationFilter",
+  "datadog.trace.civisibility.coverage.instrumentation.CoverageClassVisitor",
+  "datadog.trace.civisibility.coverage.instrumentation.CoverageMethodVisitor",
   "datadog.trace.civisibility.events.BuildEventsHandlerImpl",
   "datadog.trace.civisibility.events.TestEventsHandlerImpl",
   "datadog.trace.civisibility.events.TestDescriptor",
@@ -66,10 +73,11 @@ excludedClassesCoverage += [
   "datadog.trace.civisibility.ipc.SignalType",
   "datadog.trace.civisibility.ipc.SignalClient",
   "datadog.trace.civisibility.ipc.SignalClient.Factory",
-  "datadog.trace.civisibility.ipc.TestDataResponse",
+  "datadog.trace.civisibility.ipc.ModuleSettingsResponse",
   "datadog.trace.civisibility.ipc.TestFramework",
   "datadog.trace.civisibility.retry.NeverRetry",
   "datadog.trace.civisibility.retry.RetryIfFailed",
+  "datadog.trace.civisibility.source.index.CachingRepoIndexBuilderFactory",
   "datadog.trace.civisibility.source.index.PackageTree.Node",
   "datadog.trace.civisibility.source.index.RepoIndex",
   "datadog.trace.civisibility.source.index.RepoIndexBuilder.RepoIndexingFileVisitor",
@@ -80,6 +88,7 @@ excludedClassesCoverage += [
   "datadog.trace.civisibility.source.NoOpSourcePathResolver",
   "datadog.trace.civisibility.source.SourcePathResolver.1",
   "datadog.trace.civisibility.source.Utils",
+  "datadog.trace.civisibility.utils.ProcessHierarchyUtils",
   "datadog.trace.civisibility.utils.ShellCommandExecutor",
   "datadog.trace.civisibility.utils.ShellCommandExecutor.OutputParser",
   "datadog.trace.civisibility.utils.SpanUtils"
