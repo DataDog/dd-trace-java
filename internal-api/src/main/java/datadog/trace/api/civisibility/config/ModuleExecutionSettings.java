@@ -4,13 +4,23 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 public class ModuleExecutionSettings {
+
+  public static final ModuleExecutionSettings EMPTY =
+      new ModuleExecutionSettings(
+          false,
+          false,
+          Collections.emptyMap(),
+          Collections.emptyMap(),
+          Collections.emptyList(),
+          Collections.emptyList());
 
   private final boolean codeCoverageEnabled;
   private final boolean itrEnabled;
   private final Map<String, String> systemProperties;
-  private final Map<String, List<TestIdentifier>> skippableTestsByModule;
+  private final Map<String, Collection<TestIdentifier>> skippableTestsByModule;
   private final Collection<TestIdentifier> flakyTests;
   private final List<String> coverageEnabledPackages;
 
@@ -18,7 +28,7 @@ public class ModuleExecutionSettings {
       boolean codeCoverageEnabled,
       boolean itrEnabled,
       Map<String, String> systemProperties,
-      Map<String, List<TestIdentifier>> skippableTestsByModule,
+      Map<String, Collection<TestIdentifier>> skippableTestsByModule,
       Collection<TestIdentifier> flakyTests,
       List<String> coverageEnabledPackages) {
     this.codeCoverageEnabled = codeCoverageEnabled;
@@ -41,6 +51,14 @@ public class ModuleExecutionSettings {
     return systemProperties;
   }
 
+  public Map<String, Collection<TestIdentifier>> getSkippableTestsByModule() {
+    return skippableTestsByModule;
+  }
+
+  public Collection<TestIdentifier> getFlakyTests() {
+    return flakyTests;
+  }
+
   public Collection<TestIdentifier> getSkippableTests(String moduleName) {
     return skippableTestsByModule.getOrDefault(moduleName, Collections.emptyList());
   }
@@ -52,5 +70,29 @@ public class ModuleExecutionSettings {
 
   public List<String> getCoverageEnabledPackages() {
     return coverageEnabledPackages;
+  }
+
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) return true;
+    if (o == null || getClass() != o.getClass()) return false;
+    ModuleExecutionSettings that = (ModuleExecutionSettings) o;
+    return codeCoverageEnabled == that.codeCoverageEnabled
+        && itrEnabled == that.itrEnabled
+        && Objects.equals(systemProperties, that.systemProperties)
+        && Objects.equals(skippableTestsByModule, that.skippableTestsByModule)
+        && Objects.equals(flakyTests, that.flakyTests)
+        && Objects.equals(coverageEnabledPackages, that.coverageEnabledPackages);
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(
+        codeCoverageEnabled,
+        itrEnabled,
+        systemProperties,
+        skippableTestsByModule,
+        flakyTests,
+        coverageEnabledPackages);
   }
 }

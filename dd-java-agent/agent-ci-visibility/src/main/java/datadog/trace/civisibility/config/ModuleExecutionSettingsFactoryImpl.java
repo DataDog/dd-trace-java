@@ -71,7 +71,7 @@ public class ModuleExecutionSettingsFactoryImpl implements ModuleExecutionSettin
         repositoryRoot,
         jvmInfo);
 
-    Map<String, List<TestIdentifier>> skippableTestsByModuleName =
+    Map<String, Collection<TestIdentifier>> skippableTestsByModuleName =
         itrEnabled && repositoryRoot != null
             ? getSkippableTestsByModuleName(Paths.get(repositoryRoot), tracerEnvironment)
             : Collections.emptyMap();
@@ -152,11 +152,8 @@ public class ModuleExecutionSettingsFactoryImpl implements ModuleExecutionSettin
   }
 
   private boolean isCodeCoverageEnabled(CiVisibilitySettings ciVisibilitySettings) {
-    return config.isCiVisibilityCodeCoverageEnabled()
-        && (ciVisibilitySettings.isCodeCoverageEnabled() // coverage enabled via backend settings
-            || config
-                .isCiVisibilityJacocoPluginVersionProvided() // coverage enabled via tracer settings
-        );
+    return ciVisibilitySettings.isCodeCoverageEnabled()
+        && config.isCiVisibilityCodeCoverageEnabled();
   }
 
   private Map<String, String> getPropertiesPropagatedToChildProcess(
@@ -196,7 +193,7 @@ public class ModuleExecutionSettingsFactoryImpl implements ModuleExecutionSettin
     return propagatedSystemProperties;
   }
 
-  private Map<String, List<TestIdentifier>> getSkippableTestsByModuleName(
+  private Map<String, Collection<TestIdentifier>> getSkippableTestsByModuleName(
       Path repositoryRoot, TracerEnvironment tracerEnvironment) {
     try {
       // ensure git data upload is finished before asking for tests
@@ -209,7 +206,8 @@ public class ModuleExecutionSettingsFactoryImpl implements ModuleExecutionSettin
       LOGGER.info(
           "Received {} skippable tests in total for {}", skippableTests.size(), repositoryRoot);
 
-      return groupTestsByModule(tracerEnvironment, skippableTests);
+      return (Map<String, Collection<TestIdentifier>>)
+          groupTestsByModule(tracerEnvironment, skippableTests);
 
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
@@ -222,7 +220,7 @@ public class ModuleExecutionSettingsFactoryImpl implements ModuleExecutionSettin
     }
   }
 
-  private static Map<String, List<TestIdentifier>> groupTestsByModule(
+  private static Map<String, ? extends Collection<TestIdentifier>> groupTestsByModule(
       TracerEnvironment tracerEnvironment, Collection<TestIdentifier> tests) {
     Configurations configurations = tracerEnvironment.getConfigurations();
     String configurationsBundle = configurations.getTestBundle();
@@ -254,14 +252,14 @@ public class ModuleExecutionSettingsFactoryImpl implements ModuleExecutionSettin
       return Collections.emptyList();
     }
 
-    List<String> includedPackages = config.getCiVisibilityJacocoPluginIncludes();
+    List<String> includedPackages = config.getCiVisibilityCodeCoverageIncludes();
     if (includedPackages != null && !includedPackages.isEmpty()) {
       return includedPackages;
     }
 
     RepoIndex repoIndex = repoIndexProvider.getIndex();
     List<String> packages = new ArrayList<>(repoIndex.getRootPackages());
-    List<String> excludedPackages = config.getCiVisibilityJacocoPluginExcludes();
+    List<String> excludedPackages = config.getCiVisibilityCodeCoverageExcludes();
     if (excludedPackages != null && !excludedPackages.isEmpty()) {
       removeMatchingPackages(packages, excludedPackages);
     }

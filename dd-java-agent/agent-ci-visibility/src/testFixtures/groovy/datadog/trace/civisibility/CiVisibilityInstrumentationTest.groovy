@@ -8,6 +8,7 @@ import datadog.trace.api.Config
 import datadog.trace.api.civisibility.InstrumentationBridge
 import datadog.trace.api.civisibility.config.ModuleExecutionSettings
 import datadog.trace.api.civisibility.config.TestIdentifier
+import datadog.trace.api.civisibility.coverage.CoverageBridge
 import datadog.trace.api.config.CiVisibilityConfig
 import datadog.trace.api.config.GeneralConfig
 import datadog.trace.civisibility.codeowners.Codeowners
@@ -86,7 +87,7 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
     }
 
     def coverageProbeStoreFactory = new SegmentlessTestProbes.SegmentlessTestProbesFactory()
-    DDTestFrameworkSession.Factory testFrameworkSessionFactory = (String projectName, Path projectRoot, String component, Long startTime) -> {
+    DDTestFrameworkSession.Factory testFrameworkSessionFactory = (String projectName, String component, Long startTime) -> {
       def ciTags = [(DUMMY_CI_TAG): DUMMY_CI_TAG_VALUE]
       TestDecorator testDecorator = new TestDecoratorImpl(component, ciTags)
       return new DDTestFrameworkSessionImpl(
@@ -98,13 +99,13 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
       codeowners,
       methodLinesResolver,
       coverageProbeStoreFactory,
-      moduleExecutionSettingsFactory,
+      moduleExecutionSettingsFactory.create(JvmInfo.CURRENT_JVM, "")
       )
     }
 
     InstrumentationBridge.registerTestEventsHandlerFactory {
-      component, path ->
-      DDTestFrameworkSession testSession = testFrameworkSessionFactory.startSession(dummyModule, path, component, null)
+      component ->
+      DDTestFrameworkSession testSession = testFrameworkSessionFactory.startSession(dummyModule, component, null)
       DDTestFrameworkModule testModule = testSession.testModuleStart(dummyModule, null)
       new TestEventsHandlerImpl(testSession, testModule)
     }
@@ -137,7 +138,7 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
       decorator -> new BuildEventsHandlerImpl<>(buildSystemSessionFactory, new JvmInfoFactoryImpl())
     }
 
-    InstrumentationBridge.registerCoverageProbeStoreRegistry(coverageProbeStoreFactory)
+    CoverageBridge.registerCoverageProbeStoreRegistry(coverageProbeStoreFactory)
   }
 
   @Override
