@@ -101,7 +101,7 @@ class ConfigurationPollerSpecification extends DDSpecification {
     poller.addListener(Product.ASM_DD,
       {throw new RuntimeException('should not be called') } as ConfigurationDeserializer,
       { cfg, hinter -> true } as ConfigurationChangesTypedListener)
-    poller.removeListener(Product.ASM_DD)
+    poller.removeListeners(Product.ASM_DD)
     task.run(poller)
 
     then:
@@ -1262,7 +1262,7 @@ class ConfigurationPollerSpecification extends DDSpecification {
     1 * scheduler.scheduleAtFixedRate(_, poller, 0, DEFAULT_POLL_PERIOD, TimeUnit.MILLISECONDS) >> { task = it[0]; scheduled }
 
     and:
-    poller.removeListener(Product.ASM_FEATURES)
+    poller.removeListeners(Product.ASM_FEATURES)
 
     when:
     poller.addListener(Product.ASM_FEATURES,
@@ -1346,7 +1346,7 @@ class ConfigurationPollerSpecification extends DDSpecification {
     poller.addListener(Product.ASM_FEATURES,
       {} as ConfigurationDeserializer<Boolean>,
       listener)
-    poller.removeListener(Product.ASM_FEATURES)
+    poller.removeListeners(Product.ASM_FEATURES)
     poller.start()
 
     then:
@@ -1361,7 +1361,7 @@ class ConfigurationPollerSpecification extends DDSpecification {
     0 * _._ // in particular, listener is not called
 
     when:
-    poller.removeListener(Product._UNKNOWN)
+    poller.removeListeners(Product._UNKNOWN)
     task.run(poller)
 
     then:

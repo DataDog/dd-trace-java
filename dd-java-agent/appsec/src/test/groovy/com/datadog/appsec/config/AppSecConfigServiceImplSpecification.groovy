@@ -407,7 +407,7 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
 
     then:
     1 * poller.removeCapabilities(1982L)
-    4 * poller.removeListener(_)
+    4 * poller.removeListeners(_)
     1 * poller.removeConfigurationEndListener(_)
     1 * poller.stop()
   }

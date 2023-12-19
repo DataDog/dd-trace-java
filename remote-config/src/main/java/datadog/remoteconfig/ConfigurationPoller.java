@@ -23,10 +23,10 @@ import datadog.trace.util.AgentTaskScheduler;
 import datadog.trace.util.AgentThreadFactory;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InterruptedIOException;
+import java.nio.file.Files;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -76,10 +76,6 @@ public class ConfigurationPoller
   private final AtomicInteger startCount = new AtomicInteger(0);
   private long capabilities;
   private Duration durationHint;
-
-  // Initialization of these is delayed until the remote config URL is available.
-  // See #initialize().
-  private Moshi moshi;
   private PollerRequestFactory requestFactory;
   private RemoteConfigResponse.Factory responseFactory;
   private boolean fatalOnInitialization = false;
@@ -128,7 +124,7 @@ public class ConfigurationPoller
     this.httpClient = httpClient;
   }
 
-  public synchronized <T> void addListener(Product product, ProductListener listener) {
+  public synchronized void addListener(Product product, ProductListener listener) {
     ProductState productState =
         this.productStates.computeIfAbsent(product, p -> new ProductState(product));
     productState.addProductListener(listener);
@@ -141,7 +137,7 @@ public class ConfigurationPoller
     this.addListener(product, new SimpleProductListener(useDeserializer(deserializer, listener)));
   }
 
-  public synchronized void removeListener(Product product) {
+  public synchronized void removeListeners(Product product) {
     this.productStates.remove(product);
   }
 
@@ -231,7 +227,9 @@ public class ConfigurationPoller
     }
 
     try {
-      this.moshi =
+      // Initialization of these is delayed until the remote config URL is available.
+      // See #initialize().
+      Moshi moshi =
           new Moshi.Builder()
               .add(Instant.class, new InstantJsonAdapter())
               .add(ByteString.class, new RawJsonAdapter())
@@ -444,7 +442,7 @@ public class ConfigurationPoller
         // the system tests expect here the targets version not to be updated
         error == null ? newTargetsVersion : this.nextClientState.targetsVersion,
         getConfigState(),
-        error == null ? null : error,
+        error,
         targetsSigned.custom != null ? targetsSigned.custom.opaqueBackendState : null);
   }
 
@@ -460,7 +458,7 @@ public class ConfigurationPoller
     log.debug("Loading configuration from file {}", file);
 
     try (InputStream inputStream =
-        new SizeCheckedInputStream(new FileInputStream(file), maxPayloadSize)) {
+        new SizeCheckedInputStream(Files.newInputStream(file.toPath()), maxPayloadSize)) {
       byte[] buffer = new byte[4096];
       ByteArrayOutputStream outputStream = new ByteArrayOutputStream(4096);
       int bytesRead;
