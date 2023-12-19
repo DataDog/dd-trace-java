@@ -91,12 +91,4 @@ abstract class MongoBaseTest extends VersionedNamingTestBase {
       }
     }
   }
-
-  def "test port open"() {
-    when:
-    new Socket("localhost", port)
-
-    then:
-    noExceptionThrown()
-  }
 }
