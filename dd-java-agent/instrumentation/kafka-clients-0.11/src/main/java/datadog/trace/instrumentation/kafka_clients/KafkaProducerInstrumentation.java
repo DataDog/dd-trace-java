@@ -83,7 +83,8 @@ public final class KafkaProducerInstrumentation extends Instrumenter.Tracing
         isMethod()
             .and(isPrivate())
             .and(takesArgument(0, int.class))
-            .and(named("ensureValidRecordSize")),
+            .and(named("ensureValidRecordSize")), // intercepting this call allows us to see the
+        // estimated message size
         KafkaProducerInstrumentation.class.getName() + "$PayloadSizeAdvice");
   }
 
@@ -130,6 +131,9 @@ public final class KafkaProducerInstrumentation extends Instrumenter.Tracing
         try {
           propagate().inject(span, record.headers(), SETTER);
           if (STREAMING_CONTEXT.empty() || STREAMING_CONTEXT.isSinkTopic(record.topic())) {
+            // inject the context in the headers, but delay sending the stats until we know the
+            // message size.
+            // The stats are saved in the pathway context and sent in PayloadSizeAdvice.
             propagate()
                 .injectPathwayContextWithoutSendingStats(
                     span, record.headers(), SETTER, sortedTags);
