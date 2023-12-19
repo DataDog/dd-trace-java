@@ -126,7 +126,7 @@ public final class ConfigDefaults {
   static final boolean DEFAULT_CIVISIBILITY_ENABLED = false;
   static final boolean DEFAULT_CIVISIBILITY_AGENTLESS_ENABLED = false;
   static final boolean DEFAULT_CIVISIBILITY_SOURCE_DATA_ENABLED = true;
-  static final boolean DEFAULT_CIVISIBILITY_SOURCE_DATA_ROOT_CHECK_ENABLED = true;
+  static final boolean DEFAULT_CIVISIBILITY_SOURCE_DATA_ROOT_CHECK_ENABLED = false;
   static final boolean DEFAULT_CIVISIBILITY_BUILD_INSTRUMENTATION_ENABLED = true;
   static final boolean DEFAULT_CIVISIBILITY_AUTO_CONFIGURATION_ENABLED = true;
   static final boolean DEFAULT_CIVISIBILITY_COMPILER_PLUGIN_AUTO_CONFIGURATION_ENABLED = true;

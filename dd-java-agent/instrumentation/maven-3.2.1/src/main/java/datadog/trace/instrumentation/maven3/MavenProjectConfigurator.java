@@ -2,6 +2,7 @@ package datadog.trace.instrumentation.maven3;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.civisibility.config.ModuleExecutionSettings;
+import datadog.trace.api.config.CiVisibilityConfig;
 import datadog.trace.bootstrap.DatadogClassLoader;
 import datadog.trace.util.Strings;
 import java.io.File;
@@ -37,7 +38,9 @@ class MavenProjectConfigurator {
   private static final String JACOCO_EXCL_CLASS_LOADERS_PROPERTY = "jacoco.exclClassLoaders";
 
   public void configureTracer(
-      MojoExecution mojoExecution, Map<String, String> propagatedSystemProperties) {
+      MavenProject project,
+      MojoExecution mojoExecution,
+      Map<String, String> propagatedSystemProperties) {
     Xpp3Dom configuration = mojoExecution.getConfiguration();
 
     Xpp3Dom forkCount = configuration.getChild("forkCount");
@@ -65,6 +68,15 @@ class MavenProjectConfigurator {
     if (additionalArgs != null) {
       modifiedArgLine.append(additionalArgs).append(" ");
     }
+
+    String moduleName = MavenUtils.getUniqueModuleName(project, mojoExecution);
+    modifiedArgLine
+        .append("-D")
+        .append(
+            Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_MODULE_NAME))
+        .append("='")
+        .append(moduleName)
+        .append("' ");
 
     File agentJar = config.getCiVisibilityAgentJarFile();
     modifiedArgLine.append("-javaagent:").append(agentJar.toPath());
@@ -237,7 +249,8 @@ class MavenProjectConfigurator {
     MavenProject project = testExecution.getProject();
     excludeDatadogClassLoaderFromJacocoInstrumentation(project);
 
-    if (!moduleExecutionSettings.isCodeCoverageEnabled() || testExecution.isRunsWithJacoco()) {
+    if (!Config.get().isCiVisibilityJacocoPluginVersionProvided()
+        || testExecution.isRunsWithJacoco()) {
       return;
     }
 

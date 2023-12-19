@@ -13,6 +13,7 @@ public class ResponseHandler implements Handler<AsyncResult<Response>> {
   public final AgentSpan clientSpan;
   private final AgentScope.Continuation continuation;
   private final Promise<Response> promise;
+  private boolean handled = false;
 
   public ResponseHandler(
       final Promise<Response> promise,
@@ -25,7 +26,8 @@ public class ResponseHandler implements Handler<AsyncResult<Response>> {
 
   @Override
   public void handle(final AsyncResult<Response> event) {
-    if (clientSpan != null) {
+    if (!handled && clientSpan != null) {
+      handled = true;
       AgentScope scope = null;
       try {
         // Close client scope and span
@@ -37,11 +39,7 @@ public class ResponseHandler implements Handler<AsyncResult<Response>> {
         if (continuation != null) {
           scope = continuation.activate();
         }
-        if (event.succeeded()) {
-          promise.complete(event.result());
-        } else {
-          promise.fail(event.cause());
-        }
+        promise.handle(event);
       } finally {
         // Deactivate parent continuation
         if (scope != null) {

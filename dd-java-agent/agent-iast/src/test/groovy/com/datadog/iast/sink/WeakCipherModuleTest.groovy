@@ -68,7 +68,7 @@ class WeakCipherModuleTest extends IastModuleImplTestBase {
 
   void 'iast module not blocklisted cipher algorithm'(){
     given:
-    final span = Mock(AgentSpan)
+    final span = Stub(AgentSpan)
     tracer.activeSpan() >> span
 
     when:

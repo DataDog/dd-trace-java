@@ -17,8 +17,13 @@ import java.util.Map;
 import java.util.function.Predicate;
 import java.util.regex.Pattern;
 import okio.Okio;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class DebuggerProductChangesListener implements ProductListener {
+  private static final Logger LOGGER =
+      LoggerFactory.getLogger(DebuggerProductChangesListener.class);
+
   public interface ConfigurationAcceptor {
     void accept(Configuration configuration);
   }
@@ -110,7 +115,7 @@ public class DebuggerProductChangesListener implements ProductListener {
             "got config.serviceName = " + newConfig.getService() + ", ignoring configuration");
       }
     } else {
-      throw new IOException("unsupported configuration id " + configId);
+      LOGGER.debug("Unsupported configuration id: {}, ignoring configuration", configId);
     }
   }
 

@@ -658,6 +658,11 @@ public class AgentTracer {
     }
 
     @Override
+    public AgentSpan setSamplingPriority(int newPriority, int samplingMechanism) {
+      return this;
+    }
+
+    @Override
     public Integer getSamplingPriority() {
       return (int) PrioritySampling.UNSET;
     }

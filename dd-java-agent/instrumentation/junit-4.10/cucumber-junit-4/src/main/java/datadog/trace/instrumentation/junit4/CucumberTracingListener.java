@@ -1,6 +1,6 @@
 package datadog.trace.instrumentation.junit4;
 
-import datadog.trace.api.civisibility.InstrumentationBridge;
+import datadog.trace.api.civisibility.coverage.CoverageBridge;
 import datadog.trace.util.MethodHandles;
 import datadog.trace.util.Strings;
 import io.cucumber.core.gherkin.Feature;
@@ -132,7 +132,7 @@ public class CucumberTracingListener extends TracingListener {
       Object pickleId = JUnit4Utils.getUniqueId(scenarioDescription);
       URI pickleUri = REFLECTION.invoke(PICKLE_ID_URI_GETTER, pickleId);
       String featureRelativePath = pickleUri.getSchemeSpecificPart();
-      InstrumentationBridge.currentCoverageProbeStoreRecordNonCode(featureRelativePath);
+      CoverageBridge.currentCoverageProbeStoreRecordNonCode(featureRelativePath);
     } catch (Exception e) {
       LOGGER.error("Could not record feature file coverage for {}", scenarioDescription, e);
     }

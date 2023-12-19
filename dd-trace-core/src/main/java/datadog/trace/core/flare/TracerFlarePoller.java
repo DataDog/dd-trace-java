@@ -33,7 +33,8 @@ public final class TracerFlarePoller {
     stopPreparer = new Preparer().register(config, sco);
     stopSubmitter = new Submitter().register(config, sco);
 
-    tracerFlareService = new TracerFlareService(dynamicConfig, sco.okHttpClient, sco.agentUrl);
+    tracerFlareService =
+        new TracerFlareService(config, dynamicConfig, sco.okHttpClient, sco.agentUrl);
   }
 
   public void stop() {

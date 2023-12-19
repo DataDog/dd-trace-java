@@ -1,13 +1,14 @@
 package datadog.trace.civisibility;
 
 import datadog.trace.api.Config;
+import datadog.trace.api.civisibility.config.ModuleExecutionSettings;
 import datadog.trace.api.civisibility.coverage.CoverageDataSupplier;
 import datadog.trace.civisibility.codeowners.Codeowners;
 import datadog.trace.civisibility.coverage.CoverageProbeStoreFactory;
 import datadog.trace.civisibility.decorator.TestDecorator;
+import datadog.trace.civisibility.ipc.SignalClient;
 import datadog.trace.civisibility.source.MethodLinesResolver;
 import datadog.trace.civisibility.source.SourcePathResolver;
-import java.net.InetSocketAddress;
 import javax.annotation.Nullable;
 
 /**
@@ -26,7 +27,8 @@ public class DDTestFrameworkSessionProxy implements DDTestFrameworkSession {
   private final MethodLinesResolver methodLinesResolver;
   private final CoverageProbeStoreFactory coverageProbeStoreFactory;
   private final CoverageDataSupplier coverageDataSupplier;
-  @Nullable private final InetSocketAddress signalServerAddress;
+  private final SignalClient.Factory signalClientFactory;
+  private final ModuleExecutionSettings moduleExecutionSettings;
 
   public DDTestFrameworkSessionProxy(
       long parentProcessSessionId,
@@ -38,7 +40,8 @@ public class DDTestFrameworkSessionProxy implements DDTestFrameworkSession {
       MethodLinesResolver methodLinesResolver,
       CoverageProbeStoreFactory coverageProbeStoreFactory,
       CoverageDataSupplier coverageDataSupplier,
-      @Nullable InetSocketAddress signalServerAddress) {
+      SignalClient.Factory signalClientFactory,
+      ModuleExecutionSettings moduleExecutionSettings) {
     this.parentProcessSessionId = parentProcessSessionId;
     this.parentProcessModuleId = parentProcessModuleId;
     this.config = config;
@@ -48,7 +51,8 @@ public class DDTestFrameworkSessionProxy implements DDTestFrameworkSession {
     this.methodLinesResolver = methodLinesResolver;
     this.coverageProbeStoreFactory = coverageProbeStoreFactory;
     this.coverageDataSupplier = coverageDataSupplier;
-    this.signalServerAddress = signalServerAddress;
+    this.signalClientFactory = signalClientFactory;
+    this.moduleExecutionSettings = moduleExecutionSettings;
   }
 
   @Override
@@ -62,6 +66,7 @@ public class DDTestFrameworkSessionProxy implements DDTestFrameworkSession {
         parentProcessSessionId,
         parentProcessModuleId,
         moduleName,
+        moduleExecutionSettings,
         config,
         testDecorator,
         sourcePathResolver,
@@ -69,6 +74,6 @@ public class DDTestFrameworkSessionProxy implements DDTestFrameworkSession {
         methodLinesResolver,
         coverageProbeStoreFactory,
         coverageDataSupplier,
-        signalServerAddress);
+        signalClientFactory);
   }
 }
