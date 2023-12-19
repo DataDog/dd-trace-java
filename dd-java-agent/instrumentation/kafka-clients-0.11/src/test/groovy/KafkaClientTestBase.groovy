@@ -989,12 +989,13 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
         }
         if ({isDataStreamsEnabled()}) {
           "$DDTags.PATHWAY_HASH" { String }
-        }
-        if ({isDataStreamsEnabled() && schema != null}) {
-          "messaging.kafka.value_schema.definition" schema
-          "messaging.kafka.value_schema.weight" 1
-          "messaging.kafka.value_schema.type" "avro"
-          "messaging.kafka.value_schema.id" 1698511397
+          if (schema != null) {
+            "$DDTags.SCHEMA_DEFINITION" schema
+            "$DDTags.SCHEMA_WEIGHT" 1
+            "$DDTags.SCHEMA_TYPE" "avro"
+            "$DDTags.SCHEMA_OPERATION" "serialization"
+            "$DDTags.SCHEMA_ID" "10810872322569724838"
+          }
         }
         peerServiceFrom(InstrumentationTags.KAFKA_BOOTSTRAP_SERVERS)
         defaultTags()
