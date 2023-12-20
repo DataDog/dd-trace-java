@@ -2,9 +2,12 @@ package datadog.trace.bootstrap.debugger.util;
 
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
+import java.util.function.Function;
 
 public class WellKnownClasses {
 
@@ -55,6 +58,12 @@ public class WellKnownClasses {
               "java.time.LocalDateTime",
               "java.util.UUID"));
 
+  private static Map<String, Function<Object, SpecialField>> specialFields = new HashMap<>();
+
+  static {
+    specialFields.put("java.util.Optional", WellKnownClasses::optionalSpecialField);
+  }
+
   /**
    * @return true if type is a final class and toString implementation is well known and side effect
    *     free
@@ -98,7 +107,47 @@ public class WellKnownClasses {
     return false;
   }
 
+  /**
+   * indicates if type is considered as a string primitive and can be compared to a string literal
+   * with Expression Language
+   */
   public static boolean isStringPrimitive(String type) {
     return stringPrimitives.contains(type);
+  }
+
+  /**
+   * @return a function to access special field of a type, or null if type is not supported. This is
+   *     used to avoid using reflection to access fields on well known types
+   */
+  public static Function<Object, SpecialField> getSpecialFieldAccess(String type) {
+    return specialFields.get(type);
+  }
+
+  private static SpecialField optionalSpecialField(Object o) {
+    return new SpecialField("value", Object.class.getTypeName(), ((Optional<?>) o).orElse(null));
+  }
+
+  public static class SpecialField {
+    private final String name;
+    private final String type;
+    private final Object value;
+
+    public SpecialField(String name, String type, Object value) {
+      this.name = name;
+      this.type = type;
+      this.value = value;
+    }
+
+    public String getName() {
+      return name;
+    }
+
+    public String getType() {
+      return type;
+    }
+
+    public Object getValue() {
+      return value;
+    }
   }
 }

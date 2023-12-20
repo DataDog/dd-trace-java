@@ -8,6 +8,7 @@ import datadog.trace.bootstrap.debugger.el.ValueReferences;
 import datadog.trace.bootstrap.debugger.el.Values;
 import datadog.trace.bootstrap.debugger.util.Redaction;
 import datadog.trace.bootstrap.debugger.util.TimeoutChecker;
+import datadog.trace.bootstrap.debugger.util.WellKnownClasses;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -15,6 +16,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.function.Function;
 
 /** Stores different kind of data (arguments, locals, fields, exception) for a specific location */
 public class CapturedContext implements ValueReferenceResolver {
@@ -127,7 +129,18 @@ public class CapturedContext implements ValueReferenceResolver {
         }
       }
     } else {
-      target = ReflectiveFieldValueResolver.resolve(target, target.getClass(), memberName);
+      Function<Object, WellKnownClasses.SpecialField> specialFieldAccess =
+          WellKnownClasses.getSpecialFieldAccess(target.getClass().getTypeName());
+      if (specialFieldAccess != null) {
+        WellKnownClasses.SpecialField specialField = specialFieldAccess.apply(target);
+        if (specialField != null && specialField.getName().equals(memberName)) {
+          return specialField.getValue();
+        } else {
+          target = Values.UNDEFINED_OBJECT;
+        }
+      } else {
+        target = ReflectiveFieldValueResolver.resolve(target, target.getClass(), memberName);
+      }
     }
     checkUndefined(target, memberName, "Cannot dereference to field: ");
     return target;

@@ -125,12 +125,12 @@ public class StringTokenWriter implements SerializerWithLimits.TokenWriter {
   }
 
   @Override
-  public void objectFieldPrologue(Field field, Object value, int maxDepth) {
+  public void objectFieldPrologue(String fieldName, Object value, int maxDepth) {
     if (!initial) {
       sb.append(", ");
     }
     initial = false;
-    sb.append(field.getName()).append("=");
+    sb.append(fieldName).append("=");
   }
 
   @Override

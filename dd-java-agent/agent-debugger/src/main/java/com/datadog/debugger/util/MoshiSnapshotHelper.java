@@ -413,8 +413,9 @@ public class MoshiSnapshotHelper {
       }
 
       @Override
-      public void objectFieldPrologue(Field field, Object value, int maxDepth) throws Exception {
-        jsonWriter.name(field.getName());
+      public void objectFieldPrologue(String fieldName, Object value, int maxDepth)
+          throws Exception {
+        jsonWriter.name(fieldName);
       }
 
       @Override
