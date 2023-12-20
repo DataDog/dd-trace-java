@@ -5,25 +5,30 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.ex
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedNoneOf;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
-import static net.bytebuddy.matcher.ElementMatchers.isMethod;
+import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
+import static net.bytebuddy.matcher.ElementMatchers.takesNoArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers;
-import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Propagation;
-import datadog.trace.api.iast.propagation.PropagationModule;
+import datadog.trace.bootstrap.ContextStore;
+import datadog.trace.bootstrap.InstrumentationContext;
+import datadog.trace.bootstrap.instrumentation.iast.NamedContext;
+import java.util.Map;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 import org.codehaus.jackson.JsonParser;
+import org.codehaus.jackson.JsonToken;
 
+/** TODO: keep a stack like structure pointing to the whole path */
 @AutoService(Instrumenter.class)
 public class Json1ParserInstrumentation extends Instrumenter.Iast
     implements Instrumenter.ForTypeHierarchy {
+
+  static final String JSON_PARSER = "org.codehaus.jackson.JsonParser";
 
   public Json1ParserInstrumentation() {
     super("jackson", "jackson-1");
@@ -31,18 +36,18 @@ public class Json1ParserInstrumentation extends Instrumenter.Iast
 
   @Override
   public void adviceTransformations(AdviceTransformation transformation) {
-
+    final String className = Json1ParserInstrumentation.class.getName();
     transformation.applyAdvice(
-        NameMatchers.<MethodDescription>namedOneOf("getCurrentName", "getText", "nextTextValue")
-            .and(isMethod())
-            .and(isPublic())
-            .and(returns(String.class)),
-        Json1ParserInstrumentation.class.getName() + "$JsonParserAdvice");
+        named("getText").and(isPublic()).and(takesNoArguments()).and(returns(String.class)),
+        className + "$GetTextAdvice");
+    transformation.applyAdvice(
+        named("getCurrentName").and(isPublic()).and(takesNoArguments()).and(returns(String.class)),
+        className + "$GetCurrentNameAdvice");
   }
 
   @Override
   public String hierarchyMarkerType() {
-    return "org.codehaus.jackson.JsonParser";
+    return JSON_PARSER;
   }
 
   @Override
@@ -50,19 +55,50 @@ public class Json1ParserInstrumentation extends Instrumenter.Iast
     return extendsClass(
             named(hierarchyMarkerType())
                 .and(namedNoneOf("org.codehaus.jackson.impl.JsonParserMinimalBase")))
-        .and(declaresMethod(namedOneOf("getCurrentName", "getText", "nextTextValue")));
+        .and(declaresMethod(namedOneOf("getText", "getCurrentName")));
   }
 
-  public static class JsonParserAdvice {
+  @Override
+  public Map<String, String> contextStore() {
+    return singletonMap(JSON_PARSER, "datadog.trace.bootstrap.instrumentation.iast.NamedContext");
+  }
+
+  public static class GetTextAdvice {
 
     @Advice.OnMethodExit(suppress = Throwable.class)
     @Propagation
     public static void onExit(@Advice.This JsonParser jsonParser, @Advice.Return String result) {
       if (jsonParser != null && result != null) {
-        final PropagationModule module = InstrumentationBridge.PROPAGATION;
-        if (module != null) {
-          module.taintIfTainted(result, jsonParser);
+        final ContextStore<JsonParser, NamedContext> store =
+            InstrumentationContext.get(JsonParser.class, NamedContext.class);
+        final NamedContext context = NamedContext.getOrCreate(store, jsonParser);
+        final JsonToken current = jsonParser.getCurrentToken();
+        if (current == JsonToken.FIELD_NAME) {
+          context.taintName(result);
+        } else if (current == JsonToken.VALUE_STRING) {
+          context.taintValue(result);
         }
+      }
+    }
+  }
+
+  /**
+   * Not all field names are caught by {@link JsonParser#getText()}.
+   *
+   * @see JsonParser#getCurrentName()
+   */
+  public static class GetCurrentNameAdvice {
+
+    @Advice.OnMethodExit(suppress = Throwable.class)
+    @Propagation
+    public static void onExit(@Advice.This JsonParser jsonParser, @Advice.Return String result) {
+      if (jsonParser != null
+          && result != null
+          && jsonParser.getCurrentToken() == JsonToken.FIELD_NAME) {
+        final ContextStore<JsonParser, NamedContext> store =
+            InstrumentationContext.get(JsonParser.class, NamedContext.class);
+        final NamedContext context = NamedContext.getOrCreate(store, jsonParser);
+        context.taintName(result);
       }
     }
   }
