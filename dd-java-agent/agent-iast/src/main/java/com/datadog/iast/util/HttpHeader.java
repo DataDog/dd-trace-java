@@ -89,7 +89,12 @@ public class HttpHeader {
                   Values.CONTENT_TYPE,
                   Values.X_CONTENT_TYPE_OPTIONS,
                   Values.LOCATION,
-                  Values.REFERER)
+                  Values.REFERER,
+                  Values.SEC_WEBSOCKET_LOCATION,
+                  Values.SEC_WEBSOCKET_ACCEPT,
+                  Values.UPGRADE,
+                  Values.CONNECTION,
+                  Values.ACCESS_CONTROL_ALLOW_ORIGIN)
               .collect(Collectors.toMap(header -> header.name, Function.identity()));
     }
   }

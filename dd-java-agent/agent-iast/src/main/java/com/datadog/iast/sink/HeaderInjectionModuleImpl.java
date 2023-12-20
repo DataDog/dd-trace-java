@@ -40,9 +40,6 @@ public class HeaderInjectionModuleImpl extends SinkModuleBase implements HeaderI
       return;
     }
     HttpHeader header = HttpHeader.from(name);
-    if (null == header) {
-      return;
-    }
     boolean headerInjectionExclusion = headerInjectionExclusions.contains(header);
 
     if (!headerInjectionExclusion) {
