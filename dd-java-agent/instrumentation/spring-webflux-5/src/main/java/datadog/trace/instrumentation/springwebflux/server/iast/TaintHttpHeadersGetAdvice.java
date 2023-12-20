@@ -16,7 +16,11 @@ import net.bytebuddy.asm.Advice;
 class TaintHttpHeadersGetAdvice {
   @Advice.OnMethodExit(suppress = Throwable.class)
   @Source(SourceTypes.REQUEST_HEADER_VALUE)
-  public static void after(@Advice.Argument(0) Object arg, @Advice.Return List<String> values) {
+  public static void after(
+      @Advice.This Object self,
+      @Advice.Argument(0) Object arg,
+      @Advice.Return List<String> values) {
+
     PropagationModule module = InstrumentationBridge.PROPAGATION;
     if (module == null || values == null || values.isEmpty()) {
       return;
@@ -27,7 +31,7 @@ class TaintHttpHeadersGetAdvice {
     final IastContext ctx = IastContext.Provider.get();
     String lc = ((String) arg).toLowerCase(Locale.ROOT);
     for (String value : values) {
-      module.taint(ctx, value, SourceTypes.REQUEST_HEADER_VALUE, lc);
+      module.taintIfTainted(ctx, value, self, SourceTypes.REQUEST_HEADER_VALUE, lc);
     }
   }
 }
