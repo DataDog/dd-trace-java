@@ -38,9 +38,7 @@ dependencies {
   }
 
   testImplementation project(':dd-java-agent:instrumentation:mongo').sourceSets.test.output
-  testImplementation group: 'de.flapdoodle.embed', name: 'de.flapdoodle.embed.mongo', version: '4.5.1'
-  testImplementation group: 'commons-io', name: 'commons-io', version: '2.11.0'
-
+  testImplementation "org.testcontainers:mongodb:${versions.testcontainers}"
 
   // We need to pull in this dependency to get the 'suspend span' instrumentation for spock tests
   // as well as to test the instrumentaiton 'layering' (3.4 instrumentation should take precedence
