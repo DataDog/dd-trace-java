@@ -189,6 +189,8 @@
 1 org.aopalliance.*
 1 org.antlr.*
 1 org.apache.*
+#apache httpClient needs URI propagation
+0 org.apache.http.client.methods.*
 # apache compiled jsps
 0 org.apache.jsp.*
 1 org.apiguardian.*

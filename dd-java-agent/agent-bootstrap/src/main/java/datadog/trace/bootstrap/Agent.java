@@ -468,7 +468,7 @@ public class Agent {
       installDatadogTracer(scoClass, sco);
       maybeStartAppSec(scoClass, sco);
       maybeStartIast(scoClass, sco);
-      maybeStartCiVisibility(scoClass, sco);
+      maybeStartCiVisibility(instrumentation, scoClass, sco);
       // start debugger before remote config to subscribe to it before starting to poll
       maybeStartDebugger(instrumentation, scoClass, sco);
       maybeStartRemoteConfig(scoClass, sco);
@@ -762,7 +762,7 @@ public class Agent {
     }
   }
 
-  private static void maybeStartCiVisibility(Class<?> scoClass, Object sco) {
+  private static void maybeStartCiVisibility(Instrumentation inst, Class<?> scoClass, Object sco) {
     if (ciVisibilityEnabled) {
       StaticEventLogger.begin("CI Visibility");
 
@@ -770,8 +770,8 @@ public class Agent {
         final Class<?> ciVisibilitySysClass =
             AGENT_CLASSLOADER.loadClass("datadog.trace.civisibility.CiVisibilitySystem");
         final Method ciVisibilityInstallerMethod =
-            ciVisibilitySysClass.getMethod("start", scoClass);
-        ciVisibilityInstallerMethod.invoke(null, sco);
+            ciVisibilitySysClass.getMethod("start", Instrumentation.class, scoClass);
+        ciVisibilityInstallerMethod.invoke(null, inst, sco);
       } catch (final Throwable e) {
         log.warn("Not starting CI Visibility subsystem", e);
       }

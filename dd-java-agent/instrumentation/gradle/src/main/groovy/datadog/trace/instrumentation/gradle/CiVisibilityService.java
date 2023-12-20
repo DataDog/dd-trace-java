@@ -40,10 +40,8 @@ public abstract class CiVisibilityService
     return config.getCiVisibilityCompilerPluginVersion();
   }
 
-  public boolean isCodeCoverageEnabled(Path jvmExecutable) {
-    ModuleExecutionSettings moduleExecutionSettings =
-        buildEventsHandler.getModuleExecutionSettings(SESSION_KEY, jvmExecutable);
-    return moduleExecutionSettings.isCodeCoverageEnabled();
+  public boolean isJacocoInjectionEnabled() {
+    return config.isCiVisibilityJacocoPluginVersionProvided();
   }
 
   public String getJacocoVersion() {

@@ -176,7 +176,7 @@ class GradleProjectConfigurator {
   }
 
   void configureJacoco(Project project, ModuleExecutionSettings moduleExecutionSettings) {
-    if (!moduleExecutionSettings.codeCoverageEnabled || project.plugins.hasPlugin(JACOCO_PLUGIN_ID)) {
+    if (!Config.get().isCiVisibilityJacocoPluginVersionProvided() || project.plugins.hasPlugin(JACOCO_PLUGIN_ID)) {
       return
     }
 

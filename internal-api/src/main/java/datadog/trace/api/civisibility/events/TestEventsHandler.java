@@ -4,7 +4,6 @@ import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.civisibility.retry.TestRetryPolicy;
 import java.io.Closeable;
 import java.lang.reflect.Method;
-import java.nio.file.Path;
 import java.util.Collection;
 import javax.annotation.Nullable;
 
@@ -80,6 +79,6 @@ public interface TestEventsHandler extends Closeable {
   void close();
 
   interface Factory {
-    TestEventsHandler create(String component, Path path);
+    TestEventsHandler create(String component);
   }
 }

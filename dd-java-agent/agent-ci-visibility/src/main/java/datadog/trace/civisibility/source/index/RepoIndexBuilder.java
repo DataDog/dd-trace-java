@@ -59,12 +59,7 @@ public class RepoIndexBuilder implements RepoIndexProvider {
   }
 
   private RepoIndex doGetIndex() {
-    log.warn(
-        "Building index of source files in {}, repo root is {}. "
-            + "This operation can be slow, "
-            + "please consider using Datadog Java compiler plugin to avoid indexing",
-        scanRoot,
-        repoRoot);
+    log.warn("Building index of source files in {}, repo root is {}", scanRoot, repoRoot);
 
     Path repoRootPath = toRealPath(fileSystem.getPath(repoRoot));
     Path scanRootPath = toRealPath(fileSystem.getPath(scanRoot));
