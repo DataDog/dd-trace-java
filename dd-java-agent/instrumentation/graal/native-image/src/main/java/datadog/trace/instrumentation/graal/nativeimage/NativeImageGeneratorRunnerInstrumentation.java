@@ -105,7 +105,7 @@ public final class NativeImageGeneratorRunnerInstrumentation
         // Specific GraalVM versions have different flags for enabling JFR
         // We don't want to drag in internal-api via Platform class, so we just read the system
         // property directly
-        String version = (String) System.getProperties().get("java.specification.version");
+        String version = System.getProperty("java.specification.version");
         if (version.startsWith("17")) {
           args[oldLength++] = "-H:EnableMonitoringFeatures=jfr";
         } else {
