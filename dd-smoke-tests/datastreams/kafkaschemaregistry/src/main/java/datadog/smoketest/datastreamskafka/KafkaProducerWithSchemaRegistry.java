@@ -35,7 +35,7 @@ public class KafkaProducerWithSchemaRegistry {
     properties.setProperty("sasl.mechanism", "PLAIN");
     properties.setProperty("security.protocol", "SASL_SSL");
     properties.setProperty("basic.auth.credentials.source", "USER_INFO");
-    properties.setProperty("basic.auth.user.info", System.getenv("CONFLUENT_REGISTRY_AUTH"));
+    properties.setProperty("basic.auth.user.info", System.getenv("SCHEMA_REGISTRY_AUTH"));
 
     String avroSchema =
         "{ "
