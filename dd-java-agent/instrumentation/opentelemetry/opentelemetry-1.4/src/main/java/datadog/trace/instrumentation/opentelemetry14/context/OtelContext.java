@@ -15,7 +15,7 @@ public class OtelContext implements Context {
   public static final OtelContext ROOT = new OtelContext(OtelSpan.invalid(), OtelSpan.invalid());
 
   private static final String OTEL_CONTEXT_SPAN_KEY = "opentelemetry-trace-span-key";
-  private static final String DATADOG_CONTEXT_ROOT_SPAN_KEY = "datadog-root-span-key";
+  private static final String OTEL_CONTEXT_ROOT_SPAN_KEY = "opentelemetry-traces-local-root-span";
 
   private final Span currentSpan;
   private final Span rootSpan;
@@ -30,7 +30,7 @@ public class OtelContext implements Context {
   public <V> V get(ContextKey<V> key) {
     if (OTEL_CONTEXT_SPAN_KEY.equals(key.toString())) {
       return (V) this.currentSpan;
-    } else if (DATADOG_CONTEXT_ROOT_SPAN_KEY.equals(key.toString())) {
+    } else if (OTEL_CONTEXT_ROOT_SPAN_KEY.equals(key.toString())) {
       return (V) this.rootSpan;
     }
     return null;
@@ -40,7 +40,7 @@ public class OtelContext implements Context {
   public <V> Context with(ContextKey<V> k1, V v1) {
     if (OTEL_CONTEXT_SPAN_KEY.equals(k1.toString())) {
       return new OtelContext((Span) v1, this.rootSpan);
-    } else if (DATADOG_CONTEXT_ROOT_SPAN_KEY.equals(k1.toString())) {
+    } else if (OTEL_CONTEXT_ROOT_SPAN_KEY.equals(k1.toString())) {
       return new OtelContext(this.currentSpan, (Span) v1);
     }
     return this;
