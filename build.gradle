@@ -4,8 +4,11 @@ buildscript {
   }
 
   configurations.all {
-    resolutionStrategy.dependencySubstitution {
-      substitute module("com.jcraft:jsch") using module("com.github.mwiede:jsch:0.2.14") because "jcraft jsch has been unmaintained for years."
+    resolutionStrategy {
+      dependencySubstitution {
+        substitute module("com.jcraft:jsch") using module("com.github.mwiede:jsch:0.2.6") because "jcraft jsch has been unmaintained for years."
+      }
+      activateDependencyLocking()
     }
   }
 }
@@ -176,6 +179,29 @@ def testAggregate(String baseTaskName, includePrefixes, excludePrefixes) {
   createRootTask "${baseTaskName}Test", 'allTests'
   createRootTask "${baseTaskName}LatestDepTest", 'allLatestDepTests'
   createRootTask "${baseTaskName}Check", 'check'
+}
+
+tasks.register('resolveAndLockAll') {
+  notCompatibleWithConfigurationCache("Filters configurations at execution time")
+  doFirst {
+    assert gradle.startParameter.writeDependencyLocks
+  }
+  doLast {
+    allprojects { project ->
+      project.configurations.findAll {
+        it.canBeResolved && !it.name.startsWith('incrementalScalaAnalysis')
+        //At the moment, we don't want to lock the decoder testRuntimeClasspath
+        // because the task is not able to resolve the dependencies
+        && !(project.path == ':utils:test-agent-utils:decoder' && it.name == 'testRuntimeClasspath')
+      }.each { it.resolve() }
+    }
+  }
+}
+
+allprojects { project ->
+  project.dependencyLocking {
+    lockAllConfigurations()
+  }
 }
 
 testAggregate("smoke", [":dd-smoke-tests"], [])
