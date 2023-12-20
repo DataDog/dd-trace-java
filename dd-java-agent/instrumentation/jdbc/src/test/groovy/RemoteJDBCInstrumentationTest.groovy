@@ -20,6 +20,7 @@ import java.sql.Driver
 import java.sql.PreparedStatement
 import java.sql.ResultSet
 import java.sql.Statement
+import java.sql.Types
 import java.util.concurrent.TimeUnit
 
 import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
@@ -406,8 +407,8 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
     }
 
     cleanup:
-    statement.close()
-    connection.close()
+    statement?.close()
+    connection?.close()
 
     where:
     driver       | connection                                              | query                   | operation | obfuscatedQuery
@@ -420,6 +421,34 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
     "mysql"      | cpDatasources.get("c3p0").get(driver).getConnection()   | "SELECT 3"              | "SELECT"  | "SELECT ?"
     "postgresql" | cpDatasources.get("c3p0").get(driver).getConnection()   | "SELECT 3 from pg_user" | "SELECT"  | "SELECT ? from pg_user"
   }
+
+  @Unroll
+  def "prepared call with storedproc on #driver with #connection.getClass().getCanonicalName() does not hang"() {
+    setup:
+    CallableStatement upperProc = connection.prepareCall(query)
+    upperProc.registerOutParameter(1, Types.VARCHAR)
+    upperProc.setString(2, "hello world")
+    when:
+    runUnderTrace("parent") {
+      return upperProc.execute()
+    }
+    TEST_WRITER.waitForTraces(1)
+
+    then:
+    assert upperProc.getString(1) == "HELLO WORLD"
+    cleanup:
+    upperProc?.close()
+    connection.close()
+
+    where:
+    driver       | connection                                              | query
+    "postgresql" | cpDatasources.get("hikari").get(driver).getConnection() | "{ ? = call upper( ? ) }"
+    "postgresql" | cpDatasources.get("tomcat").get(driver).getConnection() | "{ ? = call upper( ? ) }"
+    "postgresql" | cpDatasources.get("c3p0").get(driver).getConnection()   | "{ ? = call upper( ? ) }"
+    "postgresql" | connectTo(driver, peerConnectionProps)                  | "{ ? = call upper( ? ) }"
+
+  }
+
 
   @Unroll
   def "statement update on #driver with #connection.getClass().getCanonicalName() generates a span"() {
