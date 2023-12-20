@@ -8,10 +8,6 @@ import java.util.Map;
 /** Snapshot of dynamic configuration; valid for the duration of a trace. */
 public interface TraceConfig {
 
-  boolean isDebugEnabled();
-
-  boolean isTriageEnabled();
-
   boolean isRuntimeMetricsEnabled();
 
   boolean isLogsInjectionEnabled();

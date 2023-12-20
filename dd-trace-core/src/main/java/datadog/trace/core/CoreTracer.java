@@ -535,8 +535,6 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
     this.dynamicConfig =
         DynamicConfig.create(ConfigSnapshot::new)
-            .setDebugEnabled(config.isDebugEnabled())
-            .setTriageEnabled(config.isTriageEnabled())
             .setRuntimeMetricsEnabled(config.isRuntimeMetricsEnabled())
             .setLogsInjectionEnabled(config.isLogsInjectionEnabled())
             .setDataStreamsEnabled(config.isDataStreamsEnabled())
@@ -717,8 +715,6 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   public void rebuildTraceConfig(Config config) {
     dynamicConfig
         .initial()
-        .setDebugEnabled(config.isDebugEnabled())
-        .setTriageEnabled(config.isTriageEnabled())
         .setRuntimeMetricsEnabled(config.isRuntimeMetricsEnabled())
         .setLogsInjectionEnabled(config.isLogsInjectionEnabled())
         .setDataStreamsEnabled(config.isDataStreamsEnabled())
