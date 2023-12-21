@@ -9,7 +9,7 @@ import org.apache.kafka.clients.producer.ProducerRecord;
 
 public class AvroSchemaExtractor {
   public static void tryExtractProducer(ProducerRecord record, AgentSpan span) {
-    Integer prio = span.forceSamplingDecision();
+    Integer prio = span.getSamplingPriority();
     if (prio == null || prio <= 0) {
       // don't extract schema if span is not sampled
       return;
