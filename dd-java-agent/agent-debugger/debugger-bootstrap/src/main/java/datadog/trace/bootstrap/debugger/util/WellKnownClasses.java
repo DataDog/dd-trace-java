@@ -66,6 +66,12 @@ public class WellKnownClasses {
     specialFields.put("java.util.Optional", WellKnownClasses::optionalSpecialField);
   }
 
+  private static Map<String, Function<Object, String>> specialToString = new HashMap<>();
+
+  static {
+    specialToString.put("java.lang.Class", WellKnownClasses::classToString);
+  }
+
   /**
    * @return true if type is a final class and toString implementation is well known and side effect
    *     free
@@ -125,8 +131,20 @@ public class WellKnownClasses {
     return specialFields.get(type);
   }
 
+  /**
+   * @return a function to generate a string representation of a type where the default toString
+   *     method is not suitable
+   */
+  public static Function<Object, String> getSpecialToString(String type) {
+    return specialToString.get(type);
+  }
+
   private static CapturedContext.CapturedValue optionalSpecialField(Object o) {
     return CapturedContext.CapturedValue.of(
         "value", Object.class.getTypeName(), ((Optional<?>) o).orElse(null));
+  }
+
+  private static String classToString(Object o) {
+    return ((Class<?>) o).getTypeName();
   }
 }

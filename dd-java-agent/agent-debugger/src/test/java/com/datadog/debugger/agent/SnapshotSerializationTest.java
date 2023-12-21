@@ -319,7 +319,7 @@ public class SnapshotSerializationTest {
         objLocalFields,
         "clazz",
         Class.class.getTypeName(),
-        "class com.datadog.debugger.agent.SnapshotSerializationTest$WellKnownClasses");
+        "com.datadog.debugger.agent.SnapshotSerializationTest$WellKnownClasses");
     assertPrimitiveValue(objLocalFields, "bool", Boolean.class.getTypeName(), "true");
     assertPrimitiveValue(objLocalFields, "l", Long.class.getTypeName(), "42");
     assertPrimitiveValue(objLocalFields, "bigDecimal", BigDecimal.class.getTypeName(), "3.1415926");
