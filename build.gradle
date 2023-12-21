@@ -8,7 +8,10 @@ buildscript {
       dependencySubstitution {
         substitute module("com.jcraft:jsch") using module("com.github.mwiede:jsch:0.2.6") because "jcraft jsch has been unmaintained for years."
       }
-      activateDependencyLocking()
+      // Check if the project's path is not :utils:test-agent-utils:decoder before activating the dependency locking.
+      if(project.path != ':utils:test-agent-utils:decoder') {
+        activateDependencyLocking()
+      }
     }
   }
 }
@@ -190,9 +193,6 @@ tasks.register('resolveAndLockAll') {
     allprojects { project ->
       project.configurations.findAll {
         it.canBeResolved && !it.name.startsWith('incrementalScalaAnalysis')
-        //At the moment, we don't want to lock the decoder testRuntimeClasspath
-        // because the task is not able to resolve the dependencies
-        && !(project.path == ':utils:test-agent-utils:decoder' && it.name == 'testRuntimeClasspath')
       }.each { it.resolve() }
     }
   }
