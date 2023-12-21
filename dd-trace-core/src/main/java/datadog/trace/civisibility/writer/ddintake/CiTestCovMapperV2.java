@@ -12,6 +12,7 @@ import datadog.trace.api.civisibility.coverage.TestReportHolder;
 import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.intake.TrackType;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.common.writer.Payload;
 import datadog.trace.common.writer.RemoteMapper;
 import datadog.trace.core.CoreSpan;
@@ -58,9 +59,9 @@ public class CiTestCovMapperV2 implements RemoteMapper {
   public void map(List<? extends CoreSpan<?>> trace, Writable writable) {
     List<TestReport> testReports =
         trace.stream()
-            // only consider top-level spans (tests), since children spans
+            // only consider test spans, since children spans
             // share test reports with their parents
-            .filter(CoreSpan::isTopLevel)
+            .filter(CiTestCovMapperV2::isTestSpan)
             .map(CiTestCovMapperV2::getTestReport)
             .filter(Objects::nonNull)
             .filter(TestReport::isNotEmpty)
@@ -115,6 +116,11 @@ public class CiTestCovMapperV2 implements RemoteMapper {
     }
 
     eventCount += testReports.size();
+  }
+
+  private static boolean isTestSpan(CoreSpan<?> span) {
+    CharSequence type = span.getType();
+    return type != null && type.toString().contentEquals(InternalSpanTypes.TEST);
   }
 
   private static TestReport getTestReport(CoreSpan<?> span) {
