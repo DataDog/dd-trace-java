@@ -59,13 +59,17 @@ public class ProbeStatusSink {
   }
 
   public void addEmitting(ProbeId probeId) {
-    TimedMessage timedMessage = probeStatuses.get(probeId.getId());
+    addEmitting(probeId.getEncodedId());
+  }
+
+  public void addEmitting(String encodedProbeId) {
+    TimedMessage timedMessage = probeStatuses.get(encodedProbeId);
     if (timedMessage != null
         && timedMessage.getMessage().getDiagnostics().getStatus() == Status.EMITTING) {
       // if we already have a message for this probe, don't build the message again
       return;
     }
-    addDiagnostics(messageBuilder.emittingMessage(probeId));
+    addDiagnostics(messageBuilder.emittingMessage(encodedProbeId));
   }
 
   public void addBlocked(ProbeId probeId) {
@@ -142,7 +146,7 @@ public class ProbeStatusSink {
   }
 
   public void removeDiagnostics(ProbeId probeId) {
-    probeStatuses.remove(probeId.getId());
+    probeStatuses.remove(probeId.getEncodedId());
   }
 
   private void addDiagnostics(ProbeStatus message) {
@@ -154,7 +158,7 @@ public class ProbeStatusSink {
     TimedMessage current = probeStatuses.get(probeId.getId());
     if (current == null || shouldOverwrite(current.getMessage(), message)) {
       TimedMessage newMessage = new TimedMessage(message);
-      probeStatuses.put(probeId.getId(), newMessage);
+      probeStatuses.put(probeId.getEncodedId(), newMessage);
       enqueueTimedMessage(newMessage, Instant.now(Clock.systemDefaultZone()));
     }
   }

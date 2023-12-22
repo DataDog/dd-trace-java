@@ -195,7 +195,7 @@ public class ConfigurationUpdater
     if (instrumentationResult.isError()) {
       return;
     }
-    instrumentationResults.put(definition.getId(), instrumentationResult);
+    instrumentationResults.put(definition.getProbeId().getEncodedId(), instrumentationResult);
     if (instrumentationResult.isInstalled()) {
       sink.addInstalled(definition.getProbeId());
     } else if (instrumentationResult.isBlocked()) {
@@ -230,22 +230,22 @@ public class ConfigurationUpdater
 
   private void storeDebuggerDefinitions(ConfigurationComparer changes) {
     for (ProbeDefinition definition : changes.getRemovedDefinitions()) {
-      appliedDefinitions.remove(definition.getId());
+      appliedDefinitions.remove(definition.getProbeId().getEncodedId());
     }
     for (ProbeDefinition definition : changes.getAddedDefinitions()) {
-      appliedDefinitions.put(definition.getId(), definition);
+      appliedDefinitions.put(definition.getProbeId().getEncodedId(), definition);
     }
     LOGGER.debug("Stored appliedDefinitions: {}", appliedDefinitions.values());
   }
 
   // /!\ This is called potentially by multiple threads from the instrumented code /!\
   @Override
-  public ProbeImplementation resolve(String id, Class<?> callingClass) {
-    ProbeDefinition definition = appliedDefinitions.get(id);
+  public ProbeImplementation resolve(String encodedProbeId, Class<?> callingClass) {
+    ProbeDefinition definition = appliedDefinitions.get(encodedProbeId);
     if (definition == null && callingClass != null) {
       LOGGER.info(
           "Cannot resolve probe id={}, re-transforming calling class: {}",
-          id,
+          encodedProbeId,
           callingClass.getName());
       retransformClasses(Collections.singletonList(callingClass));
       return null;

@@ -6,7 +6,6 @@ import datadog.communication.monitor.DDAgentStatsDClientManager;
 import datadog.trace.api.Config;
 import datadog.trace.api.StatsDClient;
 import datadog.trace.bootstrap.debugger.DebuggerContext;
-import datadog.trace.bootstrap.debugger.ProbeImplementation;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -17,11 +16,9 @@ public class StatsdMetricForwarder
   private static final String METRICPROBE_PREFIX = "dynamic.instrumentation.metric.probe";
 
   private final StatsDClient statsd;
-  private final DebuggerContext.ProbeResolver probeResolver;
   private final ProbeStatusSink probeStatusSink;
 
-  public StatsdMetricForwarder(
-      Config config, DebuggerContext.ProbeResolver probeResolver, ProbeStatusSink probeStatusSink) {
+  public StatsdMetricForwarder(Config config, ProbeStatusSink probeStatusSink) {
     statsd =
         DDAgentStatsDClientManager.statsDClientManager()
             .statsDClient(
@@ -30,50 +27,49 @@ public class StatsdMetricForwarder
                 config.getDogStatsDNamedPipe(),
                 METRICPROBE_PREFIX,
                 new String[0]);
-    this.probeResolver = probeResolver;
     this.probeStatusSink = probeStatusSink;
   }
 
   @Override
-  public void count(String probeId, String name, long delta, String[] tags) {
+  public void count(String encodedProbeId, String name, long delta, String[] tags) {
     statsd.count(name, delta, tags);
-    sendEmittingStatus(probeId);
+    sendEmittingStatus(encodedProbeId);
   }
 
   @Override
-  public void gauge(String probeId, String name, long value, String[] tags) {
+  public void gauge(String encodedProbeId, String name, long value, String[] tags) {
     statsd.gauge(name, value, tags);
-    sendEmittingStatus(probeId);
+    sendEmittingStatus(encodedProbeId);
   }
 
   @Override
-  public void gauge(String probeId, String name, double value, String[] tags) {
+  public void gauge(String encodedProbeId, String name, double value, String[] tags) {
     statsd.gauge(name, value, tags);
-    sendEmittingStatus(probeId);
+    sendEmittingStatus(encodedProbeId);
   }
 
   @Override
-  public void histogram(String probeId, String name, long value, String[] tags) {
+  public void histogram(String encodedProbeId, String name, long value, String[] tags) {
     statsd.histogram(name, value, tags);
-    sendEmittingStatus(probeId);
+    sendEmittingStatus(encodedProbeId);
   }
 
   @Override
-  public void histogram(String probeId, String name, double value, String[] tags) {
+  public void histogram(String encodedProbeId, String name, double value, String[] tags) {
     statsd.histogram(name, value, tags);
-    sendEmittingStatus(probeId);
+    sendEmittingStatus(encodedProbeId);
   }
 
   @Override
-  public void distribution(String probeId, String name, long value, String[] tags) {
+  public void distribution(String encodedProbeId, String name, long value, String[] tags) {
     statsd.distribution(name, value, tags);
-    sendEmittingStatus(probeId);
+    sendEmittingStatus(encodedProbeId);
   }
 
   @Override
-  public void distribution(String probeId, String name, double value, String[] tags) {
+  public void distribution(String encodedProbeId, String name, double value, String[] tags) {
     statsd.distribution(name, value, tags);
-    sendEmittingStatus(probeId);
+    sendEmittingStatus(encodedProbeId);
   }
 
   @Override
@@ -82,11 +78,6 @@ public class StatsdMetricForwarder
   }
 
   private void sendEmittingStatus(String probeId) {
-    ProbeImplementation probeImplementation = probeResolver.resolve(probeId, null);
-    if (probeImplementation == null) {
-      LOGGER.debug("Cannot resolve probe id: {}", probeId);
-      return;
-    }
-    probeStatusSink.addEmitting(probeImplementation.getProbeId());
+    probeStatusSink.addEmitting(probeId);
   }
 }

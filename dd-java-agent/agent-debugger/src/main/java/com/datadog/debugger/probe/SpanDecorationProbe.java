@@ -195,7 +195,9 @@ public class SpanDecorationProbe extends ProbeDefinition {
       CapturedContext exitContext,
       List<CapturedContext.CapturedThrowable> caughtExceptions) {
     CapturedContext.Status status =
-        evaluateAt == MethodLocation.EXIT ? exitContext.getStatus(id) : entryContext.getStatus(id);
+        evaluateAt == MethodLocation.EXIT
+            ? exitContext.getStatus(probeId.getEncodedId())
+            : entryContext.getStatus(probeId.getEncodedId());
     if (status == null) {
       return;
     }
@@ -206,7 +208,7 @@ public class SpanDecorationProbe extends ProbeDefinition {
 
   @Override
   public void commit(CapturedContext lineContext, int line) {
-    CapturedContext.Status status = lineContext.getStatus(id);
+    CapturedContext.Status status = lineContext.getStatus(probeId.getEncodedId());
     if (status == null) {
       return;
     }

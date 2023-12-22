@@ -76,7 +76,7 @@ public class SpanInstrumentor extends Instrumentor {
 
   private InsnList createSpan(LabelNode initSpanLabel) {
     InsnList insnList = new InsnList();
-    ldc(insnList, definition.getId());
+    ldc(insnList, definition.getProbeId().getEncodedId());
     // stack: [string]
     ldc(insnList, buildResourceName());
     // stack: [string, string]

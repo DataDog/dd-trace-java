@@ -67,13 +67,12 @@ public class DebuggerAgent {
             classesToRetransformFinder);
     sink = debuggerSink;
     StatsdMetricForwarder statsdMetricForwarder =
-        new StatsdMetricForwarder(config, configurationUpdater, probeStatusSink);
+        new StatsdMetricForwarder(config, probeStatusSink);
     DebuggerContext.init(configurationUpdater, statsdMetricForwarder);
     DebuggerContext.initClassFilter(new DenyListHelper(null)); // default hard coded deny list
     snapshotSerializer = new JsonSnapshotSerializer();
     DebuggerContext.initValueSerializer(snapshotSerializer);
-    DebuggerContext.initTracer(
-        new DebuggerTracer(configurationUpdater, debuggerSink.getProbeStatusSink()));
+    DebuggerContext.initTracer(new DebuggerTracer(debuggerSink.getProbeStatusSink()));
     if (config.isDebuggerInstrumentTheWorld()) {
       setupInstrumentTheWorldTransformer(
           config, instrumentation, debuggerSink, statsdMetricForwarder);

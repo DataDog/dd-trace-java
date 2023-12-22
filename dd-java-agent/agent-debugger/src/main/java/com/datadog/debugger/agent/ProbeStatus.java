@@ -115,6 +115,15 @@ public class ProbeStatus {
 
     private final ProbeException exception;
 
+    public Diagnostics(String probeId, String runtimeId, Status status, ProbeException exception) {
+      ProbeId id = ProbeId.from(probeId);
+      this.probeId = id.getId();
+      this.probeVersion = id.getVersion();
+      this.runtimeId = runtimeId;
+      this.status = status;
+      this.exception = exception;
+    }
+
     public Diagnostics(ProbeId probeId, String runtimeId, Status status, ProbeException exception) {
       this.probeId = probeId != null ? probeId.getId() : null;
       this.probeVersion = probeId != null ? probeId.getVersion() : 0;
@@ -262,7 +271,7 @@ public class ProbeStatus {
           new Diagnostics(probeId, runtimeId, Status.INSTALLED, null));
     }
 
-    public ProbeStatus emittingMessage(ProbeId probeId) {
+    public ProbeStatus emittingMessage(String probeId) {
       return new ProbeStatus(
           this.serviceName,
           "Probe " + probeId + "is emitting.",

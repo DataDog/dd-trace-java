@@ -399,7 +399,7 @@ public class CapturedContextInstrumentor extends Instrumentor {
       // stack [array, array]
       ldc(insnList, i); // index
       // stack [array, array, int]
-      ldc(insnList, probeIds.get(i).getId());
+      ldc(insnList, probeIds.get(i).getEncodedId());
       // stack [array, array, int, string]
       insnList.add(new InsnNode(Opcodes.AASTORE));
       // stack [array]

@@ -41,7 +41,6 @@ public abstract class Instrumentor {
   protected final boolean isLineProbe;
   protected final LineMap lineMap = new LineMap();
   protected final LabelNode methodEnterLabel;
-  protected final String probeIdFieldName;
   protected int localVarBaseOffset;
   protected int argOffset;
   protected final LocalVariableNode[] localVarsBySlot;
@@ -70,8 +69,6 @@ public abstract class Instrumentor {
       argOffset += t.getSize();
     }
     localVarsBySlot = extractLocalVariables(argTypes);
-    this.probeIdFieldName =
-        "PROBE_ID_" + definition.getId(); // TODO sanitize id for fieldname Java identifier
   }
 
   public abstract InstrumentationResult.Status instrument();

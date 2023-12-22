@@ -550,8 +550,8 @@ public class LogProbesInstrumentationTest {
     when(config.getFinalDebuggerSymDBUrl()).thenReturn("http://localhost:8126/symdb/v1/input");
     when(config.getDebuggerUploadBatchSize()).thenReturn(100);
     DebuggerContext.ProbeResolver resolver =
-        (id, callingClass) ->
-            resolver(id, callingClass, expectedClassName, configuration.getLogProbes());
+        (encodedProbeId, callingClass) ->
+            resolver(encodedProbeId, callingClass, expectedClassName, configuration.getLogProbes());
     currentTransformer = new DebuggerTransformer(config, configuration);
     instr.addTransformer(currentTransformer);
     DebuggerTransformerTest.TestSnapshotListener listener =
@@ -564,10 +564,13 @@ public class LogProbesInstrumentationTest {
   }
 
   private ProbeImplementation resolver(
-      String id, Class<?> callingClass, String expectedClassName, Collection<LogProbe> logProbes) {
+      String encodedProbeId,
+      Class<?> callingClass,
+      String expectedClassName,
+      Collection<LogProbe> logProbes) {
     Assertions.assertEquals(expectedClassName, callingClass.getName());
     for (LogProbe probe : logProbes) {
-      if (probe.getId().equals(id)) {
+      if (probe.getProbeId().getEncodedId().equals(encodedProbeId)) {
         return probe;
       }
     }

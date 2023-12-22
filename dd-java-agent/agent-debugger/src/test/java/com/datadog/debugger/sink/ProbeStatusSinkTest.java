@@ -89,7 +89,8 @@ class ProbeStatusSinkTest {
   void addEmitting() {
     probeStatusSink.addEmitting(PROBE_ID);
     assertEquals(
-        Arrays.asList(builder.emittingMessage(PROBE_ID)), probeStatusSink.getDiagnostics());
+        Arrays.asList(builder.emittingMessage(PROBE_ID.getEncodedId())),
+        probeStatusSink.getDiagnostics());
   }
 
   @Test
@@ -138,6 +139,7 @@ class ProbeStatusSinkTest {
     probeStatusSink.addInstalled(PROBE_ID);
     probeStatusSink.addReceived(PROBE_ID_NEW_VERSION);
     probeStatusSink.addInstalled(PROBE_ID_NEW_VERSION);
+    probeStatusSink.removeDiagnostics(PROBE_ID);
     assertEquals(
         Arrays.asList(
             builder.receivedMessage(PROBE_ID),

@@ -61,7 +61,7 @@ public class ClassesToRetransformFinder {
     Trie changedClasses = new Trie();
     for (ProbeDefinition definition : changedDefinitions) {
       InstrumentationResult instrumentationResult =
-          comparer.getInstrumentationResults().get(definition.getId());
+          comparer.getInstrumentationResults().get(definition.getProbeId().getEncodedId());
       String key = instrumentationResult != null ? instrumentationResult.getTypeName() : null;
       if (key == null || key.equals("")) {
         key = definition.getWhere().getTypeName();

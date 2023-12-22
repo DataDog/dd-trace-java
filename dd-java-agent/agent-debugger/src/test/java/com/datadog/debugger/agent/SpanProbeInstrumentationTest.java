@@ -167,7 +167,7 @@ public class SpanProbeInstrumentationTest extends ProbeInstrumentationTest {
     boolean throwing;
 
     @Override
-    public DebuggerSpan createSpan(String probeId, String resourceName, String[] tags) {
+    public DebuggerSpan createSpan(String encodedProbeId, String resourceName, String[] tags) {
       if (throwing) {
         throw new IllegalArgumentException("oops");
       }

@@ -1283,7 +1283,7 @@ public class MetricProbesInstrumentationTest {
     boolean throwing;
 
     @Override
-    public void count(String probeId, String name, long delta, String[] tags) {
+    public void count(String encodedProbeId, String name, long delta, String[] tags) {
       if (throwing) {
         throw new IllegalArgumentException("oops");
       }
@@ -1292,7 +1292,7 @@ public class MetricProbesInstrumentationTest {
     }
 
     @Override
-    public void gauge(String probeId, String name, long value, String[] tags) {
+    public void gauge(String encodedProbeId, String name, long value, String[] tags) {
       if (throwing) {
         throw new IllegalArgumentException("oops");
       }
@@ -1301,7 +1301,7 @@ public class MetricProbesInstrumentationTest {
     }
 
     @Override
-    public void gauge(String probeId, String name, double value, String[] tags) {
+    public void gauge(String encodedProbeId, String name, double value, String[] tags) {
       if (throwing) {
         throw new IllegalArgumentException("oops");
       }
@@ -1310,7 +1310,7 @@ public class MetricProbesInstrumentationTest {
     }
 
     @Override
-    public void histogram(String probeId, String name, long value, String[] tags) {
+    public void histogram(String encodedProbeId, String name, long value, String[] tags) {
       if (throwing) {
         throw new IllegalArgumentException("oops");
       }
@@ -1319,7 +1319,7 @@ public class MetricProbesInstrumentationTest {
     }
 
     @Override
-    public void histogram(String probeId, String name, double value, String[] tags) {
+    public void histogram(String encodedProbeId, String name, double value, String[] tags) {
       if (throwing) {
         throw new IllegalArgumentException("oops");
       }
@@ -1328,7 +1328,7 @@ public class MetricProbesInstrumentationTest {
     }
 
     @Override
-    public void distribution(String probeId, String name, long value, String[] tags) {
+    public void distribution(String encodedProbeId, String name, long value, String[] tags) {
       if (throwing) {
         throw new IllegalArgumentException("oops");
       }
@@ -1337,7 +1337,7 @@ public class MetricProbesInstrumentationTest {
     }
 
     @Override
-    public void distribution(String probeId, String name, double value, String[] tags) {
+    public void distribution(String encodedProbeId, String name, double value, String[] tags) {
       if (throwing) {
         throw new IllegalArgumentException("oops");
       }

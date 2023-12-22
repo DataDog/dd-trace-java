@@ -258,7 +258,7 @@ public class DebuggerTransformer implements ClassFileTransformer {
                   .captureSnapshot(true)
                   .build();
           probes.add(probe);
-          instrumentTheWorldProbes.put(probe.getId(), probe);
+          instrumentTheWorldProbes.put(probe.getProbeId().getEncodedId(), probe);
         }
       }
       Map<Where, List<ProbeDefinition>> defByLocation = mergeLocations(probes);

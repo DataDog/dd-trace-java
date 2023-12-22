@@ -24,7 +24,7 @@ public class DebuggerContext {
   }
 
   public interface ProbeResolver {
-    ProbeImplementation resolve(String id, Class<?> callingClass);
+    ProbeImplementation resolve(String encodedProbeId, Class<?> callingClass);
   }
 
   public interface ClassFilter {
@@ -39,23 +39,23 @@ public class DebuggerContext {
   }
 
   public interface MetricForwarder {
-    void count(String probeId, String name, long delta, String[] tags);
+    void count(String encodedProbeId, String name, long delta, String[] tags);
 
-    void gauge(String probeId, String name, long value, String[] tags);
+    void gauge(String encodedProbeId, String name, long value, String[] tags);
 
-    void gauge(String probeId, String name, double value, String[] tags);
+    void gauge(String encodedProbeId, String name, double value, String[] tags);
 
-    void histogram(String probeId, String name, long value, String[] tags);
+    void histogram(String encodedProbeId, String name, long value, String[] tags);
 
-    void histogram(String probeId, String name, double value, String[] tags);
+    void histogram(String encodedProbeId, String name, double value, String[] tags);
 
-    void distribution(String probeId, String name, long value, String[] tags);
+    void distribution(String encodedProbeId, String name, long value, String[] tags);
 
-    void distribution(String probeId, String name, double value, String[] tags);
+    void distribution(String encodedProbeId, String name, double value, String[] tags);
   }
 
   public interface Tracer {
-    DebuggerSpan createSpan(String probeId, String resourceName, String[] tags);
+    DebuggerSpan createSpan(String encodedProbeId, String resourceName, String[] tags);
   }
 
   public interface ValueSerializer {
@@ -193,7 +193,7 @@ public class DebuggerContext {
    *
    * @return true if can proceed to capture data
    */
-  public static boolean isReadyToCapture(Class<?> callingClass, String... probeIds) {
+  public static boolean isReadyToCapture(Class<?> callingClass, String... encodedProbeIds) {
     try {
       return checkAndSetInProbe();
     } catch (Exception ex) {
@@ -227,17 +227,17 @@ public class DebuggerContext {
       Class<?> callingClass,
       long startTimestamp,
       MethodLocation methodLocation,
-      String... probeIds) {
+      String... encodedProbeIds) {
     try {
       boolean needFreeze = false;
-      for (String probeId : probeIds) {
-        ProbeImplementation probeImplementation = resolveProbe(probeId, callingClass);
+      for (String encodedProbeId : encodedProbeIds) {
+        ProbeImplementation probeImplementation = resolveProbe(encodedProbeId, callingClass);
         if (probeImplementation == null) {
           continue;
         }
         CapturedContext.Status status =
             context.evaluate(
-                probeId,
+                encodedProbeId,
                 probeImplementation,
                 callingClass.getTypeName(),
                 startTimestamp,
@@ -260,16 +260,20 @@ public class DebuggerContext {
    * conditions and commit snapshot to send it if needed. This is for line probes.
    */
   public static void evalContextAndCommit(
-      CapturedContext context, Class<?> callingClass, int line, String... probeIds) {
+      CapturedContext context, Class<?> callingClass, int line, String... encodedProbeIds) {
     try {
       List<ProbeImplementation> probeImplementations = new ArrayList<>();
-      for (String probeId : probeIds) {
-        ProbeImplementation probeImplementation = resolveProbe(probeId, callingClass);
+      for (String encodedProbeId : encodedProbeIds) {
+        ProbeImplementation probeImplementation = resolveProbe(encodedProbeId, callingClass);
         if (probeImplementation == null) {
           continue;
         }
         context.evaluate(
-            probeId, probeImplementation, callingClass.getTypeName(), -1, MethodLocation.DEFAULT);
+            encodedProbeId,
+            probeImplementation,
+            callingClass.getTypeName(),
+            -1,
+            MethodLocation.DEFAULT);
         probeImplementations.add(probeImplementation);
       }
       for (ProbeImplementation probeImplementation : probeImplementations) {
@@ -288,16 +292,16 @@ public class DebuggerContext {
       CapturedContext entryContext,
       CapturedContext exitContext,
       List<CapturedContext.CapturedThrowable> caughtExceptions,
-      String... probeIds) {
+      String... encodedProbeIds) {
     try {
       if (entryContext == CapturedContext.EMPTY_CONTEXT
           && exitContext == CapturedContext.EMPTY_CONTEXT) {
         // rate limited
         return;
       }
-      for (String probeId : probeIds) {
-        CapturedContext.Status entryStatus = entryContext.getStatus(probeId);
-        CapturedContext.Status exitStatus = exitContext.getStatus(probeId);
+      for (String encodedProbeId : encodedProbeIds) {
+        CapturedContext.Status entryStatus = entryContext.getStatus(encodedProbeId);
+        CapturedContext.Status exitStatus = exitContext.getStatus(encodedProbeId);
         ProbeImplementation probeImplementation;
         if (entryStatus.probeImplementation != ProbeImplementation.UNKNOWN
             && (entryStatus.probeImplementation.getEvaluateAt() == MethodLocation.ENTRY

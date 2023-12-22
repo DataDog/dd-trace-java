@@ -193,7 +193,7 @@ public class MetricInstrumentor extends Instrumentor {
   private InsnList callCount(MetricProbe metricProbe, ReturnContext returnContext) {
     if (metricProbe.getValue() == null) {
       InsnList insnList = new InsnList();
-      ldc(insnList, metricProbe.getId());
+      ldc(insnList, metricProbe.getProbeId().getEncodedId());
       // stack [ProbeId]
       getStatic(insnList, METRICKIND_TYPE, metricProbe.getKind().name());
       // stack [string, MetricKind]
@@ -249,7 +249,7 @@ public class MetricInstrumentor extends Instrumentor {
       return EMPTY_INSN_LIST;
     }
     resultType = convertIfRequired(resultType, result.insnList);
-    ldc(insnList, metricProbe.getId());
+    ldc(insnList, metricProbe.getProbeId().getEncodedId());
     // stack [string]
     getStatic(insnList, METRICKIND_TYPE, metricProbe.getKind().name());
     // stack [string, MetricKind]
