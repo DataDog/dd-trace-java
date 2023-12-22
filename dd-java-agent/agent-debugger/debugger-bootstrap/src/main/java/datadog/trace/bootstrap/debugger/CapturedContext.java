@@ -129,10 +129,10 @@ public class CapturedContext implements ValueReferenceResolver {
         }
       }
     } else {
-      Function<Object, WellKnownClasses.SpecialField> specialFieldAccess =
+      Function<Object, CapturedValue> specialFieldAccess =
           WellKnownClasses.getSpecialFieldAccess(target.getClass().getTypeName());
       if (specialFieldAccess != null) {
-        WellKnownClasses.SpecialField specialField = specialFieldAccess.apply(target);
+        CapturedValue specialField = specialFieldAccess.apply(target);
         if (specialField != null && specialField.getName().equals(memberName)) {
           return specialField.getValue();
         } else {

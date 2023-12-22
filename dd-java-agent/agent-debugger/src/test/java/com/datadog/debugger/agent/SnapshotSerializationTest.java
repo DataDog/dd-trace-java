@@ -296,7 +296,7 @@ public class SnapshotSerializationTest {
     UUID uuid = UUID.nameUUIDFromBytes("foobar".getBytes());
     AtomicLong atomicLong = new AtomicLong(123);
     URI uri = URI.create("https://www.datadoghq.com");
-    Optional<Date> maybeUiid = Optional.of(new Date());
+    Optional<Date> maybeDate = Optional.of(new Date());
     Optional<Object> empty = Optional.empty();
   }
 
@@ -332,9 +332,9 @@ public class SnapshotSerializationTest {
     assertPrimitiveValue(objLocalFields, "atomicLong", AtomicLong.class.getTypeName(), "123");
     assertPrimitiveValue(
         objLocalFields, "uri", URI.class.getTypeName(), "https://www.datadoghq.com");
-    Map<String, Object> maybeUiid = (Map<String, Object>) objLocalFields.get("maybeUiid");
-    assertComplexClass(maybeUiid, Optional.class.getTypeName());
-    Map<String, Object> maybeUiidFields = (Map<String, Object>) maybeUiid.get(FIELDS);
+    Map<String, Object> maybeDate = (Map<String, Object>) objLocalFields.get("maybeDate");
+    assertComplexClass(maybeDate, Optional.class.getTypeName());
+    Map<String, Object> maybeUiidFields = (Map<String, Object>) maybeDate.get(FIELDS);
     Map<String, Object> value = (Map<String, Object>) maybeUiidFields.get("value");
     assertComplexClass(value, Date.class.getTypeName());
     Map<String, Object> empty = (Map<String, Object>) objLocalFields.get("empty");

@@ -1,5 +1,6 @@
 package datadog.trace.bootstrap.debugger.util;
 
+import datadog.trace.bootstrap.debugger.CapturedContext;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
@@ -58,7 +59,8 @@ public class WellKnownClasses {
               "java.time.LocalDateTime",
               "java.util.UUID"));
 
-  private static Map<String, Function<Object, SpecialField>> specialFields = new HashMap<>();
+  private static Map<String, Function<Object, CapturedContext.CapturedValue>> specialFields =
+      new HashMap<>();
 
   static {
     specialFields.put("java.util.Optional", WellKnownClasses::optionalSpecialField);
@@ -119,35 +121,12 @@ public class WellKnownClasses {
    * @return a function to access special field of a type, or null if type is not supported. This is
    *     used to avoid using reflection to access fields on well known types
    */
-  public static Function<Object, SpecialField> getSpecialFieldAccess(String type) {
+  public static Function<Object, CapturedContext.CapturedValue> getSpecialFieldAccess(String type) {
     return specialFields.get(type);
   }
 
-  private static SpecialField optionalSpecialField(Object o) {
-    return new SpecialField("value", Object.class.getTypeName(), ((Optional<?>) o).orElse(null));
-  }
-
-  public static class SpecialField {
-    private final String name;
-    private final String type;
-    private final Object value;
-
-    public SpecialField(String name, String type, Object value) {
-      this.name = name;
-      this.type = type;
-      this.value = value;
-    }
-
-    public String getName() {
-      return name;
-    }
-
-    public String getType() {
-      return type;
-    }
-
-    public Object getValue() {
-      return value;
-    }
+  private static CapturedContext.CapturedValue optionalSpecialField(Object o) {
+    return CapturedContext.CapturedValue.of(
+        "value", Object.class.getTypeName(), ((Optional<?>) o).orElse(null));
   }
 }
