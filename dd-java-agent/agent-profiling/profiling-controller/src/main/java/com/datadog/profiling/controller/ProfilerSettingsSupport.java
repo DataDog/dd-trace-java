@@ -4,6 +4,9 @@ import datadog.trace.api.Config;
 import datadog.trace.api.Platform;
 import datadog.trace.api.config.ProfilingConfig;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -24,6 +27,7 @@ public abstract class ProfilerSettingsSupport {
   protected static final String PERF_EVENTS_PARANOID_KEY = "perf_events_paranoid";
   protected static final String NATIVE_STACKS_KEY = "Native Stacks";
   protected static final String STACK_DEPTH_KEY = "Stack Depth";
+  protected static final String SELINUX_STATUS_KEY = "SELinux Status";
 
   protected final int uploadPeriod;
   protected final int uploadTimeout;
@@ -40,6 +44,7 @@ public abstract class ProfilerSettingsSupport {
   protected final String auxiliaryProfiler;
   protected final String perfEventsParanoid;
   protected final boolean hasNativeStacks;
+  protected final String seLinuxStatus;
 
   protected final int stackDepth;
   protected volatile boolean hasJfrStackDepthApplied = false;
@@ -103,6 +108,26 @@ public abstract class ProfilerSettingsSupport {
             ProfilingConfig.PROFILING_STACKDEPTH,
             ProfilingConfig.PROFILING_STACKDEPTH_DEFAULT,
             ProfilingConfig.PROFILING_DATADOG_PROFILER_STACKDEPTH);
+
+    seLinuxStatus = getSELinuxStatus();
+  }
+
+  private String getSELinuxStatus() {
+    String value = "Not present";
+    if (Platform.isLinux()) {
+      try {
+        Process process = Runtime.getRuntime().exec("getenforce");
+        BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
+        String line = reader.readLine();
+
+        if (line != null) {
+          value = line.trim();
+        }
+      } catch (IOException ignored) {
+        // nothing to do here, can not execute `getenforce`, let's assume SELinux is not present
+      }
+    }
+    return value;
   }
 
   private static String getDefaultAuxiliaryProfiler() {
