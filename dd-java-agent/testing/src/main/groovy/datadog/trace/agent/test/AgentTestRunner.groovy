@@ -181,16 +181,6 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
   @Shared
   TraceConfig MOCK_DSM_TRACE_CONFIG = new TraceConfig() {
     @Override
-    boolean isDebugEnabled() {
-      return true
-    }
-
-    @Override
-    boolean isTriageEnabled() {
-      return true
-    }
-
-    @Override
     boolean isRuntimeMetricsEnabled() {
       return true
     }
