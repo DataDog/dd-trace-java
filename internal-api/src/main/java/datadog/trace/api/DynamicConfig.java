@@ -3,7 +3,6 @@ package datadog.trace.api;
 import static datadog.trace.api.config.GeneralConfig.DATA_STREAMS_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.RUNTIME_METRICS_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.TRACE_DEBUG;
-import static datadog.trace.api.config.GeneralConfig.TRACE_TRIAGE;
 import static datadog.trace.api.config.TraceInstrumentationConfig.LOGS_INJECTION_ENABLED;
 import static datadog.trace.api.config.TracerConfig.BAGGAGE_MAPPING;
 import static datadog.trace.api.config.TracerConfig.REQUEST_HEADER_TAGS;
@@ -23,6 +22,8 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.function.BiFunction;
 import java.util.function.Function;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Config that can be dynamically updated via remote-config
@@ -35,6 +36,7 @@ import java.util.function.Function;
  * @see Config for other configurations
  */
 public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
+  static final Logger rootLogger = LoggerFactory.getLogger(Logger.ROOT_LOGGER_NAME);
 
   static final Function<Map.Entry<String, String>, String> KEY = DynamicConfig::key;
   static final Function<Map.Entry<String, String>, String> VALUE = DynamicConfig::value;
@@ -91,8 +93,6 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
 
   public final class Builder {
 
-    boolean debugEnabled;
-    boolean triageEnabled;
     boolean runtimeMetricsEnabled;
     boolean logsInjectionEnabled;
     boolean dataStreamsEnabled;
@@ -101,6 +101,7 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
     Map<String, String> requestHeaderTags;
     Map<String, String> responseHeaderTags;
     Map<String, String> baggageMapping;
+
     List<? extends SpanSamplingRule> spanSamplingRules;
     List<? extends TraceSamplingRule> traceSamplingRules;
 
@@ -110,8 +111,6 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
 
     Builder(Snapshot snapshot) {
 
-      this.debugEnabled = snapshot.debugEnabled;
-      this.triageEnabled = snapshot.triageEnabled;
       this.runtimeMetricsEnabled = snapshot.runtimeMetricsEnabled;
       this.logsInjectionEnabled = snapshot.logsInjectionEnabled;
       this.dataStreamsEnabled = snapshot.dataStreamsEnabled;
@@ -122,16 +121,6 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
       this.baggageMapping = snapshot.baggageMapping;
 
       this.traceSampleRate = snapshot.traceSampleRate;
-    }
-
-    public Builder setDebugEnabled(boolean debugEnabled) {
-      this.debugEnabled = debugEnabled;
-      return this;
-    }
-
-    public Builder setTriageEnabled(boolean triageEnabled) {
-      this.triageEnabled = triageEnabled;
-      return this;
     }
 
     public Builder setRuntimeMetricsEnabled(boolean runtimeMetricsEnabled) {
@@ -262,8 +251,7 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
   static void reportConfigChange(Snapshot newSnapshot) {
     Map<String, Object> update = new HashMap<>();
 
-    update.put(TRACE_DEBUG, newSnapshot.debugEnabled);
-    update.put(TRACE_TRIAGE, newSnapshot.triageEnabled);
+    update.put(TRACE_DEBUG, rootLogger.isDebugEnabled());
     update.put(RUNTIME_METRICS_ENABLED, newSnapshot.runtimeMetricsEnabled);
     update.put(LOGS_INJECTION_ENABLED, newSnapshot.logsInjectionEnabled);
     update.put(DATA_STREAMS_ENABLED, newSnapshot.dataStreamsEnabled);
@@ -287,9 +275,6 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
 
   /** Immutable snapshot of the configuration. */
   public static class Snapshot implements TraceConfig {
-
-    final boolean debugEnabled;
-    final boolean triageEnabled;
     final boolean runtimeMetricsEnabled;
     final boolean logsInjectionEnabled;
     final boolean dataStreamsEnabled;
@@ -298,6 +283,7 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
     final Map<String, String> requestHeaderTags;
     final Map<String, String> responseHeaderTags;
     final Map<String, String> baggageMapping;
+
     final List<? extends SpanSamplingRule> spanSamplingRules;
     final List<? extends TraceSamplingRule> traceSamplingRules;
 
@@ -305,8 +291,6 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
 
     protected Snapshot(DynamicConfig<?>.Builder builder, Snapshot oldSnapshot) {
 
-      this.debugEnabled = builder.debugEnabled;
-      this.triageEnabled = builder.triageEnabled;
       this.runtimeMetricsEnabled = builder.runtimeMetricsEnabled;
       this.logsInjectionEnabled = builder.logsInjectionEnabled;
       this.dataStreamsEnabled = builder.dataStreamsEnabled;
@@ -324,16 +308,6 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
 
     private static <K, V> Map<K, V> nullToEmpty(Map<K, V> mapping) {
       return null != mapping ? mapping : Collections.emptyMap();
-    }
-
-    @Override
-    public boolean isDebugEnabled() {
-      return debugEnabled;
-    }
-
-    @Override
-    public boolean isTriageEnabled() {
-      return triageEnabled;
     }
 
     @Override
@@ -390,9 +364,7 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
     public String toString() {
       return "DynamicConfig{"
           + "debugEnabled="
-          + debugEnabled
-          + ", triageEnabled="
-          + triageEnabled
+          + rootLogger.isDebugEnabled()
           + ", runtimeMetricsEnabled="
           + runtimeMetricsEnabled
           + ", logsInjectionEnabled="

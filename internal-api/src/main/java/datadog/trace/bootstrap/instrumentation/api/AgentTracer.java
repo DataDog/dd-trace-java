@@ -1161,16 +1161,6 @@ public class AgentTracer {
     public static final NoopTraceConfig INSTANCE = new NoopTraceConfig();
 
     @Override
-    public boolean isDebugEnabled() {
-      return false;
-    }
-
-    @Override
-    public boolean isTriageEnabled() {
-      return false;
-    }
-
-    @Override
     public boolean isRuntimeMetricsEnabled() {
       return false;
     }
