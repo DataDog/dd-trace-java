@@ -117,11 +117,13 @@ public abstract class ProfilerSettingsSupport {
     if (Platform.isLinux()) {
       try {
         Process process = Runtime.getRuntime().exec("getenforce");
-        BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
-        String line = reader.readLine();
+        try (BufferedReader reader =
+            new BufferedReader(new InputStreamReader(process.getInputStream()))) {
+          String line = reader.readLine();
 
-        if (line != null) {
-          value = line.trim();
+          if (line != null) {
+            value = line.trim();
+          }
         }
       } catch (IOException ignored) {
         // nothing to do here, can not execute `getenforce`, let's assume SELinux is not present
