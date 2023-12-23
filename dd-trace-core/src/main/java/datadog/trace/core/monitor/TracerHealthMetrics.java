@@ -84,8 +84,6 @@ public class TracerHealthMetrics extends HealthMetrics implements AutoCloseable 
       CountersFactory.createFixedSizeStripedCounter(8);
   private final FixedSizeStripedLongCounter unsetPriorityFailedPublishSpanCount =
       CountersFactory.createFixedSizeStripedCounter(8);
-  private final FixedSizeStripedLongCounter sampledSpans =
-      CountersFactory.createFixedSizeStripedCounter(8);
   private final FixedSizeStripedLongCounter manualTraces =
       CountersFactory.createFixedSizeStripedCounter(8);
   private final FixedSizeStripedLongCounter capturedContinuations =
