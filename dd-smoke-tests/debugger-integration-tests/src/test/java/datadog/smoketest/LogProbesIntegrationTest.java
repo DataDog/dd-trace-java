@@ -43,7 +43,7 @@ public class LogProbesIntegrationTest extends SimpleAppDebuggerIntegrationTest {
   @DisplayName("testInaccessibleObject")
   void testInaccessibleObject() throws Exception {
     final String METHOD_NAME = "managementMethod";
-    final String EXPECTED_UPLOADS = "3";
+    final String EXPECTED_UPLOADS = "4"; // 3 statuses + 1 snapshot
     LogProbe probe =
         LogProbe.builder().probeId(PROBE_ID).where(MAIN_CLASS_NAME, METHOD_NAME).build();
     setCurrentConfiguration(createConfig(probe));
@@ -57,7 +57,7 @@ public class LogProbesIntegrationTest extends SimpleAppDebuggerIntegrationTest {
   @DisplayName("testFullMethod")
   void testFullMethod() throws Exception {
     final String METHOD_NAME = "fullMethod";
-    final String EXPECTED_UPLOADS = "3";
+    final String EXPECTED_UPLOADS = "4"; // 3 statuses + 1 snapshot
     LogProbe probe =
         LogProbe.builder()
             .probeId(PROBE_ID)
@@ -93,7 +93,7 @@ public class LogProbesIntegrationTest extends SimpleAppDebuggerIntegrationTest {
   @DisplayName("testFullMethodWithCondition")
   void testFullMethodWithCondition() throws Exception {
     final String METHOD_NAME = "fullMethod";
-    final String EXPECTED_UPLOADS = "3";
+    final String EXPECTED_UPLOADS = "4"; // 3 statuses + 1 snapshot
     LogProbe probe =
         LogProbe.builder()
             .probeId(PROBE_ID)
@@ -120,7 +120,7 @@ public class LogProbesIntegrationTest extends SimpleAppDebuggerIntegrationTest {
   @DisplayName("testFullMethodWithConditionAtExit")
   void testFullMethodWithConditionAtExit() throws Exception {
     final String METHOD_NAME = "fullMethod";
-    final String EXPECTED_UPLOADS = "3";
+    final String EXPECTED_UPLOADS = "4"; // 3 statuses + 1 snapshot
     LogProbe probe =
         LogProbe.builder()
             .probeId(PROBE_ID)
@@ -149,7 +149,7 @@ public class LogProbesIntegrationTest extends SimpleAppDebuggerIntegrationTest {
   @DisplayName("testFullMethodWithConditionFailed")
   void testFullMethodWithConditionFailed() throws Exception {
     final String METHOD_NAME = "fullMethod";
-    final String EXPECTED_UPLOADS = "3";
+    final String EXPECTED_UPLOADS = "4"; // 3 statuses + 1 snapshot
     LogProbe probe =
         LogProbe.builder()
             .probeId(PROBE_ID)
@@ -178,7 +178,7 @@ public class LogProbesIntegrationTest extends SimpleAppDebuggerIntegrationTest {
   void testFullMethodWithLogTemplate() throws Exception {
     final String METHOD_NAME = "fullMethod";
     final String LOG_TEMPLATE = "log line {argInt} {argStr} {argDouble} {argMap} {argVar}";
-    final String EXPECTED_UPLOADS = "3";
+    final String EXPECTED_UPLOADS = "4"; // 3 statuses + 1 snapshot
     LogProbe probe =
         LogProbe.builder()
             .probeId(PROBE_ID)
@@ -219,8 +219,8 @@ public class LogProbesIntegrationTest extends SimpleAppDebuggerIntegrationTest {
               .build());
     }
     setCurrentConfiguration(createConfig(probes));
-    final int NB_SNAPSHOTS = 10;
-    int expectedSnapshotUploads = NB_SNAPSHOTS * 3;
+    final int NB_PROBES = 10;
+    int expectedSnapshotUploads = NB_PROBES * 4; // (3 statuses + 1 snapshot) * 10 probes
     targetProcess =
         createProcessBuilder(logFilePath, METHOD_NAME, String.valueOf(expectedSnapshotUploads))
             .start();
@@ -230,7 +230,7 @@ public class LogProbesIntegrationTest extends SimpleAppDebuggerIntegrationTest {
     registerSnapshotListener(
         snapshot -> {
           probeIds.add(snapshot.getProbe().getId());
-          allSnapshotReceived.set(probeIds.size() == NB_SNAPSHOTS);
+          allSnapshotReceived.set(probeIds.size() == NB_PROBES);
         });
     Map<String, ProbeStatus.Status> statuses = new HashMap<>();
     registerProbeStatusListener(
@@ -239,13 +239,13 @@ public class LogProbesIntegrationTest extends SimpleAppDebuggerIntegrationTest {
               probeStatus.getDiagnostics().getProbeId().getId(),
               probeStatus.getDiagnostics().getStatus());
           allStatusEmitting.set(
-              statuses.size() == NB_SNAPSHOTS
+              statuses.size() == NB_PROBES
                   && statuses.values().stream()
                       .allMatch(status -> status == ProbeStatus.Status.EMITTING));
         });
     processRequests(() -> allSnapshotReceived.get() && allStatusEmitting.get());
-    assertEquals(NB_SNAPSHOTS, probeIds.size());
-    for (int i = 0; i < NB_SNAPSHOTS; i++) {
+    assertEquals(NB_PROBES, probeIds.size());
+    for (int i = 0; i < NB_PROBES; i++) {
       assertTrue(probeIds.contains(String.valueOf(i)));
     }
     assertFalse(logHasErrors(logFilePath, it -> false));
@@ -277,7 +277,7 @@ public class LogProbesIntegrationTest extends SimpleAppDebuggerIntegrationTest {
   private void doSamplingSnapshot(ProbeCondition probeCondition, MethodLocation evaluateAt)
       throws Exception {
     final int LOOP_COUNT = 1000;
-    final String EXPECTED_UPLOADS = "4";
+    final String EXPECTED_UPLOADS = "4"; // 3 statuses + 1 snapshot
     LogProbe probe =
         LogProbe.builder()
             .probeId(PROBE_ID)
@@ -302,7 +302,7 @@ public class LogProbesIntegrationTest extends SimpleAppDebuggerIntegrationTest {
     batchSize = 100;
     final int LOOP_COUNT = 1000;
     final String LOG_TEMPLATE = "log line {argInt} {argStr} {argDouble} {argMap} {argVar}";
-    final String EXPECTED_UPLOADS = String.valueOf(LOOP_COUNT / batchSize + 2);
+    final String EXPECTED_UPLOADS = String.valueOf(LOOP_COUNT / batchSize + 3); // +3 statuses
     LogProbe probe =
         LogProbe.builder()
             .probeId(PROBE_ID)
@@ -345,7 +345,7 @@ public class LogProbesIntegrationTest extends SimpleAppDebuggerIntegrationTest {
   @Test
   @DisplayName("testUncaughtException")
   void testUncaughtException() throws Exception {
-    final String EXPECTED_UPLOADS = "3";
+    final String EXPECTED_UPLOADS = "4"; // 3 statuses + 1 snapshot
     final String METHOD_NAME = "exceptionMethod";
     LogProbe probe =
         LogProbe.builder()
@@ -377,7 +377,7 @@ public class LogProbesIntegrationTest extends SimpleAppDebuggerIntegrationTest {
   @Test
   @DisplayName("testCaughtException")
   void testCaughtException() throws Exception {
-    final String EXPECTED_UPLOADS = "3";
+    final String EXPECTED_UPLOADS = "4"; // 3 statuses + 1 snapshot
     final String METHOD_NAME = "exceptionMethod";
     LogProbe probe =
         LogProbe.builder()
