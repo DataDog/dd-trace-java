@@ -27,7 +27,7 @@ public class TelemetryRequest {
   private final boolean debug;
   private final TelemetryRequestBody requestBody;
 
-  public TelemetryRequest(
+  TelemetryRequest(
       EventSource eventSource,
       EventSink eventSink,
       long messageBytesSoftLimit,
@@ -93,6 +93,18 @@ public class TelemetryRequest {
       requestBody.writeProducts(appsecEnabled, profilerEnabled);
     } catch (IOException e) {
       throw new TelemetryRequestBody.SerializationException("products", e);
+    }
+  }
+
+  public void writeInstallSignature() {
+    String installId = System.getenv("DD_INSTRUMENTATION_INSTALL_ID");
+    String installType = System.getenv("DD_INSTRUMENTATION_INSTALL_TYPE");
+    String installTime = System.getenv("DD_INSTRUMENTATION_INSTALL_TIME");
+
+    try {
+      requestBody.writeInstallSignature(installId, installType, installTime);
+    } catch (IOException e) {
+      throw new TelemetryRequestBody.SerializationException("install-signature", e);
     }
   }
 

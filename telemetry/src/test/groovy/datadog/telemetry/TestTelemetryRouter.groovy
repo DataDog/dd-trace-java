@@ -339,5 +339,23 @@ class TestTelemetryRouter extends TelemetryRouter {
     void assertNoMoreMessages() {
       batch.assertNoMoreMessages()
     }
+
+    void installSignature(String installId, String installType, String installTime) {
+      if (installId == null && installType == null && installTime == null) {
+        assert this.payload['install_signature'] == null
+        return
+      }
+      LinkedHashMap<String, String> expected = [:]
+      if (installId != null) {
+        expected.put("install_id", installId)
+      }
+      if (installType != null) {
+        expected.put("install_type", installType)
+      }
+      if (installTime != null) {
+        expected.put("install_time", installTime)
+      }
+      assert this.payload['install_signature'] == expected
+    }
   }
 }
