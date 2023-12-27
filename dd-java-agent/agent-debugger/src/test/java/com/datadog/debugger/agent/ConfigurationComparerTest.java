@@ -179,7 +179,8 @@ class ConfigurationComparerTest {
 
     Map<String, InstrumentationResult> instrumentationResults = new HashMap<>();
     instrumentationResults.put(
-        probe.getId(), InstrumentationResult.Factory.blocked(probe.getWhere().getTypeName()));
+        probe.getProbeId().getEncodedId(),
+        InstrumentationResult.Factory.blocked(probe.getWhere().getTypeName()));
     Configuration noFilterConfig = createConfig(Collections.singletonList(probe));
     Configuration config =
         Configuration.builder()

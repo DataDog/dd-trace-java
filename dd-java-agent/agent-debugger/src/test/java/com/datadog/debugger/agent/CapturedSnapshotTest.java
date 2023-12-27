@@ -171,7 +171,7 @@ public class CapturedSnapshotTest {
     DebuggerTransformerTest.TestSnapshotListener listener =
         installSingleProbe(CLASS_NAME, "main", "int (java.lang.String)", "8");
     DebuggerAgentHelper.injectSink(listener);
-    DebuggerContext.init((id, clazz) -> null, null);
+    DebuggerContext.init((encodedProbeId, clazz) -> null, null);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.on(testClass).call("main", "1").get();
     assertEquals(3, result);
@@ -187,7 +187,7 @@ public class CapturedSnapshotTest {
         installProbes(CLASS_NAME, lineProbe, methodProbe);
     DebuggerAgentHelper.injectSink(listener);
     DebuggerContext.init(
-        (id, clazz) -> {
+        (encodedProbeId, clazz) -> {
           throw new IllegalArgumentException("oops");
         },
         null);
@@ -2051,7 +2051,8 @@ public class CapturedSnapshotTest {
         DebuggerAgent.setupInstrumentTheWorldTransformer(
             config,
             instr,
-            new DebuggerSink(config, config.getFinalDebuggerSnapshotUrl(), false),
+            new DebuggerSink(
+                config, new ProbeStatusSink(config, config.getFinalDebuggerSnapshotUrl(), false)),
             null);
     DebuggerContext.initClassFilter(new DenyListHelper(null));
     return listener;
@@ -2109,7 +2110,9 @@ public class CapturedSnapshotTest {
     instr.addTransformer(currentTransformer);
     DebuggerAgentHelper.injectSink(listener);
     DebuggerContext.init(
-        (id, callingClass) -> resolver(id, callingClass, expectedClassName, logProbes), null);
+        (encodedId, callingClass) ->
+            resolver(encodedId, callingClass, expectedClassName, logProbes),
+        null);
     DebuggerContext.initClassFilter(new DenyListHelper(null));
     DebuggerContext.initValueSerializer(new JsonSnapshotSerializer());
     for (LogProbe probe : logProbes) {
@@ -2125,10 +2128,13 @@ public class CapturedSnapshotTest {
   }
 
   private ProbeImplementation resolver(
-      String id, Class<?> callingClass, String expectedClassName, Collection<LogProbe> logProbes) {
+      String encodedId,
+      Class<?> callingClass,
+      String expectedClassName,
+      Collection<LogProbe> logProbes) {
     assertEquals(expectedClassName, callingClass.getName());
     for (LogProbe probe : logProbes) {
-      if (probe.getId().equals(id)) {
+      if (probe.getProbeId().getEncodedId().equals(encodedId)) {
         return probe;
       }
     }

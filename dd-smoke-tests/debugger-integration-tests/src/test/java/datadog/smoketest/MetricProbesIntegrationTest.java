@@ -1,7 +1,7 @@
 package datadog.smoketest;
 
-import static org.junit.Assert.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 import com.datadog.debugger.agent.ProbeStatus;
 import com.datadog.debugger.el.DSL;
@@ -92,7 +92,7 @@ public class MetricProbesIntegrationTest extends SimpleAppDebuggerIntegrationTes
 
   private void doMethodMetric(
       String metricName, MetricProbe.MetricKind kind, ValueScript script, String expectedMsgFormat)
-      throws IOException {
+      throws IOException, InterruptedException {
     final String METHOD_NAME = "fullMethod";
     final String EXPECTED_UPLOADS =
         "-1"; // wait for TIMEOUT_S for letting the metric being sent (async)
@@ -108,6 +108,8 @@ public class MetricProbesIntegrationTest extends SimpleAppDebuggerIntegrationTes
     targetProcess = createProcessBuilder(logFilePath, METHOD_NAME, EXPECTED_UPLOADS).start();
     String msgExpected = String.format(expectedMsgFormat, metricName, PROBE_ID.getId());
     assertNotNull(retrieveStatsdMessage(msgExpected));
+    AtomicBoolean statusResult = registerCheckReceivedInstalledEmitting();
+    processRequests(statusResult::get);
   }
 
   private void doMethodInvalidMetric(
@@ -137,10 +139,8 @@ public class MetricProbesIntegrationTest extends SimpleAppDebuggerIntegrationTes
             assertEquals(expectedMsg, probeStatus.getDiagnostics().getException().getMessage());
             error.set(true);
           }
-          return received.get() && error.get();
         });
-    processRequests();
-    clearProbeStatusListener();
+    processRequests(() -> received.get() && error.get());
   }
 
   @Test
@@ -195,7 +195,7 @@ public class MetricProbesIntegrationTest extends SimpleAppDebuggerIntegrationTes
 
   private void doLineMetric(
       String metricName, MetricProbe.MetricKind kind, ValueScript script, String expectedMsgFormat)
-      throws IOException {
+      throws IOException, InterruptedException {
     final String METHOD_NAME = "fullMethod";
     final String EXPECTED_UPLOADS =
         "-1"; // wait for TIMEOUT_S for letting the metric being sent (async)
@@ -212,5 +212,7 @@ public class MetricProbesIntegrationTest extends SimpleAppDebuggerIntegrationTes
     targetProcess = createProcessBuilder(logFilePath, METHOD_NAME, EXPECTED_UPLOADS).start();
     String msgExpected = String.format(expectedMsgFormat, metricName, PROBE_ID.getId());
     assertNotNull(retrieveStatsdMessage(msgExpected));
+    AtomicBoolean statusResult = registerCheckReceivedInstalledEmitting();
+    processRequests(statusResult::get);
   }
 }
