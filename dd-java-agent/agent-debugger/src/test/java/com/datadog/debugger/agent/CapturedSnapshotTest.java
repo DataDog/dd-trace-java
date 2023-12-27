@@ -63,6 +63,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import net.bytebuddy.agent.ByteBuddyAgent;
 import org.jetbrains.kotlin.cli.common.ExitCode;
 import org.jetbrains.kotlin.cli.common.arguments.K2JVMCompilerArguments;
@@ -930,7 +931,7 @@ public class CapturedSnapshotTest {
   public void lineProbeCondition() throws IOException, URISyntaxException {
     final String CLASS_NAME = "CapturedSnapshot08";
     LogProbe logProbe =
-        createProbeBuilder(PROBE_ID, CLASS_NAME, "doit", "int (java.lang.String)", "34")
+        createProbeBuilder(PROBE_ID, CLASS_NAME, "doit", "int (java.lang.String)", "7")
             .when(
                 new ProbeCondition(
                     DSL.when(
@@ -957,7 +958,7 @@ public class CapturedSnapshotTest {
     }
     assertEquals(1, listener.snapshots.size());
     assertCaptureArgs(
-        listener.snapshots.get(0).getCaptures().getLines().get(34), "arg", "java.lang.String", "5");
+        listener.snapshots.get(0).getCaptures().getLines().get(7), "arg", "java.lang.String", "5");
   }
 
   @Test
@@ -988,7 +989,7 @@ public class CapturedSnapshotTest {
   public void simpleFalseConditionTest() throws IOException, URISyntaxException {
     final String CLASS_NAME = "CapturedSnapshot08";
     LogProbe logProbe =
-        createProbeBuilder(PROBE_ID, CLASS_NAME, "doit", "int (java.lang.String)", "35")
+        createProbeBuilder(PROBE_ID, CLASS_NAME, "doit", "int (java.lang.String)", "8")
             .when(
                 new ProbeCondition(DSL.when(DSL.eq(DSL.ref("arg"), DSL.value("5"))), "arg == '5'"))
             .evaluateAt(MethodLocation.EXIT)
@@ -1024,6 +1025,32 @@ public class CapturedSnapshotTest {
     Assertions.assertEquals("nullTyped.fld.fld", evaluationErrors.get(0).getExpr());
     Assertions.assertEquals(
         "Cannot dereference to field: fld", evaluationErrors.get(0).getMessage());
+  }
+
+  @Test
+  public void wellKnownClassesCondition() throws IOException, URISyntaxException {
+    final String CLASS_NAME = "CapturedSnapshot08";
+    LogProbe logProbes =
+        createProbeBuilder(PROBE_ID, CLASS_NAME, "doit", "int (java.lang.String)")
+            .when(
+                new ProbeCondition(
+                    DSL.when(
+                        DSL.eq(
+                            DSL.getMember(DSL.ref("maybeStr"), "value"), DSL.value("maybe foo"))),
+                    "maybeStr.value == 'maybe foo'"))
+            .build();
+    DebuggerTransformerTest.TestSnapshotListener listener = installProbes(CLASS_NAME, logProbes);
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    int result = Reflect.on(testClass).call("main", "1").get();
+    assertEquals(3, result);
+    Snapshot snapshot = assertOneSnapshot(listener);
+    CapturedContext.CapturedValue maybeStrField =
+        snapshot.getCaptures().getReturn().getFields().get("maybeStr");
+    assertEquals(Optional.class.getTypeName(), maybeStrField.getType());
+    CapturedContext.CapturedValue valued = VALUE_ADAPTER.fromJson(maybeStrField.getStrValue());
+    CapturedContext.CapturedValue value =
+        ((Map<String, CapturedContext.CapturedValue>) valued.getValue()).get("value");
+    assertEquals("maybe foo", value.getValue());
   }
 
   @Test
@@ -1686,12 +1713,12 @@ public class CapturedSnapshotTest {
     final String CLASS_NAME = "CapturedSnapshot08";
     final String LOG_TEMPLATE = "msg1={typed.fld.fld.msg}";
     LogProbe probe1 =
-        createProbeBuilder(PROBE_ID1, CLASS_NAME, null, null, "39")
+        createProbeBuilder(PROBE_ID1, CLASS_NAME, null, null, "14")
             .template(LOG_TEMPLATE, parseTemplate(LOG_TEMPLATE))
             .evaluateAt(MethodLocation.EXIT)
             .build();
     LogProbe probe2 =
-        createProbeBuilder(PROBE_ID2, CLASS_NAME, null, null, "39")
+        createProbeBuilder(PROBE_ID2, CLASS_NAME, null, null, "14")
             .template(LOG_TEMPLATE, parseTemplate(LOG_TEMPLATE))
             .evaluateAt(MethodLocation.EXIT)
             .build();
