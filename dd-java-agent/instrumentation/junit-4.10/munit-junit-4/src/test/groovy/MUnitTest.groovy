@@ -14,10 +14,8 @@ class MUnitTest extends CiVisibilityInstrumentationTest {
   def runner = new JUnitCore()
 
   def "test #testcaseName"() {
-    setup:
     runTests(tests)
 
-    expect:
     assertSpansData(testcaseName, expectedTracesCount)
 
     where:

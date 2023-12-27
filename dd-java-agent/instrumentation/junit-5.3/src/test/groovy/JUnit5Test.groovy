@@ -22,6 +22,7 @@ import org.example.TestSkippedClass
 import org.example.TestSkippedNested
 import org.example.TestSucceed
 import org.example.TestSucceedAndSkipped
+import org.example.TestSucceedExpectedException
 import org.example.TestSucceedNested
 import org.example.TestSucceedUnskippable
 import org.example.TestSucceedUnskippableSuite
@@ -100,17 +101,18 @@ class JUnit5Test extends CiVisibilityInstrumentationTest {
     assertSpansData(testcaseName, expectedTracesCount)
 
     where:
-    testcaseName                     | tests                     | expectedTracesCount | retriedTests
-    "test-failed"                    | [TestFailed]              | 2                   | []
-    "test-retry-failed"              | [TestFailed]              | 6                   | [new TestIdentifier("org.example.TestFailed", "test_failed", null, null)]
-    "test-failed-then-succeed"       | [TestFailedThenSucceed]   | 5                   | [new TestIdentifier("org.example.TestFailedThenSucceed", "test_failed_then_succeed", null, null)]
-    "test-retry-template"            | [TestFailedTemplate]      | 7                   | [new TestIdentifier("org.example.TestFailedTemplate", "test_template", null, null)]
-    "test-retry-factory"             | [TestFailedFactory]       | 7                   | [new TestIdentifier("org.example.TestFailedFactory", "test_factory", null, null)]
-    "test-assumption-is-not-retried" | [TestAssumption]          | 2                   | [new TestIdentifier("org.example.TestAssumption", "test_fail_assumption", null, null)]
-    "test-skipped-is-not-retried"    | [TestSkipped]             | 2                   | [new TestIdentifier("org.example.TestSkipped", "test_skipped", null, null)]
-    "test-retry-parameterized"       | [TestFailedParameterized] | 11                  | [
+    testcaseName                             | tests                          | expectedTracesCount | retriedTests
+    "test-failed"                            | [TestFailed]                   | 2                   | []
+    "test-retry-failed"                      | [TestFailed]                   | 6                   | [new TestIdentifier("org.example.TestFailed", "test_failed", null, null)]
+    "test-failed-then-succeed"               | [TestFailedThenSucceed]        | 5                   | [new TestIdentifier("org.example.TestFailedThenSucceed", "test_failed_then_succeed", null, null)]
+    "test-retry-template"                    | [TestFailedTemplate]           | 7                   | [new TestIdentifier("org.example.TestFailedTemplate", "test_template", null, null)]
+    "test-retry-factory"                     | [TestFailedFactory]            | 7                   | [new TestIdentifier("org.example.TestFailedFactory", "test_factory", null, null)]
+    "test-assumption-is-not-retried"         | [TestAssumption]               | 2                   | [new TestIdentifier("org.example.TestAssumption", "test_fail_assumption", null, null)]
+    "test-skipped-is-not-retried"            | [TestSkipped]                  | 2                   | [new TestIdentifier("org.example.TestSkipped", "test_skipped", null, null)]
+    "test-retry-parameterized"               | [TestFailedParameterized]      | 11                  | [
       new TestIdentifier("org.example.TestFailedParameterized", "test_failed_parameterized", /* backend cannot provide parameters for flaky parameterized tests yet */ null, null)
     ]
+    "test-expected-exception-is-not-retried" | [TestSucceedExpectedException] | 2 | [new TestIdentifier("org.example.TestSucceedExpectedException", "test_succeed", null, null)]
   }
 
   private static void runTests(List<Class<?>> tests) {

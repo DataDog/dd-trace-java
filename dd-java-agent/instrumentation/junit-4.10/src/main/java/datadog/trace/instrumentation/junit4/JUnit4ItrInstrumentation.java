@@ -97,7 +97,7 @@ public class JUnit4ItrInstrumentation extends Instrumenter.CiVisibility
         }
       }
 
-      TestIdentifier test = JUnit4Utils.toTestIdentifier(description);
+      TestIdentifier test = JUnit4Utils.toTestIdentifier(description, true);
       if (TestEventsHandlerHolder.TEST_EVENTS_HANDLER.skip(test)) {
         Description skippedDescription = JUnit4Utils.getSkippedDescription(description);
         notifier.fireTestIgnored(skippedDescription);
