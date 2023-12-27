@@ -52,11 +52,12 @@ public class DebuggerAgent {
     ddAgentFeaturesDiscovery.discoverIfOutdated();
     agentVersion = ddAgentFeaturesDiscovery.getVersion();
     String diagnosticEndpoint = getDiagnosticEndpoint(config, ddAgentFeaturesDiscovery);
-    DebuggerSink debuggerSink =
-        new DebuggerSink(
+    ProbeStatusSink probeStatusSink =
+        new ProbeStatusSink(
             config,
             diagnosticEndpoint, /*ddAgentFeaturesDiscovery.supportsDebuggerDiagnostics()*/
             false);
+    DebuggerSink debuggerSink = new DebuggerSink(config, probeStatusSink);
     debuggerSink.start();
     ConfigurationUpdater configurationUpdater =
         new ConfigurationUpdater(

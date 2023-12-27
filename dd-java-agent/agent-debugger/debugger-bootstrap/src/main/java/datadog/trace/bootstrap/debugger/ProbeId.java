@@ -37,9 +37,7 @@ public class ProbeId {
     return version;
   }
 
-  /**
-   * @return the encoded id as a string with format uuid:version
-   */
+  /** @return the encoded id as a string with format uuid:version */
   public String getEncodedId() {
     return encoded;
   }

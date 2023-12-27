@@ -77,7 +77,7 @@ public class StatsdMetricForwarder
     LOGGER.warn("Error when sending metrics: ", exception);
   }
 
-  private void sendEmittingStatus(String probeId) {
-    probeStatusSink.addEmitting(probeId);
+  private void sendEmittingStatus(String encodedProbeId) {
+    probeStatusSink.addEmitting(encodedProbeId);
   }
 }
