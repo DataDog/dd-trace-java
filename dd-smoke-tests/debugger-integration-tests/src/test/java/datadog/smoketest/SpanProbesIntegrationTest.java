@@ -26,7 +26,7 @@ public class SpanProbesIntegrationTest extends SimpleAppDebuggerIntegrationTest 
   @DisplayName("testMethodSpan")
   void testMethodSpan() throws Exception {
     final String METHOD_NAME = "fullMethod";
-    final String EXPECTED_UPLOADS = "3"; // 2 + 1 for letting the trace being sent (async)
+    final String EXPECTED_UPLOADS = "4"; // 3 statuses + 1 for letting the trace being sent (async)
     SpanProbe spanProbe =
         SpanProbe.builder().probeId(PROBE_ID).where(MAIN_CLASS_NAME, METHOD_NAME).build();
     setCurrentConfiguration(createSpanConfig(spanProbe));
@@ -47,7 +47,7 @@ public class SpanProbesIntegrationTest extends SimpleAppDebuggerIntegrationTest 
   @DisplayName("testLineRangeSpan")
   void testLineRangeSpan() throws Exception {
     final String METHOD_NAME = "fullMethod";
-    final String EXPECTED_UPLOADS = "3"; // 2 + 1 for letting the trace being sent (async)
+    final String EXPECTED_UPLOADS = "4"; // 3 statuses + 1 for letting the trace being sent (async)
     SpanProbe spanProbe =
         SpanProbe.builder()
             .probeId(PROBE_ID)
