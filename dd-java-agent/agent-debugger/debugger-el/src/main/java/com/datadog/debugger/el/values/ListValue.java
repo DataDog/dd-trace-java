@@ -1,6 +1,5 @@
 package com.datadog.debugger.el.values;
 
-import com.datadog.debugger.el.Expression;
 import com.datadog.debugger.el.Value;
 import com.datadog.debugger.el.Visitor;
 import com.datadog.debugger.el.expressions.ValueExpression;
@@ -84,23 +83,23 @@ public class ListValue implements CollectionValue<Object>, ValueExpression<ListV
     return -1;
   }
 
-  public Value<?> get(Object key, Expression<?> fromExpr) {
+  public Value<?> get(Object key) {
     if (key instanceof Integer) {
-      return get((int) key, fromExpr);
+      return get((int) key);
     }
     if (key instanceof Long) {
-      return get(((Long) key).intValue(), fromExpr);
+      return get(((Long) key).intValue());
     }
     return Value.undefinedValue();
   }
 
-  public Value<?> get(int index, Expression<?> fromExpr) {
+  public Value<?> get(int index) {
     int len = count();
     if (index < 0 || index >= len) {
       throw new IllegalArgumentException("index[" + index + "] out of bounds: [0-" + len + "]");
     }
     if (listHolder instanceof List) {
-      return Value.of(((List<?>) listHolder).get(index), fromExpr);
+      return Value.of(((List<?>) listHolder).get(index));
     } else if (listHolder instanceof Set) {
       throw new UnsupportedOperationException("Cannot access Set by index");
     } else if (listHolder instanceof Value) {
@@ -108,24 +107,24 @@ public class ListValue implements CollectionValue<Object>, ValueExpression<ListV
     } else if (arrayHolder != null) {
       if (arrayType.isPrimitive()) {
         if (arrayType == byte.class) {
-          return Value.of(Array.getByte(arrayHolder, index), fromExpr);
+          return Value.of(Array.getByte(arrayHolder, index));
         } else if (arrayType == char.class) {
-          return Value.of(Array.getChar(arrayHolder, index), fromExpr);
+          return Value.of(Array.getChar(arrayHolder, index));
         } else if (arrayType == short.class) {
-          return Value.of(Array.getShort(arrayHolder, index), fromExpr);
+          return Value.of(Array.getShort(arrayHolder, index));
         } else if (arrayType == int.class) {
-          return Value.of(Array.getInt(arrayHolder, index), fromExpr);
+          return Value.of(Array.getInt(arrayHolder, index));
         } else if (arrayType == long.class) {
-          return Value.of(Array.getLong(arrayHolder, index), fromExpr);
+          return Value.of(Array.getLong(arrayHolder, index));
         } else if (arrayType == float.class) {
-          return Value.of(Array.getFloat(arrayHolder, index), fromExpr);
+          return Value.of(Array.getFloat(arrayHolder, index));
         } else if (arrayType == double.class) {
-          return Value.of(Array.getDouble(arrayHolder, index), fromExpr);
+          return Value.of(Array.getDouble(arrayHolder, index));
         } else if (arrayType == boolean.class) {
-          return Value.of(Array.getBoolean(arrayHolder, index), fromExpr);
+          return Value.of(Array.getBoolean(arrayHolder, index));
         }
       } else {
-        return Value.of(Array.get(arrayHolder, index), fromExpr);
+        return Value.of(Array.get(arrayHolder, index));
       }
     }
     return Value.undefinedValue();

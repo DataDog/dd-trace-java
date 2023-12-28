@@ -19,7 +19,7 @@ class ListValueTest {
     for (int i = 0; i < stringList.size(); i++) {
       Object expected = stringList.get(i);
 
-      Value<?> v = listValue.get(i, null);
+      Value<?> v = listValue.get(i);
       assertNotNull(v);
       if (expected != null) {
         assertEquals(expected, v.getValue());
@@ -27,8 +27,8 @@ class ListValueTest {
         assertEquals(Value.nullValue(), v);
       }
     }
-    assertThrows(IllegalArgumentException.class, () -> listValue.get(-1, null));
-    assertThrows(IllegalArgumentException.class, () -> listValue.get(stringList.size(), null));
+    assertThrows(IllegalArgumentException.class, () -> listValue.get(-1));
+    assertThrows(IllegalArgumentException.class, () -> listValue.get(stringList.size()));
     assertEquals("List", print(listValue));
   }
 
@@ -37,7 +37,7 @@ class ListValueTest {
     ListValue listValue = new ListValue("a");
     assertTrue(listValue.isEmpty());
 
-    assertThrows(IllegalArgumentException.class, () -> listValue.get(-1, null));
+    assertThrows(IllegalArgumentException.class, () -> listValue.get(-1));
     assertEquals("null", print(listValue));
   }
 
@@ -50,7 +50,7 @@ class ListValueTest {
 
     for (int i = 0; i < array.length; i++) {
       Object expected = array[i];
-      Value<?> v = listValue.get(i, null);
+      Value<?> v = listValue.get(i);
       assertNotNull(v);
       if (expected != null) {
         assertEquals(
@@ -59,8 +59,8 @@ class ListValueTest {
         assertEquals(Value.nullValue(), v);
       }
     }
-    assertThrows(IllegalArgumentException.class, () -> listValue.get(-1, null));
-    assertThrows(IllegalArgumentException.class, () -> listValue.get(array.length, null));
+    assertThrows(IllegalArgumentException.class, () -> listValue.get(-1));
+    assertThrows(IllegalArgumentException.class, () -> listValue.get(array.length));
     assertEquals("java.lang.Object[]", print(listValue));
   }
 
@@ -72,17 +72,17 @@ class ListValueTest {
     assertFalse(listValue.isEmpty());
 
     for (int i = 0; i < intArray.length; i++) {
-      assertNotNull(listValue.get(i, null));
-      Value<?> v = listValue.get(i, null);
+      assertNotNull(listValue.get(i));
+      Value<?> v = listValue.get(i);
       assertNotNull(v);
       ListValue collection = (ListValue) v;
       for (int j = 0; j < collection.count(); j++) {
-        Value<?> v1 = collection.get(j, null);
+        Value<?> v1 = collection.get(j);
         assertEquals((long) intArray[i][j], v1.getValue()); // int is automatically widened to long
       }
     }
-    assertThrows(IllegalArgumentException.class, () -> listValue.get(-1, null));
-    assertThrows(IllegalArgumentException.class, () -> listValue.get(intArray.length, null));
+    assertThrows(IllegalArgumentException.class, () -> listValue.get(-1));
+    assertThrows(IllegalArgumentException.class, () -> listValue.get(intArray.length));
     assertEquals("int[][]", print(listValue));
   }
 }

@@ -9,7 +9,6 @@ import com.datadog.debugger.el.values.ObjectValue;
 import com.datadog.debugger.el.values.StringValue;
 import com.datadog.debugger.el.values.UndefinedValue;
 import datadog.trace.bootstrap.debugger.el.Values;
-import datadog.trace.bootstrap.debugger.util.Redaction;
 import datadog.trace.bootstrap.debugger.util.WellKnownClasses;
 import java.util.List;
 import java.util.Map;
@@ -46,10 +45,6 @@ public interface Value<T> {
   }
 
   static Value<?> of(Object value) {
-    return of(value, null);
-  }
-
-  static Value<?> of(Object value, Expression<?> fromExpr) {
     if (value == null || value == Values.NULL_OBJECT || value == nullValue()) {
       return nullValue();
     }
@@ -60,12 +55,12 @@ public interface Value<T> {
       return thisValue();
     }
     String typeName = value.getClass().getTypeName();
-    if (value == Redaction.REDACTED_VALUE || (Redaction.isRedactedType(typeName))) {
-      throwRedactedException(fromExpr);
-    }
     if (WellKnownClasses.isStringPrimitive(typeName)) {
       Function<Object, String> toString = WellKnownClasses.getSafeToString(typeName);
-      value = toString != null ? toString.apply(value) : value.toString();
+      if (toString == null) {
+        throw new UnsupportedOperationException("Cannot convert value from type: " + typeName);
+      }
+      value = toString.apply(value);
     }
     if (value instanceof Boolean) {
       return new BooleanValue((Boolean) value);
@@ -84,11 +79,5 @@ public interface Value<T> {
     } else {
       return new ObjectValue(value);
     }
-  }
-
-  static void throwRedactedException(Expression<?> expr) {
-    String strExpr = expr != null ? PrettyPrintVisitor.print(expr) : "null";
-    throw new RedactedException(
-        "Could not evaluate the expression because '" + strExpr + "' was redacted", strExpr);
   }
 }

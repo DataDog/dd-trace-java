@@ -23,7 +23,7 @@ public class SubStringExpression implements ValueExpression<Value<String>> {
     if (sourceValue.getValue() instanceof String) {
       String sourceStr = (String) sourceValue.getValue();
       try {
-        return (Value<String>) Value.of(sourceStr.substring(startIndex, endIndex), this);
+        return (Value<String>) Value.of(sourceStr.substring(startIndex, endIndex));
       } catch (StringIndexOutOfBoundsException ex) {
         throw new EvaluationException(ex.getMessage(), PrettyPrintVisitor.print(this), ex);
       }

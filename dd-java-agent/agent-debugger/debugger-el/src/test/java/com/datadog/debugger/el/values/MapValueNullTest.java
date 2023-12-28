@@ -32,7 +32,7 @@ class MapValueNullTest {
 
   @Test
   void get() {
-    assertEquals(Value.nullValue(), instance.get(0, null));
-    assertEquals(Value.nullValue(), instance.get(10, null));
+    assertEquals(Value.nullValue(), instance.get(0));
+    assertEquals(Value.nullValue(), instance.get(10));
   }
 }

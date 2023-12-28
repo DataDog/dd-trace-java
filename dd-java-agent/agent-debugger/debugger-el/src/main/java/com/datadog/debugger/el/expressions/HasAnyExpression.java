@@ -42,7 +42,7 @@ public final class HasAnyExpression extends MatchingExpression {
       }
       int len = collection.count();
       for (int i = 0; i < len; i++) {
-        Value<?> val = collection.get(i, this);
+        Value<?> val = collection.get(i);
         if (filterPredicateExpression.evaluate(
             valueRefResolver.withExtensions(
                 Collections.singletonMap(ValueReferences.ITERATOR_EXTENSION_NAME, val)))) {
@@ -55,8 +55,8 @@ public final class HasAnyExpression extends MatchingExpression {
       if (map.isEmpty()) {
         return Boolean.FALSE;
       }
-      for (Value<?> key : map.getKeys(this)) {
-        Value<?> val = key.isUndefined() ? Value.undefinedValue() : map.get(key, this);
+      for (Value<?> key : map.getKeys()) {
+        Value<?> val = key.isUndefined() ? Value.undefinedValue() : map.get(key);
 
         if (filterPredicateExpression.evaluate(
             valueRefResolver.withExtensions(
