@@ -35,7 +35,7 @@ public class DataStreamContextInjector {
       long defaultTimestamp,
       long payloadSizeBytes) {
     injectPathwayContext(
-        span, carrier, setter, sortedTags, defaultTimestamp, payloadSizeBytes, false);
+        span, carrier, setter, sortedTags, defaultTimestamp, payloadSizeBytes, true);
   }
 
   /** Same as injectPathwayContext, but the stats collected in the StatsPoint are not sent. */
