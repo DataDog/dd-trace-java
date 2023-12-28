@@ -8,6 +8,7 @@ import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
@@ -420,6 +421,29 @@ public class MetricProbesInstrumentationTest {
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.on(testClass).call("main", "f").get();
     assertEquals(42, result);
+    assertTrue(listener.doubleGauges.containsKey(METRIC_NAME));
+    assertTrue(listener.doubleGauges.get(METRIC_NAME).doubleValue() > 0);
+    assertArrayEquals(new String[] {METRIC_PROBEID_TAG}, listener.lastTags);
+  }
+
+  @Test
+  public void methodSyntheticDurationExceptionGaugeMetric() throws IOException, URISyntaxException {
+    final String CLASS_NAME = "CapturedSnapshot05";
+    String METRIC_NAME = "syn_gauge";
+    MetricProbe metricProbe =
+        createMetricBuilder(METRIC_ID, METRIC_NAME, GAUGE)
+            .where(CLASS_NAME, "main", "(String)")
+            .valueScript(new ValueScript(DSL.ref("@duration"), "@duration"))
+            .evaluateAt(MethodLocation.EXIT)
+            .build();
+    MetricForwarderListener listener = installMetricProbes(metricProbe);
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    try {
+      Reflect.on(testClass).call("main", "triggerUncaughtException").get();
+      fail("should not reach this code");
+    } catch (Exception ex) {
+      assertEquals("oops", ex.getCause().getCause().getMessage());
+    }
     assertTrue(listener.doubleGauges.containsKey(METRIC_NAME));
     assertTrue(listener.doubleGauges.get(METRIC_NAME).doubleValue() > 0);
     assertArrayEquals(new String[] {METRIC_PROBEID_TAG}, listener.lastTags);
