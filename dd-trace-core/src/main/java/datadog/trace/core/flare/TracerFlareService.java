@@ -15,7 +15,6 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.zip.ZipOutputStream;
 import okhttp3.HttpUrl;
 import okhttp3.MediaType;
@@ -36,16 +35,14 @@ final class TracerFlareService {
 
   private final AgentTaskScheduler scheduler = new AgentTaskScheduler(TRACER_FLARE);
 
-  private final CleanupTask cleanupTask = new CleanupTask();
-
   private final Config config;
   private final DynamicConfig<?> dynamicConfig;
   private final OkHttpClient okHttpClient;
   private final HttpUrl flareUrl;
 
-  private final AtomicReference<Scheduled<Runnable>> cleanup = new AtomicReference<>();
+  private boolean logLevelOverridden;
 
-  private volatile boolean logLevelOverridden;
+  private Scheduled<Runnable> scheduledCleanup;
 
   TracerFlareService(
       Config config, DynamicConfig<?> dynamicConfig, OkHttpClient okHttpClient, HttpUrl agentUrl) {
@@ -55,37 +52,45 @@ final class TracerFlareService {
     this.flareUrl = agentUrl.newBuilder().addPathSegments(FLARE_ENDPOINT).build();
   }
 
-  public void prepareForFlare(String logLevel) {
+  public synchronized void prepareForFlare(String logLevel) {
     // allow turning on debug even part way through preparation
     if (!log.isDebugEnabled() && "debug".equalsIgnoreCase(logLevel)) {
       GlobalLogLevelSwitcher.get().switchLevel(LogLevel.DEBUG);
       logLevelOverridden = true;
     }
-    // always schedule clean-up 20 minutes from last prepare request
-    Scheduled<Runnable> task =
-        cleanup.getAndSet(scheduler.schedule(cleanupTask, 20, TimeUnit.MINUTES));
-    if (null != task) {
-      task.cancel(); // already preparing, just cancel old schedule in favour of new one
+    Scheduled<Runnable> oldSchedule = scheduledCleanup;
+    if (null != oldSchedule) {
+      // already preparing, just cancel old schedule in favour of new one
+      oldSchedule.cancel();
     } else {
       log.debug("Preparing for tracer flare, logLevel={}", logLevel);
       TracerFlare.prepareForFlare();
     }
+    // always schedule fresh clean-up 20 minutes from last prepare request
+    scheduledCleanup = scheduler.schedule(new CleanupTask(), 20, TimeUnit.MINUTES);
   }
 
   public void cleanupAfterFlare() {
-    Scheduled<Runnable> task = cleanup.getAndSet(null);
-    if (null != task) {
-      task.cancel();
-      doCleanup();
-    }
+    doCleanup(null);
   }
 
-  void doCleanup() {
-    log.debug("Cleaning up after tracer flare");
-    TracerFlare.cleanupAfterFlare();
-    if (logLevelOverridden) {
-      GlobalLogLevelSwitcher.get().restore();
-      logLevelOverridden = false;
+  synchronized void doCleanup(CleanupTask fromTask) {
+    Scheduled<Runnable> oldSchedule = scheduledCleanup;
+    if (null != oldSchedule) {
+      if (null == fromTask) {
+        // explicit clean-up request, cancel current schedule
+        oldSchedule.cancel();
+      } else if (oldSchedule.get() != fromTask) {
+        // ignore clean-up requests from tasks which aren't currently scheduled
+        return;
+      }
+      scheduledCleanup = null;
+      log.debug("Cleaning up after tracer flare");
+      TracerFlare.cleanupAfterFlare();
+      if (logLevelOverridden) {
+        GlobalLogLevelSwitcher.get().restore();
+        logLevelOverridden = false;
+      }
     }
   }
 
@@ -148,7 +153,7 @@ final class TracerFlareService {
   final class CleanupTask implements Runnable {
     @Override
     public void run() {
-      doCleanup();
+      doCleanup(this);
     }
   }
 }
