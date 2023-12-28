@@ -60,6 +60,31 @@ class DefaultDataStreamsMonitoringTest extends DDCoreSpecification {
     false          | false
   }
 
+  def "Schema sampler samples with correct weights"() {
+    given:
+    def features = Stub(DDAgentFeaturesDiscovery) {
+      supportsDataStreams() >> true
+    }
+    def timeSource = new ControllableTimeSource()
+    timeSource.set(1e12 as long)
+    def payloadWriter = Mock(DatastreamsPayloadWriter)
+    def sink = Mock(Sink)
+    def traceConfig = Mock(TraceConfig) {
+      isDataStreamsEnabled() >> true
+    }
+
+    when:
+    def dataStreams = new DefaultDataStreamsMonitoring(sink, features, timeSource, { traceConfig }, wellKnownTags, payloadWriter, DEFAULT_BUCKET_DURATION_NANOS)
+
+    then:
+    dataStreams.shouldSampleSchema("schema1") == 1
+    dataStreams.shouldSampleSchema("schema2") == 1
+    dataStreams.shouldSampleSchema("schema1") == 0
+    dataStreams.shouldSampleSchema("schema1") == 0
+    timeSource.advance(30*1e9 as long)
+    dataStreams.shouldSampleSchema("schema1") == 3
+  }
+
   def "Context carrier adapter test"() {
     given:
     def carrier = new CustomContextCarrier()

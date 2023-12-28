@@ -181,16 +181,6 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
   @Shared
   TraceConfig MOCK_DSM_TRACE_CONFIG = new TraceConfig() {
     @Override
-    boolean isDebugEnabled() {
-      return true
-    }
-
-    @Override
-    boolean isTriageEnabled() {
-      return true
-    }
-
-    @Override
     boolean isRuntimeMetricsEnabled() {
       return true
     }
@@ -256,6 +246,10 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
     return false
   }
 
+  protected long dataStreamsBucketDuration() {
+    TimeUnit.MILLISECONDS.toNanos(50)
+  }
+
   protected boolean isTestAgentEnabled() {
     return System.getenv("CI_USE_TEST_AGENT").equals("true")
   }
@@ -302,7 +296,7 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
       }
 
     // Fast enough so tests don't take forever
-    long bucketDuration = TimeUnit.MILLISECONDS.toNanos(50)
+    long bucketDuration = dataStreamsBucketDuration()
     WellKnownTags wellKnownTags = new WellKnownTags("runtimeid", "hostname", "my-env", "service", "version", "language")
     TEST_DATA_STREAMS_MONITORING = new DefaultDataStreamsMonitoring(sink, features, SystemTimeSource.INSTANCE, { MOCK_DSM_TRACE_CONFIG }, wellKnownTags, TEST_DATA_STREAMS_WRITER, bucketDuration)
 

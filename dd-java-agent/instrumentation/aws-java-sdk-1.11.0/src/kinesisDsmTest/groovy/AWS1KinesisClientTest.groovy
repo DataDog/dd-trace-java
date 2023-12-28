@@ -20,6 +20,7 @@ import spock.util.concurrent.PollingConditions
 import java.nio.ByteBuffer
 import java.nio.charset.Charset
 import java.time.Instant
+import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicReference
 
 import static datadog.trace.agent.test.server.http.TestHttpServer.httpServer
@@ -65,6 +66,13 @@ abstract class AWS1KinesisClientTest extends VersionedNamingTestBase {
   protected boolean isDataStreamsEnabled() {
     return true
   }
+
+  @Override
+  protected long dataStreamsBucketDuration() {
+    TimeUnit.MILLISECONDS.toNanos(250)
+  }
+
+
 
   @Override
   String operation() {

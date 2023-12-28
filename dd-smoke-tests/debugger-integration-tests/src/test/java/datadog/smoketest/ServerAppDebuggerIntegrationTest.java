@@ -111,8 +111,8 @@ public class ServerAppDebuggerIntegrationTest extends BaseIntegrationTest {
             appUrl + "/waitForInstrumentation?classname=%s", SERVER_DEBUGGER_TEST_APP_CLASS);
     LOG.info("waitForInstrumentation with url={}", url);
     sendRequest(url);
-    AtomicBoolean received = new AtomicBoolean(false);
-    AtomicBoolean installed = new AtomicBoolean(false);
+    AtomicBoolean received = new AtomicBoolean();
+    AtomicBoolean installed = new AtomicBoolean();
     registerProbeStatusListener(
         probeStatus -> {
           if (probeStatus.getDiagnostics().getStatus() == ProbeStatus.Status.RECEIVED) {
@@ -121,17 +121,18 @@ public class ServerAppDebuggerIntegrationTest extends BaseIntegrationTest {
           if (probeStatus.getDiagnostics().getStatus() == ProbeStatus.Status.INSTALLED) {
             installed.set(true);
           }
-          return received.get() && installed.get();
         });
-    processRequests();
-    clearProbeStatusListener();
+    processRequests(() -> received.get() && installed.get());
     LOG.info("instrumentation done");
   }
 
   protected void waitForAProbeStatus(ProbeStatus.Status status) throws Exception {
-    registerProbeStatusListener(probeStatus -> probeStatus.getDiagnostics().getStatus() == status);
-    processRequests();
-    clearProbeStatusListener();
+    AtomicBoolean statusResult = new AtomicBoolean();
+    registerProbeStatusListener(
+        probeStatus -> {
+          statusResult.set(probeStatus.getDiagnostics().getStatus() == status);
+        });
+    processRequests(statusResult::get);
   }
 
   protected void waitForReTransformation(String appUrl) throws IOException {

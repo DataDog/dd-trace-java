@@ -301,6 +301,10 @@
 0 org.springframework.http.ReadOnlyHttpHeaders
 0 org.springframework.http.codec.json.Jackson2Tokenizer
 0 org.springframework.http.server.reactive.UndertowServerHttpRequest$UndertowDataBuffer
+0 org.springframework.http.server.ServletServerHttpRequest
+0 org.springframework.http.server.reactive.ReactorServerHttpRequest
+0 org.springframework.http.client.reactive.AbstractClientHttpRequest
+0 org.springframework.http.client.reactive.ReactorClientHttpRequest
 0 org.springframework.core.io.buffer.DataBuffer
 0 org.springframework.core.io.buffer.DefaultDataBuffer
 0 org.springframework.core.io.buffer.NettyDataBuffer

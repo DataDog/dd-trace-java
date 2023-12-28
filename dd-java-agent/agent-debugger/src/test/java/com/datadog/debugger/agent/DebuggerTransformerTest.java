@@ -262,7 +262,8 @@ public class DebuggerTransformerTest {
             config,
             configuration,
             ((definition, result) -> lastResult.set(result)),
-            new DebuggerSink(config, config.getFinalDebuggerSnapshotUrl(), false));
+            new DebuggerSink(
+                config, new ProbeStatusSink(config, config.getFinalDebuggerSnapshotUrl(), false)));
     byte[] newClassBuffer =
         debuggerTransformer.transform(
             ClassLoader.getSystemClassLoader(),
@@ -289,7 +290,8 @@ public class DebuggerTransformerTest {
             config,
             configuration,
             ((definition, result) -> lastResult.set(result)),
-            new DebuggerSink(config, config.getFinalDebuggerSnapshotUrl(), false));
+            new DebuggerSink(
+                config, new ProbeStatusSink(config, config.getFinalDebuggerSnapshotUrl(), false)));
     byte[] newClassBuffer =
         debuggerTransformer.transform(
             ClassLoader.getSystemClassLoader(),
@@ -370,7 +372,7 @@ public class DebuggerTransformerTest {
         ClassNode classNode,
         MethodNode methodNode,
         List<DiagnosticMessage> diagnostics,
-        List<String> probeIds) {
+        List<ProbeId> probeIds) {
       methodNode.instructions.insert(
           new VarInsnNode(Opcodes.ASTORE, methodNode.localVariables.size()));
       return InstrumentationResult.Status.INSTALLED;

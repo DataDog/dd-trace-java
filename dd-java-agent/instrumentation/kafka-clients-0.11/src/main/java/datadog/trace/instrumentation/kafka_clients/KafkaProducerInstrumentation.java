@@ -61,6 +61,7 @@ public final class KafkaProducerInstrumentation extends Instrumenter.Tracing
       packageName + ".TextMapInjectAdapter",
       packageName + ".KafkaProducerCallback",
       "datadog.trace.instrumentation.kafka_common.StreamingContext",
+      packageName + ".AvroSchemaExtractor",
     };
   }
 
@@ -137,6 +138,7 @@ public final class KafkaProducerInstrumentation extends Instrumenter.Tracing
             propagate()
                 .injectPathwayContextWithoutSendingStats(
                     span, record.headers(), SETTER, sortedTags);
+            AvroSchemaExtractor.tryExtractProducer(record, span);
           }
         } catch (final IllegalStateException e) {
           // headers must be read-only from reused record. try again with new one.
@@ -154,6 +156,7 @@ public final class KafkaProducerInstrumentation extends Instrumenter.Tracing
             propagate()
                 .injectPathwayContextWithoutSendingStats(
                     span, record.headers(), SETTER, sortedTags);
+            AvroSchemaExtractor.tryExtractProducer(record, span);
           }
         }
         if (TIME_IN_QUEUE_ENABLED) {

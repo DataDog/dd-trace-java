@@ -30,6 +30,7 @@ import spock.lang.Unroll
 
 import java.time.Instant
 import java.util.concurrent.Future
+import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicReference
 
 import static datadog.trace.agent.test.server.http.TestHttpServer.httpServer
@@ -98,6 +99,11 @@ abstract class Aws2KinesisDataStreamsTest extends VersionedNamingTestBase {
   @Override
   protected boolean isDataStreamsEnabled() {
     true
+  }
+
+  @Override
+  protected long dataStreamsBucketDuration() {
+    TimeUnit.MILLISECONDS.toNanos(250)
   }
 
   abstract String expectedOperation(String awsService, String awsOperation)

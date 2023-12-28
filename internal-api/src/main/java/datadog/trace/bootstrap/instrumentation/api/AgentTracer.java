@@ -1063,6 +1063,11 @@ public class AgentTracer {
     public void add(StatsPoint statsPoint) {}
 
     @Override
+    public int shouldSampleSchema(String topic) {
+      return 0;
+    }
+
+    @Override
     public void setConsumeCheckpoint(
         String type, String source, DataStreamsContextCarrier carrier) {}
 
@@ -1166,16 +1171,6 @@ public class AgentTracer {
   /** TraceConfig when there is no tracer; this is not the same as a default config. */
   public static final class NoopTraceConfig implements TraceConfig {
     public static final NoopTraceConfig INSTANCE = new NoopTraceConfig();
-
-    @Override
-    public boolean isDebugEnabled() {
-      return false;
-    }
-
-    @Override
-    public boolean isTriageEnabled() {
-      return false;
-    }
 
     @Override
     public boolean isRuntimeMetricsEnabled() {
