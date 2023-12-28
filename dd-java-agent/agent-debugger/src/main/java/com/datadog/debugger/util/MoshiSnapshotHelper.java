@@ -330,13 +330,12 @@ public class MoshiSnapshotHelper {
       public void primitiveValue(Object value) throws Exception {
         jsonWriter.name(VALUE);
         String typeName = value.getClass().getTypeName();
-        if (WellKnownClasses.isToStringSafe(typeName)) {
-          Function<Object, String> specialToString = WellKnownClasses.getSpecialToString(typeName);
-          String strValue =
-              specialToString != null ? specialToString.apply(value) : String.valueOf(value);
+        Function<Object, String> toString = WellKnownClasses.getSafeToString(typeName);
+        if (toString != null) {
+          String strValue = toString.apply(value);
           jsonWriter.value(strValue);
         } else {
-          throw new IOException("Cannot convert value: " + value);
+          throw new IOException("Cannot convert value from type: " + typeName);
         }
       }
 
