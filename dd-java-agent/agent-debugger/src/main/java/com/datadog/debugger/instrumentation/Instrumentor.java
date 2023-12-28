@@ -9,6 +9,7 @@ import static com.datadog.debugger.instrumentation.Types.STRING_TYPE;
 import com.datadog.debugger.instrumentation.DiagnosticMessage.Kind;
 import com.datadog.debugger.probe.ProbeDefinition;
 import com.datadog.debugger.probe.Where;
+import datadog.trace.bootstrap.debugger.ProbeId;
 import java.util.Arrays;
 import java.util.List;
 import org.objectweb.asm.Opcodes;
@@ -35,7 +36,7 @@ public abstract class Instrumentor {
   protected final ClassNode classNode;
   protected final MethodNode methodNode;
   protected final List<DiagnosticMessage> diagnostics;
-  protected final List<String> probeIds;
+  protected final List<ProbeId> probeIds;
   protected final boolean isStatic;
   protected final boolean isLineProbe;
   protected final LineMap lineMap = new LineMap();
@@ -51,7 +52,7 @@ public abstract class Instrumentor {
       ClassNode classNode,
       MethodNode methodNode,
       List<DiagnosticMessage> diagnostics,
-      List<String> probeIds) {
+      List<ProbeId> probeIds) {
     this.definition = definition;
     this.classLoader = classLoader;
     this.classNode = classNode;

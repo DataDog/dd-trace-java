@@ -40,31 +40,21 @@ public class DebuggerSink {
   private volatile AgentTaskScheduler.Scheduled<DebuggerSink> flushIntervalScheduled;
   private volatile long currentFlushInterval = INITIAL_FLUSH_INTERVAL;
 
-  public DebuggerSink(Config config, String diagnosticsEndpoint, boolean useMultiPart) {
+  public DebuggerSink(Config config, ProbeStatusSink probeStatusSink) {
     this(
         config,
         new BatchUploader(config, config.getFinalDebuggerSnapshotUrl()),
         DebuggerMetrics.getInstance(config),
-        new ProbeStatusSink(config, diagnosticsEndpoint, useMultiPart),
+        probeStatusSink,
         new SnapshotSink(config),
         new SymbolSink(config));
   }
 
   // Used only for tests
-  DebuggerSink(Config config, BatchUploader snapshotUploader) {
+  DebuggerSink(Config config, ProbeStatusSink probeStatusSink, BatchUploader snapshotUploader) {
     this(
         config,
         snapshotUploader,
-        DebuggerMetrics.getInstance(config),
-        new ProbeStatusSink(config, config.getFinalDebuggerSnapshotUrl(), false),
-        new SnapshotSink(config),
-        new SymbolSink(config));
-  }
-
-  public DebuggerSink(Config config, ProbeStatusSink probeStatusSink) {
-    this(
-        config,
-        new BatchUploader(config, config.getFinalDebuggerSnapshotUrl()),
         DebuggerMetrics.getInstance(config),
         probeStatusSink,
         new SnapshotSink(config),
@@ -144,6 +134,10 @@ public class DebuggerSink {
     return snapshotUploader;
   }
 
+  public ProbeStatusSink getProbeStatusSink() {
+    return probeStatusSink;
+  }
+
   public SymbolSink getSymbolSink() {
     return symbolSink;
   }
@@ -152,6 +146,8 @@ public class DebuggerSink {
     boolean added = snapshotSink.offer(snapshot);
     if (!added) {
       debuggerMetrics.count(PREFIX + "dropped.requests", 1);
+    } else {
+      probeStatusSink.addEmitting(snapshot.getProbe().getProbeId());
     }
   }
 

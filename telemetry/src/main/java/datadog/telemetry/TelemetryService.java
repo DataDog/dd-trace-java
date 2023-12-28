@@ -147,6 +147,7 @@ public class TelemetryService {
             eventSource, eventSink, messageBytesSoftLimit, RequestType.APP_STARTED, debug);
     request.writeProducts();
     request.writeConfigurations();
+    request.writeInstallSignature();
     if (telemetryRouter.sendRequest(request) == TelemetryClient.Result.SUCCESS) {
       // discard already sent buffered event on the successful attempt
       bufferedEvents = null;
