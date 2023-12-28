@@ -9,8 +9,10 @@ import com.datadog.debugger.el.values.ObjectValue;
 import com.datadog.debugger.el.values.StringValue;
 import com.datadog.debugger.el.values.UndefinedValue;
 import datadog.trace.bootstrap.debugger.el.Values;
+import datadog.trace.bootstrap.debugger.util.WellKnownClasses;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Function;
 
 /** Represents any value of the expression language */
 public interface Value<T> {
@@ -51,6 +53,14 @@ public interface Value<T> {
     }
     if (value == Values.THIS_OBJECT) {
       return thisValue();
+    }
+    String typeName = value.getClass().getTypeName();
+    if (WellKnownClasses.isStringPrimitive(typeName)) {
+      Function<Object, String> toString = WellKnownClasses.getSafeToString(typeName);
+      if (toString == null) {
+        throw new UnsupportedOperationException("Cannot convert value from type: " + typeName);
+      }
+      value = toString.apply(value);
     }
     if (value instanceof Boolean) {
       return new BooleanValue((Boolean) value);
