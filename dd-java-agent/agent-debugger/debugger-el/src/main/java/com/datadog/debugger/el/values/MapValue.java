@@ -1,5 +1,6 @@
 package com.datadog.debugger.el.values;
 
+import com.datadog.debugger.el.Expression;
 import com.datadog.debugger.el.Value;
 import com.datadog.debugger.el.Visitor;
 import com.datadog.debugger.el.expressions.ValueExpression;
@@ -65,16 +66,16 @@ public final class MapValue implements CollectionValue<Object>, ValueExpression<
     return -1;
   }
 
-  public Set<Value<?>> getKeys() {
+  public Set<Value<?>> getKeys(Expression<?> fromExpr) {
     if (mapHolder instanceof Map) {
       Map<?, ?> map = (Map<?, ?>) mapHolder;
-      return map.keySet().stream().map(Value::of).collect(Collectors.toSet());
+      return map.keySet().stream().map(o -> Value.of(o, fromExpr)).collect(Collectors.toSet());
     }
     log.warn("{} is not a map", mapHolder);
     return Collections.singleton(Value.undefinedValue());
   }
 
-  public Value<?> get(Object key) {
+  public Value<?> get(Object key, Expression<?> fromExpr) {
     if (key == Value.undefinedValue() || key == Values.UNDEFINED_OBJECT) {
       return Value.undefinedValue();
     }
@@ -86,7 +87,7 @@ public final class MapValue implements CollectionValue<Object>, ValueExpression<
       Map<?, ?> map = (Map<?, ?>) mapHolder;
       key = key instanceof Value ? ((Value<?>) key).getValue() : key;
       Object value = map.containsKey(key) ? map.get(key) : Value.undefinedValue();
-      return value != null ? Value.of(value) : Value.nullValue();
+      return value != null ? Value.of(value, fromExpr) : Value.nullValue();
     }
     // the result will be either Value.nullValue() or Value.undefinedValue() depending on the holder
     // value

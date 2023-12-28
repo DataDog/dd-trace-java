@@ -33,7 +33,7 @@ class MapValueUndefinedTest {
 
   @Test
   void get() {
-    assertEquals(Value.undefinedValue(), instance.get(0));
-    assertEquals(Value.undefinedValue(), instance.get(10));
+    assertEquals(Value.undefinedValue(), instance.get(0, null));
+    assertEquals(Value.undefinedValue(), instance.get(10, null));
   }
 }

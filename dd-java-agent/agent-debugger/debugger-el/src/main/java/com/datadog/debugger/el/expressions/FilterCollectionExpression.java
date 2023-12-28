@@ -47,7 +47,7 @@ public final class FilterCollectionExpression implements ValueExpression<Collect
       Collection<Object> filtered = new ArrayList<>();
       int len = materialized.count();
       for (int i = 0; i < len; i++) {
-        Object value = materialized.get(i).getValue();
+        Object value = materialized.get(i, this).getValue();
         if (filterExpression.evaluate(
             valueRefResolver.withExtensions(
                 Collections.singletonMap(ValueReferences.ITERATOR_EXTENSION_NAME, value)))) {
@@ -59,8 +59,8 @@ public final class FilterCollectionExpression implements ValueExpression<Collect
       MapValue materialized = (MapValue) collectionValue;
       Map<Object, Object> filtered = new HashMap<>();
 
-      for (Value<?> key : materialized.getKeys()) {
-        Value<?> value = key.isUndefined() ? Value.undefinedValue() : materialized.get(key);
+      for (Value<?> key : materialized.getKeys(this)) {
+        Value<?> value = key.isUndefined() ? Value.undefinedValue() : materialized.get(key, this);
         if (filterExpression.evaluate(
             valueRefResolver.withExtensions(
                 Collections.singletonMap(

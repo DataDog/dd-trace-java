@@ -31,13 +31,13 @@ public final class LenExpression implements ValueExpression<Value<? extends Numb
     Value<?> materialized = source == null ? Value.nullValue() : source.evaluate(valueRefResolver);
     try {
       if (materialized.isNull()) {
-        return (NumericValue) Value.of(-1);
+        return (NumericValue) Value.of(-1, this);
       } else if (materialized.isUndefined()) {
-        return (NumericValue) Value.of(0);
+        return (NumericValue) Value.of(0, this);
       } else if (materialized instanceof StringValue) {
-        return (NumericValue) Value.of(((StringValue) materialized).length());
+        return (NumericValue) Value.of(((StringValue) materialized).length(), this);
       } else if (materialized instanceof CollectionValue) {
-        return (NumericValue) Value.of(((CollectionValue) materialized).count());
+        return (NumericValue) Value.of(((CollectionValue) materialized).count(), this);
       }
     } catch (RuntimeException ex) {
       throw new EvaluationException(ex.getMessage(), PrettyPrintVisitor.print(this));

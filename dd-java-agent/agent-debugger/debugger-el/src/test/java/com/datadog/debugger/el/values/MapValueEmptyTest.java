@@ -34,12 +34,12 @@ class MapValueEmptyTest {
 
   @Test
   void get() {
-    assertEquals(Value.undefinedValue(), instance.get("a"));
-    assertEquals(Value.undefinedValue(), instance.get("b"));
-    assertEquals(Value.undefinedValue(), instance.get(Values.UNDEFINED_OBJECT));
-    assertEquals(Value.undefinedValue(), instance.get(Value.undefinedValue()));
-    assertEquals(Value.nullValue(), instance.get(Values.NULL_OBJECT));
-    assertEquals(Value.nullValue(), instance.get(Value.nullValue()));
-    assertEquals(Value.nullValue(), instance.get(null));
+    assertEquals(Value.undefinedValue(), instance.get("a", null));
+    assertEquals(Value.undefinedValue(), instance.get("b", null));
+    assertEquals(Value.undefinedValue(), instance.get(Values.UNDEFINED_OBJECT, null));
+    assertEquals(Value.undefinedValue(), instance.get(Value.undefinedValue(), null));
+    assertEquals(Value.nullValue(), instance.get(Values.NULL_OBJECT, null));
+    assertEquals(Value.nullValue(), instance.get(Value.nullValue(), null));
+    assertEquals(Value.nullValue(), instance.get(null, null));
   }
 }

@@ -1,5 +1,6 @@
 package com.datadog.debugger.el.values;
 
+import com.datadog.debugger.el.Expression;
 import com.datadog.debugger.el.Value;
 import datadog.trace.bootstrap.debugger.el.Values;
 
@@ -22,7 +23,7 @@ public interface CollectionValue<T> extends Value<T> {
         }
 
         @Override
-        public Value<?> get(Object key) {
+        public Value<?> get(Object key, Expression<?> fromExpr) {
           return Value.undefinedValue();
         }
 
@@ -55,7 +56,7 @@ public interface CollectionValue<T> extends Value<T> {
         }
 
         @Override
-        public Value<?> get(Object key) {
+        public Value<?> get(Object key, Expression<?> fromExpr) {
           return Value.nullValue();
         }
 
@@ -79,5 +80,5 @@ public interface CollectionValue<T> extends Value<T> {
 
   int count();
 
-  Value<?> get(Object key);
+  Value<?> get(Object key, Expression<?> fromExpr);
 }

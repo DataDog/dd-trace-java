@@ -38,13 +38,13 @@ class MapValueTest {
 
   @Test
   void get() {
-    assertEquals(Value.of("a"), instance.get("a"));
-    assertEquals(Value.of("a"), instance.get(Value.of("a")));
-    assertEquals(Value.nullValue(), instance.get("b"));
-    assertEquals(Value.nullValue(), instance.get(Value.of("b")));
-    assertEquals(Value.undefinedValue(), instance.get("c"));
-    assertEquals(Value.undefinedValue(), instance.get(Value.of("c")));
-    assertEquals(Value.undefinedValue(), instance.get(Values.UNDEFINED_OBJECT));
-    assertEquals(Value.undefinedValue(), instance.get(Value.undefinedValue()));
+    assertEquals(Value.of("a"), instance.get("a", null));
+    assertEquals(Value.of("a"), instance.get(Value.of("a"), null));
+    assertEquals(Value.nullValue(), instance.get("b", null));
+    assertEquals(Value.nullValue(), instance.get(Value.of("b"), null));
+    assertEquals(Value.undefinedValue(), instance.get("c", null));
+    assertEquals(Value.undefinedValue(), instance.get(Value.of("c"), null));
+    assertEquals(Value.undefinedValue(), instance.get(Values.UNDEFINED_OBJECT, null));
+    assertEquals(Value.undefinedValue(), instance.get(Value.undefinedValue(), null));
   }
 }

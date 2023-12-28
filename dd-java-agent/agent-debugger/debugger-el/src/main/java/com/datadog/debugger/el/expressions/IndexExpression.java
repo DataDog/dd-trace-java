@@ -34,22 +34,18 @@ public class IndexExpression implements ValueExpression<Value<?>> {
       if (targetValue instanceof MapValue) {
         Object objKey = keyValue.getValue();
         if (objKey instanceof String && Redaction.isRedactedKeyword((String) objKey)) {
-          ExpressionHelper.throwRedactedException(this);
+          Value.throwRedactedException(this);
         } else {
-          result = ((MapValue) targetValue).get(objKey);
+          result = ((MapValue) targetValue).get(objKey, this);
         }
       }
       if (targetValue instanceof ListValue) {
-        result = ((ListValue) targetValue).get(keyValue.getValue());
+        result = ((ListValue) targetValue).get(keyValue.getValue(), this);
       }
     } catch (IllegalArgumentException ex) {
       throw new EvaluationException(ex.getMessage(), PrettyPrintVisitor.print(this), ex);
     }
-    Object obj = result.getValue();
-    if (obj != null && Redaction.isRedactedType(obj.getClass().getTypeName())) {
-      ExpressionHelper.throwRedactedException(this);
-    }
-    return result;
+    return Value.of(result.getValue(), this);
   }
 
   public <R> R accept(Visitor<R> visitor) {
