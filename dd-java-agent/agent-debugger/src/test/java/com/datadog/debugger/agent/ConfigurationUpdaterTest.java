@@ -454,8 +454,7 @@ public class ConfigurationUpdaterTest {
                 .build());
     logProbes.get(0).buildLocation(null);
     configurationUpdater.accept(createApp(logProbes));
-    ProbeImplementation probeImplementation =
-        configurationUpdater.resolve(PROBE_ID.getEncodedId(), String.class);
+    ProbeImplementation probeImplementation = configurationUpdater.resolve(PROBE_ID.getEncodedId());
     Assertions.assertEquals(
         PROBE_ID.getEncodedId(), probeImplementation.getProbeId().getEncodedId());
     Assertions.assertEquals("java.lang.String", probeImplementation.getLocation().getType());
@@ -476,9 +475,8 @@ public class ConfigurationUpdaterTest {
     verify(inst).retransformClasses(eq(String.class));
     // simulate that there is a snapshot probe instrumentation left in HashMap class
     ProbeImplementation probeImplementation =
-        configurationUpdater.resolve(PROBE_ID2.getEncodedId(), HashMap.class);
+        configurationUpdater.resolve(PROBE_ID2.getEncodedId());
     Assertions.assertNull(probeImplementation);
-    verify(inst).retransformClasses(eq(HashMap.class));
   }
 
   @Test

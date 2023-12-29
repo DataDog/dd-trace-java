@@ -171,7 +171,7 @@ public class CapturedSnapshotTest {
     DebuggerTransformerTest.TestSnapshotListener listener =
         installSingleProbe(CLASS_NAME, "main", "int (java.lang.String)", "8");
     DebuggerAgentHelper.injectSink(listener);
-    DebuggerContext.init((encodedProbeId, clazz) -> null, null);
+    DebuggerContext.init((encodedProbeId) -> null, null);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.on(testClass).call("main", "1").get();
     assertEquals(3, result);
@@ -187,7 +187,7 @@ public class CapturedSnapshotTest {
         installProbes(CLASS_NAME, lineProbe, methodProbe);
     DebuggerAgentHelper.injectSink(listener);
     DebuggerContext.init(
-        (encodedProbeId, clazz) -> {
+        (encodedProbeId) -> {
           throw new IllegalArgumentException("oops");
         },
         null);
@@ -2109,10 +2109,7 @@ public class CapturedSnapshotTest {
         new DebuggerTransformer(config, configuration, instrumentationListener, listener);
     instr.addTransformer(currentTransformer);
     DebuggerAgentHelper.injectSink(listener);
-    DebuggerContext.init(
-        (encodedId, callingClass) ->
-            resolver(encodedId, callingClass, expectedClassName, logProbes),
-        null);
+    DebuggerContext.init((encodedId) -> resolver(encodedId, logProbes), null);
     DebuggerContext.initClassFilter(new DenyListHelper(null));
     DebuggerContext.initValueSerializer(new JsonSnapshotSerializer());
     for (LogProbe probe : logProbes) {
@@ -2127,12 +2124,7 @@ public class CapturedSnapshotTest {
     return listener;
   }
 
-  private ProbeImplementation resolver(
-      String encodedId,
-      Class<?> callingClass,
-      String expectedClassName,
-      Collection<LogProbe> logProbes) {
-    assertEquals(expectedClassName, callingClass.getName());
+  private ProbeImplementation resolver(String encodedId, Collection<LogProbe> logProbes) {
     for (LogProbe probe : logProbes) {
       if (probe.getProbeId().getEncodedId().equals(encodedId)) {
         return probe;

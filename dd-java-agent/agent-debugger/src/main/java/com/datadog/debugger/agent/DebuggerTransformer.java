@@ -282,7 +282,7 @@ public class DebuggerTransformer implements ClassFileTransformer {
     }
   }
 
-  public ProbeImplementation instrumentTheWorldResolver(String id, Class<?> callingClass) {
+  public ProbeImplementation instrumentTheWorldResolver(String id) {
     if (instrumentTheWorldProbes == null) {
       return null;
     }

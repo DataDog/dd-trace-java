@@ -24,7 +24,7 @@ public class DebuggerContext {
   }
 
   public interface ProbeResolver {
-    ProbeImplementation resolve(String encodedProbeId, Class<?> callingClass);
+    ProbeImplementation resolve(String encodedProbeId);
   }
 
   public interface ClassFilter {
@@ -89,12 +89,12 @@ public class DebuggerContext {
    * Returns the probe details based on the probe id provided. If no probe is found, try to
    * re-transform the class using the callingClass parameter No-op if no implementation available
    */
-  public static ProbeImplementation resolveProbe(String id, Class<?> callingClass) {
+  public static ProbeImplementation resolveProbe(String id) {
     ProbeResolver resolver = probeResolver;
     if (resolver == null) {
       return null;
     }
-    return resolver.resolve(id, callingClass);
+    return resolver.resolve(id);
   }
 
   /**
@@ -231,7 +231,7 @@ public class DebuggerContext {
     try {
       boolean needFreeze = false;
       for (String encodedProbeId : encodedProbeIds) {
-        ProbeImplementation probeImplementation = resolveProbe(encodedProbeId, callingClass);
+        ProbeImplementation probeImplementation = resolveProbe(encodedProbeId);
         if (probeImplementation == null) {
           continue;
         }
@@ -264,7 +264,7 @@ public class DebuggerContext {
     try {
       List<ProbeImplementation> probeImplementations = new ArrayList<>();
       for (String encodedProbeId : encodedProbeIds) {
-        ProbeImplementation probeImplementation = resolveProbe(encodedProbeId, callingClass);
+        ProbeImplementation probeImplementation = resolveProbe(encodedProbeId);
         if (probeImplementation == null) {
           continue;
         }
