@@ -9,7 +9,11 @@ import datadog.telemetry.api.Metric
 import datadog.telemetry.api.RequestType
 import datadog.trace.api.ConfigOrigin
 import datadog.trace.api.ConfigSetting
+import datadog.trace.api.config.AppSecConfig
+import datadog.trace.api.config.DebuggerConfig
+import datadog.trace.api.config.ProfilingConfig
 import datadog.trace.test.util.DDSpecification
+import datadog.trace.util.Strings
 
 class TelemetryServiceSpecification extends DDSpecification {
   def confKeyValue = new ConfigSetting("confkey", "confvalue", ConfigOrigin.DEFAULT)
@@ -435,5 +439,32 @@ class TelemetryServiceSpecification extends DDSpecification {
     "68e75c48-57ca-4a12-adfc-575c4b05bfff" | null              | "1704183412"
     "68e75c55-57ca-4a12-adfc-575c4b05aaaa" | "k8s_single_step" | null
     "68e75c77-57ca-4a12-adfc-575c4b05fc44" | "k8s_single_step" | "1993188215"
+  }
+
+  def 'app-started must include activated products info'() {
+    setup:
+    injectEnvConfig(Strings.toEnvVar(AppSecConfig.APPSEC_ENABLED), appsecConfig)
+    injectEnvConfig(Strings.toEnvVar(ProfilingConfig.PROFILING_ENABLED), profilingConfig)
+    injectEnvConfig(Strings.toEnvVar(DebuggerConfig.DEBUGGER_ENABLED), dynInstrConfig)
+
+    TestTelemetryRouter testHttpClient = new TestTelemetryRouter()
+    TelemetryService telemetryService = new TelemetryService(testHttpClient, 10000, false)
+
+    when: 'first iteration'
+    testHttpClient.expectRequest(TelemetryClient.Result.SUCCESS)
+    telemetryService.sendAppStartedEvent()
+
+    then: 'app-started'
+    testHttpClient.assertRequestBody(RequestType.APP_STARTED).assertPayload().products(appsecEnabled, profilingEnabled, dynInstrEnabled)
+    testHttpClient.assertNoMoreRequests()
+
+    where:
+    appsecConfig | appsecEnabled | profilingConfig | profilingEnabled | dynInstrConfig | dynInstrEnabled
+    "1"          | true          | "1"             | true             | "1"            | true
+    "1"          | true          | "1"             | true             | "0"            | false
+    "1"          | true          | "0"             | false            | "1"            | true
+    "1"          | true          | "0"             | false            | "0"            | false
+    "0"          | false         | "0"             | false            | "0"            | false
+    "inactive"   | true          | "0"             | false            | "0"            | false
   }
 }

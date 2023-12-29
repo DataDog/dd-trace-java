@@ -263,7 +263,9 @@ public class TelemetryRequestBody extends RequestBody {
     endMessageIfBatch(RequestType.APP_DEPENDENCIES_LOADED);
   }
 
-  public void writeProducts(boolean appsecEnabled, boolean profilerEnabled) throws IOException {
+  public void writeProducts(
+      boolean appsecEnabled, boolean profilerEnabled, boolean dynamicInstrumentationEnabled)
+      throws IOException {
     bodyWriter.name("products");
     bodyWriter.beginObject();
 
@@ -275,6 +277,11 @@ public class TelemetryRequestBody extends RequestBody {
     bodyWriter.name("profiler");
     bodyWriter.beginObject();
     bodyWriter.name("enabled").value(profilerEnabled);
+    bodyWriter.endObject();
+
+    bodyWriter.name("dynamic_instrumentation");
+    bodyWriter.beginObject();
+    bodyWriter.name("enabled").value(dynamicInstrumentationEnabled);
     bodyWriter.endObject();
 
     bodyWriter.endObject();
