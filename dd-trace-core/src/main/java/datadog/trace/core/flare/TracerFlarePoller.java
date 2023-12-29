@@ -18,14 +18,14 @@ import okio.Okio;
 public final class TracerFlarePoller {
   private static final String FLARE_LOG_LEVEL_PREFIX = "flare-log-level.";
 
-  private final DynamicConfig dynamicConfig;
+  private final DynamicConfig<?> dynamicConfig;
 
   private Runnable stopPreparer;
   private Runnable stopSubmitter;
 
   private TracerFlareService tracerFlareService;
 
-  public TracerFlarePoller(DynamicConfig dynamicConfig) {
+  public TracerFlarePoller(DynamicConfig<?> dynamicConfig) {
     this.dynamicConfig = dynamicConfig;
   }
 
@@ -74,9 +74,9 @@ public final class TracerFlarePoller {
         if (null != agentConfigLayer
             && null != agentConfigLayer.config
             && null != agentConfigLayer.config.logLevel) {
-          prepareTracerFlare(agentConfigLayer.config.logLevel);
+          prepareForFlare(agentConfigLayer.config.logLevel);
         } else {
-          cancelTracerFlare();
+          cleanupAfterFlare();
         }
       }
     }
@@ -84,7 +84,7 @@ public final class TracerFlarePoller {
     @Override
     public void remove(ParsedConfigKey configKey, PollingRateHinter hinter) {
       if (configKey.getConfigId().startsWith(FLARE_LOG_LEVEL_PREFIX)) {
-        cancelTracerFlare();
+        cleanupAfterFlare();
       }
     }
 
@@ -119,7 +119,7 @@ public final class TracerFlarePoller {
       if (null != agentTask
           && null != agentTask.args
           && "tracer_flare".equals(agentTask.taskType)) {
-        submitTracerFlare(agentTask.args);
+        sendFlare(agentTask.args);
       }
     }
 
@@ -130,15 +130,15 @@ public final class TracerFlarePoller {
     public void commit(PollingRateHinter hinter) {}
   }
 
-  void prepareTracerFlare(String logLevel) {
-    tracerFlareService.prepareTracerFlare(logLevel);
+  void prepareForFlare(String logLevel) {
+    tracerFlareService.prepareForFlare(logLevel);
   }
 
-  void cancelTracerFlare() {
-    tracerFlareService.cancelTracerFlare();
+  void cleanupAfterFlare() {
+    tracerFlareService.cleanupAfterFlare();
   }
 
-  void submitTracerFlare(AgentTaskArgs args) {
+  void sendFlare(AgentTaskArgs args) {
     tracerFlareService.sendFlare(args.caseId, args.userHandle, args.hostname);
   }
 

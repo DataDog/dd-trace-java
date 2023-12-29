@@ -9,33 +9,41 @@ import static java.nio.charset.StandardCharsets.UTF_8
 
 class TracerFlareTest extends DDSpecification {
 
-  def "test tracer flare"() {
-    when:
-    TracerFlare.addReporter(new TracerFlare.Reporter() {
-        @Override
-        void addReport(ZipOutputStream zip) {
-          TracerFlare.addText(zip, "test.txt", "example text")
-          throw new IllegalStateException("txt (expected)")
-        }
-      })
-    TracerFlare.addReporter(new TracerFlare.Reporter() {
-        @Override
-        void addReport(ZipOutputStream zip) {
-          TracerFlare.addBinary(zip, "test.bin", [0, 1, 2, 3, 4, 5, 6, 7] as byte[])
-          throw new IllegalStateException("bin (expected)")
-        }
-      })
+  // give each mock its own type - we use that to disambiguate reporters
+  interface Reporter1 extends TracerFlare.Reporter {}
+  interface Reporter2 extends TracerFlare.Reporter {}
 
-    def zip = buildAndExtractZip()
+  def "test tracer flare"() {
+    setup:
+    TracerFlare.addReporter {} // exercises default methods
+    def textReporter = Mock(Reporter1)
+    TracerFlare.addReporter(textReporter)
+    def binaryReporter = Mock(Reporter2)
+    TracerFlare.addReporter(binaryReporter)
+
+    when:
+    def entries = buildAndExtractZip()
+
     then:
-    def entries = [:]
-    def entry
-    while (entry = zip.nextEntry) {
-      def bytes = new ByteArrayOutputStream()
-      bytes << zip
-      entries.put(entry.name, entry.name.endsWith(".bin")
-        ? bytes.toByteArray() : new String(bytes.toByteArray(), UTF_8))
+    1 * textReporter.prepareForFlare()
+    1 * binaryReporter.prepareForFlare()
+
+    then:
+    1 * textReporter.addReportToFlare(_) >> { ZipOutputStream zos ->
+      TracerFlare.addText(zos, "test.txt", "example text")
+      throw new IllegalStateException("txt (expected)") // should not stop flare
     }
+    1 * binaryReporter.addReportToFlare(_) >> { ZipOutputStream zos ->
+      TracerFlare.addBinary(zos, "test.bin", [0, 1, 2, 3, 4, 5, 6, 7] as byte[])
+      throw new IllegalStateException("bin (expected)") // should not stop flare
+    }
+
+    then:
+    1 * textReporter.cleanupAfterFlare()
+    1 * binaryReporter.cleanupAfterFlare()
+    0 * _
+
+    and:
     entries.size() == 3
     entries["test.txt"] == "example text"
     entries["test.bin"] == [0, 1, 2, 3, 4, 5, 6, 7] as byte[]
@@ -44,10 +52,25 @@ class TracerFlareTest extends DDSpecification {
   }
 
   def buildAndExtractZip() {
+    TracerFlare.prepareForFlare()
     def out = new ByteArrayOutputStream()
     try (ZipOutputStream zip = new ZipOutputStream(out)) {
-      TracerFlare.buildFlare(zip)
+      TracerFlare.addReportsToFlare(zip)
+    } finally {
+      TracerFlare.cleanupAfterFlare()
     }
-    return new ZipInputStream(new ByteArrayInputStream(out.toByteArray()))
+
+    def entries = [:]
+
+    def zip = new ZipInputStream(new ByteArrayInputStream(out.toByteArray()))
+    def entry
+    while (entry = zip.nextEntry) {
+      def bytes = new ByteArrayOutputStream()
+      bytes << zip
+      entries.put(entry.name, entry.name.endsWith(".bin")
+      ? bytes.toByteArray() : new String(bytes.toByteArray(), UTF_8))
+    }
+
+    return entries
   }
 }

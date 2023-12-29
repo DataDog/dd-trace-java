@@ -1,7 +1,5 @@
 package datadog.trace.agent.tooling;
 
-import static datadog.trace.api.flare.TracerFlare.addText;
-
 import datadog.trace.api.flare.TracerFlare;
 import java.io.IOException;
 import java.util.zip.ZipOutputStream;
@@ -14,7 +12,7 @@ public final class InstrumenterFlare implements TracerFlare.Reporter {
   }
 
   @Override
-  public void addReport(ZipOutputStream zip) throws IOException {
-    addText(zip, "instrumenter_state.txt", InstrumenterState.summary());
+  public void addReportToFlare(ZipOutputStream zip) throws IOException {
+    TracerFlare.addText(zip, "instrumenter_state.txt", InstrumenterState.summary());
   }
 }
