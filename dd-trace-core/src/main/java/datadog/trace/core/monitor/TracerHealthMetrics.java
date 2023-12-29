@@ -28,6 +28,7 @@ public class TracerHealthMetrics extends HealthMetrics implements AutoCloseable 
       httpStatus -> new String[] {"status:" + httpStatus};
 
   private static final String[] NO_TAGS = new String[0];
+  private static final String[] STATUS_OK_TAGS = STATUS_TAGS.apply(200);
   private final RadixTreeCache<String[]> statusTagsCache =
       new RadixTreeCache<>(16, 32, STATUS_TAGS, 200, 400);
 
@@ -61,6 +62,8 @@ public class TracerHealthMetrics extends HealthMetrics implements AutoCloseable 
       CountersFactory.createFixedSizeStripedCounter(8);
 
   private final FixedSizeStripedLongCounter enqueuedSpans =
+      CountersFactory.createFixedSizeStripedCounter(8);
+  private final FixedSizeStripedLongCounter enqueuedBytes =
       CountersFactory.createFixedSizeStripedCounter(8);
   private final FixedSizeStripedLongCounter singleSpanSampled =
       CountersFactory.createFixedSizeStripedCounter(8);
@@ -100,6 +103,8 @@ public class TracerHealthMetrics extends HealthMetrics implements AutoCloseable 
       CountersFactory.createFixedSizeStripedCounter(8);
   private final FixedSizeStripedLongCounter partialTraces =
       CountersFactory.createFixedSizeStripedCounter(8);
+  private final FixedSizeStripedLongCounter partialBytes =
+      CountersFactory.createFixedSizeStripedCounter(8);
   private final FixedSizeStripedLongCounter clientSpansWithoutContext =
       CountersFactory.createFixedSizeStripedCounter(8);
   private final FixedSizeStripedLongCounter longRunningTracesWrite =
@@ -107,6 +112,21 @@ public class TracerHealthMetrics extends HealthMetrics implements AutoCloseable 
   private final FixedSizeStripedLongCounter longRunningTracesDropped =
       CountersFactory.createFixedSizeStripedCounter(8);
   private final FixedSizeStripedLongCounter longRunningTracesExpired =
+      CountersFactory.createFixedSizeStripedCounter(8);
+
+  private final FixedSizeStripedLongCounter apiRequests =
+      CountersFactory.createFixedSizeStripedCounter(8);
+  private final FixedSizeStripedLongCounter apiResponsesOK =
+      CountersFactory.createFixedSizeStripedCounter(8);
+  private final FixedSizeStripedLongCounter apiErrors =
+      CountersFactory.createFixedSizeStripedCounter(8);
+  private final FixedSizeStripedLongCounter flushedTraces =
+      CountersFactory.createFixedSizeStripedCounter(8);
+  private final FixedSizeStripedLongCounter flushedBytes =
+      CountersFactory.createFixedSizeStripedCounter(8);
+  private final FixedSizeStripedLongCounter scopeCloseErrors =
+      CountersFactory.createFixedSizeStripedCounter(8);
+  private final FixedSizeStripedLongCounter userScopeCloseErrors =
       CountersFactory.createFixedSizeStripedCounter(8);
 
   private final StatsDClient statsd;
@@ -214,7 +234,7 @@ public class TracerHealthMetrics extends HealthMetrics implements AutoCloseable 
 
   @Override
   public void onPartialFlush(final int sizeInBytes) {
-    statsd.count("span.flushed.partial", sizeInBytes, NO_TAGS);
+    partialBytes.inc(sizeInBytes);
   }
 
   @Override
@@ -231,7 +251,7 @@ public class TracerHealthMetrics extends HealthMetrics implements AutoCloseable 
   public void onSerialize(final int serializedSizeInBytes) {
     // DQH - Because of Java tracer's 2 phase acceptance and serialization scheme, this doesn't
     // map precisely
-    statsd.count("queue.enqueued.bytes", serializedSizeInBytes, NO_TAGS);
+    enqueuedBytes.inc(serializedSizeInBytes);
   }
 
   @Override
@@ -264,9 +284,9 @@ public class TracerHealthMetrics extends HealthMetrics implements AutoCloseable 
 
   @Override
   public void onScopeCloseError(int scopeSource) {
-    statsd.incrementCounter("scope.close.error", NO_TAGS);
+    scopeCloseErrors.inc();
     if (scopeSource == ScopeSource.MANUAL.id()) {
-      statsd.incrementCounter("scope.user.close.error", NO_TAGS);
+      userScopeCloseErrors.inc();
     }
   }
 
@@ -321,19 +341,24 @@ public class TracerHealthMetrics extends HealthMetrics implements AutoCloseable 
 
   private void onSendAttempt(
       final int traceCount, final int sizeInBytes, final RemoteApi.Response response) {
-    statsd.incrementCounter("api.requests.total", NO_TAGS);
-    statsd.count("flush.traces.total", traceCount, NO_TAGS);
+    apiRequests.inc();
+    flushedTraces.inc(traceCount);
     // TODO: missing queue.spans (# of spans being sent)
-    statsd.count("flush.bytes.total", sizeInBytes, NO_TAGS);
+    flushedBytes.inc(sizeInBytes);
 
     if (response.exception() != null) {
       // covers communication errors -- both not receiving a response or
       // receiving malformed response (even when otherwise successful)
-      statsd.incrementCounter("api.errors.total", NO_TAGS);
+      apiErrors.inc();
     }
 
-    if (response.status() != null) {
-      statsd.incrementCounter("api.responses.total", statusTagsCache.get(response.status()));
+    Integer status = response.status();
+    if (status != null) {
+      if (200 == status) {
+        apiResponsesOK.inc();
+      } else {
+        statsd.incrementCounter("api.responses.total", statusTagsCache.get(status));
+      }
     }
   }
 
@@ -413,6 +438,7 @@ public class TracerHealthMetrics extends HealthMetrics implements AutoCloseable 
           target.userDropFailedPublishSpanCount,
           USER_DROP_TAG);
       reportIfChanged(target.statsd, "queue.enqueued.spans", target.enqueuedSpans, NO_TAGS);
+      reportIfChanged(target.statsd, "queue.enqueued.bytes", target.enqueuedBytes, NO_TAGS);
       reportIfChanged(target.statsd, "trace.pending.created", target.createdTraces, NO_TAGS);
       reportIfChanged(target.statsd, "span.pending.created", target.createdSpans, NO_TAGS);
       reportIfChanged(target.statsd, "span.pending.finished", target.finishedSpans, NO_TAGS);
@@ -422,6 +448,7 @@ public class TracerHealthMetrics extends HealthMetrics implements AutoCloseable 
       reportIfChanged(
           target.statsd, "span.continuations.finished", target.finishedContinuations, NO_TAGS);
       reportIfChanged(target.statsd, "queue.partial.traces", target.partialTraces, NO_TAGS);
+      reportIfChanged(target.statsd, "span.flushed.partial", target.partialBytes, NO_TAGS);
       reportIfChanged(
           target.statsd, "span.client.no-context", target.clientSpansWithoutContext, NO_TAGS);
       reportIfChanged(
@@ -440,6 +467,16 @@ public class TracerHealthMetrics extends HealthMetrics implements AutoCloseable 
           target.statsd, "long-running.dropped", target.longRunningTracesDropped, NO_TAGS);
       reportIfChanged(
           target.statsd, "long-running.expired", target.longRunningTracesExpired, NO_TAGS);
+
+      reportIfChanged(target.statsd, "api.requests.total", target.apiRequests, NO_TAGS);
+      reportIfChanged(target.statsd, "api.errors.total", target.apiErrors, NO_TAGS);
+      // non-OK responses are reported immediately in onSendAttempt with different status tags
+      reportIfChanged(target.statsd, "api.responses.total", target.apiResponsesOK, STATUS_OK_TAGS);
+      reportIfChanged(target.statsd, "flush.traces.total", target.flushedTraces, NO_TAGS);
+      reportIfChanged(target.statsd, "flush.bytes.total", target.flushedBytes, NO_TAGS);
+      reportIfChanged(target.statsd, "scope.close.error", target.scopeCloseErrors, NO_TAGS);
+      reportIfChanged(
+          target.statsd, "scope.user.close.error", target.userScopeCloseErrors, NO_TAGS);
     }
 
     private void reportIfChanged(
