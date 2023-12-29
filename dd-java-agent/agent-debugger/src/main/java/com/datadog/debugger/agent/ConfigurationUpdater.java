@@ -1,5 +1,7 @@
 package com.datadog.debugger.agent;
 
+import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
+
 import com.datadog.debugger.instrumentation.InstrumentationResult;
 import com.datadog.debugger.probe.LogProbe;
 import com.datadog.debugger.probe.MetricProbe;
@@ -240,15 +242,10 @@ public class ConfigurationUpdater
 
   // /!\ This is called potentially by multiple threads from the instrumented code /!\
   @Override
-  public ProbeImplementation resolve(String encodedProbeId, Class<?> callingClass) {
+  public ProbeImplementation resolve(String encodedProbeId) {
     ProbeDefinition definition = appliedDefinitions.get(encodedProbeId);
-    if (definition == null && callingClass != null) {
-      LOGGER.info(
-          "Cannot resolve probe id={}, re-transforming calling class: {}",
-          encodedProbeId,
-          callingClass.getName());
-      retransformClasses(Collections.singletonList(callingClass));
-      return null;
+    if (definition == null) {
+      LOGGER.warn(SEND_TELEMETRY, "Cannot resolve probe id=" + encodedProbeId);
     }
     return definition;
   }

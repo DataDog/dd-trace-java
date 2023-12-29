@@ -649,19 +649,11 @@ public class SpanDecorationProbeInstrumentationTest extends ProbeInstrumentation
     instr.addTransformer(currentTransformer);
     mockSink = new MockSink(config, probeStatusSink);
     DebuggerAgentHelper.injectSink(mockSink);
-    DebuggerContext.init(
-        (encodedProbeId, callingClass) ->
-            resolver(encodedProbeId, callingClass, expectedClassName, configuration),
-        null);
+    DebuggerContext.init((encodedProbeId) -> resolver(encodedProbeId, configuration), null);
     DebuggerContext.initClassFilter(new DenyListHelper(null));
   }
 
-  private ProbeImplementation resolver(
-      String encodedProbeId,
-      Class<?> callingClass,
-      String expectedClassName,
-      Configuration configuration) {
-    Assertions.assertEquals(expectedClassName, callingClass.getName());
+  private ProbeImplementation resolver(String encodedProbeId, Configuration configuration) {
     for (SpanDecorationProbe probe : configuration.getSpanDecorationProbes()) {
       if (probe.getProbeId().getEncodedId().equals(encodedProbeId)) {
         return probe;
