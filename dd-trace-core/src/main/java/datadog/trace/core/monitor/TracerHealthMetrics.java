@@ -379,8 +379,12 @@ public class TracerHealthMetrics extends HealthMetrics implements AutoCloseable 
     private static final String[] UNSET_TAG = new String[] {"priority:unset"};
     private static final String[] SINGLE_SPAN_SAMPLER = new String[] {"sampler:single-span"};
 
+    private final long[] previousCounts = new long[41];
+    private int countIndex;
+
     @Override
     public void run(TracerHealthMetrics target) {
+      countIndex = -1; // reposition so _next_ value is 0
       reportIfChanged(
           target.statsd, "queue.enqueued.traces", target.userDropEnqueuedTraces, USER_DROP_TAG);
       reportIfChanged(
@@ -484,9 +488,11 @@ public class TracerHealthMetrics extends HealthMetrics implements AutoCloseable 
         String aspect,
         FixedSizeStripedLongCounter counter,
         String[] tags) {
-      long count = counter.getAndReset();
-      if (count > 0) {
-        statsDClient.count(aspect, count, tags);
+      long count = counter.get();
+      long delta = count - previousCounts[++countIndex];
+      if (delta > 0) {
+        statsDClient.count(aspect, delta, tags);
+        previousCounts[countIndex] = count;
       }
     }
   }
