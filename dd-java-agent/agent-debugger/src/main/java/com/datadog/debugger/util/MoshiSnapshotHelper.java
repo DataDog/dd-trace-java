@@ -23,6 +23,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Function;
 import okio.Okio;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -328,10 +329,13 @@ public class MoshiSnapshotHelper {
       @Override
       public void primitiveValue(Object value) throws Exception {
         jsonWriter.name(VALUE);
-        if (WellKnownClasses.isToStringSafe(value.getClass().getTypeName())) {
-          jsonWriter.value(String.valueOf(value));
+        String typeName = value.getClass().getTypeName();
+        Function<Object, String> toString = WellKnownClasses.getSafeToString(typeName);
+        if (toString != null) {
+          String strValue = toString.apply(value);
+          jsonWriter.value(strValue);
         } else {
-          throw new IOException("Cannot convert value: " + value);
+          throw new IOException("Cannot convert value from type: " + typeName);
         }
       }
 
@@ -413,8 +417,9 @@ public class MoshiSnapshotHelper {
       }
 
       @Override
-      public void objectFieldPrologue(Field field, Object value, int maxDepth) throws Exception {
-        jsonWriter.name(field.getName());
+      public void objectFieldPrologue(String fieldName, Object value, int maxDepth)
+          throws Exception {
+        jsonWriter.name(fieldName);
       }
 
       @Override

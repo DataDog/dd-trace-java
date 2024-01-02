@@ -85,8 +85,24 @@ class IastTestController {
 
   @Canonical
   static class MyJsonObject {
-    String var1
-    List<String> var2
+    private String var1
+    private List<String> var2
+
+    String getVar1() {
+      return var1
+    }
+
+    void setVar1(String var1) {
+      this.var1 = var1
+    }
+
+    List<String> getVar2() {
+      return var2
+    }
+
+    void setVar2(List<String> var2) {
+      this.var2 = var2
+    }
 
     @Override
     String toString() {

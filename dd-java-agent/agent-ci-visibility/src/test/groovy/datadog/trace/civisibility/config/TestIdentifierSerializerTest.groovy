@@ -20,6 +20,8 @@ class TestIdentifierSerializerTest extends Specification {
 
     where:
     tests << [
+      // empty
+      [],
       // single test
       [["suite", "name", null]],
       [["suite", "𝕄 add user properties 𝕎 addUserProperties()", null]],

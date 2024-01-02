@@ -3,11 +3,17 @@ package com.datadog.iast.taint
 import ch.qos.logback.classic.Level
 import ch.qos.logback.classic.Logger
 import com.datadog.iast.model.Range
+import datadog.trace.api.config.IastConfig
+import datadog.trace.api.iast.telemetry.IastMetric
+import datadog.trace.api.iast.telemetry.IastMetricCollector
+import datadog.trace.api.iast.telemetry.IastMetricCollector.IastMetricData
+import datadog.trace.api.iast.telemetry.Verbosity
 import datadog.trace.test.util.CircularBuffer
 import datadog.trace.test.util.DDSpecification
 
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
 
 class TaintedMapTest extends DDSpecification {
 
@@ -128,11 +134,11 @@ class TaintedMapTest extends DDSpecification {
   def 'multi-threaded with no collisions, no GC'() {
     given:
     int capacity = 128
-    def map = new TaintedMap.TaintedMapImpl(capacity)
-
-    and:
     int nThreads = 16
     int nObjectsPerThread = 1000
+    def map = new TaintedMap.TaintedMapImpl(capacity, nObjectsPerThread, 1, TimeUnit.HOURS)
+
+    and:
     def gen = new ObjectGen(capacity)
     def executorService = Executors.newFixedThreadPool(nThreads)
     def latch = new CountDownLatch(nThreads)
@@ -172,7 +178,8 @@ class TaintedMapTest extends DDSpecification {
   def 'clear is thread-safe (does not throw)'() {
     given:
     int capacity = 128
-    def map = new TaintedMap.TaintedMapImpl(capacity)
+    int nObjectsPerThread = 32
+    def map = new TaintedMap.TaintedMapImpl(capacity, nObjectsPerThread, 1, TimeUnit.HOURS)
 
     and:
     int nThreads = 16
@@ -183,7 +190,7 @@ class TaintedMapTest extends DDSpecification {
     when: 'puts from different threads to any buckets'
     def futures = (0..nThreads - 1).collect { thread ->
       // Each thread has multiple objects for each bucket
-      def objects = gen.genBuckets(capacity, 32).flatten()
+      def objects = gen.genBuckets(capacity, nObjectsPerThread).flatten()
       def taintedObjects = objects.collect { o ->
         return new TaintedObject(o, [] as Range[])
       }
@@ -267,7 +274,7 @@ class TaintedMapTest extends DDSpecification {
 
   void 'test debug instance'() {
     setup:
-    final map = new TaintedMap.Debug(new TaintedMap.TaintedMapImpl())
+    final map = new TaintedMap.Debug(new TaintedMap.TaintedMapImpl(TaintedMap.DEFAULT_CAPACITY, Integer.MAX_VALUE, 1, TimeUnit.HOURS))
     final capacity = TaintedMap.Debug.COMPUTE_STATISTICS_INTERVAL
     final gen = new ObjectGen(capacity)
     logger.setLevel(Level.ALL)
@@ -278,5 +285,71 @@ class TaintedMapTest extends DDSpecification {
     then:
     map.size() == capacity
     noExceptionThrown()
+  }
+
+  void 'test max age of entries'() {
+    setup:
+    final maxAge = 100
+    final maxAgeUnit = TimeUnit.MILLISECONDS
+    final map = new TaintedMap.TaintedMapImpl(4, TaintedMap.DEFAULT_MAX_BUCKET_SIZE, maxAge, maxAgeUnit)
+    final items = (0..10).collect { it.toString() }
+
+    when:
+    items.each { map.put(new TaintedObject(it, [] as Range[])) }
+
+    then:
+    map.count() == items.size()
+
+    when:
+    Thread.sleep(maxAgeUnit.toMillis(maxAge) * 2)
+
+    then:
+    map.count() == 0
+  }
+
+  void 'test flat mode'() {
+    given:
+    injectSysConfig(IastConfig.IAST_TELEMETRY_VERBOSITY, verbosity.name())
+    rebuildConfig()
+
+    and:
+    final collector = IastMetricCollector.get()
+    collector.prepareMetrics()
+    collector.drain()
+
+    and:
+    // single bucket and only one entry per bucket
+    final map = new TaintedMap.TaintedMapImpl(1, 1, 1, TimeUnit.HOURS)
+
+    when:
+    map.put(new TaintedObject('test1', new Range[0]))
+
+    then:
+    map.count() == 1
+    map.first().get() == 'test1'
+
+    fetchMetrics(collector).empty
+
+    when:
+    map.put(new TaintedObject('test2', new Range[0]))
+
+    then:
+    map.count() == 1
+    map.first().get() == 'test2'
+
+    final metrics = fetchMetrics(collector)
+    if (IastMetric.TAINTED_FLAT_MODE.isEnabled(verbosity)) {
+      metrics.find { it.metric == IastMetric.TAINTED_FLAT_MODE } != null
+    } else {
+      metrics.empty
+    }
+
+    where:
+    verbosity << Verbosity.values().toList().reverse() // ensure global collector is not no-op
+  }
+
+  private static List<IastMetricData> fetchMetrics(final IastMetricCollector collector) {
+    collector.prepareMetrics()
+    return collector.drain()
   }
 }

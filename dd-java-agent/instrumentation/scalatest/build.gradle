@@ -27,7 +27,17 @@ compileTestGroovy {
   dependsOn compileTestScala
   classpath += files(sourceSets.test.scala.destinationDirectory)
 }
+
 compileLatestDepTestGroovy {
   dependsOn compileLatestDepTestScala
   classpath += files(sourceSets.latestDepTest.scala.destinationDirectory)
+}
+
+configurations.configureEach {
+  resolutionStrategy.componentSelection.all { ComponentSelection selection ->
+    def version = selection.candidate.version.toLowerCase()
+    if (version.contains('alpha') || version.contains('beta')) {
+      reject("Early Access Version: ${selection.candidate.version}")
+    }
+  }
 }

@@ -64,6 +64,15 @@ public class HttpCodec {
      *     context extraction or an {@link ExtractedContext} for complete context extraction.
      */
     <C> TagContext extract(final C carrier, final AgentPropagation.ContextVisitor<C> getter);
+
+    /**
+     * Cleans up any thread local resources associated with this extractor.
+     *
+     * <p>Implementations should override this method if they need to clean up any resources.
+     *
+     * <p><i>Currently only used from tests.</i>
+     */
+    default void cleanup() {}
   }
 
   public static Injector createInjector(

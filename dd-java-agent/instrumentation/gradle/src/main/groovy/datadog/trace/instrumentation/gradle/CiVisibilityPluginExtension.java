@@ -7,7 +7,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import javax.inject.Inject;
-import org.gradle.api.Project;
 import org.gradle.api.file.FileCollection;
 import org.gradle.api.logging.Logger;
 import org.gradle.api.logging.Logging;
@@ -62,11 +61,9 @@ public abstract class CiVisibilityPluginExtension {
     return getCiVisibilityService().get().getCompilerPluginVersion();
   }
 
-  public boolean isCodeCoverageEnabled(Project project) {
+  public boolean isJacocoInjectionEnabled() {
     CiVisibilityService ciVisibilityService = getCiVisibilityService().get();
-    return project.getTasks().withType(Test.class).stream()
-        .map(this::getEffectiveExecutable)
-        .anyMatch(ciVisibilityService::isCodeCoverageEnabled);
+    return ciVisibilityService.isJacocoInjectionEnabled();
   }
 
   public List<String> getCoverageEnabledSourceSets() {

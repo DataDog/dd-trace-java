@@ -19,6 +19,8 @@ import datadog.trace.api.DDTags
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.core.DDSpan
+import org.slf4j.Logger
+import org.slf4j.LoggerFactory
 import org.testcontainers.couchbase.BucketDefinition
 import org.testcontainers.couchbase.CouchbaseContainer
 import spock.lang.Shared
@@ -27,6 +29,7 @@ import java.time.Duration
 
 abstract class CouchbaseClient32Test extends VersionedNamingTestBase {
   static final String BUCKET = 'test-bucket'
+  static final Logger LOGGER = LoggerFactory.getLogger(CouchbaseClient32Test)
 
   @Shared
   CouchbaseContainer couchbase
@@ -63,7 +66,11 @@ abstract class CouchbaseClient32Test extends VersionedNamingTestBase {
   }
 
   def cleanupSpec() {
-    cluster?.disconnect()
+    try {
+      cluster?.disconnect()
+    } catch (Throwable t) {
+      LOGGER.debug("Unable to properly disconnect on cleanup", t)
+    }
     couchbase?.stop()
   }
 

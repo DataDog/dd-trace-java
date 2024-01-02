@@ -277,19 +277,19 @@ class IastWebFluxTest extends IastRequestTestRunner {
     then:
     toc.hasTaintedObject {
       value 'var1'
-      range 0, 4, source(SourceTypes.REQUEST_BODY, nullValue(),  nullValue())
+      range 0, 4, source(SourceTypes.REQUEST_BODY, 'var1',  nullValue())
     }
     toc.hasTaintedObject {
       value 'var2'
-      range 0, 4, source(SourceTypes.REQUEST_BODY, nullValue(),  nullValue())
+      range 0, 4, source(SourceTypes.REQUEST_BODY, 'var2',  nullValue())
     }
     toc.hasTaintedObject {
       value 'foo'
-      range 0, 3, source(SourceTypes.REQUEST_BODY, nullValue(),  nullValue())
+      range 0, 3, source(SourceTypes.REQUEST_BODY, 'var1',  nullValue())
     }
     toc.hasTaintedObject {
       value 'foo2'
-      range 0, 4, source(SourceTypes.REQUEST_BODY, nullValue(),  nullValue())
+      range 0, 4, source(SourceTypes.REQUEST_BODY, 'var2',  nullValue())
     }
   }
 }

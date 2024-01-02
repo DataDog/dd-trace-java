@@ -11,6 +11,7 @@ import static com.datadog.debugger.util.ClassFileHelper.stripPackagePath;
 
 import com.datadog.debugger.probe.SpanProbe;
 import com.datadog.debugger.probe.Where;
+import datadog.trace.bootstrap.debugger.ProbeId;
 import java.util.List;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.Type;
@@ -31,7 +32,7 @@ public class SpanInstrumentor extends Instrumentor {
       ClassNode classNode,
       MethodNode methodNode,
       List<DiagnosticMessage> diagnostics,
-      List<String> probeIds) {
+      List<ProbeId> probeIds) {
     super(spanProbe, classLoader, classNode, methodNode, diagnostics, probeIds);
   }
 
@@ -75,15 +76,18 @@ public class SpanInstrumentor extends Instrumentor {
 
   private InsnList createSpan(LabelNode initSpanLabel) {
     InsnList insnList = new InsnList();
-    ldc(insnList, buildResourceName());
+    ldc(insnList, definition.getProbeId().getEncodedId());
     // stack: [string]
+    ldc(insnList, buildResourceName());
+    // stack: [string, string]
     pushTags(insnList, addProbeIdWithTags(definition.getId(), definition.getTags()));
-    // stack: [string, tags]
+    // stack: [string, string, tags]
     invokeStatic(
         insnList,
         DEBUGGER_CONTEXT_TYPE,
         "createSpan",
         DEBUGGER_SPAN_TYPE,
+        STRING_TYPE,
         STRING_TYPE,
         Types.asArray(STRING_TYPE, 1)); // tags
     // stack: [span]

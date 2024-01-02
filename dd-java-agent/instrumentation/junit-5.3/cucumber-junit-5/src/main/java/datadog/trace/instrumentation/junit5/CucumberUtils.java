@@ -18,6 +18,10 @@ import org.junit.platform.engine.support.descriptor.ClasspathResourceSource;
 
 public abstract class CucumberUtils {
 
+  static {
+    TestIdentifierFactory.register("cucumber", CucumberUtils::toTestIdentifier);
+  }
+
   public static @Nullable String getCucumberVersion(TestEngine cucumberEngine) {
     try (InputStream cucumberPropsStream =
         cucumberEngine
@@ -92,7 +96,8 @@ public abstract class CucumberUtils {
     return "feature".equals(lastSegment.getType());
   }
 
-  public static TestIdentifier toTestIdentifier(TestDescriptor testDescriptor) {
+  public static TestIdentifier toTestIdentifier(
+      TestDescriptor testDescriptor, boolean includeParameters) {
     TestSource testSource = testDescriptor.getSource().orElse(null);
     if (testSource instanceof ClasspathResourceSource) {
       ClasspathResourceSource classpathResourceSource = (ClasspathResourceSource) testSource;

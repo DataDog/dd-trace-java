@@ -116,7 +116,7 @@ public class DBMCompatibleConnectionInstrumentation extends AbstractConnectionIn
       }
       ContextStore<Statement, DBQueryInfo> contextStore =
           InstrumentationContext.get(Statement.class, DBQueryInfo.class);
-      if (null == contextStore.get(statement)) {
+      if (null != statement && null == contextStore.get(statement)) {
         DBQueryInfo info = DBQueryInfo.ofPreparedStatement(inputSql);
         contextStore.put(statement, info);
         logQueryInfoInjection(connection, statement, info);

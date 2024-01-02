@@ -46,6 +46,7 @@ public class SensitiveHandlerImpl implements SensitiveHandler {
     tokenizers.put(VulnerabilityType.SSRF, UrlRegexpTokenizer::new);
     tokenizers.put(VulnerabilityType.UNVALIDATED_REDIRECT, UrlRegexpTokenizer::new);
     tokenizers.put(VulnerabilityType.XSS, TaintedRangeBasedTokenizer::new);
+    tokenizers.put(VulnerabilityType.HEADER_INJECTION, TaintedRangeBasedTokenizer::new);
   }
 
   @Override

@@ -54,7 +54,10 @@ public class JUnit5CucumberItrInstrumentation extends Instrumenter.CiVisibility
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".CucumberUtils", packageName + ".TestEventsHandlerHolder",
+      packageName + ".TestIdentifierFactory",
+      packageName + ".JUnitPlatformUtils",
+      packageName + ".CucumberUtils",
+      packageName + ".TestEventsHandlerHolder",
     };
   }
 
@@ -96,7 +99,7 @@ public class JUnit5CucumberItrInstrumentation extends Instrumenter.CiVisibility
         }
       }
 
-      TestIdentifier test = CucumberUtils.toTestIdentifier(testDescriptor);
+      TestIdentifier test = CucumberUtils.toTestIdentifier(testDescriptor, true);
       if (test != null && TestEventsHandlerHolder.TEST_EVENTS_HANDLER.skip(test)) {
         skipResult = Node.SkipResult.skip(InstrumentationBridge.ITR_SKIP_REASON);
       }

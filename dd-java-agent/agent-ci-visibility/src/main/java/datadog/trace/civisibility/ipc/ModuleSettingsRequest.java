@@ -5,29 +5,23 @@ import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.Objects;
 
-public class TestDataRequest implements Signal {
+public class ModuleSettingsRequest implements Signal {
 
-  private final TestDataType testDataType;
-  private final String relativeModulePath;
+  private final String moduleName;
   private final JvmInfo jvmInfo;
 
-  public TestDataRequest(TestDataType testDataType, String relativeModulePath, JvmInfo jvmInfo) {
-    this.testDataType = testDataType;
-    this.relativeModulePath = relativeModulePath;
+  public ModuleSettingsRequest(String moduleName, JvmInfo jvmInfo) {
+    this.moduleName = moduleName;
     this.jvmInfo = jvmInfo;
   }
 
   @Override
   public SignalType getType() {
-    return SignalType.TEST_DATA_REQUEST;
+    return SignalType.MODULE_SETTINGS_REQUEST;
   }
 
-  public TestDataType getTestDataType() {
-    return testDataType;
-  }
-
-  public String getRelativeModulePath() {
-    return relativeModulePath;
+  public String getModuleName() {
+    return moduleName;
   }
 
   public JvmInfo getJvmInfo() {
@@ -36,14 +30,7 @@ public class TestDataRequest implements Signal {
 
   @Override
   public String toString() {
-    return "SkippableTestsRequest{"
-        + "testDataType="
-        + testDataType
-        + ",relativeModulePath="
-        + relativeModulePath
-        + ", jvmInfo="
-        + jvmInfo
-        + '}';
+    return "ModuleSettingsRequest{" + "moduleName=" + moduleName + ", jvmInfo=" + jvmInfo + '}';
   }
 
   @Override
@@ -54,22 +41,19 @@ public class TestDataRequest implements Signal {
     if (o == null || getClass() != o.getClass()) {
       return false;
     }
-    TestDataRequest that = (TestDataRequest) o;
-    return testDataType == that.testDataType
-        && Objects.equals(relativeModulePath, that.relativeModulePath)
-        && Objects.equals(jvmInfo, that.jvmInfo);
+    ModuleSettingsRequest that = (ModuleSettingsRequest) o;
+    return Objects.equals(moduleName, that.moduleName) && Objects.equals(jvmInfo, that.jvmInfo);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(testDataType, relativeModulePath, jvmInfo);
+    return Objects.hash(moduleName, jvmInfo);
   }
 
   @Override
   public ByteBuffer serialize() {
-
     byte[] modulePathBytes =
-        relativeModulePath != null ? relativeModulePath.getBytes(StandardCharsets.UTF_8) : null;
+        moduleName != null ? moduleName.getBytes(StandardCharsets.UTF_8) : null;
 
     String jvmName = jvmInfo.getName();
     byte[] jvmNameBytes = jvmName != null ? jvmName.getBytes(StandardCharsets.UTF_8) : null;
@@ -83,13 +67,11 @@ public class TestDataRequest implements Signal {
 
     ByteBuffer buffer =
         ByteBuffer.allocate(
-            1 // test data type ordinal
-                + serializeStringLength(modulePathBytes)
+            serializeStringLength(modulePathBytes)
                 + serializeStringLength(jvmNameBytes)
                 + serializeStringLength(jvmVersionBytes)
                 + serializeStringLength(jvmVendorBytes));
 
-    buffer.put((byte) testDataType.ordinal());
     serializeString(buffer, modulePathBytes);
     serializeString(buffer, jvmNameBytes);
     serializeString(buffer, jvmVersionBytes);
@@ -112,14 +94,13 @@ public class TestDataRequest implements Signal {
     }
   }
 
-  public static TestDataRequest deserialize(ByteBuffer buffer) {
-    TestDataType testDataType = TestDataType.byOrdinal(buffer.get());
-    String relativeModulePath = deserializeString(buffer);
+  public static ModuleSettingsRequest deserialize(ByteBuffer buffer) {
+    String moduleName = deserializeString(buffer);
     String jvmName = deserializeString(buffer);
     String jvmVersion = deserializeString(buffer);
     String jvmVendor = deserializeString(buffer);
     JvmInfo jvmInfo = new JvmInfo(jvmName, jvmVersion, jvmVendor);
-    return new TestDataRequest(testDataType, relativeModulePath, jvmInfo);
+    return new ModuleSettingsRequest(moduleName, jvmInfo);
   }
 
   private static String deserializeString(ByteBuffer buffer) {

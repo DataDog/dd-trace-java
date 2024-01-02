@@ -141,7 +141,7 @@ class OverheadControllerTest extends DDSpecification {
     given:
     def taskSchedler = Stub(AgentTaskScheduler)
     def overheadController = OverheadController.build(Config.get(), taskSchedler)
-    def overheadContext = Mock(OverheadContext)
+    def overheadContext = Stub(OverheadContext)
     def iastRequestContext = Stub(IastRequestContext)
     iastRequestContext.getOverheadContext() >> overheadContext
     def requestContext = Stub(RequestContext)

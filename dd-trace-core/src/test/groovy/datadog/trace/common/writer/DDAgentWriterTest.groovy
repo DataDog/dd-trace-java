@@ -193,8 +193,8 @@ class DDAgentWriterTest extends DDCoreSpecification {
   }
 
   def newSpan() {
-    CoreTracer tracer = Mock(CoreTracer)
-    PendingTrace trace = Mock(PendingTrace)
+    CoreTracer tracer = Stub(CoreTracer)
+    PendingTrace trace = Stub(PendingTrace)
     trace.mapServiceName(_) >> { String serviceName -> serviceName }
     trace.getTracer() >> tracer
     def context = new DDSpanContext(

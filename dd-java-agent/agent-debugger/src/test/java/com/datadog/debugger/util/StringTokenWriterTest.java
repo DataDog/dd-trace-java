@@ -15,7 +15,9 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
 import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.atomic.AtomicLong;
 import org.junit.jupiter.api.Test;
 
@@ -56,6 +58,10 @@ class StringTokenWriterTest {
     assertEquals("0.0", serializeValue(0F, DEPTH_1));
     assertEquals("0.0", serializeValue(0D, DEPTH_1));
     assertEquals("true", serializeValue(true, DEPTH_1));
+    assertEquals(
+        "beae1807-f3b0-4ea8-a74f-826790c5e6f8",
+        serializeValue(UUID.fromString("beae1807-f3b0-4ea8-a74f-826790c5e6f8"), DEPTH_1));
+    assertEquals("java.util.Random", serializeValue(Random.class, DEPTH_1));
   }
 
   @Test

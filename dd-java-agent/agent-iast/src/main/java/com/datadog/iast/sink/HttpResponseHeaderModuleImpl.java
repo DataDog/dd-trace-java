@@ -50,6 +50,9 @@ public class HttpResponseHeaderModuleImpl extends SinkModuleBase
         InstrumentationBridge.UNVALIDATED_REDIRECT.onHeader(name, value);
       }
     }
+    if (null != InstrumentationBridge.HEADER_INJECTION) {
+      InstrumentationBridge.HEADER_INJECTION.onHeader(name, value);
+    }
   }
 
   @Override

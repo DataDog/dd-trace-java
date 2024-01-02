@@ -150,12 +150,14 @@ import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_BACKEND_A
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_BUILD_INSTRUMENTATION_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_CIPROVIDER_INTEGRATION_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_CODE_COVERAGE_ENABLED;
+import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_CODE_COVERAGE_EXCLUDES;
+import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_CODE_COVERAGE_INCLUDES;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_CODE_COVERAGE_PERCENTAGE_CALCULATION_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_CODE_COVERAGE_REPORT_DUMP_DIR;
+import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_CODE_COVERAGE_ROOT_PACKAGES_LIMIT;
+import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_CODE_COVERAGE_SEGMENTS_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_COMPILER_PLUGIN_AUTO_CONFIGURATION_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_COMPILER_PLUGIN_VERSION;
-import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_COVERAGE_ROOT_PACKAGES_LIMIT;
-import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_COVERAGE_SEGMENTS_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_DEBUG_PORT;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_FLAKY_RETRY_COUNT;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_FLAKY_RETRY_ENABLED;
@@ -168,12 +170,11 @@ import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_GIT_UPLOA
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_INJECTED_TRACER_VERSION;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_ITR_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_JACOCO_GRADLE_SOURCE_SETS;
-import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_JACOCO_PLUGIN_EXCLUDES;
-import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_JACOCO_PLUGIN_INCLUDES;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_JACOCO_PLUGIN_VERSION;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_JVM_INFO_CACHE_SIZE;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_MODULE_EXECUTION_SETTINGS_CACHE_SIZE;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_MODULE_ID;
+import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_MODULE_NAME;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_REPO_INDEX_SHARING_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_RESOURCE_FOLDER_NAMES;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_SESSION_ID;
@@ -382,6 +383,7 @@ import static datadog.trace.api.config.TracerConfig.PROPAGATION_STYLE_EXTRACT;
 import static datadog.trace.api.config.TracerConfig.PROPAGATION_STYLE_INJECT;
 import static datadog.trace.api.config.TracerConfig.PROXY_NO_PROXY;
 import static datadog.trace.api.config.TracerConfig.REQUEST_HEADER_TAGS;
+import static datadog.trace.api.config.TracerConfig.REQUEST_HEADER_TAGS_COMMA_ALLOWED;
 import static datadog.trace.api.config.TracerConfig.RESPONSE_HEADER_TAGS;
 import static datadog.trace.api.config.TracerConfig.SCOPE_DEPTH_LIMIT;
 import static datadog.trace.api.config.TracerConfig.SCOPE_INHERIT_ASYNC_PROPAGATION;
@@ -567,6 +569,7 @@ public class Config {
   private final Map<String, String> requestHeaderTags;
   private final Map<String, String> responseHeaderTags;
   private final Map<String, String> baggageMapping;
+  private final boolean requestHeaderTagsCommaAllowed;
   private final BitSet httpServerErrorStatuses;
   private final BitSet httpClientErrorStatuses;
   private final boolean httpServerTagQueryString;
@@ -722,9 +725,10 @@ public class Config {
   private final String ciVisibilityCompilerPluginVersion;
   private final String ciVisibilityJacocoPluginVersion;
   private final boolean ciVisibilityJacocoPluginVersionProvided;
-  private final List<String> ciVisibilityJacocoPluginIncludes;
-  private final List<String> ciVisibilityJacocoPluginExcludes;
-  private final String[] ciVisibilityJacocoPluginExcludedClassnames;
+  private final List<String> ciVisibilityCodeCoverageIncludes;
+  private final List<String> ciVisibilityCodeCoverageExcludes;
+  private final String[] ciVisibilityCodeCoverageIncludedPackages;
+  private final String[] ciVisibilityCodeCoverageExcludedPackages;
   private final List<String> ciVisibilityJacocoGradleSourceSets;
   private final Integer ciVisibilityDebugPort;
   private final boolean ciVisibilityGitUploadEnabled;
@@ -747,6 +751,7 @@ public class Config {
   private final List<String> ciVisibilityResourceFolderNames;
   private final boolean ciVisibilityFlakyRetryEnabled;
   private final int ciVisibilityFlakyRetryCount;
+  private final String ciVisibilityModuleName;
 
   private final boolean remoteConfigEnabled;
   private final boolean remoteConfigIntegrityCheckEnabled;
@@ -1096,6 +1101,8 @@ public class Config {
           configProvider.getMergedMapWithOptionalMappings(
               "http.response.headers.", true, HEADER_TAGS, RESPONSE_HEADER_TAGS);
     }
+    requestHeaderTagsCommaAllowed =
+        configProvider.getBoolean(REQUEST_HEADER_TAGS_COMMA_ALLOWED, true);
 
     baggageMapping = configProvider.getMergedMap(BAGGAGE_MAPPING);
 
@@ -1647,17 +1654,19 @@ public class Config {
             CIVISIBILITY_JACOCO_PLUGIN_VERSION, DEFAULT_CIVISIBILITY_JACOCO_PLUGIN_VERSION);
     ciVisibilityJacocoPluginVersionProvided =
         configProvider.getString(CIVISIBILITY_JACOCO_PLUGIN_VERSION) != null;
-    ciVisibilityJacocoPluginIncludes =
+    ciVisibilityCodeCoverageIncludes =
         Arrays.asList(
-            COLON.split(configProvider.getString(CIVISIBILITY_JACOCO_PLUGIN_INCLUDES, ":")));
-    ciVisibilityJacocoPluginExcludes =
+            COLON.split(configProvider.getString(CIVISIBILITY_CODE_COVERAGE_INCLUDES, ":")));
+    ciVisibilityCodeCoverageExcludes =
         Arrays.asList(
             COLON.split(
                 configProvider.getString(
-                    CIVISIBILITY_JACOCO_PLUGIN_EXCLUDES,
+                    CIVISIBILITY_CODE_COVERAGE_EXCLUDES,
                     DEFAULT_CIVISIBILITY_JACOCO_PLUGIN_EXCLUDES)));
-    ciVisibilityJacocoPluginExcludedClassnames =
-        computeCiVisibilityJacocoPluginExcludedClassnames(ciVisibilityJacocoPluginExcludes);
+    ciVisibilityCodeCoverageIncludedPackages =
+        convertJacocoExclusionFormatToPackagePrefixes(ciVisibilityCodeCoverageIncludes);
+    ciVisibilityCodeCoverageExcludedPackages =
+        convertJacocoExclusionFormatToPackagePrefixes(ciVisibilityCodeCoverageExcludes);
     ciVisibilityJacocoGradleSourceSets =
         configProvider.getList(
             CIVISIBILITY_JACOCO_GRADLE_SOURCE_SETS, Collections.singletonList("main"));
@@ -1699,9 +1708,9 @@ public class Config {
         configProvider.getInteger(CIVISIBILITY_MODULE_EXECUTION_SETTINGS_CACHE_SIZE, 16);
     ciVisibilityJvmInfoCacheSize = configProvider.getInteger(CIVISIBILITY_JVM_INFO_CACHE_SIZE, 8);
     ciVisibilityCoverageSegmentsEnabled =
-        configProvider.getBoolean(CIVISIBILITY_COVERAGE_SEGMENTS_ENABLED, false);
+        configProvider.getBoolean(CIVISIBILITY_CODE_COVERAGE_SEGMENTS_ENABLED, false);
     ciVisibilityCoverageRootPackagesLimit =
-        configProvider.getInteger(CIVISIBILITY_COVERAGE_ROOT_PACKAGES_LIMIT, 30);
+        configProvider.getInteger(CIVISIBILITY_CODE_COVERAGE_ROOT_PACKAGES_LIMIT, 50);
     ciVisibilityInjectedTracerVersion =
         configProvider.getString(CIVISIBILITY_INJECTED_TRACER_VERSION);
     ciVisibilityResourceFolderNames =
@@ -1710,6 +1719,7 @@ public class Config {
     ciVisibilityFlakyRetryEnabled =
         configProvider.getBoolean(CIVISIBILITY_FLAKY_RETRY_ENABLED, false);
     ciVisibilityFlakyRetryCount = configProvider.getInteger(CIVISIBILITY_FLAKY_RETRY_COUNT, 5);
+    ciVisibilityModuleName = configProvider.getString(CIVISIBILITY_MODULE_NAME);
 
     remoteConfigEnabled =
         configProvider.getBoolean(REMOTE_CONFIG_ENABLED, DEFAULT_REMOTE_CONFIG_ENABLED);
@@ -1946,9 +1956,13 @@ public class Config {
     log.debug("New instance: {}", this);
   }
 
-  private String[] computeCiVisibilityJacocoPluginExcludedClassnames(
-      List<String> ciVisibilityJacocoPluginExcludes) {
-    return ciVisibilityJacocoPluginExcludes.stream()
+  /**
+   * Converts a list of packages in Jacoco exclusion format ({@code
+   * my.package.*,my.other.package.*}) to list of package prefixes suitable for use with ASM ({@code
+   * my/package/,my/other/package/})
+   */
+  private static String[] convertJacocoExclusionFormatToPackagePrefixes(List<String> packages) {
+    return packages.stream()
         .map(s -> (s.endsWith("*") ? s.substring(0, s.length() - 1) : s).replace('.', '/'))
         .toArray(String[]::new);
   }
@@ -2115,6 +2129,10 @@ public class Config {
 
   public Map<String, String> getResponseHeaderTags() {
     return responseHeaderTags;
+  }
+
+  public boolean isRequestHeaderTagsCommaAllowed() {
+    return requestHeaderTagsCommaAllowed;
   }
 
   public Map<String, String> getBaggageMapping() {
@@ -2772,16 +2790,20 @@ public class Config {
     return ciVisibilityJacocoPluginVersionProvided;
   }
 
-  public List<String> getCiVisibilityJacocoPluginIncludes() {
-    return ciVisibilityJacocoPluginIncludes;
+  public List<String> getCiVisibilityCodeCoverageIncludes() {
+    return ciVisibilityCodeCoverageIncludes;
   }
 
-  public List<String> getCiVisibilityJacocoPluginExcludes() {
-    return ciVisibilityJacocoPluginExcludes;
+  public List<String> getCiVisibilityCodeCoverageExcludes() {
+    return ciVisibilityCodeCoverageExcludes;
   }
 
-  public String[] getCiVisibilityJacocoPluginExcludedClassnames() {
-    return ciVisibilityJacocoPluginExcludedClassnames;
+  public String[] getCiVisibilityCodeCoverageIncludedPackages() {
+    return ciVisibilityCodeCoverageIncludedPackages;
+  }
+
+  public String[] getCiVisibilityCodeCoverageExcludedPackages() {
+    return ciVisibilityCodeCoverageExcludedPackages;
   }
 
   public List<String> getCiVisibilityJacocoGradleSourceSets() {
@@ -2870,6 +2892,10 @@ public class Config {
 
   public int getCiVisibilityFlakyRetryCount() {
     return ciVisibilityFlakyRetryCount;
+  }
+
+  public String getCiVisibilityModuleName() {
+    return ciVisibilityModuleName;
   }
 
   public String getAppSecRulesFile() {

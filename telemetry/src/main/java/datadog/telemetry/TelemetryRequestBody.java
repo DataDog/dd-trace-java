@@ -280,6 +280,19 @@ public class TelemetryRequestBody extends RequestBody {
     bodyWriter.endObject();
   }
 
+  public void writeInstallSignature(String installId, String installType, String installTime)
+      throws IOException {
+    if (installId == null && installType == null && installTime == null) {
+      return;
+    }
+    bodyWriter.name("install_signature");
+    bodyWriter.beginObject();
+    bodyWriter.name("install_id").value(installId);
+    bodyWriter.name("install_type").value(installType);
+    bodyWriter.name("install_time").value(installTime);
+    bodyWriter.endObject();
+  }
+
   @Nullable
   @Override
   public MediaType contentType() {
