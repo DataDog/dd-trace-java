@@ -15,6 +15,10 @@ public interface SpanMetricRegistry {
    */
   SpanMetrics get(String instrumentationName);
 
+  default String summary() {
+    return "";
+  }
+
   /**
    * Get the registry instance according the telemetry status.
    *
