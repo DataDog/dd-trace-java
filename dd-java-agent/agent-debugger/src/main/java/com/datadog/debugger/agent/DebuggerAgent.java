@@ -54,9 +54,7 @@ public class DebuggerAgent {
     String diagnosticEndpoint = getDiagnosticEndpoint(config, ddAgentFeaturesDiscovery);
     ProbeStatusSink probeStatusSink =
         new ProbeStatusSink(
-            config,
-            diagnosticEndpoint, /*ddAgentFeaturesDiscovery.supportsDebuggerDiagnostics()*/
-            false);
+            config, diagnosticEndpoint, ddAgentFeaturesDiscovery.supportsDebuggerDiagnostics());
     DebuggerSink debuggerSink = new DebuggerSink(config, probeStatusSink);
     debuggerSink.start();
     ConfigurationUpdater configurationUpdater =
@@ -116,10 +114,9 @@ public class DebuggerAgent {
 
   private static String getDiagnosticEndpoint(
       Config config, DDAgentFeaturesDiscovery ddAgentFeaturesDiscovery) {
-    //    if (ddAgentFeaturesDiscovery.supportsDebuggerDiagnostics()) {
-    //      return config.getAgentUrl() + "/" +
-    // DDAgentFeaturesDiscovery.DEBUGGER_DIAGNOSTICS_ENDPOINT;
-    //    }
+    if (ddAgentFeaturesDiscovery.supportsDebuggerDiagnostics()) {
+      return config.getAgentUrl() + "/" + DDAgentFeaturesDiscovery.DEBUGGER_DIAGNOSTICS_ENDPOINT;
+    }
     return config.getFinalDebuggerSnapshotUrl();
   }
 
