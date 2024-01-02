@@ -4,7 +4,6 @@ import datadog.trace.agent.test.utils.ThreadUtils
 import datadog.trace.api.DDTraceId
 import datadog.trace.api.EndpointCheckpointer
 import datadog.trace.api.Stateful
-import datadog.trace.api.StatsDClient
 import datadog.trace.api.TraceConfig
 import datadog.trace.api.interceptor.MutableSpan
 import datadog.trace.api.interceptor.TraceInterceptor
@@ -48,7 +47,6 @@ class ScopeManagerTest extends DDCoreSpecification {
   ListWriter writer
   CoreTracer tracer
   ContinuableScopeManager scopeManager
-  StatsDClient statsDClient
   EventCountingListener eventCountingListener
   EventCountingExtendedListener eventCountingExtendedListener
   EndpointCheckpointer rootSpanCheckpointer
@@ -62,8 +60,7 @@ class ScopeManagerTest extends DDCoreSpecification {
     })
     rootSpanCheckpointer = Mock()
     writer = new ListWriter()
-    statsDClient = Mock()
-    tracer = tracerBuilder().writer(writer).statsDClient(statsDClient).profilingContextIntegration(profilingContext).build()
+    tracer = tracerBuilder().writer(writer).profilingContextIntegration(profilingContext).build()
     tracer.registerCheckpointer(rootSpanCheckpointer)
     scopeManager = tracer.scopeManager
     eventCountingListener = new EventCountingListener()
@@ -555,7 +552,6 @@ class ScopeManagerTest extends DDCoreSpecification {
 
     then:
     assertEvents([ACTIVATE, ACTIVATE])
-    1 * statsDClient.incrementCounter("scope.close.error")
     1 * rootSpanCheckpointer.onRootSpanStarted(_)
     1 * profilingContext.onAttach()
     1 * profilingContext.encodeOperationName("foo")
@@ -569,7 +565,6 @@ class ScopeManagerTest extends DDCoreSpecification {
 
     then:
     1 * rootSpanCheckpointer.onRootSpanFinished(_, _)
-    _ * statsDClient.close()
     1 * profilingContext.onDetach()
     assertEvents([ACTIVATE, ACTIVATE, CLOSE, CLOSE])
     0 * _
@@ -579,7 +574,6 @@ class ScopeManagerTest extends DDCoreSpecification {
 
     then:
     assertEvents([ACTIVATE, ACTIVATE, CLOSE, CLOSE])
-    1 * statsDClient.incrementCounter("scope.close.error")
   }
 
   def "closing scope out of order - complex"() {
@@ -635,7 +629,6 @@ class ScopeManagerTest extends DDCoreSpecification {
     tracer.activeSpan() == thirdSpan
     tracer.activeScope() == thirdScope
     assertEvents([ACTIVATE, ACTIVATE, ACTIVATE])
-    1 * statsDClient.incrementCounter("scope.close.error")
     0 * _
 
     when:
@@ -647,7 +640,6 @@ class ScopeManagerTest extends DDCoreSpecification {
     tracer.activeScope() == firstScope
 
     assertEvents([ACTIVATE, ACTIVATE, ACTIVATE, CLOSE, CLOSE, ACTIVATE])
-    _ * statsDClient.close()
     0 * _
 
     when:
@@ -673,7 +665,6 @@ class ScopeManagerTest extends DDCoreSpecification {
       ACTIVATE,
       CLOSE
     ])
-    _ * statsDClient.close()
     1 * profilingContext.onDetach()
     0 * _
   }
@@ -713,7 +704,6 @@ class ScopeManagerTest extends DDCoreSpecification {
 
     then: 'Closing a scope once that has been activated multiple times does not close'
     assertEvents([ACTIVATE, ACTIVATE])
-    1 * statsDClient.incrementCounter("scope.close.error")
     0 * _
 
     when:
@@ -722,7 +712,6 @@ class ScopeManagerTest extends DDCoreSpecification {
 
     then: 'Closing scope above multiple activated scope does not close it'
     assertEvents([ACTIVATE, ACTIVATE, CLOSE, ACTIVATE])
-    _ * statsDClient.close()
     0 * _
 
     when:
