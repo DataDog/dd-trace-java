@@ -73,6 +73,10 @@ public abstract class HealthMetrics implements AutoCloseable {
 
   public void onLongRunningUpdate(final int dropped, final int write, final int expired) {}
 
+  public String summary() {
+    return "";
+  }
+
   @Override
   public void close() {}
 }
