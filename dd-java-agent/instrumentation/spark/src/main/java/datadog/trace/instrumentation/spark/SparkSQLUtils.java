@@ -143,11 +143,11 @@ public class SparkSQLUtils {
       // https://mvnrepository.com/artifact/org.apache.spark/spark-core_2.12/3.5.0
       ObjectMapper mapper =
           new ObjectMapper().configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
-      try (ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
-        JsonGenerator generator = mapper.getFactory().createGenerator(baos);
+
+      ByteArrayOutputStream baos = new ByteArrayOutputStream();
+      try (JsonGenerator generator = mapper.getFactory().createGenerator(baos)) {
         this.toJson(generator, accumulators);
         generator.close();
-        baos.close();
         return new String(baos.toByteArray(), StandardCharsets.UTF_8);
       } catch (IOException e) {
         return null;
@@ -160,7 +160,7 @@ public class SparkSQLUtils {
       generator.writeStringField("node", plan.nodeName());
 
       // Metadata is only present for FileSourceScan nodes
-      if (plan.metadata().size() > 0) {
+      if (!plan.metadata().isEmpty()) {
         generator.writeFieldName("meta");
         generator.writeStartObject();
 
@@ -171,15 +171,14 @@ public class SparkSQLUtils {
         generator.writeEndObject();
       }
 
-      List<SQLMetricInfo> metrics = AbstractDatadogSparkListener.listener.getPlanInfoMetrics(plan);
-
       // Scala list are immutable, copying to sort it
-      metrics = new ArrayList<>(metrics);
+      ArrayList<SQLMetricInfo> metrics =
+          new ArrayList<>(AbstractDatadogSparkListener.listener.getPlanInfoMetrics(plan));
       // Sorting to have a consistent order of metrics
       metrics.sort(Comparator.comparing(SQLMetricInfo::name));
 
       // Writing final values of metrics
-      if (metrics.size() > 0) {
+      if (!metrics.isEmpty()) {
         generator.writeFieldName("metrics");
         generator.writeStartArray();
         for (SQLMetricInfo metric : metrics) {
