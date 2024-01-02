@@ -790,10 +790,14 @@ public class CapturedSnapshotTest {
             .when(
                 new ProbeCondition(
                     DSL.when(
-                        DSL.eq(
-                            DSL.getMember(DSL.ref("@exception"), "detailMessage"),
-                            DSL.value("oops"))),
-                    "@exception.detailMessage == 'oops'"))
+                        DSL.and(
+                            DSL.instanceOf(
+                                DSL.ref("@exception"),
+                                DSL.value("java.lang.IllegalStateException")),
+                            DSL.eq(
+                                DSL.getMember(DSL.ref("@exception"), "detailMessage"),
+                                DSL.value("oops")))),
+                    "@exception instanceof \"java.lang.IllegalStateException\" and @exception.detailMessage == 'oops'"))
             .template(LOG_TEMPLATE, parseTemplate(LOG_TEMPLATE))
             .build();
     DebuggerTransformerTest.TestSnapshotListener listener = installProbes(CLASS_NAME, probe);

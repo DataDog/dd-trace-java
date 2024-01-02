@@ -1,5 +1,5 @@
 {
-  "dsl": "this.intField1 == 42 && (this.intField1 > 0 || intField1 >= 0 || intField1 < 50 || intField1 <= 42) && intField1 != 0",
+  "dsl": "this.intField1 == 42 && (this.intField1 > 0 || intField1 >= 0 || intField1 < 50 || intField1 <= 42) && intField1 != 0 && strField instanceof \"java.lang.String\"",
   "json": {
     "and": [
       { "eq": [{"getmember": [{"ref": "this"}, "intField1"]}, 42] },
@@ -9,7 +9,8 @@
         {"lt": [{"ref": "intField1"}, 50]},
         {"le": [{"ref": "intField1"}, 42]}
       ]},
-      {"ne": [{"ref": "intField1"}, 0]}
+      {"ne": [{"ref": "intField1"}, 0]},
+      {"instanceof":  [{"ref": "strField"}, "java.lang.String"]}
     ]
   }
 }
