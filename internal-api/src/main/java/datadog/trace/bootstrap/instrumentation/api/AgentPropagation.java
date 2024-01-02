@@ -22,6 +22,9 @@ public interface AgentPropagation {
       long defaultTimestamp,
       long payloadSizeBytes);
 
+  <C> void injectPathwayContextWithoutSendingStats(
+      AgentSpan span, C carrier, Setter<C> setter, LinkedHashMap<String, String> sortedTags);
+
   interface Setter<C> {
     void set(C carrier, String key, String value);
   }
