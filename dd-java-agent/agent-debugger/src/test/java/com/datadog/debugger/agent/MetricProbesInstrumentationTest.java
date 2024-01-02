@@ -1282,7 +1282,7 @@ public class MetricProbesInstrumentationTest {
             config, configuration, null, new DebuggerSink(config, probeStatusSink));
     instr.addTransformer(currentTransformer);
     MetricForwarderListener listener = new MetricForwarderListener();
-    DebuggerContext.init(null, listener);
+    DebuggerContext.initMetricForwarder(listener);
     DebuggerContext.initClassFilter(new DenyListHelper(null));
     return listener;
   }
@@ -1295,7 +1295,7 @@ public class MetricProbesInstrumentationTest {
             .build());
   }
 
-  private static class MetricForwarderListener implements DebuggerContext.MetricForwarder {
+  static class MetricForwarderListener implements DebuggerContext.MetricForwarder {
     Map<String, Long> counters = new HashMap<>();
     Map<String, Long> gauges = new HashMap<>();
     Map<String, Double> doubleGauges = new HashMap<>();

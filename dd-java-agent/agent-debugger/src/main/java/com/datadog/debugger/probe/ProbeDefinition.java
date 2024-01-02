@@ -1,7 +1,5 @@
 package com.datadog.debugger.probe;
 
-import static java.util.Collections.singletonList;
-
 import com.datadog.debugger.agent.Generated;
 import com.datadog.debugger.instrumentation.DiagnosticMessage;
 import com.datadog.debugger.instrumentation.InstrumentationResult;
@@ -125,14 +123,6 @@ public abstract class ProbeDefinition implements ProbeImplementation {
         tagMap.put(tag.getKey(), tag.getValue());
       }
     }
-  }
-
-  public InstrumentationResult.Status instrument(
-      ClassLoader classLoader,
-      ClassNode classNode,
-      MethodNode methodNode,
-      List<DiagnosticMessage> diagnostics) {
-    return instrument(classLoader, classNode, methodNode, diagnostics, singletonList(getProbeId()));
   }
 
   public abstract InstrumentationResult.Status instrument(

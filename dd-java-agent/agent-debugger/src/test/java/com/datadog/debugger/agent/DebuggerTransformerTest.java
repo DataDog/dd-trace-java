@@ -1,6 +1,11 @@
 package com.datadog.debugger.agent;
 
 import static com.datadog.debugger.util.ClassFileHelperTest.getClassFileBytes;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -9,7 +14,9 @@ import static org.mockito.Mockito.when;
 import com.datadog.debugger.instrumentation.DiagnosticMessage;
 import com.datadog.debugger.instrumentation.InstrumentationResult;
 import com.datadog.debugger.probe.LogProbe;
+import com.datadog.debugger.probe.MetricProbe;
 import com.datadog.debugger.probe.ProbeDefinition;
+import com.datadog.debugger.probe.SpanDecorationProbe;
 import com.datadog.debugger.probe.SpanProbe;
 import com.datadog.debugger.probe.Where;
 import com.datadog.debugger.sink.DebuggerSink;
@@ -146,7 +153,7 @@ public class DebuggerTransformerTest {
 
   @BeforeEach
   void setup() {
-    DebuggerContext.init(null, null);
+    DebuggerContext.initProbeResolver(null);
   }
 
   @Test
@@ -226,7 +233,7 @@ public class DebuggerTransformerTest {
             HashSet.class,
             null,
             getClassFileBytes(HashSet.class));
-    Assertions.assertNull(newClassBuffer);
+    assertNull(newClassBuffer);
   }
 
   static class ProbeTestInfo {
@@ -271,11 +278,11 @@ public class DebuggerTransformerTest {
             String.class,
             null,
             getClassFileBytes(String.class));
-    Assertions.assertNull(newClassBuffer);
+    assertNull(newClassBuffer);
     Assertions.assertNotNull(lastResult.get());
     Assertions.assertTrue(lastResult.get().isBlocked());
     Assertions.assertFalse(lastResult.get().isInstalled());
-    Assertions.assertEquals("java.lang.String", lastResult.get().getTypeName());
+    assertEquals("java.lang.String", lastResult.get().getTypeName());
   }
 
   @Test
@@ -303,7 +310,7 @@ public class DebuggerTransformerTest {
     Assertions.assertNotNull(lastResult.get());
     Assertions.assertFalse(lastResult.get().isBlocked());
     Assertions.assertTrue(lastResult.get().isInstalled());
-    Assertions.assertEquals("java.util.ArrayList", lastResult.get().getTypeName());
+    assertEquals("java.util.ArrayList", lastResult.get().getTypeName());
   }
 
   @Test
@@ -336,19 +343,62 @@ public class DebuggerTransformerTest {
             null,
             null,
             getClassFileBytes(DebuggerAgent.class));
-    Assertions.assertNull(newClassBuffer);
+    assertNull(newClassBuffer);
     ArgumentCaptor<String> strCaptor = ArgumentCaptor.forClass(String.class);
     ArgumentCaptor<ProbeId> probeIdCaptor = ArgumentCaptor.forClass(ProbeId.class);
     verify(probeStatusSink, times(3)).addError(probeIdCaptor.capture(), strCaptor.capture());
-    Assertions.assertEquals("logprobe1", probeIdCaptor.getAllValues().get(0).getId());
-    Assertions.assertEquals("logprobe2", probeIdCaptor.getAllValues().get(1).getId());
-    Assertions.assertEquals(PROBE_ID.getId(), probeIdCaptor.getAllValues().get(2).getId());
-    Assertions.assertEquals(
-        "Instrumentation fails for " + CLASS_NAME, strCaptor.getAllValues().get(0));
-    Assertions.assertEquals(
-        "Instrumentation fails for " + CLASS_NAME, strCaptor.getAllValues().get(1));
-    Assertions.assertEquals(
-        "Instrumentation fails for " + CLASS_NAME, strCaptor.getAllValues().get(2));
+    assertEquals("logprobe1", probeIdCaptor.getAllValues().get(0).getId());
+    assertEquals("logprobe2", probeIdCaptor.getAllValues().get(1).getId());
+    assertEquals(PROBE_ID.getId(), probeIdCaptor.getAllValues().get(2).getId());
+    assertEquals("Instrumentation fails for " + CLASS_NAME, strCaptor.getAllValues().get(0));
+    assertEquals("Instrumentation fails for " + CLASS_NAME, strCaptor.getAllValues().get(1));
+    assertEquals("Instrumentation fails for " + CLASS_NAME, strCaptor.getAllValues().get(2));
+  }
+
+  @Test
+  public void ordering() {
+    Config config = createConfig();
+    List<ProbeDefinition> invocationOrder = new ArrayList<>();
+    MetricProbe metricProbe = createMock(MetricProbe.class, invocationOrder, "metric");
+    LogProbe logProbe = createMock(LogProbe.class, invocationOrder, "log");
+    SpanProbe spanProbe = createMock(SpanProbe.class, invocationOrder, "span");
+    SpanDecorationProbe spanDecorationProbe =
+        createMock(SpanDecorationProbe.class, invocationOrder, "spanDecoration");
+    Configuration configuration =
+        Configuration.builder()
+            .add(spanDecorationProbe)
+            .add(spanProbe)
+            .add(metricProbe)
+            .add(logProbe)
+            .build();
+    DebuggerTransformer debuggerTransformer = new DebuggerTransformer(config, configuration);
+    debuggerTransformer.transform(
+        ClassLoader.getSystemClassLoader(),
+        ArrayList.class.getName(), // always FQN
+        ArrayList.class,
+        null,
+        getClassFileBytes(ArrayList.class));
+    assertEquals(3, invocationOrder.size());
+    assertEquals(metricProbe, invocationOrder.get(0));
+    assertEquals(logProbe, invocationOrder.get(1));
+    assertEquals(spanProbe, invocationOrder.get(2));
+  }
+
+  <T extends ProbeDefinition> T createMock(
+      Class<T> clazz, List<ProbeDefinition> invocationOrder, String id) {
+    ProbeDefinition mock = mock(clazz);
+    doAnswer(
+            invocation -> {
+              invocationOrder.add(mock);
+              return InstrumentationResult.Status.INSTALLED;
+            })
+        .when(mock)
+        .instrument(any(), any(), any(), anyList(), anyList());
+    when(mock.getProbeId()).thenReturn(new ProbeId(id, 0));
+    Where where =
+        new Where().typeName(ArrayList.class.getName()).methodName("add").signature("(Object)");
+    when(mock.getWhere()).thenReturn(where);
+    return (T) mock;
   }
 
   private Config createConfig() {
