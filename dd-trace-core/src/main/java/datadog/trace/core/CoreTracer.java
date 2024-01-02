@@ -616,7 +616,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     if (writer == null) {
       this.writer =
           WriterFactory.createWriter(
-              config, sharedCommunicationObjects, sampler, singleSpanSampler, this.statsDClient);
+              config, sharedCommunicationObjects, sampler, singleSpanSampler, healthMetrics);
     } else {
       this.writer = writer;
     }
