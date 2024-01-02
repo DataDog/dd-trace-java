@@ -240,8 +240,12 @@ class TestTelemetryRouter extends TelemetryRouter {
       return this
     }
 
-    PayloadAssertions products(boolean appsecEnabled = true, boolean profilerEnabled = false) {
-      def expected = [appsec: [enabled: appsecEnabled], profiler: [enabled: profilerEnabled]]
+    PayloadAssertions products(boolean appsecEnabled = true, boolean profilerEnabled = false, boolean dynamicInstrumentationEnabled = false) {
+      def expected = [
+        appsec: [enabled: appsecEnabled],
+        profiler: [enabled: profilerEnabled],
+        dynamic_instrumentation: [enabled: dynamicInstrumentationEnabled]
+      ]
       assert this.payload['products'] == expected
       return this
     }

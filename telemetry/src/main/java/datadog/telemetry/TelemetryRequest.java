@@ -8,6 +8,7 @@ import datadog.telemetry.api.LogMessage;
 import datadog.telemetry.api.Metric;
 import datadog.telemetry.api.RequestType;
 import datadog.telemetry.dependency.Dependency;
+import datadog.trace.api.Config;
 import datadog.trace.api.ConfigSetting;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.InstrumenterConfig;
@@ -86,11 +87,13 @@ public class TelemetryRequest {
 
   public void writeProducts() {
     InstrumenterConfig instrumenterConfig = InstrumenterConfig.get();
+    Config config = Config.get();
     try {
       boolean appsecEnabled =
           instrumenterConfig.getAppSecActivation() != ProductActivation.FULLY_DISABLED;
       boolean profilerEnabled = instrumenterConfig.isProfilingEnabled();
-      requestBody.writeProducts(appsecEnabled, profilerEnabled);
+      boolean dynamicInstrumentationEnabled = config.isDebuggerEnabled();
+      requestBody.writeProducts(appsecEnabled, profilerEnabled, dynamicInstrumentationEnabled);
     } catch (IOException e) {
       throw new TelemetryRequestBody.SerializationException("products", e);
     }
