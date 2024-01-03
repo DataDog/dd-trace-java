@@ -11,6 +11,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.concurrent.TimeUnit;
 
 /** Capture the profiler config first and allow emitting the setting events per each recording. */
 public abstract class ProfilerSettingsSupport {
@@ -116,15 +117,25 @@ public abstract class ProfilerSettingsSupport {
     String value = "Not present";
     if (Platform.isLinux()) {
       try {
-        Process process = Runtime.getRuntime().exec("getenforce");
-        try (BufferedReader reader =
-            new BufferedReader(new InputStreamReader(process.getInputStream()))) {
-          String line = reader.readLine();
+        ProcessBuilder pb = new ProcessBuilder("getenforce");
+        Process process = pb.start();
+        // wait for at most 500ms for the process to finish
+        // if it takes longer, assume SELinux is not present
+        // if the exit value is not 0, assume SELinux is not present
+        if (process.waitFor(500, TimeUnit.MILLISECONDS) && process.exitValue() == 0) {
+          // we are expecting just a single line output from `getenforce`, so we can avoid draining
+          // stdout/stderr asynchronously
+          try (BufferedReader reader =
+              new BufferedReader(new InputStreamReader(process.getInputStream()))) {
+            String line = reader.readLine();
 
-          if (line != null) {
-            value = line.trim();
+            if (line != null) {
+              value = line.trim();
+            }
           }
         }
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
       } catch (IOException ignored) {
         // nothing to do here, can not execute `getenforce`, let's assume SELinux is not present
       }
