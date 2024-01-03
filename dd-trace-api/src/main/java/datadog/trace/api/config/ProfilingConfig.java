@@ -61,6 +61,13 @@ public final class ProfilingConfig {
   public static final String PROFILING_AUXILIARY_TYPE = "profiling.auxiliary";
   public static final String PROFILING_AUXILIARY_TYPE_DEFAULT = "none";
 
+  public static final String PROFILING_JFR_REPOSITORY_BASE = "profiling.jfr.repository.base";
+  public static final String PROFILING_JFR_REPOSITORY_BASE_DEFAULT =
+      System.getProperty("java.io.tmpdir") + "/dd/jfr";
+
+  public static final String PROFILING_JFR_REPOSITORY_CLEANUP = "profiling.jfr.repository.cleanup";
+  public static final boolean PROFILING_JFR_REPOSITORY_CLEANUP_DEFAULT = true;
+
   public static final String PROFILING_DATADOG_PROFILER_ENABLED = "profiling.ddprof.enabled";
 
   public static final String PROFILING_DIRECT_ALLOCATION_ENABLED =

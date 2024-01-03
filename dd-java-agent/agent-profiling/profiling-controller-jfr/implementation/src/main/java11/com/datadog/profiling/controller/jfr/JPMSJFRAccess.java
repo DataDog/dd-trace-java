@@ -4,8 +4,11 @@ import datadog.trace.api.Platform;
 import java.lang.instrument.Instrumentation;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Collections;
 import java.util.Map;
 import java.util.Set;
@@ -32,12 +35,26 @@ public class JPMSJFRAccess extends JFRAccess {
     }
   }
 
+  private final Class<?> jvmClass;
+  private final Class<?> repositoryClass;
+  private final Class<?> safePathClass;
+
   private final MethodHandle setStackDepthMH;
+  private final MethodHandle setRepositoryBaseMH;
 
   public JPMSJFRAccess(Instrumentation inst) throws Exception {
     patchModuleAccess(inst);
 
-    Class<?> jvmClass = JFRAccess.class.getClassLoader().loadClass("jdk.jfr.internal.JVM");
+    jvmClass = JFRAccess.class.getClassLoader().loadClass("jdk.jfr.internal.JVM");
+    repositoryClass = JFRAccess.class.getClassLoader().loadClass("jdk.jfr.internal.Repository");
+    safePathClass =
+        JFRAccess.class.getClassLoader().loadClass("jdk.jfr.internal.SecuritySupport$SafePath");
+    setStackDepthMH = setStackDepthMethodHandle();
+    setRepositoryBaseMH = setRepositoryBaseMethodHandle();
+  }
+
+  private MethodHandle setStackDepthMethodHandle()
+      throws NoSuchMethodException, IllegalAccessException, InvocationTargetException {
     Method m = jvmClass.getMethod("setStackDepth", int.class);
     m.setAccessible(true);
     MethodHandle mh = MethodHandles.publicLookup().unreflect(m);
@@ -46,7 +63,21 @@ public class JPMSJFRAccess extends JFRAccess {
       Object jvm = jvmClass.getMethod("getJVM").invoke(null);
       mh = mh.bindTo(jvm);
     }
-    setStackDepthMH = mh;
+    return mh;
+  }
+
+  private MethodHandle setRepositoryBaseMethodHandle()
+      throws NoSuchMethodException, IllegalAccessException, InvocationTargetException,
+          ClassNotFoundException {
+    Method m = repositoryClass.getMethod("getRepository");
+    m.setAccessible(true);
+    Object repository = m.invoke(null);
+
+    m = repositoryClass.getMethod("setBasePath", safePathClass);
+    m.setAccessible(true);
+    MethodHandle mh = MethodHandles.publicLookup().unreflect(m);
+    mh = mh.bindTo(repository);
+    return mh;
   }
 
   private static void patchModuleAccess(Instrumentation inst) {
@@ -72,6 +103,18 @@ public class JPMSJFRAccess extends JFRAccess {
       return true;
     } catch (Throwable throwable) {
       log.warn("Unable to set JFR stack depth", throwable);
+    }
+    return false;
+  }
+
+  @Override
+  public boolean setBaseLocation(String location) {
+    try {
+      Object safePath = safePathClass.getConstructor(Path.class).newInstance(Paths.get(location));
+      setRepositoryBaseMH.invoke(safePath);
+      return true;
+    } catch (Throwable throwable) {
+      log.warn("Unable to set JFR repository base location", throwable);
     }
     return false;
   }

@@ -3,6 +3,8 @@ package com.datadog.profiling.controller.jfr;
 import datadog.trace.api.Platform;
 import java.lang.instrument.Instrumentation;
 import jdk.jfr.internal.JVM;
+import jdk.jfr.internal.Repository;
+import jdk.jfr.internal.SecuritySupport;
 
 public class SimpleJFRAccess extends JFRAccess {
   public static class FactoryImpl implements JFRAccess.Factory {
@@ -23,6 +25,16 @@ public class SimpleJFRAccess extends JFRAccess {
   @Override
   public boolean setStackDepth(int depth) {
     JVM.getJVM().setStackDepth(depth);
+    return true;
+  }
+
+  @Override
+  public boolean setBaseLocation(String location) {
+    try {
+      Repository.getRepository().setBasePath(new SecuritySupport.SafePath(location));
+    } catch (Exception e) {
+      return false;
+    }
     return true;
   }
 }
