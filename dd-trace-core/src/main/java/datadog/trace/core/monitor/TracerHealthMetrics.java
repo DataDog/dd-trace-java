@@ -378,7 +378,7 @@ public class TracerHealthMetrics extends HealthMetrics implements AutoCloseable 
     private static final String[] UNSET_TAG = new String[] {"priority:unset"};
     private static final String[] SINGLE_SPAN_SAMPLER = new String[] {"sampler:single-span"};
 
-    private final long[] previousCounts = new long[41];
+    private final long[] previousCounts = new long[43];
     private int countIndex;
 
     @Override
@@ -454,6 +454,11 @@ public class TracerHealthMetrics extends HealthMetrics implements AutoCloseable 
         reportIfChanged(
             target.statsd,
             "queue.dropped.spans",
+            target.serialFailedDroppedSpans,
+            SERIAL_FAILED_TAG);
+        reportIfChanged(
+            target.statsd,
+            "queue.dropped.spans",
             target.unsetPriorityFailedPublishSpanCount,
             UNSET_TAG);
 
@@ -477,6 +482,8 @@ public class TracerHealthMetrics extends HealthMetrics implements AutoCloseable 
             target.singleSpanUnsampled,
             SINGLE_SPAN_SAMPLER);
 
+        reportIfChanged(
+            target.statsd, "span.continuations.captured", target.capturedContinuations, NO_TAGS);
         reportIfChanged(
             target.statsd, "span.continuations.canceled", target.cancelledContinuations, NO_TAGS);
         reportIfChanged(
