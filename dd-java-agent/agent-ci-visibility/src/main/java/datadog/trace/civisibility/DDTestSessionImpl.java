@@ -6,6 +6,7 @@ import datadog.trace.api.Config;
 import datadog.trace.api.civisibility.CIConstants;
 import datadog.trace.api.civisibility.DDTestSession;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.civisibility.codeowners.Codeowners;
@@ -95,6 +96,11 @@ public class DDTestSessionImpl implements DDTestSession {
     } else {
       span.finish();
     }
+
+    // flushing written traces synchronously:
+    // as soon as build finish event is processed,
+    // the process can be killed by the CI provider
+    AgentTracer.get().flush();
   }
 
   @Override
