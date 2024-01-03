@@ -51,8 +51,6 @@ public abstract class HealthMetrics implements AutoCloseable {
 
   public void onCreateTrace() {}
 
-  public void onCreateManualTrace() {}
-
   public void onScopeCloseError(int scopeSource) {}
 
   public void onCaptureContinuation() {}
