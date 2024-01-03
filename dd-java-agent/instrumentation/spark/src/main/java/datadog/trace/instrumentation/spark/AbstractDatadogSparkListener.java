@@ -638,39 +638,40 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
     updateAdaptiveSQLPlan(event);
   }
 
-  private static Class<?> adaptiveExecutionUpdateClass;
-  private static MethodHandle adaptiveExecutionIdMethod;
-  private static MethodHandle adaptiveSparkPlanMethod;
-  private static boolean adaptiveExecutionUpdateClassInitialized = false;
+  private static final Class<?> adaptiveExecutionUpdateClass;
+  private static final MethodHandle adaptiveExecutionIdMethod;
+  private static final MethodHandle adaptiveSparkPlanMethod;
 
   @SuppressForbidden // Using reflection to avoid splitting the instrumentation once more
-  private void initAdaptiveExecutionUpdateClassIfNotInitialized() {
-    if (adaptiveExecutionUpdateClassInitialized) {
-      return;
-    }
-    adaptiveExecutionUpdateClassInitialized = true;
+  private static Class<?> findAdaptiveExecutionUpdateClass() throws ClassNotFoundException {
+    return Class.forName(
+        "org.apache.spark.sql.execution.ui.SparkListenerSQLAdaptiveExecutionUpdate");
+  }
+
+  static {
+    Class<?> executionUpdateClass = null;
+    MethodHandle executionIdMethod = null;
+    MethodHandle sparkPlanMethod = null;
 
     try {
       MethodHandles.Lookup lookup = MethodHandles.lookup();
 
-      adaptiveExecutionUpdateClass =
-          Class.forName(
-              "org.apache.spark.sql.execution.ui.SparkListenerSQLAdaptiveExecutionUpdate");
-      adaptiveExecutionIdMethod =
+      executionUpdateClass = findAdaptiveExecutionUpdateClass();
+      executionIdMethod =
           lookup.findVirtual(
-              adaptiveExecutionUpdateClass, "executionId", MethodType.methodType(long.class));
-      adaptiveSparkPlanMethod =
+              executionUpdateClass, "executionId", MethodType.methodType(long.class));
+      sparkPlanMethod =
           lookup.findVirtual(
-              adaptiveExecutionUpdateClass,
-              "sparkPlanInfo",
-              MethodType.methodType(SparkPlanInfo.class));
+              executionUpdateClass, "sparkPlanInfo", MethodType.methodType(SparkPlanInfo.class));
     } catch (ClassNotFoundException | NoSuchMethodException | IllegalAccessException ignored) {
     }
+
+    adaptiveExecutionUpdateClass = executionUpdateClass;
+    adaptiveExecutionIdMethod = executionIdMethod;
+    adaptiveSparkPlanMethod = sparkPlanMethod;
   }
 
   private synchronized void updateAdaptiveSQLPlan(SparkListenerEvent event) {
-    initAdaptiveExecutionUpdateClassIfNotInitialized();
-
     try {
       if (adaptiveExecutionUpdateClass != null && adaptiveExecutionUpdateClass.isInstance(event)) {
         long queryId = (long) adaptiveExecutionIdMethod.invoke(event);
