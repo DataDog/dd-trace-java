@@ -251,7 +251,7 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
   }
 
   protected boolean isTestAgentEnabled() {
-    return System.getenv("CI_USE_TEST_AGENT").equals("true")
+    return "true".equals(System.getenv("CI_USE_TEST_AGENT"))
   }
 
   protected boolean isForceAppSecActive() {
