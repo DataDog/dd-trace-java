@@ -21,8 +21,11 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.IntFunction;
 import org.jctools.counters.CountersFactory;
 import org.jctools.counters.FixedSizeStripedLongCounter;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class TracerHealthMetrics extends HealthMetrics implements AutoCloseable {
+  private static final Logger log = LoggerFactory.getLogger(TracerHealthMetrics.class);
 
   private static final IntFunction<String[]> STATUS_TAGS =
       httpStatus -> new String[] {"status:" + httpStatus};
@@ -385,102 +388,117 @@ public class TracerHealthMetrics extends HealthMetrics implements AutoCloseable 
     @Override
     public void run(TracerHealthMetrics target) {
       countIndex = -1; // reposition so _next_ value is 0
-      reportIfChanged(
-          target.statsd, "queue.enqueued.traces", target.userDropEnqueuedTraces, USER_DROP_TAG);
-      reportIfChanged(
-          target.statsd, "queue.enqueued.traces", target.userKeepEnqueuedTraces, USER_KEEP_TAG);
-      reportIfChanged(
-          target.statsd,
-          "queue.enqueued.traces",
-          target.samplerDropEnqueuedTraces,
-          SAMPLER_DROP_TAG);
-      reportIfChanged(
-          target.statsd,
-          "queue.enqueued.traces",
-          target.samplerKeepEnqueuedTraces,
-          SAMPLER_KEEP_TAG);
-      reportIfChanged(
-          target.statsd, "queue.enqueued.traces", target.unsetPriorityEnqueuedTraces, UNSET_TAG);
-      reportIfChanged(
-          target.statsd, "queue.dropped.traces", target.userDropDroppedTraces, USER_DROP_TAG);
-      reportIfChanged(
-          target.statsd, "queue.dropped.traces", target.userKeepDroppedTraces, USER_KEEP_TAG);
-      reportIfChanged(
-          target.statsd, "queue.dropped.traces", target.samplerDropDroppedTraces, SAMPLER_DROP_TAG);
-      reportIfChanged(
-          target.statsd, "queue.dropped.traces", target.samplerKeepDroppedTraces, SAMPLER_KEEP_TAG);
-      reportIfChanged(
-          target.statsd,
-          "queue.dropped.traces",
-          target.serialFailedDroppedTraces,
-          SERIAL_FAILED_TAG);
-      reportIfChanged(
-          target.statsd, "queue.dropped.traces", target.unsetPriorityDroppedTraces, UNSET_TAG);
-      reportIfChanged(
-          target.statsd,
-          "queue.dropped.spans",
-          target.unsetPriorityFailedPublishSpanCount,
-          UNSET_TAG);
-      reportIfChanged(
-          target.statsd,
-          "queue.dropped.spans",
-          target.samplerKeepFailedPublishSpanCount,
-          SAMPLER_KEEP_TAG);
-      reportIfChanged(
-          target.statsd,
-          "queue.dropped.spans",
-          target.samplerDropFailedPublishSpanCount,
-          SAMPLER_DROP_TAG);
-      reportIfChanged(
-          target.statsd,
-          "queue.dropped.spans",
-          target.userKeepFailedPublishSpanCount,
-          USER_KEEP_TAG);
-      reportIfChanged(
-          target.statsd,
-          "queue.dropped.spans",
-          target.userDropFailedPublishSpanCount,
-          USER_DROP_TAG);
-      reportIfChanged(target.statsd, "queue.enqueued.spans", target.enqueuedSpans, NO_TAGS);
-      reportIfChanged(target.statsd, "queue.enqueued.bytes", target.enqueuedBytes, NO_TAGS);
-      reportIfChanged(target.statsd, "trace.pending.created", target.createdTraces, NO_TAGS);
-      reportIfChanged(target.statsd, "span.pending.created", target.createdSpans, NO_TAGS);
-      reportIfChanged(target.statsd, "span.pending.finished", target.finishedSpans, NO_TAGS);
+      try {
+        reportIfChanged(
+            target.statsd, "queue.enqueued.traces", target.userDropEnqueuedTraces, USER_DROP_TAG);
+        reportIfChanged(
+            target.statsd, "queue.enqueued.traces", target.userKeepEnqueuedTraces, USER_KEEP_TAG);
+        reportIfChanged(
+            target.statsd,
+            "queue.enqueued.traces",
+            target.samplerDropEnqueuedTraces,
+            SAMPLER_DROP_TAG);
+        reportIfChanged(
+            target.statsd,
+            "queue.enqueued.traces",
+            target.samplerKeepEnqueuedTraces,
+            SAMPLER_KEEP_TAG);
+        reportIfChanged(
+            target.statsd, "queue.enqueued.traces", target.unsetPriorityEnqueuedTraces, UNSET_TAG);
+        reportIfChanged(
+            target.statsd, "queue.dropped.traces", target.userDropDroppedTraces, USER_DROP_TAG);
+        reportIfChanged(
+            target.statsd, "queue.dropped.traces", target.userKeepDroppedTraces, USER_KEEP_TAG);
+        reportIfChanged(
+            target.statsd,
+            "queue.dropped.traces",
+            target.samplerDropDroppedTraces,
+            SAMPLER_DROP_TAG);
+        reportIfChanged(
+            target.statsd,
+            "queue.dropped.traces",
+            target.samplerKeepDroppedTraces,
+            SAMPLER_KEEP_TAG);
+        reportIfChanged(
+            target.statsd,
+            "queue.dropped.traces",
+            target.serialFailedDroppedTraces,
+            SERIAL_FAILED_TAG);
+        reportIfChanged(
+            target.statsd, "queue.dropped.traces", target.unsetPriorityDroppedTraces, UNSET_TAG);
+        reportIfChanged(
+            target.statsd,
+            "queue.dropped.spans",
+            target.unsetPriorityFailedPublishSpanCount,
+            UNSET_TAG);
+        reportIfChanged(
+            target.statsd,
+            "queue.dropped.spans",
+            target.samplerKeepFailedPublishSpanCount,
+            SAMPLER_KEEP_TAG);
+        reportIfChanged(
+            target.statsd,
+            "queue.dropped.spans",
+            target.samplerDropFailedPublishSpanCount,
+            SAMPLER_DROP_TAG);
+        reportIfChanged(
+            target.statsd,
+            "queue.dropped.spans",
+            target.userKeepFailedPublishSpanCount,
+            USER_KEEP_TAG);
+        reportIfChanged(
+            target.statsd,
+            "queue.dropped.spans",
+            target.userDropFailedPublishSpanCount,
+            USER_DROP_TAG);
+        reportIfChanged(target.statsd, "queue.enqueued.spans", target.enqueuedSpans, NO_TAGS);
+        reportIfChanged(target.statsd, "queue.enqueued.bytes", target.enqueuedBytes, NO_TAGS);
+        reportIfChanged(target.statsd, "trace.pending.created", target.createdTraces, NO_TAGS);
+        reportIfChanged(target.statsd, "span.pending.created", target.createdSpans, NO_TAGS);
+        reportIfChanged(target.statsd, "span.pending.finished", target.finishedSpans, NO_TAGS);
 
-      reportIfChanged(
-          target.statsd, "span.continuations.canceled", target.cancelledContinuations, NO_TAGS);
-      reportIfChanged(
-          target.statsd, "span.continuations.finished", target.finishedContinuations, NO_TAGS);
-      reportIfChanged(target.statsd, "queue.partial.traces", target.partialTraces, NO_TAGS);
-      reportIfChanged(target.statsd, "span.flushed.partial", target.partialBytes, NO_TAGS);
-      reportIfChanged(
-          target.statsd, "span.client.no-context", target.clientSpansWithoutContext, NO_TAGS);
-      reportIfChanged(
-          target.statsd, "span.sampling.sampled", target.singleSpanSampled, SINGLE_SPAN_SAMPLER);
-      reportIfChanged(
-          target.statsd,
-          "span.sampling.unsampled",
-          target.singleSpanUnsampled,
-          SINGLE_SPAN_SAMPLER);
-      reportIfChanged(target.statsd, "scope.activate.count", target.activatedScopes, NO_TAGS);
-      reportIfChanged(target.statsd, "scope.close.count", target.closedScopes, NO_TAGS);
-      reportIfChanged(
-          target.statsd, "scope.error.stack-overflow", target.scopeStackOverflow, NO_TAGS);
-      reportIfChanged(target.statsd, "long-running.write", target.longRunningTracesWrite, NO_TAGS);
-      reportIfChanged(
-          target.statsd, "long-running.dropped", target.longRunningTracesDropped, NO_TAGS);
-      reportIfChanged(
-          target.statsd, "long-running.expired", target.longRunningTracesExpired, NO_TAGS);
+        reportIfChanged(
+            target.statsd, "span.continuations.canceled", target.cancelledContinuations, NO_TAGS);
+        reportIfChanged(
+            target.statsd, "span.continuations.finished", target.finishedContinuations, NO_TAGS);
+        reportIfChanged(target.statsd, "queue.partial.traces", target.partialTraces, NO_TAGS);
+        reportIfChanged(target.statsd, "span.flushed.partial", target.partialBytes, NO_TAGS);
+        reportIfChanged(
+            target.statsd, "span.client.no-context", target.clientSpansWithoutContext, NO_TAGS);
+        reportIfChanged(
+            target.statsd, "span.sampling.sampled", target.singleSpanSampled, SINGLE_SPAN_SAMPLER);
+        reportIfChanged(
+            target.statsd,
+            "span.sampling.unsampled",
+            target.singleSpanUnsampled,
+            SINGLE_SPAN_SAMPLER);
+        reportIfChanged(target.statsd, "scope.activate.count", target.activatedScopes, NO_TAGS);
+        reportIfChanged(target.statsd, "scope.close.count", target.closedScopes, NO_TAGS);
+        reportIfChanged(
+            target.statsd, "scope.error.stack-overflow", target.scopeStackOverflow, NO_TAGS);
+        reportIfChanged(
+            target.statsd, "long-running.write", target.longRunningTracesWrite, NO_TAGS);
+        reportIfChanged(
+            target.statsd, "long-running.dropped", target.longRunningTracesDropped, NO_TAGS);
+        reportIfChanged(
+            target.statsd, "long-running.expired", target.longRunningTracesExpired, NO_TAGS);
 
-      reportIfChanged(target.statsd, "api.requests.total", target.apiRequests, NO_TAGS);
-      reportIfChanged(target.statsd, "api.errors.total", target.apiErrors, NO_TAGS);
-      // non-OK responses are reported immediately in onSendAttempt with different status tags
-      reportIfChanged(target.statsd, "api.responses.total", target.apiResponsesOK, STATUS_OK_TAGS);
-      reportIfChanged(target.statsd, "flush.traces.total", target.flushedTraces, NO_TAGS);
-      reportIfChanged(target.statsd, "flush.bytes.total", target.flushedBytes, NO_TAGS);
-      reportIfChanged(target.statsd, "scope.close.error", target.scopeCloseErrors, NO_TAGS);
-      reportIfChanged(
-          target.statsd, "scope.user.close.error", target.userScopeCloseErrors, NO_TAGS);
+        reportIfChanged(target.statsd, "api.requests.total", target.apiRequests, NO_TAGS);
+        reportIfChanged(target.statsd, "api.errors.total", target.apiErrors, NO_TAGS);
+        // non-OK responses are reported immediately in onSendAttempt with different status tags
+        reportIfChanged(
+            target.statsd, "api.responses.total", target.apiResponsesOK, STATUS_OK_TAGS);
+        reportIfChanged(target.statsd, "flush.traces.total", target.flushedTraces, NO_TAGS);
+        reportIfChanged(target.statsd, "flush.bytes.total", target.flushedBytes, NO_TAGS);
+        reportIfChanged(target.statsd, "scope.close.error", target.scopeCloseErrors, NO_TAGS);
+        reportIfChanged(
+            target.statsd, "scope.user.close.error", target.userScopeCloseErrors, NO_TAGS);
+      } catch (ArrayIndexOutOfBoundsException e) {
+        log.warn(
+            "previousCounts array needs resizing to at least {}, was {}",
+            countIndex + 1,
+            previousCounts.length);
+      }
     }
 
     private void reportIfChanged(
