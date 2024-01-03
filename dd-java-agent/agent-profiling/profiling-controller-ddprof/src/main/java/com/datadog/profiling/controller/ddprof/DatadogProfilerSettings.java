@@ -28,5 +28,6 @@ public class DatadogProfilerSettings extends ProfilerSettingsSupport {
     datadogProfiler.recordSetting(NATIVE_STACKS_KEY, String.valueOf(hasNativeStacks));
     datadogProfiler.recordSetting(JFR_IMPLEMENTATION_KEY, "ddprof");
     datadogProfiler.recordSetting(STACK_DEPTH_KEY, String.valueOf(stackDepth));
+    datadogProfiler.recordSetting(SELINUX_STATUS_KEY, seLinuxStatus);
   }
 }
