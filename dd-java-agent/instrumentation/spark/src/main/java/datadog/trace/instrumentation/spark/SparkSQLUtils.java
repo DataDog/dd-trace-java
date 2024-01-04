@@ -9,7 +9,6 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -147,11 +146,11 @@ public class SparkSQLUtils {
       ByteArrayOutputStream baos = new ByteArrayOutputStream();
       try (JsonGenerator generator = mapper.getFactory().createGenerator(baos)) {
         this.toJson(generator, accumulators);
-        generator.close();
-        return new String(baos.toByteArray(), StandardCharsets.UTF_8);
       } catch (IOException e) {
         return null;
       }
+
+      return new String(baos.toByteArray(), StandardCharsets.UTF_8);
     }
 
     private void toJson(JsonGenerator generator, Map<Long, AccumulatorWithStage> accumulators)
@@ -171,11 +170,7 @@ public class SparkSQLUtils {
         generator.writeEndObject();
       }
 
-      // Scala list are immutable, copying to sort it
-      ArrayList<SQLMetricInfo> metrics =
-          new ArrayList<>(AbstractDatadogSparkListener.listener.getPlanInfoMetrics(plan));
-      // Sorting to have a consistent order of metrics
-      metrics.sort(Comparator.comparing(SQLMetricInfo::name));
+      List<SQLMetricInfo> metrics = AbstractDatadogSparkListener.listener.getPlanInfoMetrics(plan);
 
       // Writing final values of metrics
       if (!metrics.isEmpty()) {

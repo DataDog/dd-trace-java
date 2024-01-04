@@ -30,15 +30,10 @@ abstract class AbstractSpark32SqlTest extends AgentTestRunner {
     """).show()
     sparkSession.stop()
 
-    def firstStagePlan = """{"node":"Exchange","metrics":[{"data size":-?\\d+,"type":"size"},{"shuffle bytes written":-?\\d+,"type":"size"},{"shuffle records written":3,"type":"sum"},{"shuffle write time":-?\\d+,"type":"nsTiming"}],"children":[{"node":"WholeStageCodegen (1)","metrics":[{"duration":-?\\d+,"type":"timing"}],"children":[{"node":"HashAggregate","metrics":[{"number of output rows":3,"type":"sum"},{"peak memory":-?\\d+,"type":"size"},{"time in aggregation build":-?\\d+,"type":"timing"}],"children":[{"node":"LocalTableScan","metrics":[{"number of output rows":3,"type":"sum"}]}]}]}]}"""
-    def secondStagePlan = """{"node":"WholeStageCodegen (2)","metrics":[{"duration":-?\\d+,"type":"timing"}],"children":[{"node":"HashAggregate","metrics":[{"avg hash probe bucket list iters":-?\\d+,"type":"average"},{"number of output rows":2,"type":"sum"},{"peak memory":-?\\d+,"type":"size"},{"time in aggregation build":-?\\d+,"type":"timing"}],"children":[{"node":"InputAdapter","children":[{"node":"AQEShuffleRead","metrics":[],"children":[{"node":"ShuffleQueryStage","children":[{"node":"Exchange","metrics":[{"data size":-?\\d+,"type":"size"},{"fetch wait time":-?\\d+,"type":"timing"},{"local blocks read":-?\\d+,"type":"sum"},{"local bytes read":-?\\d+,"type":"size"},{"records read":3,"type":"sum"},{"shuffle bytes written":-?\\d+,"type":"size"},{"shuffle records written":3,"type":"sum"},{"shuffle write time":-?\\d+,"type":"nsTiming"}]}]}]}]}]}]}"""
-    def thirdStagePlan = """{"node":"Exchange","metrics":[{"data size":-?\\d+,"type":"size"},{"shuffle bytes written":-?\\d+,"type":"size"},{"shuffle records written":2,"type":"sum"},{"shuffle write time":-?\\d+,"type":"nsTiming"}],"children":[{"node":"WholeStageCodegen (2)","metrics":[{"duration":-?\\d+,"type":"timing"}],"children":[{"node":"HashAggregate","metrics":[{"avg hash probe bucket list iters":-?\\d+,"type":"average"},{"number of output rows":-?\\d+,"type":"sum"},{"peak memory":-?\\d+,"type":"size"},{"time in aggregation build":-?\\d+,"type":"timing"}],"children":[{"node":"InputAdapter","children":[{"node":"AQEShuffleRead","metrics":[],"children":[{"node":"ShuffleQueryStage","children":[{"node":"Exchange","metrics":[{"data size":-?\\d+,"type":"size"},{"fetch wait time":-?\\d+,"type":"timing"},{"local blocks read":-?\\d+,"type":"sum"},{"local bytes read":-?\\d+,"type":"size"},{"records read":-?\\d+,"type":"sum"},{"shuffle bytes written":-?\\d+,"type":"size"},{"shuffle records written":-?\\d+,"type":"sum"},{"shuffle write time":-?\\d+,"type":"nsTiming"}]}]}]}]}]}]}]}"""
-    def fourthStagePlan = """{"node":"WholeStageCodegen (3)","metrics":[{"duration":-?\\d+,"type":"timing"}],"children":[{"node":"Project","children":[{"node":"Sort","metrics":[{"peak memory":-?\\d+,"type":"size"},{"sort time":-?\\d+,"type":"timing"},{"spill size":-?\\d+,"type":"size"}],"children":[{"node":"InputAdapter","children":[{"node":"AQEShuffleRead","metrics":[],"children":[{"node":"ShuffleQueryStage","children":[{"node":"Exchange","metrics":[{"data size":-?\\d+,"type":"size"},{"fetch wait time":-?\\d+,"type":"timing"},{"local blocks read":-?\\d+,"type":"sum"},{"local bytes read":-?\\d+,"type":"size"},{"records read":2,"type":"sum"},{"shuffle bytes written":-?\\d+,"type":"size"},{"shuffle records written":2,"type":"sum"},{"shuffle write time":-?\\d+,"type":"nsTiming"}]}]}]}]}]}]}]}"""
-
-    firstStagePlan = AbstractSpark24SqlTest.escapeJsonString(firstStagePlan)
-    secondStagePlan = AbstractSpark24SqlTest.escapeJsonString(secondStagePlan)
-    thirdStagePlan = AbstractSpark24SqlTest.escapeJsonString(thirdStagePlan)
-    fourthStagePlan = AbstractSpark24SqlTest.escapeJsonString(fourthStagePlan)
+    def firstStagePlan = """{"node":"Exchange","metrics":[{"data size":"any","type":"size"},{"shuffle bytes written":"any","type":"size"},{"shuffle records written":3,"type":"sum"},{"shuffle write time":"any","type":"nsTiming"}],"children":[{"node":"WholeStageCodegen (1)","metrics":[{"duration":"any","type":"timing"}],"children":[{"node":"HashAggregate","metrics":[{"number of output rows":3,"type":"sum"},{"peak memory":"any","type":"size"},{"time in aggregation build":"any","type":"timing"}],"children":[{"node":"LocalTableScan","metrics":[{"number of output rows":3,"type":"sum"}]}]}]}]}"""
+    def secondStagePlan = """{"node":"WholeStageCodegen (2)","metrics":[{"duration":"any","type":"timing"}],"children":[{"node":"HashAggregate","metrics":[{"avg hash probe bucket list iters":"any","type":"average"},{"number of output rows":2,"type":"sum"},{"peak memory":"any","type":"size"},{"time in aggregation build":"any","type":"timing"}],"children":[{"node":"InputAdapter","children":[{"node":"AQEShuffleRead","metrics":[],"children":[{"node":"ShuffleQueryStage","children":[{"node":"Exchange","metrics":[{"data size":"any","type":"size"},{"fetch wait time":"any","type":"timing"},{"local blocks read":"any","type":"sum"},{"local bytes read":"any","type":"size"},{"records read":3,"type":"sum"},{"shuffle bytes written":"any","type":"size"},{"shuffle records written":3,"type":"sum"},{"shuffle write time":"any","type":"nsTiming"}]}]}]}]}]}]}"""
+    def thirdStagePlan = """{"node":"Exchange","metrics":[{"data size":"any","type":"size"},{"shuffle bytes written":"any","type":"size"},{"shuffle records written":2,"type":"sum"},{"shuffle write time":"any","type":"nsTiming"}],"children":[{"node":"WholeStageCodegen (2)","metrics":[{"duration":"any","type":"timing"}],"children":[{"node":"HashAggregate","metrics":[{"avg hash probe bucket list iters":"any","type":"average"},{"number of output rows":"any","type":"sum"},{"peak memory":"any","type":"size"},{"time in aggregation build":"any","type":"timing"}],"children":[{"node":"InputAdapter","children":[{"node":"AQEShuffleRead","metrics":[],"children":[{"node":"ShuffleQueryStage","children":[{"node":"Exchange","metrics":[{"data size":"any","type":"size"},{"fetch wait time":"any","type":"timing"},{"local blocks read":"any","type":"sum"},{"local bytes read":"any","type":"size"},{"records read":"any","type":"sum"},{"shuffle bytes written":"any","type":"size"},{"shuffle records written":"any","type":"sum"},{"shuffle write time":"any","type":"nsTiming"}]}]}]}]}]}]}]}"""
+    def fourthStagePlan = """{"node":"WholeStageCodegen (3)","metrics":[{"duration":"any","type":"timing"}],"children":[{"node":"Project","children":[{"node":"Sort","metrics":[{"peak memory":"any","type":"size"},{"sort time":"any","type":"timing"},{"spill size":"any","type":"size"}],"children":[{"node":"InputAdapter","children":[{"node":"AQEShuffleRead","metrics":[],"children":[{"node":"ShuffleQueryStage","children":[{"node":"Exchange","metrics":[{"data size":"any","type":"size"},{"fetch wait time":"any","type":"timing"},{"local blocks read":"any","type":"sum"},{"local bytes read":"any","type":"size"},{"records read":2,"type":"sum"},{"shuffle bytes written":"any","type":"size"},{"shuffle records written":2,"type":"sum"},{"shuffle write time":"any","type":"nsTiming"}]}]}]}]}]}]}]}"""
 
     expect:
     assertTraces(1) {
@@ -61,7 +56,7 @@ abstract class AbstractSpark32SqlTest extends AgentTestRunner {
           operationName "spark.stage"
           spanType "spark"
           childOf(span(2))
-          assert span.tags["_dd.spark.sql_plan"] ==~ /$fourthStagePlan/
+          AbstractSpark24SqlTest.assertStringSQLPlanEquals(fourthStagePlan, span.tags["_dd.spark.sql_plan"].toString())
         }
         span {
           operationName "spark.job"
@@ -72,7 +67,7 @@ abstract class AbstractSpark32SqlTest extends AgentTestRunner {
           operationName "spark.stage"
           spanType "spark"
           childOf(span(4))
-          assert span.tags["_dd.spark.sql_plan"] ==~ /$thirdStagePlan/
+          AbstractSpark24SqlTest.assertStringSQLPlanEquals(thirdStagePlan, span.tags["_dd.spark.sql_plan"].toString())
         }
         span {
           operationName "spark.job"
@@ -83,7 +78,7 @@ abstract class AbstractSpark32SqlTest extends AgentTestRunner {
           operationName "spark.stage"
           spanType "spark"
           childOf(span(6))
-          assert span.tags["_dd.spark.sql_plan"] ==~ /$secondStagePlan/
+          AbstractSpark24SqlTest.assertStringSQLPlanEquals(secondStagePlan, span.tags["_dd.spark.sql_plan"].toString())
         }
         span {
           operationName "spark.job"
@@ -94,7 +89,7 @@ abstract class AbstractSpark32SqlTest extends AgentTestRunner {
           operationName "spark.stage"
           spanType "spark"
           childOf(span(8))
-          assert span.tags["_dd.spark.sql_plan"] ==~ /$firstStagePlan/
+          AbstractSpark24SqlTest.assertStringSQLPlanEquals(firstStagePlan, span.tags["_dd.spark.sql_plan"].toString())
         }
       }
     }
@@ -119,15 +114,10 @@ abstract class AbstractSpark32SqlTest extends AgentTestRunner {
 
     sparkSession.stop()
 
-    def firstStagePlan = """{"node":"Exchange","metrics":[{"data size":-?\\d+,"type":"size"},{"shuffle bytes written":-?\\d+,"type":"size"},{"shuffle records written":-?\\d+,"type":"sum"},{"shuffle write time":-?\\d+,"type":"nsTiming"}],"children":[{"node":"LocalTableScan","metrics":[{"number of output rows":-?\\d+,"type":"sum"}]}]}"""
-    def secondStagePlan = """{"node":"Exchange","metrics":[{"data size":-?\\d+,"type":"size"},{"shuffle bytes written":-?\\d+,"type":"size"},{"shuffle records written":-?\\d+,"type":"sum"},{"shuffle write time":-?\\d+,"type":"nsTiming"}],"children":[{"node":"LocalTableScan","metrics":[{"number of output rows":-?\\d+,"type":"sum"}]}]}"""
-    def thirdStagePlan = """{"node":"Exchange","metrics":[{"data size":-?\\d+,"type":"size"},{"shuffle bytes written":-?\\d+,"type":"size"},{"shuffle records written":1,"type":"sum"},{"shuffle write time":-?\\d+,"type":"nsTiming"}],"children":[{"node":"WholeStageCodegen (3)","metrics":[{"duration":-?\\d+,"type":"timing"}],"children":[{"node":"HashAggregate","metrics":[{"number of output rows":1,"type":"sum"},{"time in aggregation build":-?\\d+,"type":"timing"}],"children":[{"node":"Project","children":[{"node":"SortMergeJoin","metrics":[{"number of output rows":-?\\d+,"type":"sum"}],"children":[{"node":"InputAdapter","children":[{"node":"WholeStageCodegen (1)","metrics":[{"duration":-?\\d+,"type":"timing"}],"children":[{"node":"Sort","metrics":[{"peak memory":-?\\d+,"type":"size"},{"sort time":-?\\d+,"type":"timing"},{"spill size":-?\\d+,"type":"size"}],"children":[{"node":"InputAdapter","children":[{"node":"AQEShuffleRead","metrics":[],"children":[{"node":"ShuffleQueryStage","children":[{"node":"Exchange","metrics":[{"data size":-?\\d+,"type":"size"},{"fetch wait time":-?\\d+,"type":"timing"},{"local blocks read":-?\\d+,"type":"sum"},{"local bytes read":-?\\d+,"type":"size"},{"records read":-?\\d+,"type":"sum"},{"shuffle bytes written":-?\\d+,"type":"size"},{"shuffle records written":-?\\d+,"type":"sum"},{"shuffle write time":-?\\d+,"type":"nsTiming"}]}]}]}]}]}]}]},{"node":"InputAdapter","children":[{"node":"WholeStageCodegen (2)","metrics":[{"duration":-?\\d+,"type":"timing"}],"children":[{"node":"Sort","metrics":[{"peak memory":-?\\d+,"type":"size"},{"sort time":-?\\d+,"type":"timing"},{"spill size":-?\\d+,"type":"size"}],"children":[{"node":"InputAdapter","children":[{"node":"AQEShuffleRead","metrics":[],"children":[{"node":"ShuffleQueryStage","children":[{"node":"Exchange","metrics":[{"data size":-?\\d+,"type":"size"},{"fetch wait time":-?\\d+,"type":"timing"},{"local blocks read":-?\\d+,"type":"sum"},{"local bytes read":-?\\d+,"type":"size"},{"records read":-?\\d+,"type":"sum"},{"shuffle bytes written":-?\\d+,"type":"size"},{"shuffle records written":-?\\d+,"type":"sum"},{"shuffle write time":-?\\d+,"type":"nsTiming"}]}]}]}]}]}]}]}]}]}]}]}]}"""
-    def fourthStagePlan = """{"node":"WholeStageCodegen (4)","metrics":[{"duration":-?\\d+,"type":"timing"}],"children":[{"node":"HashAggregate","metrics":[{"number of output rows":-?\\d+,"type":"sum"},{"time in aggregation build":-?\\d+,"type":"timing"}],"children":[{"node":"InputAdapter","children":[{"node":"ShuffleQueryStage","children":[{"node":"Exchange","metrics":[{"data size":-?\\d+,"type":"size"},{"fetch wait time":-?\\d+,"type":"timing"},{"local blocks read":-?\\d+,"type":"sum"},{"local bytes read":-?\\d+,"type":"size"},{"records read":-?\\d+,"type":"sum"},{"shuffle bytes written":-?\\d+,"type":"size"},{"shuffle records written":-?\\d+,"type":"sum"},{"shuffle write time":-?\\d+,"type":"nsTiming"}]}]}]}]}]}"""
-
-    firstStagePlan = AbstractSpark24SqlTest.escapeJsonString(firstStagePlan)
-    secondStagePlan = AbstractSpark24SqlTest.escapeJsonString(secondStagePlan)
-    thirdStagePlan = AbstractSpark24SqlTest.escapeJsonString(thirdStagePlan)
-    fourthStagePlan = AbstractSpark24SqlTest.escapeJsonString(fourthStagePlan)
+    def firstStagePlan = """{"node":"Exchange","metrics":[{"data size":"any","type":"size"},{"shuffle bytes written":"any","type":"size"},{"shuffle records written":"any","type":"sum"},{"shuffle write time":"any","type":"nsTiming"}],"children":[{"node":"LocalTableScan","metrics":[{"number of output rows":"any","type":"sum"}]}]}"""
+    def secondStagePlan = """{"node":"Exchange","metrics":[{"data size":"any","type":"size"},{"shuffle bytes written":"any","type":"size"},{"shuffle records written":"any","type":"sum"},{"shuffle write time":"any","type":"nsTiming"}],"children":[{"node":"LocalTableScan","metrics":[{"number of output rows":"any","type":"sum"}]}]}"""
+    def thirdStagePlan = """{"node":"Exchange","metrics":[{"data size":"any","type":"size"},{"shuffle bytes written":"any","type":"size"},{"shuffle records written":1,"type":"sum"},{"shuffle write time":"any","type":"nsTiming"}],"children":[{"node":"WholeStageCodegen (3)","metrics":[{"duration":"any","type":"timing"}],"children":[{"node":"HashAggregate","metrics":[{"number of output rows":1,"type":"sum"},{"time in aggregation build":"any","type":"timing"}],"children":[{"node":"Project","children":[{"node":"SortMergeJoin","metrics":[{"number of output rows":"any","type":"sum"}],"children":[{"node":"InputAdapter","children":[{"node":"WholeStageCodegen (1)","metrics":[{"duration":"any","type":"timing"}],"children":[{"node":"Sort","metrics":[{"peak memory":"any","type":"size"},{"sort time":"any","type":"timing"},{"spill size":"any","type":"size"}],"children":[{"node":"InputAdapter","children":[{"node":"AQEShuffleRead","metrics":[],"children":[{"node":"ShuffleQueryStage","children":[{"node":"Exchange","metrics":[{"data size":"any","type":"size"},{"fetch wait time":"any","type":"timing"},{"local blocks read":"any","type":"sum"},{"local bytes read":"any","type":"size"},{"records read":"any","type":"sum"},{"shuffle bytes written":"any","type":"size"},{"shuffle records written":"any","type":"sum"},{"shuffle write time":"any","type":"nsTiming"}]}]}]}]}]}]}]},{"node":"InputAdapter","children":[{"node":"WholeStageCodegen (2)","metrics":[{"duration":"any","type":"timing"}],"children":[{"node":"Sort","metrics":[{"peak memory":"any","type":"size"},{"sort time":"any","type":"timing"},{"spill size":"any","type":"size"}],"children":[{"node":"InputAdapter","children":[{"node":"AQEShuffleRead","metrics":[],"children":[{"node":"ShuffleQueryStage","children":[{"node":"Exchange","metrics":[{"data size":"any","type":"size"},{"fetch wait time":"any","type":"timing"},{"local blocks read":"any","type":"sum"},{"local bytes read":"any","type":"size"},{"records read":"any","type":"sum"},{"shuffle bytes written":"any","type":"size"},{"shuffle records written":"any","type":"sum"},{"shuffle write time":"any","type":"nsTiming"}]}]}]}]}]}]}]}]}]}]}]}]}"""
+    def fourthStagePlan = """{"node":"WholeStageCodegen (4)","metrics":[{"duration":"any","type":"timing"}],"children":[{"node":"HashAggregate","metrics":[{"number of output rows":"any","type":"sum"},{"time in aggregation build":"any","type":"timing"}],"children":[{"node":"InputAdapter","children":[{"node":"ShuffleQueryStage","children":[{"node":"Exchange","metrics":[{"data size":"any","type":"size"},{"fetch wait time":"any","type":"timing"},{"local blocks read":"any","type":"sum"},{"local bytes read":"any","type":"size"},{"records read":"any","type":"sum"},{"shuffle bytes written":"any","type":"size"},{"shuffle records written":"any","type":"sum"},{"shuffle write time":"any","type":"nsTiming"}]}]}]}]}]}"""
 
     expect:
     assertTraces(1) {
@@ -150,7 +140,7 @@ abstract class AbstractSpark32SqlTest extends AgentTestRunner {
           operationName "spark.stage"
           spanType "spark"
           childOf(span(2))
-          assert span.tags["_dd.spark.sql_plan"] ==~ /$fourthStagePlan/
+          AbstractSpark24SqlTest.assertStringSQLPlanEquals(fourthStagePlan, span.tags["_dd.spark.sql_plan"].toString())
         }
         span {
           operationName "spark.job"
@@ -161,7 +151,7 @@ abstract class AbstractSpark32SqlTest extends AgentTestRunner {
           operationName "spark.stage"
           spanType "spark"
           childOf(span(4))
-          assert span.tags["_dd.spark.sql_plan"] ==~ /$thirdStagePlan/
+          AbstractSpark24SqlTest.assertStringSQLPlanEquals(thirdStagePlan, span.tags["_dd.spark.sql_plan"].toString())
         }
         span {
           operationName "spark.job"
@@ -172,7 +162,7 @@ abstract class AbstractSpark32SqlTest extends AgentTestRunner {
           operationName "spark.stage"
           spanType "spark"
           childOf(span(6))
-          assert span.tags["_dd.spark.sql_plan"] ==~ /$secondStagePlan/
+          AbstractSpark24SqlTest.assertStringSQLPlanEquals(secondStagePlan, span.tags["_dd.spark.sql_plan"].toString())
         }
         span {
           operationName "spark.job"
@@ -183,7 +173,7 @@ abstract class AbstractSpark32SqlTest extends AgentTestRunner {
           operationName "spark.stage"
           spanType "spark"
           childOf(span(8))
-          assert span.tags["_dd.spark.sql_plan"] ==~ /$firstStagePlan/
+          AbstractSpark24SqlTest.assertStringSQLPlanEquals(firstStagePlan, span.tags["_dd.spark.sql_plan"].toString())
         }
       }
     }
