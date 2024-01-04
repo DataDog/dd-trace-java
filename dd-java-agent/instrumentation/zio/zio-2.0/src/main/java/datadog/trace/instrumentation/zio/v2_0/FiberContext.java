@@ -1,22 +1,22 @@
 package datadog.trace.instrumentation.zio.v2_0;
 
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.capture;
+
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.ScopeState;
 
 public class FiberContext {
-
   private final ScopeState state;
-  private AgentSpan span;
+  private AgentScope.Continuation continuation;
   private AgentScope scope;
   private ScopeState oldState;
 
   private FiberContext(ScopeState state) {
     this.state = state;
-    this.span = AgentTracer.activeSpan();
     this.scope = null;
     this.oldState = null;
+    this.continuation = capture();
   }
 
   public static FiberContext create() {
@@ -29,6 +29,10 @@ public class FiberContext {
       this.scope.close();
       this.scope = null;
     }
+    if (continuation != null) {
+      continuation.cancel();
+      continuation = null;
+    }
 
     if (this.oldState != null) {
       this.oldState.activate();
@@ -37,6 +41,10 @@ public class FiberContext {
   }
 
   public void onSuspend() {
+    if (this.scope != null) {
+      this.scope.close();
+      this.scope = null;
+    }
     if (this.oldState != null) {
       this.oldState.activate();
       this.oldState = null;
@@ -49,8 +57,9 @@ public class FiberContext {
 
     this.state.activate();
 
-    if (this.span != null && this.scope == null) {
-      this.scope = AgentTracer.activateSpan(span, true);
+    if (this.continuation != null) {
+      this.scope = continuation.activate();
+      continuation = null;
     }
   }
 }
