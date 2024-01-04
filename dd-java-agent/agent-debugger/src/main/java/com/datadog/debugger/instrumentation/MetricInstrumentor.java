@@ -82,7 +82,6 @@ public class MetricInstrumentor extends Instrumentor {
   private final MetricProbe metricProbe;
   private int durationStartVar = -1;
   private LabelNode durationStartLabel;
-  private InsnList callMetricFinallyHandler;
 
   public MetricInstrumentor(
       MetricProbe metricProbe,
@@ -128,7 +127,8 @@ public class MetricInstrumentor extends Instrumentor {
     if (durationStartVar == -1) {
       return;
     }
-    createFinallyHandler(durationStartLabel, endLabel, wrapTryCatch(callMetricFinallyHandler));
+    InsnList insnList = callMetric(metricProbe, null);
+    createFinallyHandler(durationStartLabel, endLabel, wrapTryCatch(insnList));
   }
 
   private InsnList wrapTryCatch(InsnList insnList) {
@@ -194,12 +194,8 @@ public class MetricInstrumentor extends Instrumentor {
         throw new UnsupportedOperationException("Unsupported opcode: " + node.getOpcode());
     }
     int tmpIdx = newVar(size);
-    InsnList insnList = callMetric(metricProbe, new ReturnContext(tmpIdx, loadOpCode, returnType));
-    if (durationStartVar != -1) {
-      // clone metric call instructions for finally block
-      callMetricFinallyHandler = clone(insnList);
-    }
-    insnList = wrapTryCatch(insnList);
+    InsnList insnList =
+        wrapTryCatch(callMetric(metricProbe, new ReturnContext(tmpIdx, loadOpCode, returnType)));
     // store return value from the stack to local before wrapped call
     insnList.insert(new VarInsnNode(storeOpCode, tmpIdx));
     // restore return value to the stack after wrapped call
