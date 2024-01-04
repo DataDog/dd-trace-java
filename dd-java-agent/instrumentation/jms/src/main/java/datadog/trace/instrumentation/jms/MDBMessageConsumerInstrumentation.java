@@ -18,6 +18,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import javax.jms.Destination;
 import javax.jms.JMSException;
@@ -69,7 +70,7 @@ public final class MDBMessageConsumerInstrumentation extends Instrumenter.Tracin
 
   public static class MDBAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static AgentSpan methodEnter(@Advice.Argument(0) final Message message) {
+    public static AgentScope methodEnter(@Advice.Argument(0) final Message message) {
       AgentSpan.Context propagatedContext = propagate().extract(message, GETTER);
       AgentSpan span = startSpan(JMS_CONSUME, propagatedContext);
       CONSUMER_DECORATE.afterStart(span);
@@ -84,13 +85,13 @@ public final class MDBMessageConsumerInstrumentation extends Instrumenter.Tracin
         consumerResourceName = "unknown JMS destination";
       }
       CONSUMER_DECORATE.onConsume(span, message, consumerResourceName);
-      activateSpan(span);
-      return span;
+      return activateSpan(span);
     }
 
-    @Advice.OnMethodExit(suppress = Throwable.class)
-    public static void methodExit(@Advice.Enter AgentSpan span) {
-      span.finish();
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+    public static void methodExit(@Advice.Enter AgentScope scope) {
+      scope.close();
+      scope.span().finish();
     }
   }
 }
