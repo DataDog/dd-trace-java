@@ -57,7 +57,7 @@ abstract class AbstractSpark24SqlTest extends AgentTestRunner {
     }
     catch (AssertionError e) {}
 
-    assertStringSQLPlanEquals(expectedString, actual.toString())
+    assertSQLPlanEquals(expected, actual)
   }
 
   private static assertSQLPlanEquals(Object expected, Object actual) {
