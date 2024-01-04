@@ -63,7 +63,6 @@ public class CapturedContextInstrumentor extends Instrumentor {
   private int exitContextVar = -1;
   private int timestampStartVar = -1;
   private int throwableListVar = -1;
-  private final List<FinallyBlock> finallyBlocks = new ArrayList<>();
 
   public CapturedContextInstrumentor(
       ProbeDefinition definition,
@@ -95,14 +94,6 @@ public class CapturedContextInstrumentor extends Instrumentor {
     addFinallyHandler(returnHandlerLabel);
     installFinallyBlocks();
     return InstrumentationResult.Status.INSTALLED;
-  }
-
-  private void installFinallyBlocks() {
-    for (FinallyBlock finallyBlock : finallyBlocks) {
-      methodNode.tryCatchBlocks.add(
-          new TryCatchBlockNode(
-              finallyBlock.startLabel, finallyBlock.endLabel, finallyBlock.handlerLabel, null));
-    }
   }
 
   private boolean addLineCaptures(LineMap lineMap) {
@@ -1044,17 +1035,5 @@ public class CapturedContextInstrumentor extends Instrumentor {
         INT_TYPE,
         INT_TYPE);
     // stack: [captured_value]
-  }
-
-  private static class FinallyBlock {
-    final LabelNode startLabel;
-    final LabelNode endLabel;
-    final LabelNode handlerLabel;
-
-    public FinallyBlock(LabelNode startLabel, LabelNode endLabel, LabelNode handlerLabel) {
-      this.startLabel = startLabel;
-      this.endLabel = endLabel;
-      this.handlerLabel = handlerLabel;
-    }
   }
 }
