@@ -29,6 +29,7 @@ import datadog.trace.api.StatsDClient;
 import datadog.trace.api.TracePropagationStyle;
 import datadog.trace.api.config.GeneralConfig;
 import datadog.trace.api.experimental.DataStreamsCheckpointer;
+import datadog.trace.api.flare.TracerFlare;
 import datadog.trace.api.gateway.CallbackProvider;
 import datadog.trace.api.gateway.InstrumentationGateway;
 import datadog.trace.api.gateway.RequestContext;
@@ -37,6 +38,7 @@ import datadog.trace.api.gateway.SubscriptionService;
 import datadog.trace.api.interceptor.MutableSpan;
 import datadog.trace.api.interceptor.TraceInterceptor;
 import datadog.trace.api.internal.TraceSegment;
+import datadog.trace.api.metrics.SpanMetricRegistry;
 import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.api.profiling.Timer;
 import datadog.trace.api.sampling.PrioritySampling;
@@ -105,6 +107,7 @@ import java.util.SortedSet;
 import java.util.concurrent.ConcurrentSkipListSet;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
+import java.util.zip.ZipOutputStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -602,7 +605,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
     tracerFlarePoller = new TracerFlarePoller(dynamicConfig);
     if (pollForTracerFlareRequests) {
-      tracerFlarePoller.start(config, sharedCommunicationObjects);
+      tracerFlarePoller.start(config, sharedCommunicationObjects, this);
     }
 
     tracingConfigPoller = new TracingConfigPoller(dynamicConfig);
@@ -613,7 +616,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     if (writer == null) {
       this.writer =
           WriterFactory.createWriter(
-              config, sharedCommunicationObjects, sampler, singleSpanSampler, this.statsDClient);
+              config, sharedCommunicationObjects, sampler, singleSpanSampler, healthMetrics);
     } else {
       this.writer = writer;
     }
@@ -1132,6 +1135,11 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       return ((DDSpanContext) ctx).getTraceSegment();
     }
     return null;
+  }
+
+  public void addTracerReportToFlare(ZipOutputStream zip) throws IOException {
+    TracerFlare.addText(zip, "tracer_health.txt", healthMetrics.summary());
+    TracerFlare.addText(zip, "span_metrics.txt", SpanMetricRegistry.getInstance().summary());
   }
 
   private static StatsDClient createStatsDClient(final Config config) {

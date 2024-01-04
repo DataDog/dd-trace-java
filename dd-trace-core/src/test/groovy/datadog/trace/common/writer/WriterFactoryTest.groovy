@@ -3,12 +3,12 @@ package datadog.trace.common.writer
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery
 import datadog.communication.ddagent.SharedCommunicationObjects
 import datadog.trace.api.Config
-import datadog.trace.api.StatsDClient
 import datadog.trace.common.sampling.Sampler
 import datadog.trace.common.writer.ddagent.DDAgentApi
 import datadog.trace.common.writer.ddagent.Prioritization
 import datadog.trace.common.writer.ddintake.DDEvpProxyApi
 import datadog.trace.common.writer.ddintake.DDIntakeApi
+import datadog.trace.core.monitor.HealthMetrics
 import datadog.trace.test.util.DDSpecification
 
 import static datadog.trace.api.config.TracerConfig.PRIORITIZATION_TYPE
@@ -33,12 +33,11 @@ class WriterFactoryTest extends DDSpecification {
     sharedComm.createRemaining(config)
 
     def sampler = Mock(Sampler)
-    def statsd = Mock(StatsDClient)
 
     when:
     agentFeaturesDiscovery.supportsEvpProxy() >> hasEvpProxy
     config.ciVisibilityAgentlessEnabled >> isCiVisibilityAgentlessEnabled
-    def writer = WriterFactory.createWriter(config, sharedComm, sampler, null, statsd, configuredType)
+    def writer = WriterFactory.createWriter(config, sharedComm, sampler, null, HealthMetrics.NO_OP, configuredType)
 
     then:
     writer.class == expectedWriterClass

@@ -6,6 +6,7 @@ import datadog.communication.http.OkHttpUtils;
 import datadog.trace.api.Config;
 import datadog.trace.api.DynamicConfig;
 import datadog.trace.api.flare.TracerFlare;
+import datadog.trace.core.CoreTracer;
 import datadog.trace.core.DDTraceCoreInfo;
 import datadog.trace.logging.GlobalLogLevelSwitcher;
 import datadog.trace.logging.LogLevel;
@@ -39,17 +40,23 @@ final class TracerFlareService {
   private final DynamicConfig<?> dynamicConfig;
   private final OkHttpClient okHttpClient;
   private final HttpUrl flareUrl;
+  private final CoreTracer tracer;
 
   private boolean logLevelOverridden;
 
   private Scheduled<Runnable> scheduledCleanup;
 
   TracerFlareService(
-      Config config, DynamicConfig<?> dynamicConfig, OkHttpClient okHttpClient, HttpUrl agentUrl) {
+      Config config,
+      DynamicConfig<?> dynamicConfig,
+      OkHttpClient okHttpClient,
+      HttpUrl agentUrl,
+      CoreTracer tracer) {
     this.config = config;
     this.dynamicConfig = dynamicConfig;
     this.okHttpClient = okHttpClient;
     this.flareUrl = agentUrl.newBuilder().addPathSegments(FLARE_ENDPOINT).build();
+    this.tracer = tracer;
   }
 
   public synchronized void prepareForFlare(String logLevel) {
@@ -136,6 +143,7 @@ final class TracerFlareService {
         ZipOutputStream zip = new ZipOutputStream(bytes)) {
 
       addPrelude(zip);
+      tracer.addTracerReportToFlare(zip);
       TracerFlare.addReportsToFlare(zip);
       zip.finish();
 
