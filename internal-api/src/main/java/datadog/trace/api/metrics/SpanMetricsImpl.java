@@ -56,6 +56,7 @@ public class SpanMetricsImpl implements SpanMetrics {
       return this.name;
     }
 
+    @Override
     public long getValue() {
       return counter.get();
     }
