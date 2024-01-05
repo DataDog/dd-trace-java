@@ -21,34 +21,14 @@ public  class MessageListenerWrapper<T> implements MessageListener<T> {
 
   @Override
   public void received(Consumer<T> consumer, Message<T> message) {
-      /*      Context parent = VirtualFieldStore.extract(message);
-
-      Instrumenter<PulsarRequest, Void> instrumenter = consumerProcessInstrumenter();
-      PulsarRequest request = PulsarRequest.create(message);
-      if (!instrumenter.shouldStart(parent, request)) {
-        this.delegate.received(consumer, message);
-        return;
-      }
-
-      Context current = instrumenter.start(parent, request);
-      try (Scope scope = current.makeCurrent()) {
-        this.delegate.received(consumer, message);
-        instrumenter.end(current, request, null, null);
-      } catch (Throwable t) {
-        instrumenter.end(current, request, null, t);
-        throw t;
-      }*/
-
     // process message
     AgentScope extractScope = MessageStore.extract(message);
     if (extractScope == null) {
-      System.out.println("scope is null ---------------");
       this.delegate.received(consumer, message);
       return;
     }
 
     try{
-      System.out.println("scope is not null -----------");
       AgentScope scope = start(extractScope, message);
       this.delegate.received(consumer, message);
       end(scope,null);
@@ -65,7 +45,6 @@ public  class MessageListenerWrapper<T> implements MessageListener<T> {
     span.setTag("topic", message.getTopicName());
     span.setTag("destination", message.getTopicName());
 
-    //span.setTag(MESSAGING_SYSTEM, LOCAL_SERVICE_NAME);
     span.setSpanType("queue");
     span.setTag("message_id", message.getMessageId());
     span.setServiceName("pulsar");
@@ -82,7 +61,6 @@ public  class MessageListenerWrapper<T> implements MessageListener<T> {
       scope.span().setErrorMessage(throwable.getMessage());
     }
 
-    // beforeFinish(scope);
     scope.span().finish();
     scope.close();
   }

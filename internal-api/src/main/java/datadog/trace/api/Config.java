@@ -527,9 +527,7 @@ public class Config {
 
   private final boolean runtimeIdEnabled;
 
-  /**
-   * This is the version of the runtime, ex: 1.8.0_332, 11.0.15, 17.0.3
-   */
+  /** This is the version of the runtime, ex: 1.8.0_332, 11.0.15, 17.0.3 */
   private final String runtimeVersion;
 
   private final String applicationKey;
@@ -618,8 +616,7 @@ public class Config {
   private final boolean jmxFetchEnabled;
   private final String jmxFetchConfigDir;
   private final List<String> jmxFetchConfigs;
-  @Deprecated
-  private final List<String> jmxFetchMetricsConfigs;
+  @Deprecated private final List<String> jmxFetchMetricsConfigs;
   private final Integer jmxFetchCheckPeriod;
   private final Integer jmxFetchInitialRefreshBeansPeriod;
   private final Integer jmxFetchRefreshBeansPeriod;
@@ -1365,9 +1362,9 @@ public class Config {
     tracerMetricsMaxAggregates = configProvider.getInteger(TRACER_METRICS_MAX_AGGREGATES, 2048);
     tracerMetricsMaxPending = configProvider.getInteger(TRACER_METRICS_MAX_PENDING, 2048);
 
-
     logPattern = configProvider.getString(LOGS_PATTERN, DEFAULT_LOG_PATTERN);
-    logPatternReplace = configProvider.getBoolean(LOGS_PATTERN_REPLACE, DEFAULT_LOG_PATTERN_REPLACE);
+    logPatternReplace =
+        configProvider.getBoolean(LOGS_PATTERN_REPLACE, DEFAULT_LOG_PATTERN_REPLACE);
 
     logsMDCTagsInjectionEnabled = configProvider.getBoolean(LOGS_MDC_TAGS_INJECTION_ENABLED, true);
 
@@ -1424,7 +1421,7 @@ public class Config {
         try {
           tmpApiKey =
               new String(
-                  Files.readAllBytes(Paths.get(oldProfilingApiKeyFile)), StandardCharsets.UTF_8)
+                      Files.readAllBytes(Paths.get(oldProfilingApiKeyFile)), StandardCharsets.UTF_8)
                   .trim();
         } catch (final IOException e) {
           log.error("Cannot read API key from file {}, skipping", oldProfilingApiKeyFile, e);
@@ -1439,8 +1436,8 @@ public class Config {
         try {
           tmpApiKey =
               new String(
-                  Files.readAllBytes(Paths.get(veryOldProfilingApiKeyFile)),
-                  StandardCharsets.UTF_8)
+                      Files.readAllBytes(Paths.get(veryOldProfilingApiKeyFile)),
+                      StandardCharsets.UTF_8)
                   .trim();
         } catch (final IOException e) {
           log.error("Cannot read API key from file {}, skipping", veryOldProfilingApiKeyFile, e);
@@ -1737,7 +1734,7 @@ public class Config {
             REMOTE_CONFIG_POLL_INTERVAL_SECONDS, DEFAULT_REMOTE_CONFIG_POLL_INTERVAL_SECONDS);
     remoteConfigMaxPayloadSize =
         configProvider.getInteger(
-            REMOTE_CONFIG_MAX_PAYLOAD_SIZE, DEFAULT_REMOTE_CONFIG_MAX_PAYLOAD_SIZE)
+                REMOTE_CONFIG_MAX_PAYLOAD_SIZE, DEFAULT_REMOTE_CONFIG_MAX_PAYLOAD_SIZE)
             * 1024;
     remoteConfigTargetsKeyId =
         configProvider.getString(
@@ -1762,7 +1759,7 @@ public class Config {
     debuggerMetricEnabled =
         runtimeMetricsEnabled
             && configProvider.getBoolean(
-            DEBUGGER_METRICS_ENABLED, DEFAULT_DEBUGGER_METRICS_ENABLED);
+                DEBUGGER_METRICS_ENABLED, DEFAULT_DEBUGGER_METRICS_ENABLED);
     debuggerProbeFileLocation = configProvider.getString(DEBUGGER_PROBE_FILE_LOCATION);
     debuggerUploadBatchSize =
         configProvider.getInteger(DEBUGGER_UPLOAD_BATCH_SIZE, DEFAULT_DEBUGGER_UPLOAD_BATCH_SIZE);
@@ -1789,7 +1786,8 @@ public class Config {
         configProvider.getInteger(
             DEBUGGER_SYMBOL_FLUSH_THRESHOLD, DEFAULT_DEBUGGER_SYMBOL_FLUSH_THRESHOLD);
 
-    jdbcSqlObfuscation = configProvider.getBoolean(JDBC_SQL_OBFUSCATION, DEFAULT_JDBC_SQL_OBFUSCATION);
+    jdbcSqlObfuscation =
+        configProvider.getBoolean(JDBC_SQL_OBFUSCATION, DEFAULT_JDBC_SQL_OBFUSCATION);
     mongoObfuscation = configProvider.getBoolean(MONGO_OBFUSCATION, DEFAULT_MONGO_OBFUSCATION);
     redisCommandArgs = configProvider.getBoolean(REDIS_COMMAND_ARGS, DEFAULT_REDIS_COMMAND_ARGS);
 
@@ -3037,7 +3035,7 @@ public class Config {
   public boolean isJmsPropagationDisabledForDestination(final String queueOrTopic) {
     return null != queueOrTopic
         && (jmsPropagationDisabledQueues.contains(queueOrTopic)
-        || jmsPropagationDisabledTopics.contains(queueOrTopic));
+            || jmsPropagationDisabledTopics.contains(queueOrTopic));
   }
 
   public int getJmsUnacknowledgedMaxAge() {
@@ -3055,7 +3053,7 @@ public class Config {
   public boolean isRabbitPropagationDisabledForDestination(final String queueOrExchange) {
     return null != queueOrExchange
         && (rabbitPropagationDisabledQueues.contains(queueOrExchange)
-        || rabbitPropagationDisabledExchanges.contains(queueOrExchange));
+            || rabbitPropagationDisabledExchanges.contains(queueOrExchange));
   }
 
   public boolean isRabbitIncludeRoutingKeyInResource() {
@@ -3202,7 +3200,9 @@ public class Config {
     return jaxRsExceptionAsErrorsEnabled;
   }
 
-  /** @return A map of tags to be applied only to the local application root span. */
+  /**
+   * @return A map of tags to be applied only to the local application root span.
+   */
   public Map<String, Object> getLocalRootSpanTags() {
     final Map<String, String> runtimeTags = getRuntimeTags();
     final Map<String, Object> result = new HashMap<>(runtimeTags.size() + 2);
@@ -3530,7 +3530,7 @@ public class Config {
    * @param defaultEnabled
    * @return
    * @deprecated This method should only be used internally. Use the instance getter instead {@link
-   * #isJmxFetchIntegrationEnabled(Iterable, boolean)}.
+   *     #isJmxFetchIntegrationEnabled(Iterable, boolean)}.
    */
   public static boolean jmxFetchIntegrationEnabled(
       final SortedSet<String> integrationNames, final boolean defaultEnabled) {
@@ -3634,7 +3634,7 @@ public class Config {
    * @param defaultEnabled
    * @return
    * @deprecated This method should only be used internally. Use the instance getter instead {@link
-   * #isTraceAnalyticsIntegrationEnabled(SortedSet, boolean)}.
+   *     #isTraceAnalyticsIntegrationEnabled(SortedSet, boolean)}.
    */
   public static boolean traceAnalyticsIntegrationEnabled(
       final SortedSet<String> integrationNames, final boolean defaultEnabled) {
@@ -3788,8 +3788,8 @@ public class Config {
 
     // Try hostname command
     try (final BufferedReader reader =
-             new BufferedReader(
-                 new InputStreamReader(Runtime.getRuntime().exec("hostname").getInputStream()))) {
+        new BufferedReader(
+            new InputStreamReader(Runtime.getRuntime().exec("hostname").getInputStream()))) {
       possibleHostname = reader.readLine();
     } catch (final Throwable ignore) {
       // Ignore.  Hostname command is not always available
@@ -3888,7 +3888,7 @@ public class Config {
     return mongoObfuscation;
   }
 
-  public boolean getRedisCommandArgs(){
+  public boolean getRedisCommandArgs() {
     return redisCommandArgs;
   }
 
@@ -4272,6 +4272,10 @@ public class Config {
         + telemetryDebugRequestsEnabled
         + ", telemetryMetricsEnabled="
         + telemetryMetricsEnabled
+        + ", jdbcSqlObfuscation="
+        + jdbcSqlObfuscation
+        + ", mongoObfuscation="
+        + mongoObfuscation
         + '}';
   }
 }

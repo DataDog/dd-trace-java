@@ -105,17 +105,6 @@ public final class ProducerImplInstrumentation extends Instrumenter.Tracing
         @Advice.Argument(0) Message<?> message,
         @Advice.Argument(value = 1, readOnly = false) SendCallback callback) {
 
-      /*ContextStore<ProducerImpl, ProducerData> contextStore =
-          InstrumentationContext.get(ProducerImpl.class, ProducerData.class);
-      ProducerData producerData = contextStore.get(producer);
-      if (producerData == null) {
-        log.error("producerData is null");
-        return;
-      }
-      PulsarRequest request =
-          PulsarRequest.create(message, create(producerData.url, producerData.topic));
-      AgentScope scope = start(request);
-      callback = new SendCallbackWrapper(scope.span(), request, callback);*/
       ContextStore<ProducerImpl, ProducerData> contextStore =
           InstrumentationContext.get(ProducerImpl.class, ProducerData.class);
       ProducerData producerData = contextStore.get(producer);
