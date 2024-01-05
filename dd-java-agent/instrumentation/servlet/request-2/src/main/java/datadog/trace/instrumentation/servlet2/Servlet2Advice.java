@@ -46,6 +46,7 @@ public class Servlet2Advice {
     if (response instanceof HttpServletResponse) {
       // Default value for checking for uncaught error later
       InstrumentationContext.get(ServletResponse.class, Integer.class).put(response, 200);
+      ((HttpServletResponse) response).setHeader("guance_trace_id", GlobalTracer.get().getTraceId());
     }
 
     final AgentSpan.Context.Extracted extractedContext = DECORATE.extract(httpServletRequest);

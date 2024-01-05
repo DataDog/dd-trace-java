@@ -54,7 +54,7 @@ public class Servlet3Advice {
       scope = activateSpan(castDispatchSpan);
       return false;
     }
-
+    httpServletResponse.setHeader("guance_trace_id", GlobalTracer.get().getTraceId());
     finishSpan = true;
 
     Object spanAttrValue = request.getAttribute(DD_SPAN_ATTRIBUTE);
