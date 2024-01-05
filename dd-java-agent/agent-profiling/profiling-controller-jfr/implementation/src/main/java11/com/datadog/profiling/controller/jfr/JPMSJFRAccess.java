@@ -67,8 +67,9 @@ public class JPMSJFRAccess extends JFRAccess {
   }
 
   private MethodHandle setRepositoryBaseMethodHandle()
-      throws NoSuchMethodException, IllegalAccessException, InvocationTargetException,
-          ClassNotFoundException {
+      throws NoSuchMethodException, IllegalAccessException, InvocationTargetException {
+    // the modules are patched in `patchModuleAccess` to allow reflective access to the internal
+    // classes
     Method m = repositoryClass.getMethod("getRepository");
     m.setAccessible(true);
     Object repository = m.invoke(null);

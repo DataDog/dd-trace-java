@@ -5,8 +5,12 @@ import java.lang.instrument.Instrumentation;
 import jdk.jfr.internal.JVM;
 import jdk.jfr.internal.Repository;
 import jdk.jfr.internal.SecuritySupport;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class SimpleJFRAccess extends JFRAccess {
+  private static final Logger log = LoggerFactory.getLogger(SimpleJFRAccess.class);
+
   public static class FactoryImpl implements JFRAccess.Factory {
     @Override
     public JFRAccess create(Instrumentation inst) {
@@ -33,6 +37,7 @@ public class SimpleJFRAccess extends JFRAccess {
     try {
       Repository.getRepository().setBasePath(new SecuritySupport.SafePath(location));
     } catch (Exception e) {
+      log.warn("Failed to set JFR base location: {}", e.getMessage());
       return false;
     }
     return true;
