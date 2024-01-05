@@ -17,10 +17,8 @@ import org.scalatest.tools.Runner
 class ScalatestTest extends CiVisibilityInstrumentationTest {
 
   def "test #testcaseName"() {
-    setup:
     runTests(tests)
 
-    expect:
     assertSpansData(testcaseName, expectedTracesCount)
 
     where:
@@ -36,11 +34,9 @@ class ScalatestTest extends CiVisibilityInstrumentationTest {
   }
 
   def "test ITR #testcaseName"() {
-    setup:
     givenSkippableTests(skippedTests)
     runTests(tests)
 
-    expect:
     assertSpansData(testcaseName, expectedTracesCount)
 
     where:
