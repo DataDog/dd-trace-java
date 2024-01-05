@@ -21,7 +21,7 @@ public class ConfigurationApiImpl implements ConfigurationApi {
 
   private static final String SETTINGS_URI = "libraries/tests/services/setting";
   private static final String SKIPPABLE_TESTS_URI = "ci/tests/skippable";
-  private static final String FLAKY_TESTS_URI = "libraries/ci/tests/flaky";
+  private static final String FLAKY_TESTS_URI = "ci/libraries/tests/flaky";
 
   private final BackendApi backendApi;
   private final Supplier<String> uuidGenerator;
@@ -74,20 +74,20 @@ public class ConfigurationApiImpl implements ConfigurationApi {
   @Override
   public Collection<TestIdentifier> getSkippableTests(TracerEnvironment tracerEnvironment)
       throws IOException {
-    return getTestsData(SKIPPABLE_TESTS_URI, tracerEnvironment);
+    return getTestsData(SKIPPABLE_TESTS_URI, "test_params", tracerEnvironment);
   }
 
   @Override
   public Collection<TestIdentifier> getFlakyTests(TracerEnvironment tracerEnvironment)
       throws IOException {
-    return getTestsData(FLAKY_TESTS_URI, tracerEnvironment);
+    return getTestsData(FLAKY_TESTS_URI, "flaky_test_from_libraries_params", tracerEnvironment);
   }
 
   private Collection<TestIdentifier> getTestsData(
-      String endpoint, TracerEnvironment tracerEnvironment) throws IOException {
+      String endpoint, String dataType, TracerEnvironment tracerEnvironment) throws IOException {
     String uuid = uuidGenerator.get();
     EnvelopeDto<TracerEnvironment> request =
-        new EnvelopeDto<>(new DataDto<>(uuid, "test_params", tracerEnvironment));
+        new EnvelopeDto<>(new DataDto<>(uuid, dataType, tracerEnvironment));
     String json = requestAdapter.toJson(request);
     RequestBody requestBody = RequestBody.create(JSON, json);
     Collection<DataDto<TestIdentifier>> response =
