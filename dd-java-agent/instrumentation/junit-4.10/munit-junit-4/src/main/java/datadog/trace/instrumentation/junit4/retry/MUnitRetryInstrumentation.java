@@ -56,7 +56,7 @@ public class MUnitRetryInstrumentation extends Instrumenter.CiVisibility
   @Override
   public void adviceTransformations(AdviceTransformation transformation) {
     transformation.applyAdvice(
-        named("runTest").and(takesArgument(0, RunNotifier.class)),
+        named("runTest").and(takesArgument(0, named("org.junit.runner.notification.RunNotifier"))),
         MUnitRetryInstrumentation.class.getName() + "$RetryAdvice");
   }
 

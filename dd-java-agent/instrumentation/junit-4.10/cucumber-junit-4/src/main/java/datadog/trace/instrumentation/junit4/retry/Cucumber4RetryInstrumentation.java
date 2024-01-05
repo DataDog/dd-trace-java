@@ -63,7 +63,7 @@ public class Cucumber4RetryInstrumentation extends Instrumenter.CiVisibility
     transformation.applyAdvice(
         named("runChild")
             .and(takesArgument(0, named("io.cucumber.junit.PickleRunners$PickleRunner")))
-            .and(takesArgument(1, RunNotifier.class)),
+            .and(takesArgument(1, named("org.junit.runner.notification.RunNotifier"))),
         Cucumber4RetryInstrumentation.class.getName() + "$RetryAdvice");
   }
 

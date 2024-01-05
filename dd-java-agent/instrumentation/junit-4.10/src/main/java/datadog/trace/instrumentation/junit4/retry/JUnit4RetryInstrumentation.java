@@ -64,9 +64,9 @@ public class JUnit4RetryInstrumentation extends Instrumenter.CiVisibility
   public void adviceTransformations(AdviceTransformation transformation) {
     transformation.applyAdvice(
         named("runLeaf")
-            .and(takesArgument(0, Statement.class))
-            .and(takesArgument(1, Description.class))
-            .and(takesArgument(2, RunNotifier.class)),
+            .and(takesArgument(0, named("org.junit.runners.model.Statement")))
+            .and(takesArgument(1, named("org.junit.runner.Description")))
+            .and(takesArgument(2, named("org.junit.runner.notification.RunNotifier"))),
         JUnit4RetryInstrumentation.class.getName() + "$RetryAdvice");
   }
 
