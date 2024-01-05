@@ -16,6 +16,11 @@ public class RetryIfFailed implements TestRetryPolicy {
   }
 
   @Override
+  public boolean suppressFailures() {
+    return true;
+  }
+
+  @Override
   public boolean retry(boolean successful) {
     return !successful && remainingRetries-- > 0;
   }

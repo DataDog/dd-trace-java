@@ -31,6 +31,7 @@ public class ScalatestInstrumentation extends Instrumenter.CiVisibility
   @Override
   public String[] helperClassNames() {
     return new String[] {
+      packageName + ".retry.SuppressedTestFailedException",
       packageName + ".ScalatestUtils",
       packageName + ".RunContext",
       packageName + ".DatadogReporter",
