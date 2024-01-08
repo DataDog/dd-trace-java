@@ -164,4 +164,37 @@ public final class InstrumenterState {
       wordState = state.get(wordIndex);
     }
   }
+
+  public static String summary() {
+    StringBuilder summary = new StringBuilder();
+    classLoaderStates.visit(
+        (loader, state) -> {
+          summary.append(loader.getClass().getName());
+          summarizeState(summary, state);
+          summary.append("\n\n");
+        });
+    return summary.toString();
+  }
+
+  private static void summarizeState(StringBuilder summary, AtomicLongArray state) {
+    for (int wordIndex = 0; wordIndex < state.length(); wordIndex++) {
+      int instrumentationId = wordIndex * (BITS_PER_WORD >> 1); // 2 bits per status
+      long wordState = state.get(wordIndex);
+      while (wordState != 0) {
+        if ((wordState & STATUS_BITS) != 0) {
+          if ((wordState & APPLIED) != 0) {
+            summary.append("\n    APPLIED  ");
+          } else {
+            summary.append("\n    BLOCKED  ");
+          }
+          summary
+              .append(instrumentationClasses[instrumentationId])
+              .append("  ")
+              .append(instrumentationNames[instrumentationId]);
+        }
+        instrumentationId++;
+        wordState >>>= 2; // move onto next 2 status bits
+      }
+    }
+  }
 }

@@ -72,9 +72,11 @@ public final class TPEHelper {
     return Boolean.TRUE.equals(contextStore.get(executor));
   }
 
-  public static void capture(ContextStore<Runnable, State> contextStore, Runnable task) {
+  public static void capture(
+      ContextStore<Runnable, State> contextStore, ThreadPoolExecutor executor, Runnable task) {
     if (task != null && !exclude(RUNNABLE, task)) {
       AdviceUtils.capture(contextStore, task, true);
+      QueueTimerHelper.startQueuingTimer(contextStore, executor.getClass(), task);
     }
   }
 

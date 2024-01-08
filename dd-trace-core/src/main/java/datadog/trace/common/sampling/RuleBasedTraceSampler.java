@@ -52,8 +52,8 @@ public class RuleBasedTraceSampler<T extends CoreSpan<T>> implements Sampler, Pr
 
     final List<SamplingRule> samplingRules = new ArrayList<>();
 
-    if (traceSamplingRules != null) {
-      if ((!serviceRules.isEmpty() || !operationRules.isEmpty()) && !traceSamplingRules.isEmpty()) {
+    if (traceSamplingRules != null && !traceSamplingRules.isEmpty()) {
+      if ((!serviceRules.isEmpty() || !operationRules.isEmpty())) {
         log.warn(
             "Both {} and/or {} as well as {} are defined. Only {} will be used for rule-based sampling",
             TracerConfig.TRACE_SAMPLING_SERVICE_RULES,
@@ -67,6 +67,8 @@ public class RuleBasedTraceSampler<T extends CoreSpan<T>> implements Sampler, Pr
             new TraceSamplingRule(
                 rule.getService(),
                 rule.getName(),
+                rule.getResource(),
+                rule.getTags(),
                 new DeterministicSampler.TraceSampler(rule.getSampleRate()));
         samplingRules.add(samplingRule);
       }

@@ -20,6 +20,7 @@ import datadog.trace.api.config.GeneralConfig
 import datadog.trace.api.config.TracerConfig
 import datadog.trace.api.gateway.RequestContext
 import datadog.trace.api.internal.TraceSegment
+import datadog.trace.api.sampling.SamplingRule
 import datadog.trace.api.time.SystemTimeSource
 import datadog.trace.bootstrap.ActiveSubsystems
 import datadog.trace.bootstrap.CallDepthThreadLocalMap
@@ -180,11 +181,6 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
   @Shared
   TraceConfig MOCK_DSM_TRACE_CONFIG = new TraceConfig() {
     @Override
-    boolean isDebugEnabled() {
-      return true
-    }
-
-    @Override
     boolean isRuntimeMetricsEnabled() {
       return true
     }
@@ -223,6 +219,16 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
     Double getTraceSampleRate() {
       return null
     }
+
+    @Override
+    List<? extends SamplingRule.SpanSamplingRule> getSpanSamplingRules() {
+      return null
+    }
+
+    @Override
+    List<? extends SamplingRule.TraceSamplingRule> getTraceSamplingRules() {
+      return null
+    }
   }
 
   boolean originalAppSecRuntimeValue
@@ -238,6 +244,10 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
 
   protected boolean isDataStreamsEnabled() {
     return false
+  }
+
+  protected long dataStreamsBucketDuration() {
+    TimeUnit.MILLISECONDS.toNanos(50)
   }
 
   protected boolean isTestAgentEnabled() {
@@ -286,7 +296,7 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
       }
 
     // Fast enough so tests don't take forever
-    long bucketDuration = TimeUnit.MILLISECONDS.toNanos(50)
+    long bucketDuration = dataStreamsBucketDuration()
     WellKnownTags wellKnownTags = new WellKnownTags("runtimeid", "hostname", "my-env", "service", "version", "language")
     TEST_DATA_STREAMS_MONITORING = new DefaultDataStreamsMonitoring(sink, features, SystemTimeSource.INSTANCE, { MOCK_DSM_TRACE_CONFIG }, wellKnownTags, TEST_DATA_STREAMS_WRITER, bucketDuration)
 

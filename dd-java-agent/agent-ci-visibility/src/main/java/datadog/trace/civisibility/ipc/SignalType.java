@@ -6,8 +6,8 @@ public enum SignalType {
   MODULE_EXECUTION_RESULT((byte) 2),
   REPO_INDEX_REQUEST((byte) 3),
   REPO_INDEX_RESPONSE((byte) 4),
-  SKIPPABLE_TESTS_REQUEST((byte) 5),
-  SKIPPABLE_TESTS_RESPONSE((byte) 6);
+  MODULE_SETTINGS_REQUEST((byte) 5),
+  MODULE_SETTINGS_RESPONSE((byte) 6);
 
   private static final SignalType[] VALUES = SignalType.values();
 

@@ -1,6 +1,7 @@
 package datadog.trace.agent.test.server.http
 
 import datadog.trace.agent.test.asserts.ListWriterAssert
+import datadog.trace.agent.test.base.HttpServer
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.core.DDSpan
@@ -209,6 +210,10 @@ class TestHttpServer implements AutoCloseable {
     clone.delegate = handlers
     clone.resolveStrategy = Closure.DELEGATE_FIRST
     clone(handlers)
+  }
+
+  HttpServer asHttpServer(boolean secure = false) {
+    return new HttpServerAdapter(this, secure)
   }
 
   static distributedRequestTrace(ListWriterAssert traces, DDSpan parentSpan = null, Map<String, Serializable> extraTags = null) {
@@ -493,6 +498,36 @@ class TestHttpServer implements AutoCloseable {
 
     def get(String header) {
       return headers[header]
+    }
+  }
+
+  static class HttpServerAdapter implements HttpServer {
+    final TestHttpServer server
+    final boolean secure
+    URI address
+
+    HttpServerAdapter(TestHttpServer server, boolean secure = false) {
+      this.server = server
+      this.secure = secure
+    }
+
+    @Override
+    void start() throws TimeoutException {
+      server.start()
+      address = secure ? server.secureAddress : server.address
+      if (!address.path.endsWith('/')) {
+        address = new URI(address.toString() + '/')
+      }
+    }
+
+    @Override
+    void stop() {
+      server.stop()
+    }
+
+    @Override
+    URI address() {
+      return address
     }
   }
 }

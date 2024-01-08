@@ -1,8 +1,11 @@
 package datadog.trace.common.sampling;
 
 import datadog.trace.core.CoreSpan;
-import datadog.trace.core.util.GlobPattern;
+import datadog.trace.core.util.Matcher;
+import datadog.trace.core.util.Matchers;
 import datadog.trace.core.util.SimpleRateLimiter;
+import datadog.trace.core.util.TagsMatcher;
+import java.util.Map;
 import java.util.regex.Pattern;
 
 public abstract class SamplingRule {
@@ -74,29 +77,36 @@ public abstract class SamplingRule {
   }
 
   public static final class TraceSamplingRule extends SamplingRule {
-    private final String serviceName;
-    private final String operationName;
+    private final Matcher serviceMatcher;
+    private final Matcher operationMatcher;
+    private final Matcher resourceMatcher;
+    private final TagsMatcher tagsMatcher;
 
     public TraceSamplingRule(
-        final String exactServiceName, final String exactOperationName, final RateSampler sampler) {
+        final String serviceGlob,
+        final String operationGlob,
+        final String resourceGlob,
+        final Map<String, String> tags,
+        final RateSampler sampler) {
       super(sampler);
-      this.serviceName = exactServiceName;
-      this.operationName = exactOperationName;
+      serviceMatcher = Matchers.compileGlob(serviceGlob);
+      operationMatcher = Matchers.compileGlob(operationGlob);
+      resourceMatcher = Matchers.compileGlob(resourceGlob);
+      tagsMatcher = TagsMatcher.create(tags);
     }
 
     @Override
     public <T extends CoreSpan<T>> boolean matches(T span) {
-      return (serviceName == null || serviceName.equals(span.getServiceName()))
-          && (operationName == null || operationName.contentEquals(span.getOperationName()));
+      return Matchers.matches(serviceMatcher, span.getServiceName())
+          && Matchers.matches(operationMatcher, span.getOperationName())
+          && Matchers.matches(resourceMatcher, span.getResourceName())
+          && tagsMatcher.matches(span);
     }
   }
 
   public static final class SpanSamplingRule extends SamplingRule {
-    private final String serviceExactName;
-    private final Pattern servicePattern;
-    private final String operationExactName;
-    private final Pattern operationPattern;
-
+    private final Matcher serviceMatcher;
+    private final Matcher operationMatcher;
     private final SimpleRateLimiter rateLimiter;
 
     public SpanSamplingRule(
@@ -106,43 +116,16 @@ public abstract class SamplingRule {
         final SimpleRateLimiter rateLimiter) {
       super(sampler);
 
-      if (serviceName == null || "*".equals(serviceName)) {
-        this.serviceExactName = null;
-        this.servicePattern = null;
-      } else if (isExactMatcher(serviceName)) {
-        this.serviceExactName = serviceName;
-        this.servicePattern = null;
-      } else {
-        this.serviceExactName = null;
-        this.servicePattern = GlobPattern.globToRegexPattern(serviceName);
-      }
-
-      if (operationName == null || "*".equals(operationName)) {
-        this.operationExactName = null;
-        this.operationPattern = null;
-      } else if (isExactMatcher(operationName)) {
-        this.operationExactName = operationName;
-        this.operationPattern = null;
-      } else {
-        this.operationExactName = null;
-        this.operationPattern = GlobPattern.globToRegexPattern(operationName);
-      }
+      serviceMatcher = Matchers.compileGlob(serviceName);
+      operationMatcher = Matchers.compileGlob(operationName);
 
       this.rateLimiter = rateLimiter;
     }
 
-    private boolean isExactMatcher(String serviceNameGlob) {
-      return !serviceNameGlob.contains("*") && !serviceNameGlob.contains("?");
-    }
-
     @Override
     public <T extends CoreSpan<T>> boolean matches(T span) {
-      return (serviceExactName == null || serviceExactName.equals(span.getServiceName()))
-          && (servicePattern == null || servicePattern.matcher(span.getServiceName()).matches())
-          && (operationExactName == null
-              || operationExactName.contentEquals(span.getOperationName()))
-          && (operationPattern == null
-              || operationPattern.matcher(span.getOperationName()).matches());
+      return Matchers.matches(serviceMatcher, span.getServiceName())
+          && Matchers.matches(operationMatcher, span.getOperationName());
     }
 
     @Override

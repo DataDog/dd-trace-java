@@ -1,6 +1,7 @@
 package datadog.trace.core.datastreams
 
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery
+import datadog.trace.api.Config
 import datadog.trace.api.TraceConfig
 import datadog.trace.api.WellKnownTags
 import datadog.trace.api.experimental.DataStreamsContextCarrier
@@ -14,12 +15,13 @@ import spock.util.concurrent.PollingConditions
 
 import java.util.concurrent.TimeUnit
 
-import static DefaultDataStreamsMonitoring.DEFAULT_BUCKET_DURATION_NANOS
 import static DefaultDataStreamsMonitoring.FEATURE_CHECK_INTERVAL_NANOS
 import static java.util.concurrent.TimeUnit.SECONDS
 
 class DefaultDataStreamsMonitoringTest extends DDCoreSpecification {
   def wellKnownTags = new WellKnownTags("runtimeid", "hostname", "testing", "service", "version", "java")
+
+  static final DEFAULT_BUCKET_DURATION_NANOS = Config.get().getDataStreamsBucketDurationNanoseconds()
 
   def "No payloads written if data streams not supported or not enabled"() {
     given:
@@ -56,6 +58,31 @@ class DefaultDataStreamsMonitoringTest extends DDCoreSpecification {
     false          | true
     true           | false
     false          | false
+  }
+
+  def "Schema sampler samples with correct weights"() {
+    given:
+    def features = Stub(DDAgentFeaturesDiscovery) {
+      supportsDataStreams() >> true
+    }
+    def timeSource = new ControllableTimeSource()
+    timeSource.set(1e12 as long)
+    def payloadWriter = Mock(DatastreamsPayloadWriter)
+    def sink = Mock(Sink)
+    def traceConfig = Mock(TraceConfig) {
+      isDataStreamsEnabled() >> true
+    }
+
+    when:
+    def dataStreams = new DefaultDataStreamsMonitoring(sink, features, timeSource, { traceConfig }, wellKnownTags, payloadWriter, DEFAULT_BUCKET_DURATION_NANOS)
+
+    then:
+    dataStreams.shouldSampleSchema("schema1") == 1
+    dataStreams.shouldSampleSchema("schema2") == 1
+    dataStreams.shouldSampleSchema("schema1") == 0
+    dataStreams.shouldSampleSchema("schema1") == 0
+    timeSource.advance(30*1e9 as long)
+    dataStreams.shouldSampleSchema("schema1") == 3
   }
 
   def "Context carrier adapter test"() {

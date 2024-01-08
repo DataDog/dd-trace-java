@@ -29,6 +29,7 @@ dependencies {
 
   compileOnly project(':dd-java-agent:agent-tooling')
   testImplementation project(':dd-java-agent:agent-tooling')
+  testImplementation project(':dd-java-agent:agent-logging')
 
   compileOnly project(':communication')
   testImplementation project(':communication')

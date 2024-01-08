@@ -56,6 +56,7 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
   private final boolean clientIpResolutionEnabled;
   private final boolean clientIpWithoutAppSec;
   private boolean collectIpHeaders;
+  private final boolean requestHeaderTagsCommaAllowed;
 
   protected static final boolean LOG_EXTRACT_HEADER_NAMES = Config.get().isLogExtractHeaderNames();
   private static final DDCache<String, String> CACHE = DDCaches.newFixedSizeCache(64);
@@ -69,6 +70,7 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
     this.clientIpResolutionEnabled = config.isTraceClientIpResolverEnabled();
     this.clientIpWithoutAppSec = config.isClientIpEnabled();
     this.propagationTagsFactory = PropagationTags.factory(config);
+    this.requestHeaderTagsCommaAllowed = config.isRequestHeaderTagsCommaAllowed();
   }
 
   /**
@@ -190,7 +192,10 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
       if (tags.isEmpty()) {
         tags = new TreeMap<>();
       }
-      tags.put(mappedKey, HttpCodec.decode(HttpCodec.firstHeaderValue(value)));
+      tags.put(
+          mappedKey,
+          HttpCodec.decode(
+              requestHeaderTagsCommaAllowed ? value : HttpCodec.firstHeaderValue(value)));
       return true;
     }
     return false;

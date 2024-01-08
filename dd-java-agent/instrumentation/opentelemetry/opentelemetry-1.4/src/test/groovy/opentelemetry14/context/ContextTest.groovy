@@ -10,7 +10,7 @@ import io.opentelemetry.context.ThreadLocalContextStorage
 import spock.lang.Subject
 
 import static datadog.trace.bootstrap.instrumentation.api.ScopeSource.MANUAL
-import static datadog.trace.instrumentation.opentelemetry14.context.OtelContext.DATADOG_CONTEXT_ROOT_SPAN_KEY
+import static datadog.trace.instrumentation.opentelemetry14.context.OtelContext.OTEL_CONTEXT_ROOT_SPAN_KEY
 import static datadog.trace.instrumentation.opentelemetry14.context.OtelContext.OTEL_CONTEXT_SPAN_KEY
 import static datadog.trace.instrumentation.opentelemetry14.trace.OtelConventions.SPAN_KIND_INTERNAL
 
@@ -226,7 +226,6 @@ class ContextTest extends AgentTestRunner {
           parent()
           operationName "internal"
           resourceName "some-name"
-          spanType "internal"
         }
         span {
           childOfPrevious()
@@ -236,7 +235,6 @@ class ContextTest extends AgentTestRunner {
           childOfPrevious()
           operationName "internal"
           resourceName "another-name"
-          spanType "internal"
         }
       }
     }
@@ -247,7 +245,7 @@ class ContextTest extends AgentTestRunner {
     def parentSpan = tracer.spanBuilder("some-name").startSpan()
     def parentScope = parentSpan.makeCurrent()
     def currentSpanKey = ContextKey.named(OTEL_CONTEXT_SPAN_KEY)
-    def rootSpanKey = ContextKey.named(DATADOG_CONTEXT_ROOT_SPAN_KEY)
+    def rootSpanKey = ContextKey.named(OTEL_CONTEXT_ROOT_SPAN_KEY)
 
     when:
     def current = Context.current()

@@ -15,6 +15,7 @@ import com.datadog.debugger.el.expressions.IfElseExpression;
 import com.datadog.debugger.el.expressions.IfExpression;
 import com.datadog.debugger.el.expressions.IndexExpression;
 import com.datadog.debugger.el.expressions.IsEmptyExpression;
+import com.datadog.debugger.el.expressions.IsUndefinedExpression;
 import com.datadog.debugger.el.expressions.LenExpression;
 import com.datadog.debugger.el.expressions.MatchesExpression;
 import com.datadog.debugger.el.expressions.NotExpression;
@@ -92,6 +93,10 @@ public class DSL {
 
   public static BooleanExpression eq(ValueExpression<?> left, ValueExpression<?> right) {
     return new ComparisonExpression(left, right, ComparisonOperator.EQ);
+  }
+
+  public static BooleanExpression instanceOf(ValueExpression<?> left, ValueExpression<?> right) {
+    return new ComparisonExpression(left, right, ComparisonOperator.INSTANCEOF);
   }
 
   public static BooleanExpression not(BooleanExpression expression) {
@@ -204,5 +209,9 @@ public class DSL {
 
   public static BooleanValueExpressionAdapter bool(BooleanExpression expression) {
     return new BooleanValueExpressionAdapter(expression);
+  }
+
+  public static IsUndefinedExpression isUndefined(ValueExpression<?> valueExpression) {
+    return new IsUndefinedExpression(valueExpression);
   }
 }

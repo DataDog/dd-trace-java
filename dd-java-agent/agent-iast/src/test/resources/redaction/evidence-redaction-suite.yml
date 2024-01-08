@@ -2022,4 +2022,44 @@ suite:
           }
         ]
       }
-
+  - type: 'VULNERABILITIES'
+    description: 'Testing header injection redaction'
+    input: >
+      [
+        {
+          "type": "HEADER_INJECTION",
+          "evidence": {
+            "value": "Authorization: bearer 12345644",
+            "ranges": [
+              { "start" : 0, "length" : 30, "source": { "origin": "http.request.header", "name": "X-Test-Header", "value": "Authorization: bearer 12345644" }}
+            ]
+          }
+        }
+      ]
+    expected: >
+     {
+         "vulnerabilities": [
+             {
+                "type": "HEADER_INJECTION",
+                 "evidence": {
+                     "valueParts": [
+                         {
+                             "source": 0,
+                             "redacted": true,
+                             "pattern": "abcdefghijklmnopqrstuvwxyzABCD"
+                         }
+                     ]
+                 },
+                 "hash": 0,
+                 "type": "HEADER_INJECTION"
+             }
+         ],
+         "sources": [
+             {
+                 "origin": "http.request.header",
+                 "name": "X-Test-Header",
+                 "redacted": true,
+                 "pattern": "abcdefghijklmnopqrstuvwxyzABCD"
+             }
+         ]
+     }

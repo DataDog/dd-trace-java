@@ -1,6 +1,9 @@
 muzzle {
   pass {
-    coreJdk()
+    group = 'org.codehaus.jackson'
+    module = 'jackson-core-asl'
+    versions = "[0.9.6,)"
+    assertInverse = true
   }
 }
 
@@ -8,7 +11,9 @@ apply from: "$rootDir/gradle/java.gradle"
 
 addTestSuiteForDir('latestDepTest', 'test')
 
+final jacksonVersion = '1.9.13'
 dependencies {
-  compileOnly group: 'org.codehaus.jackson', name: 'jackson-core-asl', version: '1.9.13'
-  testImplementation group: 'org.codehaus.jackson', name: 'jackson-core-asl', version: '1.9.13'
+  compileOnly(group: 'org.codehaus.jackson', name: 'jackson-core-asl', version: jacksonVersion)
+
+  testImplementation(group: 'org.codehaus.jackson', name: 'jackson-mapper-asl', version: jacksonVersion)
 }

@@ -39,6 +39,7 @@ excludedClassesCoverage += [
   // an enum
   "datadog.trace.api.sampling.AdaptiveSampler",
   "datadog.trace.api.sampling.ConstantSampler",
+  "datadog.trace.api.sampling.SamplingRule.TraceSamplingRule.TargetSpan",
   "datadog.trace.api.EndpointCheckpointerHolder",
   "datadog.trace.api.iast.IastAdvice.Kind",
   "datadog.trace.api.UserEventTrackingMode",
@@ -79,7 +80,8 @@ excludedClassesCoverage += [
   "datadog.trace.bootstrap.instrumentation.api.ErrorPriorities",
   'datadog.trace.api.civisibility.config.Configurations',
   "datadog.trace.api.civisibility.config.ModuleExecutionSettings",
-  'datadog.trace.api.civisibility.config.SkippableTest',
+  "datadog.trace.api.civisibility.config.TestIdentifier",
+  "datadog.trace.api.civisibility.coverage.CoverageBridge",
   "datadog.trace.api.civisibility.coverage.TestReport",
   "datadog.trace.api.civisibility.coverage.TestReportFileEntry",
   "datadog.trace.api.civisibility.coverage.TestReportFileEntry.Segment",
@@ -111,8 +113,7 @@ excludedClassesCoverage += [
   "datadog.trace.util.PidHelper",
   "datadog.trace.util.PidHelper.Fallback",
   "datadog.trace.util.ProcessUtils",
-  "datadog.trace.api.IntegrationsCollector.Holder",
-  "datadog.trace.api.MetricCollector.Holder",
+  "datadog.trace.util.UnsafeUtils",
   "datadog.trace.api.ConfigCollector",
   "datadog.trace.api.Config.HostNameHolder",
   "datadog.trace.api.Config.RuntimeIdHolder",
@@ -127,6 +128,8 @@ excludedClassesCoverage += [
   // Interface with default method
   "datadog.trace.api.StatsDClientManager",
   "datadog.trace.api.iast.Taintable",
+  "datadog.trace.api.Stateful",
+  "datadog.trace.api.Stateful.1",
   // a stub
   "datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration",
   "datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration.NoOp",
@@ -135,6 +138,7 @@ excludedClassesCoverage += [
   // POJO
   'datadog.trace.api.iast.util.Cookie',
   'datadog.trace.api.iast.util.Cookie.Builder',
+  'datadog.trace.api.telemetry.LogCollector.RawLogMessage',
   // stubs
   'datadog.trace.api.profiling.Timing.NoOp',
   'datadog.trace.api.profiling.Timer.NoOp',

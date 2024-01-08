@@ -10,6 +10,7 @@ muzzle {
   }
 }
 
+apply plugin: 'java-test-fixtures'
 apply from: "$rootDir/gradle/java.gradle"
 apply plugin: "idea"
 
@@ -35,6 +36,12 @@ dependencies {
   main_java11Implementation project(':dd-java-agent:instrumentation:jetty-common')
   implementation project(':dd-java-agent:instrumentation:jetty-common')
 
+  testFixturesCompileOnly "org.eclipse.jetty:jetty-server:11.0.0"
+  testFixturesCompileOnly "org.eclipse.jetty:jetty-servlet:11.0.0"
+
+  testFixturesImplementation(project(':dd-java-agent:testing')) {
+    exclude group: 'org.eclipse.jetty', module: 'jetty-server'
+  }
   // Don't want to conflict with jetty from the test server.
   testImplementation(project(':dd-java-agent:testing')) {
     exclude group: 'org.eclipse.jetty', module: 'jetty-server'

@@ -166,6 +166,12 @@ public class SymbolExtractor {
         case Opcodes.ACC_ENUM:
           results.add("enum");
           break;
+        case Opcodes.ACC_RECORD:
+          results.add("record");
+          break;
+        case Opcodes.ACC_DEPRECATED:
+          results.add("deprecated");
+          break;
         default:
           throw new IllegalArgumentException("Invalid access modifiers: " + bit);
       }
@@ -215,8 +221,12 @@ public class SymbolExtractor {
         case Opcodes.ACC_SYNTHETIC:
           results.add("synthetic");
           break;
+        case Opcodes.ACC_DEPRECATED:
+          results.add("deprecated");
+          break;
         default:
-          throw new IllegalArgumentException("Invalid access modifiers: " + bit);
+          throw new IllegalArgumentException(
+              "Invalid access modifiers method[" + methodNode.name + methodNode.desc + "]: " + bit);
       }
     }
     // if class is an interface && method as code this is a default method
@@ -257,6 +267,9 @@ public class SymbolExtractor {
           break;
         case Opcodes.ACC_ENUM:
           results.add("enum");
+          break;
+        case Opcodes.ACC_DEPRECATED:
+          results.add("deprecated");
           break;
         default:
           throw new IllegalArgumentException("Invalid access modifiers: " + bit);

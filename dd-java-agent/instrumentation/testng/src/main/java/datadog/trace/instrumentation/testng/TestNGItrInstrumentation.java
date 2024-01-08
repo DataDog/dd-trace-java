@@ -8,7 +8,7 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.api.Config;
 import datadog.trace.api.civisibility.InstrumentationBridge;
-import datadog.trace.api.civisibility.config.SkippableTest;
+import datadog.trace.api.civisibility.config.TestIdentifier;
 import java.lang.reflect.Method;
 import java.util.List;
 import java.util.Set;
@@ -67,7 +67,7 @@ public class TestNGItrInstrumentation extends Instrumenter.CiVisibility
         return;
       }
 
-      SkippableTest skippableTest = TestNGUtils.toSkippableTest(method, instance, parameters);
+      TestIdentifier skippableTest = TestNGUtils.toTestIdentifier(method, instance, parameters);
       if (TestEventsHandlerHolder.TEST_EVENTS_HANDLER.skip(skippableTest)) {
         throw new SkipException(InstrumentationBridge.ITR_SKIP_REASON);
       }

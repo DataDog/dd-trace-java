@@ -189,6 +189,8 @@
 1 org.aopalliance.*
 1 org.antlr.*
 1 org.apache.*
+#apache httpClient needs URI propagation
+0 org.apache.http.client.methods.*
 # apache compiled jsps
 0 org.apache.jsp.*
 1 org.apiguardian.*
@@ -276,6 +278,9 @@
 2 org.springframework.security.web.authentication.*
 2 org.springframework.web.context.request.*
 2 org.springframework.web.util.WebUtils
+# Need for Spring gson support
+2 org.springframework.http.converter.json.AbstractJsonHttpMessageConverter
+2 org.springframework.http.converter.json.GsonHttpMessageConverter
 # Need for ServletRequestCallSite.getInputStream()
 2 org.springframework.http.server.*
 1 org.sqlite.*

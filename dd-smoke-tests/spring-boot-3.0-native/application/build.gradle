@@ -2,7 +2,7 @@ plugins {
   id 'java'
   id 'org.springframework.boot' version '3.0.0'
   id 'io.spring.dependency-management' version '1.0.14.RELEASE'
-  id 'org.graalvm.buildtools.native' version '0.9.23'
+  id 'org.graalvm.buildtools.native' version '0.9.28'
   id 'com.diffplug.spotless' version "6.11.0"
 }
 
@@ -12,6 +12,8 @@ rootProject.ext.sharedConfigDirectory = sharedConfigDirectory
 
 apply from: "$sharedConfigDirectory/repositories.gradle"
 apply from: "$sharedConfigDirectory/spotless.gradle"
+
+ext.withProfiler = hasProperty('profiler')
 
 if (hasProperty('appBuildDir')) {
   buildDir = property('appBuildDir')
@@ -27,11 +29,20 @@ dependencies {
 }
 
 if (hasProperty('agentPath')) {
+  final agentPath = property('agentPath')
   graalvmNative {
     binaries {
       main {
-        buildArgs.add("-J-javaagent:${property('agentPath')}")
+        // quick build mode, enough for smoke test
+        buildArgs.add("-Ob")
+        buildArgs.add("-J-javaagent:$agentPath")
+        if (withProfiler && property('profiler') == 'true') {
+          buildArgs.add("-J-Ddd.profiling.enabled=true")
+        }
       }
     }
+  }
+  tasks.named('nativeCompile') {
+    inputs.file(agentPath).withPropertyName('agentJar')
   }
 }

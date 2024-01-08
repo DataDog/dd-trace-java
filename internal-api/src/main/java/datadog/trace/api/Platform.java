@@ -7,6 +7,11 @@ import java.util.List;
 import java.util.Locale;
 
 public final class Platform {
+  // A helper class to capture whether the executable is a native image or not.
+  // This class needs to be iniatlized at build only during the AOT compilation and build.
+  private static class Captured {
+    public static final boolean isNativeImage = checkForNativeImageBuilder();
+  }
 
   public enum GC {
     SERIAL("marksweep"),
@@ -45,6 +50,7 @@ public final class Platform {
 
   private static final boolean HAS_JFR = checkForJfr();
   private static final boolean IS_NATIVE_IMAGE_BUILDER = checkForNativeImageBuilder();
+  private static final boolean IS_NATIVE_IMAGE = Captured.isNativeImage;
 
   public static GC activeGarbageCollector() {
     return GARBAGE_COLLECTOR;
@@ -56,6 +62,10 @@ public final class Platform {
 
   public static boolean isNativeImageBuilder() {
     return IS_NATIVE_IMAGE_BUILDER;
+  }
+
+  public static boolean isNativeImage() {
+    return IS_NATIVE_IMAGE;
   }
 
   private static boolean checkForJfr() {
@@ -186,6 +196,7 @@ public final class Platform {
 
     public final String vendor;
     public final String version;
+    public final String vendorVersion;
     public final String patches;
 
     public JvmRuntime() {
@@ -193,15 +204,17 @@ public final class Platform {
           System.getProperty("java.version"),
           System.getProperty("java.runtime.version"),
           System.getProperty("java.runtime.name"),
-          System.getProperty("java.vm.vendor"));
+          System.getProperty("java.vm.vendor"),
+          System.getProperty("java.vendor.version"));
     }
 
     // Only visible for testing
-    JvmRuntime(String javaVer, String rtVer, String name, String vendor) {
+    JvmRuntime(String javaVer, String rtVer, String name, String vendor, String vendorVersion) {
       this.name = name == null ? "" : name;
       this.vendor = vendor == null ? "" : vendor;
       javaVer = javaVer == null ? "" : javaVer;
       this.version = javaVer;
+      this.vendorVersion = vendorVersion == null ? "" : vendorVersion;
       rtVer = javaVer.isEmpty() || rtVer == null ? javaVer : rtVer;
       int patchStart = javaVer.length() + 1;
       this.patches = (patchStart >= rtVer.length()) ? "" : rtVer.substring(javaVer.length() + 1);
@@ -302,6 +315,14 @@ public final class Platform {
 
   public static boolean isJ9() {
     return System.getProperty("java.vm.name").contains("J9");
+  }
+
+  public static boolean isIbm8() {
+    return isJavaVersion(8) && RUNTIME.vendor.contains("IBM");
+  }
+
+  public static boolean isGraalVM() {
+    return RUNTIME.vendorVersion.toLowerCase().contains("graalvm");
   }
 
   public static String getLangVersion() {

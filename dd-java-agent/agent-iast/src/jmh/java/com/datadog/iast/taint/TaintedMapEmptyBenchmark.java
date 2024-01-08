@@ -15,6 +15,7 @@ import org.openjdk.jmh.annotations.Scope;
 import org.openjdk.jmh.annotations.Setup;
 import org.openjdk.jmh.annotations.State;
 import org.openjdk.jmh.annotations.Warmup;
+import org.openjdk.jmh.infra.BenchmarkParams;
 import org.openjdk.jmh.infra.Blackhole;
 
 @Warmup(iterations = 2, time = 1000, timeUnit = MILLISECONDS)
@@ -30,8 +31,17 @@ public class TaintedMapEmptyBenchmark {
   private final Object anyObject = new Object();
 
   @Setup(Level.Iteration)
-  public void setup() {
-    map = new TaintedMap();
+  public void setup(BenchmarkParams params) {
+    final boolean baseline = params.getBenchmark().endsWith("baseline");
+    map = baseline ? TaintedMap.NoOp.INSTANCE : new TaintedMap.TaintedMapImpl();
+  }
+
+  @Benchmark
+  @OperationsPerInvocation(OP_COUNT)
+  public void baseline(final Blackhole bh) {
+    for (int i = 0; i < OP_COUNT; i++) {
+      bh.consume(map.get(anyObject));
+    }
   }
 
   @Benchmark

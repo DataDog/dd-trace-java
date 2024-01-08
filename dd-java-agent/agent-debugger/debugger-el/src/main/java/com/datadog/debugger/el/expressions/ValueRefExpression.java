@@ -25,9 +25,11 @@ public final class ValueRefExpression implements ValueExpression<Value<?>> {
     } catch (RuntimeException ex) {
       throw new EvaluationException(ex.getMessage(), PrettyPrintVisitor.print(this));
     }
-    if (symbol == Redaction.REDACTED_VALUE
-        || (symbol != null && Redaction.isRedactedType(symbol.getClass().getTypeName()))) {
-      ExpressionHelper.throwRedactedException(this);
+    if (symbol != null) {
+      String typeName = symbol.getClass().getTypeName();
+      if (symbol == Redaction.REDACTED_VALUE || (Redaction.isRedactedType(typeName))) {
+        ExpressionHelper.throwRedactedException(this);
+      }
     }
     return Value.of(symbol);
   }

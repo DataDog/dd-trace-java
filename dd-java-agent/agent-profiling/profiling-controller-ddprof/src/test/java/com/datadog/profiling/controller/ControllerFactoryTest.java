@@ -4,6 +4,7 @@ import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILE
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
+import com.datadog.profiling.agent.ControllerFactory;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import java.util.Properties;
 import org.junit.jupiter.api.Test;
@@ -20,8 +21,7 @@ public class ControllerFactoryTest {
    * tests with java11 that is guaranteed to have JFR.
    */
   @Test
-  public void testCreateController()
-      throws UnsupportedEnvironmentException, ConfigurationException {
+  public void testCreateController() throws UnsupportedEnvironmentException {
     // Enable test on OpenJ9 only
     final String javaVendor = System.getProperty("java.vendor");
     final String javaVmName = System.getProperty("java.vm.name");

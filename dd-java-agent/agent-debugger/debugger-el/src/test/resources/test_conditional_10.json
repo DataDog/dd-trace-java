@@ -1,0 +1,31 @@
+{
+  "dsl": "uuid == 'a3cbe9e7-edd3-4bef-8e5b-59bfcb04cf91' && duration == 'PT42S' && clazz == 'class java.lang.String'",
+  "json": {
+    "and": [{
+        "eq": [
+          {
+            "ref": "uuid"
+          },
+          "a3cbe9e7-edd3-4bef-8e5b-59bfcb04cf91"]
+      }, {
+        "eq": [
+          {"ref": "duration"},
+          "PT42S"]
+      }, {
+      "eq": [
+        {"ref": "clazz"},
+        "java.lang.String"]
+    }
+    ]
+  }
+}
+
+  "dsl": "isEmpty(emptyStr) && isEmpty(emptyList) && isEmpty(emptyMap) && isEmpty(emptyArray) && isUndefined(@exception)",
+  "json": {
+    "and": [
+      {"isEmpty": {"ref": "emptyStr"}},
+      {"isEmpty": {"ref": "emptyList"}},
+      {"isEmpty": {"ref": "emptyMap"}},
+      {"isEmpty": {"ref": "emptyArray"}},
+      {"isUndefined":  {"ref": "@exception"}}
+

@@ -228,31 +228,34 @@ public class PropagationModuleImpl implements PropagationModule {
   }
 
   @Override
-  public void taintDeeply(
+  public int taintDeeply(
       @Nullable final Object target, final byte origin, final Predicate<Class<?>> classFilter) {
     if (!canBeTainted(target)) {
-      return;
+      return 0;
     }
-    taintDeeply(LazyContext.build(), target, origin, classFilter);
+    return taintDeeply(LazyContext.build(), target, origin, classFilter);
   }
 
   @Override
-  public void taintDeeply(
+  public int taintDeeply(
       @Nullable final IastContext ctx,
       @Nullable final Object target,
       final byte origin,
       final Predicate<Class<?>> classFilter) {
     if (!canBeTainted(target)) {
-      return;
+      return 0;
     }
     final TaintedObjects to = getTaintedObjects(ctx);
     if (to == null) {
-      return;
+      return 0;
     }
     if (target instanceof CharSequence) {
       internalTaint(ctx, target, newSource(target, origin, null, sourceValue(target)), NOT_MARKED);
+      return 1;
     } else {
-      ObjectVisitor.visit(target, new TaintingVisitor(to, origin), classFilter);
+      final TaintingVisitor visitor = new TaintingVisitor(to, origin);
+      ObjectVisitor.visit(target, visitor, classFilter);
+      return visitor.getCount();
     }
   }
 
@@ -482,6 +485,7 @@ public class PropagationModuleImpl implements PropagationModule {
 
     private final TaintedObjects taintedObjects;
     private final byte origin;
+    private int count;
 
     private TaintingVisitor(@Nonnull final TaintedObjects taintedObjects, final byte origin) {
       this.taintedObjects = taintedObjects;
@@ -495,11 +499,16 @@ public class PropagationModuleImpl implements PropagationModule {
         final CharSequence charSequence = (CharSequence) value;
         if (canBeTainted(charSequence)) {
           final Source source = newSource(value, origin, path, charSequence);
+          count++;
           taintedObjects.taint(
               charSequence, Ranges.forCharSequence(charSequence, source, NOT_MARKED));
         }
       }
       return CONTINUE;
+    }
+
+    public int getCount() {
+      return count;
     }
   }
 }

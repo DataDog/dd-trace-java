@@ -38,6 +38,9 @@ import java.util.UUID;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.BooleanSupplier;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import okhttp3.HttpUrl;
@@ -89,9 +92,11 @@ public abstract class BaseIntegrationTest {
   private Configuration currentConfiguration;
   private boolean configProvided;
   protected final Object configLock = new Object();
-  protected final List<Predicate<Snapshot>> snapshotListeners = new ArrayList<>();
-  protected final List<Predicate<DecodedTrace>> traceListeners = new ArrayList<>();
-  protected final List<Predicate<ProbeStatus>> probeStatusListeners = new ArrayList<>();
+  protected final List<Consumer<JsonSnapshotSerializer.IntakeRequest>> intakeRequestListeners =
+      new ArrayList<>();
+  protected final List<Consumer<Snapshot>> snapshotListeners = new ArrayList<>();
+  protected final List<Consumer<DecodedTrace>> traceListeners = new ArrayList<>();
+  protected final List<Consumer<ProbeStatus>> probeStatusListeners = new ArrayList<>();
   protected int batchSize = 1; // to verify each snapshot upload one by one
 
   @BeforeAll
@@ -151,7 +156,9 @@ public abstract class BaseIntegrationTest {
             "-Ddd.dynamic.instrumentation.classfile.dump.enabled=true",
             "-Ddd.dynamic.instrumentation.upload.batch.size=" + batchSize,
             // flush uploads every 100ms to have quick tests
-            "-Ddd.dynamic.instrumentation.upload.flush.interval=100"));
+            "-Ddd.dynamic.instrumentation.upload.flush.interval=100",
+            // increase timeout for serialization
+            "-Ddd.dynamic.instrumentation.capture.timeout=200"));
   }
 
   protected RecordedRequest retrieveSnapshotRequest() throws Exception {
@@ -206,13 +213,13 @@ public abstract class BaseIntegrationTest {
   protected enum RequestType {
     SNAPSHOT {
       @Override
-      public boolean process(BaseIntegrationTest baseIntegrationTest, RecordedRequest request) {
+      public void process(BaseIntegrationTest baseIntegrationTest, RecordedRequest request) {
         if (!request.getPath().startsWith(SNAPSHOT_URL_PATH)) {
-          return false;
+          return;
         }
         try {
           if (request.getBody().indexOf(DIAGNOSTICS_STR) > -1) {
-            return false;
+            return;
           }
         } catch (IOException ex) {
           ex.printStackTrace();
@@ -224,46 +231,44 @@ public abstract class BaseIntegrationTest {
         try {
           List<JsonSnapshotSerializer.IntakeRequest> intakeRequests = adapter.fromJson(bodyStr);
           for (JsonSnapshotSerializer.IntakeRequest intakeRequest : intakeRequests) {
+            for (Consumer<JsonSnapshotSerializer.IntakeRequest> listener :
+                baseIntegrationTest.intakeRequestListeners) {
+              listener.accept(intakeRequest);
+            }
             Snapshot snapshot = intakeRequest.getDebugger().getSnapshot();
-            for (Predicate<Snapshot> listener : baseIntegrationTest.snapshotListeners) {
-              if (listener.test(snapshot)) {
-                return true;
-              }
+            for (Consumer<Snapshot> listener : baseIntegrationTest.snapshotListeners) {
+              listener.accept(snapshot);
             }
           }
         } catch (IOException ex) {
           ex.printStackTrace();
         }
-        return false;
       }
     },
     SPAN {
       @Override
-      public boolean process(BaseIntegrationTest baseIntegrationTest, RecordedRequest request) {
+      public void process(BaseIntegrationTest baseIntegrationTest, RecordedRequest request) {
         if (!request.getPath().equals(TRACE_URL_PATH)) {
-          return false;
+          return;
         }
         DecodedMessage decodedMessage = Decoder.decodeV04(request.getBody().readByteArray());
         LOG.info("got traces: {}", decodedMessage.getTraces().size());
-        for (Predicate<DecodedTrace> listener : baseIntegrationTest.traceListeners) {
+        for (Consumer<DecodedTrace> listener : baseIntegrationTest.traceListeners) {
           for (DecodedTrace trace : decodedMessage.getTraces()) {
-            if (listener.test(trace)) {
-              return true;
-            }
+            listener.accept(trace);
           }
         }
-        return false;
       }
     },
     PROBE_STATUS {
       @Override
-      public boolean process(BaseIntegrationTest baseIntegrationTest, RecordedRequest request) {
+      public void process(BaseIntegrationTest baseIntegrationTest, RecordedRequest request) {
         if (!request.getPath().startsWith(SNAPSHOT_URL_PATH)) {
-          return false;
+          return;
         }
         try {
           if (request.getBody().indexOf(DIAGNOSTICS_STR) == -1) {
-            return false;
+            return;
           }
         } catch (IOException ex) {
           ex.printStackTrace();
@@ -275,56 +280,79 @@ public abstract class BaseIntegrationTest {
         LOG.info("got probe status: {}", bodyStr);
         try {
           List<ProbeStatus> probeStatuses = adapter.fromJson(bodyStr);
-          for (Predicate<ProbeStatus> listener : baseIntegrationTest.probeStatusListeners) {
+          for (Consumer<ProbeStatus> listener : baseIntegrationTest.probeStatusListeners) {
             for (ProbeStatus probeStatus : probeStatuses) {
-              if (listener.test(probeStatus)) {
-                return true;
-              }
+              listener.accept(probeStatus);
             }
           }
         } catch (IOException ex) {
           ex.printStackTrace();
         }
-        return false;
       }
     };
 
-    public abstract boolean process(
-        BaseIntegrationTest baseIntegrationTest, RecordedRequest request);
+    public abstract void process(BaseIntegrationTest baseIntegrationTest, RecordedRequest request);
   }
 
-  protected void registerSnapshotListener(Predicate<Snapshot> listener) {
+  protected void registerIntakeRequestListener(
+      Consumer<JsonSnapshotSerializer.IntakeRequest> listener) {
+    intakeRequestListeners.add(listener);
+  }
+
+  protected void registerSnapshotListener(Consumer<Snapshot> listener) {
     snapshotListeners.add(listener);
   }
 
-  protected void registerTraceListener(Predicate<DecodedTrace> listener) {
+  protected void registerTraceListener(Consumer<DecodedTrace> listener) {
     traceListeners.add(listener);
   }
 
-  protected void registerProbeStatusListener(Predicate<ProbeStatus> listener) {
+  protected void registerProbeStatusListener(Consumer<ProbeStatus> listener) {
     probeStatusListeners.add(listener);
   }
 
-  protected void clearProbeStatusListener() {
-    probeStatusListeners.clear();
+  protected AtomicBoolean registerCheckReceivedInstalledEmitting() {
+    AtomicBoolean received = new AtomicBoolean();
+    AtomicBoolean installed = new AtomicBoolean();
+    AtomicBoolean emitting = new AtomicBoolean();
+    AtomicBoolean result = new AtomicBoolean();
+    registerProbeStatusListener(
+        probeStatus -> {
+          if (probeStatus.getDiagnostics().getStatus() == ProbeStatus.Status.RECEIVED) {
+            received.set(true);
+          }
+          if (probeStatus.getDiagnostics().getStatus() == ProbeStatus.Status.INSTALLED) {
+            installed.set(true);
+          }
+          if (probeStatus.getDiagnostics().getStatus() == ProbeStatus.Status.EMITTING) {
+            emitting.set(true);
+          }
+          result.set(received.get() && installed.get() && emitting.get());
+        });
+    return result;
   }
 
-  protected void processRequests() throws InterruptedException {
+  protected void processRequests(BooleanSupplier conditionOfDone) throws InterruptedException {
     long start = System.currentTimeMillis();
-    RecordedRequest request;
-    do {
-      request = datadogAgentServer.takeRequest(REQUEST_WAIT_TIMEOUT, TimeUnit.SECONDS);
-      if (request == null) {
-        throw new RuntimeException("timeout!");
-      }
-      LOG.info("processRequests path={}", request.getPath());
-      for (RequestType requestType : RequestType.values()) {
-        if (requestType.process(this, request)) {
-          return;
+    try {
+      RecordedRequest request;
+      do {
+        request = datadogAgentServer.takeRequest(REQUEST_WAIT_TIMEOUT, TimeUnit.SECONDS);
+        if (request == null) {
+          throw new RuntimeException("timeout!");
         }
-      }
-    } while (request != null && (System.currentTimeMillis() - start < 30_000));
-    throw new RuntimeException("timeout!");
+        LOG.info("processRequests path={}", request.getPath());
+        for (RequestType requestType : RequestType.values()) {
+          requestType.process(this, request);
+          if (conditionOfDone.getAsBoolean()) {
+            return;
+          }
+        }
+      } while (request != null && (System.currentTimeMillis() - start < 30_000));
+      throw new RuntimeException("timeout!");
+    } finally {
+      probeStatusListeners.clear();
+    }
   }
 
   protected void processRemainingRequests() throws InterruptedException {

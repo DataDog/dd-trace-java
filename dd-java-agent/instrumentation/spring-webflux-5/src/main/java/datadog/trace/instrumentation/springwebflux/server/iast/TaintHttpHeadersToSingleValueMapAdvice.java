@@ -16,7 +16,7 @@ import org.springframework.http.HttpHeaders;
 class TaintHttpHeadersToSingleValueMapAdvice {
   @Advice.OnMethodExit(suppress = Throwable.class)
   @Source(SourceTypes.REQUEST_HEADER_VALUE)
-  public static void after(@Advice.Return Map<String, String> values) {
+  public static void after(@Advice.This Object self, @Advice.Return Map<String, String> values) {
     PropagationModule module = InstrumentationBridge.PROPAGATION;
     if (module == null || values == null || values.isEmpty()) {
       return;
@@ -26,8 +26,8 @@ class TaintHttpHeadersToSingleValueMapAdvice {
     for (Map.Entry<String, String> e : values.entrySet()) {
       final String name = e.getKey();
       final String value = e.getValue();
-      module.taint(ctx, name, SourceTypes.REQUEST_HEADER_NAME, name);
-      module.taint(ctx, value, SourceTypes.REQUEST_HEADER_VALUE, name);
+      module.taintIfTainted(ctx, name, self, SourceTypes.REQUEST_HEADER_NAME, name);
+      module.taintIfTainted(ctx, value, self, SourceTypes.REQUEST_HEADER_VALUE, name);
     }
   }
 }

@@ -17,7 +17,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Collects data that needs to be sent to the backend: Snapshots, metrics and statuses */
-public class DebuggerSink implements Sink {
+public class DebuggerSink {
   private static final Logger log = LoggerFactory.getLogger(DebuggerSink.class);
   private static final double FREE_CAPACITY_LOWER_THRESHOLD = 0.25;
   private static final double FREE_CAPACITY_UPPER_THRESHOLD = 0.75;
@@ -32,33 +32,13 @@ public class DebuggerSink implements Sink {
   private final SnapshotSink snapshotSink;
   private final SymbolSink symbolSink;
   private final DebuggerMetrics debuggerMetrics;
-  private final BatchUploader batchUploader;
+  private final BatchUploader snapshotUploader;
   private final String tags;
   private final int uploadFlushInterval;
 
   private volatile AgentTaskScheduler.Scheduled<DebuggerSink> scheduled;
   private volatile AgentTaskScheduler.Scheduled<DebuggerSink> flushIntervalScheduled;
   private volatile long currentFlushInterval = INITIAL_FLUSH_INTERVAL;
-
-  public DebuggerSink(Config config) {
-    this(
-        config,
-        new BatchUploader(config, config.getFinalDebuggerSnapshotUrl()),
-        DebuggerMetrics.getInstance(config),
-        new ProbeStatusSink(config),
-        new SnapshotSink(config),
-        new SymbolSink(config));
-  }
-
-  DebuggerSink(Config config, BatchUploader batchUploader) {
-    this(
-        config,
-        batchUploader,
-        DebuggerMetrics.getInstance(config),
-        new ProbeStatusSink(config),
-        new SnapshotSink(config),
-        new SymbolSink(config));
-  }
 
   public DebuggerSink(Config config, ProbeStatusSink probeStatusSink) {
     this(
@@ -70,24 +50,35 @@ public class DebuggerSink implements Sink {
         new SymbolSink(config));
   }
 
-  DebuggerSink(Config config, BatchUploader batchUploader, DebuggerMetrics debuggerMetrics) {
+  // Used only for tests
+  DebuggerSink(Config config, ProbeStatusSink probeStatusSink, BatchUploader snapshotUploader) {
     this(
         config,
-        batchUploader,
+        snapshotUploader,
+        DebuggerMetrics.getInstance(config),
+        probeStatusSink,
+        new SnapshotSink(config),
+        new SymbolSink(config));
+  }
+
+  DebuggerSink(Config config, BatchUploader snapshotUploader, DebuggerMetrics debuggerMetrics) {
+    this(
+        config,
+        snapshotUploader,
         debuggerMetrics,
-        new ProbeStatusSink(config),
+        new ProbeStatusSink(config, config.getFinalDebuggerSnapshotUrl(), false),
         new SnapshotSink(config),
         new SymbolSink(config));
   }
 
   public DebuggerSink(
       Config config,
-      BatchUploader batchUploader,
+      BatchUploader snapshotUploader,
       DebuggerMetrics debuggerMetrics,
       ProbeStatusSink probeStatusSink,
       SnapshotSink snapshotSink,
       SymbolSink symbolSink) {
-    this.batchUploader = batchUploader;
+    this.snapshotUploader = snapshotUploader;
     tags = getDefaultTagsMergedWithGlobalTags(config);
     this.debuggerMetrics = debuggerMetrics;
     this.probeStatusSink = probeStatusSink;
@@ -140,18 +131,23 @@ public class DebuggerSink implements Sink {
   }
 
   public BatchUploader getSnapshotUploader() {
-    return batchUploader;
+    return snapshotUploader;
+  }
+
+  public ProbeStatusSink getProbeStatusSink() {
+    return probeStatusSink;
   }
 
   public SymbolSink getSymbolSink() {
     return symbolSink;
   }
 
-  @Override
   public void addSnapshot(Snapshot snapshot) {
     boolean added = snapshotSink.offer(snapshot);
     if (!added) {
       debuggerMetrics.count(PREFIX + "dropped.requests", 1);
+    } else {
+      probeStatusSink.addEmitting(snapshot.getProbe().getProbeId());
     }
   }
 
@@ -172,23 +168,20 @@ public class DebuggerSink implements Sink {
   // visible for testing
   void flush(DebuggerSink ignored) {
     symbolSink.flush();
-    List<String> diagnostics = probeStatusSink.getSerializedDiagnostics();
+    probeStatusSink.flush(tags);
     List<String> snapshots = snapshotSink.getSerializedSnapshots();
-    if (snapshots.size() + diagnostics.size() == 0) {
+    if (snapshots.isEmpty()) {
       return;
     }
     if (snapshots.size() > 0) {
       uploadPayloads(snapshots);
-    }
-    if (diagnostics.size() > 0) {
-      uploadPayloads(diagnostics);
     }
   }
 
   private void uploadPayloads(List<String> payloads) {
     List<byte[]> batches = IntakeBatchHelper.createBatches(payloads);
     for (byte[] batch : batches) {
-      batchUploader.upload(batch, tags);
+      snapshotUploader.upload(batch, tags);
     }
   }
 
@@ -260,7 +253,6 @@ public class DebuggerSink implements Sink {
   }
 
   /** Notifies the snapshot was skipped for one of the SkipCause reason */
-  @Override
   public void skipSnapshot(String probeId, DebuggerContext.SkipCause cause) {
     String causeTag;
     switch (cause) {

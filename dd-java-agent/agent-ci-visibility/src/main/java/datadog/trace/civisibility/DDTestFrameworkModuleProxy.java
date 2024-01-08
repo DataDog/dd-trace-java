@@ -1,28 +1,28 @@
 package datadog.trace.civisibility;
 
 import datadog.trace.api.Config;
-import datadog.trace.api.civisibility.config.SkippableTest;
+import datadog.trace.api.civisibility.config.ModuleExecutionSettings;
+import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.civisibility.coverage.CoverageDataSupplier;
+import datadog.trace.api.civisibility.retry.TestRetryPolicy;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.civisibility.codeowners.Codeowners;
-import datadog.trace.civisibility.config.JvmInfo;
 import datadog.trace.civisibility.coverage.CoverageProbeStoreFactory;
 import datadog.trace.civisibility.decorator.TestDecorator;
 import datadog.trace.civisibility.ipc.ModuleExecutionResult;
 import datadog.trace.civisibility.ipc.SignalClient;
-import datadog.trace.civisibility.ipc.SkippableTestsRequest;
-import datadog.trace.civisibility.ipc.SkippableTestsResponse;
 import datadog.trace.civisibility.ipc.TestFramework;
+import datadog.trace.civisibility.retry.NeverRetry;
+import datadog.trace.civisibility.retry.RetryIfFailed;
 import datadog.trace.civisibility.source.MethodLinesResolver;
 import datadog.trace.civisibility.source.SourcePathResolver;
-import java.net.InetSocketAddress;
-import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.HashSet;
+import java.util.TreeSet;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.LongAdder;
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -39,7 +39,7 @@ public class DDTestFrameworkModuleProxy implements DDTestFrameworkModule {
   private final long parentProcessSessionId;
   private final long parentProcessModuleId;
   private final String moduleName;
-  private final InetSocketAddress signalServerAddress;
+  private final SignalClient.Factory signalClientFactory;
   private final CoverageDataSupplier coverageDataSupplier;
   private final Config config;
   private final TestDecorator testDecorator;
@@ -48,13 +48,15 @@ public class DDTestFrameworkModuleProxy implements DDTestFrameworkModule {
   private final MethodLinesResolver methodLinesResolver;
   private final CoverageProbeStoreFactory coverageProbeStoreFactory;
   private final LongAdder testsSkipped = new LongAdder();
-  private final Collection<SkippableTest> skippableTests;
+  private final Collection<TestIdentifier> skippableTests;
+  private final Collection<TestIdentifier> flakyTests;
   private final Collection<TestFramework> testFrameworks = ConcurrentHashMap.newKeySet();
 
   public DDTestFrameworkModuleProxy(
       long parentProcessSessionId,
       long parentProcessModuleId,
       String moduleName,
+      ModuleExecutionSettings executionSettings,
       Config config,
       TestDecorator testDecorator,
       SourcePathResolver sourcePathResolver,
@@ -62,11 +64,11 @@ public class DDTestFrameworkModuleProxy implements DDTestFrameworkModule {
       MethodLinesResolver methodLinesResolver,
       CoverageProbeStoreFactory coverageProbeStoreFactory,
       CoverageDataSupplier coverageDataSupplier,
-      @Nullable InetSocketAddress signalServerAddress) {
+      SignalClient.Factory signalClientFactory) {
     this.parentProcessSessionId = parentProcessSessionId;
     this.parentProcessModuleId = parentProcessModuleId;
     this.moduleName = moduleName;
-    this.signalServerAddress = signalServerAddress;
+    this.signalClientFactory = signalClientFactory;
     this.coverageDataSupplier = coverageDataSupplier;
     this.config = config;
     this.testDecorator = testDecorator;
@@ -74,42 +76,31 @@ public class DDTestFrameworkModuleProxy implements DDTestFrameworkModule {
     this.codeowners = codeowners;
     this.methodLinesResolver = methodLinesResolver;
     this.coverageProbeStoreFactory = coverageProbeStoreFactory;
-    this.skippableTests = fetchSkippableTests(moduleName, signalServerAddress);
-  }
-
-  private Collection<SkippableTest> fetchSkippableTests(
-      String moduleName, InetSocketAddress signalServerAddress) {
-    if (!config.isCiVisibilityItrEnabled()) {
-      return Collections.emptyList();
-    }
-
-    SkippableTestsRequest request = new SkippableTestsRequest(moduleName, JvmInfo.CURRENT_JVM);
-    try (SignalClient signalClient = new SignalClient(signalServerAddress)) {
-      SkippableTestsResponse response = (SkippableTestsResponse) signalClient.send(request);
-      Collection<SkippableTest> moduleSkippableTests = response.getTests();
-      log.debug("Received {} skippable tests", moduleSkippableTests.size());
-      return moduleSkippableTests.size() > 100
-          ? new HashSet<>(moduleSkippableTests)
-          : new ArrayList<>(moduleSkippableTests);
-    } catch (Exception e) {
-      log.error("Error while requesting skippable tests", e);
-      return Collections.emptySet();
-    }
+    this.skippableTests = new HashSet<>(executionSettings.getSkippableTests(moduleName));
+    this.flakyTests = new HashSet<>(executionSettings.getFlakyTests(moduleName));
   }
 
   @Override
-  public boolean isSkippable(SkippableTest test) {
+  public boolean isSkippable(TestIdentifier test) {
     return test != null && skippableTests.contains(test);
   }
 
   @Override
-  public boolean skip(SkippableTest test) {
+  public boolean skip(TestIdentifier test) {
     if (isSkippable(test)) {
       testsSkipped.increment();
       return true;
     } else {
       return false;
     }
+  }
+
+  @Override
+  @Nonnull
+  public TestRetryPolicy retryPolicy(TestIdentifier test) {
+    return test != null && flakyTests.contains(test)
+        ? new RetryIfFailed(config.getCiVisibilityFlakyRetryCount())
+        : NeverRetry.INSTANCE;
   }
 
   @Override
@@ -132,10 +123,10 @@ public class DDTestFrameworkModuleProxy implements DDTestFrameworkModule {
             coverageEnabled,
             itrEnabled,
             testsSkippedTotal,
-            testFrameworks,
+            new TreeSet<>(testFrameworks),
             coverageData);
 
-    try (SignalClient signalClient = new SignalClient(signalServerAddress)) {
+    try (SignalClient signalClient = signalClientFactory.create()) {
       signalClient.send(moduleExecutionResult);
     } catch (Exception e) {
       log.error("Error while reporting module execution result", e);

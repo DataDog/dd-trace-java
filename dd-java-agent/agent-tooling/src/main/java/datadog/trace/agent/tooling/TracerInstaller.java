@@ -17,12 +17,14 @@ public class TracerInstaller {
       ProfilingContextIntegration profilingContextIntegration) {
     if (Config.get().isTraceEnabled() || Config.get().isCiVisibilityEnabled()) {
       if (!(GlobalTracer.get() instanceof CoreTracer)) {
-        installGlobalTracer(
+        CoreTracer tracer =
             CoreTracer.builder()
                 .sharedCommunicationObjects(sharedCommunicationObjects)
                 .profilingContextIntegration(profilingContextIntegration)
+                .pollForTracerFlareRequests()
                 .pollForTracingConfiguration()
-                .build());
+                .build();
+        installGlobalTracer(tracer);
       } else {
         log.debug("GlobalTracer already registered.");
       }

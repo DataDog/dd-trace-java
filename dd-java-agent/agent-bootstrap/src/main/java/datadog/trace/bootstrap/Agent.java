@@ -220,7 +220,7 @@ public class Agent {
         // multiple times
         // If early profiling is enabled then this call will start profiling.
         // If early profiling is disabled then later call will do this.
-        startProfilingAgent(true);
+        startProfilingAgent(true, inst);
       } else {
         log.debug("Oracle JDK 8 detected. Delaying profiler initialization.");
         // Profiling can not run early on Oracle JDK 8 because it will cause JFR initialization
@@ -230,7 +230,7 @@ public class Agent {
             new Runnable() {
               @Override
               public void run() {
-                startProfilingAgent(false);
+                startProfilingAgent(false, inst);
               }
             };
       }
@@ -309,9 +309,9 @@ public class Agent {
 
       if (delayOkHttp) {
         log.debug("Custom logger detected. Delaying Profiling initialization.");
-        registerLogManagerCallback(new StartProfilingAgentCallback());
+        registerLogManagerCallback(new StartProfilingAgentCallback(inst));
       } else {
-        startProfilingAgent(false);
+        startProfilingAgent(false, inst);
         // only enable instrumentation based profilers when we know JFR is ready
         InstrumentationBasedProfiling.enableInstrumentationBasedProfiling();
       }
@@ -468,7 +468,7 @@ public class Agent {
       installDatadogTracer(scoClass, sco);
       maybeStartAppSec(scoClass, sco);
       maybeStartIast(scoClass, sco);
-      maybeStartCiVisibility(scoClass, sco);
+      maybeStartCiVisibility(instrumentation, scoClass, sco);
       // start debugger before remote config to subscribe to it before starting to poll
       maybeStartDebugger(instrumentation, scoClass, sco);
       maybeStartRemoteConfig(scoClass, sco);
@@ -480,6 +480,12 @@ public class Agent {
   }
 
   protected static class StartProfilingAgentCallback extends ClassLoadCallBack {
+    private final Instrumentation inst;
+
+    protected StartProfilingAgentCallback(Instrumentation inst) {
+      this.inst = inst;
+    }
+
     @Override
     public AgentThread agentThread() {
       return PROFILER_STARTUP;
@@ -487,7 +493,7 @@ public class Agent {
 
     @Override
     public void execute() {
-      startProfilingAgent(false);
+      startProfilingAgent(false, inst);
       // only enable instrumentation based profilers when we know JFR is ready
       InstrumentationBasedProfiling.enableInstrumentationBasedProfiling();
     }
@@ -756,7 +762,7 @@ public class Agent {
     }
   }
 
-  private static void maybeStartCiVisibility(Class<?> scoClass, Object sco) {
+  private static void maybeStartCiVisibility(Instrumentation inst, Class<?> scoClass, Object sco) {
     if (ciVisibilityEnabled) {
       StaticEventLogger.begin("CI Visibility");
 
@@ -764,8 +770,8 @@ public class Agent {
         final Class<?> ciVisibilitySysClass =
             AGENT_CLASSLOADER.loadClass("datadog.trace.civisibility.CiVisibilitySystem");
         final Method ciVisibilityInstallerMethod =
-            ciVisibilitySysClass.getMethod("start", scoClass);
-        ciVisibilityInstallerMethod.invoke(null, sco);
+            ciVisibilitySysClass.getMethod("start", Instrumentation.class, scoClass);
+        ciVisibilityInstallerMethod.invoke(null, inst, sco);
       } catch (final Throwable e) {
         log.warn("Not starting CI Visibility subsystem", e);
       }
@@ -853,21 +859,35 @@ public class Agent {
    * on JFR.
    */
   private static ProfilingContextIntegration createProfilingContextIntegration() {
-    if (Config.get().isProfilingEnabled() && !Platform.isWindows()) {
-      try {
-        return (ProfilingContextIntegration)
-            AGENT_CLASSLOADER
-                .loadClass("com.datadog.profiling.ddprof.DatadogProfilingIntegration")
-                .getDeclaredConstructor()
-                .newInstance();
-      } catch (Throwable t) {
-        log.debug("Profiling context labeling not available. {}", t.getMessage());
+    if (Config.get().isProfilingEnabled()) {
+      if (Config.get().isDatadogProfilerEnabled() && !Platform.isWindows()) {
+        try {
+          return (ProfilingContextIntegration)
+              AGENT_CLASSLOADER
+                  .loadClass("com.datadog.profiling.ddprof.DatadogProfilingIntegration")
+                  .getDeclaredConstructor()
+                  .newInstance();
+        } catch (Throwable t) {
+          log.debug("ddprof-based profiling context labeling not available. {}", t.getMessage());
+        }
+      }
+      if (Config.get().isProfilingTimelineEventsEnabled()) {
+        // important: note that this will not initialise JFR until onStart is called
+        try {
+          return (ProfilingContextIntegration)
+              AGENT_CLASSLOADER
+                  .loadClass("com.datadog.profiling.controller.openjdk.JFREventContextIntegration")
+                  .getDeclaredConstructor()
+                  .newInstance();
+        } catch (Throwable t) {
+          log.debug("JFR event-based profiling context labeling not available. {}", t.getMessage());
+        }
       }
     }
     return ProfilingContextIntegration.NoOp.INSTANCE;
   }
 
-  private static void startProfilingAgent(final boolean isStartingFirst) {
+  private static void startProfilingAgent(final boolean isStartingFirst, Instrumentation inst) {
     StaticEventLogger.begin("ProfilingAgent");
 
     if (isAwsLambdaRuntime()) {
@@ -881,8 +901,9 @@ public class Agent {
       final Class<?> profilingAgentClass =
           AGENT_CLASSLOADER.loadClass("com.datadog.profiling.agent.ProfilingAgent");
       final Method profilingInstallerMethod =
-          profilingAgentClass.getMethod("run", Boolean.TYPE, ClassLoader.class);
-      profilingInstallerMethod.invoke(null, isStartingFirst, AGENT_CLASSLOADER);
+          profilingAgentClass.getMethod(
+              "run", Boolean.TYPE, ClassLoader.class, Instrumentation.class);
+      profilingInstallerMethod.invoke(null, isStartingFirst, AGENT_CLASSLOADER, inst);
       /*
        * Install the tracer hooks only when not using 'early start'.
        * The 'early start' is happening so early that most of the infrastructure has not been set up yet.
@@ -922,6 +943,7 @@ public class Agent {
                                 .getDeclaredConstructor()
                                 .newInstance());
                   }
+                  tracer.getProfilingContext().onStart();
                 } catch (Throwable e) {
                   if (e instanceof InvocationTargetException) {
                     e = e.getCause();

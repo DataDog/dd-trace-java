@@ -1,22 +1,29 @@
 import datadog.trace.agent.test.AgentTestRunner
-import datadog.trace.agent.test.utils.OkHttpUtils
+import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.api.DDSpanTypes
+import datadog.trace.api.DDTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
+import datadog.trace.bootstrap.instrumentation.api.URIUtils
+import datadog.trace.core.DDSpan
 import dd.trace.instrumentation.springwebflux.server.EchoHandlerFunction
 import dd.trace.instrumentation.springwebflux.server.FooModel
 import dd.trace.instrumentation.springwebflux.server.SpringWebFluxTestApplication
 import dd.trace.instrumentation.springwebflux.server.TestController
-import okhttp3.OkHttpClient
-import okhttp3.Request
-import okhttp3.RequestBody
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.boot.test.context.TestConfiguration
 import org.springframework.boot.web.embedded.netty.NettyReactiveWebServerFactory
 import org.springframework.boot.web.server.LocalServerPort
 import org.springframework.context.annotation.Bean
+import org.springframework.http.client.reactive.ReactorClientHttpConnector
+import org.springframework.web.reactive.function.BodyExtractors
+import org.springframework.web.reactive.function.BodyInserters
+import org.springframework.web.reactive.function.client.WebClient
 import org.springframework.web.server.ResponseStatusException
+import reactor.core.publisher.Mono
 
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT, classes = [SpringWebFluxTestApplication, ForceNettyAutoConfiguration])
+@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
+classes = [SpringWebFluxTestApplication, ForceNettyAutoConfiguration],
+properties = "server.http2.enabled=true")
 class SpringWebfluxTest extends AgentTestRunner {
 
   @TestConfiguration
@@ -27,33 +34,41 @@ class SpringWebfluxTest extends AgentTestRunner {
     }
   }
 
-  static final okhttp3.MediaType PLAIN_TYPE = okhttp3.MediaType.parse("text/plain; charset=utf-8")
   static final String INNER_HANDLER_FUNCTION_CLASS_TAG_PREFIX = SpringWebFluxTestApplication.getName() + "\$"
   static final String SPRING_APP_CLASS_ANON_NESTED_CLASS_PREFIX = SpringWebFluxTestApplication.getSimpleName() + "\$"
 
   @LocalServerPort
-  private int port
+  int port
 
-  OkHttpClient client = OkHttpUtils.client(true)
+  WebClient client = WebClient.builder().clientConnector (new ReactorClientHttpConnector()).build()
+
+  @Override
+  boolean useStrictTraceWrites() {
+    false
+  }
 
   def "Basic GET test #testName"() {
     setup:
     String url = "http://localhost:$port$urlPath"
-    def request = new Request.Builder().url(url).get().build()
     when:
-    def response = client.newCall(request).execute()
+    def response = client.get().uri(url).exchange().block()
 
     then:
-    response.code == 200
-    response.body().string() == expectedResponseBody
-    assertTraces(1) {
+    response.statusCode().value() == 200
+    response.body(BodyExtractors.toMono(String)).block() == expectedResponseBody
+    assertTraces(2) {
+      def traceParent
       sortSpansByStart()
+      trace(2) {
+        clientSpan(it, null, "http.request", "spring-webflux-client", "GET", URI.create(url))
+        traceParent =  clientSpan(it, span(0), "netty.client.request", "netty-client", "GET", URI.create(url))
+      }
       trace(2) {
         span {
           resourceName "GET $urlPathWithVariables"
           operationName "netty.request"
           spanType DDSpanTypes.HTTP_SERVER
-          parent()
+          childOf(traceParent)
           tags {
             "$Tags.COMPONENT" "netty"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
@@ -66,7 +81,7 @@ class SpringWebfluxTest extends AgentTestRunner {
             "$Tags.HTTP_USER_AGENT" String
             "$Tags.HTTP_CLIENT_IP" "127.0.0.1"
             "$Tags.HTTP_ROUTE" "$urlPathWithVariables"
-            defaultTags()
+            defaultTags(true)
           }
         }
         span {
@@ -116,21 +131,25 @@ class SpringWebfluxTest extends AgentTestRunner {
   def "GET test with async response #testName"() {
     setup:
     String url = "http://localhost:$port$urlPath"
-    def request = new Request.Builder().url(url).get().build()
     when:
-    def response = client.newCall(request).execute()
+    def response = client.get().uri(url).exchange().block()
 
     then:
-    response.code == 200
-    response.body().string() == expectedResponseBody
-    assertTraces(1) {
+    response.statusCode().value() == 200
+    response.body(BodyExtractors.toMono(String)).block() == expectedResponseBody
+    assertTraces(2) {
       sortSpansByStart()
+      def traceParent
+      trace(2) {
+        clientSpan(it, null, "http.request", "spring-webflux-client", "GET", URI.create(url))
+        traceParent =  clientSpan(it, span(0), "netty.client.request", "netty-client", "GET", URI.create(url))
+      }
       trace(3) {
         span {
           resourceName "GET $urlPathWithVariables"
           operationName "netty.request"
           spanType DDSpanTypes.HTTP_SERVER
-          parent()
+          childOf(traceParent)
           tags {
             "$Tags.COMPONENT" "netty"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
@@ -143,7 +162,7 @@ class SpringWebfluxTest extends AgentTestRunner {
             "$Tags.HTTP_USER_AGENT" String
             "$Tags.HTTP_CLIENT_IP" "127.0.0.1"
             "$Tags.HTTP_ROUTE" "$urlPathWithVariables"
-            defaultTags()
+            defaultTags(true)
           }
         }
         span {
@@ -184,7 +203,7 @@ class SpringWebfluxTest extends AgentTestRunner {
             resourceName "TestController.tracedMethod"
             operationName "trace.annotation"
           }
-          childOf(span(0)) // FIXME this is wrong
+          childOfPrevious()
           errored false
           tags {
             "$Tags.COMPONENT" "trace"
@@ -224,21 +243,25 @@ class SpringWebfluxTest extends AgentTestRunner {
   def "Create span during handler function"() {
     setup:
     String url = "http://localhost:$port$urlPath"
-    def request = new Request.Builder().url(url).get().build()
     when:
-    def response = client.newCall(request).execute()
+    def response = client.get().uri(url).exchange().block()
 
     then:
-    response.code == 200
-    response.body().string() == expectedResponseBody
-    assertTraces(1) {
+    response.statusCode().value() == 200
+    response.body(BodyExtractors.toMono(String)).block() == expectedResponseBody
+    assertTraces(2) {
       sortSpansByStart()
+      def traceParent
+      trace(2) {
+        clientSpan(it, null, "http.request", "spring-webflux-client", "GET", URI.create(url))
+        traceParent =  clientSpan(it, span(0), "netty.client.request", "netty-client", "GET", URI.create(url))
+      }
       trace(3) {
         span {
           resourceName "GET $urlPathWithVariables"
           operationName "netty.request"
           spanType DDSpanTypes.HTTP_SERVER
-          parent()
+          childOf(traceParent)
         }
         span {
           if (annotatedMethod == null) {
@@ -268,21 +291,25 @@ class SpringWebfluxTest extends AgentTestRunner {
   def "404 GET test"() {
     setup:
     String url = "http://localhost:$port/notfoundgreet"
-    def request = new Request.Builder().url(url).get().build()
 
     when:
-    def response = client.newCall(request).execute()
+    def response = client.get().uri(url).exchange().block()
 
     then:
-    response.code == 404
-    assertTraces(1) {
+    response.statusCode().value() == 404
+    assertTraces(2) {
       sortSpansByStart()
+      def traceParent
+      trace(2) {
+        clientSpan(it, null, "http.request", "spring-webflux-client", "GET", URI.create(url), 404, true)
+        traceParent =  clientSpan(it, span(0), "netty.client.request", "netty-client", "GET", URI.create(url), 404, true)
+      }
       trace(2) {
         span {
           resourceName "404"
           operationName "netty.request"
           spanType DDSpanTypes.HTTP_SERVER
-          parent()
+          childOf(traceParent)
           tags {
             "$Tags.COMPONENT" "netty"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
@@ -294,7 +321,7 @@ class SpringWebfluxTest extends AgentTestRunner {
             "$Tags.HTTP_STATUS" 404
             "$Tags.HTTP_USER_AGENT" String
             "$Tags.HTTP_CLIENT_IP" "127.0.0.1"
-            defaultTags()
+            defaultTags(true)
           }
         }
         span {
@@ -319,23 +346,26 @@ class SpringWebfluxTest extends AgentTestRunner {
     setup:
     String echoString = "TEST"
     String url = "http://localhost:$port/echo"
-    RequestBody body = RequestBody.create(PLAIN_TYPE, echoString)
-    def request = new Request.Builder().url(url).post(body).build()
 
     when:
-    def response = client.newCall(request).execute()
+    def response = client.post().uri(url).body(BodyInserters.fromPublisher(Mono.just(echoString),String)).exchange().block()
 
     then:
-    response.code() == 202
-    response.body().string() == echoString
-    assertTraces(1) {
+    response.statusCode().value() == 202
+    response.body(BodyExtractors.toMono(String)).block() == echoString
+    assertTraces(2) {
       sortSpansByStart()
+      def traceParent
+      trace(2) {
+        clientSpan(it, null, "http.request", "spring-webflux-client", "POST", URI.create(url), 202)
+        traceParent =  clientSpan(it, span(0), "netty.client.request", "netty-client", "POST", URI.create(url), 202)
+      }
       trace(3) {
         span {
           resourceName "POST /echo"
           operationName "netty.request"
           spanType DDSpanTypes.HTTP_SERVER
-          parent()
+          childOf(traceParent)
           tags {
             "$Tags.COMPONENT" "netty"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
@@ -348,7 +378,7 @@ class SpringWebfluxTest extends AgentTestRunner {
             "$Tags.HTTP_USER_AGENT" String
             "$Tags.HTTP_CLIENT_IP" "127.0.0.1"
             "$Tags.HTTP_ROUTE" "/echo"
-            defaultTags()
+            defaultTags(true)
           }
         }
         span {
@@ -382,22 +412,26 @@ class SpringWebfluxTest extends AgentTestRunner {
   def "GET to bad endpoint #testName"() {
     setup:
     String url = "http://localhost:$port$urlPath"
-    def request = new Request.Builder().url(url).get().build()
 
     when:
-    def response = client.newCall(request).execute()
+    def response = client.get().uri(url).exchange().block()
 
     then:
-    response.code() == 500
-    assertTraces(1) {
+    response.statusCode().value() == 500
+    assertTraces(2) {
       sortSpansByStart()
+      def traceParent
+      trace(2) {
+        clientSpan(it, null, "http.request", "spring-webflux-client", "GET", URI.create(url), 500)
+        traceParent =  clientSpan(it, span(0), "netty.client.request", "netty-client", "GET", URI.create(url), 500)
+      }
       trace(2) {
         span {
           resourceName "GET $urlPathWithVariables"
           operationName "netty.request"
           spanType DDSpanTypes.HTTP_SERVER
           errored true
-          parent()
+          childOf(traceParent)
           tags {
             "$Tags.COMPONENT" "netty"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
@@ -410,7 +444,7 @@ class SpringWebfluxTest extends AgentTestRunner {
             "$Tags.HTTP_USER_AGENT" String
             "$Tags.HTTP_CLIENT_IP" "127.0.0.1"
             "$Tags.HTTP_ROUTE" "$urlPathWithVariables"
-            defaultTags()
+            defaultTags(true)
           }
         }
         span {
@@ -459,22 +493,38 @@ class SpringWebfluxTest extends AgentTestRunner {
     setup:
     String url = "http://localhost:$port/double-greet-redirect"
     String finalUrl = "http://localhost:$port/double-greet"
-    def request = new Request.Builder().url(url).get().build()
 
     when:
-    def response = client.newCall(request).execute()
+    def response = client.get().uri(url).exchange()
+    .flatMap(response -> {
+      if (response.statusCode().is3xxRedirection()) {
+        String redirectUrl = response.headers().header("Location").get(0)
+        return response.bodyToMono(Void.class).then(client.get().uri(URI.create("http://localhost:$port").resolve(redirectUrl)).exchange())
+      }
+      return Mono.just(response)
+    }).block()
 
     then:
-    response.code == 200
-    assertTraces(2) {
+    response.statusCode().value() == 200
+    assertTraces(4) {
       sortSpansByStart()
       // TODO: why order of spans is different in these traces?
+      def traceParent1, traceParent2, traceParent3
+
+      trace(2) {
+        traceParent1 = clientSpan(it, null, "http.request", "spring-webflux-client", "GET", URI.create(url), 307)
+        traceParent2 =  clientSpan(it, span(0), "netty.client.request", "netty-client", "GET", URI.create(url), 307)
+      }
+      trace(2) {
+        clientSpan(it, traceParent1, "http.request", "spring-webflux-client", "GET", URI.create(finalUrl))
+        traceParent3 =  clientSpan(it, span(0), "netty.client.request", "netty-client", "GET", URI.create(finalUrl))
+      }
       trace(2) {
         span {
           resourceName "GET /double-greet-redirect"
           operationName "netty.request"
           spanType DDSpanTypes.HTTP_SERVER
-          parent()
+          childOf(traceParent2)
           tags {
             "$Tags.COMPONENT" "netty"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
@@ -487,7 +537,7 @@ class SpringWebfluxTest extends AgentTestRunner {
             "$Tags.HTTP_USER_AGENT" String
             "$Tags.HTTP_CLIENT_IP" "127.0.0.1"
             "$Tags.HTTP_ROUTE" "/double-greet-redirect"
-            defaultTags()
+            defaultTags(true)
           }
         }
         span {
@@ -501,7 +551,7 @@ class SpringWebfluxTest extends AgentTestRunner {
             "request.predicate" "(GET && /double-greet-redirect)"
             "handler.type" { String tagVal ->
               return (tagVal.contains(INNER_HANDLER_FUNCTION_CLASS_TAG_PREFIX)
-                || tagVal.contains("Lambda"))
+              || tagVal.contains("Lambda"))
             }
             defaultTags()
           }
@@ -512,7 +562,7 @@ class SpringWebfluxTest extends AgentTestRunner {
           resourceName "GET /double-greet"
           operationName "netty.request"
           spanType DDSpanTypes.HTTP_SERVER
-          parent()
+          traceParent3
           tags {
             "$Tags.COMPONENT" "netty"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
@@ -525,7 +575,7 @@ class SpringWebfluxTest extends AgentTestRunner {
             "$Tags.HTTP_USER_AGENT" String
             "$Tags.HTTP_CLIENT_IP" "127.0.0.1"
             "$Tags.HTTP_ROUTE" "/double-greet"
-            defaultTags()
+            defaultTags(true)
           }
         }
         span {
@@ -551,22 +601,26 @@ class SpringWebfluxTest extends AgentTestRunner {
     setup:
     def requestsCount = 50 // Should be more than 2x CPUs to fish out some bugs
     String url = "http://localhost:$port$urlPath"
-    def request = new Request.Builder().url(url).get().build()
     when:
-    def responses = (0..requestsCount - 1).collect { client.newCall(request).execute() }
+    def responses = (0..requestsCount - 1).collect { client.get().uri(url).exchange().block() }
 
     then:
-    responses.every { it.code == 200 }
-    responses.every { it.body().string() == expectedResponseBody }
-    assertTraces(responses.size()) {
+    responses.every { it.statusCode().value() == 200 }
+    responses.every { it.body(BodyExtractors.toMono(String)).block() == expectedResponseBody }
+    assertTraces(responses.size() * 2) {
       sortSpansByStart()
       responses.eachWithIndex { def response, int i ->
+        def traceParent
+        trace(2) {
+          clientSpan(it, null, "http.request", "spring-webflux-client", "GET", URI.create(url))
+          traceParent =  clientSpan(it, span(0), "netty.client.request", "netty-client", "GET", URI.create(url))
+        }
         trace(2) {
           span {
             resourceName "GET $urlPathWithVariables"
             operationName "netty.request"
             spanType DDSpanTypes.HTTP_SERVER
-            parent()
+            childOf(traceParent)
             tags {
               "$Tags.COMPONENT" "netty"
               "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
@@ -579,7 +633,7 @@ class SpringWebfluxTest extends AgentTestRunner {
               "$Tags.HTTP_USER_AGENT" String
               "$Tags.HTTP_CLIENT_IP" "127.0.0.1"
               "$Tags.HTTP_ROUTE" "$urlPathWithVariables"
-              defaultTags()
+              defaultTags(true)
             }
           }
           span {
@@ -618,5 +672,63 @@ class SpringWebfluxTest extends AgentTestRunner {
     testName                          | urlPath          | urlPathWithVariables | annotatedMethod | expectedResponseBody
     "functional API delayed response" | "/greet-delayed" | "/greet-delayed"     | null            | SpringWebFluxTestApplication.GreetingHandler.DEFAULT_RESPONSE
     "annotation API delayed response" | "/foo-delayed"   | "/foo-delayed"       | "getFooDelayed" | new FooModel(3L, "delayed").toString()
+  }
+
+  def clientSpan(
+    TraceAssert trace,
+    Object parentSpan,
+    String operation,
+    String component,
+    String method = "GET",
+    URI uri,
+    Integer status = 200,
+    boolean error = false,
+    Throwable exception = null,
+    boolean tagQueryString = false,
+    Map<String, Serializable> extraTags = null) {
+    def ret
+
+    def expectedQuery = tagQueryString ? uri.query : null
+    def expectedUrl = URIUtils.buildURL(uri.scheme, uri.host, uri.port, uri.path)
+    if (expectedQuery != null && !expectedQuery.empty) {
+      expectedUrl = "$expectedUrl?$expectedQuery"
+    }
+    trace.span {
+      ret = it.span
+      if (parentSpan == null) {
+        parent()
+      } else {
+        childOf((DDSpan) parentSpan)
+      }
+      operationName operation
+      spanType DDSpanTypes.HTTP_CLIENT
+      errored error
+      measured true
+      tags {
+        "$Tags.COMPONENT" component
+        "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
+        "$Tags.PEER_HOSTNAME" uri.host
+        "$Tags.PEER_HOST_IPV4" { it == null || it == "127.0.0.1" } // Optional
+        "$Tags.PEER_PORT" { it == null || it == uri.port }
+        "$Tags.HTTP_URL" expectedUrl
+        "$Tags.HTTP_METHOD" method
+        if (status) {
+          "$Tags.HTTP_STATUS" status
+        }
+        if (tagQueryString) {
+          "$DDTags.HTTP_QUERY" expectedQuery
+          "$DDTags.HTTP_FRAGMENT" { it == null || it == uri.fragment } // Optional
+        }
+        if (exception) {
+          errorTags(exception.class, exception.message)
+        }
+        peerServiceFrom(Tags.PEER_HOSTNAME)
+        defaultTags()
+        if (extraTags) {
+          it.addTags(extraTags)
+        }
+      }
+    }
+    return ret
   }
 }

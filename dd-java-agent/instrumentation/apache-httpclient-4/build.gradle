@@ -23,11 +23,32 @@ muzzle {
 apply from: "$rootDir/gradle/java.gradle"
 
 addTestSuiteForDir('latestDepTest', 'test')
+addTestSuite('iastIntegrationTest')
+addTestSuiteExtendingForDir('v41IastIntegrationTest', 'iastIntegrationTest', 'iastIntegrationTest')
+addTestSuiteExtendingForDir('v42IastIntegrationTest', 'iastIntegrationTest', 'iastIntegrationTest')
+addTestSuiteExtendingForDir('v43IastIntegrationTest', 'iastIntegrationTest', 'iastIntegrationTest')
+addTestSuiteExtendingForDir('v44IastIntegrationTest', 'iastIntegrationTest', 'iastIntegrationTest')
+addTestSuiteExtendingForDir('v45IastIntegrationTest', 'iastIntegrationTest', 'iastIntegrationTest')
 
 dependencies {
   compileOnly group: 'org.apache.httpcomponents', name: 'httpclient', version: '4.0'
-
+  testImplementation(testFixtures(project(':dd-java-agent:agent-iast')))
   testImplementation group: 'org.apache.httpcomponents', name: 'httpclient', version: '4.0'
+
+  // to instrument the integration test
+  iastIntegrationTestImplementation(testFixtures(project(':dd-java-agent:agent-iast')))
+  iastIntegrationTestImplementation group: 'org.apache.httpcomponents', name: 'httpclient', version: '4.0'
+  iastIntegrationTestRuntimeOnly(project(':dd-java-agent:instrumentation:jetty-9'))
+  iastIntegrationTestRuntimeOnly(project(':dd-java-agent:instrumentation:apache-httpcore-4'))
+  iastIntegrationTestRuntimeOnly(project(':dd-java-agent:instrumentation:servlet'))
+  iastIntegrationTestRuntimeOnly(project(':dd-java-agent:instrumentation:java-net'))
+  iastIntegrationTestRuntimeOnly project(':dd-java-agent:instrumentation:iast-instrumenter')
+
+  v41IastIntegrationTestImplementation group: 'org.apache.httpcomponents', name: 'httpclient', version: '4.1'
+  v42IastIntegrationTestImplementation group: 'org.apache.httpcomponents', name: 'httpclient', version: '4.2'
+  v43IastIntegrationTestImplementation group: 'org.apache.httpcomponents', name: 'httpclient', version: '4.3'
+  v44IastIntegrationTestImplementation group: 'org.apache.httpcomponents', name: 'httpclient', version: '4.4'
+  v45IastIntegrationTestImplementation group: 'org.apache.httpcomponents', name: 'httpclient', version: '4.5'
 
   latestDepTestImplementation group: 'org.apache.httpcomponents', name: 'httpclient', version: '+'
 }

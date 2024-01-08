@@ -53,18 +53,18 @@ public class SpanDecorationProbesIntegrationTests extends ServerAppDebuggerInteg
     addProbe(spanDecorationProbe);
     waitForInstrumentation(appUrl);
     execute(appUrl, TRACED_METHOD_NAME);
+    AtomicBoolean traceReceived = new AtomicBoolean();
     registerTraceListener(
         decodedTrace -> {
           for (DecodedSpan span : decodedTrace.getSpans()) {
             if (isTracedFullMethodSpan(span)) {
               assertEquals("foobar", span.getMeta().get("tag1"));
               assertEquals(PROBE_ID.getId(), span.getMeta().get("_dd.di.tag1.probe_id"));
-              return true;
+              traceReceived.set(true);
             }
           }
-          return false;
         });
-    processRequests();
+    processRequests(traceReceived::get);
   }
 
   @Test
@@ -98,6 +98,7 @@ public class SpanDecorationProbesIntegrationTests extends ServerAppDebuggerInteg
     addProbe(spanDecorationProbe);
     waitForInstrumentation(appUrl);
     execute(appUrl, TRACED_METHOD_NAME);
+    AtomicBoolean traceReceived = new AtomicBoolean();
     registerTraceListener(
         decodedTrace -> {
           for (DecodedSpan span : decodedTrace.getSpans()) {
@@ -106,12 +107,11 @@ public class SpanDecorationProbesIntegrationTests extends ServerAppDebuggerInteg
               assertFalse(span.getMeta().containsKey("tag2"));
               assertEquals("Above Pi: 3.42", span.getMeta().get("tag3"));
               assertEquals("val2", span.getMeta().get("tag4"));
-              return true;
+              traceReceived.set(true);
             }
           }
-          return false;
         });
-    processRequests();
+    processRequests(traceReceived::get);
   }
 
   @Test
@@ -134,7 +134,6 @@ public class SpanDecorationProbesIntegrationTests extends ServerAppDebuggerInteg
           assertEquals(
               "Cannot find symbol: invalidArg", snapshot.getEvaluationErrors().get(0).getMessage());
           snapshotTest.set(true);
-          return snapshotTest.get() && spanTest.get();
         });
     registerTraceListener(
         decodedTrace -> {
@@ -147,9 +146,8 @@ public class SpanDecorationProbesIntegrationTests extends ServerAppDebuggerInteg
               spanTest.set(true);
             }
           }
-          return snapshotTest.get() && spanTest.get();
         });
-    processRequests();
+    processRequests(() -> snapshotTest.get() && spanTest.get());
   }
 
   @Test
@@ -177,7 +175,6 @@ public class SpanDecorationProbesIntegrationTests extends ServerAppDebuggerInteg
           assertEquals(
               "Cannot find symbol: invalidArg", snapshot.getEvaluationErrors().get(0).getMessage());
           snapshotTest.set(true);
-          return snapshotTest.get() && spanTest.get();
         });
     registerTraceListener(
         decodedTrace -> {
@@ -187,9 +184,8 @@ public class SpanDecorationProbesIntegrationTests extends ServerAppDebuggerInteg
               spanTest.set(true);
             }
           }
-          return snapshotTest.get() && spanTest.get();
         });
-    processRequests();
+    processRequests(() -> snapshotTest.get() && spanTest.get());
   }
 
   @Test
@@ -216,7 +212,6 @@ public class SpanDecorationProbesIntegrationTests extends ServerAppDebuggerInteg
           assertEquals("Cannot find symbol: invalidArg", evalErrors.get(0).getMessage());
           assertEquals("Cannot find symbol: invalidArg2", evalErrors.get(1).getMessage());
           snapshotTest.set(true);
-          return snapshotTest.get() && spanTest.get();
         });
     registerTraceListener(
         decodedTrace -> {
@@ -233,9 +228,8 @@ public class SpanDecorationProbesIntegrationTests extends ServerAppDebuggerInteg
               spanTest.set(true);
             }
           }
-          return snapshotTest.get() && spanTest.get();
         });
-    processRequests();
+    processRequests(() -> snapshotTest.get() && spanTest.get());
   }
 
   @Test
@@ -258,13 +252,12 @@ public class SpanDecorationProbesIntegrationTests extends ServerAppDebuggerInteg
           for (DecodedSpan span : decodedTrace.getSpans()) {
             if (isTracedFullMethodSpan(span)) {
               if (span.getMeta().containsKey("tag1")) {
-                return count.incrementAndGet() >= 100;
+                count.incrementAndGet();
               }
             }
           }
-          return false;
         });
-    processRequests();
+    processRequests(() -> count.get() >= 100);
   }
 
   private boolean isTracedFullMethodSpan(DecodedSpan span) {

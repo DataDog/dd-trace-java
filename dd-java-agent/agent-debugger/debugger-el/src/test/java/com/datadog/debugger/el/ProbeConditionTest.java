@@ -13,12 +13,14 @@ import com.squareup.moshi.Moshi;
 import datadog.trace.bootstrap.debugger.el.ValueReferenceResolver;
 import java.io.IOException;
 import java.io.InputStream;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import okio.Okio;
 import org.junit.jupiter.api.Test;
 
@@ -82,11 +84,14 @@ public class ProbeConditionTest {
     ProbeCondition probeCondition = load("/test_conditional_05.json");
     class Obj {
       int intField1 = 42;
+      String strField = "foo";
     }
     Obj obj = new Obj();
+    Map<String, Object> fields = new HashMap<>();
+    fields.put("intField1", obj.intField1);
+    fields.put("strField", obj.strField);
     ValueReferenceResolver ctx =
-        RefResolverHelper.createResolver(
-            singletonMap("this", obj), null, singletonMap("intField1", obj.intField1));
+        RefResolverHelper.createResolver(singletonMap("this", obj), null, fields);
     assertTrue(probeCondition.execute(ctx));
   }
 
@@ -191,6 +196,30 @@ public class ProbeConditionTest {
     assertEquals(
         "Could not evaluate the expression because 'password' was redacted",
         evaluationException.getMessage());
+  }
+
+  @Test
+  void stringPrimitives() throws IOException {
+    ProbeCondition probeCondition = load("/test_conditional_10.json");
+    Map<String, Object> args = new HashMap<>();
+    args.put("uuid", UUID.fromString("a3cbe9e7-edd3-4bef-8e5b-59bfcb04cf91"));
+    args.put("duration", Duration.ofSeconds(42));
+    args.put("clazz", "foo".getClass());
+    ValueReferenceResolver ctx = RefResolverHelper.createResolver(args, null, null);
+    assertTrue(probeCondition.execute(ctx));
+  }
+
+  @Test
+  void testBooleanOperation() throws Exception {
+    ProbeCondition probeCondition = load("/test_conditional_11.json");
+    Map<String, Object> fields = new HashMap<>();
+    fields.put("strField", "foobar");
+    fields.put("emptyStr", "");
+    fields.put("emptyList", new ArrayList<>());
+    fields.put("emptyMap", new HashMap<>());
+    fields.put("emptyArray", new Object[0]);
+    ValueReferenceResolver ctx = RefResolverHelper.createResolver(null, null, fields);
+    assertTrue(probeCondition.execute(ctx));
   }
 
   private static ProbeCondition load(String resourcePath) throws IOException {

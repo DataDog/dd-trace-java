@@ -2,6 +2,8 @@ package datadog.trace.instrumentation.spark
 
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.Platform
+import datadog.trace.api.sampling.PrioritySampling
+import datadog.trace.api.sampling.SamplingMechanism
 import org.apache.spark.sql.Encoders
 import org.apache.spark.sql.execution.streaming.MemoryStream
 import org.apache.spark.sql.SparkSession
@@ -69,6 +71,8 @@ class AbstractSparkStructuredStreamingTest extends AgentTestRunner {
           resourceName "test-query"
           spanType "spark"
           parent()
+          assert span.context().getSamplingPriority() == PrioritySampling.USER_KEEP
+          assert span.context().getPropagationTags().createTagMap()["_dd.p.dm"] == (-SamplingMechanism.DATA_JOBS).toString()
           tags {
             defaultTags()
             // Streaming tags
@@ -86,7 +90,7 @@ class AbstractSparkStructuredStreamingTest extends AgentTestRunner {
             "spark.input_rows_per_second" Double
             "spark.processed_rows_per_second" Double
             "spark.sink.description" ~"org.apache.spark.sql.execution.streaming.Console.*"
-            "spark.source.0.description" "MemoryStream[value#1]"
+            "spark.source.0.description" ~"MemoryStream.*"
             "spark.source.0.end_offset" String
             "spark.source.0.input_rows_per_second" Double
             "spark.source.0.num_input_rows" 3
@@ -174,6 +178,8 @@ class AbstractSparkStructuredStreamingTest extends AgentTestRunner {
           operationName "spark.streaming_batch"
           spanType "spark"
           assert span.tags["streaming_query.batch_id"] == 1
+          assert span.context().getSamplingPriority() == PrioritySampling.USER_KEEP
+          assert span.context().getPropagationTags().createTagMap()["_dd.p.dm"] == (-SamplingMechanism.DATA_JOBS).toString()
           parent()
         }
         span {

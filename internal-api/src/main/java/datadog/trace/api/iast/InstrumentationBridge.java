@@ -4,6 +4,7 @@ import datadog.trace.api.iast.propagation.CodecModule;
 import datadog.trace.api.iast.propagation.PropagationModule;
 import datadog.trace.api.iast.propagation.StringModule;
 import datadog.trace.api.iast.sink.CommandInjectionModule;
+import datadog.trace.api.iast.sink.HeaderInjectionModule;
 import datadog.trace.api.iast.sink.HstsMissingHeaderModule;
 import datadog.trace.api.iast.sink.HttpResponseHeaderModule;
 import datadog.trace.api.iast.sink.InsecureCookieModule;
@@ -54,6 +55,8 @@ public abstract class InstrumentationBridge {
 
   public static volatile StacktraceLeakModule STACKTRACE_LEAK_MODULE;
 
+  public static volatile HeaderInjectionModule HEADER_INJECTION;
+
   private InstrumentationBridge() {}
 
   public static void registerIastModule(final IastModule module) {
@@ -101,6 +104,8 @@ public abstract class InstrumentationBridge {
       XSS = (XssModule) module;
     } else if (module instanceof StacktraceLeakModule) {
       STACKTRACE_LEAK_MODULE = (StacktraceLeakModule) module;
+    } else if (module instanceof HeaderInjectionModule) {
+      HEADER_INJECTION = (HeaderInjectionModule) module;
     } else {
       throw new UnsupportedOperationException("Module not yet supported: " + module);
     }
@@ -175,6 +180,9 @@ public abstract class InstrumentationBridge {
     if (type == StacktraceLeakModule.class) {
       return (E) STACKTRACE_LEAK_MODULE;
     }
+    if (type == HeaderInjectionModule.class) {
+      return (E) HEADER_INJECTION;
+    }
     throw new UnsupportedOperationException("Module not yet supported: " + type);
   }
 
@@ -202,5 +210,6 @@ public abstract class InstrumentationBridge {
     TRUST_BOUNDARY_VIOLATION = null;
     XSS = null;
     STACKTRACE_LEAK_MODULE = null;
+    HEADER_INJECTION = null;
   }
 }

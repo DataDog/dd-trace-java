@@ -1,21 +1,25 @@
 package datadog.trace.bootstrap.instrumentation.api;
 
+import datadog.trace.api.Stateful;
 import datadog.trace.api.profiling.Profiling;
 import datadog.trace.api.profiling.ProfilingContextAttribute;
 import datadog.trace.api.profiling.ProfilingScope;
 
 public interface ProfilingContextIntegration extends Profiling {
+  /**
+   * invoked when the profiler is started, implementations must not initialise JFR before this is
+   * called.
+   */
+  default void onStart() {}
   /** Invoked when a trace first propagates to a thread */
-  void onAttach();
+  default void onAttach() {}
 
   /** Invoked when a thread exits */
-  void onDetach();
+  default void onDetach() {}
 
-  void setContext(ProfilerContext profilerContext);
-
-  void clearContext();
-
-  void setContext(long rootSpanId, long spanId);
+  default Stateful newScopeState(ProfilerContext profilerContext) {
+    return Stateful.DEFAULT;
+  }
 
   default int encode(CharSequence constant) {
     return 0;
@@ -51,15 +55,6 @@ public interface ProfilingContextIntegration extends Profiling {
 
     @Override
     public void onDetach() {}
-
-    @Override
-    public void setContext(ProfilerContext profilerContext) {}
-
-    @Override
-    public void clearContext() {}
-
-    @Override
-    public void setContext(long rootSpanId, long spanId) {}
 
     @Override
     public String name() {

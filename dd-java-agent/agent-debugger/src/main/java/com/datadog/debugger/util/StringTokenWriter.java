@@ -2,12 +2,15 @@ package com.datadog.debugger.util;
 
 import static com.datadog.debugger.util.MoshiSnapshotHelper.REDACTED_IDENT_REASON;
 import static com.datadog.debugger.util.MoshiSnapshotHelper.REDACTED_TYPE_REASON;
+import static com.datadog.debugger.util.MoshiSnapshotHelper.TIMEOUT_REASON;
 
 import com.datadog.debugger.el.Value;
 import datadog.trace.bootstrap.debugger.EvaluationError;
+import datadog.trace.bootstrap.debugger.util.WellKnownClasses;
 import java.lang.reflect.Field;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Function;
 
 /**
  * Implementation of {@link com.datadog.debugger.util.SerializerWithLimits.TokenWriter} for String
@@ -50,7 +53,12 @@ public class StringTokenWriter implements SerializerWithLimits.TokenWriter {
 
   @Override
   public void primitiveValue(Object value) {
-    sb.append(value);
+    String typeName = value.getClass().getTypeName();
+    Function<Object, String> toString = WellKnownClasses.getSafeToString(typeName);
+    if (toString == null) {
+      throw new UnsupportedOperationException("Cannot convert value from type: " + typeName);
+    }
+    sb.append(toString.apply(value));
   }
 
   @Override
@@ -124,12 +132,12 @@ public class StringTokenWriter implements SerializerWithLimits.TokenWriter {
   }
 
   @Override
-  public void objectFieldPrologue(Field field, Object value, int maxDepth) {
+  public void objectFieldPrologue(String fieldName, Object value, int maxDepth) {
     if (!initial) {
       sb.append(", ");
     }
     initial = false;
-    sb.append(field.getName()).append("=");
+    sb.append(fieldName).append("=");
   }
 
   @Override
@@ -152,8 +160,10 @@ public class StringTokenWriter implements SerializerWithLimits.TokenWriter {
   public void notCaptured(SerializerWithLimits.NotCapturedReason reason) {
     switch (reason) {
       case MAX_DEPTH:
-      case TIMEOUT:
         sb.append("...");
+        break;
+      case TIMEOUT:
+        sb.append("{").append(TIMEOUT_REASON).append("}");
         break;
       case FIELD_COUNT:
         sb.append(", ...");

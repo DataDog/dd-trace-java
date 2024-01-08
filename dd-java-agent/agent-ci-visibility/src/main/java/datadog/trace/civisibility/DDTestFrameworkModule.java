@@ -1,6 +1,8 @@
 package datadog.trace.civisibility;
 
-import datadog.trace.api.civisibility.config.SkippableTest;
+import datadog.trace.api.civisibility.config.TestIdentifier;
+import datadog.trace.api.civisibility.retry.TestRetryPolicy;
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 /** Test module abstraction that is used by test framework instrumentations (e.g. JUnit, TestNG) */
@@ -17,7 +19,7 @@ public interface DDTestFrameworkModule {
    * @param test Test to be checked
    * @return {@code true} if the test can be skipped, {@code false} otherwise
    */
-  boolean isSkippable(SkippableTest test);
+  boolean isSkippable(TestIdentifier test);
 
   /**
    * Checks if a given test can be skipped with Intelligent Test Runner or not. It the test is
@@ -26,7 +28,10 @@ public interface DDTestFrameworkModule {
    * @param test Test to be checked
    * @return {@code true} if the test can be skipped, {@code false} otherwise
    */
-  boolean skip(SkippableTest test);
+  boolean skip(TestIdentifier test);
+
+  @Nonnull
+  TestRetryPolicy retryPolicy(TestIdentifier test);
 
   void end(Long startTime);
 }

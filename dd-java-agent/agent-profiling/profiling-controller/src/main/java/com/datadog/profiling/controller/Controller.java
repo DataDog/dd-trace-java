@@ -22,6 +22,21 @@ import javax.annotation.Nonnull;
  * want to support multiple versions later.
  */
 public interface Controller {
+  /** A special type for a noop controller instance which could not be properly configured */
+  class MisconfiguredController implements Controller {
+    public final Exception exception;
+
+    public MisconfiguredController(Exception exception) {
+      this.exception = exception;
+    }
+
+    @Nonnull
+    @Override
+    public OngoingRecording createRecording(@Nonnull String recordingName)
+        throws UnsupportedEnvironmentException {
+      throw new UnsupportedEnvironmentException("Controller is not configured");
+    }
+  }
   /**
    * Creates a continuous recording using the specified template.
    *

@@ -22,6 +22,8 @@ import io.grpc.Status
 import io.grpc.StatusRuntimeException
 import io.grpc.inprocess.InProcessChannelBuilder
 import io.grpc.inprocess.InProcessServerBuilder
+import io.grpc.netty.NettyChannelBuilder
+import io.grpc.netty.NettyServerBuilder
 import io.grpc.stub.StreamObserver
 import spock.lang.Shared
 
@@ -112,11 +114,12 @@ abstract class GrpcTest extends VersionedNamingTestBase {
           }
         }
       }
-    def builder = InProcessServerBuilder.forName(getClass().name).addService(greeter).executor(executor)
+    def builder = NettyServerBuilder.forPort(0).addService(greeter).executor(executor)
     (0..extraBuildCalls).each { builder.build() }
     Server server = builder.build().start()
 
-    ManagedChannel channel = InProcessChannelBuilder.forName(getClass().name).build()
+
+    ManagedChannel channel = NettyChannelBuilder.forAddress("localhost", server.getPort()).usePlaintext().build()
     GreeterGrpc.GreeterBlockingStub client = GreeterGrpc.newBlockingStub(channel)
 
     when:
@@ -146,6 +149,9 @@ abstract class GrpcTest extends VersionedNamingTestBase {
             "$Tags.COMPONENT" "grpc-client"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
             "$Tags.RPC_SERVICE" "example.Greeter"
+            "$Tags.PEER_HOSTNAME" "localhost"
+            "$Tags.PEER_HOST_IPV4" "127.0.0.1"
+            "$Tags.PEER_PORT" server.port
             "status.code" "OK"
             "request.type" "example.Helloworld\$Request"
             "response.type" "example.Helloworld\$Response"
@@ -362,9 +368,9 @@ abstract class GrpcTest extends VersionedNamingTestBase {
           throw error
         }
       }
-    Server server = InProcessServerBuilder.forName(getClass().name).addService(greeter).directExecutor().build().start()
+    Server server = NettyServerBuilder.forPort(0).addService(greeter).directExecutor().build().start()
 
-    ManagedChannel channel = InProcessChannelBuilder.forName(getClass().name).build()
+    ManagedChannel channel = NettyChannelBuilder.forAddress("localhost", server.getPort()).usePlaintext().build()
     GreeterGrpc.GreeterBlockingStub client = GreeterGrpc.newBlockingStub(channel)
 
     when:
@@ -388,9 +394,13 @@ abstract class GrpcTest extends VersionedNamingTestBase {
             "$Tags.COMPONENT" "grpc-client"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
             "$Tags.RPC_SERVICE" "example.Greeter"
+            "$Tags.PEER_HOSTNAME" "localhost"
+            "$Tags.PEER_HOST_IPV4" "127.0.0.1"
+            "$Tags.PEER_PORT" server.port
             "status.code" "UNKNOWN"
             "request.type" "example.Helloworld\$Request"
             "response.type" "example.Helloworld\$Response"
+            "status.description" { it == null || String}
             if ({ isDataStreamsEnabled() }) {
               "$DDTags.PATHWAY_HASH" { String }
             }

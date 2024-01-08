@@ -102,7 +102,6 @@ public class TelemetryService {
   }
 
   public boolean addLogMessage(LogMessage message) {
-    // TODO doesn't seem to be used
     return this.logMessages.offer(message);
   }
 
@@ -148,6 +147,7 @@ public class TelemetryService {
             eventSource, eventSink, messageBytesSoftLimit, RequestType.APP_STARTED, debug);
     request.writeProducts();
     request.writeConfigurations();
+    request.writeInstallSignature();
     if (telemetryRouter.sendRequest(request) == TelemetryClient.Result.SUCCESS) {
       // discard already sent buffered event on the successful attempt
       bufferedEvents = null;

@@ -16,6 +16,9 @@ import datadog.trace.api.DDTags
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.core.DDSpan
+import org.slf4j.Logger
+import org.slf4j.LoggerFactory
+
 import java.time.Duration
 import org.testcontainers.couchbase.BucketDefinition
 import org.testcontainers.couchbase.CouchbaseContainer
@@ -26,6 +29,8 @@ import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 
 abstract class CouchbaseClient31Test extends VersionedNamingTestBase {
   static final String BUCKET = 'test-bucket'
+
+  static final Logger LOGGER = LoggerFactory.getLogger(CouchbaseClient31Test)
 
   @Shared
   CouchbaseContainer couchbase
@@ -62,7 +67,11 @@ abstract class CouchbaseClient31Test extends VersionedNamingTestBase {
   }
 
   def cleanupSpec() {
-    cluster?.disconnect()
+    try {
+      cluster?.disconnect()
+    } catch (Throwable t) {
+      LOGGER.debug("Unable to properly disconnect on cleanup", t)
+    }
     couchbase?.stop()
   }
 
@@ -333,7 +342,7 @@ abstract class CouchbaseClient31Test extends VersionedNamingTestBase {
         assertCouchbaseCall(it, "cb.query", [
           'db.couchbase.retries'   : { Long },
           'db.couchbase.service'   : 'query',
-        ], query, span(0), false, ex1)
+        ], normalizedQuery, span(0), false, ex1)
         assertCouchbaseCall(it, "prepare", [
           'db.couchbase.retries'   : { Long },
           'db.couchbase.service'   : 'query',
@@ -342,7 +351,7 @@ abstract class CouchbaseClient31Test extends VersionedNamingTestBase {
         assertCouchbaseCall(it, "cb.query", [
           'db.couchbase.retries'   : { Long },
           'db.couchbase.service'   : 'query',
-        ], query, span(0), false, ex2)
+        ], normalizedQuery, span(0), false, ex2)
         assertCouchbaseCall(it, "prepare", [
           'db.couchbase.retries'   : { Long },
           'db.couchbase.service'   : 'query',

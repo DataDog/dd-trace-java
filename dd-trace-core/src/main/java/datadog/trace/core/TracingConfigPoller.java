@@ -25,13 +25,13 @@ import org.slf4j.LoggerFactory;
 final class TracingConfigPoller {
   private static final Logger log = LoggerFactory.getLogger(TracingConfigPoller.class);
 
-  private final DynamicConfig dynamicConfig;
+  private final DynamicConfig<?> dynamicConfig;
 
   private boolean startupLogsEnabled;
 
   private Runnable stopPolling;
 
-  public TracingConfigPoller(DynamicConfig dynamicConfig) {
+  public TracingConfigPoller(DynamicConfig<?> dynamicConfig) {
     this.dynamicConfig = dynamicConfig;
   }
 
@@ -48,10 +48,12 @@ final class TracingConfigPoller {
   }
 
   final class Updater implements ProductListener {
-    private final Moshi MOSHI = new Moshi.Builder().build();
+    private final JsonAdapter<ConfigOverrides> CONFIG_OVERRIDES_ADAPTER;
 
-    private final JsonAdapter<ConfigOverrides> CONFIG_OVERRIDES_ADAPTER =
-        MOSHI.adapter(ConfigOverrides.class);
+    {
+      Moshi MOSHI = new Moshi.Builder().build();
+      CONFIG_OVERRIDES_ADAPTER = MOSHI.adapter(ConfigOverrides.class);
+    }
 
     private boolean receivedOverrides = false;
 
@@ -102,7 +104,6 @@ final class TracingConfigPoller {
   void applyConfigOverrides(LibConfig libConfig) {
     DynamicConfig<?>.Builder builder = dynamicConfig.initial();
 
-    maybeOverride(builder::setDebugEnabled, libConfig.debugEnabled);
     if (libConfig.debugEnabled != null) {
       if (Boolean.TRUE.equals(libConfig.debugEnabled)) {
         GlobalLogLevelSwitcher.get().switchLevel(LogLevel.DEBUG);
@@ -116,6 +117,8 @@ final class TracingConfigPoller {
           GlobalLogLevelSwitcher.get().switchLevel(LogLevel.WARN);
         }
       }
+    } else {
+      GlobalLogLevelSwitcher.get().restore();
     }
 
     maybeOverride(builder::setRuntimeMetricsEnabled, libConfig.runtimeMetricsEnabled);

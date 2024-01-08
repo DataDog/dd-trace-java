@@ -5,7 +5,7 @@ import datadog.communication.http.HttpRetryPolicy
 import datadog.communication.http.OkHttpUtils
 import datadog.trace.agent.test.server.http.TestHttpServer
 import datadog.trace.api.civisibility.config.Configurations
-import datadog.trace.api.civisibility.config.SkippableTest
+import datadog.trace.api.civisibility.config.TestIdentifier
 import datadog.trace.civisibility.communication.BackendApi
 import datadog.trace.civisibility.communication.EvpProxyApi
 import okhttp3.HttpUrl
@@ -39,6 +39,7 @@ class ConfigurationApiImplTest extends Specification {
               "repository_url": "https://github.com/DataDog/foo",
               "branch"        : "prod",
               "sha"           : "d64185e45d1722ab3a53c45be47accae",
+              "test_level"    : "test",
               "configurations": [
                 "os.platform"         : "linux",
                 "os.architecture"     : "amd64",
@@ -57,7 +58,7 @@ class ConfigurationApiImplTest extends Specification {
         ]
 
         if (expectedRequest) {
-          response.status(200).send('{ "data": { "type": "ci_app_tracers_test_service_settings", "id": "uuid", "attributes": { "code_coverage": true, "tests_skipping": true } } }')
+          response.status(200).send('{ "data": { "type": "ci_app_tracers_test_service_settings", "id": "uuid", "attributes": { "code_coverage": true, "tests_skipping": true, "require_git": true } } }')
         } else {
           response.status(400).send()
         }
@@ -75,6 +76,7 @@ class ConfigurationApiImplTest extends Specification {
               "repository_url": "https://github.com/DataDog/foo",
               "branch"        : "prod",
               "sha"           : "d64185e45d1722ab3a53c45be47accae",
+              "test_level"    : "test",
               "configurations": [
                 "os.platform"         : "linux",
                 "os.architecture"     : "amd64",
@@ -118,6 +120,7 @@ class ConfigurationApiImplTest extends Specification {
     then:
     settings.codeCoverageEnabled
     settings.testsSkippingEnabled
+    settings.gitUploadRequired
   }
 
   def "test skippable tests request"() {
@@ -131,10 +134,10 @@ class ConfigurationApiImplTest extends Specification {
 
     then:
     skippableTests == [
-      new SkippableTest("suite-a", "name-a", "parameters-a",
+      new TestIdentifier("suite-a", "name-a", "parameters-a",
       new Configurations(null, null, null, null, null,
       null, null, "testBundle-a", Collections.singletonMap("customTag", "customValue"))),
-      new SkippableTest("suite-b", "name-b", "parameters-b",
+      new TestIdentifier("suite-b", "name-b", "parameters-b",
       new Configurations(null, null, null, null, null,
       null, null, "testBundle-b", Collections.singletonMap("customTag", "customValue")))
     ]

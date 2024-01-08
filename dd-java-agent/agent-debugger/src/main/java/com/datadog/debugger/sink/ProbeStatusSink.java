@@ -3,6 +3,7 @@ package com.datadog.debugger.sink;
 import com.datadog.debugger.agent.ProbeStatus;
 import com.datadog.debugger.agent.ProbeStatus.Builder;
 import com.datadog.debugger.agent.ProbeStatus.Status;
+import com.datadog.debugger.uploader.BatchUploader;
 import com.datadog.debugger.util.ExceptionHelper;
 import com.datadog.debugger.util.MoshiHelper;
 import com.squareup.moshi.JsonAdapter;
@@ -26,14 +27,22 @@ public class ProbeStatusSink {
   private static final JsonAdapter<ProbeStatus> PROBE_STATUS_ADAPTER =
       MoshiHelper.createMoshiProbeStatus().adapter(ProbeStatus.class);
 
+  private final BatchUploader diagnosticUploader;
   private final Builder messageBuilder;
   private final Map<String, TimedMessage> probeStatuses = new ConcurrentHashMap<>();
   private final ArrayBlockingQueue<ProbeStatus> queue;
   private final Duration interval;
   private final int batchSize;
   private final boolean isInstrumentTheWorld;
+  private final boolean useMultiPart;
 
-  ProbeStatusSink(Config config) {
+  public ProbeStatusSink(Config config, String diagnosticsEndpoint, boolean useMultiPart) {
+    this(config, new BatchUploader(config, diagnosticsEndpoint), useMultiPart);
+  }
+
+  ProbeStatusSink(Config config, BatchUploader diagnosticUploader, boolean useMultiPart) {
+    this.diagnosticUploader = diagnosticUploader;
+    this.useMultiPart = useMultiPart;
     this.messageBuilder = new Builder(config);
     this.interval = Duration.ofSeconds(config.getDebuggerDiagnosticsInterval());
     this.batchSize = config.getDebuggerUploadBatchSize();
@@ -49,6 +58,20 @@ public class ProbeStatusSink {
     addDiagnostics(messageBuilder.installedMessage(probeId));
   }
 
+  public void addEmitting(ProbeId probeId) {
+    addEmitting(probeId.getEncodedId());
+  }
+
+  public void addEmitting(String encodedProbeId) {
+    TimedMessage timedMessage = probeStatuses.get(encodedProbeId);
+    if (timedMessage != null
+        && timedMessage.getMessage().getDiagnostics().getStatus() == Status.EMITTING) {
+      // if we already have a message for this probe, don't build the message again
+      return;
+    }
+    addDiagnostics(messageBuilder.emittingMessage(encodedProbeId));
+  }
+
   public void addBlocked(ProbeId probeId) {
     addDiagnostics(messageBuilder.blockedMessage(probeId));
   }
@@ -61,7 +84,20 @@ public class ProbeStatusSink {
     addDiagnostics(messageBuilder.errorMessage(probeId, message));
   }
 
-  public List<String> getSerializedDiagnostics() {
+  public void flush(String tags) {
+    List<String> serializedDiagnostics = getSerializedDiagnostics();
+    List<byte[]> batches = IntakeBatchHelper.createBatches(serializedDiagnostics);
+    for (byte[] batch : batches) {
+      if (useMultiPart) {
+        diagnosticUploader.uploadAsMultipart(
+            tags, new BatchUploader.MultiPartContent(batch, "event", "event.json"));
+      } else {
+        diagnosticUploader.upload(batch, tags);
+      }
+    }
+  }
+
+  private List<String> getSerializedDiagnostics() {
     List<ProbeStatus> diagnostics = getDiagnostics();
     List<String> serializedDiagnostics = new ArrayList<>();
     for (ProbeStatus message : diagnostics) {
@@ -110,7 +146,7 @@ public class ProbeStatusSink {
   }
 
   public void removeDiagnostics(ProbeId probeId) {
-    probeStatuses.remove(probeId.getId());
+    probeStatuses.remove(probeId.getEncodedId());
   }
 
   private void addDiagnostics(ProbeStatus message) {
@@ -122,7 +158,7 @@ public class ProbeStatusSink {
     TimedMessage current = probeStatuses.get(probeId.getId());
     if (current == null || shouldOverwrite(current.getMessage(), message)) {
       TimedMessage newMessage = new TimedMessage(message);
-      probeStatuses.put(probeId.getId(), newMessage);
+      probeStatuses.put(probeId.getEncodedId(), newMessage);
       enqueueTimedMessage(newMessage, Instant.now(Clock.systemDefaultZone()));
     }
   }

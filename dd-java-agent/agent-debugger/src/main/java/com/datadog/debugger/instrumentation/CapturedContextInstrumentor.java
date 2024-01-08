@@ -2,11 +2,13 @@ package com.datadog.debugger.instrumentation;
 
 import static com.datadog.debugger.instrumentation.ASMHelper.emitReflectiveCall;
 import static com.datadog.debugger.instrumentation.ASMHelper.getStatic;
+import static com.datadog.debugger.instrumentation.ASMHelper.invokeConstructor;
 import static com.datadog.debugger.instrumentation.ASMHelper.invokeStatic;
 import static com.datadog.debugger.instrumentation.ASMHelper.invokeVirtual;
 import static com.datadog.debugger.instrumentation.ASMHelper.isFinalField;
 import static com.datadog.debugger.instrumentation.ASMHelper.isStaticField;
 import static com.datadog.debugger.instrumentation.ASMHelper.ldc;
+import static com.datadog.debugger.instrumentation.ASMHelper.newInstance;
 import static com.datadog.debugger.instrumentation.Types.CAPTURED_CONTEXT_TYPE;
 import static com.datadog.debugger.instrumentation.Types.CAPTURED_VALUE;
 import static com.datadog.debugger.instrumentation.Types.CAPTURE_THROWABLE_TYPE;
@@ -32,6 +34,7 @@ import datadog.trace.api.Config;
 import datadog.trace.bootstrap.debugger.CorrelationAccess;
 import datadog.trace.bootstrap.debugger.Limits;
 import datadog.trace.bootstrap.debugger.MethodLocation;
+import datadog.trace.bootstrap.debugger.ProbeId;
 import datadog.trace.util.Strings;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
@@ -47,7 +50,6 @@ import org.objectweb.asm.tree.InsnNode;
 import org.objectweb.asm.tree.JumpInsnNode;
 import org.objectweb.asm.tree.LabelNode;
 import org.objectweb.asm.tree.LocalVariableNode;
-import org.objectweb.asm.tree.MethodInsnNode;
 import org.objectweb.asm.tree.MethodNode;
 import org.objectweb.asm.tree.TryCatchBlockNode;
 import org.objectweb.asm.tree.TypeInsnNode;
@@ -61,7 +63,6 @@ public class CapturedContextInstrumentor extends Instrumentor {
   private int exitContextVar = -1;
   private int timestampStartVar = -1;
   private int throwableListVar = -1;
-  private final List<FinallyBlock> finallyBlocks = new ArrayList<>();
 
   public CapturedContextInstrumentor(
       ProbeDefinition definition,
@@ -69,7 +70,7 @@ public class CapturedContextInstrumentor extends Instrumentor {
       ClassNode classNode,
       MethodNode methodNode,
       List<DiagnosticMessage> diagnostics,
-      List<String> probeIds,
+      List<ProbeId> probeIds,
       boolean captureSnapshot,
       Limits limits) {
     super(definition, classLoader, classNode, methodNode, diagnostics, probeIds);
@@ -93,14 +94,6 @@ public class CapturedContextInstrumentor extends Instrumentor {
     addFinallyHandler(returnHandlerLabel);
     installFinallyBlocks();
     return InstrumentationResult.Status.INSTALLED;
-  }
-
-  private void installFinallyBlocks() {
-    for (FinallyBlock finallyBlock : finallyBlocks) {
-      methodNode.tryCatchBlocks.add(
-          new TryCatchBlockNode(
-              finallyBlock.startLabel, finallyBlock.endLabel, finallyBlock.handlerLabel, null));
-    }
   }
 
   private boolean addLineCaptures(LineMap lineMap) {
@@ -397,7 +390,7 @@ public class CapturedContextInstrumentor extends Instrumentor {
       // stack [array, array]
       ldc(insnList, i); // index
       // stack [array, array, int]
-      ldc(insnList, probeIds.get(i));
+      ldc(insnList, probeIds.get(i).getEncodedId());
       // stack [array, array, int, string]
       insnList.add(new InsnNode(Opcodes.AASTORE));
       // stack [array]
@@ -1042,33 +1035,5 @@ public class CapturedContextInstrumentor extends Instrumentor {
         INT_TYPE,
         INT_TYPE);
     // stack: [captured_value]
-  }
-
-  private void invokeConstructor(InsnList insnList, Type owner, Type... argTypes) {
-    // expected stack: [instance, arg_type_1 ... arg_type_N]
-    insnList.add(
-        new MethodInsnNode(
-            Opcodes.INVOKESPECIAL,
-            owner.getInternalName(),
-            Types.CONSTRUCTOR,
-            Type.getMethodDescriptor(Type.VOID_TYPE, argTypes),
-            false));
-    // stack: []
-  }
-
-  private static void newInstance(InsnList insnList, Type type) {
-    insnList.add(new TypeInsnNode(Opcodes.NEW, type.getInternalName()));
-  }
-
-  private static class FinallyBlock {
-    final LabelNode startLabel;
-    final LabelNode endLabel;
-    final LabelNode handlerLabel;
-
-    public FinallyBlock(LabelNode startLabel, LabelNode endLabel, LabelNode handlerLabel) {
-      this.startLabel = startLabel;
-      this.endLabel = endLabel;
-      this.handlerLabel = handlerLabel;
-    }
   }
 }

@@ -1,0 +1,42 @@
+plugins {
+  id "com.github.johnrengelman.shadow"
+  id 'java'
+  id 'org.springframework.boot' version '2.6.3'
+}
+
+repositories {
+  mavenCentral()
+  maven {
+    url 'https://packages.confluent.io/maven/'
+  }
+  maven { url 'https://repo.spring.io/libs-milestone' }
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+description = 'Kafka Smoke Tests.'
+
+jar {
+  manifest {
+    attributes('Main-Class': 'datadog.smoketest.datastreams.kafkaschemaregistry.KafkaProducerWithSchemaRegistry')
+  }
+}
+
+dependencies {
+  implementation(group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: '2.6.0')
+  implementation 'io.confluent:kafka-schema-registry-client:7.5.2'
+  implementation 'io.confluent:kafka-avro-serializer:7.5.2'
+  implementation('org.apache.avro:avro:1.11.0')
+  // Add SLF4J binding (Logback in this case)
+  implementation 'ch.qos.logback:logback-classic:1.2.6'
+}
+
+tasks.withType(Test).configureEach {
+  dependsOn "shadowJar"
+
+  jvmArgs "-Ddatadog.smoketest.datastreams.kafkaschemaregistry.shadowJar.path=${tasks.shadowJar.archiveFile.get()}"
+}
+
+task testRuntimeActivation(type: Test) {
+  jvmArgs "-Ddatadog.smoketest.datastreams.kafkaschemaregistry.shadowJar.path=${tasks.shadowJar.archiveFile.get()}"
+}
+tasks['check'].dependsOn(testRuntimeActivation)

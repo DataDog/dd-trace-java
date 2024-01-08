@@ -67,6 +67,9 @@ public final class ProfilingConfig {
       "profiling.directallocation.enabled";
   public static final boolean PROFILING_DIRECT_ALLOCATION_ENABLED_DEFAULT = false;
 
+  public static final String PROFILING_STACKDEPTH = "profiling.stackdepth";
+  public static final int PROFILING_STACKDEPTH_DEFAULT = 512;
+
   // Java profiler lib needs to be extracted from JAR and placed into the scratch location
   // By default the scratch is the os temp directory but can be overridden by user
   public static final String PROFILING_DATADOG_PROFILER_SCRATCH = "profiling.ddprof.scratch";
@@ -110,12 +113,13 @@ public final class ProfilingConfig {
 
   public static final String PROFILING_DATADOG_PROFILER_LOG_LEVEL_DEFAULT = "NONE";
   public static final String PROFILING_DATADOG_PROFILER_STACKDEPTH = "profiling.ddprof.stackdepth";
-  public static final int PROFILING_DATADOG_PROFILER_STACKDEPTH_DEFAULT = 512;
   public static final String PROFILING_DATADOG_PROFILER_CSTACK = "profiling.ddprof.cstack";
   public static final String PROFILING_DATADOG_PROFILER_CSTACK_DEFAULT = "fp";
   public static final String PROFILING_DATADOG_PROFILER_SAFEMODE = "profiling.ddprof.safemode";
-  public static final int PROFILING_DATADOG_PROFILER_SAFEMODE_DEFAULT =
-      12; // POP_METHOD|UNWIND_NATIVE
+
+  private static final int POP_METHOD = 4;
+  private static final int LAST_JAVA_PC = 16;
+  public static final int PROFILING_DATADOG_PROFILER_SAFEMODE_DEFAULT = POP_METHOD | LAST_JAVA_PC;
 
   public static final String PROFILING_DATADOG_PROFILER_LINE_NUMBERS =
       "profiling.ddprof.linenumbers";
@@ -164,6 +168,7 @@ public final class ProfilingConfig {
   public static final String PROFILING_ENABLED_EVENTS = "profiling.enabled.events";
 
   public static final String PROFILING_DEBUG_DUMP_PATH = "profiling.debug.dump_path";
+  public static final String PROFILING_DEBUG_JFR_DISABLED = "profiling.debug.jfr.disabled";
 
   public static final String PROFILING_CONTEXT_ATTRIBUTES = "profiling.context.attributes";
 
@@ -187,6 +192,13 @@ public final class ProfilingConfig {
 
   public static final String PROFILING_HEAP_HISTOGRAM_ENABLED = "profiling.heap.histogram.enabled";
   public static final boolean PROFILING_HEAP_HISTOGRAM_ENABLED_DEFAULT = false;
+
+  public static final String PROFILING_HEAP_HISTOGRAM_MODE = "profiling.heap.histogram.mode";
+  public static final String PROFILING_HEAP_HISTOGRAM_MODE_DEFAULT = "aftergc";
+
+  public static final String PROFILING_TIMELINE_EVENTS_ENABLED =
+      "profiling.timeline.events.enabled";
+  public static final boolean PROFILING_TIMELINE_EVENTS_ENABLED_DEFAULT = false;
 
   private ProfilingConfig() {}
 }

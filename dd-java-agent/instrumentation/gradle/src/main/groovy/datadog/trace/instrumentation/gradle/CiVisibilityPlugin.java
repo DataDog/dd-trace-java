@@ -126,7 +126,7 @@ public abstract class CiVisibilityPlugin implements Plugin<Project> {
   }
 
   private void applyJacocoPlugin(CiVisibilityPluginExtension extension) {
-    if (!extension.isCodeCoverageEnabled(project)
+    if (!extension.isJacocoInjectionEnabled()
         || project.getPluginManager().hasPlugin(JACOCO_PLUGIN_ID)) {
       return;
     }

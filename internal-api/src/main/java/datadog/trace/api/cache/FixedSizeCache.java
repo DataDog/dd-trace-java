@@ -2,6 +2,7 @@ package datadog.trace.api.cache;
 
 import datadog.trace.api.Pair;
 import java.util.Arrays;
+import java.util.function.BiConsumer;
 import java.util.function.Function;
 
 /**
@@ -101,6 +102,15 @@ abstract class FixedSizeCache<K, V> implements DDCache<K, V> {
   @Override
   public void clear() {
     Arrays.fill(elements, null);
+  }
+
+  @Override
+  public void visit(BiConsumer<K, V> consumer) {
+    for (Pair<K, V> e : elements) {
+      if (null != e) {
+        consumer.accept(e.getLeft(), e.getRight());
+      }
+    }
   }
 
   abstract int hash(K key);
