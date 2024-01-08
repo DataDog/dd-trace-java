@@ -62,16 +62,16 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
 
     where:
     projectName                                         | mavenVersion         | expectedEvents | expectedCoverages | expectSuccess | flakyRetries | jacocoCoverage
-    //    "test_successful_maven_run"                         | "3.2.1"              | 5              | 1                 | true          | false        | true
-    //    "test_successful_maven_run"                         | "3.5.4"              | 5              | 1                 | true          | false        | true
-    //    "test_successful_maven_run"                         | "3.6.3"              | 5              | 1                 | true          | false        | true
-    //    "test_successful_maven_run"                         | "3.8.8"              | 5              | 1                 | true          | false        | true
-    //    "test_successful_maven_run"                         | "3.9.5"              | 5              | 1                 | true          | false        | true
-    //    "test_successful_maven_run_surefire_3_0_0"          | "3.9.5"              | 5              | 1                 | true          | false        | true
-    //    "test_successful_maven_run_surefire_3_0_0"          | LATEST_MAVEN_VERSION | 5              | 1                 | true          | false        | true
-    //    "test_successful_maven_run_builtin_coverage"        | "3.9.5"              | 5              | 1                 | true          | false        | false
-    //    "test_successful_maven_run_with_jacoco_and_argline" | "3.9.5"              | 5              | 1                 | true          | false        | true
-    //    "test_successful_maven_run_with_cucumber"           | "3.9.5"              | 7              | 1                 | true          | false        | true
+    "test_successful_maven_run"                         | "3.2.1"              | 5              | 1                 | true          | false        | true
+    "test_successful_maven_run"                         | "3.5.4"              | 5              | 1                 | true          | false        | true
+    "test_successful_maven_run"                         | "3.6.3"              | 5              | 1                 | true          | false        | true
+    "test_successful_maven_run"                         | "3.8.8"              | 5              | 1                 | true          | false        | true
+    "test_successful_maven_run"                         | "3.9.5"              | 5              | 1                 | true          | false        | true
+    "test_successful_maven_run_surefire_3_0_0"          | "3.9.5"              | 5              | 1                 | true          | false        | true
+    "test_successful_maven_run_surefire_3_0_0"          | LATEST_MAVEN_VERSION | 5              | 1                 | true          | false        | true
+    "test_successful_maven_run_builtin_coverage"        | "3.9.5"              | 5              | 1                 | true          | false        | false
+    "test_successful_maven_run_with_jacoco_and_argline" | "3.9.5"              | 5              | 1                 | true          | false        | true
+    "test_successful_maven_run_with_cucumber"           | "3.9.5"              | 7              | 1                 | true          | false        | true
     "test_failed_maven_run_flaky_retries"               | "3.9.5"              | 8              | 1                 | false         | true         | true
   }
 
