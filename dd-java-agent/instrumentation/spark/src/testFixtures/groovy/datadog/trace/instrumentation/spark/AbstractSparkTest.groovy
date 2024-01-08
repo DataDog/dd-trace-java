@@ -7,12 +7,14 @@ import datadog.trace.api.Platform
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.api.sampling.SamplingMechanism
 import datadog.trace.test.util.Flaky
+import groovy.json.JsonSlurper
 import org.apache.hadoop.yarn.api.records.FinalApplicationStatus
 import org.apache.hadoop.yarn.conf.YarnConfiguration
 import org.apache.spark.deploy.SparkSubmit
 import org.apache.spark.deploy.yarn.ApplicationMaster
 import org.apache.spark.deploy.yarn.ApplicationMasterArguments
 import org.apache.spark.sql.Dataset
+import org.apache.spark.sql.Encoders
 import org.apache.spark.sql.Row
 import org.apache.spark.sql.RowFactory
 import org.apache.spark.sql.SparkSession
@@ -586,5 +588,56 @@ abstract class AbstractSparkTest extends AgentTestRunner {
     null      | "some_cluster_name" | """[{"key":"RunName","value":"some_run_name_9975a7ba-5e04-11ee-8c99-0242ac120002"}]""" | "databricks.job-cluster.some_run_name"
     null      | "some_cluster_name" | """invalid_json"""                                                                     | "databricks.all-purpose-cluster.some_cluster_name"
     null      | null                | null                                                                                   | "^(databricks)"
+  }
+
+  boolean isJsonValid(String jsonString) {
+    try {
+      new JsonSlurper().parseText(jsonString)
+      return true
+    } catch (Exception ignored) {
+      return false
+    }
+  }
+
+  def "compute the SQL query plan"() {
+    def sparkSession = SparkSession.builder()
+      .config("spark.master", "local[2]")
+      .config("spark.sql.shuffle.partitions", "2")
+      .getOrCreate()
+
+    def df = generateSampleDataframe(sparkSession)
+    def ds = df.coalesce(1).as(Encoders.STRING())
+    TestSparkComputation.applyIdentityMapFunction(ds)
+      .filter("value > 0")
+      .count()
+    sparkSession.stop()
+
+    expect:
+    assertTraces(1) {
+      trace(4) {
+        span {
+          operationName "spark.application"
+          spanType "spark"
+        }
+        span {
+          operationName "spark.sql"
+          spanType "spark"
+          childOf(span(0))
+        }
+        span {
+          operationName "spark.job"
+          spanType "spark"
+          childOf(span(1))
+        }
+        span {
+          operationName "spark.stage"
+          spanType "spark"
+          childOf(span(2))
+          // Exact SQL Plan changes depending on the spark version
+          assert span.tags["_dd.spark.sql_plan"] =~ /.*HashAggregate.*Filter.*SerializeFromObject.*MapElements.*DeserializeToObject.*LocalTableScan.*/
+          assert isJsonValid(span.tags["_dd.spark.sql_plan"].toString())
+        }
+      }
+    }
   }
 }

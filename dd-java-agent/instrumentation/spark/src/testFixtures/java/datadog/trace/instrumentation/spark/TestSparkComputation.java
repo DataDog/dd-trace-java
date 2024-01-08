@@ -38,6 +38,17 @@ public class TestSparkComputation {
         .start();
   }
 
+  static class IdentityMapFunction implements MapFunction<String, String> {
+    @Override
+    public String call(String s) {
+      return s;
+    }
+  }
+
+  public static Dataset<String> applyIdentityMapFunction(Dataset<String> ds) {
+    return ds.map(new IdentityMapFunction(), Encoders.STRING());
+  }
+
   public static String getSparkVersion() {
     return org.apache.spark.package$.MODULE$.SPARK_VERSION();
   }
