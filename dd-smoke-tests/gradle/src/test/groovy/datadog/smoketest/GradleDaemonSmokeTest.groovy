@@ -69,6 +69,7 @@ class GradleDaemonSmokeTest extends CiVisibilitySmokeTest {
     givenGradleVersionIsCompatibleWithCurrentJvm(gradleVersion)
     givenConfigurationCacheIsCompatibleWithCurrentPlatform(configurationCache)
     givenGradleProjectFiles(projectName)
+    givenFlakyRetriesEnabled(flakyRetries)
     ensureDependenciesDownloaded(gradleVersion)
 
     BuildResult buildResult = runGradleTests(gradleVersion, successExpected, configurationCache)
@@ -88,27 +89,28 @@ class GradleDaemonSmokeTest extends CiVisibilitySmokeTest {
     }
 
     where:
-    gradleVersion         | projectName                                        | configurationCache | successExpected | expectedTraces | expectedCoverages
-    "3.0"                 | "test-succeed-old-gradle"                          | false              | true            | 5              | 1
-    "4.0"                 | "test-succeed-legacy-instrumentation"              | false              | true            | 5              | 1
-    "5.0"                 | "test-succeed-legacy-instrumentation"              | false              | true            | 5              | 1
-    "6.0"                 | "test-succeed-legacy-instrumentation"              | false              | true            | 5              | 1
-    "7.6.3"               | "test-succeed-legacy-instrumentation"              | false              | true            | 5              | 1
-    "8.3"                 | "test-succeed-new-instrumentation"                 | false              | true            | 5              | 1
-    LATEST_GRADLE_VERSION | "test-succeed-new-instrumentation"                 | false              | true            | 5              | 1
-    "8.3"                 | "test-succeed-new-instrumentation"                 | true               | true            | 5              | 1
-    LATEST_GRADLE_VERSION | "test-succeed-new-instrumentation"                 | true               | true            | 5              | 1
-    "7.6.3"               | "test-succeed-multi-module-legacy-instrumentation" | false              | true            | 7              | 2
-    LATEST_GRADLE_VERSION | "test-succeed-multi-module-new-instrumentation"    | false              | true            | 7              | 2
-    "7.6.3"               | "test-succeed-multi-forks-legacy-instrumentation"  | false              | true            | 6              | 2
-    LATEST_GRADLE_VERSION | "test-succeed-multi-forks-new-instrumentation"     | false              | true            | 6              | 2
-    "7.6.3"               | "test-skip-legacy-instrumentation"                 | false              | true            | 2              | 0
-    LATEST_GRADLE_VERSION | "test-skip-new-instrumentation"                    | false              | true            | 2              | 0
-    "7.6.3"               | "test-failed-legacy-instrumentation"               | false              | false           | 4              | 0
-    LATEST_GRADLE_VERSION | "test-failed-new-instrumentation"                  | false              | false           | 4              | 0
-    "7.6.3"               | "test-corrupted-config-legacy-instrumentation"     | false              | false           | 1              | 0
-    LATEST_GRADLE_VERSION | "test-corrupted-config-new-instrumentation"        | false              | false           | 1              | 0
-    LATEST_GRADLE_VERSION | "test-succeed-junit-5"                             | false              | true            | 5              | 1
+    gradleVersion         | projectName                                        | configurationCache | successExpected | flakyRetries | expectedTraces | expectedCoverages
+    "3.0"                 | "test-succeed-old-gradle"                          | false              | true            | false        | 5              | 1
+    "4.0"                 | "test-succeed-legacy-instrumentation"              | false              | true            | false        | 5              | 1
+    "5.0"                 | "test-succeed-legacy-instrumentation"              | false              | true            | false        | 5              | 1
+    "6.0"                 | "test-succeed-legacy-instrumentation"              | false              | true            | false        | 5              | 1
+    "7.6.3"               | "test-succeed-legacy-instrumentation"              | false              | true            | false        | 5              | 1
+    "8.3"                 | "test-succeed-new-instrumentation"                 | false              | true            | false        | 5              | 1
+    LATEST_GRADLE_VERSION | "test-succeed-new-instrumentation"                 | false              | true            | false        | 5              | 1
+    "8.3"                 | "test-succeed-new-instrumentation"                 | true               | true            | false        | 5              | 1
+    LATEST_GRADLE_VERSION | "test-succeed-new-instrumentation"                 | true               | true            | false        | 5              | 1
+    "7.6.3"               | "test-succeed-multi-module-legacy-instrumentation" | false              | true            | false        | 7              | 2
+    LATEST_GRADLE_VERSION | "test-succeed-multi-module-new-instrumentation"    | false              | true            | false        | 7              | 2
+    "7.6.3"               | "test-succeed-multi-forks-legacy-instrumentation"  | false              | true            | false        | 6              | 2
+    LATEST_GRADLE_VERSION | "test-succeed-multi-forks-new-instrumentation"     | false              | true            | false        | 6              | 2
+    "7.6.3"               | "test-skip-legacy-instrumentation"                 | false              | true            | false        | 2              | 0
+    LATEST_GRADLE_VERSION | "test-skip-new-instrumentation"                    | false              | true            | false        | 2              | 0
+    "7.6.3"               | "test-failed-legacy-instrumentation"               | false              | false           | false        | 4              | 0
+    LATEST_GRADLE_VERSION | "test-failed-new-instrumentation"                  | false              | false           | false        | 4              | 0
+    "7.6.3"               | "test-corrupted-config-legacy-instrumentation"     | false              | false           | false        | 1              | 0
+    LATEST_GRADLE_VERSION | "test-corrupted-config-new-instrumentation"        | false              | false           | false        | 1              | 0
+    LATEST_GRADLE_VERSION | "test-succeed-junit-5"                             | false              | true            | false        | 5              | 1
+    LATEST_GRADLE_VERSION | "test-failed-flaky-retries"                        | false              | false           | true         | 8              | 0
   }
 
   private void givenGradleProperties() {
@@ -287,5 +289,9 @@ class GradleDaemonSmokeTest extends CiVisibilitySmokeTest {
       JsonNode root = mapper.readTree(responseBody)
       return root.get("version").asText()
     }
+  }
+
+  private void givenFlakyRetriesEnabled(boolean flakyRetries) {
+    this.flakyRetriesEnabled = flakyRetries
   }
 }

@@ -11,7 +11,7 @@ public interface ConfigurationApi {
       new ConfigurationApi() {
         @Override
         public CiVisibilitySettings getSettings(TracerEnvironment tracerEnvironment) {
-          return new CiVisibilitySettings(false, false, false);
+          return CiVisibilitySettings.DEFAULT;
         }
 
         @Override
