@@ -96,6 +96,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
   private final boolean isRunningOnDatabricks;
   private final String databricksClusterName;
   private final String databricksServiceName;
+  private final String sparkServiceName;
 
   private boolean lastJobFailed = false;
   private String lastJobFailedMessage;
@@ -117,6 +118,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
     isRunningOnDatabricks = sparkConf.contains("spark.databricks.sparkContextId");
     databricksClusterName = sparkConf.get("spark.databricks.clusterUsageTags.clusterName", null);
     databricksServiceName = getDatabricksServiceName(sparkConf, databricksClusterName);
+    sparkServiceName = getSparkServiceName(sparkConf, isRunningOnDatabricks);
   }
 
   /** Resource name of the spark job. Provide an implementation based on a specific scala version */
@@ -858,6 +860,8 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
 
     if (databricksServiceName != null) {
       builder.withServiceName(databricksServiceName);
+    } else if (sparkServiceName != null) {
+      builder.withServiceName(sparkServiceName);
     }
 
     addPropertiesTags(builder, properties);
@@ -1092,6 +1096,14 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
     }
 
     return serviceName;
+  }
+
+  private static String getSparkServiceName(SparkConf conf, boolean isRunningOnDatabricks) {
+    if (Config.get().isServiceNameSetByUser() || isRunningOnDatabricks) {
+      return null;
+    }
+
+    return conf.get("spark.app.name", null);
   }
 
   private static String getDatabricksRunName(SparkConf conf) {

@@ -564,31 +564,96 @@ abstract class AbstractSparkTest extends AgentTestRunner {
         span {
           operationName "spark.sql"
           spanType "spark"
-          span.serviceName ==~ expectedService
+          assert span.serviceName ==~ expectedService
         }
         span {
           operationName "spark.job"
           spanType "spark"
           childOf(span(0))
-          span.serviceName ==~ expectedService
+          assert span.serviceName ==~ expectedService
         }
         span {
           operationName "spark.stage"
           spanType "spark"
           childOf(span(1))
-          span.serviceName ==~ expectedService
+          assert span.serviceName ==~ expectedService
         }
       }
     }
 
     where:
     ddService | clusterName         | clusterAllTags                                                                         | expectedService
-    "foobar"  | "some_cluster_name" | """[{"key": "foo"}, {"key": "RunName", "value": "some_run_name"}]"""                   | "^(databricks)"
+    "foobar"  | "some_cluster_name" | """[{"key": "foo"}, {"key": "RunName", "value": "some_run_name"}]"""                   | "(?!.*databricks).*"
     null      | "some_cluster_name" | """[{"key": "foo"}, {"key": "RunName", "value": "some_run_name"}]"""                   | "databricks.job-cluster.some_run_name"
     null      | "some_cluster_name" | """[{"key":"RunName","value":"some_run_name_9975a7ba-5e04-11ee-8c99-0242ac120002"}]""" | "databricks.job-cluster.some_run_name"
     null      | "some_cluster_name" | """invalid_json"""                                                                     | "databricks.all-purpose-cluster.some_cluster_name"
-    null      | null                | null                                                                                   | "^(databricks)"
+    null      | null                | null                                                                                   | "(?!.*databricks).*"
   }
+
+  def "set the proper spark service name"(String ddService, String appName, boolean isRunningOnDatabricks, String expectedService) {
+    setup:
+    if (ddService != null) {
+      injectSysConfig("dd.service", ddService)
+    }
+
+    def builder = SparkSession.builder()
+      .config("spark.master", "local[2]")
+
+    if (appName != null) {
+      builder.config("spark.app.name", appName)
+    }
+
+    if (isRunningOnDatabricks) {
+      builder.config("spark.databricks.sparkContextId", "some_id")
+    }
+
+    when:
+    def sparkSession = builder.getOrCreate()
+    def df = generateSampleDataframe(sparkSession)
+    df.coalesce(1).count()
+    sparkSession.stop()
+
+    then:
+    def expectedSize = 4
+    if (isRunningOnDatabricks) {
+      expectedSize = 3
+    }
+
+    assertTraces(1) {
+      trace(expectedSize) {
+        if (!isRunningOnDatabricks) {
+          span {
+            operationName "spark.application"
+            spanType "spark"
+            assert span.serviceName ==~ expectedService
+          }
+        }
+        span {
+          operationName "spark.sql"
+          spanType "spark"
+          assert span.serviceName ==~ expectedService
+        }
+        span {
+          operationName "spark.job"
+          spanType "spark"
+          assert span.serviceName ==~ expectedService
+        }
+        span {
+          operationName "spark.stage"
+          spanType "spark"
+          assert span.serviceName ==~ expectedService
+        }
+      }
+    }
+
+    where:
+    ddService | appName    | isRunningOnDatabricks | expectedService
+    "foobar"  | "some_app" | true                  | "(?!.*some_app).*"
+    null      | "some_app" | true                  | "(?!.*some_app).*"
+    null      | "some_app" | false                 | "some_app"
+    null      | null       | false                 | "(?!.*some_app).*"
+  }
+
 
   boolean isJsonValid(String jsonString) {
     try {
