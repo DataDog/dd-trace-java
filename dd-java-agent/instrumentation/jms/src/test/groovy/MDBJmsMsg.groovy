@@ -2,16 +2,14 @@ import javax.jms.Message
 import javax.jms.Destination;
 import javax.jms.JMSException;
 
-public class JmsMsg implements Message {
+public class MDBJmsMsg implements Message {
   @Override
   String getJMSMessageID() throws JMSException {
     return "123"
   }
 
   @Override
-  void setJMSMessageID(String id) throws JMSException {
-
-  }
+  void setJMSMessageID(String id) throws JMSException {}
 
   @Override
   long getJMSTimestamp() throws JMSException {
