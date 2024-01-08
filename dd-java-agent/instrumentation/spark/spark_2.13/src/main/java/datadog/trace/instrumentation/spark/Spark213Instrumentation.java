@@ -16,8 +16,12 @@ public class Spark213Instrumentation extends AbstractSparkInstrumentation {
       packageName + ".AbstractDatadogSparkListener",
       packageName + ".DatabricksParentContext",
       packageName + ".DatadogSpark213Listener",
+      packageName + ".RemoveEldestHashMap",
       packageName + ".SparkAggregatedTaskMetrics",
       packageName + ".SparkConfAllowList",
+      packageName + ".SparkSQLUtils",
+      packageName + ".SparkSQLUtils$SparkPlanInfoForStage",
+      packageName + ".SparkSQLUtils$AccumulatorWithStage",
     };
   }
 
