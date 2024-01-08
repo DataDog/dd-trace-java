@@ -6,7 +6,7 @@ muzzle {
   pass {
     group = 'com.aerospike'
     module = 'aerospike-client'
-    versions = "[4,)"
+    versions = "[4,8)"
     skipVersions += "4.4.19" // bad release
   }
 }
@@ -17,7 +17,7 @@ dependencies {
   testImplementation group: 'com.aerospike', name: 'aerospike-client', version: '4.0.0'
   testImplementation deps.testcontainers
 
-  latestDepTestImplementation group: 'com.aerospike', name: 'aerospike-client', version: '+'
+  latestDepTestImplementation group: 'com.aerospike', name: 'aerospike-client', version: '7.+'
 }
 
 tasks.withType(Test).configureEach {
