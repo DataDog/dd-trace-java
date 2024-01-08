@@ -32,17 +32,18 @@ class SpringListenerSQSTest extends AgentTestRunner {
 
     when:
     TraceUtils.runUnderTrace("parent") {
-      template.sendAsync("SpringListenerSQS", "a message")
+      template.sendAsync("SpringListenerSQS", "a message").get()
     }
 
     then:
     def sendingSpan
     assertTraces(4, SORT_TRACES_BY_START) {
+      sortSpansByStart()
       trace(3) {
-        sendMessage(it, address, span(2))
-        getQueueUrl(it, address, span(2))
         basicSpan(it, "parent")
-        sendingSpan = span(0)
+        getQueueUrl(it, address, span(0))
+        sendMessage(it, address, span(0))
+        sendingSpan = span(2)
       }
       trace(1) {
         receiveMessage(it, address, sendingSpan)
@@ -69,15 +70,16 @@ class SpringListenerSQSTest extends AgentTestRunner {
       '_datadog' : "{\"x-datadog-trace-id\": \"4948377316357291421\", \"x-datadog-parent-id\": \"6746998015037429512\", \"x-datadog-sampling-priority\": \"1\"}"
     ])
     TraceUtils.runUnderTrace("parent") {
-      template.sendAsync("SpringListenerSQS", message)
+      template.sendAsync("SpringListenerSQS", message).get()
     }
 
     then:
     assertTraces(4, SORT_TRACES_BY_START) {
+      sortSpansByStart()
       trace(3) {
-        sendMessage(it, address, span(2))
-        getQueueUrl(it, address, span(2))
         basicSpan(it, "parent")
+        getQueueUrl(it, address, span(0))
+        sendMessage(it, address, span(0))
       }
       trace(1) {
         span {

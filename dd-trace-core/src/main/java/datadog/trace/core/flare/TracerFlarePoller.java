@@ -11,6 +11,7 @@ import datadog.remoteconfig.state.ParsedConfigKey;
 import datadog.remoteconfig.state.ProductListener;
 import datadog.trace.api.Config;
 import datadog.trace.api.DynamicConfig;
+import datadog.trace.core.CoreTracer;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import okio.Okio;
@@ -29,12 +30,12 @@ public final class TracerFlarePoller {
     this.dynamicConfig = dynamicConfig;
   }
 
-  public void start(Config config, SharedCommunicationObjects sco) {
+  public void start(Config config, SharedCommunicationObjects sco, CoreTracer tracer) {
     stopPreparer = new Preparer().register(config, sco);
     stopSubmitter = new Submitter().register(config, sco);
 
     tracerFlareService =
-        new TracerFlareService(config, dynamicConfig, sco.okHttpClient, sco.agentUrl);
+        new TracerFlareService(config, dynamicConfig, sco.okHttpClient, sco.agentUrl, tracer);
   }
 
   public void stop() {

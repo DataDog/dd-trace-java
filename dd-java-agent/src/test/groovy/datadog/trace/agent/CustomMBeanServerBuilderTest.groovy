@@ -20,6 +20,7 @@ class CustomMBeanServerBuilderTest extends Specification {
         "-Ddd.jmxfetch.start-delay=0",
         "-Ddd.jmxfetch.refresh-beans-period=1",
         "-Ddd.profiling.enabled=true",
+        "-Ddd.instrumentation.telemetry.enabled=false",
         "-Ddatadog.slf4j.simpleLogger.defaultLogLevel=$DEFAULT_LOG_LEVEL"
       ] as String[]
       , "" as String[]
@@ -35,6 +36,7 @@ class CustomMBeanServerBuilderTest extends Specification {
         "-Ddd.jmxfetch.start-delay=0",
         "-Ddd.jmxfetch.refresh-beans-period=1",
         "-Ddd.profiling.enabled=true",
+        "-Ddd.instrumentation.telemetry.enabled=false",
         "-Ddatadog.slf4j.simpleLogger.defaultLogLevel=$DEFAULT_LOG_LEVEL",
         "-Djavax.management.builder.initial=jvmbootstraptest.CustomMBeanServerBuilder"
       ] as String[]
@@ -51,6 +53,7 @@ class CustomMBeanServerBuilderTest extends Specification {
         "-Ddd.jmxfetch.start-delay=0",
         "-Ddd.jmxfetch.refresh-beans-period=1",
         "-Ddd.profiling.enabled=true",
+        "-Ddd.instrumentation.telemetry.enabled=false",
         "-Ddatadog.slf4j.simpleLogger.defaultLogLevel=$DEFAULT_LOG_LEVEL",
         "-Djavax.management.builder.initial=jvmbootstraptest.MissingMBeanServerBuilder"
       ] as String[]
@@ -67,6 +70,7 @@ class CustomMBeanServerBuilderTest extends Specification {
         "-Ddd.jmxfetch.start-delay=0",
         "-Ddd.jmxfetch.refresh-beans-period=1",
         "-Ddd.profiling.enabled=true",
+        "-Ddd.instrumentation.telemetry.enabled=false",
         "-Ddatadog.slf4j.simpleLogger.defaultLogLevel=$DEFAULT_LOG_LEVEL",
         "-Ddd.app.customjmxbuilder=true"
       ] as String[]
@@ -83,6 +87,7 @@ class CustomMBeanServerBuilderTest extends Specification {
         "-Ddd.jmxfetch.start-delay=0",
         "-Ddd.jmxfetch.refresh-beans-period=1",
         "-Ddd.profiling.enabled=true",
+        "-Ddd.instrumentation.telemetry.enabled=false",
         "-Ddatadog.slf4j.simpleLogger.defaultLogLevel=$DEFAULT_LOG_LEVEL",
         "-Ddd.app.customjmxbuilder=false",
         "-Djavax.management.builder.initial=jvmbootstraptest.CustomMBeanServerBuilder"

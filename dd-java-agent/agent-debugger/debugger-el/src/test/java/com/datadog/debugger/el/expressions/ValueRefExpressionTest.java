@@ -2,16 +2,20 @@ package com.datadog.debugger.el.expressions;
 
 import static com.datadog.debugger.el.DSL.*;
 import static com.datadog.debugger.el.PrettyPrintVisitor.print;
+import static com.datadog.debugger.el.TestHelper.setFieldInConfig;
 import static org.junit.jupiter.api.Assertions.*;
 
 import com.datadog.debugger.el.DSL;
-import com.datadog.debugger.el.EvaluationException;
+import com.datadog.debugger.el.RedactedException;
 import com.datadog.debugger.el.RefResolverHelper;
 import com.datadog.debugger.el.Value;
+import datadog.trace.api.Config;
 import datadog.trace.bootstrap.debugger.el.ValueReferenceResolver;
 import datadog.trace.bootstrap.debugger.el.ValueReferences;
+import datadog.trace.bootstrap.debugger.util.Redaction;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.Test;
 
@@ -106,23 +110,66 @@ class ValueRefExpressionTest {
     assertEquals("@invalid", print(invalidExpression));
   }
 
+  class StoreSecret {
+    String password;
+
+    public StoreSecret(String password) {
+      this.password = password;
+    }
+  }
+
   @Test
   public void redacted() {
     ValueRefExpression valueRef = new ValueRefExpression("password");
-    class StoreSecret {
-      String password;
-
-      public StoreSecret(String password) {
-        this.password = password;
-      }
-    }
     StoreSecret instance = new StoreSecret("secret123");
-    EvaluationException evaluationException =
+    RedactedException redactedException =
         assertThrows(
-            EvaluationException.class,
+            RedactedException.class,
             () -> valueRef.evaluate(RefResolverHelper.createResolver(instance)));
     assertEquals(
         "Could not evaluate the expression because 'password' was redacted",
-        evaluationException.getMessage());
+        redactedException.getMessage());
+  }
+
+  @Test
+  public void redactedType() {
+    Config config = Config.get();
+    setFieldInConfig(config, "debuggerRedactedTypes", "com.datadog.debugger.el.expressions.*");
+    try {
+      Redaction.addUserDefinedTypes(Config.get());
+      ValueRefExpression valueRef = new ValueRefExpression("store");
+      class Holder {
+        StoreSecret store = new StoreSecret("secret123");
+      }
+      RedactedException redactedException =
+          assertThrows(
+              RedactedException.class,
+              () -> valueRef.evaluate(RefResolverHelper.createResolver(new Holder())));
+      assertEquals(
+          "Could not evaluate the expression because 'store' was redacted",
+          redactedException.getMessage());
+    } finally {
+      Redaction.clearUserDefinedTypes();
+    }
+  }
+
+  @Test
+  public void stringPrimitive() {
+    class StrPrimitive {
+      UUID uuid = UUID.fromString("123e4567-e89b-12d3-a456-426655440000");
+      Class<?> clazz = String.class;
+    }
+    ValueRefExpression valueRef = new ValueRefExpression("uuid");
+    Value<?> val = valueRef.evaluate(RefResolverHelper.createResolver(new StrPrimitive()));
+    assertNotNull(val);
+    assertFalse(val.isUndefined());
+    assertEquals("123e4567-e89b-12d3-a456-426655440000", val.getValue());
+    assertEquals("uuid", print(valueRef));
+    valueRef = new ValueRefExpression("clazz");
+    val = valueRef.evaluate(RefResolverHelper.createResolver(new StrPrimitive()));
+    assertNotNull(val);
+    assertFalse(val.isUndefined());
+    assertEquals("java.lang.String", val.getValue());
+    assertEquals("clazz", print(valueRef));
   }
 }

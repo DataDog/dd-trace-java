@@ -60,7 +60,7 @@ public class JavaForkJoinPoolInstrumentation extends Instrumenter.Tracing
     @Advice.OnMethodExit(onThrowable = Throwable.class)
     public static <T> void cleanup(
         @Advice.Argument(0) ForkJoinTask<T> task, @Advice.Thrown Throwable thrown) {
-      if (null != thrown) {
+      if (null != thrown && !exclude(FORK_JOIN_TASK, task)) {
         cancelTask(InstrumentationContext.get(ForkJoinTask.class, State.class), task);
       }
     }

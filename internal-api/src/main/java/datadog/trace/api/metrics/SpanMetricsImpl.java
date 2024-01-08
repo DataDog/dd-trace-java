@@ -57,6 +57,11 @@ public class SpanMetricsImpl implements SpanMetrics {
     }
 
     @Override
+    public long getValue() {
+      return counter.get();
+    }
+
+    @Override
     public long getValueAndReset() {
       long count = counter.get();
       long delta = count - previousCount;
