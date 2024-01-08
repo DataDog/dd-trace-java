@@ -12,8 +12,6 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
-
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -24,8 +22,8 @@ import org.apache.kafka.clients.consumer.OffsetAndMetadata;
 import org.apache.kafka.clients.consumer.internals.ConsumerCoordinator;
 import org.apache.kafka.clients.consumer.internals.RequestFuture;
 import org.apache.kafka.clients.consumer.internals.SubscriptionState;
+import org.apache.kafka.clients.consumer.internals.SubscriptionStateAccessor;
 import org.apache.kafka.common.TopicPartition;
-import org.apache.kafka.common.requests.IsolationLevel;
 
 @AutoService(Instrumenter.class)
 public final class ConsumerCoordinatorInstrumentation extends Instrumenter.Tracing
@@ -53,8 +51,8 @@ public final class ConsumerCoordinatorInstrumentation extends Instrumenter.Traci
   @Override
   public String[] helperClassNames() {
     return new String[] {
-        packageName + ".KafkaConsumerInfo",
-        "org.apache.kafka.common.requests.IsolationLevel",
+      packageName + ".KafkaConsumerInfo",
+      "org.apache.kafka.clients.consumer.internals.SubscriptionStateAccessor",
     };
   }
 
@@ -107,9 +105,11 @@ public final class ConsumerCoordinatorInstrumentation extends Instrumenter.Traci
         AgentTracer.get()
             .getDataStreamsMonitoring()
             .trackBacklog(sortedTags, entry.getValue().offset());
-        System.out.println("lag" + subscriptionState.partitionLag(new TopicPartition("test_topic", 3), IsolationLevel.READ_UNCOMMITTED));
-        // System.out.println("subscriptionState" + subscriptionState.partitionLag(entry.getKey(), null));
-        // System.out.println("lag is: " + consumerGroup + entry.getKey().topic() + " " + entry.getKey().partition() + " "
+        System.out.println("lag" + SubscriptionStateAccessor.partitionLag(subscriptionState));
+        // System.out.println("subscriptionState" + subscriptionState.partitionLag(entry.getKey(),
+        // null));
+        // System.out.println("lag is: " + consumerGroup + entry.getKey().topic() + " " +
+        // entry.getKey().partition() + " "
         // + subscriptionState.partitionLag(entry.getKey(), null));
       }
     }

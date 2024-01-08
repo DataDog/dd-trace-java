@@ -2,7 +2,6 @@ package datadog.smoketest.datastreams.kafkaschemaregistry;
 
 import io.confluent.kafka.serializers.KafkaAvroDeserializer;
 import io.confluent.kafka.serializers.KafkaAvroSerializer;
-
 import java.time.Duration;
 import java.util.Collections;
 import java.util.Properties;
@@ -129,8 +128,10 @@ public class KafkaProducerWithSchemaRegistry {
     properties.setProperty(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
 
     // Avro deserialization settings
-    properties.setProperty(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
-    properties.setProperty(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, KafkaAvroDeserializer.class.getName());
+    properties.setProperty(
+        ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
+    properties.setProperty(
+        ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, KafkaAvroDeserializer.class.getName());
     properties.setProperty("schema.registry.url", schemaRegistryUrl);
     properties.setProperty(
         "sasl.jaas.config",
@@ -151,10 +152,17 @@ public class KafkaProducerWithSchemaRegistry {
     while (true) {
       ConsumerRecords<String, GenericRecord> records = kafkaConsumer.poll(Duration.ofMillis(1000));
 
-      records.forEach(record -> {
-        System.out.println("Key: " + record.key() + ", Value: " + record.value());
-        System.out.println("Partition: " + record.partition() + ", Offset:" + record.offset() + ",record:" + record.value().toString());
-      });
+      records.forEach(
+          record -> {
+            System.out.println("Key: " + record.key() + ", Value: " + record.value());
+            System.out.println(
+                "Partition: "
+                    + record.partition()
+                    + ", Offset:"
+                    + record.offset()
+                    + ",record:"
+                    + record.value().toString());
+          });
     }
   }
 }
