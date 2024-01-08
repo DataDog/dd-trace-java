@@ -1,17 +1,44 @@
 package datadog.smoketest.datastreams.kafkaschemaregistry;
 
+import io.confluent.kafka.serializers.KafkaAvroDeserializer;
 import io.confluent.kafka.serializers.KafkaAvroSerializer;
+
+import java.time.Duration;
+import java.util.Collections;
 import java.util.Properties;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericRecord;
+import org.apache.kafka.clients.consumer.ConsumerConfig;
+import org.apache.kafka.clients.consumer.ConsumerRecords;
+import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
+import org.apache.kafka.common.serialization.StringDeserializer;
 import org.apache.kafka.common.serialization.StringSerializer;
 
 public class KafkaProducerWithSchemaRegistry {
   public static void main(String[] args) {
+    // produce();
+    consume();
+    // Thread producerThread = new Thread(KafkaProducerWithSchemaRegistry::produce);
+    // Thread consumerThread = new Thread(KafkaProducerWithSchemaRegistry::consume);
+
+    // // start the threads
+    // producerThread.start();
+    // consumerThread.start();
+
+    // // wait for both threads to finish
+    // try {
+    //   producerThread.join();
+    //   consumerThread.join();
+    // } catch (InterruptedException e) {
+    //   e.printStackTrace();
+    // }
+  }
+
+  public static void produce() {
     String schemaRegistryUrl = System.getenv("SCHEMA_REGISTRY_URL");
     String topicName = "test_topic";
     String apiKey = System.getenv("CONFLUENT_API_KEY");
@@ -80,11 +107,54 @@ public class KafkaProducerWithSchemaRegistry {
             new ProducerRecord<>(topicName, avroRecord);
         producer.send(producerRecord);
         Thread.sleep(1500);
+        System.out.println("produced message");
       }
     } catch (Exception e) {
       e.printStackTrace();
     } finally {
       producer.close();
+    }
+  }
+
+  public static void consume() {
+    String schemaRegistryUrl = System.getenv("SCHEMA_REGISTRY_URL");
+    String topicName = "test_topic";
+    String apiKey = System.getenv("CONFLUENT_API_KEY");
+    String apiSecret = System.getenv("CONFLUENT_API_SECRET");
+    String bootstrapServers = System.getenv("CONFLUENT_SERVERS");
+
+    Properties properties = new Properties();
+    properties.setProperty(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
+    properties.setProperty(ConsumerConfig.GROUP_ID_CONFIG, "my-group2");
+    properties.setProperty(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
+
+    // Avro deserialization settings
+    properties.setProperty(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
+    properties.setProperty(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, KafkaAvroDeserializer.class.getName());
+    properties.setProperty("schema.registry.url", schemaRegistryUrl);
+    properties.setProperty(
+        "sasl.jaas.config",
+        "org.apache.kafka.common.security.plain.PlainLoginModule required username=\""
+            + apiKey
+            + "\" password=\""
+            + apiSecret
+            + "\";");
+    properties.setProperty("sasl.mechanism", "PLAIN");
+    properties.setProperty("security.protocol", "SASL_SSL");
+    properties.setProperty("basic.auth.credentials.source", "USER_INFO");
+    properties.setProperty("basic.auth.user.info", System.getenv("SCHEMA_REGISTRY_AUTH"));
+
+    KafkaConsumer<String, GenericRecord> kafkaConsumer = new KafkaConsumer<>(properties);
+    kafkaConsumer.subscribe(Collections.singleton(topicName));
+
+    // Poll for new data
+    while (true) {
+      ConsumerRecords<String, GenericRecord> records = kafkaConsumer.poll(Duration.ofMillis(1000));
+
+      records.forEach(record -> {
+        System.out.println("Key: " + record.key() + ", Value: " + record.value());
+        System.out.println("Partition: " + record.partition() + ", Offset:" + record.offset() + ",record:" + record.value().toString());
+      });
     }
   }
 }
