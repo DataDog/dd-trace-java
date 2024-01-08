@@ -16,7 +16,7 @@ public class TelemetryRunnable implements Runnable {
 
   private static final Logger log = LoggerFactory.getLogger(TelemetryRunnable.class);
   private static final int APP_STARTED_RETRIES = 3;
-  public static final int APP_STARTED_PAUSE_BETWEEN_RETRIES_MILLIS = 500;
+  private static final int APP_STARTED_PAUSE_BETWEEN_RETRIES_MILLIS = 500;
   private static final int MAX_CONSECUTIVE_REQUESTS = 3;
 
   private final TelemetryService telemetryService;
