@@ -2,6 +2,7 @@ import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.agent.test.asserts.ListWriterAssert
 import spock.lang.Shared
 
+import static datadog.trace.agent.test.asserts.ListWriterAssert.SORT_TRACES_BY_START
 import static datadog.trace.agent.test.asserts.ListWriterAssert.assertTraces
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 
@@ -51,7 +52,7 @@ class MDBTest extends AgentTestRunner {
     }
 
     then:
-    assertTraces(2,  SORT_TRACES_BY_START) {
+    assertTraces(2, SORT_TRACES_BY_START) {
       workerTrace(it)
       jmsTrace(it)
     }
