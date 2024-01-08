@@ -10,7 +10,7 @@ public class MDB1 implements MessageDrivenBean, MessageListener {
       throw new Exception("null message")
     }
   }
-	public void ejbRemove() {}
-	public void setMessageDrivenContext(MessageDrivenContext ctx) {}
+  public void ejbRemove() {}
+  public void setMessageDrivenContext(MessageDrivenContext ctx) {}
 }
 

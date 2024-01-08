@@ -1,8 +1,23 @@
 import javax.jms.Message
-import javax.jms.Destination;
-import javax.jms.JMSException;
+import javax.jms.Destination
+import javax.jms.JMSException
 
 public class MDBJmsMsg implements Message {
+
+  long getJMSDeliveryTime() {
+    return 1L
+  }
+
+  void setJMSDeliveryTime(long time) {}
+
+  Object getBody(Class aClass) {
+    return null
+  }
+
+  boolean isBodyAssignableTo(Class aClass) {
+    return false
+  }
+
   @Override
   String getJMSMessageID() throws JMSException {
     return "123"
@@ -18,7 +33,6 @@ public class MDBJmsMsg implements Message {
 
   @Override
   void setJMSTimestamp(long timestamp) throws JMSException {
-
   }
 
   @Override
@@ -28,12 +42,10 @@ public class MDBJmsMsg implements Message {
 
   @Override
   void setJMSCorrelationIDAsBytes(byte[] correlationID) throws JMSException {
-
   }
 
   @Override
   void setJMSCorrelationID(String correlationID) throws JMSException {
-
   }
 
   @Override
@@ -48,7 +60,6 @@ public class MDBJmsMsg implements Message {
 
   @Override
   void setJMSReplyTo(Destination replyTo) throws JMSException {
-
   }
 
   @Override
@@ -58,7 +69,6 @@ public class MDBJmsMsg implements Message {
 
   @Override
   void setJMSDestination(Destination destination) throws JMSException {
-
   }
 
   @Override
@@ -68,7 +78,6 @@ public class MDBJmsMsg implements Message {
 
   @Override
   void setJMSDeliveryMode(int deliveryMode) throws JMSException {
-
   }
 
   @Override
@@ -78,7 +87,6 @@ public class MDBJmsMsg implements Message {
 
   @Override
   void setJMSRedelivered(boolean redelivered) throws JMSException {
-
   }
 
   @Override
@@ -88,7 +96,6 @@ public class MDBJmsMsg implements Message {
 
   @Override
   void setJMSType(String type) throws JMSException {
-
   }
 
   @Override
@@ -98,7 +105,6 @@ public class MDBJmsMsg implements Message {
 
   @Override
   void setJMSExpiration(long expiration) throws JMSException {
-
   }
 
   @Override
@@ -108,12 +114,10 @@ public class MDBJmsMsg implements Message {
 
   @Override
   void setJMSPriority(int priority) throws JMSException {
-
   }
 
   @Override
   void clearProperties() throws JMSException {
-
   }
 
   @Override
@@ -173,57 +177,46 @@ public class MDBJmsMsg implements Message {
 
   @Override
   void setBooleanProperty(String name, boolean value) throws JMSException {
-
   }
 
   @Override
   void setByteProperty(String name, byte value) throws JMSException {
-
   }
 
   @Override
   void setShortProperty(String name, short value) throws JMSException {
-
   }
 
   @Override
   void setIntProperty(String name, int value) throws JMSException {
-
   }
 
   @Override
   void setLongProperty(String name, long value) throws JMSException {
-
   }
 
   @Override
   void setFloatProperty(String name, float value) throws JMSException {
-
   }
 
   @Override
   void setDoubleProperty(String name, double value) throws JMSException {
-
   }
 
   @Override
   void setStringProperty(String name, String value) throws JMSException {
-
   }
 
   @Override
   void setObjectProperty(String name, Object value) throws JMSException {
-
   }
 
   @Override
   void acknowledge() throws JMSException {
-
   }
 
   @Override
   void clearBody() throws JMSException {
-
   }
 }
 

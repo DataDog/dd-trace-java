@@ -76,5 +76,4 @@ class MDBTest extends AgentTestRunner {
       }
     }
   }
-
 }

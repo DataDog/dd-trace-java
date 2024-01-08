@@ -10,6 +10,5 @@ public class MDB2 implements MessageListener {
       throw new Exception("null message")
     }
   }
-
 }
 
