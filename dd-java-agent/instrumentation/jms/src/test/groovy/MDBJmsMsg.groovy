@@ -2,7 +2,7 @@ import javax.jms.Message
 import javax.jms.Destination
 import javax.jms.JMSException
 
-public class MDBJmsMsg implements Message {
+class MDBJmsMsg implements Message {
 
   long getJMSDeliveryTime() {
     return 1L

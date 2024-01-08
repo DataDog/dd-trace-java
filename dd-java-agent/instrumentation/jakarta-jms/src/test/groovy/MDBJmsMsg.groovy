@@ -2,7 +2,7 @@ import jakarta.jms.Message
 import jakarta.jms.Destination
 import jakarta.jms.JMSException
 
-public class MDBJmsMsg implements Message {
+class MDBJmsMsg implements Message {
 
   @Override
   String getJMSMessageID() throws JMSException {
