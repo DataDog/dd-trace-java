@@ -1,4 +1,4 @@
-package com.datadog.debugger.symbol;
+package com.datadog.debugger.symboltest;
 
 import org.junit.jupiter.api.Test;
 

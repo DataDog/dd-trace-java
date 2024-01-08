@@ -1,5 +1,5 @@
 
-package com.datadog.debugger.symbol;
+package com.datadog.debugger.symboltest;
 
 public class SymbolExtraction03 {
   public static int main(String arg) {
