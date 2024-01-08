@@ -141,7 +141,7 @@ public class MetricProbe extends ProbeDefinition {
       ClassNode classNode,
       MethodNode methodNode,
       List<DiagnosticMessage> diagnostics,
-      List<String> probeIds) {
+      List<ProbeId> probeIds) {
     return new MetricInstrumentor(this, classLoader, classNode, methodNode, diagnostics, probeIds)
         .instrument();
   }

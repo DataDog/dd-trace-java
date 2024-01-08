@@ -182,6 +182,7 @@ class KafkaClientTest extends AgentTestRunner {
         "type:kafka"
       ]
       edgeTags.size() == 4
+      payloadSize.minValue > 0.0
     }
 
     StatsGroup second = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == first.hash }
@@ -194,6 +195,7 @@ class KafkaClientTest extends AgentTestRunner {
         "type:kafka"
       ]
       edgeTags.size() == 5
+      payloadSize.minValue > 0.0
     }
 
     cleanup:
@@ -321,6 +323,7 @@ class KafkaClientTest extends AgentTestRunner {
         "type:kafka"
       ]
       edgeTags.size() == 4
+      payloadSize.minValue > 0.0
     }
 
     StatsGroup second = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == first.hash }
@@ -333,6 +336,7 @@ class KafkaClientTest extends AgentTestRunner {
         "type:kafka"
       ]
       edgeTags.size() == 5
+      payloadSize.minValue > 0.0
     }
 
     cleanup:
@@ -981,6 +985,7 @@ class KafkaClientTest extends AgentTestRunner {
         "type:kafka"
       ]
       edgeTags.size() == 4
+      payloadSize.minValue > 0.0
     }
 
     StatsGroup second = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == first.hash }
@@ -993,6 +998,7 @@ class KafkaClientTest extends AgentTestRunner {
         "type:kafka"
       ]
       edgeTags.size() == 5
+      payloadSize.minValue > 0.0
     }
 
     cleanup:

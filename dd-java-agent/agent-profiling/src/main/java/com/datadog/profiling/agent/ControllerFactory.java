@@ -23,6 +23,7 @@ import com.datadog.profiling.controller.openjdk.OpenJdkController;
 import com.datadog.profiling.controller.oracle.OracleJdkController;
 import datadog.trace.api.Config;
 import datadog.trace.api.Platform;
+import datadog.trace.api.config.ProfilingConfig;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.lang.reflect.InvocationTargetException;
@@ -76,20 +77,25 @@ public final class ControllerFactory {
     Implementation impl = Implementation.NONE;
     boolean isOracleJDK8 = Platform.isOracleJDK8();
     boolean isDatadogProfilerEnabled = Config.get().isDatadogProfilerEnabled();
-    if (isOracleJDK8 && !isDatadogProfilerEnabled) {
-      try {
-        Class.forName("com.oracle.jrockit.jfr.Producer");
-        impl = Implementation.ORACLE;
-      } catch (ClassNotFoundException ignored) {
-        log.debug("Failed to load oracle profiler", ignored);
+    if (ConfigProvider.getInstance()
+        .getBoolean(ProfilingConfig.PROFILING_DEBUG_JFR_DISABLED, false)) {
+      log.warn("JFR is disabled by configuration");
+    } else {
+      if (isOracleJDK8 && !isDatadogProfilerEnabled) {
+        try {
+          Class.forName("com.oracle.jrockit.jfr.Producer");
+          impl = Implementation.ORACLE;
+        } catch (ClassNotFoundException ignored) {
+          log.debug("Failed to load oracle profiler", ignored);
+        }
       }
-    }
-    if (!isOracleJDK8) {
-      try {
-        Class.forName("jdk.jfr.Event");
-        impl = Implementation.OPENJDK;
-      } catch (ClassNotFoundException ignored) {
-        log.debug("Failed to load openjdk profiler", ignored);
+      if (!isOracleJDK8) {
+        try {
+          Class.forName("jdk.jfr.Event");
+          impl = Implementation.OPENJDK;
+        } catch (ClassNotFoundException ignored) {
+          log.debug("Failed to load openjdk profiler", ignored);
+        }
       }
     }
     if (impl == Implementation.NONE) {

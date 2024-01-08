@@ -50,9 +50,11 @@ import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Random;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicLong;
@@ -294,6 +296,8 @@ public class SnapshotSerializationTest {
     UUID uuid = UUID.nameUUIDFromBytes("foobar".getBytes());
     AtomicLong atomicLong = new AtomicLong(123);
     URI uri = URI.create("https://www.datadoghq.com");
+    Optional<Date> maybeDate = Optional.of(new Date());
+    Optional<Object> empty = Optional.empty();
   }
 
   @Test
@@ -315,7 +319,7 @@ public class SnapshotSerializationTest {
         objLocalFields,
         "clazz",
         Class.class.getTypeName(),
-        "class com.datadog.debugger.agent.SnapshotSerializationTest$WellKnownClasses");
+        "com.datadog.debugger.agent.SnapshotSerializationTest$WellKnownClasses");
     assertPrimitiveValue(objLocalFields, "bool", Boolean.class.getTypeName(), "true");
     assertPrimitiveValue(objLocalFields, "l", Long.class.getTypeName(), "42");
     assertPrimitiveValue(objLocalFields, "bigDecimal", BigDecimal.class.getTypeName(), "3.1415926");
@@ -328,6 +332,17 @@ public class SnapshotSerializationTest {
     assertPrimitiveValue(objLocalFields, "atomicLong", AtomicLong.class.getTypeName(), "123");
     assertPrimitiveValue(
         objLocalFields, "uri", URI.class.getTypeName(), "https://www.datadoghq.com");
+    Map<String, Object> maybeDate = (Map<String, Object>) objLocalFields.get("maybeDate");
+    assertComplexClass(maybeDate, Optional.class.getTypeName());
+    Map<String, Object> maybeUiidFields = (Map<String, Object>) maybeDate.get(FIELDS);
+    Map<String, Object> value = (Map<String, Object>) maybeUiidFields.get("value");
+    assertComplexClass(value, Date.class.getTypeName());
+    Map<String, Object> empty = (Map<String, Object>) objLocalFields.get("empty");
+    assertComplexClass(empty, Optional.class.getTypeName());
+    Map<String, Object> emptyFields = (Map<String, Object>) empty.get(FIELDS);
+    value = (Map<String, Object>) emptyFields.get("value");
+    assertEquals(Object.class.getTypeName(), value.get(TYPE));
+    assertTrue((Boolean) value.get(IS_NULL));
   }
 
   @Test

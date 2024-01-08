@@ -168,6 +168,7 @@ public final class ProfilingConfig {
   public static final String PROFILING_ENABLED_EVENTS = "profiling.enabled.events";
 
   public static final String PROFILING_DEBUG_DUMP_PATH = "profiling.debug.dump_path";
+  public static final String PROFILING_DEBUG_JFR_DISABLED = "profiling.debug.jfr.disabled";
 
   public static final String PROFILING_CONTEXT_ATTRIBUTES = "profiling.context.attributes";
 

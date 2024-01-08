@@ -883,6 +883,10 @@ public class AgentTracer {
         long payloadSizeBytes) {}
 
     @Override
+    public <C> void injectPathwayContextWithoutSendingStats(
+        AgentSpan span, C carrier, Setter<C> setter, LinkedHashMap<String, String> sortedTags) {}
+
+    @Override
     public <C> Context.Extracted extract(final C carrier, final ContextVisitor<C> getter) {
       return NoopContext.INSTANCE;
     }
@@ -1059,6 +1063,11 @@ public class AgentTracer {
     public void add(StatsPoint statsPoint) {}
 
     @Override
+    public int shouldSampleSchema(String topic) {
+      return 0;
+    }
+
+    @Override
     public void setConsumeCheckpoint(
         String type, String source, DataStreamsContextCarrier carrier) {}
 
@@ -1096,6 +1105,14 @@ public class AgentTracer {
     @Override
     public void setCheckpoint(
         LinkedHashMap<String, String> sortedTags, Consumer<StatsPoint> pointConsumer) {}
+
+    @Override
+    public void saveStats(StatsPoint point) {}
+
+    @Override
+    public StatsPoint getSavedStats() {
+      return null;
+    }
 
     @Override
     public byte[] encode() {
@@ -1154,16 +1171,6 @@ public class AgentTracer {
   /** TraceConfig when there is no tracer; this is not the same as a default config. */
   public static final class NoopTraceConfig implements TraceConfig {
     public static final NoopTraceConfig INSTANCE = new NoopTraceConfig();
-
-    @Override
-    public boolean isDebugEnabled() {
-      return false;
-    }
-
-    @Override
-    public boolean isTriageEnabled() {
-      return false;
-    }
 
     @Override
     public boolean isRuntimeMetricsEnabled() {

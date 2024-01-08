@@ -1,7 +1,6 @@
 package datadog.opentracing
 
 import datadog.trace.api.DDTags
-import datadog.trace.api.StatsDClient
 import datadog.trace.api.config.TracerConfig
 import datadog.trace.api.interceptor.MutableSpan
 import datadog.trace.api.interceptor.TraceInterceptor
@@ -20,9 +19,8 @@ import static datadog.trace.agent.test.asserts.ListWriterAssert.assertTraces
 
 class OpenTracingAPITest extends DDSpecification {
   def writer = new ListWriter()
-  def statsDClient = Mock(StatsDClient)
 
-  def tracer = DDTracer.builder().writer(writer).statsDClient(statsDClient).build()
+  def tracer = DDTracer.builder().writer(writer).build()
 
   def traceInterceptor = Mock(TraceInterceptor)
   def scopeListener = Mock(ScopeListener)
@@ -364,8 +362,6 @@ class OpenTracingAPITest extends DDSpecification {
 
     then:
     2 * scopeListener.afterScopeActivated()
-    1 * statsDClient.incrementCounter("scope.close.error")
-    1 * statsDClient.incrementCounter("scope.user.close.error")
     0 * _
 
     when:
@@ -382,15 +378,13 @@ class OpenTracingAPITest extends DDSpecification {
     firstScope.close()
 
     then:
-    1 * statsDClient.incrementCounter("scope.close.error")
-    1 * statsDClient.incrementCounter("scope.user.close.error")
     0 * _
   }
 
   def "closing scope when not on top in strict mode"() {
     setup:
     injectSysConfig(TracerConfig.SCOPE_STRICT_MODE, "true")
-    DDTracer strictTracer = DDTracer.builder().writer(writer).statsDClient(statsDClient).build()
+    DDTracer strictTracer = DDTracer.builder().writer(writer).build()
     strictTracer.addTraceInterceptor(traceInterceptor)
     strictTracer.tracer.addScopeListener(scopeListener)
 
@@ -411,8 +405,6 @@ class OpenTracingAPITest extends DDSpecification {
 
     then:
     thrown(RuntimeException)
-    1 * statsDClient.incrementCounter("scope.close.error")
-    1 * statsDClient.incrementCounter("scope.user.close.error")
     0 * _
 
     when:

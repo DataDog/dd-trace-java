@@ -2,6 +2,7 @@ package datadog.trace.civisibility;
 
 import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.civisibility.retry.TestRetryPolicy;
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 /** Test module abstraction that is used by test framework instrumentations (e.g. JUnit, TestNG) */
@@ -29,6 +30,7 @@ public interface DDTestFrameworkModule {
    */
   boolean skip(TestIdentifier test);
 
+  @Nonnull
   TestRetryPolicy retryPolicy(TestIdentifier test);
 
   void end(Long startTime);

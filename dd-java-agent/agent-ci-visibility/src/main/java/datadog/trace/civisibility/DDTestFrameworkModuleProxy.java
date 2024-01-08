@@ -22,6 +22,7 @@ import java.util.HashSet;
 import java.util.TreeSet;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.LongAdder;
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -95,6 +96,7 @@ public class DDTestFrameworkModuleProxy implements DDTestFrameworkModule {
   }
 
   @Override
+  @Nonnull
   public TestRetryPolicy retryPolicy(TestIdentifier test) {
     return test != null && flakyTests.contains(test)
         ? new RetryIfFailed(config.getCiVisibilityFlakyRetryCount())

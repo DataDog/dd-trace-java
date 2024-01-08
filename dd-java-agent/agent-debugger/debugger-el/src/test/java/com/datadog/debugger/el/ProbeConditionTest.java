@@ -84,11 +84,14 @@ public class ProbeConditionTest {
     ProbeCondition probeCondition = load("/test_conditional_05.json");
     class Obj {
       int intField1 = 42;
+      String strField = "foo";
     }
     Obj obj = new Obj();
+    Map<String, Object> fields = new HashMap<>();
+    fields.put("intField1", obj.intField1);
+    fields.put("strField", obj.strField);
     ValueReferenceResolver ctx =
-        RefResolverHelper.createResolver(
-            singletonMap("this", obj), null, singletonMap("intField1", obj.intField1));
+        RefResolverHelper.createResolver(singletonMap("this", obj), null, fields);
     assertTrue(probeCondition.execute(ctx));
   }
 

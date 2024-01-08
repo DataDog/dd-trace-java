@@ -4,15 +4,20 @@ import static com.datadog.debugger.el.PrettyPrintVisitor.print;
 import static com.datadog.debugger.el.expressions.ComparisonOperator.EQ;
 import static com.datadog.debugger.el.expressions.ComparisonOperator.GE;
 import static com.datadog.debugger.el.expressions.ComparisonOperator.GT;
+import static com.datadog.debugger.el.expressions.ComparisonOperator.INSTANCEOF;
 import static com.datadog.debugger.el.expressions.ComparisonOperator.LE;
 import static com.datadog.debugger.el.expressions.ComparisonOperator.LT;
 import static org.junit.jupiter.api.Assertions.*;
 
+import com.datadog.debugger.el.EvaluationException;
 import com.datadog.debugger.el.Value;
 import com.datadog.debugger.el.values.NumericValue;
+import com.datadog.debugger.el.values.ObjectValue;
 import com.datadog.debugger.el.values.StringValue;
 import datadog.trace.bootstrap.debugger.el.ValueReferenceResolver;
 import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.Random;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -111,7 +116,55 @@ class ComparisonExpressionTest {
             new NumericValue(BigDecimal.valueOf(2)),
             LE,
             true,
-            "1 <= 2"));
+            "1 <= 2"),
+        Arguments.of(
+            new StringValue("foo"),
+            new StringValue("java.lang.String"),
+            INSTANCEOF,
+            true,
+            "\"foo\" instanceof \"java.lang.String\""),
+        Arguments.of(
+            new StringValue("foo"),
+            new StringValue("java.lang.Object"),
+            INSTANCEOF,
+            true,
+            "\"foo\" instanceof \"java.lang.Object\""),
+        Arguments.of(
+            new ObjectValue(new Random()),
+            new StringValue("java.util.Random"),
+            INSTANCEOF,
+            true,
+            "java.util.Random instanceof \"java.util.Random\""),
+        Arguments.of(
+            new ObjectValue(new ArrayList<>()),
+            new StringValue("java.util.List"),
+            INSTANCEOF,
+            true,
+            "java.util.ArrayList instanceof \"java.util.List\""),
+        Arguments.of(
+            new ObjectValue(new ArrayList<>()),
+            new StringValue("java.util.Map"),
+            INSTANCEOF,
+            false,
+            "java.util.ArrayList instanceof \"java.util.Map\""),
+        Arguments.of(
+            ValueExpression.NULL,
+            new StringValue("java.lang.String"),
+            INSTANCEOF,
+            false,
+            "null instanceof \"java.lang.String\""),
+        Arguments.of(
+            new NumericValue(1),
+            new StringValue("java.lang.Long"),
+            INSTANCEOF,
+            true,
+            "1 instanceof \"java.lang.Long\""),
+        Arguments.of(
+            new NumericValue(1.0),
+            new StringValue("java.lang.Double"),
+            INSTANCEOF,
+            true,
+            "1.0 instanceof \"java.lang.Double\""));
   }
 
   @ParameterizedTest
@@ -182,6 +235,28 @@ class ComparisonExpressionTest {
     ComparisonExpression expression =
         new ComparisonExpression(ValueExpression.NULL, ValueExpression.NULL, EQ);
     assertTrue(expression.evaluate(NoopResolver.INSTANCE));
+  }
+
+  @Test
+  void invalidInstanceofOperand() {
+    ComparisonExpression expression =
+        new ComparisonExpression(new StringValue("foo"), new NumericValue(1), INSTANCEOF);
+    EvaluationException evaluationException =
+        assertThrows(EvaluationException.class, () -> expression.evaluate(NoopResolver.INSTANCE));
+    assertEquals(
+        "Right operand of instanceof operator must be a string literal",
+        evaluationException.getMessage());
+    assertEquals("\"foo\" instanceof 1", evaluationException.getExpr());
+  }
+
+  @Test
+  void invalidInstanceofClassName() {
+    ComparisonExpression expression =
+        new ComparisonExpression(new StringValue("foo"), new StringValue("String"), INSTANCEOF);
+    EvaluationException evaluationException =
+        assertThrows(EvaluationException.class, () -> expression.evaluate(NoopResolver.INSTANCE));
+    assertEquals("Class not found: String", evaluationException.getMessage());
+    assertEquals("\"foo\" instanceof \"String\"", evaluationException.getExpr());
   }
 
   private static class NoopResolver implements ValueReferenceResolver {

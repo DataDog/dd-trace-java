@@ -27,7 +27,7 @@ public class SegmentlessTestProbes implements CoverageProbeStore {
   private final Thread testThread = Thread.currentThread();
   private volatile Class<?> lastCoveredClass;
   private final Map<Class<?>, Class<?>> coveredClasses;
-  private final Map<Class<?>, Class<?>> concurrentCoveredClasses;
+  private final Map<Thread, Map<Class<?>, Class<?>>> concurrentCoveredClasses;
   private final Collection<String> nonCodeResources;
   private final SourcePathResolver sourcePathResolver;
   private volatile TestReport testReport;
@@ -47,11 +47,14 @@ public class SegmentlessTestProbes implements CoverageProbeStore {
   @Override
   public void record(Class<?> clazz) {
     if (clazz != lastCoveredClass) {
-      if (Thread.currentThread() == testThread) {
+      Thread currentThread = Thread.currentThread();
+      if (currentThread == testThread) {
         coveredClasses.put(lastCoveredClass, null);
         lastCoveredClass = clazz;
       } else {
-        concurrentCoveredClasses.put(clazz, clazz);
+        concurrentCoveredClasses
+            .computeIfAbsent(currentThread, t -> new IdentityHashMap<>())
+            .put(clazz, null);
       }
     }
   }
@@ -65,7 +68,11 @@ public class SegmentlessTestProbes implements CoverageProbeStore {
   public void report(Long testSessionId, Long testSuiteId, long spanId) {
     Map<Class<?>, Class<?>> classes = map(coveredClasses.size() + concurrentCoveredClasses.size());
     classes.putAll(coveredClasses);
-    classes.putAll(concurrentCoveredClasses);
+
+    for (Map<Class<?>, Class<?>> threadCoveredClasses : concurrentCoveredClasses.values()) {
+      classes.putAll(threadCoveredClasses);
+    }
+
     classes.put(lastCoveredClass, null);
     classes.remove(null);
 

@@ -366,6 +366,26 @@ public class IastWebController {
     return "Ok";
   }
 
+  @GetMapping("/header_injection")
+  public String headerInjection(@RequestParam("param") String param, HttpServletResponse response) {
+    response.addHeader("X-Test-Header", param);
+    return "Ok";
+  }
+
+  @GetMapping("/header_injection_exclusion")
+  public String headerInjectionExclusion(
+      @RequestParam("param") String param, HttpServletResponse response) {
+    response.addHeader("Sec-WebSocket-Location", param);
+    return "Ok";
+  }
+
+  @GetMapping("/header_injection_redaction")
+  public String headerInjectionRedaction(
+      @RequestParam("param") String param, HttpServletResponse response) {
+    response.addHeader("X-Test-Header", param);
+    return "Ok";
+  }
+
   private void withProcess(final Operation<Process> op) {
     Process process = null;
     try {

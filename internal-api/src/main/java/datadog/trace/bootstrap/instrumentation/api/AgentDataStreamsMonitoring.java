@@ -27,4 +27,13 @@ public interface AgentDataStreamsMonitoring extends DataStreamsCheckpointer {
   PathwayContext newPathwayContext();
 
   void add(StatsPoint statsPoint);
+
+  /**
+   * shouldSampleSchema is used to determine if we should extract schema from the message or not.
+   *
+   * @param topic Kafka topic
+   * @return the weight of the schema, indicating how many messages have been sent to the topic
+   *     without having been sampled.
+   */
+  int shouldSampleSchema(String topic);
 }

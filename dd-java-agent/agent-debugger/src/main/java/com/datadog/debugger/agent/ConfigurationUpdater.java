@@ -1,5 +1,7 @@
 package com.datadog.debugger.agent;
 
+import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
+
 import com.datadog.debugger.instrumentation.InstrumentationResult;
 import com.datadog.debugger.probe.LogProbe;
 import com.datadog.debugger.probe.MetricProbe;
@@ -7,6 +9,7 @@ import com.datadog.debugger.probe.ProbeDefinition;
 import com.datadog.debugger.probe.SpanDecorationProbe;
 import com.datadog.debugger.probe.SpanProbe;
 import com.datadog.debugger.sink.DebuggerSink;
+import com.datadog.debugger.sink.ProbeStatusSink;
 import com.datadog.debugger.util.ExceptionHelper;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.debugger.DebuggerContext;
@@ -69,7 +72,8 @@ public class ConfigurationUpdater
         instrumentation,
         transformerSupplier,
         config,
-        new DebuggerSink(config, config.getFinalDebuggerSnapshotUrl(), false),
+        new DebuggerSink(
+            config, new ProbeStatusSink(config, config.getFinalDebuggerSnapshotUrl(), false)),
         finder);
   }
 
@@ -193,7 +197,7 @@ public class ConfigurationUpdater
     if (instrumentationResult.isError()) {
       return;
     }
-    instrumentationResults.put(definition.getId(), instrumentationResult);
+    instrumentationResults.put(definition.getProbeId().getEncodedId(), instrumentationResult);
     if (instrumentationResult.isInstalled()) {
       sink.addInstalled(definition.getProbeId());
     } else if (instrumentationResult.isBlocked()) {
@@ -228,25 +232,20 @@ public class ConfigurationUpdater
 
   private void storeDebuggerDefinitions(ConfigurationComparer changes) {
     for (ProbeDefinition definition : changes.getRemovedDefinitions()) {
-      appliedDefinitions.remove(definition.getId());
+      appliedDefinitions.remove(definition.getProbeId().getEncodedId());
     }
     for (ProbeDefinition definition : changes.getAddedDefinitions()) {
-      appliedDefinitions.put(definition.getId(), definition);
+      appliedDefinitions.put(definition.getProbeId().getEncodedId(), definition);
     }
     LOGGER.debug("Stored appliedDefinitions: {}", appliedDefinitions.values());
   }
 
   // /!\ This is called potentially by multiple threads from the instrumented code /!\
   @Override
-  public ProbeImplementation resolve(String id, Class<?> callingClass) {
-    ProbeDefinition definition = appliedDefinitions.get(id);
+  public ProbeImplementation resolve(String encodedProbeId) {
+    ProbeDefinition definition = appliedDefinitions.get(encodedProbeId);
     if (definition == null) {
-      LOGGER.info(
-          "Cannot resolve probe id={}, re-transforming calling class: {}",
-          id,
-          callingClass.getName());
-      retransformClasses(Collections.singletonList(callingClass));
-      return null;
+      LOGGER.warn(SEND_TELEMETRY, "Cannot resolve probe id=" + encodedProbeId);
     }
     return definition;
   }

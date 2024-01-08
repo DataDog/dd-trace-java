@@ -51,8 +51,6 @@ public abstract class HealthMetrics implements AutoCloseable {
 
   public void onCreateTrace() {}
 
-  public void onCreateManualTrace() {}
-
   public void onScopeCloseError(int scopeSource) {}
 
   public void onCaptureContinuation() {}
@@ -74,6 +72,11 @@ public abstract class HealthMetrics implements AutoCloseable {
       final int traceCount, final int sizeInBytes, final RemoteApi.Response response) {}
 
   public void onLongRunningUpdate(final int dropped, final int write, final int expired) {}
+
+  /** @return Human-readable summary of the current health metrics. */
+  public String summary() {
+    return "";
+  }
 
   @Override
   public void close() {}

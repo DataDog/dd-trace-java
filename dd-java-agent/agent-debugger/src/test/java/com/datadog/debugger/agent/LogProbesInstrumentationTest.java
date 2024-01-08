@@ -147,7 +147,7 @@ public class LogProbesInstrumentationTest {
                 "int (java.lang.String)")
             .evaluateAt(MethodLocation.EXIT)
             .build();
-    DebuggerTransformerTest.TestSnapshotListener listener = installProbes(CLASS_NAME, probe);
+    DebuggerTransformerTest.TestSnapshotListener listener = installProbes(probe);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.on(testClass).call("main", "1").get();
     Assertions.assertEquals(3, result);
@@ -173,8 +173,7 @@ public class LogProbesInstrumentationTest {
             CLASS_NAME,
             "main",
             "int (java.lang.String)");
-    DebuggerTransformerTest.TestSnapshotListener listener =
-        installProbes(CLASS_NAME, logProbe1, logProbe2);
+    DebuggerTransformerTest.TestSnapshotListener listener = installProbes(logProbe1, logProbe2);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.on(testClass).call("main", "1").get();
     Assertions.assertEquals(3, result);
@@ -238,8 +237,7 @@ public class LogProbesInstrumentationTest {
                 "int (java.lang.String)")
             .captureSnapshot(additionalCapture)
             .build();
-    DebuggerTransformerTest.TestSnapshotListener listener =
-        installProbes(CLASS_NAME, logProbe1, logProbe2);
+    DebuggerTransformerTest.TestSnapshotListener listener = installProbes(logProbe1, logProbe2);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.on(testClass).call("main", "1").get();
     Assertions.assertEquals(3, result);
@@ -393,7 +391,7 @@ public class LogProbesInstrumentationTest {
             .template(LOG_TEMPLATE, parseTemplate(LOG_TEMPLATE))
             .captureSnapshot(true)
             .build();
-    DebuggerTransformerTest.TestSnapshotListener listener = installProbes(CLASS_NAME, logProbes);
+    DebuggerTransformerTest.TestSnapshotListener listener = installProbes(logProbes);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.on(testClass).call("main", "5").get();
     Assertions.assertEquals(3, result);
@@ -490,8 +488,7 @@ public class LogProbesInstrumentationTest {
                 LOG_ID2, additionalTemplate, CLASS_NAME, "main", "int (java.lang.String)")
             .captureSnapshot(true)
             .build();
-    DebuggerTransformerTest.TestSnapshotListener listener =
-        installProbes(CLASS_NAME, logProbe1, logProbe2);
+    DebuggerTransformerTest.TestSnapshotListener listener = installProbes(logProbe1, logProbe2);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.on(testClass).call("main", "1").get();
     Assertions.assertEquals(3, result);
@@ -502,14 +499,11 @@ public class LogProbesInstrumentationTest {
   private DebuggerTransformerTest.TestSnapshotListener installSingleProbe(
       String template, String typeName, String methodName, String signature, String... lines) {
     LogProbe logProbe = createProbe(LOG_ID, template, typeName, methodName, signature, lines);
-    return installProbes(
-        typeName, Configuration.builder().setService(SERVICE_NAME).add(logProbe).build());
+    return installProbes(Configuration.builder().setService(SERVICE_NAME).add(logProbe).build());
   }
 
-  private DebuggerTransformerTest.TestSnapshotListener installProbes(
-      String expectedClassName, LogProbe... logProbes) {
+  private DebuggerTransformerTest.TestSnapshotListener installProbes(LogProbe... logProbes) {
     return installProbes(
-        expectedClassName,
         Configuration.builder()
             .setService(SERVICE_NAME)
             .addLogProbes(Arrays.asList(logProbes))
@@ -540,8 +534,7 @@ public class LogProbesInstrumentationTest {
     return createProbeBuilder(id, template, typeName, methodName, signature, lines).build();
   }
 
-  private DebuggerTransformerTest.TestSnapshotListener installProbes(
-      String expectedClassName, Configuration configuration) {
+  private DebuggerTransformerTest.TestSnapshotListener installProbes(Configuration configuration) {
     Config config = mock(Config.class);
     when(config.isDebuggerEnabled()).thenReturn(true);
     when(config.isDebuggerClassFileDumpEnabled()).thenReturn(true);
@@ -549,25 +542,22 @@ public class LogProbesInstrumentationTest {
         .thenReturn("http://localhost:8126/debugger/v1/input");
     when(config.getFinalDebuggerSymDBUrl()).thenReturn("http://localhost:8126/symdb/v1/input");
     when(config.getDebuggerUploadBatchSize()).thenReturn(100);
+    DebuggerContext.ProbeResolver resolver =
+        (encodedProbeId) -> resolver(encodedProbeId, configuration.getLogProbes());
     currentTransformer = new DebuggerTransformer(config, configuration);
     instr.addTransformer(currentTransformer);
     DebuggerTransformerTest.TestSnapshotListener listener =
         new DebuggerTransformerTest.TestSnapshotListener(config, mock(ProbeStatusSink.class));
     DebuggerAgentHelper.injectSink(listener);
-    DebuggerContext.init(
-        (id, callingClass) ->
-            resolver(id, callingClass, expectedClassName, configuration.getLogProbes()),
-        null);
+    DebuggerContext.init(resolver, null);
     DebuggerContext.initClassFilter(new DenyListHelper(null));
     DebuggerContext.initValueSerializer(new JsonSnapshotSerializer());
     return listener;
   }
 
-  private ProbeImplementation resolver(
-      String id, Class<?> callingClass, String expectedClassName, Collection<LogProbe> logProbes) {
-    Assertions.assertEquals(expectedClassName, callingClass.getName());
+  private ProbeImplementation resolver(String encodedProbeId, Collection<LogProbe> logProbes) {
     for (LogProbe probe : logProbes) {
-      if (probe.getId().equals(id)) {
+      if (probe.getProbeId().getEncodedId().equals(encodedProbeId)) {
         return probe;
       }
     }

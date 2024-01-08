@@ -1,4 +1,20 @@
+import java.util.Optional;
+
 public class CapturedSnapshot08 {
+  public static int main(String arg) {
+    return INSTANCE.doit(arg);
+  }
+
+  private int doit(String arg) {
+    int var1 = 1;
+    if (Integer.parseInt(arg) == 2) {
+      var1 = 2;
+      return var1;
+    }
+    var1 = 3;
+    return var1;
+  }
+
   static class Type3 {
     final String msg;
     Type3(String msg) {
@@ -23,20 +39,7 @@ public class CapturedSnapshot08 {
   private int fld = 11;
   private Type1 typed = new Type1(new Type2(new Type3("hello")));
   private Type1 nullTyped = new Type1(null);
+  private Optional<String> maybeStr = Optional.of("maybe foo");
 
   private static final CapturedSnapshot08 INSTANCE = new CapturedSnapshot08();
-
-  public static int main(String arg) {
-    return INSTANCE.doit(arg);
-  }
-
-  private int doit(String arg) {
-    int var1 = 1;
-    if (Integer.parseInt(arg) == 2) {
-      var1 = 2;
-      return var1;
-    }
-    var1 = 3;
-    return var1;
-  }
 }

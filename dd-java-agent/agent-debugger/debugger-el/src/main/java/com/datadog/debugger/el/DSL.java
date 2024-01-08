@@ -95,6 +95,10 @@ public class DSL {
     return new ComparisonExpression(left, right, ComparisonOperator.EQ);
   }
 
+  public static BooleanExpression instanceOf(ValueExpression<?> left, ValueExpression<?> right) {
+    return new ComparisonExpression(left, right, ComparisonOperator.INSTANCEOF);
+  }
+
   public static BooleanExpression not(BooleanExpression expression) {
     return new NotExpression(expression);
   }

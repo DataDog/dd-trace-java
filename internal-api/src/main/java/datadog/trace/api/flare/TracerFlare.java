@@ -13,17 +13,30 @@ import java.util.zip.ZipOutputStream;
 public final class TracerFlare {
 
   public interface Reporter {
-    void addReport(ZipOutputStream zip) throws IOException;
+    default void prepareForFlare() {}
+
+    void addReportToFlare(ZipOutputStream zip) throws IOException;
+
+    default void cleanupAfterFlare() {}
   }
 
   private static final Map<Class<?>, Reporter> reporters = new ConcurrentHashMap<>();
 
-  public static void buildFlare(ZipOutputStream zip) throws IOException {
+  public static void prepareForFlare() {
+    for (Reporter reporter : reporters.values()) {
+      try {
+        reporter.prepareForFlare();
+      } catch (Throwable ignore) {
+      }
+    }
+  }
+
+  public static void addReportsToFlare(ZipOutputStream zip) throws IOException {
     List<Throwable> errors = null;
 
     for (Reporter reporter : reporters.values()) {
       try {
-        reporter.addReport(zip);
+        reporter.addReportToFlare(zip);
       } catch (Throwable e) {
         if (null == errors) {
           errors = new ArrayList<>();
@@ -37,6 +50,15 @@ public final class TracerFlare {
       for (Throwable e : errors) {
         zip.write(e.toString().getBytes(UTF_8));
         zip.write('\n');
+      }
+    }
+  }
+
+  public static void cleanupAfterFlare() {
+    for (Reporter reporter : reporters.values()) {
+      try {
+        reporter.cleanupAfterFlare();
+      } catch (Throwable ignore) {
       }
     }
   }

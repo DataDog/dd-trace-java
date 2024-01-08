@@ -2,7 +2,6 @@ package datadog.trace.api.telemetry;
 
 import datadog.trace.api.metrics.CoreCounter;
 import datadog.trace.api.metrics.SpanMetricRegistryImpl;
-import datadog.trace.api.metrics.SpanMetrics;
 import datadog.trace.api.metrics.SpanMetricsImpl;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -30,10 +29,9 @@ public class CoreMetricCollector implements MetricCollector<CoreMetricCollector.
 
   @Override
   public void prepareMetrics() {
-    for (SpanMetrics spanMetric : this.spanMetricRegistry.getSpanMetrics()) {
-      SpanMetricsImpl spanMetricsImpl = (SpanMetricsImpl) spanMetric;
-      String tag = INTEGRATION_NAME_TAG + spanMetricsImpl.getInstrumentationName();
-      for (CoreCounter counter : spanMetricsImpl.getCounters()) {
+    for (SpanMetricsImpl spanMetrics : this.spanMetricRegistry.getSpanMetrics()) {
+      String tag = INTEGRATION_NAME_TAG + spanMetrics.getInstrumentationName();
+      for (CoreCounter counter : spanMetrics.getCounters()) {
         long value = counter.getValueAndReset();
         if (value == 0) {
           // Skip not updated counters

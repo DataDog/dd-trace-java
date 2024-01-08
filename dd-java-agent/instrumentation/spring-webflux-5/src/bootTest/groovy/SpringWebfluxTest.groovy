@@ -42,6 +42,11 @@ class SpringWebfluxTest extends AgentTestRunner {
 
   WebClient client = WebClient.builder().clientConnector (new ReactorClientHttpConnector()).build()
 
+  @Override
+  boolean useStrictTraceWrites() {
+    false
+  }
+
   def "Basic GET test #testName"() {
     setup:
     String url = "http://localhost:$port$urlPath"

@@ -1,5 +1,6 @@
 package com.datadog.debugger.el.expressions;
 
+import com.datadog.debugger.el.EvaluationException;
 import com.datadog.debugger.el.Value;
 import com.datadog.debugger.el.Visitor;
 import com.datadog.debugger.el.values.NumericValue;
@@ -64,6 +65,23 @@ public enum ComparisonOperator {
         return Boolean.FALSE;
       }
       return result < 0;
+    }
+  },
+  INSTANCEOF("instanceof") {
+    @Override
+    public Boolean apply(Value<?> left, Value<?> right) {
+      if (right.getValue() instanceof String) {
+        String typeStr = (String) right.getValue();
+        Class<?> clazz;
+        try {
+          clazz = Class.forName(typeStr, false, left.getValue().getClass().getClassLoader());
+        } catch (ClassNotFoundException e) {
+          throw new EvaluationException("Class not found: " + typeStr, null);
+        }
+        return clazz.isInstance(left.getValue());
+      }
+      throw new EvaluationException(
+          "Right operand of instanceof operator must be a string literal", null);
     }
   };
 

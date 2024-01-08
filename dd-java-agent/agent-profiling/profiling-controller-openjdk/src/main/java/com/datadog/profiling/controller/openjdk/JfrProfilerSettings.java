@@ -63,6 +63,7 @@ final class JfrProfilerSettings extends ProfilerSettingsSupport {
       if (hasJfrStackDepthApplied) {
         new ProfilerSettingEvent(STACK_DEPTH_KEY, String.valueOf(stackDepth)).commit();
       }
+      new ProfilerSettingEvent(SELINUX_STATUS_KEY, seLinuxStatus).commit();
     }
   }
 }

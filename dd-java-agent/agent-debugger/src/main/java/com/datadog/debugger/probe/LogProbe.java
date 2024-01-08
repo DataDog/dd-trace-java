@@ -351,7 +351,7 @@ public class LogProbe extends ProbeDefinition {
       ClassNode classNode,
       MethodNode methodNode,
       List<DiagnosticMessage> diagnostics,
-      List<String> probeIds) {
+      List<ProbeId> probeIds) {
     return new CapturedContextInstrumentor(
             this,
             classLoader,
@@ -439,8 +439,8 @@ public class LogProbe extends ProbeDefinition {
       CapturedContext entryContext,
       CapturedContext exitContext,
       List<CapturedContext.CapturedThrowable> caughtExceptions) {
-    LogStatus entryStatus = convertStatus(entryContext.getStatus(id));
-    LogStatus exitStatus = convertStatus(exitContext.getStatus(id));
+    LogStatus entryStatus = convertStatus(entryContext.getStatus(probeId.getEncodedId()));
+    LogStatus exitStatus = convertStatus(exitContext.getStatus(probeId.getEncodedId()));
     String message = null;
     String traceId = null;
     String spanId = null;
@@ -522,7 +522,7 @@ public class LogProbe extends ProbeDefinition {
 
   @Override
   public void commit(CapturedContext lineContext, int line) {
-    LogStatus status = (LogStatus) lineContext.getStatus(id);
+    LogStatus status = (LogStatus) lineContext.getStatus(probeId.getEncodedId());
     if (status == null) {
       return;
     }
