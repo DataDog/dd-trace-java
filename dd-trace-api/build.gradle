@@ -35,6 +35,8 @@ excludedClassesCoverage += [
   'datadog.trace.api.experimental.DataStreamsContextCarrier',
   'datadog.trace.api.experimental.DataStreamsContextCarrier.NoOp',
   'datadog.appsec.api.blocking.*',
+  'datadog.trace.context.NoopTraceScope.NoopContinuation',
+  'datadog.trace.context.NoopTraceScope',
 ]
 
 description = 'dd-trace-api'
