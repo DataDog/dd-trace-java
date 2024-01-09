@@ -9,7 +9,6 @@ import java.lang.reflect.ParameterizedType;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -26,30 +25,37 @@ public class TraceSamplingRules {
   private final List<Rule> rules;
 
   public TraceSamplingRules(List<Rule> rules) {
-    List<Rule> notNullRules = new ArrayList<>(rules.size());
-    for (Rule rule : rules) {
-      if (rule != null) {
-        notNullRules.add(rule);
-      }
-    }
-    this.rules = notNullRules;
+    this.rules = Collections.unmodifiableList(rules);
   }
 
   public static TraceSamplingRules deserialize(String json) {
-    TraceSamplingRules result = TraceSamplingRules.EMPTY;
+    TraceSamplingRules result = EMPTY;
     try {
-      List<Rule> rules = LIST_OF_RULES_ADAPTER.fromJson(json);
-      if (rules != null) {
-        result = new TraceSamplingRules(rules);
-      }
+      result = filterOutNullRules(LIST_OF_RULES_ADAPTER.fromJson(json));
     } catch (Throwable ex) {
       log.error("Couldn't parse Trace Sampling Rules from JSON: {}", json, ex);
     }
     return result;
   }
 
+  private static TraceSamplingRules filterOutNullRules(List<Rule> rules) {
+    if (rules == null || rules.isEmpty()) {
+      return EMPTY;
+    }
+    List<Rule> notNullRules = new ArrayList<>(rules.size());
+    for (Rule rule : rules) {
+      if (rule != null) {
+        notNullRules.add(rule);
+      }
+    }
+    if (notNullRules.isEmpty()) {
+      return EMPTY;
+    }
+    return new TraceSamplingRules(notNullRules);
+  }
+
   public List<Rule> getRules() {
-    return Collections.unmodifiableList(this.rules);
+    return rules;
   }
 
   public boolean isEmpty() {
@@ -61,21 +67,14 @@ public class TraceSamplingRules {
     private final String name;
     private final String resource;
     private final Map<String, String> tags;
-    private final TargetSpan targetSpan;
     private final double sampleRate;
 
     private Rule(
-        String service,
-        String name,
-        String resource,
-        Map<String, String> tags,
-        TargetSpan targetSpan,
-        double sampleRate) {
+        String service, String name, String resource, Map<String, String> tags, double sampleRate) {
       this.service = service;
       this.name = name;
       this.resource = resource;
       this.tags = tags;
-      this.targetSpan = targetSpan;
       this.sampleRate = sampleRate;
     }
 
@@ -86,37 +85,13 @@ public class TraceSamplingRules {
      * @return A {@link Rule} if the {@link JsonRule} is valid, {@code null} otherwise.
      */
     public static Rule create(JsonRule jsonRule) {
-      // Validate service name
-      String service = jsonRule.service;
-      if (service == null || MATCH_ALL.equals(service)) {
-        service = MATCH_ALL;
-      }
-      // Validate operation name
-      String name = jsonRule.name;
-      if (name == null || MATCH_ALL.equals(name)) {
-        name = MATCH_ALL;
-      }
-      // Validate resource name
-      String resource = jsonRule.resource;
-      if (resource == null || MATCH_ALL.equals(resource)) {
-        resource = MATCH_ALL;
-      }
-      // Validate tags
+      String service = SamplingRule.normalizeGlob(jsonRule.service);
+      String name = SamplingRule.normalizeGlob(jsonRule.name);
+      String resource = SamplingRule.normalizeGlob(jsonRule.resource);
       Map<String, String> tags = jsonRule.tags;
       if (tags == null) {
         tags = Collections.emptyMap();
       }
-      // Validate target_span
-      TargetSpan targetSpan = TargetSpan.ROOT;
-      if (jsonRule.target_span != null) {
-        try {
-          targetSpan = TargetSpan.valueOf(jsonRule.target_span.toUpperCase(Locale.ROOT));
-        } catch (IllegalArgumentException ex) {
-          logRuleError(jsonRule, "target_span must be either \"root\" or \"any\"");
-          return null;
-        }
-      }
-      // Validate sample_rate
       double sampleRate = 1D;
       if (jsonRule.sample_rate != null) {
         try {
@@ -130,7 +105,7 @@ public class TraceSamplingRules {
           return null;
         }
       }
-      return new Rule(service, name, resource, tags, targetSpan, sampleRate);
+      return new Rule(service, name, resource, tags, sampleRate);
     }
 
     private static void logRuleError(JsonRule rule, String error) {
@@ -158,17 +133,14 @@ public class TraceSamplingRules {
     }
 
     @Override
-    public TargetSpan getTargetSpan() {
-      return targetSpan;
-    }
-
-    @Override
     public double getSampleRate() {
       return sampleRate;
     }
   }
 
   private static final class JsonRule {
+    private static final JsonAdapter<JsonRule> jsonAdapter = MOSHI.adapter(JsonRule.class);
+
     String service;
     String name;
     String resource;
@@ -178,22 +150,7 @@ public class TraceSamplingRules {
 
     @Override
     public String toString() {
-      StringBuilder tags = null;
-      if (this.tags != null) {
-        tags = new StringBuilder("{");
-        for (Map.Entry<String, String> entry : this.tags.entrySet()) {
-          tags.append("\"").append(entry.getKey()).append("\": ").append(entry.getValue());
-        }
-        tags.append("}");
-      }
-      return "{"
-          + (this.service == null ? "" : "\"service:\" " + this.service + ",")
-          + (this.name == null ? "" : "\"name:\" " + this.name + ",")
-          + (this.resource == null ? "" : "\"resource:\" " + this.resource + ",")
-          + (tags == null ? "" : "\"tags\": " + tags)
-          + (this.target_span == null ? "" : "\"target_span:\" " + this.target_span + ",")
-          + (this.sample_rate == null ? "" : "\"sample_rate:\" " + this.sample_rate + ",")
-          + "}";
+      return jsonAdapter.toJson(this);
     }
   }
 

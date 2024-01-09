@@ -1,7 +1,7 @@
 package datadog.trace.instrumentation.junit5;
 
 import datadog.trace.api.Pair;
-import datadog.trace.api.civisibility.config.SkippableTest;
+import datadog.trace.api.civisibility.config.TestIdentifier;
 import java.io.InputStream;
 import java.util.ArrayDeque;
 import java.util.Deque;
@@ -17,6 +17,10 @@ import org.junit.platform.engine.UniqueId;
 import org.junit.platform.engine.support.descriptor.ClasspathResourceSource;
 
 public abstract class CucumberUtils {
+
+  static {
+    TestIdentifierFactory.register("cucumber", CucumberUtils::toTestIdentifier);
+  }
 
   public static @Nullable String getCucumberVersion(TestEngine cucumberEngine) {
     try (InputStream cucumberPropsStream =
@@ -92,7 +96,8 @@ public abstract class CucumberUtils {
     return "feature".equals(lastSegment.getType());
   }
 
-  public static SkippableTest toSkippableTest(TestDescriptor testDescriptor) {
+  public static TestIdentifier toTestIdentifier(
+      TestDescriptor testDescriptor, boolean includeParameters) {
     TestSource testSource = testDescriptor.getSource().orElse(null);
     if (testSource instanceof ClasspathResourceSource) {
       ClasspathResourceSource classpathResourceSource = (ClasspathResourceSource) testSource;
@@ -102,7 +107,7 @@ public abstract class CucumberUtils {
           getFeatureAndScenarioNames(testDescriptor, classpathResourceName);
       String testSuiteName = names.getLeft();
       String testName = names.getRight();
-      return new SkippableTest(testSuiteName, testName, null, null);
+      return new TestIdentifier(testSuiteName, testName, null, null);
 
     } else {
       return null;

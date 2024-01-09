@@ -49,5 +49,37 @@ class SpanMetricRegistryTest extends DDSpecification {
     then:
     metricsCollection.size() == 2
     metricsCollection.toSet() == [metrics1, metrics2].toSet()
+
+    when:
+    metrics1.onSpanCreated()
+    metrics1.onSpanFinished()
+    metrics1.onSpanCreated()
+    metrics2.onSpanCreated()
+
+    then:
+    ((SpanMetricsImpl) metrics1).counters[0].getValueAndReset() == 2
+    ((SpanMetricsImpl) metrics1).counters[1].getValueAndReset() == 1
+    ((SpanMetricsImpl) metrics2).counters[0].getValueAndReset() == 1
+    ((SpanMetricsImpl) metrics2).counters[1].getValueAndReset() == 0
+
+    when:
+    metrics1.onSpanFinished()
+    metrics2.onSpanCreated()
+    metrics2.onSpanCreated()
+    metrics2.onSpanCreated()
+    metrics2.onSpanCreated()
+    metrics2.onSpanCreated()
+
+    then:
+    ((SpanMetricsImpl) metrics1).counters[0].getValueAndReset() == 0
+    ((SpanMetricsImpl) metrics1).counters[1].getValueAndReset() == 1
+    ((SpanMetricsImpl) metrics2).counters[0].getValueAndReset() == 5
+    ((SpanMetricsImpl) metrics2).counters[1].getValueAndReset() == 0
+
+    and:
+    def summary1 = 'test1: spans_created=2, spans_finished=2\n'
+    def summary2 = 'test2: spans_created=6, spans_finished=0\n'
+
+    spanMetricRegistry.summary() =~ /($summary1$summary2)|($summary2$summary1)/
   }
 }

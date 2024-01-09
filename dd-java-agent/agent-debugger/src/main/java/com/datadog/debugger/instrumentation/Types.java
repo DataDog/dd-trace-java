@@ -22,6 +22,7 @@ import datadog.trace.bootstrap.debugger.CorrelationAccess;
 import datadog.trace.bootstrap.debugger.DebuggerContext;
 import datadog.trace.bootstrap.debugger.DebuggerSpan;
 import datadog.trace.bootstrap.debugger.MethodLocation;
+import datadog.trace.bootstrap.debugger.ProbeId;
 import datadog.trace.bootstrap.debugger.el.ReflectiveFieldValueResolver;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -68,6 +69,7 @@ public final class Types {
   public static final Type REFLECTIVE_FIELD_VALUE_RESOLVER_TYPE =
       Type.getType(ReflectiveFieldValueResolver.class);
   public static final Type METRICKIND_TYPE = Type.getType(DebuggerContext.MetricKind.class);
+  public static final Type PROBE_ID_TYPE = Type.getType(ProbeId.class);
 
   // special initialization methods
   public static final String CONSTRUCTOR = "<init>";

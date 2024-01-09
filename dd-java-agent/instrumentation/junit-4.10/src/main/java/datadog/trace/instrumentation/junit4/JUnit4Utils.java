@@ -1,11 +1,10 @@
 package datadog.trace.instrumentation.junit4;
 
-import datadog.trace.api.civisibility.config.SkippableTest;
+import datadog.trace.api.civisibility.config.TestIdentifier;
+import datadog.trace.util.MethodHandles;
 import datadog.trace.util.Strings;
 import java.lang.annotation.Annotation;
 import java.lang.invoke.MethodHandle;
-import java.lang.invoke.MethodHandles;
-import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -13,18 +12,16 @@ import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import javax.annotation.Nullable;
+import junit.framework.TestCase;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.runner.Description;
 import org.junit.runner.notification.RunListener;
 import org.junit.runner.notification.RunNotifier;
 import org.junit.runners.ParentRunner;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 public abstract class JUnit4Utils {
 
-  private static final Logger log = LoggerFactory.getLogger(JUnit4Utils.class);
   private static final String SYNCHRONIZED_LISTENER =
       "org.junit.runner.notification.SynchronizedRunListener";
 
@@ -34,110 +31,49 @@ public abstract class JUnit4Utils {
   private static final Pattern METHOD_AND_CLASS_NAME_PATTERN =
       Pattern.compile("([\\s\\S]*)\\((.*)\\)");
 
-  private static final MethodHandle PARENT_RUNNER_DESCRIBE_CHILD;
-  private static final MethodHandle RUN_NOTIFIER_LISTENERS;
-  private static final MethodHandle INNER_SYNCHRONIZED_LISTENER;
-  private static final MethodHandle DESCRIPTION_UNIQUE_ID;
+  private static final MethodHandles METHOD_HANDLES =
+      new MethodHandles(ParentRunner.class.getClassLoader());
+  private static final MethodHandle PARENT_RUNNER_DESCRIBE_CHILD =
+      METHOD_HANDLES.method(ParentRunner.class, "describeChild", Object.class);
+  private static final MethodHandle RUN_NOTIFIER_LISTENERS = accessListenersFieldInRunNotifier();
+  private static final MethodHandle INNER_SYNCHRONIZED_LISTENER =
+      accessListenerFieldInSynchronizedListener();
+  private static final MethodHandle DESCRIPTION_UNIQUE_ID =
+      METHOD_HANDLES.privateFieldGetter(Description.class, "fUniqueId");
 
-  static {
-    MethodHandles.Lookup lookup = MethodHandles.lookup();
-    PARENT_RUNNER_DESCRIBE_CHILD = accessDescribeChildMethodInParentRunner(lookup);
-    RUN_NOTIFIER_LISTENERS = accessListenersFieldInRunNotifier(lookup);
-    INNER_SYNCHRONIZED_LISTENER = accessListenerFieldInSynchronizedListener(lookup);
-    DESCRIPTION_UNIQUE_ID = accessUniqueIdInDescription(lookup);
-  }
-
-  private static MethodHandle accessDescribeChildMethodInParentRunner(MethodHandles.Lookup lookup) {
-    try {
-      Method describeChild = ParentRunner.class.getDeclaredMethod("describeChild", Object.class);
-      describeChild.setAccessible(true);
-      return lookup.unreflect(describeChild);
-    } catch (Exception e) {
-      return null;
+  private static MethodHandle accessListenersFieldInRunNotifier() {
+    MethodHandle listeners = METHOD_HANDLES.privateFieldGetter(RunNotifier.class, "listeners");
+    if (listeners != null) {
+      return listeners;
     }
+    // Before JUnit 4.12, the field is called "fListeners"
+    return METHOD_HANDLES.privateFieldGetter(RunNotifier.class, "fListeners");
   }
 
-  private static MethodHandle accessListenersFieldInRunNotifier(MethodHandles.Lookup lookup) {
-    try {
-      Field listeners;
-      try {
-        // Since JUnit 4.12, the field is called "listeners"
-        listeners = RunNotifier.class.getDeclaredField("listeners");
-      } catch (final NoSuchFieldException e) {
-        // Before JUnit 4.12, the field is called "fListeners"
-        listeners = RunNotifier.class.getDeclaredField("fListeners");
-      }
-
-      listeners.setAccessible(true);
-      return lookup.unreflectGetter(listeners);
-    } catch (final Throwable e) {
-      log.debug("Could not get runListeners for JUnit4Advice", e);
-      return null;
-    }
-  }
-
-  private static MethodHandle accessListenerFieldInSynchronizedListener(
-      MethodHandles.Lookup lookup) {
-    ClassLoader classLoader = RunListener.class.getClassLoader();
-    MethodHandle handle = accessListenerFieldInSynchronizedListener(lookup, classLoader);
+  private static MethodHandle accessListenerFieldInSynchronizedListener() {
+    MethodHandle handle = METHOD_HANDLES.privateFieldGetter(SYNCHRONIZED_LISTENER, "listener");
     if (handle != null) {
       return handle;
-    } else {
-      ClassLoader contextClassLoader = Thread.currentThread().getContextClassLoader();
-      return accessListenerFieldInSynchronizedListener(lookup, contextClassLoader);
     }
-  }
-
-  private static MethodHandle accessListenerFieldInSynchronizedListener(
-      MethodHandles.Lookup lookup, ClassLoader classLoader) {
-    try {
-      Class<?> synchronizedListenerClass = classLoader.loadClass(SYNCHRONIZED_LISTENER);
-      final Field innerListenerField = synchronizedListenerClass.getDeclaredField("listener");
-      innerListenerField.setAccessible(true);
-      return lookup.unreflectGetter(innerListenerField);
-    } catch (Exception e) {
-      return null;
-    }
-  }
-
-  private static MethodHandle accessUniqueIdInDescription(MethodHandles.Lookup lookup) {
-    try {
-      final Field uniqueIdField = Description.class.getDeclaredField("fUniqueId");
-      uniqueIdField.setAccessible(true);
-      return lookup.unreflectGetter(uniqueIdField);
-    } catch (Throwable throwable) {
-      return null;
-    }
+    ClassLoader contextClassLoader = Thread.currentThread().getContextClassLoader();
+    return new MethodHandles(contextClassLoader)
+        .privateFieldGetter(SYNCHRONIZED_LISTENER, "listener");
   }
 
   public static List<RunListener> runListenersFromRunNotifier(final RunNotifier runNotifier) {
-    try {
-      if (RUN_NOTIFIER_LISTENERS != null) {
-        return (List<RunListener>) RUN_NOTIFIER_LISTENERS.invoke(runNotifier);
-      }
-    } catch (final Throwable e) {
-      log.debug("Could not get runListeners for JUnit4Advice", e);
-    }
-    return null;
+    return METHOD_HANDLES.invoke(RUN_NOTIFIER_LISTENERS, runNotifier);
   }
 
   public static TracingListener toTracingListener(final RunListener listener) {
-    if (listener instanceof TracingListener) {
-      return (TracingListener) listener;
-    }
-
     // Since JUnit 4.12, the RunListener are wrapped by a SynchronizedRunListener object.
     if (SYNCHRONIZED_LISTENER.equals(listener.getClass().getName())) {
-      try {
-        if (INNER_SYNCHRONIZED_LISTENER != null) {
-          Object innerListener = INNER_SYNCHRONIZED_LISTENER.invoke(listener);
-          if (innerListener instanceof TracingListener) {
-            return (TracingListener) innerListener;
-          }
-        }
-      } catch (final Throwable e) {
-        log.debug("Could not get inner listener from SynchronizedRunListener", e);
+      RunListener innerListener = METHOD_HANDLES.invoke(INNER_SYNCHRONIZED_LISTENER, listener);
+      if (innerListener instanceof TracingListener) {
+        return (TracingListener) innerListener;
       }
+    }
+    if (listener instanceof TracingListener) {
+      return (TracingListener) listener;
     }
     return null;
   }
@@ -301,18 +237,11 @@ public abstract class JUnit4Utils {
         return true;
       }
     }
-    return false;
+    return TestCase.class.isAssignableFrom(testClass);
   }
 
   public static Object getUniqueId(final Description description) {
-    try {
-      if (DESCRIPTION_UNIQUE_ID != null) {
-        return DESCRIPTION_UNIQUE_ID.invoke(description);
-      }
-    } catch (Throwable e) {
-      log.error("Could not get unique ID from descriptions: " + description, e);
-    }
-    return null;
+    return METHOD_HANDLES.invoke(DESCRIPTION_UNIQUE_ID, description);
   }
 
   public static String getSuiteName(final Class<?> testClass, final Description description) {
@@ -332,14 +261,7 @@ public abstract class JUnit4Utils {
   }
 
   public static Description getDescription(ParentRunner<?> runner, Object child) {
-    try {
-      if (PARENT_RUNNER_DESCRIBE_CHILD != null) {
-        return (Description) PARENT_RUNNER_DESCRIBE_CHILD.invokeWithArguments(runner, child);
-      }
-    } catch (Throwable e) {
-      log.error("Could not describe child: " + child, e);
-    }
-    return null;
+    return METHOD_HANDLES.invoke(PARENT_RUNNER_DESCRIBE_CHILD, runner, child);
   }
 
   public static Description getSkippedDescription(Description description) {
@@ -358,11 +280,12 @@ public abstract class JUnit4Utils {
     return Description.createTestDescription(testClass, name, updatedAnnotations);
   }
 
-  public static SkippableTest toSkippableTest(Description description) {
+  public static TestIdentifier toTestIdentifier(
+      Description description, boolean includeParameters) {
     Method testMethod = JUnit4Utils.getTestMethod(description);
     String suite = description.getClassName();
     String name = JUnit4Utils.getTestName(description, testMethod);
-    String parameters = JUnit4Utils.getParameters(description);
-    return new SkippableTest(suite, name, parameters, null);
+    String parameters = includeParameters ? JUnit4Utils.getParameters(description) : null;
+    return new TestIdentifier(suite, name, parameters, null);
   }
 }

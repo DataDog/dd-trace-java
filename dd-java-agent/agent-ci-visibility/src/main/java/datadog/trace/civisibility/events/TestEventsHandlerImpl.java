@@ -4,8 +4,9 @@ import static datadog.trace.util.Strings.toJson;
 
 import datadog.trace.api.DisableTestTrace;
 import datadog.trace.api.civisibility.InstrumentationBridge;
-import datadog.trace.api.civisibility.config.SkippableTest;
+import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.civisibility.events.TestEventsHandler;
+import datadog.trace.api.civisibility.retry.TestRetryPolicy;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.civisibility.DDTestFrameworkModule;
 import datadog.trace.civisibility.DDTestFrameworkSession;
@@ -16,6 +17,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.objectweb.asm.Type;
 import org.slf4j.Logger;
@@ -170,7 +172,8 @@ public class TestEventsHandlerImpl implements TestEventsHandler {
         if (category.endsWith(InstrumentationBridge.ITR_UNSKIPPABLE_TAG)) {
           test.setTag(Tags.TEST_ITR_UNSKIPPABLE, true);
 
-          SkippableTest thisTest = new SkippableTest(testSuiteName, testName, testParameters, null);
+          TestIdentifier thisTest =
+              new TestIdentifier(testSuiteName, testName, testParameters, null);
           if (testModule.isSkippable(thisTest)) {
             test.setTag(Tags.TEST_ITR_FORCED_RUN, true);
           }
@@ -282,8 +285,14 @@ public class TestEventsHandlerImpl implements TestEventsHandler {
   }
 
   @Override
-  public boolean skip(SkippableTest test) {
+  public boolean skip(TestIdentifier test) {
     return testModule.skip(test);
+  }
+
+  @Override
+  @Nonnull
+  public TestRetryPolicy retryPolicy(TestIdentifier test) {
+    return testModule.retryPolicy(test);
   }
 
   @Override

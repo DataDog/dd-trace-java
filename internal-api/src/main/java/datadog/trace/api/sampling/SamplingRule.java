@@ -4,6 +4,10 @@ import java.util.Map;
 
 /** This interface describes the criteria for a sampling rule. */
 public interface SamplingRule {
+  static String normalizeGlob(String name) {
+    return name == null || MATCH_ALL.equals(name) ? MATCH_ALL : name;
+  }
+
   /** The "match all" glob pattern . */
   String MATCH_ALL = "*";
 
@@ -47,24 +51,7 @@ public interface SamplingRule {
   double getSampleRate();
 
   /** This interface describes the criteria of a sampling rule that can match against a trace. */
-  interface TraceSamplingRule extends SamplingRule {
-    /**
-     * Gets the span type the rule must match against. If {@link TargetSpan#ROOT}, only the root
-     * span of the trace will be evaluated to validate the rule. If {@link TargetSpan#ANY}, all
-     * spans from the trace might be evaluated, and only one need to match to validate the rule.
-     *
-     * @return The span type the rule must be validated against.
-     */
-    TargetSpan getTargetSpan();
-
-    /**
-     * This enumerate defines against which span of the trace must be validated the sampling rule.
-     */
-    enum TargetSpan {
-      ROOT,
-      ANY
-    }
-  }
+  interface TraceSamplingRule extends SamplingRule {}
 
   /** This interface describes the criteria of a sampling rule that can match against a span. */
   interface SpanSamplingRule extends SamplingRule {

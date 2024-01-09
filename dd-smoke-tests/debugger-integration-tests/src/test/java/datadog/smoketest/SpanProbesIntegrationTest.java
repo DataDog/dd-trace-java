@@ -2,7 +2,6 @@ package datadog.smoketest;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-import com.datadog.debugger.agent.DebuggerTracer;
 import com.datadog.debugger.agent.ProbeStatus;
 import com.datadog.debugger.probe.SpanProbe;
 import datadog.trace.test.agent.decoder.DecodedSpan;
@@ -27,20 +26,28 @@ public class SpanProbesIntegrationTest extends SimpleAppDebuggerIntegrationTest 
   @DisplayName("testMethodSpan")
   void testMethodSpan() throws Exception {
     final String METHOD_NAME = "fullMethod";
-    final String EXPECTED_UPLOADS = "3"; // 2 + 1 for letting the trace being sent (async)
+    final String EXPECTED_UPLOADS = "4"; // 3 statuses + 1 for letting the trace being sent (async)
     SpanProbe spanProbe =
         SpanProbe.builder().probeId(PROBE_ID).where(MAIN_CLASS_NAME, METHOD_NAME).build();
     setCurrentConfiguration(createSpanConfig(spanProbe));
     targetProcess = createProcessBuilder(logFilePath, METHOD_NAME, EXPECTED_UPLOADS).start();
-    DecodedSpan decodedSpan = retrieveSpanRequest(DebuggerTracer.OPERATION_NAME);
-    assertEquals("Main.fullMethod", decodedSpan.getResource());
+
+    AtomicBoolean statusResult = registerCheckReceivedInstalledEmitting();
+    AtomicBoolean traceReceived = new AtomicBoolean();
+    registerTraceListener(
+        decodedTrace -> {
+          DecodedSpan decodedSpan = decodedTrace.getSpans().get(0);
+          assertEquals("Main.fullMethod", decodedSpan.getResource());
+          traceReceived.set(true);
+        });
+    processRequests(() -> statusResult.get() && traceReceived.get());
   }
 
   @Test
   @DisplayName("testLineRangeSpan")
   void testLineRangeSpan() throws Exception {
     final String METHOD_NAME = "fullMethod";
-    final String EXPECTED_UPLOADS = "3"; // 2 + 1 for letting the trace being sent (async)
+    final String EXPECTED_UPLOADS = "4"; // 3 statuses + 1 for letting the trace being sent (async)
     SpanProbe spanProbe =
         SpanProbe.builder()
             .probeId(PROBE_ID)
@@ -50,8 +57,15 @@ public class SpanProbesIntegrationTest extends SimpleAppDebuggerIntegrationTest 
             .build();
     setCurrentConfiguration(createSpanConfig(spanProbe));
     targetProcess = createProcessBuilder(logFilePath, METHOD_NAME, EXPECTED_UPLOADS).start();
-    DecodedSpan decodedSpan = retrieveSpanRequest(DebuggerTracer.OPERATION_NAME);
-    assertEquals("Main.fullMethod:L88-97", decodedSpan.getResource());
+    AtomicBoolean statusResult = registerCheckReceivedInstalledEmitting();
+    AtomicBoolean traceReceived = new AtomicBoolean();
+    registerTraceListener(
+        decodedTrace -> {
+          DecodedSpan decodedSpan = decodedTrace.getSpans().get(0);
+          assertEquals("Main.fullMethod:L88-97", decodedSpan.getResource());
+          traceReceived.set(true);
+        });
+    processRequests(() -> statusResult.get() && traceReceived.get());
   }
 
   @Test
@@ -81,8 +95,7 @@ public class SpanProbesIntegrationTest extends SimpleAppDebuggerIntegrationTest 
                 probeStatus.getDiagnostics().getException().getMessage());
             error.set(true);
           }
-          return received.get() && error.get();
         });
-    processRequests();
+    processRequests(() -> received.get() && error.get());
   }
 }

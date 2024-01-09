@@ -29,6 +29,7 @@ import datadog.trace.api.StatsDClient;
 import datadog.trace.api.TracePropagationStyle;
 import datadog.trace.api.config.GeneralConfig;
 import datadog.trace.api.experimental.DataStreamsCheckpointer;
+import datadog.trace.api.flare.TracerFlare;
 import datadog.trace.api.gateway.CallbackProvider;
 import datadog.trace.api.gateway.InstrumentationGateway;
 import datadog.trace.api.gateway.RequestContext;
@@ -37,6 +38,7 @@ import datadog.trace.api.gateway.SubscriptionService;
 import datadog.trace.api.interceptor.MutableSpan;
 import datadog.trace.api.interceptor.TraceInterceptor;
 import datadog.trace.api.internal.TraceSegment;
+import datadog.trace.api.metrics.SpanMetricRegistry;
 import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.api.profiling.Timer;
 import datadog.trace.api.sampling.PrioritySampling;
@@ -68,6 +70,7 @@ import datadog.trace.common.writer.DDAgentWriter;
 import datadog.trace.common.writer.Writer;
 import datadog.trace.common.writer.WriterFactory;
 import datadog.trace.common.writer.ddintake.DDIntakeTraceInterceptor;
+import datadog.trace.context.TraceScope;
 import datadog.trace.core.datastreams.DataStreamContextInjector;
 import datadog.trace.core.datastreams.DataStreamsMonitoring;
 import datadog.trace.core.datastreams.DefaultDataStreamsMonitoring;
@@ -105,6 +108,7 @@ import java.util.SortedSet;
 import java.util.concurrent.ConcurrentSkipListSet;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
+import java.util.zip.ZipOutputStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -518,12 +522,12 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     this.initialConfig = config;
     this.initialSampler = sampler;
 
-    // Get initial trace sampling rules from config
+    // Get initial Trace Sampling Rules from config
     TraceSamplingRules traceSamplingRules =
         config.getTraceSamplingRules() == null
             ? TraceSamplingRules.EMPTY
             : TraceSamplingRules.deserialize(config.getTraceSamplingRules());
-    // Get initial span sampling rules from config
+    // Get initial Span Sampling Rules from config
     String spanSamplingRulesJson = config.getSpanSamplingRules();
     String spanSamplingRulesFile = config.getSpanSamplingRulesFile();
     SpanSamplingRules spanSamplingRules = SpanSamplingRules.EMPTY;
@@ -535,8 +539,6 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
     this.dynamicConfig =
         DynamicConfig.create(ConfigSnapshot::new)
-            .setDebugEnabled(config.isDebugEnabled())
-            .setTriageEnabled(config.isTriageEnabled())
             .setRuntimeMetricsEnabled(config.isRuntimeMetricsEnabled())
             .setLogsInjectionEnabled(config.isLogsInjectionEnabled())
             .setDataStreamsEnabled(config.isDataStreamsEnabled())
@@ -604,7 +606,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
     tracerFlarePoller = new TracerFlarePoller(dynamicConfig);
     if (pollForTracerFlareRequests) {
-      tracerFlarePoller.start(config, sharedCommunicationObjects);
+      tracerFlarePoller.start(config, sharedCommunicationObjects, this);
     }
 
     tracingConfigPoller = new TracingConfigPoller(dynamicConfig);
@@ -615,7 +617,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     if (writer == null) {
       this.writer =
           WriterFactory.createWriter(
-              config, sharedCommunicationObjects, sampler, singleSpanSampler, this.statsDClient);
+              config, sharedCommunicationObjects, sampler, singleSpanSampler, healthMetrics);
     } else {
       this.writer = writer;
     }
@@ -717,8 +719,6 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   public void rebuildTraceConfig(Config config) {
     dynamicConfig
         .initial()
-        .setDebugEnabled(config.isDebugEnabled())
-        .setTriageEnabled(config.isTriageEnabled())
         .setRuntimeMetricsEnabled(config.isRuntimeMetricsEnabled())
         .setLogsInjectionEnabled(config.isLogsInjectionEnabled())
         .setDataStreamsEnabled(config.isDataStreamsEnabled())
@@ -890,6 +890,11 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   }
 
   @Override
+  public AgentSpan blackholeSpan() {
+    return new AgentTracer.BlackholeAgentSpan(DDTraceId.from(getTraceId()));
+  }
+
+  @Override
   public AgentSpan.Context notifyExtensionStart(Object event) {
     return LambdaHandler.notifyStartInvocation(event, propagationTagsFactory);
   }
@@ -1034,6 +1039,11 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   }
 
   @Override
+  public TraceScope muteTracing() {
+    return activateSpan(blackholeSpan());
+  }
+
+  @Override
   public DataStreamsCheckpointer getDataStreamsCheckpointer() {
     return this.dataStreamsMonitoring;
   }
@@ -1136,6 +1146,11 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       return ((DDSpanContext) ctx).getTraceSegment();
     }
     return null;
+  }
+
+  public void addTracerReportToFlare(ZipOutputStream zip) throws IOException {
+    TracerFlare.addText(zip, "tracer_health.txt", healthMetrics.summary());
+    TracerFlare.addText(zip, "span_metrics.txt", SpanMetricRegistry.getInstance().summary());
   }
 
   private static StatsDClient createStatsDClient(final Config config) {
@@ -1260,6 +1275,17 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
     @Override
     public AgentSpan start() {
+      AgentSpan.Context pc = parent;
+      if (pc == null && !ignoreScope) {
+        final AgentSpan span = activeSpan();
+        if (span != null) {
+          pc = span.context();
+        }
+      }
+
+      if (pc == AgentTracer.BlackholeContext.INSTANCE) {
+        return new AgentTracer.BlackholeAgentSpan(pc.getTraceId());
+      }
       return buildSpan();
     }
 

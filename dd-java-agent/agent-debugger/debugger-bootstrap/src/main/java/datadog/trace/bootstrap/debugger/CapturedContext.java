@@ -8,6 +8,7 @@ import datadog.trace.bootstrap.debugger.el.ValueReferences;
 import datadog.trace.bootstrap.debugger.el.Values;
 import datadog.trace.bootstrap.debugger.util.Redaction;
 import datadog.trace.bootstrap.debugger.util.TimeoutChecker;
+import datadog.trace.bootstrap.debugger.util.WellKnownClasses;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -15,6 +16,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.function.Function;
 
 /** Stores different kind of data (arguments, locals, fields, exception) for a specific location */
 public class CapturedContext implements ValueReferenceResolver {
@@ -62,7 +64,8 @@ public class CapturedContext implements ValueReferenceResolver {
   // used for EMPTY_CONTEXT
   private CapturedContext(ProbeImplementation probeImplementation) {
     if (probeImplementation != null) {
-      this.statusByProbeId.put(probeImplementation.getId(), probeImplementation.createStatus());
+      this.statusByProbeId.put(
+          probeImplementation.getProbeId().getEncodedId(), probeImplementation.createStatus());
     }
   }
 
@@ -127,7 +130,18 @@ public class CapturedContext implements ValueReferenceResolver {
         }
       }
     } else {
-      target = ReflectiveFieldValueResolver.resolve(target, target.getClass(), memberName);
+      Function<Object, CapturedValue> specialFieldAccess =
+          WellKnownClasses.getSpecialFieldAccess(target.getClass().getTypeName());
+      if (specialFieldAccess != null) {
+        CapturedValue specialField = specialFieldAccess.apply(target);
+        if (specialField != null && specialField.getName().equals(memberName)) {
+          return specialField.getValue();
+        } else {
+          target = Values.UNDEFINED_OBJECT;
+        }
+      } else {
+        target = ReflectiveFieldValueResolver.resolve(target, target.getClass(), memberName);
+      }
     }
     checkUndefined(target, memberName, "Cannot dereference to field: ");
     return target;
@@ -315,13 +329,13 @@ public class CapturedContext implements ValueReferenceResolver {
   }
 
   public Status evaluate(
-      String probeId,
+      String encodedProbeId,
       ProbeImplementation probeImplementation,
       String thisClassName,
       long startTimestamp,
       MethodLocation methodLocation) {
     Status status =
-        statusByProbeId.computeIfAbsent(probeId, key -> probeImplementation.createStatus());
+        statusByProbeId.computeIfAbsent(encodedProbeId, key -> probeImplementation.createStatus());
     if (methodLocation == MethodLocation.EXIT) {
       duration = System.nanoTime() - startTimestamp;
       addExtension(
@@ -336,10 +350,10 @@ public class CapturedContext implements ValueReferenceResolver {
     return status;
   }
 
-  public Status getStatus(String probeId) {
-    Status result = statusByProbeId.get(probeId);
+  public Status getStatus(String encodedProbeId) {
+    Status result = statusByProbeId.get(encodedProbeId);
     if (result == null) {
-      result = statusByProbeId.get(ProbeImplementation.UNKNOWN.getId());
+      result = statusByProbeId.get(ProbeImplementation.UNKNOWN.getProbeId().getEncodedId());
       if (result == null) {
         return Status.EMPTY_STATUS;
       }

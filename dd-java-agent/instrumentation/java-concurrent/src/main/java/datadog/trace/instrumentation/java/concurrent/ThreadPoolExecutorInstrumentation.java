@@ -16,11 +16,9 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.ExcludeFilterProvider;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.api.Platform;
-import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter;
-import datadog.trace.bootstrap.instrumentation.java.concurrent.QueueTimerHelper;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.TPEHelper;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.Wrapper;
@@ -150,10 +148,7 @@ public final class ThreadPoolExecutorInstrumentation extends Instrumenter.Tracin
         if (TPEHelper.useWrapping(task)) {
           task = Wrapper.wrap(task);
         } else {
-          ContextStore<Runnable, State> contextStore =
-              InstrumentationContext.get(Runnable.class, State.class);
-          TPEHelper.capture(contextStore, task);
-          QueueTimerHelper.startQueuingTimer(contextStore, tpe.getClass(), task);
+          TPEHelper.capture(InstrumentationContext.get(Runnable.class, State.class), tpe, task);
         }
       }
     }

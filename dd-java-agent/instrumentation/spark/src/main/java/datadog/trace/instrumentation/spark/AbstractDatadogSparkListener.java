@@ -5,15 +5,23 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.DDTraceId;
+import datadog.trace.api.sampling.PrioritySampling;
+import datadog.trace.api.sampling.SamplingMechanism;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.PrintWriter;
 import java.io.StringWriter;
+import java.lang.invoke.MethodHandle;
+import java.lang.invoke.MethodHandles;
+import java.lang.invoke.MethodType;
 import java.time.OffsetDateTime;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.UUID;
@@ -22,6 +30,8 @@ import org.apache.spark.SparkConf;
 import org.apache.spark.TaskFailedReason;
 import org.apache.spark.scheduler.*;
 import org.apache.spark.sql.execution.SQLExecution;
+import org.apache.spark.sql.execution.SparkPlanInfo;
+import org.apache.spark.sql.execution.metric.SQLMetricInfo;
 import org.apache.spark.sql.execution.streaming.MicroBatchExecution;
 import org.apache.spark.sql.execution.streaming.StreamExecution;
 import org.apache.spark.sql.execution.ui.SparkListenerSQLExecutionEnd;
@@ -31,6 +41,7 @@ import org.apache.spark.sql.streaming.StateOperatorProgress;
 import org.apache.spark.sql.streaming.StreamingQueryListener;
 import org.apache.spark.sql.streaming.StreamingQueryProgress;
 import scala.Tuple2;
+import scala.collection.JavaConverters;
 
 /**
  * Implementation of the SparkListener {@link SparkListener} to generate spans from the execution of
@@ -45,6 +56,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
   public static volatile boolean finishTraceOnApplicationEnd = true;
 
   private final int MAX_COLLECTION_SIZE = 1000;
+  private final int MAX_ACCUMULATOR_SIZE = 10000;
   private final String RUNTIME_TAGS_PREFIX = "spark.datadog.tags.";
 
   private final SparkConf sparkConf;
@@ -72,7 +84,14 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
   private final HashMap<UUID, StreamingQueryListener.QueryStartedEvent> streamingQueries =
       new HashMap<>();
   private final HashMap<Long, SparkListenerSQLExecutionStart> sqlQueries = new HashMap<>();
+  protected final HashMap<Long, SparkPlanInfo> sqlPlans = new HashMap<>();
   private final HashMap<String, SparkListenerExecutorAdded> liveExecutors = new HashMap<>();
+
+  // There is no easy way to know if an accumulator is not useful anymore (meaning it is not part of
+  // an active SQL query)
+  // so capping the size of the collection storing them
+  private final Map<Long, SparkSQLUtils.AccumulatorWithStage> accumulators =
+      new RemoveEldestHashMap<>(MAX_ACCUMULATOR_SIZE);
 
   private final boolean isRunningOnDatabricks;
   private final String databricksClusterName;
@@ -109,6 +128,15 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
   /** Stage count of the spark job. Provide an implementation based on a specific scala version */
   protected abstract int getStageCount(SparkListenerJobStart jobStart);
 
+  /** Children of a SparkPlanInfo. Provide an implementation based on a specific scala version */
+  protected abstract Collection<SparkPlanInfo> getPlanInfoChildren(SparkPlanInfo info);
+
+  /** Metrics of a SparkPlanInfo. Provide an implementation based on a specific scala version */
+  protected abstract List<SQLMetricInfo> getPlanInfoMetrics(SparkPlanInfo info);
+
+  /** Parent Ids of a Stage. Provide an implementation based on a specific scala version */
+  protected abstract int[] getStageParentIds(StageInfo info);
+
   @Override
   public synchronized void onApplicationStart(SparkListenerApplicationStart applicationStart) {
     this.applicationStart = applicationStart;
@@ -135,6 +163,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
     captureApplicationParameters(builder);
 
     applicationSpan = builder.start();
+    setDataJobsSamplingPriority(applicationSpan);
     applicationSpan.setMeasured(true);
   }
 
@@ -203,6 +232,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
     }
 
     batchSpan = builder.start();
+    setDataJobsSamplingPriority(batchSpan);
     streamingBatchSpans.put(batchKey, batchSpan);
     return batchSpan;
   }
@@ -267,6 +297,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
     }
 
     AgentSpan sqlSpan = spanBuilder.start();
+    setDataJobsSamplingPriority(sqlSpan);
     sqlSpans.put(sqlExecutionId, sqlSpan);
     return sqlSpan;
   }
@@ -321,6 +352,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
     captureJobParameters(jobSpanBuilder, jobStart.properties());
 
     AgentSpan jobSpan = jobSpanBuilder.start();
+    setDataJobsSamplingPriority(jobSpan);
     jobSpan.setMeasured(true);
 
     for (int stageId : getSparkJobStageIds(jobStart)) {
@@ -398,12 +430,15 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
             .asChildOf(jobSpan.context())
             .withStartTimestamp(submissionTimeMs * 1000)
             .withTag("stage_id", stageId)
+            .withTag(
+                "parent_stage_ids", Arrays.toString(getStageParentIds(stageSubmitted.stageInfo())))
             .withTag("task_count", stageSubmitted.stageInfo().numTasks())
             .withTag("attempt_id", stageAttemptId)
             .withTag("details", stageSubmitted.stageInfo().details())
             .withTag(DDTags.RESOURCE_NAME, stageSubmitted.stageInfo().name())
             .start();
 
+    setDataJobsSamplingPriority(stageSpan);
     stageSpan.setMeasured(true);
 
     stageSpans.put(stageSpanKey(stageId, stageAttemptId), stageSpan);
@@ -445,6 +480,14 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
       metric.allocateAvailableExecutorTime(currentAvailableExecutorTime);
     }
 
+    for (AccumulableInfo info :
+        JavaConverters.asJavaCollection(stageInfo.accumulables().values())) {
+      accumulators.put(info.id(), new SparkSQLUtils.AccumulatorWithStage(stageId, info));
+    }
+
+    Properties prop = stageProperties.remove(stageSpanKey);
+    Long sqlExecutionId = getSqlExecutionId(prop);
+
     SparkAggregatedTaskMetrics stageMetric = stageMetrics.remove(stageSpanKey);
     if (stageMetric != null) {
       stageMetric.computeSkew();
@@ -455,21 +498,23 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
           .computeIfAbsent(jobId, k -> new SparkAggregatedTaskMetrics())
           .accumulateStageMetrics(stageMetric);
 
-      Properties prop = stageProperties.remove(stageSpanKey);
       String batchKey = getStreamingBatchKey(prop);
-
       if (batchKey != null) {
         streamingBatchMetrics
             .computeIfAbsent(batchKey, k -> new SparkAggregatedTaskMetrics())
             .accumulateStageMetrics(stageMetric);
       }
 
-      Long sqlExecutionId = getSqlExecutionId(prop);
       if (sqlExecutionId != null) {
         sqlMetrics
             .computeIfAbsent(sqlExecutionId, k -> new SparkAggregatedTaskMetrics())
             .accumulateStageMetrics(stageMetric);
       }
+    }
+
+    SparkPlanInfo sqlPlan = sqlPlans.get(sqlExecutionId);
+    if (sqlPlan != null) {
+      SparkSQLUtils.addSQLPlanToStageSpan(span, sqlPlan, accumulators, stageId);
     }
 
     span.finish(completionTimeMs * 1000);
@@ -551,6 +596,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
       taskSpan.setTag("count_towards_task_failures", reason.countTowardsTaskFailures());
     }
 
+    setDataJobsSamplingPriority(taskSpan);
     taskSpan.finish(taskEnd.taskInfo().finishTime() * 1000);
   }
 
@@ -588,9 +634,57 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
     } else if (event instanceof SparkListenerSQLExecutionEnd) {
       onSQLExecutionEnd((SparkListenerSQLExecutionEnd) event);
     }
+
+    updateAdaptiveSQLPlan(event);
+  }
+
+  private static final Class<?> adaptiveExecutionUpdateClass;
+  private static final MethodHandle adaptiveExecutionIdMethod;
+  private static final MethodHandle adaptiveSparkPlanMethod;
+
+  @SuppressForbidden // Using reflection to avoid splitting the instrumentation once more
+  private static Class<?> findAdaptiveExecutionUpdateClass() throws ClassNotFoundException {
+    return Class.forName(
+        "org.apache.spark.sql.execution.ui.SparkListenerSQLAdaptiveExecutionUpdate");
+  }
+
+  static {
+    Class<?> executionUpdateClass = null;
+    MethodHandle executionIdMethod = null;
+    MethodHandle sparkPlanMethod = null;
+
+    try {
+      MethodHandles.Lookup lookup = MethodHandles.lookup();
+
+      executionUpdateClass = findAdaptiveExecutionUpdateClass();
+      executionIdMethod =
+          lookup.findVirtual(
+              executionUpdateClass, "executionId", MethodType.methodType(long.class));
+      sparkPlanMethod =
+          lookup.findVirtual(
+              executionUpdateClass, "sparkPlanInfo", MethodType.methodType(SparkPlanInfo.class));
+    } catch (ClassNotFoundException | NoSuchMethodException | IllegalAccessException ignored) {
+    }
+
+    adaptiveExecutionUpdateClass = executionUpdateClass;
+    adaptiveExecutionIdMethod = executionIdMethod;
+    adaptiveSparkPlanMethod = sparkPlanMethod;
+  }
+
+  private synchronized void updateAdaptiveSQLPlan(SparkListenerEvent event) {
+    try {
+      if (adaptiveExecutionUpdateClass != null && adaptiveExecutionUpdateClass.isInstance(event)) {
+        long queryId = (long) adaptiveExecutionIdMethod.invoke(event);
+        SparkPlanInfo sparkPlanInfo = (SparkPlanInfo) adaptiveSparkPlanMethod.invoke(event);
+
+        sqlPlans.put(queryId, sparkPlanInfo);
+      }
+    } catch (Throwable ignored) {
+    }
   }
 
   private synchronized void onSQLExecutionStart(SparkListenerSQLExecutionStart sqlStart) {
+    sqlPlans.put(sqlStart.executionId(), sqlStart.sparkPlanInfo());
     sqlQueries.put(sqlStart.executionId(), sqlStart);
   }
 
@@ -598,6 +692,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
     AgentSpan span = sqlSpans.remove(sqlEnd.executionId());
     SparkAggregatedTaskMetrics metrics = sqlMetrics.remove(sqlEnd.executionId());
     sqlQueries.remove(sqlEnd.executionId());
+    sqlPlans.remove(sqlEnd.executionId());
 
     if (span != null) {
       if (metrics != null) {
@@ -751,6 +846,10 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
 
       batchSpan.finish();
     }
+  }
+
+  private void setDataJobsSamplingPriority(AgentSpan span) {
+    span.setSamplingPriority(PrioritySampling.USER_KEEP, SamplingMechanism.DATA_JOBS);
   }
 
   private AgentTracer.SpanBuilder buildSparkSpan(String spanName, Properties properties) {

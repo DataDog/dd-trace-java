@@ -8,7 +8,7 @@ import static net.bytebuddy.matcher.ElementMatchers.nameStartsWith;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.api.Config;
-import datadog.trace.api.civisibility.InstrumentationBridge;
+import datadog.trace.api.civisibility.coverage.CoverageBridge;
 import java.util.Set;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
@@ -23,7 +23,9 @@ public class ClassInstrumenterInstrumentation extends Instrumenter.CiVisibility
 
   @Override
   public boolean isApplicable(Set<TargetSystem> enabledSystems) {
-    return super.isApplicable(enabledSystems) && Config.get().isCiVisibilityCodeCoverageEnabled();
+    return super.isApplicable(enabledSystems)
+        && Config.get().isCiVisibilityCodeCoverageEnabled()
+        && Config.get().isCiVisibilityCoverageSegmentsEnabled();
   }
 
   @Override
@@ -51,7 +53,7 @@ public class ClassInstrumenterInstrumentation extends Instrumenter.CiVisibility
     static void enter(
         @Advice.FieldValue(value = "className") final String className,
         @Advice.Argument(0) int count) {
-      InstrumentationBridge.getCoverageProbeStoreRegistry().setTotalProbeCount(className, count);
+      CoverageBridge.getCoverageProbeStoreRegistry().setTotalProbeCount(className, count);
     }
   }
 }

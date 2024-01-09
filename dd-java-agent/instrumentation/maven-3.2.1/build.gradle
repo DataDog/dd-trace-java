@@ -23,7 +23,14 @@ dependencies {
   testImplementation group: 'org.apache.maven.resolver', name: 'maven-resolver-transport-http', version: '1.0.3'
 
   latestDepTestImplementation group: 'org.apache.maven', name: 'maven-embedder', version: '+'
-  latestDepTestImplementation group: 'org.apache.maven.resolver', name: 'maven-resolver-connector-basic', version: '1.+'
-  latestDepTestImplementation group: 'org.apache.maven.resolver', name: 'maven-resolver-transport-http', version: '1.+'
+  latestDepTestImplementation group: 'org.apache.maven.resolver', name: 'maven-resolver-connector-basic', version: '+'
+  latestDepTestImplementation group: 'org.apache.maven.resolver', name: 'maven-resolver-transport-http', version: '+'
   latestDepTestImplementation group: 'org.fusesource.jansi', name: 'jansi', version: '+'
+
+  // latest maven-embedder declares these container dependencies as provided (non-transitive)
+  latestDepTestImplementation group: 'javax.inject', name: 'javax.inject', version: '1'
+  latestDepTestImplementation group: 'com.google.inject', name: 'guice', version: '6.0.0'
+  latestDepTestImplementation group: 'org.eclipse.sisu', name: 'org.eclipse.sisu.inject', version: '0.9.0.M2'
+  latestDepTestImplementation group: 'org.codehaus.plexus', name: 'plexus-xml', version: '4.0.1'
+  latestDepTestImplementation group: 'org.eclipse.sisu', name: 'org.eclipse.sisu.plexus', version: '0.9.0.M2'
 }

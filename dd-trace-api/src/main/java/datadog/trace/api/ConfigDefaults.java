@@ -126,7 +126,7 @@ public final class ConfigDefaults {
   static final boolean DEFAULT_CIVISIBILITY_ENABLED = false;
   static final boolean DEFAULT_CIVISIBILITY_AGENTLESS_ENABLED = false;
   static final boolean DEFAULT_CIVISIBILITY_SOURCE_DATA_ENABLED = true;
-  static final boolean DEFAULT_CIVISIBILITY_SOURCE_DATA_ROOT_CHECK_ENABLED = true;
+  static final boolean DEFAULT_CIVISIBILITY_SOURCE_DATA_ROOT_CHECK_ENABLED = false;
   static final boolean DEFAULT_CIVISIBILITY_BUILD_INSTRUMENTATION_ENABLED = true;
   static final boolean DEFAULT_CIVISIBILITY_AUTO_CONFIGURATION_ENABLED = true;
   static final boolean DEFAULT_CIVISIBILITY_COMPILER_PLUGIN_AUTO_CONFIGURATION_ENABLED = true;
@@ -186,6 +186,7 @@ public final class ConfigDefaults {
   static final int DEFAULT_CWS_TLS_REFRESH = 5000;
 
   static final boolean DEFAULT_DATA_STREAMS_ENABLED = false;
+  static final int DEFAULT_DATA_STREAMS_BUCKET_DURATION = 10; // seconds
 
   static final int DEFAULT_RESOLVER_RESET_INTERVAL = 300; // seconds
 

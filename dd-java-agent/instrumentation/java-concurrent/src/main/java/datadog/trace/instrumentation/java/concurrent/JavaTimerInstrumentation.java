@@ -3,6 +3,8 @@ package datadog.trace.instrumentation.java.concurrent;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils.cancelTask;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils.capture;
+import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.RUNNABLE;
+import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.exclude;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.QueueTimerHelper.startQueuingTimer;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
@@ -58,15 +60,17 @@ public class JavaTimerInstrumentation extends Instrumenter.Tracing
       if (period != 0) {
         return;
       }
-      ContextStore<Runnable, State> contextStore =
-          InstrumentationContext.get(Runnable.class, State.class);
-      capture(contextStore, task, true);
-      startQueuingTimer(contextStore, Timer.class, task);
+      if (!exclude(RUNNABLE, task)) {
+        ContextStore<Runnable, State> contextStore =
+            InstrumentationContext.get(Runnable.class, State.class);
+        capture(contextStore, task, true);
+        startQueuingTimer(contextStore, Timer.class, task);
+      }
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class)
     public static void after(@Advice.Argument(0) TimerTask task, @Advice.Thrown Throwable thrown) {
-      if (null != thrown) {
+      if (null != thrown && !exclude(RUNNABLE, task)) {
         cancelTask(InstrumentationContext.get(Runnable.class, State.class), task);
       }
     }

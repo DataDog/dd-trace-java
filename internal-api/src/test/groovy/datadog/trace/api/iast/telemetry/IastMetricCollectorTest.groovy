@@ -224,6 +224,5 @@ class IastMetricCollectorTest extends DDSpecification {
     IastMetric.EXECUTED_SOURCE     | SourceTypes.REQUEST_HEADER_NAME
 
     IastMetric.EXECUTED_TAINTED    | null
-    IastMetric.TAINTED_FLAT_MODE   | null
   }
 }

@@ -38,7 +38,7 @@ class RateLimitedLoggerTest extends DDSpecification {
     def secondLog = defaultRateLimitedLog.warn("test {} {}", "message", exception)
 
     then:
-    1 * log.warn("test {} {} (Will not log errors for 5 minutes)", "message", exception)
+    1 * log.warn("test {} {} (Will not log warnings for 5 minutes)", "message", exception)
     firstLog
     !secondLog
   }
@@ -56,7 +56,7 @@ class RateLimitedLoggerTest extends DDSpecification {
     def firstLog = rateLimitedLog.warn("test {} {}", "message", exception)
 
     then:
-    1 * log.warn("test {} {} (Will not log errors for 1 minute)", "message", exception)
+    1 * log.warn("test {} {} (Will not log warnings for 1 minute)", "message", exception)
     firstLog
 
     when:
@@ -80,7 +80,7 @@ class RateLimitedLoggerTest extends DDSpecification {
     def firstLog = rateLimitedLog.warn("test {} {}", "message", exception)
 
     then:
-    1 * log.warn("test {} {} (Will not log errors for 5 nanoseconds)", "message", exception)
+    1 * log.warn("test {} {} (Will not log warnings for 5 nanoseconds)", "message", exception)
     firstLog
 
     when:
@@ -105,7 +105,7 @@ class RateLimitedLoggerTest extends DDSpecification {
     def firstLog = rateLimitedLog.warn("test {} {}", "message", exception)
 
     then:
-    1 * log.warn("test {} {} (Will not log errors for 5 nanoseconds)", "message", exception)
+    1 * log.warn("test {} {} (Will not log warnings for 5 nanoseconds)", "message", exception)
     firstLog
 
     when:
@@ -128,7 +128,7 @@ class RateLimitedLoggerTest extends DDSpecification {
     def firstLog = rateLimitedLog.warn("test {} {}", "message", exception)
 
     then:
-    1 * log.warn("test {} {} (Will not log errors for 7 nanoseconds)", "message", exception)
+    1 * log.warn("test {} {} (Will not log warnings for 7 nanoseconds)", "message", exception)
     firstLog
 
     when:
@@ -136,7 +136,7 @@ class RateLimitedLoggerTest extends DDSpecification {
     def secondLog = rateLimitedLog.warn("test {} {}", "message", exception)
 
     then:
-    1 * log.warn("test {} {} (Will not log errors for 7 nanoseconds)", "message", exception)
+    1 * log.warn("test {} {} (Will not log warnings for 7 nanoseconds)", "message", exception)
     secondLog
   }
 
@@ -152,6 +152,6 @@ class RateLimitedLoggerTest extends DDSpecification {
     rateLimitedLog.warn("test")
 
     then:
-    1 * log.warn("test (Will not log errors for 1 millisecond)")
+    1 * log.warn("test (Will not log warnings for 1 millisecond)")
   }
 }

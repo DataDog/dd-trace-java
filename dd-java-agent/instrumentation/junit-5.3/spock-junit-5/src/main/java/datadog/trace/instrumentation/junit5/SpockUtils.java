@@ -1,8 +1,7 @@
 package datadog.trace.instrumentation.junit5;
 
-import datadog.trace.api.civisibility.config.SkippableTest;
+import datadog.trace.api.civisibility.config.TestIdentifier;
 import java.lang.invoke.MethodHandle;
-import java.lang.invoke.MethodHandles;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -20,37 +19,17 @@ import org.spockframework.runtime.model.SpecElementInfo;
 
 public class SpockUtils {
 
-  private static final MethodHandle GET_TEST_TAGS;
-  private static final MethodHandle GET_TEST_TAG_VALUE;
+  private static final datadog.trace.util.MethodHandles METHOD_HANDLES =
+      new datadog.trace.util.MethodHandles(ClassLoaderUtils.getDefaultClassLoader());
+
+  private static final MethodHandle GET_TEST_TAGS =
+      METHOD_HANDLES.method("org.spockframework.runtime.model.ITestTaggable", "getTestTags");
+
+  private static final MethodHandle GET_TEST_TAG_VALUE =
+      METHOD_HANDLES.method("org.spockframework.runtime.model.TestTag", "getValue");
 
   static {
-    MethodHandles.Lookup lookup = MethodHandles.publicLookup();
-    ClassLoader defaultClassLoader = ClassLoaderUtils.getDefaultClassLoader();
-    GET_TEST_TAGS = accessGetTestTags(lookup, defaultClassLoader);
-    GET_TEST_TAG_VALUE = accessGetTestTagValue(lookup, defaultClassLoader);
-  }
-
-  private static MethodHandle accessGetTestTags(
-      MethodHandles.Lookup lookup, ClassLoader classLoader) {
-    try {
-      Class<?> testTaggable =
-          classLoader.loadClass("org.spockframework.runtime.model.ITestTaggable");
-      Method method = testTaggable.getDeclaredMethod("getTestTags");
-      return lookup.unreflect(method);
-    } catch (Throwable throwable) {
-      return null;
-    }
-  }
-
-  private static MethodHandle accessGetTestTagValue(
-      MethodHandles.Lookup lookup, ClassLoader classLoader) {
-    try {
-      Class<?> testTaggable = classLoader.loadClass("org.spockframework.runtime.model.TestTag");
-      Method method = testTaggable.getDeclaredMethod("getValue");
-      return lookup.unreflect(method);
-    } catch (Throwable throwable) {
-      return null;
-    }
+    TestIdentifierFactory.register("spock", SpockUtils::toTestIdentifier);
   }
 
   /*
@@ -105,14 +84,21 @@ public class SpockUtils {
     return null;
   }
 
-  public static SkippableTest toSkippableTest(SpockNode spockNode) {
-    TestSource testSource = spockNode.getSource().orElse(null);
-    if (testSource instanceof MethodSource) {
+  public static TestIdentifier toTestIdentifier(
+      TestDescriptor testDescriptor, boolean includeParameters) {
+    TestSource testSource = testDescriptor.getSource().orElse(null);
+    if (testSource instanceof MethodSource && testDescriptor instanceof SpockNode) {
+      SpockNode spockNode = (SpockNode) testDescriptor;
       MethodSource methodSource = (MethodSource) testSource;
       String testSuiteName = methodSource.getClassName();
       String displayName = spockNode.getDisplayName();
-      String testParameters = JUnitPlatformUtils.getParameters(methodSource, displayName);
-      return new SkippableTest(testSuiteName, displayName, testParameters, null);
+      String testParameters;
+      if (includeParameters) {
+        testParameters = JUnitPlatformUtils.getParameters(methodSource, displayName);
+      } else {
+        testParameters = null;
+      }
+      return new TestIdentifier(testSuiteName, displayName, testParameters, null);
 
     } else {
       return null;

@@ -24,10 +24,12 @@ import org.joor.Reflect;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.DisabledIf;
+import org.junit.jupiter.api.condition.EnabledOnJre;
+import org.junit.jupiter.api.condition.JRE;
 import org.mockito.Mockito;
 
 class SymbolExtractionTransformerTest {
-  private static final String SYMBOL_PACKAGE = "com.datadog.debugger.symbol.";
+  private static final String SYMBOL_PACKAGE = "com.datadog.debugger.symboltest.";
   private static final String SYMBOL_PACKAGE_DIR = SYMBOL_PACKAGE.replace('.', '/');
 
   private Instrumentation instr = ByteBuddyAgent.install();
@@ -556,7 +558,7 @@ class SymbolExtractionTransformerTest {
         mainMethodLocalScope.getSymbols().get(0),
         SymbolType.LOCAL,
         "winner",
-        "com.datadog.debugger.symbol.SymbolExtraction10$Inner",
+        "com.datadog.debugger.symboltest.SymbolExtraction10$Inner",
         5);
     Scope innerClassScope = symbolSinkMock.jarScopes.get(0).getScopes().get(1);
     assertScope(innerClassScope, ScopeType.CLASS, CLASS_NAME + "$Inner", 9, 13, SOURCE_FILE, 2, 1);
@@ -702,7 +704,8 @@ class SymbolExtractionTransformerTest {
         classScope.getLanguageSpecifics(),
         asList("public"),
         asList(
-            "@com.datadog.debugger.symbol.MyAnnotation", "@com.datadog.debugger.symbol.MyMarker"),
+            "@com.datadog.debugger.symboltest.MyAnnotation",
+            "@com.datadog.debugger.symboltest.MyMarker"),
         Object.class.getTypeName(),
         null,
         null);
@@ -710,7 +713,7 @@ class SymbolExtractionTransformerTest {
     assertLangSpecifics(
         mainMethodScope.getLanguageSpecifics(),
         asList("public", "static"),
-        asList("@com.datadog.debugger.symbol.MyAnnotation"),
+        asList("@com.datadog.debugger.symboltest.MyAnnotation"),
         null,
         null,
         Integer.TYPE.getTypeName());
@@ -719,7 +722,7 @@ class SymbolExtractionTransformerTest {
     assertLangSpecifics(
         intField.getLanguageSpecifics(),
         asList("private"),
-        asList("@com.datadog.debugger.symbol.MyAnnotation"),
+        asList("@com.datadog.debugger.symboltest.MyAnnotation"),
         null,
         null,
         null);
@@ -764,7 +767,7 @@ class SymbolExtractionTransformerTest {
         asList("public", "abstract"),
         null,
         Object.class.getTypeName(),
-        asList("com.datadog.debugger.symbol.I1", "com.datadog.debugger.symbol.I2"),
+        asList("com.datadog.debugger.symboltest.I1", "com.datadog.debugger.symboltest.I2"),
         null);
     assertEquals(4, classScope.getScopes().size());
     Scope m1MethodScope = classScope.getScopes().get(2);
@@ -824,6 +827,58 @@ class SymbolExtractionTransformerTest {
         null,
         null,
         null);
+  }
+
+  @Test
+  @EnabledOnJre({JRE.JAVA_17, JRE.JAVA_21})
+  @DisabledIf(value = "datadog.trace.api.Platform#isJ9", disabledReason = "Flaky on J9 JVMs")
+  public void symbolExtraction15() throws IOException, URISyntaxException {
+    final String CLASS_NAME = SYMBOL_PACKAGE + "SymbolExtraction15";
+    final String SOURCE_FILE = SYMBOL_PACKAGE_DIR + "SymbolExtraction15.java";
+    SymbolSinkMock symbolSinkMock = new SymbolSinkMock(config);
+    SymbolExtractionTransformer transformer = createTransformer(symbolSinkMock);
+    instr.addTransformer(transformer);
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME, "17");
+    Reflect.on(testClass).call("main", "1").get();
+    Scope classScope = symbolSinkMock.jarScopes.get(0).getScopes().get(0);
+    assertScope(classScope, ScopeType.CLASS, CLASS_NAME, 10, 13, SOURCE_FILE, 8, 3);
+    assertLangSpecifics(
+        classScope.getLanguageSpecifics(),
+        asList("public", "final", "record"),
+        null,
+        "java.lang.Record",
+        null,
+        null);
+    Scope initMethodScope = classScope.getScopes().get(0);
+    assertScope(initMethodScope, ScopeType.METHOD, "<init>", 10, 10, SOURCE_FILE, 0, 3);
+    assertSymbol(
+        initMethodScope.getSymbols().get(0),
+        SymbolType.ARG,
+        "firstName",
+        String.class.getTypeName(),
+        10);
+    assertSymbol(
+        initMethodScope.getSymbols().get(1),
+        SymbolType.ARG,
+        "lastName",
+        String.class.getTypeName(),
+        10);
+    assertSymbol(
+        initMethodScope.getSymbols().get(2), SymbolType.ARG, "age", Integer.TYPE.getTypeName(), 10);
+    Scope mainMethodScope = classScope.getScopes().get(1);
+    assertScope(mainMethodScope, ScopeType.METHOD, "main", 13, 13, SOURCE_FILE, 0, 1);
+    Scope toStringMethodScope = classScope.getScopes().get(2);
+    assertScope(toStringMethodScope, ScopeType.METHOD, "toString", 10, 10, SOURCE_FILE, 0, 0);
+    Scope hashCodeMethodScope = classScope.getScopes().get(3);
+    assertScope(hashCodeMethodScope, ScopeType.METHOD, "hashCode", 10, 10, SOURCE_FILE, 0, 0);
+    Scope equalsMethodScope = classScope.getScopes().get(4);
+    assertScope(equalsMethodScope, ScopeType.METHOD, "equals", 10, 10, SOURCE_FILE, 0, 1);
+    Scope firstNameMethodScope = classScope.getScopes().get(5);
+    assertScope(firstNameMethodScope, ScopeType.METHOD, "firstName", 10, 10, SOURCE_FILE, 0, 0);
+    Scope lastNameMethodScope = classScope.getScopes().get(6);
+    assertScope(lastNameMethodScope, ScopeType.METHOD, "lastName", 10, 10, SOURCE_FILE, 0, 0);
+    Scope ageMethodScope = classScope.getScopes().get(7);
+    assertScope(ageMethodScope, ScopeType.METHOD, "age", 10, 10, SOURCE_FILE, 0, 0);
   }
 
   private void assertLangSpecifics(

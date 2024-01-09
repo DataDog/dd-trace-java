@@ -49,6 +49,7 @@ import com.datadog.debugger.el.values.StringValue;
 import com.datadog.debugger.probe.MetricProbe;
 import com.datadog.debugger.probe.Where;
 import datadog.trace.bootstrap.debugger.MethodLocation;
+import datadog.trace.bootstrap.debugger.ProbeId;
 import datadog.trace.bootstrap.debugger.el.ValueReferences;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
@@ -79,6 +80,8 @@ public class MetricInstrumentor extends Instrumentor {
   private static final InsnList EMPTY_INSN_LIST = new InsnList();
 
   private final MetricProbe metricProbe;
+  private int durationStartVar = -1;
+  private LabelNode durationStartLabel;
 
   public MetricInstrumentor(
       MetricProbe metricProbe,
@@ -86,7 +89,7 @@ public class MetricInstrumentor extends Instrumentor {
       ClassNode classNode,
       MethodNode methodNode,
       List<DiagnosticMessage> diagnostics,
-      List<String> probeIds) {
+      List<ProbeId> probeIds) {
     super(metricProbe, classLoader, classNode, methodNode, diagnostics, probeIds);
     this.metricProbe = metricProbe;
   }
@@ -108,6 +111,8 @@ public class MetricInstrumentor extends Instrumentor {
       case EXIT:
         {
           processInstructions();
+          addFinallyHandler(returnHandlerLabel);
+          installFinallyBlocks();
           break;
         }
       default:
@@ -115,6 +120,15 @@ public class MetricInstrumentor extends Instrumentor {
             "Invalid evaluateAt attribute: " + definition.getEvaluateAt());
     }
     return InstrumentationResult.Status.INSTALLED;
+  }
+
+  private void addFinallyHandler(LabelNode endLabel) {
+    // only for @duration case
+    if (durationStartVar == -1) {
+      return;
+    }
+    InsnList insnList = callMetric(metricProbe, null);
+    createFinallyHandler(durationStartLabel, endLabel, wrapTryCatch(insnList));
   }
 
   private InsnList wrapTryCatch(InsnList insnList) {
@@ -189,23 +203,45 @@ public class MetricInstrumentor extends Instrumentor {
     return insnList;
   }
 
+  private void createFinallyHandler(LabelNode startLabel, LabelNode endLabel, InsnList insnList) {
+    LabelNode handlerLabel = new LabelNode();
+    InsnList handler = new InsnList();
+    handler.add(handlerLabel);
+    // declare a local var to store the current Throwable of the 'finally' block
+    int throwableTmpVar = newVar(Type.getType(Throwable.class));
+    // stack [exception]
+    handler.add(new VarInsnNode(Opcodes.ASTORE, throwableTmpVar));
+    // stack []
+    handler.add(insnList);
+    // stack []
+    // restore the current Throwable to the stack
+    handler.add(new VarInsnNode(Opcodes.ALOAD, throwableTmpVar));
+    // stack [exception]
+    handler.add(new InsnNode(Opcodes.ATHROW));
+    methodNode.instructions.add(handler);
+    finallyBlocks.add(new FinallyBlock(startLabel, endLabel, handlerLabel));
+  }
+
   private InsnList callCount(MetricProbe metricProbe, ReturnContext returnContext) {
     if (metricProbe.getValue() == null) {
       InsnList insnList = new InsnList();
-      // consider the metric as an increment counter one
+      ldc(insnList, metricProbe.getProbeId().getEncodedId());
+      // stack [ProbeId]
       getStatic(insnList, METRICKIND_TYPE, metricProbe.getKind().name());
-      // stack [MetricKind]
+      // stack [string, MetricKind]
       insnList.add(new LdcInsnNode(metricProbe.getMetricName()));
-      // stack [MetricKind, string]
+      // stack [string, MetricKind, string]
+      // consider the metric as an increment counter one
       ldc(insnList, 1L);
-      // stack [MetricKind, string, long]
+      // stack [string, MetricKind, string, long]
       pushTags(insnList, addProbeIdWithTags(metricProbe.getId(), metricProbe.getTags()));
-      // stack [MetricKind, string, long, array]
+      // stack [string, MetricKind, string, long, array]
       invokeStatic(
           insnList,
           DEBUGGER_CONTEXT_TYPE,
           "metric",
           Type.VOID_TYPE,
+          STRING_TYPE,
           METRICKIND_TYPE,
           STRING_TYPE,
           Type.LONG_TYPE,
@@ -245,19 +281,22 @@ public class MetricInstrumentor extends Instrumentor {
       return EMPTY_INSN_LIST;
     }
     resultType = convertIfRequired(resultType, result.insnList);
+    ldc(insnList, metricProbe.getProbeId().getEncodedId());
+    // stack [string]
     getStatic(insnList, METRICKIND_TYPE, metricProbe.getKind().name());
-    // stack [MetricKind]
+    // stack [string, MetricKind]
     insnList.add(new LdcInsnNode(metricProbe.getMetricName()));
-    // stack [MetricKind, string]
+    // stack [string, MetricKind, string]
     insnList.add(result.insnList);
-    // stack [MetricKind, string, long|double]
+    // stack [string, MetricKind, string, long|double]
     pushTags(insnList, addProbeIdWithTags(metricProbe.getId(), metricProbe.getTags()));
-    // stack [MetricKind, string, long|double, array]
+    // stack [string, MetricKind, string, long|double, array]
     invokeStatic(
         insnList,
         DEBUGGER_CONTEXT_TYPE,
         "metric",
         Type.VOID_TYPE,
+        STRING_TYPE,
         METRICKIND_TYPE,
         STRING_TYPE,
         resultType,
@@ -347,7 +386,7 @@ public class MetricInstrumentor extends Instrumentor {
     }
   }
 
-  private static class MetricValueVisitor implements Visitor<VisitorResult> {
+  private class MetricValueVisitor implements Visitor<VisitorResult> {
     private final MetricInstrumentor instrumentor;
     private final InsnList nullBranch;
     private final ReturnContext returnContext;
@@ -744,6 +783,7 @@ public class MetricInstrumentor extends Instrumentor {
         nullBranch.add(new InsnNode(Opcodes.POP)); // target_object
         nullBranch.add(new InsnNode(Opcodes.POP)); // metric name
         nullBranch.add(new InsnNode(Opcodes.POP)); // metric kind
+        nullBranch.add(new InsnNode(Opcodes.POP)); // probeId
         nullBranch.add(gotoNode);
       } catch (Exception e) {
         String message = "Cannot resolve field " + fieldName;
@@ -772,21 +812,26 @@ public class MetricInstrumentor extends Instrumentor {
           return null;
         }
         // call System.nanoTime at the beginning of the method
-        int var = instrumentor.newVar(LONG_TYPE);
-        InsnList nanoTimeList = new InsnList();
-        invokeStatic(nanoTimeList, Type.getType(System.class), "nanoTime", LONG_TYPE);
-        nanoTimeList.add(new VarInsnNode(Opcodes.LSTORE, var));
-        instrumentor.methodNode.instructions.insert(instrumentor.methodEnterLabel, nanoTimeList);
+        if (durationStartVar == -1) {
+          durationStartVar = instrumentor.newVar(LONG_TYPE);
+          InsnList nanoTimeList = new InsnList();
+          invokeStatic(nanoTimeList, Type.getType(System.class), "nanoTime", LONG_TYPE);
+          nanoTimeList.add(new VarInsnNode(Opcodes.LSTORE, durationStartVar));
+          durationStartLabel = new LabelNode();
+          nanoTimeList.add(durationStartLabel);
+          instrumentor.methodNode.instructions.insert(instrumentor.methodEnterLabel, nanoTimeList);
+        }
         // diff nanoTime before calling metric
         invokeStatic(insnList, Type.getType(System.class), "nanoTime", LONG_TYPE);
         // stack [long]
-        insnList.add(new VarInsnNode(Opcodes.LLOAD, var));
+        insnList.add(new VarInsnNode(Opcodes.LLOAD, durationStartVar));
         // stack [long, long]
         insnList.add(new InsnNode(Opcodes.LSUB));
         // stack [long]
         insnList.add(new InsnNode(Opcodes.L2D));
+        // stack [double]
         insnList.add(new LdcInsnNode(1_000_000D));
-        // stack [long, double]
+        // stack [double, double]
         insnList.add(new InsnNode(Opcodes.DDIV));
         // stack [double]
         return new ASMHelper.Type(DOUBLE_TYPE);

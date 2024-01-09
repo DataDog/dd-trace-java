@@ -3,21 +3,22 @@ package datadog.trace.civisibility;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.civisibility.config.ModuleExecutionSettings;
-import datadog.trace.api.civisibility.config.SkippableTest;
+import datadog.trace.api.civisibility.config.TestIdentifier;
+import datadog.trace.api.civisibility.retry.TestRetryPolicy;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.civisibility.codeowners.Codeowners;
-import datadog.trace.civisibility.config.JvmInfo;
-import datadog.trace.civisibility.config.ModuleExecutionSettingsFactory;
 import datadog.trace.civisibility.coverage.CoverageProbeStoreFactory;
 import datadog.trace.civisibility.decorator.TestDecorator;
+import datadog.trace.civisibility.retry.NeverRetry;
+import datadog.trace.civisibility.retry.RetryIfFailed;
 import datadog.trace.civisibility.source.MethodLinesResolver;
 import datadog.trace.civisibility.source.SourcePathResolver;
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.concurrent.atomic.LongAdder;
 import java.util.function.Consumer;
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 /**
@@ -28,7 +29,8 @@ import javax.annotation.Nullable;
 public class DDTestFrameworkModuleImpl extends DDTestModuleImpl implements DDTestFrameworkModule {
 
   private final LongAdder testsSkipped = new LongAdder();
-  private final Collection<SkippableTest> skippableTests;
+  private final Collection<TestIdentifier> skippableTests;
+  private final Collection<TestIdentifier> flakyTests;
   private final boolean codeCoverageEnabled;
   private final boolean itrEnabled;
 
@@ -43,7 +45,7 @@ public class DDTestFrameworkModuleImpl extends DDTestModuleImpl implements DDTes
       Codeowners codeowners,
       MethodLinesResolver methodLinesResolver,
       CoverageProbeStoreFactory coverageProbeStoreFactory,
-      ModuleExecutionSettingsFactory moduleExecutionSettingsFactory,
+      ModuleExecutionSettings moduleExecutionSettings,
       Consumer<AgentSpan> onSpanFinish) {
     super(
         sessionSpanContext,
@@ -58,31 +60,33 @@ public class DDTestFrameworkModuleImpl extends DDTestModuleImpl implements DDTes
         coverageProbeStoreFactory,
         onSpanFinish);
 
-    ModuleExecutionSettings moduleExecutionSettings =
-        moduleExecutionSettingsFactory.create(JvmInfo.CURRENT_JVM, moduleName);
     codeCoverageEnabled = moduleExecutionSettings.isCodeCoverageEnabled();
     itrEnabled = moduleExecutionSettings.isItrEnabled();
-    Collection<SkippableTest> moduleSkippableTests =
-        moduleExecutionSettings.getSkippableTests(moduleName);
-    skippableTests =
-        moduleSkippableTests.size() > 100
-            ? new HashSet<>(moduleSkippableTests)
-            : new ArrayList<>(moduleSkippableTests);
+    skippableTests = new HashSet<>(moduleExecutionSettings.getSkippableTests(moduleName));
+    flakyTests = new HashSet<>(moduleExecutionSettings.getFlakyTests(moduleName));
   }
 
   @Override
-  public boolean isSkippable(SkippableTest test) {
+  public boolean isSkippable(TestIdentifier test) {
     return test != null && skippableTests.contains(test);
   }
 
   @Override
-  public boolean skip(SkippableTest test) {
+  public boolean skip(TestIdentifier test) {
     if (isSkippable(test)) {
       testsSkipped.increment();
       return true;
     } else {
       return false;
     }
+  }
+
+  @Override
+  @Nonnull
+  public TestRetryPolicy retryPolicy(TestIdentifier test) {
+    return test != null && flakyTests.contains(test)
+        ? new RetryIfFailed(config.getCiVisibilityFlakyRetryCount())
+        : NeverRetry.INSTANCE;
   }
 
   @Override

@@ -8,10 +8,13 @@ import static datadog.trace.instrumentation.springwebflux.server.SpringWebfluxHt
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import net.bytebuddy.asm.Advice;
+import org.springframework.http.HttpMethod;
 import org.springframework.web.method.HandlerMethod;
 import org.springframework.web.reactive.HandlerMapping;
+import org.springframework.web.reactive.HandlerResult;
 import org.springframework.web.server.ServerWebExchange;
 import org.springframework.web.util.pattern.PathPattern;
+import reactor.core.publisher.Mono;
 
 public class HandlerAdapterAdvice {
 
@@ -49,8 +52,9 @@ public class HandlerAdapterAdvice {
     if (parentSpan != null
         && bestPattern != null
         && !bestPattern.getPatternString().equals("/**")) {
+      final HttpMethod method = exchange.getRequest().getMethod();
       HTTP_RESOURCE_DECORATOR.withRoute(
-          parentSpan, exchange.getRequest().getMethodValue(), bestPattern.getPatternString());
+          parentSpan, method != null ? method.name() : null, bestPattern.getPatternString());
     }
 
     return scope;
@@ -58,10 +62,16 @@ public class HandlerAdapterAdvice {
 
   @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
   public static void methodExit(
+      @Advice.Return(readOnly = false) Mono<HandlerResult> mono,
       @Advice.Argument(0) final ServerWebExchange exchange,
       @Advice.Enter final AgentScope scope,
       @Advice.Thrown final Throwable throwable) {
     if (scope != null) {
+      if (throwable != null) {
+        DECORATE.onError(scope, throwable);
+      } else if (mono != null) {
+        mono = AdviceUtils.wrapMonoWithScope(mono, scope.span());
+      }
       scope.close();
       // span finished in SpanFinishingSubscriber
     }

@@ -65,11 +65,24 @@ abstract class CiVisibilitySmokeTest extends Specification {
           '  "id": "d230520a0561ee2f",' +
           '  "type": "test",' +
           '  "attributes": {' +
-          '    "configurations": {},' +
+          '    "configurations": {' +
+          '        "test.bundle": "Maven Smoke Tests Project maven-surefire-plugin default-test"' +
+          '    },' +
           '    "name": "test_to_skip_with_itr",' +
           '    "suite": "datadog.smoke.TestSucceed"' +
           '  }' +
-          '}] }')
+          '}, {' +
+          '  "id": "d230520a0561ee2g",' +
+          '  "type": "test",' +
+          '  "attributes": {' +
+          '    "configurations": {' +
+          '        "test.bundle": ":test"' +
+          '    },' +
+          '    "name": "test_to_skip_with_itr",' +
+          '    "suite": "datadog.smoke.TestSucceed"' +
+          '  }' +
+          '}] ' +
+          '}')
       }
     }
   }
@@ -81,11 +94,10 @@ abstract class CiVisibilitySmokeTest extends Specification {
     def additionalReplacements = ["content.meta.['test.toolchain']": "$toolchain:$toolchainVersion"]
 
     // uncomment to generate expected data templates
-    //        def baseTemplatesPath = AbstractCiVisibilitySmokeTest.classLoader.getResource(projectName).toURI().schemeSpecificPart.replace('build/resources/test', 'src/test/resources')
-    //        CiVisibilityTestUtils.generateTemplates(baseTemplatesPath, events, coverages, additionalReplacements)
+    //    def baseTemplatesPath = CiVisibilitySmokeTest.classLoader.getResource(projectName).toURI().schemeSpecificPart.replace('build/resources/test', 'src/test/resources')
+    //    CiVisibilityTestUtils.generateTemplates(baseTemplatesPath, events, coverages, additionalReplacements)
 
     CiVisibilityTestUtils.assertData(projectName, events, coverages, additionalReplacements)
-    return true
   }
 
   protected List<Map<String, Object>> waitForEvents(int expectedEventsSize) {

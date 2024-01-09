@@ -1,5 +1,6 @@
 package datadog.trace.civisibility.source.index;
 
+import datadog.trace.api.Config;
 import datadog.trace.util.ClassNameTrie;
 import java.io.File;
 import java.io.IOException;
@@ -20,7 +21,9 @@ public class RepoIndexBuilder implements RepoIndexProvider {
 
   private static final Logger log = LoggerFactory.getLogger(RepoIndexBuilder.class);
 
+  private final Config config;
   private final String repoRoot;
+  private final String scanRoot;
   private final PackageResolver packageResolver;
   private final ResourceResolver resourceResolver;
   private final FileSystem fileSystem;
@@ -29,11 +32,15 @@ public class RepoIndexBuilder implements RepoIndexProvider {
   private volatile RepoIndex index;
 
   public RepoIndexBuilder(
+      Config config,
       String repoRoot,
+      String scanRoot,
       PackageResolver packageResolver,
       ResourceResolver resourceResolver,
       FileSystem fileSystem) {
+    this.config = config;
     this.repoRoot = repoRoot;
+    this.scanRoot = scanRoot;
     this.packageResolver = packageResolver;
     this.resourceResolver = resourceResolver;
     this.fileSystem = fileSystem;
@@ -52,25 +59,22 @@ public class RepoIndexBuilder implements RepoIndexProvider {
   }
 
   private RepoIndex doGetIndex() {
-    log.warn(
-        "Building index of source files in {}. "
-            + "This operation can be slow, "
-            + "please consider using Datadog Java compiler plugin to avoid indexing",
-        repoRoot);
+    log.warn("Building index of source files in {}, repo root is {}", scanRoot, repoRoot);
 
-    Path repoRootPath = fileSystem.getPath(repoRoot);
+    Path repoRootPath = toRealPath(fileSystem.getPath(repoRoot));
+    Path scanRootPath = toRealPath(fileSystem.getPath(scanRoot));
     RepoIndexingFileVisitor repoIndexingFileVisitor =
-        new RepoIndexingFileVisitor(packageResolver, resourceResolver, repoRootPath);
+        new RepoIndexingFileVisitor(config, packageResolver, resourceResolver, repoRootPath);
 
     long startTime = System.currentTimeMillis();
     try {
       Files.walkFileTree(
-          repoRootPath,
+          scanRootPath,
           EnumSet.of(FileVisitOption.FOLLOW_LINKS),
           Integer.MAX_VALUE,
           repoIndexingFileVisitor);
     } catch (Exception e) {
-      log.error("Failed to build index repo of {}", repoRoot, e);
+      log.error("Failed to build index of {}", scanRootPath, e);
     }
 
     long duration = System.currentTimeMillis() - startTime;
@@ -87,6 +91,15 @@ public class RepoIndexBuilder implements RepoIndexProvider {
     return index;
   }
 
+  private Path toRealPath(Path path) {
+    try {
+      return path.toRealPath();
+    } catch (Exception e) {
+      log.error("Could not determine real path for {}", path, e);
+      return path;
+    }
+  }
+
   private static final class RepoIndexingFileVisitor implements FileVisitor<Path> {
 
     private static final Logger log = LoggerFactory.getLogger(RepoIndexingFileVisitor.class);
@@ -100,19 +113,38 @@ public class RepoIndexBuilder implements RepoIndexProvider {
     private final Path repoRoot;
 
     private RepoIndexingFileVisitor(
-        PackageResolver packageResolver, ResourceResolver resourceResolver, Path repoRoot) {
+        Config config,
+        PackageResolver packageResolver,
+        ResourceResolver resourceResolver,
+        Path repoRoot) {
       this.packageResolver = packageResolver;
       this.resourceResolver = resourceResolver;
       this.repoRoot = repoRoot;
       trieBuilder = new ClassNameTrie.Builder();
       sourceRoots = new LinkedHashSet<>();
-      packageTree = new PackageTree();
+      packageTree = new PackageTree(config);
       indexingStats = new RepoIndexingStats();
     }
 
     @Override
     public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) {
+      if (Files.isSymbolicLink(dir) && readSymbolicLink(dir).startsWith(repoRoot)) {
+        // The path is a symlink that points inside the repo.
+        // We'll visit the folder that it points to anyway,
+        // moreover, we don't want two different results for one file
+        // (one containing the symlink, the other - the actual folder).
+        return FileVisitResult.SKIP_SUBTREE;
+      }
       return FileVisitResult.CONTINUE;
+    }
+
+    private static Path readSymbolicLink(Path path) {
+      try {
+        return Files.readSymbolicLink(path);
+      } catch (Exception e) {
+        log.debug("Could not read symbolic link {}", path, e);
+        return path;
+      }
     }
 
     @Override

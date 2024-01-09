@@ -11,6 +11,7 @@ import java.io.InterruptedIOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
@@ -29,16 +30,20 @@ public class ProductState {
       new HashMap<>();
   private final Map<ParsedConfigKey, RemoteConfigRequest.ClientInfo.ClientState.ConfigState>
       configStates = new HashMap<>();
-  private final ProductListener listener;
+  private final List<ProductListener> listeners;
 
   List<ConfigurationPoller.ReportableException> errors = null;
 
-  public ProductState(Product product, ProductListener listener) {
+  public ProductState(Product product) {
     this.product = product;
-    this.listener = listener;
+    this.listeners = new LinkedList<>();
 
     this.ratelimitedLogger =
         new RatelimitedLogger(log, MINUTES_BETWEEN_ERROR_LOG, TimeUnit.MINUTES);
+  }
+
+  public void addProductListener(ProductListener listener) {
+    listeners.add(listener);
   }
 
   public boolean apply(
@@ -94,7 +99,9 @@ public class ProductState {
       byte[] content) {
 
     try {
-      listener.accept(configKey, content, hinter);
+      for (ProductListener listener : listeners) {
+        listener.accept(configKey, content, hinter);
+      }
       updateConfigState(fleetResponse, configKey, null);
     } catch (ConfigurationPoller.ReportableException e) {
       recordError(e);
@@ -110,7 +117,9 @@ public class ProductState {
   private void callListenerRemoveTarget(
       ConfigurationChangesListener.PollingRateHinter hinter, ParsedConfigKey configKey) {
     try {
-      listener.remove(configKey, hinter);
+      for (ProductListener listener : listeners) {
+        listener.remove(configKey, hinter);
+      }
     } catch (Exception ex) {
       ratelimitedLogger.warn("Error handling configuration removal for " + configKey, ex);
     }
@@ -120,7 +129,9 @@ public class ProductState {
 
   private void callListenerCommit(ConfigurationChangesListener.PollingRateHinter hinter) {
     try {
-      listener.commit(hinter);
+      for (ProductListener listener : listeners) {
+        listener.commit(hinter);
+      }
     } catch (ConfigurationPoller.ReportableException e) {
       recordError(e);
     } catch (Exception ex) {

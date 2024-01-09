@@ -34,8 +34,8 @@ public class SymbolSink {
   private final String env;
   private final String version;
   private final BatchUploader symbolUploader;
-  private final BlockingQueue<ServiceVersion> scopes = new ArrayBlockingQueue<>(CAPACITY);
   private final BatchUploader.MultiPartContent event;
+  private final BlockingQueue<ServiceVersion> scopes = new ArrayBlockingQueue<>(CAPACITY);
 
   public SymbolSink(Config config) {
     this(config, new BatchUploader(config, config.getFinalDebuggerSymDBUrl()));
@@ -47,7 +47,8 @@ public class SymbolSink {
     this.version = config.getVersion();
     this.symbolUploader = symbolUploader;
     byte[] eventContent =
-        String.format(EVENT_FORMAT, serviceName, config.getRuntimeId())
+        String.format(
+                EVENT_FORMAT, TagsHelper.sanitize(config.getServiceName()), config.getRuntimeId())
             .getBytes(StandardCharsets.UTF_8);
     this.event = new BatchUploader.MultiPartContent(eventContent, "event", "event.json");
   }

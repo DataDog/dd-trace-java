@@ -198,6 +198,8 @@ public class AgentInstaller {
       log.debug("Installed {} instrumenter(s)", installedCount);
     }
 
+    InstrumenterFlare.register();
+
     if (InstrumenterConfig.get().isTelemetryEnabled()) {
       InstrumenterState.setObserver(
           new InstrumenterState.Observer() {

@@ -1,153 +1,78 @@
-import com.fasterxml.jackson.core.JsonFactory
-import com.fasterxml.jackson.core.JsonParser
-import com.fasterxml.jackson.core.JsonToken
+import com.fasterxml.jackson.databind.ObjectMapper
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.iast.InstrumentationBridge
+import datadog.trace.api.iast.SourceTypes
+import datadog.trace.api.iast.Taintable
 import datadog.trace.api.iast.propagation.PropagationModule
-import groovy.transform.CompileDynamic
+import groovy.json.JsonOutput
+
+import java.nio.charset.Charset
 
 class Json2ParserInstrumentationTest extends AgentTestRunner {
 
-  private final static String JSON_STRING = '{"key1":"value1","key2":"value2","key3":"value3"}'
+  private final static String JSON_STRING = '{"root":"root_value","nested":{"nested_array":["array_0","array_1"]}}'
 
-  @CompileDynamic
   @Override
   protected void configurePreAgent() {
     injectSysConfig("dd.iast.enabled", "true")
   }
 
-  void 'test currentName()'() {
-    setup:
-    final propagationModule = Mock(PropagationModule)
-    InstrumentationBridge.registerIastModule(propagationModule)
-    skipUntil(jsonParser, JsonToken.FIELD_NAME)
+  void 'test json parsing (tainted)'() {
+    given:
+    final source = new SourceImpl(origin: SourceTypes.REQUEST_BODY, name: 'body', value: JSON_STRING)
+    final module = Mock(PropagationModule)
+    InstrumentationBridge.registerIastModule(module)
+
+    and:
+    final reader = new ObjectMapper().readerFor(Map)
 
     when:
-    final result = jsonParser.currentName()
+    final taintedResult = reader.readValue(target) as Map
 
     then:
-    result == 'key1'
-    1 * propagationModule.taintIfTainted('key1', jsonParser)
+    JsonOutput.toJson(taintedResult) == JSON_STRING
+    _ * module.taintIfTainted(_, _)
+    _ * module.findSource(_) >> source
+    1 * module.taint(_, 'root', source.origin, 'root', JSON_STRING)
+    1 * module.taint(_, 'root_value', source.origin, 'root', JSON_STRING)
+    1 * module.taint(_, 'nested', source.origin, 'nested', JSON_STRING)
+    1 * module.taint(_, 'nested_array', source.origin, 'nested_array', JSON_STRING)
+    1 * module.taint(_, 'array_0', source.origin, 'nested_array', JSON_STRING)
+    1 * module.taint(_, 'array_1', source.origin, 'nested_array', JSON_STRING)
     0 * _
 
     where:
-    jsonParser << [
-      new JsonFactory().createParser(JSON_STRING),
-      new JsonFactory().createParser(new ByteArrayInputStream(JSON_STRING.getBytes()))
-    ]
+    target << testSuite()
   }
 
-  void 'test getCurrentName()'() {
-    setup:
-    final propagationModule = Mock(PropagationModule)
-    InstrumentationBridge.registerIastModule(propagationModule)
-    skipUntil(jsonParser, JsonToken.FIELD_NAME)
+  void 'test json parsing (not tainted)'() {
+    given:
+    final module = Mock(PropagationModule)
+    InstrumentationBridge.registerIastModule(module)
+
+    and:
+    final reader = new ObjectMapper().readerFor(Map)
 
     when:
-    final result = jsonParser.getCurrentName()
+    final taintedResult = reader.readValue(target) as Map
 
     then:
-    result == 'key1'
-    1 * propagationModule.taintIfTainted('key1', jsonParser)
+    JsonOutput.toJson(taintedResult) == JSON_STRING
+    _ * module.taintIfTainted(_, _)
+    _ * module.findSource(_) >> null
     0 * _
 
     where:
-    jsonParser << [
-      new JsonFactory().createParser(JSON_STRING),
-      new JsonFactory().createParser(new ByteArrayInputStream(JSON_STRING.getBytes()))
-    ]
+    target << testSuite()
   }
 
-  void 'test getText()'() {
-    setup:
-    final propagationModule = Mock(PropagationModule)
-    InstrumentationBridge.registerIastModule(propagationModule)
-    skipUntil(jsonParser, JsonToken.FIELD_NAME)
-
-    when:
-    final result = jsonParser.getText()
-
-    then:
-    result == 'key1'
-    1 * propagationModule.taintIfTainted('key1', jsonParser)
-    0 * _
-
-    where:
-    jsonParser << [
-      new JsonFactory().createParser(JSON_STRING),
-      new JsonFactory().createParser(new ByteArrayInputStream(JSON_STRING.getBytes()))
-    ]
+  private static List<Object> testSuite() {
+    return [JSON_STRING, new ByteArrayInputStream(JSON_STRING.getBytes(Charset.defaultCharset()))]
   }
 
-  void 'test getValueAsString()'() {
-    setup:
-    final propagationModule = Mock(PropagationModule)
-    InstrumentationBridge.registerIastModule(propagationModule)
-    skipUntil(jsonParser, JsonToken.VALUE_STRING)
-
-    when:
-    final result = jsonParser.getValueAsString()
-
-    then:
-    result == 'value1'
-    1 * propagationModule.taintIfTainted('value1', jsonParser)
-    0 * _
-
-    where:
-    jsonParser << [
-      new JsonFactory().createParser(JSON_STRING),
-      new JsonFactory().createParser(new ByteArrayInputStream(JSON_STRING.getBytes()))
-    ]
-  }
-
-  void 'test nextFieldName()'() {
-    setup:
-    final propagationModule = Mock(PropagationModule)
-    InstrumentationBridge.registerIastModule(propagationModule)
-    skipUntil(jsonParser, JsonToken.START_OBJECT)
-
-    when:
-    final result = jsonParser.nextFieldName()
-
-    then:
-    result == 'key1'
-    1 * propagationModule.taintIfTainted('key1', jsonParser)
-    0 * _
-
-    where:
-    jsonParser << [
-      new JsonFactory().createParser(JSON_STRING),
-      new JsonFactory().createParser(new ByteArrayInputStream(JSON_STRING.getBytes()))
-    ]
-  }
-
-  void 'test nextTextValue()'() {
-    setup:
-    final propagationModule = Mock(PropagationModule)
-    InstrumentationBridge.registerIastModule(propagationModule)
-    skipUntil(jsonParser, JsonToken.FIELD_NAME)
-
-    when:
-    final result = jsonParser.nextTextValue()
-
-    then:
-    result == 'value1'
-    1 * propagationModule.taintIfTainted('value1', jsonParser)
-    0 * _
-
-    where:
-    jsonParser << [
-      new JsonFactory().createParser(JSON_STRING),
-      new JsonFactory().createParser(new ByteArrayInputStream(JSON_STRING.getBytes()))
-    ]
-  }
-
-  private void skipUntil(final JsonParser parser, final JsonToken token) {
-    JsonToken current
-    while ((current = parser.nextToken()) != null) {
-      if (current == token) {
-        break
-      }
-    }
+  private static class SourceImpl implements Taintable.Source {
+    byte origin
+    String name
+    String value
   }
 }

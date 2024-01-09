@@ -3,7 +3,6 @@ package datadog.trace.instrumentation.junit5;
 import datadog.trace.api.civisibility.InstrumentationBridge;
 import datadog.trace.api.civisibility.events.TestEventsHandler;
 import datadog.trace.util.AgentThreadFactory;
-import java.nio.file.Paths;
 
 public abstract class TestEventsHandlerHolder {
 
@@ -20,8 +19,7 @@ public abstract class TestEventsHandlerHolder {
   }
 
   public static void start() {
-    TEST_EVENTS_HANDLER =
-        InstrumentationBridge.createTestEventsHandler("junit", Paths.get("").toAbsolutePath());
+    TEST_EVENTS_HANDLER = InstrumentationBridge.createTestEventsHandler("junit");
   }
 
   public static void stop() {

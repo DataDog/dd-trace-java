@@ -244,8 +244,8 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
    */
   private class TransactionalAppSecModuleConfigurerImpl
       implements TransactionalAppSecModuleConfigurer {
-    private Map<String, SubconfigListener> listenerMap = new HashMap<>();
-    private List<TraceSegmentPostProcessor> postProcessors = new ArrayList<>();
+    private final Map<String, SubconfigListener> listenerMap = new HashMap<>();
+    private final List<TraceSegmentPostProcessor> postProcessors = new ArrayList<>();
 
     @Override
     public Optional<Object> addSubConfigListener(String key, SubconfigListener listener) {
@@ -332,10 +332,10 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
             | CAPABILITY_ASM_CUSTOM_RULES
             | CAPABILITY_ASM_CUSTOM_BLOCKING_RESPONSE
             | CAPABILITY_ASM_TRUSTED_IPS);
-    this.configurationPoller.removeListener(Product.ASM_DD);
-    this.configurationPoller.removeListener(Product.ASM_DATA);
-    this.configurationPoller.removeListener(Product.ASM);
-    this.configurationPoller.removeListener(Product.ASM_FEATURES);
+    this.configurationPoller.removeListeners(Product.ASM_DD);
+    this.configurationPoller.removeListeners(Product.ASM_DATA);
+    this.configurationPoller.removeListeners(Product.ASM);
+    this.configurationPoller.removeListeners(Product.ASM_FEATURES);
     this.configurationPoller.removeConfigurationEndListener(applyWAFChangesAsListener);
     this.configurationPoller.stop();
   }

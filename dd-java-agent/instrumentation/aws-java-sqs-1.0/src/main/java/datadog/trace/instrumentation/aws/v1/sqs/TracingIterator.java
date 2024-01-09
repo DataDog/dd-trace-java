@@ -4,6 +4,11 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateNe
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.closePrevious;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.bootstrap.instrumentation.api.URIUtils.urlFileName;
+import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_IN;
+import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_TAG;
+import static datadog.trace.core.datastreams.TagsProcessor.TOPIC_TAG;
+import static datadog.trace.core.datastreams.TagsProcessor.TYPE_TAG;
 import static datadog.trace.instrumentation.aws.v1.sqs.MessageExtractAdapter.GETTER;
 import static datadog.trace.instrumentation.aws.v1.sqs.SqsDecorator.BROKER_DECORATE;
 import static datadog.trace.instrumentation.aws.v1.sqs.SqsDecorator.CONSUMER_DECORATE;
@@ -15,7 +20,9 @@ import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import com.amazonaws.services.sqs.model.Message;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import java.util.Iterator;
+import java.util.LinkedHashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -77,6 +84,13 @@ public class TracingIterator<L extends Iterator<Message>> implements Iterator<Me
           batchContext = spanContext;
         }
         AgentSpan span = startSpan(SQS_INBOUND_OPERATION, batchContext);
+
+        LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>();
+        sortedTags.put(DIRECTION_TAG, DIRECTION_IN);
+        sortedTags.put(TOPIC_TAG, urlFileName(queueUrl));
+        sortedTags.put(TYPE_TAG, "sqs");
+        AgentTracer.get().getDataStreamsMonitoring().setCheckpoint(span, sortedTags, 0, 0);
+
         CONSUMER_DECORATE.afterStart(span);
         CONSUMER_DECORATE.onConsume(span, queueUrl);
         activateNext(span);

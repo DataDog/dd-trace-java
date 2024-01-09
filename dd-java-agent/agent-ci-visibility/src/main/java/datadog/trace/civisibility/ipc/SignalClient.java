@@ -12,6 +12,7 @@ import java.nio.channels.SocketChannel;
 import java.util.EnumMap;
 import java.util.Map;
 import java.util.function.Function;
+import javax.annotation.Nullable;
 
 public class SignalClient implements AutoCloseable {
 
@@ -25,7 +26,7 @@ public class SignalClient implements AutoCloseable {
     DESERIALIZERS.put(SignalType.ERROR, ErrorResponse::deserialize);
     DESERIALIZERS.put(SignalType.ACK, b -> AckResponse.INSTANCE);
     DESERIALIZERS.put(SignalType.REPO_INDEX_RESPONSE, RepoIndexResponse::deserialize);
-    DESERIALIZERS.put(SignalType.SKIPPABLE_TESTS_RESPONSE, SkippableTestsResponse::deserialize);
+    DESERIALIZERS.put(SignalType.MODULE_SETTINGS_RESPONSE, ModuleSettingsResponse::deserialize);
   }
 
   private final SocketChannel socketChannel;
@@ -120,7 +121,10 @@ public class SignalClient implements AutoCloseable {
       this.signalServerAddress = signalServerAddress;
     }
 
-    public SignalClient create() {
+    public @Nullable SignalClient create() {
+      if (signalServerAddress == null) {
+        return null;
+      }
       try {
         return new SignalClient(signalServerAddress);
       } catch (IOException e) {

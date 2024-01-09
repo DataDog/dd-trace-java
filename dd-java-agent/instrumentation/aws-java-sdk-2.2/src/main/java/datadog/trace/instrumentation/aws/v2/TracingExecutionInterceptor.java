@@ -1,7 +1,7 @@
 package datadog.trace.instrumentation.aws.v2;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopSpan;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.blackholeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.aws.v2.AwsSdkClientDecorator.AWS_LEGACY_TRACING;
@@ -85,10 +85,8 @@ public class TracingExecutionInterceptor implements ExecutionInterceptor {
   public void beforeTransmission(
       final Context.BeforeTransmission context, final ExecutionAttributes executionAttributes) {
     final AgentSpan span;
-    if (!AWS_LEGACY_TRACING && isPollingRequest(context.request())) {
-      // SQS messages spans are created by aws-java-sqs-2.0 - replace client scope with no-op,
-      // so we can tell when receive call is complete without affecting the rest of the trace
-      span = noopSpan();
+    if (!AWS_LEGACY_TRACING) {
+      span = blackholeSpan();
     } else {
       span = executionAttributes.getAttribute(SPAN_ATTRIBUTE);
     }

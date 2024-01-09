@@ -9,8 +9,12 @@ import static com.datadog.debugger.instrumentation.Types.STRING_TYPE;
 import com.datadog.debugger.instrumentation.DiagnosticMessage.Kind;
 import com.datadog.debugger.probe.ProbeDefinition;
 import com.datadog.debugger.probe.Where;
+import datadog.trace.bootstrap.debugger.ProbeId;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.Type;
 import org.objectweb.asm.tree.AbstractInsnNode;
@@ -23,6 +27,7 @@ import org.objectweb.asm.tree.LineNumberNode;
 import org.objectweb.asm.tree.LocalVariableNode;
 import org.objectweb.asm.tree.MethodInsnNode;
 import org.objectweb.asm.tree.MethodNode;
+import org.objectweb.asm.tree.TryCatchBlockNode;
 import org.objectweb.asm.tree.TypeInsnNode;
 
 /** Common class for generating instrumentation */
@@ -35,7 +40,7 @@ public abstract class Instrumentor {
   protected final ClassNode classNode;
   protected final MethodNode methodNode;
   protected final List<DiagnosticMessage> diagnostics;
-  protected final List<String> probeIds;
+  protected final List<ProbeId> probeIds;
   protected final boolean isStatic;
   protected final boolean isLineProbe;
   protected final LineMap lineMap = new LineMap();
@@ -44,6 +49,7 @@ public abstract class Instrumentor {
   protected int argOffset;
   protected final LocalVariableNode[] localVarsBySlot;
   protected LabelNode returnHandlerLabel;
+  protected final List<CapturedContextInstrumentor.FinallyBlock> finallyBlocks = new ArrayList<>();
 
   public Instrumentor(
       ProbeDefinition definition,
@@ -51,7 +57,7 @@ public abstract class Instrumentor {
       ClassNode classNode,
       MethodNode methodNode,
       List<DiagnosticMessage> diagnostics,
-      List<String> probeIds) {
+      List<ProbeId> probeIds) {
     this.definition = definition;
     this.classLoader = classLoader;
     this.classNode = classNode;
@@ -268,5 +274,39 @@ public abstract class Instrumentor {
     ProbeDefinition.Tag[] newTags = Arrays.copyOf(tags, tags.length + 1);
     newTags[newTags.length - 1] = new ProbeDefinition.Tag(PROBEID_TAG_NAME, probeId);
     return newTags;
+  }
+
+  protected InsnList clone(InsnList insnList) {
+    InsnList result = new InsnList();
+    Map<LabelNode, LabelNode> labels = new HashMap<>();
+    for (AbstractInsnNode node : insnList) {
+      if (node instanceof LabelNode) {
+        labels.put((LabelNode) node, new LabelNode());
+      }
+    }
+    for (AbstractInsnNode node : insnList) {
+      result.add(node.clone(labels));
+    }
+    return result;
+  }
+
+  protected void installFinallyBlocks() {
+    for (FinallyBlock finallyBlock : finallyBlocks) {
+      methodNode.tryCatchBlocks.add(
+          new TryCatchBlockNode(
+              finallyBlock.startLabel, finallyBlock.endLabel, finallyBlock.handlerLabel, null));
+    }
+  }
+
+  protected static class FinallyBlock {
+    final LabelNode startLabel;
+    final LabelNode endLabel;
+    final LabelNode handlerLabel;
+
+    public FinallyBlock(LabelNode startLabel, LabelNode endLabel, LabelNode handlerLabel) {
+      this.startLabel = startLabel;
+      this.endLabel = endLabel;
+      this.handlerLabel = handlerLabel;
+    }
   }
 }

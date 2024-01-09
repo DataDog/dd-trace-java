@@ -4,13 +4,17 @@ import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.DDSpanId
 import datadog.trace.api.DDTraceId
 import datadog.trace.api.Platform
+import datadog.trace.api.sampling.PrioritySampling
+import datadog.trace.api.sampling.SamplingMechanism
 import datadog.trace.test.util.Flaky
+import groovy.json.JsonSlurper
 import org.apache.hadoop.yarn.api.records.FinalApplicationStatus
 import org.apache.hadoop.yarn.conf.YarnConfiguration
 import org.apache.spark.deploy.SparkSubmit
 import org.apache.spark.deploy.yarn.ApplicationMaster
 import org.apache.spark.deploy.yarn.ApplicationMasterArguments
 import org.apache.spark.sql.Dataset
+import org.apache.spark.sql.Encoders
 import org.apache.spark.sql.Row
 import org.apache.spark.sql.RowFactory
 import org.apache.spark.sql.SparkSession
@@ -51,6 +55,8 @@ abstract class AbstractSparkTest extends AgentTestRunner {
           resourceName "spark.application"
           spanType "spark"
           errored false
+          assert span.context().getSamplingPriority() == PrioritySampling.USER_KEEP
+          assert span.context().getPropagationTags().createTagMap()["_dd.p.dm"] == (-SamplingMechanism.DATA_JOBS).toString()
           parent()
         }
         span {
@@ -65,6 +71,7 @@ abstract class AbstractSparkTest extends AgentTestRunner {
           resourceName "count at TestSparkComputation.java:19"
           spanType "spark"
           errored false
+          assert span.tags["parent_stage_ids"] == "[0]"
           childOf(span(1))
         }
         span {
@@ -72,6 +79,7 @@ abstract class AbstractSparkTest extends AgentTestRunner {
           resourceName "distinct at TestSparkComputation.java:19"
           spanType "spark"
           errored false
+          assert span.tags["parent_stage_ids"] == "[]"
           childOf(span(1))
         }
       }
@@ -254,6 +262,8 @@ abstract class AbstractSparkTest extends AgentTestRunner {
           spanType "spark"
           traceId 8944764253919609482G
           parentSpanId 15104224823446433673G
+          assert span.context().getSamplingPriority() == PrioritySampling.USER_KEEP
+          assert span.context().getPropagationTags().createTagMap()["_dd.p.dm"] == (-SamplingMechanism.DATA_JOBS).toString()
           assert span.tags["databricks_job_id"] == "1234"
           assert span.tags["databricks_job_run_id"] == "5678"
           assert span.tags["databricks_task_run_id"] == "9012"
@@ -275,6 +285,8 @@ abstract class AbstractSparkTest extends AgentTestRunner {
           spanType "spark"
           traceId 5240384461065211484G
           parentSpanId 14128229261586201946G
+          assert span.context().getSamplingPriority() == PrioritySampling.USER_KEEP
+          assert span.context().getPropagationTags().createTagMap()["_dd.p.dm"] == (-SamplingMechanism.DATA_JOBS).toString()
           assert span.tags["databricks_job_id"] == "3456"
           assert span.tags["databricks_job_run_id"] == "901"
           assert span.tags["databricks_task_run_id"] == "7890"
@@ -296,6 +308,8 @@ abstract class AbstractSparkTest extends AgentTestRunner {
           spanType "spark"
           traceId 2235374731114184741G
           parentSpanId 8956125882166502063G
+          assert span.context().getSamplingPriority() == PrioritySampling.USER_KEEP
+          assert span.context().getPropagationTags().createTagMap()["_dd.p.dm"] == (-SamplingMechanism.DATA_JOBS).toString()
           assert span.tags["databricks_job_id"] == "123"
           assert span.tags["databricks_job_run_id"] == "8765"
           assert span.tags["databricks_task_run_id"] == "456"
@@ -316,6 +330,8 @@ abstract class AbstractSparkTest extends AgentTestRunner {
           operationName "spark.job"
           spanType "spark"
           parent()
+          assert span.context().getSamplingPriority() == PrioritySampling.USER_KEEP
+          assert span.context().getPropagationTags().createTagMap()["_dd.p.dm"] == (-SamplingMechanism.DATA_JOBS).toString()
           assert span.tags["databricks_job_id"] == null
           assert span.tags["databricks_job_run_id"] == "8765"
           assert span.tags["databricks_task_run_id"] == null
@@ -429,6 +445,8 @@ abstract class AbstractSparkTest extends AgentTestRunner {
           spanType "spark"
           traceId 8944764253919609482G
           parentSpanId 15104224823446433673G
+          assert span.context().getSamplingPriority() == PrioritySampling.USER_KEEP
+          assert span.context().getPropagationTags().createTagMap()["_dd.p.dm"] == (-SamplingMechanism.DATA_JOBS).toString()
         }
         span {
           operationName "spark.job"
@@ -570,5 +588,56 @@ abstract class AbstractSparkTest extends AgentTestRunner {
     null      | "some_cluster_name" | """[{"key":"RunName","value":"some_run_name_9975a7ba-5e04-11ee-8c99-0242ac120002"}]""" | "databricks.job-cluster.some_run_name"
     null      | "some_cluster_name" | """invalid_json"""                                                                     | "databricks.all-purpose-cluster.some_cluster_name"
     null      | null                | null                                                                                   | "^(databricks)"
+  }
+
+  boolean isJsonValid(String jsonString) {
+    try {
+      new JsonSlurper().parseText(jsonString)
+      return true
+    } catch (Exception ignored) {
+      return false
+    }
+  }
+
+  def "compute the SQL query plan"() {
+    def sparkSession = SparkSession.builder()
+      .config("spark.master", "local[2]")
+      .config("spark.sql.shuffle.partitions", "2")
+      .getOrCreate()
+
+    def df = generateSampleDataframe(sparkSession)
+    def ds = df.coalesce(1).as(Encoders.STRING())
+    TestSparkComputation.applyIdentityMapFunction(ds)
+      .filter("value > 0")
+      .count()
+    sparkSession.stop()
+
+    expect:
+    assertTraces(1) {
+      trace(4) {
+        span {
+          operationName "spark.application"
+          spanType "spark"
+        }
+        span {
+          operationName "spark.sql"
+          spanType "spark"
+          childOf(span(0))
+        }
+        span {
+          operationName "spark.job"
+          spanType "spark"
+          childOf(span(1))
+        }
+        span {
+          operationName "spark.stage"
+          spanType "spark"
+          childOf(span(2))
+          // Exact SQL Plan changes depending on the spark version
+          assert span.tags["_dd.spark.sql_plan"] =~ /.*HashAggregate.*Filter.*SerializeFromObject.*MapElements.*DeserializeToObject.*LocalTableScan.*/
+          assert isJsonValid(span.tags["_dd.spark.sql_plan"].toString())
+        }
+      }
+    }
   }
 }

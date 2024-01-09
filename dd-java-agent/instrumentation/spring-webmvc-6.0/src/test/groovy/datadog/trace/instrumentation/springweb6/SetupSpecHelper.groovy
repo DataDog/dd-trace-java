@@ -12,7 +12,7 @@ import datadog.trace.api.gateway.RequestContextSlot
 import datadog.trace.api.internal.TraceSegment
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter
-import datadog.trace.instrumentation.servlet5.ServletBlockingHelper
+import datadog.trace.instrumentation.servlet5.JakartaServletBlockingHelper
 import org.springframework.web.context.request.RequestContextHolder
 import org.springframework.web.context.request.ServletRequestAttributes
 
@@ -44,7 +44,7 @@ class SetupSpecHelper {
     boolean tryCommitBlockingResponse(TraceSegment segment, int statusCode, BlockingContentType templateType, Map<String, String> extraHeaders) {
       ServletRequestAttributes attributes = RequestContextHolder.requestAttributes
       if (attributes) {
-        ServletBlockingHelper
+        JakartaServletBlockingHelper
           .commitBlockingResponse(segment, attributes.request, attributes.response, statusCode, templateType, extraHeaders)
       }
       true

@@ -13,7 +13,6 @@ import org.apache.maven.execution.ExecutionEvent;
 import org.apache.maven.execution.MavenExecutionRequest;
 import org.apache.maven.execution.MavenExecutionResult;
 import org.apache.maven.execution.MavenSession;
-import org.apache.maven.model.Plugin;
 import org.apache.maven.plugin.MojoExecution;
 import org.apache.maven.project.MavenProject;
 import org.codehaus.plexus.util.xml.Xpp3Dom;
@@ -21,8 +20,6 @@ import org.codehaus.plexus.util.xml.Xpp3Dom;
 public class MavenExecutionListener extends AbstractExecutionListener {
 
   private static final String FORK_COUNT_CONFIG = "forkCount";
-  private static final String SYSTEM_PROPERTY_VARIABLES_CONFIG = "systemPropertyVariables";
-  private static final String SYSTEM_PROPERTIES_CONFIG = "systemProperties";
 
   private final BuildEventsHandler<MavenExecutionRequest> buildEventsHandler;
 
@@ -51,7 +48,7 @@ public class MavenExecutionListener extends AbstractExecutionListener {
       MavenSession session = event.getSession();
       MavenExecutionRequest request = session.getRequest();
       MavenProject project = event.getProject();
-      String moduleName = getUniqueModuleName(project, mojoExecution);
+      String moduleName = MavenUtils.getUniqueModuleName(project, mojoExecution);
 
       mojoStarted(event);
       buildEventsHandler.onTestModuleSkip(request, moduleName, null);
@@ -66,7 +63,7 @@ public class MavenExecutionListener extends AbstractExecutionListener {
       MavenSession session = event.getSession();
       MavenExecutionRequest request = session.getRequest();
       MavenProject project = event.getProject();
-      String moduleName = getUniqueModuleName(project, mojoExecution);
+      String moduleName = MavenUtils.getUniqueModuleName(project, mojoExecution);
 
       String outputClassesDir = project.getBuild().getOutputDirectory();
       Collection<File> outputClassesDirs =
@@ -93,30 +90,19 @@ public class MavenExecutionListener extends AbstractExecutionListener {
       if (forkTestVm) {
         configuration =
             setForkedVmSystemProperty(
-                mojoExecution.getPlugin(),
-                configuration,
-                Strings.propertyNameToSystemPropertyName(
-                    CiVisibilityConfig.CIVISIBILITY_SESSION_ID),
-                moduleInfo.sessionId);
+                configuration, CiVisibilityConfig.CIVISIBILITY_SESSION_ID, moduleInfo.sessionId);
         configuration =
             setForkedVmSystemProperty(
-                mojoExecution.getPlugin(),
-                configuration,
-                Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_MODULE_ID),
-                moduleInfo.moduleId);
+                configuration, CiVisibilityConfig.CIVISIBILITY_MODULE_ID, moduleInfo.moduleId);
         configuration =
             setForkedVmSystemProperty(
-                mojoExecution.getPlugin(),
                 configuration,
-                Strings.propertyNameToSystemPropertyName(
-                    CiVisibilityConfig.CIVISIBILITY_SIGNAL_SERVER_HOST),
+                CiVisibilityConfig.CIVISIBILITY_SIGNAL_SERVER_HOST,
                 moduleInfo.signalServerHost);
         configuration =
             setForkedVmSystemProperty(
-                mojoExecution.getPlugin(),
                 configuration,
-                Strings.propertyNameToSystemPropertyName(
-                    CiVisibilityConfig.CIVISIBILITY_SIGNAL_SERVER_PORT),
+                CiVisibilityConfig.CIVISIBILITY_SIGNAL_SERVER_PORT,
                 moduleInfo.signalServerPort);
 
         mojoExecution.setConfiguration(configuration);
@@ -134,13 +120,14 @@ public class MavenExecutionListener extends AbstractExecutionListener {
   }
 
   private static Xpp3Dom setForkedVmSystemProperty(
-      Plugin plugin, Xpp3Dom configuration, String propertyName, Object propertyValue) {
-    String configTag =
-        !"tycho-surefire-plugin".equals(plugin.getArtifactId())
-            ? SYSTEM_PROPERTY_VARIABLES_CONFIG
-            : SYSTEM_PROPERTIES_CONFIG;
-    return MavenUtils.setConfigurationValue(
-        String.valueOf(propertyValue), configuration, configTag, propertyName);
+      Xpp3Dom configuration, String propertyName, Object propertyValue) {
+    String argLine =
+        MavenUtils.getConfigurationValue(configuration, "argLine")
+            + " -D"
+            + Strings.propertyNameToSystemPropertyName(propertyName)
+            + '='
+            + propertyValue;
+    return MavenUtils.setConfigurationValue(argLine, configuration, "argLine");
   }
 
   @Override
@@ -150,7 +137,7 @@ public class MavenExecutionListener extends AbstractExecutionListener {
       MavenSession session = event.getSession();
       MavenExecutionRequest request = session.getRequest();
       MavenProject project = event.getProject();
-      String moduleName = getUniqueModuleName(project, mojoExecution);
+      String moduleName = MavenUtils.getUniqueModuleName(project, mojoExecution);
       buildEventsHandler.onTestModuleFinish(request, moduleName);
 
       System.clearProperty(
@@ -167,7 +154,7 @@ public class MavenExecutionListener extends AbstractExecutionListener {
       MavenSession session = event.getSession();
       MavenExecutionRequest request = session.getRequest();
       MavenProject project = event.getProject();
-      String moduleName = getUniqueModuleName(project, mojoExecution);
+      String moduleName = MavenUtils.getUniqueModuleName(project, mojoExecution);
       Exception exception = event.getException();
       buildEventsHandler.onTestModuleFail(request, moduleName, exception);
       buildEventsHandler.onTestModuleFinish(request, moduleName);
@@ -177,13 +164,5 @@ public class MavenExecutionListener extends AbstractExecutionListener {
       System.clearProperty(
           Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_MODULE_ID));
     }
-  }
-
-  private static String getUniqueModuleName(MavenProject project, MojoExecution mojoExecution) {
-    return project.getName()
-        + " "
-        + mojoExecution.getArtifactId()
-        + " "
-        + mojoExecution.getExecutionId();
   }
 }

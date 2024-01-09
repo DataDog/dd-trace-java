@@ -6,6 +6,7 @@ import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.api.env.CapturedEnvironment;
 import java.util.Arrays;
 import java.util.List;
@@ -44,7 +45,10 @@ public final class NativeImageGeneratorRunnerInstrumentation
         }
       }
 
-      args = Arrays.copyOf(args, oldLength + 5);
+      // !!! Important - if you add more args entries here, make sure to update the array copy below
+      args =
+          Arrays.copyOf(
+              args, oldLength + 5 + (InstrumenterConfig.get().isProfilingEnabled() ? 1 : 0));
 
       args[oldLength++] = "-H:+AddAllCharsets";
       args[oldLength++] = "-H:EnableURLProtocols=http";
@@ -57,6 +61,7 @@ public final class NativeImageGeneratorRunnerInstrumentation
           "-H:ClassInitialization="
               + "com.datadog.profiling.controller.openjdk.events.AvailableProcessorCoresEvent:build_time,"
               + "com.datadog.profiling.controller.openjdk.events.ProfilerSettingEvent:build_time,"
+              + "com.datadog.profiling.controller.openjdk.events.TimelineEvent:build_time,"
               + "datadog.trace.api.Config:rerun,"
               + "datadog.trace.api.Platform:rerun,"
               + "datadog.trace.api.Platform$Captured:build_time,"
@@ -96,6 +101,17 @@ public final class NativeImageGeneratorRunnerInstrumentation
               + "com.sun.proxy:build_time,"
               + "jnr.enxio.channels:run_time,"
               + "jnr.unixsocket:run_time";
+      if (InstrumenterConfig.get().isProfilingEnabled()) {
+        // Specific GraalVM versions have different flags for enabling JFR
+        // We don't want to drag in internal-api via Platform class, so we just read the system
+        // property directly
+        String version = System.getProperty("java.specification.version");
+        if (version.startsWith("17")) {
+          args[oldLength++] = "-H:EnableMonitoringFeatures=jfr";
+        } else {
+          args[oldLength++] = "-H:EnableMonitoringFeatures@user+api=jfr";
+        }
+      }
     }
   }
 

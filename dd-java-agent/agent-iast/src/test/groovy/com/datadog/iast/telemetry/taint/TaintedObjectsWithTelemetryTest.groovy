@@ -26,16 +26,16 @@ class TaintedObjectsWithTelemetryTest extends DDSpecification {
 
   void setup() {
     mockCollector = Mock(IastMetricCollector)
-    final iastCtx = Mock(IastRequestContext) {
+    final iastCtx = Stub(IastRequestContext) {
       getMetricCollector() >> mockCollector
     }
-    final ctx = Mock(RequestContext) {
+    final ctx = Stub(RequestContext) {
       getData(RequestContextSlot.IAST) >> iastCtx
     }
-    final span = Mock(AgentSpan) {
+    final span = Stub(AgentSpan) {
       getRequestContext() >> ctx
     }
-    final api = Mock(AgentTracer.TracerAPI) {
+    final api = Stub(AgentTracer.TracerAPI) {
       activeSpan() >> span
     }
     AgentTracer.forceRegister(api)
@@ -85,27 +85,7 @@ class TaintedObjectsWithTelemetryTest extends DDSpecification {
     verbosity << Verbosity.values().toList()
   }
 
-  void 'test tainted.flat.mode with #verbosity'() {
-    given:
-    final taintedObjects = TaintedObjectsWithTelemetry.build(verbosity, Mock(TaintedObjects) {
-      isFlat() >> true
-    })
-
-    when:
-    taintedObjects.release()
-
-    then:
-    if (IastMetric.TAINTED_FLAT_MODE.isEnabled(verbosity) && taintedObjects.isFlat()) {
-      1 * mockCollector.addMetric(IastMetric.TAINTED_FLAT_MODE, _, _)
-    } else {
-      0 * mockCollector.addMetric
-    }
-
-    where:
-    verbosity << Verbosity.values().toList()
-  }
-
   private TaintedObject tainted() {
-    return new TaintedObject(UUID.randomUUID(), Ranges.EMPTY, null)
+    return new TaintedObject(UUID.randomUUID(), Ranges.EMPTY)
   }
 }

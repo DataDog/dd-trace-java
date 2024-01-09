@@ -40,6 +40,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 import org.jctools.queues.MpscBlockingConsumerArrayQueue;
@@ -49,7 +50,6 @@ import org.slf4j.LoggerFactory;
 public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, EventListener {
   private static final Logger log = LoggerFactory.getLogger(DefaultDataStreamsMonitoring.class);
 
-  static final long DEFAULT_BUCKET_DURATION_NANOS = TimeUnit.SECONDS.toNanos(10);
   static final long FEATURE_CHECK_INTERVAL_NANOS = TimeUnit.MINUTES.toNanos(5);
 
   private static final StatsPoint REPORT =
@@ -72,6 +72,7 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
   private volatile boolean supportsDataStreams = false;
   private volatile boolean agentSupportsDataStreams = false;
   private volatile boolean configSupportsDataStreams = false;
+  private final ConcurrentHashMap<String, SchemaSampler> schemaSamplers;
 
   public DefaultDataStreamsMonitoring(
       Config config,
@@ -106,7 +107,7 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
         config.getWellKnownTags(),
         new MsgPackDatastreamsPayloadWriter(
             sink, config.getWellKnownTags(), DDTraceCoreInfo.VERSION, config.getPrimaryTag()),
-        DEFAULT_BUCKET_DURATION_NANOS);
+        Config.get().getDataStreamsBucketDurationNanoseconds());
   }
 
   public DefaultDataStreamsMonitoring(
@@ -127,6 +128,7 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
 
     thread = newAgentThread(DATA_STREAMS_MONITORING, new InboxProcessor());
     sink.register(this);
+    schemaSamplers = new ConcurrentHashMap<>();
   }
 
   @Override
@@ -157,6 +159,12 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
     if (thread.isAlive()) {
       inbox.offer(statsPoint);
     }
+  }
+
+  @Override
+  public int shouldSampleSchema(String topic) {
+    SchemaSampler sampler = schemaSamplers.computeIfAbsent(topic, t -> new SchemaSampler());
+    return sampler.shouldSample(timeSource.getCurrentTimeMillis());
   }
 
   @Override
