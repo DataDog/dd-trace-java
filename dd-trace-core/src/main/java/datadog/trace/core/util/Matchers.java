@@ -5,7 +5,7 @@ import java.util.regex.Pattern;
 public final class Matchers {
   private Matchers() {}
 
-  public static final Matcher compileGlob(String glob) {
+  public static Matcher compileGlob(String glob) {
     if (glob == null || glob.equals("*")) {
       // DQH - Decided not to an anyMatcher because that's likely to
       // cause our call site to go megamorphic
@@ -15,7 +15,7 @@ public final class Matchers {
     } else {
       // DQH - not sure about the error handling here
       Pattern pattern = GlobPattern.globToRegexPattern(glob);
-      return pattern == null ? null : new PatternMatcher(pattern);
+      return new PatternMatcher(pattern);
     }
   }
 

@@ -29,7 +29,7 @@ public class RatelimitedLogger {
       final Logger log, final int delay, final TimeUnit timeUnit, final TimeSource timeSource) {
     this.log = log;
     this.delayNanos = timeUnit.toNanos(delay);
-    this.noLogMessage = createNoLogMessage(" (Will not log errors for ", ")", delay, timeUnit);
+    this.noLogMessage = createNoLogMessage(" (Will not log warnings for ", ")", delay, timeUnit);
     this.timeSource = timeSource;
     nextLogNanos = new AtomicLong(timeSource.getNanoTicks());
   }

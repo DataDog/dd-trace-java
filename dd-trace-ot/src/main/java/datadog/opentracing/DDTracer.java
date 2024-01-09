@@ -14,6 +14,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.common.sampling.Sampler;
 import datadog.trace.common.writer.Writer;
+import datadog.trace.context.TraceScope;
 import datadog.trace.core.CoreTracer;
 import datadog.trace.core.DDSpanContext;
 import datadog.trace.core.propagation.ExtractedContext;
@@ -436,6 +437,11 @@ public class DDTracer implements Tracer, datadog.trace.api.Tracer, InternalTrace
   @Override
   public boolean addTraceInterceptor(final TraceInterceptor traceInterceptor) {
     return tracer.addTraceInterceptor(traceInterceptor);
+  }
+
+  @Override
+  public TraceScope muteTracing() {
+    return tracer.muteTracing();
   }
 
   @Override

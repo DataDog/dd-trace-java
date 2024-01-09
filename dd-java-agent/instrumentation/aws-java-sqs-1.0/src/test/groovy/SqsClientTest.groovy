@@ -1,6 +1,3 @@
-import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
-import static java.nio.charset.StandardCharsets.UTF_8
-
 import com.amazon.sqs.javamessaging.ProviderConfiguration
 import com.amazon.sqs.javamessaging.SQSConnectionFactory
 import com.amazonaws.SDKGlobalConfiguration
@@ -15,15 +12,21 @@ import datadog.trace.agent.test.utils.TraceUtils
 import datadog.trace.api.Config
 import datadog.trace.api.DDSpanId
 import datadog.trace.api.DDSpanTypes
+import datadog.trace.api.DDTags
 import datadog.trace.api.config.GeneralConfig
 import datadog.trace.api.naming.SpanNaming
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
+import datadog.trace.core.datastreams.StatsGroup
 import datadog.trace.instrumentation.aws.v1.sqs.TracingList
 import org.elasticmq.rest.sqs.SQSRestServerBuilder
+import spock.lang.IgnoreIf
 import spock.lang.Shared
 
 import javax.jms.Session
+
+import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
+import static java.nio.charset.StandardCharsets.UTF_8
 
 abstract class SqsClientTest extends VersionedNamingTestBase {
 
@@ -37,6 +40,7 @@ abstract class SqsClientTest extends VersionedNamingTestBase {
     super.configurePreAgent()
     // Set a service name that gets sorted early with SORT_BY_NAMES
     injectSysConfig(GeneralConfig.SERVICE_NAME, "A-service")
+    injectSysConfig(GeneralConfig.DATA_STREAMS_ENABLED, isDataStreamsEnabled().toString())
   }
 
   @Shared
@@ -86,8 +90,11 @@ abstract class SqsClientTest extends VersionedNamingTestBase {
       client.sendMessage(queueUrl, 'sometext')
     })
     def messages = client.receiveMessage(queueUrl).messages
-
     messages.forEach {/* consume to create message spans */ }
+
+    if (isDataStreamsEnabled()) {
+      TEST_DATA_STREAMS_WRITER.waitForGroups(2)
+    }
 
     then:
     def sendSpan
@@ -116,6 +123,9 @@ abstract class SqsClientTest extends VersionedNamingTestBase {
             "aws.operation" "SendMessageRequest"
             "aws.agent" "java-aws-sdk"
             "aws.queue.url" "http://localhost:${address.port}/000000000000/somequeue"
+            if ({ isDataStreamsEnabled() }) {
+              "$DDTags.PATHWAY_HASH" { String }
+            }
             defaultTags()
           }
         }
@@ -138,9 +148,28 @@ abstract class SqsClientTest extends VersionedNamingTestBase {
             "aws.operation" "ReceiveMessageRequest"
             "aws.agent" "java-aws-sdk"
             "aws.queue.url" "http://localhost:${address.port}/000000000000/somequeue"
+            if ({ isDataStreamsEnabled() }) {
+              "$DDTags.PATHWAY_HASH" { String }
+            }
             defaultTags(true)
           }
         }
+      }
+    }
+
+    and:
+    if (isDataStreamsEnabled()) {
+      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
+
+      verifyAll(first) {
+        edgeTags == ["direction:out", "topic:somequeue", "type:sqs"]
+        edgeTags.size() == 3
+      }
+
+      StatsGroup second = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == first.hash }
+      verifyAll(second) {
+        edgeTags == ["direction:in", "topic:somequeue", "type:sqs"]
+        edgeTags.size() == 3
       }
     }
 
@@ -151,6 +180,7 @@ abstract class SqsClientTest extends VersionedNamingTestBase {
     client.shutdown()
   }
 
+  @IgnoreIf({ instance.isDataStreamsEnabled() })
   def "trace details propagated via embedded SQS message attribute (string)"() {
     setup:
     TEST_WRITER.clear()
@@ -191,6 +221,7 @@ abstract class SqsClientTest extends VersionedNamingTestBase {
     }
   }
 
+  @IgnoreIf({ instance.isDataStreamsEnabled() })
   def "trace details propagated via embedded SQS message attribute (binary)"() {
     setup:
     TEST_WRITER.clear()
@@ -231,6 +262,7 @@ abstract class SqsClientTest extends VersionedNamingTestBase {
     }
   }
 
+  @IgnoreIf({ instance.isDataStreamsEnabled() })
   def "trace details propagated from SQS to JMS"() {
     setup:
     def client = AmazonSQSClientBuilder.standard()
@@ -432,3 +464,60 @@ class SqsClientV1ForkedTest extends SqsClientTest {
     1
   }
 }
+
+class SqsClientV0DataStreamsTest extends SqsClientTest {
+  @Override
+  String expectedOperation(String awsService, String awsOperation) {
+    "aws.http"
+  }
+
+  @Override
+  String expectedService(String awsService, String awsOperation) {
+    if ("SQS" == awsService) {
+      return "sqs"
+    }
+    return "java-aws-sdk"
+  }
+
+  @Override
+  boolean isDataStreamsEnabled() {
+    true
+  }
+
+
+  @Override
+  int version() {
+    0
+  }
+}
+
+class SqsClientV1DataStreamsForkedTest extends SqsClientTest {
+  @Override
+  String expectedOperation(String awsService, String awsOperation) {
+    if (awsService == "SQS") {
+      if (awsOperation == "ReceiveMessage") {
+        return "aws.sqs.process"
+      } else if (awsOperation == "SendMessage") {
+        return "aws.sqs.send"
+      }
+    }
+    return "aws.${awsService.toLowerCase()}.request"
+  }
+
+  @Override
+  String expectedService(String awsService, String awsOperation) {
+    "A-service"
+  }
+
+  @Override
+  boolean isDataStreamsEnabled() {
+    true
+  }
+
+  @Override
+  int version() {
+    1
+  }
+}
+
+

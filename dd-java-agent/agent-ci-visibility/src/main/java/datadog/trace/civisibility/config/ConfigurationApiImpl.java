@@ -3,7 +3,7 @@ package datadog.trace.civisibility.config;
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Moshi;
 import com.squareup.moshi.Types;
-import datadog.trace.api.civisibility.config.SkippableTest;
+import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.civisibility.communication.BackendApi;
 import java.io.IOException;
 import java.lang.reflect.ParameterizedType;
@@ -21,13 +21,14 @@ public class ConfigurationApiImpl implements ConfigurationApi {
 
   private static final String SETTINGS_URI = "libraries/tests/services/setting";
   private static final String SKIPPABLE_TESTS_URI = "ci/tests/skippable";
+  private static final String FLAKY_TESTS_URI = "ci/libraries/tests/flaky";
 
   private final BackendApi backendApi;
   private final Supplier<String> uuidGenerator;
 
   private final JsonAdapter<EnvelopeDto<TracerEnvironment>> requestAdapter;
   private final JsonAdapter<EnvelopeDto<CiVisibilitySettings>> settingsResponseAdapter;
-  private final JsonAdapter<MultiEnvelopeDto<SkippableTest>> skippableTestsResponseAdapter;
+  private final JsonAdapter<MultiEnvelopeDto<TestIdentifier>> testIdentifiersResponseAdapter;
 
   public ConfigurationApiImpl(BackendApi backendApi) {
     this(backendApi, () -> UUID.randomUUID().toString());
@@ -50,10 +51,10 @@ public class ConfigurationApiImpl implements ConfigurationApi {
             ConfigurationApiImpl.class, EnvelopeDto.class, CiVisibilitySettings.class);
     settingsResponseAdapter = moshi.adapter(settingsResponseType);
 
-    ParameterizedType skippableTestsResponseType =
+    ParameterizedType testIdentifiersResponseType =
         Types.newParameterizedTypeWithOwner(
-            ConfigurationApiImpl.class, MultiEnvelopeDto.class, SkippableTest.class);
-    skippableTestsResponseAdapter = moshi.adapter(skippableTestsResponseType);
+            ConfigurationApiImpl.class, MultiEnvelopeDto.class, TestIdentifier.class);
+    testIdentifiersResponseAdapter = moshi.adapter(testIdentifiersResponseType);
   }
 
   @Override
@@ -71,18 +72,29 @@ public class ConfigurationApiImpl implements ConfigurationApi {
   }
 
   @Override
-  public Collection<SkippableTest> getSkippableTests(TracerEnvironment tracerEnvironment)
+  public Collection<TestIdentifier> getSkippableTests(TracerEnvironment tracerEnvironment)
       throws IOException {
+    return getTestsData(SKIPPABLE_TESTS_URI, "test_params", tracerEnvironment);
+  }
+
+  @Override
+  public Collection<TestIdentifier> getFlakyTests(TracerEnvironment tracerEnvironment)
+      throws IOException {
+    return getTestsData(FLAKY_TESTS_URI, "flaky_test_from_libraries_params", tracerEnvironment);
+  }
+
+  private Collection<TestIdentifier> getTestsData(
+      String endpoint, String dataType, TracerEnvironment tracerEnvironment) throws IOException {
     String uuid = uuidGenerator.get();
-    EnvelopeDto<TracerEnvironment> skippableTestsRequest =
-        new EnvelopeDto<>(new DataDto<>(uuid, "test_params", tracerEnvironment));
-    String json = requestAdapter.toJson(skippableTestsRequest);
+    EnvelopeDto<TracerEnvironment> request =
+        new EnvelopeDto<>(new DataDto<>(uuid, dataType, tracerEnvironment));
+    String json = requestAdapter.toJson(request);
     RequestBody requestBody = RequestBody.create(JSON, json);
-    Collection<DataDto<SkippableTest>> response =
+    Collection<DataDto<TestIdentifier>> response =
         backendApi.post(
-            SKIPPABLE_TESTS_URI,
+            endpoint,
             requestBody,
-            is -> skippableTestsResponseAdapter.fromJson(Okio.buffer(Okio.source(is))).data);
+            is -> testIdentifiersResponseAdapter.fromJson(Okio.buffer(Okio.source(is))).data);
     return response.stream().map(DataDto::getAttributes).collect(Collectors.toList());
   }
 

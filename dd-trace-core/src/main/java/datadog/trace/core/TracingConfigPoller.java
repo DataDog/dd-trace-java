@@ -25,13 +25,13 @@ import org.slf4j.LoggerFactory;
 final class TracingConfigPoller {
   private static final Logger log = LoggerFactory.getLogger(TracingConfigPoller.class);
 
-  private final DynamicConfig dynamicConfig;
+  private final DynamicConfig<?> dynamicConfig;
 
   private boolean startupLogsEnabled;
 
   private Runnable stopPolling;
 
-  public TracingConfigPoller(DynamicConfig dynamicConfig) {
+  public TracingConfigPoller(DynamicConfig<?> dynamicConfig) {
     this.dynamicConfig = dynamicConfig;
   }
 
@@ -104,11 +104,8 @@ final class TracingConfigPoller {
   void applyConfigOverrides(LibConfig libConfig) {
     DynamicConfig<?>.Builder builder = dynamicConfig.initial();
 
-    maybeOverride(builder::setDebugEnabled, libConfig.debugEnabled);
-
     if (libConfig.debugEnabled != null) {
       if (Boolean.TRUE.equals(libConfig.debugEnabled)) {
-        builder.setTriageEnabled(true); // debug implies triage
         GlobalLogLevelSwitcher.get().switchLevel(LogLevel.DEBUG);
       } else {
         // Disable debugEnabled when it was set to true at startup
@@ -120,6 +117,8 @@ final class TracingConfigPoller {
           GlobalLogLevelSwitcher.get().switchLevel(LogLevel.WARN);
         }
       }
+    } else {
+      GlobalLogLevelSwitcher.get().restore();
     }
 
     maybeOverride(builder::setRuntimeMetricsEnabled, libConfig.runtimeMetricsEnabled);

@@ -7,6 +7,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_IN;
 import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_TAG;
 import static datadog.trace.core.datastreams.TagsProcessor.GROUP_TAG;
+import static datadog.trace.core.datastreams.TagsProcessor.KAFKA_CLUSTER_ID_TAG;
 import static datadog.trace.core.datastreams.TagsProcessor.TOPIC_TAG;
 import static datadog.trace.core.datastreams.TagsProcessor.TYPE_TAG;
 import static datadog.trace.instrumentation.kafka_clients.KafkaDecorator.BROKER_DECORATE;
@@ -36,17 +37,23 @@ public class TracingIterator implements Iterator<ConsumerRecord<?, ?>> {
   private final Iterator<ConsumerRecord<?, ?>> delegateIterator;
   private final CharSequence operationName;
   private final KafkaDecorator decorator;
-  private final ConsumerContext context;
+  private final String group;
+  private final String clusterId;
+  private final String bootstrapServers;
 
   public TracingIterator(
       final Iterator<ConsumerRecord<?, ?>> delegateIterator,
       final CharSequence operationName,
       final KafkaDecorator decorator,
-      final ConsumerContext context) {
+      String group,
+      String clusterId,
+      String bootstrapServers) {
     this.delegateIterator = delegateIterator;
     this.operationName = operationName;
     this.decorator = decorator;
-    this.context = context;
+    this.group = group;
+    this.clusterId = clusterId;
+    this.bootstrapServers = bootstrapServers;
   }
 
   @Override
@@ -89,7 +96,10 @@ public class TracingIterator implements Iterator<ConsumerRecord<?, ?>> {
 
           LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>();
           sortedTags.put(DIRECTION_TAG, DIRECTION_IN);
-          sortedTags.put(GROUP_TAG, context.getConsumerGroup());
+          sortedTags.put(GROUP_TAG, group);
+          if (clusterId != null) {
+            sortedTags.put(KAFKA_CLUSTER_ID_TAG, clusterId);
+          }
           sortedTags.put(TOPIC_TAG, val.topic());
           sortedTags.put(TYPE_TAG, "kafka");
 
@@ -118,7 +128,7 @@ public class TracingIterator implements Iterator<ConsumerRecord<?, ?>> {
           span.setTag(InstrumentationTags.TOMBSTONE, true);
         }
         decorator.afterStart(span);
-        decorator.onConsume(span, val, context);
+        decorator.onConsume(span, val, group, bootstrapServers);
         activateNext(span);
         if (null != queueSpan) {
           queueSpan.finish();

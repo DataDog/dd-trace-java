@@ -40,9 +40,14 @@ public class TestProbes implements CoverageProbeStore {
   }
 
   @Override
-  public void record(Class<?> clazz, long classId, String className, int probeId) {
+  public void record(Class<?> clazz) {
+    throw new UnsupportedOperationException();
+  }
+
+  @Override
+  public void record(Class<?> clazz, long classId, int probeId) {
     probeActivations
-        .computeIfAbsent(clazz, (ignored) -> new ExecutionDataAdapter(classId, className))
+        .computeIfAbsent(clazz, (ignored) -> new ExecutionDataAdapter(classId, clazz.getName()))
         .record(probeId);
   }
 
@@ -155,7 +160,7 @@ public class TestProbes implements CoverageProbeStore {
 
     @Override
     public void setTotalProbeCount(String className, int totalProbeCount) {
-      totalProbeCounts.put(className, totalProbeCount);
+      totalProbeCounts.put(className.replace('/', '.'), totalProbeCount);
     }
 
     @Override

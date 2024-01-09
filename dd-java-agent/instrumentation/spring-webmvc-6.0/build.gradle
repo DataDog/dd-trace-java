@@ -14,7 +14,9 @@ muzzle {
 
 apply from: "$rootDir/gradle/java.gradle"
 
-[compileMain_java17Java, compileTestJava].each {
+addTestSuiteForDir("latestDepTest", "test")
+
+[compileMain_java17Java, compileTestJava, compileLatestDepTestJava].each {
   it.configure {
     setJavaVersion(it, 17)
     sourceCompatibility = JavaVersion.VERSION_1_8
@@ -22,8 +24,9 @@ apply from: "$rootDir/gradle/java.gradle"
   }
 }
 
-compileTestGroovy {
+tasks.withType(GroovyCompile) {
   javaLauncher = getJavaLauncherFor(17)
+  groovyOptions.setParameters(true)
 }
 
 dependencies {
@@ -47,6 +50,10 @@ dependencies {
   testImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-web', version: '3.0.0'
   testImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-security', version: '3.0.0'
   testImplementation group: 'com.google.code.gson', name: 'gson', version: '2.10.1'
+
+  latestDepTestImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-test', version: '3.+'
+  latestDepTestImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-web', version: '3.+'
+  latestDepTestImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-security', version: '3.+'
 }
 
 

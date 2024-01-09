@@ -14,6 +14,7 @@ import java.util.Collection;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Function;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -97,7 +98,7 @@ public class SerializerWithLimits {
       return true;
     }
 
-    void objectFieldPrologue(Field field, Object value, int maxDepth) throws Exception;
+    void objectFieldPrologue(String fieldName, Object value, int maxDepth) throws Exception;
 
     void handleFieldException(Exception ex, Field field);
 
@@ -256,6 +257,14 @@ public class SerializerWithLimits {
 
   private void serializeObjectValue(Object value, Limits limits) throws Exception {
     tokenWriter.objectPrologue(value);
+    Function<Object, CapturedContext.CapturedValue> specialFieldAccess =
+        WellKnownClasses.getSpecialFieldAccess(value.getClass().getTypeName());
+    if (specialFieldAccess != null) {
+      CapturedContext.CapturedValue specialField = specialFieldAccess.apply(value);
+      onSpecialField(specialField, limits);
+      tokenWriter.objectEpilogue(value);
+      return;
+    }
     Class<?> currentClass = value.getClass();
     int processedFieldCount = 0;
     NotCapturedReason reason = null;
@@ -287,15 +296,24 @@ public class SerializerWithLimits {
   }
 
   private void onField(Field field, Object value, Limits limits) throws Exception {
-    tokenWriter.objectFieldPrologue(field, value, limits.maxReferenceDepth);
+    internalOnField(field.getName(), field.getType().getTypeName(), value, limits);
+  }
+
+  private void onSpecialField(CapturedContext.CapturedValue field, Limits limits) throws Exception {
+    internalOnField(field.getName(), field.getType(), field.getValue(), limits);
+  }
+
+  private void internalOnField(String fieldName, String fieldType, Object value, Limits limits)
+      throws Exception {
+    tokenWriter.objectFieldPrologue(fieldName, value, limits.maxReferenceDepth);
     Limits newLimits = Limits.decDepthLimits(limits);
     String typeName;
-    if (SerializerWithLimits.isPrimitive(field.getType().getTypeName())) {
-      typeName = field.getType().getTypeName();
+    if (SerializerWithLimits.isPrimitive(fieldType)) {
+      typeName = fieldType;
     } else {
-      typeName = value != null ? value.getClass().getTypeName() : field.getType().getTypeName();
+      typeName = value != null ? value.getClass().getTypeName() : fieldType;
     }
-    if (Redaction.isRedactedKeyword(field.getName())) {
+    if (Redaction.isRedactedKeyword(fieldName)) {
       value = REDACTED_VALUE;
     }
     serialize(

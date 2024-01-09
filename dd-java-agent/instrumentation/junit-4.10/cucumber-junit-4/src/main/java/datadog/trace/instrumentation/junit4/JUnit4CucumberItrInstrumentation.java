@@ -8,7 +8,7 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.api.Config;
 import datadog.trace.api.civisibility.InstrumentationBridge;
-import datadog.trace.api.civisibility.config.SkippableTest;
+import datadog.trace.api.civisibility.config.TestIdentifier;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import io.cucumber.core.gherkin.Pickle;
 import java.util.List;
@@ -77,7 +77,7 @@ public class JUnit4CucumberItrInstrumentation extends Instrumenter.CiVisibility
         }
       }
 
-      SkippableTest test = JUnit4Utils.toSkippableTest(description);
+      TestIdentifier test = JUnit4Utils.toTestIdentifier(description);
       if (TestEventsHandlerHolder.TEST_EVENTS_HANDLER.skip(test)) {
         notifier.fireTestAssumptionFailed(
             new Failure(

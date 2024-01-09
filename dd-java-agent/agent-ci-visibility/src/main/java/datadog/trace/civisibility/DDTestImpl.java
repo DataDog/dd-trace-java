@@ -7,6 +7,7 @@ import datadog.trace.api.Config;
 import datadog.trace.api.civisibility.CIConstants;
 import datadog.trace.api.civisibility.DDTest;
 import datadog.trace.api.civisibility.InstrumentationBridge;
+import datadog.trace.api.civisibility.coverage.CoverageBridge;
 import datadog.trace.api.civisibility.coverage.CoverageProbeStore;
 import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
@@ -56,14 +57,15 @@ public class DDTestImpl implements DDTest {
     this.suiteId = suiteId;
     this.onSpanFinish = onSpanFinish;
 
+    CoverageProbeStore probeStore = coverageProbeStoreFactory.create(sourcePathResolver);
+    CoverageBridge.setThreadLocalCoverageProbeStore(probeStore);
+
     AgentTracer.SpanBuilder spanBuilder =
         AgentTracer.get()
             .buildSpan(testDecorator.component() + ".test")
             .ignoreActiveSpan()
             .asChildOf(null)
-            .withRequestContextData(
-                RequestContextSlot.CI_VISIBILITY,
-                coverageProbeStoreFactory.create(sourcePathResolver));
+            .withRequestContextData(RequestContextSlot.CI_VISIBILITY, probeStore);
 
     if (startTime != null) {
       spanBuilder = spanBuilder.withStartTimestamp(startTime);
@@ -178,6 +180,7 @@ public class DDTestImpl implements DDTest {
               + span);
     }
 
+    CoverageBridge.removeThreadLocalCoverageProbeStore();
     CoverageProbeStore probes = span.getRequestContext().getData(RequestContextSlot.CI_VISIBILITY);
     probes.report(sessionId, suiteId, span.getSpanId());
 

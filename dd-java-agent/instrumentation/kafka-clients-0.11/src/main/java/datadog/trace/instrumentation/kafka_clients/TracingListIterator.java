@@ -14,8 +14,10 @@ public class TracingListIterator extends TracingIterator
       ListIterator<ConsumerRecord<?, ?>> delegateIterator,
       CharSequence operationName,
       KafkaDecorator decorator,
-      ConsumerContext context) {
-    super(delegateIterator, operationName, decorator, context);
+      String group,
+      String clusterId,
+      String bootstrapServers) {
+    super(delegateIterator, operationName, decorator, group, clusterId, bootstrapServers);
     this.delegateIterator = delegateIterator;
   }
 

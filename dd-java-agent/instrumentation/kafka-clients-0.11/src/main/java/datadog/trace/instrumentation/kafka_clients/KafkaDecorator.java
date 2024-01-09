@@ -109,15 +109,21 @@ public class KafkaDecorator extends MessagingClientDecorator {
   }
 
   public void onConsume(
-      final AgentSpan span, final ConsumerRecord record, ConsumerContext context) {
+      final AgentSpan span,
+      final ConsumerRecord record,
+      String consumerGroup,
+      String bootstrapServers) {
     if (record != null) {
       final String topic = record.topic() == null ? "kafka" : record.topic();
       span.setResourceName(CONSUMER_RESOURCE_NAME_CACHE.computeIfAbsent(topic, CONSUMER_PREFIX));
       span.setTag(PARTITION, record.partition());
       span.setTag(OFFSET, record.offset());
-      if (context != null) {
-        span.setTag(CONSUMER_GROUP, context.getConsumerGroup());
-        span.setTag(KAFKA_BOOTSTRAP_SERVERS, context.getBootstrapServers());
+      if (consumerGroup != null) {
+        span.setTag(CONSUMER_GROUP, consumerGroup);
+      }
+
+      if (bootstrapServers != null) {
+        span.setTag(KAFKA_BOOTSTRAP_SERVERS, bootstrapServers);
       }
       // TODO - do we really need both? This mechanism already adds a lot of... baggage.
       // check to not record a duration if the message was sent from an old Kafka client

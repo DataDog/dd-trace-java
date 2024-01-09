@@ -59,15 +59,10 @@ public class RepoIndexBuilder implements RepoIndexProvider {
   }
 
   private RepoIndex doGetIndex() {
-    log.warn(
-        "Building index of source files in {}, repo root is {}. "
-            + "This operation can be slow, "
-            + "please consider using Datadog Java compiler plugin to avoid indexing",
-        scanRoot,
-        repoRoot);
+    log.warn("Building index of source files in {}, repo root is {}", scanRoot, repoRoot);
 
-    Path repoRootPath = fileSystem.getPath(repoRoot);
-    Path scanRootPath = fileSystem.getPath(scanRoot);
+    Path repoRootPath = toRealPath(fileSystem.getPath(repoRoot));
+    Path scanRootPath = toRealPath(fileSystem.getPath(scanRoot));
     RepoIndexingFileVisitor repoIndexingFileVisitor =
         new RepoIndexingFileVisitor(config, packageResolver, resourceResolver, repoRootPath);
 
@@ -94,6 +89,15 @@ public class RepoIndexBuilder implements RepoIndexProvider {
         repoIndexingFileVisitor.sourceRoots.size(),
         index.getRootPackages());
     return index;
+  }
+
+  private Path toRealPath(Path path) {
+    try {
+      return path.toRealPath();
+    } catch (Exception e) {
+      log.error("Could not determine real path for {}", path, e);
+      return path;
+    }
   }
 
   private static final class RepoIndexingFileVisitor implements FileVisitor<Path> {
@@ -124,7 +128,23 @@ public class RepoIndexBuilder implements RepoIndexProvider {
 
     @Override
     public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) {
+      if (Files.isSymbolicLink(dir) && readSymbolicLink(dir).startsWith(repoRoot)) {
+        // The path is a symlink that points inside the repo.
+        // We'll visit the folder that it points to anyway,
+        // moreover, we don't want two different results for one file
+        // (one containing the symlink, the other - the actual folder).
+        return FileVisitResult.SKIP_SUBTREE;
+      }
       return FileVisitResult.CONTINUE;
+    }
+
+    private static Path readSymbolicLink(Path path) {
+      try {
+        return Files.readSymbolicLink(path);
+      } catch (Exception e) {
+        log.debug("Could not read symbolic link {}", path, e);
+        return path;
+      }
     }
 
     @Override

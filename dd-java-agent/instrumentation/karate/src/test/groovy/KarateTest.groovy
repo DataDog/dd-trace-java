@@ -1,6 +1,6 @@
 import com.intuit.karate.FileUtils
 import datadog.trace.api.DisableTestTrace
-import datadog.trace.api.civisibility.config.SkippableTest
+import datadog.trace.api.civisibility.config.TestIdentifier
 import datadog.trace.civisibility.CiVisibilityInstrumentationTest
 import datadog.trace.instrumentation.karate.TestEventsHandlerHolder
 import org.example.TestFailedKarate
@@ -37,11 +37,11 @@ class KarateTest extends CiVisibilityInstrumentationTest {
     "test-with-setup"                 | [TestWithSetupKarate]     | 3                   | []                                                                                                                                                     | isSetupTagSupported(FileUtils.KARATE_VERSION)
     "test-parameterized"              | [TestParameterizedKarate] | 3                   | []                                                                                                                                                     | true
     "test-failed"                     | [TestFailedKarate]        | 3                   | []                                                                                                                                                     | true
-    "test-itr-skipping"               | [TestSucceedKarate]       | 3                   | [new SkippableTest("[org/example/test_succeed] test succeed", "first scenario", null, null)]                                                           | isSkippingSupported(FileUtils.KARATE_VERSION)
+    "test-itr-skipping"               | [TestSucceedKarate]       | 3                   | [new TestIdentifier("[org/example/test_succeed] test succeed", "first scenario", null, null)]         | isSkippingSupported(FileUtils.KARATE_VERSION)
     "test-itr-skipping-parameterized" | [TestParameterizedKarate] | 3                   | [
-      new SkippableTest("[org/example/test_parameterized] test parameterized", "first scenario as an outline", '{"param":"\\\'a\\\'","value":"aa"}', null)
-    ] | isSkippingSupported(FileUtils.KARATE_VERSION)
-    "test-itr-unskippable"            | [TestUnskippableKarate]   | 3                   | [new SkippableTest("[org/example/test_unskippable] test unskippable", "first scenario", null, null)]                                                   | isSkippingSupported(FileUtils.KARATE_VERSION)
+      new TestIdentifier("[org/example/test_parameterized] test parameterized", "first scenario as an outline", '{"param":"\\\'a\\\'","value":"aa"}', null)
+    ]                                                                                                                                                                                           | isSkippingSupported(FileUtils.KARATE_VERSION)
+    "test-itr-unskippable"            | [TestUnskippableKarate]   | 3                   | [new TestIdentifier("[org/example/test_unskippable] test unskippable", "first scenario", null, null)] | isSkippingSupported(FileUtils.KARATE_VERSION)
   }
 
   private void runTests(List<Class<?>> tests) {

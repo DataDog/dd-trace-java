@@ -29,6 +29,7 @@ import spock.lang.Timeout
 import spock.util.concurrent.PollingConditions
 
 import java.nio.ByteBuffer
+import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Phaser
 import java.util.concurrent.Semaphore
 import java.util.concurrent.TimeUnit
@@ -262,8 +263,8 @@ class DDAgentWriterCombinedTest extends DDCoreSpecification {
   }
 
   def createMinimalContext() {
-    def tracer = Mock(CoreTracer)
-    def trace = Mock(PendingTrace)
+    def tracer = Stub(CoreTracer)
+    def trace = Stub(PendingTrace)
     trace.mapServiceName(_) >> { String serviceName -> serviceName }
     trace.getTracer() >> tracer
     return new DDSpanContext(
@@ -413,7 +414,7 @@ class DDAgentWriterCombinedTest extends DDCoreSpecification {
     def healthMetrics = Mock(HealthMetrics)
     def minimalTrace = createMinimalTrace()
     def version = agentVersion
-    def discovery = Mock(DDAgentFeaturesDiscovery) {
+    def discovery = Stub(DDAgentFeaturesDiscovery) {
       it.getTraceEndpoint() >> version
     }
     def api = Mock(DDAgentApi) {
@@ -692,45 +693,39 @@ class DDAgentWriterCombinedTest extends DDCoreSpecification {
   }
 
   def "statsd comm failure"() {
-    def numRequests = new AtomicInteger(0)
-    def numResponses = new AtomicInteger(0)
-    def numErrors = new AtomicInteger(0)
-
     setup:
     def minimalTrace = createMinimalTrace()
 
     def api = apiWithVersion(agentVersion)
     api.sendSerializedTraces(_) >> RemoteApi.Response.failed(new IOException("comm error"))
 
-    def statsd = Stub(StatsDClient)
-    statsd.incrementCounter("api.requests.total") >> { stat ->
-      numRequests.incrementAndGet()
-    }
-    statsd.incrementCounter("api.responses.total", _) >> { stat, tags ->
-      numResponses.incrementAndGet()
-    }
-    statsd.incrementCounter("api.errors.total", _) >> { stat ->
-      numErrors.incrementAndGet()
-    }
-
-    def healthMetrics = new TracerHealthMetrics(statsd)
+    def latch = new CountDownLatch(2)
+    def statsd = Mock(StatsDClient)
+    def healthMetrics = new TracerHealthMetrics(statsd, 100, TimeUnit.MILLISECONDS)
     def writer = DDAgentWriter.builder()
       .traceAgentV05Enabled(true)
       .agentApi(api).monitoring(monitoring)
       .healthMetrics(healthMetrics).build()
+    healthMetrics.start()
     writer.start()
 
     when:
     writer.write(minimalTrace)
     writer.flush()
+    latch.await(10, TimeUnit.SECONDS)
 
     then:
-    numRequests.get() == 1
-    numResponses.get() == 0
-    numErrors.get() == 1
+    1 * statsd.count("api.requests.total", 1, _) >> {
+      latch.countDown()
+    }
+    0 * statsd.incrementCounter("api.responses.total", _)
+    1 * statsd.count("api.errors.total", 1, _) >> {
+      latch.countDown()
+    }
 
     cleanup:
     writer.close()
+    healthMetrics.close()
 
     where:
     agentVersion << ["v0.3/traces", "v0.4/traces", "v0.5/traces"]

@@ -28,14 +28,14 @@ class PayloadDispatcherImplTest extends DDSpecification {
   @Shared
   MonitoringImpl monitoring = new MonitoringImpl(StatsDClient.NO_OP, 1, TimeUnit.SECONDS)
 
-  @Timeout(5)
+  @Timeout(10)
   def "flush automatically when data limit is breached"() {
     setup:
     AtomicBoolean flushed = new AtomicBoolean()
-    HealthMetrics healthMetrics = Mock(HealthMetrics)
-    DDAgentFeaturesDiscovery discovery = Mock(DDAgentFeaturesDiscovery)
+    HealthMetrics healthMetrics = Stub(HealthMetrics)
+    DDAgentFeaturesDiscovery discovery = Stub(DDAgentFeaturesDiscovery)
     discovery.getTraceEndpoint() >> traceEndpoint
-    DDAgentApi api = Mock(DDAgentApi)
+    DDAgentApi api = Stub(DDAgentApi)
     api.sendSerializedTraces(_) >> {
       flushed.set(true)
       return RemoteApi.Response.success(200)
@@ -124,8 +124,8 @@ class PayloadDispatcherImplTest extends DDSpecification {
 
   def "trace and span counts are reset after access"() {
     setup:
-    HealthMetrics healthMetrics = Mock(HealthMetrics)
-    DDAgentApi api = Mock(DDAgentApi)
+    HealthMetrics healthMetrics = Stub(HealthMetrics)
+    DDAgentApi api = Stub(DDAgentApi)
     DDAgentFeaturesDiscovery discovery = Mock(DDAgentFeaturesDiscovery) {
       it.getTraceEndpoint() >> "v0.4/traces"
     }
@@ -148,8 +148,8 @@ class PayloadDispatcherImplTest extends DDSpecification {
 
 
   def realSpan() {
-    CoreTracer tracer = Mock(CoreTracer)
-    PendingTrace trace = Mock(PendingTrace)
+    CoreTracer tracer = Stub(CoreTracer)
+    PendingTrace trace = Stub(PendingTrace)
     trace.getTracer() >> tracer
     trace.mapServiceName(_) >> { String serviceName -> serviceName }
     def context = new DDSpanContext(

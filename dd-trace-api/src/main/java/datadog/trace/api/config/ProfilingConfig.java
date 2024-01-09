@@ -67,6 +67,9 @@ public final class ProfilingConfig {
       "profiling.directallocation.enabled";
   public static final boolean PROFILING_DIRECT_ALLOCATION_ENABLED_DEFAULT = false;
 
+  public static final String PROFILING_STACKDEPTH = "profiling.stackdepth";
+  public static final int PROFILING_STACKDEPTH_DEFAULT = 512;
+
   // Java profiler lib needs to be extracted from JAR and placed into the scratch location
   // By default the scratch is the os temp directory but can be overridden by user
   public static final String PROFILING_DATADOG_PROFILER_SCRATCH = "profiling.ddprof.scratch";
@@ -110,7 +113,6 @@ public final class ProfilingConfig {
 
   public static final String PROFILING_DATADOG_PROFILER_LOG_LEVEL_DEFAULT = "NONE";
   public static final String PROFILING_DATADOG_PROFILER_STACKDEPTH = "profiling.ddprof.stackdepth";
-  public static final int PROFILING_DATADOG_PROFILER_STACKDEPTH_DEFAULT = 512;
   public static final String PROFILING_DATADOG_PROFILER_CSTACK = "profiling.ddprof.cstack";
   public static final String PROFILING_DATADOG_PROFILER_CSTACK_DEFAULT = "fp";
   public static final String PROFILING_DATADOG_PROFILER_SAFEMODE = "profiling.ddprof.safemode";
@@ -166,6 +168,7 @@ public final class ProfilingConfig {
   public static final String PROFILING_ENABLED_EVENTS = "profiling.enabled.events";
 
   public static final String PROFILING_DEBUG_DUMP_PATH = "profiling.debug.dump_path";
+  public static final String PROFILING_DEBUG_JFR_DISABLED = "profiling.debug.jfr.disabled";
 
   public static final String PROFILING_CONTEXT_ATTRIBUTES = "profiling.context.attributes";
 

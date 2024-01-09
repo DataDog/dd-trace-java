@@ -8,6 +8,7 @@ import datadog.trace.api.Config;
 import datadog.trace.api.GlobalTracer;
 import datadog.trace.api.StatsDClient;
 import datadog.trace.api.StatsDClientManager;
+import datadog.trace.api.flare.TracerFlare;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.IOException;
 import java.io.InputStream;
@@ -88,6 +89,9 @@ public class JMXFetch {
     }
 
     final StatsDClient statsd = statsDClientManager.statsDClient(host, port, namedPipe, null, null);
+    final AgentStatsdReporter reporter = new AgentStatsdReporter(statsd);
+
+    TracerFlare.addReporter(reporter);
 
     final AppConfig.AppConfigBuilder configBuilder =
         AppConfig.builder()
@@ -104,7 +108,7 @@ public class JMXFetch {
             .initialRefreshBeansPeriod(initialRefreshBeansPeriod)
             .refreshBeansPeriod(refreshBeansPeriod)
             .globalTags(globalTags)
-            .reporter(new AgentStatsdReporter(statsd));
+            .reporter(reporter);
 
     if (config.isJmxFetchMultipleRuntimeServicesEnabled()) {
       ServiceNameCollectingTraceInterceptor serviceNameProvider =
@@ -117,6 +121,7 @@ public class JMXFetch {
     if (checkPeriod != null) {
       configBuilder.checkPeriod(checkPeriod);
     }
+
     final AppConfig appConfig = configBuilder.build();
 
     final Thread thread =

@@ -40,10 +40,8 @@ public abstract class CiVisibilityService
     return config.getCiVisibilityCompilerPluginVersion();
   }
 
-  public boolean isCodeCoverageEnabled(Path jvmExecutable) {
-    ModuleExecutionSettings moduleExecutionSettings =
-        buildEventsHandler.getModuleExecutionSettings(SESSION_KEY, jvmExecutable);
-    return moduleExecutionSettings.isCodeCoverageEnabled();
+  public boolean isJacocoInjectionEnabled() {
+    return config.isCiVisibilityJacocoPluginVersionProvided();
   }
 
   public String getJacocoVersion() {
@@ -87,6 +85,8 @@ public abstract class CiVisibilityService
       List<String> splitArgs = Arrays.asList(additionalArgs.split(" "));
       jvmArgs.addAll(splitArgs);
     }
+
+    jvmArgs.add(arg(CiVisibilityConfig.CIVISIBILITY_MODULE_NAME, taskPath));
 
     jvmArgs.add("-javaagent:" + config.getCiVisibilityAgentJarFile().toPath());
 

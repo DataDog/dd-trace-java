@@ -48,6 +48,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInfo;
 import org.junit.jupiter.api.condition.DisabledIfSystemProperty;
+import org.openjdk.jmc.common.IMCStackTrace;
 import org.openjdk.jmc.common.item.Aggregators;
 import org.openjdk.jmc.common.item.IAttribute;
 import org.openjdk.jmc.common.item.IItem;
@@ -58,7 +59,10 @@ import org.openjdk.jmc.common.item.ItemFilters;
 import org.openjdk.jmc.common.unit.IQuantity;
 import org.openjdk.jmc.common.unit.QuantityConversionException;
 import org.openjdk.jmc.common.unit.UnitLookup;
+import org.openjdk.jmc.flightrecorder.JfrAttributes;
 import org.openjdk.jmc.flightrecorder.JfrLoaderToolkit;
+import org.openjdk.jmc.flightrecorder.jdk.JdkAttributes;
+import org.openjdk.jmc.flightrecorder.jdk.JdkTypeIDs;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import spock.util.environment.OperatingSystem;
@@ -67,6 +71,7 @@ import spock.util.environment.OperatingSystem;
 class JFRBasedProfilingIntegrationTest {
   private static final Logger log = LoggerFactory.getLogger(JFRBasedProfilingIntegrationTest.class);
   private static final Duration ONE_NANO = Duration.ofNanos(1);
+  private static final int STACK_DEPTH_LIMIT = 8;
 
   @FunctionalInterface
   private interface TestBody {
@@ -555,40 +560,24 @@ class JFRBasedProfilingIntegrationTest {
       final IItemCollection events,
       final boolean expectEndpointEvents,
       final boolean asyncProfilerEnabled) {
+    assertTrue(
+        events
+            .apply(
+                ItemFilters.and(
+                    ItemFilters.type("datadog.ProfilerSetting"),
+                    ItemFilters.equals(JdkAttributes.REC_SETTING_NAME, "Stack Depth"),
+                    ItemFilters.equals(
+                        JdkAttributes.REC_SETTING_VALUE, String.valueOf(STACK_DEPTH_LIMIT))))
+            .hasItems());
     if (expectEndpointEvents) {
       // Check endpoint events
       final IItemCollection endpointEvents = events.apply(ItemFilters.type("datadog.Endpoint"));
       assertEquals(expectEndpointEvents, endpointEvents.hasItems());
       if (asyncProfilerEnabled) {
-        IItemCollection executionSamples =
-            events.apply(ItemFilters.type("datadog.ExecutionSample"));
         Set<Long> rootSpanIds = new HashSet<>();
         Set<String> operations = new HashSet<>();
         Set<String> values = new HashSet<>();
-        for (IItemIterable executionSampleEvents : executionSamples) {
-          IMemberAccessor<IQuantity, IItem> rootSpanIdAccessor =
-              LOCAL_ROOT_SPAN_ID.getAccessor(executionSampleEvents.getType());
-          IMemberAccessor<String, IItem> fooAccessor =
-              FOO.getAccessor(executionSampleEvents.getType());
-          IMemberAccessor<String, IItem> barAccessor =
-              BAR.getAccessor(executionSampleEvents.getType());
-          IMemberAccessor<String, IItem> operationAccessor =
-              OPERATION.getAccessor(executionSampleEvents.getType());
-          for (IItem executionSample : executionSampleEvents) {
-            long rootSpanId = rootSpanIdAccessor.getMember(executionSample).longValue();
-            rootSpanIds.add(rootSpanId);
-            if (rootSpanId != 0) {
-              operations.add(operationAccessor.getMember(executionSample));
-            }
-            String foo = fooAccessor.getMember(executionSample);
-            if (foo != null) {
-              values.add(foo);
-            }
-            assertNull(barAccessor.getMember(executionSample));
-          }
-        }
-        assertEquals(1, operations.size(), "wrong number of operation names");
-        assertEquals("trace.annotation", operations.iterator().next(), "wrong operation names");
+        processExecutionSamples(events, rootSpanIds, operations, values);
         int matches = 0;
         for (IItemIterable event : endpointEvents) {
           IMemberAccessor<IQuantity, IItem> rootSpanIdAccessor =
@@ -611,6 +600,19 @@ class JFRBasedProfilingIntegrationTest {
       assertEquals(
           Platform.isJavaVersionAtLeast(11),
           events.apply(ItemFilters.type("datadog.ObjectSample")).hasItems());
+      // TODO ddprof (async) profiler seems to be having some issues with stack depth limit and
+      // native frames
+    } else {
+      // make sure the stack depth limit is respected
+      for (IItemIterable lane : events.apply(ItemFilters.type(JdkTypeIDs.EXECUTION_SAMPLE))) {
+        IMemberAccessor<IMCStackTrace, IItem> stackTraceAccessor =
+            JfrAttributes.EVENT_STACKTRACE.getAccessor(lane.getType());
+        for (IItem item : lane) {
+          IMCStackTrace stackTrace = stackTraceAccessor.getMember(item);
+          assertNotNull(stackTrace);
+          assertTrue(stackTrace.getFrames().size() <= STACK_DEPTH_LIMIT);
+        }
+      }
     }
 
     // check exception events
@@ -637,6 +639,33 @@ class JFRBasedProfilingIntegrationTest {
     assertTrue(events.apply(ItemFilters.type("datadog.ProfilerSetting")).hasItems());
     // FIXME - for some reason the events are disabled by JFR despite being explicitly enabled
     // assertTrue(events.apply(ItemFilters.type("datadog.QueueTime")).hasItems());
+  }
+
+  private static void processExecutionSamples(
+      IItemCollection events, Set<Long> rootSpanIds, Set<String> operations, Set<String> values) {
+    IItemCollection executionSamples = events.apply(ItemFilters.type("datadog.ExecutionSample"));
+    for (IItemIterable executionSampleEvents : executionSamples) {
+      IMemberAccessor<IQuantity, IItem> rootSpanIdAccessor =
+          LOCAL_ROOT_SPAN_ID.getAccessor(executionSampleEvents.getType());
+      IMemberAccessor<String, IItem> fooAccessor = FOO.getAccessor(executionSampleEvents.getType());
+      IMemberAccessor<String, IItem> barAccessor = BAR.getAccessor(executionSampleEvents.getType());
+      IMemberAccessor<String, IItem> operationAccessor =
+          OPERATION.getAccessor(executionSampleEvents.getType());
+      for (IItem executionSample : executionSampleEvents) {
+        long rootSpanId = rootSpanIdAccessor.getMember(executionSample).longValue();
+        rootSpanIds.add(rootSpanId);
+        if (rootSpanId != 0) {
+          operations.add(operationAccessor.getMember(executionSample));
+        }
+        String foo = fooAccessor.getMember(executionSample);
+        if (foo != null) {
+          values.add(foo);
+        }
+        assertNull(barAccessor.getMember(executionSample));
+      }
+    }
+    assertEquals(1, operations.size(), "wrong number of operation names");
+    assertEquals("trace.annotation", operations.iterator().next(), "wrong operation names");
   }
 
   private static <T> T getParameter(
@@ -717,6 +746,7 @@ class JFRBasedProfilingIntegrationTest {
             "-Ddd.env=smoketest",
             "-Ddd.version=99",
             "-Ddd.profiling.enabled=true",
+            "-Ddd.profiling.stackdepth=" + STACK_DEPTH_LIMIT,
             "-Ddd.profiling.ddprof.enabled=" + asyncProfilerEnabled,
             "-Ddd.profiling.ddprof.alloc.enabled=" + asyncProfilerEnabled,
             "-Ddd.profiling.agentless=" + (apiKey != null),

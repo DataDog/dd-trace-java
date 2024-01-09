@@ -3,6 +3,7 @@ package com.datadog.debugger.agent;
 import static datadog.trace.util.AgentThreadFactory.AGENT_THREAD_GROUP;
 
 import com.datadog.debugger.sink.DebuggerSink;
+import com.datadog.debugger.sink.ProbeStatusSink;
 import com.datadog.debugger.symbol.SymDBEnablement;
 import com.datadog.debugger.symbol.SymbolAggregator;
 import com.datadog.debugger.uploader.BatchUploader;
@@ -50,7 +51,13 @@ public class DebuggerAgent {
     DDAgentFeaturesDiscovery ddAgentFeaturesDiscovery = sco.featuresDiscovery(config);
     ddAgentFeaturesDiscovery.discoverIfOutdated();
     agentVersion = ddAgentFeaturesDiscovery.getVersion();
-    DebuggerSink debuggerSink = new DebuggerSink(config);
+    String diagnosticEndpoint = getDiagnosticEndpoint(config, ddAgentFeaturesDiscovery);
+    ProbeStatusSink probeStatusSink =
+        new ProbeStatusSink(
+            config,
+            diagnosticEndpoint, /*ddAgentFeaturesDiscovery.supportsDebuggerDiagnostics()*/
+            false);
+    DebuggerSink debuggerSink = new DebuggerSink(config, probeStatusSink);
     debuggerSink.start();
     ConfigurationUpdater configurationUpdater =
         new ConfigurationUpdater(
@@ -60,12 +67,13 @@ public class DebuggerAgent {
             debuggerSink,
             classesToRetransformFinder);
     sink = debuggerSink;
-    StatsdMetricForwarder statsdMetricForwarder = new StatsdMetricForwarder(config);
+    StatsdMetricForwarder statsdMetricForwarder =
+        new StatsdMetricForwarder(config, probeStatusSink);
     DebuggerContext.init(configurationUpdater, statsdMetricForwarder);
     DebuggerContext.initClassFilter(new DenyListHelper(null)); // default hard coded deny list
     snapshotSerializer = new JsonSnapshotSerializer();
     DebuggerContext.initValueSerializer(snapshotSerializer);
-    DebuggerContext.initTracer(new DebuggerTracer());
+    DebuggerContext.initTracer(new DebuggerTracer(debuggerSink.getProbeStatusSink()));
     if (config.isDebuggerInstrumentTheWorld()) {
       setupInstrumentTheWorldTransformer(
           config, instrumentation, debuggerSink, statsdMetricForwarder);
@@ -104,6 +112,15 @@ public class DebuggerAgent {
     } else {
       LOGGER.debug("No configuration poller available from SharedCommunicationObjects");
     }
+  }
+
+  private static String getDiagnosticEndpoint(
+      Config config, DDAgentFeaturesDiscovery ddAgentFeaturesDiscovery) {
+    //    if (ddAgentFeaturesDiscovery.supportsDebuggerDiagnostics()) {
+    //      return config.getAgentUrl() + "/" +
+    // DDAgentFeaturesDiscovery.DEBUGGER_DIAGNOSTICS_ENDPOINT;
+    //    }
+    return config.getFinalDebuggerSnapshotUrl();
   }
 
   private static void setupSourceFileTracking(

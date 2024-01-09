@@ -10,6 +10,7 @@ import com.datadog.debugger.probe.ProbeDefinition;
 import com.datadog.debugger.probe.SpanDecorationProbe;
 import com.datadog.debugger.probe.Where;
 import com.datadog.debugger.sink.DebuggerSink;
+import com.datadog.debugger.sink.ProbeStatusSink;
 import com.datadog.debugger.util.ExceptionHelper;
 import datadog.trace.agent.tooling.AgentStrategies;
 import datadog.trace.api.Config;
@@ -103,7 +104,12 @@ public class DebuggerTransformer implements ClassFileTransformer {
 
   // Used only for tests
   DebuggerTransformer(Config config, Configuration configuration) {
-    this(config, configuration, null, new DebuggerSink(config));
+    this(
+        config,
+        configuration,
+        null,
+        new DebuggerSink(
+            config, new ProbeStatusSink(config, config.getFinalDebuggerSnapshotUrl(), false)));
   }
 
   private void readExcludeFiles(String commaSeparatedFileNames) {
@@ -252,7 +258,7 @@ public class DebuggerTransformer implements ClassFileTransformer {
                   .captureSnapshot(true)
                   .build();
           probes.add(probe);
-          instrumentTheWorldProbes.put(probe.getId(), probe);
+          instrumentTheWorldProbes.put(probe.getProbeId().getEncodedId(), probe);
         }
       }
       Map<Where, List<ProbeDefinition>> defByLocation = mergeLocations(probes);
@@ -276,7 +282,7 @@ public class DebuggerTransformer implements ClassFileTransformer {
     }
   }
 
-  public ProbeImplementation instrumentTheWorldResolver(String id, Class<?> callingClass) {
+  public ProbeImplementation instrumentTheWorldResolver(String id) {
     if (instrumentTheWorldProbes == null) {
       return null;
     }
@@ -364,7 +370,7 @@ public class DebuggerTransformer implements ClassFileTransformer {
     ClassReader classReader = new ClassReader(classFile);
     ClassNode classNode = new ClassNode();
     classReader.accept(
-        new CheckClassAdapter(Opcodes.ASM7, classNode, false) {}, ClassReader.SKIP_DEBUG);
+        new CheckClassAdapter(Opcodes.ASM9, classNode, false) {}, ClassReader.SKIP_DEBUG);
     List<MethodNode> methods = classNode.methods;
     for (MethodNode method : methods) {
       BasicVerifier verifier = new BasicVerifier();
@@ -511,8 +517,8 @@ public class DebuggerTransformer implements ClassFileTransformer {
           }
         }
         if (capturedContextProbes.size() > 0) {
-          List<String> probesIds =
-              capturedContextProbes.stream().map(ProbeDefinition::getId).collect(toList());
+          List<ProbeId> probesIds =
+              capturedContextProbes.stream().map(ProbeDefinition::getProbeId).collect(toList());
           ProbeDefinition referenceDefinition = selectReferenceDefinition(capturedContextProbes);
           List<DiagnosticMessage> probeDiagnostics =
               diagnostics.get(referenceDefinition.getProbeId());

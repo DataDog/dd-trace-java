@@ -54,7 +54,7 @@ class GatewayBridgeSpecification extends DDSpecification {
     void close() throws IOException {}
   }
   EventProducerService.DataSubscriberInfo nonEmptyDsInfo = {
-    EventProducerService.DataSubscriberInfo i = Mock()
+    EventProducerService.DataSubscriberInfo i = Stub()
     i.empty >> false
     i
   }()
@@ -121,7 +121,7 @@ class GatewayBridgeSpecification extends DDSpecification {
     mockAppSecCtx.responseHeaders >> [
       'some-header': ['123'],
       'content-type':['text/html; charset=UTF-8']]
-    RequestContext mockCtx = Mock(RequestContext) {
+    RequestContext mockCtx = Stub(RequestContext) {
       getData(RequestContextSlot.APPSEC) >> mockAppSecCtx
       getTraceSegment() >> traceSegment
     }
@@ -149,10 +149,10 @@ class GatewayBridgeSpecification extends DDSpecification {
   }
 
   void 'event publishing is rate limited'() {
-    AppSecEvent event = Mock()
+    AppSecEvent event = Stub()
     AppSecRequestContext mockAppSecCtx = Mock(AppSecRequestContext)
     mockAppSecCtx.requestHeaders >> [:]
-    RequestContext mockCtx = Mock(RequestContext) {
+    RequestContext mockCtx = Stub(RequestContext) {
       getData(RequestContextSlot.APPSEC) >> mockAppSecCtx
       getTraceSegment() >> traceSegment
     }
@@ -175,7 +175,7 @@ class GatewayBridgeSpecification extends DDSpecification {
       'x-real-ip': ['10.0.0.1'],
       forwarded: ['for=127.0.0.1', 'for="[::1]", for=8.8.8.8'],
     ]
-    RequestContext mockCtx = Mock(RequestContext) {
+    RequestContext mockCtx = Stub(RequestContext) {
       getData(RequestContextSlot.APPSEC) >> mockAppSecCtx
       getTraceSegment() >> traceSegment
     }
@@ -185,7 +185,7 @@ class GatewayBridgeSpecification extends DDSpecification {
     requestEndedCB.apply(mockCtx, spanInfo)
 
     then:
-    1 * mockAppSecCtx.transferCollectedEvents() >> [Mock(AppSecEvent)]
+    1 * mockAppSecCtx.transferCollectedEvents() >> [Stub(AppSecEvent)]
     1 * spanInfo.getTags() >> ['http.client_ip':'8.8.8.8']
     1 * traceSegment.setTagTop('actor.ip', '8.8.8.8')
   }
@@ -517,7 +517,7 @@ class GatewayBridgeSpecification extends DDSpecification {
   }
 
   void 'forwards request body start events and stores the supplier'() {
-    StoredBodySupplier supplier = Mock()
+    StoredBodySupplier supplier = Stub()
 
     setup:
     supplier.get() >> 'foobar'
@@ -534,7 +534,7 @@ class GatewayBridgeSpecification extends DDSpecification {
 
   void 'forwards request body done events and distributes the body contents'() {
     DataBundle bundle
-    StoredBodySupplier supplier = Mock()
+    StoredBodySupplier supplier = Stub()
 
     setup:
     supplier.get() >> 'foobar'
@@ -550,7 +550,7 @@ class GatewayBridgeSpecification extends DDSpecification {
   }
 
   void 'request body does not get published twice'() {
-    StoredBodySupplier supplier = Mock()
+    StoredBodySupplier supplier = Stub()
     Flow flow
 
     given:
@@ -649,7 +649,7 @@ class GatewayBridgeSpecification extends DDSpecification {
   }
 
   void 'request data does not published twice'() {
-    AppSecRequestContext reqCtx = Mock()
+    AppSecRequestContext reqCtx = Stub()
     Flow flow1, flow2, flow3
 
     when:
@@ -704,7 +704,7 @@ class GatewayBridgeSpecification extends DDSpecification {
 
   void 'calls trace segment post processor'() {
     setup:
-    AgentSpan span = Mock()
+    AgentSpan span = Stub()
 
     when:
     requestEndedCB.apply(ctx, span)
@@ -732,8 +732,8 @@ class GatewayBridgeSpecification extends DDSpecification {
         void close() throws IOException {}
       }
 
-    StoredBodySupplier supplier = Mock()
-    IGSpanInfo spanInfo = Mock(AgentSpan)
+    StoredBodySupplier supplier = Stub()
+    IGSpanInfo spanInfo = Stub(AgentSpan)
     Object obj = 'obj'
 
     when:

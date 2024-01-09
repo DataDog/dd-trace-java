@@ -15,7 +15,7 @@ class WeakRandomnessModuleTest extends IastModuleImplTestBase {
 
   def setup() {
     module = new WeakRandomnessModuleImpl(dependencies)
-    span = Mock(AgentSpan) {
+    span = Stub(AgentSpan) {
       getSpanId() >> 123456
     }
   }

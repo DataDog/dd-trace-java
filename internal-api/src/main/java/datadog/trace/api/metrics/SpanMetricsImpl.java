@@ -44,6 +44,7 @@ public class SpanMetricsImpl implements SpanMetrics {
   private static class SpanCounter implements CoreCounter {
     private final String name;
     private final AtomicLong counter;
+    private long previousCount;
 
     private SpanCounter(String name, AtomicLong counter) {
       this.name = name;
@@ -56,8 +57,16 @@ public class SpanMetricsImpl implements SpanMetrics {
     }
 
     @Override
+    public long getValue() {
+      return counter.get();
+    }
+
+    @Override
     public long getValueAndReset() {
-      return this.counter.getAndSet(0);
+      long count = counter.get();
+      long delta = count - previousCount;
+      previousCount = count;
+      return delta;
     }
   }
 }

@@ -50,7 +50,7 @@ class ProbeStatusSinkTest {
     when(config.getDebuggerDiagnosticsInterval()).thenReturn(DIAGNOSTICS_INTERVAL);
     when(config.getDebuggerUploadBatchSize()).thenReturn(100);
     builder = new Builder(config);
-    probeStatusSink = new ProbeStatusSink(config);
+    probeStatusSink = new ProbeStatusSink(config, "http://localhost:8126/debugger/v1/input", true);
   }
 
   @Test
@@ -82,6 +82,14 @@ class ProbeStatusSinkTest {
     probeStatusSink.addError(PROBE_ID, MESSAGE);
     assertEquals(
         Collections.singletonList(builder.errorMessage(PROBE_ID, MESSAGE)),
+        probeStatusSink.getDiagnostics());
+  }
+
+  @Test
+  void addEmitting() {
+    probeStatusSink.addEmitting(PROBE_ID);
+    assertEquals(
+        Arrays.asList(builder.emittingMessage(PROBE_ID.getEncodedId())),
         probeStatusSink.getDiagnostics());
   }
 
@@ -131,6 +139,7 @@ class ProbeStatusSinkTest {
     probeStatusSink.addInstalled(PROBE_ID);
     probeStatusSink.addReceived(PROBE_ID_NEW_VERSION);
     probeStatusSink.addInstalled(PROBE_ID_NEW_VERSION);
+    probeStatusSink.removeDiagnostics(PROBE_ID);
     assertEquals(
         Arrays.asList(
             builder.receivedMessage(PROBE_ID),

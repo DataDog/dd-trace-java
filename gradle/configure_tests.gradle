@@ -11,7 +11,8 @@ def isTestingInstrumentation(Project project) {
     "spock-junit-5",
     "testng-6",
     "testng-7",
-    "karate"
+    "karate",
+    "scalatest"
   ].contains(project.name)
 }
 
