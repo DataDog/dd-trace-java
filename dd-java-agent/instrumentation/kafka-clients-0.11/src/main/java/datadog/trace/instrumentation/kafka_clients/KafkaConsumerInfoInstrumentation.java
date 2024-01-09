@@ -13,6 +13,7 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.InstrumentationContext;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import org.apache.kafka.clients.Metadata;
@@ -88,11 +89,20 @@ public final class KafkaConsumerInfoInstrumentation extends Instrumenter.Tracing
       String consumerGroup = consumerConfig.getString(ConsumerConfig.GROUP_ID_CONFIG);
       String normalizedConsumerGroup =
           consumerGroup != null && !consumerGroup.isEmpty() ? consumerGroup : null;
+
+      List<String> bootstrapServersList =
+          consumerConfig.getList(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG);
+      String bootstrapServers = null;
+      if (bootstrapServersList != null && !bootstrapServersList.isEmpty()) {
+        bootstrapServers = String.join(",", bootstrapServersList);
+      }
+
       KafkaConsumerInfo kafkaConsumerInfo;
       if (Config.get().isDataStreamsEnabled()) {
-        kafkaConsumerInfo = new KafkaConsumerInfo(normalizedConsumerGroup, metadata);
+        kafkaConsumerInfo =
+            new KafkaConsumerInfo(normalizedConsumerGroup, metadata, bootstrapServers);
       } else {
-        kafkaConsumerInfo = new KafkaConsumerInfo(normalizedConsumerGroup);
+        kafkaConsumerInfo = new KafkaConsumerInfo(normalizedConsumerGroup, bootstrapServers);
       }
 
       if (kafkaConsumerInfo.getConsumerGroup() != null

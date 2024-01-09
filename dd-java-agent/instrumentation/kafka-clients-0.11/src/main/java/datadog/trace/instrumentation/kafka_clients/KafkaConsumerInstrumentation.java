@@ -99,8 +99,11 @@ public final class KafkaConsumerInstrumentation extends Instrumenter.Tracing
         String clusterId =
             KafkaConsumerInstrumentationHelper.extractClusterId(
                 kafkaConsumerInfo, InstrumentationContext.get(Metadata.class, String.class));
+        String bootstrapServers =
+            KafkaConsumerInstrumentationHelper.extractBootstrapServers(kafkaConsumerInfo);
         iterable =
-            new TracingIterable(iterable, KAFKA_CONSUME, CONSUMER_DECORATE, group, clusterId);
+            new TracingIterable(
+                iterable, KAFKA_CONSUME, CONSUMER_DECORATE, group, clusterId, bootstrapServers);
       }
     }
   }
@@ -118,7 +121,11 @@ public final class KafkaConsumerInstrumentation extends Instrumenter.Tracing
         String clusterId =
             KafkaConsumerInstrumentationHelper.extractClusterId(
                 kafkaConsumerInfo, InstrumentationContext.get(Metadata.class, String.class));
-        iterable = new TracingList(iterable, KAFKA_CONSUME, CONSUMER_DECORATE, group, clusterId);
+        String bootstrapServers =
+            KafkaConsumerInstrumentationHelper.extractBootstrapServers(kafkaConsumerInfo);
+        iterable =
+            new TracingList(
+                iterable, KAFKA_CONSUME, CONSUMER_DECORATE, group, clusterId, bootstrapServers);
       }
     }
   }
@@ -136,8 +143,11 @@ public final class KafkaConsumerInstrumentation extends Instrumenter.Tracing
         String clusterId =
             KafkaConsumerInstrumentationHelper.extractClusterId(
                 kafkaConsumerInfo, InstrumentationContext.get(Metadata.class, String.class));
+        String bootstrapServers =
+            KafkaConsumerInstrumentationHelper.extractBootstrapServers(kafkaConsumerInfo);
         iterator =
-            new TracingIterator(iterator, KAFKA_CONSUME, CONSUMER_DECORATE, group, clusterId);
+            new TracingIterator(
+                iterator, KAFKA_CONSUME, CONSUMER_DECORATE, group, clusterId, bootstrapServers);
       }
     }
   }
