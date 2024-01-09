@@ -408,7 +408,6 @@ public class LogProbe extends ProbeDefinition {
     boolean sampled = ProbeRateLimiter.tryProbe(id);
     logStatus.setSampled(sampled);
     if (!sampled) {
-      LOGGER.debug("{} not sampled!", id);
       DebuggerAgent.getSink().skipSnapshot(id, DebuggerContext.SkipCause.RATE);
     }
   }

@@ -70,6 +70,7 @@ import datadog.trace.common.writer.DDAgentWriter;
 import datadog.trace.common.writer.Writer;
 import datadog.trace.common.writer.WriterFactory;
 import datadog.trace.common.writer.ddintake.DDIntakeTraceInterceptor;
+import datadog.trace.context.TraceScope;
 import datadog.trace.core.datastreams.DataStreamContextInjector;
 import datadog.trace.core.datastreams.DataStreamsMonitoring;
 import datadog.trace.core.datastreams.DefaultDataStreamsMonitoring;
@@ -889,6 +890,11 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   }
 
   @Override
+  public AgentSpan blackholeSpan() {
+    return new AgentTracer.BlackholeAgentSpan(DDTraceId.from(getTraceId()));
+  }
+
+  @Override
   public AgentSpan.Context notifyExtensionStart(Object event) {
     return LambdaHandler.notifyStartInvocation(event, propagationTagsFactory);
   }
@@ -1030,6 +1036,11 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       }
       return false;
     }
+  }
+
+  @Override
+  public TraceScope muteTracing() {
+    return activateSpan(blackholeSpan());
   }
 
   @Override
@@ -1264,6 +1275,17 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
     @Override
     public AgentSpan start() {
+      AgentSpan.Context pc = parent;
+      if (pc == null && !ignoreScope) {
+        final AgentSpan span = activeSpan();
+        if (span != null) {
+          pc = span.context();
+        }
+      }
+
+      if (pc == AgentTracer.BlackholeContext.INSTANCE) {
+        return new AgentTracer.BlackholeAgentSpan(pc.getTraceId());
+      }
       return buildSpan();
     }
 

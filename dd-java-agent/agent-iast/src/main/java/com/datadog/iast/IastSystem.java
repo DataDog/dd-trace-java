@@ -4,6 +4,7 @@ import com.datadog.iast.overhead.OverheadController;
 import com.datadog.iast.propagation.FastCodecModule;
 import com.datadog.iast.propagation.PropagationModuleImpl;
 import com.datadog.iast.propagation.StringModuleImpl;
+import com.datadog.iast.sink.ApplicationModuleImpl;
 import com.datadog.iast.sink.CommandInjectionModuleImpl;
 import com.datadog.iast.sink.HeaderInjectionModuleImpl;
 import com.datadog.iast.sink.HstsMissingHeaderModuleImpl;
@@ -104,7 +105,8 @@ public class IastSystem {
         new TrustBoundaryViolationModuleImpl(dependencies),
         new XssModuleImpl(dependencies),
         new StacktraceLeakModuleImpl(dependencies),
-        new HeaderInjectionModuleImpl(dependencies));
+        new HeaderInjectionModuleImpl(dependencies),
+        new ApplicationModuleImpl(dependencies));
   }
 
   private static void registerRequestStartedCallback(

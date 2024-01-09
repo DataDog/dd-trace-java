@@ -32,6 +32,12 @@ public class RequestDispatcherUtils {
     this.toThrow = toThrow;
   }
 
+  public RequestDispatcherUtils() {
+    this.req = null;
+    this.resp = null;
+    this.toThrow = null;
+  }
+
   /* RequestDispatcher can't be visible to groovy otherwise things break, so everything is
    * encapsulated in here where groovy doesn't need to access it.
    */
@@ -50,6 +56,10 @@ public class RequestDispatcherUtils {
 
   void includeNamed(final String target) throws ServletException, IOException {
     new TestContext().getNamedDispatcher(target).include(req, resp);
+  }
+
+  void getRealPath(final String target) {
+    new TestContext().getRealPath(target);
   }
 
   class TestContext implements ServletContext {
