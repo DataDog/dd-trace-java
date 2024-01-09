@@ -1,4 +1,4 @@
-package com.datadog.debugger.symbol;
+package com.datadog.debugger.symboltest;
 
 public class SymbolExtraction11 {
   private final int field1 = 1;

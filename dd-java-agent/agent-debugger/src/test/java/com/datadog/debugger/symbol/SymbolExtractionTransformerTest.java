@@ -29,7 +29,7 @@ import org.junit.jupiter.api.condition.JRE;
 import org.mockito.Mockito;
 
 class SymbolExtractionTransformerTest {
-  private static final String SYMBOL_PACKAGE = "com.datadog.debugger.symbol.";
+  private static final String SYMBOL_PACKAGE = "com.datadog.debugger.symboltest.";
   private static final String SYMBOL_PACKAGE_DIR = SYMBOL_PACKAGE.replace('.', '/');
 
   private Instrumentation instr = ByteBuddyAgent.install();
@@ -558,7 +558,7 @@ class SymbolExtractionTransformerTest {
         mainMethodLocalScope.getSymbols().get(0),
         SymbolType.LOCAL,
         "winner",
-        "com.datadog.debugger.symbol.SymbolExtraction10$Inner",
+        "com.datadog.debugger.symboltest.SymbolExtraction10$Inner",
         5);
     Scope innerClassScope = symbolSinkMock.jarScopes.get(0).getScopes().get(1);
     assertScope(innerClassScope, ScopeType.CLASS, CLASS_NAME + "$Inner", 9, 13, SOURCE_FILE, 2, 1);
@@ -704,7 +704,8 @@ class SymbolExtractionTransformerTest {
         classScope.getLanguageSpecifics(),
         asList("public"),
         asList(
-            "@com.datadog.debugger.symbol.MyAnnotation", "@com.datadog.debugger.symbol.MyMarker"),
+            "@com.datadog.debugger.symboltest.MyAnnotation",
+            "@com.datadog.debugger.symboltest.MyMarker"),
         Object.class.getTypeName(),
         null,
         null);
@@ -712,7 +713,7 @@ class SymbolExtractionTransformerTest {
     assertLangSpecifics(
         mainMethodScope.getLanguageSpecifics(),
         asList("public", "static"),
-        asList("@com.datadog.debugger.symbol.MyAnnotation"),
+        asList("@com.datadog.debugger.symboltest.MyAnnotation"),
         null,
         null,
         Integer.TYPE.getTypeName());
@@ -721,7 +722,7 @@ class SymbolExtractionTransformerTest {
     assertLangSpecifics(
         intField.getLanguageSpecifics(),
         asList("private"),
-        asList("@com.datadog.debugger.symbol.MyAnnotation"),
+        asList("@com.datadog.debugger.symboltest.MyAnnotation"),
         null,
         null,
         null);
@@ -766,7 +767,7 @@ class SymbolExtractionTransformerTest {
         asList("public", "abstract"),
         null,
         Object.class.getTypeName(),
-        asList("com.datadog.debugger.symbol.I1", "com.datadog.debugger.symbol.I2"),
+        asList("com.datadog.debugger.symboltest.I1", "com.datadog.debugger.symboltest.I2"),
         null);
     assertEquals(4, classScope.getScopes().size());
     Scope m1MethodScope = classScope.getScopes().get(2);
