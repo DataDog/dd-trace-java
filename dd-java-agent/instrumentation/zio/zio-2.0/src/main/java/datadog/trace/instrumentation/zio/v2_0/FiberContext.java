@@ -41,7 +41,7 @@ public class FiberContext {
   }
 
   public void onSuspend() {
-    if (this.scope != null) {
+    if (this.scope != null && continuation != null) {
       this.scope.close();
       this.scope = null;
     }
