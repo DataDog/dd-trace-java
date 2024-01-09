@@ -10,6 +10,7 @@ import datadog.trace.api.iast.telemetry.IastMetricCollector.IastMetricData
 import datadog.trace.api.iast.telemetry.Verbosity
 import datadog.trace.test.util.CircularBuffer
 import datadog.trace.test.util.DDSpecification
+import datadog.trace.util.AgentTaskScheduler
 
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
@@ -289,21 +290,23 @@ class TaintedMapTest extends DDSpecification {
 
   void 'test max age of entries'() {
     setup:
-    final maxAge = 100
+    final maxAge = 0
     final maxAgeUnit = TimeUnit.MILLISECONDS
-    final map = new TaintedMap.TaintedMapImpl(4, TaintedMap.DEFAULT_MAX_BUCKET_SIZE, maxAge, maxAgeUnit)
+    final purge = new MockAgentTaskScheduler()
+    final map = new TaintedMap.TaintedMapImpl(4, TaintedMap.DEFAULT_MAX_BUCKET_SIZE, maxAge, maxAgeUnit, purge)
     final items = (0..10).collect { it.toString() }
-
-    when:
     items.each { map.put(new TaintedObject(it, [] as Range[])) }
 
-    then:
+    when: 'first purge is called'
+    purge.triggerAll()
+
+    then: 'all the items remain in the map and the generation changes'
     map.count() == items.size()
 
-    when:
-    Thread.sleep(maxAgeUnit.toMillis(maxAge) * 2)
+    when: 'second purge is called'
+    purge.triggerAll()
 
-    then:
+    then: 'the items are removed from the map as they belong to the previous generation'
     map.count() == 0
   }
 
@@ -351,5 +354,23 @@ class TaintedMapTest extends DDSpecification {
   private static List<IastMetricData> fetchMetrics(final IastMetricCollector collector) {
     collector.prepareMetrics()
     return collector.drain()
+  }
+
+  private static class MockAgentTaskScheduler extends AgentTaskScheduler {
+
+    private WeakHashMap<Object, Task<?>> tasks = new WeakHashMap<>()
+
+    MockAgentTaskScheduler() {
+      super(null)
+    }
+
+    void triggerAll() {
+      tasks.each { it.value.run(it.key) }
+    }
+
+    @Override
+    <T> void weakScheduleAtFixedRate(Task<T> task, T target, long initialDelay, long period, TimeUnit unit) {
+      tasks.put(target, task)
+    }
   }
 }
