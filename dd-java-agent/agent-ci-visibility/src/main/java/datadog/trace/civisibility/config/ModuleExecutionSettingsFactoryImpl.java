@@ -61,13 +61,16 @@ public class ModuleExecutionSettingsFactoryImpl implements ModuleExecutionSettin
 
     boolean codeCoverageEnabled = isCodeCoverageEnabled(ciVisibilitySettings);
     boolean itrEnabled = isItrEnabled(ciVisibilitySettings);
+    boolean flakyTestRetriesEnabled = isFlakyTestRetriesEnabled(ciVisibilitySettings);
     Map<String, String> systemProperties =
-        getPropertiesPropagatedToChildProcess(codeCoverageEnabled, itrEnabled);
+        getPropertiesPropagatedToChildProcess(
+            codeCoverageEnabled, itrEnabled, flakyTestRetriesEnabled);
 
     LOGGER.info(
-        "Remote CI Visibility settings received: code coverage - {}, ITR - {}; {}, {}",
+        "Remote CI Visibility settings received: per-test code coverage - {}, ITR - {}, flaky test retries - {}; {}, {}",
         codeCoverageEnabled,
         itrEnabled,
+        flakyTestRetriesEnabled,
         repositoryRoot,
         jvmInfo);
 
@@ -77,14 +80,13 @@ public class ModuleExecutionSettingsFactoryImpl implements ModuleExecutionSettin
             : Collections.emptyMap();
 
     Collection<TestIdentifier> flakyTests =
-        config.isCiVisibilityFlakyRetryEnabled()
-            ? getFlakyTests(tracerEnvironment)
-            : Collections.emptyList();
+        flakyTestRetriesEnabled ? getFlakyTests(tracerEnvironment) : Collections.emptyList();
 
     List<String> coverageEnabledPackages = getCoverageEnabledPackages(codeCoverageEnabled);
     return new ModuleExecutionSettings(
         codeCoverageEnabled,
         itrEnabled,
+        flakyTestRetriesEnabled,
         systemProperties,
         skippableTestsByModuleName,
         flakyTests,
@@ -143,7 +145,7 @@ public class ModuleExecutionSettingsFactoryImpl implements ModuleExecutionSettin
       LOGGER.warn(
           "Could not obtain CI Visibility settings, will default to disabled code coverage and tests skipping");
       LOGGER.debug("Error while obtaining CI Visibility settings", e);
-      return new CiVisibilitySettings(false, false, false);
+      return CiVisibilitySettings.DEFAULT;
     }
   }
 
@@ -156,8 +158,13 @@ public class ModuleExecutionSettingsFactoryImpl implements ModuleExecutionSettin
         && config.isCiVisibilityCodeCoverageEnabled();
   }
 
+  private boolean isFlakyTestRetriesEnabled(CiVisibilitySettings ciVisibilitySettings) {
+    return ciVisibilitySettings.isFlakyTestRetriesEnabled()
+        && config.isCiVisibilityFlakyRetryEnabled();
+  }
+
   private Map<String, String> getPropertiesPropagatedToChildProcess(
-      boolean codeCoverageEnabled, boolean itrEnabled) {
+      boolean codeCoverageEnabled, boolean itrEnabled, boolean flakyTestRetriesEnabled) {
     Map<String, String> propagatedSystemProperties = new HashMap<>();
     Properties systemProperties = System.getProperties();
     for (Map.Entry<Object, Object> e : systemProperties.entrySet()) {
@@ -176,6 +183,11 @@ public class ModuleExecutionSettingsFactoryImpl implements ModuleExecutionSettin
     propagatedSystemProperties.put(
         Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_ITR_ENABLED),
         Boolean.toString(itrEnabled));
+
+    propagatedSystemProperties.put(
+        Strings.propertyNameToSystemPropertyName(
+            CiVisibilityConfig.CIVISIBILITY_FLAKY_RETRY_ENABLED),
+        Boolean.toString(flakyTestRetriesEnabled));
 
     // explicitly disable build instrumentation in child processes,
     // because some projects run "embedded" Maven/Gradle builds as part of their integration tests,

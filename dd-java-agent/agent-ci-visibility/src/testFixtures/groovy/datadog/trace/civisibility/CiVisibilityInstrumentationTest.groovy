@@ -80,6 +80,7 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
       ]
       return new ModuleExecutionSettings(false,
       itrEnabled,
+      flakyRetryEnabled,
       properties,
       Collections.singletonMap(dummyModule, skippableTests),
       flakyTests,
