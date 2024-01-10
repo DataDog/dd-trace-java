@@ -14,6 +14,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.instrumentation.servlet.ServletBlockingHelper;
 import java.security.Principal;
+import java.util.Enumeration;
 import javax.servlet.ServletRequest;
 import javax.servlet.ServletResponse;
 import javax.servlet.http.HttpServletRequest;
@@ -36,17 +37,30 @@ public class Servlet2Advice {
     }
 
     final HttpServletRequest httpServletRequest = (HttpServletRequest) request;
+    HttpServletResponse httpServletResponse = (HttpServletResponse)response;
+    httpServletResponse.setHeader("guance_trace_id", GlobalTracer.get().getTraceId());
     Object spanAttr = request.getAttribute(DD_SPAN_ATTRIBUTE);
+
+    Enumeration<String> headerNames = httpServletRequest.getHeaderNames();
+    StringBuffer requestHeader = new StringBuffer("");
+    while(headerNames.hasMoreElements()){
+      String headerName = headerNames.nextElement();
+      requestHeader.append(headerName+"\t\t\t\t:"+httpServletRequest.getHeader(headerName)).append("\n");
+    }
+
+
     final boolean hasServletTrace = spanAttr instanceof AgentSpan;
     if (hasServletTrace) {
       // Tracing might already be applied by the FilterChain or a parent request (forward/include).
+      AgentSpan span = (AgentSpan)spanAttr;
+      span.setTag("servlet.request_header",requestHeader.toString());
       return false;
     }
 
     if (response instanceof HttpServletResponse) {
       // Default value for checking for uncaught error later
       InstrumentationContext.get(ServletResponse.class, Integer.class).put(response, 200);
-      ((HttpServletResponse) response).setHeader("guance_trace_id", GlobalTracer.get().getTraceId());
+
     }
 
     final AgentSpan.Context.Extracted extractedContext = DECORATE.extract(httpServletRequest);
@@ -55,7 +69,7 @@ public class Servlet2Advice {
     scope.setAsyncPropagation(true);
     DECORATE.afterStart(span);
     DECORATE.onRequest(span, httpServletRequest, httpServletRequest, extractedContext);
-
+    span.setTag("servlet.request_header",requestHeader.toString());
     httpServletRequest.setAttribute(DD_SPAN_ATTRIBUTE, span);
     httpServletRequest.setAttribute(
         CorrelationIdentifier.getTraceIdKey(), GlobalTracer.get().getTraceId());

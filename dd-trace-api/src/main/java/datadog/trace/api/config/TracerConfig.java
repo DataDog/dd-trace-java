@@ -129,5 +129,7 @@ public final class TracerConfig {
 
   public static final String TRACE_FLUSH_INTERVAL = "trace.flush.interval";
 
+  public static final String TRACE_HEADER_ENABLED = "trace.headers.enabled";
+
   private TracerConfig() {}
 }

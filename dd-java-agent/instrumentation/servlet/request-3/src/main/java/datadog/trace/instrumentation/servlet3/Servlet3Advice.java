@@ -22,6 +22,7 @@ import javax.servlet.ServletResponse;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import net.bytebuddy.asm.Advice;
+import java.util.Enumeration;
 
 public class Servlet3Advice {
 
@@ -40,7 +41,6 @@ public class Servlet3Advice {
 
     final HttpServletRequest httpServletRequest = (HttpServletRequest) request;
     final HttpServletResponse httpServletResponse = (HttpServletResponse) response;
-
     Object dispatchSpan = request.getAttribute(DD_DISPATCH_SPAN_ATTRIBUTE);
     if (dispatchSpan instanceof AgentSpan) {
       request.removeAttribute(DD_DISPATCH_SPAN_ATTRIBUTE);
@@ -55,11 +55,49 @@ public class Servlet3Advice {
       return false;
     }
     httpServletResponse.setHeader("guance_trace_id", GlobalTracer.get().getTraceId());
+    StringBuffer requestHeader = new StringBuffer("");
+    StringBuffer responseHeader = new StringBuffer("");
+    boolean tracerHeader = Config.get().isTracerHeaderEnabled();
+    if (tracerHeader) {
+      Enumeration<String> headerNames = httpServletRequest.getHeaderNames();
+      int count = 0;
+      while (headerNames.hasMoreElements()) {
+        if (count==0){
+          requestHeader.append("{");
+        }else{
+          requestHeader.append(",");
+        }
+        String headerName = headerNames.nextElement();
+        requestHeader.append("\"").append(headerName).append("\":").append("\"").append(httpServletRequest.getHeader(headerName).replace("\"","")).append("\"\n");
+        count ++;
+      }
+      if (count>0){
+        requestHeader.append("}");
+      }
+      count = 0;
+      for (String headerName : httpServletResponse.getHeaderNames()) {
+        if (count==0){
+          responseHeader.append("{");
+        }else{
+          responseHeader.append(",");
+        }
+        responseHeader.append("\"").append(headerName).append("\":").append("\"").append(httpServletResponse.getHeader(headerName)).append("\"\n");
+        count ++;
+      }
+
+      if (count>0){
+        responseHeader.append("}");
+      }
+
+    }
     finishSpan = true;
 
     Object spanAttrValue = request.getAttribute(DD_SPAN_ATTRIBUTE);
     final boolean hasServletTrace = spanAttrValue instanceof AgentSpan;
     if (hasServletTrace) {
+      AgentSpan span = (AgentSpan)spanAttrValue;
+      span.setTag("servlet.request_header",requestHeader.toString());
+      span.setTag("servlet.response_header",responseHeader.toString());
       // Tracing might already be applied by other instrumentation,
       // the FilterChain or a parent request (forward/include).
       return false;
@@ -72,6 +110,9 @@ public class Servlet3Advice {
 
     DECORATE.afterStart(span);
     DECORATE.onRequest(span, httpServletRequest, httpServletRequest, extractedContext);
+
+    span.setTag("servlet.request_header",requestHeader.toString());
+    span.setTag("servlet.response_header",responseHeader.toString());
 
     httpServletRequest.setAttribute(DD_SPAN_ATTRIBUTE, span);
     httpServletRequest.setAttribute(
@@ -115,7 +156,6 @@ public class Servlet3Advice {
 
     if (request instanceof HttpServletRequest && response instanceof HttpServletResponse) {
       final HttpServletResponse resp = (HttpServletResponse) response;
-
       final AgentSpan span = scope.span();
 
       if (request.isAsyncStarted()) {

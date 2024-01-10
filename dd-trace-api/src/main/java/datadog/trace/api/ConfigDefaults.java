@@ -227,5 +227,7 @@ public final class ConfigDefaults {
 
   static final boolean DEFAULT_LOG_PATTERN_REPLACE=false;
 
+  static final boolean DEFAULT_TRACE_HEADER_ENABLED = false;
+
   private ConfigDefaults() {}
 }
