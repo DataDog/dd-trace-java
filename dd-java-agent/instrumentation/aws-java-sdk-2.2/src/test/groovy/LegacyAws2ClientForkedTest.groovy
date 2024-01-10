@@ -130,6 +130,9 @@ class LegacyAws2ClientForkedTest extends AgentTestRunner {
               if (operation == "PutObject") {
                 "aws.storage.class" "GLACIER"
               }
+              if (operation == "PutObject" || operation == "GetObject") {
+                "aws.object.key" "somekey"
+              }
             } else if (service == "Sqs" && operation == "CreateQueue") {
               "aws.queue.name" "somequeue"
               "queuename" "somequeue"
