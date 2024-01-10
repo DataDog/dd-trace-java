@@ -218,8 +218,6 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
 
   private static void setObjectKey(AgentSpan span, String objectKey) {
     span.setTag(InstrumentationTags.AWS_OBJECT_KEY, objectKey);
-    span.setTag(InstrumentationTags.OBJECT_KEY, objectKey);
-    setPeerService(span, InstrumentationTags.AWS_OBJECT_KEY, objectKey);
   }
 
   private static void setQueueName(AgentSpan span, String name) {
