@@ -1717,7 +1717,7 @@ public class Config {
         configProvider.getList(
             CIVISIBILITY_RESOURCE_FOLDER_NAMES, DEFAULT_CIVISIBILITY_RESOURCE_FOLDER_NAMES);
     ciVisibilityFlakyRetryEnabled =
-        configProvider.getBoolean(CIVISIBILITY_FLAKY_RETRY_ENABLED, false);
+        configProvider.getBoolean(CIVISIBILITY_FLAKY_RETRY_ENABLED, true);
     ciVisibilityFlakyRetryCount = configProvider.getInteger(CIVISIBILITY_FLAKY_RETRY_COUNT, 5);
     ciVisibilityModuleName = configProvider.getString(CIVISIBILITY_MODULE_NAME);
 

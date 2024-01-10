@@ -2,6 +2,8 @@ package datadog.trace.api;
 
 import datadog.trace.api.interceptor.TraceInterceptor;
 import datadog.trace.api.internal.InternalTracer;
+import datadog.trace.context.NoopTraceScope;
+import datadog.trace.context.TraceScope;
 import java.util.ArrayList;
 import java.util.Collection;
 
@@ -27,6 +29,11 @@ public class GlobalTracer {
         @Override
         public boolean addTraceInterceptor(TraceInterceptor traceInterceptor) {
           return false;
+        }
+
+        @Override
+        public TraceScope muteTracing() {
+          return NoopTraceScope.INSTANCE;
         }
       };
 

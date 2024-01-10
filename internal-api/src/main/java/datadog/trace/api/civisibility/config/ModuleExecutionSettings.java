@@ -12,6 +12,7 @@ public class ModuleExecutionSettings {
       new ModuleExecutionSettings(
           false,
           false,
+          false,
           Collections.emptyMap(),
           Collections.emptyMap(),
           Collections.emptyList(),
@@ -19,6 +20,7 @@ public class ModuleExecutionSettings {
 
   private final boolean codeCoverageEnabled;
   private final boolean itrEnabled;
+  private final boolean flakyTestRetriesEnabled;
   private final Map<String, String> systemProperties;
   private final Map<String, Collection<TestIdentifier>> skippableTestsByModule;
   private final Collection<TestIdentifier> flakyTests;
@@ -27,12 +29,14 @@ public class ModuleExecutionSettings {
   public ModuleExecutionSettings(
       boolean codeCoverageEnabled,
       boolean itrEnabled,
+      boolean flakyTestRetriesEnabled,
       Map<String, String> systemProperties,
       Map<String, Collection<TestIdentifier>> skippableTestsByModule,
       Collection<TestIdentifier> flakyTests,
       List<String> coverageEnabledPackages) {
     this.codeCoverageEnabled = codeCoverageEnabled;
     this.itrEnabled = itrEnabled;
+    this.flakyTestRetriesEnabled = flakyTestRetriesEnabled;
     this.systemProperties = systemProperties;
     this.skippableTestsByModule = skippableTestsByModule;
     this.flakyTests = flakyTests;
@@ -45,6 +49,10 @@ public class ModuleExecutionSettings {
 
   public boolean isItrEnabled() {
     return itrEnabled;
+  }
+
+  public boolean isFlakyTestRetriesEnabled() {
+    return flakyTestRetriesEnabled;
   }
 
   public Map<String, String> getSystemProperties() {

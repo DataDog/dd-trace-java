@@ -119,13 +119,22 @@ public interface TaintedMap extends Iterable<TaintedObject> {
      */
     TaintedMapImpl(
         final int capacity, final int maxBucketSize, final int maxAge, final TimeUnit maxAgeUnit) {
+      this(capacity, maxBucketSize, maxAge, maxAgeUnit, AgentTaskScheduler.INSTANCE);
+    }
+
+    TaintedMapImpl(
+        final int capacity,
+        final int maxBucketSize,
+        final int maxAge,
+        final TimeUnit maxAgeUnit,
+        final AgentTaskScheduler scheduler) {
       table = new TaintedObject[capacity];
       lengthMask = table.length - 1;
       generation = true;
       this.maxBucketSize = maxBucketSize;
       final Verbosity verbosity = Config.get().getIastTelemetryVerbosity();
       collectFlatBucketMetric = IastMetric.TAINTED_FLAT_MODE.isEnabled(verbosity);
-      AgentTaskScheduler.INSTANCE.weakScheduleAtFixedRate(this, maxAge, maxAge, maxAgeUnit);
+      scheduler.weakScheduleAtFixedRate(this, maxAge, maxAge, maxAgeUnit);
     }
 
     /**

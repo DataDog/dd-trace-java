@@ -5,6 +5,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.muzzle.Reference;
 import java.util.List;
 import net.bytebuddy.asm.Advice;
 import org.junit.runner.notification.RunListener;
@@ -27,12 +28,18 @@ public class JUnit4CucumberInstrumentation extends Instrumenter.CiVisibility
   @Override
   public String[] helperClassNames() {
     return new String[] {
+      packageName + ".CucumberUtils",
       packageName + ".TestEventsHandlerHolder",
       packageName + ".SkippedByItr",
       packageName + ".JUnit4Utils",
       packageName + ".TracingListener",
       packageName + ".CucumberTracingListener",
     };
+  }
+
+  @Override
+  public Reference[] additionalMuzzleReferences() {
+    return CucumberUtils.MuzzleHelper.additionalMuzzleReferences();
   }
 
   @Override

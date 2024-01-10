@@ -69,7 +69,7 @@ public class TestIdentifier {
 
   @Override
   public String toString() {
-    return "SkippableTest{"
+    return "TestIdentifier{"
         + "suite='"
         + suite
         + '\''

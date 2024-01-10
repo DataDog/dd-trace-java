@@ -6,6 +6,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.muzzle.Reference;
 import datadog.trace.api.Config;
 import datadog.trace.api.civisibility.InstrumentationBridge;
 import datadog.trace.api.civisibility.config.TestIdentifier;
@@ -47,12 +48,18 @@ public class JUnit4CucumberItrInstrumentation extends Instrumenter.CiVisibility
   @Override
   public String[] helperClassNames() {
     return new String[] {
+      packageName + ".CucumberUtils",
       packageName + ".TestEventsHandlerHolder",
       packageName + ".SkippedByItr",
       packageName + ".JUnit4Utils",
       packageName + ".TracingListener",
       packageName + ".CucumberTracingListener",
     };
+  }
+
+  @Override
+  public Reference[] additionalMuzzleReferences() {
+    return CucumberUtils.MuzzleHelper.additionalMuzzleReferences();
   }
 
   @Override
@@ -77,7 +84,7 @@ public class JUnit4CucumberItrInstrumentation extends Instrumenter.CiVisibility
         }
       }
 
-      TestIdentifier test = JUnit4Utils.toTestIdentifier(description);
+      TestIdentifier test = CucumberUtils.toTestIdentifier(description);
       if (TestEventsHandlerHolder.TEST_EVENTS_HANDLER.skip(test)) {
         notifier.fireTestAssumptionFailed(
             new Failure(

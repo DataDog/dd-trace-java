@@ -251,7 +251,7 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
   }
 
   protected boolean isTestAgentEnabled() {
-    return System.getenv("CI_USE_TEST_AGENT").equals("true")
+    return "true".equals(System.getenv("CI_USE_TEST_AGENT"))
   }
 
   protected boolean isForceAppSecActive() {
@@ -327,14 +327,14 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
 
     boolean enabledFinishTimingChecks = this.enabledFinishTimingChecks()
     TEST_TRACER.startSpan(*_) >> {
-      DDSpan agentSpan = callRealMethod()
+      AgentSpan agentSpan = callRealMethod()
       TEST_SPANS.add(agentSpan.spanId)
       if (!enabledFinishTimingChecks) {
         return agentSpan
       }
 
       // rest of closure if for checking duplicate finishes and tags set after finish
-      DDSpan spiedAgentSpan = Spy(agentSpan)
+      AgentSpan spiedAgentSpan = Spy(agentSpan)
       originalToSpySpan[agentSpan] = spiedAgentSpan
       def handleFinish = { MockInvocation mi ->
         def depth = CallDepthThreadLocalMap.incrementCallDepth(DDSpan)

@@ -16,10 +16,10 @@ class ModuleExecutionSettingsSerializerTest extends Specification {
 
     where:
     settings << [
-      new ModuleExecutionSettings(false, false, [:], [:], [], []),
-      new ModuleExecutionSettings(true, false, ["a": "b", "propName" : "propValue"], ["module" : [new TestIdentifier("a", "bc", "def", null), new TestIdentifier("abc", "de", "f", null)]], [new TestIdentifier("suite", "name", null, null)], ["a", "bcde", "f", "ghhi"]),
-      new ModuleExecutionSettings(false, true, ["a": "b", "propName" : "propValue"], [:], [new TestIdentifier("suite", "name", null, null), new TestIdentifier("a", "b", "c", null)], ["a", "bcde", "f", "ghhi"]),
-      new ModuleExecutionSettings(true, true, ["a": "b", "propName" : "propValue", "anotherProp" : "value"], ["module" : [new TestIdentifier("a", "bc", "def", null), new TestIdentifier("abc", "de", "f", null)], "module-b": [new TestIdentifier("suite", "name", null, null)], "module-c": []], [], [])
+      new ModuleExecutionSettings(false, false, false, [:], [:], [], []),
+      new ModuleExecutionSettings(true, false, true, ["a": "b", "propName" : "propValue"], ["module" : [new TestIdentifier("a", "bc", "def", null), new TestIdentifier("abc", "de", "f", null)]], [new TestIdentifier("suite", "name", null, null)], ["a", "bcde", "f", "ghhi"]),
+      new ModuleExecutionSettings(false, true, false, ["a": "b", "propName" : "propValue"], [:], [new TestIdentifier("suite", "name", null, null), new TestIdentifier("a", "b", "c", null)], ["a", "bcde", "f", "ghhi"]),
+      new ModuleExecutionSettings(true, true, true, ["a": "b", "propName" : "propValue", "anotherProp" : "value"], ["module" : [new TestIdentifier("a", "bc", "def", null), new TestIdentifier("abc", "de", "f", null)], "module-b": [new TestIdentifier("suite", "name", null, null)], "module-c": []], [], [])
     ]
   }
 }

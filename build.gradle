@@ -5,12 +5,16 @@ buildscript {
 
   configurations.all {
     resolutionStrategy {
-      dependencySubstitution {
-        substitute module("com.jcraft:jsch") using module("com.github.mwiede:jsch:0.2.6") because "jcraft jsch has been unmaintained for years."
-      }
       // Check if the project's path is not :utils:test-agent-utils:decoder before activating the dependency locking.
       if(project.path != ':utils:test-agent-utils:decoder') {
         activateDependencyLocking()
+      }
+
+
+      resolutionStrategy.dependencySubstitution {
+        substitute module("com.jcraft:jsch") using module("com.github.mwiede:jsch:0.2.16") because "jcraft is unmaintained"
+        substitute module("com.jcraft:jsch.agentproxy") using module("com.github.mwiede:jsch:0.2.16") because "jcraft is unmaintained"
+        substitute module("com.jcraft:jzlib") using module("com.github.mwiede:jsch:0.2.16") because "jcraft is unmaintained"
       }
     }
   }
