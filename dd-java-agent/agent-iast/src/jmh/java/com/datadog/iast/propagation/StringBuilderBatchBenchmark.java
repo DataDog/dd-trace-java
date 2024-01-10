@@ -5,6 +5,7 @@ import static java.util.concurrent.TimeUnit.MICROSECONDS;
 
 import com.datadog.iast.IastRequestContext;
 import com.datadog.iast.model.Range;
+import datadog.trace.api.iast.IastContext;
 import datadog.trace.instrumentation.java.lang.StringBuilderCallSite;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -85,7 +86,7 @@ public class StringBuilderBatchBenchmark
 
     private final List<String> strings;
 
-    protected Context(final IastRequestContext context, final List<String> strings) {
+    protected Context(final IastContext context, final List<String> strings) {
       super(context);
       this.strings = strings;
     }

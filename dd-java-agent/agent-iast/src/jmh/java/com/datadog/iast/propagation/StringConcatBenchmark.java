@@ -4,6 +4,7 @@ import static datadog.trace.api.iast.VulnerabilityMarks.NOT_MARKED;
 
 import com.datadog.iast.IastRequestContext;
 import com.datadog.iast.model.Range;
+import datadog.trace.api.iast.IastContext;
 import datadog.trace.instrumentation.java.lang.StringCallSite;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.Fork;
@@ -82,8 +83,7 @@ public class StringConcatBenchmark extends AbstractBenchmark<StringConcatBenchma
     private final String notTainted;
     private final String tainted;
 
-    protected Context(
-        final IastRequestContext context, final String notTainted, final String tainted) {
+    protected Context(final IastContext context, final String notTainted, final String tainted) {
       super(context);
       this.notTainted = notTainted;
       this.tainted = tainted;

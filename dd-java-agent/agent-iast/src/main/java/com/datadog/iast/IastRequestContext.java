@@ -3,11 +3,9 @@ package com.datadog.iast;
 import com.datadog.iast.model.VulnerabilityBatch;
 import com.datadog.iast.overhead.OverheadContext;
 import com.datadog.iast.taint.TaintedObjects;
-import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.telemetry.IastMetricCollector;
 import datadog.trace.api.iast.telemetry.IastMetricCollector.HasMetricCollector;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.util.concurrent.atomic.AtomicBoolean;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -89,7 +87,9 @@ public class IastRequestContext implements IastContext, HasMetricCollector {
     return overheadContext;
   }
 
+  @SuppressWarnings("unchecked")
   @Nonnull
+  @Override
   public TaintedObjects getTaintedObjects() {
     return taintedObjects;
   }
@@ -98,25 +98,5 @@ public class IastRequestContext implements IastContext, HasMetricCollector {
   @Nullable
   public IastMetricCollector getMetricCollector() {
     return collector;
-  }
-
-  @Nullable
-  public static IastRequestContext get() {
-    return asRequestContext(IastContext.Provider.get());
-  }
-
-  @Nullable
-  public static IastRequestContext get(final AgentSpan span) {
-    return asRequestContext(IastContext.Provider.get(span));
-  }
-
-  @Nullable
-  public static IastRequestContext get(final RequestContext reqCtx) {
-    return asRequestContext(IastContext.Provider.get(reqCtx));
-  }
-
-  @Nullable
-  private static IastRequestContext asRequestContext(final IastContext ctx) {
-    return ctx instanceof IastRequestContext ? (IastRequestContext) ctx : null;
   }
 }

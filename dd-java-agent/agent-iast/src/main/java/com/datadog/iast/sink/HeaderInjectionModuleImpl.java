@@ -1,14 +1,15 @@
 package com.datadog.iast.sink;
 
 import com.datadog.iast.Dependencies;
-import com.datadog.iast.IastRequestContext;
 import com.datadog.iast.model.Evidence;
 import com.datadog.iast.model.Range;
 import com.datadog.iast.model.VulnerabilityType;
 import com.datadog.iast.overhead.Operations;
 import com.datadog.iast.taint.Ranges;
 import com.datadog.iast.taint.TaintedObject;
+import com.datadog.iast.taint.TaintedObjects;
 import com.datadog.iast.util.HttpHeader;
+import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.SourceTypes;
 import datadog.trace.api.iast.sink.HeaderInjectionModule;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -43,13 +44,12 @@ public class HeaderInjectionModuleImpl extends SinkModuleBase implements HeaderI
     boolean headerInjectionExclusion = headerInjectionExclusions.contains(header);
 
     if (!headerInjectionExclusion) {
-      final AgentSpan span = AgentTracer.activeSpan();
-      final IastRequestContext ctx = IastRequestContext.get(span);
+      final IastContext ctx = IastContext.Provider.get();
       if (ctx == null) {
         return;
       }
-
-      final TaintedObject taintedObject = ctx.getTaintedObjects().get(value);
+      final TaintedObjects to = ctx.getTaintedObjects();
+      final TaintedObject taintedObject = to.get(value);
       if (null == taintedObject) {
         return;
       }
@@ -89,6 +89,7 @@ public class HeaderInjectionModuleImpl extends SinkModuleBase implements HeaderI
         }
       }
 
+      final AgentSpan span = AgentTracer.activeSpan();
       if (!overheadController.consumeQuota(Operations.REPORT_VULNERABILITY, span)) {
         return;
       }

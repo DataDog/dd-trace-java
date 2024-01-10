@@ -7,6 +7,7 @@ import com.datadog.iast.model.Vulnerability;
 import com.datadog.iast.model.VulnerabilityType;
 import com.datadog.iast.overhead.Operations;
 import datadog.trace.api.gateway.IGSpanInfo;
+import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.sink.XContentTypeModule;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
@@ -24,11 +25,12 @@ public class XContentTypeModuleImpl extends SinkModuleBase implements XContentTy
   }
 
   @Override
-  public void onRequestEnd(final Object iastRequestContextObject, final IGSpanInfo igSpanInfo) {
+  public void onRequestEnd(final IastContext ctx, final IGSpanInfo igSpanInfo) {
+    if (!(ctx instanceof IastRequestContext)) {
+      return;
+    }
     try {
-
-      final IastRequestContext iastRequestContext = (IastRequestContext) iastRequestContextObject;
-
+      final IastRequestContext iastRequestContext = (IastRequestContext) ctx;
       if (!isNoSniffContentOptions(iastRequestContext.getxContentTypeOptions())) {
         if (!isHtmlResponse(iastRequestContext.getContentType())) {
           return;

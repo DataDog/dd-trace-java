@@ -4,7 +4,6 @@ import static com.datadog.iast.util.ObjectVisitor.State.CONTINUE;
 import static com.datadog.iast.util.ObjectVisitor.State.EXIT;
 
 import com.datadog.iast.Dependencies;
-import com.datadog.iast.IastRequestContext;
 import com.datadog.iast.Reporter;
 import com.datadog.iast.model.Evidence;
 import com.datadog.iast.model.Location;
@@ -18,10 +17,13 @@ import com.datadog.iast.overhead.OverheadController;
 import com.datadog.iast.taint.Ranges;
 import com.datadog.iast.taint.Ranges.RangesProvider;
 import com.datadog.iast.taint.TaintedObject;
+import com.datadog.iast.taint.TaintedObjects;
 import com.datadog.iast.util.ObjectVisitor;
 import com.datadog.iast.util.ObjectVisitor.State;
 import com.datadog.iast.util.ObjectVisitor.Visitor;
+import datadog.trace.api.iast.IastContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.instrumentation.iastinstrumenter.IastExclusionTrie;
 import datadog.trace.util.stacktrace.StackWalker;
 import java.util.stream.Stream;
@@ -43,11 +45,9 @@ public abstract class SinkModuleBase {
   }
 
   protected final <E> @Nullable Evidence checkInjection(
-      @Nullable final AgentSpan span,
-      @Nonnull final IastRequestContext ctx,
-      @Nonnull final InjectionType type,
-      @Nonnull final E value) {
-    TaintedObject taintedObject = ctx.getTaintedObjects().get(value);
+      @Nonnull final IastContext ctx, @Nonnull final InjectionType type, @Nonnull final E value) {
+    final TaintedObjects to = ctx.getTaintedObjects();
+    final TaintedObject taintedObject = to.get(value);
     if (taintedObject == null) {
       return null;
     }
@@ -55,6 +55,7 @@ public abstract class SinkModuleBase {
     if (ranges == null || ranges.length == 0) {
       return null;
     }
+    final AgentSpan span = AgentTracer.activeSpan();
     if (!overheadController.consumeQuota(Operations.REPORT_VULNERABILITY, span)) {
       return null;
     }
@@ -64,23 +65,19 @@ public abstract class SinkModuleBase {
   }
 
   protected final <E> @Nullable Evidence checkInjectionDeeply(
-      @Nullable final AgentSpan span,
-      @Nonnull final IastRequestContext ctx,
-      @Nonnull final InjectionType type,
-      @Nonnull final E value) {
-    final InjectionVisitor visitor = new InjectionVisitor(span, ctx, type);
+      @Nonnull final IastContext ctx, @Nonnull final InjectionType type, @Nonnull final E value) {
+    final InjectionVisitor visitor = new InjectionVisitor(ctx, type);
     ObjectVisitor.visit(value, visitor);
     return visitor.evidence;
   }
 
   protected final <E> @Nullable Evidence checkInjection(
-      @Nullable final AgentSpan span,
-      @Nonnull final InjectionType type,
-      @Nonnull final RangesProvider<E> rangeProvider) {
+      @Nonnull final InjectionType type, @Nonnull final RangesProvider<E> rangeProvider) {
     final int rangeCount = rangeProvider.rangeCount();
     if (rangeCount == 0) {
       return null;
     }
+    final AgentSpan span = AgentTracer.activeSpan();
     if (!overheadController.consumeQuota(Operations.REPORT_VULNERABILITY, span)) {
       return null;
     }
@@ -126,9 +123,7 @@ public abstract class SinkModuleBase {
   }
 
   protected final <E> @Nullable Evidence checkInjection(
-      @Nullable final AgentSpan span,
-      @Nonnull final InjectionType type,
-      @Nonnull final RangesProvider<E>... rangeProviders) {
+      @Nonnull final InjectionType type, @Nonnull final RangesProvider<E>... rangeProviders) {
     int rangeCount = 0;
     for (final RangesProvider<E> provider : rangeProviders) {
       rangeCount += provider.rangeCount();
@@ -136,6 +131,7 @@ public abstract class SinkModuleBase {
     if (rangeCount == 0) {
       return null;
     }
+    final AgentSpan span = AgentTracer.activeSpan();
     if (!overheadController.consumeQuota(Operations.REPORT_VULNERABILITY, span)) {
       return null;
     }
@@ -215,14 +211,11 @@ public abstract class SinkModuleBase {
 
   private class InjectionVisitor implements Visitor {
 
-    @Nullable private final AgentSpan span;
-    private final IastRequestContext ctx;
+    private final IastContext ctx;
     private final InjectionType type;
     @Nullable private Evidence evidence;
 
-    private InjectionVisitor(
-        @Nullable final AgentSpan span, final IastRequestContext ctx, final InjectionType type) {
-      this.span = span;
+    private InjectionVisitor(final IastContext ctx, final InjectionType type) {
       this.ctx = ctx;
       this.type = type;
     }
@@ -230,7 +223,7 @@ public abstract class SinkModuleBase {
     @Nonnull
     @Override
     public State visit(@Nonnull final String path, @Nonnull final Object value) {
-      evidence = checkInjection(span, ctx, type, value);
+      evidence = checkInjection(ctx, type, value);
       return evidence != null ? EXIT : CONTINUE; // report first tainted value only
     }
   }

@@ -1,40 +1,27 @@
 package com.datadog.iast.sink
 
 import com.datadog.iast.IastModuleImplTestBase
-import com.datadog.iast.IastRequestContext
+import com.datadog.iast.Reporter
 import com.datadog.iast.model.Range
 import com.datadog.iast.model.Source
 import com.datadog.iast.model.Vulnerability
 import com.datadog.iast.model.VulnerabilityType
 import com.datadog.iast.taint.Ranges
-import datadog.trace.api.gateway.RequestContext
-import datadog.trace.api.gateway.RequestContextSlot
 import datadog.trace.api.iast.SourceTypes
 import datadog.trace.api.iast.VulnerabilityMarks
 import datadog.trace.api.iast.sink.SsrfModule
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 
 class SsrfModuleTest extends IastModuleImplTestBase {
 
-  private List<Object> objectHolder
-
-  private IastRequestContext ctx
-
   private SsrfModule module
-
-  private AgentSpan span
 
   def setup() {
     module = new SsrfModuleImpl(dependencies)
-    objectHolder = []
-    ctx = new IastRequestContext()
-    final reqCtx = Stub(RequestContext) {
-      getData(RequestContextSlot.IAST) >> ctx
-    }
-    span = Stub(AgentSpan) {
-      getSpanId() >> 123456
-      getRequestContext() >> reqCtx
-    }
+  }
+
+  @Override
+  protected Reporter buildReporter() {
+    return Mock(Reporter)
   }
 
   void 'test SSRF detection'() {

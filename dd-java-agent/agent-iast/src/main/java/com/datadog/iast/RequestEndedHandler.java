@@ -8,6 +8,7 @@ import com.datadog.iast.taint.TaintedObjects;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.IGSpanInfo;
 import datadog.trace.api.gateway.RequestContext;
+import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.sink.HttpRequestEndModule;
 import datadog.trace.api.internal.TraceSegment;
@@ -25,16 +26,16 @@ public class RequestEndedHandler implements BiFunction<RequestContext, IGSpanInf
   @Override
   public Flow<Void> apply(final RequestContext requestContext, final IGSpanInfo igSpanInfo) {
     final TraceSegment traceSegment = requestContext.getTraceSegment();
-    final IastRequestContext iastRequestContext = IastRequestContext.get(requestContext);
-    if (iastRequestContext != null) {
+    final IastContext iastCtx = IastContext.Provider.get(requestContext);
+    if (iastCtx != null) {
       for (HttpRequestEndModule module : requestEndModules()) {
         if (module != null) {
-          module.onRequestEnd(iastRequestContext, igSpanInfo);
+          module.onRequestEnd(iastCtx, igSpanInfo);
         }
       }
       try {
         ANALYZED.setTagTop(traceSegment);
-        final TaintedObjects taintedObjects = iastRequestContext.getTaintedObjects();
+        final TaintedObjects taintedObjects = iastCtx.getTaintedObjects();
         if (taintedObjects != null) {
           taintedObjects.release();
         }
