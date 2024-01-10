@@ -24,6 +24,15 @@ abstract class CiVisibilitySmokeTest extends Specification {
   @Shared
   Queue<Map<String, Object>> receivedCoverages = new ConcurrentLinkedQueue<>()
 
+  @Shared
+  boolean codeCoverageEnabled = true
+
+  @Shared
+  boolean testsSkippingEnabled = true
+
+  @Shared
+  boolean flakyRetriesEnabled = false
+
   def setup() {
     receivedTraces.clear()
     receivedCoverages.clear()
@@ -57,7 +66,10 @@ abstract class CiVisibilitySmokeTest extends Specification {
       }
 
       prefix("/api/v2/libraries/tests/services/setting") {
-        response.status(200).send('{ "data": { "type": "ci_app_tracers_test_service_settings", "id": "uuid", "attributes": { "code_coverage": true, "tests_skipping": true } } }')
+        response.status(200).send('{ "data": { "type": "ci_app_tracers_test_service_settings", "id": "uuid", "attributes": { '
+          + '"code_coverage": ' + codeCoverageEnabled
+          + ', "tests_skipping": ' + testsSkippingEnabled
+          + ', "flaky_test_retries_enabled": ' + flakyRetriesEnabled +  '} } }')
       }
 
       prefix("/api/v2/ci/tests/skippable") {
@@ -80,6 +92,31 @@ abstract class CiVisibilitySmokeTest extends Specification {
           '    },' +
           '    "name": "test_to_skip_with_itr",' +
           '    "suite": "datadog.smoke.TestSucceed"' +
+          '  }' +
+          '}] ' +
+          '}')
+      }
+
+      prefix("/api/v2/ci/libraries/tests/flaky") {
+        response.status(200).send('{ "data": [{' +
+          '  "id": "d230520a0561ee2f",' +
+          '  "type": "test",' +
+          '  "attributes": {' +
+          '    "configurations": {' +
+          '        "test.bundle": "Maven Smoke Tests Project maven-surefire-plugin default-test"' +
+          '    },' +
+          '    "name": "test_failed",' +
+          '    "suite": "datadog.smoke.TestFailed"' +
+          '  }' +
+          '}, {' +
+          '  "id": "d230520a0561ee2g",' +
+          '  "type": "test",' +
+          '  "attributes": {' +
+          '    "configurations": {' +
+          '        "test.bundle": ":test"' +
+          '    },' +
+          '    "name": "test_failed",' +
+          '    "suite": "datadog.smoke.TestFailed"' +
           '  }' +
           '}] ' +
           '}')

@@ -58,7 +58,7 @@ class ConfigurationApiImplTest extends Specification {
         ]
 
         if (expectedRequest) {
-          response.status(200).send('{ "data": { "type": "ci_app_tracers_test_service_settings", "id": "uuid", "attributes": { "code_coverage": true, "tests_skipping": true, "require_git": true } } }')
+          response.status(200).send('{ "data": { "type": "ci_app_tracers_test_service_settings", "id": "uuid", "attributes": { "code_coverage": true, "tests_skipping": true, "require_git": true, "flaky_test_retries_enabled": true } } }')
         } else {
           response.status(400).send()
         }
@@ -121,6 +121,7 @@ class ConfigurationApiImplTest extends Specification {
     settings.codeCoverageEnabled
     settings.testsSkippingEnabled
     settings.gitUploadRequired
+    settings.flakyTestRetriesEnabled
   }
 
   def "test skippable tests request"() {
