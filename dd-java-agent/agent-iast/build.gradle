@@ -23,6 +23,9 @@ tasks.withType(AbstractCompile).configureEach {
   // ensure no APIs beyond JDK8 are used
   options.release = 8
 }
+configurations.all {
+  resolutionStrategy.deactivateDependencyLocking()
+}
 
 // First version with Mac M1 support
 def grpcVersion = '1.42.2'
