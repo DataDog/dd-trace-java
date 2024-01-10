@@ -17,7 +17,9 @@ muzzle {
 
 apply from: "$rootDir/gradle/java.gradle"
 apply from: "$rootDir/gradle/configure_tests.gradle"
-
+configurations.all {
+  resolutionStrategy.deactivateDependencyLocking()
+}
 addTestSuiteForDir('latestDepTest', 'test')
 
 addTestSuiteForDir("jetty9Test", "test/jetty9")
