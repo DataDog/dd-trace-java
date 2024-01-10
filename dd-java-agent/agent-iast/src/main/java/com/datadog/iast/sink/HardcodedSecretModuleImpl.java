@@ -1,21 +1,19 @@
 package com.datadog.iast.sink;
 
+import static com.datadog.iast.util.HardcodedSecretMatcher.HARDCODED_SECRET_MATCHERS;
+
 import com.datadog.iast.Dependencies;
+import com.datadog.iast.util.HardcodedSecretMatcher;
 import com.datadog.iast.util.IastClassVisitor;
 import datadog.trace.api.iast.sink.HardcodedSecretModule;
 import java.util.HashSet;
 import java.util.Set;
-import java.util.regex.Pattern;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.objectweb.asm.ClassReader;
 
 public class HardcodedSecretModuleImpl extends SinkModuleBase implements HardcodedSecretModule {
 
-  private static final SecretMatcher GITHUB_TOKEN_MATCHER =
-      new SecretMatcher("github-app-token", Pattern.compile("(ghu|ghs)_[0-9a-zA-Z]{36}"));
-
-  private static final SecretMatcher[] matchers = {GITHUB_TOKEN_MATCHER};
   private static final int MIN_SECRET_LENGTH = 12;
 
   public HardcodedSecretModuleImpl(final Dependencies dependencies) {
@@ -46,7 +44,7 @@ public class HardcodedSecretModuleImpl extends SinkModuleBase implements Hardcod
     Set<Secret> secrets = null;
     for (String literal : literals) {
       if (literal.length() >= MIN_SECRET_LENGTH) {
-        for (SecretMatcher secretMatcher : matchers) {
+        for (HardcodedSecretMatcher secretMatcher : HARDCODED_SECRET_MATCHERS) {
           if (secretMatcher.matches(literal)) {
             if (secrets == null) {
               secrets = new HashSet<>();
@@ -74,26 +72,6 @@ public class HardcodedSecretModuleImpl extends SinkModuleBase implements Hardcod
 
     public String getRedacted() {
       return redacted;
-    }
-  }
-
-  static class SecretMatcher {
-
-    private final String redactedEvidence;
-
-    private final Pattern pattern;
-
-    public SecretMatcher(final String redactedEvidence, final Pattern pattern) {
-      this.redactedEvidence = redactedEvidence;
-      this.pattern = pattern;
-    }
-
-    public String getRedactedEvidence() {
-      return redactedEvidence;
-    }
-
-    public boolean matches(final String value) {
-      return pattern.matcher(value).matches();
     }
   }
 }
