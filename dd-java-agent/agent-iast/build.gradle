@@ -47,6 +47,7 @@ dependencies {
   compileOnly project(':dd-java-agent:instrumentation:iast-instrumenter')
   testRuntimeOnly project(':dd-java-agent:instrumentation:iast-instrumenter')
 
+  implementation deps.asm
   implementation project(':internal-api')
   implementation project(':internal-api:internal-api-9')
   implementation group: 'com.squareup.moshi', name: 'moshi', version: versions.moshi

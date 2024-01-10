@@ -9,6 +9,7 @@ import com.datadog.iast.propagation.PropagationModuleImpl;
 import com.datadog.iast.propagation.StringModuleImpl;
 import com.datadog.iast.sink.ApplicationModuleImpl;
 import com.datadog.iast.sink.CommandInjectionModuleImpl;
+import com.datadog.iast.sink.HardcodedSecretModuleImpl;
 import com.datadog.iast.sink.HeaderInjectionModuleImpl;
 import com.datadog.iast.sink.HstsMissingHeaderModuleImpl;
 import com.datadog.iast.sink.HttpResponseHeaderModuleImpl;
@@ -120,7 +121,8 @@ public class IastSystem {
         new XssModuleImpl(dependencies),
         new StacktraceLeakModuleImpl(dependencies),
         new HeaderInjectionModuleImpl(dependencies),
-        new ApplicationModuleImpl(dependencies));
+        new ApplicationModuleImpl(dependencies),
+        new HardcodedSecretModuleImpl(dependencies));
   }
 
   private static void registerRequestStartedCallback(
