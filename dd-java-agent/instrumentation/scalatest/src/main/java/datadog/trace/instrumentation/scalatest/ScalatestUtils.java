@@ -51,4 +51,8 @@ public abstract class ScalatestUtils {
       return null;
     }
   }
+
+  public static void test(Object invokeWithFixture) {
+    System.out.println("tdest"); // FIXME remove - scala.Function1
+  }
 }

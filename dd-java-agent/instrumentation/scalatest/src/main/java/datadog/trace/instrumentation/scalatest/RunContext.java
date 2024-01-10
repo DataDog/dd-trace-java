@@ -3,6 +3,7 @@ package datadog.trace.instrumentation.scalatest;
 import datadog.trace.api.civisibility.InstrumentationBridge;
 import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.civisibility.events.TestEventsHandler;
+import datadog.trace.api.civisibility.retry.TestRetryPolicy;
 import java.util.ArrayList;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -30,7 +31,10 @@ public class RunContext {
   private final TestEventsHandler eventHandler =
       InstrumentationBridge.createTestEventsHandler("scalatest");
   private final java.util.Set<TestIdentifier> skippedTests = ConcurrentHashMap.newKeySet();
-  private final java.util.Set<TestIdentifier> unTestIdentifiers = ConcurrentHashMap.newKeySet();
+  private final java.util.Set<TestIdentifier> unskippableTestIdentifiers =
+      ConcurrentHashMap.newKeySet();
+  private final java.util.Map<TestIdentifier, TestRetryPolicy> retryPolicies =
+      new ConcurrentHashMap<>();
 
   public RunContext(int runStamp) {
     this.runStamp = runStamp;
@@ -49,7 +53,7 @@ public class RunContext {
   }
 
   public boolean unskippable(TestIdentifier test) {
-    return unTestIdentifiers.remove(test);
+    return unskippableTestIdentifiers.remove(test);
   }
 
   public scala.collection.immutable.List<Tuple2<String, Boolean>> skip(
@@ -77,7 +81,7 @@ public class RunContext {
     String testName = testNameAndSkipStatus._1();
     TestIdentifier test = new TestIdentifier(suiteId, testName, null, null);
     if (isUnskippable(test, tags)) {
-      unTestIdentifiers.add(test);
+      unskippableTestIdentifiers.add(test);
       return testNameAndSkipStatus;
 
     } else if (eventHandler.skip(test)) {
@@ -91,7 +95,7 @@ public class RunContext {
 
   public boolean skip(TestIdentifier test, Map<String, Set<String>> tags) {
     if (isUnskippable(test, tags)) {
-      unTestIdentifiers.add(test);
+      unskippableTestIdentifiers.add(test);
       return false;
     } else if (eventHandler.skip(test)) {
       skippedTests.add(test);
@@ -108,6 +112,10 @@ public class RunContext {
     }
     Set<String> testTags = testTagsOption.get();
     return testTags != null && testTags.contains(InstrumentationBridge.ITR_UNSKIPPABLE_TAG);
+  }
+
+  public TestRetryPolicy retryPolicy(TestIdentifier test) {
+    return retryPolicies.computeIfAbsent(test, eventHandler::retryPolicy);
   }
 
   public void destroy() {

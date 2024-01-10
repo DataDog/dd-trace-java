@@ -25,7 +25,7 @@ public class RetryContextImpl implements RetryContext {
 
   @Override
   public void prepareRetry() {
-    if (retryPolicy.retryPossible()) {
+    if (retryPolicy.retryPossible() && retryPolicy.suppressFailures()) {
       /*
        * Treat every exception as an assumption error,
        * so that when asked for test execution status,
