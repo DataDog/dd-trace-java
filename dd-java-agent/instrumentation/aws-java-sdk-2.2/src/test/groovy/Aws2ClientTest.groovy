@@ -401,9 +401,7 @@ abstract class Aws2ClientTest extends VersionedNamingTestBase {
             "aws.agent" "java-aws-sdk"
             "aws.bucket.name" "somebucket"
             "bucketname" "somebucket"
-            if (operation == "PutObject" || operation == "GetObject") {
-              "aws.object.key" "somekey"
-            }
+            "aws.object.key" "somekey"
             errorTags SdkClientException, "Unable to execute HTTP request: Read timed out"
             peerServiceFrom("aws.bucket.name")
             defaultTags()
