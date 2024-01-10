@@ -200,6 +200,8 @@ tasks.register('resolveAndLockAll') {
 allprojects { project ->
   project.dependencyLocking {
     lockAllConfigurations()
+    lockMode = LockMode.LENIENT
+
   }
 }
 
