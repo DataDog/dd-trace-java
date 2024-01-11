@@ -108,6 +108,8 @@ final class TracerFlareService {
   void doSend(String caseId, String email, String hostname) {
     log.debug("Sending tracer flare");
     try {
+      String flareName = "java-flare-" + caseId + "-" + System.currentTimeMillis() + ".zip";
+
       RequestBody report = RequestBody.create(OCTET_STREAM, buildFlareZip());
 
       RequestBody form =
@@ -117,7 +119,7 @@ final class TracerFlareService {
               .addFormDataPart("case_id", caseId)
               .addFormDataPart("email", email)
               .addFormDataPart("hostname", hostname)
-              .addFormDataPart("flare_file", "java-flare.zip", report)
+              .addFormDataPart("flare_file", flareName, report)
               .build();
 
       Request flareRequest =
