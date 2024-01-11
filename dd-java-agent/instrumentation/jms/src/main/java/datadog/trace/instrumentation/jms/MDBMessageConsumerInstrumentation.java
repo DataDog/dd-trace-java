@@ -32,7 +32,7 @@ public final class MDBMessageConsumerInstrumentation extends Instrumenter.Tracin
     implements Instrumenter.ForTypeHierarchy {
 
   public MDBMessageConsumerInstrumentation() {
-    super("javax-mdb");
+    super("jms", "javax-mdb");
   }
 
   @Override
