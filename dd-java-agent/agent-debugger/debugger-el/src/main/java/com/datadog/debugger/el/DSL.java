@@ -14,8 +14,8 @@ import com.datadog.debugger.el.expressions.HasAnyExpression;
 import com.datadog.debugger.el.expressions.IfElseExpression;
 import com.datadog.debugger.el.expressions.IfExpression;
 import com.datadog.debugger.el.expressions.IndexExpression;
+import com.datadog.debugger.el.expressions.IsDefinedExpression;
 import com.datadog.debugger.el.expressions.IsEmptyExpression;
-import com.datadog.debugger.el.expressions.IsUndefinedExpression;
 import com.datadog.debugger.el.expressions.LenExpression;
 import com.datadog.debugger.el.expressions.MatchesExpression;
 import com.datadog.debugger.el.expressions.NotExpression;
@@ -211,7 +211,7 @@ public class DSL {
     return new BooleanValueExpressionAdapter(expression);
   }
 
-  public static IsUndefinedExpression isUndefined(ValueExpression<?> valueExpression) {
-    return new IsUndefinedExpression(valueExpression);
+  public static IsDefinedExpression isDefined(ValueExpression<?> valueExpression) {
+    return new IsDefinedExpression(valueExpression);
   }
 }
