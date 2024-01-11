@@ -28,6 +28,7 @@ import static datadog.trace.api.config.ProfilingConfig.PROFILING_ENABLED;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_ENABLED_DEFAULT;
 import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_URL_CONNECTION_CLASS_NAME;
 import static datadog.trace.api.config.TraceInstrumentationConfig.INTEGRATIONS_ENABLED;
+import static datadog.trace.api.config.TraceInstrumentationConfig.JAX_RS_ADDITIONAL_ANNOTATIONS;
 import static datadog.trace.api.config.TraceInstrumentationConfig.JDBC_CONNECTION_CLASS_NAME;
 import static datadog.trace.api.config.TraceInstrumentationConfig.JDBC_PREPARED_STATEMENT_CLASS_NAME;
 import static datadog.trace.api.config.TraceInstrumentationConfig.LEGACY_INSTALLER_ENABLED;
@@ -61,6 +62,7 @@ import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.lang.reflect.Method;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -129,6 +131,8 @@ public class InstrumenterConfig {
   private final boolean internalExitOnFailure;
 
   private final boolean legacyInstallerEnabled;
+
+  private final Collection<String> additionalJaxRsAnnotations;
 
   private InstrumenterConfig() {
     this(ConfigProvider.createDefault());
@@ -218,6 +222,8 @@ public class InstrumenterConfig {
     internalExitOnFailure = configProvider.getBoolean(INTERNAL_EXIT_ON_FAILURE, false);
 
     legacyInstallerEnabled = configProvider.getBoolean(LEGACY_INSTALLER_ENABLED, false);
+    this.additionalJaxRsAnnotations =
+        tryMakeImmutableSet(configProvider.getList(JAX_RS_ADDITIONAL_ANNOTATIONS));
   }
 
   public boolean isIntegrationsEnabled() {
@@ -371,6 +377,10 @@ public class InstrumenterConfig {
     return traceAnnotations;
   }
 
+  public Collection<String> getAdditionalJaxRsAnnotations() {
+    return additionalJaxRsAnnotations;
+  }
+
   /**
    * Check whether asynchronous result types are supported with @Trace annotation.
    *
@@ -494,6 +504,8 @@ public class InstrumenterConfig {
         + internalExitOnFailure
         + ", legacyInstallerEnabled="
         + legacyInstallerEnabled
+        + ", additionalJaxRsAnnotations="
+        + additionalJaxRsAnnotations
         + '}';
   }
 }
