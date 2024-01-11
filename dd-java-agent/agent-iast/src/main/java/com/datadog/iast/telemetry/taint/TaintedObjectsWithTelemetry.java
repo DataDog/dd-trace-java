@@ -3,10 +3,10 @@ package com.datadog.iast.telemetry.taint;
 import static datadog.trace.api.iast.telemetry.IastMetric.EXECUTED_TAINTED;
 import static datadog.trace.api.iast.telemetry.IastMetric.REQUEST_TAINTED;
 
-import com.datadog.iast.IastRequestContext;
 import com.datadog.iast.model.Range;
 import com.datadog.iast.taint.TaintedObject;
 import com.datadog.iast.taint.TaintedObjects;
+import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.telemetry.IastMetricCollector;
 import datadog.trace.api.iast.telemetry.Verbosity;
 import java.util.Iterator;
@@ -25,18 +25,15 @@ public class TaintedObjectsWithTelemetry implements TaintedObjects {
 
   private final TaintedObjects delegate;
   private final boolean debug;
-  @Nullable private IastRequestContext ctx;
+  @Nullable private IastContext ctx;
 
   protected TaintedObjectsWithTelemetry(final boolean debug, final TaintedObjects delegate) {
     this.delegate = delegate;
     this.debug = debug;
   }
 
-  /**
-   * {@link IastRequestContext} depends on {@link TaintedObjects} so it cannot be initialized via
-   * ctor
-   */
-  public void initContext(final IastRequestContext ctx) {
+  /** {@link IastContext} depends on {@link TaintedObjects} so it cannot be initialized via ctor */
+  public void initContext(final IastContext ctx) {
     this.ctx = ctx;
   }
 

@@ -1,18 +1,19 @@
 package com.datadog.iast.telemetry
 
+import com.datadog.iast.IastModuleImplTestBase
 import com.datadog.iast.IastRequestContext
 import com.datadog.iast.RequestEndedHandler
 import com.datadog.iast.model.Source
 import com.datadog.iast.taint.Ranges
 import com.datadog.iast.taint.TaintedObjects
 import com.datadog.iast.telemetry.taint.TaintedObjectsWithTelemetry
-import datadog.trace.api.gateway.RequestContextSlot
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.SourceTypes
 import datadog.trace.api.iast.VulnerabilityTypes
 import datadog.trace.api.iast.telemetry.IastMetric
 import datadog.trace.api.iast.telemetry.IastMetricCollector
 import datadog.trace.api.iast.telemetry.Verbosity
+import datadog.trace.api.internal.TraceSegment
 import groovy.transform.CompileDynamic
 import groovy.transform.ToString
 
@@ -20,21 +21,28 @@ import static com.datadog.iast.telemetry.TelemetryRequestEndedHandler.TRACE_METR
 import static datadog.trace.api.iast.telemetry.IastMetric.*
 
 @CompileDynamic
-class TelemetryRequestEndedHandlerTest extends AbstractTelemetryCallbackTest {
+class TelemetryRequestEndedHandlerTest extends IastModuleImplTestBase {
 
   protected RequestEndedHandler delegate
-  protected IastRequestContext iastCtx
   protected IastMetricCollector globalCollector
 
   void setup() {
     InstrumentationBridge.clearIastModules()
     delegate = Spy(new RequestEndedHandler(dependencies))
-    final TaintedObjects to = TaintedObjectsWithTelemetry.build(Verbosity.DEBUG, TaintedObjects.acquire())
-    iastCtx = new IastRequestContext(to, new IastMetricCollector())
-    reqCtx.getData(RequestContextSlot.IAST) >> iastCtx
     globalCollector = IastMetricCollector.get()
     globalCollector.prepareMetrics()
     globalCollector.drain()
+  }
+
+  @Override
+  protected IastRequestContext buildIastRequestContext() {
+    final TaintedObjects to = TaintedObjectsWithTelemetry.build(Verbosity.DEBUG, TaintedObjects.acquire())
+    return new IastRequestContext(to, new IastMetricCollector())
+  }
+
+  @Override
+  protected TraceSegment buildTraceSegment() {
+    return Mock(TraceSegment)
   }
 
   void 'request ends propagates tainted map metrics'() {
@@ -42,7 +50,7 @@ class TelemetryRequestEndedHandlerTest extends AbstractTelemetryCallbackTest {
     final handler = new TelemetryRequestEndedHandler(delegate)
     final toTaint = 'hello'
     final source = new Source(SourceTypes.REQUEST_PARAMETER_VALUE, 'name', 'value')
-    iastCtx.taintedObjects.taint(toTaint, Ranges.forCharSequence(toTaint, source))
+    ctx.taintedObjects.taint(toTaint, Ranges.forCharSequence(toTaint, source))
 
     when:
     handler.apply(reqCtx, span)
@@ -66,7 +74,7 @@ class TelemetryRequestEndedHandlerTest extends AbstractTelemetryCallbackTest {
     final metric = REQUEST_TAINTED
 
     when:
-    iastCtx.metricCollector.addMetric(metric, (byte) -1, 1)
+    ctx.metricCollector.addMetric(metric, (byte) -1, 1)
     handler.apply(reqCtx, span)
 
     then:
@@ -87,7 +95,7 @@ class TelemetryRequestEndedHandlerTest extends AbstractTelemetryCallbackTest {
   void 'test telemetry: #description'() {
     setup:
     final handler = new TelemetryRequestEndedHandler(delegate)
-    final collector = iastCtx.metricCollector
+    final collector = ctx.metricCollector
     metrics.each { collector.addMetric(it.metric, it.tagValue, it.value) }
 
     when:

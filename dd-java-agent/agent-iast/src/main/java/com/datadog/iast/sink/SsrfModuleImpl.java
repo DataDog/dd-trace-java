@@ -3,7 +3,6 @@ package com.datadog.iast.sink;
 import static datadog.trace.api.iast.VulnerabilityMarks.NOT_MARKED;
 
 import com.datadog.iast.Dependencies;
-import com.datadog.iast.IastRequestContext;
 import com.datadog.iast.model.Evidence;
 import com.datadog.iast.model.Range;
 import com.datadog.iast.model.Source;
@@ -11,6 +10,8 @@ import com.datadog.iast.model.VulnerabilityType;
 import com.datadog.iast.overhead.Operations;
 import com.datadog.iast.taint.Ranges;
 import com.datadog.iast.taint.TaintedObject;
+import com.datadog.iast.taint.TaintedObjects;
+import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.sink.SsrfModule;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
@@ -27,12 +28,11 @@ public class SsrfModuleImpl extends SinkModuleBase implements SsrfModule {
     if (url == null) {
       return;
     }
-    final AgentSpan span = AgentTracer.activeSpan();
-    final IastRequestContext ctx = IastRequestContext.get(span);
+    final IastContext ctx = IastContext.Provider.get();
     if (ctx == null) {
       return;
     }
-    checkInjection(span, ctx, VulnerabilityType.SSRF, url);
+    checkInjection(ctx, VulnerabilityType.SSRF, url);
   }
 
   /**
@@ -48,12 +48,12 @@ public class SsrfModuleImpl extends SinkModuleBase implements SsrfModule {
     if (value == null) {
       return;
     }
-    final AgentSpan span = AgentTracer.activeSpan();
-    final IastRequestContext ctx = IastRequestContext.get(span);
+    final IastContext ctx = IastContext.Provider.get();
     if (ctx == null) {
       return;
     }
-    TaintedObject taintedObject = getTaintedObject(ctx, host, uri);
+    final TaintedObjects to = ctx.getTaintedObjects();
+    TaintedObject taintedObject = getTaintedObject(to, host, uri);
     if (taintedObject == null) {
       return;
     }
@@ -62,6 +62,7 @@ public class SsrfModuleImpl extends SinkModuleBase implements SsrfModule {
     if (ranges == null || ranges.length == 0) {
       return;
     }
+    final AgentSpan span = AgentTracer.activeSpan();
     if (!overheadController.consumeQuota(Operations.REPORT_VULNERABILITY, span)) {
       return;
     }
@@ -73,13 +74,13 @@ public class SsrfModuleImpl extends SinkModuleBase implements SsrfModule {
 
   @Nullable
   private TaintedObject getTaintedObject(
-      final IastRequestContext ctx, @Nullable final Object host, @Nullable final Object uri) {
+      final TaintedObjects to, @Nullable final Object host, @Nullable final Object uri) {
     TaintedObject taintedObject = null;
     if (uri != null) {
-      taintedObject = ctx.getTaintedObjects().get(uri);
+      taintedObject = to.get(uri);
     }
     if (taintedObject == null && host != null) {
-      taintedObject = ctx.getTaintedObjects().get(host);
+      taintedObject = to.get(host);
     }
     return taintedObject;
   }

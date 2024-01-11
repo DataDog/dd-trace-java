@@ -13,6 +13,7 @@ import com.datadog.iast.overhead.Operations;
 import com.datadog.iast.util.CookieSecurityParser;
 import com.datadog.iast.util.HttpHeader;
 import com.datadog.iast.util.HttpHeader.ContextAwareHeader;
+import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.sink.HttpCookieModule;
 import datadog.trace.api.iast.sink.HttpResponseHeaderModule;
@@ -38,9 +39,11 @@ public class HttpResponseHeaderModuleImpl extends SinkModuleBase
     if (header != null) {
       if (header instanceof ContextAwareHeader) {
         final AgentSpan span = AgentTracer.activeSpan();
-        final IastRequestContext ctx = IastRequestContext.get(span);
-        if (ctx != null) {
-          ((ContextAwareHeader) header).onHeader(ctx, value);
+        final IastContext ctx = IastContext.Provider.get(span);
+        if (ctx instanceof IastRequestContext) {
+          final ContextAwareHeader ctxHeader = (ContextAwareHeader) header;
+          final IastRequestContext iastCtx = (IastRequestContext) ctx;
+          ctxHeader.onHeader(iastCtx, value);
         }
       }
       if (header == SET_COOKIE) {

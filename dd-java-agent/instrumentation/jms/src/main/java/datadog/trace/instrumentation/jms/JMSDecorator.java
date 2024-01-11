@@ -16,6 +16,7 @@ import datadog.trace.bootstrap.instrumentation.decorator.MessagingClientDecorato
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import javax.jms.Destination;
+import javax.jms.JMSException;
 import javax.jms.Message;
 import javax.jms.Queue;
 import javax.jms.TemporaryQueue;
@@ -101,6 +102,12 @@ public final class JMSDecorator extends MessagingClientDecorator {
     this.spanKind = spanKind;
     this.spanType = spanType;
     this.serviceName = serviceName;
+  }
+
+  public static void logJMSException(JMSException ex) {
+    if (log.isDebugEnabled()) {
+      log.debug("JMS exception during instrumentation", ex);
+    }
   }
 
   @Override

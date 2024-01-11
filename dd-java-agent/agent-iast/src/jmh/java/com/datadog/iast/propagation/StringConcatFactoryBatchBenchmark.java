@@ -5,6 +5,7 @@ import static java.util.concurrent.TimeUnit.MICROSECONDS;
 
 import com.datadog.iast.IastRequestContext;
 import com.datadog.iast.model.Range;
+import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.InstrumentationBridge;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
@@ -97,8 +98,7 @@ public class StringConcatFactoryBatchBenchmark
     private final Object[] constants;
     private final MethodHandle method;
 
-    protected Context(
-        final IastRequestContext iasContext, final String[] strings, final int paramCount) {
+    protected Context(final IastContext iasContext, final String[] strings, final int paramCount) {
       super(iasContext);
       this.strings = Arrays.asList(strings);
       stringArray = strings;
