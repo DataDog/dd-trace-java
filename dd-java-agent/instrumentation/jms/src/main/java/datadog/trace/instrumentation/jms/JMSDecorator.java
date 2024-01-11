@@ -106,7 +106,7 @@ public final class JMSDecorator extends MessagingClientDecorator {
 
   public static void logJMSException(JMSException ex) {
     if (log.isDebugEnabled()) {
-      log.debug("JMS instrumentation error", ex);
+      log.debug("JMS exception during instrumentation", ex);
     }
   }
 
