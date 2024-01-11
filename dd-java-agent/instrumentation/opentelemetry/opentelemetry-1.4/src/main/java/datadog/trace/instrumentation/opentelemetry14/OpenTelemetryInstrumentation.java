@@ -63,6 +63,7 @@ public class OpenTelemetryInstrumentation extends Instrumenter.Tracing
       packageName + ".context.OtelScope",
       packageName + ".context.propagation.AgentTextMapPropagator",
       packageName + ".context.propagation.OtelContextPropagators",
+      packageName + ".context.propagation.TraceStateHelper",
       packageName + ".trace.OtelExtractedContext",
       packageName + ".trace.OtelConventions",
       packageName + ".trace.OtelConventions$1",
