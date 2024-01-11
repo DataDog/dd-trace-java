@@ -89,8 +89,8 @@ public final class MDBMessageConsumerInstrumentation extends Instrumenter.Tracin
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void methodExit(@Advice.Enter AgentScope scope,
-                                  @Advice.Thrown final Throwable throwable) {
+    public static void methodExit(
+        @Advice.Enter AgentScope scope, @Advice.Thrown final Throwable throwable) {
       if (null != scope) {
         CONSUMER_DECORATE.onError(scope, throwable);
         scope.close();
