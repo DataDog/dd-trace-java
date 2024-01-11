@@ -14,6 +14,7 @@ import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.MessagingClientDecorator;
 import jakarta.jms.Destination;
+import jakarta.jms.JMSException;
 import jakarta.jms.Message;
 import jakarta.jms.Queue;
 import jakarta.jms.TemporaryQueue;
@@ -125,6 +126,12 @@ public final class JMSDecorator extends MessagingClientDecorator {
   @Override
   protected String spanKind() {
     return spanKind;
+  }
+
+  public static void logJMSException(JMSException ex) {
+    if (log.isDebugEnabled()) {
+      log.debug("JMS exception during instrumentation", ex);
+    }
   }
 
   public void onConsume(AgentSpan span, Message message, CharSequence resourceName) {
