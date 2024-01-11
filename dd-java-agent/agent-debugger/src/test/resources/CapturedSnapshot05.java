@@ -4,7 +4,7 @@ import java.util.ArrayList;
 public class CapturedSnapshot05 {
 
   void triggerUncaughtException() {
-    throw new IllegalStateException("oops");
+    throw new CustomException("oops", "I did it again");
   }
 
   int triggerCaughtException() {
@@ -28,4 +28,12 @@ public class CapturedSnapshot05 {
     return 0;
   }
 
+  public static class CustomException extends RuntimeException {
+    private final String additionalMsg;
+
+    public CustomException(String message, String additionalMsg) {
+      super(message);
+      this.additionalMsg = additionalMsg;
+    }
+  }
 }

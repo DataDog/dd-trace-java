@@ -226,6 +226,11 @@ public class CapturedContext implements ValueReferenceResolver {
 
   public void addThrowable(Throwable t) {
     addThrowable(new CapturedThrowable(t));
+    if (locals == null) {
+      locals = new HashMap<>();
+    }
+    // special local name for throwable
+    locals.put(ValueReferences.EXCEPTION_REF, CapturedValue.of(t.getClass().getTypeName(), t));
     extensions.put(ValueReferences.EXCEPTION_EXTENSION_NAME, t);
   }
 

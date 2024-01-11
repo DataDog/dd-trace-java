@@ -774,10 +774,18 @@ public class CapturedSnapshotTest {
     Snapshot snapshot = assertOneSnapshot(listener);
     assertCaptureThrowable(
         snapshot.getCaptures().getReturn(),
-        "java.lang.IllegalStateException",
+        "CapturedSnapshot05$CustomException",
         "oops",
         "CapturedSnapshot05.triggerUncaughtException",
         7);
+    Map<String, String> expectedFields = new HashMap<>();
+    expectedFields.put("detailMessage", "oops");
+    expectedFields.put("additionalMsg", "I did it again");
+    assertCaptureLocals(
+        snapshot.getCaptures().getReturn(),
+        "@exception",
+        "CapturedSnapshot05$CustomException",
+        expectedFields);
   }
 
   @Test
@@ -793,11 +801,14 @@ public class CapturedSnapshotTest {
                         DSL.and(
                             DSL.instanceOf(
                                 DSL.ref("@exception"),
-                                DSL.value("java.lang.IllegalStateException")),
+                                DSL.value("CapturedSnapshot05$CustomException")),
                             DSL.eq(
                                 DSL.getMember(DSL.ref("@exception"), "detailMessage"),
-                                DSL.value("oops")))),
-                    "@exception instanceof \"java.lang.IllegalStateException\" and @exception.detailMessage == 'oops'"))
+                                DSL.value("oops")),
+                            DSL.eq(
+                                DSL.getMember(DSL.ref("@exception"), "additionalMsg"),
+                                DSL.value("I did it again")))),
+                    "@exception instanceof \"CapturedSnapshot05$CustomException\" and @exception.detailMessage == 'oops' and @exception.additionalMsg == 'I did it again'"))
             .template(LOG_TEMPLATE, parseTemplate(LOG_TEMPLATE))
             .build();
     DebuggerTransformerTest.TestSnapshotListener listener = installProbes(CLASS_NAME, probe);
@@ -812,7 +823,7 @@ public class CapturedSnapshotTest {
     assertEquals("exception msg=oops", snapshot.getMessage());
     assertCaptureThrowable(
         snapshot.getCaptures().getReturn(),
-        "java.lang.IllegalStateException",
+        "CapturedSnapshot05$CustomException",
         "oops",
         "CapturedSnapshot05.triggerUncaughtException",
         7);
@@ -1595,14 +1606,14 @@ public class CapturedSnapshotTest {
     Snapshot snapshot = assertOneSnapshot(listener);
     assertCaptureThrowable(
         snapshot.getCaptures().getReturn(),
-        "java.lang.IllegalStateException",
+        "CapturedSnapshot05$CustomException",
         "oops",
         "CapturedSnapshot05.triggerUncaughtException",
         7);
     assertEquals(2, snapshot.getEvaluationErrors().size());
     assertEquals("Cannot find symbol: after", snapshot.getEvaluationErrors().get(0).getMessage());
     assertEquals(
-        "java.lang.IllegalStateException: oops",
+        "CapturedSnapshot05$CustomException: oops",
         snapshot.getEvaluationErrors().get(1).getMessage());
   }
 
