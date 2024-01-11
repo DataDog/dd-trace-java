@@ -39,4 +39,19 @@ class LocationTest extends DDSpecification {
     location.getLine() == -1
     location.getMethod() == methodName
   }
+
+  void 'forClassAndMethodAndLine'() {
+    given:
+    final declaringClass = "declaringClass"
+    final methodName = "methodName"
+    final line = 42
+
+    when:
+    final location = Location.forClassAndMethodAndLine(declaringClass, methodName, line)
+
+    then:
+    location.getPath() == "declaringClass"
+    location.getLine() == line
+    location.getMethod() == methodName
+  }
 }
