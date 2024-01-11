@@ -14,5 +14,6 @@ public final class InstrumenterFlare implements TracerFlare.Reporter {
   @Override
   public void addReportToFlare(ZipOutputStream zip) throws IOException {
     TracerFlare.addText(zip, "instrumenter_state.txt", InstrumenterState.summary());
+    TracerFlare.addText(zip, "instrumenter_metrics.txt", InstrumenterMetrics.summary());
   }
 }
