@@ -1,19 +1,16 @@
 package com.datadog.iast.propagation
 
 import com.datadog.iast.IastModuleImplTestBase
-import com.datadog.iast.IastRequestContext
 import com.datadog.iast.model.Range
 import com.datadog.iast.model.Source
 import com.datadog.iast.taint.Ranges
 import com.datadog.iast.taint.TaintedObject
 import datadog.trace.api.Config
-import datadog.trace.api.gateway.RequestContext
-import datadog.trace.api.gateway.RequestContextSlot
 import datadog.trace.api.iast.SourceTypes
 import datadog.trace.api.iast.Taintable
 import datadog.trace.api.iast.VulnerabilityMarks
 import datadog.trace.api.iast.propagation.PropagationModule
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import org.junit.Assume
 
 import static com.datadog.iast.taint.Ranges.highestPriorityRange
@@ -23,18 +20,16 @@ class PropagationModuleTest extends IastModuleImplTestBase {
 
   private PropagationModule module
 
-  private IastRequestContext ctx
-
   void setup() {
     module = new PropagationModuleImpl()
-    ctx = new IastRequestContext()
-    final reqCtx = Mock(RequestContext) {
-      getData(RequestContextSlot.IAST) >> ctx
+  }
+
+  @Override
+  protected AgentTracer.TracerAPI buildAgentTracer() {
+    return Mock(AgentTracer.TracerAPI) {
+      activeSpan() >> span
+      getTraceSegment() >> traceSegment
     }
-    final span = Mock(AgentSpan) {
-      getRequestContext() >> reqCtx
-    }
-    tracer.activeSpan() >> span
   }
 
   void '#method(#args) not taintable'() {

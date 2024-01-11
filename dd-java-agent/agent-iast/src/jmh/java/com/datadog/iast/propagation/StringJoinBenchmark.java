@@ -5,6 +5,7 @@ import static datadog.trace.api.iast.VulnerabilityMarks.NOT_MARKED;
 import com.datadog.iast.IastRequestContext;
 import com.datadog.iast.model.Range;
 import com.datadog.iast.model.Source;
+import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.InstrumentationBridge;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.Fork;
@@ -86,7 +87,7 @@ public class StringJoinBenchmark extends AbstractBenchmark<StringJoinBenchmark.C
     private final String noTaintedDelimiter;
 
     protected Context(
-        final IastRequestContext iasContext,
+        final IastContext iasContext,
         final String notTainted,
         final String tainted,
         final String noTaintedDelimiter,

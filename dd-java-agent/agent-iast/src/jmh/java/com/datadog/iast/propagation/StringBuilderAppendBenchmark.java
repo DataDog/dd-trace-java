@@ -4,6 +4,7 @@ import static datadog.trace.api.iast.VulnerabilityMarks.NOT_MARKED;
 
 import com.datadog.iast.IastRequestContext;
 import com.datadog.iast.model.Range;
+import datadog.trace.api.iast.IastContext;
 import datadog.trace.instrumentation.java.lang.StringBuilderCallSite;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.Fork;
@@ -88,7 +89,7 @@ public class StringBuilderAppendBenchmark
     private final StringBuilder taintedBuilder;
 
     protected Context(
-        final IastRequestContext context,
+        final IastContext context,
         final String notTainted,
         final String tainted,
         final StringBuilder notTaintedBuilder,

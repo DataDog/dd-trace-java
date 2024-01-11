@@ -7,7 +7,6 @@ import static com.datadog.iast.taint.Ranges.rangesProviderFor;
 import static com.datadog.iast.taint.Tainteds.canBeTainted;
 import static com.datadog.iast.taint.Tainteds.getTainted;
 
-import com.datadog.iast.IastRequestContext;
 import com.datadog.iast.model.Range;
 import com.datadog.iast.taint.Ranges;
 import com.datadog.iast.taint.Ranges.RangeList;
@@ -15,6 +14,7 @@ import com.datadog.iast.taint.Ranges.RangesProvider;
 import com.datadog.iast.taint.TaintedObject;
 import com.datadog.iast.taint.TaintedObjects;
 import com.datadog.iast.util.Ranged;
+import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.propagation.StringModule;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.Arrays;
@@ -49,7 +49,7 @@ public class StringModuleImpl implements StringModule {
     if (!canBeTainted(left) && !canBeTainted(right)) {
       return;
     }
-    final IastRequestContext ctx = IastRequestContext.get();
+    final IastContext ctx = IastContext.Provider.get();
     if (ctx == null) {
       return;
     }
@@ -77,7 +77,7 @@ public class StringModuleImpl implements StringModule {
     if (!canBeTainted(param)) {
       return;
     }
-    final IastRequestContext ctx = IastRequestContext.get();
+    final IastContext ctx = IastContext.Provider.get();
     if (ctx == null) {
       return;
     }
@@ -95,7 +95,7 @@ public class StringModuleImpl implements StringModule {
     if (!canBeTainted(builder) || !canBeTainted(param)) {
       return;
     }
-    final IastRequestContext ctx = IastRequestContext.get();
+    final IastContext ctx = IastContext.Provider.get();
     if (ctx == null) {
       return;
     }
@@ -125,7 +125,7 @@ public class StringModuleImpl implements StringModule {
     if (!canBeTainted(builder) || !canBeTainted(result)) {
       return;
     }
-    final IastRequestContext ctx = IastRequestContext.get();
+    final IastContext ctx = IastContext.Provider.get();
     if (ctx == null) {
       return;
     }
@@ -147,7 +147,7 @@ public class StringModuleImpl implements StringModule {
     if (!canBeTainted(result) || !canBeTainted(args)) {
       return;
     }
-    final IastRequestContext ctx = IastRequestContext.get();
+    final IastContext ctx = IastContext.Provider.get();
     if (ctx == null) {
       return;
     }
@@ -194,7 +194,7 @@ public class StringModuleImpl implements StringModule {
     if (self == result || !canBeTainted(result)) {
       return;
     }
-    final IastRequestContext ctx = IastRequestContext.get();
+    final IastContext ctx = IastContext.Provider.get();
     if (ctx == null) {
       return;
     }
@@ -219,7 +219,7 @@ public class StringModuleImpl implements StringModule {
     if (!canBeTainted(result)) {
       return;
     }
-    final IastRequestContext ctx = IastRequestContext.get();
+    final IastContext ctx = IastContext.Provider.get();
     if (ctx == null) {
       return;
     }
@@ -267,7 +267,7 @@ public class StringModuleImpl implements StringModule {
     if (!canBeTainted(self) || !canBeTainted(result) || self == result) {
       return;
     }
-    final IastRequestContext ctx = IastRequestContext.get();
+    final IastContext ctx = IastContext.Provider.get();
     if (ctx == null) {
       return;
     }
@@ -309,7 +309,7 @@ public class StringModuleImpl implements StringModule {
     if (self == result) {
       return;
     }
-    final IastRequestContext ctx = IastRequestContext.get();
+    final IastContext ctx = IastContext.Provider.get();
     if (ctx == null) {
       return;
     }
@@ -382,7 +382,7 @@ public class StringModuleImpl implements StringModule {
     if (self == result) {
       return;
     }
-    final IastRequestContext ctx = IastRequestContext.get();
+    final IastContext ctx = IastContext.Provider.get();
     if (ctx == null) {
       return;
     }
@@ -416,7 +416,7 @@ public class StringModuleImpl implements StringModule {
     if (!canBeTainted(self)) {
       return;
     }
-    final IastRequestContext ctx = IastRequestContext.get();
+    final IastContext ctx = IastContext.Provider.get();
     if (ctx == null) {
       return;
     }
@@ -443,7 +443,7 @@ public class StringModuleImpl implements StringModule {
     if (!canBeTainted(result)) {
       return;
     }
-    final IastRequestContext ctx = IastRequestContext.get();
+    final IastContext ctx = IastContext.Provider.get();
     if (ctx == null) {
       return;
     }
@@ -506,7 +506,7 @@ public class StringModuleImpl implements StringModule {
     if (!canBeTainted(result)) {
       return;
     }
-    final IastRequestContext ctx = IastRequestContext.get();
+    final IastContext ctx = IastContext.Provider.get();
     if (ctx == null) {
       return;
     }
@@ -546,7 +546,7 @@ public class StringModuleImpl implements StringModule {
     if (result.length == 1 && result[0] == self) {
       return;
     }
-    final IastRequestContext ctx = IastRequestContext.get();
+    final IastContext ctx = IastContext.Provider.get();
     if (ctx == null) {
       return;
     }

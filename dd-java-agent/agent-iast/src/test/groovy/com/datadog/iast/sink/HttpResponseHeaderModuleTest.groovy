@@ -1,19 +1,17 @@
 package com.datadog.iast.sink
 
-
 import com.datadog.iast.IastModuleImplTestBase
 import com.datadog.iast.IastRequestContext
+import com.datadog.iast.Reporter
 import com.datadog.iast.model.Vulnerability
 import com.datadog.iast.model.VulnerabilityType
+import com.datadog.iast.overhead.Operations
 import com.datadog.iast.taint.TaintedObjects
-import datadog.trace.api.gateway.RequestContext
-import datadog.trace.api.gateway.RequestContextSlot
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.SourceTypes
 import datadog.trace.api.iast.VulnerabilityMarks
-import datadog.trace.api.iast.telemetry.IastMetricCollector
 import datadog.trace.api.iast.util.Cookie
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 
 import static com.datadog.iast.taint.TaintUtils.addFromTaintFormat
 import static com.datadog.iast.taint.TaintUtils.addFromRangeList
@@ -22,13 +20,7 @@ import static datadog.trace.api.iast.VulnerabilityMarks.NOT_MARKED
 
 class HttpResponseHeaderModuleTest extends IastModuleImplTestBase {
 
-  private List<Object> objectHolder
-
-  private IastRequestContext ctx
-
   private HttpResponseHeaderModuleImpl module
-
-  private AgentSpan span
 
   def setup() {
     InstrumentationBridge.clearIastModules()
@@ -40,18 +32,20 @@ class HttpResponseHeaderModuleTest extends IastModuleImplTestBase {
     InstrumentationBridge.registerIastModule(new HstsMissingHeaderModuleImpl(dependencies))
     InstrumentationBridge.registerIastModule(new UnvalidatedRedirectModuleImpl(dependencies))
     InstrumentationBridge.registerIastModule(new HeaderInjectionModuleImpl(dependencies))
-    objectHolder = []
-    ctx = new IastRequestContext()
-    final reqCtx = Stub(RequestContext) {
-      getData(RequestContextSlot.IAST) >> ctx
-    }
-    span = Mock(AgentSpan) {
-      getSpanId() >> 123456
-      getRequestContext() >> reqCtx
-    }
-    tracer.activeSpan() >> span
   }
 
+  @Override
+  protected AgentTracer.TracerAPI buildAgentTracer() {
+    return Mock(AgentTracer.TracerAPI) {
+      activeSpan() >> span
+      getTraceSegment() >> traceSegment
+    }
+  }
+
+  @Override
+  protected Reporter buildReporter() {
+    return Mock(Reporter)
+  }
 
   void 'check quota is consumed correctly'() {
     given:
@@ -66,9 +60,6 @@ class HttpResponseHeaderModuleTest extends IastModuleImplTestBase {
 
     then:
     1 * tracer.activeSpan() >> span
-    1 * span.getSpanId()
-    1 * span.getServiceName()
-    1 * overheadController.consumeQuota(_, _) >> true
     1 * reporter.report(_, _ as Vulnerability) >> { onReport.call(it[1] as Vulnerability) }
     1 * reporter.report(_, _ as Vulnerability) >> { onReport.call(it[1] as Vulnerability) }
     1 * reporter.report(_, _ as Vulnerability) >> { onReport.call(it[1] as Vulnerability) }
@@ -102,8 +93,8 @@ class HttpResponseHeaderModuleTest extends IastModuleImplTestBase {
     module.onHeader("Strict-Transport-Security", "invalid max age")
 
     then:
-    8 * tracer.activeSpan()
-    1 * overheadController.consumeQuota(_,_)
+    overheadController.consumeQuota(Operations.REPORT_VULNERABILITY, span) >> false // do not report in this test
+    8 * tracer.activeSpan() >> span
     0 * _
   }
 
@@ -122,10 +113,9 @@ class HttpResponseHeaderModuleTest extends IastModuleImplTestBase {
   void 'exercise IastRequestContext'(){
     given:
     final taintedObjects = Stub(TaintedObjects)
-    final iastMetricsCollector = Stub(IastMetricCollector)
 
     when:
-    IastRequestContext ctx = new IastRequestContext(taintedObjects, iastMetricsCollector)
+    IastRequestContext ctx = new IastRequestContext(taintedObjects)
     ctx.setxForwardedProto('https')
     ctx.setContentType("text/html")
     ctx.setxContentTypeOptions('nosniff')

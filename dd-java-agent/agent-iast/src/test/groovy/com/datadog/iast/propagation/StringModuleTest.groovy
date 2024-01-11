@@ -1,11 +1,11 @@
 package com.datadog.iast.propagation
 
 import com.datadog.iast.IastModuleImplTestBase
-import com.datadog.iast.IastRequestContext
 import datadog.trace.api.gateway.RequestContext
 import datadog.trace.api.gateway.RequestContextSlot
 import datadog.trace.api.iast.propagation.StringModule
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import groovy.transform.CompileDynamic
 import org.junit.jupiter.api.Assertions
 
@@ -22,23 +22,32 @@ class StringModuleTest extends IastModuleImplTestBase {
 
   private StringModule module
 
-  private List<Object> objectHolder
-
-  private AgentSpan span
-
-  private IastRequestContext ctx
-
-  private RequestContext reqCtx
-
   def setup() {
     module = new StringModuleImpl()
-    objectHolder = []
-    span = Mock(AgentSpan)
-    tracer.activeSpan() >> span
-    reqCtx = Mock(RequestContext)
-    span.getRequestContext() >> reqCtx
-    ctx = new IastRequestContext()
-    reqCtx.getData(RequestContextSlot.IAST) >> ctx
+  }
+
+  @Override
+  protected AgentTracer.TracerAPI buildAgentTracer() {
+    return Mock(AgentTracer.TracerAPI) {
+      activeSpan() >> span
+      getTraceSegment() >> traceSegment
+    }
+  }
+
+  @Override
+  protected RequestContext buildRequestContext() {
+    return Mock(RequestContext) {
+      getData(RequestContextSlot.IAST) >> ctx
+      getTraceSegment() >> traceSegment
+    }
+  }
+
+  @Override
+  protected AgentSpan buildAgentSpan() {
+    return Mock(AgentSpan) {
+      getSpanId() >> 123456
+      getRequestContext() >> reqCtx
+    }
   }
 
   void 'onStringBuilderAppend null or empty (#builder, #param)'() {
