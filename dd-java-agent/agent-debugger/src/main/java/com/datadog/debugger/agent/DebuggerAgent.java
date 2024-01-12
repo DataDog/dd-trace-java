@@ -67,7 +67,8 @@ public class DebuggerAgent {
     sink = debuggerSink;
     StatsdMetricForwarder statsdMetricForwarder =
         new StatsdMetricForwarder(config, probeStatusSink);
-    DebuggerContext.init(configurationUpdater, statsdMetricForwarder);
+    DebuggerContext.initProbeResolver(configurationUpdater);
+    DebuggerContext.initMetricForwarder(statsdMetricForwarder);
     DebuggerContext.initClassFilter(new DenyListHelper(null)); // default hard coded deny list
     snapshotSerializer = new JsonSnapshotSerializer();
     DebuggerContext.initValueSerializer(snapshotSerializer);
@@ -168,7 +169,8 @@ public class DebuggerAgent {
     LOGGER.info("install Instrument-The-World transformer");
     DebuggerTransformer transformer =
         createTransformer(config, Configuration.builder().build(), null, debuggerSink);
-    DebuggerContext.init(transformer::instrumentTheWorldResolver, statsdMetricForwarder);
+    DebuggerContext.initProbeResolver(transformer::instrumentTheWorldResolver);
+    DebuggerContext.initMetricForwarder(statsdMetricForwarder);
     instrumentation.addTransformer(transformer);
     return transformer;
   }
