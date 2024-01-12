@@ -71,6 +71,7 @@ public class DebuggerTransformer implements ClassFileTransformer {
   private static final Pattern COMMA_PATTERN = Pattern.compile(",");
   private static final List<Class<?>> PROBE_ORDER =
       Arrays.asList(MetricProbe.class, LogProbe.class, SpanDecorationProbe.class, SpanProbe.class);
+  private static final String JAVA_IO_TMPDIR = "java.io.tmpdir";
 
   private final Config config;
   private final TransformerDefinitionMatcher definitionMatcher;
@@ -678,7 +679,8 @@ public class DebuggerTransformer implements ClassFileTransformer {
 
   private static Path dumpClassFile(String className, byte[] classfileBuffer) {
     try {
-      Path classFilePath = Paths.get("/tmp/debugger/" + className + ".class");
+      Path classFilePath =
+          Paths.get(System.getProperty(JAVA_IO_TMPDIR), "debugger", className + ".class");
       Files.createDirectories(classFilePath.getParent());
       Files.write(classFilePath, classfileBuffer, StandardOpenOption.CREATE);
       return classFilePath;

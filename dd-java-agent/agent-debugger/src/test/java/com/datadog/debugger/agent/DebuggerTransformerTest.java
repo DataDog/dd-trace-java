@@ -159,30 +159,37 @@ public class DebuggerTransformerTest {
   @Test
   public void testDump() {
     Config config = createConfig();
-    when(config.isDebuggerClassFileDumpEnabled()).thenReturn(true);
-    File instrumentedClassFile = new File("/tmp/debugger/java.util.ArrayList.class");
-    File origClassFile = new File("/tmp/debugger/java.util.ArrayList_orig.class");
-    if (instrumentedClassFile.exists()) {
-      instrumentedClassFile.delete();
+    final String JAVA_IO_TMPDIR = "java.io.tmpdir";
+    String initialTmpDir = System.getProperty(JAVA_IO_TMPDIR);
+    System.setProperty(JAVA_IO_TMPDIR, "/tmp");
+    try {
+      when(config.isDebuggerClassFileDumpEnabled()).thenReturn(true);
+      File instrumentedClassFile = new File("/tmp/debugger/java.util.ArrayList.class");
+      File origClassFile = new File("/tmp/debugger/java.util.ArrayList_orig.class");
+      if (instrumentedClassFile.exists()) {
+        instrumentedClassFile.delete();
+      }
+      if (origClassFile.exists()) {
+        origClassFile.delete();
+      }
+      LogProbe logProbe =
+          LogProbe.builder().where("java.util.ArrayList", "add").probeId("", 0).build();
+      DebuggerTransformer debuggerTransformer =
+          new DebuggerTransformer(
+              config, new Configuration(SERVICE_NAME, Collections.singletonList(logProbe)));
+      debuggerTransformer.transform(
+          ClassLoader.getSystemClassLoader(),
+          "java.util.ArrayList",
+          ArrayList.class,
+          null,
+          getClassFileBytes(ArrayList.class));
+      Assertions.assertTrue(instrumentedClassFile.exists());
+      Assertions.assertTrue(origClassFile.exists());
+      Assertions.assertTrue(instrumentedClassFile.delete());
+      Assertions.assertTrue(origClassFile.delete());
+    } finally {
+      System.setProperty(JAVA_IO_TMPDIR, initialTmpDir);
     }
-    if (origClassFile.exists()) {
-      origClassFile.delete();
-    }
-    LogProbe logProbe =
-        LogProbe.builder().where("java.util.ArrayList", "add").probeId("", 0).build();
-    DebuggerTransformer debuggerTransformer =
-        new DebuggerTransformer(
-            config, new Configuration(SERVICE_NAME, Collections.singletonList(logProbe)));
-    debuggerTransformer.transform(
-        ClassLoader.getSystemClassLoader(),
-        "java.util.ArrayList",
-        ArrayList.class,
-        null,
-        getClassFileBytes(ArrayList.class));
-    Assertions.assertTrue(instrumentedClassFile.exists());
-    Assertions.assertTrue(origClassFile.exists());
-    Assertions.assertTrue(instrumentedClassFile.delete());
-    Assertions.assertTrue(origClassFile.delete());
   }
 
   @Test
