@@ -14,8 +14,8 @@ import com.datadog.debugger.el.expressions.HasAnyExpression;
 import com.datadog.debugger.el.expressions.IfElseExpression;
 import com.datadog.debugger.el.expressions.IfExpression;
 import com.datadog.debugger.el.expressions.IndexExpression;
+import com.datadog.debugger.el.expressions.IsDefinedExpression;
 import com.datadog.debugger.el.expressions.IsEmptyExpression;
-import com.datadog.debugger.el.expressions.IsUndefinedExpression;
 import com.datadog.debugger.el.expressions.LenExpression;
 import com.datadog.debugger.el.expressions.MatchesExpression;
 import com.datadog.debugger.el.expressions.NotExpression;
@@ -133,8 +133,8 @@ public class PrettyPrintVisitor implements Visitor<String> {
   }
 
   @Override
-  public String visit(IsUndefinedExpression isUndefinedExpression) {
-    return "isUndefined(" + nullSafeAccept(isUndefinedExpression.getValueExpression()) + ")";
+  public String visit(IsDefinedExpression isDefinedExpression) {
+    return "isDefined(" + nullSafeAccept(isDefinedExpression.getValueExpression()) + ")";
   }
 
   @Override

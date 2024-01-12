@@ -839,13 +839,14 @@ public class CapturedSnapshotTest {
   @Test
   public void noUncaughtExceptionCondition() throws IOException, URISyntaxException {
     final String CLASS_NAME = "CapturedSnapshot01";
-    final String LOG_TEMPLATE = "exception?: {isUndefined(@exception)}";
+    final String LOG_TEMPLATE = "exception?: {isDefined(@exception)}";
     LogProbe probe =
         createProbeBuilder(PROBE_ID, CLASS_NAME, "main", "int (String)")
             .evaluateAt(MethodLocation.EXIT)
             .when(
                 new ProbeCondition(
-                    DSL.when(DSL.isUndefined(DSL.ref("@exception"))), "isUndefined(@exception)"))
+                    DSL.when(DSL.not(DSL.isDefined(DSL.ref("@exception")))),
+                    "not(isDefined(@exception))"))
             .template(LOG_TEMPLATE, parseTemplate(LOG_TEMPLATE))
             .build();
     DebuggerTransformerTest.TestSnapshotListener listener = installProbes(CLASS_NAME, probe);
