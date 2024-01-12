@@ -1,5 +1,7 @@
 package datadog.trace.instrumentation.java.lang;
 
+import static datadog.trace.util.AgentThreadFactory.AGENT_THREAD_GROUP;
+
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.TagContext;
@@ -16,6 +18,11 @@ class ProcessImplStartAdvice {
     }
 
     if (command.length == 0) {
+      return null;
+    }
+
+    // Don't create spans for agent threads
+    if (AGENT_THREAD_GROUP.equals(Thread.currentThread().getThreadGroup())) {
       return null;
     }
 
