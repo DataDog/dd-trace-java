@@ -1,12 +1,12 @@
 {
-  "dsl": "isEmpty(emptyStr) && isEmpty(emptyList) && isEmpty(emptyMap) && isEmpty(emptyArray) && isUndefined(@exception)",
+  "dsl": "isEmpty(emptyStr) && isEmpty(emptyList) && isEmpty(emptyMap) && isEmpty(emptyArray) && not(isDefined(@exception))",
   "json": {
     "and": [
       {"isEmpty": {"ref": "emptyStr"}},
       {"isEmpty": {"ref": "emptyList"}},
       {"isEmpty": {"ref": "emptyMap"}},
       {"isEmpty": {"ref": "emptyArray"}},
-      {"isUndefined":  {"ref": "@exception"}}
+      {"not": {"isDefined":  {"ref": "@exception"}}}
     ]
   }
 }

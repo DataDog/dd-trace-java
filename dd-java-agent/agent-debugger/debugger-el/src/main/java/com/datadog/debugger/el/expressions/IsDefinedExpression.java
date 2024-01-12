@@ -5,15 +5,11 @@ import com.datadog.debugger.el.Value;
 import com.datadog.debugger.el.Visitor;
 import datadog.trace.bootstrap.debugger.el.ValueReferenceResolver;
 
-/**
- * Check whether a {@linkplain Value} was resolved as {@linkplain Value#UNDEFINED}.<br>
- * This can happen when the {@linkplain ValueReferenceResolver} is not able to properly resolve a
- * reference or an expression is using {@linkplain Value#UNDEFINED} value in its computation.
- */
-public final class IsUndefinedExpression implements BooleanExpression {
+/** Check whether a {@linkplain Value} was resolved correctly or symbol exists.<br> */
+public class IsDefinedExpression implements BooleanExpression {
   private final ValueExpression<?> valueExpression;
 
-  public IsUndefinedExpression(ValueExpression<?> valueExpression) {
+  public IsDefinedExpression(ValueExpression<?> valueExpression) {
     this.valueExpression = valueExpression;
   }
 
@@ -24,9 +20,9 @@ public final class IsUndefinedExpression implements BooleanExpression {
     }
     try {
       Value<?> value = valueExpression.evaluate(valueRefResolver);
-      return value.isUndefined() ? Boolean.TRUE : Boolean.FALSE;
+      return value.isUndefined() ? Boolean.FALSE : Boolean.TRUE;
     } catch (EvaluationException ex) {
-      return Boolean.TRUE;
+      return Boolean.FALSE;
     }
   }
 
