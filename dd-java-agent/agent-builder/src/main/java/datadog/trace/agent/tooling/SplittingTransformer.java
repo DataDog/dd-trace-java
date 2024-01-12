@@ -25,7 +25,9 @@ final class SplittingTransformer implements AgentBuilder.Transformer {
 
     BitSet ids = CombiningMatcher.recordedMatches.get();
     for (int id = ids.nextSetBit(0); id >= 0; id = ids.nextSetBit(id + 1)) {
+      long fromTick = InstrumenterMetrics.tick();
       builder = transformers[id].transform(builder, target, classLoader, module, pd);
+      InstrumenterMetrics.transformType(fromTick);
     }
 
     return builder;

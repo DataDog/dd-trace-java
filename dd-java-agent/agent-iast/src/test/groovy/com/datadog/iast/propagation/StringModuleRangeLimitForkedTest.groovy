@@ -1,38 +1,22 @@
 package com.datadog.iast.propagation
 
 import com.datadog.iast.IastModuleImplTestBase
-import com.datadog.iast.IastRequestContext
 import datadog.trace.api.config.IastConfig
-import datadog.trace.api.gateway.RequestContext
-import datadog.trace.api.gateway.RequestContextSlot
 import datadog.trace.api.iast.propagation.StringModule
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 
-import static com.datadog.iast.taint.TaintUtils.*
+import static com.datadog.iast.taint.TaintUtils.addFromTaintFormat
+import static com.datadog.iast.taint.TaintUtils.getStringFromTaintFormat
+import static com.datadog.iast.taint.TaintUtils.taint
+import static com.datadog.iast.taint.TaintUtils.taintFormat
 
 class StringModuleRangeLimitForkedTest extends IastModuleImplTestBase {
 
   private StringModule module
 
-  private List<Object> objectHolder
-
-  private AgentSpan span
-
-  private IastRequestContext ctx
-
-  private RequestContext reqCtx
-
   def setup() {
     injectSysConfig(IastConfig.IAST_MAX_RANGE_COUNT, '2')
 
     module = new StringModuleImpl()
-    objectHolder = []
-    span = Mock(AgentSpan)
-    tracer.activeSpan() >> span
-    reqCtx = Mock(RequestContext)
-    span.getRequestContext() >> reqCtx
-    ctx = new IastRequestContext()
-    reqCtx.getData(RequestContextSlot.IAST) >> ctx
   }
 
   void 'onStringConcatFactory'() {

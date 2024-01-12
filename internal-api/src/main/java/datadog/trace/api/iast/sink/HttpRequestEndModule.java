@@ -1,13 +1,14 @@
 package datadog.trace.api.iast.sink;
 
 import datadog.trace.api.gateway.IGSpanInfo;
+import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.IastModule;
 import java.net.HttpURLConnection;
 import java.util.Locale;
 
 public interface HttpRequestEndModule extends IastModule {
 
-  void onRequestEnd(Object ctx, IGSpanInfo span);
+  void onRequestEnd(IastContext ctx, IGSpanInfo span);
 
   default boolean isHtmlResponse(final String value) {
     if (value == null) {

@@ -30,6 +30,7 @@ compileTestGroovy {
 dependencies {
   compileOnly 'jakarta.jms:jakarta.jms-api:3.0.0'
   testImplementation 'jakarta.jms:jakarta.jms-api:3.0.0'
+  testImplementation 'jakarta.ejb:jakarta.ejb-api:4.0.0'
   testImplementation group: 'org.springframework', name: 'spring-jms', version: '6.0.11'
   testImplementation group: 'org.springframework', name: 'spring-context', version: '6.0.11'
   testImplementation group: 'jakarta.annotation', name: 'jakarta.annotation-api', version: '2.1.1'

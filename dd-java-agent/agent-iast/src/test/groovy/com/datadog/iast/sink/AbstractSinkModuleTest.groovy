@@ -1,14 +1,10 @@
 package com.datadog.iast.sink
 
 import com.datadog.iast.IastModuleImplTestBase
-import com.datadog.iast.IastRequestContext
 import com.datadog.iast.model.Source
 import com.datadog.iast.overhead.Operations
 import com.datadog.iast.propagation.PropagationModuleImpl
 import com.datadog.iast.taint.Ranges
-import datadog.trace.api.gateway.RequestContext
-import datadog.trace.api.gateway.RequestContextSlot
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 
 import static com.datadog.iast.model.VulnerabilityType.SSRF
 import static datadog.trace.api.iast.SourceTypes.REQUEST_PARAMETER_VALUE
@@ -18,20 +14,6 @@ class AbstractSinkModuleTest extends IastModuleImplTestBase {
   final StackTraceElement ignoredPackageClassElement = element("org.springframework.Ignored")
   final StackTraceElement notIgnoredPackageClassElement = element("datadog.smoketest.NotIgnored")
   final StackTraceElement notInIastExclusionTrie = element("not.in.iast.exclusion.Class")
-
-  private IastRequestContext ctx
-  private AgentSpan span
-
-  void setup() {
-    ctx = new IastRequestContext()
-    final reqCtx = Stub(RequestContext) {
-      getData(RequestContextSlot.IAST) >> ctx
-    }
-    span = Stub(AgentSpan) {
-      getRequestContext() >> reqCtx
-    }
-    tracer.activeSpan() >> span
-  }
 
   void 'filter ignored package element from stack'() {
 
@@ -77,7 +59,7 @@ class AbstractSinkModuleTest extends IastModuleImplTestBase {
 
     when:
     propagation.taintIfTainted(toReport, input)
-    final evidence = sink.checkInjection(span, ctx, SSRF, toReport)
+    final evidence = sink.checkInjection(ctx, SSRF, toReport)
 
     then:
     evidence.ranges.length == 1

@@ -4,7 +4,6 @@ import static com.datadog.iast.taint.Ranges.rangesProviderFor;
 import static com.datadog.iast.taint.Tainteds.canBeTainted;
 
 import com.datadog.iast.Dependencies;
-import com.datadog.iast.IastRequestContext;
 import com.datadog.iast.model.Evidence;
 import com.datadog.iast.model.Location;
 import com.datadog.iast.model.Range;
@@ -14,6 +13,7 @@ import com.datadog.iast.overhead.Operations;
 import com.datadog.iast.taint.Ranges;
 import com.datadog.iast.taint.TaintedObject;
 import com.datadog.iast.taint.TaintedObjects;
+import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.sink.XssModule;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
@@ -31,12 +31,11 @@ public class XssModuleImpl extends SinkModuleBase implements XssModule {
     if (!canBeTainted(s)) {
       return;
     }
-    final AgentSpan span = AgentTracer.activeSpan();
-    final IastRequestContext ctx = IastRequestContext.get(span);
+    final IastContext ctx = IastContext.Provider.get();
     if (ctx == null) {
       return;
     }
-    checkInjection(span, ctx, VulnerabilityType.XSS, s);
+    checkInjection(ctx, VulnerabilityType.XSS, s);
   }
 
   @Override
@@ -44,12 +43,12 @@ public class XssModuleImpl extends SinkModuleBase implements XssModule {
     if (!canBeTainted(s)) {
       return;
     }
-    final AgentSpan span = AgentTracer.activeSpan();
-    final IastRequestContext ctx = IastRequestContext.get(span);
+    final IastContext ctx = IastContext.Provider.get();
     if (ctx == null) {
       return;
     }
-    TaintedObject taintedObject = ctx.getTaintedObjects().get(s);
+    final TaintedObjects to = ctx.getTaintedObjects();
+    TaintedObject taintedObject = to.get(s);
     if (taintedObject == null) {
       return;
     }
@@ -58,6 +57,7 @@ public class XssModuleImpl extends SinkModuleBase implements XssModule {
     if (notMarkedRanges == null || notMarkedRanges.length == 0) {
       return;
     }
+    final AgentSpan span = AgentTracer.activeSpan();
     if (!overheadController.consumeQuota(Operations.REPORT_VULNERABILITY, span)) {
       return;
     }
@@ -75,12 +75,11 @@ public class XssModuleImpl extends SinkModuleBase implements XssModule {
     if (array == null || array.length == 0) {
       return;
     }
-    final AgentSpan span = AgentTracer.activeSpan();
-    final IastRequestContext ctx = IastRequestContext.get(span);
+    final IastContext ctx = IastContext.Provider.get();
     if (ctx == null) {
       return;
     }
-    checkInjection(span, ctx, VulnerabilityType.XSS, array);
+    checkInjection(ctx, VulnerabilityType.XSS, array);
   }
 
   @Override
@@ -88,14 +87,13 @@ public class XssModuleImpl extends SinkModuleBase implements XssModule {
     if ((args == null || args.length == 0) && !canBeTainted(format)) {
       return;
     }
-    final AgentSpan span = AgentTracer.activeSpan();
-    final IastRequestContext ctx = IastRequestContext.get(span);
+    final IastContext ctx = IastContext.Provider.get();
     if (ctx == null) {
       return;
     }
     final TaintedObjects to = ctx.getTaintedObjects();
     checkInjection(
-        span, VulnerabilityType.XSS, rangesProviderFor(to, format), rangesProviderFor(to, args));
+        VulnerabilityType.XSS, rangesProviderFor(to, format), rangesProviderFor(to, args));
   }
 
   @Override
@@ -103,12 +101,12 @@ public class XssModuleImpl extends SinkModuleBase implements XssModule {
     if (!canBeTainted(s) || file == null || file.isEmpty()) {
       return;
     }
-    final AgentSpan span = AgentTracer.activeSpan();
-    final IastRequestContext ctx = IastRequestContext.get(span);
+    final IastContext ctx = IastContext.Provider.get();
     if (ctx == null) {
       return;
     }
-    TaintedObject taintedObject = ctx.getTaintedObjects().get(s);
+    final TaintedObjects to = ctx.getTaintedObjects();
+    TaintedObject taintedObject = to.get(s);
     if (taintedObject == null) {
       return;
     }
@@ -117,6 +115,7 @@ public class XssModuleImpl extends SinkModuleBase implements XssModule {
     if (notMarkedRanges == null || notMarkedRanges.length == 0) {
       return;
     }
+    final AgentSpan span = AgentTracer.activeSpan();
     if (!overheadController.consumeQuota(Operations.REPORT_VULNERABILITY, span)) {
       return;
     }

@@ -11,6 +11,7 @@ import org.bson.BsonString
 import org.bson.Document
 import org.reactivestreams.Subscriber
 import org.reactivestreams.Subscription
+import org.spockframework.util.VersionNumber
 import spock.lang.Shared
 
 import java.util.concurrent.CompletableFuture
@@ -36,15 +37,12 @@ abstract class MongoReactiveClientTest extends MongoBaseTest {
 
   @Shared
   String query = {
-    def parts = MongoDriverVersion.VERSION.split('\\.')
-    switch (parts[1]) {
-      case '0':
-      case '1':
-      case '2':
-        return ',"query":{}'
-      default:
-        return ''
+    def version  = VersionNumber.parse(MongoDriverVersion.VERSION)
+    if (version.major == 4 && version.minor < 3) {
+      // query is returned for versions < 4.3
+      return ',"query":{}'
     }
+    return ''
   }.call()
 
   MongoCollection<Document> setupCollection(String collectionName) {

@@ -3,7 +3,6 @@ package com.datadog.iast.sink;
 import static com.datadog.iast.taint.Tainteds.canBeTainted;
 
 import com.datadog.iast.Dependencies;
-import com.datadog.iast.IastRequestContext;
 import com.datadog.iast.model.Evidence;
 import com.datadog.iast.model.Location;
 import com.datadog.iast.model.Range;
@@ -12,6 +11,8 @@ import com.datadog.iast.model.VulnerabilityType;
 import com.datadog.iast.overhead.Operations;
 import com.datadog.iast.taint.Ranges;
 import com.datadog.iast.taint.TaintedObject;
+import com.datadog.iast.taint.TaintedObjects;
+import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.SourceTypes;
 import datadog.trace.api.iast.sink.UnvalidatedRedirectModule;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -67,12 +68,12 @@ public class UnvalidatedRedirectModuleImpl extends SinkModuleBase
 
   private void checkUnvalidatedRedirect(
       @Nonnull final Object value, @Nullable final String clazz, @Nullable final String method) {
-    final AgentSpan span = AgentTracer.activeSpan();
-    final IastRequestContext ctx = IastRequestContext.get(span);
+    final IastContext ctx = IastContext.Provider.get();
     if (ctx == null) {
       return;
     }
-    TaintedObject taintedObject = ctx.getTaintedObjects().get(value);
+    final TaintedObjects to = ctx.getTaintedObjects();
+    TaintedObject taintedObject = to.get(value);
     if (taintedObject == null) {
       return;
     }
@@ -85,6 +86,7 @@ public class UnvalidatedRedirectModuleImpl extends SinkModuleBase
     if (notMarkedRanges == null || notMarkedRanges.length == 0) {
       return;
     }
+    final AgentSpan span = AgentTracer.activeSpan();
     if (!overheadController.consumeQuota(Operations.REPORT_VULNERABILITY, span)) {
       return;
     }

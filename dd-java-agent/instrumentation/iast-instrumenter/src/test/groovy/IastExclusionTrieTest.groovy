@@ -1,9 +1,9 @@
+import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.instrumentation.iastinstrumenter.IastExclusionTrie
-import datadog.trace.test.util.DDSpecification
 
 import java.lang.reflect.Proxy
 
-class IastExclusionTrieTest extends DDSpecification {
+class IastExclusionTrieTest extends AgentTestRunner {
 
   private static final int STACK_FILTERED = 2
   private static final int EXCLUDED = 1
