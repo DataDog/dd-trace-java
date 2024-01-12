@@ -8,8 +8,6 @@ import org.springframework.web.servlet.view.UrlBasedViewResolver;
 @Controller
 public class IastViewController {
 
-  private final String GITHUB_TOKEN = "ghu_123456123456123456123456123456123456";
-
   @GetMapping("/unvalidated_redirect_from_string")
   public String unvalidatedRedirectFromString(@RequestParam String param) {
     return UrlBasedViewResolver.REDIRECT_URL_PREFIX + param;

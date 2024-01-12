@@ -54,6 +54,9 @@ import org.xml.sax.SAXException;
 @RestController
 public class IastWebController {
 
+  private final String HARDCODED_SECRET =
+      "AGE-SECRET-KEY-1QQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQ";
+
   private final Resource xml;
   private final Hasher hasher;
   private final Random random;
@@ -63,6 +66,11 @@ public class IastWebController {
     hasher.sha1();
     random = new Random();
     xml = resource;
+  }
+
+  @RequestMapping("/hardcodedSecret")
+  public String hardcodedSecret() {
+    return HARDCODED_SECRET;
   }
 
   @RequestMapping("/greeting")
