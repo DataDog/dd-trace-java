@@ -17,6 +17,7 @@ muzzle {
 apply from: "$rootDir/gradle/java.gradle"
 
 addTestSuiteForDir('latestDepTest', 'test')
+addTestSuiteExtendingForDir('latestDepForkedTest', 'latestDepTest', 'test')
 addTestSuiteForDir('mongo43Test', 'test')
 addTestSuiteForDir('mongo43ForkedTest', 'test')
 addTestSuiteForDir('mongo410Test', 'test')
