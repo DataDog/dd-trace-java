@@ -1,6 +1,8 @@
 import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.api.config.TraceInstrumentationConfig
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.instrumentation.jaxrs2.JaxRsAnnotationsDecorator
+import io.dropwizard.jersey.PATCH
 
 import javax.ws.rs.DELETE
 import javax.ws.rs.GET
@@ -42,6 +44,7 @@ class JaxRsAnnotations2InstrumentationTest extends AgentTestRunner {
 
   def "span named '#name' from annotations on class when is not root span"() {
     setup:
+    injectSysConfig(TraceInstrumentationConfig.JAX_RS_ADDITIONAL_ANNOTATIONS, "CustomMethod")
     runUnderTrace("test") {
       obj.call()
     }
@@ -99,6 +102,16 @@ class JaxRsAnnotations2InstrumentationTest extends AgentTestRunner {
     "POST /abstract/d"   | new AbstractClassWithPath() {
         @POST
         @Path("/d")
+        void call() {
+        }
+      }
+    "PATCH /interface"    | new InterfaceWithPath() {
+        @PATCH
+        void call() {
+        }
+      }
+    "CUSTOM /interface"    | new InterfaceWithPath() {
+        @CustomMethod
         void call() {
         }
       }

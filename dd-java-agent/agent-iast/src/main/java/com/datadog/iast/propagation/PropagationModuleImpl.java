@@ -4,7 +4,6 @@ import static com.datadog.iast.taint.Ranges.highestPriorityRange;
 import static com.datadog.iast.util.ObjectVisitor.State.CONTINUE;
 import static datadog.trace.api.iast.VulnerabilityMarks.NOT_MARKED;
 
-import com.datadog.iast.IastRequestContext;
 import com.datadog.iast.model.Range;
 import com.datadog.iast.model.Source;
 import com.datadog.iast.taint.Ranges;
@@ -343,14 +342,8 @@ public class PropagationModuleImpl implements PropagationModule {
   }
 
   @Nullable
-  private static TaintedObjects getTaintedObjects(final @Nullable IastContext ctx) {
-    IastRequestContext iastCtx = null;
-    if (ctx instanceof IastRequestContext) {
-      iastCtx = (IastRequestContext) ctx;
-    } else if (ctx instanceof LazyContext) {
-      iastCtx = ((LazyContext) ctx).getDelegate();
-    }
-    return iastCtx == null ? null : iastCtx.getTaintedObjects();
+  private static TaintedObjects getTaintedObjects(@Nullable final IastContext ctx) {
+    return ctx == null ? null : ctx.getTaintedObjects();
   }
 
   @Nullable
@@ -465,19 +458,27 @@ public class PropagationModuleImpl implements PropagationModule {
   private static class LazyContext implements IastContext {
 
     private boolean fetched;
-    @Nullable private IastRequestContext delegate;
+    @Nullable private IastContext delegate;
 
     @Nullable
-    private IastRequestContext getDelegate() {
+    private IastContext getDelegate() {
       if (!fetched) {
         fetched = true;
-        delegate = IastRequestContext.get();
+        delegate = IastContext.Provider.get();
       }
       return delegate;
     }
 
     public static IastContext build() {
       return new LazyContext();
+    }
+
+    @SuppressWarnings("unchecked")
+    @Nonnull
+    @Override
+    public TaintedObjects getTaintedObjects() {
+      final IastContext delegate = getDelegate();
+      return delegate == null ? TaintedObjects.NoOp.INSTANCE : delegate.getTaintedObjects();
     }
   }
 

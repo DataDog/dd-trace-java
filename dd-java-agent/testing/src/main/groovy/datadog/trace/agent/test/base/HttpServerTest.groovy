@@ -2177,6 +2177,10 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
 
   class IastIGCallbacks {
     static class Context implements IastContext {
+      @Override
+      <TO> TO getTaintedObjects() {
+        throw new UnsupportedOperationException()
+      }
     }
 
     final Supplier<Flow<Context>> requestStartedCb =

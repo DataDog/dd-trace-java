@@ -134,6 +134,7 @@ public final class TraceInstrumentationConfig {
 
   public static final String JAX_RS_EXCEPTION_AS_ERROR_ENABLED =
       "trace.jax-rs.exception-as-error.enabled";
+  public static final String JAX_RS_ADDITIONAL_ANNOTATIONS = "trace.jax-rs.additional.annotations";
 
   private TraceInstrumentationConfig() {}
 }
