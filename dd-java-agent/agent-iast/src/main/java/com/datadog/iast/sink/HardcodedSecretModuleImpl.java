@@ -14,8 +14,6 @@ import org.objectweb.asm.ClassReader;
 
 public class HardcodedSecretModuleImpl extends SinkModuleBase implements HardcodedSecretModule {
 
-  private static final int MIN_SECRET_LENGTH = 12;
-
   public HardcodedSecretModuleImpl(final Dependencies dependencies) {
     super(dependencies);
   }
@@ -43,14 +41,12 @@ public class HardcodedSecretModuleImpl extends SinkModuleBase implements Hardcod
   private Set<Secret> getSecrets(final Set<String> literals, final String clazz) {
     Set<Secret> secrets = null;
     for (String literal : literals) {
-      if (literal.length() >= MIN_SECRET_LENGTH) {
-        for (HardcodedSecretMatcher secretMatcher : HARDCODED_SECRET_MATCHERS) {
-          if (secretMatcher.matches(literal)) {
-            if (secrets == null) {
-              secrets = new HashSet<>();
-            }
-            secrets.add(new Secret(literal, secretMatcher.getRedactedEvidence()));
+      for (HardcodedSecretMatcher secretMatcher : HARDCODED_SECRET_MATCHERS) {
+        if (secretMatcher.matches(literal)) {
+          if (secrets == null) {
+            secrets = new HashSet<>();
           }
+          secrets.add(new Secret(literal, secretMatcher.getRedactedEvidence()));
         }
       }
     }

@@ -11,6 +11,8 @@ import net.bytebuddy.description.type.TypeDescription;
 
 public class IastHardcodedSecretListener implements Advices.Listener {
 
+  private static final int MIN_SECRET_LENGTH = 10;
+
   public static final IastHardcodedSecretListener INSTANCE = new IastHardcodedSecretListener();
 
   @Override
@@ -25,7 +27,9 @@ public class IastHardcodedSecretListener implements Advices.Listener {
         if (pool.getType(index) == ConstantPool.CONSTANT_STRING_TAG) {
           final int literalIndex = pool.readUnsignedShort(pool.getOffset(index));
           final String literal = pool.readUTF8(pool.getOffset(literalIndex));
-          literals.add(literal);
+          if (literal.length() >= MIN_SECRET_LENGTH) {
+            literals.add(literal);
+          }
         }
       }
       if (!literals.isEmpty()) {
