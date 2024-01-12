@@ -2,6 +2,7 @@ package datadog.trace.instrumentation.iastinstrumenter;
 
 import datadog.trace.agent.tooling.bytebuddy.csi.Advices;
 import datadog.trace.agent.tooling.bytebuddy.csi.ConstantPool;
+import datadog.trace.api.Config;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.sink.HardcodedSecretModule;
 import java.util.HashSet;
@@ -20,6 +21,9 @@ public class IastHardcodedSecretListener implements Advices.Listener {
       final @Nonnull TypeDescription type,
       final @Nonnull ConstantPool pool,
       final @Nonnull byte[] classFile) {
+    if (!Config.get().isIastHardcodedSecretEnabled()) {
+      return;
+    }
     final HardcodedSecretModule iastModule = InstrumentationBridge.HARDCODED_SECRET;
     if (iastModule != null) {
       Set<String> literals = new HashSet<>();
