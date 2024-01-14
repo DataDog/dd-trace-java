@@ -68,8 +68,11 @@ public class DebuggerContext {
   private static volatile Tracer tracer;
   private static volatile ValueSerializer valueSerializer;
 
-  public static void init(ProbeResolver probeResolver, MetricForwarder metricForwarder) {
+  public static void initProbeResolver(ProbeResolver probeResolver) {
     DebuggerContext.probeResolver = probeResolver;
+  }
+
+  public static void initMetricForwarder(MetricForwarder metricForwarder) {
     DebuggerContext.metricForwarder = metricForwarder;
   }
 
