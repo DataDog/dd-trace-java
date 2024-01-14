@@ -12,6 +12,9 @@ muzzle {
     versions = "[3.0.0.Final,]"
   }
 }
+configurations.all {
+  resolutionStrategy.deactivateDependencyLocking()
+}
 
 apply from: "$rootDir/gradle/java.gradle"
 apply plugin: 'java-test-fixtures'
