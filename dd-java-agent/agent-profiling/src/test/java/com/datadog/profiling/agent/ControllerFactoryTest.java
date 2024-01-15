@@ -5,21 +5,15 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import com.datadog.profiling.controller.UnsupportedEnvironmentException;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
 
 /** Note: some additional tests for this class are located in profiling-controller-openjdk module */
-@ExtendWith(MockitoExtension.class)
 public class ControllerFactoryTest {
-
-  @Mock private ConfigProvider configProvider;
 
   @Test
   public void testCreateControllerSanity() {
     UnsupportedEnvironmentException unsupportedEnvironmentException = null;
     try {
-      ControllerFactory.createController(configProvider);
+      ControllerFactory.createController(ConfigProvider.getInstance());
       // successfully created controller, return
       return;
     } catch (UnsupportedEnvironmentException e) {

@@ -357,9 +357,9 @@ public final class DatadogProfiler {
     return cmdString;
   }
 
-  public void recordTraceRoot(long rootSpanId, String endpoint) {
+  public void recordTraceRoot(long rootSpanId, String endpoint, String operation) {
     if (profiler != null) {
-      if (!profiler.recordTraceRoot(rootSpanId, endpoint, MAX_NUM_ENDPOINTS)) {
+      if (!profiler.recordTraceRoot(rootSpanId, endpoint, operation, MAX_NUM_ENDPOINTS)) {
         log.debug(
             "Endpoint event not written because more than {} distinct endpoints have been encountered."
                 + " This avoids excessive memory overhead.",
