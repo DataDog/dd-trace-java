@@ -12,7 +12,7 @@ import net.bytebuddy.description.type.TypeDescription;
 
 public class IastHardcodedSecretListener implements Advices.Listener {
 
-  private static final int MIN_SECRET_LENGTH = 10;
+  public static final int MIN_SECRET_LENGTH = 10;
 
   public static final IastHardcodedSecretListener INSTANCE = new IastHardcodedSecretListener();
 
