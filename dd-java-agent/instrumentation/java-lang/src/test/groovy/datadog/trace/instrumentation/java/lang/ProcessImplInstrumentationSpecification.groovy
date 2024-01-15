@@ -172,7 +172,7 @@ class ProcessImplInstrumentationSpecification extends AgentTestRunner {
           tags {
             tag 'cmd.exec', '["/bin/does-not-exist"]'
             // The captured exception in ProcessImpl is in the cause
-            tag 'error.message', ex.cause.message
+            errorTags(ex.cause)
             defaultTags(false, false)
           }
         }
@@ -248,7 +248,7 @@ class ProcessImplInstrumentationSpecification extends AgentTestRunner {
           errored(true)
           tags {
             tag 'cmd.exec', expected
-            tag 'error.message', ex.cause.message
+            errorTags(ex.cause)
             defaultTags(false, false)
           }
         }
