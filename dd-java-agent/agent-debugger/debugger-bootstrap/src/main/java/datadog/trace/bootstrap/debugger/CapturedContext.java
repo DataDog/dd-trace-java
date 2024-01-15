@@ -248,6 +248,9 @@ public class CapturedContext implements ValueReferenceResolver {
   }
 
   private String extractSpecialId(String idName) {
+    if (fields == null) {
+      return null;
+    }
     CapturedValue capturedValue = fields.get(idName);
     if (capturedValue == null) {
       return null;
