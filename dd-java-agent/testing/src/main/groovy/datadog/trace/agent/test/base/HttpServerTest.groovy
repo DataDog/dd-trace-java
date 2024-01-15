@@ -510,21 +510,40 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     return runUnderTrace("controller", closure)
   }
 
+  static class CodeAndBody {
+    final int code
+    final String body
+    final Throwable throwable
+
+    CodeAndBody(Response response) {
+      this.code = response.code()
+      this.body = response.body().string()
+    }
+    CodeAndBody(Throwable t) {
+      this.throwable = t
+    }
+  }
+
   @Flaky(value = "https://github.com/DataDog/dd-trace-java/issues/4690", suites = ["MuleHttpServerForkedTest"])
   def "test success with #count requests"() {
     setup:
     def request = request(SUCCESS, method, body).build()
-    List<Response> responses = (1..count).collect {
-      return client.newCall(request).execute()
+    List<CodeAndBody> responses = (1..count).collect {
+      try {
+        new CodeAndBody(client.newCall(request).execute())
+      } catch (Throwable t) {
+        new CodeAndBody(t)
+      }
     }
     if (isDataStreamsEnabled()) {
       TEST_DATA_STREAMS_WRITER.waitForGroups(1)
     }
 
     expect:
-    responses.each { response ->
-      assert response.code() == SUCCESS.status
-      assert response.body().string() == SUCCESS.body
+    responses.each {
+      assert it.throwable == null
+      assert it.code == SUCCESS.status
+      assert it.body == SUCCESS.body
     }
 
     and:
