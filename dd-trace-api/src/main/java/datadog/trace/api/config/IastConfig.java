@@ -18,7 +18,7 @@ public final class IastConfig {
   public static final String IAST_REDACTION_VALUE_PATTERN = "iast.redaction.value.pattern";
   public static final String IAST_STACKTRACE_LEAK_SUPPRESS = "iast.stacktrace-leak.suppress";
 
-  public static final String IAST_HARDCODED_SECRET_ENABLED = "iast.hardcoded-secret.suppress";
+  public static final String IAST_HARDCODED_SECRET_ENABLED = "iast.hardcoded-secret.enabled";
   public static final String IAST_MAX_RANGE_COUNT = "iast.max-range-count";
   public static final String IAST_TRUNCATION_MAX_VALUE_LENGTH = "iast.truncation.max.value.length";
   public static final String IAST_CONTEXT_MODE = "iast.context.mode";

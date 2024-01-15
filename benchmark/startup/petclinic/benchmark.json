@@ -29,6 +29,12 @@
         "VARIANT": "iast",
         "JAVA_OPTS": "-javaagent:${TRACER} -Ddd.benchmark.enabled=true -Ddd.benchmark.output.dir=${OUTPUT_DIR}/iast -Ddd.iast.enabled=true"
       }
+    },
+    "iast_HARDCODED_SECRET_DISABLED": {
+      "env": {
+        "VARIANT": "iast_HARDCODED_SECRET_DISABLED",
+        "JAVA_OPTS": "-javaagent:${TRACER} -Ddd.iast.enabled=true -Ddd.iast.hardcoded-secret.enabled=false"
+      }
     }
   }
 }
