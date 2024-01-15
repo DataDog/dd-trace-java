@@ -4,7 +4,7 @@ import static com.datadog.iast.util.HardcodedSecretMatcher.HARDCODED_SECRET_MATC
 
 import com.datadog.iast.Dependencies;
 import com.datadog.iast.util.HardcodedSecretMatcher;
-import com.datadog.iast.util.IastClassVisitor;
+import com.datadog.iast.util.IastSecretVisitor;
 import datadog.trace.api.iast.sink.HardcodedSecretModule;
 import java.util.HashMap;
 import java.util.Map;
@@ -34,7 +34,7 @@ public class HardcodedSecretModuleImpl extends SinkModuleBase implements Hardcod
   private void reportVulnerability(
       final Map<String, String> secrets, final String clazz, final @Nonnull byte[] classFile) {
     ClassReader classReader = new ClassReader(classFile);
-    IastClassVisitor classVisitor = new IastClassVisitor(secrets, clazz, reporter);
+    IastSecretVisitor classVisitor = new IastSecretVisitor(secrets, clazz, reporter);
     classReader.accept(classVisitor, 0);
   }
 

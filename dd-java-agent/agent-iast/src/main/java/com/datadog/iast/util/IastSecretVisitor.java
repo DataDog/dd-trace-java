@@ -11,13 +11,13 @@ import org.objectweb.asm.Label;
 import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.Opcodes;
 
-public class IastClassVisitor extends ClassVisitor {
+public class IastSecretVisitor extends ClassVisitor {
 
   private final Map<String, String> secrets;
   private final String clazz;
   private final Reporter reporter;
 
-  public IastClassVisitor(
+  public IastSecretVisitor(
       final Map<String, String> secrets, final String clazz, final Reporter reporter) {
     super(Opcodes.ASM9);
     this.secrets = secrets;
