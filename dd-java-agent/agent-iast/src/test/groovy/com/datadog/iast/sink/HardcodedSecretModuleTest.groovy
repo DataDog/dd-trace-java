@@ -23,24 +23,31 @@ class HardcodedSecretModuleTest extends IastModuleImplTestBase {
     return Mock(Reporter)
   }
 
-  void 'check hardcoded secret vulnerability'() {
+  void 'No secret'() {
     given:
+    final clazz = SafeClass
+    final literals = [SafeClass.safe] as Set
     final classBytes = readClassBytes(clazz)
 
     when:
     module.onStringLiteral(literals, clazz.getName(), classBytes)
 
     then:
-    if (expectedEvidence != null) {
-      1 * reporter.report(_, _) >> { assertEvidence(it[1], expectedEvidence, line, clazz.getName(), method) }
-    } else {
-      0 * reporter._
-    }
+    0 * reporter._
+  }
 
-    where:
-    clazz | literals | expectedEvidence | line | method
-    WithHardcodedSecret | [WithHardcodedSecret.FOO, WithHardcodedSecret.getSecret()] as Set | 'age-secret-key' | 8 | 'getSecret'
-    SafeClass | [SafeClass.safe] as Set | null | null | null
+  void 'check hardcoded secret vulnerability'() {
+    given:
+    final clazz = WithHardcodedSecret
+    final literals = [WithHardcodedSecret.FOO, WithHardcodedSecret.getSecret(), WithHardcodedSecret.getSecret2()] as Set
+    final classBytes = readClassBytes(clazz)
+
+    when:
+    module.onStringLiteral(literals, clazz.getName(), classBytes)
+
+    then:
+    1 * reporter.report(_, _) >> { assertEvidence(it[1], 'age-secret-key', 9, clazz.getName(), 'getSecret') }
+    1 * reporter.report(_, _) >> { assertEvidence(it[1], 'github-app-token', 13, clazz.getName(), 'getSecret2') }
   }
 
   class SafeClass{
