@@ -21,6 +21,11 @@ public abstract class JFRAccess {
         public boolean setStackDepth(int depth) {
           return false;
         }
+
+        @Override
+        public boolean setBaseLocation(String location) {
+          return false;
+        }
       };
 
   /**
@@ -76,4 +81,12 @@ public abstract class JFRAccess {
    *     possible to tell
    */
   public abstract boolean setStackDepth(int depth);
+
+  /**
+   * Sets the base location for JFR repository for the current VM
+   *
+   * @param location the location path to set
+   * @return {@code true} if the base location was set successfully, {@code false} if not
+   */
+  public abstract boolean setBaseLocation(String location);
 }

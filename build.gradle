@@ -210,4 +210,9 @@ testAggregate("smoke", [":dd-smoke-tests"], [])
 testAggregate("instrumentation", [":dd-java-agent:instrumentation"], [])
 testAggregate("profiling", [":dd-java-agent:agent-profiling"], [])
 testAggregate("debugger", [":dd-java-agent:agent-debugger"], [])
-testAggregate("base", [":"], [":dd-java-agent:instrumentation", ":dd-smoke-tests", ":dd-java-agent:agent-profiling"])
+testAggregate("base", [":"], [
+  ":dd-java-agent:instrumentation",
+  ":dd-smoke-tests",
+  ":dd-java-agent:agent-profiling",
+  ":dd-java-agent:agent-debugger"
+])

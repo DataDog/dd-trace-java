@@ -22,6 +22,9 @@ public class EndpointEvent extends Event implements EndpointTracker {
   @Label("Endpoint")
   private String endpoint = "unknown";
 
+  @Label("Operation")
+  private String operation = "unknown";
+
   @Label("Local Root Span Id")
   private final long localRootSpanId;
 
@@ -35,6 +38,7 @@ public class EndpointEvent extends Event implements EndpointTracker {
     if (span.getDurationNano() >= TEN_MILLISECONDS && shouldCommit()) {
       end();
       this.endpoint = span.getResourceName().toString();
+      this.operation = span.getOperationName().toString();
       commit();
     }
   }
