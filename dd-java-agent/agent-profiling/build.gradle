@@ -31,7 +31,6 @@ dependencies {
   testImplementation deps.mockito
 }
 
-Project parent_project = project
 subprojects { Project subProj ->
   subProj.tasks.withType(Test).configureEach { subTask ->
     onlyIf { !project.rootProject.hasProperty("skipProfilingTests") }
