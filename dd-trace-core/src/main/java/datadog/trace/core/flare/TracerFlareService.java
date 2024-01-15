@@ -95,7 +95,8 @@ final class TracerFlareService {
 
   private void scheduleTriageReport(long delayInSeconds) {
     Path triagePath = Paths.get(config.getTriageReportDir());
-    scheduler.schedule(() -> prepareForFlare("triage"), delayInSeconds - 60, TimeUnit.SECONDS);
+    // prepare at most 10 minutes before collection of the report, to match remote flare behaviour
+    scheduler.schedule(() -> prepareForFlare("triage"), delayInSeconds - 600, TimeUnit.SECONDS);
     scheduler.schedule(
         () -> {
           try {
