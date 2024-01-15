@@ -14,6 +14,9 @@ import datadog.trace.util.AgentTaskScheduler;
 import datadog.trace.util.AgentTaskScheduler.Scheduled;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.lang.management.ManagementFactory;
+import java.lang.management.ThreadInfo;
+import java.lang.management.ThreadMXBean;
 import java.util.Collections;
 import java.util.concurrent.TimeUnit;
 import java.util.zip.ZipOutputStream;
@@ -102,15 +105,16 @@ final class TracerFlareService {
   }
 
   public void sendFlare(String caseId, String email, String hostname) {
-    scheduler.execute(() -> doSend(caseId, email, hostname));
+    boolean dumpThreads = config.isTriageEnabled() || log.isDebugEnabled();
+    scheduler.execute(() -> doSend(caseId, email, hostname, dumpThreads));
   }
 
-  void doSend(String caseId, String email, String hostname) {
+  void doSend(String caseId, String email, String hostname, boolean dumpThreads) {
     log.debug("Sending tracer flare");
     try {
       String flareName = "java-flare-" + caseId + "-" + System.currentTimeMillis() + ".zip";
 
-      RequestBody report = RequestBody.create(OCTET_STREAM, buildFlareZip());
+      RequestBody report = RequestBody.create(OCTET_STREAM, buildFlareZip(dumpThreads));
 
       RequestBody form =
           new MultipartBody.Builder()
@@ -140,13 +144,16 @@ final class TracerFlareService {
     }
   }
 
-  private byte[] buildFlareZip() throws IOException {
+  private byte[] buildFlareZip(boolean dumpThreads) throws IOException {
     try (ByteArrayOutputStream bytes = new ByteArrayOutputStream();
         ZipOutputStream zip = new ZipOutputStream(bytes)) {
 
       addPrelude(zip);
       tracer.addTracerReportToFlare(zip);
       TracerFlare.addReportsToFlare(zip);
+      if (dumpThreads) {
+        addThreadDump(zip);
+      }
       zip.finish();
 
       return bytes.toByteArray();
@@ -158,6 +165,22 @@ final class TracerFlareService {
     TracerFlare.addText(zip, "classpath.txt", System.getProperty("java.class.path"));
     TracerFlare.addText(zip, "initial_config.txt", config.toString());
     TracerFlare.addText(zip, "dynamic_config.txt", dynamicConfig.toString());
+  }
+
+  private void addThreadDump(ZipOutputStream zip) throws IOException {
+    StringBuilder buf = new StringBuilder();
+    try {
+      ThreadMXBean threadMXBean = ManagementFactory.getThreadMXBean();
+      for (ThreadInfo threadInfo :
+          threadMXBean.dumpAllThreads(
+              threadMXBean.isObjectMonitorUsageSupported(),
+              threadMXBean.isSynchronizerUsageSupported())) {
+        buf.append(threadInfo);
+      }
+    } catch (RuntimeException e) {
+      buf.append("Problem collecting thread dump: ").append(e);
+    }
+    TracerFlare.addText(zip, "threads.txt", buf.toString());
   }
 
   final class CleanupTask implements Runnable {
