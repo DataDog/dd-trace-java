@@ -29,8 +29,10 @@ public class DatadogProfilerCheckpointer implements EndpointCheckpointer {
   public void onRootSpanFinished(AgentSpan rootSpan, EndpointTracker tracker) {
     if (isEndpointCollectionEnabled && rootSpan != null) {
       CharSequence resourceName = rootSpan.getResourceName();
-      if (resourceName != null) {
-        datadogProfiler.recordTraceRoot(rootSpan.getSpanId(), resourceName.toString());
+      CharSequence operationName = rootSpan.getOperationName();
+      if (resourceName != null && operationName != null) {
+        datadogProfiler.recordTraceRoot(
+            rootSpan.getSpanId(), resourceName.toString(), operationName.toString());
       }
     }
   }
