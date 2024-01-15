@@ -39,7 +39,7 @@ class HardcodedSecretModuleTest extends IastModuleImplTestBase {
 
     where:
     clazz | literals | expectedEvidence | line | method
-    WithHardcodedSecret | [WithHardcodedSecret.FOO, WithHardcodedSecret.getSecret()] as Set | 'age-secret-key' | 6 | 'getSecret'
+    WithHardcodedSecret | [WithHardcodedSecret.FOO, WithHardcodedSecret.getSecret()] as Set | 'age-secret-key' | 8 | 'getSecret'
     SafeClass | [SafeClass.safe] as Set | null | null | null
   }
 
