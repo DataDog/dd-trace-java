@@ -6,47 +6,138 @@ import datadog.trace.logging.simplelogger.SLCompatFactory
 import datadog.trace.logging.simplelogger.SLCompatSettings
 
 class DDTelemetryLoggerTest extends LogValidatingSpecification {
-  def "test logging with log collector"() {
-    setup:
+
+  void setup() {
+    LogCollector.get().drain()
+  }
+
+  void cleanup() {
+    LogCollector.get().drain()
+  }
+
+  static List<String> allLogLevels = ["debug", "info", "warn", "error"]
+
+  DDLogger createLogger(final String level) {
     def name = "foo.bar"
     Properties props = new Properties()
-    props.setProperty(SLCompatSettings.Keys.DEFAULT_LOG_LEVEL, "debug")
+    props.setProperty(SLCompatSettings.Keys.DEFAULT_LOG_LEVEL, level)
     props.setProperty(SLCompatSettings.Keys.SHOW_THREAD_NAME, "false")
     def settings = new SLCompatSettings(props)
     def factory = new SLCompatFactory(props, settings)
-    def logger = new DDTelemetryLogger(factory.loggerHelperForName(name), name)
+    return new DDTelemetryLogger(factory.loggerHelperForName(name), name)
+  }
+
+  void 'do not log #call(format, obj) call with level #level'() {
+    given:
+    def format = "msg {}"
+    def arg = 42
+    def logger = createLogger(level)
 
     when:
-    logger.debug("debug message {}", 42, new Exception())
+    logger."$call"(format, arg)
+    def collection = LogCollector.get().drain()
+
+    then:
+    collection.isEmpty()
+
+    where:
+    call << allLogLevels
+    level << allLogLevels
+  }
+
+  void 'do not log #call(format, obj, obj, obj) call with level #level'() {
+    given:
+    def format = "msg {} {} {}"
+    def arg = 42
+    def logger = createLogger(level)
+
+    when:
+    logger."$call"(format, arg, arg, arg)
+    def collection = LogCollector.get().drain()
+
+    then:
+    collection.isEmpty()
+
+    where:
+    call << allLogLevels
+    level << allLogLevels
+  }
+
+  void 'log #call(SEND_TELEMETRY, format, obj) call with level #level'() {
+    given:
+    def format = "msg {}"
+    def arg = 42
+    def logger = createLogger(level)
+
+    when:
+    logger."$call"(LogCollector.SEND_TELEMETRY, format, arg)
     def collection = LogCollector.get().drain()
 
     then:
     collection.size() == 1
-    collection[0].message() == 'debug message {}'
+    collection[0].message() == format
+
+    where:
+    call << allLogLevels
+    level << allLogLevels
+  }
+
+  void 'log #call(msg, throwable) call with level #level'() {
+    given:
+    def format = "msg"
+    def t = new Exception()
+    def logger = createLogger(level)
 
     when:
-    logger.warn(LogCollector.SEND_TELEMETRY, "warning message {}", 42)
-    collection = LogCollector.get().drain()
+    logger."$call"(format, t)
+    def collection = LogCollector.get().drain()
 
     then:
     collection.size() == 1
-    collection[0].message() == 'warning message {}'
+    collection[0].message() == format
+
+    where:
+    call << allLogLevels
+    level << allLogLevels
+  }
+
+  void 'log #call(msg, obj, throwable) call with level #level'() {
+    given:
+    def format = "msg {}"
+    def arg = 42
+    def t = new Exception()
+    def logger = createLogger(level)
 
     when:
-    logger.error(LogCollector.SEND_TELEMETRY, "plain error message")
-    collection = LogCollector.get().drain()
+    logger."$call"(format, arg, t)
+    def collection = LogCollector.get().drain()
 
     then:
     collection.size() == 1
-    collection[0].message() == 'plain error message'
+    collection[0].message() == format
+
+    where:
+    call << allLogLevels
+    level << allLogLevels
+  }
+
+  void 'log #call(msg, obj, obj, throwable) call with level #level'() {
+    given:
+    def format = "msg {}"
+    def arg = 42
+    def t = new Exception()
+    def logger = createLogger(level)
 
     when:
-    logger.debug(LogCollector.SEND_TELEMETRY, null)
-    logger.error(null, new Exception())
-    logger.warn("warn message", null)
-    collection = LogCollector.get().drain()
+    logger."$call"(format, arg, arg, t)
+    def collection = LogCollector.get().drain()
 
     then:
-    collection.size() == 0
+    collection.size() == 1
+    collection[0].message() == format
+
+    where:
+    call << allLogLevels
+    level << allLogLevels
   }
 }
