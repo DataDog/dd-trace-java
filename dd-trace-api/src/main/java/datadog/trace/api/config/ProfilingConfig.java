@@ -78,7 +78,6 @@ public final class ProfilingConfig {
   public static final String PROFILING_DATADOG_PROFILER_LIBPATH = "profiling.ddprof.debug.lib";
   public static final String PROFILING_DATADOG_PROFILER_ALLOC_ENABLED =
       "profiling.ddprof.alloc.enabled";
-  public static final boolean PROFILING_DATADOG_PROFILER_ALLOC_ENABLED_DEFAULT = false;
   public static final String PROFILING_DATADOG_PROFILER_ALLOC_INTERVAL =
       "profiling.ddprof.alloc.interval";
   public static final int PROFILING_DATADOG_PROFILER_ALLOC_INTERVAL_DEFAULT = 256 * 1024;
