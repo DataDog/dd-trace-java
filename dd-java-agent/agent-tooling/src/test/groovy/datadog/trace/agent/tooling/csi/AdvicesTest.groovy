@@ -21,7 +21,7 @@ class AdvicesTest extends BaseCallSiteTest {
   def 'test non empty advices'() {
     setup:
     final pointcut = stringConcatPointcut()
-    final advices = Advices.fromCallSites(mockCallSites(Mock(InvokeAdvice), pointcut))
+    final advices = Advices.fromCallSites(mockCallSites(Stub(InvokeAdvice), pointcut))
 
     when:
     final empty = advices.empty
@@ -33,7 +33,7 @@ class AdvicesTest extends BaseCallSiteTest {
   def 'test advices for type'() {
     setup:
     final pointcut = stringConcatPointcut()
-    final advices = Advices.fromCallSites(mockCallSites(Mock(InvokeAdvice), pointcut))
+    final advices = Advices.fromCallSites(mockCallSites(Stub(InvokeAdvice), pointcut))
 
     when:
     final existing = advices.findAdvice(pointcut.type, pointcut.method, pointcut.descriptor)
@@ -52,7 +52,7 @@ class AdvicesTest extends BaseCallSiteTest {
     setup:
     final startsWith1 = buildPointcut(String.getDeclaredMethod('startsWith', String))
     final startsWith2 = buildPointcut(String.getDeclaredMethod('startsWith', String, int.class))
-    final advices = Advices.fromCallSites(mockCallSites(Mock(InvokeAdvice), startsWith1), mockCallSites(Mock(InvokeAdvice), startsWith2))
+    final advices = Advices.fromCallSites(mockCallSites(Stub(InvokeAdvice), startsWith1), mockCallSites(Stub(InvokeAdvice), startsWith2))
 
     when:
     final startsWith1Found = advices.findAdvice(startsWith1.type, startsWith1.method, startsWith1.descriptor)
@@ -69,8 +69,8 @@ class AdvicesTest extends BaseCallSiteTest {
 
   def 'test helper class names'() {
     setup:
-    final concatAdvice = mockCallSites(Mock(InvokeAdvice), stringConcatPointcut(), 'foo.bar.Helper1', 'foo.bar.Helper2')
-    final digestAdvice = mockCallSites(Mock(InvokeAdvice), messageDigestGetInstancePointcut(), 'foo.bar.Helper3')
+    final concatAdvice = mockCallSites(Stub(InvokeAdvice), stringConcatPointcut(), 'foo.bar.Helper1', 'foo.bar.Helper2')
+    final digestAdvice = mockCallSites(Stub(InvokeAdvice), messageDigestGetInstancePointcut(), 'foo.bar.Helper3')
     final advices = Advices.fromCallSites([concatAdvice, digestAdvice])
 
     when:
@@ -85,7 +85,7 @@ class AdvicesTest extends BaseCallSiteTest {
     final pointcut = stringConcatPointcut()
 
     when:
-    Advices.fromCallSites(mockCallSites(Mock(InvokeAdvice), pointcut), mockCallSites(Mock(InvokeAdvice), pointcut))
+    Advices.fromCallSites(mockCallSites(Stub(InvokeAdvice), pointcut), mockCallSites(Stub(InvokeAdvice), pointcut))
 
     then:
     thrown(UnsupportedOperationException)
@@ -105,16 +105,14 @@ class AdvicesTest extends BaseCallSiteTest {
 
   void 'test constant pool introspector'() {
     setup:
-    final target = loadClass(StringConcatExample)
     final advice = mockCallSites(Mock(InvokeAdvice), pointcutMock)
     final advices = Advices.fromCallSites(advice)
     final introspector = Advices.AdviceIntrospector.ConstantPoolInstrospector.INSTANCE
     final classLoader = StringConcatExample.getClassLoader()
-    final type = Mock(TypeDescription)
-    type.getName() >>> target
+    final type = new TypeDescription.ForLoadedType(StringConcatExample)
 
     when:
-    final result = introspector.findAdvices(advices, Mock(DynamicType.Builder), type, classLoader)
+    final result = introspector.findAdvices(advices, Stub(DynamicType.Builder), type, classLoader)
     final found = result.findAdvice(pointcutMock.type, pointcutMock.method, pointcutMock.descriptor) != null
 
     then:
@@ -124,11 +122,6 @@ class AdvicesTest extends BaseCallSiteTest {
     where:
     pointcutMock                       | emptyAdvices | adviceFound
     stringConcatPointcut()             | false        | true
-    //TODO fix this test
-    //messageDigestGetInstancePointcut() | true         | false
-  }
-
-  private static byte[] loadClass(final Class<?> clazz) {
-    return clazz.getResourceAsStream("${clazz.simpleName}.class").bytes
+    messageDigestGetInstancePointcut() | true         | false
   }
 }
