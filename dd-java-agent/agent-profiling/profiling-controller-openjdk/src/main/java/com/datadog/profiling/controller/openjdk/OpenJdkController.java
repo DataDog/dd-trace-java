@@ -18,6 +18,8 @@ package com.datadog.profiling.controller.openjdk;
 import static com.datadog.profiling.controller.ProfilingSupport.*;
 import static com.datadog.profiling.controller.ProfilingSupport.isObjectCountParallelized;
 import static datadog.trace.api.Platform.isJavaVersionAtLeast;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_DEBUG_CLEANUP_REPO;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_DEBUG_CLEANUP_REPO_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_HEAP_HISTOGRAM_ENABLED;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_HEAP_HISTOGRAM_ENABLED_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_HEAP_HISTOGRAM_MODE;
@@ -108,7 +110,10 @@ public final class OpenJdkController implements Controller {
     Map<String, String> recordingSettings;
 
     try {
-      cleanupJfrRepositories(Paths.get(jfrRepositoryBase));
+      if (configProvider.getBoolean(
+          PROFILING_DEBUG_CLEANUP_REPO, PROFILING_DEBUG_CLEANUP_REPO_DEFAULT)) {
+        cleanupJfrRepositories(Paths.get(jfrRepositoryBase));
+      }
 
       recordingSettings =
           JfpUtils.readNamedJfpResource(
