@@ -114,6 +114,42 @@ class ProcessImplInstrumentationSpecification extends AgentTestRunner {
     runtimeExecStarter.name()    | runtimeExecStarter    | _
   }
 
+  void 'creates two sibling child spans with #name'() {
+    when:
+    def command1 = ['/bin/sh', '-c', 'sleep 0.5']
+    def command2 = ['/bin/sh', '-c', 'echo 42']
+    def terminated = TraceUtils.runUnderTrace("parent", false) {
+      Process p1 = new ProcessBuilder(command1).start()
+      Process p2 = new ProcessBuilder(command2).start()
+      p2.waitFor(5, TimeUnit.SECONDS)
+      p1.waitFor(5, TimeUnit.SECONDS)
+    }
+
+    then:
+    terminated
+    assertTraces(1) {
+      trace(3) {
+        sortSpansByStart()
+        span(0) {
+          operationName 'parent'
+        }
+        span(1) {
+          assertProcessSpan(it, command1)
+          childOf span(0)
+        }
+        span(2) {
+          assertProcessSpan(it, command2)
+          childOf span(0)
+        }
+      }
+    }
+
+    where:
+    name                         | starter               | _
+    processBuilderStarter.name() | processBuilderStarter | _
+    runtimeExecStarter.name()    | runtimeExecStarter    | _
+  }
+
   void 'span only has executable if appsec is disabled with #name'() {
     setup:
     ActiveSubsystems.APPSEC_ACTIVE = false
