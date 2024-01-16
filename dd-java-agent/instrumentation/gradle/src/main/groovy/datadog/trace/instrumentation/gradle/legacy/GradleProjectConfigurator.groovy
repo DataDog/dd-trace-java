@@ -38,7 +38,7 @@ import java.util.regex.Pattern
  */
 class GradleProjectConfigurator {
 
-  private static final Logger log = LoggerFactory.getLogger(GradleProjectConfigurator.class)
+  private static final Logger logger = LoggerFactory.getLogger(GradleProjectConfigurator)
 
   /*
    * Each Groovy Closure in here is a separate class.
@@ -231,7 +231,7 @@ class GradleProjectConfigurator {
     for (Task task : project.tasks) {
       if (GradleUtils.isTestTask(task)) {
         def executable = Paths.get(getEffectiveExecutable(task))
-        testExecutions.computeIfAbsent(executable, k -> new ArrayList<>()).add(task)
+        testExecutions.computeIfAbsent(executable, k -> new ArrayList<>()).add(task) //codenarc: "The instantiated object is not used"
       }
     }
     return testExecutions
@@ -242,7 +242,7 @@ class GradleProjectConfigurator {
       try {
         return task.javaLauncher.get().getExecutablePath().toString()
       } catch (Exception e) {
-        log.error("Could not get Java launcher for test task", e)
+        logger.error("Could not get Java launcher for test task", e)
       }
     }
     return task.hasProperty('executable') && task.executable != null
