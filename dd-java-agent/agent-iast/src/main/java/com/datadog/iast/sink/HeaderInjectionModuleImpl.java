@@ -61,6 +61,14 @@ public class HeaderInjectionModuleImpl extends SinkModuleBase implements HeaderI
         return;
       }
 
+      if (1 == ranges.length){
+        if (ranges[0].getSource().getOrigin() == SourceTypes.REQUEST_HEADER_VALUE){
+          if (name.equalsIgnoreCase(ranges[0].getSource().getName())) {
+            return;
+          }
+        }
+
+      }
       if (header == HttpHeader.Values.ACCESS_CONTROL_ALLOW_ORIGIN) {
         boolean allRangesFromOrigin = true;
         for (Range range : ranges) {

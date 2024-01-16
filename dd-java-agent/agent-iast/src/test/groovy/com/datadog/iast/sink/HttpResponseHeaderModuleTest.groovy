@@ -247,6 +247,23 @@ class HttpResponseHeaderModuleTest extends IastModuleImplTestBase {
     ]
   }
 
+  void 'passing header down exclusions'(){
+    given:
+    Vulnerability savedVul
+    addFromRangeList(ctx.taintedObjects, headerValue, ranges)
+
+    when:
+    module.onHeader(headerName, headerValue)
+
+    then:
+    1 * tracer.activeSpan()
+    0 * _
+
+    where:
+    headerValue | expected                                           | headerName             | ranges
+    'pepito'    | 'X-Test-Header: ==>pepito<=='        |'X-Test-Header'         | [[0, 6, 'X-Test-Header', 'pepito', SourceTypes.REQUEST_HEADER_VALUE]]
+  }
+
 
   private String mapTainted(final String value, final int mark) {
     final result = addFromTaintFormat(ctx.taintedObjects, value, mark)
