@@ -30,6 +30,8 @@ public final class GeneralConfig {
 
   public static final String TRACE_DEBUG = "trace.debug";
   public static final String TRACE_TRIAGE = "trace.triage";
+  public static final String TRIAGE_REPORT_TRIGGER = "triage.report.trigger";
+  public static final String TRIAGE_REPORT_DIR = "triage.report.dir";
 
   public static final String STARTUP_LOGS_ENABLED = "trace.startup.logs";
 
