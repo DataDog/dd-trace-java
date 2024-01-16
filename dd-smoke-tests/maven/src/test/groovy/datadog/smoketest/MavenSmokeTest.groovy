@@ -276,6 +276,7 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
           def version = versionList.item(0).getTextContent()
           if (!version.contains('alpha')) {
             LOGGER.info("Will run the 'latest' tests with version ${version}")
+            return version
           }
         }
       } else {
