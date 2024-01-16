@@ -1,7 +1,5 @@
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.agent.tooling.bytebuddy.csi.ConstantPool
-import datadog.trace.api.config.IastConfig
-import datadog.trace.api.config.TracerConfig
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.sink.HardcodedSecretModule
 import datadog.trace.instrumentation.iastinstrumenter.IastHardcodedSecretListener
@@ -13,7 +11,6 @@ class IastHardcodedSecretListenerTest extends AgentTestRunner{
 
   void 'test'(){
     setup:
-    injectSysConfig(IastConfig.IAST_HARDCODED_SECRET_ENABLED, enabled)
     final module = Mock(HardcodedSecretModule)
     InstrumentationBridge.registerIastModule(module)
     final classFile = readClassBytes(clazz)
@@ -28,10 +25,9 @@ class IastHardcodedSecretListenerTest extends AgentTestRunner{
     expected * module.onStringLiteral(_, _, _)
 
     where:
-    clazz | enabled | expected
-    HardcodedSecretTestClass| 'true' | 1
-    HardcodedSecretTestClass| 'false' | 0
-    HardcodedSecretTestClass2 | 'true' | 0
+    clazz | expected
+    HardcodedSecretTestClass | 1
+    HardcodedSecretTestClass2 | 0
   }
 
   byte [] readClassBytes(Class<?> clazz){

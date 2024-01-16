@@ -5,9 +5,8 @@ import com.datadog.iast.model.Evidence;
 import com.datadog.iast.model.Location;
 import com.datadog.iast.model.Vulnerability;
 import com.datadog.iast.model.VulnerabilityType;
-import java.util.Map;
-
 import datadog.trace.instrumentation.iastinstrumenter.IastHardcodedSecretListener;
+import java.util.Map;
 import org.objectweb.asm.ClassVisitor;
 import org.objectweb.asm.Label;
 import org.objectweb.asm.MethodVisitor;
@@ -64,7 +63,7 @@ public class IastSecretVisitor extends ClassVisitor {
     public void visitLdcInsn(Object cst) {
       if (cst instanceof String) {
         String literal = ((String) cst);
-        if(literal.length() < IastHardcodedSecretListener.MIN_SECRET_LENGTH) {
+        if (literal.length() < IastHardcodedSecretListener.MIN_SECRET_LENGTH) {
           return;
         }
         secrets.forEach(

@@ -39,7 +39,11 @@ public class IastInstrumentation extends CallSiteInstrumentation {
 
   @Override
   protected Advices buildAdvices(final Iterable<CallSites> callSites) {
-    return Advices.fromCallSites(callSites, IastHardcodedSecretListener.INSTANCE);
+    if (Config.get().isIastHardcodedSecretEnabled()) {
+      return Advices.fromCallSites(callSites, IastHardcodedSecretListener.INSTANCE);
+    } else {
+      return Advices.fromCallSites(callSites);
+    }
   }
 
   public static final class IastMatcher
