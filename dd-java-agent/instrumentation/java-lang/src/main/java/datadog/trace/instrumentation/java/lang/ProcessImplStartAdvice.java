@@ -28,6 +28,7 @@ class ProcessImplStartAdvice {
     final AgentSpan span = tracer.startSpan("appsec", "command_execution");
     span.setSpanType("system");
     span.setResourceName(ProcessImplInstrumentationHelpers.determineResource(command));
+    span.setTag("component", "subprocess");
     ProcessImplInstrumentationHelpers.setTags(span, command);
     return span;
   }

@@ -156,7 +156,7 @@ public class ProcessImplInstrumentationHelpers {
             if (thr != null) {
               span.addThrowable(thr);
             } else {
-              span.setTag("cmd.exit_code", process.exitValue());
+              span.setTag("cmd.exit_code", Integer.toString(process.exitValue()));
             }
             finishSpan(continuation, span);
           });
@@ -166,7 +166,7 @@ public class ProcessImplInstrumentationHelpers {
           () -> {
             try {
               int exitCode = p.waitFor();
-              span.setTag("cmd.exit_code", exitCode);
+              span.setTag("cmd.exit_code", Integer.toString(exitCode));
             } catch (InterruptedException e) {
               span.addThrowable(e);
             } finally {
