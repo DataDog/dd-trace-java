@@ -1,6 +1,5 @@
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.agent.tooling.Instrumenter
-import datadog.trace.agent.tooling.bytebuddy.csi.Advices
 import datadog.trace.api.Config
 import datadog.trace.api.config.IastConfig
 import datadog.trace.instrumentation.iastinstrumenter.IastHardcodedSecretListener
