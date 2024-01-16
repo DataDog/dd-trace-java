@@ -1,5 +1,7 @@
 package com.datadog.iast.util;
 
+import static net.bytebuddy.utility.OpenedClassReader.ASM_API;
+
 import com.datadog.iast.Reporter;
 import com.datadog.iast.model.Evidence;
 import com.datadog.iast.model.Location;
@@ -20,7 +22,7 @@ public class IastSecretVisitor extends ClassVisitor {
 
   public IastSecretVisitor(
       final Map<String, String> secrets, final String clazz, final Reporter reporter) {
-    super(Opcodes.ASM9);
+    super(ASM_API);
     this.secrets = secrets;
     this.clazz = clazz;
     this.reporter = reporter;
