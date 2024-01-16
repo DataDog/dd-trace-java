@@ -273,7 +273,12 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
 
         NodeList versionList = doc.getElementsByTagName("latest")
         if (versionList.getLength() > 0) {
-          return versionList.item(0).getTextContent()
+          def version = versionList.item(0).getTextContent()
+          if (!['4.0.0-alpha-12'].contains(version)) {
+            LOGGER.info("Will run the 'latest' tests with version ${version}")
+            return version
+          }
+          LOGGER.warn("Skipping failing maven version ${version}")
         }
       } else {
         LOGGER.warn("Could not get latest maven version, response from repo.maven.apache.org is ${response.code()}: ${response.body().string()}")
