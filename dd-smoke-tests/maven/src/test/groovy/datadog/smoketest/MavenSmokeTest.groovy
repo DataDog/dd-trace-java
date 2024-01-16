@@ -29,7 +29,7 @@ import java.util.concurrent.TimeoutException
 
 class MavenSmokeTest extends CiVisibilitySmokeTest {
 
-  private static final Logger LOGGER = LoggerFactory.getLogger(MavenSmokeTest.class)
+  private static final Logger LOGGER = LoggerFactory.getLogger(MavenSmokeTest)
 
   private static final String LATEST_MAVEN_VERSION = getLatestMavenVersion()
 

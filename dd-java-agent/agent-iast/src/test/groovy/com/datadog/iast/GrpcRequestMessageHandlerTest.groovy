@@ -5,14 +5,11 @@ import com.datadog.iast.protobuf.Test2
 import com.datadog.iast.protobuf.Test3
 import com.datadog.iast.taint.TaintedObjects
 import com.datadog.iast.util.ObjectVisitor
-import datadog.trace.api.gateway.RequestContext
-import datadog.trace.api.gateway.RequestContextSlot
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.SourceTypes
 import datadog.trace.api.iast.propagation.PropagationModule
 import datadog.trace.api.iast.telemetry.IastMetric
 import datadog.trace.api.iast.telemetry.IastMetricCollector
-import datadog.trace.test.util.DDSpecification
 import foo.bar.VisitableClass
 
 import java.util.function.Predicate
@@ -122,7 +119,7 @@ class GrpcRequestMessageHandlerTest extends IastModuleImplTestBase {
     buildProto3Message() | _
   }
 
-  private static def buildProto2Message() {
+  private static buildProto2Message() {
     final child = Test2.Proto2Child.newBuilder()
     .setOptional("optional")
     .setRequired("required")
@@ -132,7 +129,7 @@ class GrpcRequestMessageHandlerTest extends IastModuleImplTestBase {
     return Test2.Proto2Parent.newBuilder().setChild(child).build()
   }
 
-  private static def buildProto3Message() {
+  private static buildProto3Message() {
     final child = Test3.Proto3Child.newBuilder()
     .setOptional("optional")
     .setRequired("required")

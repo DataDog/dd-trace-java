@@ -50,8 +50,8 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
 
   private static Path agentKeyFile
 
-  private static final List<TestIdentifier> skippableTests = new ArrayList<>()
-  private static final List<TestIdentifier> flakyTests = new ArrayList<>()
+  private static final List<TestIdentifier> SKIPPABLE_TESTS = new ArrayList<>()
+  private static final List<TestIdentifier> FLAKY_TESTS = new ArrayList<>()
   private static volatile boolean itrEnabled = false
   private static volatile boolean flakyRetryEnabled = false
 
@@ -82,8 +82,8 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
       itrEnabled,
       flakyRetryEnabled,
       properties,
-      Collections.singletonMap(dummyModule, skippableTests),
-      flakyTests,
+      Collections.singletonMap(dummyModule, SKIPPABLE_TESTS),
+      FLAKY_TESTS,
       Collections.emptyList())
     }
 
@@ -144,19 +144,19 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
 
   @Override
   void setup() {
-    skippableTests.clear()
-    flakyTests.clear()
+    SKIPPABLE_TESTS.clear()
+    FLAKY_TESTS.clear()
     itrEnabled = false
     flakyRetryEnabled = false
   }
 
   def givenSkippableTests(List<TestIdentifier> tests) {
-    skippableTests.addAll(tests)
+    SKIPPABLE_TESTS.addAll(tests)
     itrEnabled = true
   }
 
   def givenFlakyTests(List<TestIdentifier> tests) {
-    flakyTests.addAll(tests)
+    FLAKY_TESTS.addAll(tests)
     flakyRetryEnabled = true
   }
 
