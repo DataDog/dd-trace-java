@@ -26,9 +26,12 @@ public class IastHardcodedSecretListener implements Advices.Listener {
       for (int index = 1; index < pool.getCount(); index++) {
         if (pool.getType(index) == ConstantPool.CONSTANT_STRING_TAG) {
           final int literalIndex = pool.readUnsignedShort(pool.getOffset(index));
-          final String literal = pool.readUTF8(pool.getOffset(literalIndex));
-          if (literal.length() >= MIN_SECRET_LENGTH) {
-            literals.add(literal);
+          int bytesLength = pool.readUnsignedShort(pool.getOffset(literalIndex));
+          if (bytesLength >= MIN_SECRET_LENGTH) { // prefilter short strings
+            final String literal = pool.readUTF8(pool.getOffset(literalIndex));
+            if (literal.length() >= MIN_SECRET_LENGTH) {
+              literals.add(literal);
+            }
           }
         }
       }
