@@ -5,6 +5,7 @@ import datadog.trace.bootstrap.debugger.util.TimeoutChecker;
 import java.time.Duration;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -232,6 +233,7 @@ public class DebuggerContext {
       MethodLocation methodLocation,
       String... encodedProbeIds) {
     try {
+      LOGGER.debug("evalContext for probes: {}", Arrays.toString(encodedProbeIds));
       boolean needFreeze = false;
       for (String encodedProbeId : encodedProbeIds) {
         ProbeImplementation probeImplementation = resolveProbe(encodedProbeId);
@@ -297,6 +299,7 @@ public class DebuggerContext {
       List<CapturedContext.CapturedThrowable> caughtExceptions,
       String... encodedProbeIds) {
     try {
+      LOGGER.debug("commit for probes: {}", Arrays.toString(encodedProbeIds));
       if (entryContext == CapturedContext.EMPTY_CONTEXT
           && exitContext == CapturedContext.EMPTY_CONTEXT) {
         // rate limited

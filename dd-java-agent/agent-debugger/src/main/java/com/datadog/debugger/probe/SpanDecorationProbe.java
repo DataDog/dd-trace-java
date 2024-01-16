@@ -24,6 +24,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
+import java.util.stream.Collectors;
 import org.objectweb.asm.tree.ClassNode;
 import org.objectweb.asm.tree.MethodNode;
 import org.slf4j.Logger;
@@ -238,6 +239,15 @@ public class SpanDecorationProbe extends ProbeDefinition {
     for (Pair<String, String> tag : tagsToDecorate) {
       agentSpan.setTag(tag.getLeft(), tag.getRight());
     }
+    String strTags =
+        tagsToDecorate.stream()
+            .map(pair -> pair.getLeft() + "=" + pair.getRight())
+            .collect(Collectors.joining(","));
+    LOGGER.debug(
+        "Set tags for trace[{}]/span[{}]: {}",
+        agentSpan.getTraceId(),
+        agentSpan.getSpanId(),
+        strTags);
     DebuggerAgent.getSink().getProbeStatusSink().addEmitting(probeId);
   }
 
