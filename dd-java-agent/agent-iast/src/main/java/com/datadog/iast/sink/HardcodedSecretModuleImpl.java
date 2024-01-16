@@ -48,6 +48,7 @@ public class HardcodedSecretModuleImpl extends SinkModuleBase implements Hardcod
             secrets = new HashMap<>();
           }
           secrets.put(literal, secretMatcher.getRedactedEvidence());
+          break;
         }
       }
     }
