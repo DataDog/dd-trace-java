@@ -1,4 +1,4 @@
-package foo.bar;
+package datadog.trace.agent.tooling.iast;
 
 public class WithHardcodedSecret {
 

@@ -1,17 +1,12 @@
 package com.datadog.iast.sink;
 
-import static com.datadog.iast.util.HardcodedSecretMatcher.HARDCODED_SECRET_MATCHERS;
-
 import com.datadog.iast.Dependencies;
-import com.datadog.iast.util.HardcodedSecretMatcher;
-import com.datadog.iast.util.IastSecretVisitor;
+import com.datadog.iast.model.Evidence;
+import com.datadog.iast.model.Location;
+import com.datadog.iast.model.Vulnerability;
+import com.datadog.iast.model.VulnerabilityType;
 import datadog.trace.api.iast.sink.HardcodedSecretModule;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Set;
 import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
-import org.objectweb.asm.ClassReader;
 
 public class HardcodedSecretModuleImpl extends SinkModuleBase implements HardcodedSecretModule {
 
@@ -20,38 +15,17 @@ public class HardcodedSecretModuleImpl extends SinkModuleBase implements Hardcod
   }
 
   @Override
-  public void onStringLiteral(
-      @Nonnull final Set<String> literals,
+  public void onHardcodedSecret(
+      @Nonnull final String value,
+      @Nonnull final String method,
       @Nonnull final String clazz,
-      final @Nonnull byte[] classFile) {
+      final int currentLine) {
 
-    Map<String, String> secrets = getSecrets(literals);
-    if (secrets != null) {
-      reportVulnerability(secrets, clazz, classFile);
-    }
-  }
-
-  private void reportVulnerability(
-      final Map<String, String> secrets, final String clazz, final @Nonnull byte[] classFile) {
-    ClassReader classReader = new ClassReader(classFile);
-    IastSecretVisitor classVisitor = new IastSecretVisitor(secrets, clazz, reporter);
-    classReader.accept(classVisitor, 0);
-  }
-
-  @Nullable
-  private Map<String, String> getSecrets(final Set<String> literals) {
-    Map<String, String> secrets = null;
-    for (String literal : literals) {
-      for (HardcodedSecretMatcher secretMatcher : HARDCODED_SECRET_MATCHERS) {
-        if (secretMatcher.matches(literal)) {
-          if (secrets == null) {
-            secrets = new HashMap<>();
-          }
-          secrets.put(literal, secretMatcher.getRedactedEvidence());
-          break;
-        }
-      }
-    }
-    return secrets;
+    reporter.report(
+        null,
+        new Vulnerability(
+            VulnerabilityType.HARDCODED_SECRET,
+            Location.forClassAndMethodAndLine(clazz, method, currentLine),
+            new Evidence(value)));
   }
 }

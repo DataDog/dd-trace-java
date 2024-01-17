@@ -1,8 +1,10 @@
-package com.datadog.iast.util;
+package datadog.trace.api.iast.secrets;
 
 import java.util.regex.Pattern;
 
 public class HardcodedSecretMatcher {
+
+  public static final int MIN_SECRET_LENGTH = 10;
 
   public static final HardcodedSecretMatcher ADOBE_CLIENT_SECRET =
       new HardcodedSecretMatcher(

@@ -1,8 +1,8 @@
-package com.datadog.iast.util
+package datadog.trace.api.iast.secrets
 
 import spock.lang.Specification
 
-import static com.datadog.iast.util.HardcodedSecretMatcher.*
+import static datadog.trace.api.iast.secrets.HardcodedSecretMatcher.*
 
 class HardcodedSecretMatcherTest extends Specification {
 
