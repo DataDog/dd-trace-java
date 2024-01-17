@@ -229,6 +229,11 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     return Histograms.newHistogram(relativeAccuracy, maxNumBins);
   }
 
+  @Override
+  public StatsDClient getStatsDClient() {
+    return statsDClient;
+  }
+
   PropagationTags.Factory getPropagationTagsFactory() {
     return propagationTagsFactory;
   }

@@ -7,6 +7,7 @@ import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.EndpointCheckpointer;
 import datadog.trace.api.EndpointTracker;
+import datadog.trace.api.StatsDClient;
 import datadog.trace.api.TraceConfig;
 import datadog.trace.api.TracePropagationStyle;
 import datadog.trace.api.experimental.DataStreamsCheckpointer;
@@ -289,6 +290,8 @@ public class AgentTracer {
     ProfilingContextIntegration getProfilingContext();
 
     AgentHistogram newHistogram(double relativeAccuracy, int maxNumBins);
+
+    StatsDClient getStatsDClient();
   }
 
   public interface SpanBuilder {
@@ -516,6 +519,11 @@ public class AgentTracer {
     @Override
     public AgentHistogram newHistogram(double relativeAccuracy, int maxNumBins) {
       return NoopAgentHistogram.INSTANCE;
+    }
+
+    @Override
+    public StatsDClient getStatsDClient() {
+      return StatsDClient.NO_OP;
     }
   }
 
