@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.iastinstrumenter;
 
 import static datadog.trace.api.iast.secrets.HardcodedSecretMatcher.HARDCODED_SECRET_MATCHERS;
+import static datadog.trace.api.iast.secrets.HardcodedSecretMatcher.MIN_SECRET_LENGTH;
 
 import datadog.trace.agent.tooling.bytebuddy.csi.Advices;
 import datadog.trace.agent.tooling.bytebuddy.csi.ConstantPool;
@@ -18,8 +19,6 @@ import javax.annotation.Nullable;
 import net.bytebuddy.description.type.TypeDescription;
 
 public class IastHardcodedSecretListener implements Advices.Listener {
-
-  public static final int MIN_SECRET_LENGTH = 10;
 
   public static final IastHardcodedSecretListener INSTANCE =
       new IastHardcodedSecretListener(IastSecretClassReader.INSTANCE);
