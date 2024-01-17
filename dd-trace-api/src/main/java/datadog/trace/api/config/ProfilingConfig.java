@@ -176,6 +176,9 @@ public final class ProfilingConfig {
   public static final String PROFILING_DEBUG_DUMP_PATH = "profiling.debug.dump_path";
   public static final String PROFILING_DEBUG_JFR_DISABLED = "profiling.debug.jfr.disabled";
 
+  public static final String PROFILING_DEBUG_CLEANUP_REPO = "profiling.debug.cleanup.jfr.repo";
+  public static final boolean PROFILING_DEBUG_CLEANUP_REPO_DEFAULT = false;
+
   public static final String PROFILING_CONTEXT_ATTRIBUTES = "profiling.context.attributes";
 
   public static final String PROFILING_CONTEXT_ATTRIBUTES_SPAN_NAME_ENABLED =
