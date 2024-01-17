@@ -252,6 +252,8 @@
 1 org.objectweb.*
 # Weak randomness false positive on HotspotUnsafe.guessAlignment
 1 org.openjdk.jol.vm.*
+# Weak randomness false positive on RandomIdGenerator.generateTraceId
+1 io.opentelemetry.sdk.trace.*
 1 org.openxmlformats.*
 1 org.osgi.*
 1 org.owasp.*
