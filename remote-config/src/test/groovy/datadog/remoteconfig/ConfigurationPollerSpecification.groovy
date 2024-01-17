@@ -205,6 +205,80 @@ class ConfigurationPollerSpecification extends DDSpecification {
     0 * _._
   }
 
+  void 'similar configs are handled in batch'() {
+    def deserializer = Mock(ConfigurationDeserializer)
+    ConfigurationChangesTypedListener.Batch listener = Mock(ConfigurationChangesTypedListener.Batch)
+    def respBody = JsonOutput.toJson(
+      client_configs: [
+        'datadog/2/ASM_FEATURES/asm_features_activation/config',
+        'datadog/2/ASM_FEATURES/api_security/sample_rate',
+      ],
+      roots: [],
+      target_files: [
+        [
+          path: 'datadog/2/ASM_FEATURES/asm_features_activation/config',
+          raw: Base64.encoder.encodeToString('{"asm":{"enabled":true}}'.getBytes('UTF-8'))
+        ],
+        [
+          path: 'datadog/2/ASM_FEATURES/api_security/sample_rate',
+          raw: Base64.encoder.encodeToString('{"api_security": {"request_sample_rate": 0.1}'.getBytes('UTF-8'))
+        ]
+      ],
+      targets: signAndBase64EncodeTargets(
+      signed: [
+        expires: '2022-09-17T12:49:15Z',
+        spec_version: '1.0.0',
+        targets: [
+          'datadog/2/ASM_FEATURES/asm_features_activation/config': [
+            custom: [ v: 1 ],
+            hashes: [ sha256: '159658ab85be7207761a4111172b01558394bfc74a1fe1d314f2023f7c656db' ],
+            length : 24,
+          ],
+          'datadog/2/ASM_FEATURES/api_security/sample_rate': [
+            custom: [v:1],
+            hashes: [ sha256: 'bc898b7eb75d9fd0ddee1c1a556bc3c528dd41382950aa86e48816f792d01494' ],
+            length : 45,
+          ]
+        ],
+        version: 1
+      ]
+      ))
+
+    def noConfigs = SLURPER.parse(SAMPLE_RESP_BODY.bytes).with {
+      it['client_configs'] = []
+      JsonOutput.toJson(it)
+    }
+
+    when:
+    poller.addListener(Product.ASM_FEATURES, deserializer, listener)
+    poller.start()
+
+    then:
+    1 * scheduler.scheduleAtFixedRate(_, poller, 0, DEFAULT_POLL_PERIOD, TimeUnit.MILLISECONDS) >> { task = it[0]; scheduled }
+
+    when:
+    task.run(poller)
+
+    then:
+    1 * okHttpClient.newCall(_ as Request) >> { request = it[0]; call }
+    1 * call.execute() >> { buildOKResponse(respBody) }
+
+    then:
+    2 * deserializer.deserialize(_) >> true
+    1 * listener.accept(_, _)
+    0 * _._
+
+    //remove all configurations
+    when:
+    task.run(poller)
+
+    then:
+    1 * okHttpClient.newCall(_ as Request) >> { request = it[0]; call }
+    1 * call.execute() >> { buildOKResponse(noConfigs) }
+    2 * listener.accept(_, _)
+    0 * _._
+  }
+
   void 'processing happens for all listeners'() {
     def deserializer = Mock(ConfigurationDeserializer)
     List<ConfigurationChangesTypedListener> listeners = (1..5).collect { Mock(ConfigurationChangesTypedListener) }

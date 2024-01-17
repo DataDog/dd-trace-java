@@ -1,5 +1,6 @@
 package datadog.remoteconfig;
 
+import static datadog.remoteconfig.ConfigurationChangesTypedListener.Builder.useBatchDeserializer;
 import static datadog.remoteconfig.ConfigurationChangesTypedListener.Builder.useDeserializer;
 
 import cafe.cryptography.curve25519.InvalidEncodingException;
@@ -7,6 +8,7 @@ import cafe.cryptography.ed25519.Ed25519PublicKey;
 import cafe.cryptography.ed25519.Ed25519Signature;
 import com.squareup.moshi.Moshi;
 import datadog.remoteconfig.ConfigurationChangesListener.PollingRateHinter;
+import datadog.remoteconfig.state.BatchProductListener;
 import datadog.remoteconfig.state.ParsedConfigKey;
 import datadog.remoteconfig.state.ProductListener;
 import datadog.remoteconfig.state.ProductState;
@@ -127,6 +129,12 @@ public class ConfigurationPoller
   public synchronized void addListener(Product product, ProductListener listener) {
     ProductState productState =
         this.productStates.computeIfAbsent(product, p -> new ProductState(product));
+    productState.addProductListener(new ProductListener.WrapperProductListener(listener));
+  }
+
+  public synchronized void addListener(Product product, ProductListener.Batch listener) {
+    ProductState productState =
+        this.productStates.computeIfAbsent(product, p -> new ProductState(product));
     productState.addProductListener(listener);
   }
 
@@ -135,6 +143,14 @@ public class ConfigurationPoller
       ConfigurationDeserializer<T> deserializer,
       ConfigurationChangesTypedListener<T> listener) {
     this.addListener(product, new SimpleProductListener(useDeserializer(deserializer, listener)));
+  }
+
+  public synchronized <T> void addListener(
+      Product product,
+      ConfigurationDeserializer<T> deserializer,
+      ConfigurationChangesTypedListener.Batch<T> listener) {
+    this.addListener(
+        product, new BatchProductListener(useBatchDeserializer(deserializer, listener)));
   }
 
   public synchronized void removeListeners(Product product) {

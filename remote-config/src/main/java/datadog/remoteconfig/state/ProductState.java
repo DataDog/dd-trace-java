@@ -7,7 +7,6 @@ import datadog.remoteconfig.tuf.MissingContentException;
 import datadog.remoteconfig.tuf.RemoteConfigRequest;
 import datadog.remoteconfig.tuf.RemoteConfigResponse;
 import datadog.trace.relocate.api.RatelimitedLogger;
-import java.io.InterruptedIOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -30,7 +29,7 @@ public class ProductState {
       new HashMap<>();
   private final Map<ParsedConfigKey, RemoteConfigRequest.ClientInfo.ClientState.ConfigState>
       configStates = new HashMap<>();
-  private final List<ProductListener> listeners;
+  private final List<ProductListener.Batch> listeners;
 
   List<ConfigurationPoller.ReportableException> errors = null;
 
@@ -42,7 +41,7 @@ public class ProductState {
         new RatelimitedLogger(log, MINUTES_BETWEEN_ERROR_LOG, TimeUnit.MINUTES);
   }
 
-  public void addProductListener(ProductListener listener) {
+  public void addProductListener(ProductListener.Batch listener) {
     listeners.add(listener);
   }
 
@@ -55,6 +54,8 @@ public class ProductState {
     List<ParsedConfigKey> configBeenUsedByProduct = new ArrayList<>();
     boolean changesDetected = false;
 
+    Map<ParsedConfigKey, byte[]> configs = new HashMap<>();
+
     for (ParsedConfigKey configKey : relevantKeys) {
       try {
         RemoteConfigResponse.Targets.ConfigTarget target =
@@ -64,11 +65,14 @@ public class ProductState {
         if (isTargetChanged(configKey, target)) {
           changesDetected = true;
           byte[] content = getTargetFileContent(fleetResponse, configKey);
-          callListenerApplyTarget(fleetResponse, hinter, configKey, content);
+          configs.put(configKey, content);
         }
       } catch (ConfigurationPoller.ReportableException e) {
         recordError(e);
       }
+    }
+    if (!configs.isEmpty()) {
+      callListenerApplyTarget(fleetResponse, hinter, configs);
     }
 
     List<ParsedConfigKey> keysToRemove =
@@ -95,21 +99,15 @@ public class ProductState {
   private void callListenerApplyTarget(
       RemoteConfigResponse fleetResponse,
       ConfigurationChangesListener.PollingRateHinter hinter,
-      ParsedConfigKey configKey,
-      byte[] content) {
+      Map<ParsedConfigKey, byte[]> configs) {
 
-    try {
-      for (ProductListener listener : listeners) {
-        listener.accept(configKey, content, hinter);
-      }
-      updateConfigState(fleetResponse, configKey, null);
-    } catch (ConfigurationPoller.ReportableException e) {
-      recordError(e);
-    } catch (Exception ex) {
-      updateConfigState(fleetResponse, configKey, ex);
-      if (!(ex instanceof InterruptedIOException)) {
-        ratelimitedLogger.warn(
-            "Error processing config key {}: {}", configKey, ex.getMessage(), ex);
+    Map<ParsedConfigKey, Exception> configState;
+    for (ProductListener.Batch listener : listeners) {
+      try {
+        configState = listener.accept(configs, hinter);
+        configState.forEach(((configKey, ex) -> updateConfigState(fleetResponse, configKey, ex)));
+      } catch (ConfigurationPoller.ReportableException e) {
+        recordError(e);
       }
     }
   }
@@ -117,7 +115,7 @@ public class ProductState {
   private void callListenerRemoveTarget(
       ConfigurationChangesListener.PollingRateHinter hinter, ParsedConfigKey configKey) {
     try {
-      for (ProductListener listener : listeners) {
+      for (ProductListener.Batch listener : listeners) {
         listener.remove(configKey, hinter);
       }
     } catch (Exception ex) {
@@ -129,7 +127,7 @@ public class ProductState {
 
   private void callListenerCommit(ConfigurationChangesListener.PollingRateHinter hinter) {
     try {
-      for (ProductListener listener : listeners) {
+      for (ProductListener.Batch listener : listeners) {
         listener.commit(hinter);
       }
     } catch (ConfigurationPoller.ReportableException e) {
