@@ -18,6 +18,8 @@ package com.datadog.profiling.controller.openjdk;
 import static com.datadog.profiling.controller.ProfilingSupport.*;
 import static com.datadog.profiling.controller.ProfilingSupport.isObjectCountParallelized;
 import static datadog.trace.api.Platform.isJavaVersionAtLeast;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_DEBUG_CLEANUP_REPO;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_DEBUG_CLEANUP_REPO_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_HEAP_HISTOGRAM_ENABLED;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_HEAP_HISTOGRAM_ENABLED_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_HEAP_HISTOGRAM_MODE;
@@ -94,8 +96,14 @@ public final class OpenJdkController implements Controller {
       // this will allow emitting the settings event with the current stack depth
       JfrProfilerSettings.instance().markJfrStackDepthApplied();
     }
-    String jfrRepositoryBase = getJfrRepositoryBase(configProvider);
-    JFRAccess.instance().setBaseLocation(jfrRepositoryBase + "/pid_" + PidHelper.getPid());
+    boolean shouldCleanupJfrRepository =
+        configProvider.getBoolean(
+            PROFILING_DEBUG_CLEANUP_REPO, PROFILING_DEBUG_CLEANUP_REPO_DEFAULT);
+    String jfrRepositoryBase = null;
+    if (shouldCleanupJfrRepository) {
+      jfrRepositoryBase = getJfrRepositoryBase(configProvider);
+      JFRAccess.instance().setBaseLocation(jfrRepositoryBase + "/pid_" + PidHelper.getPid());
+    }
     // Make sure we can load JFR classes before declaring that we have successfully created
     // factory and can use it.
     Class.forName("jdk.jfr.Recording");
@@ -108,7 +116,9 @@ public final class OpenJdkController implements Controller {
     Map<String, String> recordingSettings;
 
     try {
-      cleanupJfrRepositories(Paths.get(jfrRepositoryBase));
+      if (shouldCleanupJfrRepository) {
+        cleanupJfrRepositories(Paths.get(jfrRepositoryBase));
+      }
 
       recordingSettings =
           JfpUtils.readNamedJfpResource(

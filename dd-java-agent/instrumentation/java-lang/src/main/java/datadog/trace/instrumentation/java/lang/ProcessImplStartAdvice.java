@@ -43,8 +43,7 @@ class ProcessImplStartAdvice {
       return;
     }
     if (t != null) {
-      span.setError(true);
-      span.setErrorMessage(t.getMessage());
+      span.addThrowable(t);
       span.finish();
       return;
     }

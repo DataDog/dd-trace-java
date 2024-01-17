@@ -154,8 +154,7 @@ public class ProcessImplInstrumentationHelpers {
       future.whenComplete(
           (process, thr) -> {
             if (thr != null) {
-              span.setError(true);
-              span.setErrorMessage(thr.getMessage());
+              span.addThrowable(thr);
             } else {
               span.setTag("cmd.exit_code", process.exitValue());
             }
@@ -168,8 +167,7 @@ public class ProcessImplInstrumentationHelpers {
               int exitCode = p.waitFor();
               span.setTag("cmd.exit_code", exitCode);
             } catch (InterruptedException e) {
-              span.setError(true);
-              span.setErrorMessage(e.getMessage());
+              span.addThrowable(e);
             }
             span.finish();
           });
