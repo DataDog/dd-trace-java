@@ -100,8 +100,7 @@ final class TracerFlareService {
     scheduler.schedule(
         () -> {
           try {
-            String reportName = REPORT_PREFIX + System.currentTimeMillis() + ".zip";
-            Path reportPath = triagePath.resolve(reportName);
+            Path reportPath = triagePath.resolve(getFlareName());
             log.info("Writing triage report to {}", reportPath);
             Files.write(reportPath, buildFlareZip(true));
           } catch (IOException e) {
@@ -164,8 +163,6 @@ final class TracerFlareService {
   void doSend(String caseId, String email, String hostname, boolean dumpThreads) {
     log.debug("Sending tracer flare");
     try {
-      String flareName = REPORT_PREFIX + caseId + "-" + System.currentTimeMillis() + ".zip";
-
       RequestBody report = RequestBody.create(OCTET_STREAM, buildFlareZip(dumpThreads));
 
       RequestBody form =
@@ -175,7 +172,7 @@ final class TracerFlareService {
               .addFormDataPart("case_id", caseId)
               .addFormDataPart("email", email)
               .addFormDataPart("hostname", hostname)
-              .addFormDataPart("flare_file", flareName, report)
+              .addFormDataPart("flare_file", getFlareName(), report)
               .build();
 
       Request flareRequest =
@@ -194,6 +191,10 @@ final class TracerFlareService {
     } catch (IOException e) {
       log.warn("Tracer flare failed with exception: {}", e.toString());
     }
+  }
+
+  private String getFlareName() {
+    return REPORT_PREFIX + config.getRuntimeId() + "-" + System.currentTimeMillis() + ".zip";
   }
 
   private byte[] buildFlareZip(boolean dumpThreads) throws IOException {
