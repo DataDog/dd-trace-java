@@ -44,7 +44,7 @@ _Recovery:_ Manually trigger the action again on the relevant tag.
 
 ## increment-milestones-on-tag [🔗](increment-milestones-on-tag.yaml)
 
-_Trigger:_ When creating a tag. Release Candidate tags (containing "-RC" or "-rc" will skip this)
+_Trigger:_ When creating a tag. Release Candidate tags containing "-RC" or "-rc" will skip this.
 
 _Actions:_
 * Close the milestone related to the tag,
