@@ -44,7 +44,7 @@ _Recovery:_ Manually trigger the action again on the relevant tag.
 
 ## increment-milestones-on-tag [🔗](increment-milestones-on-tag.yaml)
 
-_Trigger:_ When creating a tag.
+_Trigger:_ When creating a tag. Release Candidate tags containing "-RC" or "-rc" will skip this.
 
 _Actions:_
 * Close the milestone related to the tag,
@@ -67,7 +67,7 @@ _Notes:_ _Download releases_ are special GitHub releases with fixed URL and tags
 
 ## update-issues-on-release [🔗](update-issues-on-release.yaml)
 
-_Trigger:_ When a release is published.
+_Trigger:_ When a release is published. Releases of type `prereleased` should skip this.
 
 _Action:_
 * Find all issues related to the release by checking the related milestone,
