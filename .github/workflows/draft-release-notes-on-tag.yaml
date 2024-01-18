@@ -30,7 +30,7 @@ jobs:
               state: 'all'
             })).find(m => m.title == milestoneShortTitle)
             if (!milestone) {
-              core.setFailed('Failed to find milestone: ${milestoneShortTitle}')
+              core.setFailed('Failed to find milestone: ' + milestoneShortTitle')
               return
             }
 
