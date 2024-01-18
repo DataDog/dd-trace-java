@@ -19,22 +19,20 @@ import org.apache.kafka.common.serialization.StringSerializer;
 
 public class KafkaProducerWithSchemaRegistry {
   public static void main(String[] args) {
-    // produce();
-    consume();
-    // Thread producerThread = new Thread(KafkaProducerWithSchemaRegistry::produce);
-    // Thread consumerThread = new Thread(KafkaProducerWithSchemaRegistry::consume);
+    Thread producerThread = new Thread(KafkaProducerWithSchemaRegistry::produce);
+    Thread consumerThread = new Thread(KafkaProducerWithSchemaRegistry::consume);
 
-    // // start the threads
-    // producerThread.start();
-    // consumerThread.start();
+    // start the threads
+    producerThread.start();
+    consumerThread.start();
 
-    // // wait for both threads to finish
-    // try {
-    //   producerThread.join();
-    //   consumerThread.join();
-    // } catch (InterruptedException e) {
-    //   e.printStackTrace();
-    // }
+    // wait for both threads to finish
+    try {
+      producerThread.join();
+      consumerThread.join();
+    } catch (InterruptedException e) {
+      e.printStackTrace();
+    }
   }
 
   public static void produce() {
@@ -124,7 +122,7 @@ public class KafkaProducerWithSchemaRegistry {
 
     Properties properties = new Properties();
     properties.setProperty(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
-    properties.setProperty(ConsumerConfig.GROUP_ID_CONFIG, "my-group2");
+    properties.setProperty(ConsumerConfig.GROUP_ID_CONFIG, "my-group");
     properties.setProperty(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
 
     // Avro deserialization settings
