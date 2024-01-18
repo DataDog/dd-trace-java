@@ -1,6 +1,5 @@
 package datadog.trace.logging.ddlogger;
 
-import datadog.trace.api.Platform;
 import datadog.trace.api.telemetry.LogCollector;
 import datadog.trace.logging.LogLevel;
 import datadog.trace.logging.LoggerHelper;
@@ -38,9 +37,6 @@ public class DDTelemetryLogger extends DDLogger {
   }
 
   private void telemetryLog(LogLevel level, Marker marker, String msgOrgFormat, Throwable t) {
-    if (Platform.isNativeImageBuilder()) {
-      return;
-    }
     // Report only messages with Throwable or explicitly marked with SEND_TELEMETRY.
     // This might be extended to error level without throwable.
     if (t == null && marker != LogCollector.SEND_TELEMETRY) {
