@@ -19,15 +19,18 @@ jobs:
             const milestoneTitle = '${{github.event.ref}}'.startsWith('v') ?
                 '${{github.event.ref}}'.substring(1) :
                 '${{github.event.ref}}'
+                
+            // get X.Y.Z from X.Y.Z-RC1
+            const milestoneShortTitle = milestoneTitle.split("-")[0]
 
             // Look for the milestone
             const milestone = (await github.paginate('GET /repos/{owner}/{repo}/milestones', {
               owner: context.repo.owner,
               repo: context.repo.repo,
               state: 'all'
-            })).find(m => m.title == milestoneTitle)
+            })).find(m => m.title == milestoneShortTitle)
             if (!milestone) {
-              core.setFailed('Failed to find milestone: ${milestoneTitle}')
+              core.setFailed('Failed to find milestone: ${milestoneShortTitle}')
               return
             }
 
