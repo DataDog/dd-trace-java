@@ -48,7 +48,9 @@ public final class ConsumerCoordinatorInstrumentation extends Instrumenter.Traci
 
   @Override
   public String[] helperClassNames() {
-    return new String[] {packageName + ".KafkaConsumerInfo"};
+    return new String[] {
+      packageName + ".KafkaConsumerInfo",
+    };
   }
 
   @Override
