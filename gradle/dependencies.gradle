@@ -78,7 +78,10 @@ final class CachedData {
     ],
     mockito              : [
       "org.mockito:mockito-core:${versions.mockito}",
-      "org.mockito:mockito-junit-jupiter:${versions.mockito}"
+      "org.mockito:mockito-junit-jupiter:${versions.mockito}",
+      // needed for Java 21 support
+      "net.bytebuddy:byte-buddy:${versions.bytebuddy}",
+      "net.bytebuddy:byte-buddy-agent:${versions.bytebuddy}"
     ],
     testcontainers       : "org.testcontainers:testcontainers:${versions.testcontainers}",
     testLogging          : [
