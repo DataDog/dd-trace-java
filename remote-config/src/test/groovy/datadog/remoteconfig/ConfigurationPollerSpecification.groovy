@@ -1524,10 +1524,6 @@ class ConfigurationPollerSpecification extends DDSpecification {
     -9223372036854775807L | [128, 0, 0, 0, 0, 0, 0, 1] as byte[]
   }
 
-  void 'product listener per config'() {
-
-  }
-
   private static final String SAMPLE_RESP_BODY = """
 {
    "client_configs" : [
