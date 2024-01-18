@@ -295,4 +295,8 @@ public class ConfigurationUpdater
   Map<String, ProbeDefinition> getAppliedDefinitions() {
     return appliedDefinitions;
   }
+
+  Map<String, InstrumentationResult> getInstrumentationResults() {
+    return instrumentationResults;
+  }
 }
