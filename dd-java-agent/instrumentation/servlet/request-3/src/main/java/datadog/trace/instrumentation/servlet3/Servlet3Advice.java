@@ -15,6 +15,8 @@ import datadog.trace.api.gateway.Flow;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.instrumentation.servlet.ServletBlockingHelper;
+
+import java.io.IOException;
 import java.security.Principal;
 import java.util.concurrent.atomic.AtomicBoolean;
 import javax.servlet.ServletRequest;
@@ -22,10 +24,13 @@ import javax.servlet.ServletResponse;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import net.bytebuddy.asm.Advice;
+
 import java.util.Enumeration;
 
 public class Servlet3Advice {
 
+  static final String APPLICATION_JSON_VALUE = "application/json";
+  static final String APPLICATION_JSON_UTF8_VALUE = "application/json;charset=UTF-8";
   @Advice.OnMethodEnter(suppress = Throwable.class, skipOn = Advice.OnNonDefaultValue.class)
   public static boolean onEnter(
       @Advice.Argument(value = 0, readOnly = false) ServletRequest request,
@@ -38,8 +43,7 @@ public class Servlet3Advice {
     if (invalidRequest) {
       return false;
     }
-
-    final HttpServletRequest httpServletRequest = (HttpServletRequest) request;
+    HttpServletRequest httpServletRequest = (HttpServletRequest) request;
     final HttpServletResponse httpServletResponse = (HttpServletResponse) response;
     Object dispatchSpan = request.getAttribute(DD_DISPATCH_SPAN_ATTRIBUTE);
     if (dispatchSpan instanceof AgentSpan) {
@@ -54,6 +58,28 @@ public class Servlet3Advice {
       scope = activateSpan(castDispatchSpan);
       return false;
     }
+    String methodType = httpServletRequest.getMethod();
+    BodyReaderHttpServletRequestWrapper requestWrapper = null;
+    Object requestBody = request.getAttribute("datadog_request_body");
+    final boolean body = requestBody instanceof Boolean;
+    String bodyStr = null;
+    boolean bodyFlag = false;
+    boolean tracerRequestBodyEnabled = Config.get().isTracerRequestBodyEnabled();
+    if (tracerRequestBodyEnabled) {
+      String contextType = request.getContentType();
+      if (!body && "POST".equalsIgnoreCase(methodType) && (contextType.equals(APPLICATION_JSON_VALUE) || contextType.equals(APPLICATION_JSON_UTF8_VALUE))) {
+        try {
+          request.setAttribute("datadog_request_body", true);
+          requestWrapper = new BodyReaderHttpServletRequestWrapper(
+              (HttpServletRequest) request);
+          bodyStr = requestWrapper.getBodyStr();
+          bodyFlag = true;
+          request = requestWrapper;
+        } catch (IOException e) {
+          e.printStackTrace();
+        }
+      }
+    }
     httpServletResponse.setHeader("guance_trace_id", GlobalTracer.get().getTraceId());
     StringBuffer requestHeader = new StringBuffer("");
     StringBuffer responseHeader = new StringBuffer("");
@@ -65,10 +91,10 @@ public class Servlet3Advice {
         if (count==0){
           requestHeader.append("{");
         }else{
-          requestHeader.append(",");
+          requestHeader.append(",\n");
         }
         String headerName = headerNames.nextElement();
-        requestHeader.append("\"").append(headerName).append("\":").append("\"").append(httpServletRequest.getHeader(headerName).replace("\"","")).append("\"\n");
+        requestHeader.append("\"").append(headerName).append("\":").append("\"").append(httpServletRequest.getHeader(headerName).replace("\"","")).append("\"");
         count ++;
       }
       if (count>0){
@@ -79,9 +105,9 @@ public class Servlet3Advice {
         if (count==0){
           responseHeader.append("{");
         }else{
-          responseHeader.append(",");
+          responseHeader.append(",\n");
         }
-        responseHeader.append("\"").append(headerName).append("\":").append("\"").append(httpServletResponse.getHeader(headerName)).append("\"\n");
+        responseHeader.append("\"").append(headerName).append("\":").append("\"").append(httpServletResponse.getHeader(headerName)).append("\"");
         count ++;
       }
 
@@ -96,8 +122,11 @@ public class Servlet3Advice {
     final boolean hasServletTrace = spanAttrValue instanceof AgentSpan;
     if (hasServletTrace) {
       AgentSpan span = (AgentSpan)spanAttrValue;
-      span.setTag("servlet.request_header",requestHeader.toString());
-      span.setTag("servlet.response_header",responseHeader.toString());
+      span.setTag("request_header",requestHeader.toString());
+      span.setTag("response_header",responseHeader.toString());
+      if (bodyFlag) {
+        span.setTag("request_body", bodyStr);
+      }
       // Tracing might already be applied by other instrumentation,
       // the FilterChain or a parent request (forward/include).
       return false;
@@ -111,9 +140,11 @@ public class Servlet3Advice {
     DECORATE.afterStart(span);
     DECORATE.onRequest(span, httpServletRequest, httpServletRequest, extractedContext);
 
-    span.setTag("servlet.request_header",requestHeader.toString());
-    span.setTag("servlet.response_header",responseHeader.toString());
-
+    span.setTag("request_header",requestHeader.toString());
+    span.setTag("response_header",responseHeader.toString());
+    if (bodyFlag) {
+      span.setTag("request_body", bodyStr);
+    }
     httpServletRequest.setAttribute(DD_SPAN_ATTRIBUTE, span);
     httpServletRequest.setAttribute(
         CorrelationIdentifier.getTraceIdKey(), GlobalTracer.get().getTraceId());

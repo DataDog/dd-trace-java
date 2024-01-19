@@ -131,5 +131,6 @@ public final class TracerConfig {
 
   public static final String TRACE_HEADER_ENABLED = "trace.headers.enabled";
 
+  public static final String TRACE_REQUEST_BODY_ENABLED = "trace.request.body.enabled";
   private TracerConfig() {}
 }

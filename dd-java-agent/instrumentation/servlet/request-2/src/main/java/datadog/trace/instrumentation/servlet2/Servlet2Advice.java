@@ -35,25 +35,37 @@ public class Servlet2Advice {
     if (invalidRequest) {
       return false;
     }
-
     final HttpServletRequest httpServletRequest = (HttpServletRequest) request;
     HttpServletResponse httpServletResponse = (HttpServletResponse)response;
     httpServletResponse.setHeader("guance_trace_id", GlobalTracer.get().getTraceId());
     Object spanAttr = request.getAttribute(DD_SPAN_ATTRIBUTE);
 
-    Enumeration<String> headerNames = httpServletRequest.getHeaderNames();
     StringBuffer requestHeader = new StringBuffer("");
-    while(headerNames.hasMoreElements()){
-      String headerName = headerNames.nextElement();
-      requestHeader.append(headerName+"\t\t\t\t:"+httpServletRequest.getHeader(headerName)).append("\n");
-    }
 
+    boolean tracerHeader = Config.get().isTracerHeaderEnabled();
+    if (tracerHeader) {
+      Enumeration<String> headerNames = httpServletRequest.getHeaderNames();
+      int count = 0;
+      while (headerNames.hasMoreElements()) {
+        if (count==0){
+          requestHeader.append("{");
+        }else{
+          requestHeader.append(",");
+        }
+        String headerName = headerNames.nextElement();
+        requestHeader.append("\"").append(headerName).append("\":").append("\"").append(httpServletRequest.getHeader(headerName).replace("\"","")).append("\"\n");
+        count ++;
+      }
+      if (count>0){
+        requestHeader.append("}");
+      }
+    }
 
     final boolean hasServletTrace = spanAttr instanceof AgentSpan;
     if (hasServletTrace) {
       // Tracing might already be applied by the FilterChain or a parent request (forward/include).
       AgentSpan span = (AgentSpan)spanAttr;
-      span.setTag("servlet.request_header",requestHeader.toString());
+      span.setTag("request_header",requestHeader.toString());
       return false;
     }
 
@@ -69,7 +81,7 @@ public class Servlet2Advice {
     scope.setAsyncPropagation(true);
     DECORATE.afterStart(span);
     DECORATE.onRequest(span, httpServletRequest, httpServletRequest, extractedContext);
-    span.setTag("servlet.request_header",requestHeader.toString());
+    span.setTag("request_header",requestHeader.toString());
     httpServletRequest.setAttribute(DD_SPAN_ATTRIBUTE, span);
     httpServletRequest.setAttribute(
         CorrelationIdentifier.getTraceIdKey(), GlobalTracer.get().getTraceId());

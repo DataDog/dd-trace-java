@@ -229,5 +229,7 @@ public final class ConfigDefaults {
 
   static final boolean DEFAULT_TRACE_HEADER_ENABLED = false;
 
+  static final boolean DEFAULT_TRACE_REQUEST_BODY_ENABLED = false;
+
   private ConfigDefaults() {}
 }
