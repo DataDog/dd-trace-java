@@ -231,7 +231,7 @@ class GradleProjectConfigurator {
     for (Task task : project.tasks) {
       if (GradleUtils.isTestTask(task)) {
         def executable = Paths.get(getEffectiveExecutable(task))
-        testExecutions.computeIfAbsent(executable, k -> new ArrayList<>()).add(task) //codenarc: "The instantiated object is not used"
+        testExecutions.computeIfAbsent(executable, k -> { new ArrayList<>() }).add(task)
       }
     }
     return testExecutions
