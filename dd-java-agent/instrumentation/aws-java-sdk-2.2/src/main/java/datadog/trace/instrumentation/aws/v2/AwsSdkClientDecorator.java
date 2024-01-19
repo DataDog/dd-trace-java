@@ -106,7 +106,6 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
 
     // S3
     request.getValueForField("Bucket", String.class).ifPresent(name -> setBucketName(span, name));
-    request.getValueForField("Key", String.class).ifPresent(key -> setObjectKey(span, key));
     request
         .getValueForField("StorageClass", String.class)
         .ifPresent(
@@ -214,10 +213,6 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
     span.setTag(InstrumentationTags.AWS_BUCKET_NAME, name);
     span.setTag(InstrumentationTags.BUCKET_NAME, name);
     setPeerService(span, InstrumentationTags.AWS_BUCKET_NAME, name);
-  }
-
-  private static void setObjectKey(AgentSpan span, String objectKey) {
-    span.setTag(InstrumentationTags.AWS_OBJECT_KEY, objectKey);
   }
 
   private static void setQueueName(AgentSpan span, String name) {
