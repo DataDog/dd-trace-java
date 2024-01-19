@@ -33,15 +33,15 @@ class LogCollectorTest extends DDSpecification {
     then:
     def list = LogCollector.get().drain()
     list.size() == 4
-    listContains(list, 'ERROR', "First Message", null)
-    listContains(list, 'ERROR', "Second Message, {2} additional messages skipped", null)
-    listContains(list, 'ERROR', "Third Message, {3} additional messages skipped", null)
-    listContains(list, 'ERROR', "Forth Message, {4} additional messages skipped", null)
+    listContains(list, 'ERROR', "First Message", null, 1)
+    listContains(list, 'ERROR', "Second Message", null, 2)
+    listContains(list, 'ERROR', "Third Message", null,3)
+    listContains(list, 'ERROR', "Forth Message", null, 4)
   }
 
-  boolean listContains(Collection<LogCollector.RawLogMessage> list, String logLevel, String message, Throwable t) {
+  boolean listContains(Collection<LogCollector.RawLogMessage> list, String logLevel, String message, Throwable t, int count) {
     for (final def logMsg in list) {
-      if (logMsg.logLevel == logLevel && logMsg.message() == message && logMsg.throwable == t) {
+      if (logMsg.logLevel == logLevel && logMsg.message == message && logMsg.throwable == t && logMsg.count == count) {
         return true
       }
     }
