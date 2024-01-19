@@ -590,10 +590,13 @@ abstract class AbstractSparkTest extends AgentTestRunner {
     null      | null                | null                                                                                   | "(?!.*databricks).*"
   }
 
-  def "set the proper spark service name"(String ddService, String appName, boolean isRunningOnDatabricks, String expectedService) {
+  def "set the proper spark service name"(String ddService, boolean sparkAppNameAsService, String appName, boolean isRunningOnDatabricks, String expectedService) {
     setup:
     if (ddService != null) {
       injectSysConfig("dd.service", ddService)
+    }
+    if (sparkAppNameAsService) {
+      injectSysConfig("spark.app-name-as-service", sparkAppNameAsService.toString())
     }
 
     def builder = SparkSession.builder()
@@ -647,11 +650,12 @@ abstract class AbstractSparkTest extends AgentTestRunner {
     }
 
     where:
-    ddService | appName    | isRunningOnDatabricks | expectedService
-    "foobar"  | "some_app" | true                  | "(?!.*some_app).*"
-    null      | "some_app" | true                  | "(?!.*some_app).*"
-    null      | "some_app" | false                 | "some_app"
-    null      | null       | false                 | "(?!.*some_app).*"
+    ddService | sparkAppNameAsService | appName    | isRunningOnDatabricks | expectedService
+    "foobar"  | true                  | "some_app" | true                  | "(?!.*some_app).*"
+    null      | true                  | "some_app" | true                  | "(?!.*some_app).*"
+    null      | true                  | "some_app" | false                 | "some_app"
+    null      | false                 | "some_app" | false                 | "(?!.*some_app).*"
+    null      | true                  | null       | false                 | "(?!.*some_app).*"
   }
 
 

@@ -1099,7 +1099,9 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
   }
 
   private static String getSparkServiceName(SparkConf conf, boolean isRunningOnDatabricks) {
-    if (Config.get().isServiceNameSetByUser() || isRunningOnDatabricks) {
+    if (Config.get().isServiceNameSetByUser()
+        || !Config.get().useSparkAppNameAsService()
+        || isRunningOnDatabricks) {
       return null;
     }
 
