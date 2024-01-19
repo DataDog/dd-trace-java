@@ -12,6 +12,7 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import java.lang.reflect.Field;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -21,7 +22,9 @@ import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.OffsetAndMetadata;
 import org.apache.kafka.clients.consumer.internals.ConsumerCoordinator;
 import org.apache.kafka.clients.consumer.internals.RequestFuture;
+import org.apache.kafka.clients.consumer.internals.SubscriptionState;
 import org.apache.kafka.common.TopicPartition;
+import org.apache.kafka.common.internals.PartitionStates;
 
 @AutoService(Instrumenter.class)
 public final class ConsumerCoordinatorInstrumentation extends Instrumenter.Tracing
@@ -64,6 +67,7 @@ public final class ConsumerCoordinatorInstrumentation extends Instrumenter.Traci
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void trackCommitOffset(
         @Advice.This ConsumerCoordinator coordinator,
+        @Advice.FieldValue("subscriptions") SubscriptionState subscriptionState,
         @Advice.Return RequestFuture<Void> requestFuture,
         @Advice.Argument(0) final Map<TopicPartition, OffsetAndMetadata> offsets) {
       if (requestFuture.failed()) {
@@ -101,6 +105,31 @@ public final class ConsumerCoordinatorInstrumentation extends Instrumenter.Traci
         AgentTracer.get()
             .getDataStreamsMonitoring()
             .trackBacklog(sortedTags, entry.getValue().offset());
+
+        Long highWatermark = null;
+        try {
+          Field field = SubscriptionState.class.getDeclaredField("assignment");
+          field.setAccessible(true);
+          PartitionStates partitionStates = (PartitionStates) field.get(subscriptionState);
+          Object state = partitionStates.stateValue(entry.getKey());
+          if (state != null) {
+            Class<?> clazz = state.getClass();
+            Field subField = clazz.getDeclaredField("highWatermark");
+            subField.setAccessible(true);
+            highWatermark = (Long) subField.get(state);
+          }
+        } catch (NoSuchFieldException | IllegalAccessException e) {
+        }
+        if (highWatermark != null) {
+          LinkedHashMap<String, String> highWatermarkTags = new LinkedHashMap<>();
+          if (clusterId != null) {
+            highWatermarkTags.put(KAFKA_CLUSTER_ID_TAG, clusterId);
+          }
+          highWatermarkTags.put(PARTITION_TAG, String.valueOf(entry.getKey().partition()));
+          highWatermarkTags.put(TOPIC_TAG, entry.getKey().topic());
+          highWatermarkTags.put(TYPE_TAG, "kafka_high_watermark");
+          AgentTracer.get().getDataStreamsMonitoring().trackBacklog(sortedTags, highWatermark);
+        }
       }
     }
 

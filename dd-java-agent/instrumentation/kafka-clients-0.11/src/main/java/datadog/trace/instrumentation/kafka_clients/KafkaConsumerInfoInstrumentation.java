@@ -21,7 +21,6 @@ import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.clients.consumer.internals.ConsumerCoordinator;
-import org.apache.kafka.clients.consumer.internals.SubscriptionState;
 
 /**
  * This instrumentation saves additional information from the KafkaConsumer, such as consumer group
@@ -43,9 +42,6 @@ public final class KafkaConsumerInfoInstrumentation extends Instrumenter.Tracing
         "org.apache.kafka.clients.consumer.ConsumerRecords", KafkaConsumerInfo.class.getName());
     contextStores.put(
         "org.apache.kafka.clients.consumer.internals.ConsumerCoordinator",
-        KafkaConsumerInfo.class.getName());
-    contextStores.put(
-        "org.apache.kafka.clients.consumer.internals.SubscriptionState",
         KafkaConsumerInfo.class.getName());
     contextStores.put(
         "org.apache.kafka.clients.consumer.KafkaConsumer", KafkaConsumerInfo.class.getName());
@@ -88,7 +84,6 @@ public final class KafkaConsumerInfoInstrumentation extends Instrumenter.Tracing
         @Advice.This KafkaConsumer consumer,
         @Advice.FieldValue("metadata") Metadata metadata,
         @Advice.FieldValue("coordinator") ConsumerCoordinator coordinator,
-        @Advice.FieldValue("subscriptions") SubscriptionState subscriptionState,
         @Advice.Argument(0) ConsumerConfig consumerConfig) {
       String consumerGroup = consumerConfig.getString(ConsumerConfig.GROUP_ID_CONFIG);
       String normalizedConsumerGroup =
@@ -106,8 +101,6 @@ public final class KafkaConsumerInfoInstrumentation extends Instrumenter.Tracing
             .put(consumer, kafkaConsumerInfo);
         InstrumentationContext.get(ConsumerCoordinator.class, KafkaConsumerInfo.class)
             .put(coordinator, kafkaConsumerInfo);
-        InstrumentationContext.get(SubscriptionState.class, KafkaConsumerInfo.class)
-            .put(subscriptionState, kafkaConsumerInfo);
       }
     }
 
