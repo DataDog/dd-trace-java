@@ -18,6 +18,10 @@ gradlePlugin {
       id = "call-site-instrumentation"
       implementationClass = "CallSiteInstrumentationPlugin"
     }
+    create("otel-converter-plugin") {
+      id = "otel-converter"
+      implementationClass = "otel.OtelConverterPlugin"
+    }
   }
 }
 

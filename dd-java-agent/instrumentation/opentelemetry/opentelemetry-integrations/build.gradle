@@ -1,7 +1,7 @@
 def openTelemetryVersion = '1.32.0-alpha' // TODO 2.0.0 coming soon
 
 apply from: "$rootDir/gradle/java.gradle"
-apply plugin: 'instrument'
+apply plugin: 'otel-converter'
 
 configurations {
   javaagent {
@@ -17,19 +17,10 @@ dependencies {
   //  compileOnly 'io.grpc:grpc-core:1.6.0'
   implementation group: 'io.opentelemetry.instrumentation', name: 'opentelemetry-grpc-1.6', version: openTelemetryVersion
   javaagent group: 'io.opentelemetry.javaagent.instrumentation', name: 'opentelemetry-javaagent-grpc-1.6', version: openTelemetryVersion
-
 }
 
 def javaAgentDirectory = layout.buildDirectory.dir('javaagent').get()
-// Declare DSL to specify instrument to apply
-InstrumentExtension otelInstrument = project.extensions.create('otelInstrument', InstrumentExtension)
-// Setup instrument plugin to apply
-//otelInstrument.plugins = [
-//
-//]
-// TODO Need to define plugin classpath too
-//def javaAgentDirectoryProperty =  project.getObjects().directoryProperty().convention(javaAgentDirectory)
-//otelInstrument.additionalClasspath['convertJavaAgent'] = [javaAgentDirectoryProperty]
+
 
 tasks.register('fetchJavaAgent', Copy) {
   description 'Fetch and extract OpenTelemetry javaagent artifacts'
@@ -43,20 +34,5 @@ tasks.register('fetchJavaAgent', Copy) {
   into javaAgentDirectory
 }
 
-tasks.register('convertJavaAgent', InstrumentTask) {
-  description 'Convert OpenTelemetry javaagent artifact into Datadog instrumentation'
-
-  doLast {
-    // Fetch compile task destination directory
-    def compileTask = project.tasks.find {
-      it.name in ['compileJava']
-    } as AbstractCompile
-    def targetDirectory = compileTask.getDestinationDirectory().get()
-    // Run instrument
-    String javaVersion = '8'
-    instrument(javaVersion, project, otelInstrument, javaAgentDirectory, targetDirectory, it)
-  }
-}
-
-build.dependsOn convertJavaAgent
-convertJavaAgent.dependsOn fetchJavaAgent
+build.dependsOn convertOtelJavaAgent
+convertOtelJavaAgent.dependsOn fetchJavaAgent
