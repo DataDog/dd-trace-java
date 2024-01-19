@@ -12,7 +12,6 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
-import java.lang.reflect.Field;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -52,7 +51,7 @@ public final class ConsumerCoordinatorInstrumentation extends Instrumenter.Traci
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".KafkaConsumerInfo",
+      packageName + ".KafkaConsumerInfo", packageName + ".ConsumerCoordinatorInstrumentationHelper",
     };
   }
 
@@ -86,7 +85,8 @@ public final class ConsumerCoordinatorInstrumentation extends Instrumenter.Traci
       if (consumerMetadata != null) {
         clusterId = InstrumentationContext.get(Metadata.class, String.class).get(consumerMetadata);
       }
-
+      PartitionStates partitionStates =
+          ConsumerCoordinatorInstrumentationHelper.getPartitionStates(subscriptionState);
       for (Map.Entry<TopicPartition, OffsetAndMetadata> entry : offsets.entrySet()) {
         if (consumerGroup == null) {
           consumerGroup = "";
@@ -106,20 +106,9 @@ public final class ConsumerCoordinatorInstrumentation extends Instrumenter.Traci
             .getDataStreamsMonitoring()
             .trackBacklog(sortedTags, entry.getValue().offset());
 
-        Long highWatermark = null;
-        try {
-          Field field = SubscriptionState.class.getDeclaredField("assignment");
-          field.setAccessible(true);
-          PartitionStates partitionStates = (PartitionStates) field.get(subscriptionState);
-          Object state = partitionStates.stateValue(entry.getKey());
-          if (state != null) {
-            Class<?> clazz = state.getClass();
-            Field subField = clazz.getDeclaredField("highWatermark");
-            subField.setAccessible(true);
-            highWatermark = (Long) subField.get(state);
-          }
-        } catch (NoSuchFieldException | IllegalAccessException e) {
-        }
+        Long highWatermark =
+            ConsumerCoordinatorInstrumentationHelper.getHighWatermark(
+                partitionStates, entry.getKey());
         if (highWatermark != null) {
           LinkedHashMap<String, String> highWatermarkTags = new LinkedHashMap<>();
           if (clusterId != null) {
@@ -128,7 +117,9 @@ public final class ConsumerCoordinatorInstrumentation extends Instrumenter.Traci
           highWatermarkTags.put(PARTITION_TAG, String.valueOf(entry.getKey().partition()));
           highWatermarkTags.put(TOPIC_TAG, entry.getKey().topic());
           highWatermarkTags.put(TYPE_TAG, "kafka_high_watermark");
-          AgentTracer.get().getDataStreamsMonitoring().trackBacklog(sortedTags, highWatermark);
+          AgentTracer.get()
+              .getDataStreamsMonitoring()
+              .trackBacklog(highWatermarkTags, highWatermark);
         }
       }
     }

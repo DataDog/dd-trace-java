@@ -195,8 +195,8 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
     if (isDataStreamsEnabled()) {
       TEST_DATA_STREAMS_WRITER.waitForGroups(2)
       // wait for produce offset 0, commit offset 0 on partition 0 and 1, and commit offset 1 on 1 partition.
-      // and high watermark of partition 0 and 1
-      TEST_DATA_STREAMS_WRITER.waitForBacklogs(6)
+      // and high watermark for partition 1
+      TEST_DATA_STREAMS_WRITER.waitForBacklogs(5)
     }
 
     then:
@@ -351,8 +351,8 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
     if (isDataStreamsEnabled()) {
       TEST_DATA_STREAMS_WRITER.waitForGroups(2)
       // wait for produce offset 0, commit offset 0 on partition 0 and 1, and commit offset 1 on 1 partition.
-      // and high watermark of partition 0 and 1
-      TEST_DATA_STREAMS_WRITER.waitForBacklogs(6)
+      // and high watermark for partition 1
+      TEST_DATA_STREAMS_WRITER.waitForBacklogs(5)
     }
 
     then:
@@ -828,8 +828,8 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
     if (isDataStreamsEnabled()) {
       TEST_DATA_STREAMS_WRITER.waitForGroups(2)
       // wait for produce offset 0, commit offset 0 on partition 0 and 1, and commit offset 1 on 1 partition.
-      // and high watermark of partition 0 and 1
-      TEST_DATA_STREAMS_WRITER.waitForBacklogs(6)
+      // and high watermark for partition 1
+      TEST_DATA_STREAMS_WRITER.waitForBacklogs(5)
     }
 
     then:
