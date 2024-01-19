@@ -87,15 +87,21 @@ class HttpResponseHeaderModuleTest extends IastModuleImplTestBase {
 
   void 'exercise onHeader'() {
     when:
-    module.onHeader("Set-Cookie", "user-id=7")
-    module.onHeader("X-Content-Type-Options", "nosniff")
-    module.onHeader("Content-Type", "text/html")
-    module.onHeader("Strict-Transport-Security", "invalid max age")
+    module.onHeader(header, value)
 
     then:
     overheadController.consumeQuota(Operations.REPORT_VULNERABILITY, span) >> false // do not report in this test
-    8 * tracer.activeSpan() >> span
+    activeSpanCount * tracer.activeSpan() >>  {
+      return span
+    }
     0 * _
+
+    where:
+    header                      | value             | activeSpanCount
+    "Set-Cookie"                | "user-id=7"       | 3
+    "X-Content-Type-Options"    | "nosniff"         | 2
+    "Content-Type"              | "text/html"       | 2
+    "Strict-Transport-Security" | "invalid max age" | 2
   }
 
   void 'exercise IastRequestController'(){

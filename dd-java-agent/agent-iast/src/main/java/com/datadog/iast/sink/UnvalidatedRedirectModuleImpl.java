@@ -1,6 +1,9 @@
 package com.datadog.iast.sink;
 
+import static com.datadog.iast.taint.Ranges.allRangesFromHeader;
 import static com.datadog.iast.taint.Tainteds.canBeTainted;
+import static com.datadog.iast.util.HttpHeader.LOCATION;
+import static com.datadog.iast.util.HttpHeader.REFERER;
 
 import com.datadog.iast.Dependencies;
 import com.datadog.iast.model.Evidence;
@@ -13,7 +16,6 @@ import com.datadog.iast.taint.Ranges;
 import com.datadog.iast.taint.TaintedObject;
 import com.datadog.iast.taint.TaintedObjects;
 import datadog.trace.api.iast.IastContext;
-import datadog.trace.api.iast.SourceTypes;
 import datadog.trace.api.iast.sink.UnvalidatedRedirectModule;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
@@ -23,9 +25,6 @@ import javax.annotation.Nullable;
 
 public class UnvalidatedRedirectModuleImpl extends SinkModuleBase
     implements UnvalidatedRedirectModule {
-
-  private static final String LOCATION_HEADER = "Location";
-  private static final String REFERER = "Referer";
 
   public UnvalidatedRedirectModuleImpl(final Dependencies dependencies) {
     super(dependencies);
@@ -57,7 +56,7 @@ public class UnvalidatedRedirectModuleImpl extends SinkModuleBase
 
   @Override
   public void onHeader(@Nonnull final String name, @Nullable final String value) {
-    if (value != null && LOCATION_HEADER.equalsIgnoreCase(name)) {
+    if (value != null && LOCATION.matches(name)) {
       onRedirect(value);
     }
   }
@@ -77,7 +76,7 @@ public class UnvalidatedRedirectModuleImpl extends SinkModuleBase
     if (taintedObject == null) {
       return;
     }
-    if (isRefererHeader(taintedObject.getRanges())) {
+    if (allRangesFromHeader(REFERER, taintedObject.getRanges())) {
       return;
     }
     Range[] notMarkedRanges =
@@ -101,15 +100,5 @@ public class UnvalidatedRedirectModuleImpl extends SinkModuleBase
     } else {
       report(span, VulnerabilityType.UNVALIDATED_REDIRECT, evidence);
     }
-  }
-
-  private boolean isRefererHeader(Range[] ranges) {
-    for (Range range : ranges) {
-      if (range.getSource().getOrigin() != SourceTypes.REQUEST_HEADER_VALUE
-          || !REFERER.equalsIgnoreCase(range.getSource().getName())) {
-        return false;
-      }
-    }
-    return true;
   }
 }
