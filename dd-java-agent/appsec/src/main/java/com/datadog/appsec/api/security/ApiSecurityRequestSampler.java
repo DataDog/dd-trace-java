@@ -23,30 +23,32 @@ public class ApiSecurityRequestSampler {
 
   public ApiSecurityRequestSampler(final Config config, ConfigurationPoller configurationPoller) {
     this(config);
-    configurationPoller.addListener(
-        Product.ASM_FEATURES,
-        "asm_api_security",
-        AppSecFeaturesDeserializer.INSTANCE,
-        (configKey, newConfig, pollingRateHinter) -> {
-          if (newConfig != null && newConfig.apiSecurity != null) {
-            Float newSamplingFloat = newConfig.apiSecurity.requestSampleRate;
-            if (newSamplingFloat != null) {
-              int newSampling = computeSamplingParameter(newSamplingFloat);
-              if (newSampling != sampling) {
-                sampling = newSampling;
-                cumulativeCounter.set(0); // Reset current sampling counter
-                if (sampling == 0) {
-                  log.info("Api Security is disabled via remote-config");
-                } else {
-                  log.info(
-                      "Api Security changed via remote-config. New sampling rate is {}% of all requests.",
-                      sampling);
+    if (configurationPoller != null) {
+      configurationPoller.addListener(
+          Product.ASM_FEATURES,
+          "asm_api_security",
+          AppSecFeaturesDeserializer.INSTANCE,
+          (configKey, newConfig, pollingRateHinter) -> {
+            if (newConfig != null && newConfig.apiSecurity != null) {
+              Float newSamplingFloat = newConfig.apiSecurity.requestSampleRate;
+              if (newSamplingFloat != null) {
+                int newSampling = computeSamplingParameter(newSamplingFloat);
+                if (newSampling != sampling) {
+                  sampling = newSampling;
+                  cumulativeCounter.set(0); // Reset current sampling counter
+                  if (sampling == 0) {
+                    log.info("Api Security is disabled via remote-config");
+                  } else {
+                    log.info(
+                        "Api Security changed via remote-config. New sampling rate is {}% of all requests.",
+                        sampling);
+                  }
                 }
               }
             }
-          }
-        });
-    configurationPoller.addCapabilities(CAPABILITY_ASM_API_SECURITY_SAMPLE_RATE);
+          });
+      configurationPoller.addCapabilities(CAPABILITY_ASM_API_SECURITY_SAMPLE_RATE);
+    }
   }
 
   public boolean sampleRequest() {
