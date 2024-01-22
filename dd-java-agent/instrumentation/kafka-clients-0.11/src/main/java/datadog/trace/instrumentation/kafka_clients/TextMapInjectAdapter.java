@@ -8,20 +8,35 @@ import java.nio.charset.StandardCharsets;
 import org.apache.kafka.common.header.Headers;
 
 public class TextMapInjectAdapter implements AgentPropagation.BinarySetter<Headers> {
+  private final boolean isNoOp;
 
-  public static final TextMapInjectAdapter SETTER = new TextMapInjectAdapter();
+  public static final TextMapInjectAdapter SETTER = new TextMapInjectAdapter(false);
+  public static final TextMapInjectAdapter NOOP_SETTER = new TextMapInjectAdapter(true);
+
+  public TextMapInjectAdapter(boolean isNoOp) {
+    this.isNoOp = isNoOp;
+  }
 
   @Override
   public void set(final Headers headers, final String key, final String value) {
+    if (isNoOp) {
+      return;
+    }
     headers.remove(key).add(key, value.getBytes(StandardCharsets.UTF_8));
   }
 
   @Override
   public void set(Headers headers, String key, byte[] value) {
+    if (isNoOp) {
+      return;
+    }
     headers.remove(key).add(key, value);
   }
 
   public void injectTimeInQueue(Headers headers) {
+    if (isNoOp) {
+      return;
+    }
     ByteBuffer buf = ByteBuffer.allocate(8);
     buf.putLong(System.currentTimeMillis());
     headers.add(KAFKA_PRODUCED_KEY, buf.array());
