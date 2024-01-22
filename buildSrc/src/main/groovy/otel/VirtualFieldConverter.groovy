@@ -32,7 +32,7 @@ class VirtualFieldConverter extends ClassVisitor {
   /** The visited class name. */
   private final String className
 
-  protected VirtualFieldConverter(ClassVisitor classVisitor, String className) {
+  VirtualFieldConverter(ClassVisitor classVisitor, String className) {
     super(ASM9, classVisitor) // TODO I supposed I could use the latest version
     this.className = className
   }
