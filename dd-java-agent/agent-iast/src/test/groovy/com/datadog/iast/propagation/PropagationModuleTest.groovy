@@ -12,13 +12,18 @@ import datadog.trace.api.iast.VulnerabilityMarks
 import datadog.trace.api.iast.propagation.PropagationModule
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import org.junit.Assume
+import spock.lang.Shared
 
 import static com.datadog.iast.taint.Ranges.highestPriorityRange
 import static datadog.trace.api.iast.VulnerabilityMarks.NOT_MARKED
 
 class PropagationModuleTest extends IastModuleImplTestBase {
 
+  @Shared
+  private static int maxValueLength = Config.get().iastTruncationMaxValueLength
+
   private PropagationModule module
+
 
   void setup() {
     module = new PropagationModuleImpl()
@@ -411,7 +416,7 @@ class PropagationModuleTest extends IastModuleImplTestBase {
 
   void 'test source names over threshold'() {
     given:
-    final maxSize = Config.get().iastTruncationMaxValueLength
+    assert target.length() > maxValueLength
 
     when:
     module.taint(target, SourceTypes.REQUEST_PARAMETER_VALUE)
@@ -419,27 +424,36 @@ class PropagationModuleTest extends IastModuleImplTestBase {
     then:
     final tainted = ctx.getTaintedObjects().get(target)
     tainted != null
-    final sourceValue  = tainted.ranges.first().source.value
-    sourceValue.length() <= target.length()
-    sourceValue.length() <= maxSize
+    final sourceValue = tainted.ranges.first().source.value
+    if (resize) {
+      sourceValue.length() == maxValueLength
+    } else {
+      sourceValue.length() == target.length()
+    }
 
     where:
-    target                                                                          | _
-    string((0..Config.get().getIastTruncationMaxValueLength() * 2).join(''))        | _
-    stringBuilder((0..Config.get().getIastTruncationMaxValueLength() * 2).join('')) | _
+    target                                          | resize
+    string((0..maxValueLength * 2).join(''))        | false // a reference to the string is created
+    stringBuilder((0..maxValueLength * 2).join('')) | true  // we create a copy
   }
 
   void 'test that source names should not make a strong reference over the value'() {
-    given:
-    final name = 'name'
-
     when:
-    module.taint(name, SourceTypes.REQUEST_PARAMETER_NAME, name)
+    module.taint(name, SourceTypes.REQUEST_PARAMETER_NAME, (CharSequence) name)
 
     then:
     final tainted = ctx.getTaintedObjects().get(name)
     final taintedName = tainted.ranges[0].source.name
-    assert !taintedName.is(name) : 'Weak value should not be retained by the source name'
+    if (reference) {
+      assert taintedName.is(name): 'We should create a reference to the original value'
+    } else {
+      assert !taintedName.is(name): 'We should create a copy of the original value'
+    }
+
+    where:
+    name                  | reference
+    string('name')        | true // a reference to the string is created
+    stringBuilder('name') | false // we create a copy
   }
 
   private List<Tuple<Object>> taintIfSuite() {
@@ -529,7 +543,6 @@ class PropagationModuleTest extends IastModuleImplTestBase {
 
   private static void assertTainted(final TaintedObject tainted, final Range[] ranges, final int mark = NOT_MARKED) {
     assert tainted != null
-    final originalValue = tainted.get()
     assert tainted.ranges.length == ranges.length
     ranges.eachWithIndex { Range expected, int i ->
       final range = tainted.ranges[i]
@@ -539,9 +552,6 @@ class PropagationModuleTest extends IastModuleImplTestBase {
         assert (range.marks & mark) > 0
       }
       final source = range.source
-      assert !source.name.is(originalValue): 'Weak value should not be retained by the source name'
-      assert !source.value.is(originalValue): 'Weak value should not be retained by the source value'
-
       final expectedSource = expected.source
       assert source.origin == expectedSource.origin
       assert source.name == expectedSource.name
