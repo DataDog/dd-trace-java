@@ -100,9 +100,10 @@ class Converter {
     try (InputStream inputStream = Files.newInputStream(file.toPath())) {
       def writer = new ClassWriter(0) // TODO flags?
       def virtualFieldConverter = new VirtualFieldConverter(writer, file.name)
+      def javaAgentApiChecker = new OtelApiVerifier(virtualFieldConverter, file.name)
       // TODO Insert more visitors here
       def reader = new ClassReader(inputStream)
-      reader.accept(virtualFieldConverter, 0) // TODO flags?
+      reader.accept(javaAgentApiChecker, 0) // TODO flags?
       Files.write(targetFile, writer.toByteArray())
     }
   }
