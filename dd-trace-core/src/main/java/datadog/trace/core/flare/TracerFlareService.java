@@ -217,7 +217,7 @@ final class TracerFlareService {
   }
 
   private void addPrelude(ZipOutputStream zip) throws IOException {
-    TracerFlare.addText(zip, "version.txt", DDTraceCoreInfo.VERSION);
+    TracerFlare.addText(zip, "tracer_version.txt", DDTraceCoreInfo.VERSION);
     TracerFlare.addText(zip, "classpath.txt", System.getProperty("java.class.path"));
     TracerFlare.addText(zip, "initial_config.txt", config.toString());
     TracerFlare.addText(zip, "dynamic_config.txt", dynamicConfig.toString());
