@@ -120,13 +120,28 @@ public final class KafkaProducerInstrumentation extends InstrumenterModule.Traci
       // This can help in mixed client environments where clients < 0.11 that do not support
       // headers attempt to read messages that were produced by clients > 0.11 and the magic
       // value of the broker(s) is >= 2
+      TextMapInjectAdapter setter = TextMapInjectAdapter.NOOP_SETTER;
       if (apiVersions.maxUsableProduceMagic() >= RecordBatch.MAGIC_VALUE_V2
           && Config.get().isKafkaClientPropagationEnabled()
           && !Config.get().isKafkaClientPropagationDisabledForTopic(record.topic())) {
-        LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>();
-        sortedTags.put(DIRECTION_TAG, DIRECTION_OUT);
-        if (clusterId != null) {
-          sortedTags.put(KAFKA_CLUSTER_ID_TAG, clusterId);
+        setter = TextMapInjectAdapter.SETTER;
+      }
+      LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>();
+      sortedTags.put(DIRECTION_TAG, DIRECTION_OUT);
+      if (clusterId != null) {
+        sortedTags.put(KAFKA_CLUSTER_ID_TAG, clusterId);
+      }
+      sortedTags.put(TOPIC_TAG, record.topic());
+      sortedTags.put(TYPE_TAG, "kafka");
+      try {
+        propagate().inject(span, record.headers(), setter);
+        if (STREAMING_CONTEXT.empty() || STREAMING_CONTEXT.isSinkTopic(record.topic())) {
+          // inject the context in the headers, but delay sending the stats until we know the
+          // message size.
+          // The stats are saved in the pathway context and sent in PayloadSizeAdvice.
+          propagate()
+              .injectPathwayContextWithoutSendingStats(span, record.headers(), setter, sortedTags);
+          AvroSchemaExtractor.tryExtractProducer(record, span);
         }
         sortedTags.put(TOPIC_TAG, record.topic());
         sortedTags.put(TYPE_TAG, "kafka");
@@ -166,7 +181,6 @@ public final class KafkaProducerInstrumentation extends InstrumenterModule.Traci
           SETTER.injectTimeInQueue(record.headers());
         }
       }
-
       return activateSpan(span);
     }
 
