@@ -100,11 +100,14 @@ final class TracerFlareService {
     scheduler.schedule(
         () -> {
           try {
+            if (!Files.isDirectory(triagePath)) {
+              Files.createDirectories(triagePath);
+            }
             Path reportPath = triagePath.resolve(getFlareName());
             log.info("Writing triage report to {}", reportPath);
             Files.write(reportPath, buildFlareZip(true));
-          } catch (IOException e) {
-            throw new RuntimeException(e);
+          } catch (Throwable e) {
+            log.info("Problem writing triage report", e);
           } finally {
             cleanupAfterFlare();
           }
