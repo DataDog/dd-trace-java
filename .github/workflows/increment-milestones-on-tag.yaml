@@ -4,7 +4,7 @@ on:
 
 jobs:
   increment_milestone:
-    if: github.event.ref_type == 'tag' && github.event.master_branch == 'master'
+    if: github.event.ref_type == 'tag' && contains(github.ref_name,'-RC') == false && github.event.master_branch == 'master'
     runs-on: ubuntu-latest
     steps:
       - name: Get milestone title
