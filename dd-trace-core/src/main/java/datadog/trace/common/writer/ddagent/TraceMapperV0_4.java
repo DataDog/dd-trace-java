@@ -254,8 +254,9 @@ public final class TraceMapperV0_4 implements TraceMapper {
       while (header.hasRemaining()) {
         channel.write(header);
       }
-      while (body.hasRemaining()) {
-        channel.write(body);
+      ByteBuffer copyBody = body.duplicate();
+      while (copyBody.hasRemaining()) {
+        channel.write(copyBody);
       }
     }
 
