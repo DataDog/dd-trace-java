@@ -3,13 +3,6 @@ def openTelemetryVersion = '1.32.0-alpha' // TODO 2.0.0 coming soon
 apply from: "$rootDir/gradle/java.gradle"
 apply plugin: 'otel-converter'
 
-configurations {
-  javaagent {
-    visible false // Only accessible inside this project
-    transitive false // Only fetch javaagent modules and not their dependencies
-  }
-}
-
 dependencies {
   compileOnly group: 'io.opentelemetry', name: 'opentelemetry-api', version: openTelemetryVersion
   compileOnly group: 'com.google.auto.value', name: 'auto-value-annotations', version: '1.6.6'
@@ -18,21 +11,3 @@ dependencies {
   implementation group: 'io.opentelemetry.instrumentation', name: 'opentelemetry-grpc-1.6', version: openTelemetryVersion
   javaagent group: 'io.opentelemetry.javaagent.instrumentation', name: 'opentelemetry-javaagent-grpc-1.6', version: openTelemetryVersion
 }
-
-def javaAgentDirectory = layout.buildDirectory.dir('javaagent').get()
-
-
-tasks.register('fetchJavaAgent', Copy) {
-  description 'Fetch and extract OpenTelemetry javaagent artifacts'
-  configurations.javaagent.each {
-    from(zipTree(it)) {
-      include '**/*.class'
-      // TODO Include META-INF like native-image configuration?
-      // TODO Include resource files?
-    }
-  }
-  into javaAgentDirectory
-}
-
-build.dependsOn convertOtelJavaAgent
-convertOtelJavaAgent.dependsOn fetchJavaAgent
