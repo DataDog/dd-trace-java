@@ -33,10 +33,14 @@ public class MethodHandles {
         (PrivilegedAction<MethodHandle>)
             () -> {
               try {
-                SecurityManager sm = System.getSecurityManager();
-                if (sm != null) {
-                  String packageName = clazz.getPackage().getName();
-                  sm.checkPackageAccess(packageName);
+                try {
+                  SecurityManager sm = System.getSecurityManager();
+                  if (sm != null) {
+                    String packageName = clazz.getPackage().getName();
+                    sm.checkPackageAccess(packageName);
+                  }
+                } catch (UnsupportedOperationException e) {
+                  // ignore
                 }
 
                 Field field = clazz.getDeclaredField(fieldName);
@@ -64,10 +68,14 @@ public class MethodHandles {
         (PrivilegedAction<MethodHandle>)
             () -> {
               try {
-                SecurityManager sm = System.getSecurityManager();
-                if (sm != null) {
-                  String packageName = clazz.getPackage().getName();
-                  sm.checkPackageAccess(packageName);
+                try {
+                  SecurityManager sm = System.getSecurityManager();
+                  if (sm != null) {
+                    String packageName = clazz.getPackage().getName();
+                    sm.checkPackageAccess(packageName);
+                  }
+                } catch (UnsupportedOperationException e) {
+                  // ignore
                 }
 
                 Field field = clazz.getDeclaredField(fieldName);
@@ -95,10 +103,14 @@ public class MethodHandles {
         (PrivilegedAction<MethodHandle>)
             () -> {
               try {
-                SecurityManager sm = System.getSecurityManager();
-                if (sm != null) {
-                  String packageName = clazz.getPackage().getName();
-                  sm.checkPackageAccess(packageName);
+                try {
+                  SecurityManager sm = System.getSecurityManager();
+                  if (sm != null) {
+                    String packageName = clazz.getPackage().getName();
+                    sm.checkPackageAccess(packageName);
+                  }
+                } catch (UnsupportedOperationException e) {
+                  // ignore
                 }
 
                 Constructor<?> constructor = clazz.getDeclaredConstructor(parameterTypes);
@@ -126,10 +138,14 @@ public class MethodHandles {
         (PrivilegedAction<MethodHandle>)
             () -> {
               try {
-                SecurityManager sm = System.getSecurityManager();
-                if (sm != null) {
-                  String packageName = clazz.getPackage().getName();
-                  sm.checkPackageAccess(packageName);
+                try {
+                  SecurityManager sm = System.getSecurityManager();
+                  if (sm != null) {
+                    String packageName = clazz.getPackage().getName();
+                    sm.checkPackageAccess(packageName);
+                  }
+                } catch (UnsupportedOperationException e) {
+                  // ignore
                 }
 
                 Method method = clazz.getDeclaredMethod(methodName, parameterTypes);
@@ -153,10 +169,14 @@ public class MethodHandles {
         (PrivilegedAction<MethodHandle>)
             () -> {
               try {
-                SecurityManager sm = System.getSecurityManager();
-                if (sm != null) {
-                  String packageName = clazz.getPackage().getName();
-                  sm.checkPackageAccess(packageName);
+                try {
+                  SecurityManager sm = System.getSecurityManager();
+                  if (sm != null) {
+                    String packageName = clazz.getPackage().getName();
+                    sm.checkPackageAccess(packageName);
+                  }
+                } catch (UnsupportedOperationException e) {
+                  // ignore
                 }
 
                 Method[] methods = clazz.getDeclaredMethods();

@@ -78,7 +78,7 @@ class SpringSchedulingTest extends AgentTestRunner {
     assertTraces(1) {
       trace(1) {
         span {
-          resourceNameContains("LambdaTaskConfigurer\$\$Lambda\$")
+          resourceNameContains("LambdaTaskConfigurer\$\$Lambda")
           operationName "scheduled.call"
           parent()
           errored false
