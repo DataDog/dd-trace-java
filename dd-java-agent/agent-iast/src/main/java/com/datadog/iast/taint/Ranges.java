@@ -5,6 +5,8 @@ import static datadog.trace.api.iast.VulnerabilityMarks.NOT_MARKED;
 
 import com.datadog.iast.model.Range;
 import com.datadog.iast.model.Source;
+import com.datadog.iast.util.HttpHeader;
+import datadog.trace.api.iast.SourceTypes;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -213,6 +215,30 @@ public final class Ranges {
       }
     }
     return ranges[0];
+  }
+
+  /**
+   * Checks if all ranges are coming from the header, in case no ranges are provided it will return
+   * {@code true}
+   */
+  public static boolean allRangesFromHeader(
+      @Nonnull final String header, @Nonnull final Range[] ranges) {
+    for (Range range : ranges) {
+      final Source source = range.getSource();
+      if (source.getOrigin() != SourceTypes.REQUEST_HEADER_VALUE) {
+        return false;
+      }
+      if (!header.equalsIgnoreCase(source.getName())) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  /** @see #allRangesFromHeader(String, Range[]) */
+  public static boolean allRangesFromHeader(
+      @Nonnull final HttpHeader header, @Nonnull final Range[] ranges) {
+    return allRangesFromHeader(header.name, ranges);
   }
 
   public static Range[] newArray(final long size) {

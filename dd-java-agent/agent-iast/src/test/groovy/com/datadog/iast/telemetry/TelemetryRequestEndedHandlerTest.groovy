@@ -17,7 +17,7 @@ import datadog.trace.api.internal.TraceSegment
 import groovy.transform.CompileDynamic
 import groovy.transform.ToString
 
-import static com.datadog.iast.telemetry.TelemetryRequestEndedHandler.TRACE_METRIC_PATTERN
+import static com.datadog.iast.telemetry.TelemetryRequestEndedHandler.TRACE_METRIC_PREFIX
 import static datadog.trace.api.iast.telemetry.IastMetric.*
 
 @CompileDynamic
@@ -79,7 +79,7 @@ class TelemetryRequestEndedHandlerTest extends IastModuleImplTestBase {
 
     then:
     1 * delegate.apply(reqCtx, span)
-    1 * traceSegment.setTagTop(String.format(TRACE_METRIC_PATTERN, getSpanTagValue(metric)), 1)
+    1 * traceSegment.setTagTop(TRACE_METRIC_PREFIX + getSpanTagValue(metric), 1)
 
     when:
     globalCollector.prepareMetrics()
@@ -104,7 +104,7 @@ class TelemetryRequestEndedHandlerTest extends IastModuleImplTestBase {
     then: 'request scoped metrics are propagated to the span'
     1 * delegate.apply(reqCtx, span)
     metrics.findAll { it.metric.scope == Scope.REQUEST }.each {
-      1 * traceSegment.setTagTop(String.format(TRACE_METRIC_PATTERN, getSpanTagValue(it.metric, it.tagValue)), it.value)
+      1 * traceSegment.setTagTop(TRACE_METRIC_PREFIX + getSpanTagValue(it.metric, it.tagValue), it.value)
     }
 
     when:

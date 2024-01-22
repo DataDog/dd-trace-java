@@ -191,14 +191,14 @@ public class IastMetricCollector implements MetricCollector<IastMetricCollector.
       }
       final String tag = metric.getTag().toString(tagValue);
       final String spanTag = tag.toLowerCase(Locale.ROOT).replace('.', '_');
-      return String.format("%s.%s", metric.getName(), spanTag);
+      return metric.getName() + "." + spanTag;
     }
 
     public static String computeTag(final IastMetric metric, final byte tagValue) {
       if (metric.getTag() == null) {
         return null;
       }
-      return String.format("%s:%s", metric.getTag().getName(), metric.getTag().toString(tagValue));
+      return metric.getTag().getName() + ":" + metric.getTag().toString(tagValue);
     }
   }
 
