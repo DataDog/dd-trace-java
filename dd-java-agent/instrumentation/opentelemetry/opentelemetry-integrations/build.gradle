@@ -11,3 +11,8 @@ dependencies {
   implementation group: 'io.opentelemetry.instrumentation', name: 'opentelemetry-grpc-1.6', version: openTelemetryVersion
   javaagent group: 'io.opentelemetry.javaagent.instrumentation', name: 'opentelemetry-javaagent-grpc-1.6', version: openTelemetryVersion
 }
+
+forbiddenApisMain {
+  // Exclude converted OTel integrations
+  exclude('io/opentelemetry/javaagent/instrumentation/**')
+}
