@@ -137,6 +137,22 @@ public class ConfigurationPoller
     this.addListener(product, new SimpleProductListener(useDeserializer(deserializer, listener)));
   }
 
+  public synchronized void addListener(
+      Product product, String configKey, ProductListener listener) {
+    ProductState productState =
+        this.productStates.computeIfAbsent(product, p -> new ProductState(product));
+    productState.addProductListener(configKey, listener);
+  }
+
+  public synchronized <T> void addListener(
+      Product product,
+      String configKey,
+      ConfigurationDeserializer<T> deserializer,
+      ConfigurationChangesTypedListener<T> listener) {
+    this.addListener(
+        product, configKey, new SimpleProductListener(useDeserializer(deserializer, listener)));
+  }
+
   public synchronized void removeListeners(Product product) {
     this.productStates.remove(product);
   }
