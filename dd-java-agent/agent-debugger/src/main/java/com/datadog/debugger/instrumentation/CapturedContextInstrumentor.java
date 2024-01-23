@@ -39,6 +39,8 @@ import datadog.trace.util.Strings;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.Type;
 import org.objectweb.asm.tree.AbstractInsnNode;
@@ -120,6 +122,19 @@ public class CapturedContextInstrumentor extends Instrumentor {
       }
       if (beforeLabel != null) {
         InsnList insnList = new InsnList();
+        if (isSingleLine) {
+          TryCatchBlockNode catchHandler = findCatchHandler(beforeLabel);
+          if (catchHandler != null && !isExceptionLocalDeclared(catchHandler, methodNode)) {
+            // empty catch block does not declare exception local variable - we add it
+            int idx = addExceptionLocal(catchHandler, methodNode);
+            // store exception in the new local variable
+            // stack [exception]
+            insnList.add(new InsnNode(Opcodes.DUP));
+            // stack [exception, exception]
+            insnList.add(new VarInsnNode(Opcodes.ASTORE, idx));
+            // stack [exception]
+          }
+        }
         ldc(insnList, Type.getObjectType(classNode.name));
         // stack [class, array]
         pushProbesIds(insnList);
@@ -168,6 +183,71 @@ public class CapturedContextInstrumentor extends Instrumentor {
       }
     }
     return true;
+  }
+
+  private int addExceptionLocal(TryCatchBlockNode catchHandler, MethodNode methodNode) {
+    AbstractInsnNode current = catchHandler.handler;
+    while (current != null
+        && (current.getType() == AbstractInsnNode.LABEL
+            || current.getType() == AbstractInsnNode.LINE)) {
+      current = current.getNext();
+    }
+    if (current.getOpcode() != Opcodes.ASTORE) {
+      reportWarning("Cannot add exception local variable to catch block - no store instruction.");
+      return -1;
+    }
+    int exceptionLocalIdx = ((VarInsnNode) current).var;
+    Set<String> localNames =
+        methodNode.localVariables.stream()
+            .map(localVariableNode -> localVariableNode.name)
+            .collect(Collectors.toSet());
+    // find next label assume this is the end of the handler
+    while (current != null && current.getType() != AbstractInsnNode.LABEL) {
+      current = current.getNext();
+    }
+    if (current == null) {
+      reportWarning("Cannot add exception local variable to catch block - no end of handler.");
+      return -1;
+    }
+    LabelNode end = (LabelNode) current;
+    for (int i = 0; i < 100; i++) {
+      String exceptionLocalName = "ex" + i;
+      if (!localNames.contains(exceptionLocalName)) {
+        methodNode.localVariables.add(
+            new LocalVariableNode(
+                exceptionLocalName,
+                "L" + catchHandler.type + ";",
+                null,
+                catchHandler.handler,
+                end,
+                exceptionLocalIdx));
+        return exceptionLocalIdx;
+      }
+    }
+    return -1;
+  }
+
+  private TryCatchBlockNode findCatchHandler(LabelNode targetLine) {
+    for (TryCatchBlockNode tryCatchBlockNode : methodNode.tryCatchBlocks) {
+      if (tryCatchBlockNode.handler == targetLine) {
+        return tryCatchBlockNode;
+      }
+    }
+    return null;
+  }
+
+  private boolean isExceptionLocalDeclared(TryCatchBlockNode catchHandler, MethodNode methodNode) {
+    if (methodNode.localVariables == null || methodNode.localVariables.isEmpty()) {
+      return false;
+    }
+    String catchDesc =
+        catchHandler.type != null ? "L" + catchHandler.type + ";" : "Ljava/lang/Throwable;";
+    for (LocalVariableNode local : methodNode.localVariables) {
+      if (catchDesc.equals(local.desc)) {
+        return true;
+      }
+    }
+    return false;
   }
 
   @Override
