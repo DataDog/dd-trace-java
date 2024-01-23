@@ -100,11 +100,14 @@ final class TracerFlareService {
     scheduler.schedule(
         () -> {
           try {
+            if (!Files.isDirectory(triagePath)) {
+              Files.createDirectories(triagePath);
+            }
             Path reportPath = triagePath.resolve(getFlareName());
             log.info("Writing triage report to {}", reportPath);
             Files.write(reportPath, buildFlareZip(true));
-          } catch (IOException e) {
-            throw new RuntimeException(e);
+          } catch (Throwable e) {
+            log.info("Problem writing triage report", e);
           } finally {
             cleanupAfterFlare();
           }
@@ -214,7 +217,7 @@ final class TracerFlareService {
   }
 
   private void addPrelude(ZipOutputStream zip) throws IOException {
-    TracerFlare.addText(zip, "version.txt", DDTraceCoreInfo.VERSION);
+    TracerFlare.addText(zip, "tracer_version.txt", DDTraceCoreInfo.VERSION);
     TracerFlare.addText(zip, "classpath.txt", System.getProperty("java.class.path"));
     TracerFlare.addText(zip, "initial_config.txt", config.toString());
     TracerFlare.addText(zip, "dynamic_config.txt", dynamicConfig.toString());

@@ -7,6 +7,7 @@ import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.NOT_FO
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.NOT_HERE
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.PATH_PARAM
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.REDIRECT
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SECURE_SUCCESS
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
 
 import datadog.trace.agent.test.asserts.TraceAssert
@@ -24,6 +25,7 @@ import datadog.trace.instrumentation.springweb6.SetupSpecHelper
 import datadog.trace.instrumentation.springweb6.SpringWebHttpServerDecorator
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
+import okhttp3.Credentials
 import okhttp3.FormBody
 import okhttp3.Request
 import okhttp3.RequestBody
@@ -226,6 +228,30 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
 
     where:
     testPassword << ["password", "dfsdföääöüüä", "🤓"]
+  }
+
+  def "test authenticated request"() {
+    setup:
+    injectSysConfig("trace.servlet.principal.enabled", "true")
+
+    def request = request(SECURE_SUCCESS, "GET", null)
+      .header("Authorization", Credentials.basic("test", "password"))
+      .build()
+
+    when:
+    def response = client.newCall(request).execute()
+
+    then:
+    response.code() == 200
+
+    and:
+    assertTraces(1) {
+      trace(3) {
+        serverSpan(it, null, null, "GET", SECURE_SUCCESS, ["user.principal": "test"])
+        handlerSpan(it, SECURE_SUCCESS)
+        controllerSpan(it)
+      }
+    }
   }
 
   def "test not-here"() {

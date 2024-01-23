@@ -13,10 +13,12 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
+import okhttp3.HttpUrl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -112,6 +114,18 @@ public class ProbeStatusSink {
       }
     }
     return serializedDiagnostics;
+  }
+
+  public HttpUrl getUrl() {
+    return diagnosticUploader.getUrl();
+  }
+
+  public Map<String, String> getProbeStatuses() {
+    Map<String, String> result = new HashMap<>();
+    for (Map.Entry<String, TimedMessage> entry : probeStatuses.entrySet()) {
+      result.put(entry.getKey(), entry.getValue().getMessage().toString());
+    }
+    return result;
   }
 
   List<ProbeStatus> getDiagnostics() {

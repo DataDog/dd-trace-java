@@ -26,7 +26,7 @@ public final class AdviceUtils {
       GenericClassValue.of(
           type -> {
             String name = type.getName();
-            int lambdaIdx = name.lastIndexOf("$$Lambda$");
+            int lambdaIdx = name.lastIndexOf("$$Lambda");
             if (lambdaIdx > -1) {
               return UTF8BytesString.create(
                   name.substring(name.lastIndexOf('.') + 1, lambdaIdx) + ".lambda");

@@ -53,6 +53,7 @@ import datadog.trace.core.CoreTracer;
 import datadog.trace.core.DDSpan;
 import groovy.lang.GroovyClassLoader;
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.lang.instrument.ClassFileTransformer;
 import java.lang.instrument.Instrumentation;
@@ -782,10 +783,18 @@ public class CapturedSnapshotTest {
     Snapshot snapshot = assertOneSnapshot(listener);
     assertCaptureThrowable(
         snapshot.getCaptures().getReturn(),
-        "java.lang.IllegalStateException",
+        "CapturedSnapshot05$CustomException",
         "oops",
         "CapturedSnapshot05.triggerUncaughtException",
-        7);
+        8);
+    Map<String, String> expectedFields = new HashMap<>();
+    expectedFields.put("detailMessage", "oops");
+    expectedFields.put("additionalMsg", "I did it again");
+    assertCaptureLocals(
+        snapshot.getCaptures().getReturn(),
+        "@exception",
+        "CapturedSnapshot05$CustomException",
+        expectedFields);
   }
 
   @Test
@@ -801,11 +810,14 @@ public class CapturedSnapshotTest {
                         DSL.and(
                             DSL.instanceOf(
                                 DSL.ref("@exception"),
-                                DSL.value("java.lang.IllegalStateException")),
+                                DSL.value("CapturedSnapshot05$CustomException")),
                             DSL.eq(
                                 DSL.getMember(DSL.ref("@exception"), "detailMessage"),
-                                DSL.value("oops")))),
-                    "@exception instanceof \"java.lang.IllegalStateException\" and @exception.detailMessage == 'oops'"))
+                                DSL.value("oops")),
+                            DSL.eq(
+                                DSL.getMember(DSL.ref("@exception"), "additionalMsg"),
+                                DSL.value("I did it again")))),
+                    "@exception instanceof \"CapturedSnapshot05$CustomException\" and @exception.detailMessage == 'oops' and @exception.additionalMsg == 'I did it again'"))
             .template(LOG_TEMPLATE, parseTemplate(LOG_TEMPLATE))
             .build();
     DebuggerTransformerTest.TestSnapshotListener listener = installProbes(CLASS_NAME, probe);
@@ -820,10 +832,10 @@ public class CapturedSnapshotTest {
     assertEquals("exception msg=oops", snapshot.getMessage());
     assertCaptureThrowable(
         snapshot.getCaptures().getReturn(),
-        "java.lang.IllegalStateException",
+        "CapturedSnapshot05$CustomException",
         "oops",
         "CapturedSnapshot05.triggerUncaughtException",
-        7);
+        8);
   }
 
   @Test
@@ -841,7 +853,45 @@ public class CapturedSnapshotTest {
         "java.lang.IllegalStateException",
         "oops",
         "CapturedSnapshot05.triggerCaughtException",
-        12);
+        13);
+  }
+
+  @Test
+  public void lineEmptyCaughtException() throws IOException, URISyntaxException {
+    final String CLASS_NAME = "CapturedSnapshot05";
+    LogProbe probe1 = createProbe(PROBE_ID1, CLASS_NAME, "triggerSwallowedException", null, "26");
+    LogProbe probe2 = createProbe(PROBE_ID2, CLASS_NAME, "triggerSwallowedException", null, "29");
+    LogProbe probe3 = createProbe(PROBE_ID3, CLASS_NAME, "triggerSwallowedException", null, "32");
+    DebuggerTransformerTest.TestSnapshotListener listener =
+        installProbes(CLASS_NAME, probe1, probe2, probe3);
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    int result = Reflect.on(testClass).call("main", "triggerSwallowedException").get();
+    assertEquals(-1, result);
+    List<Snapshot> snapshots = assertSnapshots(listener, 3, PROBE_ID1, PROBE_ID2, PROBE_ID3);
+    Snapshot snapshot0 = snapshots.get(0);
+    Map<String, String> expectedFields0 = new HashMap<>();
+    expectedFields0.put("detailMessage", "oops");
+    assertCaptureLocals(
+        snapshot0.getCaptures().getLines().get(26),
+        "ex0",
+        IllegalStateException.class.getTypeName(),
+        expectedFields0);
+    Snapshot snapshot1 = snapshots.get(1);
+    Map<String, String> expectedFields1 = new HashMap<>();
+    expectedFields1.put("detailMessage", "nope!");
+    assertCaptureLocals(
+        snapshot1.getCaptures().getLines().get(29),
+        "ex",
+        IllegalArgumentException.class.getTypeName(),
+        expectedFields1);
+    Snapshot snapshot2 = snapshots.get(2);
+    Map<String, String> expectedFields2 = new HashMap<>();
+    expectedFields2.put("detailMessage", "not there");
+    assertCaptureLocals(
+        snapshot2.getCaptures().getLines().get(32),
+        "ex",
+        FileNotFoundException.class.getTypeName(),
+        expectedFields2);
   }
 
   @Test
@@ -1604,14 +1654,14 @@ public class CapturedSnapshotTest {
     Snapshot snapshot = assertOneSnapshot(listener);
     assertCaptureThrowable(
         snapshot.getCaptures().getReturn(),
-        "java.lang.IllegalStateException",
+        "CapturedSnapshot05$CustomException",
         "oops",
         "CapturedSnapshot05.triggerUncaughtException",
-        7);
+        8);
     assertEquals(2, snapshot.getEvaluationErrors().size());
     assertEquals("Cannot find symbol: after", snapshot.getEvaluationErrors().get(0).getMessage());
     assertEquals(
-        "java.lang.IllegalStateException: oops",
+        "CapturedSnapshot05$CustomException: oops",
         snapshot.getEvaluationErrors().get(1).getMessage());
   }
 

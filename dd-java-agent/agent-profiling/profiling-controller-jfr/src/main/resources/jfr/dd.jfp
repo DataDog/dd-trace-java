@@ -1,7 +1,6 @@
 jdk.ThreadAllocationStatistics#enabled=true
 jdk.ThreadAllocationStatistics#period=everyChunk
-jdk.ClassLoadingStatistics#enabled=true
-jdk.ClassLoadingStatistics#period=1000 ms
+jdk.ClassLoadingStatistics#enabled=false
 jdk.ClassLoaderStatistics#enabled=true
 jdk.ClassLoaderStatistics#period=everyChunk
 jdk.JavaThreadStatistics#enabled=true
