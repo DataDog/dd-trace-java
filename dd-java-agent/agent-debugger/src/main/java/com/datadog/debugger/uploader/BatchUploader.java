@@ -178,6 +178,10 @@ public class BatchUploader {
     return client;
   }
 
+  public HttpUrl getUrl() {
+    return urlBase;
+  }
+
   private void makeUploadRequest(byte[] json, String tags) {
     int contentLength = json.length;
     // use RequestBody.create(MediaType, byte[]) to avoid changing Content-Type to

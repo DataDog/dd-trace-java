@@ -330,6 +330,7 @@ class TestTelemetryRouter extends TelemetryRouter {
         if (l.getTracerTime() != null) {
           map.put("tracer_time", l.getTracerTime())
         }
+        map.put("count", l.getCount())
         expected.add(map)
       }
       assert this.payload['logs'] == expected

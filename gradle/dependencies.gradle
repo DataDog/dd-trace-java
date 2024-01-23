@@ -18,8 +18,8 @@ final class CachedData {
     scala         : "2.11.12",  // Last version to support Java 7 (2.12+ require Java 8+)
     scala210      : "2.10.7",
     scala211      : "2.11.12",
-    scala212      : "2.12.12",
-    scala213      : "2.13.4",
+    scala212      : "2.12.18",
+    scala213      : "2.13.11",
     truth         : "1.1.3",
     kotlin        : "1.6.21",
     coroutines    : "1.3.0",
@@ -78,7 +78,10 @@ final class CachedData {
     ],
     mockito              : [
       "org.mockito:mockito-core:${versions.mockito}",
-      "org.mockito:mockito-junit-jupiter:${versions.mockito}"
+      "org.mockito:mockito-junit-jupiter:${versions.mockito}",
+      // needed for Java 21 support
+      "net.bytebuddy:byte-buddy:${versions.bytebuddy}",
+      "net.bytebuddy:byte-buddy-agent:${versions.bytebuddy}"
     ],
     testcontainers       : "org.testcontainers:testcontainers:${versions.testcontainers}",
     testLogging          : [

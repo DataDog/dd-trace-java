@@ -130,9 +130,6 @@ class LegacyAws2ClientForkedTest extends AgentTestRunner {
               if (operation == "PutObject") {
                 "aws.storage.class" "GLACIER"
               }
-              if (operation == "PutObject" || operation == "GetObject") {
-                "aws.object.key" "somekey"
-              }
             } else if (service == "Sqs" && operation == "CreateQueue") {
               "aws.queue.name" "somequeue"
               "queuename" "somequeue"
@@ -268,9 +265,6 @@ class LegacyAws2ClientForkedTest extends AgentTestRunner {
             if (service == "S3") {
               "aws.bucket.name" "somebucket"
               "bucketname" "somebucket"
-              if (operation == "PutObject" || operation == "GetObject") {
-                "aws.object.key" "somekey"
-              }
             } else if (service == "Sqs" && operation == "CreateQueue") {
               "aws.queue.name" "somequeue"
               "queuename" "somequeue"
@@ -406,7 +400,6 @@ class LegacyAws2ClientForkedTest extends AgentTestRunner {
             "aws.agent" "java-aws-sdk"
             "aws.bucket.name" "somebucket"
             "bucketname" "somebucket"
-            "aws.object.key" "somekey"
             errorTags SdkClientException, "Unable to execute HTTP request: Read timed out"
             defaultTags()
           }

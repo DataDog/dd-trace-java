@@ -13,6 +13,7 @@ import datadog.remoteconfig.ConfigurationPoller;
 import datadog.remoteconfig.Product;
 import datadog.remoteconfig.SizeCheckedInputStream;
 import datadog.trace.api.Config;
+import datadog.trace.api.flare.TracerFlare;
 import datadog.trace.bootstrap.debugger.DebuggerContext;
 import datadog.trace.bootstrap.debugger.util.Redaction;
 import java.io.ByteArrayOutputStream;
@@ -24,6 +25,7 @@ import java.lang.instrument.Instrumentation;
 import java.lang.ref.WeakReference;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.zip.ZipOutputStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -111,6 +113,7 @@ public class DebuggerAgent {
     } else {
       LOGGER.debug("No configuration poller available from SharedCommunicationObjects");
     }
+    TracerFlare.addReporter(new DebuggerReporter(configurationUpdater, sink));
   }
 
   private static String getDiagnosticEndpoint(
@@ -244,6 +247,47 @@ public class DebuggerAgent {
           LOGGER.warn("Failed to shutdown SnapshotUploader", ex);
         }
       }
+    }
+  }
+
+  static class DebuggerReporter implements TracerFlare.Reporter {
+
+    private final ConfigurationUpdater configurationUpdater;
+    private final DebuggerSink sink;
+
+    public DebuggerReporter(ConfigurationUpdater configurationUpdater, DebuggerSink sink) {
+      this.configurationUpdater = configurationUpdater;
+      this.sink = sink;
+    }
+
+    @Override
+    public void addReportToFlare(ZipOutputStream zip) throws IOException {
+      String content =
+          "Snapshot url: "
+              + sink.getSnapshotUploader().getUrl()
+              + System.lineSeparator()
+              + "Diagnostic url: "
+              + sink.getProbeStatusSink().getUrl()
+              + System.lineSeparator()
+              + "SymbolDB url: "
+              + sink.getSymbolSink().getUrl()
+              + System.lineSeparator()
+              + "Probe definitions:"
+              + System.lineSeparator()
+              + configurationUpdater.getAppliedDefinitions()
+              + System.lineSeparator()
+              + "Instrumented probes:"
+              + System.lineSeparator()
+              + configurationUpdater.getInstrumentationResults()
+              + System.lineSeparator()
+              + "Probe statuses:"
+              + System.lineSeparator()
+              + sink.getProbeStatusSink().getProbeStatuses()
+              + System.lineSeparator()
+              + "SymbolDB stats:"
+              + System.lineSeparator()
+              + sink.getSymbolSink().getStats();
+      TracerFlare.addText(zip, "dynamic_instrumentation.txt", content);
     }
   }
 }

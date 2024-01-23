@@ -140,9 +140,6 @@ abstract class Aws2ClientTest extends VersionedNamingTestBase {
               if (operation == "PutObject") {
                 "aws.storage.class" "GLACIER"
               }
-              if (operation == "PutObject" || operation == "GetObject") {
-                "aws.object.key" "somekey"
-              }
               peerServiceFrom("aws.bucket.name")
               checkPeerService = true
             } else if (service == "Sqs" && operation == "CreateQueue") {
@@ -273,9 +270,6 @@ abstract class Aws2ClientTest extends VersionedNamingTestBase {
             if (service == "S3") {
               "aws.bucket.name" "somebucket"
               "bucketname" "somebucket"
-              if (operation == "PutObject" || operation == "GetObject") {
-                "aws.object.key" "somekey"
-              }
               peerServiceFrom("aws.bucket.name")
               checkPeerService = true
             } else if (service == "Sqs" && operation == "CreateQueue") {
@@ -401,7 +395,6 @@ abstract class Aws2ClientTest extends VersionedNamingTestBase {
             "aws.agent" "java-aws-sdk"
             "aws.bucket.name" "somebucket"
             "bucketname" "somebucket"
-            "aws.object.key" "somekey"
             errorTags SdkClientException, "Unable to execute HTTP request: Read timed out"
             peerServiceFrom("aws.bucket.name")
             defaultTags()

@@ -419,6 +419,8 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     AUTH_REQUIRED("authRequired", 200, null),
     LOGIN("login", 302, null),
     UNKNOWN("", 451, null), // This needs to have a valid status code
+    // should be used to test secure area success (i.e. under access control)
+    SECURE_SUCCESS("secure/success", 200, null),
 
     private final String path
     private final String rawPath
