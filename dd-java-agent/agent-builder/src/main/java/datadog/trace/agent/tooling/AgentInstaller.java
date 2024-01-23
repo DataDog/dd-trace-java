@@ -9,7 +9,6 @@ import datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers;
 import datadog.trace.agent.tooling.bytebuddy.memoize.MemoizedMatchers;
 import datadog.trace.agent.tooling.bytebuddy.outline.TypePoolFacade;
 import datadog.trace.agent.tooling.usm.UsmExtractorImpl;
-import datadog.trace.agent.tooling.usm.UsmMessageFactoryImpl;
 import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.api.Platform;
 import datadog.trace.api.ProductActivation;
@@ -106,7 +105,6 @@ public class AgentInstaller {
     }
 
     if (enabledSystems.contains(Instrumenter.TargetSystem.USM)) {
-      UsmMessageFactoryImpl.registerAsSupplier();
       UsmExtractorImpl.registerAsSupplier();
     }
 

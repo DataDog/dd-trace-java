@@ -10,13 +10,13 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.instrumentation.sslsocket.UsmFilterInputStream;
 import datadog.trace.bootstrap.instrumentation.sslsocket.UsmFilterOutputStream;
-import datadog.trace.bootstrap.instrumentation.usm.UsmConnection;
-import datadog.trace.bootstrap.instrumentation.usm.UsmExtractor;
-import datadog.trace.bootstrap.instrumentation.usm.UsmMessage;
-import datadog.trace.bootstrap.instrumentation.usm.UsmMessageFactory;
+import datadog.trace.bootstrap.instrumentation.usm.Connection;
+import datadog.trace.bootstrap.instrumentation.usm.Extractor;
+import datadog.trace.bootstrap.instrumentation.usm.MessageEncoder;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.Inet6Address;
+import java.nio.Buffer;
 import javax.net.ssl.SSLSocket;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
@@ -57,15 +57,15 @@ public final class SslSocketInstrumentation extends Instrumenter.Usm
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void close(@Advice.This final SSLSocket socket) {
       boolean isIPv6 = socket.getLocalAddress() instanceof Inet6Address;
-      UsmConnection connection =
-          new UsmConnection(
+      Connection connection =
+          new Connection(
               socket.getLocalAddress(),
               socket.getLocalPort(),
               socket.getInetAddress(),
               socket.getPort(),
               isIPv6);
-      UsmMessage message = UsmMessageFactory.Supplier.getCloseMessage(connection);
-      UsmExtractor.Supplier.send(message);
+      Buffer message = MessageEncoder.encode(MessageEncoder.CLOSE_CONNECTION, connection);
+      Extractor.Supplier.send(message);
     }
   }
 

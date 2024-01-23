@@ -139,7 +139,6 @@ public class Agent {
   private static boolean iastEnabled = false;
   private static boolean cwsEnabled = false;
   private static boolean ciVisibilityEnabled = false;
-  private static boolean usmEnabled = false;
   private static boolean telemetryEnabled = true;
   private static boolean debuggerEnabled = false;
 
@@ -206,7 +205,6 @@ public class Agent {
     jmxFetchEnabled = isFeatureEnabled(AgentFeature.JMXFETCH);
     profilingEnabled = isFeatureEnabled(AgentFeature.PROFILING);
     iastEnabled = isFeatureEnabled(AgentFeature.IAST);
-    usmEnabled = isFeatureEnabled(AgentFeature.USM);
     appSecEnabled = isFeatureEnabled(AgentFeature.APPSEC);
     appSecFullyDisabled = isAppSecFullyDisabled();
     remoteConfigEnabled = isFeatureEnabled(AgentFeature.REMOTE_CONFIG);
