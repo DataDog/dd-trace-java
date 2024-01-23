@@ -13,7 +13,9 @@ muzzle {
     assertInverse = true
   }
 }
-
+configurations.all {
+  resolutionStrategy.deactivateDependencyLocking()
+}
 apply from: "$rootDir/gradle/java.gradle"
 
 addTestSuiteForDir('latestDepTest', 'test')
