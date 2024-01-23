@@ -29,8 +29,8 @@ class OtelConverterPlugin implements Plugin<Project> {
     }
     // Create and initialize extension
     def extension = project.extensions.create('otelConverter', OtelConverterExtension)
-    extension.sourceDirectory.convention(project.layout.buildDirectory.dir('javaagent'))
-    extension.targetDirectory.convention(project.layout.buildDirectory.dir('classes'))
+    extension.sourceDirectory.convention(project.layout.buildDirectory.dir('classes/java/javaagent'))
+    extension.targetDirectory.convention(project.layout.buildDirectory.dir('classes/java/main'))
     // Register tasks
     def fetchTask = project.tasks.register('fetchOtelJavaAgent', FetchJavaAgent).get()
     def convertTask = project.tasks.register('convertOtelJavaAgent', ConvertJavaAgent).get()
