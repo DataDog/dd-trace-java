@@ -75,7 +75,7 @@ class DDTelemetryLoggerTest extends LogValidatingSpecification {
 
     then:
     collection.size() == 1
-    collection[0].message() == format
+    collection[0].message == format
 
     where:
     call << allLogLevels
@@ -94,7 +94,7 @@ class DDTelemetryLoggerTest extends LogValidatingSpecification {
 
     then:
     collection.size() == 1
-    collection[0].message() == format
+    collection[0].message == format
 
     where:
     call << allLogLevels
@@ -114,7 +114,7 @@ class DDTelemetryLoggerTest extends LogValidatingSpecification {
 
     then:
     collection.size() == 1
-    collection[0].message() == format
+    collection[0].message == format
 
     where:
     call << allLogLevels
@@ -134,7 +134,7 @@ class DDTelemetryLoggerTest extends LogValidatingSpecification {
 
     then:
     collection.size() == 1
-    collection[0].message() == format
+    collection[0].message == format
 
     where:
     call << allLogLevels
