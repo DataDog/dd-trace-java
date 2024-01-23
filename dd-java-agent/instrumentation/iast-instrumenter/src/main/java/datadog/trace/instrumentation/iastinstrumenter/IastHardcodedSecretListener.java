@@ -50,16 +50,19 @@ public class IastHardcodedSecretListener implements Advices.Listener {
         }
       }
       if (!literals.isEmpty()) {
-        onStringLiteral(literals, type.getName(), classFile);
+        onStringLiteral(iastModule, literals, type.getName(), classFile);
       }
     }
   }
 
   private void onStringLiteral(
-      final Set<String> literals, final String clazz, final byte[] classFile) {
+      final HardcodedSecretModule module,
+      final Set<String> literals,
+      final String clazz,
+      final byte[] classFile) {
     Map<String, String> secrets = getSecrets(literals);
     if (secrets != null) {
-      iastSecretClassReader.readClass(secrets, classFile, new ReportSecretConsumer(clazz));
+      iastSecretClassReader.readClass(secrets, classFile, new ReportSecretConsumer(module, clazz));
     }
   }
 
@@ -84,13 +87,16 @@ public class IastHardcodedSecretListener implements Advices.Listener {
 
     private final String clazz;
 
-    public ReportSecretConsumer(final String clazz) {
+    private final HardcodedSecretModule module;
+
+    public ReportSecretConsumer(final HardcodedSecretModule module, final String clazz) {
+      this.module = module;
       this.clazz = clazz;
     }
 
     @Override
     public void accept(String method, String value, Integer currentLine) {
-      InstrumentationBridge.HARDCODED_SECRET.onHardcodedSecret(value, method, clazz, currentLine);
+      module.onHardcodedSecret(value, method, clazz, currentLine);
     }
   }
 }

@@ -41,7 +41,7 @@ class IastHardcodedSecretListenerTest extends AgentTestRunner{
     final method = 'method'
     final value = 'value'
     final line = 1
-    final consumer = new IastHardcodedSecretListener.ReportSecretConsumer(clazz)
+    final consumer = new IastHardcodedSecretListener.ReportSecretConsumer(module,clazz)
 
     when:
     consumer.accept(method, value, line)

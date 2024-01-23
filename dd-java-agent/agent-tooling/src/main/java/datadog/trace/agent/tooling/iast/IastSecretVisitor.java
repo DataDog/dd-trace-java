@@ -55,12 +55,10 @@ public class IastSecretVisitor extends ClassVisitor {
         if (literal.length() < HardcodedSecretMatcher.MIN_SECRET_LENGTH) {
           return;
         }
-        secrets.forEach(
-            (key, value) -> {
-              if (key.equals(literal)) {
-                consumer.accept(method, value, currentLine);
-              }
-            });
+        String value = secrets.get(literal);
+        if (value != null) {
+          consumer.accept(method, value, currentLine);
+        }
       }
     }
   }
