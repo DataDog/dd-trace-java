@@ -27,12 +27,8 @@ class GrpcRequestMessageHandlerTest extends IastModuleImplTestBase {
   void setup() {
     propagation = Spy(new PropagationModuleImpl())
     InstrumentationBridge.registerIastModule(propagation)
-  }
-
-  @Override
-  protected IastRequestContext buildIastRequestContext() {
     collector = Spy(new IastMetricCollector())
-    return new IastRequestContext(TaintedObjects.NoOp.INSTANCE, collector)
+    ctx.collector = collector
   }
 
   void 'the handler does nothing without propagation'() {

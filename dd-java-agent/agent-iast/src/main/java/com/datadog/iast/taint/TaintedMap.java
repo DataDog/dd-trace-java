@@ -1,6 +1,7 @@
 package com.datadog.iast.taint;
 
 import com.datadog.iast.IastSystem;
+import com.datadog.iast.util.Wrapper;
 import datadog.trace.api.Config;
 import datadog.trace.api.iast.telemetry.IastMetric;
 import datadog.trace.api.iast.telemetry.IastMetricCollector;
@@ -54,16 +55,28 @@ public interface TaintedMap extends Iterable<TaintedObject> {
   int DEFAULT_MAX_BUCKET_SIZE = 10;
 
   /** Max age of entries contained in the map (worst case will be {@code 2 * maxAge}) */
-  int DEFAULT_MAX_AGE = 30;
+  int DEFAULT_MAX_AGE = 5;
 
   TimeUnit DEFAULT_MAX_AGE_UNIT = TimeUnit.MINUTES;
 
-  static TaintedMap build() {
-    return build(DEFAULT_CAPACITY);
+  /**
+   * Builds an instance suitable to be used while in short-lived contexts (e.g. a request), in that
+   * cases no purge will happen as they will be cleared on the end of the context.
+   */
+  static TaintedMap build(final int capacity) {
+    final TaintedMapImpl map =
+        new TaintedMapImpl(capacity, DEFAULT_MAX_BUCKET_SIZE, -1, null, null);
+    return IastSystem.DEBUG ? new Debug(map) : map;
   }
 
-  static TaintedMap build(final int capacity) {
-    final TaintedMapImpl map = new TaintedMapImpl(capacity);
+  /**
+   * Builds an instance suitable to be used in long lived-context (e.g a global instance), in that
+   * case there is a purge logic that will clear stale entries according to the scheduled interval.
+   */
+  static TaintedMap buildWithPurge(final int capacity, int maxAge, TimeUnit maxAgeUnit) {
+    final TaintedMapImpl map =
+        new TaintedMapImpl(
+            capacity, DEFAULT_MAX_BUCKET_SIZE, maxAge, maxAgeUnit, AgentTaskScheduler.INSTANCE);
     return IastSystem.DEBUG ? new Debug(map) : map;
   }
 
@@ -101,8 +114,8 @@ public interface TaintedMap extends Iterable<TaintedObject> {
 
     /**
      * Creates a new hash map with the given capacity, a max bucket size of {@link
-     * #DEFAULT_MAX_BUCKET_SIZE}, a max age of {@link #DEFAULT_MAX_AGE} with {@link
-     * #DEFAULT_MAX_AGE_UNIT} units.
+     * #DEFAULT_MAX_BUCKET_SIZE} and a max age of {@link #DEFAULT_MAX_AGE} with {@link
+     * #DEFAULT_MAX_AGE_UNIT} units
      */
     TaintedMapImpl(int capacity) {
       this(capacity, DEFAULT_MAX_BUCKET_SIZE, DEFAULT_MAX_AGE, DEFAULT_MAX_AGE_UNIT);
@@ -126,15 +139,18 @@ public interface TaintedMap extends Iterable<TaintedObject> {
         final int capacity,
         final int maxBucketSize,
         final int maxAge,
-        final TimeUnit maxAgeUnit,
-        final AgentTaskScheduler scheduler) {
+        @Nullable final TimeUnit maxAgeUnit,
+        @Nullable final AgentTaskScheduler scheduler) {
       table = new TaintedObject[capacity];
       lengthMask = table.length - 1;
       generation = true;
       this.maxBucketSize = maxBucketSize;
       final Verbosity verbosity = Config.get().getIastTelemetryVerbosity();
       collectFlatBucketMetric = IastMetric.TAINTED_FLAT_MODE.isEnabled(verbosity);
-      scheduler.weakScheduleAtFixedRate(this, maxAge, maxAge, maxAgeUnit);
+      generation = true;
+      if (scheduler != null) {
+        scheduler.weakScheduleAtFixedRate(this, maxAge, maxAge, maxAgeUnit);
+      }
     }
 
     /**
@@ -312,7 +328,7 @@ public interface TaintedMap extends Iterable<TaintedObject> {
     }
   }
 
-  class Debug implements TaintedMap {
+  class Debug implements TaintedMap, Wrapper<TaintedMapImpl> {
 
     static final Logger LOGGER = LoggerFactory.getLogger(TaintedMap.class);
 
@@ -356,6 +372,11 @@ public interface TaintedMap extends Iterable<TaintedObject> {
     @Override
     public Iterator<TaintedObject> iterator() {
       return delegate.iterator();
+    }
+
+    @Override
+    public TaintedMapImpl unwrap() {
+      return delegate;
     }
 
     protected void computeStatistics() {

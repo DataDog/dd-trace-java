@@ -1,17 +1,15 @@
 package com.datadog.iast.taint;
 
-import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_MAX_CONCURRENT_REQUESTS;
 import static java.util.Collections.emptyIterator;
 
 import com.datadog.iast.IastSystem;
 import com.datadog.iast.model.Range;
 import com.datadog.iast.model.json.TaintedObjectEncoding;
-import datadog.trace.api.Config;
+import com.datadog.iast.util.Wrapper;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.UUID;
-import java.util.concurrent.ArrayBlockingQueue;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.slf4j.Logger;
@@ -20,36 +18,24 @@ import org.slf4j.LoggerFactory;
 @SuppressWarnings("UnusedReturnValue")
 public interface TaintedObjects extends Iterable<TaintedObject> {
 
+  static TaintedObjects build(@Nonnull final TaintedMap map) {
+    final TaintedObjectsImpl taintedObjects = new TaintedObjectsImpl(map);
+    return IastSystem.DEBUG ? new TaintedObjectsDebugAdapter(taintedObjects) : taintedObjects;
+  }
+
   @Nullable
   TaintedObject taint(@Nonnull Object obj, @Nonnull Range[] ranges);
 
   @Nullable
   TaintedObject get(@Nonnull Object obj);
 
-  void release();
+  void clear();
 
   int count();
 
-  static TaintedObjects acquire() {
-    TaintedObjectsImpl taintedObjects = TaintedObjectsImpl.pool.poll();
-    if (taintedObjects == null) {
-      taintedObjects = new TaintedObjectsImpl();
-    }
-    return IastSystem.DEBUG ? new TaintedObjectsDebugAdapter(taintedObjects) : taintedObjects;
-  }
-
   class TaintedObjectsImpl implements TaintedObjects {
 
-    private static final ArrayBlockingQueue<TaintedObjectsImpl> pool =
-        new ArrayBlockingQueue<>(
-            Math.max(
-                Config.get().getIastMaxConcurrentRequests(), DEFAULT_IAST_MAX_CONCURRENT_REQUESTS));
-
     private final TaintedMap map;
-
-    public TaintedObjectsImpl() {
-      this(TaintedMap.build());
-    }
 
     private TaintedObjectsImpl(final @Nonnull TaintedMap map) {
       this.map = map;
@@ -70,9 +56,8 @@ public interface TaintedObjects extends Iterable<TaintedObject> {
     }
 
     @Override
-    public void release() {
+    public void clear() {
       map.clear();
-      pool.offer(this);
     }
 
     @Override
@@ -87,7 +72,7 @@ public interface TaintedObjects extends Iterable<TaintedObject> {
     }
   }
 
-  final class TaintedObjectsDebugAdapter implements TaintedObjects {
+  final class TaintedObjectsDebugAdapter implements TaintedObjects, Wrapper<TaintedObjectsImpl> {
     static final Logger LOGGER = LoggerFactory.getLogger(TaintedObjects.class);
 
     private final TaintedObjectsImpl delegated;
@@ -114,19 +99,19 @@ public interface TaintedObjects extends Iterable<TaintedObject> {
     }
 
     @Override
-    public void release() {
+    public void clear() {
       if (IastSystem.DEBUG && LOGGER.isDebugEnabled()) {
         try {
           final List<TaintedObject> entries = new ArrayList<>();
           for (final TaintedObject to : delegated.map) {
             entries.add(to);
           }
-          LOGGER.debug("release {}: map={}", id, TaintedObjectEncoding.toJson(entries));
+          LOGGER.debug("clear {}: map={}", id, TaintedObjectEncoding.toJson(entries));
         } catch (final Throwable e) {
           LOGGER.error("Failed to debug tainted objects release", e);
         }
       }
-      delegated.release();
+      delegated.clear();
     }
 
     @Override
@@ -149,6 +134,11 @@ public interface TaintedObjects extends Iterable<TaintedObject> {
         }
       }
     }
+
+    @Override
+    public TaintedObjectsImpl unwrap() {
+      return delegated;
+    }
   }
 
   final class NoOp implements TaintedObjects {
@@ -168,7 +158,7 @@ public interface TaintedObjects extends Iterable<TaintedObject> {
     }
 
     @Override
-    public void release() {}
+    public void clear() {}
 
     @Override
     public int count() {
