@@ -1,5 +1,6 @@
 package com.datadog.debugger.instrumentation;
 
+import com.datadog.debugger.agent.Generated;
 import com.datadog.debugger.probe.ProbeDefinition;
 import datadog.trace.bootstrap.debugger.ProbeId;
 import java.util.Arrays;
@@ -78,5 +79,22 @@ public class InstrumentationResult {
 
   public String getMethodName() {
     return methodName;
+  }
+
+  @Generated
+  @Override
+  public String toString() {
+    return "InstrumentationResult{"
+        + "status="
+        + status
+        + ", diagnostics="
+        + diagnostics
+        + ", typeName='"
+        + typeName
+        + '\''
+        + ", methodName='"
+        + methodName
+        + '\''
+        + '}';
   }
 }

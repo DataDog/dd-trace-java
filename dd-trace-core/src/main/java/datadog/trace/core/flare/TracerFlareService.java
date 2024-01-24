@@ -17,8 +17,13 @@ import java.io.IOException;
 import java.lang.management.ManagementFactory;
 import java.lang.management.ThreadInfo;
 import java.lang.management.ThreadMXBean;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Collections;
 import java.util.concurrent.TimeUnit;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.zip.ZipOutputStream;
 import okhttp3.HttpUrl;
 import okhttp3.MediaType;
@@ -35,7 +40,11 @@ final class TracerFlareService {
 
   private static final String FLARE_ENDPOINT = "tracer_flare/v1";
 
+  private static final String REPORT_PREFIX = "dd-java-flare-";
+
   private static final MediaType OCTET_STREAM = MediaType.get("application/octet-stream");
+
+  private static final Pattern DELAY_TRIGGER = Pattern.compile("(\\d+)([HhMmSs]?)");
 
   private final AgentTaskScheduler scheduler = new AgentTaskScheduler(TRACER_FLARE);
 
@@ -60,6 +69,51 @@ final class TracerFlareService {
     this.okHttpClient = okHttpClient;
     this.flareUrl = agentUrl.newBuilder().addPathSegments(FLARE_ENDPOINT).build();
     this.tracer = tracer;
+
+    applyTriageReportTrigger(config.getTriageReportTrigger());
+  }
+
+  private void applyTriageReportTrigger(String triageTrigger) {
+    if (null != triageTrigger && !triageTrigger.isEmpty()) {
+      Matcher delayMatcher = DELAY_TRIGGER.matcher(triageTrigger);
+      if (delayMatcher.matches()) {
+        long delay = Integer.parseInt(delayMatcher.group(1));
+        String unit = delayMatcher.group(2);
+        if ("H".equalsIgnoreCase(unit)) {
+          delay = TimeUnit.HOURS.toSeconds(delay);
+        } else if ("M".equalsIgnoreCase(unit)) {
+          delay = TimeUnit.MINUTES.toSeconds(delay);
+        } else {
+          // already in seconds
+        }
+        scheduleTriageReport(delay);
+      } else {
+        log.info("Unrecognized triage trigger {}", triageTrigger);
+      }
+    }
+  }
+
+  private void scheduleTriageReport(long delayInSeconds) {
+    Path triagePath = Paths.get(config.getTriageReportDir());
+    // prepare at most 10 minutes before collection of the report, to match remote flare behaviour
+    scheduler.schedule(() -> prepareForFlare("triage"), delayInSeconds - 600, TimeUnit.SECONDS);
+    scheduler.schedule(
+        () -> {
+          try {
+            if (!Files.isDirectory(triagePath)) {
+              Files.createDirectories(triagePath);
+            }
+            Path reportPath = triagePath.resolve(getFlareName());
+            log.info("Writing triage report to {}", reportPath);
+            Files.write(reportPath, buildFlareZip(true));
+          } catch (Throwable e) {
+            log.info("Problem writing triage report", e);
+          } finally {
+            cleanupAfterFlare();
+          }
+        },
+        delayInSeconds,
+        TimeUnit.SECONDS);
   }
 
   public synchronized void prepareForFlare(String logLevel) {
@@ -112,8 +166,6 @@ final class TracerFlareService {
   void doSend(String caseId, String email, String hostname, boolean dumpThreads) {
     log.debug("Sending tracer flare");
     try {
-      String flareName = "java-flare-" + caseId + "-" + System.currentTimeMillis() + ".zip";
-
       RequestBody report = RequestBody.create(OCTET_STREAM, buildFlareZip(dumpThreads));
 
       RequestBody form =
@@ -123,7 +175,7 @@ final class TracerFlareService {
               .addFormDataPart("case_id", caseId)
               .addFormDataPart("email", email)
               .addFormDataPart("hostname", hostname)
-              .addFormDataPart("flare_file", flareName, report)
+              .addFormDataPart("flare_file", getFlareName(), report)
               .build();
 
       Request flareRequest =
@@ -144,6 +196,10 @@ final class TracerFlareService {
     }
   }
 
+  private String getFlareName() {
+    return REPORT_PREFIX + config.getRuntimeId() + "-" + System.currentTimeMillis() + ".zip";
+  }
+
   private byte[] buildFlareZip(boolean dumpThreads) throws IOException {
     try (ByteArrayOutputStream bytes = new ByteArrayOutputStream();
         ZipOutputStream zip = new ZipOutputStream(bytes)) {
@@ -161,7 +217,7 @@ final class TracerFlareService {
   }
 
   private void addPrelude(ZipOutputStream zip) throws IOException {
-    TracerFlare.addText(zip, "version.txt", DDTraceCoreInfo.VERSION);
+    TracerFlare.addText(zip, "tracer_version.txt", DDTraceCoreInfo.VERSION);
     TracerFlare.addText(zip, "classpath.txt", System.getProperty("java.class.path"));
     TracerFlare.addText(zip, "initial_config.txt", config.toString());
     TracerFlare.addText(zip, "dynamic_config.txt", dynamicConfig.toString());

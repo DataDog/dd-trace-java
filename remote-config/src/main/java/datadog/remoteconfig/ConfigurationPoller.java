@@ -32,6 +32,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -68,7 +69,7 @@ public class ConfigurationPoller
   private final long maxPayloadSize;
   private final boolean integrityChecks;
 
-  private final Map<Product, ProductState> productStates = new HashMap<>();
+  private final Map<Product, ProductState> productStates = new EnumMap<>(Product.class);
   private final Map<File, ConfigurationChangesListener> fileListeners = new HashMap<>();
   private final List<ConfigurationEndListener> configurationEndListeners = new ArrayList<>();
 
@@ -135,6 +136,22 @@ public class ConfigurationPoller
       ConfigurationDeserializer<T> deserializer,
       ConfigurationChangesTypedListener<T> listener) {
     this.addListener(product, new SimpleProductListener(useDeserializer(deserializer, listener)));
+  }
+
+  public synchronized void addListener(
+      Product product, String configKey, ProductListener listener) {
+    ProductState productState =
+        this.productStates.computeIfAbsent(product, p -> new ProductState(product));
+    productState.addProductListener(configKey, listener);
+  }
+
+  public synchronized <T> void addListener(
+      Product product,
+      String configKey,
+      ConfigurationDeserializer<T> deserializer,
+      ConfigurationChangesTypedListener<T> listener) {
+    this.addListener(
+        product, configKey, new SimpleProductListener(useDeserializer(deserializer, listener)));
   }
 
   public synchronized void removeListeners(Product product) {

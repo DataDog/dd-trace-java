@@ -23,6 +23,8 @@ class SecurityConfig {
       .and()
       .formLogin()
       .and()
+      .httpBasic()
+      .and()
       .authorizeHttpRequests()
       .requestMatchers("/secure/**").authenticated()
       .anyRequest().anonymous()

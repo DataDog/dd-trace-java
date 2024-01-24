@@ -11,6 +11,7 @@ import datadog.trace.agent.tooling.bytebuddy.outline.TypePoolFacade;
 import datadog.trace.agent.tooling.usm.UsmExtractorImpl;
 import datadog.trace.agent.tooling.usm.UsmMessageFactoryImpl;
 import datadog.trace.api.InstrumenterConfig;
+import datadog.trace.api.Platform;
 import datadog.trace.api.ProductActivation;
 import datadog.trace.api.telemetry.IntegrationsCollector;
 import datadog.trace.bootstrap.FieldBackedContextAccessor;
@@ -198,7 +199,9 @@ public class AgentInstaller {
       log.debug("Installed {} instrumenter(s)", installedCount);
     }
 
-    InstrumenterFlare.register();
+    if (!Platform.isNativeImageBuilder()) {
+      InstrumenterFlare.register();
+    }
 
     if (InstrumenterConfig.get().isTelemetryEnabled()) {
       InstrumenterState.setObserver(

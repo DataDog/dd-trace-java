@@ -46,7 +46,7 @@ public class RouteOnSuccessOrError implements Consumer<HandlerFunction<?>> {
     // Router functions containing lambda predicates should not end up in span tags since they are
     // confusing
     if (routerFunctionString.startsWith(
-        "org.springframework.web.reactive.function.server.RequestPredicates$$Lambda$")) {
+        "org.springframework.web.reactive.function.server.RequestPredicates$$Lambda")) {
       return null;
     } else {
       return ROUTER_FUNCTION_REGEX.matcher(routerFunctionString).replaceFirst("");
