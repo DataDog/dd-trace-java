@@ -1,5 +1,6 @@
 package datadog.trace.api.gateway;
 
+import static datadog.trace.api.gateway.Events.GRAPHQL_SERVER_REQUEST_MESSAGE_ID;
 import static datadog.trace.api.gateway.Events.GRPC_SERVER_REQUEST_MESSAGE_ID;
 import static datadog.trace.api.gateway.Events.MAX_EVENTS;
 import static datadog.trace.api.gateway.Events.REQUEST_BODY_CONVERTED_ID;
@@ -330,6 +331,7 @@ public class InstrumentationGateway {
               }
             };
       case GRPC_SERVER_REQUEST_MESSAGE_ID:
+      case GRAPHQL_SERVER_REQUEST_MESSAGE_ID:
       case REQUEST_BODY_CONVERTED_ID:
         return (C)
             new BiFunction<RequestContext, Object, Flow<Void>>() {
