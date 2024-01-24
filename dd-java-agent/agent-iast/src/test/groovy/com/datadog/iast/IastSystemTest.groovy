@@ -1,5 +1,7 @@
 package com.datadog.iast
 
+import datadog.trace.api.config.IastConfig
+import datadog.trace.api.iast.IastContext
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.internal.TraceSegment
 import datadog.trace.api.gateway.InstrumentationGateway
@@ -9,6 +11,11 @@ import datadog.trace.api.gateway.IGSpanInfo
 import datadog.trace.api.gateway.Events
 import datadog.trace.api.gateway.SubscriptionService
 import datadog.trace.test.util.DDSpecification
+
+import static com.datadog.iast.test.TaintedObjectsUtils.noOpTaintedObjects
+import static datadog.trace.api.iast.IastContext.Mode.GLOBAL
+import static datadog.trace.api.iast.IastContext.Mode.REQUEST
+
 
 class IastSystemTest extends DDSpecification {
 
@@ -22,9 +29,8 @@ class IastSystemTest extends DDSpecification {
     final ss = Spy(ig.getSubscriptionService(RequestContextSlot.IAST))
     final cbp = ig.getCallbackProvider(RequestContextSlot.IAST)
     final traceSegment = Mock(TraceSegment)
-    final iastContext = Mock(IastRequestContext) {
-      getTaintedObjects() >> null
-    }
+    final to = noOpTaintedObjects()
+    final iastContext = Spy(new IastRequestContext(to))
     final RequestContext reqCtx = Stub(RequestContext) {
       getTraceSegment() >> traceSegment
       getData(RequestContextSlot.IAST) >> iastContext
@@ -76,5 +82,25 @@ class IastSystemTest extends DDSpecification {
 
     then:
     0 * _
+  }
+
+  void 'start context mode'() {
+    setup:
+    injectSysConfig(IastConfig.IAST_CONTEXT_MODE, mode.name())
+    rebuildConfig()
+    final ig = new InstrumentationGateway()
+    final ss = Spy(ig.getSubscriptionService(RequestContextSlot.IAST))
+
+    when:
+    IastSystem.start(ss)
+
+    then:
+    final provider = IastContext.Provider.INSTANCE
+    assert providerClass.isInstance(provider)
+
+    where:
+    mode    | providerClass
+    GLOBAL  | IastGlobalContext.Provider
+    REQUEST | IastRequestContext.Provider
   }
 }

@@ -252,6 +252,7 @@ import static datadog.trace.api.config.GeneralConfig.TRACE_TRIAGE;
 import static datadog.trace.api.config.GeneralConfig.TRIAGE_REPORT_DIR;
 import static datadog.trace.api.config.GeneralConfig.TRIAGE_REPORT_TRIGGER;
 import static datadog.trace.api.config.GeneralConfig.VERSION;
+import static datadog.trace.api.config.IastConfig.IAST_CONTEXT_MODE;
 import static datadog.trace.api.config.IastConfig.IAST_DEBUG_ENABLED;
 import static datadog.trace.api.config.IastConfig.IAST_DETECTION_MODE;
 import static datadog.trace.api.config.IastConfig.IAST_REDACTION_ENABLED;
@@ -437,6 +438,7 @@ import static datadog.trace.util.Strings.propertyNameToEnvironmentVariableName;
 import datadog.trace.api.config.GeneralConfig;
 import datadog.trace.api.config.ProfilingConfig;
 import datadog.trace.api.config.TracerConfig;
+import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.IastDetectionMode;
 import datadog.trace.api.iast.telemetry.Verbosity;
 import datadog.trace.api.naming.SpanNaming;
@@ -707,6 +709,7 @@ public class Config {
   private final int iastMaxRangeCount;
   private final int iastTruncationMaxValueLength;
   private final boolean iastStacktraceLeakSuppress;
+  private final IastContext.Mode iastContextMode;
 
   private final boolean ciVisibilityTraceSanitationEnabled;
   private final boolean ciVisibilityAgentlessEnabled;
@@ -1563,6 +1566,8 @@ public class Config {
 
     iastDebugEnabled = configProvider.getBoolean(IAST_DEBUG_ENABLED, DEFAULT_IAST_DEBUG_ENABLED);
 
+    iastContextMode =
+        configProvider.getEnum(IAST_CONTEXT_MODE, IastContext.Mode.class, IastContext.Mode.REQUEST);
     iastDetectionMode =
         configProvider.getEnum(IAST_DETECTION_MODE, IastDetectionMode.class, DEFAULT);
     iastMaxConcurrentRequests = iastDetectionMode.getIastMaxConcurrentRequests(configProvider);
@@ -2708,6 +2713,10 @@ public class Config {
 
   public boolean isIastStacktraceLeakSuppress() {
     return iastStacktraceLeakSuppress;
+  }
+
+  public IastContext.Mode getIastContextMode() {
+    return iastContextMode;
   }
 
   public boolean isCiVisibilityEnabled() {
