@@ -33,8 +33,8 @@ public class MakeTaintableInstrumentation extends Instrumenter.Iast
   }
 
   @Override
-  public TransformingAdvice transformer() {
-    return new VisitingAdvice(new TaintableVisitor(knownMatchingTypes()));
+  public void typeAdvice(TypeTransformer transformer) {
+    transformer.applyAdvice(new TaintableVisitor(knownMatchingTypes()));
   }
 
   @Override

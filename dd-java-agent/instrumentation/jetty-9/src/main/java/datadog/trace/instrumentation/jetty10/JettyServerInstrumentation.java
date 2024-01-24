@@ -87,6 +87,11 @@ public final class JettyServerInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
+  public void typeAdvice(TypeTransformer transformer) {
+    transformer.applyAdvice(new HttpChannelHandleVisitorWrapper());
+  }
+
+  @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(takesNoArguments().and(named("handle")), packageName + ".HandleAdvice");
     transformer.applyAdvice(named("recycle").and(takesNoArguments()), packageName + ".ResetAdvice");
@@ -108,10 +113,6 @@ public final class JettyServerInstrumentation extends Instrumenter.Tracing
             "org.eclipse.jetty.io.ManagedSelector",
             "org.eclipse.jetty.util.thread.TimerScheduler",
             "org.eclipse.jetty.util.thread.TimerScheduler$SimpleTask"));
-  }
-
-  public TransformingAdvice transformer() {
-    return new VisitingAdvice(new HttpChannelHandleVisitorWrapper());
   }
 
   public static class HttpChannelHandleVisitorWrapper implements AsmVisitorWrapper {

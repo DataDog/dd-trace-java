@@ -28,6 +28,11 @@ public class ByteBufInputStreamInstrumentation extends Instrumenter.Iast
   }
 
   @Override
+  public void typeAdvice(TypeTransformer transformer) {
+    transformer.applyAdvice(new TaintableVisitor(instrumentedType()));
+  }
+
+  @Override
   public void methodAdvice(final MethodTransformer transformer) {
     transformer.applyAdvice(
         isConstructor()
@@ -37,11 +42,6 @@ public class ByteBufInputStreamInstrumentation extends Instrumenter.Iast
             .and(takesArgument(1, int.class))
             .and(takesArgument(2, boolean.class)),
         ByteBufInputStreamInstrumentation.class.getName() + "$ConstructorAdvice");
-  }
-
-  @Override
-  public TransformingAdvice transformer() {
-    return new VisitingAdvice(new TaintableVisitor(instrumentedType()));
   }
 
   public static class ConstructorAdvice {

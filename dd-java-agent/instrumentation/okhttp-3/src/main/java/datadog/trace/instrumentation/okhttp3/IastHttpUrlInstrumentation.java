@@ -38,6 +38,13 @@ public class IastHttpUrlInstrumentation extends Instrumenter.Iast
   }
 
   @Override
+  public void typeAdvice(TypeTransformer transformer) {
+    if (ENABLE_ADVICE_TRANSFORMER) {
+      transformer.applyAdvice(new TaintableVisitor(instrumentedType()));
+    }
+  }
+
+  @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod()
@@ -60,13 +67,6 @@ public class IastHttpUrlInstrumentation extends Instrumenter.Iast
             .and(takesArguments(1))
             .and(takesArgument(0, String.class)),
         className + "$ParseAdvice");
-  }
-
-  @Override
-  public TransformingAdvice transformer() {
-    return ENABLE_ADVICE_TRANSFORMER
-        ? new VisitingAdvice(new TaintableVisitor(instrumentedType()))
-        : null;
   }
 
   public static class ParseAdvice {

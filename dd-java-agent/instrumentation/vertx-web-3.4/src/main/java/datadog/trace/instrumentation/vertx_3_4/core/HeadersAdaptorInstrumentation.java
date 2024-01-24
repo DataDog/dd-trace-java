@@ -46,6 +46,11 @@ public class HeadersAdaptorInstrumentation extends Instrumenter.Iast
   }
 
   @Override
+  public void typeAdvice(TypeTransformer transformer) {
+    transformer.applyAdvice(new TaintableVisitor(knownMatchingTypes()));
+  }
+
+  @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod().and(isPublic()).and(named("get")).and(takesArguments(1)),
@@ -59,11 +64,6 @@ public class HeadersAdaptorInstrumentation extends Instrumenter.Iast
     transformer.applyAdvice(
         isMethod().and(isPublic()).and(named("names")).and(takesArguments(0)),
         className + "$NamesAdvice");
-  }
-
-  @Override
-  public TransformingAdvice transformer() {
-    return new VisitingAdvice(new TaintableVisitor(knownMatchingTypes()));
   }
 
   public static class GetAdvice {

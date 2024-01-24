@@ -33,15 +33,15 @@ public class IastHttpMethodBaseInstrumentation extends Instrumenter.Iast
   }
 
   @Override
+  public void typeAdvice(TypeTransformer transformer) {
+    transformer.applyAdvice(new TaintableVisitor(instrumentedType()));
+  }
+
+  @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isConstructor().and(takesArguments(1)).and(takesArgument(0, String.class)),
         className + "$CtorAdvice");
-  }
-
-  @Override
-  public TransformingAdvice transformer() {
-    return new VisitingAdvice(new TaintableVisitor(instrumentedType()));
   }
 
   public static class CtorAdvice {

@@ -40,6 +40,17 @@ public abstract class MultiMapInstrumentation extends Instrumenter.Iast {
   protected abstract ElementMatcher.Junction<MethodDescription> matcherForGetAdvice();
 
   @Override
+  public void typeAdvice(TypeTransformer transformer) {
+    String[] classNames;
+    if (this instanceof Instrumenter.ForSingleType) {
+      classNames = new String[] {((Instrumenter.ForSingleType) this).instrumentedType()};
+    } else {
+      classNames = ((Instrumenter.ForKnownTypes) this).knownMatchingTypes();
+    }
+    transformer.applyAdvice(new TaintableVisitor(classNames));
+  }
+
+  @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod().and(isPublic()).and(named("get")).and(matcherForGetAdvice()),
@@ -53,17 +64,6 @@ public abstract class MultiMapInstrumentation extends Instrumenter.Iast {
     transformer.applyAdvice(
         isMethod().and(isPublic()).and(named("names")).and(takesNoArguments()),
         className + "$NamesAdvice");
-  }
-
-  @Override
-  public TransformingAdvice transformer() {
-    String[] classNames;
-    if (this instanceof Instrumenter.ForSingleType) {
-      classNames = new String[] {((Instrumenter.ForSingleType) this).instrumentedType()};
-    } else {
-      classNames = ((Instrumenter.ForKnownTypes) this).knownMatchingTypes();
-    }
-    return new VisitingAdvice(new TaintableVisitor(classNames));
   }
 
   public static class GetAdvice {

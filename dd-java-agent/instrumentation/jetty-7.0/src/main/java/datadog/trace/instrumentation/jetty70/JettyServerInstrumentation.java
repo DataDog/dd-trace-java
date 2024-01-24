@@ -69,6 +69,11 @@ public final class JettyServerInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
+  public void typeAdvice(TypeTransformer transformer) {
+    transformer.applyAdvice(new ConnectionHandleRequestVisitorWrapper());
+  }
+
+  @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isConstructor(), JettyServerInstrumentation.class.getName() + "$ConstructorAdvice");
@@ -78,11 +83,6 @@ public final class JettyServerInstrumentation extends Instrumenter.Tracing
     transformer.applyAdvice(
         named("reset").and(takesArgument(0, boolean.class)),
         JettyServerInstrumentation.class.getName() + "$ResetAdvice");
-  }
-
-  @Override
-  public TransformingAdvice transformer() {
-    return new VisitingAdvice(new ConnectionHandleRequestVisitorWrapper());
   }
 
   public static class ConnectionHandleRequestVisitorWrapper implements AsmVisitorWrapper {

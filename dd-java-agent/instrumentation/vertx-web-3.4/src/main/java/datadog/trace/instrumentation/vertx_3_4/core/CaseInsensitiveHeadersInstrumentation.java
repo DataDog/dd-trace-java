@@ -46,6 +46,11 @@ public class CaseInsensitiveHeadersInstrumentation extends Instrumenter.Iast
   }
 
   @Override
+  public void typeAdvice(TypeTransformer transformer) {
+    transformer.applyAdvice(new TaintableVisitor(instrumentedType()));
+  }
+
+  @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod()
@@ -67,11 +72,6 @@ public class CaseInsensitiveHeadersInstrumentation extends Instrumenter.Iast
     transformer.applyAdvice(
         isMethod().and(isPublic()).and(named("names")).and(takesNoArguments()),
         className + "$NamesAdvice");
-  }
-
-  @Override
-  public TransformingAdvice transformer() {
-    return new VisitingAdvice(new TaintableVisitor(instrumentedType()));
   }
 
   public static class GetAdvice {

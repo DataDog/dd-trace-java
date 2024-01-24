@@ -59,17 +59,17 @@ public class ParsePartsInstrumentation extends Instrumenter.AppSec
   }
 
   @Override
+  public void typeAdvice(TypeTransformer transformer) {
+    transformer.applyAdvice(new ParsePartsVisitorWrapper());
+  }
+
+  @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         named("parseParts")
             .and(takesArguments(0).or(takesArguments(1).and(takesArgument(0, boolean.class))))
             .and(isPrivate()),
         getClass().getName() + "$ParsePartsAdvice");
-  }
-
-  @Override
-  public TransformingAdvice transformer() {
-    return new VisitingAdvice(new ParsePartsVisitorWrapper());
   }
 
   public static class ParsePartsAdvice {

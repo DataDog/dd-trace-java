@@ -52,8 +52,8 @@ public class TaskUnwrappingInstrumentation extends Instrumenter.Profiling
   };
 
   @Override
-  public TransformingAdvice transformer() {
-    return new VisitingAdvice(new UnwrappingVisitor(TYPES_WITH_FIELDS));
+  public void typeAdvice(TypeTransformer transformer) {
+    transformer.applyAdvice(new UnwrappingVisitor(TYPES_WITH_FIELDS));
   }
 
   @Override

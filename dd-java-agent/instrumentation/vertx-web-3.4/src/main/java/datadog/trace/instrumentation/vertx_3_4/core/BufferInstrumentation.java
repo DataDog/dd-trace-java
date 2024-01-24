@@ -38,6 +38,11 @@ public class BufferInstrumentation extends Instrumenter.Iast implements Instrume
   }
 
   @Override
+  public void typeAdvice(TypeTransformer transformer) {
+    transformer.applyAdvice(new TaintableVisitor(instrumentedType()));
+  }
+
+  @Override
   public void methodAdvice(final MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod().and(isPublic()).and(named("toString")), className + "$ToStringAdvice");
@@ -50,11 +55,6 @@ public class BufferInstrumentation extends Instrumenter.Iast implements Instrume
             .and(named("appendBuffer"))
             .and(takesArgument(0, named("io.vertx.core.buffer.Buffer"))),
         className + "$AppendBufferAdvice");
-  }
-
-  @Override
-  public TransformingAdvice transformer() {
-    return new VisitingAdvice(new TaintableVisitor(instrumentedType()));
   }
 
   public static class ToStringAdvice {

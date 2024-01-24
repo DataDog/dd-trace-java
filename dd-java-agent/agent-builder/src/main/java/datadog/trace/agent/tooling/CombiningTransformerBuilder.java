@@ -139,12 +139,8 @@ public final class CombiningTransformerBuilder extends AbstractTransformerBuilde
       registerContextStoreInjection(instrumenter, contextStore);
     }
 
-    Instrumenter.TransformingAdvice customTransformer = instrumenter.transformer();
-    if (customTransformer != null) {
-      advice.add(customTransformer::transform);
-    }
-
     ignoredMethods = instrumenter.methodIgnoreMatcher();
+    instrumenter.typeAdvice(this);
     instrumenter.methodAdvice(this);
     transformers[id] = new AdviceStack(advice);
 
@@ -164,10 +160,16 @@ public final class CombiningTransformerBuilder extends AbstractTransformerBuilde
     matchers.add(new MatchRecorder.ForType(id, named(instrumenter.instrumentedType())));
 
     ignoredMethods = isSynthetic();
+    ((Instrumenter.HasAdvice) instrumenter).typeAdvice(this);
     ((Instrumenter.HasAdvice) instrumenter).methodAdvice(this);
     transformers[id] = new AdviceStack(advice);
 
     advice.clear();
+  }
+
+  @Override
+  public void applyAdvice(Instrumenter.TransformingAdvice typeAdvice) {
+    advice.add(typeAdvice::transform);
   }
 
   @Override

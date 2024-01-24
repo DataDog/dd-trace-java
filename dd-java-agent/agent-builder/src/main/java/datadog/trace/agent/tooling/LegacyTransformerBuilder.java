@@ -77,15 +77,11 @@ public final class LegacyTransformerBuilder extends AbstractTransformerBuilder {
       registerContextStoreInjection(instrumenter, contextStore);
     }
 
-    final Instrumenter.TransformingAdvice customTransformer = instrumenter.transformer();
-    if (customTransformer != null) {
-      adviceBuilder = adviceBuilder.transform(customTransformer::transform);
-    }
-
     agentBuilder = registerAdvice(instrumenter);
   }
 
   private AgentBuilder registerAdvice(Instrumenter.HasAdvice instrumenter) {
+    instrumenter.typeAdvice(this);
     instrumenter.methodAdvice(this);
     return adviceBuilder;
   }
@@ -167,6 +163,11 @@ public final class LegacyTransformerBuilder extends AbstractTransformerBuilder {
         agentBuilder.type(matcher).and(NOT_DECORATOR_MATCHER).transform(defaultTransformers());
 
     agentBuilder = registerAdvice((Instrumenter.HasAdvice) instrumenter);
+  }
+
+  @Override
+  public void applyAdvice(Instrumenter.TransformingAdvice typeAdvice) {
+    adviceBuilder = adviceBuilder.transform(typeAdvice::transform);
   }
 
   @Override

@@ -15,4 +15,7 @@ public abstract class TestInstrumentation
   public void instrument(TransformerBuilder transformerBuilder) {
     transformerBuilder.applyInstrumentation(this);
   }
+
+  @Override
+  public void typeAdvice(TypeTransformer transformer) {}
 }

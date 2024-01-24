@@ -46,6 +46,11 @@ public class VertxHttpHeadersInstrumentation extends Instrumenter.Iast
   }
 
   @Override
+  public void typeAdvice(TypeTransformer transformer) {
+    transformer.applyAdvice(new TaintableVisitor(instrumentedType()));
+  }
+
+  @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod()
@@ -65,11 +70,6 @@ public class VertxHttpHeadersInstrumentation extends Instrumenter.Iast
     transformer.applyAdvice(
         isMethod().and(isPublic()).and(named("names")).and(takesArguments(0)),
         className + "$NamesAdvice");
-  }
-
-  @Override
-  public TransformingAdvice transformer() {
-    return new VisitingAdvice(new TaintableVisitor(instrumentedType()));
   }
 
   public static class GetAdvice {
