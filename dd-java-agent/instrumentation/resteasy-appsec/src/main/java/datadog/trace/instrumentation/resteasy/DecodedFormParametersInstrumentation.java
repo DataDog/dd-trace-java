@@ -52,8 +52,8 @@ public class DecodedFormParametersInstrumentation extends Instrumenter.AppSec
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         named("getDecodedFormParameters").and(takesArguments(0)),
         DecodedFormParametersInstrumentation.class.getName() + "$GetDecodedFormParametersAdvice");
   }

@@ -21,8 +21,8 @@ public class CalleeBenchmarkInstrumentation extends Instrumenter.Default
   }
 
   @Override
-  public void adviceTransformations(final AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(final MethodTransformer transformer) {
+    transformer.applyAdvice(
         named("getParameter").and(takesArguments(String.class)).and(returns(String.class)),
         CallSiteBenchmarkHelper.class.getName());
   }

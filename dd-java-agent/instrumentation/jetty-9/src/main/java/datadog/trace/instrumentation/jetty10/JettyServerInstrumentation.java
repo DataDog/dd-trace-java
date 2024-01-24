@@ -87,14 +87,12 @@ public final class JettyServerInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
-        takesNoArguments().and(named("handle")), packageName + ".HandleAdvice");
-    transformation.applyAdvice(
-        named("recycle").and(takesNoArguments()), packageName + ".ResetAdvice");
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(takesNoArguments().and(named("handle")), packageName + ".HandleAdvice");
+    transformer.applyAdvice(named("recycle").and(takesNoArguments()), packageName + ".ResetAdvice");
 
     if (appSecNotFullyDisabled) {
-      transformation.applyAdvice(
+      transformer.applyAdvice(
           named("handleException").and(takesArguments(1)).and(takesArgument(0, Throwable.class)),
           packageName + ".HandleExceptionAdvice");
     }
@@ -112,8 +110,8 @@ public final class JettyServerInstrumentation extends Instrumenter.Tracing
             "org.eclipse.jetty.util.thread.TimerScheduler$SimpleTask"));
   }
 
-  public AdviceTransformer transformer() {
-    return new VisitingTransformer(new HttpChannelHandleVisitorWrapper());
+  public TransformingAdvice transformer() {
+    return new VisitingAdvice(new HttpChannelHandleVisitorWrapper());
   }
 
   public static class HttpChannelHandleVisitorWrapper implements AsmVisitorWrapper {

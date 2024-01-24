@@ -16,8 +16,8 @@ public class AbstractStringReaderInstrumentation extends Instrumenter.Iast
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         named("fromString").and(isPublic().and(takesArguments(String.class))),
         packageName + ".AbstractStringReaderAdvice");
   }

@@ -34,13 +34,13 @@ public final class AerospikeClientInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isMethod()
             .and(isPublic())
             .and(takesArgument(0, nameStartsWith("com.aerospike.client.policy"))),
         getClass().getName() + "$TraceSyncRequestAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod()
             .and(isPublic())
             .and(takesArgument(1, nameStartsWith("com.aerospike.client.listener"))),

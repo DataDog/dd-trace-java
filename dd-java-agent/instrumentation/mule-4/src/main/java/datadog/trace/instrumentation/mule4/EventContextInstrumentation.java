@@ -41,7 +41,7 @@ public final class EventContextInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(isConstructor(), packageName + ".EventContextCreationAdvice");
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(isConstructor(), packageName + ".EventContextCreationAdvice");
   }
 }

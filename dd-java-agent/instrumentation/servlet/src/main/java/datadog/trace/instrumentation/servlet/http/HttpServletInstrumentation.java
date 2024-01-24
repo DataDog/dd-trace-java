@@ -56,8 +56,8 @@ public final class HttpServletInstrumentation extends Instrumenter.Tracing
    * advice is always called after Servlet3Instrumentation which is instrumenting the public method.
    */
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         named("service")
             .or(nameStartsWith("do")) // doGet, doPost, etc
             .and(takesArgument(0, named("javax.servlet.http.HttpServletRequest")))

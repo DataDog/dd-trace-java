@@ -19,13 +19,13 @@ public final class AnnotationSubstitutionProcessorInstrumentation
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isMethod()
             .and(named("lookup"))
             .and(takesArgument(0, named("jdk.vm.ci.meta.ResolvedJavaField"))),
         packageName + ".DeleteFieldAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod().and(named("findTargetClasses")),
         AnnotationSubstitutionProcessorInstrumentation.class.getName()
             + "$FindTargetClassesAdvice");

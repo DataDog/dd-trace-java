@@ -35,14 +35,14 @@ public class ServerHttpRequestInstrumentation extends Instrumenter.Iast
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isMethod().and(named("getQueryParams")).and(takesArguments(0)),
         packageName + ".TaintQueryParamsAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod().and(named("getCookies")).and(takesArguments(0)),
         packageName + ".TaintCookiesAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod().and(named("getBody")).and(takesArguments(0)),
         packageName + ".TaintGetBodyAdvice");
   }

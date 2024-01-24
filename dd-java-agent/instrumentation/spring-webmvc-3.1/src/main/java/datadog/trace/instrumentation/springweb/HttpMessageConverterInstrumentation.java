@@ -52,8 +52,8 @@ public class HttpMessageConverterInstrumentation extends Instrumenter.AppSec
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isMethod()
             .and(isPublic())
             .and(named("read"))
@@ -61,7 +61,7 @@ public class HttpMessageConverterInstrumentation extends Instrumenter.AppSec
             .and(takesArgument(0, Class.class))
             .and(takesArgument(1, named("org.springframework.http.HttpInputMessage"))),
         HttpMessageConverterInstrumentation.class.getName() + "$HttpMessageConverterReadAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod()
             .and(isPublic())
             .and(named("read"))

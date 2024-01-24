@@ -30,14 +30,14 @@ public class RequestImplInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
+  public void methodAdvice(MethodTransformer transformer) {
     // This advice should never match any methods, and is only here for Muzzle
-    transformation.applyAdvice(none(), packageName + ".RequestImplMuzzle");
+    transformer.applyAdvice(none(), packageName + ".RequestImplMuzzle");
   }
 
   @Override
-  public AdviceTransformer transformer() {
-    return new VisitingTransformer(new RequestImplVisitorWrapper());
+  public TransformingAdvice transformer() {
+    return new VisitingAdvice(new RequestImplVisitorWrapper());
   }
 
   // This Transformer will add the Cloneable interface to RequestImpl, as well

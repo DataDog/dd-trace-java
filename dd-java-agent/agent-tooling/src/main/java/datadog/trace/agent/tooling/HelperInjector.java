@@ -24,7 +24,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Injects instrumentation helper classes into the user's classloader. */
-public class HelperInjector implements Instrumenter.AdviceTransformer {
+public class HelperInjector implements Instrumenter.TransformingAdvice {
   private static final Logger log = LoggerFactory.getLogger(HelperInjector.class);
 
   private final String requestingName;

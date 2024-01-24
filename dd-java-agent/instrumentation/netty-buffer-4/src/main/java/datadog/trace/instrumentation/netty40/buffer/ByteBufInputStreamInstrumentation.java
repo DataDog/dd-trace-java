@@ -28,8 +28,8 @@ public class ByteBufInputStreamInstrumentation extends Instrumenter.Iast
   }
 
   @Override
-  public void adviceTransformations(final AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(final MethodTransformer transformer) {
+    transformer.applyAdvice(
         isConstructor()
             .and(isPublic())
             .and(takesArguments(3))
@@ -40,8 +40,8 @@ public class ByteBufInputStreamInstrumentation extends Instrumenter.Iast
   }
 
   @Override
-  public AdviceTransformer transformer() {
-    return new VisitingTransformer(new TaintableVisitor(instrumentedType()));
+  public TransformingAdvice transformer() {
+    return new VisitingAdvice(new TaintableVisitor(instrumentedType()));
   }
 
   public static class ConstructorAdvice {

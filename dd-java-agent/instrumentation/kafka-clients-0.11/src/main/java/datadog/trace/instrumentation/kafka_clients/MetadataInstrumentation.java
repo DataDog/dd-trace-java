@@ -47,13 +47,13 @@ public class MetadataInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isMethod()
             .and(named("update"))
             .and(takesArgument(0, named("org.apache.kafka.common.Cluster"))),
         MetadataInstrumentation.class.getName() + "$MetadataUpdateBefore22Advice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod()
             .and(named("update"))
             .and(takesArgument(1, named("org.apache.kafka.common.requests.MetadataResponse"))),

@@ -77,7 +77,7 @@ public final class LegacyTransformerBuilder extends AbstractTransformerBuilder {
       registerContextStoreInjection(instrumenter, contextStore);
     }
 
-    final Instrumenter.AdviceTransformer customTransformer = instrumenter.transformer();
+    final Instrumenter.TransformingAdvice customTransformer = instrumenter.transformer();
     if (customTransformer != null) {
       adviceBuilder = adviceBuilder.transform(customTransformer::transform);
     }
@@ -86,7 +86,7 @@ public final class LegacyTransformerBuilder extends AbstractTransformerBuilder {
   }
 
   private AgentBuilder registerAdvice(Instrumenter.HasAdvice instrumenter) {
-    instrumenter.adviceTransformations(this);
+    instrumenter.methodAdvice(this);
     return adviceBuilder;
   }
 
@@ -170,13 +170,13 @@ public final class LegacyTransformerBuilder extends AbstractTransformerBuilder {
   }
 
   @Override
-  public void applyAdvice(ElementMatcher<? super MethodDescription> matcher, String name) {
+  public void applyAdvice(ElementMatcher<? super MethodDescription> matcher, String className) {
     adviceBuilder =
         adviceBuilder.transform(
             new AgentBuilder.Transformer.ForAdvice()
                 .include(Utils.getBootstrapProxy(), Utils.getAgentClassLoader())
                 .withExceptionHandler(ExceptionHandlers.defaultExceptionHandler())
-                .advice(not(ignoreMatcher).and(matcher), name));
+                .advice(not(ignoreMatcher).and(matcher), className));
   }
 
   @Override

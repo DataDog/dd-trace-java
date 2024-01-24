@@ -41,10 +41,10 @@ public final class ThreadedActionListenerInstrumentation extends Instrumenter.Tr
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
+  public void methodAdvice(MethodTransformer transformer) {
     // only one constructor
-    transformation.applyAdvice(isConstructor(), getClass().getName() + "$Construct");
-    transformation.applyAdvice(
+    transformer.applyAdvice(isConstructor(), getClass().getName() + "$Construct");
+    transformer.applyAdvice(
         namedOneOf("onResponse", "onFailure").and(takesArguments(1)),
         getClass().getName() + "$OnResponse");
   }

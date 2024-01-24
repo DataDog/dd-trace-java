@@ -38,15 +38,15 @@ public class QueryImplInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isMethod()
             .and(isPublic())
             .and(named("execute"))
             .and(takesArguments(1))
             .and(takesArgument(0, named("io.vertx.core.Handler"))),
         packageName + ".QueryAdvice$Execute");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod()
             .and(isVirtual())
             .and(named("copy"))

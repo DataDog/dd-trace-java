@@ -19,8 +19,8 @@ public class HeaderParamValueFactoryInstrumentation extends Instrumenter.Iast
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         named("get").and(isPublic()).and(takesArguments(1)),
         HeaderParamValueFactoryInstrumentation.class.getName() + "$InstrumenterAdvice");
   }

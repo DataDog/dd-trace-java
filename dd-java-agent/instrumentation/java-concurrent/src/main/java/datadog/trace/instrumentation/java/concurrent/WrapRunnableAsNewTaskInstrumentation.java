@@ -45,7 +45,7 @@ public final class WrapRunnableAsNewTaskInstrumentation extends Instrumenter.Tra
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
+  public void methodAdvice(MethodTransformer transformer) {
     Junction<MethodDescription> hasExecute =
         isMethod().and(named("execute").and(takesArgument(0, named(Runnable.class.getName()))));
 
@@ -53,10 +53,10 @@ public final class WrapRunnableAsNewTaskInstrumentation extends Instrumenter.Tra
         isDeclaredBy(extendsClass(named("java.util.concurrent.AbstractExecutorService")));
 
     // executors that extend AbstractExecutorService should use 'newTaskFor' wrapper
-    transformation.applyAdvice(hasExecute.and(hasNewTaskFor), getClass().getName() + "$NewTaskFor");
+    transformer.applyAdvice(hasExecute.and(hasNewTaskFor), getClass().getName() + "$NewTaskFor");
 
     // use simple wrapper for executors that don't extend AbstractExecutorService
-    transformation.applyAdvice(hasExecute.and(not(hasNewTaskFor)), getClass().getName() + "$Wrap");
+    transformer.applyAdvice(hasExecute.and(not(hasNewTaskFor)), getClass().getName() + "$Wrap");
   }
 
   // We tolerate a bit of duplication between these advice classes because

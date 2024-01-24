@@ -37,12 +37,12 @@ public class NettyPromiseInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         named("addListener")
             .and(takesArgument(0, named("io.netty.util.concurrent.GenericFutureListener"))),
         NettyPromiseInstrumentation.class.getName() + "$WrapListenerAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         named("addListeners")
             .and(takesArgument(0, named("io.netty.util.concurrent.GenericFutureListener[]"))),
         NettyPromiseInstrumentation.class.getName() + "$WrapListenersAdvice");

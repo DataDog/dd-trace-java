@@ -24,12 +24,12 @@ public class InboundMessageContextInstrumentation extends Instrumenter.Iast
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         named("getHeaders").and(isPublic()).and(takesArguments(0)),
         InboundMessageContextInstrumentation.class.getName() + "$InstrumenterAdviceGetHeaders");
 
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         named("getRequestCookies").and(isPublic()).and(takesArguments(0)),
         InboundMessageContextInstrumentation.class.getName()
             + "$InstrumenterAdviceGetRequestCookies");

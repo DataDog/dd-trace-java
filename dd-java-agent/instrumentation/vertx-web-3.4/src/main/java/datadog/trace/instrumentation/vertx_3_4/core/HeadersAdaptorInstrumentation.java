@@ -46,24 +46,24 @@ public class HeadersAdaptorInstrumentation extends Instrumenter.Iast
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isMethod().and(isPublic()).and(named("get")).and(takesArguments(1)),
         className + "$GetAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod().and(isPublic()).and(named("getAll")).and(takesArguments(1)),
         className + "$GetAllAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod().and(isPublic()).and(named("entries")).and(takesArguments(0)),
         className + "$EntriesAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod().and(isPublic()).and(named("names")).and(takesArguments(0)),
         className + "$NamesAdvice");
   }
 
   @Override
-  public AdviceTransformer transformer() {
-    return new VisitingTransformer(new TaintableVisitor(knownMatchingTypes()));
+  public TransformingAdvice transformer() {
+    return new VisitingAdvice(new TaintableVisitor(knownMatchingTypes()));
   }
 
   public static class GetAdvice {

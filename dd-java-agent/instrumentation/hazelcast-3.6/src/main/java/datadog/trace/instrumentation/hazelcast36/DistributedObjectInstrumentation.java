@@ -70,8 +70,8 @@ public class DistributedObjectInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isMethod()
             .and(isPublic())
             .and(
@@ -184,7 +184,7 @@ public class DistributedObjectInstrumentation extends Instrumenter.Tracing
         getClass().getName() + "$SyncAdvice");
 
     // Async
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod()
             .and(isPublic())
             .and(

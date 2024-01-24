@@ -138,9 +138,9 @@ public interface Instrumenter {
   interface HasAdvice {
     /**
      * Instrumenters should register each advice transformation by calling {@link
-     * AdviceTransformation#applyAdvice(ElementMatcher, String)} one or more times.
+     * MethodTransformer#applyAdvice(ElementMatcher, String)} one or more times.
      */
-    void adviceTransformations(AdviceTransformation transformation);
+    void methodAdvice(MethodTransformer transformer);
   }
 
   /** Instrumentation that transforms types on the bootstrap class-path. */
@@ -265,7 +265,7 @@ public interface Instrumenter {
     }
 
     /** @return A transformer for further transformation of the class */
-    public AdviceTransformer transformer() {
+    public TransformingAdvice transformer() {
       return null;
     }
 
@@ -430,11 +430,11 @@ public interface Instrumenter {
     ClassFileTransformer installOn(Instrumentation instrumentation);
   }
 
-  interface AdviceTransformation {
-    void applyAdvice(ElementMatcher<? super MethodDescription> matcher, String name);
+  interface MethodTransformer {
+    void applyAdvice(ElementMatcher<? super MethodDescription> matcher, String className);
   }
 
-  interface AdviceTransformer {
+  interface TransformingAdvice {
     DynamicType.Builder<?> transform(
         DynamicType.Builder<?> builder,
         TypeDescription typeDescription,
@@ -443,10 +443,10 @@ public interface Instrumenter {
         ProtectionDomain pd);
   }
 
-  final class VisitingTransformer implements AdviceTransformer {
+  final class VisitingAdvice implements TransformingAdvice {
     private final AsmVisitorWrapper visitor;
 
-    public VisitingTransformer(AsmVisitorWrapper visitor) {
+    public VisitingAdvice(AsmVisitorWrapper visitor) {
       this.visitor = visitor;
     }
 

@@ -44,8 +44,8 @@ public class CouchbaseClusterInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isMethod().and(isPublic()).and(returns(named("rx.Observable"))).and(not(named("core"))),
         CouchbaseClusterInstrumentation.class.getName() + "$CouchbaseClientAdvice");
   }

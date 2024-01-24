@@ -43,8 +43,8 @@ public class UrlEncodedInstrumentation extends Instrumenter.AppSec
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         named("decodeTo")
             .and(takesArgument(0, InputStream.class))
             .and(takesArgument(1, named("org.eclipse.jetty.util.MultiMap")))

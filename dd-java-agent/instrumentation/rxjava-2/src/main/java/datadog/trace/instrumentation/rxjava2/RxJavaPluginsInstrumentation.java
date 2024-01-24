@@ -34,8 +34,8 @@ public class RxJavaPluginsInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(isMethod(), getClass().getName() + "$RxJavaPluginsAdvice");
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(isMethod(), getClass().getName() + "$RxJavaPluginsAdvice");
   }
 
   public static class RxJavaPluginsAdvice {

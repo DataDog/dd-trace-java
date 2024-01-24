@@ -29,10 +29,10 @@ class CallSiteInstrumentationTest extends BaseCallSiteTest {
     setup:
     final advice = mockCallSites(Mock(InvokeAdvice), stringConcatPointcut())
     final instrumentation = buildInstrumentation([advice])
-    final mock = Mock(Instrumenter.AdviceTransformation)
+    final mock = Mock(Instrumenter.MethodTransformer)
 
     when:
-    instrumentation.adviceTransformations(mock)
+    instrumentation.methodAdvice(mock)
 
     then:
     0 * mock._

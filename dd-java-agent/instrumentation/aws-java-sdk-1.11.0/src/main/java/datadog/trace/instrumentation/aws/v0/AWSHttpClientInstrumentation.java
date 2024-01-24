@@ -42,8 +42,8 @@ public class AWSHttpClientInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isMethod().and(named("doExecute")),
         AWSHttpClientInstrumentation.class.getName() + "$HttpClientAdvice");
   }
@@ -94,8 +94,8 @@ public class AWSHttpClientInstrumentation extends Instrumenter.Tracing
     }
 
     @Override
-    public void adviceTransformations(AdviceTransformation transformation) {
-      transformation.applyAdvice(
+    public void methodAdvice(MethodTransformer transformer) {
+      transformer.applyAdvice(
           isMethod().and(named("doExecute")),
           RequestExecutorInstrumentation.class.getName() + "$RequestExecutorAdvice");
     }

@@ -49,8 +49,8 @@ public class TransactionInstrumentation extends AbstractHibernateInstrumentation
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isMethod().and(named("commit")).and(takesArguments(0)),
         TransactionInstrumentation.class.getName() + "$TransactionCommitAdvice");
   }

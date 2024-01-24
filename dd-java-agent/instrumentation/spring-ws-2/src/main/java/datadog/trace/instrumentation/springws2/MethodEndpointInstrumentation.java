@@ -23,9 +23,9 @@ public class MethodEndpointInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
+  public void methodAdvice(MethodTransformer transformer) {
     // public Object MethodEndpoint.invoke(Object... args)
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod().and(named("invoke")),
         MethodEndpointInstrumentation.class.getName() + "$InvokeAdvice");
   }

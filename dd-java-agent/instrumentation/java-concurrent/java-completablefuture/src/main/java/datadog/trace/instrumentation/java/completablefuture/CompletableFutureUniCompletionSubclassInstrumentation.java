@@ -39,8 +39,8 @@ public class CompletableFutureUniCompletionSubclassInstrumentation extends Instr
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         named("tryFire").and(takesArguments(int.class)), ADVICE_BASE + "UniSubTryFire");
   }
 }

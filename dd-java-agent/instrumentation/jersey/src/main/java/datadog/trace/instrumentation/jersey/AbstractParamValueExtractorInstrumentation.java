@@ -20,8 +20,8 @@ public class AbstractParamValueExtractorInstrumentation extends Instrumenter.Ias
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         named("fromString").and(isProtected().and(takesArguments(String.class))),
         AbstractParamValueExtractorInstrumentation.class.getName() + "$InstrumenterAdvice");
   }

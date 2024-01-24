@@ -32,9 +32,9 @@ public class SqlConnectionBaseInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
+  public void methodAdvice(MethodTransformer transformer) {
 
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isConstructor()
             .and(takesArguments(4))
             .and(takesArgument(1, named("io.vertx.sqlclient.spi.ConnectionFactory"))),

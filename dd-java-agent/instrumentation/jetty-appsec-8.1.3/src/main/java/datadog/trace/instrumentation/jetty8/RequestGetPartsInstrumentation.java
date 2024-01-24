@@ -59,8 +59,8 @@ public class RequestGetPartsInstrumentation extends Instrumenter.AppSec
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         named("getPart")
             .and(takesArguments(1))
             .and(takesArgument(0, String.class))
@@ -69,8 +69,8 @@ public class RequestGetPartsInstrumentation extends Instrumenter.AppSec
   }
 
   @Override
-  public AdviceTransformer transformer() {
-    return new VisitingTransformer(new GetPartsVisitorWrapper());
+  public TransformingAdvice transformer() {
+    return new VisitingAdvice(new GetPartsVisitorWrapper());
   }
 
   @Override

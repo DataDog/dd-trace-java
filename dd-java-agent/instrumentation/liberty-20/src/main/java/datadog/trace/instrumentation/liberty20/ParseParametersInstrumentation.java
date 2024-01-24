@@ -55,8 +55,8 @@ public class ParseParametersInstrumentation extends Instrumenter.AppSec
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isMethod()
             .and(named("parseParameters"))
             .and(isPublic().or(isProtected()))
@@ -66,8 +66,8 @@ public class ParseParametersInstrumentation extends Instrumenter.AppSec
   }
 
   @Override
-  public AdviceTransformer transformer() {
-    return new VisitingTransformer(new ParseParametersVisitorWrapper());
+  public TransformingAdvice transformer() {
+    return new VisitingAdvice(new ParseParametersVisitorWrapper());
   }
 
   static class ParseParametersAdvice {

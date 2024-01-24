@@ -40,11 +40,11 @@ public final class AkkaForkJoinExecutorTaskInstrumentation extends Instrumenter.
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isConstructor().and(takesArgument(0, named(Runnable.class.getName()))),
         getClass().getName() + "$Construct");
-    transformation.applyAdvice(isMethod().and(named("run")), getClass().getName() + "$Run");
+    transformer.applyAdvice(isMethod().and(named("run")), getClass().getName() + "$Run");
   }
 
   public static final class Construct {

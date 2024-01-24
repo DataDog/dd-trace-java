@@ -77,7 +77,7 @@ public final class TraceAnnotationsInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(isAnnotatedWith(methodTraceMatcher), packageName + ".TraceAdvice");
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(isAnnotatedWith(methodTraceMatcher), packageName + ".TraceAdvice");
   }
 }

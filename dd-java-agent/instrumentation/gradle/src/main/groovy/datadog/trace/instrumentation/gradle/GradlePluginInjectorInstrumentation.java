@@ -47,7 +47,7 @@ public class GradlePluginInjectorInstrumentation extends Instrumenter.CiVisibili
   }
 
   @Override
-  public AdviceTransformer transformer() {
+  public TransformingAdvice transformer() {
     return new HelperInjector(
         "gradle-plugin-injector",
         packageName + ".CiVisibilityService",
@@ -59,5 +59,5 @@ public class GradlePluginInjectorInstrumentation extends Instrumenter.CiVisibili
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {}
+  public void methodAdvice(MethodTransformer transformer) {}
 }

@@ -39,8 +39,8 @@ public final class SpringSchedulingInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isMethod().and(nameStartsWith("schedule")).and(takesArgument(0, Runnable.class)),
         getClass().getName() + "$SpringSchedulingAdvice");
   }

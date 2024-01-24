@@ -82,8 +82,8 @@ public final class JakartaRsAnnotationsInstrumentation extends Instrumenter.Trac
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isMethod().and(hasSuperMethod(isAnnotatedWith(namedOneOf(getJaxRsAnnotations())))),
         JakartaRsAnnotationsInstrumentation.class.getName() + "$JakartaRsAnnotationsAdvice");
   }

@@ -34,8 +34,8 @@ public class PathMatcherInstrumentation extends Instrumenter.Iast
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isConstructor()
             .and(takesArguments(3))
             .and(takesArgument(0, named("org.apache.pekko.http.scaladsl.model.Uri$Path")))

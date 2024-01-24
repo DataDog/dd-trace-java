@@ -45,8 +45,8 @@ public final class HttpServletResponseInstrumentation extends Instrumenter.Traci
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         namedOneOf("sendError", "sendRedirect"),
         HttpServletResponseInstrumentation.class.getName() + "$SendAdvice");
   }

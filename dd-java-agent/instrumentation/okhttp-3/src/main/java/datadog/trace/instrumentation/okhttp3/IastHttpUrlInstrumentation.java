@@ -38,22 +38,22 @@ public class IastHttpUrlInstrumentation extends Instrumenter.Iast
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isMethod()
             .and(isStatic())
             .and(named("parse"))
             .and(takesArguments(1))
             .and(takesArgument(0, String.class)),
         className + "$ParseAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod()
             .and(isStatic())
             .and(named("get"))
             .and(takesArguments(1))
             .and(takesArgument(0, URL.class)),
         className + "$ParseAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod()
             .and(isStatic())
             .and(named("get"))
@@ -63,10 +63,10 @@ public class IastHttpUrlInstrumentation extends Instrumenter.Iast
   }
 
   @Override
-  public AdviceTransformer transformer() {
+  public TransformingAdvice transformer() {
     return DISABLE_ADVICE_TRANSFORMER
         ? null
-        : new VisitingTransformer(new TaintableVisitor(instrumentedType()));
+        : new VisitingAdvice(new TaintableVisitor(instrumentedType()));
   }
 
   public static class ParseAdvice {

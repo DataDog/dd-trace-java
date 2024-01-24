@@ -26,8 +26,8 @@ public final class HandlerMethodReturnValueHandlerCompositeInstrumentation exten
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isMethod().and(named("selectHandler")),
         HandlerMethodReturnValueHandlerCompositeInstrumentation.class.getName() + "$SpringAdvice");
   }

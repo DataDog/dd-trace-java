@@ -30,8 +30,8 @@ public class RatpackRequestBodyInstrumentation extends Instrumenter.AppSec
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         named("readStream").and(takesArguments(0)), packageName + ".RatpackBodyReadStreamAdvice");
   }
 }

@@ -30,14 +30,14 @@ public class HttpServerResponseInstrumentation extends Instrumenter.Iast
   }
 
   @Override
-  public void adviceTransformations(final AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(final MethodTransformer transformer) {
+    transformer.applyAdvice(
         named("putHeader")
             .and(
                 takesArguments(CharSequence.class, CharSequence.class)
                     .or(takesArguments(String.class, String.class))),
         HttpServerResponseInstrumentation.class.getName() + "$PutHeaderAdvice1");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         named("putHeader")
             .and(
                 takesArguments(CharSequence.class, Iterable.class)

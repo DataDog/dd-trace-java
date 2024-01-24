@@ -26,11 +26,11 @@ public class JavaxWSResponseInstrumentation extends Instrumenter.Iast
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         named("header").and(isPublic().and(takesArguments(String.class, Object.class))),
         JavaxWSResponseInstrumentation.class.getName() + "$HeaderAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         named("location").and(isPublic().and(takesArguments(URI.class))),
         JavaxWSResponseInstrumentation.class.getName() + "$RedirectionAdvice");
   }

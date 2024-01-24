@@ -48,11 +48,11 @@ public class HystrixInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         named("getExecutionObservable").and(returns(named("rx.Observable"))),
         HystrixInstrumentation.class.getName() + "$ExecuteAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         named("getFallbackObservable").and(returns(named("rx.Observable"))),
         HystrixInstrumentation.class.getName() + "$FallbackAdvice");
   }

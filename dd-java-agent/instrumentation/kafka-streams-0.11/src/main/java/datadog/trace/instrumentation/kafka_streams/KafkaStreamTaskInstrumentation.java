@@ -84,32 +84,32 @@ public class KafkaStreamTaskInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
+  public void methodAdvice(MethodTransformer transformer) {
     // StreamsConfig was the 4th input argument to StreamTask's constructor in kafka versions 2.6 to
     // 3.1.
     // Starting from 3.2 StreamsConfig was no longer an input argument into StreamTask.
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isConstructor().and(takesArgument(4, named("org.apache.kafka.streams.StreamsConfig"))),
         KafkaStreamTaskInstrumentation.class.getName() + "$Constructor4Advice");
 
     // StreamsConfig was the 5th input argument to StreamTask's constructor in kafka versions 1.1 to
     // 2.5
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isConstructor().and(takesArgument(5, named("org.apache.kafka.streams.StreamsConfig"))),
         KafkaStreamTaskInstrumentation.class.getName() + "$Constructor5Advice");
 
     // StreamsConfig was the 6th input argument to StreamTask's constructor in kafka versions 0.11
     // to 1.0.
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isConstructor().and(takesArgument(6, named("org.apache.kafka.streams.StreamsConfig"))),
         KafkaStreamTaskInstrumentation.class.getName() + "$Constructor6Advice");
 
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod().and(named("addRecords")).and(takesArgument(1, named("java.lang.Iterable"))),
         KafkaStreamTaskInstrumentation.class.getName() + "$UnwrapIterableAdvice");
 
     // Before 2.7
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod()
             .and(named("updateProcessorContext"))
             .and(
@@ -120,7 +120,7 @@ public class KafkaStreamTaskInstrumentation extends Instrumenter.Tracing
                     1, named("org.apache.kafka.streams.processor.internals.ProcessorNode"))),
         KafkaStreamTaskInstrumentation.class.getName() + "$StartSpanAdvice");
     // After 2.7
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod()
             .and(named("updateProcessorContext"))
             .and(
@@ -132,7 +132,7 @@ public class KafkaStreamTaskInstrumentation extends Instrumenter.Tracing
                     named("org.apache.kafka.streams.processor.internals.ProcessorRecordContext"))),
         KafkaStreamTaskInstrumentation.class.getName() + "$StartSpanAdvice27");
 
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod()
             .and(isPublic())
             .and(named("process"))

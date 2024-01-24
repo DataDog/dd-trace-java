@@ -139,13 +139,13 @@ public final class CombiningTransformerBuilder extends AbstractTransformerBuilde
       registerContextStoreInjection(instrumenter, contextStore);
     }
 
-    Instrumenter.AdviceTransformer customTransformer = instrumenter.transformer();
+    Instrumenter.TransformingAdvice customTransformer = instrumenter.transformer();
     if (customTransformer != null) {
       advice.add(customTransformer::transform);
     }
 
     ignoredMethods = instrumenter.methodIgnoreMatcher();
-    instrumenter.adviceTransformations(this);
+    instrumenter.methodAdvice(this);
     transformers[id] = new AdviceStack(advice);
 
     advice.clear();
@@ -164,14 +164,14 @@ public final class CombiningTransformerBuilder extends AbstractTransformerBuilde
     matchers.add(new MatchRecorder.ForType(id, named(instrumenter.instrumentedType())));
 
     ignoredMethods = isSynthetic();
-    ((Instrumenter.HasAdvice) instrumenter).adviceTransformations(this);
+    ((Instrumenter.HasAdvice) instrumenter).methodAdvice(this);
     transformers[id] = new AdviceStack(advice);
 
     advice.clear();
   }
 
   @Override
-  public void applyAdvice(ElementMatcher<? super MethodDescription> matcher, String name) {
+  public void applyAdvice(ElementMatcher<? super MethodDescription> matcher, String className) {
     Advice.WithCustomMapping customMapping = Advice.withCustomMapping();
     if (postProcessor != null) {
       customMapping = customMapping.with(postProcessor);
@@ -180,7 +180,7 @@ public final class CombiningTransformerBuilder extends AbstractTransformerBuilde
         new AgentBuilder.Transformer.ForAdvice(customMapping)
             .include(Utils.getBootstrapProxy(), Utils.getAgentClassLoader())
             .withExceptionHandler(ExceptionHandlers.defaultExceptionHandler())
-            .advice(not(ignoredMethods).and(matcher), name));
+            .advice(not(ignoredMethods).and(matcher), className));
   }
 
   @Override

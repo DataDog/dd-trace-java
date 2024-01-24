@@ -57,13 +57,13 @@ public class FormFieldDirectivesInstrumentation extends Instrumenter.Iast
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
+  public void methodAdvice(MethodTransformer transformer) {
     // the Java API delegates to the Scala API
-    transformDirective(transformation, "formFieldMultiMap", "TaintMultiMapDirectiveAdvice");
-    transformDirective(transformation, "formFieldMap", "TaintMapDirectiveAdvice");
-    transformDirective(transformation, "formFieldSeq", "TaintSeqDirectiveAdvice");
+    transformDirective(transformer, "formFieldMultiMap", "TaintMultiMapDirectiveAdvice");
+    transformDirective(transformer, "formFieldMap", "TaintMapDirectiveAdvice");
+    transformDirective(transformer, "formFieldSeq", "TaintSeqDirectiveAdvice");
 
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod()
             .and(isStatic())
             .and(named("formField").or(named("formFields")))
@@ -78,7 +78,7 @@ public class FormFieldDirectivesInstrumentation extends Instrumenter.Iast
         FormFieldDirectivesInstrumentation.class.getName()
             + "$TaintSingleFormFieldDirectiveOldScalaAdvice");
 
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod()
             .and(not(isStatic()))
             .and(named("formField").or(named("formFields")))
@@ -93,7 +93,7 @@ public class FormFieldDirectivesInstrumentation extends Instrumenter.Iast
   }
 
   private void transformDirective(
-      AdviceTransformation transformation, String methodName, String adviceClass) {
+      MethodTransformer transformation, String methodName, String adviceClass) {
     transformation.applyAdvice(
         isTraitDirectiveMethod(TRAIT_CLASS, methodName),
         ParameterDirectivesInstrumentation.class.getName() + "$" + adviceClass);
