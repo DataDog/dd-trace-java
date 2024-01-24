@@ -11,7 +11,6 @@ import java.io.InterruptedIOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
@@ -37,7 +36,7 @@ public class ProductState {
 
   public ProductState(Product product) {
     this.product = product;
-    this.productListeners = new LinkedList<>();
+    this.productListeners = new ArrayList<>();
     this.configListeners = new HashMap<>();
 
     this.ratelimitedLogger =
