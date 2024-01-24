@@ -57,13 +57,13 @@ public abstract class MultiMapInstrumentation extends Instrumenter.Iast {
 
   @Override
   public TransformingAdvice transformer() {
-    final TaintableVisitor visitor;
+    String[] classNames;
     if (this instanceof Instrumenter.ForSingleType) {
-      visitor = new TaintableVisitor(((Instrumenter.ForSingleType) this).instrumentedType());
+      classNames = new String[] {((Instrumenter.ForSingleType) this).instrumentedType()};
     } else {
-      visitor = new TaintableVisitor(((Instrumenter.ForKnownTypes) this).knownMatchingTypes());
+      classNames = ((Instrumenter.ForKnownTypes) this).knownMatchingTypes();
     }
-    return new VisitingAdvice(visitor);
+    return new VisitingAdvice(new TaintableVisitor(classNames));
   }
 
   public static class GetAdvice {
