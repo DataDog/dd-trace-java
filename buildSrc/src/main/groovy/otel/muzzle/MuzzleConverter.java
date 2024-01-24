@@ -46,7 +46,7 @@ public class MuzzleConverter extends ClassVisitor {
 
   private final ClassVisitor next;
   private final String className;
-  private final List<Reference> references;
+  private final List<MuzzleReference> references;
 
   public MuzzleConverter(ClassVisitor classVisitor, String className) {
     super(ASM9, new ClassNode());
@@ -133,11 +133,14 @@ public class MuzzleConverter extends ClassVisitor {
     // Look for OTel method
     MethodNode methodNode = findMethodNode(classNode, GET_MUZZLE_REFERENCES_METHOD_NAME, GET_MUZZLE_REFERENCES_DESC);
 
-
-    Reference currentReference = null;
+    List<String> sources = new ArrayList<>();
+    int flags = 0;
+    List<String> types = new ArrayList<>();
+    MuzzleReference currentReference = null;
     for (final AbstractInsnNode instructionNode : methodNode.instructions) {
       if (instructionNode.getType() == METHOD_INSN) {
         MethodInsnNode methodInsnNode = (MethodInsnNode) instructionNode;
+        // TODO DEBUG
         System.out.println("Instruction: " + methodInsnNode.name + " " + methodInsnNode.owner + " " + methodInsnNode.desc);
         // Look for ClassRef.builder(String)
         if ("io/opentelemetry/javaagent/tooling/muzzle/references/ClassRef".equals(methodInsnNode.owner)
@@ -148,7 +151,7 @@ public class MuzzleConverter extends ClassVisitor {
           if (currentReference != null) {
             this.references.add(currentReference);
           }
-          currentReference = new Reference();
+          currentReference = new MuzzleReference();
           currentReference.className = ((String) ldcInsnNode.cst);
         } else if ("io/opentelemetry/javaagent/tooling/muzzle/references/ClassRefBuilder".equals(methodInsnNode.owner)) {
           if (currentReference == null) {
@@ -159,34 +162,96 @@ public class MuzzleConverter extends ClassVisitor {
               && "(Ljava/lang/String;)Lio/opentelemetry/javaagent/tooling/muzzle/references/ClassRefBuilder;".equals(methodInsnNode.desc)
               && methodInsnNode.getPrevious().getType() == LDC_INSN) {
             currentReference.superName = ((String) ((LdcInsnNode) methodInsnNode.getPrevious()).cst);
-          } else if ("addSource".equals(methodInsnNode.name)
+          }
+          // Look for ClassRefBuilder.addSource(String, int)
+          // NOTE: Call for ClassRefBuilder.addSource(String) will be forwarded to ClassRefBuilder.addSource(String, int)
+          else if ("addSource".equals(methodInsnNode.name)
               && "(Ljava/lang/String;I)Lio/opentelemetry/javaagent/tooling/muzzle/references/ClassRefBuilder;".equals(methodInsnNode.desc)
               && methodInsnNode.getPrevious().getType() == LDC_INSN
               && methodInsnNode.getPrevious().getPrevious().getType() == LDC_INSN) {
             String source = ((LdcInsnNode) methodInsnNode.getPrevious().getPrevious()).cst + ":" + ((LdcInsnNode) methodInsnNode.getPrevious()).cst;
             currentReference.sources.add(source);
-          } else if ("addFlag".equals(methodInsnNode.name)
-              && "(Lio/opentelemetry/javaagent/tooling/muzzle/references/Flag;)Lio/opentelemetry/javaagent/tooling/muzzle/references/ClassRefBuilder;".equals(methodInsnNode.desc)
-              && methodInsnNode.getPrevious().getType() == FIELD_INSN
-              && methodInsnNode.getPrevious().getOpcode() == GETSTATIC) {
-            currentReference.flags += getFlag(methodInsnNode);
-          } else if ("addInterfaceName".equals(methodInsnNode.name)
+          }
+          // Look for ClassRefBuilder.addFlag(Flag)
+          else if ("addFlag".equals(methodInsnNode.name)
+              && "(Lio/opentelemetry/javaagent/tooling/muzzle/references/Flag;)Lio/opentelemetry/javaagent/tooling/muzzle/references/ClassRefBuilder;".equals(methodInsnNode.desc)) {
+            currentReference.flags += flags;
+            flags = 0;
+          }
+          // Look for ClassRefBuilder.addInterfaceName(String)
+          else if ("addInterfaceName".equals(methodInsnNode.name)
               && "(Ljava/lang/String;)Lio/opentelemetry/javaagent/tooling/muzzle/references/ClassRefBuilder;".equals(methodInsnNode.desc)
               && methodInsnNode.getPrevious().getType() == LDC_INSN) {
             currentReference.interfaces.add((String) ((LdcInsnNode) methodInsnNode.getPrevious()).cst);
           }
+          // Look for ClassRefBuilder.addInterfaceName(Collection<String>). It is not supported as it does not seem to be used
+          else if ("addInterfaceNames".equals(methodInsnNode.name)
+              && "(Ljava/util/Collection;)Lio/opentelemetry/javaagent/tooling/muzzle/references/ClassRefBuilder;".equals(methodInsnNode.desc)) {
+            throw new IllegalStateException("ClassRefBuilder.addInterfaceName(Collection<String>) is not supported");
+          }
+          // Look for ClassRefBuilder.addField(Source[], Flag[], String, Type, boolean)
+          else if ("addField".equals(methodInsnNode.name)
+          && "([Lio/opentelemetry/javaagent/tooling/muzzle/references/Source;[Lio/opentelemetry/javaagent/tooling/muzzle/references/Flag;Ljava/lang/String;Lorg/objectweb/asm/Type;Z)Lio/opentelemetry/javaagent/tooling/muzzle/references/ClassRefBuilder;".equals(methodInsnNode.desc)) {
+            MuzzleReference.Field field = new MuzzleReference.Field();
+            field.sources = sources;
+            field.flags = flags;
+            // TODO field.name =
+            field.fieldType = getFieldType(types);
+            currentReference.fields.add(field);
+            // TODO Debug
+//            System.out.println(">>> Drain sources for "+currentReference.className);
+            sources = new ArrayList<>();
+            flags = 0;
+          }
+          // Look for ClassRefBuilder.addMethod(Source[] methodSources, Flag[] methodFlags, String methodName, Type methodReturnType, Type... methodArgumentTypes)
+          else if ("addMethod".equals(methodInsnNode.name)
+              && "([Lio/opentelemetry/javaagent/tooling/muzzle/references/Source;[Lio/opentelemetry/javaagent/tooling/muzzle/references/Flag;Ljava/lang/String;Lorg/objectweb/asm/Type;[Lorg/objectweb/asm/Type;)Lio/opentelemetry/javaagent/tooling/muzzle/references/ClassRefBuilder;".equals(methodInsnNode.desc)
+          ) {
+            MuzzleReference.Method method = new MuzzleReference.Method();
+            method.sources = sources;
+            method.flags = flags;
+            // TODO method.name =
+            method.methodType = getMethodType(types);
+            currentReference.methods.add(method);
+            // TODO Debug
+//            System.out.println(">>> Drain sources for "+currentReference.className);
+            sources = new ArrayList<>();
+            flags = 0;
+          }
+        } else if ("io/opentelemetry/javaagent/tooling/muzzle/references/Source".equals(methodInsnNode.owner)) {
+          // Look for new Source(String, int)
+          if ("<init>".equals(methodInsnNode.name)
+              && "(Ljava/lang/String;I)V".equals(methodInsnNode.desc)
+              && methodInsnNode.getPrevious().getType() == LDC_INSN
+              && methodInsnNode.getPrevious().getPrevious().getType() == LDC_INSN) {
+            String source = ((LdcInsnNode) methodInsnNode.getPrevious().getPrevious()).cst + ":" + ((LdcInsnNode) methodInsnNode.getPrevious()).cst;
+            System.out.println(">>> Create source: " + source);
+            sources.add(source);
+          }
+        } else if ("org/objectweb/asm/Type".equals(methodInsnNode.owner)) {
+          // Look for Type.getType(String)
+          if ("getType".equals(methodInsnNode.name)
+          && "(Ljava/lang/String;)Lorg/objectweb/asm/Type;".equals(methodInsnNode.desc)
+          && methodInsnNode.getPrevious().getType() == LDC_INSN) {
+            types.add((String) ((LdcInsnNode) methodInsnNode.getPrevious()).cst);
+          }
+        }
+      } else if (instructionNode.getType() == FIELD_INSN) {
+        FieldInsnNode fieldInsnNode = (FieldInsnNode) instructionNode;
+        if (fieldInsnNode.getOpcode() == GETSTATIC
+          && fieldInsnNode.owner.startsWith("io/opentelemetry/javaagent/tooling/muzzle/references/Flag$")) {
+          flags += getFlag(fieldInsnNode);
         }
       }
     }
 
     // TODO Debug
-    for (Reference reference : this.references) {
+    for (MuzzleReference reference : this.references) {
       System.out.println("Found reference: " + reference);
     }
   }
 
-  private int getFlag(MethodInsnNode methodInsnNode) {
-    FieldInsnNode fieldInsnNode = (FieldInsnNode) methodInsnNode.getPrevious();
+  private int getFlag(FieldInsnNode fieldInsnNode) {
     int index = fieldInsnNode.owner.lastIndexOf("$");
     String flagType = index == -1 ? fieldInsnNode.owner :fieldInsnNode.owner.substring(index + 1);
     String flagName = fieldInsnNode.name;
@@ -206,22 +271,22 @@ public class MuzzleConverter extends ClassVisitor {
         ));
   }
 
-  public static class Reference {
-    public List<String> sources = new ArrayList<>();
-    public int flags = 0;
-    public String className;
-    public String superName;
-    public List<String> interfaces = new ArrayList<>();
-
-    @Override
-    public String toString() {
-      return "Reference{" +
-          "sources=" + sources +
-          ", flags=" + flags +
-          ", className='" + className + '\'' +
-          ", superName='" + superName + '\'' +
-          ", interfaces=" + interfaces +
-          '}';
+  private String getFieldType(List<String> types) {
+    if (types.size() != 1) {
+      throw new IllegalStateException("Unexpected number of collected types: "+types.size() + " but expected 1");
     }
+    String fieldType = types.get(0);
+    types.clear();
+    return fieldType;
+  }
+
+  private String getMethodType(List<String> types) {
+    if (types.isEmpty()) {
+      throw new IllegalStateException("Unexpected number of collected types: no types but expected at least one");
+    }
+    String returnType = types.remove(0);
+    String methodType = "(" + String.join("", types) + ")" + returnType;
+    types.clear();
+    return methodType;
   }
 }
