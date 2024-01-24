@@ -200,6 +200,7 @@ public class TelemetryRequestBody extends RequestBody {
     bodyWriter.name("tags").value(m.getTags()); // optional
     bodyWriter.name("stack_trace").value(m.getStackTrace()); // optional
     bodyWriter.name("tracer_time").value(m.getTracerTime()); // optional
+    bodyWriter.name("count").value(m.getCount()); // optional
     bodyWriter.endObject();
   }
 

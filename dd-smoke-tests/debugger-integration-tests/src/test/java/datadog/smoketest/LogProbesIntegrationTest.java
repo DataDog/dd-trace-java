@@ -71,7 +71,7 @@ public class LogProbesIntegrationTest extends SimpleAppDebuggerIntegrationTest {
         snapshot -> {
           assertEquals(PROBE_ID.getId(), snapshot.getProbe().getId());
           assertFullMethodCaptureArgs(snapshot.getCaptures().getEntry());
-          assertEquals(0, snapshot.getCaptures().getEntry().getLocals().size());
+          assertNull(snapshot.getCaptures().getEntry().getLocals());
           assertNull(snapshot.getCaptures().getEntry().getThrowable());
           assertNull(snapshot.getCaptures().getEntry().getFields());
           assertFullMethodCaptureArgs(snapshot.getCaptures().getReturn());
