@@ -1,4 +1,4 @@
-package otel;
+package otel.muzzle;
 
 import static java.util.stream.Collectors.toList;
 import static org.objectweb.asm.Opcodes.AASTORE;
@@ -169,12 +169,7 @@ public class MuzzleConverter extends ClassVisitor {
               && "(Lio/opentelemetry/javaagent/tooling/muzzle/references/Flag;)Lio/opentelemetry/javaagent/tooling/muzzle/references/ClassRefBuilder;".equals(methodInsnNode.desc)
               && methodInsnNode.getPrevious().getType() == FIELD_INSN
               && methodInsnNode.getPrevious().getOpcode() == GETSTATIC) {
-            final FieldInsnNode fieldInsnNode = (FieldInsnNode) methodInsnNode.getPrevious();
-            int flag = MuzzleFlag.extractFlag(fieldInsnNode);
-            if (flag < 0) {
-              throw new IllegalStateException("Failed to extract muzzle reference flag from " + fieldInsnNode.owner + "." + fieldInsnNode.name + " of " + className);
-            }
-            currentReference.flags += flag;
+            currentReference.flags += getFlag(methodInsnNode);
           } else if ("addInterfaceName".equals(methodInsnNode.name)
               && "(Ljava/lang/String;)Lio/opentelemetry/javaagent/tooling/muzzle/references/ClassRefBuilder;".equals(methodInsnNode.desc)
               && methodInsnNode.getPrevious().getType() == LDC_INSN) {
@@ -188,6 +183,18 @@ public class MuzzleConverter extends ClassVisitor {
     for (Reference reference : this.references) {
       System.out.println("Found reference: " + reference);
     }
+  }
+
+  private int getFlag(MethodInsnNode methodInsnNode) {
+    FieldInsnNode fieldInsnNode = (FieldInsnNode) methodInsnNode.getPrevious();
+    int index = fieldInsnNode.owner.lastIndexOf("$");
+    String flagType = index == -1 ? fieldInsnNode.owner :fieldInsnNode.owner.substring(index + 1);
+    String flagName = fieldInsnNode.name;
+    int flag = MuzzleFlag.convertOtelFlag(flagType, flagName);
+    if (flag < 0) {
+      throw new IllegalStateException("Failed to extract muzzle reference flag from " + fieldInsnNode.owner + "." + fieldInsnNode.name + " of " + className);
+    }
+    return flag;
   }
 
   private MethodNode findMethodNode(ClassNode classNode, String methodName, String methodDesc) {

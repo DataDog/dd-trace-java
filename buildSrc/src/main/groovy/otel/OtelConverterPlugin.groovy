@@ -9,6 +9,7 @@ import org.objectweb.asm.ClassReader
 import org.objectweb.asm.ClassWriter
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
+import otel.muzzle.MuzzleConverter
 
 import java.nio.file.Files
 import java.nio.file.Path

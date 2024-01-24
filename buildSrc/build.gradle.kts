@@ -47,6 +47,7 @@ dependencies {
 
   testImplementation("org.spockframework", "spock-core", "2.2-groovy-3.0")
   testImplementation("org.codehaus.groovy", "groovy-all", "3.0.17")
+  testImplementation("io.opentelemetry.javaagent", "opentelemetry-muzzle", "1.32.0-alpha")
 }
 
 tasks.compileGroovy {

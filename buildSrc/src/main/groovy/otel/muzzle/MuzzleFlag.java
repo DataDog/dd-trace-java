@@ -1,6 +1,4 @@
-package otel;
-
-import org.objectweb.asm.tree.FieldInsnNode;
+package otel.muzzle;
 
 /**
  * This class is a helper class to convert OTel io.opentelemetry.javaagent.tooling.muzzle.references.Flag into
@@ -8,16 +6,17 @@ import org.objectweb.asm.tree.FieldInsnNode;
  */
 public class MuzzleFlag {
   /**
-   * Convert an OTel field instruction node to get a flag into the related Datadog reference flag.
+   * Convert an OTel field instruction node to get a flag into the related Datadog reference/ flag.
    * Conversion is based on the OTel enumerate name.
    *
-   * @param fieldInsnNode The field instruction to parse.
+   * @param flagType The type of flag to parse.
+   * @param flagName The name of the flag to parse.
    * @return The Datadog reference flag, {@code -1} if no matching flag found.
    */
-  public static int extractFlag(FieldInsnNode fieldInsnNode) {
-    switch (fieldInsnNode.owner) {
-      case "io/opentelemetry/javaagent/tooling/muzzle/references/Flag$VisibilityFlag":
-        switch (fieldInsnNode.name) {
+  public static int convertOtelFlag(String flagType, String flagName) {
+    switch (flagType) {
+      case "VisibilityFlag":
+        switch (flagName) {
           case "PUBLIC":
             return 1; // EXPECTS_PUBLIC
           case "PROTECTED":
@@ -28,8 +27,8 @@ public class MuzzleFlag {
             return 0; // No flag requirement
         }
         break;
-      case "io/opentelemetry/javaagent/tooling/muzzle/references/Flag$MinimumVisibilityFlag":
-        switch (fieldInsnNode.name) {
+      case "MinimumVisibilityFlag":
+        switch (flagName) {
           case "PUBLIC":
             return 1; // EXPECTS_PUBLIC
           case "PROTECTED_OR_HIGHER":
@@ -40,8 +39,8 @@ public class MuzzleFlag {
             return 0; // No flag requirement
         }
         break;
-      case "io/opentelemetry/javaagent/tooling/muzzle/references/Flag$ManifestationFlag":
-        switch (fieldInsnNode.name) {
+      case "ManifestationFlag":
+        switch (flagName) {
           case "FINAL":
             return 0; // No flag requirement
           case "NON_FINAL":
@@ -54,8 +53,8 @@ public class MuzzleFlag {
             return 64; // EXPECTS_NON_INTERFACE
         }
         break;
-      case "io/opentelemetry/javaagent/tooling/muzzle/references/Flag$OwnershipFlag":
-        switch (fieldInsnNode.name) {
+      case "OwnershipFlag":
+        switch (flagName) {
           case "STATIC":
             return 8; // EXPECTS_STATIC
           case "NON_STATIC":
