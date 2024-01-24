@@ -109,8 +109,10 @@ public final class KafkaConsumerInfoInstrumentation extends Instrumenter.Tracing
           || kafkaConsumerInfo.getClientMetadata() != null) {
         InstrumentationContext.get(KafkaConsumer.class, KafkaConsumerInfo.class)
             .put(consumer, kafkaConsumerInfo);
-        InstrumentationContext.get(ConsumerCoordinator.class, KafkaConsumerInfo.class)
-            .put(coordinator, kafkaConsumerInfo);
+        if (coordinator != null) {
+          InstrumentationContext.get(ConsumerCoordinator.class, KafkaConsumerInfo.class)
+              .put(coordinator, kafkaConsumerInfo);
+        }
       }
     }
 
@@ -130,6 +132,9 @@ public final class KafkaConsumerInfoInstrumentation extends Instrumenter.Tracing
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void captureGroup(
         @Advice.This KafkaConsumer consumer, @Advice.Return ConsumerRecords records) {
+      if (records == null) {
+        return;
+      }
       KafkaConsumerInfo kafkaConsumerInfo =
           InstrumentationContext.get(KafkaConsumer.class, KafkaConsumerInfo.class).get(consumer);
       if (kafkaConsumerInfo != null) {
