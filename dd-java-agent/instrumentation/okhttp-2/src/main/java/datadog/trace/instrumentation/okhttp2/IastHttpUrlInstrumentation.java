@@ -24,7 +24,7 @@ public class IastHttpUrlInstrumentation extends Instrumenter.Iast
    * com.squareup.okhttp.HttpUrl gets loaded before the instrumenter kicks in, so we must disable
    * the advice transformer or none of the transformations will be applied
    */
-  protected static boolean DISABLE_ADVICE_TRANSFORMER = false;
+  protected static boolean ENABLE_ADVICE_TRANSFORMER = true;
 
   private final String className = IastHttpUrlInstrumentation.class.getName();
 
@@ -64,9 +64,9 @@ public class IastHttpUrlInstrumentation extends Instrumenter.Iast
 
   @Override
   public TransformingAdvice transformer() {
-    return DISABLE_ADVICE_TRANSFORMER
-        ? null
-        : new VisitingAdvice(new TaintableVisitor(instrumentedType()));
+    return ENABLE_ADVICE_TRANSFORMER
+        ? new VisitingAdvice(new TaintableVisitor(instrumentedType()))
+        : null;
   }
 
   public static class ParseAdvice {
