@@ -3,6 +3,7 @@ package datadog.trace.common.sampling;
 import com.squareup.moshi.FromJson;
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Moshi;
+import com.squareup.moshi.ToJson;
 import com.squareup.moshi.Types;
 import datadog.trace.api.sampling.SamplingRule;
 import java.lang.reflect.ParameterizedType;
@@ -145,7 +146,6 @@ public class TraceSamplingRules {
     String name;
     String resource;
     Map<String, String> tags;
-    String target_span;
     String sample_rate;
 
     @Override
@@ -158,6 +158,12 @@ public class TraceSamplingRules {
     @FromJson
     Rule fromJson(JsonRule jsonRule) {
       return Rule.create(jsonRule);
+    }
+
+    @ToJson
+    JsonRule toJson(Rule rule) {
+      // This method only purpose is to prevent a "No @ToJson adapter for class" exception.
+      throw new UnsupportedOperationException();
     }
   }
 }
