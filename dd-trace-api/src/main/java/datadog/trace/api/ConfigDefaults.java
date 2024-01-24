@@ -206,7 +206,7 @@ public final class ConfigDefaults {
 
   static final boolean DEFAULT_TRACE_HTTP_RESOURCE_REMOVE_TRAILING_SLASH = false;
   static final boolean DEFAULT_TRACE_LONG_RUNNING_ENABLED = false;
-  static final long DEFAULT_TRACE_LONG_RUNNING_FLUSH_INTERVAL = 300; // seconds -> 5 minutes
+  static final long DEFAULT_TRACE_LONG_RUNNING_FLUSH_INTERVAL = 120; // seconds -> 2 minutes
 
   static final float DEFAULT_TRACE_FLUSH_INTERVAL = 1;
 

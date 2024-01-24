@@ -580,7 +580,7 @@ class ConfigTest extends DDSpecification {
     config.agentPort == 123
     config.agentUrl == "http://somewhere:123"
     config.longRunningTraceEnabled
-    config.longRunningTraceFlushInterval == 300
+    config.longRunningTraceFlushInterval == 120
   }
 
   def "default when configured incorrectly"() {
