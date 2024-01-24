@@ -402,6 +402,7 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
   protected void configurePreAgent() {
     injectSysConfig(TracerConfig.SCOPE_ITERATION_KEEP_ALIVE, "1") // don't let iteration spans linger
     injectSysConfig(GeneralConfig.DATA_STREAMS_ENABLED, String.valueOf(isDataStreamsEnabled()))
+    injectSysConfig(GeneralConfig.INTERNAL_EXIT_ON_FAILURE, "true")
   }
 
   void setup() {
