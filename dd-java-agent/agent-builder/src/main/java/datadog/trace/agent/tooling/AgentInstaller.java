@@ -203,7 +203,7 @@ public class AgentInstaller {
       InstrumenterFlare.register();
     }
 
-    if (InstrumenterConfig.get().isTelemetryEnabled()) {
+    if (InstrumenterConfig.get().isTelemetryEnabledAtBuildTime() && !Platform.isNativeImage()) {
       InstrumenterState.setObserver(
           new InstrumenterState.Observer() {
             @Override

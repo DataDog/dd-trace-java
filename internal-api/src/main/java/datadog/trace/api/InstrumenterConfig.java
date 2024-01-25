@@ -161,16 +161,15 @@ public class InstrumenterConfig {
           ProductActivation.fromString(
               configProvider.getStringNotEmpty(IAST_ENABLED, DEFAULT_IAST_ENABLED));
       usmEnabled = configProvider.getBoolean(USM_ENABLED, DEFAULT_USM_ENABLED);
-      telemetryEnabled = configProvider.getBoolean(TELEMETRY_ENABLED, DEFAULT_TELEMETRY_ENABLED);
     } else {
       // disable these features in native-image
       ciVisibilityEnabled = false;
       appSecActivation = ProductActivation.FULLY_DISABLED;
       iastActivation = ProductActivation.FULLY_DISABLED;
-      telemetryEnabled = false;
       usmEnabled = false;
     }
 
+    telemetryEnabled = configProvider.getBoolean(TELEMETRY_ENABLED, DEFAULT_TELEMETRY_ENABLED);
     traceExecutorsAll = configProvider.getBoolean(TRACE_EXECUTORS_ALL, DEFAULT_TRACE_EXECUTORS_ALL);
     traceExecutors = tryMakeImmutableList(configProvider.getList(TRACE_EXECUTORS));
     traceThreadPoolExecutorsExclude =
@@ -273,7 +272,11 @@ public class InstrumenterConfig {
     return usmEnabled;
   }
 
-  public boolean isTelemetryEnabled() {
+  /**
+   * Checks if telemetry is enabled. In Native Image, this is set at build time. Use Config for run
+   * time.
+   */
+  public boolean isTelemetryEnabledAtBuildTime() {
     return telemetryEnabled;
   }
 

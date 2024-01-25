@@ -27,7 +27,6 @@ dependencies {
 
   implementation project(':internal-api')
 
-  compileOnly project(':dd-java-agent:agent-tooling')
   testImplementation project(':dd-java-agent:agent-tooling')
   testImplementation project(':dd-java-agent:agent-logging')
 

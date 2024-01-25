@@ -1,6 +1,6 @@
 package datadog.trace.api.metrics;
 
-import datadog.trace.api.InstrumenterConfig;
+import datadog.trace.api.Config;
 
 /** This class holds the {@link SpanMetrics} instances. */
 @FunctionalInterface
@@ -26,7 +26,7 @@ public interface SpanMetricRegistry {
    * @return The registry instance.
    */
   static SpanMetricRegistry getInstance() {
-    return InstrumenterConfig.get().isTelemetryEnabled()
+    return Config.get().isTelemetryEnabled()
         ? SpanMetricRegistryImpl.getInstance()
         : SpanMetricRegistry.NOOP;
   }
