@@ -8,7 +8,6 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
@@ -30,7 +29,7 @@ public class SparkSQLUtils {
     SparkPlanInfoForStage planForStage =
         computeStageInfoForStage(plan, accumulators, stageId, parentStageIds, false);
 
-    span.setTag("_dd.spark.sql_parent_stage_ids", Arrays.toString(parentStageIds.toArray()));
+    span.setTag("_dd.spark.sql_parent_stage_ids", parentStageIds.toString());
 
     if (planForStage != null) {
       String json = planForStage.toJson(accumulators);
