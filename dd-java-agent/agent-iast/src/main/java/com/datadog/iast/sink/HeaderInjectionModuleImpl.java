@@ -3,7 +3,6 @@ package com.datadog.iast.sink;
 import static com.datadog.iast.taint.Ranges.allRangesFromAnyHeader;
 import static com.datadog.iast.taint.Ranges.allRangesFromHeader;
 import static com.datadog.iast.taint.Ranges.rangeFromHeader;
-import static com.datadog.iast.util.HttpHeader.ACCESS_CONTROL_ALLOW_ORIGIN;
 import static com.datadog.iast.util.HttpHeader.CONNECTION;
 import static com.datadog.iast.util.HttpHeader.COOKIE;
 import static com.datadog.iast.util.HttpHeader.LOCATION;
@@ -26,6 +25,7 @@ import datadog.trace.api.iast.sink.HeaderInjectionModule;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import java.util.EnumSet;
+import java.util.Locale;
 import java.util.Set;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -34,6 +34,8 @@ public class HeaderInjectionModuleImpl extends SinkModuleBase implements HeaderI
 
   private static final Set<HttpHeader> headerInjectionExclusions =
       EnumSet.of(SEC_WEBSOCKET_LOCATION, SEC_WEBSOCKET_ACCEPT, UPGRADE, CONNECTION, LOCATION);
+
+  private static final String ACCESS_CONTROL_ALLOW_PREFIX = "ACCESS-CONTROL-ALLOW-";
 
   public HeaderInjectionModuleImpl(final Dependencies dependencies) {
     super(dependencies);
@@ -68,7 +70,8 @@ public class HeaderInjectionModuleImpl extends SinkModuleBase implements HeaderI
 
     // Exclude access-control-allow-*: when the header starts with access-control-allow- and the
     // source of the tainted range is a request header
-    if (header == ACCESS_CONTROL_ALLOW_ORIGIN && allRangesFromAnyHeader(ranges)) {
+    if (name.toUpperCase(Locale.ROOT).startsWith(ACCESS_CONTROL_ALLOW_PREFIX)
+        && allRangesFromAnyHeader(ranges)) {
       return;
     }
 

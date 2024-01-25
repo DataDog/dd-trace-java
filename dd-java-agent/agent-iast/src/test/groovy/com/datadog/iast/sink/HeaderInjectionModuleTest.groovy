@@ -66,32 +66,6 @@ class HeaderInjectionModuleTest extends IastModuleImplTestBase{
     header << [SEC_WEBSOCKET_LOCATION, SEC_WEBSOCKET_ACCEPT, UPGRADE, CONNECTION, LOCATION]
   }
 
-  void 'check access-control-allow-* exclusion'(){
-    given:
-    final headerName = 'Access-Control-Allow-Origin'
-    final headerValue = 'headerValue'
-    addFromRangeList(ctx.taintedObjects, 'headerValue', ranges)
-
-    when:
-    module.onHeader(headerName, headerValue)
-
-    then:
-    expected * reporter.report(_, _ as Vulnerability)
-
-    where:
-    ranges | expected
-    [[0, 2, 'sourceName', 'sourceValue', SourceTypes.REQUEST_HEADER_VALUE]] | 0
-    [
-      [0, 2, 'sourceName', 'sourceValue', SourceTypes.REQUEST_HEADER_VALUE],
-      [3, 4, 'sourceName2', 'sourceValue2', SourceTypes.REQUEST_HEADER_VALUE]
-    ] | 0
-    [[0, 2, 'sourceName', 'sourceValue', SourceTypes.GRPC_BODY]] | 1
-    [
-      [0, 2, 'sourceName', 'sourceValue', SourceTypes.GRPC_BODY],
-      [3, 4, 'sourceName2', 'sourceValue2', SourceTypes.REQUEST_HEADER_VALUE]
-    ] | 1
-  }
-
   void 'check set-cookie exclusion'(){
     given:
     final headerValue = 'headerValue'
@@ -139,6 +113,49 @@ class HeaderInjectionModuleTest extends IastModuleImplTestBase{
       [3, 4, 'headerName', 'sourceValue2', SourceTypes.REQUEST_HEADER_VALUE]
     ] | 1
     [[0, 2, 'headerName', 'sourceValue', SourceTypes.REQUEST_HEADER_VALUE]] | 0
+  }
+
+  void 'check access-control-allow-* exclusion'(){
+    given:
+    final headerValue = 'headerValue'
+    addFromRangeList(ctx.taintedObjects, 'headerValue', suite.ranges)
+
+    when:
+    module.onHeader(suite.header, headerValue)
+
+    then:
+    suite.expected * reporter.report(_, _ as Vulnerability)
+
+    where:
+    suite << createTestSuite()
+  }
+
+  private Iterable<TestSuite> createTestSuite() {
+    final result = []
+    final headerNames = ['Access-Control-Allow-Origin', 'access-control-allow-origin', 'ACCESS-CONTROL-ALLOW-METHODS']
+    for (headerName in headerNames){
+      result.add(createTestSuite(headerName, [[0, 2, 'sourceName', 'sourceValue', SourceTypes.REQUEST_HEADER_VALUE]], 0))
+      result.add(createTestSuite(headerName, [
+        [0, 2, 'sourceName', 'sourceValue', SourceTypes.REQUEST_HEADER_VALUE],
+        [3, 4, 'sourceName2', 'sourceValue2', SourceTypes.REQUEST_HEADER_VALUE]
+      ], 0))
+      result.add(createTestSuite(headerName, [[0, 2, 'sourceName', 'sourceValue', SourceTypes.GRPC_BODY]], 1))
+      result.add(createTestSuite(headerName, [
+        [0, 2, 'sourceName', 'sourceValue', SourceTypes.GRPC_BODY],
+        [3, 4, 'sourceName2', 'sourceValue2', SourceTypes.REQUEST_HEADER_VALUE]
+      ], 1))
+    }
+    return result as Iterable<TestSuite>
+  }
+
+  private createTestSuite(header, ranges, expected) {
+    return new TestSuite('header': header as String, 'ranges': ranges as List<List<Object>>, 'expected': expected as Integer)
+  }
+
+  private static class TestSuite {
+    String header
+    List<List<Object>> ranges
+    Integer expected
   }
 
   private String mapTainted(final String value, final int mark) {
