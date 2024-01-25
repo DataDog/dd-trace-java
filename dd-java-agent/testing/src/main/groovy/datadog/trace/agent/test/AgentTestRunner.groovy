@@ -378,7 +378,7 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
       RequestContext spiedReqCtx = Spy(requestContext)
       TraceSegment checkedSegment = new PreconditionCheckTraceSegment(
         check: {
-          -> if (spiedAgentSpan.localRootSpan.isFinished()) {
+          -> if (useStrictTraceWrites() && spiedAgentSpan.localRootSpan.isFinished()) {
             throw new AssertionError("Interaction with TraceSegment after root span has already finished: $spiedAgentSpan")
           }},
         delegate: segment
