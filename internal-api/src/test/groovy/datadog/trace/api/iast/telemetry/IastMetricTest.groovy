@@ -38,7 +38,7 @@ class IastMetricTest extends Specification {
     where:
     metricTag                         | tag                                 | expected
     IastMetric.Tag.VULNERABILITY_TYPE | VulnerabilityTypes.RESPONSE_HEADER  | VulnerabilityTypes.RESPONSE_HEADER_TYPES
-    IastMetric.Tag.VULNERABILITY_TYPE | VulnerabilityTypes.SQL_INJECTION    | new byte[0]
-    IastMetric.Tag.SOURCE_TYPE        | SourceTypes.REQUEST_PARAMETER_VALUE | new byte[0]
+    IastMetric.Tag.VULNERABILITY_TYPE | VulnerabilityTypes.SQL_INJECTION    | null
+    IastMetric.Tag.SOURCE_TYPE        | SourceTypes.REQUEST_PARAMETER_VALUE | null
   }
 }
