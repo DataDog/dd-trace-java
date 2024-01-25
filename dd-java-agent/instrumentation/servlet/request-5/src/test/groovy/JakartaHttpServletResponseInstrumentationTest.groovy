@@ -207,13 +207,15 @@ class JakartaHttpServletResponseInstrumentationTest extends AgentTestRunner {
     InstrumentationBridge.registerIastModule(module)
     final response = new DummyResponse()
     final url = 'http://dummy.url.com'
+    def result, expected
 
     when:
-    final result = response.encodeRedirectURL(url)
+    result = response.encodeRedirectURL(url)
 
     then:
-    1 * module.taintIfTainted(_, url) >> { args -> assert args[0] == result }
+    1 * module.taintIfTainted(_, url) >> { args -> expected = args[0] }
     0 * _
+    result == expected
   }
 
   void 'taint encoded url using encodeURL'() {
@@ -222,13 +224,15 @@ class JakartaHttpServletResponseInstrumentationTest extends AgentTestRunner {
     InstrumentationBridge.registerIastModule(module)
     final response = new DummyResponse()
     final url = 'http://dummy.url.com'
+    def result, expected
 
     when:
-    final result = response.encodeURL(url)
+    result = response.encodeURL(url)
 
     then:
-    1 * module.taintIfTainted(_, url) >> { args -> assert args[0] == result }
+    1 * module.taintIfTainted(_, url) >> { args -> expected = args[0] }
     0 * _
+    expected == result
   }
 
   void 'test instrumentation with unknown types'() {
