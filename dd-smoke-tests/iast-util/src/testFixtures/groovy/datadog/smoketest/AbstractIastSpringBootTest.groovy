@@ -21,17 +21,21 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
     List<String> command = []
     command.add(javaPath())
     command.addAll(defaultJavaProperties)
-    command.addAll([
-      withSystemProperty(IAST_ENABLED, true),
-      withSystemProperty(IAST_DETECTION_MODE, 'FULL'),
-      withSystemProperty(IAST_DEBUG_ENABLED, true),
-    ])
+    command.addAll(iastJvmOpts())
     command.addAll((String[]) ['-jar', springBootShadowJar, "--server.port=${httpPort}"])
     ProcessBuilder processBuilder = new ProcessBuilder(command)
     processBuilder.directory(new File(buildDirectory))
     // Spring will print all environment variables to the log, which may pollute it and affect log assertions.
     processBuilder.environment().clear()
     return processBuilder
+  }
+
+  protected List<String> iastJvmOpts() {
+    return [
+      withSystemProperty(IAST_ENABLED, true),
+      withSystemProperty(IAST_DETECTION_MODE, 'FULL'),
+      withSystemProperty(IAST_DEBUG_ENABLED, true),
+    ]
   }
 
   void 'IAST subsystem starts'() {

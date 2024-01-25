@@ -25,6 +25,7 @@ import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 
 import static com.datadog.iast.IastTag.ANALYZED
+import static com.datadog.iast.test.TaintedObjectsUtils.noOpTaintedObjects
 import static datadog.trace.api.config.IastConfig.IAST_DEDUPLICATION_ENABLED
 
 class ReporterTest extends DDSpecification {
@@ -40,7 +41,7 @@ class ReporterTest extends DDSpecification {
     given:
     final Reporter reporter = new Reporter()
     final traceSegment = Mock(TraceSegment)
-    final ctx = new IastRequestContext()
+    final ctx = new IastRequestContext(noOpTaintedObjects())
     final reqCtx = Stub(RequestContext)
     final spanId = 123456
     reqCtx.getData(RequestContextSlot.IAST) >> ctx
@@ -85,7 +86,7 @@ class ReporterTest extends DDSpecification {
     given:
     final Reporter reporter = new Reporter()
     final traceSegment = Mock(TraceSegment)
-    final ctx = new IastRequestContext()
+    final ctx = new IastRequestContext(noOpTaintedObjects())
     final reqCtx = Stub(RequestContext)
     final spanId = 123456
     reqCtx.getData(RequestContextSlot.IAST) >> ctx
@@ -151,7 +152,7 @@ class ReporterTest extends DDSpecification {
     final serviceName = 'service-name'
     final span = Mock(AgentSpan)
     final scope = Mock(AgentScope)
-    final ctx = new IastRequestContext()
+    final ctx = new IastRequestContext(noOpTaintedObjects())
     final reqCtx = Stub(RequestContext)
     reqCtx.getData(RequestContextSlot.IAST) >> ctx
     final reporter = new Reporter()
@@ -203,7 +204,7 @@ class ReporterTest extends DDSpecification {
     given:
     final tracerAPI = Mock(TracerAPI)
     AgentTracer.forceRegister(tracerAPI)
-    final ctx = new IastRequestContext()
+    final ctx = new IastRequestContext(noOpTaintedObjects())
     final reqCtx = Stub(RequestContext)
     reqCtx.getData(RequestContextSlot.IAST) >> ctx
     final reporter = new Reporter((vul) -> true)

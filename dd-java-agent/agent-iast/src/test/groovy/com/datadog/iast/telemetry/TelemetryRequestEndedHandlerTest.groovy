@@ -1,11 +1,9 @@
 package com.datadog.iast.telemetry
 
 import com.datadog.iast.IastModuleImplTestBase
-import com.datadog.iast.IastRequestContext
 import com.datadog.iast.RequestEndedHandler
 import com.datadog.iast.model.Source
 import com.datadog.iast.taint.Ranges
-import com.datadog.iast.taint.TaintedObjects
 import com.datadog.iast.telemetry.taint.TaintedObjectsWithTelemetry
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.SourceTypes
@@ -18,7 +16,12 @@ import groovy.transform.CompileDynamic
 import groovy.transform.ToString
 
 import static com.datadog.iast.telemetry.TelemetryRequestEndedHandler.TRACE_METRIC_PREFIX
-import static datadog.trace.api.iast.telemetry.IastMetric.*
+import static datadog.trace.api.iast.telemetry.IastMetric.EXECUTED_SINK
+import static datadog.trace.api.iast.telemetry.IastMetric.EXECUTED_SOURCE
+import static datadog.trace.api.iast.telemetry.IastMetric.EXECUTED_TAINTED
+import static datadog.trace.api.iast.telemetry.IastMetric.INSTRUMENTED_SOURCE
+import static datadog.trace.api.iast.telemetry.IastMetric.REQUEST_TAINTED
+import static datadog.trace.api.iast.telemetry.IastMetric.Scope
 
 @CompileDynamic
 class TelemetryRequestEndedHandlerTest extends IastModuleImplTestBase {
@@ -32,12 +35,8 @@ class TelemetryRequestEndedHandlerTest extends IastModuleImplTestBase {
     globalCollector = IastMetricCollector.get()
     globalCollector.prepareMetrics()
     globalCollector.drain()
-  }
-
-  @Override
-  protected IastRequestContext buildIastRequestContext() {
-    final TaintedObjects to = TaintedObjectsWithTelemetry.build(Verbosity.DEBUG, TaintedObjects.acquire())
-    return new IastRequestContext(to, new IastMetricCollector())
+    ctx.taintedObjects = TaintedObjectsWithTelemetry.build(Verbosity.DEBUG, ctx)
+    ctx.collector = new IastMetricCollector()
   }
 
   @Override

@@ -1,8 +1,11 @@
 package datadog.smoketest
 
+import datadog.trace.api.config.IastConfig
 import groovy.transform.CompileDynamic
 import okhttp3.Request
 import okhttp3.Response
+
+import static datadog.trace.api.iast.IastContext.Mode.GLOBAL
 
 @CompileDynamic
 class IastSpringBootSmokeTest extends AbstractIastSpringBootTest {
@@ -23,6 +26,15 @@ class IastSpringBootSmokeTest extends AbstractIastSpringBootTest {
     hasTainted {
       it.value == 'jackie' &&
         it.ranges[0].source.origin == 'http.request.header'
+    }
+  }
+
+  static class WithGlobalContext extends IastSpringBootSmokeTest {
+    @Override
+    protected List<String> iastJvmOpts() {
+      final opts = super.iastJvmOpts()
+      opts.add(withSystemProperty(IastConfig.IAST_CONTEXT_MODE, GLOBAL.name()))
+      return opts
     }
   }
 }

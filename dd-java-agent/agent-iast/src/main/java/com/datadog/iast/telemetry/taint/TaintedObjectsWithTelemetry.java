@@ -6,6 +6,7 @@ import static datadog.trace.api.iast.telemetry.IastMetric.REQUEST_TAINTED;
 import com.datadog.iast.model.Range;
 import com.datadog.iast.taint.TaintedObject;
 import com.datadog.iast.taint.TaintedObjects;
+import com.datadog.iast.util.Wrapper;
 import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.telemetry.IastMetricCollector;
 import datadog.trace.api.iast.telemetry.Verbosity;
@@ -13,27 +14,24 @@ import java.util.Iterator;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
-public class TaintedObjectsWithTelemetry implements TaintedObjects {
+public class TaintedObjectsWithTelemetry implements TaintedObjects, Wrapper<TaintedObjects> {
 
-  public static TaintedObjects build(
-      final Verbosity verbosity, final TaintedObjects taintedObjects) {
+  public static TaintedObjects build(final Verbosity verbosity, final IastContext ctx) {
+    final TaintedObjects delegate = ctx.getTaintedObjects();
     if (verbosity.isInformationEnabled()) {
-      return new TaintedObjectsWithTelemetry(verbosity.isDebugEnabled(), taintedObjects);
+      return new TaintedObjectsWithTelemetry(verbosity.isDebugEnabled(), delegate, ctx);
     }
-    return taintedObjects;
+    return delegate;
   }
 
   private final TaintedObjects delegate;
   private final boolean debug;
-  @Nullable private IastContext ctx;
+  private final IastContext ctx;
 
-  protected TaintedObjectsWithTelemetry(final boolean debug, final TaintedObjects delegate) {
+  protected TaintedObjectsWithTelemetry(
+      final boolean debug, final TaintedObjects delegate, final IastContext ctx) {
     this.delegate = delegate;
     this.debug = debug;
-  }
-
-  /** {@link IastContext} depends on {@link TaintedObjects} so it cannot be initialized via ctor */
-  public void initContext(final IastContext ctx) {
     this.ctx = ctx;
   }
 
@@ -54,11 +52,11 @@ public class TaintedObjectsWithTelemetry implements TaintedObjects {
   }
 
   @Override
-  public void release() {
+  public void clear() {
     try {
       IastMetricCollector.add(REQUEST_TAINTED, count(), ctx);
     } finally {
-      delegate.release();
+      delegate.clear();
     }
   }
 
@@ -71,5 +69,10 @@ public class TaintedObjectsWithTelemetry implements TaintedObjects {
   @Override
   public int count() {
     return delegate.count();
+  }
+
+  @Override
+  public TaintedObjects unwrap() {
+    return delegate;
   }
 }

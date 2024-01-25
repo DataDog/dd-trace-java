@@ -1106,6 +1106,20 @@ build_test_jobs: &build_test_jobs
       maxWorkers: 4
       testJvm: "17"
 
+  - xlarge_tests:
+      requires:
+        - ok_to_test
+        - build_latestdep
+      name: test_21_inst_latest
+      gradleTarget: ":instrumentationLatestDepTest"
+      gradleParameters: "-PskipFlakyTests"
+      triggeredBy: *instrumentation_modules
+      stage: instrumentation
+      cacheType: latestdep
+      parallelism: 4
+      maxWorkers: 4
+      testJvm: "21"
+
 {% if flaky %}
   - tests:
       requires:

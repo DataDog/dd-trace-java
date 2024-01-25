@@ -1,6 +1,7 @@
 package com.datadog.iast.overhead
 
 import datadog.trace.api.Config
+import datadog.trace.api.iast.IastContext
 import datadog.trace.test.util.DDSpecification
 import datadog.trace.util.AgentTaskScheduler
 import com.datadog.iast.overhead.OverheadController.OverheadControllerImpl
@@ -14,7 +15,14 @@ class OverheadContextTest extends DDSpecification {
   void 'Can reset global overhead context'() {
     given:
     def taskSchedler = Stub(AgentTaskScheduler)
-    def overheadController = new OverheadControllerImpl(Config.get(), taskSchedler)
+    final config = Config.get()
+    final globalFallback = config.iastContextMode == IastContext.Mode.GLOBAL
+    def overheadController = new OverheadControllerImpl(
+      config.iastRequestSampling,
+      config.iastMaxConcurrentRequests,
+      globalFallback,
+      taskSchedler
+      )
 
     when:
     overheadController.globalContext.consumeQuota(1)
@@ -31,7 +39,8 @@ class OverheadContextTest extends DDSpecification {
 
   void 'Quota is not consumed once it has been exhausted'() {
     given:
-    def overheadContext = new OverheadContext()
+    final config = Config.get()
+    def overheadContext = new OverheadContext(config.iastVulnerabilitiesPerRequest)
     boolean consumed
 
     when: 'reduce quota by two'
