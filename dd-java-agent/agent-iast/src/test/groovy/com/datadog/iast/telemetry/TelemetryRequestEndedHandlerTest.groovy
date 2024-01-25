@@ -15,13 +15,13 @@ import datadog.trace.api.internal.TraceSegment
 import groovy.transform.CompileDynamic
 import groovy.transform.ToString
 
-import static com.datadog.iast.telemetry.TelemetryRequestEndedHandler.TRACE_METRIC_PREFIX
 import static datadog.trace.api.iast.telemetry.IastMetric.EXECUTED_SINK
 import static datadog.trace.api.iast.telemetry.IastMetric.EXECUTED_SOURCE
 import static datadog.trace.api.iast.telemetry.IastMetric.EXECUTED_TAINTED
 import static datadog.trace.api.iast.telemetry.IastMetric.INSTRUMENTED_SOURCE
 import static datadog.trace.api.iast.telemetry.IastMetric.REQUEST_TAINTED
 import static datadog.trace.api.iast.telemetry.IastMetric.Scope
+import static datadog.trace.api.iast.telemetry.IastMetric.TRACE_METRIC_PREFIX
 
 @CompileDynamic
 class TelemetryRequestEndedHandlerTest extends IastModuleImplTestBase {
@@ -133,7 +133,7 @@ class TelemetryRequestEndedHandlerTest extends IastModuleImplTestBase {
   private static String getSpanTagValue(final IastMetric metric, final Byte tagValue = null) {
     return metric.getTag() == null
       ? metric.getName()
-      : String.format("%s.%s", metric.getName(), metric.tag.toString(tagValue).toLowerCase().replaceAll("\\.", "_"))
+      : String.format("%s.%s", metric.getName(), metric.tag.values[tagValue].toLowerCase().replaceAll("\\.", "_"))
   }
 
   private static Data metric(final IastMetric metric, final byte tagValue, final int value) {

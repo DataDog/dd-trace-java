@@ -18,8 +18,6 @@ import javax.annotation.Nonnull;
 public class TelemetryRequestEndedHandler
     implements BiFunction<RequestContext, IGSpanInfo, Flow<Void>> {
 
-  static final String TRACE_METRIC_PREFIX = "_dd.iast.telemetry.";
-
   private final BiFunction<RequestContext, IGSpanInfo, Flow<Void>> delegate;
 
   public TelemetryRequestEndedHandler(
@@ -57,8 +55,7 @@ public class TelemetryRequestEndedHandler
     for (final IastMetricData data : metrics) {
       final IastMetric metric = data.getMetric();
       if (metric.getScope() == REQUEST) {
-        final String tagValue = data.getSpanTag();
-        trace.setTagTop(TRACE_METRIC_PREFIX + tagValue, data.value);
+        trace.setTagTop(data.getSpanTag(), data.value);
       }
     }
   }
