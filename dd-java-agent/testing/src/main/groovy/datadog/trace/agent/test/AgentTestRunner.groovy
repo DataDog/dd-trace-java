@@ -14,7 +14,6 @@ import datadog.trace.agent.test.timer.TestTimer
 import datadog.trace.agent.tooling.AgentInstaller
 import datadog.trace.agent.tooling.Instrumenter
 import datadog.trace.agent.tooling.TracerInstaller
-import datadog.trace.agent.tooling.bytebuddy.ExceptionHandlers
 import datadog.trace.agent.tooling.bytebuddy.matcher.GlobalIgnores
 import datadog.trace.api.*
 import datadog.trace.api.config.GeneralConfig
@@ -25,6 +24,7 @@ import datadog.trace.api.sampling.SamplingRule
 import datadog.trace.api.time.SystemTimeSource
 import datadog.trace.bootstrap.ActiveSubsystems
 import datadog.trace.bootstrap.CallDepthThreadLocalMap
+import datadog.trace.bootstrap.InstrumentationErrors
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.TracerAPI
 import datadog.trace.bootstrap.instrumentation.api.AgentDataStreamsMonitoring
@@ -444,7 +444,7 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
     if (forceAppSecActive) {
       ActiveSubsystems.APPSEC_ACTIVE = true
     }
-    ExceptionHandlers.resetErrorCount()
+    InstrumentationErrors.resetErrorCount()
   }
 
   @Override
@@ -481,7 +481,7 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
       spanFinishLocations.clear()
       originalToSpySpan.clear()
     }
-    assert ExceptionHandlers.errorCount == 0
+    assert InstrumentationErrors.errorCount == 0
   }
 
   private void doCheckRepeatedFinish() {

@@ -2,7 +2,6 @@ package datadog.trace.agent.tooling.bytebuddy;
 
 import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.bootstrap.ExceptionLogger;
-import java.util.concurrent.atomic.AtomicLong;
 import net.bytebuddy.ClassFileVersion;
 import net.bytebuddy.asm.Advice.ExceptionHandler;
 import net.bytebuddy.implementation.Implementation;
@@ -19,22 +18,6 @@ public class ExceptionHandlers {
   private static final String LOGGER_NAME = Logger.class.getName().replace('.', '/');
   // Bootstrap ExceptionHandler.class will always be resolvable, so we'll use it in the log name
   private static final String HANDLER_NAME = ExceptionLogger.class.getName().replace('.', '/');
-
-  private static final AtomicLong COUNTER = new AtomicLong();
-
-  public static long getErrorCount() {
-    return COUNTER.get();
-  }
-
-  @SuppressWarnings("unused")
-  public static void incrementErrorCount() {
-    COUNTER.incrementAndGet();
-  }
-
-  // Visible for testing
-  public static void resetErrorCount() {
-    COUNTER.set(0);
-  }
 
   private static final ExceptionHandler EXCEPTION_STACK_HANDLER =
       new ExceptionHandler.Simple(
@@ -84,7 +67,7 @@ public class ExceptionHandlers {
               // invoke incrementAndGet on our exception counter
               mv.visitMethodInsn(
                   Opcodes.INVOKESTATIC,
-                  "datadog/trace/agent/tooling/bytebuddy/ExceptionHandlers",
+                  "datadog/trace/bootstrap/InstrumentationErrors",
                   "incrementErrorCount",
                   "()V");
               // stack: (top) throwable
