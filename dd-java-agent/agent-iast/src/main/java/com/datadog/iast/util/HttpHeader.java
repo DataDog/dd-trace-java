@@ -28,6 +28,7 @@ public enum HttpHeader {
       ctx.setxContentTypeOptions(value);
     }
   },
+  COOKIE("Cookie"),
   SET_COOKIE("Set-Cookie"),
   LOCATION("Location"),
   REFERER("Referer"),

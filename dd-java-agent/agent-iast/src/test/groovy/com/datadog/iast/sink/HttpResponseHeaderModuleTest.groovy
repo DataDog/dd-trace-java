@@ -10,6 +10,8 @@ import com.datadog.iast.taint.TaintedObjects
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.SourceTypes
 import datadog.trace.api.iast.VulnerabilityMarks
+import datadog.trace.api.iast.sink.HeaderInjectionModule
+import datadog.trace.api.iast.sink.UnvalidatedRedirectModule
 import datadog.trace.api.iast.util.Cookie
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 
@@ -132,145 +134,38 @@ class HttpResponseHeaderModuleTest extends IastModuleImplTestBase {
     0 * _
   }
 
-  void 'check header value injection'(final String headerName, final int mark, final String headerValue, final String expected) {
+  void 'check HttpResponseHeaderModule calls HeaderInjectionModule on header'() {
     given:
-    Vulnerability savedVul
-    final taintedHeaderValue = mapTainted(headerValue, mark)
-
-    when:
-    module.onHeader(headerName, taintedHeaderValue)
-
-    then:
-    1 * reporter.report(_, _ as Vulnerability) >> { savedVul = it[1] }
-    assertEvidence(savedVul, expected, VulnerabilityType.HEADER_INJECTION)
-
-    where:
-    headerValue   | mark                                     | headerName               | expected
-    '/==>var<=='  | NOT_MARKED                               | 'headerName'             | "headerName: /==>var<=="
-    '/==>var<=='  | VulnerabilityMarks.XPATH_INJECTION_MARK  | 'headerName'             | "headerName: /==>var<=="
-  }
-
-  void 'check untainted header value injection'(final String headerName, final int mark, final String headerValue, final String expected) {
-    given:
-    final taintedHeaderValue = mapTainted(headerValue, mark)
-
-    when:
-    module.onHeader(headerName, taintedHeaderValue)
-
-    then:
-    0 * reporter.report(_, _ as Vulnerability) >> { savedVul = it[1] }
-
-    where:
-    headerValue   | mark                                      | headerName               | expected
-    'var'         | NOT_MARKED                                | 'headerName'             | null
-    '/==>var<=='  | VulnerabilityMarks.HEADER_INJECTION_MARK  | 'headerName'             | null
-  }
-
-
-  void 'check unvalidated redirect exclusion'(final String headerName, final int mark, final String headerValue, final String expected) {
-    given:
-    Vulnerability savedVul
-    final taintedHeaderValue = mapTainted(headerValue, mark)
-
-    when:
-    module.onHeader(headerName, taintedHeaderValue)
-
-    then:
-    1 * reporter.report(_, _ as Vulnerability) >> { savedVul = it[1] }
-    assertEvidence(savedVul, expected, VulnerabilityType.UNVALIDATED_REDIRECT)
-
-    where:
-    headerValue   | mark                                     | headerName               | expected
-    '/==>var<=='  | NOT_MARKED                               | 'location'               | "/==>var<=="
-  }
-
-  void 'check header exclusions'(final String headerName, final int mark, final String headerValue) {
-    given:
-    final taintedHeaderValue = mapTainted(headerValue, mark)
-
-    when:
-    module.onHeader(headerName, taintedHeaderValue)
-
-    then:
-    0 * reporter.report(_, _ as Vulnerability)
-
-    where:
-    headerValue    | mark                                    | headerName
-    '/==>var<=='  | NOT_MARKED                               | 'Sec-WebSocket-Location'
-    '/==>var<=='  | NOT_MARKED                               | 'Sec-WebSocket-Accept'
-    '/==>var<=='  | NOT_MARKED                               | 'Upgrade'
-    '/==>var<=='  | NOT_MARKED                               | 'Connection'
-  }
-
-  void 'range test'(){
-    given:
-    addFromRangeList(ctx.taintedObjects, headerValue, ranges)
+    final headerInjectionModule = Mock(HeaderInjectionModule)
+    InstrumentationBridge.registerIastModule(headerInjectionModule)
+    final headerName = 'headerName'
+    final headerValue = 'headerValue'
 
     when:
     module.onHeader(headerName, headerValue)
 
     then:
-    0 * reporter.report(_, _ as Vulnerability)
+    1 * headerInjectionModule.onHeader(headerName, headerValue)
 
-    where:
-    headerValue | headerName                    | ranges
-    'pepito'    | 'Sec-WebSocket-Location'      | [[0, 2, 'sourceName', 'sourceValue', SourceTypes.REQUEST_HEADER_VALUE]]
-    'pepito'    | 'Access-Control-Allow-Origin' | [[0, 2, 'origin', 'sourceValue', SourceTypes.REQUEST_HEADER_VALUE]]
-    'pepito'    | 'Access-Control-Allow-Origin' | [
-      [0, 2, 'origin', 'sourceValue', SourceTypes.REQUEST_HEADER_VALUE],
-      [2, 2, 'origin', 'sourceValue', SourceTypes.REQUEST_HEADER_VALUE]
-    ]
-    'pepito'    | 'Set-Cookie'                  | [[0, 2, 'Set-Cookie', 'sourceValue', SourceTypes.REQUEST_HEADER_VALUE]]
-    'pepito'    | 'Set-Cookie'                  | [
-      [0, 2, 'Set-Cookie', 'sourceValue', SourceTypes.REQUEST_HEADER_VALUE],
-      [2, 2, 'Set-Cookie', 'sourceValue', SourceTypes.REQUEST_HEADER_VALUE]
-    ]
   }
 
-  void 'range test exclusions'(){
+  void 'check HttpResponseHeaderModule calls UnvalidatedRedirectModule on header'() {
     given:
-    Vulnerability savedVul
-    addFromRangeList(ctx.taintedObjects, headerValue, ranges)
+    final unvalidatedRedirectModule = Mock(UnvalidatedRedirectModule)
+    InstrumentationBridge.registerIastModule(unvalidatedRedirectModule)
+    final headerValue = 'headerValue'
 
     when:
     module.onHeader(headerName, headerValue)
 
     then:
-    1 * reporter.report(_, _ as Vulnerability) >> { savedVul = it[1] }
-    assertEvidence(savedVul, expected, VulnerabilityType.HEADER_INJECTION)
+    expected * unvalidatedRedirectModule.onHeader(headerName, headerValue)
 
     where:
-    headerValue | expected                                           | headerName                   | ranges
-    'pepito'    | 'Access-Control-Allow-Origin: ==>pe<==pito'        |'Access-Control-Allow-Origin' | [[0, 2, 'X-Test-Header', 'sourceValue', SourceTypes.REQUEST_HEADER_VALUE]]
-    'pepito'    | 'Access-Control-Allow-Origin: ==>pe<====>pi<==to'  |'Access-Control-Allow-Origin' | [
-      [0, 2, 'origin', 'sourceValue', SourceTypes.REQUEST_HEADER_VALUE],
-      [2, 2, 'X-Test-Header', 'sourceValue', SourceTypes.REQUEST_HEADER_VALUE]
-    ]
-    'pepito'    | 'Set-Cookie: ==>pe<==pito'                        |'Set-Cookie'                  | [[0, 2, 'X-Test-Header', 'sourceValue', SourceTypes.REQUEST_HEADER_VALUE]]
-    'pepito'    | 'Set-Cookie: ==>pe<====>pi<==to'                  |'Set-Cookie'                  | [
-      [0, 2, 'Set-Cookie', 'sourceValue', SourceTypes.REQUEST_HEADER_VALUE],
-      [2, 2, 'X-Test-Header', 'sourceValue', SourceTypes.REQUEST_HEADER_VALUE]
-    ]
+    headerName               | expected
+    'location'               | 1
+    'Location'               | 1
+    'headerName'             | 0
   }
 
-
-  private String mapTainted(final String value, final int mark) {
-    final result = addFromTaintFormat(ctx.taintedObjects, value, mark)
-    objectHolder.add(result)
-    return result
-  }
-
-  private static void assertVulnerability(final Vulnerability vuln, final VulnerabilityType type ) {
-    assert vuln != null
-    assert vuln.getType() == type
-    assert vuln.getLocation() != null
-  }
-
-  private static void assertEvidence(final Vulnerability vuln, final String expected, final VulnerabilityType type = VulnerabilityType.HEADER_INJECTION) {
-    assertVulnerability(vuln, type)
-    final evidence = vuln.getEvidence()
-    assert evidence != null
-    final formatted = taintFormat(evidence.getValue(), evidence.getRanges())
-    assert formatted == expected
-  }
 }
