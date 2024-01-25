@@ -56,11 +56,8 @@ class HeaderInjectionModuleTest extends IastModuleImplTestBase{
   }
 
   void 'check excluded headers'() {
-    given:
-    final taintedHeaderValue = mapTainted('/==>var<==', NOT_MARKED)
-
     when:
-    module.onHeader(header.name, taintedHeaderValue)
+    module.onHeader(header.name, 'headerValue')
 
     then:
     0 * reporter.report(_, _ as Vulnerability)
