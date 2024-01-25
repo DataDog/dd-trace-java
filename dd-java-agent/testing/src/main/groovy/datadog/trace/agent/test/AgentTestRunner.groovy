@@ -444,7 +444,7 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
     if (forceAppSecActive) {
       ActiveSubsystems.APPSEC_ACTIVE = true
     }
-    ExceptionHandlers.defaultExceptionHandler().getErrorCounter().set(0)
+    ExceptionHandlers.resetErrorCount()
   }
 
   @Override
@@ -481,7 +481,7 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
       spanFinishLocations.clear()
       originalToSpySpan.clear()
     }
-    assert ExceptionHandlers.defaultExceptionHandler().getErrorCounter().get() == 0
+    assert ExceptionHandlers.errorCount == 0
   }
 
   private void doCheckRepeatedFinish() {
