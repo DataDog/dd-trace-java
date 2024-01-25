@@ -48,6 +48,9 @@ dependencies {
   testImplementation("org.spockframework", "spock-core", "2.2-groovy-3.0")
   testImplementation("org.codehaus.groovy", "groovy-all", "3.0.17")
   testImplementation("io.opentelemetry.javaagent", "opentelemetry-muzzle", "1.32.0-alpha")
+  // OpenTelemetry javaagent modules for OTel Muzzle converter
+  testImplementation("io.opentelemetry.javaagent", "opentelemetry-javaagent-extension-api", "1.32.0-alpha")
+  testImplementation("io.opentelemetry.javaagent.instrumentation", "opentelemetry-javaagent-grpc-1.6", "1.32.0-alpha")
 }
 
 tasks.compileGroovy {

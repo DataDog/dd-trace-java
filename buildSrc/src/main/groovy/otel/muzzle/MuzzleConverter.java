@@ -64,7 +64,9 @@ public class MuzzleConverter extends ClassVisitor {
       // TODO Add oll other muzzle methods conversion too
     }
 
-    cn.accept(this.next);
+    if (this.next != null) {
+      cn.accept(this.next);
+    }
   }
 
   public boolean inheritsInstrumentationModuleMuzzle() {
@@ -128,20 +130,22 @@ public class MuzzleConverter extends ClassVisitor {
     return list;
   }
 
+  /**
+   * Capture OpenTelemetry ClassRef/ClassRefBuilder/Source/Field/Method and ASM Type calls to recreate muzzle references.
+   */
   public void captureMuzzleReferences() {
     ClassNode classNode = (ClassNode) this.cv;
     // Look for OTel method
     MethodNode methodNode = findMethodNode(classNode, GET_MUZZLE_REFERENCES_METHOD_NAME, GET_MUZZLE_REFERENCES_DESC);
-
+    // Store sources, flags and types captured along walking the instructions
     List<String> sources = new ArrayList<>();
     int flags = 0;
     List<String> types = new ArrayList<>();
+    // Declare the muzzle reference to be consolidated when walking over OTel builder API
     MuzzleReference currentReference = null;
     for (final AbstractInsnNode instructionNode : methodNode.instructions) {
       if (instructionNode.getType() == METHOD_INSN) {
         MethodInsnNode methodInsnNode = (MethodInsnNode) instructionNode;
-        // TODO DEBUG
-        System.out.println("Instruction: " + methodInsnNode.name + " " + methodInsnNode.owner + " " + methodInsnNode.desc);
         // Look for ClassRef.builder(String)
         if ("io/opentelemetry/javaagent/tooling/muzzle/references/ClassRef".equals(methodInsnNode.owner)
             && "builder".equals(methodInsnNode.name)
@@ -191,15 +195,15 @@ public class MuzzleConverter extends ClassVisitor {
           }
           // Look for ClassRefBuilder.addField(Source[], Flag[], String, Type, boolean)
           else if ("addField".equals(methodInsnNode.name)
-          && "([Lio/opentelemetry/javaagent/tooling/muzzle/references/Source;[Lio/opentelemetry/javaagent/tooling/muzzle/references/Flag;Ljava/lang/String;Lorg/objectweb/asm/Type;Z)Lio/opentelemetry/javaagent/tooling/muzzle/references/ClassRefBuilder;".equals(methodInsnNode.desc)) {
+          && "([Lio/opentelemetry/javaagent/tooling/muzzle/references/Source;[Lio/opentelemetry/javaagent/tooling/muzzle/references/Flag;Ljava/lang/String;Lorg/objectweb/asm/Type;Z)Lio/opentelemetry/javaagent/tooling/muzzle/references/ClassRefBuilder;".equals(methodInsnNode.desc)
+          && methodInsnNode.getPrevious().getPrevious().getPrevious().getPrevious().getType() == LDC_INSN) {
+            LdcInsnNode ldcInsnNode = (LdcInsnNode) methodInsnNode.getPrevious().getPrevious().getPrevious().getPrevious();
             MuzzleReference.Field field = new MuzzleReference.Field();
             field.sources = sources;
             field.flags = flags;
-            // TODO field.name =
+            field.name = (String) ldcInsnNode.cst;
             field.fieldType = getFieldType(types);
             currentReference.fields.add(field);
-            // TODO Debug
-//            System.out.println(">>> Drain sources for "+currentReference.className);
             sources = new ArrayList<>();
             flags = 0;
           }
@@ -207,14 +211,13 @@ public class MuzzleConverter extends ClassVisitor {
           else if ("addMethod".equals(methodInsnNode.name)
               && "([Lio/opentelemetry/javaagent/tooling/muzzle/references/Source;[Lio/opentelemetry/javaagent/tooling/muzzle/references/Flag;Ljava/lang/String;Lorg/objectweb/asm/Type;[Lorg/objectweb/asm/Type;)Lio/opentelemetry/javaagent/tooling/muzzle/references/ClassRefBuilder;".equals(methodInsnNode.desc)
           ) {
+            String name = getReferenceMethodName(methodInsnNode, types);
             MuzzleReference.Method method = new MuzzleReference.Method();
             method.sources = sources;
             method.flags = flags;
-            // TODO method.name =
+            method.name = name;
             method.methodType = getMethodType(types);
             currentReference.methods.add(method);
-            // TODO Debug
-//            System.out.println(">>> Drain sources for "+currentReference.className);
             sources = new ArrayList<>();
             flags = 0;
           }
@@ -225,7 +228,6 @@ public class MuzzleConverter extends ClassVisitor {
               && methodInsnNode.getPrevious().getType() == LDC_INSN
               && methodInsnNode.getPrevious().getPrevious().getType() == LDC_INSN) {
             String source = ((LdcInsnNode) methodInsnNode.getPrevious().getPrevious()).cst + ":" + ((LdcInsnNode) methodInsnNode.getPrevious()).cst;
-            System.out.println(">>> Create source: " + source);
             sources.add(source);
           }
         } else if ("org/objectweb/asm/Type".equals(methodInsnNode.owner)) {
@@ -244,10 +246,8 @@ public class MuzzleConverter extends ClassVisitor {
         }
       }
     }
-
-    // TODO Debug
-    for (MuzzleReference reference : this.references) {
-      System.out.println("Found reference: " + reference);
+    if (currentReference != null) {
+      this.references.add(currentReference);
     }
   }
 
@@ -288,5 +288,45 @@ public class MuzzleConverter extends ClassVisitor {
     String methodType = "(" + String.join("", types) + ")" + returnType;
     types.clear();
     return methodType;
+  }
+
+  private String getReferenceMethodName(MethodInsnNode methodInsnNode, List<String> types) {
+    if (types.isEmpty()) {
+      throw new IllegalStateException("Unexpected number of collected types: no types but expected at least one");
+    }
+    int rewindDistance = 0;
+    int parameterCount = types.size() - 1;
+    // Rewind the Type.getType() for parameters stored as the vararg parameter
+    // Need to rewind 5 instructions per parameter:
+    // * dup
+    // * ldc (array index)
+    // * ldc_w (type descriptor string)
+    // * invokestatic (Type.getType() call)
+    // * aastore (array store)
+    rewindDistance += 5*parameterCount;
+    // Rewind vararg array creation
+    // Need to rewind 2 instructions:
+    // * ldc (array size)
+    // * anewarray (array creation)
+    rewindDistance += 2;
+    // Rewind return type parameter
+    // Need to rewind 2 instructions:
+    // * ldc_w (type descriptor string)
+    // * invokestatic (Type.getType() call)
+    rewindDistance+= 2;
+    // Finally rewind up to the load instruction with the method name
+    rewindDistance++;
+    AbstractInsnNode abstractInsnNode = methodInsnNode;
+    for (int i = 0; i < rewindDistance; i++) {
+      abstractInsnNode = abstractInsnNode.getPrevious();
+      if (abstractInsnNode == null) {
+        throw new IllegalStateException("Invalid rewind distance: no more instructions");
+      }
+    }
+    if (abstractInsnNode instanceof LdcInsnNode) {
+      return (String) ((LdcInsnNode) abstractInsnNode).cst;
+    } else {
+      throw new IllegalStateException("Unexpected instruction type "+abstractInsnNode.getType() + " when looking for reference method name");
+    }
   }
 }
