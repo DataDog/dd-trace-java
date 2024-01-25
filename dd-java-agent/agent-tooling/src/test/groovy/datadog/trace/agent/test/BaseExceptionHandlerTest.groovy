@@ -6,6 +6,7 @@ import ch.qos.logback.core.read.ListAppender
 import datadog.trace.agent.tooling.bytebuddy.ExceptionHandlers
 import datadog.trace.api.Platform
 import datadog.trace.bootstrap.ExceptionLogger
+import datadog.trace.bootstrap.InstrumentationErrors
 import datadog.trace.test.util.DDSpecification
 import net.bytebuddy.agent.ByteBuddyAgent
 import net.bytebuddy.agent.builder.AgentBuilder
@@ -116,7 +117,7 @@ abstract class BaseExceptionHandlerTest extends DDSpecification {
     ]
     URLClassLoader loader = new URLClassLoader(classpath, (ClassLoader) null)
     when:
-    loader.loadClass(LoggerFactory.getName())
+    loader.loadClass(InstrumentationErrors.getName())
     then:
     thrown ClassNotFoundException
 
