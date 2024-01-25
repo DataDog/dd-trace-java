@@ -23,6 +23,12 @@
         "VARIANT": "iast_TELEMETRY_OFF",
         "JAVA_OPTS": "-javaagent:${TRACER} -Ddd.benchmark.enabled=true -Ddd.benchmark.output.dir=${OUTPUT_DIR}/iast_TELEMETRY_OFF -Ddd.iast.enabled=true -Ddd.iast.telemetry.verbosity=OFF"
       }
+    },
+    "iast_HARDCODED_SECRET_DISABLED": {
+      "env": {
+        "VARIANT": "iast_HARDCODED_SECRET_DISABLED",
+        "JAVA_OPTS": "-javaagent:${TRACER} -Ddd.iast.enabled=true -Ddd.iast.hardcoded-secret.enabled=false"
+      }
     }
   }
 }

@@ -118,6 +118,8 @@ public final class ConfigDefaults {
   public static final int DEFAULT_IAST_MAX_RANGE_COUNT = 10;
   static final boolean DEFAULT_IAST_STACKTRACE_LEAK_SUPPRESS = false;
 
+  static final boolean DEFAULT_IAST_HARDCODED_SECRET_ENABLED = true;
+
   static final int DEFAULT_IAST_TRUNCATION_MAX_VALUE_LENGTH = 250;
   public static final boolean DEFAULT_IAST_DEDUPLICATION_ENABLED = true;
 
