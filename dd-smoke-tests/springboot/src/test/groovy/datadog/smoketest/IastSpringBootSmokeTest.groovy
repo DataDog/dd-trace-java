@@ -29,6 +29,25 @@ class IastSpringBootSmokeTest extends AbstractIastSpringBootTest {
     }
   }
 
+  void 'find hardcoded secret'() {
+    given:
+    String url = "http://localhost:${httpPort}/hardcodedSecret"
+
+    when:
+    Response response = client.newCall(new Request.Builder().url(url).get().build()).execute()
+
+    then:
+    response.successful
+    hasVulnerabilityInLogs {
+      vul ->
+      vul.type == 'HARDCODED_SECRET'
+      && vul.location.method == '<init>'
+      && vul.location.path == 'datadog.smoketest.springboot.controller.IastWebController'
+      && vul.location.line == 57
+      && vul.evidence.value == 'age-secret-key'
+    }
+  }
+
   static class WithGlobalContext extends IastSpringBootSmokeTest {
     @Override
     protected List<String> iastJvmOpts() {

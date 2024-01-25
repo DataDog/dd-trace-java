@@ -1,6 +1,8 @@
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.agent.tooling.Instrumenter
 import datadog.trace.api.Config
+import datadog.trace.api.config.IastConfig
+import datadog.trace.instrumentation.iastinstrumenter.IastHardcodedSecretListener
 import datadog.trace.instrumentation.iastinstrumenter.IastInstrumentation
 import net.bytebuddy.description.type.TypeDescription
 
@@ -58,5 +60,24 @@ class IastInstrumentationTest extends AgentTestRunner {
     final withTelemetry = callSites.find { it instanceof MockCallSitesWithTelemetry } as MockCallSitesWithTelemetry
     withTelemetry != null
     withTelemetry.verbosity == Config.get().iastTelemetryVerbosity
+  }
+
+  void 'test Iast Instrumentation hardcoded secret listener'() {
+    given:
+    injectSysConfig(IastConfig.IAST_HARDCODED_SECRET_ENABLED, enabled)
+    final instrumentation = new IastInstrumentation()
+    final callSites = instrumentation.callSites().get().toList()
+
+    when:
+    final advices = instrumentation.buildAdvices(callSites)
+
+    then:
+    final withHardcodedSecretListener = advices.listeners.find({ it instanceof IastHardcodedSecretListener }) != null
+    withHardcodedSecretListener == expected
+
+    where:
+    enabled | expected
+    'true'    | true
+    'false'   | false
   }
 }
