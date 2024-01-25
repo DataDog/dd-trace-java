@@ -131,8 +131,11 @@ class LogPeriodicActionTest extends DDSpecification {
     0 * _
     logMessage.getMessage() == 'test'
     logMessage.getStackTrace() == "${MutableException.canonicalName}\n" +
+      "  at [redacted]\n" +
       "  at java.MyClass.method(file:42)\n" +
-      "  at datadog.MyClass.method(file:42)\n"
+      "  at [redacted]\n" +
+      "  at datadog.MyClass.method(file:42)\n" +
+      "  at [redacted: 2 frames]\n"
   }
 
   static class MutableException extends Exception {

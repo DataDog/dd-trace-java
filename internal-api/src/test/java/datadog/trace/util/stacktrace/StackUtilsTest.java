@@ -57,11 +57,6 @@ public class StackUtilsTest {
 
     final Throwable filtered2 = StackUtils.filterFirstDatadog(withStack(stack));
     assertThat(filtered2.getStackTrace()).isEqualTo(expected);
-
-    final String[] packages = {"datadog.trace.util.stacktrace"};
-    final StackTraceElement[] expected2 = new StackTraceElement[] {stack[1], stack[3]};
-    final Throwable filtered3 = StackUtils.filterPackagesIn(withStack(stack), packages);
-    assertThat(filtered3.getStackTrace()).isEqualTo(expected2);
   }
 
   @Test
