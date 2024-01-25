@@ -116,7 +116,7 @@ abstract class BaseExceptionHandlerTest extends DDSpecification {
     ]
     URLClassLoader loader = new URLClassLoader(classpath, (ClassLoader) null)
     when:
-    loader.loadClass(LoggerFactory.getName())
+    loader.loadClass(ExceptionHandlers.getName())
     then:
     thrown ClassNotFoundException
 

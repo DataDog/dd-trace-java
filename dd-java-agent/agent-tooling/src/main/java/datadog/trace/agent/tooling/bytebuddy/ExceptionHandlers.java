@@ -2,6 +2,7 @@ package datadog.trace.agent.tooling.bytebuddy;
 
 import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.bootstrap.ExceptionLogger;
+import java.util.concurrent.atomic.AtomicLong;
 import net.bytebuddy.ClassFileVersion;
 import net.bytebuddy.asm.Advice.ExceptionHandler;
 import net.bytebuddy.implementation.Implementation;
@@ -19,8 +20,11 @@ public class ExceptionHandlers {
   // Bootstrap ExceptionHandler.class will always be resolvable, so we'll use it in the log name
   private static final String HANDLER_NAME = ExceptionLogger.class.getName().replace('.', '/');
 
-  private static final ExceptionHandler EXCEPTION_STACK_HANDLER =
-      new ExceptionHandler.Simple(
+  public static final class DefaultExceptionHandler extends ExceptionHandler.Simple {
+    private final AtomicLong errorCounter = new AtomicLong();
+
+    public DefaultExceptionHandler() {
+      super(
           new StackManipulation() {
             // Pops one Throwable off the stack. Maxes the stack to at least 3.
             private final Size size = new StackManipulation.Size(-1, 3);
@@ -63,9 +67,14 @@ public class ExceptionHandlers {
                   context.getClassFileVersion().isAtLeast(ClassFileVersion.JAVA_V6);
 
               mv.visitTryCatchBlock(logStart, logEnd, eatException, "java/lang/Throwable");
-
-              // stack: (top) throwable
               mv.visitLabel(logStart);
+              // invoke incrementAndGet on our exception counter
+              mv.visitMethodInsn(
+                  Opcodes.INVOKESTATIC,
+                  "datadog/trace/agent/tooling/bytebuddy/ExceptionHandlers",
+                  "countError",
+                  "()V");
+              // stack: (top) throwable
               mv.visitLdcInsn(Type.getType("L" + HANDLER_NAME + ";"));
               mv.visitMethodInsn(
                   Opcodes.INVOKESTATIC,
@@ -82,6 +91,7 @@ public class ExceptionHandlers {
                   logMethod,
                   "(Ljava/lang/String;Ljava/lang/Throwable;)V",
                   true);
+
               if (exitOnFailure) {
                 mv.visitInsn(Opcodes.ICONST_1);
                 mv.visitMethodInsn(Opcodes.INVOKESTATIC, "java/lang/System", "exit", "(I)V", false);
@@ -107,8 +117,22 @@ public class ExceptionHandlers {
               return size;
             }
           });
+    }
 
-  public static ExceptionHandler defaultExceptionHandler() {
+    public AtomicLong getErrorCounter() {
+      return errorCounter;
+    }
+  }
+
+  @SuppressWarnings("unused")
+  public static void countError() {
+    EXCEPTION_STACK_HANDLER.errorCounter.incrementAndGet();
+  }
+
+  private static final DefaultExceptionHandler EXCEPTION_STACK_HANDLER =
+      new DefaultExceptionHandler();
+
+  public static DefaultExceptionHandler defaultExceptionHandler() {
     return EXCEPTION_STACK_HANDLER;
   }
 }

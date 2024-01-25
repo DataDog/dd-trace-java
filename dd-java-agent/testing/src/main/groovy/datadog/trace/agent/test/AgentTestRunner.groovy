@@ -14,6 +14,7 @@ import datadog.trace.agent.test.timer.TestTimer
 import datadog.trace.agent.tooling.AgentInstaller
 import datadog.trace.agent.tooling.Instrumenter
 import datadog.trace.agent.tooling.TracerInstaller
+import datadog.trace.agent.tooling.bytebuddy.ExceptionHandlers
 import datadog.trace.agent.tooling.bytebuddy.matcher.GlobalIgnores
 import datadog.trace.api.*
 import datadog.trace.api.config.GeneralConfig
@@ -280,6 +281,7 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
 
   @SuppressForbidden
   void setupSpec() {
+
     // If this fails, it's likely the result of another test loading Config before it can be
     // injected into the bootstrap classpath. If one test extends AgentTestRunner in a module, all tests must extend
     assert Config.getClassLoader() == null: "Config must load on the bootstrap classpath."
@@ -402,7 +404,6 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
   protected void configurePreAgent() {
     injectSysConfig(TracerConfig.SCOPE_ITERATION_KEEP_ALIVE, "1") // don't let iteration spans linger
     injectSysConfig(GeneralConfig.DATA_STREAMS_ENABLED, String.valueOf(isDataStreamsEnabled()))
-    injectSysConfig(GeneralConfig.INTERNAL_EXIT_ON_FAILURE, "true")
   }
 
   void setup() {
@@ -443,6 +444,7 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
     if (forceAppSecActive) {
       ActiveSubsystems.APPSEC_ACTIVE = true
     }
+    ExceptionHandlers.defaultExceptionHandler().getErrorCounter().set(0)
   }
 
   @Override
@@ -479,6 +481,7 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
       spanFinishLocations.clear()
       originalToSpySpan.clear()
     }
+    assert ExceptionHandlers.defaultExceptionHandler().getErrorCounter().get() == 0
   }
 
   private void doCheckRepeatedFinish() {
