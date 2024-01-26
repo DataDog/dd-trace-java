@@ -8,17 +8,10 @@ import com.datadog.iast.model.VulnerabilityType
 import com.datadog.iast.overhead.Operations
 import com.datadog.iast.taint.TaintedObjects
 import datadog.trace.api.iast.InstrumentationBridge
-import datadog.trace.api.iast.SourceTypes
-import datadog.trace.api.iast.VulnerabilityMarks
 import datadog.trace.api.iast.sink.HeaderInjectionModule
 import datadog.trace.api.iast.sink.UnvalidatedRedirectModule
 import datadog.trace.api.iast.util.Cookie
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
-
-import static com.datadog.iast.taint.TaintUtils.addFromTaintFormat
-import static com.datadog.iast.taint.TaintUtils.addFromRangeList
-import static com.datadog.iast.taint.TaintUtils.taintFormat
-import static datadog.trace.api.iast.VulnerabilityMarks.NOT_MARKED
 
 class HttpResponseHeaderModuleTest extends IastModuleImplTestBase {
 
