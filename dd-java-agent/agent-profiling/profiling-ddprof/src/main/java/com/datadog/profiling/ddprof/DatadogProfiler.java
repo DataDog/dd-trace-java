@@ -32,6 +32,7 @@ import com.datadog.profiling.controller.UnsupportedEnvironmentException;
 import com.datadog.profiling.utils.ProfilingMode;
 import com.datadoghq.profiler.ContextSetter;
 import com.datadoghq.profiler.JavaProfiler;
+import datadog.trace.api.Platform;
 import datadog.trace.api.config.ProfilingConfig;
 import datadog.trace.api.profiling.RecordingData;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
@@ -68,6 +69,11 @@ public final class DatadogProfiler {
   }
 
   private static void logFailedInstantiation(Throwable error) {
+    if (Platform.isNativeImageBuilder() || Platform.isNativeImage()) {
+      // Datadog profiler is not supported in native-image mode
+      // Skip logging the error
+      return;
+    }
     OperatingSystem os = OperatingSystem.current();
     if (os != OperatingSystem.linux) {
       log.debug("Datadog profiler only supported on Linux", error);
