@@ -2,6 +2,8 @@ package com.datadog.debugger.agent;
 
 import static datadog.trace.util.AgentThreadFactory.AGENT_THREAD_GROUP;
 
+import com.datadog.debugger.exception.DefaultExceptionDebugger;
+import com.datadog.debugger.exception.ExceptionProbeManager;
 import com.datadog.debugger.sink.DebuggerSink;
 import com.datadog.debugger.sink.ProbeStatusSink;
 import com.datadog.debugger.symbol.SymDBEnablement;
@@ -75,6 +77,10 @@ public class DebuggerAgent {
     snapshotSerializer = new JsonSnapshotSerializer();
     DebuggerContext.initValueSerializer(snapshotSerializer);
     DebuggerContext.initTracer(new DebuggerTracer(debuggerSink.getProbeStatusSink()));
+    if (config.isDebuggerExceptionEnabled()) {
+      DebuggerContext.initExceptionDebugger(
+          new DefaultExceptionDebugger(new ExceptionProbeManager()));
+    }
     if (config.isDebuggerInstrumentTheWorld()) {
       setupInstrumentTheWorldTransformer(
           config, instrumentation, debuggerSink, statsdMetricForwarder);

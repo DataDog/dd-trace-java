@@ -42,6 +42,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_CAPTURE_TIMEOUT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_CLASSFILE_DUMP_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_DIAGNOSTICS_INTERVAL;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_EXCEPTION_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_INSTRUMENT_THE_WORLD;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_MAX_PAYLOAD_SIZE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_METRICS_ENABLED;
@@ -193,6 +194,7 @@ import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_CAPTURE_TIMEOUT;
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_CLASSFILE_DUMP_ENABLED;
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_DIAGNOSTICS_INTERVAL;
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_ENABLED;
+import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_EXCEPTION_ENABLED;
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_EXCLUDE_FILES;
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_INSTRUMENT_THE_WORLD;
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_MAX_PAYLOAD_SIZE;
@@ -791,6 +793,7 @@ public class Config {
   private final boolean debuggerSymbolForceUpload;
   private final String debuggerSymbolIncludes;
   private final int debuggerSymbolFlushThreshold;
+  private final boolean debuggerExceptionEnabled;
 
   private final boolean awsPropagationEnabled;
   private final boolean sqsPropagationEnabled;
@@ -1800,6 +1803,8 @@ public class Config {
     debuggerSymbolFlushThreshold =
         configProvider.getInteger(
             DEBUGGER_SYMBOL_FLUSH_THRESHOLD, DEFAULT_DEBUGGER_SYMBOL_FLUSH_THRESHOLD);
+    debuggerExceptionEnabled =
+        configProvider.getBoolean(DEBUGGER_EXCEPTION_ENABLED, DEFAULT_DEBUGGER_EXCEPTION_ENABLED);
 
     awsPropagationEnabled = isPropagationEnabled(true, "aws", "aws-sdk");
     sqsPropagationEnabled = isPropagationEnabled(true, "sqs");
@@ -3031,6 +3036,10 @@ public class Config {
     return debuggerSymbolFlushThreshold;
   }
 
+  public boolean isDebuggerExceptionEnabled() {
+    return debuggerExceptionEnabled;
+  }
+
   public String getFinalDebuggerProbeUrl() {
     // by default poll from datadog agent
     return "http://" + agentHost + ":" + agentPort;
@@ -4201,6 +4210,22 @@ public class Config {
         + debuggerInstrumentTheWorld
         + ", debuggerExcludeFile="
         + debuggerExcludeFiles
+        + ", debuggerCaptureTimeout="
+        + debuggerCaptureTimeout
+        + ", debuggerRedactIdentifiers="
+        + debuggerRedactedIdentifiers
+        + ", debuggerRedactTypes="
+        + debuggerRedactedTypes
+        + ", debuggerSymbolEnabled="
+        + debuggerSymbolEnabled
+        + ", debuggerSymbolForceUpload="
+        + debuggerSymbolForceUpload
+        + ", debuggerSymbolFlushThreshold="
+        + debuggerSymbolFlushThreshold
+        + ", debuggerSymbolIncludes="
+        + debuggerSymbolIncludes
+        + ", debuggerExceptionEnabled="
+        + debuggerExceptionEnabled
         + ", awsPropagationEnabled="
         + awsPropagationEnabled
         + ", sqsPropagationEnabled="
