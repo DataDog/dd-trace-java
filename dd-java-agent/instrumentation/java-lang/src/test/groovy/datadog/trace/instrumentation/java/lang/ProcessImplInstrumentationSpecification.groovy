@@ -2,6 +2,7 @@ package datadog.trace.instrumentation.java.lang
 
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.agent.test.asserts.SpanAssert
+import datadog.trace.agent.test.utils.TraceUtils
 import datadog.trace.bootstrap.ActiveSubsystems
 
 import java.util.concurrent.TimeUnit
@@ -73,6 +74,72 @@ class ProcessImplInstrumentationSpecification extends AgentTestRunner {
       trace(1) {
         span(0) {
           assertProcessSpan(it, command)
+        }
+      }
+    }
+
+    where:
+    name                         | starter               | _
+    processBuilderStarter.name() | processBuilderStarter | _
+    runtimeExecStarter.name()    | runtimeExecStarter    | _
+  }
+
+  void 'creates a child span with #name'() {
+    when:
+    def command = ['/bin/sh', '-c', 'echo 42']
+    def terminated = TraceUtils.runUnderTrace("parent", false) {
+      def builder = new ProcessBuilder(command)
+      Process p = builder.start()
+      p.waitFor(5, TimeUnit.SECONDS)
+    }
+
+    then:
+    terminated
+    assertTraces(1) {
+      trace(2) {
+        sortSpansByStart()
+        span(0) {
+          operationName 'parent'
+        }
+        span(1) {
+          assertProcessSpan(it, command)
+          childOf span(0)
+        }
+      }
+    }
+
+    where:
+    name                         | starter               | _
+    processBuilderStarter.name() | processBuilderStarter | _
+    runtimeExecStarter.name()    | runtimeExecStarter    | _
+  }
+
+  void 'creates two sibling child spans with #name'() {
+    when:
+    def command1 = ['/bin/sh', '-c', 'sleep 0.5']
+    def command2 = ['/bin/sh', '-c', 'echo 42']
+    def terminated = TraceUtils.runUnderTrace("parent", false) {
+      Process p1 = new ProcessBuilder(command1).start()
+      Process p2 = new ProcessBuilder(command2).start()
+      p2.waitFor(5, TimeUnit.SECONDS)
+      p1.waitFor(5, TimeUnit.SECONDS)
+    }
+
+    then:
+    terminated
+    assertTraces(1) {
+      trace(3) {
+        sortSpansByStart()
+        span(0) {
+          operationName 'parent'
+        }
+        span(1) {
+          assertProcessSpan(it, command1)
+          childOf span(0)
+        }
+        span(2) {
+          assertProcessSpan(it, command2)
+          childOf span(0)
         }
       }
     }

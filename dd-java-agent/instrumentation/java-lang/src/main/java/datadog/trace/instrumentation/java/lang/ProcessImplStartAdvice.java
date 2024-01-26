@@ -4,10 +4,8 @@ import static datadog.trace.util.AgentThreadFactory.AGENT_THREAD_GROUP;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
-import datadog.trace.bootstrap.instrumentation.api.TagContext;
 import datadog.trace.bootstrap.instrumentation.api.java.lang.ProcessImplInstrumentationHelpers;
 import java.io.IOException;
-import java.util.Map;
 import net.bytebuddy.asm.Advice;
 
 class ProcessImplStartAdvice {
@@ -26,13 +24,11 @@ class ProcessImplStartAdvice {
       return null;
     }
 
-    AgentTracer.TracerAPI tracer = AgentTracer.get();
-
-    Map<String, String> tags = ProcessImplInstrumentationHelpers.createTags(command);
-    TagContext tagContext = new TagContext("appsec", tags);
-    AgentSpan span = tracer.startSpan("appsec", "command_execution", tagContext);
+    final AgentTracer.TracerAPI tracer = AgentTracer.get();
+    final AgentSpan span = tracer.startSpan("appsec", "command_execution");
     span.setSpanType("system");
     span.setResourceName(ProcessImplInstrumentationHelpers.determineResource(command));
+    ProcessImplInstrumentationHelpers.setTags(span, command);
     return span;
   }
 

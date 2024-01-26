@@ -74,7 +74,7 @@ public class RepoIndexBuilder implements RepoIndexProvider {
           Integer.MAX_VALUE,
           repoIndexingFileVisitor);
     } catch (Exception e) {
-      log.error("Failed to build index of {}", scanRootPath, e);
+      log.debug("Failed to build index of {}", scanRootPath, e);
     }
 
     long duration = System.currentTimeMillis() - startTime;
@@ -95,7 +95,7 @@ public class RepoIndexBuilder implements RepoIndexProvider {
     try {
       return path.toRealPath();
     } catch (Exception e) {
-      log.error("Could not determine real path for {}", path, e);
+      log.debug("Could not determine real path for {}", path, e);
       return path;
     }
   }
@@ -163,7 +163,7 @@ public class RepoIndexBuilder implements RepoIndexProvider {
           }
         }
       } catch (Exception e) {
-        log.error("Failed to index file {}", file, e);
+        log.debug("Failed to index file {}", file, e);
       }
       return FileVisitResult.CONTINUE;
     }
@@ -197,7 +197,7 @@ public class RepoIndexBuilder implements RepoIndexProvider {
     @Override
     public FileVisitResult visitFileFailed(Path file, IOException exc) {
       if (exc != null) {
-        log.error("Failed to visit file: {}", file, exc);
+        log.debug("Failed to visit file: {}", file, exc);
       }
       return FileVisitResult.CONTINUE;
     }
@@ -205,7 +205,7 @@ public class RepoIndexBuilder implements RepoIndexProvider {
     @Override
     public FileVisitResult postVisitDirectory(Path dir, IOException exc) {
       if (exc != null) {
-        log.error("Failed to visit directory: {}", dir, exc);
+        log.debug("Failed to visit directory: {}", dir, exc);
       }
       return FileVisitResult.CONTINUE;
     }

@@ -62,6 +62,19 @@ abstract class AbstractSpark24SqlTest extends AgentTestRunner {
 
   private static assertSQLPlanEquals(Object expected, Object actual) {
     assert expected.node == actual.node
+    assert expected.keySet() == actual.keySet()
+
+    // Checking all keys expect children and metrics that are checked after
+    expected.keySet().each { key ->
+      if (!['children', 'metrics'].contains(key)) {
+
+        // Some metric values will varies between runs
+        // In the case, setting the expected value to "any" skips the assertion
+        if (expected[key] != "any") {
+          assert expected[key] == actual[key]: "$expected does not match $actual"
+        }
+      }
+    }
 
     // Checking the metrics are the same on both side
     if (expected.metrics == null) {
@@ -125,8 +138,8 @@ abstract class AbstractSpark24SqlTest extends AgentTestRunner {
 
     sparkSession.stop()
 
-    def firstStagePlan = """{"node":"Exchange","metrics":[{"data size total (min, med, max)":"any","type":"size"}],"children":[{"node":"WholeStageCodegen","metrics":[{"duration total (min, med, max)":"any","type":"timing"}],"children":[{"node":"HashAggregate","metrics":[{"aggregate time total (min, med, max)":"any","type":"timing"},{"number of output rows":"any","type":"sum"},{"peak memory total (min, med, max)":"any","type":"size"}],"children":[{"node":"InputAdapter","children":[{"node":"LocalTableScan","metrics":[{"number of output rows":3,"type":"sum"}]}]}]}]}]}"""
-    def secondStagePlan = """{"node":"WholeStageCodegen","metrics":[{"duration total (min, med, max)":"any","type":"timing"}],"children":[{"node":"HashAggregate","metrics":[{"aggregate time total (min, med, max)":"any","type":"timing"},{"avg hash probe (min, med, max)":"any","type":"average"},{"number of output rows":2,"type":"sum"},{"peak memory total (min, med, max)":"any","type":"size"}],"children":[{"node":"InputAdapter"}]}]}"""
+    def firstStagePlan = """{"node":"Exchange","nodeId":-1909876497,"metrics":[{"data size total (min, med, max)":"any","type":"size"}],"children":[{"node":"WholeStageCodegen","nodeId":724251804,"metrics":[{"duration total (min, med, max)":"any","type":"timing"}],"children":[{"node":"HashAggregate","nodeId":1128016273,"metrics":[{"aggregate time total (min, med, max)":"any","type":"timing"},{"number of output rows":"any","type":"sum"},{"peak memory total (min, med, max)":"any","type":"size"}],"children":[{"node":"InputAdapter","nodeId":180293,"children":[{"node":"LocalTableScan","nodeId":1632930767,"metrics":[{"number of output rows":3,"type":"sum"}]}]}]}]}]}"""
+    def secondStagePlan = """{"node":"WholeStageCodegen","nodeId":724251804,"metrics":[{"duration total (min, med, max)":"any","type":"timing"}],"children":[{"node":"HashAggregate","nodeId":126020943,"metrics":[{"aggregate time total (min, med, max)":"any","type":"timing"},{"avg hash probe (min, med, max)":"any","type":"average"},{"number of output rows":2,"type":"sum"},{"peak memory total (min, med, max)":"any","type":"size"}],"children":[{"node":"InputAdapter","nodeId":180293}]}]}"""
 
     expect:
     assertTraces(1) {
@@ -150,12 +163,14 @@ abstract class AbstractSpark24SqlTest extends AgentTestRunner {
           spanType "spark"
           childOf(span(2))
           assertStringSQLPlanEquals(secondStagePlan, span.tags["_dd.spark.sql_plan"].toString())
+          assert span.tags["_dd.spark.sql_parent_stage_ids"] == "[0]"
         }
         span {
           operationName "spark.stage"
           spanType "spark"
           childOf(span(2))
           assertStringSQLPlanEquals(firstStagePlan, span.tags["_dd.spark.sql_plan"].toString())
+          assert span.tags["_dd.spark.sql_parent_stage_ids"] == "[]"
         }
       }
     }
@@ -180,10 +195,10 @@ abstract class AbstractSpark24SqlTest extends AgentTestRunner {
 
     sparkSession.stop()
 
-    def firstStagePlan = """{"node":"Exchange","metrics":[{"data size total (min, med, max)":"any","type":"size"}],"children":[{"node":"LocalTableScan","metrics":[{"number of output rows":"any","type":"sum"}]}]}"""
-    def secondStagePlan = """{"node":"Exchange","metrics":[{"data size total (min, med, max)":"any","type":"size"}],"children":[{"node":"LocalTableScan","metrics":[{"number of output rows":"any","type":"sum"}]}]}"""
-    def thirdStagePlan = """{"node":"Exchange","metrics":[{"data size total (min, med, max)":"any","type":"size"}],"children":[{"node":"WholeStageCodegen","metrics":[{"duration total (min, med, max)":"any","type":"timing"}],"children":[{"node":"HashAggregate","metrics":[{"aggregate time total (min, med, max)":"any","type":"timing"},{"number of output rows":"any","type":"sum"}],"children":[{"node":"Project","children":[{"node":"SortMergeJoin","metrics":[{"number of output rows":"any","type":"sum"}],"children":[{"node":"InputAdapter","children":[{"node":"WholeStageCodegen","metrics":[{"duration total (min, med, max)":"any","type":"timing"}],"children":[{"node":"Sort","metrics":[{"peak memory total (min, med, max)":"any","type":"size"},{"sort time total (min, med, max)":"any","type":"timing"}],"children":[{"node":"InputAdapter"}]}]}]},{"node":"InputAdapter","children":[{"node":"WholeStageCodegen","metrics":[{"duration total (min, med, max)":"any","type":"timing"}],"children":[{"node":"Sort","metrics":[{"peak memory total (min, med, max)":"any","type":"size"}],"children":[{"node":"InputAdapter"}]}]}]}]}]}]}]}]}"""
-    def fourthStagePlan = """{"node":"WholeStageCodegen","metrics":[{"duration total (min, med, max)":"any","type":"timing"}],"children":[{"node":"HashAggregate","metrics":[{"number of output rows":1,"type":"sum"}],"children":[{"node":"InputAdapter"}]}]}"""
+    def firstStagePlan = """{"node":"Exchange","nodeId":"any","metrics":[{"data size total (min, med, max)":"any","type":"size"}],"children":[{"node":"LocalTableScan","nodeId":"any","metrics":[{"number of output rows":"any","type":"sum"}]}]}"""
+    def secondStagePlan = """{"node":"Exchange","nodeId":"any","metrics":[{"data size total (min, med, max)":"any","type":"size"}],"children":[{"node":"LocalTableScan","nodeId":"any","metrics":[{"number of output rows":"any","type":"sum"}]}]}"""
+    def thirdStagePlan = """{"node":"Exchange","nodeId":-1350402171,"metrics":[{"data size total (min, med, max)":"any","type":"size"}],"children":[{"node":"WholeStageCodegen","nodeId":724251804,"metrics":[{"duration total (min, med, max)":"any","type":"timing"}],"children":[{"node":"HashAggregate","nodeId":-879128980,"metrics":[{"aggregate time total (min, med, max)":"any","type":"timing"},{"number of output rows":"any","type":"sum"}],"children":[{"node":"Project","nodeId":1355342585,"children":[{"node":"SortMergeJoin","nodeId":-1975876610,"metrics":[{"number of output rows":"any","type":"sum"}],"children":[{"node":"InputAdapter","nodeId":180293,"children":[{"node":"WholeStageCodegen","nodeId":724251804,"metrics":[{"duration total (min, med, max)":"any","type":"timing"}],"children":[{"node":"Sort","nodeId":66807398,"metrics":[{"peak memory total (min, med, max)":"any","type":"size"},{"sort time total (min, med, max)":"any","type":"timing"}],"children":[{"node":"InputAdapter","nodeId":180293}]}]}]},{"node":"InputAdapter","nodeId":180293,"children":[{"node":"WholeStageCodegen","nodeId":724251804,"metrics":[{"duration total (min, med, max)":"any","type":"timing"}],"children":[{"node":"Sort","nodeId":-952138782,"metrics":[{"peak memory total (min, med, max)":"any","type":"size"}],"children":[{"node":"InputAdapter","nodeId":180293}]}]}]}]}]}]}]}]}"""
+    def fourthStagePlan = """{"node":"WholeStageCodegen","nodeId":724251804,"metrics":[{"duration total (min, med, max)":"any","type":"timing"}],"children":[{"node":"HashAggregate","nodeId":724815342,"metrics":[{"number of output rows":1,"type":"sum"}],"children":[{"node":"InputAdapter","nodeId":180293}]}]}"""
 
     expect:
     assertTraces(1) {
@@ -207,24 +222,28 @@ abstract class AbstractSpark24SqlTest extends AgentTestRunner {
           spanType "spark"
           childOf(span(2))
           assertStringSQLPlanSubset(fourthStagePlan, span.tags["_dd.spark.sql_plan"].toString())
+          assert span.tags["_dd.spark.sql_parent_stage_ids"] == "[2]"
         }
         span {
           operationName "spark.stage"
           spanType "spark"
           childOf(span(2))
           assertStringSQLPlanEquals(thirdStagePlan, span.tags["_dd.spark.sql_plan"].toString())
+          assert ["[0, 1]", "[1, 0]"].contains(span.tags["_dd.spark.sql_parent_stage_ids"])
         }
         span {
           operationName "spark.stage"
           spanType "spark"
           childOf(span(2))
           assertStringSQLPlanEquals(secondStagePlan, span.tags["_dd.spark.sql_plan"].toString())
+          assert span.tags["_dd.spark.sql_parent_stage_ids"] == "[]"
         }
         span {
           operationName "spark.stage"
           spanType "spark"
           childOf(span(2))
           assertStringSQLPlanEquals(firstStagePlan, span.tags["_dd.spark.sql_plan"].toString())
+          assert span.tags["_dd.spark.sql_parent_stage_ids"] == "[]"
         }
       }
     }
