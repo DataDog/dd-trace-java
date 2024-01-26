@@ -4,9 +4,25 @@ import datadog.trace.test.util.DDSpecification
 
 class LogCollectorTest extends DDSpecification {
 
+  void "tracer time is set"() {
+    setup:
+    def logCollector = new LogCollector(1)
+
+    when:
+    logCollector.addLogMessage("ERROR", "Message 1", null)
+
+    then:
+    def log = logCollector.drain().toList().get(0)
+    def ts = log.timestamp
+    ts > 0L
+    // Check tracer time is not in millis
+    ts < 1706529524286L
+  }
+
   void "limit log messages in LogCollector"() {
     setup:
     def logCollector = new LogCollector(3)
+
     when:
     logCollector.addLogMessage("ERROR", "Message 1", null)
     logCollector.addLogMessage("ERROR", "Message 2", null)
