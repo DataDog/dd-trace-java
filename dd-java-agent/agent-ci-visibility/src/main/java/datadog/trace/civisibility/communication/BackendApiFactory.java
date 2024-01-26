@@ -26,15 +26,15 @@ public class BackendApiFactory {
     HttpRetryPolicy.Factory retryPolicyFactory = new HttpRetryPolicy.Factory(5, 100, 2.0);
 
     if (config.isCiVisibilityAgentlessEnabled()) {
-      String site = config.getSite();
+      HttpUrl agentlessUrl = getAgentlessUrl();
       String apiKey = config.getApiKey();
       if (apiKey == null || apiKey.isEmpty()) {
         throw new FatalAgentMisconfigurationError(
             "Agentless mode is enabled and api key is not set. Please set application key");
       }
-      long timeoutMillis = config.getCiVisibilityBackendApiTimeoutMillis();
       String traceId = config.getIdGenerationStrategy().generateTraceId().toString();
-      return new IntakeApi(site, apiKey, traceId, timeoutMillis, retryPolicyFactory);
+      long timeoutMillis = config.getCiVisibilityBackendApiTimeoutMillis();
+      return new IntakeApi(agentlessUrl, apiKey, traceId, timeoutMillis, retryPolicyFactory);
     }
 
     DDAgentFeaturesDiscovery featuresDiscovery =
@@ -52,5 +52,16 @@ public class BackendApiFactory {
         "Cannot create backend API client since agentless mode is disabled, "
             + "and agent does not support EVP proxy");
     return null;
+  }
+
+  private HttpUrl getAgentlessUrl() {
+    final String ciVisibilityAgentlessUrlStr = config.getCiVisibilityAgentlessUrl();
+    if (ciVisibilityAgentlessUrlStr != null && !ciVisibilityAgentlessUrlStr.isEmpty()) {
+      return HttpUrl.get(
+          String.format("%s/api/%s/", ciVisibilityAgentlessUrlStr, IntakeApi.API_VERSION));
+    } else {
+      String site = config.getSite();
+      return HttpUrl.get(String.format("https://api.%s/api/%s/", site, IntakeApi.API_VERSION));
+    }
   }
 }

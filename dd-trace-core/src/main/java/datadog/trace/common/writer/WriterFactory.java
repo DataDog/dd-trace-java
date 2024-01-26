@@ -167,6 +167,7 @@ public class WriterFactory {
           .agentUrl(commObjects.agentUrl)
           .evpProxyEndpoint(featuresDiscovery.getEvpProxyEndpoint())
           .trackType(trackType)
+          .compressionEnabled(featuresDiscovery.supportsContentEncodingHeadersWithEvpProxy())
           .build();
 
     } else {

@@ -230,7 +230,7 @@ class CiTestCovMapperV2Test extends DDCoreSpecification {
 
   private Map getMappedMessage(List<? extends CoreSpan<?>> trace) {
     def buffer = new GrowableBuffer(1024)
-    def mapper = new CiTestCovMapperV2()
+    def mapper = new CiTestCovMapperV2(false)
     mapper.map(trace, new MsgPackWriter(buffer))
 
     WritableByteChannel channel = new ByteArrayWritableByteChannel()

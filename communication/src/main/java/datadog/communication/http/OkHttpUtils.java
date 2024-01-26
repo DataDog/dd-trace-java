@@ -18,6 +18,7 @@ import java.nio.ByteBuffer;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import javax.annotation.Nullable;
 import okhttp3.ConnectionPool;
 import okhttp3.ConnectionSpec;
 import okhttp3.Credentials;
@@ -219,6 +220,10 @@ public final class OkHttpUtils {
     return new GZipByteBufferRequestBody(buffers);
   }
 
+  public static RequestBody gzippedRequestBodyOf(RequestBody delegate) {
+    return new GZipRequestBodyDecorator(delegate);
+  }
+
   public static RequestBody jsonRequestBodyOf(byte[] json) {
     return new JsonRequestBody(json);
   }
@@ -299,6 +304,32 @@ public final class OkHttpUtils {
 
       super.writeTo(gzipSink);
 
+      gzipSink.close();
+    }
+  }
+
+  private static final class GZipRequestBodyDecorator extends RequestBody {
+    private final RequestBody delegate;
+
+    private GZipRequestBodyDecorator(RequestBody delegate) {
+      this.delegate = delegate;
+    }
+
+    @Nullable
+    @Override
+    public MediaType contentType() {
+      return delegate.contentType();
+    }
+
+    @Override
+    public long contentLength() {
+      return -1;
+    }
+
+    @Override
+    public void writeTo(BufferedSink sink) throws IOException {
+      BufferedSink gzipSink = Okio.buffer(new GzipSink(sink));
+      delegate.writeTo(gzipSink);
       gzipSink.close();
     }
   }

@@ -12,12 +12,15 @@ import datadog.trace.common.writer.Payload
 import datadog.trace.core.DDSpan
 import datadog.trace.core.test.DDCoreSpecification
 import okhttp3.HttpUrl
+import org.apache.commons.io.IOUtils
 import org.msgpack.jackson.dataformat.MessagePackFactory
 import spock.lang.Timeout
 
 import java.nio.ByteBuffer
+import java.util.zip.GZIPInputStream
 
 import static datadog.communication.ddagent.DDAgentFeaturesDiscovery.V2_EVP_PROXY_ENDPOINT
+import static datadog.communication.ddagent.DDAgentFeaturesDiscovery.V4_EVP_PROXY_ENDPOINT
 import static datadog.trace.agent.test.server.http.TestHttpServer.httpServer
 
 @Timeout(20)
@@ -45,8 +48,8 @@ class DDEvpProxyApiTest extends DDCoreSpecification {
     setup:
     def path = buildAgentEvpProxyPath(evpProxyEndpoint, trackType, apiVersion)
     def agentEvpProxy = newAgentEvpProxy(path)
-    def client = createEvpProxyApi(agentEvpProxy.address.toString(), evpProxyEndpoint, trackType)
-    def payload = prepareTraces(trackType, [])
+    def client = createEvpProxyApi(agentEvpProxy.address.toString(), evpProxyEndpoint, trackType, false)
+    def payload = prepareTraces(trackType, false, [])
 
     expect:
     def clientResponse = client.sendSerializedTraces(payload)
@@ -80,8 +83,8 @@ class DDEvpProxyApiTest extends DDCoreSpecification {
       }
     }
 
-    def client = createEvpProxyApi(agentEvpProxy.address.toString(), evpProxyEndpoint, trackType)
-    def payload = prepareTraces(trackType, [])
+    def client = createEvpProxyApi(agentEvpProxy.address.toString(), evpProxyEndpoint, trackType, false)
+    def payload = prepareTraces(trackType, false, [])
 
     expect:
     def clientResponse = client.sendSerializedTraces(payload)
@@ -109,23 +112,23 @@ class DDEvpProxyApiTest extends DDCoreSpecification {
       }
     }
 
-    def client = createEvpProxyApi(agentEvpProxy.address.toString(), evpProxyEndpoint, trackType)
-    def payload = prepareTraces(trackType, traces)
+    def client = createEvpProxyApi(agentEvpProxy.address.toString(), evpProxyEndpoint, trackType, compressionEnabled)
+    def payload = prepareTraces(trackType, compressionEnabled, traces)
 
     expect:
     client.sendSerializedTraces(payload).status()
     agentEvpProxy.getLastRequest().contentType == "application/msgpack"
-    convertMap(agentEvpProxy.getLastRequest().body) == expectedRequestBody
+    convertMap(agentEvpProxy.getLastRequest().body, compressionEnabled) == expectedRequestBody
 
     cleanup:
     agentEvpProxy.close()
 
     where:
     // spotless:off
-    trackType             | apiVersion | evpProxyEndpoint      | traces                                                                                               | expectedRequestBody
-    TrackType.CITESTCYCLE | "v2"       | V2_EVP_PROXY_ENDPOINT | []                                                                                                   | [:]
+    trackType             | apiVersion | evpProxyEndpoint      | compressionEnabled | traces                                                                                               | expectedRequestBody
+    TrackType.CITESTCYCLE | "v2"       | V2_EVP_PROXY_ENDPOINT | false | []                                                                                                   | [:]
 
-    TrackType.CITESTCYCLE | "v2"       | V2_EVP_PROXY_ENDPOINT | [[buildSpan(1L, "fakeType", ["service.name": "my-service"])]]                                        | new TreeMap<>([
+    TrackType.CITESTCYCLE | "v2"       | V2_EVP_PROXY_ENDPOINT | false | [[buildSpan(1L, "fakeType", ["service.name": "my-service"])]]                                        | new TreeMap<>([
       "version" : 1,
       "metadata": new TreeMap<>([
         "*": new TreeMap<>([
@@ -151,7 +154,7 @@ class DDEvpProxyApiTest extends DDCoreSpecification {
         ])
       ])]
     ])
-    TrackType.CITESTCYCLE | "v2"       | V2_EVP_PROXY_ENDPOINT | [[buildSpan(1L, InternalSpanTypes.TEST, ["test_suite_id": 123L, "test_module_id": 456L])]]           | new TreeMap<>([
+    TrackType.CITESTCYCLE | "v2"       | V2_EVP_PROXY_ENDPOINT | false | [[buildSpan(1L, InternalSpanTypes.TEST, ["test_suite_id": 123L, "test_module_id": 456L])]]           | new TreeMap<>([
       "version" : 1,
       "metadata": new TreeMap<>([
         "*": new TreeMap<>([
@@ -179,7 +182,7 @@ class DDEvpProxyApiTest extends DDCoreSpecification {
         ])
       ])]
     ])
-    TrackType.CITESTCYCLE | "v2"       | V2_EVP_PROXY_ENDPOINT | [[buildSpan(1L, InternalSpanTypes.TEST_SUITE_END, ["test_suite_id": 123L, "test_module_id": 456L])]] | new TreeMap<>([
+    TrackType.CITESTCYCLE | "v2"       | V2_EVP_PROXY_ENDPOINT | false | [[buildSpan(1L, InternalSpanTypes.TEST_SUITE_END, ["test_suite_id": 123L, "test_module_id": 456L])]] | new TreeMap<>([
       "version" : 1,
       "metadata": new TreeMap<>([
         "*": new TreeMap<>([
@@ -204,7 +207,7 @@ class DDEvpProxyApiTest extends DDCoreSpecification {
         ])
       ])]
     ])
-    TrackType.CITESTCYCLE | "v2"       | V2_EVP_PROXY_ENDPOINT | [[buildSpan(1L, InternalSpanTypes.TEST_MODULE_END, ["test_module_id": 456L])]]                       | new TreeMap<>([
+    TrackType.CITESTCYCLE | "v2"       | V4_EVP_PROXY_ENDPOINT | true | [[buildSpan(1L, InternalSpanTypes.TEST_MODULE_END, ["test_module_id": 456L])]]                       | new TreeMap<>([
       "version" : 1,
       "metadata": new TreeMap<>([
         "*": new TreeMap<>([
@@ -238,8 +241,19 @@ class DDEvpProxyApiTest extends DDCoreSpecification {
     }
   }
 
-  static Map<String, Object> convertMap(byte[] bytes) {
+  static Map<String, Object> convertMap(byte[] bytes, boolean compressionEnabled) {
+    if (compressionEnabled) {
+      bytes = decompress(bytes)
+    }
     return msgPackMapper.readValue(bytes, new TypeReference<TreeMap<String, Object>>() {})
+  }
+
+  static byte[] decompress(byte[] bytes) {
+    def baos = new ByteArrayOutputStream()
+    try (GZIPInputStream zip = new GZIPInputStream(new ByteArrayInputStream(bytes))) {
+      IOUtils.copy(zip, baos)
+    }
+    return baos.toByteArray()
   }
 
   static class Traces implements ByteBufferConsumer {
@@ -253,12 +267,17 @@ class DDEvpProxyApiTest extends DDCoreSpecification {
     }
   }
 
-  def createEvpProxyApi(String agentUrl, String evpProxyEndpoint, TrackType trackType) {
-    return DDEvpProxyApi.builder().agentUrl(HttpUrl.get(agentUrl)).evpProxyEndpoint(evpProxyEndpoint).trackType(trackType).build()
+  def createEvpProxyApi(String agentUrl, String evpProxyEndpoint, TrackType trackType, boolean compressionEnabled) {
+    return DDEvpProxyApi.builder()
+      .agentUrl(HttpUrl.get(agentUrl))
+      .evpProxyEndpoint(evpProxyEndpoint)
+      .trackType(trackType)
+      .compressionEnabled(compressionEnabled)
+      .build()
   }
 
-  def discoverMapper(TrackType trackType) {
-    def mapperDiscover = new DDIntakeMapperDiscovery(trackType, wellKnownTags)
+  def discoverMapper(TrackType trackType, boolean compressionEnabled) {
+    def mapperDiscover = new DDIntakeMapperDiscovery(trackType, wellKnownTags, compressionEnabled)
     mapperDiscover.discover()
     return mapperDiscover.getMapper()
   }
@@ -267,10 +286,10 @@ class DDEvpProxyApiTest extends DDCoreSpecification {
     return "/" + evpProxyEndpoint + "api/" + apiVersion + "/" + trackType.name().toLowerCase()
   }
 
-  Payload prepareTraces(TrackType trackType, List<List<DDSpan>> traces) {
+  Payload prepareTraces(TrackType trackType, boolean compressionEnabled, List<List<DDSpan>> traces) {
     Traces traceCapture = new Traces()
     def packer = new MsgPackWriter(new FlushingBuffer(1 << 20, traceCapture))
-    def mapper = discoverMapper(trackType)
+    def mapper = discoverMapper(trackType, compressionEnabled)
     for (trace in traces) {
       packer.format(trace, mapper)
     }

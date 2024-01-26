@@ -1,5 +1,6 @@
 package datadog.trace.civisibility.writer.ddintake;
 
+import static datadog.communication.http.OkHttpUtils.gzippedMsgpackRequestBodyOf;
 import static datadog.communication.http.OkHttpUtils.msgpackRequestBodyOf;
 
 import datadog.communication.serialization.GrowableBuffer;
@@ -47,17 +48,22 @@ public class CiTestCycleMapperV1 implements RemoteMapper {
   private final int size;
   private final GrowableBuffer headerBuffer;
   private final MsgPackWriter headerWriter;
+  private final boolean compressionEnabled;
   private int eventCount = 0;
 
-  public CiTestCycleMapperV1(WellKnownTags wellKnownTags) {
-    this(wellKnownTags, DEFAULT_TOP_LEVEL_TAGS, 5 << 20);
+  public CiTestCycleMapperV1(WellKnownTags wellKnownTags, boolean compressionEnabled) {
+    this(wellKnownTags, DEFAULT_TOP_LEVEL_TAGS, 5 << 20, compressionEnabled);
   }
 
   private CiTestCycleMapperV1(
-      WellKnownTags wellKnownTags, Collection<String> topLevelTags, int size) {
+      WellKnownTags wellKnownTags,
+      Collection<String> topLevelTags,
+      int size,
+      boolean compressionEnabled) {
     this.wellKnownTags = wellKnownTags;
     this.topLevelTags = topLevelTags;
     this.size = size;
+    this.compressionEnabled = compressionEnabled;
     headerBuffer = new GrowableBuffer(16);
     headerWriter = new MsgPackWriter(headerBuffer);
   }
@@ -222,7 +228,7 @@ public class CiTestCycleMapperV1 implements RemoteMapper {
   @Override
   public Payload newPayload() {
     writeHeader();
-    return new PayloadV1().withHeader(headerBuffer.slice());
+    return new PayloadV1(compressionEnabled).withHeader(headerBuffer.slice());
   }
 
   @Override
@@ -301,7 +307,13 @@ public class CiTestCycleMapperV1 implements RemoteMapper {
 
   private static class PayloadV1 extends Payload {
 
+    private final boolean compressionEnabled;
+
     ByteBuffer header = null;
+
+    private PayloadV1(boolean compressionEnabled) {
+      this.compressionEnabled = compressionEnabled;
+    }
 
     PayloadV1 withHeader(ByteBuffer header) {
       this.header = header;
@@ -343,13 +355,17 @@ public class CiTestCycleMapperV1 implements RemoteMapper {
     @Override
     public RequestBody toRequest() {
       // If traceCount is 0, we write a map with 0 elements in MsgPack format.
+      List<ByteBuffer> buffers;
       if (traceCount() == 0) {
-        return msgpackRequestBodyOf(Collections.singletonList(msgpackMapHeader(0)));
+        buffers = Collections.singletonList(msgpackMapHeader(0));
       } else if (header != null) {
-        return msgpackRequestBodyOf(Arrays.asList(header, body));
+        buffers = Arrays.asList(header, body);
       } else {
-        return msgpackRequestBodyOf(Collections.singletonList(body));
+        buffers = Collections.singletonList(body);
       }
+      return compressionEnabled
+          ? gzippedMsgpackRequestBodyOf(buffers)
+          : msgpackRequestBodyOf(buffers);
     }
   }
 }
