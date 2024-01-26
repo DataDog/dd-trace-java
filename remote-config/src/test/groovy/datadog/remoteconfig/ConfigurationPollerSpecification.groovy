@@ -70,6 +70,7 @@ class ConfigurationPollerSpecification extends DDSpecification {
       Config.get(),
       '0.0.0',
       '',
+      '',
       { -> configUrlSupplier.get() } as Supplier<String>,
       okHttpClient,
       scheduler,

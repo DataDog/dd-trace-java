@@ -60,12 +60,14 @@ public class BatchUploader {
   private static final int MINUTES_BETWEEN_ERROR_LOG = 5;
   private static final MediaType APPLICATION_JSON = MediaType.parse("application/json");
   private static final String HEADER_DD_CONTAINER_ID = "Datadog-Container-ID";
+  private static final String HEADER_DD_ENTITY_ID = "Datadog-Entity-ID";
   static final String HEADER_DD_API_KEY = "DD-API-KEY";
   static final int MAX_RUNNING_REQUESTS = 10;
   static final int MAX_ENQUEUED_REQUESTS = 20;
   static final int TERMINATION_TIMEOUT = 5;
 
   private final String containerId;
+  private final String entityId;
   private final ExecutorService okHttpExecutorService;
   private final OkHttpClient client;
   private final HttpUrl urlBase;
@@ -82,12 +84,21 @@ public class BatchUploader {
   }
 
   BatchUploader(Config config, String endpoint, RatelimitedLogger ratelimitedLogger) {
-    this(config, endpoint, ratelimitedLogger, ContainerInfo.get().containerId);
+    this(
+        config,
+        endpoint,
+        ratelimitedLogger,
+        ContainerInfo.get().containerId,
+        ContainerInfo.getEntityId());
   }
 
   // Visible for testing
   BatchUploader(
-      Config config, String endpoint, RatelimitedLogger ratelimitedLogger, String containerId) {
+      Config config,
+      String endpoint,
+      RatelimitedLogger ratelimitedLogger,
+      String containerId,
+      String entityId) {
     instrumentTheWorld = config.isDebuggerInstrumentTheWorld();
     if (endpoint == null || endpoint.length() == 0) {
       throw new IllegalArgumentException("Endpoint url is empty");
@@ -107,6 +118,7 @@ public class BatchUploader {
             new SynchronousQueue<>(),
             new AgentThreadFactory(DEBUGGER_HTTP_DISPATCHER));
     this.containerId = containerId;
+    this.entityId = entityId;
     Duration requestTimeout = Duration.ofSeconds(config.getDebuggerUploadTimeout());
     client =
         OkHttpUtils.buildHttpClient(
@@ -216,6 +228,9 @@ public class BatchUploader {
     }
     if (containerId != null) {
       requestBuilder.addHeader(HEADER_DD_CONTAINER_ID, containerId);
+    }
+    if (entityId != null) {
+      requestBuilder.addHeader(HEADER_DD_ENTITY_ID, entityId);
     }
     Request request = requestBuilder.build();
     log.debug("Sending request: {} CT: {}", request, request.body().contentType());

@@ -25,6 +25,7 @@ import org.slf4j.LoggerFactory;
 public class PollerRequestFactory {
   private static final String HEADER_DD_API_KEY = "DD-API-KEY";
   private static final String HEADER_CONTAINER_ID = "Datadog-Container-ID";
+  private static final String HEADER_ENTITY_ID = "Datadog-Entity-ID";
 
   private static final Logger log = LoggerFactory.getLogger(PollerRequestFactory.class);
 
@@ -37,11 +38,17 @@ public class PollerRequestFactory {
   private final String hostName;
   private final String tracerVersion;
   private final String containerId;
+  private final String entityId;
   private final Moshi moshi;
   final HttpUrl url;
 
   public PollerRequestFactory(
-      Config config, String tracerVersion, String containerId, String url, Moshi moshi) {
+      Config config,
+      String tracerVersion,
+      String containerId,
+      String entityId,
+      String url,
+      Moshi moshi) {
     this.runtimeId = getRuntimeId(config);
     this.serviceName = TagsHelper.sanitize(config.getServiceName());
     this.apiKey = config.getApiKey();
@@ -51,6 +58,7 @@ public class PollerRequestFactory {
     // Semantic Versioning requires build separated with `+`
     this.tracerVersion = tracerVersion.replace('~', '+');
     this.containerId = containerId;
+    this.entityId = entityId;
     this.url = parseUrl(url);
     this.moshi = moshi;
   }
@@ -88,8 +96,11 @@ public class PollerRequestFactory {
     if (this.apiKey != null) {
       requestBuilder.addHeader(HEADER_DD_API_KEY, this.apiKey);
     }
-    if (containerId != null && !containerId.isEmpty()) {
+    if (containerId != null) {
       requestBuilder.addHeader(HEADER_CONTAINER_ID, containerId);
+    }
+    if (entityId != null) {
+      requestBuilder.addHeader(HEADER_ENTITY_ID, entityId);
     }
     return requestBuilder.build();
   }

@@ -1,9 +1,9 @@
-package datadog.trace.core
+package datadog.common.container
 
-import datadog.common.container.ContainerInfo
 import datadog.trace.test.util.DDSpecification
 import spock.lang.Unroll
 
+import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
 import java.text.ParseException
@@ -225,5 +225,109 @@ class ContainerInfoTest extends DDSpecification {
     containerInfo.getContainerId() == null
     containerInfo.getPodId() == null
     containerInfo.getCGroups().size() == 1
+  }
+
+  def "getIno(path) should return the same value as `ls -id path`"() {
+    when:
+    File f = File.createTempFile("container-info-test-", "-inode-file")
+    f.deleteOnExit()
+    Path path = f.toPath()
+
+    then:
+    ContainerInfo.getIno(path) == readInode(path)
+  }
+
+  private Long readInode(Path path) {
+    ProcessBuilder pb = new ProcessBuilder("ls", "-id", path.toString())
+    Process ps = pb.start()
+    BufferedReader reader = new BufferedReader(new InputStreamReader(ps.getInputStream()))
+    String line = reader.readLine()
+    reader.close()
+    ps.waitFor()
+    Long.parseLong(line.substring(0, line.indexOf(' ')))
+  }
+
+  def "readEntityID return cid-<container-id> if containerId is defined"() {
+    when:
+    ContainerInfo containerInfo = new ContainerInfo()
+    containerInfo.setContainerId(cid)
+
+    then:
+    containerInfo.readEntityID(containerInfo, true, Paths.get("/sys/fs/cgroup")) == "cid-" + cid
+
+    where:
+    cid           | isHostCgroupNamespace
+    "cid"         | true
+    "containerId" | false
+  }
+
+  def "readEntityID return null if containerId is not defined and isHostCgroupNamespace"() {
+    when:
+    ContainerInfo containerInfo = new ContainerInfo()
+    containerInfo.setContainerId(cid)
+
+    then:
+    containerInfo.readEntityID(containerInfo, true, Paths.get("/sys/fs/cgroup")) == null
+
+    where:
+    cid << [null, ""]
+  }
+
+  def "readEntityID return id-<ino> for '' controller"() {
+    setup:
+    File mountPath = File.createTempDir("container-info-test-", "-sys-fs-cgroup")
+    mountPath.deleteOnExit()
+    File file = File.createTempFile("container-info-test-", "-inode-file", mountPath)
+    file.deleteOnExit()
+    Path path = file.toPath()
+    Long ino = readInode(path)
+
+    when:
+    ContainerInfo containerInfo = new ContainerInfo()
+    ContainerInfo.CGroupInfo cGroupInfo = new ContainerInfo.CGroupInfo()
+    cGroupInfo.setControllers(controllers)
+    cGroupInfo.setPath(file.getName())
+    List<ContainerInfo.CGroupInfo> cGroups = Arrays.asList(cGroupInfo)
+    containerInfo.setcGroups(cGroups)
+
+    then:
+    containerInfo.readEntityID(containerInfo, false, mountPath.toPath()) == (hasEntityId ? "in-" + ino : null)
+
+    where:
+    controllers                 | hasEntityId
+    Arrays.asList("", "memory") | true
+    Arrays.asList("memory", "") | true
+    Arrays.asList("")           | true
+    Arrays.asList("memory")     | false
+  }
+
+  def "readEntityID return id-<ino> for 'memory' controller"() {
+    setup:
+    File mountPath = File.createTempDir("container-info-test-", "-sys-fs-cgroup")
+    mountPath.deleteOnExit()
+    File memoryController = Files.createDirectory(mountPath.toPath().resolve("memory")).toFile()
+    memoryController.deleteOnExit()
+    File file = File.createTempFile("container-info-test-", "-inode-file", memoryController)
+    file.deleteOnExit()
+    Path path = file.toPath()
+    Long ino = readInode(path)
+
+    when:
+    ContainerInfo containerInfo = new ContainerInfo()
+    ContainerInfo.CGroupInfo cGroupInfo = new ContainerInfo.CGroupInfo()
+    cGroupInfo.setControllers(controllers)
+    cGroupInfo.setPath(file.getName())
+    List<ContainerInfo.CGroupInfo> cGroups = Arrays.asList(cGroupInfo)
+    containerInfo.setcGroups(cGroups)
+
+    then:
+    containerInfo.readEntityID(containerInfo, false, mountPath.toPath()) == (hasEntityId ? "in-" + ino : null)
+
+    where:
+    controllers                 | hasEntityId
+    Arrays.asList("", "memory") | true
+    Arrays.asList("memory", "") | true
+    Arrays.asList("memory")     | true
+    Arrays.asList("")           | false
   }
 }
