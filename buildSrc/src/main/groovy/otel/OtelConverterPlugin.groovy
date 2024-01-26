@@ -10,6 +10,7 @@ import org.objectweb.asm.ClassWriter
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import otel.muzzle.MuzzleConverter
+import otel.muzzle.MuzzleGenerator
 
 import java.nio.file.Files
 import java.nio.file.Path
@@ -107,6 +108,11 @@ class Converter {
       def reader = new ClassReader(inputStream)
       reader.accept(javaAgentApiChecker, 0) // TODO flags?
       Files.write(targetFile, writer.toByteArray())
+
+      // Check if there are references to write as muzzle class
+      if (muzzleConverter.hasReferences()) {
+        MuzzleGenerator.writeMuzzleClass(targetFolder, file.name, muzzleConverter.getReferences())
+      }
     }
   }
 }

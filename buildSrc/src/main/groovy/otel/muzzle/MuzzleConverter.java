@@ -329,4 +329,12 @@ public class MuzzleConverter extends ClassVisitor {
       throw new IllegalStateException("Unexpected instruction type "+abstractInsnNode.getType() + " when looking for reference method name");
     }
   }
+
+  public boolean hasReferences() {
+    return !this.references.isEmpty();
+  }
+
+  public List<MuzzleReference> getReferences() {
+    return this.references;
+  }
 }
