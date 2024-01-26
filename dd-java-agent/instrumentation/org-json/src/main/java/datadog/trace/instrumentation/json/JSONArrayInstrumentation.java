@@ -28,18 +28,18 @@ public class JSONArrayInstrumentation extends Instrumenter.Iast
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isConstructor().and(takesArguments(String.class)),
         getClass().getName() + "$ConstructorAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod()
             .and(isPublic())
             .and(returns(Object.class))
             .and(named("get"))
             .and(takesArguments(1)),
         getClass().getName() + "$GetAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod().and(isPublic()).and(returns(Object.class)).and(named("opt")),
         getClass().getName() + "$OptAdvice");
   }

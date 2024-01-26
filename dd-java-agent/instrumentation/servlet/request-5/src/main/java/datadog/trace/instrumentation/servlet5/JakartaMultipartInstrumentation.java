@@ -36,17 +36,17 @@ public class JakartaMultipartInstrumentation extends Instrumenter.Iast
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         named("getName").and(isPublic()).and(takesArguments(0)),
         getClass().getName() + "$GetNameAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         named("getHeader").and(isPublic()).and(takesArguments(String.class)),
         getClass().getName() + "$GetHeaderAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         named("getHeaders").and(isPublic()).and(takesArguments(String.class)),
         getClass().getName() + "$GetHeadersAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         named("getHeaderNames").and(isPublic()).and(takesArguments(0)),
         getClass().getName() + "$GetHeaderNamesAdvice");
   }

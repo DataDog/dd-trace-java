@@ -45,29 +45,29 @@ public class PlayBodyParsersInstrumentation extends Instrumenter.AppSec
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         named("tolerantText")
             .and(not(isStatic()))
             .and(takesArguments(1))
             .and(takesArgument(0, long.class))
             .and(returns(named("play.api.mvc.BodyParser"))),
         packageName + ".PlayBodyParsersTolerantTextAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         named("tolerantJson")
             .and(not(isStatic()))
             .and(takesArguments(1))
             .and(takesArgument(0, int.class))
             .and(returns(named("play.api.mvc.BodyParser"))),
         packageName + ".PlayBodyParsersTolerantJsonAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         named("tolerantFormUrlEncoded")
             .and(not(isStatic()))
             .and(takesArguments(1))
             .and(takesArgument(0, int.class))
             .and(returns(named("play.api.mvc.BodyParser"))),
         packageName + ".PlayBodyParsersTolerantFormUrlEncodedAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         named("multipartFormData")
             .and(not(isStatic()))
             .and(takesArguments(2))

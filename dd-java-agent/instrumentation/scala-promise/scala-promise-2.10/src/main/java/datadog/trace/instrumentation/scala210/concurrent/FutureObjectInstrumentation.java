@@ -43,8 +43,8 @@ public class FutureObjectInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(isTypeInitializer(), getClass().getName() + "$ClassInit");
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(isTypeInitializer(), getClass().getName() + "$ClassInit");
   }
 
   public static final class ClassInit {

@@ -39,12 +39,12 @@ public final class ResteasyClientConnectionErrorInstrumentation extends Instrume
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isMethod().and(isPublic()).and(named("invoke")),
         ResteasyClientConnectionErrorInstrumentation.class.getName() + "$InvokeAdvice");
 
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod().and(isPublic()).and(named("submit")).and(returns(Future.class)),
         ResteasyClientConnectionErrorInstrumentation.class.getName() + "$SubmitAdvice");
   }

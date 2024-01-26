@@ -29,9 +29,9 @@ public class Http2ServerRequestInstrumentation extends AbstractHttpServerRequest
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    super.adviceTransformations(transformation);
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    super.methodAdvice(transformer);
+    transformer.applyAdvice(
         isPublic().and(isMethod()).and(named("headers")).and(takesNoArguments()),
         Http2ServerRequestInstrumentation.class.getName() + "$HeadersAdvice");
   }

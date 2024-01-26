@@ -19,8 +19,8 @@ public class ParamValueFactoryWithSourceInstrumentation extends Instrumenter.Ias
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         named("apply").and(isPublic()).and(takesArguments(1)),
         ParamValueFactoryWithSourceInstrumentation.class.getName() + "$InstrumenterAdvice");
   }

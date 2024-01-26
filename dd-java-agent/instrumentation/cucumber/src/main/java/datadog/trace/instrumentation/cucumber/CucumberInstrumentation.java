@@ -37,8 +37,8 @@ public class CucumberInstrumentation extends Instrumenter.CiVisibility
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         named("execute").and(takesArguments(Object[].class)),
         CucumberInstrumentation.class.getName() + "$CucumberAdvice");
   }

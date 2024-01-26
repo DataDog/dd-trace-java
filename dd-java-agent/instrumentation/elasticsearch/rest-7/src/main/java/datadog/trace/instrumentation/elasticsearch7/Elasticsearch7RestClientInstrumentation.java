@@ -49,14 +49,14 @@ public class Elasticsearch7RestClientInstrumentation extends Instrumenter.Tracin
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isMethod()
             .and(named("performRequest"))
             .and(takesArguments(1))
             .and(takesArgument(0, named("org.elasticsearch.client.Request"))),
         Elasticsearch7RestClientInstrumentation.class.getName() + "$ElasticsearchRestClientAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod()
             .and(named("performRequestAsync"))
             .and(takesArguments(2))

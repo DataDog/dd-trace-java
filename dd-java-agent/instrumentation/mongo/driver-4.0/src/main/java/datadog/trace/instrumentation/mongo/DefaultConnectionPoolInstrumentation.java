@@ -25,8 +25,8 @@ public class DefaultConnectionPoolInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isMethod()
             .and(named("getAsync"))
             .and(takesArgument(0, named("com.mongodb.internal.async.SingleResultCallback"))),

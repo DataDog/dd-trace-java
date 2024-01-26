@@ -63,8 +63,8 @@ public final class StatementInstrumentation extends Instrumenter.Tracing
   private static final boolean appendComment = false;
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         nameStartsWith("execute").and(takesArgument(0, String.class)).and(isPublic()),
         StatementInstrumentation.class.getName() + "$StatementAdvice");
   }

@@ -41,14 +41,14 @@ public final class SslSocketInstrumentation extends Instrumenter.Usm
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isMethod().and(named("close").and(takesArguments(0))),
         SslSocketInstrumentation.class.getName() + "$CloseAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod().and(named("getInputStream")),
         SslSocketInstrumentation.class.getName() + "$GetInputStreamAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod().and(named("getOutputStream")),
         SslSocketInstrumentation.class.getName() + "$GetOutputStreamAdvice");
   }

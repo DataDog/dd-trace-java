@@ -48,8 +48,8 @@ public final class IastServletContextInstrumentation extends Instrumenter.Iast
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isMethod().and(isPublic()).and(named("getRealPath")).and(takesArguments(String.class)),
         IastServletContextInstrumentation.class.getName() + "$IastContextAdvice");
   }

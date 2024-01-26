@@ -19,7 +19,7 @@ class DefaultInstrumenterForkedTest extends DDSpecification {
   Instrumenter.TransformerBuilder testAdviceBuilder = new Instrumenter.TransformerBuilder() {
     @Override
     void applyInstrumentation(Instrumenter.HasAdvice instrumenter) {
-      instrumenter.adviceTransformations {}
+      instrumenter.methodAdvice {}
     }
 
     @Override
@@ -176,7 +176,7 @@ class DefaultInstrumenterForkedTest extends DDSpecification {
     }
 
     @Override
-    void adviceTransformations(AdviceTransformation transformation) {
+    void methodAdvice(MethodTransformer transformer) {
       applyCalled = true
     }
   }

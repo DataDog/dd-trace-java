@@ -33,8 +33,8 @@ public final class SpringRepositoryInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isConstructor(),
         SpringRepositoryInstrumentation.class.getName() + "$RepositoryFactorySupportAdvice");
   }

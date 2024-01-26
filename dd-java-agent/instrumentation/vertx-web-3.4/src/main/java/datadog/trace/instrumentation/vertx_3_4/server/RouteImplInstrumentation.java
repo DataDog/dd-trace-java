@@ -54,8 +54,8 @@ public class RouteImplInstrumentation extends Instrumenter.Default
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         named("matches")
             .and(takesArguments(3))
             .and(takesArgument(0, named("io.vertx.ext.web.impl.RoutingContextImplBase")))
@@ -65,7 +65,7 @@ public class RouteImplInstrumentation extends Instrumenter.Default
             .and(returns(int.class)),
         packageName + ".RouteMatchesAdvice");
 
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         named("matches")
             .and(takesArguments(3))
             .and(

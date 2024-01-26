@@ -41,18 +41,18 @@ public final class SynapseServerInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(final AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(final MethodTransformer transformer) {
+    transformer.applyAdvice(
         isMethod()
             .and(named("requestReceived"))
             .and(takesArgument(0, named("org.apache.http.nio.NHttpServerConnection"))),
         getClass().getName() + "$ServerRequestAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod()
             .and(named("responseReady"))
             .and(takesArgument(0, named("org.apache.http.nio.NHttpServerConnection"))),
         getClass().getName() + "$ServerResponseAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod()
             .and(namedOneOf("closed", "exception", "timeout"))
             .and(takesArgument(0, named("org.apache.http.nio.NHttpServerConnection"))),

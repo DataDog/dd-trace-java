@@ -21,8 +21,8 @@ public class GradleDaemonLoggingInstrumentation extends Instrumenter.CiVisibilit
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         named("initialiseLogging"),
         GradleDaemonLoggingInstrumentation.class.getName() + "$ReinitialiseLogging");
   }

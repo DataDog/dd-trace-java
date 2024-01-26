@@ -32,8 +32,8 @@ public final class ReactorHooksInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isTypeInitializer().or(named("resetOnEachOperator")), packageName + ".ReactorHooksAdvice");
   }
 }

@@ -38,11 +38,11 @@ public class JDOQueryInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
+  public void methodAdvice(MethodTransformer transformer) {
     // All of these methods delegate to *Internal() but have parameter checking and exceptions
     // beforehand.  Instrumenting all ensures we trace those exceptions.  Still instrumenting
     // *Internal() to futureproof the instrumentation
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod()
             .and(
                 namedOneOf(

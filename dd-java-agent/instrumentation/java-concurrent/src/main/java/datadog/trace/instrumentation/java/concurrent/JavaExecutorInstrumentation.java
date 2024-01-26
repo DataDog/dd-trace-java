@@ -28,8 +28,8 @@ public final class JavaExecutorInstrumentation extends AbstractExecutorInstrumen
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         named("execute").and(takesArgument(0, Runnable.class)).and(takesArguments(1)),
         JavaExecutorInstrumentation.class.getName() + "$SetExecuteRunnableStateAdvice");
   }

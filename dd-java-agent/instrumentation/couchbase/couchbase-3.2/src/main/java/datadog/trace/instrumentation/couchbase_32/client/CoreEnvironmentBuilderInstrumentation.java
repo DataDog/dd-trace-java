@@ -36,7 +36,7 @@ public class CoreEnvironmentBuilderInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(isConstructor(), packageName + ".CoreEnvironmentBuilderAdvice");
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(isConstructor(), packageName + ".CoreEnvironmentBuilderAdvice");
   }
 }

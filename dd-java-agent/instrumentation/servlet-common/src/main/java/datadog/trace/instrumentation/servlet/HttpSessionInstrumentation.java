@@ -45,8 +45,8 @@ public class HttpSessionInstrumentation extends Instrumenter.Iast
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         namedOneOf("setAttribute", "putValue")
             .and(takesArguments(String.class, Object.class).and(isPublic())),
         getClass().getName() + "$InstrumenterAdvice");

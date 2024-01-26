@@ -35,8 +35,8 @@ public class AkkaRoutedActorCellInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isMethod().and(named("sendMessage").and(takesArgument(0, named("akka.dispatch.Envelope")))),
         getClass().getName() + "$SendMessageAdvice");
   }

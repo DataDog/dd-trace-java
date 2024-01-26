@@ -20,12 +20,12 @@ public class ByteBufInstrumentation extends Instrumenter.Iast
   }
 
   @Override
-  public void adviceTransformations(final AdviceTransformation transformation) {
-    // TODO add propagation if needed
+  public void typeAdvice(TypeTransformer transformer) {
+    transformer.applyAdvice(new TaintableVisitor(instrumentedType()));
   }
 
   @Override
-  public AdviceTransformer transformer() {
-    return new VisitingTransformer(new TaintableVisitor(instrumentedType()));
+  public void methodAdvice(final MethodTransformer transformer) {
+    // TODO add propagation if needed
   }
 }

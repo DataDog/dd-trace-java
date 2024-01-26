@@ -52,20 +52,20 @@ public class IastApacheHttpClientInstrumentation extends Instrumenter.Iast
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
+  public void methodAdvice(MethodTransformer transformer) {
     // There are 8 execute(...) methods.  Depending on the version, they may or may not delegate to
     // eachother. Thus, all methods need to be instrumented.  Because of argument position and type,
     // some methods can share the same advice class.  The call depth tracking ensures only 1 call to
     // Ssrf module
 
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod()
             .and(named("execute"))
             .and(takesArguments(1))
             .and(takesArgument(0, named("org.apache.http.client.methods.HttpUriRequest"))),
         IastApacheHttpClientInstrumentation.class.getName() + "$UriRequestAdvice");
 
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod()
             .and(named("execute"))
             .and(takesArguments(2))
@@ -73,7 +73,7 @@ public class IastApacheHttpClientInstrumentation extends Instrumenter.Iast
             .and(takesArgument(1, named("org.apache.http.protocol.HttpContext"))),
         IastApacheHttpClientInstrumentation.class.getName() + "$UriRequestAdvice");
 
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod()
             .and(named("execute"))
             .and(takesArguments(2))
@@ -81,7 +81,7 @@ public class IastApacheHttpClientInstrumentation extends Instrumenter.Iast
             .and(takesArgument(1, named("org.apache.http.client.ResponseHandler"))),
         IastApacheHttpClientInstrumentation.class.getName() + "$UriRequestAdvice");
 
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod()
             .and(named("execute"))
             .and(takesArguments(3))
@@ -90,7 +90,7 @@ public class IastApacheHttpClientInstrumentation extends Instrumenter.Iast
             .and(takesArgument(2, named("org.apache.http.protocol.HttpContext"))),
         IastApacheHttpClientInstrumentation.class.getName() + "$UriRequestAdvice");
 
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod()
             .and(named("execute"))
             .and(takesArguments(2))
@@ -98,7 +98,7 @@ public class IastApacheHttpClientInstrumentation extends Instrumenter.Iast
             .and(takesArgument(1, named("org.apache.http.HttpRequest"))),
         IastApacheHttpClientInstrumentation.class.getName() + "$RequestAdvice");
 
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod()
             .and(named("execute"))
             .and(takesArguments(3))
@@ -107,7 +107,7 @@ public class IastApacheHttpClientInstrumentation extends Instrumenter.Iast
             .and(takesArgument(2, named("org.apache.http.protocol.HttpContext"))),
         IastApacheHttpClientInstrumentation.class.getName() + "$RequestAdvice");
 
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod()
             .and(named("execute"))
             .and(takesArguments(3))
@@ -116,7 +116,7 @@ public class IastApacheHttpClientInstrumentation extends Instrumenter.Iast
             .and(takesArgument(2, named("org.apache.http.client.ResponseHandler"))),
         IastApacheHttpClientInstrumentation.class.getName() + "$RequestAdvice");
 
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod()
             .and(named("execute"))
             .and(takesArguments(4))

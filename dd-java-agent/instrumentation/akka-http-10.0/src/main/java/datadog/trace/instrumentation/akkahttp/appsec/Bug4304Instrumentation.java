@@ -82,8 +82,8 @@ public class Bug4304Instrumentation extends Instrumenter.AppSec
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isConstructor(), Bug4304Instrumentation.class.getName() + "$GraphStageLogicAdvice");
   }
 

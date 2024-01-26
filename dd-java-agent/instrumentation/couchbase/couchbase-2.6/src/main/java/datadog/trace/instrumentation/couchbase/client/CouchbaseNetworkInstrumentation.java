@@ -46,9 +46,9 @@ public class CouchbaseNetworkInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
+  public void methodAdvice(MethodTransformer transformer) {
     // encode(ChannelHandlerContext ctx, REQUEST msg, List<Object> out)
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod()
             .and(named("encode"))
             .and(takesArguments(3))

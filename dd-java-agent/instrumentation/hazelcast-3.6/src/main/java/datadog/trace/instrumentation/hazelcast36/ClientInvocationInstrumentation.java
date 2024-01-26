@@ -43,8 +43,8 @@ public class ClientInvocationInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isConstructor()
             .and(takesArgument(0, named("com.hazelcast.client.impl.HazelcastClientInstanceImpl"))),
         getClass().getName() + "$ConstructAdvice");

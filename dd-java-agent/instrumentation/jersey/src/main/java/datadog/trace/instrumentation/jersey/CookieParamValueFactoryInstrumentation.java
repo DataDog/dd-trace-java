@@ -19,8 +19,8 @@ public class CookieParamValueFactoryInstrumentation extends Instrumenter.Iast
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         named("get").and(isPublic()).and(takesArguments(1)),
         CookieParamValueFactoryInstrumentation.class.getName() + "$InstrumenterAdvice");
   }

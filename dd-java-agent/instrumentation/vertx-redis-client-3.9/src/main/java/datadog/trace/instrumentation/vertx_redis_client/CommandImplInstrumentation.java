@@ -28,8 +28,8 @@ public class CommandImplInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isConstructor().and(takesArgument(0, named("java.lang.String"))),
         packageName + ".CommandImplConstructorAdvice");
   }

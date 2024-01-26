@@ -24,15 +24,15 @@ public final class MicronautInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isMethod()
             .and(named("channelRead0"))
             .and(takesArgument(0, named("io.netty.channel.ChannelHandlerContext")))
             .and(takesArgument(1, named("io.micronaut.http.HttpRequest"))),
         "datadog.trace.instrumentation.micronaut.ChannelRead0Advice");
 
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod()
             .and(named("handleRouteMatch"))
             .and(takesArgument(0, named("io.micronaut.web.router.RouteMatch")))
@@ -40,7 +40,7 @@ public final class MicronautInstrumentation extends Instrumenter.Tracing
             .and(takesArgument(2, named("io.netty.channel.ChannelHandlerContext"))),
         "datadog.trace.instrumentation.micronaut.HandleRouteMatchAdvice");
 
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod()
             .and(named("writeFinalNettyResponse"))
             .and(takesArgument(0, named("io.micronaut.http.MutableHttpResponse")))
@@ -48,7 +48,7 @@ public final class MicronautInstrumentation extends Instrumenter.Tracing
             .and(takesArgument(2, named("io.netty.channel.ChannelHandlerContext"))),
         "datadog.trace.instrumentation.micronaut.WriteFinalNettyResponseAdvice");
 
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod()
             .and(named("createDefaultErrorResponse"))
             .and(takesArgument(0, named("io.micronaut.http.HttpRequest")))

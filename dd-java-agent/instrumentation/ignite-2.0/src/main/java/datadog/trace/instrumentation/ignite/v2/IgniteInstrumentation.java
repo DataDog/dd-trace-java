@@ -49,8 +49,8 @@ public class IgniteInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isMethod()
             .and(isPublic())
             .and(
@@ -62,7 +62,7 @@ public class IgniteInstrumentation extends Instrumenter.Tracing
                     "getOrCreateNearCache"))
             .and(returns(hasInterface(named("org.apache.ignite.IgniteCache")))),
         IgniteInstrumentation.class.getName() + "$IgniteCacheAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod()
             .and(isPublic())
             .and(namedOneOf("createCaches", "getOrCreateCaches"))

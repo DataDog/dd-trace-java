@@ -49,8 +49,8 @@ public final class RunnableInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         named("run").and(takesArguments(0)).and(isPublic()),
         RunnableInstrumentation.class.getName() + "$RunnableAdvice");
   }

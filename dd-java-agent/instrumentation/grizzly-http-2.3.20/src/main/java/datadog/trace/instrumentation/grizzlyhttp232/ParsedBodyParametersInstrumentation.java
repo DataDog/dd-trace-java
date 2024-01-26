@@ -52,8 +52,8 @@ public class ParsedBodyParametersInstrumentation extends Instrumenter.AppSec
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         // also matches the variant taking an extra encoding parameter
         named("processParameters")
             .and(takesArgument(0, named("org.glassfish.grizzly.Buffer")))

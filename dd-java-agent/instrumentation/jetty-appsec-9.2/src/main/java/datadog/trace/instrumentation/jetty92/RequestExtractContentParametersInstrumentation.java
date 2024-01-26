@@ -38,11 +38,11 @@ public class RequestExtractContentParametersInstrumentation extends Instrumenter
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         named("extractContentParameters").and(takesArguments(0)),
         getClass().getName() + "$ExtractContentParametersAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         named("getParts")
             .and(takesArguments(1))
             .and(takesArgument(0, named("org.eclipse.jetty.util.MultiMap"))),

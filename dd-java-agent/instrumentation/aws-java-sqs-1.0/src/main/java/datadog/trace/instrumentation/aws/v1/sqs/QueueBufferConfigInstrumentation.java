@@ -30,8 +30,8 @@ public class QueueBufferConfigInstrumentation extends AbstractSqsInstrumentation
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isConstructor()
             .or(
                 isMethod()

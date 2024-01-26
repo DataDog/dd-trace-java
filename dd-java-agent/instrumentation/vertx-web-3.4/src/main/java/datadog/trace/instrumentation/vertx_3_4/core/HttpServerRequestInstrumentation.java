@@ -30,9 +30,9 @@ public class HttpServerRequestInstrumentation extends AbstractHttpServerRequestI
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    super.adviceTransformations(transformation);
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    super.methodAdvice(transformer);
+    transformer.applyAdvice(
         isPublic().and(isMethod()).and(named("headers")).and(takesNoArguments()),
         HttpServerRequestInstrumentation.class.getName() + "$HeadersAdvice");
   }

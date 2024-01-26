@@ -41,11 +41,11 @@ public class RedisAPIInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isVirtual().and(isDefaultMethod()).and(returns(named("io.vertx.redis.client.RedisAPI"))),
         packageName + ".RedisAPICallAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         named("send").and(not(isDefaultMethod())).and(returns(named("io.vertx.core.Future"))),
         packageName + ".RedisAPIImplSendAdvice");
   }

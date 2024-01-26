@@ -65,8 +65,8 @@ public class ParsedBodyParametersInstrumentation extends Instrumenter.AppSec
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         // also matches the variant taking an extra encoding parameter
         named("processParameters")
             .and(takesArgument(0, byte[].class))
@@ -74,7 +74,7 @@ public class ParsedBodyParametersInstrumentation extends Instrumenter.AppSec
             .and(takesArgument(2, int.class)),
         getClass().getName() + "$ProcessParametersAdvice");
 
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         named("handleQueryParameters").and(takesArguments(0)),
         getClass().getName() + "$HandleQueryParametersAdvice");
   }
