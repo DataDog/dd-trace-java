@@ -59,18 +59,18 @@ public class RequestGetPartsInstrumentation extends Instrumenter.AppSec
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void typeAdvice(TypeTransformer transformer) {
+    transformer.applyAdvice(new GetPartsVisitorWrapper());
+  }
+
+  @Override
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         named("getPart")
             .and(takesArguments(1))
             .and(takesArgument(0, String.class))
             .or(named("getParts").and(takesArguments(0))),
         getClass().getName() + "$GetPartsAdvice");
-  }
-
-  @Override
-  public AdviceTransformer transformer() {
-    return new VisitingTransformer(new GetPartsVisitorWrapper());
   }
 
   @Override

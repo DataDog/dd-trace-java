@@ -22,11 +22,11 @@ public final class NativeImageGeneratorRunnerInstrumentation
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isMethod().and(named("main")),
         NativeImageGeneratorRunnerInstrumentation.class.getName() + "$ArgsAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod().and(named("extractDriverArguments")),
         NativeImageGeneratorRunnerInstrumentation.class.getName() + "$ExtractedArgsAdvice");
   }

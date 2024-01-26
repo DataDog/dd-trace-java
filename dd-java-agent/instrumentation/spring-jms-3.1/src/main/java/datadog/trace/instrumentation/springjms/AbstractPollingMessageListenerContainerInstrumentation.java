@@ -32,8 +32,8 @@ public class AbstractPollingMessageListenerContainerInstrumentation extends Inst
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         named("receiveAndExecute").and(takesArgument(2, named("javax.jms.MessageConsumer"))),
         getClass().getName() + "$CompleteMessageSpanAfterExecute");
   }

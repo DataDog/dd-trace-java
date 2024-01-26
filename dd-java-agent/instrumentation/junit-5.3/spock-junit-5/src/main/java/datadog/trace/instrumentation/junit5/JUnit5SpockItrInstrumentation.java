@@ -60,8 +60,8 @@ public class JUnit5SpockItrInstrumentation extends Instrumenter.CiVisibility
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         named("shouldBeSkipped").and(takesArguments(1)),
         JUnit5SpockItrInstrumentation.class.getName() + "$JUnit5ItrAdvice");
   }

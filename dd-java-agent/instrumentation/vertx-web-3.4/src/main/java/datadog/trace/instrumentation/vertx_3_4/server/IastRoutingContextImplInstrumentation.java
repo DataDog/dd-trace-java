@@ -41,13 +41,12 @@ public class IastRoutingContextImplInstrumentation extends Instrumenter.Iast
   }
 
   @Override
-  public void adviceTransformations(final AdviceTransformation transformation) {
-    transformation.applyAdvice(
-        named("cookies").and(takesArguments(0)), className + "$CookiesAdvice");
-    transformation.applyAdvice(
+  public void methodAdvice(final MethodTransformer transformer) {
+    transformer.applyAdvice(named("cookies").and(takesArguments(0)), className + "$CookiesAdvice");
+    transformer.applyAdvice(
         named("getCookie").and(takesArguments(1)).and(takesArgument(0, String.class)),
         className + "$GetCookieAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         named("reroute").and(takesArguments(2)).and(takesArgument(1, String.class)),
         className + "$RerouteAdvice");
   }

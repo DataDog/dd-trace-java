@@ -71,14 +71,14 @@ public class ServletRequestBodyInstrumentation extends Instrumenter.AppSec
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         named("getInputStream")
             .and(takesNoArguments())
             .and(returns(named("javax.servlet.ServletInputStream")))
             .and(isPublic()),
         getClass().getName() + "$HttpServletGetInputStreamAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         named("getReader")
             .and(takesNoArguments())
             .and(returns(named("java.io.BufferedReader")))

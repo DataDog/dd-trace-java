@@ -37,18 +37,18 @@ public final class ModuleInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isMethod()
             .and(named("getResource"))
             .and(takesArguments(1).and(takesArgument(0, String.class))),
         ModuleInstrumentation.class.getName() + "$WidenGetResourceAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod()
             .and(named("getResourceAsStream"))
             .and(takesArguments(1).and(takesArgument(0, String.class))),
         ModuleInstrumentation.class.getName() + "$WidenGetResourceAsStreamAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod()
             .and(named("loadModuleClass"))
             .and(

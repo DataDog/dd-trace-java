@@ -36,8 +36,8 @@ public final class JasperJSPCompilationContextInstrumentation extends Instrument
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         named("compile").and(takesArguments(0)).and(isPublic()),
         JasperJSPCompilationContextInstrumentation.class.getName()
             + "$JasperJspCompilationContext");

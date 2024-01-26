@@ -35,10 +35,10 @@ public class ConsumerTaskInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(isConstructor(), getClass().getName() + "$Construct");
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(isConstructor(), getClass().getName() + "$Construct");
     // execution will be instrumented as ForkJoinTask
-    transformation.applyAdvice(named("run"), getClass().getName() + "$Run");
+    transformer.applyAdvice(named("run"), getClass().getName() + "$Run");
   }
 
   public static class Construct {

@@ -25,8 +25,8 @@ public class ZuulProxyRequestHelperInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isMethod().and(named("isIncludedHeader")).and(takesArgument(0, String.class)),
         ZuulProxyRequestHelperInstrumentation.class.getName() + "$ProxyRequestHelperAdvice");
   }

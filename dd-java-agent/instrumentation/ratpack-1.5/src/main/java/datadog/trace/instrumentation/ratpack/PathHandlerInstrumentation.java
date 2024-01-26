@@ -47,8 +47,8 @@ public class PathHandlerInstrumentation extends Instrumenter.AppSec
   }
 
   @Override
-  public void adviceTransformations(Instrumenter.AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isConstructor()
             .and(takesArguments(2))
             .and(takesArgument(0, named("ratpack.path.PathBinder")))

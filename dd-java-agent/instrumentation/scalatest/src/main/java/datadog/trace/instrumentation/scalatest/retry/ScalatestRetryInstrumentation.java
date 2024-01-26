@@ -60,8 +60,8 @@ public class ScalatestRetryInstrumentation extends Instrumenter.CiVisibility
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         named("runTestImpl")
             .and(takesArgument(0, named("org.scalatest.Suite")))
             .and(takesArgument(1, String.class))

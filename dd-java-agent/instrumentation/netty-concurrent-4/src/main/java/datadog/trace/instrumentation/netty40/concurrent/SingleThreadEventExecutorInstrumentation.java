@@ -53,8 +53,8 @@ public class SingleThreadEventExecutorInstrumentation extends Instrumenter.Profi
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isMethod()
             .and(named("addTask"))
             .and(takesArguments(1))
@@ -62,7 +62,7 @@ public class SingleThreadEventExecutorInstrumentation extends Instrumenter.Profi
         getClass().getName() + "$StartTiming");
     // schedule may call execute so using the same instrumentation relies on detecting double
     // timing - earliest (schedule) must take precedence
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod()
             .and(named("schedule"))
             .and(takesArguments(1))

@@ -33,8 +33,8 @@ public class OkHttp3Instrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isConstructor().and(takesArgument(0, named("okhttp3.OkHttpClient$Builder"))),
         OkHttp3Instrumentation.class.getName() + "$OkHttp3Advice");
   }

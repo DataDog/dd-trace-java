@@ -50,8 +50,8 @@ public class ReactiveStreamsInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(isConstructor(), this.getClass().getName() + "$PublisherAdvice");
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(isConstructor(), this.getClass().getName() + "$PublisherAdvice");
   }
 
   public static class PublisherAdvice {

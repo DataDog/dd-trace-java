@@ -134,14 +134,25 @@ public interface Instrumenter {
     Advice.PostProcessor.Factory postProcessor();
   }
 
-  /** Instrumentation that provides method advice. */
-  interface HasAdvice {
+  /** Instrumentation that provides advice which affects the whole type. */
+  interface HasTypeAdvice {
     /**
-     * Instrumenters should register each advice transformation by calling {@link
-     * AdviceTransformation#applyAdvice(ElementMatcher, String)} one or more times.
+     * Instrumenters should register the full type advice with {@link
+     * TypeTransformer#applyAdvice(TransformingAdvice)}.
      */
-    void adviceTransformations(AdviceTransformation transformation);
+    void typeAdvice(TypeTransformer transformer);
   }
+
+  /** Instrumentation that provides advice specific to one or more methods. */
+  interface HasMethodAdvice {
+    /**
+     * Instrumenters should register each method advice with {@link
+     * MethodTransformer#applyAdvice(ElementMatcher, String)}.
+     */
+    void methodAdvice(MethodTransformer transformer);
+  }
+
+  interface HasAdvice extends HasTypeAdvice, HasMethodAdvice {}
 
   /** Instrumentation that transforms types on the bootstrap class-path. */
   interface ForBootstrap {}
@@ -264,10 +275,9 @@ public interface Instrumenter {
       return ANY_CLASS_LOADER;
     }
 
-    /** @return A transformer for further transformation of the class */
-    public AdviceTransformer transformer() {
-      return null;
-    }
+    /** Override this to register full type transformations. */
+    @Override
+    public void typeAdvice(TypeTransformer transformer) {}
 
     /** @return A type matcher used to ignore some methods when applying transformation. */
     public ElementMatcher<? super MethodDescription> methodIgnoreMatcher() {
@@ -430,11 +440,19 @@ public interface Instrumenter {
     ClassFileTransformer installOn(Instrumentation instrumentation);
   }
 
-  interface AdviceTransformation {
-    void applyAdvice(ElementMatcher<? super MethodDescription> matcher, String name);
+  interface TypeTransformer {
+    void applyAdvice(TransformingAdvice typeAdvice);
+
+    default void applyAdvice(AsmVisitorWrapper typeVisitor) {
+      applyAdvice(new VisitingAdvice(typeVisitor));
+    }
   }
 
-  interface AdviceTransformer {
+  interface MethodTransformer {
+    void applyAdvice(ElementMatcher<? super MethodDescription> matcher, String className);
+  }
+
+  interface TransformingAdvice {
     DynamicType.Builder<?> transform(
         DynamicType.Builder<?> builder,
         TypeDescription typeDescription,
@@ -443,10 +461,10 @@ public interface Instrumenter {
         ProtectionDomain pd);
   }
 
-  final class VisitingTransformer implements AdviceTransformer {
+  final class VisitingAdvice implements TransformingAdvice {
     private final AsmVisitorWrapper visitor;
 
-    public VisitingTransformer(AsmVisitorWrapper visitor) {
+    public VisitingAdvice(AsmVisitorWrapper visitor) {
       this.visitor = visitor;
     }
 

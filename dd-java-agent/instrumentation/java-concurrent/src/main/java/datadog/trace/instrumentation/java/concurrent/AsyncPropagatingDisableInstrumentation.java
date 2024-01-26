@@ -90,85 +90,85 @@ public final class AsyncPropagatingDisableInstrumentation extends Instrumenter.T
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
+  public void methodAdvice(MethodTransformer transformer) {
     String advice = getClass().getName() + "$DisableAsyncAdvice";
-    transformation.applyAdvice(named("schedulePeriodically").and(isDeclaredBy(RX_WORKERS)), advice);
-    transformation.applyAdvice(
+    transformer.applyAdvice(named("schedulePeriodically").and(isDeclaredBy(RX_WORKERS)), advice);
+    transformer.applyAdvice(
         named("call").and(isDeclaredBy(named("rx.internal.operators.OperatorTimeoutBase"))),
         advice);
-    transformation.applyAdvice(named("connect").and(isDeclaredBy(NETTY_UNSAFE)), advice);
-    transformation.applyAdvice(
+    transformer.applyAdvice(named("connect").and(isDeclaredBy(NETTY_UNSAFE)), advice);
+    transformer.applyAdvice(
         named("init")
             .and(isDeclaredBy(named("io.grpc.internal.ServerImpl$ServerTransportListenerImpl"))),
         advice);
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         named("startTimer")
             .and(isDeclaredBy(named("com.amazonaws.http.timers.request.HttpRequestTimer"))),
         advice);
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         named("scheduleTimeout")
             .and(isDeclaredBy(named("io.netty.handler.timeout.WriteTimeoutHandler"))),
         advice);
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         named("rescheduleIdleTimer").and(isDeclaredBy(GRPC_MANAGED_CHANNEL)), advice);
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         namedOneOf("scheduleAtFixedRate", "scheduleWithFixedDelay")
             .and(isDeclaredBy(named("java.util.concurrent.ScheduledThreadPoolExecutor"))),
         advice);
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         named("start").and(isDeclaredBy(named("rx.internal.util.ObjectPool"))), advice);
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         named("addConnection").and(isDeclaredBy(named("com.squareup.okhttp.ConnectionPool"))),
         advice);
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         named("put").and(isDeclaredBy(named("okhttp3.ConnectionPool"))), advice);
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         named("sendMessage")
             .and(isDeclaredBy(named("org.elasticsearch.transport.netty4.Netty4TcpChannel"))),
         advice);
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         named("createEntry")
             .and(isDeclaredBy(named("org.springframework.cglib.core.internal.LoadingCache"))),
         advice);
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         named("runOnEventLoop")
             .and(
                 isDeclaredBy(
                     named(
                         "com.datastax.oss.driver.internal.core.channel.DefaultWriteCoalescer$Flusher"))),
         advice);
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         named("buildAsync")
             .and(isDeclaredBy(named("com.datastax.oss.driver.api.core.session.SessionBuilder"))),
         advice);
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         namedOneOf("getInjecteeDescriptor", "getService")
             .and(isDeclaredBy(named("org.jvnet.hk2.internal.ServiceLocatorImpl"))),
         advice);
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         named("getConnection").and(isDeclaredBy(named("com.zaxxer.hikari.pool.HikariPool"))),
         advice);
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         named("schedule").and(isDeclaredBy(named("net.sf.ehcache.store.disk.DiskStorageFactory"))),
         advice);
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         named("doRescheduleTask")
             .and(
                 isDeclaredBy(
                     named("org.springframework.jms.listener.DefaultMessageListenerContainer"))),
         advice);
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         named("beginTransaction")
             .and(isDeclaredBy(named("org.apache.activemq.broker.TransactionBroker"))),
         advice);
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         named("initUnlessClosed")
             .and(
                 isDeclaredBy(
                     named(
                         "com.mongodb.internal.connection.DefaultConnectionPool$AsyncWorkManager"))),
         advice);
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isTypeInitializer().and(isDeclaredBy(REACTOR_DISABLED_TYPE_INITIALIZERS)), advice);
   }
 

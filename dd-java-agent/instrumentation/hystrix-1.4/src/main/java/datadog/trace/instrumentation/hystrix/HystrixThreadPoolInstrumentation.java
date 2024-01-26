@@ -24,8 +24,8 @@ public class HystrixThreadPoolInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isMethod().and(named("schedule")).and(takesArguments(1)),
         HystrixThreadPoolInstrumentation.class.getName() + "$EnableAsyncAdvice");
   }

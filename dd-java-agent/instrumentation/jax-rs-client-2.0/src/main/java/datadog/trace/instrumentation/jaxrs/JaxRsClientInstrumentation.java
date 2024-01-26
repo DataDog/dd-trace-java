@@ -42,8 +42,8 @@ public final class JaxRsClientInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         named("build").and(returns(hasInterface(named("javax.ws.rs.client.Client")))),
         JaxRsClientInstrumentation.class.getName() + "$ClientBuilderAdvice");
   }

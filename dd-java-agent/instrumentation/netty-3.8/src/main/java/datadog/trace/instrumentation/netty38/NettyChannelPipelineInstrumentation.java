@@ -71,13 +71,13 @@ public class NettyChannelPipelineInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isMethod()
             .and(nameStartsWith("add"))
             .and(takesArgument(1, named("org.jboss.netty.channel.ChannelHandler"))),
         NettyChannelPipelineInstrumentation.class.getName() + "$ChannelPipelineAdd2ArgsAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod()
             .and(nameStartsWith("add"))
             .and(takesArgument(2, named("org.jboss.netty.channel.ChannelHandler"))),

@@ -55,8 +55,8 @@ public class PredefinedFromEntityUnmarshallersInstrumentation extends Instrument
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isTraitMethod(
                 TRAIT_NAME,
                 "urlEncodedFormDataUnmarshaller",
@@ -64,7 +64,7 @@ public class PredefinedFromEntityUnmarshallersInstrumentation extends Instrument
             .and(returns(named("akka.http.scaladsl.unmarshalling.Unmarshaller"))),
         PredefinedFromEntityUnmarshallersInstrumentation.class.getName()
             + "$UrlEncodedUnmarshallerWrappingAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isTraitMethod(TRAIT_NAME, "stringUnmarshaller")
             .and(returns(named("akka.http.scaladsl.unmarshalling.Unmarshaller"))),
         PredefinedFromEntityUnmarshallersInstrumentation.class.getName()

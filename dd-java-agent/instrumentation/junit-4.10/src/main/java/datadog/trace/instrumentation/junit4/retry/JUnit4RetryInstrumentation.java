@@ -61,8 +61,8 @@ public class JUnit4RetryInstrumentation extends Instrumenter.CiVisibility
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         named("runLeaf")
             .and(takesArgument(0, named("org.junit.runners.model.Statement")))
             .and(takesArgument(1, named("org.junit.runner.Description")))

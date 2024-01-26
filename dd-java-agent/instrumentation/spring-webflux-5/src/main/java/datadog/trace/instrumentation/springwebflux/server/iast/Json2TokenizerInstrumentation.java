@@ -35,8 +35,8 @@ public class Json2TokenizerInstrumentation extends Instrumenter.Iast
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isMethod()
             .and(named("apply").or(named("tokenize")))
             .and(takesArgument(0, named("org.springframework.core.io.buffer.DataBuffer")))

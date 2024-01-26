@@ -51,9 +51,9 @@ public final class MessagesAvailableInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(isConstructor(), getClass().getName() + "$Capture");
-    transformation.applyAdvice(named("runInContext"), getClass().getName() + "$ReceiveMessages");
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(isConstructor(), getClass().getName() + "$Capture");
+    transformer.applyAdvice(named("runInContext"), getClass().getName() + "$ReceiveMessages");
   }
 
   public static final class Capture {

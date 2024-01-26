@@ -41,8 +41,8 @@ public class MessageInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         nameStartsWith("acknowledge").and(isMethod()).and(isPublic()).and(takesNoArguments()),
         getClass().getName() + "$Acknowledge");
   }

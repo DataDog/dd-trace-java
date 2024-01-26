@@ -24,8 +24,8 @@ public final class BoundedLocalCacheInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         named("scheduleDrainBuffers").and(takesArguments(0)),
         getClass().getName() + "$ScheduleDrainBuffers");
   }

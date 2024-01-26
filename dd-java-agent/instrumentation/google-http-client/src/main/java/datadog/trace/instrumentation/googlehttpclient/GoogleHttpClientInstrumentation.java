@@ -42,12 +42,12 @@ public class GoogleHttpClientInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isMethod().and(isPublic()).and(named("execute")).and(takesArguments(0)),
         GoogleHttpClientInstrumentation.class.getName() + "$GoogleHttpClientAdvice");
 
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod()
             .and(isPublic())
             .and(named("executeAsync"))

@@ -24,8 +24,8 @@ public class AbstractFormProviderInstrumentation extends Instrumenter.Iast
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         named("readFrom").and(isPublic()).and(takesArguments(4)),
         AbstractFormProviderInstrumentation.class.getName() + "$InstrumenterAdvice");
   }

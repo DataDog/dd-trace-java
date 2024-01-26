@@ -49,8 +49,8 @@ public class MarshallingDirectivesInstrumentation extends Instrumenter.Iast
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isMethod()
             .and(isStatic())
             .and(named("entity"))
@@ -63,7 +63,7 @@ public class MarshallingDirectivesInstrumentation extends Instrumenter.Iast
         MarshallingDirectivesInstrumentation.class.getName()
             + "$TaintUnmarshallerInputOldScalaAdvice");
 
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod()
             .and(not(isStatic()))
             .and(named("entity"))

@@ -45,10 +45,10 @@ public class ListenableFutureInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isConstructor(), ListenableFutureInstrumentation.class.getName() + "$AbstractFutureAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         named("addListener").and(takesArguments(Runnable.class, Executor.class)),
         ListenableFutureInstrumentation.class.getName() + "$AddListenerAdvice");
   }

@@ -63,10 +63,10 @@ public final class RunnableFutureInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
+  public void methodAdvice(MethodTransformer transformer) {
     // instrument any FutureTask or TrustedListenableFutureTask constructor,
     // but only instrument the PromiseTask constructor with a Callable argument
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isConstructor()
             .and(
                 isDeclaredBy(
@@ -78,9 +78,9 @@ public final class RunnableFutureInstrumentation extends Instrumenter.Tracing
                         isDeclaredBy(nameEndsWith(".netty.util.concurrent.PromiseTask"))
                             .and(takesArgument(1, named(Callable.class.getName()))))),
         getClass().getName() + "$Construct");
-    transformation.applyAdvice(isConstructor(), getClass().getName() + "$Construct");
-    transformation.applyAdvice(isMethod().and(named("run")), getClass().getName() + "$Run");
-    transformation.applyAdvice(
+    transformer.applyAdvice(isConstructor(), getClass().getName() + "$Construct");
+    transformer.applyAdvice(isMethod().and(named("run")), getClass().getName() + "$Run");
+    transformer.applyAdvice(
         isMethod().and(namedOneOf("cancel", "set", "setException")),
         getClass().getName() + "$Cancel");
   }

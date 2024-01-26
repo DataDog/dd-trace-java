@@ -37,8 +37,8 @@ public final class DoNotTraceAnnotationInstrumentation extends Instrumenter.Trac
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isAnnotatedWith(named(hierarchyMarkerType())), packageName + ".DoNotTraceAdvice");
   }
 }

@@ -22,9 +22,9 @@ public final class PekkoPoolMasterActorInstrumentation extends Instrumenter.Trac
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
+  public void methodAdvice(MethodTransformer transformer) {
     // This is how scala names a method that is private to a class but is used in a PartialFunction
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         named("org$apache$pekko$http$impl$engine$client$PoolMasterActor$$startPoolInterface"),
         PekkoPoolMasterActorInstrumentation.class.getName() + "$BlockPropagation");
   }

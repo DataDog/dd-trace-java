@@ -58,12 +58,12 @@ public final class AsyncCompletionHandlerInstrumentation extends Instrumenter.Tr
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         namedOneOf("onBodyPartReceived", "onHeadersReceived")
             .and(takesArgument(0, named("com.ning.http.client.HttpResponseBodyPart"))),
         getClass().getName() + "$OnActivity");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         named("onCompleted")
             .and(takesArgument(0, named("com.ning.http.client.Response")))
             .and(isPublic()),

@@ -24,7 +24,7 @@ public class IastHttpUrlInstrumentation extends Instrumenter.Iast
    * com.squareup.okhttp.HttpUrl gets loaded before the instrumenter kicks in, so we must disable
    * the advice transformer or none of the transformations will be applied
    */
-  protected static boolean DISABLE_ADVICE_TRANSFORMER = false;
+  protected static boolean ENABLE_ADVICE_TRANSFORMER = true;
 
   private final String className = IastHttpUrlInstrumentation.class.getName();
 
@@ -43,30 +43,30 @@ public class IastHttpUrlInstrumentation extends Instrumenter.Iast
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void typeAdvice(TypeTransformer transformer) {
+    if (ENABLE_ADVICE_TRANSFORMER) {
+      transformer.applyAdvice(new TaintableVisitor(instrumentedType()));
+    }
+  }
+
+  @Override
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isMethod()
             .and(isStatic())
             .and(named("parse"))
             .and(takesArguments(1))
             .and(takesArgument(0, String.class)),
         className + "$ParseAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod()
             .and(isStatic())
             .and(named("get"))
             .and(takesArguments(1))
             .and(takesArgument(0, URL.class)),
         className + "$ParseAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod().and(named("url")).and(takesArguments(0)), className + "$PropagationAdvice");
-  }
-
-  @Override
-  public AdviceTransformer transformer() {
-    return DISABLE_ADVICE_TRANSFORMER
-        ? null
-        : new VisitingTransformer(new TaintableVisitor(instrumentedType()));
   }
 
   public static class ParseAdvice {

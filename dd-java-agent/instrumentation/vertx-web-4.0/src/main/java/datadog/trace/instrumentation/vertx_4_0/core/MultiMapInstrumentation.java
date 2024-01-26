@@ -40,30 +40,30 @@ public abstract class MultiMapInstrumentation extends Instrumenter.Iast {
   protected abstract ElementMatcher.Junction<MethodDescription> matcherForGetAdvice();
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
-        isMethod().and(isPublic()).and(named("get")).and(matcherForGetAdvice()),
-        className + "$GetAdvice");
-    transformation.applyAdvice(
-        isMethod().and(isPublic()).and(named("getAll")).and(matcherForGetAdvice()),
-        className + "$GetAllAdvice");
-    transformation.applyAdvice(
-        isMethod().and(isPublic()).and(named("entries")).and(takesNoArguments()),
-        className + "$EntriesAdvice");
-    transformation.applyAdvice(
-        isMethod().and(isPublic()).and(named("names")).and(takesNoArguments()),
-        className + "$NamesAdvice");
+  public void typeAdvice(TypeTransformer transformer) {
+    String[] classNames;
+    if (this instanceof Instrumenter.ForSingleType) {
+      classNames = new String[] {((Instrumenter.ForSingleType) this).instrumentedType()};
+    } else {
+      classNames = ((Instrumenter.ForKnownTypes) this).knownMatchingTypes();
+    }
+    transformer.applyAdvice(new TaintableVisitor(classNames));
   }
 
   @Override
-  public AdviceTransformer transformer() {
-    final TaintableVisitor visitor;
-    if (this instanceof Instrumenter.ForSingleType) {
-      visitor = new TaintableVisitor(((Instrumenter.ForSingleType) this).instrumentedType());
-    } else {
-      visitor = new TaintableVisitor(((Instrumenter.ForKnownTypes) this).knownMatchingTypes());
-    }
-    return new VisitingTransformer(visitor);
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
+        isMethod().and(isPublic()).and(named("get")).and(matcherForGetAdvice()),
+        className + "$GetAdvice");
+    transformer.applyAdvice(
+        isMethod().and(isPublic()).and(named("getAll")).and(matcherForGetAdvice()),
+        className + "$GetAllAdvice");
+    transformer.applyAdvice(
+        isMethod().and(isPublic()).and(named("entries")).and(takesNoArguments()),
+        className + "$EntriesAdvice");
+    transformer.applyAdvice(
+        isMethod().and(isPublic()).and(named("names")).and(takesNoArguments()),
+        className + "$NamesAdvice");
   }
 
   public static class GetAdvice {

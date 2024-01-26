@@ -50,11 +50,11 @@ public class OpenTelemetryInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         named("getTracerProvider").and(returns(named("io.opentelemetry.trace.TracerProvider"))),
         OpenTelemetryInstrumentation.class.getName() + "$TracerProviderAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         named("getPropagators")
             .and(returns(named("io.opentelemetry.context.propagation.ContextPropagators"))),
         OpenTelemetryInstrumentation.class.getName() + "$ContextPropagatorsAdvice");

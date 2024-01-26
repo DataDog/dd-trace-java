@@ -15,8 +15,8 @@ public class ClassInjectingTestInstrumentation extends TestInstrumentation {
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(isConstructor(), getClass().getName() + "$ConstructorAdvice");
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(isConstructor(), getClass().getName() + "$ConstructorAdvice");
   }
 
   public static class ConstructorAdvice {
