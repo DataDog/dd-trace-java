@@ -60,6 +60,7 @@ public final class NativeImageGeneratorRunnerInstrumentation
       args[oldLength++] =
           "-H:ClassInitialization="
               + "com.datadog.profiling.controller.openjdk.events.AvailableProcessorCoresEvent:build_time,"
+              + "com.datadog.profiling.controller.openjdk.events.DeadlockEvent:build_time,"
               + "com.datadog.profiling.controller.openjdk.events.ProfilerSettingEvent:build_time,"
               + "com.datadog.profiling.controller.openjdk.events.TimelineEvent:build_time,"
               + "datadog.trace.api.Config:rerun,"
@@ -92,6 +93,7 @@ public final class NativeImageGeneratorRunnerInstrumentation
               + "datadog.trace.bootstrap.instrumentation.java.concurrent.TPEHelper:build_time,"
               + "datadog.trace.bootstrap.instrumentation.jfr.exceptions.ExceptionCountEvent:build_time,"
               + "datadog.trace.bootstrap.instrumentation.jfr.exceptions.ExceptionSampleEvent:build_time,"
+              + "datadog.trace.bootstrap.instrumentation.jfr.directallocation.DirectAllocationTotalEvent:build_time,"
               + "datadog.trace.logging.LoggingSettingsDescription:build_time,"
               + "datadog.trace.logging.simplelogger.SLCompatFactory:build_time,"
               + "datadog.trace.util.CollectionUtils:build_time,"

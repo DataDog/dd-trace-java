@@ -1,5 +1,6 @@
 package com.datadog.profiling.controller.openjdk.events;
 
+import datadog.trace.api.Platform;
 import java.lang.management.LockInfo;
 import java.lang.management.ManagementFactory;
 import java.lang.management.MonitorInfo;
@@ -30,7 +31,9 @@ public class DeadlockEventFactory {
   public static void registerEvents() {
     // prevent re-registration as that would cause JFR to throw an exception
     if (EVENTS_REGISTERED_FLAG.compareAndSet(false, true)) {
-      FlightRecorder.addPeriodicEvent(DeadlockEvent.class, DeadlockEvent::emit);
+      if (!Platform.isNativeImageBuilder()) {
+        FlightRecorder.addPeriodicEvent(DeadlockEvent.class, DeadlockEvent::emit);
+      }
     }
   }
 

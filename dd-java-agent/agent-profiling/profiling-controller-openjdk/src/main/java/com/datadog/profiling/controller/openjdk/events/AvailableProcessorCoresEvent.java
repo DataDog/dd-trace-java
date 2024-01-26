@@ -1,5 +1,6 @@
 package com.datadog.profiling.controller.openjdk.events;
 
+import datadog.trace.api.Platform;
 import java.util.concurrent.atomic.AtomicBoolean;
 import jdk.jfr.Category;
 import jdk.jfr.Description;
@@ -34,8 +35,10 @@ public class AvailableProcessorCoresEvent extends Event {
   public static void register() {
     // Make sure the periodic event is registered only once
     if (registered.compareAndSet(false, true)) {
-      FlightRecorder.addPeriodicEvent(
-          AvailableProcessorCoresEvent.class, AvailableProcessorCoresEvent::emit);
+      if (!Platform.isNativeImageBuilder()) {
+        FlightRecorder.addPeriodicEvent(
+            AvailableProcessorCoresEvent.class, AvailableProcessorCoresEvent::emit);
+      }
     }
   }
 }
