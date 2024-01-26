@@ -17,7 +17,6 @@ public class LogPeriodicAction implements TelemetryRunnable.TelemetryPeriodicAct
    */
   static final String[] PACKAGE_LIST = {"datadog.", "com.datadog.", "java.", "javax.", "jakarta."};
 
-  private static final String RET = "\r\n";
   private static final String UNKNOWN = "<unknown>";
 
   @Override
@@ -61,11 +60,11 @@ public class LogPeriodicAction implements TelemetryRunnable.TelemetryPeriodicAct
         stackTrace.append(msg);
       }
     }
-    stackTrace.append(RET);
+    stackTrace.append('\n');
 
     Throwable filtered = StackUtils.filterPackagesIn(t, PACKAGE_LIST);
     for (StackTraceElement stackTraceElement : filtered.getStackTrace()) {
-      stackTrace.append("  at ").append(stackTraceElement).append(RET);
+      stackTrace.append("  at ").append(stackTraceElement).append('\n');
     }
     return stackTrace.toString();
   }

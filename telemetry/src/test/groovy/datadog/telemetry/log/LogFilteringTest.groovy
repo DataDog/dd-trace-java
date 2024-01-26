@@ -30,7 +30,7 @@ class LogFilteringTest extends DDSpecification {
     then:
     1 * telemetryService.addLogMessage( { LogMessage logMessage ->
       logMessage.getMessage() == 'Debug message'
-      String[] stackTraceLines = logMessage.stackTrace.split("\r\n")
+      String[] stackTraceLines = logMessage.stackTrace.split("\n")
 
       stackTraceLines[0] == "java.lang.Exception"
       ExceptionHelper.isDataDogOrJava(stackTraceLines[1])
@@ -56,7 +56,7 @@ class LogFilteringTest extends DDSpecification {
     then:
     1 * telemetryService.addLogMessage( { LogMessage logMessage ->
       logMessage.getMessage() == 'Debug message'
-      String[] stackTraceLines = logMessage.stackTrace.split("\r\n")
+      String[] stackTraceLines = logMessage.stackTrace.split("\n")
 
       stackTraceLines[0] == "java.lang.Exception: Exception Message"
       ExceptionHelper.isDataDogOrJava(stackTraceLines[1])
