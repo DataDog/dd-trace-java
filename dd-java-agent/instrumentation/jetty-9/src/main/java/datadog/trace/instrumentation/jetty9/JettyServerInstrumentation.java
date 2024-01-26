@@ -84,8 +84,13 @@ public final class JettyServerInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void typeAdvice(TypeTransformer transformer) {
+    transformer.applyAdvice(new HttpChannelHandleVisitorWrapper());
+  }
+
+  @Override
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         takesNoArguments()
             .and(
                 named("handle")
@@ -95,13 +100,13 @@ public final class JettyServerInstrumentation extends Instrumenter.Tracing
                         // (without the risk of double instrumenting).
                         named("run").and(isDeclaredBy(not(declaresMethod(named("handle"))))))),
         JettyServerInstrumentation.class.getName() + "$HandleAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         // name changed to recycle in 9.3.0
         namedOneOf("reset", "recycle").and(takesNoArguments()),
         JettyServerInstrumentation.class.getName() + "$ResetAdvice");
 
     if (appSecNotFullyDisabled) {
-      transformation.applyAdvice(
+      transformer.applyAdvice(
           named("handleException").and(takesArguments(1)).and(takesArgument(0, Throwable.class)),
           JettyServerInstrumentation.class.getName() + "$HandleExceptionAdvice");
     }
@@ -117,10 +122,6 @@ public final class JettyServerInstrumentation extends Instrumenter.Tracing
             "org.eclipse.jetty.io.ManagedSelector",
             "org.eclipse.jetty.util.thread.TimerScheduler",
             "org.eclipse.jetty.util.thread.TimerScheduler$SimpleTask"));
-  }
-
-  public AdviceTransformer transformer() {
-    return new VisitingTransformer(new HttpChannelHandleVisitorWrapper());
   }
 
   public static class HttpChannelHandleVisitorWrapper implements AsmVisitorWrapper {

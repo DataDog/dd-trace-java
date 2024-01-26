@@ -21,12 +21,12 @@ public abstract class CallSiteInstrumentation extends Instrumenter.Default
   }
 
   @Override
-  public void adviceTransformations(final AdviceTransformation transformation) {}
+  public void typeAdvice(TypeTransformer transformer) {
+    transformer.applyAdvice(new CallSiteTransformer(name(), advices()));
+  }
 
   @Override
-  public AdviceTransformer transformer() {
-    return new CallSiteTransformer(name(), advices());
-  }
+  public void methodAdvice(final MethodTransformer transformer) {}
 
   /** Utility to be able to tune the advices in subclasses */
   protected Advices buildAdvices(final Iterable<CallSites> callSites) {

@@ -69,20 +69,20 @@ public final class JettyServerInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
-        isConstructor(), JettyServerInstrumentation.class.getName() + "$ConstructorAdvice");
-    transformation.applyAdvice(
-        named("handleRequest").and(takesNoArguments()),
-        JettyServerInstrumentation.class.getName() + "$HandleRequestAdvice");
-    transformation.applyAdvice(
-        named("reset").and(takesArgument(0, boolean.class)),
-        JettyServerInstrumentation.class.getName() + "$ResetAdvice");
+  public void typeAdvice(TypeTransformer transformer) {
+    transformer.applyAdvice(new ConnectionHandleRequestVisitorWrapper());
   }
 
   @Override
-  public AdviceTransformer transformer() {
-    return new VisitingTransformer(new ConnectionHandleRequestVisitorWrapper());
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
+        isConstructor(), JettyServerInstrumentation.class.getName() + "$ConstructorAdvice");
+    transformer.applyAdvice(
+        named("handleRequest").and(takesNoArguments()),
+        JettyServerInstrumentation.class.getName() + "$HandleRequestAdvice");
+    transformer.applyAdvice(
+        named("reset").and(takesArgument(0, boolean.class)),
+        JettyServerInstrumentation.class.getName() + "$ResetAdvice");
   }
 
   public static class ConnectionHandleRequestVisitorWrapper implements AsmVisitorWrapper {

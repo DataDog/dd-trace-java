@@ -81,11 +81,11 @@ public class JUnit5RetryInstrumentation extends Instrumenter.CiVisibility
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         named("prepare").and(takesNoArguments()),
         JUnit5RetryInstrumentation.class.getName() + "$PrepareRetryContext");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         named("execute").and(takesNoArguments()),
         JUnit5RetryInstrumentation.class.getName() + "$RetryIfNeeded");
   }

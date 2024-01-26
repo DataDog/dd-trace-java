@@ -54,20 +54,20 @@ public final class AkkaHttp2ServerInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         takesArguments(8)
             .and(named("bindAndHandleAsync"))
             .and(takesArgument(0, named("scala.Function1")))
             .and(takesArgument(7, named("akka.stream.Materializer"))),
         getClass().getName() + "$Http2BindAndHandleAsync8ArgAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         takesArguments(7)
             .and(named("bindAndHandleAsync"))
             .and(takesArgument(0, named("scala.Function1")))
             .and(takesArgument(6, named("akka.stream.Materializer"))),
         getClass().getName() + "$Http2BindAndHandleAsync7ArgAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         takesArguments(6)
             .and(named("bindAndHandleAsync"))
             .and(takesArgument(0, named("scala.Function1")))

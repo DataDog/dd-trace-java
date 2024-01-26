@@ -37,8 +37,8 @@ public class RequestExtractContentParametersInstrumentation extends Instrumenter
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         named("extractContentParameters").and(takesArguments(0)).or(named("getParts")),
         getClass().getName() + "$ExtractContentParametersAdvice");
   }

@@ -47,24 +47,24 @@ public class PlayBodyParsersInstrumentation extends Instrumenter.AppSec
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isTraitMethod(TRAIT_NAME, "tolerantFormUrlEncoded", is(int.class).or(is(long.class)))
             .and(returns(named("play.api.mvc.BodyParser"))),
         PlayBodyParsersInstrumentation.class.getName() + "$UrlEncodedAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isTraitMethod(TRAIT_NAME, "tolerantText", long.class)
             .and(returns(named("play.api.mvc.BodyParser"))),
         PlayBodyParsersInstrumentation.class.getName() + "$TextAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isTraitMethod(TRAIT_NAME, "text", long.class)
             .and(returns(named("play.api.mvc.BodyParser"))),
         PlayBodyParsersInstrumentation.class.getName() + "$TextAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isTraitMethod(TRAIT_NAME, "multipartFormData", "scala.Function1", long.class, boolean.class)
             .and(returns(named("play.api.mvc.BodyParser"))),
         PlayBodyParsersInstrumentation.class.getName() + "$MultipartFormDataAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isTraitMethod(TRAIT_NAME, "multipartFormData", "scala.Function1", long.class)
             .and(returns(named("play.api.mvc.BodyParser")))
             .and(
@@ -78,11 +78,11 @@ public class PlayBodyParsersInstrumentation extends Instrumenter.AppSec
                             boolean.class)
                         .and(returns(named("play.api.mvc.BodyParser"))))),
         PlayBodyParsersInstrumentation.class.getName() + "$MultipartFormDataAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isTraitMethod(TRAIT_NAME, "tolerantJson", is(int.class).or(is(long.class)))
             .and(returns(named("play.api.mvc.BodyParser"))),
         PlayBodyParsersInstrumentation.class.getName() + "$JsonAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isTraitMethod(TRAIT_NAME, "tolerantXml", is(int.class).or(is(long.class)))
             .and(returns(named("play.api.mvc.BodyParser"))),
         PlayBodyParsersInstrumentation.class.getName() + "$XmlAdvice");

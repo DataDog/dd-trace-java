@@ -39,12 +39,12 @@ public class JavaForkJoinPoolInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
+  public void methodAdvice(MethodTransformer transformer) {
     String name = getClass().getName();
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod().and(namedOneOf("externalPush", "externalSubmit")), name + "$ExternalPush");
     // Java 21 has a new method name and changed signature
-    transformation.applyAdvice(isMethod().and(named("poolSubmit")), name + "$PoolSubmit");
+    transformer.applyAdvice(isMethod().and(named("poolSubmit")), name + "$PoolSubmit");
   }
 
   public static final class ExternalPush {

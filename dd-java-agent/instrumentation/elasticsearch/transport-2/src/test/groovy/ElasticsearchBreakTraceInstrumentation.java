@@ -19,8 +19,8 @@ public class ElasticsearchBreakTraceInstrumentation extends TestInstrumentation 
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
+  public void methodAdvice(MethodTransformer transformer) {
     // this method changed to executeLocally in 5+
-    transformation.applyAdvice(named("doExecute"), ShadowExistingScopeAdvice.class.getName());
+    transformer.applyAdvice(named("doExecute"), ShadowExistingScopeAdvice.class.getName());
   }
 }

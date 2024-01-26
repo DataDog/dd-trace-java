@@ -47,19 +47,19 @@ public final class HttpServletResponseInstrumentation extends Instrumenter.Iast
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         named("addCookie").and(takesArgument(0, named("javax.servlet.http.Cookie"))),
         getClass().getName() + "$AddCookieAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         namedOneOf("setHeader", "addHeader").and(takesArguments(String.class, String.class)),
         getClass().getName() + "$AddHeaderAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         namedOneOf("encodeRedirectURL", "encodeURL")
             .and(takesArgument(0, String.class))
             .and(returns(String.class)),
         getClass().getName() + "$EncodeURLAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         named("sendRedirect").and(takesArgument(0, String.class)),
         getClass().getName() + "$SendRedirectAdvice");
   }

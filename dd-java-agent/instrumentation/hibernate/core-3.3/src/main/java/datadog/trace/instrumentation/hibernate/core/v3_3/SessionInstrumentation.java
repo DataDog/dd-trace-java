@@ -66,13 +66,13 @@ public class SessionInstrumentation extends AbstractHibernateInstrumentation {
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isMethod().and(named("close")).and(takesArguments(0)),
         SessionInstrumentation.class.getName() + "$SessionCloseAdvice");
 
     // Session synchronous methods we want to instrument.
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod()
             .and(
                 namedOneOf(
@@ -94,7 +94,7 @@ public class SessionInstrumentation extends AbstractHibernateInstrumentation {
         SessionInstrumentation.class.getName() + "$SessionMethodAdvice");
 
     // Handle the non-generic 'get' separately.
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod()
             .and(named("get"))
             .and(returns(named("java.lang.Object")))
@@ -103,17 +103,17 @@ public class SessionInstrumentation extends AbstractHibernateInstrumentation {
 
     // These methods return some object that we want to instrument, and so the Advice will pin the
     // current Span to the returned object using a ContextStore.
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod()
             .and(namedOneOf("beginTransaction", "getTransaction"))
             .and(returns(named("org.hibernate.Transaction"))),
         SessionInstrumentation.class.getName() + "$GetTransactionAdvice");
 
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod().and(returns(hasInterface(named("org.hibernate.Query")))),
         SessionInstrumentation.class.getName() + "$GetQueryAdvice");
 
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod().and(returns(hasInterface(named("org.hibernate.Criteria")))),
         SessionInstrumentation.class.getName() + "$GetCriteriaAdvice");
   }

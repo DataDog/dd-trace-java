@@ -25,16 +25,16 @@ import net.bytebuddy.jar.asm.Type;
 import net.bytebuddy.pool.TypePool;
 import net.bytebuddy.utility.JavaModule;
 
-public class CallSiteTransformer implements Instrumenter.AdviceTransformer {
+public class CallSiteTransformer implements Instrumenter.TransformingAdvice {
 
-  private static final Instrumenter.AdviceTransformer NO_OP =
+  private static final Instrumenter.TransformingAdvice NO_OP =
       (builder, typeDescription, classLoader, module, pd) -> builder;
 
   public static final int ASM_API = Opcodes.ASM8;
 
   private final Advices advices;
 
-  private final Instrumenter.AdviceTransformer helperInjector;
+  private final Instrumenter.TransformingAdvice helperInjector;
 
   public CallSiteTransformer(@Nonnull final Advices advices) {
     this("call-site-transformer", advices);

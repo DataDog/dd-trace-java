@@ -21,8 +21,8 @@ public class JWTParserInstrumentation extends Instrumenter.Iast
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         named("parsePayload").and(isPublic().and(takesArguments(String.class))),
         JWTParserInstrumentation.class.getName() + "$InstrumenterAdvice");
   }

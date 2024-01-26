@@ -20,7 +20,7 @@ public abstract class TestInstrumentationClasses {
     }
 
     @Override
-    public void adviceTransformations(AdviceTransformation transformation) {}
+    public void methodAdvice(MethodTransformer transformer) {}
   }
 
   public static class EmptyInst extends BaseInst {

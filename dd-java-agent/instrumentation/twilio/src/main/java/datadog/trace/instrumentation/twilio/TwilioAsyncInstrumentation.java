@@ -68,14 +68,14 @@ public class TwilioAsyncInstrumentation extends Instrumenter.Tracing
 
   /** Return bytebuddy transformers for instrumenting the Twilio SDK. */
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
+  public void methodAdvice(MethodTransformer transformer) {
     /*
        We are listing out the main service calls on the Creator, Deleter, Fetcher, Reader, and
        Updater abstract classes. The isDeclaredBy() matcher did not work in the unit tests and
        we found that there were certain methods declared on the base class (particularly Reader),
        which we weren't interested in annotating.
     */
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod()
             .and(namedOneOf("createAsync", "deleteAsync", "readAsync", "fetchAsync", "updateAsync"))
             .and(isPublic())

@@ -44,8 +44,8 @@ public final class FutureResponseListenerInstrumentation extends Instrumenter.Tr
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isConstructor()
             .and(
                 takesArgument(0, named("org.eclipse.jetty.client.api.Request"))

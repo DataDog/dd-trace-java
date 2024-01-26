@@ -32,20 +32,20 @@ public class FieldInjectionTestInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(named("isInstrumented"), MarkInstrumentedAdvice.class.getName());
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(named("isInstrumented"), MarkInstrumentedAdvice.class.getName());
+    transformer.applyAdvice(
         named("incrementContextCount"), StoreAndIncrementApiUsageAdvice.class.getName());
-    transformation.applyAdvice(named("getContextCount"), GetApiUsageAdvice.class.getName());
-    transformation.applyAdvice(named("putContextCount"), PutApiUsageAdvice.class.getName());
-    transformation.applyAdvice(named("getContextCount2"), GetApiUsageAdvice2.class.getName());
-    transformation.applyAdvice(named("putContextCount2"), PutApiUsageAdvice2.class.getName());
-    transformation.applyAdvice(
+    transformer.applyAdvice(named("getContextCount"), GetApiUsageAdvice.class.getName());
+    transformer.applyAdvice(named("putContextCount"), PutApiUsageAdvice.class.getName());
+    transformer.applyAdvice(named("getContextCount2"), GetApiUsageAdvice2.class.getName());
+    transformer.applyAdvice(named("putContextCount2"), PutApiUsageAdvice2.class.getName());
+    transformer.applyAdvice(
         named("incorrectKeyClassUsage"), IncorrectKeyClassContextApiUsageAdvice.class.getName());
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         named("incorrectContextClassUsage"),
         IncorrectContextClassContextApiUsageAdvice.class.getName());
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         named("incorrectCallUsage"), IncorrectCallContextApiUsageAdvice.class.getName());
   }
 

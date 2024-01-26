@@ -26,10 +26,10 @@ public class Spark213Instrumentation extends AbstractSparkInstrumentation {
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    super.adviceTransformations(transformation);
+  public void methodAdvice(MethodTransformer transformer) {
+    super.methodAdvice(transformer);
 
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod()
             .and(named("setupAndStartListenerBus"))
             .and(isDeclaredBy(named("org.apache.spark.SparkContext")))

@@ -52,8 +52,8 @@ public class PathPatternInstrumentation extends Instrumenter.AppSec
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         named("apply")
             .and(not(isStatic()))
             .and(takesArguments(1))

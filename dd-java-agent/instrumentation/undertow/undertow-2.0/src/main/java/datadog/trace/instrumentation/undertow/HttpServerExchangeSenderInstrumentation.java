@@ -43,8 +43,8 @@ public class HttpServerExchangeSenderInstrumentation extends Instrumenter.AppSec
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         not(isPrivate()).and(named("getResponseChannel")).and(takesArguments(0)),
         HttpServerExchangeSenderInstrumentation.class.getName() + "$GetResponseChannelAdvice");
   }

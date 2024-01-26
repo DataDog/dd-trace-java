@@ -45,8 +45,8 @@ public class DelegatingBodyParserInstrumentation extends Instrumenter.AppSec
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         named("apply")
             .and(takesArguments(1))
             .and(takesArgument(0, named("play.mvc.Http$RequestHeader")))

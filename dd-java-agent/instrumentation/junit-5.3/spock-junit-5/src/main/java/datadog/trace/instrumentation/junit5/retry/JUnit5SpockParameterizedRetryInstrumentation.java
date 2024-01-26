@@ -43,8 +43,8 @@ public class JUnit5SpockParameterizedRetryInstrumentation extends Instrumenter.C
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isConstructor(),
         JUnit5SpockParameterizedRetryInstrumentation.class.getName()
             + "$SpockParameterizedRetryAdvice");

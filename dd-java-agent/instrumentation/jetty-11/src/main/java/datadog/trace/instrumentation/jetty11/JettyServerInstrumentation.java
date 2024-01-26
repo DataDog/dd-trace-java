@@ -56,15 +56,16 @@ public final class JettyServerInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
-        takesNoArguments().and(named("handle")), packageName + ".JettyServerAdvice$HandleAdvice");
-    transformation.applyAdvice(
-        named("recycle").and(takesNoArguments()), packageName + ".JettyServerAdvice$ResetAdvice");
+  public void typeAdvice(TypeTransformer transformer) {
+    transformer.applyAdvice(new HttpChannelHandleVisitorWrapper());
   }
 
-  public AdviceTransformer transformer() {
-    return new VisitingTransformer(new HttpChannelHandleVisitorWrapper());
+  @Override
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
+        takesNoArguments().and(named("handle")), packageName + ".JettyServerAdvice$HandleAdvice");
+    transformer.applyAdvice(
+        named("recycle").and(takesNoArguments()), packageName + ".JettyServerAdvice$ResetAdvice");
   }
 
   public static class HttpChannelHandleVisitorWrapper implements AsmVisitorWrapper {

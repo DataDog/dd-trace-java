@@ -37,25 +37,25 @@ public abstract class AbstractHttpServerRequestInstrumentation extends Instrumen
   protected abstract ElementMatcher.Junction<MethodDescription> attributesFilter();
 
   @Override
-  public void adviceTransformations(final AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(final MethodTransformer transformer) {
+    transformer.applyAdvice(
         isPublic().and(isMethod()).and(named("headers")).and(takesNoArguments()),
         className + "$HeadersAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isPublic().and(isMethod()).and(named("params")).and(takesNoArguments()),
         className + "$ParamsAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod().and(takesNoArguments()).and(attributesFilter()),
         className + "$AttributesAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod()
             .and(named("handleData").or(named("onData")))
             .and(takesArguments(1).and(takesArgument(0, named("io.vertx.core.buffer.Buffer")))),
         className + "$DataAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isPublic().and(isMethod()).and(named("cookies")).and(returns(Set.class)),
         className + "$CookiesAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isPublic().and(isMethod()).and(named("getCookie")).and(takesArgument(0, String.class)),
         className + "$GetCookieAdvice");
   }

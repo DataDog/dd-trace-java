@@ -39,8 +39,8 @@ public final class ServletContextInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         returns(named("javax.servlet.RequestDispatcher"))
             .and(takesArgument(0, String.class))
             // javax.servlet.ServletContext.getRequestDispatcher

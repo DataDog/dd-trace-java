@@ -18,8 +18,8 @@ public final class LinkAtBuildTimeInstrumentation extends AbstractNativeImageIns
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isMethod().and(named("linkAtBuildTime")).and(takesArgument(0, Class.class)),
         LinkAtBuildTimeInstrumentation.class.getName() + "$LinkAtBuildTimeAdvice");
   }

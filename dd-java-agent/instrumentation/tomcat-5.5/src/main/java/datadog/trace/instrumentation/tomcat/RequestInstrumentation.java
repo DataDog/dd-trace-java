@@ -54,17 +54,17 @@ public final class RequestInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
-        named("recycle").and(takesNoArguments()),
-        RequestInstrumentation.class.getName() + "$RecycleAdvice");
+  public void typeAdvice(TypeTransformer transformer) {
+    // old versions of Catalina (from 2006 and before) suppress all throwables
+    // in parseParameters(). We let our BlockingException go through
+    transformer.applyAdvice(new ThrowableCaughtVisitorWrapper());
   }
 
   @Override
-  public AdviceTransformer transformer() {
-    // old versions of Catalina (from 2006 and before) suppress all throwables
-    // in parseParameters(). We let our BlockingException go through
-    return new VisitingTransformer(new ThrowableCaughtVisitorWrapper());
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
+        named("recycle").and(takesNoArguments()),
+        RequestInstrumentation.class.getName() + "$RecycleAdvice");
   }
 
   /**

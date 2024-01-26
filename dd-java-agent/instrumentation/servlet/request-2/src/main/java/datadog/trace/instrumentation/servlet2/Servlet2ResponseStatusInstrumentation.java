@@ -49,11 +49,10 @@ public final class Servlet2ResponseStatusInstrumentation extends Instrumenter.Tr
    * applies first
    */
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         namedOneOf("sendError", "setStatus").and(takesArgument(0, int.class)),
         packageName + ".Servlet2ResponseStatusAdvice");
-    transformation.applyAdvice(
-        named("sendRedirect"), packageName + ".Servlet2ResponseRedirectAdvice");
+    transformer.applyAdvice(named("sendRedirect"), packageName + ".Servlet2ResponseRedirectAdvice");
   }
 }

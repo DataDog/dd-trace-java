@@ -24,8 +24,8 @@ public class Vertx39HttpServertResponseInstrumentation extends Instrumenter.Iast
   }
 
   @Override
-  public void adviceTransformations(final AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(final MethodTransformer transformer) {
+    transformer.applyAdvice(
         named("addCookie")
             .and(takesArgument(0, named("io.vertx.core.http.Cookie")))
             .and(isPublic()),

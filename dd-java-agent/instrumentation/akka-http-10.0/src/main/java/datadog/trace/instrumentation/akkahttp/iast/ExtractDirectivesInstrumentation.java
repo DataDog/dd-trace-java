@@ -56,15 +56,13 @@ public class ExtractDirectivesInstrumentation extends Instrumenter.Iast
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    instrumentDirective(transformation, "extractUri", "TaintUriDirectiveAdvice");
-    instrumentDirective(transformation, "extractRequest", "TaintRequestDirectiveAdvice");
-    instrumentDirective(
-        transformation, "extractRequestContext", "TaintRequestContextDirectiveAdvice");
+  public void methodAdvice(MethodTransformer transformer) {
+    instrumentDirective(transformer, "extractUri", "TaintUriDirectiveAdvice");
+    instrumentDirective(transformer, "extractRequest", "TaintRequestDirectiveAdvice");
+    instrumentDirective(transformer, "extractRequestContext", "TaintRequestContextDirectiveAdvice");
   }
 
-  private void instrumentDirective(
-      AdviceTransformation transformation, String method, String advice) {
+  private void instrumentDirective(MethodTransformer transformation, String method, String advice) {
     transformation.applyAdvice(
         isTraitDirectiveMethod("akka.http.scaladsl.server.directives.BasicDirectives", method),
         ExtractDirectivesInstrumentation.class.getName() + '$' + advice);

@@ -32,15 +32,15 @@ public class Json2ParserInstrumentation extends Instrumenter.Iast
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
+  public void methodAdvice(MethodTransformer transformer) {
     final String className = Json2ParserInstrumentation.class.getName();
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         namedOneOf("getText", "getValueAsString")
             .and(isPublic())
             .and(takesNoArguments())
             .and(returns(String.class)),
         className + "$TextAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         namedOneOf("getCurrentName", "nextFieldName")
             .and(isPublic())
             .and(takesNoArguments())

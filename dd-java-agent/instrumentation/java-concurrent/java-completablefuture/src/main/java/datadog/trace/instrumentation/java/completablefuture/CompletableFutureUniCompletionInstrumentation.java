@@ -67,8 +67,8 @@ public class CompletableFutureUniCompletionInstrumentation extends Instrumenter.
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(isConstructor(), ADVICE_BASE + "UniConstructor");
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(isConstructor(), ADVICE_BASE + "UniConstructor");
   }
 
   @Override

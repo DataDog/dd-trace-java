@@ -35,8 +35,8 @@ public final class LettuceClientInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isMethod().and(named("connectStandalone")),
         // Cannot reference class directly here because it would lead to class load failure on Java7
         packageName + ".RedisConnectionAdvice");

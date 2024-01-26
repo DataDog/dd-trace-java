@@ -34,8 +34,8 @@ public class UriInstrumentation extends Instrumenter.Iast implements Instrumente
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isMethod()
             .and(not(isStatic()))
             .and(named("queryString"))
@@ -43,14 +43,14 @@ public class UriInstrumentation extends Instrumenter.Iast implements Instrumente
             .and(takesArguments(1))
             .and(takesArgument(0, named("java.nio.charset.Charset"))),
         UriInstrumentation.class.getName() + "$TaintQueryStringAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod()
             .and(not(isStatic()))
             .and(named("rawQueryString"))
             .and(returns(named("scala.Option")))
             .and(takesArguments(0)),
         UriInstrumentation.class.getName() + "$TaintQueryStringAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod()
             .and(not(isStatic()))
             .and(named("query"))

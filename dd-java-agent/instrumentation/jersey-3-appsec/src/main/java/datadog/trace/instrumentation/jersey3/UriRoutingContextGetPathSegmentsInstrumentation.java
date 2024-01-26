@@ -29,8 +29,8 @@ public class UriRoutingContextGetPathSegmentsInstrumentation extends Instrumente
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         named("getPathSegments").and(takesArguments(1)).and(takesArgument(0, boolean.class)),
         getClass().getName() + "$GetPathSegmentsAdvice");
   }

@@ -39,8 +39,8 @@ public class UriRoutingContextInstrumentation extends Instrumenter.AppSec
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         named("getPathParameters").and(takesArguments(1)).and(takesArgument(0, boolean.class)),
         getClass().getName() + "$GetPathParametersAdvice");
   }

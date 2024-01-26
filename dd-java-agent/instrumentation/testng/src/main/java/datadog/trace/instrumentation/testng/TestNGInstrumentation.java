@@ -24,8 +24,8 @@ public class TestNGInstrumentation extends Instrumenter.CiVisibility
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         MethodDescription::isConstructor, TestNGInstrumentation.class.getName() + "$TestNGAdvice");
   }
 
