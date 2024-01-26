@@ -1,7 +1,7 @@
 package datadog.trace.bootstrap.instrumentation.jfr.exceptions;
 
 import datadog.trace.api.Config;
-import datadog.trace.api.Platform;
+import datadog.trace.bootstrap.instrumentation.jfr.JfrHelper;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
@@ -38,9 +38,7 @@ public class ExceptionHistogram {
     maxSize = config.getProfilingExceptionHistogramMaxCollectionSize();
     exceptionCountEventType = EventType.getEventType(ExceptionCountEvent.class);
     eventHook = this::emit;
-    if (!Platform.isNativeImageBuilder()) {
-      FlightRecorder.addPeriodicEvent(ExceptionCountEvent.class, eventHook);
-    }
+    JfrHelper.addPeriodicEvent(ExceptionCountEvent.class, eventHook);
   }
 
   /** Remove this instance from JFR periodic events callbacks */

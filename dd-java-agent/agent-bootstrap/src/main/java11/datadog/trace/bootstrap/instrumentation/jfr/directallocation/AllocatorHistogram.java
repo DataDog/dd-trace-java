@@ -1,6 +1,6 @@
 package datadog.trace.bootstrap.instrumentation.jfr.directallocation;
 
-import datadog.trace.api.Platform;
+import datadog.trace.bootstrap.instrumentation.jfr.JfrHelper;
 import java.lang.ref.WeakReference;
 import java.util.Arrays;
 import java.util.List;
@@ -18,9 +18,7 @@ public class AllocatorHistogram extends ClassValue<AtomicLong[]> {
   AllocatorHistogram() {
     eventType = EventType.getEventType(DirectAllocationTotalEvent.class);
     eventHook = this::emit;
-    if (!Platform.isNativeImageBuilder()) {
-      FlightRecorder.addPeriodicEvent(DirectAllocationTotalEvent.class, eventHook);
-    }
+    JfrHelper.addPeriodicEvent(DirectAllocationTotalEvent.class, eventHook);
   }
 
   /** Remove this instance from JFR periodic events callbacks */
