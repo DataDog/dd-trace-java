@@ -17,7 +17,6 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import java.util.Queue;
 import java.util.concurrent.ArrayBlockingQueue;
-import java.util.concurrent.atomic.AtomicBoolean;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
@@ -26,7 +25,6 @@ public class IastRequestContext implements IastContext, HasMetricCollector {
   static final int MAP_SIZE = TaintedMap.DEFAULT_CAPACITY;
 
   private final VulnerabilityBatch vulnerabilityBatch;
-  private final AtomicBoolean spanDataIsSet;
   private final OverheadContext overheadContext;
   private TaintedObjects taintedObjects;
   @Nullable private IastMetricCollector collector;
@@ -47,7 +45,6 @@ public class IastRequestContext implements IastContext, HasMetricCollector {
 
   public IastRequestContext(final TaintedObjects taintedObjects) {
     this.vulnerabilityBatch = new VulnerabilityBatch();
-    this.spanDataIsSet = new AtomicBoolean(false);
     this.overheadContext = new OverheadContext(Config.get().getIastVulnerabilitiesPerRequest());
     this.taintedObjects = taintedObjects;
   }
@@ -90,10 +87,6 @@ public class IastRequestContext implements IastContext, HasMetricCollector {
 
   public void setContentType(final String contentType) {
     this.contentType = contentType;
-  }
-
-  public boolean getAndSetSpanDataIsSet() {
-    return spanDataIsSet.getAndSet(true);
   }
 
   public OverheadContext getOverheadContext() {

@@ -922,14 +922,27 @@ public class DDSpanContext
   }
 
   @Override
+  public Object getDataTop(String key) {
+    return getRootSpanContextOrThis().getDataCurrent(key);
+  }
+
+  @Override
   public void effectivelyBlocked() {
     setTag("appsec.blocked", "true");
   }
 
   @Override
   public void setDataCurrent(String key, Object value) {
+    this.setTag(getTagName(key), value);
+  }
+
+  @Override
+  public Object getDataCurrent(String key) {
+    return this.getTag(getTagName(key));
+  }
+
+  private String getTagName(String key) {
     // TODO is this decided?
-    String tagKey = "_dd." + key + ".json";
-    this.setTag(tagKey, value);
+    return "_dd." + key + ".json";
   }
 }
