@@ -4,6 +4,7 @@ import java.math.BigDecimal;
 import java.math.BigInteger;
 
 public abstract class BaseMatcher implements Matcher {
+  @Override
   public boolean isAny() {
     return false;
   }
