@@ -389,7 +389,12 @@ public final class AgentBootstrap {
       }
     }
     if (multipleAgents) {
-      System.out.println("WARNING: Multiple javaagents specified:\n" + sb.toString());
+      String javaToolOptions = System.getenv("JAVA_TOOL_OPTIONS");
+      if (javaToolOptions != null && javaToolOptions.contains("-javaagent:")){
+        System.out.println("WARNING: Multiple javaagents specified (including in JAVA_TOOL_OPTIONS):\n" + sb);
+      } else {
+        System.out.println("WARNING: Multiple javaagents specified:\n" + sb);
+      }
     }
   }
 }
