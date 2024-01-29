@@ -60,6 +60,8 @@ public final class AgentBootstrap {
       return;
     }
 
+    multipleAgentsPresentCheck();
+
     try {
       final URL agentJarURL = installAgentJar(inst);
       final Class<?> agentClass = Class.forName("datadog.trace.bootstrap.Agent", true, null);
@@ -371,5 +373,23 @@ public final class AgentBootstrap {
             + "' is located in '"
             + jarUrl
             + "'. Make sure you don't have this .class-file anywhere, besides dd-java-agent.jar");
+  }
+
+  private static void multipleAgentsPresentCheck() {
+    final List<String> arguments = getVMArgumentsThroughReflection();
+    StringBuilder sb = new StringBuilder();
+    boolean multipleAgents = false;
+    for (final String arg : arguments) {
+      if (arg.startsWith("-javaagent")) {
+        if (sb.length() > 0) {
+          sb.append("\n");
+          multipleAgents = true;
+        }
+        sb.append(arg);
+      }
+    }
+    if (multipleAgents) {
+      System.out.println("WARNING: Multiple javaagents specified:\n" + sb.toString());
+    }
   }
 }
