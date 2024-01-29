@@ -45,8 +45,10 @@ class MatchersTest extends DDSpecification {
 
     where:
     pattern | value                    | matches
+    "fo?"   | "Foo"                    | false
     "Fo?"   | "Foo"                    | true
     "Fo?"   | new StringBuilder("Foo") | true
+    "Fo?"   | new StringBuilder("foo") | false
     "Fo?"   | "Fooo"                   | false
     "Fo*"   | "Fo"                     | true
     "Fo*"   | "Fa"                     | false
@@ -54,6 +56,8 @@ class MatchersTest extends DDSpecification {
     "F*B?r" | "FooFar"                 | false
     "true"  | true                     | true
     "false" | false                    | true
+    "TRUE"  | true                     | false
+    "FALSE" | true                     | false
     ""      | ""                       | true
     ""      | "non-empty"              | false
     "*"     | "foo"                    | true
