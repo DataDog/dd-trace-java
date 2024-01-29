@@ -119,10 +119,11 @@ public class MuzzleConverter extends ClassVisitor {
     list.add(new IntInsnNode(BIPUSH, helperNames.size()));
     list.add(new TypeInsnNode(ANEWARRAY, STRING_CLASS_NAME));
     // Append each helper name
-    for (int index = 0; index < helperNames.size(); index++) {
+    int index = 0;
+    for (String helperName : helperNames) {
       list.add(new InsnNode(DUP));
-      list.add(new IntInsnNode(BIPUSH, index));
-      list.add(new LdcInsnNode(index));
+      list.add(new IntInsnNode(BIPUSH, index++));
+      list.add(new LdcInsnNode(helperName));
       list.add(new InsnNode(AASTORE));
     }
     // Return the array
