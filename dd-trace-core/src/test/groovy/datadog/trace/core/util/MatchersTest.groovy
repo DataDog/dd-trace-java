@@ -48,7 +48,7 @@ class MatchersTest extends DDSpecification {
     "Foo"   | "Foo"                    | true
     "Foo"   | "foo"                    | true
     "Foo"   | new StringBuilder("foo") | true
-    "fo?"   | "Foo"                    | false
+    "fo?"   | "Foo"                    | true
     "Fo?"   | "Foo"                    | true
     "Fo?"   | new StringBuilder("Foo") | true
     "Fo?"   | new StringBuilder("foo") | true
