@@ -70,7 +70,7 @@ public class HeaderInjectionModuleImpl extends SinkModuleBase implements HeaderI
 
     // Exclude access-control-allow-*: when the header starts with access-control-allow- and the
     // source of the tainted range is a request header
-    if (name.toUpperCase(Locale.ROOT).startsWith(ACCESS_CONTROL_ALLOW_PREFIX)
+    if (name.regionMatches(true, 0, ACCESS_CONTROL_ALLOW_PREFIX, ACCESS_CONTROL_ALLOW_PREFIX.length())
         && allRangesFromAnyHeader(ranges)) {
       return;
     }
