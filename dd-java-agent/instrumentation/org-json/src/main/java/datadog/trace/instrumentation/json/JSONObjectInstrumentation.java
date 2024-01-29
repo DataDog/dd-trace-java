@@ -58,7 +58,7 @@ public class JSONObjectInstrumentation extends Instrumenter.Iast
   }
 
   public static class GetAdvice {
-    @Advice.OnMethodExit(suppress = Throwable.class, inline = false)
+    @Advice.OnMethodExit(suppress = Throwable.class)
     @Propagation
     public static void afterMethod(@Advice.This Object self, @Advice.Return final Object result) {
       if (result instanceof Integer
