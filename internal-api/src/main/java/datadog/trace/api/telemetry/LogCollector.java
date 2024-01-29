@@ -39,7 +39,7 @@ public class LogCollector {
       return;
     }
     RawLogMessage rawLogMessage =
-        new RawLogMessage(logLevel, message, throwable, System.currentTimeMillis());
+        new RawLogMessage(logLevel, message, throwable, System.currentTimeMillis() / 1000);
     AtomicInteger count = rawLogMessages.computeIfAbsent(rawLogMessage, k -> new AtomicInteger());
     count.incrementAndGet();
   }
