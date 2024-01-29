@@ -331,7 +331,6 @@ class RuleBasedSamplingTest extends DDCoreSpecification {
     "20"        | 20F                       | true
     "20"        | 20.1F                     | false
     "20.*"      | 20.1F                     | false
-    "20"        | 20F                       | true
     "20.1"      | 20.1D                     | false
     "*"         | 20.1D                     | true
     "20"        | new BigInteger("20")      | true
