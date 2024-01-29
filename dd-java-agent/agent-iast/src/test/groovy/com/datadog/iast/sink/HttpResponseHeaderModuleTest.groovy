@@ -139,7 +139,6 @@ class HttpResponseHeaderModuleTest extends IastModuleImplTestBase {
 
     then:
     1 * headerInjectionModule.onHeader(headerName, headerValue)
-
   }
 
   void 'check HttpResponseHeaderModule calls UnvalidatedRedirectModule on header'() {
