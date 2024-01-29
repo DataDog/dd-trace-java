@@ -76,20 +76,22 @@ class TestTelemetryRouter extends TelemetryRouter {
 
     RequestAssertions headers(RequestType requestType) {
       assert this.request.method() == 'POST'
-      assert this.request.headers().names() == [
+      assert this.request.headers().names().containsAll([
         'Content-Type',
         'Content-Length',
         'DD-Client-Library-Language',
         'DD-Client-Library-Version',
         'DD-Telemetry-API-Version',
         'DD-Telemetry-Request-Type'
-      ] as Set
+      ])
       assert this.request.header('Content-Type') == 'application/json; charset=utf-8'
       assert this.request.header('Content-Length').toInteger() > 0
       assert this.request.header('DD-Client-Library-Language') == 'jvm'
       assert this.request.header('DD-Client-Library-Version') == TracerVersion.TRACER_VERSION
       assert this.request.header('DD-Telemetry-API-Version') == 'v2'
       assert this.request.header('DD-Telemetry-Request-Type') == requestType.toString()
+      def entityId = this.request.header('Datadog-Entity-ID')
+      assert entityId == null || entityId.startsWith("in-") || entityId.startsWith("cin-")
       return this
     }
 
