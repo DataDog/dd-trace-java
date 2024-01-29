@@ -376,26 +376,30 @@ public final class AgentBootstrap {
   }
 
   private static void multipleAgentsPresentCheck() {
-    final List<String> arguments = getVMArgumentsThroughReflection();
-    StringBuilder sb = new StringBuilder();
-    boolean multipleAgents = false;
-    for (final String arg : arguments) {
-      if (arg.startsWith("-javaagent")) {
-        if (sb.length() > 0) {
-          sb.append("\n");
-          multipleAgents = true;
+    try {
+      final List<String> arguments = ManagementFactory.getRuntimeMXBean().getInputArguments();
+      StringBuilder sb = new StringBuilder();
+      boolean multipleAgents = false;
+      for (final String arg : arguments) {
+        if (arg.startsWith("-javaagent")) {
+          if (sb.length() > 0) {
+            sb.append("\n");
+            multipleAgents = true;
+          }
+          sb.append(arg);
         }
-        sb.append(arg);
       }
-    }
-    if (multipleAgents) {
-      String javaToolOptions = System.getenv("JAVA_TOOL_OPTIONS");
-      if (javaToolOptions != null && javaToolOptions.contains("-javaagent:")) {
-        System.out.println(
-            "WARNING: Multiple javaagents specified (including in JAVA_TOOL_OPTIONS):\n" + sb);
-      } else {
-        System.out.println("WARNING: Multiple javaagents specified:\n" + sb);
+      if (multipleAgents) {
+        String javaToolOptions = System.getenv("JAVA_TOOL_OPTIONS");
+        if (javaToolOptions != null && javaToolOptions.contains("-javaagent:")) {
+          System.out.println(
+              "WARNING: Multiple javaagents specified (including in JAVA_TOOL_OPTIONS):\n" + sb);
+        } else {
+          System.out.println("WARNING: Multiple javaagents specified:\n" + sb);
+        }
       }
+    } catch (SecurityException e) {
+      // Ignore
     }
   }
 }
