@@ -31,32 +31,12 @@ class OtelConverterPlugin implements Plugin<Project> {
     }
     // Create and initialize extension
     def extension = project.extensions.create('otelConverter', OtelConverterExtension)
-    extension.sourceDirectory.convention(project.layout.buildDirectory.dir('classes/java/javaagent'))
+    extension.workingDirectory.convention(project.layout.buildDirectory.dir('javaagent'))
     extension.targetDirectory.convention(project.layout.buildDirectory.dir('classes/java/main'))
-    // Register tasks
-    def fetchTask = project.tasks.register('fetchOtelJavaAgent', FetchJavaAgent).get()
+    // Register task
     def convertTask = project.tasks.register('convertOtelJavaAgent', ConvertJavaAgent).get()
     def buildTask = project.tasks.named('build').get()
     buildTask.dependsOn(convertTask)
-    convertTask.dependsOn(fetchTask)
-  }
-}
-
-/** Fetch and extract OpenTelemetry javaagent artifacts */
-class FetchJavaAgent extends DefaultTask {
-  @TaskAction
-  void fetch() {
-    println '>>> Running fetch task'
-    project.copy {
-      project.configurations.named('javaagent').get().resolve().each {
-        from(project.zipTree(it)) {
-          include '**/*.class'
-          // TODO Include META-INF like native-image configuration?
-          // TODO Include resource files?
-        }
-      }
-      into project.extensions.getByType(OtelConverterExtension).sourceDirectory
-    }
   }
 }
 
@@ -64,16 +44,46 @@ class ConvertJavaAgent extends DefaultTask {
   @TaskAction
   void convert() {
     println '>>> Running convert task'
+    // Retrieve plugin configuration
     def extension = project.extensions.getByType(OtelConverterExtension)
-    def sourceDirectory = extension.sourceDirectory.asFile.get()
+    def workingDirectory = extension.workingDirectory.get()
     def targetDirectory = extension.targetDirectory.asFile.get()
-    def converter = new Converter(sourceDirectory, targetDirectory)
-    sourceDirectory.traverse(
-      type: FILES,
-      nameFilter: ~/.*\.class$/
-    ) {
-      converter.convert(it)
+    // Convert each javaagent artifact
+    project.configurations.named('javaagent').get().resolve().each {jarFile ->
+      def artifactName = getArtifactName(jarFile.name)
+      def artifactDir = workingDirectory.dir(artifactName).asFile
+      println ">>> Coonverting javaagent $artifactName into $artifactDir"
+      project.copy {
+        from(project.zipTree(jarFile)) {
+          include '**/*.class'
+        }
+        into artifactDir
+      }
+      def converter = new Converter(artifactDir, targetDirectory)
+      artifactDir.traverse(
+        type: FILES,
+        nameFilter: ~/.*\.class$/
+      ) {
+        converter.convert(it)
+      }
     }
+  }
+
+  static String getArtifactName(String jarName) {
+    // Removing file extension
+    String artifactName = jarName.endsWith('.jar') ? jarName.substring(0, jarName.length() - 4) : jarName
+    // Removing qualifier
+    def parts = artifactName.split('-')
+    def reversedParts = parts.iterator().reverse()
+    while (reversedParts.hasNext()) {
+      def part = reversedParts.next()
+      if (part =~ /[a-zA-Z]/) {
+        reversedParts.remove()
+      } else {
+        break
+      }
+    }
+    return reversedParts.reverse().join('-')
   }
 }
 
@@ -118,8 +128,8 @@ class Converter {
 }
 
 interface OtelConverterExtension {
-  /** Where to find original javaagent class files */
-  DirectoryProperty getSourceDirectory()
+  /** Where to extract original javaagent class files */
+  DirectoryProperty getWorkingDirectory()
   /** Where to store converted javaagent class files */
   DirectoryProperty getTargetDirectory()
 }
