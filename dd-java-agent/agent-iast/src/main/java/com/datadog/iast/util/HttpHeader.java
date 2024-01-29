@@ -28,6 +28,7 @@ public enum HttpHeader {
       ctx.setxContentTypeOptions(value);
     }
   },
+  COOKIE("Cookie"),
   SET_COOKIE("Set-Cookie"),
   SET_COOKIE2("Set-Cookie2"),
   LOCATION("Location"),
@@ -36,7 +37,6 @@ public enum HttpHeader {
   SEC_WEBSOCKET_ACCEPT("Sec-WebSocket-Accept"),
   UPGRADE("Upgrade"),
   CONNECTION("Connection"),
-  ACCESS_CONTROL_ALLOW_ORIGIN("Access-Control-Allow-Origin"),
   ORIGIN("Origin");
 
   /** Faster lookup for headers */
