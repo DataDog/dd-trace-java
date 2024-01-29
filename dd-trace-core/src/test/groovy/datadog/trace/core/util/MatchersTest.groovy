@@ -61,14 +61,14 @@ class MatchersTest extends DDSpecification {
     ""      | ""                       | true
     ""      | "non-empty"              | false
     "*"     | "foo"                    | true
-    "**"    | "foo"                    | true 
-    "???"   | "foo"                    | true 
-    "20"    | 20                       | true 
-    "-20"   | -20                      | true 
+    "**"    | "foo"                    | true
+    "???"   | "foo"                    | true
+    "20"    | 20                       | true
+    "-20"   | -20                      | true
     "20"    | (byte)(20)               | true
     "20"    | (short)(20)              | true
-    "20"    | 20L                      | true 
-    "20"    | 20F                      | true 
+    "20"    | 20L                      | true
+    "20"    | 20F                      | true
     "20"    | 20D                      | true
     "20"    | new BigInteger("20")     | true
     "20"    | new BigDecimal("20")     | true
