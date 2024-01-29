@@ -4,12 +4,12 @@ import datadog.trace.test.util.DDSpecification
 
 class MatchersTest extends DDSpecification {
 
-  def "match-all scenarios must return a null matcher"() {
+  def "match-all scenarios must return an any matcher"() {
     expect:
-    Matchers.compileGlob(glob) == null
+    Matchers.compileGlob(glob).isAny()
 
     where:
-    glob << [null, "*"]
+    glob << [null, "*", "**"]
   }
 
   def "pattern without * or ? must be an ExactMatcher"() {
@@ -41,14 +41,40 @@ class MatchersTest extends DDSpecification {
     def matcher = Matchers.compileGlob(pattern)
 
     then:
-    matcher.matches(matching)
-    !matcher.matches(nonMatching)
+    matcher.matches(value) == matches
 
     where:
-    pattern | matching | nonMatching
-    "Fo?"   | "Foo"    | "Fooo"
-    "Fo*"   | "Fo"     | "Fa"
-    "F*B?r" | "FooBar" | "FooFar"
-    ""      | ""       | "non-empty"
+    pattern | value                    | matches
+    "Fo?"   | "Foo"                    | true
+    "Fo?"   | new StringBuilder("Foo") | true
+    "Fo?"   | "Fooo"                   | false
+    "Fo*"   | "Fo"                     | true
+    "Fo*"   | "Fa"                     | false
+    "F*B?r" | "FooBar"                 | true
+    "F*B?r" | "FooFar"                 | false
+    "true"  | true                     | true
+    "false" | false                    | true
+    ""      | ""                       | true
+    ""      | "non-empty"              | false
+    "*"     | "foo"                    | true
+    "**"    | "foo"                    | true 
+    "???"   | "foo"                    | true 
+    "20"    | 20                       | true 
+    "-20"   | -20                      | true 
+    "20"    | (byte)(20)               | true
+    "20"    | (short)(20)              | true
+    "20"    | 20L                      | true 
+    "20"    | 20F                      | true 
+    "20"    | 20D                      | true
+    "20"    | new BigInteger("20")     | true
+    "20"    | new BigDecimal("20")     | true
+    "2*"    | 20.1F                    | false
+    "2*"    | 20.1D                    | false
+    "2*"    | new BigDecimal("20.1")   | false
+    "*"     | new Object() {}          | true
+    "**"    | new Object() {}          | true
+    "?"     | new Object() {}          | false
+    "*"     | null                     | true
+    "?"     | null                     | false
   }
 }
