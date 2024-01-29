@@ -1,5 +1,12 @@
 package datadog.trace.core;
 
+import static datadog.remoteconfig.tuf.RemoteConfigRequest.ClientInfo.CAPABILITY_APM_CUSTOM_TAGS;
+import static datadog.remoteconfig.tuf.RemoteConfigRequest.ClientInfo.CAPABILITY_APM_HTTP_HEADER_TAGS;
+import static datadog.remoteconfig.tuf.RemoteConfigRequest.ClientInfo.CAPABILITY_APM_LOGS_INJECTION;
+import static datadog.remoteconfig.tuf.RemoteConfigRequest.ClientInfo.CAPABILITY_APM_TRACING_DATA_STREAMS_ENABLED;
+import static datadog.remoteconfig.tuf.RemoteConfigRequest.ClientInfo.CAPABILITY_APM_TRACING_SAMPLE_RATE;
+import static datadog.remoteconfig.tuf.RemoteConfigRequest.ClientInfo.CAPABILITY_APM_TRACING_TRACING_ENABLED;
+
 import com.squareup.moshi.Json;
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Moshi;
@@ -37,8 +44,16 @@ final class TracingConfigPoller {
 
   public void start(Config config, SharedCommunicationObjects sco) {
     this.startupLogsEnabled = config.isStartupLogsEnabled();
+    ConfigurationPoller ConfigPoller = sco.configurationPoller(config);
 
-    stopPolling = new Updater().register(config, sco);
+    ConfigPoller.addCapabilities(
+        CAPABILITY_APM_TRACING_TRACING_ENABLED
+            | CAPABILITY_APM_TRACING_SAMPLE_RATE
+            | CAPABILITY_APM_LOGS_INJECTION
+            | CAPABILITY_APM_HTTP_HEADER_TAGS
+            | CAPABILITY_APM_CUSTOM_TAGS
+            | CAPABILITY_APM_TRACING_DATA_STREAMS_ENABLED);
+    stopPolling = new Updater().register(config, ConfigPoller);
   }
 
   public void stop() {
@@ -57,8 +72,7 @@ final class TracingConfigPoller {
 
     private boolean receivedOverrides = false;
 
-    public Runnable register(Config config, SharedCommunicationObjects sco) {
-      ConfigurationPoller poller = sco.configurationPoller(config);
+    public Runnable register(Config config, ConfigurationPoller poller) {
       if (null != poller) {
         poller.addListener(Product.APM_TRACING, this);
         return poller::stop;
