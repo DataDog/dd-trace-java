@@ -1,14 +1,11 @@
 package datadog.trace.api.iast.telemetry;
 
-import static datadog.trace.api.iast.VulnerabilityTypes.RESPONSE_HEADER;
-import static datadog.trace.api.iast.VulnerabilityTypes.RESPONSE_HEADER_TYPES;
-import static datadog.trace.api.iast.VulnerabilityTypes.SPRING_RESPONSE;
-import static datadog.trace.api.iast.VulnerabilityTypes.SPRING_RESPONSE_TYPES;
-
 import datadog.trace.api.iast.SourceTypes;
 import datadog.trace.api.iast.VulnerabilityTypes;
+import java.util.Locale;
 import java.util.function.Function;
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 public enum IastMetric {
   INSTRUMENTED_PROPAGATION("instrumented.propagation", true, Scope.GLOBAL, Verbosity.MANDATORY),
@@ -26,6 +23,8 @@ public enum IastMetric {
 
   private static final int COUNT;
 
+  public static final String TRACE_METRIC_PREFIX = "_dd.iast.telemetry.";
+
   static {
     int count = 0;
     for (final IastMetric metric : values()) {
@@ -33,7 +32,7 @@ public enum IastMetric {
       if (metric.tag == null) {
         count++;
       } else {
-        count += metric.tag.getValues().length;
+        count += metric.tag.count();
       }
     }
     COUNT = count;
@@ -49,6 +48,7 @@ public enum IastMetric {
   private final Tag tag;
   private final Verbosity verbosity;
   private int index;
+  private final String[] spanTags;
 
   IastMetric(
       final String name, final boolean common, final Scope scope, final Verbosity verbosity) {
@@ -66,6 +66,20 @@ public enum IastMetric {
     this.scope = scope;
     this.tag = tag;
     this.verbosity = verbosity;
+    spanTags = computeSpanTags(name, tag);
+  }
+
+  private String[] computeSpanTags(final String name, final Tag tag) {
+    final String[] result = new String[tag == null ? 1 : tag.count()];
+    if (tag == null) {
+      result[0] = TRACE_METRIC_PREFIX + name;
+    } else {
+      for (int i = 0; i < result.length; i++) {
+        final String spanTagValue = tag.values[i].toLowerCase(Locale.ROOT).replace('.', '_');
+        result[i] = TRACE_METRIC_PREFIX + name + '.' + spanTagValue;
+      }
+    }
+    return result;
   }
 
   public String getName() {
@@ -102,69 +116,66 @@ public enum IastMetric {
     return index + tagValue;
   }
 
-  public static class Tag {
+  /** Gets the full value of the tag for the telemetry intake (name : value). */
+  public String getTelemetryTag(final byte tagValue) {
+    if (tag == null) {
+      return null;
+    }
+    return tag.getTelemetryTag(tagValue);
+  }
 
-    private static final byte[] EMPTY = new byte[0];
+  /** Gets the key of the tag to be used in spans */
+  public String getSpanTag(final byte tagValue) {
+    if (tag == null) {
+      return spanTags[0];
+    }
+    return spanTags[tagValue];
+  }
+
+  public static final class Tag {
 
     public static final Tag VULNERABILITY_TYPE =
-        new Tag("vulnerability_type", VulnerabilityTypes.values(), VulnerabilityTypes::toString) {
+        new Tag("vulnerability_type", VulnerabilityTypes.STRINGS, VulnerabilityTypes::unwrap);
 
-          @Override
-          public boolean isWrapped(byte tagValue) {
-            switch (tagValue) {
-              case RESPONSE_HEADER:
-              case SPRING_RESPONSE:
-                return true;
-              default:
-                return false;
-            }
-          }
-
-          public byte[] unwrap(final byte tagValue) {
-            switch (tagValue) {
-              case RESPONSE_HEADER:
-                return RESPONSE_HEADER_TYPES;
-              case SPRING_RESPONSE:
-                return SPRING_RESPONSE_TYPES;
-              default:
-                return EMPTY;
-            }
-          }
-        };
-
-    public static final Tag SOURCE_TYPE =
-        new Tag("source_type", SourceTypes.values(), SourceTypes::toString);
+    public static final Tag SOURCE_TYPE = new Tag("source_type", SourceTypes.STRINGS);
 
     private final String name;
 
-    private final Function<Byte, String> toString;
-    private final byte[] values;
+    private final String[] values;
 
-    private Tag(final String name, final byte[] values, final Function<Byte, String> toString) {
+    private final String[] telemetryTags;
+
+    @Nullable private final Function<Byte, byte[]> unwrap;
+
+    private Tag(final String name, final String[] values) {
+      this(name, values, null);
+    }
+
+    private Tag(final String name, final String[] values, final Function<Byte, byte[]> unwrap) {
       this.name = name;
-      this.toString = toString;
       this.values = values;
+      telemetryTags = new String[values.length];
+      for (int i = 0; i < values.length; i++) {
+        telemetryTags[i] = name + ":" + values[i];
+      }
+      this.unwrap = unwrap;
     }
 
     public String getName() {
       return name;
     }
 
-    public byte[] getValues() {
-      return values;
+    public int count() {
+      return values.length;
     }
 
-    /** Wrapped tags are aggregation of other tags that should be incremented together */
-    public boolean isWrapped(final byte tagValue) {
-      return false;
-    }
-
+    @Nullable
     public byte[] unwrap(final byte tagValue) {
-      return EMPTY;
+      return unwrap == null ? null : unwrap.apply(tagValue);
     }
 
-    public String toString(final byte tagValue) {
-      return toString.apply(tagValue);
+    public String getTelemetryTag(final byte tagValue) {
+      return telemetryTags[tagValue];
     }
   }
 
