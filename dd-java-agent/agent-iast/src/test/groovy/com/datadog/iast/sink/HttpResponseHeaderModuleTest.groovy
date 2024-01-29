@@ -205,6 +205,7 @@ class HttpResponseHeaderModuleTest extends IastModuleImplTestBase {
   void 'range test'(){
     given:
     addFromRangeList(ctx.taintedObjects, headerValue, ranges)
+    ignoreCookieVulnerabilities() // TODO this test is broken (it should only test header injection)
 
     when:
     module.onHeader(headerName, headerValue)
@@ -231,6 +232,7 @@ class HttpResponseHeaderModuleTest extends IastModuleImplTestBase {
     given:
     Vulnerability savedVul
     addFromRangeList(ctx.taintedObjects, headerValue, ranges)
+    ignoreCookieVulnerabilities() // TODO this test is broken (it should only test header injection)
 
     when:
     module.onHeader(headerName, headerValue)
@@ -272,5 +274,17 @@ class HttpResponseHeaderModuleTest extends IastModuleImplTestBase {
     assert evidence != null
     final formatted = taintFormat(evidence.getValue(), evidence.getRanges())
     assert formatted == expected
+  }
+
+  private void ignoreCookieVulnerabilities() {
+    InstrumentationBridge.registerIastModule(Stub(InsecureCookieModuleImpl) {
+      isVulnerable(_ as Cookie) >> false
+    })
+    InstrumentationBridge.registerIastModule(Stub(NoHttpOnlyCookieModuleImpl){
+      isVulnerable(_ as Cookie) >> false
+    })
+    InstrumentationBridge.registerIastModule(Stub(NoSameSiteCookieModuleImpl){
+      isVulnerable(_ as Cookie) >> false
+    })
   }
 }

@@ -29,6 +29,7 @@ public enum HttpHeader {
     }
   },
   SET_COOKIE("Set-Cookie"),
+  SET_COOKIE2("Set-Cookie2"),
   LOCATION("Location"),
   REFERER("Referer"),
   SEC_WEBSOCKET_LOCATION("Sec-WebSocket-Location"),

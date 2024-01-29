@@ -1,6 +1,7 @@
 package com.datadog.iast.sink;
 
 import static com.datadog.iast.util.HttpHeader.SET_COOKIE;
+import static com.datadog.iast.util.HttpHeader.SET_COOKIE2;
 import static java.util.Collections.singletonList;
 
 import com.datadog.iast.Dependencies;
@@ -41,8 +42,8 @@ public class HttpResponseHeaderModuleImpl extends SinkModuleBase
       if (ctx instanceof IastRequestContext) {
         header.addToContext((IastRequestContext) ctx, value);
       }
-      if (header == SET_COOKIE) {
-        onCookies(CookieSecurityParser.parse(value));
+      if (header == SET_COOKIE || header == SET_COOKIE2) {
+        onCookies(CookieSecurityParser.parse(header, value));
       }
       if (null != InstrumentationBridge.UNVALIDATED_REDIRECT) {
         InstrumentationBridge.UNVALIDATED_REDIRECT.onHeader(name, value);

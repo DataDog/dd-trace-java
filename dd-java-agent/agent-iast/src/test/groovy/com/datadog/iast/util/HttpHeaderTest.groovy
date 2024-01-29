@@ -52,7 +52,7 @@ class HttpHeaderTest extends Specification {
 
   void 'ensure headers can be used in the map'() {
     when:
-    final matches = header.name  ==~ /[a-zA-Z-]+/
+    final matches = header.name  ==~ /[a-zA-Z0-9-]+/
 
     then:
     matches
