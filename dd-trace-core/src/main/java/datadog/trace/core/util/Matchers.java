@@ -13,7 +13,7 @@ public final class Matchers {
     if (glob == null || isAny(glob)) {
       return ANY;
     } else if (isExact(glob)) {
-      return new ExactMatcher(glob);
+      return new InsensitiveEqualsMatcher(glob);
     } else {
       // DQH - not sure about the error handling here
       Pattern pattern = GlobPattern.globToRegexPattern(glob);
@@ -113,21 +113,24 @@ public final class Matchers {
     }
   }
 
-  static final class ExactMatcher extends BaseMatcher {
+  static final class InsensitiveEqualsMatcher extends BaseMatcher {
     private final String exact;
+    private final Pattern pattern;
 
-    ExactMatcher(String exact) {
+    InsensitiveEqualsMatcher(String exact) {
       this.exact = exact;
+      this.pattern = Pattern.compile(exact);
     }
 
     @Override
     public boolean matches(String str) {
-      return exact.equals(str);
+      return exact.equalsIgnoreCase(str);
     }
 
     @Override
     public boolean matches(CharSequence charSeq) {
-      return exact.contentEquals(charSeq);
+      return exact.contentEquals(charSeq) ||
+    	pattern.matcher(charSeq).matches();
     }
   }
 

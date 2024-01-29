@@ -45,6 +45,9 @@ class MatchersTest extends DDSpecification {
 
     where:
     pattern | value                    | matches
+    "Foo"   | "Foo"                    | true
+    "Foo"   | "foo"                    | true
+    "Foo"   | new StringBuilder("foo") | true
     "fo?"   | "Foo"                    | false
     "Fo?"   | "Foo"                    | true
     "Fo?"   | new StringBuilder("Foo") | true
