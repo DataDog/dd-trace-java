@@ -1,4 +1,5 @@
-import datadog.common.container.ServerlessInfo
+package datadog.common.container
+
 import datadog.trace.test.util.DDSpecification
 
 class ServerlessInfoTest extends DDSpecification {

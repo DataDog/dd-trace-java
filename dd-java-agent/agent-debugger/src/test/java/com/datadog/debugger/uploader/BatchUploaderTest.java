@@ -207,7 +207,7 @@ public class BatchUploaderTest {
     // we don't explicitly specify a container ID
     server.enqueue(RESPONSE_200);
     BatchUploader uploaderWithNoContainerId =
-        new BatchUploader(config, url.toString(), ratelimitedLogger, null);
+        new BatchUploader(config, url.toString(), ratelimitedLogger, null, null);
 
     uploaderWithNoContainerId.upload(SNAPSHOT_BUFFER);
     uploaderWithNoContainerId.shutdown();
@@ -221,12 +221,14 @@ public class BatchUploaderTest {
     server.enqueue(RESPONSE_200);
 
     BatchUploader uploaderWithContainerId =
-        new BatchUploader(config, url.toString(), ratelimitedLogger, "testContainerId");
+        new BatchUploader(
+            config, url.toString(), ratelimitedLogger, "testContainerId", "testEntityId");
     uploaderWithContainerId.upload(SNAPSHOT_BUFFER);
     uploaderWithContainerId.shutdown();
 
     RecordedRequest request = server.takeRequest(100, TimeUnit.MILLISECONDS);
     assertEquals("testContainerId", request.getHeader("Datadog-Container-ID"));
+    assertEquals("testEntityId", request.getHeader("Datadog-Entity-ID"));
   }
 
   @Test

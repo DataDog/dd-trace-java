@@ -1,6 +1,7 @@
 package datadog.common.container;
 
 import de.thetaphi.forbiddenapis.SuppressForbidden;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -11,6 +12,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -19,11 +21,17 @@ import org.slf4j.LoggerFactory;
  * Qard/container-info
  */
 @SuppressForbidden
+@SuppressFBWarnings(
+    value = "DMI_HARDCODED_ABSOLUTE_FILENAME",
+    justification = "DEFAULT_CGROUP_MOUNT_PATH")
 public class ContainerInfo {
 
   private static final Logger log = LoggerFactory.getLogger(ContainerInfo.class);
 
   private static final Path CGROUP_DEFAULT_PROCFILE = Paths.get("/proc/self/cgroup");
+  private static final Path DEFAULT_CGROUP_MOUNT_PATH = Paths.get("/sys/fs/cgroup");
+  private static final Path HOST_GROUP_NAMESPACE = Paths.get("/proc/self/ns/cgroup");
+
   // The second part is the PCF/Garden regexp. We assume no suffix ($) to avoid matching pod UIDs
   // See https://github.com/DataDog/datadog-agent/blob/7.40.x/pkg/util/cgroups/reader.go#L50
   private static final String UUID_REGEX =
@@ -38,6 +46,9 @@ public class ContainerInfo {
           "(?:.+)?(" + UUID_REGEX + "|" + CONTAINER_REGEX + "|" + TASK_REGEX + ")(?:.scope)?$");
 
   private static final ContainerInfo INSTANCE;
+
+  private static final Long PROC_CGROUP_INIT_INO = 0xEFFFFFFBL;
+  private static final String ENTITY_ID;
 
   public String containerId;
   public String podId;
@@ -78,6 +89,62 @@ public class ContainerInfo {
     }
 
     INSTANCE = containerInfo;
+
+    ENTITY_ID = readEntityID(containerInfo, isHostCgroupNamespace(), DEFAULT_CGROUP_MOUNT_PATH);
+  }
+
+  static @Nullable String readEntityID(
+      ContainerInfo containerInfo, boolean isHostCgroupNamespace, Path cgroupMountPath) {
+    String cid = containerInfo.getContainerId();
+    if (cid != null && !cid.isEmpty()) {
+      return "cid-" + cid;
+    }
+    if (isHostCgroupNamespace) {
+      return null;
+    }
+    return getCgroupInode(cgroupMountPath, containerInfo.getCGroups());
+  }
+
+  /** Checks if the agent is running in the host cgroup namespace. */
+  static boolean isHostCgroupNamespace() {
+    Long ino = getIno(HOST_GROUP_NAMESPACE);
+    // Currently, host namespace inode number is hardcoded, which can be used to detect if it's
+    // running in host namespace or not (does not work when running in DinD)
+    // https://github.com/torvalds/linux/blob/5859a2b1991101d6b978f3feb5325dad39421f29/include/linux/proc_ns.h#L41-L49
+    return PROC_CGROUP_INIT_INO.equals(ino);
+  }
+
+  /**
+   * Returns the inode of the cgroup controller if it exists, otherwise an empty string. The inode
+   * is prefixed with "in-" and is used by the agent to retrieve the container ID.
+   */
+  static @Nullable String getCgroupInode(Path cgroupMountPath, List<CGroupInfo> cgroups) {
+    // It first tries to get the cGroupV1 "memory" controller inode, and if that fails, it tries to
+    // get the cGroupV2 inode.
+    for (String controller : Arrays.asList("memory", "")) {
+      for (CGroupInfo cgroup : cgroups) {
+        if (cgroup.getControllers().contains(controller)) {
+          Path path = cgroupMountPath.resolve(controller).resolve(cgroup.getPath());
+          Long inode = getIno(path);
+          if (inode != null) {
+            return "in-" + inode;
+          }
+        }
+      }
+    }
+    return null;
+  }
+
+  static @Nullable Long getIno(Path path) {
+    try {
+      Object attr = Files.getAttribute(path, "unix:ino");
+      if (attr instanceof Long) {
+        return (Long) attr;
+      }
+    } catch (Exception e) {
+      log.debug("Unable to read cgroup inode of {} because of {}", path, e.getClass());
+    }
+    return null;
   }
 
   public static class CGroupInfo {
@@ -130,6 +197,10 @@ public class ContainerInfo {
 
   public static ContainerInfo get() {
     return INSTANCE;
+  }
+
+  public static String getEntityId() {
+    return ENTITY_ID;
   }
 
   public static boolean isRunningInContainer() {

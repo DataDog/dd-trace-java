@@ -43,6 +43,7 @@ public final class OkHttpUtils {
   private static final String DATADOG_META_LANG_INTERPRETER_VENDOR =
       "Datadog-Meta-Lang-Interpreter-Vendor";
   private static final String DATADOG_CONTAINER_ID = "Datadog-Container-ID";
+  private static final String DATADOG_ENTITY_ID = "Datadog-Entity-ID";
 
   private static final String DD_API_KEY = "DD-API-KEY";
 
@@ -183,8 +184,12 @@ public final class OkHttpUtils {
             .addHeader(DATADOG_META_LANG_INTERPRETER_VENDOR, JAVA_VM_VENDOR);
 
     final String containerId = ContainerInfo.get().getContainerId();
+    final String entityId = ContainerInfo.getEntityId();
     if (containerId != null) {
       builder.addHeader(DATADOG_CONTAINER_ID, containerId);
+    }
+    if (entityId != null) {
+      builder.addHeader(DATADOG_ENTITY_ID, entityId);
     }
 
     for (Map.Entry<String, String> e : headers.entrySet()) {
