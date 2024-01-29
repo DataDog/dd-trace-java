@@ -66,7 +66,7 @@ public final class ConfigProvider {
       }
     }
     if (collectConfig) {
-      ConfigCollector.get().put(key, String.valueOf(defaultValue), ConfigOrigin.DEFAULT);
+      ConfigCollector.get().put(key, defaultValue, ConfigOrigin.DEFAULT);
     }
     return defaultValue;
   }
@@ -81,7 +81,7 @@ public final class ConfigProvider {
         return value;
       }
     }
-    if (collectConfig && defaultValue != null) {
+    if (collectConfig) {
       ConfigCollector.get().put(key, defaultValue, ConfigOrigin.DEFAULT);
     }
     return defaultValue;
@@ -101,7 +101,7 @@ public final class ConfigProvider {
         return value;
       }
     }
-    if (collectConfig && defaultValue != null) {
+    if (collectConfig) {
       ConfigCollector.get().put(key, defaultValue, ConfigOrigin.DEFAULT);
     }
     return defaultValue;
@@ -125,7 +125,7 @@ public final class ConfigProvider {
         return value;
       }
     }
-    if (collectConfig && defaultValue != null) {
+    if (collectConfig) {
       ConfigCollector.get().put(key, defaultValue, ConfigOrigin.DEFAULT);
     }
     return defaultValue;
@@ -203,7 +203,7 @@ public final class ConfigProvider {
         // continue
       }
     }
-    if (collectConfig && defaultValue != null) {
+    if (collectConfig) {
       ConfigCollector.get().put(key, defaultValue, ConfigOrigin.DEFAULT);
     }
     return defaultValue;
@@ -216,8 +216,9 @@ public final class ConfigProvider {
   public List<String> getList(String key, List<String> defaultValue) {
     String list = getString(key);
     if (null == list) {
-      if (collectConfig && defaultValue != null) {
-        ConfigCollector.get().put(key, String.join(",", defaultValue), ConfigOrigin.DEFAULT);
+      if (collectConfig) {
+        String value = defaultValue == null ? null : String.join(",", defaultValue);
+        ConfigCollector.get().put(key, value, ConfigOrigin.DEFAULT);
       }
       return defaultValue;
     } else {
@@ -228,8 +229,8 @@ public final class ConfigProvider {
   public Set<String> getSet(String key, Set<String> defaultValue) {
     String list = getString(key);
     if (null == list) {
-      if (collectConfig && defaultValue != null) {
-        String defaultValueStr = String.join(",", defaultValue);
+      if (collectConfig) {
+        String defaultValueStr = defaultValue == null ? null : String.join(",", defaultValue);
         ConfigCollector.get().put(key, defaultValueStr, ConfigOrigin.DEFAULT);
       }
       return defaultValue;
