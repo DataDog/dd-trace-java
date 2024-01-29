@@ -42,9 +42,10 @@ public class HeaderRegexpTokenizer implements SensitiveHandler.Tokenizer {
   private Ranged buildNext() {
     if (!checked) {
       checked = true;
-      String[] split = evidenceValue.split(": ");
-      String name = split[0];
-      String value = split[1];
+      // Header evidence format is <headerName>: <headerValue>
+      int index = evidenceValue.indexOf(":");
+      String name = evidenceValue.substring(0, index);
+      String value = evidenceValue.substring(index + 1);
       if (namePattern.matcher(name).find() || valuePattern.matcher(value).find()) {
         return Ranged.build(name.length() + 2, value.length());
       }
