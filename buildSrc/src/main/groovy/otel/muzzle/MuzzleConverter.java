@@ -31,7 +31,8 @@ import java.util.stream.StreamSupport;
  * This visitor use the ASM Tree API to converts muzzle methods.
  */
 public class MuzzleConverter extends ClassVisitor {
-  private static final String INSTRUMENTATION_MODULE_MUZZLE_CLASS_NAME = "io/opentelemetry/javaagent/tooling/muzzle/InstrumentationModuleMuzzle";
+  private static final String INSTRUMENTATION_MODULE_MUZZLE_CLASS_NAME =
+      "io/opentelemetry/javaagent/tooling/muzzle/InstrumentationModuleMuzzle";
   private static final String STRING_CLASS_NAME = "java/lang/String";
   /* OTel muzzle API */
   private static final String GET_MUZZLE_HELPER_CLASS_NAMES_METHOD_NAME = "getMuzzleHelperClassNames";
@@ -43,41 +44,59 @@ public class MuzzleConverter extends ClassVisitor {
   private static final String ADD_METHOD_DESC = "(Ljava/lang/Object;)Z";
   private static final String GET_MUZZLE_REFERENCES_METHOD_NAME = "getMuzzleReferences";
   private static final String GET_MUZZLE_REFERENCES_DESC = "()Ljava/util/Map;";
+  private static final String REGISTER_MUZZLE_VIRTUAL_FIELDS_METHOD_NAME = "registerMuzzleVirtualFields";
+  private static final String REGISTER_MUZZLE_VIRTUAL_FIELDS_DESC =
+      "(Lio/opentelemetry/javaagent/tooling/muzzle/VirtualFieldMappingsBuilder;)V";
 
   private final ClassVisitor next;
   private final String className;
   private final List<MuzzleReference> references;
+  private boolean instrumentationModule;
 
   public MuzzleConverter(ClassVisitor classVisitor, String className) {
     super(ASM9, new ClassNode());
     this.next = classVisitor;
     this.className = className;
     this.references = new ArrayList<>();
+    this.instrumentationModule = false;
   }
 
   @Override
   public void visitEnd() {
-    ClassNode cn = (ClassNode) cv;
     if (inheritsInstrumentationModuleMuzzle()) {
+      this.instrumentationModule = true;
       convertHelperClassNames();
       captureMuzzleReferences();
       // TODO Add oll other muzzle methods conversion too
+      cleanUpOTelMuzzle();
+    } else {
+      this.instrumentationModule = false;
     }
 
     if (this.next != null) {
+      ClassNode cn = (ClassNode) cv;
       cn.accept(this.next);
     }
   }
 
-  public boolean inheritsInstrumentationModuleMuzzle() {
+  /**
+   * Checks whether the last visited class is an InstrumentationGroup instance.
+   *
+   * @return {@code true} if the last visited class is an InstrumentationGroup instance, {@code false} otherwise.
+   */
+  public boolean isInstrumentationModule() {
+    return this.instrumentationModule;
+  }
+
+  private boolean inheritsInstrumentationModuleMuzzle() {
     ClassNode classNode = (ClassNode) this.cv;
     return classNode.interfaces.stream().anyMatch(INSTRUMENTATION_MODULE_MUZZLE_CLASS_NAME::equals);
   }
 
   /**
-   * Convert OTel {@code public List getMuzzleHelperClassNames()} method into Datadog {@code public String[] helperClassNames()} method.
+   * Converts OTel {@code public List getMuzzleHelperClassNames()} method into Datadog {@code public String[] helperClassNames()} method.
    */
-  public void convertHelperClassNames() {
+  private void convertHelperClassNames() {
     ClassNode classNode = (ClassNode) this.cv;
     // Look for OTel method
     MethodNode methodNode = findMethodNode(classNode, GET_MUZZLE_HELPER_CLASS_NAMES_METHOD_NAME, GET_MUZZLE_HELPS_CASS_NAMES_DESC);
@@ -91,7 +110,7 @@ public class MuzzleConverter extends ClassVisitor {
   }
 
   /**
-   * Capture all the helper names from OTel {@code public List getMuzzleHelperClassNames()} method.
+   * Captures all the helper names from OTel {@code public List getMuzzleHelperClassNames()} method.
    * @param methodNode The OTel getMuzzleHelperClassNames method.
    * @return The list of helper names.
    */
@@ -109,7 +128,7 @@ public class MuzzleConverter extends ClassVisitor {
   }
 
   /**
-   * Create the Datadog {@code public String[] helperClassNames()} method instructions.
+   * Creates the Datadog {@code public String[] helperClassNames()} method instructions.
    * @param helperNames The helper names.
    * @return The Datadog helperClassNames method instruction list.
    */
@@ -132,9 +151,18 @@ public class MuzzleConverter extends ClassVisitor {
   }
 
   /**
-   * Capture OpenTelemetry ClassRef/ClassRefBuilder/Source/Field/Method and ASM Type calls to recreate muzzle references.
+   * Gets the captured muzzle references.
+   *
+   * @return The captured muzzle references, an empty collection otherwise.
    */
-  public void captureMuzzleReferences() {
+  public List<MuzzleReference> getReferences() {
+    return this.references;
+  }
+
+  /**
+   * Captures OpenTelemetry ClassRef/ClassRefBuilder/Source/Field/Method and ASM Type calls to recreate muzzle references.
+   */
+  private void captureMuzzleReferences() {
     ClassNode classNode = (ClassNode) this.cv;
     // Look for OTel method
     MethodNode methodNode = findMethodNode(classNode, GET_MUZZLE_REFERENCES_METHOD_NAME, GET_MUZZLE_REFERENCES_DESC);
@@ -331,11 +359,20 @@ public class MuzzleConverter extends ClassVisitor {
     }
   }
 
-  public boolean hasReferences() {
-    return !this.references.isEmpty();
-  }
-
-  public List<MuzzleReference> getReferences() {
-    return this.references;
+  /**
+   * Removes any OpenTelemetry specific muzzle method and interfaces.
+   */
+  private void cleanUpOTelMuzzle() {
+    ClassNode classNode = (ClassNode) this.cv;
+    // Remove inheritance from InstrumentationModuleMuzzle
+    classNode.interfaces.remove(INSTRUMENTATION_MODULE_MUZZLE_CLASS_NAME);
+    // Remove getMuzzleReferences() method
+    MethodNode getMuzzleReferencesMethodNode =
+        findMethodNode(classNode, GET_MUZZLE_REFERENCES_METHOD_NAME, GET_MUZZLE_REFERENCES_DESC);
+    classNode.methods.remove(getMuzzleReferencesMethodNode);
+    // Remove registerMuzzleVirtualFields(VirtualFieldMappingsBuilder) method
+    MethodNode registerMuzzleVirtualFieldsMethodNode =
+        findMethodNode(classNode, REGISTER_MUZZLE_VIRTUAL_FIELDS_METHOD_NAME, REGISTER_MUZZLE_VIRTUAL_FIELDS_DESC);
+    classNode.methods.remove(registerMuzzleVirtualFieldsMethodNode);
   }
 }

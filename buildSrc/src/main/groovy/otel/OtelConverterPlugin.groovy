@@ -119,8 +119,8 @@ class Converter {
       reader.accept(javaAgentApiChecker, 0) // TODO flags?
       Files.write(targetFile, writer.toByteArray())
 
-      // Check if there are references to write as muzzle class
-      if (muzzleConverter.hasReferences()) {
+      // Check if there are references to write as muzzle class // TODO Update as a later phase
+      if (muzzleConverter.isInstrumentationModule()) {
         MuzzleGenerator.writeMuzzleClass(targetFolder, file.name, muzzleConverter.getReferences())
       }
     }
