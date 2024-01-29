@@ -21,7 +21,9 @@ import com.amazonaws.handlers.RequestHandler2
 import com.amazonaws.regions.Regions
 import com.amazonaws.retry.PredefinedRetryPolicies
 import com.amazonaws.services.dynamodbv2.AmazonDynamoDBClientBuilder
+import com.amazonaws.services.dynamodbv2.model.AttributeValue
 import com.amazonaws.services.dynamodbv2.model.CreateTableRequest
+import com.amazonaws.services.dynamodbv2.model.GetItemRequest
 import com.amazonaws.services.ec2.AmazonEC2ClientBuilder
 import com.amazonaws.services.kinesis.AmazonKinesisClientBuilder
 import com.amazonaws.services.kinesis.model.DeleteStreamRequest
@@ -202,6 +204,7 @@ abstract class AWS1ClientTest extends VersionedNamingTestBase {
     "S3"         | "CreateBucket"      |  "PUT"  | "/testbucket/"        | AmazonS3ClientBuilder.standard().withPathStyleAccessEnabled(true).withEndpointConfiguration(endpoint).withCredentials(credentialsProvider).build() | { c -> c.createBucket("testbucket") }                                           | ["aws.bucket.name": "testbucket", "bucketname": "testbucket"] | ""                | "aws.bucket.name"   | null
     "S3"         | "GetObject"         |  "GET"  | "/someBucket/someKey" | AmazonS3ClientBuilder.standard().withPathStyleAccessEnabled(true).withEndpointConfiguration(endpoint).withCredentials(credentialsProvider).build() | { c -> c.getObject("someBucket", "someKey") }                                   | ["aws.bucket.name": "someBucket", "bucketname": "someBucket", "aws.object.key": "someKey"] | ""                | "aws.bucket.name"   | null
     "DynamoDBv2" | "CreateTable"       |  "POST" | "/"                   | AmazonDynamoDBClientBuilder.standard().withEndpointConfiguration(endpoint).withCredentials(credentialsProvider).build()                            | { c -> c.createTable(new CreateTableRequest("sometable", null)) }               | ["aws.table.name": "sometable", "tablename": "sometable"]   | ""                  | "aws.table.name"    | null
+    "DynamoDBv2" | "GetItem"           |  "POST" | "/"                   | AmazonDynamoDBClientBuilder.standard().withEndpointConfiguration(endpoint).withCredentials(credentialsProvider).build()                            | { c -> c.getItem(new GetItemRequest("sometable", ["attribute": new AttributeValue("somevalue")])) } | ["aws.table.name": "sometable", "tablename": "sometable"]   | ""                  | "aws.table.name"    | null
     "Kinesis"    | "DeleteStream"      |  "POST" | "/"                   | AmazonKinesisClientBuilder.standard().withEndpointConfiguration(endpoint).withCredentials(credentialsProvider).build()                             | { c -> c.deleteStream(new DeleteStreamRequest().withStreamName("somestream")) } | ["aws.stream.name": "somestream", "streamname": "somestream"] | ""                | "aws.stream.name"   | null
     "SQS"        | "CreateQueue"       |  "POST" | "/"                   | AmazonSQSClientBuilder.standard().withEndpointConfiguration(endpoint).withCredentials(credentialsProvider).build()                                 | { c -> c.createQueue(new CreateQueueRequest("somequeue")) }                     | ["aws.queue.name": "somequeue", "queuename": "somequeue"]   | """
 
