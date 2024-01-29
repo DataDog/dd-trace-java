@@ -14,7 +14,7 @@ class MatchersTest extends DDSpecification {
 
   def "pattern without * or ? must be an ExactMatcher"() {
     expect:
-    Matchers.compileGlob(glob) instanceof Matchers.ExactMatcher
+    Matchers.compileGlob(glob) instanceof Matchers.InsensitiveEqualsMatcher
 
     where:
     glob << ["a", "ogre", "bcoho34e2"]
