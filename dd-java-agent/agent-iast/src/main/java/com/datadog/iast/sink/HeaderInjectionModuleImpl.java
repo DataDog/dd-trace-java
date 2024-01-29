@@ -25,7 +25,6 @@ import datadog.trace.api.iast.sink.HeaderInjectionModule;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import java.util.EnumSet;
-import java.util.Locale;
 import java.util.Set;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -70,7 +69,8 @@ public class HeaderInjectionModuleImpl extends SinkModuleBase implements HeaderI
 
     // Exclude access-control-allow-*: when the header starts with access-control-allow- and the
     // source of the tainted range is a request header
-    if (name.regionMatches(true, 0, ACCESS_CONTROL_ALLOW_PREFIX, ACCESS_CONTROL_ALLOW_PREFIX.length())
+    if (name.regionMatches(
+            true, 0, ACCESS_CONTROL_ALLOW_PREFIX, 0, ACCESS_CONTROL_ALLOW_PREFIX.length())
         && allRangesFromAnyHeader(ranges)) {
       return;
     }
