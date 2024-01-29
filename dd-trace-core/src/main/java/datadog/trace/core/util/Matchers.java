@@ -119,7 +119,7 @@ public final class Matchers {
 
     InsensitiveEqualsMatcher(String exact) {
       this.exact = exact;
-      this.pattern = Pattern.compile(exact);
+      this.pattern = Pattern.compile(exact, Pattern.CASE_INSENSITIVE);
     }
 
     @Override
