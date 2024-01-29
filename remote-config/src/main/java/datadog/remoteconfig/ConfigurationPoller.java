@@ -305,6 +305,10 @@ public class ConfigurationPoller
         log.debug("Remote configuration endpoint is disabled");
         return;
       }
+      if (response.code() == 204) {
+        log.debug("No configuration changes (HTTP 204 No Content)");
+        return;
+      }
       ResponseBody body = response.body();
       if (response.isSuccessful()) {
         if (body == null) {
