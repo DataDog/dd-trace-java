@@ -30,6 +30,13 @@ public class Fingerprinter {
     digest.update(typeName.getBytes());
     StackTraceElement[] stackTrace = t.getStackTrace();
     for (StackTraceElement stackTraceElement : stackTrace) {
+      String className = stackTraceElement.getClassName();
+      if (className.startsWith("java.")
+          || className.startsWith("jdk.")
+          || className.startsWith("sun.")
+          || className.startsWith("com.sun.")) {
+        continue;
+      }
       // TODO filter out thirdparty code
       digest.update(stackTraceElement.toString().getBytes());
     }
