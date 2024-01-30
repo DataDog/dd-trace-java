@@ -396,14 +396,14 @@ public class GatewayBridge {
             DataSubscriberInfo subInfo = graphqlServerRequestMsgSubInfo;
             if (subInfo == null) {
               subInfo =
-                  producerService.getDataSubscribers(KnownAddresses.SERVER_GRAPHQL_ALL_RESOLVERS);
+                  producerService.getDataSubscribers(KnownAddresses.GRAPHQL_SERVER_ALL_RESOLVERS);
               graphqlServerRequestMsgSubInfo = subInfo;
             }
             if (subInfo == null || subInfo.isEmpty()) {
               return NoopFlow.INSTANCE;
             }
             DataBundle bundle =
-                new SingletonDataBundle<>(KnownAddresses.SERVER_GRAPHQL_ALL_RESOLVERS, data);
+                new SingletonDataBundle<>(KnownAddresses.GRAPHQL_SERVER_ALL_RESOLVERS, data);
             try {
               return producerService.publishDataEvent(subInfo, ctx, bundle, true);
             } catch (ExpiredSubscriberInfoException e) {

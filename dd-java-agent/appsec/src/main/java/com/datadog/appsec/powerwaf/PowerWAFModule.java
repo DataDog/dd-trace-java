@@ -383,7 +383,7 @@ public class PowerWAFModule implements AppSecModule {
     addressList.add(KnownAddresses.REQUEST_BODY_RAW);
     addressList.add(KnownAddresses.RESPONSE_HEADERS_NO_COOKIES);
     addressList.add(KnownAddresses.RESPONSE_BODY_OBJECT);
-    addressList.add(KnownAddresses.SERVER_GRAPHQL_ALL_RESOLVERS);
+    addressList.add(KnownAddresses.GRAPHQL_SERVER_ALL_RESOLVERS);
 
     return addressList;
   }
