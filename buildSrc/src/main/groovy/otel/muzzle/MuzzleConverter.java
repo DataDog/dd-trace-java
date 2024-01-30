@@ -1,13 +1,21 @@
 package otel.muzzle;
 
 import static java.util.stream.Collectors.toList;
+import static net.bytebuddy.jar.asm.Opcodes.ACC_PUBLIC;
 import static org.objectweb.asm.Opcodes.AASTORE;
+import static org.objectweb.asm.Opcodes.ALOAD;
 import static org.objectweb.asm.Opcodes.ANEWARRAY;
 import static org.objectweb.asm.Opcodes.ARETURN;
 import static org.objectweb.asm.Opcodes.ASM9;
+import static org.objectweb.asm.Opcodes.ASTORE;
 import static org.objectweb.asm.Opcodes.BIPUSH;
 import static org.objectweb.asm.Opcodes.DUP;
 import static org.objectweb.asm.Opcodes.GETSTATIC;
+import static org.objectweb.asm.Opcodes.INVOKEINTERFACE;
+import static org.objectweb.asm.Opcodes.INVOKESPECIAL;
+import static org.objectweb.asm.Opcodes.INVOKESTATIC;
+import static org.objectweb.asm.Opcodes.NEW;
+import static org.objectweb.asm.Opcodes.POP;
 import static org.objectweb.asm.tree.AbstractInsnNode.FIELD_INSN;
 import static org.objectweb.asm.tree.AbstractInsnNode.LDC_INSN;
 import static org.objectweb.asm.tree.AbstractInsnNode.METHOD_INSN;
@@ -24,15 +32,16 @@ import org.objectweb.asm.tree.MethodInsnNode;
 import org.objectweb.asm.tree.MethodNode;
 import org.objectweb.asm.tree.TypeInsnNode;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.StreamSupport;
 
 /**
  * This visitor use the ASM Tree API to converts muzzle methods.
  */
 public class MuzzleConverter extends ClassVisitor {
-  private static final String INSTRUMENTATION_MODULE_MUZZLE_CLASS_NAME =
-      "io/opentelemetry/javaagent/tooling/muzzle/InstrumentationModuleMuzzle";
+  private static final String INSTRUMENTATION_MODULE_MUZZLE_CLASS_NAME = "io/opentelemetry/javaagent/tooling/muzzle/InstrumentationModuleMuzzle";
   private static final String STRING_CLASS_NAME = "java/lang/String";
   /* OTel muzzle API */
   private static final String GET_MUZZLE_HELPER_CLASS_NAMES_METHOD_NAME = "getMuzzleHelperClassNames";
@@ -45,8 +54,7 @@ public class MuzzleConverter extends ClassVisitor {
   private static final String GET_MUZZLE_REFERENCES_METHOD_NAME = "getMuzzleReferences";
   private static final String GET_MUZZLE_REFERENCES_DESC = "()Ljava/util/Map;";
   private static final String REGISTER_MUZZLE_VIRTUAL_FIELDS_METHOD_NAME = "registerMuzzleVirtualFields";
-  private static final String REGISTER_MUZZLE_VIRTUAL_FIELDS_DESC =
-      "(Lio/opentelemetry/javaagent/tooling/muzzle/VirtualFieldMappingsBuilder;)V";
+  private static final String REGISTER_MUZZLE_VIRTUAL_FIELDS_DESC = "(Lio/opentelemetry/javaagent/tooling/muzzle/VirtualFieldMappingsBuilder;)V";
 
   private final ClassVisitor next;
   private final String className;
@@ -66,6 +74,7 @@ public class MuzzleConverter extends ClassVisitor {
     if (inheritsInstrumentationModuleMuzzle()) {
       this.instrumentationModule = true;
       convertHelperClassNames();
+      convertContextStore();
       captureMuzzleReferences();
       // TODO Add oll other muzzle methods conversion too
       cleanUpOTelMuzzle();
@@ -172,7 +181,7 @@ public class MuzzleConverter extends ClassVisitor {
     List<String> types = new ArrayList<>();
     // Declare the muzzle reference to be consolidated when walking over OTel builder API
     MuzzleReference currentReference = null;
-    for (final AbstractInsnNode instructionNode : methodNode.instructions) {
+    for (AbstractInsnNode instructionNode : methodNode.instructions) {
       if (instructionNode.getType() == METHOD_INSN) {
         MethodInsnNode methodInsnNode = (MethodInsnNode) instructionNode;
         // Look for ClassRef.builder(String)
@@ -289,6 +298,68 @@ public class MuzzleConverter extends ClassVisitor {
       throw new IllegalStateException("Failed to extract muzzle reference flag from " + fieldInsnNode.owner + "." + fieldInsnNode.name + " of " + className);
     }
     return flag;
+  }
+
+  /**
+   * Converts OTel {@code public void getMuzzleHelperClassNames()} method into Datadog {@code public Map<String, String> contextStore()} method.
+   */
+  private void convertContextStore() {
+    ClassNode classNode = (ClassNode) this.cv;
+    MethodNode methodNode = findMethodNode(classNode, REGISTER_MUZZLE_VIRTUAL_FIELDS_METHOD_NAME, REGISTER_MUZZLE_VIRTUAL_FIELDS_DESC);
+    Map<String, String> stores = captureContextStore(methodNode);
+    MethodNode contextStoreMethodNode = generateContextStoreMethod(stores);
+    classNode.methods.add(contextStoreMethodNode);
+  }
+
+  private Map<String, String> captureContextStore(MethodNode methodNode) {
+    Map<String, String> stores = new HashMap<>();
+    for (AbstractInsnNode instructionNode : methodNode.instructions) {
+      if (instructionNode.getType() == METHOD_INSN) {
+        MethodInsnNode methodInsnNode = (MethodInsnNode) instructionNode;
+        // Look for VirtualFieldMappingsBuilder.register(String, String)
+        if ("io/opentelemetry/javaagent/tooling/muzzle/VirtualFieldMappingsBuilder".equals(methodInsnNode.owner)
+            && "register".equals(methodInsnNode.name)
+            && "(Ljava/lang/String;Ljava/lang/String;)Lio/opentelemetry/javaagent/tooling/muzzle/VirtualFieldMappingsBuilder;".equals(methodInsnNode.desc)
+            && methodInsnNode.getPrevious().getType() == LDC_INSN
+            && methodInsnNode.getPrevious().getPrevious().getType() == LDC_INSN) {
+          LdcInsnNode valueLdcInsnNode = (LdcInsnNode) methodInsnNode.getPrevious();
+          String value = (String) valueLdcInsnNode.cst;
+          LdcInsnNode keyLdcInsnNode = (LdcInsnNode) methodInsnNode.getPrevious().getPrevious();
+          String key = (String) keyLdcInsnNode.cst;
+          stores.put(key,value);
+        }
+      }
+    }
+    return stores;
+  }
+
+  private MethodNode generateContextStoreMethod(Map<String, String> stores) {
+    MethodNode methodNode = new MethodNode(
+        ACC_PUBLIC,
+        "contextStore",
+        "()Ljava/util/Map;",
+        "()Ljava/util/Map<Ljava/lang/String;Ljava/lang/String;>;",
+        null
+    );
+    // Create HashMap
+    methodNode.visitTypeInsn(NEW, "java/util/HashMap");
+    methodNode.visitInsn(DUP);
+    methodNode.visitMethodInsn(INVOKESPECIAL, "java/util/HashMap", "<init>", "()V", false);
+    methodNode.visitVarInsn(ASTORE, 1);
+    // Put keys and values
+    stores.forEach((key, value) -> {
+      methodNode.visitVarInsn(ALOAD, 1);
+      methodNode.visitLdcInsn(key);
+      methodNode.visitLdcInsn(value);
+      methodNode.visitMethodInsn(INVOKEINTERFACE, "java/util/HashMap", "put", "(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;", true);
+      methodNode.visitInsn(POP);
+    });
+    // Wrap into unmodifiable map
+    methodNode.visitVarInsn(ALOAD, 1);
+    methodNode.visitMethodInsn(INVOKESTATIC, "java/util/Collections", "unmodifiableMap", "(Ljava/util/Map;)Ljava/util/Map;", false);
+    // Return wrapped map
+    methodNode.visitInsn(ARETURN);
+    return methodNode;
   }
 
   private MethodNode findMethodNode(ClassNode classNode, String methodName, String methodDesc) {

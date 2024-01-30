@@ -45,7 +45,6 @@ public final class MuzzleGenerator {
   }
 
   private static byte[] writeMuzzleClass(String originalClass, List<MuzzleReference> references) {
-    System.out.println(">>> internalName(originalClass) + \"$Muzzle\" = " + internalName(originalClass) + "$Muzzle");
     ClassWriter cw = new ClassWriter(ClassWriter.COMPUTE_FRAMES);
     cw.visit(
         V1_8,
