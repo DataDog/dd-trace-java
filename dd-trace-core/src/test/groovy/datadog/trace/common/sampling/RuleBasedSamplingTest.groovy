@@ -455,12 +455,12 @@ class RuleBasedSamplingTest extends DDCoreSpecification {
     cleanup:
     tracer.close()
   }
-  
+
   // helper functions - to subvert codenarc
   static bigInteger(str) {
     return new BigInteger(str)
   }
-  
+
   static bigDecimal(str) {
     return new BigDecimal(str)
   }
