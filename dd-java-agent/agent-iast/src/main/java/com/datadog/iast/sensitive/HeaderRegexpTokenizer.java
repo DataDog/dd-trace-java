@@ -43,9 +43,16 @@ public class HeaderRegexpTokenizer implements SensitiveHandler.Tokenizer {
     if (!checked) {
       checked = true;
       // Header evidence format is <headerName>: <headerValue>
-      int index = evidenceValue.indexOf(":");
-      String name = evidenceValue.substring(0, index);
-      String value = evidenceValue.substring(index + 1);
+      int separatorIndex = evidenceValue.indexOf(":");
+      if (separatorIndex < 1) {
+        return null; // Wrong evidence format: there is no separator or <headerName>
+      }
+      int headerValueIndex = separatorIndex + 2; // there is a white space after :
+      if (evidenceValue.length() <= headerValueIndex) {
+        return null; // Wrong evidence format: there is no <headerValue>
+      }
+      String name = evidenceValue.substring(0, separatorIndex);
+      String value = evidenceValue.substring(headerValueIndex);
       if (namePattern.matcher(name).find() || valuePattern.matcher(value).find()) {
         return Ranged.build(name.length() + 2, value.length());
       }
