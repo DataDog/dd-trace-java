@@ -12,7 +12,7 @@ public final class TagsPostProcessorFactory {
       final List<TagsPostProcessor> processors = new ArrayList<>(addBaseService ? 3 : 2);
       processors.add(new PeerServiceCalculator());
       if (addBaseService) {
-        processors.add(new BaseServiceAdder(Config.get().getServiceName()));
+        processors.add(new BaseServiceAdder(Config.get().getServiceNaming()));
       }
       processors.add(new QueryObfuscator(Config.get().getObfuscationQueryRegexp()));
       return new PostProcessorChain(

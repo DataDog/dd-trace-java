@@ -41,6 +41,7 @@ import com.google.common.io.ByteStreams;
 import datadog.common.version.VersionInfo;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
+import datadog.trace.api.naming.ServiceNaming;
 import datadog.trace.api.profiling.ProfilingSnapshot;
 import datadog.trace.api.profiling.RecordingData;
 import datadog.trace.api.profiling.RecordingInputStream;
@@ -122,6 +123,7 @@ public class ProfileUploaderTest {
           .put("foo", "bar")
           .put("quoted", "quoted")
           .put(DDTags.PID_TAG, PidHelper.getPid())
+          .put("service", "myservice")
           .put(VersionInfo.PROFILER_VERSION_TAG, VersionInfo.VERSION)
           .put(VersionInfo.LIBRARY_VERSION_TAG, VersionInfo.VERSION)
           .build();
@@ -157,6 +159,8 @@ public class ProfileUploaderTest {
     when(config.getFinalProfilingUrl()).thenReturn(server.url(URL_PATH).toString());
     when(config.isProfilingAgentless()).thenReturn(false);
     when(config.getMergedProfilingTags()).thenReturn(TAGS);
+    final ServiceNaming serviceNaming = new ServiceNaming("myservice", false);
+    when(config.getServiceNaming()).thenReturn(serviceNaming);
     when(config.getProfilingUploadTimeout()).thenReturn((int) REQUEST_TIMEOUT.getSeconds());
     when(config.isProfilingUploadSummaryOn413Enabled()).thenReturn(true);
 

@@ -30,6 +30,7 @@ import datadog.trace.bootstrap.instrumentation.decorator.MessagingClientDecorato
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
 
 public class RabbitDecorator extends MessagingClientDecorator {
 
@@ -83,9 +84,9 @@ public class RabbitDecorator extends MessagingClientDecorator {
 
   private final String spanKind;
   private final CharSequence spanType;
-  private final String serviceName;
+  private final Supplier<String> serviceName;
 
-  public RabbitDecorator(String spanKind, CharSequence spanType, String serviceName) {
+  public RabbitDecorator(String spanKind, CharSequence spanType, Supplier<String> serviceName) {
     this.spanKind = spanKind;
     this.spanType = spanType;
     this.serviceName = serviceName;
@@ -98,7 +99,7 @@ public class RabbitDecorator extends MessagingClientDecorator {
 
   @Override
   protected String service() {
-    return serviceName;
+    return serviceName.get();
   }
 
   @Override

@@ -7,6 +7,7 @@ import datadog.remoteconfig.tuf.RemoteConfigRequest.ClientInfo.ClientState;
 import datadog.trace.api.Config;
 import datadog.trace.api.git.GitInfo;
 import datadog.trace.api.git.GitInfoProvider;
+import datadog.trace.api.naming.ServiceNaming;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.util.TagsHelper;
 import java.util.Arrays;
@@ -31,7 +32,7 @@ public class PollerRequestFactory {
 
   private final String clientId = UUID.randomUUID().toString();
   private final String runtimeId;
-  private final String serviceName;
+  private final ServiceNaming serviceNaming;
   private final String apiKey;
   private final String env;
   private final String ddVersion;
@@ -50,7 +51,7 @@ public class PollerRequestFactory {
       String url,
       Moshi moshi) {
     this.runtimeId = getRuntimeId(config);
-    this.serviceName = TagsHelper.sanitize(config.getServiceName());
+    this.serviceNaming = config.getServiceNaming();
     this.apiKey = config.getApiKey();
     this.env = TagsHelper.sanitize(config.getEnv());
     this.ddVersion = TagsHelper.sanitize(config.getVersion());
@@ -126,7 +127,7 @@ public class PollerRequestFactory {
         this.runtimeId,
         this.tracerVersion,
         productNames,
-        this.serviceName,
+        this.serviceNaming.getSanitizedName().toString(),
         this.env,
         this.ddVersion,
         buildRequestTags(),

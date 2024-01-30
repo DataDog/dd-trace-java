@@ -448,6 +448,7 @@ import datadog.trace.api.config.TracerConfig;
 import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.IastDetectionMode;
 import datadog.trace.api.iast.telemetry.Verbosity;
+import datadog.trace.api.naming.ServiceNaming;
 import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.bootstrap.config.provider.CapturedEnvironmentConfigSource;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
@@ -553,7 +554,7 @@ public class Config {
    */
   private final String site;
 
-  private final String serviceName;
+  private final ServiceNaming serviceNaming;
   private final boolean serviceNameSetByUser;
   private final String rootContextServiceName;
   private final boolean integrationSynapseLegacyOperationName;
@@ -956,6 +957,7 @@ public class Config {
     String userProvidedServiceName =
         configProvider.getStringExcludingSource(
             SERVICE, null, CapturedEnvironmentConfigSource.class, SERVICE_NAME);
+    final String serviceName;
 
     if (userProvidedServiceName == null) {
       serviceNameSetByUser = false;
@@ -964,6 +966,7 @@ public class Config {
       serviceNameSetByUser = true;
       serviceName = userProvidedServiceName;
     }
+    this.serviceNaming = new ServiceNaming(serviceName, !serviceNameSetByUser);
 
     rootContextServiceName =
         configProvider.getString(
@@ -2063,7 +2066,11 @@ public class Config {
   }
 
   public String getServiceName() {
-    return serviceName;
+    return serviceNaming.getCurrent().toString();
+  }
+
+  public ServiceNaming getServiceNaming() {
+    return this.serviceNaming;
   }
 
   public boolean isServiceNameSetByUser() {
@@ -3343,7 +3350,7 @@ public class Config {
         getRuntimeId(),
         reportHostName ? getHostName() : "",
         getEnv(),
-        serviceName,
+        getServiceNaming(),
         getVersion(),
         LANGUAGE_TAG_VALUE);
   }
@@ -3399,7 +3406,7 @@ public class Config {
     // service name set here instead of getRuntimeTags because apm already manages the service tag
     // and may chose to override it.
     // Additionally, infra/JMX metrics require `service` rather than APM's `service.name` tag
-    result.put(SERVICE_TAG, serviceName);
+    result.put(SERVICE_TAG, getServiceName());
     return Collections.unmodifiableMap(result);
   }
 
@@ -3416,9 +3423,6 @@ public class Config {
     result.putAll(getGlobalTags());
     result.putAll(profilingTags);
     result.putAll(runtimeTags);
-    // service name set here instead of getRuntimeTags because apm already manages the service tag
-    // and may chose to override it.
-    result.put(SERVICE_TAG, serviceName);
     result.put(LANGUAGE_TAG_KEY, LANGUAGE_TAG_VALUE);
     result.put(RUNTIME_VERSION_TAG, runtimeVersion);
     if (azureAppServices) {
@@ -3440,9 +3444,6 @@ public class Config {
     result.putAll(getGlobalTags());
     result.putAll(crashTrackingTags);
     result.putAll(runtimeTags);
-    // service name set here instead of getRuntimeTags because apm already manages the service tag
-    // and may chose to override it.
-    result.put(SERVICE_TAG, serviceName);
     result.put(LANGUAGE_TAG_KEY, LANGUAGE_TAG_VALUE);
     return Collections.unmodifiableMap(result);
   }
@@ -4014,7 +4015,7 @@ public class Config {
         + getHostName()
         + '\''
         + ", serviceName='"
-        + serviceName
+        + getServiceName()
         + '\''
         + ", serviceNameSetByUser="
         + serviceNameSetByUser

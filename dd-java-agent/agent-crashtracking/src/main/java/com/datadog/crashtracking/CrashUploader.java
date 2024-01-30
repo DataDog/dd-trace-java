@@ -135,7 +135,7 @@ public final class CrashUploader {
         try (JsonWriter writer = JsonWriter.of(buf)) {
           writer.beginObject();
           writer.name("ddsource").value("crashtracker");
-          writer.name("ddtags").value(tags);
+          writer.name("ddtags").value(tags + ",service:" + config.getServiceName());
           writer.name("hostname").value(config.getHostName());
           writer.name("service").value(config.getServiceName());
           writer.name("message").value(message);

@@ -22,6 +22,7 @@ import com.datadog.debugger.probe.SpanProbe;
 import com.datadog.debugger.sink.DebuggerSink;
 import com.datadog.debugger.sink.ProbeStatusSink;
 import datadog.trace.api.Config;
+import datadog.trace.api.naming.ServiceNaming;
 import datadog.trace.bootstrap.debugger.ProbeId;
 import datadog.trace.bootstrap.debugger.ProbeImplementation;
 import java.lang.instrument.Instrumentation;
@@ -62,6 +63,7 @@ public class ConfigurationUpdaterTest {
     lenient().when(tracerConfig.getFinalDebuggerSnapshotUrl()).thenReturn("http://localhost");
     lenient().when(tracerConfig.getDebuggerUploadBatchSize()).thenReturn(100);
     lenient().when(tracerConfig.getFinalDebuggerSymDBUrl()).thenReturn("http://localhost");
+    lenient().when(tracerConfig.getServiceNaming()).thenReturn(new ServiceNaming("", false));
 
     debuggerSinkWithMockStatusSink = new DebuggerSink(tracerConfig, probeStatusSink);
   }

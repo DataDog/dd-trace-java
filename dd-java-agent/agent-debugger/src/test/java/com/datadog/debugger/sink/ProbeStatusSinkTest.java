@@ -9,6 +9,7 @@ import com.datadog.debugger.agent.ProbeStatus.Builder;
 import com.datadog.debugger.util.MoshiHelper;
 import com.squareup.moshi.JsonAdapter;
 import datadog.trace.api.Config;
+import datadog.trace.api.naming.ServiceNaming;
 import datadog.trace.bootstrap.debugger.ProbeId;
 import java.io.IOException;
 import java.time.Clock;
@@ -46,7 +47,7 @@ class ProbeStatusSinkTest {
 
   @BeforeEach
   void setUp() {
-    when(config.getServiceName()).thenReturn(SERVICE_NAME);
+    when(config.getServiceNaming()).thenReturn(new ServiceNaming(SERVICE_NAME, false));
     when(config.getDebuggerDiagnosticsInterval()).thenReturn(DIAGNOSTICS_INTERVAL);
     when(config.getDebuggerUploadBatchSize()).thenReturn(100);
     builder = new Builder(config);

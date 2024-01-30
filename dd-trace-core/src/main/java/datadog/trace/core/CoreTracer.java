@@ -422,7 +422,6 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
     public CoreTracerBuilder config(final Config config) {
       this.config = config;
-      serviceName(config.getServiceName());
       // Explicitly skip setting writer to avoid allocating resources prematurely.
       sampler(Sampler.Builder.forConfig(config, null));
       singleSpanSampler(SingleSpanSampler.Builder.forConfig(config));
@@ -1187,7 +1186,6 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     constantTags.add(statsdTag(LANG_INTERPRETER_STATSD_TAG, DDTraceCoreInfo.JAVA_VM_NAME));
     constantTags.add(statsdTag(LANG_INTERPRETER_VENDOR_STATSD_TAG, DDTraceCoreInfo.JAVA_VM_VENDOR));
     constantTags.add(statsdTag(TRACER_VERSION_STATSD_TAG, DDTraceCoreInfo.VERSION));
-    constantTags.add(statsdTag("service", config.getServiceName()));
 
     final Map<String, String> mergedSpanTags = config.getMergedSpanTags();
     final String version = mergedSpanTags.get(GeneralConfig.VERSION);
@@ -1534,6 +1532,10 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       }
       if (serviceName == null) {
         serviceName = CoreTracer.this.serviceName;
+      }
+
+      if (serviceName == null) {
+        serviceName = Config.get().getServiceName();
       }
 
       final CharSequence operationName =

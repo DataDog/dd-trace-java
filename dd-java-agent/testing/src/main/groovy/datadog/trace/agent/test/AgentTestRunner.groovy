@@ -299,7 +299,7 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
 
     // Fast enough so tests don't take forever
     long bucketDuration = dataStreamsBucketDuration()
-    WellKnownTags wellKnownTags = new WellKnownTags("runtimeid", "hostname", "my-env", "service", "version", "language")
+    WellKnownTags wellKnownTags = new WellKnownTags("runtimeid", "hostname", "my-env", Config.get().getServiceNaming(), "version", "language")
     TEST_DATA_STREAMS_MONITORING = new DefaultDataStreamsMonitoring(sink, features, SystemTimeSource.INSTANCE, { MOCK_DSM_TRACE_CONFIG }, wellKnownTags, TEST_DATA_STREAMS_WRITER, bucketDuration)
 
     TEST_WRITER = new ListWriter()

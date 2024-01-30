@@ -17,8 +17,8 @@ class NamingV0ForkedTest extends DDSpecification {
     then:
     assert SpanNaming.instance().version() == 0
     assert !schema.allowInferredServices()
-    assert schema.messaging().inboundService("anything", true) == null
-    assert schema.messaging().outboundService("anything", true) == null
+    assert schema.messaging().inboundService("anything", true) .get() == null
+    assert schema.messaging().outboundService("anything", true).get() == null
     assert schema.database().service("anything") == null
     assert schema.cache().service("anything") == null
     assert schema.cloud().serviceForRequest("any", "anything") == null

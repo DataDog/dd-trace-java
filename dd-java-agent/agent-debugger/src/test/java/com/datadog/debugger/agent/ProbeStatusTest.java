@@ -9,6 +9,7 @@ import com.datadog.debugger.agent.ProbeStatus.Diagnostics;
 import com.datadog.debugger.agent.ProbeStatus.ProbeException;
 import com.datadog.debugger.agent.ProbeStatus.Status;
 import datadog.trace.api.Config;
+import datadog.trace.api.naming.ServiceNaming;
 import datadog.trace.bootstrap.debugger.CapturedStackFrame;
 import datadog.trace.bootstrap.debugger.ProbeId;
 import java.util.Arrays;
@@ -37,7 +38,7 @@ class ProbeStatusTest {
 
   @BeforeEach
   void setUp() {
-    lenient().when(config.getServiceName()).thenReturn(SERVICE_NAME);
+    lenient().when(config.getServiceNaming()).thenReturn(new ServiceNaming(SERVICE_NAME, false));
     lenient().when(config.getRuntimeId()).thenReturn(RUNTIME_ID);
     builder = new Builder(config);
   }

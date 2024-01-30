@@ -12,7 +12,7 @@ class WellKnownTagsTest extends DDSpecification {
     wellKnownTags.getRuntimeId() as String == "runtimeid"
     wellKnownTags.getHostname() as String == "hostname"
     wellKnownTags.getEnv() as String == "env"
-    wellKnownTags.getService() as String == "service"
+    wellKnownTags.getService().toString() as String == "service"
     wellKnownTags.getVersion() as String == "version"
     wellKnownTags.getLanguage() as String == "language"
   }

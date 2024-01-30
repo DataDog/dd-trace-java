@@ -45,6 +45,7 @@ import com.squareup.moshi.JsonAdapter;
 import datadog.trace.agent.tooling.TracerInstaller;
 import datadog.trace.api.Config;
 import datadog.trace.api.interceptor.MutableSpan;
+import datadog.trace.api.naming.ServiceNaming;
 import datadog.trace.api.sampling.Sampler;
 import datadog.trace.bootstrap.debugger.*;
 import datadog.trace.bootstrap.debugger.el.ValueReferences;
@@ -125,6 +126,13 @@ public class CapturedSnapshotTest {
     ProbeRateLimiter.resetAll();
     Assertions.assertFalse(DebuggerContext.isInProbe());
     Redaction.clearUserDefinedTypes();
+  }
+
+  private Config mockConfig() {
+    final Config config = mock(Config.class);
+    final ServiceNaming serviceNaming = new ServiceNaming(SERVICE_NAME, false);
+    when(config.getServiceNaming()).thenReturn(serviceNaming);
+    return config;
   }
 
   @Test
@@ -1890,7 +1898,7 @@ public class CapturedSnapshotTest {
   @Test
   public void typeRedactionBlockedProbe() throws IOException, URISyntaxException {
     final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot27";
-    Config config = mock(Config.class);
+    Config config = mockConfig();
     when(config.getDebuggerRedactedTypes()).thenReturn("com.datadog.debugger.CapturedSnapshot27");
     Redaction.addUserDefinedTypes(config);
     LogProbe probe1 =
@@ -1913,7 +1921,7 @@ public class CapturedSnapshotTest {
     final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot27";
     final String LOG_TEMPLATE =
         "arg={arg} credentials={creds} user={this.creds.user} code={creds.secretCode} dave={credMap['dave'].user}";
-    Config config = mock(Config.class);
+    Config config = mockConfig();
     when(config.getDebuggerRedactedTypes())
         .thenReturn("com.datadog.debugger.CapturedSnapshot27$Creds");
     Redaction.addUserDefinedTypes(config);
@@ -1950,7 +1958,7 @@ public class CapturedSnapshotTest {
   @Test
   public void typeRedactionCondition() throws IOException, URISyntaxException {
     final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot27";
-    Config config = mock(Config.class);
+    Config config = mockConfig();
     when(config.getDebuggerRedactedTypes())
         .thenReturn("com.datadog.debugger.CapturedSnapshot27$Creds");
     Redaction.addUserDefinedTypes(config);
@@ -2167,7 +2175,7 @@ public class CapturedSnapshotTest {
 
   private DebuggerTransformerTest.TestSnapshotListener setupInstrumentTheWorldTransformer(
       String excludeFileName) {
-    Config config = mock(Config.class);
+    Config config = mockConfig();
     when(config.isDebuggerEnabled()).thenReturn(true);
     when(config.isDebuggerClassFileDumpEnabled()).thenReturn(true);
     when(config.isDebuggerInstrumentTheWorld()).thenReturn(true);
@@ -2225,7 +2233,7 @@ public class CapturedSnapshotTest {
 
   private DebuggerTransformerTest.TestSnapshotListener installProbes(
       String expectedClassName, Configuration configuration) {
-    Config config = mock(Config.class);
+    Config config = mockConfig();
     when(config.isDebuggerEnabled()).thenReturn(true);
     when(config.isDebuggerClassFileDumpEnabled()).thenReturn(true);
     when(config.isDebuggerVerifyByteCode()).thenReturn(true);

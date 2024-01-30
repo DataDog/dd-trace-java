@@ -10,6 +10,7 @@ import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.MessagingClientDecorator;
+import java.util.function.Supplier;
 
 public class SqsDecorator extends MessagingClientDecorator {
   static final CharSequence COMPONENT_NAME = UTF8BytesString.create("java-aws-sdk");
@@ -25,7 +26,7 @@ public class SqsDecorator extends MessagingClientDecorator {
       Config.get().isTimeInQueueEnabled(!SQS_LEGACY_TRACING, "sqs");
   private final String spanKind;
   private final CharSequence spanType;
-  private final String serviceName;
+  private final Supplier<String> serviceName;
 
   public static final SqsDecorator CONSUMER_DECORATE =
       new SqsDecorator(
@@ -42,7 +43,7 @@ public class SqsDecorator extends MessagingClientDecorator {
           MESSAGE_BROKER,
           SpanNaming.instance().namingSchema().messaging().timeInQueueService("sqs"));
 
-  protected SqsDecorator(String spanKind, CharSequence spanType, String serviceName) {
+  protected SqsDecorator(String spanKind, CharSequence spanType, Supplier<String> serviceName) {
     this.spanKind = spanKind;
     this.spanType = spanType;
     this.serviceName = serviceName;
@@ -60,7 +61,7 @@ public class SqsDecorator extends MessagingClientDecorator {
 
   @Override
   protected String service() {
-    return serviceName;
+    return serviceName.get();
   }
 
   @Override

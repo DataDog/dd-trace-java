@@ -23,6 +23,7 @@ import com.datadog.debugger.util.MoshiSnapshotTestHelper;
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Types;
 import datadog.trace.api.Config;
+import datadog.trace.api.naming.ServiceNaming;
 import datadog.trace.bootstrap.debugger.CapturedContext;
 import datadog.trace.bootstrap.debugger.CapturedContext.CapturedValue;
 import datadog.trace.bootstrap.debugger.CapturedStackFrame;
@@ -69,7 +70,7 @@ public class DebuggerSinkTest {
     DebuggerContext.initValueSerializer(jsonSnapshotSerializer);
     DebuggerAgentHelper.injectSerializer(jsonSnapshotSerializer);
     when(config.getHostName()).thenReturn("host-name");
-    when(config.getServiceName()).thenReturn("service-name");
+    when(config.getServiceNaming()).thenReturn(new ServiceNaming("service-name", false));
     when(config.getEnv()).thenReturn("test");
     when(config.getVersion()).thenReturn("foo");
     when(config.getDebuggerUploadBatchSize()).thenReturn(1);

@@ -39,7 +39,9 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
   public static final boolean SQS_LEGACY_TRACING = Config.get().isLegacyTracingEnabled(true, "sqs");
 
   private static final String SQS_SERVICE_NAME =
-      AWS_LEGACY_TRACING || SQS_LEGACY_TRACING ? "sqs" : Config.get().getServiceName();
+      AWS_LEGACY_TRACING || SQS_LEGACY_TRACING
+          ? SpanNaming.instance().namingSchema().cloud().serviceForRequest(AWS, "sqs")
+          : null;
 
   private static final String SNS_SERVICE_NAME =
       SpanNaming.instance().namingSchema().cloud().serviceForRequest(AWS, "sns");

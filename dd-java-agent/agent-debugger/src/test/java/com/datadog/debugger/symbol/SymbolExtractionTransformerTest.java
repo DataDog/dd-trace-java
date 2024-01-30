@@ -6,6 +6,7 @@ import static java.util.Collections.singletonList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static utils.InstrumentationTestHelper.compileAndLoadClass;
 
@@ -13,6 +14,7 @@ import com.datadog.debugger.agent.AllowListHelper;
 import com.datadog.debugger.agent.Configuration;
 import com.datadog.debugger.sink.SymbolSink;
 import datadog.trace.api.Config;
+import datadog.trace.api.naming.ServiceNaming;
 import java.io.IOException;
 import java.lang.instrument.Instrumentation;
 import java.net.URISyntaxException;
@@ -26,7 +28,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.DisabledIf;
 import org.junit.jupiter.api.condition.EnabledOnJre;
 import org.junit.jupiter.api.condition.JRE;
-import org.mockito.Mockito;
 
 class SymbolExtractionTransformerTest {
   private static final String SYMBOL_PACKAGE = "com.datadog.debugger.symboltest.";
@@ -35,15 +36,22 @@ class SymbolExtractionTransformerTest {
   private Instrumentation instr = ByteBuddyAgent.install();
   private Config config;
 
+  private Config mockConfig() {
+    final Config config = mock(Config.class);
+    final ServiceNaming serviceNaming = new ServiceNaming("", false);
+    when(config.getServiceNaming()).thenReturn(serviceNaming);
+    return config;
+  }
+
   @BeforeEach
   public void setUp() {
-    config = Mockito.mock(Config.class);
+    config = mockConfig();
     when(config.getFinalDebuggerSymDBUrl()).thenReturn("http://localhost:8126/symdb/v1/input");
   }
 
   @Test
   public void noIncludesFilterOutDatadogClass() throws IOException, URISyntaxException {
-    config = Mockito.mock(Config.class);
+    config = mockConfig();
     when(config.getFinalDebuggerSymDBUrl()).thenReturn("http://localhost:8126/symdb/v1/input");
     final String CLASS_NAME = SYMBOL_PACKAGE + "SymbolExtraction01";
     SymbolSinkMock symbolSinkMock = new SymbolSinkMock(config);

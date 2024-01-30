@@ -12,6 +12,7 @@ import com.datadog.debugger.probe.SpanProbe;
 import datadog.remoteconfig.ConfigurationChangesListener;
 import datadog.remoteconfig.state.ParsedConfigKey;
 import datadog.trace.api.Config;
+import datadog.trace.api.naming.ServiceNaming;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Collections;
@@ -47,7 +48,9 @@ public class DebuggerProductChangesListenerTest {
 
   @BeforeEach
   void setUp() {
-    lenient().when(tracerConfig.getServiceName()).thenReturn(SERVICE_NAME);
+    lenient()
+        .when(tracerConfig.getServiceNaming())
+        .thenReturn(new ServiceNaming(SERVICE_NAME, false));
   }
 
   @Test

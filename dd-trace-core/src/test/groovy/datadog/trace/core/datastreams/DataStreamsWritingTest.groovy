@@ -56,7 +56,7 @@ class DataStreamsWritingTest extends DDCoreSpecification {
       supportsDataStreams() >> true
     }
 
-    def wellKnownTags = new WellKnownTags("runtimeid", "hostname", "test", Config.get().getServiceName(), "version", "java")
+    def wellKnownTags = new WellKnownTags("runtimeid", "hostname", "test", Config.get().getServiceNaming(), "version", "java")
 
     def fakeConfig = Stub(Config) {
       getAgentUrl() >> server.address.toString()

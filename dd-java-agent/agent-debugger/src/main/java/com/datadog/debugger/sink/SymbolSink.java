@@ -7,7 +7,7 @@ import com.datadog.debugger.util.ExceptionHelper;
 import com.datadog.debugger.util.MoshiHelper;
 import com.squareup.moshi.JsonAdapter;
 import datadog.trace.api.Config;
-import datadog.trace.util.TagsHelper;
+import datadog.trace.api.naming.ServiceNaming;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -31,7 +31,7 @@ public class SymbolSink {
           + "\"runtimeId\": \"%s\"%n"
           + "}";
 
-  private final String serviceName;
+  private final ServiceNaming serviceNaming;
   private final String env;
   private final String version;
   private final BatchUploader symbolUploader;
@@ -44,20 +44,27 @@ public class SymbolSink {
   }
 
   SymbolSink(Config config, BatchUploader symbolUploader) {
-    this.serviceName = TagsHelper.sanitize(config.getServiceName());
+    this.serviceNaming = config.getServiceNaming();
     this.env = config.getEnv();
     this.version = config.getVersion();
     this.symbolUploader = symbolUploader;
     byte[] eventContent =
         String.format(
-                EVENT_FORMAT, TagsHelper.sanitize(config.getServiceName()), config.getRuntimeId())
+                EVENT_FORMAT,
+                config.getServiceNaming().getSanitizedName().toString(),
+                config.getRuntimeId())
             .getBytes(StandardCharsets.UTF_8);
     this.event = new BatchUploader.MultiPartContent(eventContent, "event", "event.json");
   }
 
   public boolean addScope(Scope jarScope) {
     ServiceVersion serviceVersion =
-        new ServiceVersion(serviceName, env, version, "JAVA", Collections.singletonList(jarScope));
+        new ServiceVersion(
+            serviceNaming.getSanitizedName().toString(),
+            env,
+            version,
+            "JAVA",
+            Collections.singletonList(jarScope));
     return scopes.offer(serviceVersion);
   }
 

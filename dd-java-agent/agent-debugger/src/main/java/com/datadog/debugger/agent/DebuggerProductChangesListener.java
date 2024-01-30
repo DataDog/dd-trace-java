@@ -9,7 +9,7 @@ import com.squareup.moshi.JsonAdapter;
 import datadog.remoteconfig.state.ParsedConfigKey;
 import datadog.remoteconfig.state.ProductListener;
 import datadog.trace.api.Config;
-import datadog.trace.util.TagsHelper;
+import datadog.trace.api.naming.ServiceNaming;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.util.HashMap;
@@ -78,12 +78,12 @@ public class DebuggerProductChangesListener implements ProductListener {
               "^[0-9a-fA-F]{8}\\-[0-9a-fA-F]{4}\\-[0-9a-fA-F]{4}\\-[0-9a-fA-F]{4}\\-[0-9a-fA-F]{12}$")
           .asPredicate();
 
-  private final String serviceName;
+  private final ServiceNaming serviceNaming;
   private final ConfigurationAcceptor configurationAcceptor;
   private final Map<String, ConfigChunkBuilder> configChunks = new HashMap<>();
 
   DebuggerProductChangesListener(Config config, ConfigurationAcceptor configurationAcceptor) {
-    this.serviceName = TagsHelper.sanitize(config.getServiceName());
+    this.serviceNaming = config.getServiceNaming();
     this.configurationAcceptor = configurationAcceptor;
   }
 
@@ -108,7 +108,7 @@ public class DebuggerProductChangesListener implements ProductListener {
       configChunks.put(configId, (builder) -> builder.add(spanDecorationProbe));
     } else if (IS_UUID.test(configId)) {
       Configuration newConfig = Adapter.deserializeConfiguration(content);
-      if (newConfig.getService().equals(serviceName)) {
+      if (newConfig.getService().contentEquals(serviceNaming.getSanitizedName())) {
         configChunks.put(configId, (builder) -> builder.add(newConfig));
       } else {
         throw new IOException(
@@ -131,7 +131,8 @@ public class DebuggerProductChangesListener implements ProductListener {
   public void commit(
       datadog.remoteconfig.ConfigurationChangesListener.PollingRateHinter pollingRateHinter) {
 
-    Configuration.Builder builder = Configuration.builder().setService(serviceName);
+    Configuration.Builder builder =
+        Configuration.builder().setService(serviceNaming.getSanitizedName().toString());
 
     for (ConfigChunkBuilder chunk : configChunks.values()) {
       chunk.buildWith(builder);

@@ -22,6 +22,7 @@ import jakarta.jms.TemporaryTopic;
 import jakarta.jms.Topic;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
+import java.util.function.Supplier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -60,7 +61,7 @@ public final class JMSDecorator extends MessagingClientDecorator {
 
   private final String spanKind;
   private final CharSequence spanType;
-  private final String serviceName;
+  private final Supplier<String> serviceName;
 
   public static final JMSDecorator PRODUCER_DECORATE =
       new JMSDecorator(
@@ -89,7 +90,7 @@ public final class JMSDecorator extends MessagingClientDecorator {
           SpanNaming.instance().namingSchema().messaging().timeInQueueService(JMS.toString()));
 
   public JMSDecorator(
-      String resourcePrefix, String spanKind, CharSequence spanType, String serviceName) {
+      String resourcePrefix, String spanKind, CharSequence spanType, Supplier<String> serviceName) {
     this.resourcePrefix = resourcePrefix;
 
     this.queueTempResourceName = UTF8BytesString.create(resourcePrefix + "Temporary Queue");
@@ -115,7 +116,7 @@ public final class JMSDecorator extends MessagingClientDecorator {
 
   @Override
   protected String service() {
-    return serviceName;
+    return serviceName.get();
   }
 
   @Override

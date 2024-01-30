@@ -8,6 +8,7 @@ import com.datadog.debugger.symbol.Scope;
 import com.datadog.debugger.symbol.ScopeType;
 import com.datadog.debugger.uploader.BatchUploader;
 import datadog.trace.api.Config;
+import datadog.trace.api.naming.ServiceNaming;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -19,7 +20,7 @@ class SymbolSinkTest {
   public void testFlush() {
     SymbolUploaderMock symbolUploaderMock = new SymbolUploaderMock();
     Config config = mock(Config.class);
-    when(config.getServiceName()).thenReturn("service1");
+    when(config.getServiceNaming()).thenReturn(new ServiceNaming("service1", false));
     SymbolSink symbolSink = new SymbolSink(config, symbolUploaderMock);
     symbolSink.addScope(Scope.builder(ScopeType.JAR, null, 0, 0).build());
     symbolSink.flush();

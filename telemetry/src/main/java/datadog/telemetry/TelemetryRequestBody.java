@@ -12,6 +12,7 @@ import datadog.trace.api.Config;
 import datadog.trace.api.ConfigSetting;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.Platform;
+import datadog.trace.api.naming.ServiceNaming;
 import java.io.IOException;
 import java.util.concurrent.atomic.AtomicLong;
 import javax.annotation.Nullable;
@@ -43,7 +44,7 @@ public class TelemetryRequestBody extends RequestBody {
     final String runtimeName = Platform.getRuntimeVendor();
     final String runtimePatches = Platform.getRuntimePatches();
     final String runtimeVersion = Platform.getRuntimeVersion();
-    final String serviceName = config.getServiceName();
+    final ServiceNaming serviceNaming = config.getServiceNaming();
     final String serviceVersion = config.getVersion();
     final String runtimeId = config.getRuntimeId();
     final String architecture = HostInfo.getArchitecture();
@@ -74,7 +75,7 @@ public class TelemetryRequestBody extends RequestBody {
 
       bodyWriter.name("application");
       bodyWriter.beginObject();
-      bodyWriter.name("service_name").value(commonData.serviceName);
+      bodyWriter.name("service_name").value(commonData.serviceNaming.getCurrent().toString());
       bodyWriter.name("env").value(commonData.env);
       bodyWriter.name("service_version").value(commonData.serviceVersion);
       bodyWriter.name("tracer_version").value(TracerVersion.TRACER_VERSION);

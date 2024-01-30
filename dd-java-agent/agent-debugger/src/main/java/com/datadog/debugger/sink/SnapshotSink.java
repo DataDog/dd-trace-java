@@ -4,8 +4,8 @@ import com.datadog.debugger.agent.DebuggerAgent;
 import com.datadog.debugger.util.ExceptionHelper;
 import com.datadog.debugger.util.SnapshotPruner;
 import datadog.trace.api.Config;
+import datadog.trace.api.naming.ServiceNaming;
 import datadog.trace.relocate.api.RatelimitedLogger;
-import datadog.trace.util.TagsHelper;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ArrayBlockingQueue;
@@ -22,13 +22,13 @@ public class SnapshotSink {
   private static final int MINUTES_BETWEEN_ERROR_LOG = 5;
 
   private final BlockingQueue<Snapshot> snapshots = new ArrayBlockingQueue<>(CAPACITY);
-  private final String serviceName;
+  private final ServiceNaming serviceNaming;
   private final int batchSize;
   private final RatelimitedLogger ratelimitedLogger =
       new RatelimitedLogger(LOGGER, MINUTES_BETWEEN_ERROR_LOG, TimeUnit.MINUTES);
 
   public SnapshotSink(Config config) {
-    this.serviceName = TagsHelper.sanitize(config.getServiceName());
+    this.serviceNaming = config.getServiceNaming();
     this.batchSize = config.getDebuggerUploadBatchSize();
   }
 
@@ -38,7 +38,8 @@ public class SnapshotSink {
     List<String> serializedSnapshots = new ArrayList<>();
     for (Snapshot snapshot : snapshots) {
       try {
-        String strSnapshot = serializeSnapshot(serviceName, snapshot);
+        String strSnapshot =
+            serializeSnapshot(serviceNaming.getSanitizedName().toString(), snapshot);
         serializedSnapshots.add(strSnapshot);
         LOGGER.debug("Sending snapshot for probe: {}", snapshot.getProbe().getId());
       } catch (Exception e) {

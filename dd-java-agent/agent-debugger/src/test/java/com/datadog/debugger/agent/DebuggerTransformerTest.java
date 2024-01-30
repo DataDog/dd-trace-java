@@ -27,6 +27,7 @@ import datadog.trace.api.Config;
 import datadog.trace.api.GlobalTracer;
 import datadog.trace.api.Tracer;
 import datadog.trace.api.config.TraceInstrumentationConfig;
+import datadog.trace.api.naming.ServiceNaming;
 import datadog.trace.bootstrap.debugger.CapturedContext;
 import datadog.trace.bootstrap.debugger.CorrelationAccess;
 import datadog.trace.bootstrap.debugger.DebuggerContext;
@@ -412,6 +413,8 @@ public class DebuggerTransformerTest {
         .thenReturn("http://localhost:8126/debugger/v1/input");
     when(config.getFinalDebuggerSymDBUrl()).thenReturn("http://localhost:8126/symdb/v1/input");
     when(config.getDebuggerUploadBatchSize()).thenReturn(100);
+    final ServiceNaming serviceNaming = new ServiceNaming(SERVICE_NAME, false);
+    when(config.getServiceNaming()).thenReturn(serviceNaming);
     return config;
   }
 

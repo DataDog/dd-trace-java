@@ -15,6 +15,7 @@ import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.MessagingClientDecorator;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
+import java.util.function.Supplier;
 import javax.jms.Destination;
 import javax.jms.JMSException;
 import javax.jms.Message;
@@ -60,7 +61,7 @@ public final class JMSDecorator extends MessagingClientDecorator {
 
   private final String spanKind;
   private final CharSequence spanType;
-  private final String serviceName;
+  private final Supplier<String> serviceName;
 
   public static final JMSDecorator PRODUCER_DECORATE =
       new JMSDecorator(
@@ -90,7 +91,7 @@ public final class JMSDecorator extends MessagingClientDecorator {
           SpanNaming.instance().namingSchema().messaging().timeInQueueService(JMS.toString()));
 
   public JMSDecorator(
-      String resourcePrefix, String spanKind, CharSequence spanType, String serviceName) {
+      String resourcePrefix, String spanKind, CharSequence spanType, Supplier<String> serviceName) {
     this.resourcePrefix = resourcePrefix;
 
     this.queueTempResourceName = UTF8BytesString.create(resourcePrefix + "Temporary Queue");
@@ -122,7 +123,7 @@ public final class JMSDecorator extends MessagingClientDecorator {
 
   @Override
   protected String service() {
-    return serviceName;
+    return serviceName.get();
   }
 
   @Override

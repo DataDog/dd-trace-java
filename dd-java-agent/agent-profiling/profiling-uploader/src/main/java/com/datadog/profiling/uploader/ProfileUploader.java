@@ -27,6 +27,7 @@ import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.git.GitInfo;
 import datadog.trace.api.git.GitInfoProvider;
+import datadog.trace.api.naming.ServiceNaming;
 import datadog.trace.api.profiling.RecordingData;
 import datadog.trace.api.profiling.RecordingType;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
@@ -108,7 +109,8 @@ public final class ProfileUploader {
               + "\"; filename=\""
               + V4_ATTACHMENT_FILENAME
               + "\"");
-
+  // Comma separated tags string for V2.4 format
+  private static final Pattern quotes = Pattern.compile("\"");
   private final Config config;
   private final ConfigProvider configProvider;
 
@@ -170,11 +172,10 @@ public final class ProfileUploader {
       tagsMap.put(Tags.GIT_COMMIT_SHA, gitInfo.getCommit().getSha());
     }
 
-    // Comma separated tags string for V2.4 format
-    Pattern quotes = Pattern.compile("\"");
     jsonAdapter =
         new RecordingDataAdapter(
-            quotes.matcher(String.join(",", tagsToList(tagsMap))).replaceAll(""));
+            quotes.matcher(String.join(",", tagsToList(tagsMap))).replaceAll(""),
+            config.getServiceNaming());
     uploadTimeout = Duration.ofSeconds(config.getProfilingUploadTimeout());
 
     // This is the same thing OkHttp Dispatcher is doing except thread naming and daemonization
@@ -444,8 +445,11 @@ public final class ProfileUploader {
 
     private final String tags;
 
-    private RecordingDataAdapter(String tags) {
+    private final ServiceNaming serviceNaming;
+
+    private RecordingDataAdapter(String tags, ServiceNaming serviceNaming) {
       this.tags = tags;
+      this.serviceNaming = serviceNaming;
     }
 
     @Nullable
@@ -465,7 +469,12 @@ public final class ProfileUploader {
       writer.value(V4_ATTACHMENT_FILENAME);
       writer.endArray();
       writer.name(V4_PROFILE_TAGS_PARAM);
-      writer.value(tags + ",snapshot:" + recordingData.getKind().name().toLowerCase(Locale.ROOT));
+      writer.value(
+          tags
+              + ",snapshot:"
+              + recordingData.getKind().name().toLowerCase(Locale.ROOT)
+              + ",service:"
+              + serviceNaming.getSanitizedName().toString());
       writer.name(V4_PROFILE_START_PARAM);
       writer.value(recordingData.getStart().toString());
       writer.name(V4_PROFILE_END_PARAM);

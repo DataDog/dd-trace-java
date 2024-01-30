@@ -1,16 +1,16 @@
 package datadog.trace.core.tagprocessor;
 
 import datadog.trace.api.DDTags;
-import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
+import datadog.trace.api.naming.ServiceNaming;
 import datadog.trace.core.DDSpanContext;
 import java.util.Map;
-import javax.annotation.Nullable;
+import javax.annotation.Nonnull;
 
 public class BaseServiceAdder implements TagsPostProcessor {
-  private final UTF8BytesString ddService;
+  private final ServiceNaming serviceNaming;
 
-  public BaseServiceAdder(@Nullable final String ddService) {
-    this.ddService = ddService != null ? UTF8BytesString.create(ddService) : null;
+  public BaseServiceAdder(@Nonnull final ServiceNaming serviceNaming) {
+    this.serviceNaming = serviceNaming;
   }
 
   @Override
@@ -22,8 +22,8 @@ public class BaseServiceAdder implements TagsPostProcessor {
   @Override
   public Map<String, Object> processTagsWithContext(
       Map<String, Object> unsafeTags, DDSpanContext spanContext) {
-    if (ddService != null && !ddService.toString().equalsIgnoreCase(spanContext.getServiceName())) {
-      unsafeTags.put(DDTags.BASE_SERVICE, ddService);
+    if (!serviceNaming.getCurrent().toString().equalsIgnoreCase(spanContext.getServiceName())) {
+      unsafeTags.put(DDTags.BASE_SERVICE, serviceNaming.getCurrent());
     }
     return unsafeTags;
   }

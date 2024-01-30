@@ -14,6 +14,7 @@ import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.MessagingClientDecorator;
+import java.util.function.Supplier;
 import org.apache.kafka.streams.processor.internals.ProcessorNode;
 import org.apache.kafka.streams.processor.internals.ProcessorRecordContext;
 import org.apache.kafka.streams.processor.internals.StampedRecord;
@@ -34,7 +35,7 @@ public class KafkaStreamsDecorator extends MessagingClientDecorator {
 
   private final String spanKind;
   private final CharSequence spanType;
-  private final String serviceName;
+  private final Supplier<String> serviceName;
 
   private static final DDCache<CharSequence, CharSequence> RESOURCE_NAME_CACHE =
       DDCaches.newFixedSizeCache(32);
@@ -55,7 +56,8 @@ public class KafkaStreamsDecorator extends MessagingClientDecorator {
           InternalSpanTypes.MESSAGE_BROKER,
           SpanNaming.instance().namingSchema().messaging().timeInQueueService(KAFKA));
 
-  protected KafkaStreamsDecorator(String spanKind, CharSequence spanType, String serviceName) {
+  protected KafkaStreamsDecorator(
+      String spanKind, CharSequence spanType, Supplier<String> serviceName) {
     this.spanKind = spanKind;
     this.spanType = spanType;
     this.serviceName = serviceName;
@@ -68,7 +70,7 @@ public class KafkaStreamsDecorator extends MessagingClientDecorator {
 
   @Override
   protected String service() {
-    return serviceName;
+    return serviceName.get();
   }
 
   @Override

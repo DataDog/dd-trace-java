@@ -21,6 +21,7 @@ import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.MessagingClientDecorator;
 import java.util.LinkedHashMap;
 import java.util.function.Function;
+import java.util.function.Supplier;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -84,9 +85,9 @@ public class PubSubDecorator extends MessagingClientDecorator {
           SpanNaming.instance().namingSchema().messaging().inboundService(PUBSUB, true));
   private final String spanKind;
   private final CharSequence spanType;
-  private final String serviceName;
+  private final Supplier<String> serviceName;
 
-  protected PubSubDecorator(String spanKind, CharSequence spanType, String serviceName) {
+  protected PubSubDecorator(String spanKind, CharSequence spanType, Supplier<String> serviceName) {
     this.spanKind = spanKind;
     this.spanType = spanType;
     this.serviceName = serviceName;
@@ -104,7 +105,7 @@ public class PubSubDecorator extends MessagingClientDecorator {
 
   @Override
   protected String service() {
-    return serviceName;
+    return serviceName.get();
   }
 
   @Override

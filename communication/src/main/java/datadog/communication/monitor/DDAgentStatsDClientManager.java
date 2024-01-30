@@ -140,11 +140,15 @@ public final class DDAgentStatsDClientManager implements StatsDClientManager {
 
     @Override
     public String[] apply(final String[] tags) {
-      if (null == tags || tags.length == 0) {
-        return packedTags; // no per-call tags so we can use the pre-packed array
+      final String[] expanded;
+      if (tags == null || tags.length == 0) {
+        expanded = new String[1];
       } else {
-        return combinedTags.computeIfAbsent(tags, tagsInserter);
+        expanded = new String[tags.length + 1];
+        System.arraycopy(tags, 0, expanded, 1, tags.length);
       }
+      expanded[0] = "service:" + Config.get().getServiceNaming().getCurrent();
+      return combinedTags.computeIfAbsent(expanded, tagsInserter);
     }
 
     /**

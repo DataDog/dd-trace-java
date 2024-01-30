@@ -1,6 +1,7 @@
 
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery
 import datadog.communication.http.OkHttpUtils
+import datadog.trace.api.Config
 import datadog.trace.api.WellKnownTags
 import datadog.trace.common.metrics.AggregateMetric
 import datadog.trace.common.metrics.EventListener
@@ -34,7 +35,7 @@ class MetricsIntegrationTest extends DDSpecification {
 
     when:
     SerializingMetricWriter writer = new SerializingMetricWriter(
-      new WellKnownTags("runtimeid","hostname", "env", "service", "version","language"),
+      new WellKnownTags("runtimeid","hostname", "env", Config.get().getServiceNaming(), "version","language"),
       sink
       )
     writer.startBucket(2, System.nanoTime(), SECONDS.toNanos(10))

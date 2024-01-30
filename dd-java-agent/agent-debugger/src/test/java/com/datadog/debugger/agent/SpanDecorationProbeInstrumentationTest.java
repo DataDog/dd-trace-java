@@ -32,6 +32,7 @@ import datadog.trace.agent.tooling.TracerInstaller;
 import datadog.trace.api.Config;
 import datadog.trace.api.interceptor.MutableSpan;
 import datadog.trace.api.interceptor.TraceInterceptor;
+import datadog.trace.api.naming.ServiceNaming;
 import datadog.trace.bootstrap.debugger.CapturedContext;
 import datadog.trace.bootstrap.debugger.DebuggerContext;
 import datadog.trace.bootstrap.debugger.MethodLocation;
@@ -72,6 +73,13 @@ public class SpanDecorationProbeInstrumentationTest extends ProbeInstrumentation
   public void after() {
     super.after();
     Redaction.clearUserDefinedTypes();
+  }
+
+  private Config mockConfig() {
+    final Config config = mock(Config.class);
+    final ServiceNaming serviceNaming = new ServiceNaming(SERVICE_NAME, false);
+    when(config.getServiceNaming()).thenReturn(serviceNaming);
+    return config;
   }
 
   @Test
@@ -429,7 +437,7 @@ public class SpanDecorationProbeInstrumentationTest extends ProbeInstrumentation
   @Test
   public void typeRedaction() throws IOException, URISyntaxException {
     final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot28";
-    Config config = mock(Config.class);
+    Config config = mockConfig();
     when(config.getDebuggerRedactedTypes())
         .thenReturn("com.datadog.debugger.CapturedSnapshot28$Creds");
     Redaction.addUserDefinedTypes(config);
@@ -464,7 +472,7 @@ public class SpanDecorationProbeInstrumentationTest extends ProbeInstrumentation
   @Test
   public void typeRedactionConditions() throws IOException, URISyntaxException {
     final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot28";
-    Config config = mock(Config.class);
+    Config config = mockConfig();
     when(config.getDebuggerRedactedTypes())
         .thenReturn("com.datadog.debugger.CapturedSnapshot28$Creds");
     Redaction.addUserDefinedTypes(config);
@@ -636,7 +644,7 @@ public class SpanDecorationProbeInstrumentationTest extends ProbeInstrumentation
   }
 
   private void installSpanDecorationProbes(String expectedClassName, Configuration configuration) {
-    Config config = mock(Config.class);
+    Config config = mockConfig();
     when(config.isDebuggerEnabled()).thenReturn(true);
     when(config.isDebuggerClassFileDumpEnabled()).thenReturn(true);
     when(config.getFinalDebuggerSnapshotUrl())

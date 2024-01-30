@@ -25,6 +25,7 @@ import com.datadog.debugger.probe.MetricProbe;
 import com.datadog.debugger.sink.DebuggerSink;
 import com.datadog.debugger.sink.ProbeStatusSink;
 import datadog.trace.api.Config;
+import datadog.trace.api.naming.ServiceNaming;
 import datadog.trace.bootstrap.debugger.DebuggerContext;
 import datadog.trace.bootstrap.debugger.MethodLocation;
 import datadog.trace.bootstrap.debugger.ProbeId;
@@ -1273,6 +1274,8 @@ public class MetricProbesInstrumentationTest {
     Config config = mock(Config.class);
     when(config.isDebuggerEnabled()).thenReturn(true);
     when(config.isDebuggerClassFileDumpEnabled()).thenReturn(true);
+    final ServiceNaming serviceNaming = new ServiceNaming(SERVICE_NAME, false);
+    when(config.getServiceNaming()).thenReturn(serviceNaming);
     when(config.getFinalDebuggerSnapshotUrl())
         .thenReturn("http://localhost:8126/debugger/v1/input");
     when(config.getFinalDebuggerSymDBUrl()).thenReturn("http://localhost:8126/symdb/v1/input");

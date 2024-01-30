@@ -13,10 +13,10 @@ import com.datadog.debugger.probe.SpanProbe;
 import com.datadog.debugger.sink.DebuggerSink;
 import com.datadog.debugger.util.ExceptionHelper;
 import datadog.trace.api.Config;
+import datadog.trace.api.naming.ServiceNaming;
 import datadog.trace.bootstrap.debugger.DebuggerContext;
 import datadog.trace.bootstrap.debugger.ProbeImplementation;
 import datadog.trace.bootstrap.debugger.ProbeRateLimiter;
-import datadog.trace.util.TagsHelper;
 import java.lang.instrument.Instrumentation;
 import java.util.Collection;
 import java.util.Collections;
@@ -61,7 +61,8 @@ public class ConfigurationUpdater
   private final DebuggerSink sink;
   private final ClassesToRetransformFinder finder;
   private final ExceptionProbeManager exceptionProbeManager;
-  private final String serviceName;
+  private final ServiceNaming serviceNaming;
+
   private final Map<String, InstrumentationResult> instrumentationResults =
       new ConcurrentHashMap<>();
 
@@ -74,7 +75,7 @@ public class ConfigurationUpdater
       ExceptionProbeManager exceptionProbeManager) {
     this.instrumentation = instrumentation;
     this.transformerSupplier = transformerSupplier;
-    this.serviceName = TagsHelper.sanitize(config.getServiceName());
+    this.serviceNaming = config.getServiceNaming();
     this.sink = sink;
     this.finder = finder;
     this.exceptionProbeManager = exceptionProbeManager;
@@ -147,7 +148,7 @@ public class ConfigurationUpdater
         .addAllowList(configuration.getAllowList())
         .addDenyList(configuration.getDenyList())
         .setSampling(configuration.getSampling())
-        .setService(configuration.getService())
+        .setService(serviceNaming.getSanitizedName().toString())
         .build();
   }
 
@@ -222,7 +223,7 @@ public class ConfigurationUpdater
           .setSampling(currentConfiguration.getSampling())
           .build();
     }
-    return Configuration.builder().setService(serviceName).build();
+    return Configuration.builder().setService(serviceNaming.getSanitizedName().toString()).build();
   }
 
   private void retransformClasses(List<Class<?>> classesToBeTransformed) {

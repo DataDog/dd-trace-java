@@ -14,6 +14,7 @@ import com.datadog.debugger.probe.LogProbe;
 import com.datadog.debugger.sink.ProbeStatusSink;
 import com.datadog.debugger.sink.Snapshot;
 import datadog.trace.api.Config;
+import datadog.trace.api.naming.ServiceNaming;
 import datadog.trace.bootstrap.debugger.DebuggerContext;
 import datadog.trace.bootstrap.debugger.MethodLocation;
 import datadog.trace.bootstrap.debugger.ProbeId;
@@ -542,6 +543,7 @@ public class LogProbesInstrumentationTest {
         .thenReturn("http://localhost:8126/debugger/v1/input");
     when(config.getFinalDebuggerSymDBUrl()).thenReturn("http://localhost:8126/symdb/v1/input");
     when(config.getDebuggerUploadBatchSize()).thenReturn(100);
+    when(config.getServiceNaming()).thenReturn(new ServiceNaming("", false));
     DebuggerContext.ProbeResolver resolver =
         (encodedProbeId) -> resolver(encodedProbeId, configuration.getLogProbes());
     currentTransformer = new DebuggerTransformer(config, configuration);
