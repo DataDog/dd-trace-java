@@ -42,6 +42,7 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
   public static final String V01_DATASTREAMS_ENDPOINT = "v0.1/pipeline_stats";
 
   public static final String V2_EVP_PROXY_ENDPOINT = "evp_proxy/v2/";
+  public static final String V4_EVP_PROXY_ENDPOINT = "evp_proxy/v4/";
 
   public static final String DATADOG_AGENT_STATE = "Datadog-Agent-State";
 
@@ -60,7 +61,9 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
   private final String[] configEndpoints = {V7_CONFIG_ENDPOINT};
   private final boolean metricsEnabled;
   private final String[] dataStreamsEndpoints = {V01_DATASTREAMS_ENDPOINT};
-  private final String[] evpProxyEndpoints = {V2_EVP_PROXY_ENDPOINT};
+  // ordered from most recent to least recent, as the logic will stick with the first one that is
+  // available
+  private final String[] evpProxyEndpoints = {V4_EVP_PROXY_ENDPOINT, V2_EVP_PROXY_ENDPOINT};
   private final String[] telemetryProxyEndpoints = {TELEMETRY_PROXY_ENDPOINT};
 
   private volatile String traceEndpoint;
@@ -357,6 +360,11 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
 
   public boolean supportsEvpProxy() {
     return evpProxyEndpoint != null;
+  }
+
+  public boolean supportsContentEncodingHeadersWithEvpProxy() {
+    // content encoding headers are supported in /v4 and above
+    return evpProxyEndpoint != null && V4_EVP_PROXY_ENDPOINT.compareTo(evpProxyEndpoint) <= 0;
   }
 
   public String getConfigEndpoint() {

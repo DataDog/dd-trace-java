@@ -54,8 +54,8 @@ public class PayloadDispatcherImpl implements ByteBufferConsumer, PayloadDispatc
   }
 
   @Override
-  public Collection<Class<? extends RemoteApi>> getApis() {
-    return Collections.singleton(api.getClass());
+  public Collection<RemoteApi> getApis() {
+    return Collections.singleton(api);
   }
 
   @Override

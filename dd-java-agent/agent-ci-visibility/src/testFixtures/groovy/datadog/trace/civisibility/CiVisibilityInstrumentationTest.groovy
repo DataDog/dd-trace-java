@@ -204,11 +204,11 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
   }
 
   def getEventsAsJson(List<List<DDSpan>> traces) {
-    return getSpansAsJson(new CiTestCycleMapperV1(Config.get().getWellKnownTags()), traces)
+    return getSpansAsJson(new CiTestCycleMapperV1(Config.get().getWellKnownTags(), false), traces)
   }
 
   def getCoveragesAsJson(List<List<DDSpan>> traces) {
-    return getSpansAsJson(new CiTestCovMapperV2(), traces)
+    return getSpansAsJson(new CiTestCovMapperV2(false), traces)
   }
 
   def getSpansAsJson(RemoteMapper mapper, List<List<DDSpan>> traces) {
