@@ -9,18 +9,24 @@ description = 'SpringBoot GraphQL Smoke Tests.'
 // so we'll build a fat jar instead
 jar {
   manifest {
-    attributes('Main-Class': 'datadog.smoketest.appsec.springboot-graphql.SpringbootApplication')
+    attributes('Main-Class': 'datadog.smoketest.appsec.springbootgraphql.SpringbootGraphqlApplication')
   }
 }
 
-// Use Java 17 to build application
+shadowJar {
+  mergeServiceFiles {
+    include 'META-INF/spring.*'
+  }
+}
+
+// Use Java 11 to build application
 tasks.withType(JavaCompile) {
-  setJavaVersion(delegate, 17)
+  setJavaVersion(delegate, 11)
 }
 
 dependencies {
-  implementation group: 'org.springframework.boot', name: 'spring-boot-starter-web', version: '3.1.5'
-  implementation group: 'org.springframework.boot', name: 'spring-boot-starter-graphql', version: '3.1.5'
+  implementation group: 'org.springframework.boot', name: 'spring-boot-starter-web', version: '2.7.0'
+  implementation group: 'org.springframework.boot', name: 'spring-boot-starter-graphql', version: '2.7.0'
   implementation(group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: '2.15.3')
 
   testImplementation project(':dd-smoke-tests:appsec')
@@ -29,11 +35,11 @@ dependencies {
 tasks.withType(Test).configureEach {
   dependsOn "shadowJar"
 
-  jvmArgs "-Ddatadog.smoketest.appsec.springboot.shadowJar.path=${tasks.shadowJar.archiveFile.get()}"
+  jvmArgs "-Ddatadog.smoketest.appsec.springboot-graphql.shadowJar.path=${tasks.shadowJar.archiveFile.get()}"
 }
 
 task testRuntimeActivation(type: Test) {
   jvmArgs '-Dsmoke_test.appsec.enabled=inactive',
-    "-Ddatadog.smoketest.appsec.springboot.shadowJar.path=${tasks.shadowJar.archiveFile.get()}"
+    "-Ddatadog.smoketest.appsec.springboot-graphql.shadowJar.path=${tasks.shadowJar.archiveFile.get()}"
 }
 tasks['check'].dependsOn(testRuntimeActivation)
