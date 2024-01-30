@@ -55,6 +55,14 @@ public interface TraceSegment {
    */
   void setDataTop(String key, Object value);
 
+  /**
+   * Gets the value of the tag from the top of this {@code TraceSegment}.
+   *
+   * @param key key of the data
+   * @return value of the data
+   */
+  Object getDataTop(String key);
+
   /** Mark the request as effectively blocked, by setting the tag appsec.blocked */
   void effectivelyBlocked();
 
@@ -66,6 +74,14 @@ public interface TraceSegment {
    * @param value value of the data
    */
   void setDataCurrent(String key, Object value);
+
+  /**
+   * Gets the value of the tag from the current span in this {@code TraceSegment}.
+   *
+   * @param key key of the data
+   * @return value of the data
+   */
+  Object getDataCurrent(String key);
 
   class NoOp implements TraceSegment {
     public static final TraceSegment INSTANCE = new NoOp();
@@ -82,9 +98,19 @@ public interface TraceSegment {
     public void setDataTop(String key, Object value) {}
 
     @Override
+    public Object getDataTop(String key) {
+      return null;
+    }
+
+    @Override
     public void effectivelyBlocked() {}
 
     @Override
     public void setDataCurrent(String key, Object value) {}
+
+    @Override
+    public Object getDataCurrent(String key) {
+      return null;
+    }
   }
 }
