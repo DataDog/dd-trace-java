@@ -81,12 +81,12 @@ class MatchersTest extends DDSpecification {
     "*"     | null                     | true
     "?"     | null                     | false
   }
-  
+
   // helper functions - to subvert codenarc
   static bigInteger(str) {
     return new BigInteger(str)
   }
-  
+
   static bigDecimal(str) {
     return new BigDecimal(str)
   }
