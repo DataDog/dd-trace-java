@@ -9,6 +9,7 @@ import java.util.concurrent.atomic.AtomicInteger
 
 import static datadog.trace.util.AgentThreadFactory.AgentThread.TASK_SCHEDULER
 import static java.util.concurrent.TimeUnit.MILLISECONDS
+import static java.util.concurrent.TimeUnit.NANOSECONDS
 import static java.util.concurrent.TimeUnit.SECONDS
 
 class AgentTaskSchedulerTest extends DDSpecification {
@@ -90,6 +91,38 @@ class AgentTaskSchedulerTest extends DDSpecification {
     then:
     latch.await(500, MILLISECONDS)
     scheduler.taskCount() == 0
+  }
+
+  def delta(long l1, long l2, float ratio, long expected) {
+    def d = l1 - l2
+    def interval = (d * ratio).longValue()
+    (d >= expected - interval) && (d <= expected + interval)
+  }
+
+  def "test fixed delay"() {
+    setup:
+    def latch = new CountDownLatch(3)
+    def timestamps = new ArrayList<Long>()
+    def task = new AgentTaskScheduler.Task<CountDownLatch>() {
+        @Override
+        void run(CountDownLatch target) {
+          timestamps.add(System.nanoTime())
+          Thread.sleep(100)
+          target.countDown()
+        }
+      }
+
+    expect:
+    !scheduler.isShutdown()
+
+    when:
+    scheduler.scheduleWithFixedDelay(task, latch, 0, 200, MILLISECONDS)
+    scheduler.taskCount() == 1
+
+    then:
+    latch.await(1000, MILLISECONDS)
+    delta(timestamps.get(1), timestamps.get(0), 0.1, NANOSECONDS.convert(300, MILLISECONDS))
+    delta(timestamps.get(2), timestamps.get(1), 0.1, NANOSECONDS.convert(300, MILLISECONDS))
   }
 
   def "test cancel"() {
