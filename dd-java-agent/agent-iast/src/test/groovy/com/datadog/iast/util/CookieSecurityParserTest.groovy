@@ -30,6 +30,7 @@ class CookieSecurityParserTest extends Specification {
 
     where:
     header                                                                                                                                                       | cookieName | isSecure | isHttpOnly | sameSite
+    "Set-Cookie: user-id="                                                                                                                                       | "user-id"  | false    | false      | null
     "Set-Cookie: user-id=7"                                                                                                                                      | "user-id"  | false    | false      | null
     'Set-Cookie: user-id="7"'                                                                                                                                    | "user-id"  | false    | false      | null
     "Set-Cookie: user-id=7;Secure"                                                                                                                               | "user-id"  | true     | false      | null
