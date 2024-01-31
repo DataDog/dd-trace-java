@@ -6,7 +6,6 @@ import com.datadog.iast.model.Vulnerability
 import com.datadog.iast.model.VulnerabilityType
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.util.Cookie
-import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import groovy.transform.CompileDynamic
 
 @CompileDynamic
