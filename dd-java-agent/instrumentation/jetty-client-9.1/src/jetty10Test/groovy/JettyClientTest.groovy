@@ -6,7 +6,9 @@ import org.eclipse.jetty.client.HttpResponseException
 import org.eclipse.jetty.client.api.Request
 import org.eclipse.jetty.client.api.Response
 import org.eclipse.jetty.client.api.Result
+import org.eclipse.jetty.client.dynamic.HttpClientTransportDynamic
 import org.eclipse.jetty.client.util.StringContentProvider
+import org.eclipse.jetty.io.ClientConnector
 import org.eclipse.jetty.util.ssl.SslContextFactory
 import spock.lang.Shared
 import spock.lang.Subject
@@ -17,23 +19,28 @@ abstract class JettyClientTest extends HttpClientTest {
 
   @Shared
   @Subject
-  HttpClient client = new HttpClient(new SslContextFactory(true))
+  HttpClient client = createHttpClient()
 
   @Shared
-  HttpClient proxiedClient = new HttpClient(new SslContextFactory(true))
+  HttpClient proxiedClient = createHttpClient()
+
+  def createHttpClient() {
+    SslContextFactory.Client sslContextFactory = new SslContextFactory.Client(true)
+    ClientConnector clientConnector = new ClientConnector()
+    clientConnector.setSslContextFactory(sslContextFactory)
+    return new HttpClient(new HttpClientTransportDynamic(clientConnector))
+  }
 
   def setupSpec() {
     client.connectTimeout = CONNECT_TIMEOUT_MS
     client.addressResolutionTimeout = CONNECT_TIMEOUT_MS
     client.idleTimeout = READ_TIMEOUT_MS
-    client.stopTimeout = READ_TIMEOUT_MS
     client.start()
 
     proxiedClient.proxyConfiguration.proxies.add(new HttpProxy("localhost", proxy.port))
     proxiedClient.connectTimeout = CONNECT_TIMEOUT_MS
     proxiedClient.addressResolutionTimeout = CONNECT_TIMEOUT_MS
     proxiedClient.idleTimeout = READ_TIMEOUT_MS
-    proxiedClient.stopTimeout = READ_TIMEOUT_MS
     proxiedClient.start()
   }
 

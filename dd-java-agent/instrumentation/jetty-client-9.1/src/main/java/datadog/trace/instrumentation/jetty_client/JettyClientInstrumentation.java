@@ -16,6 +16,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.ExcludeFilterProvider;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.muzzle.Reference;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator;
@@ -30,6 +31,18 @@ import org.eclipse.jetty.client.api.Response;
 @AutoService(Instrumenter.class)
 public class JettyClientInstrumentation extends Instrumenter.Tracing
     implements Instrumenter.ForSingleType, ExcludeFilterProvider {
+
+  private static final Reference HTTP_FIELDS_SIMPLIFIED_MUZZLE_REFERENCE =
+      new Reference.Builder("org.eclipse.jetty.http.HttpFields")
+          .withFlag(Reference.EXPECTS_PUBLIC)
+          .withMethod(
+              new String[0],
+              Reference.EXPECTS_PUBLIC,
+              "get",
+              "Ljava/lang/String;",
+              "Ljava/lang/String;")
+          .build();
+
   public JettyClientInstrumentation() {
     super("jetty-client");
   }
@@ -72,6 +85,18 @@ public class JettyClientInstrumentation extends Instrumenter.Tracing
   @Override
   public Map<ExcludeFilter.ExcludeType, ? extends Collection<String>> excludedClasses() {
     return singletonMap(RUNNABLE, singletonList("org.eclipse.jetty.util.SocketAddressResolver$1"));
+  }
+
+  @Override
+  public String[] muzzleIgnoredClassNames() {
+    return new String[] {
+      "org.eclipse.jetty.http.HttpFields",
+    };
+  }
+
+  @Override
+  public Reference[] additionalMuzzleReferences() {
+    return new Reference[] {HTTP_FIELDS_SIMPLIFIED_MUZZLE_REFERENCE};
   }
 
   public static class SendAdvice {
