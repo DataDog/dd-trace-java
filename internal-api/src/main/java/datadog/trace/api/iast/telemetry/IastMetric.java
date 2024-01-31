@@ -137,7 +137,8 @@ public enum IastMetric {
     public static final Tag VULNERABILITY_TYPE =
         new Tag("vulnerability_type", VulnerabilityTypes.STRINGS, VulnerabilityTypes::unwrap);
 
-    public static final Tag SOURCE_TYPE = new Tag("source_type", SourceTypes.STRINGS);
+    public static final Tag SOURCE_TYPE =
+        new Tag("source_type", SourceTypes.STRINGS, SourceTypes::unwrap);
 
     private final String name;
 
