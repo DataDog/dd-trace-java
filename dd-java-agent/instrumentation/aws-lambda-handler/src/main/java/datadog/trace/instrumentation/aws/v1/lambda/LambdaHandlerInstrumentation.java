@@ -63,15 +63,15 @@ public class LambdaHandlerInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
+  public void methodAdvice(MethodTransformer transformer) {
     // two args
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod()
             .and(named("handleRequest"))
             .and(takesArgument(1, named("com.amazonaws.services.lambda.runtime.Context"))),
         getClass().getName() + "$ExtensionCommunicationAdvice");
     // three args (streaming)
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod()
             .and(named("handleRequest"))
             .and(takesArgument(2, named("com.amazonaws.services.lambda.runtime.Context"))),

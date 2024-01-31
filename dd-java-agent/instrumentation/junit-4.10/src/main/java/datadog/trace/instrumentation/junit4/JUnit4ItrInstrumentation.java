@@ -61,8 +61,8 @@ public class JUnit4ItrInstrumentation extends Instrumenter.CiVisibility
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         named("runChild")
             .and(takesArguments(2))
             .and(takesArgument(1, named("org.junit.runner.notification.RunNotifier"))),

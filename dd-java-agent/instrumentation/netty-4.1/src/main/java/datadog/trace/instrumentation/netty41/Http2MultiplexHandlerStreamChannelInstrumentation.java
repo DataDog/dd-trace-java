@@ -27,8 +27,8 @@ public class Http2MultiplexHandlerStreamChannelInstrumentation extends Instrumen
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         ElementMatchers.isConstructor(), getClass().getName() + "$PropagateContextAdvice");
   }
 

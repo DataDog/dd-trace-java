@@ -21,17 +21,17 @@ public class HttpHeadersInstrumentation extends Instrumenter.Iast
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isMethod().and(named("get")).and(takesArguments(Object.class)),
         packageName + ".TaintHttpHeadersGetAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod().and(named("getFirst")).and(takesArguments(String.class)),
         packageName + ".TaintHttpHeadersGetFirstAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod().and(named("toSingleValueMap")).and(takesArguments(0)),
         packageName + ".TaintHttpHeadersToSingleValueMapAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod().and(named("readOnlyHttpHeaders")).and(takesArguments(1)),
         packageName + ".TaintReadOnlyHttpHeadersAdvice");
   }

@@ -34,14 +34,14 @@ public abstract class AbstractHttpServerRequestInstrumentation extends Instrumen
   }
 
   @Override
-  public void adviceTransformations(final AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(final MethodTransformer transformer) {
+    transformer.applyAdvice(
         isPublic().and(isMethod()).and(named("params")).and(takesNoArguments()),
         className + "$ParamsAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod().and(takesNoArguments()).and(attributesFilter()),
         className + "$AttributesAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod()
             .and(named("handleData").or(named("onData")))
             .and(takesArguments(1).and(takesArgument(0, named("io.vertx.core.buffer.Buffer")))),

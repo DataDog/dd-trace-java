@@ -36,8 +36,8 @@ public class IgniteCacheAsyncInstrumentation extends AbstractIgniteCacheInstrume
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isMethod()
             .and(isPublic())
             .and(
@@ -53,7 +53,7 @@ public class IgniteCacheAsyncInstrumentation extends AbstractIgniteCacheInstrume
                     "putAllAsync",
                     "removeAllAsync")),
         IgniteCacheAsyncInstrumentation.class.getName() + "$IgniteAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod()
             .and(isPublic())
             .and(

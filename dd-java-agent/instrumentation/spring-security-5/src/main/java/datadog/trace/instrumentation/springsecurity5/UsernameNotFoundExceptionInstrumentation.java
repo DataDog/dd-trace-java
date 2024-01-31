@@ -37,8 +37,8 @@ public class UsernameNotFoundExceptionInstrumentation extends Instrumenter.AppSe
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isConstructor().and(takesArgument(0, named("java.lang.String"))).and(isPublic()),
         packageName + ".UsernameNotFoundExceptionAdvice");
   }

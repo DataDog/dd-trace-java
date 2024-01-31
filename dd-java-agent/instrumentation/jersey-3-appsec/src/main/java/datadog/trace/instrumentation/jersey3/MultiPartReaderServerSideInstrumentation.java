@@ -48,8 +48,8 @@ public class MultiPartReaderServerSideInstrumentation extends Instrumenter.AppSe
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         named("readMultiPart")
             .and(isProtected())
             .and(returns(named("org.glassfish.jersey.media.multipart.MultiPart")))

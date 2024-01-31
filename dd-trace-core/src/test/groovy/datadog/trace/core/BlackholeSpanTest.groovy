@@ -7,8 +7,10 @@ import datadog.trace.core.test.DDCoreSpecification
 class BlackholeSpanTest extends DDCoreSpecification {
   def "should mute tracing"() {
     setup:
+    injectSysConfig("trace.128.bit.traceid.logging.enabled", moreBits)
     def writer = new ListWriter()
-    def tracer = tracerBuilder().writer(writer).build()
+    def props = new Properties()
+    def tracer = tracerBuilder().withProperties(props).writer(writer).build()
     when:
     def child = null
     def bh = null
@@ -37,8 +39,13 @@ class BlackholeSpanTest extends DDCoreSpecification {
     assert writer.firstTrace().containsAll([root, child])
     assert !writer.firstTrace().contains(bh)
     assert !writer.firstTrace().contains(ignored)
+
     cleanup:
     writer.close()
     tracer.close()
+    where:
+    moreBits | _
+    "true"   | _
+    "false"  | _
   }
 }

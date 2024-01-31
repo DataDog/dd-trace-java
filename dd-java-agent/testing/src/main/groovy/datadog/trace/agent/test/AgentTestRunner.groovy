@@ -531,6 +531,12 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
     }
 
     @Override
+    Object getDataTop(String key) {
+      check()
+      return delegate.getDataTop(key)
+    }
+
+    @Override
     void effectivelyBlocked() {
       check()
       delegate.effectivelyBlocked()
@@ -540,6 +546,12 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
     void setDataCurrent(String key, Object value) {
       check()
       delegate.setDataCurrent(key, value)
+    }
+
+    @Override
+    Object getDataCurrent(String key) {
+      check()
+      return delegate.getDataCurrent(key)
     }
   }
 

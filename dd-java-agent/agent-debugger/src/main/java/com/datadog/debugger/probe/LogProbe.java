@@ -437,7 +437,6 @@ public class LogProbe extends ProbeDefinition {
         return false;
       }
     } catch (EvaluationException ex) {
-      LOGGER.debug("Evaluation error: ", ex);
       status.addError(new EvaluationError(ex.getExpr(), ex.getMessage()));
       status.setConditionErrors(true);
       return false;

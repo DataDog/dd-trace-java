@@ -27,17 +27,17 @@ public class JSONObjectInstrumentation extends Instrumenter.Iast
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isConstructor().and(takesArguments(1)), getClass().getName() + "$ConstructorAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod()
             .and(isPublic())
             .and(returns(Object.class))
             .and(named("get"))
             .and(takesArguments(String.class)),
         getClass().getName() + "$GetAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod()
             .and(isPublic())
             .and(returns(Object.class))
@@ -58,7 +58,7 @@ public class JSONObjectInstrumentation extends Instrumenter.Iast
   }
 
   public static class GetAdvice {
-    @Advice.OnMethodExit(suppress = Throwable.class, inline = false)
+    @Advice.OnMethodExit(suppress = Throwable.class)
     @Propagation
     public static void afterMethod(@Advice.This Object self, @Advice.Return final Object result) {
       if (result instanceof Integer

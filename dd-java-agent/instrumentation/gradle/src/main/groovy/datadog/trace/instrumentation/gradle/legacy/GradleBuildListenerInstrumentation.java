@@ -53,8 +53,8 @@ public class GradleBuildListenerInstrumentation extends Instrumenter.CiVisibilit
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(isConstructor(), getClass().getName() + "$Construct");
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(isConstructor(), getClass().getName() + "$Construct");
   }
 
   public static class Construct {

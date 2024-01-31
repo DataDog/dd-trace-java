@@ -53,8 +53,9 @@ class ProcessImplInstrumentationSpecification extends AgentTestRunner {
     it.spanType 'system'
     it.operationName 'command_execution'
     it.tags {
+      tag 'component', 'subprocess'
       tag 'cmd.exec', '[' + command.collect({ "\"${it}\"" }).join(',') + ']'
-      tag 'cmd.exit_code', exitCode
+      tag 'cmd.exit_code', Integer.toString(exitCode)
       defaultTags(false, false)
     }
   }
@@ -237,6 +238,7 @@ class ProcessImplInstrumentationSpecification extends AgentTestRunner {
           operationName 'command_execution'
           errored(true)
           tags {
+            tag 'component', 'subprocess'
             tag 'cmd.exec', '["/bin/does-not-exist"]'
             // The captured exception in ProcessImpl is in the cause
             errorTags(ex.cause)
@@ -287,9 +289,10 @@ class ProcessImplInstrumentationSpecification extends AgentTestRunner {
           spanType 'system'
           operationName 'command_execution'
           tags {
+            tag 'component', 'subprocess'
             tag 'cmd.truncated', 'true'
             tag 'cmd.exec', '["/bin/sh","-c"]'
-            tag 'cmd.exit_code', 0
+            tag 'cmd.exit_code', "0"
             defaultTags(false, false)
           }
         }
@@ -314,6 +317,7 @@ class ProcessImplInstrumentationSpecification extends AgentTestRunner {
           operationName 'command_execution'
           errored(true)
           tags {
+            tag 'component', 'subprocess'
             tag 'cmd.exec', expected
             errorTags(ex.cause)
             defaultTags(false, false)

@@ -70,6 +70,7 @@ class ConfigurationPollerSpecification extends DDSpecification {
       Config.get(),
       '0.0.0',
       '',
+      '',
       { -> configUrlSupplier.get() } as Supplier<String>,
       okHttpClient,
       scheduler,
@@ -747,10 +748,12 @@ class ConfigurationPollerSpecification extends DDSpecification {
   }
 
   void 'accepts an empty object as a response to indicate no changes'() {
+    given:
+    def listener = Mock(ConfigurationChangesTypedListener)
+    def deserializer = Mock(ConfigurationDeserializer)
+
     when:
-    poller.addListener(Product.ASM_DD,
-      { throw new RuntimeException('should not be called') } as ConfigurationDeserializer,
-      { throw new RuntimeException('should not be called' ) } as ConfigurationChangesTypedListener)
+    poller.addListener(Product.ASM_DD, deserializer, listener)
     poller.start()
 
     then:
@@ -762,7 +765,39 @@ class ConfigurationPollerSpecification extends DDSpecification {
     then:
     1 * okHttpClient.newCall(_ as Request) >> { request = it[0]; call }
     1 * call.execute() >> { buildOKResponse('{}') }
+    0 * deserializer._
+    0 * listener._
     0 * _._
+  }
+
+  void 'accepts HTTP 204 as a response to indicate no changes'() {
+    given:
+    Response resp = new Response.Builder()
+      .request(REQUEST)
+      .protocol(Protocol.HTTP_1_1)
+      .message('No Content')
+      .body(ResponseBody.create(MediaType.parse("application/json"), ""))
+      .code(204)
+      .build()
+    def listener = Mock(ConfigurationChangesTypedListener)
+    def deserializer = Mock(ConfigurationDeserializer)
+
+    when:
+    poller.addListener(Product.ASM_DD, deserializer, listener)
+    poller.start()
+
+    then:
+    1 * scheduler.scheduleAtFixedRate(_, poller, 0, DEFAULT_POLL_PERIOD, TimeUnit.MILLISECONDS) >> { task = it[0]; scheduled }
+
+    when:
+    task.run(poller)
+
+    then:
+    1 * okHttpClient.newCall(_ as Request) >> { request = it[0]; call }
+    1 * call.execute() >> resp
+    0 * deserializer._
+    0 * listener._
+    0 * _
   }
 
   void 'applies and remove called for product listener'() {

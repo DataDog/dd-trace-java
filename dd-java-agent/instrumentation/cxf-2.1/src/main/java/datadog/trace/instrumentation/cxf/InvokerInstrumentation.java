@@ -46,8 +46,8 @@ public class InvokerInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         ElementMatchers.isMethod().and(NameMatchers.named("invoke")),
         getClass().getName() + "$PropagateSpanAdvice");
   }

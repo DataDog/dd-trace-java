@@ -23,14 +23,14 @@ public final class NonStandardExecutorInstrumentation extends AbstractExecutorIn
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice( // kotlinx.coroutines.scheduling.CoroutineScheduler
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice( // kotlinx.coroutines.scheduling.CoroutineScheduler
         named("dispatch")
             .and(takesArgument(0, Runnable.class))
             .and(takesArgument(1, named("kotlinx.coroutines.scheduling.TaskContext"))),
         JavaExecutorInstrumentation.class.getName() + "$SetExecuteRunnableStateAdvice");
 
-    transformation.applyAdvice( // org.eclipse.jetty.util.thread.QueuedThreadPool
+    transformer.applyAdvice( // org.eclipse.jetty.util.thread.QueuedThreadPool
         named("dispatch").and(takesArguments(1)).and(takesArgument(0, Runnable.class)),
         JavaExecutorInstrumentation.class.getName() + "$SetExecuteRunnableStateAdvice");
   }

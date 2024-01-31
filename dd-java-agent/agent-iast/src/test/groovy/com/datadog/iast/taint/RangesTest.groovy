@@ -331,6 +331,26 @@ class RangesTest extends DDSpecification {
     ] | false
   }
 
+  void 'test all ranges coming from any header'(){
+    when:
+    final allRangesFrom = Ranges.allRangesFromAnyHeader(ranges as Range[])
+
+    then:
+    allRangesFrom == expected
+
+    where:
+    headers | ranges                                                                                                     | expected
+    [REFERER] | []                                                                                                         | true
+    [REFERER] | [rangeWithSource(REQUEST_HEADER_VALUE, REFERER.name)]                                                       | true
+    [REFERER] | [rangeWithSource(REQUEST_HEADER_VALUE, LOCATION.name)]                                                     | true
+    [REFERER] | [rangeWithSource(GRPC_BODY)]                                                                               | false
+    [REFERER] | [rangeWithSource(REQUEST_HEADER_VALUE, REFERER.name), rangeWithSource(GRPC_BODY)]                           | false
+    [REFERER] | [
+      rangeWithSource(REQUEST_HEADER_VALUE, REFERER.name),
+      rangeWithSource(REQUEST_HEADER_VALUE, LOCATION.name)
+    ] | true
+  }
+
 
   Range[] rangesFromSpec(List<List<Object>> spec) {
     def ranges = new Range[spec.size()]

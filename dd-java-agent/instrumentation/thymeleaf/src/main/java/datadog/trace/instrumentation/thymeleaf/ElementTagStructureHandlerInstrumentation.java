@@ -22,9 +22,9 @@ public class ElementTagStructureHandlerInstrumentation extends Instrumenter.Iast
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
+  public void methodAdvice(MethodTransformer transformer) {
 
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod().and(named("setBody")).and(takesArgument(0, CharSequence.class)),
         packageName + ".BodyAdvice");
   }

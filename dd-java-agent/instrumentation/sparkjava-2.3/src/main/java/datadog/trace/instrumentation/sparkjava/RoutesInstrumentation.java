@@ -33,8 +33,8 @@ public class RoutesInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         named("find")
             .and(takesArgument(0, named("spark.route.HttpMethod")))
             .and(returns(named("spark.routematch.RouteMatch")))

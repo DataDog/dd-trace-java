@@ -46,8 +46,8 @@ public class GradleBuildScopeServicesInstrumentation extends Instrumenter.CiVisi
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(isConstructor(), getClass().getName() + "$Construct");
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(isConstructor(), getClass().getName() + "$Construct");
   }
 
   public static class Construct {

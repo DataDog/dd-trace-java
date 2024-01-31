@@ -52,14 +52,14 @@ public final class JakartaRsAsyncResponseInstrumentation extends Instrumenter.Tr
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         named("resume").and(takesArgument(0, Object.class)).and(isPublic()),
         JakartaRsAsyncResponseInstrumentation.class.getName() + "$AsyncResponseAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         named("resume").and(takesArgument(0, Throwable.class)).and(isPublic()),
         JakartaRsAsyncResponseInstrumentation.class.getName() + "$AsyncResponseThrowableAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         named("cancel"),
         JakartaRsAsyncResponseInstrumentation.class.getName() + "$AsyncResponseCancelAdvice");
   }

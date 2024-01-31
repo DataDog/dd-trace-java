@@ -80,9 +80,9 @@ public class OpenTelemetryContextStorageInstrumentation extends Instrumenter.Tra
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
+  public void methodAdvice(MethodTransformer transformer) {
     // Context ContextStorage.current()
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod()
             .and(named("current"))
             .and(takesNoArguments())

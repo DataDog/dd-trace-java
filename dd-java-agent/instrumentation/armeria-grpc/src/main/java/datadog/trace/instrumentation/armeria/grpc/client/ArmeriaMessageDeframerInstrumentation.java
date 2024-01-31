@@ -46,8 +46,8 @@ public class ArmeriaMessageDeframerInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isConstructor()
             .and(
                 takesArgument(
@@ -55,13 +55,13 @@ public class ArmeriaMessageDeframerInstrumentation extends Instrumenter.Tracing
                     named(
                         "com.linecorp.armeria.common.grpc.protocol.ArmeriaMessageDeframer$Listener"))),
         getClass().getName() + "$CaptureClientCallArg0");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isConstructor()
             .and(
                 takesArgument(
                     2, named("com.linecorp.armeria.internal.common.grpc.TransportStatusListener"))),
         getClass().getName() + "$CaptureClientCallArg2");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod().and(named("process").or(named("deframe"))),
         getClass().getName() + "$ActivateSpan");
   }

@@ -1,10 +1,11 @@
 package com.datadog.iast.sink;
 
+import static com.datadog.iast.taint.Ranges.allRangesFromAnyHeader;
 import static com.datadog.iast.taint.Ranges.allRangesFromHeader;
-import static com.datadog.iast.util.HttpHeader.ACCESS_CONTROL_ALLOW_ORIGIN;
+import static com.datadog.iast.taint.Ranges.rangeFromHeader;
 import static com.datadog.iast.util.HttpHeader.CONNECTION;
+import static com.datadog.iast.util.HttpHeader.COOKIE;
 import static com.datadog.iast.util.HttpHeader.LOCATION;
-import static com.datadog.iast.util.HttpHeader.ORIGIN;
 import static com.datadog.iast.util.HttpHeader.SEC_WEBSOCKET_ACCEPT;
 import static com.datadog.iast.util.HttpHeader.SEC_WEBSOCKET_LOCATION;
 import static com.datadog.iast.util.HttpHeader.SET_COOKIE;
@@ -32,6 +33,8 @@ public class HeaderInjectionModuleImpl extends SinkModuleBase implements HeaderI
 
   private static final Set<HttpHeader> headerInjectionExclusions =
       EnumSet.of(SEC_WEBSOCKET_LOCATION, SEC_WEBSOCKET_ACCEPT, UPGRADE, CONNECTION, LOCATION);
+
+  private static final String ACCESS_CONTROL_ALLOW_PREFIX = "ACCESS-CONTROL-ALLOW-";
 
   public HeaderInjectionModuleImpl(final Dependencies dependencies) {
     super(dependencies);
@@ -64,17 +67,23 @@ public class HeaderInjectionModuleImpl extends SinkModuleBase implements HeaderI
       return;
     }
 
-    // TODO (spec) we should fix this as it's not a 100% accurate
-    if (header == ACCESS_CONTROL_ALLOW_ORIGIN && allRangesFromHeader(ORIGIN, ranges)) {
+    // Exclude access-control-allow-*: when the header starts with access-control-allow- and the
+    // source of the tainted range is a request header
+    if (name.regionMatches(
+            true, 0, ACCESS_CONTROL_ALLOW_PREFIX, 0, ACCESS_CONTROL_ALLOW_PREFIX.length())
+        && allRangesFromAnyHeader(ranges)) {
       return;
     }
 
-    // TODO (spec): we should fix this, the source header should be 'Cookie' not 'Set-Cookie'
-    if ((header == SET_COOKIE) && allRangesFromHeader(SET_COOKIE, ranges)) {
+    // Exclude set-cookie header if the source of all the tainted ranges are cookies
+    if ((header == SET_COOKIE) && allRangesFromHeader(COOKIE, ranges)) {
       return;
     }
 
-    // TODO (spec): we are missing the case where the header is reflected from the request
+    // Exclude when the header is reflected from the request
+    if (ranges.length == 1 && rangeFromHeader(name, ranges[0])) {
+      return;
+    }
 
     final AgentSpan span = AgentTracer.activeSpan();
     if (!overheadController.consumeQuota(Operations.REPORT_VULNERABILITY, span)) {

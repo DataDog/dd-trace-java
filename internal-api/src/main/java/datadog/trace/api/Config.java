@@ -42,6 +42,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_CAPTURE_TIMEOUT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_CLASSFILE_DUMP_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_DIAGNOSTICS_INTERVAL;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_EXCEPTION_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_INSTRUMENT_THE_WORLD;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_MAX_PAYLOAD_SIZE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_METRICS_ENABLED;
@@ -193,6 +194,7 @@ import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_CAPTURE_TIMEOUT;
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_CLASSFILE_DUMP_ENABLED;
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_DIAGNOSTICS_INTERVAL;
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_ENABLED;
+import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_EXCEPTION_ENABLED;
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_EXCLUDE_FILES;
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_INSTRUMENT_THE_WORLD;
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_MAX_PAYLOAD_SIZE;
@@ -447,6 +449,8 @@ import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.bootstrap.config.provider.CapturedEnvironmentConfigSource;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import datadog.trace.bootstrap.config.provider.SystemPropertiesConfigSource;
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import datadog.trace.context.TraceScope;
 import datadog.trace.util.PidHelper;
 import datadog.trace.util.Strings;
 import datadog.trace.util.throwable.FatalAgentMisconfigurationError;
@@ -791,6 +795,7 @@ public class Config {
   private final boolean debuggerSymbolForceUpload;
   private final String debuggerSymbolIncludes;
   private final int debuggerSymbolFlushThreshold;
+  private final boolean debuggerExceptionEnabled;
 
   private final boolean awsPropagationEnabled;
   private final boolean sqsPropagationEnabled;
@@ -1412,7 +1417,8 @@ public class Config {
     isDatadogProfilerEnabled =
         !isDatadogProfilerEnablementOverridden()
             && configProvider.getBoolean(
-                PROFILING_DATADOG_PROFILER_ENABLED, isDatadogProfilerSafeInCurrentEnvironment());
+                PROFILING_DATADOG_PROFILER_ENABLED, isDatadogProfilerSafeInCurrentEnvironment())
+            && !(Platform.isNativeImageBuilder() || Platform.isNativeImage());
     profilingUrl = configProvider.getString(PROFILING_URL);
 
     if (tmpApiKey == null) {
@@ -1799,6 +1805,8 @@ public class Config {
     debuggerSymbolFlushThreshold =
         configProvider.getInteger(
             DEBUGGER_SYMBOL_FLUSH_THRESHOLD, DEFAULT_DEBUGGER_SYMBOL_FLUSH_THRESHOLD);
+    debuggerExceptionEnabled =
+        configProvider.getBoolean(DEBUGGER_EXCEPTION_ENABLED, DEFAULT_DEBUGGER_EXCEPTION_ENABLED);
 
     awsPropagationEnabled = isPropagationEnabled(true, "aws", "aws-sdk");
     sqsPropagationEnabled = isPropagationEnabled(true, "sqs");
@@ -3030,6 +3038,10 @@ public class Config {
     return debuggerSymbolFlushThreshold;
   }
 
+  public boolean isDebuggerExceptionEnabled() {
+    return debuggerExceptionEnabled;
+  }
+
   public String getFinalDebuggerProbeUrl() {
     // by default poll from datadog agent
     return "http://" + agentHost + ":" + agentPort;
@@ -3847,9 +3859,10 @@ public class Config {
     }
 
     // Try hostname command
-    try (final BufferedReader reader =
-        new BufferedReader(
-            new InputStreamReader(Runtime.getRuntime().exec("hostname").getInputStream()))) {
+    try (final TraceScope scope = AgentTracer.get().muteTracing();
+        final BufferedReader reader =
+            new BufferedReader(
+                new InputStreamReader(Runtime.getRuntime().exec("hostname").getInputStream()))) {
       possibleHostname = reader.readLine();
     } catch (final Throwable ignore) {
       // Ignore.  Hostname command is not always available
@@ -4200,6 +4213,22 @@ public class Config {
         + debuggerInstrumentTheWorld
         + ", debuggerExcludeFile="
         + debuggerExcludeFiles
+        + ", debuggerCaptureTimeout="
+        + debuggerCaptureTimeout
+        + ", debuggerRedactIdentifiers="
+        + debuggerRedactedIdentifiers
+        + ", debuggerRedactTypes="
+        + debuggerRedactedTypes
+        + ", debuggerSymbolEnabled="
+        + debuggerSymbolEnabled
+        + ", debuggerSymbolForceUpload="
+        + debuggerSymbolForceUpload
+        + ", debuggerSymbolFlushThreshold="
+        + debuggerSymbolFlushThreshold
+        + ", debuggerSymbolIncludes="
+        + debuggerSymbolIncludes
+        + ", debuggerExceptionEnabled="
+        + debuggerExceptionEnabled
         + ", awsPropagationEnabled="
         + awsPropagationEnabled
         + ", sqsPropagationEnabled="

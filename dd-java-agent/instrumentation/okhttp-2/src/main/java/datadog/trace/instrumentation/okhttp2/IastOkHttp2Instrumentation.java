@@ -31,8 +31,8 @@ public class IastOkHttp2Instrumentation extends Instrumenter.Iast
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isConstructor(), IastOkHttp2Instrumentation.class.getName() + "$OkHttp2ClientAdvice");
   }
 

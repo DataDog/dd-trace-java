@@ -12,9 +12,11 @@ import datadog.trace.logging.GlobalLogLevelSwitcher;
 import datadog.trace.logging.LogLevel;
 import datadog.trace.util.AgentTaskScheduler;
 import datadog.trace.util.AgentTaskScheduler.Scheduled;
+import datadog.trace.util.Strings;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.lang.management.ManagementFactory;
+import java.lang.management.RuntimeMXBean;
 import java.lang.management.ThreadInfo;
 import java.lang.management.ThreadMXBean;
 import java.nio.file.Files;
@@ -204,7 +206,8 @@ final class TracerFlareService {
     try (ByteArrayOutputStream bytes = new ByteArrayOutputStream();
         ZipOutputStream zip = new ZipOutputStream(bytes)) {
 
-      addPrelude(zip);
+      addConfig(zip);
+      addRuntime(zip);
       tracer.addTracerReportToFlare(zip);
       TracerFlare.addReportsToFlare(zip);
       if (dumpThreads) {
@@ -216,11 +219,25 @@ final class TracerFlareService {
     }
   }
 
-  private void addPrelude(ZipOutputStream zip) throws IOException {
+  private void addConfig(ZipOutputStream zip) throws IOException {
     TracerFlare.addText(zip, "tracer_version.txt", DDTraceCoreInfo.VERSION);
-    TracerFlare.addText(zip, "classpath.txt", System.getProperty("java.class.path"));
     TracerFlare.addText(zip, "initial_config.txt", config.toString());
     TracerFlare.addText(zip, "dynamic_config.txt", dynamicConfig.toString());
+  }
+
+  private void addRuntime(ZipOutputStream zip) throws IOException {
+    try {
+      RuntimeMXBean runtimeMXBean = ManagementFactory.getRuntimeMXBean();
+      TracerFlare.addText(
+          zip, "jvm_args.txt", Strings.join(" ", runtimeMXBean.getInputArguments()));
+      TracerFlare.addText(zip, "classpath.txt", runtimeMXBean.getClassPath());
+      TracerFlare.addText(zip, "library_path.txt", runtimeMXBean.getLibraryPath());
+      if (runtimeMXBean.isBootClassPathSupported()) {
+        TracerFlare.addText(zip, "boot_classpath.txt", runtimeMXBean.getBootClassPath());
+      }
+    } catch (RuntimeException e) {
+      TracerFlare.addText(zip, "classpath.txt", System.getProperty("java.class.path"));
+    }
   }
 
   private void addThreadDump(ZipOutputStream zip) throws IOException {

@@ -17,7 +17,9 @@ import com.amazonaws.handlers.RequestHandler2
 import com.amazonaws.regions.Regions
 import com.amazonaws.retry.PredefinedRetryPolicies
 import com.amazonaws.services.dynamodbv2.AmazonDynamoDBClientBuilder
+import com.amazonaws.services.dynamodbv2.model.AttributeValue
 import com.amazonaws.services.dynamodbv2.model.CreateTableRequest
+import com.amazonaws.services.dynamodbv2.model.GetItemRequest
 import com.amazonaws.services.ec2.AmazonEC2ClientBuilder
 import com.amazonaws.services.kinesis.AmazonKinesisClientBuilder
 import com.amazonaws.services.kinesis.model.DeleteStreamRequest
@@ -206,8 +208,9 @@ class LegacyAWS1ClientForkedTest extends AgentTestRunner {
     where:
     service      | operation           | ddService      | method | path                  | client                                                                                                                                             | call                                                                            | additionalTags                    | body                            | jsonPointerStr
     "S3"         | "CreateBucket"      | "java-aws-sdk" | "PUT"  | "/testbucket/"        | AmazonS3ClientBuilder.standard().withPathStyleAccessEnabled(true).withEndpointConfiguration(endpoint).withCredentials(credentialsProvider).build() | { c -> c.createBucket("testbucket") }                                           | ["aws.bucket.name": "testbucket", "bucketname": "testbucket"] | ""  | null
-    "S3"         | "GetObject"         | "java-aws-sdk" | "GET"  | "/someBucket/someKey" | AmazonS3ClientBuilder.standard().withPathStyleAccessEnabled(true).withEndpointConfiguration(endpoint).withCredentials(credentialsProvider).build() | { c -> c.getObject("someBucket", "someKey") }                                   | ["aws.bucket.name": "someBucket", "bucketname": "someBucket"] | ""  | null
+    "S3"         | "GetObject"         | "java-aws-sdk" | "GET"  | "/someBucket/someKey" | AmazonS3ClientBuilder.standard().withPathStyleAccessEnabled(true).withEndpointConfiguration(endpoint).withCredentials(credentialsProvider).build() | { c -> c.getObject("someBucket", "someKey") }                                   | ["aws.bucket.name": "someBucket", "bucketname": "someBucket", "aws.object.key": "someKey"] | ""  | null
     "DynamoDBv2" | "CreateTable"       | "java-aws-sdk" | "POST" | "/"                   | AmazonDynamoDBClientBuilder.standard().withEndpointConfiguration(endpoint).withCredentials(credentialsProvider).build()                            | { c -> c.createTable(new CreateTableRequest("sometable", null)) }               | ["aws.table.name": "sometable", "tablename": "sometable"]   | ""    | null
+    "DynamoDBv2" | "GetItem"           | "java-aws-sdk" | "POST" | "/"                   | AmazonDynamoDBClientBuilder.standard().withEndpointConfiguration(endpoint).withCredentials(credentialsProvider).build()                            | { c -> c.getItem(new GetItemRequest("sometable", ["attribute": new AttributeValue("somevalue")])) } | ["aws.table.name": "sometable", "tablename": "sometable"] | "" | null
     "Kinesis"    | "DeleteStream"      | "java-aws-sdk" | "POST" | "/"                   | AmazonKinesisClientBuilder.standard().withEndpointConfiguration(endpoint).withCredentials(credentialsProvider).build()                             | { c -> c.deleteStream(new DeleteStreamRequest().withStreamName("somestream")) } | ["aws.stream.name": "somestream", "streamname": "somestream"] | ""  | null
     "SQS"        | "CreateQueue"       | "java-aws-sdk" | "POST" | "/"                   | AmazonSQSClientBuilder.standard().withEndpointConfiguration(endpoint).withCredentials(credentialsProvider).build()                                 | { c -> c.createQueue(new CreateQueueRequest("somequeue")) }                     | ["aws.queue.name": "somequeue", "queuename": "somequeue"]   | """
         <CreateQueueResponse>
@@ -311,7 +314,7 @@ class LegacyAWS1ClientForkedTest extends AgentTestRunner {
 
     where:
     service | operation   | method | url                  | call                                                    | additionalTags                    | body | client
-    "S3" | "GetObject" | "GET" | "someBucket/someKey" | { c -> c.getObject("someBucket", "someKey") } | ["aws.bucket.name": "someBucket", "bucketname": "someBucket"] | "" | new AmazonS3Client(CREDENTIALS_PROVIDER_CHAIN, new ClientConfiguration().withRetryPolicy(PredefinedRetryPolicies.getDefaultRetryPolicyWithCustomMaxRetries(0))).withEndpoint("http://localhost:${UNUSABLE_PORT}")
+    "S3" | "GetObject" | "GET" | "someBucket/someKey" | { c -> c.getObject("someBucket", "someKey") } | ["aws.bucket.name": "someBucket", "bucketname": "someBucket", "aws.object.key": "someKey"] | "" | new AmazonS3Client(CREDENTIALS_PROVIDER_CHAIN, new ClientConfiguration().withRetryPolicy(PredefinedRetryPolicies.getDefaultRetryPolicyWithCustomMaxRetries(0))).withEndpoint("http://localhost:${UNUSABLE_PORT}")
   }
 
   def "naughty request handler doesn't break the trace"() {
@@ -406,6 +409,7 @@ class LegacyAWS1ClientForkedTest extends AgentTestRunner {
             "aws.agent" "java-aws-sdk"
             "aws.bucket.name" "someBucket"
             "bucketname" "someBucket"
+            "aws.object.key" "someKey"
             try {
               errorTags AmazonClientException, ~/Unable to execute HTTP request/
             } catch (AssertionError e) {

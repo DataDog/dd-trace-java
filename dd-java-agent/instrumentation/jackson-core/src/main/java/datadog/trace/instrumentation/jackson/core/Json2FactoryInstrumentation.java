@@ -24,8 +24,8 @@ public class Json2FactoryInstrumentation extends Instrumenter.Iast
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         named("createParser")
             .and(isMethod())
             .and(
@@ -34,7 +34,8 @@ public class Json2FactoryInstrumentation extends Instrumenter.Iast
                         takesArguments(String.class)
                             .or(takesArguments(InputStream.class))
                             .or(takesArguments(Reader.class))
-                            .or(takesArguments(URL.class)))),
+                            .or(takesArguments(URL.class))
+                            .or(takesArguments(byte[].class)))),
         Json2FactoryInstrumentation.class.getName() + "$InstrumenterAdvice");
   }
 

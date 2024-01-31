@@ -87,41 +87,41 @@ public class LettuceReactiveClientInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isMethod().and(named("subscribe")), packageName + ".rx.RedisSubscriptionSubscribeAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod().and(named("onNext")), packageName + ".rx.RedisSubscriptionAdvanceAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod()
             .and(isDeclaredBy(named("io.lettuce.core.RedisPublisher$SubscriptionCommand")))
             .and(namedOneOf("complete", "cancel")),
         packageName + ".rx.RedisSubscriptionCommandCompleteAdvice");
 
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isConstructor()
             .and(isDeclaredBy(named("io.lettuce.core.RedisPublisher$RedisSubscription"))),
         packageName + ".rx.RedisSubscriptionConnectionContextAdvice");
 
     // SubscriptionCommand structure has changed due to
     // https://github.com/lettuce-io/lettuce-core/issues/1576 in 5.3.6
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod()
             .and(isDeclaredBy(named("io.lettuce.core.RedisPublisher$SubscriptionCommand")))
             .and(namedOneOf("doOnComplete")),
         packageName + ".rx.RedisSubscriptionCommandOnCompleteAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod()
             .and(isDeclaredBy(named("io.lettuce.core.RedisPublisher$SubscriptionCommand")))
             .and(named("onError")),
         packageName + ".rx.RedisSubscriptionCommandErrorAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod()
             .and(named("createMono"))
             .and(takesArgument(0, named("java.util.function.Supplier")))
             .and(returns(named("reactor.core.publisher.Mono"))),
         packageName + ".rx.LettuceMonoCreationAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod()
             .and(nameStartsWith("create"))
             .and(nameEndsWith("Flux"))

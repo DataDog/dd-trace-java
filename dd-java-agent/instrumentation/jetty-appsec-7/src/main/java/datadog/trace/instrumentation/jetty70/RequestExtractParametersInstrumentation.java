@@ -23,8 +23,8 @@ public class RequestExtractParametersInstrumentation extends Instrumenter.AppSec
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         named("extractParameters").and(takesArguments(0)),
         getClass().getName() + "$ExtractParametersAdvice");
   }

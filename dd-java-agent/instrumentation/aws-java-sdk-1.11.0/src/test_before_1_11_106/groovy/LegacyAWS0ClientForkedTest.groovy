@@ -150,7 +150,7 @@ class LegacyAWS0ClientForkedTest extends AgentTestRunner {
     where:
     service | operation           | method | path                  | handlerCount | client                                                                      | additionalTags                    | call                                                                                                                         | body
     "S3"    | "CreateBucket"      | "PUT"  | "/testbucket/"        | 1            | new AmazonS3Client().withEndpoint("http://localhost:$server.address.port")  | ["aws.bucket.name": "testbucket", "bucketname": "testbucket"] | { c -> c.setS3ClientOptions(S3ClientOptions.builder().setPathStyleAccess(true).build()); client.createBucket("testbucket") } | ""
-    "S3"    | "GetObject"         | "GET"  | "/someBucket/someKey" | 1            | new AmazonS3Client().withEndpoint("http://localhost:$server.address.port")  | ["aws.bucket.name": "someBucket", "bucketname": "someBucket"] | { c -> c.getObject("someBucket", "someKey") }                                                                                | ""
+    "S3"    | "GetObject"         | "GET"  | "/someBucket/someKey" | 1            | new AmazonS3Client().withEndpoint("http://localhost:$server.address.port")  | ["aws.bucket.name": "someBucket", "bucketname": "someBucket", "aws.object.key": "someKey"] | { c -> c.getObject("someBucket", "someKey") }                                                                                | ""
     "EC2"   | "AllocateAddress"   | "POST" | "/"                   | 4            | new AmazonEC2Client().withEndpoint("http://localhost:$server.address.port") | [:]                               | { c -> c.allocateAddress() }                                                                                                 | """
             <AllocateAddressResponse xmlns="http://ec2.amazonaws.com/doc/2016-11-15/">
                <requestId>59dbff89-35bd-4eac-99ed-be587EXAMPLE</requestId> 
@@ -229,7 +229,7 @@ class LegacyAWS0ClientForkedTest extends AgentTestRunner {
 
     where:
     service | operation   | method | url                  | call                                                    | additionalTags                    | body | client
-    "S3" | "GetObject" | "GET" | "someBucket/someKey" | { c -> c.getObject("someBucket", "someKey") } | ["aws.bucket.name": "someBucket", "bucketname": "someBucket"] | "" | new AmazonS3Client(CREDENTIALS_PROVIDER_CHAIN, new ClientConfiguration().withRetryPolicy(PredefinedRetryPolicies.getDefaultRetryPolicyWithCustomMaxRetries(0))).withEndpoint("http://localhost:${UNUSABLE_PORT}")
+    "S3" | "GetObject" | "GET" | "someBucket/someKey" | { c -> c.getObject("someBucket", "someKey") } | ["aws.bucket.name": "someBucket", "bucketname": "someBucket", "aws.object.key": "someKey"] | "" | new AmazonS3Client(CREDENTIALS_PROVIDER_CHAIN, new ClientConfiguration().withRetryPolicy(PredefinedRetryPolicies.getDefaultRetryPolicyWithCustomMaxRetries(0))).withEndpoint("http://localhost:${UNUSABLE_PORT}")
   }
 
   def "naughty request handler doesn't break the trace"() {
@@ -271,6 +271,7 @@ class LegacyAWS0ClientForkedTest extends AgentTestRunner {
             "aws.agent" "java-aws-sdk"
             "aws.bucket.name" "someBucket"
             "bucketname" "someBucket"
+            "aws.object.key" "someKey"
             errorTags RuntimeException, "bad handler"
             defaultTags()
           }
@@ -323,6 +324,7 @@ class LegacyAWS0ClientForkedTest extends AgentTestRunner {
             "aws.agent" "java-aws-sdk"
             "aws.bucket.name" "someBucket"
             "bucketname" "someBucket"
+            "aws.object.key" "someKey"
             errorTags AmazonClientException, ~/Unable to execute HTTP request/
             defaultTags()
           }

@@ -19,6 +19,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import java.util.Collection;
+import java.util.List;
 
 public class KarateTracingHook implements RuntimeHook {
 
@@ -74,8 +75,7 @@ public class KarateTracingHook implements RuntimeHook {
 
     if (Config.get().isCiVisibilityItrEnabled()
         && !categories.contains(InstrumentationBridge.ITR_UNSKIPPABLE_TAG)) {
-      TestIdentifier skippableTest =
-          new TestIdentifier(featureName, scenarioName, parameters, null);
+      TestIdentifier skippableTest = KarateUtils.toTestIdentifier(scenario, true);
       if (TestEventsHandlerHolder.TEST_EVENTS_HANDLER.skip(skippableTest)) {
         TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestIgnore(
             featureName,
@@ -119,20 +119,33 @@ public class KarateTracingHook implements RuntimeHook {
     String scenarioName = KarateUtils.getScenarioName(scenario);
 
     ScenarioResult result = sr.result;
-    if (result.isFailed()) {
+    Throwable failedReason = getFailedReason(result);
+    if (result.isFailed() || failedReason != null) {
       TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestFailure(
-          featureName,
-          null,
-          scenarioName,
-          sr,
-          KarateUtils.getParameters(scenario),
-          result.getError());
+          featureName, null, scenarioName, sr, KarateUtils.getParameters(scenario), failedReason);
     } else if (result.getStepResults().isEmpty()) {
       TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSkip(
           featureName, null, scenarioName, sr, KarateUtils.getParameters(scenario), null);
     }
     TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestFinish(
         featureName, null, scenarioName, sr, KarateUtils.getParameters(scenario));
+  }
+
+  private Throwable getFailedReason(ScenarioResult result) {
+    Throwable error = result.getError();
+    if (error != null) {
+      return error;
+    }
+    // check if any step result has a "suppressed" error
+    // (manually set by flaky test retries logic - to avoid failing the build)
+    List<StepResult> stepResults = result.getStepResults();
+    for (StepResult stepResult : stepResults) {
+      Throwable failedReason = stepResult.getFailedReason();
+      if (failedReason != null) {
+        return failedReason;
+      }
+    }
+    return null;
   }
 
   @Override

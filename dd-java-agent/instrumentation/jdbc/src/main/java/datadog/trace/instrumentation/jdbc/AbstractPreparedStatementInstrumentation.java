@@ -48,8 +48,8 @@ public abstract class AbstractPreparedStatementInstrumentation extends Instrumen
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         nameStartsWith("execute").and(takesArguments(0)).and(isPublic()),
         AbstractPreparedStatementInstrumentation.class.getName() + "$PreparedStatementAdvice");
   }

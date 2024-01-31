@@ -32,8 +32,8 @@ public class InternalTopologyBuilderInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isMethod().and(named("build")).and(isPrivate()).and(takesArguments(1)),
         InternalTopologyBuilderInstrumentation.class.getName() + "$BuildAdvice");
   }

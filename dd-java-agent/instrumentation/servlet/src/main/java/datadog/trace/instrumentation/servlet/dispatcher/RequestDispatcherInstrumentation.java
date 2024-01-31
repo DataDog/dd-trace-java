@@ -68,8 +68,8 @@ public final class RequestDispatcherInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         // error is Jetty's method that doesn't delegate to forward or include
         namedOneOf("forward", "include", "error")
             .and(takesArguments(2))

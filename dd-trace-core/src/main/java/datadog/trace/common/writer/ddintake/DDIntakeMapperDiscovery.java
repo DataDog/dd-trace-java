@@ -16,12 +16,15 @@ public class DDIntakeMapperDiscovery implements RemoteMapperDiscovery {
 
   private final TrackType trackType;
   private final WellKnownTags wellKnownTags;
+  private final boolean compressionEnabled;
 
   private RemoteMapper mapper;
 
-  public DDIntakeMapperDiscovery(final TrackType trackType, final WellKnownTags wellKnownTags) {
+  public DDIntakeMapperDiscovery(
+      final TrackType trackType, final WellKnownTags wellKnownTags, boolean compressionEnabled) {
     this.trackType = trackType;
     this.wellKnownTags = wellKnownTags;
+    this.compressionEnabled = compressionEnabled;
   }
 
   private void reset() {
@@ -32,9 +35,9 @@ public class DDIntakeMapperDiscovery implements RemoteMapperDiscovery {
   public void discover() {
     reset();
     if (TrackType.CITESTCYCLE.equals(trackType)) {
-      mapper = new CiTestCycleMapperV1(wellKnownTags);
+      mapper = new CiTestCycleMapperV1(wellKnownTags, compressionEnabled);
     } else if (TrackType.CITESTCOV.equals(trackType)) {
-      mapper = new CiTestCovMapperV2();
+      mapper = new CiTestCovMapperV2(compressionEnabled);
     } else {
       mapper = RemoteMapper.NO_OP;
     }

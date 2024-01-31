@@ -62,11 +62,16 @@ public class DebuggerContext {
     String serializeValue(CapturedContext.CapturedValue value);
   }
 
+  public interface ExceptionDebugger {
+    void handleException(Throwable t);
+  }
+
   private static volatile ProbeResolver probeResolver;
   private static volatile ClassFilter classFilter;
   private static volatile MetricForwarder metricForwarder;
   private static volatile Tracer tracer;
   private static volatile ValueSerializer valueSerializer;
+  private static volatile ExceptionDebugger exceptionDebugger;
 
   public static void initProbeResolver(ProbeResolver probeResolver) {
     DebuggerContext.probeResolver = probeResolver;
@@ -86,6 +91,10 @@ public class DebuggerContext {
 
   public static void initValueSerializer(ValueSerializer valueSerializer) {
     DebuggerContext.valueSerializer = valueSerializer;
+  }
+
+  public static void initExceptionDebugger(ExceptionDebugger exceptionDebugger) {
+    DebuggerContext.exceptionDebugger = exceptionDebugger;
   }
 
   /**
@@ -320,5 +329,13 @@ public class DebuggerContext {
     } catch (Exception ex) {
       LOGGER.debug("Error in commit: ", ex);
     }
+  }
+
+  public static void handleException(Throwable t) {
+    ExceptionDebugger exDebugger = exceptionDebugger;
+    if (exDebugger == null) {
+      return;
+    }
+    exDebugger.handleException(t);
   }
 }

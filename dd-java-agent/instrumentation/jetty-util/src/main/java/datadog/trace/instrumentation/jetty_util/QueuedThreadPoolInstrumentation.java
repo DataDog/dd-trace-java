@@ -20,8 +20,8 @@ public class QueuedThreadPoolInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(namedOneOf("dispatch", "execute"), getClass().getName() + "$Wrap");
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(namedOneOf("dispatch", "execute"), getClass().getName() + "$Wrap");
   }
 
   public static final class Wrap {

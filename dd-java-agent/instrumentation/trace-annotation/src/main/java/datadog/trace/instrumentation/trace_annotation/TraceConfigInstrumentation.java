@@ -93,7 +93,7 @@ public class TraceConfigInstrumentation implements Instrumenter {
     }
 
     @Override
-    public void adviceTransformations(AdviceTransformation transformation) {
+    public void methodAdvice(MethodTransformer transformer) {
       boolean hasWildcard = false;
       for (String methodName : methodNames) {
         hasWildcard |= methodName.equals("*");
@@ -112,7 +112,7 @@ public class TraceConfigInstrumentation implements Instrumenter {
       } else {
         methodFilter = namedOneOf(methodNames);
       }
-      transformation.applyAdvice(isMethod().and(methodFilter), packageName + ".TraceAdvice");
+      transformer.applyAdvice(isMethod().and(methodFilter), packageName + ".TraceAdvice");
     }
   }
 }

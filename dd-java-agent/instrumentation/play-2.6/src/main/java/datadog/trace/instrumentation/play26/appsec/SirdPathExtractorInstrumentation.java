@@ -42,8 +42,8 @@ public class SirdPathExtractorInstrumentation extends Instrumenter.AppSec
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         named("extract")
             .and(takesArguments(1))
             .and(takesArgument(0, String.class))

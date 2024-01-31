@@ -28,8 +28,8 @@ public class SqsReceiveRequestInstrumentation extends AbstractSqsInstrumentation
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isMethod().and(named("build")), getClass().getName() + "$ReceiveMessageRequestAdvice");
   }
 

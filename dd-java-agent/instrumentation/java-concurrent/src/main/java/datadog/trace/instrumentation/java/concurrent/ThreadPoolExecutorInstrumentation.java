@@ -94,25 +94,25 @@ public final class ThreadPoolExecutorInstrumentation extends Instrumenter.Tracin
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(isConstructor(), getClass().getName() + "$Init");
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(isConstructor(), getClass().getName() + "$Init");
+    transformer.applyAdvice(
         named("execute")
             .and(isMethod())
             .and(NO_WRAPPING_BEFORE_DELEGATION)
             .and(takesArgument(0, named(Runnable.class.getName()))),
         getClass().getName() + "$Execute");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         named("beforeExecute")
             .and(isMethod())
             .and(takesArgument(1, named(Runnable.class.getName()))),
         getClass().getName() + "$BeforeExecute");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         named("afterExecute")
             .and(isMethod())
             .and(takesArgument(0, named(Runnable.class.getName()))),
         getClass().getName() + "$AfterExecute");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         named("remove").and(isMethod()).and(returns(Runnable.class)),
         getClass().getName() + "$Remove");
   }

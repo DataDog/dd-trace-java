@@ -68,8 +68,8 @@ public class DBMCompatibleConnectionInstrumentation extends AbstractConnectionIn
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         nameStartsWith("prepare")
             .and(takesArgument(0, String.class))
             // Also include CallableStatement, which is a subtype of PreparedStatement

@@ -1,7 +1,5 @@
 package datadog.trace.instrumentation.java.lang;
 
-import static datadog.trace.util.AgentThreadFactory.AGENT_THREAD_GROUP;
-
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.java.lang.ProcessImplInstrumentationHelpers;
@@ -19,15 +17,11 @@ class ProcessImplStartAdvice {
       return null;
     }
 
-    // Don't create spans for agent threads
-    if (AGENT_THREAD_GROUP.equals(Thread.currentThread().getThreadGroup())) {
-      return null;
-    }
-
     final AgentTracer.TracerAPI tracer = AgentTracer.get();
     final AgentSpan span = tracer.startSpan("appsec", "command_execution");
     span.setSpanType("system");
     span.setResourceName(ProcessImplInstrumentationHelpers.determineResource(command));
+    span.setTag("component", "subprocess");
     ProcessImplInstrumentationHelpers.setTags(span, command);
     return span;
   }

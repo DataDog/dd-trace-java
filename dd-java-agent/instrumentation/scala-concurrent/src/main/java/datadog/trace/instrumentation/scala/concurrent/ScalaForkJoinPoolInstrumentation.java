@@ -37,8 +37,8 @@ public final class ScalaForkJoinPoolInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isMethod()
             .and(namedOneOf("doSubmit", "externalPush"))
             .and(takesArgument(0, named("scala.concurrent.forkjoin.ForkJoinTask"))),

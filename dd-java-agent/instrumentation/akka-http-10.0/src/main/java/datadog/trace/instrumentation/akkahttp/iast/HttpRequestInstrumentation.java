@@ -42,8 +42,8 @@ public class HttpRequestInstrumentation extends Instrumenter.Iast
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isMethod()
             .and(not(isStatic()))
             .and(named("headers"))
@@ -51,7 +51,7 @@ public class HttpRequestInstrumentation extends Instrumenter.Iast
             .and(takesArguments(0)),
         HttpRequestInstrumentation.class.getName() + "$RequestHeadersAdvice");
 
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod().and(isPublic()).and(not(isStatic())).and(named("entity")).and(takesArguments(0)),
         HttpRequestInstrumentation.class.getName() + "$EntityAdvice");
   }

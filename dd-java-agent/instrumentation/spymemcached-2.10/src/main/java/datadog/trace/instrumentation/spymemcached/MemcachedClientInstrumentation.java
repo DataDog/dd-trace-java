@@ -48,8 +48,8 @@ public final class MemcachedClientInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isMethod()
             .and(isPublic())
             .and(returns(named(MEMCACHED_PACKAGE + ".internal.OperationFuture")))
@@ -59,13 +59,13 @@ public final class MemcachedClientInstrumentation extends Instrumenter.Tracing
             */
             .and(not(named("flush"))),
         MemcachedClientInstrumentation.class.getName() + "$AsyncOperationAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod().and(isPublic()).and(returns(named(MEMCACHED_PACKAGE + ".internal.GetFuture"))),
         MemcachedClientInstrumentation.class.getName() + "$AsyncGetAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod().and(isPublic()).and(returns(named(MEMCACHED_PACKAGE + ".internal.BulkFuture"))),
         MemcachedClientInstrumentation.class.getName() + "$AsyncBulkAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod().and(isPublic()).and(namedOneOf("incr", "decr")),
         MemcachedClientInstrumentation.class.getName() + "$SyncOperationAdvice");
   }
