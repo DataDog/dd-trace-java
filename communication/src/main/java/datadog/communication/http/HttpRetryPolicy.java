@@ -112,7 +112,7 @@ public class HttpRetryPolicy {
     return currentDelay;
   }
 
-  public static final class Factory {
+  public static class Factory {
     private final int maxRetries;
     private final long initialDelay;
     private final double delayFactor;

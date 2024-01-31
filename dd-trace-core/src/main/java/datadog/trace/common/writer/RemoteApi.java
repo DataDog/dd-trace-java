@@ -14,6 +14,16 @@ public abstract class RemoteApi {
   protected long sentTraces = 0;
   protected long failedTraces = 0;
 
+  private final boolean compressionEnabled;
+
+  protected RemoteApi(boolean compressionEnabled) {
+    this.compressionEnabled = compressionEnabled;
+  }
+
+  public boolean isCompressionEnabled() {
+    return compressionEnabled;
+  }
+
   protected void countAndLogSuccessfulSend(final int traceCount, final int sizeInBytes) {
     // count the successful traces
     sentTraces += traceCount;

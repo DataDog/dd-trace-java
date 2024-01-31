@@ -61,7 +61,8 @@ public class CookieSecurityParser {
         }
         boolean addCookie = false;
         boolean eof = i == headerValue.length() - 1;
-        if (eof || next == ',' || next == '=' || next == ';') {
+        boolean separator = next == ',' || next == '=' || next == ';';
+        if (eof || separator) {
           if (next == ',') {
             if (quoteCount % 2 == 0 && version == 1) {
               addCookie = true; // multiple cookie separator
@@ -69,7 +70,7 @@ public class CookieSecurityParser {
               continue;
             }
           }
-          final int end = eof ? i + 1 : i;
+          final int end = separator ? i : i + 1;
           switch (state) {
             case COOKIE_NAME:
               cookieName = headerValue.substring(start, end).trim();

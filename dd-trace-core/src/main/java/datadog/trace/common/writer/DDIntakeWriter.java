@@ -137,7 +137,7 @@ public class DDIntakeWriter extends RemoteWriter {
       TrackType trackType = e.getKey();
       RemoteApi intakeApi = e.getValue();
       DDIntakeMapperDiscovery mapperDiscovery =
-          new DDIntakeMapperDiscovery(trackType, wellKnownTags);
+          new DDIntakeMapperDiscovery(trackType, wellKnownTags, intakeApi.isCompressionEnabled());
       return new PayloadDispatcherImpl(mapperDiscovery, intakeApi, healthMetrics, monitoring);
     }
   }

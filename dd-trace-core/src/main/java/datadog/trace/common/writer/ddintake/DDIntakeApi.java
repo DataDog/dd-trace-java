@@ -23,8 +23,11 @@ import org.slf4j.LoggerFactory;
 /** The API pointing to a DD Intake endpoint */
 public class DDIntakeApi extends RemoteApi {
 
-  private static final String DD_API_KEY_HEADER = "dd-api-key";
   private static final Logger log = LoggerFactory.getLogger(DDIntakeApi.class);
+
+  private static final String DD_API_KEY_HEADER = "dd-api-key";
+  private static final String CONTENT_ENCODING_HEADER = "Content-Encoding";
+  private static final String GZIP_CONTENT_TYPE = "gzip";
 
   public static DDIntakeApiBuilder builder() {
     return new DDIntakeApiBuilder();
@@ -102,6 +105,7 @@ public class DDIntakeApi extends RemoteApi {
       HttpUrl intakeUrl,
       String apiKey,
       HttpRetryPolicy.Factory retryPolicyFactory) {
+    super(true);
     this.httpClient = httpClient;
     this.intakeUrl = intakeUrl;
     this.apiKey = apiKey;
@@ -116,6 +120,7 @@ public class DDIntakeApi extends RemoteApi {
         new Request.Builder()
             .url(intakeUrl)
             .addHeader(DD_API_KEY_HEADER, apiKey)
+            .addHeader(CONTENT_ENCODING_HEADER, GZIP_CONTENT_TYPE)
             .post(payload.toRequest())
             .build();
     totalTraces += payload.traceCount();

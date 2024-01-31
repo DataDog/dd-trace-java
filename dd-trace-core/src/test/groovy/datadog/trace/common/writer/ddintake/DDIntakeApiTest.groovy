@@ -12,10 +12,12 @@ import datadog.trace.common.writer.Payload
 import datadog.trace.core.DDSpan
 import datadog.trace.core.test.DDCoreSpecification
 import okhttp3.HttpUrl
+import org.apache.commons.io.IOUtils
 import org.msgpack.jackson.dataformat.MessagePackFactory
 import spock.lang.Timeout
 
 import java.nio.ByteBuffer
+import java.util.zip.GZIPInputStream
 
 import static datadog.trace.agent.test.server.http.TestHttpServer.httpServer
 
@@ -268,7 +270,15 @@ class DDIntakeApiTest extends DDCoreSpecification {
   }
 
   static Map<String, Object> convertMap(byte[] bytes) {
-    return msgPackMapper.readValue(bytes, new TypeReference<TreeMap<String, Object>>() {})
+    return msgPackMapper.readValue(decompress(bytes), new TypeReference<TreeMap<String, Object>>() {})
+  }
+
+  static byte[] decompress(byte[] bytes) {
+    def baos = new ByteArrayOutputStream()
+    try (GZIPInputStream zip = new GZIPInputStream(new ByteArrayInputStream(bytes))) {
+      IOUtils.copy(zip, baos)
+    }
+    return baos.toByteArray()
   }
 
   static class Traces implements ByteBufferConsumer {
@@ -288,7 +298,7 @@ class DDIntakeApiTest extends DDCoreSpecification {
   }
 
   def discoverMapper(TrackType trackType) {
-    def mapperDiscover = new DDIntakeMapperDiscovery(trackType, wellKnownTags)
+    def mapperDiscover = new DDIntakeMapperDiscovery(trackType, wellKnownTags, true)
     mapperDiscover.discover()
     return mapperDiscover.getMapper()
   }

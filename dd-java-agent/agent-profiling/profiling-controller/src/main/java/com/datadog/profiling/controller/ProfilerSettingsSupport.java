@@ -4,6 +4,8 @@ import datadog.trace.api.Config;
 import datadog.trace.api.Platform;
 import datadog.trace.api.config.ProfilingConfig;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import datadog.trace.context.TraceScope;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -116,7 +118,7 @@ public abstract class ProfilerSettingsSupport {
   private String getSELinuxStatus() {
     String value = "Not present";
     if (Platform.isLinux()) {
-      try {
+      try (final TraceScope scope = AgentTracer.get().muteTracing()) {
         ProcessBuilder pb = new ProcessBuilder("getenforce");
         Process process = pb.start();
         // wait for at most 500ms for the process to finish
