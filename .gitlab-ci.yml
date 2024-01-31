@@ -194,6 +194,16 @@ deploy_to_sonatype:
     - export GPG_PASSWORD=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.signing.gpg_passphrase --with-decryption --query "Parameter.Value" --out text)
     - ./gradlew -PbuildInfo.build.number=$CI_JOB_ID publishToSonatype closeSonatypeStagingRepository --max-workers=1 --build-cache --stacktrace --no-daemon
 
+deploy_artifacts_to_github:
+  stage: deploy
+  image: registry.ddbuild.io/github-cli:v27480869-eafb11d-2.43.0
+  tags: [ "arch:amd64" ]
+  script:
+    - aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.gh_release_token --with-decryption --query "Parameter.Value" --out text > github-token.txt
+    - gh auth login --with-token < github-token.txt
+    - gh auth status
+    - gh release list --repo DataDog/dd-trace-java
+
 deploy_to_docker_registries:
   stage: deploy
   rules:
