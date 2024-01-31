@@ -33,6 +33,7 @@ class JakartaHttpServletResponseInstrumentationTest extends AgentTestRunner {
     then:
     1 * module.onCookie({ IastCookie vul ->
       vul.cookieName == cookie.name &&
+        vul.cookieValue == cookie.value &&
         vul.secure == cookie.secure &&
         vul.httpOnly == cookie.httpOnly
     })
@@ -69,6 +70,7 @@ class JakartaHttpServletResponseInstrumentationTest extends AgentTestRunner {
     then:
     1 * module.onCookie({ IastCookie vul ->
       vul.cookieName == cookie.name &&
+        vul.cookieValue == cookie.value &&
         vul.secure == cookie.secure &&
         vul.httpOnly == cookie.httpOnly
     })

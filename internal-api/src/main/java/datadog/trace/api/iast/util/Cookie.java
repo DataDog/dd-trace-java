@@ -3,12 +3,19 @@ package datadog.trace.api.iast.util;
 public class Cookie {
 
   private final String cookieName;
+  private final String cookieValue;
   private final boolean secure;
   private final String sameSite;
   private final boolean httpOnly;
 
-  public Cookie(final String cookieName, boolean secure, boolean httpOnly, String sameSite) {
+  public Cookie(
+      final String cookieName,
+      final String cookieValue,
+      boolean secure,
+      boolean httpOnly,
+      String sameSite) {
     this.cookieName = cookieName;
+    this.cookieValue = cookieValue;
     this.secure = secure;
     this.sameSite = sameSite;
     this.httpOnly = httpOnly;
@@ -16,6 +23,10 @@ public class Cookie {
 
   public String getCookieName() {
     return cookieName;
+  }
+
+  public String getCookieValue() {
+    return cookieValue;
   }
 
   public boolean isSecure() {
@@ -36,12 +47,18 @@ public class Cookie {
 
   public static class Builder {
     private final String name;
+    private String value;
     private boolean secure = false;
     private boolean httpOnly = false;
     private String sameSite = null;
 
     public Builder(final String name) {
       this.name = name;
+    }
+
+    public Builder value(final String value) {
+      this.value = value;
+      return this;
     }
 
     public Builder secure(final boolean secure) {
@@ -60,7 +77,7 @@ public class Cookie {
     }
 
     public Cookie build() {
-      return new Cookie(name, secure, httpOnly, sameSite);
+      return new Cookie(name, value, secure, httpOnly, sameSite);
     }
   }
 }

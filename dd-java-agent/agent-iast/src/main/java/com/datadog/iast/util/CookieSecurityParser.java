@@ -51,7 +51,7 @@ public class CookieSecurityParser {
       int version = headerName == SET_COOKIE2 ? 1 : 0;
       List<Cookie> result = new ArrayList<>();
       int start = 0, quoteCount = 0;
-      String cookieName = null, sameSite = null;
+      String cookieName = null, cookieValue = null, sameSite = null;
       boolean secure = false, httpOnly = false, sameSiteAttr = false;
       byte state = COOKIE_NAME;
       for (int i = 0; i < headerValue.length(); i++) {
@@ -74,9 +74,17 @@ public class CookieSecurityParser {
           switch (state) {
             case COOKIE_NAME:
               cookieName = headerValue.substring(start, end).trim();
+              if (cookieName.charAt(cookieName.length() - 1) == '=') {
+                cookieName =
+                    cookieName.substring(
+                        0,
+                        cookieName.length()
+                            - 1); // remove trailing '=' for corner case "Set-Cookie: user-id="
+              }
               state = next == '=' ? COOKIE_VALUE : COOKIE_ATTR_NAME;
               break;
             case COOKIE_VALUE:
+              cookieValue = headerValue.substring(start, end).trim();
               state = COOKIE_ATTR_NAME;
               break;
             case COOKIE_ATTR_NAME:
@@ -109,9 +117,10 @@ public class CookieSecurityParser {
         }
         if (addCookie || eof) {
           if (cookieName != null && !cookieName.isEmpty()) {
-            result.add(new Cookie(cookieName, secure, httpOnly, sameSite));
+            result.add(new Cookie(cookieName, cookieValue, secure, httpOnly, sameSite));
           }
           cookieName = null;
+          cookieValue = null;
           sameSiteAttr = false;
           secure = false;
           httpOnly = false;

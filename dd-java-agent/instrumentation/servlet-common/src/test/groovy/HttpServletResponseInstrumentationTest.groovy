@@ -32,7 +32,7 @@ class HttpServletResponseInstrumentationTest extends AgentTestRunner {
     response.addCookie(cookie)
 
     then:
-    1 * module.onCookie({ IastCookie vul -> vul.cookieName == cookie.name && vul.secure == cookie.secure })
+    1 * module.onCookie({ IastCookie vul -> vul.cookieName == cookie.name && vul.cookieValue == cookie.value && vul.secure == cookie.secure })
     0 * _
   }
 
@@ -64,7 +64,7 @@ class HttpServletResponseInstrumentationTest extends AgentTestRunner {
     response.addCookie(cookie)
 
     then:
-    1 * module.onCookie({ IastCookie vul -> vul.cookieName == cookie.name && vul.secure == cookie.secure })
+    1 * module.onCookie({ IastCookie vul -> vul.cookieName == cookie.name && vul.cookieValue == cookie.value && vul.secure == cookie.secure })
     0 * _
   }
 

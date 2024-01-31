@@ -9,7 +9,11 @@ public class InsecureCookieModuleImpl implements InsecureCookieModule<Vulnerabil
 
   @Override
   public boolean isVulnerable(@Nonnull final Cookie cookie) {
-    return !cookie.isSecure();
+    return !cookieValueIsEmpty(cookie.getCookieValue()) && !cookie.isSecure();
+  }
+
+  private boolean cookieValueIsEmpty(final String cookieValue) {
+    return cookieValue == null || cookieValue.isEmpty();
   }
 
   @Override

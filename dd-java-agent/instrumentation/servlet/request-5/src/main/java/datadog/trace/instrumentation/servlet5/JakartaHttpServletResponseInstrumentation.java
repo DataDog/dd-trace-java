@@ -69,6 +69,7 @@ public final class JakartaHttpServletResponseInstrumentation extends Instrumente
         if (mod != null) {
           mod.onCookie(
               Cookie.named(cookie.getName())
+                  .value(cookie.getValue())
                   .secure(cookie.getSecure())
                   .httpOnly(cookie.isHttpOnly())
                   .build());

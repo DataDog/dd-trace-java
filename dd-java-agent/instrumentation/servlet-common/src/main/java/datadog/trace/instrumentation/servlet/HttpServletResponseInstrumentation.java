@@ -71,7 +71,11 @@ public final class HttpServletResponseInstrumentation extends Instrumenter.Iast
       if (null != cookie) {
         HttpResponseHeaderModule mod = InstrumentationBridge.RESPONSE_HEADER_MODULE;
         if (mod != null) {
-          mod.onCookie(Cookie.named(cookie.getName()).secure(cookie.getSecure()).build());
+          mod.onCookie(
+              Cookie.named(cookie.getName())
+                  .value(cookie.getValue())
+                  .secure(cookie.getSecure())
+                  .build());
         }
       }
     }

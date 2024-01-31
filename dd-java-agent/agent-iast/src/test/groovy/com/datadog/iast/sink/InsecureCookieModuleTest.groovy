@@ -21,14 +21,6 @@ class InsecureCookieModuleTest extends IastModuleImplTestBase {
   }
 
   @Override
-  protected AgentTracer.TracerAPI buildAgentTracer() {
-    return Mock(AgentTracer.TracerAPI) {
-      activeSpan() >> span
-      getTraceSegment() >> traceSegment
-    }
-  }
-
-  @Override
   protected Reporter buildReporter() {
     return Mock(Reporter)
   }
@@ -36,13 +28,12 @@ class InsecureCookieModuleTest extends IastModuleImplTestBase {
   void 'report insecure cookie with InsecureCookieModule.onCookie'() {
     given:
     Vulnerability savedVul
-    final cookie =  Cookie.named('user-id').build()
+    final cookie =  Cookie.named('user-id').value("123").build()
 
     when:
     module.onCookie(cookie)
 
     then:
-    1 * tracer.activeSpan() >> span
     1 * reporter.report(_, _ as Vulnerability) >> { savedVul = it[1] }
     with(savedVul) {
       type == VulnerabilityType.INSECURE_COOKIE
@@ -57,27 +48,21 @@ class InsecureCookieModuleTest extends IastModuleImplTestBase {
     given:
     final cookie = Cookie.named('user-id')
       .secure(true)
-      .httpOnly(true)
-      .sameSite('Strict')
       .build()
 
     when:
     module.onCookie(cookie)
 
     then:
-    0 * tracer.activeSpan()
-    0 * reporter._
-  }
-
-  void 'secure cookie is not reported with InsecureCookieModule.onCookie'() {
-    given:
-    final cookie = Cookie.named('user-id').secure(true).build()
-
-    when:
-    module.onCookie(cookie)
-
-    then:
-    0 * tracer.activeSpan() >> span
     0 * reporter.report(_, _ as Vulnerability)
+
+    where:
+    value | secure
+    null  | false
+    ""    | false
+    null  | true
+    ""    | true
+    "test"  | true
+    "test"    | true
   }
 }

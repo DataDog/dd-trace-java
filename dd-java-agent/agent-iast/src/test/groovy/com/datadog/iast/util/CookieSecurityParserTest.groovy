@@ -24,23 +24,26 @@ class CookieSecurityParserTest extends Specification {
 
     then:
     cookieName == badCookie.getCookieName()
+    cookieValue == badCookie.getCookieValue()
     isSecure == badCookie.isSecure()
     isHttpOnly == badCookie.isHttpOnly()
     sameSite == badCookie.getSameSite()
 
     where:
-    header                                                                                                                                                       | cookieName | isSecure | isHttpOnly | sameSite
-    "Set-Cookie: user-id="                                                                                                                                       | "user-id"  | false    | false      | null
-    "Set-Cookie: user-id=7"                                                                                                                                      | "user-id"  | false    | false      | null
-    'Set-Cookie: user-id="7"'                                                                                                                                    | "user-id"  | false    | false      | null
-    "Set-Cookie: user-id=7;Secure"                                                                                                                               | "user-id"  | true     | false      | null
-    "Set-Cookie: user-id=7;Secure;HttpOnly"                                                                                                                      | "user-id"  | true     | true       | null
-    "Set-Cookie: CUSTOMER=WILE_E_COYOTE; version='1'"                                                                                                            | "CUSTOMER" | false    | false      | null
-    "Set-Cookie: CUSTOMER=WILE_E_COYOTE; path=/; expires=Wednesday, 09-Nov-99 23:12:40 GMT"                                                                      | "CUSTOMER" | false    | false      | null
-    "Set-Cookie: CUSTOMER=WILE_E_COYOTE; path=/; expires=Wednesday, 09-Nov-99 23:12:40 GMT;SameSite=Lax;HttpOnly"                                                | "CUSTOMER" | false    | true       | 'Lax'
-    "Set-Cookie: PREF=ID=1eda537de48ac25d:CR=1:TM=1112868587:LM=1112868587:S=t3FPA-mT9lTR3bxU;expires=Sun, 17-Jan-2038 19:14:07 GMT; path=/; domain=.google.com" | "PREF"     | false    | false      | null
-    "Set-Cookie: CUSTOMER=WILE_E_COYOTE; path=/; expires=Wednesday, 09-Nov-99 23:12:40 GMT; Secure"                                                              | "CUSTOMER" | true     | false      | null
-    "Set-Cookie: CUSTOMER=WILE_E_COYOTE; path=/; expires=Wednesday, 09-Nov-99 23:12:40 GMT; path=\"/acme\";SameSite=Strict"                                      | "CUSTOMER" | false    | false      | 'Strict'
+    header                                                                                                                                                       | cookieName | cookieValue                                                               | isSecure | isHttpOnly | sameSite
+    "Set-Cookie: user-id="                                                                                                                                      | "user-id"  | null                                                                       | false    | false      | null
+    "Set-Cookie: user-id"                                                                                                                                      | "user-id"  | null                                                                       | false    | false      | null
+    'Set-Cookie: user-id=""'                                                                                                                                      | "user-id"  | '""'                                                                       | false    | false      | null
+    "Set-Cookie: user-id=7"                                                                                                                                      | "user-id"  | '7'                                                                       | false    | false      | null
+    'Set-Cookie: user-id="7"'                                                                                                                                    | "user-id"  | '"7"'                                                                       | false    | false      | null
+    "Set-Cookie: user-id=7;Secure"                                                                                                                               | "user-id"  | '7'                                                                       | true     | false      | null
+    "Set-Cookie: user-id=7;Secure;HttpOnly"                                                                                                                      | "user-id"  | '7'                                                                       | true     | true       | null
+    "Set-Cookie: CUSTOMER=WILE_E_COYOTE; version='1'"                                                                                                            | "CUSTOMER" | 'WILE_E_COYOTE'                                                           | false    | false      | null
+    "Set-Cookie: CUSTOMER=WILE_E_COYOTE; path=/; expires=Wednesday, 09-Nov-99 23:12:40 GMT"                                                                      | "CUSTOMER" | 'WILE_E_COYOTE'                                                           | false    | false      | null
+    "Set-Cookie: CUSTOMER=WILE_E_COYOTE; path=/; expires=Wednesday, 09-Nov-99 23:12:40 GMT;SameSite=Lax;HttpOnly"                                                | "CUSTOMER" | 'WILE_E_COYOTE'                                                           | false    | true       | 'Lax'
+    //TODO "Set-Cookie: PREF=ID=1eda537de48ac25d:CR=1:TM=1112868587:LM=1112868587:S=t3FPA-mT9lTR3bxU;expires=Sun, 17-Jan-2038 19:14:07 GMT; path=/; domain=.google.com" | "PREF"     | 'ID=1eda537de48ac25d:CR=1:TM=1112868587:LM=1112868587:S=t3FPA-mT9lTR3bxU' | false    | false      | null
+    "Set-Cookie: CUSTOMER=WILE_E_COYOTE; path=/; expires=Wednesday, 09-Nov-99 23:12:40 GMT; Secure"                                                              | "CUSTOMER" | 'WILE_E_COYOTE'                                                           | true     | false      | null
+    "Set-Cookie: CUSTOMER=WILE_E_COYOTE; path=/; expires=Wednesday, 09-Nov-99 23:12:40 GMT; path=\"/acme\";SameSite=Strict"                                      | "CUSTOMER" | 'WILE_E_COYOTE'                                                           | false    | false      | 'Strict'
   }
 
 
