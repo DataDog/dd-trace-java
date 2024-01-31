@@ -99,7 +99,7 @@
     "resource" : "org.example.TestFailedParameterized.parameterized_test_succeed",
     "start" : ${content_start_3},
     "duration" : ${content_duration_3},
-    "error" : 0,
+    "error" : 1,
     "metrics" : {
       "process_id" : ${content_metrics_process_id},
       "_dd.profiling.enabled" : 0,
@@ -112,7 +112,7 @@
       "test.source.file" : "dummy_source_path",
       "test.source.method" : "parameterized_test_succeed(Ljava/lang/String;Z)V",
       "test.module" : "testng-7",
-      "test.status" : "skip",
+      "test.status" : "fail",
       "language" : "jvm",
       "runtime.name" : ${content_meta_runtime_name},
       "os.platform" : ${content_meta_os_platform},
@@ -130,7 +130,9 @@
       "dummy_ci_tag" : "dummy_ci_tag_value",
       "test.parameters" : "{\"arguments\":{\"0\":\"\\\"goodbye\\\"\",\"1\":\"false\"}}",
       "component" : "testng",
+      "error.type" : "java.lang.AssertionError",
       "_dd.profiling.ctx" : "test",
+      "error.stack" : ${content_meta_error_stack},
       "test.framework_version" : ${content_meta_test_framework_version},
       "test.framework" : "testng"
     }
@@ -150,7 +152,7 @@
     "resource" : "org.example.TestFailedParameterized.parameterized_test_succeed",
     "start" : ${content_start_4},
     "duration" : ${content_duration_4},
-    "error" : 0,
+    "error" : 1,
     "metrics" : {
       "process_id" : ${content_metrics_process_id},
       "_dd.profiling.enabled" : 0,
@@ -163,7 +165,7 @@
       "test.source.file" : "dummy_source_path",
       "test.source.method" : "parameterized_test_succeed(Ljava/lang/String;Z)V",
       "test.module" : "testng-7",
-      "test.status" : "skip",
+      "test.status" : "fail",
       "language" : "jvm",
       "runtime.name" : ${content_meta_runtime_name},
       "os.platform" : ${content_meta_os_platform},
@@ -181,7 +183,9 @@
       "dummy_ci_tag" : "dummy_ci_tag_value",
       "test.parameters" : "{\"arguments\":{\"0\":\"\\\"goodbye\\\"\",\"1\":\"false\"}}",
       "component" : "testng",
+      "error.type" : "java.lang.AssertionError",
       "_dd.profiling.ctx" : "test",
+      "error.stack" : ${content_meta_error_stack_2},
       "test.framework_version" : ${content_meta_test_framework_version},
       "test.framework" : "testng"
     }
@@ -201,7 +205,7 @@
     "resource" : "org.example.TestFailedParameterized.parameterized_test_succeed",
     "start" : ${content_start_5},
     "duration" : ${content_duration_5},
-    "error" : 0,
+    "error" : 1,
     "metrics" : {
       "process_id" : ${content_metrics_process_id},
       "_dd.profiling.enabled" : 0,
@@ -214,7 +218,7 @@
       "test.source.file" : "dummy_source_path",
       "test.source.method" : "parameterized_test_succeed(Ljava/lang/String;Z)V",
       "test.module" : "testng-7",
-      "test.status" : "skip",
+      "test.status" : "fail",
       "language" : "jvm",
       "runtime.name" : ${content_meta_runtime_name},
       "os.platform" : ${content_meta_os_platform},
@@ -232,7 +236,9 @@
       "dummy_ci_tag" : "dummy_ci_tag_value",
       "test.parameters" : "{\"arguments\":{\"0\":\"\\\"goodbye\\\"\",\"1\":\"false\"}}",
       "component" : "testng",
+      "error.type" : "java.lang.AssertionError",
       "_dd.profiling.ctx" : "test",
+      "error.stack" : ${content_meta_error_stack_2},
       "test.framework_version" : ${content_meta_test_framework_version},
       "test.framework" : "testng"
     }
@@ -252,7 +258,7 @@
     "resource" : "org.example.TestFailedParameterized.parameterized_test_succeed",
     "start" : ${content_start_6},
     "duration" : ${content_duration_6},
-    "error" : 0,
+    "error" : 1,
     "metrics" : {
       "process_id" : ${content_metrics_process_id},
       "_dd.profiling.enabled" : 0,
@@ -265,7 +271,7 @@
       "test.source.file" : "dummy_source_path",
       "test.source.method" : "parameterized_test_succeed(Ljava/lang/String;Z)V",
       "test.module" : "testng-7",
-      "test.status" : "skip",
+      "test.status" : "fail",
       "language" : "jvm",
       "runtime.name" : ${content_meta_runtime_name},
       "os.platform" : ${content_meta_os_platform},
@@ -283,7 +289,9 @@
       "dummy_ci_tag" : "dummy_ci_tag_value",
       "test.parameters" : "{\"arguments\":{\"0\":\"\\\"goodbye\\\"\",\"1\":\"false\"}}",
       "component" : "testng",
+      "error.type" : "java.lang.AssertionError",
       "_dd.profiling.ctx" : "test",
+      "error.stack" : ${content_meta_error_stack_2},
       "test.framework_version" : ${content_meta_test_framework_version},
       "test.framework" : "testng"
     }
@@ -336,7 +344,7 @@
       "component" : "testng",
       "error.type" : "java.lang.AssertionError",
       "_dd.profiling.ctx" : "test",
-      "error.stack" : ${content_meta_error_stack},
+      "error.stack" : ${content_meta_error_stack_2},
       "test.framework_version" : ${content_meta_test_framework_version},
       "test.framework" : "testng"
     }

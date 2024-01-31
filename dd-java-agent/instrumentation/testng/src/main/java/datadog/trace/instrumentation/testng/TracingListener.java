@@ -123,11 +123,21 @@ public class TracingListener extends TestNGClassListener
         (result.getName() != null) ? result.getName() : result.getMethod().getMethodName();
     String testParameters = TestNGUtils.getParameters(result);
 
-    // Typically the way of skipping a TestNG test is throwing a SkipException
     Throwable throwable = result.getThrowable();
-    String reason = throwable != null ? throwable.getMessage() : null;
-    TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSkip(
-        testSuiteName, testClass, testName, result, testParameters, reason);
+    if (TestNGUtils.wasRetried(result)) {
+      // TestNG reports tests retried with IRetryAnalyzer as skipped,
+      // this is done to avoid failing the build when retrying tests.
+      // We want to report such tests as failed to Datadog,
+      // to provide more accurate data (and to enable flakiness detection)
+      TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestFailure(
+          testSuiteName, testClass, testName, result, testParameters, throwable);
+    } else {
+      // Typically the way of skipping a TestNG test is throwing a SkipException
+      String reason = throwable != null ? throwable.getMessage() : null;
+      TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSkip(
+          testSuiteName, testClass, testName, result, testParameters, reason);
+    }
+
     TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestFinish(
         testSuiteName, testClass, testName, result, testParameters);
   }
