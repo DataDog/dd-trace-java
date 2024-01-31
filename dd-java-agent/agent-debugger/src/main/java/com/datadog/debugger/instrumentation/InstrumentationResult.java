@@ -7,8 +7,6 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import org.objectweb.asm.tree.ClassNode;
-import org.objectweb.asm.tree.MethodNode;
 
 /** Stores status instrumentation results */
 public class InstrumentationResult {
@@ -41,9 +39,12 @@ public class InstrumentationResult {
   public InstrumentationResult(
       Status status,
       Map<ProbeId, List<DiagnosticMessage>> diagnostics,
-      ClassNode classNode,
-      MethodNode methodNode) {
-    this(status, diagnostics, classNode.name.replace('/', '.'), methodNode.name);
+      ClassFileInfo classFileInfo) {
+    this(
+        status,
+        diagnostics,
+        classFileInfo.getClassNode().name.replace('/', '.'),
+        classFileInfo.getMethodNode().name);
   }
 
   public InstrumentationResult(
