@@ -74,13 +74,6 @@ public class CookieSecurityParser {
           switch (state) {
             case COOKIE_NAME:
               cookieName = headerValue.substring(start, end).trim();
-              if (cookieName.charAt(cookieName.length() - 1) == '=') {
-                cookieName =
-                    cookieName.substring(
-                        0,
-                        cookieName.length()
-                            - 1); // remove trailing '=' for corner case "Set-Cookie: user-id="
-              }
               state = next == '=' ? COOKIE_VALUE : COOKIE_ATTR_NAME;
               break;
             case COOKIE_VALUE:
