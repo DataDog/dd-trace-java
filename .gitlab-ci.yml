@@ -28,7 +28,7 @@ variables:
   tags: [ "runner:main", "size:large" ]
 
 .docker: &docker
-  tags: [ "runner:docker", "size:large" ]
+  tags: [ "arch:amd64", "size:large" ]
   image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/docker:20.10.13
   cache:
     key: no-cache
@@ -234,7 +234,7 @@ create_key:
   stage: generate-signing-key
   when: manual
   needs: []
-  tags: [ "runner:docker", "size:large" ]
+  tags: [ "arch:amd64", "size:large" ]
   variables:
     PROJECT_NAME: "dd-trace-java"
     EXPORT_TO_KEYSERVER: "true"
