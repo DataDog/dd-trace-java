@@ -63,7 +63,7 @@ configurations{
 dependencies {
   compileOnly group: 'org.eclipse.jetty', name: 'jetty-client', version: '9.1.0.v20131115'
 
-  testImplementation(project(':dd-java-agent:testing')) {
+  testImplementation(project(path:':dd-java-agent:testing', configuration: 'shadow')) {
     // explicitly declared below.
     exclude module: 'jetty-server'
   }
