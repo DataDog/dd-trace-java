@@ -12,8 +12,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class JettyClientDecorator extends HttpClientDecorator<Request, Response> {
-  private static final MethodHandle HANDLE = createMethodHandle();
   private static final Logger LOGGER = LoggerFactory.getLogger(JettyClientDecorator.class);
+  private static final MethodHandle HANDLE = createMethodHandle();
   public static final CharSequence JETTY_CLIENT = UTF8BytesString.create("jetty-client");
   public static final JettyClientDecorator DECORATE = new JettyClientDecorator();
   public static final CharSequence HTTP_REQUEST = UTF8BytesString.create(DECORATE.operationName());
@@ -66,11 +66,13 @@ public class JettyClientDecorator extends HttpClientDecorator<Request, Response>
   }
 
   private String getHeaderValue(final HttpFields fields, final String headerName) {
-    try {
-      return (String) HANDLE.invokeExact(fields, headerName);
-    } catch (Throwable t) {
-      // probably we should log here but in case of issue we'll flood
-      // however muzzle should already protect us from falling here
+    if (HANDLE != null) {
+      try {
+        return (String) HANDLE.invokeExact(fields, headerName);
+      } catch (Throwable t) {
+        // probably we should log here but in case of issue we'll flood
+        // however muzzle should already protect us from falling here
+      }
     }
     return null;
   }

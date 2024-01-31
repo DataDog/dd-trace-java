@@ -91,6 +91,11 @@ public class JettyClientInstrumentation extends Instrumenter.Tracing
   public String[] muzzleIgnoredClassNames() {
     return new String[] {
       "org.eclipse.jetty.http.HttpFields",
+      // add also helpers
+      packageName + ".JettyClientDecorator",
+      packageName + ".HeadersInjectAdapter",
+      packageName + ".CallbackWrapper",
+      packageName + ".SpanFinishingCompleteListener",
     };
   }
 
