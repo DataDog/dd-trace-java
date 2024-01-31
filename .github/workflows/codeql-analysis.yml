@@ -49,8 +49,9 @@ jobs:
 
       - name: upload to DD CI Static Analysis
         run: |
-          wget https://github.com/DataDog/datadog-ci/releases/download/v2.27.0/datadog-ci_linux-x64 -O datadog-ci
+          wget --no-verbose https://github.com/DataDog/datadog-ci/releases/download/v2.27.0/datadog-ci_linux-x64 -O datadog-ci
           chmod +x datadog-ci
           ./datadog-ci sarif upload /home/runner/work/dd-trace-java/results/java.sarif --service dd-trace-java --env ci
         env:
           DD_API_KEY: ${{ secrets.DD_API_KEY }}
+          DD_SITE: datad0g.com
