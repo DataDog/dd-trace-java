@@ -175,9 +175,9 @@ public class CookieSecurityParser {
         final char next = value.charAt(i);
         if (next == ' ') {
           count++;
-          if(count == 4){
+          if (count == 4) {
             year = Integer.parseInt(value.substring(start, i));
-          }else {
+          } else {
             start = i + 1;
           }
         }
@@ -185,7 +185,7 @@ public class CookieSecurityParser {
     } catch (Exception e) {
       year = null;
     }
-    if(year == null) {
+    if (year == null) {
       LOG.debug(SEND_TELEMETRY, "Failed to parse the expires {}", headerValue);
     }
     return year;
