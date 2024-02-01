@@ -11,6 +11,7 @@ public class PowerWAFStatsReporter implements TraceSegmentPostProcessor {
   private static final String TOTAL_DURATION_US_TAG = "_dd.appsec.waf.duration_ext";
   private static final String TOTAL_DDWAF_RUN_DURATION_US_TAG = "_dd.appsec.waf.duration";
   private static final String RULE_FILE_VERSION = "_dd.appsec.event_rules.version";
+  public static final String TIMEOUTS_TAG = "_dd.appsec.waf.timeouts";
 
   // XXX: if config is updated, this may not match the actual version run during this request
   // However, as of this point, we don't update rules at runtime.
@@ -28,6 +29,9 @@ public class PowerWAFStatsReporter implements TraceSegmentPostProcessor {
       if (rulesVersion != null) {
         segment.setTagTop(RULE_FILE_VERSION, rulesVersion);
       }
+    }
+    if (ctx.getTimeouts() > 0L) {
+      segment.setTagTop(TIMEOUTS_TAG, ctx.getTimeouts());
     }
   }
 }
