@@ -7,7 +7,7 @@ import javax.annotation.Nonnull;
 
 public class InsecureCookieModuleImpl implements InsecureCookieModule<VulnerabilityType> {
 
-  private static final long YEAR_2000_IN_MILLIS = 946681200000L; // Sat, 01 Jan 2000 00:00:00 CET
+  private static final int EXPIRES_YEAR_LIMIT = 2000;
 
   @Override
   public boolean isVulnerable(@Nonnull final Cookie cookie) {
@@ -22,7 +22,7 @@ public class InsecureCookieModuleImpl implements InsecureCookieModule<Vulnerabil
     if (cookie.getMaxAge() != null && cookie.getMaxAge() == 0) {
       return true;
     }
-    if (cookie.getExpires() != null && cookie.getExpires().getTime() < YEAR_2000_IN_MILLIS) {
+    if (cookie.getExpiresYear() != null && cookie.getExpiresYear() < EXPIRES_YEAR_LIMIT) {
       return true;
     }
     return false;

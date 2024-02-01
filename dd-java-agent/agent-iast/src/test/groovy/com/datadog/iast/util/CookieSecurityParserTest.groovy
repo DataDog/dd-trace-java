@@ -36,14 +36,10 @@ class CookieSecurityParserTest extends Specification {
     isHttpOnly == badCookie.isHttpOnly()
     sameSite == badCookie.getSameSite()
     maxAge == badCookie.getMaxAge()
-    if(expires == null) {
-      badCookie.getExpires() == null
-    } else {
-      expires == DATE_FORMAT.format(badCookie.getExpires())
-    }
+    expiresYear == badCookie.getExpiresYear()
 
     where:
-    header                                                                                                                                                       | cookieName | cookieValue                                                               | isSecure | isHttpOnly | sameSite | expires | maxAge
+    header                                                                                                                                                       | cookieName | cookieValue                                                               | isSecure | isHttpOnly | sameSite | expiresYear | maxAge
     "Set-Cookie: user-id="                                                                                                                                      | "user-id"  | null                                                                       | false    | false      | null | null    | null
     "Set-Cookie: user-id"                                                                                                                                      | "user-id"  | null                                                                       | false    | false      | null | null    | null
     'Set-Cookie: user-id=""'                                                                                                                                      | "user-id"  | '""'                                                                       | false    | false      | null | null    | null
@@ -52,10 +48,11 @@ class CookieSecurityParserTest extends Specification {
     "Set-Cookie: user-id=7;Secure"                                                                                                                               | "user-id"  | '7'                                                                       | true     | false      | null | null    | null
     "Set-Cookie: user-id=7;Secure;HttpOnly"                                                                                                                      | "user-id"  | '7'                                                                       | true     | true       | null | null    | null
     "Set-Cookie: CUSTOMER=WILE_E_COYOTE; version='1'"                                                                                                            | "CUSTOMER" | 'WILE_E_COYOTE'                                                           | false    | false      | null | null    | null
-    "Set-Cookie: CUSTOMER=WILE_E_COYOTE; path=/; expires=Wed, 21 Oct 2015 07:28:00 GMT;SameSite=Lax;HttpOnly"                                                | "CUSTOMER" | 'WILE_E_COYOTE'                                                           | false    | true       | 'Lax' | 'Wed, 21 Oct 2015 07:28:00 GMT'    | null
-    "Set-Cookie: CUSTOMER=WILE_E_COYOTE; path=/; expires=Wed, 21 Oct 2015 07:28:00 GMT; Secure"                                                              | "CUSTOMER" | 'WILE_E_COYOTE'                                                           | true     | false      | null | 'Wed, 21 Oct 2015 07:28:00 GMT'    | null
-    "Set-Cookie: CUSTOMER=WILE_E_COYOTE; path=/; expires=Wed, 21 Oct 2015 07:28:00 GMT"                                                                      | "CUSTOMER" | 'WILE_E_COYOTE'                                                           | false    | false      | null | 'Wed, 21 Oct 2015 07:28:00 GMT'   | null
-    "Set-Cookie: CUSTOMER=WILE_E_COYOTE; path=/; expires=Wed, 21 Oct 2015 07:28:00 GMT; path=\"/acme\";SameSite=Strict"                                      | "CUSTOMER" | 'WILE_E_COYOTE'                                                           | false    | false      | 'Strict' | 'Wed, 21 Oct 2015 07:28:00 GMT'    | null
+    "Set-Cookie: CUSTOMER=WILE_E_COYOTE; path=/; expires=Wed, 21 Oct 2015 07:28:00 GMT;SameSite=Lax;HttpOnly"                                                | "CUSTOMER" | 'WILE_E_COYOTE'                                                           | false    | true       | 'Lax' | 2015    | null
+    "Set-Cookie: CUSTOMER=WILE_E_COYOTE; path=/; expires=Wed, 21 Oct 2015 07:28:00 GMT; Secure"                                                              | "CUSTOMER" | 'WILE_E_COYOTE'                                                           | true     | false      | null | 2015    | null
+    "Set-Cookie: CUSTOMER=WILE_E_COYOTE; path=/; expires=Wed, 21 Oct 2015 07:28:00 GMT"                                                                      | "CUSTOMER" | 'WILE_E_COYOTE'                                                           | false    | false      | null | 2015   | null
+    "Set-Cookie: CUSTOMER=WILE_E_COYOTE; path=/; expires=Wed, 21 Oct 2015 07:28:00 GMT; path=\"/acme\";SameSite=Strict"                                      | "CUSTOMER" | 'WILE_E_COYOTE'                                                           | false    | false      | 'Strict' | 2015    | null
+    "Set-Cookie: CUSTOMER=WILE_E_COYOTE; path=/; expires=BAD; path=\"/acme\";SameSite=Strict"                                      | "CUSTOMER" | 'WILE_E_COYOTE'                                                           | false    | false      | 'Strict' | null    | null
     "Set-Cookie: CUSTOMER=WILE_E_COYOTE; path=/; Max-Age=3;SameSite=Lax;HttpOnly"                                                | "CUSTOMER" | 'WILE_E_COYOTE'                                                           | false    | true       | 'Lax' | null    | 3
     "Set-Cookie: CUSTOMER=WILE_E_COYOTE; path=/; Max-Age=3; Secure"                                                              | "CUSTOMER" | 'WILE_E_COYOTE'                                                           | true     | false      | null | null    | 3
     "Set-Cookie: CUSTOMER=WILE_E_COYOTE; path=/; Max-Age=3"                                                                      | "CUSTOMER" | 'WILE_E_COYOTE'                                                           | false    | false      | null | null    | 3

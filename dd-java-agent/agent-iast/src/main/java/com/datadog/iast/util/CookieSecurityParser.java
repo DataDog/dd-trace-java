@@ -4,11 +4,8 @@ import static com.datadog.iast.util.HttpHeader.SET_COOKIE2;
 import static java.util.Collections.emptyList;
 
 import datadog.trace.api.iast.util.Cookie;
-import java.text.ParseException;
-import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Date;
 import java.util.List;
 import javax.annotation.Nullable;
 import org.slf4j.Logger;
@@ -59,7 +56,7 @@ public class CookieSecurityParser {
       List<Cookie> result = new ArrayList<>();
       int start = 0, quoteCount = 0;
       Integer maxAge = null;
-      Date expires = null;
+      Integer expiresYear = null;
       String cookieName = null, cookieValue = null, sameSite = null;
       boolean secure = false, httpOnly = false;
       byte state = COOKIE_NAME, attribute = -1;
@@ -118,7 +115,7 @@ public class CookieSecurityParser {
                     sameSite = value;
                     break;
                   case EXPIRES_ATTR:
-                    expires = parseExpires(value);
+                    expiresYear = parseExpires(value);
                     break;
                   case MAX_AGE_ATTR:
                     maxAge = parseMaxAge(value);
@@ -135,7 +132,8 @@ public class CookieSecurityParser {
         if (addCookie || eof) {
           if (cookieName != null && !cookieName.isEmpty()) {
             result.add(
-                new Cookie(cookieName, cookieValue, secure, httpOnly, sameSite, expires, maxAge));
+                new Cookie(
+                    cookieName, cookieValue, secure, httpOnly, sameSite, expiresYear, maxAge));
           }
           cookieName = null;
           cookieValue = null;
@@ -143,14 +141,14 @@ public class CookieSecurityParser {
           secure = false;
           httpOnly = false;
           sameSite = null;
-          expires = null;
+          expiresYear = null;
           maxAge = null;
           state = COOKIE_NAME;
         }
       }
       return result;
     } catch (final Throwable e) {
-      LOG.warn("Failed to parse the cookie {}", headerValue, e);
+      LOG.debug("Failed to parse the cookie {}", headerValue, e);
       return emptyList();
     }
   }
@@ -160,18 +158,18 @@ public class CookieSecurityParser {
     try {
       return Integer.parseInt(value);
     } catch (final NumberFormatException e) {
-      LOG.warn("Failed to parse the max-age {}", value, e);
+      LOG.debug("Failed to parse the max-age {}", value, e);
       return null;
     }
   }
 
   @Nullable
-  private static Date parseExpires(String value) {
+  private static Integer parseExpires(String value) {
     try {
-      SimpleDateFormat simpleDateFormat = new SimpleDateFormat("EEE, dd MMM yyyy HH:mm:ss z");
-      return simpleDateFormat.parse(value);
-    } catch (ParseException e) {
-      LOG.warn("Failed to parse the expires {}", value, e);
+      String[] tokens = value.split(" ");
+      return Integer.parseInt(tokens[3]);
+    } catch (Exception e) {
+      LOG.debug("Failed to parse the expires {}", value, e);
       return null;
     }
   }
