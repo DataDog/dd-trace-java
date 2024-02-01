@@ -19,7 +19,8 @@ import net.bytebuddy.asm.Advice;
 
 /** Propagation is way easier in io.vertx.core.buffer.impl.BufferImpl than in io.netty.Buffer */
 @AutoService(Instrumenter.class)
-public class BufferInstrumentation extends Instrumenter.Iast implements Instrumenter.ForSingleType {
+public class BufferInstrumentation extends Instrumenter.Iast
+    implements Instrumenter.ForSingleType, Instrumenter.HasTypeAdvice {
 
   private final String className = BufferInstrumentation.class.getName();
 

@@ -12,7 +12,7 @@ import javax.annotation.Nonnull;
  * CallSiteAdvice} implementations.
  */
 public abstract class CallSiteInstrumentation extends InstrumenterGroup
-    implements Instrumenter.ForCallSite {
+    implements Instrumenter.ForCallSite, Instrumenter.HasTypeAdvice {
 
   private Advices advices;
 
@@ -25,9 +25,6 @@ public abstract class CallSiteInstrumentation extends InstrumenterGroup
   public void typeAdvice(TypeTransformer transformer) {
     transformer.applyAdvice(new CallSiteTransformer(name(), advices()));
   }
-
-  @Override
-  public void methodAdvice(final MethodTransformer transformer) {}
 
   /** Utility to be able to tune the advices in subclasses */
   protected Advices buildAdvices(final Iterable<CallSites> callSites) {

@@ -26,7 +26,7 @@ import net.bytebuddy.jar.asm.Opcodes;
 import net.bytebuddy.jar.asm.Type;
 import net.bytebuddy.pool.TypePool;
 
-/** Generates a 'Muzzle' side-class for each {@link Instrumenter}. */
+/** Generates a 'Muzzle' side-class for each {@link InstrumenterGroup}. */
 public class MuzzleGenerator implements AsmVisitorWrapper {
   private final File targetDir;
 
@@ -46,7 +46,7 @@ public class MuzzleGenerator implements AsmVisitorWrapper {
 
   @Override
   public ClassVisitor wrap(
-      final TypeDescription instrumentedType,
+      final TypeDescription groupDefinition,
       final ClassVisitor classVisitor,
       final Implementation.Context implementationContext,
       final TypePool typePool,
@@ -55,30 +55,30 @@ public class MuzzleGenerator implements AsmVisitorWrapper {
       final int writerFlags,
       final int readerFlags) {
 
-    InstrumenterGroup instrumenter;
+    InstrumenterGroup group;
     try {
-      instrumenter =
+      group =
           (InstrumenterGroup)
               Thread.currentThread()
                   .getContextClassLoader()
-                  .loadClass(instrumentedType.getName())
+                  .loadClass(groupDefinition.getName())
                   .getConstructor()
                   .newInstance();
     } catch (ReflectiveOperationException e) {
       throw new RuntimeException(e);
     }
 
-    File muzzleClass = new File(targetDir, instrumentedType.getInternalName() + "$Muzzle.class");
+    File muzzleClass = new File(targetDir, groupDefinition.getInternalName() + "$Muzzle.class");
     try {
       muzzleClass.getParentFile().mkdirs();
-      Files.write(muzzleClass.toPath(), generateMuzzleClass(instrumenter));
+      Files.write(muzzleClass.toPath(), generateMuzzleClass(group));
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
     return classVisitor;
   }
 
-  private static Reference[] generateReferences(InstrumenterGroup instrumenter) {
+  private static Reference[] generateReferences(Instrumenter.HasMethodAdvice instrumenter) {
     // track sources we've generated references from to avoid recursion
     final Set<String> referenceSources = new HashSet<>();
     final Map<String, Reference> references = new LinkedHashMap<>();
@@ -102,19 +102,23 @@ public class MuzzleGenerator implements AsmVisitorWrapper {
   }
 
   /** This code is generated in a separate side-class. */
-  private static byte[] generateMuzzleClass(InstrumenterGroup instrumenter) {
+  private static byte[] generateMuzzleClass(InstrumenterGroup group) {
 
-    Set<String> ignoredClassNames =
-        new HashSet<>(Arrays.asList(instrumenter.muzzleIgnoredClassNames()));
+    Set<String> ignoredClassNames = new HashSet<>(Arrays.asList(group.muzzleIgnoredClassNames()));
 
     List<Reference> references = new ArrayList<>();
-    for (Reference reference : generateReferences(instrumenter)) {
-      // ignore helper classes, they will be injected by the instrumentation's HelperInjector.
-      if (!ignoredClassNames.contains(reference.className)) {
-        references.add(reference);
+    for (Instrumenter instrumenter : group.typeInstrumentations()) {
+      if (instrumenter instanceof Instrumenter.HasMethodAdvice) {
+        for (Reference reference :
+            generateReferences((Instrumenter.HasMethodAdvice) instrumenter)) {
+          // ignore helper classes, they will be injected by the instrumentation's HelperInjector.
+          if (!ignoredClassNames.contains(reference.className)) {
+            references.add(reference);
+          }
+        }
       }
     }
-    Reference[] additionalReferences = instrumenter.additionalMuzzleReferences();
+    Reference[] additionalReferences = group.additionalMuzzleReferences();
     if (null != additionalReferences) {
       Collections.addAll(references, additionalReferences);
     }
@@ -123,7 +127,7 @@ public class MuzzleGenerator implements AsmVisitorWrapper {
     cw.visit(
         Opcodes.V1_8,
         Opcodes.ACC_PUBLIC | Opcodes.ACC_FINAL,
-        Type.getInternalName(instrumenter.getClass()) + "$Muzzle",
+        Type.getInternalName(group.getClass()) + "$Muzzle",
         null,
         "java/lang/Object",
         null);

@@ -27,7 +27,7 @@ import net.bytebuddy.asm.Advice;
 
 @AutoService(Instrumenter.class)
 public class CaseInsensitiveHeadersInstrumentation extends Instrumenter.Iast
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasTypeAdvice {
 
   private final String className = CaseInsensitiveHeadersInstrumentation.class.getName();
 

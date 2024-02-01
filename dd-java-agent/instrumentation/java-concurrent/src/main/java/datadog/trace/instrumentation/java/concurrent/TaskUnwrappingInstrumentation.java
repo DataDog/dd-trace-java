@@ -8,7 +8,7 @@ import datadog.trace.bootstrap.config.provider.ConfigProvider;
 
 @AutoService(Instrumenter.class)
 public class TaskUnwrappingInstrumentation extends Instrumenter.Profiling
-    implements Instrumenter.ForKnownTypes {
+    implements Instrumenter.ForKnownTypes, Instrumenter.HasTypeAdvice {
   public TaskUnwrappingInstrumentation() {
     super("java_concurrent", "task-unwrapping");
   }

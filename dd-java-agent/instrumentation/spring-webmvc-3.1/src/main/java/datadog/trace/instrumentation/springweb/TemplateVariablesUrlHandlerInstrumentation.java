@@ -35,7 +35,9 @@ import net.bytebuddy.matcher.ElementMatcher;
 /** Obtain template and matrix variables for AbstractUrlHandlerMapping */
 @AutoService(Instrumenter.class)
 public class TemplateVariablesUrlHandlerInstrumentation extends InstrumenterGroup
-    implements Instrumenter.ForSingleType, Instrumenter.WithPostProcessor {
+    implements Instrumenter.ForSingleType,
+        Instrumenter.HasMethodAdvice,
+        Instrumenter.WithPostProcessor {
 
   private Advice.PostProcessor.Factory postProcessorFactory;
 

@@ -45,80 +45,83 @@ public final class LegacyTransformerBuilder extends AbstractTransformerBuilder {
   }
 
   @Override
-  protected void buildInstrumentation(InstrumenterGroup instrumenter) {
-    InstrumenterState.registerInstrumentation(instrumenter);
+  protected void buildInstrumentation(InstrumenterGroup group, Instrumenter member) {
 
-    ignoreMatcher = instrumenter.methodIgnoreMatcher();
+    ignoreMatcher = group.methodIgnoreMatcher();
     adviceBuilder =
         agentBuilder
-            .type(typeMatcher(instrumenter))
+            .type(typeMatcher(group, member))
             .and(NOT_DECORATOR_MATCHER)
-            .and(new MuzzleMatcher(instrumenter))
+            .and(new MuzzleMatcher(group))
             .transform(defaultTransformers());
 
-    String[] helperClassNames = instrumenter.helperClassNames();
-    if (instrumenter.injectHelperDependencies()) {
+    String[] helperClassNames = group.helperClassNames();
+    if (group.injectHelperDependencies()) {
       helperClassNames = HelperScanner.withClassDependencies(helperClassNames);
     }
     if (helperClassNames.length > 0) {
       adviceBuilder =
           adviceBuilder.transform(
-              new HelperTransformer(instrumenter.getClass().getSimpleName(), helperClassNames));
+              new HelperTransformer(group.getClass().getSimpleName(), helperClassNames));
     }
 
-    Map<String, String> contextStore = instrumenter.contextStore();
+    Map<String, String> contextStore = group.contextStore();
     if (!contextStore.isEmpty()) {
       // rewrite context store access to call FieldBackedContextStores with assigned store-id
       adviceBuilder =
           adviceBuilder.transform(
               new VisitingTransformer(
-                  new FieldBackedContextRequestRewriter(contextStore, instrumenter.name())));
+                  new FieldBackedContextRequestRewriter(contextStore, group.name())));
 
-      registerContextStoreInjection(instrumenter, contextStore);
+      registerContextStoreInjection(group, member, contextStore);
     }
 
-    agentBuilder = registerAdvice(instrumenter);
+    agentBuilder = registerAdvice(member);
   }
 
-  private AgentBuilder registerAdvice(Instrumenter.HasAdvice instrumenter) {
-    instrumenter.typeAdvice(this);
-    instrumenter.methodAdvice(this);
+  private AgentBuilder registerAdvice(Instrumenter instrumenter) {
+    if (instrumenter instanceof Instrumenter.HasTypeAdvice) {
+      ((Instrumenter.HasTypeAdvice) instrumenter).typeAdvice(this);
+    }
+    if (instrumenter instanceof Instrumenter.HasMethodAdvice) {
+      ((Instrumenter.HasMethodAdvice) instrumenter).methodAdvice(this);
+    }
     return adviceBuilder;
   }
 
-  private AgentBuilder.RawMatcher typeMatcher(InstrumenterGroup instrumenter) {
+  private AgentBuilder.RawMatcher typeMatcher(InstrumenterGroup group, Instrumenter member) {
     ElementMatcher<? super TypeDescription> typeMatcher;
     String hierarchyHint = null;
 
-    if (instrumenter instanceof Instrumenter.ForSingleType) {
-      String name = ((Instrumenter.ForSingleType) instrumenter).instrumentedType();
+    if (member instanceof Instrumenter.ForSingleType) {
+      String name = ((Instrumenter.ForSingleType) member).instrumentedType();
       typeMatcher = new SingleTypeMatcher(name);
-    } else if (instrumenter instanceof Instrumenter.ForKnownTypes) {
-      String[] names = ((Instrumenter.ForKnownTypes) instrumenter).knownMatchingTypes();
+    } else if (member instanceof Instrumenter.ForKnownTypes) {
+      String[] names = ((Instrumenter.ForKnownTypes) member).knownMatchingTypes();
       typeMatcher = new KnownTypesMatcher(names);
-    } else if (instrumenter instanceof Instrumenter.ForTypeHierarchy) {
-      typeMatcher = ((Instrumenter.ForTypeHierarchy) instrumenter).hierarchyMatcher();
-      hierarchyHint = ((Instrumenter.ForTypeHierarchy) instrumenter).hierarchyMarkerType();
-    } else if (instrumenter instanceof Instrumenter.ForConfiguredTypes) {
+    } else if (member instanceof Instrumenter.ForTypeHierarchy) {
+      typeMatcher = ((Instrumenter.ForTypeHierarchy) member).hierarchyMatcher();
+      hierarchyHint = ((Instrumenter.ForTypeHierarchy) member).hierarchyMarkerType();
+    } else if (member instanceof Instrumenter.ForConfiguredTypes) {
       typeMatcher = none(); // handle below, just like when it's combined with other matchers
-    } else if (instrumenter instanceof Instrumenter.ForCallSite) {
-      typeMatcher = ((Instrumenter.ForCallSite) instrumenter).callerType();
+    } else if (member instanceof Instrumenter.ForCallSite) {
+      typeMatcher = ((Instrumenter.ForCallSite) member).callerType();
     } else {
       return AgentBuilder.RawMatcher.Trivial.NON_MATCHING;
     }
 
-    if (instrumenter instanceof Instrumenter.CanShortcutTypeMatching
-        && !((Instrumenter.CanShortcutTypeMatching) instrumenter).onlyMatchKnownTypes()) {
+    if (member instanceof Instrumenter.CanShortcutTypeMatching
+        && !((Instrumenter.CanShortcutTypeMatching) member).onlyMatchKnownTypes()) {
       // not taking shortcuts, so include wider hierarchical matching
       typeMatcher =
           new ElementMatcher.Junction.Disjunction(
-              typeMatcher, ((Instrumenter.ForTypeHierarchy) instrumenter).hierarchyMatcher());
-      hierarchyHint = ((Instrumenter.ForTypeHierarchy) instrumenter).hierarchyMarkerType();
+              typeMatcher, ((Instrumenter.ForTypeHierarchy) member).hierarchyMatcher());
+      hierarchyHint = ((Instrumenter.ForTypeHierarchy) member).hierarchyMarkerType();
     }
 
-    if (instrumenter instanceof Instrumenter.ForConfiguredTypes) {
+    if (member instanceof Instrumenter.ForConfiguredTypes) {
       Collection<String> names =
-          ((Instrumenter.ForConfiguredTypes) instrumenter).configuredMatchingTypes();
+          ((Instrumenter.ForConfiguredTypes) member).configuredMatchingTypes();
       // only add this optional matcher when it's been configured
       if (null != names && !names.isEmpty()) {
         typeMatcher =
@@ -126,14 +129,14 @@ public final class LegacyTransformerBuilder extends AbstractTransformerBuilder {
       }
     }
 
-    if (instrumenter instanceof Instrumenter.WithTypeStructure) {
+    if (member instanceof Instrumenter.WithTypeStructure) {
       // only perform structure matching after we've matched the type
       typeMatcher =
           new ElementMatcher.Junction.Conjunction(
-              typeMatcher, ((Instrumenter.WithTypeStructure) instrumenter).structureMatcher());
+              typeMatcher, ((Instrumenter.WithTypeStructure) member).structureMatcher());
     }
 
-    ElementMatcher<ClassLoader> classLoaderMatcher = instrumenter.classLoaderMatcher();
+    ElementMatcher<ClassLoader> classLoaderMatcher = group.classLoaderMatcher();
 
     if (null != hierarchyHint) {
       // use hint to limit expensive type matching to class-loaders with marker type
@@ -149,9 +152,9 @@ public final class LegacyTransformerBuilder extends AbstractTransformerBuilder {
         typeMatcher,
         classLoaderMatcher,
         "Instrumentation matcher unexpected exception - instrumentation.names="
-            + instrumenter.names()
+            + group.names()
             + " instrumentation.class="
-            + instrumenter.getClass().getName());
+            + group.getClass().getName());
   }
 
   @Override
@@ -162,7 +165,7 @@ public final class LegacyTransformerBuilder extends AbstractTransformerBuilder {
     adviceBuilder =
         agentBuilder.type(matcher).and(NOT_DECORATOR_MATCHER).transform(defaultTransformers());
 
-    agentBuilder = registerAdvice((Instrumenter.HasAdvice) instrumenter);
+    agentBuilder = registerAdvice((Instrumenter) instrumenter);
   }
 
   @Override

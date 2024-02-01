@@ -20,7 +20,7 @@ import net.bytebuddy.matcher.ElementMatcher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public abstract class InstrumenterGroup implements Instrumenter, Instrumenter.HasAdvice {
+public abstract class InstrumenterGroup implements Instrumenter {
   private static final Logger log = LoggerFactory.getLogger(InstrumenterGroup.class);
 
   private final int instrumentationId;
@@ -52,18 +52,8 @@ public abstract class InstrumenterGroup implements Instrumenter, Instrumenter.Ha
     return instrumentationNames;
   }
 
-  @Override
-  public void instrument(TransformerBuilder transformerBuilder) {
-    if (isEnabled()) {
-      transformerBuilder.applyInstrumentation(this);
-    } else {
-      if (log.isDebugEnabled()) {
-        log.debug(
-            "Disabled - instrumentation.names=[{}] instrumentation.class={}",
-            Strings.join(",", instrumentationNames),
-            getClass().getName());
-      }
-    }
+  public List<Instrumenter> typeInstrumentations() {
+    return singletonList(this);
   }
 
   public final ReferenceMatcher getInstrumentationMuzzle() {
@@ -119,10 +109,6 @@ public abstract class InstrumenterGroup implements Instrumenter, Instrumenter.Ha
     return ANY_CLASS_LOADER;
   }
 
-  /** Override this to register full type transformations. */
-  @Override
-  public void typeAdvice(TypeTransformer transformer) {}
-
   /** @return A type matcher used to ignore some methods when applying transformation. */
   public ElementMatcher<? super MethodDescription> methodIgnoreMatcher() {
     // By default ByteBuddy will skip all methods that are synthetic at the top level, but since
@@ -149,7 +135,13 @@ public abstract class InstrumenterGroup implements Instrumenter, Instrumenter.Ha
     return enabled;
   }
 
-  @Override
+  /**
+   * Indicates the applicability of an {@linkplain InstrumenterGroup} to the given system.<br>
+   *
+   * @param enabledSystems a set of all the enabled target systems
+   * @return {@literal true} if the set of enabled systems contains all the ones required by this
+   *     particular {@linkplain InstrumenterGroup}
+   */
   public boolean isApplicable(Set<TargetSystem> enabledSystems) {
     return false;
   }

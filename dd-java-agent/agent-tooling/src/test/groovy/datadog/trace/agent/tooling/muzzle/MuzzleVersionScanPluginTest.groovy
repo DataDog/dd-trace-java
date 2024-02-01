@@ -23,7 +23,7 @@ class MuzzleVersionScanPluginTest extends DDSpecification {
   def "test assertInstrumentationMuzzled advice"() {
     setup:
     def instrumentationLoader = new ServiceEnabledClassLoader(Instrumenter, InstrumenterGroup,
-      ElementMatcher, ReferenceMatcher, Reference, ReferenceCreator)
+      Instrumenter.HasMethodAdvice, ElementMatcher, ReferenceMatcher, Reference, ReferenceCreator)
     instrumentationLoader.addClass(TestInstrumentationClasses)
     instrumentationLoader.addClass(BaseInst)
     instCP.each { instrumentationLoader.addClass(it) }
@@ -49,7 +49,7 @@ class MuzzleVersionScanPluginTest extends DDSpecification {
   def "verify advice match failure"() {
     setup:
     def instrumentationLoader = new ServiceEnabledClassLoader(Instrumenter, InstrumenterGroup,
-      ElementMatcher, ReferenceMatcher, Reference, ReferenceCreator)
+      Instrumenter.HasMethodAdvice, ElementMatcher, ReferenceMatcher, Reference, ReferenceCreator)
     instrumentationLoader.addClass(TestInstrumentationClasses)
     instrumentationLoader.addClass(BaseInst)
     instCP.each { instrumentationLoader.addClass(it) }
@@ -72,7 +72,7 @@ class MuzzleVersionScanPluginTest extends DDSpecification {
   def "test assertInstrumentationMuzzled helpers"() {
     setup:
     def instrumentationLoader = new ServiceEnabledClassLoader(Instrumenter, InstrumenterGroup, BaseInst,
-      ElementMatcher, ReferenceMatcher, Reference, ReferenceCreator, inst, muzzle)
+      Instrumenter.HasMethodAdvice, ElementMatcher, ReferenceMatcher, Reference, ReferenceCreator, inst, muzzle)
     helpers.each { instrumentationLoader.addClass(it) }
     def testApplicationLoader = new AddableClassLoader()
 
@@ -93,7 +93,7 @@ class MuzzleVersionScanPluginTest extends DDSpecification {
   def "test nested helpers failure"() {
     setup:
     def instrumentationLoader = new ServiceEnabledClassLoader(Instrumenter, InstrumenterGroup, BaseInst,
-      ElementMatcher, ReferenceMatcher, Reference, ReferenceCreator, inst, muzzle)
+      Instrumenter.HasMethodAdvice, ElementMatcher, ReferenceMatcher, Reference, ReferenceCreator, inst, muzzle)
     helpers.each { instrumentationLoader.addClass(it) }
     def testApplicationLoader = new AddableClassLoader()
 

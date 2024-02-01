@@ -16,7 +16,7 @@ import net.bytebuddy.asm.Advice;
 
 @AutoService(Instrumenter.class)
 public class ByteBufInputStreamInstrumentation extends Instrumenter.Iast
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasTypeAdvice {
 
   public ByteBufInputStreamInstrumentation() {
     super("netty", "netty-4.0");

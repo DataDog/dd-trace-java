@@ -14,7 +14,8 @@ import datadog.trace.api.iast.propagation.PropagationModule;
 import net.bytebuddy.asm.Advice;
 
 @AutoService(Instrumenter.class)
-public class CookieInstrumentation extends Instrumenter.Iast implements Instrumenter.ForSingleType {
+public class CookieInstrumentation extends Instrumenter.Iast
+    implements Instrumenter.ForSingleType, Instrumenter.HasTypeAdvice {
 
   public CookieInstrumentation() {
     super("servlet", "servlet-cookie");

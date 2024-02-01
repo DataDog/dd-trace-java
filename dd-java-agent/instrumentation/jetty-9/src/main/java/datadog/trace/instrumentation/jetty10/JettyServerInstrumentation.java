@@ -32,7 +32,7 @@ import net.bytebuddy.pool.TypePool;
 
 @AutoService(Instrumenter.class)
 public final class JettyServerInstrumentation extends Instrumenter.Tracing
-    implements Instrumenter.ForSingleType, ExcludeFilterProvider {
+    implements Instrumenter.ForSingleType, ExcludeFilterProvider, Instrumenter.HasTypeAdvice {
 
   private boolean appSecNotFullyDisabled;
 

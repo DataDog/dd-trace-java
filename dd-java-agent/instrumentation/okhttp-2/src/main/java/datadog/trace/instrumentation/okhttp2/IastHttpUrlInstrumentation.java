@@ -17,7 +17,7 @@ import net.bytebuddy.asm.Advice;
 
 @AutoService(Instrumenter.class)
 public class IastHttpUrlInstrumentation extends Instrumenter.Iast
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasTypeAdvice {
 
   /**
    * Adding fields to an already loaded class is not possible, during testing

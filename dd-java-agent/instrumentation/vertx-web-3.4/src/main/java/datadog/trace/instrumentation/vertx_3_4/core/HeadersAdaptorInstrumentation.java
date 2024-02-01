@@ -25,7 +25,7 @@ import net.bytebuddy.asm.Advice;
 
 @AutoService(Instrumenter.class)
 public class HeadersAdaptorInstrumentation extends Instrumenter.Iast
-    implements Instrumenter.ForKnownTypes {
+    implements Instrumenter.ForKnownTypes, Instrumenter.HasTypeAdvice {
 
   private final String className = HeadersAdaptorInstrumentation.class.getName();
 

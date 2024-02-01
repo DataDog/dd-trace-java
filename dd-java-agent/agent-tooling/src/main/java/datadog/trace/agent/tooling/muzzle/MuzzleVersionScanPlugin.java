@@ -92,19 +92,10 @@ public class MuzzleVersionScanPlugin {
 
   // build instrumenters while single-threaded to match installer assumptions
   private static synchronized List<InstrumenterGroup> toBeTested(
-      ClassLoader instrumentationLoader, String muzzleDirective) throws Exception {
+      ClassLoader instrumentationLoader, String muzzleDirective) {
     List<InstrumenterGroup> toBeTested = new ArrayList<>();
     for (Instrumenter instrumenter : Instrumenters.load(instrumentationLoader)) {
-      if (instrumenter.getClass().getName().endsWith("TraceConfigInstrumentation")) {
-        // special handling to test TraceConfigInstrumentation's inner instrumenter
-        instrumenter =
-            (Instrumenter)
-                instrumentationLoader
-                    .loadClass(instrumenter.getClass().getName() + "$TracerClassInstrumentation")
-                    .getDeclaredConstructor()
-                    .newInstance();
-      }
-      // only default Instrumenters use muzzle. Skip custom instrumenters.
+      // only Instrumenter groups use muzzle. Skip custom instrumenters.
       if (instrumenter instanceof InstrumenterGroup) {
         String directiveToTest = ((InstrumenterGroup) instrumenter).muzzleDirective();
         if (null == directiveToTest || directiveToTest.equals(muzzleDirective)) {
@@ -166,7 +157,7 @@ public class MuzzleVersionScanPlugin {
   }
 
   public static Set<String> listInstrumentationNames(
-      final ClassLoader instrumentationLoader, String directive) throws Exception {
+      final ClassLoader instrumentationLoader, String directive) {
     final Set<String> ret = new HashSet<>();
     for (final InstrumenterGroup instrumenter : toBeTested(instrumentationLoader, directive)) {
       ret.add(instrumenter.name());

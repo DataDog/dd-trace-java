@@ -38,7 +38,7 @@ import org.eclipse.jetty.server.Response;
 
 @AutoService(Instrumenter.class)
 public final class JettyServerInstrumentation extends Instrumenter.Tracing
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasTypeAdvice {
 
   public JettyServerInstrumentation() {
     super("jetty");

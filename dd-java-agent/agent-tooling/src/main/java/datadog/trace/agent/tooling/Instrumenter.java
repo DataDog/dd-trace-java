@@ -7,10 +7,9 @@ import datadog.trace.agent.tooling.iast.IastPostProcessorFactory;
 import datadog.trace.api.config.ProfilingConfig;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
-import java.lang.instrument.ClassFileTransformer;
-import java.lang.instrument.Instrumentation;
 import java.security.ProtectionDomain;
 import java.util.Collection;
+import java.util.List;
 import java.util.Set;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.asm.AsmVisitorWrapper;
@@ -122,7 +121,7 @@ public interface Instrumenter {
   }
 
   /** Instrumentation that provides advice which affects the whole type. */
-  interface HasTypeAdvice {
+  interface HasTypeAdvice extends Instrumenter {
     /**
      * Instrumenters should register the full type advice with {@link
      * TypeTransformer#applyAdvice(TransformingAdvice)}.
@@ -131,7 +130,7 @@ public interface Instrumenter {
   }
 
   /** Instrumentation that provides advice specific to one or more methods. */
-  interface HasMethodAdvice {
+  interface HasMethodAdvice extends Instrumenter {
     /**
      * Instrumenters should register each method advice with {@link
      * MethodTransformer#applyAdvice(ElementMatcher, String)}.
@@ -139,29 +138,11 @@ public interface Instrumenter {
     void methodAdvice(MethodTransformer transformer);
   }
 
-  interface HasAdvice extends HasTypeAdvice, HasMethodAdvice {}
-
   /** Instrumentation that transforms types on the bootstrap class-path. */
   interface ForBootstrap {}
 
-  /**
-   * Indicates the applicability of an {@linkplain Instrumenter} to the given system.<br>
-   *
-   * @param enabledSystems a set of all the enabled target systems
-   * @return {@literal true} if the set of enabled systems contains all the ones required by this
-   *     particular {@linkplain Instrumenter}
-   */
-  boolean isApplicable(Set<TargetSystem> enabledSystems);
-
-  /**
-   * Adds this instrumentation to a {@link TransformerBuilder}.
-   *
-   * @param transformerBuilder builds instrumentations into a class transformer.
-   */
-  void instrument(TransformerBuilder transformerBuilder);
-
   /** Parent class for all tracing related instrumentations */
-  abstract class Tracing extends InstrumenterGroup {
+  abstract class Tracing extends InstrumenterGroup implements HasMethodAdvice {
     public Tracing(String instrumentationName, String... additionalNames) {
       super(instrumentationName, additionalNames);
     }
@@ -173,7 +154,7 @@ public interface Instrumenter {
   }
 
   /** Parent class for all profiling related instrumentations */
-  abstract class Profiling extends InstrumenterGroup {
+  abstract class Profiling extends InstrumenterGroup implements HasMethodAdvice {
     public Profiling(String instrumentationName, String... additionalNames) {
       super(instrumentationName, additionalNames);
     }
@@ -192,7 +173,7 @@ public interface Instrumenter {
   }
 
   /** Parent class for all AppSec related instrumentations */
-  abstract class AppSec extends InstrumenterGroup {
+  abstract class AppSec extends InstrumenterGroup implements HasMethodAdvice {
     public AppSec(String instrumentationName, String... additionalNames) {
       super(instrumentationName, additionalNames);
     }
@@ -205,7 +186,7 @@ public interface Instrumenter {
 
   /** Parent class for all IAST related instrumentations */
   @SuppressForbidden
-  abstract class Iast extends InstrumenterGroup implements WithPostProcessor {
+  abstract class Iast extends InstrumenterGroup implements HasMethodAdvice, WithPostProcessor {
 
     private static final Logger log = LoggerFactory.getLogger(Instrumenter.Iast.class);
 
@@ -214,11 +195,9 @@ public interface Instrumenter {
     }
 
     @Override
-    public void instrument(TransformerBuilder transformerBuilder) {
-      if (isEnabled()) {
-        preloadClassNames();
-      }
-      super.instrument(transformerBuilder);
+    public List<Instrumenter> typeInstrumentations() {
+      preloadClassNames();
+      return super.typeInstrumentations();
     }
 
     @Override
@@ -254,7 +233,7 @@ public interface Instrumenter {
   }
 
   /** Parent class for all USM related instrumentations */
-  abstract class Usm extends InstrumenterGroup {
+  abstract class Usm extends InstrumenterGroup implements HasMethodAdvice {
     public Usm(String instrumentationName, String... additionalNames) {
       super(instrumentationName, additionalNames);
     }
@@ -266,7 +245,7 @@ public interface Instrumenter {
   }
 
   /** Parent class for all CI related instrumentations */
-  abstract class CiVisibility extends InstrumenterGroup {
+  abstract class CiVisibility extends InstrumenterGroup implements HasMethodAdvice {
 
     public CiVisibility(String instrumentationName, String... additionalNames) {
       super(instrumentationName, additionalNames);
@@ -276,12 +255,6 @@ public interface Instrumenter {
     public boolean isApplicable(Set<TargetSystem> enabledSystems) {
       return enabledSystems.contains(TargetSystem.CIVISIBILITY);
     }
-  }
-
-  interface TransformerBuilder {
-    void applyInstrumentation(HasAdvice instrumenter);
-
-    ClassFileTransformer installOn(Instrumentation instrumentation);
   }
 
   interface TypeTransformer {

@@ -10,7 +10,7 @@ import datadog.trace.agent.tooling.muzzle.ReferenceMatcher;
 import java.util.Set;
 
 public class CalleeBenchmarkInstrumentation extends InstrumenterGroup
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
   public CalleeBenchmarkInstrumentation() {
     super("callee");

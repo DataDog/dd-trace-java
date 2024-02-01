@@ -7,6 +7,8 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.de
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static net.bytebuddy.matcher.ElementMatchers.not;
 
+import java.lang.instrument.ClassFileTransformer;
+import java.lang.instrument.Instrumentation;
 import java.security.ProtectionDomain;
 import java.util.HashMap;
 import java.util.Map;
@@ -18,9 +20,7 @@ import net.bytebuddy.matcher.ElementMatcher;
 import net.bytebuddy.utility.JavaModule;
 
 abstract class AbstractTransformerBuilder
-    implements Instrumenter.TransformerBuilder,
-        Instrumenter.TypeTransformer,
-        Instrumenter.MethodTransformer {
+    implements Instrumenter.TypeTransformer, Instrumenter.MethodTransformer {
 
   // Added here instead of byte-buddy's ignores because it's relatively
   // expensive. https://github.com/DataDog/dd-trace-java/pull/1045
@@ -33,10 +33,15 @@ abstract class AbstractTransformerBuilder
   private final Map<Map.Entry<String, String>, ElementMatcher<ClassLoader>> contextStoreInjection =
       new HashMap<>();
 
-  @Override
-  public final void applyInstrumentation(Instrumenter.HasAdvice instrumenter) {
+  public final void applyInstrumentation(Instrumenter instrumenter) {
     if (instrumenter instanceof InstrumenterGroup) {
-      buildInstrumentation((InstrumenterGroup) instrumenter);
+      InstrumenterGroup group = (InstrumenterGroup) instrumenter;
+      if (group.isEnabled()) {
+        InstrumenterState.registerInstrumentation(group);
+        for (Instrumenter member : group.typeInstrumentations()) {
+          buildInstrumentation(group, member);
+        }
+      }
     } else if (instrumenter instanceof Instrumenter.ForSingleType) {
       buildSingleAdvice((Instrumenter.ForSingleType) instrumenter); // for testing purposes
     } else {
@@ -44,7 +49,9 @@ abstract class AbstractTransformerBuilder
     }
   }
 
-  protected abstract void buildInstrumentation(InstrumenterGroup instrumenter);
+  public abstract ClassFileTransformer installOn(Instrumentation instrumentation);
+
+  protected abstract void buildInstrumentation(InstrumenterGroup group, Instrumenter member);
 
   protected abstract void buildSingleAdvice(Instrumenter.ForSingleType instrumenter);
 
@@ -86,24 +93,23 @@ abstract class AbstractTransformerBuilder
 
   /** Tracks which class-loader matchers are associated with each store request. */
   protected final void registerContextStoreInjection(
-      InstrumenterGroup instrumenter, Map<String, String> contextStore) {
+      InstrumenterGroup group, Instrumenter member, Map<String, String> contextStore) {
     ElementMatcher<ClassLoader> activation;
 
-    if (instrumenter instanceof Instrumenter.ForBootstrap) {
+    if (member instanceof Instrumenter.ForBootstrap) {
       activation = ANY_CLASS_LOADER;
-    } else if (instrumenter instanceof Instrumenter.ForTypeHierarchy) {
-      String hierarchyHint = ((Instrumenter.ForTypeHierarchy) instrumenter).hierarchyMarkerType();
+    } else if (member instanceof Instrumenter.ForTypeHierarchy) {
+      String hierarchyHint = ((Instrumenter.ForTypeHierarchy) member).hierarchyMarkerType();
       activation = null != hierarchyHint ? hasClassNamed(hierarchyHint) : ANY_CLASS_LOADER;
-    } else if (instrumenter instanceof Instrumenter.ForSingleType) {
-      activation = hasClassNamed(((Instrumenter.ForSingleType) instrumenter).instrumentedType());
-    } else if (instrumenter instanceof Instrumenter.ForKnownTypes) {
-      activation =
-          hasClassNamedOneOf(((Instrumenter.ForKnownTypes) instrumenter).knownMatchingTypes());
+    } else if (member instanceof Instrumenter.ForSingleType) {
+      activation = hasClassNamed(((Instrumenter.ForSingleType) member).instrumentedType());
+    } else if (member instanceof Instrumenter.ForKnownTypes) {
+      activation = hasClassNamedOneOf(((Instrumenter.ForKnownTypes) member).knownMatchingTypes());
     } else {
       activation = ANY_CLASS_LOADER;
     }
 
-    activation = requireBoth(activation, instrumenter.classLoaderMatcher());
+    activation = requireBoth(activation, group.classLoaderMatcher());
 
     for (Map.Entry<String, String> storeEntry : contextStore.entrySet()) {
       ElementMatcher<ClassLoader> oldActivation = contextStoreInjection.get(storeEntry);

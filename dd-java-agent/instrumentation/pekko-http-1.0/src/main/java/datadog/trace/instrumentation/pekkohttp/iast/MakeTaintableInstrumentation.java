@@ -6,7 +6,7 @@ import datadog.trace.agent.tooling.bytebuddy.iast.TaintableVisitor;
 
 @AutoService(Instrumenter.class)
 public class MakeTaintableInstrumentation extends Instrumenter.Iast
-    implements Instrumenter.ForKnownTypes {
+    implements Instrumenter.ForKnownTypes, Instrumenter.HasTypeAdvice {
   public MakeTaintableInstrumentation() {
     super("pekko-http");
   }
