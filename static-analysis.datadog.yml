@@ -3,4 +3,7 @@ rulesets:
   - java-code-style
   - java-security
 ignore-paths:
+  - ".mvn/**"
+  - "dd-java-agent/appsec/weblog/**"
+  - "dd-java-agent/benchmark-integration/**"
   - "dd-smoke-tests/**"
