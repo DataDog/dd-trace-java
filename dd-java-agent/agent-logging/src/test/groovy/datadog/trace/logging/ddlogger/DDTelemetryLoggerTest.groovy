@@ -140,4 +140,22 @@ class DDTelemetryLoggerTest extends LogValidatingSpecification {
     call << allLogLevels
     level << allLogLevels
   }
+
+  void 'do not log #call(NO_SEND_TELEMETRY, msg, throwable) call with level #level'() {
+    given:
+    def format = "msg"
+    def t = new Exception()
+    def logger = createLogger(level)
+
+    when:
+    logger."$call"(LogCollector.NO_SEND_TELEMETRY, format, t)
+    def collection = LogCollector.get().drain()
+
+    then:
+    collection.isEmpty()
+
+    where:
+    call << allLogLevels
+    level << allLogLevels
+  }
 }

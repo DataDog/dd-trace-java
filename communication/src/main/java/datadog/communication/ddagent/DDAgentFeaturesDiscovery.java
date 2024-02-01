@@ -7,6 +7,7 @@ import datadog.communication.http.OkHttpUtils;
 import datadog.communication.monitor.DDAgentStatsDClientManager;
 import datadog.communication.monitor.Monitoring;
 import datadog.communication.monitor.Recording;
+import datadog.trace.api.telemetry.LogCollector;
 import datadog.trace.util.Strings;
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -376,7 +377,7 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
   }
 
   private void errorQueryingEndpoint(String endpoint, Throwable t) {
-    log.debug("Error querying {} at {}", endpoint, agentBaseUrl, t);
+    log.debug(LogCollector.NO_SEND_TELEMETRY, "Error querying {} at {}", endpoint, agentBaseUrl, t);
   }
 
   public String state() {
