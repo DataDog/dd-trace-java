@@ -34,9 +34,6 @@ public class CookieSecurityParser {
   private static final byte EXPIRES_ATTR = 2;
   private static final byte MAX_AGE_ATTR = 3;
 
-  private static final SimpleDateFormat DATE_FORMAT =
-      new SimpleDateFormat("EEE, dd MMM yyyy HH:mm:ss z");
-
   public static List<Cookie> parse(final String header) {
     final int end = header.indexOf(':');
     if (end < 0) {
@@ -126,6 +123,8 @@ public class CookieSecurityParser {
                   case MAX_AGE_ATTR:
                     maxAge = parseMaxAge(value);
                     break;
+                  default:
+                    break;
                 }
               }
               state = COOKIE_ATTR_NAME;
@@ -169,7 +168,8 @@ public class CookieSecurityParser {
   @Nullable
   private static Date parseExpires(String value) {
     try {
-      return DATE_FORMAT.parse(value);
+      SimpleDateFormat simpleDateFormat = new SimpleDateFormat("EEE, dd MMM yyyy HH:mm:ss z");
+      return simpleDateFormat.parse(value);
     } catch (ParseException e) {
       LOG.warn("Failed to parse the expires {}", value, e);
       return null;
