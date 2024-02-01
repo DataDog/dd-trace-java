@@ -27,12 +27,13 @@ class HttpServletResponseInstrumentationTest extends AgentTestRunner {
     InstrumentationBridge.registerIastModule(module)
     final response = new DummyResponse()
     final cookie = new Cookie("user-id", "7")
+    cookie.setMaxAge(3)
 
     when:
     response.addCookie(cookie)
 
     then:
-    1 * module.onCookie({ IastCookie vul -> vul.cookieName == cookie.name && vul.cookieValue == cookie.value && vul.secure == cookie.secure })
+    1 * module.onCookie({ IastCookie vul -> vul.cookieName == cookie.name && vul.cookieValue == cookie.value && vul.secure == cookie.secure && vul.maxAge == cookie.maxAge })
     0 * _
   }
 
@@ -59,12 +60,13 @@ class HttpServletResponseInstrumentationTest extends AgentTestRunner {
     final response = new DummyResponse()
     final cookie = new Cookie("user-id", "7")
     cookie.setSecure(true)
+    cookie.setMaxAge(3)
 
     when:
     response.addCookie(cookie)
 
     then:
-    1 * module.onCookie({ IastCookie vul -> vul.cookieName == cookie.name && vul.cookieValue == cookie.value && vul.secure == cookie.secure })
+    1 * module.onCookie({ IastCookie vul -> vul.cookieName == cookie.name && vul.cookieValue == cookie.value && vul.secure == cookie.secure && vul.maxAge == cookie.maxAge })
     0 * _
   }
 

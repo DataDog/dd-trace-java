@@ -72,6 +72,7 @@ public final class JakartaHttpServletResponseInstrumentation extends Instrumente
                   .value(cookie.getValue())
                   .secure(cookie.getSecure())
                   .httpOnly(cookie.isHttpOnly())
+                  .maxAge(cookie.getMaxAge())
                   .build());
         }
       }

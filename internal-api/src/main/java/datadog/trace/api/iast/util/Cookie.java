@@ -1,5 +1,7 @@
 package datadog.trace.api.iast.util;
 
+import java.util.Date;
+
 public class Cookie {
 
   private final String cookieName;
@@ -8,17 +10,25 @@ public class Cookie {
   private final String sameSite;
   private final boolean httpOnly;
 
+  private final Date expires;
+
+  private final Integer maxAge;
+
   public Cookie(
       final String cookieName,
       final String cookieValue,
       boolean secure,
       boolean httpOnly,
-      String sameSite) {
+      String sameSite,
+      Date expires,
+      Integer maxAge) {
     this.cookieName = cookieName;
     this.cookieValue = cookieValue;
     this.secure = secure;
     this.sameSite = sameSite;
     this.httpOnly = httpOnly;
+    this.expires = expires;
+    this.maxAge = maxAge;
   }
 
   public String getCookieName() {
@@ -41,6 +51,14 @@ public class Cookie {
     return httpOnly;
   }
 
+  public Date getExpires() {
+    return expires;
+  }
+
+  public Integer getMaxAge() {
+    return maxAge;
+  }
+
   public static Builder named(final String name) {
     return new Builder(name);
   }
@@ -51,6 +69,10 @@ public class Cookie {
     private boolean secure = false;
     private boolean httpOnly = false;
     private String sameSite = null;
+
+    private Date expires = null;
+
+    private Integer maxAge = null;
 
     public Builder(final String name) {
       this.name = name;
@@ -76,8 +98,18 @@ public class Cookie {
       return this;
     }
 
+    public Builder expires(final Date expires) {
+      this.expires = expires;
+      return this;
+    }
+
+    public Builder maxAge(final Integer maxAge) {
+      this.maxAge = maxAge;
+      return this;
+    }
+
     public Cookie build() {
-      return new Cookie(name, value, secure, httpOnly, sameSite);
+      return new Cookie(name, value, secure, httpOnly, sameSite, expires, maxAge);
     }
   }
 }

@@ -75,6 +75,7 @@ public final class HttpServletResponseInstrumentation extends Instrumenter.Iast
               Cookie.named(cookie.getName())
                   .value(cookie.getValue())
                   .secure(cookie.getSecure())
+                  .maxAge(cookie.getMaxAge())
                   .build());
         }
       }

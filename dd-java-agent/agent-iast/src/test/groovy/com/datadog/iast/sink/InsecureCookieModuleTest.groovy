@@ -46,7 +46,10 @@ class InsecureCookieModuleTest extends IastModuleImplTestBase {
   void 'cases where nothing is reported during InsecureCookieModuleTest.onCookie'() {
     given:
     final cookie = Cookie.named('user-id')
-      .secure(true)
+      .secure(secure)
+      .value(value)
+      .maxAge(maxAge)
+      .expires(expires)
       .build()
 
     when:
@@ -56,12 +59,11 @@ class InsecureCookieModuleTest extends IastModuleImplTestBase {
     0 * reporter.report(_, _ as Vulnerability)
 
     where:
-    value | secure
-    null  | false
-    ""    | false
-    null  | true
-    ""    | true
-    "test"  | true
-    "test"    | true
+    secure | value | maxAge | expires
+    true | "test" | null | null // secure cookies are not vulnerable
+    false | null | null | null // cookies without a value are not vulnerable
+    false | "" | null | null  // cookies without a value are not vulnerable
+    false | "test" | 0 | null // cookies with a maxAge of 0 are not vulnerable
+    false | "test" | null | new Date(846681200000L) // cookies with an expires date older than Sat, 01 Jan 2000 00:00:00 CET are not vulnerable
   }
 }

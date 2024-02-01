@@ -8,8 +8,14 @@ import datadog.trace.api.iast.InstrumentationBridge
 import groovy.transform.CompileDynamic
 import spock.lang.Specification
 
+import java.text.SimpleDateFormat
+
+
 @CompileDynamic
 class CookieSecurityParserTest extends Specification {
+
+  static final SimpleDateFormat DATE_FORMAT = new SimpleDateFormat("EEE, dd MMM yyyy HH:mm:ss z")
+
   def setup() {
     InstrumentationBridge.clearIastModules()
     InstrumentationBridge.registerIastModule(new InsecureCookieModuleImpl())
@@ -18,6 +24,7 @@ class CookieSecurityParserTest extends Specification {
   }
 
   void 'parsing single cookie header'() {
+
     when:
     final badCookies = CookieSecurityParser.parse(header)
     final badCookie = badCookies.first()
@@ -28,22 +35,32 @@ class CookieSecurityParserTest extends Specification {
     isSecure == badCookie.isSecure()
     isHttpOnly == badCookie.isHttpOnly()
     sameSite == badCookie.getSameSite()
+    maxAge == badCookie.getMaxAge()
+    if(expires == null) {
+      badCookie.getExpires() == null
+    } else {
+      expires == DATE_FORMAT.format(badCookie.getExpires())
+    }
 
     where:
-    header                                                                                                                                                       | cookieName | cookieValue                                                               | isSecure | isHttpOnly | sameSite
-    "Set-Cookie: user-id="                                                                                                                                      | "user-id"  | null                                                                       | false    | false      | null
-    "Set-Cookie: user-id"                                                                                                                                      | "user-id"  | null                                                                       | false    | false      | null
-    'Set-Cookie: user-id=""'                                                                                                                                      | "user-id"  | '""'                                                                       | false    | false      | null
-    "Set-Cookie: user-id=7"                                                                                                                                      | "user-id"  | '7'                                                                       | false    | false      | null
-    'Set-Cookie: user-id="7"'                                                                                                                                    | "user-id"  | '"7"'                                                                       | false    | false      | null
-    "Set-Cookie: user-id=7;Secure"                                                                                                                               | "user-id"  | '7'                                                                       | true     | false      | null
-    "Set-Cookie: user-id=7;Secure;HttpOnly"                                                                                                                      | "user-id"  | '7'                                                                       | true     | true       | null
-    "Set-Cookie: CUSTOMER=WILE_E_COYOTE; version='1'"                                                                                                            | "CUSTOMER" | 'WILE_E_COYOTE'                                                           | false    | false      | null
-    "Set-Cookie: CUSTOMER=WILE_E_COYOTE; path=/; expires=Wednesday, 09-Nov-99 23:12:40 GMT"                                                                      | "CUSTOMER" | 'WILE_E_COYOTE'                                                           | false    | false      | null
-    "Set-Cookie: CUSTOMER=WILE_E_COYOTE; path=/; expires=Wednesday, 09-Nov-99 23:12:40 GMT;SameSite=Lax;HttpOnly"                                                | "CUSTOMER" | 'WILE_E_COYOTE'                                                           | false    | true       | 'Lax'
-    //TODO "Set-Cookie: PREF=ID=1eda537de48ac25d:CR=1:TM=1112868587:LM=1112868587:S=t3FPA-mT9lTR3bxU;expires=Sun, 17-Jan-2038 19:14:07 GMT; path=/; domain=.google.com" | "PREF"     | 'ID=1eda537de48ac25d:CR=1:TM=1112868587:LM=1112868587:S=t3FPA-mT9lTR3bxU' | false    | false      | null
-    "Set-Cookie: CUSTOMER=WILE_E_COYOTE; path=/; expires=Wednesday, 09-Nov-99 23:12:40 GMT; Secure"                                                              | "CUSTOMER" | 'WILE_E_COYOTE'                                                           | true     | false      | null
-    "Set-Cookie: CUSTOMER=WILE_E_COYOTE; path=/; expires=Wednesday, 09-Nov-99 23:12:40 GMT; path=\"/acme\";SameSite=Strict"                                      | "CUSTOMER" | 'WILE_E_COYOTE'                                                           | false    | false      | 'Strict'
+    header                                                                                                                                                       | cookieName | cookieValue                                                               | isSecure | isHttpOnly | sameSite | expires | maxAge
+    "Set-Cookie: user-id="                                                                                                                                      | "user-id"  | null                                                                       | false    | false      | null | null    | null
+    "Set-Cookie: user-id"                                                                                                                                      | "user-id"  | null                                                                       | false    | false      | null | null    | null
+    'Set-Cookie: user-id=""'                                                                                                                                      | "user-id"  | '""'                                                                       | false    | false      | null | null    | null
+    "Set-Cookie: user-id=7"                                                                                                                                      | "user-id"  | '7'                                                                       | false    | false      | null | null    | null
+    'Set-Cookie: user-id="7"'                                                                                                                                    | "user-id"  | '"7"'                                                                       | false    | false      | null | null    | null
+    "Set-Cookie: user-id=7;Secure"                                                                                                                               | "user-id"  | '7'                                                                       | true     | false      | null | null    | null
+    "Set-Cookie: user-id=7;Secure;HttpOnly"                                                                                                                      | "user-id"  | '7'                                                                       | true     | true       | null | null    | null
+    "Set-Cookie: CUSTOMER=WILE_E_COYOTE; version='1'"                                                                                                            | "CUSTOMER" | 'WILE_E_COYOTE'                                                           | false    | false      | null | null    | null
+    "Set-Cookie: CUSTOMER=WILE_E_COYOTE; path=/; expires=Wed, 21 Oct 2015 07:28:00 GMT;SameSite=Lax;HttpOnly"                                                | "CUSTOMER" | 'WILE_E_COYOTE'                                                           | false    | true       | 'Lax' | 'Wed, 21 Oct 2015 07:28:00 GMT'    | null
+    "Set-Cookie: CUSTOMER=WILE_E_COYOTE; path=/; expires=Wed, 21 Oct 2015 07:28:00 GMT; Secure"                                                              | "CUSTOMER" | 'WILE_E_COYOTE'                                                           | true     | false      | null | 'Wed, 21 Oct 2015 07:28:00 GMT'    | null
+    "Set-Cookie: CUSTOMER=WILE_E_COYOTE; path=/; expires=Wed, 21 Oct 2015 07:28:00 GMT"                                                                      | "CUSTOMER" | 'WILE_E_COYOTE'                                                           | false    | false      | null | 'Wed, 21 Oct 2015 07:28:00 GMT'   | null
+    "Set-Cookie: CUSTOMER=WILE_E_COYOTE; path=/; expires=Wed, 21 Oct 2015 07:28:00 GMT; path=\"/acme\";SameSite=Strict"                                      | "CUSTOMER" | 'WILE_E_COYOTE'                                                           | false    | false      | 'Strict' | 'Wed, 21 Oct 2015 07:28:00 GMT'    | null
+    "Set-Cookie: CUSTOMER=WILE_E_COYOTE; path=/; Max-Age=3;SameSite=Lax;HttpOnly"                                                | "CUSTOMER" | 'WILE_E_COYOTE'                                                           | false    | true       | 'Lax' | null    | 3
+    "Set-Cookie: CUSTOMER=WILE_E_COYOTE; path=/; Max-Age=3; Secure"                                                              | "CUSTOMER" | 'WILE_E_COYOTE'                                                           | true     | false      | null | null    | 3
+    "Set-Cookie: CUSTOMER=WILE_E_COYOTE; path=/; Max-Age=3"                                                                      | "CUSTOMER" | 'WILE_E_COYOTE'                                                           | false    | false      | null | null    | 3
+    "Set-Cookie: CUSTOMER=WILE_E_COYOTE; path=/; Max-Age=3; path=\"/acme\";SameSite=Strict"                                      | "CUSTOMER" | 'WILE_E_COYOTE'                                                           | false    | false      | 'Strict' | null    | 3
+    "Set-Cookie: CUSTOMER=WILE_E_COYOTE; path=/; Max-Age=BAD; path=\"/acme\";SameSite=Strict"                                      | "CUSTOMER" | 'WILE_E_COYOTE'                                                           | false    | false      | 'Strict' | null    | null
   }
 
 
