@@ -41,18 +41,18 @@ public final class AxisEngineInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isMethod()
             .and(namedOneOf("receive", "send", "sendFault"))
             .and(takesArgument(0, named("org.apache.axis2.context.MessageContext"))),
         getClass().getName() + "$HandleMessageAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod()
             .and(namedOneOf("resumeReceive", "resumeSend", "resumeSendFault"))
             .and(takesArgument(0, named("org.apache.axis2.context.MessageContext"))),
         getClass().getName() + "$ResumeMessageAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod()
             .and(named("invoke"))
             .and(takesArgument(0, named("org.apache.axis2.context.MessageContext"))),

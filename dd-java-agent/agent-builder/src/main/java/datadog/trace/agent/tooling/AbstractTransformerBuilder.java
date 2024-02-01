@@ -18,7 +18,9 @@ import net.bytebuddy.matcher.ElementMatcher;
 import net.bytebuddy.utility.JavaModule;
 
 abstract class AbstractTransformerBuilder
-    implements Instrumenter.TransformerBuilder, Instrumenter.AdviceTransformation {
+    implements Instrumenter.TransformerBuilder,
+        Instrumenter.TypeTransformer,
+        Instrumenter.MethodTransformer {
 
   // Added here instead of byte-buddy's ignores because it's relatively
   // expensive. https://github.com/DataDog/dd-trace-java/pull/1045

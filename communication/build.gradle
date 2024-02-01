@@ -34,6 +34,7 @@ ext {
     'datadog.communication.http.OkHttpUtils.1',
     'datadog.communication.http.OkHttpUtils.ByteBufferRequestBody',
     'datadog.communication.http.OkHttpUtils.GZipByteBufferRequestBody',
+    'datadog.communication.http.OkHttpUtils.GZipRequestBodyDecorator',
     'datadog.communication.http.OkHttpUtils.JsonRequestBody',
     'datadog.communication.monitor.DDAgentStatsDConnection',
     'datadog.communication.monitor.DDAgentStatsDConnection.*',

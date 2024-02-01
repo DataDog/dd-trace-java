@@ -63,50 +63,50 @@ public class SessionInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isMethod()
             .and(named("createProducer"))
             .and(isPublic())
             .and(takesArgument(0, named("jakarta.jms.Destination"))),
         getClass().getName() + "$CreateProducer");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod()
             .and(named("createSender"))
             .and(isPublic())
             .and(takesArgument(0, named("jakarta.jms.Queue"))),
         getClass().getName() + "$CreateProducer");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod()
             .and(named("createPublisher"))
             .and(isPublic())
             .and(takesArgument(0, named("jakarta.jms.Topic"))),
         getClass().getName() + "$CreateProducer");
 
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod()
             .and(named("createConsumer"))
             .and(isPublic())
             .and(takesArgument(0, named("jakarta.jms.Destination"))),
         getClass().getName() + "$CreateConsumer");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod()
             .and(named("createReceiver"))
             .and(isPublic())
             .and(takesArgument(0, named("jakarta.jms.Queue"))),
         getClass().getName() + "$CreateConsumer");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod()
             .and(namedOneOf("createSubscriber", "createDurableSubscriber"))
             .and(isPublic())
             .and(takesArgument(0, named("jakarta.jms.Topic"))),
         getClass().getName() + "$CreateConsumer");
 
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         namedOneOf("recover").and(takesNoArguments()), getClass().getName() + "$Recover");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         namedOneOf("commit", "rollback").and(takesNoArguments()), getClass().getName() + "$Commit");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         named("close").and(takesNoArguments()), getClass().getName() + "$Close");
   }
 

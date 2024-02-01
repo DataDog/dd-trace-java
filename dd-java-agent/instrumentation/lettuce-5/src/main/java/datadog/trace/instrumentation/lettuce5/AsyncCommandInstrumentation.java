@@ -44,17 +44,17 @@ public class AsyncCommandInstrumentation extends Instrumenter.Profiling
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isConstructor()
             .and(
                 takesArguments(1)
                     .and(takesArgument(0, named("io.lettuce.core.protocol.RedisCommand")))),
         getClass().getName() + "$Capture");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod().and(namedOneOf("complete", "completeExceptionally", "onComplete", "encode")),
         getClass().getName() + "$Activate");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod().and(named("cancel")).and(takesArguments(boolean.class)),
         getClass().getName() + "$Cancel");
   }

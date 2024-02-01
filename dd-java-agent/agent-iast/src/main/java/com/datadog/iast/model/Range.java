@@ -16,7 +16,7 @@ public final class Range implements Ranged {
   private final @Nonnull @SourceIndex Source source;
   private final int marks;
 
-  public Range(final int start, final int length, final Source source, final int marks) {
+  public Range(final int start, final int length, @Nonnull final Source source, final int marks) {
     this.start = start;
     this.length = length;
     this.source = source;
@@ -33,6 +33,7 @@ public final class Range implements Ranged {
     return length;
   }
 
+  @Nonnull
   public Source getSource() {
     return source;
   }

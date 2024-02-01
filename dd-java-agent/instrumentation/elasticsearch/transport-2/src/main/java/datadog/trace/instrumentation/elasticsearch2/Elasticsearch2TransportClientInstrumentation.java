@@ -42,8 +42,8 @@ public class Elasticsearch2TransportClientInstrumentation extends Instrumenter.T
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isMethod()
             .and(named("execute"))
             .and(takesArgument(0, named("org.elasticsearch.action.Action")))

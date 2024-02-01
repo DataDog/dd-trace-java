@@ -53,8 +53,8 @@ public class MultiPartUploadHandlerInstrumentation extends Instrumenter.AppSec
     return new String[] {packageName + ".FormDataMap"};
   }
 
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         named("parseBlocking")
             .and(takesArguments(0))
             .and(returns(named("io.undertow.server.handlers.form.FormData")))

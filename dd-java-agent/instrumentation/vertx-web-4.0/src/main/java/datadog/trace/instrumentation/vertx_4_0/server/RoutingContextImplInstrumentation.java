@@ -32,8 +32,8 @@ public class RoutingContextImplInstrumentation extends Instrumenter.AppSec
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         named("getBodyAsJson")
             .or(named("getBodyAsJsonArray"))
             .and(takesArguments(1))

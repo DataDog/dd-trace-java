@@ -1,5 +1,6 @@
 import datadog.trace.agent.test.base.HttpServer
 import datadog.trace.instrumentation.servlet5.TestServlet5
+import jakarta.servlet.Filter
 import jakarta.servlet.Servlet
 import jakarta.servlet.ServletException
 import org.apache.catalina.Context
@@ -8,10 +9,13 @@ import org.apache.catalina.connector.Request
 import org.apache.catalina.connector.Response
 import org.apache.catalina.startup.Tomcat
 import org.apache.catalina.valves.ErrorReportValve
+import org.apache.tomcat.util.descriptor.web.FilterDef
+import org.apache.tomcat.util.descriptor.web.FilterMap
 import spock.lang.Unroll
 
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.CUSTOM_EXCEPTION
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.TIMEOUT_ERROR
 import static org.junit.Assume.assumeTrue
 
@@ -106,6 +110,19 @@ class TomcatServletTest extends AbstractServletTest<Tomcat, Context> {
   }
 
   @Override
+  void addFilter(Context context, String path, Class<Filter> filter) {
+    def filterDef = new FilterDef()
+    def filterMap = new FilterMap()
+    filterDef.filterClass = filter.getName()
+    filterDef.asyncSupported = true
+    filterDef.filterName = UUID.randomUUID()
+    filterMap.filterName = filterDef.filterName
+    filterMap.addURLPattern(path)
+    context.addFilterDef(filterDef)
+    context.addFilterMap(filterMap)
+  }
+
+  @Override
   Class<Servlet> servlet() {
     TestServlet5
   }
@@ -140,6 +157,23 @@ class TomcatServletTest extends AbstractServletTest<Tomcat, Context> {
     where:
     method = "GET"
     body = null
+  }
+
+  def "test user principal extracted"() {
+    setup:
+    injectSysConfig("trace.servlet.principal.enabled", "true")
+    when:
+    def request = request(SUCCESS, "GET", null).build()
+    def response = client.newCall(request).execute()
+    then:
+    response.code() == 200
+    and:
+    assertTraces(1) {
+      trace(2) {
+        serverSpan(it, null, null, "GET", SUCCESS, ["user.principal": "superadmin"])
+        controllerSpan(it)
+      }
+    }
   }
 
   static class ErrorHandlerValve extends ErrorReportValve {

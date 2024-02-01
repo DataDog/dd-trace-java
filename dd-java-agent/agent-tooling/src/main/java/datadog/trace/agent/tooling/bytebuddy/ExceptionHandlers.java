@@ -63,9 +63,14 @@ public class ExceptionHandlers {
                   context.getClassFileVersion().isAtLeast(ClassFileVersion.JAVA_V6);
 
               mv.visitTryCatchBlock(logStart, logEnd, eatException, "java/lang/Throwable");
-
-              // stack: (top) throwable
               mv.visitLabel(logStart);
+              // invoke incrementAndGet on our exception counter
+              mv.visitMethodInsn(
+                  Opcodes.INVOKESTATIC,
+                  "datadog/trace/bootstrap/InstrumentationErrors",
+                  "incrementErrorCount",
+                  "()V");
+              // stack: (top) throwable
               mv.visitLdcInsn(Type.getType("L" + HANDLER_NAME + ";"));
               mv.visitMethodInsn(
                   Opcodes.INVOKESTATIC,
@@ -82,6 +87,7 @@ public class ExceptionHandlers {
                   logMethod,
                   "(Ljava/lang/String;Ljava/lang/Throwable;)V",
                   true);
+
               if (exitOnFailure) {
                 mv.visitInsn(Opcodes.ICONST_1);
                 mv.visitMethodInsn(Opcodes.INVOKESTATIC, "java/lang/System", "exit", "(I)V", false);

@@ -1,5 +1,6 @@
 package datadog.trace.civisibility.writer.ddintake;
 
+import static datadog.communication.http.OkHttpUtils.gzippedRequestBodyOf;
 import static datadog.communication.http.OkHttpUtils.jsonRequestBodyOf;
 import static datadog.communication.http.OkHttpUtils.msgpackRequestBodyOf;
 
@@ -43,14 +44,16 @@ public class CiTestCovMapperV2 implements RemoteMapper {
   private final int size;
   private final GrowableBuffer headerBuffer;
   private final MsgPackWriter headerWriter;
+  private final boolean compressionEnabled;
   private int eventCount = 0;
 
-  public CiTestCovMapperV2() {
-    this(5 << 20);
+  public CiTestCovMapperV2(boolean compressionEnabled) {
+    this(5 << 20, compressionEnabled);
   }
 
-  private CiTestCovMapperV2(int size) {
+  private CiTestCovMapperV2(int size, boolean compressionEnabled) {
     this.size = size;
+    this.compressionEnabled = compressionEnabled;
     headerBuffer = new GrowableBuffer(16);
     headerWriter = new MsgPackWriter(headerBuffer);
   }
@@ -147,7 +150,7 @@ public class CiTestCovMapperV2 implements RemoteMapper {
   @Override
   public Payload newPayload() {
     writeHeader();
-    return new PayloadV2().withHeader(headerBuffer.slice());
+    return new PayloadV2(compressionEnabled).withHeader(headerBuffer.slice());
   }
 
   @Override
@@ -171,7 +174,13 @@ public class CiTestCovMapperV2 implements RemoteMapper {
     private static final RequestBody DUMMY_JSON_BODY =
         jsonRequestBodyOf("{\"dummy\":true}".getBytes());
 
+    private final boolean compressionEnabled;
+
     ByteBuffer header = null;
+
+    private PayloadV2(boolean compressionEnabled) {
+      this.compressionEnabled = compressionEnabled;
+    }
 
     PayloadV2 withHeader(ByteBuffer header) {
       this.header = header;
@@ -212,21 +221,25 @@ public class CiTestCovMapperV2 implements RemoteMapper {
 
     @Override
     public RequestBody toRequest() {
-      RequestBody coverageBody;
+      List<ByteBuffer> buffers;
       if (traceCount() == 0) {
         // If traceCount is 0, we write a map with 0 elements in MsgPack format.
-        coverageBody = msgpackRequestBodyOf(Collections.singletonList(msgpackMapHeader(0)));
+        buffers = Collections.singletonList(msgpackMapHeader(0));
       } else if (header != null) {
-        coverageBody = msgpackRequestBodyOf(Arrays.asList(header, body));
+        buffers = Arrays.asList(header, body);
       } else {
-        coverageBody = msgpackRequestBodyOf(Collections.singletonList(body));
+        buffers = Collections.singletonList(body);
       }
+      RequestBody coverageBody = msgpackRequestBodyOf(buffers);
 
-      return new MultipartBody.Builder()
-          .setType(MultipartBody.FORM)
-          .addFormDataPart("coverage1", "coverage1.msgpack", coverageBody)
-          .addFormDataPart("event", "event.json", DUMMY_JSON_BODY)
-          .build();
+      MultipartBody multipartBody =
+          new MultipartBody.Builder()
+              .setType(MultipartBody.FORM)
+              .addFormDataPart("coverage1", "coverage1.msgpack", coverageBody)
+              .addFormDataPart("event", "event.json", DUMMY_JSON_BODY)
+              .build();
+
+      return compressionEnabled ? gzippedRequestBodyOf(multipartBody) : multipartBody;
     }
   }
 }

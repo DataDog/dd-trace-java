@@ -419,7 +419,7 @@ class HttpServerTest extends AgentTestRunner {
     def server = httpServer {
       handlers {
         all {
-          response.send(null)
+          response.send((byte[]) null)
         }
       }
     }

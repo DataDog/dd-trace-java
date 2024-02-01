@@ -95,6 +95,9 @@ public class ProbeStatus {
         + ", service='"
         + service
         + '\''
+        + ", timestamp='"
+        + Instant.ofEpochMilli(timestamp)
+        + '\''
         + ", message='"
         + message
         + '\''
@@ -274,7 +277,7 @@ public class ProbeStatus {
     public ProbeStatus emittingMessage(String probeId) {
       return new ProbeStatus(
           this.serviceName,
-          "Probe " + probeId + "is emitting.",
+          "Probe " + probeId + " is emitting.",
           new Diagnostics(probeId, runtimeId, Status.EMITTING, null));
     }
 

@@ -1,4 +1,4 @@
-apply from: "$rootDir/gradle/java_no_deps.gradle"
+apply from: "$rootDir/gradle/java.gradle"
 
 ext {
   minimumInstructionCoverage = 0.7

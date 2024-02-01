@@ -60,6 +60,10 @@ public class TelemetryRequest {
     if (containerId != null) {
       builder.addHeader("Datadog-Container-ID", containerId);
     }
+    final String entityId = ContainerInfo.getEntityId();
+    if (entityId != null) {
+      builder.addHeader("Datadog-Entity-ID", entityId);
+    }
 
     if (debug) {
       builder.addHeader("DD-Telemetry-Debug-Enabled", "true");

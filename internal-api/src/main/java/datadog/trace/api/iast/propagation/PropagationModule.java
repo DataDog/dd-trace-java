@@ -29,12 +29,9 @@ public interface PropagationModule extends IastModule {
   void taint(
       @Nullable IastContext ctx, @Nullable Object target, byte origin, @Nullable CharSequence name);
 
-  /** @see #taint(IastContext, Object, byte, CharSequence, CharSequence) */
+  /** @see #taint(IastContext, Object, byte, CharSequence, Object) */
   void taint(
-      @Nullable Object target,
-      byte origin,
-      @Nullable CharSequence name,
-      @Nullable CharSequence value);
+      @Nullable Object target, byte origin, @Nullable CharSequence name, @Nullable Object value);
 
   /** Taints the object with a source with the selected origin, name and value */
   void taint(
@@ -42,7 +39,7 @@ public interface PropagationModule extends IastModule {
       @Nullable Object target,
       byte origin,
       @Nullable CharSequence name,
-      @Nullable CharSequence value);
+      @Nullable Object value);
 
   /** @see #taintIfTainted(IastContext, Object, Object) */
   void taintIfTainted(@Nullable Object target, @Nullable Object input);
@@ -100,13 +97,13 @@ public interface PropagationModule extends IastModule {
       byte origin,
       @Nullable CharSequence name);
 
-  /** @see #taintIfTainted(IastContext, Object, Object, byte, CharSequence, CharSequence) */
+  /** @see #taintIfTainted(IastContext, Object, Object, byte, CharSequence, Object) */
   void taintIfTainted(
       @Nullable Object target,
       @Nullable Object input,
       byte origin,
       @Nullable CharSequence name,
-      @Nullable CharSequence value);
+      @Nullable Object value);
 
   /**
    * Taints the object only if the input value is tainted, the resulting value will be tainted using
@@ -118,7 +115,7 @@ public interface PropagationModule extends IastModule {
       @Nullable Object input,
       byte origin,
       @Nullable CharSequence name,
-      @Nullable CharSequence value);
+      @Nullable Object value);
 
   /** @see #taintIfAnyTainted(IastContext, Object, Object[]) */
   void taintIfAnyTainted(@Nullable Object target, @Nullable Object[] inputs);

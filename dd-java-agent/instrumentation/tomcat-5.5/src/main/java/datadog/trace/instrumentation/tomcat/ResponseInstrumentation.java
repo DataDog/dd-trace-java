@@ -40,8 +40,8 @@ public final class ResponseInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         named("recycle").and(takesNoArguments()),
         ResponseInstrumentation.class.getName() + "$RecycleAdvice");
   }

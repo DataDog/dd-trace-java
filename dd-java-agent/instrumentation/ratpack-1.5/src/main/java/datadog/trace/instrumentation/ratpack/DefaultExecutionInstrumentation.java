@@ -35,8 +35,8 @@ public final class DefaultExecutionInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         nameStartsWith("delimit") // include delimitStream
             .and(takesArgument(0, named("ratpack.func.Action")))
             .and(takesArgument(1, named("ratpack.func.Action"))),

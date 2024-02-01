@@ -44,12 +44,12 @@ public class CookieDirectivesInstrumentation extends Instrumenter.Iast
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
+  public void methodAdvice(MethodTransformer transformer) {
     String traitName = "org.apache.pekko.http.scaladsl.server.directives.CookieDirectives";
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isTraitDirectiveMethod(traitName, "cookie", "java.lang.String"),
         CookieDirectivesInstrumentation.class.getName() + "$TaintCookieAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isTraitDirectiveMethod(traitName, "optionalCookie", "java.lang.String"),
         CookieDirectivesInstrumentation.class.getName() + "$TaintOptionalCookieAdvice");
   }

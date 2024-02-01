@@ -42,6 +42,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_CAPTURE_TIMEOUT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_CLASSFILE_DUMP_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_DIAGNOSTICS_INTERVAL;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_EXCEPTION_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_INSTRUMENT_THE_WORLD;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_MAX_PAYLOAD_SIZE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_METRICS_ENABLED;
@@ -67,6 +68,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_HTTP_SERVER_ERROR_STATUSE
 import static datadog.trace.api.ConfigDefaults.DEFAULT_HTTP_SERVER_ROUTE_BASED_NAMING;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_HTTP_SERVER_TAG_QUERY_STRING;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_DEBUG_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_HARDCODED_SECRET_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_REDACTION_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_REDACTION_NAME_PATTERN;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_REDACTION_VALUE_PATTERN;
@@ -108,6 +110,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_AGENT_V05_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_ANALYTICS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_HTTP_RESOURCE_REMOVE_TRAILING_SLASH;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_LONG_RUNNING_FLUSH_INTERVAL;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_LONG_RUNNING_INITIAL_FLUSH_INTERVAL;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_PROPAGATION_EXTRACT_FIRST;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_PROPAGATION_STYLE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_RATE_LIMIT;
@@ -192,6 +195,7 @@ import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_CAPTURE_TIMEOUT;
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_CLASSFILE_DUMP_ENABLED;
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_DIAGNOSTICS_INTERVAL;
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_ENABLED;
+import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_EXCEPTION_ENABLED;
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_EXCLUDE_FILES;
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_INSTRUMENT_THE_WORLD;
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_MAX_PAYLOAD_SIZE;
@@ -249,9 +253,13 @@ import static datadog.trace.api.config.GeneralConfig.TRACER_METRICS_MAX_AGGREGAT
 import static datadog.trace.api.config.GeneralConfig.TRACER_METRICS_MAX_PENDING;
 import static datadog.trace.api.config.GeneralConfig.TRACE_DEBUG;
 import static datadog.trace.api.config.GeneralConfig.TRACE_TRIAGE;
+import static datadog.trace.api.config.GeneralConfig.TRIAGE_REPORT_DIR;
+import static datadog.trace.api.config.GeneralConfig.TRIAGE_REPORT_TRIGGER;
 import static datadog.trace.api.config.GeneralConfig.VERSION;
+import static datadog.trace.api.config.IastConfig.IAST_CONTEXT_MODE;
 import static datadog.trace.api.config.IastConfig.IAST_DEBUG_ENABLED;
 import static datadog.trace.api.config.IastConfig.IAST_DETECTION_MODE;
+import static datadog.trace.api.config.IastConfig.IAST_HARDCODED_SECRET_ENABLED;
 import static datadog.trace.api.config.IastConfig.IAST_REDACTION_ENABLED;
 import static datadog.trace.api.config.IastConfig.IAST_REDACTION_NAME_PATTERN;
 import static datadog.trace.api.config.IastConfig.IAST_REDACTION_VALUE_PATTERN;
@@ -435,12 +443,15 @@ import static datadog.trace.util.Strings.propertyNameToEnvironmentVariableName;
 import datadog.trace.api.config.GeneralConfig;
 import datadog.trace.api.config.ProfilingConfig;
 import datadog.trace.api.config.TracerConfig;
+import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.IastDetectionMode;
 import datadog.trace.api.iast.telemetry.Verbosity;
 import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.bootstrap.config.provider.CapturedEnvironmentConfigSource;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import datadog.trace.bootstrap.config.provider.SystemPropertiesConfigSource;
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import datadog.trace.context.TraceScope;
 import datadog.trace.util.PidHelper;
 import datadog.trace.util.Strings;
 import datadog.trace.util.throwable.FatalAgentMisconfigurationError;
@@ -705,6 +716,8 @@ public class Config {
   private final int iastMaxRangeCount;
   private final int iastTruncationMaxValueLength;
   private final boolean iastStacktraceLeakSuppress;
+  private final IastContext.Mode iastContextMode;
+  private final boolean iastHardcodedSecretEnabled;
 
   private final boolean ciVisibilityTraceSanitationEnabled;
   private final boolean ciVisibilityAgentlessEnabled;
@@ -783,6 +796,7 @@ public class Config {
   private final boolean debuggerSymbolForceUpload;
   private final String debuggerSymbolIncludes;
   private final int debuggerSymbolFlushThreshold;
+  private final boolean debuggerExceptionEnabled;
 
   private final boolean awsPropagationEnabled;
   private final boolean sqsPropagationEnabled;
@@ -825,6 +839,9 @@ public class Config {
 
   private final boolean debugEnabled;
   private final boolean triageEnabled;
+  private final String triageReportTrigger;
+  private final String triageReportDir;
+
   private final boolean startupLogsEnabled;
   private final String configFileStatus;
 
@@ -872,6 +889,7 @@ public class Config {
   private final ConfigProvider configProvider;
 
   private final boolean longRunningTraceEnabled;
+  private final long longRunningTraceInitialFlushInterval;
   private final long longRunningTraceFlushInterval;
   private final boolean elasticsearchBodyEnabled;
   private final boolean elasticsearchParamsEnabled;
@@ -1401,7 +1419,8 @@ public class Config {
     isDatadogProfilerEnabled =
         !isDatadogProfilerEnablementOverridden()
             && configProvider.getBoolean(
-                PROFILING_DATADOG_PROFILER_ENABLED, isDatadogProfilerSafeInCurrentEnvironment());
+                PROFILING_DATADOG_PROFILER_ENABLED, isDatadogProfilerSafeInCurrentEnvironment())
+            && !(Platform.isNativeImageBuilder() || Platform.isNativeImage());
     profilingUrl = configProvider.getString(PROFILING_URL);
 
     if (tmpApiKey == null) {
@@ -1558,6 +1577,8 @@ public class Config {
 
     iastDebugEnabled = configProvider.getBoolean(IAST_DEBUG_ENABLED, DEFAULT_IAST_DEBUG_ENABLED);
 
+    iastContextMode =
+        configProvider.getEnum(IAST_CONTEXT_MODE, IastContext.Mode.class, IastContext.Mode.REQUEST);
     iastDetectionMode =
         configProvider.getEnum(IAST_DETECTION_MODE, IastDetectionMode.class, DEFAULT);
     iastMaxConcurrentRequests = iastDetectionMode.getIastMaxConcurrentRequests(configProvider);
@@ -1588,6 +1609,9 @@ public class Config {
     iastStacktraceLeakSuppress =
         configProvider.getBoolean(
             IAST_STACKTRACE_LEAK_SUPPRESS, DEFAULT_IAST_STACKTRACE_LEAK_SUPPRESS);
+    iastHardcodedSecretEnabled =
+        configProvider.getBoolean(
+            IAST_HARDCODED_SECRET_ENABLED, DEFAULT_IAST_HARDCODED_SECRET_ENABLED);
 
     ciVisibilityTraceSanitationEnabled =
         configProvider.getBoolean(CIVISIBILITY_TRACE_SANITATION_ENABLED, true);
@@ -1783,6 +1807,8 @@ public class Config {
     debuggerSymbolFlushThreshold =
         configProvider.getInteger(
             DEBUGGER_SYMBOL_FLUSH_THRESHOLD, DEFAULT_DEBUGGER_SYMBOL_FLUSH_THRESHOLD);
+    debuggerExceptionEnabled =
+        configProvider.getBoolean(DEBUGGER_EXCEPTION_ENABLED, DEFAULT_DEBUGGER_EXCEPTION_ENABLED);
 
     awsPropagationEnabled = isPropagationEnabled(true, "aws", "aws-sdk");
     sqsPropagationEnabled = isPropagationEnabled(true, "sqs");
@@ -1859,7 +1885,15 @@ public class Config {
     servletAsyncTimeoutError = configProvider.getBoolean(SERVLET_ASYNC_TIMEOUT_ERROR, true);
 
     debugEnabled = configProvider.getBoolean(TRACE_DEBUG, false);
-    triageEnabled = configProvider.getBoolean(TRACE_TRIAGE, debugEnabled); // debug implies triage
+    triageReportTrigger = configProvider.getString(TRIAGE_REPORT_TRIGGER);
+    if (null != triageReportTrigger) {
+      // setting a trigger implies the triage directory and triage mode should be enabled
+      triageReportDir = configProvider.getString(TRIAGE_REPORT_DIR, getProp("java.io.tmpdir"));
+      triageEnabled = true;
+    } else {
+      triageReportDir = null;
+      triageEnabled = configProvider.getBoolean(TRACE_TRIAGE, debugEnabled);
+    }
 
     startupLogsEnabled =
         configProvider.getBoolean(STARTUP_LOGS_ENABLED, DEFAULT_STARTUP_LOGS_ENABLED);
@@ -1901,11 +1935,25 @@ public class Config {
         configProvider.getBoolean(
             TracerConfig.TRACE_LONG_RUNNING_ENABLED,
             ConfigDefaults.DEFAULT_TRACE_LONG_RUNNING_ENABLED);
+    long longRunningTraceInitialFlushInterval =
+        configProvider.getLong(
+            TracerConfig.TRACE_LONG_RUNNING_INITIAL_FLUSH_INTERVAL,
+            DEFAULT_TRACE_LONG_RUNNING_INITIAL_FLUSH_INTERVAL);
     long longRunningTraceFlushInterval =
         configProvider.getLong(
             TracerConfig.TRACE_LONG_RUNNING_FLUSH_INTERVAL,
             ConfigDefaults.DEFAULT_TRACE_LONG_RUNNING_FLUSH_INTERVAL);
 
+    if (longRunningEnabled
+        && (longRunningTraceInitialFlushInterval < 10
+            || longRunningTraceInitialFlushInterval > 450)) {
+      log.warn(
+          "Provided long running trace inital flush interval of {} seconds. It should be between 10 seconds and 7.5 minutes."
+              + "Setting the flush interval to the default value of {} seconds .",
+          longRunningTraceInitialFlushInterval,
+          DEFAULT_TRACE_LONG_RUNNING_INITIAL_FLUSH_INTERVAL);
+      longRunningTraceInitialFlushInterval = DEFAULT_TRACE_LONG_RUNNING_INITIAL_FLUSH_INTERVAL;
+    }
     if (longRunningEnabled
         && (longRunningTraceFlushInterval < 20 || longRunningTraceFlushInterval > 450)) {
       log.warn(
@@ -1916,6 +1964,7 @@ public class Config {
       longRunningTraceFlushInterval = DEFAULT_TRACE_LONG_RUNNING_FLUSH_INTERVAL;
     }
     longRunningTraceEnabled = longRunningEnabled;
+    this.longRunningTraceInitialFlushInterval = longRunningTraceInitialFlushInterval;
     this.longRunningTraceFlushInterval = longRunningTraceFlushInterval;
 
     this.sparkTaskHistogramEnabled =
@@ -2021,6 +2070,10 @@ public class Config {
 
   public boolean isLongRunningTraceEnabled() {
     return longRunningTraceEnabled;
+  }
+
+  public long getLongRunningTraceInitialFlushInterval() {
+    return longRunningTraceInitialFlushInterval;
   }
 
   public long getLongRunningTraceFlushInterval() {
@@ -2697,6 +2750,14 @@ public class Config {
     return iastStacktraceLeakSuppress;
   }
 
+  public IastContext.Mode getIastContextMode() {
+    return iastContextMode;
+  }
+
+  public boolean isIastHardcodedSecretEnabled() {
+    return iastHardcodedSecretEnabled;
+  }
+
   public boolean isCiVisibilityEnabled() {
     return instrumenterConfig.isCiVisibilityEnabled();
   }
@@ -2998,6 +3059,10 @@ public class Config {
     return debuggerSymbolFlushThreshold;
   }
 
+  public boolean isDebuggerExceptionEnabled() {
+    return debuggerExceptionEnabled;
+  }
+
   public String getFinalDebuggerProbeUrl() {
     // by default poll from datadog agent
     return "http://" + agentHost + ":" + agentPort;
@@ -3122,6 +3187,14 @@ public class Config {
 
   public boolean isTriageEnabled() {
     return triageEnabled;
+  }
+
+  public String getTriageReportTrigger() {
+    return triageReportTrigger;
+  }
+
+  public String getTriageReportDir() {
+    return triageReportDir;
   }
 
   public boolean isStartupLogsEnabled() {
@@ -3807,9 +3880,10 @@ public class Config {
     }
 
     // Try hostname command
-    try (final BufferedReader reader =
-        new BufferedReader(
-            new InputStreamReader(Runtime.getRuntime().exec("hostname").getInputStream()))) {
+    try (final TraceScope scope = AgentTracer.get().muteTracing();
+        final BufferedReader reader =
+            new BufferedReader(
+                new InputStreamReader(Runtime.getRuntime().exec("hostname").getInputStream()))) {
       possibleHostname = reader.readLine();
     } catch (final Throwable ignore) {
       // Ignore.  Hostname command is not always available
@@ -4160,6 +4234,22 @@ public class Config {
         + debuggerInstrumentTheWorld
         + ", debuggerExcludeFile="
         + debuggerExcludeFiles
+        + ", debuggerCaptureTimeout="
+        + debuggerCaptureTimeout
+        + ", debuggerRedactIdentifiers="
+        + debuggerRedactedIdentifiers
+        + ", debuggerRedactTypes="
+        + debuggerRedactedTypes
+        + ", debuggerSymbolEnabled="
+        + debuggerSymbolEnabled
+        + ", debuggerSymbolForceUpload="
+        + debuggerSymbolForceUpload
+        + ", debuggerSymbolFlushThreshold="
+        + debuggerSymbolFlushThreshold
+        + ", debuggerSymbolIncludes="
+        + debuggerSymbolIncludes
+        + ", debuggerExceptionEnabled="
+        + debuggerExceptionEnabled
         + ", awsPropagationEnabled="
         + awsPropagationEnabled
         + ", sqsPropagationEnabled="
@@ -4202,6 +4292,8 @@ public class Config {
         + debugEnabled
         + ", triageEnabled="
         + triageEnabled
+        + ", triageReportDir="
+        + triageReportDir
         + ", startLogsEnabled="
         + startupLogsEnabled
         + ", configFile='"
@@ -4242,6 +4334,8 @@ public class Config {
         + cwsTlsRefresh
         + ", longRunningTraceEnabled="
         + longRunningTraceEnabled
+        + ", longRunningTraceInitialFlushInterval="
+        + longRunningTraceInitialFlushInterval
         + ", longRunningTraceFlushInterval="
         + longRunningTraceFlushInterval
         + ", elasticsearchBodyEnabled="

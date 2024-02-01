@@ -40,8 +40,8 @@ public class RequestFinishInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         named("finish").and(takesNoArguments()),
         RequestFinishInstrumentation.class.getName() + "$RequestFinishAdvice");
   }

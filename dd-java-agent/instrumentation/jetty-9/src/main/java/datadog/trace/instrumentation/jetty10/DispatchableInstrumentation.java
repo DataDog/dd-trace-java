@@ -57,8 +57,8 @@ public class DispatchableInstrumentation extends Instrumenter.AppSec
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isMethod().and(named("dispatch")).and(isPublic()).and(takesArguments(0)),
         packageName + ".DispatchableAdvice");
   }

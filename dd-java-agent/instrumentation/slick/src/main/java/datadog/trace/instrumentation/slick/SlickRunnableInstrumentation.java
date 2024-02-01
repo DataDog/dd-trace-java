@@ -43,9 +43,9 @@ public final class SlickRunnableInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(isConstructor(), getClass().getName() + "$Construct");
-    transformation.applyAdvice(named("run").and(takesNoArguments()), getClass().getName() + "$Run");
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(isConstructor(), getClass().getName() + "$Construct");
+    transformer.applyAdvice(named("run").and(takesNoArguments()), getClass().getName() + "$Run");
   }
 
   public static final class Construct {

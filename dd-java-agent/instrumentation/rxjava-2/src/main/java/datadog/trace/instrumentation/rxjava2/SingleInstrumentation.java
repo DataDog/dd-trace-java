@@ -44,9 +44,9 @@ public final class SingleInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(isConstructor(), getClass().getName() + "$CaptureParentSpanAdvice");
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(isConstructor(), getClass().getName() + "$CaptureParentSpanAdvice");
+    transformer.applyAdvice(
         isMethod()
             .and(named("subscribe"))
             .and(takesArguments(1))

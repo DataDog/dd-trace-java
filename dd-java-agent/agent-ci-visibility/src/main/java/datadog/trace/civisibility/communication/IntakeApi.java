@@ -2,10 +2,10 @@ package datadog.trace.civisibility.communication;
 
 import datadog.communication.http.HttpRetryPolicy;
 import datadog.communication.http.OkHttpUtils;
-import datadog.trace.api.Config;
 import datadog.trace.civisibility.utils.IOThrowingFunction;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.zip.GZIPInputStream;
 import okhttp3.HttpUrl;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
@@ -18,33 +18,43 @@ public class IntakeApi implements BackendApi {
 
   private static final Logger log = LoggerFactory.getLogger(IntakeApi.class);
 
-  private static final String API_VERSION = "v2";
+  public static final String API_VERSION = "v2";
+
   private static final String DD_API_KEY_HEADER = "dd-api-key";
   private static final String X_DATADOG_TRACE_ID_HEADER = "x-datadog-trace-id";
   private static final String X_DATADOG_PARENT_ID_HEADER = "x-datadog-parent-id";
+  private static final String ACCEPT_ENCODING_HEADER = "Accept-Encoding";
+  private static final String CONTENT_ENCODING_HEADER = "Content-Encoding";
+  private static final String GZIP_ENCODING = "gzip";
 
   private final String apiKey;
   private final String traceId;
   private final HttpRetryPolicy.Factory retryPolicyFactory;
+  private final boolean gzipEnabled;
   private final HttpUrl hostUrl;
   private final OkHttpClient httpClient;
 
   public IntakeApi(
-      String site,
+      HttpUrl hostUrl,
       String apiKey,
       String traceId,
       long timeoutMillis,
       HttpRetryPolicy.Factory retryPolicyFactory) {
+    this(hostUrl, apiKey, traceId, timeoutMillis, retryPolicyFactory, true);
+  }
+
+  public IntakeApi(
+      HttpUrl hostUrl,
+      String apiKey,
+      String traceId,
+      long timeoutMillis,
+      HttpRetryPolicy.Factory retryPolicyFactory,
+      boolean gzipEnabled) {
+    this.hostUrl = hostUrl;
     this.apiKey = apiKey;
     this.traceId = traceId;
     this.retryPolicyFactory = retryPolicyFactory;
-
-    final String ciVisibilityAgentlessUrlStr = Config.get().getCiVisibilityAgentlessUrl();
-    if (ciVisibilityAgentlessUrlStr != null && !ciVisibilityAgentlessUrlStr.isEmpty()) {
-      hostUrl = HttpUrl.get(String.format("%s/api/%s/", ciVisibilityAgentlessUrlStr, API_VERSION));
-    } else {
-      hostUrl = HttpUrl.get(String.format("https://api.%s/api/%s/", site, API_VERSION));
-    }
+    this.gzipEnabled = gzipEnabled;
 
     httpClient = OkHttpUtils.buildHttpClient(hostUrl, timeoutMillis);
   }
@@ -62,13 +72,25 @@ public class IntakeApi implements BackendApi {
             .addHeader(X_DATADOG_TRACE_ID_HEADER, traceId)
             .addHeader(X_DATADOG_PARENT_ID_HEADER, traceId);
 
+    if (gzipEnabled) {
+      requestBuilder.addHeader(ACCEPT_ENCODING_HEADER, GZIP_ENCODING);
+    }
+
     Request request = requestBuilder.build();
     HttpRetryPolicy retryPolicy = retryPolicyFactory.create();
     try (okhttp3.Response response =
         OkHttpUtils.sendWithRetries(httpClient, retryPolicy, request)) {
       if (response.isSuccessful()) {
         log.debug("Request to {} returned successful response: {}", uri, response.code());
-        return responseParser.apply(response.body().byteStream());
+        InputStream responseBodyStream = response.body().byteStream();
+
+        String contentEncoding = response.header(CONTENT_ENCODING_HEADER);
+        if (GZIP_ENCODING.equalsIgnoreCase(contentEncoding)) {
+          log.debug("Response content encoding is {}, unzipping response body", contentEncoding);
+          responseBodyStream = new GZIPInputStream(responseBodyStream);
+        }
+
+        return responseParser.apply(responseBodyStream);
       } else {
         throw new IOException(
             "Request to "

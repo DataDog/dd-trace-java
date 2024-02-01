@@ -82,7 +82,7 @@ public class MuzzleGenerator implements AsmVisitorWrapper {
     final Set<String> referenceSources = new HashSet<>();
     final Map<String, Reference> references = new LinkedHashMap<>();
     final Set<String> adviceClasses = new HashSet<>();
-    instrumenter.adviceTransformations((matcher, name) -> adviceClasses.add(name));
+    instrumenter.methodAdvice((matcher, className) -> adviceClasses.add(className));
     ClassLoader contextClassLoader = Thread.currentThread().getContextClassLoader();
     for (String adviceClass : adviceClasses) {
       if (referenceSources.add(adviceClass)) {

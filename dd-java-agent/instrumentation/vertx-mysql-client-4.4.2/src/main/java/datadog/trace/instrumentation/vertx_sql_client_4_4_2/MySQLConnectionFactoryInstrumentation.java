@@ -29,8 +29,8 @@ public class MySQLConnectionFactoryInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isConstructor()
             .and(takesArguments(2))
             .and(takesArgument(1, named("java.util.function.Supplier"))),

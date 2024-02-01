@@ -59,8 +59,8 @@ public class Cucumber4RetryInstrumentation extends Instrumenter.CiVisibility
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         named("runChild")
             .and(takesArgument(0, named("io.cucumber.junit.PickleRunners$PickleRunner")))
             .and(takesArgument(1, named("org.junit.runner.notification.RunNotifier"))),

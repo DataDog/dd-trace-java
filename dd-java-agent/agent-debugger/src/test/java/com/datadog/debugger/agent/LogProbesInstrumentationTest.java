@@ -549,7 +549,7 @@ public class LogProbesInstrumentationTest {
     DebuggerTransformerTest.TestSnapshotListener listener =
         new DebuggerTransformerTest.TestSnapshotListener(config, mock(ProbeStatusSink.class));
     DebuggerAgentHelper.injectSink(listener);
-    DebuggerContext.init(resolver, null);
+    DebuggerContext.initProbeResolver(resolver);
     DebuggerContext.initClassFilter(new DenyListHelper(null));
     DebuggerContext.initValueSerializer(new JsonSnapshotSerializer());
     return listener;

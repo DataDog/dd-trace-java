@@ -45,27 +45,27 @@ public class GrizzlyCharBodyInstrumentation extends Instrumenter.AppSec
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         named("setInputBuffer")
             .and(takesArguments(1))
             .and(takesArgument(0, named("org.glassfish.grizzly.http.io.InputBuffer"))),
         getClass().getName() + "$NIOReaderSetInputBufferAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         named("read").and(takesArguments(0)), getClass().getName() + "$NIOReaderReadAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         named("read").and(takesArguments(1)).and(takesArgument(0, char[].class)),
         getClass().getName() + "$NIOReaderReadCharArrayAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         named("read").and(takesArguments(char[].class, int.class, int.class)),
         getClass().getName() + "$NIOReaderReadCharArrayIntIntAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         named("read").and(takesArguments(CharBuffer.class)),
         getClass().getName() + "$NIOReaderReadCharBufferAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         named("isFinished").and(takesArguments(0)),
         getClass().getName() + "$NIOReaderIsFinishedAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         named("recycle").and(takesArguments(0)), getClass().getName() + "$NIOReaderRecycleAdvice");
   }
 

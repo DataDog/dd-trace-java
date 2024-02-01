@@ -4,6 +4,7 @@ import com.squareup.moshi.FromJson;
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.JsonReader;
 import com.squareup.moshi.Moshi;
+import com.squareup.moshi.ToJson;
 import com.squareup.moshi.Types;
 import datadog.trace.api.sampling.SamplingRule;
 import java.io.File;
@@ -202,6 +203,12 @@ public class SpanSamplingRules {
     @FromJson
     Rule fromJson(JsonRule jsonRule) {
       return Rule.create(jsonRule);
+    }
+
+    @ToJson
+    JsonRule toJson(TraceSamplingRules.Rule rule) {
+      // This method only purpose is to prevent a "No @ToJson adapter for class" exception.
+      throw new UnsupportedOperationException();
     }
   }
 }

@@ -36,8 +36,8 @@ public class InputStreamInstrumentation extends Instrumenter.Iast
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isConstructor().and(takesArgument(0, InputStream.class)),
         InputStreamInstrumentation.class.getName() + "$InputStreamAdvice");
   }

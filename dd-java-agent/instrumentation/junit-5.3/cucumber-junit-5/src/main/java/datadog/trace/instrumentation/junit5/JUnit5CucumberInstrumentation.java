@@ -46,8 +46,8 @@ public class JUnit5CucumberInstrumentation extends Instrumenter.CiVisibility
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         named("execute").and(takesArgument(0, named("org.junit.platform.engine.ExecutionRequest"))),
         JUnit5CucumberInstrumentation.class.getName() + "$CucumberAdvice");
   }

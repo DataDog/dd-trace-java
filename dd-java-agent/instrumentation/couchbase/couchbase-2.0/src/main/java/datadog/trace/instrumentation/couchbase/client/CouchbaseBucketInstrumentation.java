@@ -43,8 +43,8 @@ public class CouchbaseBucketInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isMethod().and(isPublic()).and(returns(named("rx.Observable"))),
         CouchbaseBucketInstrumentation.class.getName() + "$CouchbaseClientAdvice");
   }

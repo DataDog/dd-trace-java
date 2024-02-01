@@ -60,6 +60,7 @@ class DebuggerTracerTest {
 
   @Test
   public void noApi() {
+    AgentTracer.forceRegister(null);
     ProbeStatusSink probeStatusSink = mock(ProbeStatusSink.class);
     DebuggerTracer debuggerTracer = new DebuggerTracer(probeStatusSink);
     DebuggerSpan span =

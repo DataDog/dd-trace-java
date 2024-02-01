@@ -4,7 +4,6 @@ import static com.datadog.iast.IastTag.ANALYZED;
 import static com.datadog.iast.IastTag.SKIPPED;
 
 import com.datadog.iast.overhead.OverheadController;
-import com.datadog.iast.taint.TaintedObjects;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.IGSpanInfo;
 import datadog.trace.api.gateway.RequestContext;
@@ -18,9 +17,11 @@ import javax.annotation.Nonnull;
 public class RequestEndedHandler implements BiFunction<RequestContext, IGSpanInfo, Flow<Void>> {
 
   private final OverheadController overheadController;
+  private final IastContext.Provider contextProvider;
 
   public RequestEndedHandler(@Nonnull final Dependencies dependencies) {
     this.overheadController = dependencies.getOverheadController();
+    this.contextProvider = dependencies.contextProvider;
   }
 
   @Override
@@ -35,10 +36,7 @@ public class RequestEndedHandler implements BiFunction<RequestContext, IGSpanInf
       }
       try {
         ANALYZED.setTagTop(traceSegment);
-        final TaintedObjects taintedObjects = iastCtx.getTaintedObjects();
-        if (taintedObjects != null) {
-          taintedObjects.release();
-        }
+        contextProvider.releaseRequestContext(iastCtx);
       } finally {
         overheadController.releaseRequest();
       }

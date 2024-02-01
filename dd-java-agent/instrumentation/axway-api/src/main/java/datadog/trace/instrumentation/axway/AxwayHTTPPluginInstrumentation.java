@@ -42,12 +42,12 @@ public final class AxwayHTTPPluginInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isMethod().and(isPublic()).and(named("invokeDispose")), packageName + ".HTTPPluginAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod().and(isPublic()).and(named("tryTransaction")), packageName + ".StateAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod().and(isPublic()).and(named("sendResponse")),
         packageName + ".ServerTransactionAdvice");
   }

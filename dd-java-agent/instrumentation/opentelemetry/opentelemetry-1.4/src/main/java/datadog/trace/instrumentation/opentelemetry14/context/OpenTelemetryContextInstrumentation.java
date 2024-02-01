@@ -74,9 +74,9 @@ public class OpenTelemetryContextInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
+  public void methodAdvice(MethodTransformer transformer) {
     // Context Context.root()
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod()
             .and(named("root"))
             .and(takesNoArguments())

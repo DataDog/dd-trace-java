@@ -891,7 +891,9 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
   @Override
   public AgentSpan blackholeSpan() {
-    return new AgentTracer.BlackholeAgentSpan(DDTraceId.from(getTraceId()));
+    final AgentSpan active = activeSpan();
+    return new AgentTracer.BlackholeAgentSpan(
+        active != null ? active.getTraceId() : DDTraceId.ZERO);
   }
 
   @Override

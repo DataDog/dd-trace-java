@@ -69,8 +69,8 @@ public final class JettyCommitResponseInstrumentation extends Instrumenter.AppSe
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         named("commitResponse")
             .and(takesArguments(3))
             .and(takesArgument(0, named("org.eclipse.jetty.http.HttpGenerator$ResponseInfo")))

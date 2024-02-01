@@ -14,6 +14,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_HTTP_SERVER_ERROR_STATUSE
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PARTIAL_FLUSH_MIN_SPANS
 import static datadog.trace.api.ConfigDefaults.DEFAULT_SERVICE_NAME
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_LONG_RUNNING_FLUSH_INTERVAL
+import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_LONG_RUNNING_INITIAL_FLUSH_INTERVAL
 import static datadog.trace.api.DDTags.HOST_TAG
 import static datadog.trace.api.DDTags.LANGUAGE_TAG_KEY
 import static datadog.trace.api.DDTags.LANGUAGE_TAG_VALUE
@@ -102,6 +103,7 @@ import static datadog.trace.api.config.TracerConfig.ID_GENERATION_STRATEGY
 import static datadog.trace.api.config.TracerConfig.PARTIAL_FLUSH_ENABLED
 import static datadog.trace.api.config.TracerConfig.TRACE_LONG_RUNNING_ENABLED
 import static datadog.trace.api.config.TracerConfig.TRACE_LONG_RUNNING_FLUSH_INTERVAL
+import static datadog.trace.api.config.TracerConfig.TRACE_LONG_RUNNING_INITIAL_FLUSH_INTERVAL
 import static datadog.trace.api.config.TracerConfig.PARTIAL_FLUSH_MIN_SPANS
 import static datadog.trace.api.config.TracerConfig.PRIORITIZATION_TYPE
 import static datadog.trace.api.config.TracerConfig.PRIORITY_SAMPLING
@@ -580,7 +582,7 @@ class ConfigTest extends DDSpecification {
     config.agentPort == 123
     config.agentUrl == "http://somewhere:123"
     config.longRunningTraceEnabled
-    config.longRunningTraceFlushInterval == 300
+    config.longRunningTraceFlushInterval == 120
   }
 
   def "default when configured incorrectly"() {
@@ -2333,6 +2335,27 @@ class ConfigTest extends DDSpecification {
     then:
     config.configFileStatus == "src/test/resources/dd-java-tracer.properties"
     config.serviceName == "args service name"
+  }
+
+  def "long running trace invalid initial flush_interval set to default: #configuredFlushInterval"() {
+    when:
+    def prop = new Properties()
+    prop.setProperty(TRACE_LONG_RUNNING_ENABLED, "true")
+    prop.setProperty(TRACE_LONG_RUNNING_INITIAL_FLUSH_INTERVAL, configuredFlushInterval)
+    Config config = Config.get(prop)
+
+    then:
+    config.longRunningTraceEnabled == true
+    config.longRunningTraceInitialFlushInterval == flushInterval
+
+    where:
+    configuredFlushInterval | flushInterval
+    "invalid"     | DEFAULT_TRACE_LONG_RUNNING_INITIAL_FLUSH_INTERVAL
+    "-1"          | DEFAULT_TRACE_LONG_RUNNING_INITIAL_FLUSH_INTERVAL
+    "9"           | DEFAULT_TRACE_LONG_RUNNING_INITIAL_FLUSH_INTERVAL
+    "451"         | DEFAULT_TRACE_LONG_RUNNING_INITIAL_FLUSH_INTERVAL
+    "10"          | 10
+    "450"         | 450
   }
 
   def "long running trace invalid flush_interval set to default: #configuredFlushInterval"() {

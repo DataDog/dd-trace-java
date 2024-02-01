@@ -273,7 +273,11 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
 
         NodeList versionList = doc.getElementsByTagName("latest")
         if (versionList.getLength() > 0) {
-          return versionList.item(0).getTextContent()
+          def version = versionList.item(0).getTextContent()
+          if (!version.contains('alpha')) {
+            LOGGER.info("Will run the 'latest' tests with version ${version}")
+            return version
+          }
         }
       } else {
         LOGGER.warn("Could not get latest maven version, response from repo.maven.apache.org is ${response.code()}: ${response.body().string()}")
@@ -281,8 +285,8 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
     } catch (Exception e) {
       LOGGER.warn("Could not get latest maven version", e)
     }
-    def hardcodedLatestVersion = "4.0.0-alpha-8"
-    LOGGER.warn("Will run the 'latest' tests with hard-coded version ${hardcodedLatestVersion}")
+    def hardcodedLatestVersion = "4.0.0-alpha-12" // latest alpha that is known to work
+    LOGGER.info("Will run the 'latest' tests with hard-coded version ${hardcodedLatestVersion}")
     return hardcodedLatestVersion
   }
 }

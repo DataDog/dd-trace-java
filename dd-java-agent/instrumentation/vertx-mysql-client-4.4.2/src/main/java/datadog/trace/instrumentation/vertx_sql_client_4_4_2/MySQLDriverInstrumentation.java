@@ -30,8 +30,8 @@ public class MySQLDriverInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isPrivate()
             .and(named("newPoolImpl"))
             .and(takesArguments(4).and(takesArgument(1, named("java.util.function.Supplier")))),

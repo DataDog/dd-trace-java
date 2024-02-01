@@ -77,7 +77,8 @@ public class AppSecSystem {
     sco.createRemaining(config);
 
     RateLimiter rateLimiter = getRateLimiter(config, sco.monitoring);
-    ApiSecurityRequestSampler requestSampler = new ApiSecurityRequestSampler(config);
+    ApiSecurityRequestSampler requestSampler =
+        new ApiSecurityRequestSampler(config, configurationPoller);
 
     GatewayBridge gatewayBridge =
         new GatewayBridge(

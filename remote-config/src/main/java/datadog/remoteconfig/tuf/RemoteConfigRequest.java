@@ -63,6 +63,8 @@ public class RemoteConfigRequest {
     public static final long CAPABILITY_ASM_CUSTOM_BLOCKING_RESPONSE = 1 << 9;
     public static final long CAPABILITY_ASM_TRUSTED_IPS = 1 << 10;
 
+    public static final long CAPABILITY_ASM_API_SECURITY_SAMPLE_RATE = 1 << 11;
+
     @Json(name = "state")
     private final ClientState clientState;
 

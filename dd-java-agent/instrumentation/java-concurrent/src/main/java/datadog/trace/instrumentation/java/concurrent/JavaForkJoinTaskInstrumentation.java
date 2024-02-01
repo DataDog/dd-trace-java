@@ -61,11 +61,11 @@ public final class JavaForkJoinTaskInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isMethod().and(namedOneOf("doExec", "exec")), getClass().getName() + "$Exec");
-    transformation.applyAdvice(isMethod().and(named("fork")), getClass().getName() + "$Fork");
-    transformation.applyAdvice(isMethod().and(named("cancel")), getClass().getName() + "$Cancel");
+    transformer.applyAdvice(isMethod().and(named("fork")), getClass().getName() + "$Fork");
+    transformer.applyAdvice(isMethod().and(named("cancel")), getClass().getName() + "$Cancel");
   }
 
   @Override

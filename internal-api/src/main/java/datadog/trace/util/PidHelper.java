@@ -2,7 +2,12 @@ package datadog.trace.util;
 
 import datadog.trace.api.Platform;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
 import java.lang.management.ManagementFactory;
+import java.util.Collections;
+import java.util.Set;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -53,6 +58,38 @@ public final class PidHelper {
       }
     }
     return pid;
+  }
+
+  public static Set<String> getJavaPids() {
+    // there is no supported Java API to achieve this
+    // one could use sun.jvmstat.monitor.MonitoredHost but it is an internal API and can go away at
+    // any time -
+    //  also, no guarantee it will work with all JVMs
+    ProcessBuilder pb = new ProcessBuilder("jps");
+    try {
+      Process p = pb.start();
+      if (p.waitFor(500, TimeUnit.MILLISECONDS)) {
+        if (p.exitValue() == 0) {
+          try (BufferedReader br = new BufferedReader(new InputStreamReader(p.getInputStream()))) {
+            return br.lines()
+                .filter(l -> !l.contains("jps"))
+                .map(
+                    l -> {
+                      int idx = l.indexOf(' ');
+                      return l.substring(0, idx);
+                    })
+                .collect(java.util.stream.Collectors.toSet());
+          }
+        } else {
+          log.debug("Execution of 'jps' failed with exit code {}", p.exitValue());
+        }
+      } else {
+        log.debug("Execution of 'jps' timed out");
+      }
+    } catch (Exception e) {
+      log.debug("Unable to list java processes via 'jps'", e);
+    }
+    return Collections.emptySet();
   }
 
   private static long parsePid() {

@@ -45,14 +45,14 @@ public final class PekkoHttpSingleRequestInstrumentation extends Instrumenter.Tr
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
+  public void methodAdvice(MethodTransformer transformer) {
     // This is mainly for compatibility with 10.0
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         named("singleRequest")
             .and(takesArgument(0, named("org.apache.pekko.http.scaladsl.model.HttpRequest"))),
         PekkoHttpSingleRequestInstrumentation.class.getName() + "$SingleRequestAdvice");
     // This is for 10.1+
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         named("singleRequestImpl")
             .and(takesArgument(0, named("org.apache.pekko.http.scaladsl.model.HttpRequest"))),
         PekkoHttpSingleRequestInstrumentation.class.getName() + "$SingleRequestAdvice");

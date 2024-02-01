@@ -34,8 +34,8 @@ public class ReceiverInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(Instrumenter.AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isMethod()
             .and(named("newBuilder"))
             .and(takesArgument(0, String.class))

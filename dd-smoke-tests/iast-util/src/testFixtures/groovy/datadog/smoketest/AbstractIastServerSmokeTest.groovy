@@ -2,6 +2,7 @@ package datadog.smoketest
 
 import datadog.smoketest.model.TaintedObject
 import datadog.smoketest.model.Vulnerability
+import datadog.smoketest.model.Vulnerability.Source
 import groovy.json.JsonBuilder
 import groovy.json.JsonSlurper
 import groovy.transform.CompileDynamic
@@ -84,7 +85,7 @@ abstract class AbstractIastServerSmokeTest extends AbstractServerSmokeTest {
     } catch (TimeoutException toe) {
       checkLogPostExit(closure)
       if (!found) {
-        throw new AssertionError("No matching vulnerability found. Vulnerabilities found: ${new JsonBuilder(discovered).toPrettyString()}")
+        throw new AssertionError("No matching vulnerability found. Vulnerabilities found: ${new JsonBuilder(vulnerabilities).toPrettyString()}")
       }
     }
   }
@@ -116,8 +117,7 @@ abstract class AbstractIastServerSmokeTest extends AbstractServerSmokeTest {
         if (!json) {
           return false
         }
-        final batch = jsonSlurper.parseText(json) as Map
-        final vulnerabilities = batch.vulnerabilities as List<Vulnerability>
+        final vulnerabilities = parseVulnerabilities(json)
         found.addAll(vulnerabilities)
         return vulnerabilities.find(matcher) != null
       }
@@ -135,14 +135,12 @@ abstract class AbstractIastServerSmokeTest extends AbstractServerSmokeTest {
         if (!json) {
           return false
         }
-        final batch = jsonSlurper.parseText(json) as Map
-        final vulnerabilities = batch.vulnerabilities as List<Vulnerability>
-        found.addAll(vulnerabilities)
+        return parseVulnerabilities(json)
       }
     } catch (SpockTimeoutError toe) {
       // do nothing
     }
-    if ( found.find(matcher) != null){
+    if (found.find(matcher) != null) {
       throw new AssertionError("A matching vulnerability was found while expecting none. Vulnerabilities found: ${new JsonBuilder(found).toPrettyString()}")
     }
   }
@@ -180,10 +178,7 @@ abstract class AbstractIastServerSmokeTest extends AbstractServerSmokeTest {
             break
           }
         }
-        final parsed = jsonSlurper.parseText(builder.toString())
-        if (parsed instanceof Map) {
-          return parsed.vulnerabilities as List<Vulnerability>
-        }
+        return parseVulnerabilities(builder.toString())
       } catch (Exception e) {
       }
     }
@@ -192,5 +187,26 @@ abstract class AbstractIastServerSmokeTest extends AbstractServerSmokeTest {
 
   protected PollingConditions pollingConditions() {
     return new PollingConditions(timeout: 5)
+  }
+
+  protected List<Vulnerability> parseVulnerabilities(final String json) {
+    final batch = jsonSlurper.parseText(json)
+    if (!(batch instanceof Map)) {
+      return []
+    }
+    final vulnerabilities = batch.vulnerabilities as List<Vulnerability>
+    final sources = batch.sources as List<Source>
+    vulnerabilities.each {
+      final evidence = it.evidence
+      if (evidence?.valueParts != null) {
+        evidence.valueParts.each {
+          if (it.source != null) {
+            final index = it.source as Integer
+            it.source = sources[index]
+          }
+        }
+      }
+    }
+    return vulnerabilities
   }
 }

@@ -2,6 +2,7 @@ package datadog.trace.agent.tooling.bytebuddy.csi;
 
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.csi.CallSiteAdvice;
+import datadog.trace.agent.tooling.csi.CallSites;
 import javax.annotation.Nonnull;
 
 /**
@@ -20,18 +21,23 @@ public abstract class CallSiteInstrumentation extends Instrumenter.Default
   }
 
   @Override
-  public void adviceTransformations(final AdviceTransformation transformation) {}
+  public void typeAdvice(TypeTransformer transformer) {
+    transformer.applyAdvice(new CallSiteTransformer(name(), advices()));
+  }
 
   @Override
-  public AdviceTransformer transformer() {
-    return new CallSiteTransformer(name(), advices());
+  public void methodAdvice(final MethodTransformer transformer) {}
+
+  /** Utility to be able to tune the advices in subclasses */
+  protected Advices buildAdvices(final Iterable<CallSites> callSites) {
+    return Advices.fromCallSites(callSites);
   }
 
   protected abstract CallSiteSupplier callSites();
 
   private Advices advices() {
     if (null == advices) {
-      advices = Advices.fromCallSites(callSites().get());
+      advices = buildAdvices(callSites().get());
     }
     return advices;
   }

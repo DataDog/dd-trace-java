@@ -1,5 +1,7 @@
 package datadog.trace.instrumentation.jdbc;
 
+import static datadog.trace.instrumentation.jdbc.IastConnectionCallSite.getDBInfo;
+
 import datadog.trace.agent.tooling.csi.CallSite;
 import datadog.trace.api.iast.IastCallSites;
 import datadog.trace.api.iast.InstrumentationBridge;
@@ -35,7 +37,7 @@ public class IastStatementCallSite {
     final SqlInjectionModule module = InstrumentationBridge.SQL_INJECTION;
     if (module != null) {
       try {
-        final DBInfo dbInfo = JDBCDecorator.parseDBInfoFromConnection(statement.getConnection());
+        final DBInfo dbInfo = getDBInfo(statement.getConnection());
         module.onJdbcQuery(sql, dbInfo.getType());
       } catch (final Throwable e) {
         module.onUnexpectedException("beforeExecute threw", e);

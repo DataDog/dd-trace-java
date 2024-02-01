@@ -73,8 +73,8 @@ public class GrpcServerBuilderInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isMethod().and(isPublic()).and(named("build")).and(takesArguments(0)),
         GrpcServerBuilderInstrumentation.class.getName() + "$BuildAdvice");
   }

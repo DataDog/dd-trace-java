@@ -67,6 +67,7 @@ public class DDAgentApi extends RemoteApi {
       DDAgentFeaturesDiscovery featuresDiscovery,
       Monitoring monitoring,
       boolean metricsEnabled) {
+    super(false);
     this.featuresDiscovery = featuresDiscovery;
     this.agentUrl = agentUrl;
     this.httpClient = client;

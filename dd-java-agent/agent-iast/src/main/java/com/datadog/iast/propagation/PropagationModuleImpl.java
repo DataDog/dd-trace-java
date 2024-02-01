@@ -15,6 +15,7 @@ import datadog.trace.api.Config;
 import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.Taintable;
 import datadog.trace.api.iast.propagation.PropagationModule;
+import java.lang.ref.SoftReference;
 import java.util.function.Predicate;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -33,7 +34,7 @@ public class PropagationModuleImpl implements PropagationModule {
   @Override
   public void taint(
       @Nullable final Object target, final byte origin, @Nullable final CharSequence name) {
-    taint(target, origin, name, sourceValue(target));
+    taint(target, origin, name, target);
   }
 
   @Override
@@ -41,7 +42,7 @@ public class PropagationModuleImpl implements PropagationModule {
       @Nullable final Object target,
       final byte origin,
       @Nullable final CharSequence name,
-      @Nullable final CharSequence value) {
+      @Nullable final Object value) {
     if (!canBeTainted(target)) {
       return;
     }
@@ -60,7 +61,7 @@ public class PropagationModuleImpl implements PropagationModule {
       @Nullable final Object target,
       final byte origin,
       @Nullable final CharSequence name) {
-    taint(ctx, target, origin, name, sourceValue(target));
+    taint(ctx, target, origin, name, target);
   }
 
   @Override
@@ -69,11 +70,11 @@ public class PropagationModuleImpl implements PropagationModule {
       @Nullable final Object target,
       final byte origin,
       @Nullable final CharSequence name,
-      @Nullable final CharSequence value) {
+      @Nullable final Object value) {
     if (!canBeTainted(target)) {
       return;
     }
-    internalTaint(ctx, target, newSource(target, origin, name, value), NOT_MARKED);
+    internalTaint(ctx, target, newSource(origin, name, value), NOT_MARKED);
   }
 
   @Override
@@ -127,7 +128,7 @@ public class PropagationModuleImpl implements PropagationModule {
       @Nullable final Object input,
       final byte origin,
       @Nullable final CharSequence name) {
-    taintIfTainted(target, input, origin, name, sourceValue(target));
+    taintIfTainted(target, input, origin, name, target);
   }
 
   @Override
@@ -136,7 +137,7 @@ public class PropagationModuleImpl implements PropagationModule {
       @Nullable final Object input,
       final byte origin,
       @Nullable final CharSequence name,
-      @Nullable final CharSequence value) {
+      @Nullable final Object value) {
     if (!canBeTainted(target) || !canBeTainted(input)) {
       return;
     }
@@ -159,7 +160,7 @@ public class PropagationModuleImpl implements PropagationModule {
       @Nullable final Object input,
       final byte origin,
       @Nullable final CharSequence name) {
-    taintIfTainted(ctx, target, input, origin, name, sourceValue(target));
+    taintIfTainted(ctx, target, input, origin, name, target);
   }
 
   @Override
@@ -169,12 +170,12 @@ public class PropagationModuleImpl implements PropagationModule {
       @Nullable final Object input,
       final byte origin,
       @Nullable final CharSequence name,
-      @Nullable final CharSequence value) {
+      @Nullable final Object value) {
     if (!canBeTainted(target) || !canBeTainted(input)) {
       return;
     }
     if (isTainted(ctx, input)) {
-      internalTaint(ctx, target, newSource(target, origin, name, value), NOT_MARKED);
+      internalTaint(ctx, target, newSource(origin, name, value), NOT_MARKED);
     }
   }
 
@@ -249,7 +250,7 @@ public class PropagationModuleImpl implements PropagationModule {
       return 0;
     }
     if (target instanceof CharSequence) {
-      internalTaint(ctx, target, newSource(target, origin, null, sourceValue(target)), NOT_MARKED);
+      internalTaint(ctx, target, newSource(origin, null, target), NOT_MARKED);
       return 1;
     } else {
       final TaintingVisitor visitor = new TaintingVisitor(to, origin);
@@ -284,42 +285,32 @@ public class PropagationModuleImpl implements PropagationModule {
     return target != null && findSource(ctx, target) != null;
   }
 
-  /** Ensures that the reference is not kept strongly via the name or value properties */
+  /**
+   * Ensures that the reference is not kept due to a strong reference via the name or value
+   * properties
+   */
   private static Source newSource(
-      @Nonnull final Object reference,
-      final byte origin,
-      @Nullable final CharSequence name,
-      @Nullable final CharSequence value) {
-    return new Source(
-        origin,
-        reference == name ? sourceValue(name) : name,
-        reference == value ? sourceValue(value) : value);
+      final byte origin, @Nullable final CharSequence name, @Nullable final Object value) {
+    return new Source(origin, sourceString(name), sourceString(value));
   }
 
   /**
-   * This method will prevent the code from creating a strong reference to what should remain weak
+   * This method will prevent the code from creating a strong reference to what should remain soft
+   * reachable
    */
   @Nullable
-  private static CharSequence sourceValue(@Nullable final Object target) {
+  private static Object sourceString(@Nullable final Object target) {
     if (target instanceof String) {
-      final String string = (String) target;
-      if (MAX_VALUE_LENGTH > string.length()) {
-        return String.copyValueOf(string.toCharArray());
-      } else {
-        final char[] chars = new char[MAX_VALUE_LENGTH];
-        string.getChars(0, MAX_VALUE_LENGTH, chars, 0);
-        return String.copyValueOf(chars);
-      }
+      return new SoftReference<>(target);
     } else if (target instanceof CharSequence) {
-      final CharSequence charSequence = (CharSequence) target;
-      if (MAX_VALUE_LENGTH > charSequence.length()) {
-        return charSequence.toString();
-      } else {
-        final CharSequence subSequence = charSequence.subSequence(0, MAX_VALUE_LENGTH);
-        return subSequence.toString();
+      // char-sequences can mutate so we have to keep a snapshot
+      CharSequence charSequence = (CharSequence) target;
+      if (charSequence.length() > MAX_VALUE_LENGTH) {
+        charSequence = charSequence.subSequence(0, MAX_VALUE_LENGTH);
       }
+      return charSequence.toString();
     }
-    return null;
+    return null; // ignore non char-sequence instances (e.g. byte buffers)
   }
 
   @Contract("null -> false")
@@ -499,7 +490,7 @@ public class PropagationModuleImpl implements PropagationModule {
       if (value instanceof CharSequence) {
         final CharSequence charSequence = (CharSequence) value;
         if (canBeTainted(charSequence)) {
-          final Source source = newSource(value, origin, path, charSequence);
+          final Source source = newSource(origin, path, charSequence);
           count++;
           taintedObjects.taint(
               charSequence, Ranges.forCharSequence(charSequence, source, NOT_MARKED));

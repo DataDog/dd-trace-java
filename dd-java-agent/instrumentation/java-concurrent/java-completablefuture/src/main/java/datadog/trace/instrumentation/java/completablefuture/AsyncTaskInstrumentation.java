@@ -53,10 +53,10 @@ public final class AsyncTaskInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(isConstructor(), getClass().getName() + "$Construct");
-    transformation.applyAdvice(named("run"), getClass().getName() + "$Run");
-    transformation.applyAdvice(named("cancel"), getClass().getName() + "$Cancel");
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(isConstructor(), getClass().getName() + "$Construct");
+    transformer.applyAdvice(named("run"), getClass().getName() + "$Run");
+    transformer.applyAdvice(named("cancel"), getClass().getName() + "$Cancel");
   }
 
   @Override

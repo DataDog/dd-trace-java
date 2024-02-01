@@ -74,20 +74,20 @@ public class ApacheHttpClientInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
+  public void methodAdvice(MethodTransformer transformer) {
     // There are 8 execute(...) methods.  Depending on the version, they may or may not delegate to
     // eachother. Thus, all methods need to be instrumented.  Because of argument position and type,
     // some methods can share the same advice class.  The call depth tracking ensures only 1 span is
     // created
 
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod()
             .and(named("execute"))
             .and(takesArguments(1))
             .and(takesArgument(0, named("org.apache.http.client.methods.HttpUriRequest"))),
         ApacheHttpClientInstrumentation.class.getName() + "$UriRequestAdvice");
 
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod()
             .and(named("execute"))
             .and(takesArguments(2))
@@ -95,7 +95,7 @@ public class ApacheHttpClientInstrumentation extends Instrumenter.Tracing
             .and(takesArgument(1, named("org.apache.http.protocol.HttpContext"))),
         ApacheHttpClientInstrumentation.class.getName() + "$UriRequestAdvice");
 
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod()
             .and(named("execute"))
             .and(takesArguments(2))
@@ -103,7 +103,7 @@ public class ApacheHttpClientInstrumentation extends Instrumenter.Tracing
             .and(takesArgument(1, named("org.apache.http.client.ResponseHandler"))),
         ApacheHttpClientInstrumentation.class.getName() + "$UriRequestWithHandlerAdvice");
 
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod()
             .and(named("execute"))
             .and(takesArguments(3))
@@ -112,7 +112,7 @@ public class ApacheHttpClientInstrumentation extends Instrumenter.Tracing
             .and(takesArgument(2, named("org.apache.http.protocol.HttpContext"))),
         ApacheHttpClientInstrumentation.class.getName() + "$UriRequestWithHandlerAdvice");
 
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod()
             .and(named("execute"))
             .and(takesArguments(2))
@@ -120,7 +120,7 @@ public class ApacheHttpClientInstrumentation extends Instrumenter.Tracing
             .and(takesArgument(1, named("org.apache.http.HttpRequest"))),
         ApacheHttpClientInstrumentation.class.getName() + "$RequestAdvice");
 
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod()
             .and(named("execute"))
             .and(takesArguments(3))
@@ -129,7 +129,7 @@ public class ApacheHttpClientInstrumentation extends Instrumenter.Tracing
             .and(takesArgument(2, named("org.apache.http.protocol.HttpContext"))),
         ApacheHttpClientInstrumentation.class.getName() + "$RequestAdvice");
 
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod()
             .and(named("execute"))
             .and(takesArguments(3))
@@ -138,7 +138,7 @@ public class ApacheHttpClientInstrumentation extends Instrumenter.Tracing
             .and(takesArgument(2, named("org.apache.http.client.ResponseHandler"))),
         ApacheHttpClientInstrumentation.class.getName() + "$RequestWithHandlerAdvice");
 
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod()
             .and(named("execute"))
             .and(takesArguments(4))

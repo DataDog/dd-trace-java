@@ -53,8 +53,8 @@ public class FormDataParserInstrumentation extends Instrumenter.AppSec
     return new Reference[] {EXCHANGE_REFERENCE};
   }
 
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         named("doParse")
             .and(takesArgument(0, named("org.xnio.channels.StreamSourceChannel")))
             .and(takesArguments(1))

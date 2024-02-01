@@ -14,6 +14,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
+import okhttp3.HttpUrl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -36,6 +37,7 @@ public class SymbolSink {
   private final BatchUploader symbolUploader;
   private final BatchUploader.MultiPartContent event;
   private final BlockingQueue<ServiceVersion> scopes = new ArrayBlockingQueue<>(CAPACITY);
+  private final Stats stats = new Stats();
 
   public SymbolSink(Config config) {
     this(config, new BatchUploader(config, config.getFinalDebuggerSymDBUrl()));
@@ -73,6 +75,9 @@ public class SymbolSink {
             "Sending scope: {}, size={}",
             serviceVersion.getScopes().get(0).getName(),
             json.length());
+        List<Scope> classScopes = serviceVersion.getScopes().get(0).getScopes();
+        int classScopeCount = classScopes != null ? classScopes.size() : 0;
+        stats.updateStats(classScopeCount, json.length());
         symbolUploader.uploadAsMultipart(
             "",
             event,
@@ -81,6 +86,37 @@ public class SymbolSink {
       } catch (Exception e) {
         ExceptionHelper.logException(LOGGER, e, "Error during scope serialization:");
       }
+    }
+  }
+
+  public HttpUrl getUrl() {
+    return symbolUploader.getUrl();
+  }
+
+  public Stats getStats() {
+    return stats;
+  }
+
+  public static class Stats {
+    private long totalClassScopes;
+    private long totalSize;
+
+    public long getTotalClassScopes() {
+      return totalClassScopes;
+    }
+
+    public long getTotalSize() {
+      return totalSize;
+    }
+
+    void updateStats(long classScopes, long size) {
+      totalClassScopes += classScopes;
+      totalSize += size;
+    }
+
+    @Override
+    public String toString() {
+      return "Stats{" + "totalClassScopes=" + totalClassScopes + ", totalSize=" + totalSize + '}';
     }
   }
 }

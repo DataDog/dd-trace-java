@@ -1,11 +1,9 @@
 package com.datadog.iast.telemetry
 
 import com.datadog.iast.IastModuleImplTestBase
-import com.datadog.iast.IastRequestContext
 import com.datadog.iast.RequestEndedHandler
 import com.datadog.iast.model.Source
 import com.datadog.iast.taint.Ranges
-import com.datadog.iast.taint.TaintedObjects
 import com.datadog.iast.telemetry.taint.TaintedObjectsWithTelemetry
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.SourceTypes
@@ -17,8 +15,13 @@ import datadog.trace.api.internal.TraceSegment
 import groovy.transform.CompileDynamic
 import groovy.transform.ToString
 
-import static com.datadog.iast.telemetry.TelemetryRequestEndedHandler.TRACE_METRIC_PATTERN
-import static datadog.trace.api.iast.telemetry.IastMetric.*
+import static datadog.trace.api.iast.telemetry.IastMetric.EXECUTED_SINK
+import static datadog.trace.api.iast.telemetry.IastMetric.EXECUTED_SOURCE
+import static datadog.trace.api.iast.telemetry.IastMetric.EXECUTED_TAINTED
+import static datadog.trace.api.iast.telemetry.IastMetric.INSTRUMENTED_SOURCE
+import static datadog.trace.api.iast.telemetry.IastMetric.REQUEST_TAINTED
+import static datadog.trace.api.iast.telemetry.IastMetric.Scope
+import static datadog.trace.api.iast.telemetry.IastMetric.TRACE_METRIC_PREFIX
 
 @CompileDynamic
 class TelemetryRequestEndedHandlerTest extends IastModuleImplTestBase {
@@ -32,12 +35,8 @@ class TelemetryRequestEndedHandlerTest extends IastModuleImplTestBase {
     globalCollector = IastMetricCollector.get()
     globalCollector.prepareMetrics()
     globalCollector.drain()
-  }
-
-  @Override
-  protected IastRequestContext buildIastRequestContext() {
-    final TaintedObjects to = TaintedObjectsWithTelemetry.build(Verbosity.DEBUG, TaintedObjects.acquire())
-    return new IastRequestContext(to, new IastMetricCollector())
+    ctx.taintedObjects = TaintedObjectsWithTelemetry.build(Verbosity.DEBUG, ctx)
+    ctx.collector = new IastMetricCollector()
   }
 
   @Override
@@ -79,7 +78,7 @@ class TelemetryRequestEndedHandlerTest extends IastModuleImplTestBase {
 
     then:
     1 * delegate.apply(reqCtx, span)
-    1 * traceSegment.setTagTop(String.format(TRACE_METRIC_PATTERN, getSpanTagValue(metric)), 1)
+    1 * traceSegment.setTagTop(TRACE_METRIC_PREFIX + getSpanTagValue(metric), 1)
 
     when:
     globalCollector.prepareMetrics()
@@ -104,7 +103,7 @@ class TelemetryRequestEndedHandlerTest extends IastModuleImplTestBase {
     then: 'request scoped metrics are propagated to the span'
     1 * delegate.apply(reqCtx, span)
     metrics.findAll { it.metric.scope == Scope.REQUEST }.each {
-      1 * traceSegment.setTagTop(String.format(TRACE_METRIC_PATTERN, getSpanTagValue(it.metric, it.tagValue)), it.value)
+      1 * traceSegment.setTagTop(TRACE_METRIC_PREFIX + getSpanTagValue(it.metric, it.tagValue), it.value)
     }
 
     when:
@@ -134,7 +133,7 @@ class TelemetryRequestEndedHandlerTest extends IastModuleImplTestBase {
   private static String getSpanTagValue(final IastMetric metric, final Byte tagValue = null) {
     return metric.getTag() == null
       ? metric.getName()
-      : String.format("%s.%s", metric.getName(), metric.tag.toString(tagValue).toLowerCase().replaceAll("\\.", "_"))
+      : String.format("%s.%s", metric.getName(), metric.tag.values[tagValue].toLowerCase().replaceAll("\\.", "_"))
   }
 
   private static Data metric(final IastMetric metric, final byte tagValue, final int value) {

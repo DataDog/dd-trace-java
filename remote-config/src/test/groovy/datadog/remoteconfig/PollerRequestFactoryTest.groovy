@@ -9,6 +9,7 @@ class PollerRequestFactoryTest extends DDSpecification {
 
   static final String TRACER_VERSION = "v1.2.3"
   static final String CONTAINER_ID = "456"
+  static final String ENTITY_ID = "32423"
   static final String INVALID_REMOTE_CONFIG_URL = "https://invalid.example.com/"
 
   void 'remote config request fields been sanitized'() {
@@ -18,7 +19,7 @@ class PollerRequestFactoryTest extends DDSpecification {
     System.setProperty("dd.tags", "version:1.0.0-SNAPSHOT")
     System.setProperty("dd.trace.global.tags", Tags.GIT_REPOSITORY_URL+":https://github.com/DataDog/dd-trace-java,"+Tags.GIT_COMMIT_SHA + ":1234")
     rebuildConfig()
-    PollerRequestFactory factory = new PollerRequestFactory(Config.get(), TRACER_VERSION, CONTAINER_ID, INVALID_REMOTE_CONFIG_URL, null)
+    PollerRequestFactory factory = new PollerRequestFactory(Config.get(), TRACER_VERSION, CONTAINER_ID, ENTITY_ID, INVALID_REMOTE_CONFIG_URL, null)
 
     when:
     RemoteConfigRequest request = factory.buildRemoteConfigRequest( Collections.singletonList("ASM"), null, null, 0)

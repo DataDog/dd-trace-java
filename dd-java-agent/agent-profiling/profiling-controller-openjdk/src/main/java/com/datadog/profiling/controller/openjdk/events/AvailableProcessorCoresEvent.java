@@ -1,11 +1,11 @@
 package com.datadog.profiling.controller.openjdk.events;
 
+import datadog.trace.bootstrap.instrumentation.jfr.JfrHelper;
 import java.util.concurrent.atomic.AtomicBoolean;
 import jdk.jfr.Category;
 import jdk.jfr.Description;
 import jdk.jfr.Enabled;
 import jdk.jfr.Event;
-import jdk.jfr.FlightRecorder;
 import jdk.jfr.Label;
 import jdk.jfr.Name;
 import jdk.jfr.Period;
@@ -34,7 +34,7 @@ public class AvailableProcessorCoresEvent extends Event {
   public static void register() {
     // Make sure the periodic event is registered only once
     if (registered.compareAndSet(false, true)) {
-      FlightRecorder.addPeriodicEvent(
+      JfrHelper.addPeriodicEvent(
           AvailableProcessorCoresEvent.class, AvailableProcessorCoresEvent::emit);
     }
   }
