@@ -1,6 +1,7 @@
 package com.datadog.iast.util;
 
 import static com.datadog.iast.util.HttpHeader.SET_COOKIE2;
+import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
 import static java.util.Collections.emptyList;
 
 import datadog.trace.api.iast.util.Cookie;
@@ -115,10 +116,10 @@ public class CookieSecurityParser {
                     sameSite = value;
                     break;
                   case EXPIRES_ATTR:
-                    expiresYear = parseExpires(value);
+                    expiresYear = parseExpires(value, headerValue);
                     break;
                   case MAX_AGE_ATTR:
-                    maxAge = parseMaxAge(value);
+                    maxAge = parseMaxAge(value, headerValue);
                     break;
                   default:
                     break;
@@ -148,28 +149,28 @@ public class CookieSecurityParser {
       }
       return result;
     } catch (final Throwable e) {
-      LOG.debug("Failed to parse the cookie {}", headerValue, e);
+      LOG.debug(SEND_TELEMETRY, "Failed to parse the cookie {}", headerValue, e);
       return emptyList();
     }
   }
 
   @Nullable
-  private static Integer parseMaxAge(String value) {
+  private static Integer parseMaxAge(final String value, final String headerValue) {
     try {
       return Integer.parseInt(value);
     } catch (final NumberFormatException e) {
-      LOG.debug("Failed to parse the max-age {}", value, e);
+      LOG.debug(SEND_TELEMETRY, "Failed to parse the max-age {}", headerValue);
       return null;
     }
   }
 
   @Nullable
-  private static Integer parseExpires(String value) {
+  private static Integer parseExpires(final String value, final String headerValue) {
     try {
       String[] tokens = value.split(" ");
       return Integer.parseInt(tokens[3]);
     } catch (Exception e) {
-      LOG.debug("Failed to parse the expires {}", value, e);
+      LOG.debug(SEND_TELEMETRY, "Failed to parse the expires {}", headerValue);
       return null;
     }
   }
