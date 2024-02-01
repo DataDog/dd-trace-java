@@ -2,6 +2,7 @@ package datadog.trace.common.metrics
 
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery
 import datadog.trace.api.WellKnownTags
+import datadog.trace.api.naming.ServiceNaming
 import datadog.trace.test.util.DDSpecification
 import org.openjdk.jol.info.GraphLayout
 import spock.lang.Requires
@@ -28,7 +29,7 @@ class FootprintForkedTest extends DDSpecification {
     DDAgentFeaturesDiscovery features = Mock(DDAgentFeaturesDiscovery)
     features.supportsMetrics() >> true
     ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(
-      new WellKnownTags("runtimeid","hostname", "env", "service", "version","language"),
+      new WellKnownTags("runtimeid","hostname", "env", new ServiceNaming("service", false), "version","language"),
       [].toSet() as Set<String>,
       features,
       sink,

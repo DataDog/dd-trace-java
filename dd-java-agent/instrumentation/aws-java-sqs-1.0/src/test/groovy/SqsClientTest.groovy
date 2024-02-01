@@ -388,7 +388,7 @@ abstract class SqsClientTest extends VersionedNamingTestBase {
       }
       trace(1) {
         span {
-          serviceName SpanNaming.instance().namingSchema().messaging().inboundService("jms", Config.get().isLegacyTracingEnabled(true, "jms")) ?: Config.get().getServiceName()
+          serviceName SpanNaming.instance().namingSchema().messaging().inboundService("jms", Config.get().isLegacyTracingEnabled(true, "jms")).get() ?: Config.get().getServiceName()
           operationName SpanNaming.instance().namingSchema().messaging().inboundOperation("jms")
           resourceName "Consumed from Queue somequeue"
           spanType DDSpanTypes.MESSAGE_CONSUMER

@@ -9,6 +9,7 @@ import datadog.trace.api.DDTraceId
 import datadog.trace.api.StatsDClient
 import datadog.trace.api.WellKnownTags
 import datadog.trace.api.intake.TrackType
+import datadog.trace.api.naming.ServiceNaming
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import datadog.trace.common.writer.ddintake.DDIntakeApi
@@ -43,7 +44,7 @@ import static datadog.trace.common.writer.ddagent.Prioritization.ENSURE_TRACE
 class DDIntakeWriterCombinedTest extends DDCoreSpecification {
 
   @Shared
-  def wellKnownTags = new WellKnownTags("my-runtime-id","my-hostname","my-env","my-service","my-version","my-language")
+  def wellKnownTags = new WellKnownTags("my-runtime-id","my-hostname","my-env",new ServiceNaming("my-service", false),"my-version","my-language")
 
   def conditions = new PollingConditions(timeout: 5, initialDelay: 0, factor: 1.25)
   def monitoring = new MonitoringImpl(StatsDClient.NO_OP, 1, TimeUnit.SECONDS)

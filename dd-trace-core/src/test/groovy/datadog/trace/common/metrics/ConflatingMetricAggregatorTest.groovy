@@ -2,6 +2,7 @@ package datadog.trace.common.metrics
 
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery
 import datadog.trace.api.WellKnownTags
+import datadog.trace.api.naming.ServiceNaming
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString
 import datadog.trace.core.CoreSpan
 import datadog.trace.test.util.DDSpecification
@@ -32,7 +33,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     Sink sink = Mock(Sink)
     DDAgentFeaturesDiscovery features = Mock(DDAgentFeaturesDiscovery)
     features.supportsMetrics() >> true
-    WellKnownTags wellKnownTags = new WellKnownTags("runtimeid", "hostname", "env", "service", "version","language")
+    WellKnownTags wellKnownTags = new WellKnownTags("runtimeid", "hostname", "env", new ServiceNaming("service", false), "version","language")
     ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(
       wellKnownTags,
       empty,
@@ -61,7 +62,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     Sink sink = Mock(Sink)
     DDAgentFeaturesDiscovery features = Mock(DDAgentFeaturesDiscovery)
     features.supportsMetrics() >> true
-    WellKnownTags wellKnownTags = new WellKnownTags("runtimeid", "hostname", "env", "service", "version","language")
+    WellKnownTags wellKnownTags = new WellKnownTags("runtimeid", "hostname", "env", new ServiceNaming("service", false), "version","language")
     ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(
       wellKnownTags,
       [ignoredResourceName].toSet(),

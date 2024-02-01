@@ -3,8 +3,10 @@ package datadog.trace.api.naming.v0;
 import datadog.trace.api.Config;
 import datadog.trace.api.naming.NamingSchema;
 import datadog.trace.api.naming.v1.PeerServiceNamingV1;
+import java.util.function.Supplier;
 
 public class NamingSchemaV0 implements NamingSchema {
+  static final Supplier<String> NULL = () -> null;
 
   private final boolean allowInferredServices =
       !Config.get().isRemoveIntegrationServiceNamesEnabled();

@@ -29,7 +29,6 @@ import java.nio.charset.StandardCharsets
 
 import static datadog.trace.api.config.GeneralConfig.ENV
 import static datadog.trace.api.config.GeneralConfig.HEALTH_METRICS_ENABLED
-import static datadog.trace.api.config.GeneralConfig.SERVICE_NAME
 import static datadog.trace.api.config.GeneralConfig.VERSION
 import static datadog.trace.api.config.TracerConfig.AGENT_UNIX_DOMAIN_SOCKET
 import static datadog.trace.api.config.TracerConfig.BAGGAGE_MAPPING
@@ -73,12 +72,9 @@ class CoreTracerTest extends DDCoreSpecification {
     tracer.close()
   }
 
-  def "verify service, env, and version are added as stats tags"() {
+  def "verify env, and version are added as stats tags"() {
     setup:
-    def expectedSize = 6
-    if (service != null) {
-      injectSysConfig(SERVICE_NAME, service)
-    }
+    def expectedSize = 5
 
     if (env != null) {
       injectSysConfig(ENV, env)
@@ -101,12 +97,6 @@ class CoreTracerTest extends DDCoreSpecification {
     assert constantTags.any { it.startsWith(CoreTracer.LANG_INTERPRETER_VENDOR_STATSD_TAG + ":") }
     assert constantTags.any { it.startsWith(CoreTracer.TRACER_VERSION_STATSD_TAG + ":") }
 
-    if (service == null) {
-      assert constantTags.any { it.startsWith("service:") }
-    } else {
-      assert constantTags.any { it == "service:" + service }
-    }
-
     if (env != null) {
       assert constantTags.any { it == "env:" + env }
     }
@@ -116,15 +106,11 @@ class CoreTracerTest extends DDCoreSpecification {
     }
 
     where:
-    service       | env       | version
-    null          | null      | null
-    "testService" | null      | null
-    "testService" | "staging" | null
-    "testService" | null      | "1"
-    "testService" | "staging" | "1"
-    null          | "staging" | null
-    null          | "staging" | "1"
-    null          | null      | "1"
+    env       | version
+    null      | null
+    "staging" | null
+    null      | "1"
+    "staging" | "1"
   }
 
   def "verify overriding sampler"() {

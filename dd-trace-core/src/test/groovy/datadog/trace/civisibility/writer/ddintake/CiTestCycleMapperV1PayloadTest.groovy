@@ -5,6 +5,7 @@ import datadog.communication.serialization.ByteBufferConsumer
 import datadog.communication.serialization.FlushingBuffer
 import datadog.communication.serialization.msgpack.MsgPackWriter
 import datadog.trace.api.WellKnownTags
+import datadog.trace.api.naming.ServiceNaming
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.common.writer.Payload
@@ -44,7 +45,7 @@ class CiTestCycleMapperV1PayloadTest extends DDSpecification {
   def "test traces written correctly with bufferSize=#bufferSize, traceCount=#traceCount, lowCardinality=#lowCardinality"() {
     setup:
     List<List<TraceGenerator.PojoSpan>> traces = generateRandomTraces(traceCount, lowCardinality)
-    WellKnownTags wellKnownTags = new WellKnownTags("runtimeid", "hostname", "my-env", "service", "version", "language")
+    WellKnownTags wellKnownTags = new WellKnownTags("runtimeid", "hostname", "my-env", new ServiceNaming("service", false), "version", "language")
     CiTestCycleMapperV1 mapper = new CiTestCycleMapperV1(wellKnownTags, false)
     PayloadVerifier verifier = new PayloadVerifier(wellKnownTags, traces, mapper)
     MsgPackWriter packer = new MsgPackWriter(new FlushingBuffer(bufferSize, verifier))
@@ -177,7 +178,7 @@ class CiTestCycleMapperV1PayloadTest extends DDSpecification {
   private static Map<String, Object> whenASpanIsWritten(TraceGenerator.PojoSpan span) {
     List<TraceGenerator.PojoSpan> trace = Collections.singletonList(span)
 
-    WellKnownTags wellKnownTags = new WellKnownTags("runtimeid", "hostname", "my-env", "service", "version", "language")
+    WellKnownTags wellKnownTags = new WellKnownTags("runtimeid", "hostname", "my-env", new ServiceNaming("service", false), "version", "language")
     CiTestCycleMapperV1 mapper = new CiTestCycleMapperV1(wellKnownTags, false)
 
     ByteBufferConsumer consumer = new CaptureConsumer()

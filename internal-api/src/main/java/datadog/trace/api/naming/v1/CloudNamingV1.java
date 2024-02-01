@@ -1,9 +1,12 @@
 package datadog.trace.api.naming.v1;
 
+import static datadog.trace.api.naming.v1.NamingSchemaV1.NULL;
+
 import datadog.trace.api.naming.NamingSchema;
 import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.util.Strings;
 import java.util.Locale;
+import java.util.function.Supplier;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
@@ -37,9 +40,9 @@ public class CloudNamingV1 implements NamingSchema.ForCloud {
   }
 
   @Override
-  public String serviceForRequest(
+  public Supplier<String> serviceForRequest(
       @Nonnull final String provider, @Nullable final String cloudService) {
-    return null;
+    return NULL;
   }
 
   @Nonnull

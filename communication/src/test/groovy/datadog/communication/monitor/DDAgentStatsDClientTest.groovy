@@ -1,6 +1,6 @@
 package datadog.communication.monitor
 
-
+import datadog.trace.api.Config
 import datadog.trace.test.util.DDSpecification
 
 import static datadog.trace.api.config.GeneralConfig.DOGSTATSD_START_DELAY
@@ -110,9 +110,9 @@ class DDAgentStatsDClientTest extends DDSpecification {
     // spotless:off
     namespace | constantTags                        | expectedMetricName    | expectedCheckName    | expectedTags
     null      | null                                | "test.metric"         | "test.check"         | "jmx_domain:java.nio,type:BufferPool"
-    null      | ["lang:java", "lang_version:1.8.0"] | "test.metric"         | "test.check"         | "jmx_domain:java.nio,type:BufferPool,lang:java,lang_version:1.8.0"
+    null      | ["lang:java", "lang_version:1.8.0"] | "test.metric"         | "test.check"         | "jmx_domain:java.nio,type:BufferPool,service:${Config.get().getServiceName()},lang:java,lang_version:1.8.0"
     "example" | null                                | "example.test.metric" | "example.test.check" | "jmx_domain:java.nio,type:BufferPool"
-    "example" | ["lang:java", "lang_version:1.8.0"] | "example.test.metric" | "example.test.check" | "jmx_domain:java.nio,type:BufferPool,lang:java,lang_version:1.8.0"
+    "example" | ["lang:java", "lang_version:1.8.0"] | "example.test.metric" | "example.test.check" | "jmx_domain:java.nio,type:BufferPool,service:${Config.get().getServiceName()},lang:java,lang_version:1.8.0"
     // spotless:on
   }
 
@@ -140,11 +140,11 @@ class DDAgentStatsDClientTest extends DDSpecification {
     client2.close()
 
     client3.incrementCounter(metricName, metricTags)
-    server.waitForMessage().startsWith("test.metric:1|c|#jmx_domain:java.nio,type:BufferPool,lang:java,lang_version:1.8.0")
+    server.waitForMessage().startsWith("test.metric:1|c|#jmx_domain:java.nio,type:BufferPool,service:${Config.get().getServiceName()},lang:java,lang_version:1.8.0")
     client3.close()
 
     client4.incrementCounter(metricName, metricTags)
-    server.waitForMessage().startsWith("example.test.metric:1|c|#jmx_domain:java.nio,type:BufferPool,lang:java,lang_version:1.8.0")
+    server.waitForMessage().startsWith("example.test.metric:1|c|#jmx_domain:java.nio,type:BufferPool,service:${Config.get().getServiceName()},lang:java,lang_version:1.8.0")
     client4.close()
 
     cleanup:

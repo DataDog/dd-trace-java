@@ -7,6 +7,7 @@ import datadog.communication.serialization.FlushingBuffer
 import datadog.communication.serialization.msgpack.MsgPackWriter
 import datadog.trace.api.WellKnownTags
 import datadog.trace.api.intake.TrackType
+import datadog.trace.api.naming.ServiceNaming
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes
 import datadog.trace.common.writer.Payload
 import datadog.trace.core.DDSpan
@@ -24,7 +25,7 @@ import static datadog.trace.agent.test.server.http.TestHttpServer.httpServer
 @Timeout(20)
 class DDIntakeApiTest extends DDCoreSpecification {
 
-  static WellKnownTags wellKnownTags = new WellKnownTags("my-runtime-id", "my-hostname", "my-env", "my-service", "my-version", "my-language")
+  static WellKnownTags wellKnownTags = new WellKnownTags("my-runtime-id", "my-hostname", "my-env", new ServiceNaming("my-service", false), "my-version", "my-language")
   static String apiKey = "my-secret-apikey"
   static msgPackMapper = new ObjectMapper(new MessagePackFactory())
 

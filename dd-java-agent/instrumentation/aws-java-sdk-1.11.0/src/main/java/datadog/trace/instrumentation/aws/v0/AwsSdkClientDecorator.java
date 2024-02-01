@@ -23,6 +23,7 @@ import datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator;
 import java.net.URI;
 import java.util.List;
 import java.util.Locale;
+import java.util.function.Supplier;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -38,14 +39,14 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
 
   public static final boolean SQS_LEGACY_TRACING = Config.get().isLegacyTracingEnabled(true, "sqs");
 
-  private static final String SQS_SERVICE_NAME =
+  private static final Supplier<String> SQS_SERVICE_NAME =
       AWS_LEGACY_TRACING || SQS_LEGACY_TRACING
           ? SpanNaming.instance().namingSchema().cloud().serviceForRequest(AWS, "sqs")
-          : null;
+          : Config.get()::getServiceName;
 
-  private static final String SNS_SERVICE_NAME =
+  private static final Supplier<String> SNS_SERVICE_NAME =
       SpanNaming.instance().namingSchema().cloud().serviceForRequest(AWS, "sns");
-  private static final String GENERIC_SERVICE_NAME =
+  private static final Supplier<String> GENERIC_SERVICE_NAME =
       SpanNaming.instance().namingSchema().cloud().serviceForRequest(AWS, null);
   public static final AwsSdkClientDecorator DECORATE = new AwsSdkClientDecorator();
 
@@ -96,18 +97,21 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
       case "SQS.ReceiveMessage":
       case "SQS.DeleteMessage":
       case "SQS.DeleteMessageBatch":
-        if (SQS_SERVICE_NAME != null) {
-          span.setServiceName(SQS_SERVICE_NAME);
+        final String sqsName = SQS_SERVICE_NAME.get();
+        if (sqsName != null) {
+          span.setServiceName(sqsName);
         }
         break;
       case "SNS.Publish":
-        if (SNS_SERVICE_NAME != null) {
-          span.setServiceName(SNS_SERVICE_NAME);
+        final String snsName = SNS_SERVICE_NAME.get();
+        if (snsName != null) {
+          span.setServiceName(snsName);
         }
         break;
       default:
-        if (GENERIC_SERVICE_NAME != null) {
-          span.setServiceName(GENERIC_SERVICE_NAME);
+        final String defName = GENERIC_SERVICE_NAME.get();
+        if (defName != null) {
+          span.setServiceName(defName);
         }
         break;
     }

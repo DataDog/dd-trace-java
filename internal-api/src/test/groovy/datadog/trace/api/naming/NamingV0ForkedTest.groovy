@@ -21,6 +21,6 @@ class NamingV0ForkedTest extends DDSpecification {
     assert schema.messaging().outboundService("anything", true).get() == null
     assert schema.database().service("anything") == null
     assert schema.cache().service("anything") == null
-    assert schema.cloud().serviceForRequest("any", "anything") == null
+    assert schema.cloud().serviceForRequest("any", "anything").get() == null
   }
 }

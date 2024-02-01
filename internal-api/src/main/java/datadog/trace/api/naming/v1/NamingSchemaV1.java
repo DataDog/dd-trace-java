@@ -2,8 +2,10 @@ package datadog.trace.api.naming.v1;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.naming.NamingSchema;
+import java.util.function.Supplier;
 
 public class NamingSchemaV1 implements NamingSchema {
+  static final Supplier<String> NULL = () -> null;
   private final NamingSchema.ForCache cacheNaming = new CacheNamingV1();
   private final NamingSchema.ForClient clientNaming = new ClientNamingV1();
   private final NamingSchema.ForCloud cloudNaming = new CloudNamingV1();

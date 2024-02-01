@@ -1,13 +1,13 @@
 package datadog.trace.api.naming.v0;
 
+import static datadog.trace.api.naming.v0.NamingSchemaV0.NULL;
+
 import datadog.trace.api.Config;
 import datadog.trace.api.naming.NamingSchema;
 import java.util.function.Supplier;
 import javax.annotation.Nonnull;
 
 public class MessagingNamingV0 implements NamingSchema.ForMessaging {
-  private static final Supplier<String> NULL = () -> null;
-
   private final boolean allowInferredServices;
 
   public MessagingNamingV0(final boolean allowInferredServices) {

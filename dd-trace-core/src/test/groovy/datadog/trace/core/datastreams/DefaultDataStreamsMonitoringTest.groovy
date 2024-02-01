@@ -5,6 +5,7 @@ import datadog.trace.api.Config
 import datadog.trace.api.TraceConfig
 import datadog.trace.api.WellKnownTags
 import datadog.trace.api.experimental.DataStreamsContextCarrier
+import datadog.trace.api.naming.ServiceNaming
 import datadog.trace.api.time.ControllableTimeSource
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation
 import datadog.trace.bootstrap.instrumentation.api.StatsPoint
@@ -19,7 +20,7 @@ import static DefaultDataStreamsMonitoring.FEATURE_CHECK_INTERVAL_NANOS
 import static java.util.concurrent.TimeUnit.SECONDS
 
 class DefaultDataStreamsMonitoringTest extends DDCoreSpecification {
-  def wellKnownTags = new WellKnownTags("runtimeid", "hostname", "testing", "service", "version", "java")
+  def wellKnownTags = new WellKnownTags("runtimeid", "hostname", "testing", new ServiceNaming("service", false), "version", "java")
 
   static final DEFAULT_BUCKET_DURATION_NANOS = Config.get().getDataStreamsBucketDurationNanoseconds()
 

@@ -2,6 +2,7 @@ package datadog.trace.common.metrics
 
 import datadog.trace.api.WellKnownTags
 import datadog.trace.api.Pair
+import datadog.trace.api.naming.ServiceNaming
 import datadog.trace.test.util.DDSpecification
 import org.msgpack.core.MessagePack
 import org.msgpack.core.MessageUnpacker
@@ -18,7 +19,7 @@ class SerializingMetricWriterTest extends DDSpecification {
     setup:
     long startTime = MILLISECONDS.toNanos(System.currentTimeMillis())
     long duration = SECONDS.toNanos(10)
-    WellKnownTags wellKnownTags = new WellKnownTags("runtimeid", "hostname", "env", "service", "version","language")
+    WellKnownTags wellKnownTags = new WellKnownTags("runtimeid", "hostname", "env", new ServiceNaming("service", false), "version","language")
     ValidatingSink sink = new ValidatingSink(wellKnownTags, startTime, duration, content)
     SerializingMetricWriter writer = new SerializingMetricWriter(wellKnownTags, sink, 128)
 

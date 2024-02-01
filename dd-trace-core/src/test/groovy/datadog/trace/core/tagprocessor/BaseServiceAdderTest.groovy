@@ -1,6 +1,6 @@
 package datadog.trace.core.tagprocessor
 
-
+import datadog.trace.api.naming.ServiceNaming
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString
 import datadog.trace.core.DDSpanContext
 import datadog.trace.test.util.DDSpecification
@@ -8,7 +8,7 @@ import datadog.trace.test.util.DDSpecification
 class BaseServiceAdderTest extends DDSpecification {
   def "should add _dd.base_service when service differs to ddService"() {
     setup:
-    def calculator = new BaseServiceAdder("test")
+    def calculator = new BaseServiceAdder(new ServiceNaming("test", false))
     def spanContext = Mock(DDSpanContext)
 
     when:

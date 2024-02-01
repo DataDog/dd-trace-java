@@ -123,7 +123,7 @@ public interface NamingSchema {
      *     return a default value
      * @return the service name for this span
      */
-    String serviceForRequest(@Nonnull String provider, @Nullable String cloudService);
+    Supplier<String> serviceForRequest(@Nonnull String provider, @Nullable String cloudService);
 
     /**
      * Calculate the operation name for a function as a service invocation (e.g. aws lambda)

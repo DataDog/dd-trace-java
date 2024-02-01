@@ -1,12 +1,12 @@
 package datadog.trace.api.naming.v1;
 
+import static datadog.trace.api.naming.v1.NamingSchemaV1.NULL;
+
 import datadog.trace.api.naming.NamingSchema;
 import java.util.function.Supplier;
 import javax.annotation.Nonnull;
 
 public class MessagingNamingV1 implements NamingSchema.ForMessaging {
-  private static final Supplier<String> NULL = () -> null;
-
   private String normalizeForCloud(@Nonnull final String messagingSystem) {
     switch (messagingSystem) {
       case "sns":
