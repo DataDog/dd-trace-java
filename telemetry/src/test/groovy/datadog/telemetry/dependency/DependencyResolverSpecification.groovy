@@ -2,7 +2,6 @@ package datadog.telemetry.dependency
 
 import org.apache.tools.ant.taskdefs.Classloader
 
-import java.util.jar.Attributes
 import java.util.jar.JarFile
 import java.util.jar.Manifest
 
@@ -251,19 +250,6 @@ class DependencyResolverSpecification extends DepSpecification {
       hash: '6438819DAB9C9AC18D8A6922C8A923C2ADAEA85D')
   }
 
-  void 'retrieve manifest attributes'() {
-    when:
-    Attributes attributes = manifestAttributesFromJar('junit-4.12.jar')
-
-    then:
-    attributes != null
-
-    attributes.getValue('implementation-title') == 'JUnit'
-    attributes.getValue('implementation-version') == '4.12'
-    attributes.getValue('implementation-vendor') == 'JUnit'
-    attributes.getValue('built-by') == 'jenkins'
-  }
-
   private static void knownJarCheck(Map opts) {
     File jarFile = getJar(opts['jarName'])
     List<Dependency> deps = DependencyResolver.extractDependenciesFromJar(jarFile)
@@ -275,13 +261,5 @@ class DependencyResolverSpecification extends DepSpecification {
     assert dep.name == opts['name']
     assert dep.version == opts['version']
     assert dep.hash == opts['hash']
-  }
-
-  private static Attributes manifestAttributesFromJar(String jarName) {
-    File jarFile = getJar(jarName)
-
-    Attributes attributes = DependencyResolver.getManifestAttributes(jarFile)
-    assert attributes != null
-    attributes
   }
 }

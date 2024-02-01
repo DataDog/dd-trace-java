@@ -9,19 +9,20 @@ class DependencySpecification extends DDSpecification {
 
   void 'test guessFallbackNoPom with bundle-symbolicname = #bundleSymbolicName'() {
     given:
-    final attributes = Mock(Attributes) {
+    final attributes = Stub(Attributes) {
       getValue('bundle-symbolicname') >> bundleSymbolicName
     }
-    final manifest = Mock(Manifest) {
+    final manifest = Stub(Manifest) {
       getMainAttributes() >> attributes
     }
-    final stream = Mock(InputStream)
+    final stream = Stub(InputStream)
 
     when:
-    Dependency.guessFallbackNoPom(manifest, "abc", stream)
+    def dep = Dependency.guessFallbackNoPom(manifest, "abc", stream)
 
     then:
-    noExceptionThrown()
+    dep != null
+    dep.name == bundleSymbolicName
 
     where:
     bundleSymbolicName              | _
