@@ -408,6 +408,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
     1 * ctx.reportEvents(_ as Collection<AppSecEvent>)
     1 * ctx.getWafMetrics()
     1 * ctx.closeAdditive() >> { pwafAdditive.close() }
+    1 * ctx.setBlocked()
     0 * _
 
     when:
@@ -486,6 +487,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
     1 * ctx.reportEvents(hasSize(2))
     1 * ctx.getWafMetrics()
     1 * ctx.closeAdditive()
+    1 * ctx.setBlocked()
     0 * _
   }
 
@@ -582,6 +584,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
     1 * ctx.getWafMetrics() >> metrics
     1 * ctx.closeAdditive()
     1 * ctx.reportEvents(_)
+    1 * ctx.setBlocked()
     0 * ctx._(*_)
     flow.blocking == true
     flow.action instanceof Flow.Action.RequestBlockingAction
@@ -645,6 +648,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
     1 * ctx.getWafMetrics() >> metrics
     1 * ctx.closeAdditive()
     1 * ctx.reportEvents(_)
+    1 * ctx.setBlocked()
     0 * ctx._(*_)
     flow.blocking == true
     flow.action.statusCode == 418
@@ -669,6 +673,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
     1 * ctx.getWafMetrics() >> null
     1 * ctx.closeAdditive()
     1 * ctx.reportEvents(_)
+    1 * ctx.setBlocked()
     0 * ctx._(*_)
     metrics == null
   }
@@ -719,6 +724,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
     }
     1 * ctx.getWafMetrics() >> metrics
     1 * ctx.reportEvents(*_)
+    1 * ctx.setBlocked()
     0 * ctx._(*_)
     flow.blocking == true
   }
