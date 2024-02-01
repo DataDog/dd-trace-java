@@ -143,7 +143,12 @@ abstract class AbstractSmokeTest extends ProcessManager {
   }
 
   Closure decodedTracesCallback() {
-    null
+    return { List<DecodedTrace> tr ->
+      AtomicInteger count = new AtomicInteger(traceCount.get())
+      tr.forEach {
+        println("=> Trace ${count.incrementAndGet()} : $it")
+      }
+    }
   }
 
   void setRemoteConfig(String path, String jsonData) {

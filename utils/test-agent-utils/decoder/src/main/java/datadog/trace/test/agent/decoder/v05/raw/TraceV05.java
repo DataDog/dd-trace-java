@@ -45,4 +45,9 @@ public class TraceV05 implements DecodedTrace {
     }
     return Collections.unmodifiableList(Arrays.asList(spans));
   }
+
+  @Override
+  public String toString() {
+    return "TraceV05{" + "spans=" + Arrays.toString(spans) + '}';
+  }
 }
