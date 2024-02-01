@@ -41,8 +41,8 @@ public class SparkExecutorInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isMethod()
             .and(named("run"))
             .and(isDeclaredBy(named("org.apache.spark.executor.Executor$TaskRunner"))),
