@@ -8,13 +8,8 @@ import datadog.trace.api.iast.InstrumentationBridge
 import groovy.transform.CompileDynamic
 import spock.lang.Specification
 
-import java.text.SimpleDateFormat
-
-
 @CompileDynamic
 class CookieSecurityParserTest extends Specification {
-
-  static final SimpleDateFormat DATE_FORMAT = new SimpleDateFormat("EEE, dd MMM yyyy HH:mm:ss z")
 
   def setup() {
     InstrumentationBridge.clearIastModules()
