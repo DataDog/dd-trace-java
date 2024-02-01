@@ -110,6 +110,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_AGENT_V05_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_ANALYTICS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_HTTP_RESOURCE_REMOVE_TRAILING_SLASH;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_LONG_RUNNING_FLUSH_INTERVAL;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_LONG_RUNNING_INITIAL_FLUSH_INTERVAL;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_PROPAGATION_EXTRACT_FIRST;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_PROPAGATION_STYLE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_RATE_LIMIT;
@@ -888,6 +889,7 @@ public class Config {
   private final ConfigProvider configProvider;
 
   private final boolean longRunningTraceEnabled;
+  private final long longRunningTraceInitialFlushInterval;
   private final long longRunningTraceFlushInterval;
   private final boolean elasticsearchBodyEnabled;
   private final boolean elasticsearchParamsEnabled;
@@ -1933,11 +1935,25 @@ public class Config {
         configProvider.getBoolean(
             TracerConfig.TRACE_LONG_RUNNING_ENABLED,
             ConfigDefaults.DEFAULT_TRACE_LONG_RUNNING_ENABLED);
+    long longRunningTraceInitialFlushInterval =
+        configProvider.getLong(
+            TracerConfig.TRACE_LONG_RUNNING_INITIAL_FLUSH_INTERVAL,
+            DEFAULT_TRACE_LONG_RUNNING_INITIAL_FLUSH_INTERVAL);
     long longRunningTraceFlushInterval =
         configProvider.getLong(
             TracerConfig.TRACE_LONG_RUNNING_FLUSH_INTERVAL,
             ConfigDefaults.DEFAULT_TRACE_LONG_RUNNING_FLUSH_INTERVAL);
 
+    if (longRunningEnabled
+        && (longRunningTraceInitialFlushInterval < 10
+            || longRunningTraceInitialFlushInterval > 450)) {
+      log.warn(
+          "Provided long running trace inital flush interval of {} seconds. It should be between 10 seconds and 7.5 minutes."
+              + "Setting the flush interval to the default value of {} seconds .",
+          longRunningTraceInitialFlushInterval,
+          DEFAULT_TRACE_LONG_RUNNING_INITIAL_FLUSH_INTERVAL);
+      longRunningTraceInitialFlushInterval = DEFAULT_TRACE_LONG_RUNNING_INITIAL_FLUSH_INTERVAL;
+    }
     if (longRunningEnabled
         && (longRunningTraceFlushInterval < 20 || longRunningTraceFlushInterval > 450)) {
       log.warn(
@@ -1948,6 +1964,7 @@ public class Config {
       longRunningTraceFlushInterval = DEFAULT_TRACE_LONG_RUNNING_FLUSH_INTERVAL;
     }
     longRunningTraceEnabled = longRunningEnabled;
+    this.longRunningTraceInitialFlushInterval = longRunningTraceInitialFlushInterval;
     this.longRunningTraceFlushInterval = longRunningTraceFlushInterval;
 
     this.sparkTaskHistogramEnabled =
@@ -2053,6 +2070,10 @@ public class Config {
 
   public boolean isLongRunningTraceEnabled() {
     return longRunningTraceEnabled;
+  }
+
+  public long getLongRunningTraceInitialFlushInterval() {
+    return longRunningTraceInitialFlushInterval;
   }
 
   public long getLongRunningTraceFlushInterval() {
@@ -4313,6 +4334,8 @@ public class Config {
         + cwsTlsRefresh
         + ", longRunningTraceEnabled="
         + longRunningTraceEnabled
+        + ", longRunningTraceInitialFlushInterval="
+        + longRunningTraceInitialFlushInterval
         + ", longRunningTraceFlushInterval="
         + longRunningTraceFlushInterval
         + ", elasticsearchBodyEnabled="

@@ -9,7 +9,6 @@ import java.net.URL;
 import java.nio.file.Files;
 import java.util.Collections;
 import java.util.List;
-import java.util.jar.Attributes;
 import java.util.jar.JarFile;
 import java.util.jar.Manifest;
 import org.slf4j.Logger;
@@ -125,26 +124,6 @@ public class DependencyResolver {
         uri,
         lastPart,
         fileName);
-    return null;
-  }
-
-  public static Attributes getManifestAttributes(File jarFile) {
-    Manifest manifest = getJarManifest(jarFile);
-    return manifest == null ? null : manifest.getMainAttributes();
-  }
-
-  /**
-   * Get manifest from jar file
-   *
-   * @param jarFile jar file
-   * @return manifest or null if none is available or unable to read it
-   */
-  public static Manifest getJarManifest(File jarFile) {
-    try (JarFile file = new JarFile(jarFile)) {
-      return file.getManifest();
-    } catch (IOException e) {
-      // silently ignored
-    }
     return null;
   }
 }

@@ -79,6 +79,7 @@ public class AppSecRequestContext implements DataBundle, Closeable {
   private Additive additive;
   // set after additive is set
   private volatile PowerwafMetrics wafMetrics;
+  private volatile boolean blocked;
 
   // to be called by the Event Dispatcher
   public void addAll(DataBundle newData) {
@@ -103,6 +104,14 @@ public class AppSecRequestContext implements DataBundle, Closeable {
 
   public PowerwafMetrics getWafMetrics() {
     return wafMetrics;
+  }
+
+  public void setBlocked() {
+    this.blocked = true;
+  }
+
+  public boolean isBlocked() {
+    return blocked;
   }
 
   public Additive getOrCreateAdditive(PowerwafContext ctx, boolean createMetrics) {
