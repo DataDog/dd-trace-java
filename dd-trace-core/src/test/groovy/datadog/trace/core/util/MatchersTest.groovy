@@ -54,6 +54,7 @@ class MatchersTest extends DDSpecification {
     "Fo*"   | "Fa"                     | false
     "F*B?r" | "FooBar"                 | true
     "F*B?r" | "FooFar"                 | false
+    "*"     | true                     | true
     "true"  | true                     | true
     "false" | false                    | true
     "TRUE"  | true                     | false
@@ -63,12 +64,18 @@ class MatchersTest extends DDSpecification {
     "*"     | "foo"                    | true
     "**"    | "foo"                    | true
     "???"   | "foo"                    | true
+    "*"     | 20                       | true
     "20"    | 20                       | true
     "-20"   | -20                      | true
-    "20"    | (byte)(20)               | true
-    "20"    | (short)(20)              | true
+    "*"     | (byte)20                 | true
+    "20"    | (byte)20                 | true
+    "*"     | (short)20                | true
+    "20"    | (short)20                | true
+    "*"     | 20L                      | true
     "20"    | 20L                      | true
+    "*"     | 20F                      | true
     "20"    | 20F                      | true
+    "*"     | 20D                      | true
     "20"    | 20D                      | true
     "20"    | bigInteger("20")         | true
     "20"    | bigDecimal("20")         | true
