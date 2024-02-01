@@ -177,6 +177,7 @@ public class CookieSecurityParser {
           count++;
           if (count == 4) {
             year = Integer.parseInt(value.substring(start, i));
+            break;
           } else {
             start = i + 1;
           }
