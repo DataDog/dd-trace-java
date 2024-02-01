@@ -166,13 +166,29 @@ public class CookieSecurityParser {
 
   @Nullable
   private static Integer parseExpires(final String value, final String headerValue) {
+
+    Integer year = null;
     try {
-      String[] tokens = value.split(" ");
-      return Integer.parseInt(tokens[3]);
+      int count = 0;
+      int start = 0;
+      for (int i = 0; i < value.length(); i++) {
+        final char next = value.charAt(i);
+        if (next == ' ') {
+          count++;
+          if(count == 4){
+            year = Integer.parseInt(value.substring(start, i));
+          }else {
+            start = i + 1;
+          }
+        }
+      }
     } catch (Exception e) {
-      LOG.debug(SEND_TELEMETRY, "Failed to parse the expires {}", headerValue);
-      return null;
+      year = null;
     }
+    if(year == null) {
+      LOG.debug(SEND_TELEMETRY, "Failed to parse the expires {}", headerValue);
+    }
+    return year;
   }
 
   private static int trimLeft(int start, final String value) {
