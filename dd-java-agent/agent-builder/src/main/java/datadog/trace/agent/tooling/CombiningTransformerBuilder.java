@@ -55,7 +55,7 @@ public final class CombiningTransformerBuilder extends AbstractTransformerBuilde
   }
 
   @Override
-  protected void buildInstrumentation(Instrumenter.Default instrumenter) {
+  protected void buildInstrumentation(InstrumenterGroup instrumenter) {
     InstrumenterState.registerInstrumentation(instrumenter);
 
     int id = instrumenter.instrumentationId();
@@ -73,7 +73,7 @@ public final class CombiningTransformerBuilder extends AbstractTransformerBuilde
     buildInstrumentationAdvice(instrumenter, id);
   }
 
-  private void buildInstrumentationMatcher(Instrumenter.Default instrumenter, int id) {
+  private void buildInstrumentationMatcher(InstrumenterGroup instrumenter, int id) {
 
     if (instrumenter instanceof Instrumenter.ForSingleType
         || instrumenter instanceof Instrumenter.ForKnownTypes) {
@@ -114,7 +114,7 @@ public final class CombiningTransformerBuilder extends AbstractTransformerBuilde
     matchers.add(new MatchRecorder.NarrowLocation(id, new MuzzleCheck(instrumenter)));
   }
 
-  private void buildInstrumentationAdvice(Instrumenter.Default instrumenter, int id) {
+  private void buildInstrumentationAdvice(InstrumenterGroup instrumenter, int id) {
 
     postProcessor =
         instrumenter instanceof WithPostProcessor

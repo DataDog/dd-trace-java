@@ -1,6 +1,7 @@
 package datadog.trace.agent.tooling.muzzle;
 
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -54,10 +55,10 @@ public class MuzzleGenerator implements AsmVisitorWrapper {
       final int writerFlags,
       final int readerFlags) {
 
-    Instrumenter.Default instrumenter;
+    InstrumenterGroup instrumenter;
     try {
       instrumenter =
-          (Instrumenter.Default)
+          (InstrumenterGroup)
               Thread.currentThread()
                   .getContextClassLoader()
                   .loadClass(instrumentedType.getName())
@@ -77,7 +78,7 @@ public class MuzzleGenerator implements AsmVisitorWrapper {
     return classVisitor;
   }
 
-  private static Reference[] generateReferences(Instrumenter.Default instrumenter) {
+  private static Reference[] generateReferences(InstrumenterGroup instrumenter) {
     // track sources we've generated references from to avoid recursion
     final Set<String> referenceSources = new HashSet<>();
     final Map<String, Reference> references = new LinkedHashMap<>();
@@ -101,7 +102,7 @@ public class MuzzleGenerator implements AsmVisitorWrapper {
   }
 
   /** This code is generated in a separate side-class. */
-  private static byte[] generateMuzzleClass(Instrumenter.Default instrumenter) {
+  private static byte[] generateMuzzleClass(InstrumenterGroup instrumenter) {
 
     Set<String> ignoredClassNames =
         new HashSet<>(Arrays.asList(instrumenter.muzzleIgnoredClassNames()));

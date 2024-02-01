@@ -1,6 +1,7 @@
 package datadog.trace.agent.tooling.bytebuddy.csi;
 
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 import datadog.trace.agent.tooling.csi.CallSiteAdvice;
 import datadog.trace.agent.tooling.csi.CallSites;
 import javax.annotation.Nonnull;
@@ -10,7 +11,7 @@ import javax.annotation.Nonnull;
  * method {@link #callSites()} should be implemented by subclasses to fetch the actual {@link
  * CallSiteAdvice} implementations.
  */
-public abstract class CallSiteInstrumentation extends Instrumenter.Default
+public abstract class CallSiteInstrumentation extends InstrumenterGroup
     implements Instrumenter.ForCallSite {
 
   private Advices advices;

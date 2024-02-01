@@ -45,7 +45,7 @@ public final class LegacyTransformerBuilder extends AbstractTransformerBuilder {
   }
 
   @Override
-  protected void buildInstrumentation(Instrumenter.Default instrumenter) {
+  protected void buildInstrumentation(InstrumenterGroup instrumenter) {
     InstrumenterState.registerInstrumentation(instrumenter);
 
     ignoreMatcher = instrumenter.methodIgnoreMatcher();
@@ -86,7 +86,7 @@ public final class LegacyTransformerBuilder extends AbstractTransformerBuilder {
     return adviceBuilder;
   }
 
-  private AgentBuilder.RawMatcher typeMatcher(Instrumenter.Default instrumenter) {
+  private AgentBuilder.RawMatcher typeMatcher(InstrumenterGroup instrumenter) {
     ElementMatcher<? super TypeDescription> typeMatcher;
     String hierarchyHint = null;
 

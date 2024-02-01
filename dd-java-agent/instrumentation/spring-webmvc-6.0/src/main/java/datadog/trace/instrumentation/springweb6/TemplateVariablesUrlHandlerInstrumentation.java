@@ -9,6 +9,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 import datadog.trace.agent.tooling.iast.IastPostProcessorFactory;
 import java.util.Set;
 import net.bytebuddy.asm.Advice;
@@ -16,7 +17,7 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 /** Obtain template and matrix variables for AbstractUrlHandlerMapping */
 @AutoService(Instrumenter.class)
-public class TemplateVariablesUrlHandlerInstrumentation extends Instrumenter.Default
+public class TemplateVariablesUrlHandlerInstrumentation extends InstrumenterGroup
     implements Instrumenter.ForSingleType, Instrumenter.WithPostProcessor {
 
   private Advice.PostProcessor.Factory postProcessorFactory;

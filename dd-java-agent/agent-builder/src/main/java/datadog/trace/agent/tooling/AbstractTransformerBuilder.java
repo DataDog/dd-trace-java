@@ -35,8 +35,8 @@ abstract class AbstractTransformerBuilder
 
   @Override
   public final void applyInstrumentation(Instrumenter.HasAdvice instrumenter) {
-    if (instrumenter instanceof Instrumenter.Default) {
-      buildInstrumentation((Instrumenter.Default) instrumenter);
+    if (instrumenter instanceof InstrumenterGroup) {
+      buildInstrumentation((InstrumenterGroup) instrumenter);
     } else if (instrumenter instanceof Instrumenter.ForSingleType) {
       buildSingleAdvice((Instrumenter.ForSingleType) instrumenter); // for testing purposes
     } else {
@@ -44,7 +44,7 @@ abstract class AbstractTransformerBuilder
     }
   }
 
-  protected abstract void buildInstrumentation(Instrumenter.Default instrumenter);
+  protected abstract void buildInstrumentation(InstrumenterGroup instrumenter);
 
   protected abstract void buildSingleAdvice(Instrumenter.ForSingleType instrumenter);
 
@@ -86,7 +86,7 @@ abstract class AbstractTransformerBuilder
 
   /** Tracks which class-loader matchers are associated with each store request. */
   protected final void registerContextStoreInjection(
-      Instrumenter.Default instrumenter, Map<String, String> contextStore) {
+      InstrumenterGroup instrumenter, Map<String, String> contextStore) {
     ElementMatcher<ClassLoader> activation;
 
     if (instrumenter instanceof Instrumenter.ForBootstrap) {
