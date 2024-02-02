@@ -4,8 +4,6 @@ import java.math.BigDecimal;
 import java.math.BigInteger;
 
 public interface Matcher {
-  boolean isAny();
-
   boolean matches(String str);
 
   boolean matches(CharSequence charSeq);

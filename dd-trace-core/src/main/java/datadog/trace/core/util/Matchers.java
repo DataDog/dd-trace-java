@@ -48,11 +48,6 @@ public final class Matchers {
 
   static final class AnyMatcher implements Matcher {
     @Override
-    public boolean isAny() {
-      return true;
-    }
-
-    @Override
     public boolean matches(CharSequence charSeq) {
       return true;
     }

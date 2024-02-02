@@ -4,11 +4,6 @@ import java.math.BigDecimal;
 import java.math.BigInteger;
 
 public abstract class BaseMatcher implements Matcher {
-  @Override
-  public boolean isAny() {
-    return false;
-  }
-
   public abstract boolean matches(String str);
 
   public abstract boolean matches(CharSequence charSeq);

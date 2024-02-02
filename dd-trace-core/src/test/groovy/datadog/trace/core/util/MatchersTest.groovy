@@ -6,7 +6,7 @@ class MatchersTest extends DDSpecification {
 
   def "match-all scenarios must return an any matcher"() {
     expect:
-    Matchers.compileGlob(glob).isAny()
+    Matchers.compileGlob(glob) instanceof Matchers.AnyMatcher
 
     where:
     glob << [null, "*", "**"]
