@@ -33,7 +33,7 @@ compileMain_java11Java.configure {
 }
 dependencies {
   main_java11CompileOnly group: 'org.eclipse.jetty', name: 'jetty-client', version: '10.0.0'
-  main_java11Implementation(project(':dd-java-agent:instrumentation:jetty-client:common')) {
+  main_java11Implementation(project(':dd-java-agent:instrumentation:jetty-client:jetty-client-common')) {
     transitive = false
   }
   //because contains some instrumentation that still apply

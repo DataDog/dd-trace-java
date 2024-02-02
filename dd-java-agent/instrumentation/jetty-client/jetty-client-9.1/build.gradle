@@ -48,7 +48,9 @@ addTestSuiteForDir('latestDepTest', 'test')
 
 dependencies {
   compileOnly group: 'org.eclipse.jetty', name: 'jetty-client', version: '9.1.0.v20131115'
-  implementation(project(':dd-java-agent:instrumentation:jetty-client:common'))
+  implementation(project(':dd-java-agent:instrumentation:jetty-client:jetty-client-common')) {
+    transitive = false
+  }
   testImplementation(project(':dd-java-agent:testing')) {
     // explicitly declared below.
     exclude group: 'org.eclipse.jetty'
