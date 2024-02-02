@@ -28,6 +28,12 @@ public enum HttpHeader {
       ctx.setxContentTypeOptions(value);
     }
   },
+  AUTHORIZATION("Authorization") {
+    @Override
+    public void addToContext(final IastRequestContext ctx, final String value) {
+      ctx.setAuthorization(value);
+    }
+  },
   COOKIE("Cookie"),
   SET_COOKIE("Set-Cookie"),
   SET_COOKIE2("Set-Cookie2"),
@@ -37,8 +43,7 @@ public enum HttpHeader {
   SEC_WEBSOCKET_ACCEPT("Sec-WebSocket-Accept"),
   UPGRADE("Upgrade"),
   CONNECTION("Connection"),
-  ORIGIN("Origin"),
-  AUTHORIZATION("Authorization");
+  ORIGIN("Origin");
 
   /** Faster lookup for headers */
   private static final HttpHeaderMap<HttpHeader> HEADERS;

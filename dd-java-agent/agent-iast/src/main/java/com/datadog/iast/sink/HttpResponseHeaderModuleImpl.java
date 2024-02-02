@@ -48,9 +48,6 @@ public class HttpResponseHeaderModuleImpl extends SinkModuleBase
       if (null != InstrumentationBridge.UNVALIDATED_REDIRECT) {
         InstrumentationBridge.UNVALIDATED_REDIRECT.onHeader(name, value);
       }
-      if (null != InstrumentationBridge.INSECURE_AUTH_PROTOCOL) {
-        InstrumentationBridge.INSECURE_AUTH_PROTOCOL.onHeader(name, value);
-      }
     }
     if (null != InstrumentationBridge.HEADER_INJECTION) {
       InstrumentationBridge.HEADER_INJECTION.onHeader(name, value);

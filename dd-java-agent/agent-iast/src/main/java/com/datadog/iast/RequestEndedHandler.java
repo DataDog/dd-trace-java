@@ -49,7 +49,8 @@ public class RequestEndedHandler implements BiFunction<RequestContext, IGSpanInf
   private HttpRequestEndModule[] requestEndModules() {
     return new HttpRequestEndModule[] {
       InstrumentationBridge.HSTS_MISSING_HEADER_MODULE,
-      InstrumentationBridge.X_CONTENT_TYPE_HEADER_MODULE
+      InstrumentationBridge.X_CONTENT_TYPE_HEADER_MODULE,
+      InstrumentationBridge.INSECURE_AUTH_PROTOCOL
     };
   }
 }
