@@ -1,4 +1,4 @@
-package datadog.trace.instrumentation.jetty_client;
+package datadog.trace.instrumentation.jetty_client91;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
@@ -26,11 +26,6 @@ public final class FutureResponseListenerInstrumentation extends Instrumenter.Tr
   @Override
   public String instrumentedType() {
     return "org.eclipse.jetty.client.util.FutureResponseListener";
-  }
-
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {packageName + ".JettyClientDecorator"};
   }
 
   @Override
