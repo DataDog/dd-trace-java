@@ -3403,6 +3403,9 @@ public class Config {
     result.put(SERVICE_TAG, serviceName);
     result.put(LANGUAGE_TAG_KEY, LANGUAGE_TAG_VALUE);
     result.put(RUNTIME_VERSION_TAG, runtimeVersion);
+    if (azureAppServices) {
+      result.putAll(getAzureAppServicesTags());
+    }
     return Collections.unmodifiableMap(result);
   }
 
