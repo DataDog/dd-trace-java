@@ -3,6 +3,7 @@ package datadog.trace.instrumentation.scalatest;
 import datadog.trace.api.civisibility.InstrumentationBridge;
 import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.civisibility.events.TestEventsHandler;
+import datadog.trace.instrumentation.scalatest.retry.SuppressedTestFailedException;
 import java.lang.reflect.Method;
 import java.util.Collection;
 import java.util.Collections;
@@ -223,8 +224,15 @@ public class DatadogReporter {
     Class<?> testClass = ScalatestUtils.getClass(event.suiteClassName());
     Throwable throwable = event.throwable().getOrElse(null);
     String reason = throwable != null ? throwable.getMessage() : null;
-    eventHandler.onTestSkip(
-        testSuiteName, testClass, testName, testQualifier, testParameters, reason);
+
+    if (throwable instanceof SuppressedTestFailedException) {
+      eventHandler.onTestFailure(
+          testSuiteName, testClass, testName, testQualifier, testParameters, throwable.getCause());
+    } else {
+      eventHandler.onTestSkip(
+          testSuiteName, testClass, testName, testQualifier, testParameters, reason);
+    }
+
     eventHandler.onTestFinish(testSuiteName, testClass, testName, testQualifier, testParameters);
   }
 

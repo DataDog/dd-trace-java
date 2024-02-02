@@ -72,24 +72,24 @@ public final class ClientCallImplInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isConstructor().and(takesArgument(4, named("io.grpc.MethodDescriptor"))),
         getClass().getName() + "$CaptureCall");
-    transformation.applyAdvice(named("start").and(isMethod()), getClass().getName() + "$Start");
-    transformation.applyAdvice(named("cancel").and(isMethod()), getClass().getName() + "$Cancel");
-    transformation.applyAdvice(
+    transformer.applyAdvice(named("start").and(isMethod()), getClass().getName() + "$Start");
+    transformer.applyAdvice(named("cancel").and(isMethod()), getClass().getName() + "$Cancel");
+    transformer.applyAdvice(
         named("request")
             .and(isMethod())
             .and(takesArguments(int.class))
             .or(isMethod().and(named("halfClose").and(takesArguments(0)))),
         getClass().getName() + "$ActivateSpan");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         named("sendMessage").and(isMethod()), getClass().getName() + "$SendMessage");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         named("close").and(isMethod().and(takesArguments(2))),
         getClass().getName() + "$CloseObserver");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         named("onNext").or(named("messageRead")), getClass().getName() + "$ReceiveMessages");
   }
 

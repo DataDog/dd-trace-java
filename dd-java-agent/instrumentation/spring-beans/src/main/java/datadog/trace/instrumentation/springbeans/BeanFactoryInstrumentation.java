@@ -47,14 +47,14 @@ public class BeanFactoryInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isMethod()
             .and(named("registerBeanDefinition"))
             .and(
                 takesArgument(1, named("org.springframework.beans.factory.config.BeanDefinition"))),
         BeanFactoryInstrumentation.class.getName() + "$BeanRegisteringAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod()
             .and(named("resolveBeanClass"))
             .and(

@@ -35,14 +35,14 @@ public class TestNGClassListenerInstrumentation extends Instrumenter.CiVisibilit
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         named("invokeBeforeClassMethods")
             .and(takesArgument(0, named("org.testng.ITestClass")))
             .and(takesArgument(1, named("org.testng.IMethodInstance"))),
         TestNGClassListenerInstrumentation.class.getName() + "$InvokeBeforeClassAdvice");
 
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         named("invokeAfterClassMethods")
             .and(takesArgument(0, named("org.testng.ITestClass")))
             .and(takesArgument(1, named("org.testng.IMethodInstance"))),

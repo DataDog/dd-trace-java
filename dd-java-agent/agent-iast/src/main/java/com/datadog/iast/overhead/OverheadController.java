@@ -8,6 +8,7 @@ import com.datadog.iast.util.NonBlockingSemaphore;
 import datadog.trace.api.Config;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
+import datadog.trace.api.iast.IastContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.util.AgentTaskScheduler;
@@ -30,7 +31,21 @@ public interface OverheadController {
   boolean consumeQuota(final Operation operation, @Nullable final AgentSpan span);
 
   static OverheadController build(final Config config, final AgentTaskScheduler scheduler) {
-    final OverheadControllerImpl result = new OverheadControllerImpl(config, scheduler);
+    return build(
+        config.getIastRequestSampling(),
+        config.getIastMaxConcurrentRequests(),
+        config.getIastContextMode() == IastContext.Mode.GLOBAL,
+        scheduler);
+  }
+
+  static OverheadController build(
+      final float requestSampling,
+      final int maxConcurrentRequests,
+      final boolean globalFallback,
+      final AgentTaskScheduler scheduler) {
+    final OverheadControllerImpl result =
+        new OverheadControllerImpl(
+            requestSampling, maxConcurrentRequests, globalFallback, scheduler);
     return IastSystem.DEBUG ? new OverheadControllerDebugAdapter(result) : result;
   }
 
@@ -116,16 +131,28 @@ public interface OverheadController {
 
     private final int sampling;
 
+    /**
+     * Fallback to use the global context instance when no IAST context is present in the active
+     * span
+     */
+    private final boolean useGlobalAsFallback;
+
     final NonBlockingSemaphore availableRequests;
 
     final AtomicLong cumulativeCounter;
 
-    final OverheadContext globalContext = new OverheadContext();
+    final OverheadContext globalContext =
+        new OverheadContext(Config.get().getIastVulnerabilitiesPerRequest());
 
-    public OverheadControllerImpl(final Config config, final AgentTaskScheduler taskScheduler) {
-      sampling = computeSamplingParameter(config.getIastRequestSampling());
-      availableRequests = maxConcurrentRequests(config.getIastMaxConcurrentRequests());
+    public OverheadControllerImpl(
+        final float requestSampling,
+        final int maxConcurrentRequests,
+        final boolean useGlobalAsFallback,
+        final AgentTaskScheduler taskScheduler) {
+      this.sampling = computeSamplingParameter(requestSampling);
+      availableRequests = maxConcurrentRequests(maxConcurrentRequests);
       cumulativeCounter = new AtomicLong(sampling);
+      this.useGlobalAsFallback = useGlobalAsFallback;
       if (taskScheduler != null) {
         taskScheduler.scheduleAtFixedRate(
             this::reset, 2 * RESET_PERIOD_SECONDS, RESET_PERIOD_SECONDS, TimeUnit.SECONDS);
@@ -164,7 +191,12 @@ public interface OverheadController {
       final RequestContext requestContext = span != null ? span.getRequestContext() : null;
       if (requestContext != null) {
         IastRequestContext iastRequestContext = requestContext.getData(RequestContextSlot.IAST);
-        return iastRequestContext != null ? iastRequestContext.getOverheadContext() : null;
+        if (iastRequestContext != null) {
+          return iastRequestContext.getOverheadContext();
+        }
+        if (!useGlobalAsFallback) {
+          return null;
+        }
       }
       return globalContext;
     }

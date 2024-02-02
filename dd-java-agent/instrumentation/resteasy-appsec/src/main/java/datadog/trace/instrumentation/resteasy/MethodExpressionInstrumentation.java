@@ -41,8 +41,8 @@ public class MethodExpressionInstrumentation extends Instrumenter.AppSec
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         named("populatePathParams")
             .and(takesArguments(3))
             .and(takesArgument(0, named("org.jboss.resteasy.spi.HttpRequest")))

@@ -22,7 +22,7 @@ class TaintedObjectsNoOpTest extends Specification {
     !instance.iterator().hasNext()
 
     when:
-    instance.release()
+    instance.clear()
 
     then:
     noExceptionThrown()

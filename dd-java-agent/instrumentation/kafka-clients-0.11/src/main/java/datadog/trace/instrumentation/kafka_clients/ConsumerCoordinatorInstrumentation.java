@@ -52,8 +52,8 @@ public final class ConsumerCoordinatorInstrumentation extends Instrumenter.Traci
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isMethod().and(named("sendOffsetCommitRequest")).and(takesArguments(1)),
         ConsumerCoordinatorInstrumentation.class.getName() + "$CommitOffsetAdvice");
   }

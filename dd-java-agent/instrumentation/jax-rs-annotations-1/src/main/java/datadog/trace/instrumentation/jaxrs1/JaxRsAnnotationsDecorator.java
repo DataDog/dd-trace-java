@@ -113,8 +113,10 @@ public class JaxRsAnnotationsDecorator extends BaseDecorator {
   private String locateHttpMethod(final Method method) {
     String httpMethod = null;
     for (final Annotation ann : method.getDeclaredAnnotations()) {
-      if (ann.annotationType().getAnnotation(HttpMethod.class) != null) {
-        httpMethod = ann.annotationType().getSimpleName();
+      final HttpMethod annotation = ann.annotationType().getAnnotation(HttpMethod.class);
+      if (annotation != null) {
+        httpMethod = annotation.value();
+        break;
       }
     }
     return httpMethod;

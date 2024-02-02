@@ -57,7 +57,7 @@ public abstract class JUnit4Utils {
     }
     ClassLoader contextClassLoader = Thread.currentThread().getContextClassLoader();
     return new MethodHandles(contextClassLoader)
-        .privateFieldGetter(SYNCHRONIZED_LISTENER, "listeners");
+        .privateFieldGetter(SYNCHRONIZED_LISTENER, "listener");
   }
 
   public static List<RunListener> runListenersFromRunNotifier(final RunNotifier runNotifier) {
@@ -65,16 +65,15 @@ public abstract class JUnit4Utils {
   }
 
   public static TracingListener toTracingListener(final RunListener listener) {
-    if (listener instanceof TracingListener) {
-      return (TracingListener) listener;
-    }
-
     // Since JUnit 4.12, the RunListener are wrapped by a SynchronizedRunListener object.
     if (SYNCHRONIZED_LISTENER.equals(listener.getClass().getName())) {
       RunListener innerListener = METHOD_HANDLES.invoke(INNER_SYNCHRONIZED_LISTENER, listener);
       if (innerListener instanceof TracingListener) {
         return (TracingListener) innerListener;
       }
+    }
+    if (listener instanceof TracingListener) {
+      return (TracingListener) listener;
     }
     return null;
   }
@@ -281,11 +280,12 @@ public abstract class JUnit4Utils {
     return Description.createTestDescription(testClass, name, updatedAnnotations);
   }
 
-  public static TestIdentifier toTestIdentifier(Description description) {
+  public static TestIdentifier toTestIdentifier(
+      Description description, boolean includeParameters) {
     Method testMethod = JUnit4Utils.getTestMethod(description);
     String suite = description.getClassName();
     String name = JUnit4Utils.getTestName(description, testMethod);
-    String parameters = JUnit4Utils.getParameters(description);
+    String parameters = includeParameters ? JUnit4Utils.getParameters(description) : null;
     return new TestIdentifier(suite, name, parameters, null);
   }
 }

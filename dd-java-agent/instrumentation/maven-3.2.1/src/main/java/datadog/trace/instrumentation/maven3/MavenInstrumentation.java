@@ -50,8 +50,8 @@ public class MavenInstrumentation extends Instrumenter.CiVisibility
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         named("customizeContainer")
             .and(takesArgument(0, named("org.codehaus.plexus.PlexusContainer"))),
         MavenInstrumentation.class.getName() + "$MavenAdvice");

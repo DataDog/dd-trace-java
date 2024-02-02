@@ -49,13 +49,13 @@ public final class PromiseTransformationInstrumentation extends Instrumenter.Tra
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isConstructor().and(takesArguments(4)), getClass().getName() + "$Construct");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod().and(named("submitWithValue")), getClass().getName() + "$SubmitWithValue");
-    transformation.applyAdvice(isMethod().and(named("run")), getClass().getName() + "$Run");
-    transformation.applyAdvice(isMethod().and(named("cancel")), getClass().getName() + "$Cancel");
+    transformer.applyAdvice(isMethod().and(named("run")), getClass().getName() + "$Run");
+    transformer.applyAdvice(isMethod().and(named("cancel")), getClass().getName() + "$Cancel");
   }
 
   @Override

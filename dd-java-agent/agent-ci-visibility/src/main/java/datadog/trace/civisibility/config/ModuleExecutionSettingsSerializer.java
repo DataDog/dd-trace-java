@@ -79,7 +79,10 @@ public class ModuleExecutionSettingsSerializer {
     }
 
     byte flags =
-        (byte) ((settings.isItrEnabled() ? 2 : 0) | (settings.isCodeCoverageEnabled() ? 1 : 0));
+        (byte)
+            ((settings.isCodeCoverageEnabled() ? 1 : 0)
+                | (settings.isItrEnabled() ? 2 : 0)
+                | (settings.isFlakyTestRetriesEnabled() ? 4 : 0));
     buffer.put(flags);
 
     buffer.flip();
@@ -126,12 +129,14 @@ public class ModuleExecutionSettingsSerializer {
     }
 
     byte flags = buffer.get();
-    boolean itrEnabled = (flags & 2) != 0;
     boolean codeCoverageEnabled = (flags & 1) != 0;
+    boolean itrEnabled = (flags & 2) != 0;
+    boolean flakyTestRetriesEnabled = (flags & 4) != 0;
 
     return new ModuleExecutionSettings(
         codeCoverageEnabled,
         itrEnabled,
+        flakyTestRetriesEnabled,
         systemProperties,
         skippableTestsByModule,
         flakyTests,

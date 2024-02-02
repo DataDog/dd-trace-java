@@ -32,6 +32,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -61,6 +62,7 @@ public class ConfigurationPoller
   private final Config config;
   private final String tracerVersion;
   private final String containerId;
+  private final String entityId;
   private final OkHttpClient httpClient;
   private final RatelimitedLogger ratelimitedLogger;
   private final Supplier<String> urlSupplier;
@@ -68,7 +70,7 @@ public class ConfigurationPoller
   private final long maxPayloadSize;
   private final boolean integrityChecks;
 
-  private final Map<Product, ProductState> productStates = new HashMap<>();
+  private final Map<Product, ProductState> productStates = new EnumMap<>(Product.class);
   private final Map<File, ConfigurationChangesListener> fileListeners = new HashMap<>();
   private final List<ConfigurationEndListener> configurationEndListeners = new ArrayList<>();
 
@@ -84,12 +86,14 @@ public class ConfigurationPoller
       Config config,
       String tracerVersion,
       String containerId,
+      String entityId,
       Supplier<String> urlSupplier,
       OkHttpClient client) {
     this(
         config,
         tracerVersion,
         containerId,
+        entityId,
         urlSupplier,
         client,
         new AgentTaskScheduler(AgentThreadFactory.AgentThread.REMOTE_CONFIG));
@@ -100,12 +104,14 @@ public class ConfigurationPoller
       Config config,
       String tracerVersion,
       String containerId,
+      String entityId,
       Supplier<String> urlSupplier,
       OkHttpClient httpClient,
       AgentTaskScheduler taskScheduler) {
     this.config = config;
     this.tracerVersion = tracerVersion;
     this.containerId = containerId;
+    this.entityId = entityId;
     this.urlSupplier = urlSupplier;
     this.keyId = config.getRemoteConfigTargetsKeyId();
     String keyStr = config.getRemoteConfigTargetsKey();
@@ -135,6 +141,22 @@ public class ConfigurationPoller
       ConfigurationDeserializer<T> deserializer,
       ConfigurationChangesTypedListener<T> listener) {
     this.addListener(product, new SimpleProductListener(useDeserializer(deserializer, listener)));
+  }
+
+  public synchronized void addListener(
+      Product product, String configKey, ProductListener listener) {
+    ProductState productState =
+        this.productStates.computeIfAbsent(product, p -> new ProductState(product));
+    productState.addProductListener(configKey, listener);
+  }
+
+  public synchronized <T> void addListener(
+      Product product,
+      String configKey,
+      ConfigurationDeserializer<T> deserializer,
+      ConfigurationChangesTypedListener<T> listener) {
+    this.addListener(
+        product, configKey, new SimpleProductListener(useDeserializer(deserializer, listener)));
   }
 
   public synchronized void removeListeners(Product product) {
@@ -236,7 +258,7 @@ public class ConfigurationPoller
               .build();
       this.responseFactory = new RemoteConfigResponse.Factory(moshi);
       this.requestFactory =
-          new PollerRequestFactory(config, tracerVersion, containerId, url, moshi);
+          new PollerRequestFactory(config, tracerVersion, containerId, entityId, url, moshi);
     } catch (Exception e) {
       // We can't recover from this, so we'll not try to initialize again.
       fatalOnInitialization = true;
@@ -286,6 +308,10 @@ public class ConfigurationPoller
     try (Response response = fetchConfiguration()) {
       if (response.code() == 404) {
         log.debug("Remote configuration endpoint is disabled");
+        return;
+      }
+      if (response.code() == 204) {
+        log.debug("No configuration changes (HTTP 204 No Content)");
         return;
       }
       ResponseBody body = response.body();

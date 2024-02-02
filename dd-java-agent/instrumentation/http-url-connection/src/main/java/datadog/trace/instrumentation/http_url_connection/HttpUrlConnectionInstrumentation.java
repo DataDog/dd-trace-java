@@ -54,11 +54,11 @@ public class HttpUrlConnectionInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isMethod().and(isPublic()).and(namedOneOf("connect", "getOutputStream", "getInputStream")),
         HttpUrlConnectionInstrumentation.class.getName() + "$HttpUrlConnectionAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod().and(isProtected()).and(named("plainConnect")),
         HttpUrlConnectionInstrumentation.class.getName() + "$HttpUrlConnectionAdvice");
   }

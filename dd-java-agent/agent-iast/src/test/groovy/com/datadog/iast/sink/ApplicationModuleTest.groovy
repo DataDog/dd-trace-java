@@ -1,13 +1,10 @@
 package com.datadog.iast.sink
 
 import com.datadog.iast.IastModuleImplTestBase
-import com.datadog.iast.IastRequestContext
+import com.datadog.iast.Reporter
 import com.datadog.iast.model.VulnerabilityType
-import datadog.trace.api.gateway.RequestContext
-import datadog.trace.api.gateway.RequestContextSlot
+import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.sink.ApplicationModule
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan
-
 
 class ApplicationModuleTest extends IastModuleImplTestBase {
 
@@ -15,19 +12,14 @@ class ApplicationModuleTest extends IastModuleImplTestBase {
 
   private ApplicationModule module
 
-  private IastRequestContext ctx
-
   def setup() {
     module = new ApplicationModuleImpl(dependencies)
-    ctx = new IastRequestContext()
-    final reqCtx = Mock(RequestContext) {
-      getData(RequestContextSlot.IAST) >> ctx
-    }
-    final span = Mock(AgentSpan) {
-      getSpanId() >> 123456
-      getRequestContext() >> reqCtx
-    }
-    tracer.activeSpan() >> span
+    InstrumentationBridge.registerIastModule(module)
+  }
+
+  @Override
+  protected Reporter buildReporter() {
+    return Mock(Reporter)
   }
 
   void 'if realPath is null do nothing'() {
@@ -41,7 +33,7 @@ class ApplicationModuleTest extends IastModuleImplTestBase {
 
   void 'check vulnerabilities'() {
     given:
-    final file  = ClassLoader.getSystemResource(path)
+    final file = ClassLoader.getSystemResource(path)
     final realPath = file.path
 
     when:
@@ -78,17 +70,17 @@ class ApplicationModuleTest extends IastModuleImplTestBase {
     'application/defaulthtmlescapeinvalid/no_tag_2' | VulnerabilityType.DEFAULT_HTML_ESCAPE_INVALID | 'defaultHtmlEscape tag should be set' | NO_LINE
   }
 
-  private static void assertVulnerability(final  vuln, final  expectedVulnType) {
+  private static void assertVulnerability(final vuln, final expectedVulnType) {
     assert vuln != null
     assert vuln.getType() == expectedVulnType
     assert vuln.getLocation() != null
   }
 
-  private static void assertEvidence(final  vuln, final  expectedVulnType, final  expectedEvidence, final line) {
+  private static void assertEvidence(final vuln, final expectedVulnType, final expectedEvidence, final line) {
     assertVulnerability(vuln, expectedVulnType)
     final evidence = vuln.evidence
     assert evidence != null
-    if(expectedEvidence instanceof String[]) {
+    if (expectedEvidence instanceof String[]) {
       for (String s : expectedEvidence) {
         assert evidence.value.contains(s)
       }

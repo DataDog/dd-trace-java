@@ -198,7 +198,7 @@ class DDIntakeWriterCombinedTest extends DDCoreSpecification {
     writer.start()
 
     when:
-    def discovery = new DDIntakeMapperDiscovery(trackType, wellKnownTags)
+    def discovery = new DDIntakeMapperDiscovery(trackType, wellKnownTags, false)
     discovery.discover()
     def mapper = (RemoteMapper) discovery.mapper
     def traceSize = calculateSize(minimalTrace, mapper)

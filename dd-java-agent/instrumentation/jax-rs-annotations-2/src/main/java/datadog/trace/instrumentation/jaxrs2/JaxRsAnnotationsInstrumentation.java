@@ -17,12 +17,16 @@ import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.lang.reflect.Method;
+import java.util.Collection;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 import javax.ws.rs.container.AsyncResponse;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
@@ -36,6 +40,21 @@ public final class JaxRsAnnotationsInstrumentation extends Instrumenter.Tracing
 
   public JaxRsAnnotationsInstrumentation() {
     super("jax-rs", "jaxrs", "jax-rs-annotations");
+  }
+
+  private Collection<String> getJaxRsAnnotations() {
+    final Set<String> ret = new HashSet<>();
+    ret.add("javax.ws.rs.Path");
+    ret.add("javax.ws.rs.DELETE");
+    ret.add("javax.ws.rs.GET");
+    ret.add("javax.ws.rs.HEAD");
+    ret.add("javax.ws.rs.OPTIONS");
+    ret.add("javax.ws.rs.POST");
+    ret.add("javax.ws.rs.PUT");
+    ret.add("javax.ws.rs.PATCH"); // come with 2.1 spec
+    ret.add("io.dropwizard.jersey.PATCH");
+    ret.addAll(InstrumenterConfig.get().getAdditionalJaxRsAnnotations());
+    return ret;
   }
 
   @Override
@@ -71,20 +90,9 @@ public final class JaxRsAnnotationsInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
-        isMethod()
-            .and(
-                hasSuperMethod(
-                    isAnnotatedWith(
-                        namedOneOf(
-                            "javax.ws.rs.Path",
-                            "javax.ws.rs.DELETE",
-                            "javax.ws.rs.GET",
-                            "javax.ws.rs.HEAD",
-                            "javax.ws.rs.OPTIONS",
-                            "javax.ws.rs.POST",
-                            "javax.ws.rs.PUT")))),
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
+        isMethod().and(hasSuperMethod(isAnnotatedWith(namedOneOf(getJaxRsAnnotations())))),
         JaxRsAnnotationsInstrumentation.class.getName() + "$JaxRsAnnotationsAdvice");
   }
 

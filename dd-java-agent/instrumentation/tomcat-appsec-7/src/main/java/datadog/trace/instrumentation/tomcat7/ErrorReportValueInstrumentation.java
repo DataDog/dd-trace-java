@@ -27,8 +27,8 @@ public class ErrorReportValueInstrumentation extends Instrumenter.Iast
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isMethod()
             .and(named("report"))
             .and(takesArgument(0, named("org.apache.catalina.connector.Request")))

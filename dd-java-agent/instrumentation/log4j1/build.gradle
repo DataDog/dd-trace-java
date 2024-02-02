@@ -1,5 +1,3 @@
-apply from: "$rootDir/gradle/java.gradle"
-
 muzzle {
   pass {
     group = 'log4j'
@@ -8,6 +6,17 @@ muzzle {
   }
 }
 
+configurations {
+  testImplementation.exclude group: 'org.slf4j', module: 'log4j-over-slf4j'
+  testCompile.exclude group: 'org.slf4j', module: 'log4j-over-slf4j'
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+
+addTestSuiteForDir('latestDepTest', 'test')
+
 dependencies {
   compileOnly group: 'log4j', name: 'log4j', version: '1.2.4'
+  testImplementation group: 'log4j', name: 'log4j', version: '1.2.4'
+  latestDepTestImplementation group: 'log4j', name: 'log4j', version: '+'
 }

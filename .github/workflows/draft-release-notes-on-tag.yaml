@@ -15,10 +15,13 @@ jobs:
         with:
           result-encoding: string
           script: |
-            // Get the milestone title ("X.Y.Z") from tag name ("vX.Y.Z")
-            const milestoneTitle = '${{github.event.ref}}'.startsWith('v') ?
-                '${{github.event.ref}}'.substring(1) :
-                '${{github.event.ref}}'
+            // Get the milestone title ("X.Y.Z") from tag name ("vX.Y.Z(-rc)")
+            const match = '${{github.event.ref}}'.match(/v(\d+\.\d+\.\d+)(?:-rc\d+)?/i)
+            if (!match) {
+              core.setFailed('Failed to parse tag name into milestone name: ${{github.event.ref}}')
+              return
+            }
+            const milestoneTitle = match[1]
 
             // Look for the milestone
             const milestone = (await github.paginate('GET /repos/{owner}/{repo}/milestones', {
@@ -27,7 +30,7 @@ jobs:
               state: 'all'
             })).find(m => m.title == milestoneTitle)
             if (!milestone) {
-              core.setFailed('Failed to find milestone: ${milestoneTitle}')
+              core.setFailed(`Failed to find milestone: ${milestoneTitle}`)
               return
             }
 

@@ -30,11 +30,11 @@ public final class RequestInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         named("setContextPath").and(takesArgument(0, String.class)),
         RequestInstrumentation.class.getName() + "$SetContextPathAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         named("setServletPath").and(takesArgument(0, String.class)),
         RequestInstrumentation.class.getName() + "$SetServletPathAdvice");
   }

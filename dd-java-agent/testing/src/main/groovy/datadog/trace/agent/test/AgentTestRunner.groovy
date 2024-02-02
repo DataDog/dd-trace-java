@@ -24,6 +24,7 @@ import datadog.trace.api.sampling.SamplingRule
 import datadog.trace.api.time.SystemTimeSource
 import datadog.trace.bootstrap.ActiveSubsystems
 import datadog.trace.bootstrap.CallDepthThreadLocalMap
+import datadog.trace.bootstrap.InstrumentationErrors
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.TracerAPI
 import datadog.trace.bootstrap.instrumentation.api.AgentDataStreamsMonitoring
@@ -251,7 +252,7 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
   }
 
   protected boolean isTestAgentEnabled() {
-    return System.getenv("CI_USE_TEST_AGENT").equals("true")
+    return "true".equals(System.getenv("CI_USE_TEST_AGENT"))
   }
 
   protected boolean isForceAppSecActive() {
@@ -280,6 +281,7 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
 
   @SuppressForbidden
   void setupSpec() {
+
     // If this fails, it's likely the result of another test loading Config before it can be
     // injected into the bootstrap classpath. If one test extends AgentTestRunner in a module, all tests must extend
     assert Config.getClassLoader() == null: "Config must load on the bootstrap classpath."
@@ -376,7 +378,7 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
       RequestContext spiedReqCtx = Spy(requestContext)
       TraceSegment checkedSegment = new PreconditionCheckTraceSegment(
         check: {
-          -> if (spiedAgentSpan.localRootSpan.isFinished()) {
+          -> if (useStrictTraceWrites() && spiedAgentSpan.localRootSpan.isFinished()) {
             throw new AssertionError("Interaction with TraceSegment after root span has already finished: $spiedAgentSpan")
           }},
         delegate: segment
@@ -442,6 +444,7 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
     if (forceAppSecActive) {
       ActiveSubsystems.APPSEC_ACTIVE = true
     }
+    InstrumentationErrors.resetErrorCount()
   }
 
   @Override
@@ -478,6 +481,7 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
       spanFinishLocations.clear()
       originalToSpySpan.clear()
     }
+    assert InstrumentationErrors.errorCount == 0
   }
 
   private void doCheckRepeatedFinish() {
@@ -527,6 +531,12 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
     }
 
     @Override
+    Object getDataTop(String key) {
+      check()
+      return delegate.getDataTop(key)
+    }
+
+    @Override
     void effectivelyBlocked() {
       check()
       delegate.effectivelyBlocked()
@@ -536,6 +546,12 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
     void setDataCurrent(String key, Object value) {
       check()
       delegate.setDataCurrent(key, value)
+    }
+
+    @Override
+    Object getDataCurrent(String key) {
+      check()
+      return delegate.getDataCurrent(key)
     }
   }
 

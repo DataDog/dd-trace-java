@@ -37,8 +37,8 @@ public class EventLoopInstrumentation extends Instrumenter.Profiling
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isMethod().and(named("run").and(takesNoArguments())),
         getClass().getName() + "$ManageEventLoopThread");
   }

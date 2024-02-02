@@ -2,8 +2,10 @@ package datadog.trace.instrumentation.karate;
 
 import com.intuit.karate.core.Feature;
 import com.intuit.karate.core.FeatureRuntime;
+import com.intuit.karate.core.Result;
 import com.intuit.karate.core.Scenario;
 import com.intuit.karate.core.Tag;
+import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.util.MethodHandles;
 import datadog.trace.util.Strings;
 import java.lang.invoke.MethodHandle;
@@ -18,11 +20,16 @@ public abstract class KarateUtils {
   private static final MethodHandles METHOD_HANDLES =
       new MethodHandles(FeatureRuntime.class.getClassLoader());
   private static final MethodHandle FEATURE_RUNTIME_FEATURE_GETTER =
-      METHOD_HANDLES.privateFieldGetter("com.intuit.karate.core.FeatureRuntime", "feature");
+      METHOD_HANDLES.privateFieldGetter(FeatureRuntime.class, "feature");
   private static final MethodHandle FEATURE_RUNTIME_FEATURE_CALL_GETTER =
-      METHOD_HANDLES.privateFieldGetter("com.intuit.karate.core.FeatureRuntime", "featureCall");
+      METHOD_HANDLES.privateFieldGetter(FeatureRuntime.class, "featureCall");
   private static final MethodHandle FEATURE_CALL_FEATURE_GETTER =
       METHOD_HANDLES.privateFieldGetter("com.intuit.karate.core.FeatureCall", "feature");
+  private static final MethodHandle ABORTED_RESULT_DURATION_NANOS =
+      METHOD_HANDLES.method(Result.class, "aborted", long.class);
+  // static method to create aborted result has a different signature starting with Karate 1.4.1
+  private static final MethodHandle ABORTED_RESULT_STARTTIME_DURATION_NANOS =
+      METHOD_HANDLES.method(Result.class, "aborted", long.class, long.class);
 
   public static Feature getFeature(FeatureRuntime featureRuntime) {
     if (FEATURE_RUNTIME_FEATURE_CALL_GETTER != null) {
@@ -61,5 +68,25 @@ public abstract class KarateUtils {
 
   public static String getParameters(Scenario scenario) {
     return scenario.getExampleData() != null ? Strings.toJson(scenario.getExampleData()) : null;
+  }
+
+  public static TestIdentifier toTestIdentifier(Scenario scenario, boolean includeParameters) {
+    Feature feature = scenario.getFeature();
+    String featureName = feature.getNameForReport();
+    String scenarioName = KarateUtils.getScenarioName(scenario);
+    String parameters = includeParameters ? KarateUtils.getParameters(scenario) : null;
+    return new TestIdentifier(featureName, scenarioName, parameters, null);
+  }
+
+  public static Result abortedResult() {
+    if (ABORTED_RESULT_STARTTIME_DURATION_NANOS != null) {
+      long startTime = System.currentTimeMillis();
+      long durationNanos = 1;
+      return METHOD_HANDLES.invoke(
+          ABORTED_RESULT_STARTTIME_DURATION_NANOS, startTime, durationNanos);
+    } else {
+      long durationNanos = 1;
+      return METHOD_HANDLES.invoke(ABORTED_RESULT_DURATION_NANOS, durationNanos);
+    }
   }
 }

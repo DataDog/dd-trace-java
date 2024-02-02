@@ -12,10 +12,23 @@ import datadog.trace.logging.GlobalLogLevelSwitcher;
 import datadog.trace.logging.LogLevel;
 import datadog.trace.util.AgentTaskScheduler;
 import datadog.trace.util.AgentTaskScheduler.Scheduled;
+import datadog.trace.util.Strings;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.lang.management.ManagementFactory;
+import java.lang.management.RuntimeMXBean;
+import java.lang.management.ThreadInfo;
+import java.lang.management.ThreadMXBean;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.time.Instant;
+import java.time.ZoneOffset;
+import java.time.ZonedDateTime;
 import java.util.Collections;
 import java.util.concurrent.TimeUnit;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.zip.ZipOutputStream;
 import okhttp3.HttpUrl;
 import okhttp3.MediaType;
@@ -32,7 +45,11 @@ final class TracerFlareService {
 
   private static final String FLARE_ENDPOINT = "tracer_flare/v1";
 
+  private static final String REPORT_PREFIX = "dd-java-flare-";
+
   private static final MediaType OCTET_STREAM = MediaType.get("application/octet-stream");
+
+  private static final Pattern DELAY_TRIGGER = Pattern.compile("(\\d+)([HhMmSs]?)");
 
   private final AgentTaskScheduler scheduler = new AgentTaskScheduler(TRACER_FLARE);
 
@@ -43,6 +60,7 @@ final class TracerFlareService {
   private final CoreTracer tracer;
 
   private boolean logLevelOverridden;
+  private volatile long flareStartMillis;
 
   private Scheduled<Runnable> scheduledCleanup;
 
@@ -57,6 +75,52 @@ final class TracerFlareService {
     this.okHttpClient = okHttpClient;
     this.flareUrl = agentUrl.newBuilder().addPathSegments(FLARE_ENDPOINT).build();
     this.tracer = tracer;
+
+    applyTriageReportTrigger(config.getTriageReportTrigger());
+  }
+
+  private void applyTriageReportTrigger(String triageTrigger) {
+    if (null != triageTrigger && !triageTrigger.isEmpty()) {
+      Matcher delayMatcher = DELAY_TRIGGER.matcher(triageTrigger);
+      if (delayMatcher.matches()) {
+        long delay = Integer.parseInt(delayMatcher.group(1));
+        String unit = delayMatcher.group(2);
+        if ("H".equalsIgnoreCase(unit)) {
+          delay = TimeUnit.HOURS.toSeconds(delay);
+        } else if ("M".equalsIgnoreCase(unit)) {
+          delay = TimeUnit.MINUTES.toSeconds(delay);
+        } else {
+          // already in seconds
+        }
+        scheduleTriageReport(delay);
+      } else {
+        log.info("Unrecognized triage trigger {}", triageTrigger);
+      }
+    }
+  }
+
+  private void scheduleTriageReport(long delayInSeconds) {
+    Path triagePath = Paths.get(config.getTriageReportDir());
+    // prepare at most 10 minutes before collection of the report, to match remote flare behaviour
+    scheduler.schedule(() -> prepareForFlare("triage"), delayInSeconds - 600, TimeUnit.SECONDS);
+    scheduler.schedule(
+        () -> {
+          try {
+            if (!Files.isDirectory(triagePath)) {
+              Files.createDirectories(triagePath);
+            }
+            long flareEndMillis = System.currentTimeMillis();
+            Path reportPath = triagePath.resolve(getFlareName(flareEndMillis));
+            log.info("Writing triage report to {}", reportPath);
+            Files.write(reportPath, buildFlareZip(flareStartMillis, flareEndMillis, true));
+          } catch (Throwable e) {
+            log.info("Problem writing triage report", e);
+          } finally {
+            cleanupAfterFlare();
+          }
+        },
+        delayInSeconds,
+        TimeUnit.SECONDS);
   }
 
   public synchronized void prepareForFlare(String logLevel) {
@@ -70,6 +134,7 @@ final class TracerFlareService {
       // already preparing, just cancel old schedule in favour of new one
       oldSchedule.cancel();
     } else {
+      flareStartMillis = System.currentTimeMillis();
       log.debug("Preparing for tracer flare, logLevel={}", logLevel);
       TracerFlare.prepareForFlare();
     }
@@ -91,6 +156,7 @@ final class TracerFlareService {
         // ignore clean-up requests from tasks which aren't currently scheduled
         return;
       }
+      flareStartMillis = 0;
       scheduledCleanup = null;
       log.debug("Cleaning up after tracer flare");
       TracerFlare.cleanupAfterFlare();
@@ -102,13 +168,18 @@ final class TracerFlareService {
   }
 
   public void sendFlare(String caseId, String email, String hostname) {
-    scheduler.execute(() -> doSend(caseId, email, hostname));
+    boolean dumpThreads = config.isTriageEnabled() || log.isDebugEnabled();
+    scheduler.execute(() -> doSend(caseId, email, hostname, dumpThreads));
   }
 
-  void doSend(String caseId, String email, String hostname) {
+  void doSend(String caseId, String email, String hostname, boolean dumpThreads) {
     log.debug("Sending tracer flare");
     try {
-      RequestBody report = RequestBody.create(OCTET_STREAM, buildFlareZip());
+      long flareEndMillis = System.currentTimeMillis();
+
+      RequestBody report =
+          RequestBody.create(
+              OCTET_STREAM, buildFlareZip(flareStartMillis, flareEndMillis, dumpThreads));
 
       RequestBody form =
           new MultipartBody.Builder()
@@ -117,7 +188,7 @@ final class TracerFlareService {
               .addFormDataPart("case_id", caseId)
               .addFormDataPart("email", email)
               .addFormDataPart("hostname", hostname)
-              .addFormDataPart("flare_file", "java-flare.zip", report)
+              .addFormDataPart("flare_file", getFlareName(flareEndMillis), report)
               .build();
 
       Request flareRequest =
@@ -138,24 +209,81 @@ final class TracerFlareService {
     }
   }
 
-  private byte[] buildFlareZip() throws IOException {
+  private String getFlareName(long endMillis) {
+    return REPORT_PREFIX + config.getRuntimeId() + "-" + endMillis + ".zip";
+  }
+
+  private byte[] buildFlareZip(long startMillis, long endMillis, boolean dumpThreads)
+      throws IOException {
     try (ByteArrayOutputStream bytes = new ByteArrayOutputStream();
         ZipOutputStream zip = new ZipOutputStream(bytes)) {
 
-      addPrelude(zip);
+      addPrelude(zip, startMillis, endMillis);
+      addConfig(zip);
+      addRuntime(zip);
       tracer.addTracerReportToFlare(zip);
       TracerFlare.addReportsToFlare(zip);
+      if (dumpThreads) {
+        addThreadDump(zip);
+      }
       zip.finish();
 
       return bytes.toByteArray();
     }
   }
 
-  private void addPrelude(ZipOutputStream zip) throws IOException {
-    TracerFlare.addText(zip, "version.txt", DDTraceCoreInfo.VERSION);
-    TracerFlare.addText(zip, "classpath.txt", System.getProperty("java.class.path"));
+  private void addPrelude(ZipOutputStream zip, long startMillis, long endMillis)
+      throws IOException {
+    TracerFlare.addText(zip, "flare_info.txt", flareInfo(startMillis, endMillis));
+    TracerFlare.addText(zip, "tracer_version.txt", DDTraceCoreInfo.VERSION);
+  }
+
+  private void addConfig(ZipOutputStream zip) throws IOException {
     TracerFlare.addText(zip, "initial_config.txt", config.toString());
     TracerFlare.addText(zip, "dynamic_config.txt", dynamicConfig.toString());
+  }
+
+  private void addRuntime(ZipOutputStream zip) throws IOException {
+    try {
+      RuntimeMXBean runtimeMXBean = ManagementFactory.getRuntimeMXBean();
+      TracerFlare.addText(
+          zip, "jvm_args.txt", Strings.join(" ", runtimeMXBean.getInputArguments()));
+      TracerFlare.addText(zip, "classpath.txt", runtimeMXBean.getClassPath());
+      TracerFlare.addText(zip, "library_path.txt", runtimeMXBean.getLibraryPath());
+      if (runtimeMXBean.isBootClassPathSupported()) {
+        TracerFlare.addText(zip, "boot_classpath.txt", runtimeMXBean.getBootClassPath());
+      }
+    } catch (RuntimeException e) {
+      TracerFlare.addText(zip, "classpath.txt", System.getProperty("java.class.path"));
+    }
+  }
+
+  private String flareInfo(long startMillis, long endMillis) {
+    StringBuilder buf = new StringBuilder();
+    if (startMillis > 0) {
+      buf.append("Requested: ").append(toDateTime(startMillis)).append('\n');
+    }
+    return buf.append("Completed: ").append(toDateTime(endMillis)).toString();
+  }
+
+  private static ZonedDateTime toDateTime(long millis) {
+    return ZonedDateTime.ofInstant(Instant.ofEpochMilli(millis), ZoneOffset.UTC);
+  }
+
+  private void addThreadDump(ZipOutputStream zip) throws IOException {
+    StringBuilder buf = new StringBuilder();
+    try {
+      ThreadMXBean threadMXBean = ManagementFactory.getThreadMXBean();
+      for (ThreadInfo threadInfo :
+          threadMXBean.dumpAllThreads(
+              threadMXBean.isObjectMonitorUsageSupported(),
+              threadMXBean.isSynchronizerUsageSupported())) {
+        buf.append(threadInfo);
+      }
+    } catch (RuntimeException e) {
+      buf.append("Problem collecting thread dump: ").append(e);
+    }
+    TracerFlare.addText(zip, "threads.txt", buf.toString());
   }
 
   final class CleanupTask implements Runnable {

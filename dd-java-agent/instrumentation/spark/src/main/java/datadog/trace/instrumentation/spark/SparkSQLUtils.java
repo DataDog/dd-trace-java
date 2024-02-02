@@ -25,8 +25,11 @@ public class SparkSQLUtils {
       SparkPlanInfo plan,
       Map<Long, AccumulatorWithStage> accumulators,
       int stageId) {
+    Set<Integer> parentStageIds = new HashSet<>();
     SparkPlanInfoForStage planForStage =
-        computeStageInfoForStage(plan, accumulators, stageId, false);
+        computeStageInfoForStage(plan, accumulators, stageId, parentStageIds, false);
+
+    span.setTag("_dd.spark.sql_parent_stage_ids", parentStageIds.toString());
 
     if (planForStage != null) {
       String json = planForStage.toJson(accumulators);
@@ -38,6 +41,7 @@ public class SparkSQLUtils {
       SparkPlanInfo plan,
       Map<Long, AccumulatorWithStage> accumulators,
       int stageId,
+      Set<Integer> parentStageIds,
       boolean foundStage) {
     Set<Integer> stageIds = stageIdsForPlan(plan, accumulators);
 
@@ -45,6 +49,8 @@ public class SparkSQLUtils {
     boolean isForStage = stageIds.contains(stageId);
 
     if (foundStage && hasStageInfo && !isForStage) {
+      parentStageIds.addAll(stageIds);
+
       // Stopping the propagation since this node is for another stage
       return null;
     }
@@ -57,7 +63,7 @@ public class SparkSQLUtils {
       List<SparkPlanInfoForStage> childrenForStage = new ArrayList<>();
       for (SparkPlanInfo child : children) {
         SparkPlanInfoForStage planForStage =
-            computeStageInfoForStage(child, accumulators, stageId, true);
+            computeStageInfoForStage(child, accumulators, stageId, parentStageIds, true);
 
         if (planForStage != null) {
           childrenForStage.add(planForStage);
@@ -69,7 +75,7 @@ public class SparkSQLUtils {
       // The expected stage was not found yet, searching in the children nodes
       for (SparkPlanInfo child : children) {
         SparkPlanInfoForStage planForStage =
-            computeStageInfoForStage(child, accumulators, stageId, false);
+            computeStageInfoForStage(child, accumulators, stageId, parentStageIds, false);
 
         if (planForStage != null) {
           // Early stopping if the stage was found, no need to keep searching
@@ -157,6 +163,7 @@ public class SparkSQLUtils {
         throws IOException {
       generator.writeStartObject();
       generator.writeStringField("node", plan.nodeName());
+      generator.writeNumberField("nodeId", plan.hashCode());
 
       // Metadata is only present for FileSourceScan nodes
       if (!plan.metadata().isEmpty()) {

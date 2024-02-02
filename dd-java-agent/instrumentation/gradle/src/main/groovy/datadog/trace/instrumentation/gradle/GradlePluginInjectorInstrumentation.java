@@ -3,7 +3,6 @@ package datadog.trace.instrumentation.gradle;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassNamed;
 
 import com.google.auto.service.AutoService;
-import datadog.trace.agent.tooling.HelperInjector;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.api.Config;
 import java.util.Set;
@@ -47,17 +46,17 @@ public class GradlePluginInjectorInstrumentation extends Instrumenter.CiVisibili
   }
 
   @Override
-  public AdviceTransformer transformer() {
-    return new HelperInjector(
-        "gradle-plugin-injector",
-        packageName + ".CiVisibilityService",
-        packageName + ".JavaCompilerPluginArgumentsProvider",
-        packageName + ".TracerArgumentsProvider",
-        packageName + ".CiVisibilityGradleListener",
-        packageName + ".CiVisibilityPluginExtension",
-        packageName + ".CiVisibilityPlugin");
+  public String[] helperClassNames() {
+    return new String[] {
+      packageName + ".CiVisibilityService",
+      packageName + ".JavaCompilerPluginArgumentsProvider",
+      packageName + ".TracerArgumentsProvider",
+      packageName + ".CiVisibilityGradleListener",
+      packageName + ".CiVisibilityPluginExtension",
+      packageName + ".CiVisibilityPlugin"
+    };
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {}
+  public void methodAdvice(MethodTransformer transformer) {}
 }

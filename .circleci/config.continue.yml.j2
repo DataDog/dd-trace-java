@@ -36,7 +36,7 @@ instrumentation_modules: &instrumentation_modules "dd-java-agent/instrumentation
 debugger_modules: &debugger_modules "dd-java-agent/agent-debugger|dd-java-agent/agent-bootstrap|dd-java-agent/agent-builder|internal-api|communication|dd-trace-core"
 profiling_modules: &profiling_modules "dd-java-agent/agent-profiling"
 
-default_system_tests_commit: &default_system_tests_commit ca7566bf7e66c0afdf29b0d3c07b2972e5869997
+default_system_tests_commit: &default_system_tests_commit ed41a27fd2900491e459b9ceac534f4c65ff0ba8
 
 parameters:
   nightly:
@@ -746,7 +746,7 @@ jobs:
   muzzle:
     <<: *defaults
     resource_class: medium
-    parallelism: 3
+    parallelism: 4
     steps:
       - setup_code
 
@@ -1030,7 +1030,7 @@ build_test_jobs: &build_test_jobs
       name: z_test_<< matrix.testJvm >>_base
       triggeredBy: *core_modules
       gradleTarget: ":baseTest"
-      gradleParameters: "-PskipFlakyTests -PskipInstTests -PskipSmokeTests -PskipProfilingTests"
+      gradleParameters: "-PskipFlakyTests -PskipInstTests -PskipSmokeTests -PskipProfilingTests -PskipDebuggerTests"
       stage: core
       cacheType: base
       parallelism: 4
@@ -1044,7 +1044,7 @@ build_test_jobs: &build_test_jobs
       name: z_test_8_base
       triggeredBy: *core_modules
       gradleTarget: :baseTest jacocoTestReport jacocoTestCoverageVerification
-      gradleParameters: "-PskipFlakyTests -PskipInstTests -PskipSmokeTests -PskipProfilingTests"
+      gradleParameters: "-PskipFlakyTests -PskipInstTests -PskipSmokeTests -PskipProfilingTests -PskipDebuggerTests"
       stage: core
       cacheType: base
       parallelism: 4
@@ -1105,6 +1105,20 @@ build_test_jobs: &build_test_jobs
       parallelism: 4
       maxWorkers: 4
       testJvm: "17"
+
+  - xlarge_tests:
+      requires:
+        - ok_to_test
+        - build_latestdep
+      name: test_21_inst_latest
+      gradleTarget: ":instrumentationLatestDepTest"
+      gradleParameters: "-PskipFlakyTests"
+      triggeredBy: *instrumentation_modules
+      stage: instrumentation
+      cacheType: latestdep
+      parallelism: 4
+      maxWorkers: 4
+      testJvm: "21"
 
 {% if flaky %}
   - tests:

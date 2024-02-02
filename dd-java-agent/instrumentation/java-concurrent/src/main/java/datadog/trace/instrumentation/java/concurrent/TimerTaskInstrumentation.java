@@ -47,8 +47,8 @@ public final class TimerTaskInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         named("cancel").and(takesArguments(0)).and(isPublic()),
         TimerTaskInstrumentation.class.getName() + "$CancelAdvice");
   }

@@ -24,6 +24,12 @@
         "JAVA_OPTS": "-javaagent:${TRACER} -Ddd.iast.enabled=true"
       }
     },
+    "iast_GLOBAL": {
+      "env": {
+        "VARIANT": "iast_GLOBAL",
+        "JAVA_OPTS": "-javaagent:${TRACER} -Ddd.iast.enabled=true -Ddd.iast.context.mode=GLOBAL"
+      }
+    },
     "iast_FULL": {
       "env": {
         "VARIANT": "iast_FULL",
@@ -40,6 +46,12 @@
       "env": {
         "VARIANT": "iast_TELEMETRY_OFF",
         "JAVA_OPTS": "-javaagent:${TRACER} -Ddd.iast.enabled=true -Ddd.iast.telemetry.verbosity=OFF"
+      }
+    },
+    "iast_HARDCODED_SECRET_DISABLED": {
+      "env": {
+        "VARIANT": "iast_HARDCODED_SECRET_DISABLED",
+        "JAVA_OPTS": "-javaagent:${TRACER} -Ddd.iast.enabled=true -Ddd.iast.hardcoded-secret.enabled=false"
       }
     }
   }

@@ -7,6 +7,7 @@ import java.lang.reflect.Method;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
 import java.util.Arrays;
+import java.util.function.Predicate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -32,10 +33,14 @@ public class MethodHandles {
         (PrivilegedAction<MethodHandle>)
             () -> {
               try {
-                SecurityManager sm = System.getSecurityManager();
-                if (sm != null) {
-                  String packageName = clazz.getPackage().getName();
-                  sm.checkPackageAccess(packageName);
+                try {
+                  SecurityManager sm = System.getSecurityManager();
+                  if (sm != null) {
+                    String packageName = clazz.getPackage().getName();
+                    sm.checkPackageAccess(packageName);
+                  }
+                } catch (UnsupportedOperationException e) {
+                  // ignore
                 }
 
                 Field field = clazz.getDeclaredField(fieldName);
@@ -63,10 +68,14 @@ public class MethodHandles {
         (PrivilegedAction<MethodHandle>)
             () -> {
               try {
-                SecurityManager sm = System.getSecurityManager();
-                if (sm != null) {
-                  String packageName = clazz.getPackage().getName();
-                  sm.checkPackageAccess(packageName);
+                try {
+                  SecurityManager sm = System.getSecurityManager();
+                  if (sm != null) {
+                    String packageName = clazz.getPackage().getName();
+                    sm.checkPackageAccess(packageName);
+                  }
+                } catch (UnsupportedOperationException e) {
+                  // ignore
                 }
 
                 Field field = clazz.getDeclaredField(fieldName);
@@ -94,10 +103,14 @@ public class MethodHandles {
         (PrivilegedAction<MethodHandle>)
             () -> {
               try {
-                SecurityManager sm = System.getSecurityManager();
-                if (sm != null) {
-                  String packageName = clazz.getPackage().getName();
-                  sm.checkPackageAccess(packageName);
+                try {
+                  SecurityManager sm = System.getSecurityManager();
+                  if (sm != null) {
+                    String packageName = clazz.getPackage().getName();
+                    sm.checkPackageAccess(packageName);
+                  }
+                } catch (UnsupportedOperationException e) {
+                  // ignore
                 }
 
                 Constructor<?> constructor = clazz.getDeclaredConstructor(parameterTypes);
@@ -125,10 +138,14 @@ public class MethodHandles {
         (PrivilegedAction<MethodHandle>)
             () -> {
               try {
-                SecurityManager sm = System.getSecurityManager();
-                if (sm != null) {
-                  String packageName = clazz.getPackage().getName();
-                  sm.checkPackageAccess(packageName);
+                try {
+                  SecurityManager sm = System.getSecurityManager();
+                  if (sm != null) {
+                    String packageName = clazz.getPackage().getName();
+                    sm.checkPackageAccess(packageName);
+                  }
+                } catch (UnsupportedOperationException e) {
+                  // ignore
                 }
 
                 Method method = clazz.getDeclaredMethod(methodName, parameterTypes);
@@ -142,6 +159,39 @@ public class MethodHandles {
                     Arrays.toString(parameterTypes),
                     clazz,
                     t);
+                return null;
+              }
+            });
+  }
+
+  public MethodHandle method(Class<?> clazz, Predicate<Method> filter) {
+    return AccessController.doPrivileged(
+        (PrivilegedAction<MethodHandle>)
+            () -> {
+              try {
+                try {
+                  SecurityManager sm = System.getSecurityManager();
+                  if (sm != null) {
+                    String packageName = clazz.getPackage().getName();
+                    sm.checkPackageAccess(packageName);
+                  }
+                } catch (UnsupportedOperationException e) {
+                  // ignore
+                }
+
+                Method[] methods = clazz.getDeclaredMethods();
+                for (Method method : methods) {
+                  if (filter.test(method)) {
+                    method.setAccessible(true);
+                    return lookup.unreflect(method);
+                  }
+                }
+
+                log.debug("Could not find desired method in class {}", clazz);
+                return null;
+
+              } catch (Throwable t) {
+                log.debug("Could not find desired method in class {}", clazz, t);
                 return null;
               }
             });

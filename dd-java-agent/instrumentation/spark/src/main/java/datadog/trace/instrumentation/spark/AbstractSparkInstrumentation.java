@@ -30,16 +30,16 @@ public abstract class AbstractSparkInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
+  public void methodAdvice(MethodTransformer transformer) {
     // SparkSubmit class used for non YARN/Mesos environment
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod()
             .and(nameEndsWith("runMain"))
             .and(isDeclaredBy(named("org.apache.spark.deploy.SparkSubmit"))),
         AbstractSparkInstrumentation.class.getName() + "$RunMainAdvice");
 
     // ApplicationMaster class is used when running in a YARN cluster
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod()
             .and(named("finish"))
             .and(isDeclaredBy(named("org.apache.spark.deploy.yarn.ApplicationMaster"))),

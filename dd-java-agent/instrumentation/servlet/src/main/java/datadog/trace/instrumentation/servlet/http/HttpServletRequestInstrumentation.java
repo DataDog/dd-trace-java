@@ -57,38 +57,38 @@ public class HttpServletRequestInstrumentation extends Instrumenter.Iast
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isMethod().and(named("getHeader")).and(takesArguments(String.class)),
         CLASS_NAME + "$GetHeaderAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod().and(named("getHeaders")).and(takesArguments(String.class)),
         CLASS_NAME + "$GetHeadersAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod().and(named("getHeaderNames")).and(takesArguments(0)),
         CLASS_NAME + "$GetHeaderNamesAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod().and(named("getParameter")).and(takesArguments(String.class)),
         CLASS_NAME + "$GetParameterAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod().and(named("getParameterValues")).and(takesArguments(String.class)),
         CLASS_NAME + "$GetParameterValuesAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod().and(named("getParameterMap")).and(takesArguments(0)),
         CLASS_NAME + "$GetParameterMapAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod().and(named("getParameterNames")).and(takesArguments(0)),
         CLASS_NAME + "$GetParameterNamesAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod().and(named("getCookies")).and(takesArguments(0)),
         CLASS_NAME + "$GetCookiesAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod().and(named("getQueryString")).and(takesArguments(0)),
         CLASS_NAME + "$GetQueryStringAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod().and(namedOneOf("getInputStream", "getReader")).and(takesArguments(0)),
         CLASS_NAME + "$GetBodyAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod().and(named("getRequestDispatcher")).and(takesArguments(String.class)),
         CLASS_NAME + "$GetRequestDispatcherAdvice");
   }

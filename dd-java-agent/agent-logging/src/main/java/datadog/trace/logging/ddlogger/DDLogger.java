@@ -329,7 +329,7 @@ public class DDLogger implements Logger {
     }
 
     FormattingTuple tuple = MessageFormatter.format(format, arg);
-    alwaysLog(level, marker, format, tuple.getMessage(), tuple.getThrowable());
+    alwaysLog(level, marker, tuple.getMessage(), tuple.getThrowable());
   }
 
   public void formatLog(LogLevel level, Marker marker, String format, Object arg1, Object arg2) {
@@ -338,7 +338,7 @@ public class DDLogger implements Logger {
     }
 
     FormattingTuple tuple = MessageFormatter.format(format, arg1, arg2);
-    alwaysLog(level, marker, format, tuple.getMessage(), tuple.getThrowable());
+    alwaysLog(level, marker, tuple.getMessage(), tuple.getThrowable());
   }
 
   public void formatLog(LogLevel level, Marker marker, String format, Object... arguments) {
@@ -347,17 +347,17 @@ public class DDLogger implements Logger {
     }
 
     FormattingTuple tuple = MessageFormatter.arrayFormat(format, arguments);
-    alwaysLog(level, marker, format, tuple.getMessage(), tuple.getThrowable());
+    alwaysLog(level, marker, tuple.getMessage(), tuple.getThrowable());
   }
 
-  private void log(LogLevel level, Marker marker, String msg, Throwable t) {
+  protected void log(LogLevel level, Marker marker, String msg, Throwable t) {
     if (!helper.enabled(level, marker)) {
       return;
     }
-    alwaysLog(level, marker, null, msg, t);
+    helper.log(level, marker, msg, t);
   }
 
-  protected void alwaysLog(LogLevel level, Marker marker, String format, String msg, Throwable t) {
+  private void alwaysLog(LogLevel level, Marker marker, String msg, Throwable t) {
     helper.log(level, marker, msg, t);
   }
 }

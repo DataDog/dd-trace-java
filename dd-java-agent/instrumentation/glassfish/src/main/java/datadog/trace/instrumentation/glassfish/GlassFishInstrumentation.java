@@ -31,8 +31,8 @@ public final class GlassFishInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isMethod().and(named("addToBlackList")).and(takesArguments(1)),
         GlassFishInstrumentation.class.getName() + "$AvoidGlassFishBlockingAdvice");
   }

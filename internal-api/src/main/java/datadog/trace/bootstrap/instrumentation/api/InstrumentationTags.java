@@ -22,6 +22,7 @@ public class InstrumentationTags {
   public static final String AWS_ENDPOINT = "aws.endpoint";
   public static final String AWS_BUCKET_NAME = "aws.bucket.name";
   public static final String BUCKET_NAME = "bucketname";
+  public static final String AWS_OBJECT_KEY = "aws.object.key";
   public static final String AWS_QUEUE_URL = "aws.queue.url";
 
   public static final String AWS_QUEUE_NAME = "aws.queue.name";

@@ -58,8 +58,8 @@ public class NettyChannelHandlerContextInstrumentation extends Instrumenter.Trac
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         // this may be overly aggressive:
         isMethod().and(nameStartsWith("fire")).and(isPublic()),
         NettyChannelHandlerContextInstrumentation.class.getName() + "$FireAdvice");

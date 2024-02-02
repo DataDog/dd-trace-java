@@ -61,6 +61,13 @@ public final class ProfilingConfig {
   public static final String PROFILING_AUXILIARY_TYPE = "profiling.auxiliary";
   public static final String PROFILING_AUXILIARY_TYPE_DEFAULT = "none";
 
+  public static final String PROFILING_JFR_REPOSITORY_BASE = "profiling.jfr.repository.base";
+  public static final String PROFILING_JFR_REPOSITORY_BASE_DEFAULT =
+      System.getProperty("java.io.tmpdir") + "/dd/jfr";
+
+  public static final String PROFILING_JFR_REPOSITORY_CLEANUP = "profiling.jfr.repository.cleanup";
+  public static final boolean PROFILING_JFR_REPOSITORY_CLEANUP_DEFAULT = true;
+
   public static final String PROFILING_DATADOG_PROFILER_ENABLED = "profiling.ddprof.enabled";
 
   public static final String PROFILING_DIRECT_ALLOCATION_ENABLED =
@@ -78,7 +85,6 @@ public final class ProfilingConfig {
   public static final String PROFILING_DATADOG_PROFILER_LIBPATH = "profiling.ddprof.debug.lib";
   public static final String PROFILING_DATADOG_PROFILER_ALLOC_ENABLED =
       "profiling.ddprof.alloc.enabled";
-  public static final boolean PROFILING_DATADOG_PROFILER_ALLOC_ENABLED_DEFAULT = false;
   public static final String PROFILING_DATADOG_PROFILER_ALLOC_INTERVAL =
       "profiling.ddprof.alloc.interval";
   public static final int PROFILING_DATADOG_PROFILER_ALLOC_INTERVAL_DEFAULT = 256 * 1024;
@@ -169,6 +175,9 @@ public final class ProfilingConfig {
 
   public static final String PROFILING_DEBUG_DUMP_PATH = "profiling.debug.dump_path";
   public static final String PROFILING_DEBUG_JFR_DISABLED = "profiling.debug.jfr.disabled";
+
+  public static final String PROFILING_DEBUG_CLEANUP_REPO = "profiling.debug.cleanup.jfr.repo";
+  public static final boolean PROFILING_DEBUG_CLEANUP_REPO_DEFAULT = false;
 
   public static final String PROFILING_CONTEXT_ATTRIBUTES = "profiling.context.attributes";
 

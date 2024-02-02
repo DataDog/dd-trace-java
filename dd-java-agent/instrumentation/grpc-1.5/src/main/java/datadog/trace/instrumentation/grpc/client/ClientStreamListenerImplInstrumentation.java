@@ -49,16 +49,16 @@ public class ClientStreamListenerImplInstrumentation extends Instrumenter.Tracin
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(isConstructor(), getClass().getName() + "$Construct");
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(isConstructor(), getClass().getName() + "$Construct");
+    transformer.applyAdvice(
         named("exceptionThrown")
             .and(takesArgument(0, named("io.grpc.Status")))
             .and(takesArguments(1)),
         getClass().getName() + "$ExceptionThrown");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         namedOneOf("messageRead", "messagesAvailable"), getClass().getName() + "$RecordActivity");
-    transformation.applyAdvice(named("headersRead"), getClass().getName() + "$RecordHeaders");
+    transformer.applyAdvice(named("headersRead"), getClass().getName() + "$RecordHeaders");
   }
 
   public static final class Construct {

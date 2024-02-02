@@ -144,6 +144,7 @@ public class DDBuildSystemSessionImpl extends DDTestSessionImpl implements DDBui
           new ModuleExecutionSettings(
               settings.isCodeCoverageEnabled(),
               settings.isItrEnabled(),
+              settings.isFlakyTestRetriesEnabled(),
               settings.getSystemProperties(),
               skippableTests,
               flakyTests,

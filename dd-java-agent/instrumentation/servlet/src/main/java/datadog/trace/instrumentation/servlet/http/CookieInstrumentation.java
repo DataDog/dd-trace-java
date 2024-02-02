@@ -26,18 +26,18 @@ public class CookieInstrumentation extends Instrumenter.Iast implements Instrume
   }
 
   @Override
-  public void adviceTransformations(final AdviceTransformation transformation) {
-    transformation.applyAdvice(
-        isMethod().and(named("getName")).and(takesArguments(0)),
-        getClass().getName() + "$GetNameAdvice");
-    transformation.applyAdvice(
-        isMethod().and(named("getValue")).and(takesArguments(0)),
-        getClass().getName() + "$GetValueAdvice");
+  public void typeAdvice(TypeTransformer transformer) {
+    transformer.applyAdvice(new TaintableVisitor(instrumentedType()));
   }
 
   @Override
-  public AdviceTransformer transformer() {
-    return new VisitingTransformer(new TaintableVisitor(instrumentedType()));
+  public void methodAdvice(final MethodTransformer transformer) {
+    transformer.applyAdvice(
+        isMethod().and(named("getName")).and(takesArguments(0)),
+        getClass().getName() + "$GetNameAdvice");
+    transformer.applyAdvice(
+        isMethod().and(named("getValue")).and(takesArguments(0)),
+        getClass().getName() + "$GetValueAdvice");
   }
 
   public static class GetNameAdvice {

@@ -22,11 +22,11 @@ public final class NativeImageGeneratorRunnerInstrumentation
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isMethod().and(named("main")),
         NativeImageGeneratorRunnerInstrumentation.class.getName() + "$ArgsAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod().and(named("extractDriverArguments")),
         NativeImageGeneratorRunnerInstrumentation.class.getName() + "$ExtractedArgsAdvice");
   }
@@ -60,6 +60,7 @@ public final class NativeImageGeneratorRunnerInstrumentation
       args[oldLength++] =
           "-H:ClassInitialization="
               + "com.datadog.profiling.controller.openjdk.events.AvailableProcessorCoresEvent:build_time,"
+              + "com.datadog.profiling.controller.openjdk.events.DeadlockEvent:build_time,"
               + "com.datadog.profiling.controller.openjdk.events.ProfilerSettingEvent:build_time,"
               + "com.datadog.profiling.controller.openjdk.events.TimelineEvent:build_time,"
               + "datadog.trace.api.Config:rerun,"
@@ -85,12 +86,14 @@ public final class NativeImageGeneratorRunnerInstrumentation
               + "datadog.trace.bootstrap.InstrumentationClassLoader:build_time,"
               + "datadog.trace.bootstrap.FieldBackedContextStores:build_time,"
               + "datadog.trace.bootstrap.benchmark.StaticEventLogger:build_time,"
+              + "datadog.trace.bootstrap.InstrumentationErrors:build_time,"
               + "datadog.trace.bootstrap.instrumentation.java.concurrent.ConcurrentState:build_time,"
               + "datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter:build_time,"
               + "datadog.trace.bootstrap.instrumentation.java.concurrent.QueueTimeHelper:build_time,"
               + "datadog.trace.bootstrap.instrumentation.java.concurrent.TPEHelper:build_time,"
               + "datadog.trace.bootstrap.instrumentation.jfr.exceptions.ExceptionCountEvent:build_time,"
               + "datadog.trace.bootstrap.instrumentation.jfr.exceptions.ExceptionSampleEvent:build_time,"
+              + "datadog.trace.bootstrap.instrumentation.jfr.directallocation.DirectAllocationTotalEvent:build_time,"
               + "datadog.trace.logging.LoggingSettingsDescription:build_time,"
               + "datadog.trace.logging.simplelogger.SLCompatFactory:build_time,"
               + "datadog.trace.util.CollectionUtils:build_time,"

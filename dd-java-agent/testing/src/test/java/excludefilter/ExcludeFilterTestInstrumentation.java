@@ -23,7 +23,7 @@ public class ExcludeFilterTestInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {}
+  public void methodAdvice(MethodTransformer transformer) {}
 
   @Override
   public Map<String, String> contextStore() {

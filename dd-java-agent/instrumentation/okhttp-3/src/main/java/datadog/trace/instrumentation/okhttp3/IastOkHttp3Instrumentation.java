@@ -33,8 +33,8 @@ public class IastOkHttp3Instrumentation extends Instrumenter.Iast
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isConstructor().and(takesArgument(0, named("okhttp3.OkHttpClient$Builder"))),
         IastOkHttp3Instrumentation.class.getName() + "$OkHttp3ClientAdvice");
   }

@@ -17,8 +17,8 @@ public class IBMResourceLevelInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(named("toString"), ToStringAdvice.class.getName());
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(named("toString"), ToStringAdvice.class.getName());
   }
 
   public static class ToStringAdvice {

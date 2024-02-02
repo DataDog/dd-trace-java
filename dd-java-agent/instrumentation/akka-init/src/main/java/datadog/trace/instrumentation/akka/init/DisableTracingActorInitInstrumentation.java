@@ -24,8 +24,8 @@ public final class DisableTracingActorInitInstrumentation extends Instrumenter.T
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         named("apply"),
         DisableTracingActorInitInstrumentation.class.getName() + "$BlockPropagation");
   }

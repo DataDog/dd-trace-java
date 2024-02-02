@@ -649,7 +649,7 @@ public class SpanDecorationProbeInstrumentationTest extends ProbeInstrumentation
     instr.addTransformer(currentTransformer);
     mockSink = new MockSink(config, probeStatusSink);
     DebuggerAgentHelper.injectSink(mockSink);
-    DebuggerContext.init((encodedProbeId) -> resolver(encodedProbeId, configuration), null);
+    DebuggerContext.initProbeResolver((encodedProbeId) -> resolver(encodedProbeId, configuration));
     DebuggerContext.initClassFilter(new DenyListHelper(null));
   }
 
@@ -667,7 +667,7 @@ public class SpanDecorationProbeInstrumentationTest extends ProbeInstrumentation
     return null;
   }
 
-  private static class TestTraceInterceptor implements TraceInterceptor {
+  static class TestTraceInterceptor implements TraceInterceptor {
     private Collection<? extends MutableSpan> currentTrace;
     private List<List<? extends MutableSpan>> allTraces = new ArrayList<>();
 

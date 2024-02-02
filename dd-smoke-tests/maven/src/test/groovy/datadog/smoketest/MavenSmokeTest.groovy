@@ -49,24 +49,30 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
     givenWrapperPropertiesFile(mavenVersion)
     givenMavenProjectFiles(projectName)
     givenMavenDependenciesAreLoaded(projectName, mavenVersion)
+    givenFlakyRetries(flakyRetries)
 
     def exitCode = whenRunningMavenBuild(jacocoCoverage)
 
-    assert exitCode == 0
+    if (expectSuccess) {
+      assert exitCode == 0
+    } else {
+      assert exitCode != 0
+    }
     verifyEventsAndCoverages(projectName, "maven", mavenVersion, expectedEvents, expectedCoverages)
 
     where:
-    projectName                                         | mavenVersion         | expectedEvents | expectedCoverages | jacocoCoverage
-    "test_successful_maven_run"                         | "3.2.1"              | 5              | 1                 | true
-    "test_successful_maven_run"                         | "3.5.4"              | 5              | 1                 | true
-    "test_successful_maven_run"                         | "3.6.3"              | 5              | 1                 | true
-    "test_successful_maven_run"                         | "3.8.8"              | 5              | 1                 | true
-    "test_successful_maven_run"                         | "3.9.5"              | 5              | 1                 | true
-    "test_successful_maven_run_surefire_3_0_0"          | "3.9.5"              | 5              | 1                 | true
-    "test_successful_maven_run_surefire_3_0_0"          | LATEST_MAVEN_VERSION | 5              | 1                 | true
-    "test_successful_maven_run_builtin_coverage"        | "3.9.5"              | 5              | 1                 | false
-    "test_successful_maven_run_with_jacoco_and_argline" | "3.9.5"              | 5              | 1                 | true
-    "test_successful_maven_run_with_cucumber"           | "3.9.5"              | 7              | 1                 | true
+    projectName                                         | mavenVersion         | expectedEvents | expectedCoverages | expectSuccess | flakyRetries | jacocoCoverage
+    "test_successful_maven_run"                         | "3.2.1"              | 5              | 1                 | true          | false        | true
+    "test_successful_maven_run"                         | "3.5.4"              | 5              | 1                 | true          | false        | true
+    "test_successful_maven_run"                         | "3.6.3"              | 5              | 1                 | true          | false        | true
+    "test_successful_maven_run"                         | "3.8.8"              | 5              | 1                 | true          | false        | true
+    "test_successful_maven_run"                         | "3.9.5"              | 5              | 1                 | true          | false        | true
+    "test_successful_maven_run_surefire_3_0_0"          | "3.9.5"              | 5              | 1                 | true          | false        | true
+    "test_successful_maven_run_surefire_3_0_0"          | LATEST_MAVEN_VERSION | 5              | 1                 | true          | false        | true
+    "test_successful_maven_run_builtin_coverage"        | "3.9.5"              | 5              | 1                 | true          | false        | false
+    "test_successful_maven_run_with_jacoco_and_argline" | "3.9.5"              | 5              | 1                 | true          | false        | true
+    "test_successful_maven_run_with_cucumber"           | "3.9.5"              | 7              | 1                 | true          | false        | true
+    "test_failed_maven_run_flaky_retries"               | "3.9.5"              | 8              | 1                 | false         | true         | true
   }
 
   private void givenWrapperPropertiesFile(String mavenVersion) {
@@ -228,6 +234,10 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
     return [projectHome.toAbsolutePath().toString()]
   }
 
+  void givenFlakyRetries(boolean flakyRetries) {
+    this.flakyRetriesEnabled = flakyRetries
+  }
+
   private static class StreamConsumer extends Thread {
     final InputStream is
     final String messagePrefix
@@ -263,7 +273,11 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
 
         NodeList versionList = doc.getElementsByTagName("latest")
         if (versionList.getLength() > 0) {
-          return versionList.item(0).getTextContent()
+          def version = versionList.item(0).getTextContent()
+          if (!version.contains('alpha')) {
+            LOGGER.info("Will run the 'latest' tests with version ${version}")
+            return version
+          }
         }
       } else {
         LOGGER.warn("Could not get latest maven version, response from repo.maven.apache.org is ${response.code()}: ${response.body().string()}")
@@ -271,8 +285,8 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
     } catch (Exception e) {
       LOGGER.warn("Could not get latest maven version", e)
     }
-    def hardcodedLatestVersion = "4.0.0-alpha-8"
-    LOGGER.warn("Will run the 'latest' tests with hard-coded version ${hardcodedLatestVersion}")
+    def hardcodedLatestVersion = "4.0.0-alpha-12" // latest alpha that is known to work
+    LOGGER.info("Will run the 'latest' tests with hard-coded version ${hardcodedLatestVersion}")
     return hardcodedLatestVersion
   }
 }

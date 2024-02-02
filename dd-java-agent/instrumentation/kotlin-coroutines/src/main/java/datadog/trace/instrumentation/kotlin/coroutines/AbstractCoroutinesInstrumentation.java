@@ -47,12 +47,12 @@ public abstract class AbstractCoroutinesInstrumentation extends Instrumenter.Tra
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isMethod().and(named("onStart")).and(takesNoArguments()).and(returns(void.class)),
         AbstractCoroutinesInstrumentation.class.getName() + "$AbstractCoroutineOnStartAdvice");
 
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod()
             .and(isOverriddenFrom(named(JOB_SUPPORT_CLASS_NAME)))
             .and(named("onCompletionInternal"))

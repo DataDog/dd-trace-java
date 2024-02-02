@@ -186,6 +186,21 @@ public class LogProbe extends ProbeDefinition {
       return Objects.hash(maxReferenceDepth, maxCollectionSize, maxLength, maxFieldCount);
     }
 
+    @Generated
+    @Override
+    public String toString() {
+      return "Capture{"
+          + "maxReferenceDepth="
+          + maxReferenceDepth
+          + ", maxCollectionSize="
+          + maxCollectionSize
+          + ", maxLength="
+          + maxLength
+          + ", maxFieldCount="
+          + maxFieldCount
+          + '}';
+    }
+
     public static Limits toLimits(Capture capture) {
       if (capture == null) {
         return Limits.DEFAULT;
@@ -422,7 +437,6 @@ public class LogProbe extends ProbeDefinition {
         return false;
       }
     } catch (EvaluationException ex) {
-      LOGGER.debug("Evaluation error: ", ex);
       status.addError(new EvaluationError(ex.getExpr(), ex.getMessage()));
       status.setConditionErrors(true);
       return false;

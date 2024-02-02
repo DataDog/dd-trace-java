@@ -62,22 +62,22 @@ public final class KafkaConsumerInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isMethod()
             .and(isPublic())
             .and(named("records"))
             .and(takesArgument(0, String.class))
             .and(returns(Iterable.class)),
         KafkaConsumerInstrumentation.class.getName() + "$IterableAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod()
             .and(isPublic())
             .and(named("records"))
             .and(takesArgument(0, named("org.apache.kafka.common.TopicPartition")))
             .and(returns(List.class)),
         KafkaConsumerInstrumentation.class.getName() + "$ListAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod()
             .and(isPublic())
             .and(named("iterator"))
@@ -99,8 +99,11 @@ public final class KafkaConsumerInstrumentation extends Instrumenter.Tracing
         String clusterId =
             KafkaConsumerInstrumentationHelper.extractClusterId(
                 kafkaConsumerInfo, InstrumentationContext.get(Metadata.class, String.class));
+        String bootstrapServers =
+            KafkaConsumerInstrumentationHelper.extractBootstrapServers(kafkaConsumerInfo);
         iterable =
-            new TracingIterable(iterable, KAFKA_CONSUME, CONSUMER_DECORATE, group, clusterId);
+            new TracingIterable(
+                iterable, KAFKA_CONSUME, CONSUMER_DECORATE, group, clusterId, bootstrapServers);
       }
     }
   }
@@ -118,7 +121,11 @@ public final class KafkaConsumerInstrumentation extends Instrumenter.Tracing
         String clusterId =
             KafkaConsumerInstrumentationHelper.extractClusterId(
                 kafkaConsumerInfo, InstrumentationContext.get(Metadata.class, String.class));
-        iterable = new TracingList(iterable, KAFKA_CONSUME, CONSUMER_DECORATE, group, clusterId);
+        String bootstrapServers =
+            KafkaConsumerInstrumentationHelper.extractBootstrapServers(kafkaConsumerInfo);
+        iterable =
+            new TracingList(
+                iterable, KAFKA_CONSUME, CONSUMER_DECORATE, group, clusterId, bootstrapServers);
       }
     }
   }
@@ -136,8 +143,11 @@ public final class KafkaConsumerInstrumentation extends Instrumenter.Tracing
         String clusterId =
             KafkaConsumerInstrumentationHelper.extractClusterId(
                 kafkaConsumerInfo, InstrumentationContext.get(Metadata.class, String.class));
+        String bootstrapServers =
+            KafkaConsumerInstrumentationHelper.extractBootstrapServers(kafkaConsumerInfo);
         iterator =
-            new TracingIterator(iterator, KAFKA_CONSUME, CONSUMER_DECORATE, group, clusterId);
+            new TracingIterator(
+                iterator, KAFKA_CONSUME, CONSUMER_DECORATE, group, clusterId, bootstrapServers);
       }
     }
   }

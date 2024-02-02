@@ -193,11 +193,8 @@ public class CapturedContext implements ValueReferenceResolver {
     if (values == null) {
       return;
     }
-    if (arguments == null) {
-      arguments = new HashMap<>();
-    }
     for (CapturedValue value : values) {
-      arguments.put(value.name, value);
+      putInArguments(value.name, value);
     }
   }
 
@@ -205,11 +202,8 @@ public class CapturedContext implements ValueReferenceResolver {
     if (values == null) {
       return;
     }
-    if (locals == null) {
-      locals = new HashMap<>();
-    }
     for (CapturedValue value : values) {
-      locals.put(value.name, value);
+      putInLocals(value.name, value);
     }
   }
 
@@ -217,15 +211,15 @@ public class CapturedContext implements ValueReferenceResolver {
     if (retValue == null) {
       return;
     }
-    if (locals == null) {
-      locals = new HashMap<>();
-    }
-    locals.put(ValueReferences.RETURN_REF, retValue); // special local name for the return value
+    // special local name for the return value
+    putInLocals(ValueReferences.RETURN_REF, retValue);
     extensions.put(ValueReferences.RETURN_EXTENSION_NAME, retValue);
   }
 
   public void addThrowable(Throwable t) {
     addThrowable(new CapturedThrowable(t));
+    // special local name for throwable
+    putInLocals(ValueReferences.EXCEPTION_REF, CapturedValue.of(t.getClass().getTypeName(), t));
     extensions.put(ValueReferences.EXCEPTION_EXTENSION_NAME, t);
   }
 
@@ -237,11 +231,8 @@ public class CapturedContext implements ValueReferenceResolver {
     if (values == null) {
       return;
     }
-    if (staticFields == null) {
-      staticFields = new HashMap<>();
-    }
     for (CapturedValue value : values) {
-      staticFields.put(value.name, value);
+      putInStaticFields(value.name, value);
     }
   }
 
@@ -249,17 +240,17 @@ public class CapturedContext implements ValueReferenceResolver {
     if (values == null) {
       return;
     }
-    if (fields == null) {
-      fields = new HashMap<>();
-    }
     for (CapturedValue value : values) {
-      fields.put(value.name, value);
+      putInFields(value.name, value);
     }
     traceId = extractSpecialId("dd.trace_id");
     spanId = extractSpecialId("dd.span_id");
   }
 
   private String extractSpecialId(String idName) {
+    if (fields == null) {
+      return null;
+    }
     CapturedValue capturedValue = fields.get(idName);
     if (capturedValue == null) {
       return null;
@@ -389,6 +380,34 @@ public class CapturedContext implements ValueReferenceResolver {
         + ", fields="
         + fields
         + '}';
+  }
+
+  private void putInLocals(String name, CapturedValue value) {
+    if (locals == null) {
+      locals = new HashMap<>();
+    }
+    locals.put(name, value);
+  }
+
+  private void putInArguments(String name, CapturedValue value) {
+    if (arguments == null) {
+      arguments = new HashMap<>();
+    }
+    arguments.put(name, value);
+  }
+
+  private void putInFields(String name, CapturedValue value) {
+    if (fields == null) {
+      fields = new HashMap<>();
+    }
+    fields.put(name, value);
+  }
+
+  private void putInStaticFields(String name, CapturedValue value) {
+    if (staticFields == null) {
+      staticFields = new HashMap<>();
+    }
+    staticFields.put(name, value);
   }
 
   public static class Status {

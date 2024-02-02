@@ -25,8 +25,8 @@ public class ReaderInterceptorExecutorInstrumentation extends Instrumenter.Iast
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         named("getInputStream").and(takesArguments(0)),
         getClass().getName() + "$InstrumenterAdvice");
   }

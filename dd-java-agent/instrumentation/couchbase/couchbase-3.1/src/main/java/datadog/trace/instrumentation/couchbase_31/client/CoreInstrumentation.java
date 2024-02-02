@@ -54,8 +54,8 @@ public class CoreInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isConstructor().and(takesArgument(2, named("java.util.Set"))),
         CoreInstrumentation.class.getName() + "$CoreConstructorAdvice");
   }

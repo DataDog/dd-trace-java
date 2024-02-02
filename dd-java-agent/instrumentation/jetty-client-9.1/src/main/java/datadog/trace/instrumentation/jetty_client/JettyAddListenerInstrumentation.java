@@ -39,26 +39,26 @@ public class JettyAddListenerInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isMethod()
             .and(isPublic())
             .and(named("listener"))
             .and(takesArgument(0, named("org.eclipse.jetty.client.api.Request$RequestListener"))),
         JettyAddListenerInstrumentation.class.getName() + "$WrapRequestListener");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod()
             .and(isPublic())
             .and(named("onSuccess"))
             .and(takesArgument(0, named("org.eclipse.jetty.client.api.Request$SuccessListener"))),
         JettyAddListenerInstrumentation.class.getName() + "$WrapRequestSuccessListener");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod()
             .and(isPublic())
             .and(named("onFailure"))
             .and(takesArgument(0, named("org.eclipse.jetty.client.api.Request$FailureListener"))),
         JettyAddListenerInstrumentation.class.getName() + "$WrapRequestFailureListener");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod()
             .and(isPublic())
             .and(named("onComplete"))

@@ -16,13 +16,17 @@ import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import jakarta.ws.rs.container.AsyncResponse;
 import java.lang.reflect.Method;
+import java.util.Collection;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
@@ -35,6 +39,20 @@ public final class JakartaRsAnnotationsInstrumentation extends Instrumenter.Trac
 
   public JakartaRsAnnotationsInstrumentation() {
     super("jakarta-rs", "jakartars", "jakarta-rs-annotations");
+  }
+
+  private Collection<String> getJaxRsAnnotations() {
+    final Set<String> ret = new HashSet<>();
+    ret.add("jakarta.ws.rs.Path");
+    ret.add("jakarta.ws.rs.DELETE");
+    ret.add("jakarta.ws.rs.GET");
+    ret.add("jakarta.ws.rs.HEAD");
+    ret.add("jakarta.ws.rs.OPTIONS");
+    ret.add("jakarta.ws.rs.POST");
+    ret.add("jakarta.ws.rs.PUT");
+    ret.add("jakarta.ws.rs.PATCH");
+    ret.addAll(InstrumenterConfig.get().getAdditionalJaxRsAnnotations());
+    return ret;
   }
 
   @Override
@@ -64,20 +82,9 @@ public final class JakartaRsAnnotationsInstrumentation extends Instrumenter.Trac
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
-        isMethod()
-            .and(
-                hasSuperMethod(
-                    isAnnotatedWith(
-                        namedOneOf(
-                            "jakarta.ws.rs.Path",
-                            "jakarta.ws.rs.DELETE",
-                            "jakarta.ws.rs.GET",
-                            "jakarta.ws.rs.HEAD",
-                            "jakarta.ws.rs.OPTIONS",
-                            "jakarta.ws.rs.POST",
-                            "jakarta.ws.rs.PUT")))),
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
+        isMethod().and(hasSuperMethod(isAnnotatedWith(namedOneOf(getJaxRsAnnotations())))),
         JakartaRsAnnotationsInstrumentation.class.getName() + "$JakartaRsAnnotationsAdvice");
   }
 

@@ -45,7 +45,7 @@ class CiTestCycleMapperV1PayloadTest extends DDSpecification {
     setup:
     List<List<TraceGenerator.PojoSpan>> traces = generateRandomTraces(traceCount, lowCardinality)
     WellKnownTags wellKnownTags = new WellKnownTags("runtimeid", "hostname", "my-env", "service", "version", "language")
-    CiTestCycleMapperV1 mapper = new CiTestCycleMapperV1(wellKnownTags)
+    CiTestCycleMapperV1 mapper = new CiTestCycleMapperV1(wellKnownTags, false)
     PayloadVerifier verifier = new PayloadVerifier(wellKnownTags, traces, mapper)
     MsgPackWriter packer = new MsgPackWriter(new FlushingBuffer(bufferSize, verifier))
     when:
@@ -178,7 +178,7 @@ class CiTestCycleMapperV1PayloadTest extends DDSpecification {
     List<TraceGenerator.PojoSpan> trace = Collections.singletonList(span)
 
     WellKnownTags wellKnownTags = new WellKnownTags("runtimeid", "hostname", "my-env", "service", "version", "language")
-    CiTestCycleMapperV1 mapper = new CiTestCycleMapperV1(wellKnownTags)
+    CiTestCycleMapperV1 mapper = new CiTestCycleMapperV1(wellKnownTags, false)
 
     ByteBufferConsumer consumer = new CaptureConsumer()
     MsgPackWriter packer = new MsgPackWriter(new FlushingBuffer(100 << 10, consumer))

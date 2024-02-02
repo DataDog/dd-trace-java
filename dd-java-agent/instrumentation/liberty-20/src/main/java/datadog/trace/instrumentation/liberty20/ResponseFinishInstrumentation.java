@@ -49,11 +49,11 @@ public class ResponseFinishInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         named("finish").and(takesNoArguments()),
         ResponseFinishInstrumentation.class.getName() + "$ResponseFinishAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         named("closeResponseOutput").and(takesArguments(1)).and(takesArgument(0, boolean.class)),
         ResponseFinishInstrumentation.class.getName() + "$SetCompletedAdvice");
   }

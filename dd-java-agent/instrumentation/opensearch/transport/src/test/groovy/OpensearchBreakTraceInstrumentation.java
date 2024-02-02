@@ -13,7 +13,7 @@ public class OpensearchBreakTraceInstrumentation extends TestInstrumentation {
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(named("executeLocally"), ShadowExistingScopeAdvice.class.getName());
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(named("executeLocally"), ShadowExistingScopeAdvice.class.getName());
   }
 }

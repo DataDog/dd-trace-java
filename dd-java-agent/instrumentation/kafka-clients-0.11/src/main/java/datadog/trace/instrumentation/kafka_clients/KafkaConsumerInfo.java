@@ -7,15 +7,18 @@ import org.apache.kafka.clients.Metadata;
 public class KafkaConsumerInfo {
   private final String consumerGroup;
   private final Metadata clientMetadata;
+  private final String bootstrapServers;
 
-  public KafkaConsumerInfo(String consumerGroup, Metadata clientMetadata) {
+  public KafkaConsumerInfo(String consumerGroup, Metadata clientMetadata, String bootstrapServers) {
     this.consumerGroup = consumerGroup;
     this.clientMetadata = clientMetadata;
+    this.bootstrapServers = bootstrapServers;
   }
 
-  public KafkaConsumerInfo(String consumerGroup) {
+  public KafkaConsumerInfo(String consumerGroup, String bootstrapServers) {
     this.consumerGroup = consumerGroup;
     this.clientMetadata = null;
+    this.bootstrapServers = bootstrapServers;
   }
 
   @Nullable
@@ -26,6 +29,11 @@ public class KafkaConsumerInfo {
   @Nullable
   public Metadata getClientMetadata() {
     return clientMetadata;
+  }
+
+  @Nullable
+  public String getBootstrapServers() {
+    return bootstrapServers;
   }
 
   @Override

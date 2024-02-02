@@ -36,8 +36,8 @@ public class HttpInboundServiceContextImplInstrumentation extends Instrumenter.A
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isPublic()
             .and(namedOneOf("sendResponseBody", "finishResponseMessage"))
             .and(takesArguments(1))

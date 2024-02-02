@@ -44,7 +44,7 @@ _Recovery:_ Manually trigger the action again on the relevant tag.
 
 ## increment-milestones-on-tag [🔗](increment-milestones-on-tag.yaml)
 
-_Trigger:_ When creating a tag.
+_Trigger:_ When creating a tag. Release Candidate tags containing "-RC" or "-rc" will skip this.
 
 _Actions:_
 * Close the milestone related to the tag,
@@ -67,7 +67,7 @@ _Notes:_ _Download releases_ are special GitHub releases with fixed URL and tags
 
 ## update-issues-on-release [🔗](update-issues-on-release.yaml)
 
-_Trigger:_ When a release is published.
+_Trigger:_ When a release is published. Releases of type `prereleased` should skip this.
 
 _Action:_
 * Find all issues related to the release by checking the related milestone,
@@ -78,6 +78,12 @@ _Recovery:_ Check at the milestone for the related issues and update them manual
 
 ## Code Quality and Security
 
+### ci-static-analysis [🔗](ci-static-analysis.yml)
+
+_Trigger:_ When pushing commits to `master` or any pull request to `master`.
+
+_Actions:_ Run [DataDog Static Analysis](https://docs.datadoghq.com/static_analysis/) and upload result to DataDog Code Analysis.
+
 ### comment-on-submodule-update [🔗](comment-on-submodule-update.yaml)
 
 _Trigger:_ When creating a PR commits to `master` or a `release/*` branch with a Git Submodule update.
@@ -86,9 +92,9 @@ _Action:_ Notify the PR author through comments that about the Git Submodule upd
 
 ### codeql-analysis [🔗](codeql-analysis.yml)
 
-_Trigger:_ When pushing commits to `master` or any pull request to `master`.
+_Trigger:_ When pushing commits to `master`.
 
-_Action:_ Run GitHub CodeQL action and upload result to GitHub security tab.
+_Action:_ Run GitHub CodeQL action, upload result to GitHub security tab and DataDog Code Analysis.
 
 ### trivy-analysis [🔗](trivy-analysis.yml)
 

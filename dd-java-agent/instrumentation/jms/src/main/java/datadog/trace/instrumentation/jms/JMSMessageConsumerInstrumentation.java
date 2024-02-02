@@ -72,17 +72,17 @@ public final class JMSMessageConsumerInstrumentation extends Instrumenter.Tracin
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         named("receive").and(takesArguments(0).or(takesArguments(1))).and(isPublic()),
         JMSMessageConsumerInstrumentation.class.getName() + "$ConsumerAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         named("receiveNoWait").and(takesArguments(0)).and(isPublic()),
         JMSMessageConsumerInstrumentation.class.getName() + "$ConsumerAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         named("close").and(takesArguments(0)).and(isPublic()),
         JMSMessageConsumerInstrumentation.class.getName() + "$Close");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod()
             .and(named("setMessageListener"))
             .and(takesArgument(0, hasInterface(named("javax.jms.MessageListener")))),

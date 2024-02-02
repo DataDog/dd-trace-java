@@ -22,8 +22,8 @@ public class JSONObjectUtilsInstrumentation extends Instrumenter.Iast
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         named("parse").and(isPublic().and(takesArguments(String.class))),
         JSONObjectUtilsInstrumentation.class.getName() + "$InstrumenterAdvice");
   }

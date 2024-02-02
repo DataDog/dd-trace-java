@@ -14,6 +14,11 @@ public class NeverRetry implements TestRetryPolicy {
   }
 
   @Override
+  public boolean suppressFailures() {
+    return false;
+  }
+
+  @Override
   public boolean retry(boolean successful) {
     return false;
   }

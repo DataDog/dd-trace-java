@@ -24,8 +24,8 @@ public class SqsJmsMessageInstrumentation extends AbstractSqsInstrumentation
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isConstructor().and(takesArgument(2, named("com.amazonaws.services.sqs.model.Message"))),
         getClass().getName() + "$CopyTracePropertyAdvice");
   }

@@ -53,6 +53,7 @@ excludedClassesCoverage += [
   "datadog.trace.bootstrap.instrumentation.api.Tags",
   "datadog.trace.bootstrap.instrumentation.api.CommonTagValues",
   // Caused by empty 'default' interface method
+  "datadog.trace.bootstrap.instrumentation.api.AgentSpan",
   "datadog.trace.bootstrap.instrumentation.api.AgentSpan.Context",
   "datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopAgentPropagation",
   "datadog.trace.bootstrap.instrumentation.api.AgentTracer",
@@ -80,6 +81,9 @@ excludedClassesCoverage += [
   "datadog.trace.bootstrap.instrumentation.api.ForwardedTagContext",
   "datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities",
   "datadog.trace.bootstrap.instrumentation.api.ErrorPriorities",
+  "datadog.trace.bootstrap.instrumentation.api.ScopedContext",
+  "datadog.trace.bootstrap.instrumentation.api.ScopedContextKey",
+  "datadog.trace.bootstrap.instrumentation.api.Baggage",
   'datadog.trace.api.civisibility.config.Configurations',
   "datadog.trace.api.civisibility.config.ModuleExecutionSettings",
   "datadog.trace.api.civisibility.config.TestIdentifier",

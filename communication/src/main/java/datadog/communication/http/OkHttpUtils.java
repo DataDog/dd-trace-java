@@ -18,6 +18,7 @@ import java.nio.ByteBuffer;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import javax.annotation.Nullable;
 import okhttp3.ConnectionPool;
 import okhttp3.ConnectionSpec;
 import okhttp3.Credentials;
@@ -43,6 +44,7 @@ public final class OkHttpUtils {
   private static final String DATADOG_META_LANG_INTERPRETER_VENDOR =
       "Datadog-Meta-Lang-Interpreter-Vendor";
   private static final String DATADOG_CONTAINER_ID = "Datadog-Container-ID";
+  private static final String DATADOG_ENTITY_ID = "Datadog-Entity-ID";
 
   private static final String DD_API_KEY = "DD-API-KEY";
 
@@ -183,8 +185,12 @@ public final class OkHttpUtils {
             .addHeader(DATADOG_META_LANG_INTERPRETER_VENDOR, JAVA_VM_VENDOR);
 
     final String containerId = ContainerInfo.get().getContainerId();
+    final String entityId = ContainerInfo.getEntityId();
     if (containerId != null) {
       builder.addHeader(DATADOG_CONTAINER_ID, containerId);
+    }
+    if (entityId != null) {
+      builder.addHeader(DATADOG_ENTITY_ID, entityId);
     }
 
     for (Map.Entry<String, String> e : headers.entrySet()) {
@@ -217,6 +223,10 @@ public final class OkHttpUtils {
 
   public static RequestBody gzippedMsgpackRequestBodyOf(List<ByteBuffer> buffers) {
     return new GZipByteBufferRequestBody(buffers);
+  }
+
+  public static RequestBody gzippedRequestBodyOf(RequestBody delegate) {
+    return new GZipRequestBodyDecorator(delegate);
   }
 
   public static RequestBody jsonRequestBodyOf(byte[] json) {
@@ -299,6 +309,32 @@ public final class OkHttpUtils {
 
       super.writeTo(gzipSink);
 
+      gzipSink.close();
+    }
+  }
+
+  private static final class GZipRequestBodyDecorator extends RequestBody {
+    private final RequestBody delegate;
+
+    private GZipRequestBodyDecorator(RequestBody delegate) {
+      this.delegate = delegate;
+    }
+
+    @Nullable
+    @Override
+    public MediaType contentType() {
+      return delegate.contentType();
+    }
+
+    @Override
+    public long contentLength() {
+      return -1;
+    }
+
+    @Override
+    public void writeTo(BufferedSink sink) throws IOException {
+      BufferedSink gzipSink = Okio.buffer(new GzipSink(sink));
+      delegate.writeTo(gzipSink);
       gzipSink.close();
     }
   }

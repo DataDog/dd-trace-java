@@ -47,8 +47,8 @@ public class NettyChannelInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isMethod()
             .and(named("connect"))
             .and(returns(named("org.jboss.netty.channel.ChannelFuture"))),

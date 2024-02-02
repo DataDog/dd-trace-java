@@ -39,8 +39,8 @@ public class MessageBodyReaderInvocationInstrumentation extends Instrumenter.App
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         named("readFrom")
             .and(takesArguments(1))
             .and(takesArgument(0, nameEndsWith(".MessageBodyReader"))),

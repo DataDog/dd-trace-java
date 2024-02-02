@@ -39,8 +39,8 @@ public final class BasicFutureInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(isConstructor(), getClass().getName() + "$StealCallback");
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(isConstructor(), getClass().getName() + "$StealCallback");
   }
 
   // TODO there are numerous cases of using context stores to access immutable private fields

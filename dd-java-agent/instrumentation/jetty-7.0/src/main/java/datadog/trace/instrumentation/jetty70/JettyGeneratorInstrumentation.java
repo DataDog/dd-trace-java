@@ -34,8 +34,8 @@ public final class JettyGeneratorInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         named("setResponse").and(takesArgument(0, int.class)),
         JettyGeneratorInstrumentation.class.getName() + "$SetResponseAdvice");
   }

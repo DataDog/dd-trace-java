@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.java.concurrent;
 
+import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils.cancelTask;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils.capture;
@@ -38,10 +39,12 @@ public class JavaForkJoinPoolInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
-        isMethod().and(namedOneOf("externalPush", "externalSubmit")),
-        getClass().getName() + "$ExternalPush");
+  public void methodAdvice(MethodTransformer transformer) {
+    String name = getClass().getName();
+    transformer.applyAdvice(
+        isMethod().and(namedOneOf("externalPush", "externalSubmit")), name + "$ExternalPush");
+    // Java 21 has a new method name and changed signature
+    transformer.applyAdvice(isMethod().and(named("poolSubmit")), name + "$PoolSubmit");
   }
 
   public static final class ExternalPush {
@@ -60,6 +63,27 @@ public class JavaForkJoinPoolInstrumentation extends Instrumenter.Tracing
     @Advice.OnMethodExit(onThrowable = Throwable.class)
     public static <T> void cleanup(
         @Advice.Argument(0) ForkJoinTask<T> task, @Advice.Thrown Throwable thrown) {
+      if (null != thrown && !exclude(FORK_JOIN_TASK, task)) {
+        cancelTask(InstrumentationContext.get(ForkJoinTask.class, State.class), task);
+      }
+    }
+  }
+
+  public static final class PoolSubmit {
+    @Advice.OnMethodEnter
+    public static <T> void poolSubmit(
+        @Advice.This ForkJoinPool pool, @Advice.Argument(1) ForkJoinTask<T> task) {
+      if (!exclude(FORK_JOIN_TASK, task)) {
+        ContextStore<ForkJoinTask, State> contextStore =
+            InstrumentationContext.get(ForkJoinTask.class, State.class);
+        capture(contextStore, task, true);
+        QueueTimerHelper.startQueuingTimer(contextStore, pool.getClass(), task);
+      }
+    }
+
+    @Advice.OnMethodExit(onThrowable = Throwable.class)
+    public static <T> void cleanup(
+        @Advice.Argument(1) ForkJoinTask<T> task, @Advice.Thrown Throwable thrown) {
       if (null != thrown && !exclude(FORK_JOIN_TASK, task)) {
         cancelTask(InstrumentationContext.get(ForkJoinTask.class, State.class), task);
       }

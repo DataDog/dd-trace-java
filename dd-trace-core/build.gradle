@@ -33,7 +33,9 @@ excludedClassesCoverage += [
   'datadog.trace.core.propagation.HttpCodec.Extractor',
   'datadog.trace.core.flare.*',
   // FIXME(DSM): test coverage needed
-  'datadog.trace.core.datastreams.DataStreamContextInjector'
+  'datadog.trace.core.datastreams.DataStreamContextInjector',
+  'datadog.trace.common.sampling.TraceSamplingRules.RuleAdapter',
+  'datadog.trace.common.sampling.SpanSamplingRules.RuleAdapter',
 ]
 
 addTestSuite('traceAgentTest')
@@ -49,6 +51,8 @@ dependencies {
   api project(':internal-api')
   implementation project(':utils:container-utils')
   implementation project(':utils:socket-utils')
+  // for span exception debugging
+  implementation project(':dd-java-agent:agent-debugger:debugger-bootstrap')
 
   implementation deps.slf4j
   implementation deps.moshi

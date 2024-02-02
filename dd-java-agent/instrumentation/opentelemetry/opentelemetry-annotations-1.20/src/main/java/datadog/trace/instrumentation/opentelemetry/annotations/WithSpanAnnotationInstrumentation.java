@@ -46,7 +46,7 @@ public final class WithSpanAnnotationInstrumentation extends Instrumenter.Tracin
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
+  public void methodAdvice(MethodTransformer transformer) {
     ElementMatcher.Junction<MethodDescription> annotatedMethodMatcher =
         isAnnotatedWith(named(hierarchyMarkerType()));
     ElementMatcher.Junction<MethodDescription> annotatedParametersMatcher =
@@ -55,11 +55,11 @@ public final class WithSpanAnnotationInstrumentation extends Instrumenter.Tracin
                 isAnnotatedWith(
                     named("io.opentelemetry.instrumentation.annotations.SpanAttribute"))));
     // Apply transformation without parameter capture
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         annotatedMethodMatcher.and(not(annotatedParametersMatcher)),
         this.packageName + ".WithSpanAdvice");
     // Apply transformation with parameter capture
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         annotatedMethodMatcher.and(annotatedParametersMatcher),
         this.packageName + ".WithSpanAttributeAdvice");
   }
