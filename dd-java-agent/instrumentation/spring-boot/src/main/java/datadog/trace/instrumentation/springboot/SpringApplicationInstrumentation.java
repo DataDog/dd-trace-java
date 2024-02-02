@@ -7,7 +7,7 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.api.Config;
 import net.bytebuddy.asm.Advice;
-import org.springframework.context.ConfigurableApplicationContext;
+import org.springframework.core.env.ConfigurableEnvironment;
 
 /**
  * This instrumentation only applies to SpringApplication being run as a jar because when deployed
@@ -30,30 +30,25 @@ public class SpringApplicationInstrumentation extends Instrumenter.Tracing
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         named("environmentPrepared")
-            .and(
-                takesArgument(
-                    0, named("org.springframework.context.ConfigurableApplicationContext"))),
+            .and(takesArgument(0, named("org.springframework.core.env.ConfigurableEnvironment"))),
         getClass().getName() + "$EnvironmentReadyV1Advice");
     // >= 2.4.0
     transformer.applyAdvice(
         named("environmentPrepared")
-            .and(
-                takesArgument(
-                    1, named("org.springframework.context.ConfigurableApplicationContext"))),
+            .and(takesArgument(1, named("org.springframework.core.env.ConfigurableEnvironment"))),
         getClass().getName() + "$EnvironmentReadyV2Advice");
   }
 
   public static class EnvironmentReadyV1Advice {
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static void before(
-        @Advice.Argument(0) final ConfigurableApplicationContext applicationContext) {
-      if (!Config.get().getServiceNaming().isMutable()
-          || applicationContext == null
-          || applicationContext.getEnvironment() == null) {
+    @Advice.OnMethodExit(suppress = Throwable.class)
+    public static void afterEnvironmentPostProcessed(
+        @Advice.Argument(0) final ConfigurableEnvironment environment) {
+      if (environment == null || !Config.get().getServiceNaming().isMutable()) {
         return;
       }
-      final String applicationName =
-          applicationContext.getEnvironment().getProperty("spring.application.name");
+
+      final String applicationName = environment.getProperty("spring.application.name");
+      System.err.println("APP NAME " + applicationName);
       if (applicationName != null && !applicationName.isEmpty()) {
         Config.get().getServiceNaming().update(applicationName);
       }
@@ -61,16 +56,13 @@ public class SpringApplicationInstrumentation extends Instrumenter.Tracing
   }
 
   public static class EnvironmentReadyV2Advice {
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static void before(
-        @Advice.Argument(1) final ConfigurableApplicationContext applicationContext) {
-      if (!Config.get().getServiceNaming().isMutable()
-          || applicationContext == null
-          || applicationContext.getEnvironment() == null) {
+    @Advice.OnMethodExit(suppress = Throwable.class)
+    public static void afterEnvironmentPostProcessed(
+        @Advice.Argument(1) final ConfigurableEnvironment environment) {
+      if (environment == null || !Config.get().getServiceNaming().isMutable()) {
         return;
       }
-      final String applicationName =
-          applicationContext.getEnvironment().getProperty("spring.application.name");
+      final String applicationName = environment.getProperty("spring.application.name");
       if (applicationName != null && !applicationName.isEmpty()) {
         Config.get().getServiceNaming().update(applicationName);
       }

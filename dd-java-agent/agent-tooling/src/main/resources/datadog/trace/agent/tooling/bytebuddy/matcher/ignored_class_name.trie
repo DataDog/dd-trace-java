@@ -257,6 +257,7 @@
 0 org.springframework.beans.factory.support.AbstractBeanFactory
 0 org.springframework.beans.factory.support.DefaultListableBeanFactory
 0 org.springframework.beans.factory.support.DisposableBeanAdapter
+0 org.springframework.boot.SpringApplicationRunListeners
 1 org.springframework.boot.SpringApplicationShutdownHook$Handlers
 1 org.springframework.boot.autoconfigure.ssl.FileWatcher$WatcherThread
 2 org.springframework.boot.*
