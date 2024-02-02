@@ -39,6 +39,11 @@ public final class FutureResponseListenerInstrumentation extends Instrumenter.Tr
   }
 
   @Override
+  public String muzzleDirective() {
+    return "listener";
+  }
+
+  @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isConstructor()

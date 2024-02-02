@@ -50,6 +50,11 @@ public class JettyClientInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
+  public String muzzleDirective() {
+    return "client";
+  }
+
+  @Override
   public Map<String, String> contextStore() {
     return singletonMap("org.eclipse.jetty.client.api.Request", AgentSpan.class.getName());
   }

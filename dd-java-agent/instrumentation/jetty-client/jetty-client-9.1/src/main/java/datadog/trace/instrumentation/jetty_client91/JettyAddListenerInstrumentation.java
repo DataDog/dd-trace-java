@@ -40,6 +40,11 @@ public class JettyAddListenerInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
+  public String muzzleDirective() {
+    return "listener";
+  }
+
+  @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod()

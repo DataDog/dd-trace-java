@@ -6,6 +6,7 @@ muzzle {
     group = "org.eclipse.jetty"
     module = "jetty-client"
     versions = "[10,12)"
+    javaVersion = "11"
   }
   fail {
     group = "org.eclipse.jetty"

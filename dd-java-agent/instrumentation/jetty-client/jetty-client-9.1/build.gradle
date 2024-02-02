@@ -4,11 +4,26 @@ muzzle {
    * is compiled with Java 11, so we can't validate with muzzle which uses Java 8.
    */
   pass {
+    name = "client"
+    group = "org.eclipse.jetty"
+    module = "jetty-client"
+    versions = "[9.1,10)"
+  }
+  pass {
+    name = "listener"
     group = "org.eclipse.jetty"
     module = "jetty-client"
     versions = "[9.1,10)"
   }
   fail {
+    name = "client"
+    group = "org.eclipse.jetty"
+    module = "jetty-client"
+    versions = "[10,12)"
+    javaVersion = "11"
+  }
+  pass {
+    name = "listener"
     group = "org.eclipse.jetty"
     module = "jetty-client"
     versions = "[10,12)"
@@ -19,6 +34,7 @@ muzzle {
     module = "jetty-client"
     versions = "[,9.1)"
   }
+
   fail {
     group = "org.eclipse.jetty"
     module = "jetty-client"
