@@ -326,6 +326,7 @@ import static datadog.trace.api.config.RemoteConfigConfig.REMOTE_CONFIG_POLL_INT
 import static datadog.trace.api.config.RemoteConfigConfig.REMOTE_CONFIG_TARGETS_KEY;
 import static datadog.trace.api.config.RemoteConfigConfig.REMOTE_CONFIG_TARGETS_KEY_ID;
 import static datadog.trace.api.config.RemoteConfigConfig.REMOTE_CONFIG_URL;
+import static datadog.trace.api.config.TraceInstrumentationConfig.AXIS_PROMOTE_RESOURCE_NAME;
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_HOST;
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_INSTANCE;
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_INSTANCE_TYPE_SUFFIX;
@@ -897,6 +898,7 @@ public class Config {
   private final boolean sparkTaskHistogramEnabled;
   private final boolean jaxRsExceptionAsErrorsEnabled;
 
+  private final boolean axisPromoteResourceName;
   private final float traceFlushIntervalSeconds;
 
   private final boolean telemetryDebugRequestsEnabled;
@@ -1975,6 +1977,8 @@ public class Config {
         configProvider.getBoolean(
             JAX_RS_EXCEPTION_AS_ERROR_ENABLED,
             ConfigDefaults.DEFAULT_JAX_RS_EXCEPTION_AS_ERROR_ENABLED);
+
+    axisPromoteResourceName = configProvider.getBoolean(AXIS_PROMOTE_RESOURCE_NAME, false);
 
     this.traceFlushIntervalSeconds =
         configProvider.getFloat(
@@ -3295,6 +3299,10 @@ public class Config {
     return jaxRsExceptionAsErrorsEnabled;
   }
 
+  public boolean isAxisPromoteResourceName() {
+    return axisPromoteResourceName;
+  }
+
   /** @return A map of tags to be applied only to the local application root span. */
   public Map<String, Object> getLocalRootSpanTags() {
     final Map<String, String> runtimeTags = getRuntimeTags();
@@ -4357,6 +4365,8 @@ public class Config {
         + sparkTaskHistogramEnabled
         + ", jaxRsExceptionAsErrorsEnabled="
         + jaxRsExceptionAsErrorsEnabled
+        + ", axisPromoteResourceName="
+        + axisPromoteResourceName
         + ", peerServiceDefaultsEnabled="
         + peerServiceDefaultsEnabled
         + ", peerServiceComponentOverrides="
