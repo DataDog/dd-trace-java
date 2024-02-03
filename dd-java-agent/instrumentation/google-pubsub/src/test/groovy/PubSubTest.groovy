@@ -38,10 +38,6 @@ import spock.lang.Shared
 
 import java.nio.charset.StandardCharsets
 import java.util.concurrent.CountDownLatch
-import java.util.function.Function
-import java.util.function.ToDoubleFunction
-import java.util.function.ToIntFunction
-import java.util.function.ToLongFunction
 
 abstract class PubSubTest extends VersionedNamingTestBase {
   private static final String PROJECT_ID = "dd-trace-java"
@@ -168,7 +164,6 @@ abstract class PubSubTest extends VersionedNamingTestBase {
     latch.await()
 
     then:
-    def sendSpan
     assertTraces(shadowGrpcSpans() ? 2 : 4, [
       compare            : { List<DDSpan> o1, List<DDSpan> o2 ->
         // trace will never be empty
@@ -199,7 +194,7 @@ abstract class PubSubTest extends VersionedNamingTestBase {
         if (!shadowGrpcSpans()) {
           grpcSpans(it)
         }
-        sendSpan = span(1)
+        span(1)
       }
       if (!shadowGrpcSpans()) {
         // Acknowledge

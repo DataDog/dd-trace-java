@@ -141,9 +141,8 @@ abstract class CiVisibilityTestUtils {
           ctx.map(dynamicPath.path, (currentValue, config) -> {
             if (dynamicPath.unique) {
               return uniqueValues.computeIfAbsent(currentValue, (k) -> label.forTemplateKey(dynamicPath.rawPath))
-            } else {
-              return label.forTemplateKey(dynamicPath.rawPath)
             }
+            return label.forTemplateKey(dynamicPath.rawPath)
           })
         }
 
