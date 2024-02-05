@@ -4,7 +4,6 @@ import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.util.Strings;
 import java.io.InputStream;
 import java.lang.invoke.MethodHandle;
-import java.lang.invoke.MethodHandles;
 import java.lang.reflect.Method;
 import java.net.URL;
 import java.util.ArrayList;
@@ -26,18 +25,14 @@ import org.testng.xml.XmlTest;
 
 public abstract class TestNGUtils {
 
-  private static final MethodHandle XML_TEST_GET_PARALLEL = accessGetParallel();
+  private static final datadog.trace.util.MethodHandles METHOD_HANDLES =
+      new datadog.trace.util.MethodHandles(TestNG.class.getClassLoader());
 
-  private static MethodHandle accessGetParallel() {
-    try {
-      Method getParallel = XmlTest.class.getMethod("getParallel");
-      MethodHandles.Lookup lookup = MethodHandles.lookup();
-      return lookup.unreflect(getParallel);
+  private static final MethodHandle XML_TEST_GET_PARALLEL =
+      METHOD_HANDLES.method(XmlTest.class, "getParallel");
 
-    } catch (Exception e) {
-      return null;
-    }
-  }
+  private static final MethodHandle TEST_RESULT_WAS_RETRIED =
+      METHOD_HANDLES.method(ITestResult.class, "wasRetried");
 
   public static Class<?> getTestClass(final ITestResult result) {
     IClass testClass = result.getTestClass();
@@ -162,10 +157,7 @@ public abstract class TestNGUtils {
       // has different return type in different versions,
       // and if the method is invoked directly,
       // the instrumentation will not get past Muzzle checks
-      Object parallel =
-          XML_TEST_GET_PARALLEL != null
-              ? XML_TEST_GET_PARALLEL.invoke(testClass.getXmlTest())
-              : null;
+      Object parallel = METHOD_HANDLES.invoke(XML_TEST_GET_PARALLEL, testClass.getXmlTest());
       return parallel != null
           && ("methods".equals(parallel.toString()) || "tests".equals(parallel.toString()));
     } catch (Throwable e) {
@@ -214,6 +206,14 @@ public abstract class TestNGUtils {
 
     } catch (Exception e) {
       return null;
+    }
+  }
+
+  public static boolean wasRetried(ITestResult result) {
+    try {
+      return METHOD_HANDLES.invoke(TEST_RESULT_WAS_RETRIED, result);
+    } catch (Throwable e) {
+      return false;
     }
   }
 }
