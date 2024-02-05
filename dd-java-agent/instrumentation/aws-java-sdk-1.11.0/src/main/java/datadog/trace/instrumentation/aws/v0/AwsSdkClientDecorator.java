@@ -1,11 +1,15 @@
 package datadog.trace.instrumentation.aws.v0;
 
 import static datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities.RPC_COMMAND_NAME;
+import static datadog.trace.bootstrap.instrumentation.api.URIUtils.urlFileName;
+import static datadog.trace.core.datastreams.TagsProcessor.*;
+import static datadog.trace.core.datastreams.TagsProcessor.TYPE_TAG;
 
 import com.amazonaws.AmazonWebServiceRequest;
 import com.amazonaws.AmazonWebServiceResponse;
 import com.amazonaws.Request;
 import com.amazonaws.Response;
+import com.amazonaws.http.HttpMethodName;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.cache.DDCache;
@@ -21,6 +25,7 @@ import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator;
 import java.net.URI;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.regex.Matcher;
@@ -123,6 +128,22 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
       span.setTag(InstrumentationTags.BUCKET_NAME, bucketName);
       bestPrecursor = InstrumentationTags.AWS_BUCKET_NAME;
       bestPeerService = bucketName;
+
+      HttpMethodName httpMethod = request.getHttpMethod();
+      if (httpMethod == HttpMethodName.GET) {
+        LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>();
+        sortedTags.put(DIRECTION_TAG, DIRECTION_IN);
+        sortedTags.put(TOPIC_TAG, bucketName);
+        sortedTags.put(TYPE_TAG, "s3");
+        AgentTracer.get().getDataStreamsMonitoring().setCheckpoint(span, sortedTags, 0, 0);
+      }
+      else if (httpMethod == HttpMethodName.POST || httpMethod == HttpMethodName.PUT) {
+        LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>();
+        sortedTags.put(DIRECTION_TAG, DIRECTION_OUT);
+        sortedTags.put(TOPIC_TAG, bucketName);
+        sortedTags.put(TYPE_TAG, "s3");
+        AgentTracer.get().getDataStreamsMonitoring().setCheckpoint(span, sortedTags, 0, 0);
+      }
     }
     String queueUrl = access.getQueueUrl(originalRequest);
     if (null != queueUrl) {
