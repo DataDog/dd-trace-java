@@ -4,8 +4,8 @@ import static com.datadog.debugger.agent.Trie.reverseStr;
 import static java.util.Collections.emptyMap;
 import static org.junit.jupiter.api.Assertions.*;
 
-import com.datadog.debugger.instrumentation.ClassFileInfo;
 import com.datadog.debugger.instrumentation.InstrumentationResult;
+import com.datadog.debugger.instrumentation.MethodInfo;
 import com.datadog.debugger.probe.LogProbe;
 import com.datadog.debugger.probe.ProbeDefinition;
 import datadog.trace.bootstrap.debugger.ProbeId;
@@ -426,7 +426,7 @@ class ConfigurationComparerTest {
           new InstrumentationResult(
               InstrumentationResult.Status.INSTALLED,
               Collections.emptyMap(),
-              new ClassFileInfo(null, classNode, new MethodNode(), null)));
+              new MethodInfo(null, classNode, new MethodNode(), null)));
     }
     ConfigurationComparer configurationComparer =
         new ConfigurationComparer(empty, config, resultMap);

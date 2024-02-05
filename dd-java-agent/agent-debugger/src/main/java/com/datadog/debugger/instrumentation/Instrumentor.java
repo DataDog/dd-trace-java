@@ -53,14 +53,14 @@ public abstract class Instrumentor {
 
   public Instrumentor(
       ProbeDefinition definition,
-      ClassFileInfo classFileInfo,
+      MethodInfo methodInfo,
       List<DiagnosticMessage> diagnostics,
       List<ProbeId> probeIds) {
     this.definition = definition;
-    this.classLoader = classFileInfo.getClassLoader();
-    this.classNode = classFileInfo.getClassNode();
-    this.methodNode = classFileInfo.getMethodNode();
-    this.classFileLines = classFileInfo.getClassFileLines();
+    this.classLoader = methodInfo.getClassLoader();
+    this.classNode = methodInfo.getClassNode();
+    this.methodNode = methodInfo.getMethodNode();
+    this.classFileLines = methodInfo.getClassFileLines();
     this.diagnostics = diagnostics;
     this.probeIds = probeIds;
     Where.SourceLine[] sourceLines = definition.getWhere().getSourceLines();

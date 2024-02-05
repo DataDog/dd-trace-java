@@ -11,9 +11,9 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.datadog.debugger.instrumentation.ClassFileInfo;
 import com.datadog.debugger.instrumentation.DiagnosticMessage;
 import com.datadog.debugger.instrumentation.InstrumentationResult;
+import com.datadog.debugger.instrumentation.MethodInfo;
 import com.datadog.debugger.probe.LogProbe;
 import com.datadog.debugger.probe.MetricProbe;
 import com.datadog.debugger.probe.ProbeDefinition;
@@ -423,12 +423,12 @@ public class DebuggerTransformerTest {
 
     @Override
     public InstrumentationResult.Status instrument(
-        ClassFileInfo classFileInfo, List<DiagnosticMessage> diagnostics, List<ProbeId> probeIds) {
-      classFileInfo
+        MethodInfo methodInfo, List<DiagnosticMessage> diagnostics, List<ProbeId> probeIds) {
+      methodInfo
           .getMethodNode()
           .instructions
           .insert(
-              new VarInsnNode(Opcodes.ASTORE, classFileInfo.getMethodNode().localVariables.size()));
+              new VarInsnNode(Opcodes.ASTORE, methodInfo.getMethodNode().localVariables.size()));
       return InstrumentationResult.Status.INSTALLED;
     }
 

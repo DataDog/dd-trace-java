@@ -69,12 +69,12 @@ public class CapturedContextInstrumentor extends Instrumentor {
 
   public CapturedContextInstrumentor(
       ProbeDefinition definition,
-      ClassFileInfo classFileInfo,
+      MethodInfo methodInfo,
       List<DiagnosticMessage> diagnostics,
       List<ProbeId> probeIds,
       boolean captureSnapshot,
       Limits limits) {
-    super(definition, classFileInfo, diagnostics, probeIds);
+    super(definition, methodInfo, diagnostics, probeIds);
     this.captureSnapshot = captureSnapshot;
     this.limits = limits;
   }

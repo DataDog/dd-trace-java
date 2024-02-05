@@ -3,9 +3,9 @@ package com.datadog.debugger.agent;
 import static java.util.Collections.singletonList;
 import static java.util.stream.Collectors.toList;
 
-import com.datadog.debugger.instrumentation.ClassFileInfo;
 import com.datadog.debugger.instrumentation.DiagnosticMessage;
 import com.datadog.debugger.instrumentation.InstrumentationResult;
+import com.datadog.debugger.instrumentation.MethodInfo;
 import com.datadog.debugger.probe.LogProbe;
 import com.datadog.debugger.probe.MetricProbe;
 import com.datadog.debugger.probe.ProbeDefinition;
@@ -433,9 +433,8 @@ public class DebuggerTransformer implements ClassFileTransformer {
               methodNode.desc,
               probeIds);
         }
-        ClassFileInfo classFileInfo =
-            new ClassFileInfo(loader, classNode, methodNode, classFileLines);
-        InstrumentationResult result = applyInstrumentation(classFileInfo, definitions);
+        MethodInfo methodInfo = new MethodInfo(loader, classNode, methodNode, classFileLines);
+        InstrumentationResult result = applyInstrumentation(methodInfo, definitions);
         transformed |= result.isInstalled();
         handleInstrumentationResult(definitions, result);
       }
@@ -502,19 +501,18 @@ public class DebuggerTransformer implements ClassFileTransformer {
   }
 
   private InstrumentationResult applyInstrumentation(
-      ClassFileInfo classFileInfo, List<ProbeDefinition> definitions) {
+      MethodInfo methodInfo, List<ProbeDefinition> definitions) {
     Map<ProbeId, List<DiagnosticMessage>> diagnostics = new HashMap<>();
     definitions.forEach(
         probeDefinition -> diagnostics.put(probeDefinition.getProbeId(), new ArrayList<>()));
-    InstrumentationResult.Status status = preCheckInstrumentation(diagnostics, classFileInfo);
+    InstrumentationResult.Status status = preCheckInstrumentation(diagnostics, methodInfo);
     if (status != InstrumentationResult.Status.ERROR) {
       try {
         List<ToInstrumentInfo> toInstruments = filterAndSortDefinitions(definitions);
         for (ToInstrumentInfo toInstrumentInfo : toInstruments) {
           ProbeDefinition definition = toInstrumentInfo.definition;
           List<DiagnosticMessage> probeDiagnostics = diagnostics.get(definition.getProbeId());
-          status =
-              definition.instrument(classFileInfo, probeDiagnostics, toInstrumentInfo.probeIds);
+          status = definition.instrument(methodInfo, probeDiagnostics, toInstrumentInfo.probeIds);
         }
       } catch (Throwable t) {
         log.warn("Exception during instrumentation: ", t);
@@ -523,7 +521,7 @@ public class DebuggerTransformer implements ClassFileTransformer {
             new DiagnosticMessage(DiagnosticMessage.Kind.ERROR, t), diagnostics);
       }
     }
-    return new InstrumentationResult(status, diagnostics, classFileInfo);
+    return new InstrumentationResult(status, diagnostics, methodInfo);
   }
 
   static class ToInstrumentInfo {
@@ -579,8 +577,8 @@ public class DebuggerTransformer implements ClassFileTransformer {
   }
 
   private InstrumentationResult.Status preCheckInstrumentation(
-      Map<ProbeId, List<DiagnosticMessage>> diagnostics, ClassFileInfo classFileInfo) {
-    if ((classFileInfo.getMethodNode().access & (Opcodes.ACC_NATIVE | Opcodes.ACC_ABSTRACT)) != 0) {
+      Map<ProbeId, List<DiagnosticMessage>> diagnostics, MethodInfo methodInfo) {
+    if ((methodInfo.getMethodNode().access & (Opcodes.ACC_NATIVE | Opcodes.ACC_ABSTRACT)) != 0) {
       if (!instrumentTheWorld) {
         addDiagnosticForAllProbes(
             new DiagnosticMessage(
@@ -589,7 +587,7 @@ public class DebuggerTransformer implements ClassFileTransformer {
       }
       return InstrumentationResult.Status.ERROR;
     }
-    ClassLoader classLoader = classFileInfo.getClassLoader();
+    ClassLoader classLoader = methodInfo.getClassLoader();
     if (classLoader != null
         && classLoader.getClass().getTypeName().equals("sun.reflect.DelegatingClassLoader")) {
       // This classloader is used when using reflection. This is a special classloader known

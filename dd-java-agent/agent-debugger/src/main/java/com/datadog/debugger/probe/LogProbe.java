@@ -9,9 +9,9 @@ import com.datadog.debugger.el.EvaluationException;
 import com.datadog.debugger.el.ProbeCondition;
 import com.datadog.debugger.el.ValueScript;
 import com.datadog.debugger.instrumentation.CapturedContextInstrumentor;
-import com.datadog.debugger.instrumentation.ClassFileInfo;
 import com.datadog.debugger.instrumentation.DiagnosticMessage;
 import com.datadog.debugger.instrumentation.InstrumentationResult;
+import com.datadog.debugger.instrumentation.MethodInfo;
 import com.datadog.debugger.sink.DebuggerSink;
 import com.datadog.debugger.sink.Snapshot;
 import com.squareup.moshi.Json;
@@ -361,9 +361,9 @@ public class LogProbe extends ProbeDefinition {
 
   @Override
   public InstrumentationResult.Status instrument(
-      ClassFileInfo classFileInfo, List<DiagnosticMessage> diagnostics, List<ProbeId> probeIds) {
+      MethodInfo methodInfo, List<DiagnosticMessage> diagnostics, List<ProbeId> probeIds) {
     return new CapturedContextInstrumentor(
-            this, classFileInfo, diagnostics, probeIds, isCaptureSnapshot(), toLimits(getCapture()))
+            this, methodInfo, diagnostics, probeIds, isCaptureSnapshot(), toLimits(getCapture()))
         .instrument();
   }
 

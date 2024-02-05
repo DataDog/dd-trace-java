@@ -102,6 +102,7 @@ public class ConfigurationUpdater
   }
 
   public void reapplyCurrentConfig() {
+    // TODO make it assync
     accept(currentConfiguration);
   }
 

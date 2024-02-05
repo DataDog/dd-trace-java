@@ -37,14 +37,12 @@ public class InstrumentationResult {
   }
 
   public InstrumentationResult(
-      Status status,
-      Map<ProbeId, List<DiagnosticMessage>> diagnostics,
-      ClassFileInfo classFileInfo) {
+      Status status, Map<ProbeId, List<DiagnosticMessage>> diagnostics, MethodInfo methodInfo) {
     this(
         status,
         diagnostics,
-        classFileInfo.getClassNode().name.replace('/', '.'),
-        classFileInfo.getMethodNode().name);
+        methodInfo.getClassNode().name.replace('/', '.'),
+        methodInfo.getMethodNode().name);
   }
 
   public InstrumentationResult(

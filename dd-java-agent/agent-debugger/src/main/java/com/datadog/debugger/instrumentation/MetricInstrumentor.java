@@ -84,10 +84,10 @@ public class MetricInstrumentor extends Instrumentor {
 
   public MetricInstrumentor(
       MetricProbe metricProbe,
-      ClassFileInfo classFileInfo,
+      MethodInfo methodInfo,
       List<DiagnosticMessage> diagnostics,
       List<ProbeId> probeIds) {
-    super(metricProbe, classFileInfo, diagnostics, probeIds);
+    super(metricProbe, methodInfo, diagnostics, probeIds);
     this.metricProbe = metricProbe;
   }
 

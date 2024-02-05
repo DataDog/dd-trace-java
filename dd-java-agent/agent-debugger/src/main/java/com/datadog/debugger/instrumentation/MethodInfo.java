@@ -4,14 +4,14 @@ import com.datadog.debugger.util.ClassFileLines;
 import org.objectweb.asm.tree.ClassNode;
 import org.objectweb.asm.tree.MethodNode;
 
-/** Data class to store all information related to a classfile */
-public class ClassFileInfo {
+/** Data class to store all information related to a method (class, classloader, lines) */
+public class MethodInfo {
   private final ClassLoader classLoader;
   private final ClassNode classNode;
   private final MethodNode methodNode;
   private final ClassFileLines classFileLines;
 
-  public ClassFileInfo(
+  public MethodInfo(
       ClassLoader classLoader,
       ClassNode classNode,
       MethodNode methodNode,

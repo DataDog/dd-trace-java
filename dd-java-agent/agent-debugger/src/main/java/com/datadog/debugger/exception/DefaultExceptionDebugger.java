@@ -30,7 +30,7 @@ public class DefaultExceptionDebugger implements DebuggerContext.ExceptionDebugg
     if (exceptionProbeManager.isAlreadyInstrumented(fingerprint)) {
       // TODO trigger send snapshots already captured
     } else {
-      exceptionProbeManager.instrument(fingerprint, t.getStackTrace());
+      exceptionProbeManager.createProbesForException(fingerprint, t.getStackTrace());
       configurationUpdater.reapplyCurrentConfig();
     }
   }

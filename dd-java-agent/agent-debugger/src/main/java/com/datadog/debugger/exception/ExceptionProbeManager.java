@@ -16,7 +16,7 @@ public class ExceptionProbeManager {
 
   public ExceptionProbeManager() {}
 
-  public void instrument(String fingerprint, StackTraceElement[] stackTraceElements) {
+  public void createProbesForException(String fingerprint, StackTraceElement[] stackTraceElements) {
     fingerprints.add(fingerprint);
     // TODO instrument each frame, filtering out thirdparty code
     for (StackTraceElement stackTraceElement : stackTraceElements) {
