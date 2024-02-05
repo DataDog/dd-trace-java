@@ -1,4 +1,4 @@
-package datadog.trace.instrumentation.jetty_client;
+package datadog.trace.instrumentation.jetty_client91;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
@@ -11,6 +11,7 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.instrumentation.jetty_client.CallbackWrapper;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import org.eclipse.jetty.client.api.Request;
@@ -35,7 +36,12 @@ public class JettyAddListenerInstrumentation extends Instrumenter.Tracing
 
   @Override
   public String[] helperClassNames() {
-    return new String[] {packageName + ".CallbackWrapper"};
+    return new String[] {"datadog.trace.instrumentation.jetty_client.CallbackWrapper"};
+  }
+
+  @Override
+  public String muzzleDirective() {
+    return "listener";
   }
 
   @Override
