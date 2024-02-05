@@ -1,4 +1,4 @@
-package datadog.trace.instrumentation.jetty_client;
+package datadog.trace.instrumentation.jetty_client91;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
@@ -6,8 +6,8 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.RUNNABLE;
 import static datadog.trace.instrumentation.jetty_client.HeadersInjectAdapter.SETTER;
-import static datadog.trace.instrumentation.jetty_client.JettyClientDecorator.DECORATE;
-import static datadog.trace.instrumentation.jetty_client.JettyClientDecorator.HTTP_REQUEST;
+import static datadog.trace.instrumentation.jetty_client91.JettyClientDecorator.DECORATE;
+import static datadog.trace.instrumentation.jetty_client91.JettyClientDecorator.HTTP_REQUEST;
 import static java.util.Collections.singletonList;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
@@ -43,10 +43,15 @@ public class JettyClientInstrumentation extends Instrumenter.Tracing
   public String[] helperClassNames() {
     return new String[] {
       packageName + ".JettyClientDecorator",
-      packageName + ".HeadersInjectAdapter",
-      packageName + ".CallbackWrapper",
+      "datadog.trace.instrumentation.jetty_client.HeadersInjectAdapter",
+      "datadog.trace.instrumentation.jetty_client.CallbackWrapper",
       packageName + ".SpanFinishingCompleteListener"
     };
+  }
+
+  @Override
+  public String muzzleDirective() {
+    return "client";
   }
 
   @Override
