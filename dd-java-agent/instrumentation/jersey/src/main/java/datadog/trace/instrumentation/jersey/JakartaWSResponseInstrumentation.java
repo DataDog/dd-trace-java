@@ -37,6 +37,11 @@ public class JakartaWSResponseInstrumentation extends InstrumenterModule.Iast
   }
 
   @Override
+  protected boolean isOptOutEnabled() {
+    return true;
+  }
+
+  @Override
   public String hierarchyMarkerType() {
     return "jakarta.ws.rs.core.Response$ResponseBuilder";
   }

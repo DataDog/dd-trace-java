@@ -8,11 +8,11 @@ import com.datadog.iast.model.VulnerabilityType;
 import datadog.trace.api.iast.sink.StacktraceLeakModule;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
-import org.jetbrains.annotations.NotNull;
+import javax.annotation.Nonnull;
 
 public class StacktraceLeakModuleImpl extends SinkModuleBase implements StacktraceLeakModule {
 
-  public StacktraceLeakModuleImpl(@NotNull Dependencies dependencies) {
+  public StacktraceLeakModuleImpl(@Nonnull Dependencies dependencies) {
     super(dependencies);
   }
 

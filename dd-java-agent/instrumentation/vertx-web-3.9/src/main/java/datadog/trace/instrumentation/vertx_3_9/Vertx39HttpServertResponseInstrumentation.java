@@ -43,6 +43,11 @@ public class Vertx39HttpServertResponseInstrumentation extends InstrumenterModul
     return implementsInterface(named(hierarchyMarkerType()));
   }
 
+  @Override
+  protected boolean isOptOutEnabled() {
+    return true;
+  }
+
   public static class InstrumenterAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     @Sink(VulnerabilityTypes.RESPONSE_HEADER)

@@ -24,6 +24,12 @@
         "JAVA_OPTS": "-javaagent:${TRACER} -Ddd.benchmark.enabled=true -Ddd.benchmark.output.dir=${OUTPUT_DIR}/appsec -Ddd.appsec.enabled=true"
       }
     },
+    "appsec_no_iast": {
+      "env": {
+        "VARIANT": "appsec",
+        "JAVA_OPTS": "-javaagent:${TRACER} -Ddd.benchmark.enabled=true -Ddd.benchmark.output.dir=${OUTPUT_DIR}/appsec_no_iast -Ddd.appsec.enabled=true -Ddd.iast.enabled=false"
+      }
+    },
     "iast": {
       "env": {
         "VARIANT": "iast",
