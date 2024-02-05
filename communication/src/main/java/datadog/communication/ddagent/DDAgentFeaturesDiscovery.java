@@ -377,7 +377,7 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
   }
 
   private void errorQueryingEndpoint(String endpoint, Throwable t) {
-    log.debug(LogCollector.NO_SEND_TELEMETRY, "Error querying {} at {}", endpoint, agentBaseUrl, t);
+    log.debug(LogCollector.EXCLUDE_TELEMETRY, "Error querying {} at {}", endpoint, agentBaseUrl, t);
   }
 
   public String state() {
