@@ -105,7 +105,7 @@ class MatchersTest extends DDSpecification {
     "^"     | "^"                      | true
     "()"    | "()"                     | true
     "(*)"   | "(-)"                    | true
-    "\$"    | "\$"                     | true 
+    "\$"    | "\$"                     | true
   }
 
   // helper functions - to subvert codenarc
