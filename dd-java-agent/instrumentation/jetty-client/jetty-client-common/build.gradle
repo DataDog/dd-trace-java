@@ -1,0 +1,5 @@
+apply from: "$rootDir/gradle/java.gradle"
+
+dependencies {
+  compileOnly group: 'org.eclipse.jetty', name: 'jetty-client', version: '9.1.0.v20131115'
+}

@@ -411,6 +411,7 @@ public class PowerWAFModule implements AppSecModule {
       try {
         resultWithData = doRunPowerwaf(reqCtx, newData, ctxAndAddr, isTransient);
       } catch (TimeoutPowerwafException tpe) {
+        reqCtx.increaseTimeouts();
         log.debug("Timeout calling the WAF", tpe);
         return;
       } catch (AbstractPowerwafException e) {
@@ -453,13 +454,8 @@ public class PowerWAFModule implements AppSecModule {
         reqCtx.reportEvents(events);
 
         if (flow.isBlocking()) {
-          WafMetricCollector.get().wafRequestBlocked();
-        } else {
-          WafMetricCollector.get().wafRequestTriggered();
+          reqCtx.setBlocked();
         }
-
-      } else {
-        WafMetricCollector.get().wafRequest();
       }
 
       if (resultWithData != null && resultWithData.schemas != null) {

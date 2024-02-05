@@ -1,4 +1,4 @@
-package datadog.trace.instrumentation.jetty_client;
+package datadog.trace.instrumentation.jetty_client91;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
@@ -29,11 +29,6 @@ public final class FutureResponseListenerInstrumentation extends Instrumenter.Tr
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {packageName + ".JettyClientDecorator"};
-  }
-
-  @Override
   public Map<String, String> contextStore() {
     Map<String, String> contextStore = new HashMap<>(4);
     contextStore.put("org.eclipse.jetty.client.api.Request", AgentSpan.class.getName());
@@ -41,6 +36,11 @@ public final class FutureResponseListenerInstrumentation extends Instrumenter.Tr
         "org.eclipse.jetty.client.api.Response$ResponseListener",
         "org.eclipse.jetty.client.api.Request");
     return contextStore;
+  }
+
+  @Override
+  public String muzzleDirective() {
+    return "listener";
   }
 
   @Override

@@ -13,6 +13,7 @@ import io.sqreen.powerwaf.PowerwafMetrics;
 import java.io.Closeable;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -79,6 +80,11 @@ public class AppSecRequestContext implements DataBundle, Closeable {
   private Additive additive;
   // set after additive is set
   private volatile PowerwafMetrics wafMetrics;
+  private volatile boolean blocked;
+  private volatile int timeouts;
+
+  private static final AtomicIntegerFieldUpdater<AppSecRequestContext> TIMEOUTS_UPDATER =
+      AtomicIntegerFieldUpdater.newUpdater(AppSecRequestContext.class, "timeouts");
 
   // to be called by the Event Dispatcher
   public void addAll(DataBundle newData) {
@@ -103,6 +109,22 @@ public class AppSecRequestContext implements DataBundle, Closeable {
 
   public PowerwafMetrics getWafMetrics() {
     return wafMetrics;
+  }
+
+  public void setBlocked() {
+    this.blocked = true;
+  }
+
+  public boolean isBlocked() {
+    return blocked;
+  }
+
+  public void increaseTimeouts() {
+    TIMEOUTS_UPDATER.incrementAndGet(this);
+  }
+
+  public int getTimeouts() {
+    return timeouts;
   }
 
   public Additive getOrCreateAdditive(PowerwafContext ctx, boolean createMetrics) {

@@ -28,7 +28,7 @@ variables:
   tags: [ "runner:main", "size:large" ]
 
 .docker: &docker
-  tags: [ "runner:docker", "size:large" ]
+  tags: [ "arch:amd64", "size:large" ]
   image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/docker:20.10.13
   cache:
     key: no-cache
@@ -157,7 +157,7 @@ deploy_to_di_backend:automatic:
     UPSTREAM_BRANCH: $CI_COMMIT_BRANCH
     UPSTREAM_TAG: $CI_COMMIT_TAG
     UPSTREAM_COMMIT_SHORT_SHA: $CI_COMMIT_SHORT_SHA
- 
+
 deploy_to_di_backend:manual:
   stage: deploy
   rules:
@@ -233,8 +233,8 @@ deploy_latest_tag_to_docker_registries:
 create_key:
   stage: generate-signing-key
   when: manual
-  needs: []
-  tags: [ "runner:docker", "size:large" ]
+  needs: [ ]
+  tags: [ "arch:amd64", "size:large" ]
   variables:
     PROJECT_NAME: "dd-trace-java"
     EXPORT_TO_KEYSERVER: "true"
@@ -255,12 +255,12 @@ tracer-base-image-release:
     - if: '$CI_COMMIT_TAG =~ /^v1\..*/'
       when: on_success
   dependencies:
-  - build
+    - build
   script:
     - echo $GH_TOKEN|docker login ghcr.io/datadog -u uploader --password-stdin
     - mkdir -p ./tooling/ci/binaries/ && cp workspace/dd-java-agent/build/libs/*.jar ./tooling/ci/binaries/dd-java-agent.jar
-    - docker build -t ghcr.io/datadog/dd-trace-java/dd-trace-java:latest -f ./tooling/ci/Dockerfile .
-    - docker push ghcr.io/datadog/dd-trace-java/dd-trace-java:latest  
+    - docker buildx build -t ghcr.io/datadog/dd-trace-java/dd-trace-java:latest -f ./tooling/ci/Dockerfile .
+    - docker push ghcr.io/datadog/dd-trace-java/dd-trace-java:latest
 
 tracer-base-image-snapshot:
   extends: .ci_authenticated_job
@@ -271,9 +271,9 @@ tracer-base-image-snapshot:
     - if: '$CI_COMMIT_BRANCH == "master"'
       when: on_success
   dependencies:
-  - build
+    - build
   script:
     - echo $GH_TOKEN|docker login ghcr.io/datadog -u uploader --password-stdin
     - mkdir -p ./tooling/ci/binaries/ && cp workspace/dd-java-agent/build/libs/*.jar ./tooling/ci/binaries/dd-java-agent.jar
-    - docker build -t ghcr.io/datadog/dd-trace-java/dd-trace-java:latest_snapshot -f ./tooling/ci/Dockerfile .
+    - docker buildx build -t ghcr.io/datadog/dd-trace-java/dd-trace-java:latest_snapshot -f ./tooling/ci/Dockerfile .
     - docker push ghcr.io/datadog/dd-trace-java/dd-trace-java:latest_snapshot  
