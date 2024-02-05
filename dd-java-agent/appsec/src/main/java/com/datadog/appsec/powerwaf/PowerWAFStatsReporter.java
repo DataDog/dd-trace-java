@@ -30,7 +30,7 @@ public class PowerWAFStatsReporter implements TraceSegmentPostProcessor {
         segment.setTagTop(RULE_FILE_VERSION, rulesVersion);
       }
     }
-    if (ctx.getTimeouts() > 0L) {
+    if (ctx.getTimeouts() > 0) {
       segment.setTagTop(TIMEOUTS_TAG, ctx.getTimeouts());
     }
   }
