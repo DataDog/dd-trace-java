@@ -110,6 +110,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_AGENT_V05_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_ANALYTICS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_HTTP_RESOURCE_REMOVE_TRAILING_SLASH;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_LONG_RUNNING_FLUSH_INTERVAL;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_LONG_RUNNING_INITIAL_FLUSH_INTERVAL;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_PROPAGATION_EXTRACT_FIRST;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_PROPAGATION_STYLE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_RATE_LIMIT;
@@ -325,6 +326,7 @@ import static datadog.trace.api.config.RemoteConfigConfig.REMOTE_CONFIG_POLL_INT
 import static datadog.trace.api.config.RemoteConfigConfig.REMOTE_CONFIG_TARGETS_KEY;
 import static datadog.trace.api.config.RemoteConfigConfig.REMOTE_CONFIG_TARGETS_KEY_ID;
 import static datadog.trace.api.config.RemoteConfigConfig.REMOTE_CONFIG_URL;
+import static datadog.trace.api.config.TraceInstrumentationConfig.AXIS_PROMOTE_RESOURCE_NAME;
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_HOST;
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_INSTANCE;
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_INSTANCE_TYPE_SUFFIX;
@@ -366,6 +368,7 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.RABBIT_PROPAGA
 import static datadog.trace.api.config.TraceInstrumentationConfig.SERVLET_ASYNC_TIMEOUT_ERROR;
 import static datadog.trace.api.config.TraceInstrumentationConfig.SERVLET_PRINCIPAL_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.SERVLET_ROOT_CONTEXT_SERVICE_NAME;
+import static datadog.trace.api.config.TraceInstrumentationConfig.SPARK_APP_NAME_AS_SERVICE;
 import static datadog.trace.api.config.TraceInstrumentationConfig.SPARK_TASK_HISTOGRAM_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.SPRING_DATA_REPOSITORY_INTERFACE_RESOURCE_NAME;
 import static datadog.trace.api.config.TracerConfig.AGENT_HOST;
@@ -888,13 +891,16 @@ public class Config {
   private final ConfigProvider configProvider;
 
   private final boolean longRunningTraceEnabled;
+  private final long longRunningTraceInitialFlushInterval;
   private final long longRunningTraceFlushInterval;
   private final boolean elasticsearchBodyEnabled;
   private final boolean elasticsearchParamsEnabled;
   private final boolean elasticsearchBodyAndParamsEnabled;
   private final boolean sparkTaskHistogramEnabled;
+  private final boolean sparkAppNameAsService;
   private final boolean jaxRsExceptionAsErrorsEnabled;
 
+  private final boolean axisPromoteResourceName;
   private final float traceFlushIntervalSeconds;
 
   private final boolean telemetryDebugRequestsEnabled;
@@ -1933,11 +1939,25 @@ public class Config {
         configProvider.getBoolean(
             TracerConfig.TRACE_LONG_RUNNING_ENABLED,
             ConfigDefaults.DEFAULT_TRACE_LONG_RUNNING_ENABLED);
+    long longRunningTraceInitialFlushInterval =
+        configProvider.getLong(
+            TracerConfig.TRACE_LONG_RUNNING_INITIAL_FLUSH_INTERVAL,
+            DEFAULT_TRACE_LONG_RUNNING_INITIAL_FLUSH_INTERVAL);
     long longRunningTraceFlushInterval =
         configProvider.getLong(
             TracerConfig.TRACE_LONG_RUNNING_FLUSH_INTERVAL,
             ConfigDefaults.DEFAULT_TRACE_LONG_RUNNING_FLUSH_INTERVAL);
 
+    if (longRunningEnabled
+        && (longRunningTraceInitialFlushInterval < 10
+            || longRunningTraceInitialFlushInterval > 450)) {
+      log.warn(
+          "Provided long running trace inital flush interval of {} seconds. It should be between 10 seconds and 7.5 minutes."
+              + "Setting the flush interval to the default value of {} seconds .",
+          longRunningTraceInitialFlushInterval,
+          DEFAULT_TRACE_LONG_RUNNING_INITIAL_FLUSH_INTERVAL);
+      longRunningTraceInitialFlushInterval = DEFAULT_TRACE_LONG_RUNNING_INITIAL_FLUSH_INTERVAL;
+    }
     if (longRunningEnabled
         && (longRunningTraceFlushInterval < 20 || longRunningTraceFlushInterval > 450)) {
       log.warn(
@@ -1948,16 +1968,23 @@ public class Config {
       longRunningTraceFlushInterval = DEFAULT_TRACE_LONG_RUNNING_FLUSH_INTERVAL;
     }
     longRunningTraceEnabled = longRunningEnabled;
+    this.longRunningTraceInitialFlushInterval = longRunningTraceInitialFlushInterval;
     this.longRunningTraceFlushInterval = longRunningTraceFlushInterval;
 
     this.sparkTaskHistogramEnabled =
         configProvider.getBoolean(
             SPARK_TASK_HISTOGRAM_ENABLED, ConfigDefaults.DEFAULT_SPARK_TASK_HISTOGRAM_ENABLED);
 
+    this.sparkAppNameAsService =
+        configProvider.getBoolean(
+            SPARK_APP_NAME_AS_SERVICE, ConfigDefaults.DEFAULT_SPARK_APP_NAME_AS_SERVICE);
+
     this.jaxRsExceptionAsErrorsEnabled =
         configProvider.getBoolean(
             JAX_RS_EXCEPTION_AS_ERROR_ENABLED,
             ConfigDefaults.DEFAULT_JAX_RS_EXCEPTION_AS_ERROR_ENABLED);
+
+    axisPromoteResourceName = configProvider.getBoolean(AXIS_PROMOTE_RESOURCE_NAME, false);
 
     this.traceFlushIntervalSeconds =
         configProvider.getFloat(
@@ -2053,6 +2080,10 @@ public class Config {
 
   public boolean isLongRunningTraceEnabled() {
     return longRunningTraceEnabled;
+  }
+
+  public long getLongRunningTraceInitialFlushInterval() {
+    return longRunningTraceInitialFlushInterval;
   }
 
   public long getLongRunningTraceFlushInterval() {
@@ -3270,8 +3301,16 @@ public class Config {
     return sparkTaskHistogramEnabled;
   }
 
+  public boolean useSparkAppNameAsService() {
+    return sparkAppNameAsService;
+  }
+
   public boolean isJaxRsExceptionAsErrorEnabled() {
     return jaxRsExceptionAsErrorsEnabled;
+  }
+
+  public boolean isAxisPromoteResourceName() {
+    return axisPromoteResourceName;
   }
 
   /** @return A map of tags to be applied only to the local application root span. */
@@ -3382,6 +3421,9 @@ public class Config {
     result.put(SERVICE_TAG, serviceName);
     result.put(LANGUAGE_TAG_KEY, LANGUAGE_TAG_VALUE);
     result.put(RUNTIME_VERSION_TAG, runtimeVersion);
+    if (azureAppServices) {
+      result.putAll(getAzureAppServicesTags());
+    }
     return Collections.unmodifiableMap(result);
   }
 
@@ -4313,6 +4355,8 @@ public class Config {
         + cwsTlsRefresh
         + ", longRunningTraceEnabled="
         + longRunningTraceEnabled
+        + ", longRunningTraceInitialFlushInterval="
+        + longRunningTraceInitialFlushInterval
         + ", longRunningTraceFlushInterval="
         + longRunningTraceFlushInterval
         + ", elasticsearchBodyEnabled="
@@ -4329,8 +4373,12 @@ public class Config {
         + logsInjectionEnabled
         + ", sparkTaskHistogramEnabled="
         + sparkTaskHistogramEnabled
+        + ", sparkAppNameAsService="
+        + sparkAppNameAsService
         + ", jaxRsExceptionAsErrorsEnabled="
         + jaxRsExceptionAsErrorsEnabled
+        + ", axisPromoteResourceName="
+        + axisPromoteResourceName
         + ", peerServiceDefaultsEnabled="
         + peerServiceDefaultsEnabled
         + ", peerServiceComponentOverrides="

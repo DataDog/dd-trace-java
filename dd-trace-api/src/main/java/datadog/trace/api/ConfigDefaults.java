@@ -209,6 +209,7 @@ public final class ConfigDefaults {
 
   static final boolean DEFAULT_TRACE_HTTP_RESOURCE_REMOVE_TRAILING_SLASH = false;
   static final boolean DEFAULT_TRACE_LONG_RUNNING_ENABLED = false;
+  static final long DEFAULT_TRACE_LONG_RUNNING_INITIAL_FLUSH_INTERVAL = 20; // seconds
   static final long DEFAULT_TRACE_LONG_RUNNING_FLUSH_INTERVAL = 120; // seconds -> 2 minutes
 
   static final float DEFAULT_TRACE_FLUSH_INTERVAL = 1;
@@ -218,6 +219,7 @@ public final class ConfigDefaults {
   static final boolean DEFAULT_ELASTICSEARCH_BODY_AND_PARAMS_ENABLED = false;
 
   static final boolean DEFAULT_SPARK_TASK_HISTOGRAM_ENABLED = true;
+  static final boolean DEFAULT_SPARK_APP_NAME_AS_SERVICE = false;
   static final boolean DEFAULT_JAX_RS_EXCEPTION_AS_ERROR_ENABLED = true;
   static final boolean DEFAULT_TELEMETRY_DEBUG_REQUESTS_ENABLED = false;
 

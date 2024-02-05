@@ -1,3 +1,7 @@
+plugins {
+  id 'com.github.johnrengelman.shadow'
+}
+
 ext {
   // need access to sun.misc package
   skipSettingCompilerRelease = true
@@ -73,6 +77,15 @@ dependencies {
   // We have autoservices defined in test subtree, looks like we need this to be able to properly rebuild this
   testAnnotationProcessor deps.autoserviceProcessor
   testCompileOnly deps.autoserviceAnnotation
+}
+
+shadowJar {
+  dependencies {
+    include(dependency {
+      it.moduleGroup == 'org.eclipse.jetty'
+    })
+  }
+  relocate "org.eclipse.jetty", "datadog.eclipse.jetty"
 }
 
 tasks.withType(Test).configureEach {

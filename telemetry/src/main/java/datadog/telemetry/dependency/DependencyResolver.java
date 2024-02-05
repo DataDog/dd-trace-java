@@ -1,15 +1,14 @@
 package datadog.telemetry.dependency;
 
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.JarURLConnection;
 import java.net.URI;
 import java.net.URL;
-import java.nio.file.Files;
 import java.util.Collections;
 import java.util.List;
-import java.util.jar.Attributes;
 import java.util.jar.JarFile;
 import java.util.jar.Manifest;
 import org.slf4j.Logger;
@@ -21,19 +20,7 @@ public class DependencyResolver {
   private static final String JAR_SUFFIX = ".jar";
 
   public static List<Dependency> resolve(URI uri) {
-    return extractDependenciesFromURI(uri);
-  }
-
-  /**
-   * Identify library from a URI
-   *
-   * @param uri URI to a dependency
-   * @return dependency, or null if unable to qualify jar
-   */
-  // package private for testing
-  static List<Dependency> extractDependenciesFromURI(URI uri) {
-    String scheme = uri.getScheme();
-    List<Dependency> dependencies = Collections.emptyList();
+    final String scheme = uri.getScheme();
     try {
       if ("file".equals(scheme)) {
         File f;
@@ -42,30 +29,17 @@ public class DependencyResolver {
         } else {
           f = new File(uri);
         }
-        dependencies = extractDependenciesFromJar(f);
+        return extractFromFile(f);
       } else if ("jar".equals(scheme)) {
-        Dependency dependency = getNestedDependency(uri);
-        if (dependency != null) {
-          dependencies = Collections.singletonList(dependency);
-        }
+        return extractFromJarURI(uri);
       }
-    } catch (RuntimeException rte) {
-      log.debug("Failed to determine dependency for uri {}", uri, rte);
+    } catch (Throwable t) {
+      log.debug("Failed to determine dependency for uri {}", uri, t);
     }
-    // TODO : moving jboss vfs here is probably a idea
-    // it might however require to do somme checks to make sure it's only applied to jboss
-    // and not any application server that also uses vfs:// locations
-
-    return dependencies;
+    return Collections.emptyList();
   }
 
-  /**
-   * Identify a library from a .jar file
-   *
-   * @param jar jar dependency
-   * @return detected dependency, {@code null} if unable to get dependency from jar
-   */
-  static List<Dependency> extractDependenciesFromJar(File jar) {
+  private static List<Dependency> extractFromFile(final File jar) throws IOException {
     if (!jar.exists()) {
       log.debug("unable to find dependency {} (path does not exist)", jar);
       return Collections.emptyList();
@@ -74,77 +48,31 @@ public class DependencyResolver {
       return Collections.emptyList();
     }
 
-    List<Dependency> dependencies = Collections.emptyList();
-    try (JarFile file = new JarFile(jar, false /* no verify */)) {
-
-      // Try to get from maven properties
-      dependencies = Dependency.fromMavenPom(file);
-
-      // Try to guess from manifest or file name
-      if (dependencies.isEmpty()) {
-        try (InputStream is = Files.newInputStream(jar.toPath())) {
-          Manifest manifest = file.getManifest();
-          dependencies =
-              Collections.singletonList(Dependency.guessFallbackNoPom(manifest, jar.getName(), is));
-        }
-      }
-    } catch (IOException e) {
-      log.debug("unable to read jar file {}", jar, e);
+    try (final JarFile file = new JarFile(jar, false /* no verify */);
+        final InputStream is = new FileInputStream(jar)) {
+      return extractFromJarFile(file, is);
     }
-
-    return dependencies;
   }
 
   /* for jar urls as handled by spring boot */
-  static Dependency getNestedDependency(URI uri) {
-    String lastPart = null;
-    String fileName = null;
-    try {
-      URL url = uri.toURL();
-      JarURLConnection jarConnection = (JarURLConnection) url.openConnection();
-      Manifest manifest = jarConnection.getManifest();
-
-      JarFile jarFile = jarConnection.getJarFile();
-
-      // the !/ separator is hardcoded into JarURLConnection class
-      String jarFileName = jarFile.getName();
-      int posSep = jarFileName.indexOf("!/");
-      if (posSep == -1) {
-        log.debug("Unable to guess nested dependency for uri '{}': '!/' not found", uri);
-        return null;
-      }
-      lastPart = jarFileName.substring(posSep + 1);
-      fileName = lastPart.substring(lastPart.lastIndexOf("/") + 1);
-
-      return Dependency.guessFallbackNoPom(manifest, fileName, jarConnection.getInputStream());
-    } catch (Exception e) {
-      log.debug("unable to open nested jar manifest for {}", uri, e);
+  private static List<Dependency> extractFromJarURI(final URI uri) throws IOException {
+    final URL url = uri.toURL();
+    final JarURLConnection conn = (JarURLConnection) url.openConnection();
+    try (final JarFile jar = conn.getJarFile();
+        final InputStream is = url.openStream()) {
+      return extractFromJarFile(jar, is);
     }
-    log.debug(
-        "Unable to guess nested dependency for uri '{}', lastPart: '{}', fileName: '{}'",
-        uri,
-        lastPart,
-        fileName);
-    return null;
   }
 
-  public static Attributes getManifestAttributes(File jarFile) {
-    Manifest manifest = getJarManifest(jarFile);
-    return manifest == null ? null : manifest.getMainAttributes();
-  }
-
-  /**
-   * Get manifest from jar file
-   *
-   * @param jarFile jar file
-   * @return manifest or null if none is available or unable to read it
-   */
-  public static Manifest getJarManifest(File jarFile) {
-    try (JarFile file = new JarFile(jarFile)) {
-      return file.getManifest();
-    } catch (IOException e) {
-      // silently ignored
+  private static List<Dependency> extractFromJarFile(final JarFile jar, final InputStream is)
+      throws IOException {
+    // Try Maven's pom.properties
+    final List<Dependency> deps = Dependency.fromMavenPom(jar);
+    if (!deps.isEmpty()) {
+      return deps;
     }
-    return null;
+    // Try manifest or file name
+    final Manifest manifest = jar.getManifest();
+    return Collections.singletonList(Dependency.guessFallbackNoPom(manifest, jar.getName(), is));
   }
 }

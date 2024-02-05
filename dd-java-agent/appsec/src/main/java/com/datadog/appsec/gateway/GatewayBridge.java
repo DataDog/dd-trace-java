@@ -28,6 +28,7 @@ import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.gateway.SubscriptionService;
 import datadog.trace.api.http.StoredBodySupplier;
 import datadog.trace.api.internal.TraceSegment;
+import datadog.trace.api.telemetry.WafMetricCollector;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
 import datadog.trace.util.Strings;
@@ -173,6 +174,14 @@ public class GatewayBridge {
             // If extracted any Api Schemas - commit them
             if (!ctx.commitApiSchemas(traceSeg)) {
               log.debug("Unable to commit, api security schemas and will be skipped");
+            }
+
+            if (ctx.isBlocked()) {
+              WafMetricCollector.get().wafRequestBlocked();
+            } else if (!collectedEvents.isEmpty()) {
+              WafMetricCollector.get().wafRequestTriggered();
+            } else {
+              WafMetricCollector.get().wafRequest();
             }
           }
 
