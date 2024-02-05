@@ -37,17 +37,16 @@ public class InsecureAuthProtocolModuleImpl extends SinkModuleBase
     if (isIgnorableResponseCode((Integer) tags.get("http.status_code"))) {
       return;
     }
-    String insecureProtocol =
+    String authScheme =
         authorization.startsWith(BASIC) ? BASIC : authorization.startsWith(DIGEST) ? DIGEST : null;
-    if (insecureProtocol == null) {
+    if (authScheme == null) {
       return;
     }
     final AgentSpan span = AgentTracer.activeSpan();
     if (!overheadController.consumeQuota(Operations.REPORT_VULNERABILITY, span)) {
       return;
     }
-    final Evidence result =
-        new Evidence(String.format("Found Authorization %s in header", insecureProtocol));
+    final Evidence result = new Evidence(String.format("Authorization : %s", authScheme));
     report(span, VulnerabilityType.INSECURE_AUTH_PROTOCOL, result);
   }
 

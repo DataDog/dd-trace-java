@@ -12,9 +12,9 @@ import datadog.trace.api.internal.TraceSegment
 
 class InsecureAuthProtocolModuleTest extends IastModuleImplTestBase{
 
-  private static final BASIC_EVIDENCE = 'Found Authorization Basic in header'
+  private static final BASIC_EVIDENCE = 'Authorization : Basic'
 
-  private static final DIGEST_EVIDENCE = 'Found Authorization Digest in header'
+  private static final DIGEST_EVIDENCE = 'Authorization : Digest'
 
   private static final BASIC_HEADER_VALUE = 'Basic YWxhZGRpbjpvcGVuc2VzYW1l'
 
