@@ -1,3 +1,6 @@
+plugins {
+  id 'me.champeau.jmh'
+}
 apply from: "$rootDir/gradle/java.gradle"
 
 dependencies {
@@ -47,4 +50,13 @@ ext {
     'datadog.communication.ddagent.SharedCommunicationObjects',
     'datadog.communication.ddagent.TracerVersion',
   ]
+}
+
+jmh {
+  jmhVersion = '1.32'
+  duplicateClassesStrategy = DuplicatesStrategy.EXCLUDE
+}
+
+forbiddenApisJmh {
+  ignoreFailures = true
 }

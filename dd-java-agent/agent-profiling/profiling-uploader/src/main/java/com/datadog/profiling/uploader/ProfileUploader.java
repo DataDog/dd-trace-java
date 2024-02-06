@@ -474,7 +474,7 @@ public final class ProfileUploader {
               + ",snapshot:"
               + recordingData.getKind().name().toLowerCase(Locale.ROOT)
               + ",service:"
-              + serviceNaming.getSanitizedName().toString());
+              + serviceNaming.getCurrent().toString());
       writer.name(V4_PROFILE_START_PARAM);
       writer.value(recordingData.getStart().toString());
       writer.name(V4_PROFILE_END_PARAM);

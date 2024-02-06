@@ -8,6 +8,7 @@ import datadog.trace.api.StatsDClient;
 import datadog.trace.api.StatsDClientManager;
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
+import datadog.trace.api.naming.ServiceNaming;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
@@ -53,7 +54,7 @@ public final class DDAgentStatsDClientManager implements StatsDClientManager {
     }
 
     if (null != constantTags && constantTags.length > 0) {
-      tagMapping = new TagCombiner(constantTags);
+      tagMapping = new TagCombiner(constantTags, Config.get().getServiceNaming());
     }
 
     if (USE_LOGGING_CLIENT) {
@@ -125,41 +126,42 @@ public final class DDAgentStatsDClientManager implements StatsDClientManager {
     // single-element array containing the pre-packed constant tags
     private final String[] packedTags;
     private final Function<String[], String[]> tagsInserter;
+    private final ServiceNaming serviceNaming;
 
-    public TagCombiner(final String[] constantTags) {
-      this.packedTags = pack(constantTags);
+    public TagCombiner(final String[] constantTags, final ServiceNaming serviceNaming) {
+      this.serviceNaming = serviceNaming;
+      this.packedTags =
+          new String[] {pack(constantTags), serviceNaming.getStandardTag().toString()};
       this.tagsInserter =
           tags -> {
             // extend per-call array by one to add the pre-packed constant tags
-            String[] result = new String[tags.length + 1];
-            System.arraycopy(tags, 0, result, 1, tags.length);
+            String[] result = new String[tags.length + 2];
+            System.arraycopy(tags, 0, result, 2, tags.length);
             result[0] = packedTags[0];
+            result[1] = packedTags[1]; // this is always updated anyway
             return result;
           };
     }
 
     @Override
     public String[] apply(final String[] tags) {
-      final String[] expanded;
-      if (tags == null || tags.length == 0) {
-        expanded = new String[1];
+      final String[] ret;
+      if (null == tags || tags.length == 0) {
+        ret = packedTags; // no per-call tags so we can use the pre-packed array
       } else {
-        expanded = new String[tags.length + 1];
-        System.arraycopy(tags, 0, expanded, 1, tags.length);
+        ret = combinedTags.computeIfAbsent(tags, tagsInserter);
       }
-      expanded[0] = "service:" + Config.get().getServiceNaming().getCurrent();
-      return combinedTags.computeIfAbsent(expanded, tagsInserter);
+      ret[1] = serviceNaming.getStandardTag().toString();
+      return ret;
     }
 
-    /**
-     * Packs the constant tags into a single element array using the same separator as DogStatsD.
-     */
-    private static String[] pack(final String[] tags) {
+    /** Packs the constant tags into a concatenated string using the same separator as DogStatsD. */
+    private static String pack(final String[] tags) {
       StringBuilder buf = new StringBuilder(tags[0]);
       for (int i = 1; i < tags.length; i++) {
         buf.append(',').append(tags[i]);
       }
-      return new String[] {buf.toString()};
+      return buf.toString();
     }
   }
 }
