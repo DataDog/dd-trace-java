@@ -101,6 +101,9 @@ vars = {
     "docker_image_prefix": "" if is_nightly else f"{DOCKER_IMAGE_VERSION}-",
     "use_git_changes": use_git_changes,
     "pr_base_ref": pr_base_ref,
+    "parallelism_base": 4,
+    "parallelism_instrumentation": 4,
+    "parallelism_smoke": 4,
 }
 
 print(f"Variables for this build: {vars}")

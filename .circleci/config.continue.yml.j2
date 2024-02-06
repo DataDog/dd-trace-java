@@ -199,13 +199,14 @@ commands:
       - restore_cache:
           keys:
             # Dependent steps will find this cache
-            - dd-trace-java-dep<< parameters.cacheType >>-v4-{{ .Branch }}-{{ checksum "_circle_ci_cache_id" }}-{{ .Revision }}
+            - dd-trace-java-dep<< parameters.cacheType >>-v5-{{ .Branch }}-{{ .Environment.CIRCLE_NODE_INDEX }}-{{ checksum "_circle_ci_cache_id" }}-{{ .Revision }}
+            - dd-trace-java-dep<< parameters.cacheType >>-v5-{{ .Branch }}-0-{{ checksum "_circle_ci_cache_id" }}-{{ .Revision }}
             # New branch commits will find this cache
-            - dd-trace-java-dep<< parameters.cacheType >>-v4-{{ .Branch }}-{{ checksum "_circle_ci_cache_id" }}-
+            - dd-trace-java-dep<< parameters.cacheType >>-v5-{{ .Branch }}-{{ .Environment.CIRCLE_NODE_INDEX }}-{{ checksum "_circle_ci_cache_id" }}-
+            - dd-trace-java-dep<< parameters.cacheType >>-v5-{{ .Branch }}-0-{{ checksum "_circle_ci_cache_id" }}-
             # New branches fall back on main build caches
-            - dd-trace-java-dep<< parameters.cacheType >>-v4-master-{{ checksum "_circle_ci_cache_base_id" }}-
-            # Fallback to the previous cache during transition
-            - dd-trace-java-dep<< parameters.cacheType >>-v3-master-{{ checksum "_circle_ci_cache_base_id" }}-
+            - dd-trace-java-dep<< parameters.cacheType >>-v5-master-{{ .Environment.CIRCLE_NODE_INDEX }}-{{ checksum "_circle_ci_cache_base_id" }}-
+            - dd-trace-java-dep<< parameters.cacheType >>-v5-master-0-{{ checksum "_circle_ci_cache_base_id" }}-
 
   save_dependency_cache:
     parameters:
@@ -213,7 +214,7 @@ commands:
         type: string
     steps:
       - save_cache:
-          key: dd-trace-java-dep<< parameters.cacheType >>-v4-{{ .Branch }}-{{ checksum "_circle_ci_cache_id" }}-{{ .Revision }}
+          key: dd-trace-java-dep<< parameters.cacheType >>-v5-{{ .Branch }}-{{ .Environment.CIRCLE_NODE_INDEX }}-{{ checksum "_circle_ci_cache_id" }}-{{ .Revision }}
           paths:
             # Cached dependencies and wrappers for gradle
             - ~/.gradle/caches
@@ -235,7 +236,8 @@ commands:
       - restore_cache:
           keys:
             # Dependent steps will find this cache
-            - dd-trace-java-build<< parameters.cacheType >>-v4-{{ .Branch }}-{{ checksum "_circle_ci_cache_id" }}-{{ .Revision }}
+            - dd-trace-java-build<< parameters.cacheType >>-v5-{{ .Branch }}-{{ .Environment.CIRCLE_NODE_INDEX }}-{{ checksum "_circle_ci_cache_id" }}-{{ .Revision }}
+            - dd-trace-java-build<< parameters.cacheType >>-v5-{{ .Branch }}-0-{{ checksum "_circle_ci_cache_id" }}-{{ .Revision }}
 
   save_build_cache:
     parameters:
@@ -243,7 +245,7 @@ commands:
         type: string
     steps:
       - save_cache:
-          key: dd-trace-java-build<< parameters.cacheType >>-v4-{{ .Branch }}-{{ checksum "_circle_ci_cache_id" }}-{{ .Revision }}
+          key: dd-trace-java-build<< parameters.cacheType >>-v5-{{ .Branch }}-{{ .Environment.CIRCLE_NODE_INDEX }}-{{ checksum "_circle_ci_cache_id" }}-{{ .Revision }}
           paths:
             # Gradle version specific cache for incremental builds. Needs to match version in
             # gradle/wrapper/gradle-wrapper.properties
@@ -285,6 +287,9 @@ jobs:
     resource_class: xlarge
 
     parameters:
+      parallelism:
+        type: integer
+        default: 1
       gradleTarget:
         type: string
       cacheType:
@@ -292,6 +297,8 @@ jobs:
       collectLibs:
         type: boolean
         default: false
+
+    parallelism: << parameters.parallelism >>
 
     steps:
       - setup_code
@@ -311,6 +318,7 @@ jobs:
             -PbaseBranch=origin/{{ pr_base_ref }}
 {% endif %}
             -PskipTests
+            -PtaskPartitionCount=${CIRCLE_NODE_TOTAL} -PtaskPartition=${CIRCLE_NODE_INDEX}
             << pipeline.parameters.gradle_flags >>
             --max-workers=8
             --rerun-tasks
@@ -960,18 +968,22 @@ build_test_jobs: &build_test_jobs
       name: build_base
       gradleTarget: :baseTest
       cacheType: base
+      parallelism: {{ parallelism_base }}
   - build:
       name: build_inst
       gradleTarget: :instrumentationTest
       cacheType: inst
+      parallelism: {{ parallelism_instrumentation }}
   - build:
       name: build_latestdep
       gradleTarget: :instrumentationLatestDepTest
       cacheType: latestdep
+      parallelism: {{ parallelism_instrumentation }}
   - build:
       name: build_smoke
       gradleTarget: :smokeTest
       cacheType: smoke
+      parallelism: {{ parallelism_smoke }}
   - build:
       name: build_profiling
       gradleTarget: :profilingTest
@@ -1036,7 +1048,7 @@ build_test_jobs: &build_test_jobs
       gradleParameters: "-PskipFlakyTests -PskipInstTests -PskipSmokeTests -PskipProfilingTests -PskipDebuggerTests"
       stage: core
       cacheType: base
-      parallelism: 4
+      parallelism: {{ parallelism_base }}
       maxWorkers: 4
       matrix:
         <<: *test_matrix
@@ -1050,7 +1062,7 @@ build_test_jobs: &build_test_jobs
       gradleParameters: "-PskipFlakyTests -PskipInstTests -PskipSmokeTests -PskipProfilingTests -PskipDebuggerTests"
       stage: core
       cacheType: base
-      parallelism: 4
+      parallelism: {{ parallelism_base }}
       maxWorkers: 4
       testJvm: "8"
 
@@ -1063,7 +1075,7 @@ build_test_jobs: &build_test_jobs
       triggeredBy: *instrumentation_modules
       stage: instrumentation
       cacheType: inst
-      parallelism: 4
+      parallelism: {{ parallelism_instrumentation }}
       maxWorkers: 4
       matrix:
         <<: *test_matrix
@@ -1077,7 +1089,7 @@ build_test_jobs: &build_test_jobs
       triggeredBy: *instrumentation_modules
       stage: instrumentation
       cacheType: inst
-      parallelism: 4
+      parallelism: {{ parallelism_instrumentation }}
       maxWorkers: 4
       testJvm: "8"
 
@@ -1091,7 +1103,7 @@ build_test_jobs: &build_test_jobs
       triggeredBy: *instrumentation_modules
       stage: instrumentation
       cacheType: latestdep
-      parallelism: 4
+      parallelism: {{ parallelism_instrumentation }}
       maxWorkers: 4
       testJvm: "8"
 
@@ -1105,7 +1117,7 @@ build_test_jobs: &build_test_jobs
       triggeredBy: *instrumentation_modules
       stage: instrumentation
       cacheType: latestdep
-      parallelism: 4
+      parallelism: {{ parallelism_instrumentation }}
       maxWorkers: 4
       testJvm: "17"
 
@@ -1119,7 +1131,7 @@ build_test_jobs: &build_test_jobs
       triggeredBy: *instrumentation_modules
       stage: instrumentation
       cacheType: latestdep
-      parallelism: 4
+      parallelism: {{ parallelism_instrumentation }}
       maxWorkers: 4
       testJvm: "21"
 
@@ -1134,7 +1146,7 @@ build_test_jobs: &build_test_jobs
       triggeredBy: *core_modules
       stage: core
       cacheType: base
-      parallelism: 4
+      parallelism: {{ parallelism_base }}
       maxWorkers: 4
       testJvm: "8"
 
@@ -1148,7 +1160,7 @@ build_test_jobs: &build_test_jobs
       triggeredBy: *instrumentation_modules
       stage: instrumentation
       cacheType: inst
-      parallelism: 2
+      parallelism: {{ parallelism_instrumentation }}
       maxWorkers: 4
       testJvm: "8"
 
@@ -1161,7 +1173,7 @@ build_test_jobs: &build_test_jobs
       continueOnFailure: true
       stage: smoke
       cacheType: smoke
-      parallelism: 4
+      parallelism: {{ parallelism_smoke}}
       maxWorkers: 4
       testJvm: "8"
 {% endif %}
@@ -1200,7 +1212,7 @@ build_test_jobs: &build_test_jobs
       gradleParameters: "-PskipFlakyTests"
       stage: smoke
       cacheType: smoke
-      parallelism: 4
+      parallelism: {{ parallelism_smoke }}
       maxWorkers: 3
       matrix:
         <<: *test_matrix
@@ -1243,7 +1255,7 @@ build_test_jobs: &build_test_jobs
       gradleParameters: "-PskipFlakyTests"
       stage: smoke
       cacheType: smoke
-      parallelism: 4
+      parallelism: {{ parallelism_smoke }}
       maxWorkers: 3
       testJvm: "8"
 
