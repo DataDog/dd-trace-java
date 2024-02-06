@@ -32,8 +32,8 @@ public @interface Flaky {
 
   class True extends Closure<Boolean> {
 
-    public True(final Object owner) {
-      super(owner);
+    public True(final Object owner, final Object thisObject) {
+      super(owner, thisObject);
     }
 
     public Boolean call() {
