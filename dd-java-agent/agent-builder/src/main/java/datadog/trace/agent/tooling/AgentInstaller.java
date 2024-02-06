@@ -169,7 +169,7 @@ public class AgentInstaller {
       }
     }
 
-    Instrumenter.TransformerBuilder transformerBuilder;
+    AbstractTransformerBuilder transformerBuilder;
     if (InstrumenterConfig.get().isLegacyInstallerEnabled()) {
       transformerBuilder = new LegacyTransformerBuilder(agentBuilder);
     } else {
@@ -178,7 +178,8 @@ public class AgentInstaller {
 
     int installedCount = 0;
     for (Instrumenter instrumenter : instrumenters) {
-      if (!instrumenter.isApplicable(enabledSystems)) {
+      if (instrumenter instanceof InstrumenterGroup
+          && !((InstrumenterGroup) instrumenter).isApplicable(enabledSystems)) {
         if (DEBUG) {
           log.debug("Not applicable - instrumentation.class={}", instrumenter.getClass().getName());
         }
@@ -188,7 +189,7 @@ public class AgentInstaller {
         log.debug("Loading - instrumentation.class={}", instrumenter.getClass().getName());
       }
       try {
-        instrumenter.instrument(transformerBuilder);
+        transformerBuilder.applyInstrumentation(instrumenter);
         installedCount++;
       } catch (Exception | LinkageError e) {
         log.error(

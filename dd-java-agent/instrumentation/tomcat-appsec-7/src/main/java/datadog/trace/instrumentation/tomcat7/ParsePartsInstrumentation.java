@@ -33,7 +33,7 @@ import net.bytebuddy.pool.TypePool;
 
 @AutoService(Instrumenter.class)
 public class ParsePartsInstrumentation extends Instrumenter.AppSec
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasTypeAdvice {
 
   public ParsePartsInstrumentation() {
     super("tomcat");

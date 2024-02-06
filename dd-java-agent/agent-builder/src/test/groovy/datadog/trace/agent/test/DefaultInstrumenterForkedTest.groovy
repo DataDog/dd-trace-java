@@ -4,10 +4,6 @@ import datadog.trace.agent.tooling.Instrumenter
 import datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers
 import datadog.trace.agent.tooling.bytebuddy.outline.TypePoolFacade
 import datadog.trace.test.util.DDSpecification
-import spock.lang.Shared
-
-import java.lang.instrument.ClassFileTransformer
-import java.lang.instrument.Instrumentation
 
 class DefaultInstrumenterForkedTest extends DDSpecification {
   static {
@@ -15,36 +11,17 @@ class DefaultInstrumenterForkedTest extends DDSpecification {
     DDElementMatchers.registerAsSupplier()
   }
 
-  @Shared
-  Instrumenter.TransformerBuilder testAdviceBuilder = new Instrumenter.TransformerBuilder() {
-    @Override
-    void applyInstrumentation(Instrumenter.HasAdvice instrumenter) {
-      instrumenter.methodAdvice {}
-    }
-
-    @Override
-    ClassFileTransformer installOn(Instrumentation instrumentation) {
-      return null
-    }
-  }
-
   def "default enabled"() {
     setup:
     def target = new TestDefaultInstrumenter("test")
-    target.instrument(testAdviceBuilder)
 
     expect:
     target.enabled
-    target.applyCalled
   }
 
   def "default enabled override"() {
-    setup:
-    target.instrument(testAdviceBuilder)
-
     expect:
     target.enabled == enabled
-    target.applyCalled == enabled
 
     where:
     enabled | target
@@ -71,11 +48,9 @@ class DefaultInstrumenterForkedTest extends DDSpecification {
           return false
         }
       }
-    target.instrument(testAdviceBuilder)
 
     expect:
     target.enabled == enabled
-    target.applyCalled == enabled
 
     where:
     enabled << [true, false]
@@ -87,11 +62,9 @@ class DefaultInstrumenterForkedTest extends DDSpecification {
 
     when:
     def target = new TestDefaultInstrumenter("test")
-    target.instrument(testAdviceBuilder)
 
     then:
     target.enabled == enabled
-    target.applyCalled == enabled
 
     where:
     value   | enabled
@@ -104,11 +77,9 @@ class DefaultInstrumenterForkedTest extends DDSpecification {
     setup:
     injectEnvConfig("DD_INTEGRATIONS_ENABLED", value)
     def target = new TestDefaultInstrumenter("test")
-    target.instrument(testAdviceBuilder)
 
     expect:
     target.enabled == enabled
-    target.applyCalled == enabled
 
     where:
     value   | enabled
@@ -122,11 +93,9 @@ class DefaultInstrumenterForkedTest extends DDSpecification {
     injectSysConfig("integrations.enabled", "false")
     injectSysConfig("integration.${value}.enabled", "true")
     def target = new TestDefaultInstrumenter(name, altName)
-    target.instrument(testAdviceBuilder)
 
     expect:
     target.enabled == enabled
-    target.applyCalled == enabled
 
     where:
     value             | enabled | name          | altName
@@ -146,12 +115,10 @@ class DefaultInstrumenterForkedTest extends DDSpecification {
 
     when:
     def target = new TestDefaultInstrumenter(name, altName)
-    target.instrument(testAdviceBuilder)
 
     then:
     System.getenv("DD_INTEGRATION_${value}_ENABLED") == "true"
     target.enabled == enabled
-    target.applyCalled == enabled
 
     where:
     value             | enabled | name          | altName
@@ -165,19 +132,16 @@ class DefaultInstrumenterForkedTest extends DDSpecification {
   }
 
   class TestDefaultInstrumenter extends Instrumenter.Tracing {
-    boolean applyCalled = false
 
     TestDefaultInstrumenter(String instrumentationName) {
       super(instrumentationName)
     }
 
     TestDefaultInstrumenter(String instrumentationName, String additionalName) {
-      super(instrumentationName, [additionalName])
+      super(instrumentationName, [additionalName] as String[])
     }
 
     @Override
-    void methodAdvice(MethodTransformer transformer) {
-      applyCalled = true
-    }
+    void methodAdvice(MethodTransformer transformer) {}
   }
 }

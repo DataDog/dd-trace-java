@@ -19,7 +19,7 @@ import net.bytebuddy.pool.TypePool;
 
 @AutoService(Instrumenter.class)
 public class RequestImplInstrumentation extends Instrumenter.Tracing
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasTypeAdvice {
   public RequestImplInstrumentation() {
     super("vertx", "vertx-redis-client");
   }

@@ -24,7 +24,7 @@ import net.bytebuddy.asm.Advice;
 
 @AutoService(Instrumenter.class)
 public class VertxHttpHeadersInstrumentation extends Instrumenter.Iast
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasTypeAdvice {
 
   public static final Reference VERTX_HTTP_HEADERS =
       new Reference.Builder("io.vertx.core.http.impl.headers.VertxHttpHeaders").build();
