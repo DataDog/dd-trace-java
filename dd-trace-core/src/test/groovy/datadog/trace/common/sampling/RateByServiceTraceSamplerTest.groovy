@@ -80,7 +80,7 @@ class RateByServiceTraceSamplerTest extends DDCoreSpecification {
 
     DDSpan span = tracer.buildSpan("fakeOperation")
       .withServiceName("SPOCK")
-      .withTag("env", "test")
+      .withTag("env", "Test")
       .ignoreActiveSpan().start()
     serviceSampler.setSamplingPriority(span)
 
