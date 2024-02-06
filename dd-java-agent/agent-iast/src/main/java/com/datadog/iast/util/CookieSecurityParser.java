@@ -84,9 +84,11 @@ public class CookieSecurityParser {
               state = next == '=' ? COOKIE_VALUE : COOKIE_ATTR_NAME;
               break;
             case COOKIE_VALUE:
-              if (!(i == start + 1
-                  && headerValue.charAt(start) == '"'
-                  && headerValue.charAt(end - 1) == '"')) {
+              if (headerValue.charAt(start) == '"' && headerValue.charAt(end - 1) == '"') {
+                if (i != start + 1) { // avoid empty value ""
+                  cookieValue = headerValue.substring(start + 1, end - 1).trim();
+                }
+              } else {
                 cookieValue = headerValue.substring(start, end).trim();
               }
               state = COOKIE_ATTR_NAME;
