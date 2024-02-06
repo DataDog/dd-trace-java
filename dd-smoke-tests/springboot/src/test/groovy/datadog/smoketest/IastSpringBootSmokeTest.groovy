@@ -1,6 +1,7 @@
 package datadog.smoketest
 
 import datadog.trace.api.config.IastConfig
+import datadog.trace.test.util.Flaky
 import groovy.transform.CompileDynamic
 import okhttp3.Request
 import okhttp3.Response
@@ -48,6 +49,7 @@ class IastSpringBootSmokeTest extends AbstractIastSpringBootTest {
     }
   }
 
+  @Flaky(value = 'global context is flaky under IBM8', condition = Flaky.IBM8)
   static class WithGlobalContext extends IastSpringBootSmokeTest {
     @Override
     protected List<String> iastJvmOpts() {

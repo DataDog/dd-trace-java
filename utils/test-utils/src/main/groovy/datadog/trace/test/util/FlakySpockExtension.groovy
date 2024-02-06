@@ -55,6 +55,10 @@ class FlakySpockExtension extends AbstractGlobalExtension {
     if (flaky == null) {
       return false
     }
+    final condition = flaky.condition()
+    if (!isFlakySpec(condition)) {
+      return false
+    }
     final suites = flaky.suites()
     if (suites == null || suites.length == 0) {
       return true
@@ -84,5 +88,13 @@ class FlakySpockExtension extends AbstractGlobalExtension {
 
   private static boolean shouldRunFlakyTestsOnly() {
     return "true" == System.getProperty(RUN_FLAKY_TESTS_KEY)
+  }
+
+  private static boolean isFlakySpec(final Class<? extends Closure<Boolean>> condition) {
+    if (condition == null || condition === Flaky.True) {
+      return true
+    }
+    final closure = condition.newInstance(this, null)
+    return closure.call()
   }
 }
