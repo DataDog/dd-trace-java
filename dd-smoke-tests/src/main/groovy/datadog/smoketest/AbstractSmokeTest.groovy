@@ -86,25 +86,7 @@ abstract class AbstractSmokeTest extends ProcessManager {
   }
 
   @Shared
-  protected String[] defaultJavaProperties = [
-    "${getMaxMemoryArgumentForFork()}",
-    "${getMinMemoryArgumentForFork()}",
-    "-javaagent:${shadowJarPath}",
-    isIBM ? "-Xdump:directory=/tmp" : "-XX:ErrorFile=/tmp/hs_err_pid%p.log",
-    "-Ddd.trace.agent.port=${server.address.port}",
-    "-Ddd.service.name=${SERVICE_NAME}",
-    "-Ddd.env=${ENV}",
-    "-Ddd.version=${VERSION}",
-    "-Ddd.profiling.enabled=true",
-    "-Ddd.profiling.start-delay=${PROFILING_START_DELAY_SECONDS}",
-    "-Ddd.profiling.upload.period=${PROFILING_RECORDING_UPLOAD_PERIOD_SECONDS}",
-    "-Ddd.profiling.url=${getProfilingUrl()}",
-    "-Ddd.profiling.ddprof.enabled=true",
-    "-Ddd.profiling.ddprof.alloc.enabled=true",
-    "-Ddatadog.slf4j.simpleLogger.defaultLogLevel=${logLevel()}",
-    "-Dorg.slf4j.simpleLogger.defaultLogLevel=${logLevel()}",
-    "-Ddd.site="
-  ]
+  protected String[] defaultJavaProperties = javaProperties()
 
   @Shared
   protected String[] nativeJavaProperties = [
@@ -115,6 +97,36 @@ abstract class AbstractSmokeTest extends ProcessManager {
     "-Ddd.env=${ENV}",
     "-Ddd.version=${VERSION}"
   ]
+
+
+  def javaProperties() {
+    def ret = [
+      "${getMaxMemoryArgumentForFork()}",
+      "${getMinMemoryArgumentForFork()}",
+      "-javaagent:${shadowJarPath}",
+      isIBM ? "-Xdump:directory=/tmp" : "-XX:ErrorFile=/tmp/hs_err_pid%p.log",
+      "-Ddd.trace.agent.port=${server.address.port}",
+      "-Ddd.env=${ENV}",
+      "-Ddd.version=${VERSION}",
+      "-Ddd.profiling.enabled=true",
+      "-Ddd.profiling.start-delay=${PROFILING_START_DELAY_SECONDS}",
+      "-Ddd.profiling.upload.period=${PROFILING_RECORDING_UPLOAD_PERIOD_SECONDS}",
+      "-Ddd.profiling.url=${getProfilingUrl()}",
+      "-Ddd.profiling.ddprof.enabled=true",
+      "-Ddd.profiling.ddprof.alloc.enabled=true",
+      "-Ddatadog.slf4j.simpleLogger.defaultLogLevel=${logLevel()}",
+      "-Dorg.slf4j.simpleLogger.defaultLogLevel=${logLevel()}",
+      "-Ddd.site="
+    ]
+    if (inferServiceName())  {
+      ret += "-Ddd.service.name=${SERVICE_NAME}"
+    }
+    ret as String[]
+  }
+
+  def inferServiceName() {
+    true
+  }
 
   def setup() {
     traceCount.set(0)

@@ -10,9 +10,8 @@ import net.bytebuddy.asm.Advice;
 import org.springframework.core.env.ConfigurableEnvironment;
 
 /**
- * This instrumentation only applies to SpringApplication being run as a jar because when deployed
- * as a war, the application will typically extend SpringBootServletInitializer and not use those
- * listeners.
+ * An instrumentation that set the service name according to what defined as
+ * `spring.application.name`
  */
 @AutoService(Instrumenter.class)
 public class SpringApplicationInstrumentation extends Instrumenter.Tracing
@@ -24,6 +23,13 @@ public class SpringApplicationInstrumentation extends Instrumenter.Tracing
   @Override
   public String instrumentedType() {
     return "org.springframework.boot.SpringApplicationRunListeners";
+  }
+
+  @Override
+  public String[] helperClassNames() {
+    return new String[] {
+      packageName + ".DeploymentHelper",
+    };
   }
 
   @Override
@@ -43,12 +49,13 @@ public class SpringApplicationInstrumentation extends Instrumenter.Tracing
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void afterEnvironmentPostProcessed(
         @Advice.Argument(0) final ConfigurableEnvironment environment) {
-      if (environment == null || !Config.get().getServiceNaming().isMutable()) {
+      if (DeploymentHelper.runningFromWar
+          || environment == null
+          || !Config.get().getServiceNaming().isMutable()) {
         return;
       }
 
       final String applicationName = environment.getProperty("spring.application.name");
-      System.err.println("APP NAME " + applicationName);
       if (applicationName != null && !applicationName.isEmpty()) {
         Config.get().getServiceNaming().update(applicationName);
       }
@@ -59,7 +66,9 @@ public class SpringApplicationInstrumentation extends Instrumenter.Tracing
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void afterEnvironmentPostProcessed(
         @Advice.Argument(1) final ConfigurableEnvironment environment) {
-      if (environment == null || !Config.get().getServiceNaming().isMutable()) {
+      if (DeploymentHelper.runningFromWar
+          || environment == null
+          || !Config.get().getServiceNaming().isMutable()) {
         return;
       }
       final String applicationName = environment.getProperty("spring.application.name");

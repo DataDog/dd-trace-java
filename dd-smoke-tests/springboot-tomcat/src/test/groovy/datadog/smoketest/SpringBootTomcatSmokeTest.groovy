@@ -51,10 +51,13 @@ class SpringBootTomcatSmokeTest extends AbstractServerSmokeTest {
   }
 
   @Override
+  def inferServiceName() {
+    false // will use servlet context
+  }
+
+  @Override
   protected Set<String> expectedTraces() {
-    return [
-      "[smoke-test-java-app:servlet.request:GET /hello[smoke-test-java-app:spring.handler:TestSuite.hello]]"
-    ].toSet()
+    return ["[smoke:servlet.request:GET /hello[smoke:spring.handler:TestSuite.hello]]"].toSet()
   }
 
   @Override

@@ -274,6 +274,8 @@
 0 org.springframework.boot.web.embedded.tomcat.TomcatWebServer$1
 0 org.springframework.boot.web.servlet.context.AnnotationConfigServletWebServerApplicationContext
 0 org.springframework.boot.web.servlet.context.ServletWebServerApplicationContext
+0 org.springframework.boot.web.servlet.support.SpringBootServletInitializer
+0 org.springframework.boot.web.support.SpringBootServletInitializer
 2 org.springframework.cache.*
 2 org.springframework.cglib.*
 # LoadingCache.createEntry constructs FutureTasks which it executes synchronously,
