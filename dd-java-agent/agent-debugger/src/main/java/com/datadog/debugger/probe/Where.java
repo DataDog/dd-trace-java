@@ -2,6 +2,7 @@ package com.datadog.debugger.probe;
 
 import com.datadog.debugger.agent.Generated;
 import com.datadog.debugger.instrumentation.Types;
+import com.datadog.debugger.util.ClassFileLines;
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.JsonReader;
 import com.squareup.moshi.JsonWriter;
@@ -12,17 +13,18 @@ import java.util.List;
 import java.util.Objects;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import org.objectweb.asm.tree.MethodNode;
 
 /** Stores probe location definition */
 public class Where {
   private static final String UNKNOWN_RETURN_TYPE = "$com.datadog.debugger.UNKNOWN$";
   private static final Pattern JVM_CLASS_PATTERN = Pattern.compile("L([^;]+);");
 
-  private String typeName;
-  private String methodName;
-  private String sourceFile;
-  private String signature;
-  private SourceLine[] lines;
+  private final String typeName;
+  private final String methodName;
+  private final String sourceFile;
+  private final String signature;
+  private final SourceLine[] lines;
   // used as cache for matching signature
   private String probeMethodDescriptor;
 
@@ -39,31 +41,12 @@ public class Where {
     this(typeName, methodName, signature, sourceLines(lines), sourceFile);
   }
 
-  public Where() {}
-
-  public Where typeName(String typeName) {
-    this.typeName = typeName;
-    return this;
+  public static Where from(String typeName, String methodName, String signature, String... lines) {
+    return new Where(typeName, methodName, signature, lines, null);
   }
 
-  public Where methodName(String methodName) {
-    this.methodName = methodName;
-    return this;
-  }
-
-  public Where signature(String signature) {
-    this.signature = signature;
-    return this;
-  }
-
-  public Where lines(String... lines) {
-    this.lines = sourceLines(lines);
-    return this;
-  }
-
-  public Where sourceFile(String sourceFile) {
-    this.sourceFile = sourceFile;
-    return this;
+  public static Where from(String sourceFile, int line) {
+    return new Where(null, null, null, new SourceLine[] {new SourceLine(line)}, sourceFile);
   }
 
   protected static SourceLine[] sourceLines(String[] defs) {
@@ -112,16 +95,25 @@ public class Where {
     return typeName == null || typeName.equals("*") || typeName.equals(targetType);
   }
 
-  public boolean isMethodMatching(String targetMethod) {
+  public boolean isMethodNameMatching(String targetMethod) {
     return methodName == null || methodName.equals("*") || methodName.equals(targetMethod);
   }
 
-  public boolean isMethodMatching(String targetName, String targetMethodDescriptor) {
+  public boolean isMethodMatching(MethodNode methodNode, ClassFileLines classFileLines) {
+    String targetName = methodNode.name;
+    String targetMethodDescriptor = methodNode.desc;
     // try exact matching: name + FQN signature
-    if (!isMethodMatching(targetName)) {
+    if (!isMethodNameMatching(targetName)) {
       return false;
     }
-    if (signature == null || signature.equals("*") || signature.equals(targetMethodDescriptor)) {
+    if (signature == null) {
+      if (lines == null || lines.length == 0) {
+        return true;
+      }
+      // try matching by line
+      return classFileLines.getMethodByLine(lines[0].getFrom()) == methodNode;
+    }
+    if (signature.equals("*") || signature.equals(targetMethodDescriptor)) {
       return true;
     }
     // try full JVM signature: "(Ljava.lang.String;Ljava.util.Map;I)V"

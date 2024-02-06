@@ -23,7 +23,13 @@ public class ApacheHttpClientInstrumentation extends Instrumenter.Tracing
     implements Instrumenter.CanShortcutTypeMatching {
 
   public ApacheHttpClientInstrumentation() {
-    super("httpclient5", "apache-httpclient5", "apache-http-client5");
+    super(
+        "httpclient5",
+        "apache-httpclient5",
+        "apache-http-client5",
+        "httpclient",
+        "apache-httpclient",
+        "apache-http-client");
   }
 
   @Override
