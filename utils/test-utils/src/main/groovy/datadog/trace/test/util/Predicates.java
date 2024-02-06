@@ -1,22 +1,18 @@
 package datadog.trace.test.util;
 
-import groovy.lang.Closure;
 import java.math.BigDecimal;
+import java.util.function.Predicate;
 
 public abstract class Predicates {
 
   private Predicates() {}
 
-  public static final class IBM8 extends Closure<Boolean> {
+  public static final class IBM8 implements Predicate<String> {
     private static final String VENDOR_STRING = "IBM";
     private static final BigDecimal VERSION = new BigDecimal("1.8");
 
-    public IBM8(Object owner, Object thisObject) {
-      super(owner, thisObject);
-    }
-
     @Override
-    public Boolean call() {
+    public boolean test(final String spec) {
       final String vendor = System.getProperty("java.vendor", "");
       if (!vendor.contains(VENDOR_STRING)) {
         return false;

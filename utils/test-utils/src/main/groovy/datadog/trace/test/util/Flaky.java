@@ -1,10 +1,10 @@
 package datadog.trace.test.util;
 
-import groovy.lang.Closure;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
+import java.util.function.Predicate;
 import org.junit.jupiter.api.Tag;
 
 /**
@@ -26,17 +26,14 @@ public @interface Flaky {
 
   /**
    * Closure with a predicate to test at runtime if the actual spec is flaky (e.g. check the JVM
-   * vendor)
+   * vendor), the parameter is the actual name of the spec under test
    */
-  Class<? extends Closure<Boolean>> condition() default True.class;
+  Class<? extends Predicate<String>> condition() default True.class;
 
-  class True extends Closure<Boolean> {
+  class True implements Predicate<String> {
 
-    public True(final Object owner, final Object thisObject) {
-      super(owner, thisObject);
-    }
-
-    public Boolean call() {
+    @Override
+    public boolean test(final String spec) {
       return true;
     }
   }
