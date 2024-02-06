@@ -67,7 +67,6 @@ public class RateByServiceTraceSampler implements Sampler, PrioritySampler, Remo
     final Map<String, Number> newServiceRates = responseJson.get("rate_by_service");
 
     if (null == newServiceRates) {
-      // TODO: If v0.4+, log on lack of directives - but v0.3
       return;
     }
 
