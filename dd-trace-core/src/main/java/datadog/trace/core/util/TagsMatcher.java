@@ -1,27 +1,19 @@
 package datadog.trace.core.util;
 
 import datadog.trace.core.CoreSpan;
+import java.util.HashMap;
 import java.util.Map;
-import java.util.regex.Pattern;
-import java.util.stream.Collectors;
 
-public class TagsMatcher {
-
+public final class TagsMatcher {
   public static TagsMatcher create(Map<String, String> tags) {
-    Map<String, Matcher> matchers =
-        tags.entrySet().stream()
-            .collect(
-                Collectors.toMap(
-                    Map.Entry::getKey,
-                    entry -> {
-                      String tagValue = entry.getValue();
-                      if (Matchers.isExact(tagValue)) {
-                        return new Matchers.ExactMatcher(tagValue);
-                      } else {
-                        Pattern pattern = GlobPattern.globToRegexPattern(tagValue);
-                        return new Matchers.PatternMatcher(pattern);
-                      }
-                    }));
+    Map<String, Matcher> matchers = new HashMap<String, Matcher>(tags.size());
+
+    for (Map.Entry<String, String> entry : tags.entrySet()) {
+      String tag = entry.getKey();
+      String glob = entry.getValue();
+
+      matchers.put(tag, Matchers.compileGlob(glob));
+    }
     return new TagsMatcher(matchers);
   }
 
@@ -32,11 +24,13 @@ public class TagsMatcher {
   }
 
   public <T extends CoreSpan<T>> boolean matches(T span) {
-    return matchers.entrySet().stream()
-        .allMatch(
-            entry -> {
-              String tagValue = span.getTag(entry.getKey());
-              return tagValue != null && entry.getValue().matches(tagValue);
-            });
+    for (Map.Entry<String, Matcher> entry : matchers.entrySet()) {
+      String tag = entry.getKey();
+      Matcher matcher = entry.getValue();
+
+      Object value = span.getTag(tag);
+      if (value == null || !matcher.matches(value)) return false;
+    }
+    return true;
   }
 }

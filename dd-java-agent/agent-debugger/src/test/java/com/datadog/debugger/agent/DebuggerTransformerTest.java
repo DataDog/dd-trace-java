@@ -13,6 +13,7 @@ import static org.mockito.Mockito.when;
 
 import com.datadog.debugger.instrumentation.DiagnosticMessage;
 import com.datadog.debugger.instrumentation.InstrumentationResult;
+import com.datadog.debugger.instrumentation.MethodInfo;
 import com.datadog.debugger.probe.LogProbe;
 import com.datadog.debugger.probe.MetricProbe;
 import com.datadog.debugger.probe.ProbeDefinition;
@@ -52,8 +53,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.objectweb.asm.Opcodes;
-import org.objectweb.asm.tree.ClassNode;
-import org.objectweb.asm.tree.MethodNode;
 import org.objectweb.asm.tree.VarInsnNode;
 
 public class DebuggerTransformerTest {
@@ -400,10 +399,9 @@ public class DebuggerTransformerTest {
               return InstrumentationResult.Status.INSTALLED;
             })
         .when(mock)
-        .instrument(any(), any(), any(), anyList(), anyList());
+        .instrument(any(), anyList(), anyList());
     when(mock.getProbeId()).thenReturn(new ProbeId(id, 0));
-    Where where =
-        new Where().typeName(ArrayList.class.getName()).methodName("add").signature("(Object)");
+    Where where = Where.from(ArrayList.class.getName(), "add", "(Object)");
     when(mock.getWhere()).thenReturn(where);
     return (T) mock;
   }
@@ -425,13 +423,12 @@ public class DebuggerTransformerTest {
 
     @Override
     public InstrumentationResult.Status instrument(
-        ClassLoader classLoader,
-        ClassNode classNode,
-        MethodNode methodNode,
-        List<DiagnosticMessage> diagnostics,
-        List<ProbeId> probeIds) {
-      methodNode.instructions.insert(
-          new VarInsnNode(Opcodes.ASTORE, methodNode.localVariables.size()));
+        MethodInfo methodInfo, List<DiagnosticMessage> diagnostics, List<ProbeId> probeIds) {
+      methodInfo
+          .getMethodNode()
+          .instructions
+          .insert(
+              new VarInsnNode(Opcodes.ASTORE, methodInfo.getMethodNode().localVariables.size()));
       return InstrumentationResult.Status.INSTALLED;
     }
 

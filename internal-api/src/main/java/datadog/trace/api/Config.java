@@ -326,6 +326,7 @@ import static datadog.trace.api.config.RemoteConfigConfig.REMOTE_CONFIG_POLL_INT
 import static datadog.trace.api.config.RemoteConfigConfig.REMOTE_CONFIG_TARGETS_KEY;
 import static datadog.trace.api.config.RemoteConfigConfig.REMOTE_CONFIG_TARGETS_KEY_ID;
 import static datadog.trace.api.config.RemoteConfigConfig.REMOTE_CONFIG_URL;
+import static datadog.trace.api.config.TraceInstrumentationConfig.AXIS_PROMOTE_RESOURCE_NAME;
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_HOST;
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_INSTANCE;
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_INSTANCE_TYPE_SUFFIX;
@@ -367,6 +368,7 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.RABBIT_PROPAGA
 import static datadog.trace.api.config.TraceInstrumentationConfig.SERVLET_ASYNC_TIMEOUT_ERROR;
 import static datadog.trace.api.config.TraceInstrumentationConfig.SERVLET_PRINCIPAL_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.SERVLET_ROOT_CONTEXT_SERVICE_NAME;
+import static datadog.trace.api.config.TraceInstrumentationConfig.SPARK_APP_NAME_AS_SERVICE;
 import static datadog.trace.api.config.TraceInstrumentationConfig.SPARK_TASK_HISTOGRAM_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.SPRING_DATA_REPOSITORY_INTERFACE_RESOURCE_NAME;
 import static datadog.trace.api.config.TracerConfig.AGENT_HOST;
@@ -895,8 +897,10 @@ public class Config {
   private final boolean elasticsearchParamsEnabled;
   private final boolean elasticsearchBodyAndParamsEnabled;
   private final boolean sparkTaskHistogramEnabled;
+  private final boolean sparkAppNameAsService;
   private final boolean jaxRsExceptionAsErrorsEnabled;
 
+  private final boolean axisPromoteResourceName;
   private final float traceFlushIntervalSeconds;
 
   private final boolean telemetryDebugRequestsEnabled;
@@ -1971,10 +1975,16 @@ public class Config {
         configProvider.getBoolean(
             SPARK_TASK_HISTOGRAM_ENABLED, ConfigDefaults.DEFAULT_SPARK_TASK_HISTOGRAM_ENABLED);
 
+    this.sparkAppNameAsService =
+        configProvider.getBoolean(
+            SPARK_APP_NAME_AS_SERVICE, ConfigDefaults.DEFAULT_SPARK_APP_NAME_AS_SERVICE);
+
     this.jaxRsExceptionAsErrorsEnabled =
         configProvider.getBoolean(
             JAX_RS_EXCEPTION_AS_ERROR_ENABLED,
             ConfigDefaults.DEFAULT_JAX_RS_EXCEPTION_AS_ERROR_ENABLED);
+
+    axisPromoteResourceName = configProvider.getBoolean(AXIS_PROMOTE_RESOURCE_NAME, false);
 
     this.traceFlushIntervalSeconds =
         configProvider.getFloat(
@@ -3291,8 +3301,16 @@ public class Config {
     return sparkTaskHistogramEnabled;
   }
 
+  public boolean useSparkAppNameAsService() {
+    return sparkAppNameAsService;
+  }
+
   public boolean isJaxRsExceptionAsErrorEnabled() {
     return jaxRsExceptionAsErrorsEnabled;
+  }
+
+  public boolean isAxisPromoteResourceName() {
+    return axisPromoteResourceName;
   }
 
   /** @return A map of tags to be applied only to the local application root span. */
@@ -3403,6 +3421,9 @@ public class Config {
     result.put(SERVICE_TAG, serviceName);
     result.put(LANGUAGE_TAG_KEY, LANGUAGE_TAG_VALUE);
     result.put(RUNTIME_VERSION_TAG, runtimeVersion);
+    if (azureAppServices) {
+      result.putAll(getAzureAppServicesTags());
+    }
     return Collections.unmodifiableMap(result);
   }
 
@@ -4352,8 +4373,12 @@ public class Config {
         + logsInjectionEnabled
         + ", sparkTaskHistogramEnabled="
         + sparkTaskHistogramEnabled
+        + ", sparkAppNameAsService="
+        + sparkAppNameAsService
         + ", jaxRsExceptionAsErrorsEnabled="
         + jaxRsExceptionAsErrorsEnabled
+        + ", axisPromoteResourceName="
+        + axisPromoteResourceName
         + ", peerServiceDefaultsEnabled="
         + peerServiceDefaultsEnabled
         + ", peerServiceComponentOverrides="

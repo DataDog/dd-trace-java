@@ -21,6 +21,9 @@ jobs:
     steps:
       - checkout
       - run:
+          name: Checkout merge commit
+          command: .circleci/checkout_merge_commit.sh
+      - run:
           name: Install dependencies
           command: pip3 install jinja2 requests
       - run:

@@ -27,7 +27,8 @@ public class ApacheHttpAsyncClientInstrumentation extends Instrumenter.Tracing
     implements Instrumenter.CanShortcutTypeMatching {
 
   public ApacheHttpAsyncClientInstrumentation() {
-    super("httpasyncclient5", "apache-httpasyncclient5");
+    super(
+        "httpasyncclient5", "apache-httpasyncclient5", "httpasyncclient", "apache-httpasyncclient");
   }
 
   @Override

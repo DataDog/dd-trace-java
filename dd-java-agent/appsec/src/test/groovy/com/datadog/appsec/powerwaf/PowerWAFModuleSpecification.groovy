@@ -38,7 +38,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
   private static final DataBundle ATTACK_BUNDLE = MapDataBundle.of(KnownAddresses.HEADERS_NO_COOKIES,
   new CaseInsensitiveMap<List<String>>(['user-agent': 'Arachni/v0']))
 
-  AppSecRequestContext ctx = Mock()
+  AppSecRequestContext ctx = Spy()
 
   StubAppSecConfigService service
   PowerWAFModule pwafModule = new PowerWAFModule()
@@ -870,12 +870,16 @@ class PowerWAFModuleSpecification extends DDSpecification {
   }
 
   void 'timeout is honored'() {
+    setup:
     injectSysConfig('appsec.waf.timeout', '1')
     PowerWAFModule.createLimitsObject()
     setupWithStubConfigService()
     DataBundle db = MapDataBundle.of(KnownAddresses.HEADERS_NO_COOKIES,
       new CaseInsensitiveMap<List<String>>(['user-agent': 'Arachni/v' + ('a' * 4000)]))
     ChangeableFlow flow = new ChangeableFlow()
+
+    TraceSegment segment = Mock()
+    TraceSegmentPostProcessor pp = service.traceSegmentPostProcessors.last()
 
     when:
     dataListener.onDataAvailable(flow, ctx, db, false)
@@ -884,6 +888,14 @@ class PowerWAFModuleSpecification extends DDSpecification {
     ctx.getOrCreateAdditive(_, true) >> {
       pwafAdditive = it[0].openAdditive() }
     assert !flow.blocking
+    1 * ctx.increaseTimeouts()
+
+    when:
+    pp.processTraceSegment(segment, ctx, [])
+
+    then:
+    1 * segment.setTagTop('_dd.appsec.waf.timeouts', 1L)
+    _ * segment.setTagTop(_, _)
 
     cleanup:
     injectSysConfig('appsec.waf.timeout', ConfigDefaults.DEFAULT_APPSEC_WAF_TIMEOUT as String)

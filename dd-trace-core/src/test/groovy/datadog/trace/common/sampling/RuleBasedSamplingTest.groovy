@@ -271,6 +271,73 @@ class RuleBasedSamplingTest extends DDCoreSpecification {
 
   }
 
+  def "tag types test"() {
+    given:
+    def json = """[{
+      "tags": {"testTag": "${tagPattern}"}, 
+      "sample_rate": 1
+    }]"""
+    Properties properties = new Properties()
+    properties.setProperty(TRACE_SAMPLING_RULES, json)
+    properties.setProperty(TRACE_SAMPLE_RATE, "0")
+
+    def tracer = tracerBuilder().writer(new ListWriter()).build()
+    PrioritySampler sampler = (PrioritySampler)Sampler.Builder.forConfig(properties)
+
+    when:
+    DDSpan span = tracer.buildSpan("operation")
+      .withServiceName("service")
+      .withResourceName("resource")
+      .withTag("env", "bar")
+      .ignoreActiveSpan()
+      .start()
+
+    span.setTag("testTag", tagValue)
+
+    sampler.setSamplingPriority(span)
+
+    then:
+    span.getSamplingPriority() == (expectedMatch ? USER_KEEP : USER_DROP)
+
+    cleanup:
+    tracer.close()
+
+    where:
+    tagPattern  | tagValue                  | expectedMatch
+    "*"         | "anything..."             | true
+    "*"         | null                      | false
+    "*"         | new StringBuilder("foo")  | true
+    "*"         | new Object() {}           | true
+    "**"        | new Object() {}           | true
+    "?"         | new Object() {}           | false
+    "*"         | "foo"                     | true
+    "**"        | "foo"                     | true
+    "**"        | true                      | true
+    "**"        | false                     | true
+    "**"        | 20                        | true
+    "**"        | 20L                       | true
+    "**"        | 20.1F                     | true
+    "**"        | 20.1D                     | true
+    "**"        | bigInteger("20")          | true
+    "**"        | bigDecimal("20.1")        | true
+    "foo"       | "foo"                     | true
+    "foo"       | new StringBuilder("foo")  | true
+    "foo"       | "not-foo"                 | false
+    "ba?"       | "bar"                     | true
+    "20"        | 20                        | true
+    "20"        | Integer.valueOf(20)       | true
+    "20"        | 20L                       | true
+    "20"        | Long.valueOf(20)          | true
+    "20"        | 20F                       | true
+    "20"        | 20.1F                     | false
+    "20.*"      | 20.1F                     | false
+    "20.1"      | 20.1D                     | false
+    "*"         | 20.1D                     | true
+    "20"        | bigInteger("20")          | true
+    "20"        | bigDecimal("20")          | true
+    "*"         | bigDecimal("20.1")        | true
+  }
+
   def "Prefer JSON rules over other deprecated ones"() {
     setup:
     def tracer = tracerBuilder().writer(new ListWriter()).build()
@@ -387,5 +454,14 @@ class RuleBasedSamplingTest extends DDCoreSpecification {
 
     cleanup:
     tracer.close()
+  }
+
+  // helper functions - to subvert codenarc
+  static bigInteger(str) {
+    return new BigInteger(str)
+  }
+
+  static bigDecimal(str) {
+    return new BigDecimal(str)
   }
 }

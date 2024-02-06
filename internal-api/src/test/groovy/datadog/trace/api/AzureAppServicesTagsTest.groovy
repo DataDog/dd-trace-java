@@ -15,6 +15,7 @@ class AzureAppServicesTagsTest extends DDSpecification {
 
     then:
     !config.localRootSpanTags.keySet().any { it.startsWith("aas")}
+    !config.mergedProfilingTags.keySet().any { it.startsWith("aas")}
   }
 
   def "subscription id parsed"() {
@@ -27,6 +28,7 @@ class AzureAppServicesTagsTest extends DDSpecification {
 
     then:
     config.localRootSpanTags["aas.subscription.id"] == "8c500027-5f00-400e-8f00-60000000000f"
+    config.mergedProfilingTags["aas.subscription.id"] == "8c500027-5f00-400e-8f00-60000000000f"
   }
 
   def "resource id generated"() {
@@ -41,6 +43,7 @@ class AzureAppServicesTagsTest extends DDSpecification {
 
     then:
     config.localRootSpanTags["aas.resource.id"] == "/subscriptions/8c500027-5f00-400e-8f00-60000000000f/resourcegroups/group/providers/microsoft.web/sites/site"
+    config.mergedProfilingTags["aas.resource.id"] == "/subscriptions/8c500027-5f00-400e-8f00-60000000000f/resourcegroups/group/providers/microsoft.web/sites/site"
   }
 
   def "some tags are set to unknown when not defined"() {
@@ -55,6 +58,10 @@ class AzureAppServicesTagsTest extends DDSpecification {
     config.localRootSpanTags["aas.environment.instance_name"] == "unknown"
     config.localRootSpanTags["aas.environment.os"] == "unknown"
     config.localRootSpanTags["aas.environment.extension_version"] == "unknown"
+    config.mergedProfilingTags["aas.environment.instance_id"] == "unknown"
+    config.mergedProfilingTags["aas.environment.instance_name"] == "unknown"
+    config.mergedProfilingTags["aas.environment.os"] == "unknown"
+    config.mergedProfilingTags["aas.environment.extension_version"] == "unknown"
   }
 
   def "tags are set"() {
@@ -74,5 +81,9 @@ class AzureAppServicesTagsTest extends DDSpecification {
     config.localRootSpanTags["aas.environment.instance_name"] == "someComputer"
     config.localRootSpanTags["aas.environment.os"] == "someOs"
     config.localRootSpanTags["aas.environment.extension_version"] == "99"
+    config.mergedProfilingTags["aas.environment.instance_id"] == "someInstance"
+    config.mergedProfilingTags["aas.environment.instance_name"] == "someComputer"
+    config.mergedProfilingTags["aas.environment.os"] == "someOs"
+    config.mergedProfilingTags["aas.environment.extension_version"] == "99"
   }
 }
