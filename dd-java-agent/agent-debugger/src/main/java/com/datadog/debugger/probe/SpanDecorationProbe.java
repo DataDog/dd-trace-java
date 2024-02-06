@@ -8,6 +8,7 @@ import com.datadog.debugger.el.ProbeCondition;
 import com.datadog.debugger.instrumentation.CapturedContextInstrumentor;
 import com.datadog.debugger.instrumentation.DiagnosticMessage;
 import com.datadog.debugger.instrumentation.InstrumentationResult;
+import com.datadog.debugger.instrumentation.MethodInfo;
 import com.datadog.debugger.sink.Snapshot;
 import datadog.trace.api.Pair;
 import datadog.trace.bootstrap.debugger.CapturedContext;
@@ -24,8 +25,6 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
-import org.objectweb.asm.tree.ClassNode;
-import org.objectweb.asm.tree.MethodNode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -135,13 +134,9 @@ public class SpanDecorationProbe extends ProbeDefinition {
 
   @Override
   public InstrumentationResult.Status instrument(
-      ClassLoader classLoader,
-      ClassNode classNode,
-      MethodNode methodNode,
-      List<DiagnosticMessage> diagnostics,
-      List<ProbeId> probeIds) {
+      MethodInfo methodInfo, List<DiagnosticMessage> diagnostics, List<ProbeId> probeIds) {
     return new CapturedContextInstrumentor(
-            this, classLoader, classNode, methodNode, diagnostics, probeIds, false, Limits.DEFAULT)
+            this, methodInfo, diagnostics, probeIds, false, Limits.DEFAULT)
         .instrument();
   }
 

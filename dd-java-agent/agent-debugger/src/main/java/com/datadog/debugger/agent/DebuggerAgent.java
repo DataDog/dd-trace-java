@@ -61,13 +61,15 @@ public class DebuggerAgent {
             config, diagnosticEndpoint, ddAgentFeaturesDiscovery.supportsDebuggerDiagnostics());
     DebuggerSink debuggerSink = new DebuggerSink(config, probeStatusSink);
     debuggerSink.start();
+    ExceptionProbeManager exceptionProbeManager = new ExceptionProbeManager();
     ConfigurationUpdater configurationUpdater =
         new ConfigurationUpdater(
             instrumentation,
             DebuggerAgent::createTransformer,
             config,
             debuggerSink,
-            classesToRetransformFinder);
+            classesToRetransformFinder,
+            exceptionProbeManager);
     sink = debuggerSink;
     StatsdMetricForwarder statsdMetricForwarder =
         new StatsdMetricForwarder(config, probeStatusSink);
@@ -79,7 +81,7 @@ public class DebuggerAgent {
     DebuggerContext.initTracer(new DebuggerTracer(debuggerSink.getProbeStatusSink()));
     if (config.isDebuggerExceptionEnabled()) {
       DebuggerContext.initExceptionDebugger(
-          new DefaultExceptionDebugger(new ExceptionProbeManager()));
+          new DefaultExceptionDebugger(exceptionProbeManager, configurationUpdater));
     }
     if (config.isDebuggerInstrumentTheWorld()) {
       setupInstrumentTheWorldTransformer(

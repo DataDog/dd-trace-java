@@ -9,6 +9,7 @@ import static com.datadog.debugger.instrumentation.Types.STRING_TYPE;
 import com.datadog.debugger.instrumentation.DiagnosticMessage.Kind;
 import com.datadog.debugger.probe.ProbeDefinition;
 import com.datadog.debugger.probe.Where;
+import com.datadog.debugger.util.ClassFileLines;
 import datadog.trace.bootstrap.debugger.ProbeId;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -23,7 +24,6 @@ import org.objectweb.asm.tree.InsnList;
 import org.objectweb.asm.tree.InsnNode;
 import org.objectweb.asm.tree.JumpInsnNode;
 import org.objectweb.asm.tree.LabelNode;
-import org.objectweb.asm.tree.LineNumberNode;
 import org.objectweb.asm.tree.LocalVariableNode;
 import org.objectweb.asm.tree.MethodInsnNode;
 import org.objectweb.asm.tree.MethodNode;
@@ -39,11 +39,11 @@ public abstract class Instrumentor {
   protected final ClassLoader classLoader;
   protected final ClassNode classNode;
   protected final MethodNode methodNode;
+  protected final ClassFileLines classFileLines;
   protected final List<DiagnosticMessage> diagnostics;
   protected final List<ProbeId> probeIds;
   protected final boolean isStatic;
   protected final boolean isLineProbe;
-  protected final LineMap lineMap = new LineMap();
   protected final LabelNode methodEnterLabel;
   protected int localVarBaseOffset;
   protected int argOffset;
@@ -53,15 +53,14 @@ public abstract class Instrumentor {
 
   public Instrumentor(
       ProbeDefinition definition,
-      ClassLoader classLoader,
-      ClassNode classNode,
-      MethodNode methodNode,
+      MethodInfo methodInfo,
       List<DiagnosticMessage> diagnostics,
       List<ProbeId> probeIds) {
     this.definition = definition;
-    this.classLoader = classLoader;
-    this.classNode = classNode;
-    this.methodNode = methodNode;
+    this.classLoader = methodInfo.getClassLoader();
+    this.classNode = methodInfo.getClassNode();
+    this.methodNode = methodInfo.getMethodNode();
+    this.classFileLines = methodInfo.getClassFileLines();
     this.diagnostics = diagnostics;
     this.probeIds = probeIds;
     Where.SourceLine[] sourceLines = definition.getWhere().getSourceLines();
@@ -153,22 +152,10 @@ public abstract class Instrumentor {
     return lastInvokeSpecial;
   }
 
-  protected void fillLineMap() {
-    AbstractInsnNode node = methodNode.instructions.getFirst();
-    while (node != null) {
-      if (node.getType() == AbstractInsnNode.LINE) {
-        lineMap.addLine((LineNumberNode) node);
-      }
-      node = node.getNext();
-    }
-  }
-
   protected void processInstructions() {
     AbstractInsnNode node = methodNode.instructions.getFirst();
     while (node != null && !node.equals(returnHandlerLabel)) {
-      if (node.getType() == AbstractInsnNode.LINE) {
-        lineMap.addLine((LineNumberNode) node);
-      } else {
+      if (node.getType() != AbstractInsnNode.LINE) {
         node = processInstruction(node);
       }
       node = node.getNext();

@@ -5,6 +5,7 @@ import static java.util.stream.Collectors.toList;
 
 import com.datadog.debugger.instrumentation.DiagnosticMessage;
 import com.datadog.debugger.instrumentation.InstrumentationResult;
+import com.datadog.debugger.instrumentation.MethodInfo;
 import com.datadog.debugger.probe.LogProbe;
 import com.datadog.debugger.probe.MetricProbe;
 import com.datadog.debugger.probe.ProbeDefinition;
@@ -13,6 +14,7 @@ import com.datadog.debugger.probe.SpanProbe;
 import com.datadog.debugger.probe.Where;
 import com.datadog.debugger.sink.DebuggerSink;
 import com.datadog.debugger.sink.ProbeStatusSink;
+import com.datadog.debugger.util.ClassFileLines;
 import com.datadog.debugger.util.ExceptionHelper;
 import datadog.trace.agent.tooling.AgentStrategies;
 import datadog.trace.api.Config;
@@ -47,9 +49,7 @@ import net.bytebuddy.pool.TypePool;
 import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.ClassWriter;
 import org.objectweb.asm.Opcodes;
-import org.objectweb.asm.tree.AbstractInsnNode;
 import org.objectweb.asm.tree.ClassNode;
-import org.objectweb.asm.tree.LineNumberNode;
 import org.objectweb.asm.tree.MethodNode;
 import org.objectweb.asm.tree.analysis.Analyzer;
 import org.objectweb.asm.tree.analysis.AnalyzerException;
@@ -404,6 +404,7 @@ public class DebuggerTransformer implements ClassFileTransformer {
       Map<Where, List<ProbeDefinition>> definitionByLocation,
       ClassNode classNode) {
     boolean transformed = false;
+    ClassFileLines classFileLines = new ClassFileLines(classNode);
     // FIXME build a map also for methods to optimize the matching, currently O(probes*methods)
     for (Map.Entry<Where, List<ProbeDefinition>> entry : definitionByLocation.entrySet()) {
       Where where = entry.getKey();
@@ -411,10 +412,10 @@ public class DebuggerTransformer implements ClassFileTransformer {
       String[] lines = where.getLines();
       List<MethodNode> methodNodes;
       if (methodName == null && lines != null) {
-        MethodNode methodNode = matchSourceFile(classNode, where);
+        MethodNode methodNode = matchSourceFile(classNode, where, classFileLines);
         methodNodes = methodNode != null ? singletonList(methodNode) : Collections.emptyList();
       } else {
-        methodNodes = matchMethodDescription(classNode, where);
+        methodNodes = matchMethodDescription(classNode, where, classFileLines);
       }
       List<ProbeDefinition> definitions = entry.getValue();
       if (methodNodes.isEmpty()) {
@@ -432,8 +433,8 @@ public class DebuggerTransformer implements ClassFileTransformer {
               methodNode.desc,
               probeIds);
         }
-        InstrumentationResult result =
-            applyInstrumentation(loader, classNode, definitions, methodNode);
+        MethodInfo methodInfo = new MethodInfo(loader, classNode, methodNode, classFileLines);
+        InstrumentationResult result = applyInstrumentation(methodInfo, definitions);
         transformed |= result.isInstalled();
         handleInstrumentationResult(definitions, result);
       }
@@ -500,24 +501,18 @@ public class DebuggerTransformer implements ClassFileTransformer {
   }
 
   private InstrumentationResult applyInstrumentation(
-      ClassLoader classLoader,
-      ClassNode classNode,
-      List<ProbeDefinition> definitions,
-      MethodNode methodNode) {
+      MethodInfo methodInfo, List<ProbeDefinition> definitions) {
     Map<ProbeId, List<DiagnosticMessage>> diagnostics = new HashMap<>();
     definitions.forEach(
         probeDefinition -> diagnostics.put(probeDefinition.getProbeId(), new ArrayList<>()));
-    InstrumentationResult.Status status =
-        preCheckInstrumentation(diagnostics, classLoader, methodNode);
+    InstrumentationResult.Status status = preCheckInstrumentation(diagnostics, methodInfo);
     if (status != InstrumentationResult.Status.ERROR) {
       try {
         List<ToInstrumentInfo> toInstruments = filterAndSortDefinitions(definitions);
         for (ToInstrumentInfo toInstrumentInfo : toInstruments) {
           ProbeDefinition definition = toInstrumentInfo.definition;
           List<DiagnosticMessage> probeDiagnostics = diagnostics.get(definition.getProbeId());
-          status =
-              definition.instrument(
-                  classLoader, classNode, methodNode, probeDiagnostics, toInstrumentInfo.probeIds);
+          status = definition.instrument(methodInfo, probeDiagnostics, toInstrumentInfo.probeIds);
         }
       } catch (Throwable t) {
         log.warn("Exception during instrumentation: ", t);
@@ -526,7 +521,7 @@ public class DebuggerTransformer implements ClassFileTransformer {
             new DiagnosticMessage(DiagnosticMessage.Kind.ERROR, t), diagnostics);
       }
     }
-    return new InstrumentationResult(status, diagnostics, classNode, methodNode);
+    return new InstrumentationResult(status, diagnostics, methodInfo);
   }
 
   static class ToInstrumentInfo {
@@ -582,10 +577,8 @@ public class DebuggerTransformer implements ClassFileTransformer {
   }
 
   private InstrumentationResult.Status preCheckInstrumentation(
-      Map<ProbeId, List<DiagnosticMessage>> diagnostics,
-      ClassLoader classLoader,
-      MethodNode methodNode) {
-    if ((methodNode.access & (Opcodes.ACC_NATIVE | Opcodes.ACC_ABSTRACT)) != 0) {
+      Map<ProbeId, List<DiagnosticMessage>> diagnostics, MethodInfo methodInfo) {
+    if ((methodInfo.getMethodNode().access & (Opcodes.ACC_NATIVE | Opcodes.ACC_ABSTRACT)) != 0) {
       if (!instrumentTheWorld) {
         addDiagnosticForAllProbes(
             new DiagnosticMessage(
@@ -594,6 +587,7 @@ public class DebuggerTransformer implements ClassFileTransformer {
       }
       return InstrumentationResult.Status.ERROR;
     }
+    ClassLoader classLoader = methodInfo.getClassLoader();
     if (classLoader != null
         && classLoader.getClass().getTypeName().equals("sun.reflect.DelegatingClassLoader")) {
       // This classloader is used when using reflection. This is a special classloader known
@@ -620,11 +614,12 @@ public class DebuggerTransformer implements ClassFileTransformer {
     diagnostics.forEach((probeId, diagnosticMessages) -> diagnosticMessages.add(diagnosticMessage));
   }
 
-  private List<MethodNode> matchMethodDescription(ClassNode classNode, Where where) {
+  private List<MethodNode> matchMethodDescription(
+      ClassNode classNode, Where where, ClassFileLines classFileLines) {
     List<MethodNode> result = new ArrayList<>();
     try {
       for (MethodNode methodNode : classNode.methods) {
-        if (where.isMethodMatching(methodNode.name, methodNode.desc)) {
+        if (where.isMethodMatching(methodNode, classFileLines)) {
           result.add(methodNode);
         }
       }
@@ -634,25 +629,18 @@ public class DebuggerTransformer implements ClassFileTransformer {
     return result;
   }
 
-  private MethodNode matchSourceFile(ClassNode classNode, Where where) {
+  private MethodNode matchSourceFile(
+      ClassNode classNode, Where where, ClassFileLines classFileLines) {
     Where.SourceLine[] lines = where.getSourceLines();
     if (lines == null || lines.length == 0) {
       return null;
     }
     Where.SourceLine sourceLine = lines[0]; // assume only 1 range
     int matchingLine = sourceLine.getFrom();
-    for (MethodNode methodNode : classNode.methods) {
-      AbstractInsnNode currentInsn = methodNode.instructions.getFirst();
-      while (currentInsn != null) {
-        if (currentInsn instanceof LineNumberNode) {
-          LineNumberNode lineNode = (LineNumberNode) currentInsn;
-          if (lineNode.line == matchingLine) {
-            log.debug("Found lineNode {} method: {}", matchingLine, methodNode.name);
-            return methodNode;
-          }
-        }
-        currentInsn = currentInsn.getNext();
-      }
+    MethodNode matchingMethod = classFileLines.getMethodByLine(matchingLine);
+    if (matchingMethod != null) {
+      log.debug("Found lineNode {} method: {}", matchingLine, matchingMethod.name);
+      return matchingMethod;
     }
     log.debug("Cannot find line: {} in class {}", matchingLine, classNode.name);
     return null;
