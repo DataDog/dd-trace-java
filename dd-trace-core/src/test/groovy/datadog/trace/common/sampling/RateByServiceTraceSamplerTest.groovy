@@ -17,8 +17,10 @@ class RateByServiceTraceSamplerTest extends DDCoreSpecification {
     RateByServiceTraceSampler serviceSampler = new RateByServiceTraceSampler()
     String response = '{"rate_by_service": {"service:,env:":' + rate + '}}'
     serviceSampler.onResponse("traces", serializer.fromJson(response))
+
     expect:
-    serviceSampler.serviceRates.getSampler(RateByServiceTraceSampler.EnvAndService.DEFAULT).sampleRate == expectedRate
+    serviceSampler.serviceRates.getSampler(RateByServiceTraceSampler.EnvAndService.FALLBACK).sampleRate == expectedRate
+    serviceSampler.serviceRates.getSampler("foo", "bar").sampleRate == expectedRate
 
     where:
     rate | expectedRate
@@ -52,6 +54,7 @@ class RateByServiceTraceSamplerTest extends DDCoreSpecification {
     when:
     response = '{"rate_by_service": {"service:spock,env:test":1.0}}'
     serviceSampler.onResponse("traces", serializer.fromJson(response))
+
     DDSpan span2 = tracer.buildSpan("fakeOperation")
       .withServiceName("spock")
       .withTag("env", "test")
@@ -61,6 +64,29 @@ class RateByServiceTraceSamplerTest extends DDCoreSpecification {
     then:
     span2.getSamplingPriority() == PrioritySampling.SAMPLER_KEEP
     serviceSampler.sample(span2)
+
+    cleanup:
+    tracer.close()
+  }
+
+  def "rate by service name - case-insensitive"() {
+    setup:
+    RateByServiceTraceSampler serviceSampler = new RateByServiceTraceSampler()
+    def tracer = tracerBuilder().writer(new ListWriter()).build()
+
+    when:
+    def response = '{"rate_by_service": {"service:spock,env:test":1.0}}'
+    serviceSampler.onResponse("traces", serializer.fromJson(response))
+
+    DDSpan span = tracer.buildSpan("fakeOperation")
+      .withServiceName("SPOCK")
+      .withTag("env", "test")
+      .ignoreActiveSpan().start()
+    serviceSampler.setSamplingPriority(span)
+
+    then:
+    span.getSamplingPriority() == PrioritySampling.SAMPLER_KEEP
+    serviceSampler.sample(span)
 
     cleanup:
     tracer.close()
