@@ -936,7 +936,7 @@ jobs:
 build_test_jobs: &build_test_jobs
   - build:
       name: build_lib
-      gradleTarget: shadowJar
+      gradleTarget: :dd-java-agent:shadowJar :dd-trace-api:jar :dd-trace-ot:shadowJar
       cacheType: lib
       collectLibs: true
   - build:
