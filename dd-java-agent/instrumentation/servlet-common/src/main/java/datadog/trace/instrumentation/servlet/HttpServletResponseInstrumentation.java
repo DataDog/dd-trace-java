@@ -11,6 +11,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Propagation;
 import datadog.trace.api.iast.Sink;
@@ -24,7 +25,7 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public final class HttpServletResponseInstrumentation extends Instrumenter.Iast
+public final class HttpServletResponseInstrumentation extends InstrumenterGroup.Iast
     implements Instrumenter.ForTypeHierarchy {
   public HttpServletResponseInstrumentation() {
     super("servlet", "servelet-response");

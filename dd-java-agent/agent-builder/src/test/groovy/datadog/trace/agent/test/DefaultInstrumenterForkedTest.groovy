@@ -1,6 +1,7 @@
 package datadog.trace.agent.test
 
-import datadog.trace.agent.tooling.Instrumenter
+
+import datadog.trace.agent.tooling.InstrumenterGroup
 import datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers
 import datadog.trace.agent.tooling.bytebuddy.outline.TypePoolFacade
 import datadog.trace.test.util.DDSpecification
@@ -131,7 +132,7 @@ class DefaultInstrumenterForkedTest extends DDSpecification {
     "PERIOD_TEST"     | true    | "period.test" | "asdf"
   }
 
-  class TestDefaultInstrumenter extends Instrumenter.Tracing {
+  class TestDefaultInstrumenter extends InstrumenterGroup.Tracing {
 
     TestDefaultInstrumenter(String instrumentationName) {
       super(instrumentationName)

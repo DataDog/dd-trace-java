@@ -6,10 +6,11 @@ import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 import java.util.Map;
 
 @AutoService(Instrumenter.class)
-public class StandardUtextTagProcessorInstrumentation extends Instrumenter.Iast
+public class StandardUtextTagProcessorInstrumentation extends InstrumenterGroup.Iast
     implements Instrumenter.ForSingleType {
 
   public StandardUtextTagProcessorInstrumentation() {

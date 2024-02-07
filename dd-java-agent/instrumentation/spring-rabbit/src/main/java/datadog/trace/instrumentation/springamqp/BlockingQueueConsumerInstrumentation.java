@@ -5,6 +5,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
@@ -15,7 +16,7 @@ import org.springframework.amqp.core.Message;
 import org.springframework.amqp.rabbit.support.Delivery;
 
 @AutoService(Instrumenter.class)
-public class BlockingQueueConsumerInstrumentation extends Instrumenter.Tracing
+public class BlockingQueueConsumerInstrumentation extends InstrumenterGroup.Tracing
     implements Instrumenter.ForSingleType {
   public BlockingQueueConsumerInstrumentation() {
     super("spring-rabbit");

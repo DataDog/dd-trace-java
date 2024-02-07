@@ -13,12 +13,13 @@ import static net.bytebuddy.matcher.ElementMatchers.returns;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.implementation.bytecode.assign.Assigner;
 import org.apache.logging.log4j.core.ContextDataInjector;
 
 @AutoService(Instrumenter.class)
-public class ContextDataInjectorFactoryInstrumentation extends Instrumenter.Tracing
+public class ContextDataInjectorFactoryInstrumentation extends InstrumenterGroup.Tracing
     implements Instrumenter.ForSingleType {
   public ContextDataInjectorFactoryInstrumentation() {
     super("log4j", "log4j-2");

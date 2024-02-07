@@ -2,12 +2,13 @@ package datadog.trace.instrumentation.java.concurrent;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 import datadog.trace.agent.tooling.bytebuddy.profiling.UnwrappingVisitor;
 import datadog.trace.api.config.ProfilingConfig;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 
 @AutoService(Instrumenter.class)
-public class TaskUnwrappingInstrumentation extends Instrumenter.Profiling
+public class TaskUnwrappingInstrumentation extends InstrumenterGroup.Profiling
     implements Instrumenter.ForKnownTypes, Instrumenter.HasTypeAdvice {
   public TaskUnwrappingInstrumentation() {
     super("java_concurrent", "task-unwrapping");

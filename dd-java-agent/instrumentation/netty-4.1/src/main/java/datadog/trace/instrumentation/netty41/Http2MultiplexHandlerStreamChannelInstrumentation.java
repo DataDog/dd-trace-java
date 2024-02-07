@@ -2,12 +2,13 @@ package datadog.trace.instrumentation.netty41;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 import io.netty.channel.Channel;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.matcher.ElementMatchers;
 
 @AutoService(Instrumenter.class)
-public class Http2MultiplexHandlerStreamChannelInstrumentation extends Instrumenter.Tracing
+public class Http2MultiplexHandlerStreamChannelInstrumentation extends InstrumenterGroup.Tracing
     implements Instrumenter.ForSingleType {
 
   public Http2MultiplexHandlerStreamChannelInstrumentation() {

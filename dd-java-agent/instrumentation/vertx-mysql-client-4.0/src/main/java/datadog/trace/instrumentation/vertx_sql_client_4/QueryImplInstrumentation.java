@@ -11,10 +11,11 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 import java.util.Map;
 
 @AutoService(Instrumenter.class)
-public class QueryImplInstrumentation extends Instrumenter.Tracing
+public class QueryImplInstrumentation extends InstrumenterGroup.Tracing
     implements Instrumenter.ForSingleType {
   public QueryImplInstrumentation() {
     super("vertx", "vertx-sql-client");

@@ -4,6 +4,7 @@ import static net.bytebuddy.matcher.ElementMatchers.none;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 import java.util.Arrays;
 import net.bytebuddy.asm.AsmVisitorWrapper;
 import net.bytebuddy.description.field.FieldDescription;
@@ -18,7 +19,7 @@ import net.bytebuddy.jar.asm.Opcodes;
 import net.bytebuddy.pool.TypePool;
 
 @AutoService(Instrumenter.class)
-public class RequestImplInstrumentation extends Instrumenter.Tracing
+public class RequestImplInstrumentation extends InstrumenterGroup.Tracing
     implements Instrumenter.ForSingleType, Instrumenter.HasTypeAdvice {
   public RequestImplInstrumentation() {
     super("vertx", "vertx-redis-client");

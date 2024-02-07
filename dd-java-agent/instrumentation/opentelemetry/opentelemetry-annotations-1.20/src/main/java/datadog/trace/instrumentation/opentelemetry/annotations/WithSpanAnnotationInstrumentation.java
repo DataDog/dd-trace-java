@@ -9,13 +9,14 @@ import static net.bytebuddy.matcher.ElementMatchers.whereAny;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 import datadog.trace.api.InstrumenterConfig;
 import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public final class WithSpanAnnotationInstrumentation extends Instrumenter.Tracing
+public final class WithSpanAnnotationInstrumentation extends InstrumenterGroup.Tracing
     implements Instrumenter.ForTypeHierarchy {
 
   public WithSpanAnnotationInstrumentation() {

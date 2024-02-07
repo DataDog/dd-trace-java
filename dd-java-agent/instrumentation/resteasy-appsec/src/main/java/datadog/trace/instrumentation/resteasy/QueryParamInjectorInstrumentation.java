@@ -6,9 +6,10 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 
 @AutoService(Instrumenter.class)
-public class QueryParamInjectorInstrumentation extends Instrumenter.Iast
+public class QueryParamInjectorInstrumentation extends InstrumenterGroup.Iast
     implements Instrumenter.ForSingleType {
 
   public QueryParamInjectorInstrumentation() {

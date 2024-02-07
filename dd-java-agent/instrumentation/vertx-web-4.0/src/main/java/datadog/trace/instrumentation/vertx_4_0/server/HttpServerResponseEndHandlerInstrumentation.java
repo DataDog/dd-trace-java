@@ -7,10 +7,11 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 import datadog.trace.agent.tooling.muzzle.Reference;
 
 @AutoService(Instrumenter.class)
-public class HttpServerResponseEndHandlerInstrumentation extends Instrumenter.Tracing
+public class HttpServerResponseEndHandlerInstrumentation extends InstrumenterGroup.Tracing
     implements Instrumenter.ForKnownTypes {
   public HttpServerResponseEndHandlerInstrumentation() {
     super("vertx", "vertx-4.0");

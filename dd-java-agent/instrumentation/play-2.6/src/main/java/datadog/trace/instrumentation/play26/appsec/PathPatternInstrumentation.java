@@ -12,6 +12,7 @@ import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.advice.ActiveRequestContext;
 import datadog.trace.advice.RequiresRequestContext;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 import datadog.trace.agent.tooling.muzzle.Reference;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
@@ -23,7 +24,7 @@ import scala.util.Either;
 
 /** @see play.core.routing.PathPattern#apply(String) */
 @AutoService(Instrumenter.class)
-public class PathPatternInstrumentation extends Instrumenter.AppSec
+public class PathPatternInstrumentation extends InstrumenterGroup.AppSec
     implements Instrumenter.ForSingleType {
   public PathPatternInstrumentation() {
     super("play");

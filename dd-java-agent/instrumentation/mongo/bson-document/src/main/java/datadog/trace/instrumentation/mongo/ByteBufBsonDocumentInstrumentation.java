@@ -8,6 +8,7 @@ import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 import com.google.auto.service.AutoService;
 import com.mongodb.MongoClientOptions;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 import datadog.trace.bootstrap.InstrumentationContext;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
@@ -17,7 +18,7 @@ import org.bson.BsonDocument;
 import org.bson.ByteBuf;
 
 @AutoService(Instrumenter.class)
-public class ByteBufBsonDocumentInstrumentation extends Instrumenter.Tracing
+public class ByteBufBsonDocumentInstrumentation extends InstrumenterGroup.Tracing
     implements Instrumenter.ForSingleType, Instrumenter.WithTypeStructure {
 
   public ByteBufBsonDocumentInstrumentation() {

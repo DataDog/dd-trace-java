@@ -9,12 +9,13 @@ import static net.bytebuddy.matcher.ElementMatchers.takesNoArguments;
 import com.google.auto.service.AutoService;
 import com.netflix.zuul.context.RequestContext;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import javax.servlet.http.HttpServletRequest;
 import net.bytebuddy.asm.Advice;
 
 @AutoService(Instrumenter.class)
-public class ZuulSendForwardFilterInstrumentation extends Instrumenter.Tracing
+public class ZuulSendForwardFilterInstrumentation extends InstrumenterGroup.Tracing
     implements Instrumenter.ForSingleType {
   public ZuulSendForwardFilterInstrumentation() {
     super("spring-cloud-zuul");
