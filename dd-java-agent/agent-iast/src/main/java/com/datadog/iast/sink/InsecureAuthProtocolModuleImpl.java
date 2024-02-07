@@ -55,6 +55,6 @@ public class InsecureAuthProtocolModuleImpl extends SinkModuleBase
     // To minimize false positives when we get auth credentials to a page that doesn't exist (e.g.
     // happens with vulnerability scanners),
     // we'll just ignore this vulnerability when there is no success response.
-    return httpStatus != null && httpStatus >= 300;
+    return httpStatus != null && httpStatus >= 400;
   }
 }

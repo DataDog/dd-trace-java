@@ -64,6 +64,7 @@ class InsecureAuthProtocolModuleTest extends IastModuleImplTestBase{
     'anyValue' | 200i | null
     BASIC_HEADER_VALUE | 200i | BASIC_EVIDENCE
     DIGEST_HEADER_VALUE| 200i | DIGEST_EVIDENCE
+    DIGEST_HEADER_VALUE| 302i | DIGEST_EVIDENCE
     BASIC_HEADER_VALUE | 404i | null
     DIGEST_HEADER_VALUE| 404i | null
   }
