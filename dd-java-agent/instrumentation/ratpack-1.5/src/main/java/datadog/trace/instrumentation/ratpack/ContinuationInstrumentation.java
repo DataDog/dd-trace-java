@@ -9,6 +9,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import com.google.auto.service.AutoService;
 import com.google.common.net.HostAndPort;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
@@ -16,7 +17,7 @@ import ratpack.func.Block;
 import ratpack.path.PathBinding;
 
 @AutoService(Instrumenter.class)
-public final class ContinuationInstrumentation extends Instrumenter.Tracing
+public final class ContinuationInstrumentation extends InstrumenterGroup.Tracing
     implements Instrumenter.ForTypeHierarchy {
 
   public ContinuationInstrumentation() {

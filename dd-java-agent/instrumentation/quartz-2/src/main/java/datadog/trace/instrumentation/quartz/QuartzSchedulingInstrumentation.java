@@ -12,6 +12,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import net.bytebuddy.asm.Advice;
@@ -20,7 +21,7 @@ import net.bytebuddy.matcher.ElementMatcher;
 import org.quartz.JobExecutionContext;
 
 @AutoService(Instrumenter.class)
-public final class QuartzSchedulingInstrumentation extends Instrumenter.Tracing
+public final class QuartzSchedulingInstrumentation extends InstrumenterGroup.Tracing
     implements Instrumenter.ForTypeHierarchy {
 
   public QuartzSchedulingInstrumentation() {

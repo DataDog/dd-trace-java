@@ -411,6 +411,7 @@ public class PowerWAFModule implements AppSecModule {
       try {
         resultWithData = doRunPowerwaf(reqCtx, newData, ctxAndAddr, isTransient);
       } catch (TimeoutPowerwafException tpe) {
+        reqCtx.increaseTimeouts();
         log.debug("Timeout calling the WAF", tpe);
         return;
       } catch (AbstractPowerwafException e) {

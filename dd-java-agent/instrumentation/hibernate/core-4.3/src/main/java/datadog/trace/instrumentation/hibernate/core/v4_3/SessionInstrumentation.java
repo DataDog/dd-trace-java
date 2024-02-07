@@ -8,6 +8,7 @@ import static net.bytebuddy.matcher.ElementMatchers.returns;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.instrumentation.hibernate.SessionMethodUtils;
@@ -22,7 +23,7 @@ import org.hibernate.SharedSessionContract;
 import org.hibernate.procedure.ProcedureCall;
 
 @AutoService(Instrumenter.class)
-public class SessionInstrumentation extends Instrumenter.Tracing
+public class SessionInstrumentation extends InstrumenterGroup.Tracing
     implements Instrumenter.CanShortcutTypeMatching {
 
   static final String SESSION_STATE = "datadog.trace.instrumentation.hibernate.SessionState";

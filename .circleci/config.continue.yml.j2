@@ -101,21 +101,7 @@ commands:
       - checkout
       - run:
           name: Checkout merge commit
-          command: |
-            CCI_PR_NUMBER="${CIRCLE_PR_NUMBER:-${CIRCLE_PULL_REQUEST##*/}}"
-
-            if [[ "$CIRCLE_BRANCH" != "master" && -n "${CCI_PR_NUMBER}" ]]
-            then
-              FETCH_REFS="${FETCH_REFS} +refs/pull/${CCI_PR_NUMBER}/merge:refs/pull/${CCI_PR_NUMBER}/merge +refs/pull/${CCI_PR_NUMBER}/head:refs/pull/${CCI_PR_NUMBER}/head"
-              git fetch -u origin ${FETCH_REFS}
-
-              if git merge-base --is-ancestor $(git show-ref --hash refs/pull/${CCI_PR_NUMBER}/head) $(git show-ref --hash refs/pull/${CCI_PR_NUMBER}/merge); then
-                git checkout "pull/${CCI_PR_NUMBER}/merge"
-              else
-                echo "[WARN] There is a merge conflict between master and PR ${CCI_PR_NUMBER}, merge branch cannot be checked out."
-                git checkout "pull/${CCI_PR_NUMBER}/head"
-              fi
-            fi
+          command: .circleci/checkout_merge_commit.sh
 
       - check_for_leftover_files
 
@@ -950,7 +936,7 @@ jobs:
 build_test_jobs: &build_test_jobs
   - build:
       name: build_lib
-      gradleTarget: shadowJar
+      gradleTarget: :dd-java-agent:shadowJar :dd-trace-api:jar :dd-trace-ot:shadowJar
       cacheType: lib
       collectLibs: true
   - build:

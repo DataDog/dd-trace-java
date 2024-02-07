@@ -7,12 +7,13 @@ import static net.bytebuddy.matcher.ElementMatchers.returns;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 import graphql.execution.ValueUnboxer;
 import graphql.execution.instrumentation.Instrumentation;
 import net.bytebuddy.asm.Advice;
 
 @AutoService(Instrumenter.class)
-public class GraphQLJavaInstrumentation extends Instrumenter.Tracing
+public class GraphQLJavaInstrumentation extends InstrumenterGroup.Tracing
     implements Instrumenter.ForSingleType {
 
   public GraphQLJavaInstrumentation() {

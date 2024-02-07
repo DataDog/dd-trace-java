@@ -12,12 +12,13 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import java.util.HashMap;
 import java.util.Map;
 
 @AutoService(Instrumenter.class)
-public class RedisInstrumentation extends Instrumenter.Tracing
+public class RedisInstrumentation extends InstrumenterGroup.Tracing
     implements Instrumenter.ForKnownTypes {
   public RedisInstrumentation() {
     super("vertx", "vertx-redis-client");

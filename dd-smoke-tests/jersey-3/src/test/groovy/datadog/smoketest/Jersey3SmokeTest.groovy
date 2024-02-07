@@ -1,5 +1,8 @@
 package datadog.smoketest
 
+import datadog.trace.test.util.Predicates.IBM8
+import datadog.trace.test.util.Flaky
+
 import static datadog.trace.api.config.IastConfig.*
 import static datadog.trace.api.iast.IastContext.Mode.GLOBAL
 
@@ -30,6 +33,7 @@ class Jersey3SmokeTest extends AbstractJerseySmokeTest {
     ]
   }
 
+  @Flaky(value = 'global context is flaky under IBM8', condition = IBM8)
   static class WithGlobalContext extends Jersey3SmokeTest {
     @Override
     protected List<String> iastJvmOpts() {
