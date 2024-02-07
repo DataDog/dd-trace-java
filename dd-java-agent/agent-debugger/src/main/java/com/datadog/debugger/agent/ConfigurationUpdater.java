@@ -148,7 +148,7 @@ public class ConfigurationUpdater
         .addAllowList(configuration.getAllowList())
         .addDenyList(configuration.getDenyList())
         .setSampling(configuration.getSampling())
-        .setService(serviceNaming.getSanitizedName().toString())
+        .setService(configuration.getService())
         .build();
   }
 

@@ -3,18 +3,16 @@ package datadog.trace.api.naming;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.util.TagsHelper;
 import javax.annotation.Nonnull;
-import javax.annotation.concurrent.NotThreadSafe;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-@NotThreadSafe
 public final class ServiceNaming {
   private static final Logger LOGGER = LoggerFactory.getLogger(ServiceNaming.class);
-  private UTF8BytesString current;
+  private volatile UTF8BytesString current;
   private final UTF8BytesString original;
   private final boolean mutable;
-  private UTF8BytesString sanitizedName;
-  private UTF8BytesString standardTag;
+  private volatile UTF8BytesString sanitizedName;
+  private volatile UTF8BytesString standardTag;
 
   public ServiceNaming(final CharSequence initialName, final boolean mutable) {
     this.original = UTF8BytesString.create(initialName);
@@ -22,9 +20,7 @@ public final class ServiceNaming {
     doUpdate(original);
   }
 
-  // this is just to ensure that updates are not running wildly. There is no consistency on the read
-  // to avoid contentions.
-  private synchronized void doUpdate(@Nonnull final UTF8BytesString name) {
+  private void doUpdate(@Nonnull final UTF8BytesString name) {
     current = name;
     sanitizedName = UTF8BytesString.create(TagsHelper.sanitize(current.toString()));
     standardTag = UTF8BytesString.create("service:" + current.toString());

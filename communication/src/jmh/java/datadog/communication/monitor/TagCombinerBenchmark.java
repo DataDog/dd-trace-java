@@ -1,6 +1,6 @@
 package datadog.communication.monitor;
 
-import static java.util.concurrent.TimeUnit.MICROSECONDS;
+import static java.util.concurrent.TimeUnit.NANOSECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
 import datadog.trace.api.cache.DDCache;
@@ -25,7 +25,7 @@ import org.openjdk.jmh.infra.Blackhole;
 @Warmup(iterations = 1, time = 30, timeUnit = SECONDS)
 @Measurement(iterations = 2, time = 30, timeUnit = SECONDS)
 @BenchmarkMode(Mode.AverageTime)
-@OutputTimeUnit(MICROSECONDS)
+@OutputTimeUnit(NANOSECONDS)
 @Fork(value = 1)
 public class TagCombinerBenchmark {
 
