@@ -30,6 +30,7 @@ class ClassCallSiteTest extends AgentTestRunner {
     'forName' | ['java.lang.String']
     'forName' | ['java.lang.String', true, ClassLoader.getSystemClassLoader()]
     'getMethod' | ['contains', String.class, CharSequence.class]
+    'getDeclaredMethod' | ['contains', String.class, CharSequence.class]
   }
 }
 
