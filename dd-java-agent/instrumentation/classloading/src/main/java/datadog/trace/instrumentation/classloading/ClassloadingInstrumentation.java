@@ -13,6 +13,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.Constants;
 import net.bytebuddy.asm.Advice;
@@ -30,7 +31,7 @@ import net.bytebuddy.matcher.ElementMatcher;
  * for the classes that we have put in the bootstrap class loader.
  */
 @AutoService(Instrumenter.class)
-public final class ClassloadingInstrumentation extends Instrumenter.Tracing
+public final class ClassloadingInstrumentation extends InstrumenterGroup.Tracing
     implements Instrumenter.ForBootstrap, Instrumenter.ForTypeHierarchy {
   public ClassloadingInstrumentation() {
     super("classloading");

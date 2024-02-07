@@ -12,6 +12,7 @@ import com.intuit.karate.core.Scenario;
 import com.intuit.karate.core.ScenarioRuntime;
 import com.intuit.karate.core.StepResult;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 import datadog.trace.api.Config;
 import datadog.trace.api.civisibility.retry.TestRetryPolicy;
 import datadog.trace.bootstrap.InstrumentationContext;
@@ -21,7 +22,7 @@ import java.util.Set;
 import net.bytebuddy.asm.Advice;
 
 @AutoService(Instrumenter.class)
-public class KarateRetryInstrumentation extends Instrumenter.CiVisibility
+public class KarateRetryInstrumentation extends InstrumenterGroup.CiVisibility
     implements Instrumenter.ForKnownTypes {
 
   public KarateRetryInstrumentation() {

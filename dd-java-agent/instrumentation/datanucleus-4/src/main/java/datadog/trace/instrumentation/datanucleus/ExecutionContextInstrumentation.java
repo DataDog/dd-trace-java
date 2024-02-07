@@ -13,6 +13,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import net.bytebuddy.asm.Advice;
@@ -21,7 +22,7 @@ import net.bytebuddy.matcher.ElementMatcher;
 import org.datanucleus.ExecutionContext;
 
 @AutoService(Instrumenter.class)
-public class ExecutionContextInstrumentation extends Instrumenter.Tracing
+public class ExecutionContextInstrumentation extends InstrumenterGroup.Tracing
     implements Instrumenter.CanShortcutTypeMatching {
   public ExecutionContextInstrumentation() {
     super("datanucleus");

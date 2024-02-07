@@ -9,6 +9,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
@@ -20,7 +21,7 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public class JakartaServletInstrumentation extends Instrumenter.Tracing
+public class JakartaServletInstrumentation extends InstrumenterGroup.Tracing
     implements Instrumenter.ForTypeHierarchy {
   public JakartaServletInstrumentation() {
     super("servlet", "servlet-5");

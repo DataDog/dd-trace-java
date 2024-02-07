@@ -2,6 +2,7 @@ package datadog.trace.instrumentation.testng;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 import datadog.trace.api.Config;
 import datadog.trace.instrumentation.testng.retry.RetryAnnotationTransformer;
 import net.bytebuddy.asm.Advice;
@@ -12,7 +13,7 @@ import org.testng.TestNG;
 import org.testng.annotations.DataProvider;
 
 @AutoService(Instrumenter.class)
-public class TestNGInstrumentation extends Instrumenter.CiVisibility
+public class TestNGInstrumentation extends InstrumenterGroup.CiVisibility
     implements Instrumenter.ForSingleType {
   public TestNGInstrumentation() {
     super("testng");

@@ -11,6 +11,7 @@ import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.ExcludeFilterProvider;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
@@ -27,7 +28,7 @@ import scala.concurrent.impl.CallbackRunnable;
 import scala.util.Try;
 
 @AutoService(Instrumenter.class)
-public class CallbackRunnableInstrumentation extends Instrumenter.Tracing
+public class CallbackRunnableInstrumentation extends InstrumenterGroup.Tracing
     implements Instrumenter.ForSingleType, ExcludeFilterProvider {
 
   public CallbackRunnableInstrumentation() {

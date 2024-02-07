@@ -10,6 +10,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 import datadog.trace.agent.tooling.iast.TaintableEnumeration;
 import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.InstrumentationBridge;
@@ -28,7 +29,7 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 @SuppressWarnings("unused")
 @AutoService(Instrumenter.class)
-public class HttpServletRequestInstrumentation extends Instrumenter.Iast
+public class HttpServletRequestInstrumentation extends InstrumenterGroup.Iast
     implements Instrumenter.ForTypeHierarchy {
 
   private static final String CLASS_NAME = HttpServletRequestInstrumentation.class.getName();

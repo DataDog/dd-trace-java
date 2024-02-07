@@ -11,12 +11,13 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 import com.google.auto.service.AutoService;
 import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import net.bytebuddy.asm.Advice;
 
 // tested in GrizzlyTest (grizzly-http)
 @AutoService(Instrumenter.class)
-public class ServerRuntimeResponderInstrumentation extends Instrumenter.AppSec
+public class ServerRuntimeResponderInstrumentation extends InstrumenterGroup.AppSec
     implements Instrumenter.ForSingleType {
   public ServerRuntimeResponderInstrumentation() {
     super("jersey");

@@ -7,10 +7,11 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 import datadog.trace.agent.tooling.muzzle.Reference;
 
 @AutoService(Instrumenter.class)
-public class DispatchableInstrumentation extends Instrumenter.AppSec
+public class DispatchableInstrumentation extends InstrumenterGroup.AppSec
     implements Instrumenter.ForKnownTypes {
   public DispatchableInstrumentation() {
     super("jetty");

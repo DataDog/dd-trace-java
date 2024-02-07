@@ -10,13 +10,14 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import net.bytebuddy.asm.Advice;
 import org.apache.jasper.JspCompilationContext;
 
 @AutoService(Instrumenter.class)
-public final class JasperJSPCompilationContextInstrumentation extends Instrumenter.Tracing
+public final class JasperJSPCompilationContextInstrumentation extends InstrumenterGroup.Tracing
     implements Instrumenter.ForSingleType {
 
   public JasperJSPCompilationContextInstrumentation() {

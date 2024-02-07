@@ -10,10 +10,11 @@ import akka.http.scaladsl.server.ExceptionHandler;
 import akka.http.scaladsl.server.ExceptionHandler$;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 import net.bytebuddy.asm.Advice;
 
 @AutoService(Instrumenter.class)
-public class DefaultExceptionHandlerInstrumentation extends Instrumenter.AppSec
+public class DefaultExceptionHandlerInstrumentation extends InstrumenterGroup.AppSec
     implements Instrumenter.ForSingleType {
   public DefaultExceptionHandlerInstrumentation() {
     super("akka-http", "akka-http-server");

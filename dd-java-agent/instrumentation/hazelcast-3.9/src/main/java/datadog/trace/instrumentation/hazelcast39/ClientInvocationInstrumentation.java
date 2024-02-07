@@ -20,6 +20,7 @@ import com.hazelcast.client.spi.impl.ClientInvocationFuture;
 import com.hazelcast.client.spi.impl.NonSmartClientInvocationService;
 import com.hazelcast.core.HazelcastInstance;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
@@ -30,7 +31,7 @@ import java.util.Map;
 import net.bytebuddy.asm.Advice;
 
 @AutoService(Instrumenter.class)
-public class ClientInvocationInstrumentation extends Instrumenter.Tracing
+public class ClientInvocationInstrumentation extends InstrumenterGroup.Tracing
     implements Instrumenter.ForSingleType {
 
   public ClientInvocationInstrumentation() {

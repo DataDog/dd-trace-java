@@ -15,6 +15,7 @@ import com.google.auto.service.AutoService;
 import com.ning.http.client.AsyncHandler;
 import com.ning.http.client.Request;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 import datadog.trace.api.Pair;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -23,7 +24,7 @@ import java.util.Map;
 import net.bytebuddy.asm.Advice;
 
 @AutoService(Instrumenter.class)
-public final class AsyncHttpClientInstrumentation extends Instrumenter.Tracing
+public final class AsyncHttpClientInstrumentation extends InstrumenterGroup.Tracing
     implements Instrumenter.ForSingleType {
 
   public AsyncHttpClientInstrumentation() {

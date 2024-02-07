@@ -6,21 +6,50 @@ import static java.util.Collections.emptyMap;
 import static java.util.Collections.singletonList;
 import static net.bytebuddy.matcher.ElementMatchers.isSynthetic;
 
+import datadog.trace.agent.tooling.iast.IastPostProcessorFactory;
 import datadog.trace.agent.tooling.muzzle.Reference;
 import datadog.trace.agent.tooling.muzzle.ReferenceMatcher;
 import datadog.trace.agent.tooling.muzzle.ReferenceProvider;
 import datadog.trace.api.InstrumenterConfig;
+import datadog.trace.api.config.ProfilingConfig;
+import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import datadog.trace.util.Strings;
+import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public abstract class InstrumenterGroup implements Instrumenter {
+
+  /**
+   * Since several systems share the same instrumentation infrastructure in order to enable only the
+   * applicable {@link Instrumenter instrumenters} on startup each {@linkplain InstrumenterGroup}
+   * must declare its target system. The systems currently supported include:
+   *
+   * <ul>
+   *   <li>{@link TargetSystem#TRACING tracing}
+   *   <li>{@link TargetSystem#PROFILING profiling}
+   *   <li>{@link TargetSystem#APPSEC appsec}
+   *   <li>{@link TargetSystem#IAST iast}
+   *   <li>{@link TargetSystem#CIVISIBILITY ci-visibility}
+   *   <li>{@link TargetSystem#USM usm}
+   * </ul>
+   */
+  public enum TargetSystem {
+    TRACING,
+    PROFILING,
+    APPSEC,
+    IAST,
+    CIVISIBILITY,
+    USM
+  }
+
   private static final Logger log = LoggerFactory.getLogger(InstrumenterGroup.class);
 
   private final int instrumentationId;
@@ -149,5 +178,118 @@ public abstract class InstrumenterGroup implements Instrumenter {
   protected final boolean isShortcutMatchingEnabled(boolean defaultToShortcut) {
     return InstrumenterConfig.get()
         .isIntegrationShortcutMatchingEnabled(singletonList(name()), defaultToShortcut);
+  }
+
+  /** Parent class for all tracing related instrumentations */
+  public abstract static class Tracing extends InstrumenterGroup implements HasMethodAdvice {
+    public Tracing(String instrumentationName, String... additionalNames) {
+      super(instrumentationName, additionalNames);
+    }
+
+    @Override
+    public boolean isApplicable(Set<TargetSystem> enabledSystems) {
+      return enabledSystems.contains(TargetSystem.TRACING);
+    }
+  }
+
+  /** Parent class for all profiling related instrumentations */
+  public abstract static class Profiling extends InstrumenterGroup implements HasMethodAdvice {
+    public Profiling(String instrumentationName, String... additionalNames) {
+      super(instrumentationName, additionalNames);
+    }
+
+    @Override
+    public boolean isApplicable(Set<TargetSystem> enabledSystems) {
+      return enabledSystems.contains(TargetSystem.PROFILING);
+    }
+
+    @Override
+    public boolean isEnabled() {
+      return super.isEnabled()
+          && !ConfigProvider.getInstance()
+              .getBoolean(ProfilingConfig.PROFILING_ULTRA_MINIMAL, false);
+    }
+  }
+
+  /** Parent class for all AppSec related instrumentations */
+  public abstract static class AppSec extends InstrumenterGroup implements HasMethodAdvice {
+    public AppSec(String instrumentationName, String... additionalNames) {
+      super(instrumentationName, additionalNames);
+    }
+
+    @Override
+    public boolean isApplicable(Set<TargetSystem> enabledSystems) {
+      return enabledSystems.contains(TargetSystem.APPSEC);
+    }
+  }
+
+  /** Parent class for all IAST related instrumentations */
+  @SuppressForbidden
+  public abstract static class Iast extends InstrumenterGroup
+      implements HasMethodAdvice, WithPostProcessor {
+    public Iast(String instrumentationName, String... additionalNames) {
+      super(instrumentationName, additionalNames);
+    }
+
+    @Override
+    public List<Instrumenter> typeInstrumentations() {
+      preloadClassNames();
+      return super.typeInstrumentations();
+    }
+
+    @Override
+    public boolean isApplicable(Set<TargetSystem> enabledSystems) {
+      return enabledSystems.contains(TargetSystem.IAST);
+    }
+
+    /**
+     * Force loading of classes that need to be instrumented, but are using during instrumentation.
+     */
+    private void preloadClassNames() {
+      String[] list = getClassNamesToBePreloaded();
+      if (list != null) {
+        for (String clazz : list) {
+          try {
+            Class.forName(clazz);
+          } catch (Throwable t) {
+            log.debug("Error force loading {} class", clazz);
+          }
+        }
+      }
+    }
+
+    /** Get classes to force load* */
+    public String[] getClassNamesToBePreloaded() {
+      return null;
+    }
+
+    @Override
+    public Advice.PostProcessor.Factory postProcessor() {
+      return IastPostProcessorFactory.INSTANCE;
+    }
+  }
+
+  /** Parent class for all USM related instrumentations */
+  public abstract static class Usm extends InstrumenterGroup implements HasMethodAdvice {
+    public Usm(String instrumentationName, String... additionalNames) {
+      super(instrumentationName, additionalNames);
+    }
+
+    @Override
+    public boolean isApplicable(Set<TargetSystem> enabledSystems) {
+      return enabledSystems.contains(TargetSystem.USM);
+    }
+  }
+
+  /** Parent class for all CI related instrumentations */
+  public abstract static class CiVisibility extends InstrumenterGroup implements HasMethodAdvice {
+    public CiVisibility(String instrumentationName, String... additionalNames) {
+      super(instrumentationName, additionalNames);
+    }
+
+    @Override
+    public boolean isApplicable(Set<TargetSystem> enabledSystems) {
+      return enabledSystems.contains(TargetSystem.CIVISIBILITY);
+    }
   }
 }

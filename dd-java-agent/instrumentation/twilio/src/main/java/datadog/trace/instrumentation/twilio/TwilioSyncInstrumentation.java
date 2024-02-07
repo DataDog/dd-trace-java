@@ -12,6 +12,7 @@ import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import com.google.auto.service.AutoService;
 import com.twilio.Twilio;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -21,7 +22,7 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 /** Instrument the Twilio SDK to identify calls as a seperate service. */
 @AutoService(Instrumenter.class)
-public class TwilioSyncInstrumentation extends Instrumenter.Tracing
+public class TwilioSyncInstrumentation extends InstrumenterGroup.Tracing
     implements Instrumenter.ForTypeHierarchy {
 
   public TwilioSyncInstrumentation() {

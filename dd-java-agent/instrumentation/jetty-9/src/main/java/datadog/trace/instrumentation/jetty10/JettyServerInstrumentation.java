@@ -9,6 +9,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesNoArguments;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.ExcludeFilterProvider;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 import datadog.trace.agent.tooling.muzzle.Reference;
 import datadog.trace.api.Config;
 import datadog.trace.api.ProductActivation;
@@ -31,7 +32,7 @@ import net.bytebuddy.jar.asm.Opcodes;
 import net.bytebuddy.pool.TypePool;
 
 @AutoService(Instrumenter.class)
-public final class JettyServerInstrumentation extends Instrumenter.Tracing
+public final class JettyServerInstrumentation extends InstrumenterGroup.Tracing
     implements Instrumenter.ForSingleType, ExcludeFilterProvider, Instrumenter.HasTypeAdvice {
 
   private boolean appSecNotFullyDisabled;
