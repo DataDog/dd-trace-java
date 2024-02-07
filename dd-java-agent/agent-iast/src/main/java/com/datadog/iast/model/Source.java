@@ -17,7 +17,8 @@ public final class Source implements Taintable.Source {
   private static final Logger LOGGER = LoggerFactory.getLogger(Source.class);
 
   // value to send in the rare case that the name/value have been garbage collected
-  private static final String GARBAGE_COLLECTED_REF = "[GCed]";
+  private static final String GARBAGE_COLLECTED_REF =
+      "[unknown: original value was garbage collected]";
 
   private final @SourceTypeString byte origin;
   @Nullable private final Object name;
