@@ -10,6 +10,8 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.api.iast.InstrumentationBridge;
+import datadog.trace.api.iast.Sink;
+import datadog.trace.api.iast.VulnerabilityTypes;
 import datadog.trace.api.iast.sink.ApplicationModule;
 import datadog.trace.bootstrap.InstrumentationContext;
 import java.util.Collections;
@@ -55,6 +57,7 @@ public final class IastServletContextInstrumentation extends Instrumenter.Iast
   }
 
   public static class IastContextAdvice {
+    @Sink(VulnerabilityTypes.APPLICATION)
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void getRealPath(
         @Advice.This final ServletContext context, @Advice.Return final String realPath) {

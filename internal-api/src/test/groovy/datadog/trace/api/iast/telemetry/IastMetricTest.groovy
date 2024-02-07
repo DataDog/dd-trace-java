@@ -40,6 +40,7 @@ class IastMetricTest extends Specification {
     metricTag                         | tag                                 | expected
     IastMetric.Tag.VULNERABILITY_TYPE | VulnerabilityTypes.RESPONSE_HEADER  | VulnerabilityTypes.RESPONSE_HEADER_TYPES
     IastMetric.Tag.VULNERABILITY_TYPE | VulnerabilityTypes.SPRING_RESPONSE  | VulnerabilityTypes.SPRING_RESPONSE_TYPES
+    IastMetric.Tag.VULNERABILITY_TYPE | VulnerabilityTypes.APPLICATION      | VulnerabilityTypes.APPLICATION_TYPES
     IastMetric.Tag.VULNERABILITY_TYPE | VulnerabilityTypes.SQL_INJECTION    | null
     IastMetric.Tag.SOURCE_TYPE        | SourceTypes.KAFKA_MESSAGE           | SourceTypes.KAFKA_MESSAGE_TYPES
     IastMetric.Tag.SOURCE_TYPE        | SourceTypes.REQUEST_PARAMETER_VALUE | null
