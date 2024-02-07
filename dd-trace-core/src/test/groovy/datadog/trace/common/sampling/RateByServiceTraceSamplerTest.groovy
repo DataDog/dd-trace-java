@@ -56,6 +56,31 @@ class RateByServiceTraceSamplerTest extends DDCoreSpecification {
     "fu"    | "bar"   | 0.2
   }
 
+  def "rate partial & full collisions"() {
+    // case insensitive equivalence -- undefined behavior, first one wins
+    setup:
+    RateByServiceTraceSampler serviceSampler = new RateByServiceTraceSampler()
+    String response = '{"rate_by_service": {"service:foo,env:bar":0.8, "service:FOO,env:BAR":0.2, "service:FOO,env:BAZ": 0.3, "service:quux,env:BAZ": 0.4}}'
+    serviceSampler.onResponse("traces", serializer.fromJson(response))
+
+    when:
+    def sampler = serviceSampler.serviceRates.getSampler(env, service)
+
+    then:
+    sampler.sampleRate > expectedRate - 0.01
+    sampler.sampleRate < expectedRate + 0.01
+
+    where:
+    service | env     | expectedRate
+    "foo"   | "bar"   | 0.8
+    "foo"   | "Bar"   | 0.8
+    "Foo"   | "BAR"   | 0.8
+    "FOO"   | "BAR"   | 0.8
+    "foo"   | "baz"   | 0.3
+    "FOO"   | "BAZ"   | 0.3
+    "quux"  | "baz"   | 0.4
+  }
+
   def "rate by service name"() {
     setup:
     RateByServiceTraceSampler serviceSampler = new RateByServiceTraceSampler()
@@ -76,7 +101,8 @@ class RateByServiceTraceSamplerTest extends DDCoreSpecification {
     serviceSampler.sample(span1)
 
     when:
-    response = '{"rate_by_service": {"service:spock,env:test":1.0}}'
+    // case-insensitive equivalence - undefined in spec, but implemented as first one wins
+    response = '{"rate_by_service": {"service:spock,env:test":1.0, "service:SPOCK,env:Test": 0.0}}'
     serviceSampler.onResponse("traces", serializer.fromJson(response))
 
     DDSpan span2 = tracer.buildSpan("fakeOperation")
