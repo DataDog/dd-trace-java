@@ -256,6 +256,7 @@ public class TelemetryRequestBody extends RequestBody {
     bodyWriter.name("hash").value(d.hash); // optional
     bodyWriter.name("name").value(d.name);
     bodyWriter.name("version").value(d.version); // optional
+    bodyWriter.name("location").value(d.location); // optional
     bodyWriter.endObject();
   }
 

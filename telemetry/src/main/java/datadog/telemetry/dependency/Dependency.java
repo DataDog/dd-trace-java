@@ -1,7 +1,6 @@
 package datadog.telemetry.dependency;
 
 import datadog.trace.util.Strings;
-import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.math.BigInteger;
@@ -47,13 +46,13 @@ public final class Dependency {
 
   public final String name;
   public final String version;
-  public final String source;
+  public final String location;
   public final String hash;
 
-  public Dependency(String name, String version, String source, @Nullable String hash) {
+  public Dependency(String name, String version, String location, @Nullable String hash) {
     this.name = name;
     this.version = version;
-    this.source = source;
+    this.location = location;
     this.hash = hash;
   }
 
@@ -66,13 +65,12 @@ public final class Dependency {
         + ", version='"
         + version
         + '\''
-        + ", source='"
-        + source
+        + ", location='"
+        + location
         + '\''
         + ", hash='"
         + hash
-        + '\''
-        + '}';
+        + "'}";
   }
 
   public static List<Dependency> fromMavenPom(JarFile jar) {
@@ -115,7 +113,8 @@ public final class Dependency {
                 artifactId,
                 version);
             dependencies.add(
-                new Dependency(name, version, new File(jar.getName()).getName(), null));
+                new Dependency(
+                    name, version, extractLocation(jar.getName() + "!/" + filename), null));
           }
         } catch (IOException e) {
           log.debug("unable to read 'pom.properties' file from {}", jar.getName(), e);
@@ -228,7 +227,7 @@ public final class Dependency {
       hash = String.format("%040X", new BigInteger(1, md.digest()));
     }
     log.debug("No maven dependency added {}.{} jar name {} hash {}", name, version, source, hash);
-    return new Dependency(name, version, source, hash);
+    return new Dependency(name, version, extractLocation(source), hash);
   }
 
   /** Check is string is valid artifactId. Should be a non-capital single word. */
@@ -268,5 +267,19 @@ public final class Dependency {
     }
 
     return null;
+  }
+
+  private static String extractLocation(String loc) {
+    if (loc == null) {
+      return null;
+    }
+    int idx = loc.indexOf("!/");
+    if (idx > 0) {
+      idx = loc.substring(0, idx).lastIndexOf('/');
+      if (idx >= 0) {
+        loc = loc.substring(idx + 1);
+      }
+    }
+    return loc;
   }
 }

@@ -100,7 +100,7 @@ public class DependencyServiceTests {
 
     assertThat(dep.name, equalTo("groovy"));
     assertThat(dep.version, equalTo("2.4.12"));
-    assertThat(dep.source, equalTo("groovy-manifest.jar"));
+    assertThat(dep.location, equalTo("groovy-manifest.jar"));
     assertThat(dep.hash, equalTo("04DF0875A66F111880217FE1C5C59CA877403239"));
   }
 
@@ -122,7 +122,7 @@ public class DependencyServiceTests {
 
     assertThat(dep.name, equalTo("junit"));
     assertThat(dep.version, equalTo("4.12"));
-    assertThat(dep.source, equalTo("junit-4.12.jar"));
+    assertThat(dep.location, equalTo("junit-4.12.jar"));
     assertThat(dep.hash, equalTo("4376590587C49AC6DA6935564233F36B092412AE"));
   }
 
