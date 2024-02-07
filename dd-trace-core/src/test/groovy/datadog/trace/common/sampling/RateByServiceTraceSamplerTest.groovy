@@ -20,9 +20,10 @@ class RateByServiceTraceSamplerTest extends DDCoreSpecification {
 
     expect:
     serviceSampler.serviceRates.getSampler(RateByServiceTraceSampler.EnvAndService.FALLBACK).sampleRate == expectedRate
-    serviceSampler.serviceRates.getSampler("foo", "bar").sampleRate == expectedRate
+    serviceSampler.serviceRates.getSampler("not", "found").sampleRate == expectedRate
 
     where:
+    // these values are all precisely represented in floating point
     rate | expectedRate
     null | 1
     1    | 1
@@ -30,6 +31,29 @@ class RateByServiceTraceSamplerTest extends DDCoreSpecification {
     -5   | 1
     5    | 1
     0.5  | 0.5
+  }
+
+  def "rate selection"() {
+    setup:
+    RateByServiceTraceSampler serviceSampler = new RateByServiceTraceSampler()
+    String response = '{"rate_by_service": {"service:foo,env:bar":0.8, "service:,env:":0.20}}'
+    serviceSampler.onResponse("traces", serializer.fromJson(response))
+
+    when:
+    def sampler = serviceSampler.serviceRates.getSampler(env, service)
+
+    then:
+    sampler.sampleRate > expectedRate - 0.01
+    sampler.sampleRate < expectedRate + 0.01
+
+    where:
+    service | env     | expectedRate
+    "foo"   | "bar"   | 0.8
+    "Foo"   | "BAR"   | 0.8
+    "FOO"   | "BAR"   | 0.8
+    "not"   | "found" | 0.2
+    "foo"   | "baz"   | 0.2
+    "fu"    | "bar"   | 0.2
   }
 
   def "rate by service name"() {
