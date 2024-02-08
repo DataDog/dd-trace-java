@@ -772,6 +772,11 @@ public class MetricInstrumentor extends Instrumentor {
           ldc(insnList, fieldName);
           // stack: [target_object, string]
           emitReflectiveCall(insnList, returnType, OBJECT_TYPE);
+          int sort = returnType.getMainType().getSort();
+          if (sort == org.objectweb.asm.Type.OBJECT || sort == org.objectweb.asm.Type.ARRAY) {
+            insnList.add(
+                new TypeInsnNode(Opcodes.CHECKCAST, returnType.getMainType().getInternalName()));
+          }
         }
         // build null branch which will be added later after the call to emit metric
         LabelNode gotoNode = new LabelNode();
