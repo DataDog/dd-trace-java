@@ -28,6 +28,12 @@ public enum HttpHeader {
       ctx.setxContentTypeOptions(value);
     }
   },
+  AUTHORIZATION("Authorization") {
+    @Override
+    public void addToContext(final IastRequestContext ctx, final String value) {
+      ctx.setAuthorization(value);
+    }
+  },
   COOKIE("Cookie"),
   SET_COOKIE("Set-Cookie"),
   SET_COOKIE2("Set-Cookie2"),

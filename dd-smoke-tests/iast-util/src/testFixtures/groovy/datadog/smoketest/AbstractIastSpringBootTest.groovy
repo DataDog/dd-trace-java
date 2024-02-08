@@ -891,4 +891,17 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
     hasVulnerability { vul -> vul.type == 'HEADER_INJECTION' && vul.evidence.valueParts[1].redacted == true }
   }
 
+  void 'Insecure Auth Protocol vulnerability is present'() {
+    setup:
+    String url = "http://localhost:${httpPort}/insecureAuthProtocol"
+    def request = new Request.Builder().url(url).header("Authorization", "Basic YWxhZGRpbjpvcGVuc2VzYW1l").get().build()
+    when:
+    def response = client.newCall(request).execute()
+    then:
+    response.isSuccessful()
+    hasVulnerability { vul ->
+      vul.type == 'INSECURE_AUTH_PROTOCOL'
+    }
+  }
+
 }

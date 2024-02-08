@@ -67,6 +67,7 @@ class IastSystemTest extends DDSpecification {
     1 * traceSegment.setTagTop('_dd.iast.enabled', 1)
     1 * iastContext.getxContentTypeOptions() >> 'nosniff'
     1 * iastContext.getStrictTransportSecurity() >> 'max-age=35660'
+    1 * iastContext.getAuthorization()
     0 * _
     noExceptionThrown()
   }

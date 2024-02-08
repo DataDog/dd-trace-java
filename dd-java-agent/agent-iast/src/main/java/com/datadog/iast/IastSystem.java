@@ -13,6 +13,7 @@ import com.datadog.iast.sink.HardcodedSecretModuleImpl;
 import com.datadog.iast.sink.HeaderInjectionModuleImpl;
 import com.datadog.iast.sink.HstsMissingHeaderModuleImpl;
 import com.datadog.iast.sink.HttpResponseHeaderModuleImpl;
+import com.datadog.iast.sink.InsecureAuthProtocolModuleImpl;
 import com.datadog.iast.sink.InsecureCookieModuleImpl;
 import com.datadog.iast.sink.LdapInjectionModuleImpl;
 import com.datadog.iast.sink.NoHttpOnlyCookieModuleImpl;
@@ -122,7 +123,8 @@ public class IastSystem {
         new StacktraceLeakModuleImpl(dependencies),
         new HeaderInjectionModuleImpl(dependencies),
         new ApplicationModuleImpl(dependencies),
-        new HardcodedSecretModuleImpl(dependencies));
+        new HardcodedSecretModuleImpl(dependencies),
+        new InsecureAuthProtocolModuleImpl(dependencies));
   }
 
   private static void registerRequestStartedCallback(
