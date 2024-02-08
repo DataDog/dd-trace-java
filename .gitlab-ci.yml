@@ -81,13 +81,17 @@ build_with_cache:
 
 package:
   extends: .package
-  when: never # this can't use 'needs: [build]', since build is not available in the scheduled pipeline
+  rules:
+    - if: $CI_PIPELINE_SOURCE
+      when: never
   script:
     - ../.gitlab/build_java_package.sh
 
 package-arm:
   extends: .package-arm
-  when: never # this can't use 'needs: [build]', since build is not available in the scheduled pipeline
+  rules:
+    - if: $CI_PIPELINE_SOURCE
+      when: never
   script:
     - ../.gitlab/build_java_package.sh
 
