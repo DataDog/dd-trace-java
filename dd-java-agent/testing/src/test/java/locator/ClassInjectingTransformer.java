@@ -59,6 +59,7 @@ public class ClassInjectingTransformer implements AgentBuilder.Transformer, AsmV
           null,
           "java/lang/Object",
           null);
+      cw.visitAnnotation("Ljava/lang/FunctionalInterface;", true).visitEnd();
       byte[] bytes = cw.toByteArray();
       defineMethod.invoke(classLoader, binaryName.replace("/", "."), bytes, 0, bytes.length, null);
     } catch (Throwable e) {
