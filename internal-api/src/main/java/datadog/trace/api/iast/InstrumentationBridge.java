@@ -9,6 +9,7 @@ import datadog.trace.api.iast.sink.HardcodedSecretModule;
 import datadog.trace.api.iast.sink.HeaderInjectionModule;
 import datadog.trace.api.iast.sink.HstsMissingHeaderModule;
 import datadog.trace.api.iast.sink.HttpResponseHeaderModule;
+import datadog.trace.api.iast.sink.InsecureAuthProtocolModule;
 import datadog.trace.api.iast.sink.InsecureCookieModule;
 import datadog.trace.api.iast.sink.LdapInjectionModule;
 import datadog.trace.api.iast.sink.NoHttpOnlyCookieModule;
@@ -60,8 +61,8 @@ public abstract class InstrumentationBridge {
   public static StacktraceLeakModule STACKTRACE_LEAK_MODULE;
   public static HeaderInjectionModule HEADER_INJECTION;
   public static ApplicationModule APPLICATION;
-
   public static HardcodedSecretModule HARDCODED_SECRET;
+  public static InsecureAuthProtocolModule INSECURE_AUTH_PROTOCOL;
 
   private static final Map<Class<? extends IastModule>, Field> MODULE_MAP = buildModuleMap();
 

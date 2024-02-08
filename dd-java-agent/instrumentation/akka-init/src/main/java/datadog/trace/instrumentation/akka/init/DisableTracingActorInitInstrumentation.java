@@ -7,11 +7,12 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopSpan;
 import akka.actor.ActorSystem$;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import net.bytebuddy.asm.Advice;
 
 @AutoService(Instrumenter.class)
-public final class DisableTracingActorInitInstrumentation extends Instrumenter.Tracing
+public final class DisableTracingActorInitInstrumentation extends InstrumenterGroup.Tracing
     implements Instrumenter.ForSingleType {
 
   public DisableTracingActorInitInstrumentation() {

@@ -8,6 +8,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 import datadog.trace.api.Config;
 import datadog.trace.api.CorrelationIdentifier;
 import datadog.trace.api.DDSpanId;
@@ -23,7 +24,7 @@ import net.bytebuddy.asm.Advice;
 import org.apache.log4j.spi.LoggingEvent;
 
 @AutoService(Instrumenter.class)
-public class LoggingEventInstrumentation extends Instrumenter.Tracing
+public class LoggingEventInstrumentation extends InstrumenterGroup.Tracing
     implements Instrumenter.ForSingleType {
   public LoggingEventInstrumentation() {
     super("log4j", "log4j-1");

@@ -11,6 +11,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import net.bytebuddy.asm.Advice;
@@ -20,7 +21,7 @@ import org.opensearch.client.Response;
 import org.opensearch.client.ResponseListener;
 
 @AutoService(Instrumenter.class)
-public class OpensearchRestClientInstrumentation extends Instrumenter.Tracing
+public class OpensearchRestClientInstrumentation extends InstrumenterGroup.Tracing
     implements Instrumenter.ForSingleType {
 
   public OpensearchRestClientInstrumentation() {

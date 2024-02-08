@@ -6,6 +6,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import io.cucumber.junit.platform.engine.CucumberTestEngine;
 import net.bytebuddy.asm.Advice;
@@ -16,7 +17,7 @@ import org.junit.platform.engine.TestEngine;
 import org.junit.platform.engine.support.hierarchical.SameThreadHierarchicalTestExecutorService;
 
 @AutoService(Instrumenter.class)
-public class JUnit5CucumberInstrumentation extends Instrumenter.CiVisibility
+public class JUnit5CucumberInstrumentation extends InstrumenterGroup.CiVisibility
     implements Instrumenter.ForSingleType {
 
   public JUnit5CucumberInstrumentation() {

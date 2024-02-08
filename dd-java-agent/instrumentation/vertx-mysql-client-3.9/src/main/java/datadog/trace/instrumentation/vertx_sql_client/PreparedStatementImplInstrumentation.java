@@ -7,11 +7,12 @@ import static net.bytebuddy.matcher.ElementMatchers.takesNoArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 import java.util.HashMap;
 import java.util.Map;
 
 @AutoService(Instrumenter.class)
-public class PreparedStatementImplInstrumentation extends Instrumenter.Tracing
+public class PreparedStatementImplInstrumentation extends InstrumenterGroup.Tracing
     implements Instrumenter.ForSingleType {
   public PreparedStatementImplInstrumentation() {
     super("vertx", "vertx-sql-client");

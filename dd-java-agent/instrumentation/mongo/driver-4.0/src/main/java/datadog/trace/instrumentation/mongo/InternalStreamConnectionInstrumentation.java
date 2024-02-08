@@ -7,10 +7,11 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import com.google.auto.service.AutoService;
 import com.mongodb.internal.async.SingleResultCallback;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 import net.bytebuddy.asm.Advice;
 
 @AutoService(Instrumenter.class)
-public class InternalStreamConnectionInstrumentation extends Instrumenter.Tracing
+public class InternalStreamConnectionInstrumentation extends InstrumenterGroup.Tracing
     implements Instrumenter.ForSingleType {
   public InternalStreamConnectionInstrumentation() {
     super("mongo", "mongo-reactivestreams");

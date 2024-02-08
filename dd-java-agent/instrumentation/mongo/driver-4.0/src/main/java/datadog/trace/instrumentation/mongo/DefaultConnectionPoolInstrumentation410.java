@@ -6,9 +6,10 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 
 @AutoService(Instrumenter.class)
-public class DefaultConnectionPoolInstrumentation410 extends Instrumenter.Tracing
+public class DefaultConnectionPoolInstrumentation410 extends InstrumenterGroup.Tracing
     implements Instrumenter.ForSingleType {
   public DefaultConnectionPoolInstrumentation410() {
     super("mongo", "mongo-reactivestreams");

@@ -5,11 +5,12 @@ import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 import datadog.trace.agent.tooling.muzzle.ReferenceMatcher;
 import java.util.Set;
 
-public class CalleeBenchmarkInstrumentation extends Instrumenter.Default
-    implements Instrumenter.ForSingleType {
+public class CalleeBenchmarkInstrumentation extends InstrumenterGroup
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
   public CalleeBenchmarkInstrumentation() {
     super("callee");

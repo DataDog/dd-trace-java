@@ -11,6 +11,7 @@ import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.advice.ActiveRequestContext;
 import datadog.trace.advice.RequiresRequestContext;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 import datadog.trace.agent.tooling.muzzle.Reference;
 import datadog.trace.api.gateway.BlockResponseFunction;
 import datadog.trace.api.gateway.CallbackProvider;
@@ -26,7 +27,7 @@ import org.eclipse.jetty.server.Request;
 import org.eclipse.jetty.util.MultiMap;
 
 @AutoService(Instrumenter.class)
-public class UrlEncodedInstrumentation extends Instrumenter.AppSec
+public class UrlEncodedInstrumentation extends InstrumenterGroup.AppSec
     implements Instrumenter.ForSingleType {
   public UrlEncodedInstrumentation() {
     super("jetty");

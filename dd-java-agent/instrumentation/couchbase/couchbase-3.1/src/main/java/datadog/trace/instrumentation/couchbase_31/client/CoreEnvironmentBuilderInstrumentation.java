@@ -4,12 +4,13 @@ import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 import datadog.trace.agent.tooling.muzzle.Reference;
 import java.util.Collections;
 import java.util.Map;
 
 @AutoService(Instrumenter.class)
-public class CoreEnvironmentBuilderInstrumentation extends Instrumenter.Tracing
+public class CoreEnvironmentBuilderInstrumentation extends InstrumenterGroup.Tracing
     implements Instrumenter.ForSingleType {
 
   public CoreEnvironmentBuilderInstrumentation() {

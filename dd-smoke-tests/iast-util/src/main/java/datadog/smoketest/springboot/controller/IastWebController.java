@@ -330,6 +330,12 @@ public class IastWebController {
     return "ok";
   }
 
+  @GetMapping(value = "/insecureAuthProtocol")
+  public String insecureAuthProtocol(HttpServletRequest request) {
+    String authorization = request.getHeader("Authorization");
+    return authorization;
+  }
+
   @PostMapping("/multipart")
   public String handleFileUpload(
       @RequestParam("theFile") MultipartFile file, @RequestParam("param1") String param1) {

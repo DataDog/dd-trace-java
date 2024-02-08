@@ -5,13 +5,14 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Propagation;
 import datadog.trace.api.iast.propagation.PropagationModule;
 import net.bytebuddy.asm.Advice;
 
 @AutoService(Instrumenter.class)
-public class JSONTokenerInstrumentation extends Instrumenter.Iast
+public class JSONTokenerInstrumentation extends InstrumenterGroup.Iast
     implements Instrumenter.ForSingleType {
 
   public JSONTokenerInstrumentation() {

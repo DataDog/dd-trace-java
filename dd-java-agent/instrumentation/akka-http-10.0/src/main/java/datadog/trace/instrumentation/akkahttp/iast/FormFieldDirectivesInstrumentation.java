@@ -14,6 +14,7 @@ import akka.http.scaladsl.server.directives.FormFieldDirectives;
 import akka.http.scaladsl.server.util.Tupler$;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 import datadog.trace.api.iast.Source;
 import datadog.trace.api.iast.SourceTypes;
 import datadog.trace.instrumentation.akkahttp.iast.helpers.TaintSingleParameterFunction;
@@ -28,7 +29,7 @@ import net.bytebuddy.implementation.bytecode.assign.Assigner;
  * @see ParameterDirectivesInstrumentation with which most of the implementation is shared
  */
 @AutoService(Instrumenter.class)
-public class FormFieldDirectivesInstrumentation extends Instrumenter.Iast
+public class FormFieldDirectivesInstrumentation extends InstrumenterGroup.Iast
     implements Instrumenter.ForKnownTypes {
 
   private static final String TRAIT_CLASS =

@@ -10,15 +10,10 @@ class MuzzleGenerateTest extends Specification {
     List<Class> missingMatchers = []
     ClassLoader agentClassLoader = IntegrationTestUtils.getAgentClassLoader()
     Class<?> instrumenterClass = agentClassLoader.loadClass('datadog.trace.agent.tooling.Instrumenter')
-    Class<?> instrumenterDefaultClass = agentClassLoader.loadClass('datadog.trace.agent.tooling.Instrumenter$Default')
+    Class<?> instrumenterGroupClass = agentClassLoader.loadClass('datadog.trace.agent.tooling.InstrumenterGroup')
     for (Object instrumenter : ServiceLoader.load(instrumenterClass, agentClassLoader)) {
-      if (instrumenter.class.name.endsWith("TraceConfigInstrumentation")) {
-        // TraceConfigInstrumentation doesn't do muzzle checks
-        // check on TracerClassInstrumentation instead
-        instrumenter = agentClassLoader.loadClass(instrumenter.class.name + '$TracerClassInstrumentation').newInstance()
-      }
-      if (!instrumenterDefaultClass.isInstance(instrumenter)) {
-        // muzzle only applies to default instrumenters
+      if (!instrumenterGroupClass.isInstance(instrumenter)) {
+        // muzzle only applies to instrumenter groups
         continue
       }
       if (instrumenter.instrumentationMuzzle == null) {

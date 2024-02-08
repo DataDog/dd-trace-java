@@ -6,11 +6,12 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 import datadog.trace.agent.tooling.muzzle.Reference;
 
 /** @see play.routing.RoutingDsl.Route */
 @AutoService(Instrumenter.class)
-public class RoutingDslInstrumentation extends Instrumenter.AppSec
+public class RoutingDslInstrumentation extends InstrumenterGroup.AppSec
     implements Instrumenter.ForSingleType {
   public RoutingDslInstrumentation() {
     super("play");

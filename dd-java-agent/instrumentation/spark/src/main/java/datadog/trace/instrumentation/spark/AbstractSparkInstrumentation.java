@@ -6,9 +6,10 @@ import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.nameEndsWith;
 
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 import net.bytebuddy.asm.Advice;
 
-public abstract class AbstractSparkInstrumentation extends Instrumenter.Tracing
+public abstract class AbstractSparkInstrumentation extends InstrumenterGroup.Tracing
     implements Instrumenter.ForKnownTypes {
 
   public AbstractSparkInstrumentation() {
