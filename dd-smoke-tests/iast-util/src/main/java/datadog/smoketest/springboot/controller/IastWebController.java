@@ -393,28 +393,6 @@ public class IastWebController {
     return "Ok";
   }
 
-  @GetMapping("/reflection_injection/class")
-  public String reflectionInjectionClass(final HttpServletRequest request) {
-    String className = request.getParameter("param");
-    try {
-      Class<?> clazz = Class.forName(className);
-      return "Class: " + clazz.getName();
-    } catch (ClassNotFoundException e) {
-      return "ClassNotFoundException";
-    }
-  }
-
-  @GetMapping("/reflection_injection/method")
-  public String reflectionInjectionMethod(final HttpServletRequest request) {
-    String methodName = request.getParameter("param");
-    try {
-      Method method = String.class.getMethod(methodName);
-      return "String Method: " + method.getName();
-    } catch (NoSuchMethodException e) {
-      return "NoSuchMethodException";
-    }
-  }
-
   private void withProcess(final Operation<Process> op) {
     Process process = null;
     try {
