@@ -1,6 +1,7 @@
 package datadog.trace.civisibility.git.tree
 
 import datadog.trace.api.Config
+import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector
 import datadog.trace.api.git.GitInfo
 import datadog.trace.api.git.GitInfoProvider
 import datadog.trace.civisibility.utils.IOUtils
@@ -29,6 +30,8 @@ class GitDataUploaderImplTest extends Specification {
     def repoRoot = tempDir.toString()
     def repoUrl = "<mockRepositoryUrl>"
 
+    def metricCollector = Stub(CiVisibilityMetricCollector)
+
     def config = Stub(Config) {
       getCiVisibilityGitUploadTimeoutMillis() >> 15_000
     }
@@ -36,7 +39,7 @@ class GitDataUploaderImplTest extends Specification {
     def gitInfoProvider = Stub(GitInfoProvider)
     gitInfoProvider.getGitInfo(repoRoot) >> new GitInfo(repoUrl, null, null, null)
 
-    def gitClient = new GitClient(repoRoot, "25 years ago", 3, TIMEOUT_MILLIS)
+    def gitClient = new GitClient(metricCollector, repoRoot, "25 years ago", 3, TIMEOUT_MILLIS)
     def uploader = new GitDataUploaderImpl(config, api, gitClient, gitInfoProvider, repoRoot, "origin")
 
     when:
