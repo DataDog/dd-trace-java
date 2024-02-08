@@ -1533,7 +1533,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
         serviceName = rootSpan != null ? rootSpan.getServiceName() : null;
       }
       if (serviceName == null) {
-        serviceName = CoreTracer.this.serviceName;
+        serviceName = captureTraceConfig().defaultServiceName;
       }
 
       final CharSequence operationName =
@@ -1611,6 +1611,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
   protected class ConfigSnapshot extends DynamicConfig.Snapshot {
     final Sampler sampler;
+    final String defaultServiceName;
 
     protected ConfigSnapshot(
         DynamicConfig<ConfigSnapshot>.Builder builder, ConfigSnapshot oldSnapshot) {
@@ -1622,6 +1623,12 @@ public class CoreTracer implements AgentTracer.TracerAPI {
         sampler = oldSnapshot.sampler;
       } else {
         sampler = Sampler.Builder.forConfig(CoreTracer.this.initialConfig, this);
+      }
+      final String preferredName = SpanNaming.instance().localRoot().getPreferredServiceName();
+      if (preferredName != null) {
+        this.defaultServiceName = preferredName;
+      } else {
+        this.defaultServiceName = CoreTracer.this.serviceName;
       }
     }
   }

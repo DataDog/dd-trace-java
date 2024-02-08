@@ -4,6 +4,7 @@ import datadog.trace.api.Config;
 import datadog.trace.api.naming.v0.NamingSchemaV0;
 import datadog.trace.api.naming.v1.NamingSchemaV1;
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 /** This is the main entry point to drive span naming decisions. */
 public class SpanNaming {
@@ -14,6 +15,27 @@ public class SpanNaming {
     private static SpanNaming INSTANCE = new SpanNaming();
   }
 
+  public static class ForLocalRoot {
+    private final boolean mutable;
+    private volatile String preferredServiceName;
+
+    public ForLocalRoot(final Config config) {
+      this.mutable = !config.isServiceNameSetByUser();
+    }
+
+    @Nullable
+    public String getPreferredServiceName() {
+      return preferredServiceName;
+    }
+
+    public boolean maybeOverrideServiceName(final String serviceName) {
+      if (mutable) {
+        preferredServiceName = serviceName;
+      }
+      return mutable;
+    }
+  }
+
   public static SpanNaming instance() {
     return Singleton.INSTANCE;
   }
@@ -21,14 +43,10 @@ public class SpanNaming {
   private final NamingSchema namingSchema;
   private final int version;
 
-  // Choice of version will be driven by a configuration parameter when all the instrumentations'
-  // naming will be addressed
-  private SpanNaming() {
-    this(Config.get().getSpanAttributeSchemaVersion());
-  }
+  private final ForLocalRoot localRootNaming;
 
-  private SpanNaming(final int version) {
-    this.version = version;
+  private SpanNaming() {
+    this.version = Config.get().getSpanAttributeSchemaVersion();
     switch (version) {
       case 1:
         namingSchema = new NamingSchemaV1();
@@ -37,11 +55,17 @@ public class SpanNaming {
         namingSchema = new NamingSchemaV0();
         break;
     }
+    this.localRootNaming = new ForLocalRoot(Config.get());
   }
 
   @Nonnull
   public NamingSchema namingSchema() {
     return namingSchema;
+  }
+
+  @Nonnull
+  public ForLocalRoot localRoot() {
+    return localRootNaming;
   }
 
   public int version() {
