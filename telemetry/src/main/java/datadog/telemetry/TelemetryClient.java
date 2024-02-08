@@ -1,7 +1,10 @@
 package datadog.telemetry;
 
 import datadog.communication.http.OkHttpUtils;
+import datadog.trace.api.Config;
+import datadog.trace.util.Strings;
 import java.io.IOException;
+import java.util.concurrent.TimeUnit;
 import okhttp3.HttpUrl;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
@@ -23,20 +26,14 @@ public class TelemetryClient {
     return new TelemetryClient(okHttpClient, agentTelemetryUrl, null);
   }
 
-  public static TelemetryClient buildIntakeClient(String site, long timeoutMillis, String apiKey) {
+  public static TelemetryClient buildIntakeClient(Config config) {
+    String apiKey = config.getApiKey();
     if (apiKey == null) {
       log.debug("Cannot create Telemetry Intake because DD_API_KEY unspecified.");
       return null;
     }
 
-    String prefix = "";
-    if (site.endsWith("datad0g.com")) {
-      prefix = "all-http-intake.logs.";
-    } else if (site.endsWith("datadoghq.com")) {
-      prefix = "instrumentation-telemetry-intake.";
-    }
-
-    String telemetryUrl = "https://" + prefix + site + "/api/v2/apmtelemetry";
+    String telemetryUrl = buildIntakeTelemetryUrl(config);
     HttpUrl url;
     try {
       url = HttpUrl.get(telemetryUrl);
@@ -45,8 +42,27 @@ public class TelemetryClient {
       return null;
     }
 
+    long timeoutMillis = TimeUnit.SECONDS.toMillis(config.getAgentTimeout());
     OkHttpClient httpClient = OkHttpUtils.buildHttpClient(url, timeoutMillis);
     return new TelemetryClient(httpClient, url, apiKey);
+  }
+
+  private static String buildIntakeTelemetryUrl(Config config) {
+    if (config.isCiVisibilityEnabled() && config.isCiVisibilityAgentlessEnabled()) {
+      String agentlessUrl = config.getCiVisibilityAgentlessUrl();
+      if (Strings.isNotBlank(agentlessUrl)) {
+        return agentlessUrl + "/api/v2/apmtelemetry";
+      }
+    }
+
+    String site = config.getSite();
+    String prefix = "";
+    if (site.endsWith("datad0g.com")) {
+      prefix = "all-http-intake.logs.";
+    } else if (site.endsWith("datadoghq.com")) {
+      prefix = "instrumentation-telemetry-intake.";
+    }
+    return "https://" + prefix + site + "/api/v2/apmtelemetry";
   }
 
   private static final Logger log = LoggerFactory.getLogger(TelemetryClient.class);
