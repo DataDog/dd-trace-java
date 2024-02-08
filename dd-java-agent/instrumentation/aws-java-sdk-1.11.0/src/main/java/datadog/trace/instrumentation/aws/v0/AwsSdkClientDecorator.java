@@ -130,12 +130,11 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
       bestPeerService = bucketName;
 
       HttpMethodName httpMethod = request.getHttpMethod();
-      if (httpMethod == HttpMethodName.GET && !awsRequestName.toString().contains("ListObjects")) {
+      if (key == null) { /* Skipping empty key for now */ }
+      else if (httpMethod == HttpMethodName.GET) {
         LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>();
         sortedTags.put(DIRECTION_TAG, DIRECTION_IN);
-        if (key != null) {
-          sortedTags.put("name", key);
-        }
+        sortedTags.put("name", key);
         sortedTags.put("namespace", bucketName);
         sortedTags.put(TOPIC_TAG, bucketName);
         sortedTags.put(TYPE_TAG, "s3");
@@ -144,9 +143,7 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
       else if (httpMethod == HttpMethodName.POST || httpMethod == HttpMethodName.PUT || httpMethod == HttpMethodName.DELETE) {
         LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>();
         sortedTags.put(DIRECTION_TAG, DIRECTION_OUT);
-        if (key != null) {
-          sortedTags.put("name", key);
-        }
+        sortedTags.put("name", key);
         sortedTags.put("namespace", bucketName);
         sortedTags.put(TOPIC_TAG, bucketName);
         sortedTags.put(TYPE_TAG, "s3");
