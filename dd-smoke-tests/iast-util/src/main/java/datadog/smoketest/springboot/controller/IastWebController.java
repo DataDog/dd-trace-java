@@ -9,7 +9,6 @@ import java.io.File;
 import java.io.IOException;
 import java.io.StringReader;
 import java.io.UnsupportedEncodingException;
-import java.lang.reflect.Method;
 import java.net.HttpCookie;
 import java.net.HttpURLConnection;
 import java.net.URL;
@@ -391,28 +390,6 @@ public class IastWebController {
       @RequestParam("param") String param, HttpServletResponse response) {
     response.addHeader("X-Test-Header", param);
     return "Ok";
-  }
-
-  @GetMapping("/reflection_injection/class")
-  public String reflectionInjectionClass(final HttpServletRequest request) {
-    String className = request.getParameter("param");
-    try {
-      Class<?> clazz = Class.forName(className);
-      return "Class: " + clazz.getName();
-    } catch (ClassNotFoundException e) {
-      return "ClassNotFoundException";
-    }
-  }
-
-  @GetMapping("/reflection_injection/method")
-  public String reflectionInjectionMethod(final HttpServletRequest request) {
-    String methodName = request.getParameter("param");
-    try {
-      Method method = String.class.getMethod(methodName);
-      return "String Method: " + method.getName();
-    } catch (NoSuchMethodException e) {
-      return "NoSuchMethodException";
-    }
   }
 
   private void withProcess(final Operation<Process> op) {
