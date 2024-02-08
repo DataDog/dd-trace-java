@@ -108,7 +108,6 @@ public class TelemetryService {
   }
 
   public boolean addDistributionSeries(DistributionSeries series) {
-    // TODO doesn't seem to be used
     return this.distributionSeries.offer(series);
   }
 
