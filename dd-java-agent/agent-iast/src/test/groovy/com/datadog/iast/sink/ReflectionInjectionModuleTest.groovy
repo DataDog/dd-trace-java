@@ -40,7 +40,8 @@ class ReflectionInjectionModuleTest extends IastModuleImplTestBase {
     }
 
     where:
-    value         | mark                                   | expected
+    value        | mark                                   | expected
+    null         | NOT_MARKED                             | null
     '/var'       | NOT_MARKED                             | null
     '/==>var<==' | NOT_MARKED                             | "/==>var<=="
     '/==>var<==' | VulnerabilityMarks.REFLECTION_INJECTION_MARK | null
