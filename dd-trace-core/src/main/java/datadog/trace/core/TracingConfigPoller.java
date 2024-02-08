@@ -21,6 +21,8 @@ import datadog.trace.logging.GlobalLogLevelSwitcher;
 import datadog.trace.logging.LogLevel;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
@@ -142,7 +144,7 @@ final class TracingConfigPoller {
     maybeOverride(builder::setHeaderTags, libConfig.headerTags);
 
     maybeOverride(builder::setTraceSampleRate, libConfig.traceSampleRate);
-
+    maybeOverride(builder::setTracingTags, parseTagListToMap(libConfig.tracingTags));
     builder.apply();
   }
 
@@ -155,6 +157,22 @@ final class TracingConfigPoller {
     if (null != override) {
       setter.accept(override);
     }
+  }
+
+  private Map<String, String> parseTagListToMap(List<String> input) {
+    Map<String, String> resultMap = Collections.emptyMap();
+    if (null != input && !input.isEmpty()) {
+      resultMap = new HashMap<>();
+      for (String s : input) {
+        String[] keyValue = s.split(":");
+        if (keyValue.length == 2) {
+          String key = keyValue[0].trim();
+          String value = keyValue[1].trim();
+          resultMap.put(key, value);
+        }
+      }
+    }
+    return resultMap;
   }
 
   static final class ConfigOverrides {
@@ -183,6 +201,9 @@ final class TracingConfigPoller {
 
     @Json(name = "tracing_sampling_rate")
     public Double traceSampleRate;
+
+    @Json(name = "tracing_tags")
+    public List<String> tracingTags;
   }
 
   static final class ServiceMappingEntry implements Map.Entry<String, String> {

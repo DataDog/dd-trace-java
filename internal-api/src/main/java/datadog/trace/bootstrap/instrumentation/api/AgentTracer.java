@@ -293,6 +293,7 @@ public class AgentTracer {
 
     TraceConfig captureTraceConfig();
 
+    @Override
     ProfilingContextIntegration getProfilingContext();
 
     AgentHistogram newHistogram(double relativeAccuracy, int maxNumBins);
@@ -1258,6 +1259,11 @@ public class AgentTracer {
     @Override
     public Double getTraceSampleRate() {
       return null;
+    }
+
+    @Override
+    public Map<String, String> getTracingTags() {
+      return Collections.emptyMap();
     }
 
     @Override

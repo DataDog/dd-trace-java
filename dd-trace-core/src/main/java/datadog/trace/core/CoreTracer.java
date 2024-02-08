@@ -548,6 +548,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
             .setTraceSampleRate(config.getTraceSampleRate())
             .setSpanSamplingRules(spanSamplingRules.getRules())
             .setTraceSamplingRules(traceSamplingRules.getRules())
+            .setTracingTags(config.getGlobalTags())
             .apply();
 
     this.logs128bTraceIdEnabled = InstrumenterConfig.get().isLogs128bTraceIdEnabled();
@@ -726,6 +727,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
         .setHeaderTags(config.getRequestHeaderTags())
         .setBaggageMapping(config.getBaggageMapping())
         .setTraceSampleRate(config.getTraceSampleRate())
+        .setTracingTags(config.getGlobalTags())
         .apply();
   }
 

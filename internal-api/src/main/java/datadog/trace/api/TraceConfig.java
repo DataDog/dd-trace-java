@@ -24,6 +24,7 @@ public interface TraceConfig {
 
   Double getTraceSampleRate();
 
+  Map<String, String> getTracingTags();
   /**
    * Get the tracer sampler Span Sampling Rules.
    *

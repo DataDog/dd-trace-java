@@ -100,6 +100,7 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
     Map<String, String> serviceMapping;
     Map<String, String> requestHeaderTags;
     Map<String, String> responseHeaderTags;
+    Map<String, String> tracingTags;
     Map<String, String> baggageMapping;
 
     List<? extends SpanSamplingRule> spanSamplingRules;
@@ -121,6 +122,7 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
       this.baggageMapping = snapshot.baggageMapping;
 
       this.traceSampleRate = snapshot.traceSampleRate;
+      this.tracingTags = snapshot.tracingTags;
     }
 
     public Builder setRuntimeMetricsEnabled(boolean runtimeMetricsEnabled) {
@@ -142,7 +144,6 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
       return setServiceMapping(serviceMapping.entrySet());
     }
 
-    @SuppressWarnings("deprecation")
     public Builder setHeaderTags(Map<String, String> headerTags) {
       if (Config.get().getRequestHeaderTags().equals(headerTags)
           && !Config.get().getResponseHeaderTags().equals(headerTags)) {
@@ -189,6 +190,11 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
 
     public Builder setTraceSamplingRules(List<? extends TraceSamplingRule> traceSamplingRules) {
       this.traceSamplingRules = traceSamplingRules;
+      return this;
+    }
+
+    public Builder setTracingTags(Map<String, String> tracingTags) {
+      this.tracingTags = tracingTags;
       return this;
     }
 
@@ -266,7 +272,6 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
     ConfigCollector.get().putAll(update, ConfigOrigin.REMOTE);
   }
 
-  @SuppressWarnings("SameParameterValue")
   private static void maybePut(Map<String, Object> update, String key, Object value) {
     if (null != value) {
       update.put(key, value);
@@ -288,6 +293,7 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
     final List<? extends TraceSamplingRule> traceSamplingRules;
 
     final Double traceSampleRate;
+    final Map<String, String> tracingTags;
 
     protected Snapshot(DynamicConfig<?>.Builder builder, Snapshot oldSnapshot) {
 
@@ -304,6 +310,7 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
 
       this.spanSamplingRules = builder.spanSamplingRules;
       this.traceSamplingRules = builder.traceSamplingRules;
+      this.tracingTags = builder.tracingTags;
     }
 
     private static <K, V> Map<K, V> nullToEmpty(Map<K, V> mapping) {
@@ -361,6 +368,11 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
     }
 
     @Override
+    public Map<String, String> getTracingTags() {
+      return tracingTags;
+    }
+
+    @Override
     public String toString() {
       return "DynamicConfig{"
           + "debugEnabled="
@@ -385,6 +397,8 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
           + traceSamplingRules
           + ", traceSampleRate="
           + traceSampleRate
+          + ", tracingTags="
+          + tracingTags
           + '}';
     }
   }
