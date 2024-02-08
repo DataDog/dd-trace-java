@@ -3,9 +3,7 @@ package datadog.trace.instrumentation.java.lang
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.sink.ReflectionInjectionModule
-import datadog.trace.api.iast.sink.WeakRandomnessModule
 import foo.bar.TestClassSuite
-import foo.bar.TestMathSuite
 
 class ClassCallSiteTest extends AgentTestRunner {
 
@@ -29,8 +27,8 @@ class ClassCallSiteTest extends AgentTestRunner {
     method | args
     'forName' | ['java.lang.String']
     'forName' | ['java.lang.String', true, ClassLoader.getSystemClassLoader()]
-    'getMethod' | ['contains', String.class, CharSequence.class]
-    'getDeclaredMethod' | ['contains', String.class, CharSequence.class]
+    'getMethod' | ['contains', String, CharSequence]
+    'getDeclaredMethod' | ['contains', String, CharSequence]
   }
 }
 
