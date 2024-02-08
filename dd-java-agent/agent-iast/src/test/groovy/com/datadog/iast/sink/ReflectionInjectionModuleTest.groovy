@@ -5,12 +5,9 @@ import com.datadog.iast.Reporter
 import com.datadog.iast.model.Vulnerability
 import com.datadog.iast.model.VulnerabilityType
 import datadog.trace.api.iast.VulnerabilityMarks
-import datadog.trace.api.iast.sink.PathTraversalModule
 import datadog.trace.api.iast.sink.ReflectionInjectionModule
 
 import static com.datadog.iast.taint.TaintUtils.addFromTaintFormat
-import static com.datadog.iast.taint.TaintUtils.fromTaintFormat
-import static com.datadog.iast.taint.TaintUtils.getStringFromTaintFormat
 import static com.datadog.iast.taint.TaintUtils.taintFormat
 import static datadog.trace.api.iast.VulnerabilityMarks.NOT_MARKED
 
