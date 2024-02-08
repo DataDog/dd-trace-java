@@ -4,9 +4,13 @@ import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.propagation.StringModule
 import foo.bar.TestStringConcatFactorySuite
+import spock.lang.Requires
 
 import static foo.bar.TestStringConcatFactorySuite.stringPlusWithPrimitive
 
+@Requires({
+  jvm.java9Compatible
+})
 class StringConcatFactoryCallSiteTest extends AgentTestRunner {
 
   @Override
