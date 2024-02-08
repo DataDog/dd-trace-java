@@ -9,7 +9,6 @@ import java.io.File;
 import java.io.IOException;
 import java.io.StringReader;
 import java.io.UnsupportedEncodingException;
-import java.lang.reflect.Method;
 import java.net.HttpCookie;
 import java.net.HttpURLConnection;
 import java.net.URL;
