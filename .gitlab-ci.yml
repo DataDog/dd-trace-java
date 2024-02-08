@@ -53,7 +53,7 @@ build: &build
   rules:
     - if: '$POPULATE_CACHE'
       when: never
-    - when: on_success
+    - when: never
   script:
     - GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx1900M -Xms512M' -Ddatadog.forkedMaxHeapSize=512M -Ddatadog.forkedMinHeapSize=128M" ./gradlew clean :dd-java-agent:shadowJar --build-cache --parallel --stacktrace --no-daemon --max-workers=8
     - echo UPSTREAM_TRACER_VERSION=$(java -jar workspace/dd-java-agent/build/libs/*.jar) >> upstream.env
@@ -62,6 +62,8 @@ build: &build
   artifacts:
     paths:
       - 'workspace/dd-java-agent/build/libs/*.jar'
+      - 'workspace/dd-trace-api/build/libs/*.jar'
+      - 'workspace/dd-trace-ot/build/libs/*.jar'
       - 'upstream.env'
     reports:
       dotenv: build.env
@@ -202,7 +204,7 @@ deploy_artifacts_to_github:
     - aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.gh_release_token --with-decryption --query "Parameter.Value" --out text > github-token.txt
     - gh auth login --with-token < github-token.txt
     - gh auth status
-    - gh release list --repo DataDog/dd-trace-java
+    - gh release list
 
 deploy_to_docker_registries:
   stage: deploy
