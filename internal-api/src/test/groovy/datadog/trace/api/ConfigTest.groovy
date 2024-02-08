@@ -82,7 +82,7 @@ import static datadog.trace.api.config.ProfilingConfig.PROFILING_UPLOAD_COMPRESS
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_UPLOAD_PERIOD
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_UPLOAD_TIMEOUT
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_URL
-import static datadog.trace.api.config.RemoteConfigConfig.REMOTE_CONFIG_ENABLED
+import static datadog.trace.api.config.RemoteConfigConfig.REMOTE_CONFIGURATION_ENABLED
 import static datadog.trace.api.config.RemoteConfigConfig.REMOTE_CONFIG_MAX_PAYLOAD_SIZE
 import static datadog.trace.api.config.RemoteConfigConfig.REMOTE_CONFIG_POLL_INTERVAL_SECONDS
 import static datadog.trace.api.config.RemoteConfigConfig.REMOTE_CONFIG_URL
@@ -230,7 +230,7 @@ class ConfigTest extends DDSpecification {
     prop.setProperty(PROFILING_EXCEPTION_HISTOGRAM_MAX_COLLECTION_SIZE, "1122")
     prop.setProperty(PROFILING_AGENTLESS, "true")
 
-    prop.setProperty(REMOTE_CONFIG_ENABLED, "true")
+    prop.setProperty(REMOTE_CONFIGURATION_ENABLED, "true")
     prop.setProperty(REMOTE_CONFIG_URL, "remote config url")
     prop.setProperty(REMOTE_CONFIG_POLL_INTERVAL_SECONDS, "3")
     prop.setProperty(REMOTE_CONFIG_MAX_PAYLOAD_SIZE, "2")
@@ -409,7 +409,7 @@ class ConfigTest extends DDSpecification {
     System.setProperty(PREFIX + PROFILING_EXCEPTION_HISTOGRAM_MAX_COLLECTION_SIZE, "1122")
     System.setProperty(PREFIX + PROFILING_AGENTLESS, "true")
 
-    System.setProperty(PREFIX + REMOTE_CONFIG_ENABLED, "true")
+    System.setProperty(PREFIX + REMOTE_CONFIGURATION_ENABLED, "true")
     System.setProperty(PREFIX + REMOTE_CONFIG_URL, "remote config url")
     System.setProperty(PREFIX + REMOTE_CONFIG_POLL_INTERVAL_SECONDS, "3")
     System.setProperty(PREFIX + REMOTE_CONFIG_MAX_PAYLOAD_SIZE, "2")

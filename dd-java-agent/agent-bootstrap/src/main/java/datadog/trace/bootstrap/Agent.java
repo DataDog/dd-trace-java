@@ -92,7 +92,10 @@ public class Agent {
     PROFILING(propertyNameToSystemPropertyName(ProfilingConfig.PROFILING_ENABLED), false),
     APPSEC(propertyNameToSystemPropertyName(AppSecConfig.APPSEC_ENABLED), false),
     IAST(propertyNameToSystemPropertyName(IastConfig.IAST_ENABLED), false),
-    REMOTE_CONFIG(propertyNameToSystemPropertyName(RemoteConfigConfig.REMOTE_CONFIG_ENABLED), true),
+    REMOTE_CONFIG(
+        propertyNameToSystemPropertyName(RemoteConfigConfig.REMOTE_CONFIGURATION_ENABLED), true),
+    DEPRECATED_REMOTE_CONFIG(
+        propertyNameToSystemPropertyName(RemoteConfigConfig.REMOTE_CONFIG_ENABLED), true),
     CWS(propertyNameToSystemPropertyName(CwsConfig.CWS_ENABLED), false),
     CIVISIBILITY(propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_ENABLED), false),
     CIVISIBILITY_AGENTLESS(
@@ -209,7 +212,9 @@ public class Agent {
     usmEnabled = isFeatureEnabled(AgentFeature.USM);
     appSecEnabled = isFeatureEnabled(AgentFeature.APPSEC);
     appSecFullyDisabled = isAppSecFullyDisabled();
-    remoteConfigEnabled = isFeatureEnabled(AgentFeature.REMOTE_CONFIG);
+    remoteConfigEnabled =
+        isFeatureEnabled(AgentFeature.REMOTE_CONFIG)
+            || isFeatureEnabled(AgentFeature.DEPRECATED_REMOTE_CONFIG);
     cwsEnabled = isFeatureEnabled(AgentFeature.CWS);
     telemetryEnabled = isFeatureEnabled(AgentFeature.TELEMETRY);
     debuggerEnabled = isFeatureEnabled(AgentFeature.DEBUGGER);
