@@ -27,7 +27,6 @@ import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.core.propagation.PropagationTags;
 import datadog.trace.core.taginterceptor.TagInterceptor;
 import datadog.trace.core.tagprocessor.TagsPostProcessorFactory;
-import datadog.trace.util.ExtraServicesProvider;
 import datadog.trace.util.TagsHelper;
 import java.io.Closeable;
 import java.io.IOException;
@@ -398,7 +397,6 @@ public class DDSpanContext
   public void setServiceName(final String serviceName) {
     this.serviceName = trace.mapServiceName(serviceName);
     this.topLevel = isTopLevel(parentServiceName, this.serviceName);
-    ExtraServicesProvider.get().maybeAddExtraService(this.serviceName);
   }
 
   // TODO this logic is inconsistent with hasResourceName

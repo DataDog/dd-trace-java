@@ -43,7 +43,7 @@ class PollerRequestFactoryTest extends DDSpecification {
     final extraService = 'fakeExtraService'
     ExtraServicesProvider extraServicesProvider = new ExtraServicesProvider()
     extraServicesProvider.maybeAddExtraService(extraService)
-    PollerRequestFactory factory = new PollerRequestFactory(Config.get(), TRACER_VERSION, CONTAINER_ID, INVALID_REMOTE_CONFIG_URL, null)
+    PollerRequestFactory factory = new PollerRequestFactory(Config.get(), TRACER_VERSION, CONTAINER_ID, ENTITY_ID, INVALID_REMOTE_CONFIG_URL, null)
 
     when:
     RemoteConfigRequest request = factory.buildRemoteConfigRequest( Collections.singletonList("ASM"), null, null, 0, extraServicesProvider)
