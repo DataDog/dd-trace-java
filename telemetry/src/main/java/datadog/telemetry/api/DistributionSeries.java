@@ -28,7 +28,7 @@ public class DistributionSeries {
     return this;
   }
 
-  public void addPoint(Integer point) {
+  public void addPoint(int point) {
     points.add(point);
   }
 

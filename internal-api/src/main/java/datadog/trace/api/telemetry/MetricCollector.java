@@ -120,11 +120,11 @@ public interface MetricCollector<M extends Metric> {
     public final String metricName;
     public final boolean common;
     public final String namespace;
-    public final Integer value;
+    public final int value;
     public final List<String> tags;
 
     public DistributionSeriesPoint(
-        String metricName, boolean common, String namespace, Integer value, List<String> tags) {
+        String metricName, boolean common, String namespace, int value, List<String> tags) {
       this.metricName = metricName;
       this.common = common;
       this.namespace = namespace;
