@@ -211,9 +211,9 @@ deploy_artifacts_to_github:
     - aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.gh_release_token --with-decryption --query "Parameter.Value" --out text > github-token.txt
     - gh auth login --with-token < github-token.txt
     - gh auth status  # Maybe helpful to have this output in logs?
-    - gh release upload --clobber $CI_COMMIT_TAG 'workspace/dd-java-agent/build/libs/*.jar'
-    - gh release upload --clobber $CI_COMMIT_TAG 'workspace/dd-trace-api/build/libs/*.jar'
-    - gh release upload --clobber $CI_COMMIT_TAG 'workspace/dd-trace-ot/build/libs/*.jar
+    - gh release upload --clobber --repo DataDog/dd-trace-java $CI_COMMIT_TAG 'workspace/dd-java-agent/build/libs/*.jar'
+    - gh release upload --clobber --repo DataDog/dd-trace-java $CI_COMMIT_TAG 'workspace/dd-trace-api/build/libs/*.jar'
+    - gh release upload --clobber --repo DataDog/dd-trace-java $CI_COMMIT_TAG 'workspace/dd-trace-ot/build/libs/*.jar
     
 deploy_to_docker_registries:
   stage: deploy
