@@ -7,9 +7,10 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 
 @AutoService(Instrumenter.class)
-public class ErrorReportValueInstrumentation extends Instrumenter.Iast
+public class ErrorReportValueInstrumentation extends InstrumenterGroup.Iast
     implements Instrumenter.ForSingleType {
 
   public ErrorReportValueInstrumentation() {

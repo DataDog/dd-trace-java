@@ -21,11 +21,12 @@ public class TelemetryRouter {
   public TelemetryRouter(
       DDAgentFeaturesDiscovery ddAgentFeaturesDiscovery,
       TelemetryClient agentClient,
-      @Nullable TelemetryClient intakeClient) {
+      @Nullable TelemetryClient intakeClient,
+      boolean useIntakeClientByDefault) {
     this.ddAgentFeaturesDiscovery = ddAgentFeaturesDiscovery;
     this.agentClient = agentClient;
     this.intakeClient = intakeClient;
-    this.currentClient = agentClient;
+    this.currentClient = useIntakeClientByDefault ? intakeClient : agentClient;
   }
 
   public TelemetryClient.Result sendRequest(TelemetryRequest request) {

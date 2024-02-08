@@ -10,6 +10,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.util.Strings;
@@ -21,7 +22,7 @@ import org.redisson.client.protocol.CommandData;
 import org.redisson.client.protocol.CommandsData;
 
 @AutoService(Instrumenter.class)
-public final class RedissonInstrumentation extends Instrumenter.Tracing
+public final class RedissonInstrumentation extends InstrumenterGroup.Tracing
     implements Instrumenter.ForSingleType {
 
   public RedissonInstrumentation() {

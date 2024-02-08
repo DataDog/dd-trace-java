@@ -17,7 +17,7 @@ class TestTelemetryRouter extends TelemetryRouter {
   private Queue<RequestAssertions> requests = new LinkedList<>()
 
   TestTelemetryRouter() {
-    super(null, null, null)
+    super(null, null, null, false)
   }
 
   @Override

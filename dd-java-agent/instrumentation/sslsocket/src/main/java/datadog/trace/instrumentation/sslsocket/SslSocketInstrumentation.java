@@ -8,6 +8,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 import datadog.trace.bootstrap.instrumentation.sslsocket.UsmFilterInputStream;
 import datadog.trace.bootstrap.instrumentation.sslsocket.UsmFilterOutputStream;
 import datadog.trace.bootstrap.instrumentation.usm.UsmConnection;
@@ -23,7 +24,7 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public final class SslSocketInstrumentation extends Instrumenter.Usm
+public final class SslSocketInstrumentation extends InstrumenterGroup.Usm
     implements Instrumenter.ForBootstrap, Instrumenter.ForTypeHierarchy {
 
   public SslSocketInstrumentation() {

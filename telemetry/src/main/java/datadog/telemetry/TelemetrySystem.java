@@ -81,8 +81,12 @@ public class TelemetrySystem {
             config.getSite(),
             TimeUnit.SECONDS.toMillis(config.getAgentTimeout()),
             config.getApiKey());
+
+    boolean useIntakeClientByDefault =
+        config.isCiVisibilityEnabled() && config.isCiVisibilityAgentlessEnabled();
     TelemetryService telemetryService =
-        TelemetryService.build(ddAgentFeaturesDiscovery, agentClient, intakeClient, debug);
+        TelemetryService.build(
+            ddAgentFeaturesDiscovery, agentClient, intakeClient, useIntakeClientByDefault, debug);
 
     boolean telemetryMetricsEnabled = config.isTelemetryMetricsEnabled();
     TELEMETRY_THREAD =

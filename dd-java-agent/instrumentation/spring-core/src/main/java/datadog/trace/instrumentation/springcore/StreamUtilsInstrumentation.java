@@ -7,6 +7,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Propagation;
 import datadog.trace.api.iast.propagation.PropagationModule;
@@ -18,7 +19,7 @@ import net.bytebuddy.asm.Advice;
 import org.springframework.util.StreamUtils;
 
 @AutoService(Instrumenter.class)
-public final class StreamUtilsInstrumentation extends Instrumenter.Iast
+public final class StreamUtilsInstrumentation extends InstrumenterGroup.Iast
     implements Instrumenter.ForSingleType {
 
   public StreamUtilsInstrumentation() {

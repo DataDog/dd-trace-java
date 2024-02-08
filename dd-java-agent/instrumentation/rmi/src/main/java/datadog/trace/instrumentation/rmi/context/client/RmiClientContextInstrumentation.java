@@ -10,6 +10,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 import datadog.trace.api.Platform;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
@@ -43,7 +44,7 @@ import sun.rmi.transport.Connection;
  * exception and shutdown the connection which we do not want
  */
 @AutoService(Instrumenter.class)
-public class RmiClientContextInstrumentation extends Instrumenter.Tracing
+public class RmiClientContextInstrumentation extends InstrumenterGroup.Tracing
     implements Instrumenter.ForBootstrap, Instrumenter.ForTypeHierarchy {
 
   public RmiClientContextInstrumentation() {

@@ -11,6 +11,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 import static net.bytebuddy.matcher.ElementMatchers.takesNoArguments;
 
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 import java.util.Collections;
 import java.util.Map;
 import kotlinx.coroutines.AbstractCoroutine;
@@ -18,7 +19,7 @@ import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
-public abstract class AbstractCoroutinesInstrumentation extends Instrumenter.Tracing
+public abstract class AbstractCoroutinesInstrumentation extends InstrumenterGroup.Tracing
     implements Instrumenter.ForTypeHierarchy, Instrumenter.WithTypeStructure {
 
   protected static final String ABSTRACT_COROUTINE_CLASS_NAME =

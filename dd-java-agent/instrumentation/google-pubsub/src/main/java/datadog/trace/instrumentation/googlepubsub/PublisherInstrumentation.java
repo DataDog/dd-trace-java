@@ -21,6 +21,7 @@ import com.google.cloud.pubsub.v1.Publisher;
 import com.google.pubsub.v1.PubsubMessage;
 import datadog.trace.agent.tooling.ExcludeFilterProvider;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter;
@@ -30,7 +31,7 @@ import java.util.Map;
 import net.bytebuddy.asm.Advice;
 
 @AutoService(Instrumenter.class)
-public final class PublisherInstrumentation extends Instrumenter.Tracing
+public final class PublisherInstrumentation extends InstrumenterGroup.Tracing
     implements Instrumenter.ForSingleType, ExcludeFilterProvider {
 
   public PublisherInstrumentation() {

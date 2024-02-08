@@ -7,10 +7,11 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import com.google.auto.service.AutoService;
 import com.google.cloud.pubsub.v1.MessageReceiver;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 import net.bytebuddy.asm.Advice;
 
 @AutoService(Instrumenter.class)
-public class ReceiverInstrumentation extends Instrumenter.Tracing
+public class ReceiverInstrumentation extends InstrumenterGroup.Tracing
     implements Instrumenter.ForSingleType {
 
   public ReceiverInstrumentation() {

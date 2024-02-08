@@ -12,6 +12,7 @@ import com.hazelcast.client.impl.protocol.ClientMessage;
 import com.hazelcast.client.proxy.ClientMapProxy;
 import com.hazelcast.client.spi.impl.NonSmartClientInvocationService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 import datadog.trace.bootstrap.InstrumentationContext;
 import java.util.Collections;
 import java.util.Map;
@@ -23,7 +24,7 @@ import net.bytebuddy.asm.Advice;
  * <p>It is required because there is no getter for this value until 4.0.
  */
 @AutoService(Instrumenter.class)
-public class ClientMessageInstrumentation extends Instrumenter.Tracing
+public class ClientMessageInstrumentation extends InstrumenterGroup.Tracing
     implements Instrumenter.ForSingleType {
 
   public ClientMessageInstrumentation() {

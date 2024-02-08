@@ -10,11 +10,12 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 import java.util.Collections;
 import java.util.Map;
 
 @AutoService(Instrumenter.class)
-public final class LettuceClientInstrumentation extends Instrumenter.Tracing
+public final class LettuceClientInstrumentation extends InstrumenterGroup.Tracing
     implements Instrumenter.ForSingleType {
 
   public LettuceClientInstrumentation() {

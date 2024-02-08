@@ -13,6 +13,7 @@ import com.google.auto.service.AutoService;
 import com.ibm.ws.webcontainer.srt.SRTServletRequest;
 import com.ibm.ws.webcontainer.srt.SRTServletResponse;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 import datadog.trace.api.CorrelationIdentifier;
 import datadog.trace.api.GlobalTracer;
 import datadog.trace.api.gateway.Flow;
@@ -31,7 +32,7 @@ import javax.servlet.ServletResponse;
 import net.bytebuddy.asm.Advice;
 
 @AutoService(Instrumenter.class)
-public final class LibertyServerInstrumentation extends Instrumenter.Tracing
+public final class LibertyServerInstrumentation extends InstrumenterGroup.Tracing
     implements Instrumenter.ForSingleType {
 
   public LibertyServerInstrumentation() {

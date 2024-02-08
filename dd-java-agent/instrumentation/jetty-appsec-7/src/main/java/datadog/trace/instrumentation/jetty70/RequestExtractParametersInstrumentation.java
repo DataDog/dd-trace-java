@@ -5,13 +5,14 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 import datadog.trace.agent.tooling.muzzle.Reference;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import net.bytebuddy.asm.Advice;
 import org.eclipse.jetty.server.Request;
 
 @AutoService(Instrumenter.class)
-public class RequestExtractParametersInstrumentation extends Instrumenter.AppSec
+public class RequestExtractParametersInstrumentation extends InstrumenterGroup.AppSec
     implements Instrumenter.ForSingleType {
   public RequestExtractParametersInstrumentation() {
     super("jetty");

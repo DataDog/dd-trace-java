@@ -12,9 +12,9 @@ class MatchersTest extends DDSpecification {
     glob << [null, "*", "**"]
   }
 
-  def "pattern without * or ? must be an ExactMatcher"() {
+  def "pattern without * or ? must be an EqualsMatcher"() {
     expect:
-    Matchers.compileGlob(glob) instanceof Matchers.ExactMatcher
+    Matchers.compileGlob(glob) instanceof Matchers.InsensitiveEqualsMatcher
 
     where:
     glob << ["a", "ogre", "bcoho34e2"]
@@ -45,20 +45,27 @@ class MatchersTest extends DDSpecification {
 
     where:
     pattern | value                    | matches
-    "fo?"   | "Foo"                    | false
+    "fo?"   | "Foo"                    | true
     "Fo?"   | "Foo"                    | true
     "Fo?"   | new StringBuilder("Foo") | true
-    "Fo?"   | new StringBuilder("foo") | false
+    "Fo?"   | new StringBuilder("foo") | true
+    "Foo"   | new StringBuilder("foo") | true
+    "bar"   | new StringBuilder("Baz") | false
     "Fo?"   | "Fooo"                   | false
     "Fo*"   | "Fo"                     | true
     "Fo*"   | "Fa"                     | false
     "F*B?r" | "FooBar"                 | true
     "F*B?r" | "FooFar"                 | false
+    "f*b?r" | "FooBar"                 | true
     "*"     | true                     | true
     "true"  | true                     | true
     "false" | false                    | true
-    "TRUE"  | true                     | false
-    "FALSE" | true                     | false
+    "TRUE"  | true                     | true
+    "FALSE" | false                    | true
+    "True"  | true                     | true
+    "False" | false                    | true
+    "T*"    | true                     | true
+    "F*"    | false                    | true
     ""      | ""                       | true
     ""      | "non-empty"              | false
     "*"     | "foo"                    | true
@@ -87,6 +94,18 @@ class MatchersTest extends DDSpecification {
     "?"     | new Object() {}          | false
     "*"     | null                     | true
     "?"     | null                     | false
+    "[a-z]" | "[a-z]"                  | true
+    "[a-z]" | "a"                      | false
+    "[abc]" | "[abc]"                  | true
+    "[AbC]" | "[abc]"                  | true
+    "[Ab]"  | new StringBuffer("[ab]") | true
+    "[abc]" | "a"                      | false
+    "[!ab]" | "[!ab]"                  | true
+    "[!ab]" | "c"                      | false
+    "^"     | "^"                      | true
+    "()"    | "()"                     | true
+    "(*)"   | "(-)"                    | true
+    "\$"    | "\$"                     | true
   }
 
   // helper functions - to subvert codenarc
