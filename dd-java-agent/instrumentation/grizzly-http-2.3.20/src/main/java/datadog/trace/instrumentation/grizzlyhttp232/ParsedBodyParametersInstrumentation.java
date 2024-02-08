@@ -9,6 +9,7 @@ import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.advice.ActiveRequestContext;
 import datadog.trace.advice.RequiresRequestContext;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 import datadog.trace.agent.tooling.muzzle.Reference;
 import datadog.trace.api.gateway.BlockResponseFunction;
 import datadog.trace.api.gateway.CallbackProvider;
@@ -29,7 +30,7 @@ import org.glassfish.grizzly.http.util.Parameters;
 // TODO: we could maybe test in this proj as well, with a server using
 // org.glassfish.grizzly.http.server.HttpHandler
 @AutoService(Instrumenter.class)
-public class ParsedBodyParametersInstrumentation extends Instrumenter.AppSec
+public class ParsedBodyParametersInstrumentation extends InstrumenterGroup.AppSec
     implements Instrumenter.ForSingleType {
 
   public ParsedBodyParametersInstrumentation() {
@@ -52,8 +53,8 @@ public class ParsedBodyParametersInstrumentation extends Instrumenter.AppSec
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         // also matches the variant taking an extra encoding parameter
         named("processParameters")
             .and(takesArgument(0, named("org.glassfish.grizzly.Buffer")))

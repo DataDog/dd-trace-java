@@ -8,6 +8,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesNoArguments;
 import com.google.auto.service.AutoService;
 import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import net.bytebuddy.ClassFileVersion;
 import net.bytebuddy.asm.Advice;
@@ -28,8 +29,8 @@ import org.apache.catalina.connector.Request;
 import org.apache.catalina.connector.Response;
 
 @AutoService(Instrumenter.class)
-public final class RequestInstrumentation extends Instrumenter.Tracing
-    implements Instrumenter.ForSingleType {
+public final class RequestInstrumentation extends InstrumenterGroup.Tracing
+    implements Instrumenter.ForSingleType, Instrumenter.HasTypeAdvice {
 
   public RequestInstrumentation() {
     super("tomcat");
@@ -54,17 +55,17 @@ public final class RequestInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
-        named("recycle").and(takesNoArguments()),
-        RequestInstrumentation.class.getName() + "$RecycleAdvice");
+  public void typeAdvice(TypeTransformer transformer) {
+    // old versions of Catalina (from 2006 and before) suppress all throwables
+    // in parseParameters(). We let our BlockingException go through
+    transformer.applyAdvice(new ThrowableCaughtVisitorWrapper());
   }
 
   @Override
-  public AdviceTransformer transformer() {
-    // old versions of Catalina (from 2006 and before) suppress all throwables
-    // in parseParameters(). We let our BlockingException go through
-    return new VisitingTransformer(new ThrowableCaughtVisitorWrapper());
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
+        named("recycle").and(takesNoArguments()),
+        RequestInstrumentation.class.getName() + "$RecycleAdvice");
   }
 
   /**

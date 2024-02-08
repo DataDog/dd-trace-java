@@ -125,6 +125,9 @@ public class SymDBEnablement implements ProductListener {
         instrumentation.addTransformer(symbolExtractionTransformer);
         extractSymbolForLoadedClasses(allowListHelper);
         lastUploadTimestamp = System.currentTimeMillis();
+      } catch (Throwable ex) {
+        // catch all Throwables because LinkageError is possible (duplicate class definition)
+        LOGGER.debug("Error during symbol extraction: ", ex);
       } finally {
         symbolAggregator.loadedClassesProcessEnded();
       }

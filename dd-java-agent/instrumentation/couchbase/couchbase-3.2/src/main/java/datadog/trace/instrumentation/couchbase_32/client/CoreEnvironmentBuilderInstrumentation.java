@@ -4,11 +4,12 @@ import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 import java.util.Collections;
 import java.util.Map;
 
 @AutoService(Instrumenter.class)
-public class CoreEnvironmentBuilderInstrumentation extends Instrumenter.Tracing
+public class CoreEnvironmentBuilderInstrumentation extends InstrumenterGroup.Tracing
     implements Instrumenter.ForSingleType {
 
   public CoreEnvironmentBuilderInstrumentation() {
@@ -36,7 +37,7 @@ public class CoreEnvironmentBuilderInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(isConstructor(), packageName + ".CoreEnvironmentBuilderAdvice");
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(isConstructor(), packageName + ".CoreEnvironmentBuilderAdvice");
   }
 }

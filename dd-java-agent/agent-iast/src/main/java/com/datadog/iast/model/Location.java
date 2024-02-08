@@ -52,6 +52,10 @@ public final class Location {
     return new Location(spanId(span), null, -1, null, serviceName(span));
   }
 
+  public static Location forClassAndMethodAndLine(String clazz, String method, int currentLine) {
+    return new Location(null, clazz, currentLine, method, null);
+  }
+
   public long getSpanId() {
     return spanId == null ? 0 : spanId;
   }

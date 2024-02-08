@@ -11,6 +11,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 import akka.http.scaladsl.model.Uri;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Propagation;
@@ -23,7 +24,8 @@ import scala.collection.Iterator;
 
 /** Propagates taint from a {@link Uri} to query strings fetched from it. */
 @AutoService(Instrumenter.class)
-public class UriInstrumentation extends Instrumenter.Iast implements Instrumenter.ForSingleType {
+public class UriInstrumentation extends InstrumenterGroup.Iast
+    implements Instrumenter.ForSingleType {
   public UriInstrumentation() {
     super("akka-http");
   }
@@ -34,8 +36,8 @@ public class UriInstrumentation extends Instrumenter.Iast implements Instrumente
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isMethod()
             .and(not(isStatic()))
             .and(named("queryString"))
@@ -43,14 +45,14 @@ public class UriInstrumentation extends Instrumenter.Iast implements Instrumente
             .and(takesArguments(1))
             .and(takesArgument(0, named("java.nio.charset.Charset"))),
         UriInstrumentation.class.getName() + "$TaintQueryStringAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod()
             .and(not(isStatic()))
             .and(named("rawQueryString"))
             .and(returns(named("scala.Option")))
             .and(takesArguments(0)),
         UriInstrumentation.class.getName() + "$TaintQueryStringAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod()
             .and(not(isStatic()))
             .and(named("query"))

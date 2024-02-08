@@ -17,6 +17,11 @@ muzzle {
 apply from: "$rootDir/gradle/java.gradle"
 
 addTestSuiteForDir('latestDepTest', 'test')
+addTestSuiteExtendingForDir('latestDepForkedTest', 'latestDepTest', 'test')
+addTestSuiteForDir('mongo43Test', 'test')
+addTestSuiteForDir('mongo43ForkedTest', 'test')
+addTestSuiteForDir('mongo410Test', 'test')
+addTestSuiteForDir('mongo410ForkedTest', 'test')
 
 dependencies {
   compileOnly group: 'org.mongodb', name: 'mongodb-driver-sync', version: '4.0.0'
@@ -33,11 +38,23 @@ dependencies {
   }
 
   testImplementation project(':dd-java-agent:instrumentation:mongo').sourceSets.test.output
-  testImplementation group: 'de.flapdoodle.embed', name: 'de.flapdoodle.embed.mongo', version: '4.5.1'
-  testImplementation group: 'commons-io', name: 'commons-io', version: '2.11.0'
+  testImplementation "org.testcontainers:mongodb:${versions.testcontainers}"
 
   testImplementation group: 'org.mongodb', name: 'mongodb-driver-sync', version: '4.0.1'
   testImplementation group: 'org.mongodb', name: 'mongodb-driver-reactivestreams', version: '4.0.1'  // race condition bug in 4.0.0
-  latestDepTestImplementation group: 'org.mongodb', name: 'mongodb-driver-reactivestreams', version: '4.2+'
-  latestDepTestImplementation group: 'org.mongodb', name: 'mongodb-driver-sync', version: '4.2+'
+
+  mongo43TestImplementation group: 'org.mongodb', name: 'mongodb-driver-reactivestreams', version: '4.3.+'
+  mongo43TestImplementation group: 'org.mongodb', name: 'mongodb-driver-sync', version: '4.3.+'
+
+  mongo43ForkedTestImplementation group: 'org.mongodb', name: 'mongodb-driver-reactivestreams', version: '4.3.+'
+  mongo43ForkedTestImplementation group: 'org.mongodb', name: 'mongodb-driver-sync', version: '4.3.+'
+
+  mongo410TestImplementation group: 'org.mongodb', name: 'mongodb-driver-reactivestreams', version: '4.10.+'
+  mongo410TestImplementation group: 'org.mongodb', name: 'mongodb-driver-sync', version: '4.10.+'
+
+  mongo410ForkedTestImplementation group: 'org.mongodb', name: 'mongodb-driver-reactivestreams', version: '4.10.+'
+  mongo410ForkedTestImplementation group: 'org.mongodb', name: 'mongodb-driver-sync', version: '4.10.+'
+
+  latestDepTestImplementation group: 'org.mongodb', name: 'mongodb-driver-reactivestreams', version: '+'
+  latestDepTestImplementation group: 'org.mongodb', name: 'mongodb-driver-sync', version: '+'
 }

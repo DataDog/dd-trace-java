@@ -10,6 +10,7 @@ import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.advice.ActiveRequestContext;
 import datadog.trace.advice.RequiresRequestContext;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 import datadog.trace.agent.tooling.muzzle.Reference;
 import datadog.trace.api.gateway.BlockResponseFunction;
 import datadog.trace.api.gateway.CallbackProvider;
@@ -31,7 +32,7 @@ import java.util.function.BiFunction;
 import net.bytebuddy.asm.Advice;
 
 @AutoService(Instrumenter.class)
-public class HttpPostRequestDecoderInstrumentation extends Instrumenter.AppSec
+public class HttpPostRequestDecoderInstrumentation extends InstrumenterGroup.AppSec
     implements Instrumenter.ForKnownTypes {
   public HttpPostRequestDecoderInstrumentation() {
     super(
@@ -68,8 +69,8 @@ public class HttpPostRequestDecoderInstrumentation extends Instrumenter.AppSec
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         named("parseBody").and(takesArguments(0)).and(isPrivate()),
         getClass().getName() + "$ParseBodyAdvice");
   }

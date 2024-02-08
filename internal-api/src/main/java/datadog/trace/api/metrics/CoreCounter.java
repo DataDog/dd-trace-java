@@ -10,6 +10,13 @@ public interface CoreCounter {
   String getName();
 
   /**
+   * Get the counter value.
+   *
+   * @return The counter value.
+   */
+  long getValue();
+
+  /**
    * Get the value and reset the counter.
    *
    * @return The current counter value.

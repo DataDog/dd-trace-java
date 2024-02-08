@@ -7,6 +7,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Sink;
 import datadog.trace.api.iast.VulnerabilityTypes;
@@ -17,15 +18,15 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public class Vertx39HttpServertResponseInstrumentation extends Instrumenter.Iast
+public class Vertx39HttpServertResponseInstrumentation extends InstrumenterGroup.Iast
     implements Instrumenter.ForTypeHierarchy {
   public Vertx39HttpServertResponseInstrumentation() {
     super("vertx", "vertx-3.9", "response");
   }
 
   @Override
-  public void adviceTransformations(final AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(final MethodTransformer transformer) {
+    transformer.applyAdvice(
         named("addCookie")
             .and(takesArgument(0, named("io.vertx.core.http.Cookie")))
             .and(isPublic()),

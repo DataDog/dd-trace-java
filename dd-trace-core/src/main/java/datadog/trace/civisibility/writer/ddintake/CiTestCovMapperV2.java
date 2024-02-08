@@ -1,5 +1,6 @@
 package datadog.trace.civisibility.writer.ddintake;
 
+import static datadog.communication.http.OkHttpUtils.gzippedRequestBodyOf;
 import static datadog.communication.http.OkHttpUtils.jsonRequestBodyOf;
 import static datadog.communication.http.OkHttpUtils.msgpackRequestBodyOf;
 
@@ -12,6 +13,7 @@ import datadog.trace.api.civisibility.coverage.TestReportHolder;
 import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.intake.TrackType;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.common.writer.Payload;
 import datadog.trace.common.writer.RemoteMapper;
 import datadog.trace.core.CoreSpan;
@@ -42,14 +44,16 @@ public class CiTestCovMapperV2 implements RemoteMapper {
   private final int size;
   private final GrowableBuffer headerBuffer;
   private final MsgPackWriter headerWriter;
+  private final boolean compressionEnabled;
   private int eventCount = 0;
 
-  public CiTestCovMapperV2() {
-    this(5 << 20);
+  public CiTestCovMapperV2(boolean compressionEnabled) {
+    this(5 << 20, compressionEnabled);
   }
 
-  private CiTestCovMapperV2(int size) {
+  private CiTestCovMapperV2(int size, boolean compressionEnabled) {
     this.size = size;
+    this.compressionEnabled = compressionEnabled;
     headerBuffer = new GrowableBuffer(16);
     headerWriter = new MsgPackWriter(headerBuffer);
   }
@@ -58,9 +62,9 @@ public class CiTestCovMapperV2 implements RemoteMapper {
   public void map(List<? extends CoreSpan<?>> trace, Writable writable) {
     List<TestReport> testReports =
         trace.stream()
-            // only consider top-level spans (tests), since children spans
+            // only consider test spans, since children spans
             // share test reports with their parents
-            .filter(CoreSpan::isTopLevel)
+            .filter(CiTestCovMapperV2::isTestSpan)
             .map(CiTestCovMapperV2::getTestReport)
             .filter(Objects::nonNull)
             .filter(TestReport::isNotEmpty)
@@ -117,6 +121,11 @@ public class CiTestCovMapperV2 implements RemoteMapper {
     eventCount += testReports.size();
   }
 
+  private static boolean isTestSpan(CoreSpan<?> span) {
+    CharSequence type = span.getType();
+    return type != null && type.toString().contentEquals(InternalSpanTypes.TEST);
+  }
+
   private static TestReport getTestReport(CoreSpan<?> span) {
     if (span instanceof AgentSpan) {
       TestReportHolder probes =
@@ -141,7 +150,7 @@ public class CiTestCovMapperV2 implements RemoteMapper {
   @Override
   public Payload newPayload() {
     writeHeader();
-    return new PayloadV2().withHeader(headerBuffer.slice());
+    return new PayloadV2(compressionEnabled).withHeader(headerBuffer.slice());
   }
 
   @Override
@@ -165,7 +174,13 @@ public class CiTestCovMapperV2 implements RemoteMapper {
     private static final RequestBody DUMMY_JSON_BODY =
         jsonRequestBodyOf("{\"dummy\":true}".getBytes());
 
+    private final boolean compressionEnabled;
+
     ByteBuffer header = null;
+
+    private PayloadV2(boolean compressionEnabled) {
+      this.compressionEnabled = compressionEnabled;
+    }
 
     PayloadV2 withHeader(ByteBuffer header) {
       this.header = header;
@@ -206,21 +221,25 @@ public class CiTestCovMapperV2 implements RemoteMapper {
 
     @Override
     public RequestBody toRequest() {
-      RequestBody coverageBody;
+      List<ByteBuffer> buffers;
       if (traceCount() == 0) {
         // If traceCount is 0, we write a map with 0 elements in MsgPack format.
-        coverageBody = msgpackRequestBodyOf(Collections.singletonList(msgpackMapHeader(0)));
+        buffers = Collections.singletonList(msgpackMapHeader(0));
       } else if (header != null) {
-        coverageBody = msgpackRequestBodyOf(Arrays.asList(header, body));
+        buffers = Arrays.asList(header, body);
       } else {
-        coverageBody = msgpackRequestBodyOf(Collections.singletonList(body));
+        buffers = Collections.singletonList(body);
       }
+      RequestBody coverageBody = msgpackRequestBodyOf(buffers);
 
-      return new MultipartBody.Builder()
-          .setType(MultipartBody.FORM)
-          .addFormDataPart("coverage1", "coverage1.msgpack", coverageBody)
-          .addFormDataPart("event", "event.json", DUMMY_JSON_BODY)
-          .build();
+      MultipartBody multipartBody =
+          new MultipartBody.Builder()
+              .setType(MultipartBody.FORM)
+              .addFormDataPart("coverage1", "coverage1.msgpack", coverageBody)
+              .addFormDataPart("event", "event.json", DUMMY_JSON_BODY)
+              .build();
+
+      return compressionEnabled ? gzippedRequestBodyOf(multipartBody) : multipartBody;
     }
   }
 }

@@ -8,6 +8,7 @@ import datadog.telemetry.api.LogMessage;
 import datadog.telemetry.api.Metric;
 import datadog.telemetry.api.RequestType;
 import datadog.telemetry.dependency.Dependency;
+import datadog.trace.api.Config;
 import datadog.trace.api.ConfigSetting;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.InstrumenterConfig;
@@ -27,7 +28,7 @@ public class TelemetryRequest {
   private final boolean debug;
   private final TelemetryRequestBody requestBody;
 
-  public TelemetryRequest(
+  TelemetryRequest(
       EventSource eventSource,
       EventSink eventSink,
       long messageBytesSoftLimit,
@@ -59,6 +60,10 @@ public class TelemetryRequest {
     if (containerId != null) {
       builder.addHeader("Datadog-Container-ID", containerId);
     }
+    final String entityId = ContainerInfo.getEntityId();
+    if (entityId != null) {
+      builder.addHeader("Datadog-Entity-ID", entityId);
+    }
 
     if (debug) {
       builder.addHeader("DD-Telemetry-Debug-Enabled", "true");
@@ -86,13 +91,27 @@ public class TelemetryRequest {
 
   public void writeProducts() {
     InstrumenterConfig instrumenterConfig = InstrumenterConfig.get();
+    Config config = Config.get();
     try {
       boolean appsecEnabled =
           instrumenterConfig.getAppSecActivation() != ProductActivation.FULLY_DISABLED;
       boolean profilerEnabled = instrumenterConfig.isProfilingEnabled();
-      requestBody.writeProducts(appsecEnabled, profilerEnabled);
+      boolean dynamicInstrumentationEnabled = config.isDebuggerEnabled();
+      requestBody.writeProducts(appsecEnabled, profilerEnabled, dynamicInstrumentationEnabled);
     } catch (IOException e) {
       throw new TelemetryRequestBody.SerializationException("products", e);
+    }
+  }
+
+  public void writeInstallSignature() {
+    String installId = System.getenv("DD_INSTRUMENTATION_INSTALL_ID");
+    String installType = System.getenv("DD_INSTRUMENTATION_INSTALL_TYPE");
+    String installTime = System.getenv("DD_INSTRUMENTATION_INSTALL_TIME");
+
+    try {
+      requestBody.writeInstallSignature(installId, installType, installTime);
+    } catch (IOException e) {
+      throw new TelemetryRequestBody.SerializationException("install-signature", e);
     }
   }
 

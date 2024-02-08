@@ -8,12 +8,13 @@ import static org.glassfish.jersey.client.WrappingResponseCallback.handleProcess
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 import javax.ws.rs.ProcessingException;
 import net.bytebuddy.asm.Advice;
 import org.glassfish.jersey.client.ClientRequest;
 
 @AutoService(Instrumenter.class)
-public class ClientRuntimeInstrumentation extends Instrumenter.Tracing
+public class ClientRuntimeInstrumentation extends InstrumenterGroup.Tracing
     implements Instrumenter.ForSingleType {
   public ClientRuntimeInstrumentation() {
     super("jax-rs", "jaxrs", "jax-rs-client");
@@ -30,15 +31,15 @@ public class ClientRuntimeInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isMethod()
             .and(namedOneOf("submit", "createRunnableForAsyncProcessing"))
             .and(
                 takesArgument(0, named("org.glassfish.jersey.client.ClientRequest"))
                     .and(takesArgument(1, named("org.glassfish.jersey.client.ResponseCallback")))),
         "org.glassfish.jersey.client.WrappingResponseCallbackAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod()
             .and(named("invoke"))
             .and(takesArgument(0, named("org.glassfish.jersey.client.ClientRequest"))),

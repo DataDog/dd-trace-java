@@ -11,6 +11,7 @@ import datadog.trace.agent.tooling.bytebuddy.outline.TypePoolFacade;
 import datadog.trace.agent.tooling.usm.UsmExtractorImpl;
 import datadog.trace.agent.tooling.usm.UsmMessageFactoryImpl;
 import datadog.trace.api.InstrumenterConfig;
+import datadog.trace.api.Platform;
 import datadog.trace.api.ProductActivation;
 import datadog.trace.api.telemetry.IntegrationsCollector;
 import datadog.trace.bootstrap.FieldBackedContextAccessor;
@@ -65,7 +66,7 @@ public class AgentInstaller {
      * ByteBuddy agent is used by several systems which can be enabled independently;
      * we need to install the agent whenever any of them is active.
      */
-    Set<Instrumenter.TargetSystem> enabledSystems = getEnabledSystems();
+    Set<InstrumenterGroup.TargetSystem> enabledSystems = getEnabledSystems();
     if (!enabledSystems.isEmpty()) {
       installBytebuddyAgent(inst, false, enabledSystems);
       if (DEBUG) {
@@ -92,7 +93,7 @@ public class AgentInstaller {
   public static ClassFileTransformer installBytebuddyAgent(
       final Instrumentation inst,
       final boolean skipAdditionalLibraryMatcher,
-      final Set<Instrumenter.TargetSystem> enabledSystems,
+      final Set<InstrumenterGroup.TargetSystem> enabledSystems,
       final AgentBuilder.Listener... listeners) {
     Utils.setInstrumentation(inst);
 
@@ -104,7 +105,7 @@ public class AgentInstaller {
       DDElementMatchers.registerAsSupplier();
     }
 
-    if (enabledSystems.contains(Instrumenter.TargetSystem.USM)) {
+    if (enabledSystems.contains(InstrumenterGroup.TargetSystem.USM)) {
       UsmMessageFactoryImpl.registerAsSupplier();
       UsmExtractorImpl.registerAsSupplier();
     }
@@ -168,7 +169,7 @@ public class AgentInstaller {
       }
     }
 
-    Instrumenter.TransformerBuilder transformerBuilder;
+    AbstractTransformerBuilder transformerBuilder;
     if (InstrumenterConfig.get().isLegacyInstallerEnabled()) {
       transformerBuilder = new LegacyTransformerBuilder(agentBuilder);
     } else {
@@ -177,7 +178,8 @@ public class AgentInstaller {
 
     int installedCount = 0;
     for (Instrumenter instrumenter : instrumenters) {
-      if (!instrumenter.isApplicable(enabledSystems)) {
+      if (instrumenter instanceof InstrumenterGroup
+          && !((InstrumenterGroup) instrumenter).isApplicable(enabledSystems)) {
         if (DEBUG) {
           log.debug("Not applicable - instrumentation.class={}", instrumenter.getClass().getName());
         }
@@ -187,7 +189,7 @@ public class AgentInstaller {
         log.debug("Loading - instrumentation.class={}", instrumenter.getClass().getName());
       }
       try {
-        instrumenter.instrument(transformerBuilder);
+        transformerBuilder.applyInstrumentation(instrumenter);
         installedCount++;
       } catch (Exception | LinkageError e) {
         log.error(
@@ -196,6 +198,10 @@ public class AgentInstaller {
     }
     if (DEBUG) {
       log.debug("Installed {} instrumenter(s)", installedCount);
+    }
+
+    if (!Platform.isNativeImageBuilder()) {
+      InstrumenterFlare.register();
     }
 
     if (InstrumenterConfig.get().isTelemetryEnabled()) {
@@ -216,27 +222,27 @@ public class AgentInstaller {
     }
   }
 
-  public static Set<Instrumenter.TargetSystem> getEnabledSystems() {
-    EnumSet<Instrumenter.TargetSystem> enabledSystems =
-        EnumSet.noneOf(Instrumenter.TargetSystem.class);
+  public static Set<InstrumenterGroup.TargetSystem> getEnabledSystems() {
+    EnumSet<InstrumenterGroup.TargetSystem> enabledSystems =
+        EnumSet.noneOf(InstrumenterGroup.TargetSystem.class);
     InstrumenterConfig cfg = InstrumenterConfig.get();
     if (cfg.isTraceEnabled()) {
-      enabledSystems.add(Instrumenter.TargetSystem.TRACING);
+      enabledSystems.add(InstrumenterGroup.TargetSystem.TRACING);
     }
     if (cfg.isProfilingEnabled()) {
-      enabledSystems.add(Instrumenter.TargetSystem.PROFILING);
+      enabledSystems.add(InstrumenterGroup.TargetSystem.PROFILING);
     }
     if (cfg.getAppSecActivation() != ProductActivation.FULLY_DISABLED) {
-      enabledSystems.add(Instrumenter.TargetSystem.APPSEC);
+      enabledSystems.add(InstrumenterGroup.TargetSystem.APPSEC);
     }
     if (cfg.getIastActivation() != ProductActivation.FULLY_DISABLED) {
-      enabledSystems.add(Instrumenter.TargetSystem.IAST);
+      enabledSystems.add(InstrumenterGroup.TargetSystem.IAST);
     }
     if (cfg.isCiVisibilityEnabled()) {
-      enabledSystems.add(Instrumenter.TargetSystem.CIVISIBILITY);
+      enabledSystems.add(InstrumenterGroup.TargetSystem.CIVISIBILITY);
     }
     if (cfg.isUsmEnabled()) {
-      enabledSystems.add(Instrumenter.TargetSystem.USM);
+      enabledSystems.add(InstrumenterGroup.TargetSystem.USM);
     }
     return enabledSystems;
   }
@@ -259,8 +265,8 @@ public class AgentInstaller {
   }
 
   private static AgentBuilder.RedefinitionStrategy.Listener redefinitionStrategyListener(
-      final Set<Instrumenter.TargetSystem> enabledSystems) {
-    if (enabledSystems.contains(Instrumenter.TargetSystem.IAST)) {
+      final Set<InstrumenterGroup.TargetSystem> enabledSystems) {
+    if (enabledSystems.contains(InstrumenterGroup.TargetSystem.IAST)) {
       return TaintableRedefinitionStrategyListener.INSTANCE;
     } else {
       return AgentBuilder.RedefinitionStrategy.Listener.NoOp.INSTANCE;

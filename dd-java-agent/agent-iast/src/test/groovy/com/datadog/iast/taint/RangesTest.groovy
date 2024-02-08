@@ -8,6 +8,10 @@ import datadog.trace.api.iast.SourceTypes
 import datadog.trace.api.iast.VulnerabilityMarks
 import datadog.trace.test.util.DDSpecification
 
+import static com.datadog.iast.util.HttpHeader.LOCATION
+import static com.datadog.iast.util.HttpHeader.REFERER
+import static datadog.trace.api.iast.SourceTypes.GRPC_BODY
+import static datadog.trace.api.iast.SourceTypes.REQUEST_HEADER_VALUE
 import static datadog.trace.api.iast.VulnerabilityMarks.NOT_MARKED
 import static com.datadog.iast.taint.Ranges.mergeRanges
 import static com.datadog.iast.taint.Ranges.rangesProviderFor
@@ -73,7 +77,7 @@ class RangesTest extends DDSpecification {
 
   void 'test range provider'(final Object values, final List<TaintedObject> tainted, final int size, final int rangeCount) {
     setup:
-    final to = Mock(TaintedObjects)
+    final to = Stub(TaintedObjects)
     values.eachWithIndex { Object entry, int i ->
       to.get(entry) >> tainted.get(i)
     }
@@ -100,7 +104,7 @@ class RangesTest extends DDSpecification {
 
   void 'test empty range provider'() {
     setup:
-    final to = Mock(TaintedObjects)
+    final to = Stub(TaintedObjects)
     final provider = rangesProviderFor(to, items)
 
     when:
@@ -307,6 +311,46 @@ class RangesTest extends DDSpecification {
     10     | MAX_RANGE_COUNT | MAX_RANGE_COUNT | MAX_RANGE_COUNT
   }
 
+  void 'test all ranges coming from header'() {
+    when:
+    final allRangesFrom = Ranges.allRangesFromHeader(header, ranges as Range[])
+
+    then:
+    allRangesFrom == expected
+
+    where:
+    header  | ranges                                                                                                     | expected
+    REFERER | []                                                                                                         | true
+    REFERER | [rangeWithSource(REQUEST_HEADER_VALUE, header.name)]                                                       | true
+    REFERER | [rangeWithSource(REQUEST_HEADER_VALUE, LOCATION.name)]                                                     | false
+    REFERER | [rangeWithSource(GRPC_BODY)]                                                                               | false
+    REFERER | [rangeWithSource(REQUEST_HEADER_VALUE, header.name), rangeWithSource(GRPC_BODY)]                           | false
+    REFERER | [
+      rangeWithSource(REQUEST_HEADER_VALUE, header.name),
+      rangeWithSource(REQUEST_HEADER_VALUE, LOCATION.name)
+    ] | false
+  }
+
+  void 'test all ranges coming from any header'(){
+    when:
+    final allRangesFrom = Ranges.allRangesFromAnyHeader(ranges as Range[])
+
+    then:
+    allRangesFrom == expected
+
+    where:
+    headers | ranges                                                                                                     | expected
+    [REFERER] | []                                                                                                         | true
+    [REFERER] | [rangeWithSource(REQUEST_HEADER_VALUE, REFERER.name)]                                                       | true
+    [REFERER] | [rangeWithSource(REQUEST_HEADER_VALUE, LOCATION.name)]                                                     | true
+    [REFERER] | [rangeWithSource(GRPC_BODY)]                                                                               | false
+    [REFERER] | [rangeWithSource(REQUEST_HEADER_VALUE, REFERER.name), rangeWithSource(GRPC_BODY)]                           | false
+    [REFERER] | [
+      rangeWithSource(REQUEST_HEADER_VALUE, REFERER.name),
+      rangeWithSource(REQUEST_HEADER_VALUE, LOCATION.name)
+    ] | true
+  }
+
 
   Range[] rangesFromSpec(List<List<Object>> spec) {
     def ranges = new Range[spec.size()]
@@ -334,5 +378,9 @@ class RangesTest extends DDSpecification {
 
   Range rangeFor(final int index) {
     return new Range(index, 1, new Source(REQUEST_HEADER_NAME, 'a', 'b'), NOT_MARKED)
+  }
+
+  Range rangeWithSource(final byte source, final String name = 'name', final String value = 'value') {
+    return new Range(0, 10, new Source(source, name, value), NOT_MARKED)
   }
 }

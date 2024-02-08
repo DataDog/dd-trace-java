@@ -11,6 +11,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import net.bytebuddy.asm.Advice;
@@ -18,7 +19,7 @@ import org.apache.http.HttpRequest;
 import org.apache.http.nio.NHttpServerConnection;
 
 @AutoService(Instrumenter.class)
-public final class SynapseServerInstrumentation extends Instrumenter.Tracing
+public final class SynapseServerInstrumentation extends InstrumenterGroup.Tracing
     implements Instrumenter.ForSingleType {
 
   public SynapseServerInstrumentation() {
@@ -41,18 +42,18 @@ public final class SynapseServerInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(final AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(final MethodTransformer transformer) {
+    transformer.applyAdvice(
         isMethod()
             .and(named("requestReceived"))
             .and(takesArgument(0, named("org.apache.http.nio.NHttpServerConnection"))),
         getClass().getName() + "$ServerRequestAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod()
             .and(named("responseReady"))
             .and(takesArgument(0, named("org.apache.http.nio.NHttpServerConnection"))),
         getClass().getName() + "$ServerResponseAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod()
             .and(namedOneOf("closed", "exception", "timeout"))
             .and(takesArgument(0, named("org.apache.http.nio.NHttpServerConnection"))),

@@ -5,6 +5,7 @@ import static java.util.Collections.emptyMap;
 import static org.junit.jupiter.api.Assertions.*;
 
 import com.datadog.debugger.instrumentation.InstrumentationResult;
+import com.datadog.debugger.instrumentation.MethodInfo;
 import com.datadog.debugger.probe.LogProbe;
 import com.datadog.debugger.probe.ProbeDefinition;
 import datadog.trace.bootstrap.debugger.ProbeId;
@@ -179,7 +180,8 @@ class ConfigurationComparerTest {
 
     Map<String, InstrumentationResult> instrumentationResults = new HashMap<>();
     instrumentationResults.put(
-        probe.getId(), InstrumentationResult.Factory.blocked(probe.getWhere().getTypeName()));
+        probe.getProbeId().getEncodedId(),
+        InstrumentationResult.Factory.blocked(probe.getWhere().getTypeName()));
     Configuration noFilterConfig = createConfig(Collections.singletonList(probe));
     Configuration config =
         Configuration.builder()
@@ -418,13 +420,13 @@ class ConfigurationComparerTest {
       resultMap = new HashMap<>();
       ClassNode classNode = new ClassNode();
       classNode.name = expectedClass.getName().replace('.', '/'); // ASM stores with '/' notation
+
       resultMap.put(
           PROBE_ID.getId(),
           new InstrumentationResult(
               InstrumentationResult.Status.INSTALLED,
               Collections.emptyMap(),
-              classNode,
-              new MethodNode()));
+              new MethodInfo(null, classNode, new MethodNode(), null)));
     }
     ConfigurationComparer configurationComparer =
         new ConfigurationComparer(empty, config, resultMap);

@@ -1,17 +1,19 @@
 package datadog.trace.instrumentation.testng;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
+import datadog.trace.api.Config;
+import datadog.trace.instrumentation.testng.retry.RetryAnnotationTransformer;
 import net.bytebuddy.asm.Advice;
+import net.bytebuddy.description.method.MethodDescription;
 import org.testng.ITestListener;
 import org.testng.ITestNGListener;
 import org.testng.TestNG;
 import org.testng.annotations.DataProvider;
 
 @AutoService(Instrumenter.class)
-public class TestNGInstrumentation extends Instrumenter.CiVisibility
+public class TestNGInstrumentation extends InstrumenterGroup.CiVisibility
     implements Instrumenter.ForSingleType {
   public TestNGInstrumentation() {
     super("testng");
@@ -23,10 +25,9 @@ public class TestNGInstrumentation extends Instrumenter.CiVisibility
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
-        named("initializeDefaultListeners"),
-        TestNGInstrumentation.class.getName() + "$TestNGAdvice");
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
+        MethodDescription::isConstructor, TestNGInstrumentation.class.getName() + "$TestNGAdvice");
   }
 
   @Override
@@ -36,7 +37,9 @@ public class TestNGInstrumentation extends Instrumenter.CiVisibility
       packageName + ".TestNGSuiteListener",
       packageName + ".TestNGClassListener",
       packageName + ".TestEventsHandlerHolder",
-      packageName + ".TracingListener"
+      packageName + ".TracingListener",
+      packageName + ".retry.RetryAnalyzer",
+      packageName + ".retry.RetryAnnotationTransformer",
     };
   }
 
@@ -54,6 +57,12 @@ public class TestNGInstrumentation extends Instrumenter.CiVisibility
 
       TestNGSuiteListener suiteListener = new TestNGSuiteListener(tracingListener);
       testNG.addListener((ITestNGListener) suiteListener);
+
+      if (Config.get().isCiVisibilityFlakyRetryEnabled()) {
+        final RetryAnnotationTransformer transformer =
+            new RetryAnnotationTransformer(testNG.getAnnotationTransformer());
+        testNG.addListener(transformer);
+      }
     }
 
     // TestNG 6.4 and above

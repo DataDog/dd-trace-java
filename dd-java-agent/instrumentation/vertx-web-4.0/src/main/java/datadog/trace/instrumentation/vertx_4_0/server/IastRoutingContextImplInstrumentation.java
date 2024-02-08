@@ -6,6 +6,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 import datadog.trace.agent.tooling.muzzle.Reference;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.sink.UnvalidatedRedirectModule;
@@ -17,7 +18,7 @@ import net.bytebuddy.asm.Advice;
  * @see RoutingContextImpl#getBodyAsJsonArray(int)
  */
 @AutoService(Instrumenter.class)
-public class IastRoutingContextImplInstrumentation extends Instrumenter.Iast
+public class IastRoutingContextImplInstrumentation extends InstrumenterGroup.Iast
     implements Instrumenter.ForSingleType {
 
   public IastRoutingContextImplInstrumentation() {
@@ -35,8 +36,8 @@ public class IastRoutingContextImplInstrumentation extends Instrumenter.Iast
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         named("reroute").and(takesArguments(2)).and(takesArgument(1, String.class)),
         IastRoutingContextImplInstrumentation.class.getName() + "$RerouteAdvice");
   }

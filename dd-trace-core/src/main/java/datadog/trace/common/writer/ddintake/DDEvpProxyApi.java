@@ -25,6 +25,8 @@ public class DDEvpProxyApi extends RemoteApi {
   private static final Logger log = LoggerFactory.getLogger(DDEvpProxyApi.class);
 
   private static final String DD_EVP_SUBDOMAIN_HEADER = "X-Datadog-EVP-Subdomain";
+  private static final String CONTENT_ENCODING_HEADER = "Content-Encoding";
+  private static final String GZIP_CONTENT_TYPE = "gzip";
 
   public static DDEvpProxyApiBuilder builder() {
     return new DDEvpProxyApiBuilder();
@@ -38,6 +40,7 @@ public class DDEvpProxyApi extends RemoteApi {
     HttpUrl agentUrl = null;
     OkHttpClient httpClient = null;
     String evpProxyEndpoint;
+    boolean compressionEnabled;
 
     public DDEvpProxyApiBuilder trackType(final TrackType trackType) {
       this.trackType = trackType;
@@ -69,6 +72,11 @@ public class DDEvpProxyApi extends RemoteApi {
       return this;
     }
 
+    public DDEvpProxyApiBuilder compressionEnabled(boolean compressionEnabled) {
+      this.compressionEnabled = compressionEnabled;
+      return this;
+    }
+
     public DDEvpProxyApi build() {
       final String trackName =
           (trackType != null ? trackType.name() : NOOP.name()).toLowerCase(Locale.ROOT);
@@ -86,7 +94,8 @@ public class DDEvpProxyApi extends RemoteApi {
       final HttpRetryPolicy.Factory retryPolicyFactory = new HttpRetryPolicy.Factory(5, 100, 2.0);
 
       log.debug("proxiedApiUrl: {}", proxiedApiUrl);
-      return new DDEvpProxyApi(client, proxiedApiUrl, subdomain, retryPolicyFactory);
+      return new DDEvpProxyApi(
+          client, proxiedApiUrl, subdomain, retryPolicyFactory, compressionEnabled);
     }
   }
 
@@ -99,7 +108,9 @@ public class DDEvpProxyApi extends RemoteApi {
       OkHttpClient httpClient,
       HttpUrl proxiedApiUrl,
       String subdomain,
-      HttpRetryPolicy.Factory retryPolicyFactory) {
+      HttpRetryPolicy.Factory retryPolicyFactory,
+      boolean compressionEnabled) {
+    super(compressionEnabled);
     this.httpClient = httpClient;
     this.proxiedApiUrl = proxiedApiUrl;
     this.subdomain = subdomain;
@@ -110,12 +121,14 @@ public class DDEvpProxyApi extends RemoteApi {
   public Response sendSerializedTraces(Payload payload) {
     final int sizeInBytes = payload.sizeInBytes();
 
-    final Request request =
-        new Request.Builder()
-            .url(proxiedApiUrl)
-            .addHeader(DD_EVP_SUBDOMAIN_HEADER, subdomain)
-            .post(payload.toRequest())
-            .build();
+    Request.Builder builder =
+        new Request.Builder().url(proxiedApiUrl).addHeader(DD_EVP_SUBDOMAIN_HEADER, subdomain);
+
+    if (isCompressionEnabled()) {
+      builder.addHeader(CONTENT_ENCODING_HEADER, GZIP_CONTENT_TYPE);
+    }
+
+    final Request request = builder.post(payload.toRequest()).build();
     totalTraces += payload.traceCount();
     receivedTraces += payload.traceCount();
 

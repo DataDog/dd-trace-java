@@ -33,8 +33,8 @@ public final class IgniteCacheSyncInstrumentation extends AbstractIgniteCacheIns
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isMethod()
             .and(isPublic())
             .and(
@@ -50,7 +50,7 @@ public final class IgniteCacheSyncInstrumentation extends AbstractIgniteCacheIns
                     "putAll",
                     "removeAll")),
         IgniteCacheSyncInstrumentation.class.getName() + "$IgniteAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod()
             .and(isPublic())
             .and(
@@ -69,7 +69,7 @@ public final class IgniteCacheSyncInstrumentation extends AbstractIgniteCacheIns
                     "clear",
                     "invoke")),
         IgniteCacheSyncInstrumentation.class.getName() + "$KeyedAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod()
             .and(isPublic())
             .and(named("query"))

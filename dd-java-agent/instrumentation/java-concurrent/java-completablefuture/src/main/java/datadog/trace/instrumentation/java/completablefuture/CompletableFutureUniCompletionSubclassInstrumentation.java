@@ -9,6 +9,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.ConcurrentState;
 import java.util.Map;
 import net.bytebuddy.description.type.TypeDescription;
@@ -16,7 +17,7 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 /** Described in {@link CompletableFutureUniCompletionInstrumentation} */
 @AutoService(Instrumenter.class)
-public class CompletableFutureUniCompletionSubclassInstrumentation extends Instrumenter.Tracing
+public class CompletableFutureUniCompletionSubclassInstrumentation extends InstrumenterGroup.Tracing
     implements Instrumenter.ForBootstrap, Instrumenter.ForTypeHierarchy {
 
   public CompletableFutureUniCompletionSubclassInstrumentation() {
@@ -39,8 +40,8 @@ public class CompletableFutureUniCompletionSubclassInstrumentation extends Instr
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         named("tryFire").and(takesArguments(int.class)), ADVICE_BASE + "UniSubTryFire");
   }
 }

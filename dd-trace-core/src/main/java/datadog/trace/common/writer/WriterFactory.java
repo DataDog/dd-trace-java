@@ -14,7 +14,6 @@ import datadog.common.container.ServerlessInfo;
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
 import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.trace.api.Config;
-import datadog.trace.api.StatsDClient;
 import datadog.trace.api.intake.TrackType;
 import datadog.trace.common.sampling.Sampler;
 import datadog.trace.common.sampling.SingleSpanSampler;
@@ -23,7 +22,7 @@ import datadog.trace.common.writer.ddagent.Prioritization;
 import datadog.trace.common.writer.ddintake.DDEvpProxyApi;
 import datadog.trace.common.writer.ddintake.DDIntakeApi;
 import datadog.trace.common.writer.ddintake.DDIntakeTrackTypeResolver;
-import datadog.trace.core.monitor.TracerHealthMetrics;
+import datadog.trace.core.monitor.HealthMetrics;
 import datadog.trace.util.Strings;
 import okhttp3.HttpUrl;
 import org.slf4j.Logger;
@@ -38,9 +37,9 @@ public class WriterFactory {
       final SharedCommunicationObjects commObjects,
       final Sampler sampler,
       final SingleSpanSampler singleSpanSampler,
-      final StatsDClient statsDClient) {
+      final HealthMetrics healthMetrics) {
     return createWriter(
-        config, commObjects, sampler, singleSpanSampler, statsDClient, config.getWriterType());
+        config, commObjects, sampler, singleSpanSampler, healthMetrics, config.getWriterType());
   }
 
   public static Writer createWriter(
@@ -48,7 +47,7 @@ public class WriterFactory {
       final SharedCommunicationObjects commObjects,
       final Sampler sampler,
       final SingleSpanSampler singleSpanSampler,
-      final StatsDClient statsDClient,
+      final HealthMetrics healthMetrics,
       String configuredType) {
 
     if (LOGGING_WRITER_TYPE.equals(configuredType)) {
@@ -60,7 +59,7 @@ public class WriterFactory {
           Strings.replace(configuredType, TRACE_STRUCTURE_WRITER_TYPE, ""));
     } else if (configuredType.startsWith(MULTI_WRITER_TYPE)) {
       return new MultiWriter(
-          config, commObjects, sampler, singleSpanSampler, statsDClient, configuredType);
+          config, commObjects, sampler, singleSpanSampler, healthMetrics, configuredType);
     }
 
     if (!DD_AGENT_WRITER_TYPE.equals(configuredType)
@@ -101,7 +100,7 @@ public class WriterFactory {
           DDIntakeWriter.builder()
               .addTrack(trackType, remoteApi)
               .prioritization(prioritization)
-              .healthMetrics(new TracerHealthMetrics(statsDClient))
+              .healthMetrics(healthMetrics)
               .monitoring(commObjects.monitoring)
               .singleSpanSampler(singleSpanSampler)
               .flushIntervalMilliseconds(flushIntervalMilliseconds);
@@ -146,7 +145,7 @@ public class WriterFactory {
               .agentApi(ddAgentApi)
               .featureDiscovery(featuresDiscovery)
               .prioritization(prioritization)
-              .healthMetrics(new TracerHealthMetrics(statsDClient))
+              .healthMetrics(healthMetrics)
               .monitoring(commObjects.monitoring)
               .alwaysFlush(alwaysFlush)
               .spanSamplingRules(singleSpanSampler)
@@ -168,6 +167,7 @@ public class WriterFactory {
           .agentUrl(commObjects.agentUrl)
           .evpProxyEndpoint(featuresDiscovery.getEvpProxyEndpoint())
           .trackType(trackType)
+          .compressionEnabled(featuresDiscovery.supportsContentEncodingHeadersWithEvpProxy())
           .build();
 
     } else {

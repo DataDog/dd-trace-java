@@ -11,6 +11,7 @@ import static datadog.trace.instrumentation.servlet.http.HttpServletResponseDeco
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -20,7 +21,7 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public final class HttpServletResponseInstrumentation extends Instrumenter.Tracing
+public final class HttpServletResponseInstrumentation extends InstrumenterGroup.Tracing
     implements Instrumenter.ForTypeHierarchy {
   public HttpServletResponseInstrumentation() {
     super("servlet", "servlet-response");
@@ -45,8 +46,8 @@ public final class HttpServletResponseInstrumentation extends Instrumenter.Traci
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         namedOneOf("sendError", "sendRedirect"),
         HttpServletResponseInstrumentation.class.getName() + "$SendAdvice");
   }

@@ -17,6 +17,7 @@ import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.ExcludeFilterProvider;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType;
@@ -36,7 +37,7 @@ import net.bytebuddy.matcher.ElementMatcher;
  * ForkJoinPool}: JVM, Akka, Scala, Netty to name a few. This class handles JVM version.
  */
 @AutoService(Instrumenter.class)
-public final class JavaForkJoinTaskInstrumentation extends Instrumenter.Tracing
+public final class JavaForkJoinTaskInstrumentation extends InstrumenterGroup.Tracing
     implements Instrumenter.ForBootstrap, Instrumenter.ForTypeHierarchy, ExcludeFilterProvider {
 
   public JavaForkJoinTaskInstrumentation() {
@@ -61,11 +62,11 @@ public final class JavaForkJoinTaskInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isMethod().and(namedOneOf("doExec", "exec")), getClass().getName() + "$Exec");
-    transformation.applyAdvice(isMethod().and(named("fork")), getClass().getName() + "$Fork");
-    transformation.applyAdvice(isMethod().and(named("cancel")), getClass().getName() + "$Cancel");
+    transformer.applyAdvice(isMethod().and(named("fork")), getClass().getName() + "$Fork");
+    transformer.applyAdvice(isMethod().and(named("cancel")), getClass().getName() + "$Cancel");
   }
 
   @Override

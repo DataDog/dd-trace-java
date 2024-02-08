@@ -10,6 +10,7 @@ import com.google.auto.service.AutoService;
 import com.ibm.ws.webcontainer.webapp.WebAppErrorReport;
 import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 import net.bytebuddy.asm.Advice;
 
 /**
@@ -18,7 +19,7 @@ import net.bytebuddy.asm.Advice;
  * exception at SEVERE level.
  */
 @AutoService(Instrumenter.class)
-public class WebAppHandleExceptionInstrumentation extends Instrumenter.AppSec
+public class WebAppHandleExceptionInstrumentation extends InstrumenterGroup.AppSec
     implements Instrumenter.ForSingleType {
   public WebAppHandleExceptionInstrumentation() {
     super("liberty");
@@ -30,8 +31,8 @@ public class WebAppHandleExceptionInstrumentation extends Instrumenter.AppSec
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isPublic()
             .and(named("handleException"))
             .and(takesArguments(4))

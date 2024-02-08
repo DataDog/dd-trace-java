@@ -12,6 +12,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator;
@@ -22,7 +23,7 @@ import org.apache.pekko.http.scaladsl.model.HttpResponse;
 import scala.concurrent.Future;
 
 @AutoService(Instrumenter.class)
-public final class PekkoHttpSingleRequestInstrumentation extends Instrumenter.Tracing
+public final class PekkoHttpSingleRequestInstrumentation extends InstrumenterGroup.Tracing
     implements Instrumenter.ForSingleType {
   public PekkoHttpSingleRequestInstrumentation() {
     super("pekko-http", "pekko-http-client");
@@ -45,14 +46,14 @@ public final class PekkoHttpSingleRequestInstrumentation extends Instrumenter.Tr
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
+  public void methodAdvice(MethodTransformer transformer) {
     // This is mainly for compatibility with 10.0
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         named("singleRequest")
             .and(takesArgument(0, named("org.apache.pekko.http.scaladsl.model.HttpRequest"))),
         PekkoHttpSingleRequestInstrumentation.class.getName() + "$SingleRequestAdvice");
     // This is for 10.1+
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         named("singleRequestImpl")
             .and(takesArgument(0, named("org.apache.pekko.http.scaladsl.model.HttpRequest"))),
         PekkoHttpSingleRequestInstrumentation.class.getName() + "$SingleRequestAdvice");

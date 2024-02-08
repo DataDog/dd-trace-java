@@ -6,6 +6,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import io.cucumber.junit.platform.engine.CucumberTestEngine;
 import net.bytebuddy.asm.Advice;
@@ -16,7 +17,7 @@ import org.junit.platform.engine.TestEngine;
 import org.junit.platform.engine.support.hierarchical.SameThreadHierarchicalTestExecutorService;
 
 @AutoService(Instrumenter.class)
-public class JUnit5CucumberInstrumentation extends Instrumenter.CiVisibility
+public class JUnit5CucumberInstrumentation extends InstrumenterGroup.CiVisibility
     implements Instrumenter.ForSingleType {
 
   public JUnit5CucumberInstrumentation() {
@@ -36,6 +37,7 @@ public class JUnit5CucumberInstrumentation extends Instrumenter.CiVisibility
   @Override
   public String[] helperClassNames() {
     return new String[] {
+      packageName + ".TestIdentifierFactory",
       packageName + ".JUnitPlatformUtils",
       packageName + ".CucumberUtils",
       packageName + ".TestEventsHandlerHolder",
@@ -45,8 +47,8 @@ public class JUnit5CucumberInstrumentation extends Instrumenter.CiVisibility
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         named("execute").and(takesArgument(0, named("org.junit.platform.engine.ExecutionRequest"))),
         JUnit5CucumberInstrumentation.class.getName() + "$CucumberAdvice");
   }

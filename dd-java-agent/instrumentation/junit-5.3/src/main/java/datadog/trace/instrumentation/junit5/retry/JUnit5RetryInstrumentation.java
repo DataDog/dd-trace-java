@@ -5,6 +5,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesNoArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 import datadog.trace.agent.tooling.muzzle.Reference;
 import datadog.trace.agent.tooling.muzzle.ReferenceProvider;
 import datadog.trace.api.Config;
@@ -20,7 +21,7 @@ import net.bytebuddy.asm.Advice;
 import org.junit.platform.engine.support.hierarchical.HierarchicalTestExecutorService;
 
 @AutoService(Instrumenter.class)
-public class JUnit5RetryInstrumentation extends Instrumenter.CiVisibility
+public class JUnit5RetryInstrumentation extends InstrumenterGroup.CiVisibility
     implements Instrumenter.ForSingleType {
 
   private final String parentPackageName =
@@ -81,11 +82,11 @@ public class JUnit5RetryInstrumentation extends Instrumenter.CiVisibility
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         named("prepare").and(takesNoArguments()),
         JUnit5RetryInstrumentation.class.getName() + "$PrepareRetryContext");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         named("execute").and(takesNoArguments()),
         JUnit5RetryInstrumentation.class.getName() + "$RetryIfNeeded");
   }

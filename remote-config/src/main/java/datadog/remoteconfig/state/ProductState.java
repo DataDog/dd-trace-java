@@ -29,16 +29,26 @@ public class ProductState {
       new HashMap<>();
   private final Map<ParsedConfigKey, RemoteConfigRequest.ClientInfo.ClientState.ConfigState>
       configStates = new HashMap<>();
-  private final ProductListener listener;
+  private final List<ProductListener> productListeners;
+  private final Map<String, ProductListener> configListeners;
 
   List<ConfigurationPoller.ReportableException> errors = null;
 
-  public ProductState(Product product, ProductListener listener) {
+  public ProductState(Product product) {
     this.product = product;
-    this.listener = listener;
+    this.productListeners = new ArrayList<>();
+    this.configListeners = new HashMap<>();
 
     this.ratelimitedLogger =
         new RatelimitedLogger(log, MINUTES_BETWEEN_ERROR_LOG, TimeUnit.MINUTES);
+  }
+
+  public void addProductListener(ProductListener listener) {
+    productListeners.add(listener);
+  }
+
+  public void addProductListener(String configId, ProductListener listener) {
+    configListeners.put(configId, listener);
   }
 
   public boolean apply(
@@ -94,7 +104,14 @@ public class ProductState {
       byte[] content) {
 
     try {
-      listener.accept(configKey, content, hinter);
+      for (ProductListener listener : productListeners) {
+        listener.accept(configKey, content, hinter);
+      }
+      ProductListener listener = configListeners.get(configKey.getConfigId());
+      if (listener != null) {
+        listener.accept(configKey, content, hinter);
+      }
+
       updateConfigState(fleetResponse, configKey, null);
     } catch (ConfigurationPoller.ReportableException e) {
       recordError(e);
@@ -110,7 +127,13 @@ public class ProductState {
   private void callListenerRemoveTarget(
       ConfigurationChangesListener.PollingRateHinter hinter, ParsedConfigKey configKey) {
     try {
-      listener.remove(configKey, hinter);
+      for (ProductListener listener : productListeners) {
+        listener.remove(configKey, hinter);
+      }
+      ProductListener listener = configListeners.get(configKey.getConfigId());
+      if (listener != null) {
+        listener.remove(configKey, hinter);
+      }
     } catch (Exception ex) {
       ratelimitedLogger.warn("Error handling configuration removal for " + configKey, ex);
     }
@@ -120,7 +143,12 @@ public class ProductState {
 
   private void callListenerCommit(ConfigurationChangesListener.PollingRateHinter hinter) {
     try {
-      listener.commit(hinter);
+      for (ProductListener listener : productListeners) {
+        listener.commit(hinter);
+      }
+      for (ProductListener listener : configListeners.values()) {
+        listener.commit(hinter);
+      }
     } catch (ConfigurationPoller.ReportableException e) {
       recordError(e);
     } catch (Exception ex) {

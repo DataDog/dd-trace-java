@@ -8,6 +8,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
@@ -19,8 +20,24 @@ import org.apache.http.client.ResponseHandler;
 import org.apache.http.client.methods.HttpUriRequest;
 
 @AutoService(Instrumenter.class)
-public class ApacheHttpClientInstrumentation extends Instrumenter.Tracing
+public class ApacheHttpClientInstrumentation extends InstrumenterGroup.Tracing
     implements Instrumenter.CanShortcutTypeMatching {
+
+  static final String[] MATCHING_TYPES =
+      new String[] {
+        "org.apache.http.impl.client.AbstractHttpClient",
+        "software.amazon.awssdk.http.apache.internal.impl.ApacheSdkHttpClient",
+        "org.apache.http.impl.client.AutoRetryHttpClient",
+        "org.apache.http.impl.client.CloseableHttpClient",
+        "org.apache.http.impl.client.ContentEncodingHttpClient",
+        "org.apache.http.impl.client.DecompressingHttpClient",
+        "org.apache.http.impl.client.DefaultHttpClient",
+        "org.apache.http.impl.client.InternalHttpClient",
+        "org.apache.http.impl.client.MinimalHttpClient",
+        "org.apache.http.impl.client.SystemDefaultHttpClient",
+        "com.netflix.http4.NFHttpClient",
+        "com.amazonaws.http.apache.client.impl.SdkHttpClient"
+      };
 
   public ApacheHttpClientInstrumentation() {
     super("httpclient", "apache-httpclient", "apache-http-client");
@@ -33,20 +50,7 @@ public class ApacheHttpClientInstrumentation extends Instrumenter.Tracing
 
   @Override
   public String[] knownMatchingTypes() {
-    return new String[] {
-      "org.apache.http.impl.client.AbstractHttpClient",
-      "software.amazon.awssdk.http.apache.internal.impl.ApacheSdkHttpClient",
-      "org.apache.http.impl.client.AutoRetryHttpClient",
-      "org.apache.http.impl.client.CloseableHttpClient",
-      "org.apache.http.impl.client.ContentEncodingHttpClient",
-      "org.apache.http.impl.client.DecompressingHttpClient",
-      "org.apache.http.impl.client.DefaultHttpClient",
-      "org.apache.http.impl.client.InternalHttpClient",
-      "org.apache.http.impl.client.MinimalHttpClient",
-      "org.apache.http.impl.client.SystemDefaultHttpClient",
-      "com.netflix.http4.NFHttpClient",
-      "com.amazonaws.http.apache.client.impl.SdkHttpClient"
-    };
+    return MATCHING_TYPES;
   }
 
   @Override
@@ -71,20 +75,20 @@ public class ApacheHttpClientInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
+  public void methodAdvice(MethodTransformer transformer) {
     // There are 8 execute(...) methods.  Depending on the version, they may or may not delegate to
     // eachother. Thus, all methods need to be instrumented.  Because of argument position and type,
     // some methods can share the same advice class.  The call depth tracking ensures only 1 span is
     // created
 
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod()
             .and(named("execute"))
             .and(takesArguments(1))
             .and(takesArgument(0, named("org.apache.http.client.methods.HttpUriRequest"))),
         ApacheHttpClientInstrumentation.class.getName() + "$UriRequestAdvice");
 
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod()
             .and(named("execute"))
             .and(takesArguments(2))
@@ -92,7 +96,7 @@ public class ApacheHttpClientInstrumentation extends Instrumenter.Tracing
             .and(takesArgument(1, named("org.apache.http.protocol.HttpContext"))),
         ApacheHttpClientInstrumentation.class.getName() + "$UriRequestAdvice");
 
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod()
             .and(named("execute"))
             .and(takesArguments(2))
@@ -100,7 +104,7 @@ public class ApacheHttpClientInstrumentation extends Instrumenter.Tracing
             .and(takesArgument(1, named("org.apache.http.client.ResponseHandler"))),
         ApacheHttpClientInstrumentation.class.getName() + "$UriRequestWithHandlerAdvice");
 
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod()
             .and(named("execute"))
             .and(takesArguments(3))
@@ -109,7 +113,7 @@ public class ApacheHttpClientInstrumentation extends Instrumenter.Tracing
             .and(takesArgument(2, named("org.apache.http.protocol.HttpContext"))),
         ApacheHttpClientInstrumentation.class.getName() + "$UriRequestWithHandlerAdvice");
 
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod()
             .and(named("execute"))
             .and(takesArguments(2))
@@ -117,7 +121,7 @@ public class ApacheHttpClientInstrumentation extends Instrumenter.Tracing
             .and(takesArgument(1, named("org.apache.http.HttpRequest"))),
         ApacheHttpClientInstrumentation.class.getName() + "$RequestAdvice");
 
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod()
             .and(named("execute"))
             .and(takesArguments(3))
@@ -126,7 +130,7 @@ public class ApacheHttpClientInstrumentation extends Instrumenter.Tracing
             .and(takesArgument(2, named("org.apache.http.protocol.HttpContext"))),
         ApacheHttpClientInstrumentation.class.getName() + "$RequestAdvice");
 
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod()
             .and(named("execute"))
             .and(takesArguments(3))
@@ -135,7 +139,7 @@ public class ApacheHttpClientInstrumentation extends Instrumenter.Tracing
             .and(takesArgument(2, named("org.apache.http.client.ResponseHandler"))),
         ApacheHttpClientInstrumentation.class.getName() + "$RequestWithHandlerAdvice");
 
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod()
             .and(named("execute"))
             .and(takesArguments(4))

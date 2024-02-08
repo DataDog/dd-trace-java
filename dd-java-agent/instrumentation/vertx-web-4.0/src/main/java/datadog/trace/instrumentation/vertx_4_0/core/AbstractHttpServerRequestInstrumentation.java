@@ -9,7 +9,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 import static net.bytebuddy.matcher.ElementMatchers.takesNoArguments;
 
-import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 import datadog.trace.agent.tooling.muzzle.Reference;
 import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.InstrumentationBridge;
@@ -21,7 +21,7 @@ import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
-public abstract class AbstractHttpServerRequestInstrumentation extends Instrumenter.Iast {
+public abstract class AbstractHttpServerRequestInstrumentation extends InstrumenterGroup.Iast {
 
   private final String className = AbstractHttpServerRequestInstrumentation.class.getName();
 
@@ -37,25 +37,25 @@ public abstract class AbstractHttpServerRequestInstrumentation extends Instrumen
   protected abstract ElementMatcher.Junction<MethodDescription> attributesFilter();
 
   @Override
-  public void adviceTransformations(final AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(final MethodTransformer transformer) {
+    transformer.applyAdvice(
         isPublic().and(isMethod()).and(named("headers")).and(takesNoArguments()),
         className + "$HeadersAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isPublic().and(isMethod()).and(named("params")).and(takesNoArguments()),
         className + "$ParamsAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod().and(takesNoArguments()).and(attributesFilter()),
         className + "$AttributesAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod()
             .and(named("handleData").or(named("onData")))
             .and(takesArguments(1).and(takesArgument(0, named("io.vertx.core.buffer.Buffer")))),
         className + "$DataAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isPublic().and(isMethod()).and(named("cookies")).and(returns(Set.class)),
         className + "$CookiesAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isPublic().and(isMethod()).and(named("getCookie")).and(takesArgument(0, String.class)),
         className + "$GetCookieAdvice");
   }

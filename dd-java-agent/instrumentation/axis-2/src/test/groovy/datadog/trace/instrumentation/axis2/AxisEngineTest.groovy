@@ -265,6 +265,42 @@ class AxisEngineTest extends AgentTestRunner {
     }
   }
 
+  def "should set resource name on local root"() {
+    setup:
+    injectSysConfig("trace.axis.promote.resource-name", "true")
+    when:
+    // emulates AxisServlet behaviour
+    AgentSpan span0 = startSpan("servlet.request")
+    span0.setServiceName("testSpan")
+    span0.setResourceName("POST /some/context/services/TestService")
+    activateSpan(span0).withCloseable {
+      def message1 = testMessage()
+      message1.setSoapAction('testAction')
+      message1.setServerSide(true)
+      AxisEngine.receive(message1)
+      def message2 = testMessage()
+      message2.setSoapAction('anotherAction')
+      message2.setServerSide(true)
+      AxisEngine.receive(message2)
+    }
+    span0.finish()
+
+    then:
+    assertTraces(1) {
+      trace(3) {
+        sortSpansByStart()
+        span {
+          parent()
+          serviceName "testSpan"
+          resourceName "testAction"
+          operationName "servlet.request"
+        }
+        axisSpan(it, 1, 'testAction', span(0))
+        axisSpan(it, 2, 'anotherAction', span(0))
+      }
+    }
+  }
+
   def "test pause+resume receive"() {
     when:
     def message = testMessage()
@@ -363,6 +399,7 @@ class AxisEngineTest extends AgentTestRunner {
       resourceName soapAction
       spanType DDSpanTypes.SOAP
       errored error != null
+      measured true
       if (parentSpan == null) {
         parent()
       } else {

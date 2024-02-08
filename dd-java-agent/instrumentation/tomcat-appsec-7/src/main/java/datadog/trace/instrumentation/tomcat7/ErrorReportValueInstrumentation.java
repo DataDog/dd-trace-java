@@ -7,9 +7,10 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 
 @AutoService(Instrumenter.class)
-public class ErrorReportValueInstrumentation extends Instrumenter.Iast
+public class ErrorReportValueInstrumentation extends InstrumenterGroup.Iast
     implements Instrumenter.ForSingleType {
 
   public ErrorReportValueInstrumentation() {
@@ -27,8 +28,8 @@ public class ErrorReportValueInstrumentation extends Instrumenter.Iast
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isMethod()
             .and(named("report"))
             .and(takesArgument(0, named("org.apache.catalina.connector.Request")))

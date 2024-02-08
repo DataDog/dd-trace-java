@@ -8,10 +8,7 @@ import com.datadog.profiling.agent.ControllerFactory;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import java.util.Properties;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.junit.jupiter.MockitoExtension;
 
-@ExtendWith(MockitoExtension.class)
 public class ControllerFactoryTest {
 
   /**

@@ -10,6 +10,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 import datadog.trace.api.iast.Source;
 import datadog.trace.api.iast.SourceTypes;
 import datadog.trace.instrumentation.pekkohttp.iast.helpers.TaintMapFunction;
@@ -28,7 +29,7 @@ import org.apache.pekko.http.scaladsl.server.util.Tupler$;
  * @see org.apache.pekko.http.scaladsl.server.directives.ParameterDirectives
  */
 @AutoService(Instrumenter.class)
-public class ParameterDirectivesInstrumentation extends Instrumenter.Iast
+public class ParameterDirectivesInstrumentation extends InstrumenterGroup.Iast
     implements Instrumenter.ForKnownTypes {
   private static final String TRAIT_NAME =
       "org.apache.pekko.http.scaladsl.server.directives.ParameterDirectives";
@@ -56,13 +57,13 @@ public class ParameterDirectivesInstrumentation extends Instrumenter.Iast
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
+  public void methodAdvice(MethodTransformer transformer) {
     // the Java API delegates to the Scala API
-    transformDirective(transformation, "parameterMultiMap", "TaintMultiMapDirectiveAdvice");
-    transformDirective(transformation, "parameterMap", "TaintMapDirectiveAdvice");
-    transformDirective(transformation, "parameterSeq", "TaintSeqDirectiveAdvice");
+    transformDirective(transformer, "parameterMultiMap", "TaintMultiMapDirectiveAdvice");
+    transformDirective(transformer, "parameterMap", "TaintMapDirectiveAdvice");
+    transformDirective(transformer, "parameterSeq", "TaintSeqDirectiveAdvice");
 
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod()
             .and(isStatic())
             .and(named("parameter").or(named("parameters")))
@@ -80,7 +81,7 @@ public class ParameterDirectivesInstrumentation extends Instrumenter.Iast
         ParameterDirectivesInstrumentation.class.getName()
             + "$TaintSingleParameterDirectiveOldScalaAdvice");
 
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod()
             .and(not(isStatic()))
             .and(named("parameter").or(named("parameters")))
@@ -98,7 +99,7 @@ public class ParameterDirectivesInstrumentation extends Instrumenter.Iast
   }
 
   private void transformDirective(
-      AdviceTransformation transformation, String methodName, String adviceClass) {
+      MethodTransformer transformation, String methodName, String adviceClass) {
     transformation.applyAdvice(
         TraitMethodMatchers.isTraitDirectiveMethod(TRAIT_NAME, methodName),
         ParameterDirectivesInstrumentation.class.getName() + "$" + adviceClass);

@@ -13,6 +13,7 @@ import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
@@ -24,7 +25,7 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public class NettyChannelHandlerContextInstrumentation extends Instrumenter.Tracing
+public class NettyChannelHandlerContextInstrumentation extends InstrumenterGroup.Tracing
     implements Instrumenter.ForTypeHierarchy {
 
   public NettyChannelHandlerContextInstrumentation() {
@@ -58,8 +59,8 @@ public class NettyChannelHandlerContextInstrumentation extends Instrumenter.Trac
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         // this may be overly aggressive:
         isMethod().and(nameStartsWith("fire")).and(isPublic()),
         NettyChannelHandlerContextInstrumentation.class.getName() + "$FireAdvice");

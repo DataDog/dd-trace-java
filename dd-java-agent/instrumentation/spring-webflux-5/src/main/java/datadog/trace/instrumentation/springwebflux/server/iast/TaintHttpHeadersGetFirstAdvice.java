@@ -13,11 +13,13 @@ import net.bytebuddy.asm.Advice;
 class TaintHttpHeadersGetFirstAdvice {
   @Advice.OnMethodExit(suppress = Throwable.class)
   @Source(SourceTypes.REQUEST_HEADER_VALUE)
-  public static void after(@Advice.Argument(0) String arg, @Advice.Return String value) {
+  public static void after(
+      @Advice.This Object self, @Advice.Argument(0) String arg, @Advice.Return String value) {
+
     PropagationModule module = InstrumentationBridge.PROPAGATION;
     if (module == null || arg == null || value == null) {
       return;
     }
-    module.taint(value, SourceTypes.REQUEST_HEADER_VALUE, arg);
+    module.taintIfTainted(value, self, SourceTypes.REQUEST_HEADER_VALUE, arg);
   }
 }

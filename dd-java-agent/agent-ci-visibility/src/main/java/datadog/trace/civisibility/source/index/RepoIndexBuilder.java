@@ -59,12 +59,7 @@ public class RepoIndexBuilder implements RepoIndexProvider {
   }
 
   private RepoIndex doGetIndex() {
-    log.warn(
-        "Building index of source files in {}, repo root is {}. "
-            + "This operation can be slow, "
-            + "please consider using Datadog Java compiler plugin to avoid indexing",
-        scanRoot,
-        repoRoot);
+    log.warn("Building index of source files in {}, repo root is {}", scanRoot, repoRoot);
 
     Path repoRootPath = toRealPath(fileSystem.getPath(repoRoot));
     Path scanRootPath = toRealPath(fileSystem.getPath(scanRoot));
@@ -79,7 +74,7 @@ public class RepoIndexBuilder implements RepoIndexProvider {
           Integer.MAX_VALUE,
           repoIndexingFileVisitor);
     } catch (Exception e) {
-      log.error("Failed to build index of {}", scanRootPath, e);
+      log.debug("Failed to build index of {}", scanRootPath, e);
     }
 
     long duration = System.currentTimeMillis() - startTime;
@@ -100,7 +95,7 @@ public class RepoIndexBuilder implements RepoIndexProvider {
     try {
       return path.toRealPath();
     } catch (Exception e) {
-      log.error("Could not determine real path for {}", path, e);
+      log.debug("Could not determine real path for {}", path, e);
       return path;
     }
   }
@@ -133,7 +128,23 @@ public class RepoIndexBuilder implements RepoIndexProvider {
 
     @Override
     public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) {
+      if (Files.isSymbolicLink(dir) && readSymbolicLink(dir).startsWith(repoRoot)) {
+        // The path is a symlink that points inside the repo.
+        // We'll visit the folder that it points to anyway,
+        // moreover, we don't want two different results for one file
+        // (one containing the symlink, the other - the actual folder).
+        return FileVisitResult.SKIP_SUBTREE;
+      }
       return FileVisitResult.CONTINUE;
+    }
+
+    private static Path readSymbolicLink(Path path) {
+      try {
+        return Files.readSymbolicLink(path);
+      } catch (Exception e) {
+        log.debug("Could not read symbolic link {}", path, e);
+        return path;
+      }
     }
 
     @Override
@@ -152,7 +163,7 @@ public class RepoIndexBuilder implements RepoIndexProvider {
           }
         }
       } catch (Exception e) {
-        log.error("Failed to index file {}", file, e);
+        log.debug("Failed to index file {}", file, e);
       }
       return FileVisitResult.CONTINUE;
     }
@@ -186,7 +197,7 @@ public class RepoIndexBuilder implements RepoIndexProvider {
     @Override
     public FileVisitResult visitFileFailed(Path file, IOException exc) {
       if (exc != null) {
-        log.error("Failed to visit file: {}", file, exc);
+        log.debug("Failed to visit file: {}", file, exc);
       }
       return FileVisitResult.CONTINUE;
     }
@@ -194,7 +205,7 @@ public class RepoIndexBuilder implements RepoIndexProvider {
     @Override
     public FileVisitResult postVisitDirectory(Path dir, IOException exc) {
       if (exc != null) {
-        log.error("Failed to visit directory: {}", dir, exc);
+        log.debug("Failed to visit directory: {}", dir, exc);
       }
       return FileVisitResult.CONTINUE;
     }

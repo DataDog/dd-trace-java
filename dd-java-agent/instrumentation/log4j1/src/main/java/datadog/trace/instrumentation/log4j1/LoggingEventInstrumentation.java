@@ -8,6 +8,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 import datadog.trace.api.Config;
 import datadog.trace.api.CorrelationIdentifier;
 import datadog.trace.api.DDSpanId;
@@ -20,11 +21,10 @@ import datadog.trace.bootstrap.instrumentation.api.Tags;
 import java.util.Hashtable;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
-import org.apache.log4j.MDC;
 import org.apache.log4j.spi.LoggingEvent;
 
 @AutoService(Instrumenter.class)
-public class LoggingEventInstrumentation extends Instrumenter.Tracing
+public class LoggingEventInstrumentation extends InstrumenterGroup.Tracing
     implements Instrumenter.ForSingleType {
   public LoggingEventInstrumentation() {
     super("log4j", "log4j-1");
@@ -41,12 +41,12 @@ public class LoggingEventInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isMethod().and(named("getMDC")).and(takesArgument(0, String.class)),
         LoggingEventInstrumentation.class.getName() + "$GetMdcAdvice");
 
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod().and(named("getMDCCopy")).and(takesArguments(0)),
         LoggingEventInstrumentation.class.getName() + "$GetMdcCopyAdvice");
   }
@@ -115,54 +115,53 @@ public class LoggingEventInstrumentation extends Instrumenter.Tracing
 
   public static class GetMdcCopyAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static void onEnter(
+    public static boolean onEnter(
         @Advice.This LoggingEvent event,
-        @Advice.FieldValue(value = "mdcCopyLookupRequired", readOnly = false) boolean copyRequired,
-        @Advice.FieldValue(value = "mdcCopy", readOnly = false) Hashtable mdcCopy) {
-      // this advice basically replaces the original method
-      // since copyRequired will be false when the original method is executed
-      if (copyRequired) {
-        copyRequired = false;
+        @Advice.FieldValue(value = "mdcCopyLookupRequired", readOnly = false)
+            boolean copyRequired) {
+      if (!copyRequired) {
+        return false;
+      }
+      AgentSpan.Context context =
+          InstrumentationContext.get(LoggingEvent.class, AgentSpan.Context.class).get(event);
 
-        Hashtable mdc = new Hashtable();
+      return (context != null || AgentTracer.traceConfig().isLogsInjectionEnabled());
+    }
 
-        AgentSpan.Context context =
-            InstrumentationContext.get(LoggingEvent.class, AgentSpan.Context.class).get(event);
+    @Advice.OnMethodExit(suppress = Throwable.class)
+    public static void onExit(
+        @Advice.This LoggingEvent event,
+        @Advice.Enter() boolean injectionRequired,
+        @Advice.FieldValue(value = "mdcCopy") Hashtable mdc) {
+      if (!injectionRequired) {
+        return;
+      }
+      // at this point the mdc has been shallow copied. No need to replace with a new hashtable.
+      // Just add our info
+      String serviceName = Config.get().getServiceName();
+      if (null != serviceName && !serviceName.isEmpty()) {
+        mdc.put(Tags.DD_SERVICE, serviceName);
+      }
+      String env = Config.get().getEnv();
+      if (null != env && !env.isEmpty()) {
+        mdc.put(Tags.DD_ENV, env);
+      }
+      String version = Config.get().getVersion();
+      if (null != version && !version.isEmpty()) {
+        mdc.put(Tags.DD_VERSION, version);
+      }
 
-        // Nothing to add so return early
-        if (context == null && !AgentTracer.traceConfig().isLogsInjectionEnabled()) {
-          return;
-        }
+      AgentSpan.Context context =
+          InstrumentationContext.get(LoggingEvent.class, AgentSpan.Context.class).get(event);
 
-        String serviceName = Config.get().getServiceName();
-        if (null != serviceName && !serviceName.isEmpty()) {
-          mdc.put(Tags.DD_SERVICE, serviceName);
-        }
-        String env = Config.get().getEnv();
-        if (null != env && !env.isEmpty()) {
-          mdc.put(Tags.DD_ENV, env);
-        }
-        String version = Config.get().getVersion();
-        if (null != version && !version.isEmpty()) {
-          mdc.put(Tags.DD_VERSION, version);
-        }
-
-        if (context != null) {
-          DDTraceId traceId = context.getTraceId();
-          String traceIdValue =
-              InstrumenterConfig.get().isLogs128bTraceIdEnabled() && traceId.toHighOrderLong() != 0
-                  ? traceId.toHexString()
-                  : traceId.toString();
-          mdc.put(CorrelationIdentifier.getTraceIdKey(), traceIdValue);
-          mdc.put(CorrelationIdentifier.getSpanIdKey(), DDSpanId.toString(context.getSpanId()));
-        }
-
-        Hashtable originalMdc = MDC.getContext();
-        if (originalMdc != null) {
-          mdc.putAll(originalMdc);
-        }
-
-        mdcCopy = mdc;
+      if (context != null) {
+        DDTraceId traceId = context.getTraceId();
+        String traceIdValue =
+            InstrumenterConfig.get().isLogs128bTraceIdEnabled() && traceId.toHighOrderLong() != 0
+                ? traceId.toHexString()
+                : traceId.toString();
+        mdc.put(CorrelationIdentifier.getTraceIdKey(), traceIdValue);
+        mdc.put(CorrelationIdentifier.getSpanIdKey(), DDSpanId.toString(context.getSpanId()));
       }
     }
   }

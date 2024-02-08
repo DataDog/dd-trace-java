@@ -2,14 +2,15 @@ package com.datadog.iast.propagation;
 
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
 
-import com.datadog.iast.IastRequestContext;
 import com.datadog.iast.IastSystem;
 import com.datadog.iast.model.Range;
 import com.datadog.iast.model.Source;
+import com.datadog.iast.taint.TaintedObjects;
 import datadog.trace.api.Config;
 import datadog.trace.api.ProductActivation;
 import datadog.trace.api.gateway.InstrumentationGateway;
 import datadog.trace.api.gateway.RequestContextSlot;
+import datadog.trace.api.iast.IastContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
@@ -74,9 +75,10 @@ public abstract class AbstractBenchmark<C extends AbstractBenchmark.BenchmarkCon
 
   protected abstract C initializeContext();
 
-  protected <E> E tainted(final IastRequestContext context, final E value, final Range... ranges) {
+  protected <E> E tainted(final IastContext context, final E value, final Range... ranges) {
     final E result = notTainted(value);
-    context.getTaintedObjects().taint(result, ranges);
+    final TaintedObjects taintedObjects = context.getTaintedObjects();
+    taintedObjects.taint(result, ranges);
     return result;
   }
 
@@ -104,13 +106,13 @@ public abstract class AbstractBenchmark<C extends AbstractBenchmark.BenchmarkCon
 
   protected abstract static class BenchmarkContext {
 
-    private final IastRequestContext iastContext;
+    private final IastContext iastContext;
 
-    protected BenchmarkContext(final IastRequestContext iasContext) {
+    protected BenchmarkContext(final IastContext iasContext) {
       this.iastContext = iasContext;
     }
 
-    public IastRequestContext getIastContext() {
+    public IastContext getIastContext() {
       return iastContext;
     }
   }

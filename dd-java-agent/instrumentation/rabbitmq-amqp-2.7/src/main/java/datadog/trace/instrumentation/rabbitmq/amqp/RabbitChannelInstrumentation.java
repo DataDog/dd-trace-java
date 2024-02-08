@@ -38,6 +38,7 @@ import com.rabbitmq.client.Consumer;
 import com.rabbitmq.client.GetResponse;
 import com.rabbitmq.client.MessageProperties;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
@@ -51,7 +52,7 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public class RabbitChannelInstrumentation extends Instrumenter.Tracing
+public class RabbitChannelInstrumentation extends InstrumenterGroup.Tracing
     implements Instrumenter.ForTypeHierarchy {
 
   public RabbitChannelInstrumentation() {
@@ -80,9 +81,9 @@ public class RabbitChannelInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
+  public void methodAdvice(MethodTransformer transformer) {
     // We want the advice applied in a specific order.
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod()
             .and(
                 not(
@@ -101,13 +102,13 @@ public class RabbitChannelInstrumentation extends Instrumenter.Tracing
             .and(isPublic())
             .and(canThrow(IOException.class).or(canThrow(InterruptedException.class))),
         RabbitChannelInstrumentation.class.getName() + "$ChannelMethodAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod().and(named("basicPublish")).and(takesArguments(6)),
         RabbitChannelInstrumentation.class.getName() + "$ChannelPublishAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod().and(named("basicGet")).and(takesArgument(0, String.class)),
         RabbitChannelInstrumentation.class.getName() + "$ChannelGetAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod()
             .and(named("basicConsume"))
             .and(takesArgument(0, String.class))

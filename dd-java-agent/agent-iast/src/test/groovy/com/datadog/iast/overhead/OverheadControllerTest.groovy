@@ -67,7 +67,7 @@ class OverheadControllerTest extends DDSpecification {
     config.getIastRequestSampling() >> 100
     def maxRequests = config.iastMaxConcurrentRequests
     def taskSchedler = Stub(AgentTaskScheduler)
-    def overheadController = new OverheadControllerImpl(config, taskSchedler)
+    def overheadController = OverheadController.build(config, taskSchedler)
 
     when: 'Acquire max concurrent requests'
     assert maxRequests > 0
@@ -89,7 +89,7 @@ class OverheadControllerTest extends DDSpecification {
     config.getIastRequestSampling() >> 100
     config.getIastMaxConcurrentRequests() >> UNLIMITED
     def taskScheduler = Stub(AgentTaskScheduler)
-    def overheadController = new OverheadControllerImpl(config, taskScheduler)
+    def overheadController = OverheadController.build(config, taskScheduler)
 
     when: 'Acquire max concurrent requests'
     def acquired = (1..1_000_000).collect({ overheadController.acquireRequest() })
@@ -101,7 +101,7 @@ class OverheadControllerTest extends DDSpecification {
   void 'getContext defaults to global context if span is null'() {
     given:
     def taskSchedler = Stub(AgentTaskScheduler)
-    def overheadController = OverheadController.build(Config.get(), taskSchedler)
+    def overheadController = OverheadController.build(Config.get(), taskSchedler) as OverheadControllerImpl
 
     when:
     def context = overheadController.getContext(null)
@@ -113,7 +113,7 @@ class OverheadControllerTest extends DDSpecification {
   void 'getContext defaults to request context if span is null'() {
     given:
     def taskSchedler = Stub(AgentTaskScheduler)
-    def overheadController = OverheadController.build(Config.get(), taskSchedler)
+    def overheadController = OverheadController.build(Config.get(), taskSchedler) as OverheadControllerImpl
     def span = Stub(AgentSpan)
     span.getRequestContext() >> null
 
@@ -127,7 +127,7 @@ class OverheadControllerTest extends DDSpecification {
   void 'getContext returns null if there is no IAST request context'() {
     given:
     def taskSchedler = Stub(AgentTaskScheduler)
-    def overheadController = OverheadController.build(Config.get(), taskSchedler)
+    def overheadController = OverheadController.build(Config.get(), taskSchedler) as OverheadControllerImpl
     def span = getAgentSpanWithNoIASTRequest()
 
     when:
@@ -141,7 +141,7 @@ class OverheadControllerTest extends DDSpecification {
     given:
     def taskSchedler = Stub(AgentTaskScheduler)
     def overheadController = OverheadController.build(Config.get(), taskSchedler)
-    def overheadContext = Mock(OverheadContext)
+    def overheadContext = Stub(OverheadContext)
     def iastRequestContext = Stub(IastRequestContext)
     iastRequestContext.getOverheadContext() >> overheadContext
     def requestContext = Stub(RequestContext)
@@ -201,7 +201,7 @@ class OverheadControllerTest extends DDSpecification {
   def 'Available requests always ends up at max'() {
     setup:
     def taskSchedler = Stub(AgentTaskScheduler)
-    def overheadController = OverheadController.build(Config.get(), taskSchedler)
+    def overheadController = OverheadController.build(Config.get(), taskSchedler) as OverheadControllerImpl
 
     def nThreads = 32
     def nIters = 50000
@@ -285,7 +285,7 @@ class OverheadControllerTest extends DDSpecification {
 
   private AgentSpan getAgentSpanWithOverheadContext() {
     def iastRequestContext = Stub(IastRequestContext)
-    iastRequestContext.getOverheadContext() >> new OverheadContext()
+    iastRequestContext.getOverheadContext() >> new OverheadContext(Config.get().getIastVulnerabilitiesPerRequest())
     def requestContext = Stub(RequestContext)
     requestContext.getData(RequestContextSlot.IAST) >> iastRequestContext
     def span = Stub(AgentSpan)

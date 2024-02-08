@@ -1,42 +1,29 @@
 package com.datadog.iast.sink
 
 import com.datadog.iast.IastModuleImplTestBase
-import com.datadog.iast.IastRequestContext
+import com.datadog.iast.Reporter
 import com.datadog.iast.model.Vulnerability
 import com.datadog.iast.model.VulnerabilityType
-import datadog.trace.api.gateway.RequestContext
-import datadog.trace.api.gateway.RequestContextSlot
 import datadog.trace.api.iast.VulnerabilityMarks
 import datadog.trace.api.iast.sink.LdapInjectionModule
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import groovy.transform.CompileDynamic
 
-import static datadog.trace.api.iast.VulnerabilityMarks.NOT_MARKED
 import static com.datadog.iast.taint.TaintUtils.addFromTaintFormat
 import static com.datadog.iast.taint.TaintUtils.taintFormat
+import static datadog.trace.api.iast.VulnerabilityMarks.NOT_MARKED
 
 @CompileDynamic
 class LdapInjectionModuleTest extends IastModuleImplTestBase {
 
-  private List<Object> objectHolder
-
-  private IastRequestContext ctx
-
   private LdapInjectionModule module
-
-  private AgentSpan span
 
   def setup() {
     module = new LdapInjectionModuleImpl(dependencies)
-    objectHolder = []
-    ctx = new IastRequestContext()
-    final reqCtx = Mock(RequestContext) {
-      getData(RequestContextSlot.IAST) >> ctx
-    }
-    span = Mock(AgentSpan) {
-      getSpanId() >> 123456
-      getRequestContext() >> reqCtx
-    }
+  }
+
+  @Override
+  protected Reporter buildReporter() {
+    return Mock(Reporter)
   }
 
   void 'iast module detect LDAP injection on search(#name, #filter, #args, #mark)'(final String name, final String filter, final List<Object> args, final int mark, final String expected) {

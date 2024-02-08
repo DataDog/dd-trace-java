@@ -1,12 +1,9 @@
 package com.datadog.iast.propagation
 
 import com.datadog.iast.IastModuleImplTestBase
-import com.datadog.iast.IastRequestContext
 import com.datadog.iast.taint.TaintedObject
-import datadog.trace.api.gateway.RequestContext
-import datadog.trace.api.gateway.RequestContextSlot
 import datadog.trace.api.iast.propagation.CodecModule
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import groovy.transform.CompileDynamic
 
 import static com.datadog.iast.taint.TaintUtils.addFromTaintFormat
@@ -16,16 +13,16 @@ abstract class BaseCodecModuleTest extends IastModuleImplTestBase {
 
   private CodecModule module
 
-  private IastRequestContext ctx
-
   def setup() {
-    final span = Mock(AgentSpan)
-    tracer.activeSpan() >> span
-    final reqCtx = Mock(RequestContext)
-    span.getRequestContext() >> reqCtx
-    ctx = new IastRequestContext()
-    reqCtx.getData(RequestContextSlot.IAST) >> ctx
     module = buildModule()
+  }
+
+  @Override
+  protected AgentTracer.TracerAPI buildAgentTracer() {
+    return Mock(AgentTracer.TracerAPI) {
+      activeSpan() >> span
+      getTraceSegment() >> traceSegment
+    }
   }
 
   void '#method null or empty'() {

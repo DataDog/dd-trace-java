@@ -7,12 +7,14 @@ import datadog.trace.api.Platform
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.api.sampling.SamplingMechanism
 import datadog.trace.test.util.Flaky
+import groovy.json.JsonSlurper
 import org.apache.hadoop.yarn.api.records.FinalApplicationStatus
 import org.apache.hadoop.yarn.conf.YarnConfiguration
 import org.apache.spark.deploy.SparkSubmit
 import org.apache.spark.deploy.yarn.ApplicationMaster
 import org.apache.spark.deploy.yarn.ApplicationMasterArguments
 import org.apache.spark.sql.Dataset
+import org.apache.spark.sql.Encoders
 import org.apache.spark.sql.Row
 import org.apache.spark.sql.RowFactory
 import org.apache.spark.sql.SparkSession
@@ -562,29 +564,149 @@ abstract class AbstractSparkTest extends AgentTestRunner {
         span {
           operationName "spark.sql"
           spanType "spark"
-          span.serviceName ==~ expectedService
+          assert span.serviceName ==~ expectedService
         }
         span {
           operationName "spark.job"
           spanType "spark"
           childOf(span(0))
-          span.serviceName ==~ expectedService
+          assert span.serviceName ==~ expectedService
         }
         span {
           operationName "spark.stage"
           spanType "spark"
           childOf(span(1))
-          span.serviceName ==~ expectedService
+          assert span.serviceName ==~ expectedService
         }
       }
     }
 
     where:
     ddService | clusterName         | clusterAllTags                                                                         | expectedService
-    "foobar"  | "some_cluster_name" | """[{"key": "foo"}, {"key": "RunName", "value": "some_run_name"}]"""                   | "^(databricks)"
+    "foobar"  | "some_cluster_name" | """[{"key": "foo"}, {"key": "RunName", "value": "some_run_name"}]"""                   | "(?!.*databricks).*"
     null      | "some_cluster_name" | """[{"key": "foo"}, {"key": "RunName", "value": "some_run_name"}]"""                   | "databricks.job-cluster.some_run_name"
     null      | "some_cluster_name" | """[{"key":"RunName","value":"some_run_name_9975a7ba-5e04-11ee-8c99-0242ac120002"}]""" | "databricks.job-cluster.some_run_name"
     null      | "some_cluster_name" | """invalid_json"""                                                                     | "databricks.all-purpose-cluster.some_cluster_name"
-    null      | null                | null                                                                                   | "^(databricks)"
+    null      | null                | null                                                                                   | "(?!.*databricks).*"
+  }
+
+  def "set the proper spark service name"(String ddService, boolean sparkAppNameAsService, String appName, boolean isRunningOnDatabricks, String expectedService) {
+    setup:
+    if (ddService != null) {
+      injectSysConfig("dd.service", ddService)
+    }
+    if (sparkAppNameAsService) {
+      injectSysConfig("spark.app-name-as-service", sparkAppNameAsService.toString())
+    }
+
+    def builder = SparkSession.builder()
+      .config("spark.master", "local[2]")
+
+    if (appName != null) {
+      builder.config("spark.app.name", appName)
+    }
+
+    if (isRunningOnDatabricks) {
+      builder.config("spark.databricks.sparkContextId", "some_id")
+    }
+
+    when:
+    def sparkSession = builder.getOrCreate()
+    def df = generateSampleDataframe(sparkSession)
+    df.coalesce(1).count()
+    sparkSession.stop()
+
+    then:
+    def expectedSize = 4
+    if (isRunningOnDatabricks) {
+      expectedSize = 3
+    }
+
+    assertTraces(1) {
+      trace(expectedSize) {
+        if (!isRunningOnDatabricks) {
+          span {
+            operationName "spark.application"
+            spanType "spark"
+            assert span.serviceName ==~ expectedService
+          }
+        }
+        span {
+          operationName "spark.sql"
+          spanType "spark"
+          assert span.serviceName ==~ expectedService
+        }
+        span {
+          operationName "spark.job"
+          spanType "spark"
+          assert span.serviceName ==~ expectedService
+        }
+        span {
+          operationName "spark.stage"
+          spanType "spark"
+          assert span.serviceName ==~ expectedService
+        }
+      }
+    }
+
+    where:
+    ddService | sparkAppNameAsService | appName    | isRunningOnDatabricks | expectedService
+    "foobar"  | true                  | "some_app" | true                  | "(?!.*some_app).*"
+    null      | true                  | "some_app" | true                  | "(?!.*some_app).*"
+    null      | true                  | "some_app" | false                 | "some_app"
+    null      | false                 | "some_app" | false                 | "(?!.*some_app).*"
+    null      | true                  | null       | false                 | "(?!.*some_app).*"
+  }
+
+
+  boolean isJsonValid(String jsonString) {
+    try {
+      new JsonSlurper().parseText(jsonString)
+      return true
+    } catch (Exception ignored) {
+      return false
+    }
+  }
+
+  def "compute the SQL query plan"() {
+    def sparkSession = SparkSession.builder()
+      .config("spark.master", "local[2]")
+      .config("spark.sql.shuffle.partitions", "2")
+      .getOrCreate()
+
+    def df = generateSampleDataframe(sparkSession)
+    def ds = df.coalesce(1).as(Encoders.STRING())
+    TestSparkComputation.applyIdentityMapFunction(ds)
+      .filter("value > 0")
+      .count()
+    sparkSession.stop()
+
+    expect:
+    assertTraces(1) {
+      trace(4) {
+        span {
+          operationName "spark.application"
+          spanType "spark"
+        }
+        span {
+          operationName "spark.sql"
+          spanType "spark"
+          childOf(span(0))
+        }
+        span {
+          operationName "spark.job"
+          spanType "spark"
+          childOf(span(1))
+        }
+        span {
+          operationName "spark.stage"
+          spanType "spark"
+          childOf(span(2))
+          // Exact SQL Plan changes depending on the spark version
+          assert span.tags["_dd.spark.sql_plan"] =~ /.*HashAggregate.*Filter.*SerializeFromObject.*MapElements.*DeserializeToObject.*LocalTableScan.*/
+          assert isJsonValid(span.tags["_dd.spark.sql_plan"].toString())
+        }
+      }
+    }
   }
 }

@@ -95,6 +95,9 @@ public class ProbeStatus {
         + ", service='"
         + service
         + '\''
+        + ", timestamp='"
+        + Instant.ofEpochMilli(timestamp)
+        + '\''
         + ", message='"
         + message
         + '\''
@@ -114,6 +117,15 @@ public class ProbeStatus {
     private final Status status;
 
     private final ProbeException exception;
+
+    public Diagnostics(String probeId, String runtimeId, Status status, ProbeException exception) {
+      ProbeId id = ProbeId.from(probeId);
+      this.probeId = id.getId();
+      this.probeVersion = id.getVersion();
+      this.runtimeId = runtimeId;
+      this.status = status;
+      this.exception = exception;
+    }
 
     public Diagnostics(ProbeId probeId, String runtimeId, Status status, ProbeException exception) {
       this.probeId = probeId != null ? probeId.getId() : null;
@@ -232,6 +244,7 @@ public class ProbeStatus {
   public enum Status {
     RECEIVED,
     INSTALLED,
+    EMITTING,
     BLOCKED,
     ERROR
   }
@@ -259,6 +272,13 @@ public class ProbeStatus {
           this.serviceName,
           "Installed probe " + probeId + ".",
           new Diagnostics(probeId, runtimeId, Status.INSTALLED, null));
+    }
+
+    public ProbeStatus emittingMessage(String probeId) {
+      return new ProbeStatus(
+          this.serviceName,
+          "Probe " + probeId + " is emitting.",
+          new Diagnostics(probeId, runtimeId, Status.EMITTING, null));
     }
 
     public ProbeStatus blockedMessage(ProbeId probeId) {

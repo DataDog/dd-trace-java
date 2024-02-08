@@ -15,6 +15,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static utils.InstrumentationTestHelper.compileAndLoadClass;
 
@@ -49,6 +50,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentMatchers;
 
 public class SpanDecorationProbeInstrumentationTest extends ProbeInstrumentationTest {
   private static final String LANGUAGE = "java";
@@ -84,6 +86,7 @@ public class SpanDecorationProbeInstrumentationTest extends ProbeInstrumentation
     MutableSpan span = traceInterceptor.getFirstSpan();
     assertEquals("1", span.getTags().get("tag1"));
     assertEquals(PROBE_ID.getId(), span.getTags().get("_dd.di.tag1.probe_id"));
+    verify(probeStatusSink).addEmitting(ArgumentMatchers.eq(PROBE_ID));
   }
 
   @Test
@@ -244,6 +247,7 @@ public class SpanDecorationProbeInstrumentationTest extends ProbeInstrumentation
     MutableSpan span = traceInterceptor.getFirstSpan();
     assertEquals("1", span.getTags().get("tag1"));
     assertEquals(PROBE_ID.getId(), span.getTags().get("_dd.di.tag1.probe_id"));
+    verify(probeStatusSink).addEmitting(ArgumentMatchers.eq(PROBE_ID));
   }
 
   @Test
@@ -645,28 +649,25 @@ public class SpanDecorationProbeInstrumentationTest extends ProbeInstrumentation
     instr.addTransformer(currentTransformer);
     mockSink = new MockSink(config, probeStatusSink);
     DebuggerAgentHelper.injectSink(mockSink);
-    DebuggerContext.init(
-        (id, callingClass) -> resolver(id, callingClass, expectedClassName, configuration), null);
+    DebuggerContext.initProbeResolver((encodedProbeId) -> resolver(encodedProbeId, configuration));
     DebuggerContext.initClassFilter(new DenyListHelper(null));
   }
 
-  private ProbeImplementation resolver(
-      String id, Class<?> callingClass, String expectedClassName, Configuration configuration) {
-    Assertions.assertEquals(expectedClassName, callingClass.getName());
+  private ProbeImplementation resolver(String encodedProbeId, Configuration configuration) {
     for (SpanDecorationProbe probe : configuration.getSpanDecorationProbes()) {
-      if (probe.getId().equals(id)) {
+      if (probe.getProbeId().getEncodedId().equals(encodedProbeId)) {
         return probe;
       }
     }
     for (LogProbe probe : configuration.getLogProbes()) {
-      if (probe.getId().equals(id)) {
+      if (probe.getProbeId().getEncodedId().equals(encodedProbeId)) {
         return probe;
       }
     }
     return null;
   }
 
-  private static class TestTraceInterceptor implements TraceInterceptor {
+  static class TestTraceInterceptor implements TraceInterceptor {
     private Collection<? extends MutableSpan> currentTrace;
     private List<List<? extends MutableSpan>> allTraces = new ArrayList<>();
 

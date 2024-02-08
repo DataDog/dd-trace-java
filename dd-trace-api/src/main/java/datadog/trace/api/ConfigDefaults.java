@@ -118,6 +118,8 @@ public final class ConfigDefaults {
   public static final int DEFAULT_IAST_MAX_RANGE_COUNT = 10;
   static final boolean DEFAULT_IAST_STACKTRACE_LEAK_SUPPRESS = false;
 
+  static final boolean DEFAULT_IAST_HARDCODED_SECRET_ENABLED = true;
+
   static final int DEFAULT_IAST_TRUNCATION_MAX_VALUE_LENGTH = 250;
   public static final boolean DEFAULT_IAST_DEDUPLICATION_ENABLED = true;
 
@@ -126,7 +128,7 @@ public final class ConfigDefaults {
   static final boolean DEFAULT_CIVISIBILITY_ENABLED = false;
   static final boolean DEFAULT_CIVISIBILITY_AGENTLESS_ENABLED = false;
   static final boolean DEFAULT_CIVISIBILITY_SOURCE_DATA_ENABLED = true;
-  static final boolean DEFAULT_CIVISIBILITY_SOURCE_DATA_ROOT_CHECK_ENABLED = true;
+  static final boolean DEFAULT_CIVISIBILITY_SOURCE_DATA_ROOT_CHECK_ENABLED = false;
   static final boolean DEFAULT_CIVISIBILITY_BUILD_INSTRUMENTATION_ENABLED = true;
   static final boolean DEFAULT_CIVISIBILITY_AUTO_CONFIGURATION_ENABLED = true;
   static final boolean DEFAULT_CIVISIBILITY_COMPILER_PLUGIN_AUTO_CONFIGURATION_ENABLED = true;
@@ -169,6 +171,7 @@ public final class ConfigDefaults {
   static final boolean DEFAULT_DEBUGGER_SYMBOL_ENABLED = false;
   static final boolean DEFAULT_DEBUGGER_SYMBOL_FORCE_UPLOAD = false;
   static final int DEFAULT_DEBUGGER_SYMBOL_FLUSH_THRESHOLD = 100; // nb of classes
+  static final boolean DEFAULT_DEBUGGER_EXCEPTION_ENABLED = false;
 
   static final boolean DEFAULT_TRACE_REPORT_HOSTNAME = false;
   static final String DEFAULT_TRACE_ANNOTATIONS = null;
@@ -206,7 +209,8 @@ public final class ConfigDefaults {
 
   static final boolean DEFAULT_TRACE_HTTP_RESOURCE_REMOVE_TRAILING_SLASH = false;
   static final boolean DEFAULT_TRACE_LONG_RUNNING_ENABLED = false;
-  static final long DEFAULT_TRACE_LONG_RUNNING_FLUSH_INTERVAL = 300; // seconds -> 5 minutes
+  static final long DEFAULT_TRACE_LONG_RUNNING_INITIAL_FLUSH_INTERVAL = 20; // seconds
+  static final long DEFAULT_TRACE_LONG_RUNNING_FLUSH_INTERVAL = 120; // seconds -> 2 minutes
 
   static final float DEFAULT_TRACE_FLUSH_INTERVAL = 1;
 
@@ -215,6 +219,7 @@ public final class ConfigDefaults {
   static final boolean DEFAULT_ELASTICSEARCH_BODY_AND_PARAMS_ENABLED = false;
 
   static final boolean DEFAULT_SPARK_TASK_HISTOGRAM_ENABLED = true;
+  static final boolean DEFAULT_SPARK_APP_NAME_AS_SERVICE = false;
   static final boolean DEFAULT_JAX_RS_EXCEPTION_AS_ERROR_ENABLED = true;
   static final boolean DEFAULT_TELEMETRY_DEBUG_REQUESTS_ENABLED = false;
 

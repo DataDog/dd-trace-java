@@ -14,6 +14,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 import datadog.trace.api.gateway.Flow.Action.RequestBlockingAction;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -23,7 +24,7 @@ import io.undertow.server.HttpServerExchange;
 import net.bytebuddy.asm.Advice;
 
 @AutoService(Instrumenter.class)
-public final class HandlerInstrumentation extends Instrumenter.Tracing
+public final class HandlerInstrumentation extends InstrumenterGroup.Tracing
     implements Instrumenter.ForSingleType {
 
   public HandlerInstrumentation() {
@@ -36,8 +37,8 @@ public final class HandlerInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isMethod()
             .and(named("executeRootHandler"))
             .and(takesArguments(2))

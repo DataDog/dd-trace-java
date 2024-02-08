@@ -8,12 +8,13 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 /** @see org.springframework.http.server.reactive.ServerHttpRequest */
 @AutoService(Instrumenter.class)
-public class ServerHttpRequestInstrumentation extends Instrumenter.Iast
+public class ServerHttpRequestInstrumentation extends InstrumenterGroup.Iast
     implements Instrumenter.ForTypeHierarchy {
   public ServerHttpRequestInstrumentation() {
     super("spring-webflux");
@@ -35,14 +36,14 @@ public class ServerHttpRequestInstrumentation extends Instrumenter.Iast
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isMethod().and(named("getQueryParams")).and(takesArguments(0)),
         packageName + ".TaintQueryParamsAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod().and(named("getCookies")).and(takesArguments(0)),
         packageName + ".TaintCookiesAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod().and(named("getBody")).and(takesArguments(0)),
         packageName + ".TaintGetBodyAdvice");
   }

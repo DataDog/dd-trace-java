@@ -8,10 +8,11 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 import net.bytebuddy.asm.Advice;
 
 @AutoService(Instrumenter.class)
-public class ConfigProvideRemoteAddressHeaderInstrumentation extends Instrumenter.AppSec
+public class ConfigProvideRemoteAddressHeaderInstrumentation extends InstrumenterGroup.AppSec
     implements Instrumenter.ForSingleType {
   public ConfigProvideRemoteAddressHeaderInstrumentation() {
     super("akka-http");
@@ -23,8 +24,8 @@ public class ConfigProvideRemoteAddressHeaderInstrumentation extends Instrumente
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isPublic()
             .and(named("getBoolean"))
             .and(takesArguments(1))

@@ -26,6 +26,7 @@ class JakartaHttpServletResponseInstrumentationTest extends AgentTestRunner {
     InstrumentationBridge.registerIastModule(module)
     final response = new DummyResponse()
     final cookie = new Cookie("user-id", "7")
+    cookie.setMaxAge(3)
 
     when:
     response.addCookie(cookie)
@@ -33,8 +34,10 @@ class JakartaHttpServletResponseInstrumentationTest extends AgentTestRunner {
     then:
     1 * module.onCookie({ IastCookie vul ->
       vul.cookieName == cookie.name &&
+        vul.cookieValue == cookie.value &&
         vul.secure == cookie.secure &&
-        vul.httpOnly == cookie.httpOnly
+        vul.httpOnly == cookie.httpOnly &&
+        vul.maxAge == cookie.maxAge
     })
     0 * _
   }
@@ -62,6 +65,7 @@ class JakartaHttpServletResponseInstrumentationTest extends AgentTestRunner {
     final response = new DummyResponse()
     final cookie = new Cookie("user-id", "7")
     cookie.setSecure(true)
+    cookie.setMaxAge(3)
 
     when:
     response.addCookie(cookie)
@@ -69,8 +73,10 @@ class JakartaHttpServletResponseInstrumentationTest extends AgentTestRunner {
     then:
     1 * module.onCookie({ IastCookie vul ->
       vul.cookieName == cookie.name &&
+        vul.cookieValue == cookie.value &&
         vul.secure == cookie.secure &&
-        vul.httpOnly == cookie.httpOnly
+        vul.httpOnly == cookie.httpOnly &&
+        vul.maxAge == cookie.maxAge
     })
     0 * _
   }
@@ -207,13 +213,15 @@ class JakartaHttpServletResponseInstrumentationTest extends AgentTestRunner {
     InstrumentationBridge.registerIastModule(module)
     final response = new DummyResponse()
     final url = 'http://dummy.url.com'
+    def result, expected
 
     when:
-    final result = response.encodeRedirectURL(url)
+    result = response.encodeRedirectURL(url)
 
     then:
-    1 * module.taintIfTainted(_, url) >> { args -> assert args[0] == result }
+    1 * module.taintIfTainted(_, url) >> { args -> expected = args[0] }
     0 * _
+    result == expected
   }
 
   void 'taint encoded url using encodeURL'() {
@@ -222,13 +230,15 @@ class JakartaHttpServletResponseInstrumentationTest extends AgentTestRunner {
     InstrumentationBridge.registerIastModule(module)
     final response = new DummyResponse()
     final url = 'http://dummy.url.com'
+    def result, expected
 
     when:
-    final result = response.encodeURL(url)
+    result = response.encodeURL(url)
 
     then:
-    1 * module.taintIfTainted(_, url) >> { args -> assert args[0] == result }
+    1 * module.taintIfTainted(_, url) >> { args -> expected = args[0] }
     0 * _
+    expected == result
   }
 
   void 'test instrumentation with unknown types'() {

@@ -9,6 +9,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 import datadog.trace.agent.tooling.muzzle.Reference;
 import io.vertx.core.Handler;
 import io.vertx.core.buffer.Buffer;
@@ -16,7 +17,7 @@ import io.vertx.core.http.HttpServerRequest;
 import net.bytebuddy.asm.Advice;
 
 @AutoService(Instrumenter.class)
-public class HttpServerRequestInstrumentation extends Instrumenter.AppSec
+public class HttpServerRequestInstrumentation extends InstrumenterGroup.AppSec
     implements Instrumenter.ForSingleType {
   public HttpServerRequestInstrumentation() {
     super("vertx", "vertx-3.4");
@@ -41,8 +42,8 @@ public class HttpServerRequestInstrumentation extends Instrumenter.AppSec
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isPublic()
             .and(named("bodyHandler"))
             .and(takesArguments(1))

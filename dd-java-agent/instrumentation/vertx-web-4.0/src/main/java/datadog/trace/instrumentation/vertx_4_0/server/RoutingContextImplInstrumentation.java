@@ -6,6 +6,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 import datadog.trace.agent.tooling.muzzle.Reference;
 import io.vertx.ext.web.impl.RoutingContextImpl;
 
@@ -14,7 +15,7 @@ import io.vertx.ext.web.impl.RoutingContextImpl;
  * @see RoutingContextImpl#getBodyAsJsonArray(int)
  */
 @AutoService(Instrumenter.class)
-public class RoutingContextImplInstrumentation extends Instrumenter.AppSec
+public class RoutingContextImplInstrumentation extends InstrumenterGroup.AppSec
     implements Instrumenter.ForSingleType {
 
   public RoutingContextImplInstrumentation() {
@@ -32,8 +33,8 @@ public class RoutingContextImplInstrumentation extends Instrumenter.AppSec
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         named("getBodyAsJson")
             .or(named("getBodyAsJsonArray"))
             .and(takesArguments(1))

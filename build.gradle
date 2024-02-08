@@ -5,7 +5,9 @@ buildscript {
 
   configurations.all {
     resolutionStrategy.dependencySubstitution {
-      substitute module("com.jcraft:jsch") using module("com.github.mwiede:jsch:0.2.6") because "jcraft jsch has been unmaintained for years."
+      substitute module("com.jcraft:jsch") using module("com.github.mwiede:jsch:0.2.16") because "jcraft is unmaintained"
+      substitute module("com.jcraft:jsch.agentproxy") using module("com.github.mwiede:jsch:0.2.16") because "jcraft is unmaintained"
+      substitute module("com.jcraft:jzlib") using module("com.github.mwiede:jsch:0.2.16") because "jcraft is unmaintained"
     }
   }
 }
@@ -178,8 +180,39 @@ def testAggregate(String baseTaskName, includePrefixes, excludePrefixes) {
   createRootTask "${baseTaskName}Check", 'check'
 }
 
+// To lock dependency versions, run `./gradlew resolveAndLockAll --write-locks`
+tasks.register('resolveAndLockAll') {
+  notCompatibleWithConfigurationCache("Filters configurations at execution time")
+  doFirst {
+    assert gradle.startParameter.writeDependencyLocks
+  }
+  doLast {
+    allprojects { project ->
+      project.configurations.findAll {
+        it.canBeResolved && !it.name.startsWith('incrementalScalaAnalysis')
+      }.each { it.resolve() }
+    }
+  }
+}
+
+allprojects { project ->
+  project.dependencyLocking {
+    lockAllConfigurations()
+    //lockmode set to LENIENT because there are resolution
+    //errors in the build with an apiguardian dependency.
+    //See: https://docs.gradle.org/current/userguide/dependency_locking.html for more info
+    lockMode = LockMode.LENIENT
+
+  }
+}
+
 testAggregate("smoke", [":dd-smoke-tests"], [])
 testAggregate("instrumentation", [":dd-java-agent:instrumentation"], [])
 testAggregate("profiling", [":dd-java-agent:agent-profiling"], [])
 testAggregate("debugger", [":dd-java-agent:agent-debugger"], [])
-testAggregate("base", [":"], [":dd-java-agent:instrumentation", ":dd-smoke-tests", ":dd-java-agent:agent-profiling"])
+testAggregate("base", [":"], [
+  ":dd-java-agent:instrumentation",
+  ":dd-smoke-tests",
+  ":dd-java-agent:agent-profiling",
+  ":dd-java-agent:agent-debugger"
+])

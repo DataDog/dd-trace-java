@@ -12,6 +12,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import net.bytebuddy.asm.Advice;
@@ -22,7 +23,7 @@ import org.elasticsearch.client.Response;
 import org.elasticsearch.client.ResponseListener;
 
 @AutoService(Instrumenter.class)
-public class Elasticsearch7RestClientInstrumentation extends Instrumenter.Tracing
+public class Elasticsearch7RestClientInstrumentation extends InstrumenterGroup.Tracing
     implements Instrumenter.ForSingleType {
 
   public Elasticsearch7RestClientInstrumentation() {
@@ -49,14 +50,14 @@ public class Elasticsearch7RestClientInstrumentation extends Instrumenter.Tracin
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isMethod()
             .and(named("performRequest"))
             .and(takesArguments(1))
             .and(takesArgument(0, named("org.elasticsearch.client.Request"))),
         Elasticsearch7RestClientInstrumentation.class.getName() + "$ElasticsearchRestClientAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod()
             .and(named("performRequestAsync"))
             .and(takesArguments(2))

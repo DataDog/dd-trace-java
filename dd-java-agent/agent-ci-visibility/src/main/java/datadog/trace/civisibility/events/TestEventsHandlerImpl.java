@@ -17,6 +17,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.objectweb.asm.Type;
 import org.slf4j.Logger;
@@ -289,6 +290,7 @@ public class TestEventsHandlerImpl implements TestEventsHandler {
   }
 
   @Override
+  @Nonnull
   public TestRetryPolicy retryPolicy(TestIdentifier test) {
     return testModule.retryPolicy(test);
   }

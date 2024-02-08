@@ -12,6 +12,7 @@ import com.ibm.ws.webcontainer.srt.SRTServletResponse;
 import com.ibm.wsspi.webcontainer.WebContainerRequestState;
 import com.ibm.wsspi.webcontainer.servlet.IExtendedRequest;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import net.bytebuddy.asm.Advice;
@@ -24,7 +25,7 @@ import net.bytebuddy.asm.Advice;
  * SRTServletResponse#closeResponseOutput()} instead?
  */
 @AutoService(Instrumenter.class)
-public class ResponseFinishInstrumentation extends Instrumenter.Tracing
+public class ResponseFinishInstrumentation extends InstrumenterGroup.Tracing
     implements Instrumenter.ForSingleType {
 
   public ResponseFinishInstrumentation() {
@@ -49,11 +50,11 @@ public class ResponseFinishInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         named("finish").and(takesNoArguments()),
         ResponseFinishInstrumentation.class.getName() + "$ResponseFinishAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         named("closeResponseOutput").and(takesArguments(1)).and(takesArgument(0, boolean.class)),
         ResponseFinishInstrumentation.class.getName() + "$SetCompletedAdvice");
   }

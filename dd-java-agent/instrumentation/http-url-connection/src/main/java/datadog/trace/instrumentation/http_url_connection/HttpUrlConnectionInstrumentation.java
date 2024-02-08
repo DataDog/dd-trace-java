@@ -11,6 +11,7 @@ import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.ContextStore;
@@ -23,7 +24,7 @@ import java.util.Map;
 import net.bytebuddy.asm.Advice;
 
 @AutoService(Instrumenter.class)
-public class HttpUrlConnectionInstrumentation extends Instrumenter.Tracing
+public class HttpUrlConnectionInstrumentation extends InstrumenterGroup.Tracing
     implements Instrumenter.ForBootstrap,
         Instrumenter.ForKnownTypes,
         Instrumenter.ForConfiguredType {
@@ -54,11 +55,11 @@ public class HttpUrlConnectionInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isMethod().and(isPublic()).and(namedOneOf("connect", "getOutputStream", "getInputStream")),
         HttpUrlConnectionInstrumentation.class.getName() + "$HttpUrlConnectionAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod().and(isProtected()).and(named("plainConnect")),
         HttpUrlConnectionInstrumentation.class.getName() + "$HttpUrlConnectionAdvice");
   }

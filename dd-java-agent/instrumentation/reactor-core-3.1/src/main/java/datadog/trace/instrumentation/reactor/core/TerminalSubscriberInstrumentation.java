@@ -7,11 +7,12 @@ import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.util.Map;
 
 @AutoService(Instrumenter.class)
-public class TerminalSubscriberInstrumentation extends Instrumenter.Tracing
+public class TerminalSubscriberInstrumentation extends InstrumenterGroup.Tracing
     implements Instrumenter.ForKnownTypes {
   public TerminalSubscriberInstrumentation() {
     super("reactor-core");
@@ -31,11 +32,11 @@ public class TerminalSubscriberInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isMethod().and(named("onSubscribe")),
         packageName + ".TerminalSubscriberAdvices$OnSubscribeAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod().and(namedOneOf("onNext", "onError", "onComplete")),
         packageName + ".TerminalSubscriberAdvices$OnNextAndCompleteAndErrorAdvice");
   }

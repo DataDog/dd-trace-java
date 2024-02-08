@@ -11,10 +11,11 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 import java.util.Map;
 
 @AutoService(Instrumenter.class)
-public class QueryImplInstrumentation extends Instrumenter.Tracing
+public class QueryImplInstrumentation extends InstrumenterGroup.Tracing
     implements Instrumenter.ForSingleType {
   public QueryImplInstrumentation() {
     super("vertx", "vertx-sql-client");
@@ -38,15 +39,15 @@ public class QueryImplInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isMethod()
             .and(isPublic())
             .and(named("execute"))
             .and(takesArguments(1))
             .and(takesArgument(0, named("io.vertx.core.Handler"))),
         packageName + ".QueryAdvice$Execute");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod()
             .and(isVirtual())
             .and(named("copy"))

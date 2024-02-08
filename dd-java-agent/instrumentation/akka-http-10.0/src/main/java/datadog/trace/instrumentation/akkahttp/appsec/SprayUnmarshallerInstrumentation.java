@@ -7,12 +7,13 @@ import static net.bytebuddy.matcher.ElementMatchers.returns;
 import akka.http.scaladsl.unmarshalling.Unmarshaller;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 import datadog.trace.agent.tooling.muzzle.Reference;
 import net.bytebuddy.asm.Advice;
 
 // TODO: move to separate module and have better support
 @AutoService(Instrumenter.class)
-public class SprayUnmarshallerInstrumentation extends Instrumenter.AppSec
+public class SprayUnmarshallerInstrumentation extends InstrumenterGroup.AppSec
     implements Instrumenter.ForKnownTypes {
 
   private static final String TRAIT_NAME =
@@ -49,8 +50,8 @@ public class SprayUnmarshallerInstrumentation extends Instrumenter.AppSec
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isTraitMethod(TRAIT_NAME, "sprayJsonUnmarshaller", "spray.json.RootJsonReader")
             .and(returns(named("akka.http.scaladsl.unmarshalling.Unmarshaller")))
             .or(

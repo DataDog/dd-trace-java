@@ -7,6 +7,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.jms.MessageConsumerState;
 import java.util.Map;
@@ -14,8 +15,8 @@ import javax.jms.MessageConsumer;
 import net.bytebuddy.asm.Advice;
 
 @AutoService(Instrumenter.class)
-public class AbstractPollingMessageListenerContainerInstrumentation extends Instrumenter.Tracing
-    implements Instrumenter.ForSingleType {
+public class AbstractPollingMessageListenerContainerInstrumentation
+    extends InstrumenterGroup.Tracing implements Instrumenter.ForSingleType {
 
   public AbstractPollingMessageListenerContainerInstrumentation() {
     super("spring-jms", "jms");
@@ -32,8 +33,8 @@ public class AbstractPollingMessageListenerContainerInstrumentation extends Inst
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         named("receiveAndExecute").and(takesArgument(2, named("javax.jms.MessageConsumer"))),
         getClass().getName() + "$CompleteMessageSpanAfterExecute");
   }

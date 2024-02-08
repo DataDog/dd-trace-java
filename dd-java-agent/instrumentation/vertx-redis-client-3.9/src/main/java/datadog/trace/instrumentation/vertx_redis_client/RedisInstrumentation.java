@@ -12,12 +12,13 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import java.util.HashMap;
 import java.util.Map;
 
 @AutoService(Instrumenter.class)
-public class RedisInstrumentation extends Instrumenter.Tracing
+public class RedisInstrumentation extends InstrumenterGroup.Tracing
     implements Instrumenter.ForKnownTypes {
   public RedisInstrumentation() {
     super("vertx", "vertx-redis-client");
@@ -55,9 +56,9 @@ public class RedisInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
+  public void methodAdvice(MethodTransformer transformer) {
 
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod()
             .and(isPublic())
             .and(named("send"))
@@ -65,7 +66,7 @@ public class RedisInstrumentation extends Instrumenter.Tracing
             .and(takesArgument(1, named("io.vertx.core.Handler"))),
         packageName + ".RedisSendAdvice");
 
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isDeclaredBy(
                 namedOneOf(
                     "io.vertx.redis.client.impl.RedisConnectionImpl",
@@ -74,7 +75,7 @@ public class RedisInstrumentation extends Instrumenter.Tracing
             .and(takesArgument(3, named("io.vertx.core.net.NetSocket"))),
         packageName + ".RedisConnectionConstructAdvice");
 
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isPublic()
             .and(named("send"))
             .and(takesArguments(1))

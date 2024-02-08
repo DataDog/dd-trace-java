@@ -11,6 +11,7 @@ import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -21,7 +22,7 @@ import java.util.Map;
 import net.bytebuddy.asm.Advice;
 
 @AutoService(Instrumenter.class)
-public final class MessagesAvailableInstrumentation extends Instrumenter.Tracing
+public final class MessagesAvailableInstrumentation extends InstrumenterGroup.Tracing
     implements Instrumenter.ForKnownTypes {
 
   public MessagesAvailableInstrumentation() {
@@ -51,9 +52,9 @@ public final class MessagesAvailableInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(isConstructor(), getClass().getName() + "$Capture");
-    transformation.applyAdvice(named("runInContext"), getClass().getName() + "$ReceiveMessages");
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(isConstructor(), getClass().getName() + "$Capture");
+    transformer.applyAdvice(named("runInContext"), getClass().getName() + "$ReceiveMessages");
   }
 
   public static final class Capture {

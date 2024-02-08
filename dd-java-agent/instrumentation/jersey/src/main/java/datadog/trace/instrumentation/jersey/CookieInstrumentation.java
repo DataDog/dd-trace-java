@@ -7,6 +7,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Source;
 import datadog.trace.api.iast.SourceTypes;
@@ -14,18 +15,19 @@ import datadog.trace.api.iast.propagation.PropagationModule;
 import net.bytebuddy.asm.Advice;
 
 @AutoService(Instrumenter.class)
-public class CookieInstrumentation extends Instrumenter.Iast implements Instrumenter.ForKnownTypes {
+public class CookieInstrumentation extends InstrumenterGroup.Iast
+    implements Instrumenter.ForKnownTypes {
 
   public CookieInstrumentation() {
     super("jersey");
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         named("getName").and(isPublic()).and(takesArguments(0).and(returns(String.class))),
         CookieInstrumentation.class.getName() + "$InstrumenterAdviceGetName");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         named("getValue").and(isPublic()).and(takesArguments(0).and(returns(String.class))),
         CookieInstrumentation.class.getName() + "$GetValueAdvice");
   }

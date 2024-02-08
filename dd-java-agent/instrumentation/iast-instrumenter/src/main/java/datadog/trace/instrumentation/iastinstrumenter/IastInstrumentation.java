@@ -2,6 +2,7 @@ package datadog.trace.instrumentation.iastinstrumenter;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.bytebuddy.csi.Advices;
 import datadog.trace.agent.tooling.bytebuddy.csi.CallSiteInstrumentation;
 import datadog.trace.agent.tooling.bytebuddy.csi.CallSiteSupplier;
 import datadog.trace.agent.tooling.csi.CallSites;
@@ -34,6 +35,15 @@ public class IastInstrumentation extends CallSiteInstrumentation {
   @Override
   protected CallSiteSupplier callSites() {
     return IastCallSiteSupplier.INSTANCE;
+  }
+
+  @Override
+  protected Advices buildAdvices(final Iterable<CallSites> callSites) {
+    if (Config.get().isIastHardcodedSecretEnabled()) {
+      return Advices.fromCallSites(callSites, IastHardcodedSecretListener.INSTANCE);
+    } else {
+      return Advices.fromCallSites(callSites);
+    }
   }
 
   public static final class IastMatcher

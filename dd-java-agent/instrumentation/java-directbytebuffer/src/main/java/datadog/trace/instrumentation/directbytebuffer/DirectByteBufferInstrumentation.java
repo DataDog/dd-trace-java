@@ -8,11 +8,12 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 import datadog.trace.api.Platform;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 
 @AutoService(Instrumenter.class)
-public final class DirectByteBufferInstrumentation extends Instrumenter.Profiling
+public final class DirectByteBufferInstrumentation extends InstrumenterGroup.Profiling
     implements Instrumenter.ForBootstrap, Instrumenter.ForSingleType {
 
   public DirectByteBufferInstrumentation() {
@@ -35,8 +36,8 @@ public final class DirectByteBufferInstrumentation extends Instrumenter.Profilin
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isConstructor()
             .and(takesArgument(0, long.class))
             .and(takesArgument(1, int.class))

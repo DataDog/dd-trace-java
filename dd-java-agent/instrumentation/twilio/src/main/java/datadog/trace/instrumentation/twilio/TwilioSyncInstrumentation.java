@@ -12,6 +12,7 @@ import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import com.google.auto.service.AutoService;
 import com.twilio.Twilio;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -21,7 +22,7 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 /** Instrument the Twilio SDK to identify calls as a seperate service. */
 @AutoService(Instrumenter.class)
-public class TwilioSyncInstrumentation extends Instrumenter.Tracing
+public class TwilioSyncInstrumentation extends InstrumenterGroup.Tracing
     implements Instrumenter.ForTypeHierarchy {
 
   public TwilioSyncInstrumentation() {
@@ -55,14 +56,14 @@ public class TwilioSyncInstrumentation extends Instrumenter.Tracing
 
   /** Return bytebuddy transformers for instrumenting the Twilio SDK. */
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
+  public void methodAdvice(MethodTransformer transformer) {
     /*
        We are listing out the main service calls on the Creator, Deleter, Fetcher, Reader, and
        Updater abstract classes. The isDeclaredBy() matcher did not work in the unit tests and
        we found that there were certain methods declared on the base class (particularly Reader),
        which we weren't interested in annotating.
     */
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod().and(isPublic()).and(namedOneOf("create", "delete", "read", "fetch", "update")),
         TwilioSyncInstrumentation.class.getName() + "$TwilioClientAdvice");
   }

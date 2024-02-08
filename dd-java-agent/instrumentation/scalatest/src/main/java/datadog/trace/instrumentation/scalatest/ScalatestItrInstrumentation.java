@@ -7,6 +7,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 import datadog.trace.api.Config;
 import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.bootstrap.InstrumentationContext;
@@ -20,7 +21,7 @@ import org.scalatest.Tracker;
 import scala.Tuple2;
 
 @AutoService(Instrumenter.class)
-public class ScalatestItrInstrumentation extends Instrumenter.CiVisibility
+public class ScalatestItrInstrumentation extends InstrumenterGroup.CiVisibility
     implements Instrumenter.ForKnownTypes {
 
   public ScalatestItrInstrumentation() {
@@ -52,22 +53,22 @@ public class ScalatestItrInstrumentation extends Instrumenter.CiVisibility
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
+  public void methodAdvice(MethodTransformer transformer) {
     // org.scalatest.Args
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isConstructor()
             .and(takesArgument(2, named("org.scalatest.Filter")))
             .and(takesArgument(5, named("org.scalatest.Tracker"))),
         ScalatestItrInstrumentation.class.getName() + "$ArgsContructorAdvice");
     // org.scalatest.Filter
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         named("apply")
             .and(takesArguments(3))
             .and(takesArgument(0, String.class))
             .and(takesArgument(1, named("scala.collection.immutable.Map")))
             .and(takesArgument(2, String.class)),
         ScalatestItrInstrumentation.class.getName() + "$SingleTestFilterAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         named("apply")
             .and(takesArguments(3))
             .and(takesArgument(0, named("scala.collection.immutable.Set")))

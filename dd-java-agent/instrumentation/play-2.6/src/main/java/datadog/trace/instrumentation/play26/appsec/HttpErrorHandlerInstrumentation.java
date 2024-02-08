@@ -11,6 +11,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 import com.google.auto.service.AutoService;
 import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 import datadog.trace.agent.tooling.muzzle.Reference;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -23,7 +24,7 @@ import play.api.mvc.RequestHeader;
 
 /** @see HttpErrorHandler#onServerError(RequestHeader, Throwable) */
 @AutoService(Instrumenter.class)
-public class HttpErrorHandlerInstrumentation extends Instrumenter.AppSec
+public class HttpErrorHandlerInstrumentation extends InstrumenterGroup.AppSec
     implements Instrumenter.ForTypeHierarchy {
   public HttpErrorHandlerInstrumentation() {
     super("play");
@@ -40,8 +41,8 @@ public class HttpErrorHandlerInstrumentation extends Instrumenter.AppSec
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isPublic()
             .and(named("onServerError"))
             .and(takesArguments(2))

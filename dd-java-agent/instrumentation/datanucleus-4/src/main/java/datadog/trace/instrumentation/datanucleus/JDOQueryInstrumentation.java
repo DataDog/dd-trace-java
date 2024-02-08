@@ -10,6 +10,7 @@ import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -18,7 +19,7 @@ import org.datanucleus.api.jdo.JDOQuery;
 import org.datanucleus.store.query.Query;
 
 @AutoService(Instrumenter.class)
-public class JDOQueryInstrumentation extends Instrumenter.Tracing
+public class JDOQueryInstrumentation extends InstrumenterGroup.Tracing
     implements Instrumenter.ForSingleType {
 
   public JDOQueryInstrumentation() {
@@ -38,11 +39,11 @@ public class JDOQueryInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
+  public void methodAdvice(MethodTransformer transformer) {
     // All of these methods delegate to *Internal() but have parameter checking and exceptions
     // beforehand.  Instrumenting all ensures we trace those exceptions.  Still instrumenting
     // *Internal() to futureproof the instrumentation
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod()
             .and(
                 namedOneOf(

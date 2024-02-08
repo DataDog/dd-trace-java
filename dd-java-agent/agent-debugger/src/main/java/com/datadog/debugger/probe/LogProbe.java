@@ -11,6 +11,7 @@ import com.datadog.debugger.el.ValueScript;
 import com.datadog.debugger.instrumentation.CapturedContextInstrumentor;
 import com.datadog.debugger.instrumentation.DiagnosticMessage;
 import com.datadog.debugger.instrumentation.InstrumentationResult;
+import com.datadog.debugger.instrumentation.MethodInfo;
 import com.datadog.debugger.sink.DebuggerSink;
 import com.datadog.debugger.sink.Snapshot;
 import com.squareup.moshi.Json;
@@ -33,8 +34,6 @@ import java.time.temporal.ChronoUnit;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
-import org.objectweb.asm.tree.ClassNode;
-import org.objectweb.asm.tree.MethodNode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -184,6 +183,21 @@ public class LogProbe extends ProbeDefinition {
     @Override
     public int hashCode() {
       return Objects.hash(maxReferenceDepth, maxCollectionSize, maxLength, maxFieldCount);
+    }
+
+    @Generated
+    @Override
+    public String toString() {
+      return "Capture{"
+          + "maxReferenceDepth="
+          + maxReferenceDepth
+          + ", maxCollectionSize="
+          + maxCollectionSize
+          + ", maxLength="
+          + maxLength
+          + ", maxFieldCount="
+          + maxFieldCount
+          + '}';
     }
 
     public static Limits toLimits(Capture capture) {
@@ -347,20 +361,9 @@ public class LogProbe extends ProbeDefinition {
 
   @Override
   public InstrumentationResult.Status instrument(
-      ClassLoader classLoader,
-      ClassNode classNode,
-      MethodNode methodNode,
-      List<DiagnosticMessage> diagnostics,
-      List<String> probeIds) {
+      MethodInfo methodInfo, List<DiagnosticMessage> diagnostics, List<ProbeId> probeIds) {
     return new CapturedContextInstrumentor(
-            this,
-            classLoader,
-            classNode,
-            methodNode,
-            diagnostics,
-            probeIds,
-            isCaptureSnapshot(),
-            toLimits(getCapture()))
+            this, methodInfo, diagnostics, probeIds, isCaptureSnapshot(), toLimits(getCapture()))
         .instrument();
   }
 
@@ -408,7 +411,6 @@ public class LogProbe extends ProbeDefinition {
     boolean sampled = ProbeRateLimiter.tryProbe(id);
     logStatus.setSampled(sampled);
     if (!sampled) {
-      LOGGER.debug("{} not sampled!", id);
       DebuggerAgent.getSink().skipSnapshot(id, DebuggerContext.SkipCause.RATE);
     }
   }
@@ -423,7 +425,6 @@ public class LogProbe extends ProbeDefinition {
         return false;
       }
     } catch (EvaluationException ex) {
-      LOGGER.debug("Evaluation error: ", ex);
       status.addError(new EvaluationError(ex.getExpr(), ex.getMessage()));
       status.setConditionErrors(true);
       return false;
@@ -439,8 +440,8 @@ public class LogProbe extends ProbeDefinition {
       CapturedContext entryContext,
       CapturedContext exitContext,
       List<CapturedContext.CapturedThrowable> caughtExceptions) {
-    LogStatus entryStatus = convertStatus(entryContext.getStatus(id));
-    LogStatus exitStatus = convertStatus(exitContext.getStatus(id));
+    LogStatus entryStatus = convertStatus(entryContext.getStatus(probeId.getEncodedId()));
+    LogStatus exitStatus = convertStatus(exitContext.getStatus(probeId.getEncodedId()));
     String message = null;
     String traceId = null;
     String spanId = null;
@@ -522,7 +523,7 @@ public class LogProbe extends ProbeDefinition {
 
   @Override
   public void commit(CapturedContext lineContext, int line) {
-    LogStatus status = (LogStatus) lineContext.getStatus(id);
+    LogStatus status = (LogStatus) lineContext.getStatus(probeId.getEncodedId());
     if (status == null) {
       return;
     }

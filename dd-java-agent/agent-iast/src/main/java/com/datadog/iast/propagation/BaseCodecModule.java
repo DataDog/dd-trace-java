@@ -2,10 +2,10 @@ package com.datadog.iast.propagation;
 
 import static com.datadog.iast.taint.Tainteds.canBeTainted;
 
-import com.datadog.iast.IastRequestContext;
 import com.datadog.iast.model.Range;
 import com.datadog.iast.taint.TaintedObject;
 import com.datadog.iast.taint.TaintedObjects;
+import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.propagation.CodecModule;
 import java.util.function.Function;
 import javax.annotation.Nonnull;
@@ -63,7 +63,7 @@ public abstract class BaseCodecModule implements CodecModule {
 
   private static void taintIfInputIsTainted(
       final Object value, final Object input, final Function<TaintedObject, Range[]> mapper) {
-    final IastRequestContext ctx = IastRequestContext.get();
+    final IastContext ctx = IastContext.Provider.get();
     if (ctx == null) {
       return;
     }

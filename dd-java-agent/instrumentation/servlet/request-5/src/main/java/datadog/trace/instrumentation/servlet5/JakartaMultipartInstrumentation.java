@@ -7,6 +7,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Source;
@@ -18,7 +19,7 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public class JakartaMultipartInstrumentation extends Instrumenter.Iast
+public class JakartaMultipartInstrumentation extends InstrumenterGroup.Iast
     implements Instrumenter.ForTypeHierarchy {
 
   public JakartaMultipartInstrumentation() {
@@ -36,17 +37,17 @@ public class JakartaMultipartInstrumentation extends Instrumenter.Iast
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         named("getName").and(isPublic()).and(takesArguments(0)),
         getClass().getName() + "$GetNameAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         named("getHeader").and(isPublic()).and(takesArguments(String.class)),
         getClass().getName() + "$GetHeaderAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         named("getHeaders").and(isPublic()).and(takesArguments(String.class)),
         getClass().getName() + "$GetHeadersAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         named("getHeaderNames").and(isPublic()).and(takesArguments(0)),
         getClass().getName() + "$GetHeaderNamesAdvice");
   }

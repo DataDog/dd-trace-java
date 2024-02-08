@@ -18,6 +18,7 @@ import com.sun.jersey.api.client.ClientHandler;
 import com.sun.jersey.api.client.ClientRequest;
 import com.sun.jersey.api.client.ClientResponse;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator;
@@ -26,7 +27,7 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public final class JaxRsClientV1Instrumentation extends Instrumenter.Tracing
+public final class JaxRsClientV1Instrumentation extends InstrumenterGroup.Tracing
     implements Instrumenter.ForTypeHierarchy {
 
   public JaxRsClientV1Instrumentation() {
@@ -51,8 +52,8 @@ public final class JaxRsClientV1Instrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         named("handle")
             .and(takesArgument(0, extendsClass(named("com.sun.jersey.api.client.ClientRequest"))))
             .and(returns(extendsClass(named("com.sun.jersey.api.client.ClientResponse")))),

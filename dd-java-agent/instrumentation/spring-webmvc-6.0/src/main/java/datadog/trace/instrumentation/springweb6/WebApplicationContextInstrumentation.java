@@ -8,6 +8,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
@@ -16,7 +17,7 @@ import net.bytebuddy.matcher.ElementMatcher;
  * When the context is created, the filter will be added to the beginning of the filter chain
  */
 @AutoService(Instrumenter.class)
-public class WebApplicationContextInstrumentation extends Instrumenter.Tracing
+public class WebApplicationContextInstrumentation extends InstrumenterGroup.Tracing
     implements Instrumenter.ForTypeHierarchy {
   public WebApplicationContextInstrumentation() {
     super("spring-web", "spring-path-filter");
@@ -45,8 +46,8 @@ public class WebApplicationContextInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isMethod()
             .and(named("postProcessBeanFactory"))
             .and(

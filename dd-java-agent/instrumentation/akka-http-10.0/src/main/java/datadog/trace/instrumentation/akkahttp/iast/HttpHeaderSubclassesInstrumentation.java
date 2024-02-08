@@ -12,6 +12,7 @@ import akka.http.scaladsl.model.HttpHeader;
 import akka.http.scaladsl.model.HttpRequest;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Propagation;
 import datadog.trace.api.iast.propagation.PropagationModule;
@@ -27,7 +28,7 @@ import net.bytebuddy.matcher.ElementMatcher;
  *     they're retrieved
  */
 @AutoService(Instrumenter.class)
-public class HttpHeaderSubclassesInstrumentation extends Instrumenter.Iast
+public class HttpHeaderSubclassesInstrumentation extends InstrumenterGroup.Iast
     implements Instrumenter.ForTypeHierarchy {
   public HttpHeaderSubclassesInstrumentation() {
     super("akka-http");
@@ -46,8 +47,8 @@ public class HttpHeaderSubclassesInstrumentation extends Instrumenter.Iast
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isMethod().and(named("value")).and(takesArguments(0)).and(returns(String.class)),
         HttpHeaderSubclassesInstrumentation.class.getName() + "$HttpHeaderSubclassesAdvice");
   }

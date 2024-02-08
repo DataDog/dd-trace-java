@@ -189,8 +189,13 @@
 1 org.aopalliance.*
 1 org.antlr.*
 1 org.apache.*
+#apache httpClient needs URI propagation
+0 org.apache.http.client.methods.*
 # apache compiled jsps
 0 org.apache.jsp.*
+# Need for kafka propagation
+2 org.apache.kafka.common.serialization.ByteBufferDeserializer
+2 org.apache.kafka.common.serialization.StringDeserializer
 1 org.apiguardian.*
 1 org.aspectj.*
 1 org.attoparser.*
@@ -248,6 +253,10 @@
 1 org.mongodb.*
 1 org.mortbay.*
 1 org.objectweb.*
+# Weak randomness false positive on HotspotUnsafe.guessAlignment
+1 org.openjdk.jol.vm.*
+# Weak randomness false positive on RandomIdGenerator.generateTraceId
+1 io.opentelemetry.sdk.trace.*
 1 org.openxmlformats.*
 1 org.osgi.*
 1 org.owasp.*
@@ -268,8 +277,9 @@
 1 org.slf4j.*
 1 org.springdoc.*
 1 org.springframework.*
-# Update when JdbcTemplate call sites are ready
+# Update when spring template call sites are ready
 2 org.springframework.jdbc.core.JdbcTemplate$*
+2 org.springframework.ldap.core.LdapTemplate$*
 # https://github.com/spring-projects/spring-petclinic
 0 org.springframework.samples.*
 # Used by insecure-bank

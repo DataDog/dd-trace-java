@@ -10,6 +10,7 @@ import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.advice.ActiveRequestContext;
 import datadog.trace.advice.RequiresRequestContext;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 import datadog.trace.api.gateway.BlockResponseFunction;
 import datadog.trace.api.gateway.CallbackProvider;
 import datadog.trace.api.gateway.Flow;
@@ -27,7 +28,7 @@ import org.jboss.resteasy.plugins.providers.multipart.InputPart;
 import org.jboss.resteasy.plugins.providers.multipart.MultipartFormDataInput;
 
 @AutoService(Instrumenter.class)
-public class MultipartFormDataReaderInstrumentation extends Instrumenter.AppSec
+public class MultipartFormDataReaderInstrumentation extends InstrumenterGroup.AppSec
     implements Instrumenter.ForSingleType {
 
   public MultipartFormDataReaderInstrumentation() {
@@ -45,8 +46,8 @@ public class MultipartFormDataReaderInstrumentation extends Instrumenter.AppSec
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         named("readFrom")
             .and(takesArguments(6))
             .and(

@@ -1,13 +1,12 @@
 package com.datadog.debugger.instrumentation;
 
+import com.datadog.debugger.agent.Generated;
 import com.datadog.debugger.probe.ProbeDefinition;
 import datadog.trace.bootstrap.debugger.ProbeId;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import org.objectweb.asm.tree.ClassNode;
-import org.objectweb.asm.tree.MethodNode;
 
 /** Stores status instrumentation results */
 public class InstrumentationResult {
@@ -38,11 +37,12 @@ public class InstrumentationResult {
   }
 
   public InstrumentationResult(
-      Status status,
-      Map<ProbeId, List<DiagnosticMessage>> diagnostics,
-      ClassNode classNode,
-      MethodNode methodNode) {
-    this(status, diagnostics, classNode.name.replace('/', '.'), methodNode.name);
+      Status status, Map<ProbeId, List<DiagnosticMessage>> diagnostics, MethodInfo methodInfo) {
+    this(
+        status,
+        diagnostics,
+        methodInfo.getClassNode().name.replace('/', '.'),
+        methodInfo.getMethodNode().name);
   }
 
   public InstrumentationResult(
@@ -78,5 +78,22 @@ public class InstrumentationResult {
 
   public String getMethodName() {
     return methodName;
+  }
+
+  @Generated
+  @Override
+  public String toString() {
+    return "InstrumentationResult{"
+        + "status="
+        + status
+        + ", diagnostics="
+        + diagnostics
+        + ", typeName='"
+        + typeName
+        + '\''
+        + ", methodName='"
+        + methodName
+        + '\''
+        + '}';
   }
 }

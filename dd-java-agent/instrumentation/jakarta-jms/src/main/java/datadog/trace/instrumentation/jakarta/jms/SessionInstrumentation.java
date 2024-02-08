@@ -15,6 +15,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesNoArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
@@ -32,7 +33,7 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public class SessionInstrumentation extends Instrumenter.Tracing
+public class SessionInstrumentation extends InstrumenterGroup.Tracing
     implements Instrumenter.ForTypeHierarchy {
   public SessionInstrumentation() {
     super("jakarta-jms");
@@ -63,50 +64,50 @@ public class SessionInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isMethod()
             .and(named("createProducer"))
             .and(isPublic())
             .and(takesArgument(0, named("jakarta.jms.Destination"))),
         getClass().getName() + "$CreateProducer");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod()
             .and(named("createSender"))
             .and(isPublic())
             .and(takesArgument(0, named("jakarta.jms.Queue"))),
         getClass().getName() + "$CreateProducer");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod()
             .and(named("createPublisher"))
             .and(isPublic())
             .and(takesArgument(0, named("jakarta.jms.Topic"))),
         getClass().getName() + "$CreateProducer");
 
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod()
             .and(named("createConsumer"))
             .and(isPublic())
             .and(takesArgument(0, named("jakarta.jms.Destination"))),
         getClass().getName() + "$CreateConsumer");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod()
             .and(named("createReceiver"))
             .and(isPublic())
             .and(takesArgument(0, named("jakarta.jms.Queue"))),
         getClass().getName() + "$CreateConsumer");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod()
             .and(namedOneOf("createSubscriber", "createDurableSubscriber"))
             .and(isPublic())
             .and(takesArgument(0, named("jakarta.jms.Topic"))),
         getClass().getName() + "$CreateConsumer");
 
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         namedOneOf("recover").and(takesNoArguments()), getClass().getName() + "$Recover");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         namedOneOf("commit", "rollback").and(takesNoArguments()), getClass().getName() + "$Commit");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         named("close").and(takesNoArguments()), getClass().getName() + "$Close");
   }
 

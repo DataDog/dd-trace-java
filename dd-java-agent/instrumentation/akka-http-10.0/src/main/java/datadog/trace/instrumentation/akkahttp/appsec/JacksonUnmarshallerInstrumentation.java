@@ -10,11 +10,12 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 import akka.http.javadsl.unmarshalling.Unmarshaller;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 import datadog.trace.agent.tooling.muzzle.Reference;
 import net.bytebuddy.asm.Advice;
 
 @AutoService(Instrumenter.class)
-public class JacksonUnmarshallerInstrumentation extends Instrumenter.AppSec
+public class JacksonUnmarshallerInstrumentation extends InstrumenterGroup.AppSec
     implements Instrumenter.ForSingleType {
 
   public JacksonUnmarshallerInstrumentation() {
@@ -46,8 +47,8 @@ public class JacksonUnmarshallerInstrumentation extends Instrumenter.AppSec
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isMethod()
             .and(isStatic())
             .and(returns(named("akka.http.javadsl.unmarshalling.Unmarshaller")))

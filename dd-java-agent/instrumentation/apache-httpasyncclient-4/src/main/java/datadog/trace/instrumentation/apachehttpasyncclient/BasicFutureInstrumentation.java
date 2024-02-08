@@ -7,6 +7,7 @@ import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 import datadog.trace.bootstrap.InstrumentationContext;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
@@ -16,7 +17,7 @@ import org.apache.http.concurrent.BasicFuture;
 import org.apache.http.concurrent.FutureCallback;
 
 @AutoService(Instrumenter.class)
-public final class BasicFutureInstrumentation extends Instrumenter.Tracing
+public final class BasicFutureInstrumentation extends InstrumenterGroup.Tracing
     implements Instrumenter.ForSingleType, Instrumenter.WithTypeStructure {
   public BasicFutureInstrumentation() {
     super("httpasyncclient", "apache-httpasyncclient");
@@ -39,8 +40,8 @@ public final class BasicFutureInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(isConstructor(), getClass().getName() + "$StealCallback");
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(isConstructor(), getClass().getName() + "$StealCallback");
   }
 
   // TODO there are numerous cases of using context stores to access immutable private fields

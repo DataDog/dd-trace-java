@@ -7,6 +7,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 import datadog.trace.agent.tooling.bytebuddy.iast.TaintableVisitor;
 import datadog.trace.agent.tooling.muzzle.Reference;
 import datadog.trace.api.iast.InstrumentationBridge;
@@ -17,8 +18,8 @@ import io.vertx.core.http.Cookie;
 import net.bytebuddy.asm.Advice;
 
 @AutoService(Instrumenter.class)
-public class CookieImplInstrumentation extends Instrumenter.Iast
-    implements Instrumenter.ForSingleType {
+public class CookieImplInstrumentation extends InstrumenterGroup.Iast
+    implements Instrumenter.ForSingleType, Instrumenter.HasTypeAdvice {
 
   private final String className = CookieImplInstrumentation.class.getName();
 
@@ -36,16 +37,16 @@ public class CookieImplInstrumentation extends Instrumenter.Iast
   }
 
   @Override
-  public void adviceTransformations(final AdviceTransformation transformation) {
-    transformation.applyAdvice(
-        isMethod().and(named("getName")).and(takesArguments(0)), className + "$GetNameAdvice");
-    transformation.applyAdvice(
-        isMethod().and(named("getValue")).and(takesArguments(0)), className + "$GetValueAdvice");
+  public void typeAdvice(TypeTransformer transformer) {
+    transformer.applyAdvice(new TaintableVisitor(this.instrumentedType()));
   }
 
   @Override
-  public AdviceTransformer transformer() {
-    return new VisitingTransformer(new TaintableVisitor(this.instrumentedType()));
+  public void methodAdvice(final MethodTransformer transformer) {
+    transformer.applyAdvice(
+        isMethod().and(named("getName")).and(takesArguments(0)), className + "$GetNameAdvice");
+    transformer.applyAdvice(
+        isMethod().and(named("getValue")).and(takesArguments(0)), className + "$GetValueAdvice");
   }
 
   public static class GetNameAdvice {

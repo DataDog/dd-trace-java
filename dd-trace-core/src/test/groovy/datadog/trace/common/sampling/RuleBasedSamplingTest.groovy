@@ -159,6 +159,7 @@ class RuleBasedSamplingTest extends DDCoreSpecification {
     DDSpan span = tracer.buildSpan("operation")
       .withServiceName("service")
       .withTag("env", "bar")
+      .withTag("tag", "foo")
       .withResourceName("resource")
       .ignoreActiveSpan()
       .start()
@@ -219,18 +220,18 @@ class RuleBasedSamplingTest extends DDCoreSpecification {
     // Matching resource : keep
     "[{\"resource\": \"resource\", \"sample_rate\": 1}]"                                                                                                 | null        | 1.0              | 50                | null              | USER_KEEP
 
-    // Matching operation: drop
+    // Matching resource: drop
     "[{\"resource\": \"resource\", \"sample_rate\": 0}]"                                                                                                 | null        | 0                | null              | null              | USER_DROP
 
-    // Matching operation overrides default rate
+    // Matching resource overrides default rate
     "[{\"resource\": \"resource\", \"sample_rate\": 1}]"                                                                                                 | "0"         | 1.0              | 50                | null              | USER_KEEP
     "[{\"resource\": \"resource\", \"sample_rate\": 0}]"                                                                                                 | "1"         | 0                | null              | null              | USER_DROP
 
-    // multiple operation combinations
+    // Multiple resource combinations
     "[{\"resource\": \"xxx\", \"sample_rate\": 0}, {\"resource\": \"resource\", \"sample_rate\": 1}]"                                                    | null        | 1.0              | 50                | null              | USER_KEEP
     "[{\"resource\": \"xxx\", \"sample_rate\": 1}, {\"resource\": \"resource\", \"sample_rate\": 0}]"                                                    | null        | 0                | null              | null              | USER_DROP
 
-    // Service and operation name rules
+    // Select matching service + operation rules
     "[{\"service\": \"service\", \"sample_rate\": 1}, {\"name\": \"operation\", \"sample_rate\": 0}]"                                                    | null        | 1.0              | 50                | null              | USER_KEEP
     "[{\"service\": \"service\", \"sample_rate\": 1}, {\"name\": \"xxx\", \"sample_rate\": 0}]"                                                          | null        | 1.0              | 50                | null              | USER_KEEP
     "[{\"service\": \"service\", \"sample_rate\": 0}, {\"name\": \"operation\", \"sample_rate\": 1}]"                                                    | null        | 0                | null              | null              | USER_DROP
@@ -238,7 +239,7 @@ class RuleBasedSamplingTest extends DDCoreSpecification {
     "[{\"service\": \"xxx\", \"sample_rate\": 0}, {\"name\": \"operation\", \"sample_rate\": 1}]"                                                        | null        | 1.0              | 50                | null              | USER_KEEP
     "[{\"service\": \"xxx\", \"sample_rate\": 1}, {\"name\": \"operation\", \"sample_rate\": 0}]"                                                        | null        | 0                | null              | null              | USER_DROP
 
-    // Select first matching service + operation rule
+    // Select matching service + operation rules
     "[{\"service\": \"service\", \"name\": \"operation\", \"sample_rate\": 1}]"                                                                          | null        | 1.0              | 50                | null              | USER_KEEP
     "[{\"service\": \"service\", \"name\": \"xxx\", \"sample_rate\": 0}, {\"service\": \"service\", \"name\": \"operation\", \"sample_rate\": 1}]"       | null        | 1.0              | 50                | null              | USER_KEEP
     "[{\"service\": \"service\", \"name\": \"xxx\", \"sample_rate\": 0}, {\"service\": \"service\", \"sample_rate\": 1}]"                                | null        | 1.0              | 50                | null              | USER_KEEP
@@ -246,6 +247,95 @@ class RuleBasedSamplingTest extends DDCoreSpecification {
     "[{\"service\": \"service\", \"resource\": \"xxx\", \"sample_rate\": 0}, {\"resource\": \"resource\", \"sample_rate\": 1}]"                          | null        | 1.0              | 50                | null              | USER_KEEP
     "[{\"service\": \"service\", \"name\": \"operation\", \"sample_rate\": 0}, {\"service\": \"service\", \"name\": \"operation\", \"sample_rate\": 1}]" | null        | 0                | null              | null              | USER_DROP
     "[{\"service\": \"service\", \"name\": \"operation\", \"sample_rate\": 0}]"                                                                          | null        | 0                | null              | null              | USER_DROP
+
+    // Select matching service + resource
+    "[{\"service\": \"service\", \"resource\": \"xxx\", \"sample_rate\": 0}, {\"service\": \"service\", \"resource\": \"resource\", \"sample_rate\": 1}]"                          | null        | 1.0              | 50                | null              | USER_KEEP
+
+    // Select matching service + resource + operation rules
+    "[{\"service\": \"service\", \"resource\": \"xxx\", \"sample_rate\": 0}, {\"service\": \"service\", \"resource\": \"resource\", \"name\": \"operation\", \"sample_rate\": 1}]"                          | null        | 1.0              | 50                | null              | USER_KEEP
+
+    // Select matching single tag rules
+    "[{\"tags\": {\"env\": \"xxx\"}, \"sample_rate\": 0}, {\"tags\": {\"env\": \"bar\"}, \"sample_rate\": 1}]"                                           | null        | 1.0              | 50                | null              | USER_KEEP
+    "[{\"tags\": {\"env\": \"*x\"}, \"sample_rate\": 0}, {\"tags\": {\"env\": \"*\"}, \"sample_rate\": 1}]"                                              | null        | 1.0              | 50                | null              | USER_KEEP
+    "[{\"tags\": {\"env\": \"x??\"}, \"sample_rate\": 0}, {\"tags\": {\"env\": \"b?r\"}, \"sample_rate\": 1}]"                                           | null        | 1.0              | 50                | null              | USER_KEEP
+    "[{\"tags\": {\"env\": \"x??\"}, \"sample_rate\": 1}, {\"tags\": {\"env\": \"b?r\"}, \"sample_rate\": 0}]"                                           | null        | 0                | null              | null              | USER_DROP
+
+    // Select matching two tags rules
+    "[{\"tags\": {\"env\": \"xxx\"}, \"sample_rate\": 0}, {\"tags\": {\"env\": \"bar\", \"tag\": \"foo\"}, \"sample_rate\": 1}]"                         | null        | 1.0              | 50                | null              | USER_KEEP
+    "[{\"tags\": {\"env\": \"*x\"}, \"sample_rate\": 0}, {\"tags\": {\"env\": \"*\", \"tag\": \"*\"}, \"sample_rate\": 1}]"                              | null        | 1.0              | 50                | null              | USER_KEEP
+    "[{\"tags\": {\"env\": \"x??\"}, \"sample_rate\": 0}, {\"tags\": {\"env\": \"b?r\", \"tag\": \"f??\"}, \"sample_rate\": 1}]"                         | null        | 1.0              | 50                | null              | USER_KEEP
+    "[{\"tags\": {\"env\": \"x??\"}, \"sample_rate\": 1}, {\"tags\": {\"env\": \"b?r\", \"tag\": \"f??\"}, \"sample_rate\": 0}]"                         | null        | 0                | null              | null              | USER_DROP
+
+    // Select matching service + resource + operation + tag rules
+    "[{\"service\": \"service\", \"resource\": \"xxx\", \"tags\": {\"env\": \"x??\"}, \"sample_rate\": 0}, {\"service\": \"service\", \"resource\": \"resource\", \"name\": \"operation\", \"tags\": {\"env\": \"b?r\", \"tag\": \"f??\"}, \"sample_rate\": 1}]"                          | null        | 1.0              | 50                | null              | USER_KEEP
+
+  }
+
+  def "tag types test"() {
+    given:
+    def json = """[{
+      "tags": {"testTag": "${tagPattern}"}, 
+      "sample_rate": 1
+    }]"""
+    Properties properties = new Properties()
+    properties.setProperty(TRACE_SAMPLING_RULES, json)
+    properties.setProperty(TRACE_SAMPLE_RATE, "0")
+
+    def tracer = tracerBuilder().writer(new ListWriter()).build()
+    PrioritySampler sampler = (PrioritySampler)Sampler.Builder.forConfig(properties)
+
+    when:
+    DDSpan span = tracer.buildSpan("operation")
+      .withServiceName("service")
+      .withResourceName("resource")
+      .withTag("env", "bar")
+      .ignoreActiveSpan()
+      .start()
+
+    span.setTag("testTag", tagValue)
+
+    sampler.setSamplingPriority(span)
+
+    then:
+    span.getSamplingPriority() == (expectedMatch ? USER_KEEP : USER_DROP)
+
+    cleanup:
+    tracer.close()
+
+    where:
+    tagPattern  | tagValue                  | expectedMatch
+    "*"         | "anything..."             | true
+    "*"         | null                      | false
+    "*"         | new StringBuilder("foo")  | true
+    "*"         | new Object() {}           | true
+    "**"        | new Object() {}           | true
+    "?"         | new Object() {}           | false
+    "*"         | "foo"                     | true
+    "**"        | "foo"                     | true
+    "**"        | true                      | true
+    "**"        | false                     | true
+    "**"        | 20                        | true
+    "**"        | 20L                       | true
+    "**"        | 20.1F                     | true
+    "**"        | 20.1D                     | true
+    "**"        | bigInteger("20")          | true
+    "**"        | bigDecimal("20.1")        | true
+    "foo"       | "foo"                     | true
+    "foo"       | new StringBuilder("foo")  | true
+    "foo"       | "not-foo"                 | false
+    "ba?"       | "bar"                     | true
+    "20"        | 20                        | true
+    "20"        | Integer.valueOf(20)       | true
+    "20"        | 20L                       | true
+    "20"        | Long.valueOf(20)          | true
+    "20"        | 20F                       | true
+    "20"        | 20.1F                     | false
+    "20.*"      | 20.1F                     | false
+    "20.1"      | 20.1D                     | false
+    "*"         | 20.1D                     | true
+    "20"        | bigInteger("20")          | true
+    "20"        | bigDecimal("20")          | true
+    "*"         | bigDecimal("20.1")        | true
   }
 
   def "Prefer JSON rules over other deprecated ones"() {
@@ -364,5 +454,14 @@ class RuleBasedSamplingTest extends DDCoreSpecification {
 
     cleanup:
     tracer.close()
+  }
+
+  // helper functions - to subvert codenarc
+  static bigInteger(str) {
+    return new BigInteger(str)
+  }
+
+  static bigDecimal(str) {
+    return new BigDecimal(str)
   }
 }

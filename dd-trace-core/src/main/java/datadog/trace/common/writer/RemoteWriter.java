@@ -142,7 +142,7 @@ public abstract class RemoteWriter implements Writer {
   }
 
   // used by tests
-  public Collection<Class<? extends RemoteApi>> getApis() {
+  public Collection<RemoteApi> getApis() {
     return dispatcher.getApis();
   }
 }

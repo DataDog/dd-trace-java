@@ -11,6 +11,7 @@ import com.google.auto.service.AutoService;
 import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.advice.RequiresRequestContext;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 import datadog.trace.agent.tooling.muzzle.Reference;
 import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.instrumentation.play26.MuzzleReferences;
@@ -19,7 +20,7 @@ import play.mvc.Http;
 
 /** @see play.mvc.BodyParser.TolerantJson#parse(Http.RequestHeader, ByteString) */
 @AutoService(Instrumenter.class)
-public class TolerantJsonInstrumentation extends Instrumenter.AppSec
+public class TolerantJsonInstrumentation extends InstrumenterGroup.AppSec
     implements Instrumenter.ForSingleType {
   public TolerantJsonInstrumentation() {
     super("play");
@@ -48,8 +49,8 @@ public class TolerantJsonInstrumentation extends Instrumenter.AppSec
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         named("parse")
             .and(takesArguments(2))
             .and(takesArgument(0, named("play.mvc.Http$RequestHeader")))

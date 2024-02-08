@@ -10,6 +10,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.Wrapper;
@@ -22,7 +23,7 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public class RejectedExecutionHandlerInstrumentation extends Instrumenter.Tracing
+public class RejectedExecutionHandlerInstrumentation extends InstrumenterGroup.Tracing
     implements Instrumenter.ForBootstrap, Instrumenter.CanShortcutTypeMatching {
 
   public RejectedExecutionHandlerInstrumentation() {
@@ -66,8 +67,8 @@ public class RejectedExecutionHandlerInstrumentation extends Instrumenter.Tracin
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isMethod()
             // JDK or netty
             .and(namedOneOf("rejectedExecution", "rejected"))

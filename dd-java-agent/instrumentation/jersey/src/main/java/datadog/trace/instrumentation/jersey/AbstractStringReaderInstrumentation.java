@@ -6,9 +6,10 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 
 @AutoService(Instrumenter.class)
-public class AbstractStringReaderInstrumentation extends Instrumenter.Iast
+public class AbstractStringReaderInstrumentation extends InstrumenterGroup.Iast
     implements Instrumenter.ForKnownTypes {
 
   public AbstractStringReaderInstrumentation() {
@@ -16,8 +17,8 @@ public class AbstractStringReaderInstrumentation extends Instrumenter.Iast
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         named("fromString").and(isPublic().and(takesArguments(String.class))),
         packageName + ".AbstractStringReaderAdvice");
   }

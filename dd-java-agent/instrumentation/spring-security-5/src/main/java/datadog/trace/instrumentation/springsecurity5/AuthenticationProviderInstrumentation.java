@@ -9,11 +9,12 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public class AuthenticationProviderInstrumentation extends Instrumenter.AppSec
+public class AuthenticationProviderInstrumentation extends InstrumenterGroup.AppSec
     implements Instrumenter.ForTypeHierarchy {
 
   public AuthenticationProviderInstrumentation() {
@@ -38,8 +39,8 @@ public class AuthenticationProviderInstrumentation extends Instrumenter.AppSec
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isMethod()
             .and(named("authenticate"))
             .and(takesArgument(0, named("org.springframework.security.core.Authentication")))

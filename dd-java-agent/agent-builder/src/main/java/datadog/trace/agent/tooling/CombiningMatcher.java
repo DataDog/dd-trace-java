@@ -41,7 +41,13 @@ final class CombiningMatcher implements AgentBuilder.RawMatcher {
     BitSet ids = recordedMatches.get();
     ids.clear();
 
+    long fromTick = InstrumenterMetrics.tick();
     knownTypesIndex.apply(target.getName(), knownTypesMask, ids);
+    if (ids.isEmpty()) {
+      InstrumenterMetrics.knownTypeMiss(fromTick);
+    } else {
+      InstrumenterMetrics.knownTypeHit(fromTick);
+    }
 
     for (MatchRecorder matcher : matchers) {
       try {
@@ -52,6 +58,8 @@ final class CombiningMatcher implements AgentBuilder.RawMatcher {
         }
       }
     }
+
+    InstrumenterMetrics.matchType(fromTick);
 
     return !ids.isEmpty();
   }

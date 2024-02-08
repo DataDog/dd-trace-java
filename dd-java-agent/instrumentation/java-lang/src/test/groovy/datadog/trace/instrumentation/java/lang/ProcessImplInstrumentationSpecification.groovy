@@ -1,92 +1,224 @@
 package datadog.trace.instrumentation.java.lang
 
 import datadog.trace.agent.test.AgentTestRunner
-import datadog.trace.api.gateway.RequestContextSlot
+import datadog.trace.agent.test.asserts.SpanAssert
+import datadog.trace.agent.test.utils.TraceUtils
 import datadog.trace.bootstrap.ActiveSubsystems
-import datadog.trace.core.DDSpan
 
 import java.util.concurrent.TimeUnit
 
 class ProcessImplInstrumentationSpecification extends AgentTestRunner {
-  def ss = TEST_TRACER.getSubscriptionService(RequestContextSlot.APPSEC)
 
-  void cleanup() {
-    ss.reset()
+  boolean previousAppsecState = false
+
+  void setup() {
+    previousAppsecState = ActiveSubsystems.APPSEC_ACTIVE
   }
 
-  void 'creates a span in a normal case'() {
+  void cleanup() {
+    ActiveSubsystems.APPSEC_ACTIVE = previousAppsecState
+  }
+
+  static interface ProcessStarter {
+    String name()
+    Process start(ArrayList<String> command)
+  }
+
+  static ProcessStarter processBuilderStarter = new ProcessStarter() {
+    String name() {
+      return 'ProcessBuilder'
+    }
+
+    Process start(ArrayList<String> command) {
+      new ProcessBuilder(command).start()
+    }
+  }
+
+  static ProcessStarter runtimeExecStarter = new ProcessStarter() {
+    String name() {
+      return 'RuntimeExec'
+    }
+
+    Process start(ArrayList<String> command) {
+      Runtime.runtime.exec(command as String[])
+    }
+  }
+
+  void assertProcessSpan(final SpanAssert it, final ArrayList<String> command) {
+    assertProcessSpan(it, command, 0)
+  }
+
+  void assertProcessSpan(final SpanAssert it, final ArrayList<String> command, final int exitCode) {
+    it.resourceName 'sh'
+    it.spanType 'system'
+    it.operationName 'command_execution'
+    it.tags {
+      tag 'component', 'subprocess'
+      tag 'cmd.exec', '[' + command.collect({ "\"${it}\"" }).join(',') + ']'
+      tag 'cmd.exit_code', Integer.toString(exitCode)
+      defaultTags(false, false)
+    }
+  }
+
+  void 'creates a root span with #name'() {
     when:
-    def builder = new ProcessBuilder('/bin/sh', '-c', 'echo 42')
+    def command = ['/bin/sh', '-c', 'echo 42']
+    def builder = new ProcessBuilder(command)
     Process p = builder.start()
-    String output = p.inputStream.text
-    TEST_WRITER.waitForTraces(1)
-    DDSpan span = TEST_WRITER[0][0]
+    def output = p.inputStream.text
+    def terminated = p.waitFor(5, TimeUnit.SECONDS)
 
     then:
     output == "42\n"
-    span.tags['cmd.exec'] == '["/bin/sh","-c","echo 42"]'
-    span.tags['cmd.exit_code'] == 0
-    span.spanType == 'system'
-    span.resourceName == 'sh'
-    span.spanName == 'command_execution'
+    terminated
+    assertTraces(1) {
+      trace(1) {
+        span(0) {
+          assertProcessSpan(it, command)
+        }
+      }
+    }
+
+    where:
+    name                         | starter               | _
+    processBuilderStarter.name() | processBuilderStarter | _
+    runtimeExecStarter.name()    | runtimeExecStarter    | _
   }
 
-  void 'span only has executable if appsec is disabled'() {
+  void 'creates a child span with #name'() {
+    when:
+    def command = ['/bin/sh', '-c', 'echo 42']
+    def terminated = TraceUtils.runUnderTrace("parent", false) {
+      def builder = new ProcessBuilder(command)
+      Process p = builder.start()
+      p.waitFor(5, TimeUnit.SECONDS)
+    }
+
+    then:
+    terminated
+    assertTraces(1) {
+      trace(2) {
+        sortSpansByStart()
+        span(0) {
+          operationName 'parent'
+        }
+        span(1) {
+          assertProcessSpan(it, command)
+          childOf span(0)
+        }
+      }
+    }
+
+    where:
+    name                         | starter               | _
+    processBuilderStarter.name() | processBuilderStarter | _
+    runtimeExecStarter.name()    | runtimeExecStarter    | _
+  }
+
+  void 'creates two sibling child spans with #name'() {
+    when:
+    def command1 = ['/bin/sh', '-c', 'sleep 0.5']
+    def command2 = ['/bin/sh', '-c', 'echo 42']
+    def terminated = TraceUtils.runUnderTrace("parent", false) {
+      Process p1 = new ProcessBuilder(command1).start()
+      Process p2 = new ProcessBuilder(command2).start()
+      p2.waitFor(5, TimeUnit.SECONDS)
+      p1.waitFor(5, TimeUnit.SECONDS)
+    }
+
+    then:
+    terminated
+    assertTraces(1) {
+      trace(3) {
+        sortSpansByStart()
+        span(0) {
+          operationName 'parent'
+        }
+        span(1) {
+          assertProcessSpan(it, command1)
+          childOf span(0)
+        }
+        span(2) {
+          assertProcessSpan(it, command2)
+          childOf span(0)
+        }
+      }
+    }
+
+    where:
+    name                         | starter               | _
+    processBuilderStarter.name() | processBuilderStarter | _
+    runtimeExecStarter.name()    | runtimeExecStarter    | _
+  }
+
+  void 'span only has executable if appsec is disabled with #name'() {
     setup:
     ActiveSubsystems.APPSEC_ACTIVE = false
 
     when:
-    def builder = new ProcessBuilder('/bin/sh', '-c', 'echo 42')
+    def command = ['/bin/sh', '-c', 'echo 42']
+    def builder = new ProcessBuilder(command)
     Process p = builder.start()
-    Thread.start { p.inputStream.text }
-    p.waitFor(5, TimeUnit.SECONDS)
-    TEST_WRITER.waitForTraces(1)
-    DDSpan span = TEST_WRITER[0][0]
+    def output = p.inputStream.text
+    def terminated = p.waitFor(5, TimeUnit.SECONDS)
 
     then:
-    span.tags['cmd.exec'] == '["/bin/sh"]'
-  }
+    output == "42\n"
+    terminated
+    assertTraces(1) {
+      trace(1) {
+        span(0) {
+          assertProcessSpan(it, ['/bin/sh'])
+        }
+      }
+    }
 
-  void 'variant with Runtime exec'() {
-    when:
-    Process p = Runtime.runtime.exec('/bin/sh -c true')
-    p.waitFor(5, TimeUnit.SECONDS)
-    TEST_WRITER.waitForTraces(1)
-    DDSpan span = TEST_WRITER[0][0]
-
-    then:
-    span.tags['cmd.exec'] == '["/bin/sh","-c","true"]'
+    where:
+    name                         | starter               | _
+    processBuilderStarter.name() | processBuilderStarter | _
+    runtimeExecStarter.name()    | runtimeExecStarter    | _
   }
 
   void 'the exit code is correctly reported'() {
     when:
-    def builder = new ProcessBuilder('/bin/sh', '-c', 'exit 33')
+    def command = ['/bin/sh', '-c', 'exit 33']
+    def builder = new ProcessBuilder(command)
     Process p = builder.start()
-    p.waitFor(5, TimeUnit.SECONDS)
-    TEST_WRITER.waitForTraces(1)
-    DDSpan span = TEST_WRITER[0][0]
+    def terminated = p.waitFor(5, TimeUnit.SECONDS)
 
     then:
-    span.tags['cmd.exit_code'] == 33
+    terminated
+    assertTraces(1) {
+      trace(1) {
+        span(0) {
+          assertProcessSpan(it, command, 33)
+        }
+      }
+    }
   }
 
   void 'can handle waiting on another thread'() {
     when:
     // sleep a bit so that it doesn't all happen on the same thread
-    def builder = new ProcessBuilder('/bin/sh', '-c', 'sleep 0.5; echo 42')
+    def command = ['/bin/sh', '-c', 'sleep 0.5; echo 42']
+    def builder = new ProcessBuilder(command)
     Process p = builder.start()
-    def out
+    String out
     Thread.start {
       out = p.inputStream.text
       p.waitFor()
     }.join(5000)
-    TEST_WRITER.waitForTraces(1)
-    DDSpan span = TEST_WRITER[0][0]
 
     then:
     out == '42\n'
-    span.getDurationNano() >= 500_000_000 // 500 ms (we sleep for 0.5 s)
-    span.tags['cmd.exit_code'] == 0
+    assertTraces(1) {
+      trace(1) {
+        span(0) {
+          assertProcessSpan(it, command)
+          it.duration { it >= 500_000_000 } // 500 ms (we sleep for 0.5 s)
+        }
+      }
+    }
   }
 
   void 'command cannot be executed'() {
@@ -95,65 +227,108 @@ class ProcessImplInstrumentationSpecification extends AgentTestRunner {
     builder.start()
 
     then:
-    thrown IOException
+    def ex = thrown IOException
 
-    when:
-    TEST_WRITER.waitForTraces(1)
-    DDSpan span = TEST_WRITER[0][0]
-
-    then:
-    span.tags['cmd.exec'] == '["/bin/does-not-exist"]'
-    span.tags['error.message'] != null
-    span.isError() == true
+    and:
+    assertTraces(1) {
+      trace(1) {
+        span(0) {
+          resourceName 'does-not-exist'
+          spanType 'system'
+          operationName 'command_execution'
+          errored(true)
+          tags {
+            tag 'component', 'subprocess'
+            tag 'cmd.exec', '["/bin/does-not-exist"]'
+            // The captured exception in ProcessImpl is in the cause
+            errorTags(ex.cause)
+            defaultTags(false, false)
+          }
+        }
+      }
+    }
   }
 
   void 'process is destroyed'() {
     when:
-    def builder = new ProcessBuilder('/bin/sh', '-c', 'sleep 3600')
+    def command = ['/bin/sh', '-c', 'sleep 3600']
+    def builder = new ProcessBuilder(command)
     Process p = builder.start()
     Thread.start {
       p.destroy()
     }
-    p.waitFor(5, TimeUnit.SECONDS)
-    TEST_WRITER.waitForTraces(1)
-    DDSpan span = TEST_WRITER[0][0]
+    def terminated = p.waitFor(5, TimeUnit.SECONDS)
+    def exitValue = p.exitValue()
 
     then:
-    span.tags['cmd.exit_code'] != 0
+    terminated
+    exitValue != 0
+    assertTraces(1) {
+      trace(1) {
+        span(0) {
+          assertProcessSpan(it, command, exitValue)
+        }
+      }
+    }
   }
 
   void 'command is truncated'() {
     when:
-    def builder = new ProcessBuilder('/bin/sh', '-c', 'echo ' + ('a' * (4096 - 14 + 1)))
+    def command = ['/bin/sh', '-c', 'echo ' + ('a' * (4096 - 14 + 1))]
+    def builder = new ProcessBuilder(command)
     Process p = builder.start()
     Thread.start { p.inputStream.text }
-    p.waitFor(5, TimeUnit.SECONDS)
-    TEST_WRITER.waitForTraces(1)
-    DDSpan span = TEST_WRITER[0][0]
+    def terminated = p.waitFor(5, TimeUnit.SECONDS)
 
     then:
-    span.tags['cmd.truncated'] == 'true'
-    span.tags['cmd.exec'] == '["/bin/sh","-c"]'
+    terminated
+    assertTraces(1) {
+      trace(1) {
+        span(0) {
+          resourceName 'sh'
+          spanType 'system'
+          operationName 'command_execution'
+          tags {
+            tag 'component', 'subprocess'
+            tag 'cmd.truncated', 'true'
+            tag 'cmd.exec', '["/bin/sh","-c"]'
+            tag 'cmd.exit_code', "0"
+            defaultTags(false, false)
+          }
+        }
+      }
+    }
   }
 
-  void redactions() {
+  void 'redaction'() {
     when:
     def builder = new ProcessBuilder(command)
     builder.start()
 
     then:
-    thrown IOException
+    def ex = thrown IOException
 
-    when:
-    TEST_WRITER.waitForTraces(1)
-    DDSpan span = TEST_WRITER[0][0]
-
-    then:
-    span.tags['cmd.exec'] == expected
+    and:
+    assertTraces(1) {
+      trace(1) {
+        span(0) {
+          resourceName { true } // Ignore
+          spanType 'system'
+          operationName 'command_execution'
+          errored(true)
+          tags {
+            tag 'component', 'subprocess'
+            tag 'cmd.exec', expected
+            errorTags(ex.cause)
+            defaultTags(false, false)
+          }
+        }
+      }
+    }
 
     where:
-    command | expected
-    ['cmd', '--pass', 'abc', '--token=def'] | '["cmd","--pass","?","--token=?"]'
-    ['/does/not/exist/md5', '-s', 'pony'] | '["/does/not/exist/md5","?","?"]'
+    command                                                 | expected
+    ['/does/not/exist/cmd', '--pass', 'abc', '--token=def'] | '["/does/not/exist/cmd","--pass","?","--token=?"]'
+    ['/does/not/exist/md5', '-s', 'pony']                   | '["/does/not/exist/md5","?","?"]'
   }
 }

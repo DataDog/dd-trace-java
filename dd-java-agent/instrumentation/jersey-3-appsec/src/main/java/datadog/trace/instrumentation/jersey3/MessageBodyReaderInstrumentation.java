@@ -9,6 +9,7 @@ import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.advice.ActiveRequestContext;
 import datadog.trace.advice.RequiresRequestContext;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 import datadog.trace.api.gateway.BlockResponseFunction;
 import datadog.trace.api.gateway.CallbackProvider;
 import datadog.trace.api.gateway.Flow;
@@ -21,7 +22,7 @@ import net.bytebuddy.asm.Advice;
 
 // keep in sync with jersey2 (javax packages)
 @AutoService(Instrumenter.class)
-public class MessageBodyReaderInstrumentation extends Instrumenter.AppSec
+public class MessageBodyReaderInstrumentation extends InstrumenterGroup.AppSec
     implements Instrumenter.ForSingleType {
   public MessageBodyReaderInstrumentation() {
     super("jersey");
@@ -40,8 +41,8 @@ public class MessageBodyReaderInstrumentation extends Instrumenter.AppSec
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         named("proceed").and(takesArguments(0)),
         getClass().getName() + "$ReaderInterceptorExecutorProceedAdvice");
   }

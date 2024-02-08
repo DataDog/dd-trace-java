@@ -11,13 +11,14 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import net.bytebuddy.asm.Advice;
 import org.eclipse.jetty.server.HttpConnection;
 import org.eclipse.jetty.server.Request;
 
 @AutoService(Instrumenter.class)
-public final class RequestInstrumentation extends Instrumenter.Tracing
+public final class RequestInstrumentation extends InstrumenterGroup.Tracing
     implements Instrumenter.ForSingleType {
 
   public RequestInstrumentation() {
@@ -30,11 +31,11 @@ public final class RequestInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         named("setContextPath").and(takesArgument(0, String.class)),
         RequestInstrumentation.class.getName() + "$SetContextPathAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         named("setServletPath").and(takesArgument(0, String.class)),
         RequestInstrumentation.class.getName() + "$SetServletPathAdvice");
   }

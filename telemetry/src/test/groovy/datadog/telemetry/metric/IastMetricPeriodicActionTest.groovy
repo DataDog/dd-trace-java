@@ -34,7 +34,7 @@ class IastMetricPeriodicActionTest extends Specification {
     final service = Mock(TelemetryService)
     final iastMetric = IastMetric.INSTRUMENTED_SOURCE
     final tag = SourceTypes.REQUEST_PARAMETER_VALUE
-    final tagString = SourceTypes.REQUEST_PARAMETER_VALUE_STRING
+    final tagString = SourceTypes.toString(tag)
     final value = 23
 
     when:

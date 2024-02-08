@@ -10,6 +10,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import net.bytebuddy.asm.Advice;
@@ -23,7 +24,7 @@ import org.elasticsearch.action.ActionResponse;
  * an abstract class, so the bytecode isn't directly compatible.
  */
 @AutoService(Instrumenter.class)
-public class Elasticsearch6TransportClientInstrumentation extends Instrumenter.Tracing
+public class Elasticsearch6TransportClientInstrumentation extends InstrumenterGroup.Tracing
     implements Instrumenter.ForSingleType {
 
   public Elasticsearch6TransportClientInstrumentation() {
@@ -46,8 +47,8 @@ public class Elasticsearch6TransportClientInstrumentation extends Instrumenter.T
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isMethod()
             .and(named("execute"))
             .and(takesArgument(0, named("org.elasticsearch.action.Action")))

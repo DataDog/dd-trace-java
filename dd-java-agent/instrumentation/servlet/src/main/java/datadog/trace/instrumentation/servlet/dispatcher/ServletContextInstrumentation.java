@@ -9,6 +9,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 import datadog.trace.bootstrap.InstrumentationContext;
 import java.util.Map;
 import javax.servlet.RequestDispatcher;
@@ -17,7 +18,7 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public final class ServletContextInstrumentation extends Instrumenter.Tracing
+public final class ServletContextInstrumentation extends InstrumenterGroup.Tracing
     implements Instrumenter.ForTypeHierarchy {
   public ServletContextInstrumentation() {
     super("servlet", "servlet-dispatcher");
@@ -39,8 +40,8 @@ public final class ServletContextInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         returns(named("javax.servlet.RequestDispatcher"))
             .and(takesArgument(0, String.class))
             // javax.servlet.ServletContext.getRequestDispatcher

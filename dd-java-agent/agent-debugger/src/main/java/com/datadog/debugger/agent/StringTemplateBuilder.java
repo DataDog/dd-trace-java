@@ -53,7 +53,6 @@ public class StringTemplateBuilder {
                   sb, segment.getParsedExpr().getDsl(), result.getValue(), status, limits);
             }
           } catch (EvaluationException ex) {
-            LOGGER.debug("Evaluation error: ", ex);
             status.addError(new EvaluationError(ex.getExpr(), ex.getMessage()));
             status.setLogTemplateErrors(true);
             String msg =

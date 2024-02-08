@@ -5,6 +5,7 @@ import static datadog.trace.agent.tooling.bytebuddy.TypeInfoCache.UNKNOWN_CLASS_
 import static datadog.trace.bootstrap.AgentClassLoading.LOCATING_CLASS;
 import static net.bytebuddy.dynamic.loading.ClassLoadingStrategy.BOOTSTRAP_LOADER;
 
+import datadog.trace.agent.tooling.InstrumenterMetrics;
 import datadog.trace.agent.tooling.bytebuddy.ClassFileLocators;
 import datadog.trace.agent.tooling.bytebuddy.TypeInfoCache;
 import datadog.trace.agent.tooling.bytebuddy.TypeInfoCache.SharedTypeInfo;
@@ -241,11 +242,14 @@ final class TypeFactory {
   private TypeDescription lookupType(
       LazyType request, TypeInfoCache<TypeDescription> types, TypeParser typeParser) {
     String name = request.name;
+    boolean isOutline = typeParser == outlineTypeParser;
+    long fromTick = InstrumenterMetrics.tick();
 
     // existing type description from same classloader?
     SharedTypeInfo<TypeDescription> sharedType = types.find(name);
     if (null != sharedType
         && (name.startsWith("java.") || sharedType.sameClassLoader(classLoader))) {
+      InstrumenterMetrics.reuseTypeDescription(fromTick, isOutline);
       return sharedType.get();
     }
 
@@ -253,6 +257,7 @@ final class TypeFactory {
 
     // existing type description from same class file?
     if (null != sharedType && sharedType.sameClassFile(classFile)) {
+      InstrumenterMetrics.reuseTypeDescription(fromTick, isOutline);
       return sharedType.get();
     }
 
@@ -265,6 +270,8 @@ final class TypeFactory {
     } else if (fallBackToLoadClass) {
       type = loadType(name, typeParser);
     }
+
+    InstrumenterMetrics.buildTypeDescription(fromTick, isOutline);
 
     // share result, whether we found it or not
     types.share(name, classLoader, classFile, type);

@@ -7,10 +7,11 @@ import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 import java.util.Map;
 
 @AutoService(Instrumenter.class)
-public final class AxwayHTTPPluginInstrumentation extends Instrumenter.Tracing
+public final class AxwayHTTPPluginInstrumentation extends InstrumenterGroup.Tracing
     implements Instrumenter.ForKnownTypes {
 
   public AxwayHTTPPluginInstrumentation() {
@@ -42,12 +43,12 @@ public final class AxwayHTTPPluginInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isMethod().and(isPublic()).and(named("invokeDispose")), packageName + ".HTTPPluginAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod().and(isPublic()).and(named("tryTransaction")), packageName + ".StateAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod().and(isPublic()).and(named("sendResponse")),
         packageName + ".ServerTransactionAdvice");
   }

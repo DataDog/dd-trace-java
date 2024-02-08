@@ -6,6 +6,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Source;
 import datadog.trace.api.iast.SourceTypes;
@@ -13,7 +14,7 @@ import datadog.trace.api.iast.propagation.PropagationModule;
 import net.bytebuddy.asm.Advice;
 
 @AutoService(Instrumenter.class)
-public class JWTParserInstrumentation extends Instrumenter.Iast
+public class JWTParserInstrumentation extends InstrumenterGroup.Iast
     implements Instrumenter.ForSingleType {
 
   public JWTParserInstrumentation() {
@@ -21,8 +22,8 @@ public class JWTParserInstrumentation extends Instrumenter.Iast
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         named("parsePayload").and(isPublic().and(takesArguments(String.class))),
         JWTParserInstrumentation.class.getName() + "$InstrumenterAdvice");
   }

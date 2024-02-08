@@ -1,6 +1,7 @@
 package com.datadog.iast.sink;
 
-import static com.datadog.iast.util.HttpHeader.Values.SET_COOKIE;
+import static com.datadog.iast.util.HttpHeader.SET_COOKIE;
+import static com.datadog.iast.util.HttpHeader.SET_COOKIE2;
 import static java.util.Collections.singletonList;
 
 import com.datadog.iast.Dependencies;
@@ -12,7 +13,7 @@ import com.datadog.iast.model.VulnerabilityType;
 import com.datadog.iast.overhead.Operations;
 import com.datadog.iast.util.CookieSecurityParser;
 import com.datadog.iast.util.HttpHeader;
-import com.datadog.iast.util.HttpHeader.ContextAwareHeader;
+import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.sink.HttpCookieModule;
 import datadog.trace.api.iast.sink.HttpResponseHeaderModule;
@@ -36,19 +37,20 @@ public class HttpResponseHeaderModuleImpl extends SinkModuleBase
   public void onHeader(@Nonnull final String name, final String value) {
     final HttpHeader header = HttpHeader.from(name);
     if (header != null) {
-      if (header instanceof ContextAwareHeader) {
-        final AgentSpan span = AgentTracer.activeSpan();
-        final IastRequestContext ctx = IastRequestContext.get(span);
-        if (ctx != null) {
-          ((ContextAwareHeader) header).onHeader(ctx, value);
-        }
+      final AgentSpan span = AgentTracer.activeSpan();
+      final IastContext ctx = IastContext.Provider.get(span);
+      if (ctx instanceof IastRequestContext) {
+        header.addToContext((IastRequestContext) ctx, value);
       }
-      if (header == SET_COOKIE) {
-        onCookies(CookieSecurityParser.parse(value));
+      if (header == SET_COOKIE || header == SET_COOKIE2) {
+        onCookies(CookieSecurityParser.parse(header, value));
       }
       if (null != InstrumentationBridge.UNVALIDATED_REDIRECT) {
         InstrumentationBridge.UNVALIDATED_REDIRECT.onHeader(name, value);
       }
+    }
+    if (null != InstrumentationBridge.HEADER_INJECTION) {
+      InstrumentationBridge.HEADER_INJECTION.onHeader(name, value);
     }
   }
 

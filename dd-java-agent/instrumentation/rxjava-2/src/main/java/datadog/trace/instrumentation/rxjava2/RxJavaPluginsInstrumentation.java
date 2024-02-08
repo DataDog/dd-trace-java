@@ -4,11 +4,12 @@ import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 import datadog.trace.api.InstrumenterConfig;
 import net.bytebuddy.asm.Advice;
 
 @AutoService(Instrumenter.class)
-public class RxJavaPluginsInstrumentation extends Instrumenter.Tracing
+public class RxJavaPluginsInstrumentation extends InstrumenterGroup.Tracing
     implements Instrumenter.ForSingleType {
 
   public RxJavaPluginsInstrumentation() {
@@ -34,8 +35,8 @@ public class RxJavaPluginsInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(isMethod(), getClass().getName() + "$RxJavaPluginsAdvice");
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(isMethod(), getClass().getName() + "$RxJavaPluginsAdvice");
   }
 
   public static class RxJavaPluginsAdvice {

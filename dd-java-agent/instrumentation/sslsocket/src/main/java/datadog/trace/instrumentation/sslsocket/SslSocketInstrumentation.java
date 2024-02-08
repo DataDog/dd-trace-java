@@ -8,6 +8,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 import datadog.trace.bootstrap.instrumentation.sslsocket.UsmFilterInputStream;
 import datadog.trace.bootstrap.instrumentation.sslsocket.UsmFilterOutputStream;
 import datadog.trace.bootstrap.instrumentation.usm.UsmConnection;
@@ -23,7 +24,7 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public final class SslSocketInstrumentation extends Instrumenter.Usm
+public final class SslSocketInstrumentation extends InstrumenterGroup.Usm
     implements Instrumenter.ForBootstrap, Instrumenter.ForTypeHierarchy {
 
   public SslSocketInstrumentation() {
@@ -41,14 +42,14 @@ public final class SslSocketInstrumentation extends Instrumenter.Usm
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isMethod().and(named("close").and(takesArguments(0))),
         SslSocketInstrumentation.class.getName() + "$CloseAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod().and(named("getInputStream")),
         SslSocketInstrumentation.class.getName() + "$GetInputStreamAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod().and(named("getOutputStream")),
         SslSocketInstrumentation.class.getName() + "$GetOutputStreamAdvice");
   }

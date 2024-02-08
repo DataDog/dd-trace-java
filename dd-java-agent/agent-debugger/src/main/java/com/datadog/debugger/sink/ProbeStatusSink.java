@@ -13,10 +13,12 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
+import okhttp3.HttpUrl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -36,7 +38,7 @@ public class ProbeStatusSink {
   private final boolean isInstrumentTheWorld;
   private final boolean useMultiPart;
 
-  ProbeStatusSink(Config config, String diagnosticsEndpoint, boolean useMultiPart) {
+  public ProbeStatusSink(Config config, String diagnosticsEndpoint, boolean useMultiPart) {
     this(config, new BatchUploader(config, diagnosticsEndpoint), useMultiPart);
   }
 
@@ -56,6 +58,20 @@ public class ProbeStatusSink {
 
   public void addInstalled(ProbeId probeId) {
     addDiagnostics(messageBuilder.installedMessage(probeId));
+  }
+
+  public void addEmitting(ProbeId probeId) {
+    addEmitting(probeId.getEncodedId());
+  }
+
+  public void addEmitting(String encodedProbeId) {
+    TimedMessage timedMessage = probeStatuses.get(encodedProbeId);
+    if (timedMessage != null
+        && timedMessage.getMessage().getDiagnostics().getStatus() == Status.EMITTING) {
+      // if we already have a message for this probe, don't build the message again
+      return;
+    }
+    addDiagnostics(messageBuilder.emittingMessage(encodedProbeId));
   }
 
   public void addBlocked(ProbeId probeId) {
@@ -100,6 +116,18 @@ public class ProbeStatusSink {
     return serializedDiagnostics;
   }
 
+  public HttpUrl getUrl() {
+    return diagnosticUploader.getUrl();
+  }
+
+  public Map<String, String> getProbeStatuses() {
+    Map<String, String> result = new HashMap<>();
+    for (Map.Entry<String, TimedMessage> entry : probeStatuses.entrySet()) {
+      result.put(entry.getKey(), entry.getValue().getMessage().toString());
+    }
+    return result;
+  }
+
   List<ProbeStatus> getDiagnostics() {
     return getDiagnostics(Clock.systemDefaultZone());
   }
@@ -132,7 +160,7 @@ public class ProbeStatusSink {
   }
 
   public void removeDiagnostics(ProbeId probeId) {
-    probeStatuses.remove(probeId.getId());
+    probeStatuses.remove(probeId.getEncodedId());
   }
 
   private void addDiagnostics(ProbeStatus message) {
@@ -144,7 +172,7 @@ public class ProbeStatusSink {
     TimedMessage current = probeStatuses.get(probeId.getId());
     if (current == null || shouldOverwrite(current.getMessage(), message)) {
       TimedMessage newMessage = new TimedMessage(message);
-      probeStatuses.put(probeId.getId(), newMessage);
+      probeStatuses.put(probeId.getEncodedId(), newMessage);
       enqueueTimedMessage(newMessage, Instant.now(Clock.systemDefaultZone()));
     }
   }

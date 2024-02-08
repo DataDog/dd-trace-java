@@ -8,6 +8,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 import datadog.trace.bootstrap.InstrumentationContext;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
@@ -19,7 +20,7 @@ import org.apache.kafka.common.Cluster;
 import org.apache.kafka.common.requests.MetadataResponse;
 
 @AutoService(Instrumenter.class)
-public class MetadataInstrumentation extends Instrumenter.Tracing
+public class MetadataInstrumentation extends InstrumenterGroup.Tracing
     implements Instrumenter.ForTypeHierarchy {
 
   public MetadataInstrumentation() {
@@ -47,13 +48,13 @@ public class MetadataInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isMethod()
             .and(named("update"))
             .and(takesArgument(0, named("org.apache.kafka.common.Cluster"))),
         MetadataInstrumentation.class.getName() + "$MetadataUpdateBefore22Advice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod()
             .and(named("update"))
             .and(takesArgument(1, named("org.apache.kafka.common.requests.MetadataResponse"))),

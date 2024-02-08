@@ -8,6 +8,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
@@ -24,7 +25,7 @@ import net.bytebuddy.matcher.ElementMatcher;
  * RunnableInstrumentation}
  */
 @AutoService(Instrumenter.class)
-public final class TimerTaskInstrumentation extends Instrumenter.Tracing
+public final class TimerTaskInstrumentation extends InstrumenterGroup.Tracing
     implements Instrumenter.ForBootstrap, Instrumenter.ForTypeHierarchy {
 
   public TimerTaskInstrumentation() {
@@ -47,8 +48,8 @@ public final class TimerTaskInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         named("cancel").and(takesArguments(0)).and(isPublic()),
         TimerTaskInstrumentation.class.getName() + "$CancelAdvice");
   }

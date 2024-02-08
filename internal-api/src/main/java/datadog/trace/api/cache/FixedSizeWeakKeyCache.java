@@ -5,6 +5,7 @@ import static datadog.trace.api.cache.FixedSizeCache.rehash;
 
 import java.lang.ref.WeakReference;
 import java.util.Arrays;
+import java.util.function.BiConsumer;
 import java.util.function.Function;
 import javax.annotation.Nullable;
 
@@ -94,6 +95,18 @@ final class FixedSizeWeakKeyCache<K, V> implements DDCache<K, V> {
   @Override
   public void clear() {
     Arrays.fill(elements, null);
+  }
+
+  @Override
+  public void visit(BiConsumer<K, V> consumer) {
+    for (WeakPair<K, V> e : elements) {
+      if (null != e) {
+        K key = e.get();
+        if (null != key) {
+          consumer.accept(key, e.value);
+        }
+      }
+    }
   }
 
   private V produceAndStoreValue(Function<K, ? extends V> producer, int hash, K key, int pos) {

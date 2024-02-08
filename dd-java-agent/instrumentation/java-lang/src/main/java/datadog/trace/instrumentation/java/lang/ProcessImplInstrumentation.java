@@ -5,11 +5,12 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 import datadog.trace.api.Platform;
 import java.util.Map;
 
 @AutoService(Instrumenter.class)
-public class ProcessImplInstrumentation extends Instrumenter.Tracing
+public class ProcessImplInstrumentation extends InstrumenterGroup.Tracing
     implements Instrumenter.ForSingleType, Instrumenter.ForBootstrap {
 
   public ProcessImplInstrumentation() {
@@ -28,8 +29,8 @@ public class ProcessImplInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         named("start")
             .and(
                 takesArguments(

@@ -11,6 +11,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 import com.google.auto.service.AutoService;
 import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 import datadog.trace.api.gateway.BlockResponseFunction;
 import datadog.trace.api.gateway.CallbackProvider;
 import datadog.trace.api.gateway.Flow;
@@ -34,8 +35,8 @@ import net.bytebuddy.jar.asm.Type;
 import net.bytebuddy.pool.TypePool;
 
 @AutoService(Instrumenter.class)
-public class ParseParametersInstrumentation extends Instrumenter.AppSec
-    implements Instrumenter.ForSingleType {
+public class ParseParametersInstrumentation extends InstrumenterGroup.AppSec
+    implements Instrumenter.ForSingleType, Instrumenter.HasTypeAdvice {
   public ParseParametersInstrumentation() {
     super("liberty");
   }
@@ -55,19 +56,19 @@ public class ParseParametersInstrumentation extends Instrumenter.AppSec
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void typeAdvice(TypeTransformer transformer) {
+    transformer.applyAdvice(new ParseParametersVisitorWrapper());
+  }
+
+  @Override
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isMethod()
             .and(named("parseParameters"))
             .and(isPublic().or(isProtected()))
             .and(takesArguments(0))
             .and(returns(void.class)),
         ParseParametersInstrumentation.class.getName() + "$ParseParametersAdvice");
-  }
-
-  @Override
-  public AdviceTransformer transformer() {
-    return new VisitingTransformer(new ParseParametersVisitorWrapper());
   }
 
   static class ParseParametersAdvice {

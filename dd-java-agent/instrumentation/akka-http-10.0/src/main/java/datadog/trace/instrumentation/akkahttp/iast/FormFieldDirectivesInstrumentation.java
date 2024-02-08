@@ -14,6 +14,7 @@ import akka.http.scaladsl.server.directives.FormFieldDirectives;
 import akka.http.scaladsl.server.util.Tupler$;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 import datadog.trace.api.iast.Source;
 import datadog.trace.api.iast.SourceTypes;
 import datadog.trace.instrumentation.akkahttp.iast.helpers.TaintSingleParameterFunction;
@@ -28,7 +29,7 @@ import net.bytebuddy.implementation.bytecode.assign.Assigner;
  * @see ParameterDirectivesInstrumentation with which most of the implementation is shared
  */
 @AutoService(Instrumenter.class)
-public class FormFieldDirectivesInstrumentation extends Instrumenter.Iast
+public class FormFieldDirectivesInstrumentation extends InstrumenterGroup.Iast
     implements Instrumenter.ForKnownTypes {
 
   private static final String TRAIT_CLASS =
@@ -57,13 +58,13 @@ public class FormFieldDirectivesInstrumentation extends Instrumenter.Iast
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
+  public void methodAdvice(MethodTransformer transformer) {
     // the Java API delegates to the Scala API
-    transformDirective(transformation, "formFieldMultiMap", "TaintMultiMapDirectiveAdvice");
-    transformDirective(transformation, "formFieldMap", "TaintMapDirectiveAdvice");
-    transformDirective(transformation, "formFieldSeq", "TaintSeqDirectiveAdvice");
+    transformDirective(transformer, "formFieldMultiMap", "TaintMultiMapDirectiveAdvice");
+    transformDirective(transformer, "formFieldMap", "TaintMapDirectiveAdvice");
+    transformDirective(transformer, "formFieldSeq", "TaintSeqDirectiveAdvice");
 
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod()
             .and(isStatic())
             .and(named("formField").or(named("formFields")))
@@ -78,7 +79,7 @@ public class FormFieldDirectivesInstrumentation extends Instrumenter.Iast
         FormFieldDirectivesInstrumentation.class.getName()
             + "$TaintSingleFormFieldDirectiveOldScalaAdvice");
 
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod()
             .and(not(isStatic()))
             .and(named("formField").or(named("formFields")))
@@ -93,7 +94,7 @@ public class FormFieldDirectivesInstrumentation extends Instrumenter.Iast
   }
 
   private void transformDirective(
-      AdviceTransformation transformation, String methodName, String adviceClass) {
+      MethodTransformer transformation, String methodName, String adviceClass) {
     transformation.applyAdvice(
         isTraitDirectiveMethod(TRAIT_CLASS, methodName),
         ParameterDirectivesInstrumentation.class.getName() + "$" + adviceClass);

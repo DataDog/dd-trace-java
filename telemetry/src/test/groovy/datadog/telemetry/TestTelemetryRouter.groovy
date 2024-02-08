@@ -17,7 +17,7 @@ class TestTelemetryRouter extends TelemetryRouter {
   private Queue<RequestAssertions> requests = new LinkedList<>()
 
   TestTelemetryRouter() {
-    super(null, null, null)
+    super(null, null, null, false)
   }
 
   @Override
@@ -76,20 +76,22 @@ class TestTelemetryRouter extends TelemetryRouter {
 
     RequestAssertions headers(RequestType requestType) {
       assert this.request.method() == 'POST'
-      assert this.request.headers().names() == [
+      assert this.request.headers().names().containsAll([
         'Content-Type',
         'Content-Length',
         'DD-Client-Library-Language',
         'DD-Client-Library-Version',
         'DD-Telemetry-API-Version',
         'DD-Telemetry-Request-Type'
-      ] as Set
+      ])
       assert this.request.header('Content-Type') == 'application/json; charset=utf-8'
       assert this.request.header('Content-Length').toInteger() > 0
       assert this.request.header('DD-Client-Library-Language') == 'jvm'
       assert this.request.header('DD-Client-Library-Version') == TracerVersion.TRACER_VERSION
       assert this.request.header('DD-Telemetry-API-Version') == 'v2'
       assert this.request.header('DD-Telemetry-Request-Type') == requestType.toString()
+      def entityId = this.request.header('Datadog-Entity-ID')
+      assert entityId == null || entityId.startsWith("in-") || entityId.startsWith("cin-")
       return this
     }
 
@@ -240,8 +242,12 @@ class TestTelemetryRouter extends TelemetryRouter {
       return this
     }
 
-    PayloadAssertions products(boolean appsecEnabled = true, boolean profilerEnabled = false) {
-      def expected = [appsec: [enabled: appsecEnabled], profiler: [enabled: profilerEnabled]]
+    PayloadAssertions products(boolean appsecEnabled = true, boolean profilerEnabled = false, boolean dynamicInstrumentationEnabled = false) {
+      def expected = [
+        appsec: [enabled: appsecEnabled],
+        profiler: [enabled: profilerEnabled],
+        dynamic_instrumentation: [enabled: dynamicInstrumentationEnabled]
+      ]
       assert this.payload['products'] == expected
       return this
     }
@@ -326,6 +332,7 @@ class TestTelemetryRouter extends TelemetryRouter {
         if (l.getTracerTime() != null) {
           map.put("tracer_time", l.getTracerTime())
         }
+        map.put("count", l.getCount())
         expected.add(map)
       }
       assert this.payload['logs'] == expected
@@ -338,6 +345,24 @@ class TestTelemetryRouter extends TelemetryRouter {
 
     void assertNoMoreMessages() {
       batch.assertNoMoreMessages()
+    }
+
+    void installSignature(String installId, String installType, String installTime) {
+      if (installId == null && installType == null && installTime == null) {
+        assert this.payload['install_signature'] == null
+        return
+      }
+      LinkedHashMap<String, String> expected = [:]
+      if (installId != null) {
+        expected.put("install_id", installId)
+      }
+      if (installType != null) {
+        expected.put("install_type", installType)
+      }
+      if (installTime != null) {
+        expected.put("install_time", installTime)
+      }
+      assert this.payload['install_signature'] == expected
     }
   }
 }

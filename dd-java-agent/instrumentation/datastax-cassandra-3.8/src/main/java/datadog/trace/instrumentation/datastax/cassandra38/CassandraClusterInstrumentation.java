@@ -9,6 +9,7 @@ import com.datastax.driver.core.Cluster;
 import com.datastax.driver.core.EndPoint;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 import datadog.trace.bootstrap.InstrumentationContext;
 import java.util.Collections;
 import java.util.List;
@@ -17,7 +18,7 @@ import net.bytebuddy.asm.Advice;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public class CassandraClusterInstrumentation extends Instrumenter.Tracing
+public class CassandraClusterInstrumentation extends InstrumenterGroup.Tracing
     implements Instrumenter.ForSingleType {
 
   public CassandraClusterInstrumentation() {
@@ -47,8 +48,8 @@ public class CassandraClusterInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isConstructor().and(takesArgument(1, named("java.util.List"))),
         getClass().getName() + "$CassandraManagerConstructorAdvice");
   }

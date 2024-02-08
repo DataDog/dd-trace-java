@@ -21,6 +21,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -36,7 +37,7 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public final class JMSMessageConsumerInstrumentation extends Instrumenter.Tracing
+public final class JMSMessageConsumerInstrumentation extends InstrumenterGroup.Tracing
     implements Instrumenter.ForTypeHierarchy {
 
   public JMSMessageConsumerInstrumentation() {
@@ -72,17 +73,17 @@ public final class JMSMessageConsumerInstrumentation extends Instrumenter.Tracin
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         named("receive").and(takesArguments(0).or(takesArguments(1))).and(isPublic()),
         JMSMessageConsumerInstrumentation.class.getName() + "$ConsumerAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         named("receiveNoWait").and(takesArguments(0)).and(isPublic()),
         JMSMessageConsumerInstrumentation.class.getName() + "$ConsumerAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         named("close").and(takesArguments(0)).and(isPublic()),
         JMSMessageConsumerInstrumentation.class.getName() + "$Close");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod()
             .and(named("setMessageListener"))
             .and(takesArgument(0, hasInterface(named("jakarta.jms.MessageListener")))),

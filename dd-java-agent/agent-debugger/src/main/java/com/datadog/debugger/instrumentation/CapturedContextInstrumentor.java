@@ -2,11 +2,13 @@ package com.datadog.debugger.instrumentation;
 
 import static com.datadog.debugger.instrumentation.ASMHelper.emitReflectiveCall;
 import static com.datadog.debugger.instrumentation.ASMHelper.getStatic;
+import static com.datadog.debugger.instrumentation.ASMHelper.invokeConstructor;
 import static com.datadog.debugger.instrumentation.ASMHelper.invokeStatic;
 import static com.datadog.debugger.instrumentation.ASMHelper.invokeVirtual;
 import static com.datadog.debugger.instrumentation.ASMHelper.isFinalField;
 import static com.datadog.debugger.instrumentation.ASMHelper.isStaticField;
 import static com.datadog.debugger.instrumentation.ASMHelper.ldc;
+import static com.datadog.debugger.instrumentation.ASMHelper.newInstance;
 import static com.datadog.debugger.instrumentation.Types.CAPTURED_CONTEXT_TYPE;
 import static com.datadog.debugger.instrumentation.Types.CAPTURED_VALUE;
 import static com.datadog.debugger.instrumentation.Types.CAPTURE_THROWABLE_TYPE;
@@ -28,14 +30,18 @@ import com.datadog.debugger.probe.ProbeDefinition;
 import com.datadog.debugger.probe.SpanDecorationProbe;
 import com.datadog.debugger.probe.Where;
 import com.datadog.debugger.sink.Snapshot;
+import com.datadog.debugger.util.ClassFileLines;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.debugger.CorrelationAccess;
 import datadog.trace.bootstrap.debugger.Limits;
 import datadog.trace.bootstrap.debugger.MethodLocation;
+import datadog.trace.bootstrap.debugger.ProbeId;
 import datadog.trace.util.Strings;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.Type;
 import org.objectweb.asm.tree.AbstractInsnNode;
@@ -47,7 +53,6 @@ import org.objectweb.asm.tree.InsnNode;
 import org.objectweb.asm.tree.JumpInsnNode;
 import org.objectweb.asm.tree.LabelNode;
 import org.objectweb.asm.tree.LocalVariableNode;
-import org.objectweb.asm.tree.MethodInsnNode;
 import org.objectweb.asm.tree.MethodNode;
 import org.objectweb.asm.tree.TryCatchBlockNode;
 import org.objectweb.asm.tree.TypeInsnNode;
@@ -61,18 +66,15 @@ public class CapturedContextInstrumentor extends Instrumentor {
   private int exitContextVar = -1;
   private int timestampStartVar = -1;
   private int throwableListVar = -1;
-  private final List<FinallyBlock> finallyBlocks = new ArrayList<>();
 
   public CapturedContextInstrumentor(
       ProbeDefinition definition,
-      ClassLoader classLoader,
-      ClassNode classNode,
-      MethodNode methodNode,
+      MethodInfo methodInfo,
       List<DiagnosticMessage> diagnostics,
-      List<String> probeIds,
+      List<ProbeId> probeIds,
       boolean captureSnapshot,
       Limits limits) {
-    super(definition, classLoader, classNode, methodNode, diagnostics, probeIds);
+    super(definition, methodInfo, diagnostics, probeIds);
     this.captureSnapshot = captureSnapshot;
     this.limits = limits;
   }
@@ -80,8 +82,7 @@ public class CapturedContextInstrumentor extends Instrumentor {
   @Override
   public InstrumentationResult.Status instrument() {
     if (isLineProbe) {
-      fillLineMap();
-      if (!addLineCaptures(lineMap)) {
+      if (!addLineCaptures(classFileLines)) {
         return InstrumentationResult.Status.ERROR;
       }
       installFinallyBlocks();
@@ -95,21 +96,13 @@ public class CapturedContextInstrumentor extends Instrumentor {
     return InstrumentationResult.Status.INSTALLED;
   }
 
-  private void installFinallyBlocks() {
-    for (FinallyBlock finallyBlock : finallyBlocks) {
-      methodNode.tryCatchBlocks.add(
-          new TryCatchBlockNode(
-              finallyBlock.startLabel, finallyBlock.endLabel, finallyBlock.handlerLabel, null));
-    }
-  }
-
-  private boolean addLineCaptures(LineMap lineMap) {
+  private boolean addLineCaptures(ClassFileLines classFileLines) {
     Where.SourceLine[] targetLines = definition.getWhere().getSourceLines();
     if (targetLines == null) {
       reportError("Missing line(s) in probe definition.");
       return false;
     }
-    if (lineMap.isEmpty()) {
+    if (classFileLines.isEmpty()) {
       reportError("Missing line debug information.");
       return false;
     }
@@ -119,14 +112,27 @@ public class CapturedContextInstrumentor extends Instrumentor {
 
       boolean isSingleLine = from == till;
 
-      LabelNode beforeLabel = lineMap.getLineLabel(from);
+      LabelNode beforeLabel = classFileLines.getLineLabel(from);
       // single line N capture translates to line range (N, N+1)
-      LabelNode afterLabel = lineMap.getLineLabel(till + (isSingleLine ? 1 : 0));
+      LabelNode afterLabel = classFileLines.getLineLabel(till + (isSingleLine ? 1 : 0));
       if (beforeLabel == null && afterLabel == null) {
         reportError("No line info for " + (isSingleLine ? "line " : "range ") + sourceLine + ".");
       }
       if (beforeLabel != null) {
         InsnList insnList = new InsnList();
+        if (isSingleLine) {
+          TryCatchBlockNode catchHandler = findCatchHandler(beforeLabel);
+          if (catchHandler != null && !isExceptionLocalDeclared(catchHandler, methodNode)) {
+            // empty catch block does not declare exception local variable - we add it
+            int idx = addExceptionLocal(catchHandler, methodNode);
+            // store exception in the new local variable
+            // stack [exception]
+            insnList.add(new InsnNode(Opcodes.DUP));
+            // stack [exception, exception]
+            insnList.add(new VarInsnNode(Opcodes.ASTORE, idx));
+            // stack [exception]
+          }
+        }
         ldc(insnList, Type.getObjectType(classNode.name));
         // stack [class, array]
         pushProbesIds(insnList);
@@ -175,6 +181,71 @@ public class CapturedContextInstrumentor extends Instrumentor {
       }
     }
     return true;
+  }
+
+  private int addExceptionLocal(TryCatchBlockNode catchHandler, MethodNode methodNode) {
+    AbstractInsnNode current = catchHandler.handler;
+    while (current != null
+        && (current.getType() == AbstractInsnNode.LABEL
+            || current.getType() == AbstractInsnNode.LINE)) {
+      current = current.getNext();
+    }
+    if (current.getOpcode() != Opcodes.ASTORE) {
+      reportWarning("Cannot add exception local variable to catch block - no store instruction.");
+      return -1;
+    }
+    int exceptionLocalIdx = ((VarInsnNode) current).var;
+    Set<String> localNames =
+        methodNode.localVariables.stream()
+            .map(localVariableNode -> localVariableNode.name)
+            .collect(Collectors.toSet());
+    // find next label assume this is the end of the handler
+    while (current != null && current.getType() != AbstractInsnNode.LABEL) {
+      current = current.getNext();
+    }
+    if (current == null) {
+      reportWarning("Cannot add exception local variable to catch block - no end of handler.");
+      return -1;
+    }
+    LabelNode end = (LabelNode) current;
+    for (int i = 0; i < 100; i++) {
+      String exceptionLocalName = "ex" + i;
+      if (!localNames.contains(exceptionLocalName)) {
+        methodNode.localVariables.add(
+            new LocalVariableNode(
+                exceptionLocalName,
+                "L" + catchHandler.type + ";",
+                null,
+                catchHandler.handler,
+                end,
+                exceptionLocalIdx));
+        return exceptionLocalIdx;
+      }
+    }
+    return -1;
+  }
+
+  private TryCatchBlockNode findCatchHandler(LabelNode targetLine) {
+    for (TryCatchBlockNode tryCatchBlockNode : methodNode.tryCatchBlocks) {
+      if (tryCatchBlockNode.handler == targetLine) {
+        return tryCatchBlockNode;
+      }
+    }
+    return null;
+  }
+
+  private boolean isExceptionLocalDeclared(TryCatchBlockNode catchHandler, MethodNode methodNode) {
+    if (methodNode.localVariables == null || methodNode.localVariables.isEmpty()) {
+      return false;
+    }
+    String catchDesc =
+        catchHandler.type != null ? "L" + catchHandler.type + ";" : "Ljava/lang/Throwable;";
+    for (LocalVariableNode local : methodNode.localVariables) {
+      if (catchDesc.equals(local.desc)) {
+        return true;
+      }
+    }
+    return false;
   }
 
   @Override
@@ -397,7 +468,7 @@ public class CapturedContextInstrumentor extends Instrumentor {
       // stack [array, array]
       ldc(insnList, i); // index
       // stack [array, array, int]
-      ldc(insnList, probeIds.get(i));
+      ldc(insnList, probeIds.get(i).getEncodedId());
       // stack [array, array, int, string]
       insnList.add(new InsnNode(Opcodes.AASTORE));
       // stack [array]
@@ -1042,33 +1113,5 @@ public class CapturedContextInstrumentor extends Instrumentor {
         INT_TYPE,
         INT_TYPE);
     // stack: [captured_value]
-  }
-
-  private void invokeConstructor(InsnList insnList, Type owner, Type... argTypes) {
-    // expected stack: [instance, arg_type_1 ... arg_type_N]
-    insnList.add(
-        new MethodInsnNode(
-            Opcodes.INVOKESPECIAL,
-            owner.getInternalName(),
-            Types.CONSTRUCTOR,
-            Type.getMethodDescriptor(Type.VOID_TYPE, argTypes),
-            false));
-    // stack: []
-  }
-
-  private static void newInstance(InsnList insnList, Type type) {
-    insnList.add(new TypeInsnNode(Opcodes.NEW, type.getInternalName()));
-  }
-
-  private static class FinallyBlock {
-    final LabelNode startLabel;
-    final LabelNode endLabel;
-    final LabelNode handlerLabel;
-
-    public FinallyBlock(LabelNode startLabel, LabelNode endLabel, LabelNode handlerLabel) {
-      this.startLabel = startLabel;
-      this.endLabel = endLabel;
-      this.handlerLabel = handlerLabel;
-    }
   }
 }

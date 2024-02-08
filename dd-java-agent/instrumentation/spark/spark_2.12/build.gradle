@@ -13,10 +13,14 @@ muzzle {
     assertInverse = true
   }
 }
-
+configurations.all {
+  resolutionStrategy.deactivateDependencyLocking()
+}
 apply from: "$rootDir/gradle/java.gradle"
 
 addTestSuiteForDir('latestDepTest', 'test')
+addTestSuite('test_spark24')
+addTestSuite('test_spark32')
 
 ext {
   // Hadoop does not behave correctly with OpenJ9 https://issues.apache.org/jira/browse/HADOOP-18174
@@ -37,7 +41,20 @@ dependencies {
   testImplementation group: 'org.apache.spark', name: "spark-sql_$scalaVersion", version: "$sparkVersion"
   testImplementation group: 'org.apache.spark', name: "spark-yarn_$scalaVersion", version: "$sparkVersion"
 
+  test_spark24Implementation group: 'org.apache.spark', name: "spark-core_$scalaVersion", version: "2.4.8"
+  test_spark24Implementation group: 'org.apache.spark', name: "spark-sql_$scalaVersion", version: "2.4.8"
+  test_spark24Implementation group: 'org.apache.spark', name: "spark-yarn_$scalaVersion", version: "2.4.8"
+
+  test_spark32Implementation group: 'org.apache.spark', name: "spark-core_$scalaVersion", version: "3.2.4"
+  test_spark32Implementation group: 'org.apache.spark', name: "spark-sql_$scalaVersion", version: "3.2.4"
+  test_spark32Implementation group: 'org.apache.spark', name: "spark-yarn_$scalaVersion", version: "3.2.4"
+
   latestDepTestImplementation group: 'org.apache.spark', name: "spark-core_$scalaVersion", version: '+'
   latestDepTestImplementation group: 'org.apache.spark', name: "spark-sql_$scalaVersion", version: '+'
   latestDepTestImplementation group: 'org.apache.spark', name: "spark-yarn_$scalaVersion", version: '+'
+}
+
+tasks.named("test").configure {
+  dependsOn "test_spark24"
+  dependsOn "test_spark32"
 }

@@ -9,6 +9,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 import com.google.auto.service.AutoService;
 import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -17,7 +18,7 @@ import net.bytebuddy.asm.Advice;
 import org.xnio.channels.StreamSinkChannel;
 
 @AutoService(Instrumenter.class)
-public class HttpServerExchangeSenderInstrumentation extends Instrumenter.AppSec
+public class HttpServerExchangeSenderInstrumentation extends InstrumenterGroup.AppSec
     implements Instrumenter.ForSingleType {
   public HttpServerExchangeSenderInstrumentation() {
     super("undertow", "undertow-2.0");
@@ -43,8 +44,8 @@ public class HttpServerExchangeSenderInstrumentation extends Instrumenter.AppSec
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         not(isPrivate()).and(named("getResponseChannel")).and(takesArguments(0)),
         HttpServerExchangeSenderInstrumentation.class.getName() + "$GetResponseChannelAdvice");
   }

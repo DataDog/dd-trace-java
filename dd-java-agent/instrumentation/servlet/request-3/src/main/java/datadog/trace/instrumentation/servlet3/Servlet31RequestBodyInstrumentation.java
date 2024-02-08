@@ -12,6 +12,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesNoArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
@@ -20,7 +21,7 @@ import net.bytebuddy.matcher.ElementMatcher;
  * "request-2" module. Any changes to the behaviour here should also be reflected in "request-2".
  */
 @AutoService(Instrumenter.class)
-public class Servlet31RequestBodyInstrumentation extends Instrumenter.AppSec
+public class Servlet31RequestBodyInstrumentation extends InstrumenterGroup.AppSec
     implements Instrumenter.ForTypeHierarchy {
   public Servlet31RequestBodyInstrumentation() {
     super("servlet-request-body");
@@ -51,14 +52,14 @@ public class Servlet31RequestBodyInstrumentation extends Instrumenter.AppSec
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         named("getInputStream")
             .and(takesNoArguments())
             .and(returns(named("javax.servlet.ServletInputStream")))
             .and(isPublic()),
         packageName + ".HttpServletGetInputStreamAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         named("getReader")
             .and(takesNoArguments())
             .and(returns(named("java.io.BufferedReader")))

@@ -9,6 +9,7 @@ import com.google.auto.service.AutoService;
 import datadog.trace.advice.ActiveRequestContext;
 import datadog.trace.advice.RequiresRequestContext;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.iast.InstrumentationBridge;
@@ -22,7 +23,7 @@ import net.bytebuddy.asm.Advice;
  * org.apache.pekko.http.scaladsl.server.PathMatcher.Matched}.
  */
 @AutoService(Instrumenter.class)
-public class PathMatcherInstrumentation extends Instrumenter.Iast
+public class PathMatcherInstrumentation extends InstrumenterGroup.Iast
     implements Instrumenter.ForSingleType {
   public PathMatcherInstrumentation() {
     super("pekko-http");
@@ -34,8 +35,8 @@ public class PathMatcherInstrumentation extends Instrumenter.Iast
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isConstructor()
             .and(takesArguments(3))
             .and(takesArgument(0, named("org.apache.pekko.http.scaladsl.model.Uri$Path")))

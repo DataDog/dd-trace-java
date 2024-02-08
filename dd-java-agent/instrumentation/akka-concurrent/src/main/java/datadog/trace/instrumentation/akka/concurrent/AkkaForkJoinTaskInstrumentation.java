@@ -18,6 +18,7 @@ import akka.dispatch.forkjoin.ForkJoinTask;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.ExcludeFilterProvider;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter;
@@ -37,7 +38,7 @@ import net.bytebuddy.matcher.ElementMatcher;
  * ForkJoinPool}: JVM, Akka, Scala, Netty to name a few. This class handles Akka version.
  */
 @AutoService(Instrumenter.class)
-public final class AkkaForkJoinTaskInstrumentation extends Instrumenter.Tracing
+public final class AkkaForkJoinTaskInstrumentation extends InstrumenterGroup.Tracing
     implements Instrumenter.ForTypeHierarchy, ExcludeFilterProvider {
 
   public AkkaForkJoinTaskInstrumentation() {
@@ -80,11 +81,11 @@ public final class AkkaForkJoinTaskInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isMethod().and(namedOneOf("doExec", "exec")), getClass().getName() + "$Exec");
-    transformation.applyAdvice(isMethod().and(named("fork")), getClass().getName() + "$Fork");
-    transformation.applyAdvice(isMethod().and(named("cancel")), getClass().getName() + "$Cancel");
+    transformer.applyAdvice(isMethod().and(named("fork")), getClass().getName() + "$Fork");
+    transformer.applyAdvice(isMethod().and(named("cancel")), getClass().getName() + "$Cancel");
   }
 
   public static final class Exec {

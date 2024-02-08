@@ -6,6 +6,7 @@ import static net.bytebuddy.matcher.ElementMatchers.not;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 import datadog.trace.api.Config;
 import java.util.Set;
 import net.bytebuddy.asm.Advice;
@@ -13,7 +14,7 @@ import net.bytebuddy.matcher.ElementMatcher;
 import org.gradle.invocation.DefaultGradle;
 
 @AutoService(Instrumenter.class)
-public class GradleBuildListenerInstrumentation extends Instrumenter.CiVisibility
+public class GradleBuildListenerInstrumentation extends InstrumenterGroup.CiVisibility
     implements Instrumenter.ForSingleType {
 
   public GradleBuildListenerInstrumentation() {
@@ -53,8 +54,8 @@ public class GradleBuildListenerInstrumentation extends Instrumenter.CiVisibilit
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(isConstructor(), getClass().getName() + "$Construct");
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(isConstructor(), getClass().getName() + "$Construct");
   }
 
   public static class Construct {

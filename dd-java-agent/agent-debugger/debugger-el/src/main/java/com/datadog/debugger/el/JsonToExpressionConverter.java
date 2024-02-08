@@ -157,6 +157,18 @@ public class JsonToExpressionConverter {
           reader.endArray();
           return expr;
         }
+      case "instanceof":
+        {
+          JsonReader.Token token = reader.peek();
+          if (token != BEGIN_ARRAY) {
+            throw new UnsupportedOperationException(
+                "Operation 'instanceof' expects the arguments to be defined as array");
+          }
+          reader.beginArray();
+          BooleanExpression expr = createBinaryValuePredicate(reader, DSL::instanceOf);
+          reader.endArray();
+          return expr;
+        }
       case "or":
         {
           JsonReader.Token token = reader.peek();
@@ -214,14 +226,14 @@ public class JsonToExpressionConverter {
           }
           return DSL.isEmpty(asValueExpression(reader));
         }
-      case "isUndefined":
+      case "isDefined":
         {
           JsonReader.Token token = reader.peek();
           if (token == BEGIN_ARRAY) {
             throw new UnsupportedOperationException(
                 "Operation 'isUndefined' expects exactly one value argument");
           }
-          return DSL.isUndefined(asValueExpression(reader));
+          return DSL.isDefined(asValueExpression(reader));
         }
       case "startsWith":
         {

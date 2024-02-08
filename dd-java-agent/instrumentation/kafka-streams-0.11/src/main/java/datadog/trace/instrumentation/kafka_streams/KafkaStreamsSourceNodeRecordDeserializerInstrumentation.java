@@ -8,14 +8,15 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 import net.bytebuddy.asm.Advice;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.common.record.TimestampType;
 
 // This is necessary because SourceNodeRecordDeserializer drops the headers.  :-(
 @AutoService(Instrumenter.class)
-public class KafkaStreamsSourceNodeRecordDeserializerInstrumentation extends Instrumenter.Tracing
-    implements Instrumenter.ForSingleType {
+public class KafkaStreamsSourceNodeRecordDeserializerInstrumentation
+    extends InstrumenterGroup.Tracing implements Instrumenter.ForSingleType {
 
   public KafkaStreamsSourceNodeRecordDeserializerInstrumentation() {
     super("kafka", "kafka-streams");
@@ -27,8 +28,8 @@ public class KafkaStreamsSourceNodeRecordDeserializerInstrumentation extends Ins
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isMethod()
             .and(isPublic())
             .and(named("deserialize"))

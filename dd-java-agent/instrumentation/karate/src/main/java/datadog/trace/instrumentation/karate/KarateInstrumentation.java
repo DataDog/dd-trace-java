@@ -6,10 +6,11 @@ import com.google.auto.service.AutoService;
 import com.intuit.karate.Runner;
 import com.intuit.karate.RuntimeHook;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 import net.bytebuddy.asm.Advice;
 
 @AutoService(Instrumenter.class)
-public class KarateInstrumentation extends Instrumenter.CiVisibility
+public class KarateInstrumentation extends InstrumenterGroup.CiVisibility
     implements Instrumenter.ForSingleType {
 
   public KarateInstrumentation() {
@@ -31,8 +32,8 @@ public class KarateInstrumentation extends Instrumenter.CiVisibility
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isConstructor(), KarateInstrumentation.class.getName() + "$KarateAdvice");
   }
 

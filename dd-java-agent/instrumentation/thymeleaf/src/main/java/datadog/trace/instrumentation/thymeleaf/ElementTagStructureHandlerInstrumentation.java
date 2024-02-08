@@ -7,10 +7,11 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 import java.util.Map;
 
 @AutoService(Instrumenter.class)
-public class ElementTagStructureHandlerInstrumentation extends Instrumenter.Iast
+public class ElementTagStructureHandlerInstrumentation extends InstrumenterGroup.Iast
     implements Instrumenter.ForSingleType {
   public ElementTagStructureHandlerInstrumentation() {
     super("thymeleaf");
@@ -22,9 +23,9 @@ public class ElementTagStructureHandlerInstrumentation extends Instrumenter.Iast
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
+  public void methodAdvice(MethodTransformer transformer) {
 
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod().and(named("setBody")).and(takesArgument(0, CharSequence.class)),
         packageName + ".BodyAdvice");
   }

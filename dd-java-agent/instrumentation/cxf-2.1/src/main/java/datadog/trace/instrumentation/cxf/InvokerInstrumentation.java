@@ -2,6 +2,7 @@ package datadog.trace.instrumentation.cxf;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 import datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers;
 import datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers;
 import datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers;
@@ -16,7 +17,7 @@ import net.bytebuddy.matcher.ElementMatchers;
 import org.apache.cxf.message.Exchange;
 
 @AutoService(Instrumenter.class)
-public class InvokerInstrumentation extends Instrumenter.Tracing
+public class InvokerInstrumentation extends InstrumenterGroup.Tracing
     implements Instrumenter.ForTypeHierarchy {
   public InvokerInstrumentation() {
     super("cxf", "cxf-invoker");
@@ -46,8 +47,8 @@ public class InvokerInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         ElementMatchers.isMethod().and(NameMatchers.named("invoke")),
         getClass().getName() + "$PropagateSpanAdvice");
   }

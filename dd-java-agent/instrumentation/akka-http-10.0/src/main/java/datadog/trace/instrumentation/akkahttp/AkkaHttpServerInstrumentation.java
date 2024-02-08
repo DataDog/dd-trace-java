@@ -11,6 +11,7 @@ import akka.stream.javadsl.BidiFlow;
 import akka.stream.scaladsl.Flow;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 import datadog.trace.agent.tooling.muzzle.Reference;
 import datadog.trace.instrumentation.akkahttp.appsec.ScalaListCollectorMuzzleReferences;
 import net.bytebuddy.asm.Advice;
@@ -49,7 +50,7 @@ import net.bytebuddy.asm.Advice;
  * {@code Mailbox}.
  */
 @AutoService(Instrumenter.class)
-public final class AkkaHttpServerInstrumentation extends Instrumenter.Tracing
+public final class AkkaHttpServerInstrumentation extends InstrumenterGroup.Tracing
     implements Instrumenter.ForSingleType {
   public AkkaHttpServerInstrumentation() {
     super("akka-http", "akka-http-server");
@@ -86,8 +87,8 @@ public final class AkkaHttpServerInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         named("bindAndHandle").and(takesArgument(0, named("akka.stream.scaladsl.Flow"))),
         getClass().getName() + "$AkkaHttpBindAndHandleAdvice");
   }

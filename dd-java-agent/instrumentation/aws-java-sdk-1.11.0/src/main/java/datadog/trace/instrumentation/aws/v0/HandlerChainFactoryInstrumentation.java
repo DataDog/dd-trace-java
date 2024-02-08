@@ -1,12 +1,12 @@
 package datadog.trace.instrumentation.aws.v0;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 
 import com.amazonaws.handlers.RequestHandler2;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 import datadog.trace.bootstrap.InstrumentationContext;
 import java.util.List;
 import java.util.Map;
@@ -17,7 +17,7 @@ import net.bytebuddy.asm.Advice;
  * is tested. It could possibly be extended earlier.
  */
 @AutoService(Instrumenter.class)
-public final class HandlerChainFactoryInstrumentation extends Instrumenter.Tracing
+public final class HandlerChainFactoryInstrumentation extends InstrumenterGroup.Tracing
     implements Instrumenter.ForSingleType {
 
   public HandlerChainFactoryInstrumentation() {
@@ -42,13 +42,17 @@ public final class HandlerChainFactoryInstrumentation extends Instrumenter.Traci
 
   @Override
   public Map<String, String> contextStore() {
-    return singletonMap(
-        "com.amazonaws.services.sqs.model.ReceiveMessageResult", "java.lang.String");
+    Map<String, String> map = new java.util.HashMap<>();
+    map.put("com.amazonaws.services.sqs.model.ReceiveMessageResult", "java.lang.String");
+    map.put(
+        "com.amazonaws.AmazonWebServiceRequest",
+        "datadog.trace.bootstrap.instrumentation.api.AgentSpan");
+    return map;
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isMethod().and(named("newRequestHandler2Chain")),
         HandlerChainFactoryInstrumentation.class.getName() + "$HandlerChainAdvice");
   }
@@ -64,7 +68,10 @@ public final class HandlerChainFactoryInstrumentation extends Instrumenter.Traci
       handlers.add(
           new TracingRequestHandler(
               InstrumentationContext.get(
-                  "com.amazonaws.services.sqs.model.ReceiveMessageResult", "java.lang.String")));
+                  "com.amazonaws.services.sqs.model.ReceiveMessageResult", "java.lang.String"),
+              InstrumentationContext.get(
+                  "com.amazonaws.AmazonWebServiceRequest",
+                  "datadog.trace.bootstrap.instrumentation.api.AgentSpan")));
     }
   }
 }

@@ -7,11 +7,12 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import net.bytebuddy.asm.Advice;
 
 @AutoService(Instrumenter.class)
-public final class BoundedLocalCacheInstrumentation extends Instrumenter.Tracing
+public final class BoundedLocalCacheInstrumentation extends InstrumenterGroup.Tracing
     implements Instrumenter.ForSingleType {
 
   public BoundedLocalCacheInstrumentation() {
@@ -24,8 +25,8 @@ public final class BoundedLocalCacheInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         named("scheduleDrainBuffers").and(takesArguments(0)),
         getClass().getName() + "$ScheduleDrainBuffers");
   }

@@ -7,15 +7,16 @@ import static net.bytebuddy.matcher.ElementMatchers.nameStartsWith;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 import datadog.trace.api.Config;
-import datadog.trace.api.civisibility.InstrumentationBridge;
+import datadog.trace.api.civisibility.coverage.CoverageBridge;
 import java.util.Set;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public class ClassInstrumenterInstrumentation extends Instrumenter.CiVisibility
+public class ClassInstrumenterInstrumentation extends InstrumenterGroup.CiVisibility
     implements Instrumenter.ForTypeHierarchy {
   public ClassInstrumenterInstrumentation() {
     super("jacoco");
@@ -23,7 +24,9 @@ public class ClassInstrumenterInstrumentation extends Instrumenter.CiVisibility
 
   @Override
   public boolean isApplicable(Set<TargetSystem> enabledSystems) {
-    return super.isApplicable(enabledSystems) && Config.get().isCiVisibilityCodeCoverageEnabled();
+    return super.isApplicable(enabledSystems)
+        && Config.get().isCiVisibilityCodeCoverageEnabled()
+        && Config.get().isCiVisibilityCoverageSegmentsEnabled();
   }
 
   @Override
@@ -40,8 +43,8 @@ public class ClassInstrumenterInstrumentation extends Instrumenter.CiVisibility
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isMethod().and(named("visitTotalProbeCount")),
         getClass().getName() + "$VisitTotalProbeCountAdvice");
   }
@@ -51,7 +54,7 @@ public class ClassInstrumenterInstrumentation extends Instrumenter.CiVisibility
     static void enter(
         @Advice.FieldValue(value = "className") final String className,
         @Advice.Argument(0) int count) {
-      InstrumentationBridge.getCoverageProbeStoreRegistry().setTotalProbeCount(className, count);
+      CoverageBridge.getCoverageProbeStoreRegistry().setTotalProbeCount(className, count);
     }
   }
 }

@@ -10,6 +10,7 @@ import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.advice.ActiveRequestContext;
 import datadog.trace.advice.RequiresRequestContext;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 import datadog.trace.agent.tooling.muzzle.Reference;
 import datadog.trace.api.gateway.BlockResponseFunction;
 import datadog.trace.api.gateway.CallbackProvider;
@@ -24,7 +25,7 @@ import org.eclipse.jetty.server.Request;
 import org.eclipse.jetty.util.MultiMap;
 
 @AutoService(Instrumenter.class)
-public class RequestExtractContentParametersInstrumentation extends Instrumenter.AppSec
+public class RequestExtractContentParametersInstrumentation extends InstrumenterGroup.AppSec
     implements Instrumenter.ForSingleType {
   private static final String MULTI_MAP_INTERNAL_NAME = "Lorg/eclipse/jetty/util/MultiMap;";
 
@@ -38,11 +39,11 @@ public class RequestExtractContentParametersInstrumentation extends Instrumenter
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         named("extractContentParameters").and(takesArguments(0)),
         getClass().getName() + "$ExtractContentParametersAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         named("getParts")
             .and(takesArguments(1))
             .and(takesArgument(0, named("org.eclipse.jetty.util.MultiMap"))),

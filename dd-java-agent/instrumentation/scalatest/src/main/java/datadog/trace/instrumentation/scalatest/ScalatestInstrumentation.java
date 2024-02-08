@@ -6,12 +6,13 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 import java.util.Set;
 import net.bytebuddy.asm.Advice;
 import org.scalatest.events.Event;
 
 @AutoService(Instrumenter.class)
-public class ScalatestInstrumentation extends Instrumenter.CiVisibility
+public class ScalatestInstrumentation extends InstrumenterGroup.CiVisibility
     implements Instrumenter.ForSingleType {
 
   public ScalatestInstrumentation() {
@@ -31,6 +32,7 @@ public class ScalatestInstrumentation extends Instrumenter.CiVisibility
   @Override
   public String[] helperClassNames() {
     return new String[] {
+      packageName + ".retry.SuppressedTestFailedException",
       packageName + ".ScalatestUtils",
       packageName + ".RunContext",
       packageName + ".DatadogReporter",
@@ -38,8 +40,8 @@ public class ScalatestInstrumentation extends Instrumenter.CiVisibility
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         named("apply")
             .and(takesArguments(1))
             .and(takesArgument(0, named("org.scalatest.events.Event"))),

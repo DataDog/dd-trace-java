@@ -8,6 +8,7 @@ import com.datadog.debugger.el.ProbeCondition;
 import com.datadog.debugger.instrumentation.CapturedContextInstrumentor;
 import com.datadog.debugger.instrumentation.DiagnosticMessage;
 import com.datadog.debugger.instrumentation.InstrumentationResult;
+import com.datadog.debugger.instrumentation.MethodInfo;
 import com.datadog.debugger.sink.Snapshot;
 import datadog.trace.api.Pair;
 import datadog.trace.bootstrap.debugger.CapturedContext;
@@ -24,8 +25,6 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
-import org.objectweb.asm.tree.ClassNode;
-import org.objectweb.asm.tree.MethodNode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -135,13 +134,9 @@ public class SpanDecorationProbe extends ProbeDefinition {
 
   @Override
   public InstrumentationResult.Status instrument(
-      ClassLoader classLoader,
-      ClassNode classNode,
-      MethodNode methodNode,
-      List<DiagnosticMessage> diagnostics,
-      List<String> probeIds) {
+      MethodInfo methodInfo, List<DiagnosticMessage> diagnostics, List<ProbeId> probeIds) {
     return new CapturedContextInstrumentor(
-            this, classLoader, classNode, methodNode, diagnostics, probeIds, false, Limits.DEFAULT)
+            this, methodInfo, diagnostics, probeIds, false, Limits.DEFAULT)
         .instrument();
   }
 
@@ -156,7 +151,6 @@ public class SpanDecorationProbe extends ProbeDefinition {
             continue;
           }
         } catch (EvaluationException ex) {
-          LOGGER.debug("Evaluation error: ", ex);
           status.addError(new EvaluationError(ex.getExpr(), ex.getMessage()));
           continue;
         }
@@ -195,7 +189,9 @@ public class SpanDecorationProbe extends ProbeDefinition {
       CapturedContext exitContext,
       List<CapturedContext.CapturedThrowable> caughtExceptions) {
     CapturedContext.Status status =
-        evaluateAt == MethodLocation.EXIT ? exitContext.getStatus(id) : entryContext.getStatus(id);
+        evaluateAt == MethodLocation.EXIT
+            ? exitContext.getStatus(probeId.getEncodedId())
+            : entryContext.getStatus(probeId.getEncodedId());
     if (status == null) {
       return;
     }
@@ -206,7 +202,7 @@ public class SpanDecorationProbe extends ProbeDefinition {
 
   @Override
   public void commit(CapturedContext lineContext, int line) {
-    CapturedContext.Status status = lineContext.getStatus(id);
+    CapturedContext.Status status = lineContext.getStatus(probeId.getEncodedId());
     if (status == null) {
       return;
     }
@@ -236,6 +232,7 @@ public class SpanDecorationProbe extends ProbeDefinition {
     for (Pair<String, String> tag : tagsToDecorate) {
       agentSpan.setTag(tag.getLeft(), tag.getRight());
     }
+    DebuggerAgent.getSink().getProbeStatusSink().addEmitting(probeId);
   }
 
   private void handleEvaluationErrors(SpanDecorationStatus status) {

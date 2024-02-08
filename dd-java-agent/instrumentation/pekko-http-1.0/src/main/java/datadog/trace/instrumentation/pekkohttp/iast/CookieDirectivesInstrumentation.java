@@ -4,6 +4,7 @@ import static datadog.trace.instrumentation.pekkohttp.iast.TraitMethodMatchers.i
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 import datadog.trace.api.iast.Source;
 import datadog.trace.api.iast.SourceTypes;
 import datadog.trace.instrumentation.pekkohttp.iast.helpers.TaintCookieFunction;
@@ -20,7 +21,7 @@ import org.apache.pekko.http.scaladsl.server.util.Tupler$;
  * all the cookies, see {@link CookieHeaderInstrumentation}.
  */
 @AutoService(Instrumenter.class)
-public class CookieDirectivesInstrumentation extends Instrumenter.Iast
+public class CookieDirectivesInstrumentation extends InstrumenterGroup.Iast
     implements Instrumenter.ForKnownTypes {
   public CookieDirectivesInstrumentation() {
     super("pekko-http");
@@ -44,12 +45,12 @@ public class CookieDirectivesInstrumentation extends Instrumenter.Iast
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
+  public void methodAdvice(MethodTransformer transformer) {
     String traitName = "org.apache.pekko.http.scaladsl.server.directives.CookieDirectives";
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isTraitDirectiveMethod(traitName, "cookie", "java.lang.String"),
         CookieDirectivesInstrumentation.class.getName() + "$TaintCookieAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isTraitDirectiveMethod(traitName, "optionalCookie", "java.lang.String"),
         CookieDirectivesInstrumentation.class.getName() + "$TaintOptionalCookieAdvice");
   }

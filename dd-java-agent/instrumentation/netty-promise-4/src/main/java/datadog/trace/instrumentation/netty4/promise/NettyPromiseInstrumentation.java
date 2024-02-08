@@ -5,12 +5,13 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 import io.netty.util.concurrent.Future;
 import io.netty.util.concurrent.GenericFutureListener;
 import net.bytebuddy.asm.Advice;
 
 @AutoService(Instrumenter.class)
-public class NettyPromiseInstrumentation extends Instrumenter.Tracing
+public class NettyPromiseInstrumentation extends InstrumenterGroup.Tracing
     implements Instrumenter.ForSingleType {
 
   public NettyPromiseInstrumentation() {
@@ -37,12 +38,12 @@ public class NettyPromiseInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         named("addListener")
             .and(takesArgument(0, named("io.netty.util.concurrent.GenericFutureListener"))),
         NettyPromiseInstrumentation.class.getName() + "$WrapListenerAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         named("addListeners")
             .and(takesArgument(0, named("io.netty.util.concurrent.GenericFutureListener[]"))),
         NettyPromiseInstrumentation.class.getName() + "$WrapListenersAdvice");

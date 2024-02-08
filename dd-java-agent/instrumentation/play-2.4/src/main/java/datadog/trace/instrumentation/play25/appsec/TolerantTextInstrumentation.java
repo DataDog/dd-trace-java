@@ -7,10 +7,11 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 import datadog.trace.agent.tooling.muzzle.Reference;
 
 @AutoService(Instrumenter.class)
-public class TolerantTextInstrumentation extends Instrumenter.AppSec
+public class TolerantTextInstrumentation extends InstrumenterGroup.AppSec
     implements Instrumenter.ForSingleType {
   public TolerantTextInstrumentation() {
     super("play");
@@ -39,8 +40,8 @@ public class TolerantTextInstrumentation extends Instrumenter.AppSec
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         named("parse")
             .and(takesArguments(2))
             .and(takesArgument(0, named("play.mvc.Http$RequestHeader")))

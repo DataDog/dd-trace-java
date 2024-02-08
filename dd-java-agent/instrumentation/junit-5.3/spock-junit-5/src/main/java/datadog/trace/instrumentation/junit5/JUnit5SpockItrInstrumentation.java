@@ -7,6 +7,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 import datadog.trace.api.Config;
 import datadog.trace.api.civisibility.InstrumentationBridge;
 import datadog.trace.api.civisibility.config.TestIdentifier;
@@ -22,7 +23,7 @@ import org.junit.platform.engine.support.hierarchical.SameThreadHierarchicalTest
 import org.spockframework.runtime.SpockNode;
 
 @AutoService(Instrumenter.class)
-public class JUnit5SpockItrInstrumentation extends Instrumenter.CiVisibility
+public class JUnit5SpockItrInstrumentation extends InstrumenterGroup.CiVisibility
     implements Instrumenter.ForTypeHierarchy {
 
   public JUnit5SpockItrInstrumentation() {
@@ -60,8 +61,8 @@ public class JUnit5SpockItrInstrumentation extends Instrumenter.CiVisibility
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         named("shouldBeSkipped").and(takesArguments(1)),
         JUnit5SpockItrInstrumentation.class.getName() + "$JUnit5ItrAdvice");
   }

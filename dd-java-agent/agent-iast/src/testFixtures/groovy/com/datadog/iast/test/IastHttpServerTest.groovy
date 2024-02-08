@@ -1,11 +1,14 @@
 package com.datadog.iast.test
 
 import com.datadog.iast.IastRequestContext
+import com.datadog.iast.model.Vulnerability
 import com.datadog.iast.taint.TaintedObjects
 import datadog.trace.agent.test.base.WithHttpServer
 import datadog.trace.agent.tooling.bytebuddy.iast.TaintableVisitor
 import datadog.trace.api.gateway.IGSpanInfo
 import datadog.trace.api.gateway.RequestContext
+import datadog.trace.api.iast.IastContext
+import groovy.json.JsonBuilder
 import groovy.transform.CompileStatic
 
 import java.util.concurrent.LinkedBlockingQueue
@@ -15,19 +18,23 @@ abstract class IastHttpServerTest<SERVER> extends WithHttpServer<SERVER> impleme
 
   private static final LinkedBlockingQueue<TaintedObjectCollection> TAINTED_OBJECTS = new LinkedBlockingQueue<>()
 
+  private static final LinkedBlockingQueue<List<Vulnerability>> VULNERABILITIES = new LinkedBlockingQueue<>()
+
   @CompileStatic
   void configurePreAgent() {
-    super.configurePreAgent()
     injectSysConfig('dd.iast.enabled', 'true')
+    super.configurePreAgent()
   }
 
   protected Closure getRequestEndAction() {
     { RequestContext requestContext, IGSpanInfo igSpanInfo ->
       // request end action
-      IastRequestContext iastRequestContext = IastRequestContext.get(requestContext)
+      IastRequestContext iastRequestContext = IastContext.Provider.get(requestContext)
       if (iastRequestContext) {
         TaintedObjects taintedObjects = iastRequestContext.getTaintedObjects()
         TAINTED_OBJECTS.offer(new TaintedObjectCollection(taintedObjects))
+        List<Vulnerability> vulns = iastRequestContext.getVulnerabilityBatch().getVulnerabilities()
+        VULNERABILITIES.offer(vulns)
       }
     }
   }
@@ -60,5 +67,12 @@ abstract class IastHttpServerTest<SERVER> extends WithHttpServer<SERVER> impleme
   @Override
   String operation() {
     return null
+  }
+
+  protected void hasVulnerability(final Closure<Boolean> matcher) {
+    List<Vulnerability> vulns = VULNERABILITIES.poll(15, TimeUnit.SECONDS)
+    if(vulns.find(matcher) == null){
+      throw new AssertionError("No matching vulnerability found. Vulnerabilities found: ${new JsonBuilder(vulns).toPrettyString()}")
+    }
   }
 }

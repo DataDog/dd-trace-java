@@ -1,6 +1,7 @@
 package datadog.trace.agent.tooling.muzzle;
 
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 import java.util.Map;
 
 public abstract class TestInstrumentationClasses {
@@ -13,14 +14,15 @@ public abstract class TestInstrumentationClasses {
     SOME_ADVICE_REFS = references.values().toArray(new Reference[0]);
   }
 
-  public abstract static class BaseInst extends Instrumenter.Default {
+  public abstract static class BaseInst extends InstrumenterGroup
+      implements Instrumenter.HasMethodAdvice {
 
     public BaseInst() {
       super("test");
     }
 
     @Override
-    public void adviceTransformations(AdviceTransformation transformation) {}
+    public void methodAdvice(MethodTransformer transformer) {}
   }
 
   public static class EmptyInst extends BaseInst {

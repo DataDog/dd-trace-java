@@ -3,6 +3,7 @@ package datadog.trace.civisibility
 import com.fasterxml.jackson.databind.ObjectMapper
 import datadog.trace.agent.test.server.http.TestHttpServer
 import datadog.trace.test.util.MultipartRequestParser
+import org.apache.commons.io.IOUtils
 import org.msgpack.jackson.dataformat.MessagePackFactory
 import spock.lang.AutoCleanup
 import spock.lang.Shared
@@ -10,6 +11,8 @@ import spock.lang.Specification
 import spock.util.concurrent.PollingConditions
 
 import java.util.concurrent.ConcurrentLinkedQueue
+import java.util.zip.GZIPInputStream
+import java.util.zip.GZIPOutputStream
 
 import static datadog.trace.agent.test.server.http.TestHttpServer.httpServer
 
@@ -23,6 +26,15 @@ abstract class CiVisibilitySmokeTest extends Specification {
 
   @Shared
   Queue<Map<String, Object>> receivedCoverages = new ConcurrentLinkedQueue<>()
+
+  @Shared
+  boolean codeCoverageEnabled = true
+
+  @Shared
+  boolean testsSkippingEnabled = true
+
+  @Shared
+  boolean flakyRetriesEnabled = false
 
   def setup() {
     receivedTraces.clear()
@@ -39,14 +51,20 @@ abstract class CiVisibilitySmokeTest extends Specification {
   protected TestHttpServer intakeServer = httpServer {
     handlers {
       prefix("/api/v2/citestcycle") {
-        def decodedEvent = msgPackMapper.readValue(request.body, Map)
+        def contentEncodingHeader = request.getHeader("Content-Encoding")
+        def gzipEnabled = contentEncodingHeader != null && contentEncodingHeader.contains("gzip")
+        def requestBody = gzipEnabled ? CiVisibilitySmokeTest.decompress(request.body) : request.body
+        def decodedEvent = msgPackMapper.readValue(requestBody, Map)
         receivedTraces.add(decodedEvent)
 
         response.status(200).send()
       }
 
       prefix("/api/v2/citestcov") {
-        def parsed = MultipartRequestParser.parseRequest(request.body, request.headers.get("Content-Type"))
+        def contentEncodingHeader = request.getHeader("Content-Encoding")
+        def gzipEnabled = contentEncodingHeader != null && contentEncodingHeader.contains("gzip")
+        def requestBody = gzipEnabled ? CiVisibilitySmokeTest.decompress(request.body) : request.body
+        def parsed = MultipartRequestParser.parseRequest(requestBody, request.headers.get("Content-Type"))
         def coverages = parsed.get("coverage1")
         for (def coverage : coverages) {
           def decodedCoverage = msgPackMapper.readValue(coverage.get(), Map)
@@ -57,11 +75,18 @@ abstract class CiVisibilitySmokeTest extends Specification {
       }
 
       prefix("/api/v2/libraries/tests/services/setting") {
-        response.status(200).send('{ "data": { "type": "ci_app_tracers_test_service_settings", "id": "uuid", "attributes": { "code_coverage": true, "tests_skipping": true } } }')
+        // not compressing settings response on purpose, to better mimic real backend behavior:
+        // it may choose to compress the response or not based on its size,
+        // so smaller responses (like those of /setting endpoint) are uncompressed,
+        // while the larger ones (skippable and flaky test lists) are compressed
+        response.status(200).send(('{ "data": { "type": "ci_app_tracers_test_service_settings", "id": "uuid", "attributes": { '
+          + '"code_coverage": ' + codeCoverageEnabled
+          + ', "tests_skipping": ' + testsSkippingEnabled
+          + ', "flaky_test_retries_enabled": ' + flakyRetriesEnabled +  '} } }').bytes)
       }
 
       prefix("/api/v2/ci/tests/skippable") {
-        response.status(200).send('{ "data": [{' +
+        response.status(200).addHeader("Content-Encoding", "gzip").send(CiVisibilitySmokeTest.compress(('{ "data": [{' +
           '  "id": "d230520a0561ee2f",' +
           '  "type": "test",' +
           '  "attributes": {' +
@@ -82,9 +107,50 @@ abstract class CiVisibilitySmokeTest extends Specification {
           '    "suite": "datadog.smoke.TestSucceed"' +
           '  }' +
           '}] ' +
-          '}')
+          '}').bytes))
+      }
+
+      prefix("/api/v2/ci/libraries/tests/flaky") {
+        response.status(200).addHeader("Content-Encoding", "gzip").send(CiVisibilitySmokeTest.compress(('{ "data": [{' +
+          '  "id": "d230520a0561ee2f",' +
+          '  "type": "test",' +
+          '  "attributes": {' +
+          '    "configurations": {' +
+          '        "test.bundle": "Maven Smoke Tests Project maven-surefire-plugin default-test"' +
+          '    },' +
+          '    "name": "test_failed",' +
+          '    "suite": "datadog.smoke.TestFailed"' +
+          '  }' +
+          '}, {' +
+          '  "id": "d230520a0561ee2g",' +
+          '  "type": "test",' +
+          '  "attributes": {' +
+          '    "configurations": {' +
+          '        "test.bundle": ":test"' +
+          '    },' +
+          '    "name": "test_failed",' +
+          '    "suite": "datadog.smoke.TestFailed"' +
+          '  }' +
+          '}] ' +
+          '}').bytes))
       }
     }
+  }
+
+  private static byte[] compress(byte[] bytes) {
+    def baos = new ByteArrayOutputStream()
+    try (GZIPOutputStream zip = new GZIPOutputStream(baos)) {
+      IOUtils.copy(new ByteArrayInputStream(bytes), zip)
+    }
+    return baos.toByteArray()
+  }
+
+  private static byte[] decompress(byte[] bytes) {
+    def baos = new ByteArrayOutputStream()
+    try (GZIPInputStream zip = new GZIPInputStream(new ByteArrayInputStream(bytes))) {
+      IOUtils.copy(zip, baos)
+    }
+    return baos.toByteArray()
   }
 
   protected verifyEventsAndCoverages(String projectName, String toolchain, String toolchainVersion, int expectedEventsCount, int expectedCoveragesCount) {
@@ -98,7 +164,6 @@ abstract class CiVisibilitySmokeTest extends Specification {
     //    CiVisibilityTestUtils.generateTemplates(baseTemplatesPath, events, coverages, additionalReplacements)
 
     CiVisibilityTestUtils.assertData(projectName, events, coverages, additionalReplacements)
-    return true
   }
 
   protected List<Map<String, Object>> waitForEvents(int expectedEventsSize) {

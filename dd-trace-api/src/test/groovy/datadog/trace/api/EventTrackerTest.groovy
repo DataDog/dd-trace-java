@@ -6,6 +6,7 @@ import datadog.trace.api.interceptor.TraceInterceptor
 import datadog.trace.api.internal.InternalTracer
 import datadog.trace.api.internal.TraceSegment
 import datadog.trace.api.profiling.Profiling
+import datadog.trace.context.TraceScope
 import datadog.trace.test.util.DDSpecification
 
 class EventTrackerTest extends DDSpecification {
@@ -152,6 +153,11 @@ class EventTrackerTest extends DDSpecification {
     @Override
     boolean addTraceInterceptor(TraceInterceptor traceInterceptor) {
       return false
+    }
+
+    @Override
+    TraceScope muteTracing() {
+      return null
     }
 
     @Override

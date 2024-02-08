@@ -340,16 +340,15 @@ class RecursiveThreadPoolPropagationTest extends AgentTestRunner {
     int orphanCount = 0
     List<DDSpan> trace = TEST_WRITER.get(0)
     assert trace.size() == depth
-    sortByDepth(trace)
-    for (DDSpan span : trace) {
+    for (DDSpan span : sortByDepth(trace)) {
       orphanCount += span.isRootSpan() ? 1 : 0
       assert String.valueOf(i++) == span.getOperationName()
     }
     assert orphanCount == 1
   }
 
-  private static void sortByDepth(List<DDSpan> trace) {
-    Collections.sort(trace, new Comparator<DDSpan>() {
+  private static List<DDSpan> sortByDepth(List<DDSpan> trace) {
+    return trace.sort(false, new Comparator<DDSpan>() {
         @Override
         int compare(DDSpan l, DDSpan r) {
           return Integer.parseInt(l.getOperationName().toString()) - Integer.parseInt(r.getOperationName().toString())

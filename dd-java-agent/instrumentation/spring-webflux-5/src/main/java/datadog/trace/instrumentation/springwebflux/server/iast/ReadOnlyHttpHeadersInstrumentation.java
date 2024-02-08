@@ -6,9 +6,10 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 
 @AutoService(Instrumenter.class)
-public class ReadOnlyHttpHeadersInstrumentation extends Instrumenter.Iast
+public class ReadOnlyHttpHeadersInstrumentation extends InstrumenterGroup.Iast
     implements Instrumenter.ForSingleType {
   public ReadOnlyHttpHeadersInstrumentation() {
     super("spring-webflux");
@@ -25,8 +26,8 @@ public class ReadOnlyHttpHeadersInstrumentation extends Instrumenter.Iast
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isMethod().and(named("get")).and(takesArguments(Object.class)),
         packageName + ".TaintHttpHeadersGetAdvice");
   }

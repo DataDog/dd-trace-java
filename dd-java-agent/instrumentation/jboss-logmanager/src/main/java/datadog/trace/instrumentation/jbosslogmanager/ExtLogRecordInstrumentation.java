@@ -9,6 +9,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 import datadog.trace.agent.tooling.log.UnionMap;
 import datadog.trace.api.Config;
 import datadog.trace.api.CorrelationIdentifier;
@@ -28,7 +29,7 @@ import net.bytebuddy.matcher.ElementMatcher;
 import org.jboss.logmanager.ExtLogRecord;
 
 @AutoService(Instrumenter.class)
-public class ExtLogRecordInstrumentation extends Instrumenter.Tracing
+public class ExtLogRecordInstrumentation extends InstrumenterGroup.Tracing
     implements Instrumenter.ForTypeHierarchy {
   public ExtLogRecordInstrumentation() {
     super("jboss-logmanager");
@@ -50,12 +51,12 @@ public class ExtLogRecordInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isMethod().and(named("getMdc")).and(takesArgument(0, String.class)),
         ExtLogRecordInstrumentation.class.getName() + "$GetMdcAdvice");
 
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod().and(named("getMdcCopy")).and(takesArguments(0)),
         ExtLogRecordInstrumentation.class.getName() + "$GetMdcCopyAdvice");
   }

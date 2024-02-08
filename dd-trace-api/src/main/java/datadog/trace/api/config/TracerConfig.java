@@ -54,6 +54,8 @@ public final class TracerConfig {
   public static final String TRACE_CLIENT_IP_RESOLVER_ENABLED = "trace.client-ip.resolver.enabled";
   public static final String TRACE_GIT_METADATA_ENABLED = "trace.git.metadata.enabled";
   public static final String HEADER_TAGS = "trace.header.tags";
+  public static final String REQUEST_HEADER_TAGS_COMMA_ALLOWED =
+      "trace.request_header.tags.comma.allowed";
   public static final String REQUEST_HEADER_TAGS = "trace.request_header.tags";
   public static final String RESPONSE_HEADER_TAGS = "trace.response_header.tags";
   public static final String BAGGAGE_MAPPING = "trace.header.baggage";
@@ -114,6 +116,8 @@ public final class TracerConfig {
 
   public static final String TRACE_LONG_RUNNING_ENABLED = "trace.experimental.long-running.enabled";
 
+  public static final String TRACE_LONG_RUNNING_INITIAL_FLUSH_INTERVAL =
+      "trace.experimental.long-running.initial.flush.interval";
   public static final String TRACE_LONG_RUNNING_FLUSH_INTERVAL =
       "trace.experimental.long-running.flush.interval";
   public static final String TRACE_PEER_SERVICE_DEFAULTS_ENABLED =

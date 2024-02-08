@@ -8,6 +8,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 import datadog.trace.agent.tooling.bytebuddy.iast.TaintableVisitor;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Propagation;
@@ -15,8 +16,8 @@ import datadog.trace.api.iast.propagation.PropagationModule;
 import net.bytebuddy.asm.Advice;
 
 @AutoService(Instrumenter.class)
-public class ByteBufInputStreamInstrumentation extends Instrumenter.Iast
-    implements Instrumenter.ForSingleType {
+public class ByteBufInputStreamInstrumentation extends InstrumenterGroup.Iast
+    implements Instrumenter.ForSingleType, Instrumenter.HasTypeAdvice {
 
   public ByteBufInputStreamInstrumentation() {
     super("netty", "netty-4.0");
@@ -28,8 +29,13 @@ public class ByteBufInputStreamInstrumentation extends Instrumenter.Iast
   }
 
   @Override
-  public void adviceTransformations(final AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void typeAdvice(TypeTransformer transformer) {
+    transformer.applyAdvice(new TaintableVisitor(instrumentedType()));
+  }
+
+  @Override
+  public void methodAdvice(final MethodTransformer transformer) {
+    transformer.applyAdvice(
         isConstructor()
             .and(isPublic())
             .and(takesArguments(3))
@@ -37,11 +43,6 @@ public class ByteBufInputStreamInstrumentation extends Instrumenter.Iast
             .and(takesArgument(1, int.class))
             .and(takesArgument(2, boolean.class)),
         ByteBufInputStreamInstrumentation.class.getName() + "$ConstructorAdvice");
-  }
-
-  @Override
-  public AdviceTransformer transformer() {
-    return new VisitingTransformer(new TaintableVisitor(instrumentedType()));
   }
 
   public static class ConstructorAdvice {

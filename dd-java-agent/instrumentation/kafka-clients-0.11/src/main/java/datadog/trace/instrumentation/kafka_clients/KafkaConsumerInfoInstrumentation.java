@@ -10,9 +10,11 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.InstrumentationContext;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import org.apache.kafka.clients.Metadata;
@@ -27,7 +29,7 @@ import org.apache.kafka.clients.consumer.internals.ConsumerCoordinator;
  * and cluster ID, in the context store for later use.
  */
 @AutoService(Instrumenter.class)
-public final class KafkaConsumerInfoInstrumentation extends Instrumenter.Tracing
+public final class KafkaConsumerInfoInstrumentation extends InstrumenterGroup.Tracing
     implements Instrumenter.ForSingleType {
 
   public KafkaConsumerInfoInstrumentation() {
@@ -61,15 +63,15 @@ public final class KafkaConsumerInfoInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isConstructor()
             .and(takesArgument(0, named("org.apache.kafka.clients.consumer.ConsumerConfig")))
             .and(takesArgument(1, named("org.apache.kafka.common.serialization.Deserializer")))
             .and(takesArgument(2, named("org.apache.kafka.common.serialization.Deserializer"))),
         KafkaConsumerInfoInstrumentation.class.getName() + "$ConstructorAdvice");
 
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod()
             .and(isPublic())
             .and(named("poll"))
@@ -88,19 +90,30 @@ public final class KafkaConsumerInfoInstrumentation extends Instrumenter.Tracing
       String consumerGroup = consumerConfig.getString(ConsumerConfig.GROUP_ID_CONFIG);
       String normalizedConsumerGroup =
           consumerGroup != null && !consumerGroup.isEmpty() ? consumerGroup : null;
+
+      List<String> bootstrapServersList =
+          consumerConfig.getList(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG);
+      String bootstrapServers = null;
+      if (bootstrapServersList != null && !bootstrapServersList.isEmpty()) {
+        bootstrapServers = String.join(",", bootstrapServersList);
+      }
+
       KafkaConsumerInfo kafkaConsumerInfo;
       if (Config.get().isDataStreamsEnabled()) {
-        kafkaConsumerInfo = new KafkaConsumerInfo(normalizedConsumerGroup, metadata);
+        kafkaConsumerInfo =
+            new KafkaConsumerInfo(normalizedConsumerGroup, metadata, bootstrapServers);
       } else {
-        kafkaConsumerInfo = new KafkaConsumerInfo(normalizedConsumerGroup);
+        kafkaConsumerInfo = new KafkaConsumerInfo(normalizedConsumerGroup, bootstrapServers);
       }
 
       if (kafkaConsumerInfo.getConsumerGroup() != null
           || kafkaConsumerInfo.getClientMetadata() != null) {
         InstrumentationContext.get(KafkaConsumer.class, KafkaConsumerInfo.class)
             .put(consumer, kafkaConsumerInfo);
-        InstrumentationContext.get(ConsumerCoordinator.class, KafkaConsumerInfo.class)
-            .put(coordinator, kafkaConsumerInfo);
+        if (coordinator != null) {
+          InstrumentationContext.get(ConsumerCoordinator.class, KafkaConsumerInfo.class)
+              .put(coordinator, kafkaConsumerInfo);
+        }
       }
     }
 
@@ -120,6 +133,9 @@ public final class KafkaConsumerInfoInstrumentation extends Instrumenter.Tracing
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void captureGroup(
         @Advice.This KafkaConsumer consumer, @Advice.Return ConsumerRecords records) {
+      if (records == null) {
+        return;
+      }
       KafkaConsumerInfo kafkaConsumerInfo =
           InstrumentationContext.get(KafkaConsumer.class, KafkaConsumerInfo.class).get(consumer);
       if (kafkaConsumerInfo != null) {

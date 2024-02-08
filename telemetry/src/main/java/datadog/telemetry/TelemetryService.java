@@ -50,9 +50,11 @@ public class TelemetryService {
       DDAgentFeaturesDiscovery ddAgentFeaturesDiscovery,
       TelemetryClient agentClient,
       TelemetryClient intakeClient,
+      boolean useIntakeClientByDefault,
       boolean debug) {
     TelemetryRouter telemetryRouter =
-        new TelemetryRouter(ddAgentFeaturesDiscovery, agentClient, intakeClient);
+        new TelemetryRouter(
+            ddAgentFeaturesDiscovery, agentClient, intakeClient, useIntakeClientByDefault);
     return new TelemetryService(telemetryRouter, DEFAULT_MESSAGE_BYTES_SOFT_LIMIT, debug);
   }
 
@@ -147,6 +149,7 @@ public class TelemetryService {
             eventSource, eventSink, messageBytesSoftLimit, RequestType.APP_STARTED, debug);
     request.writeProducts();
     request.writeConfigurations();
+    request.writeInstallSignature();
     if (telemetryRouter.sendRequest(request) == TelemetryClient.Result.SUCCESS) {
       // discard already sent buffered event on the successful attempt
       bufferedEvents = null;

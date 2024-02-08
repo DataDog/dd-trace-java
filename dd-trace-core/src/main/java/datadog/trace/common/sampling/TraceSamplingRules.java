@@ -3,13 +3,13 @@ package datadog.trace.common.sampling;
 import com.squareup.moshi.FromJson;
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Moshi;
+import com.squareup.moshi.ToJson;
 import com.squareup.moshi.Types;
 import datadog.trace.api.sampling.SamplingRule;
 import java.lang.reflect.ParameterizedType;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -68,21 +68,14 @@ public class TraceSamplingRules {
     private final String name;
     private final String resource;
     private final Map<String, String> tags;
-    private final TargetSpan targetSpan;
     private final double sampleRate;
 
     private Rule(
-        String service,
-        String name,
-        String resource,
-        Map<String, String> tags,
-        TargetSpan targetSpan,
-        double sampleRate) {
+        String service, String name, String resource, Map<String, String> tags, double sampleRate) {
       this.service = service;
       this.name = name;
       this.resource = resource;
       this.tags = tags;
-      this.targetSpan = targetSpan;
       this.sampleRate = sampleRate;
     }
 
@@ -100,15 +93,6 @@ public class TraceSamplingRules {
       if (tags == null) {
         tags = Collections.emptyMap();
       }
-      TargetSpan targetSpan = TargetSpan.ROOT;
-      if (jsonRule.target_span != null) {
-        try {
-          targetSpan = TargetSpan.valueOf(jsonRule.target_span.toUpperCase(Locale.ROOT));
-        } catch (IllegalArgumentException ex) {
-          logRuleError(jsonRule, "target_span must be either \"root\" or \"any\"");
-          return null;
-        }
-      }
       double sampleRate = 1D;
       if (jsonRule.sample_rate != null) {
         try {
@@ -122,7 +106,7 @@ public class TraceSamplingRules {
           return null;
         }
       }
-      return new Rule(service, name, resource, tags, targetSpan, sampleRate);
+      return new Rule(service, name, resource, tags, sampleRate);
     }
 
     private static void logRuleError(JsonRule rule, String error) {
@@ -150,11 +134,6 @@ public class TraceSamplingRules {
     }
 
     @Override
-    public TargetSpan getTargetSpan() {
-      return targetSpan;
-    }
-
-    @Override
     public double getSampleRate() {
       return sampleRate;
     }
@@ -167,7 +146,6 @@ public class TraceSamplingRules {
     String name;
     String resource;
     Map<String, String> tags;
-    String target_span;
     String sample_rate;
 
     @Override
@@ -180,6 +158,12 @@ public class TraceSamplingRules {
     @FromJson
     Rule fromJson(JsonRule jsonRule) {
       return Rule.create(jsonRule);
+    }
+
+    @ToJson
+    JsonRule toJson(Rule rule) {
+      // This method only purpose is to prevent a "No @ToJson adapter for class" exception.
+      throw new UnsupportedOperationException();
     }
   }
 }

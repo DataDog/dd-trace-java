@@ -9,6 +9,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Source;
@@ -27,7 +28,7 @@ import scala.collection.immutable.Seq;
  * @see Cookie#getCookies() Java API. Is implemented by delegating to the instrumented method.
  */
 @AutoService(Instrumenter.class)
-public class CookieHeaderInstrumentation extends Instrumenter.Iast
+public class CookieHeaderInstrumentation extends InstrumenterGroup.Iast
     implements Instrumenter.ForSingleType {
   public CookieHeaderInstrumentation() {
     super("pekko-http");
@@ -39,8 +40,8 @@ public class CookieHeaderInstrumentation extends Instrumenter.Iast
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isMethod()
             .and(not(isStatic()))
             .and(named("cookies"))

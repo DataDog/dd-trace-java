@@ -3,6 +3,8 @@ package datadog.trace.instrumentation.trace_annotation;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.hasSuperType;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
+import static java.util.Collections.emptyList;
+import static java.util.Collections.singletonList;
 import static net.bytebuddy.matcher.ElementMatchers.isEquals;
 import static net.bytebuddy.matcher.ElementMatchers.isFinalizer;
 import static net.bytebuddy.matcher.ElementMatchers.isGetter;
@@ -15,8 +17,10 @@ import static net.bytebuddy.matcher.ElementMatchers.not;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 import datadog.trace.api.InstrumenterConfig;
-import java.util.Collections;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import net.bytebuddy.description.method.MethodDescription;
@@ -33,11 +37,11 @@ import net.bytebuddy.matcher.ElementMatcher;
  * super class.
  */
 @AutoService(Instrumenter.class)
-public class TraceConfigInstrumentation implements Instrumenter {
-
+public class TraceConfigInstrumentation extends InstrumenterGroup {
   private final Map<String, Set<String>> classMethodsToTrace;
 
   public TraceConfigInstrumentation() {
+    super("trace", "trace-config");
     classMethodsToTrace = InstrumenterConfig.get().getTraceMethods();
   }
 
@@ -47,30 +51,33 @@ public class TraceConfigInstrumentation implements Instrumenter {
   }
 
   @Override
-  public void instrument(TransformerBuilder transformerBuilder) {
-    if (classMethodsToTrace.isEmpty()) {
-      return;
-    }
+  public String[] helperClassNames() {
+    return new String[] {
+      packageName + ".TraceDecorator",
+    };
+  }
 
-    for (final Map.Entry<String, Set<String>> entry : classMethodsToTrace.entrySet()) {
-      final TracerClassInstrumentation tracerClassInstrumentation =
-          new TracerClassInstrumentation(entry.getKey(), entry.getValue());
-      transformerBuilder.applyInstrumentation(tracerClassInstrumentation);
+  @Override
+  public List<Instrumenter> typeInstrumentations() {
+    if (classMethodsToTrace.isEmpty()) {
+      return emptyList();
     }
+    List<Instrumenter> typeInstrumentations = new ArrayList<>();
+    for (Map.Entry<String, Set<String>> entry : classMethodsToTrace.entrySet()) {
+      List<String> integrationNames = singletonList("trace-config_" + entry.getKey());
+      if (InstrumenterConfig.get().isIntegrationEnabled(integrationNames, true)) {
+        typeInstrumentations.add(new TracerClassInstrumentation(entry.getKey(), entry.getValue()));
+      }
+    }
+    return typeInstrumentations;
   }
 
   // Not Using AutoService to hook up this instrumentation
-  public static class TracerClassInstrumentation extends Tracing implements ForTypeHierarchy {
+  public static class TracerClassInstrumentation implements ForTypeHierarchy, HasMethodAdvice {
     private final String className;
     private final Set<String> methodNames;
 
-    /** No-arg constructor only used by muzzle and tests. */
-    public TracerClassInstrumentation() {
-      this("datadog.trace.api.Trace", Collections.singleton("noop"));
-    }
-
     public TracerClassInstrumentation(final String className, final Set<String> methodNames) {
-      super("trace", "trace-config", "trace-config_" + className);
       this.className = className;
       this.methodNames = methodNames;
     }
@@ -86,14 +93,7 @@ public class TraceConfigInstrumentation implements Instrumenter {
     }
 
     @Override
-    public String[] helperClassNames() {
-      return new String[] {
-        packageName + ".TraceDecorator",
-      };
-    }
-
-    @Override
-    public void adviceTransformations(AdviceTransformation transformation) {
+    public void methodAdvice(MethodTransformer transformer) {
       boolean hasWildcard = false;
       for (String methodName : methodNames) {
         hasWildcard |= methodName.equals("*");
@@ -112,7 +112,9 @@ public class TraceConfigInstrumentation implements Instrumenter {
       } else {
         methodFilter = namedOneOf(methodNames);
       }
-      transformation.applyAdvice(isMethod().and(methodFilter), packageName + ".TraceAdvice");
+      transformer.applyAdvice(
+          isMethod().and(methodFilter),
+          "datadog.trace.instrumentation.trace_annotation.TraceAdvice");
     }
   }
 }

@@ -5,6 +5,7 @@ import static net.bytebuddy.matcher.ElementMatchers.returns;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 import io.opentelemetry.context.propagation.ContextPropagators;
 import io.opentelemetry.trace.TracerProvider;
 import net.bytebuddy.asm.Advice;
@@ -13,7 +14,7 @@ import net.bytebuddy.asm.Advice;
  * This is experimental instrumentation and should only be enabled for evaluation/testing purposes.
  */
 @AutoService(Instrumenter.class)
-public class OpenTelemetryInstrumentation extends Instrumenter.Tracing
+public class OpenTelemetryInstrumentation extends InstrumenterGroup.Tracing
     implements Instrumenter.ForSingleType {
   public OpenTelemetryInstrumentation() {
     super("opentelemetry-beta");
@@ -50,11 +51,11 @@ public class OpenTelemetryInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         named("getTracerProvider").and(returns(named("io.opentelemetry.trace.TracerProvider"))),
         OpenTelemetryInstrumentation.class.getName() + "$TracerProviderAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         named("getPropagators")
             .and(returns(named("io.opentelemetry.context.propagation.ContextPropagators"))),
         OpenTelemetryInstrumentation.class.getName() + "$ContextPropagatorsAdvice");

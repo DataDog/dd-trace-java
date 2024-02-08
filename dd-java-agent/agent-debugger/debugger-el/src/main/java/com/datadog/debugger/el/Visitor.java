@@ -14,8 +14,8 @@ import com.datadog.debugger.el.expressions.HasAnyExpression;
 import com.datadog.debugger.el.expressions.IfElseExpression;
 import com.datadog.debugger.el.expressions.IfExpression;
 import com.datadog.debugger.el.expressions.IndexExpression;
+import com.datadog.debugger.el.expressions.IsDefinedExpression;
 import com.datadog.debugger.el.expressions.IsEmptyExpression;
-import com.datadog.debugger.el.expressions.IsUndefinedExpression;
 import com.datadog.debugger.el.expressions.LenExpression;
 import com.datadog.debugger.el.expressions.MatchesExpression;
 import com.datadog.debugger.el.expressions.NotExpression;
@@ -56,7 +56,7 @@ public interface Visitor<R> {
 
   R visit(IsEmptyExpression isEmptyExpression);
 
-  R visit(IsUndefinedExpression isUndefinedExpression);
+  R visit(IsDefinedExpression isDefinedExpression);
 
   R visit(LenExpression lenExpression);
 

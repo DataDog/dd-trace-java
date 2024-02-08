@@ -8,6 +8,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 import datadog.trace.agent.tooling.bytebuddy.iast.TaintableVisitor;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Propagation;
@@ -16,15 +17,15 @@ import java.net.URL;
 import net.bytebuddy.asm.Advice;
 
 @AutoService(Instrumenter.class)
-public class IastHttpUrlInstrumentation extends Instrumenter.Iast
-    implements Instrumenter.ForSingleType {
+public class IastHttpUrlInstrumentation extends InstrumenterGroup.Iast
+    implements Instrumenter.ForSingleType, Instrumenter.HasTypeAdvice {
 
   /**
    * Adding fields to an already loaded class is not possible, during testing
    * com.squareup.okhttp.HttpUrl gets loaded before the instrumenter kicks in, so we must disable
    * the advice transformer or none of the transformations will be applied
    */
-  protected static boolean DISABLE_ADVICE_TRANSFORMER = false;
+  protected static boolean ENABLE_ADVICE_TRANSFORMER = true;
 
   private final String className = IastHttpUrlInstrumentation.class.getName();
 
@@ -43,30 +44,30 @@ public class IastHttpUrlInstrumentation extends Instrumenter.Iast
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void typeAdvice(TypeTransformer transformer) {
+    if (ENABLE_ADVICE_TRANSFORMER) {
+      transformer.applyAdvice(new TaintableVisitor(instrumentedType()));
+    }
+  }
+
+  @Override
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isMethod()
             .and(isStatic())
             .and(named("parse"))
             .and(takesArguments(1))
             .and(takesArgument(0, String.class)),
         className + "$ParseAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod()
             .and(isStatic())
             .and(named("get"))
             .and(takesArguments(1))
             .and(takesArgument(0, URL.class)),
         className + "$ParseAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod().and(named("url")).and(takesArguments(0)), className + "$PropagationAdvice");
-  }
-
-  @Override
-  public AdviceTransformer transformer() {
-    return DISABLE_ADVICE_TRANSFORMER
-        ? null
-        : new VisitingTransformer(new TaintableVisitor(instrumentedType()));
   }
 
   public static class ParseAdvice {

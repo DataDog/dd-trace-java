@@ -29,7 +29,11 @@ class DatadogHttpExtractorTest extends DDSpecification {
   private HttpCodec.Extractor _extractor
 
   private HttpCodec.Extractor getExtractor() {
-    _extractor ?: (_extractor = DatadogHttpCodec.newExtractor(Config.get(), { dynamicConfig.captureTraceConfig() }))
+    _extractor ?: (_extractor = createExtractor(Config.get()))
+  }
+
+  private HttpCodec.Extractor createExtractor(Config config) {
+    DatadogHttpCodec.newExtractor(config, { dynamicConfig.captureTraceConfig() })
   }
 
   boolean origAppSecActive
@@ -47,20 +51,24 @@ class DatadogHttpExtractorTest extends DDSpecification {
 
   void cleanup() {
     ActiveSubsystems.APPSEC_ACTIVE = origAppSecActive
+    extractor.cleanup()
   }
 
   def "extract http headers"() {
     setup:
+    injectEnvConfig("DD_TRACE_REQUEST_HEADER_TAGS_COMMA_ALLOWED", "$allowComma")
+    def extractor = createExtractor(Config.get())
     def headers = [
       ""                                      : "empty key",
       (TRACE_ID_KEY.toUpperCase())            : traceId,
       (SPAN_ID_KEY.toUpperCase())             : spanId,
       (OT_BAGGAGE_PREFIX.toUpperCase() + "k1"): "v1",
       (OT_BAGGAGE_PREFIX.toUpperCase() + "k2"): "v2",
-      SOME_HEADER                             : "my-interesting-info",
+      SOME_HEADER                             : "my-interesting-info,and-more",
       SOME_CUSTOM_BAGGAGE_HEADER              : "my-interesting-baggage-info",
       SOME_CUSTOM_BAGGAGE_HEADER_2            : "my-interesting-baggage-info-2",
     ]
+    def expectedTagValue = allowComma ? "my-interesting-info,and-more" : "my-interesting-info"
 
     if (samplingPriority != PrioritySampling.UNSET) {
       headers.put(SAMPLING_PRIORITY_KEY, "$samplingPriority".toString())
@@ -80,16 +88,19 @@ class DatadogHttpExtractorTest extends DDSpecification {
       "k2"                        : "v2",
       "some-baggage"              : "my-interesting-baggage-info",
       "some-CaseSensitive-baggage": "my-interesting-baggage-info-2"]
-    context.tags == ["some-tag": "my-interesting-info"]
+    context.tags == ["some-tag": "$expectedTagValue"]
     context.samplingPriority == samplingPriority
     context.origin == origin
 
+    cleanup:
+    extractor.cleanup()
+
     where:
-    traceId               | spanId                | samplingPriority              | origin
-    "1"                   | "2"                   | PrioritySampling.UNSET        | null
-    "2"                   | "3"                   | PrioritySampling.SAMPLER_KEEP | "saipan"
-    "$TRACE_ID_MAX"       | "${TRACE_ID_MAX - 1}" | PrioritySampling.UNSET        | "saipan"
-    "${TRACE_ID_MAX - 1}" | "$TRACE_ID_MAX"       | PrioritySampling.SAMPLER_KEEP | "saipan"
+    traceId               | spanId                | samplingPriority              | origin   | allowComma
+    "1"                   | "2"                   | PrioritySampling.UNSET        | null     | true
+    "2"                   | "3"                   | PrioritySampling.SAMPLER_KEEP | "saipan" | false
+    "$TRACE_ID_MAX"       | "${TRACE_ID_MAX - 1}" | PrioritySampling.UNSET        | "saipan" | true
+    "${TRACE_ID_MAX - 1}" | "$TRACE_ID_MAX"       | PrioritySampling.SAMPLER_KEEP | "saipan" | false
   }
 
   def "extract header tags with no propagation"() {

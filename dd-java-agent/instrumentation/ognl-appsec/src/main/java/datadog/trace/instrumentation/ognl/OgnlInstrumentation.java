@@ -9,11 +9,13 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import net.bytebuddy.asm.Advice;
 
 @AutoService(Instrumenter.class)
-public class OgnlInstrumentation extends Instrumenter.AppSec implements Instrumenter.ForSingleType {
+public class OgnlInstrumentation extends InstrumenterGroup.AppSec
+    implements Instrumenter.ForSingleType {
 
   public OgnlInstrumentation() {
     super("ognl");
@@ -25,8 +27,8 @@ public class OgnlInstrumentation extends Instrumenter.AppSec implements Instrume
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isMethod().and(named("parseExpression")).and(isStatic()).and(takesArguments(String.class)),
         OgnlInstrumentation.class.getName() + "$OgnlParseExpressionAdvice");
   }

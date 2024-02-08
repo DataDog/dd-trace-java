@@ -9,6 +9,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 import com.google.auto.service.AutoService;
 import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 import datadog.trace.api.gateway.BlockResponseFunction;
 import datadog.trace.api.gateway.CallbackProvider;
 import datadog.trace.api.gateway.Flow;
@@ -32,8 +33,8 @@ import net.bytebuddy.jar.asm.Type;
 import net.bytebuddy.pool.TypePool;
 
 @AutoService(Instrumenter.class)
-public class ParsePartsInstrumentation extends Instrumenter.AppSec
-    implements Instrumenter.ForSingleType {
+public class ParsePartsInstrumentation extends InstrumenterGroup.AppSec
+    implements Instrumenter.ForSingleType, Instrumenter.HasTypeAdvice {
 
   public ParsePartsInstrumentation() {
     super("tomcat");
@@ -59,17 +60,17 @@ public class ParsePartsInstrumentation extends Instrumenter.AppSec
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void typeAdvice(TypeTransformer transformer) {
+    transformer.applyAdvice(new ParsePartsVisitorWrapper());
+  }
+
+  @Override
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         named("parseParts")
             .and(takesArguments(0).or(takesArguments(1).and(takesArgument(0, boolean.class))))
             .and(isPrivate()),
         getClass().getName() + "$ParsePartsAdvice");
-  }
-
-  @Override
-  public AdviceTransformer transformer() {
-    return new VisitingTransformer(new ParsePartsVisitorWrapper());
   }
 
   public static class ParsePartsAdvice {

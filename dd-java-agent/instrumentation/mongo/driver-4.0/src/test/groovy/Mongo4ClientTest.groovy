@@ -3,10 +3,12 @@ import com.mongodb.client.MongoClient
 import com.mongodb.client.MongoClients
 import com.mongodb.client.MongoCollection
 import com.mongodb.client.MongoDatabase
+import com.mongodb.internal.build.MongoDriverVersion
 import datadog.trace.core.DDSpan
 import org.bson.BsonDocument
 import org.bson.BsonString
 import org.bson.Document
+import org.spockframework.util.VersionNumber
 import spock.lang.Shared
 
 import static datadog.trace.agent.test.utils.PortUtils.UNUSABLE_PORT
@@ -27,6 +29,16 @@ abstract class Mongo4ClientTest extends MongoBaseTest {
     client?.close()
     client = null
   }
+
+  @Shared
+  String query = {
+    def version  = VersionNumber.parse(MongoDriverVersion.VERSION)
+    if (version.major == 4 && version.minor < 3) {
+      // query is returned for versions < 4.3
+      return ',"query":{}'
+    }
+    return ''
+  }.call()
 
   def "test create collection"() {
     setup:
@@ -78,7 +90,7 @@ abstract class Mongo4ClientTest extends MongoBaseTest {
     count == 0
     assertTraces(1) {
       trace(1) {
-        mongoSpan(it, 0, "count", "{\"count\":\"$collectionName\",\"query\":{}}")
+        mongoSpan(it, 0, "count", "{\"count\":\"$collectionName\"$query}")
       }
     }
 
@@ -110,7 +122,7 @@ abstract class Mongo4ClientTest extends MongoBaseTest {
         mongoSpan(it, 0, "insert", "{\"insert\":\"$collectionName\",\"ordered\":true,\"documents\":[]}")
       }
       trace(1) {
-        mongoSpan(it, 0, "count", "{\"count\":\"$collectionName\",\"query\":{}}")
+        mongoSpan(it, 0, "count", "{\"count\":\"$collectionName\"$query}")
       }
     }
 
@@ -147,7 +159,7 @@ abstract class Mongo4ClientTest extends MongoBaseTest {
         mongoSpan(it, 0, "update", "{\"update\":\"$collectionName\",\"ordered\":true,\"updates\":[]}")
       }
       trace(1) {
-        mongoSpan(it, 0, "count", "{\"count\":\"$collectionName\",\"query\":{}}")
+        mongoSpan(it, 0, "count", "{\"count\":\"$collectionName\"$query}")
       }
     }
 
@@ -182,7 +194,7 @@ abstract class Mongo4ClientTest extends MongoBaseTest {
         mongoSpan(it, 0, "delete", "{\"delete\":\"$collectionName\",\"ordered\":true,\"deletes\":[]}")
       }
       trace(1) {
-        mongoSpan(it, 0, "count", "{\"count\":\"$collectionName\",\"query\":{}}")
+        mongoSpan(it, 0, "count", "{\"count\":\"$collectionName\"$query}")
       }
     }
 

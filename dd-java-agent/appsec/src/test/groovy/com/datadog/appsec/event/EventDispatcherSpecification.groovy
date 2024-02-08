@@ -140,7 +140,7 @@ class EventDispatcherSpecification extends DDSpecification {
   void 'saves the subscribed to events and addresses'() {
     given:
     def addressSet = new EventDispatcher.DataSubscriptionSet()
-    DataListener dataListener = Mock()
+    DataListener dataListener = Stub()
     dataListener.priority >> OrderedCallback.Priority.DEFAULT
 
     when:
@@ -155,7 +155,7 @@ class EventDispatcherSpecification extends DDSpecification {
     EventDispatcher anotherDispatcher = new EventDispatcher()
     EventProducerService.DataSubscriberInfo subInfo =
       anotherDispatcher.getDataSubscribers(KnownAddresses.REQUEST_CLIENT_IP)
-    dispatcher.publishDataEvent(subInfo, Mock(AppSecRequestContext), Mock(DataBundle), false)
+    dispatcher.publishDataEvent(subInfo, Stub(AppSecRequestContext), Stub(DataBundle), false)
 
     then:
     thrown ExpiredSubscriberInfoException

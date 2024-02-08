@@ -1,40 +1,27 @@
 package com.datadog.iast.sink
 
 import com.datadog.iast.IastModuleImplTestBase
-import com.datadog.iast.IastRequestContext
+import com.datadog.iast.Reporter
 import com.datadog.iast.model.Range
 import com.datadog.iast.model.Source
 import com.datadog.iast.model.Vulnerability
 import com.datadog.iast.model.VulnerabilityType
 import com.datadog.iast.taint.Ranges
-import datadog.trace.api.gateway.RequestContext
-import datadog.trace.api.gateway.RequestContextSlot
 import datadog.trace.api.iast.SourceTypes
 import datadog.trace.api.iast.VulnerabilityMarks
 import datadog.trace.api.iast.sink.SsrfModule
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 
 class SsrfModuleTest extends IastModuleImplTestBase {
 
-  private List<Object> objectHolder
-
-  private IastRequestContext ctx
-
   private SsrfModule module
-
-  private AgentSpan span
 
   def setup() {
     module = new SsrfModuleImpl(dependencies)
-    objectHolder = []
-    ctx = new IastRequestContext()
-    final reqCtx = Mock(RequestContext) {
-      getData(RequestContextSlot.IAST) >> ctx
-    }
-    span = Mock(AgentSpan) {
-      getSpanId() >> 123456
-      getRequestContext() >> reqCtx
-    }
+  }
+
+  @Override
+  protected Reporter buildReporter() {
+    return Mock(Reporter)
   }
 
   void 'test SSRF detection'() {
@@ -80,6 +67,42 @@ class SsrfModuleTest extends IastModuleImplTestBase {
 
     then:
     0 * reporter.report(_, _)
+  }
+
+  void 'test SSRF detection for host and uri'() {
+    when:
+    module.onURLConnection(value, host, uri)
+
+    then: 'report is not called if no active span'
+    tracer.activeSpan() >> null
+    0 * reporter.report(_, _)
+
+    when:
+    module.onURLConnection(value, host, uri)
+
+    then: 'report is not called if host or uri are not tainted'
+    tracer.activeSpan() >> span
+    0 * reporter.report(_, _)
+
+    when:
+    taint(host!=null ? host : uri)
+    module.onURLConnection(value, host, uri)
+
+    then: 'report is called when the host or uri are tainted'
+    tracer.activeSpan() >> span
+    1 * reporter.report(span, {
+      Vulnerability vul -> vul.type == VulnerabilityType.SSRF
+      && vul.evidence.value == value
+      && vul.evidence.ranges.length == 1
+      && vul.evidence.ranges[0].start == 0
+      && vul.evidence.ranges[0].length == value.length()
+    })
+
+
+    where:
+    value                        | host | uri
+    'http://test.com' | new Object() | new URI('http://test.com/tested')
+    'http://test.com' | null | new URI('http://test.com/tested')
   }
 
   private void taint(final Object value) {

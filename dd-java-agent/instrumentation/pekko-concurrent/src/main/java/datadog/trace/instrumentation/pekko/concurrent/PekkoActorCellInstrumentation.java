@@ -9,6 +9,7 @@ import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
@@ -19,7 +20,7 @@ import net.bytebuddy.asm.Advice;
 import org.apache.pekko.dispatch.Envelope;
 
 @AutoService(Instrumenter.class)
-public class PekkoActorCellInstrumentation extends Instrumenter.Tracing
+public class PekkoActorCellInstrumentation extends InstrumenterGroup.Tracing
     implements Instrumenter.ForSingleType {
 
   public PekkoActorCellInstrumentation() {
@@ -37,8 +38,8 @@ public class PekkoActorCellInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isMethod().and(named("invoke")), getClass().getName() + "$InvokeAdvice");
   }
 

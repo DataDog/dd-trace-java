@@ -4,6 +4,7 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.im
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 import datadog.trace.api.InstrumenterConfig;
 import java.util.Collection;
 import java.util.concurrent.Executor;
@@ -12,7 +13,7 @@ import net.bytebuddy.matcher.ElementMatcher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public abstract class AbstractExecutorInstrumentation extends Instrumenter.Tracing
+public abstract class AbstractExecutorInstrumentation extends InstrumenterGroup.Tracing
     implements Instrumenter.ForBootstrap,
         Instrumenter.CanShortcutTypeMatching,
         Instrumenter.ForConfiguredTypes {

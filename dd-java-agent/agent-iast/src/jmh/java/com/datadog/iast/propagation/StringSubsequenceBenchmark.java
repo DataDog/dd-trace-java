@@ -5,6 +5,7 @@ import static datadog.trace.api.iast.VulnerabilityMarks.NOT_MARKED;
 import com.datadog.iast.IastRequestContext;
 import com.datadog.iast.model.Range;
 import com.datadog.iast.model.Source;
+import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.InstrumentationBridge;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.Fork;
@@ -88,7 +89,7 @@ public class StringSubsequenceBenchmark
     private final String taintedModifyRange;
 
     protected Context(
-        final IastRequestContext iastContext,
+        final IastContext iastContext,
         final String notTainted,
         final String taintedLoseRange,
         final String taintedModifyRange) {

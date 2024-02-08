@@ -7,6 +7,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 import java.util.Locale;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
@@ -21,7 +22,7 @@ import org.apache.http.HttpRequest;
  * https://github.com/elastic/apm-agent-java/blob/master/apm-agent-plugins/apm-apache-httpclient-plugin/src/main/java/co/elastic/apm/agent/httpclient/ApacheHttpAsyncClientRedirectInstrumentation.java
  */
 @AutoService(Instrumenter.class)
-public class ApacheHttpClientRedirectInstrumentation extends Instrumenter.Tracing
+public class ApacheHttpClientRedirectInstrumentation extends InstrumenterGroup.Tracing
     implements Instrumenter.ForTypeHierarchy {
 
   public ApacheHttpClientRedirectInstrumentation() {
@@ -39,8 +40,8 @@ public class ApacheHttpClientRedirectInstrumentation extends Instrumenter.Tracin
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isMethod()
             .and(named("getRedirect"))
             .and(takesArgument(0, named("org.apache.http.HttpRequest"))),

@@ -8,6 +8,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 import datadog.trace.agent.tooling.muzzle.Reference;
 import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.InstrumentationBridge;
@@ -21,7 +22,7 @@ import java.util.Set;
 import net.bytebuddy.asm.Advice;
 
 @AutoService(Instrumenter.class)
-public class IastRoutingContextImplInstrumentation extends Instrumenter.Iast
+public class IastRoutingContextImplInstrumentation extends InstrumenterGroup.Iast
     implements Instrumenter.ForSingleType {
 
   private final String className = IastRoutingContextImplInstrumentation.class.getName();
@@ -41,13 +42,12 @@ public class IastRoutingContextImplInstrumentation extends Instrumenter.Iast
   }
 
   @Override
-  public void adviceTransformations(final AdviceTransformation transformation) {
-    transformation.applyAdvice(
-        named("cookies").and(takesArguments(0)), className + "$CookiesAdvice");
-    transformation.applyAdvice(
+  public void methodAdvice(final MethodTransformer transformer) {
+    transformer.applyAdvice(named("cookies").and(takesArguments(0)), className + "$CookiesAdvice");
+    transformer.applyAdvice(
         named("getCookie").and(takesArguments(1)).and(takesArgument(0, String.class)),
         className + "$GetCookieAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         named("reroute").and(takesArguments(2)).and(takesArgument(1, String.class)),
         className + "$RerouteAdvice");
   }

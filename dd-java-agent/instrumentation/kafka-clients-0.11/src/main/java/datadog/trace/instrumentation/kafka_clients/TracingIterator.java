@@ -39,18 +39,21 @@ public class TracingIterator implements Iterator<ConsumerRecord<?, ?>> {
   private final KafkaDecorator decorator;
   private final String group;
   private final String clusterId;
+  private final String bootstrapServers;
 
   public TracingIterator(
       final Iterator<ConsumerRecord<?, ?>> delegateIterator,
       final CharSequence operationName,
       final KafkaDecorator decorator,
       String group,
-      String clusterId) {
+      String clusterId,
+      String bootstrapServers) {
     this.delegateIterator = delegateIterator;
     this.operationName = operationName;
     this.decorator = decorator;
     this.group = group;
     this.clusterId = clusterId;
+    this.bootstrapServers = bootstrapServers;
   }
 
   @Override
@@ -125,7 +128,7 @@ public class TracingIterator implements Iterator<ConsumerRecord<?, ?>> {
           span.setTag(InstrumentationTags.TOMBSTONE, true);
         }
         decorator.afterStart(span);
-        decorator.onConsume(span, val, group);
+        decorator.onConsume(span, val, group, bootstrapServers);
         activateNext(span);
         if (null != queueSpan) {
           queueSpan.finish();

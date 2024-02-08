@@ -13,6 +13,7 @@ import akka.http.scaladsl.model.HttpHeader;
 import akka.http.scaladsl.model.HttpRequest;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Propagation;
@@ -30,7 +31,7 @@ import scala.collection.immutable.Seq;
  * @see MakeTaintableInstrumentation makes {@link HttpRequest} taintable
  */
 @AutoService(Instrumenter.class)
-public class HttpRequestInstrumentation extends Instrumenter.Iast
+public class HttpRequestInstrumentation extends InstrumenterGroup.Iast
     implements Instrumenter.ForSingleType {
   public HttpRequestInstrumentation() {
     super("akka-http");
@@ -42,8 +43,8 @@ public class HttpRequestInstrumentation extends Instrumenter.Iast
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isMethod()
             .and(not(isStatic()))
             .and(named("headers"))
@@ -51,7 +52,7 @@ public class HttpRequestInstrumentation extends Instrumenter.Iast
             .and(takesArguments(0)),
         HttpRequestInstrumentation.class.getName() + "$RequestHeadersAdvice");
 
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod().and(isPublic()).and(not(isStatic())).and(named("entity")).and(takesArguments(0)),
         HttpRequestInstrumentation.class.getName() + "$EntityAdvice");
   }

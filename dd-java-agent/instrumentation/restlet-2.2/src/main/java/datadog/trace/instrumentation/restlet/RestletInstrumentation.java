@@ -9,12 +9,13 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import com.google.auto.service.AutoService;
 import com.sun.net.httpserver.HttpExchange;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import net.bytebuddy.asm.Advice;
 
 @AutoService(Instrumenter.class)
-public final class RestletInstrumentation extends Instrumenter.Tracing
+public final class RestletInstrumentation extends InstrumenterGroup.Tracing
     implements Instrumenter.ForKnownTypes {
 
   public RestletInstrumentation() {
@@ -30,8 +31,8 @@ public final class RestletInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isMethod()
             .and(named("handle"))
             .and(takesArgument(0, named("com.sun.net.httpserver.HttpExchange"))),

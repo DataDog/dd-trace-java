@@ -18,6 +18,7 @@ import com.twitter.finagle.http.Request;
 import com.twitter.finagle.http.Response;
 import com.twitter.util.Future;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
@@ -27,7 +28,7 @@ import net.bytebuddy.matcher.ElementMatcher;
 import scala.Some;
 
 @AutoService(Instrumenter.class)
-public class FinatraInstrumentation extends Instrumenter.Tracing
+public class FinatraInstrumentation extends InstrumenterGroup.Tracing
     implements Instrumenter.ForTypeHierarchy {
   public FinatraInstrumentation() {
     super("finatra");
@@ -49,8 +50,8 @@ public class FinatraInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isMethod()
             .and(named("handleMatch"))
             .and(takesArguments(2))

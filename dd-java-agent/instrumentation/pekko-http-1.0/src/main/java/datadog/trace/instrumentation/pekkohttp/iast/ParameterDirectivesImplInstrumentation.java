@@ -10,6 +10,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 import datadog.trace.agent.tooling.muzzle.Reference;
 import datadog.trace.api.iast.Source;
 import datadog.trace.api.iast.SourceTypes;
@@ -19,7 +20,7 @@ import org.apache.pekko.http.scaladsl.server.Directive;
 import org.apache.pekko.http.scaladsl.server.util.Tupler$;
 
 @AutoService(Instrumenter.class)
-public class ParameterDirectivesImplInstrumentation extends Instrumenter.Iast
+public class ParameterDirectivesImplInstrumentation extends InstrumenterGroup.Iast
     implements Instrumenter.ForSingleType {
   public ParameterDirectivesImplInstrumentation() {
     super("pekko-http");
@@ -44,8 +45,8 @@ public class ParameterDirectivesImplInstrumentation extends Instrumenter.Iast
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isMethod()
             .and(not(isStatic()))
             .and(named("filter"))
@@ -58,7 +59,7 @@ public class ParameterDirectivesImplInstrumentation extends Instrumenter.Iast
         ParameterDirectivesImplInstrumentation.class.getName() + "$FilterAdvice");
 
     // requiredFilter not relevant
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod()
             .and(not(isStatic()))
             .and(named("repeatedFilter"))

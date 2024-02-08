@@ -6,6 +6,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 import net.bytebuddy.asm.Advice;
 import org.apache.pekko.http.scaladsl.model.HttpRequest;
 import org.apache.pekko.http.scaladsl.model.HttpResponse;
@@ -18,7 +19,7 @@ import scala.concurrent.Future;
  * {@code bindAndHandleAsync}.
  */
 @AutoService(Instrumenter.class)
-public final class PekkoHttp2ServerInstrumentation extends Instrumenter.Tracing
+public final class PekkoHttp2ServerInstrumentation extends InstrumenterGroup.Tracing
     implements Instrumenter.ForKnownTypes {
   public PekkoHttp2ServerInstrumentation() {
     super("pekko-http2", "pekko-http", "pekko-http-server");
@@ -45,20 +46,20 @@ public final class PekkoHttp2ServerInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         takesArguments(8)
             .and(named("bindAndHandleAsync"))
             .and(takesArgument(0, named("scala.Function1")))
             .and(takesArgument(7, named("org.apache.pekko.stream.Materializer"))),
         getClass().getName() + "$Http2BindAndHandleAsync8ArgAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         takesArguments(7)
             .and(named("bindAndHandleAsync"))
             .and(takesArgument(0, named("scala.Function1")))
             .and(takesArgument(6, named("org.apache.pekko.stream.Materializer"))),
         getClass().getName() + "$Http2BindAndHandleAsync7ArgAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         takesArguments(6)
             .and(named("bindAndHandleAsync"))
             .and(takesArgument(0, named("scala.Function1")))

@@ -6,6 +6,7 @@ import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.api.env.CapturedEnvironment;
 import java.util.Arrays;
 import java.util.List;
@@ -21,11 +22,11 @@ public final class NativeImageGeneratorRunnerInstrumentation
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isMethod().and(named("main")),
         NativeImageGeneratorRunnerInstrumentation.class.getName() + "$ArgsAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod().and(named("extractDriverArguments")),
         NativeImageGeneratorRunnerInstrumentation.class.getName() + "$ExtractedArgsAdvice");
   }
@@ -44,7 +45,10 @@ public final class NativeImageGeneratorRunnerInstrumentation
         }
       }
 
-      args = Arrays.copyOf(args, oldLength + 5);
+      // !!! Important - if you add more args entries here, make sure to update the array copy below
+      args =
+          Arrays.copyOf(
+              args, oldLength + 5 + (InstrumenterConfig.get().isProfilingEnabled() ? 1 : 0));
 
       args[oldLength++] = "-H:+AddAllCharsets";
       args[oldLength++] = "-H:EnableURLProtocols=http";
@@ -56,7 +60,9 @@ public final class NativeImageGeneratorRunnerInstrumentation
       args[oldLength++] =
           "-H:ClassInitialization="
               + "com.datadog.profiling.controller.openjdk.events.AvailableProcessorCoresEvent:build_time,"
+              + "com.datadog.profiling.controller.openjdk.events.DeadlockEvent:build_time,"
               + "com.datadog.profiling.controller.openjdk.events.ProfilerSettingEvent:build_time,"
+              + "com.datadog.profiling.controller.openjdk.events.TimelineEvent:build_time,"
               + "datadog.trace.api.Config:rerun,"
               + "datadog.trace.api.Platform:rerun,"
               + "datadog.trace.api.Platform$Captured:build_time,"
@@ -80,12 +86,14 @@ public final class NativeImageGeneratorRunnerInstrumentation
               + "datadog.trace.bootstrap.InstrumentationClassLoader:build_time,"
               + "datadog.trace.bootstrap.FieldBackedContextStores:build_time,"
               + "datadog.trace.bootstrap.benchmark.StaticEventLogger:build_time,"
+              + "datadog.trace.bootstrap.InstrumentationErrors:build_time,"
               + "datadog.trace.bootstrap.instrumentation.java.concurrent.ConcurrentState:build_time,"
               + "datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter:build_time,"
               + "datadog.trace.bootstrap.instrumentation.java.concurrent.QueueTimeHelper:build_time,"
               + "datadog.trace.bootstrap.instrumentation.java.concurrent.TPEHelper:build_time,"
               + "datadog.trace.bootstrap.instrumentation.jfr.exceptions.ExceptionCountEvent:build_time,"
               + "datadog.trace.bootstrap.instrumentation.jfr.exceptions.ExceptionSampleEvent:build_time,"
+              + "datadog.trace.bootstrap.instrumentation.jfr.directallocation.DirectAllocationTotalEvent:build_time,"
               + "datadog.trace.logging.LoggingSettingsDescription:build_time,"
               + "datadog.trace.logging.simplelogger.SLCompatFactory:build_time,"
               + "datadog.trace.util.CollectionUtils:build_time,"
@@ -96,6 +104,17 @@ public final class NativeImageGeneratorRunnerInstrumentation
               + "com.sun.proxy:build_time,"
               + "jnr.enxio.channels:run_time,"
               + "jnr.unixsocket:run_time";
+      if (InstrumenterConfig.get().isProfilingEnabled()) {
+        // Specific GraalVM versions have different flags for enabling JFR
+        // We don't want to drag in internal-api via Platform class, so we just read the system
+        // property directly
+        String version = System.getProperty("java.specification.version");
+        if (version.startsWith("17")) {
+          args[oldLength++] = "-H:EnableMonitoringFeatures=jfr";
+        } else {
+          args[oldLength++] = "-H:EnableMonitoringFeatures@user+api=jfr";
+        }
+      }
     }
   }
 

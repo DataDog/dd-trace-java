@@ -10,6 +10,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesNoArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.jms.SessionState;
 import java.util.Map;
@@ -19,7 +20,7 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public class MessageInstrumentation extends Instrumenter.Tracing
+public class MessageInstrumentation extends InstrumenterGroup.Tracing
     implements Instrumenter.ForTypeHierarchy {
   public MessageInstrumentation() {
     super("jms", "jms-1", "jms-2");
@@ -41,8 +42,8 @@ public class MessageInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         nameStartsWith("acknowledge").and(isMethod()).and(isPublic()).and(takesNoArguments()),
         getClass().getName() + "$Acknowledge");
   }

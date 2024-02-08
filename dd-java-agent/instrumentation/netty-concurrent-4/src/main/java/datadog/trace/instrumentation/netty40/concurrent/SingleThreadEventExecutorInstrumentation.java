@@ -8,6 +8,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 import datadog.trace.api.config.ProfilingConfig;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
@@ -22,7 +23,7 @@ import java.util.concurrent.RunnableFuture;
 import net.bytebuddy.asm.Advice;
 
 @AutoService(Instrumenter.class)
-public class SingleThreadEventExecutorInstrumentation extends Instrumenter.Profiling
+public class SingleThreadEventExecutorInstrumentation extends InstrumenterGroup.Profiling
     implements Instrumenter.ForKnownTypes {
   public SingleThreadEventExecutorInstrumentation() {
     super("netty-concurrent", "netty-event-executor");
@@ -53,8 +54,8 @@ public class SingleThreadEventExecutorInstrumentation extends Instrumenter.Profi
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isMethod()
             .and(named("addTask"))
             .and(takesArguments(1))
@@ -62,7 +63,7 @@ public class SingleThreadEventExecutorInstrumentation extends Instrumenter.Profi
         getClass().getName() + "$StartTiming");
     // schedule may call execute so using the same instrumentation relies on detecting double
     // timing - earliest (schedule) must take precedence
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod()
             .and(named("schedule"))
             .and(takesArguments(1))

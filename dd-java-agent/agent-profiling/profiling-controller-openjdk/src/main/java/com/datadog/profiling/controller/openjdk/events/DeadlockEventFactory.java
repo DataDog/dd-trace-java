@@ -1,5 +1,6 @@
 package com.datadog.profiling.controller.openjdk.events;
 
+import datadog.trace.bootstrap.instrumentation.jfr.JfrHelper;
 import java.lang.management.LockInfo;
 import java.lang.management.ManagementFactory;
 import java.lang.management.MonitorInfo;
@@ -16,7 +17,6 @@ import java.util.TreeMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import jdk.jfr.Event;
-import jdk.jfr.FlightRecorder;
 
 public class DeadlockEventFactory {
   private static final AtomicBoolean EVENTS_REGISTERED_FLAG = new AtomicBoolean();
@@ -30,7 +30,7 @@ public class DeadlockEventFactory {
   public static void registerEvents() {
     // prevent re-registration as that would cause JFR to throw an exception
     if (EVENTS_REGISTERED_FLAG.compareAndSet(false, true)) {
-      FlightRecorder.addPeriodicEvent(DeadlockEvent.class, DeadlockEvent::emit);
+      JfrHelper.addPeriodicEvent(DeadlockEvent.class, DeadlockEvent::emit);
     }
   }
 

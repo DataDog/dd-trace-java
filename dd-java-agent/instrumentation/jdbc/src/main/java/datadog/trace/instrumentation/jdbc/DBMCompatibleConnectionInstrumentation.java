@@ -68,8 +68,8 @@ public class DBMCompatibleConnectionInstrumentation extends AbstractConnectionIn
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         nameStartsWith("prepare")
             .and(takesArgument(0, String.class))
             // Also include CallableStatement, which is a subtype of PreparedStatement
@@ -116,7 +116,7 @@ public class DBMCompatibleConnectionInstrumentation extends AbstractConnectionIn
       }
       ContextStore<Statement, DBQueryInfo> contextStore =
           InstrumentationContext.get(Statement.class, DBQueryInfo.class);
-      if (null == contextStore.get(statement)) {
+      if (null != statement && null == contextStore.get(statement)) {
         DBQueryInfo info = DBQueryInfo.ofPreparedStatement(inputSql);
         contextStore.put(statement, info);
         logQueryInfoInjection(connection, statement, info);

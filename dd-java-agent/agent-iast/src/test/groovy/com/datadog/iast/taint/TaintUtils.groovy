@@ -94,6 +94,19 @@ class TaintUtils {
     return resultString
   }
 
+  static void addFromRangeList(final TaintedObjects tos, final String s, final List<List<Object>> spockRangeList) {
+    Vector<Range> rangesVector = new Vector<>()
+    for (List<Object> range : spockRangeList) {
+      int start = (int)range.get(0)
+      int length = (int)range.get(1)
+      byte sourceType = (byte)range.get(4)
+      rangesVector.add(new Range(start, length, new Source(sourceType, (String)range.get(2), (String)range.get(3)), NOT_MARKED))
+    }
+
+    Range[] ranges = (Range[])rangesVector.toArray()
+    tos.taint(s, ranges)
+  }
+
   static StringBuilder addFromTaintFormat(final TaintedObjects tos, final StringBuilder sb) {
     final String s = sb.toString()
     final ranges = fromTaintFormat(s)

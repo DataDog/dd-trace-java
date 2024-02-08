@@ -6,10 +6,11 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 import datadog.trace.agent.tooling.muzzle.Reference;
 
 @AutoService(Instrumenter.class)
-public final class JettyCommitResponseInstrumentation extends Instrumenter.AppSec
+public final class JettyCommitResponseInstrumentation extends InstrumenterGroup.AppSec
     implements Instrumenter.ForSingleType {
 
   public JettyCommitResponseInstrumentation() {
@@ -87,8 +88,8 @@ public final class JettyCommitResponseInstrumentation extends Instrumenter.AppSe
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         named("sendResponse")
             .and(takesArguments(4))
             .and(takesArgument(0, named("org.eclipse.jetty.http.MetaData$Response")))

@@ -7,13 +7,14 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import io.vertx.core.Handler;
 import net.bytebuddy.asm.Advice;
 
 @AutoService(Instrumenter.class)
-public class VertxImplInstrumentation extends Instrumenter.AppSec
+public class VertxImplInstrumentation extends InstrumenterGroup.AppSec
     implements Instrumenter.ForSingleType {
   public VertxImplInstrumentation() {
     super("vertx", "vertx-3.4");
@@ -34,8 +35,8 @@ public class VertxImplInstrumentation extends Instrumenter.AppSec
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isPublic()
             .and(named("exceptionHandler"))
             .and(takesArguments(0))

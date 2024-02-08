@@ -6,6 +6,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 import datadog.trace.agent.tooling.bytebuddy.iast.TaintableVisitor;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Source;
@@ -14,7 +15,8 @@ import datadog.trace.api.iast.propagation.PropagationModule;
 import net.bytebuddy.asm.Advice;
 
 @AutoService(Instrumenter.class)
-public class CookieInstrumentation extends Instrumenter.Iast implements Instrumenter.ForSingleType {
+public class CookieInstrumentation extends InstrumenterGroup.Iast
+    implements Instrumenter.ForSingleType, Instrumenter.HasTypeAdvice {
 
   public CookieInstrumentation() {
     super("servlet", "servlet-cookie");
@@ -26,18 +28,18 @@ public class CookieInstrumentation extends Instrumenter.Iast implements Instrume
   }
 
   @Override
-  public void adviceTransformations(final AdviceTransformation transformation) {
-    transformation.applyAdvice(
-        isMethod().and(named("getName")).and(takesArguments(0)),
-        getClass().getName() + "$GetNameAdvice");
-    transformation.applyAdvice(
-        isMethod().and(named("getValue")).and(takesArguments(0)),
-        getClass().getName() + "$GetValueAdvice");
+  public void typeAdvice(TypeTransformer transformer) {
+    transformer.applyAdvice(new TaintableVisitor(instrumentedType()));
   }
 
   @Override
-  public AdviceTransformer transformer() {
-    return new VisitingTransformer(new TaintableVisitor(instrumentedType()));
+  public void methodAdvice(final MethodTransformer transformer) {
+    transformer.applyAdvice(
+        isMethod().and(named("getName")).and(takesArguments(0)),
+        getClass().getName() + "$GetNameAdvice");
+    transformer.applyAdvice(
+        isMethod().and(named("getValue")).and(takesArguments(0)),
+        getClass().getName() + "$GetValueAdvice");
   }
 
   public static class GetNameAdvice {

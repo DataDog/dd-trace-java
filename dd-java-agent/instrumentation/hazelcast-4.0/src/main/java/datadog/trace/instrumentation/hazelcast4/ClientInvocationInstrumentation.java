@@ -12,13 +12,14 @@ import com.hazelcast.client.impl.clientside.HazelcastClientInstanceImpl;
 import com.hazelcast.client.impl.proxy.ClientMapProxy;
 import com.hazelcast.client.impl.spi.impl.ClientInvocation;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 import datadog.trace.bootstrap.InstrumentationContext;
 import java.util.Collections;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
 
 @AutoService(Instrumenter.class)
-public class ClientInvocationInstrumentation extends Instrumenter.Tracing
+public class ClientInvocationInstrumentation extends InstrumenterGroup.Tracing
     implements Instrumenter.ForSingleType {
 
   public ClientInvocationInstrumentation() {
@@ -51,10 +52,10 @@ public class ClientInvocationInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isMethod().and(named("invokeOnSelection")), packageName + ".InvocationAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isConstructor()
             .and(
                 takesArgument(

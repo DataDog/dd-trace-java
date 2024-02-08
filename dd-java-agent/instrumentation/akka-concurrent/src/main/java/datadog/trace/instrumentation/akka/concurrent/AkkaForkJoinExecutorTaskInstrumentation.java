@@ -10,6 +10,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
@@ -23,7 +24,7 @@ import net.bytebuddy.asm.Advice;
  * error handling.
  */
 @AutoService(Instrumenter.class)
-public final class AkkaForkJoinExecutorTaskInstrumentation extends Instrumenter.Tracing
+public final class AkkaForkJoinExecutorTaskInstrumentation extends InstrumenterGroup.Tracing
     implements Instrumenter.ForSingleType {
   public AkkaForkJoinExecutorTaskInstrumentation() {
     super("java_concurrent", "akka_concurrent");
@@ -40,11 +41,11 @@ public final class AkkaForkJoinExecutorTaskInstrumentation extends Instrumenter.
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isConstructor().and(takesArgument(0, named(Runnable.class.getName()))),
         getClass().getName() + "$Construct");
-    transformation.applyAdvice(isMethod().and(named("run")), getClass().getName() + "$Run");
+    transformer.applyAdvice(isMethod().and(named("run")), getClass().getName() + "$Run");
   }
 
   public static final class Construct {

@@ -21,6 +21,14 @@ dependencies {
   testImplementation group: 'javax.xml.bind', name: 'jaxb-api', version: '2.2.3'
   testImplementation group: 'org.assertj', name: 'assertj-core', version: '2.9.+'
   testImplementation group: 'org.mockito', name: 'mockito-core', version: '2.19.0'
+  testRuntimeOnly project(':dd-java-agent:instrumentation:spring-scheduling-3.1')
+
+  // IAST testing dependencies
+  testRuntimeOnly project(':dd-java-agent:instrumentation:iast-instrumenter')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:java-lang')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:java-io')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:jackson-core')
+  testRuntimeOnly(group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: '2.9.10')
 
   // Include latest version of kafka itself along with latest version of client libs.
   // This seems to help with jar compatibility hell.

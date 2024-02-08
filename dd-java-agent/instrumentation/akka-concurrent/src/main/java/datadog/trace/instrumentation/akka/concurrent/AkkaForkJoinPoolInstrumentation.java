@@ -11,13 +11,14 @@ import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import akka.dispatch.forkjoin.ForkJoinTask;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
 
 @AutoService(Instrumenter.class)
-public final class AkkaForkJoinPoolInstrumentation extends Instrumenter.Tracing
+public final class AkkaForkJoinPoolInstrumentation extends InstrumenterGroup.Tracing
     implements Instrumenter.ForSingleType {
 
   public AkkaForkJoinPoolInstrumentation() {
@@ -35,8 +36,8 @@ public final class AkkaForkJoinPoolInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isMethod().and(namedOneOf("externalPush", "fullExternalPush")),
         getClass().getName() + "$ExternalPush");
   }
