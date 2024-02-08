@@ -2,8 +2,8 @@ package datadog.trace.api.civisibility.telemetry.tag;
 
 import datadog.trace.api.civisibility.telemetry.TagValue;
 
-/** The type of test framework used */
-public enum TestFramework implements TagValue {
+/** The name of test framework instrumentation used */
+public enum TestFrameworkInstrumentation implements TagValue {
   JUNIT4,
   JUNIT5,
   TESTNG,
@@ -11,11 +11,12 @@ public enum TestFramework implements TagValue {
   CUCUMBER,
   MUNIT,
   SCALATEST,
-  KARATE;
+  KARATE,
+  OTHER;
 
   private final String s;
 
-  TestFramework() {
+  TestFrameworkInstrumentation() {
     s = "test_framework:" + name().toLowerCase();
   }
 

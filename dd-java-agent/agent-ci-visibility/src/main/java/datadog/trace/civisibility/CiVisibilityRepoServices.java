@@ -8,6 +8,7 @@ import datadog.trace.civisibility.ci.CIProviderInfo;
 import datadog.trace.civisibility.ci.CITagsProvider;
 import datadog.trace.civisibility.codeowners.Codeowners;
 import datadog.trace.civisibility.codeowners.CodeownersProvider;
+import datadog.trace.civisibility.codeowners.NoCodeowners;
 import datadog.trace.civisibility.communication.BackendApi;
 import datadog.trace.civisibility.config.CachingModuleExecutionSettingsFactory;
 import datadog.trace.civisibility.config.ConfigurationApi;
@@ -44,6 +45,7 @@ public class CiVisibilityRepoServices {
   final String repoRoot;
   final String moduleName;
   final Map<String, String> ciTags;
+  final boolean supportedCiProvider;
 
   final GitDataUploader gitDataUploader;
   final RepoIndexProvider repoIndexProvider;
@@ -57,6 +59,7 @@ public class CiVisibilityRepoServices {
     repoRoot = ciInfo.getCiWorkspace();
     moduleName = getModuleName(services.config, path, ciInfo);
     ciTags = new CITagsProvider().getCiTags(ciInfo);
+    supportedCiProvider = ciProviderInfo.isSupportedCiProvider();
 
     gitDataUploader =
         buildGitDataUploader(
@@ -175,7 +178,7 @@ public class CiVisibilityRepoServices {
     if (repoRoot != null) {
       return new CodeownersProvider().build(repoRoot);
     } else {
-      return path -> null;
+      return NoCodeowners.INSTANCE;
     }
   }
 }

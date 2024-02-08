@@ -1,14 +1,18 @@
-package datadog.trace.civisibility;
+package datadog.trace.civisibility.domain.buildsystem;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.civisibility.events.BuildEventsHandler;
+import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
+import datadog.trace.civisibility.InstrumentationType;
 import datadog.trace.civisibility.codeowners.Codeowners;
 import datadog.trace.civisibility.coverage.CoverageProbeStoreFactory;
 import datadog.trace.civisibility.coverage.CoverageUtils;
 import datadog.trace.civisibility.decorator.TestDecorator;
+import datadog.trace.civisibility.domain.AbstractTestModule;
+import datadog.trace.civisibility.domain.BuildSystemModule;
 import datadog.trace.civisibility.ipc.ModuleExecutionResult;
 import datadog.trace.civisibility.source.MethodLinesResolver;
 import datadog.trace.civisibility.source.SourcePathResolver;
@@ -26,7 +30,7 @@ import org.jacoco.core.analysis.IBundleCoverage;
 import org.jacoco.core.analysis.ICounter;
 import org.jacoco.core.data.ExecutionDataStore;
 
-public class DDBuildSystemModuleImpl extends DDTestModuleImpl implements DDBuildSystemModule {
+public class BuildSystemModuleImpl extends AbstractTestModule implements BuildSystemModule {
 
   private final String repoRoot;
   private final InetSocketAddress signalServerAddress;
@@ -41,7 +45,7 @@ public class DDBuildSystemModuleImpl extends DDTestModuleImpl implements DDBuild
   @GuardedBy("coverageDataLock")
   private ExecutionDataStore coverageData;
 
-  public DDBuildSystemModuleImpl(
+  public BuildSystemModuleImpl(
       AgentSpan.Context sessionSpanContext,
       long sessionId,
       String moduleName,
@@ -51,6 +55,7 @@ public class DDBuildSystemModuleImpl extends DDTestModuleImpl implements DDBuild
       InetSocketAddress signalServerAddress,
       Collection<File> outputClassesDirs,
       Config config,
+      CiVisibilityMetricCollector metricCollector,
       TestDecorator testDecorator,
       SourcePathResolver sourcePathResolver,
       Codeowners codeowners,
@@ -64,7 +69,9 @@ public class DDBuildSystemModuleImpl extends DDTestModuleImpl implements DDBuild
         sessionId,
         moduleName,
         startTime,
+        InstrumentationType.BUILD,
         config,
+        metricCollector,
         testDecorator,
         sourcePathResolver,
         codeowners,

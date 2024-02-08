@@ -55,6 +55,9 @@ public enum CiVisibilityDistributionMetric {
   MetricCollector.DistributionSeriesPoint createDataPoint(int value, TagValue... tagValues) {
     List<String> tags = new ArrayList<>(tagValues.length);
     for (TagValue tagValue : tagValues) {
+      if (tagValue == null) {
+        continue;
+      }
       assertValid(tagValue);
       tags.add(tagValue.asString());
     }

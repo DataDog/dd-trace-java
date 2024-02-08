@@ -7,11 +7,12 @@ import datadog.trace.api.civisibility.InstrumentationBridge;
 import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.civisibility.events.TestEventsHandler;
 import datadog.trace.api.civisibility.retry.TestRetryPolicy;
+import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
-import datadog.trace.civisibility.DDTestFrameworkModule;
-import datadog.trace.civisibility.DDTestFrameworkSession;
-import datadog.trace.civisibility.DDTestImpl;
-import datadog.trace.civisibility.DDTestSuiteImpl;
+import datadog.trace.civisibility.domain.TestFrameworkModule;
+import datadog.trace.civisibility.domain.TestFrameworkSession;
+import datadog.trace.civisibility.domain.TestImpl;
+import datadog.trace.civisibility.domain.TestSuiteImpl;
 import java.lang.reflect.Method;
 import java.util.Collection;
 import java.util.Collections;
@@ -27,20 +28,18 @@ public class TestEventsHandlerImpl implements TestEventsHandler {
 
   private static final Logger log = LoggerFactory.getLogger(TestEventsHandlerImpl.class);
 
-  private final DDTestFrameworkSession testSession;
-  private final DDTestFrameworkModule testModule;
+  private final TestFrameworkSession testSession;
+  private final TestFrameworkModule testModule;
 
   private final ConcurrentMap<TestSuiteDescriptor, Integer> testSuiteNestedCallCounters =
       new ConcurrentHashMap<>();
 
-  private final ConcurrentMap<TestSuiteDescriptor, DDTestSuiteImpl> inProgressTestSuites =
+  private final ConcurrentMap<TestSuiteDescriptor, TestSuiteImpl> inProgressTestSuites =
       new ConcurrentHashMap<>();
 
-  private final ConcurrentMap<TestDescriptor, DDTestImpl> inProgressTests =
-      new ConcurrentHashMap<>();
+  private final ConcurrentMap<TestDescriptor, TestImpl> inProgressTests = new ConcurrentHashMap<>();
 
-  public TestEventsHandlerImpl(
-      DDTestFrameworkSession testSession, DDTestFrameworkModule testModule) {
+  public TestEventsHandlerImpl(TestFrameworkSession testSession, TestFrameworkModule testModule) {
     this.testSession = testSession;
     this.testModule = testModule;
   }
@@ -52,7 +51,8 @@ public class TestEventsHandlerImpl implements TestEventsHandler {
       final @Nullable String testFrameworkVersion,
       final @Nullable Class<?> testClass,
       final @Nullable Collection<String> categories,
-      boolean parallelized) {
+      boolean parallelized,
+      TestFrameworkInstrumentation instrumentation) {
     if (skipTrace(testClass)) {
       return;
     }
@@ -62,8 +62,8 @@ public class TestEventsHandlerImpl implements TestEventsHandler {
       return;
     }
 
-    DDTestSuiteImpl testSuite =
-        testModule.testSuiteStart(testSuiteName, testClass, null, parallelized);
+    TestSuiteImpl testSuite =
+        testModule.testSuiteStart(testSuiteName, testClass, null, parallelized, instrumentation);
 
     if (testFramework != null) {
       testSuite.setTag(Tags.TEST_FRAMEWORK, testFramework);
@@ -90,7 +90,7 @@ public class TestEventsHandlerImpl implements TestEventsHandler {
       return;
     }
 
-    DDTestSuiteImpl testSuite = inProgressTestSuites.remove(descriptor);
+    TestSuiteImpl testSuite = inProgressTestSuites.remove(descriptor);
     testSuite.end(null);
   }
 
@@ -106,7 +106,7 @@ public class TestEventsHandlerImpl implements TestEventsHandler {
   @Override
   public void onTestSuiteSkip(String testSuiteName, Class<?> testClass, @Nullable String reason) {
     TestSuiteDescriptor descriptor = new TestSuiteDescriptor(testSuiteName, testClass);
-    DDTestSuiteImpl testSuite = inProgressTestSuites.get(descriptor);
+    TestSuiteImpl testSuite = inProgressTestSuites.get(descriptor);
     if (testSuite == null) {
       log.debug(
           "Ignoring skip event, could not find test suite with name {} and class {}",
@@ -121,7 +121,7 @@ public class TestEventsHandlerImpl implements TestEventsHandler {
   public void onTestSuiteFailure(
       String testSuiteName, Class<?> testClass, @Nullable Throwable throwable) {
     TestSuiteDescriptor descriptor = new TestSuiteDescriptor(testSuiteName, testClass);
-    DDTestSuiteImpl testSuite = inProgressTestSuites.get(descriptor);
+    TestSuiteImpl testSuite = inProgressTestSuites.get(descriptor);
     if (testSuite == null) {
       log.debug(
           "Ignoring fail event, could not find test suite with name {} and class {}",
@@ -149,8 +149,8 @@ public class TestEventsHandlerImpl implements TestEventsHandler {
     }
 
     TestSuiteDescriptor suiteDescriptor = new TestSuiteDescriptor(testSuiteName, testClass);
-    DDTestSuiteImpl testSuite = inProgressTestSuites.get(suiteDescriptor);
-    DDTestImpl test = testSuite.testStart(testName, testMethod, null);
+    TestSuiteImpl testSuite = inProgressTestSuites.get(suiteDescriptor);
+    TestImpl test = testSuite.testStart(testName, testMethod, null);
 
     if (testFramework != null) {
       test.setTag(Tags.TEST_FRAMEWORK, testFramework);
@@ -197,7 +197,7 @@ public class TestEventsHandlerImpl implements TestEventsHandler {
       @Nullable String reason) {
     TestDescriptor descriptor =
         new TestDescriptor(testSuiteName, testClass, testName, testParameters, testQualifier);
-    DDTestImpl test = inProgressTests.get(descriptor);
+    TestImpl test = inProgressTests.get(descriptor);
     if (test == null) {
       log.debug(
           "Ignoring skip event, could not find test with name {}, suite name{} and class {}",
@@ -219,7 +219,7 @@ public class TestEventsHandlerImpl implements TestEventsHandler {
       @Nullable Throwable throwable) {
     TestDescriptor descriptor =
         new TestDescriptor(testSuiteName, testClass, testName, testParameters, testQualifier);
-    DDTestImpl test = inProgressTests.get(descriptor);
+    TestImpl test = inProgressTests.get(descriptor);
     if (test == null) {
       log.debug(
           "Ignoring fail event, could not find test with name {}, suite name{} and class {}",
@@ -240,7 +240,7 @@ public class TestEventsHandlerImpl implements TestEventsHandler {
       final @Nullable String testParameters) {
     TestDescriptor descriptor =
         new TestDescriptor(testSuiteName, testClass, testName, testParameters, testQualifier);
-    DDTestImpl test = inProgressTests.remove(descriptor);
+    TestImpl test = inProgressTests.remove(descriptor);
     if (test == null) {
       log.debug(
           "Ignoring finish event, could not find test with name {}, suite name{} and class {}",

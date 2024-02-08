@@ -1,4 +1,4 @@
-package datadog.trace.civisibility;
+package datadog.trace.civisibility.domain;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
@@ -6,11 +6,16 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import datadog.trace.api.Config;
 import datadog.trace.api.civisibility.CIConstants;
 import datadog.trace.api.civisibility.DDTestSuite;
+import datadog.trace.api.civisibility.telemetry.CiVisibilityCountMetric;
+import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
+import datadog.trace.api.civisibility.telemetry.tag.EventType;
+import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
+import datadog.trace.civisibility.InstrumentationType;
 import datadog.trace.civisibility.codeowners.Codeowners;
 import datadog.trace.civisibility.coverage.CoverageProbeStoreFactory;
 import datadog.trace.civisibility.decorator.TestDecorator;
@@ -21,7 +26,7 @@ import java.lang.reflect.Method;
 import java.util.function.Consumer;
 import javax.annotation.Nullable;
 
-public class DDTestSuiteImpl implements DDTestSuite {
+public class TestSuiteImpl implements DDTestSuite {
 
   private final AgentSpan span;
   private final long sessionId;
@@ -29,7 +34,10 @@ public class DDTestSuiteImpl implements DDTestSuite {
   private final String moduleName;
   private final String testSuiteName;
   private final Class<?> testClass;
+  private final InstrumentationType instrumentationType;
+  private final TestFrameworkInstrumentation instrumentation;
   private final Config config;
+  CiVisibilityMetricCollector metricCollector;
   private final TestDecorator testDecorator;
   private final SourcePathResolver sourcePathResolver;
   private final Codeowners codeowners;
@@ -38,7 +46,7 @@ public class DDTestSuiteImpl implements DDTestSuite {
   private final boolean parallelized;
   private final Consumer<AgentSpan> onSpanFinish;
 
-  public DDTestSuiteImpl(
+  public TestSuiteImpl(
       @Nullable AgentSpan.Context moduleSpanContext,
       long sessionId,
       long moduleId,
@@ -47,7 +55,10 @@ public class DDTestSuiteImpl implements DDTestSuite {
       @Nullable Class<?> testClass,
       @Nullable Long startTime,
       boolean parallelized,
+      InstrumentationType instrumentationType,
+      TestFrameworkInstrumentation instrumentation,
       Config config,
+      CiVisibilityMetricCollector metricCollector,
       TestDecorator testDecorator,
       SourcePathResolver sourcePathResolver,
       Codeowners codeowners,
@@ -59,7 +70,10 @@ public class DDTestSuiteImpl implements DDTestSuite {
     this.moduleName = moduleName;
     this.testSuiteName = testSuiteName;
     this.parallelized = parallelized;
+    this.instrumentationType = instrumentationType;
+    this.instrumentation = instrumentation;
     this.config = config;
+    this.metricCollector = metricCollector;
     this.testDecorator = testDecorator;
     this.sourcePathResolver = sourcePathResolver;
     this.codeowners = codeowners;
@@ -103,6 +117,12 @@ public class DDTestSuiteImpl implements DDTestSuite {
     if (!parallelized) {
       final AgentScope scope = activateSpan(span);
       scope.setAsyncPropagation(true);
+    }
+
+    metricCollector.add(CiVisibilityCountMetric.EVENT_CREATED, 1, instrumentation, EventType.SUITE);
+
+    if (instrumentationType == InstrumentationType.MANUAL_API) {
+      metricCollector.add(CiVisibilityCountMetric.MANUAL_API_EVENTS, 1, EventType.SUITE);
     }
   }
 
@@ -155,12 +175,15 @@ public class DDTestSuiteImpl implements DDTestSuite {
     } else {
       span.finish();
     }
+
+    metricCollector.add(
+        CiVisibilityCountMetric.EVENT_FINISHED, 1, instrumentation, EventType.SUITE);
   }
 
   @Override
-  public DDTestImpl testStart(
+  public TestImpl testStart(
       String testName, @Nullable Method testMethod, @Nullable Long startTime) {
-    return new DDTestImpl(
+    return new TestImpl(
         sessionId,
         moduleId,
         span.getSpanId(),
@@ -170,7 +193,10 @@ public class DDTestSuiteImpl implements DDTestSuite {
         startTime,
         testClass,
         testMethod,
+        instrumentationType,
+        instrumentation,
         config,
+        metricCollector,
         testDecorator,
         sourcePathResolver,
         methodLinesResolver,

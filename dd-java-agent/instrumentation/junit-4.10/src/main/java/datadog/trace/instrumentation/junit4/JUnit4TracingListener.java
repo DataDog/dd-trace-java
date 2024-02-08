@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.junit4;
 
+import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation;
 import java.lang.reflect.Method;
 import java.util.List;
 import junit.runner.Version;
@@ -24,7 +25,13 @@ public class JUnit4TracingListener extends TracingListener {
     String testSuiteName = JUnit4Utils.getSuiteName(testClass, description);
     List<String> categories = JUnit4Utils.getCategories(testClass, null);
     TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSuiteStart(
-        testSuiteName, FRAMEWORK_NAME, FRAMEWORK_VERSION, testClass, categories, false);
+        testSuiteName,
+        FRAMEWORK_NAME,
+        FRAMEWORK_VERSION,
+        testClass,
+        categories,
+        false,
+        TestFrameworkInstrumentation.JUNIT4);
   }
 
   public void testSuiteFinished(final Description description) {
@@ -144,7 +151,13 @@ public class JUnit4TracingListener extends TracingListener {
       List<String> categories = JUnit4Utils.getCategories(testClass, null);
 
       TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSuiteStart(
-          testSuiteName, FRAMEWORK_NAME, FRAMEWORK_VERSION, testClass, categories, false);
+          testSuiteName,
+          FRAMEWORK_NAME,
+          FRAMEWORK_VERSION,
+          testClass,
+          categories,
+          false,
+          TestFrameworkInstrumentation.JUNIT4);
       TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSuiteSkip(testSuiteName, testClass, reason);
 
       List<Method> testMethods = JUnit4Utils.getTestMethods(testClass);

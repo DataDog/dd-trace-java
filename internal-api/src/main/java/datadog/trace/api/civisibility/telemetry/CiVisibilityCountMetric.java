@@ -8,12 +8,13 @@ import datadog.trace.api.civisibility.telemetry.tag.EventType;
 import datadog.trace.api.civisibility.telemetry.tag.ExitCode;
 import datadog.trace.api.civisibility.telemetry.tag.HasCodeowner;
 import datadog.trace.api.civisibility.telemetry.tag.IsBenchmark;
+import datadog.trace.api.civisibility.telemetry.tag.IsHeadless;
 import datadog.trace.api.civisibility.telemetry.tag.IsUnsupportedCI;
 import datadog.trace.api.civisibility.telemetry.tag.ItrEnabled;
 import datadog.trace.api.civisibility.telemetry.tag.ItrSkipEnabled;
 import datadog.trace.api.civisibility.telemetry.tag.Library;
 import datadog.trace.api.civisibility.telemetry.tag.RequireGit;
-import datadog.trace.api.civisibility.telemetry.tag.TestFramework;
+import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation;
 import java.util.Arrays;
 
 public enum CiVisibilityCountMetric {
@@ -21,23 +22,26 @@ public enum CiVisibilityCountMetric {
   /** The number of events created */
   EVENT_CREATED(
       "event_created",
-      TestFramework.class,
+      TestFrameworkInstrumentation.class,
       EventType.class,
+      IsHeadless.class,
       HasCodeowner.class,
       IsUnsupportedCI.class,
       IsBenchmark.class),
   /** The number of events finished */
   EVENT_FINISHED(
       "event_finished",
-      TestFramework.class,
+      TestFrameworkInstrumentation.class,
       EventType.class,
+      IsHeadless.class,
       HasCodeowner.class,
       IsUnsupportedCI.class,
       IsBenchmark.class),
   /** The number of code coverage sessions started */
-  CODE_COVERAGE_STARTED("code_coverage_started", TestFramework.class, Library.class),
+  CODE_COVERAGE_STARTED("code_coverage_started", TestFrameworkInstrumentation.class, Library.class),
   /** The number of code coverage sessions finished */
-  CODE_COVERAGE_FINISHED("code_coverage_finished", TestFramework.class, Library.class),
+  CODE_COVERAGE_FINISHED(
+      "code_coverage_finished", TestFrameworkInstrumentation.class, Library.class),
   /** The number of events created using the manual API */
   MANUAL_API_EVENTS("manual_api_events", EventType.class),
   /** The number of events enqueued for serialization */
@@ -153,6 +157,9 @@ public enum CiVisibilityCountMetric {
   int getIndex(TagValue... tagValues) {
     int index = this.index;
     for (TagValue tagValue : tagValues) {
+      if (tagValue == null) {
+        continue;
+      }
       index += calculateIdxDelta(tagValue);
     }
     return index;
