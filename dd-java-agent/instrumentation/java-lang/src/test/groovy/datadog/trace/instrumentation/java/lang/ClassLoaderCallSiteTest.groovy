@@ -4,7 +4,6 @@ import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.sink.ReflectionInjectionModule
 import foo.bar.TestClassLoaderSuite
-import foo.bar.TestClassSuite
 
 class ClassLoaderCallSiteTest extends AgentTestRunner {
 
