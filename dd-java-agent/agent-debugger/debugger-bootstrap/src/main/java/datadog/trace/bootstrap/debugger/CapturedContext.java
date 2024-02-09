@@ -651,6 +651,7 @@ public class CapturedContext implements ValueReferenceResolver {
   public static class CapturedThrowable {
     private final String type;
     private final String message;
+    private final transient Throwable throwable;
 
     /*
      * Need to exclude stacktrace from equals/hashCode computation.
@@ -662,13 +663,16 @@ public class CapturedContext implements ValueReferenceResolver {
       this(
           throwable.getClass().getTypeName(),
           throwable.getLocalizedMessage(),
-          captureFrames(throwable.getStackTrace()));
+          captureFrames(throwable.getStackTrace()),
+          throwable);
     }
 
-    public CapturedThrowable(String type, String message, List<CapturedStackFrame> stacktrace) {
+    public CapturedThrowable(
+        String type, String message, List<CapturedStackFrame> stacktrace, Throwable t) {
       this.type = type;
       this.message = message;
       this.stacktrace = new ArrayList<>(stacktrace);
+      this.throwable = t;
     }
 
     public String getType() {
@@ -681,6 +685,10 @@ public class CapturedContext implements ValueReferenceResolver {
 
     public List<CapturedStackFrame> getStacktrace() {
       return stacktrace;
+    }
+
+    public Throwable getThrowable() {
+      return throwable;
     }
 
     private static List<CapturedStackFrame> captureFrames(StackTraceElement[] stackTrace) {

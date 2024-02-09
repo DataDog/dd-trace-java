@@ -81,7 +81,7 @@ public class CapturedContextInstrumentor extends Instrumentor {
 
   @Override
   public InstrumentationResult.Status instrument() {
-    if (isLineProbe) {
+    if (definition.isLineProbe()) {
       if (!addLineCaptures(classFileLines)) {
         return InstrumentationResult.Status.ERROR;
       }

@@ -13,6 +13,7 @@ import com.datadog.debugger.el.ProbeCondition;
 import com.datadog.debugger.probe.LogProbe;
 import com.datadog.debugger.sink.ProbeStatusSink;
 import com.datadog.debugger.sink.Snapshot;
+import com.datadog.debugger.util.TestSnapshotListener;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.debugger.DebuggerContext;
 import datadog.trace.bootstrap.debugger.MethodLocation;
@@ -55,7 +56,7 @@ public class LogProbesInstrumentationTest {
   @Test
   public void methodPlainLog() throws IOException, URISyntaxException {
     final String CLASS_NAME = "CapturedSnapshot01";
-    DebuggerTransformerTest.TestSnapshotListener listener =
+    TestSnapshotListener listener =
         installSingleProbe("this is log line", CLASS_NAME, "main", "int (java.lang.String)");
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.on(testClass).call("main", "1").get();
@@ -68,7 +69,7 @@ public class LogProbesInstrumentationTest {
   @Test
   public void methodLargePlainLog() throws IOException, URISyntaxException {
     final String CLASS_NAME = "CapturedSnapshot01";
-    DebuggerTransformerTest.TestSnapshotListener listener =
+    TestSnapshotListener listener =
         installSingleProbe(STR_8K + "123", CLASS_NAME, "main", "int (java.lang.String)");
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.on(testClass).call("main", "1").get();
@@ -81,7 +82,7 @@ public class LogProbesInstrumentationTest {
   @Test
   public void methodTemplateArgLog() throws IOException, URISyntaxException {
     final String CLASS_NAME = "CapturedSnapshot01";
-    DebuggerTransformerTest.TestSnapshotListener listener =
+    TestSnapshotListener listener =
         installSingleProbe(
             "this is log line with arg={arg}", CLASS_NAME, "main", "int (java.lang.String)");
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
@@ -95,7 +96,7 @@ public class LogProbesInstrumentationTest {
   @Test
   public void methodTemplateArgLogLarge() throws IOException, URISyntaxException {
     final String CLASS_NAME = "CapturedSnapshot01";
-    DebuggerTransformerTest.TestSnapshotListener listener =
+    TestSnapshotListener listener =
         installSingleProbe(STR_8K + "{arg}", CLASS_NAME, "main", "int (java.lang.String)");
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.on(testClass).call("main", "1").get();
@@ -108,7 +109,7 @@ public class LogProbesInstrumentationTest {
   @Test
   public void methodTemplateLargeArgLog() throws IOException, URISyntaxException {
     final String CLASS_NAME = "CapturedSnapshot01";
-    DebuggerTransformerTest.TestSnapshotListener listener =
+    TestSnapshotListener listener =
         installSingleProbe(
             "this is log line with arg={arg}", CLASS_NAME, "main", "int (java.lang.String)");
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
@@ -125,7 +126,7 @@ public class LogProbesInstrumentationTest {
   @Test
   public void methodTemplateTooLargeArgLog() throws IOException, URISyntaxException {
     final String CLASS_NAME = "CapturedSnapshot01";
-    DebuggerTransformerTest.TestSnapshotListener listener =
+    TestSnapshotListener listener =
         installSingleProbe("{arg}", CLASS_NAME, "main", "int (java.lang.String)");
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.on(testClass).call("main", STR_8K + "123").get();
@@ -147,7 +148,7 @@ public class LogProbesInstrumentationTest {
                 "int (java.lang.String)")
             .evaluateAt(MethodLocation.EXIT)
             .build();
-    DebuggerTransformerTest.TestSnapshotListener listener = installProbes(probe);
+    TestSnapshotListener listener = installProbes(probe);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.on(testClass).call("main", "1").get();
     Assertions.assertEquals(3, result);
@@ -173,7 +174,7 @@ public class LogProbesInstrumentationTest {
             CLASS_NAME,
             "main",
             "int (java.lang.String)");
-    DebuggerTransformerTest.TestSnapshotListener listener = installProbes(logProbe1, logProbe2);
+    TestSnapshotListener listener = installProbes(logProbe1, logProbe2);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.on(testClass).call("main", "1").get();
     Assertions.assertEquals(3, result);
@@ -237,7 +238,7 @@ public class LogProbesInstrumentationTest {
                 "int (java.lang.String)")
             .captureSnapshot(additionalCapture)
             .build();
-    DebuggerTransformerTest.TestSnapshotListener listener = installProbes(logProbe1, logProbe2);
+    TestSnapshotListener listener = installProbes(logProbe1, logProbe2);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.on(testClass).call("main", "1").get();
     Assertions.assertEquals(3, result);
@@ -248,7 +249,7 @@ public class LogProbesInstrumentationTest {
   @Test
   public void linePlainLog() throws IOException, URISyntaxException {
     final String CLASS_NAME = "CapturedSnapshot01";
-    DebuggerTransformerTest.TestSnapshotListener listener =
+    TestSnapshotListener listener =
         installSingleProbe("this is log line", CLASS_NAME, null, null, "9");
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.on(testClass).call("main", "1").get();
@@ -261,7 +262,7 @@ public class LogProbesInstrumentationTest {
   @Test
   public void lineTemplateVarLog() throws IOException, URISyntaxException {
     final String CLASS_NAME = "CapturedSnapshot01";
-    DebuggerTransformerTest.TestSnapshotListener listener =
+    TestSnapshotListener listener =
         installSingleProbe("this is log line with local var={var1}", CLASS_NAME, null, null, "9");
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.on(testClass).call("main", "1").get();
@@ -274,7 +275,7 @@ public class LogProbesInstrumentationTest {
   @Test
   public void lineTemplateMultipleVarLog() throws IOException, URISyntaxException {
     final String CLASS_NAME = "CapturedSnapshot04";
-    DebuggerTransformerTest.TestSnapshotListener listener =
+    TestSnapshotListener listener =
         installSingleProbe(
             "nullObject={nullObject} sdata={sdata.strValue} cdata={cdata.s1.intValue}",
             CLASS_NAME,
@@ -292,7 +293,7 @@ public class LogProbesInstrumentationTest {
   @Test
   public void lineTemplateEscapeLog() throws IOException, URISyntaxException {
     final String CLASS_NAME = "CapturedSnapshot01";
-    DebuggerTransformerTest.TestSnapshotListener listener =
+    TestSnapshotListener listener =
         installSingleProbe(
             "this is log line with {{curly braces}} and with local var={{{var1}}}",
             CLASS_NAME,
@@ -311,7 +312,7 @@ public class LogProbesInstrumentationTest {
   @Test
   public void lineTemplateInvalidVarLog() throws IOException, URISyntaxException {
     final String CLASS_NAME = "CapturedSnapshot01";
-    DebuggerTransformerTest.TestSnapshotListener listener =
+    TestSnapshotListener listener =
         installSingleProbe("this is log line with local var={var42}", CLASS_NAME, null, null, "9");
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.on(testClass).call("main", "1").get();
@@ -328,7 +329,7 @@ public class LogProbesInstrumentationTest {
   @Test
   public void lineTemplateNullFieldLog() throws IOException, URISyntaxException {
     final String CLASS_NAME = "CapturedSnapshot04";
-    DebuggerTransformerTest.TestSnapshotListener listener =
+    TestSnapshotListener listener =
         installSingleProbe(
             "this is log line with field={nullObject.intValue}", CLASS_NAME, null, null, "25");
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
@@ -349,7 +350,7 @@ public class LogProbesInstrumentationTest {
   @Test
   public void lineTemplateIndexOutOfBoundsLog() throws IOException, URISyntaxException {
     final String CLASS_NAME = "CapturedSnapshot06";
-    DebuggerTransformerTest.TestSnapshotListener listener =
+    TestSnapshotListener listener =
         installSingleProbe(
             "this is log line with element of list={strList[10]}", CLASS_NAME, null, null, "24");
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
@@ -368,7 +369,7 @@ public class LogProbesInstrumentationTest {
   @Test
   public void lineTemplateThisLog() throws IOException, URISyntaxException {
     final String CLASS_NAME = "CapturedSnapshot06";
-    DebuggerTransformerTest.TestSnapshotListener listener =
+    TestSnapshotListener listener =
         installSingleProbe("this is log line for this={this}", CLASS_NAME, null, null, "24");
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.on(testClass).call("main", "f").get();
@@ -391,7 +392,7 @@ public class LogProbesInstrumentationTest {
             .template(LOG_TEMPLATE, parseTemplate(LOG_TEMPLATE))
             .captureSnapshot(true)
             .build();
-    DebuggerTransformerTest.TestSnapshotListener listener = installProbes(logProbes);
+    TestSnapshotListener listener = installProbes(logProbes);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.on(testClass).call("main", "5").get();
     Assertions.assertEquals(3, result);
@@ -488,7 +489,7 @@ public class LogProbesInstrumentationTest {
                 LOG_ID2, additionalTemplate, CLASS_NAME, "main", "int (java.lang.String)")
             .captureSnapshot(true)
             .build();
-    DebuggerTransformerTest.TestSnapshotListener listener = installProbes(logProbe1, logProbe2);
+    TestSnapshotListener listener = installProbes(logProbe1, logProbe2);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.on(testClass).call("main", "1").get();
     Assertions.assertEquals(3, result);
@@ -496,13 +497,13 @@ public class LogProbesInstrumentationTest {
     return listener.snapshots;
   }
 
-  private DebuggerTransformerTest.TestSnapshotListener installSingleProbe(
+  private TestSnapshotListener installSingleProbe(
       String template, String typeName, String methodName, String signature, String... lines) {
     LogProbe logProbe = createProbe(LOG_ID, template, typeName, methodName, signature, lines);
     return installProbes(Configuration.builder().setService(SERVICE_NAME).add(logProbe).build());
   }
 
-  private DebuggerTransformerTest.TestSnapshotListener installProbes(LogProbe... logProbes) {
+  private TestSnapshotListener installProbes(LogProbe... logProbes) {
     return installProbes(
         Configuration.builder()
             .setService(SERVICE_NAME)
@@ -534,7 +535,7 @@ public class LogProbesInstrumentationTest {
     return createProbeBuilder(id, template, typeName, methodName, signature, lines).build();
   }
 
-  private DebuggerTransformerTest.TestSnapshotListener installProbes(Configuration configuration) {
+  private TestSnapshotListener installProbes(Configuration configuration) {
     Config config = mock(Config.class);
     when(config.isDebuggerEnabled()).thenReturn(true);
     when(config.isDebuggerClassFileDumpEnabled()).thenReturn(true);
@@ -546,8 +547,7 @@ public class LogProbesInstrumentationTest {
         (encodedProbeId) -> resolver(encodedProbeId, configuration.getLogProbes());
     currentTransformer = new DebuggerTransformer(config, configuration);
     instr.addTransformer(currentTransformer);
-    DebuggerTransformerTest.TestSnapshotListener listener =
-        new DebuggerTransformerTest.TestSnapshotListener(config, mock(ProbeStatusSink.class));
+    TestSnapshotListener listener = new TestSnapshotListener(config, mock(ProbeStatusSink.class));
     DebuggerAgentHelper.injectSink(listener);
     DebuggerContext.initProbeResolver(resolver);
     DebuggerContext.initClassFilter(new DenyListHelper(null));
@@ -564,7 +564,7 @@ public class LogProbesInstrumentationTest {
     return null;
   }
 
-  private Snapshot assertOneSnapshot(DebuggerTransformerTest.TestSnapshotListener listener) {
+  private Snapshot assertOneSnapshot(TestSnapshotListener listener) {
     Assertions.assertFalse(listener.skipped, "Snapshot skipped because " + listener.cause);
     Assertions.assertEquals(1, listener.snapshots.size());
     Snapshot snapshot = listener.snapshots.get(0);

@@ -8,7 +8,6 @@ import static com.datadog.debugger.instrumentation.Types.STRING_TYPE;
 
 import com.datadog.debugger.instrumentation.DiagnosticMessage.Kind;
 import com.datadog.debugger.probe.ProbeDefinition;
-import com.datadog.debugger.probe.Where;
 import com.datadog.debugger.util.ClassFileLines;
 import datadog.trace.bootstrap.debugger.ProbeId;
 import java.util.ArrayList;
@@ -43,7 +42,6 @@ public abstract class Instrumentor {
   protected final List<DiagnosticMessage> diagnostics;
   protected final List<ProbeId> probeIds;
   protected final boolean isStatic;
-  protected final boolean isLineProbe;
   protected final LabelNode methodEnterLabel;
   protected int localVarBaseOffset;
   protected int argOffset;
@@ -63,8 +61,6 @@ public abstract class Instrumentor {
     this.classFileLines = methodInfo.getClassFileLines();
     this.diagnostics = diagnostics;
     this.probeIds = probeIds;
-    Where.SourceLine[] sourceLines = definition.getWhere().getSourceLines();
-    isLineProbe = sourceLines != null && sourceLines.length > 0;
     isStatic = (methodNode.access & Opcodes.ACC_STATIC) != 0;
     methodEnterLabel = insertMethodEnterLabel();
     argOffset = isStatic ? 0 : 1;
