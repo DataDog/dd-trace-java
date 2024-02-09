@@ -40,7 +40,7 @@ public class ReflectionController {
       Field field = String.class.getField(fieldName);
       return "String Method: " + field.getName();
     } catch (NoSuchFieldException e) {
-      return "NoSuchMethodException";
+      return "NoSuchFieldException";
     }
   }
 }
