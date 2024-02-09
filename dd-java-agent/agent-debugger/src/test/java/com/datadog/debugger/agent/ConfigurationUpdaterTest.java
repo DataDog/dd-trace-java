@@ -21,6 +21,7 @@ import com.datadog.debugger.probe.ProbeDefinition;
 import com.datadog.debugger.probe.SpanProbe;
 import com.datadog.debugger.sink.DebuggerSink;
 import com.datadog.debugger.sink.ProbeStatusSink;
+import com.datadog.debugger.util.ClassNameFiltering;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.debugger.ProbeId;
 import datadog.trace.bootstrap.debugger.ProbeImplementation;
@@ -331,7 +332,7 @@ public class ConfigurationUpdaterTest {
             tracerConfig,
             debuggerSinkWithMockStatusSink,
             new ClassesToRetransformFinder(),
-            new ExceptionProbeManager());
+            new ExceptionProbeManager(new ClassNameFiltering(emptyList())));
     LogProbe probe1 =
         LogProbe.builder()
             .language(LANGUAGE)
@@ -629,6 +630,6 @@ public class ConfigurationUpdaterTest {
         tracerConfig,
         sink,
         new ClassesToRetransformFinder(),
-        new ExceptionProbeManager());
+        new ExceptionProbeManager(new ClassNameFiltering(emptyList())));
   }
 }

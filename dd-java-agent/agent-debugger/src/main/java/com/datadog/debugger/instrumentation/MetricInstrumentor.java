@@ -93,7 +93,7 @@ public class MetricInstrumentor extends Instrumentor {
 
   @Override
   public InstrumentationResult.Status instrument() {
-    if (isLineProbe) {
+    if (definition.isLineProbe()) {
       return addLineMetric(classFileLines);
     }
     switch (definition.getEvaluateAt()) {

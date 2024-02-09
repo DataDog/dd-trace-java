@@ -22,7 +22,7 @@ import com.datadog.debugger.probe.SpanProbe;
 import com.datadog.debugger.probe.Where;
 import com.datadog.debugger.sink.DebuggerSink;
 import com.datadog.debugger.sink.ProbeStatusSink;
-import com.datadog.debugger.sink.Snapshot;
+import com.datadog.debugger.util.TestSnapshotListener;
 import datadog.trace.api.Config;
 import datadog.trace.api.GlobalTracer;
 import datadog.trace.api.Tracer;
@@ -69,27 +69,6 @@ public class DebuggerTransformerTest {
     NONE,
     UNHANDLED,
     HANDLED
-  }
-
-  static class TestSnapshotListener extends DebuggerSink {
-    boolean skipped;
-    DebuggerContext.SkipCause cause;
-    List<Snapshot> snapshots = new ArrayList<>();
-
-    public TestSnapshotListener(Config config, ProbeStatusSink probeStatusSink) {
-      super(config, probeStatusSink);
-    }
-
-    @Override
-    public void skipSnapshot(String probeId, DebuggerContext.SkipCause cause) {
-      skipped = true;
-      this.cause = cause;
-    }
-
-    @Override
-    public void addSnapshot(Snapshot snapshot) {
-      snapshots.add(snapshot);
-    }
   }
 
   static final String VAR_NAME = "var";
