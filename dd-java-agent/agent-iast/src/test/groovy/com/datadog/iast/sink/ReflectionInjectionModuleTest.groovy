@@ -10,6 +10,11 @@ import datadog.trace.api.iast.sink.ReflectionInjectionModule
 import static com.datadog.iast.taint.TaintUtils.addFromTaintFormat
 import static com.datadog.iast.taint.TaintUtils.taintFormat
 import static datadog.trace.api.iast.VulnerabilityMarks.NOT_MARKED
+import static datadog.trace.api.iast.VulnerabilityMarks.NOT_MARKED
+import static datadog.trace.api.iast.VulnerabilityMarks.NOT_MARKED
+import static datadog.trace.api.iast.VulnerabilityMarks.NOT_MARKED
+import static datadog.trace.api.iast.VulnerabilityMarks.NOT_MARKED
+import static datadog.trace.api.iast.VulnerabilityMarks.NOT_MARKED
 
 class ReflectionInjectionModuleTest extends IastModuleImplTestBase {
 
