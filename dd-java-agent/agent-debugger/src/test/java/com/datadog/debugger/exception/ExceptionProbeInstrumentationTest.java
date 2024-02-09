@@ -60,7 +60,7 @@ public class ExceptionProbeInstrumentationTest {
   }
 
   @Test
-  public void noException() throws Exception {
+  public void onlyInstrument() throws Exception {
     Config config = createConfig();
     ExceptionProbeManager exceptionProbeManager = new ExceptionProbeManager(classNameFiltering);
     TestSnapshotListener listener =
@@ -74,7 +74,7 @@ public class ExceptionProbeInstrumentationTest {
   }
 
   @Test
-  public void basic() throws Exception {
+  public void instrumentAndCaptureSnapshots() throws Exception {
     Config config = createConfig();
     ExceptionProbeManager exceptionProbeManager = new ExceptionProbeManager(classNameFiltering);
     TestSnapshotListener listener =
