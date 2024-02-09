@@ -141,9 +141,28 @@ tasks.named('shadowJar').configure {
   dependencies deps.excludeShared
 }
 
+tasks.register('generateInstrumenterIndex', JavaExec) {
+  // temporary config to add slf4j-simple so we get logging from instrumenters while indexing
+  def slf4jSimple = project.configurations.maybeCreate('slf4j-simple')
+  project.dependencies.add('slf4j-simple', "org.slf4j:slf4j-simple:${versions.slf4j}")
+
+  def resourcesDir = "${sourceSets.main.output.resourcesDir}"
+  def indexFile = "${resourcesDir}/instrumenter.index"
+
+  it.group = 'Build'
+  it.description = "Generate instrumenter.index"
+  it.mainClass = 'datadog.trace.agent.tooling.InstrumenterIndex$IndexGenerator'
+  it.classpath = project.configurations.runtimeClasspath + slf4jSimple
+  it.inputs.files(it.classpath)
+  it.outputs.files(indexFile)
+  it.args = [resourcesDir]
+
+  dependsOn 'processResources'
+}
+
 tasks.register('generateKnownTypesIndex', JavaExec) {
   // temporary config to add slf4j-simple so we get logging from instrumenters while indexing
-  def slf4jSimple = project.configurations.create('slf4j-simple')
+  def slf4jSimple = project.configurations.maybeCreate('slf4j-simple')
   project.dependencies.add('slf4j-simple', "org.slf4j:slf4j-simple:${versions.slf4j}")
 
   def resourcesDir = "${sourceSets.main.output.resourcesDir}"
@@ -160,4 +179,4 @@ tasks.register('generateKnownTypesIndex', JavaExec) {
   dependsOn 'processResources'
 }
 
-shadowJar.dependsOn 'generateKnownTypesIndex'
+shadowJar.dependsOn 'generateInstrumenterIndex', 'generateKnownTypesIndex'

@@ -69,6 +69,11 @@ public abstract class InstrumenterModule implements Instrumenter {
     enabled = InstrumenterConfig.get().isIntegrationEnabled(instrumentationNames, defaultEnabled());
   }
 
+  /** Modules with higher order values are applied <i>after</i> those with lower values. */
+  public int order() {
+    return 0;
+  }
+
   public int instrumentationId() {
     return instrumentationId;
   }
