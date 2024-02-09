@@ -36,7 +36,7 @@ class AkkaExecutorInstrumentationTest extends AgentTestRunner {
   @Shared
   def akkaInvokeForkJoinTask = { e, c -> e.invoke((ForkJoinTask) c) }
 
-  def "#poolImpl '#name' propagates"() {
+  def "#poolName '#name' propagates"() {
     setup:
     def pool = poolImpl
     def m = method
@@ -88,6 +88,8 @@ class AkkaExecutorInstrumentationTest extends AgentTestRunner {
     "submit Callable"      | submitCallable          | new ForkJoinExecutorConfigurator.AkkaForkJoinPool(2, ForkJoinPool.defaultForkJoinWorkerThreadFactory, null, true)
     "submit ForkJoinTask"  | akkaSubmitForkJoinTask  | new ForkJoinExecutorConfigurator.AkkaForkJoinPool(2, ForkJoinPool.defaultForkJoinWorkerThreadFactory, null, true)
     "invoke ForkJoinTask"  | akkaInvokeForkJoinTask  | new ForkJoinExecutorConfigurator.AkkaForkJoinPool(2, ForkJoinPool.defaultForkJoinWorkerThreadFactory, null, true)
+
+    poolName = poolImpl.class.simpleName
   }
 
   def "dispatcher propagates context" () {
@@ -119,7 +121,7 @@ class AkkaExecutorInstrumentationTest extends AgentTestRunner {
     trace.get(1).parentId == trace.get(0).spanId
   }
 
-  def "#poolImpl '#name' reports after canceled jobs"() {
+  def "#poolName '#name' reports after canceled jobs"() {
     setup:
     def pool = poolImpl
     def m = method
@@ -170,5 +172,6 @@ class AkkaExecutorInstrumentationTest extends AgentTestRunner {
     name              | method         | poolImpl
     "submit Runnable" | submitRunnable | new ForkJoinPool()
     "submit Callable" | submitCallable | new ForkJoinPool()
+    poolName = poolImpl.class.simpleName
   }
 }
