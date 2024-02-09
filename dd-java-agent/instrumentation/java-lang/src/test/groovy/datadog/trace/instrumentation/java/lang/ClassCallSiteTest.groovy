@@ -12,7 +12,7 @@ class ClassCallSiteTest extends AgentTestRunner {
     injectSysConfig('dd.iast.enabled', 'true')
   }
 
-  void 'test reflection'() {
+  void 'test onClassName'() {
     setup:
     final module = Mock(ReflectionInjectionModule)
     InstrumentationBridge.registerIastModule(module)
@@ -21,14 +21,31 @@ class ClassCallSiteTest extends AgentTestRunner {
     TestClassSuite.&"$method".call(args.toArray())
 
     then:
-    1 * module.onReflection(args[0])
+    1 * module.onClassName(args[0])
 
     where:
     method | args
     'forName' | ['java.lang.String']
     'forName' | ['java.lang.String', true, ClassLoader.getSystemClassLoader()]
-    'getMethod' | ['contains', String, CharSequence]
-    'getDeclaredMethod' | ['contains', String, CharSequence]
+  }
+
+  void 'test onMethodName'() {
+    setup:
+    final module = Mock(ReflectionInjectionModule)
+    InstrumentationBridge.registerIastModule(module)
+
+    when:
+    TestClassSuite.&"$method".call(args.toArray())
+
+    then:
+    1 * module.onMethodName(args[0], args[1], args[2])
+
+    where:
+
+    where:
+    method | args
+    'getMethod' | [String, 'contains', CharSequence]
+    'getDeclaredMethod' | [String, 'contains', CharSequence]
   }
 }
 

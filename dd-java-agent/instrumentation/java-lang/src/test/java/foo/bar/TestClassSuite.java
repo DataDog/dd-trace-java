@@ -24,7 +24,7 @@ public class TestClassSuite {
   }
 
   public static Method getMethod(
-      final String method, final Class clazz, final Class<?>... parameterTypes)
+      final Class clazz, final String method, final Class<?>... parameterTypes)
       throws NoSuchMethodException {
     LOGGER.debug("Before getMethod");
     final Method result = clazz.getMethod(method, parameterTypes);
@@ -33,7 +33,7 @@ public class TestClassSuite {
   }
 
   public static Method getDeclaredMethod(
-      final String method, final Class clazz, final Class<?>... parameterTypes)
+      final Class clazz, final String method, final Class<?>... parameterTypes)
       throws NoSuchMethodException {
     LOGGER.debug("Before getDeclaredMethod");
     final Method result = clazz.getDeclaredMethod(method, parameterTypes);
