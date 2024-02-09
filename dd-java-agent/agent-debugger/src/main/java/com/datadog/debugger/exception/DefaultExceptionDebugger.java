@@ -1,5 +1,7 @@
 package com.datadog.debugger.exception;
 
+import static com.datadog.debugger.agent.DebuggerProductChangesListener.ConfigurationAcceptor.Source.EXCEPTION;
+
 import com.datadog.debugger.agent.ConfigurationUpdater;
 import com.datadog.debugger.util.ClassNameFiltering;
 import datadog.trace.bootstrap.debugger.DebuggerContext;
@@ -17,6 +19,11 @@ public class DefaultExceptionDebugger implements DebuggerContext.ExceptionDebugg
   private final ClassNameFiltering classNameFiltering;
 
   public DefaultExceptionDebugger(
+      ConfigurationUpdater configurationUpdater, ClassNameFiltering classNameFiltering) {
+    this(new ExceptionProbeManager(classNameFiltering), configurationUpdater, classNameFiltering);
+  }
+
+  DefaultExceptionDebugger(
       ExceptionProbeManager exceptionProbeManager,
       ConfigurationUpdater configurationUpdater,
       ClassNameFiltering classNameFiltering) {
@@ -36,7 +43,12 @@ public class DefaultExceptionDebugger implements DebuggerContext.ExceptionDebugg
       // TODO trigger send snapshots already captured
     } else {
       exceptionProbeManager.createProbesForException(fingerprint, t.getStackTrace());
-      configurationUpdater.reapplyCurrentConfig();
+      // TODO make it async
+      configurationUpdater.accept(EXCEPTION, exceptionProbeManager.getProbes());
     }
+  }
+
+  ExceptionProbeManager getExceptionProbeManager() {
+    return exceptionProbeManager;
   }
 }

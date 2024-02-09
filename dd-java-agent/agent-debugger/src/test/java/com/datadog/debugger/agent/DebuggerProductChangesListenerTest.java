@@ -1,20 +1,30 @@
 package com.datadog.debugger.agent;
 
+import static com.datadog.debugger.agent.DebuggerProductChangesListener.MAX_ALLOWED_LOG_PROBES;
+import static com.datadog.debugger.agent.DebuggerProductChangesListener.MAX_ALLOWED_METRIC_PROBES;
+import static com.datadog.debugger.agent.DebuggerProductChangesListener.MAX_ALLOWED_SPAN_DECORATION_PROBES;
+import static com.datadog.debugger.agent.DebuggerProductChangesListener.MAX_ALLOWED_SPAN_PROBES;
 import static com.datadog.debugger.util.LogProbeTestHelper.parseTemplate;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
-import static org.junit.jupiter.api.Assertions.assertNotSame;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.lenient;
 
 import com.datadog.debugger.probe.LogProbe;
 import com.datadog.debugger.probe.MetricProbe;
+import com.datadog.debugger.probe.ProbeDefinition;
+import com.datadog.debugger.probe.SpanDecorationProbe;
 import com.datadog.debugger.probe.SpanProbe;
 import datadog.remoteconfig.ConfigurationChangesListener;
 import datadog.remoteconfig.state.ParsedConfigKey;
 import datadog.trace.api.Config;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.UUID;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
@@ -33,15 +43,15 @@ public class DebuggerProductChangesListenerTest {
       new ConfigurationChangesListener.PollingHinterNoop();
 
   class SimpleAcceptor implements DebuggerProductChangesListener.ConfigurationAcceptor {
-    private Configuration configuration;
+    private Collection<? extends ProbeDefinition> definitions;
 
     @Override
-    public void accept(Configuration configuration) {
-      this.configuration = configuration;
+    public void accept(Source source, Collection<? extends ProbeDefinition> definitions) {
+      this.definitions = definitions;
     }
 
-    public Configuration getConfiguration() {
-      return configuration;
+    public Collection<? extends ProbeDefinition> getDefinitions() {
+      return definitions;
     }
   }
 
@@ -52,14 +62,13 @@ public class DebuggerProductChangesListenerTest {
 
   @Test
   public void testNoConfiguration() {
-    Configuration emptyConfig = Configuration.builder().setService(SERVICE_NAME).build();
     SimpleAcceptor acceptor = new SimpleAcceptor();
 
     DebuggerProductChangesListener listener =
         new DebuggerProductChangesListener(tracerConfig, acceptor);
     listener.commit(pollingHinter);
 
-    Assertions.assertEquals(emptyConfig, acceptor.getConfiguration());
+    assertTrue(acceptor.getDefinitions().isEmpty());
   }
 
   @Test
@@ -78,7 +87,7 @@ public class DebuggerProductChangesListenerTest {
     acceptConfig(listener, config, UUID.randomUUID().toString());
     listener.commit(pollingHinter);
 
-    Assertions.assertEquals(config, acceptor.getConfiguration());
+    assertEquals(config.getDefinitions(), acceptor.getDefinitions());
   }
 
   @Test
@@ -102,8 +111,7 @@ public class DebuggerProductChangesListenerTest {
 
     listener.commit(pollingHinter);
 
-    Assertions.assertEquals(
-        Configuration.builder().setService(SERVICE_NAME).build(), acceptor.getConfiguration());
+    assertTrue(acceptor.getDefinitions().isEmpty());
   }
 
   @Test
@@ -119,43 +127,27 @@ public class DebuggerProductChangesListenerTest {
 
     acceptMetricProbe(listener, metricProbe);
     listener.commit(pollingHinter);
-    Assertions.assertEquals(
-        Configuration.builder().setService(SERVICE_NAME).add(metricProbe).build(),
-        acceptor.getConfiguration());
+    assertDefinitions(acceptor.getDefinitions(), metricProbe);
 
     acceptLogProbe(listener, logProbe);
     listener.commit(pollingHinter);
-    Assertions.assertEquals(
-        Configuration.builder().setService(SERVICE_NAME).add(metricProbe).add(logProbe).build(),
-        acceptor.getConfiguration());
+    assertDefinitions(acceptor.getDefinitions(), metricProbe, logProbe);
 
     acceptSpanProbe(listener, spanProbe);
     listener.commit(pollingHinter);
-    Assertions.assertEquals(
-        Configuration.builder()
-            .setService(SERVICE_NAME)
-            .add(metricProbe)
-            .add(logProbe)
-            .add(spanProbe)
-            .build(),
-        acceptor.getConfiguration());
+    assertDefinitions(acceptor.getDefinitions(), metricProbe, logProbe, spanProbe);
 
     removeMetricProbe(listener, metricProbe);
     listener.commit(pollingHinter);
-    Assertions.assertEquals(
-        Configuration.builder().setService(SERVICE_NAME).add(logProbe).add(spanProbe).build(),
-        acceptor.getConfiguration());
+    assertDefinitions(acceptor.getDefinitions(), logProbe, spanProbe);
 
     removeLogProbe(listener, logProbe);
     listener.commit(pollingHinter);
-    Assertions.assertEquals(
-        Configuration.builder().setService(SERVICE_NAME).add(spanProbe).build(),
-        acceptor.getConfiguration());
+    assertDefinitions(acceptor.getDefinitions(), spanProbe);
 
     removeSpanProbe(listener, spanProbe);
     listener.commit(pollingHinter);
-    Assertions.assertEquals(
-        Configuration.builder().setService(SERVICE_NAME).build(), acceptor.getConfiguration());
+    assertTrue(acceptor.getDefinitions().isEmpty());
   }
 
   @Test
@@ -183,14 +175,8 @@ public class DebuggerProductChangesListenerTest {
     acceptLogProbe(listener, logProbeWithSnapshot);
     acceptConfig(listener, config, UUID.randomUUID().toString());
     listener.commit(pollingHinter);
-    Configuration expectedConfig =
-        Configuration.builder().add(config).add(logProbeWithSnapshot).build();
-    Assertions.assertEquals(expectedConfig.getService(), acceptor.getConfiguration().getService());
-    Assertions.assertEquals(
-        expectedConfig.getMetricProbes(), acceptor.getConfiguration().getMetricProbes());
-    Assertions.assertTrue(
-        acceptor.getConfiguration().getLogProbes().contains(logProbeWithSnapshot));
-    Assertions.assertTrue(acceptor.getConfiguration().getLogProbes().contains(logProbe));
+    assertDefinitions(
+        acceptor.getDefinitions(), logProbeWithSnapshot, metricProbe, logProbe, spanProbe);
   }
 
   @Test
@@ -199,21 +185,82 @@ public class DebuggerProductChangesListenerTest {
     DebuggerProductChangesListener listener =
         new DebuggerProductChangesListener(tracerConfig, acceptor);
     listener.accept(createConfigKey("bad-config-id"), null, pollingHinter);
-    assertNull(acceptor.configuration);
+    assertNull(acceptor.definitions);
   }
 
   @Test
-  public void createNewInstancesForLogProbe() {
+  public void maxLogProbes() {
     SimpleAcceptor acceptor = new SimpleAcceptor();
     DebuggerProductChangesListener listener =
         new DebuggerProductChangesListener(tracerConfig, acceptor);
-    LogProbe logProbe = createLogProbe(UUID.randomUUID().toString());
-    acceptLogProbe(listener, logProbe);
+    for (int i = 0; i < 200; i++) {
+      LogProbe probe =
+          LogProbe.builder()
+              .probeId(String.valueOf(i), 0)
+              .where("java.lang.String", "concat" + i)
+              .build();
+      acceptLogProbe(listener, probe);
+    }
     listener.commit(pollingHinter);
-    LogProbe receivedProbe = acceptor.getConfiguration().getLogProbes().iterator().next();
+    assertEquals(MAX_ALLOWED_LOG_PROBES, acceptor.getDefinitions().size());
+  }
+
+  @Test
+  public void maxMetricProbes() {
+    SimpleAcceptor acceptor = new SimpleAcceptor();
+    DebuggerProductChangesListener listener =
+        new DebuggerProductChangesListener(tracerConfig, acceptor);
+    for (int i = 0; i < 200; i++) {
+      MetricProbe probe =
+          MetricProbe.builder()
+              .probeId(String.valueOf(i), 0)
+              .where("java.lang.String", "concat" + i)
+              .build();
+      acceptMetricProbe(listener, probe);
+    }
     listener.commit(pollingHinter);
-    LogProbe receivedProbe2 = acceptor.getConfiguration().getLogProbes().iterator().next();
-    assertNotSame(receivedProbe, receivedProbe2);
+    assertEquals(MAX_ALLOWED_METRIC_PROBES, acceptor.getDefinitions().size());
+  }
+
+  @Test
+  public void maxSpanProbes() {
+    SimpleAcceptor acceptor = new SimpleAcceptor();
+    DebuggerProductChangesListener listener =
+        new DebuggerProductChangesListener(tracerConfig, acceptor);
+    for (int i = 0; i < 200; i++) {
+      SpanProbe probe =
+          SpanProbe.builder()
+              .probeId(String.valueOf(i), 0)
+              .where("java.lang.String", "concat" + i)
+              .build();
+      acceptSpanProbe(listener, probe);
+    }
+    listener.commit(pollingHinter);
+    assertEquals(MAX_ALLOWED_SPAN_PROBES, acceptor.getDefinitions().size());
+  }
+
+  @Test
+  public void maxSpanDecorationProbes() {
+    SimpleAcceptor acceptor = new SimpleAcceptor();
+    DebuggerProductChangesListener listener =
+        new DebuggerProductChangesListener(tracerConfig, acceptor);
+    for (int i = 0; i < 200; i++) {
+      SpanDecorationProbe probe =
+          SpanDecorationProbe.builder()
+              .probeId(String.valueOf(i), 0)
+              .where("java.lang.String", "concat" + i)
+              .build();
+      acceptSpanDecorationProbe(listener, probe);
+    }
+    listener.commit(pollingHinter);
+    assertEquals(MAX_ALLOWED_SPAN_DECORATION_PROBES, acceptor.getDefinitions().size());
+  }
+
+  private void assertDefinitions(
+      Collection<? extends ProbeDefinition> actualDefinitions,
+      ProbeDefinition... expectedDefinitions) {
+    assertEquals(
+        new HashSet<>(Arrays.asList(expectedDefinitions)), new HashSet<>(actualDefinitions));
   }
 
   byte[] toContent(Configuration configuration) {
@@ -236,6 +283,12 @@ public class DebuggerProductChangesListenerTest {
 
   byte[] toContent(SpanProbe probe) {
     return DebuggerProductChangesListener.Adapter.SPAN_PROBE_JSON_ADAPTER
+        .toJson(probe)
+        .getBytes(StandardCharsets.UTF_8);
+  }
+
+  byte[] toContent(SpanDecorationProbe probe) {
+    return DebuggerProductChangesListener.Adapter.SPAN_DECORATION_PROBE_JSON_ADAPTER
         .toJson(probe)
         .getBytes(StandardCharsets.UTF_8);
   }
@@ -275,6 +328,16 @@ public class DebuggerProductChangesListenerTest {
         () ->
             listener.accept(
                 createConfigKey("spanProbe_" + probe.getId()), toContent(probe), pollingHinter));
+  }
+
+  void acceptSpanDecorationProbe(
+      DebuggerProductChangesListener listener, SpanDecorationProbe probe) {
+    assertDoesNotThrow(
+        () ->
+            listener.accept(
+                createConfigKey("spanDecorationProbe_" + probe.getId()),
+                toContent(probe),
+                pollingHinter));
   }
 
   void removeSpanProbe(DebuggerProductChangesListener listener, SpanProbe probe) {
