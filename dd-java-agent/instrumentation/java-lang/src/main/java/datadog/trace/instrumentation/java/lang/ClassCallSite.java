@@ -16,11 +16,11 @@ public class ClassCallSite {
   @CallSite.Before("java.lang.Class java.lang.Class.forName(java.lang.String)")
   @CallSite.Before(
       "java.lang.Class java.lang.Class.forName(java.lang.String, boolean, java.lang.ClassLoader)")
-  public static void beforeClassReflection(@CallSite.AllArguments @Nonnull final Object[] params) {
+  public static void beforeClassReflection(@CallSite.Argument(0) @Nonnull final String className) {
     final ReflectionInjectionModule module = InstrumentationBridge.REFLECTION_INJECTION;
     if (module != null) {
       try {
-        module.onClassName((String) params[0]);
+        module.onClassName(className);
       } catch (Throwable e) {
         module.onUnexpectedException("before class reflection threw", e);
       }
