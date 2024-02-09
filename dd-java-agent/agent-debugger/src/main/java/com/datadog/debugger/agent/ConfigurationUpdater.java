@@ -2,14 +2,9 @@ package com.datadog.debugger.agent;
 
 import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
 
-import com.datadog.debugger.exception.ExceptionProbeManager;
 import com.datadog.debugger.instrumentation.InstrumentationResult;
-import com.datadog.debugger.probe.ExceptionProbe;
 import com.datadog.debugger.probe.LogProbe;
-import com.datadog.debugger.probe.MetricProbe;
 import com.datadog.debugger.probe.ProbeDefinition;
-import com.datadog.debugger.probe.SpanDecorationProbe;
-import com.datadog.debugger.probe.SpanProbe;
 import com.datadog.debugger.sink.DebuggerSink;
 import com.datadog.debugger.util.ExceptionHelper;
 import datadog.trace.api.Config;
@@ -20,6 +15,7 @@ import datadog.trace.util.TagsHelper;
 import java.lang.instrument.Instrumentation;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -37,11 +33,6 @@ import org.slf4j.LoggerFactory;
 public class ConfigurationUpdater
     implements DebuggerContext.ProbeResolver, DebuggerProductChangesListener.ConfigurationAcceptor {
 
-  public static final int MAX_ALLOWED_METRIC_PROBES = 100;
-  public static final int MAX_ALLOWED_LOG_PROBES = 100;
-  private static final int MAX_ALLOWED_SPAN_PROBES = 100;
-  private static final int MAX_ALLOWED_SPAN_DECORATION_PROBES = 100;
-
   public interface TransformerSupplier {
     DebuggerTransformer supply(
         Config tracerConfig,
@@ -55,12 +46,13 @@ public class ConfigurationUpdater
   private final Instrumentation instrumentation;
   private final TransformerSupplier transformerSupplier;
   private final Lock configurationLock = new ReentrantLock();
+  private final EnumMap<Source, Collection<? extends ProbeDefinition>> definitionSources =
+      new EnumMap<>(Source.class);
   private volatile Configuration currentConfiguration;
   private DebuggerTransformer currentTransformer;
   private final Map<String, ProbeDefinition> appliedDefinitions = new ConcurrentHashMap<>();
   private final DebuggerSink sink;
   private final ClassesToRetransformFinder finder;
-  private final ExceptionProbeManager exceptionProbeManager;
   private final String serviceName;
   private final Map<String, InstrumentationResult> instrumentationResults =
       new ConcurrentHashMap<>();
@@ -70,40 +62,27 @@ public class ConfigurationUpdater
       TransformerSupplier transformerSupplier,
       Config config,
       DebuggerSink sink,
-      ClassesToRetransformFinder finder,
-      ExceptionProbeManager exceptionProbeManager) {
+      ClassesToRetransformFinder finder) {
     this.instrumentation = instrumentation;
     this.transformerSupplier = transformerSupplier;
     this.serviceName = TagsHelper.sanitize(config.getServiceName());
     this.sink = sink;
     this.finder = finder;
-    this.exceptionProbeManager = exceptionProbeManager;
   }
 
   // /!\ Can be called by different threads and concurrently /!\
   // Should throw a runtime exception if there is a problem. The message of
   // the exception will be reported in the next request to the conf service
-  public void accept(Configuration configuration) {
+  public void accept(Source source, Collection<? extends ProbeDefinition> definitions) {
     try {
-      // handle null configuration
-      if (configuration == null) {
-        LOGGER.debug("Configuration is null, applying empty configuration with no probes");
-        applyNewConfiguration(createEmptyConfiguration());
-        return;
-      }
-      // apply new configuration
-      Configuration newConfiguration =
-          applyFiltersAndAddExceptionProbes(configuration, exceptionProbeManager.getProbes());
+      LOGGER.debug("Received new definitions from {}", source);
+      definitionSources.put(source, definitions);
+      Configuration newConfiguration = createConfiguration(definitionSources);
       applyNewConfiguration(newConfiguration);
     } catch (RuntimeException e) {
       ExceptionHelper.logException(LOGGER, e, "Error during accepting new debugger configuration:");
       throw e;
     }
-  }
-
-  public void reapplyCurrentConfig() {
-    // TODO make it assync
-    accept(currentConfiguration);
   }
 
   private void applyNewConfiguration(Configuration newConfiguration) {
@@ -128,27 +107,13 @@ public class ConfigurationUpdater
     }
   }
 
-  private Configuration applyFiltersAndAddExceptionProbes(
-      Configuration configuration, Collection<ExceptionProbe> exceptionProbes) {
-    Collection<LogProbe> logProbes =
-        filterProbes(configuration::getLogProbes, MAX_ALLOWED_LOG_PROBES);
-    Collection<MetricProbe> metricProbes =
-        filterProbes(configuration::getMetricProbes, MAX_ALLOWED_METRIC_PROBES);
-    Collection<SpanProbe> spanProbes =
-        filterProbes(configuration::getSpanProbes, MAX_ALLOWED_SPAN_PROBES);
-    Collection<SpanDecorationProbe> spanDecorationProbes =
-        filterProbes(configuration::getSpanDecorationProbes, MAX_ALLOWED_SPAN_DECORATION_PROBES);
-    return Configuration.builder()
-        .addLogProbes(logProbes)
-        .addExceptionProbes(exceptionProbes)
-        .addMetricProbes(metricProbes)
-        .addSpanProbes(spanProbes)
-        .addSpanDecorationProbes(spanDecorationProbes)
-        .addAllowList(configuration.getAllowList())
-        .addDenyList(configuration.getDenyList())
-        .setSampling(configuration.getSampling())
-        .setService(configuration.getService())
-        .build();
+  private Configuration createConfiguration(
+      EnumMap<Source, Collection<? extends ProbeDefinition>> sources) {
+    Configuration.Builder builder = Configuration.builder();
+    for (Collection<? extends ProbeDefinition> definitions : sources.values()) {
+      builder.add(definitions);
+    }
+    return builder.build();
   }
 
   private <E extends ProbeDefinition> Collection<E> filterProbes(
