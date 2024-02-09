@@ -62,6 +62,7 @@ class TelemetryRunnableSpecification extends DDSpecification {
 
     then:
     1 * metricCollector.drain() >> []
+    1 * metricCollector.drainDistributionSeries() >> []
     1 * periodicAction.doIteration(telemetryService)
 
     then: 'two partial and one final telemetry data requests'
@@ -157,6 +158,7 @@ class TelemetryRunnableSpecification extends DDSpecification {
 
     then:
     1 * metricCollector.drain() >> []
+    1 * metricCollector.drainDistributionSeries() >> []
     1 * periodicAction.doIteration(telemetryService)
 
     then:
@@ -187,6 +189,7 @@ class TelemetryRunnableSpecification extends DDSpecification {
     then:
     1 * metricCollector.prepareMetrics()
     1 * metricCollector.drain() >> []
+    1 * metricCollector.drainDistributionSeries() >> []
     1 * periodicAction.doIteration(telemetryService)
     1 * telemetryService.sendTelemetryEvents()
 
