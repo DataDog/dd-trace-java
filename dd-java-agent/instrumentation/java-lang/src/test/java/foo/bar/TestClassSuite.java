@@ -1,5 +1,6 @@
 package foo.bar;
 
+import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -38,6 +39,21 @@ public class TestClassSuite {
     LOGGER.debug("Before getDeclaredMethod");
     final Method result = clazz.getDeclaredMethod(method, parameterTypes);
     LOGGER.debug("After getDeclaredMethod {}", result);
+    return result;
+  }
+
+  public static Field getField(final Class clazz, final String field) throws NoSuchFieldException {
+    LOGGER.debug("Before getField");
+    final Field result = clazz.getField(field);
+    LOGGER.debug("After getField {}", result);
+    return result;
+  }
+
+  public static Field getDeclaredField(final Class clazz, final String field)
+      throws NoSuchFieldException {
+    LOGGER.debug("Before getDeclaredField");
+    final Field result = clazz.getDeclaredField(field);
+    LOGGER.debug("After getDeclaredField {}", result);
     return result;
   }
 }

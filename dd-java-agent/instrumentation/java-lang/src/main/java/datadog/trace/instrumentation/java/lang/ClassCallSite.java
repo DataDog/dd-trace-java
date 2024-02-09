@@ -40,7 +40,22 @@ public class ClassCallSite {
       try {
         module.onMethodName(clazz, methodName, parameterTypes);
       } catch (Throwable e) {
-        module.onUnexpectedException("before class reflection threw", e);
+        module.onUnexpectedException("before method reflection threw", e);
+      }
+    }
+  }
+
+  @CallSite.Before("java.lang.reflect.Field java.lang.Class.getField(java.lang.String)")
+  @CallSite.Before("java.lang.reflect.Field java.lang.Class.getDeclaredField(java.lang.String)")
+  public static void beforeFieldReflection(
+      @CallSite.This @Nonnull final Class clazz,
+      @CallSite.Argument(0) @Nonnull final String fieldName) {
+    final ReflectionInjectionModule module = InstrumentationBridge.REFLECTION_INJECTION;
+    if (module != null) {
+      try {
+        module.onFieldName(clazz, fieldName);
+      } catch (Throwable e) {
+        module.onUnexpectedException("before field reflection threw", e);
       }
     }
   }

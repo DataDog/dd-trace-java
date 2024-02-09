@@ -930,6 +930,19 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
       && vul.location.method == 'reflectionInjectionMethod'}
   }
 
+  void "Check reflection injection getField"() {
+    setup:
+    String url = "http://localhost:${httpPort}/reflection_injection/field?param=hash"
+    def request = new Request.Builder().url(url).get().build()
+
+    when:
+    client.newCall(request).execute()
+
+    then:
+    hasVulnerability { vul -> vul.type == 'REFLECTION_INJECTION'
+      && vul.location.method == 'reflectionInjectionField'}
+  }
+
 
 
 }

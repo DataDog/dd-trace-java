@@ -22,6 +22,11 @@ import javax.annotation.Nullable;
 public class ReflectionInjectionModuleImpl extends SinkModuleBase
     implements ReflectionInjectionModule {
 
+  private final MethodStringEvidenceBuilder METHOD_STRING_EVIDENCE_BUILDER =
+      new MethodStringEvidenceBuilder();
+  private final FieldStringEvidenceBuilder FIELD_STRING_EVIDENCE_BUILDER =
+      new FieldStringEvidenceBuilder();
+
   public ReflectionInjectionModuleImpl(final Dependencies dependencies) {
     super(dependencies);
   }
@@ -41,7 +46,20 @@ public class ReflectionInjectionModuleImpl extends SinkModuleBase
   @Override
   public void onMethodName(
       @Nonnull Class clazz, @Nonnull String methodName, @Nullable Class... parameterTypes) {
-    if (!canBeTainted(methodName)) {
+    checkReflectionInjection(clazz, methodName, METHOD_STRING_EVIDENCE_BUILDER, parameterTypes);
+  }
+
+  @Override
+  public void onFieldName(@Nonnull Class clazz, @Nonnull String fieldName) {
+    checkReflectionInjection(clazz, fieldName, FIELD_STRING_EVIDENCE_BUILDER, null);
+  }
+
+  private void checkReflectionInjection(
+      @Nonnull Class clazz,
+      @Nonnull String name,
+      StringEvidenceBuilder stringEvidenceBuilder,
+      @Nullable Class... parameterTypes) {
+    if (!canBeTainted(name)) {
       return;
     }
     final IastContext ctx = IastContext.Provider.get();
@@ -49,7 +67,7 @@ public class ReflectionInjectionModuleImpl extends SinkModuleBase
       return;
     }
     final TaintedObjects to = ctx.getTaintedObjects();
-    final TaintedObject taintedObject = to.get(methodName);
+    final TaintedObject taintedObject = to.get(name);
     if (null == taintedObject) {
       return;
     }
@@ -64,8 +82,7 @@ public class ReflectionInjectionModuleImpl extends SinkModuleBase
       return;
     }
     final String className = clazz.getName();
-    final String evidenceString =
-        className + "#" + methodName + "(" + getParameterTypesString(parameterTypes) + ")";
+    final String evidenceString = stringEvidenceBuilder.build(clazz, name, parameterTypes);
     final Range[] shiftedRanges = new Range[ranges.length];
     for (int i = 0; i < ranges.length; i++) {
       shiftedRanges[i] = ranges[i].shift(className.length() + 1);
@@ -74,13 +91,34 @@ public class ReflectionInjectionModuleImpl extends SinkModuleBase
     report(span, VulnerabilityType.REFLECTION_INJECTION, result);
   }
 
-  @Nonnull
-  private String getParameterTypesString(@Nullable Class<?>... parameterTypes) {
-    if (parameterTypes == null || parameterTypes.length == 0) {
-      return "";
+  private interface StringEvidenceBuilder {
+    String build(@Nonnull Class clazz, @Nonnull String name, @Nullable Class... parameterTypes);
+  }
+
+  private class MethodStringEvidenceBuilder implements StringEvidenceBuilder {
+
+    @Override
+    public String build(
+        @Nonnull Class clazz, @Nonnull String name, @Nullable Class... parameterTypes) {
+      return clazz.getName() + "#" + name + "(" + getParameterTypesString(parameterTypes) + ")";
     }
-    return Arrays.stream(parameterTypes)
-        .map(clazz -> clazz == null ? "UNKNOWN" : clazz.getName())
-        .collect(Collectors.joining(", "));
+
+    @Nonnull
+    private String getParameterTypesString(@Nullable Class<?>... parameterTypes) {
+      if (parameterTypes == null || parameterTypes.length == 0) {
+        return "";
+      }
+      return Arrays.stream(parameterTypes)
+          .map(clazz -> clazz == null ? "UNKNOWN" : clazz.getName())
+          .collect(Collectors.joining(", "));
+    }
+  }
+
+  private class FieldStringEvidenceBuilder implements StringEvidenceBuilder {
+    @Override
+    public String build(
+        @Nonnull Class clazz, @Nonnull String name, @Nullable Class... parameterTypes) {
+      return clazz.getName() + "#" + name;
+    }
   }
 }

@@ -47,5 +47,22 @@ class ClassCallSiteTest extends AgentTestRunner {
     'getMethod' | [String, 'contains', CharSequence]
     'getDeclaredMethod' | [String, 'contains', CharSequence]
   }
+
+  void 'test onFieldName'() {
+    setup:
+    final module = Mock(ReflectionInjectionModule)
+    InstrumentationBridge.registerIastModule(module)
+
+    when:
+    TestClassSuite.&"$method".call(args.toArray())
+
+    then:
+    1 * module.onFieldName(args[0], args[1])
+
+    where:
+    method | args
+    'getDeclaredField' | [String, 'hash']
+    'getField' | [String, 'CASE_INSENSITIVE_ORDER']
+  }
 }
 

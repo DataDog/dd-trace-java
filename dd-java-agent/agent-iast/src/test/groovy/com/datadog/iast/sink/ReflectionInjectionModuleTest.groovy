@@ -10,6 +10,11 @@ import datadog.trace.api.iast.sink.ReflectionInjectionModule
 import static com.datadog.iast.taint.TaintUtils.addFromTaintFormat
 import static com.datadog.iast.taint.TaintUtils.taintFormat
 import static datadog.trace.api.iast.VulnerabilityMarks.NOT_MARKED
+import static datadog.trace.api.iast.VulnerabilityMarks.NOT_MARKED
+import static datadog.trace.api.iast.VulnerabilityMarks.NOT_MARKED
+import static datadog.trace.api.iast.VulnerabilityMarks.NOT_MARKED
+import static datadog.trace.api.iast.VulnerabilityMarks.NOT_MARKED
+import static datadog.trace.api.iast.VulnerabilityMarks.NOT_MARKED
 
 class ReflectionInjectionModuleTest extends IastModuleImplTestBase {
 
@@ -56,7 +61,6 @@ class ReflectionInjectionModuleTest extends IastModuleImplTestBase {
     when:
     module.onMethodName(String, tainted, parameterTypes)
 
-
     then:
     if (expected != null) {
       1 * reporter.report(_, _) >> { args -> assertVulnerability(args[1] as Vulnerability, expected) }
@@ -73,6 +77,30 @@ class ReflectionInjectionModuleTest extends IastModuleImplTestBase {
     '/==>contains<==' | String          | VulnerabilityMarks.SQL_INJECTION_MARK  | 'java.lang.String#/==>contains<==(java.lang.String)'
     '/==>isEmpty<=='  | null            | NOT_MARKED                             | 'java.lang.String#/==>isEmpty<==()'
     '/==>fake<=='     | [String, null, String] as Class[]  | NOT_MARKED          | 'java.lang.String#/==>fake<==(java.lang.String, UNKNOWN, java.lang.String)'
+  }
+
+  void 'iast module detects reflection injection onFieldName'() {
+    setup:
+    final tainted = mapTainted(value, mark)
+
+    when:
+    module.onFieldName(String, tainted)
+
+
+    then:
+    if (expected != null) {
+      1 * reporter.report(_, _) >> { args -> assertVulnerability(args[1] as Vulnerability, expected) }
+    } else {
+      0 * reporter.report(_, _)
+    }
+
+    where:
+    value        | parameterTypes  | mark                                   | expected
+    null         | null            | NOT_MARKED                             | null
+    '/var'       | String          | NOT_MARKED                             | null
+    '/==>var<==' | String          | NOT_MARKED                             | 'java.lang.String#/==>var<=='
+    '/==>var<==' | String          | VulnerabilityMarks.REFLECTION_INJECTION_MARK | null
+    '/==>var<==' | String          | VulnerabilityMarks.SQL_INJECTION_MARK  | 'java.lang.String#/==>var<=='
   }
 
   private String mapTainted(final String value, int mark) {

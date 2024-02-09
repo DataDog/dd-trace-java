@@ -9,4 +9,6 @@ public interface ReflectionInjectionModule extends IastModule {
 
   void onMethodName(
       @Nonnull Class clazz, @Nonnull String methodName, @Nullable Class... parameterTypes);
+
+  void onFieldName(@Nonnull Class clazz, @Nonnull String fieldName);
 }
