@@ -4,11 +4,11 @@ import datadog.trace.api.civisibility.coverage.CoverageProbeStore;
 import datadog.trace.api.civisibility.coverage.TestReport;
 import datadog.trace.api.civisibility.coverage.TestReportFileEntry;
 import datadog.trace.civisibility.source.SourcePathResolver;
+import it.unimi.dsi.fastutil.objects.ReferenceOpenHashSet;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
-import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -26,15 +26,15 @@ public class SegmentlessTestProbes implements CoverageProbeStore {
   // and in this thread we do not need to synchronize access
   private final Thread testThread = Thread.currentThread();
   private volatile Class<?> lastCoveredClass;
-  private final Map<Class<?>, Class<?>> coveredClasses;
-  private final Map<Thread, Map<Class<?>, Class<?>>> concurrentCoveredClasses;
+  private final Set<Class<?>> coveredClasses;
+  private final Map<Thread, Set<Class<?>>> concurrentCoveredClasses;
   private final Collection<String> nonCodeResources;
   private final SourcePathResolver sourcePathResolver;
   private volatile TestReport testReport;
 
   SegmentlessTestProbes(SourcePathResolver sourcePathResolver) {
     this.sourcePathResolver = sourcePathResolver;
-    coveredClasses = new IdentityHashMap<>();
+    coveredClasses = new ReferenceOpenHashSet<>(16, ReferenceOpenHashSet.FAST_LOAD_FACTOR);
     concurrentCoveredClasses = new ConcurrentHashMap<>();
     nonCodeResources = new ConcurrentLinkedQueue<>();
   }
@@ -49,12 +49,15 @@ public class SegmentlessTestProbes implements CoverageProbeStore {
     if (clazz != lastCoveredClass) {
       Thread currentThread = Thread.currentThread();
       if (currentThread == testThread) {
-        coveredClasses.put(lastCoveredClass, null);
+        coveredClasses.add(lastCoveredClass);
         lastCoveredClass = clazz;
+
       } else {
         concurrentCoveredClasses
-            .computeIfAbsent(currentThread, t -> new IdentityHashMap<>())
-            .put(clazz, null);
+            .computeIfAbsent(
+                currentThread,
+                t -> new ReferenceOpenHashSet<>(16, ReferenceOpenHashSet.FAST_LOAD_FACTOR))
+            .add(clazz);
       }
     }
   }
@@ -66,18 +69,25 @@ public class SegmentlessTestProbes implements CoverageProbeStore {
 
   @Override
   public void report(Long testSessionId, Long testSuiteId, long spanId) {
-    Map<Class<?>, Class<?>> classes = map(coveredClasses.size() + concurrentCoveredClasses.size());
-    classes.putAll(coveredClasses);
+    Set<Class<?>> classes =
+        new ReferenceOpenHashSet<>(
+            coveredClasses.size()
+                + concurrentCoveredClasses.size()); // FIXME size calculation incorrect
+    classes.addAll(coveredClasses);
 
-    for (Map<Class<?>, Class<?>> threadCoveredClasses : concurrentCoveredClasses.values()) {
-      classes.putAll(threadCoveredClasses);
+    for (Set<Class<?>> threadCoveredClasses : concurrentCoveredClasses.values()) {
+      classes.addAll(threadCoveredClasses);
     }
 
-    classes.put(lastCoveredClass, null);
+    classes.add(lastCoveredClass);
     classes.remove(null);
 
+    if (classes.isEmpty()) {
+      return;
+    }
+
     Set<String> coveredPaths = set(coveredClasses.size() + nonCodeResources.size());
-    for (Class<?> clazz : classes.keySet()) {
+    for (Class<?> clazz : classes) {
       String sourcePath = sourcePathResolver.getSourcePath(clazz);
       if (sourcePath == null) {
         log.debug(
@@ -106,10 +116,6 @@ public class SegmentlessTestProbes implements CoverageProbeStore {
     }
 
     testReport = new TestReport(testSessionId, testSuiteId, spanId, fileEntries);
-  }
-
-  private static <K, V> Map<K, V> map(int size) {
-    return new IdentityHashMap<>(Math.max((int) (size / .75f) + 1, 16));
   }
 
   private static <T> Set<T> set(int size) {

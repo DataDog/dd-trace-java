@@ -102,6 +102,9 @@ dependencies {
   implementation group: 'org.jacoco', name: 'org.jacoco.core', version: '0.8.9'
   implementation group: 'org.jacoco', name: 'org.jacoco.report', version: '0.8.9'
 
+  // FIXME nikita: experiment, do not commit!
+  implementation 'it.unimi.dsi:fastutil:8.5.13'
+
   implementation project(':communication')
   implementation project(':internal-api')
   implementation project(':internal-api:internal-api-9')
