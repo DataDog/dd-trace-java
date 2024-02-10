@@ -23,6 +23,7 @@ import okhttp3.ConnectionPool;
 import okhttp3.ConnectionSpec;
 import okhttp3.Credentials;
 import okhttp3.Dispatcher;
+import okhttp3.EventListener;
 import okhttp3.HttpUrl;
 import okhttp3.MediaType;
 import okhttp3.OkHttpClient;
@@ -100,6 +101,8 @@ public final class OkHttpUtils {
         timeoutMillis);
   }
 
+  public abstract static class CustomListener extends EventListener {}
+
   private static OkHttpClient buildHttpClient(
       final String unixDomainSocketPath,
       final String namedPipe,
@@ -115,6 +118,12 @@ public final class OkHttpUtils {
     final OkHttpClient.Builder builder = new OkHttpClient.Builder();
 
     builder
+        .eventListenerFactory(
+            call -> {
+              Request request = call.request();
+              CustomListener listener = request.tag(CustomListener.class);
+              return listener != null ? listener : EventListener.NONE;
+            })
         .connectTimeout(timeoutMillis, MILLISECONDS)
         .writeTimeout(timeoutMillis, MILLISECONDS)
         .readTimeout(timeoutMillis, MILLISECONDS)
